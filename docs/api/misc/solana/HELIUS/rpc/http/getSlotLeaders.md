@@ -1,0 +1,277 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getSlotLeaders
+
+> Returns the slot leaders for a given slot range.
+
+## Request Parameters
+
+<ParamField body="slot" type="number" required>
+  Starting Solana slot number to begin retrieving the validator schedule from.
+</ParamField>
+
+<ParamField body="slot" type="number" required>
+  Number of consecutive slots to retrieve the scheduled validator identities for (1-5,000).
+</ParamField>
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getSlotLeaders.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Validator schedule projection API for retrieving the upcoming sequence of
+    Solana validators assigned to produce blocks across multiple future slots.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getSlotLeaders
+      description: >
+        Retrieve the ordered sequence of Solana validators scheduled to produce
+        blocks for future slots.
+
+        This predictive consensus API returns the complete validator rotation
+        schedule for an upcoming
+
+        range of slots, allowing applications to forecast which validators will
+        be responsible for block
+
+        production. Essential for network monitoring dashboards, validator
+        performance tracking, consensus
+
+        visualization tools, and applications that need to anticipate the
+        upcoming leader schedule.
+
+        Supports querying up to 5,000 slots in a single request for efficient
+        schedule retrieval.
+      operationId: getSlotLeaders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                jsonrpc:
+                  type: string
+                  enum:
+                    - '2.0'
+                  description: The JSON-RPC protocol version.
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  enum:
+                    - getSlotLeaders
+                  description: The name of the RPC method to invoke.
+                  example: getSlotLeaders
+                  default: getSlotLeaders
+                params:
+                  type: array
+                  description: Parameters for specifying the start slot and limit.
+                  default:
+                    - 100
+                    - 10
+                  items:
+                    oneOf:
+                      - type: integer
+                        description: >-
+                          Starting Solana slot number to begin retrieving the
+                          validator schedule from.
+                        example: 100
+                      - type: integer
+                        description: >-
+                          Number of consecutive slots to retrieve the scheduled
+                          validator identities for (1-5,000).
+                        example: 10
+            examples:
+              example1:
+                $ref: '#/components/examples/getSlotLeadersRequest'
+      responses:
+        '200':
+          description: Successfully retrieved slot leaders.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    type: array
+                    description: >-
+                      Ordered sequence of Solana validator identities scheduled
+                      for upcoming block production.
+                    items:
+                      type: string
+                      description: >-
+                        Solana validator identity (public key) scheduled as
+                        block producer for a specific slot.
+                      example: ChorusmmK7i1AxXeiTtQgQZhQNiXYU84ULeaYF1EH15n
+              examples:
+                example1:
+                  $ref: '#/components/examples/getSlotLeadersResponse'
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  examples:
+    getSlotLeadersRequest:
+      value:
+        jsonrpc: '2.0'
+        id: '1'
+        method: getSlotLeaders
+        params:
+          - 100
+          - 10
+    getSlotLeadersResponse:
+      value:
+        jsonrpc: '2.0'
+        id: '1'
+        result:
+          - ChorusmmK7i1AxXeiTtQgQZhQNiXYU84ULeaYF1EH15n
+          - ChorusmmK7i1AxXeiTtQgQZhQNiXYU84ULeaYF1EH15n
+          - ChorusmmK7i1AxXeiTtQgQZhQNiXYU84ULeaYF1EH15n
+          - ChorusmmK7i1AxXeiTtQgQZhQNiXYU84ULeaYF1EH15n
+          - Awes4Tr6TX8JDzEhCZY2QVNimT6iD1zWHzf1vNyGvpLM
+          - Awes4Tr6TX8JDzEhCZY2QVNimT6iD1zWHzf1vNyGvpLM
+          - Awes4Tr6TX8JDzEhCZY2QVNimT6iD1zWHzf1vNyGvpLM
+          - Awes4Tr6TX8JDzEhCZY2QVNimT6iD1zWHzf1vNyGvpLM
+          - DWvDTSh3qfn88UoQTEKRV2JnLt5jtJAVoiCo3ivtMwXP
+          - DWvDTSh3qfn88UoQTEKRV2JnLt5jtJAVoiCo3ivtMwXP
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

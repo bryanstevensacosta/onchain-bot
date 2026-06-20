@@ -1,0 +1,428 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getProgramAccounts
+
+> Returns all accounts owned by the provided program Pubkey.
+
+<Info>
+  **New Feature**: `getProgramAccounts` now supports the `changedSinceSlot` parameter for incremental updates. When specified, the method returns only accounts that have been modified at or after the given slot number. This is perfect for real-time indexing and data synchronization workflows.
+</Info>
+
+## Request Parameters
+
+<ParamField body="address" type="string" required>
+  The Solana program public key (address) to query accounts for, as a base-58 encoded string.
+</ParamField>
+
+<ParamField body="commitment" type="string">
+  The commitment level for the request.
+
+  * `confirmed`
+  * `finalized`
+  * `processed`
+</ParamField>
+
+<ParamField body="minContextSlot" type="number">
+  The minimum slot that the request can be evaluated at.
+</ParamField>
+
+<ParamField body="withContext" type="boolean">
+  Wrap the result in an RpcResponse JSON object.
+</ParamField>
+
+<ParamField body="encoding" type="string">
+  Encoding format for the returned account data.
+
+  * `jsonParsed`
+  * `base58`
+  * `base64`
+  * `base64+zstd`
+</ParamField>
+
+<ParamField body="dataSlice" type="object">
+  Request a slice of the account's data.
+</ParamField>
+
+<ParamField body="dataSlice.length" type="number">
+  Number of bytes to return.
+</ParamField>
+
+<ParamField body="dataSlice.offset" type="number">
+  Byte offset from which to start reading.
+</ParamField>
+
+<ParamField body="changedSinceSlot" type="number">
+  Only return accounts that were modified at or after this slot number. Useful for incremental updates.
+</ParamField>
+
+<ParamField body="filters" type="array">
+  Powerful filtering system to efficiently query specific Solana account data patterns.
+</ParamField>
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getProgramAccounts.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Advanced Solana program account indexing API for querying and filtering
+    accounts owned by specific programs with powerful data filtering
+    capabilities.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getProgramAccounts
+      description: >
+        Retrieve all accounts owned by a specific Solana program with powerful
+        filtering capabilities.
+
+        This essential API enables developers to efficiently query on-chain data
+        structures used by
+
+        any program, with advanced filtering by account size, memory contents,
+        and other criteria.
+
+        Perfect for indexing NFT collections, DEX liquidity pools, lending
+        positions, governance proposals,
+
+        and other protocol-specific data stored on the Solana blockchain.
+        Supports multiple data encoding
+
+        formats for optimal parsing efficiency.
+      operationId: getProgramAccounts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - jsonrpc
+                - id
+                - method
+                - params
+              properties:
+                jsonrpc:
+                  type: string
+                  description: The JSON-RPC protocol version.
+                  enum:
+                    - '2.0'
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  description: The name of the RPC method to invoke.
+                  enum:
+                    - getProgramAccounts
+                  example: getProgramAccounts
+                  default: getProgramAccounts
+                params:
+                  type: array
+                  description: Parameters for the method.
+                  default:
+                    - 4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T
+                  items:
+                    oneOf:
+                      - type: string
+                        description: >-
+                          The Solana program public key (address) to query
+                          accounts for, as a base-58 encoded string.
+                        example: 4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T
+                      - type: object
+                        description: >-
+                          Advanced configuration options for optimizing program
+                          account queries.
+                        properties:
+                          commitment:
+                            type: string
+                            description: The commitment level for the request.
+                            enum:
+                              - confirmed
+                              - finalized
+                              - processed
+                            example: finalized
+                          minContextSlot:
+                            type: integer
+                            description: >-
+                              The minimum slot that the request can be evaluated
+                              at.
+                            example: 1000
+                          withContext:
+                            type: boolean
+                            description: Wrap the result in an RpcResponse JSON object.
+                            example: true
+                          encoding:
+                            type: string
+                            description: Encoding format for the returned account data.
+                            enum:
+                              - jsonParsed
+                              - base58
+                              - base64
+                              - base64+zstd
+                            example: jsonParsed
+                          dataSlice:
+                            type: object
+                            description: Request a slice of the account's data.
+                            properties:
+                              length:
+                                type: integer
+                                description: Number of bytes to return.
+                                example: 50
+                              offset:
+                                type: integer
+                                description: Byte offset from which to start reading.
+                                example: 0
+                          changedSinceSlot:
+                            type: integer
+                            description: >-
+                              Only return accounts that were modified at or
+                              after this slot number. Useful for incremental
+                              updates.
+                            example: 464175999
+                          filters:
+                            type: array
+                            description: >-
+                              Powerful filtering system to efficiently query
+                              specific Solana account data patterns.
+                            items:
+                              oneOf:
+                                - type: object
+                                  description: >-
+                                    Filter Solana accounts by their exact data
+                                    size in bytes.
+                                  properties:
+                                    dataSize:
+                                      type: integer
+                                      description: >-
+                                        The exact size of the account data in
+                                        bytes for filtering.
+                                      example: 17
+                                - type: object
+                                  description: >-
+                                    Filter Solana accounts by comparing data at
+                                    specific memory offsets (most powerful
+                                    filter).
+                                  properties:
+                                    memcmp:
+                                      type: object
+                                      description: >-
+                                        Memory comparison filter for finding
+                                        accounts with specific data patterns.
+                                      properties:
+                                        offset:
+                                          type: integer
+                                          description: >-
+                                            Byte offset within account data to
+                                            perform the comparison.
+                                          example: 4
+                                        bytes:
+                                          type: string
+                                          description: >-
+                                            Base-58 encoded data to compare at the
+                                            specified offset position.
+                                          example: 3Mc6vR
+      responses:
+        '200':
+          description: Successfully retrieved program accounts.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    oneOf:
+                      - type: array
+                        description: List of program accounts.
+                        items:
+                          type: object
+                          properties:
+                            pubkey:
+                              type: string
+                              description: The account Pubkey as a base-58 encoded string.
+                              example: CxELquR1gPP8wHe33gZ4QxqGB3sZ9RSwsJ2KshVewkFY
+                            account:
+                              type: object
+                              description: Details about the account.
+                              properties:
+                                lamports:
+                                  type: integer
+                                  description: Number of lamports assigned to this account.
+                                  example: 15298080
+                                owner:
+                                  type: string
+                                  description: >-
+                                    Base-58 encoded Pubkey of the program this
+                                    account is assigned to.
+                                  example: 4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T
+                                data:
+                                  type: array
+                                  description: >-
+                                    Account data as encoded binary or JSON
+                                    format.
+                                  items:
+                                    type: string
+                                  example:
+                                    - 2R9jLfiAQ9bgdcw6h8s44439
+                                    - base58
+                                executable:
+                                  type: boolean
+                                  description: Indicates if the account contains a program.
+                                  example: false
+                                rentEpoch:
+                                  type: integer
+                                  description: >-
+                                    The epoch at which this account will next
+                                    owe rent.
+                                  example: 28
+                                space:
+                                  type: integer
+                                  description: The data size of the account.
+                                  example: 42
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                  data: {}
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                  data: {}
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                  data: {}
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                  data: {}
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                  data: {}
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                  data: {}
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

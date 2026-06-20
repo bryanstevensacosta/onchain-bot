@@ -1,0 +1,325 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getInflationReward
+
+> Returns the inflation / staking reward for a list of addresses for an epoch.
+
+## Request Parameters
+
+<ParamField body="address" type="array" required>
+  List of Solana addresses (validators or delegators) to retrieve staking rewards for, as base-58 encoded strings.
+</ParamField>
+
+<ParamField body="commitment" type="string">
+  The commitment level for the request.
+
+  * `confirmed`
+  * `finalized`
+</ParamField>
+
+<ParamField body="epoch" type="number">
+  Specific Solana epoch number to retrieve rewards for. If omitted, returns the most recently distributed rewards.
+</ParamField>
+
+<ParamField body="minContextSlot" type="number">
+  The minimum slot that the request can be evaluated at.
+</ParamField>
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getInflationReward.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Staking rewards analytics API for retrieving and calculating inflation-based
+    earnings paid to Solana delegators and validators during specific epochs.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getInflationReward
+      description: >
+        Retrieve detailed staking reward information for Solana validators and
+        delegator accounts.
+
+        This essential staking API provides precise data about SOL rewards
+        distributed to specified
+
+        accounts during a particular epoch. These inflation-based rewards
+        represent earnings from
+
+        participating in Solana's proof-of-stake consensus, either directly as
+        validators or
+
+        indirectly as delegators. Returns reward amounts, commission rates,
+        post-balance data,
+
+        and timing information for accurate staking yield calculations. Critical
+        for staking dashboards,
+
+        yield trackers, wallet applications, tax reporting tools, and any
+        service tracking returns
+
+        from Solana staking activities.
+      operationId: getInflationReward
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - jsonrpc
+                - id
+                - method
+              properties:
+                jsonrpc:
+                  type: string
+                  description: The JSON-RPC protocol version.
+                  enum:
+                    - '2.0'
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  description: The name of the RPC method to invoke.
+                  enum:
+                    - getInflationReward
+                  example: getInflationReward
+                  default: getInflationReward
+                params:
+                  type: array
+                  description: Parameters for the method.
+                  default:
+                    - - 6dmNQ5jwLeLk5REvio1JcMshcbvkYMwy26sJ8pbkvStu
+                  items:
+                    oneOf:
+                      - type: array
+                        description: >-
+                          List of Solana addresses (validators or delegators) to
+                          retrieve staking rewards for, as base-58 encoded
+                          strings.
+                        items:
+                          type: string
+                        example:
+                          - 6dmNQ5jwLeLk5REvio1JcMshcbvkYMwy26sJ8pbkvStu
+                          - BGsqMegLpV6n6Ve146sSX2dTjUMj3M92HnU8BbNRMhF2
+                      - type: object
+                        description: Configuration object containing optional parameters.
+                        properties:
+                          commitment:
+                            type: string
+                            description: The commitment level for the request.
+                            enum:
+                              - confirmed
+                              - finalized
+                            example: finalized
+                          epoch:
+                            type: integer
+                            description: >-
+                              Specific Solana epoch number to retrieve rewards
+                              for. If omitted, returns the most recently
+                              distributed rewards.
+                            example: 2
+                          minContextSlot:
+                            type: integer
+                            description: >-
+                              The minimum slot that the request can be evaluated
+                              at.
+                            example: 1000
+      responses:
+        '200':
+          description: Successfully retrieved inflation reward information.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    type: array
+                    description: >-
+                      Array of detailed staking reward information for each
+                      requested account, in the same order as requested.
+                    items:
+                      oneOf:
+                        - type: object
+                          description: Solana staking reward details for this account.
+                          properties:
+                            epoch:
+                              type: integer
+                              description: >-
+                                Solana epoch number when these staking rewards
+                                were distributed.
+                              example: 2
+                            effectiveSlot:
+                              type: integer
+                              description: >-
+                                Specific blockchain slot when these rewards were
+                                calculated and became effective.
+                              example: 224
+                            amount:
+                              type: integer
+                              description: >-
+                                Staking reward amount in lamports (1 SOL =
+                                1,000,000,000 lamports) earned by this account.
+                              example: 2500
+                            postBalance:
+                              type: integer
+                              description: >-
+                                Account balance in lamports after this staking
+                                reward was credited.
+                              example: 499999442500
+                            commission:
+                              type: integer
+                              description: >-
+                                Validator commission percentage taken from
+                                delegator rewards (null for delegator accounts,
+                                0-100 for validators).
+                              nullable: true
+                              example: 5
+                        - type: 'null'
+                          description: >-
+                            Null if this account did not receive any staking
+                            rewards during the specified epoch.
+                          example: null
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

@@ -1,0 +1,265 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getRecentPerformanceSamples
+
+> Returns a list of recent performance samples, in reverse slot order. Performance samples are taken every 60 seconds and include the number of transactions and slots that occur in a given time window..
+
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getRecentPerformanceSamples.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Network performance analytics API for monitoring Solana blockchain
+    throughput, transaction processing rates, and real-time health metrics
+    across recent time periods.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getRecentPerformanceSamples
+      description: >
+        Retrieve detailed performance metrics about the Solana blockchain's
+        recent operational efficiency.
+
+        This network analytics API provides time-series data showing transaction
+        throughput, slot production,
+
+        and voting activity across regular sampling intervals. Essential for
+        monitoring network health,
+
+        analyzing blockchain capacity, tracking performance trends, and
+        verifying network reliability.
+
+        The metrics offer insights into both the overall transaction volume and
+        specifically non-voting
+
+        transactions, helping differentiate between consensus overhead and
+        actual user operations on the network.
+      operationId: getRecentPerformanceSamples
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - jsonrpc
+                - id
+                - method
+              properties:
+                jsonrpc:
+                  type: string
+                  description: The JSON-RPC protocol version.
+                  enum:
+                    - '2.0'
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  description: The name of the RPC method to invoke.
+                  enum:
+                    - getRecentPerformanceSamples
+                  example: getRecentPerformanceSamples
+                  default: getRecentPerformanceSamples
+                params:
+                  type: array
+                  description: Optional parameter to limit the number of samples to return.
+                  default:
+                    - 4
+                  items:
+                    type: integer
+                    description: >-
+                      Number of historical performance sample intervals to
+                      retrieve (maximum 720, representing up to 12 hours).
+                    example: 4
+      responses:
+        '200':
+          description: Successfully retrieved performance samples.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    type: array
+                    description: List of performance samples.
+                    items:
+                      type: object
+                      description: Performance sample data.
+                      properties:
+                        slot:
+                          type: integer
+                          description: >-
+                            Solana blockchain slot at the end of this
+                            performance sampling period.
+                          example: 348125
+                        numTransactions:
+                          type: integer
+                          description: >-
+                            Total number of transactions processed during this
+                            sampling window, including both user transactions
+                            and validator votes.
+                          example: 126
+                        numNonVoteTransactions:
+                          type: integer
+                          description: >-
+                            Number of actual user transactions (excluding
+                            validator consensus votes) processed in this period.
+                          example: 1
+                        samplePeriodSecs:
+                          type: integer
+                          format: int16
+                          description: >-
+                            Duration of this performance measurement window in
+                            seconds, typically 60-second intervals.
+                          example: 60
+                        numSlots:
+                          type: integer
+                          description: >-
+                            Number of Solana slots successfully produced during
+                            this sampling period, indicating blockchain
+                            progress.
+                          example: 126
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

@@ -1,0 +1,241 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getHighestSnapshotSlot
+
+> Returns the highest slot information that the node has snapshots for.
+
+This will find the highest full snapshot slot, and the highest incremental snapshot slot based on the full snapshot slot, if there is one.
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getHighestSnapshotSlot.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Validator synchronization API for retrieving information about available
+    Solana blockchain snapshots that enable fast node bootstrapping and ledger
+    state reconstruction.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getHighestSnapshotSlot
+      description: >
+        Retrieve information about the latest available Solana blockchain
+        snapshots for validator bootstrapping.
+
+        This node synchronization API returns the highest slots for which this
+        RPC endpoint has snapshot data
+
+        available. Snapshots are point-in-time archives of blockchain state that
+        enable new validators to
+
+        rapidly bootstrap without replaying the entire transaction history. The
+        response includes both full 
+
+        and incremental snapshot information, with full snapshots containing
+        complete ledger state and incremental
+
+        snapshots containing only state changes since the last full snapshot.
+        Essential for validator operators 
+
+        bootstrapping new nodes, network monitoring tools, and services tracking
+        snapshot availability across 
+
+        the network to facilitate fast validator deployment and recovery
+        operations.
+      operationId: getHighestSnapshotSlot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                jsonrpc:
+                  type: string
+                  description: The JSON-RPC protocol version.
+                  enum:
+                    - '2.0'
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  description: The name of the RPC method to invoke.
+                  enum:
+                    - getHighestSnapshotSlot
+                  example: getHighestSnapshotSlot
+                  default: getHighestSnapshotSlot
+            example:
+              jsonrpc: '2.0'
+              id: '1'
+              method: getHighestSnapshotSlot
+      responses:
+        '200':
+          description: The node has a snapshot.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    type: object
+                    description: >-
+                      Latest available Solana blockchain snapshot information
+                      from this node.
+                    properties:
+                      full:
+                        type: integer
+                        description: >-
+                          Highest Solana slot for which a complete blockchain
+                          state snapshot is available on this node.
+                        example: 100
+                      incremental:
+                        type: integer
+                        nullable: true
+                        description: >-
+                          Highest Solana slot for which an incremental state
+                          delta snapshot is available, built on top of the full
+                          snapshot.
+                        example: 110
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

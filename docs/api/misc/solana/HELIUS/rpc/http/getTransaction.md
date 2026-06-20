@@ -1,0 +1,402 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getTransaction
+
+> Returns transaction details for a confirmed transaction.
+
+## Request Parameters
+
+<ParamField body="transaction" type="string" required>
+  Solana transaction signature as a base-58 encoded string for lookup.
+</ParamField>
+
+<ParamField body="transaction" type="string" required>
+  Encoding format for the returned Solana transaction data.
+
+  * `json`
+  * `jsonParsed`
+  * `base64`
+  * `base58`
+</ParamField>
+
+<ParamField body="commitment" type="string">
+  Blockchain commitment level for transaction finality verification.
+
+  * `confirmed`
+  * `finalized`
+</ParamField>
+
+<ParamField body="maxSupportedTransactionVersion" type="number">
+  Maximum Solana transaction version to return in responses (for versioned transaction support).
+</ParamField>
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getTransaction.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Advanced Solana transaction retrieval API for accessing detailed transaction
+    data, signatures, and execution results from the Solana blockchain.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getTransaction
+      description: >
+        Retrieve comprehensive transaction details from the Solana blockchain by
+        transaction signature.
+
+        Access complete data including account changes, instruction details,
+        token transfers, program
+
+        logs, and execution status. Support for parsed data, multiple encoding
+        formats, and transaction versions.
+      operationId: getTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                jsonrpc:
+                  type: string
+                  enum:
+                    - '2.0'
+                  description: The JSON-RPC protocol version.
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  enum:
+                    - getTransaction
+                  description: The name of the RPC method to invoke.
+                  example: getTransaction
+                  default: getTransaction
+                params:
+                  type: array
+                  description: Parameters for querying a Solana transaction by signature.
+                  default:
+                    - >-
+                      D13jTJYXoQBcRY9AfT5xRtsew7ENgCkNs6mwwwAcUCp4ZZCEM7YwZ7en4tVsoDa7Gu75Jjj2FgLXNUz8Zmgedff
+                  items:
+                    oneOf:
+                      - type: string
+                        description: >-
+                          Solana transaction signature as a base-58 encoded
+                          string for lookup.
+                        example: >-
+                          D13jTJYXoQBcRY9AfT5xRtsew7ENgCkNs6mwwwAcUCp4ZZCEM7YwZ7en4tVsoDa7Gu75Jjj2FgLXNUz8Zmgedff
+                      - type: string
+                        description: >-
+                          Encoding format for the returned Solana transaction
+                          data.
+                        enum:
+                          - json
+                          - jsonParsed
+                          - base64
+                          - base58
+                        example: json
+                      - type: object
+                        description: >-
+                          Advanced configuration options for Solana transaction
+                          retrieval.
+                        properties:
+                          commitment:
+                            type: string
+                            description: >-
+                              Blockchain commitment level for transaction
+                              finality verification.
+                            enum:
+                              - confirmed
+                              - finalized
+                            example: finalized
+                          maxSupportedTransactionVersion:
+                            type: integer
+                            description: >-
+                              Maximum Solana transaction version to return in
+                              responses (for versioned transaction support).
+                            example: 0
+            example:
+              jsonrpc: '2.0'
+              id: '1'
+              method: getTransaction
+              params:
+                - >-
+                  2nBhEBYYvfaAe16UMNqRHre4YNSskvuYgx3M6E4JP1oDYvZEJHvoPzyUidNgNX5r9sTyN1J9UxtbCXy2rqYcuyuv
+                - commitment: finalized
+      responses:
+        '200':
+          description: Successfully retrieved the detailed Solana transaction data.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    type: object
+                    description: >-
+                      Complete Solana transaction details including execution
+                      data.
+                    properties:
+                      slot:
+                        type: integer
+                        description: >-
+                          Solana blockchain slot number when this transaction
+                          was processed.
+                        example: 430
+                      transaction:
+                        type: object
+                        description: >-
+                          Comprehensive Solana transaction object with all
+                          transaction details.
+                        properties:
+                          message:
+                            type: object
+                            description: >-
+                              Solana transaction message containing detailed
+                              execution instructions.
+                            properties:
+                              accountKeys:
+                                type: array
+                                description: >-
+                                  List of Solana account public keys involved in
+                                  the transaction.
+                                items:
+                                  type: string
+                                  example: 3UVYmECPPMZSCqWKfENfuoTv51fTDTWicX9xmBD2euKe
+                              header:
+                                type: object
+                                description: >-
+                                  Solana transaction header metadata with access
+                                  control information.
+                                properties:
+                                  numReadonlySignedAccounts:
+                                    type: integer
+                                    description: >-
+                                      Number of read-only signed Solana accounts
+                                      in the transaction.
+                                    example: 0
+                                  numReadonlyUnsignedAccounts:
+                                    type: integer
+                                    description: >-
+                                      Number of read-only unsigned Solana
+                                      accounts in the transaction.
+                                    example: 3
+                                  numRequiredSignatures:
+                                    type: integer
+                                    description: >-
+                                      Number of required signatures for Solana
+                                      transaction validation.
+                                    example: 1
+                              instructions:
+                                type: array
+                                description: >-
+                                  List of program instructions executed within
+                                  the Solana transaction.
+                                items:
+                                  type: object
+                                  properties:
+                                    accounts:
+                                      type: array
+                                      description: >-
+                                        Indexed list of Solana accounts accessed
+                                        by this instruction.
+                                      items:
+                                        type: integer
+                                        example: 1
+                                    data:
+                                      type: string
+                                      description: >-
+                                        Encoded instruction data passed to the
+                                        Solana program.
+                                      example: >-
+                                        37u9WtQpcm6ULa3WRQHmj49EPs4if7o9f1jSRVZpm2dvihR9C8jY4NqEwXUbLwx15HBSNcP1
+                                    programIdIndex:
+                                      type: integer
+                                      description: >-
+                                        Index of the Solana program that
+                                        processes this instruction.
+                                      example: 4
+                              recentBlockhash:
+                                type: string
+                                description: >-
+                                  Recent Solana blockhash used for transaction
+                                  validity window.
+                                example: mfcyqEXB3DnHXki6KjjmZck6YjmZLvpAByy2fj4nh6B
+                          signatures:
+                            type: array
+                            description: >-
+                              List of cryptographic signatures validating the
+                              Solana transaction.
+                            items:
+                              type: string
+                              example: >-
+                                2nBhEBYYvfaAe16UMNqRHre4YNSskvuYgx3M6E4JP1oDYvZEJHvoPzyUidNgNX5r9sTyN1J9UxtbCXy2rqYcuyuv
+                      meta:
+                        type: object
+                        description: Solana transaction execution metadata and results.
+                        properties:
+                          err:
+                            oneOf:
+                              - type: object
+                              - type: 'null'
+                            description: >-
+                              Error information if Solana transaction failed;
+                              null if successful.
+                            example: null
+                          fee:
+                            type: integer
+                            description: >-
+                              Transaction fee paid in Solana lamports (1 SOL =
+                              1,000,000,000 lamports).
+                            example: 5000
+                          innerInstructions:
+                            type: array
+                            description: >-
+                              List of inner instructions generated during Solana
+                              transaction execution.
+                            items:
+                              type: object
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

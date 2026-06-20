@@ -1,0 +1,415 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getVoteAccounts
+
+> Returns the account info and associated stake for all the voting accounts in the current bank.
+
+## Request Parameters
+
+<ParamField body="commitment" type="string">
+  The commitment level for the request.
+
+  * `confirmed`
+  * `finalized`
+  * `processed`
+</ParamField>
+
+<ParamField body="votePubkey" type="string">
+  Specific validator vote account address to filter results (base-58 encoded).
+</ParamField>
+
+<ParamField body="keepUnstakedDelinquents" type="boolean">
+  Include validators that have fallen behind but have no stake delegated to them.
+</ParamField>
+
+<ParamField body="delinquentSlotDistance" type="number">
+  Custom threshold of slots behind to mark validators as delinquent or underperforming.
+</ParamField>
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getVoteAccounts.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Comprehensive Solana validator monitoring API for tracking network
+    participants, staking activity, and consensus participation across the
+    blockchain ecosystem.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getVoteAccounts
+      description: >
+        Retrieve detailed information about Solana validators and their
+        participation in network consensus.
+
+        This powerful API provides comprehensive validator metrics including
+        identity addresses, staking amounts,
+
+        commission rates, voting activity, and performance status. Essential for
+        staking applications, validator
+
+        selection tools, network monitoring dashboards, and decentralization
+        analysis. Categorizes validators
+
+        as either current (active participants) or delinquent (underperforming),
+        providing critical insights
+
+        for delegators looking to optimize their staking strategy and rewards on
+        the Solana blockchain.
+      operationId: getVoteAccounts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                jsonrpc:
+                  type: string
+                  enum:
+                    - '2.0'
+                  description: The JSON-RPC protocol version.
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  enum:
+                    - getVoteAccounts
+                  description: The name of the RPC method to invoke.
+                  example: getVoteAccounts
+                  default: getVoteAccounts
+                params:
+                  type: array
+                  description: Optional configuration object for filtering vote accounts.
+                  items:
+                    type: object
+                    properties:
+                      commitment:
+                        type: string
+                        description: The commitment level for the request.
+                        enum:
+                          - confirmed
+                          - finalized
+                          - processed
+                        example: finalized
+                      votePubkey:
+                        type: string
+                        description: >-
+                          Specific validator vote account address to filter
+                          results (base-58 encoded).
+                        example: 3ZT31jkAGhUaw8jsy4bTknwBMP8i4Eueh52By4zXcsVw
+                      keepUnstakedDelinquents:
+                        type: boolean
+                        description: >-
+                          Include validators that have fallen behind but have no
+                          stake delegated to them.
+                        example: true
+                      delinquentSlotDistance:
+                        type: integer
+                        description: >-
+                          Custom threshold of slots behind to mark validators as
+                          delinquent or underperforming.
+                        example: 128
+            example:
+              jsonrpc: '2.0'
+              id: '1'
+              method: getVoteAccounts
+              params:
+                - votePubkey: 3ZT31jkAGhUaw8jsy4bTknwBMP8i4Eueh52By4zXcsVw
+      responses:
+        '200':
+          description: Successfully retrieved vote accounts.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    type: object
+                    description: List of current and delinquent vote accounts.
+                    properties:
+                      current:
+                        type: array
+                        description: >-
+                          Active validators participating properly in Solana
+                          network consensus.
+                        items:
+                          type: object
+                          properties:
+                            votePubkey:
+                              type: string
+                              description: >-
+                                Unique Solana vote account address associated
+                                with this validator.
+                              example: 3ZT31jkAGhUaw8jsy4bTknwBMP8i4Eueh52By4zXcsVw
+                            nodePubkey:
+                              type: string
+                              description: >-
+                                Validator identity address that controls the
+                                vote account.
+                              example: B97CCUW3AEZFGy6uUg6zUdnNYvnVq5VG8PUtb2HayTDD
+                            activatedStake:
+                              type: integer
+                              description: >-
+                                Total SOL delegated to this validator in
+                                lamports, determining their consensus weight.
+                              example: 42
+                            epochVoteAccount:
+                              type: boolean
+                              description: >-
+                                Whether this validator is eligible for rewards
+                                in the current epoch.
+                              example: true
+                            commission:
+                              type: integer
+                              description: >-
+                                Validator commission percentage (0-100) taken
+                                from staking rewards.
+                              example: 0
+                            lastVote:
+                              type: integer
+                              description: >-
+                                Most recent Solana slot this validator voted on,
+                                indicating activity.
+                              example: 147
+                            epochCredits:
+                              type: array
+                              description: >-
+                                Latest history of earned credits for up to five
+                                epochs.
+                              items:
+                                type: array
+                                description: >-
+                                  Credits history [epoch, credits,
+                                  previousCredits].
+                                items:
+                                  type: integer
+                                example:
+                                  - 1
+                                  - 64
+                                  - 0
+                            rootSlot:
+                              type: integer
+                              description: Current root slot for this vote account.
+                              example: 42
+                      delinquent:
+                        type: array
+                        description: >-
+                          Underperforming validators that have fallen behind in
+                          consensus participation.
+                        items:
+                          type: object
+                          properties:
+                            votePubkey:
+                              type: string
+                              description: Vote account address.
+                              example: 3ZT31jkAGhUaw8jsy4bTknwBMP8i4Eueh52By4zXcsVw
+                            nodePubkey:
+                              type: string
+                              description: Validator identity.
+                              example: B97CCUW3AEZFGy6uUg6zUdnNYvnVq5VG8PUtb2HayTDD
+                            activatedStake:
+                              type: integer
+                              description: Stake delegated to this vote account (lamports).
+                              example: 0
+                            epochVoteAccount:
+                              type: boolean
+                              description: >-
+                                Whether the vote account is staked for this
+                                epoch.
+                              example: false
+                            commission:
+                              type: integer
+                              description: >-
+                                Percentage (0-100) of rewards payout owed to the
+                                vote account.
+                              example: 0
+                            lastVote:
+                              type: integer
+                              description: Most recent slot voted on by this vote account.
+                              example: 147
+                            epochCredits:
+                              type: array
+                              description: >-
+                                Latest history of earned credits for up to five
+                                epochs.
+                              items:
+                                type: array
+                                description: >-
+                                  Credits history [epoch, credits,
+                                  previousCredits].
+                                items:
+                                  type: integer
+                                example:
+                                  - 1
+                                  - 64
+                                  - 0
+                            rootSlot:
+                              type: integer
+                              description: Current root slot for this vote account.
+                              example: 42
+              examples:
+                default:
+                  value:
+                    jsonrpc: '2.0'
+                    id: '1'
+                    result:
+                      current:
+                        - votePubkey: 3ZT31jkAGhUaw8jsy4bTknwBMP8i4Eueh52By4zXcsVw
+                          nodePubkey: B97CCUW3AEZFGy6uUg6zUdnNYvnVq5VG8PUtb2HayTDD
+                          activatedStake: 42
+                          epochVoteAccount: true
+                          commission: 0
+                          lastVote: 147
+                          epochCredits:
+                            - - 1
+                              - 64
+                              - 0
+                            - - 2
+                              - 192
+                              - 64
+                          rootSlot: 42
+                      delinquent: []
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

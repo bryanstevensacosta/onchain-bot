@@ -1,0 +1,272 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getBlocksWithLimit
+
+> Returns a list of confirmed blocks starting at the given slot.
+
+## Request Parameters
+
+<ParamField body="start_slot" type="number">
+  Starting Solana slot number from which to begin retrieving the sequential block list.
+</ParamField>
+
+<ParamField body="limit" type="number">
+  Maximum number of sequential blocks to return (up to 500,000 blocks per request).
+</ParamField>
+
+<ParamField body="commitment" type="string">
+  Finality level to query blocks at - either confirmed (optimistic confirmation) or finalized (full confirmation).
+
+  * `confirmed`
+  * `finalized`
+</ParamField>
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getBlocksWithLimit.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Blockchain history API for retrieving sequential Solana block slots within a
+    specified range with customizable limit controls to optimize data volume and
+    query performance.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getBlocksWithLimit
+      description: >
+        Retrieve a contiguous sequence of Solana blocks starting from a specific
+        slot with a customizable limit.
+
+        This blockchain history API returns an array of confirmed block slot
+        numbers within the requested range,
+
+        allowing efficient pagination through historical blocks. The controlled
+        limit parameter helps manage
+
+        response size and performance when scanning large sections of the
+        blockchain. Essential for blockchain
+
+        explorers, historical data analysis tools, audit systems scanning
+        transaction history, indexing services,
+
+        data analytics platforms, and applications that need to efficiently
+        process sequential blocks without
+
+        overwhelming memory or network constraints. Limited to retrieving
+        500,000 blocks per request.
+      operationId: getBlocksWithLimit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - jsonrpc
+                - id
+                - method
+                - params
+              properties:
+                jsonrpc:
+                  type: string
+                  description: The JSON-RPC protocol version.
+                  enum:
+                    - '2.0'
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  description: The name of the RPC method to invoke.
+                  enum:
+                    - getBlocksWithLimit
+                  example: getBlocksWithLimit
+                  default: getBlocksWithLimit
+                params:
+                  type: array
+                  description: Request parameters for the method.
+                  default:
+                    - 5
+                    - 3
+                  items:
+                    type: object
+                    properties:
+                      start_slot:
+                        type: integer
+                        description: >-
+                          Starting Solana slot number from which to begin
+                          retrieving the sequential block list.
+                        example: 5
+                      limit:
+                        type: integer
+                        description: >-
+                          Maximum number of sequential blocks to return (up to
+                          500,000 blocks per request).
+                        example: 3
+                      commitment:
+                        type: string
+                        description: >-
+                          Finality level to query blocks at - either confirmed
+                          (optimistic confirmation) or finalized (full
+                          confirmation).
+                        enum:
+                          - confirmed
+                          - finalized
+                        example: finalized
+      responses:
+        '200':
+          description: Successfully retrieved confirmed blocks.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    type: array
+                    description: >-
+                      Ordered list of confirmed Solana block slot numbers in
+                      ascending sequence starting from the requested slot.
+                    items:
+                      type: integer
+                    example:
+                      - 5
+                      - 6
+                      - 7
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

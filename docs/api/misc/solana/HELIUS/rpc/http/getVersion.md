@@ -1,0 +1,250 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getVersion
+
+> Returns the current Solana version running on the node.
+
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getVersion.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Runtime information API for retrieving Solana blockchain software version
+    details and feature set identifiers for compatibility verification.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getVersion
+      description: >
+        Retrieve current Solana node software version and feature set
+        information.
+
+        This essential API provides details about the blockchain runtime
+        environment,
+
+        helping developers ensure compatibility between their applications and
+        the network.
+
+        The version information includes both the Solana core software release
+        number and a
+
+        unique feature set identifier that represents the specific capabilities
+        enabled on
+
+        the node. Critical for DApp developers, node operators, and tools that
+        need to
+
+        verify network compatibility or implement version-specific behavior.
+      operationId: getVersion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                jsonrpc:
+                  type: string
+                  enum:
+                    - '2.0'
+                  description: The JSON-RPC protocol version.
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  enum:
+                    - getVersion
+                  description: The name of the RPC method to invoke.
+                  example: getVersion
+                  default: getVersion
+                params:
+                  type: array
+                  description: No parameters required.
+                  maxItems: 0
+            examples:
+              default:
+                $ref: '#/components/examples/getVersionRequest'
+      responses:
+        '200':
+          description: Successfully retrieved the Solana version details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    type: object
+                    description: Solana version details.
+                    properties:
+                      solana-core:
+                        type: string
+                        description: >-
+                          The Solana blockchain node software release version
+                          running on this validator.
+                        example: 1.16.7
+                      feature-set:
+                        type: integer
+                        description: >-
+                          Unique numerical identifier representing the specific
+                          Solana feature set currently active.
+                        example: 2891131721
+              examples:
+                default:
+                  $ref: '#/components/examples/getVersionResponse'
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  examples:
+    getVersionRequest:
+      value:
+        jsonrpc: '2.0'
+        id: '1'
+        method: getVersion
+    getVersionResponse:
+      value:
+        jsonrpc: '2.0'
+        id: '1'
+        result:
+          solana-core: 1.16.7
+          feature-set: 2891131721
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

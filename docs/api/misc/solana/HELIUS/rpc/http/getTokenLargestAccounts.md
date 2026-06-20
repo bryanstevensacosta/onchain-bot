@@ -1,0 +1,329 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getTokenLargestAccounts
+
+> Returns the 20 largest accounts of a particular SPL Token type.
+
+## Request Parameters
+
+<ParamField body="address" type="string" required>
+  Solana token mint address to analyze for largest holder accounts and distribution patterns.
+</ParamField>
+
+<ParamField body="commitment" type="string">
+  The commitment level for the request.
+
+  * `confirmed`
+  * `finalized`
+  * `processed`
+</ParamField>
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getTokenLargestAccounts.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Token concentration analysis API for identifying major holders and tracking
+    token distribution patterns across the Solana blockchain ecosystem.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getTokenLargestAccounts
+      description: >
+        Identify and analyze the largest holders of any Solana SPL token with
+        detailed balance information.
+
+        This powerful token distribution API provides insights into token
+        concentration patterns, 
+
+        revealing major holders ("whales") and their relative positions.
+        Essential for market analysis,
+
+        token distribution audits, investor relations, and DAO governance
+        tracking. Automatically
+
+        returns addresses sorted by balance in descending order with proper
+        decimal formatting
+
+        for immediate integration into analytics dashboards and monitoring
+        tools.
+      operationId: getTokenLargestAccounts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                jsonrpc:
+                  type: string
+                  enum:
+                    - '2.0'
+                  description: The JSON-RPC protocol version.
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  enum:
+                    - getTokenLargestAccounts
+                  description: The name of the RPC method to invoke.
+                  example: getTokenLargestAccounts
+                  default: getTokenLargestAccounts
+                params:
+                  type: array
+                  description: >-
+                    Parameters for querying the largest token accounts for a
+                    specific mint.
+                  default:
+                    - he1iusmfkpAdwvxLNGV8Y1iSbj4rUy6yMhEA3fotn9A
+                  items:
+                    oneOf:
+                      - type: string
+                        description: >-
+                          Solana token mint address to analyze for largest
+                          holder accounts and distribution patterns.
+                        example: he1iusmfkpAdwvxLNGV8Y1iSbj4rUy6yMhEA3fotn9A
+                      - type: object
+                        description: Configuration object.
+                        properties:
+                          commitment:
+                            type: string
+                            description: The commitment level for the request.
+                            enum:
+                              - confirmed
+                              - finalized
+                              - processed
+                            example: finalized
+            examples:
+              tokenRequest:
+                $ref: '#/components/examples/tokenLargestAccountsRequest'
+      responses:
+        '200':
+          description: Successfully retrieved the largest token accounts.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    type: object
+                    description: Context and token account details.
+                    properties:
+                      context:
+                        type: object
+                        description: Context of the response.
+                        properties:
+                          slot:
+                            type: integer
+                            description: Slot in which the data was fetched.
+                            example: 1114
+                      value:
+                        type: array
+                        description: List of token accounts with their balances.
+                        items:
+                          type: object
+                          properties:
+                            address:
+                              type: string
+                              description: >-
+                                Solana wallet address holding a significant
+                                portion of the token supply.
+                              example: FYjHNoFtSQ5uijKrZFyYAxvEr87hsKXkXcxkcmkBAf4r
+                            amount:
+                              type: string
+                              description: >-
+                                Raw token balance of this major holder account
+                                without decimal formatting.
+                              example: '771'
+                            decimals:
+                              type: integer
+                              description: >-
+                                Number of decimal places defined by the token
+                                for proper balance representation.
+                              example: 2
+                            uiAmount:
+                              type: number
+                              description: >-
+                                Human-readable token balance of this major
+                                holder with proper decimal formatting
+                                (deprecated).
+                              example: 7.71
+                              deprecated: true
+                            uiAmountString:
+                              type: string
+                              description: >-
+                                Canonical string representation of this major
+                                holder's token balance with decimal places.
+                              example: '7.71'
+              examples:
+                tokenResponse:
+                  $ref: '#/components/examples/tokenLargestAccountsResponse'
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  examples:
+    tokenLargestAccountsRequest:
+      value:
+        jsonrpc: '2.0'
+        id: '1'
+        method: getTokenLargestAccounts
+        params:
+          - he1iusmfkpAdwvxLNGV8Y1iSbj4rUy6yMhEA3fotn9A
+    tokenLargestAccountsResponse:
+      value:
+        jsonrpc: '2.0'
+        id: '1'
+        result:
+          context:
+            slot: 1114
+          value:
+            - address: FYjHNoFtSQ5uijKrZFyYAxvEr87hsKXkXcxkcmkBAf4r
+              amount: '771'
+              decimals: 2
+              uiAmount: 7.71
+              uiAmountString: '7.71'
+            - address: BnsywxTcaYeNUtzrPxQUvzAWxfzZe3ZLUJ4wMMuLESnu
+              amount: '229'
+              decimals: 2
+              uiAmount: 2.29
+              uiAmountString: '2.29'
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

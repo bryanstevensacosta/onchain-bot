@@ -1,0 +1,274 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getClusterNodes
+
+> Returns information about all the nodes participating in the cluster.
+
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getClusterNodes.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Network discovery API for retrieving a comprehensive list of active Solana
+    validator nodes with their network addresses, versions, and connectivity
+    endpoints.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getClusterNodes
+      description: >
+        Retrieve detailed information about all active validator nodes in the
+        Solana network.
+
+        This network topology API provides a complete mapping of the current
+        validator landscape,
+
+        returning essential connectivity details for each participating node.
+        Information includes
+
+        validator public keys, network addresses for different protocols
+        (gossip, TPU, RPC),
+
+        software versions, and feature sets. Essential for network monitoring
+        tools, validator
+
+        statistics dashboards, client libraries implementing intelligent node
+        selection, networking
+
+        tools that need direct communication with validators, and applications
+        that want to understand
+
+        the geographical and version distribution of the Solana validator
+        network.
+      operationId: getClusterNodes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - jsonrpc
+                - id
+                - method
+              properties:
+                jsonrpc:
+                  type: string
+                  description: The JSON-RPC protocol version.
+                  enum:
+                    - '2.0'
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  description: The name of the RPC method to invoke.
+                  enum:
+                    - getClusterNodes
+                  example: getClusterNodes
+                  default: getClusterNodes
+      responses:
+        '200':
+          description: Successfully retrieved cluster node information.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    type: array
+                    description: >-
+                      Comprehensive list of all discoverable Solana validator
+                      nodes currently participating in the network.
+                    items:
+                      type: object
+                      properties:
+                        pubkey:
+                          type: string
+                          description: >-
+                            Unique validator identity public key (base-58
+                            encoded) that identifies this node on the Solana
+                            network.
+                          example: 9QzsJf7LPLj8GkXbYT3LFDKqsj2hHG7TA3xinJHu8epQ
+                        gossip:
+                          type: string
+                          nullable: true
+                          description: >-
+                            IP address and port for connecting to this
+                            validator's gossip protocol endpoint for peer
+                            discovery.
+                          example: 10.239.6.48:8001
+                        tpu:
+                          type: string
+                          nullable: true
+                          description: >-
+                            Transaction Processing Unit address where clients
+                            can directly submit transactions to this validator.
+                          example: 10.239.6.48:8856
+                        rpc:
+                          type: string
+                          nullable: true
+                          description: >-
+                            JSON-RPC API endpoint address if this validator
+                            offers public RPC services, or null if not publicly
+                            available.
+                          example: 10.239.6.48:8899
+                        version:
+                          type: string
+                          nullable: true
+                          description: >-
+                            Solana software version and build identifier running
+                            on this validator node.
+                          example: 1.0.0 c375ce1f
+                        featureSet:
+                          type: integer
+                          nullable: true
+                          description: >-
+                            Numeric identifier of the feature set enabled on
+                            this validator, used to track protocol
+                            compatibility.
+                        shredVersion:
+                          type: integer
+                          nullable: true
+                          description: >-
+                            Network compatibility version number used for shred
+                            processing and routing between validator nodes.
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: Error code.
+            message:
+              type: string
+              description: Error message.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

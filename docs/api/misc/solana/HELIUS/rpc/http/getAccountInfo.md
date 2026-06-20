@@ -1,0 +1,400 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getAccountInfo
+
+> Returns all information associated with the account of provided Pubkey.
+
+<Info>
+  **New Feature**: `getAccountInfo` now supports the `changedSinceSlot` parameter for incremental updates. When specified, the method returns only accounts that have been modified at or after the given slot number. For accounts that exist but haven't changed since the specified slot, the response will contain `status: "unchanged"`.
+</Info>
+
+## Request Parameters
+
+<ParamField body="pubkey" type="string" required>
+  Pubkey of account to query, as a base-58 encoded string.
+</ParamField>
+
+<ParamField body="commitment" type="string">
+  Commitment level for the query.
+
+  * `finalized`
+  * `confirmed`
+  * `processed`
+</ParamField>
+
+<ParamField body="encoding" type="string">
+  Encoding format for account data.
+
+  * `base58`
+  * `base64`
+  * `base64+zstd`
+  * `jsonParsed`
+</ParamField>
+
+<ParamField body="dataSlice" type="object">
+  Request a slice of the account's data.
+</ParamField>
+
+<ParamField body="dataSlice.offset" type="number">
+  Byte offset from which to start reading.
+</ParamField>
+
+<ParamField body="dataSlice.length" type="number">
+  Number of bytes to return.
+</ParamField>
+
+<ParamField body="minContextSlot" type="number">
+  The minimum slot that the request can be evaluated at.
+</ParamField>
+
+<ParamField body="changedSinceSlot" type="number">
+  Only return the account if it has been modified at or after this slot number. If the account exists but hasn't changed since the specified slot, the response will contain status as "unchanged".
+</ParamField>
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getAccountInfo.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Comprehensive Solana account data retrieval API for accessing program
+    ownership, balance, and on-chain data with multiple encoding options and
+    configurable commitment levels.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getAccountInfo
+      operationId: getAccountInfo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - jsonrpc
+                - id
+                - method
+                - params
+              properties:
+                jsonrpc:
+                  type: string
+                  description: The JSON-RPC protocol version.
+                  enum:
+                    - '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  description: The name of the RPC method to invoke.
+                  enum:
+                    - getAccountInfo
+                  default: getAccountInfo
+                params:
+                  type: array
+                  default:
+                    - 83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri
+                  items:
+                    oneOf:
+                      - title: Pubkey
+                        type: string
+                        description: >-
+                          Pubkey of account to query, as a base-58 encoded
+                          string.
+                        example: 83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri
+                      - title: Configuration Object
+                        type: object
+                        description: Configuration object.
+                        properties:
+                          commitment:
+                            type: string
+                            description: Commitment level for the query.
+                            enum:
+                              - finalized
+                              - confirmed
+                              - processed
+                            example: confirmed
+                          encoding:
+                            type: string
+                            description: Encoding format for account data.
+                            enum:
+                              - base58
+                              - base64
+                              - base64+zstd
+                              - jsonParsed
+                            example: base58
+                          dataSlice:
+                            type: object
+                            description: Request a slice of the account's data.
+                            properties:
+                              offset:
+                                type: integer
+                                description: Byte offset from which to start reading.
+                                example: 0
+                              length:
+                                type: integer
+                                description: Number of bytes to return.
+                                example: 64
+                          minContextSlot:
+                            type: integer
+                            description: >-
+                              The minimum slot that the request can be evaluated
+                              at.
+                            example: 100000000
+                          changedSinceSlot:
+                            type: integer
+                            description: >-
+                              Only return the account if it has been modified at
+                              or after this slot number. If the account exists
+                              but hasn't changed since the specified slot, the
+                              response will contain status as "unchanged".
+                            example: 464175999
+            example:
+              jsonrpc: '2.0'
+              id: 1
+              method: getAccountInfo
+              params:
+                - 83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri
+                - encoding: base58
+      responses:
+        '200':
+          description: Successfully retrieved account information.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    example: '2.0'
+                  result:
+                    type: object
+                    properties:
+                      context:
+                        type: object
+                        description: Context of the request.
+                        properties:
+                          apiVersion:
+                            type: string
+                            description: API version of the request.
+                            example: 2.0.15
+                          slot:
+                            type: integer
+                            description: Slot number of the response.
+                            example: 341197053
+                      value:
+                        oneOf:
+                          - type: object
+                            description: Account data if the account exists.
+                            properties:
+                              lamports:
+                                type: integer
+                                description: Number of lamports assigned to this account.
+                                example: 88849814690250
+                              owner:
+                                type: string
+                                description: >-
+                                  Base-58 encoded Pubkey of the program this
+                                  account is assigned to.
+                                example: '11111111111111111111111111111111'
+                              data:
+                                type: array
+                                items:
+                                  type: string
+                                description: >-
+                                  Data associated with the account, either as
+                                  encoded binary data or JSON format.
+                                example:
+                                  - ''
+                                  - base58
+                              executable:
+                                type: boolean
+                                description: Indicates if the account contains a program.
+                                example: false
+                              rentEpoch:
+                                type: integer
+                                description: >-
+                                  The epoch at which this account will next owe
+                                  rent.
+                                example: 18446744073709552000
+                              space:
+                                type: integer
+                                description: The data size of the account.
+                                example: 0
+                          - type: object
+                            description: >-
+                              Status-only response when account exists but
+                              hasn't changed since the specified slot.
+                            properties:
+                              status:
+                                type: string
+                                description: >-
+                                  Status indicating the account hasn't changed
+                                  since the specified slot.
+                                enum:
+                                  - unchanged
+                                example: unchanged
+                  id:
+                    type: integer
+                    description: A unique identifier matching the request ID.
+                    example: 1
+                  method:
+                    type: string
+                    description: The method being called.
+                    example: getAccountInfo
+                  params:
+                    type: array
+                    description: Parameters for the request.
+                    items:
+                      oneOf:
+                        - type: string
+                        - type: object
+                          properties:
+                            encoding:
+                              type: string
+              examples:
+                response:
+                  value:
+                    jsonrpc: '2.0'
+                    result:
+                      context:
+                        apiVersion: 2.0.15
+                        slot: 341197053
+                      value:
+                        lamports: 88849814690250
+                        owner: '11111111111111111111111111111111'
+                        data:
+                          - ''
+                          - base58
+                        executable: false
+                        rentEpoch: 18446744073709552000
+                        space: 0
+                    id: 1
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          default: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: Error code.
+            message:
+              type: string
+              description: Error message.
+        id:
+          type: string
+          description: A unique identifier for the request.
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+
+````

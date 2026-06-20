@@ -1,0 +1,304 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# isBlockhashValid
+
+> Returns whether a blockhash is still valid or not.
+
+## Request Parameters
+
+<ParamField body="blockhash" type="string" required>
+  Blockhash to check validity status for, as a base-58 encoded string.
+</ParamField>
+
+<ParamField body="commitment" type="string">
+  The commitment level for the request.
+
+  * `confirmed`
+  * `finalized`
+  * `processed`
+</ParamField>
+
+<ParamField body="minContextSlot" type="number">
+  The minimum slot at which the request can be evaluated at.
+</ParamField>
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/isBlockhashValid.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Transaction validity verification API for checking if a previously acquired
+    Solana blockhash is still within its usable lifetime window for new
+    transaction submissions.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: isBlockhashValid
+      description: >
+        Verify whether a Solana blockhash is still valid for transaction
+        submission.
+
+        This essential transaction preparation API allows applications to
+        determine if a previously 
+
+        acquired blockhash is still within its validity window (typically ~2
+        minutes or ~150 blocks).
+
+        Transactions constructed with expired blockhashes will be rejected by
+        the network, so checking
+
+        validity before submission helps prevent transaction failures and
+        timeout errors. Critical for
+
+        wallet applications, exchanges, payment processors, and any service that
+        prepares transactions
+
+        in advance or needs to check if a pending transaction can still be
+        submitted or needs to be
+
+        reconstructed with a fresh blockhash to avoid expiration rejections.
+      operationId: isBlockhashValid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                jsonrpc:
+                  type: string
+                  enum:
+                    - '2.0'
+                  description: The JSON-RPC protocol version.
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '45'
+                  default: '1'
+                method:
+                  type: string
+                  enum:
+                    - isBlockhashValid
+                  description: The name of the RPC method to invoke.
+                  example: isBlockhashValid
+                  default: isBlockhashValid
+                params:
+                  type: array
+                  description: Parameters for evaluating blockhash validity.
+                  default:
+                    - J7rBdM6AecPDEZp8aPq5iPSNKVkU5Q76F3oAV4eW5wsW
+                    - commitment: processed
+                  items:
+                    oneOf:
+                      - type: string
+                        description: >-
+                          Blockhash to check validity status for, as a base-58
+                          encoded string.
+                        example: J7rBdM6AecPDEZp8aPq5iPSNKVkU5Q76F3oAV4eW5wsW
+                      - type: object
+                        description: Configuration options for the request.
+                        properties:
+                          commitment:
+                            type: string
+                            description: The commitment level for the request.
+                            enum:
+                              - confirmed
+                              - finalized
+                              - processed
+                            example: processed
+                          minContextSlot:
+                            type: integer
+                            description: >-
+                              The minimum slot at which the request can be evaluated
+                              at.
+                            example: 1000
+            examples:
+              default:
+                $ref: '#/components/examples/isBlockhashValidRequest'
+      responses:
+        '200':
+          description: Successfully evaluated blockhash validity.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '45'
+                  result:
+                    type: object
+                    description: Blockhash validity result.
+                    properties:
+                      context:
+                        type: object
+                        description: Context of the response.
+                        properties:
+                          slot:
+                            type: integer
+                            description: Slot in which the data was fetched.
+                            example: 2483
+                      value:
+                        type: boolean
+                        description: >-
+                          Boolean indicating if this blockhash is still within
+                          its validity window and can be used in new
+                          transactions.
+                        example: false
+              examples:
+                default:
+                  $ref: '#/components/examples/isBlockhashValidResponse'
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  examples:
+    isBlockhashValidRequest:
+      value:
+        jsonrpc: '2.0'
+        id: '45'
+        method: isBlockhashValid
+        params:
+          - J7rBdM6AecPDEZp8aPq5iPSNKVkU5Q76F3oAV4eW5wsW
+          - commitment: processed
+    isBlockhashValidResponse:
+      value:
+        jsonrpc: '2.0'
+        id: '45'
+        result:
+          context:
+            slot: 2483
+          value: false
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

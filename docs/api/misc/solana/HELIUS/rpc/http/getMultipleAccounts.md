@@ -1,0 +1,420 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getMultipleAccounts
+
+> Returns the account information for a list of Pubkeys.
+
+<Info>
+  **New Feature**: `getMultipleAccounts` now supports the `changedSinceSlot` parameter for incremental updates. When specified, the method returns only accounts that have been modified at or after the given slot number. For accounts that exist but haven't changed since the specified slot, the response will contain `status: "unchanged"`.
+</Info>
+
+## Request Parameters
+
+<ParamField body="address" type="array" required>
+  Array of Solana account addresses (up to 100) to fetch in a single optimized batch request.
+</ParamField>
+
+<ParamField body="commitment" type="string">
+  The commitment level for the request.
+
+  * `confirmed`
+  * `finalized`
+  * `processed`
+</ParamField>
+
+<ParamField body="minContextSlot" type="number">
+  The minimum slot that the request can be evaluated at.
+</ParamField>
+
+<ParamField body="dataSlice" type="object">
+  Request a slice of the account's data.
+</ParamField>
+
+<ParamField body="dataSlice.length" type="number">
+  Number of bytes to return.
+</ParamField>
+
+<ParamField body="dataSlice.offset" type="number">
+  Byte offset from which to start reading.
+</ParamField>
+
+<ParamField body="encoding" type="string">
+  Encoding format for the returned account data.
+
+  * `jsonParsed`
+  * `base58`
+  * `base64`
+  * `base64+zstd`
+</ParamField>
+
+<ParamField body="changedSinceSlot" type="number">
+  Only return accounts that have been modified at or after this slot number. For accounts that exist but haven't changed since the specified slot, the response will contain status as "unchanged".
+</ParamField>
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getMultipleAccounts.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Optimized Solana batch account data retrieval API for efficiently accessing
+    multiple blockchain accounts in a single request with configurable encoding
+    options.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getMultipleAccounts
+      description: >
+        Retrieve data for multiple Solana accounts in a single efficient batch
+        request.
+
+        This performance-optimized API reduces network overhead by fetching up
+        to 100 accounts
+
+        simultaneously, with support for various data encodings including JSON
+        parsing for known
+
+        program types. Ideal for DApps, wallets, and services that need to
+        access multiple
+
+        token balances, NFT metadata, program states, or any combination of
+        on-chain account data
+
+        with minimal latency and bandwidth usage.
+      operationId: getMultipleAccounts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - jsonrpc
+                - id
+                - method
+                - params
+              properties:
+                jsonrpc:
+                  type: string
+                  description: The JSON-RPC protocol version.
+                  enum:
+                    - '2.0'
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  description: The name of the RPC method to invoke.
+                  enum:
+                    - getMultipleAccounts
+                  example: getMultipleAccounts
+                  default: getMultipleAccounts
+                params:
+                  type: array
+                  description: Parameters for the method.
+                  default:
+                    - - vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg
+                      - 4fYNw3dojWmQ4dXtSGE9epjRGy9pFSx62YypT7avPYvA
+                  items:
+                    oneOf:
+                      - type: array
+                        description: >-
+                          Array of Solana account addresses (up to 100) to fetch
+                          in a single optimized batch request.
+                        items:
+                          type: string
+                        example:
+                          - vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg
+                          - 4fYNw3dojWmQ4dXtSGE9epjRGy9pFSx62YypT7avPYvA
+                      - type: object
+                        description: >-
+                          Advanced configuration options for customizing the
+                          batch account data retrieval.
+                        properties:
+                          commitment:
+                            type: string
+                            description: The commitment level for the request.
+                            enum:
+                              - confirmed
+                              - finalized
+                              - processed
+                            example: finalized
+                          minContextSlot:
+                            type: integer
+                            description: >-
+                              The minimum slot that the request can be evaluated
+                              at.
+                            example: 1000
+                          dataSlice:
+                            type: object
+                            description: Request a slice of the account's data.
+                            properties:
+                              length:
+                                type: integer
+                                description: Number of bytes to return.
+                                example: 50
+                              offset:
+                                type: integer
+                                description: Byte offset from which to start reading.
+                                example: 0
+                          encoding:
+                            type: string
+                            description: Encoding format for the returned account data.
+                            enum:
+                              - jsonParsed
+                              - base58
+                              - base64
+                              - base64+zstd
+                            example: base58
+                          changedSinceSlot:
+                            type: integer
+                            description: >-
+                              Only return accounts that have been modified at or
+                              after this slot number. For accounts that exist
+                              but haven't changed since the specified slot, the
+                              response will contain status as "unchanged".
+                            example: 464175999
+      responses:
+        '200':
+          description: Successfully retrieved the account details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    type: object
+                    description: Accounts information with context.
+                    properties:
+                      context:
+                        type: object
+                        description: Context of the response.
+                        properties:
+                          apiVersion:
+                            type: string
+                            description: API version of the response.
+                            example: 2.0.15
+                          slot:
+                            type: integer
+                            description: The slot at which the data was fetched.
+                            example: 341197247
+                      value:
+                        type: array
+                        description: Array of account details.
+                        items:
+                          oneOf:
+                            - type: 'null'
+                              description: Null if the account doesn't exist.
+                            - type: object
+                              description: Account details.
+                              properties:
+                                lamports:
+                                  type: integer
+                                  description: Number of lamports assigned to the account.
+                                  example: 88849814690250
+                                owner:
+                                  type: string
+                                  description: >-
+                                    Base-58 encoded Pubkey of the program the
+                                    account is assigned to.
+                                  example: '11111111111111111111111111111111'
+                                data:
+                                  type: array
+                                  description: >-
+                                    Account data as encoded binary or JSON
+                                    format.
+                                  items:
+                                    type: string
+                                  example:
+                                    - ''
+                                    - base58
+                                executable:
+                                  type: boolean
+                                  description: Indicates if the account contains a program.
+                                  example: false
+                                rentEpoch:
+                                  type: integer
+                                  description: >-
+                                    Epoch at which this account will next owe
+                                    rent.
+                                  example: 18446744073709552000
+                                space:
+                                  type: integer
+                                  description: Data size of the account.
+                                  example: 0
+                            - type: object
+                              description: >-
+                                Status-only response when account exists but
+                                hasn't changed since the specified slot.
+                              properties:
+                                status:
+                                  type: string
+                                  description: >-
+                                    Status indicating the account hasn't changed
+                                    since the specified slot.
+                                  enum:
+                                    - unchanged
+                                  example: unchanged
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                  data:
+                    additionalInfo: >-
+                      Please check the request parameters and ensure they are
+                      valid.
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                  data:
+                    additionalInfo: Please verify your API key and try again.
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                  data:
+                    additionalInfo: >-
+                      You have exceeded the allowed number of requests. Please
+                      wait and try again later.
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                  data:
+                    additionalInfo: >-
+                      An unexpected error occurred on the server. Please try
+                      again later or contact support.
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                  data:
+                    additionalInfo: >-
+                      The service is currently unavailable. Please try again
+                      later or contact support.
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                  data:
+                    additionalInfo: >-
+                      The request timed out. Please try again later or contact
+                      support.
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

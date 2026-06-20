@@ -1,0 +1,73 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# rootSubscribe
+
+> Subscribe to receive notification anytime a new root is set by the validator.
+
+## Endpoints
+
+Websockets are available on mainnet and devnet with the following URLs:
+
+* **Mainnet** `wss://mainnet.helius-rpc.com/?api-key=<api-key>`
+* **Devnet** `wss://devnet.helius-rpc.com/?api-key=<api-key>`
+
+<Note>Websockets have a 10-minute inactivity timer; implementing health checks and sending pings every minute is heavily recommended to keep the websocket connection alive.</Note>
+
+## Authorizations
+
+<ParamField query="api-key" type="string" required>
+  Your Helius API key. You can get one for free in the [dashboard](https://dashboard.helius.dev/api-keys).
+</ParamField>
+
+## Body
+
+<ParamField body="params" type="array">
+  <Expandable title="properties" defaultOpen>
+    <ParamField body="none" type="null">
+      No parameters required.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Response
+
+<ResponseField name="result" type="integer">
+  Subscription id (needed to unsubscribe)
+</ResponseField>
+
+## Notification Format
+
+The result is the latest root slot number.
+
+<RequestExample>
+  ```json Request theme={"system"}
+  {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "rootSubscribe"
+  }
+  ```
+</RequestExample>
+
+<ResponseExample>
+  ```json Response theme={"system"}
+  {
+    "jsonrpc": "2.0",
+    "result": 0,
+    "id": 1
+  }
+  ```
+
+  ```json Notification theme={"system"}
+  {
+    "jsonrpc": "2.0",
+    "method": "rootNotification",
+    "params": {
+      "result": 42,
+      "subscription": 0
+    }
+  }
+  ```
+</ResponseExample>

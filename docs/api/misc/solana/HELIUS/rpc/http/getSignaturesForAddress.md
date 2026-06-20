@@ -1,0 +1,377 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getSignaturesForAddress
+
+> Returns signatures for confirmed transactions that include the given address in their `accountKeys` list. Returns signatures backwards in time from the provided signature or most recent confirmed block
+
+<Tip>
+  For advanced filtering, sorting, and token account history, use [`getTransactionsForAddress`](/rpc/gettransactionsforaddress) instead. Note that `getSignaturesForAddress` does not include transactions involving associated token accounts.
+</Tip>
+
+## Request Parameters
+
+<ParamField body="address" type="string" required>
+  Solana account address to retrieve transaction history for (wallet, token, program, NFT, etc.).
+</ParamField>
+
+<ParamField body="commitment" type="string">
+  The commitment level for the request. The `processed` commitment is not supported.
+
+  * `confirmed`
+  * `finalized`
+</ParamField>
+
+<ParamField body="minContextSlot" type="number">
+  The minimum slot that the request can be evaluated at.
+</ParamField>
+
+<ParamField body="limit" type="number">
+  Maximum number of transaction signatures to return in a single request (1-1,000).
+</ParamField>
+
+<ParamField body="before" type="string">
+  Pagination parameter to get transactions before this signature (earlier in time).
+</ParamField>
+
+<ParamField body="until" type="string">
+  Get transactions until this signature is reached, useful for specific time ranges.
+</ParamField>
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getSignaturesForAddress.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Comprehensive Solana transaction history API for retrieving and analyzing
+    historical blockchain activities associated with any wallet address or
+    program.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getSignaturesForAddress
+      description: >
+        Retrieve transaction signatures for activity involving a specific Solana
+        address with powerful pagination.
+
+        This essential API provides transaction history for any Solana wallet,
+        token, program, or NFT address,
+
+        returning chronological transaction signatures with their status,
+        timing, and execution results.
+
+        Perfect for building wallet transaction histories, program activity
+        monitoring, address analytics,
+
+        and any application that needs to track historical operations on the
+        Solana blockchain.
+
+        Supports flexible pagination for accessing complete transaction history.
+      operationId: getSignaturesForAddress
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - jsonrpc
+                - id
+                - method
+                - params
+              properties:
+                jsonrpc:
+                  type: string
+                  enum:
+                    - '2.0'
+                  example: '2.0'
+                  description: The JSON-RPC protocol version.
+                  default: '2.0'
+                id:
+                  type: string
+                  example: '1'
+                  description: A unique identifier for the request.
+                  default: '1'
+                method:
+                  type: string
+                  enum:
+                    - getSignaturesForAddress
+                  example: getSignaturesForAddress
+                  description: The name of the RPC method to invoke.
+                  default: getSignaturesForAddress
+                params:
+                  type: array
+                  description: >-
+                    Array containing the required account address and optional
+                    configuration object.
+                  default:
+                    - Vote111111111111111111111111111111111111111
+                  items:
+                    oneOf:
+                      - type: string
+                        description: >-
+                          Solana account address to retrieve transaction history
+                          for (wallet, token, program, NFT, etc.).
+                        example: Vote111111111111111111111111111111111111111
+                      - type: object
+                        description: >-
+                          Advanced query configuration for customizing
+                          transaction history retrieval.
+                        properties:
+                          commitment:
+                            type: string
+                            description: >-
+                              The commitment level for the request. The
+                              `processed` commitment is not supported.
+                            enum:
+                              - confirmed
+                              - finalized
+                            example: finalized
+                          minContextSlot:
+                            type: integer
+                            description: >-
+                              The minimum slot that the request can be evaluated
+                              at.
+                            example: 1000
+                          limit:
+                            type: integer
+                            description: >-
+                              Maximum number of transaction signatures to return
+                              in a single request (1-1,000).
+                            example: 1000
+                          before:
+                            type: string
+                            description: >-
+                              Pagination parameter to get transactions before
+                              this signature (earlier in time).
+                            example: >-
+                              5h6xBEauJ3PK6SWCZ1PGjBvj8vDdWG3KpwATGy1ARAXFSDwt8GFXM7W5Ncn16wmqokgpiKRLuS83KUxyZyv2sUYv
+                          until:
+                            type: string
+                            description: >-
+                              Get transactions until this signature is reached,
+                              useful for specific time ranges.
+                            example: >-
+                              3jweEauJ3PK6SWCZ1PGjBvj8vDdWG3KpwATGy1ARAXFSDwt8GFXM7W5Ncn16wmqokgpiKRLuS83KUxyZyv2sUYv
+      responses:
+        '200':
+          description: Successfully retrieved signatures for the specified address.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    type: array
+                    description: List of transaction signature information.
+                    items:
+                      type: object
+                      description: Details for each transaction signature.
+                      properties:
+                        signature:
+                          type: string
+                          description: Transaction signature as a base-58 encoded string.
+                          example: >-
+                            5h6xBEauJ3PK6SWCZ1PGjBvj8vDdWG3KpwATGy1ARAXFSDwt8GFXM7W5Ncn16wmqokgpiKRLuS83KUxyZyv2sUYv
+                        slot:
+                          type: integer
+                          description: >-
+                            The slot that contains the block with the
+                            transaction.
+                          example: 114
+                        err:
+                          oneOf:
+                            - type: object
+                              description: Error if the transaction failed
+                            - type: 'null'
+                          description: >-
+                            Error if the transaction failed, or null if
+                            successful.
+                          example: null
+                        memo:
+                          oneOf:
+                            - type: string
+                              description: Memo associated with the transaction
+                            - type: 'null'
+                          description: >-
+                            Memo associated with the transaction, or null if
+                            none.
+                          example: null
+                        blockTime:
+                          oneOf:
+                            - type: integer
+                              description: Estimated production time as Unix timestamp
+                            - type: 'null'
+                          description: >-
+                            Estimated production time as Unix timestamp (seconds
+                            since epoch), or null if not available.
+                          example: null
+                        confirmationStatus:
+                          oneOf:
+                            - type: string
+                              enum:
+                                - processed
+                                - confirmed
+                                - finalized
+                              description: Transaction's cluster confirmation status
+                            - type: 'null'
+                          description: Transaction's cluster confirmation status.
+                          example: finalized
+              examples:
+                response:
+                  value:
+                    jsonrpc: '2.0'
+                    id: 1
+                    result:
+                      - signature: >-
+                          5h6xBEauJ3PK6SWCZ1PGjBvj8vDdWG3KpwATGy1ARAXFSDwt8GFXM7W5Ncn16wmqokgpiKRLuS83KUxyZyv2sUYv
+                        slot: 114
+                        err: null
+                        memo: null
+                        blockTime: null
+                        confirmationStatus: finalized
+            application/json; schema=examples/request:
+              example:
+                jsonrpc: '2.0'
+                id: 1
+                method: getSignaturesForAddress
+                params:
+                  - Vote111111111111111111111111111111111111111
+                  - limit: 1
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````
