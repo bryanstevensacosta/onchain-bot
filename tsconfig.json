@@ -25,7 +25,7 @@
       "shared/kernel/*": ["src/shared/kernel/*"],
       "shared/common/*": ["src/shared/common/*"],
       "shared/*": ["src/shared/*"],
-      "ca/*": ["src/ca/*"],
+      "discovery/*": ["src/discovery/*"],
       "src/*": ["src/*"]
     }
   }

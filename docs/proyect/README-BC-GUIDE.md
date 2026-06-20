@@ -2,13 +2,13 @@
 
 > Esta guía define **qué debe contener**, **cómo debe escribirse** y **cuándo debe actualizarse** el `README.md` de cada BC del proyecto.
 
-El primer BC que sirve como referencia es `src/ca/ingestion/telegram/README.md`; utilízalo como plantilla canónica.
+El primer BC que sirve como referencia es `src/discovery/ingestion/telegram/README.md`; utilízalo como plantilla canónica.
 
 ---
 
 ## 1. Propósito de esta guía
 
-- Estandarizar la documentación interna de todos los BCs (`src/ca/*`, `src/user/`, `src/token/`, `src/trading/`, `src/analytics/`, `src/notification/`).
+- Estandarizar la documentación interna de todos los BCs (`src/discovery/*`, `src/user/`, `src/token/`, `src/trading/`, `src/analytics/`, `src/notification/`).
 - Acelerar el onboarding de nuevos devs: cualquier BC debe entenderse leyendo **solo** su `README.md`.
 - Mantener viva la arquitectura: el README refleja el código, no la intención.
 
@@ -21,7 +21,7 @@ El primer BC que sirve como referencia es `src/ca/ingestion/telegram/README.md`;
 | Elemento | Convención |
 |---|---|
 | Archivo | `README.md` (en MAYÚSCULAS) |
-| Ruta | `<raíz del BC>/README.md` (ej. `src/ca/ingestion/telegram/README.md`) |
+| Ruta | `<raíz del BC>/README.md` (ej. `src/discovery/ingestion/telegram/README.md`) |
 | Idioma | Español (consistente con `docs/proyect/BC.md` y resto de docs internas) |
 | Encoding | UTF-8, LF |
 
@@ -115,7 +115,7 @@ Cada VO tiene regex o reglas de validación. Cópialas textualmente al README en
 
 ### Paso 7 — Redactar el README
 
-Usa como plantilla la sección §3 de esta guía. Copia el README de `src/ca/ingestion/telegram/README.md` como base.
+Usa como plantilla la sección §3 de esta guía. Copia el README de `src/discovery/ingestion/telegram/README.md` como base.
 
 ### Paso 8 — Verificar
 
@@ -268,7 +268,7 @@ Archivo: `module.ts:N`.
 
 ## 8. Convenciones específicas del repo
 
-Estas convenciones ya están fijadas en `src/ca/ingestion/telegram/` y deben replicarse:
+Estas convenciones ya están fijadas en `src/discovery/ingestion/telegram/` y deben replicarse:
 
 - **Hexagonal estricto:** `domain/` no importa de `application/`, `infrastructure/` o `api/`. Ver `domain/entities/telegram-channel.entity.ts` (sin imports NestJS).
 - **Puertos como `abstract class`** (no `interface`) para ser tokens DI. Ver `domain/ports/telegram-listener.port.ts:8` y comentario en `:7`.
@@ -298,21 +298,21 @@ Si un nuevo BC rompe alguna de estas convenciones, documenta el porqué en su RE
 
 | BC | ¿Tiene README? | Referencia |
 |---|---|---|
-| `src/ca/ingestion/telegram` | ✅ | `src/ca/ingestion/telegram/README.md` |
-| `src/ca/ingestion/reddit` | ❌ | pendiente |
-| `src/ca/ingestion/twitter` | ❌ | pendiente |
-| `src/ca/ingestion/discord` | ❌ | pendiente |
-| `src/ca/ingestion/webhooks` | ❌ | pendiente |
-| `src/ca/extraction` | ✅ | `src/ca/extraction/README.md` |
-| `src/ca/parsing` | ✅ | `src/ca/parsing/README.md` |
-| `src/ca/normalization` | ✅ | `src/ca/normalization/README.md` |
-| `src/ca/chain-detection` | ✅ | `src/ca/chain-detection/README.md` |
-| `src/ca/enrichment` | ✅ | `src/ca/enrichment/README.md` |
-| `src/ca/classification` | ✅ | `src/ca/classification/README.md` |
-| `src/ca/scoring` | ✅ | `src/ca/scoring/README.md` |
-| `src/ca/analytics` | ✅ | `src/ca/analytics/README.md` |
-| `src/ca/filters` | ✅ | `src/ca/filters/README.md` |
-| `src/ca/publishing/telegram` | ✅ | `src/ca/publishing/telegram/README.md` |
+| `src/discovery/ingestion/telegram` | ✅ | `src/discovery/ingestion/telegram/README.md` |
+| `src/discovery/ingestion/reddit` | ❌ | pendiente |
+| `src/discovery/ingestion/twitter` | ❌ | pendiente |
+| `src/discovery/ingestion/discord` | ❌ | pendiente |
+| `src/discovery/ingestion/webhooks` | ❌ | pendiente |
+| `src/discovery/extraction` | ✅ | `src/discovery/extraction/README.md` |
+| `src/discovery/parsing` | ✅ | `src/discovery/parsing/README.md` |
+| `src/discovery/normalization` | ✅ | `src/discovery/normalization/README.md` |
+| `src/discovery/chain-detection` | ✅ | `src/discovery/chain-detection/README.md` |
+| `src/discovery/enrichment` | ✅ | `src/discovery/enrichment/README.md` |
+| `src/discovery/classification` | ✅ | `src/discovery/classification/README.md` |
+| `src/discovery/scoring` | ✅ | `src/discovery/scoring/README.md` |
+| `src/discovery/analytics` | ✅ | `src/discovery/analytics/README.md` |
+| `src/discovery/filters` | ✅ | `src/discovery/filters/README.md` |
+| `src/discovery/publishing/telegram` | ✅ | `src/discovery/publishing/telegram/README.md` |
 | `src/user` | ❌ | pendiente |
 | `src/token` | ❌ | pendiente |
 | `src/trading` | ❌ | pendiente |
@@ -328,5 +328,5 @@ Si un nuevo BC rompe alguna de estas convenciones, documenta el porqué en su RE
 
 - `docs/proyect/BC.md` — Mapa global de BCs, lenguaje ubicuo de alto nivel y grafo de dependencias.
 - `docs/proyect/PLAN.md` — Orden de implementación y rationale.
-- `src/ca/ingestion/telegram/README.md` — Ejemplo canónico a replicar.
+- `src/discovery/ingestion/telegram/README.md` — Ejemplo canónico a replicar.
 - `src/shared/domain/*` — Base classes (`AggregateRoot`, `ValueObject`, `DomainEvent`, `DomainError`).

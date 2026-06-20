@@ -56,7 +56,7 @@
 src/
 ├── shared/                          # ✅ DONE - DDD base classes, config
 │
-├── ca/                              # ← CA Discovery Pipeline (all sub-BCs)
+├── ca/                              # ← Call Discovery Pipeline (all sub-BCs)
 │   │
 │   ├── ingestion/                   # Sources of messages (BC: each source)
 │   │   ├── telegram/                 # ← FIRST BC to implement

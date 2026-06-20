@@ -204,7 +204,7 @@ Subclases concretas (en cada BC) extienden `DomainEvent`, llaman `super(eventNam
 | Genérico | `INTERNAL`, `NOT_FOUND`, `VALIDATION`, `CONFLICT`, `UNAUTHORIZED`, `FORBIDDEN`, `RATE_LIMITED` |
 | Token context | `TOKEN_NOT_FOUND`, `INVALID_ADDRESS`, `UNSUPPORTED_CHAIN`, `HONEYPOT_DETECTED` |
 | Trading | `INSUFFICIENT_BALANCE`, `SLIPPAGE_EXCEEDED`, `ORDER_FAILED` |
-| CA pipeline | `NO_CONTRACT_ADDRESS`, `NO_PARSED_CALL` |
+| discovery pipeline | `NO_CONTRACT_ADDRESS`, `NO_PARSED_CALL` |
 
 `DomainError extends Error` (`:35-43`) — constructor `(code, message, details?)`. `details` se conserva como `Record<string, unknown>` para que handlers HTTP/loggers lo serialicen.
 

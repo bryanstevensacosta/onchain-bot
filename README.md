@@ -43,22 +43,22 @@ ingestion → extraction → parsing → normalization → chain-detection ─�
 
 ## 4. Bounded Contexts
 
-### 4.1 Pipeline CA (`src/ca/`)
+### 4.1 Pipeline discovery (`src/discovery/`)
 
 | BC | Resumen | README |
 |---|---|---|
-| `ingestion/telegram` | Suscribe, persiste y consume en tiempo real los mensajes de canales de Telegram que el sistema monitoriza. | [`src/ca/ingestion/telegram/README.md`](src/ca/ingestion/telegram/README.md) |
-| `extraction` | Extrae candidatos crudos (CAs EVM/Solana, tickers, URLs) del texto plano de un mensaje de Telegram, sin reglas de negocio semánticas. | [`src/ca/extraction/README.md`](src/ca/extraction/README.md) |
-| `parsing` | Convierte texto crudo + candidatos extraídos en un `TokenCall` estructurado (contrato primario, ticker, métricas USD, confidence heurístico). | [`src/ca/parsing/README.md`](src/ca/parsing/README.md) |
-| `normalization` | Dedupica menciones del mismo token a lo largo de múltiples canales/mensajes y produce una entrada canónica agregada por `(chain, address)`. | [`src/ca/normalization/README.md`](src/ca/normalization/README.md) |
-| `chain-detection` | Determina en qué chain vive una dirección de contrato, sondeando múltiples chain probers en paralelo y eligiendo el ganador por puntos. | [`src/ca/chain-detection/README.md`](src/ca/chain-detection/README.md) |
-| `enrichment` | Agrega datos de mercado en tiempo real (precio, liquidez, FDV, MC, holders, pares) consultando múltiples proveedores externos en paralelo y fusionando los resultados. | [`src/ca/enrichment/README.md`](src/ca/enrichment/README.md) |
-| `classification` | Clasifica tokens (`TOKEN`/`POOL`/`ROUTER`/`NFT`/`SCAM`/`UNKNOWN`) y emite señales de riesgo (LOW_LIQUIDITY, NO_HOLDERS, POSSIBLE_RUG, etc.) basándose en el `TokenSnapshot` de enrichment. | [`src/ca/classification/README.md`](src/ca/classification/README.md) |
-| `scoring` | Combina classification + métricas + buzz + reputación de canal en un score 0..100 con desglose de factores. | [`src/ca/scoring/README.md`](src/ca/scoring/README.md) |
-| `honeypot` | Detecta si un token es un honeypot. v1 heurístico (DexScreener + reglas); v2计划 integrar GoPlus, bytecode Alchemy y simulación Tenderly. | (pendiente de README — [`src/ca/honeypot/`](src/ca/honeypot/)) |
-| `filters` | Última compuerta antes de publicar: aplica gates configurables (score mínimo, blacklist, honeypot sospecha, risk weight, completeness, chain) y decide `APPROVED`/`REJECTED`. | [`src/ca/filters/README.md`](src/ca/filters/README.md) |
-| `publishing/telegram` | Cierra el pipeline: formatea calls APPROVED como mensajes de Telegram y los envía a canales de output (mock por defecto, MTProto real opcional). | [`src/ca/publishing/telegram/README.md`](src/ca/publishing/telegram/README.md) |
-| `analytics` | Evalúa retrospectivamente si los calls rindieron bien (`STRONG`/`GOOD`/`NEUTRAL`/`POOR`/`FAILED`) y agrega reputación por canal para alimentar `scoring` con datos reales. | [`src/ca/analytics/README.md`](src/ca/analytics/README.md) |
+| `ingestion/telegram` | Suscribe, persiste y consume en tiempo real los mensajes de canales de Telegram que el sistema monitoriza. | [`src/discovery/ingestion/telegram/README.md`](src/discovery/ingestion/telegram/README.md) |
+| `extraction` | Extrae candidatos crudos (CAs EVM/Solana, tickers, URLs) del texto plano de un mensaje de Telegram, sin reglas de negocio semánticas. | [`src/discovery/extraction/README.md`](src/discovery/extraction/README.md) |
+| `parsing` | Convierte texto crudo + candidatos extraídos en un `TokenCall` estructurado (contrato primario, ticker, métricas USD, confidence heurístico). | [`src/discovery/parsing/README.md`](src/discovery/parsing/README.md) |
+| `normalization` | Dedupica menciones del mismo token a lo largo de múltiples canales/mensajes y produce una entrada canónica agregada por `(chain, address)`. | [`src/discovery/normalization/README.md`](src/discovery/normalization/README.md) |
+| `chain-detection` | Determina en qué chain vive una dirección de contrato, sondeando múltiples chain probers en paralelo y eligiendo el ganador por puntos. | [`src/discovery/chain-detection/README.md`](src/discovery/chain-detection/README.md) |
+| `enrichment` | Agrega datos de mercado en tiempo real (precio, liquidez, FDV, MC, holders, pares) consultando múltiples proveedores externos en paralelo y fusionando los resultados. | [`src/discovery/enrichment/README.md`](src/discovery/enrichment/README.md) |
+| `classification` | Clasifica tokens (`TOKEN`/`POOL`/`ROUTER`/`NFT`/`SCAM`/`UNKNOWN`) y emite señales de riesgo (LOW_LIQUIDITY, NO_HOLDERS, POSSIBLE_RUG, etc.) basándose en el `TokenSnapshot` de enrichment. | [`src/discovery/classification/README.md`](src/discovery/classification/README.md) |
+| `scoring` | Combina classification + métricas + buzz + reputación de canal en un score 0..100 con desglose de factores. | [`src/discovery/scoring/README.md`](src/discovery/scoring/README.md) |
+| `honeypot` | Detecta si un token es un honeypot. v1 heurístico (DexScreener + reglas); v2计划 integrar GoPlus, bytecode Alchemy y simulación Tenderly. | (pendiente de README — [`src/discovery/honeypot/`](src/discovery/honeypot/)) |
+| `filters` | Última compuerta antes de publicar: aplica gates configurables (score mínimo, blacklist, honeypot sospecha, risk weight, completeness, chain) y decide `APPROVED`/`REJECTED`. | [`src/discovery/filters/README.md`](src/discovery/filters/README.md) |
+| `publishing/telegram` | Cierra el pipeline: formatea calls APPROVED como mensajes de Telegram y los envía a canales de output (mock por defecto, MTProto real opcional). | [`src/discovery/publishing/telegram/README.md`](src/discovery/publishing/telegram/README.md) |
+| `analytics` | Evalúa retrospectivamente si los calls rindieron bien (`STRONG`/`GOOD`/`NEUTRAL`/`POOR`/`FAILED`) y agrega reputación por canal para alimentar `scoring` con datos reales. | [`src/discovery/analytics/README.md`](src/discovery/analytics/README.md) |
 
 ### 4.2 Núcleo transversal
 

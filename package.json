@@ -83,7 +83,7 @@
     "testEnvironment": "node",
     "moduleNameMapper": {
       "^shared/(.*)$": "<rootDir>/shared/$1",
-      "^ca/(.*)$": "<rootDir>/ca/$1",
+      "^discovery/(.*)$": "<rootDir>/discovery/$1",
       "^src/(.*)$": "<rootDir>/$1"
     }
   }

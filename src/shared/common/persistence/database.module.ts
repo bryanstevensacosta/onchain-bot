@@ -1,9 +1,9 @@
 import { DynamicModule, Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { TelegramChannelEntity } from 'ca/ingestion/telegram/infrastructure/persistence/typeorm/entities/telegram-channel.entity';
-import { CanonicalTokenCallEntity } from 'ca/normalization/infrastructure/persistence/typeorm/entities/canonical-token-call.entity';
-import { ChannelReputationStatsEntity } from 'ca/analytics/infrastructure/persistence/typeorm/entities/channel-reputation-stats.entity';
+import { TelegramChannelEntity } from 'discovery/ingestion/telegram/infrastructure/persistence/typeorm/entities/telegram-channel.entity';
+import { CanonicalTokenCallEntity } from 'discovery/normalization/infrastructure/persistence/typeorm/entities/canonical-token-call.entity';
+import { ChannelReputationStatsEntity } from 'discovery/analytics/infrastructure/persistence/typeorm/entities/channel-reputation-stats.entity';
 import type { AppConfig } from 'shared/common/config/app.config';
 
 const PERSISTED_ENTITIES = [
