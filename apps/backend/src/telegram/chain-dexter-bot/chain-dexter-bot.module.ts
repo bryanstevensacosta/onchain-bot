@@ -10,6 +10,8 @@ import { MessageFormatterAdapter } from './infrastructure/telegram/message-forma
 import { TelegramBotClient } from './infrastructure/telegram/bot-client';
 import { TradeButtonRegistry } from './infrastructure/telegram/trade-button-registry';
 import { InlineKeyboardBuilder } from './infrastructure/telegram/inline-keyboard.builder';
+import { ChainDexterWebhookController } from './infrastructure/telegram/webhook.controller';
+import { UpdatePollerService } from './infrastructure/telegram/update-poller.service';
 import { ChainDexterBotConfigService } from './bot.config';
 import { TokenScanService } from './application/token-scan.service';
 import { ChainDexterController } from './api/http/chain-dexter.controller';
@@ -24,6 +26,9 @@ import { InMemoryChatSettingsRepository } from './infrastructure/repositories/in
 import { TypeOrmChatGroupRepository } from './infrastructure/persistence/typeorm-chat-group.repository';
 import { TypeOrmChatSettingsRepository } from './infrastructure/persistence/typeorm-chat-settings.repository';
 import { ChatSettingsService } from './application/handlers/chat-settings.service';
+import { ContextResolverService } from './application/handlers/context-resolver.service';
+import { CommandRouterService } from './application/handlers/command-router.service';
+import { StartCommandHandler, HelpCommandHandler } from './application/handlers/commands/start-help.handlers';
 import type { AppConfig } from 'shared/common/config/app.config';
 
 @Module({
@@ -31,11 +36,9 @@ import type { AppConfig } from 'shared/common/config/app.config';
     HttpModule,
     ChainDetectionModule,
     ChainExplorerModule,
-    ...(isDatabaseEnabled()
-      ? [TypeOrmModule.forFeature([ChatGroupEntity, ChatSettingsEntity])]
-      : []),
+    ...(isDatabaseEnabled() ? [TypeOrmModule.forFeature([ChatGroupEntity, ChatSettingsEntity])] : []),
   ],
-  controllers: [ChainDexterController],
+  controllers: [ChainDexterController, ChainDexterWebhookController],
   providers: [
     ChainDexterBotConfigService,
     TelegramBotClient,
@@ -45,11 +48,14 @@ import type { AppConfig } from 'shared/common/config/app.config';
     TokenScanService,
     ChainDexterBotAdapter,
     ChatSettingsService,
+    ContextResolverService,
+    CommandRouterService,
+    StartCommandHandler,
+    HelpCommandHandler,
+    UpdatePollerService,
     InMemoryChatGroupRepository,
     InMemoryChatSettingsRepository,
-    ...(isDatabaseEnabled()
-      ? [TypeOrmChatGroupRepository, TypeOrmChatSettingsRepository]
-      : []),
+    ...(isDatabaseEnabled() ? [TypeOrmChatGroupRepository, TypeOrmChatSettingsRepository] : []),
     {
       provide: CHAT_GROUP_REPOSITORY,
       inject: [
@@ -62,8 +68,7 @@ import type { AppConfig } from 'shared/common/config/app.config';
         inMemory: InMemoryChatGroupRepository,
         typeorm?: TypeOrmChatGroupRepository,
       ): ChatGroupRepository => {
-        const enabled =
-          config.get<AppConfig>('app')?.database?.enabled === true;
+        const enabled = config.get<AppConfig>('app')?.database?.enabled === true;
         return enabled && typeorm ? typeorm : inMemory;
       },
     },
@@ -79,8 +84,7 @@ import type { AppConfig } from 'shared/common/config/app.config';
         inMemory: InMemoryChatSettingsRepository,
         typeorm?: TypeOrmChatSettingsRepository,
       ): ChatSettingsRepository => {
-        const enabled =
-          config.get<AppConfig>('app')?.database?.enabled === true;
+        const enabled = config.get<AppConfig>('app')?.database?.enabled === true;
         return enabled && typeorm ? typeorm : inMemory;
       },
     },
@@ -94,8 +98,8 @@ import type { AppConfig } from 'shared/common/config/app.config';
     TokenScanService,
     ChainDexterBotAdapter,
     ChatSettingsService,
-    CHAT_GROUP_REPOSITORY,
-    CHAT_SETTINGS_REPOSITORY,
+    ContextResolverService,
+    CommandRouterService,
   ],
 })
 export class ChainDexterBotModule {}
