@@ -10,6 +10,7 @@ import { ParsingModule } from 'token/intake/parsing/parsing.module';
 import { NormalizationModule } from 'token/normalization/normalization.module';
 import { ChainDetectionModule } from 'chain/detection/chain-detection.module';
 import { ChainRegistryModule } from 'chain/registry/chain-registry.module';
+import { ChainExplorerModule } from 'chain/explorer/chain-explorer.module';
 import { ClassificationModule } from 'token/classification/classification.module';
 import { ScoringModule } from 'token/scoring/scoring.module';
 import { FiltersModule } from 'token/token-gating/filters.module';
@@ -47,6 +48,7 @@ import { AppService } from './app.service';
     NormalizationModule,
     ChainDetectionModule,
     ChainRegistryModule,
+    ChainExplorerModule,
     ClassificationModule,
     ScoringModule,
     FiltersModule,
