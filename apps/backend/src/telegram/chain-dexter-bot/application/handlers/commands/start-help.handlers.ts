@@ -1,12 +1,14 @@
+import { Injectable } from '@nestjs/common';
 import type { CommandHandler, CommandContext } from '../command-handler';
 import { TelegramBotClient } from '../../../infrastructure/telegram/bot-client';
 
+@Injectable()
 export class StartCommandHandler implements CommandHandler {
   public readonly name = 'start';
 
   public constructor(private readonly bot: TelegramBotClient) {}
 
-  public async handle(args: string[], context: CommandContext): Promise<void> {
+  public async handle(_args: string[], context: CommandContext): Promise<void> {
     await this.bot.sendMessage(
       context.chatId,
       `👋 ¡Hola! Soy *Chain Dexter Bot* — un wrapper Telegram sobre análisis on-chain multi-chain.
@@ -24,6 +26,7 @@ Más comandos próximamente. Tip: en móvil, baja el tamaño de fuente para mejo
   }
 }
 
+@Injectable()
 export class HelpCommandHandler implements CommandHandler {
   public readonly name = 'help';
 

@@ -28,10 +28,17 @@ import { TypeOrmChatSettingsRepository } from './infrastructure/persistence/type
 import { ChatSettingsService } from './application/handlers/chat-settings.service';
 import { ContextResolverService } from './application/handlers/context-resolver.service';
 import { CommandRouterService } from './application/handlers/command-router.service';
+import { TokenScanPipeline } from './application/handlers/token-scan.pipeline';
 import {
   StartCommandHandler,
   HelpCommandHandler,
 } from './application/handlers/commands/start-help.handlers';
+import { XTokenScanHandler } from './application/handlers/commands/x-token-scan.handler';
+import { ZCompactScanHandler } from './application/handlers/commands/z-compact-scan.handler';
+import { CTokenChartHandler } from './application/handlers/commands/c-token-chart.handler';
+import { CcChartOnlyHandler } from './application/handlers/commands/cc-chart-only.handler';
+import { TbTradeButtonsHandler } from './application/handlers/commands/tb-trade-buttons.handler';
+import { SettingsViewHandler } from './application/handlers/commands/settings-view.handler';
 import type { AppConfig } from 'shared/common/config/app.config';
 
 @Module({
@@ -55,8 +62,15 @@ import type { AppConfig } from 'shared/common/config/app.config';
     ChatSettingsService,
     ContextResolverService,
     CommandRouterService,
+    TokenScanPipeline,
     StartCommandHandler,
     HelpCommandHandler,
+    XTokenScanHandler,
+    ZCompactScanHandler,
+    CTokenChartHandler,
+    CcChartOnlyHandler,
+    TbTradeButtonsHandler,
+    SettingsViewHandler,
     UpdatePollerService,
     InMemoryChatGroupRepository,
     InMemoryChatSettingsRepository,

@@ -1,9 +1,9 @@
 import { DynamicModule, Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { KolEntity } from 'telegram-kol/identity/infrastructure/persistence/typeorm/entities/kol.entity';
+import { KolEntity } from 'kol/identity/infrastructure/persistence/typeorm/entities/kol.entity';
 import { CanonicalTokenCallEntity } from 'token/normalization/infrastructure/persistence/typeorm/entities/canonical-token-call.entity';
-import { KolReputationEntity } from 'telegram-kol/reputation/infrastructure/persistence/typeorm/entities/kol-reputation.entity';
+import { KolReputationEntity } from 'kol/reputation/infrastructure/persistence/typeorm/entities/kol-reputation.entity';
 import { TokenScoreEntity } from 'token/scoring/infrastructure/persistence/typeorm/entities/token-score.entity';
 import { TokenClassificationEntity } from 'token/classification/infrastructure/persistence/typeorm/entities/token-classification.entity';
 import { CallPerformanceEntity } from 'token/call-tracking/infrastructure/persistence/typeorm/entities/call-performance.entity';
@@ -14,6 +14,12 @@ import { ExtractionResultEntity } from 'token/intake/extraction/infrastructure/p
 import { TokenCallEntity } from 'token/intake/parsing/infrastructure/persistence/typeorm/entities/token-call.entity';
 import { HoneypotAnalysisEntity } from 'token/honeypot/infrastructure/persistence/typeorm/entities/honeypot-analysis.entity';
 import { ChainDetectionResultEntity } from 'chain/detection/infrastructure/persistence/typeorm/entities/chain-detection-result.entity';
+import { ChatGroupEntity } from 'telegram/chain-dexter-bot/domain/chat-group.entity';
+import { ChatSettingsEntity } from 'telegram/chain-dexter-bot/domain/chat-settings.entity';
+import { SignalEntity } from 'settings/infrastructure/persistence/typeorm/entities/signal.entity';
+import { ScoringThresholdEntity } from 'settings/infrastructure/persistence/typeorm/entities/scoring-threshold.entity';
+import { SettingsFilterEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-filter.entity';
+import { SettingsAuditLogEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-audit-log.entity';
 import type { AppConfig } from 'shared/common/config/app.config';
 
 const PERSISTED_ENTITIES = [
@@ -30,6 +36,12 @@ const PERSISTED_ENTITIES = [
   TokenCallEntity,
   HoneypotAnalysisEntity,
   ChainDetectionResultEntity,
+  ChatGroupEntity,
+  ChatSettingsEntity,
+  SignalEntity,
+  ScoringThresholdEntity,
+  SettingsFilterEntity,
+  SettingsAuditLogEntity,
 ];
 
 /**
