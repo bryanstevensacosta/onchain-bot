@@ -82,6 +82,13 @@ export interface AppConfig {
     };
   };
 
+  chainDexterBot: {
+    webhookSecret: string;
+    ingestMode: 'webhook' | 'polling';
+    pollingIntervalMs: number;
+    defaultTradeButtons: string[];
+  };
+
   analytics: {
     evaluationHorizonsHours: ReadonlyArray<number>;
     schedulerCron: string;
@@ -252,6 +259,23 @@ export const appConfig = registerAs(
       chainDexterBot: {
         botToken: process.env.CHAIN_DEXTER_BOT_TOKEN ?? '',
       },
+    },
+
+    chainDexterBot: {
+      webhookSecret: process.env.CHAIN_DEXTER_WEBHOOK_SECRET ?? '',
+      ingestMode: (process.env.CHAIN_DEXTER_INGEST_MODE ?? 'webhook') as
+        | 'webhook'
+        | 'polling',
+      pollingIntervalMs: parseInt(
+        process.env.CHAIN_DEXTER_POLLING_INTERVAL_MS ?? '1000',
+        10,
+      ),
+      defaultTradeButtons: (
+        process.env.CHAIN_DEXTER_DEFAULT_TRADE_BUTTONS ?? 'DEX,PHO,TRO'
+      )
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0),
     },
 
     analytics: {
