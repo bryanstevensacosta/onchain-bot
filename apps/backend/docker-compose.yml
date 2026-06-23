@@ -1,25 +1,25 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: onchain-bot-postgres
+    container_name: alpha-meta-token-scanner-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-onchain}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-onchain}
-      POSTGRES_DB: ${POSTGRES_DB:-onchain_bot}
+      POSTGRES_USER: ${POSTGRES_USER:-alpha_meta_token_scanner}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alpha_meta_token_scanner}
+      POSTGRES_DB: ${POSTGRES_DB:-alpha_meta_token_scanner}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - onchain-bot-pg-data:/var/lib/postgresql/data
+      - alpha-meta-token-scanner-pg-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-onchain} -d ${POSTGRES_DB:-onchain_bot}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-alpha_meta_token_scanner} -d ${POSTGRES_DB:-alpha_meta_token_scanner}"]
       interval: 5s
       timeout: 3s
       retries: 10
 
   pgadmin:
     image: dpage/pgadmin4
-    container_name: onchain-bot-pgadmin
+    container_name: alpha-meta-token-scanner-pgadmin
     restart: unless-stopped
     depends_on:
       postgres:
@@ -33,13 +33,13 @@ services:
     ports:
       - "${PGADMIN_PORT:-5050}:80"
     volumes:
-      - onchain-bot-pgadmin-data:/var/lib/pgadmin
+      - alpha-meta-token-scanner-pgadmin-data:/var/lib/pgadmin
       - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
       - ./pgadmin/preferences.json:/pgadmin4/preferences.json:ro
       - ./pgadmin/queries:/var/lib/pgadmin/storage/admin_admin.com/queries:ro
 
 volumes:
-  onchain-bot-pg-data:
-    name: onchain-bot-pg-data
-  onchain-bot-pgadmin-data:
-    name: onchain-bot-pgadmin-data
+  alpha-meta-token-scanner-pg-data:
+    name: alpha-meta-token-scanner-pg-data
+  alpha-meta-token-scanner-pgadmin-data:
+    name: alpha-meta-token-scanner-pgadmin-data

@@ -1,0 +1,1 @@
+export { VipCallsModule as TelegramPublishingModule } from './vip-calls/vip-calls.module';

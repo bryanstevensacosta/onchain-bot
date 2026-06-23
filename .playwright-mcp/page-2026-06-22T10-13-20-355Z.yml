@@ -1,0 +1,33 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - link "Alpha Meta Token Scanner" [ref=e6] [cursor=pointer]:
+          - /url: /
+        - navigation [ref=e7]:
+          - link "Dashboard" [ref=e8] [cursor=pointer]:
+            - /url: /
+          - link "Live" [ref=e9] [cursor=pointer]:
+            - /url: /live
+          - link "Tokens" [ref=e10] [cursor=pointer]:
+            - /url: /tokens
+          - link "KOLs" [ref=e11] [cursor=pointer]:
+            - /url: /kols
+          - link "Ops" [ref=e12] [cursor=pointer]:
+            - /url: /ops
+    - main [ref=e13]:
+      - generic [ref=e14]:
+        - heading "Tokens" [level=1] [ref=e15]
+        - paragraph [ref=e16]: Tokens canónicos deduplicados, ordenados por más recientes.
+        - 'link "◎ Solana Ckit5s…pump $XONA mentions: 1 conf: 55.0% hace 23m" [ref=e18] [cursor=pointer]':
+          - /url: /tokens/solana/Ckit5s1Cpc3RdMh1HrhfW2nAy4PnkkgjXgXMeykbpump
+          - generic [ref=e20]:
+            - generic [ref=e21]:
+              - generic [ref=e22]: ◎ Solana
+              - generic [ref=e23]: Ckit5s…pump
+              - generic [ref=e24]: $XONA
+            - generic [ref=e25]:
+              - generic [ref=e26]: "mentions: 1"
+              - generic [ref=e27]: "conf: 55.0%"
+              - generic [ref=e28]: hace 23m
+  - generic "WebSocket connection status" [ref=e29]: WS ○

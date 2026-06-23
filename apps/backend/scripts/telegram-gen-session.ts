@@ -33,7 +33,7 @@ async function main(): Promise<void> {
       onError: (err) => console.error('Telegram auth error:', err),
     });
 
-    const saved = client.session.save() as string;
+    const saved: string = await (client.session.save() as unknown as Promise<string>);
 
     console.log('\n=========================================================');
     console.log('  TELEGRAM_MTPROTO_SESSION (copy this into your .env):');
