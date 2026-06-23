@@ -28,7 +28,10 @@ import { TypeOrmChatSettingsRepository } from './infrastructure/persistence/type
 import { ChatSettingsService } from './application/handlers/chat-settings.service';
 import { ContextResolverService } from './application/handlers/context-resolver.service';
 import { CommandRouterService } from './application/handlers/command-router.service';
-import { StartCommandHandler, HelpCommandHandler } from './application/handlers/commands/start-help.handlers';
+import {
+  StartCommandHandler,
+  HelpCommandHandler,
+} from './application/handlers/commands/start-help.handlers';
 import type { AppConfig } from 'shared/common/config/app.config';
 
 @Module({
@@ -36,7 +39,9 @@ import type { AppConfig } from 'shared/common/config/app.config';
     HttpModule,
     ChainDetectionModule,
     ChainExplorerModule,
-    ...(isDatabaseEnabled() ? [TypeOrmModule.forFeature([ChatGroupEntity, ChatSettingsEntity])] : []),
+    ...(isDatabaseEnabled()
+      ? [TypeOrmModule.forFeature([ChatGroupEntity, ChatSettingsEntity])]
+      : []),
   ],
   controllers: [ChainDexterController, ChainDexterWebhookController],
   providers: [
@@ -55,7 +60,9 @@ import type { AppConfig } from 'shared/common/config/app.config';
     UpdatePollerService,
     InMemoryChatGroupRepository,
     InMemoryChatSettingsRepository,
-    ...(isDatabaseEnabled() ? [TypeOrmChatGroupRepository, TypeOrmChatSettingsRepository] : []),
+    ...(isDatabaseEnabled()
+      ? [TypeOrmChatGroupRepository, TypeOrmChatSettingsRepository]
+      : []),
     {
       provide: CHAT_GROUP_REPOSITORY,
       inject: [
@@ -68,7 +75,8 @@ import type { AppConfig } from 'shared/common/config/app.config';
         inMemory: InMemoryChatGroupRepository,
         typeorm?: TypeOrmChatGroupRepository,
       ): ChatGroupRepository => {
-        const enabled = config.get<AppConfig>('app')?.database?.enabled === true;
+        const enabled =
+          config.get<AppConfig>('app')?.database?.enabled === true;
         return enabled && typeorm ? typeorm : inMemory;
       },
     },
@@ -84,7 +92,8 @@ import type { AppConfig } from 'shared/common/config/app.config';
         inMemory: InMemoryChatSettingsRepository,
         typeorm?: TypeOrmChatSettingsRepository,
       ): ChatSettingsRepository => {
-        const enabled = config.get<AppConfig>('app')?.database?.enabled === true;
+        const enabled =
+          config.get<AppConfig>('app')?.database?.enabled === true;
         return enabled && typeorm ? typeorm : inMemory;
       },
     },
