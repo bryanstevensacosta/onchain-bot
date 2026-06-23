@@ -1,6 +1,6 @@
 import { Badge } from '@/shared/ui';
 import { truncateAddress, chainLabel } from '@/shared/lib';
-import { reasonLabel, riskLevelTone } from '@/shared/lib/signalLabels';
+import { reasonLabel, REASON_TONE } from '@/shared/lib/signalLabels';
 import type { RejectedTokenDiagnostics } from '../api/reprocess-client';
 
 const RECOMMENDATION_TONE: Record<
@@ -85,10 +85,7 @@ export function RejectedTable({
                 <td className="py-2 px-2">
                   <div className="flex flex-wrap gap-1">
                     {d.reasons.map((r) => (
-                      <Badge
-                        key={r.code}
-                        tone={riskLevelTone(r.code) ?? 'gray'}
-                      >
+                      <Badge key={r.code} tone={REASON_TONE[r.code] ?? 'gray'}>
                         {reasonLabel(r.code)}
                       </Badge>
                     ))}

@@ -95,6 +95,16 @@ export const RISK_LEVEL_TONE: Readonly<Record<string, BadgeTone>> = {
   CRITICAL: 'red',
 };
 
+export const REASON_TONE: Readonly<Record<string, BadgeTone>> = {
+  SCORE_TOO_LOW: 'yellow',
+  CLASSIFICATION_BLOCKED: 'orange',
+  BLACKLISTED: 'red',
+  HONEYPOT_SUSPECTED: 'orange',
+  RISK_WEIGHT_EXCEEDED: 'yellow',
+  INSUFFICIENT_DATA: 'yellow',
+  CHAIN_UNSUPPORTED: 'gray',
+};
+
 export function humanize(code: string): string {
   if (!code) return '';
   const spaced = code.replace(/_/g, ' ').toLowerCase();
