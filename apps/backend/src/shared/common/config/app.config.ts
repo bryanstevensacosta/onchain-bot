@@ -77,6 +77,9 @@ export interface AppConfig {
       botToken: string;
       outputChannel: string;
     };
+    chainDexterBot: {
+      botToken: string;
+    };
   };
 
   analytics: {
@@ -196,9 +199,12 @@ export const appConfig = registerAs(
 
     telegram: {
       botToken: process.env.TELEGRAM_BOT_TOKEN ?? '',
-      mtprotoApiId: parseInt(process.env.TELEGRAM_MTPROTO_API_ID ?? '0', 10),
-      mtprotoApiHash: process.env.TELEGRAM_MTPROTO_API_HASH ?? '',
-      mtprotoSession: process.env.TELEGRAM_MTPROTO_SESSION ?? '',
+      mtprotoApiId: parseInt(
+        process.env.INGESTION_TELEGRAM_MTPROTO_API_ID ?? '0',
+        10,
+      ),
+      mtprotoApiHash: process.env.INGESTION_TELEGRAM_MTPROTO_API_HASH ?? '',
+      mtprotoSession: process.env.INGESTION_TELEGRAM_MTPROTO_SESSION ?? '',
     },
 
     ingestion: {
@@ -237,12 +243,14 @@ export const appConfig = registerAs(
           (
             process.env.PUBLISHING_TELEGRAM_USE_REAL_MTPROTO ?? 'false'
           ).toLowerCase() === 'true',
-        outputChannel:
-          process.env.PUBLISHING_TELEGRAM_OUTPUT_CHANNEL ?? '',
+        outputChannel: process.env.PUBLISHING_TELEGRAM_OUTPUT_CHANNEL ?? '',
       },
       vipCalls: {
         botToken: process.env.VIP_CALLS_BOT_TOKEN ?? '',
         outputChannel: process.env.VIP_CALLS_OUTPUT_CHANNEL ?? '',
+      },
+      chainDexterBot: {
+        botToken: process.env.CHAIN_DEXTER_BOT_TOKEN ?? '',
       },
     },
 

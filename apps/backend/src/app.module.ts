@@ -14,14 +14,16 @@ import { ChainExplorerModule } from 'chain/explorer/chain-explorer.module';
 import { ClassificationModule } from 'token/classification/classification.module';
 import { ScoringModule } from 'token/scoring/scoring.module';
 import { FiltersModule } from 'token/token-gating/filters.module';
-import { TelegramPublishingModule } from 'telegram-publishing/publishing.module';
+import { TelegramPublishingModule } from 'telegram/publishing.module';
+import { ChainDexterBotModule } from 'telegram/chain-dexter-bot/chain-dexter-bot.module';
 import { CallTrackingModule } from 'token/call-tracking/call-tracking.module';
-import { ReputationModule } from 'telegram-kol/reputation/reputation.module';
+import { ReputationModule } from 'kol/reputation/reputation.module';
 import { HoneypotModule } from 'token/honeypot/honeypot.module';
-import { IdentityModule } from 'telegram-kol/identity/identity.module';
-import { SourceModule } from 'telegram-kol/source/source.module';
-import { StatsModule } from 'telegram-kol/stats/stats.module';
+import { IdentityModule } from 'kol/identity/identity.module';
+import { SourceModule } from 'kol/source/source.module';
+import { StatsModule } from 'kol/stats/stats.module';
 import { WsModule } from 'shared/ws/ws.module';
+import { SettingsModule } from 'settings/settings.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -53,11 +55,13 @@ import { AppService } from './app.service';
     ScoringModule,
     FiltersModule,
     TelegramPublishingModule,
+    ChainDexterBotModule,
     CallTrackingModule,
     ReputationModule,
     HoneypotModule,
     DashboardModule,
     WsModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
