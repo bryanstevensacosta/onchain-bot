@@ -1,5 +1,6 @@
 import type { TokenScoreView } from '../model/types';
 import { Badge, ChainIcon } from '@/shared/ui';
+import { signalLabel } from '@/shared/lib/signalLabels';
 import { tierTone } from '../model/tier';
 
 interface ScoreGaugeProps {
@@ -29,39 +30,13 @@ interface ScoreBreakdownProps {
   factors: ReadonlyArray<{ factor: string; delta: number; note: string }>;
 }
 
-const FACTOR_LABELS: Record<string, string> = {
-  LIQUIDITY_HIGH: 'High Liquidity',
-  LIQUIDITY_MEDIUM: 'Medium Liquidity',
-  LIQUIDITY_LOW: 'Low Liquidity',
-  LIQUIDITY_INSUFFICIENT: 'Insufficient Liquidity',
-  HOLDERS_HIGH: 'High Holders',
-  HOLDERS_MEDIUM: 'Medium Holders',
-  HOLDERS_LOW: 'Low Holders',
-  HOLDERS_NONE: 'No Holders',
-  MC_HIGH: 'High Market Cap',
-  MC_MEDIUM: 'Medium Market Cap',
-  MC_LOW: 'Low Market Cap',
-  VOLUME_HIGH: 'High Volume',
-  VOLUME_LOW: 'Low Volume',
-  MULTI_CHANNEL_BUZZ: 'Multi-Channel Buzz',
-  TWO_CHANNELS: 'Two Channels',
-  HIGH_MENTION_COUNT: 'High Mentions',
-  MULTIPLE_MENTIONS: 'Multiple Mentions',
-  SIGNAL_HONEYPOT: 'Honeypot Risk',
-  SIGNAL_BLACKLIST: 'Blacklist Risk',
-  CHANNEL_REPUTATION: 'Channel Reputation',
-  SECURITY_FLAG_CAP: 'Security Cap',
-};
-
 export function ScoreBreakdown({ factors }: ScoreBreakdownProps) {
   return (
     <div className="space-y-2">
       {factors.map((f, i) => (
         <div key={i} className="flex flex-col text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-slate-300">
-              {FACTOR_LABELS[f.factor] || f.factor}
-            </span>
+            <span className="text-slate-300">{signalLabel(f.factor)}</span>
             <span
               className={`tabular-nums ${
                 f.delta > 0
