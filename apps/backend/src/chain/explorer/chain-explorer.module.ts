@@ -101,6 +101,7 @@ import { EnrichmentController } from 'chain/explorer/api/http/enrichment.control
     MARKET_DATA_PROVIDERS,
     TokenSnapshotRepository,
     EnrichmentEventPublisher,
+    EnrichTokenUseCase,
   ],
 })
 export class ChainExplorerModule {}
