@@ -79,7 +79,7 @@ export interface TokenGatingDecisionAppliedEvent {
   chain: Chain;
   address: string;
   verdict: 'APPROVED' | 'REJECTED';
-  reasons: ReadonlyArray<string>;
+  reasons: ReadonlyArray<{ code: string; message: string }>;
   decidedAt: string;
 }
 

@@ -26,6 +26,8 @@ export function TokenDetailPage() {
   const handleImageError = () => {
     if (currentImageIndex < imageUrls.length - 1) {
       setCurrentImageIndex((prev) => prev + 1);
+    } else {
+      setCurrentImageIndex(imageUrls.length);
     }
   };
 

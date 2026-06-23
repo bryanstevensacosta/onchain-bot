@@ -28,6 +28,8 @@ function DecisionRow({ decision }: { decision: FilterDecisionView }) {
   const handleImageError = () => {
     if (currentImageIndex < imageUrls.length - 1) {
       setCurrentImageIndex((prev) => prev + 1);
+    } else {
+      setCurrentImageIndex(imageUrls.length);
     }
   };
 
@@ -39,7 +41,9 @@ function DecisionRow({ decision }: { decision: FilterDecisionView }) {
       await navigator.clipboard.writeText(decision.address);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {}
+    } catch {
+      void 0;
+    }
   };
 
   return (
@@ -67,9 +71,7 @@ function DecisionRow({ decision }: { decision: FilterDecisionView }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           {name && <span className="font-medium truncate">{name}</span>}
-          {ticker && (
-            <span className="text-sm text-slate-400">${ticker}</span>
-          )}
+          {ticker && <span className="text-sm text-slate-400">${ticker}</span>}
           <ChainIcon chain={decision.chain} className="text-slate-500" />
         </div>
 
@@ -91,14 +93,7 @@ function DecisionRow({ decision }: { decision: FilterDecisionView }) {
         {isApproved ? (
           <Badge tone="green">{decision.verdict}</Badge>
         ) : (
-          <div className="flex flex-col items-end gap-1">
-            <Badge tone="red">{decision.verdict}</Badge>
-            {decision.reasons.length > 0 && (
-              <span className="text-xs text-red-400 max-w-[120px] truncate" title={decision.reasons.join(', ')}>
-                {decision.reasons.join(', ')}
-              </span>
-            )}
-          </div>
+          <Badge tone="red">{decision.verdict}</Badge>
         )}
       </div>
     </Card>

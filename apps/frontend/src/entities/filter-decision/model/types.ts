@@ -7,6 +7,6 @@ export interface FilterDecisionView {
   verdict: 'APPROVED' | 'REJECTED';
   score: number;
   classification: string;
-  reasons: ReadonlyArray<string>;
+  reasons: ReadonlyArray<{ code: string; message: string }>;
   decidedAt: string;
 }
