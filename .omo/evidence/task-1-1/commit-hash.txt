@@ -1,0 +1,3 @@
+commit: 0fa73ee0e15af674b3d73b36c82ae126ebb79952
+---
+0fa73ee feat(backend): add settings_presets table + description column migration

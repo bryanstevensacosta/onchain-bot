@@ -23,6 +23,14 @@ export interface SeedKolEntry {
 }
 
 export interface AppConfig {
+  // Milestone notification settings
+  milestone: {
+    activeWindowHours: number;
+    schedulerCron: string;
+    schedulerEnabled: boolean;
+    schedulerBatchSize: number;
+  };
+
   port: number;
   nodeEnv: 'development' | 'production' | 'test';
 
@@ -105,6 +113,14 @@ export interface AppConfig {
     database: string;
     synchronize: boolean;
     logging: boolean;
+  };
+
+  redis: {
+    enabled: boolean;
+    host: string;
+    port: number;
+    password: string;
+    db: number;
   };
 }
 
@@ -291,6 +307,20 @@ export const appConfig = registerAs(
         10,
       ),
     },
+    milestone: {
+      activeWindowHours: parseInt(
+        process.env.MILESTONE_ACTIVE_WINDOW_HOURS ?? '72',
+        10,
+      ),
+      schedulerCron: process.env.MILESTONE_SCHEDULER_CRON ?? '*/5 * * * *',
+      schedulerEnabled:
+        (process.env.MILESTONE_SCHEDULER_ENABLED ?? 'true').toLowerCase() ===
+        'true',
+      schedulerBatchSize: parseInt(
+        process.env.MILESTONE_SCHEDULER_BATCH_SIZE ?? '30',
+        10,
+      ),
+    },
 
     database: {
       enabled:
@@ -304,6 +334,14 @@ export const appConfig = registerAs(
         (process.env.DATABASE_SYNCHRONIZE ?? 'true').toLowerCase() === 'true',
       logging:
         (process.env.DATABASE_LOGGING ?? 'false').toLowerCase() === 'true',
+    },
+
+    redis: {
+      enabled: (process.env.REDIS_ENABLED ?? 'true').toLowerCase() === 'true',
+      host: process.env.REDIS_HOST ?? 'localhost',
+      port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
+      password: process.env.REDIS_PASSWORD ?? '',
+      db: parseInt(process.env.REDIS_DB ?? '0', 10),
     },
   }),
 );

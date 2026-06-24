@@ -27,8 +27,10 @@ export class TokenEnrichedHandler {
         priceChange24h: event.payload.priceChange24h,
         holders: event.payload.holders,
         top10HolderPercent: event.payload.top10HolderPercent,
-        hasName: false, // not carried in enrichment event
-        hasTicker: false, // not carried in enrichment event
+        hasName:
+          typeof event.payload.name === 'string' &&
+          event.payload.name.trim().length > 0,
+        hasTicker: false, // symbol not yet carried in enrichment event
         completeness: event.payload.completeness,
       });
     } catch (err) {

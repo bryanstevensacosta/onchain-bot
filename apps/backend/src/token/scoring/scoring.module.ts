@@ -15,7 +15,7 @@ import { TypeOrmTokenScoreRepository } from 'token/scoring/infrastructure/persis
 import { InProcessScoringEventPublisher } from 'token/scoring/infrastructure/messaging/in-process-scoring-event.publisher';
 import { TokenClassifiedHandler } from 'token/scoring/infrastructure/event-bus/token-classified.handler';
 import { ScoringController } from 'token/scoring/api/http/scoring.controller';
-import { ReputationModule } from 'telegram-kol/reputation/reputation.module';
+import { ReputationModule } from 'kol/reputation/reputation.module';
 
 /**
  * Scoring BC module.

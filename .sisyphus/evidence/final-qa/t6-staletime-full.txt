@@ -1,0 +1,10 @@
+) {
+  return useQuery({
+    queryKey: snapshotKeys.byToken(chain ?? '', address ?? ''),
+    queryFn: () => fetchSnapshotByToken(chain!, address!),
+    enabled: !!chain && !!address,
+    // Avoid refetch storm on every navigation; matches backend Cache-Control TTL
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+  });
+}

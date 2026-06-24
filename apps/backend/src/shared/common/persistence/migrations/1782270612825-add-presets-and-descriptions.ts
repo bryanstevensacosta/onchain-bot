@@ -40,7 +40,10 @@ export class AddPresetsAndDescriptions1782270612825 implements MigrationInterfac
       }> = await queryRunner.query(
         `SELECT code, penalty, risk_level, enabled FROM signals`,
       );
-      const signals: Record<string, { penalty: number; riskLevel: string; enabled: boolean }> = {};
+      const signals: Record<
+        string,
+        { penalty: number; riskLevel: string; enabled: boolean }
+      > = {};
       for (const row of signalsRows) {
         signals[row.code] = {
           penalty: row.penalty,
@@ -88,7 +91,12 @@ export class AddPresetsAndDescriptions1782270612825 implements MigrationInterfac
           kol_confidence_high: 50,
           multiplier_pivot: 0.5,
           multiplier_slope: 0.3,
-          security_cap: { SCAM: 5, SUSPICIOUS: 30, UNKNOWN: 20, LEGITIMATE: 100 },
+          security_cap: {
+            SCAM: 5,
+            SUSPICIOUS: 30,
+            UNKNOWN: 20,
+            LEGITIMATE: 100,
+          },
         },
         classification_thresholds: {
           low_liquidity_high: 1000,

@@ -1,0 +1,331 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getSignatureStatuses
+
+> Returns the statuses of a list of signatures. Each signature must be a txid, the first signature of a transaction.
+
+## Request Parameters
+
+<ParamField body="transaction" type="array" required>
+  Array of transaction signatures (up to 256), as base-58 encoded strings.
+</ParamField>
+
+<ParamField body="searchTransactionHistory" type="boolean">
+  Enable searching beyond recent status cache to find older historical transactions.
+</ParamField>
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getSignatureStatuses.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Transaction confirmation tracking API for monitoring the status and finality
+    level of multiple Solana transactions with real-time updates.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getSignatureStatuses
+      description: >
+        Retrieve confirmation status for multiple Solana transactions in a
+        single efficient batch request.
+
+        This essential transaction tracking API allows applications to monitor
+        the progression of transactions
+
+        through the Solana consensus process, from initial submission to final
+        confirmation. Returns detailed
+
+        information about transaction status including processing slot,
+        confirmation count, error details,
+
+        and finality level. Critical for wallets, exchanges, payment processors,
+        and any application that
+
+        needs to verify when transactions have been successfully settled on the
+        blockchain with configurable
+
+        historical transaction lookup options.
+      operationId: getSignatureStatuses
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                jsonrpc:
+                  type: string
+                  enum:
+                    - '2.0'
+                  description: The JSON-RPC protocol version.
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  enum:
+                    - getSignatureStatuses
+                  description: The name of the RPC method to invoke.
+                  example: getSignatureStatuses
+                  default: getSignatureStatuses
+                params:
+                  type: array
+                  description: >-
+                    Array containing transaction signatures and optional
+                    configuration object.
+                  default:
+                    - - >-
+                        5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW
+                  items:
+                    oneOf:
+                      - type: array
+                        description: >-
+                          Array of transaction signatures (up to 256), as
+                          base-58 encoded strings.
+                        items:
+                          type: string
+                          example: >-
+                            5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW
+                      - type: object
+                        description: Configuration options.
+                        properties:
+                          searchTransactionHistory:
+                            type: boolean
+                            description: >-
+                              Enable searching beyond recent status cache to
+                              find older historical transactions.
+                            example: true
+            examples:
+              requestExample:
+                value:
+                  jsonrpc: '2.0'
+                  id: '1'
+                  method: getSignatureStatuses
+                  params:
+                    - - >-
+                        5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW
+                    - searchTransactionHistory: true
+      responses:
+        '200':
+          description: Successfully retrieved signature statuses.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    type: object
+                    description: Contains the context and signature status values.
+                    properties:
+                      context:
+                        type: object
+                        properties:
+                          slot:
+                            type: integer
+                            description: Slot in which the data was fetched.
+                            example: 82
+                      value:
+                        type: array
+                        description: List of transaction signature statuses.
+                        items:
+                          oneOf:
+                            - type: 'null'
+                              description: Null if the transaction is unknown.
+                            - type: object
+                              properties:
+                                slot:
+                                  type: integer
+                                  description: >-
+                                    Solana blockchain slot number where this
+                                    transaction was included in a block.
+                                  example: 48
+                                confirmations:
+                                  oneOf:
+                                    - type: integer
+                                      description: >-
+                                        Number of confirmed blocks since this
+                                        transaction was processed (null if fully
+                                        finalized).
+                                    - type: 'null'
+                                      description: >-
+                                        Null indicates transaction has reached
+                                        maximum finality (rooted).
+                                  example: 48
+                                err:
+                                  oneOf:
+                                    - type: object
+                                      description: >-
+                                        Error object containing details if the
+                                        transaction failed during execution.
+                                    - type: 'null'
+                                      description: >-
+                                        Null indicates the transaction executed
+                                        successfully without errors.
+                                  example: null
+                                confirmationStatus:
+                                  type: string
+                                  enum:
+                                    - processed
+                                    - confirmed
+                                    - finalized
+                                  description: >-
+                                    Current finality status of the transaction
+                                    on the Solana network (processed → confirmed
+                                    → finalized).
+                                  example: finalized
+              examples:
+                responseExample:
+                  value:
+                    jsonrpc: '2.0'
+                    id: '1'
+                    result:
+                      context:
+                        slot: 82
+                      value:
+                        - slot: 48
+                          confirmations: 48
+                          err: null
+                          confirmationStatus: finalized
+                        - null
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

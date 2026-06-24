@@ -25,7 +25,7 @@ import { ExtractionController } from 'token/intake/extraction/api/http/extractio
  *
  * Per fix-1: KolMessageIngestedHandler was removed. The use case is
  * invoked via direct call from StartKolIngestionUseCase
- * (telegram-kol/ingestion/) so that the raw text never crosses an
+ * (kol/ingestion/) so that the raw text never crosses an
  * event bus boundary.
  *
  * Emits: `extraction.candidates.extracted` events (via EventEmitter2) for

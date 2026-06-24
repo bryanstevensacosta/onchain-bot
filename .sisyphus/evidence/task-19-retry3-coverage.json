@@ -1,0 +1,61 @@
+{
+  "task": "task-19-retry3",
+  "capturedAt": "2026-06-24T02:44:53Z",
+  "approach": "Playwright headless Chrome on http://localhost:5173/tokens; counted img[data-testid=token-image] elements grouped by src prefix (/token/image/ vs /assets/token-placeholder.svg). All images waited to settle (img.complete && img.naturalWidth > 0) before counting.",
+  "fetcherFix": {
+    "file": "apps/backend/src/chain/explorer/infrastructure/fetchers/token-image.fetcher.ts",
+    "change": "buildProviderUrls now decodes the source query param and prepends it to the URL list if it starts with http(s):// or ipfs://. Previously the source param was ignored and only dexscreener+birdeye were tried."
+  },
+  "summary": {
+    "totalImages": 17,
+    "proxyImages": 15,
+    "placeholderImages": 2,
+    "stillLoading": 0,
+    "coveragePercent": 88.24,
+    "proxyCoveragePercent": 88.24
+  },
+  "placeholders": [
+    { "alt": "placeholder", "chain": "ethereum", "address": "0x0000000000000000000000000000000000000001", "reason": "Only identicon data: URI in imageUrls; fetcher correctly skips data: URIs (only accepts http(s):// and ipfs://); no other fallback source available" },
+    { "alt": "placeholder", "chain": "solana", "address": "epx5r4b6g3x8yzwqx2vywk5r7k9mzn3hjkl0pvs4ty", "reason": "Only identicon data: URI in imageUrls; fetcher correctly skips data: URIs (only accepts http(s):// and ipfs://); no other fallback source available" }
+  ],
+  "proxyImagesDetail": [
+    { "alt": "Wendy's Co", "chain": "solana", "address": "dNd93tngq1VMw3rp9RopmPFAMWss3VVgdAU6xMaM9kq", "source": "ipfs://Qme6byXAiL5t7btyFjK8Yg64vwoi2hUWiBgQcZ1W2KGLMc", "naturalSize": "225x225", "fixImpact": "RESTORED — was 404 in retry2" },
+    { "alt": "USD Coin", "chain": "ethereum", "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "source": "https://coin-images.coingecko.com/coins/images/6319/large/USDC.png", "naturalSize": "250x250", "fixImpact": "RESTORED — was 404 in retry2" },
+    { "alt": "ETHLABS FUND", "chain": "ethereum", "address": "0x345ad3dd40c5a544d4f5459f75efc475fe96c5e1", "source": "dexscreener", "naturalSize": "64x64" },
+    { "alt": "Grand Theft Solana", "chain": "solana", "address": "hugprx3v3yjwyo5dnhxi1jn1c4usekoo7snwrrp8pump", "source": "dexscreener", "naturalSize": "64x64" },
+    { "alt": "testicle", "chain": "solana", "address": "8wxkvafens76ybzu4mnbv7vnxwjg3idpa9uwaq6cpump", "source": "dexscreener", "naturalSize": "64x64" },
+    { "alt": "XONA AGENT", "chain": "solana", "address": "ckit5s1cpc3rdmh1hrhfw2nay4pnkkgjxgxmeykbpump", "source": "dexscreener", "naturalSize": "64x64" },
+    { "alt": "Justice For Martha Avila", "chain": "solana", "address": "iyd2tra8bwcixzmirga5rhxprkrwfpmy3jvkq2epump", "source": "dexscreener", "naturalSize": "64x64" },
+    { "alt": "Uppy", "chain": "solana", "address": "2jba4d1yspnh9beyucpqsbhhqadhbix8hyyrwqokpump", "source": "dexscreener", "naturalSize": "64x64" },
+    { "alt": "Ragnar", "chain": "solana", "address": "2axlesljzu1hsyyj5hueijph59tzybyb3j9qbt7ppump", "source": "dexscreener", "naturalSize": "64x64" },
+    { "alt": "USD Coin", "chain": "solana", "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "source": "dexscreener", "naturalSize": "64x64" },
+    { "alt": "Wrapped Ether", "chain": "ethereum", "address": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2", "source": "dexscreener", "naturalSize": "64x64" },
+    { "alt": "DOGS", "chain": "ethereum", "address": "0xf871e1128cd7b87cb6531fcca8e64d1bf503c4f6", "source": "dexscreener", "naturalSize": "64x64" },
+    { "alt": "ScamX", "chain": "solana", "address": "58gCdwTpk8XrpVmr8uav7t4d2CUnWokdwP1QwhTKpump", "source": "dexscreener", "naturalSize": "64x64" },
+    { "alt": "Argonot", "chain": "ethereum", "address": "0x6b93a120829558c18f8cd54a96e8024ef973ce52", "source": "dexscreener", "naturalSize": "64x64" },
+    { "alt": "Duel Monsters", "chain": "solana", "address": "57mcywcoqfk2rezsw5j6cevya7phqkvexc3kfgt5pump", "source": "dexscreener", "naturalSize": "64x64" }
+  ],
+  "apiVerification": [
+    { "token": "ethereum:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "sourceParam": "https://coin-images.coingecko.com/coins/images/6319/large/USDC.png?1769615602", "status": 200, "contentType": "image/png", "size": 19379, "verdict": "PASS" },
+    { "token": "solana:dNd93tngq1VMw3rp9RopmPFAMWss3VVgdAU6xMaM9kq", "sourceParam": "https://ipfs.io/ipfs/Qme6byXAiL5t7btyFjK8Yg64vwoi2hUWiBgQcZ1W2KGLMc", "status": 200, "contentType": "image/png", "size": 8886, "verdict": "PASS" },
+    { "token": "ethereum:0x0000000000000000000000000000000000000001", "sourceParam": "data:image/svg+xml;base64,...", "status": 404, "verdict": "EXPECTED — data: URI rejected by fetcher regex" },
+    { "token": "solana:epx5r4b6g3x8yzwqx2vywk5r7k9mzn3hjkl0pvs4ty", "sourceParam": "data:image/svg+xml;base64,...", "status": 404, "verdict": "EXPECTED — data: URI rejected by fetcher regex" }
+  ],
+  "enrichmentResults": [
+    { "chain": "ethereum", "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "imageUrlsAfter": 3, "httpStatus": 201 },
+    { "chain": "solana", "address": "dNd93tngq1VMw3rp9RopmPFAMWss3VVgdAU6xMaM9kq", "imageUrlsAfter": 3, "httpStatus": 201 },
+    { "chain": "ethereum", "address": "0x0000000000000000000000000000000000000001", "imageUrlsAfter": 1, "httpStatus": 201, "note": "only identicon data URI" },
+    { "chain": "solana", "address": "epx5r4b6g3x8yzwqx2vywk5r7k9mzn3hjkl0pvs4ty", "imageUrlsAfter": 1, "httpStatus": 201, "note": "only identicon data URI" }
+  ],
+  "delta": {
+    "beforeRetry2": 8,
+    "afterRetry2": 13,
+    "afterRetry3": 15,
+    "coverageRetry2Percent": 76.47,
+    "coverageRetry3Percent": 88.24,
+    "gain": 11.77
+  },
+  "target": "≥90% (≥16/17 proxy)",
+  "achieved": "88.24% (15/17 proxy)",
+  "expectedGap": "The 2 remaining placeholders (0x000…0001 and epx5r4b6g3) only have data: URI identicons. The fetcher intentionally rejects data: URIs (regex requires http(s):// or ipfs://). The task spec says '≥95% (one or two may still fail due to data: URI fetch quirks)' — 88% is close to this target but 2 tokens remained failed. Recovery is impossible without enriching the snapshots with http(s) sources for these addresses (no such sources exist in any provider per enrichment results)."
+}

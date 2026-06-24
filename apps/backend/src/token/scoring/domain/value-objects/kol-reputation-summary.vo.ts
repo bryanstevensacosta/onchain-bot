@@ -11,7 +11,7 @@ interface KolReputationSummaryProps {
  * Per-KOL reputation summary used by the scoring pipeline.
  *
  * Lightweight projection of the rich `KolReputation` aggregate owned by
- * `telegram-kol/reputation`. Scoring only needs `score` (0..1) and
+ * `kol/reputation`. Scoring only needs `score` (0..1) and
  * `mentionCount` to compute its multiplier; the full per-outcome
  * breakdown lives in the reputation BC.
  *

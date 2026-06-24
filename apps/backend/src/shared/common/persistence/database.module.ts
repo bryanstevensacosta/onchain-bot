@@ -3,7 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { KolEntity } from 'kol/identity/infrastructure/persistence/typeorm/entities/kol.entity';
 import { CanonicalTokenCallEntity } from 'token/normalization/infrastructure/persistence/typeorm/entities/canonical-token-call.entity';
-import { KolReputationEntity } from 'kol/reputation/infrastructure/persistence/typeorm/entities/kol-reputation.entity';
+import { KolReputationEntity } from 'telegram-kol/reputation/infrastructure/persistence/typeorm/entities/kol-reputation.entity';
 import { TokenScoreEntity } from 'token/scoring/infrastructure/persistence/typeorm/entities/token-score.entity';
 import { TokenClassificationEntity } from 'token/classification/infrastructure/persistence/typeorm/entities/token-classification.entity';
 import { CallPerformanceEntity } from 'token/call-tracking/infrastructure/persistence/typeorm/entities/call-performance.entity';
@@ -21,6 +21,9 @@ import { ScoringThresholdEntity } from 'settings/infrastructure/persistence/type
 import { SettingsFilterEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-filter.entity';
 import { SettingsAuditLogEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-audit-log.entity';
 import { SettingsPresetEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-preset.entity';
+import { MilestoneThresholdEntity } from 'token/milestone/domain/entities/milestone-threshold.entity';
+import { MonitoredCallEntity } from 'token/milestone/domain/entities/monitored-call.entity';
+import { NotifiedMilestoneEntity } from 'token/milestone/domain/entities/notified-milestone.entity';
 import type { AppConfig } from 'shared/common/config/app.config';
 
 const PERSISTED_ENTITIES = [
@@ -44,6 +47,9 @@ const PERSISTED_ENTITIES = [
   SettingsFilterEntity,
   SettingsAuditLogEntity,
   SettingsPresetEntity,
+  MilestoneThresholdEntity,
+  MonitoredCallEntity,
+  NotifiedMilestoneEntity,
 ];
 
 /**

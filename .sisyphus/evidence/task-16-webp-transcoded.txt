@@ -1,0 +1,28 @@
+QA Evidence — Task 16 (WebP transcoding)
+
+Scenario: WebP returned when Accept header indicates support
+
+Step 1 — Invoke service with Accept header (mirrors controller behavior):
+  service.getImage('solana', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+                   undefined, 'image/webp')
+
+Step 2 — Write returned buffer and inspect:
+  $ file /Users/bryanstevens/dev/onchain-bot/.sisyphus/evidence/task-16-webp-transcoded.webp
+  RIFF (little-endian) data, Web/P image, VP8 encoding, 32x32, Scaling: [none]x[none], YUV color, decoders should clamp
+
+Expected: "Web/P image" — CONFIRMED
+Curl counterpart: curl -H "Accept: image/webp" http://localhost:3030/token/image/solana/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v -o /tmp/test.webp
+Note: end-to-end curl evidence was blocked by a parallel-task (T18) DI wiring issue
+(`RedisTokenImageCache` is registered with an optional `string` constructor arg that
+NestJS fails to resolve when TOKEN_IMAGE_REDIS_ENABLED=false). The transcoding pipeline
+itself is verified here using the real `TokenImageService` + sharp.
+
+Jest evidence:
+  PASS src/chain/explorer/application/services/token-image.service.spec.ts
+    ✓ transcodes buffer to WebP when Accept header includes image/webp
+    ✓ caches transcoded WebP separately from original (variant in cache key)
+    ✓ does not transcode when Accept header is missing or absent of image/webp
+    ✓ matches image/webp in Accept header case-insensitively
+
+Typecheck:
+  $ npx tsc --noEmit  →  exits 0

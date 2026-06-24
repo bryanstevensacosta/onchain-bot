@@ -81,19 +81,65 @@ class InMemoryPublisher extends FiltersEventPublisher {
   }
 }
 
+/**
+ * Test fake for SettingsService — only the three methods ApplyFiltersUseCase
+ * actually calls are implemented; the rest are stubbed. Mutable fields let
+ * individual specs dial values without rebuilding the use case.
+ */
+class FakeSettings {
+  public tokenGateConfig: {
+    minScore: number;
+    maxRiskWeight: number;
+    minCompleteness: number;
+    blockedClassifications: string[];
+    enableBlacklist: boolean;
+  } = {
+    minScore: 50,
+    maxRiskWeight: 100,
+    minCompleteness: 0.3,
+    blockedClassifications: ['SCAM', 'UNKNOWN'],
+    enableBlacklist: true,
+  };
+  public publishableChains: string[] = ['ethereum', 'solana'];
+  public honeypot: { scoreBelow: number; riskWeightAbove: number } = {
+    scoreBelow: 10,
+    riskWeightAbove: 80,
+  };
+
+  public async getTokenGateConfig(): Promise<typeof this.tokenGateConfig> {
+    await Promise.resolve();
+    return this.tokenGateConfig;
+  }
+  public async getPublishableChains(): Promise<string[]> {
+    await Promise.resolve();
+    return this.publishableChains;
+  }
+  public async getHoneypotHeuristic(): Promise<typeof this.honeypot> {
+    await Promise.resolve();
+    return this.honeypot;
+  }
+}
+
 const EVM = '0xd8da6bf26964af9d7eed9e03e53415d37aa96045';
 
 describe('ApplyFiltersUseCase', () => {
   let blacklist: FakeBlacklist;
   let repo: InMemoryRepo;
   let publisher: InMemoryPublisher;
+  let settings: FakeSettings;
   let useCase: ApplyFiltersUseCase;
 
   beforeEach(() => {
     blacklist = new FakeBlacklist();
     repo = new InMemoryRepo();
     publisher = new InMemoryPublisher();
-    useCase = new ApplyFiltersUseCase(blacklist, repo, publisher);
+    settings = new FakeSettings();
+    useCase = new ApplyFiltersUseCase(
+      blacklist,
+      repo,
+      publisher,
+      settings as never,
+    );
   });
 
   it('approves a token that passes all gates', async () => {
@@ -156,7 +202,12 @@ describe('ApplyFiltersUseCase', () => {
 
   it('rejects on BLACKLISTED', async () => {
     blacklist = new FakeBlacklist(new Map([[`ethereum:${EVM}`, 'Known scam']]));
-    useCase = new ApplyFiltersUseCase(blacklist, repo, publisher);
+    useCase = new ApplyFiltersUseCase(
+      blacklist,
+      repo,
+      publisher,
+      settings as never,
+    );
 
     const view = await useCase.execute({
       chain: 'ethereum',
@@ -274,7 +325,12 @@ describe('ApplyFiltersUseCase', () => {
 
   it('respects enableBlacklist=false to skip blacklist check', async () => {
     blacklist = new FakeBlacklist(new Map([[`ethereum:${EVM}`, 'Known scam']]));
-    useCase = new ApplyFiltersUseCase(blacklist, repo, publisher);
+    useCase = new ApplyFiltersUseCase(
+      blacklist,
+      repo,
+      publisher,
+      settings as never,
+    );
 
     const view = await useCase.execute({
       chain: 'ethereum',
@@ -308,5 +364,88 @@ describe('ApplyFiltersUseCase', () => {
     expect(repo.store.size).toBe(1);
     expect(publisher.published).toHaveLength(1);
     expect(publisher.published[0].eventName).toBe('filters.token.rejected');
+  });
+
+  // ─── Wave 2.2: SettingsService-driven thresholds ──────────────────────
+
+  it('reads minScore from SettingsService (default threshold of 50)', async () => {
+    settings.tokenGateConfig = { ...settings.tokenGateConfig, minScore: 70 };
+
+    // Score=60 is >= 50 default but < 70 dynamic → REJECTED with SCORE_TOO_LOW
+    const view = await useCase.execute({
+      chain: 'ethereum',
+      address: EVM,
+      score: 60,
+      classification: 'TOKEN',
+      riskWeight: 0,
+      snapshotCompleteness: 1,
+    });
+
+    expect(view.verdict).toBe('REJECTED');
+    const reason = view.reasons.find((r) => r.code === 'SCORE_TOO_LOW');
+    expect(reason).toBeDefined();
+    expect(reason?.message).toContain('< 70');
+  });
+
+  it('reads publishable chains from SettingsService (rejects solana by default but accepts when settings change)', async () => {
+    settings.publishableChains = ['ethereum']; // solana no longer publishable
+
+    const viewSolana = await useCase.execute({
+      chain: 'solana',
+      address: 'SoLaNaAdDrEsS111111111111111111111111111',
+      score: 80,
+      classification: 'TOKEN',
+      riskWeight: 0,
+      snapshotCompleteness: 1,
+    });
+    expect(viewSolana.verdict).toBe('REJECTED');
+    expect(
+      viewSolana.reasons.find((r) => r.code === 'CHAIN_UNSUPPORTED'),
+    ).toBeDefined();
+
+    settings.publishableChains = ['ethereum', 'solana', 'bsc'];
+    const viewBsc = await useCase.execute({
+      chain: 'bsc',
+      address: EVM,
+      score: 80,
+      classification: 'TOKEN',
+      riskWeight: 0,
+      snapshotCompleteness: 1,
+    });
+    expect(viewBsc.verdict).toBe('APPROVED');
+    expect(
+      viewBsc.reasons.find((r) => r.code === 'CHAIN_UNSUPPORTED'),
+    ).toBeUndefined();
+  });
+
+  it('reads honeypot thresholds from SettingsService (tighter window triggers HONEYPOT_SUSPECTED on a non-default score)', async () => {
+    // Default thresholds (score<10 && risk>=80) → score=20 / risk=85 should NOT trigger.
+    const viewDefault = await useCase.execute({
+      chain: 'ethereum',
+      address: EVM,
+      score: 20,
+      classification: 'TOKEN',
+      riskWeight: 85,
+      snapshotCompleteness: 1,
+    });
+    expect(
+      viewDefault.reasons.find((r) => r.code === 'HONEYPOT_SUSPECTED'),
+    ).toBeUndefined();
+
+    // Tighten via SettingsService: now score<25 && risk>=50 → score=20 / risk=85 SHOULD trigger.
+    settings.honeypot = { scoreBelow: 25, riskWeightAbove: 50 };
+
+    const viewTight = await useCase.execute({
+      chain: 'ethereum',
+      address: EVM,
+      score: 20,
+      classification: 'TOKEN',
+      riskWeight: 85,
+      snapshotCompleteness: 1,
+    });
+    expect(viewTight.verdict).toBe('REJECTED');
+    expect(
+      viewTight.reasons.find((r) => r.code === 'HONEYPOT_SUSPECTED'),
+    ).toBeDefined();
   });
 });

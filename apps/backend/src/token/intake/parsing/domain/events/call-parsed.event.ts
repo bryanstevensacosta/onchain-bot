@@ -20,6 +20,7 @@ export class CallParsedEvent extends DomainEvent {
     readonly holders: number | null;
     readonly chart: string | null;
     readonly confidence: number;
+    readonly username: string | null;
   };
 
   constructor(payload: {
@@ -36,6 +37,7 @@ export class CallParsedEvent extends DomainEvent {
     holders: number | null;
     chart: string | null;
     confidence: number;
+    username: string | null;
   }) {
     super('parsing.call.parsed', `${payload.kolId}:${payload.messageId}`);
     this.payload = Object.freeze(payload);

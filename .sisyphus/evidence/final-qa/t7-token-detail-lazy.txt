@@ -1,0 +1,8 @@
+59:            loading="lazy"
+60:            decoding="async"
+61:            width={48}
+62:            height={48}
+70:            loading="lazy"
+71:            decoding="async"
+72:            width={48}
+73:            height={48}

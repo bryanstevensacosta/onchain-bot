@@ -1,0 +1,90 @@
+================================================================
+Schema verification after migration:run (re-run)
+Database: alpha_meta_token_scanner @ localhost:5432
+================================================================
+
+--- 1. description column on settings_filters ---
+$ psql -c "\d settings_filters"
+                              Tabla «public.settings_filters»
+    Columna    |            Tipo             | Ordenamiento | Nulable  |    Por omisión     
+---------------+-----------------------------+--------------+----------+--------------------
+ id            | uuid                        |              | not null | uuid_generate_v4()
+ type          | character varying(64)       |              | not null | 
+ value         | character varying(256)      |              | not null | 
+ numeric_value | real                        |              |          | 
+ scope         | settings_filters_scope_enum |              | not null | 
+ enabled       | boolean                     |              | not null | true
+ notes         | text                        |              |          | 
+ created_at    | timestamp with time zone    |              | not null | now()
+ updated_at    | timestamp with time zone    |              | not null | now()
+ description   | text                        |              |          | 
+Índices:
+    "PK_a9fad2510db24c68e1eb3924df7" PRIMARY KEY, btree (id)
+    "idx_settings_filters_scope" btree (scope)
+    "idx_settings_filters_type" btree (type)
+
+
+--- 2. settings_presets table columns ---
+$ psql -c "\d settings_presets"
+                             Tabla «public.settings_presets»
+   Columna   |            Tipo             | Ordenamiento | Nulable  |    Por omisión    
+-------------+-----------------------------+--------------+----------+-------------------
+ id          | uuid                        |              | not null | gen_random_uuid()
+ name        | character varying(100)      |              | not null | 
+ description | text                        |              |          | 
+ snapshot    | jsonb                       |              | not null | 
+ is_active   | boolean                     |              | not null | false
+ created_at  | timestamp without time zone |              | not null | now()
+ updated_at  | timestamp without time zone |              | not null | now()
+ created_by  | character varying(100)      |              |          | 
+Índices:
+    "settings_presets_pkey" PRIMARY KEY, btree (id)
+    "idx_one_active_preset" UNIQUE, btree (is_active) WHERE is_active = true
+    "settings_presets_name_key" UNIQUE CONSTRAINT, btree (name)
+
+
+--- 3. Partial unique index idx_one_active_preset ---
+$ psql -c "SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'settings_presets';"
+         indexname         |                                                       indexdef                                                        
+---------------------------+-----------------------------------------------------------------------------------------------------------------------
+ settings_presets_pkey     | CREATE UNIQUE INDEX settings_presets_pkey ON public.settings_presets USING btree (id)
+ settings_presets_name_key | CREATE UNIQUE INDEX settings_presets_name_key ON public.settings_presets USING btree (name)
+ idx_one_active_preset     | CREATE UNIQUE INDEX idx_one_active_preset ON public.settings_presets USING btree (is_active) WHERE (is_active = true)
+(3 filas)
+
+
+--- 4. Seeded Default preset (1 row expected) ---
+$ psql -c "SELECT name, description, is_active, created_at FROM settings_presets;"
+  name   |                                                 description                                                  | is_active |         created_at         
+---------+--------------------------------------------------------------------------------------------------------------+-----------+----------------------------
+ Default | Out-of-the-box configuration. Mirrors the values that were hardcoded before settings were exposed in the UI. | t         | 2026-06-24 03:11:58.503726
+(1 fila)
+
+
+--- 5. Snapshot keys present in Default preset ---
+$ psql -c "SELECT jsonb_object_keys(snapshot) AS top_level_key FROM settings_presets WHERE name = 'Default';"
+       top_level_key       
+---------------------------
+ filters
+ signals
+ confidence
+ thresholds
+ score_tiers
+ scoring_bonuses
+ honeypot_thresholds
+ classification_thresholds
+(8 filas)
+
+
+--- 6. typeorm_migrations table content ---
+$ psql -c "SELECT * FROM typeorm_migrations;"
+ id |   timestamp   |                  name                  
+----+---------------+----------------------------------------
+  2 | 1782270612825 | AddPresetsAndDescriptions1782270612825
+(1 fila)
+
+
+--- 7. Partial unique index enforcement test ---
+$ psql -c "INSERT INTO settings_presets (name, snapshot, is_active) VALUES ('test_dup', '{}'::jsonb, true);"
+ERROR:  duplicate key value violates unique constraint "idx_one_active_preset"
+DETALLE:  Key (is_active)=(t) already exists.

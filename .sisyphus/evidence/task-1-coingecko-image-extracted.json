@@ -1,0 +1,57 @@
+{
+  "task": "task-1-coingecko-image-extracted",
+  "timestamp": "2026-06-23T19:52:00Z",
+  "file_modified": "apps/backend/src/chain/explorer/infrastructure/providers/coingecko.adapter.ts",
+  "lines_changed": [
+    "14-18: added CoinGeckoImage interface",
+    "20-29: added image?: field to CoinGeckoResponse",
+    "31-42: added extractImageUrls helper",
+    "119: replaced imageUrls: [] with imageUrls: extractImageUrls(data.image)"
+  ],
+  "verification": {
+    "typescript_compile": {
+      "command": "cd apps/backend && npx tsc --noEmit",
+      "exit_code": 0,
+      "status": "PASS"
+    },
+    "jest_provider_tests": {
+      "command": "cd apps/backend && npx jest --testPathPatterns=providers",
+      "suites_passed": 7,
+      "tests_passed": 33,
+      "tests_failed": 0,
+      "status": "PASS"
+    },
+    "extraction_logic_tests": {
+      "scenarios": [
+        "full response (large+small+thumb) → 3 URLs in priority order",
+        "only large → 1 URL",
+        "large + thumb (missing small) → 2 URLs",
+        "all same URL → dedup to 1 URL",
+        "empty strings → filtered out → 0 URLs",
+        "non-http URLs (ftp, data:, javascript:) → filtered out → 0 URLs",
+        "mixed valid + invalid → 1 URL (large only)",
+        "null image → 0 URLs",
+        "undefined image → 0 URLs",
+        "all null fields → 0 URLs"
+      ],
+      "passed": 10,
+      "failed": 0,
+      "status": "PASS"
+    }
+  },
+  "implementation_summary": {
+    "api_endpoint_used": "https://api.coingecko.com/api/v3/coins/{platform}/contract/{address}",
+    "image_field_source": "top-level data.image object (sibling of data.market_data)",
+    "preference_order": ["large", "small", "thumb"],
+    "filtering": "non-empty strings starting with http(s):// only",
+    "deduplication": "Array.from(new Set(...))",
+    "external_call_signature_unchanged": true,
+    "new_npm_dependencies_added": false,
+    "no_as_any_or_ts_ignore": true,
+    "no_todo_fixme_added": true
+  },
+  "live_backend_curl_test": {
+    "status": "NOT_RUN",
+    "reason": "Backend has a pre-existing DI error in ChainDexterBotModule (XTokenScanHandler not registered) unrelated to this task — documented in apps/backend/README.md §8 (known issues). Backend cannot boot to serve HTTP requests. Logic was instead verified via 10 inline test cases."
+  }
+}

@@ -1,0 +1,276 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# requestAirdrop
+
+> Requests an airdrop of lamports to a Pubkey.
+
+## Request Parameters
+
+<ParamField body="address" type="string" required>
+  Solana wallet address (public key) to receive the airdrop of test SOL tokens.
+</ParamField>
+
+<ParamField body="value" type="number" required>
+  Amount of SOL to airdrop in lamports (1 SOL = 1,000,000,000 lamports) for testing.
+</ParamField>
+
+<ParamField body="commitment" type="string">
+  The commitment level for the request.
+
+  * `confirmed`
+  * `finalized`
+  * `processed`
+</ParamField>
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/requestAirdrop.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Development-focused Solana API for requesting SOL token airdrops on test
+    networks to fund accounts for application development, testing, and
+    experimentation.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: requestAirdrop
+      description: >
+        Request free SOL tokens on Solana test networks for development and
+        testing purposes.
+
+        This development-only API allows developers to fund wallets with SOL on
+        devnet and testnet 
+
+        environments to build and test Solana applications without using real
+        funds. Essential for 
+
+        local development, CI/CD pipelines, automated testing, and experimenting
+        with new Solana 
+
+        features. The airdropped SOL can be used for paying transaction fees,
+        creating accounts, 
+
+        and testing financial logic in non-production environments.
+      operationId: requestAirdrop
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                jsonrpc:
+                  type: string
+                  enum:
+                    - '2.0'
+                  description: The JSON-RPC protocol version.
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  enum:
+                    - requestAirdrop
+                  description: The name of the RPC method to invoke.
+                  example: requestAirdrop
+                  default: requestAirdrop
+                params:
+                  type: array
+                  description: Parameters for the airdrop request.
+                  default:
+                    - 83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri
+                    - 1000000000
+                  items:
+                    oneOf:
+                      - type: string
+                        description: >-
+                          Solana wallet address (public key) to receive the
+                          airdrop of test SOL tokens.
+                        example: 83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri
+                      - type: integer
+                        description: >-
+                          Amount of SOL to airdrop in lamports (1 SOL =
+                          1,000,000,000 lamports) for testing.
+                        example: 1000000000
+                      - type: object
+                        description: Configuration object for the airdrop.
+                        properties:
+                          commitment:
+                            type: string
+                            description: The commitment level for the request.
+                            enum:
+                              - confirmed
+                              - finalized
+                              - processed
+                            example: finalized
+            examples:
+              requestAirdrop:
+                value:
+                  jsonrpc: '2.0'
+                  id: '1'
+                  method: requestAirdrop
+                  params:
+                    - 83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri
+                    - 1000000000
+      responses:
+        '200':
+          description: Successfully requested airdrop.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    type: string
+                    description: >-
+                      Solana transaction signature of the completed airdrop, can
+                      be used to verify the SOL was received.
+                    example: >-
+                      5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW
+              examples:
+                responseExample:
+                  value:
+                    jsonrpc: '2.0'
+                    id: '1'
+                    result: >-
+                      5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

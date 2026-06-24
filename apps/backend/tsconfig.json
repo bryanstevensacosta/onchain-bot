@@ -19,10 +19,15 @@
       "chain/*": ["src/chain/*"],
       "token/*": ["src/token/*"],
       "telegram/*": ["src/telegram/*"],
+      "kol/*": ["src/kol/*"],
       "telegram-kol/*": ["src/telegram-kol/*"],
       "telegram-publishing/*": ["src/telegram-publishing/*"],
+      "settings/*": ["src/settings/*"],
       "dashboard/*": ["src/dashboard/*"],
-      "src/*": ["src/*"]
+      "settings/*": ["src/settings/*"],
+      "src/*": ["src/*"],
+      "telegram-lib/*": ["src/telegram-lib/*"],
+      "telegram-lib": ["src/telegram-lib/index.ts"]
     }
   },
   "exclude": ["src/**/*.spec.ts", "src/**/*.spec.ts.bak"]

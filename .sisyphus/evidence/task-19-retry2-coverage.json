@@ -1,0 +1,30 @@
+{
+  "task": "task-19-retry2",
+  "approach": "Trigger enrichment for the 9 placeholder tokens identified via backend snapshot inspection (imageUrls.length === 0) combined with image-proxy 404 detection. Endpoint: POST /token/market-data/enrich with body {chain, address, force: true}.",
+  "endpoint": "POST http://localhost:3030/token/market-data/enrich",
+  "inputSchema": { "chain": "string", "address": "string", "force": "boolean (optional)" },
+  "placeholdersIdentified": [
+    { "chain": "solana", "address": "dNd93tngq1VMw3rp9RopmPFAMWss3VVgdAU6xMaM9kq", "reason": "imageUrls had 3 URLs (dex/birdeye/ipfs) but proxy fetcher only tries dex/birdeye → 404" },
+    { "chain": "ethereum", "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "reason": "USDC: imageUrls had 3 URLs (dex/coingecko/moralis) but proxy only tries dex → 404" },
+    { "chain": "ethereum", "address": "0x0000000000000000000000000000000000000001", "reason": "Only identicon data URI in imageUrls; proxy fetcher ignores source param → 404" },
+    { "chain": "ethereum", "address": "0x345ad3dd40c5a544d4f5459f75efc475fe96c5e1", "reason": "imageUrls was empty; proxy fallback to dex worked → 200" },
+    { "chain": "solana", "address": "epx5r4b6g3x8yzwqx2vywk5r7k9mzn3hjkl0pvs4ty", "reason": "Only identicon data URI in imageUrls; proxy fetcher ignores source param → 404" },
+    { "chain": "solana", "address": "iyd2tra8bwcixzmirga5rhxprkrwfpmy3jvkq2epump", "reason": "imageUrls was empty; proxy fallback to dex worked → 200" },
+    { "chain": "solana", "address": "ckit5s1cpc3rdmh1hrhfw2nay4pnkkgjxgxmeykbpump", "reason": "imageUrls was empty; proxy fallback to dex worked → 200" },
+    { "chain": "solana", "address": "8wxkvafens76ybzu4mnbv7vnxwjg3idpa9uwaq6cpump", "reason": "imageUrls was empty; proxy fallback to dex worked → 200" },
+    { "chain": "solana", "address": "hugprx3v3yjwyo5dnhxi1jn1c4usekoo7snwrrp8pump", "reason": "imageUrls was empty; proxy fallback to dex worked → 200" }
+  ],
+  "enrichmentResults": [
+    { "chain": "solana", "address": "dNd93tngq1VMw3rp9RopmPFAMWss3VVgdAU6xMaM9kq", "imageUrlsAfter": 3, "providerErrors": 2 },
+    { "chain": "ethereum", "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "imageUrlsAfter": 3, "providerErrors": 6 },
+    { "chain": "ethereum", "address": "0x0000000000000000000000000000000000000001", "imageUrlsAfter": 1, "providerErrors": 9, "note": "only identicon data URI" },
+    { "chain": "ethereum", "address": "0x345ad3dd40c5a544d4f5459f75efc475fe96c5e1", "imageUrlsAfter": 2, "providerErrors": 7 },
+    { "chain": "solana", "address": "epx5r4b6g3x8yzwqx2vywk5r7k9mzn3hjkl0pvs4ty", "imageUrlsAfter": 1, "providerErrors": 10, "note": "only identicon data URI" },
+    { "chain": "solana", "address": "iyd2tra8bwcixzmirga5rhxprkrwfpmy3jvkq2epump", "imageUrlsAfter": 2, "providerErrors": 7 },
+    { "chain": "solana", "address": "ckit5s1cpc3rdmh1hrhfw2nay4pnkkgjxgxmeykbpump", "imageUrlsAfter": 1, "providerErrors": 9 },
+    { "chain": "solana", "address": "8wxkvafens76ybzu4mnbv7vnxwjg3idpa9uwaq6cpump", "imageUrlsAfter": 2, "providerErrors": 7 },
+    { "chain": "solana", "address": "hugprx3v3yjwyo5dnhxi1jn1c4usekoo7snwrrp8pump", "imageUrlsAfter": 1, "providerErrors": 9 }
+  ],
+  "enrichmentSuccessful": 9,
+  "enrichmentFailed": 0
+}

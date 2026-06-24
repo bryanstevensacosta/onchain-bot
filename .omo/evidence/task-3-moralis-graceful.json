@@ -1,0 +1,59 @@
+{
+  "scenario": "edge_case_moralis_failure_returns_empty_imageUrls_no_crash",
+  "expectedBehavior": "If the Moralis /metadata call fails (network error, rate-limit 429, missing key, 404, etc.) the adapter must return imageUrls: [] (or null at the outer level when nothing else succeeds) without throwing.",
+  "gracefulPaths": [
+    {
+      "trigger": "MORALIS_API_KEY missing (env empty)",
+      "codePath": "constructor warns + fetch() returns null at line 82",
+      "result": "Outer fetch returns null. No HTTP 500."
+    },
+    {
+      "trigger": "Moralis responds 404 for metadata",
+      "codePath": "fetchMetadata() catches AxiosError with status 404, returns null",
+      "result": "buildImageUrls(undefined) returns []; merged.imageUrls = []; outer merge continues with analytics+holders."
+    },
+    {
+      "trigger": "Moralis responds 429 rate limit",
+      "codePath": "fetchMetadata() catch block logs debug, returns null (non-404 path)",
+      "result": "buildImageUrls(undefined) returns []; merged.imageUrls = []; no throw propagates."
+    },
+    {
+      "trigger": "Network error / timeout (axios timeout 8000ms)",
+      "codePath": "fetchMetadata() catch block logs debug, returns null",
+      "result": "buildImageUrls(undefined) returns []; merged.imageUrls = []; no throw propagates."
+    },
+    {
+      "trigger": "Moralis returns logo=null",
+      "codePath": "buildImageUrls(null) → first guard `if (!logo) return []`",
+      "result": "imageUrls = []."
+    },
+    {
+      "trigger": "Moralis returns logo with non-http scheme (e.g. ipfs://...)",
+      "codePath": "buildImageUrls() → /^https?:\\/\\//i.test fails → return []",
+      "result": "imageUrls = []."
+    },
+    {
+      "trigger": "Outer Promise.all rejects (e.g. invalid URL)",
+      "codePath": "fetch() outer try/catch at line 121 logs debug and returns null",
+      "result": "Outer fetch returns null. No HTTP 500."
+    }
+  ],
+  "codeEvidence": {
+    "outerTryCatch": "src/chain/explorer/infrastructure/providers/moralis.adapter.ts:121-124",
+    "fetchMetadata404": "src/chain/explorer/infrastructure/providers/moralis.adapter.ts:216",
+    "buildImageUrlsEmptyLogo": "src/chain/explorer/infrastructure/providers/moralis.adapter.ts:223",
+    "buildImageUrlsBadScheme": "src/chain/explorer/infrastructure/providers/moralis.adapter.ts:224"
+  },
+  "expectedCurlSnippet": "curl -s \"http://localhost:3030/token/market-data/snapshots/ethereum/0x<some-token>\" -w \"\\n%{http_code}\\n\"",
+  "expectedHttpStatus": 200,
+  "expectedImageUrls": "[] (when no other provider supplies an image)",
+  "expectedErrorRate": "0 (no 5xx, no thrown exception, no crash)",
+  "passes": true,
+  "verificationNotes": [
+    "All seven failure paths are guaranteed non-throwing by code inspection: the only return paths from fetch() are `null` (outer catch) or a fully-populated MarketData.",
+    "Promise.all rejection is handled by the outer try/catch — even a malformed URL inside fetchMetadata cannot escape the adapter.",
+    "Validation: buildImageUrls rejects any non-http(s) URL via the regex `/^https?:\\/\\//i`, so even garbage from a compromised API response cannot pollute the array.",
+    "Unit tests pass: 41 tests across 7 provider test suites via `npx jest --testPathPatterns=providers`.",
+    "TypeScript clean: `npx tsc --noEmit` produces no errors."
+  ]
+}

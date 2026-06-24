@@ -1,0 +1,271 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getSlot
+
+> Returns the slot that has reached the given or default commitment level.
+
+## Request Parameters
+
+<ParamField body="commitment" type="string">
+  The finality level to retrieve the slot for (processed = fastest, finalized = fully confirmed).
+
+  * `confirmed`
+  * `finalized`
+  * `processed`
+</ParamField>
+
+<ParamField body="minContextSlot" type="number">
+  Minimum Solana blockchain slot that must be reached before processing this request.
+</ParamField>
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getSlot.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Blockchain synchronization API for retrieving the current Solana network
+    slot number with different finality guarantees for real-time monitoring and
+    progress tracking.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getSlot
+      description: >
+        Retrieve the current slot number on the Solana blockchain with
+        configurable finality guarantees.
+
+        This fundamental API provides real-time information about the network's
+        progression, essential for
+
+        synchronization, monitoring, and tracking blockchain advancement. The
+        slot number represents the
+
+        current height of the chain and is used as a reference for transaction
+        inclusion, block timing,
+
+        and determining finality status. Critical for applications that need to
+        track network progress,
+
+        determine confirmation status, or implement timing-based logic with
+        blockchain synchronization.
+      operationId: getSlot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                jsonrpc:
+                  type: string
+                  enum:
+                    - '2.0'
+                  description: The JSON-RPC protocol version.
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  enum:
+                    - getSlot
+                  description: The name of the RPC method to invoke.
+                  example: getSlot
+                  default: getSlot
+                params:
+                  type: array
+                  description: Optional configuration object.
+                  default: []
+                  items:
+                    type: object
+                    properties:
+                      commitment:
+                        type: string
+                        description: >-
+                          The finality level to retrieve the slot for (processed
+                          = fastest, finalized = fully confirmed).
+                        enum:
+                          - confirmed
+                          - finalized
+                          - processed
+                        example: finalized
+                      minContextSlot:
+                        type: integer
+                        description: >-
+                          Minimum Solana blockchain slot that must be reached
+                          before processing this request.
+                        example: 1000
+            examples:
+              getSlotExample:
+                $ref: '#/components/examples/getSlotRequest'
+      responses:
+        '200':
+          description: Successfully retrieved the current slot.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    type: integer
+                    description: >-
+                      Current Solana blockchain slot number representing the
+                      network's height and progress.
+                    example: 1234
+              examples:
+                getSlotExample:
+                  $ref: '#/components/examples/getSlotResponse'
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  examples:
+    getSlotRequest:
+      value:
+        jsonrpc: '2.0'
+        id: '1'
+        method: getSlot
+        params:
+          - commitment: finalized
+    getSlotResponse:
+      value:
+        jsonrpc: '2.0'
+        id: '1'
+        result: 1234
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

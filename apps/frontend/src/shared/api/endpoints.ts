@@ -53,6 +53,10 @@ export const ENDPOINTS = {
     recent: '/token/token-gating/decisions/recent',
     byToken: (chain: string, address: string) =>
       `/token/token-gating/decisions/${chain}/${address}`,
+    decisionsRejectedVerify: '/token/token-gating/decisions/rejected/verify',
+    reprocessBatch: '/token/token-gating/reprocess/rejected',
+    reprocessOne: (chain: string, address: string) =>
+      `/token/token-gating/reprocess/${chain}/${address}`,
   },
   honeypot: {
     analyze: '/token/honeypot/analyze',

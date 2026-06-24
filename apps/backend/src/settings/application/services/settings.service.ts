@@ -4,6 +4,37 @@ import { Repository } from 'typeorm';
 
 import { SettingsFilterEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-filter.entity';
 
+export interface ScoringBonusTiers {
+  readonly liquidityThresholdHigh: number;
+  readonly liquidityHigh: number;
+  readonly liquidityThresholdMedium: number;
+  readonly liquidityMedium: number;
+  readonly liquidityThresholdLow: number;
+  readonly liquidityLow: number;
+  readonly liquidityInsufficient: number;
+  readonly holdersThresholdHigh: number;
+  readonly holdersHigh: number;
+  readonly holdersThresholdMedium: number;
+  readonly holdersMedium: number;
+  readonly holdersThresholdLow: number;
+  readonly holdersLow: number;
+  readonly holdersNone: number;
+  readonly mcThresholdHigh: number;
+  readonly mcHigh: number;
+  readonly mcThresholdMedium: number;
+  readonly mcMedium: number;
+  readonly mcThresholdLow: number;
+  readonly mcLow: number;
+  readonly volumeThresholdHigh: number;
+  readonly volumeHigh: number;
+  readonly volumeThresholdLow: number;
+  readonly volumeLow: number;
+  readonly buzzMultiSource: number;
+  readonly buzzTwoSources: number;
+  readonly buzzMultiMentions: number;
+  readonly buzzTwoMentions: number;
+}
+
 interface CacheEntry<T> {
   value: T;
   expiresAt: number;
@@ -130,6 +161,64 @@ export class SettingsService {
 
   async getBaseScore(): Promise<number> {
     return this.getFilterNumericValue('base_score', 50, 'global');
+  }
+
+  async getScoringBonusTiers(): Promise<ScoringBonusTiers> {
+    const [
+      liquidityThresholdHigh,
+      liquidityThresholdMedium,
+      liquidityThresholdLow,
+      holdersThresholdHigh,
+      holdersThresholdMedium,
+      holdersThresholdLow,
+      mcThresholdHigh,
+      mcThresholdMedium,
+      mcThresholdLow,
+      volumeThresholdHigh,
+      volumeThresholdLow,
+    ] = await Promise.all([
+      this.getFilterNumericValue('liq_threshold_high', 50_000, 'global'),
+      this.getFilterNumericValue('liq_threshold_medium', 10_000, 'global'),
+      this.getFilterNumericValue('liq_threshold_low', 1_000, 'global'),
+      this.getFilterNumericValue('holders_threshold_high', 1_000, 'global'),
+      this.getFilterNumericValue('holders_threshold_medium', 100, 'global'),
+      this.getFilterNumericValue('holders_threshold_low', 10, 'global'),
+      this.getFilterNumericValue('mc_threshold_high', 1_000_000, 'global'),
+      this.getFilterNumericValue('mc_threshold_medium', 100_000, 'global'),
+      this.getFilterNumericValue('mc_threshold_low', 10_000, 'global'),
+      this.getFilterNumericValue('vol_threshold_high', 50_000, 'global'),
+      this.getFilterNumericValue('vol_threshold_low', 10_000, 'global'),
+    ]);
+    return {
+      liquidityThresholdHigh,
+      liquidityHigh: 20,
+      liquidityThresholdMedium,
+      liquidityMedium: 10,
+      liquidityThresholdLow,
+      liquidityLow: 5,
+      liquidityInsufficient: -10,
+      holdersThresholdHigh,
+      holdersHigh: 15,
+      holdersThresholdMedium,
+      holdersMedium: 8,
+      holdersThresholdLow,
+      holdersLow: 3,
+      holdersNone: -10,
+      mcThresholdHigh,
+      mcHigh: 10,
+      mcThresholdMedium,
+      mcMedium: 5,
+      mcThresholdLow,
+      mcLow: 2,
+      volumeThresholdHigh,
+      volumeHigh: 5,
+      volumeThresholdLow,
+      volumeLow: 2,
+      buzzMultiSource: 10,
+      buzzTwoSources: 5,
+      buzzMultiMentions: 5,
+      buzzTwoMentions: 2,
+    };
   }
 
   async getMultiplierPivot(): Promise<number> {
@@ -286,6 +375,100 @@ export class SettingsService {
       'global',
     );
     return { scoreBelow, riskWeightAbove };
+  }
+
+  async getHoneypotThresholds(): Promise<{
+    ownerCanDrainLiquidity: number;
+    flagMicrocap: number;
+    flagExtremePrice: number;
+    flagCriticalPrice: number;
+    flagNewPairAgeMs: number;
+    flagNewPairPrice: number;
+    highBuyTaxRatio: number;
+    highTransferTaxPriceImpact: number;
+    highTransferTaxPairAgeMs: number;
+    canSellBuyLiquidity: number;
+  }> {
+    const cached = this.getFromCache(
+      this.baseConfigCache,
+      'honeypot_thresholds',
+    );
+    if (cached)
+      return cached as {
+        ownerCanDrainLiquidity: number;
+        flagMicrocap: number;
+        flagExtremePrice: number;
+        flagCriticalPrice: number;
+        flagNewPairAgeMs: number;
+        flagNewPairPrice: number;
+        highBuyTaxRatio: number;
+        highTransferTaxPriceImpact: number;
+        highTransferTaxPairAgeMs: number;
+        canSellBuyLiquidity: number;
+      };
+
+    const [
+      ownerCanDrainLiquidity,
+      flagMicrocap,
+      flagExtremePrice,
+      flagCriticalPrice,
+      flagNewPairAgeMs,
+      flagNewPairPrice,
+      highBuyTaxRatio,
+      highTransferTaxPriceImpact,
+      highTransferTaxPairAgeMs,
+      canSellBuyLiquidity,
+    ] = await Promise.all([
+      this.getFilterNumericValue(
+        'honeypot_owner_can_drain_liquidity',
+        100,
+        'global',
+      ),
+      this.getFilterNumericValue('honeypot_flag_microcap', 1000, 'global'),
+      this.getFilterNumericValue('honeypot_flag_extreme_price', 500, 'global'),
+      this.getFilterNumericValue(
+        'honeypot_flag_critical_price',
+        1000,
+        'global',
+      ),
+      this.getFilterNumericValue(
+        'honeypot_flag_new_pair_age_ms',
+        3_600_000,
+        'global',
+      ),
+      this.getFilterNumericValue('honeypot_flag_new_pair_price', 200, 'global'),
+      this.getFilterNumericValue('honeypot_high_buy_tax_ratio', 100, 'global'),
+      this.getFilterNumericValue(
+        'honeypot_high_transfer_tax_price_impact',
+        0.5,
+        'global',
+      ),
+      this.getFilterNumericValue(
+        'honeypot_high_transfer_tax_pair_age_ms',
+        86_400_000,
+        'global',
+      ),
+      this.getFilterNumericValue(
+        'honeypot_can_sell_buy_liquidity',
+        100,
+        'global',
+      ),
+    ]);
+
+    const result = {
+      ownerCanDrainLiquidity,
+      flagMicrocap,
+      flagExtremePrice,
+      flagCriticalPrice,
+      flagNewPairAgeMs,
+      flagNewPairPrice,
+      highBuyTaxRatio,
+      highTransferTaxPriceImpact,
+      highTransferTaxPairAgeMs,
+      canSellBuyLiquidity,
+    };
+    this.setInCache(this.baseConfigCache, 'honeypot_thresholds', result);
+    return result;
   }
 
   async getExtraThresholds(): Promise<{

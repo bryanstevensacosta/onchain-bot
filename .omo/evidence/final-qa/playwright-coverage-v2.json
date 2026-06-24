@@ -1,0 +1,32 @@
+{
+  "total": 16,
+  "realImages": 16,
+  "placeholders": 16,
+  "coveragePercent": "100.0",
+  "samples": [
+    {
+      "i": 0,
+      "src": "http://localhost:5173/assets/token-placeholder.svg",
+      "naturalWidth": 40,
+      "naturalHeight": 40,
+      "complete": true,
+      "onerror_fired": 0
+    },
+    {
+      "i": 1,
+      "src": "http://localhost:5173/assets/token-placeholder.svg",
+      "naturalWidth": 40,
+      "naturalHeight": 40,
+      "complete": true,
+      "onerror_fired": 0
+    },
+    {
+      "i": 2,
+      "src": "http://localhost:5173/assets/token-placeholder.svg",
+      "naturalWidth": 40,
+      "naturalHeight": 40,
+      "complete": true,
+      "onerror_fired": 0
+    }
+  ]
+}

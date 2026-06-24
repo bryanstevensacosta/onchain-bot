@@ -1,0 +1,21 @@
+Total messages: 23 (Errors: 18, Warnings: 1)
+Returning 18 messages for level "error"
+
+[ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:3030/token/normalization/tokens/ethereum/0x345ad3dd40c5a544d4f5459f75efc475fe96c5e1:0
+[ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:3030/token/normalization/tokens/solana/2axlesljzu1hsyyj5hueijph59tzybyb3j9qbt7ppump:0
+[ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:3030/token/normalization/tokens/solana/epx5r4b6g3x8yzwqx2vywk5r7k9mzn3hjkl0pvs4ty:0
+[ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:3030/token/normalization/tokens/solana/hugprx3v3yjwyo5dnhxi1jn1c4usekoo7snwrrp8pump:0
+[ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:3030/token/normalization/tokens/solana/ckit5s1cpc3rdmh1hrhfw2nay4pnkkgjxgxmeykbpump:0
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3030/token/normalization/tokens/solana/8wxkvafens76ybzu4mnbv7vnxwjg3idpa9uwaq6cpump:0
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3030/token/normalization/tokens/solana/iyd2tra8bwcixzmirga5rhxprkrwfpmy3jvkq2epump:0
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3030/token/normalization/tokens/solana/2jba4d1yspnh9beyucpqsbhhqadhbix8hyyrwqokpump:0
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3030/token/market-data/snapshots/solana/epx5r4b6g3x8yzwqx2vywk5r7k9mzn3hjkl0pvs4ty:0
+[ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:3030/token/normalization/tokens/ethereum/0x345ad3dd40c5a544d4f5459f75efc475fe96c5e1:0
+[ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:3030/token/normalization/tokens/solana/2axlesljzu1hsyyj5hueijph59tzybyb3j9qbt7ppump:0
+[ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:3030/token/normalization/tokens/solana/epx5r4b6g3x8yzwqx2vywk5r7k9mzn3hjkl0pvs4ty:0
+[ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:3030/token/normalization/tokens/solana/hugprx3v3yjwyo5dnhxi1jn1c4usekoo7snwrrp8pump:0
+[ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:3030/token/normalization/tokens/solana/ckit5s1cpc3rdmh1hrhfw2nay4pnkkgjxgxmeykbpump:0
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3030/token/normalization/tokens/solana/iyd2tra8bwcixzmirga5rhxprkrwfpmy3jvkq2epump:0
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3030/token/normalization/tokens/solana/8wxkvafens76ybzu4mnbv7vnxwjg3idpa9uwaq6cpump:0
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3030/token/normalization/tokens/solana/2jba4d1yspnh9beyucpqsbhhqadhbix8hyyrwqokpump:0
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3030/token/market-data/snapshots/solana/epx5r4b6g3x8yzwqx2vywk5r7k9mzn3hjkl0pvs4ty:0

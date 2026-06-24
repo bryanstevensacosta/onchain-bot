@@ -1,0 +1,32 @@
+Task 9 — Identicon deterministic output
+=========================================
+
+QA scenario (from task spec):
+
+  node -e "
+  const { IdenticonGenerator } = require('./apps/backend/dist/src/shared/identicon/identicon.generator');
+  const g = new IdenticonGenerator();
+  const a = g.generate('solana', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+  const b = g.generate('solana', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+  console.log('Same input same output:', a === b);
+  console.log('Starts with data URI:', a.startsWith('data:image/svg+xml;base64,'));
+  console.log('Length:', a.length);
+  "
+
+Result (captured 2026-06-23):
+
+  Same input same output: true
+  Starts with data URI: true
+  Length: 2514
+
+Decoded SVG head (truncated to 400 chars):
+
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" shape-rendering="crispEdges">
+    <rect width="100%" height="100%" fill="#60f522"/>
+    <rect x="0" y="0" width="8" height="8" fill="#0d155a"/>
+    <rect x="56" y="0" width="8" height="8" fill="#0d155a"/>
+    <rect x="16" y="8" width="8" height="8" fill="#0d155a"/>
+    <rect x="40" y="8" width="8" height="8" fill="#0d155a"/>
+    <rect x="24" y=...
+
+Conclusion: deterministic, prefixed correctly, length > 100, valid SVG body.

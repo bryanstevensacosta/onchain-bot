@@ -17,10 +17,7 @@ import { VipCallsListPublishedUseCase } from './application/handlers/vip-calls-l
 import { VipCallsController } from './api/http/vip-calls.controller';
 
 @Module({
-  imports: [
-    HttpModule,
-    ChainRegistryModule,
-  ],
+  imports: [HttpModule, ChainRegistryModule],
   controllers: [VipCallsController],
   providers: [
     VipCallsPublishUseCase,

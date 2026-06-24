@@ -1,0 +1,1084 @@
+
+> @alpha-meta-token-scanner/backend@0.0.1 start
+> nest start
+
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InMemoryBlacklistAdapter] [39m[32mBlacklist initialized with 1 entries[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDatabaseModule dependencies initialized[39m[38;5;3m +2ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSourceModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mStatsModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mChainRegistryModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mHttpModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDiscoveryModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mWsModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[DatabaseModule] [39m[32mPostgres enabled (host=localhost:5432 db=alpha_meta_token_scanner, synchronize=true).[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mEventEmitterModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mScheduleModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +26ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mVipCallsModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmCoreModule dependencies initialized[39m[38;5;3m +124ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mKolIngestionModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mExtractionModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mParsingModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mReputationModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDashboardModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mNormalizationModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mChainDetectionModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mChainExplorerModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mClassificationModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mCallTrackingModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mHoneypotModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mFiltersModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mScoringModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mIdentityModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mWsGateway subscribed to the "join" message[39m[38;5;3m +7ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mWsGateway subscribed to the "leave" message[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAppController {/}:[39m[38;5;3m +1ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/dev/seed, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mKolController {/telegram-kol/identity}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/telegram-kol/identity/kols, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/telegram-kol/identity/kols, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/telegram-kol/identity/kols/:kolId, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/telegram-kol/identity/kols/:kolId/lifecycle, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/telegram-kol/identity/kols/:kolId/backfill, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mExtractionController {/token/intake/extraction}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/intake/extraction/extract, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/intake/extraction/results/recent, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/intake/extraction/results/:kolId/:messageId, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mParsingController {/token/intake/parsing}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/intake/parsing/parse, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/intake/parsing/calls/recent, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/intake/parsing/calls/:kolId/:messageId, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mKolStatsController {/telegram-kol/stats}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/telegram-kol/stats/kol-leaderboard, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/telegram-kol/stats/top-calls, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/telegram-kol/stats/roi-trends, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/telegram-kol/stats/alpha-callers, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mNormalizationController {/token/normalization}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/normalization/tokens/recent, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/normalization/tokens/:chain/:address, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mChainDetectionController {/chain/detection}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/chain/detection/detect, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/chain/detection/results/recent, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/chain/detection/results/:address, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mEnrichmentController {/token/market-data}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/market-data/enrich, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/market-data/snapshots/recent, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/market-data/snapshots/:chain/:address, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mClassificationController {/token/classification}:[39m[38;5;3m +1ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/classification/classify, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/classification/tokens/recent, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/classification/tokens/:chain/:address, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mScoringController {/token/scoring}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/scoring/score, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/scoring/tokens/top, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/scoring/tokens/recent, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/scoring/tokens/:chain/:address, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mKolReputationController {/telegram-kol/reputation}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/telegram-kol/reputation/kols/recompute/:kolId, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/telegram-kol/reputation/kols/top, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/telegram-kol/reputation/kols, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/telegram-kol/reputation/kols/:kolId, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mCallTrackingController {/token/call-tracking}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/call-tracking/calls/evaluate, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/call-tracking/jobs/enqueue, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/call-tracking/jobs/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/call-tracking/jobs/evaluate-due, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/call-tracking/scheduler/tick, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mFiltersController {/token/token-gating}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/token-gating/apply, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/token-gating/decisions/approved, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/token-gating/decisions/rejected, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/token-gating/decisions/recent, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/token-gating/decisions/:chain/:address, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/token-gating/decisions/rejected/verify, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/token-gating/reprocess/:chain/:address, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/token-gating/reprocess/rejected, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mVipCallsController {/vip-calls}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/vip-calls/publish, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/vip-calls/calls/published, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/vip-calls/calls/recent, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mHoneypotController {/token/honeypot}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/honeypot/analyze, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/honeypot/analyses/recent, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/honeypot/analyses/:chain/:address, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mDashboardController {/dashboard}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/dashboard/kpis, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[BackgroundEvaluationScheduler] [39m[32mBackground evaluation scheduler started (cron="*/5 * * * *", batchSize=50)[39m
+[33m[2026-06-23T01:42:59.214] [INFO] - [Running gramJS version 2.26.21][0m
+[33m[2026-06-23T01:42:59.216] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:42:59.261] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:42:59.261] [INFO] - [Using LAYER 198 for initial connect][0m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[KolTelegramMtprotoAdapter] [39m[32mTelegram MTProto session already authorized.[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[WsGateway] [39m[32mWebSocket Gateway initialized, listening to pipeline events[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[KolSeeder] [39m[32mTelegram kol seed finished. added=0 skipped=45 failed=0 notAKol=0 total=45[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[KolSeeder] [39m[32mAuto-started Telegram listener on 45 kol(s).[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +3ms[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[Bootstrap] [39m[32mRunning in development mode on port 3030[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:42:59 [32m    LOG[39m [38;5;3m[KolTelegramMtprotoAdapter] [39m[32mSubscribed to 45 KOL(s)[39m
+[95m[Nest] 13240  - [39m23/06/2026, 1:45:00 [95m  DEBUG[39m [38;5;3m[BackgroundEvaluationScheduler] [39m[95mScheduler tick: processing due evaluation jobs[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:45:00 [32m    LOG[39m [38;5;3m[ProcessDueEvaluationJobsUseCase] [39m[32mProcessed 0 due job(s): 0 succeeded, 0 failed, 0 skipped[39m
+[95m[Nest] 13240  - [39m23/06/2026, 1:45:29 [95m  DEBUG[39m [38;5;3m[WsGateway] [39m[95mClient connected: ggZpoKr1MS_Rs1IGAAAB[39m
+[95m[Nest] 13240  - [39m23/06/2026, 1:45:42 [95m  DEBUG[39m [38;5;3m[WsGateway] [39m[95mClient disconnected: ggZpoKr1MS_Rs1IGAAAB[39m
+[95m[Nest] 13240  - [39m23/06/2026, 1:45:42 [95m  DEBUG[39m [38;5;3m[WsGateway] [39m[95mClient connected: IwpMH2oamIylwqLrAAAD[39m
+[95m[Nest] 13240  - [39m23/06/2026, 1:50:00 [95m  DEBUG[39m [38;5;3m[BackgroundEvaluationScheduler] [39m[95mScheduler tick: processing due evaluation jobs[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:50:00 [32m    LOG[39m [38;5;3m[ProcessDueEvaluationJobsUseCase] [39m[32mProcessed 0 due job(s): 0 succeeded, 0 failed, 0 skipped[39m
+[95m[Nest] 13240  - [39m23/06/2026, 1:52:44 [95m  DEBUG[39m [38;5;3m[WsGateway] [39m[95mClient disconnected: IwpMH2oamIylwqLrAAAD[39m
+[33m[2026-06-23T01:54:27.762] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:27.762] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:28.763] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:28.764] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:28.764] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:28.764] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:28.768] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:28.768] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:28.819] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:28.819] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:29.820] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:29.820] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:29.820] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:29.820] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:29.824] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:29.824] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:29.857] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:29.857] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:191:17)
+[33m[2026-06-23T01:54:30.859] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:30.859] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:30.859] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:30.859] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:30.862] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:30.863] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:30.874] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:30.874] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:31.875] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:31.876] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:31.876] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:31.876] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:31.878] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:31.878] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:31.893] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:31.893] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:32.895] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:32.895] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:32.895] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:32.895] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:32.899] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:32.899] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:32.908] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:32.908] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:33.909] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:33.909] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:33.909] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:33.909] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:33.913] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:33.913] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:34.103] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:34.103] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:35.105] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:35.105] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:35.105] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:35.105] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:35.108] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:35.108] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:35.183] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:35.183] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:36.185] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:36.185] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:36.185] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:36.185] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:36.188] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:36.189] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:36.213] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:36.213] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:37.213] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:37.214] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:37.214] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:37.214] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:37.218] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:37.218] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:37.224] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:37.224] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:38.225] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:38.225] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:38.225] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:38.225] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:38.228] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:38.228] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:38.233] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:38.233] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:39.235] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:39.235] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:39.235] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:39.235] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:39.237] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:39.237] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:39.262] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:39.262] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:40.263] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:40.263] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:40.263] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:40.264] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:40.266] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:40.266] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:40.325] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:40.325] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:41.326] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:41.326] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:41.326] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:41.326] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:41.329] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:41.329] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:41.334] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:41.334] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:42.335] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:42.335] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:42.335] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:42.336] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:42.338] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:42.338] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:42.351] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:42.351] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:43.352] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:43.352] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:43.352] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:43.352] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:43.356] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:43.356] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:43.825] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:43.825] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:44.826] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:44.826] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:44.826] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:44.826] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:44.830] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:44.830] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:44.845] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:44.845] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:45.846] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:45.846] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:45.847] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:45.847] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:45.850] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:45.850] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:45.881] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:45.881] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:46.882] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:46.883] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:46.883] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:46.883] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:46.886] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:46.886] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:46.901] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:46.901] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:47.902] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:47.902] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:47.902] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:47.902] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:47.907] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:47.907] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:47.913] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:47.913] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:48.914] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:48.914] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:48.914] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:48.914] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:48.918] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:48.918] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:49.173] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:49.173] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:50.174] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:50.175] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:50.175] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:50.175] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:50.178] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:50.178] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:50.202] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:50.202] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:51.202] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:51.202] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:51.202] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:51.202] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:51.206] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:51.206] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:51.222] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:51.223] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:52.224] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:52.224] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:52.224] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:52.224] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:52.227] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:52.227] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:52.233] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:52.233] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:53.234] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:53.234] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:53.234] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:53.235] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:53.237] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:53.238] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:53.244] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:53.244] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:54.245] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:54.245] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:54.245] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:54.245] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:54.249] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:54.249] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:54.282] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:54.282] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:55.283] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:55.283] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:55.283] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:55.283] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:55.341] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:55.341] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:55.363] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:55.363] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:56.364] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:56.365] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:56.365] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:56.365] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:56.369] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:56.369] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:56.374] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:56.374] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:57.375] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:57.375] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:57.375] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:57.375] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:57.378] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:57.378] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:57.389] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:57.389] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:58.390] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:58.390] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:58.390] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:58.390] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:58.584] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:58.584] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:58.828] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:58.828] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:54:59.829] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:54:59.829] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:54:59.829] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:59.829] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:54:59.833] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:54:59.833] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:54:59.851] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:54:59.851] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[95m[Nest] 13240  - [39m23/06/2026, 1:55:00 [95m  DEBUG[39m [38;5;3m[BackgroundEvaluationScheduler] [39m[95mScheduler tick: processing due evaluation jobs[39m
+[32m[Nest] 13240  - [39m23/06/2026, 1:55:00 [32m    LOG[39m [38;5;3m[ProcessDueEvaluationJobsUseCase] [39m[32mProcessed 0 due job(s): 0 succeeded, 0 failed, 0 skipped[39m
+[33m[2026-06-23T01:55:00.853] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:55:00.853] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:55:00.853] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:00.853] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:01.073] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:55:01.073] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:55:01.368] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:55:01.369] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:55:02.370] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:55:02.370] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:55:02.370] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:02.371] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:02.374] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:55:02.374] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:55:02.388] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:55:02.388] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:55:03.388] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:55:03.388] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:55:03.388] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:03.389] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:03.804] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:55:03.804] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:55:04.328] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:55:04.328] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:55:05.329] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:55:05.329] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:55:05.329] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:05.330] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:05.982] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:55:05.982] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:55:06.619] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:55:06.619] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:55:07.620] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:55:07.620] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:55:07.620] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:07.621] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:07.732] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:55:07.732] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:55:07.787] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:55:07.787] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:55:08.788] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:55:08.788] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:55:08.788] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:08.788] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:09.253] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:55:09.254] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:55:09.625] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:55:09.625] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:55:10.626] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:55:10.627] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:55:10.627] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:10.627] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:11.076] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:55:11.076] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:55:11.427] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:55:11.427] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:55:12.428] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:55:12.429] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:55:12.429] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:12.429] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:12.431] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:55:12.432] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:55:12.439] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:55:12.439] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:55:13.440] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:55:13.440] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:55:13.440] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:13.441] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:13.726] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:55:13.726] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:55:13.952] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:55:13.952] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:55:14.953] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:55:14.953] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:55:14.953] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:14.954] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:14.957] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:55:14.957] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:55:14.975] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:55:14.975] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:55:15.977] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:55:15.977] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:55:15.977] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:15.977] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:16.090] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:55:16.090] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:55:16.119] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:55:16.119] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:55:17.120] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:55:17.120] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:55:17.120] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:17.121] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:17.150] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:55:17.151] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:55:17.292] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:55:17.292] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:55:18.294] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:55:18.294] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:55:18.294] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:18.294] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:18.849] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:55:18.850] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:55:19.381] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:55:19.381] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:55:20.383] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:55:20.383] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:55:20.383] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:20.384] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:20.940] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:55:20.940] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:55:21.496] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:55:21.496] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:55:22.497] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:55:22.497] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:55:22.497] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:22.498] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:22.882] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:55:22.882] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:55:23.380] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:55:23.380] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:55:24.381] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:55:24.381] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:55:24.381] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:24.382] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:55:25.297] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:55:25.297] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:56:01.269] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:56:01.270] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:56:02.272] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:56:02.272] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:56:02.272] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:02.273] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:02.285] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:56:02.286] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:56:02.458] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:56:02.458] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:56:03.459] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:56:03.459] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:56:03.459] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:03.459] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:03.678] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:56:03.679] [INFO] - [Handling reconnect!][0m
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+[33m[2026-06-23T01:56:04.028] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:56:04.028] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:56:04.971] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:56:04.971] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:56:04.971] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:04.971] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:05.725] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:56:05.725] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:56:06.976] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:56:06.977] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:56:07.978] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:56:07.978] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:56:07.978] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:07.979] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:08.878] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:56:08.879] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:56:08.896] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:56:08.896] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:56:09.897] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:56:09.897] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:56:09.897] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:09.898] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:11.084] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:56:11.084] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:56:12.259] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:56:12.259] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:56:13.261] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:56:13.261] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:56:13.261] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:13.261] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:13.462] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:56:13.462] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:56:13.816] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:56:13.816] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:56:14.817] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:56:14.817] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:56:14.817] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:14.817] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:15.408] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:56:15.408] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:56:16.172] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:56:16.172] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:56:17.174] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:56:17.174] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:56:17.174] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:17.174] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:17.308] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:56:17.308] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:56:17.469] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:56:17.469] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:56:18.470] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:56:18.470] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:56:18.470] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:18.470] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:18.844] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:56:18.844] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:56:19.356] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:56:19.356] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:56:20.356] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:56:20.356] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:56:20.356] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:20.357] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:20.702] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:56:20.702] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:56:21.153] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:56:21.153] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:56:22.154] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:56:22.154] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:56:22.154] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:22.154] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:22.198] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:56:22.198] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:56:22.228] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:56:22.228] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:56:23.229] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:56:23.230] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:56:23.230] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:23.230] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:23.245] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:56:23.245] [INFO] - [Handling reconnect!][0m
+[33m[2026-06-23T01:56:23.418] [INFO] - [connection closed][0m
+[35m[2026-06-23T01:56:23.418] [WARN] - [Connection closed while receiving data][0m
+Error: Not connected
+    at ConnectionTCPFull.recv (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/connection/Connection.js:71:15)
+    at async MTProtoSender._recvLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/network/MTProtoSender.js:373:24)
+[33m[2026-06-23T01:56:24.420] [INFO] - [Started reconnecting][0m
+[35m[2026-06-23T01:56:24.420] [WARN] - [[Reconnect] Closing current connection...][0m
+[33m[2026-06-23T01:56:24.420] [INFO] - [Disconnecting from 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:56:24.420] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[31m[2026-06-23T01:56:24.422] [ERROR] - [WebSocket connection failed attempt: 1][0m
+Error: connect ENETUNREACH 149.154.175.56:80 - Local (0.0.0.0:63983)
+    at internalConnect (node:net:1110:16)
+    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
+    at node:net:1356:9
+    at process.processTicksAndRejections (node:internal/process/task_queues:84:11) {
+  errno: -51,
+  code: 'ENETUNREACH',
+  syscall: 'connect',
+  address: '149.154.175.56',
+  port: 80
+}
+[33m[2026-06-23T01:56:25.425] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[31m[2026-06-23T01:56:25.425] [ERROR] - [WebSocket connection failed attempt: 2][0m
+Error: connect ENETUNREACH 149.154.175.56:80 - Local (0.0.0.0:64049)
+    at internalConnect (node:net:1110:16)
+    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
+    at node:net:1356:9
+    at process.processTicksAndRejections (node:internal/process/task_queues:84:11) {
+  errno: -51,
+  code: 'ENETUNREACH',
+  syscall: 'connect',
+  address: '149.154.175.56',
+  port: 80
+}
+[33m[2026-06-23T01:56:26.428] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[31m[2026-06-23T01:56:26.428] [ERROR] - [WebSocket connection failed attempt: 3][0m
+Error: connect ENETUNREACH 149.154.175.56:80 - Local (0.0.0.0:64125)
+    at internalConnect (node:net:1110:16)
+    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
+    at node:net:1356:9
+    at process.processTicksAndRejections (node:internal/process/task_queues:84:11) {
+  errno: -51,
+  code: 'ENETUNREACH',
+  syscall: 'connect',
+  address: '149.154.175.56',
+  port: 80
+}
+[33m[2026-06-23T01:56:27.430] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[31m[2026-06-23T01:56:27.430] [ERROR] - [WebSocket connection failed attempt: 4][0m
+Error: connect ENETUNREACH 149.154.175.56:80 - Local (0.0.0.0:64154)
+    at internalConnect (node:net:1110:16)
+    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
+    at node:net:1356:9
+    at process.processTicksAndRejections (node:internal/process/task_queues:84:11) {
+  errno: -51,
+  code: 'ENETUNREACH',
+  syscall: 'connect',
+  address: '149.154.175.56',
+  port: 80
+}
+[33m[2026-06-23T01:56:28.432] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[31m[2026-06-23T01:56:28.432] [ERROR] - [WebSocket connection failed attempt: 5][0m
+Error: connect ENETUNREACH 149.154.175.56:80 - Local (0.0.0.0:64173)
+    at internalConnect (node:net:1110:16)
+    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
+    at node:net:1356:9
+    at process.processTicksAndRejections (node:internal/process/task_queues:84:11) {
+  errno: -51,
+  code: 'ENETUNREACH',
+  syscall: 'connect',
+  address: '149.154.175.56',
+  port: 80
+}
+[33m[2026-06-23T01:56:29.433] [INFO] - [Handling reconnect!][0m
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+[95m[Nest] 13240  - [39m23/06/2026, 2:00:00 [95m  DEBUG[39m [38;5;3m[BackgroundEvaluationScheduler] [39m[95mScheduler tick: processing due evaluation jobs[39m
+[32m[Nest] 13240  - [39m23/06/2026, 2:00:00 [32m    LOG[39m [38;5;3m[ProcessDueEvaluationJobsUseCase] [39m[32mProcessed 0 due job(s): 0 succeeded, 0 failed, 0 skipped[39m
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+[95m[Nest] 13240  - [39m23/06/2026, 2:05:00 [95m  DEBUG[39m [38;5;3m[BackgroundEvaluationScheduler] [39m[95mScheduler tick: processing due evaluation jobs[39m
+[32m[Nest] 13240  - [39m23/06/2026, 2:05:00 [32m    LOG[39m [38;5;3m[ProcessDueEvaluationJobsUseCase] [39m[32mProcessed 0 due job(s): 0 succeeded, 0 failed, 0 skipped[39m
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+[95m[Nest] 13240  - [39m23/06/2026, 2:10:00 [95m  DEBUG[39m [38;5;3m[BackgroundEvaluationScheduler] [39m[95mScheduler tick: processing due evaluation jobs[39m
+[32m[Nest] 13240  - [39m23/06/2026, 2:10:00 [32m    LOG[39m [38;5;3m[ProcessDueEvaluationJobsUseCase] [39m[32mProcessed 0 due job(s): 0 succeeded, 0 failed, 0 skipped[39m
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+[95m[Nest] 13240  - [39m23/06/2026, 2:15:00 [95m  DEBUG[39m [38;5;3m[BackgroundEvaluationScheduler] [39m[95mScheduler tick: processing due evaluation jobs[39m
+[32m[Nest] 13240  - [39m23/06/2026, 2:15:00 [32m    LOG[39m [38;5;3m[ProcessDueEvaluationJobsUseCase] [39m[32mProcessed 0 due job(s): 0 succeeded, 0 failed, 0 skipped[39m
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+[95m[Nest] 13240  - [39m23/06/2026, 2:20:00 [95m  DEBUG[39m [38;5;3m[BackgroundEvaluationScheduler] [39m[95mScheduler tick: processing due evaluation jobs[39m
+[32m[Nest] 13240  - [39m23/06/2026, 2:20:00 [32m    LOG[39m [38;5;3m[ProcessDueEvaluationJobsUseCase] [39m[32mProcessed 0 due job(s): 0 succeeded, 0 failed, 0 skipped[39m
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+[95m[Nest] 13240  - [39m23/06/2026, 2:25:00 [95m  DEBUG[39m [38;5;3m[BackgroundEvaluationScheduler] [39m[95mScheduler tick: processing due evaluation jobs[39m
+[32m[Nest] 13240  - [39m23/06/2026, 2:25:00 [32m    LOG[39m [38;5;3m[ProcessDueEvaluationJobsUseCase] [39m[32mProcessed 0 due job(s): 0 succeeded, 0 failed, 0 skipped[39m
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+Error: TIMEOUT
+    at /Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:250:85
+    at async attempts (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:234:20)
+    at async _updateLoop (/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/client/updates.js:184:17)
+[95m[Nest] 13240  - [39m23/06/2026, 2:30:00 [95m  DEBUG[39m [38;5;3m[BackgroundEvaluationScheduler] [39m[95mScheduler tick: processing due evaluation jobs[39m
+[32m[Nest] 13240  - [39m23/06/2026, 2:30:00 [32m    LOG[39m [38;5;3m[ProcessDueEvaluationJobsUseCase] [39m[32mProcessed 0 due job(s): 0 succeeded, 0 failed, 0 skipped[39m
+[95m[Nest] 13240  - [39m23/06/2026, 2:35:00 [95m  DEBUG[39m [38;5;3m[BackgroundEvaluationScheduler] [39m[95mScheduler tick: processing due evaluation jobs[39m
+[32m[Nest] 13240  - [39m23/06/2026, 2:35:00 [32m    LOG[39m [38;5;3m[ProcessDueEvaluationJobsUseCase] [39m[32mProcessed 0 due job(s): 0 succeeded, 0 failed, 0 skipped[39m
+[95m[Nest] 13240  - [39m23/06/2026, 2:40:00 [95m  DEBUG[39m [38;5;3m[BackgroundEvaluationScheduler] [39m[95mScheduler tick: processing due evaluation jobs[39m
+[32m[Nest] 13240  - [39m23/06/2026, 2:40:00 [32m    LOG[39m [38;5;3m[ProcessDueEvaluationJobsUseCase] [39m[32mProcessed 0 due job(s): 0 succeeded, 0 failed, 0 skipped[39m
+[95m[Nest] 13240  - [39m23/06/2026, 3:29:06 [95m  DEBUG[39m [38;5;3m[BackgroundEvaluationScheduler] [39m[95mScheduler tick: processing due evaluation jobs[39m
+[32m[Nest] 13240  - [39m23/06/2026, 3:29:06 [32m    LOG[39m [38;5;3m[ProcessDueEvaluationJobsUseCase] [39m[32mProcessed 0 due job(s): 0 succeeded, 0 failed, 0 skipped[39m
+[95m[Nest] 13240  - [39m23/06/2026, 3:30:00 [95m  DEBUG[39m [38;5;3m[BackgroundEvaluationScheduler] [39m[95mScheduler tick: processing due evaluation jobs[39m
+[32m[Nest] 13240  - [39m23/06/2026, 3:30:00 [32m    LOG[39m [38;5;3m[ProcessDueEvaluationJobsUseCase] [39m[32mProcessed 0 due job(s): 0 succeeded, 0 failed, 0 skipped[39m
+[95m[Nest] 13240  - [39m23/06/2026, 3:31:45 [95m  DEBUG[39m [38;5;3m[WsGateway] [39m[95mClient connected: nZTyd7WmzRXscU2cAAAF[39m
+[95m[Nest] 13240  - [39m23/06/2026, 3:31:58 [95m  DEBUG[39m [38;5;3m[WsGateway] [39m[95mClient nZTyd7WmzRXscU2cAAAF joined room: chain:solana[39m
+[95m[Nest] 13240  - [39m23/06/2026, 3:31:58 [95m  DEBUG[39m [38;5;3m[WsGateway] [39m[95mClient nZTyd7WmzRXscU2cAAAF joined room: chain:evm[39m
+[95m[Nest] 13240  - [39m23/06/2026, 3:31:58 [95m  DEBUG[39m [38;5;3m[WsGateway] [39m[95mClient nZTyd7WmzRXscU2cAAAF left room: chain:solana[39m
+[95m[Nest] 13240  - [39m23/06/2026, 3:31:58 [95m  DEBUG[39m [38;5;3m[WsGateway] [39m[95mClient nZTyd7WmzRXscU2cAAAF left room: chain:evm[39m
+[95m[Nest] 13240  - [39m23/06/2026, 3:31:58 [95m  DEBUG[39m [38;5;3m[WsGateway] [39m[95mClient nZTyd7WmzRXscU2cAAAF joined room: chain:solana[39m
+[95m[Nest] 13240  - [39m23/06/2026, 3:31:58 [95m  DEBUG[39m [38;5;3m[WsGateway] [39m[95mClient nZTyd7WmzRXscU2cAAAF joined room: chain:evm[39m
+[95m[Nest] 13240  - [39m23/06/2026, 3:31:59 [95m  DEBUG[39m [38;5;3m[WsGateway] [39m[95mClient nZTyd7WmzRXscU2cAAAF left room: chain:solana[39m
+[95m[Nest] 13240  - [39m23/06/2026, 3:31:59 [95m  DEBUG[39m [38;5;3m[WsGateway] [39m[95mClient nZTyd7WmzRXscU2cAAAF left room: chain:evm[39m

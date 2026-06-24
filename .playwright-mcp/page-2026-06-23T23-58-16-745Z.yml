@@ -1,0 +1,532 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - link "Alpha Meta Token Scanner" [ref=e6] [cursor=pointer]:
+          - /url: /
+        - navigation [ref=e7]:
+          - link "Dashboard" [ref=e8] [cursor=pointer]:
+            - /url: /
+          - link "Live" [ref=e9] [cursor=pointer]:
+            - /url: /live
+          - link "Tokens" [ref=e10] [cursor=pointer]:
+            - /url: /tokens
+          - link "KOLs" [ref=e11] [cursor=pointer]:
+            - /url: /kols
+          - link "Ops" [ref=e12] [cursor=pointer]:
+            - /url: /ops
+    - main [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - heading "KOLs" [level=1] [ref=e16]
+          - paragraph [ref=e17]: "KOLs de Telegram monitorizados. Toda la info: identidad, lifecycle, reputación por outcomes, y leaderboard top por score."
+        - generic [ref=e18]:
+          - heading "🏆 KOL reputation leaderboard" [level=3] [ref=e19]
+          - table [ref=e20]:
+            - rowgroup [ref=e21]:
+              - row "Rank KOL Score Calls Strong" [ref=e22]:
+                - columnheader "Rank" [ref=e23]
+                - columnheader "KOL" [ref=e24]
+                - columnheader "Score" [ref=e25]
+                - columnheader "Calls" [ref=e26]
+                - columnheader "Strong" [ref=e27]
+            - rowgroup [ref=e28]:
+              - row "No reputation data yet" [ref=e29]:
+                - cell "No reputation data yet" [ref=e30]
+        - generic [ref=e31]:
+          - generic [ref=e32]:
+            - generic [ref=e34]:
+              - generic [ref=e35]: FRENS GEMS 💎
+              - generic [ref=e36]: 1975392115 · @FrenzGems
+              - generic [ref=e37]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e38]: rep 0.50 (LOW)
+            - generic [ref=e39]:
+              - generic [ref=e40]: hace 1d
+              - button "Deactivate" [ref=e41] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e42] [cursor=pointer]
+          - generic [ref=e43]:
+            - generic [ref=e45]:
+              - generic [ref=e46]: BASED DEGEN GEMS
+              - generic [ref=e47]: 1992057930 · @BasedDegenGems
+              - generic [ref=e48]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e49]: rep 0.50 (LOW)
+            - generic [ref=e50]:
+              - generic [ref=e51]: hace 15h
+              - button "Deactivate" [ref=e52] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e53] [cursor=pointer]
+          - generic [ref=e54]:
+            - generic [ref=e56]:
+              - generic [ref=e57]: Cas Gem
+              - generic [ref=e58]: "2054466090"
+              - generic [ref=e59]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e60]: rep 0.50 (LOW)
+            - generic [ref=e61]:
+              - generic [ref=e62]: hace 1d
+              - button "Deactivate" [ref=e63] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e64] [cursor=pointer]
+          - generic [ref=e65]:
+            - generic [ref=e67]:
+              - generic [ref=e68]: Gogeta Gambles ⚡️
+              - generic [ref=e69]: 1883929251 · @gogetagambles
+              - generic [ref=e70]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e71]: rep 0.50 (LOW)
+            - generic [ref=e72]:
+              - generic [ref=e73]: hace 2h
+              - button "Deactivate" [ref=e74] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e75] [cursor=pointer]
+          - generic [ref=e76]:
+            - generic [ref=e78]:
+              - generic [ref=e79]: Spaceman Callz
+              - generic [ref=e80]: 1877172822 · @spacemancallz
+              - generic [ref=e81]:
+                - text: DORMANT · paused ·
+                - generic [ref=e82]: rep 0.50 (LOW)
+            - generic [ref=e83]:
+              - generic [ref=e84]: hace 1d
+              - button "Activate" [ref=e85] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e86] [cursor=pointer]
+          - generic [ref=e87]:
+            - generic [ref=e89]:
+              - generic [ref=e90]: Pinguim Gems 🐧 🎰
+              - generic [ref=e91]: 2260455569 · @PinguimGEMS
+              - generic [ref=e92]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e93]: rep 0.50 (LOW)
+            - generic [ref=e94]:
+              - generic [ref=e95]: hace 2h
+              - button "Deactivate" [ref=e96] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e97] [cursor=pointer]
+          - generic [ref=e98]:
+            - generic [ref=e100]:
+              - generic [ref=e101]: Biggie Bags
+              - generic [ref=e102]: 1832386664 · @BiggieBagsCrypto
+              - generic [ref=e103]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e104]: rep 0.50 (LOW)
+            - generic [ref=e105]:
+              - generic [ref=e106]: hace 1h
+              - button "Deactivate" [ref=e107] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e108] [cursor=pointer]
+          - generic [ref=e109]:
+            - generic [ref=e111]:
+              - generic [ref=e112]: MadApes Calls
+              - generic [ref=e113]: 1697697574 · @mad_apes_call
+              - generic [ref=e114]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e115]: rep 0.50 (LOW)
+            - generic [ref=e116]:
+              - generic [ref=e117]: hace 1d
+              - button "Deactivate" [ref=e118] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e119] [cursor=pointer]
+          - generic [ref=e120]:
+            - generic [ref=e122]:
+              - generic [ref=e123]: Bullish Calls - Solana
+              - generic [ref=e124]: 2388486828 · @BullishCallsPremium
+              - generic [ref=e125]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e126]: rep 0.50 (LOW)
+            - generic [ref=e127]:
+              - generic [ref=e128]: hace 1d
+              - button "Deactivate" [ref=e129] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e130] [cursor=pointer]
+          - generic [ref=e131]:
+            - generic [ref=e133]:
+              - generic [ref=e134]: Mark Gems 💎
+              - generic [ref=e135]: 1584420389 · @MarkGems
+              - generic [ref=e136]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e137]: rep 0.50 (LOW)
+            - generic [ref=e138]:
+              - generic [ref=e139]: hace 1d
+              - button "Deactivate" [ref=e140] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e141] [cursor=pointer]
+          - generic [ref=e142]:
+            - generic [ref=e144]:
+              - generic [ref=e145]: "- SOL -"
+              - generic [ref=e146]: 1756488143 · @lowtaxsolana
+              - generic [ref=e147]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e148]: rep 0.50 (LOW)
+            - generic [ref=e149]:
+              - generic [ref=e150]: hace 1d
+              - button "Deactivate" [ref=e151] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e152] [cursor=pointer]
+          - generic [ref=e153]:
+            - generic [ref=e155]:
+              - generic [ref=e156]: Gabbens Calls - Multichain
+              - generic [ref=e157]: 1732891794 · @GabbensCalls
+              - generic [ref=e158]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e159]: rep 0.50 (LOW)
+            - generic [ref=e160]:
+              - generic [ref=e161]: hace 1d
+              - button "Deactivate" [ref=e162] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e163] [cursor=pointer]
+          - generic [ref=e164]:
+            - generic [ref=e166]:
+              - generic [ref=e167]: KOL Trending (@CallAnalyser)
+              - generic [ref=e168]: 1867934972 · @walloftrophies
+              - generic [ref=e169]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e170]: rep 0.50 (LOW)
+            - generic [ref=e171]:
+              - generic [ref=e172]: hace 1d
+              - button "Deactivate" [ref=e173] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e174] [cursor=pointer]
+          - generic [ref=e175]:
+            - generic [ref=e177]:
+              - generic [ref=e178]: Kulture_Kall
+              - generic [ref=e179]: 2385226263 · @Kulture_Kall
+              - generic [ref=e180]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e181]: rep 0.50 (LOW)
+            - generic [ref=e182]:
+              - generic [ref=e183]: hace 1d
+              - button "Deactivate" [ref=e184] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e185] [cursor=pointer]
+          - generic [ref=e186]:
+            - generic [ref=e188]:
+              - generic [ref=e189]: Evee cook’s
+              - generic [ref=e190]: 1937478270 · @ghastlygems
+              - generic [ref=e191]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e192]: rep 0.50 (LOW)
+            - generic [ref=e193]:
+              - generic [ref=e194]: hace 1d
+              - button "Deactivate" [ref=e195] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e196] [cursor=pointer]
+          - generic [ref=e197]:
+            - generic [ref=e199]:
+              - generic [ref=e200]: Ram's Gems Calls ✨ (ONLY CHANNEL)
+              - generic [ref=e201]: 1824357363 · @ramcalls
+              - generic [ref=e202]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e203]: rep 0.50 (LOW)
+            - generic [ref=e204]:
+              - generic [ref=e205]: hace 1d
+              - button "Deactivate" [ref=e206] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e207] [cursor=pointer]
+          - generic [ref=e208]:
+            - generic [ref=e210]:
+              - generic [ref=e211]: CriptoGemas Calls
+              - generic [ref=e212]: 1671461751 · @CriptoGemas_Anuncios
+              - generic [ref=e213]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e214]: rep 0.50 (LOW)
+            - generic [ref=e215]:
+              - generic [ref=e216]: hace 1d
+              - button "Deactivate" [ref=e217] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e218] [cursor=pointer]
+          - generic [ref=e219]:
+            - generic [ref=e221]:
+              - generic [ref=e222]: Builderman's Roulette
+              - generic [ref=e223]: 1613001878 · @buildermanlaunches
+              - generic [ref=e224]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e225]: rep 0.50 (LOW)
+            - generic [ref=e226]:
+              - generic [ref=e227]: hace 1d
+              - button "Deactivate" [ref=e228] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e229] [cursor=pointer]
+          - generic [ref=e230]:
+            - generic [ref=e232]:
+              - generic [ref=e233]: Gambler's Lounge
+              - generic [ref=e234]: 1413058397 · @GambleLounge
+              - generic [ref=e235]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e236]: rep 0.50 (LOW)
+            - generic [ref=e237]:
+              - generic [ref=e238]: hace 1d
+              - button "Deactivate" [ref=e239] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e240] [cursor=pointer]
+          - generic [ref=e241]:
+            - generic [ref=e243]:
+              - generic [ref=e244]: Levi's Gem Calls
+              - generic [ref=e245]: 1874732560 · @LevisGemCalls
+              - generic [ref=e246]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e247]: rep 0.50 (LOW)
+            - generic [ref=e248]:
+              - generic [ref=e249]: hace 1d
+              - button "Deactivate" [ref=e250] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e251] [cursor=pointer]
+          - generic [ref=e252]:
+            - generic [ref=e254]:
+              - generic [ref=e255]: Arcane Gems
+              - generic [ref=e256]: 1662041785 · @arcanegems
+              - generic [ref=e257]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e258]: rep 0.50 (LOW)
+            - generic [ref=e259]:
+              - generic [ref=e260]: hace 1d
+              - button "Deactivate" [ref=e261] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e262] [cursor=pointer]
+          - generic [ref=e263]:
+            - generic [ref=e265]:
+              - generic [ref=e266]: Levis Calls
+              - generic [ref=e267]: 1924457034 · @LevisAlpha
+              - generic [ref=e268]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e269]: rep 0.50 (LOW)
+            - generic [ref=e270]:
+              - generic [ref=e271]: hace 1d
+              - button "Deactivate" [ref=e272] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e273] [cursor=pointer]
+          - generic [ref=e274]:
+            - generic [ref=e276]:
+              - generic [ref=e277]: CarnageCalls Gambles
+              - generic [ref=e278]: 1696188050 · @CarnagecallsGambles
+              - generic [ref=e279]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e280]: rep 0.50 (LOW)
+            - generic [ref=e281]:
+              - generic [ref=e282]: hace 1d
+              - button "Deactivate" [ref=e283] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e284] [cursor=pointer]
+          - generic [ref=e285]:
+            - generic [ref=e287]:
+              - generic [ref=e288]: GENESIS CHAIN CALLS
+              - generic [ref=e289]: 2086003521 · @GenesisChain_Calls
+              - generic [ref=e290]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e291]: rep 0.50 (LOW)
+            - generic [ref=e292]:
+              - generic [ref=e293]: hace 1d
+              - button "Deactivate" [ref=e294] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e295] [cursor=pointer]
+          - generic [ref=e296]:
+            - generic [ref=e298]:
+              - generic [ref=e299]: KOLscope
+              - generic [ref=e300]: 2397610468 · @KOLscope
+              - generic [ref=e301]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e302]: rep 0.50 (LOW)
+            - generic [ref=e303]:
+              - generic [ref=e304]: hace 1d
+              - button "Deactivate" [ref=e305] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e306] [cursor=pointer]
+          - generic [ref=e307]:
+            - generic [ref=e309]:
+              - generic [ref=e310]: BagCalls 🎒🎒🎒
+              - generic [ref=e311]: 1225991487 · @bagcalls
+              - generic [ref=e312]:
+                - text: DORMANT · paused ·
+                - generic [ref=e313]: rep 0.50 (LOW)
+            - generic [ref=e314]:
+              - generic [ref=e315]: hace 1d
+              - button "Activate" [ref=e316] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e317] [cursor=pointer]
+          - generic [ref=e318]:
+            - generic [ref=e320]:
+              - generic [ref=e321]: Degen Seals
+              - generic [ref=e322]: 1523523939 · @DegenSeals
+              - generic [ref=e323]:
+                - text: DORMANT · paused ·
+                - generic [ref=e324]: rep 0.50 (LOW)
+            - generic [ref=e325]:
+              - generic [ref=e326]: hace 1d
+              - button "Activate" [ref=e327] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e328] [cursor=pointer]
+          - generic [ref=e329]:
+            - generic [ref=e331]:
+              - generic [ref=e332]: Meta caller
+              - generic [ref=e333]: 1880851888 · @metacaller
+              - generic [ref=e334]:
+                - text: DORMANT · paused ·
+                - generic [ref=e335]: rep 0.50 (LOW)
+            - generic [ref=e336]:
+              - generic [ref=e337]: hace 1d
+              - button "Activate" [ref=e338] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e339] [cursor=pointer]
+          - generic [ref=e340]:
+            - generic [ref=e342]:
+              - generic [ref=e343]: Iced's House of Degeneracy
+              - generic [ref=e344]: 1819368322 · @houseofdegeneracy
+              - generic [ref=e345]:
+                - text: DORMANT · paused ·
+                - generic [ref=e346]: rep 0.50 (LOW)
+            - generic [ref=e347]:
+              - generic [ref=e348]: hace 1d
+              - button "Activate" [ref=e349] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e350] [cursor=pointer]
+          - generic [ref=e351]:
+            - generic [ref=e353]:
+              - generic [ref=e354]: Reaper Gems
+              - generic [ref=e355]: 1667198684 · @TheReaperGems
+              - generic [ref=e356]:
+                - text: DORMANT · paused ·
+                - generic [ref=e357]: rep 0.50 (LOW)
+            - generic [ref=e358]:
+              - generic [ref=e359]: hace 1d
+              - button "Activate" [ref=e360] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e361] [cursor=pointer]
+          - generic [ref=e362]:
+            - generic [ref=e364]:
+              - generic [ref=e365]: Gems Mine(Gamble)
+              - generic [ref=e366]: 1500214409 · @GemsmineEth
+              - generic [ref=e367]:
+                - text: DORMANT · paused ·
+                - generic [ref=e368]: rep 0.50 (LOW)
+            - generic [ref=e369]:
+              - generic [ref=e370]: hace 1d
+              - button "Activate" [ref=e371] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e372] [cursor=pointer]
+          - generic [ref=e373]:
+            - generic [ref=e375]:
+              - generic [ref=e376]: RichKid Calls
+              - generic [ref=e377]: 1783469467 · @RichKidcalls
+              - generic [ref=e378]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e379]: rep 0.50 (LOW)
+            - generic [ref=e380]:
+              - generic [ref=e381]: hace 1d
+              - button "Deactivate" [ref=e382] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e383] [cursor=pointer]
+          - generic [ref=e384]:
+            - generic [ref=e386]:
+              - generic [ref=e387]: BATMAN GEMS 🦇
+              - generic [ref=e388]: 1718703340 · @batman_gem
+              - generic [ref=e389]:
+                - text: DORMANT · paused ·
+                - generic [ref=e390]: rep 0.50 (LOW)
+            - generic [ref=e391]:
+              - generic [ref=e392]: hace 1d
+              - button "Activate" [ref=e393] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e394] [cursor=pointer]
+          - generic [ref=e395]:
+            - generic [ref=e397]:
+              - generic [ref=e398]: Gems Mine
+              - generic [ref=e399]: 1794471884 · @MineGems
+              - generic [ref=e400]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e401]: rep 0.50 (LOW)
+            - generic [ref=e402]:
+              - generic [ref=e403]: hace 1d
+              - button "Deactivate" [ref=e404] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e405] [cursor=pointer]
+          - generic [ref=e406]:
+            - generic [ref=e408]:
+              - generic [ref=e409]: Lookonchain
+              - generic [ref=e410]: 1553109986 · @lookonchain
+              - generic [ref=e411]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e412]: rep 0.50 (LOW)
+            - generic [ref=e413]:
+              - generic [ref=e414]: hace 1d
+              - button "Deactivate" [ref=e415] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e416] [cursor=pointer]
+          - generic [ref=e417]:
+            - generic [ref=e419]:
+              - generic [ref=e420]: Crypto Rocketeer's Calls 💎
+              - generic [ref=e421]: 1572093129 · @CryptoRocketeerCalls
+              - generic [ref=e422]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e423]: rep 0.50 (LOW)
+            - generic [ref=e424]:
+              - generic [ref=e425]: hace 1d
+              - button "Deactivate" [ref=e426] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e427] [cursor=pointer]
+          - generic [ref=e428]:
+            - generic [ref=e430]:
+              - generic [ref=e431]: 🐳Johnny Trades
+              - generic [ref=e432]: 1300818502 · @trades_johnny
+              - generic [ref=e433]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e434]: rep 0.50 (LOW)
+            - generic [ref=e435]:
+              - generic [ref=e436]: hace 1d
+              - button "Deactivate" [ref=e437] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e438] [cursor=pointer]
+          - generic [ref=e439]:
+            - generic [ref=e441]:
+              - generic [ref=e442]: SpyDefi
+              - generic [ref=e443]: "1960616143"
+              - generic [ref=e444]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e445]: rep 0.50 (LOW)
+            - generic [ref=e446]:
+              - generic [ref=e447]: hace 1d
+              - button "Deactivate" [ref=e448] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e449] [cursor=pointer]
+          - generic [ref=e450]:
+            - generic [ref=e452]:
+              - generic [ref=e453]: BurpBoard by Rick
+              - generic [ref=e454]: 1654895559 · @BurpBoard
+              - generic [ref=e455]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e456]: rep 0.50 (LOW)
+            - generic [ref=e457]:
+              - generic [ref=e458]: hace 1d
+              - button "Deactivate" [ref=e459] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e460] [cursor=pointer]
+          - generic [ref=e461]:
+            - generic [ref=e463]:
+              - generic [ref=e464]: Maestros Gamble Degen Apes
+              - generic [ref=e465]: 1810124798 · @Maestrosdegen
+              - generic [ref=e466]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e467]: rep 0.50 (LOW)
+            - generic [ref=e468]:
+              - generic [ref=e469]: hace 1d
+              - button "Deactivate" [ref=e470] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e471] [cursor=pointer]
+          - generic [ref=e472]:
+            - generic [ref=e474]:
+              - generic [ref=e475]: 𝗠𝗮𝗷𝗼𝗿 𝗧𝗿𝗲𝗻𝗱𝗶𝗻𝗴 | 𝗦𝗢𝗟 | 𝗕𝗔𝗦𝗘 | 𝗘𝗧𝗛 | 𝗕𝗦𝗖 | 𝗣𝗨𝗠𝗣𝗙𝗨𝗡
+              - generic [ref=e476]: 2099286836 · @MajorTrending
+              - generic [ref=e477]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e478]: rep 0.50 (LOW)
+            - generic [ref=e479]:
+              - generic [ref=e480]: hace 1d
+              - button "Deactivate" [ref=e481] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e482] [cursor=pointer]
+          - generic [ref=e483]:
+            - generic [ref=e485]:
+              - generic [ref=e486]: Call Analyser
+              - generic [ref=e487]: 1730427571 · @CallAnalyser
+              - generic [ref=e488]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e489]: rep 0.50 (LOW)
+            - generic [ref=e490]:
+              - generic [ref=e491]: hace 1d
+              - button "Deactivate" [ref=e492] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e493] [cursor=pointer]
+          - generic [ref=e494]:
+            - generic [ref=e496]:
+              - generic [ref=e497]: Gambles 🎲 MadApes
+              - generic [ref=e498]: 1758611100 · @mad_apes_gambles
+              - generic [ref=e499]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e500]: rep 0.50 (LOW)
+            - generic [ref=e501]:
+              - generic [ref=e502]: hace 1d
+              - button "Deactivate" [ref=e503] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e504] [cursor=pointer]
+          - generic [ref=e505]:
+            - generic [ref=e507]:
+              - generic [ref=e508]: Mark Degens
+              - generic [ref=e509]: 1763265784 · @MarkDegens
+              - generic [ref=e510]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e511]: rep 0.50 (LOW)
+            - generic [ref=e512]:
+              - generic [ref=e513]: hace 1d
+              - button "Deactivate" [ref=e514] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e515] [cursor=pointer]
+          - generic [ref=e516]:
+            - generic [ref=e518]:
+              - generic [ref=e519]: sad cat
+              - generic [ref=e520]: 2088887132 · @sadcatgamble
+              - generic [ref=e521]:
+                - text: ACTIVE · listening ·
+                - generic [ref=e522]: rep 0.50 (LOW)
+            - generic [ref=e523]:
+              - generic [ref=e524]: hace 1d
+              - button "Deactivate" [ref=e525] [cursor=pointer]
+              - button "🔄 Backfill" [ref=e526] [cursor=pointer]
+  - generic "WebSocket connection status" [ref=e527]: WS ●

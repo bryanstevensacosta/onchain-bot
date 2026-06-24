@@ -1,0 +1,18 @@
+QA: Fetcher returns image for DexScreener-covered token (USDC on Solana)
+
+Command:
+  node -e "
+  (async () => {
+    const { TokenImageFetcher } = require('./apps/backend/dist/src/chain/explorer/infrastructure/fetchers/token-image.fetcher');
+    const f = new TokenImageFetcher();
+    const r = await f.fetch('solana', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+    console.log('contentType:', r.contentType, 'size:', r.buffer.length);
+  })().catch(e => { console.error('ERROR:', e.message); process.exit(1); });
+  "
+
+Output:
+  contentType: image/webp size: 2192
+
+Status: PASS
+- Provider: DexScreener (first in chain) for solana USDC
+- Returned FetchedImage with contentType and non-empty buffer

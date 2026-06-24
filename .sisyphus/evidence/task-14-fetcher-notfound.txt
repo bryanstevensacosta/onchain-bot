@@ -1,0 +1,23 @@
+QA: Fetcher throws NotFoundException for un-coverable address
+
+Command:
+  node -e "
+  (async () => {
+    try {
+      const { TokenImageFetcher } = require('./apps/backend/dist/src/chain/explorer/infrastructure/fetchers/token-image.fetcher');
+      const f = new TokenImageFetcher();
+      await f.fetch('ethereum', '0x000000000000000000000000000000000000dEaD');
+      console.log('UNEXPECTED SUCCESS');
+    } catch(e) {
+      console.log('expected error:', e.constructor.name, e.message);
+    }
+  })();
+  "
+
+Output:
+  [Nest] DEBUG [TokenImageFetcher] Provider returned 404 for https://dd.dexscreener.com/ds-data/tokens/ethereum/0x000000000000000000000000000000000000dEaD.png
+  expected error: NotFoundException No image found for ethereum/0x000000000000000000000000000000000000dEaD
+
+Status: PASS
+- DexScreener returned 404 → tryFetch returned null
+- All providers failed (Ethereum has only DexScreener) → NotFoundException thrown with chain/address in message

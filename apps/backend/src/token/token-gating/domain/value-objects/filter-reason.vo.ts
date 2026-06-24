@@ -22,6 +22,12 @@ interface FilterReasonProps {
  * - { code: 'BLACKLISTED', message: 'Address in known-scam list' }
  */
 export class FilterReason extends ValueObject<FilterReasonProps> {
+  public static isRetryable(code: string): boolean {
+    // Retryable codes are those that can be re‑processed after a transient fix.
+    // Currently only BLACKLISTED and CHAIN_UNSUPPORTED are considered retryable.
+    // Additional retryable codes can be added here as the business logic evolves.
+    return code === 'BLACKLISTED' || code === 'CHAIN_UNSUPPORTED';
+  }
   private static readonly VALID_CODES = new Set<FilterReasonCode>([
     'SCORE_TOO_LOW',
     'CLASSIFICATION_BLOCKED',

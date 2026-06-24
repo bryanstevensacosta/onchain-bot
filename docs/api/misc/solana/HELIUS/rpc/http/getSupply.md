@@ -1,0 +1,323 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getSupply
+
+> Returns information about the current supply.
+
+## Request Parameters
+
+<ParamField body="commitment" type="string">
+  The commitment level for the request.
+
+  * `confirmed`
+  * `finalized`
+  * `processed`
+</ParamField>
+
+<ParamField body="excludeNonCirculatingAccountsList" type="boolean">
+  Option to exclude the detailed list of non-circulating SOL reserve accounts for faster response.
+</ParamField>
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getSupply.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Native SOL supply analytics API for monitoring total circulation, token
+    economics, and distribution metrics across the Solana blockchain ecosystem.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getSupply
+      description: >
+        Retrieve comprehensive metrics about Solana's native SOL token supply
+        and distribution.
+
+        This essential tokenomics API provides detailed breakdowns of
+        circulating and non-circulating
+
+        token supply, helping track SOL distribution across the ecosystem. Data
+        includes total SOL
+
+        supply, active circulation figures, tokens in reserve, and a list of
+        accounts holding
+
+        non-circulating tokens. Critical for financial analysts, token economics
+        researchers,
+
+        market trackers, and applications that need accurate metrics on Solana's
+        native token
+
+        supply and distribution patterns.
+      operationId: getSupply
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                jsonrpc:
+                  type: string
+                  enum:
+                    - '2.0'
+                  description: The JSON-RPC protocol version.
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  enum:
+                    - getSupply
+                  description: The name of the RPC method to invoke.
+                  example: getSupply
+                  default: getSupply
+                params:
+                  type: array
+                  description: Optional configuration object.
+                  default: []
+                  items:
+                    type: object
+                    properties:
+                      commitment:
+                        type: string
+                        description: The commitment level for the request.
+                        enum:
+                          - confirmed
+                          - finalized
+                          - processed
+                        example: finalized
+                      excludeNonCirculatingAccountsList:
+                        type: boolean
+                        description: >-
+                          Option to exclude the detailed list of non-circulating
+                          SOL reserve accounts for faster response.
+                        example: true
+            examples:
+              default:
+                $ref: '#/components/examples/getSupplyRequest'
+      responses:
+        '200':
+          description: Successfully retrieved the supply information.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    type: object
+                    description: Context and supply details.
+                    properties:
+                      context:
+                        type: object
+                        description: Context of the response.
+                        properties:
+                          slot:
+                            type: integer
+                            description: Slot in which the data was fetched.
+                            example: 1114
+                      value:
+                        type: object
+                        description: Supply details.
+                        properties:
+                          total:
+                            type: integer
+                            description: >-
+                              Total SOL supply in existence (in lamports),
+                              including both circulating and locked tokens.
+                            example: 1016000
+                          circulating:
+                            type: integer
+                            description: >-
+                              Amount of SOL (in lamports) currently in
+                              circulation and available for public use.
+                            example: 16000
+                          nonCirculating:
+                            type: integer
+                            description: >-
+                              Amount of SOL (in lamports) held in reserve
+                              accounts and not currently available in
+                              circulation.
+                            example: 1000000
+                          nonCirculatingAccounts:
+                            type: array
+                            description: >-
+                              List of Solana wallet addresses that hold
+                              non-circulating SOL tokens in reserve.
+                            items:
+                              type: string
+                            example:
+                              - FEy8pTbP5fEoqMV1GdTz83byuA8EKByqYat1PKDgVAq5
+                              - 9huDUZfxoJ7wGMTffUE7vh1xePqef7gyrLJu9NApncqA
+                              - 3mi1GmwEE3zo2jmfDuzvjSX9ovRXsDUKHvsntpkhuLJ9
+                              - BYxEJTDerkaRWBem3XgnVcdhppktBXa2HbkHPKj2Ui4Z
+              examples:
+                default:
+                  $ref: '#/components/examples/getSupplyResponse'
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  examples:
+    getSupplyRequest:
+      value:
+        jsonrpc: '2.0'
+        id: '1'
+        method: getSupply
+        params:
+          - commitment: finalized
+            excludeNonCirculatingAccountsList: true
+    getSupplyResponse:
+      value:
+        jsonrpc: '2.0'
+        id: '1'
+        result:
+          context:
+            slot: 1114
+          value:
+            total: 1016000
+            circulating: 16000
+            nonCirculating: 1000000
+            nonCirculatingAccounts:
+              - FEy8pTbP5fEoqMV1GdTz83byuA8EKByqYat1PKDgVAq5
+              - 9huDUZfxoJ7wGMTffUE7vh1xePqef7gyrLJu9NApncqA
+              - 3mi1GmwEE3zo2jmfDuzvjSX9ovRXsDUKHvsntpkhuLJ9
+              - BYxEJTDerkaRWBem3XgnVcdhppktBXa2HbkHPKj2Ui4Z
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

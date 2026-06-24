@@ -26,20 +26,26 @@ export class InMemoryPublishedCallRepository implements PublishedCallRepository 
     return this.store.get(key) ?? null;
   }
 
-  public async findRecent(limit: number): Promise<ReadonlyArray<PublishedCall>> {
+  public async findRecent(
+    limit: number,
+  ): Promise<ReadonlyArray<PublishedCall>> {
     return Array.from(this.store.values())
       .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
       .slice(0, limit);
   }
 
-  public async findPublished(limit: number): Promise<ReadonlyArray<PublishedCall>> {
+  public async findPublished(
+    limit: number,
+  ): Promise<ReadonlyArray<PublishedCall>> {
     return Array.from(this.store.values())
       .filter((c) => c.isPublished)
       .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
       .slice(0, limit);
   }
 
-  public async findFailed(limit: number): Promise<ReadonlyArray<PublishedCall>> {
+  public async findFailed(
+    limit: number,
+  ): Promise<ReadonlyArray<PublishedCall>> {
     return Array.from(this.store.values())
       .filter((c) => c.isFailed)
       .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())

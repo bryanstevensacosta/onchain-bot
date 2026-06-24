@@ -1,0 +1,32 @@
+=== Task 11: data-testid verification ===
+
+File: apps/frontend/src/pages/tokens-explorer/index.tsx
+
+Count of data-testid="token-image" occurrences:
+2
+
+Expected: 2 (both img tags - real and placeholder)
+
+=== Matching lines ===
+65:            data-testid="token-image"
+77:            data-testid="token-image"
+=== onError safety analysis with data URIs ===
+
+Handler logic (apps/frontend/src/pages/tokens-explorer/index.tsx:34-40):
+  if (currentImageIndex < imageUrls.length - 1) {
+    setCurrentImageIndex((prev) => prev + 1);  // try next URL
+  } else {
+    setCurrentImageIndex(imageUrls.length);    // set past-end -> null url -> placeholder
+  }
+
+Data URI behavior in <img>:
+  - data:image/svg+xml;base64,... URIs are inline content, NOT network requests
+  - Browsers NEVER fire onerror for valid data URIs (no decoding error possible)
+  - Therefore onError will not fire for the new identicon data URIs
+
+Defensive check (if onError somehow did fire):
+  - After error: currentImageIndex becomes imageUrls.length
+  - currentImageUrl = imageUrls[imageUrls.length] ?? null = null
+  - Component renders placeholder img (no onError handler)
+  - Re-firing onError (if it could) would set index to same value (imageUrls.length)
+  - No infinite loop possible — terminal state in 1 transition

@@ -57,8 +57,39 @@ describe('CallParsedHandler', () => {
       holders: null,
       chart: null,
       confidence: 0.5,
+      username: null,
     });
 
     await expect(handler.handle(event)).resolves.toBeUndefined();
+  });
+
+  it('propagates the KOL username from the event to the use case', async () => {
+    const execute = jest.fn().mockResolvedValue(null);
+    const handler = new CallParsedHandler({ execute });
+
+    const event = new CallParsedEvent({
+      kolId: 'chan-A',
+      messageId: 7,
+      occurredAt: FIXED_DATE,
+      contractAddress: EVM,
+      contractChainHint: 'evm',
+      ticker: null,
+      name: null,
+      marketCapUsd: null,
+      liquidityUsd: null,
+      fdvUsd: null,
+      holders: null,
+      chart: null,
+      confidence: 0.5,
+      username: 'alpha_whale',
+    });
+
+    await handler.handle(event);
+
+    const arg = (execute.mock.calls[0] as Array<[unknown]>)[0] as Record<
+      string,
+      unknown
+    >;
+    expect(arg.username).toBe('alpha_whale');
   });
 });

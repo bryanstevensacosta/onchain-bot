@@ -1,0 +1,8 @@
+HTTP/1.1 200 OK
+X-Powered-By: Express
+Vary: Origin
+Access-Control-Allow-Credentials: true
+Content-Type: image/webp
+Cache-Control: public, max-age=300
+Content-Length: 2192
+ETag: W/"890-6dOXNGcbM9yKiyLCwuH09/8NUUM"

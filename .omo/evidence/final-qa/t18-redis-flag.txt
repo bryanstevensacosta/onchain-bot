@@ -1,0 +1,7 @@
+apps/backend/src/shared/cache/token-image-cache.adapter.spec.ts:    delete process.env.TOKEN_IMAGE_REDIS_ENABLED;
+apps/backend/src/shared/cache/token-image-cache.adapter.spec.ts:    process.env.TOKEN_IMAGE_REDIS_ENABLED = 'false';
+apps/backend/src/shared/cache/token-image-cache.adapter.spec.ts:    process.env.TOKEN_IMAGE_REDIS_ENABLED = 'true';
+apps/backend/src/shared/cache/token-image-cache.adapter.spec.ts:    process.env.TOKEN_IMAGE_REDIS_ENABLED = 'true';
+apps/backend/src/shared/cache/token-image-cache.adapter.spec.ts:    process.env.TOKEN_IMAGE_REDIS_ENABLED = 'TRUE';
+apps/backend/src/shared/cache/token-image-cache.adapter.spec.ts:    process.env.TOKEN_IMAGE_REDIS_ENABLED = 'false';
+apps/backend/src/shared/cache/token-image-cache.adapter.ts:    (process.env.TOKEN_IMAGE_REDIS_ENABLED ?? 'false').toLowerCase() === 'true';

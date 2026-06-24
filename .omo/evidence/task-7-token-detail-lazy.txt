@@ -1,0 +1,4 @@
+59:            loading="lazy"
+60:            decoding="async"
+70:            loading="lazy"
+71:            decoding="async"

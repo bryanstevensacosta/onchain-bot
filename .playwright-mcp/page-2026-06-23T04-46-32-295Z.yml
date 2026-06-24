@@ -1,0 +1,105 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - link "Alpha Meta Token Scanner" [ref=e6] [cursor=pointer]:
+          - /url: /
+        - navigation [ref=e7]:
+          - link "Dashboard" [ref=e8] [cursor=pointer]:
+            - /url: /
+          - link "Live" [ref=e9] [cursor=pointer]:
+            - /url: /live
+          - link "Tokens" [ref=e10] [cursor=pointer]:
+            - /url: /tokens
+          - link "KOLs" [ref=e11] [cursor=pointer]:
+            - /url: /kols
+          - link "Ops" [ref=e12] [cursor=pointer]:
+            - /url: /ops
+    - main [ref=e13]:
+      - generic [ref=e14]:
+        - heading "Tokens" [level=1] [ref=e15]
+        - paragraph [ref=e16]: Decisiones de filtro - tokens approved vs rejected.
+        - generic [ref=e17]:
+          - button "All" [ref=e18] [cursor=pointer]
+          - button "Approved" [ref=e19] [cursor=pointer]
+          - button "Rejected" [ref=e20] [cursor=pointer]
+        - generic [ref=e21]:
+          - generic [ref=e22] [cursor=pointer]:
+            - img "placeholder" [ref=e24]
+            - generic [ref=e25]:
+              - img "Ethereum" [ref=e27]
+              - generic [ref=e34]:
+                - generic [ref=e35]: 0x345a...c5e1
+                - button "Copy address" [ref=e36]: ⧉
+            - generic [ref=e38]:
+              - generic [ref=e39]: REJECTED
+              - generic "[object Object]" [ref=e40]
+          - generic [ref=e41] [cursor=pointer]:
+            - img "placeholder" [ref=e43]
+            - generic [ref=e44]:
+              - img "Solana" [ref=e46]
+              - generic [ref=e50]:
+                - generic [ref=e51]: 2axles...pump
+                - button "Copy address" [ref=e52]: ⧉
+            - generic [ref=e54]:
+              - generic [ref=e55]: REJECTED
+              - generic "[object Object]" [ref=e56]
+          - generic [ref=e57] [cursor=pointer]:
+            - img "placeholder" [ref=e59]
+            - generic [ref=e60]:
+              - img "Solana" [ref=e62]
+              - generic [ref=e66]:
+                - generic [ref=e67]: iyd2tr...pump
+                - button "Copy address" [ref=e68]: ⧉
+            - generic [ref=e70]:
+              - generic [ref=e71]: REJECTED
+              - generic "[object Object]" [ref=e72]
+          - generic [ref=e73] [cursor=pointer]:
+            - img "placeholder" [ref=e75]
+            - generic [ref=e76]:
+              - img "Solana" [ref=e78]
+              - generic [ref=e82]:
+                - generic [ref=e83]: epx5r4...s4ty
+                - button "Copy address" [ref=e84]: ⧉
+            - generic [ref=e86]: APPROVED
+          - generic [ref=e87] [cursor=pointer]:
+            - img "placeholder" [ref=e89]
+            - generic [ref=e90]:
+              - img "Solana" [ref=e92]
+              - generic [ref=e96]:
+                - generic [ref=e97]: ckit5s...pump
+                - button "Copy address" [ref=e98]: ⧉
+            - generic [ref=e100]:
+              - generic [ref=e101]: REJECTED
+              - generic "[object Object]" [ref=e102]
+          - generic [ref=e103] [cursor=pointer]:
+            - img "placeholder" [ref=e105]
+            - generic [ref=e106]:
+              - img "Solana" [ref=e108]
+              - generic [ref=e112]:
+                - generic [ref=e113]: 2jba4d...pump
+                - button "Copy address" [ref=e114]: ⧉
+            - generic [ref=e116]:
+              - generic [ref=e117]: REJECTED
+              - generic "[object Object]" [ref=e118]
+          - generic [ref=e119] [cursor=pointer]:
+            - img "placeholder" [ref=e121]
+            - generic [ref=e122]:
+              - img "Solana" [ref=e124]
+              - generic [ref=e128]:
+                - generic [ref=e129]: 8wxkva...pump
+                - button "Copy address" [ref=e130]: ⧉
+            - generic [ref=e132]:
+              - generic [ref=e133]: REJECTED
+              - generic "[object Object]" [ref=e134]
+          - generic [ref=e135] [cursor=pointer]:
+            - img "placeholder" [ref=e137]
+            - generic [ref=e138]:
+              - img "Solana" [ref=e140]
+              - generic [ref=e144]:
+                - generic [ref=e145]: hugprx...pump
+                - button "Copy address" [ref=e146]: ⧉
+            - generic [ref=e148]:
+              - generic [ref=e149]: REJECTED
+              - generic "[object Object]" [ref=e150]
+  - generic "WebSocket connection status" [ref=e151]: WS ○

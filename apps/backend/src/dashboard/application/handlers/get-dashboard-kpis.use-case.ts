@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { KolRepository } from 'telegram-kol/identity/application/ports/kol.repository';
+import { KolRepository } from 'kol/identity/application/ports/kol.repository';
 import { CanonicalTokenCallRepository } from 'token/normalization/application/ports/canonical-token-call.repository';
 import { FilterDecisionRepository } from 'token/token-gating/application/ports/filter-decision.repository';
-import { PublishedCallRepository } from 'telegram-publishing/shared';
+import { PublishedCallRepository } from 'telegram/shared';
 import type { DashboardKpis } from '../ports/dashboard-kpis.port';
 
 /**

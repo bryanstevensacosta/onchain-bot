@@ -1,0 +1,2 @@
+65:            data-testid="token-image"
+77:            data-testid="token-image"

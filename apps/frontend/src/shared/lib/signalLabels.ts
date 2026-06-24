@@ -14,6 +14,7 @@ const SIGNAL_PREFIX = 'SIGNAL_';
 export const RISK_SIGNAL_LABELS: Readonly<Record<string, string>> = {
   LOW_LIQUIDITY: 'Low liquidity',
   NO_HOLDERS: 'No holders',
+  LOW_HOLDERS: 'Low holders',
   NO_PAIRS: 'No trading pairs',
   CONCENTRATED_HOLDERS: 'Concentrated holders',
   EXTREME_PRICE_CHANGE: 'Extreme price change',
@@ -72,6 +73,7 @@ export const SCORING_FACTOR_LABELS: Readonly<Record<string, string>> = {
   SECURITY_FLAG_CAP: 'Security Cap',
   SIGNAL_POSSIBLE_RUG: 'Possible rug pull',
   SIGNAL_NO_HOLDERS: 'No holders',
+  SIGNAL_LOW_HOLDERS: 'Low holders',
   SIGNAL_NO_NAME: 'No token name',
   SIGNAL_LOW_LIQUIDITY: 'Low liquidity',
   SIGNAL_NO_PAIRS: 'No trading pairs',

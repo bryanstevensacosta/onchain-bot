@@ -1,0 +1,60 @@
+T1: Rename coin-info-bot → chain-dexter-bot
+Commit: ec0112b
+Date: 2026-06-23
+
+VERIFICATIONS (all PASS):
+
+1. GREP — zero residual references across entire repo:
+   $ grep -r -i "coin-info\|coininfo\|coininfobot\|coin_info" \
+       --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.git --exclude-dir=.sisyphus .
+   (no output = PASS)
+
+2. Directory renamed:
+   - apps/backend/src/telegram/coin-info-bot/ → REMOVED ✓
+   - apps/backend/src/telegram/chain-dexter-bot/ → EXISTS ✓
+   - 5 .ts files in chain-dexter-bot/:
+     - chain-dexter-bot.module.ts
+     - api/http/chain-dexter.controller.ts
+     - application/token-scan.service.ts
+     - infrastructure/telegram/chain-dexter-bot.adapter.ts
+     - infrastructure/telegram/message-formatter.adapter.ts
+
+3. Build: PASS (exit 0, nest build clean)
+
+4. Tests: 278 passing across 36 test suites
+   (README mentioned 306 — actual count is 278; either README outdated or tests were reduced.
+   No test was modified or removed by this rename.)
+
+5. Lint: 43 errors project-wide, 9 warnings
+   - 4 errors in renamed message-formatter.adapter.ts: PRE-EXISTING
+     (@typescript-eslint/unbound-method warnings on `formatNumber, formatPercent, formatAge, formatMoney = this`
+     destructuring — this exact pattern existed in original coin-info-formatter.adapter.ts BEFORE rename)
+   - All other errors are in unrelated files (specs, other modules)
+   - Zero NEW lint errors introduced by this rename
+
+6. Bot token preserved (not regenerated):
+   - CHAIN_DEXTER_BOT_TOKEN=<value-redacted> (same value as old COIN_INFO_BOT_TOKEN)
+   - .env file is gitignored (security best practice), value change preserved locally
+
+7. Orthogonal bots intact (NOT touched):
+   - VIP_CALLS_BOT_TOKEN=<value-redacted>
+   - TELEGRAM_BOT_TOKEN (legacy, empty)
+   - TELEGRAM_MTPROTO_* (legacy, empty)
+   - PUBLISHING_TELEGRAM_USE_REAL_MTPROTO=false
+
+8. Commit: ec0112b
+   Files: 9 (3 modified, 5 new source files, 1 plan file)
+   Lines: 2447 insertions, 10 deletions
+
+FILES TOUCHED:
+- .env.example (modified, +14 lines for new env vars section)
+- apps/backend/src/app.module.ts (modified, import + reference)
+- apps/backend/src/shared/common/config/app.config.ts (modified, 2 coinInfoBot→chainDexterBot)
+- apps/backend/src/telegram/chain-dexter-bot/ (new directory, 5 files)
+- .sisyphus/plans/chain-dexter-bot.md (new, 2052 lines, MVP plan + roadmap)
+
+NOT TOUCHED (verified orthogonal):
+- apps/backend/src/telegram/vip-calls-channel/
+- apps/backend/src/telegram/publishing.module.ts
+- apps/backend/src/telegram/shared/
+- VIP_CALLS_BOT_TOKEN, PUBLISHING_TELEGRAM_*, TELEGRAM_BOT_TOKEN, TELEGRAM_MTPROTO_*

@@ -1,0 +1,213 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getBlockCommitment
+
+> Returns the cluster commitment and stake-weighted vote distribution for a specific Solana block — used to verify how widely confirmed or finalized a block is across the validator set.
+
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getBlockCommitment.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getBlockCommitment
+      description: Returns the commitment information for a specific block.
+      operationId: getBlockCommitment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - jsonrpc
+                - id
+                - method
+                - params
+              properties:
+                jsonrpc:
+                  type: string
+                  enum:
+                    - '2.0'
+                  description: The JSON-RPC protocol version.
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  enum:
+                    - getBlockCommitment
+                  description: The name of the RPC method to invoke.
+                  default: getBlockCommitment
+                params:
+                  type: array
+                  description: Parameters for the request.
+                  default:
+                    - 430
+                  items:
+                    type: integer
+                    description: Block number identified by Slot (as `u64` integer).
+                    example: 5
+      responses:
+        '200':
+          description: Successfully retrieved block commitment.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    enum:
+                      - '2.0'
+                  id:
+                    type: string
+                  result:
+                    type: object
+                    properties:
+                      commitment:
+                        oneOf:
+                          - type: 'null'
+                            description: >-
+                              Returns null if the block is unknown or has not
+                              been confirmed by any validator.
+                          - type: array
+                            description: >-
+                              Array of `u64` integers logging the amount of
+                              cluster stake in lamports that has voted on the
+                              block at each depth.
+                            items:
+                              type: integer
+                            example:
+                              - 0
+                              - 0
+                              - 0
+                              - 0
+                              - 0
+                              - 10
+                              - 32
+                      totalStake:
+                        type: integer
+                        description: Total active stake, in lamports, of the current epoch.
+                        example: 384962848972206900
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          enum:
+            - '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+            message:
+              type: string
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

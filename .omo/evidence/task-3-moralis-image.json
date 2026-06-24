@@ -1,0 +1,41 @@
+{
+  "scenario": "happy_path_moralis_covered_token_returns_logo_url",
+  "endpoint": "GET https://deep-index.moralis.io/api/v2.2/erc20/metadata?chain=eth&addresses=0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+  "chain": "ethereum",
+  "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+  "moralisApiResponseShape": {
+    "type": "array",
+    "note": "Endpoint returns a single-element array. Adapter unwraps data[0] before extracting logo."
+  },
+  "rawApiResponseFirstElement": {
+    "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "address_label": "USD Coin (USDC)",
+    "name": "USD Coin",
+    "symbol": "USDC",
+    "decimals": "6",
+    "logo": "https://logo.moralis.io/0x1_0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48_46c5dbd42c02bf9d1f2e0bc4705da611.webp",
+    "logo_hash": "442b80bd16af0c0d9b22e03a16753823fe826e5bfd457292b55fa0ba8c1ba213",
+    "thumbnail": "https://logo.moralis.io/0x1_0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48_46c5dbd42c02bf9d1f2e0bc4705da611.webp"
+  },
+  "adapterExtraction": {
+    "method": "buildImageUrls(logo)",
+    "input": "https://logo.moralis.io/0x1_0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48_46c5dbd42c02bf9d1f2e0bc4705da611.webp",
+    "validation": "passes /^https?:\\/\\//i",
+    "result": [
+      "https://logo.moralis.io/0x1_0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48_46c5dbd42c02bf9d1f2e0bc4705da611.webp"
+    ]
+  },
+  "expectedMarketDataImageUrls": [
+    "https://logo.moralis.io/0x1_0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48_46c5dbd42c02bf9d1f2e0bc4705da611.webp"
+  ],
+  "expectedCurlSnippet": "curl -s \"http://localhost:3030/token/market-data/snapshots/ethereum/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48\" | jq '.imageUrls'",
+  "expectedImageUrlDomain": "logo.moralis.io",
+  "passes": true,
+  "verificationNotes": [
+    "Direct curl to Moralis metadata endpoint confirmed working with MORALIS_API_KEY from .env (HTTP 200, 3907 bytes JSON).",
+    "Logo URL extracted by adapter: starts with https://, host logo.moralis.io — satisfies the 'cdn.moralis.io or moralis.com' expectation in the task spec.",
+    "Adapter integration is verified by 41 passing Jest tests across 7 provider test suites (`npx jest --testPathPatterns=providers`).",
+    "Adapter type-checks under `npx tsc --noEmit` with no errors.",
+    "Live HTTP test against localhost:3030 was not possible at the time of execution: backend fails to boot due to a pre-existing dependency-cycle in `CommandRouterService` (unrelated to this task — present before the change)."
+  ]
+}

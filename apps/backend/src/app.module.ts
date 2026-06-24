@@ -4,6 +4,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { appConfig } from 'shared/common/config/app.config';
 import { DatabaseModule } from 'shared/common/persistence/database.module';
+import { RedisModule } from 'shared/common/cache/redis.module';
 import { DashboardModule } from 'dashboard/dashboard.module';
 import { ExtractionModule } from 'token/intake/extraction/extraction.module';
 import { ParsingModule } from 'token/intake/parsing/parsing.module';
@@ -14,10 +15,11 @@ import { ChainExplorerModule } from 'chain/explorer/chain-explorer.module';
 import { ClassificationModule } from 'token/classification/classification.module';
 import { ScoringModule } from 'token/scoring/scoring.module';
 import { FiltersModule } from 'token/token-gating/filters.module';
-import { TelegramPublishingModule } from 'telegram/publishing.module';
+import { VipCallsModule as TelegramPublishingModule } from 'telegram/vip-calls-channel/vip-calls.module';
 import { ChainDexterBotModule } from 'telegram/chain-dexter-bot/chain-dexter-bot.module';
 import { CallTrackingModule } from 'token/call-tracking/call-tracking.module';
-import { ReputationModule } from 'kol/reputation/reputation.module';
+import { MilestoneModule } from 'token/milestone/milestone.module';
+import { ReputationModule } from 'telegram-kol/reputation/reputation.module';
 import { HoneypotModule } from 'token/honeypot/honeypot.module';
 import { IdentityModule } from 'kol/identity/identity.module';
 import { SourceModule } from 'kol/source/source.module';
@@ -42,6 +44,7 @@ import { AppService } from './app.service';
     }),
     ScheduleModule.forRoot(),
     DatabaseModule.forRootFromEnv(),
+    RedisModule,
     IdentityModule,
     SourceModule,
     StatsModule,
@@ -57,6 +60,7 @@ import { AppService } from './app.service';
     TelegramPublishingModule,
     ChainDexterBotModule,
     CallTrackingModule,
+    MilestoneModule,
     ReputationModule,
     HoneypotModule,
     DashboardModule,

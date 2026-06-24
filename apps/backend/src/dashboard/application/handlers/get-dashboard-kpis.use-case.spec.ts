@@ -1,12 +1,12 @@
 import { GetDashboardKpisUseCase } from 'dashboard/application/handlers/get-dashboard-kpis.use-case';
-import { KolRepository } from 'telegram-kol/identity/application/ports/kol.repository';
-import { Kol } from 'telegram-kol/identity/domain/entities/kol.entity';
-import { KolId } from 'telegram-kol/identity/domain/value-objects/kol-id.vo';
+import { KolRepository } from 'kol/identity/application/ports/kol.repository';
+import { Kol } from 'kol/identity/domain/entities/kol.entity';
+import { KolId } from 'kol/identity/domain/value-objects/kol-id.vo';
 import { CanonicalTokenCallRepository } from 'token/normalization/application/ports/canonical-token-call.repository';
 import { CanonicalTokenCall } from 'token/normalization/domain/entities/canonical-token-call.entity';
 import { FilterDecisionRepository } from 'token/token-gating/application/ports/filter-decision.repository';
 import { FilterDecision } from 'token/token-gating/domain/entities/filter-decision.entity';
-import { PublishedCallRepository, PublishedCall } from 'telegram-publishing/shared';
+import { PublishedCallRepository, PublishedCall } from 'telegram/shared';
 
 class FakeKolRepo extends KolRepository {
   public rows: Array<{ id: string; active: boolean }> = [];

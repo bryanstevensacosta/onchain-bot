@@ -1,0 +1,2 @@
+66:    private readonly tokenImageService: TokenImageService,
+185:    await this.tokenImageService.invalidate(chain.value, normalizedAddress);

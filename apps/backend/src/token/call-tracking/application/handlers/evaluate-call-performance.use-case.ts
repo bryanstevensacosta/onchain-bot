@@ -1,9 +1,9 @@
-import { KolReputation } from 'telegram-kol/reputation/domain/value-objects/kol-reputation.vo';
-import { recomputeKolReputation } from 'telegram-kol/reputation/domain/services/recompute-kol-reputation.service';
+import { KolReputation } from 'kol/reputation/domain/value-objects/kol-reputation.vo';
+import { recomputeKolReputation } from 'kol/reputation/domain/services/recompute-kol-reputation.service';
 import { CallPerformance } from 'token/call-tracking/domain/value-objects/call-performance.vo';
 import { Outcome } from 'token/call-tracking/domain/value-objects/outcome.vo';
 import { CallPerformanceRepository } from 'token/call-tracking/application/ports/call-performance.repository';
-import { KolReputationRepository } from 'telegram-kol/reputation/application/ports/kol-reputation.repository';
+import { KolReputationRepository } from 'kol/reputation/application/ports/kol-reputation.repository';
 import { CallOutcomeEvaluatorPort } from 'token/call-tracking/domain/ports/call-outcome-evaluator.port';
 
 export interface EvaluateAndRecordInput {

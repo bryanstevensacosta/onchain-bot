@@ -4,6 +4,7 @@ import { clsx } from 'clsx';
 type Tone =
   | 'green'
   | 'yellow'
+  | 'amber'
   | 'orange'
   | 'red'
   | 'blue'
@@ -20,6 +21,7 @@ interface BadgeProps {
 const tones: Record<Tone, string> = {
   green: 'bg-green-900/40 text-green-300 border-green-700',
   yellow: 'bg-yellow-900/40 text-yellow-300 border-yellow-700',
+  amber: 'bg-amber-900/40 text-amber-300 border-amber-700',
   orange: 'bg-orange-900/40 text-orange-300 border-orange-700',
   red: 'bg-red-900/40 text-red-300 border-red-700',
   blue: 'bg-blue-900/40 text-blue-300 border-blue-700',

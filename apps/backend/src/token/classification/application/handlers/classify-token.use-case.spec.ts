@@ -223,6 +223,31 @@ describe('ClassifyTokenUseCase', () => {
     );
   });
 
+  it('flags LOW_HOLDERS MEDIUM when 1 <= holders < 50', async () => {
+    const view = await useCase.execute({
+      chain: 'ethereum',
+      address: EVM,
+      hasPairs: true,
+      pairCount: 1,
+      liquidityUsd: 50_000,
+      marketCapUsd: 100_000,
+      priceChange24h: null,
+      holders: 20,
+      top10HolderPercent: null,
+      hasName: true,
+      hasTicker: true,
+      completeness: 0.8,
+    });
+
+    expect(view.signals.find((s) => s.type === 'NO_HOLDERS')).toBeUndefined();
+    expect(view.signals.find((s) => s.type === 'LOW_HOLDERS')!.severity).toBe(
+      'MEDIUM',
+    );
+    expect(
+      view.signals.find((s) => s.type === 'LOW_HOLDERS')!.description,
+    ).toBe('Only 20 holders (< 50)');
+  });
+
   it('flags NO_NAME LOW when no ticker AND no name', async () => {
     const view = await useCase.execute({
       chain: 'ethereum',

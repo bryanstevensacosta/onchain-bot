@@ -1,0 +1,31 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - link "Alpha Meta Token Scanner" [ref=e6] [cursor=pointer]:
+          - /url: /
+        - navigation [ref=e7]:
+          - link "Dashboard" [ref=e8] [cursor=pointer]:
+            - /url: /
+          - link "Live" [ref=e9] [cursor=pointer]:
+            - /url: /live
+          - link "Tokens" [ref=e10] [cursor=pointer]:
+            - /url: /tokens
+          - link "KOLs" [ref=e11] [cursor=pointer]:
+            - /url: /kols
+          - link "Ops" [ref=e12] [cursor=pointer]:
+            - /url: /ops
+    - main [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - generic [ref=e16]:
+            - heading "Live feed" [level=1] [ref=e17]
+            - paragraph [ref=e18]: Eventos del pipeline en tiempo real vía WebSocket.
+          - generic [ref=e21]: Conectado
+        - generic [ref=e22]:
+          - generic [ref=e23]:
+            - button "all (0)" [ref=e24] [cursor=pointer]
+            - button "scored (0)" [ref=e25] [cursor=pointer]
+            - button "filtered (0)" [ref=e26] [cursor=pointer]
+          - generic [ref=e28]: Esperando eventos del pipeline… (WS conectado)
+  - generic "WebSocket connection status" [ref=e29]: WS ●

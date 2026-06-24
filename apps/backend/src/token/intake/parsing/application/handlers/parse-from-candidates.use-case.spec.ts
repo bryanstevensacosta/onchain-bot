@@ -171,4 +171,31 @@ describe('ParseFromCandidatesUseCase', () => {
       }),
     ).rejects.toBeInstanceOf(DomainError);
   });
+
+  it('propagates the KOL username to the persisted TokenCall and emitted event', async () => {
+    parser.next = {
+      ticker: 'WIF',
+      name: null,
+      metrics: TokenMetrics.empty(),
+      chart: null,
+    };
+
+    await useCase.execute({
+      kolId: 'chan-9',
+      messageId: 99,
+      occurredAt: new Date('2026-01-01T00:00:00Z'),
+      rawText: 'WIF 0xabc...',
+      contractAddresses: [ContractAddress.fromEvm(EVM)],
+      username: 'alpha_whale',
+    });
+
+    expect(repo.saves).toHaveLength(1);
+    expect(repo.saves[0].username).toBe('alpha_whale');
+
+    expect(publisher.published).toHaveLength(1);
+    const payload = (
+      publisher.published[0] as { payload: { username: string | null } }
+    ).payload;
+    expect(payload.username).toBe('alpha_whale');
+  });
 });

@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { KolReputationSummary } from 'token/scoring/domain/value-objects/kol-reputation-summary.vo';
 import { KolReputationPort } from 'token/scoring/domain/ports/kol-reputation.port';
-import { KolReputationRepository } from 'telegram-kol/reputation/application/ports/kol-reputation.repository';
-import { KnownKolPort } from 'telegram-kol/reputation/application/ports/known-kol.port';
+import { KolReputationRepository } from 'kol/reputation/application/ports/kol-reputation.repository';
+import { KnownKolPort } from 'kol/reputation/application/ports/known-kol.port';
 
 /**
  * KOL reputation adapter.

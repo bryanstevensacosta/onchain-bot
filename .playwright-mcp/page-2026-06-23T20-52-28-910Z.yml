@@ -1,0 +1,34 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - link "Alpha Meta Token Scanner" [ref=e6] [cursor=pointer]:
+          - /url: /
+        - navigation [ref=e7]:
+          - link "Dashboard" [ref=e8] [cursor=pointer]:
+            - /url: /
+          - link "Live" [ref=e9] [cursor=pointer]:
+            - /url: /live
+          - link "Tokens" [ref=e10] [cursor=pointer]:
+            - /url: /tokens
+          - link "KOLs" [ref=e11] [cursor=pointer]:
+            - /url: /kols
+          - link "Ops" [ref=e12] [cursor=pointer]:
+            - /url: /ops
+    - main [ref=e13]:
+      - generic [ref=e14]:
+        - heading "⚠️ Operator panel" [level=1] [ref=e15]
+        - paragraph [ref=e16]: Controles manuales. Usar con cuidado.
+        - button "Replay message" [ref=e18] [cursor=pointer]
+        - generic [ref=e20]:
+          - generic [ref=e21]:
+            - generic [ref=e22]: KOL ID
+            - textbox "e.g. 1924457034" [ref=e23]
+          - generic [ref=e24]:
+            - generic [ref=e25]: Message ID
+            - spinbutton [ref=e26]: "1"
+          - generic [ref=e27]:
+            - generic [ref=e28]: Text
+            - textbox "$PEPE 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 to the moon" [ref=e29]
+          - button "▶ Run pipeline" [disabled] [ref=e30]
+  - generic "WebSocket connection status" [ref=e31]: WS ○

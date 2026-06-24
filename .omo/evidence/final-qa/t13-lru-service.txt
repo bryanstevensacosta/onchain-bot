@@ -1,0 +1,6 @@
+total 32
+drwxr-xr-x@ 4 bryanstevens  staff   128 23 jun 20:59 .
+drwxr-xr-x@ 6 bryanstevens  staff   192 23 jun 20:53 ..
+-rw-r--r--@ 1 bryanstevens  staff  8840 23 jun 20:54 token-image.service.spec.ts
+-rw-r--r--@ 1 bryanstevens  staff  2505 23 jun 21:02 token-image.service.ts
+38:    "lru-cache": "^11.5.1",

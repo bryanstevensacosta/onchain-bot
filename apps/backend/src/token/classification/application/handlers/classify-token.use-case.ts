@@ -129,7 +129,7 @@ export class ClassifyTokenUseCase {
     } else if (input.holders < 50) {
       signals.push(
         RiskSignal.create({
-          type: 'NO_HOLDERS',
+          type: 'LOW_HOLDERS',
           severity: 'MEDIUM',
           description: `Only ${input.holders} holders (< 50)`,
         }),

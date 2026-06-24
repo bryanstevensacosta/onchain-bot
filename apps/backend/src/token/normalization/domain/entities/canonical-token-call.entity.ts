@@ -4,7 +4,7 @@ import type { DomainEvent } from 'shared/kernel/domain-event';
 import { ChainFamily } from 'chain/identity/chain-family.vo';
 import { NormalizedAddress } from 'token/normalization/domain/value-objects/normalized-address.vo';
 import { TokenLocator } from 'token/identity/token-locator.vo';
-import { Source } from 'telegram-kol/source/domain/value-objects/source.vo';
+import { Source } from 'kol/source/domain/value-objects/source.vo';
 import { TokenMetrics } from 'shared/common/value-objects/token-metrics.vo';
 import { CallNormalizedEvent } from 'token/normalization/domain/events/call-normalized.event';
 

@@ -5,6 +5,11 @@ import { ChainId } from 'chain/identity/chain-id.vo';
 import { Pair } from '../value-objects/pair.vo';
 import { TokenEnrichedEvent } from '../events/token-enriched.event';
 
+export interface SnapshotProviderError {
+  readonly provider: string;
+  readonly message: string;
+}
+
 export interface SnapshotInput {
   readonly chain: ChainId;
   readonly address: string;
@@ -22,6 +27,11 @@ export interface SnapshotInput {
   readonly lockedLiquidityPercent: number | null;
   readonly burnedPercent: number | null;
   readonly sources: ReadonlyArray<string>;
+  readonly snapshotCompleteness?: number | null;
+  readonly providerErrors?: ReadonlyArray<{
+    provider: string;
+    message: string;
+  }>;
 }
 
 interface TokenSnapshotProps {
@@ -42,6 +52,8 @@ interface TokenSnapshotProps {
   readonly lockedLiquidityPercent: number | null;
   readonly burnedPercent: number | null;
   readonly sources: ReadonlyArray<string>;
+  readonly snapshotCompleteness: number | null;
+  readonly providerErrors: ReadonlyArray<SnapshotProviderError>;
   readonly enrichedAt: Date;
 }
 
@@ -86,6 +98,8 @@ export class TokenSnapshot extends AggregateRoot<string> {
       lockedLiquidityPercent: input.lockedLiquidityPercent,
       burnedPercent: input.burnedPercent,
       sources: Object.freeze([...input.sources]),
+      snapshotCompleteness: input.snapshotCompleteness ?? null,
+      providerErrors: Object.freeze([...(input.providerErrors ?? [])]),
       enrichedAt: new Date(),
     });
   }
@@ -113,6 +127,8 @@ export class TokenSnapshot extends AggregateRoot<string> {
     lockedLiquidityPercent: number | null;
     burnedPercent: number | null;
     sources: ReadonlyArray<string>;
+    snapshotCompleteness: number | null;
+    providerErrors: ReadonlyArray<{ provider: string; message: string }>;
     enrichedAt: Date;
   }): TokenSnapshot {
     return new TokenSnapshot(input.id, {
@@ -133,6 +149,8 @@ export class TokenSnapshot extends AggregateRoot<string> {
       lockedLiquidityPercent: input.lockedLiquidityPercent,
       burnedPercent: input.burnedPercent,
       sources: input.sources,
+      snapshotCompleteness: input.snapshotCompleteness,
+      providerErrors: Object.freeze([...input.providerErrors]),
       enrichedAt: input.enrichedAt,
     });
   }
@@ -190,6 +208,14 @@ export class TokenSnapshot extends AggregateRoot<string> {
   }
   public get enrichedAt(): Date {
     return this.state.enrichedAt;
+  }
+
+  public get providerErrors(): ReadonlyArray<SnapshotProviderError> {
+    return this.state.providerErrors;
+  }
+
+  public get snapshotCompleteness(): number | null {
+    return this.state.snapshotCompleteness ?? null;
   }
   public get age(): number {
     return Date.now() - this.state.enrichedAt.getTime();

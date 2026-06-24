@@ -1,0 +1,9 @@
+
+> @alpha-meta-token-scanner/frontend@0.0.1 dev
+> vite
+
+
+  VITE v5.4.21  ready in 308 ms
+
+  ➜  Local:   http://127.0.0.1:5173/
+3:33:02 [vite] hmr update /src/pages/tokens-explorer/index.tsx, /src/app/styles/globals.css

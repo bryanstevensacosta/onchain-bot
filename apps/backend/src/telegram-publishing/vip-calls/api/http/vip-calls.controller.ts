@@ -10,18 +10,27 @@ export class VipCallsController {
   ) {}
 
   @Post('publish')
-  public async publish(@Body() input: VipCallsPublishInput): Promise<VipCallsPublishOutput> {
+  public async publish(
+    @Body() input: VipCallsPublishInput,
+  ): Promise<VipCallsPublishOutput> {
     return this.publishUseCase.execute(input);
   }
 
   @Get('calls/published')
-  public async published(@Query('limit') limit?: string): Promise<VipCallsPublishOutput[]> {
+  public async published(
+    @Query('limit') limit?: string,
+  ): Promise<VipCallsPublishOutput[]> {
     const parsed = limit ? parseInt(limit, 10) : 20;
-    return this.listPublishedUseCase.execute({ kind: 'published', limit: parsed });
+    return this.listPublishedUseCase.execute({
+      kind: 'published',
+      limit: parsed,
+    });
   }
 
   @Get('calls/recent')
-  public async recent(@Query('limit') limit?: string): Promise<VipCallsPublishOutput[]> {
+  public async recent(
+    @Query('limit') limit?: string,
+  ): Promise<VipCallsPublishOutput[]> {
     const parsed = limit ? parseInt(limit, 10) : 10;
     return this.listPublishedUseCase.execute({ kind: 'recent', limit: parsed });
   }

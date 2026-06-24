@@ -1,0 +1,40 @@
+=== file:line references found in doc ===
+apply-filters.use-case.ts:1-12
+apply-filters.use-case.ts:12
+apply-filters.use-case.ts:2
+apply-filters.use-case.ts:30-43
+apply-filters.use-case.ts:53-66
+apply-filters.use-case.ts:70-143
+classification.vo.ts:27
+classify-token.use-case.ts:74-199
+honeypot-signal.vo.ts:4-16
+risk-signal.vo.ts:4-13
+score-token.use-case.ts:162-289
+score-token.use-case.ts:23
+score.vo.ts:18
+scoring/application/handlers/score-token.use-case.ts:15
+settings-filter.entity.ts:10-47
+settings-filter.entity.ts:17-18
+settings.module.ts:15-37
+settings.module.ts:17
+settings.module.ts:19
+settings.module.ts:29
+settings.module.ts:30
+settings.module.ts:31
+settings.module.ts:32
+settings.module.ts:35
+token-classification.entity.ts:4
+token-classified.event.ts:11-25
+token-classified.handler.ts:3-4
+token-classified.handler.ts:33-36
+token-score.entity.ts:4
+token-score.entity.ts:8-12
+token-scored.event.ts:13-24
+token-scored.handler.ts:4
+token-scored.handler.ts:45-50
+token-scored.handler.ts:46
+token-scored.handler.ts:47
+token-scored.handler.ts:6
+
+=== count of unique file:line refs ===
+      36

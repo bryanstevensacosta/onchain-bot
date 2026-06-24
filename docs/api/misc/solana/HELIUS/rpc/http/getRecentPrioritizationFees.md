@@ -1,0 +1,249 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getRecentPrioritizationFees
+
+> Returns a list of prioritization fees from recent blocks.
+
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getRecentPrioritizationFees.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Transaction fee market monitoring API for tracking recent priority fees paid
+    on Solana to optimize transaction pricing and execution during network
+    congestion.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getRecentPrioritizationFees
+      description: >
+        Retrieve recent priority fee levels paid by transactions on the Solana
+        network.
+
+        This dynamic fee market API provides insights into transaction pricing
+        trends,
+
+        helping determine optimal fees during periods of network congestion.
+        Returns
+
+        historical data on fees paid per compute unit in recent blocks,
+        optionally filtered
+
+        by specific accounts being written to. Essential for wallets, exchanges,
+        and DApps
+
+        that need to ensure timely transaction confirmation by setting
+        competitive fee
+
+        levels based on current network conditions and fee market dynamics.
+      operationId: getRecentPrioritizationFees
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - jsonrpc
+                - id
+                - method
+              properties:
+                jsonrpc:
+                  type: string
+                  description: The JSON-RPC protocol version.
+                  enum:
+                    - '2.0'
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  description: The name of the RPC method to invoke.
+                  enum:
+                    - getRecentPrioritizationFees
+                  example: getRecentPrioritizationFees
+                  default: getRecentPrioritizationFees
+                params:
+                  type: array
+                  description: Optional array of account addresses.
+                  items:
+                    type: array
+                    description: >-
+                      An array of account addresses (maximum 128), as base-58
+                      encoded strings.
+                    items:
+                      type: string
+                      description: >-
+                        Specific Solana account address to filter for priority
+                        fees involving writes to this account.
+                      example: CxELquR1gPP8wHe33gZ4QxqGB3sZ9RSwsJ2KshVewkFY
+      responses:
+        '200':
+          description: Successfully retrieved recent prioritization fees.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    type: array
+                    description: List of recent prioritization fees.
+                    items:
+                      type: object
+                      description: Details of prioritization fees in a specific slot.
+                      properties:
+                        slot:
+                          type: integer
+                          description: >-
+                            Solana blockchain slot number where these priority
+                            fee levels were observed.
+                          example: 348125
+                        prioritizationFee:
+                          type: integer
+                          description: >-
+                            Priority fee rate in micro-lamports per compute unit
+                            paid by transactions in this slot.
+                          example: 1234
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

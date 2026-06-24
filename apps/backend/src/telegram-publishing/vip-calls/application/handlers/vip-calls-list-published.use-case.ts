@@ -31,7 +31,7 @@ export class VipCallsListPublishedUseCase {
         break;
     }
 
-    return calls.map(this.toView);
+    return calls.map((call) => this.toView(call));
   }
 
   private toView(call: PublishedCall): VipCallsPublishOutput {

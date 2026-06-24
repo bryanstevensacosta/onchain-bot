@@ -1,4 +1,4 @@
-import { SourceType } from 'telegram-kol/source/domain/value-objects/source-type.vo';
+import { SourceType } from 'kol/source/domain/value-objects/source-type.vo';
 import { KolReputationSummary } from 'token/scoring/domain/value-objects/kol-reputation-summary.vo';
 
 /**

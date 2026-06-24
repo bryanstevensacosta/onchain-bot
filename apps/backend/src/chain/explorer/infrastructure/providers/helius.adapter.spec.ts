@@ -93,6 +93,10 @@ describe('HeliusAdapter', () => {
       priceChange24h: null,
       holders: 1234,
       top10HolderPercent: null,
+      name: null,
+      imageUrls: [],
+      lockedLiquidityPercent: null,
+      burnedPercent: null,
     });
     expect(postMock).toHaveBeenCalledWith(
       RPC_URL,
@@ -100,10 +104,63 @@ describe('HeliusAdapter', () => {
         jsonrpc: '2.0',
         id: 'helius-holders',
         method: 'getTokenAccounts',
-        params: { mint: SOLANA, page: 1, limit: 1 },
+        params: { mint: SOLANA, page: 1, limit: 1000 },
       },
       expect.objectContaining({ timeout: 5000 }),
     );
+  });
+
+  it('falls back to distinct owner count when total lags behind indexed accounts', async () => {
+    const adapter = new HeliusAdapter(new FakeConfig(fullConfig));
+    postMock.mockResolvedValueOnce({
+      data: {
+        result: {
+          total: 1,
+          token_accounts: [
+            { owner: 'owner-a' },
+            { owner: 'owner-b' },
+            { owner: 'owner-c' },
+            { owner: 'owner-d' },
+            { owner: 'owner-e' },
+            { owner: 'owner-a' },
+          ],
+        },
+      },
+    });
+
+    const result = await adapter.fetch({ value: 'solana' }, SOLANA);
+
+    expect(result?.holders).toBe(5);
+  });
+
+  it('counts distinct owners (deduplicates same owner with multiple token accounts)', async () => {
+    const adapter = new HeliusAdapter(new FakeConfig(fullConfig));
+    postMock.mockResolvedValueOnce({
+      data: {
+        result: {
+          token_accounts: [
+            { owner: 'owner-a' },
+            { owner: 'owner-b' },
+            { owner: 'owner-a' },
+            { owner: 'owner-c' },
+            { owner: 'owner-a' },
+          ],
+        },
+      },
+    });
+
+    const result = await adapter.fetch({ value: 'solana' }, SOLANA);
+
+    expect(result?.holders).toBe(3);
+  });
+
+  it('returns null when both total and token_accounts are missing', async () => {
+    const adapter = new HeliusAdapter(new FakeConfig(fullConfig));
+    postMock.mockResolvedValueOnce({ data: { result: {} } });
+
+    const result = await adapter.fetch({ value: 'solana' }, SOLANA);
+
+    expect(result?.holders).toBeNull();
   });
 
   it('returns null when result.total is missing', async () => {

@@ -1,0 +1,66 @@
+WAVE 1: Foundations (T2-T6)
+Commits: b043384 (this), ec0112b (T1)
+Date: 2026-06-23
+
+FILES (7 modified/new):
+- bot.config.ts (NEW, 110 lines)
+- infrastructure/telegram/bot-client.ts (NEW, 313 lines)
+- infrastructure/telegram/trade-button-registry.ts (NEW, 188 lines)
+- infrastructure/telegram/message-formatter.adapter.ts (REWRITTEN, +118 lines)
+- infrastructure/telegram/inline-keyboard.builder.ts (NEW, 84 lines)
+- chain-dexter-bot.module.ts (UPDATED, +24 -3 lines)
+- apps/backend/src/shared/common/config/app.config.ts (UPDATED, +24 lines)
+
+T2 — ChainDexterBotConfigService:
+- ChainDexterBotConfig interface (botToken, webhookSecret, ingestMode,
+  pollingIntervalMs, pollingTimeoutSec, defaultTradeButtons, maxMessageLength,
+  commandRateLimitPerUser)
+- Reads from app.chainDexterBot namespace + env-var fallbacks
+- Validates at construction: warning if botToken empty, warning if webhook
+  without secret, error if ingestMode invalid, warning if polling < 100ms
+
+T3 — TelegramBotClient:
+- sendMessage(chatId, text, options) — returns { ok, messageId, error }
+- editMessageText(chatId, messageId, text, options)
+- answerCallbackQuery(callbackQueryId, text?, showAlert)
+- getUpdates(offset, timeoutSec, allowedUpdates)
+- setWebhook(url, secretToken), deleteWebhook(dropPendingUpdates)
+- getMe()
+- All methods typed, all return { ok, ... } shape, log latency
+
+T4 — TradeButtonRegistry:
+- 8 buttons: DEX (DexScreener), PHO (Photon), TRO (Trojan), TRT (Trojan Terminal),
+  JUP (Jupiter), MAE (Maestro), BAN (BananaGun), BM (BubbleMaps)
+- Each button declares chains[] and buildUrl(address, chain)
+- getButtonsForChain(chain, enabledCodes) — filters by chain compatibility
+- resolveUrl(code, chain, address) — returns full URL
+- getDefaultCodes() — from config
+- ChainId union covers solana/ethereum/base/bsc/ton/fantom/avalanche/arbitrum/polygon
+
+T5 — MessageFormatterAdapter (REWRITTEN):
+- formatTokenScan(scan, { compact }) → { text, truncated }
+- escapeMarkdown / escapeMarkdownV2 — safe char escaping
+- truncate(text, maxLength=4096) — breaks at newline/space, adds "… (truncated)"
+- format() backward-compat alias for old adapter API
+- Build for /c, /cc, /tb chart commands downstream
+
+T6 — InlineKeyboardBuilder:
+- buildScanKeyboard(scanId, tradeButtons, maxPerRow=3) → distributes buttons
+- buildRefreshButton(scanId) → "🔄 Refresh" callback_data="refresh:{scanId}"
+- buildTradeButtonsConfigKeyboard(enabledCodes) → toggle buttons per code
+- buildUsageKeyboard() → docs link
+- Respects 8-row Telegram limit
+
+VERIFICATION:
+- Build: PASS (exit 0)
+- Tests: 278 passing (no regressions from Wave 0)
+- Lint: 0 errors in chain-dexter-bot/ (after --fix)
+- Prettier auto-fix applied (91 of 93 errors were formatting)
+- 2 manual fixes: no-useless-escape in regex chars ([\]-)
+
+NEXT: Wave 2 (T7-T9 per-chat persistence) — needs new TypeORM entities
+ChatGroupEntity + ChatSettingsEntity. These depend on DATABASE_ENABLED being
+correctly handled (in-memory when false, TypeORM when true).
+
+STATUS: 2 of 5 waves complete (T1 + Wave 1 = 7 of 19 tasks).
+Remaining: 12 tasks across Wave 2/3/4 + 4 final reviews.

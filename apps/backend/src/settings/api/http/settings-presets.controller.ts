@@ -17,9 +17,7 @@ import type { UpdatePresetDto } from 'settings/api/input/update-preset.dto';
 
 @Controller('settings/presets')
 export class SettingsPresetsController {
-  public constructor(
-    private readonly presetsService: SettingsPresetsService,
-  ) {}
+  public constructor(private readonly presetsService: SettingsPresetsService) {}
 
   @Get()
   public async findAll() {

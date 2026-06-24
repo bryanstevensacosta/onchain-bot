@@ -1,0 +1,30 @@
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mFiltersController {/token/token-gating}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/token-gating/apply, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/token-gating/decisions/approved, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/token-gating/decisions/rejected, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/token-gating/decisions/recent, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/token-gating/decisions/:chain/:address, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mVipCallsController {/vip-calls}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/vip-calls/publish, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/vip-calls/calls/published, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/vip-calls/calls/recent, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mHoneypotController {/token/honeypot}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/honeypot/analyze, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/honeypot/analyses/recent, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/token/honeypot/analyses/:chain/:address, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mDashboardController {/dashboard}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/dashboard/kpis, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[BackgroundEvaluationScheduler] [39m[32mBackground evaluation scheduler started (cron="*/5 * * * *", batchSize=50)[39m
+[33m[2026-06-23T01:34:24.508] [INFO] - [Running gramJS version 2.26.21][0m
+[33m[2026-06-23T01:34:24.509] [INFO] - [Connecting to 149.154.175.56:80/TCPFull...][0m
+[33m[2026-06-23T01:34:24.556] [INFO] - [Connection to 149.154.175.56:80/TCPFull complete!][0m
+[33m[2026-06-23T01:34:24.557] [INFO] - [Using LAYER 198 for initial connect][0m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[KolTelegramMtprotoAdapter] [39m[32mTelegram MTProto session already authorized.[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[WsGateway] [39m[32mWebSocket Gateway initialized, listening to pipeline events[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[KolSeeder] [39m[32mTelegram kol seed finished. added=0 skipped=45 failed=0 notAKol=0 total=45[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[KolSeeder] [39m[32mAuto-started Telegram listener on 45 kol(s).[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +3ms[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[Bootstrap] [39m[32mRunning in development mode on port 3030[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:34:24 [32m    LOG[39m [38;5;3m[KolTelegramMtprotoAdapter] [39m[32mSubscribed to 45 KOL(s)[39m
+[95m[Nest] 6859  - [39m23/06/2026, 1:35:00 [95m  DEBUG[39m [38;5;3m[BackgroundEvaluationScheduler] [39m[95mScheduler tick: processing due evaluation jobs[39m
+[32m[Nest] 6859  - [39m23/06/2026, 1:35:00 [32m    LOG[39m [38;5;3m[ProcessDueEvaluationJobsUseCase] [39m[32mProcessed 0 due job(s): 0 succeeded, 0 failed, 0 skipped[39m

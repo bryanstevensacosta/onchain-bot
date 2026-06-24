@@ -1,0 +1,79 @@
+{
+  "total": 17,
+  "httpsCount": 0,
+  "dataImageCount": 0,
+  "proxyCount": 8,
+  "placeholderCount": 9,
+  "otherCount": 0,
+  "coveragePercent": 47.06,
+  "breakdown": [
+    {
+      "kind": "placeholder",
+      "src": "http://localhost:5173/assets/token-placeholder.svg"
+    },
+    {
+      "kind": "proxy",
+      "src": "http://localhost:5173/token/image/solana/2jba4d1yspnh9beyucpqsbhhqadhbix8hyyrwqokpump?source=https%3A%2F%2Fdd.dexscreener.com%2Fds-data%2Ftokens%2Fsolana%2F2jbA4D1YSPnH9beyUCPQSBhHqaDhbix8HYYrWQokpump.png"
+    },
+    {
+      "kind": "proxy",
+      "src": "http://localhost:5173/token/image/solana/2axlesljzu1hsyyj5hueijph59tzybyb3j9qbt7ppump?source=https%3A%2F%2Fdd.dexscreener.com%2Fds-data%2Ftokens%2Fsolana%2F2axLeSLJzu1hsyYj5HuEijpH59tZYBYB3J9qBt7Ppump.png"
+    },
+    {
+      "kind": "proxy",
+      "src": "http://localhost:5173/token/image/solana/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v?source=https%3A%2F%2Fdd.dexscreener.com%2Fds-data%2Ftokens%2Fsolana%2FEPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v.png"
+    },
+    {
+      "kind": "proxy",
+      "src": "http://localhost:5173/token/image/ethereum/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2?source=https%3A%2F%2Fdd.dexscreener.com%2Fds-data%2Ftokens%2Fethereum%2F0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2.png"
+    },
+    {
+      "kind": "placeholder",
+      "src": "http://localhost:5173/assets/token-placeholder.svg"
+    },
+    {
+      "kind": "placeholder",
+      "src": "http://localhost:5173/assets/token-placeholder.svg"
+    },
+    {
+      "kind": "proxy",
+      "src": "http://localhost:5173/token/image/ethereum/0xf871e1128cd7b87cb6531fcca8e64d1bf503c4f6?source=https%3A%2F%2Fdd.dexscreener.com%2Fds-data%2Ftokens%2Fethereum%2F0xF871e1128cD7B87cB6531FCCA8e64d1BF503C4F6.png"
+    },
+    {
+      "kind": "proxy",
+      "src": "http://localhost:5173/token/image/solana/58gCdwTpk8XrpVmr8uav7t4d2CUnWokdwP1QwhTKpump?source=https%3A%2F%2Fdd.dexscreener.com%2Fds-data%2Ftokens%2Fsolana%2F58gCdwTpk8XrpVmr8uav7t4d2CUnWokdwP1QwhTKpump.png"
+    },
+    {
+      "kind": "proxy",
+      "src": "http://localhost:5173/token/image/ethereum/0x6b93a120829558c18f8cd54a96e8024ef973ce52?source=https%3A%2F%2Fdd.dexscreener.com%2Fds-data%2Ftokens%2Fethereum%2F0x6B93a120829558C18f8CD54a96E8024EF973cE52.png"
+    },
+    {
+      "kind": "proxy",
+      "src": "http://localhost:5173/token/image/solana/57mcywcoqfk2rezsw5j6cevya7phqkvexc3kfgt5pump?source=https%3A%2F%2Fdd.dexscreener.com%2Fds-data%2Ftokens%2Fsolana%2F57MCyWCoQFK2RezSw5j6cEVYA7pHQkVExc3kfGT5pump.png"
+    },
+    {
+      "kind": "placeholder",
+      "src": "http://localhost:5173/assets/token-placeholder.svg"
+    },
+    {
+      "kind": "placeholder",
+      "src": "http://localhost:5173/assets/token-placeholder.svg"
+    },
+    {
+      "kind": "placeholder",
+      "src": "http://localhost:5173/assets/token-placeholder.svg"
+    },
+    {
+      "kind": "placeholder",
+      "src": "http://localhost:5173/assets/token-placeholder.svg"
+    },
+    {
+      "kind": "placeholder",
+      "src": "http://localhost:5173/assets/token-placeholder.svg"
+    },
+    {
+      "kind": "placeholder",
+      "src": "http://localhost:5173/assets/token-placeholder.svg"
+    }
+  ]
+}

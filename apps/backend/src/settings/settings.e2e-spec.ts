@@ -27,18 +27,16 @@ describe('SettingsPresets (e2e)', () => {
         TypeOrmModule.forRootAsync({
           inject: [ConfigService],
           useFactory: (config: ConfigService) => {
-            const db = config.get<{ database: Record<string, unknown> }>('app')
-              ?.database as Record<string, unknown> | undefined;
+            const db = config.get<{ database: Record<string, unknown> }>(
+              'app',
+            )?.database;
             return {
               type: 'postgres' as const,
               host: (db?.host as string) ?? 'localhost',
               port: (db?.port as number) ?? 5432,
-              username:
-                (db?.username as string) ?? 'alpha_meta_token_scanner',
-              password:
-                (db?.password as string) ?? 'alpha_meta_token_scanner',
-              database:
-                (db?.database as string) ?? 'alpha_meta_token_scanner',
+              username: (db?.username as string) ?? 'alpha_meta_token_scanner',
+              password: (db?.password as string) ?? 'alpha_meta_token_scanner',
+              database: (db?.database as string) ?? 'alpha_meta_token_scanner',
               entities: [
                 SettingsPresetEntity,
                 SignalEntity,
@@ -89,9 +87,8 @@ describe('SettingsPresets (e2e)', () => {
       .get('/settings/presets')
       .expect(200);
     expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.some((p: { name: string }) => p.name === 'Default')).toBe(
-      true,
-    );
+    const presets = res.body as Array<{ name: string }>;
+    expect(presets.some((p) => p.name === 'Default')).toBe(true);
   });
 
   it('POST /settings/presets → 201, creates new', async () => {

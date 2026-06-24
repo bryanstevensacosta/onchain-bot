@@ -71,6 +71,10 @@ import { CHAIN_PROBERS } from 'chain/detection/chain-detection.tokens';
       inject: [EvmChainProberAdapter, SolanaChainProberAdapter],
     },
   ],
-  exports: [ChainDetectionRepository, ChainDetectionEventPublisher],
+  exports: [
+    ChainDetectionRepository,
+    ChainDetectionEventPublisher,
+    DetectChainUseCase,
+  ],
 })
 export class ChainDetectionModule {}

@@ -1,0 +1,54 @@
+{
+  "task": "task-1-coingecko-empty-fallback",
+  "timestamp": "2026-06-23T19:52:00Z",
+  "file_modified": "apps/backend/src/chain/explorer/infrastructure/providers/coingecko.adapter.ts",
+  "scenario": "Token NOT on CoinGecko still returns empty imageUrls array gracefully",
+  "expected_behavior": "imageUrls: [] (empty array) when response has no image or invalid image",
+  "logic_test_results": {
+    "null_image_field": {
+      "input": "data.image === null",
+      "extractImageUrls_output": "[]",
+      "status": "PASS"
+    },
+    "undefined_image_field": {
+      "input": "data.image === undefined",
+      "extractImageUrls_output": "[]",
+      "status": "PASS"
+    },
+    "all_fields_null_or_empty": {
+      "input": "{ large: null, small: '', thumb: undefined }",
+      "extractImageUrls_output": "[]",
+      "status": "PASS"
+    },
+    "non_http_schemes_rejected": {
+      "input": "{ large: 'ftp://x', small: 'data:image/png;base64,xxx', thumb: 'javascript:alert(1)' }",
+      "extractImageUrls_output": "[]",
+      "status": "PASS"
+    }
+  },
+  "existing_short_circuit_safety": {
+    "platform_unsupported": "fetch() returns null at PLATFORM_MAP lookup (no imageUrls returned — null object)",
+    "api_key_missing": "fetch() returns null at config check (no imageUrls returned — null object)",
+    "market_data_missing": "fetch() returns null at md check (no imageUrls returned — null object)",
+    "price_and_mc_both_null": "fetch() returns null at price+mc gate (no imageUrls returned — null object)",
+    "http_404": "fetch() catches axios 404 and returns null (no imageUrls returned — null object)"
+  },
+  "verification": {
+    "typescript_compile": {
+      "command": "cd apps/backend && npx tsc --noEmit",
+      "exit_code": 0,
+      "status": "PASS"
+    },
+    "jest_provider_tests": {
+      "command": "cd apps/backend && npx jest --testPathPatterns=providers",
+      "suites_passed": 7,
+      "tests_passed": 33,
+      "tests_failed": 0,
+      "status": "PASS"
+    }
+  },
+  "live_backend_curl_test": {
+    "status": "NOT_RUN",
+    "reason": "Backend has a pre-existing DI error in ChainDexterBotModule (XTokenScanHandler not registered) unrelated to this task — documented in apps/backend/README.md §8 (known issues). Backend cannot boot to serve HTTP requests. Fallback behavior was instead verified via 4 inline empty-array scenarios plus inspection of existing short-circuit guards in fetch()."
+  }
+}

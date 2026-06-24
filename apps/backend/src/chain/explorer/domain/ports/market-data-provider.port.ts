@@ -8,6 +8,7 @@ export interface MarketData {
     readonly reserveUsd: number;
   }>;
   readonly priceUsd: number | null;
+  readonly totalSupply?: number | null;
   readonly liquidityUsd: number | null;
   readonly volume24hUsd: number | null;
   readonly marketCapUsd: number | null;
@@ -23,6 +24,12 @@ export interface MarketData {
   readonly lockedLiquidityPercent: number | null;
   /** Percentage of total supply that has been burned (0–100) */
   readonly burnedPercent: number | null;
+  /** Percentage of supply held by insiders/bundlers/dev (rug signals) */
+  readonly insidersPercent?: number | null;
+  readonly bundlersPercent?: number | null;
+  readonly devPercent?: number | null;
+  readonly bondingPercent?: number | null;
+  readonly factory?: string | null;
 }
 
 /**

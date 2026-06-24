@@ -54,7 +54,9 @@ export class VipCallsPublishUseCase {
     private readonly eventPublisher: PublishingEventPublisher,
   ) {}
 
-  public async execute(input: VipCallsPublishInput): Promise<VipCallsPublishOutput> {
+  public async execute(
+    input: VipCallsPublishInput,
+  ): Promise<VipCallsPublishOutput> {
     const chain = ChainId.fromString(input.chain);
     const tier = ScoreTier.fromScore(input.score);
 
@@ -79,7 +81,11 @@ export class VipCallsPublishUseCase {
 
     const message = this.formatter.format(approvedInput);
 
-    const result = await this.publisher.sendMessage('', message, headerImageUrl ?? undefined);
+    const result = await this.publisher.sendMessage(
+      '',
+      message,
+      headerImageUrl ?? undefined,
+    );
 
     const published = result.ok ? ['vip-calls'] : [];
     const failed = result.ok ? [] : ['vip-calls'];

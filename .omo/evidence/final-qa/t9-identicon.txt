@@ -1,0 +1,65 @@
+total 16
+drwxr-xr-x@ 4 bryanstevens  staff   128 23 jun 20:53 .
+drwxr-xr-x@ 9 bryanstevens  staff   288 23 jun 20:53 ..
+-rw-r--r--@ 1 bryanstevens  staff  2770 23 jun 20:53 identicon.generator.spec.ts
+-rw-r--r--@ 1 bryanstevens  staff  2381 23 jun 20:53 identicon.generator.ts
+==> apps/backend/src/shared/identicon/identicon.generator.spec.ts <==
+import { IdenticonGenerator } from 'shared/identicon/identicon.generator';
+
+describe('IdenticonGenerator', () => {
+  let generator: IdenticonGenerator;
+
+  beforeEach(() => {
+    generator = new IdenticonGenerator();
+  });
+
+  it('returns a data URI starting with the SVG base64 prefix', () => {
+    const uri = generator.generate('solana', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+    expect(uri.startsWith('data:image/svg+xml;base64,')).toBe(true);
+  });
+
+  it('produces identical output for identical input (deterministic)', () => {
+    const a = generator.generate('solana', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+    const b = generator.generate('solana', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+    expect(a).toBe(b);
+  });
+
+  it('produces different output for different addresses on the same chain', () => {
+    const a = generator.generate('solana', 'addr1');
+    const b = generator.generate('solana', 'addr2');
+    expect(a).not.toBe(b);
+  });
+
+  it('produces different output for the same address on different chains', () => {
+    const a = generator.generate('solana', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+    const b = generator.generate('ethereum', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+    expect(a).not.toBe(b);
+  });
+
+  it('decodes to a valid 64x64 SVG with mirroring and is non-trivial', () => {
+    const uri = generator.generate('solana', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+    const payload = uri.slice('data:image/svg+xml;base64,'.length);
+    const svg = Buffer.from(payload, 'base64').toString('utf8');
+
+    expect(svg).toContain('viewBox="0 0 64 64"');
+    expect(svg).toContain('width="64"');
+    expect(svg).toContain('height="64"');
+    expect(svg.length).toBeGreaterThan(200);
+
+    const rectMatches = svg.match(/<rect\s/g) ?? [];
+    expect(rectMatches.length).toBeGreaterThan(1);
+
+    const openCount = (svg.match(/<rect /g) ?? []).length;
+    const closeCount = (svg.match(/\/></g) ?? []).length;
+    expect(openCount).toBe(closeCount);
+  });
+
+
+==> apps/backend/src/shared/identicon/identicon.generator.ts <==
+import { createHash } from 'crypto';
+
+const GRID_SIZE = 8;
+const PIXEL_SIZE = 8;
+const SVG_SIZE = GRID_SIZE * PIXEL_SIZE;
+const HALF_GRID = GRID_SIZE / 2;
+const DATA_URI_PREFIX = 'data:image/svg+xml;base64,';

@@ -4,6 +4,7 @@ import {
   IsDate,
   IsInt,
   IsNotEmpty,
+  IsOptional,
   IsPositive,
   IsString,
   ValidateNested,
@@ -39,4 +40,8 @@ export class ParseInput {
   @ValidateNested({ each: true })
   @Type(() => ContractAddressInput)
   public contractAddresses!: ContractAddressInput[];
+
+  @IsOptional()
+  @IsString()
+  public username?: string | null;
 }

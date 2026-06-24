@@ -1,0 +1,495 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# simulateTransaction
+
+> Simulate a Solana transaction to preview logs, compute-unit usage, and account changes without submitting it to the network — used to estimate fees, detect failures, and debug instructions before signing.
+
+## Request Parameters
+
+<ParamField body="transaction" type="string" required>
+  The signed transaction, as an encoded string (base58 or base64).
+</ParamField>
+
+<ParamField body="encoding" type="string">
+  Encoding used for the transaction data.
+
+  * `base58`
+  * `base64`
+</ParamField>
+
+<ParamField body="skipPreflight" type="boolean">
+  Skip the preflight transaction checks.
+</ParamField>
+
+<ParamField body="preflightCommitment" type="string">
+  Commitment level to use for preflight.
+
+  * `confirmed`
+  * `finalized`
+  * `processed`
+</ParamField>
+
+<ParamField body="sigVerify" type="boolean">
+  If true, verify the transaction signatures.
+</ParamField>
+
+<ParamField body="replaceRecentBlockhash" type="boolean">
+  If true, replace the transaction recent blockhash with the most recent one.
+</ParamField>
+
+<ParamField body="minContextSlot" type="number">
+  Minimum slot at which to perform preflight transaction checks.
+</ParamField>
+
+<ParamField body="innerInstructions" type="boolean">
+  If true, include inner instructions in the response.
+</ParamField>
+
+<ParamField body="accounts" type="object" />
+
+<ParamField body="accounts.addresses" type="array">
+  Array of accounts to return, as base-58 encoded strings.
+</ParamField>
+
+<ParamField body="accounts.encoding" type="string">
+  Encoding format for returned account data.
+
+  * `base64`
+  * `base58`
+  * `base64+zstd`
+  * `jsonParsed`
+</ParamField>
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/simulateTransaction.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Advanced Solana transaction simulation API for testing and debugging
+    blockchain transactions before committing them to the Solana network.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: simulateTransaction
+      description: >
+        Simulate Solana transactions without executing them on the blockchain.
+        This powerful 
+
+        debugging tool allows developers to test transaction execution, verify
+        program behavior,
+
+        estimate compute unit consumption, detect errors, and preview account
+        state changes
+
+        before committing transactions to the network. Essential for Solana
+        application
+
+        development, smart contract testing, and transaction optimization.
+      operationId: simulateTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                jsonrpc:
+                  type: string
+                  enum:
+                    - '2.0'
+                  description: The JSON-RPC protocol version.
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  enum:
+                    - simulateTransaction
+                  description: The name of the RPC method to invoke.
+                  example: simulateTransaction
+                  default: simulateTransaction
+                params:
+                  type: array
+                  description: Parameters for simulating a transaction.
+                  default:
+                    - >-
+                      AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAEDArczbMia1tLmq7zz4DinMNN0pJ1JtLdqIJPUw3YrGCzYAMHBsgN27lcgB6H2WQvFgyZuJYHa46puOQo9yQ8CVQbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCp20C7Wj2aiuk5TReAXo+VTVg8QTHjs0UjNMMKCvpzZ+ABAgEBARU=
+                    - encoding: base64
+                  items:
+                    oneOf:
+                      - type: string
+                        description: >-
+                          The signed transaction, as an encoded string (base58
+                          or base64).
+                        example: >-
+                          AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAEDArczbMia1tLmq7zz4DinMNN0pJ1JtLdqIJPUw3YrGCzYAMHBsgN27lcgB6H2WQvFgyZuJYHa46puOQo9yQ8CVQbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCp20C7Wj2aiuk5TReAXo+VTVg8QTHjs0UjNMMKCvpzZ+ABAgEBARU=
+                      - type: object
+                        description: Configuration object for the simulation.
+                        properties:
+                          encoding:
+                            type: string
+                            description: Encoding used for the transaction data.
+                            enum:
+                              - base58
+                              - base64
+                            example: base64
+                          skipPreflight:
+                            type: boolean
+                            description: Skip the preflight transaction checks.
+                            example: false
+                          preflightCommitment:
+                            type: string
+                            description: Commitment level to use for preflight.
+                            enum:
+                              - confirmed
+                              - finalized
+                              - processed
+                            example: finalized
+                          sigVerify:
+                            type: boolean
+                            description: If true, verify the transaction signatures.
+                            example: false
+                          replaceRecentBlockhash:
+                            type: boolean
+                            description: >-
+                              If true, replace the transaction recent blockhash
+                              with the most recent one.
+                            example: false
+                          minContextSlot:
+                            type: integer
+                            description: >-
+                              Minimum slot at which to perform preflight
+                              transaction checks.
+                            example: 1000
+                          innerInstructions:
+                            type: boolean
+                            description: >-
+                              If true, include inner instructions in the
+                              response.
+                            example: false
+                          accounts:
+                            type: object
+                            properties:
+                              addresses:
+                                type: array
+                                description: >-
+                                  Array of accounts to return, as base-58
+                                  encoded strings.
+                                items:
+                                  type: string
+                                  example: 83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri
+                              encoding:
+                                type: string
+                                description: Encoding format for returned account data.
+                                enum:
+                                  - base64
+                                  - base58
+                                  - base64+zstd
+                                  - jsonParsed
+                                example: base64
+            example:
+              jsonrpc: '2.0'
+              id: '1'
+              method: simulateTransaction
+              params:
+                - >-
+                  AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAEDArczbMia1tLmq7zz4DinMNN0pJ1JtLdqIJPUw3YrGCzYAMHBsgN27lcgB6H2WQvFgyZuJYHa46puOQo9yQ8CVQbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCp20C7Wj2aiuk5TReAXo+VTVg8QTHjs0UjNMMKCvpzZ+ABAgEBARU=
+                - encoding: base64
+      responses:
+        '200':
+          description: Successfully simulated the transaction.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    type: object
+                    description: Result of the simulated transaction.
+                    properties:
+                      context:
+                        type: object
+                        description: Context of the simulation response.
+                        properties:
+                          apiVersion:
+                            type: string
+                            description: The API version of the RPC node.
+                            example: 2.3.3
+                          slot:
+                            type: integer
+                            description: Slot in which the data was fetched.
+                            example: 393226680
+                      value:
+                        type: object
+                        description: Details of the simulated transaction result.
+                        properties:
+                          accounts:
+                            type:
+                              - array
+                              - 'null'
+                            items:
+                              type: object
+                              description: Account details associated with the transaction.
+                              example:
+                                lamports: 5000
+                                owner: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+                          err:
+                            type:
+                              - object
+                              - 'null'
+                            description: >-
+                              Error if the transaction failed, null if
+                              successful.
+                            example: null
+                          innerInstructions:
+                            type:
+                              - array
+                              - 'null'
+                            description: >-
+                              Inner instructions executed during the
+                              transaction.
+                            example: null
+                          loadedAccountsDataSize:
+                            type:
+                              - integer
+                              - 'null'
+                            description: >-
+                              Total size in bytes of all account data loaded
+                              during simulation.
+                            example: 413
+                          logs:
+                            type:
+                              - array
+                              - 'null'
+                            items:
+                              type: string
+                            description: >-
+                              Program execution logs from the transaction
+                              simulation.
+                            example:
+                              - >-
+                                Program
+                                TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+                                invoke [1]
+                              - 'Program log: Instruction: Transfer'
+                              - >-
+                                Program
+                                TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+                                consumed 1714 of 200000 compute units
+                              - >-
+                                Program
+                                TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+                                success
+                          replacementBlockhash:
+                            type:
+                              - object
+                              - 'null'
+                            description: >-
+                              Replacement blockhash information when
+                              replaceRecentBlockhash is enabled.
+                            properties:
+                              blockhash:
+                                type: string
+                                description: The replacement blockhash.
+                                example: 6oFLsE7kmgJx9PjR4R63VRNtpAVJ648gCTr3nq5Hihit
+                              lastValidBlockHeight:
+                                type: integer
+                                description: >-
+                                  The last valid block height for the
+                                  replacement blockhash.
+                                example: 381186895
+                          returnData:
+                            type:
+                              - object
+                              - 'null'
+                            properties:
+                              programId:
+                                type: string
+                                example: 83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri
+                              data:
+                                type: array
+                                items:
+                                  type: string
+                                example:
+                                  - Kg==
+                                  - base64
+                            description: Data returned by the transaction if any.
+                            example: null
+                          unitsConsumed:
+                            type:
+                              - integer
+                              - 'null'
+                            description: >-
+                              Total compute units consumed during the
+                              simulation.
+                            example: 1714
+              example:
+                jsonrpc: '2.0'
+                id: 1
+                result:
+                  context:
+                    apiVersion: 2.3.3
+                    slot: 393226680
+                  value:
+                    accounts: null
+                    err: null
+                    innerInstructions: null
+                    loadedAccountsDataSize: 413
+                    logs:
+                      - >-
+                        Program TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+                        invoke [1]
+                      - 'Program log: Instruction: Transfer'
+                      - >-
+                        Program TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+                        consumed 1714 of 200000 compute units
+                      - >-
+                        Program TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+                        success
+                    replacementBlockhash:
+                      blockhash: 6oFLsE7kmgJx9PjR4R63VRNtpAVJ648gCTr3nq5Hihit
+                      lastValidBlockHeight: 381186895
+                    returnData: null
+                    unitsConsumed: 1714
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

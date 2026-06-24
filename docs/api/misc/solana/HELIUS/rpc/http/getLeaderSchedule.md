@@ -1,0 +1,283 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getLeaderSchedule
+
+> Returns the Solana leader schedule for the requested epoch — the validator assigned to produce blocks in each slot — used for leader-aware transaction routing and validator monitoring.
+
+## Request Parameters
+
+<ParamField body="slot" type="number" required>
+  Epoch or slot number to retrieve the leader schedule for. If omitted, returns the schedule for the current epoch.
+</ParamField>
+
+<ParamField body="commitment" type="string">
+  The commitment level for the request.
+
+  * `confirmed`
+  * `finalized`
+  * `processed`
+</ParamField>
+
+<ParamField body="identity" type="string">
+  Optional validator identity public key to filter results for a specific validator's schedule only.
+</ParamField>
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getLeaderSchedule.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Validator scheduling API for retrieving the complete Solana leader rotation
+    sequence that determines which validators produce blocks during specific
+    slots of an epoch.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getLeaderSchedule
+      description: >
+        Retrieve the complete validator rotation schedule for an entire Solana
+        epoch.
+
+        This consensus API provides the detailed mapping of which validator
+        nodes are assigned 
+
+        as slot leaders throughout an epoch, showing exactly which slots each
+        validator is
+
+        responsible for producing blocks. The leader schedule is
+        deterministically derived
+
+        using a verifiable random function based on stake-weighted selection.
+        Essential for 
+
+        validator operators monitoring their upcoming block production
+        responsibilities,
+
+        staking applications analyzing validator participation opportunities,
+        network 
+
+        monitoring tools visualizing consensus patterns, and applications that
+        need to
+
+        predict or analyze block production timing and distribution across the
+        network.
+      operationId: getLeaderSchedule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - jsonrpc
+                - id
+                - method
+              properties:
+                jsonrpc:
+                  type: string
+                  description: The JSON-RPC protocol version.
+                  enum:
+                    - '2.0'
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  description: The name of the RPC method to invoke.
+                  enum:
+                    - getLeaderSchedule
+                  example: getLeaderSchedule
+                  default: getLeaderSchedule
+                params:
+                  type: array
+                  description: Parameters for the method.
+                  items:
+                    oneOf:
+                      - type: integer
+                        description: >-
+                          Epoch or slot number to retrieve the leader schedule
+                          for. If omitted, returns the schedule for the current
+                          epoch.
+                        example: null
+                      - type: object
+                        description: Configuration object with additional options.
+                        properties:
+                          commitment:
+                            type: string
+                            description: The commitment level for the request.
+                            enum:
+                              - confirmed
+                              - finalized
+                              - processed
+                            example: finalized
+                          identity:
+                            type: string
+                            description: >-
+                              Optional validator identity public key to filter
+                              results for a specific validator's schedule only.
+                            example: 4Qkev8aNZcqFNSRhQzwyLMFSsi94jHqE8WNVTJzTP99F
+      responses:
+        '200':
+          description: Successfully retrieved the leader schedule.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    oneOf:
+                      - type: 'null'
+                        description: Null if the requested epoch is not found.
+                      - type: object
+                        description: >-
+                          Mapping of validator identities to their assigned
+                          leader slots within this epoch.
+                        additionalProperties:
+                          type: array
+                          description: >-
+                            Array of slot indices within the epoch where this
+                            validator is scheduled to produce blocks.
+                          items:
+                            type: integer
+                            example: 0
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

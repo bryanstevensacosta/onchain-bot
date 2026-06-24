@@ -1,0 +1,14 @@
+=== wc -l ===
+     127 /Users/bryanstevens/dev/onchain-bot/docs/architecture/bc-coupling-analysis.md
+
+=== grep -c '^## ' (top-level sections only) ===
+6
+
+=== grep -c '^##' (incl sub-sections) ===
+13
+
+=== grep 'Verdict:' | wc -l ===
+       6
+
+=== grep -i 'TODO' | wc -l (expect 0) ===
+       0

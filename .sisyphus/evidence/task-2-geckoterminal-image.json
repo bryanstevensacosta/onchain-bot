@@ -1,0 +1,12 @@
+{
+  "scenario": "happy_path_geckoterminal_covered_token",
+  "endpoint": "GET https://api.geckoterminal.com/api/v2/networks/eth/tokens/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/info",
+  "chain": "ethereum",
+  "address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+  "responseImageUrl": "https://coin-images.coingecko.com/coins/images/2518/large/weth.png?1696503332",
+  "imageUrls": [
+    "https://coin-images.coingecko.com/coins/images/2518/large/weth.png?1696503332"
+  ],
+  "expectation": "array with >=1 URL starting with https://",
+  "passes": true
+}

@@ -7,8 +7,8 @@ import { NormalizeCallUseCase } from 'token/normalization/application/handlers/n
 /**
  * Subscribes to parsing.call.parsed and triggers normalization.
  *
- * Channel-username is not carried in CallParsedEvent — left null here.
- * It's not required for dedupe (kolId is the dedupe key).
+ * Carries the KOL handle (when known) into the canonical call's `sources[].username`
+ * so the frontend can render Telegram deep links via the public handle.
  */
 @Injectable()
 export class CallParsedHandler {
@@ -33,7 +33,7 @@ export class CallParsedHandler {
         }),
         confidence: event.payload.confidence,
         kolId: event.payload.kolId,
-        username: null,
+        username: event.payload.username,
         messageId: event.payload.messageId,
         occurredAt: event.payload.occurredAt,
       });

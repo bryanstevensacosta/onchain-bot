@@ -86,7 +86,9 @@ export class VipCallsBotApiPublisherAdapter extends TelegramPublisherPort {
         lastMessageId = result.messageId;
       }
 
-      this.logger.log(`Sent message to ${chatId}, message_id: ${lastMessageId}`);
+      this.logger.log(
+        `Sent message to ${chatId}, message_id: ${lastMessageId}`,
+      );
       return { ok: true, messageId: lastMessageId, error: null };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'unknown error';
@@ -106,9 +108,11 @@ export class VipCallsBotApiPublisherAdapter extends TelegramPublisherPort {
   }> {
     let lastMessageId: number | null = null;
 
-    const caption = text.length <= VipCallsBotApiPublisherAdapter.CAPTION_MAX_LENGTH
-      ? text
-      : text.slice(0, VipCallsBotApiPublisherAdapter.CAPTION_MAX_LENGTH - 1) + '…';
+    const caption =
+      text.length <= VipCallsBotApiPublisherAdapter.CAPTION_MAX_LENGTH
+        ? text
+        : text.slice(0, VipCallsBotApiPublisherAdapter.CAPTION_MAX_LENGTH - 1) +
+          '…';
 
     const photoResult = await this.sendPhotoChunk(chatId, imageUrl, caption);
     if (!photoResult.ok) {
@@ -117,7 +121,9 @@ export class VipCallsBotApiPublisherAdapter extends TelegramPublisherPort {
     lastMessageId = photoResult.messageId;
 
     if (text.length > VipCallsBotApiPublisherAdapter.CAPTION_MAX_LENGTH) {
-      const remaining = text.slice(VipCallsBotApiPublisherAdapter.CAPTION_MAX_LENGTH - 1);
+      const remaining = text.slice(
+        VipCallsBotApiPublisherAdapter.CAPTION_MAX_LENGTH - 1,
+      );
       const chunks = this.splitMessage(remaining);
       for (const chunk of chunks) {
         const result = await this.sendChunk(chatId, chunk);
@@ -128,7 +134,9 @@ export class VipCallsBotApiPublisherAdapter extends TelegramPublisherPort {
       }
     }
 
-    this.logger.log(`Sent photo+message to ${chatId}, message_id: ${lastMessageId}`);
+    this.logger.log(
+      `Sent photo+message to ${chatId}, message_id: ${lastMessageId}`,
+    );
     return { ok: true, messageId: lastMessageId, error: null };
   }
 
@@ -189,7 +197,8 @@ export class VipCallsBotApiPublisherAdapter extends TelegramPublisherPort {
         };
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'HTTP request failed';
+      const message =
+        err instanceof Error ? err.message : 'HTTP request failed';
       this.logger.error(`HTTP request failed: ${message}`);
       return { ok: false, messageId: null, error: message };
     }
@@ -238,7 +247,8 @@ export class VipCallsBotApiPublisherAdapter extends TelegramPublisherPort {
         };
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'HTTP request failed';
+      const message =
+        err instanceof Error ? err.message : 'HTTP request failed';
       this.logger.error(`sendPhoto HTTP request failed: ${message}`);
       return { ok: false, messageId: null, error: message };
     }

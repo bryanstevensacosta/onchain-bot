@@ -1,0 +1,194 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - link "Alpha Meta Token Scanner" [ref=e6] [cursor=pointer]:
+          - /url: /
+        - navigation [ref=e7]:
+          - link "Dashboard" [ref=e8] [cursor=pointer]:
+            - /url: /
+          - link "Live" [ref=e9] [cursor=pointer]:
+            - /url: /live
+          - link "Tokens" [ref=e10] [cursor=pointer]:
+            - /url: /tokens
+          - link "KOLs" [ref=e11] [cursor=pointer]:
+            - /url: /kols
+          - link "Ops" [ref=e12] [cursor=pointer]:
+            - /url: /ops
+    - main [ref=e13]:
+      - generic [ref=e14]:
+        - heading "Tokens" [level=1] [ref=e15]
+        - paragraph [ref=e16]: Decisiones de filtro - tokens approved vs rejected.
+        - generic [ref=e17]:
+          - button "All" [ref=e18] [cursor=pointer]
+          - button "Approved" [ref=e19] [cursor=pointer]
+          - button "Rejected" [ref=e20] [cursor=pointer]
+        - generic [ref=e23]:
+          - generic [ref=e24] [cursor=pointer]:
+            - img "placeholder" [ref=e26]
+            - generic [ref=e27]:
+              - img "Ethereum" [ref=e29]
+              - generic [ref=e36]:
+                - generic [ref=e37]: 0x0000...0001
+                - button "Copy address" [ref=e38]: ⧉
+            - generic [ref=e40]: REJECTED
+          - generic [ref=e41] [cursor=pointer]:
+            - img "Wendy's Co" [ref=e43]
+            - generic [ref=e44]:
+              - generic [ref=e45]:
+                - generic [ref=e46]: Wendy's Co
+                - generic [ref=e47]: $WEN
+                - img "Solana" [ref=e48]
+              - generic [ref=e52]:
+                - generic [ref=e53]: dNd93t...M9kq
+                - button "Copy address" [ref=e54]: ⧉
+            - generic [ref=e56]: REJECTED
+          - generic [ref=e57] [cursor=pointer]:
+            - img "USD Coin" [ref=e59]
+            - generic [ref=e60]:
+              - generic [ref=e61]:
+                - generic [ref=e62]: USD Coin
+                - img "Ethereum" [ref=e63]
+              - generic [ref=e70]:
+                - generic [ref=e71]: 0xa0b8...eb48
+                - button "Copy address" [ref=e72]: ⧉
+            - generic [ref=e74]: REJECTED
+          - generic [ref=e75] [cursor=pointer]:
+            - img "ETHLABS FUND" [ref=e77]
+            - generic [ref=e78]:
+              - generic [ref=e79]:
+                - generic [ref=e80]: ETHLABS FUND
+                - img "Ethereum" [ref=e81]
+              - generic [ref=e88]:
+                - generic [ref=e89]: 0x345a...c5e1
+                - button "Copy address" [ref=e90]: ⧉
+            - generic [ref=e92]: REJECTED
+          - generic [ref=e93] [cursor=pointer]:
+            - img "Grand Theft Solana" [ref=e95]
+            - generic [ref=e96]:
+              - generic [ref=e97]:
+                - generic [ref=e98]: Grand Theft Solana
+                - img "Solana" [ref=e99]
+              - generic [ref=e103]:
+                - generic [ref=e104]: hugprx...pump
+                - button "Copy address" [ref=e105]: ⧉
+            - generic [ref=e107]: REJECTED
+          - generic [ref=e108] [cursor=pointer]:
+            - img "testicle" [ref=e110]
+            - generic [ref=e111]:
+              - generic [ref=e112]:
+                - generic [ref=e113]: testicle
+                - img "Solana" [ref=e114]
+              - generic [ref=e118]:
+                - generic [ref=e119]: 8wxkva...pump
+                - button "Copy address" [ref=e120]: ⧉
+            - generic [ref=e122]: REJECTED
+          - generic [ref=e123] [cursor=pointer]:
+            - img "XONA AGENT" [ref=e125]
+            - generic [ref=e126]:
+              - generic [ref=e127]:
+                - generic [ref=e128]: XONA AGENT
+                - img "Solana" [ref=e129]
+              - generic [ref=e133]:
+                - generic [ref=e134]: ckit5s...pump
+                - button "Copy address" [ref=e135]: ⧉
+            - generic [ref=e137]: REJECTED
+          - generic [ref=e138] [cursor=pointer]:
+            - img "Justice For Martha Avila" [ref=e140]
+            - generic [ref=e141]:
+              - generic [ref=e142]:
+                - generic [ref=e143]: Justice For Martha Avila
+                - img "Solana" [ref=e144]
+              - generic [ref=e148]:
+                - generic [ref=e149]: iyd2tr...pump
+                - button "Copy address" [ref=e150]: ⧉
+            - generic [ref=e152]: REJECTED
+          - generic [ref=e153] [cursor=pointer]:
+            - img "Uppy" [ref=e155]
+            - generic [ref=e156]:
+              - generic [ref=e157]:
+                - generic [ref=e158]: Uppy
+                - img "Solana" [ref=e159]
+              - generic [ref=e163]:
+                - generic [ref=e164]: 2jba4d...pump
+                - button "Copy address" [ref=e165]: ⧉
+            - generic [ref=e167]: REJECTED
+          - generic [ref=e168] [cursor=pointer]:
+            - img "Ragnar" [ref=e170]
+            - generic [ref=e171]:
+              - generic [ref=e172]:
+                - generic [ref=e173]: Ragnar
+                - img "Solana" [ref=e174]
+              - generic [ref=e178]:
+                - generic [ref=e179]: 2axles...pump
+                - button "Copy address" [ref=e180]: ⧉
+            - generic [ref=e182]: REJECTED
+          - generic [ref=e183] [cursor=pointer]:
+            - img "USD Coin" [ref=e185]
+            - generic [ref=e186]:
+              - generic [ref=e187]:
+                - generic [ref=e188]: USD Coin
+                - img "Solana" [ref=e189]
+              - generic [ref=e193]:
+                - generic [ref=e194]: EPjFWd...Dt1v
+                - button "Copy address" [ref=e195]: ⧉
+            - generic [ref=e197]: REJECTED
+          - generic [ref=e198] [cursor=pointer]:
+            - img "Wrapped Ether" [ref=e200]
+            - generic [ref=e201]:
+              - generic [ref=e202]:
+                - generic [ref=e203]: Wrapped Ether
+                - img "Ethereum" [ref=e204]
+              - generic [ref=e211]:
+                - generic [ref=e212]: 0xc02a...6cc2
+                - button "Copy address" [ref=e213]: ⧉
+            - generic [ref=e215]: REJECTED
+          - generic [ref=e216] [cursor=pointer]:
+            - img "DOGS" [ref=e218]
+            - generic [ref=e219]:
+              - generic [ref=e220]:
+                - generic [ref=e221]: DOGS
+                - img "Ethereum" [ref=e222]
+              - generic [ref=e229]:
+                - generic [ref=e230]: 0xf871...c4f6
+                - button "Copy address" [ref=e231]: ⧉
+            - generic [ref=e233]: REJECTED
+          - generic [ref=e234] [cursor=pointer]:
+            - img "ScamX" [ref=e236]
+            - generic [ref=e237]:
+              - generic [ref=e238]:
+                - generic [ref=e239]: ScamX
+                - img "Solana" [ref=e240]
+              - generic [ref=e244]:
+                - generic [ref=e245]: 58gCdw...pump
+                - button "Copy address" [ref=e246]: ⧉
+            - generic [ref=e248]: REJECTED
+          - generic [ref=e249] [cursor=pointer]:
+            - img "Argonot" [ref=e251]
+            - generic [ref=e252]:
+              - generic [ref=e253]:
+                - generic [ref=e254]: Argonot
+                - img "Ethereum" [ref=e255]
+              - generic [ref=e262]:
+                - generic [ref=e263]: 0x6b93...ce52
+                - button "Copy address" [ref=e264]: ⧉
+            - generic [ref=e266]: REJECTED
+          - generic [ref=e267] [cursor=pointer]:
+            - img "Duel Monsters" [ref=e269]
+            - generic [ref=e270]:
+              - generic [ref=e271]:
+                - generic [ref=e272]: Duel Monsters
+                - img "Solana" [ref=e273]
+              - generic [ref=e277]:
+                - generic [ref=e278]: 57mcyw...pump
+                - button "Copy address" [ref=e279]: ⧉
+            - generic [ref=e281]: REJECTED
+          - generic [ref=e282] [cursor=pointer]:
+            - img "placeholder" [ref=e284]
+            - generic [ref=e285]:
+              - img "Solana" [ref=e287]
+              - generic [ref=e291]:
+                - generic [ref=e292]: epx5r4...s4ty
+                - button "Copy address" [ref=e293]: ⧉
+            - generic [ref=e295]: APPROVED
+  - generic "WebSocket connection status" [ref=e22]: WS ●

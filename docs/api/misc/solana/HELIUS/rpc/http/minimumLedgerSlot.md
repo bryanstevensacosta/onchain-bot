@@ -1,0 +1,236 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# minimumLedgerSlot
+
+> Returns the lowest slot that the node has information about in its ledger.
+
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/minimumLedgerSlot.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Validator storage management API for identifying the lowest ledger slot that
+    is still being actively maintained by this Solana node for replay and state
+    reconstruction.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: minimumLedgerSlot
+      description: >
+        Retrieve the lowest slot number that is still maintained in this Solana
+        validator's ledger storage.
+
+        This blockchain state management API helps identify the earliest
+        accessible slot in the validator's 
+
+        active ledger storage, which represents the lower boundary for replaying
+        the chain to reconstruct
+
+        historical states. Unlike getFirstAvailableBlock which tracks block
+        storage, this method exposes
+
+        information about the validator's record of state transitions. Essential
+        for applications building
+
+        state reconstruction tools, ledger analysis utilities, validator
+        monitoring systems, and services
+
+        that need to understand how far back this node can replay the blockchain
+        for account state verification.
+      operationId: minimumLedgerSlot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                jsonrpc:
+                  type: string
+                  enum:
+                    - '2.0'
+                  description: The JSON-RPC protocol version.
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  enum:
+                    - minimumLedgerSlot
+                  description: The name of the RPC method to invoke.
+                  example: minimumLedgerSlot
+                  default: minimumLedgerSlot
+                params:
+                  type: array
+                  description: No parameters are required for this method.
+                  maxItems: 0
+            examples:
+              default:
+                value:
+                  jsonrpc: '2.0'
+                  id: '1'
+                  method: minimumLedgerSlot
+      responses:
+        '200':
+          description: Successfully retrieved the minimum ledger slot number.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    type: integer
+                    description: >-
+                      Lowest Solana slot number still maintained in this
+                      validator's state replay buffer, providing the minimum
+                      boundary for chain reconstruction.
+                    example: 1234
+              examples:
+                default:
+                  value:
+                    jsonrpc: '2.0'
+                    id: '1'
+                    result: 1234
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

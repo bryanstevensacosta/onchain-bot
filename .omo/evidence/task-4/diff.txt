@@ -1,0 +1,169 @@
+=== File: apps/frontend/src/features/reprocess-rejected/ui/rejected-table.tsx ===
+=== Mode: new (untracked directory) ===
+=== Total lines: ===
+     163
+
+=== Content (post-refactor) ===
+     1	import { Badge } from '@/shared/ui';
+     2	import { truncateAddress, chainLabel } from '@/shared/lib';
+     3	import { reasonLabel, riskLevelTone } from '@/shared/lib/signalLabels';
+     4	import type { RejectedTokenDiagnostics } from '../api/reprocess-client';
+     5	
+     6	const RECOMMENDATION_TONE: Record<
+     7	  RejectedTokenDiagnostics['recommended'],
+     8	  'green' | 'yellow' | 'red' | 'gray' | 'blue'
+     9	> = {
+    10	  REPROCESS: 'green',
+    11	  SKIP: 'gray',
+    12	  NEEDS_BLACKLIST_REVIEW: 'red',
+    13	  NEEDS_CHAIN_SUPPORT: 'blue',
+    14	};
+    15	
+    16	interface Props {
+    17	  data: ReadonlyArray<RejectedTokenDiagnostics>;
+    18	  isLoading: boolean;
+    19	  onReprocessOne: (chain: string, address: string) => void;
+    20	  isReprocessingOne: boolean;
+    21	  reprocessingChain?: string;
+    22	  reprocessingAddress?: string;
+    23	}
+    24	
+    25	export function RejectedTable({
+    26	  data,
+    27	  isLoading,
+    28	  onReprocessOne,
+    29	  isReprocessingOne,
+    30	  reprocessingChain,
+    31	  reprocessingAddress,
+    32	}: Props) {
+    33	  if (isLoading) {
+    34	    return (
+    35	      <div className="text-slate-400 text-sm py-8 text-center">Cargando…</div>
+    36	    );
+    37	  }
+    38	  if (data.length === 0) {
+    39	    return (
+    40	      <div className="text-slate-400 text-sm py-8 text-center">
+    41	        No hay tokens rechazados.
+    42	      </div>
+    43	    );
+    44	  }
+    45	
+    46	  return (
+    47	    <div className="overflow-x-auto">
+    48	      <table className="w-full text-sm">
+    49	        <thead>
+    50	          <tr className="text-left text-slate-400 border-b border-slate-800">
+    51	            <th className="py-2 px-2">Chain</th>
+    52	            <th className="py-2 px-2">Address</th>
+    53	            <th className="py-2 px-2">Score</th>
+    54	            <th className="py-2 px-2">Class.</th>
+    55	            <th className="py-2 px-2">Reasons</th>
+    56	            <th className="py-2 px-2">Completeness</th>
+    57	            <th className="py-2 px-2">Providers</th>
+    58	            <th className="py-2 px-2">Recommended</th>
+    59	            <th className="py-2 px-2">Action</th>
+    60	          </tr>
+    61	        </thead>
+    62	        <tbody>
+    63	          {data.map((d) => {
+    64	            const isRowBusy =
+    65	              isReprocessingOne &&
+    66	              d.chain === reprocessingChain &&
+    67	              d.address === reprocessingAddress;
+    68	            return (
+    69	              <tr
+    70	                key={`${d.chain}:${d.address}`}
+    71	                className="border-b border-slate-800/50 hover:bg-slate-800/30"
+    72	              >
+    73	                <td className="py-2 px-2">
+    74	                  <Badge tone="blue">{chainLabel(d.chain)}</Badge>
+    75	                </td>
+    76	                <td className="py-2 px-2 font-mono text-xs">
+    77	                  <span title={d.address}>
+    78	                    {truncateAddress(d.address, 6, 6)}
+    79	                  </span>
+    80	                </td>
+    81	                <td className="py-2 px-2">{d.score}</td>
+    82	                <td className="py-2 px-2">
+    83	                  <Badge tone="gray">{d.classification}</Badge>
+    84	                </td>
+    85	                <td className="py-2 px-2">
+    86	                  <div className="flex flex-wrap gap-1">
+    87	                    {d.reasons.map((r) => (
+    88	                      <Badge
+    89	                        key={r.code}
+    90	                        tone={riskLevelTone(r.code) ?? 'gray'}
+    91	                      >
+    92	                        {reasonLabel(r.code)}
+    93	                      </Badge>
+    94	                    ))}
+    95	                  </div>
+    96	                </td>
+    97	                <td className="py-2 px-2">
+    98	                  <CompletenessBar value={d.snapshotCompleteness} />
+    99	                </td>
+   100	                <td className="py-2 px-2">
+   101	                  <ProviderStatus errors={d.providerErrors} />
+   102	                </td>
+   103	                <td className="py-2 px-2">
+   104	                  <Badge tone={RECOMMENDATION_TONE[d.recommended]}>
+   105	                    {d.recommended}
+   106	                  </Badge>
+   107	                </td>
+   108	                <td className="py-2 px-2">
+   109	                  {d.recommended === 'REPROCESS' ? (
+   110	                    <button
+   111	                      onClick={() => onReprocessOne(d.chain, d.address)}
+   112	                      disabled={isRowBusy}
+   113	                      className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded"
+   114	                    >
+   115	                      {isRowBusy ? '⏳' : '↻ Reprocess'}
+   116	                    </button>
+   117	                  ) : (
+   118	                    <span className="text-slate-500 text-xs">—</span>
+   119	                  )}
+   120	                </td>
+   121	              </tr>
+   122	            );
+   123	          })}
+   124	        </tbody>
+   125	      </table>
+   126	    </div>
+   127	  );
+   128	}
+   129	
+   130	function CompletenessBar({ value }: { value: number | null }) {
+   131	  if (value === null)
+   132	    return <span className="text-slate-500 text-xs">no snapshot</span>;
+   133	  const pct = Math.round(value * 100);
+   134	  const color =
+   135	    pct >= 60 ? 'bg-green-500' : pct >= 30 ? 'bg-yellow-500' : 'bg-red-500';
+   136	  return (
+   137	    <div className="flex items-center gap-2">
+   138	      <div className="w-16 h-1.5 bg-slate-800 rounded overflow-hidden">
+   139	        <div className={`h-full ${color}`} style={{ width: `${pct}%` }} />
+   140	      </div>
+   141	      <span className="text-xs text-slate-400">{pct}%</span>
+   142	    </div>
+   143	  );
+   144	}
+   145	
+   146	function ProviderStatus({
+   147	  errors,
+   148	}: {
+   149	  errors: ReadonlyArray<{ provider: string; message: string }>;
+   150	}) {
+   151	  if (errors.length === 0) {
+   152	    return <span className="text-green-400 text-xs">✓ all ok</span>;
+   153	  }
+   154	  return (
+   155	    <div className="flex flex-wrap gap-1">
+   156	      {errors.map((e) => (
+   157	        <Badge key={e.provider} tone="red" className="text-xs">
+   158	          ✗ {e.provider}
+   159	        </Badge>
+   160	      ))}
+   161	    </div>
+   162	  );
+   163	}

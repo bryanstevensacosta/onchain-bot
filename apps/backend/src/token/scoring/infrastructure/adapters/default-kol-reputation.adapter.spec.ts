@@ -1,7 +1,7 @@
 import { DefaultKolReputationAdapter } from 'token/scoring/infrastructure/adapters/default-kol-reputation.adapter';
-import { KolReputationRepository } from 'telegram-kol/reputation/application/ports/kol-reputation.repository';
-import { KnownKolPort } from 'telegram-kol/reputation/application/ports/known-kol.port';
-import { KolReputation } from 'telegram-kol/reputation/domain/value-objects/kol-reputation.vo';
+import { KolReputationRepository } from 'kol/reputation/application/ports/kol-reputation.repository';
+import { KnownKolPort } from 'kol/reputation/application/ports/known-kol.port';
+import { KolReputation } from 'kol/reputation/domain/value-objects/kol-reputation.vo';
 
 class FakeStatsRepo extends KolReputationRepository {
   public stats = new Map<string, KolReputation>();

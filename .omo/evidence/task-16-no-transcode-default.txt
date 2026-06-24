@@ -1,0 +1,24 @@
+QA Evidence — Task 16 (WebP transcoding)
+
+Scenario: PNG returned when client doesn't accept WebP
+
+Step 1 — Invoke service without Accept header (mirrors default controller behavior):
+  service.getImage('solana', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v')
+
+Step 2 — Write returned buffer and inspect:
+  $ file /Users/bryanstevens/dev/onchain-bot/.sisyphus/evidence/task-16-no-transcode-default.png
+  PNG image data, 32 x 32, 8-bit/color RGBA, non-interlaced
+
+Expected: "PNG image data" — CONFIRMED
+Curl counterpart: curl http://localhost:3030/token/image/solana/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v -o /tmp/test.png
+Note: end-to-end curl evidence was blocked by a parallel-task (T18) DI wiring issue
+(`RedisTokenImageCache` is registered with an optional `string` constructor arg that
+NestJS fails to resolve when TOKEN_IMAGE_REDIS_ENABLED=false). The no-transcode path
+is verified here using the real `TokenImageService` against a real PNG buffer.
+
+Jest evidence:
+  PASS src/chain/explorer/application/services/token-image.service.spec.ts
+    ✓ does not transcode when Accept header is missing or absent of image/webp
+
+Typecheck:
+  $ npx tsc --noEmit  →  exits 0

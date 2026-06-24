@@ -1,0 +1,16 @@
+{
+  "totalTokens": 12,
+  "tokensWithImage": 4,
+  "tokensWithPlaceholder": 8,
+  "coveragePercent": 33.33,
+  "lighthousePerformanceScore": 52,
+  "lighthouseMetrics": {
+    "firstContentfulPaint": "8.6 s",
+    "largestContentfulPaint": "15.8 s",
+    "totalBlockingTime": "50 ms",
+    "cumulativeLayoutShift": "0.132",
+    "speedIndex": "8.6 s"
+  },
+  "timestamp": "2026-06-23T23:58:44.277Z",
+  "notes": "Pre-optimization baseline"
+}

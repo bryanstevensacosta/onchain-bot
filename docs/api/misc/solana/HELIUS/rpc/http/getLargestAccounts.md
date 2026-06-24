@@ -1,0 +1,288 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getLargestAccounts
+
+> Returns the 20 largest accounts, by lamport balance (results may be cached up to two hours).
+
+## Request Parameters
+
+<ParamField body="commitment" type="string">
+  The commitment level for the request.
+
+  * `confirmed`
+  * `finalized`
+</ParamField>
+
+<ParamField body="filter" type="string">
+  Filter results by account type - either all circulating SOL accounts or only special non-circulating reserve accounts.
+
+  * `circulating`
+  * `nonCirculating`
+</ParamField>
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getLargestAccounts.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Wealth distribution analytics API for identifying and monitoring the largest
+    SOL holders on the Solana blockchain with filtering options for circulating
+    and reserve accounts.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getLargestAccounts
+      description: >
+        Retrieve a ranked list of the largest SOL holders on the Solana
+        blockchain.
+
+        This wealth analytics API provides insights into SOL distribution by
+        identifying the
+
+        accounts holding the most significant native token balances. Returns the
+        top 20 accounts
+
+        ranked by SOL balance, with options to filter between circulating supply
+        (active accounts)
+
+        and non-circulating supply (reserve accounts). Essential for market
+        researchers, economic
+
+        analysts, whale watchers, wealth concentration studies, and applications
+        monitoring major
+
+        SOL holders and their potential impact on token economics and market
+        movements.
+      operationId: getLargestAccounts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - jsonrpc
+                - id
+                - method
+              properties:
+                jsonrpc:
+                  type: string
+                  description: The JSON-RPC protocol version.
+                  enum:
+                    - '2.0'
+                  example: '2.0'
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  description: The name of the RPC method to invoke.
+                  enum:
+                    - getLargestAccounts
+                  example: getLargestAccounts
+                  default: getLargestAccounts
+                params:
+                  type: array
+                  description: Optional configuration object for filtering accounts.
+                  default: []
+                  items:
+                    type: object
+                    properties:
+                      commitment:
+                        type: string
+                        description: The commitment level for the request.
+                        enum:
+                          - confirmed
+                          - finalized
+                        example: finalized
+                      filter:
+                        type: string
+                        description: >-
+                          Filter results by account type - either all
+                          circulating SOL accounts or only special
+                          non-circulating reserve accounts.
+                        enum:
+                          - circulating
+                          - nonCirculating
+                        example: circulating
+      responses:
+        '200':
+          description: Successfully retrieved the largest accounts.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    description: The JSON-RPC protocol version.
+                    enum:
+                      - '2.0'
+                    example: '2.0'
+                  id:
+                    type: string
+                    description: Identifier matching the request.
+                    example: '1'
+                  result:
+                    type: object
+                    description: List of the largest accounts and their balances.
+                    properties:
+                      context:
+                        type: object
+                        description: Context of the response.
+                        properties:
+                          slot:
+                            type: integer
+                            description: The slot at which the data was fetched.
+                            example: 54
+                      value:
+                        type: array
+                        description: >-
+                          Top 20 largest Solana accounts ranked by SOL balance,
+                          from highest to lowest.
+                        items:
+                          type: object
+                          properties:
+                            lamports:
+                              type: integer
+                              description: >-
+                                SOL balance of this account in lamports (1 SOL =
+                                1,000,000,000 lamports).
+                              example: 999974
+                            address:
+                              type: string
+                              description: >-
+                                Unique Solana wallet address of this major
+                                account holder.
+                              example: 99P8ZgtJYe1buSK8JXkvpLh8xPsCFuLYhz9hQFNw93WJ
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+                id: '1'
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: The JSON-RPC protocol version.
+          enum:
+            - '2.0'
+          example: '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The error code.
+              example: -32602
+            message:
+              type: string
+              description: The error message.
+            data:
+              type: object
+              description: Additional data about the error.
+        id:
+          type: string
+          description: Identifier matching the request.
+          example: '1'
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

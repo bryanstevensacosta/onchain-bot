@@ -143,8 +143,8 @@ describe('humanize', () => {
 });
 
 describe('constants shape', () => {
-  it('exposes 9 risk signal labels', () => {
-    expect(Object.keys(RISK_SIGNAL_LABELS)).toHaveLength(9);
+  it('exposes 10 risk signal labels', () => {
+    expect(Object.keys(RISK_SIGNAL_LABELS)).toHaveLength(10);
   });
 
   it('exposes 12 honeypot signal labels', () => {
@@ -166,6 +166,7 @@ describe('constants shape', () => {
   it('includes all new SIGNAL_* scoring factors', () => {
     expect(SCORING_FACTOR_LABELS.SIGNAL_POSSIBLE_RUG).toBe('Possible rug pull');
     expect(SCORING_FACTOR_LABELS.SIGNAL_NO_HOLDERS).toBe('No holders');
+    expect(SCORING_FACTOR_LABELS.SIGNAL_LOW_HOLDERS).toBe('Low holders');
     expect(SCORING_FACTOR_LABELS.SIGNAL_NO_NAME).toBe('No token name');
     expect(SCORING_FACTOR_LABELS.SIGNAL_LOW_LIQUIDITY).toBe('Low liquidity');
     expect(SCORING_FACTOR_LABELS.SIGNAL_NO_PAIRS).toBe('No trading pairs');

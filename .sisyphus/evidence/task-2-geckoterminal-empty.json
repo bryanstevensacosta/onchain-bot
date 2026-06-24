@@ -1,0 +1,20 @@
+{
+  "scenario": "edge_case_token_not_on_geckoterminal",
+  "endpoint": "GET https://api.geckoterminal.com/api/v2/networks/eth/tokens/0x000000000000000000000000000000000000dEaD/info",
+  "chain": "ethereum",
+  "address": "0x000000000000000000000000000000000000dEaD",
+  "rawApiResponse": {
+    "errors": [
+      {
+        "status": "404",
+        "title": "Not Found"
+      }
+    ],
+    "meta": {
+      "ref_id": "9a0d794e-f650-4268-9f97-07a604e31af4"
+    }
+  },
+  "imageUrls": [],
+  "expectation": "[]",
+  "passes": true
+}

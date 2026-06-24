@@ -1,0 +1,37 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - link "Alpha Meta Token Scanner" [ref=e6] [cursor=pointer]:
+          - /url: /
+        - navigation [ref=e7]:
+          - link "Dashboard" [ref=e8] [cursor=pointer]:
+            - /url: /
+          - link "Live" [ref=e9] [cursor=pointer]:
+            - /url: /live
+          - link "Tokens" [ref=e10] [cursor=pointer]:
+            - /url: /tokens
+          - link "KOLs" [ref=e11] [cursor=pointer]:
+            - /url: /kols
+          - link "Ops" [ref=e12] [cursor=pointer]:
+            - /url: /ops
+    - main [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - heading "KOLs" [level=1] [ref=e16]
+          - paragraph [ref=e17]: "KOLs de Telegram monitorizados. Toda la info: identidad, lifecycle, reputación por outcomes, y leaderboard top por score."
+        - generic [ref=e18]:
+          - heading "🏆 KOL reputation leaderboard" [level=3] [ref=e19]
+          - table [ref=e20]:
+            - rowgroup [ref=e21]:
+              - row "Rank KOL Score Calls Strong" [ref=e22]:
+                - columnheader "Rank" [ref=e23]
+                - columnheader "KOL" [ref=e24]
+                - columnheader "Score" [ref=e25]
+                - columnheader "Calls" [ref=e26]
+                - columnheader "Strong" [ref=e27]
+            - rowgroup [ref=e28]:
+              - row "Cargando…" [ref=e29]:
+                - cell "Cargando…" [ref=e30]
+        - generic [ref=e31]: Cargando…
+  - generic "WebSocket connection status" [ref=e32]: WS ○

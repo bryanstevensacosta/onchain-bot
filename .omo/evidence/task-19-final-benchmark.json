@@ -1,0 +1,62 @@
+{
+  "totalTokens": 15,
+  "tokensWithImage": 0,
+  "tokensWithPlaceholder": 15,
+  "tokensWithProxyUrl": 0,
+  "coveragePercent": 0,
+  "coveragePercentProxyIncluded": 0,
+  "lighthousePerformanceScore": 56,
+  "lighthouseMetrics": {
+    "firstContentfulPaint": "8.6 s",
+    "largestContentfulPaint": "15.9 s",
+    "totalBlockingTime": "60 ms",
+    "cumulativeLayoutShift": "0.062",
+    "speedIndex": "8.6 s"
+  },
+  "lighthouseMetricsNumeric": {
+    "firstContentfulPaintMs": 8560.34,
+    "largestContentfulPaintMs": 15897.87,
+    "totalBlockingTimeMs": 55,
+    "cumulativeLayoutShift": 0.0624,
+    "speedIndexMs": 8560.34
+  },
+  "baseline": {
+    "coveragePercent": 33.33,
+    "lighthousePerformanceScore": 52,
+    "firstContentfulPaint": "8.6 s",
+    "largestContentfulPaint": "15.8 s",
+    "totalBlockingTime": "50 ms",
+    "cumulativeLayoutShift": "0.132",
+    "speedIndex": "8.6 s"
+  },
+  "deltasVsBaseline": {
+    "coveragePercentDelta": -33.33,
+    "lighthouseDelta": 4,
+    "firstContentfulPaintDeltaMs": -9.72,
+    "largestContentfulPaintDeltaMs": 84.05,
+    "totalBlockingTimeDeltaMs": 6,
+    "cumulativeLayoutShiftDelta": -0.0696,
+    "speedIndexDeltaMs": -9.72
+  },
+  "targets": {
+    "coverageMinPercent": 90,
+    "lighthouseMinDelta": 10,
+    "lighthouseMinAbsolute": 90
+  },
+  "targetsMet": {
+    "coverage": false,
+    "lighthouseDelta": false,
+    "lighthouseAbsolute": false
+  },
+  "rootCause": {
+    "frontend": "useSnapshot hook receives imageUrls[] array (3 proxy URLs per token) from /token/market-data/snapshots/:chain/:address. All proxy URLs return 404 from /token/image/:chain/:address?source=... controller.",
+    "backend": "Snapshot endpoint correctly returns imageUrls[]. Proxy endpoint (TokenImageController) responds 404 'No image found' for all tested tokens despite valid chain/address/source params.",
+    "dataLayer": "Database has imageUrls persisted for at least one token (USDC, 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48). Data layer is functional.",
+    "renderLayer": "React tokens-explorer page correctly falls back to placeholder via onError handler after all proxy URLs return 404."
+  },
+  "proxyHitRate": 0,
+  "timestamp": "2026-06-24T01:15:04.300Z",
+  "lighthouseReportPath": ".sisyphus/evidence/task-19-lighthouse.json",
+  "screenshotPath": ".sisyphus/evidence/task-19-final-tokens-page.png",
+  "notes": "Post-Wave-1-4 measurement. Coverage regressed from 33.33% baseline to 0% because proxy endpoint fails for all visible tokens; Lighthouse performance improved by +4 points (52→56), below +10 target. CLS improved from 0.132→0.062. FCP/LCP/SI unchanged. TBT slightly worse (50→60ms)."
+}

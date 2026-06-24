@@ -1,0 +1,52 @@
+Task 9 — Identicon format / data URI check
+===========================================
+
+Test 1 — Output format:
+
+  uri.startsWith('data:image/svg+xml;base64,')  →  true
+
+Decoded payload characteristics (sample: solana / USDC mint):
+  - Prefix:        data:image/svg+xml;base64,
+  - Body length:   2514 characters
+  - viewBox:       0 0 64 64
+  - width/height:  64
+  - Grid:          8x8 blocks of 8x8 pixels, horizontally mirrored
+  - Encoded:       base64 of UTF-8 SVG string
+
+Test 2 — Different inputs produce different outputs:
+
+  node -e "
+  const { IdenticonGenerator } = require('./apps/backend/dist/src/shared/identicon/identicon.generator');
+  const g = new IdenticonGenerator();
+  const a = g.generate('solana', 'addr1');
+  const b = g.generate('solana', 'addr2');
+  const c = g.generate('ethereum', 'addr1');
+  console.log('Same chain / diff addr differ:    ', a !== b);
+  console.log('Same addr / diff chain differ:    ', a !== c);
+  console.log('Lengths:                          ', a.length, b.length, c.length);
+  "
+
+  Same chain / diff addr differ:     true
+  Same addr / diff chain differ:     true
+  Lengths:                           2822 2810 2506
+
+Test 3 — Unit tests (jest):
+
+  PASS src/shared/identicon/identicon.generator.spec.ts
+    IdenticonGenerator
+      ✓ returns a data URI starting with the SVG base64 prefix
+      ✓ produces identical output for identical input (deterministic)
+      ✓ produces different output for different addresses on the same chain
+      ✓ produces different output for the same address on different chains
+      ✓ decodes to a valid 64x64 SVG with mirroring and is non-trivial
+      ✓ exhibits horizontal mirroring (left-half rects have a mirrored counterpart on the right)
+
+  Test Suites: 1 passed, 1 total
+  Tests:       6 passed, 6 total
+
+Test 4 — TypeScript compile:
+
+  cd apps/backend && npx tsc --noEmit
+  (no output, exit 0)
+
+Conclusion: format, determinism, and uniqueness all verified.

@@ -32,6 +32,7 @@ export class ParsingController {
       occurredAt: input.occurredAt,
       rawText: input.text,
       contractAddresses: addresses,
+      username: input.username ?? null,
     });
   }
 

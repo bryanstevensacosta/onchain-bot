@@ -4,6 +4,7 @@ import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 export type SignalType =
   | 'LOW_LIQUIDITY'
   | 'NO_HOLDERS'
+  | 'LOW_HOLDERS'
   | 'NO_PAIRS'
   | 'CONCENTRATED_HOLDERS'
   | 'EXTREME_PRICE_CHANGE'
@@ -31,6 +32,7 @@ export class RiskSignal extends ValueObject<RiskSignalProps> {
   private static readonly VALID_TYPES = new Set<SignalType>([
     'LOW_LIQUIDITY',
     'NO_HOLDERS',
+    'LOW_HOLDERS',
     'NO_PAIRS',
     'CONCENTRATED_HOLDERS',
     'EXTREME_PRICE_CHANGE',

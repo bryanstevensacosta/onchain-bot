@@ -1,0 +1,168 @@
+F2: CODE QUALITY REVIEW
+========================
+
+VERIFICATION
+[✓] npm test: 33 tests, 0 failures (signalLabels.test.ts only — 1.39s)
+[✓] npm run build: exit code 0 — 188 modules transformed, dist generated
+[✓] npm run lint: exit code 0 — 0 errors, 0 warnings
+
+AI SLOP CHECK
+[✓] signalLabels.ts (146 lines, 13 exports): CLEAN
+    - No comments, no console.log, no `as any`/`@ts-ignore`
+    - Single-responsibility functions: humanize (3 lines), signalLabel (12 lines),
+      reasonLabel (4 lines), riskLevelLabel (2 lines), riskLevelTone (2 lines)
+    - Internal helpers `SIGNAL_PREFIX` and `lookupSignal` are correctly private
+    - MINOR: `BadgeTone` type (lines 1-10) is a duplicate of `Tone` in
+      apps/frontend/src/shared/ui/badge.tsx:4-13. The canonical source
+      (`Tone` in badge.tsx) is not exported, so signalLabels.ts had to
+      define its own copy. Not a blocker but worth fixing on next pass.
+    - MINOR: `riskLevelLabel`/`riskLevelTone` (lines 140-146) are exported
+      and tested but never imported by any production code — only by
+      the test file. The plan called for them, so this is forward-looking
+      public API, not gold-plating. Acceptable.
+
+[✓] signalLabels.test.ts (181 lines, 33 cases): CLEAN
+    - Properly grouped into describe blocks: signalLabel (11), reasonLabel (4),
+      riskLevelLabel (5), riskLevelTone (3), humanize (4), constants shape (6)
+    - Each `it()` tests one thing — no compound assertions
+    - Edge cases covered: empty string, lowercase input, SIGNAL_ prefix
+      stripping, unknown code fallback, both prefixed and unprefixed forms
+    - MINOR: `validTones` array (lines 104-114) is a hand-typed copy of the
+      BadgeTone union — duplicates the source-of-truth list. If BadgeTone
+      grows, this list silently goes stale. Could import from signalLabels.ts.
+
+[✓] score-gauge.tsx (71 lines, +3 / -27): CLEAN MINIMAL REFACTOR
+    - Diff: removed FACTOR_LABELS (27 lines), added 1 import, replaced
+      `{FACTOR_LABELS[f.factor] || f.factor}` (3 lines) with
+      `{signalLabel(f.factor)}` (1 line)
+    - No structural changes, no new props, no logic changes
+    - Visual tier display, score gauge layout, colors untouched
+
+[✓] rejected-table.tsx (160 lines): CLEAN
+    - NEW FILE (plan said "modified" — but `git diff` shows `new file mode 100644`;
+      the file did not exist before this task. Plan was inaccurate.)
+    - REASON_TONE centralized import (line 3), no local tone map
+    - Uses `reasonLabel(r.code)` (line 89) for human-readable text
+    - Note: this is the post-hotfix version (commit b12365a). Earlier refactor
+      used `riskLevelTone()` which only knows LOW/MEDIUM/HIGH/CRITICAL —
+      that was wrong for filter reason codes (SCORE_TOO_LOW, BLACKLISTED, etc.).
+      The hotfix correctly added REASON_TONE to signalLabels.ts and switched
+      back to direct lookup.
+
+[✓] bc-coupling-analysis.md (127 lines): EXCELLENT PROSE
+    - 6 H2 sections + 3 H3 sub-sections + 2 sub-tables = 13 sections
+    - 5 explicit "Verdict:" lines (lines 18, 19, 20, 61, 71, 83)
+    - Every recommendation is direct — no "might", "could", "perhaps" hedging
+    - file:line evidence throughout (e.g., `token-classified.handler.ts:33-36`,
+      `token-scored.handler.ts:45-50`, `settings-filter.entity.ts:10-47`)
+    - No filler language: 0 matches for "It is important", "In conclusion",
+      "need to" filler phrases
+    - No implementation TODOs (only 1 match for "TODO" was a "Don't"
+      anti-pattern, not an actionable TODO)
+    - Concrete "When To Revisit" section with 5 triggers (admin UI added,
+      settings >15 tables, independent deployability, divergent requirements,
+      multi-team ownership)
+    - Anti-pattern section "What NOT To Do" with 5 items
+
+STYLE CONSISTENCY
+[✓] Matches format.ts style:
+    - Same export pattern: named `export function` declarations
+    - Same typing: `Readonly<Record<string, string>>` (signalLabels.ts:14,42,51,84)
+      vs format.ts's simpler types
+    - Same single-quote string usage
+    - Same trailing-comma style in multi-line literals
+    - Both files live in `shared/lib/` per FSD convention
+
+[✓] Component import patterns consistent:
+    - Existing project uses BOTH `@/shared/lib` (barrel) and
+      `@/shared/lib/format` (direct file). Both patterns are accepted
+      (5 files use barrel, 1 uses direct file import for format.ts).
+    - New files use direct file imports (`@/shared/lib/signalLabels`),
+      matching the direct-import precedent in score-gauge.tsx for `format`.
+
+REFACTOR MINIMALITY
+[✓] score-gauge.tsx diff: +3 / -27 lines, scope = exactly the plan
+    - Removed: local FACTOR_LABELS constant (27 lines)
+    - Added: 1 import line + 1 call site change
+    - 0 collateral changes
+
+[✓] rejected-table.tsx: +160 lines (NEW FILE)
+    - Plan stated "modified" but git shows new file mode — the file did not
+      exist prior to this task. The new file is correctly created with
+      the REASON_TONE centralized import (post-hotfix version).
+    - Scope: single component, single feature slice (`features/reprocess-rejected`)
+    - No collateral damage to other features
+
+[✓] No scope creep across the 5 deliverable files (verified via
+    `git diff bebe829^..HEAD --stat -- apps/frontend/src docs/architecture`):
+    5 files changed, 616 insertions(+), 27 deletions(-)
+    - signalLabels.ts: +146
+    - signalLabels.test.ts: +181
+    - score-gauge.tsx: +3 / -27
+    - rejected-table.tsx: +160 (new)
+    - bc-coupling-analysis.md: +127
+
+SPECIFIC FINDINGS (with line numbers)
+
+1. MINOR — `BadgeTone` type duplication (signalLabels.ts:1-10):
+   The exported `BadgeTone` union duplicates the private `Tone` type
+   in `apps/frontend/src/shared/ui/badge.tsx:4-13`. The canonical source
+   isn't exported. Better fix: export `Tone as BadgeTone` from badge.tsx
+   and have signalLabels.ts import it. Severity: LOW — works correctly
+   today, but creates two sources of truth.
+
+2. MINOR — `validTones` array duplication (signalLabels.test.ts:104-114):
+   The hand-typed array duplicates the BadgeTone union. If a tone is
+   added to badge.tsx, this list silently goes stale. Severity: LOW —
+   test would still pass since `toContain` checks membership.
+
+3. INFO — Plan/Implementation mismatch on rejected-table.tsx:
+   Plan marked it as "modified" but git shows `new file mode 100644`.
+   The file did not exist prior to this task. Severity: INFO — minor
+   plan inaccuracy, implementation is correct.
+
+4. INFO — Hotfix commit `b12365a`:
+   Added REASON_TONE to signalLabels.ts because the first refactor used
+   `riskLevelTone()` for filter reason codes — a plan gap (the plan's
+   "CONTEXT" mentioned REASON_TONE for centralization but the MUST DO
+   only listed `RISK_LEVEL_TONE`). The hotfix is correct and well-scoped.
+
+5. INFO — Forward-looking exports not yet consumed:
+   `riskLevelLabel`, `riskLevelTone`, `RISK_LEVEL_LABELS`, `RISK_LEVEL_TONE`
+   are exported and tested but unused in production. The plan called for
+   these as the public API surface for an established mapping utility —
+   not gold-plating. Acceptable.
+
+6. POSITIVE — `humanize()` edge cases (signalLabels.ts:108-112):
+   Correctly handles: empty string (`return ''`), lowercase input
+   (`charAt(0).toUpperCase() + slice(1)`), and underscores (`replace(/_/g, ' ')`).
+   No `null`/`undefined` coercion needed because the parameter is typed as `string`.
+
+7. POSITIVE — `signalLabel()` prefix-stripping logic (signalLabels.ts:122-133):
+   Tries direct lookup → tries prefix-stripped lookup → falls back to
+   `humanize(stripped)` or `humanize(code)`. Clean cascade with no
+   unnecessary defensive checks.
+
+8. POSITIVE — Test for `humanize('already lowercase')` (test.ts:137):
+   Slightly odd assertion (function lowercases then re-uppercases first
+   char) but verifies the function doesn't double-capitalize. Defensive
+   but harmless.
+
+VERDICT: APPROVE
+
+Summary of approval:
+- All verification commands pass cleanly (33/33 tests, build OK, lint OK)
+- AI slop level: very low. No emoji in comments. No generic names.
+  No over-abstraction. Single-responsibility functions throughout.
+- Style matches existing format.ts conventions (camelCase exports,
+  single quotes, trailing commas, Readonly typing).
+- Refactor scope matches plan (5 files, +616/-27). score-gauge.tsx is
+  exactly the minimal change described; rejected-table.tsx is the
+  post-hotfix version that correctly centralizes REASON_TONE.
+- BC analysis doc is publication-quality: direct verdicts, file:line
+  evidence, no filler, 5 concrete "When To Revisit" triggers.
+- The hotfix (b12365a) is correctly scoped and documented in the
+  commit message.
+- No `as any`, no `@ts-ignore`, no `console.log`, no new dependencies.
+- Two minor slop concerns (BadgeTone duplication, validTones array
+  duplication) are noted but non-blocking.

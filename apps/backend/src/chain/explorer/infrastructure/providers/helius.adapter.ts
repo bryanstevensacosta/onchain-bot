@@ -19,10 +19,14 @@ interface HeliusJsonRpcError {
   message: string;
 }
 
+interface HeliusTokenAccount {
+  readonly owner?: string;
+}
+
 interface HeliusGetTokenAccountsResponse {
   result?: {
     total?: number;
-    token_accounts?: ReadonlyArray<unknown>;
+    token_accounts?: ReadonlyArray<HeliusTokenAccount>;
   };
   error?: HeliusJsonRpcError;
 }
@@ -36,9 +40,14 @@ interface HeliusGetTokenAccountsResponse {
  * Uses Helius' Solana RPC endpoint (already configured via
  * `HELIUS_RPC_URL_MAINNET`, which embeds the API key) and the Digital Asset
  * Standard `getTokenAccounts` method, which paginates SPL token accounts by
- * mint. We request a single account (`limit: 1`) and read the `total` field
- * from the response — this gives us the exact holder count while costing a
- * single DAS request (10 credits on the Free tier).
+ * mint. We request up to 1000 accounts per page and report the maximum of
+ * (a) the `total` field Helius reports as the indexed total, and
+ * (b) the count of distinct `owner` addresses in the returned page.
+ *
+ * Taking the max guards against Helius's indexer lagging behind the chain
+ * state for freshly minted tokens (where `total` may report 1 even though
+ * many wallets already hold the token). For tokens with fewer than 1000
+ * holders, the page count equals the true holder count modulo dedup.
  *
  * Only `holders` is populated; all other market fields are `null`. Downstream
  * `first-non-null` merge in `EnrichTokenUseCase` keeps richer providers
@@ -87,7 +96,7 @@ export class HeliusAdapter extends MarketDataProviderPort {
           params: {
             mint: address,
             page: 1,
-            limit: 1,
+            limit: 1000,
           },
         },
         {
@@ -99,7 +108,22 @@ export class HeliusAdapter extends MarketDataProviderPort {
         this.logger.debug(`Helius RPC error: ${data.error.message}`);
         return null;
       }
-      const total = data.result?.total;
+      const result = data.result;
+      const total =
+        typeof result?.total === 'number' && Number.isFinite(result.total)
+          ? result.total
+          : 0;
+      const owners = new Set<string>();
+      for (const acc of result?.token_accounts ?? []) {
+        if (typeof acc.owner === 'string' && acc.owner.length > 0) {
+          owners.add(acc.owner);
+        }
+      }
+      const distinctOwners = owners.size;
+      const holders =
+        total > 0 || distinctOwners > 0
+          ? Math.max(total, distinctOwners)
+          : null;
       return {
         pairs: [],
         priceUsd: null,
@@ -108,8 +132,7 @@ export class HeliusAdapter extends MarketDataProviderPort {
         marketCapUsd: null,
         fdvUsd: null,
         priceChange24h: null,
-        holders:
-          typeof total === 'number' && Number.isFinite(total) ? total : null,
+        holders,
         top10HolderPercent: null,
         name: null,
         imageUrls: [],

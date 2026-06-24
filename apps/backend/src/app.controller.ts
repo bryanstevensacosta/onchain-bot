@@ -20,8 +20,8 @@ export class AppController {
   async seedEvents(
     @Query('count') count?: string,
     @Query('delay') delay?: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    @Res() res?: any,
+
+    @Res() res?: Response,
   ) {
     const app = await this.appService.getNestApp();
     const eventCount = count ? parseInt(count, 10) : 12;

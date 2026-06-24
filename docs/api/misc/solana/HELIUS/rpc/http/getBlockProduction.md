@@ -1,0 +1,310 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://www.helius.dev/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# getBlockProduction
+
+> Returns recent block production information from the current or previous epoch.
+
+## Request Parameters
+
+<ParamField body="commitment" type="string">
+  The commitment level for the request.
+
+  * `processed`
+  * `confirmed`
+  * `finalized`
+</ParamField>
+
+<ParamField body="identity" type="string">
+  Optional validator identity public key (base-58 encoded) to filter results for a specific validator.
+</ParamField>
+
+<ParamField body="range" type="object">
+  Optional slot range boundaries to limit the block production statistics time period.
+</ParamField>
+
+<ParamField body="range.firstSlot" type="number">
+  Starting slot number to begin analyzing block production statistics from (inclusive).
+</ParamField>
+
+<ParamField body="range.lastSlot" type="number">
+  Ending slot number to analyze block production statistics until (inclusive). If omitted, uses the current slot.
+</ParamField>
+
+
+## OpenAPI
+
+````yaml openapi/rpc-http/getBlockProduction.yaml POST /
+openapi: 3.1.0
+info:
+  title: Solana RPC API
+  version: 1.0.0
+  description: >-
+    Validator performance analytics API for monitoring Solana block production
+    efficiency and comparing leader schedule slots against actual blocks
+    created.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://mainnet.helius-rpc.com
+    description: Mainnet RPC endpoint
+  - url: https://devnet.helius-rpc.com
+    description: Devnet RPC endpoint
+security: []
+paths:
+  /:
+    post:
+      tags:
+        - RPC
+      summary: getBlockProduction
+      description: >
+        Retrieve detailed block production statistics for Solana validators
+        within a specified slot range.
+
+        This performance analytics API provides precise metrics about each
+        validator's efficiency in
+
+        producing blocks when scheduled as leader. Returns both the number of
+        slots where a validator
+
+        was assigned as leader and the actual number of blocks they successfully
+        produced, allowing 
+
+        calculation of reliability rates. Essential for validator performance
+        monitoring, network health
+
+        analysis, staking dashboards, and applications that need to evaluate
+        validator reliability when
+
+        making delegation decisions or monitoring overall Solana network
+        participation effectiveness.
+      operationId: getBlockProduction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - jsonrpc
+                - id
+                - method
+                - params
+              properties:
+                jsonrpc:
+                  type: string
+                  enum:
+                    - '2.0'
+                  description: The JSON-RPC protocol version.
+                  default: '2.0'
+                id:
+                  type: string
+                  description: A unique identifier for the request.
+                  example: '1'
+                  default: '1'
+                method:
+                  type: string
+                  enum:
+                    - getBlockProduction
+                  description: The name of the RPC method to invoke.
+                  default: getBlockProduction
+                params:
+                  type: array
+                  description: Parameters for the request.
+                  items:
+                    oneOf:
+                      - type: object
+                        description: Configuration options for the request.
+                        properties:
+                          commitment:
+                            type: string
+                            description: The commitment level for the request.
+                            enum:
+                              - processed
+                              - confirmed
+                              - finalized
+                            example: finalized
+                          identity:
+                            type: string
+                            description: >-
+                              Optional validator identity public key (base-58
+                              encoded) to filter results for a specific
+                              validator.
+                            example: 85iYT5RuzRTDgjyRa3cP8SYhM2j21fj7NhfJ3peu1DPr
+                          range:
+                            type: object
+                            description: >-
+                              Optional slot range boundaries to limit the block
+                              production statistics time period.
+                            properties:
+                              firstSlot:
+                                type: integer
+                                description: >-
+                                  Starting slot number to begin analyzing block
+                                  production statistics from (inclusive).
+                                example: 0
+                              lastSlot:
+                                type: integer
+                                description: >-
+                                  Ending slot number to analyze block production
+                                  statistics until (inclusive). If omitted, uses
+                                  the current slot.
+                                example: 9887
+      responses:
+        '200':
+          description: Successfully retrieved block production information.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    enum:
+                      - '2.0'
+                  id:
+                    type: string
+                  result:
+                    type: object
+                    properties:
+                      context:
+                        type: object
+                        properties:
+                          slot:
+                            type: integer
+                            description: The slot at the time of the response.
+                            example: 9887
+                      value:
+                        type: object
+                        properties:
+                          byIdentity:
+                            type: object
+                            additionalProperties:
+                              type: array
+                              items:
+                                type: integer
+                              description: >-
+                                Two-element array containing [leaderSlots,
+                                blocksProduced] statistics for this validator.
+                            description: >-
+                              Map of validator identity public keys to their
+                              block production performance metrics.
+                            example:
+                              85iYT5RuzRTDgjyRa3cP8SYhM2j21fj7NhfJ3peu1DPr:
+                                - 9888
+                                - 9886
+                          range:
+                            type: object
+                            properties:
+                              firstSlot:
+                                type: integer
+                                description: >-
+                                  Starting slot number of the analyzed block
+                                  production statistics period.
+                                example: 0
+                              lastSlot:
+                                type: integer
+                                description: >-
+                                  Ending slot number of the analyzed block
+                                  production statistics period.
+                                example: 9887
+        '400':
+          description: Bad Request - Invalid request parameters or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32602
+                  message: Invalid params
+        '401':
+          description: Unauthorized - Invalid or missing API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32001
+                  message: Unauthorized
+                id: '1'
+        '429':
+          description: Too Many Requests - Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32005
+                  message: Too many requests
+                id: '1'
+        '500':
+          description: Internal Server Error - An error occurred on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32603
+                  message: Internal error
+                id: '1'
+        '503':
+          description: Service Unavailable - The service is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32002
+                  message: Service unavailable
+                id: '1'
+        '504':
+          description: Gateway Timeout - The request timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                jsonrpc: '2.0'
+                error:
+                  code: -32003
+                  message: Gateway timeout
+                id: '1'
+      security:
+        - ApiKeyQuery: []
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          enum:
+            - '2.0'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+            message:
+              type: string
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api-key
+      description: >-
+        Your Helius API key. You can get one for free in the
+        [dashboard](https://dashboard.helius.dev/api-keys).
+````

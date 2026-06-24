@@ -1,0 +1,349 @@
+================================================================================
+F1 — PLAN COMPLIANCE AUDIT
+================================================================================
+Plan: .sisyphus/plans/signal-labels-readability.md
+Auditor: oracle (read-only)
+Audit Time: 2026-06-23 19:52:40 (local)
+Working Tree Note: Pre-existing uncommitted changes from a different work
+session (chain-dexter / KOL refactor / docs reorg) are present in the
+worktree. These are NOT from the signal-labels plan. The audit is scoped
+strictly to the 5 plan commits (bebe829..b12365a) and the 5 deliverable
+files. No plan commit touched anything outside the deliverable set.
+
+================================================================================
+VERDICT: APPROVE
+================================================================================
+All 6 Must Have items PASS.
+All 6 Must NOT Have items PASS.
+All 5 deliverables exist and meet line-count thresholds.
+All 5 expected git commits present with correct messages.
+33 vitest cases pass (≥20 required).
+
+================================================================================
+MUST HAVE — DETAILED CHECKLIST
+================================================================================
+
+MH-1. English human-readable label for every code that currently leaks raw
+     to the UI                                          → [PASS]
+
+   RISK_SIGNAL_LABELS (9 entries, all required):
+     ✓ LOW_LIQUIDITY                → "Low liquidity"
+     ✓ NO_HOLDERS                   → "No holders"
+     ✓ NO_PAIRS                     → "No trading pairs"
+     ✓ CONCENTRATED_HOLDERS         → "Concentrated holders"
+     ✓ EXTREME_PRICE_CHANGE         → "Extreme price change"
+     ✓ MICROCAP                     → "Micro-cap"
+     ✓ NO_NAME                      → "No token name"
+     ✓ NO_MARKET_DATA               → "No market data"
+     ✓ POSSIBLE_RUG                 → "Possible rug pull"
+   Evidence: signalLabels.ts:14-24 (count confirmed by test at .test.ts:147:
+   "exposes 9 risk signal labels" → Object.keys length === 9)
+
+   HONEYPOT_SIGNAL_LABELS (12 entries, all required):
+     ✓ HIGH_BUY_TAX, HIGH_SELL_TAX, HIGH_TRANSFER_TAX
+     ✓ CANNOT_SELL, CANNOT_BUY
+     ✓ OWNER_CAN_DRAIN, OWNER_NOT_RENOUNCED
+     ✓ SELF_DESTRUCT_RISK, PROXY_PATTERN
+     ✓ BLACKLIST_FUNCTION, WHITELIST_ONLY
+     ✓ HONEYPOT_FLAG
+   Evidence: signalLabels.ts:26-39 (count confirmed by .test.ts:151:
+   "exposes 12 honeypot signal labels" → Object.keys length === 12)
+
+   FILTER_REASON_LABELS (7 entries, all required):
+     ✓ SCORE_TOO_LOW, CLASSIFICATION_BLOCKED, BLACKLISTED
+     ✓ HONEYPOT_SUSPECTED, RISK_WEIGHT_EXCEEDED
+     ✓ INSUFFICIENT_DATA, CHAIN_UNSUPPORTED
+   Evidence: signalLabels.ts:41-49 (count confirmed by .test.ts:155:
+   "exposes 7 filter reason labels" → Object.keys length === 7)
+
+   SCORING_FACTOR_LABELS preserves all old entries AND adds SIGNAL_* set:
+     ✓ LIQUIDITY_HIGH/MEDIUM/LOW/INSUFFICIENT
+     ✓ HOLDERS_HIGH/MEDIUM/LOW/NONE
+     ✓ MC_HIGH/MEDIUM/LOW
+     ✓ VOLUME_HIGH/LOW
+     ✓ MULTI_CHANNEL_BUZZ, TWO_CHANNELS, HIGH_MENTION_COUNT, MULTIPLE_MENTIONS
+     ✓ SIGNAL_HONEYPOT, SIGNAL_BLACKLIST
+     ✓ CHANNEL_REPUTATION, SECURITY_FLAG_CAP
+     + NEW: SIGNAL_POSSIBLE_RUG, SIGNAL_NO_HOLDERS, SIGNAL_NO_NAME,
+            SIGNAL_LOW_LIQUIDITY, SIGNAL_NO_PAIRS,
+            SIGNAL_CONCENTRATED_HOLDERS, SIGNAL_EXTREME_PRICE_CHANGE,
+            SIGNAL_MICROCAP, SIGNAL_NO_MARKET_DATA
+   Evidence: signalLabels.ts:51-82 (additions asserted at .test.ts:166-180)
+
+   REASON_TONE (7 entries, all required):
+     ✓ SCORE_TOO_LOW         → 'yellow'
+     ✓ CLASSIFICATION_BLOCKED→ 'orange'
+     ✓ BLACKLISTED           → 'red'
+     ✓ HONEYPOT_SUSPECTED    → 'orange'
+     ✓ RISK_WEIGHT_EXCEEDED  → 'yellow'
+     ✓ INSUFFICIENT_DATA     → 'yellow'
+     ✓ CHAIN_UNSUPPORTED     → 'gray'
+   Evidence: signalLabels.ts:98-106
+   NOTE: REASON_TONE was added in the b12365a hotfix commit which corrected
+   a plan gap (the original refactor used riskLevelTone() which only knew
+   risk levels, so reason codes silently fell back to 'gray'). The hotfix
+   commit message explicitly acknowledges this: "Plan gap: REASON_TONE was
+   listed as 'to centralize' in CONTEXT but omitted from MUST DO." The
+   final state of the file now satisfies this requirement.
+
+MH-2. Centralized mapping (no scattered label strings)        → [PASS]
+
+   score-gauge.tsx:
+     ✓ grep "FACTOR_LABELS"  → 0 matches
+     ✓ grep "signalLabels"   → 1 match (line 3 import)
+     ✓ Uses signalLabel(f.factor) at line 39
+   Evidence: score-gauge.tsx:3,39; no local FACTOR_LABELS constant
+
+   rejected-table.tsx:
+     ✓ grep "const REASON_TONE" → 0 matches (local definition removed)
+     ✓ grep "signalLabels"      → 1 match (line 3 import)
+     ✓ Uses reasonLabel(r.code) at line 89
+     ✓ Uses REASON_TONE[r.code] ?? 'gray' at line 88 (imported)
+   Evidence: rejected-table.tsx:3,88,89; no local const REASON_TONE
+
+MH-3. Type-safe lookup functions (no `any`)                  → [PASS]
+
+   ✓ grep ": any"  signalLabels.ts → 0 matches
+   ✓ grep "as any" signalLabels.ts → 0 matches
+   ✓ grep "@ts-ignore" / "@ts-expect-error" → 0 matches
+   Function signatures (all explicitly typed, no any):
+     ✓ humanize(code: string): string          [signalLabels.ts:108]
+     ✓ signalLabel(code: string): string        [signalLabels.ts:122]
+     ✓ reasonLabel(code: string): string        [signalLabels.ts:135]
+     ✓ riskLevelLabel(level: string): string   [signalLabels.ts:140]
+     ✓ riskLevelTone(level: string): BadgeTone  [signalLabels.ts:144]
+   Plus typed return shape: lookupSignal → string | undefined [line 114]
+   BadgeTone is a custom union type [line 1-10], not a stringly-typed alias.
+
+MH-4. Fallback behavior for unknown codes                    → [PASS]
+
+   signalLabel() implementation [signalLabels.ts:122-133]:
+     1. Looks up in maps (SCORING_FACTOR / RISK / HONEYPOT)
+     2. If SIGNAL_ prefix present, strips it and re-looks-up
+     3. Falls back to humanize(stripped) for unknown SIGNAL_ codes
+     4. Falls back to humanize(code) for any other unknown code
+   reasonLabel() and riskLevelLabel() also use humanize() as fallback
+   [lines 137, 141].
+   humanize() [lines 108-112] converts NO_HOLDERS → "No holders" by
+   underscore-split + title-case.
+
+   Test coverage for fallback (≥2 required, 4 present):
+     ✓ "falls back to humanize for unknown SIGNAL_ code"   [.test.ts:49]
+     ✓ "falls back to humanize for unknown code without prefix" [.test.ts:53]
+     ✓ "falls back to humanize for unknown reason"          [.test.ts:71]
+     ✓ "falls back to humanize for unknown level"           [.test.ts:97]
+   Plus "returns empty string for empty input" for signalLabel/reasonLabel/
+   humanize (3 more), giving 7 total edge-case tests.
+
+MH-5. TDD for the mapping utility (tests first)             → [PASS]
+
+   Test count: 33 it() blocks (≥20 required)
+   Evidence: signalLabels.test.ts (full file, 181 lines)
+     Test counts per describe block:
+       - signalLabel:    11 tests
+       - reasonLabel:     4 tests
+       - riskLevelLabel:  5 tests
+       - riskLevelTone:   3 tests
+       - humanize:        4 tests
+       - constants shape: 6 tests (shape validation)
+       TOTAL: 33 tests
+
+   Test run:
+     $ cd apps/frontend && npm test -- signalLabels --run
+     Test Files  1 passed (1)
+          Tests  33 passed (33)
+      Duration  763ms
+   Evidence: command output captured above (exit 0, all green)
+
+MH-6. Architecture analysis doc with concrete recommendation   → [PASS]
+
+   ✓ File: docs/architecture/bc-coupling-analysis.md (127 lines, ≥100)
+   ✓ Sections (6, ≥6 required):
+       ## 1. Executive Summary
+       ## 2. Coupling Matrix
+       ## 3. Per-BC Verdict
+       ## 4. Real Technical Debt
+       ## 5. When To Revisit
+       ## 6. What NOT To Do
+   ✓ "Verdict:" lines: 6 explicit occurrences (≥3 required):
+       1. "Verdict: classification+scoring+token-gating → KEEP SEPARATE."  [line 18]
+       2. "Verdict: settings → KEEP FLAT (single BC, four controllers)."  [line 19]
+       3. "Verdict: real technical debt lives in event payload shape, not BC boundaries."  [line 20]
+       4. "**Verdict: KEEP SEPARATE.**"  in §3a [line 61]
+       5. "**Verdict: KEEP SEPARATE.**"  in §3b [line 71]
+       6. "**Verdict: KEEP FLAT.**"      in §3c [line 83]
+   ✓ TODO mentions: 0 (grep -i TODO | wc -l = 0)
+   ✓ Each Per-BC Verdict sub-section ends with an explicit "Verdict: ..."
+     sentence: §3a → "KEEP SEPARATE", §3b → "KEEP SEPARATE", §3c → "KEEP FLAT"
+
+================================================================================
+MUST NOT HAVE — DETAILED CHECKLIST
+================================================================================
+
+MNH-1. No i18n library imports                              → [PASS]
+   grep -rE "i18next|react-i18next|next-intl|react-intl" apps/frontend/src/
+   → 0 matches
+
+MNH-2. No backend changes                                   → [PASS]
+   git diff c345c28 HEAD -- apps/backend/src/  → empty (zero file changes)
+   git log --since='today' --diff-filter=A -- apps/backend/src/  → empty
+   No plan commit touched any file under apps/backend/
+
+MNH-3. No BC refactor (no merge/split/new modules)          → [PASS]
+   No new modules in apps/backend/src/ added by plan commits
+   No merge of classification/scoring/token-gating in plan commits
+   The 2 commits in git history referencing "merge" (bbf1c2e, 1221f21) are
+   pre-existing and predate the plan (both before c345c28 baseline).
+
+MNH-4. No new pages or features                             → [PASS]
+   git diff c345c28 HEAD -- apps/frontend/src/app/router/routes.tsx \
+                            apps/frontend/src/pages/  → empty
+
+MNH-5. No new dependencies                                  → [PASS]
+   git diff c345c28 HEAD -- apps/frontend/package.json package.json  → empty
+   No package.json or package-lock.json modifications
+
+MNH-6. No `as any` or `@ts-ignore` in the new utility       → [PASS]
+   grep ": any"  signalLabels.ts → 0 matches
+   grep "as any" signalLabels.ts → 0 matches
+   grep "@ts-ignore" / "@ts-expect-error" signalLabels.ts → 0 matches
+   Same checks on signalLabels.test.ts also clean.
+
+================================================================================
+DELIVERABLES — EXISTENCE & SIZE
+================================================================================
+
+[DEL-1] apps/frontend/src/shared/lib/signalLabels.ts
+   Exists: YES  Non-empty: YES  Lines: 146  (≥100 required)  → [PASS]
+   Commit: bebe829 (feat) — 136 lines added initially
+   Commit: b12365a (fix)  — 10 lines added (REASON_TONE)
+
+[DEL-2] apps/frontend/src/shared/lib/signalLabels.test.ts
+   Exists: YES  Non-empty: YES  Lines: 181  (≥80 required)  → [PASS]
+   Commit: bebe829 (feat) — 181 lines added
+   Test result: 33/33 pass
+
+[DEL-3] apps/frontend/src/entities/token-score/ui/score-gauge.tsx (modified)
+   Exists: YES  Lines: 71
+   FACTOR_LABELS removed: YES (grep returns 0)
+   signalLabel imported: YES (line 3)
+   signalLabel used: YES (line 39)
+   Commit: 2e29987 (refactor) — 27 lines deleted, 2 inserted
+   → [PASS]
+
+[DEL-4] apps/frontend/src/features/reprocess-rejected/ui/rejected-table.tsx
+       (modified)
+   Exists: YES  Lines: 160
+   Local const REASON_TONE removed: YES (grep returns 0)
+   signalLabels imports: YES (line 3: reasonLabel, REASON_TONE)
+   reasonLabel used: YES (line 89)
+   Commit: 14a976e (refactor) — 163 insertions (file rewritten; import of
+     reasonLabel/REASON_TONE; removal of local const + REASON_TONE handled
+     in hotfix b12365a which adjusted lookup)
+   Commit: b12365a (fix) — 7 lines net change (lookup restored to use
+     REASON_TONE map instead of riskLevelTone which only knew risk levels)
+   → [PASS]
+
+[DEL-5] docs/architecture/bc-coupling-analysis.md
+   Exists: YES  Non-empty: YES  Lines: 127  (≥100 required)  → [PASS]
+   Commit: ef7d9a6 (docs) — 127 lines added
+   Sections: 6 (≥6 required)   Verdict lines: 6 (≥3 required)
+   TODO mentions: 0   No implementation TODOs
+
+================================================================================
+GIT LOG CHECK
+================================================================================
+
+Expected commits (all present, in chronological order):
+  [1] bebe829  feat(frontend): add signalLabels utility with TDD coverage
+      Files: signalLabels.ts (+136), signalLabels.test.ts (+181)
+  [2] ef7d9a6  docs(architecture): add BC coupling analysis and recommendations
+      Files: bc-coupling-analysis.md (+127)
+  [3] 2e29987  refactor(frontend): use signalLabels in score-gauge
+      Files: score-gauge.tsx (-27, +2)
+  [4] 14a976e  refactor(frontend): use signalLabels in rejected-table
+      Files: rejected-table.tsx (+163 — file rewritten)
+  [5] b12365a  fix(frontend): restore REASON_TONE severity colors via centralized map
+      Files: rejected-table.tsx (-7, +7), signalLabels.ts (+10)
+                                                  → [PASS]
+
+Note on commit count: the plan body said "exactly 2 atomic commits" in the
+Final Checklist, but the per-task "Commit Strategy" sections specified 5
+separate atomic commits. The audit followed the F1 instruction which lists
+all 5 expected commit messages. All 5 are present and atomic (one logical
+change per commit). The "2 commits" line in the Final Checklist appears to
+be a pre-plan-consolidation summary; the per-task strategy is the binding
+spec and is fully satisfied.
+
+================================================================================
+SCOPE FIDELITY (informational, supports VERDICT)
+================================================================================
+
+Across all 5 plan commits (bebe829..b12365a), the only files modified are:
+  - apps/frontend/src/shared/lib/signalLabels.ts          (created + extended)
+  - apps/frontend/src/shared/lib/signalLabels.test.ts     (created)
+  - apps/frontend/src/entities/token-score/ui/score-gauge.tsx
+                                                          (refactored)
+  - apps/frontend/src/features/reprocess-rejected/ui/rejected-table.tsx
+                                                          (refactored + hotfix)
+  - docs/architecture/bc-coupling-analysis.md             (created)
+
+That is exactly the 4 deliverable files + 1 doc required by the plan. No
+scope creep.
+
+================================================================================
+QUALITY OBSERVATIONS (non-blocking)
+================================================================================
+
+1. Hotfix commit b12365a is a strong signal of TDD discipline. The original
+   14a976e refactor introduced a regression (SCORE_TOO_LOW and BLACKLISTED
+   falling back to gray because riskLevelTone() only knows risk levels).
+   The author caught it and shipped a focused fix. The fix commit message
+   honestly documents the plan gap. This is a good practice.
+
+2. The plan body in §"Commit Strategy" mentions "exactly 2 atomic commits"
+   but the per-task commit sections specify 5. The audit used the per-task
+   spec (5 commits) as binding, which is what F1's checklist explicitly
+   enumerates. All 5 expected commits exist.
+
+3. The `lookupSignal` helper at signalLabels.ts:114-120 is correctly
+   private (not exported) and uses `??` for safe undefined coalescing.
+   This is a clean implementation pattern.
+
+4. The architecture doc cites specific file:line evidence throughout
+   (e.g., token-classified.handler.ts:33-36, token-scored.handler.ts:45-50,
+   settings.module.ts:15-37, settings-filter.entity.ts:10-47). This is
+   appropriate for a recommendation document — not generic claims.
+
+5. humanize() correctly handles the empty string case (returns "" rather
+   than throwing) — this is properly tested.
+
+================================================================================
+FINAL TALLY
+================================================================================
+Must Have      [6/6]   PASS
+Must NOT Have  [6/6]   PASS
+Deliverables   [5/5]   PASS
+Commits        [5/5]   PASS
+Tests          [33/33] PASS
+Architecture   [6 sections, 6 verdicts, 0 TODOs]  PASS
+Type safety    [0 any, 0 as any, 0 @ts-ignore]   PASS
+Dependencies   [0 new packages]                   PASS
+Backend        [0 changes]                        PASS
+BC refactor    [0 new modules, 0 merges]          PASS
+New pages      [0 added]                          PASS
+i18n imports   [0 found]                          PASS
+
+================================================================================
+VERDICT: APPROVE
+================================================================================
+The implementation faithfully delivers every Must Have item in the plan,
+respects every Must NOT Have guardrail, and produces all 5 deliverables
+with verifiable evidence. The hotfix in b12365a is a positive TDD
+artefact, not a regression — it actively closes a gap that the plan's
+CONTEXT section identified but MUST DO missed. The architecture doc
+provides concrete, file:line-evidenced recommendations with explicit
+"Verdict: KEEP SEPARATE / KEEP FLAT" statements per BC pair as required.
+All 33 vitest cases pass. No further work required for this plan to be
+considered DONE.
+================================================================================

@@ -15,6 +15,7 @@ export interface ParseFromCandidatesInput {
   readonly occurredAt: Date;
   readonly rawText: string;
   readonly contractAddresses: ReadonlyArray<ContractAddress>;
+  readonly username?: string | null;
 }
 
 /**
@@ -45,6 +46,7 @@ export class ParseFromCandidatesUseCase {
       name: parsed.name,
       metrics: parsed.metrics,
       chart: parsed.chart,
+      username: input.username ?? null,
     });
 
     await this.callRepo.save(call);

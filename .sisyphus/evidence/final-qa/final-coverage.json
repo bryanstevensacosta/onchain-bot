@@ -1,0 +1,12 @@
+{
+  "totalImgElements": 16,
+  "rowsRendered": 16,
+  "imgsShowingRealImage": 0,
+  "imgsShowingPlaceholder": 16,
+  "realImageSamples": [],
+  "placeholderSamples": [
+    "http://localhost:5173/assets/token-placeholder.svg",
+    "http://localhost:5173/assets/token-placeholder.svg",
+    "http://localhost:5173/assets/token-placeholder.svg"
+  ]
+}

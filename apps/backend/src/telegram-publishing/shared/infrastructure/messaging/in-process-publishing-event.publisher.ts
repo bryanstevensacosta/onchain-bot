@@ -4,9 +4,7 @@ import { DomainEvent } from 'shared/kernel/domain-event';
 import { PublishingEventPublisher } from 'telegram-publishing/shared/application/ports/publishing-event.publisher';
 
 @Injectable()
-export class InProcessPublishingEventPublisher
-  implements PublishingEventPublisher
-{
+export class InProcessPublishingEventPublisher implements PublishingEventPublisher {
   public constructor(private readonly eventEmitter: EventEmitter2) {}
 
   public async publish(event: DomainEvent): Promise<void> {

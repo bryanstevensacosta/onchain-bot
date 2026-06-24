@@ -16,6 +16,7 @@ interface TokenCallProps {
   readonly metrics: TokenMetrics;
   readonly chart: string | null;
   readonly confidence: number;
+  readonly username: string | null;
 }
 
 /**
@@ -45,6 +46,7 @@ export class TokenCall extends AggregateRoot<string> {
     name: string | null;
     metrics: TokenMetrics;
     chart: string | null;
+    username?: string | null;
   }): TokenCall {
     if (!input.kolId) {
       throw new DomainError(ErrorCode.VALIDATION, `kolId cannot be empty`);
@@ -80,6 +82,7 @@ export class TokenCall extends AggregateRoot<string> {
       metrics: input.metrics,
       chart: input.chart,
       confidence,
+      username: input.username ?? null,
     });
   }
 
@@ -98,6 +101,7 @@ export class TokenCall extends AggregateRoot<string> {
     metrics: TokenMetrics;
     chart: string | null;
     confidence: number;
+    username?: string | null;
   }): TokenCall {
     return new TokenCall(input.id, {
       kolId: input.kolId,
@@ -109,6 +113,7 @@ export class TokenCall extends AggregateRoot<string> {
       metrics: input.metrics,
       chart: input.chart,
       confidence: input.confidence,
+      username: input.username ?? null,
     });
   }
 
@@ -140,6 +145,10 @@ export class TokenCall extends AggregateRoot<string> {
     return this.state.confidence;
   }
 
+  public get username(): string | null {
+    return this.state.username;
+  }
+
   public emitCallParsed(): void {
     this.apply(
       new CallParsedEvent({
@@ -156,6 +165,7 @@ export class TokenCall extends AggregateRoot<string> {
         holders: this.state.metrics.holders,
         chart: this.state.chart,
         confidence: this.state.confidence,
+        username: this.state.username,
       }),
     );
   }

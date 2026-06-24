@@ -17,6 +17,21 @@ services:
       timeout: 3s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    container_name: alpha-meta-token-scanner-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - alpha-meta-token-scanner-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+
   pgadmin:
     image: dpage/pgadmin4
     container_name: alpha-meta-token-scanner-pgadmin
@@ -43,3 +58,5 @@ volumes:
     name: alpha-meta-token-scanner-pg-data
   alpha-meta-token-scanner-pgadmin-data:
     name: alpha-meta-token-scanner-pgadmin-data
+  alpha-meta-token-scanner-redis-data:
+    name: alpha-meta-token-scanner-redis-data

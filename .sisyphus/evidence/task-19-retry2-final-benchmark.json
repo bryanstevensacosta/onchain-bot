@@ -1,0 +1,35 @@
+{
+  "task": "task-19-retry2",
+  "capturedAt": "2026-06-24T02:29:32Z",
+  "before": {
+    "total": 17,
+    "proxyCount": 8,
+    "placeholderCount": 9,
+    "coveragePercent": 47.06,
+    "source": ".sisyphus/evidence/task-19-retry-coverage-raw.json"
+  },
+  "after": {
+    "total": 17,
+    "proxyCount": 13,
+    "placeholderCount": 4,
+    "coveragePercent": 76.47,
+    "remainingPlaceholders": [
+      { "chain": "ethereum", "address": "0x0000000000000000000000000000000000000001", "name": "0x0000...0001", "reason": "Only identicon data URI in imageUrls; image proxy fetcher ignores source param and only tries dexscreener+birdeye" },
+      { "chain": "ethereum", "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "name": "USD Coin (USDC)", "reason": "imageUrls has moralis+coingecko URLs but image proxy only tries dexscreener → 404" },
+      { "chain": "solana", "address": "dNd93tngq1VMw3rp9RopmPFAMWss3VVgdAU6xMaM9kq", "name": "Wendy's Co ($WEN)", "reason": "imageUrls has birdeye+ipfs URLs but image proxy only tries dexscreener+birdeye for that chain; dex URL doesn't exist → 404" },
+      { "chain": "solana", "address": "epx5r4b6g3x8yzwqx2vywk5r7k9mzn3hjkl0pvs4ty", "name": "epx5r4...s4ty", "reason": "Only identicon data URI in imageUrls; image proxy fetcher ignores source param" }
+    ],
+    "rootCause": "Enrichment populated imageUrls correctly for all 9 tokens. The 4 remaining placeholders are caused by the /token/image proxy fetcher (apps/backend/src/chain/explorer/infrastructure/fetchers/token-image.fetcher.ts) being hardcoded to try only dexscreener + (solana-only) birdeye, and to ignore the ?source= query parameter. This is a code-level limitation, not an enrichment limitation. All 9 enrichment calls succeeded with ≥1 imageUrl populated per snapshot."
+  },
+  "delta": {
+    "proxyGain": 5,
+    "placeholderReduction": 5,
+    "coverageGain": 29.41
+  },
+  "verificationMethod": "Playwright headless Chrome on http://localhost:5173/tokens; counted img[data-testid=token-image] elements grouped by src prefix (/token/image/ vs /assets/token-placeholder.svg). Snapshot fetched 2026-06-24T02:29:32.987Z, images settled at 2026-06-24T02:29:41.884Z.",
+  "enrichmentEndpoint": "POST http://localhost:3030/token/market-data/enrich",
+  "enrichmentTriggered": 9,
+  "enrichmentFailed": 0,
+  "target": "≥90% (≥16/17 proxy)",
+  "achieved": "76.47% (13/17 proxy)"
+}

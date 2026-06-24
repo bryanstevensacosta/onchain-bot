@@ -1,0 +1,105 @@
+{
+  "task": "T19 retry after Vite proxy fix",
+  "timestamp": "2026-06-24T02:22:30.000Z",
+  "fixApplied": {
+    "file": "apps/frontend/vite.config.ts",
+    "change": "Added '/token/image' proxy entry pointing to http://localhost:3030",
+    "viteRestartRequired": false,
+    "hmrAutoApplied": true,
+    "curlVerification": {
+      "command": "curl -I http://localhost:5173/token/image/solana/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "statusCode": 200,
+      "contentType": "image/webp",
+      "xPoweredBy": "Express",
+      "contentLength": 2192,
+      "evidenceFile": ".sisyphus/evidence/task-19-retry-proxy-curl.txt"
+    }
+  },
+  "coverage": {
+    "totalTokens": 17,
+    "httpsCount": 0,
+    "dataImageCount": 0,
+    "proxyCount": 8,
+    "proxyLoadedCount": 8,
+    "proxyBrokenCount": 0,
+    "placeholderCount": 9,
+    "otherCount": 0,
+    "coveragePercentStrict": 0,
+    "coveragePercentProxyIncluded": 47.06,
+    "coveragePercentProxyLoaded": 47.06,
+    "calculation": "((httpsCount + dataImageCount) / total) * 100 per task spec formula; proxy URLs treated as real images because they successfully loaded via backend (naturalWidth=64, naturalHeight=64).",
+    "breakdownSummary": {
+      "realImagesLoaded": "8 tokens now display real images via /token/image proxy (vs 0 before fix). Each loaded with naturalWidth=64, naturalHeight=64 confirming actual image bytes.",
+      "placeholderRemaining": "9 tokens still show /assets/token-placeholder.svg. Proxy returned 404 from backend's TokenImageController for these tokens — they have no imageUrls persisted in the backend (e.g. 0x0...0001 burn address, dNd93... SOL, USDC 0xa0b8...). Not a proxy regression."
+    },
+    "evidenceFile": ".sisyphus/evidence/task-19-retry-coverage-raw.json"
+  },
+  "lighthouse": {
+    "performanceScore": 52,
+    "metrics": {
+      "firstContentfulPaint": "8.6 s",
+      "largestContentfulPaint": "15.9 s",
+      "totalBlockingTime": "70 ms",
+      "cumulativeLayoutShift": "0.126",
+      "speedIndex": "8.6 s"
+    },
+    "metricsNumeric": {
+      "firstContentfulPaintMs": 8560.52,
+      "largestContentfulPaintMs": 15907.98,
+      "totalBlockingTimeMs": 70,
+      "cumulativeLayoutShift": 0.1264,
+      "speedIndexMs": 8560.52
+    },
+    "evidenceFile": ".sisyphus/evidence/task-19-retry-lighthouse.json"
+  },
+  "deltasVsT19Baseline": {
+    "coveragePercentProxyIncludedDelta": 47.06,
+    "coveragePercentProxyIncludedDeltaFromZero": "+47.06 pp (was 0%, now 47.06%)",
+    "lighthouseDelta": -4,
+    "lighthouseDeltaDescription": "Score 56→52. Real image loading adds async image fetch cost. FCP/LCP/SI unchanged. TBT +10ms. CLS 0.062→0.126 (images loading at different times cause layout shift).",
+    "firstContentfulPaintDeltaMs": 0.18,
+    "largestContentfulPaintDeltaMs": 10.11,
+    "totalBlockingTimeDeltaMs": 15,
+    "cumulativeLayoutShiftDelta": 0.064,
+    "speedIndexDeltaMs": 0.18
+  },
+  "t19Baseline": {
+    "totalTokens": 15,
+    "tokensWithImage": 0,
+    "tokensWithPlaceholder": 15,
+    "coveragePercent": 0,
+    "lighthousePerformanceScore": 56,
+    "firstContentfulPaintMs": 8560.34,
+    "largestContentfulPaintMs": 15897.87,
+    "totalBlockingTimeMs": 55,
+    "cumulativeLayoutShift": 0.0624,
+    "speedIndexMs": 8560.34
+  },
+  "t8Baseline": {
+    "coveragePercent": 33.33,
+    "lighthousePerformanceScore": 52
+  },
+  "targets": {
+    "coverageMinPercent": 90,
+    "lighthouseMinDelta": 10,
+    "lighthouseMinAbsolute": 90
+  },
+  "targetsMet": {
+    "coverageProxyIncluded": false,
+    "coverageProxyLoaded": false,
+    "lighthouseDelta": false,
+    "lighthouseAbsolute": false,
+    "proxyWorks": true,
+    "imageBytesDelivered": true
+  },
+  "networkAnalysis": {
+    "successfulProxyRequests": 8,
+    "proxy404FromBackend": 7,
+    "exampleSuccess": "http://localhost:5173/token/image/solana/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v → 200 image/webp 2192 bytes",
+    "exampleBackend404": "http://localhost:5173/token/image/solana/dNd93tngq1VMw3rp9RopmPFAMWss3VVgdAU6xMaM9kq → 404 (backend TokenImageController returns 'No image found' because no imageUrls persisted for that token)",
+    "conclusion": "Vite proxy IS forwarding correctly. All /token/image requests reach backend. Backend 404s are data-layer issues (tokens without imageUrls in DB), not proxy regressions."
+  },
+  "screenshotPath": ".sisyphus/evidence/task-19-retry-tokens-page.png",
+  "proxyCurlPath": ".sisyphus/evidence/task-19-retry-proxy-curl.txt",
+  "notes": "VERDICT: Proxy fix VERIFIED WORKING. Coverage jumped from 0%→47% (8 real images now load via proxy). However, the task spec's ≥90% target is NOT met because 9 of 17 visible tokens have no imageUrls persisted in the backend (proven by backend returning 404 for proxy requests). The proxy itself works perfectly — image/webp 200 responses confirm end-to-end pipeline. Lighthouse regressed slightly (56→52) due to real image loading adding async fetch cost and CLS, but FCP/LCP/SI unchanged. The 90% target would require: (a) populating imageUrls for the 9 placeholder tokens via enrichment jobs, or (b) re-snapshotting tokens that lack provider coverage."
+}

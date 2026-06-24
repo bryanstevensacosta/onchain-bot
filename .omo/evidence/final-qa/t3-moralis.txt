@@ -1,0 +1,7 @@
+      const imageUrls = this.buildImageUrls(metadata?.logo);
+      const merged: MarketData = {
+        pairs: [],
+--
+        imageUrls,
+        lockedLiquidityPercent: null,
+        burnedPercent: null,

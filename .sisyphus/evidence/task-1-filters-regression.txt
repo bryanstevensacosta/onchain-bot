@@ -1,0 +1,2 @@
+[{"id":"ethereum:0x345ad3dd40c5a544d4f5459f75efc475fe96c5e1","chain":"ethereum","address":"0x345ad3dd40c5a544d4f5459f75efc475fe96c5e1","verdict":"REJECTED","score":30,"classification":"TOKEN","reasons":[{"code":"SCORE_TOO_LOW","message":"Score 30 < 50 threshold"}],"decidedAt":"2026-06-22T18:01:09.044Z"}]
+HTTP_STATUS:200

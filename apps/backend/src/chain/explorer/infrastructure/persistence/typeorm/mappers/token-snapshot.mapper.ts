@@ -36,6 +36,12 @@ export class TokenSnapshotMapper {
     row.lockedLiquidityPercent = s.lockedLiquidityPercent;
     row.burnedPercent = s.burnedPercent;
     row.sources = [...s.sources];
+    row.snapshotCompleteness =
+      s.snapshotCompleteness !== null ? s.snapshotCompleteness : null;
+    row.providerErrors = s.providerErrors.map((e) => ({
+      provider: e.provider,
+      message: e.message,
+    }));
     row.enrichedAt = s.enrichedAt;
     return row;
   }
@@ -76,6 +82,16 @@ export class TokenSnapshotMapper {
       lockedLiquidityPercent: row.lockedLiquidityPercent ?? null,
       burnedPercent: row.burnedPercent ?? null,
       sources: row.sources,
+      snapshotCompleteness:
+        row.snapshotCompleteness !== null
+          ? Number(row.snapshotCompleteness)
+          : null,
+      providerErrors: row.providerErrors
+        ? row.providerErrors.map((e: any) => ({
+            provider: e.provider,
+            message: e.message,
+          }))
+        : [],
       enrichedAt: row.enrichedAt,
     });
   }

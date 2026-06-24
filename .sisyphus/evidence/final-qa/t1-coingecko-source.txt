@@ -1,0 +1,4 @@
+        imageUrls: extractImageUrls(data.image),
+        lockedLiquidityPercent: null,
+        burnedPercent: null,
+      };

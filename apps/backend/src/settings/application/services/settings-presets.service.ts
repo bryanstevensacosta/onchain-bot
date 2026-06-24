@@ -235,7 +235,12 @@ export class SettingsPresetsService {
       } else if (typeof raw === 'string') {
         await this.upsertScalarFilter(manager, type, raw, null);
       } else if (typeof raw === 'boolean') {
-        await this.upsertScalarFilter(manager, type, raw ? 'true' : 'false', null);
+        await this.upsertScalarFilter(
+          manager,
+          type,
+          raw ? 'true' : 'false',
+          null,
+        );
       } else if (Array.isArray(raw)) {
         await manager.delete(SettingsFilterEntity, { type, scope: 'global' });
         for (const item of raw) {

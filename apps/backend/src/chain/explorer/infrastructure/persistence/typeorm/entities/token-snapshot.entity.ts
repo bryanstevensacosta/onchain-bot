@@ -118,6 +118,12 @@ export class TokenSnapshotEntity {
   @Column({ name: 'enriched_at', type: 'timestamptz' })
   public enrichedAt!: Date;
 
+  @Column({ name: 'snapshot_completeness', type: 'real', nullable: true })
+  public snapshotCompleteness!: number | null;
+
+  @Column({ name: 'provider_errors', type: 'jsonb', nullable: true })
+  public providerErrors!: Array<{ provider: string; message: string }> | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   public createdAt!: Date;
 }

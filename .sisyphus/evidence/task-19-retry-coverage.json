@@ -1,0 +1,42 @@
+{
+  "task": "T19 retry coverage analysis",
+  "url": "http://localhost:5173/tokens",
+  "method": "Playwright browser_evaluate — count img[data-testid='token-image'], classify by src prefix, check naturalWidth",
+  "timestamp": "2026-06-24T02:21:30.000Z",
+  "total": 17,
+  "httpsCount": 0,
+  "dataImageCount": 0,
+  "proxyCount": 8,
+  "placeholderCount": 9,
+  "otherCount": 0,
+  "proxyLoadedCount": 8,
+  "proxyBrokenCount": 0,
+  "coveragePercentStrict": 0,
+  "coveragePercentProxyIncluded": 47.06,
+  "coveragePercentProxyLoaded": 47.06,
+  "breakdown": [
+    {"kind": "placeholder", "src": "/assets/token-placeholder.svg", "naturalWidth": 40},
+    {"kind": "proxy-loaded", "src": "/token/image/solana/2jba4d1yspnh9beyucpqsbhhqadhbix8hyyrwqokpump?source=dd.dexscreener.com", "naturalWidth": 64},
+    {"kind": "proxy-loaded", "src": "/token/image/solana/2axlesljzu1hsyyj5hueijph59tzybyb3j9qbt7ppump?source=dd.dexscreener.com", "naturalWidth": 64},
+    {"kind": "proxy-loaded", "src": "/token/image/solana/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v?source=dd.dexscreener.com", "naturalWidth": 64},
+    {"kind": "proxy-loaded", "src": "/token/image/ethereum/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2?source=dd.dexscreener.com", "naturalWidth": 64},
+    {"kind": "placeholder", "src": "/assets/token-placeholder.svg", "naturalWidth": 40},
+    {"kind": "placeholder", "src": "/assets/token-placeholder.svg", "naturalWidth": 40},
+    {"kind": "proxy-loaded", "src": "/token/image/ethereum/0xf871e1128cd7b87cb6531fcca8e64d1bf503c4f6?source=dd.dexscreener.com", "naturalWidth": 64},
+    {"kind": "proxy-loaded", "src": "/token/image/solana/58gCdwTpk8XrpVmr8uav7t4d2CUnWokdwP1QwhTKpump?source=dd.dexscreener.com", "naturalWidth": 64},
+    {"kind": "proxy-loaded", "src": "/token/image/ethereum/0x6b93a120829558c18f8cd54a96e8024ef973ce52?source=dd.dexscreener.com", "naturalWidth": 64},
+    {"kind": "proxy-loaded", "src": "/token/image/solana/57mcywcoqfk2rezsw5j6cevya7phqkvexc3kfgt5pump?source=dd.dexscreener.com", "naturalWidth": 64},
+    {"kind": "placeholder", "src": "/assets/token-placeholder.svg", "naturalWidth": 40},
+    {"kind": "placeholder", "src": "/assets/token-placeholder.svg", "naturalWidth": 40},
+    {"kind": "placeholder", "src": "/assets/token-placeholder.svg", "naturalWidth": 40},
+    {"kind": "placeholder", "src": "/assets/token-placeholder.svg", "naturalWidth": 40},
+    {"kind": "placeholder", "src": "/assets/token-placeholder.svg", "naturalWidth": 40},
+    {"kind": "placeholder", "src": "/assets/token-placeholder.svg", "naturalWidth": 40}
+  ],
+  "t19BaselineComparison": {
+    "t19Total": 15,
+    "t19CoveragePercent": 0,
+    "deltaProxyIncluded": "+47.06 pp (0% → 47.06%)"
+  },
+  "conclusion": "Proxy fix verified working. 8/17 tokens load real images (naturalWidth=64) via Vite proxy → backend TokenImageController → provider CDN. 9/17 still show placeholder because backend returns 404 for those specific tokens (no imageUrls persisted in DB — not a proxy issue)."
+}

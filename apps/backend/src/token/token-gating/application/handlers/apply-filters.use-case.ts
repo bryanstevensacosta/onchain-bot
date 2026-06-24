@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { ChainId } from 'chain/identity/chain-id.vo';
 import { FilterReason } from 'token/token-gating/domain/value-objects/filter-reason.vo';
 import { FilterDecision } from 'token/token-gating/domain/entities/filter-decision.entity';
@@ -9,6 +9,7 @@ import {
   FilterDecisionMapper,
   FilterDecisionView,
 } from 'token/token-gating/application/mappers/filter-decision.mapper';
+import { SettingsService } from 'settings/application/services/settings.service';
 
 export interface FilterConfig {
   readonly minScore: number;
@@ -18,6 +19,10 @@ export interface FilterConfig {
   readonly enableBlacklist: boolean;
 }
 
+/**
+ * @deprecated Use `SettingsService.getTokenGateConfig()` instead. Kept as a
+ * fallback for callers that have not yet wired the settings module.
+ */
 export const DEFAULT_FILTER_CONFIG: FilterConfig = {
   minScore: 50,
   maxRiskWeight: 100,
@@ -43,33 +48,73 @@ export interface ApplyFiltersInput {
  * 1. SCORE_TOO_LOW        — score < minScore
  * 2. CLASSIFICATION_BLOCKED — classification in blockedClassifications
  * 3. BLACKLISTED          — address in blacklist (if enabled)
- * 4. HONEYPOT_SUSPECTED   — score < 10 with high risk (cheap heuristic; real honeypot BC is future)
+ * 4. HONEYPOT_SUSPECTED   — score < honeypotScoreBelow with riskWeight >= honeypotRiskAbove
+ *                            (cheap heuristic; real honeypot BC is future)
  * 5. RISK_WEIGHT_EXCEEDED — riskWeight > maxRiskWeight
  * 6. INSUFFICIENT_DATA    — completeness < minCompleteness
  * 7. CHAIN_UNSUPPORTED    — chain not in supported set
  *
  * APPROVED if zero reasons, REJECTED otherwise.
+ *
+ * Wave 2.2 — thresholds are now sourced from `SettingsService` when wired.
+ * The {@link DEFAULT_FILTER_CONFIG} / `PUBLISHABLE_CHAINS` constants remain as
+ * the fallback when the service is not provided (e.g. in unit tests that
+ * pre-date the dynamic-settings migration).
  */
 @Injectable()
 export class ApplyFiltersUseCase {
-  public constructor(
-    private readonly blacklist: BlacklistPort,
-    private readonly decisionRepo: FilterDecisionRepository,
-    private readonly eventPublisher: FiltersEventPublisher,
-  ) {}
-
   /**
-   * Chains that have publishing enabled. New EVM L2s (bsc, base, etc.)
-   * are detected but NOT yet published.
+   * @deprecated Use `SettingsService.getPublishableChains()` instead. Kept as
+   * a fallback for callers that have not yet wired the settings module.
    */
   public static readonly PUBLISHABLE_CHAINS: ReadonlyArray<string> = [
     'ethereum',
     'solana',
   ];
 
+  private readonly resolvedSettings: SettingsService;
+
+  public constructor(
+    private readonly blacklist: BlacklistPort,
+    private readonly decisionRepo: FilterDecisionRepository,
+    private readonly eventPublisher: FiltersEventPublisher,
+    @Optional() settings?: SettingsService,
+  ) {
+    this.resolvedSettings = settings ?? ApplyFiltersUseCase.defaultSettings();
+  }
+
+  private static defaultSettings(): SettingsService {
+    return {
+      getTokenGateConfig: async () => ({
+        minScore: DEFAULT_FILTER_CONFIG.minScore,
+        maxRiskWeight: DEFAULT_FILTER_CONFIG.maxRiskWeight,
+        minCompleteness: DEFAULT_FILTER_CONFIG.minCompleteness,
+        blockedClassifications: [
+          ...DEFAULT_FILTER_CONFIG.blockedClassifications,
+        ],
+        enableBlacklist: DEFAULT_FILTER_CONFIG.enableBlacklist,
+      }),
+      getPublishableChains: async (): Promise<string[]> => [
+        'ethereum',
+        'solana',
+      ],
+      getHoneypotHeuristic: async () => ({
+        scoreBelow: 10,
+        riskWeightAbove: 80,
+      }),
+    } as SettingsService;
+  }
+
   public async execute(input: ApplyFiltersInput): Promise<FilterDecisionView> {
     const chain = ChainId.fromString(input.chain);
-    const config = input.config ?? DEFAULT_FILTER_CONFIG;
+    const dbConfig = await this.resolvedSettings.getTokenGateConfig();
+    const config: FilterConfig = input.config ?? {
+      minScore: dbConfig.minScore,
+      maxRiskWeight: dbConfig.maxRiskWeight,
+      minCompleteness: dbConfig.minCompleteness,
+      blockedClassifications: dbConfig.blockedClassifications,
+      enableBlacklist: dbConfig.enableBlacklist,
+    };
     const reasons: FilterReason[] = [];
 
     if (input.score < config.minScore) {
@@ -105,7 +150,11 @@ export class ApplyFiltersUseCase {
       }
     }
 
-    if (input.score < 10 && input.riskWeight >= 80) {
+    const honeypot = await this.resolvedSettings.getHoneypotHeuristic();
+    if (
+      input.score < honeypot.scoreBelow &&
+      input.riskWeight >= honeypot.riskWeightAbove
+    ) {
       reasons.push(
         FilterReason.create({
           code: 'HONEYPOT_SUSPECTED',
@@ -132,7 +181,9 @@ export class ApplyFiltersUseCase {
       );
     }
 
-    if (!ApplyFiltersUseCase.PUBLISHABLE_CHAINS.includes(input.chain)) {
+    const publishableChains =
+      await this.resolvedSettings.getPublishableChains();
+    if (!publishableChains.includes(input.chain)) {
       reasons.push(
         FilterReason.create({
           code: 'CHAIN_UNSUPPORTED',
