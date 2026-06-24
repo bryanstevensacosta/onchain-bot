@@ -128,7 +128,11 @@ export class SettingsPresetsService {
     const previousActive = await this.getActive();
 
     await this.dataSource.transaction(async (manager) => {
-      await manager.update(SettingsPresetEntity, {}, { isActive: false });
+      await manager.update(
+        SettingsPresetEntity,
+        { isActive: true },
+        { isActive: false },
+      );
       await manager.update(
         SettingsPresetEntity,
         { id: preset.id },
@@ -161,7 +165,7 @@ export class SettingsPresetsService {
       `Preset "${preset.name}" (${preset.id}) applied (was: ${previousActive?.name ?? 'none'})`,
     );
 
-    return preset;
+    return this.findById(preset.id);
   }
 
   private async applySignalsSnapshot(

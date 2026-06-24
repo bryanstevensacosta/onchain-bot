@@ -79,7 +79,8 @@
       "ts"
     ],
     "rootDir": ".",
-    "testRegex": ".*\\.spec\\.ts$",
+    "testRegex": ".*\\.(e2e-)?spec\\.ts$",
+    "setupFiles": ["<rootDir>/jest.setup.ts"],
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
@@ -96,6 +97,9 @@
       "^telegram/(.*)$": "<rootDir>/src/telegram/$1",
       "^telegram-kol/(.*)$": "<rootDir>/src/telegram-kol/$1",
       "^telegram-publishing/(.*)$": "<rootDir>/src/telegram-publishing/$1",
+      "^kol/(.*)$": "<rootDir>/src/kol/$1",
+      "^dashboard/(.*)$": "<rootDir>/src/dashboard/$1",
+      "^settings/(.*)$": "<rootDir>/src/settings/$1",
       "^src/(.*)$": "<rootDir>/src/$1"
     }
   }

@@ -57,6 +57,7 @@ export class SettingsPresetsController {
   }
 
   @Post(':id/apply')
+  @HttpCode(200)
   public async apply(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Req() req: Request,

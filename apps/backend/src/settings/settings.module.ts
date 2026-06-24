@@ -8,10 +8,12 @@ import { SettingsAuditLogEntity } from 'settings/infrastructure/persistence/type
 import { SettingsPresetEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-preset.entity';
 import { SettingsService } from 'settings/application/services/settings.service';
 import { AuditService } from 'settings/application/services/audit.service';
+import { SettingsPresetsService } from 'settings/application/services/settings-presets.service';
 import { SignalsController } from 'settings/api/http/signals.controller';
 import { ThresholdsController } from 'settings/api/http/thresholds.controller';
 import { FiltersController } from 'settings/api/http/filters.controller';
 import { AuditController } from 'settings/api/http/audit.controller';
+import { SettingsPresetsController } from 'settings/api/http/settings-presets.controller';
 
 @Module({
   imports: [
@@ -32,8 +34,9 @@ import { AuditController } from 'settings/api/http/audit.controller';
     ThresholdsController,
     FiltersController,
     AuditController,
+    SettingsPresetsController,
   ],
-  providers: [SettingsService, AuditService],
+  providers: [SettingsService, AuditService, SettingsPresetsService],
   exports: [SettingsService, AuditService],
 })
 export class SettingsModule {}

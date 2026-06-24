@@ -20,6 +20,7 @@ import { SignalEntity } from 'settings/infrastructure/persistence/typeorm/entiti
 import { ScoringThresholdEntity } from 'settings/infrastructure/persistence/typeorm/entities/scoring-threshold.entity';
 import { SettingsFilterEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-filter.entity';
 import { SettingsAuditLogEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-audit-log.entity';
+import { SettingsPresetEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-preset.entity';
 import type { AppConfig } from 'shared/common/config/app.config';
 
 const PERSISTED_ENTITIES = [
@@ -42,6 +43,7 @@ const PERSISTED_ENTITIES = [
   ScoringThresholdEntity,
   SettingsFilterEntity,
   SettingsAuditLogEntity,
+  SettingsPresetEntity,
 ];
 
 /**
