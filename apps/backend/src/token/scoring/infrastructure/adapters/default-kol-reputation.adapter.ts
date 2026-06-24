@@ -17,7 +17,7 @@ import { KnownKolPort } from 'kol/reputation/application/ports/known-kol.port';
  * regardless of past performance.
  *
  * Fase 2 of the kol-refactor plan: the static maps moved out of the
- * adapter and into `telegram-kol/reputation/infrastructure/known-kol/`,
+ * adapter and into `kol/reputation/infrastructure/known-kol/`,
  * reachable via the `KnownKolPort`. The adapter no longer holds
  * hardcoded channel/handle names.
  *

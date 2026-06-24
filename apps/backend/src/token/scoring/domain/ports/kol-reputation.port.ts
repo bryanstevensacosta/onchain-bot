@@ -9,7 +9,7 @@ import { KolReputationSummary } from 'token/scoring/domain/value-objects/kol-rep
  * pass the source type explicitly.
  *
  * Implemented by adapters that may use:
- * - Hard-coded "known good" lists (via `KnownKolPort` from `telegram-kol/reputation`)
+ * - Hard-coded "known good" lists (via `KnownKolPort` from `kol/reputation`)
  * - A database of historical accuracy (which KOLs called ATHs that held up)
  * - External reputation services
  *

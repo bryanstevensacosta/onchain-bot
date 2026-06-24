@@ -19,13 +19,13 @@ export interface EvaluateAndRecordInput {
  *
  * 1. Ask CallOutcomeEvaluatorPort for the outcome (ATH multiple, etc.)
  * 2. Persist CallPerformance
- * 3. Recompute KolReputation for the KOL via `telegram-kol/reputation/`
+ * 3. Recompute KolReputation for the KOL via `kol/reputation/`
  * 4. Persist updated reputation
  *
  * Idempotent: re-evaluating the same `(kolId, tokenId)` overwrites.
  *
  * Fase 2 of the kol-refactor plan: this use case now writes to the new
- * `KolReputation` aggregate (in `telegram-kol/reputation/`) instead of
+ * `KolReputation` aggregate (in `kol/reputation/`) instead of
  * the old `ChannelReputationStats`. The `kolId` field on
  * `CallPerformance` stays as-is — it is the call-tracking BC's natural
  * identifier for the source of a call.

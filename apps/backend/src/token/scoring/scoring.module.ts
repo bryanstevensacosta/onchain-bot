@@ -27,7 +27,7 @@ import { ReputationModule } from 'kol/reputation/reputation.module';
  * for accurate reputation scoring).
  *
  * KOL reputation: prefer real historical reputation from the new
- * `ReputationModule` (in `telegram-kol/reputation/`) if available;
+ * `ReputationModule` (in `kol/reputation/`) if available;
  * fall back to the static default-reputation adapter.
  *
  * N18: TokenScore persisted via TypeORM (Tier-2). When `DATABASE_ENABLED=true`,
