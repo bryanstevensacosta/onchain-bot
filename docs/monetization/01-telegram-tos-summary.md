@@ -13,22 +13,24 @@
 apps/backend/src/
 ├── chain/                    # resolución de chain (ethereum, solana, bsc, ...)
 ├── token/                    # resolución + validación on-chain de tokens
-├── telegram-kol/
+├── kol/
 │   ├── identity/             # KOL identity management
 │   ├── ingestion/            # ← LEE mensajes de canales KOL vía MTProto
 │   ├── reputation/           # score del KOL (win-rate, ROI)
 │   ├── source/               # tracking de qué KOL dijo qué
 │   └── stats/                # stats agregadas por KOL
-└── telegram-publishing/      # ← REPUBLICA alpha-calls a canales de output
-    ├── domain/ports/telegram-publisher.port.ts:10
-    ├── infrastructure/senders/mtproto-publishing.adapter.ts (real)
-    └── infrastructure/senders/mock-telegram-publisher.adapter.ts (dev)
+└── telegram/
+    ├── vip-calls-channel/    # ← REPUBLICA alpha-calls a canales de output
+    │   ├── domain/ports/telegram-publisher.port.ts:10
+    │   ├── infrastructure/senders/mtproto-publishing.adapter.ts (real)
+    │   └── infrastructure/senders/mock-telegram-publisher.adapter.ts (dev)
+    └── shared/               # ports/entities compartidos (MTProto sender, events)
 ```
 
 **Flujo end-to-end:**
 
 ```
-canal KOL público ──► MTProto ingestion (telegram-kol/ingestion)
+canal KOL público ──► MTProto ingestion (kol/ingestion)
                          │
                          ▼
                    extract contract addr + ticker + score
@@ -40,14 +42,14 @@ canal KOL público ──► MTProto ingestion (telegram-kol/ingestion)
                    filters.token.approved
                          │
                          ▼
-                   telegram-publishing (telegram-publishing/)
+                   telegram publishing (telegram/vip-calls-channel/)
                    → formatea → envía a canales de OUTPUT (PRIMARY/SECONDARY/PREMIUM)
                    → son TUS canales, NO los canales KOL originales
 ```
 
 **Punto crítico**: tu pipeline NO republica el mensaje literal del KOL a un canal
 del KOL. Republica **metadatos derivados** (contract addr, ticker, score, métricas)
-a **tus propios canales de output** [ver `telegram-publishing/README.md:9`].
+a **tus propios canales de output** [ver `telegram/vip-calls-channel/README.md:9`].
 Esto es lo que te mantiene dentro del marco legal — sigue leyendo.
 
 ---
@@ -81,8 +83,8 @@ Esto es lo que te mantiene dentro del marco legal — sigue leyendo.
 ### 2.2 🟡 Ingestion MTProto desde canales KOL (zona borderline)
 
 **Qué haces**: tu cuenta MTProto personal se une a canales KOL y lee mensajes nuevos.
-**Archivos**: `apps/backend/src/telegram-kol/ingestion/`,
-`apps/backend/src/telegram-publishing/infrastructure/senders/mtproto-sender.client.ts`.
+**Archivos**: `apps/backend/src/kol/ingestion/`,
+`apps/backend/src/telegram/shared/infrastructure/senders/mtproto-sender.client.ts`.
 
 **Qué dice Telegram**:
 
@@ -105,7 +107,7 @@ Esto es lo que te mantiene dentro del marco legal — sigue leyendo.
   humanos → violación de §1.4.
 
 **Mitigación actual**: tu pipeline solo LEE, no postea desde la cuenta personal
-(postea desde `telegram-publishing` que es el publisher de output, un canal distinto).
+(postea desde `telegram/vip-calls-channel` que es el publisher de output, un canal distinto).
 
 ---
 
@@ -187,7 +189,7 @@ legal advice; es un patrón documentado que sobrevive al scrutiny de Telegram.
 - Si Telegram (o un KOL) te pide borrar datos de un canal, debes hacerlo en ≤30 días
   (compliance GDPR implícito).
 
-**Gap actual**: tu `InMemoryPublishedCallRepository` (`telegram-publishing/
+**Gap actual**: tu `InMemoryPublishedCallRepository` (`telegram/vip-calls-channel/
 infrastructure/repositories/in-memory-published-call.repository.ts:7`) tiene
 `MAX_ENTRIES = 500`. Cuando tengas usuarios reales, este techo se rompe y el
 riesgo crece si almacenas texto crudo.
@@ -198,7 +200,7 @@ riesgo crece si almacenas texto crudo.
 
 **Qué haces**: envías mensajes formateados a canales que TÚ controlas, no a canales
 de los KOLs.
-**Archivos**: `apps/backend/src/telegram-publishing/`.
+**Archivos**: `apps/backend/src/telegram/vip-calls-channel/`.
 
 **Qué dice Telegram**:
 

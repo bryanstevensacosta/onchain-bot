@@ -1,4 +1,4 @@
-# Ingestion BC (`telegram-kol/ingestion/`)
+# Ingestion BC (`kol/ingestion/`)
 
 Owns the **ingest loop** — subscribe to a set of KOL channels on
 Telegram and emit `KolMessageIngestedEvent` for every new message.
@@ -33,6 +33,6 @@ Telegram and emit `KolMessageIngestedEvent` for every new message.
 ## See also
 
 - `kol-refactor.md` — plan that moved this BC out of `telegram/ingestion/`.
-- `telegram-kol/identity/` — owns the `Kol` aggregate that the ingestion
+- `kol/identity/` — owns the `Kol` aggregate that the ingestion
   flow reads + updates.
-- `telegram-kol/source/` — consumes the resulting mentions via `Source`.
+- `kol/source/` — consumes the resulting mentions via `Source`.

@@ -249,7 +249,7 @@ export const appConfig = registerAs(
         metadataCache: {
           filePath:
             process.env.INGESTION_TELEGRAM_METADATA_CACHE_FILE ??
-            `${process.cwd()}/.cache/telegram-kol-metadata.json`,
+            `${process.cwd()}/.cache/kol-metadata.json`,
         },
         backfill: {
           enabled:

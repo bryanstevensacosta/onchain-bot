@@ -1,0 +1,128 @@
+=== task-3-consolidate-telegram-bc ===
+Generated: 2026-06-24T09:09:50Z
+T3 Edits applied to 3 files in apps/backend/src:
+  - shared/common/config/app.config.ts:252 (default fallback filename)
+  - kol/identity/identity.module.ts:66 (DI factory default)
+  - kol/identity/infrastructure/persistence/json-resolved-kol-metadata.repository.ts:16 (docstring)
+
+=== rg before ===
+Command: rg -n "telegram-kol-metadata" apps/backend/src
+Result: 2 matches - both in obsolete apps/backend/src/telegram-kol/ tree (see Deviations section 1)
+---
+/Users/bryanstevens/dev/onchain-bot/apps/backend/src/telegram-kol/identity/infrastructure/persistence/json-resolved-kol-metadata.repository.ts:16: * Defaults to `<repo-root>/.cache/telegram-kol-metadata.json` so the
+/Users/bryanstevens/dev/onchain-bot/apps/backend/src/telegram-kol/identity/identity.module.ts:66:          `${process.cwd()}/.cache/telegram-kol-metadata.json`;
+---
+
+=== rg after ===
+Command: rg -n "kol-metadata\.json" apps/backend/src
+Result: 5 matches - 3 in new apps/backend/src/kol/ tree (the T3 edits) + 2 substring matches
+in obsolete apps/backend/src/telegram-kol/ tree (still contains the OLD telegram-kol-metadata.json
+string which includes kol-metadata.json as a substring)
+---
+/Users/bryanstevens/dev/onchain-bot/apps/backend/src/telegram-kol/identity/identity.module.ts:66:          `${process.cwd()}/.cache/telegram-kol-metadata.json`;
+/Users/bryanstevens/dev/onchain-bot/apps/backend/src/kol/identity/identity.module.ts:66:          `${process.cwd()}/.cache/kol-metadata.json`;
+/Users/bryanstevens/dev/onchain-bot/apps/backend/src/kol/identity/infrastructure/persistence/json-resolved-kol-metadata.repository.ts:16: * Defaults to `<repo-root>/.cache/kol-metadata.json` so the
+/Users/bryanstevens/dev/onchain-bot/apps/backend/src/telegram-kol/identity/infrastructure/persistence/json-resolved-kol-metadata.repository.ts:16: * Defaults to `<repo-root>/.cache/telegram-kol-metadata.json` so the
+/Users/bryanstevens/dev/onchain-bot/apps/backend/src/shared/common/config/app.config.ts:252:            `${process.cwd()}/.cache/kol-metadata.json`,
+---
+
+=== tsc ===
+Command: cd apps/backend && npx tsc --noEmit
+Exit code: 1 (pre-existing errors, see Deviations section 2)
+---
+src/token/call-tracking/infrastructure/default-tracking-filter-seed.service.ts(16,40): error TS2339: Property 'seedDefaultsIfEmpty' does not exist on type 'SettingsService'.
+src/token/call-tracking/infrastructure/event-bus/call-published-tracked.handler.ts(12,31): error TS2339: Property 'EVENT_NAME' does not exist on type 'typeof CallPublishedEvent'.
+src/token/scoring/infrastructure/adapters/default-kol-reputation.adapter.ts(41,9): error TS2801: This condition will always return true since this 'Promise<boolean>' is always defined.
+src/token/scoring/infrastructure/adapters/default-kol-reputation.adapter.ts(51,11): error TS2322: Type 'Promise<number | null>' is not assignable to type 'number'.
+src/token/scoring/infrastructure/adapters/default-kol-reputation.adapter.ts(81,11): error TS2801: This condition will always return true since this 'Promise<boolean>' is always defined.
+src/token/scoring/infrastructure/adapters/default-kol-reputation.adapter.ts(88,9): error TS2365: Operator '+=' cannot be applied to types 'number' and 'Promise<number | null>'.
+---
+
+=== jest ===
+Command: cd apps/backend && npm test -- --silent
+Exit code: 1 (pre-existing failures, see Deviations section 3)
+---
+
+    Require stack:
+      src/token/call-tracking/infrastructure/event-bus/call-published-tracked.handler.ts
+      src/token/call-tracking/infrastructure/event-bus/call-published-tracked.handler.spec.ts
+
+      1 | import { Injectable, Logger } from '@nestjs/common';
+      2 | import { OnEvent } from '@nestjs/event-emitter';
+    > 3 | import { CallPublishedEvent } from 'telegram/shared/domain/events/call-published.event';
+        | ^
+      4 | import { TrackPublishedCallUseCase } from '../../application/handlers/track-published-call.use-case';
+      5 |
+      6 | @Injectable()
+
+      at Resolver._throwModNotFoundError (../../node_modules/jest-resolve/build/index.js:895:11)
+      at Object.<anonymous> (src/token/call-tracking/infrastructure/event-bus/call-published-tracked.handler.ts:3:1)
+      at Object.<anonymous> (src/token/call-tracking/infrastructure/event-bus/call-published-tracked.handler.spec.ts:1:1)
+
+FAIL src/token/call-tracking/application/handlers/track-published-call.use-case.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module 'telegram/shared/application/ports/published-call.repository' from 'src/token/call-tracking/application/handlers/track-published-call.use-case.ts'
+
+    Require stack:
+      src/token/call-tracking/application/handlers/track-published-call.use-case.ts
+      src/token/call-tracking/application/handlers/track-published-call.use-case.spec.ts
+
+      1 | import { Injectable, Logger } from '@nestjs/common';
+      2 | import { ChainId } from 'chain/identity/chain-id.vo';
+    > 3 | import { PublishedCallRepository } from 'telegram/shared/application/ports/published-call.repository';
+        | ^
+      4 | import { TrackedPublishedCall } from '../../domain/entities/tracked-published-call.entity';
+      5 | import { TrackedPublishedCallRepository } from '../ports/tracked-published-call.repository';
+      6 |
+
+      at Resolver._throwModNotFoundError (../../node_modules/jest-resolve/build/index.js:895:11)
+      at Object.<anonymous> (src/token/call-tracking/application/handlers/track-published-call.use-case.ts:3:1)
+      at Object.<anonymous> (src/token/call-tracking/application/handlers/track-published-call.use-case.spec.ts:1:1)
+
+
+Test Suites: 11 failed, 46 passed, 57 total
+Tests:       22 failed, 400 passed, 422 total
+Snapshots:   0 total
+Time:        4.29 s
+npm error Lifecycle script `test` failed with error:
+npm error code 1
+npm error path /Users/bryanstevens/dev/onchain-bot/apps/backend
+npm error workspace @alpha-meta-token-scanner/backend@0.0.1
+npm error location /Users/bryanstevens/dev/onchain-bot/apps/backend
+npm error command failed
+npm error command sh -c jest --silent
+---
+
+
+=== Deviations from task spec ===
+
+1. **rg "telegram-kol-metadata" returns 2 matches (not 0).** Both are in the obsolete
+   apps/backend/src/telegram-kol/ tree slated for deletion in T5:
+   - apps/backend/src/telegram-kol/identity/identity.module.ts:66
+   - apps/backend/src/telegram-kol/identity/infrastructure/persistence/json-resolved-kol-metadata.repository.ts:16
+   **Reason**: Task MUST NOT DO forbids touching apps/backend/src/telegram-kol/identity/identity.module.ts
+   (slated for deletion in T5). The 2nd file was not in MUST NOT DO, but is in the same obsolete tree
+   that T5 will delete via `git rm -rf`. Editing it would create churn that gets undone in T5.
+   These 2 matches will resolve naturally when T5 executes.
+   The spec's `git rm -rf apps/backend/src/telegram-kol/` (T5) is the canonical fix.
+
+2. **tsc --noEmit exit code: 1 (not 0).** 6 pre-existing TypeScript errors exist at HEAD
+   (verified by stashing T3 changes and re-running tsc — same 6 errors):
+   - src/token/call-tracking/infrastructure/default-tracking-filter-seed.service.ts: missing seedDefaultsIfEmpty
+   - src/token/call-tracking/infrastructure/event-bus/call-published-tracked.handler.ts: missing EVENT_NAME
+   - src/token/scoring/infrastructure/adapters/default-kol-reputation.adapter.ts: 4 errors (Promise<boolean> / Promise<number|null>)
+   **Reason**: These errors exist at HEAD and are unrelated to T3 (which only renames string literals).
+   They come from other in-flight branches (settings/call-tracking repos). Fixing them is out of scope for T3.
+
+3. **npm test exit code: 1 (not 0).** Test results: 22 failed, 400 passed, 422 total.
+   **Reason**: Same pre-existing failures as HEAD. Verified by stashing T3 changes — same failures.
+   The 306/306 target from the plan is stale — 116 additional tests added in call-tracking/milestone BCs.
+   None of these failures are in files touched by T3 (T3 only renames string literals; tests pass identically).
+
+4. **Used selective `git add` instead of `git add -A` for the commit.**
+   **Reason**: `git add -A` would include unrelated in-flight files in the working dir
+   (settings service changes, call-tracking new files, milestone spec files,
+   .omo/run-continuation session state, .omo/drafts/ updates) which are NOT part of T3.
+   Commit will stage ONLY the 3 T3 source files + .omo/evidence/task-3-consolidate-telegram-bc.txt
+   to keep the commit scoped to T3 as the commit message claims.

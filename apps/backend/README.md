@@ -10,7 +10,7 @@ Arquitectura hexagonal estricta · 306 tests Jest · Eventos in-process (EventEm
 
 ```
 canal KOL (Telegram MTProto)
-  │  telegram-kol/ingestion
+  │  kol/ingestion
   │  ↓ llamada directa (fix-1 — texto crudo nunca cruza el event bus)
   ▼
 token/intake/extraction       ← regex: CAs, tickers, URLs
@@ -37,7 +37,7 @@ token/scoring                 ← score 0-100 (clasificación + reputación KOL)
 ┌─ token/token-gating (filters) ← gates: score threshold, blacklist, honeypot, etc.
 │  │  emite: filters.token.approved | filters.token.rejected
 │  ▼
-│  telegram-publishing         ← formatea y envía a canales de output via MTProto
+│  telegram/vip-calls-channel  ← formatea y envía a canales de output via MTProto
 │  │  emite: publishing.telegram.published | publishing.telegram.failed
 │  ▼
 │  canal de output (Telegram)
@@ -57,11 +57,11 @@ token/scoring                 ← score 0-100 (clasificación + reputación KOL)
 
 | BC | Módulo | Responsabilidad | Consume | Emite |
 |----|--------|-----------------|---------|-------|
-| `telegram-kol/identity` | `IdentityModule` | CRUD de KOLs, lifecycle (ACTIVE/DORMANT/BLACKLISTED) | — | — |
-| `telegram-kol/ingestion` | `KolIngestionModule` | MTProto listener, orquesta extraction+parsing via direct call | — | `telegram.message.ingested` (obs) |
-| `telegram-kol/reputation` | `ReputationModule` | Reputación por KOL: success rate, avg ATH, confidence | — | — |
-| `telegram-kol/source` | `SourceModule` | Value object de atribución por KOL | — | — |
-| `telegram-kol/stats` | `StatsModule` | Stub (leaderboard, ROI, alpha-callers) | — | — |
+| `kol/identity` | `IdentityModule` | CRUD de KOLs, lifecycle (ACTIVE/DORMANT/BLACKLISTED) | — | — |
+| `kol/ingestion` | `KolIngestionModule` | MTProto listener, orquesta extraction+parsing via direct call | — | `telegram.message.ingested` (obs) |
+| `kol/reputation` | `ReputationModule` | Reputación por KOL: success rate, avg ATH, confidence | — | — |
+| `kol/source` | `SourceModule` | Value object de atribución por KOL | — | — |
+| `kol/stats` | `StatsModule` | Stub (leaderboard, ROI, alpha-callers) | — | — |
 | `token/intake/extraction` | `ExtractionModule` | Extrae CAs, tickers, URLs de texto vía regex | (direct call) | `extraction.candidates.extracted` |
 | `token/intake/parsing` | `ParsingModule` | Parseo heurístico a TokenCall con métricas | (direct call) | `parsing.call.parsed` |
 | `token/normalization` | `NormalizationModule` | Canonical token call (dedup chain+address) | `parsing.call.parsed` | `normalization.call.normalized` |
@@ -74,7 +74,7 @@ token/scoring                 ← score 0-100 (clasificación + reputación KOL)
 | `token/token-gating` | `FiltersModule` | Gates: score threshold, blacklist, honeypot, risk, completeness, chain | `scoring.token.scored` | `filters.token.approved` / `.rejected` |
 | `token/honeypot` | `HoneypotModule` | Análisis heurístico de honeypot (v1 sin simulación) | `scoring.token.scored` | `honeypot.analysis.completed` |
 | `token/call-tracking` | `CallTrackingModule` | Evaluación post-publicación (STRONG/GOOD/NEUTRAL/POOR/FAILED) | `scoring.token.scored` | — |
-| `telegram-publishing` | `PublishingModule` | Formatea y publica a canales output via MTProto | `filters.token.approved` | `publishing.telegram.published` / `.failed` |
+| `telegram/vip-calls-channel` | `VipCallsChannelModule` | Formatea y publica a canales output via MTProto | `filters.token.approved` | `publishing.telegram.published` / `.failed` |
 | `dashboard` | `DashboardModule` | Agregador read-only de KPIs cross-BC | — | — |
 
 > Mapa detallado en [`docs/proyect/BC.md`](docs/proyect/BC.md).
@@ -112,7 +112,7 @@ src/<bc>/
 |---------|-----|
 | `src/app.module.ts` | Root module, importa los 16 BCs |
 | `src/main.ts` | Bootstrap: CORS, ValidationPipe |
-| `src/telegram-kol/ingestion/.../start-kol-ingestion.use-case.ts:75` | Orchestrador: direct calls a extract+parse (fix-1) |
+| `src/kol/ingestion/.../start-kol-ingestion.use-case.ts:75` | Orchestrador: direct calls a extract+parse (fix-1) |
 | `src/shared/kernel/` | DDD primitives: AggregateRoot, Entity, ValueObject, DomainEvent, DomainError |
 | `src/shared/common/persistence/database.module.ts` | TypeORM forRootAsync condicional (DATABASE_ENABLED) |
 | `src/shared/common/config/app.config.ts` | AppConfig con todas las env vars |
@@ -127,7 +127,7 @@ src/<bc>/
 |--------|------|-------------|
 | `GET` | `/` | `AppController.getHello` |
 
-### KOL Identity (`/telegram-kol/identity`)
+### KOL Identity (BC `kol/identity`)
 
 | Método | Path | Uso |
 |--------|------|-----|
@@ -137,7 +137,7 @@ src/<bc>/
 | `POST` | `/kols/:kolId/lifecycle` | Cambiar lifecycle (ACTIVE/DORMANT/BLACKLISTED) |
 | `POST` | `/kols/:kolId/backfill` | Backfill de histórico de mensajes |
 
-### KOL Reputation (`/telegram-kol/reputation`)
+### KOL Reputation (BC `kol/reputation`)
 
 | Método | Path | Uso |
 |--------|------|-----|
@@ -146,7 +146,7 @@ src/<bc>/
 | `GET` | `/kols/:kolId` | Reputación de un KOL |
 | `POST` | `/kols/recompute/:kolId` | Recalcular reputación |
 
-### KOL Stats (`/telegram-kol/stats`) — stub
+### KOL Stats (BC `kol/stats`) — stub
 
 | Método | Path |
 |--------|------|
@@ -194,7 +194,7 @@ src/<bc>/
 | `GET` | `/results/recent` | Resultados recientes |
 | `GET` | `/results/:address` | Resultado por address |
 
-### Telegram Publishing (`/telegram-publishing`)
+### Telegram VIP Calls (`/vip-calls`)
 
 | Método | Path | Uso |
 |--------|------|-----|
@@ -287,7 +287,6 @@ Los tests usan implementaciones in-memory por defecto — `DATABASE_ENABLED` no 
 - **Fix-1 aplicado**: texto crudo eliminado del event bus y persistencia (ToS Telegram)
 - **DashboardModule** agregado para KPIs cross-BC
 - **TypeScript**: error de compilación en `start-kol-ingestion.use-case.ts:106` (tipos de `ContractAddress[]`)
-- **Frontend**: bug en `endpoints.ts` — rutas de publishing usan `/telegram/publishing/` en vez de `/telegram-publishing/`
 
 ---
 

@@ -7,12 +7,12 @@ export const ENDPOINTS = {
     setLifecycle: (id: string) => `/telegram-kol/identity/kols/${id}/lifecycle`,
   },
   publishing: {
-    published: '/telegram-publishing/calls/published',
-    failed: '/telegram-publishing/calls/failed',
-    recent: '/telegram-publishing/calls/recent',
+    published: '/vip-calls/calls/published',
+    failed: '/vip-calls/calls/failed',
+    recent: '/vip-calls/calls/recent',
     byToken: (chain: string, address: string) =>
-      `/telegram-publishing/calls/${chain}/${address}`,
-    publish: '/telegram-publishing/publish',
+      `/vip-calls/calls/${chain}/${address}`,
+    publish: '/vip-calls/publish',
   },
   extraction: {
     extract: '/token/intake/extraction/extract',

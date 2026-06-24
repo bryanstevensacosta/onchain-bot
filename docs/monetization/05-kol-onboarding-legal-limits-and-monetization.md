@@ -156,7 +156,7 @@ Esto maximiza la cobertura legal Y te da un funnel de upgrade a Fast Track.
 
 ## 3. Riesgos legales del sistema de reputación
 
-Tu `telegram-kol/reputation/` y `telegram-kol/stats/` calculan win-rate, ROI,
+Tu `kol/reputation/` y `kol/stats/` calculan win-rate, ROI,
 consistency, etc. Esto crea **3 riesgos legales específicos**:
 
 ### 3.1 Defamation (difamación)
@@ -264,7 +264,7 @@ mensajes desde esas cuentas (solo leer).
 ### 4.4 Configuración operativa segura
 
 ```typescript
-// apps/backend/src/telegram-kol/ingestion/infrastructure/config/scaling.config.ts
+// apps/backend/src/kol/ingestion/infrastructure/config/scaling.config.ts
 
 export const SCALING_CONFIG = {
   // Por cuenta MTProto

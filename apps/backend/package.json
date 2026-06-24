@@ -91,8 +91,6 @@
     "coverageDirectory": "./coverage",
     "testEnvironment": "node",
     "moduleNameMapper": {
-      "^telegram-lib/(.*)$": "<rootDir>/node_modules/telegram/$1",
-      "^telegram-lib$": "<rootDir>/node_modules/telegram/index",
       "^telegram/events$": "<rootDir>/node_modules/telegram/events",
       "^telegram/client$": "<rootDir>/node_modules/telegram/client",
       "^telegram/errors$": "<rootDir>/node_modules/telegram/errors",
@@ -103,11 +101,10 @@
       "^chain/(.*)$": "<rootDir>/src/chain/$1",
       "^token/(.*)$": "<rootDir>/src/token/$1",
 
-      "^telegram-kol/(.*)$": "<rootDir>/src/telegram-kol/$1",
-      "^telegram-publishing/(.*)$": "<rootDir>/src/telegram-publishing/$1",
       "^kol/(.*)$": "<rootDir>/src/kol/$1",
       "^dashboard/(.*)$": "<rootDir>/src/dashboard/$1",
       "^settings/(.*)$": "<rootDir>/src/settings/$1",
+      "^telegram/(?!events$|client$|errors$|tl$|crypto$)(.*)$": "<rootDir>/src/telegram/$1",
       "^src/(.*)$": "<rootDir>/src/$1"
     }
   }

@@ -63,7 +63,7 @@ import type { AppConfig } from 'shared/common/config/app.config';
         const cfg = config.get<AppConfig>('app');
         const filePath =
           cfg?.ingestion?.telegram?.metadataCache?.filePath ??
-          `${process.cwd()}/.cache/telegram-kol-metadata.json`;
+          `${process.cwd()}/.cache/kol-metadata.json`;
         return new JsonResolvedKolMetadataRepository(filePath);
       },
     },

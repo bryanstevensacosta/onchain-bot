@@ -1,3 +1,6 @@
+> ⚠️ **SUPERSEDED** by `consolidate-telegram-bc` plan (`.omo/plans/consolidate-telegram-bc.md`).
+> This document is kept for historical reference. Code references to `telegram-kol/` and `telegram-publishing/` are obsolete — see the current plan for the canonical paths.
+
 # Name Refactor — Plan de renombraciones
 
 > **Estado:** Iteración 2 — discusión de ubicación de `ChannelReputation`

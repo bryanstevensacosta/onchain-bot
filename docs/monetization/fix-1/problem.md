@@ -22,7 +22,7 @@ ordenadas por urgencia.
 
 ### 1.1 Extracción desde Telegram (MTProto)
 
-**Archivo**: `apps/backend/src/telegram-kol/ingestion/api/mtproto/kol-telegram-mtproto.adapter.ts:170,204`
+**Archivo**: `apps/backend/src/kol/ingestion/api/mtproto/kol-telegram-mtproto.adapter.ts:170,204`
 
 ```ts
 // Línea 167–172 (live updates)
@@ -42,7 +42,7 @@ return messages.map((m) => ({
 }));
 ```
 
-**Archivo**: `apps/backend/src/telegram-kol/ingestion/domain/ports/kol-listener.port.ts:47`
+**Archivo**: `apps/backend/src/kol/ingestion/domain/ports/kol-listener.port.ts:47`
 
 ```ts
 export interface RawKolMessage {
@@ -55,7 +55,7 @@ export interface RawKolMessage {
 
 ### 1.2 Propagación por el event bus in-process
 
-**Archivo**: `apps/backend/src/telegram-kol/ingestion/domain/events/kol-message-ingested.event.ts:17-23`
+**Archivo**: `apps/backend/src/kol/ingestion/domain/events/kol-message-ingested.event.ts:17-23`
 
 ```ts
 public readonly payload: {
@@ -399,7 +399,7 @@ la duración del `execute()` (típicamente < 50ms).
 
 ### Fase 5 — Quitar `text` del evento upstream (día 2)
 
-**Archivo**: `apps/backend/src/telegram-kol/ingestion/domain/events/kol-message-ingested.event.ts`
+**Archivo**: `apps/backend/src/kol/ingestion/domain/events/kol-message-ingested.event.ts`
 
 ```diff
  export class KolMessageIngestedEvent extends DomainEvent {
@@ -434,7 +434,7 @@ la duración del `execute()` (típicamente < 50ms).
  }
 ```
 
-**Archivo**: `apps/backend/src/telegram-kol/ingestion/api/mtproto/kol-telegram-mtproto.adapter.ts`
+**Archivo**: `apps/backend/src/kol/ingestion/api/mtproto/kol-telegram-mtproto.adapter.ts`
 
 ```diff
  // Línea 167–172 (live updates)
@@ -467,7 +467,7 @@ entre el listener y el extractor.
 la cadena `ingestion → event bus → extraction handler → extract use case`.
 
 ```ts
-// apps/backend/src/telegram-kol/ingestion/application/handlers/ingest-and-extract.use-case.ts
+// apps/backend/src/kol/ingestion/application/handlers/ingest-and-extract.use-case.ts
 
 @Injectable()
 export class IngestAndExtractUseCase {

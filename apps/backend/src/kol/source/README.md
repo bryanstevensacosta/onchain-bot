@@ -1,4 +1,4 @@
-# Source BC (`telegram-kol/source/`)
+# Source BC (`kol/source/`)
 
 Owns the **attribution** of token mentions to KOLs.
 
@@ -22,4 +22,4 @@ Owns the **attribution** of token mentions to KOLs.
 ## See also
 
 - `kol-refactor.md` at the repo root — the plan that moved this VO out of `token/normalization/`.
-- `telegram-kol/identity/` — owns the `Kol` aggregate referenced by `Source.kolId`.
+- `kol/identity/` — owns the `Kol` aggregate referenced by `Source.kolId`.

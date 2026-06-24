@@ -19,7 +19,7 @@ import { VipCallsModule as TelegramPublishingModule } from 'telegram/vip-calls-c
 import { ChainDexterBotModule } from 'telegram/chain-dexter-bot/chain-dexter-bot.module';
 import { CallTrackingModule } from 'token/call-tracking/call-tracking.module';
 import { MilestoneModule } from 'token/milestone/milestone.module';
-import { ReputationModule } from 'telegram-kol/reputation/reputation.module';
+import { ReputationModule } from 'kol/reputation/reputation.module';
 import { HoneypotModule } from 'token/honeypot/honeypot.module';
 import { IdentityModule } from 'kol/identity/identity.module';
 import { SourceModule } from 'kol/source/source.module';

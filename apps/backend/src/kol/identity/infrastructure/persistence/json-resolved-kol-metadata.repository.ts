@@ -13,7 +13,7 @@ import {
  *   { version: 1, entries: CachedKolMetadata[] }
  *
  * The path is configurable via INGESTION_TELEGRAM_METADATA_CACHE_FILE.
- * Defaults to `<repo-root>/.cache/telegram-kol-metadata.json` so the
+ * Defaults to `<repo-root>/.cache/kol-metadata.json` so the
  * cache survives process restarts but is git-ignored.
  *
  * Concurrency: a per-instance write mutex serializes upserts to avoid

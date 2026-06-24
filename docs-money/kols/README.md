@@ -60,7 +60,7 @@ o `[texto](url)`). Vamos a imitar SU formato porque:
    - ¿URLs a qué servicios? (DexScreener, DexTools, Etherscan, t.me)
    - ¿Tienen un header con formato consistente?
 2. **Mira 5–10 mensajes crudos** en `raw.json` para entender la prosa.
-3. **Diseña tu `MessageFormatterPort`** (`apps/backend/src/telegram-publishing/
+3. **Diseña tu `MessageFormatterPort`** (`apps/backend/src/telegram/vip-calls-channel/
    infrastructure/formatters/default-message-formatter.adapter.ts`) imitando
    ese formato.
 4. **Diseña tu `RegexBasedExtractorAdapter`** (`apps/backend/src/token/intake/

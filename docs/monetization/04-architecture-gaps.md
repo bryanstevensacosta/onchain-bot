@@ -22,8 +22,8 @@
 
 **Archivos clave que tocará cada gap**:
 - `apps/backend/src/shared/common/config/app.config.ts:193` — `botToken` ya en config.
-- `apps/backend/src/telegram-publishing/infrastructure/senders/mtproto-sender.client.ts:1` — MTProto compartido.
-- `apps/backend/src/telegram-kol/ingestion/infrastructure/messaging/` — bus de eventos de ingestion.
+- `apps/backend/src/telegram/shared/infrastructure/senders/mtproto-sender.client.ts:1` — MTProto compartido.
+- `apps/backend/src/kol/ingestion/infrastructure/messaging/` — bus de eventos de ingestion.
 
 ---
 
@@ -224,7 +224,7 @@ metadatos + un link "Source: @tu_canal" al mensaje original.
 **Cambios concretos al código**:
 
 ```typescript
-// ANTES (apps/backend/src/telegram-publishing/domain/value-objects/output-channel.vo.ts:20)
+// ANTES (apps/backend/src/telegram/vip-calls-channel/domain/value-objects/output-channel.vo.ts:20)
 OutputChannel = { channelId, username, tier: 'PRIMARY' | 'SECONDARY' | 'PREMIUM' }
 
 // DESPUÉS
@@ -316,13 +316,13 @@ Lo agregas como línea en `DefaultMessageFormatterAdapter.format()`.
 
 | Componente | Lo que tienes | Lo que falta |
 |---|---|---|
-| KOL leaderboard | 🟡 `telegram-kol/stats/` + `reputation/` | Vista pública (web) |
+| KOL leaderboard | 🟡 `kol/stats/` + `reputation/` | Vista pública (web) |
 | KOL opt-in flow | 🔴 | Bot flow `/track_my_channel` |
 | Cola + Fast Track | 🔴 | Sistema de tickets |
 | Payment | 🔴 | Stars o USDT |
 
 **Reaprovecha mucho**:
-- Tu `KolReputation` (`telegram-kol/reputation/`) ya tiene los datos para el leaderboard.
+- Tu `KolReputation` (`kol/reputation/`) ya tiene los datos para el leaderboard.
 - Tu `KolStats` ya calcula win-rate y ROI.
 
 ---

@@ -28,7 +28,7 @@
 
 | Regla | Por qué | Dónde |
 |---|---|---|
-| **Solo persistir metadatos derivados** (`chainId`, `address`, `ticker`, `score`, `kolId`, `timestamp`, métricas). | *"scraping public group or channel contents"* prohibido — Bot Dev §4.3 [https://telegram.org/tos/bot-developers] | `telegram-kol/ingestion/` |
+| **Solo persistir metadatos derivados** (`chainId`, `address`, `ticker`, `score`, `kolId`, `timestamp`, métricas). | *"scraping public group or channel contents"* prohibido — Bot Dev §4.3 [https://telegram.org/tos/bot-developers] | `kol/ingestion/` |
 | Si necesitas el texto temporalmente para extraer entities, **bórralo después de parsear**. | *"only ... strictly required to operate the relevant service"* — Content Licensing [https://telegram.org/tos/content-licensing] | Pipeline de extraction |
 | Borra datos de un KOL en **≤30 días** si lo pide. | *"Delete user data upon their request"* — Bot Dev §4.2 [https://telegram.org/tos/bot-developers] | Cualquier repo con datos de KOL |
 | Implementa **TTL automático** en `canonical-call` (ej: 90 días hot, después aggregated-only). | Reduce superficie de riesgo GDPR. | Postgres |
@@ -37,7 +37,7 @@
 
 | Regla | Por qué | Dónde |
 |---|---|---|
-| Solo publica en **tus canales de output** (los que TÚ controlas). | Tus canales = tu UGC, sin restricción. | `telegram-publishing/` |
+| Solo publica en **tus canales de output** (los que TÚ controlas). | Tus canales = tu UGC, sin restricción. | `telegram/vip-calls-channel/` |
 | Cada mensaje de tu canal debe **linkear al mensaje original del KOL** ("Source: @kol — ver mensaje original"). | Refuerza que NO estás reproduciendo UGC, estás referenciando. | `DefaultMessageFormatterAdapter` |
 | Marca ads explícitamente: `Sponsored by @proyecto` o `Ad`. | Bot Dev §5.3 — *"you are prohibited from altering or misrepresenting any component... to falsely appear as notifications"* [https://telegram.org/tos/bot-developers] | MessageFormatter |
 | **Nunca publiques mensajes de canales con paywall / Stars-locked** sin pasar por Stars. | Estarías evadiendo el paywall del creator. | Filtro en pipeline |
@@ -98,7 +98,7 @@
 
 ## 3. Patrones de código que te mantienen a salvo
 
-### 3.1 Ingestion (telegram-kol/ingestion/)
+### 3.1 Ingestion (kol/ingestion/)
 
 ```typescript
 // ✅ CORRECTO: extraer entities, descartar texto raw
@@ -125,7 +125,7 @@ async onNewMessage(raw: RawTelegramMessage) {
 }
 ```
 
-### 3.2 Publishing (telegram-publishing/)
+### 3.2 Publishing (telegram/vip-calls-channel/)
 
 ```typescript
 // ✅ CORRECTO: referenciar source, nunca reproducir UGC

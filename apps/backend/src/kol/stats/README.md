@@ -1,4 +1,4 @@
-# Stats BC (`telegram-kol/stats/`)
+# Stats BC (`kol/stats/`)
 
 > **Estado:** stub (Fase 5 del kol-refactor plan). Se completará en fases
 > futuras con datos de uso real.
@@ -18,7 +18,7 @@ Owns los **leaderboards read-only** del autoaprendizaje.
 ## Estado actual (Fase 5)
 
 Por ahora el widget `KolLeaderboard` (en el frontend) consume directamente
-`/telegram-kol/reputation/kols/top`. El endpoint dedicado de stats se
+`/kol/reputation/kols/top`. El endpoint dedicado de stats se
 implementará cuando haya suficientes datos en producción para que las
 agregaciones específicas (per-chain, per-window, ROI-weighted) tengan
 sentido estadístico.

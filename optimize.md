@@ -129,7 +129,7 @@ que ya usa `IdentityModule` para `KolRepository`:
 - Devuelve `typeorm` si `DATABASE_ENABLED=true`, si no `inMemory`.
 
 **Archivos tocados:**
-- `apps/backend/src/telegram-kol/reputation/reputation.module.ts`
+- `apps/backend/src/kol/reputation/reputation.module.ts`
 
 **Verificación.**
 - `npm test -w @alpha-meta-token-scanner/backend` → 280/280 passing
@@ -162,9 +162,9 @@ y cada `getReputation` hacía `await this.statsRepo.findByKol(kolId)`. Con
   3. Calcular promedio in-memory con Map<kolId, stats>.
 
 **Archivos tocados:**
-- `apps/backend/src/telegram-kol/reputation/application/ports/kol-reputation.repository.ts`
-- `apps/backend/src/telegram-kol/reputation/infrastructure/repositories/in-memory-kol-reputation.repository.ts`
-- `apps/backend/src/telegram-kol/reputation/infrastructure/persistence/typeorm/repositories/typeorm-kol-reputation.repository.ts`
+- `apps/backend/src/kol/reputation/application/ports/kol-reputation.repository.ts`
+- `apps/backend/src/kol/reputation/infrastructure/repositories/in-memory-kol-reputation.repository.ts`
+- `apps/backend/src/kol/reputation/infrastructure/persistence/typeorm/repositories/typeorm-kol-reputation.repository.ts`
 - `apps/backend/src/token/scoring/infrastructure/adapters/default-kol-reputation.adapter.ts`
 - `apps/backend/src/token/scoring/infrastructure/adapters/default-kol-reputation.adapter.spec.ts`
 

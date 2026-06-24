@@ -34,7 +34,7 @@
 
 | # | Carpeta / archivo | Qué cubre |
 |---|---|---|
-| 01 | [`01-telegram-tos-summary.md`](./01-telegram-tos-summary.md) | Mapeo ToS ↔ cada fase de tu pipeline (apps/backend/src/telegram-kol/, telegram-publishing/, token/, chain/) |
+| 01 | [`01-telegram-tos-summary.md`](./01-telegram-tos-summary.md) | Mapeo ToS ↔ cada fase de tu pipeline (apps/backend/src/kol/, telegram/vip-calls-channel/, token/, chain/) |
 | 02 | [`02-monetization-options.md`](./02-monetization-options.md) | 8 modelos de negocio viables con pricing reference y análisis de riesgo |
 | 03 | [`03-dos-and-donts.md`](./03-dos-and-donts.md) | Checklist operacional, patrones de código correcto/incorrecto, auto-auditoría mensual |
 | 04 | [`04-architecture-gaps.md`](./04-architecture-gaps.md) | Lo que tienes hoy + lo que falta construir + roadmap técnico en 7 fases |

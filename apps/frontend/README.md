@@ -42,15 +42,15 @@ Navegación sticky en header con 5 links (Dashboard · Live · Tokens · KOLs ·
 
 Proxied via Vite (`/api` → `localhost:3030`).
 
-### KOL Identity / Reputation
+### KOL Identity / Reputation (BCs `kol/identity`, `kol/reputation`)
 
 | Query | Endpoint | Polling |
 |-------|----------|---------|
-| Lista de KOLs | `GET /telegram-kol/identity/kols` | 30s |
-| Reputaciones | `GET /telegram-kol/reputation/kols` | 30s |
-| Top reputaciones | `GET /telegram-kol/reputation/kols/top` | 30s |
-| Set lifecycle | `POST /telegram-kol/identity/kols/:id/lifecycle` | mutation |
-| Backfill | `POST /telegram-kol/ingestion/kols/:id/backfill` | mutation |
+| Lista de KOLs | `GET /kols` | 30s |
+| Reputaciones | `GET /kols` | 30s |
+| Top reputaciones | `GET /kols/top` | 30s |
+| Set lifecycle | `POST /kols/:id/lifecycle` | mutation |
+| Backfill | `POST /kols/:id/backfill` | mutation |
 
 ### Pipeline Data
 
@@ -62,8 +62,8 @@ Proxied via Vite (`/api` → `localhost:3030`).
 | Decisiones recientes | `GET /token/token-gating/decisions/recent` | 5s |
 | Decisiones aprobadas | `GET /token/token-gating/decisions/approved` | 5s |
 | Decisiones rechazadas | `GET /token/token-gating/decisions/rejected` | 5s |
-| Publicaciones exitosas | `GET /telegram-publishing/calls/published` | 5s |
-| Publicaciones fallidas | `GET /telegram-publishing/calls/failed` | 15s |
+| Publicaciones exitosas | `GET /vip-calls/calls/published` | 5s |
+| Publicaciones fallidas | `GET /vip-calls/calls/failed` | 15s |
 | Snapshot por token | `GET /token/market-data/snapshots/:chain/:address` | — |
 | Score por token | `GET /token/scoring/tokens/:chain/:address` | — |
 | Call canónico por token | `GET /token/normalization/tokens/:chain/:address` | — |
@@ -165,7 +165,6 @@ Las siguientes están en `package.json` pero **nunca se importan** en el código
 
 ## 7. Problemas conocidos
 
-- **Publishing endpoints mal escritos**: `endpoints.ts` usa `/telegram/publishing/` pero el backend sirve en `/telegram-publishing/` — las queries de published/failed nunca funcionan
 - **`hace 0s` en LiveFeed**: los eventos scored siempre muestran "hace 0s" (hardcoded, no usa timestamp real)
 - **Tipos duplicados**: `Chain`, `ScoreTier` etc. existen en `entities/` y en `shared/realtime/events.ts` sin compartir
 - **Sin error boundaries**: la app no tiene React Error Boundaries

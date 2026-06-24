@@ -1,4 +1,4 @@
-# Identity BC (`telegram-kol/identity/`)
+# Identity BC (`kol/identity/`)
 
 Owns the **KOL** aggregate — the canonical representation of a Telegram
 Key Opinion Leader that the bot monitors for alpha signals.
@@ -53,5 +53,5 @@ directly from callers.
 ## See also
 
 - `kol-refactor.md` at the repo root — the plan that moved this BC out of `telegram/channels/`.
-- `telegram-kol/ingestion/` — the BC that subscribes to KOLs and produces `KolMessageIngestedEvent`.
-- `telegram-kol/reputation/` — the BC that consumes call outcomes and updates per-KOL reputation.
+- `kol/ingestion/` — the BC that subscribes to KOLs and produces `KolMessageIngestedEvent`.
+- `kol/reputation/` — the BC that consumes call outcomes and updates per-KOL reputation.

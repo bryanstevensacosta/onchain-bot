@@ -139,7 +139,7 @@ Telegram deliberadamente NO publica:
 ### 4.2 FLOOD_WAIT backoff (respeta código 420 oficial)
 
 ```typescript
-// apps/backend/src/telegram-kol/ingestion/infrastructure/config/flood-wait-backoff.ts
+// apps/backend/src/kol/ingestion/infrastructure/config/flood-wait-backoff.ts
 
 import { FloodWaitError } from 'telegram/errors';
 
@@ -249,7 +249,7 @@ if (this.sleepWindow.isAsleep()) {
 ### 4.4 Multi-account sharding (para 46 KOLs actuales)
 
 ```typescript
-// apps/backend/src/telegram-kol/ingestion/infrastructure/config/sharding.config.ts
+// apps/backend/src/kol/ingestion/infrastructure/config/sharding.config.ts
 
 export const SHARDING_CONFIG = {
   // 46 KOLs ÷ ~20 KOLs/cuenta conservadora = 3 cuentas mínimo

@@ -1,4 +1,4 @@
-# Reputation BC (`telegram-kol/reputation/`)
+# Reputation BC (`kol/reputation/`)
 
 The **heart of the autoaprendizaje** loop. Owns the per-KOL reputation
 aggregate that the scoring BC consumes as a multiplier.
@@ -51,10 +51,10 @@ The aggregate is recomputed by `recomputeKolReputation(kolId, perfs)`
 
 - `token/scoring/` — injects `KolReputationRepository` + `KnownKolPort`
   via `DefaultKolReputationAdapter` (replaces `DefaultChannelReputationAdapter`).
-- `telegram-kol/stats/` (Fase 5) — read-only leaderboards.
+- `kol/stats/` (Fase 5) — read-only leaderboards.
 
 ## See also
 
 - `kol-refactor.md` at the repo root — the plan that moved this BC out of `token/channel-reputation/`.
-- `telegram-kol/identity/` — owns the `Kol` aggregate that this BC scores.
+- `kol/identity/` — owns the `Kol` aggregate that this BC scores.
 - `token/call-tracking/` — produces the `CallPerformance` stream that drives recompute.

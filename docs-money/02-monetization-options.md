@@ -12,10 +12,10 @@ Tu pipeline produce **metadatos derivados** (contract addr, ticker, score, métr
 KOL source). Eso es lo que monetizas, no el texto crudo. Esa distinción es la
 que te mantiene en zona legal.
 
-Tus canales de output (`telegram-publishing/`) son canales que TÚ controlas →
+Tus canales de output (`telegram/vip-calls-channel/`) son canales que TÚ controlas →
 publicar ahí es tu UGC, sin problema legal.
 
-Tu ingestion (`telegram-kol/ingestion/`) NO se usa para mandar mensajes, solo para
+Tu ingestion (`kol/ingestion/`) NO se usa para mandar mensajes, solo para
 leer → uso legítimo de user.
 
 **Tu producto, traducido a una frase**: *"Servicio de alertas cripto generado a
@@ -58,7 +58,7 @@ publicidad en el feed.
 **Lo que ya tienes a favor**:
 - Tu pipeline ya filtra y puntúa (`reputation/`, `stats/`) → el "premium" es
   filtros avanzados sobre tu data actual.
-- Tu `telegram-publishing/` ya sabe emitir mensajes formateados → un canal premium
+- Tu `telegram/vip-calls-channel/` ya sabe emitir mensajes formateados → un canal premium
   es una variación de tier (PRIMARY/SECONDARY/PREMIUM) que en vez de publicar
   público publica a un chat privado del suscriptor.
 
@@ -110,7 +110,7 @@ No es un digital good in-bot → no estás obligado a Stars.
 
 **Lo que ya tienes a favor**:
 - Tu `PublishedCall` ya tiene audit trail de qué canales se publicaron
-  (`telegram-publishing/domain/entities/published-call.entity.ts:42`).
+  (`telegram/vip-calls-channel/domain/entities/published-call.entity.ts:42`).
 - Tu `OutputChannelResolverPort` ya soporta tier + score (`output-channel.vo.ts:56-60`).
 - Solo necesitas un nuevo adapter que publique a un `chatId` variable (el del
   grupo del proyecto cliente) en vez de tus canales fijos.
@@ -151,7 +151,7 @@ del mensaje de alerta, mensajes "Sponsored" dedicados).
 ⚠️ Cada ad debe estar claramente etiquetada como "Sponsored" o "Ad".
 
 **Lo que ya tienes a favor**:
-- Tu `DefaultMessageFormatterAdapter` (`telegram-publishing/infrastructure/
+- Tu `DefaultMessageFormatterAdapter` (`telegram/vip-calls-channel/infrastructure/
 formatters/default-message-formatter.adapter.ts`) ya estructura el mensaje →
   añadir un footer "Sponsored by @proyecto" es trivial.
 - Tus canales de output ya tienen audiencia acumulada de KOLs y followers.
@@ -216,7 +216,7 @@ la cola de review.
 - Si cobras en USDT: servicio fuera de Telegram (Bot Dev §6.1).
 
 **Lo que ya tienes a favor**:
-- Tu `telegram-kol/identity/` + `reputation/` + `stats/` ya calcula todo lo
+- Tu `kol/identity/` + `kol/reputation/` + `kol/stats/` ya calcula todo lo
   necesario para el leaderboard.
 
 **Lo que necesitas construir**:

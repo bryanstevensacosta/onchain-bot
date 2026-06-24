@@ -727,7 +727,7 @@ describe('Postgres schema compliance', () => {
 ### E.4 Test: eventos sin text
 
 ```ts
-// apps/backend/src/telegram-kol/ingestion/domain/events/kol-message-ingested.event.spec.ts (nuevo)
+// apps/backend/src/kol/ingestion/domain/events/kol-message-ingested.event.spec.ts (nuevo)
 
 describe('KolMessageIngestedEvent compliance', () => {
   it('payload does not contain text', () => {
