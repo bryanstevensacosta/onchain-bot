@@ -4,7 +4,7 @@ import { CanonicalTokenCallRepository } from 'token/normalization/application/po
 import { FilterDecisionRepository } from 'token/token-gating/application/ports/filter-decision.repository';
 import { PublishedCallRepository } from 'telegram/shared';
 import type { DashboardKpis } from '../ports/dashboard-kpis.port';
-import type { DashboardKpisCachePort } from '../ports/dashboard-kpis-cache.port';
+import { DashboardKpisCachePort } from '../ports/dashboard-kpis-cache.port';
 
 /**
  * Composes the dashboard KPI snapshot from the four source BCs.
