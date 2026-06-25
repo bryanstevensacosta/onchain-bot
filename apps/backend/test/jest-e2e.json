@@ -5,5 +5,17 @@
   "testRegex": ".e2e-spec.ts$",
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    "^telegram/sessions$": "<rootDir>/../node_modules/telegram/sessions/index.js",
+    "^telegram/events$": "<rootDir>/../node_modules/telegram/events/index.js",
+    "^telegram/(.*)$": "<rootDir>/src/telegram/$1",
+    "^shared/(.*)$": "<rootDir>/src/shared/$1",
+    "^chain/(.*)$": "<rootDir>/src/chain/$1",
+    "^token/(.*)$": "<rootDir>/src/token/$1",
+    "^kol/(.*)$": "<rootDir>/src/kol/$1",
+    "^dashboard/(.*)$": "<rootDir>/src/dashboard/$1",
+    "^settings/(.*)$": "<rootDir>/src/settings/$1",
+    "^src/(.*)$": "<rootDir>/src/$1"
   }
 }

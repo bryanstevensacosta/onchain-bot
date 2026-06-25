@@ -80,7 +80,7 @@
       "ts"
     ],
     "rootDir": ".",
-    "testRegex": ".*\\.(e2e-)?spec\\.ts$",
+    "testRegex": ".*\\.spec\\.ts$",
     "setupFiles": ["<rootDir>/jest.setup.ts"],
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
@@ -91,11 +91,9 @@
     "coverageDirectory": "./coverage",
     "testEnvironment": "node",
     "moduleNameMapper": {
-      "^telegram/events$": "<rootDir>/node_modules/telegram/events",
-      "^telegram/client$": "<rootDir>/node_modules/telegram/client",
-      "^telegram/errors$": "<rootDir>/node_modules/telegram/errors",
-      "^telegram/tl$": "<rootDir>/node_modules/telegram/tl",
-      "^telegram/crypto$": "<rootDir>/node_modules/telegram/crypto",
+      "^telegram/events$": "<rootDir>/../../node_modules/telegram/events/index",
+      "^telegram/sessions$": "<rootDir>/../../node_modules/telegram/sessions/index",
+      "^telegram/(.*)$": "<rootDir>/src/telegram/$1",
       "^shared/(.*)$": "<rootDir>/src/shared/$1",
       "^discovery/(.*)$": "<rootDir>/src/discovery/$1",
       "^chain/(.*)$": "<rootDir>/src/chain/$1",
@@ -104,7 +102,6 @@
       "^kol/(.*)$": "<rootDir>/src/kol/$1",
       "^dashboard/(.*)$": "<rootDir>/src/dashboard/$1",
       "^settings/(.*)$": "<rootDir>/src/settings/$1",
-      "^telegram/(?!events$|client$|errors$|tl$|crypto$)(.*)$": "<rootDir>/src/telegram/$1",
       "^src/(.*)$": "<rootDir>/src/$1"
     }
   }
