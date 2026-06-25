@@ -180,6 +180,19 @@ export class SettingsService {
     return { strong, decent, neutral, risky };
   }
 
+  async getKolReputationThresholds(): Promise<{
+    unknown: number;
+    trusted: number;
+    suspicious: number;
+  }> {
+    const [unknown, trusted, suspicious] = await Promise.all([
+      this.getFilterNumericValue('kol_reputation_unknown', 0.5, 'global'),
+      this.getFilterNumericValue('kol_reputation_trusted', 0.7, 'global'),
+      this.getFilterNumericValue('kol_reputation_suspicious', 0.3, 'global'),
+    ]);
+    return { unknown, trusted, suspicious };
+  }
+
   async getScoringBonusTiers(): Promise<ScoringBonusTiers> {
     const [
       liquidityThresholdHigh,

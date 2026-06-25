@@ -1,10 +1,17 @@
 import { ValueObject } from 'shared/kernel/value-object';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 
+export type KolReputationThresholds = {
+  readonly unknown: number;
+  readonly trusted: number;
+  readonly suspicious: number;
+};
+
 interface KolReputationSummaryProps {
   readonly kolId: string;
   readonly score: number; // 0..1
   readonly mentionCount: number;
+  readonly thresholds: KolReputationThresholds;
 }
 
 /**
@@ -15,9 +22,15 @@ interface KolReputationSummaryProps {
  * `mentionCount` to compute its multiplier; the full per-outcome
  * breakdown lives in the reputation BC.
  *
+ * Thresholds (`trusted` ≥, `suspicious` ≤) are stored on the VO at
+ * construction time so `isTrusted()`/`isSuspicious()` remain pure
+ * (no settings dependency at the call site). Callers must read
+ * `KolReputationThresholds` from `SettingsService.getKolReputationThresholds()`
+ * and pass it in.
+ *
  * `score` 0..1:
  * - 0.9+ : well-known, accurate (e.g., "spydefi")
- * - 0.5  : default for unknown KOLs
+ * - `thresholds.unknown` : default for unknown KOLs (typically 0.5)
  * - 0.1  : known spammer / unreliable
  */
 export class KolReputationSummary extends ValueObject<KolReputationSummaryProps> {
@@ -29,6 +42,7 @@ export class KolReputationSummary extends ValueObject<KolReputationSummaryProps>
     kolId: string;
     score: number;
     mentionCount?: number;
+    thresholds: KolReputationThresholds;
   }): KolReputationSummary {
     if (!input.kolId) {
       throw new DomainError(ErrorCode.VALIDATION, `kolId cannot be empty`);
@@ -44,11 +58,20 @@ export class KolReputationSummary extends ValueObject<KolReputationSummaryProps>
       kolId: input.kolId,
       score: input.score,
       mentionCount: input.mentionCount ?? 0,
+      thresholds: input.thresholds,
     });
   }
 
-  public static unknown(kolId: string): KolReputationSummary {
-    return new KolReputationSummary({ kolId, score: 0.5, mentionCount: 0 });
+  public static unknown(
+    kolId: string,
+    thresholds: KolReputationThresholds,
+  ): KolReputationSummary {
+    return new KolReputationSummary({
+      kolId,
+      score: thresholds.unknown,
+      mentionCount: 0,
+      thresholds,
+    });
   }
 
   public get kolId(): string {
@@ -62,10 +85,10 @@ export class KolReputationSummary extends ValueObject<KolReputationSummaryProps>
   }
 
   public isTrusted(): boolean {
-    return this.props.score >= 0.7;
+    return this.props.score >= this.props.thresholds.trusted;
   }
 
   public isSuspicious(): boolean {
-    return this.props.score <= 0.3;
+    return this.props.score <= this.props.thresholds.suspicious;
   }
 }

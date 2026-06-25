@@ -3,6 +3,7 @@ import { KolReputationSummary } from 'token/scoring/domain/value-objects/kol-rep
 import { KolReputationPort } from 'token/scoring/domain/ports/kol-reputation.port';
 import { KolReputationRepository } from 'kol/reputation/application/ports/kol-reputation.repository';
 import { KnownKolPort } from 'kol/reputation/application/ports/known-kol.port';
+import { SettingsService } from 'settings/application/services/settings.service';
 
 /**
  * KOL reputation adapter.
@@ -33,14 +34,21 @@ export class DefaultKolReputationAdapter extends KolReputationPort {
   public constructor(
     private readonly statsRepo: KolReputationRepository,
     private readonly knownKol: KnownKolPort,
+    private readonly settings: SettingsService,
   ) {
     super();
   }
 
   public async getReputation(kolId: string): Promise<KolReputationSummary> {
+    const thresholds = await this.settings.getKolReputationThresholds();
     if (await this.knownKol.isBad(kolId)) {
       return await Promise.resolve(
-        KolReputationSummary.create({ kolId, score: 0.1, mentionCount: 0 }),
+        KolReputationSummary.create({
+          kolId,
+          score: 0.1,
+          mentionCount: 0,
+          thresholds,
+        }),
       );
     }
     const goodScore = await this.knownKol.getGoodScore(kolId);
@@ -50,6 +58,7 @@ export class DefaultKolReputationAdapter extends KolReputationPort {
           kolId,
           score: goodScore,
           mentionCount: 0,
+          thresholds,
         }),
       );
     }
@@ -60,17 +69,21 @@ export class DefaultKolReputationAdapter extends KolReputationPort {
           kolId,
           score: stats.score,
           mentionCount: stats.totalCalls,
+          thresholds,
         }),
       );
     }
     this.logger.debug(`Unknown kol, default reputation: ${kolId}`);
-    return await Promise.resolve(KolReputationSummary.unknown(kolId));
+    return await Promise.resolve(
+      KolReputationSummary.unknown(kolId, thresholds),
+    );
   }
 
   public async getAverageReputation(
     kolIds: ReadonlyArray<string>,
   ): Promise<number> {
-    if (kolIds.length === 0) return 0.5;
+    const thresholds = await this.settings.getKolReputationThresholds();
+    if (kolIds.length === 0) return thresholds.unknown;
 
     // Partition using the sync KnownKolPort first to avoid DB hits for
     // KOLs whose score is statically known.
@@ -100,12 +113,12 @@ export class DefaultKolReputationAdapter extends KolReputationPort {
         if (stats && stats.confidence !== 'LOW' && stats.totalCalls > 0) {
           sum += stats.score;
         } else {
-          sum += 0.5; // neutral default for unknown
+          sum += thresholds.unknown;
         }
         counted += 1;
       }
     }
 
-    return counted === 0 ? 0.5 : sum / counted;
+    return counted === 0 ? thresholds.unknown : sum / counted;
   }
 }

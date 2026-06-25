@@ -2,6 +2,20 @@ import { DefaultKolReputationAdapter } from 'token/scoring/infrastructure/adapte
 import { KolReputationRepository } from 'kol/reputation/application/ports/kol-reputation.repository';
 import { KnownKolPort } from 'kol/reputation/application/ports/known-kol.port';
 import { KolReputation } from 'kol/reputation/domain/value-objects/kol-reputation.vo';
+import { SettingsService } from 'settings/application/services/settings.service';
+
+class FakeSettings extends SettingsService {
+  public constructor() {
+    super({} as never);
+  }
+  public async getKolReputationThresholds(): Promise<{
+    unknown: number;
+    trusted: number;
+    suspicious: number;
+  }> {
+    return { unknown: 0.5, trusted: 0.7, suspicious: 0.3 };
+  }
+}
 
 class FakeStatsRepo extends KolReputationRepository {
   public stats = new Map<string, KolReputation>();
@@ -45,12 +59,14 @@ class FakeKnownKol extends KnownKolPort {
 describe('DefaultKolReputationAdapter', () => {
   let repo: FakeStatsRepo;
   let known: FakeKnownKol;
+  let settings: FakeSettings;
   let adapter: DefaultKolReputationAdapter;
 
   beforeEach(() => {
     repo = new FakeStatsRepo();
     known = new FakeKnownKol();
-    adapter = new DefaultKolReputationAdapter(repo, known);
+    settings = new FakeSettings();
+    adapter = new DefaultKolReputationAdapter(repo, known, settings);
   });
 
   it('returns high reputation for SpyDefi (known good)', async () => {
