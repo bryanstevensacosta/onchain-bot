@@ -169,7 +169,7 @@ describe('ScoreTokenUseCase', () => {
           description: 'low liq, no holders',
         },
       ],
-      liquidityUsd: 5_000,
+      liquidityUsd: 4_500,
       marketCapUsd: 100_000,
       volume24hUsd: 10_000,
       holders: 100,
