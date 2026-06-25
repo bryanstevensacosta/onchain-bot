@@ -257,10 +257,15 @@ telegram/vip-calls-channel/MilestoneReachedHandler
 
 **Verificación final**:
 - backend tsc --noEmit: **0 errors**
-- backend jest: **454/454 tests pass** (1 suite fails to LOAD — e2e documented)
+- backend jest: **448/448 tests pass**, 0 failures (e2e excluded, run with `jest --config test/jest-e2e.json`)
 - frontend tsc --noEmit: **0 errors**
 - frontend vitest: **53/53 tests pass**
 - working tree: **CLEAN** (no untracked, no modified)
+
+**E2e fix (commit `63fb12e`)** — the previously-documented gramJS/Jest incompatibility is RESOLVED:
+- Root cause: the `telegram` npm package is hoisted to the REPO ROOT `node_modules/`, but the moduleNameMapper used `<rootDir>/node_modules/...` which resolved to the empty `apps/backend/node_modules/`
+- Fix: use `<rootDir>/../../node_modules/...` to reach the repo root
+- Also excluded `.e2e-spec.ts` from the main testRegex (e2e needs a real Postgres)
 
 ---
 
