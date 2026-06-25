@@ -16,9 +16,10 @@ import { VipCallsPublishUseCase } from './application/handlers/vip-calls-publish
 import { VipCallsListPublishedUseCase } from './application/handlers/vip-calls-list-published.use-case';
 import { VipCallsController } from './api/http/vip-calls.controller';
 import { MilestoneReachedHandler } from './infrastructure/event-bus/milestone-reached.handler';
+import { SettingsModule } from 'settings/settings.module';
 
 @Module({
-  imports: [HttpModule, ChainRegistryModule],
+  imports: [HttpModule, ChainRegistryModule, SettingsModule],
   controllers: [VipCallsController],
   providers: [
     VipCallsPublishUseCase,

@@ -39,6 +39,7 @@ import { CTokenChartHandler } from './application/handlers/commands/c-token-char
 import { CcChartOnlyHandler } from './application/handlers/commands/cc-chart-only.handler';
 import { TbTradeButtonsHandler } from './application/handlers/commands/tb-trade-buttons.handler';
 import { SettingsViewHandler } from './application/handlers/commands/settings-view.handler';
+import { SettingsModule } from 'settings/settings.module';
 import type { AppConfig } from 'shared/common/config/app.config';
 
 @Module({
@@ -46,6 +47,7 @@ import type { AppConfig } from 'shared/common/config/app.config';
     HttpModule,
     ChainDetectionModule,
     ChainExplorerModule,
+    SettingsModule,
     ...(isDatabaseEnabled()
       ? [TypeOrmModule.forFeature([ChatGroupEntity, ChatSettingsEntity])]
       : []),

@@ -16,6 +16,7 @@ import { InProcessScoringEventPublisher } from 'token/scoring/infrastructure/mes
 import { TokenClassifiedHandler } from 'token/scoring/infrastructure/event-bus/token-classified.handler';
 import { ScoringController } from 'token/scoring/api/http/scoring.controller';
 import { ReputationModule } from 'kol/reputation/reputation.module';
+import { SettingsModule } from 'settings/settings.module';
 
 /**
  * Scoring BC module.
@@ -36,6 +37,7 @@ import { ReputationModule } from 'kol/reputation/reputation.module';
 @Module({
   imports: [
     ReputationModule,
+    SettingsModule,
     ...(isDatabaseEnabled()
       ? [TypeOrmModule.forFeature([TokenScoreEntity])]
       : []),
