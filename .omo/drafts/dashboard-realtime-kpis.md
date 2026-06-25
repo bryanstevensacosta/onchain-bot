@@ -1,8 +1,8 @@
 ---
 slug: dashboard-realtime-kpis
-status: plan-written
+status: done
 intent: clear
-pending-action: awaiting $start-work (or high-accuracy review opt-in)
+pending-action: none
 approach: One plan, 3 sequential phases (Fix #0 wire-up → Phase 1 in-memory TTL cache → Phase 2 WebSocket push + missedSince). Reuses existing infra (WsGateway, useEventStream, RedisModule-global, EventEmitter2-global). Zero new npm packages. Plan file at .omo/plans/dashboard-realtime-kpis.md (386 lines, 15 tasks: 11 main + 4 final-verification).
 ---
 
@@ -12,9 +12,26 @@ approach: One plan, 3 sequential phases (Fix #0 wire-up → Phase 1 in-memory TT
 
 | id | outcome | status | evidence |
 |---|---|---|---|
-| C1 | Wire dashboard BC → frontend. `KpiCards` consumes `/dashboard/kpis` via TanStack Query. Fixes `publishedCount=0` side-effect (the wrong `/vip-calls/...` URLs in `endpoints.ts:10-15` are no longer reached). | active | `apps/frontend/src/widgets/kpi-cards/ui/kpi-cards.tsx:9-12` (current 4 calls); `apps/backend/src/dashboard/dashboard.module.ts` (BC exists, endpoint exists) |
-| C2 | 1s in-memory TTL cache for `DashboardKpis`. New `DashboardKpisCachePort` + `InMemoryDashboardKpisCacheRepository`. `GetDashboardKpisUseCase.execute` reads cache first. | active | `apps/backend/src/dashboard/application/handlers/get-dashboard-kpis.use-case.ts:26-46` (current execute body); `apps/backend/src/chain/detection/infrastructure/repositories/in-memory-chain-detection.repository.ts:6-36` (in-memory pattern reference) |
-| C3 | WebSocket push. Dashboard BC subscribes to 4 pipeline events (`normalization.call.normalized`, `filters.token.approved`, `filters.token.rejected`, `publishing.telegram.published`); emits new `KpisUpdatedEvent`; gateway maps it to `dashboard.kpis.updated`; frontend `useDashboardKpis` hook subscribes via `useEventStream` + 30s polling backstop. `WsGateway.handleConnection` populates `missedSince` with the timestamp of the last forwarded event. | active | `apps/backend/src/shared/ws/gateway/ws.gateway.ts:24-115` (gateway + EVENT_MAP); `apps/frontend/src/shared/realtime/use-event-stream.ts:5-19` (hook); `apps/frontend/src/shared/realtime/events.ts:117-136` (ServerHello + WS_EVENTS) |
+| C1 | Wire dashboard BC → frontend. `KpiCards` consumes `/dashboard/kpis` via TanStack Query. Fixes `publishedCount=0` side-effect (the wrong `/vip-calls/...` URLs in `endpoints.ts:10-15` are no longer reached). | done | commit `a9d9d7c` (feat(frontend): wire dashboard BC via useDashboardKpis) |
+| C2 | 1s in-memory TTL cache for `DashboardKpis`. New `DashboardKpisCachePort` + `InMemoryDashboardKpisCacheRepository`. `GetDashboardKpisUseCase.execute` reads cache first. | done | commit `fe4f420` (feat(dashboard): 1s in-memory TTL cache for DashboardKpis); `apps/backend/src/dashboard/application/handlers/get-dashboard-kpis.use-case.ts`; `apps/backend/src/dashboard/infrastructure/repositories/in-memory-dashboard-kpis-cache.repository.ts` |
+| C3 | WebSocket push. Dashboard BC subscribes to 4 pipeline events (`normalization.call.normalized`, `filters.token.approved`, `filters.token.rejected`, `publishing.telegram.published`); emits new `KpisUpdatedEvent`; gateway maps it to `dashboard.kpis.updated`; frontend `useDashboardKpis` hook subscribes via `useEventStream` + 30s polling backstop. `WsGateway.handleConnection` populates `missedSince` with the timestamp of the last forwarded event. | done | commits `9e7c212` (C3 3a: invalidate + emit `KpisUpdatedEvent`) + `6c9ec82` (C3 3b: WsGateway + useEventStream); `apps/backend/src/dashboard/application/services/refresh-kpis.service.ts`; `apps/backend/src/shared/ws/gateway/ws.gateway.ts`; `apps/frontend/src/entities/dashboard/model/use-dashboard-kpis.ts`; `apps/frontend/src/shared/realtime/events.ts` |
+
+## Completed commits
+
+| sha | phase | summary |
+|---|---|---|
+| `a9d9d7c` | C1 | feat(frontend): wire dashboard BC via useDashboardKpis (1 call vs 4) |
+| `fe4f420` | C2 | feat(dashboard): 1s in-memory TTL cache for DashboardKpis |
+| `9e7c212` | C3 3a | feat(dashboard): invalidate cache + emit KpisUpdatedEvent on pipeline events |
+| `6c9ec82` | C3 3b | feat(dashboard): wire WsGateway + useEventStream for live KPI updates |
+
+## Final verification
+
+- Backend `tsc --noEmit`: 0 errors
+- Backend `jest`: 58 suites / 449 tests pass
+- Frontend `tsc --noEmit`: 0 errors
+- Frontend `vitest`: 4 files / 53 tests pass
+- Update latency: <1s end-to-end (was 5s polling)
 
 ## Open assumptions (announced defaults)
 
