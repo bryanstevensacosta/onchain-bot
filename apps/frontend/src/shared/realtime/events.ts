@@ -120,6 +120,10 @@ export interface ServerHello {
   bufferedCount: number;
 }
 
+export interface KpisUpdatedPayload {
+  updatedAt: string;
+}
+
 export const WS_EVENTS = {
   Hello: 'hello',
   MessageIngested: 'telegram.message.ingested',
@@ -133,6 +137,7 @@ export const WS_EVENTS = {
   PublishingPublished: 'publishing.telegram.published',
   PublishingFailed: 'publishing.telegram.failed',
   AnalyticsCompleted: 'analytics.evaluation.completed',
+  DashboardKpisUpdated: 'dashboard.kpis.updated',
 } as const;
 
 export type WsEventName = (typeof WS_EVENTS)[keyof typeof WS_EVENTS];

@@ -54,7 +54,11 @@ export class WsGateway
     'filters.token.rejected': 'token-gating.decision.applied',
     'publishing.telegram.published': 'publishing.telegram.published',
     'publishing.telegram.failed': 'publishing.telegram.failed',
+    'dashboard.kpis.updated': 'dashboard.kpis.updated',
   };
+
+  /** Timestamp of the last event forwarded by this gateway (any event). */
+  private lastEventAt: string | null = null;
 
   public constructor(private readonly eventEmitter: EventEmitter2) {}
 
@@ -74,10 +78,9 @@ export class WsGateway
 
   public handleConnection(client: Socket): void {
     this.logger.debug(`Client connected: ${client.id}`);
-    // Emitir evento hello al conectar
     client.emit('hello', {
       serverTime: new Date().toISOString(),
-      missedSince: null,
+      missedSince: this.lastEventAt,
       bufferedCount: 0,
     });
   }
@@ -111,6 +114,7 @@ export class WsGateway
 
     // Broadcast a todos los clientes conectados
     this.server.emit(wsEvent, payload);
+    this.lastEventAt = new Date().toISOString();
     this.logger.debug(`Broadcast event ${wsEvent} for ${event.aggregateId}`);
   }
 }
