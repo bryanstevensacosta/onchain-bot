@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { isDatabaseEnabled } from 'shared/common/persistence/database.module';
+import { MilestoneModule } from 'token/milestone/milestone.module';
+import { SettingsModule } from 'settings/settings.module';
 import { CallEvaluationJobRepository } from 'token/call-tracking/application/ports/call-evaluation-job.repository';
 import { CallPerformanceRepository } from 'token/call-tracking/application/ports/call-performance.repository';
 import { CallOutcomeEvaluatorPort } from 'token/call-tracking/domain/ports/call-outcome-evaluator.port';
@@ -17,36 +19,63 @@ import { TypeOrmCallEvaluationJobRepository } from 'token/call-tracking/infrastr
 import { DexScreenerCallOutcomeEvaluatorAdapter } from 'token/call-tracking/infrastructure/adapters/dexscreener-call-outcome-evaluator.adapter';
 import { BackgroundEvaluationScheduler } from 'token/call-tracking/infrastructure/scheduling/background-evaluation.scheduler';
 import { CallTrackingController } from 'token/call-tracking/api/http/call-tracking.controller';
+import { TrackedPublishedCallRepository } from 'token/call-tracking/application/ports/tracked-published-call.repository';
+import { TrackPublishedCallUseCase } from 'token/call-tracking/application/handlers/track-published-call.use-case';
+import { ListTrackedCallsUseCase } from 'token/call-tracking/application/handlers/list-tracked-calls.use-case';
+import { GetTrackedCallUseCase } from 'token/call-tracking/application/handlers/get-tracked-call.use-case';
+import { CanRepublishTokenUseCase } from 'token/call-tracking/application/handlers/can-republish-token.use-case';
+import { UpdateTrackedCallsUseCase } from 'token/call-tracking/application/handlers/update-tracked-calls.use-case';
+import { InMemoryTrackedPublishedCallRepository } from 'token/call-tracking/infrastructure/repositories/in-memory-tracked-published-call.repository';
+import { TrackedPublishedCallOrmEntity } from 'token/call-tracking/infrastructure/persistence/typeorm/entities/tracked-published-call.entity';
+import { TypeOrmTrackedPublishedCallRepository } from 'token/call-tracking/infrastructure/persistence/typeorm/repositories/typeorm-tracked-published-call.repository';
+import { TrackingCronScheduler } from 'token/call-tracking/infrastructure/scheduling/tracking-cron.scheduler';
+import { CallPublishedTrackedHandler } from 'token/call-tracking/infrastructure/event-bus/call-published-tracked.handler';
+import { DefaultTrackingFilterSeedService } from 'token/call-tracking/infrastructure/default-tracking-filter-seed.service';
+import { TrackedCallsController } from 'token/call-tracking/api/http/tracked-calls.controller';
 
 /**
  * Call Tracking BC module.
  *
- * Evaluates whether published token calls turned out well (STRONG/GOOD/NEUTRAL/POOR/FAILED).
+ * Two responsibilities:
+ * 1. Evaluates whether published token calls turned out well
+ *    (STRONG/GOOD/NEUTRAL/POOR/FAILED) via `CallPerformance` + `CallEvaluationJob`.
+ * 2. Tracks published calls for milestone detection: creates
+ *    `TrackedPublishedCall` on `publishing.telegram.published`,
+ *    updates `mcNow` + `milestonesHit` via the tracking cron,
+ *    and exposes the tracked-calls API + gate-allow check.
  *
- * Inputs: `TokenScoredEvent` (from `token/scoring/`) triggers job enqueue.
- * Outputs: `CallPerformance` records, `CallEvaluationJob` jobs.
+ * Inputs: `TokenScoredEvent` (enqueue), `CallPublishedEvent` (track).
+ * Outputs: `CallPerformance`, `CallEvaluationJob`, `TrackedPublishedCall`,
+ *          `milestone.call.reached` (via MilestoneModule).
  *
  * Extracted from `token/analytics/` (N3 in name-refactor.md).
- *
- * N18: CallPerformance + CallEvaluationJob persisted via TypeORM (Tier-2).
+ * N18: persisted via TypeORM (Tier-2).
  */
 @Module({
   imports: [
+    MilestoneModule,
+    SettingsModule,
     ...(isDatabaseEnabled()
       ? [
           TypeOrmModule.forFeature([
             CallPerformanceEntity,
             CallEvaluationJobEntity,
+            TrackedPublishedCallOrmEntity,
           ]),
         ]
       : []),
   ],
-  controllers: [CallTrackingController],
+  controllers: [CallTrackingController, TrackedCallsController],
   providers: [
     InMemoryCallEvaluationJobRepository,
     InMemoryCallPerformanceRepository,
+    InMemoryTrackedPublishedCallRepository,
     ...(isDatabaseEnabled()
-      ? [TypeOrmCallEvaluationJobRepository, TypeOrmCallPerformanceRepository]
+      ? [
+          TypeOrmCallEvaluationJobRepository,
+          TypeOrmCallPerformanceRepository,
+          TypeOrmTrackedPublishedCallRepository,
+        ]
       : []),
     {
       provide: CallEvaluationJobRepository,
@@ -71,6 +100,19 @@ import { CallTrackingController } from 'token/call-tracking/api/http/call-tracki
       ): CallPerformanceRepository => typeorm ?? inMemory,
     },
     {
+      provide: TrackedPublishedCallRepository,
+      inject: [
+        InMemoryTrackedPublishedCallRepository,
+        ...(isDatabaseEnabled()
+          ? [TypeOrmTrackedPublishedCallRepository]
+          : []),
+      ],
+      useFactory: (
+        inMemory: InMemoryTrackedPublishedCallRepository,
+        typeorm?: TypeOrmTrackedPublishedCallRepository,
+      ): TrackedPublishedCallRepository => typeorm ?? inMemory,
+    },
+    {
       provide: CallOutcomeEvaluatorPort,
       useClass: DexScreenerCallOutcomeEvaluatorAdapter,
     },
@@ -79,11 +121,20 @@ import { CallTrackingController } from 'token/call-tracking/api/http/call-tracki
     GetEvaluationJobUseCase,
     ProcessDueEvaluationJobsUseCase,
     BackgroundEvaluationScheduler,
+    TrackPublishedCallUseCase,
+    ListTrackedCallsUseCase,
+    GetTrackedCallUseCase,
+    CanRepublishTokenUseCase,
+    UpdateTrackedCallsUseCase,
+    TrackingCronScheduler,
+    CallPublishedTrackedHandler,
+    DefaultTrackingFilterSeedService,
   ],
   exports: [
     CallEvaluationJobRepository,
     CallPerformanceRepository,
     CallOutcomeEvaluatorPort,
+    TrackedPublishedCallRepository,
   ],
 })
 export class CallTrackingModule {}

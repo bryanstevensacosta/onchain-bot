@@ -8,6 +8,7 @@ import { TokenScoreEntity } from 'token/scoring/infrastructure/persistence/typeo
 import { TokenClassificationEntity } from 'token/classification/infrastructure/persistence/typeorm/entities/token-classification.entity';
 import { CallPerformanceEntity } from 'token/call-tracking/infrastructure/persistence/typeorm/entities/call-performance.entity';
 import { CallEvaluationJobEntity } from 'token/call-tracking/infrastructure/persistence/typeorm/entities/call-evaluation-job.entity';
+import { TrackedPublishedCallOrmEntity } from 'token/call-tracking/infrastructure/persistence/typeorm/entities/tracked-published-call.entity';
 import { FilterDecisionEntity } from 'token/token-gating/infrastructure/persistence/typeorm/entities/filter-decision.entity';
 import { TokenSnapshotEntity } from 'chain/explorer/infrastructure/persistence/typeorm/entities/token-snapshot.entity';
 import { ExtractionResultEntity } from 'token/intake/extraction/infrastructure/persistence/typeorm/entities/extraction-result.entity';
@@ -34,6 +35,7 @@ const PERSISTED_ENTITIES = [
   TokenClassificationEntity,
   CallPerformanceEntity,
   CallEvaluationJobEntity,
+  TrackedPublishedCallOrmEntity,
   FilterDecisionEntity,
   TokenSnapshotEntity,
   ExtractionResultEntity,
