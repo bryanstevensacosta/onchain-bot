@@ -13,8 +13,11 @@ export class InMemoryMonitoredCallRepository extends MonitoredCallRepository {
     chain: string,
     address: string,
   ): Promise<MonitoredCallRecord | null> {
+    const normalized = address.toLowerCase();
     for (const r of this.store.values()) {
-      if (r.chain === chain && r.address === address) return r;
+      if (r.chain === chain && r.address.toLowerCase() === normalized) {
+        return r;
+      }
     }
     return null;
   }
@@ -36,7 +39,7 @@ export class InMemoryMonitoredCallRepository extends MonitoredCallRepository {
       if (out.length >= limit) break;
     }
     return out.sort(
-      (a, b) => a.publishedAt.getTime() - b.publishedAt.getTime(),
+      (a, b) => b.publishedAt.getTime() - a.publishedAt.getTime(),
     );
   }
 
