@@ -100,6 +100,26 @@ class FakePublishedRepo extends PublishedCallRepository {
   }
 }
 
+import { DashboardKpisCachePort } from 'dashboard/application/ports/dashboard-kpis-cache.port';
+import type { DashboardKpis } from 'dashboard/application/ports/dashboard-kpis.port';
+
+class FakeCache extends DashboardKpisCachePort {
+  public store: DashboardKpis | null = null;
+  public getCalls = 0;
+  public setCalls = 0;
+  public async get(): Promise<DashboardKpis | null> {
+    this.getCalls += 1;
+    return this.store;
+  }
+  public async set(value: DashboardKpis): Promise<void> {
+    this.setCalls += 1;
+    this.store = value;
+  }
+  public async invalidate(): Promise<void> {
+    this.store = null;
+  }
+}
+
 describe('GetDashboardKpisUseCase', () => {
   it('aggregates counts from the four source BCs', async () => {
     const kols = new FakeKolRepo();
@@ -114,12 +134,14 @@ describe('GetDashboardKpisUseCase', () => {
     filters.verdicts = ['APPROVED', 'APPROVED', 'APPROVED', 'REJECTED'];
     const published = new FakePublishedRepo();
     published.publishedCount = 7;
+    const cache = new FakeCache();
 
     const useCase = new GetDashboardKpisUseCase(
       kols,
       canonical,
       filters,
       published,
+      cache,
     );
 
     const kpis = await useCase.execute();
@@ -133,19 +155,45 @@ describe('GetDashboardKpisUseCase', () => {
     });
   });
 
-  it('hits count endpoints exactly once per call (parallel)', async () => {
+  it('returns cached value on second call (avoids re-computing)', async () => {
     const kols = new FakeKolRepo();
     kols.rows = [];
     const canonical = new FakeCanonicalRepo();
     const filters = new FakeFilterRepo();
     const published = new FakePublishedRepo();
+    const cache = new FakeCache();
     const useCase = new GetDashboardKpisUseCase(
       kols,
       canonical,
       filters,
       published,
+      cache,
     );
     await useCase.execute();
+    await useCase.execute();
+    expect(canonical.countCalls).toBe(1);
+    expect(filters.countByVerdictCalls).toBe(1);
+    expect(published.countPublishedCalls).toBe(1);
+    expect(cache.setCalls).toBe(1);
+    expect(cache.getCalls).toBe(2);
+  });
+
+  it('recomputes after cache.invalidate()', async () => {
+    const kols = new FakeKolRepo();
+    kols.rows = [];
+    const canonical = new FakeCanonicalRepo();
+    const filters = new FakeFilterRepo();
+    const published = new FakePublishedRepo();
+    const cache = new FakeCache();
+    const useCase = new GetDashboardKpisUseCase(
+      kols,
+      canonical,
+      filters,
+      published,
+      cache,
+    );
+    await useCase.execute();
+    await cache.invalidate();
     await useCase.execute();
     expect(canonical.countCalls).toBe(2);
     expect(filters.countByVerdictCalls).toBe(2);

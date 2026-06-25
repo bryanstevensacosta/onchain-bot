@@ -5,6 +5,8 @@ import { FiltersModule } from 'token/token-gating/filters.module';
 import { VipCallsModule as TelegramPublishingModule } from 'telegram/vip-calls-channel/vip-calls.module';
 import { GetDashboardKpisUseCase } from 'dashboard/application/handlers/get-dashboard-kpis.use-case';
 import { DashboardController } from 'dashboard/api/http/dashboard.controller';
+import { DashboardKpisCachePort } from 'dashboard/application/ports/dashboard-kpis-cache.port';
+import { InMemoryDashboardKpisCacheRepository } from 'dashboard/infrastructure/repositories/in-memory-dashboard-kpis-cache.repository';
 
 /**
  * Dashboard BC.
@@ -21,6 +23,14 @@ import { DashboardController } from 'dashboard/api/http/dashboard.controller';
     TelegramPublishingModule,
   ],
   controllers: [DashboardController],
-  providers: [GetDashboardKpisUseCase],
+  providers: [
+    GetDashboardKpisUseCase,
+    InMemoryDashboardKpisCacheRepository,
+    {
+      provide: DashboardKpisCachePort,
+      useExisting: InMemoryDashboardKpisCacheRepository,
+    },
+  ],
+  exports: [DashboardKpisCachePort],
 })
 export class DashboardModule {}

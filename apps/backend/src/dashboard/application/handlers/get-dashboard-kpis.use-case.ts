@@ -4,15 +4,15 @@ import { CanonicalTokenCallRepository } from 'token/normalization/application/po
 import { FilterDecisionRepository } from 'token/token-gating/application/ports/filter-decision.repository';
 import { PublishedCallRepository } from 'telegram/shared';
 import type { DashboardKpis } from '../ports/dashboard-kpis.port';
+import type { DashboardKpisCachePort } from '../ports/dashboard-kpis-cache.port';
 
 /**
  * Composes the dashboard KPI snapshot from the four source BCs.
  *
- * Runs the four count queries in parallel — they're independent and
- * each maps to a single SQL `COUNT(*)` (or in-memory Map scan). This is
- * what the KpiCards widget polls every few seconds; the alternative was
- * fetching the latest 100 of three different lists just to call
- * `.length`, which wasted bandwidth and DB time.
+ * Reads from a 1s TTL cache first (in-memory by default). On miss,
+ * runs the four count queries in parallel — they're independent and
+ * each maps to a single SQL `COUNT(*)` (or in-memory Map scan). The
+ * computed snapshot is then stored in the cache for subsequent calls.
  */
 @Injectable()
 export class GetDashboardKpisUseCase {
@@ -21,9 +21,13 @@ export class GetDashboardKpisUseCase {
     private readonly canonicalCallRepo: CanonicalTokenCallRepository,
     private readonly filterDecisionRepo: FilterDecisionRepository,
     private readonly publishedCallRepo: PublishedCallRepository,
+    private readonly cache: DashboardKpisCachePort,
   ) {}
 
   public async execute(): Promise<DashboardKpis> {
+    const cached = await this.cache.get();
+    if (cached) return cached;
+
     const [kols, totalCanonicalCalls, verdicts, publishedCalls] =
       await Promise.all([
         this.kolRepo.findAll(),
@@ -35,7 +39,7 @@ export class GetDashboardKpisUseCase {
     let activeKols = 0;
     for (const k of kols) if (k.isActive) activeKols += 1;
 
-    return {
+    const snapshot: DashboardKpis = {
       activeKols,
       totalKols: kols.length,
       totalCanonicalCalls,
@@ -43,5 +47,8 @@ export class GetDashboardKpisUseCase {
       rejectedDecisions: verdicts.rejected,
       publishedCalls,
     };
+
+    await this.cache.set(snapshot);
+    return snapshot;
   }
 }
