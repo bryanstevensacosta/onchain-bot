@@ -10,7 +10,7 @@ import {
 } from 'kol/identity/application/mappers/kol.mapper';
 import { ExtractFromMessageUseCase } from 'token/intake/extraction/application/handlers/extract-from-message.use-case';
 import { ParseFromCandidatesUseCase } from 'token/intake/parsing/application/handlers/parse-from-candidates.use-case';
-import { ContractAddress } from 'token/intake/extraction/domain/value-objects/contract-address.vo';
+import { ContractAddress } from 'token/identity/contract-address.vo';
 
 /**
  * Use case: start the real-time Telegram listener on a set of KOLs.

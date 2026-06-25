@@ -6,7 +6,7 @@ import {
 import { TokenCallRepository } from 'token/intake/parsing/application/ports/token-call.repository';
 import { ParsingEventPublisher } from 'token/intake/parsing/application/ports/parsing-event.publisher';
 import { TokenMetrics } from 'shared/common/value-objects/token-metrics.vo';
-import { ContractAddress } from 'token/intake/extraction/domain/value-objects/contract-address.vo';
+import { ContractAddress } from 'token/identity/contract-address.vo';
 import { TokenCall } from 'token/intake/parsing/domain/entities/token-call.entity';
 import { DomainError } from 'shared/kernel/domain-error';
 import type { DomainEvent } from 'shared/kernel/domain-event';

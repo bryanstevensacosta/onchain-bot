@@ -3,7 +3,7 @@ import { TokenLocator } from 'token/identity/token-locator.vo';
 import { Source } from 'kol/source/domain/value-objects/source.vo';
 import { TokenMetrics } from 'shared/common/value-objects/token-metrics.vo';
 import { ChainFamily } from 'chain/identity/chain-family.vo';
-import { NormalizedAddress } from 'token/normalization/domain/value-objects/normalized-address.vo';
+import { NormalizedAddress } from 'token/identity/normalized-address.vo';
 import { CanonicalTokenCallEntity } from 'token/normalization/infrastructure/persistence/typeorm/entities/canonical-token-call.entity';
 
 /**

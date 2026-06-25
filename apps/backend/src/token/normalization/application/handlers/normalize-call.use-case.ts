@@ -4,7 +4,7 @@ import {
   MentionInput,
 } from 'token/normalization/domain/entities/canonical-token-call.entity';
 import { ChainFamily } from 'chain/identity/chain-family.vo';
-import { NormalizedAddress } from 'token/normalization/domain/value-objects/normalized-address.vo';
+import { NormalizedAddress } from 'token/identity/normalized-address.vo';
 import { CanonicalTokenCallRepository } from 'token/normalization/application/ports/canonical-token-call.repository';
 import { NormalizationEventPublisher } from 'token/normalization/application/ports/normalization-event.publisher';
 import {

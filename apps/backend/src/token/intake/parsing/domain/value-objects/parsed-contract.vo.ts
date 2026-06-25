@@ -1,6 +1,6 @@
 import { ValueObject } from 'shared/kernel/value-object';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
-import { ContractAddress } from 'token/intake/extraction/domain/value-objects/contract-address.vo';
+import { ContractAddress } from 'token/identity/contract-address.vo';
 
 interface ParsedContractProps {
   readonly address: ContractAddress;

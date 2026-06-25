@@ -1,5 +1,5 @@
 import { ChainFamily } from 'chain/identity/chain-family.vo';
-import { NormalizedAddress } from 'token/normalization/domain/value-objects/normalized-address.vo';
+import { NormalizedAddress } from 'token/identity/normalized-address.vo';
 import { TokenLocator } from 'token/identity/token-locator.vo';
 import { DomainError } from 'shared/kernel/domain-error';
 

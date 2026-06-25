@@ -5,7 +5,7 @@ import {
 } from 'token/intake/extraction/domain/ports/extractor.port';
 import { ExtractionResultRepository } from 'token/intake/extraction/application/ports/extraction-result.repository';
 import { ExtractionEventPublisher } from 'token/intake/extraction/application/ports/extraction-event.publisher';
-import { ContractAddress } from 'token/intake/extraction/domain/value-objects/contract-address.vo';
+import { ContractAddress } from 'token/identity/contract-address.vo';
 import { Ticker } from 'token/intake/extraction/domain/value-objects/ticker.vo';
 import { Url } from 'token/intake/extraction/domain/value-objects/url.vo';
 import { ExtractionResult } from 'token/intake/extraction/domain/entities/extraction-result.entity';

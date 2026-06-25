@@ -1,7 +1,7 @@
 import { AggregateRoot } from 'shared/kernel/aggregate-root';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import type { DomainEvent } from 'shared/kernel/domain-event';
-import { ContractAddress } from 'token/intake/extraction/domain/value-objects/contract-address.vo';
+import { ContractAddress } from 'token/identity/contract-address.vo';
 import { ParsedContract } from 'token/intake/parsing/domain/value-objects/parsed-contract.vo';
 import { TokenMetrics } from 'shared/common/value-objects/token-metrics.vo';
 import { CallParsedEvent } from 'token/intake/parsing/domain/events/call-parsed.event';

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChainFamily } from 'chain/identity/chain-family.vo';
-import { NormalizedAddress } from 'token/normalization/domain/value-objects/normalized-address.vo';
+import { NormalizedAddress } from 'token/identity/normalized-address.vo';
 import { CanonicalTokenCall } from 'token/normalization/domain/entities/canonical-token-call.entity';
 import { CanonicalTokenCallRepository } from 'token/normalization/application/ports/canonical-token-call.repository';
 import { CanonicalTokenCallEntity } from 'token/normalization/infrastructure/persistence/typeorm/entities/canonical-token-call.entity';

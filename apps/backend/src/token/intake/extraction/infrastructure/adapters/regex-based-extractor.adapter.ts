@@ -5,7 +5,7 @@ import {
   ExtractorPort,
   ExtractedCandidates,
 } from 'token/intake/extraction/domain/ports/extractor.port';
-import { ContractAddress } from 'token/intake/extraction/domain/value-objects/contract-address.vo';
+import { ContractAddress } from 'token/identity/contract-address.vo';
 import { Ticker } from 'token/intake/extraction/domain/value-objects/ticker.vo';
 import { Url } from 'token/intake/extraction/domain/value-objects/url.vo';
 

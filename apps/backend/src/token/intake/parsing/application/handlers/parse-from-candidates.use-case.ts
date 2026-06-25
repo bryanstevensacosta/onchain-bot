@@ -7,7 +7,7 @@ import {
   TokenCallMapper,
   TokenCallView,
 } from 'token/intake/parsing/application/mappers/token-call.mapper';
-import { ContractAddress } from 'token/intake/extraction/domain/value-objects/contract-address.vo';
+import { ContractAddress } from 'token/identity/contract-address.vo';
 
 export interface ParseFromCandidatesInput {
   readonly kolId: string;

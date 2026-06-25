@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import { ChainFamily } from 'chain/identity/chain-family.vo';
-import { NormalizedAddress } from 'token/normalization/domain/value-objects/normalized-address.vo';
+import { NormalizedAddress } from 'token/identity/normalized-address.vo';
 import { CanonicalTokenCallRepository } from 'token/normalization/application/ports/canonical-token-call.repository';
 import {
   CanonicalTokenCallMapper,

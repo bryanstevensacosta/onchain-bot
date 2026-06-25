@@ -3,7 +3,7 @@ import { ParseFromCandidatesUseCase } from 'token/intake/parsing/application/han
 import { GetTokenCallUseCase } from 'token/intake/parsing/application/handlers/get-token-call.use-case';
 import { GetRecentCallsUseCase } from 'token/intake/parsing/application/handlers/get-recent-calls.use-case';
 import { ParseInput } from 'token/intake/parsing/api/input/parse.input';
-import { ContractAddress } from 'token/intake/extraction/domain/value-objects/contract-address.vo';
+import { ContractAddress } from 'token/identity/contract-address.vo';
 import type { TokenCallView } from 'token/intake/parsing/application/mappers/token-call.mapper';
 
 /**

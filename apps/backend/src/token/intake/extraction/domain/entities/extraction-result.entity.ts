@@ -1,7 +1,7 @@
 import { AggregateRoot } from 'shared/kernel/aggregate-root';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import type { DomainEvent } from 'shared/kernel/domain-event';
-import { ContractAddress } from 'token/intake/extraction/domain/value-objects/contract-address.vo';
+import { ContractAddress } from 'token/identity/contract-address.vo';
 import { Ticker } from 'token/intake/extraction/domain/value-objects/ticker.vo';
 import { Url } from 'token/intake/extraction/domain/value-objects/url.vo';
 import { CandidatesExtractedEvent } from 'token/intake/extraction/domain/events/candidates-extracted.event';

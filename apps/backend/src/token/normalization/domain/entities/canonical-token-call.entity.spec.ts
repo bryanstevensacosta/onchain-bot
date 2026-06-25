@@ -3,7 +3,7 @@ import {
   MentionInput,
 } from 'token/normalization/domain/entities/canonical-token-call.entity';
 import { ChainFamily } from 'chain/identity/chain-family.vo';
-import { NormalizedAddress } from 'token/normalization/domain/value-objects/normalized-address.vo';
+import { NormalizedAddress } from 'token/identity/normalized-address.vo';
 import { TokenMetrics } from 'shared/common/value-objects/token-metrics.vo';
 
 const EVM = '0xabcdef0123456789abcdef0123456789abcdef01';

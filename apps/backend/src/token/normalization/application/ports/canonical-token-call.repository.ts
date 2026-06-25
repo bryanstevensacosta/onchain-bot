@@ -1,6 +1,6 @@
 import { CanonicalTokenCall } from 'token/normalization/domain/entities/canonical-token-call.entity';
 import { ChainFamily } from 'chain/identity/chain-family.vo';
-import { NormalizedAddress } from 'token/normalization/domain/value-objects/normalized-address.vo';
+import { NormalizedAddress } from 'token/identity/normalized-address.vo';
 
 /**
  * Outbound port: persistence for canonical token calls.
