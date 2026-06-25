@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { isDatabaseEnabled } from 'shared/common/persistence/database.module';
+import { SettingsModule } from 'settings/settings.module';
 import { BlacklistPort } from 'token/token-gating/domain/ports/blacklist.port';
 import { FilterDecisionRepository } from 'token/token-gating/application/ports/filter-decision.repository';
 import { FiltersEventPublisher } from 'token/token-gating/application/ports/filters-event.publisher';
@@ -28,6 +29,7 @@ import { FiltersController } from 'token/token-gating/api/http/filters.controlle
  */
 @Module({
   imports: [
+    SettingsModule,
     ...(isDatabaseEnabled()
       ? [TypeOrmModule.forFeature([FilterDecisionEntity])]
       : []),

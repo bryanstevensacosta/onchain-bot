@@ -1,10 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { TokenScoredEvent } from 'token/scoring/domain/events/token-scored.event';
-import {
-  ApplyFiltersUseCase,
-  DEFAULT_FILTER_CONFIG,
-} from 'token/token-gating/application/handlers/apply-filters.use-case';
+import { ApplyFiltersUseCase } from 'token/token-gating/application/handlers/apply-filters.use-case';
 
 /**
  * Subscribes to scoring.token.scored and applies filters.
@@ -13,6 +10,8 @@ import {
  * snapshotCompleteness is unknown (not in the scoring event) — defaults
  * to 1.0 so the completeness gate doesn't reject event-driven decisions
  * unless the controller explicitly sets it lower.
+ *
+ * Config defaults sourced from SettingsService (see ApplyFiltersUseCase).
  */
 @Injectable()
 export class TokenScoredHandler {
@@ -30,7 +29,6 @@ export class TokenScoredHandler {
         classification: event.payload.classification,
         riskWeight: 0,
         snapshotCompleteness: 1,
-        config: DEFAULT_FILTER_CONFIG,
       });
     } catch (err) {
       this.logger.error(

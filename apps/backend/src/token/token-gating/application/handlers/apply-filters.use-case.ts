@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ChainId } from 'chain/identity/chain-id.vo';
 import { FilterReason } from 'token/token-gating/domain/value-objects/filter-reason.vo';
 import { FilterDecision } from 'token/token-gating/domain/entities/filter-decision.entity';
@@ -18,18 +18,6 @@ export interface FilterConfig {
   readonly blockedClassifications: ReadonlyArray<string>;
   readonly enableBlacklist: boolean;
 }
-
-/**
- * @deprecated Use `SettingsService.getTokenGateConfig()` instead. Kept as a
- * fallback for callers that have not yet wired the settings module.
- */
-export const DEFAULT_FILTER_CONFIG: FilterConfig = {
-  minScore: 50,
-  maxRiskWeight: 100,
-  minCompleteness: 0.3,
-  blockedClassifications: ['SCAM', 'UNKNOWN'],
-  enableBlacklist: true,
-};
 
 export interface ApplyFiltersInput {
   readonly chain: string;
@@ -52,62 +40,25 @@ export interface ApplyFiltersInput {
  *                            (cheap heuristic; real honeypot BC is future)
  * 5. RISK_WEIGHT_EXCEEDED — riskWeight > maxRiskWeight
  * 6. INSUFFICIENT_DATA    — completeness < minCompleteness
- * 7. CHAIN_UNSUPPORTED    — chain not in supported set
+ * 7. CHAIN_UNSUPPORTED    — chain not in publishable set
  *
  * APPROVED if zero reasons, REJECTED otherwise.
  *
- * Wave 2.2 — thresholds are now sourced from `SettingsService` when wired.
- * The {@link DEFAULT_FILTER_CONFIG} / `PUBLISHABLE_CHAINS` constants remain as
- * the fallback when the service is not provided (e.g. in unit tests that
- * pre-date the dynamic-settings migration).
+ * Wave 2.2 — thresholds + publishable chains are sourced from
+ * `SettingsService` (cached 30s). Callers may override via `input.config`.
  */
 @Injectable()
 export class ApplyFiltersUseCase {
-  /**
-   * @deprecated Use `SettingsService.getPublishableChains()` instead. Kept as
-   * a fallback for callers that have not yet wired the settings module.
-   */
-  public static readonly PUBLISHABLE_CHAINS: ReadonlyArray<string> = [
-    'ethereum',
-    'solana',
-  ];
-
-  private readonly resolvedSettings: SettingsService;
-
   public constructor(
     private readonly blacklist: BlacklistPort,
     private readonly decisionRepo: FilterDecisionRepository,
     private readonly eventPublisher: FiltersEventPublisher,
-    @Optional() settings?: SettingsService,
-  ) {
-    this.resolvedSettings = settings ?? ApplyFiltersUseCase.defaultSettings();
-  }
-
-  private static defaultSettings(): SettingsService {
-    return {
-      getTokenGateConfig: async () => ({
-        minScore: DEFAULT_FILTER_CONFIG.minScore,
-        maxRiskWeight: DEFAULT_FILTER_CONFIG.maxRiskWeight,
-        minCompleteness: DEFAULT_FILTER_CONFIG.minCompleteness,
-        blockedClassifications: [
-          ...DEFAULT_FILTER_CONFIG.blockedClassifications,
-        ],
-        enableBlacklist: DEFAULT_FILTER_CONFIG.enableBlacklist,
-      }),
-      getPublishableChains: async (): Promise<string[]> => [
-        'ethereum',
-        'solana',
-      ],
-      getHoneypotHeuristic: async () => ({
-        scoreBelow: 10,
-        riskWeightAbove: 80,
-      }),
-    } as SettingsService;
-  }
+    private readonly settings: SettingsService,
+  ) {}
 
   public async execute(input: ApplyFiltersInput): Promise<FilterDecisionView> {
     const chain = ChainId.fromString(input.chain);
-    const dbConfig = await this.resolvedSettings.getTokenGateConfig();
+    const dbConfig = await this.settings.getTokenGateConfig();
     const config: FilterConfig = input.config ?? {
       minScore: dbConfig.minScore,
       maxRiskWeight: dbConfig.maxRiskWeight,
@@ -150,7 +101,7 @@ export class ApplyFiltersUseCase {
       }
     }
 
-    const honeypot = await this.resolvedSettings.getHoneypotHeuristic();
+    const honeypot = await this.settings.getHoneypotHeuristic();
     if (
       input.score < honeypot.scoreBelow &&
       input.riskWeight >= honeypot.riskWeightAbove
@@ -181,8 +132,7 @@ export class ApplyFiltersUseCase {
       );
     }
 
-    const publishableChains =
-      await this.resolvedSettings.getPublishableChains();
+    const publishableChains = await this.settings.getPublishableChains();
     if (!publishableChains.includes(input.chain)) {
       reasons.push(
         FilterReason.create({

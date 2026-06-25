@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { SettingsService } from 'settings/application/services/settings.service';
 import {
   ApplyFiltersUseCase,
-  DEFAULT_FILTER_CONFIG,
   FilterConfig,
 } from 'token/token-gating/application/handlers/apply-filters.use-case';
 import { GetFilterDecisionUseCase } from 'token/token-gating/application/handlers/get-filter-decision.use-case';
@@ -15,12 +15,16 @@ export class FiltersController {
     private readonly apply: ApplyFiltersUseCase,
     private readonly getOne: GetFilterDecisionUseCase,
     private readonly list: ListFilterDecisionsUseCase,
+    private readonly settings: SettingsService,
   ) {}
 
   @Post('apply')
-  public run(@Body() input: ApplyFiltersInput): Promise<FilterDecisionView> {
+  public async run(
+    @Body() input: ApplyFiltersInput,
+  ): Promise<FilterDecisionView> {
+    const dbConfig = await this.settings.getTokenGateConfig();
     const config: FilterConfig = {
-      ...DEFAULT_FILTER_CONFIG,
+      ...dbConfig,
       ...(input.config ?? {}),
     };
     return this.apply.execute({
