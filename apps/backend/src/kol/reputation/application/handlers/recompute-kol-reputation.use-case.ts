@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, forwardRef } from '@nestjs/common';
 import { KolReputationRepository } from 'kol/reputation/application/ports/kol-reputation.repository';
 import { KolReputation } from 'kol/reputation/domain/value-objects/kol-reputation.vo';
 import { recomputeKolReputation } from 'kol/reputation/domain/services/recompute-kol-reputation.service';
@@ -15,8 +15,10 @@ export interface RecomputeKolReputationInput {
  * Useful for: forced refresh, fixing drift after bulk evaluation jobs.
  */
 @Injectable()
+@Injectable()
 export class RecomputeKolReputationUseCase {
   public constructor(
+    @Inject(forwardRef(() => CallPerformanceRepository))
     private readonly performanceRepo: CallPerformanceRepository,
     private readonly statsRepo: KolReputationRepository,
   ) {}

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { isDatabaseEnabled } from 'shared/common/persistence/database.module';
@@ -41,7 +41,7 @@ import { KolReputationController } from 'kol/reputation/api/http/kol-reputation.
   imports: [
     ConfigModule,
     SettingsModule,
-    CallTrackingModule,
+    forwardRef(() => CallTrackingModule),
     ...(isDatabaseEnabled()
       ? [TypeOrmModule.forFeature([KolReputationEntity])]
       : []),

@@ -1,9 +1,10 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { isDatabaseEnabled } from 'shared/common/persistence/database.module';
 import { MilestoneModule } from 'token/milestone/milestone.module';
 import { SettingsModule } from 'settings/settings.module';
 import { VipCallsModule } from 'telegram/vip-calls-channel/vip-calls.module';
+import { ReputationModule } from 'kol/reputation/reputation.module';
 import { CallEvaluationJobRepository } from 'token/call-tracking/application/ports/call-evaluation-job.repository';
 import { CallPerformanceRepository } from 'token/call-tracking/application/ports/call-performance.repository';
 import { CallOutcomeEvaluatorPort } from 'token/call-tracking/domain/ports/call-outcome-evaluator.port';
@@ -57,6 +58,7 @@ import { TrackedCallsController } from 'token/call-tracking/api/http/tracked-cal
     MilestoneModule,
     SettingsModule,
     VipCallsModule,
+    forwardRef(() => ReputationModule),
     ...(isDatabaseEnabled()
       ? [
           TypeOrmModule.forFeature([

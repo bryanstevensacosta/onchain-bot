@@ -1,3 +1,4 @@
+import { Inject, Injectable, forwardRef } from '@nestjs/common';
 import { KolReputation } from 'kol/reputation/domain/value-objects/kol-reputation.vo';
 import { recomputeKolReputation } from 'kol/reputation/domain/services/recompute-kol-reputation.service';
 import { CallPerformance } from 'token/call-tracking/domain/value-objects/call-performance.vo';
@@ -30,9 +31,11 @@ export interface EvaluateAndRecordInput {
  * `CallPerformance` stays as-is — it is the call-tracking BC's natural
  * identifier for the source of a call.
  */
+@Injectable()
 export class EvaluateCallPerformanceUseCase {
   public constructor(
     private readonly performanceRepo: CallPerformanceRepository,
+    @Inject(forwardRef(() => KolReputationRepository))
     private readonly statsRepo: KolReputationRepository,
     private readonly evaluator: CallOutcomeEvaluatorPort,
   ) {}
