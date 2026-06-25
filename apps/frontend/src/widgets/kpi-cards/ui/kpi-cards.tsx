@@ -1,30 +1,19 @@
-import { useKols } from '@/entities/kol';
-import { useRecentCanonical } from '@/entities/canonical-call';
-import { useRecentDecisions } from '@/entities/filter-decision';
-import { usePublished } from '@/entities/published-call';
-import type { FilterDecisionView } from '@/entities/filter-decision';
+import { useDashboardKpis } from '@/entities/dashboard';
 import { Card } from '@/shared/ui';
 
 export function KpiCards() {
-  const kols = useKols();
-  const canonical = useRecentCanonical(100);
-  const decisions = useRecentDecisions(100);
-  const published = usePublished(100);
+  const kpis = useDashboardKpis();
 
-  const activeKols = kols.data?.filter((k) => k.isActive).length ?? 0;
-  const totalKols = kols.data?.length ?? 0;
-  const totalCalls = canonical.data?.length ?? 0;
-  const approvedCount =
-    decisions.data?.filter((d: FilterDecisionView) => d.verdict === 'APPROVED')
-      .length ?? 0;
-  const rejectedCount =
-    decisions.data?.filter((d: FilterDecisionView) => d.verdict === 'REJECTED')
-      .length ?? 0;
+  const activeKols = kpis.data?.activeKols ?? 0;
+  const totalKols = kpis.data?.totalKols ?? 0;
+  const totalCalls = kpis.data?.totalCanonicalCalls ?? 0;
+  const approvedCount = kpis.data?.approvedDecisions ?? 0;
+  const rejectedCount = kpis.data?.rejectedDecisions ?? 0;
   const approvalRate =
     approvedCount + rejectedCount > 0
       ? approvedCount / (approvedCount + rejectedCount)
       : 0;
-  const publishedCount = published.data?.length ?? 0;
+  const publishedCount = kpis.data?.publishedCalls ?? 0;
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -36,7 +25,7 @@ export function KpiCards() {
       <KpiCard
         label="🔥 Canonical calls"
         value={String(totalCalls)}
-        sub="last 100"
+        sub="all time"
       />
       <KpiCard
         label="✅ Approval rate"

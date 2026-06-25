@@ -1,4 +1,7 @@
 export const ENDPOINTS = {
+  dashboard: {
+    kpis: '/dashboard/kpis',
+  },
   kols: {
     list: '/telegram-kol/identity/kols',
     get: (id: string) => `/telegram-kol/identity/kols/${id}`,
