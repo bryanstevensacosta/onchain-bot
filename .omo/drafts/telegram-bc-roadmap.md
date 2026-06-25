@@ -235,16 +235,32 @@ telegram/vip-calls-channel/MilestoneReachedHandler
 
 ---
 
-### M5 — Working tree audit final [effort: ~30min] — PENDING
+### M5 — Working tree audit final [effort: ~30min] — ✅ DONE (commit `ae9adc6`)
 
 **Outcome**: Working tree limpio al final de todo. Cero archivos "dangling".
 
 **Sub-tareas**:
-1. `git status` debería estar limpio
-2. Si hay untracked restantes, decidir discard vs commit
-3. Si hay archivos modificados, decidir stage vs revert
+1. `git status` debería estar limpio ✅
+2. Si hay untracked restantes, decidir discard vs commit ✅
+3. Si hay archivos modificados, decidir stage vs revert ✅ (no había)
 
-**Commit**: ninguno (verificación final)
+**Decisiones**:
+- `apps/frontend/src/entities/tracked-call/` (5 files, 223 LOC) — **COMMITTED** (`ae9adc6`)
+  - Es el slice frontend del call-tracking BC (M1)
+  - 7/7 vitest tests pass, tsc 0 errors
+  - No tiene consumers aún (será usado cuando se construya el widget de tracked-calls)
+  - Pero está completo y listo, así que se commitea ahora para mantener el trabajo M1 self-contained
+- `test/app.e2e-spec.ts` (e2e) — **LEFT AS-IS** (known issue documentado en M6)
+  - Falla to load por incompatibilidad gramJS/Jest moduleNameMapper
+  - No es regresión (ya fallaba antes de esta sesión)
+  - Requiere investigación más profunda de Jest/ts-jest + gramJS CommonJS layout
+
+**Verificación final**:
+- backend tsc --noEmit: **0 errors**
+- backend jest: **454/454 tests pass** (1 suite fails to LOAD — e2e documented)
+- frontend tsc --noEmit: **0 errors**
+- frontend vitest: **53/53 tests pass**
+- working tree: **CLEAN** (no untracked, no modified)
 
 ---
 
