@@ -15,7 +15,13 @@
 
 ## Not implemented (out of scope, see draft)
 
-- Public-RPC fallback if Helius is down (single point of failure — acceptable for v1, see R5 below)
+- DAS exact holder count beyond top-1000 (HeliusAdapter handles this; not SolanaRpcAdapter's concern)
+
+## Public-RPC fallback (R5 of draft) — implemented
+
+`SolanaRpcAdapter` falls back to `https://api.mainnet.solana.com` on transport-level errors (500, ECONNREFUSED, timeout) — 404 and protocol errors (`data.error`) short-circuit to null. Extracted `private callRpc(rpcUrl, address)` + `private mapAccounts(accounts)` from the previous inline implementation.
+
+Coverage: 12 specs (was 9). Added: "falls back to public RPC when primary transport fails", "returns holders from public RPC when Helius is missing", "throws when both primary and public RPC fail", "returns null when primary transport fails and public RPC returns 404". Strengthened existing tests with `toHaveBeenCalledTimes(1)` to verify no fallback on protocol-level "no data" signals.
 
 ## Requirements (confirmed)
 - Get holders data for SPL tokens on Solana (especially PumpFun tokens)

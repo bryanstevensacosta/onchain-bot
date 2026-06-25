@@ -44,16 +44,23 @@ describe('SolanaRpcAdapter', () => {
     expect(postMock).not.toHaveBeenCalled();
   });
 
-  it('returns null when HELIUS_RPC_URL_MAINNET is missing', async () => {
+  it('uses public RPC when HELIUS_RPC_URL_MAINNET is missing', async () => {
     const adapter = new SolanaRpcAdapter(
       new FakeConfig({
         app: { helius: { apiKey: 'helius-test-key', mainnet: { rpcUrl: '' } } },
       }),
     );
+    postMock.mockResolvedValueOnce({ data: { result: { value: [] } } });
 
     const result = await adapter.fetch({ value: 'solana' }, SOLANA);
 
     expect(result).toBeNull();
+    expect(postMock).toHaveBeenCalledTimes(1);
+    expect(postMock).toHaveBeenCalledWith(
+      SolanaRpcAdapter.PUBLIC_RPC_URL,
+      expect.objectContaining({ method: 'getTokenLargestAccounts' }),
+      expect.anything(),
+    );
   });
 
   it('exposes name="solana-rpc"', () => {
@@ -128,16 +135,17 @@ describe('SolanaRpcAdapter', () => {
     expect(result?.top10HolderPercent).toBeLessThanOrEqual(100);
   });
 
-  it('returns null when result.value is empty', async () => {
+  it('returns null when result.value is empty (no fallback on protocol "no data")', async () => {
     const adapter = new SolanaRpcAdapter(new FakeConfig(fullConfig));
     postMock.mockResolvedValueOnce({ data: { result: { value: [] } } });
 
     const result = await adapter.fetch({ value: 'solana' }, SOLANA);
 
     expect(result).toBeNull();
+    expect(postMock).toHaveBeenCalledTimes(1);
   });
 
-  it('returns null when RPC responds with error object', async () => {
+  it('returns null when RPC responds with error object (no fallback on protocol error)', async () => {
     const adapter = new SolanaRpcAdapter(new FakeConfig(fullConfig));
     postMock.mockResolvedValueOnce({
       data: { error: { code: -32602, message: 'Invalid params' } },
@@ -146,9 +154,10 @@ describe('SolanaRpcAdapter', () => {
     const result = await adapter.fetch({ value: 'solana' }, SOLANA);
 
     expect(result).toBeNull();
+    expect(postMock).toHaveBeenCalledTimes(1);
   });
 
-  it('returns null on 404 transport errors', async () => {
+  it('returns null on 404 transport errors (no fallback)', async () => {
     const adapter = new SolanaRpcAdapter(new FakeConfig(fullConfig));
     isAxiosErrorMock.mockReturnValueOnce(true);
     const err = Object.assign(new Error('404'), {
@@ -160,19 +169,140 @@ describe('SolanaRpcAdapter', () => {
     const result = await adapter.fetch({ value: 'solana' }, SOLANA);
 
     expect(result).toBeNull();
+    expect(postMock).toHaveBeenCalledTimes(1);
   });
 
-  it('throws on non-404 transport errors', async () => {
+  it('falls back to public RPC when primary transport fails with non-404', async () => {
     const adapter = new SolanaRpcAdapter(new FakeConfig(fullConfig));
     isAxiosErrorMock.mockReturnValueOnce(true);
+    const primaryErr = Object.assign(new Error('500'), {
+      isAxiosError: true,
+      response: { status: 500 },
+    });
+    postMock.mockRejectedValueOnce(primaryErr);
+    postMock.mockResolvedValueOnce({
+      data: {
+        result: {
+          value: [
+            {
+              address: 'pub1',
+              amount: '700',
+              decimals: 6,
+              uiAmount: 0.0007,
+              uiAmountString: '0.0007',
+            },
+            {
+              address: 'pub2',
+              amount: '300',
+              decimals: 6,
+              uiAmount: 0.0003,
+              uiAmountString: '0.0003',
+            },
+          ],
+        },
+      },
+    });
+
+    const result = await adapter.fetch({ value: 'solana' }, SOLANA);
+
+    expect(result?.holders).toBe(2);
+    expect(result?.top10HolderPercent).toBe(100);
+    expect(postMock).toHaveBeenCalledTimes(2);
+    expect(postMock).toHaveBeenNthCalledWith(
+      1,
+      RPC_URL,
+      expect.objectContaining({ method: 'getTokenLargestAccounts' }),
+      expect.anything(),
+    );
+    expect(postMock).toHaveBeenNthCalledWith(
+      2,
+      SolanaRpcAdapter.PUBLIC_RPC_URL,
+      expect.objectContaining({ method: 'getTokenLargestAccounts' }),
+      expect.anything(),
+    );
+  });
+
+  it('returns holders and top10HolderPercent from public RPC when Helius is missing', async () => {
+    const adapter = new SolanaRpcAdapter(
+      new FakeConfig({
+        app: { helius: { apiKey: 'helius-test-key', mainnet: { rpcUrl: '' } } },
+      }),
+    );
+    postMock.mockResolvedValueOnce({
+      data: {
+        result: {
+          value: [
+            {
+              address: 'pub1',
+              amount: '500',
+              decimals: 6,
+              uiAmount: 0.0005,
+              uiAmountString: '0.0005',
+            },
+            {
+              address: 'pub2',
+              amount: '300',
+              decimals: 6,
+              uiAmount: 0.0003,
+              uiAmountString: '0.0003',
+            },
+            {
+              address: 'pub3',
+              amount: '200',
+              decimals: 6,
+              uiAmount: 0.0002,
+              uiAmountString: '0.0002',
+            },
+          ],
+        },
+      },
+    });
+
+    const result = await adapter.fetch({ value: 'solana' }, SOLANA);
+
+    expect(result?.holders).toBe(3);
+    expect(result?.top10HolderPercent).toBe(100);
+    expect(postMock).toHaveBeenCalledTimes(1);
+    expect(postMock).toHaveBeenCalledWith(
+      SolanaRpcAdapter.PUBLIC_RPC_URL,
+      expect.objectContaining({ method: 'getTokenLargestAccounts' }),
+      expect.anything(),
+    );
+  });
+
+  it('throws when both primary and public RPC fail with non-404 transport errors', async () => {
+    const adapter = new SolanaRpcAdapter(new FakeConfig(fullConfig));
+    isAxiosErrorMock.mockReturnValue(true);
     const err = Object.assign(new Error('500'), {
       isAxiosError: true,
       response: { status: 500 },
     });
     postMock.mockRejectedValueOnce(err);
+    postMock.mockRejectedValueOnce(err);
 
     await expect(
       adapter.fetch({ value: 'solana' }, SOLANA),
     ).rejects.toBeDefined();
+    expect(postMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns null when primary transport fails and public RPC returns 404', async () => {
+    const adapter = new SolanaRpcAdapter(new FakeConfig(fullConfig));
+    isAxiosErrorMock.mockReturnValue(true);
+    const err = Object.assign(new Error('500'), {
+      isAxiosError: true,
+      response: { status: 500 },
+    });
+    const fallbackErr = Object.assign(new Error('404'), {
+      isAxiosError: true,
+      response: { status: 404 },
+    });
+    postMock.mockRejectedValueOnce(err);
+    postMock.mockRejectedValueOnce(fallbackErr);
+
+    const result = await adapter.fetch({ value: 'solana' }, SOLANA);
+
+    expect(result).toBeNull();
+    expect(postMock).toHaveBeenCalledTimes(2);
   });
 });
