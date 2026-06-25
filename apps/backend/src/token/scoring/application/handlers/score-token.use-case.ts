@@ -121,6 +121,12 @@ export class ScoreTokenUseCase {
         neutral: 40,
         risky: 20,
       }),
+      getSignalPenalties: async () => ({
+        CRITICAL: 15,
+        HIGH: 8,
+        MEDIUM: 4,
+        LOW: 1,
+      }),
       getPublishableChains: async (): Promise<string[]> => [
         'ethereum',
         'solana',
@@ -143,6 +149,7 @@ export class ScoreTokenUseCase {
     const securityCaps = await this.resolvedSettings.getSecurityFlagCaps();
     const bonusTiers = await this.resolvedSettings.getScoringBonusTiers();
     const tierThresholds = await this.resolvedSettings.getScoringTierThresholds();
+    const signalPenalties = await this.resolvedSettings.getSignalPenalties();
 
     score += this.liquidityBonus(input.liquidityUsd, breakdown, bonusTiers);
     score += this.holdersBonus(input.holders, breakdown, bonusTiers);
@@ -154,7 +161,12 @@ export class ScoreTokenUseCase {
       breakdown,
       bonusTiers,
     );
-    score += this.signalPenalties(input.signals, breakdown, signalPenaltyMap);
+    score += this.signalPenalties(
+      input.signals,
+      breakdown,
+      signalPenaltyMap,
+      signalPenalties,
+    );
 
     const avgRep = await this.reputationPort.getAverageReputation(
       input.sourceChannelIds,
@@ -429,6 +441,7 @@ export class ScoreTokenUseCase {
     }>,
     breakdown: ScoreBreakdownItem[],
     signalPenaltyMap: Map<string, number>,
+    severityDefaults: { CRITICAL: number; HIGH: number; MEDIUM: number; LOW: number },
   ): number {
     let total = 0;
     for (const s of signals) {
@@ -437,16 +450,16 @@ export class ScoreTokenUseCase {
       if (penalty === undefined) {
         switch (s.severity) {
           case 'CRITICAL':
-            penalty = 15;
+            penalty = severityDefaults.CRITICAL;
             break;
           case 'HIGH':
-            penalty = 8;
+            penalty = severityDefaults.HIGH;
             break;
           case 'MEDIUM':
-            penalty = 4;
+            penalty = severityDefaults.MEDIUM;
             break;
           case 'LOW':
-            penalty = 1;
+            penalty = severityDefaults.LOW;
             break;
           default:
             penalty = 0;

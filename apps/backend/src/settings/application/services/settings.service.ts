@@ -170,6 +170,21 @@ export class SettingsService {
     return this.getFilterNumericValue('base_score', 50, 'global');
   }
 
+  async getSignalPenalties(): Promise<{
+    CRITICAL: number;
+    HIGH: number;
+    MEDIUM: number;
+    LOW: number;
+  }> {
+    const [critical, high, medium, low] = await Promise.all([
+      this.getFilterNumericValue('signal_penalty_critical', 15, 'global'),
+      this.getFilterNumericValue('signal_penalty_high', 8, 'global'),
+      this.getFilterNumericValue('signal_penalty_medium', 4, 'global'),
+      this.getFilterNumericValue('signal_penalty_low', 1, 'global'),
+    ]);
+    return { CRITICAL: critical, HIGH: high, MEDIUM: medium, LOW: low };
+  }
+
   async getScoringTierThresholds(): Promise<ScoringTierThresholds> {
     const [strong, decent, neutral, risky] = await Promise.all([
       this.getFilterNumericValue('tier_threshold_strong', 80, 'global'),
