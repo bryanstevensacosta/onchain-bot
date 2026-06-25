@@ -569,4 +569,33 @@ export class SettingsService {
     const rows = await this.getFiltersByType('blacklist_mint', 'token');
     return rows.map((r) => r.value);
   }
+
+  /** Inserts defaults for `type` only if rows don't exist yet. Returns count inserted. */
+  async seedDefaultsIfEmpty(
+    type: string,
+    defaults: ReadonlyArray<{
+      name: string;
+      value: string;
+      numericValue: number | null;
+    }>,
+  ): Promise<number> {
+    let seeded = 0;
+    for (const def of defaults) {
+      const existing = await this.filterRepo.findOne({
+        where: { type, value: def.name },
+      });
+      if (existing) continue;
+      const row = this.filterRepo.create({
+        type,
+        value: def.name,
+        numericValue: def.numericValue,
+        scope: 'global',
+        enabled: true,
+        notes: null,
+      });
+      await this.filterRepo.save(row);
+      seeded += 1;
+    }
+    return seeded;
+  }
 }

@@ -75,4 +75,10 @@ export const ENDPOINTS = {
     evaluateDue: '/token/call-tracking/jobs/evaluate-due',
     enqueue: '/token/call-tracking/jobs/enqueue',
   },
+  trackedCalls: {
+    list: '/call-tracking/tracked',
+    detail: (chain: string, address: string) =>
+      `/call-tracking/tracked/${chain}/${address}`,
+    gateAllow: '/call-tracking/gate-allow',
+  },
 } as const;

@@ -38,12 +38,12 @@ export class DefaultKolReputationAdapter extends KolReputationPort {
   }
 
   public async getReputation(kolId: string): Promise<KolReputationSummary> {
-    if (this.knownKol.isBad(kolId)) {
+    if (await this.knownKol.isBad(kolId)) {
       return await Promise.resolve(
         KolReputationSummary.create({ kolId, score: 0.1, mentionCount: 0 }),
       );
     }
-    const goodScore = this.knownKol.getGoodScore(kolId);
+    const goodScore = await this.knownKol.getGoodScore(kolId);
     if (goodScore !== null) {
       return await Promise.resolve(
         KolReputationSummary.create({
@@ -78,12 +78,12 @@ export class DefaultKolReputationAdapter extends KolReputationPort {
     let sum = 0;
     let counted = 0;
     for (const kolId of kolIds) {
-      if (this.knownKol.isBad(kolId)) {
+      if (await this.knownKol.isBad(kolId)) {
         sum += 0.1;
         counted += 1;
         continue;
       }
-      const goodScore = this.knownKol.getGoodScore(kolId);
+      const goodScore = await this.knownKol.getGoodScore(kolId);
       if (goodScore !== null) {
         sum += goodScore;
         counted += 1;
