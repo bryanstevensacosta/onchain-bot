@@ -4,6 +4,13 @@ import type { DomainEvent } from 'shared/kernel/domain-event';
 import { ChainId } from 'chain/identity/chain-id.vo';
 import { Score } from 'token/scoring/domain/value-objects/score.vo';
 import { ScoreTier } from 'token/scoring/domain/value-objects/score-tier.vo';
+
+export type ScoringTierThresholds = {
+  readonly strong: number;
+  readonly decent: number;
+  readonly neutral: number;
+  readonly risky: number;
+};
 import { TokenScoredEvent } from 'token/scoring/domain/events/token-scored.event';
 
 export type ScoreBreakdownItem = {
@@ -25,12 +32,14 @@ export interface ScoreInput {
   readonly mentionCount: number;
   readonly avgKolReputation: number;
   readonly breakdown: readonly ScoreBreakdownItem[];
+  readonly tierThresholds: ScoringTierThresholds;
 }
 
 interface TokenScoreProps {
   readonly chain: ChainId;
   readonly address: string;
   readonly score: Score;
+  readonly tier: ScoreTier;
   readonly classification: string;
   readonly sourceCount: number;
   readonly mentionCount: number;
@@ -66,10 +75,12 @@ export class TokenScore extends AggregateRoot<string> {
       throw new DomainError(ErrorCode.VALIDATION, `address cannot be empty`);
     }
     const id = `${input.chain.value}:${input.address.toLowerCase()}`;
+    const tier = ScoreTier.fromScore(input.score.value, input.tierThresholds);
     return new TokenScore(id, {
       chain: input.chain,
       address: input.address.toLowerCase(),
       score: input.score,
+      tier,
       classification: input.classification,
       sourceCount: input.sourceCount,
       mentionCount: input.mentionCount,
@@ -89,6 +100,7 @@ export class TokenScore extends AggregateRoot<string> {
     chain: ChainId;
     address: string;
     score: Score;
+    tier: ScoreTier;
     classification: string;
     sourceCount: number;
     mentionCount: number;
@@ -100,6 +112,7 @@ export class TokenScore extends AggregateRoot<string> {
       chain: input.chain,
       address: input.address,
       score: input.score,
+      tier: input.tier,
       classification: input.classification,
       sourceCount: input.sourceCount,
       mentionCount: input.mentionCount,
@@ -142,7 +155,7 @@ export class TokenScore extends AggregateRoot<string> {
   }
 
   public get tier(): ScoreTier {
-    return this.state.score.tier();
+    return this.state.tier;
   }
 
   public get breakdown(): readonly ScoreBreakdownItem[] {

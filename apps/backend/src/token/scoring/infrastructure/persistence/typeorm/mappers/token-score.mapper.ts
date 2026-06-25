@@ -4,6 +4,7 @@ import {
 } from 'token/scoring/domain/entities/token-score.entity';
 import { ChainId } from 'chain/identity/chain-id.vo';
 import { Score } from 'token/scoring/domain/value-objects/score.vo';
+import { ScoreTier } from 'token/scoring/domain/value-objects/score-tier.vo';
 import { TokenScoreEntity } from 'token/scoring/infrastructure/persistence/typeorm/entities/token-score.entity';
 
 /**
@@ -39,6 +40,7 @@ export class TokenScoreMapper {
       chain: ChainId.fromString(row.chain),
       address: row.address,
       score: Score.fromNumber(row.score),
+      tier: ScoreTier.fromString(row.tier),
       classification: row.classification,
       sourceCount: row.sourceCount,
       mentionCount: row.mentionCount,

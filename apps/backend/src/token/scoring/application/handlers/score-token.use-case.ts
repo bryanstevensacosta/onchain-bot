@@ -115,6 +115,12 @@ export class ScoreTokenUseCase {
       }),
       getMultiplierPivot: async () => 0.5,
       getMultiplierSlope: async () => 0.3,
+      getScoringTierThresholds: async () => ({
+        strong: 80,
+        decent: 60,
+        neutral: 40,
+        risky: 20,
+      }),
       getPublishableChains: async (): Promise<string[]> => [
         'ethereum',
         'solana',
@@ -136,6 +142,7 @@ export class ScoreTokenUseCase {
     const signalPenaltyMap = await this.buildSignalPenaltyMap();
     const securityCaps = await this.resolvedSettings.getSecurityFlagCaps();
     const bonusTiers = await this.resolvedSettings.getScoringBonusTiers();
+    const tierThresholds = await this.resolvedSettings.getScoringTierThresholds();
 
     score += this.liquidityBonus(input.liquidityUsd, breakdown, bonusTiers);
     score += this.holdersBonus(input.holders, breakdown, bonusTiers);
@@ -185,6 +192,7 @@ export class ScoreTokenUseCase {
       mentionCount: input.mentionCount,
       avgKolReputation: avgRep,
       breakdown,
+      tierThresholds,
     });
 
     await this.scoreRepo.save(tokenScore);

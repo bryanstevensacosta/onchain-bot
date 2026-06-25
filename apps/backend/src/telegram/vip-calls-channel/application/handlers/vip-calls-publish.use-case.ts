@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ChainId } from 'chain/identity/chain-id.vo';
 import { ScoreTier } from 'token/scoring/domain/value-objects/score-tier.vo';
+import { SettingsService } from 'settings/application/services/settings.service';
 import {
   MessageFormatterPort,
   ApprovedCallInput,
@@ -55,13 +56,15 @@ export class VipCallsPublishUseCase {
     private readonly callRepo: PublishedCallRepository,
     private readonly eventPublisher: PublishingEventPublisher,
     private readonly eventEmitter: EventEmitter2,
+    private readonly settings: SettingsService,
   ) {}
 
   public async execute(
     input: VipCallsPublishInput,
   ): Promise<VipCallsPublishOutput> {
     const chain = ChainId.fromString(input.chain);
-    const tier = ScoreTier.fromScore(input.score);
+    const tierThresholds = await this.settings.getScoringTierThresholds();
+    const tier = ScoreTier.fromScore(input.score, tierThresholds);
 
     const imageUrls = input.imageUrls ?? [];
     const headerImageUrl = imageUrls[0] ?? null;

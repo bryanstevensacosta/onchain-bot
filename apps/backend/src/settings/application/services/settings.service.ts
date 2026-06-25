@@ -35,6 +35,13 @@ export interface ScoringBonusTiers {
   readonly buzzTwoMentions: number;
 }
 
+export interface ScoringTierThresholds {
+  readonly strong: number;
+  readonly decent: number;
+  readonly neutral: number;
+  readonly risky: number;
+}
+
 interface CacheEntry<T> {
   value: T;
   expiresAt: number;
@@ -161,6 +168,16 @@ export class SettingsService {
 
   async getBaseScore(): Promise<number> {
     return this.getFilterNumericValue('base_score', 50, 'global');
+  }
+
+  async getScoringTierThresholds(): Promise<ScoringTierThresholds> {
+    const [strong, decent, neutral, risky] = await Promise.all([
+      this.getFilterNumericValue('tier_threshold_strong', 80, 'global'),
+      this.getFilterNumericValue('tier_threshold_decent', 60, 'global'),
+      this.getFilterNumericValue('tier_threshold_neutral', 40, 'global'),
+      this.getFilterNumericValue('tier_threshold_risky', 20, 'global'),
+    ]);
+    return { strong, decent, neutral, risky };
   }
 
   async getScoringBonusTiers(): Promise<ScoringBonusTiers> {

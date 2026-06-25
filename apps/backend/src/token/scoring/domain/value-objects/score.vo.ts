@@ -39,7 +39,9 @@ export class Score extends ValueObject<ScoreProps> {
     return this.props.value;
   }
 
-  public tier(): ScoreTier {
-    return ScoreTier.fromScore(this.props.value);
+  public tier(
+    thresholds: { strong: number; decent: number; neutral: number; risky: number },
+  ): ScoreTier {
+    return ScoreTier.fromScore(this.props.value, thresholds);
   }
 }
