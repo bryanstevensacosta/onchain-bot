@@ -1,5 +1,22 @@
 # Draft: Solana Token Holders Adapter Implementation
 
+> **Status: done** — adapter was already implemented in a prior session. Draft retained for traceability.
+
+## Evidence
+
+| Component | Path |
+|---|---|
+| Adapter impl | `apps/backend/src/chain/explorer/infrastructure/providers/solana-rpc.adapter.ts` (134 lines) |
+| Spec | `apps/backend/src/chain/explorer/infrastructure/providers/solana-rpc.adapter.spec.ts` (8 tests, 178 lines) |
+| Module wiring | `apps/backend/src/chain/explorer/chain-explorer.module.ts:51,60,67,75` (registered in `MARKET_DATA_PROVIDERS`) |
+| Real holder count | `apps/backend/src/chain/explorer/infrastructure/providers/helius.adapter.ts` (DAS `getTokenAccounts`, paginates 1000/mint) |
+
+`HeliusAdapter` runs BEFORE `SolanaRpcAdapter` in `MARKET_DATA_PROVIDERS`, so the first-non-null merge in `EnrichTokenUseCase` picks the real holder count when available and falls back to top-20 count from `SolanaRpcAdapter` otherwise. `top10HolderPercent` is uniquely populated by `SolanaRpcAdapter`.
+
+## Not implemented (out of scope, see draft)
+
+- Public-RPC fallback if Helius is down (single point of failure — acceptable for v1, see R5 below)
+
 ## Requirements (confirmed)
 - Get holders data for SPL tokens on Solana (especially PumpFun tokens)
 - Show top 20 holders and calculate holder count + top10HolderPercent
