@@ -32,3 +32,9 @@ node_modules/
 
 # Test artifacts
 **/.nyc_output/
+
+# Agent harness runtime artifacts (sessions, evidence logs)
+# .omo/drafts/ and .omo/plans/ are tracked (planning docs)
+.omo/run-continuation/
+.omo/evidence/
+.sisyphus/evidence/
