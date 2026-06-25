@@ -1,6 +1,7 @@
 import { KpiCards } from '@/widgets/kpi-cards';
 import { LiveFeed } from '@/widgets/live-feed';
 import { TopTokensTable } from '@/widgets/top-tokens-table';
+import { TrackedCallsWidget } from '@/widgets/tracked-calls';
 
 export function DashboardPage() {
   return (
@@ -11,6 +12,7 @@ export function DashboardPage() {
         <LiveFeed />
         <TopTokensTable />
       </div>
+      <TrackedCallsWidget />
     </div>
   );
 }
