@@ -21,8 +21,7 @@ class InMemoryDecisionRepo extends FilterDecisionRepository {
     a: string,
   ): Promise<FilterDecision | null> {
     await Promise.resolve();
-    const normalized = c.isSolana ? a : a.toLowerCase();
-    return this.store.get(`${c.value}:${normalized}`) ?? null;
+    return this.store.get(`${c.value}:${a.toLowerCase()}`) ?? null;
   }
   public async findRecent(
     limit: number,
@@ -72,8 +71,7 @@ class InMemorySnapshotRepo extends TokenSnapshotRepository {
     a: string,
   ): Promise<TokenSnapshot | null> {
     await Promise.resolve();
-    const normalized = c.isSolana ? a : a.toLowerCase();
-    return this.store.get(`${c.value}:${normalized}`) ?? null;
+    return this.store.get(`${c.value}:${a.toLowerCase()}`) ?? null;
   }
   public async findRecent(
     limit: number,
@@ -133,7 +131,7 @@ async function seedRejected(
     chain,
     address,
     score: 10,
-    classification: 'SCAM',
+    classification: 'TOKEN',
     riskWeight: 0,
     snapshotCompleteness: 0,
   });

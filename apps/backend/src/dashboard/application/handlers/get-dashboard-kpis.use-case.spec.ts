@@ -19,13 +19,15 @@ class FakeKolRepo extends KolRepository {
     return null;
   }
   public async findAll(): Promise<ReadonlyArray<Kol>> {
-    return this.rows.map((r) =>
-      Kol.create({
-        kolId: KolId.fromString(r.id),
+    return this.rows.map((r) => {
+      const kol = Kol.create({
+        id: KolId.fromString(r.id),
         handle: null,
         title: `kol-${r.id}`,
-      }),
-    );
+      });
+      if (r.active) kol.startListening();
+      return kol;
+    });
   }
 }
 

@@ -17,7 +17,7 @@ function buildSnapshot(
     holders?: number | null;
     top10HolderPercent?: number | null;
     name?: string | null;
-    imageUrl?: string | null;
+    imageUrls?: ReadonlyArray<string>;
     lockedLiquidityPercent?: number | null;
     burnedPercent?: number | null;
     sources?: string[];
@@ -36,7 +36,7 @@ function buildSnapshot(
     holders: overrides.holders ?? null,
     top10HolderPercent: overrides.top10HolderPercent ?? null,
     name: overrides.name ?? null,
-    imageUrl: overrides.imageUrl ?? null,
+    imageUrls: overrides.imageUrls ?? [],
     lockedLiquidityPercent: overrides.lockedLiquidityPercent ?? null,
     burnedPercent: overrides.burnedPercent ?? null,
     sources: overrides.sources ?? ['dexscreener'],
