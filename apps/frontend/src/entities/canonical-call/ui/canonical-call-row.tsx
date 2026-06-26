@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { CanonicalTokenCallView } from '../model/types';
-import { Badge, Card, ChainIcon } from '@/shared/ui';
-import { formatPercent, formatRelativeTime, tokenImageUrl } from '@/shared/lib';
+import { Badge, Card, ChainIcon, TokenImage } from '@/shared/ui';
+import { formatPercent, formatRelativeTime } from '@/shared/lib';
 import { Link } from 'react-router-dom';
 
 interface CanonicalCallRowProps {
@@ -27,13 +27,12 @@ export function CanonicalCallRow({ call }: CanonicalCallRowProps) {
       <Card className="hover:border-slate-600 transition-colors cursor-pointer">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
-            <img
-              src={tokenImageUrl(call.chain, call.address)}
-              alt=""
-              className="w-6 h-6 rounded-full bg-slate-800 object-cover shrink-0"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-              }}
+            <TokenImage
+              chain={call.chain}
+              address={call.address}
+              name={call.name}
+              ticker={call.ticker}
+              size="sm"
             />
             <Badge tone="white" className="shrink-0">
               <ChainIcon chain={call.chain} className="mr-1" />

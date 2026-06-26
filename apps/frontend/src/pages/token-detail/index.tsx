@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useCanonical } from '@/entities/canonical-call';
 import { useScoreByToken } from '@/entities/token-score';
 import { useSnapshot } from '@/entities/token-snapshot';
-import { Card, Badge, Button, ChainIcon, LiquidityGauge } from '@/shared/ui';
+import { Card, Badge, Button, ChainIcon, LiquidityGauge, TokenImage } from '@/shared/ui';
 import { ScoreGauge, ScoreBreakdown } from '@/entities/token-score';
 import { formatPercent, formatRelativeTime, formatUsd } from '@/shared/lib';
 
@@ -19,36 +19,19 @@ export function TokenDetailPage() {
 
   const displayName =
     canonical.data?.name ?? snapshot.data?.name ?? score.data?.ticker ?? null;
-  const imageUrls = snapshot.data?.imageUrls ?? [];
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const currentImageUrl = imageUrls[currentImageIndex] ?? null;
-
-  const handleImageError = () => {
-    if (currentImageIndex < imageUrls.length - 1) {
-      setCurrentImageIndex((prev) => prev + 1);
-    } else {
-      setCurrentImageIndex(imageUrls.length);
-    }
-  };
 
   return (
     <div className="space-y-4 p-6">
       {/* Header: image + name + ticker + chain */}
       <div className="flex items-center gap-4">
-        {currentImageUrl ? (
-          <img
-            src={currentImageUrl}
-            alt={displayName ?? address}
-            className="w-12 h-12 rounded-full bg-slate-800 object-cover"
-            onError={handleImageError}
-          />
-        ) : (
-          <img
-            src="/assets/token-placeholder.svg"
-            alt="placeholder"
-            className="w-12 h-12 rounded-full bg-slate-800 object-cover"
-          />
-        )}
+        <TokenImage
+          chain={chain}
+          address={address}
+          imageUrls={snapshot.data?.imageUrls ?? null}
+          name={displayName}
+          ticker={score.data?.ticker ?? null}
+          size="lg"
+        />
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           {displayName && <h1 className="text-2xl font-bold">{displayName}</h1>}
           {score.data?.ticker && (
