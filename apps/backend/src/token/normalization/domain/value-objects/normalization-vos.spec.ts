@@ -33,6 +33,7 @@ describe('NormalizedAddress', () => {
   const EVM = '0xAbCdEf0123456789abcdef0123456789ABCDEF01';
   const EVM_LOWER = '0xabcdef0123456789abcdef0123456789abcdef01';
   const SOLANA = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+  const SOLANA_LOWER = 'epjfwdd5aufqssqem2qn1xzybapc8g4weggkzwytdt1v';
 
   it('normalizes EVM to lowercase', () => {
     expect(NormalizedAddress.fromEvm(EVM).value).toBe(EVM_LOWER);
@@ -48,8 +49,8 @@ describe('NormalizedAddress', () => {
     ).toThrow(DomainError);
   });
 
-  it('accepts valid Solana', () => {
-    expect(NormalizedAddress.fromSolana(SOLANA).value).toBe(SOLANA);
+  it('accepts valid Solana and normalizes to lowercase', () => {
+    expect(NormalizedAddress.fromSolana(SOLANA).value).toBe(SOLANA_LOWER);
   });
 
   it('rejects invalid Solana (too short Base58)', () => {
@@ -64,10 +65,10 @@ describe('NormalizedAddress', () => {
     ).toBe(true);
   });
 
-  it('fromChainHint auto-selects factory', () => {
+  it('fromChainHint auto-selects factory and normalizes to lowercase', () => {
     expect(NormalizedAddress.fromChainHint(EVM, 'evm')?.value).toBe(EVM_LOWER);
     expect(NormalizedAddress.fromChainHint(SOLANA, 'solana')?.value).toBe(
-      SOLANA,
+      SOLANA_LOWER,
     );
   });
 

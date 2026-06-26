@@ -1,4 +1,6 @@
 import {
+  BeforeInsert,
+  BeforeUpdate,
   Column,
   CreateDateColumn,
   Entity,
@@ -93,4 +95,10 @@ export class CanonicalTokenCallEntity {
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   public updatedAt!: Date;
+
+  @BeforeInsert()
+  @BeforeUpdate()
+  lowercaseId() {
+    if (this.id) this.id = this.id.toLowerCase();
+  }
 }

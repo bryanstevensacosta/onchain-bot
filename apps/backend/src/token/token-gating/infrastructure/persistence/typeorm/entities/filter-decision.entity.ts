@@ -1,4 +1,6 @@
 import {
+  BeforeInsert,
+  BeforeUpdate,
   Column,
   CreateDateColumn,
   Entity,
@@ -49,4 +51,10 @@ export class FilterDecisionEntity {
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   public createdAt!: Date;
+
+  @BeforeInsert()
+  @BeforeUpdate()
+  lowercaseId() {
+    if (this.id) this.id = this.id.toLowerCase();
+  }
 }
