@@ -838,6 +838,56 @@ Shipped backfills (under `apps/backend/scripts/backfills/`):
 
 All auto-applied on `npm run start:dev` via the wired `db:migrate` runner; tracked in `backfill_migrations` table.
 
+### INV-15: `chain/data-provider` BC — centralize all provider adapters + endpoints
+
+- **User proposal**: Create `apps/backend/src/chain/data-provider/` to consolidate:
+  - All provider adapters (DexScreener, GeckoTerminal, Birdeye, Helius DAS, Moralis, CoinGecko, Mobula, CoinMarketCap)
+  - All provider-driven endpoints (image proxy, market data fetchers, enrichment pipeline)
+  - Per-provider research/notes (API docs, key requirements, quirks, cost)
+- **Is this valid?** **Yes**, with caveats:
+  - **Pros**: Provider logic currently scattered across `infrastructure/providers/` (7+ adapters), `application/services/`, `application/ports/`, `api/http/`, `infrastructure/fetchers/`. Centralization makes adding new providers easier, gives a single home for API research, and lets us version provider capabilities (which chains, which fields) per-source.
+  - **Cons**: Big refactor — moves 7+ adapter files, updates many imports, risks breaking the running backend. Should be planned as a separate sprint, not tacked onto ongoing fixes.
+- **Proposed layout** (future implementation):
+  ```
+  apps/backend/src/chain/data-provider/
+  ├── adapters/
+  │   ├── dexscreener/
+  │   ├── geckoterminal/
+  │   ├── birdeye/
+  │   ├── helius-das/
+  │   ├── moralis/
+  │   ├── coingecko/
+  │   ├── mobula/
+  │   └── coinmarketcap/
+  ├── application/
+  │   ├── services/ (image proxy, market data orchestration)
+  │   └── ports/ (provider contracts, TOKEN_IMAGE_FETCHER, etc.)
+  ├── infrastructure/
+  │   └── fetchers/ (multi-source image fetcher with fallback chain)
+  ├── api/
+  │   └── http/ (image proxy controller, market data endpoints)
+  ├── data-provider.module.ts
+  └── README.md (per-provider API research + integration notes)
+  ```
+- **Migration steps** (when implementing):
+  1. Create new `data-provider/` skeleton with README skeleton
+  2. Move `TokenImageController` + `TokenImageService` + `TokenImageFetcher` + cache (already centralized in module, just relocated)
+  3. Move 1 provider as proof-of-concept (recommend Moralis — smallest, has logo extraction already)
+  4. Update all imports + module registrations
+  5. Move remaining providers one at a time
+  6. Remove old `chain/explorer/infrastructure/providers/` directory when empty
+  7. Update `chain-explorer.module.ts` to import `DataProviderModule` instead of registering adapters directly
+  8. Run full test suite + verify with playwright that nothing regressed
+- **Per-provider research checklist** (to be filled in the README when implementing):
+  - [ ] API endpoint URL + auth header pattern
+  - [ ] Rate limits (free tier) + cost (paid tier)
+  - [ ] Which chains supported
+  - [ ] Which fields returned (price, holders, logos, social links, etc.)
+  - [ ] Logo URL extraction pattern + casing (case-sensitive paths?)
+  - [ ] Failure modes (404, 429, 5xx) + retry strategy
+  - [ ] Env var required (API key, etc.)
+- **Status**: Planning only. NOT implementing in this session. Captured here for future execution as a dedicated sprint.
+
 ## 💡 Feature requests (missing functionality)
 
 ### FEAT-1: Manual override of token APPROVED/REJECTED decisions
