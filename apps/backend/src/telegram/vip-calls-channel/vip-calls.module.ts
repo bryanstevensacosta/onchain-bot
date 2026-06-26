@@ -16,6 +16,7 @@ import { VipCallsPublishUseCase } from './application/handlers/vip-calls-publish
 import { VipCallsListPublishedUseCase } from './application/handlers/vip-calls-list-published.use-case';
 import { VipCallsController } from './api/http/vip-calls.controller';
 import { MilestoneReachedHandler } from './infrastructure/event-bus/milestone-reached.handler';
+import { TokenApprovedPublishHandler } from './infrastructure/event-bus/token-approved-publish.handler';
 import { SettingsModule } from 'settings/settings.module';
 
 @Module({
@@ -27,6 +28,7 @@ import { SettingsModule } from 'settings/settings.module';
     VipCallsBotApiPublisherAdapter,
     VipCallsMessageFormatterAdapter,
     MilestoneReachedHandler,
+    TokenApprovedPublishHandler,
     InMemoryPublishedCallRepository,
     {
       provide: PublishedCallRepository,

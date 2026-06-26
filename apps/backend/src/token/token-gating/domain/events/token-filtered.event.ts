@@ -5,6 +5,8 @@ import { DomainEvent } from 'shared/kernel/domain-event';
  * Consumed by the publishing BC.
  */
 export class TokenFilteredEvent extends DomainEvent {
+  public static readonly EVENT_NAME = 'filters.token.approved';
+
   public readonly payload: {
     readonly chain: string;
     readonly address: string;
