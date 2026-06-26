@@ -22,9 +22,22 @@ export class VipCallsBotApiPublisherAdapter extends TelegramPublisherPort {
   private static readonly MAX_LENGTH = 4096;
   private static readonly CAPTION_MAX_LENGTH = 1024;
   private static readonly API_BASE = 'https://api.telegram.org/bot';
+  private static readonly RATE_LIMIT_MS = 60_000;
 
   private readonly botToken: string;
   private readonly outputChannel: string;
+
+  private lastSentAt = 0;
+  private processing = false;
+  private readonly pendingQueue: Array<{
+    text: string;
+    imageUrl: string | undefined;
+    resolve: (result: {
+      readonly ok: boolean;
+      readonly messageId: number | null;
+      readonly error: string | null;
+    }) => void;
+  }> = [];
 
   public constructor(
     private readonly configService: ConfigService,
@@ -64,28 +77,68 @@ export class VipCallsBotApiPublisherAdapter extends TelegramPublisherPort {
     readonly messageId: number | null;
     readonly error: string | null;
   }> {
-    const chatId = this.outputChannel;
-
     if (!text || text.length === 0) {
       return { ok: false, messageId: null, error: 'empty message' };
     }
 
+    return new Promise((resolve) => {
+      this.pendingQueue.push({ text, imageUrl, resolve });
+      if (!this.processing) {
+        this.processing = true;
+        this.processQueue();
+      }
+    });
+  }
+
+  private async processQueue(): Promise<void> {
+    while (this.pendingQueue.length > 0) {
+      const elapsed = Date.now() - this.lastSentAt;
+      if (elapsed < VipCallsBotApiPublisherAdapter.RATE_LIMIT_MS) {
+        const waitMs =
+          VipCallsBotApiPublisherAdapter.RATE_LIMIT_MS - elapsed;
+        this.logger.debug(
+          `Rate limit: waiting ${waitMs}ms before next send (${this.pendingQueue.length} queued)`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+      }
+
+      if (this.pendingQueue.length === 0) break;
+
+      const entry = this.pendingQueue.shift()!;
+      this.lastSentAt = Date.now();
+      try {
+        const result = await this.sendOne(entry.text, entry.imageUrl);
+        entry.resolve(result);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : 'unknown error';
+        this.logger.error(`sendOne failed: ${message}`);
+        entry.resolve({ ok: false, messageId: null, error: message });
+      }
+    }
+    this.processing = false;
+  }
+
+  private async sendOne(
+    text: string,
+    imageUrl?: string,
+  ): Promise<{
+    readonly ok: boolean;
+    readonly messageId: number | null;
+    readonly error: string | null;
+  }> {
+    const chatId = this.outputChannel;
     try {
       if (imageUrl) {
         return await this.sendWithPhoto(chatId, text, imageUrl);
       }
-
       const chunks = this.splitMessage(text);
       let lastMessageId: number | null = null;
-
       for (const chunk of chunks) {
         const result = await this.sendChunk(chatId, chunk);
-        if (!result.ok) {
-          return result;
-        }
+        if (!result.ok) return result;
         lastMessageId = result.messageId;
       }
-
       this.logger.log(
         `Sent message to ${chatId}, message_id: ${lastMessageId}`,
       );
