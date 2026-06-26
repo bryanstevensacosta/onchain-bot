@@ -97,4 +97,4 @@ decisions:
   - schema change: TypeORM migration with CHECK constraint
   - tests: TDD (red test first)
   - mtproto: belt + suspenders (watchdog 5min + on-error reconnect)
-next: spawn Metis gap analysis in parallel; append todos to plan; fill TL;DR last.
+next: Metis gap analysis done (15 findings) — folded silently into Scope IN/OUT and todos. Append todos to plan; fill TL;DR last.

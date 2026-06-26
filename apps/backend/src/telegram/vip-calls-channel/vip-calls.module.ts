@@ -19,9 +19,10 @@ import { MilestoneReachedHandler } from './infrastructure/event-bus/milestone-re
 import { TokenApprovedPublishHandler } from './infrastructure/event-bus/token-approved-publish.handler';
 import { SettingsModule } from 'settings/settings.module';
 import { NormalizationModule } from 'token/normalization/normalization.module';
+import { ChainExplorerModule } from 'chain/explorer/chain-explorer.module';
 
 @Module({
-  imports: [HttpModule, ChainRegistryModule, SettingsModule, NormalizationModule],
+  imports: [HttpModule, ChainRegistryModule, SettingsModule, NormalizationModule, ChainExplorerModule],
   controllers: [VipCallsController],
   providers: [
     VipCallsPublishUseCase,
