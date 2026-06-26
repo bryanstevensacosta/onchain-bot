@@ -1201,6 +1201,157 @@ All auto-applied on `npm run start:dev` via the wired `db:migrate` runner; track
   - `call/` consumes from `chain/data-provider` (INV-15) for any provider data not yet in snapshot
   - The 4 BCs form a complete layer: chain → token (snapshot + image) → call (tracking + achievements)
 
+### INV-19: `telegram` BC — consolidate all Telegram logic + rename `kol/ingestion/` to `telegram/kol-calls-ingestion/`
+
+- **User proposal**: Consolidate ALL Telegram-related logic into `apps/backend/src/telegram/` with sub-BCs:
+  - `telegram/shared/` — shared Telegram infrastructure (MTProto adapter, sessions, API clients)
+  - `telegram/core/` — core Telegram domain types (Channel, Message, UserId, etc.)
+  - `telegram/chain-dexter-bot/` — the bot (existing)
+  - `telegram/vip-calls-channel/` — VIP channel publisher (existing)
+  - `telegram/kol-calls-ingestion/` — renamed from `kol/ingestion/`, reflects that it ingests CALLS from KOL Telegram channels (not KOLs themselves)
+- **My opinion**: **Strong yes** — this is a textbook Bounded Context clarification:
+  - Current state is fragmented and misnamed:
+    - `kol/ingestion/` lives under `kol/` but actually ingests CALLS (token mentions) from Telegram channels
+    - `telegram/chain-dexter-bot/` and `telegram/vip-calls-channel/` live under `telegram/` but consume from `kol/ingestion/`
+    - Cross-BC coupling: `kol/ingestion/` depends on Telegram MTProto, not on KOL identity — it's misplaced
+  - All Telegram concerns (MTProto, session, channels, bots) belong in ONE BC
+  - All consumers of Telegram data (kol ingestion, bot, VIP channel) become sub-BCs of telegram
+  - This is a **rename + move**, not a rewrite — same code, better location
+
+- **Proposed layout**:
+  ```
+  apps/backend/src/telegram/
+  ├── shared/                              ← cross-sub-BC Telegram infrastructure
+  │   ├── adapters/
+  │   │   └── mtproto/
+  │   │       └── telegram-mtproto.adapter.ts (was kol/ingestion/api/mtproto/)
+  │   ├── sessions/
+  │   │   └── session-manager.ts (TELEGRAM_MTPROTO_SESSION lifecycle)
+  │   └── clients/
+  │       └── bot-api.client.ts (TELEGRAM_BOT_TOKEN, sendMessage, etc.)
+  │
+  ├── core/                               ← core Telegram domain (no transport)
+  │   ├── value-objects/
+  │   │   ├── channel.vo.ts (Channel entity: id, kind, title, handle, isKOL)
+  │   │   ├── message.vo.ts (Message: id, channelId, content, timestamp)
+  │   │   └── user-id.vo.ts (Telegram user ID parsing/validation)
+  │   ├── ports/
+  │   │   ├── message-listener.port.ts (interface for receiving messages)
+  │   │   └── message-publisher.port.ts (interface for sending messages)
+  │   └── events/
+  │       └── telegram-message-received.event.ts
+  │
+  ├── kol-calls-ingestion/                ← was kol/ingestion/ (renamed + moved)
+  │   ├── application/
+  │   │   ├── handlers/
+  │   │   │   ├── start-kol-ingestion.use-case.ts (subscribes to channel, listens for messages)
+  │   │   │   ├── process-message.use-case.ts (parses message → extract token mentions)
+  │   │   │   └── list-tracked-channels.use-case.ts
+  │   │   └── ports/
+  │   │       └── kol-listener.port.ts (re-export from telegram/core)
+  │   ├── infrastructure/
+  │   │   ├── adapters/kol-telegram-mtproto.adapter.ts (extends telegram/shared/adapters/mtproto)
+  │   │   ├── event-bus/message-received.handler.ts
+  │   │   └── scheduling/listener-cron.scheduler.ts
+  │   └── kol-calls-ingestion.module.ts
+  │
+  ├── chain-dexter-bot/                   ← was telegram/chain-dexter-bot/
+  │   ├── application/
+  │   │   ├── handlers/
+  │   │   │   ├── handle-telegram-command.use-case.ts (/start, /help, /kol X)
+  │   │   │   └── notify-call-approved.use-case.ts (subscribes to CallApprovedEvent)
+  │   │   └── ports/
+  │   │       └── bot-api.port.ts
+  │   ├── infrastructure/
+  │   │   └── bot-command.router.ts (routes /commands to handlers)
+  │   └── chain-dexter-bot.module.ts
+  │
+  ├── vip-calls-channel/                  ← was telegram/vip-calls-channel/
+  │   ├── application/
+  │   │   ├── handlers/
+  │   │   │   ├── publish-call-to-vip.use-case.ts (subscribes to CallApprovedEvent from call/ BC)
+  │   │   │   └── format-call-message.use-case.ts (rich Telegram message formatting)
+  │   │   └── ports/
+  │   │       └── vip-channel-publisher.port.ts
+  │   ├── infrastructure/
+  │   │   ├── adapters/vip-telegram-bot.adapter.ts
+  │   │   └── event-bus/token-approved-publish.handler.ts (subscribes to filters.token.approved)
+  │   └── vip-calls-channel.module.ts
+  │
+  ├── telegram.module.ts (parent — re-exports sub-modules)
+  └── README.md (channel types, session management, sub-BC coordination)
+  ```
+
+- **Current scattered locations to migrate**:
+  - `apps/backend/src/kol/ingestion/` → `apps/backend/src/telegram/kol-calls-ingestion/`
+  - `apps/backend/src/telegram/chain-dexter-bot/` → `apps/backend/src/telegram/chain-dexter-bot/` (no move, just stays)
+  - `apps/backend/src/telegram/vip-calls-channel/` → `apps/backend/src/telegram/vip-calls-channel/` (no move, just stays)
+  - Shared telegram infra (MTProto, bot API) extracted from each sub-BC into `telegram/shared/`
+
+- **Why "kol-calls-ingestion" is a better name**:
+  - The current `kol/ingestion/` ingests TELEGRAM MESSAGES from KOL channels
+  - It extracts TOKEN MENTIONS (= CALLS) from those messages
+  - The result is ingested CALLS, not ingested KOLs (KOL identity comes from `kol/identity/`)
+  - Renaming to `kol-calls-ingestion/` makes the intent explicit
+  - The boundary becomes: "what does this BC ingest?" → "calls from KOL Telegram channels" (not "KOLs")
+
+- **Dependency direction** (clean):
+  - `telegram/chain-dexter-bot/` → `telegram/shared/`, `telegram/core/`
+  - `telegram/vip-calls-channel/` → `telegram/shared/`, `telegram/core/`
+  - `telegram/kol-calls-ingestion/` → `telegram/shared/`, `telegram/core/`
+  - `telegram/kol-calls-ingestion/` → `call/` (emits `CallReceivedEvent` → consumed by `call/tracking/` after parsing)
+  - `kol/identity/` → `telegram/kol-calls-ingestion/` (subscribes to discover new KOLs from incoming channel messages)
+  - `telegram/chain-dexter-bot/` → `kol/identity/`, `call/` (for commands and notifications)
+  - NO cross-dep between sub-BCs of telegram — they all share via `telegram/core/` + `telegram/shared/`
+
+- **Event flow** (coordinated across sub-BCs):
+  ```
+  Telegram MTProto
+        ↓ (raw message)
+  telegram/kol-calls-ingestion (parses → CallReceivedEvent)
+        ↓
+  call/tracking (creates Call aggregate, status PENDING)
+        ↓
+  filter/token-gating (decides APPROVE/REJECT)
+        ↓
+  call/ (status: PENDING → PUBLISHED on publish success)
+        ↓
+  telegram/vip-calls-channel (publishes to VIP channel)
+        ↓
+  call/ (status: PUBLISHED → TRACKED when first snapshot arrives)
+        ↓
+  telegram/chain-dexter-bot (notifies subscribed users)
+  ```
+
+- **API contract** (within telegram BC, internal):
+  - Sub-BCs communicate via event bus, not direct calls
+  - `telegram/core/ports/message-listener.port.ts` — receive messages
+  - `telegram/core/ports/message-publisher.port.ts` — send messages
+  - Bot commands handled internally by `chain-dexter-bot/` (no external API)
+  - VIP channel publishes internally (no external API for now)
+
+- **Migration steps** (when implementing — mostly mechanical):
+  1. Create `telegram/shared/`, `telegram/core/` skeletons
+  2. Move MTProto adapter from `kol/ingestion/api/mtproto/` to `telegram/shared/adapters/mtproto/`
+  3. Move bot API client from `telegram/chain-dexter-bot/` to `telegram/shared/clients/`
+  4. Create `telegram/core/` value objects (Channel, Message, UserId) by extracting from existing code
+  5. Move `kol/ingestion/` to `telegram/kol-calls-ingestion/` (rename + update imports)
+  6. Update `kol/identity/` to consume from `telegram/kol-calls-ingestion/` for new KOL discovery
+  7. Update `kol/ingestion.module.ts` to `telegram/kol-calls-ingestion.module.ts`
+  8. Update `kol.module.ts` to remove ingestion, add import of `TelegramModule`
+  9. Update `telegram.module.ts` to be the parent that registers all 3 sub-modules
+  10. Update `app.module.ts` to import `TelegramModule` instead of separate kol/telegram modules
+  11. Run full test suite + verify with playwright
+
+- **Status**: Planning only. NOT implementing in this session. Mostly mechanical rename + move.
+
+- **Synergy with all previous BCs**:
+  - `telegram/kol-calls-ingestion/` emits `CallReceivedEvent` → consumed by `call/tracking/` (INV-18)
+  - `telegram/vip-calls-channel/` subscribes to `CallApprovedEvent` from `call/` (INV-18)
+  - `telegram/kol-calls-ingestion/` uses `chain/data-provider` (INV-15) for chain detection on addresses
+  - `telegram/kol-calls-ingestion/` uses `token/image` (INV-16) for KOL avatars
+  - The 5 BCs now form: chain → token → call → telegram (full pipeline)
+
 ## 💡 Feature requests (missing functionality)
 
 ### FEAT-1: Manual override of token APPROVED/REJECTED decisions
