@@ -6,6 +6,7 @@ import type { AppConfig } from 'shared/common/config/app.config';
 import { SettingsModule } from 'settings/settings.module';
 import { CallTrackingModule } from 'token/call-tracking/call-tracking.module';
 import { IdentityModule } from 'kol/identity/identity.module';
+import { NormalizationModule } from 'token/normalization/normalization.module';
 import { KolReputationRepository } from 'kol/reputation/application/ports/kol-reputation.repository';
 import { KnownKolPort } from 'kol/reputation/application/ports/known-kol.port';
 import {
@@ -45,6 +46,7 @@ import { KolReputationScheduler } from 'kol/reputation/infrastructure/scheduling
     SettingsModule,
     forwardRef(() => CallTrackingModule),
     IdentityModule,
+    NormalizationModule,
     ...(isDatabaseEnabled()
       ? [TypeOrmModule.forFeature([KolReputationEntity])]
       : []),

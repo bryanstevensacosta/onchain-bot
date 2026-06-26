@@ -17,9 +17,26 @@ export interface ImageData {
 }
 
 const DEFAULT_TTL_MS = 5 * 60 * 1000;
+const PLACEHOLDER_TTL_MS = 24 * 60 * 60 * 1000;
 const WEBP_QUALITY = 80;
 const ORIGINAL_VARIANT = 'original';
 const WEBP_VARIANT = 'webp';
+
+const PLACEHOLDER_PALETTE = [
+  'rose',
+  'amber',
+  'emerald',
+  'sky',
+  'violet',
+  'pink',
+  'teal',
+  'orange',
+] as const;
+type PlaceholderColor = (typeof PLACEHOLDER_PALETTE)[number];
+
+function placeholderBgClass(color: PlaceholderColor, shade = 700): string {
+  return `bg-${color}-${shade}`;
+}
 
 @Injectable()
 export class TokenImageService {
