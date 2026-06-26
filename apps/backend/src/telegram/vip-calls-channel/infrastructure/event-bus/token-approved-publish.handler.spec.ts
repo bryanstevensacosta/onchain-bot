@@ -58,7 +58,6 @@ describe('TokenApprovedPublishHandler', () => {
       sourceCount: 1,
       mentionCount: 1,
       chart: null,
-      imageUrls: undefined,
     });
   });
 
@@ -93,7 +92,6 @@ describe('TokenApprovedPublishHandler', () => {
       sourceCount: 3,
       mentionCount: 5,
       chart: null,
-      imageUrls: undefined,
     });
   });
 
@@ -132,7 +130,6 @@ describe('TokenApprovedPublishHandler', () => {
       sourceCount: 2,
       mentionCount: 4,
       chart: null,
-      imageUrls: undefined,
     });
   });
 
@@ -152,7 +149,6 @@ describe('TokenApprovedPublishHandler', () => {
         liquidityUsd: null,
         holders: null,
         name: 'Solana Token (enriched)',
-        imageUrls: ['https://example.com/logo.png'],
       }),
     } as unknown as TokenSnapshotRepository;
     const handler = new TokenApprovedPublishHandler(
@@ -176,7 +172,6 @@ describe('TokenApprovedPublishHandler', () => {
       sourceCount: 0,
       mentionCount: 1,
       chart: null,
-      imageUrls: ['https://example.com/logo.png'],
     });
   });
 

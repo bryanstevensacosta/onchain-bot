@@ -54,7 +54,6 @@ export class TokenApprovedPublishHandler {
         sourceCount: token?.sources.length ?? 1,
         mentionCount: token?.mentionCount ?? 1,
         chart,
-        imageUrls: snapshot?.imageUrls?.length ? snapshot.imageUrls : undefined,
         score: event.payload.score,
         classification: event.payload.classification,
       });
