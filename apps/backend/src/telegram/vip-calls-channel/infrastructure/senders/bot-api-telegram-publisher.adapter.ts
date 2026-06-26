@@ -224,7 +224,7 @@ export class VipCallsBotApiPublisherAdapter extends TelegramPublisherPort {
           chat_id: chatId,
           text: text,
           parse_mode: 'Markdown',
-          disable_web_page_preview: true,
+          disable_web_page_preview: false,
         }),
       );
 

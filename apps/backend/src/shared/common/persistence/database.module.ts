@@ -25,6 +25,7 @@ import { SettingsPresetEntity } from 'settings/infrastructure/persistence/typeor
 import { MilestoneThresholdEntity } from 'token/milestone/domain/entities/milestone-threshold.entity';
 import { MonitoredCallEntity } from 'token/milestone/domain/entities/monitored-call.entity';
 import { NotifiedMilestoneEntity } from 'token/milestone/domain/entities/notified-milestone.entity';
+import { PublishedCallEntity } from 'telegram/vip-calls-channel/infrastructure/persistence/typeorm/entities/published-call.entity';
 import type { AppConfig } from 'shared/common/config/app.config';
 
 const PERSISTED_ENTITIES = [
@@ -52,6 +53,7 @@ const PERSISTED_ENTITIES = [
   MilestoneThresholdEntity,
   MonitoredCallEntity,
   NotifiedMilestoneEntity,
+  PublishedCallEntity,
 ];
 
 /**
