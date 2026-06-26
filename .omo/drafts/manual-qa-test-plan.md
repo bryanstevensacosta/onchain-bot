@@ -888,6 +888,83 @@ All auto-applied on `npm run start:dev` via the wired `db:migrate` runner; track
   - [ ] Env var required (API key, etc.)
 - **Status**: Planning only. NOT implementing in this session. Captured here for future execution as a dedicated sprint.
 
+### INV-16: `token/image` BC — dedicated image BC with multi-level fallback + cache
+
+- **User proposal**: Create `apps/backend/src/token/image/` to contain ALL token-image logic:
+  - Image cache (LRU + persistent)
+  - Multi-source fallback chain
+  - SVG placeholder generation
+  - Image transformation (WebP, resize, format conversion)
+  - Dedicated HTTP API
+  - This BC would consume from `chain/` or `chain/data-provider/` (if INV-15 is implemented)
+- **Is this valid?** **Yes** — complements INV-15 by separating concerns:
+  - `chain/data-provider` (INV-15) = raw provider adapters (URL construction, API calls)
+  - `token/image` (INV-16) = image-specific concerns (cache, fallback, transform, expose API)
+  - Frontend only talks to `token/image` (single API surface for images)
+  - `chain` stays decoupled from image-specific logic
+- **Proposed layout**:
+  ```
+  apps/backend/src/token/image/
+  ├── application/
+  │   ├── services/
+  │   │   └── token-image.service.ts (orchestrator: try sources, cache, fallback)
+  │   ├── ports/
+  │   │   ├── image-source.port.ts (interface: getImageUrl(chain, address))
+  │   │   └── image-cache.port.ts (interface: get/set/invalidate)
+  │   └── dto/
+  │       └── token-image.dto.ts (response shapes)
+  ├── infrastructure/
+  │   ├── cache/
+  │   │   ├── lru-token-image-cache.ts (in-memory LRU)
+  │   │   └── persistent-token-image-cache.ts (disk or Redis-backed)
+  │   ├── sources/ (one class per source — composable, no fetch logic here)
+  │   │   ├── dex-screener.source.ts
+  │   │   ├── gecko-terminal.source.ts
+  │   │   ├── moralis.source.ts (EVM)
+  │   │   ├── helius-das.source.ts (Solana)
+  │   │   ├── birdeye-cdn.source.ts
+  │   │   └── coin-gecko.source.ts
+  │   ├── placeholder/
+  │   │   └── svg-placeholder.generator.ts (deterministic SVG from address)
+  │   └── transformers/
+  │       └── webp.transformer.ts (sharp-based resize + format conversion)
+  ├── api/
+  │   └── http/
+  │       └── token-image.controller.ts (GET /token/image/:chain/:address)
+  ├── token-image.module.ts
+  └── README.md (source fallback order, cache config, API contract)
+  ```
+- **Multi-level fallback strategy** (always returns something):
+  1. Check LRU cache (in-memory, ms)
+  2. Check persistent cache (disk/Redis, ~10ms)
+  3. Try each `ImageSource` in order: DexScreener → GeckoTerminal → Moralis (EVM) → Helius DAS (Solana) → Birdeye CDN → CoinGecko (premium) → Mobula → CoinMarketCap (premium)
+  4. Transform (WebP, resize) on first successful fetch
+  5. Cache result (LRU + persistent)
+  6. **Final fallback**: deterministic SVG placeholder (never fails)
+- **API contract**:
+  - `GET /token/image/:chain/:address` → image bytes (cached, transformed)
+  - `GET /token/image/:chain/:address?source=helius-das` → specific source (for debugging)
+  - `DELETE /token/image/:chain/:address` → invalidate cache (admin)
+  - `GET /token/image/sources` → list registered sources + their order
+  - `GET /token/image/health` → cache hit rate, source availability
+- **Cache key strategy**:
+  - Key: `${chain}:${address}:${source}:${variant}` (variant = original|webp|resized-w96)
+  - TTL: 5min for LRU, 24h for persistent (CDN images change rarely)
+  - Invalidation: by chain+address prefix (clear all variants when a token's metadata changes)
+- **Migration steps** (when implementing):
+  1. Create `token/image/` skeleton with module + README
+  2. Move existing `TokenImageController` + `TokenImageService` + `TokenImageFetcher` from `chain/explorer/`
+  3. Refactor fetcher to `ImageSource` strategy pattern (one class per source)
+  4. Wire sources from `chain/data-provider` (if INV-15 done) or directly from `chain/explorer/infrastructure/providers/`
+  5. Add persistent cache (Redis: `redis://...` via existing `RedisService` — already wired)
+  6. Add `DELETE /token/image/:chain/:address` for cache invalidation
+  7. Add `GET /token/image/sources` for ops visibility
+  8. Run full test suite + verify with playwright
+- **Status**: Planning only. NOT implementing in this session. Captured for future execution as a dedicated sprint (can be done independently of INV-15).
+- **Synergy with INV-15**: If `chain/data-provider` exists, the `ImageSource` classes in `token/image/infrastructure/sources/` are thin wrappers that delegate to provider adapters. The two BCs have clean dependency direction: `token/image` depends on `chain` (or `chain/data-provider`), never the reverse.
+
+## 💡 Feature requests (missing functionality)
+
 ## 💡 Feature requests (missing functionality)
 
 ### FEAT-1: Manual override of token APPROVED/REJECTED decisions
