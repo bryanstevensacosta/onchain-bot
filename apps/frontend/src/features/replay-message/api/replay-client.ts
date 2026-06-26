@@ -23,19 +23,17 @@ export interface ReplayInput {
 }
 
 /**
- * Note: the backend `extract.input.ts` still uses `channelId` as the
- * JSON field name (Fase 4 renamed the backend entity but did not rename
- * the HTTP DTO field for backward compat). We map `kolId` → `channelId`
- * at the wire boundary here.
+ * Wire format matches the backend `ExtractInput` DTO (apps/backend/src/token/intake/extraction/api/input/extract.input.ts):
+ *   { kolId, messageId, occurredAt, text }
  */
 export async function replayMessage(
   input: ReplayInput,
 ): Promise<ExtractionResultView> {
   return httpPost<
-    { channelId: string; messageId: number; occurredAt: string; text: string },
+    { kolId: string; messageId: number; occurredAt: string; text: string },
     ExtractionResultView
   >(ENDPOINTS.extraction.extract, {
-    channelId: input.kolId,
+    kolId: input.kolId,
     messageId: input.messageId,
     occurredAt: input.occurredAt,
     text: input.text,
