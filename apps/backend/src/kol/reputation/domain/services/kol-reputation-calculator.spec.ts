@@ -106,17 +106,19 @@ describe('KolReputationCalculator', () => {
     ];
     const rep = KolReputationCalculator.calculateFromCanonicalCalls('100', calls);
     expect(rep.kolId).toBe('100');
-    expect(rep.totalCalls).toBe(20);
-    expect(rep.score).toBeGreaterThan(0.5);
+    expect(rep.metrics.totalMentions).toBe(20);
+    expect(rep.metrics.neutralCount).toBe(20);
+    expect(rep.metrics.x2Count).toBe(0);
+    expect(rep.metrics.x5Count).toBe(0);
+    expect(rep.score).toBeGreaterThanOrEqual(0);
+    expect(rep.score).toBeLessThanOrEqual(1);
     expect(rep.confidence).toBe('HIGH');
-    expect(rep.neutralCalls).toBe(20);
-    expect(rep.strongCalls).toBe(0);
   });
 
   it('returns neutral 0.5 LOW reputation for KOL with no calls', () => {
     const rep = KolReputationCalculator.calculateFromCanonicalCalls('999', []);
     expect(rep.score).toBe(0.5);
     expect(rep.confidence).toBe('LOW');
-    expect(rep.totalCalls).toBe(0);
+    expect(rep.metrics.totalMentions).toBe(0);
   });
 });

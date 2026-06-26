@@ -47,9 +47,11 @@ function KolRow({ kol, rep }: KolRowProps) {
               <>
                 {' · '}
                 <span className="text-slate-500">
-                  {rep.totalCalls} calls
-                  {rep.avgAthMultiple !== null &&
-                    ` · ${rep.avgAthMultiple.toFixed(2)}x ATH`}
+                  {rep.metrics.totalMentions} calls
+                  {rep.metrics.x5Count > 0 &&
+                    ` · ${rep.metrics.x5Count}X5`}
+                  {rep.metrics.x10Count > 0 &&
+                    ` · ${rep.metrics.x10Count}X10`}
                 </span>
               </>
             )}

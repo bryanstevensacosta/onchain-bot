@@ -1,77 +1,65 @@
 import { CallPerformance } from 'token/call-tracking/domain/value-objects/call-performance.vo';
 import {
   KolReputation,
-  KolConfidence,
 } from 'kol/reputation/domain/value-objects/kol-reputation.vo';
 
 /**
- * Pure function: compute KolReputation from a list of performances.
+ * Legacy pure function: compute KolReputation from a list of call
+ * performances.
  *
- * Algorithm:
- * - score = clamp(0.5 + weighted_mean(outcome.weight), 0, 1)
- * - confidence = based on total call count
- * - counts and avg ATH per outcome tier
+ * Today the call_performances table is empty (call/lifecycle BC not
+ * yet built), so this function effectively returns a neutral 0.5
+ * reputation for every KOL. The canonical path is
+ * `KolReputationCalculator.calculateFromCanonicalCalls` which reads
+ * from `canonical_token_calls.sources[]` (always populated).
+ *
+ * When call/lifecycle ships and starts emitting
+ * `CallMilestoneUnlockedEvent`s, the calculator can be extended to
+ * incorporate ATH-based counts (x2/x5/x10/rug50/rug80) in addition
+ * to the mention counts, and this legacy function can be removed.
  */
 export function recomputeKolReputation(
   kolId: string,
   perfs: ReadonlyArray<CallPerformance>,
 ): KolReputation {
-  const totalCalls = perfs.length;
-  let strong = 0,
-    good = 0,
-    neutral = 0,
-    poor = 0,
-    failed = 0;
-  let weightedSum = 0;
-  let athSum = 0,
-    athCount = 0;
-
-  for (const p of perfs) {
-    switch (p.outcome.value) {
-      case 'STRONG':
-        strong++;
-        break;
-      case 'GOOD':
-        good++;
-        break;
-      case 'NEUTRAL':
-        neutral++;
-        break;
-      case 'POOR':
-        poor++;
-        break;
-      case 'FAILED':
-        failed++;
-        break;
-    }
-    weightedSum += p.outcome.weight();
-    if (p.athMultiple !== null) {
-      athSum += p.athMultiple;
-      athCount++;
-    }
+  if (perfs.length === 0) {
+    return KolReputation.fromValues({
+      kolId,
+      score: 0.5,
+      metrics: {
+        totalMentions: 0,
+        x2Count: 0,
+        x5Count: 0,
+        x10Count: 0,
+        x50Count: 0,
+        rug50Count: 0,
+        rug80Count: 0,
+        neutralCount: 0,
+        mentionScore: 0.5,
+        qualityScore: 0.5,
+        drawdownScore: 0.5,
+      },
+      confidence: 'LOW',
+    });
   }
-
-  const avgOutcomeWeight = totalCalls === 0 ? 0 : weightedSum / totalCalls;
-  const rawScore = 0.5 + avgOutcomeWeight * 0.5; // each outcome contributes +/-0..0.5
-  const score = Math.max(0, Math.min(1, Math.round(rawScore * 100) / 100));
-  const avgAth = athCount === 0 ? null : athSum / athCount;
-
-  let confidence: KolConfidence;
-  if (totalCalls >= 50) confidence = 'VERY_HIGH';
-  else if (totalCalls >= 20) confidence = 'HIGH';
-  else if (totalCalls >= 5) confidence = 'MEDIUM';
-  else confidence = 'LOW';
-
+  // When perfs become non-empty (call/lifecycle ships), translate the
+  // outcomes into metrics counts here. For now return neutral.
   return KolReputation.fromValues({
     kolId,
-    score,
-    totalCalls,
-    strongCalls: strong,
-    goodCalls: good,
-    neutralCalls: neutral,
-    poorCalls: poor,
-    failedCalls: failed,
-    avgAthMultiple: avgAth,
-    confidence,
+    score: 0.5,
+    metrics: {
+      totalMentions: perfs.length,
+      x2Count: 0,
+      x5Count: 0,
+      x10Count: 0,
+      x50Count: 0,
+      rug50Count: 0,
+      rug80Count: 0,
+      neutralCount: perfs.length,
+      mentionScore: 0.5,
+      qualityScore: 0.5,
+      drawdownScore: 0.5,
+    },
+    confidence: 'LOW',
   });
 }

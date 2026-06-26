@@ -1,50 +1,94 @@
 import { KolReputation } from 'kol/reputation/domain/value-objects/kol-reputation.vo';
+import type { KolConfidence } from 'kol/reputation/domain/value-objects/kol-reputation.vo';
 import {
-  KolReputationAggregator,
-  type KolReputationStats,
-} from 'kol/reputation/domain/services/kol-reputation-aggregator';
-import { KolReputationScorer } from 'kol/reputation/domain/services/kol-reputation-scorer';
+  KolMetricsCalculator,
+} from 'kol/reputation/domain/services/kol-metrics-calculator';
 
 interface KolReputationCanonicalCall {
   readonly chain: string;
   readonly address: string;
-  readonly sources: ReadonlyArray<{ kolId: string | number }>;
+  readonly sources: ReadonlyArray<{ kolId: string | number; mentionCount?: number }>;
   readonly lastSeenAt: Date;
 }
+
+const MENTION_WEIGHT = 0.25;
+const QUALITY_WEIGHT = 0.55;
+const DRAWDOWN_WEIGHT = 0.2;
+const KNOWN_GOOD_MULTIPLIER = 1.2;
+const KNOWN_BAD_MULTIPLIER = 0.5;
 
 /**
  * KolReputationCalculator — top-level entry point for computing a KOL's
  * reputation from canonical call data.
  *
  * Pipeline:
- * 1. KolReputationAggregator → stats (totalMentions, distinctTokens, time range)
- * 2. KolReputationScorer → { score, confidence } from stats
- * 3. KolReputation.fromValues → rich aggregate VO
+ * 1. KolMetricsCalculator → KolReputationMetrics (counts + per-metric scores)
+ * 2. Compute blended score from the 3 metric scores (mention / quality / drawdown)
+ * 3. Apply whitelist/blacklist multiplier if applicable
+ * 4. Derive confidence from metrics.totalMentions
+ * 5. KolReputation.fromValues → rich aggregate VO
  *
- * Pure function — no side effects, no DB access. The use case wraps this
- * with persistence and event emission.
+ * Pure function — no side effects, no DB access.
  */
 export class KolReputationCalculator {
   public static calculateFromCanonicalCalls(
     kolId: string,
     calls: ReadonlyArray<KolReputationCanonicalCall>,
   ): KolReputation {
-    const stats: KolReputationStats = KolReputationAggregator.aggregate(
-      kolId,
-      calls,
+    return KolReputationCalculator.calculate(kolId, calls, null, null);
+  }
+
+  public static calculate(
+    kolId: string,
+    calls: ReadonlyArray<KolReputationCanonicalCall>,
+    knownGood: boolean | null,
+    knownBad: boolean | null,
+  ): KolReputation {
+    const metrics = KolMetricsCalculator.calculate(kolId, calls);
+    const blended = KolReputationCalculator.blendScore(metrics);
+    const adjusted = KolReputationCalculator.applyWhitelist(
+      blended,
+      knownGood,
+      knownBad,
     );
-    const { score, confidence } = KolReputationScorer.score(stats);
+    const score = Math.min(1, Math.max(0, Math.round(adjusted * 100) / 100));
+    const confidence = KolReputationCalculator.deriveConfidence(
+      metrics.totalMentions,
+    );
     return KolReputation.fromValues({
       kolId,
       score,
-      totalCalls: stats.totalMentions,
-      strongCalls: 0,
-      goodCalls: 0,
-      neutralCalls: stats.totalMentions,
-      poorCalls: 0,
-      failedCalls: 0,
-      avgAthMultiple: null,
+      metrics,
       confidence,
     });
+  }
+
+  public static blendScore(metrics: {
+    readonly mentionScore: number;
+    readonly qualityScore: number;
+    readonly drawdownScore: number;
+  }): number {
+    return (
+      metrics.mentionScore * MENTION_WEIGHT +
+      metrics.qualityScore * QUALITY_WEIGHT +
+      metrics.drawdownScore * DRAWDOWN_WEIGHT
+    );
+  }
+
+  public static applyWhitelist(
+    score: number,
+    knownGood: boolean | null,
+    knownBad: boolean | null,
+  ): number {
+    if (knownGood === true) return score * KNOWN_GOOD_MULTIPLIER;
+    if (knownBad === true) return score * KNOWN_BAD_MULTIPLIER;
+    return score;
+  }
+
+  public static deriveConfidence(totalMentions: number): KolConfidence {
+    if (totalMentions < 5) return 'LOW';
+    if (totalMentions < 20) return 'MEDIUM';
+    if (totalMentions < 50) return 'HIGH';
+    return 'VERY_HIGH';
   }
 }

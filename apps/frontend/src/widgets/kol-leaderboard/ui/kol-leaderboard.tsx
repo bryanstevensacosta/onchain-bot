@@ -40,8 +40,8 @@ export function KolLeaderboard({ rows, isLoading }: KolLeaderboardProps = {}) {
                   {r.score.toFixed(2)}
                 </Badge>
               </td>
-              <td className="tabular-nums">{r.totalCalls}</td>
-              <td className="tabular-nums text-green-400">{r.strongCalls}</td>
+              <td className="tabular-nums">{r.metrics.totalMentions}</td>
+              <td className="tabular-nums text-green-400">{r.metrics.x2Count}</td>
             </tr>
           ))}
           {isLoading && (
