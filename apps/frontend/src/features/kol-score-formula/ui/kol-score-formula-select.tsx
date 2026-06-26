@@ -3,7 +3,7 @@ import {
   KOL_SCORE_FORMULAS,
   KOL_SCORE_FORMULA_OPTIONS,
   type KolScoreFormula,
-} from 'entities/kol-reputation/model/kol-score-formula';
+} from '@/entities/kol-reputation/model/kol-score-formula';
 
 interface KolScoreFormulaSelectProps {
   readonly value: string;

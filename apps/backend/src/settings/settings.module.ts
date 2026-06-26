@@ -37,6 +37,6 @@ import { SettingsPresetsController } from 'settings/api/http/settings-presets.co
     SettingsPresetsController,
   ],
   providers: [SettingsService, AuditService, SettingsPresetsService],
-  exports: [SettingsService, AuditService],
+  exports: [SettingsService, AuditService, SettingsPresetsService],
 })
 export class SettingsModule {}

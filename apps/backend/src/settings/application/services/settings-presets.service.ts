@@ -39,6 +39,15 @@ export interface PresetSnapshot {
   honeypot_thresholds?: Record<string, number>;
   score_tiers?: Record<string, number>;
   confidence?: Record<string, number>;
+  /**
+   * Slice A (configurable presets): the operator-tunable value set
+   * for kol/reputation scoring. See
+   * `apps/backend/src/kol/reputation/domain/value-objects/kol-score-preset.vo.ts`.
+   *
+   * When present, this overrides the hardcoded defaults. The full
+   * shape is documented in `.omo/drafts/configurable-presets.md`.
+   */
+  kol_score?: Record<string, unknown>;
 }
 
 @Injectable()

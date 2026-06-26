@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   DEFAULT_KOL_SCORE_FORMULA_ID,
   KOL_SCORE_FORMULA_IDS,
-} from 'entities/kol-reputation/model/kol-score-formula';
+} from '@/entities/kol-reputation/model/kol-score-formula';
 
 const STORAGE_KEY = 'kol-score-formula-id';
 

@@ -133,7 +133,10 @@ export class ApplyFiltersUseCase {
     }
 
     const publishableChains = await this.settings.getPublishableChains();
-    if (!publishableChains.includes(input.chain)) {
+    if (
+      publishableChains.length > 0 &&
+      !publishableChains.includes(input.chain)
+    ) {
       reasons.push(
         FilterReason.create({
           code: 'CHAIN_UNSUPPORTED',
@@ -159,3 +162,4 @@ export class ApplyFiltersUseCase {
     return FilterDecisionMapper.toView(decision);
   }
 }
+

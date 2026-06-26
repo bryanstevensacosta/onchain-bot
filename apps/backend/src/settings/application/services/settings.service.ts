@@ -322,10 +322,7 @@ export class SettingsService {
       where: { type: 'publishable_chain', enabled: true },
     });
     if (rows.length === 0) {
-      this.logger.warn(
-        'Settings fallback: publishable_chains=[ethereum,solana] (no DB rows)',
-      );
-      return ['ethereum', 'solana'];
+      return [];
     }
     const chains = rows.map((r) => r.value);
     this.setInCache(this.baseConfigCache, 'publishable_chains', chains);
@@ -343,10 +340,7 @@ export class SettingsService {
       where: { type: 'blocked_classification', enabled: true },
     });
     if (rows.length === 0) {
-      this.logger.warn(
-        "Settings fallback: blocked_classifications=['SCAM','UNKNOWN'] (no DB rows)",
-      );
-      return ['SCAM', 'UNKNOWN'];
+      return [];
     }
     const list = rows.map((r) => r.value);
     this.setInCache(this.baseConfigCache, 'blocked_classifications', list);
@@ -372,17 +366,17 @@ export class SettingsService {
 
     const minScore = await this.getFilterNumericValue(
       'min_score',
-      50,
+      0,
       'global',
     );
     const maxRiskWeight = await this.getFilterNumericValue(
       'max_risk_weight',
-      100,
+      999,
       'global',
     );
     const minCompleteness = await this.getFilterNumericValue(
       'min_completeness',
-      0.3,
+      0,
       'global',
     );
     const blockedClassifications = await this.getBlockedClassifications();
@@ -392,7 +386,7 @@ export class SettingsService {
     );
     const enableBlacklist = enableBlacklistRow
       ? enableBlacklistRow.value === 'true'
-      : true;
+      : false;
 
     const config = {
       minScore,
