@@ -67,16 +67,18 @@ interface Resolution {
  * these 3 KOLs. On next `npm run start:dev`, KolSeeder.onApplicationBootstrap
  * applies the override directly (idempotent, no SQL needed). Example:
  *
- *   INGESTION_TELEGRAM_SEED_CHANNELS=2054466090|@CasGem|Cas Gem Calls,1960616143|@SpyDefi|SpyDefi Channel,1756488143|lowtaxsolana|Low Tax Solana Calls,...
+ *   INGESTION_TELEGRAM_SEED_CHANNELS=2054466090|@casgem|Cas Gem,1960616143|@spydefi|SpyDefi,1756488143|@lowtaxsolana|- SOL -,...
  *
  * EXAMPLE (script path):
- *   '2054466090': { handle: '@CasGemCalls' },
+ *   '2054466090': { handle: '@casgem' },
  *   '1756488143': { title: 'Low Tax Solana Calls' },
  */
 const MANUAL_RESOLUTIONS: Record<string, Resolution> = {
-  // '2054466090': { handle: '@CasGem' },         // TODO: open t.me/cas_gem to find real @handle
-  // '1960616143': { handle: '@SpyDefi' },         // TODO: open t.me/spydefi to find real @handle
-  // '1756488143': { title: 'Real Title Here' },   // TODO: replace "- SOL -" with real channel title
+  '2054466090': { handle: '@casgem' },
+  '1960616143': { handle: '@spydefi' },
+  // 1756488143 has correct data: title "- SOL -" is the literal Telegram display name
+  // (channel https://t.me/lowtaxsolana, founded 2022, ~73K subs).
+  // The "dashes" looked like a placeholder but it's the actual stylized channel name.
 };
 
 async function main(): Promise<void> {

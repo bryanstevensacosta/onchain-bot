@@ -659,7 +659,7 @@ Following the QA plan, these P0/P1 issues were fixed:
 | `c5f3a9a` | (chore) | repo | Added `.playwright-mcp/` to `.gitignore` so MCP screenshots/snapshots/console logs don't pollute git history. |
 | `942589e` | INV-2 | token/scoring | One-shot SQL backfill for 2 stale tokens (`4quuyz...` score=80, `0x92b8...` score=50) that had `breakdown=NULL` despite snapshot data existing at scoring time. Recomputed breakdown from `token_snapshots` using same formula as `ScoreTokenUseCase`. DB: 0 null, 0 empty, 27/27 populated. |
 | `344e16a` | (docs) | repo | Research document `.omo/drafts/backfill-strategy.md` cataloging every backfill touchpoint in code (13+ sites) with categorization matrix, proposed `scripts/backfills/` convention, and short/medium/long-term migration checklist. |
-| `760af85` | INV-12/13 | kol/identity | TS backfill scaffold `scripts/backfills/2026-06-26-kol-title-handle-resolve.ts` with `--dry-run` / `--validate` / `--estimate-cost` / `--apply` modes. Awaits user to fill `MANUAL_RESOLUTIONS` map with real Telegram handles for KOLs 2054466090, 1960616143, 1756488143. |
+| `760af85` + `1c780f2` + applied 2026-06-26 | INV-12 (and INV-13 false positive) | kol/identity | TS backfill scaffold with `--dry-run` / `--validate` / `--estimate-cost` / `--apply` modes. Filled MANUAL_RESOLUTIONS via websearch: Cas Gem → @casgem, SpyDefi → @spydefi. INV-13 confirmed as false positive ("- SOL -" is the literal Telegram display name of @lowtaxsolana, not a placeholder). Backfill applied 2026-06-26 — verified on /kols via MCP playwright. |
 | `611b2ca` | INV-5 | shared/ui | Created `TokenImage` shared component: cycles through snapshot-curated image_urls (dexscreener → birdeye → ipfs) → DexScreener fallback URL → deterministic placeholder (hashed color + initial letter). Zero network calls in placeholder mode. Replaced `<img>` + onError in `canonical-call-row.tsx` and `token-detail/index.tsx`. |
 | `19beaaf` | INV-9 | kol/reputation | Diagnosed: leaderboard uniform 0.50 scores are HONEST behavior — `call_performances` is empty (no `published_calls` exist yet). Algorithm correctly returns 0.5 neutral default. Will self-resolve once bridge handler (INV-1 fix) processes new approvals. |
 | `f380a28` | (UI) | tokens-explorer + /kols | (a) `/kols` client-side pagination (PAGE_SIZE=15) with Previous/Next + "N-M de TOTAL" indicator. (b) TopTokensTable `Last seen` switched from `s.classifiedAt` (always undefined) to `s.scoredAt` — now shows real relative times. (c) Token cell chip reduced to `text-[10px]` to stop competing visually with ticker fallback. |
@@ -782,7 +782,7 @@ Shipped backfills (under `apps/backend/scripts/backfills/`):
 |---|---|---|
 | `2026-06-26-token-score-breakdown.sql` | SQL | Backfill `token_scores.breakdown` for 2 stale tokens (INV-2) |
 | `2026-06-26-kol-is-active-sync.sql` | SQL | Sync `kols.is_active` from `lifecycle_status` for 7 inconsistent rows (INV-3) |
-| `2026-06-26-kol-title-handle-resolve.ts` | TS | Scaffold for INV-12/13 — awaiting user to fill `MANUAL_RESOLUTIONS` map |
+| `2026-06-26-kol-title-handle-resolve.ts` | TS | **APPLIED 2026-06-26** for INV-12. MANUAL_RESOLUTIONS populated via websearch: `2054466090: { handle: '@casgem' }, 1960616143: { handle: '@spydefi' }`. INV-13 confirmed false positive. |
 | `2026-06-26-tracked-published-calls-from-published.sql` | SQL | Backfill `tracked_published_calls` from `published_calls` filtering numeric KOL ids (INV-6 cascade — 3 test artifacts correctly skipped) |
 
 All auto-applied on `npm run start:dev` via the wired `db:migrate` runner; tracked in `backfill_migrations` table.
@@ -845,8 +845,8 @@ A walk-through of each BC based on testing so far. Status: ✅ verified working 
 - ✅ **Activate mutation** (INV-3 fixed): both `lifecycle_status` AND `is_active` flip together (commit `56cbf3a` + `2026-06-26-kol-is-active-sync.sql` cleaned 7 pre-existing inconsistent rows)
 - ✅ All 45 KOLs show `rep 0.50 (LOW)` (INV-9 diagnosed): scheduler populates `kol_reputations` (45 rows), all neutral because `call_performances` is empty. Honest behavior — will self-resolve when bridge handler processes new approvals.
 - ✅ Leaderboard no longer empty (INV-9 fixed): scheduler now populates rows. Cards + leaderboard both show 0.50 uniformly.
-- 🔴 2 KOLs missing handle (Cas Gem 2054466090, SpyDefi 1960616143) — INV-12 (scaffold shipped, awaiting user input)
-- 🔴 1 KOL has placeholder title "- SOL -" (1756488143) — INV-13 (scaffold shipped, awaiting user input)
+- ✅ 2 KOLs missing handle (Cas Gem 2054466090 → @casgem, SpyDefi 1960616143 → @spydefi) — INV-12 fixed via websearch + backfill `--apply`. Verified via MCP playwright on /kols.
+- ✅ 1 KOL with "- SOL -" title (1756488143 → @lowtaxsolana) — INV-13 was a **false positive**: "- SOL -" is the literal Telegram display name of the channel (founded 2022, ~73K subscribers). The dashes are stylistic, not placeholder. No fix needed.
 - **🔧 MTProto blocker**: `PUBLISHING_TELEGRAM_USE_REAL_MTPROTO=false` in `.env` + `TELEGRAM_MTPROTO_API_ID`/`API_HASH` empty. Without real MTProto session, neither `KolSeeder.resolveMetadata()` nor `KolListenerPort.resolveKolMetadata()` can resolve the chat_id → @username mapping from Telegram. `https://t.me/{numeric_chat_id}` only returns Telegram's homepage (verified via webfetch 2026-06-26).
 - **Resolution paths** (both shipped, awaiting user action):
   - **A — Script edit**: `apps/backend/scripts/backfills/2026-06-26-kol-title-handle-resolve.ts` uncomment + fill `MANUAL_RESOLUTIONS` map with real handles, then `node scripts/backfills/2026-06-26-kol-title-handle-resolve.js --apply`.
@@ -982,8 +982,8 @@ A walk-through of each BC based on testing so far. Status: ✅ verified working 
 | P1 | KOL activate doesn't restore is_active (INV-3) | kol/identity | Data corruption |
 | P1 | Empty breakdown for score 80 (INV-2) | token/scoring | Score opaque |
 | P1 | Tracked calls empty (INV-6) | call-tracking + vip-calls | Cascade from INV-1 |
-| P1 | 2 KOLs missing title/handle (INV-12) | kol/ingestion | Data quality |
-| P2 | 1 KOL placeholder title (INV-13) | kol/ingestion | Data quality |
+| ~~P1~~ | ~~2 KOLs missing title/handle (INV-12)~~ | kol/ingestion | ✅ FIXED via websearch + backfill `--apply` (Cas Gem → @casgem, SpyDefi → @spydefi) |
+| ~~P2~~ | ~~1 KOL placeholder title (INV-13)~~ | kol/ingestion | ✅ FALSE POSITIVE — "- SOL -" is the literal Telegram display name of @lowtaxsolana (founded 2022, ~73K subs). Not a placeholder. |
 | P2 | "Last seen: —" for all tokens | dashboard | UI placeholder |
 | P2 | Token name truncated twice | dashboard | UI display |
 | P2 | KOLs all show rep "(LOW)" label | kol/reputation | Misleading UI |
