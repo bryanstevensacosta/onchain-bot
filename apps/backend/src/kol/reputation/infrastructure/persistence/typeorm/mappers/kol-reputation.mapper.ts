@@ -1,4 +1,5 @@
 import { KolReputation } from 'kol/reputation/domain/value-objects/kol-reputation.vo';
+import { EMPTY_KOL_REPUTATION_METRICS } from 'kol/reputation/domain/value-objects/kol-reputation-metrics.vo';
 import { KolReputationEntity } from 'kol/reputation/infrastructure/persistence/typeorm/entities/kol-reputation.entity';
 
 export class KolReputationMapper {
@@ -6,13 +7,7 @@ export class KolReputationMapper {
     const row = new KolReputationEntity();
     row.kolId = stats.kolId;
     row.score = stats.score;
-    row.totalCalls = stats.totalCalls;
-    row.strongCalls = stats.strongCalls;
-    row.goodCalls = stats.goodCalls;
-    row.neutralCalls = stats.neutralCalls;
-    row.poorCalls = stats.poorCalls;
-    row.failedCalls = stats.failedCalls;
-    row.avgAthMultiple = stats.avgAthMultiple;
+    row.metrics = stats.metrics;
     row.confidence = stats.confidence;
     row.lastEvaluatedAt = stats.lastEvaluatedAt;
     return row;
@@ -22,13 +17,7 @@ export class KolReputationMapper {
     return KolReputation.fromValues({
       kolId: row.kolId,
       score: row.score,
-      totalCalls: row.totalCalls,
-      strongCalls: row.strongCalls,
-      goodCalls: row.goodCalls,
-      neutralCalls: row.neutralCalls,
-      poorCalls: row.poorCalls,
-      failedCalls: row.failedCalls,
-      avgAthMultiple: row.avgAthMultiple,
+      metrics: row.metrics ?? EMPTY_KOL_REPUTATION_METRICS,
       confidence: row.confidence,
       lastEvaluatedAt: row.lastEvaluatedAt,
     });
