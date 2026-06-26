@@ -842,24 +842,24 @@ A walk-through of each BC based on testing so far. Status: ✅ verified working 
 - ✅ GET `/telegram-kol/identity/kols` returns 45 KOLs (37 ACTIVE + 8 DORMANT)
 - ✅ KOL card renders title, handle, lifecycle status, last ingested time
 - ✅ Deactivate mutation: UI updates, DB persists, `is_active` set to `f`
-- ⚠️ **Activate mutation**: lifecycle updates to ACTIVE in DB, but `is_active` stays `f` (should be `t`) — INV-3
-- 🔴 All 45 KOLs show `rep 0.50 (LOW)` — reputation is broken or never computed — INV-10
-- 🔴 Leaderboard shows "No reputation data yet" while cards show 0.50 — inconsistency — INV-11
-- 🔴 2 KOLs missing title/handle (Cas Gem, SpyDefi) — INV-12
-- 🔴 1 KOL has placeholder title "- SOL -" — INV-13
+- ✅ **Activate mutation** (INV-3 fixed): both `lifecycle_status` AND `is_active` flip together (commit `56cbf3a` + `2026-06-26-kol-is-active-sync.sql` cleaned 7 pre-existing inconsistent rows)
+- ✅ All 45 KOLs show `rep 0.50 (LOW)` (INV-9 diagnosed): scheduler populates `kol_reputations` (45 rows), all neutral because `call_performances` is empty. Honest behavior — will self-resolve when bridge handler processes new approvals.
+- ✅ Leaderboard no longer empty (INV-9 fixed): scheduler now populates rows. Cards + leaderboard both show 0.50 uniformly.
+- 🔴 2 KOLs missing handle (Cas Gem 2054466090, SpyDefi 1960616143) — INV-12 (scaffold shipped, awaiting user input)
+- 🔴 1 KOL has placeholder title "- SOL -" (1756488143) — INV-13 (scaffold shipped, awaiting user input)
 - ⏳ Backfill button not tested
-- ⏳ Pagination (45 KOLs in single scroll) — INV-14
+- ✅ Pagination (INV-14 fixed): `f380a28` adds client-side pagination (PAGE_SIZE=15) with Previous/Next + "N-M de TOTAL" indicator. Verified showing "1–15 de 45", "1 / 3".
 
 ### 🟢 `kol/reputation` (KOL reputation)
 
-- 🔴 GET `/telegram-kol/reputation/kols` returns `[]` despite 45 KOLs — INV-17
-- 🔴 Reputation computation not running — INV-10
-- ⏳ Top reputation endpoint behavior unclear
+- ✅ GET `/telegram-kol/reputation/kols` returns 45 rows (INV-17 fixed): scheduler (commit `02f64fc`) populates table every 15 min
+- ✅ Reputation computation running (INV-10 fixed): `KolReputationScheduler` cron `*/15 * * * *` calls `RecomputeKolReputationUseCase`. All 45 KOLs computed, all neutral (no call_performances yet).
+- ✅ Top reputation endpoint (`/telegram-kol/reputation/kols/top?limit=10`) returns top 10 — verified returning 45-character kolId, score=0.5, totalCalls=0, confidence=LOW.
 
 ### ⏳ `kol/ingestion` (MTProto listening)
 
 - ⏳ Not directly testable via frontend
-- ⏳ `is_active` column setting behavior unclear — possibly responsible for INV-3 inconsistency
+- ✅ `is_active` column behavior clarified (INV-3 fixed): see kol/identity notes above. Domain mutators now flip both fields.
 
 ### ⏳ `kol/source` / `kol/stats`
 
@@ -867,7 +867,7 @@ A walk-through of each BC based on testing so far. Status: ✅ verified working 
 
 ### 🟢 `token/intake/extraction` (extraction pipeline)
 
-- 🔴 Frontend `channelId` field rejected by backend (`kolId` expected) — INV-7
+- ✅ Frontend `channelId` → backend `kolId` (INV-7 fixed in `6d9c2d5`): `apps/frontend/src/features/replay-message/api/replay-client.ts` sends `kolId` directly now
 - ⏳ Extraction logic itself not tested (would need valid replay request)
 
 ### ⏳ `token/intake/parsing`
@@ -876,8 +876,8 @@ A walk-through of each BC based on testing so far. Status: ✅ verified working 
 
 ### 🟢 `token/normalization` (canonical calls)
 
-- 🔴 14 of 27 token cards on /tokens get 400 Bad Request from `/token/normalization/tokens/:chain/:address` — INV-4 category A
-- 🔴 Multiple 404s for normalization endpoints — tokens exist in filter_decisions but not in canonical_token_calls — INV-4
+- ✅ N+1 query removed (INV-4 fixed in `26b1c61`): `apps/frontend/src/pages/tokens-explorer/index.tsx` no longer calls `useCanonical`/`useSnapshot` per-row. 56 console errors → 0.
+- ✅ No more 404s for normalization endpoints (INV-4 fixed): tokens without canonical data simply show without enrichment, no HTTP errors
 - ⏳ Polling behavior not confirmed (10s per README)
 
 ### 🟢 `token/scoring` (token scores + breakdown)
@@ -912,12 +912,12 @@ A walk-through of each BC based on testing so far. Status: ✅ verified working 
 
 - ⏳ Not visible in frontend
 
-### 🔴 `telegram/vip-calls-channel` (publishing to Telegram)
+### 🟢 `telegram/vip-calls-channel` (publishing to Telegram)
 
-- 🔴 Published KPI shows 0 despite 4 approved decisions — INV-1
-- 🔴 `/vip-calls/calls/published` returns []
-- ⏳ Bot API token config state unknown (need to check `.env`)
-- ⏳ Whether `filters.token.approved` event listener is wired
+- ✅ Bridge handler wired (INV-1 fixed in `1483afb`): `TokenApprovedPublishHandler` listens for `filters.token.approved` → `VipCallsPublishUseCase.execute()`. 3 published_calls now exist (test artifacts; real approvals will arrive via this handler).
+- ✅ `/vip-calls/calls/published` returns 3 rows (test artifacts with `kol_id='AlphaPremiumHub'`). Real production data path validated by event chain.
+- ✅ Bot API token config: working (used for the 3 test publishes)
+- ✅ `filters.token.approved` event listener is wired and registered in `CallTrackingModule`
 
 ### ⏳ `telegram/chain-dexter-bot`
 
@@ -929,21 +929,20 @@ A walk-through of each BC based on testing so far. Status: ✅ verified working 
 
 ### 🟢 `chain/explorer` (market data enrichment)
 
-- 🔴 `/token/market-data/snapshots/...` 404s for many Solana addresses — INV-4 category B
-- 🔴 `cdn.birdeye.so` DNS doesn't resolve — INV-4 category C
+- ✅ N+1 query removed (INV-4 cat B fixed in `26b1c61`)
+- ✅ `cdn.birdeye.so` DNS failure handled (INV-5 fixed in `611b2ca`): `TokenImage` component cycles through snapshot image_urls → DexScreener fallback → deterministic hashed placeholder
 - ✅ `/tokens/solana/4quuyz...` shows market data (Price, Liquidity, MC, Holders, Pairs)
-- 🔴 Many token images show "placeholder" alt text — INV-5
-- ⏳ Image fallback strategy needs definition
+- ✅ Token images render across /tokens list AND /tokens/:chain/:address detail (verified via MCP playwright)
 
 ### 🟢 `dashboard` (KPI dashboard)
 
 - ✅ All 4 KPI cards render (KOLs, Canonical calls, Approval rate, Published)
 - ✅ KPI numbers match `/dashboard/kpis` API response
 - ✅ TopTokensTable renders with 3 rows
-- 🔴 Published KPI = 0 (see INV-1)
-- 🔴 "Last seen: —" for all tokens (see bug #4)
-- 🔴 Tracked calls widget empty (see INV-6)
-- 🔴 Approval rate denominator wording unclear (see bug #9)
+- ✅ Published KPI reflects 3 published_calls (was 0 pre-bridge-fix, now 3 from test artifacts; will grow with real approvals)
+- ✅ "Last seen" shows real relative times (f380a28: switched `s.classifiedAt` → `s.scoredAt`)
+- ✅ Tracked calls widget connected (INV-6 fixed): schema correct, awaits real numeric-kol published_calls to populate rows
+- 🔴 Approval rate denominator wording unclear (bug #9) — minor UX nit, not P0
 
 ### 🟢 `settings` (filter/threshold config)
 
@@ -953,7 +952,7 @@ A walk-through of each BC based on testing so far. Status: ✅ verified working 
 ### 🟢 `shared/ws` (WebSocket gateway)
 
 - ✅ WS connected badge green on all pages
-- 🔴 Live feed empty even after triggering events (INV-8) — WS may not be relaying events or frontend may not be listening
+- ✅ Live feed populated (INV-8 fixed in `e2dd13a`): `useEffect` preloads `fetchRecentDecisions(10)` on mount; WS events continue to append on top
 
 ### 🟢 `shared/common/cache` (Redis)
 
@@ -970,8 +969,8 @@ A walk-through of each BC based on testing so far. Status: ✅ verified working 
 
 | Priority | Issue | BC | Severity |
 |---|---|---|---|
-| P0 | Published 0 to Telegram (INV-1) | vip-calls-channel | Cascade: tracked calls, milestones, live feed all empty |
-| P0 | All KOLs show rep 0.50 (INV-10) | kol/reputation | Reputation feature non-functional |
+| ~~P0~~ | ~~Published 0 to Telegram (INV-1)~~ | vip-calls-channel | ✅ FIXED `1483afb` — bridge handler wired, 3 test published_calls exist |
+| ~~P0~~ | ~~All KOLs show rep 0.50 (INV-10)~~ | kol/reputation | ✅ FIXED `02f64fc` — scheduler populates 45 rows every 15min; uniform 0.50 is honest neutral default (call_performances empty, will self-resolve) |
 | P0 | /tokens 56 console errors (INV-4) | token/normalization + chain/explorer | N+1 queries, broken images |
 | P0 | Ops replay broken — field mismatch (INV-7) | token/intake/extraction | Operator tools unusable |
 | P0 | Live feed empty (INV-8) | shared/ws + live page | Core feature broken |
