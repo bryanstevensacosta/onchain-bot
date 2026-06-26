@@ -7,7 +7,7 @@ import {
   deletePreset,
   settingsPresetKeys,
   type SettingsPreset,
-} from 'features/settings/api/settings-api';
+} from '@/features/settings/api/settings-api';
 import { Button, Card } from '@/shared/ui';
 
 export function PresetsTab(): React.ReactElement {

@@ -5,7 +5,7 @@ import {
   updateFilter,
   settingsFilterKeys,
   type SettingsFilter,
-} from 'features/settings/api/settings-api';
+} from '@/features/settings/api/settings-api';
 import { Button, Card } from '@/shared/ui';
 
 export function FiltersTab(): React.ReactElement {
