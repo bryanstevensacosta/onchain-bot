@@ -108,6 +108,7 @@ export class VipCallsPublishUseCase {
         message,
         targetChannels: ['vip-calls'],
         mcAtCall,
+        telegramMessageId: result.messageId,
       },
       { published, failed },
     );

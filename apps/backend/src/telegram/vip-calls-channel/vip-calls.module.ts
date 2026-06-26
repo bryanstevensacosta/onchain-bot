@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { isDatabaseEnabled } from 'shared/common/persistence/database.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { ChainRegistryModule } from 'chain/registry/chain-registry.module';
 import {
   PublishedCallRepository,
@@ -11,6 +12,8 @@ import {
 import { VipCallsBotApiPublisherAdapter } from './infrastructure/senders/bot-api-telegram-publisher.adapter';
 import { VipCallsMessageFormatterAdapter } from './infrastructure/formatters/vip-message-formatter.adapter';
 import { InMemoryPublishedCallRepository } from './infrastructure/repositories/in-memory-published-call.repository';
+import { TypeOrmPublishedCallRepository } from './infrastructure/persistence/typeorm/repositories/typeorm-published-call.repository';
+import { PublishedCallEntity } from './infrastructure/persistence/typeorm/entities/published-call.entity';
 import { InProcessPublishingEventPublisher } from 'telegram/shared';
 import { VipCallsPublishUseCase } from './application/handlers/vip-calls-publish.use-case';
 import { VipCallsListPublishedUseCase } from './application/handlers/vip-calls-list-published.use-case';
@@ -22,7 +25,16 @@ import { NormalizationModule } from 'token/normalization/normalization.module';
 import { ChainExplorerModule } from 'chain/explorer/chain-explorer.module';
 
 @Module({
-  imports: [HttpModule, ChainRegistryModule, SettingsModule, NormalizationModule, ChainExplorerModule],
+  imports: [
+    HttpModule,
+    ChainRegistryModule,
+    SettingsModule,
+    NormalizationModule,
+    ChainExplorerModule,
+    ...(isDatabaseEnabled()
+      ? [TypeOrmModule.forFeature([PublishedCallEntity])]
+      : []),
+  ],
   controllers: [VipCallsController],
   providers: [
     VipCallsPublishUseCase,
@@ -32,9 +44,17 @@ import { ChainExplorerModule } from 'chain/explorer/chain-explorer.module';
     MilestoneReachedHandler,
     TokenApprovedPublishHandler,
     InMemoryPublishedCallRepository,
+    ...(isDatabaseEnabled() ? [TypeOrmPublishedCallRepository] : []),
     {
       provide: PublishedCallRepository,
-      useExisting: InMemoryPublishedCallRepository,
+      inject: [
+        ...(isDatabaseEnabled()
+          ? [TypeOrmPublishedCallRepository]
+          : [InMemoryPublishedCallRepository]),
+      ],
+      useFactory: (
+        repo: PublishedCallRepository,
+      ): PublishedCallRepository => repo,
     },
     {
       provide: PublishingEventPublisher,

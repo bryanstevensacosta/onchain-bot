@@ -16,6 +16,7 @@ export interface PublishInput {
   readonly message: string;
   readonly targetChannels: ReadonlyArray<string>;
   readonly mcAtCall?: number | null;
+  readonly telegramMessageId?: number | null;
 }
 
 interface PublishedCallProps {
@@ -32,6 +33,7 @@ interface PublishedCallProps {
   readonly failedChannelIds: ReadonlyArray<string>;
   readonly publishedAt: Date;
   readonly mcAtCall: number | null;
+  readonly telegramMessageId: number | null;
 }
 
 export class PublishedCall extends AggregateRoot<string> {
@@ -77,6 +79,7 @@ export class PublishedCall extends AggregateRoot<string> {
       failedChannelIds: Object.freeze([...results.failed]),
       publishedAt: new Date(),
       mcAtCall: input.mcAtCall ?? null,
+      telegramMessageId: input.telegramMessageId ?? null,
     });
   }
 
@@ -95,6 +98,7 @@ export class PublishedCall extends AggregateRoot<string> {
     failedChannelIds: ReadonlyArray<string>;
     publishedAt: Date;
     mcAtCall?: number | null;
+    telegramMessageId?: number | null;
   }): PublishedCall {
     return new PublishedCall(input.id, {
       chain: input.chain,
@@ -110,6 +114,7 @@ export class PublishedCall extends AggregateRoot<string> {
       failedChannelIds: input.failedChannelIds,
       publishedAt: input.publishedAt,
       mcAtCall: input.mcAtCall ?? null,
+      telegramMessageId: input.telegramMessageId ?? null,
     });
   }
 
@@ -151,6 +156,9 @@ export class PublishedCall extends AggregateRoot<string> {
   }
   public get mcAtCall(): number | null {
     return this.state.mcAtCall;
+  }
+  public get telegramMessageId(): number | null {
+    return this.state.telegramMessageId;
   }
   public get isPublished(): boolean {
     return this.state.status.value === 'PUBLISHED';
