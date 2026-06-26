@@ -18,9 +18,10 @@ import { VipCallsController } from './api/http/vip-calls.controller';
 import { MilestoneReachedHandler } from './infrastructure/event-bus/milestone-reached.handler';
 import { TokenApprovedPublishHandler } from './infrastructure/event-bus/token-approved-publish.handler';
 import { SettingsModule } from 'settings/settings.module';
+import { NormalizationModule } from 'token/normalization/normalization.module';
 
 @Module({
-  imports: [HttpModule, ChainRegistryModule, SettingsModule],
+  imports: [HttpModule, ChainRegistryModule, SettingsModule, NormalizationModule],
   controllers: [VipCallsController],
   providers: [
     VipCallsPublishUseCase,
