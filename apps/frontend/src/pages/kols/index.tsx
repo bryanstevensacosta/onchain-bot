@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { KolView } from '@/entities/kol';
 import { useKols } from '@/entities/kol';
 import {
@@ -6,7 +7,7 @@ import {
 } from '@/entities/kol-reputation';
 import type { KolReputationView } from '@/entities/kol-reputation';
 import { KolLeaderboard } from '@/widgets/kol-leaderboard';
-import { Card } from '@/shared/ui';
+import { Button, Card } from '@/shared/ui';
 import { formatRelativeTime } from '@/shared/lib';
 import { BackfillButton } from '@/features/trigger-backfill';
 import { SetKolLifecycleButton } from '@/features/set-kol-lifecycle';
@@ -86,6 +87,13 @@ export function KolsPage() {
   const { data: topRep } = useTopKolReputation(10);
   const { get: getRep } = useKolReputationMap();
 
+  const PAGE_SIZE = 15;
+  const [page, setPage] = useState(1);
+  const totalPages = data ? Math.max(1, Math.ceil(data.length / PAGE_SIZE)) : 1;
+  const safePage = Math.min(page, totalPages);
+  const pageStart = (safePage - 1) * PAGE_SIZE;
+  const visible = data?.slice(pageStart, pageStart + PAGE_SIZE) ?? [];
+
   return (
     <div className="space-y-4 p-6">
       <header className="space-y-1">
@@ -101,7 +109,7 @@ export function KolsPage() {
       {isLoading && <Card className="text-xs text-slate-500">Cargando…</Card>}
 
       <div className="space-y-2">
-        {data?.map((k) => (
+        {visible.map((k) => (
           <KolRow key={k.id} kol={k} rep={getRep(k.id)} />
         ))}
         {data?.length === 0 && !isLoading && (
@@ -110,6 +118,36 @@ export function KolsPage() {
           </Card>
         )}
       </div>
+
+      {data && data.length > PAGE_SIZE && (
+        <div className="flex items-center justify-between pt-2">
+          <span className="text-xs text-slate-500">
+            {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, data.length)} de{' '}
+            {data.length}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={safePage <= 1}
+              onClick={() => setPage(safePage - 1)}
+            >
+              ← Anterior
+            </Button>
+            <span className="text-xs text-slate-400 self-center">
+              {safePage} / {totalPages}
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={safePage >= totalPages}
+              onClick={() => setPage(safePage + 1)}
+            >
+              Siguiente →
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

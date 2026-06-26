@@ -45,7 +45,7 @@ export function TopTokensTable() {
                 >
                   {s.ticker ? `$${s.ticker}` : s.address.slice(0, 6) + '…'}
                 </Link>
-                <span className="text-slate-500 ml-2 font-mono">
+                <span className="text-slate-500 ml-2 font-mono text-[10px]">
                   {s.address.slice(0, 4)}…{s.address.slice(-4)}
                 </span>
               </td>
@@ -54,7 +54,7 @@ export function TopTokensTable() {
                 <Badge tone={tierTone(s.tier)}>{s.tier}</Badge>
               </td>
               <td className="text-slate-400">
-                {formatRelativeTime(s.classifiedAt)}
+                {formatRelativeTime(s.scoredAt)}
               </td>
             </tr>
           ))}
