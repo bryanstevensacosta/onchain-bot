@@ -38,7 +38,7 @@ export class VipCallsMessageFormatterAdapter extends MessageFormatterPort {
     parts.push('');
 
     if (input.marketCapUsd !== null) {
-      parts.push(`MC: \`${this.formatUsd(input.marketCapUsd)}\``);
+      parts.push(`**MC**: \`${this.formatUsd(input.marketCapUsd)}\``);
       parts.push('');
     }
 

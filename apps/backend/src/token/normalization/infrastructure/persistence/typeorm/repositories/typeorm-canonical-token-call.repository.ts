@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChainFamily } from 'chain/identity/chain-family.vo';
@@ -22,6 +22,8 @@ import { CanonicalTokenCallMapper } from 'token/normalization/infrastructure/per
  */
 @Injectable()
 export class TypeOrmCanonicalTokenCallRepository extends CanonicalTokenCallRepository {
+  private readonly logger = new Logger(TypeOrmCanonicalTokenCallRepository.name);
+
   constructor(
     @InjectRepository(CanonicalTokenCallEntity)
     private readonly repo: Repository<CanonicalTokenCallEntity>,
@@ -50,7 +52,17 @@ export class TypeOrmCanonicalTokenCallRepository extends CanonicalTokenCallRepos
       order: { lastSeenAt: 'DESC' },
       take: limit,
     });
-    return rows.map((r) => CanonicalTokenCallMapper.toDomain(r));
+    const result: CanonicalTokenCall[] = [];
+    for (const r of rows) {
+      try {
+        result.push(CanonicalTokenCallMapper.toDomain(r));
+      } catch (err) {
+        this.logger.warn(
+          `Skipping invalid canonical token row (id=${r.id}): ${(err as Error).message}`,
+        );
+      }
+    }
+    return result;
   }
 
   public async count(): Promise<number> {

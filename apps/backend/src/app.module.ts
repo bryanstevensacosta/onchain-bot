@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { DevBackfillHook } from 'shared/common/dev-backfill.hook';
 import { ScheduleModule } from '@nestjs/schedule';
 import { appConfig } from 'shared/common/config/app.config';
 import { DatabaseModule } from 'shared/common/persistence/database.module';
@@ -68,6 +69,6 @@ import { AppService } from './app.service';
     SettingsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, DevBackfillHook],
 })
 export class AppModule {}
