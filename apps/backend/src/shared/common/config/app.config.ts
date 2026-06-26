@@ -31,6 +31,12 @@ export interface AppConfig {
     schedulerBatchSize: number;
   };
 
+  // KOL reputation aggregation settings
+  kolReputation: {
+    schedulerCron: string;
+    schedulerEnabled: boolean;
+  };
+
   port: number;
   nodeEnv: 'development' | 'production' | 'test';
 
@@ -320,6 +326,12 @@ export const appConfig = registerAs(
         process.env.MILESTONE_SCHEDULER_BATCH_SIZE ?? '30',
         10,
       ),
+    },
+    kolReputation: {
+      schedulerCron: process.env.KOL_REPUTATION_SCHEDULER_CRON ?? '*/15 * * * *',
+      schedulerEnabled:
+        (process.env.KOL_REPUTATION_SCHEDULER_ENABLED ?? 'true').toLowerCase() ===
+        'true',
     },
 
     database: {

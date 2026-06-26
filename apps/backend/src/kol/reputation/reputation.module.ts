@@ -5,6 +5,7 @@ import { isDatabaseEnabled } from 'shared/common/persistence/database.module';
 import type { AppConfig } from 'shared/common/config/app.config';
 import { SettingsModule } from 'settings/settings.module';
 import { CallTrackingModule } from 'token/call-tracking/call-tracking.module';
+import { IdentityModule } from 'kol/identity/identity.module';
 import { KolReputationRepository } from 'kol/reputation/application/ports/kol-reputation.repository';
 import { KnownKolPort } from 'kol/reputation/application/ports/known-kol.port';
 import {
@@ -18,6 +19,7 @@ import { DefaultKnownKolRegistry } from 'kol/reputation/infrastructure/known-kol
 import { KolReputationEntity } from 'kol/reputation/infrastructure/persistence/typeorm/entities/kol-reputation.entity';
 import { TypeOrmKolReputationRepository } from 'kol/reputation/infrastructure/persistence/typeorm/repositories/typeorm-kol-reputation.repository';
 import { KolReputationController } from 'kol/reputation/api/http/kol-reputation.controller';
+import { KolReputationScheduler } from 'kol/reputation/infrastructure/scheduling/kol-reputation.scheduler';
 
 /**
  * Reputation BC module (Fase 2 of the kol-refactor plan).
@@ -42,6 +44,7 @@ import { KolReputationController } from 'kol/reputation/api/http/kol-reputation.
     ConfigModule,
     SettingsModule,
     forwardRef(() => CallTrackingModule),
+    IdentityModule,
     ...(isDatabaseEnabled()
       ? [TypeOrmModule.forFeature([KolReputationEntity])]
       : []),
@@ -75,6 +78,7 @@ import { KolReputationController } from 'kol/reputation/api/http/kol-reputation.
     GetTopKolsUseCase,
     ListAllKolReputationsUseCase,
     RecomputeKolReputationUseCase,
+    KolReputationScheduler,
   ],
   exports: [KolReputationRepository, KnownKolPort],
 })
