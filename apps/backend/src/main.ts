@@ -6,6 +6,7 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import { AppModule } from './app.module';
 import { AppService } from './app.service';
 import { DomainErrorFilter } from './shared/filters/domain-error.filter';
+import { FilteredBootstrapLogger } from './shared/common/filtered-bootstrap-logger';
 import type { AppConfig } from 'shared/common/config/app.config';
 
 // Safety net: log unhandled rejections instead of crashing.
@@ -22,8 +23,26 @@ process.on('uncaughtException', (err) => {
   bootLogger.error(`Uncaught exception: ${err.message}`, err.stack);
 });
 
+// Suppress the pg@8 "client.query() while already executing" deprecation.
+// Triggered by TypeORM's `synchronize: true` schema sync, which fires many
+// introspection+DDL queries on the same underlying Client. The behaviour is
+// supported by pg today and only slated for removal in pg@9.0; silencing
+// keeps boot output clean until the project migrates to migrations-based
+// schema management, at which point the warning disappears naturally.
+//
+// Note: `process.on('warning')` does NOT suppress Node's default stderr
+// print of deprecation warnings in Node 22+ — they print first, then the
+// listener fires. The reliable way to mute them is the noDeprecation flag.
+process.noDeprecation = true;
+
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  // bufferLogs: true defers all logger output until app.useLogger() is called,
+  // so the FilteredBootstrapLogger can drop boot-machinery lines without us
+  // missing any application log that fires during module instantiation.
+  const app = await NestFactory.create(AppModule, {
+    bufferLogs: true,
+  });
+  app.useLogger(new FilteredBootstrapLogger('Nest'));
 
   const appService = app.get(AppService);
   appService.setNestApp(app);

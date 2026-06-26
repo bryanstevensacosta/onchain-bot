@@ -7,6 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { TelegramClient } from 'telegram';
 import { StringSession } from 'telegram/sessions';
+import { Logger as GramjsLogger, LogLevel } from 'telegram/extensions/Logger';
 import { NewMessage } from 'telegram/events';
 import type { AppConfig } from 'shared/common/config/app.config';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
@@ -18,6 +19,7 @@ import type {
 
 interface TelegramClientOptions {
   connectionRetries?: number;
+  baseLogger?: InstanceType<typeof GramjsLogger>;
 }
 
 /**
@@ -78,7 +80,15 @@ export class KolTelegramMtprotoAdapter
       );
     }
     const session = new StringSession(cfg.telegram.mtprotoSession || '');
-    const options: TelegramClientOptions = { connectionRetries: 5 };
+    // baseLogger must be passed at construction time: the gramJS client logs
+    // "Running gramJS version ..." from inside its constructor, before any
+    // setLogLevel() call would take effect.
+    const silentGramjsLogger = new GramjsLogger();
+    silentGramjsLogger.setLevel(LogLevel.NONE);
+    const options: TelegramClientOptions = {
+      connectionRetries: 5,
+      baseLogger: silentGramjsLogger,
+    };
     this.client = new TelegramClient(
       session,
       cfg.telegram.mtprotoApiId,

@@ -115,6 +115,5 @@ export class WsGateway
     // Broadcast a todos los clientes conectados
     this.server.emit(wsEvent, payload);
     this.lastEventAt = new Date().toISOString();
-    this.logger.debug(`Broadcast event ${wsEvent} for ${event.aggregateId}`);
   }
 }

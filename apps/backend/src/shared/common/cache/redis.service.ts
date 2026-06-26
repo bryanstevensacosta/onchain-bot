@@ -1,6 +1,7 @@
 import {
   Inject,
   Injectable,
+  Logger,
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
@@ -12,6 +13,7 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
 
 @Injectable()
 export class RedisService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(RedisService.name);
   private client: Redis | null = null;
 
   constructor(@Inject(ConfigService) private readonly config: ConfigService) {}
@@ -36,21 +38,15 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.client.on('error', (err) => {
-      // Errors are logged but don't crash the app
-      console.error('[Redis] Connection error:', err.message);
-    });
-
-    this.client.on('connect', () => {
-      console.log('[Redis] Connected');
+      this.logger.warn(`Connection error: ${err.message}`);
     });
 
     this.client.on('ready', () => {
-      console.log('[Redis] Ready');
+      this.logger.log(`Connected to ${cfg.host}:${cfg.port} db=${cfg.db}`);
     });
 
-    // Connect lazily on first use
     this.client.connect().catch((err) => {
-      console.error('[Redis] Initial connection failed:', err.message);
+      this.logger.error(`Initial connection failed: ${err.message}`);
     });
   }
 

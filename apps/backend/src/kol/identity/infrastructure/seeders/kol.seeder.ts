@@ -121,10 +121,7 @@ export class KolSeeder implements OnApplicationBootstrap {
       }
     }
 
-    this.logger.log(
-      `Telegram kol seed finished. added=${added} skipped=${skipped} failed=${failed} notAKol=${notAKol} total=${kols.length}`,
-    );
-
+    let listeningStartedOn: number | null = null;
     if (seedConfig.autoStartListening) {
       const existing = await this.kolRepo.findAll();
       const subscribed = new Set<string>(registeredIds);
@@ -134,11 +131,20 @@ export class KolSeeder implements OnApplicationBootstrap {
         }
       }
       if (subscribed.size > 0) {
-        await this.startListeningSafely(Array.from(subscribed));
+        const kolIds = Array.from(subscribed);
+        const ok = await this.startListeningSafely(kolIds);
+        if (ok) listeningStartedOn = kolIds.length;
       } else {
         this.logger.warn('Auto-start listening skipped: no active kols in DB.');
       }
     }
+
+    const summary = `Telegram kol seed complete: added=${added} skipped=${skipped} failed=${failed} notAKol=${notAKol} total=${kols.length}`;
+    this.logger.log(
+      listeningStartedOn !== null
+        ? `${summary} | auto-listening on ${listeningStartedOn} kol(s).`
+        : summary,
+    );
 
     await this.runBackfillIfEnabled();
   }
@@ -314,12 +320,12 @@ export class KolSeeder implements OnApplicationBootstrap {
     }
   }
 
-  private async startListeningSafely(kolIds: string[]): Promise<void> {
+  private async startListeningSafely(
+    kolIds: string[],
+  ): Promise<boolean> {
     try {
       await this.startListening.execute({ kolIds });
-      this.logger.log(
-        `Auto-started Telegram listener on ${kolIds.length} kol(s).`,
-      );
+      return true;
     } catch (err) {
       this.logger.error(
         `Auto-start listening failed: ${
@@ -327,6 +333,7 @@ export class KolSeeder implements OnApplicationBootstrap {
         }`,
         err instanceof Error ? err.stack : undefined,
       );
+      return false;
     }
   }
 }

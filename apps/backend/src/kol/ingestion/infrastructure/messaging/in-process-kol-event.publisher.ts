@@ -21,9 +21,6 @@ export class InProcessKolEventPublisher extends KolEventPublisher {
   }
 
   public async publish(event: DomainEvent): Promise<void> {
-    this.logger.debug(
-      `event=${event.eventName} aggregateId=${event.aggregateId}`,
-    );
     this.eventEmitter.emit(event.eventName, event);
   }
 }
