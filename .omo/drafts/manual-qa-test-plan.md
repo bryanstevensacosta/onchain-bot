@@ -1064,9 +1064,142 @@ All auto-applied on `npm run start:dev` via the wired `db:migrate` runner; track
   - Clean dependency: `token/image` and `token/snapshot` are siblings, both depend on `chain/`
   - The three BCs form a layered architecture: chain layer → token layer (snapshot + image)
 
-## 💡 Feature requests (missing functionality)
+### INV-18: `call` BC + sub-BCs (`call/tracking`, `call/achievements`) — domain modeling of a post-approved token
 
-## 💡 Feature requests (missing functionality)
+- **User proposal**: Create `apps/backend/src/call/` as parent BC with sub-BCs:
+  - `src/call/tracking/` — current state tracking (price, ATH, etc.)
+  - `src/call/achievements/` — renamed from `milestone` (X2, X5, X10 achievements, etc.)
+  - Define what a "call" is: a token that has been approved by the filter system
+- **My opinion**: **Strong yes** — this is the highest-value architectural improvement proposed in this session. The current domain is fragmented:
+  - "Call" appears in `token/call-tracking/`, `telegram/vip-calls-channel/`, `telegram/chain-dexter-bot/` with overlapping but inconsistent meanings
+  - "Milestone" in `token/milestone/` is really "achievement" (semantic mismatch — milestones are points in time, achievements are what calls accomplish)
+  - "Approved token" / "TrackedCall" / "PublishedCall" / "CanonicalCall" all refer to overlapping concepts with no clear taxonomy
+  - The user-facing language already says "call" (UI shows "🎯 Tracked calls", "X2 call", "X5 call", etc.) but the code doesn't match
+
+- **Proposed domain definition**:
+
+  ```
+  Call (aggregate root):
+    id: chain + address (e.g. "solana:ABC...")
+    chain: ChainFamily
+    address: string
+    ticker, name, chart: string | null
+    status: CallStatus enum
+      | PENDING      (approved by filter, not yet published)
+      | PUBLISHED    (sent to Telegram channel)
+      | TRACKED      (price tracking active, getting snapshots)
+      | ARCHIVED     (no longer of interest — expired, dump, etc.)
+    bestMetrics: TokenMetrics (snapshot, scored)
+    publishedAt: Date | null
+    archivedAt: Date | null
+    kol: Kol | null  (which KOL originated the call)
+
+  Events:
+    CallApprovedEvent (filter.token.approved → call.created)
+    CallPublishedEvent (publishing.telegram.published → call.status = PUBLISHED)
+    CallTrackingStartedEvent (tracking started → call.status = TRACKED)
+    CallArchivedEvent (manually or auto-archived)
+  ```
+
+  The Call is the **bounded aggregate** for everything related to a single approved token. All other concepts (tracking, achievements, lifecycle) are sub-concerns of a Call.
+
+- **Proposed layout** (parent BC with sub-BCs):
+  ```
+  apps/backend/src/call/
+  ├── domain/
+  │   ├── call.aggregate.ts (root)
+  │   ├── value-objects/
+  │   │   ├── call-status.vo.ts (PENDING | PUBLISHED | TRACKED | ARCHIVED)
+  │   │   ├── achievement-tier.vo.ts (X2, X3, X5, X10, X20, X50, X100)
+  │   │   └── call-metrics.vo.ts (currentPrice, athPrice, athMultiple, etc.)
+  │   └── events/
+  │       ├── call-approved.event.ts
+  │       ├── call-published.event.ts
+  │       ├── call-archived.event.ts
+  │       └── achievement-unlocked.event.ts
+  ├── call.module.ts (parent)
+  │
+  ├── tracking/                           ← was token/call-tracking/
+  │   ├── application/
+  │   │   ├── handlers/
+  │   │   │   ├── track-call.use-case.ts (subscribes to CallPublishedEvent)
+  │   │   │   ├── update-call-tracking.use-case.ts (cron: re-fetch current price)
+  │   │   │   └── get-tracked-calls.use-case.ts (list, paginated)
+  │   │   └── ports/
+  │   │       └── tracked-call.repository.ts
+  │   ├── infrastructure/
+  │   │   ├── persistence/typeorm/entities/tracked-call.entity.ts
+  │   │   └── scheduling/tracking-cron.scheduler.ts (every 5 min)
+  │   └── tracking.module.ts
+  │
+  ├── achievements/                       ← was token/milestone/ (renamed + extended)
+  │   ├── application/
+  │   │   ├── handlers/
+  │   │   │   ├── evaluate-achievement.use-case.ts (check if X2/X5/etc reached)
+  │   │   │   ├── unlock-achievement.use-case.ts (record + emit event)
+  │   │   │   └── get-call-achievements.use-case.ts (history per call)
+  │   │   └── ports/
+  │   │       └── call-achievement.repository.ts
+  │   ├── infrastructure/
+  │   │   ├── persistence/typeorm/entities/call-achievement.entity.ts
+  │   │   └── scheduling/achievement-evaluator.scheduler.ts (every 1 min)
+  │   └── achievements.module.ts
+  │
+  ├── api/
+  │   ├── http/call.controller.ts (GET /calls, /calls/:chain/:address)
+  │   └── http/achievement.controller.ts (GET /calls/:chain/:address/achievements)
+  │
+  └── README.md (aggregate definition, lifecycle, event flow)
+  ```
+
+- **Current scattered locations to migrate**:
+  - `token/call-tracking/` → `call/tracking/`
+  - `token/milestone/` → `call/achievements/` (rename + extend concept)
+  - `telegram/vip-calls-channel/publishing` logic → `call/` (status PENDING → PUBLISHED transition)
+  - `telegram/chain-dexter-bot/` → consumes `call/` events for notifications
+  - `token/token-gating/` (filter decisions) → emits `CallApprovedEvent` to `call/`
+
+- **Why "achievements" beats "milestones"**:
+  - **Milestone** = a point in time, a goal (e.g. "X2 milestone")
+  - **Achievement** = what a call ACCOMPLISHED (e.g. "X2 achievement unlocked")
+  - The data model stores the achievement + the moment it was reached + the price
+  - Achievements are achievements OF a call, milestones are abstract goals
+  - The user-facing language ("X2 call", "achievement unlocked") aligns with this
+
+- **Multi-sub-BC coordination**:
+  - `call/` parent module imports both sub-modules
+  - `tracking/` subscribes to `CallPublishedEvent` (from `call/` itself when `vip-calls-channel` publishes)
+  - `achievements/` subscribes to `CallTrackingUpdatedEvent` (from `tracking/`) → checks if X2/X5/etc reached → unlocks achievement
+  - All event flow stays inside `call/` — no cross-BC coupling
+
+- **API contract** (cleaner than current):
+  - `GET /calls?status=published&limit=50` → list calls
+  - `GET /calls/:chain/:address` → single call detail
+  - `GET /calls/:chain/:address/tracking` → current tracking data
+  - `GET /calls/:chain/:address/achievements` → achievement history
+  - `GET /calls/leaderboard?metric=ath_multiple&limit=10` → top achievers
+  - `POST /calls/:chain/:address/archive` → manual archive
+
+- **Migration steps** (when implementing — large refactor):
+  1. Define `Call` aggregate + `CallStatus` VO + events in `call/domain/`
+  2. Create `call/tracking/` from `token/call-tracking/` (rename files, update imports)
+  3. Create `call/achievements/` from `token/milestone/` (rename, add achievement tier VO)
+  4. Update `token/token-gating/` to emit `CallApprovedEvent` to `call/`
+  5. Update `telegram/vip-calls-channel/` to emit `CallPublishedEvent` to `call/`
+  6. Wire events: published → tracking starts → tracking updates → achievements unlock
+  7. Add new API endpoints
+  8. Update `kol/reputation/` to consume `AchievementUnlockedEvent` (Kol reputation is now derived from call achievements, not just call performance)
+  9. Deprecate old `token/call-tracking/` + `token/milestone/` modules
+  10. Run full test suite + verify with playwright
+
+- **Status**: Planning only. NOT implementing in this session. **This is the highest-leverage refactor proposed in this session** — it unifies the domain language, enables the Kol reputation system to be accurate (currently it shows 0.50 for all KOLs because `call_performances` is empty; the new model would derive reputation from achievements, giving real scores).
+
+- **Synergy with all previous BCs**:
+  - `call/tracking` uses `token/snapshot` (INV-17) to get current price
+  - `call/tracking` uses `token/image` (INV-16) for the call's image
+  - `call/achievements` emits `AchievementUnlockedEvent` → consumed by `kol/reputation` (fixes INV-9 uniform 0.50 scores)
+  - `call/` consumes from `chain/data-provider` (INV-15) for any provider data not yet in snapshot
+  - The 4 BCs form a complete layer: chain → token (snapshot + image) → call (tracking + achievements)
 
 ## 💡 Feature requests (missing functionality)
 
