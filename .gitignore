@@ -38,3 +38,6 @@ node_modules/
 .omo/run-continuation/
 .omo/evidence/
 .sisyphus/evidence/
+
+# Playwright MCP screenshots / snapshots / console logs (dev artifacts)
+.playwright-mcp/
