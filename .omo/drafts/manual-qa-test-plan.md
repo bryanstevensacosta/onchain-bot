@@ -847,6 +847,11 @@ A walk-through of each BC based on testing so far. Status: ✅ verified working 
 - ✅ Leaderboard no longer empty (INV-9 fixed): scheduler now populates rows. Cards + leaderboard both show 0.50 uniformly.
 - 🔴 2 KOLs missing handle (Cas Gem 2054466090, SpyDefi 1960616143) — INV-12 (scaffold shipped, awaiting user input)
 - 🔴 1 KOL has placeholder title "- SOL -" (1756488143) — INV-13 (scaffold shipped, awaiting user input)
+- **🔧 MTProto blocker**: `PUBLISHING_TELEGRAM_USE_REAL_MTPROTO=false` in `.env` + `TELEGRAM_MTPROTO_API_ID`/`API_HASH` empty. Without real MTProto session, neither `KolSeeder.resolveMetadata()` nor `KolListenerPort.resolveKolMetadata()` can resolve the chat_id → @username mapping from Telegram. `https://t.me/{numeric_chat_id}` only returns Telegram's homepage (verified via webfetch 2026-06-26).
+- **Resolution paths** (both shipped, awaiting user action):
+  - **A — Script edit**: `apps/backend/scripts/backfills/2026-06-26-kol-title-handle-resolve.ts` uncomment + fill `MANUAL_RESOLUTIONS` map with real handles, then `node scripts/backfills/2026-06-26-kol-title-handle-resolve.js --apply`.
+  - **B — Env override**: append `2054466090|@RealHandle|Cas Gem Calls,1960616143|@RealHandle|SpyDefi Channel,1756488143|@lowtaxsolana|Real Title` to `INGESTION_TELEGRAM_SEED_CHANNELS` in `.env`, restart backend (seeder applies override on next `OnApplicationBootstrap`).
+- **Auto-resolve path** (long-term): configure real MTProto credentials + restart → seeder auto-resolves next time KOL_SEED is re-registered. Not feasible without API_ID/API_HASH/SESSION.
 - ⏳ Backfill button not tested
 - ✅ Pagination (INV-14 fixed): `f380a28` adds client-side pagination (PAGE_SIZE=15) with Previous/Next + "N-M de TOTAL" indicator. Verified showing "1–15 de 45", "1 / 3".
 
