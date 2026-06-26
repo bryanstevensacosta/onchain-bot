@@ -5,4 +5,8 @@ export {
   useRejected,
 } from './model/use-decisions';
 export { decisionKeys } from './api/decision-queries';
-export { fetchApproved, fetchRejected } from './api/decision-queries';
+export {
+  fetchApproved,
+  fetchRecentDecisions,
+  fetchRejected,
+} from './api/decision-queries';

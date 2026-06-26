@@ -10,6 +10,7 @@ import type {
   TokenGatingDecisionAppliedEvent,
   NormalizationCallNormalizedEvent,
 } from '@/shared/realtime';
+import { fetchRecentDecisions } from '@/entities/filter-decision';
 import { Badge, ChainIcon } from '@/shared/ui';
 import { formatRelativeTime } from '@/shared/lib/format';
 
@@ -64,6 +65,41 @@ export function LiveFeed() {
     return () => {
       leaveRoom('chain:solana');
       leaveRoom('chain:evm');
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const decisions = await fetchRecentDecisions(10);
+        if (cancelled) return;
+        const historical: FeedItem[] = decisions.map((d: (typeof decisions)[number]) => ({
+          kind: 'decision' as const,
+          at: new Date(d.decidedAt).getTime(),
+          data: {
+            chain: d.chain,
+            address: d.address,
+            verdict: d.verdict,
+            reasons: d.reasons,
+            decidedAt: d.decidedAt,
+          },
+        }));
+        setItems((prev) => {
+          const seen = new Set(
+            prev.map((i) => `${i.at}-${i.kind}-${i.data.address}`),
+          );
+          const fresh = historical.filter(
+            (h) => !seen.has(`${h.at}-${h.kind}-${h.data.address}`),
+          );
+          return [...fresh, ...prev].slice(0, MAX_ITEMS);
+        });
+      } catch {
+        void 0;
+      }
+    })();
+    return () => {
+      cancelled = true;
     };
   }, []);
 
