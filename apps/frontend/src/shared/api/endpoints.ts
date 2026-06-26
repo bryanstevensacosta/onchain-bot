@@ -71,7 +71,10 @@ export const ENDPOINTS = {
     list: '/telegram-kol/reputation/kols',
     top: '/telegram-kol/reputation/kols/top',
     byKol: (id: string) => `/telegram-kol/reputation/kols/${id}`,
-    recompute: (id: string) => `/telegram-kol/reputation/kols/recompute/${id}`,
+    recompute: (id: string, formula?: string) =>
+      formula
+        ? `/telegram-kol/reputation/kols/recompute/${id}?formula=${encodeURIComponent(formula)}`
+        : `/telegram-kol/reputation/kols/recompute/${id}`,
   },
   callTracking: {
     schedulerTick: '/token/call-tracking/scheduler/tick',

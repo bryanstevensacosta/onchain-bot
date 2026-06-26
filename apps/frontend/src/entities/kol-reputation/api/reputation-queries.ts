@@ -1,4 +1,4 @@
-import { httpGet } from '@/shared/api';
+import { httpGet, httpPost } from '@/shared/api';
 import { ENDPOINTS } from '@/shared/api/endpoints';
 import type { KolReputationView } from '../model/types';
 
@@ -27,4 +27,14 @@ export async function fetchKolReputation(
   id: string,
 ): Promise<KolReputationView> {
   return httpGet<KolReputationView>(ENDPOINTS.reputation.byKol(id));
+}
+
+export async function recomputeKolReputation(
+  id: string,
+  formulaId?: string,
+): Promise<KolReputationView> {
+  return httpPost<void, KolReputationView>(
+    ENDPOINTS.reputation.recompute(id, formulaId),
+    undefined,
+  );
 }

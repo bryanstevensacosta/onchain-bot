@@ -10,13 +10,17 @@ import { Button, Card } from '@/shared/ui';
 import { formatRelativeTime, usePagination } from '@/shared/lib';
 import { BackfillButton } from '@/features/trigger-backfill';
 import { SetKolLifecycleButton } from '@/features/set-kol-lifecycle';
+import { RecomputeKolReputationButton } from '@/features/recompute-kol-reputation/ui/recompute-kol-reputation-button';
+import { useKolScoreFormula } from '@/features/kol-score-formula/model/use-kol-score-formula';
+import { KolScoreFormulaSelect } from '@/features/kol-score-formula/ui/kol-score-formula-select';
 
 interface KolRowProps {
   kol: KolView;
   rep: KolReputationView | undefined;
+  formulaId: string;
 }
 
-function KolRow({ kol, rep }: KolRowProps) {
+function KolRow({ kol, rep, formulaId }: KolRowProps) {
   const score = rep?.score ?? 0.5;
   const confidence = rep?.confidence ?? 'LOW';
   const tone =
@@ -77,6 +81,10 @@ function KolRow({ kol, rep }: KolRowProps) {
             label="Deactivate"
           />
         )}
+        <RecomputeKolReputationButton
+          kolId={kol.id}
+          formulaId={formulaId}
+        />
         <BackfillButton kolId={kol.id} limit={20} />
       </div>
     </Card>
@@ -87,6 +95,7 @@ export function KolsPage() {
   const { data, isLoading } = useKols();
   const { data: topRep } = useTopKolReputation(10);
   const { get: getRep } = useKolReputationMap();
+  const { formulaId, setFormulaId } = useKolScoreFormula();
 
   const {
     visible,
@@ -110,13 +119,20 @@ export function KolsPage() {
         </p>
       </header>
 
+      <Card className="max-w-md">
+        <KolScoreFormulaSelect
+          value={formulaId}
+          onChange={setFormulaId}
+        />
+      </Card>
+
       <KolLeaderboard rows={topRep} isLoading={isLoading} />
 
       {isLoading && <Card className="text-xs text-slate-500">Cargando…</Card>}
 
       <div className="space-y-2">
         {visible.map((k) => (
-          <KolRow key={k.id} kol={k} rep={getRep(k.id)} />
+          <KolRow key={k.id} kol={k} rep={getRep(k.id)} formulaId={formulaId} />
         ))}
         {data?.length === 0 && !isLoading && (
           <Card className="text-center text-slate-500 italic py-8">

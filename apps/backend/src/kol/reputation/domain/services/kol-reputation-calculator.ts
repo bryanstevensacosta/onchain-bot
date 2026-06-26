@@ -3,6 +3,11 @@ import type { KolConfidence } from 'kol/reputation/domain/value-objects/kol-repu
 import {
   KolMetricsCalculator,
 } from 'kol/reputation/domain/services/kol-metrics-calculator';
+import {
+  DEFAULT_KOL_SCORE_FORMULA_ID,
+  KOL_SCORE_FORMULAS,
+  type KolScoreFormula,
+} from 'kol/reputation/domain/value-objects/kol-score-formula.vo';
 
 interface KolReputationCanonicalCall {
   readonly chain: string;
@@ -11,9 +16,6 @@ interface KolReputationCanonicalCall {
   readonly lastSeenAt: Date;
 }
 
-const MENTION_WEIGHT = 0.25;
-const QUALITY_WEIGHT = 0.55;
-const DRAWDOWN_WEIGHT = 0.2;
 const KNOWN_GOOD_MULTIPLIER = 1.2;
 const KNOWN_BAD_MULTIPLIER = 0.5;
 
@@ -24,6 +26,7 @@ const KNOWN_BAD_MULTIPLIER = 0.5;
  * Pipeline:
  * 1. KolMetricsCalculator → KolReputationMetrics (counts + per-metric scores)
  * 2. Compute blended score from the 3 metric scores (mention / quality / drawdown)
+ *    using a configurable `KolScoreFormula` (default: `default`).
  * 3. Apply whitelist/blacklist multiplier if applicable
  * 4. Derive confidence from metrics.totalMentions
  * 5. KolReputation.fromValues → rich aggregate VO
@@ -34,8 +37,15 @@ export class KolReputationCalculator {
   public static calculateFromCanonicalCalls(
     kolId: string,
     calls: ReadonlyArray<KolReputationCanonicalCall>,
+    formulaId: string = DEFAULT_KOL_SCORE_FORMULA_ID,
   ): KolReputation {
-    return KolReputationCalculator.calculate(kolId, calls, null, null);
+    return KolReputationCalculator.calculate(
+      kolId,
+      calls,
+      null,
+      null,
+      formulaId,
+    );
   }
 
   public static calculate(
@@ -43,9 +53,11 @@ export class KolReputationCalculator {
     calls: ReadonlyArray<KolReputationCanonicalCall>,
     knownGood: boolean | null,
     knownBad: boolean | null,
+    formulaId: string = DEFAULT_KOL_SCORE_FORMULA_ID,
   ): KolReputation {
+    const formula = KOL_SCORE_FORMULAS[formulaId] ?? KOL_SCORE_FORMULAS[DEFAULT_KOL_SCORE_FORMULA_ID]!;
     const metrics = KolMetricsCalculator.calculate(kolId, calls);
-    const blended = KolReputationCalculator.blendScore(metrics);
+    const blended = KolReputationCalculator.blendScore(metrics, formula);
     const adjusted = KolReputationCalculator.applyWhitelist(
       blended,
       knownGood,
@@ -63,15 +75,18 @@ export class KolReputationCalculator {
     });
   }
 
-  public static blendScore(metrics: {
-    readonly mentionScore: number;
-    readonly qualityScore: number;
-    readonly drawdownScore: number;
-  }): number {
+  public static blendScore(
+    metrics: {
+      readonly mentionScore: number;
+      readonly qualityScore: number;
+      readonly drawdownScore: number;
+    },
+    formula: KolScoreFormula = KOL_SCORE_FORMULAS[DEFAULT_KOL_SCORE_FORMULA_ID]!,
+  ): number {
     return (
-      metrics.mentionScore * MENTION_WEIGHT +
-      metrics.qualityScore * QUALITY_WEIGHT +
-      metrics.drawdownScore * DRAWDOWN_WEIGHT
+      metrics.mentionScore * formula.weights.mention +
+      metrics.qualityScore * formula.weights.quality +
+      metrics.drawdownScore * formula.weights.drawdown
     );
   }
 

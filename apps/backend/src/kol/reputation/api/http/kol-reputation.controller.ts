@@ -7,6 +7,7 @@ import {
 } from 'kol/reputation/application/handlers/kol-stats-queries.use-case';
 import { KolReputationView } from 'kol/reputation/application/mappers/kol-reputation.mapper';
 import { GetTopKolsQueryDto } from 'kol/reputation/api/http/dto/get-top-kols-query.dto';
+import { KolScoreFormulaQueryDto } from 'kol/reputation/api/http/dto/kol-score-formula-query.dto';
 
 @Controller('telegram-kol/reputation')
 export class KolReputationController {
@@ -20,9 +21,10 @@ export class KolReputationController {
   @Post('kols/recompute/:kolId')
   public recomputeKol(
     @Param('kolId') kolId: string,
+    @Query() query: KolScoreFormulaQueryDto,
   ): Promise<KolReputationView> {
     return this.recompute
-      .execute({ kolId })
+      .execute({ kolId, formulaId: query.formula })
       .then((stats) => this.getOne.execute(stats.kolId));
   }
 

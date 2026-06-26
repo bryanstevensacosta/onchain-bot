@@ -3,9 +3,11 @@ import { KolReputationRepository } from 'kol/reputation/application/ports/kol-re
 import { KolReputation } from 'kol/reputation/domain/value-objects/kol-reputation.vo';
 import { KolReputationCalculator } from 'kol/reputation/domain/services/kol-reputation-calculator';
 import { CanonicalTokenCallRepository } from 'token/normalization/application/ports/canonical-token-call.repository';
+import { DEFAULT_KOL_SCORE_FORMULA_ID } from 'kol/reputation/domain/value-objects/kol-score-formula.vo';
 
 export interface RecomputeKolReputationInput {
   readonly kolId: string;
+  readonly formulaId?: string;
 }
 
 const RECENT_CALLS_LOOKBACK = 5000;
@@ -22,6 +24,9 @@ const RECENT_CALLS_LOOKBACK = 5000;
  * Once `call/lifecycle` produces `CallMilestoneUnlockedEvent`s, the
  * calculator can be extended to incorporate ATH-based stats alongside
  * the mention-based stats.
+ *
+ * The `formulaId` is optional — defaults to `default`. Picks which
+ * blend weights (mention / quality / drawdown) to apply.
  */
 @Injectable()
 export class RecomputeKolReputationUseCase {
@@ -43,6 +48,7 @@ export class RecomputeKolReputationUseCase {
         sources: c.sources.map((s) => ({ kolId: s.kolId, mentionCount: s.messageIds.length })),
         lastSeenAt: c.lastSeenAt,
       })),
+      input.formulaId ?? DEFAULT_KOL_SCORE_FORMULA_ID,
     );
     await this.statsRepo.save(stats);
     return stats;
