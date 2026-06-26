@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ExtractionResult } from 'token/intake/extraction/domain/entities/extraction-result.entity';
@@ -8,6 +8,8 @@ import { ExtractionResultMapper } from 'token/intake/extraction/infrastructure/p
 
 @Injectable()
 export class TypeOrmExtractionResultRepository extends ExtractionResultRepository {
+  private readonly logger = new Logger(TypeOrmExtractionResultRepository.name);
+
   public constructor(
     @InjectRepository(ExtractionResultEntity)
     private readonly repo: Repository<ExtractionResultEntity>,
@@ -37,6 +39,16 @@ export class TypeOrmExtractionResultRepository extends ExtractionResultRepositor
       order: { occurredAt: 'DESC' },
       take: limit,
     });
-    return rows.map((r) => ExtractionResultMapper.toDomain(r));
+    const result: ExtractionResult[] = [];
+    for (const r of rows) {
+      try {
+        result.push(ExtractionResultMapper.toDomain(r));
+      } catch (err) {
+        this.logger.warn(
+          `Skipping invalid extraction row (id=${r.id}): ${(err as Error).message}`,
+        );
+      }
+    }
+    return result;
   }
 }

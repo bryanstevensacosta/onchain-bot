@@ -69,11 +69,6 @@ function DecisionRow({
           {ticker && (
             <span className="text-sm font-semibold text-white">${ticker}</span>
           )}
-          {name && (
-            <span className="text-xs text-slate-400 truncate max-w-[160px]">
-              {name}
-            </span>
-          )}
           <Badge tone="white" className="text-[10px]">
             <ChainIcon chain={decision.chain} className="mr-0.5" />
             {decision.chain === 'solana' ? 'Solana' : 'EVM'}
@@ -87,7 +82,7 @@ function DecisionRow({
             className="text-xs text-slate-400 hover:text-white transition-colors"
             aria-label="Copy address"
           >
-            {copied ? '✓ copied' : '⧉'}
+            {copied ? '✓' : '⧉'}
           </button>
         </div>
       </div>
