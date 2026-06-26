@@ -111,6 +111,7 @@ export class Kol extends AggregateRoot<string> {
 
   public activate(): void {
     this.state.lifecycleStatus = 'ACTIVE';
+    this.state.isActive = true;
   }
 
   public dormant(): void {
