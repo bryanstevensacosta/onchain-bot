@@ -1,4 +1,5 @@
 import sharp from 'sharp';
+import { NotFoundException } from '@nestjs/common';
 import { TokenImageService } from './token-image.service';
 import { FetchedImage, TokenImageFetcher } from '../ports/token-image.fetcher';
 import { LruTokenImageCache } from 'shared/cache/token-image-cache.adapter';
@@ -166,11 +167,19 @@ describe('TokenImageService', () => {
     expect(fetcher.getCallCount('ethereum', '0xbbb')).toBe(1);
   });
 
-  it('throws when fetcher is not wired (service instantiated without dependency)', async () => {
-    const unwired = new TokenImageService(undefined, cache);
-    await expect(unwired.getImage('ethereum', '0xabc')).rejects.toThrow(
-      /TokenImageFetcher not yet wired/,
+  it('serves a deterministic SVG placeholder when the fetcher throws NotFoundException', async () => {
+    const failingFetcher = {
+      fetch: async () => {
+        throw new NotFoundException('no image');
+      },
+    };
+    const serviceWithFailingFetcher = new TokenImageService(
+      failingFetcher as never,
+      cache,
     );
+    const result = await serviceWithFailingFetcher.getImage('ethereum', '0xabc');
+    expect(result.contentType).toBe('image/svg+xml');
+    expect(result.buffer.toString('utf8')).toContain('<svg');
   });
 
   it('falls back to default TTL when fetcher returns ttlMs <= 0', async () => {
