@@ -22,16 +22,9 @@ const DEFAULT_CHAIN_EMOJI = '🪙';
 export class VipCallsMessageFormatterAdapter extends MessageFormatterPort {
   public format(input: ApprovedCallInput): string {
     const chainLower = input.chain.toLowerCase();
-    const addressLower = input.address.toLowerCase();
-    const isPumpFun = chainLower === 'solana' && addressLower.endsWith('pump');
-
-    const chainEmoji = isPumpFun
-      ? '💊'
-      : (CHAIN_EMOJI[chainLower] ?? DEFAULT_CHAIN_EMOJI);
-    const chainLabel = isPumpFun
-      ? '$SOL PUMPFUN'
-      : `$${input.chain.toUpperCase()}`;
-    const symbol = input.ticker ? `**${input.ticker}**` : '**UNKNOWN**';
+    const chainEmoji = CHAIN_EMOJI[chainLower] ?? DEFAULT_CHAIN_EMOJI;
+    const chainLabel = `$${input.chain.toUpperCase()}`;
+    const symbol = input.ticker ? `$${input.ticker}` : 'UNKNOWN';
 
     const parts: string[] = [];
     parts.push(`${chainEmoji} ${chainLabel} | ${symbol}`);
