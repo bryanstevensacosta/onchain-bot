@@ -963,6 +963,109 @@ All auto-applied on `npm run start:dev` via the wired `db:migrate` runner; track
 - **Status**: Planning only. NOT implementing in this session. Captured for future execution as a dedicated sprint (can be done independently of INV-15).
 - **Synergy with INV-15**: If `chain/data-provider` exists, the `ImageSource` classes in `token/image/infrastructure/sources/` are thin wrappers that delegate to provider adapters. The two BCs have clean dependency direction: `token/image` depends on `chain` (or `chain/data-provider`), never the reverse.
 
+### INV-17: `token/snapshot` BC — centralize all token-snapshot logic
+
+- **User proposal**: Create `apps/backend/src/token/snapshot/` to contain ALL token-snapshot logic (enrichment pipeline, snapshot entity/repo, snapshot API endpoints, providers, scheduler).
+- **Is this valid?** **Yes** — currently snapshot logic lives in `chain/explorer/` which mixes two concerns:
+  - Chain identity (`chain/explorer/domain/chain-family.vo.ts`, registry, etc.) — about WHICH chain
+  - Token snapshot state (price, liquidity, holders, etc.) — about THIS token at THIS time
+  - A snapshot is owned by the token aggregate, not the chain. Moving to `token/snapshot/` aligns the BC boundary with the domain.
+- **Current scattered locations** (things to move):
+  - `chain/explorer/application/handlers/enrich-token.use-case.ts` → `token/snapshot/application/`
+  - `chain/explorer/application/handlers/get-snapshot.use-case.ts` → `token/snapshot/application/`
+  - `chain/explorer/application/handlers/list-snapshots.use-case.ts` → `token/snapshot/application/`
+  - `chain/explorer/application/ports/token-snapshot.repository.ts` → `token/snapshot/application/ports/`
+  - `chain/explorer/application/ports/market-data-provider.port.ts` → `token/snapshot/application/ports/`
+  - `chain/explorer/infrastructure/persistence/typeorm/entities/token-snapshot.entity.ts` → `token/snapshot/infrastructure/`
+  - `chain/explorer/infrastructure/persistence/typeorm/repositories/typeorm-token-snapshot.repository.ts` → `token/snapshot/infrastructure/`
+  - `chain/explorer/infrastructure/persistence/typeorm/mappers/token-snapshot.mapper.ts` → `token/snapshot/infrastructure/`
+  - `chain/explorer/infrastructure/providers/` (all market-data adapters) → `token/snapshot/infrastructure/providers/` (or use INV-15's `chain/data-provider` if implemented)
+  - `chain/explorer/infrastructure/event-bus/call-normalized.handler.ts` → `token/snapshot/infrastructure/event-bus/`
+  - `chain/explorer/infrastructure/messaging/in-process-enrichment-event.publisher.ts` → `token/snapshot/infrastructure/messaging/`
+  - `chain/explorer/infrastructure/repositories/in-memory-token-snapshot.repository.ts` → `token/snapshot/infrastructure/`
+  - `chain/explorer/api/http/enrichment.controller.ts` → `token/snapshot/api/http/`
+  - `chain-explorer.module.ts` (split) — keep only chain-identity-related providers
+  - `chain/explorer/chain-explorer.module.ts` (whole module) → split into 2
+- **Proposed layout**:
+  ```
+  apps/backend/src/token/snapshot/
+  ├── domain/
+  │   ├── entities/
+  │   │   └── token-snapshot.entity.ts
+  │   └── value-objects/
+  │       ├── token-metrics.vo.ts
+  │       ├── enrichment-status.vo.ts
+  │       └── snapshot-completeness.vo.ts
+  ├── application/
+  │   ├── handlers/
+  │   │   ├── enrich-token.use-case.ts
+  │   │   ├── get-snapshot.use-case.ts
+  │   │   └── list-snapshots.use-case.ts
+  │   ├── ports/
+  │   │   ├── token-snapshot.repository.ts
+  │   │   └── market-data-provider.port.ts
+  │   └── mappers/
+  │       └── token-snapshot.mapper.ts
+  ├── infrastructure/
+  │   ├── persistence/typeorm/
+  │   │   ├── entities/token-snapshot.entity.ts
+  │   │   ├── repositories/typeorm-token-snapshot.repository.ts
+  │   │   └── mappers/token-snapshot.mapper.ts
+  │   ├── providers/  (or consumed from chain/data-provider if INV-15)
+  │   │   ├── dexscreener.adapter.ts
+  │   │   ├── geckoterminal.adapter.ts
+  │   │   ├── birdeye.adapter.ts
+  │   │   ├── helius-das.adapter.ts
+  │   │   ├── helius.adapter.ts
+  │   │   ├── mobula.adapter.ts
+  │   │   ├── moralis.adapter.ts
+  │   │   ├── coingecko.adapter.ts
+  │   │   ├── rugcheck.adapter.ts
+  │   │   └── solana-rpc.adapter.ts
+  │   ├── repositories/in-memory-token-snapshot.repository.ts
+  │   ├── event-bus/call-normalized.handler.ts
+  │   └── messaging/in-process-enrichment-event.publisher.ts
+  ├── api/http/
+  │   └── enrichment.controller.ts
+  ├── scheduling/
+  │   └── live-snapshot.scheduler.ts (if exists)
+  ├── token-snapshot.module.ts
+  └── README.md (provider chain, enrichment flow, completeness scoring)
+  ```
+- **Multi-provider aggregation strategy** (snapshot quality):
+  - Each provider returns partial data (price, liquidity, holders, market_cap, fdv, etc.)
+  - `EnrichTokenUseCase` calls providers in priority order, accumulates non-null fields
+  - Tracks `snapshot_completeness` (0-1) — fraction of expected fields filled
+  - Returns merged snapshot to consumer + emits `enrichment.snapshot.updated` event
+  - If multiple providers return price, use median; if holders, use max
+- **API contract**:
+  - `GET /token/snapshot/:chain/:address` → snapshot JSON (cached for 5min)
+  - `GET /token/snapshot/recent?limit=N` → list recent
+  - `POST /token/snapshot/:chain/:address/enrich` → trigger re-enrichment
+  - `GET /token/snapshot/:chain/:address/completeness` → how much of the data we have
+- **Cache strategy** (different from image cache):
+  - Key: `${chain}:${address}:${providerVersion}` (invalidate on provider version change)
+  - TTL: 5min for "fresh" view, 1h for "stale" view
+  - Cache key includes the most recent enrichment timestamp
+- **Migration steps** (when implementing):
+  1. Create `token/snapshot/` skeleton with module + README
+  2. Move `EnrichTokenUseCase` + `GetSnapshotUseCase` + `ListSnapshotsUseCase` first (application layer is leaf)
+  3. Move `TokenSnapshotEntity` + `TokenScoreMapper` + repos (infrastructure)
+  4. Move `EnrichmentController` (api)
+  5. Move providers (infrastructure/providers/) — or depend on `chain/data-provider` if INV-15 done
+  6. Move `CallNormalizedHandler` + `InProcessEnrichmentEventPublisher` (event-bus)
+  7. Split `chain-explorer.module.ts`: keep only chain-identity stuff, remove snapshot deps
+  8. Update all imports across the codebase (callers like `call-tracking`, `scoring`)
+  9. Run full test suite + verify with playwright that snapshot data still loads
+- **Status**: Planning only. NOT implementing in this session. Captured for future execution as a dedicated sprint (can be done independently of INV-15 and INV-16).
+- **Synergy with INV-15 and INV-16**:
+  - `token/snapshot` consumes from `chain/data-provider` (if INV-15 done) for raw market data
+  - `token/snapshot` exposes data that `token/image` could reference (e.g. token name for placeholder)
+  - Clean dependency: `token/image` and `token/snapshot` are siblings, both depend on `chain/`
+  - The three BCs form a layered architecture: chain layer → token layer (snapshot + image)
+
+## 💡 Feature requests (missing functionality)
+
 ## 💡 Feature requests (missing functionality)
 
 ## 💡 Feature requests (missing functionality)
