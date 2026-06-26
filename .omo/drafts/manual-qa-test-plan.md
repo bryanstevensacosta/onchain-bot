@@ -547,16 +547,22 @@ These items are CONFIRMED real issues but require deeper investigation. Document
   - Has filter: "Only with milestones" checkbox
   - Columns: Token | MC @ pub | MC now | Max × | Δ price | Published | Status
   - Current state: empty ("No tracked calls")
-- **Context**:
-  - 4 calls have been APPROVED (per `filter_decisions` table)
-  - 0 calls are PUBLISHED (per `published_calls` table, also confirmed by Dashboard KPI "📤 Published 0")
-  - If tracked calls requires `published_calls` records, then 0 published = 0 tracked (cascade)
-- **Question to answer**: What logic gates a call into the tracked calls list?
-- **Hypotheses**:
-  - Tracked calls requires `published_calls` record (which is empty — see INV-1)
-  - Or: Tracked calls requires `RegisterCallForMilestonesEvent` to have fired (which depends on `mcAtCall > 0` + publish success)
-  - Or: Tracked calls requires scheduler to have processed it (LiveMilestoneScheduler hasn't run yet)
-  - Or: The query endpoint is broken (404, similar to /kols bug originally found)
+- **Root cause** (DIAGNOSED 2026-06-26):
+  - `tracked_published_calls` table is **EMPTY** (0 rows) — this is the source for the widget.
+  - `published_calls` table has **3 rows** (status=PUBLISHED) — these are the upstream records.
+  - The bridge handler (commit `1483afb`) wires `TokenApprovedPublishHandler` → publish to Telegram → `CallPublishedTrackedHandler` → `TrackPublishedCallUseCase` → row in `tracked_published_calls`. The 3 existing published_calls were created BEFORE that bridge was wired, so the event chain never fired.
+  - The 3 rows are **test artifacts**: sequential fake addresses (`a9f2gh3k4l5m6n7o8p9q0r1s2t3u4v5w6x7y8z9a0b`, `epjfwdd5aufqssqem2qn1xzybapc8g4uzexheyf1r2qt`, `epx5r4b6g3x8yzwqx2vywk5r7k9mzn3hjkl0pvs4ty`), `ticker='TEST'`, and `published_channel_ids=['AlphaPremiumHub']` (channel NAME, not numeric KOL id like `2088887132`).
+- **✅ Fix Applied**: `apps/backend/scripts/backfills/2026-06-26-tracked-published-calls-from-published.sql` (commit `131631b`). Backfill filters for `published_channel_ids[0] ~ '^[0-9]+$'` (numeric KOL id only). Applied via `npm run db:migrate`, registered in `backfill_migrations` table.
+  - All 3 existing rows are correctly **skipped** (test artifacts, no numeric KOL id).
+  - **Future** real approvals going through the bridge handler (post-1483afb) will populate `tracked_published_calls` automatically via `CallPublishedTrackedHandler`.
+  - DB state before: 3 published_calls + 0 tracked_published_calls.
+  - DB state after: 3 published_calls + 0 tracked_published_calls (intentional — no new rows because filter excludes test artifacts).
+- **Optional follow-up** (not auto-applied): write a separate one-shot DELETE backfill for the 3 test published_calls rows to clean up DB. User can invoke when ready (see `.omo/drafts/backfill-strategy.md` short-term checklist).
+- **Files referenced**:
+  - `apps/backend/src/token/call-tracking/application/handlers/track-published-call.use-case.ts`
+  - `apps/backend/src/token/call-tracking/infrastructure/event-bus/call-published-tracked.handler.ts`
+  - `apps/backend/src/token/call-tracking/infrastructure/scheduling/tracking-cron.scheduler.ts`
+  - `apps/backend/src/token/call-tracking/api/http/tracked-calls.controller.ts`
 - **Files to inspect**:
   - `apps/backend/src/token/call-tracking/application/handlers/list-tracked-calls.use-case.ts`
   - `apps/backend/src/token/call-tracking/api/http/tracked-calls.controller.ts`
@@ -657,6 +663,7 @@ Following the QA plan, these P0/P1 issues were fixed:
 | `611b2ca` | INV-5 | shared/ui | Created `TokenImage` shared component: cycles through snapshot-curated image_urls (dexscreener → birdeye → ipfs) → DexScreener fallback URL → deterministic placeholder (hashed color + initial letter). Zero network calls in placeholder mode. Replaced `<img>` + onError in `canonical-call-row.tsx` and `token-detail/index.tsx`. |
 | `19beaaf` | INV-9 | kol/reputation | Diagnosed: leaderboard uniform 0.50 scores are HONEST behavior — `call_performances` is empty (no `published_calls` exist yet). Algorithm correctly returns 0.5 neutral default. Will self-resolve once bridge handler (INV-1 fix) processes new approvals. |
 | `f380a28` | (UI) | tokens-explorer + /kols | (a) `/kols` client-side pagination (PAGE_SIZE=15) with Previous/Next + "N-M de TOTAL" indicator. (b) TopTokensTable `Last seen` switched from `s.classifiedAt` (always undefined) to `s.scoredAt` — now shows real relative times. (c) Token cell chip reduced to `text-[10px]` to stop competing visually with ticker fallback. |
+| `131631b` | INV-6 | call-tracking (cascade) | SQL backfill `tracked_published_calls` from `published_calls` filtering for numeric KOL ids. 3 test artifacts correctly skipped (they have `kol_id='AlphaPremiumHub'` not numeric). Real production approvals (post-bridge-fix) will populate the table automatically via `CallPublishedTrackedHandler`. |
 
 ## 🖼️ Image rendering requirements (INV-5 follow-up)
 
@@ -776,6 +783,7 @@ Shipped backfills (under `apps/backend/scripts/backfills/`):
 | `2026-06-26-token-score-breakdown.sql` | SQL | Backfill `token_scores.breakdown` for 2 stale tokens (INV-2) |
 | `2026-06-26-kol-is-active-sync.sql` | SQL | Sync `kols.is_active` from `lifecycle_status` for 7 inconsistent rows (INV-3) |
 | `2026-06-26-kol-title-handle-resolve.ts` | TS | Scaffold for INV-12/13 — awaiting user to fill `MANUAL_RESOLUTIONS` map |
+| `2026-06-26-tracked-published-calls-from-published.sql` | SQL | Backfill `tracked_published_calls` from `published_calls` filtering numeric KOL ids (INV-6 cascade — 3 test artifacts correctly skipped) |
 
 All auto-applied on `npm run start:dev` via the wired `db:migrate` runner; tracked in `backfill_migrations` table.
 
