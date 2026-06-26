@@ -62,7 +62,14 @@ interface Resolution {
  * To discover the real handle, open the channel in Telegram and copy
  * the @username from the channel info. The title is the channel's display name.
  *
- * EXAMPLE:
+ * ALTERNATIVE PATH (no script changes): set INGESTION_TELEGRAM_SEED_CHANNELS
+ * in apps/backend/.env using the override format "kolId|handle|title" for
+ * these 3 KOLs. On next `npm run start:dev`, KolSeeder.onApplicationBootstrap
+ * applies the override directly (idempotent, no SQL needed). Example:
+ *
+ *   INGESTION_TELEGRAM_SEED_CHANNELS=2054466090|@CasGem|Cas Gem Calls,1960616143|@SpyDefi|SpyDefi Channel,1756488143|lowtaxsolana|Low Tax Solana Calls,...
+ *
+ * EXAMPLE (script path):
  *   '2054466090': { handle: '@CasGemCalls' },
  *   '1756488143': { title: 'Low Tax Solana Calls' },
  */
