@@ -4,6 +4,8 @@ export interface FetchedImage {
   readonly ttlMs: number;
 }
 
+export const TOKEN_IMAGE_FETCHER = Symbol.for('TokenImageFetcher');
+
 export abstract class TokenImageFetcher {
   public abstract fetch(
     chain: string,

@@ -134,4 +134,12 @@ export class TokenSnapshotEntity {
   lowercaseId() {
     if (this.id) this.id = this.id.toLowerCase();
   }
+
+  @BeforeInsert()
+  @BeforeUpdate()
+  lowercaseImageUrls() {
+    if (Array.isArray(this.imageUrls)) {
+      this.imageUrls = this.imageUrls.map((u) => u.toLowerCase());
+    }
+  }
 }

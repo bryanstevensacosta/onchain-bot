@@ -21,6 +21,14 @@ import { TypeOrmTokenSnapshotRepository } from 'chain/explorer/infrastructure/pe
 import { InProcessEnrichmentEventPublisher } from 'chain/explorer/infrastructure/messaging/in-process-enrichment-event.publisher';
 import { CallNormalizedHandler } from 'chain/explorer/infrastructure/event-bus/call-normalized.handler';
 import { EnrichmentController } from 'chain/explorer/api/http/enrichment.controller';
+import { TokenImageController } from 'chain/explorer/api/http/token-image.controller';
+import { TokenImageService } from 'chain/explorer/application/services/token-image.service';
+import { TOKEN_IMAGE_FETCHER } from 'chain/explorer/application/ports/token-image.fetcher';
+import { TokenImageFetcher as TokenImageFetcherImpl } from 'chain/explorer/infrastructure/fetchers/token-image.fetcher';
+import {
+  LruTokenImageCache,
+  TOKEN_IMAGE_CACHE,
+} from 'shared/cache/token-image-cache.adapter';
 
 /**
  * Chain Explorer BC module.
@@ -41,7 +49,7 @@ import { EnrichmentController } from 'chain/explorer/api/http/enrichment.control
       ? [TypeOrmModule.forFeature([TokenSnapshotEntity])]
       : []),
   ],
-  controllers: [EnrichmentController],
+  controllers: [EnrichmentController, TokenImageController],
   providers: [
     DexScreenerAdapter,
     GeckoTerminalAdapter,
@@ -49,6 +57,15 @@ import { EnrichmentController } from 'chain/explorer/api/http/enrichment.control
     HeliusAdapter,
     RugCheckAdapter,
     SolanaRpcAdapter,
+    TokenImageService,
+    {
+      provide: TOKEN_IMAGE_FETCHER,
+      useClass: TokenImageFetcherImpl,
+    },
+    {
+      provide: TOKEN_IMAGE_CACHE,
+      useClass: LruTokenImageCache,
+    },
     {
       provide: MARKET_DATA_PROVIDERS,
       useFactory: (

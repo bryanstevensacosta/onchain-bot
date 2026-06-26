@@ -1,4 +1,5 @@
 import type { Chain } from '@/shared/realtime/events';
+import { API_BASE_URL } from '@/shared/config/env';
 
 export function formatUsd(value: number | null | undefined): string {
   if (value == null) return '—';
@@ -45,10 +46,13 @@ export function chainLabel(chain: Chain | string): string {
 }
 
 /**
- * Generate a token logo URL using DexScreener's CDN.
- * Falls back to empty string so the <img> onError handler triggers.
+ * Generate a token logo URL via the backend image proxy at
+ * `/token/image/:chain/:address`. The proxy handles CDN fallback
+ * (DexScreener → Birdeye for Solana), LRU caching, optional WebP
+ * re-encoding, and surfaces a deterministic placeholder when no
+ * CDN returns a valid image. Routing through the proxy decouples
+ * the frontend from CDN URL conventions and case-sensitivity quirks.
  */
 export function tokenImageUrl(chain: string, address: string): string {
-  const slug = chain === 'evm' ? 'ethereum' : chain;
-  return `https://dd.dexscreener.com/ds-data/tokens/${slug}/${address}.png`;
+  return `${API_BASE_URL}/token/image/${chain}/${address}`;
 }

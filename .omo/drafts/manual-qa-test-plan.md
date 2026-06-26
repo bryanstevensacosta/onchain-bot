@@ -644,6 +644,57 @@ These items are CONFIRMED real issues but require deeper investigation. Document
   - Recent events endpoint: `/vip-calls/calls/recent` (or similar)
 - **Reference**: 4 events were APPROVED but 0 PUBLISHED, so `publishing.telegram.published` never fires. But there should be `filters.token.approved` events from the 4 approvals. Why are they not showing in the live feed?
 
+### INV-14: Token images broken — case-mismatch + need for image proxy with multi-source fallback
+
+- **URLs affected** (3 tokens verified missing images on /tokens/:chain/:address):
+  - http://localhost:5173/tokens/ethereum/0x5f980dcfc4c0fa3911554cf5ab288ed0eb13dba3
+  - http://localhost:5173/tokens/solana/314gc8kpujgfmmbyw7fb9tpzcxkm5rnkwmbgkxtwpo8e
+  - http://localhost:5173/tokens/solana/2vvewbj822vjhlhqgzwrq2zy8z3v7pbgakifskkwpump
+- **Root cause (two layers)**:
+  1. **Case-mismatch in stored URLs**: 23 of 28 snapshots had `image_urls` with PascalCase in the path (e.g. `https://dd.dexscreener.com/ds-data/tokens/solana/2VveWbJ822vJHL...`). CDNs (DexScreener, Birdeye) are case-sensitive in URL paths → 404. After commit `47d550a` lowercased `id`, this mismatch became visible.
+  2. **No multi-source fallback**: Backend image fetcher only tries DexScreener (always) + Birdeye CDN (Solana). For tokens not on these CDNs, no fallback → 404.
+- **User feedback**: "necesitaremos algo más robusto para que este problema no persista"
+- **✅ Fix Applied (commit pending)**:
+  1. SQL backfill `2026-06-26-lowercase-image-urls.sql` — lowercases all `image_urls` arrays in `token_snapshots` (0 mixed-case after apply, 28/28 clean).
+  2. `@BeforeInsert/@BeforeUpdate` hook `lowercaseImageUrls()` on `token-snapshot.entity.ts` — auto-lowercases on save.
+  3. **Backend image proxy at `/token/image/:chain/:address`** — was implemented in code but NOT registered in any module. Now registered in `chain-explorer.module.ts`. Architecture: LRU cache + optional WebP re-encoding + try-multiple-sources strategy + deterministic SVG placeholder as final fallback.
+  4. `tokenImageUrl()` in `format.ts` rewritten to call the proxy via `API_BASE_URL` — frontend no longer hits CDNs directly.
+
+- **Image source fallback chain (recommended order for TokenImageFetcher)**:
+  1. **DexScreener** (`dd.dexscreener.com`) — free, chain-agnostic, high coverage
+  2. **GeckoTerminal** (`api.geckoterminal.com/api/v2/networks/{chain}/tokens/{addr}/info`) — adapter exists, hardcodes `imageUrls: []`, needs enhancement to extract `image` from response
+  3. **Moralis** (`deep-index.moralis.io/api/v2.2/token/{addr}/metadata?chain=eth`) — adapter exists, already extracts `logo` URL via `buildImageUrls()`. **Best EVM fallback** (covers tokens not on DexScreener like `0x5f98...`).
+  4. **Helius DAS** (`mainnet.helius-rpc.com/v0/assets/{mint}` → `getAsset`) — adapter exists, extracts `content.links.image`. **Best Solana fallback** for indexed SPL tokens.
+  5. **Birdeye** (`public-api.birdeye.so/defi/token_overview?address=...` → `data.logoURI`) — API key configured, adapter only uses CDN URL hardcoded. Can enhance to use real API.
+  6. **CoinGecko** (`api.coingecko.com/api/v3/coins/{id}` → `image.large/small/thumb`) — adapter exists, has `extractImageUrls()` that returns all 3 sizes. **Premium fallback** (may need contract address → coingecko id mapping).
+  7. **Mobula** (`api.mobula.io/api/1/metadata?asset=...`) — adapter exists, hardcodes `imageUrls: []`. Needs enhancement.
+  8. **CoinMarketCap** (`pro-api.coinmarketcap.com/v2/cryptocurrency/info?symbol=...`) — API key configured, no adapter. Has `logo` URL in response.
+  9. **Placeholder SVG** (deterministic from address hash + initial char) — final fallback, always works, zero API calls.
+
+- **Architecture decision**: Frontend `TokenImage` component already does client-side cycling through `snapshot.imageUrls` + DexScreener fallback + placeholder. With proxy wired, the `tokenImageUrl()` helper returns the proxy URL. The proxy handles ALL the source cycling server-side. This is more robust because:
+  - Centralized cache (one fetch benefits all users)
+  - WebP optimization (saves bandwidth)
+  - CDN failures hidden from frontend
+  - Placeholder always works (no broken images)
+
+- **Files involved**:
+  - `apps/backend/src/chain/explorer/application/services/token-image.service.ts` (proxy service)
+  - `apps/backend/src/chain/explorer/infrastructure/fetchers/token-image.fetcher.ts` (URL builder + tryFetch)
+  - `apps/backend/src/chain/explorer/api/http/token-image.controller.ts` (proxy endpoint)
+  - `apps/backend/src/chain/explorer/chain-explorer.module.ts` (now registers the controller + service + fetcher + cache)
+  - `apps/backend/src/chain/explorer/infrastructure/providers/{moralis,helius-das,coingecko}.adapter.ts` (real image sources, already extract logos)
+  - `apps/backend/scripts/backfills/2026-06-26-lowercase-image-urls.sql` (backfill applied)
+  - `apps/frontend/src/shared/lib/format.ts` (`tokenImageUrl()` uses proxy)
+  - `apps/frontend/src/shared/ui/token-image.tsx` (client-side cycling + placeholder fallback)
+
+- **Next steps (medium-term)**:
+  1. Enhance `TokenImageFetcher` to call Moralis adapter as fallback for EVM
+  2. Enhance to call Helius DAS adapter as fallback for Solana
+  3. Add `extractImageUrls` for GeckoTerminal (small change in adapter)
+  4. Add CoinGecko + CoinMarketCap as premium fallbacks (need address → id mapping)
+  5. Add Mobula extraction
+  6. Re-enrich affected tokens so they get fresh image URLs from new sources
+
 ## ✅ Fixes Applied (this session)
 
 Following the QA plan, these P0/P1 issues were fixed:

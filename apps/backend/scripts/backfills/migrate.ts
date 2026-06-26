@@ -64,6 +64,27 @@ async function main(): Promise<void> {
 
   const pending = all.filter(f => !applied.has(f));
 
+  if (MODE === 'list') {
+    console.log(`[migrate] SQL backfills (auto-applied on \`npm run dev:backend\`):`);
+    for (const f of all) {
+      console.log(`  ${applied.has(f) ? '✓' : '·'} ${f}`);
+    }
+    const tsBackfills = fs
+      .readdirSync(SCRIPTS_DIR)
+      .filter(f => f.endsWith('.ts') && !f.startsWith('_') && f !== 'migrate.ts');
+    if (tsBackfills.length > 0) {
+      console.log(
+        `\n[migrate] TS backfills (explicit invocation required — see scripts/backfills/README.md):`,
+      );
+      for (const f of tsBackfills) {
+        const base = f.replace(/\.ts$/, '');
+        console.log(`  → npm run backfill:${base.replace(/^\d{4}-\d{2}-\d{2}-/, '')}`);
+      }
+    }
+    console.log(`\n[migrate] ${applied.size} applied, ${pending.length} pending SQL.`);
+    return;
+  }
+
   if (MODE === 'status') {
     console.log(`[migrate] status: ${applied.size} applied, ${pending.length} pending`);
     for (const f of all) {
