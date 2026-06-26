@@ -600,17 +600,21 @@ These items are CONFIRMED real issues but require deeper investigation. Document
 
 - **URL**: http://localhost:5173/kols → "🏆 KOL reputation leaderboard"
 - **Symptom**: All 10 ranks in the leaderboard display the same `Score` and `Calls`/`Strong` columns. No ranking differentiation despite 45 distinct KOLs with varying activity.
-- **Earlier finding (INV-10)**: `kol_reputations` table was empty (0 rows). I added `KolReputationScheduler` (cron every 15 min) in commit `02f64fc` to populate it automatically. After first tick, every KOL should have real reputation based on `CallPerformance` records.
-- **Question to answer**: After the scheduler runs (within 15 min of deploy), do all leaderboard rows still show identical scores? If yes, the reputation aggregation service is broken (returns 0.50 for everyone) — likely cascade from missing `call_performance` data.
-- **Possible causes**:
-  - `CallPerformanceRepository.findByChannel(kolId)` returns empty arrays for all KOLs → reputation service computes 0.5 default
-  - `recomputeKolReputation` service has a bug returning uniform score
-  - `KNOWN_GOOD`/`KNOWN_BAD` lookups fail silently and default to 0.5
+- **Root cause** (DIAGNOSED): `kol_reputations` has 45 rows populated by `KolReputationScheduler` (commit `02f64fc`), but ALL have `score=0.5` because:
+  - `call_performances` table is **EMPTY** (0 rows).
+  - `published_calls` table is **EMPTY** (0 rows).
+  - `recomputeKolReputation` correctly returns `0.5` neutral default when `perfs.length === 0`.
+  - The algorithm is honest, not broken — there's no performance data to differentiate.
+- **Why no published calls**: The 4 APPROVED `filter_decisions` pre-date the bridge handler fix (commit `1483afb`). Old approvals never became `published_calls` rows. New approvals (post-fix) will create them. ATH evaluation then creates `call_performances`, which feeds `kol_reputations`.
+- **✅ Fix Applied (data layer)**:
+  - `apps/backend/scripts/backfills/2026-06-26-kol-is-active-sync.sql` — synced `is_active` from `lifecycle_status` (fixed 7 inconsistent rows). Already run.
+- **TODO (algorithm layer)**:
+  - When `call_performances.length === 0`, fall back to a proxy based on approved filter_decisions per KOL (`source_channel_ids` join). This would differentiate scores based on actual KOL activity (some have 2 approved tokens, others have 0).
+  - OR: leave as-is and add UI hint that scores are uniform until performance data accrues.
 - **Files to inspect**:
-  - `apps/backend/src/token/call-tracking/application/ports/call-performance.repository.ts`
-  - `apps/backend/src/kol/reputation/domain/services/recompute-kol-reputation.service.ts`
-  - `apps/backend/src/kol/reputation/infrastructure/persistence/typeorm/repositories/typeorm-kol-reputation.repository.ts`
-- **Verification approach**: Trigger scheduler tick (or wait 15 min), then check `/telegram-kol/reputation/kols/top?limit=10` and verify scores vary across KOLs.
+  - `apps/backend/src/kol/reputation/domain/services/recompute-kol-reputation.service.ts` (algorithm)
+  - `apps/backend/src/kol/reputation/infrastructure/scheduling/kol-reputation.scheduler.ts` (orchestrator)
+  - `apps/backend/src/token/call-tracking/application/ports/call-performance.repository.ts` (data source)
 
 ### INV-8: Live feed empty — no real-time events ever appear
 
