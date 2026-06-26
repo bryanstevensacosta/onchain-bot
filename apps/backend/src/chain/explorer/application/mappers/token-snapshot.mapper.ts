@@ -12,6 +12,7 @@ export interface TokenSnapshotView {
   readonly priceChange24h: number | null;
   readonly holders: number | null;
   readonly top10HolderPercent: number | null;
+  readonly symbol: string | null;
   readonly name: string | null;
   readonly imageUrls: ReadonlyArray<string>;
   readonly lockedLiquidityPercent: number | null;
@@ -43,6 +44,7 @@ export class TokenSnapshotMapper {
       priceChange24h: snapshot.priceChange24h,
       holders: snapshot.holders,
       top10HolderPercent: snapshot.top10HolderPercent,
+      symbol: snapshot.symbol,
       name: snapshot.name,
       imageUrls: snapshot.imageUrls,
       lockedLiquidityPercent: snapshot.lockedLiquidityPercent,

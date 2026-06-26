@@ -113,6 +113,7 @@ export class MobulaAdapter extends MarketDataProviderPort {
         bondingPercent: base.bondingPercentage ?? null,
         factory: base.factory ?? base.source ?? null,
         name: null,
+        symbol: null,
         imageUrls: [],
         lockedLiquidityPercent: null,
         burnedPercent: null,

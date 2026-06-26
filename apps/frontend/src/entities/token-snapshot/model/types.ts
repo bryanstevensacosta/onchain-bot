@@ -12,6 +12,7 @@ export interface TokenSnapshotView {
   volume24hUsd: number | null;
   priceChange24h: number | null;
   top10HolderPercent: number | null;
+  symbol: string | null;
   name: string | null;
   imageUrls: ReadonlyArray<string>;
   lockedLiquidityPercent: number | null;

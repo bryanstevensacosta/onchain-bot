@@ -116,6 +116,7 @@ export class CoinGeckoAdapter extends MarketDataProviderPort {
         bondingPercent: null,
         factory: null,
         name: null,
+        symbol: null,
         imageUrls: extractImageUrls(data.image),
         lockedLiquidityPercent: null,
         burnedPercent: null,

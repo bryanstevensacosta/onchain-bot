@@ -77,6 +77,7 @@ export class TokenSnapshotMapper {
       priceChange24h: row.priceChange24h,
       holders: row.holders,
       top10HolderPercent: row.top10HolderPercent,
+      symbol: row.symbol ?? null,
       name: row.name ?? null,
       imageUrls: row.imageUrls ?? [],
       lockedLiquidityPercent: row.lockedLiquidityPercent ?? null,

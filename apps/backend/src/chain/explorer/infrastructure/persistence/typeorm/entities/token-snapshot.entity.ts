@@ -97,6 +97,9 @@ export class TokenSnapshotEntity {
   @Column({ name: 'top10_holder_percent', type: 'real', nullable: true })
   public top10HolderPercent!: number | null;
 
+  @Column({ name: 'symbol', type: 'varchar', length: 64, nullable: true })
+  public symbol!: string | null;
+
   @Column({ name: 'name', type: 'varchar', length: 256, nullable: true })
   public name!: string | null;
 

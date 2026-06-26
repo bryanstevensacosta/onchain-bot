@@ -149,6 +149,7 @@ export class SolanaRpcAdapter extends MarketDataProviderPort {
       holders,
       top10HolderPercent,
       name: null,
+        symbol: null,
       imageUrls: [],
       lockedLiquidityPercent: null,
       burnedPercent: null,

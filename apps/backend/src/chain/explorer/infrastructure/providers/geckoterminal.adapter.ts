@@ -86,6 +86,7 @@ export class GeckoTerminalAdapter extends MarketDataProviderPort {
           ? parseFloat(a.top_10_percent_holders)
           : null,
         name: a.name || null,
+        symbol: null,
         imageUrls: [],
         lockedLiquidityPercent: null,
         burnedPercent: null,

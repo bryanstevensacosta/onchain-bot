@@ -76,6 +76,7 @@ export class DexScreenerAdapter extends MarketDataProviderPort {
       holders: null,
       top10HolderPercent: null,
       name: best.baseToken.name || null,
+        symbol: best.baseToken.symbol || null,
       imageUrls: [
         `https://dd.dexscreener.com/ds-data/tokens/${chainSlug}/${best.baseToken.address}.png`,
       ],

@@ -16,6 +16,8 @@ export interface MarketData {
   readonly priceChange24h: number | null;
   readonly holders: number | null;
   readonly top10HolderPercent: number | null;
+  /** Token symbol/ticker (e.g. "PEPE") — first non-null from providers wins */
+  readonly symbol: string | null;
   /** Token display name (e.g. "Pepe") — first non-null from providers wins */
   readonly name: string | null;
   /** Token logo/image URLs — accumulate all from providers for fallback chain */

@@ -153,6 +153,7 @@ export class EnrichTokenUseCase {
       priceChange24h: merged.priceChange24h,
       holders: merged.holders,
       top10HolderPercent: merged.top10HolderPercent,
+      symbol: merged.symbol,
       name: merged.name,
       imageUrls: merged.imageUrls,
       lockedLiquidityPercent: merged.lockedLiquidityPercent,
@@ -188,6 +189,7 @@ function mergeMarketData(data: ReadonlyArray<MarketData>): {
   priceChange24h: number | null;
   holders: number | null;
   top10HolderPercent: number | null;
+  symbol: string | null;
   name: string | null;
   imageUrls: ReadonlyArray<string>;
   lockedLiquidityPercent: number | null;
@@ -217,6 +219,7 @@ function mergeMarketData(data: ReadonlyArray<MarketData>): {
     priceChange24h: first((d) => d.priceChange24h),
     holders: first((d) => d.holders),
     top10HolderPercent: first((d) => d.top10HolderPercent),
+    symbol: first((d) => d.symbol),
     name: first((d) => d.name),
     imageUrls: Object.freeze(allImageUrls),
     lockedLiquidityPercent: first((d) => d.lockedLiquidityPercent),

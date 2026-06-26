@@ -34,7 +34,7 @@ export class TokenApprovedPublishHandler {
       ]);
 
       const best = token?.bestMetrics;
-      const ticker = token?.ticker ?? null;
+      const ticker = token?.ticker ?? snapshot?.symbol ?? null;
       const name = snapshot?.name ?? token?.name ?? null;
       const marketCapUsd = snapshot?.marketCapUsd ?? best?.marketCapUsd ?? null;
       const liquidityUsd = snapshot?.liquidityUsd ?? best?.liquidityUsd ?? null;

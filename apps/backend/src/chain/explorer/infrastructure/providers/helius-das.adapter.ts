@@ -124,6 +124,7 @@ export class HeliusDasAdapter extends MarketDataProviderPort {
         bondingPercent: null,
         factory: null,
         name: meta?.name ?? ti?.symbol ?? null,
+        symbol: ti?.symbol ?? null,
         imageUrls: imageUrl ? [imageUrl] : [],
         lockedLiquidityPercent: null,
         burnedPercent: null,

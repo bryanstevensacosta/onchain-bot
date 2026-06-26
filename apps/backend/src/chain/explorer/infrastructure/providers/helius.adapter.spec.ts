@@ -93,6 +93,7 @@ describe('HeliusAdapter', () => {
       priceChange24h: null,
       holders: 1234,
       top10HolderPercent: null,
+      symbol: null,
       name: null,
       imageUrls: [],
       lockedLiquidityPercent: null,

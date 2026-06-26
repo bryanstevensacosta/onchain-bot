@@ -106,6 +106,7 @@ export class MoralisAdapter extends MarketDataProviderPort {
         bondingPercent: null,
         factory: null,
         name: null,
+          symbol: null,
         imageUrls,
         lockedLiquidityPercent: null,
         burnedPercent: null,

@@ -135,6 +135,7 @@ export class HeliusAdapter extends MarketDataProviderPort {
         holders,
         top10HolderPercent: null,
         name: null,
+        symbol: null,
         imageUrls: [],
         lockedLiquidityPercent: null,
         burnedPercent: null,

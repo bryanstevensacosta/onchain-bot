@@ -90,6 +90,7 @@ export class BirdeyeAdapter extends MarketDataProviderPort {
         holders: null,
         top10HolderPercent: null,
         name: null,
+        symbol: null,
         imageUrls: [`https://cdn.birdeye.so/tokens/${address}/logo.png`],
         lockedLiquidityPercent: null,
         burnedPercent: null,

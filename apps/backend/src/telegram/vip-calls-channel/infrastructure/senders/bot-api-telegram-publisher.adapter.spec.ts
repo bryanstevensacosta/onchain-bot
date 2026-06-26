@@ -130,7 +130,7 @@ describe('VipCallsBotApiPublisherAdapter', () => {
         expect.any(String),
         expect.objectContaining({
           parse_mode: 'Markdown',
-          disable_web_page_preview: true,
+          disable_web_page_preview: false,
         }),
       );
     });

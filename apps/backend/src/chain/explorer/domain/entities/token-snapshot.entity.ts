@@ -22,6 +22,7 @@ export interface SnapshotInput {
   readonly priceChange24h: number | null;
   readonly holders: number | null;
   readonly top10HolderPercent: number | null;
+  readonly symbol: string | null;
   readonly name: string | null;
   readonly imageUrls: ReadonlyArray<string>;
   readonly lockedLiquidityPercent: number | null;
@@ -47,6 +48,7 @@ interface TokenSnapshotProps {
   readonly priceChange24h: number | null;
   readonly holders: number | null;
   readonly top10HolderPercent: number | null;
+  readonly symbol: string | null;
   readonly name: string | null;
   readonly imageUrls: ReadonlyArray<string>;
   readonly lockedLiquidityPercent: number | null;
@@ -93,6 +95,7 @@ export class TokenSnapshot extends AggregateRoot<string> {
       priceChange24h: input.priceChange24h,
       holders: input.holders,
       top10HolderPercent: input.top10HolderPercent,
+      symbol: input.symbol,
       name: input.name,
       imageUrls: Object.freeze([...input.imageUrls]),
       lockedLiquidityPercent: input.lockedLiquidityPercent,
@@ -122,6 +125,7 @@ export class TokenSnapshot extends AggregateRoot<string> {
     priceChange24h: number | null;
     holders: number | null;
     top10HolderPercent: number | null;
+    symbol: string | null;
     name: string | null;
     imageUrls: ReadonlyArray<string>;
     lockedLiquidityPercent: number | null;
@@ -144,6 +148,7 @@ export class TokenSnapshot extends AggregateRoot<string> {
       priceChange24h: input.priceChange24h,
       holders: input.holders,
       top10HolderPercent: input.top10HolderPercent,
+      symbol: input.symbol,
       name: input.name,
       imageUrls: Object.freeze([...input.imageUrls]),
       lockedLiquidityPercent: input.lockedLiquidityPercent,
@@ -193,6 +198,9 @@ export class TokenSnapshot extends AggregateRoot<string> {
   }
   public get sources(): ReadonlyArray<string> {
     return this.state.sources;
+  }
+  public get symbol(): string | null {
+    return this.state.symbol;
   }
   public get name(): string | null {
     return this.state.name;
