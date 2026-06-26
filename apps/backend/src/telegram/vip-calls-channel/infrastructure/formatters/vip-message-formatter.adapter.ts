@@ -49,12 +49,6 @@ export class VipCallsMessageFormatterAdapter extends MessageFormatterPort {
       parts.push(`🦅 [Dexscreener](${input.chart})`);
     }
 
-    parts.push('');
-    parts.push('**Quick Buy:**');
-    parts.push('🔺 Axiom | ☀️ Photon | 🔍 GMGN');
-    parts.push('💊 Padre | 🤖 Maestro | 🍌 Banana');
-    parts.push('🏛️ Trojan | 🟦 Based | ✳️ Sigma');
-
     return parts.join('\n');
   }
 
