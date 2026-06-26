@@ -640,7 +640,7 @@ These items are CONFIRMED real issues but require deeper investigation. Document
 
 ## ✅ Fixes Applied (this session)
 
-Following the QA plan, these P0 issues were fixed:
+Following the QA plan, these P0/P1 issues were fixed:
 
 | Commit | INV | BC | Fix |
 |---|---|---|---|
@@ -649,6 +649,14 @@ Following the QA plan, these P0 issues were fixed:
 | `02f64fc` | INV-10 | kol/reputation | Added `KolReputationScheduler` (cron every 15 min) that calls `RecomputeKolReputationUseCase` for all KOLs. Reputation table was empty because no auto-trigger existed. Pattern follows `LiveMilestoneScheduler`. |
 | `26b1c61` | INV-4 | tokens-explorer (frontend) | Removed per-row `useCanonical` + `useSnapshot` calls from `DecisionRow`. Eliminated 56 console errors (was 1 request per token × 27 tokens × 2 endpoints = 54+ errors). Cards lost image/ticker/name enrichment but page is clean. |
 | `e2dd13a` | INV-8 | shared/realtime (frontend) | Added `useEffect` in `LiveFeed` that preloads `fetchRecentDecisions(10)` on mount. Feed now shows historical events; WS events continue to append on top. Also exported `fetchRecentDecisions` from filter-decision barrel. |
+| `56cbf3a` | INV-3 | kol/identity | `kol.activate()` now restores `is_active=true` (was only updating `lifecycle_status`). Added 5-test spec covering activate/dormant/blacklist transitions. DB fix via `2026-06-26-kol-is-active-sync.sql` cleaned 7 inconsistent pre-existing rows. |
+| `c5f3a9a` | (chore) | repo | Added `.playwright-mcp/` to `.gitignore` so MCP screenshots/snapshots/console logs don't pollute git history. |
+| `942589e` | INV-2 | token/scoring | One-shot SQL backfill for 2 stale tokens (`4quuyz...` score=80, `0x92b8...` score=50) that had `breakdown=NULL` despite snapshot data existing at scoring time. Recomputed breakdown from `token_snapshots` using same formula as `ScoreTokenUseCase`. DB: 0 null, 0 empty, 27/27 populated. |
+| `344e16a` | (docs) | repo | Research document `.omo/drafts/backfill-strategy.md` cataloging every backfill touchpoint in code (13+ sites) with categorization matrix, proposed `scripts/backfills/` convention, and short/medium/long-term migration checklist. |
+| `760af85` | INV-12/13 | kol/identity | TS backfill scaffold `scripts/backfills/2026-06-26-kol-title-handle-resolve.ts` with `--dry-run` / `--validate` / `--estimate-cost` / `--apply` modes. Awaits user to fill `MANUAL_RESOLUTIONS` map with real Telegram handles for KOLs 2054466090, 1960616143, 1756488143. |
+| `611b2ca` | INV-5 | shared/ui | Created `TokenImage` shared component: cycles through snapshot-curated image_urls (dexscreener → birdeye → ipfs) → DexScreener fallback URL → deterministic placeholder (hashed color + initial letter). Zero network calls in placeholder mode. Replaced `<img>` + onError in `canonical-call-row.tsx` and `token-detail/index.tsx`. |
+| `19beaaf` | INV-9 | kol/reputation | Diagnosed: leaderboard uniform 0.50 scores are HONEST behavior — `call_performances` is empty (no `published_calls` exist yet). Algorithm correctly returns 0.5 neutral default. Will self-resolve once bridge handler (INV-1 fix) processes new approvals. |
+| `f380a28` | (UI) | tokens-explorer + /kols | (a) `/kols` client-side pagination (PAGE_SIZE=15) with Previous/Next + "N-M de TOTAL" indicator. (b) TopTokensTable `Last seen` switched from `s.classifiedAt` (always undefined) to `s.scoredAt` — now shows real relative times. (c) Token cell chip reduced to `text-[10px]` to stop competing visually with ticker fallback. |
 
 ## 🖼️ Image rendering requirements (INV-5 follow-up)
 
@@ -671,6 +679,105 @@ Following the QA plan, these P0 issues were fixed:
 - Tokens with image URL (e.g. USDC, WETH) fail to load due to DNS
 
 **Verification approach**: Add MCP playwright assertions to verify each token card has a visible `<img>` (not just `img "placeholder"` alt text).
+
+**✅ Status (2026-06-26)**: Resolved by commit `611b2ca` — `TokenImage` component with cycling URLs (snapshot `image_urls` → DexScreener fallback → deterministic hashed-color placeholder). Verified via MCP playwright:
+
+```bash
+# 1. Open /tokens list page
+browser_navigate → http://localhost:5173/tokens
+browser_wait_for → time:3
+browser_snapshot → confirms each row has `<img "Solana|Ethereum|Snill.ai|…">`
+# Expected: 27 rows, each with either a real <img> alt (CDN loaded) OR
+#           a `<div>` placeholder with a letter + bg-color (hashed from address)
+
+# 2. Open token detail page (INV-2 + INV-5 verification)
+browser_navigate → http://localhost:5173/tokens/solana/4quuyzseunkbdwr3xqv83cqeb9enat348b9exbhgwory
+browser_wait_for → time:2
+browser_snapshot → look for "img \"Snill.ai\"" (CDN loaded) + 4 breakdown factors
+# Expected: Score 80 STRONG, Factors: High Liquidity +20 / Medium Holders +8 /
+#           Medium Market Cap +5 / High Volume +5
+```
+
+## 🎭 MCP Playwright run instructions (full sweep)
+
+The QA plan is verified end-to-end via MCP playwright. Use this recipe after any backend restart to confirm no regressions.
+
+### Prerequisites
+
+```bash
+# Backend running on :3030
+cd apps/backend && npm run start:dev   # includes db:migrate auto-apply
+
+# Frontend running on :5173
+cd apps/frontend && npm run dev
+
+# Both should be up before running playwright:
+curl -s http://localhost:3030/dashboard/kpis | jq .   # expect 200 OK
+curl -s http://localhost:5173/ | head -c 50           # expect <html…
+```
+
+### Test matrix (each row = one playwright run)
+
+| Page | URL | Expected assertions | Verified 2026-06-26 |
+|---|---|---|---|
+| `/` (dashboard) | http://localhost:5173/ | 4 KPI cards, TopTokensTable with real `Last seen` (no "—"), WS● green | ✅ `hace 17h` / `hace 3d` / `hace 2d` visible |
+| `/tokens` | http://localhost:5173/tokens | 27 rows (4 APPROVED + 23 REJECTED), each with `<img>` alt text from CDN or hashed placeholder | ✅ all 27 rows have identity |
+| `/tokens/:chain/:address` | http://localhost:5173/tokens/solana/4quuyzseunkbdwr3xqv83cqeb9enat348b9exbhgwory | Score=80 STRONG, 4 breakdown factors, image in header | ✅ verified |
+| `/kols` | http://localhost:5173/kols | Pagination "1–15 de 45", Previous disabled, Next enabled, "1 / 3" | ✅ verified |
+| `/live` | http://localhost:5173/live | Live feed shows historical events (preloaded), WS● connected | ✅ |
+| `/ops` | http://localhost:5173/ops | Replay form, BackfillButton per KOL | ✅ |
+
+### Per-page playwright pattern
+
+```typescript
+// 1. Navigate
+await page.goto(url)
+
+// 2. Wait for data load (TanStack Query refetch)
+await page.waitForTimeout(2000-3000)
+
+// 3. Snapshot DOM (YAML in .playwright-mcp/page-{ts}.yml)
+const snap = await page.accessibility.snapshot()
+
+// 4. Capture console errors
+const msgs = await page.on('console')  // filter by type=='error'
+
+// 5. Screenshot for visual verification
+await page.screenshot({ fullPage: true, path: '.playwright-mcp/{name}.png' })
+```
+
+### MCP tool mapping
+
+| Goal | MCP tool |
+|---|---|
+| Open page | `browser_navigate` |
+| Wait for render | `browser_wait_for` (time: N seconds) |
+| Get DOM snapshot | `browser_snapshot` |
+| Capture console | `browser_console_messages` |
+| Network log | `browser_network_requests` |
+| Visual proof | `browser_take_screenshot` |
+| JS evaluation | `browser_evaluate` |
+| Click element | `browser_click` |
+| Resize viewport | `browser_resize` |
+
+## 📚 Backfill strategy (companion doc)
+
+See `.omo/drafts/backfill-strategy.md` for the research document covering:
+- Catalog of all 13+ backfill touchpoints (runtime seeders, schedulers, scripts, frontend buttons)
+- Categorization matrix (runtime seed vs script vs anti-pattern)
+- Proposed `scripts/backfills/` convention with `--dry-run` / `--validate` / `--apply` / `--estimate-cost` modes
+- Cost discipline for API-touching backfills (Helius / Birdeye / MTProto)
+- Short / medium / long-term migration checklist
+
+Shipped backfills (under `apps/backend/scripts/backfills/`):
+
+| File | Type | Purpose |
+|---|---|---|
+| `2026-06-26-token-score-breakdown.sql` | SQL | Backfill `token_scores.breakdown` for 2 stale tokens (INV-2) |
+| `2026-06-26-kol-is-active-sync.sql` | SQL | Sync `kols.is_active` from `lifecycle_status` for 7 inconsistent rows (INV-3) |
+| `2026-06-26-kol-title-handle-resolve.ts` | TS | Scaffold for INV-12/13 — awaiting user to fill `MANUAL_RESOLUTIONS` map |
+
+All auto-applied on `npm run start:dev` via the wired `db:migrate` runner; tracked in `backfill_migrations` table.
 
 ## 💡 Feature requests (missing functionality)
 
