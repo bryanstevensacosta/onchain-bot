@@ -1064,17 +1064,19 @@ All auto-applied on `npm run start:dev` via the wired `db:migrate` runner; track
   - Clean dependency: `token/image` and `token/snapshot` are siblings, both depend on `chain/`
   - The three BCs form a layered architecture: chain layer → token layer (snapshot + image)
 
-### INV-18: `call` BC + sub-BCs (`call/tracking`, `call/achievements`) — domain modeling of a post-approved token
+### INV-18: `call/` BC — defines what a call is (FLAT, no sub-BCs) + origin field
 
-- **User proposal**: Create `apps/backend/src/call/` as parent BC with sub-BCs:
-  - `src/call/tracking/` — current state tracking (price, ATH, etc.)
-  - `src/call/achievements/` — renamed from `milestone` (X2, X5, X10 achievements, etc.)
-  - Define what a "call" is: a token that has been approved by the filter system
-- **My opinion**: **Strong yes** — this is the highest-value architectural improvement proposed in this session. The current domain is fragmented:
-  - "Call" appears in `token/call-tracking/`, `telegram/vip-calls-channel/`, `telegram/chain-dexter-bot/` with overlapping but inconsistent meanings
-  - "Milestone" in `token/milestone/` is really "achievement" (semantic mismatch — milestones are points in time, achievements are what calls accomplish)
-  - "Approved token" / "TrackedCall" / "PublishedCall" / "CanonicalCall" all refer to overlapping concepts with no clear taxonomy
-  - The user-facing language already says "call" (UI shows "🎯 Tracked calls", "X2 call", "X5 call", etc.) but the code doesn't match
+- **User proposal** (final): Create `apps/backend/src/call/` as a SINGLE flat BC (no sub-BCs) that defines what a Call is:
+  - A **Call** is a single concept with TWO origins:
+    - `origin: 'kol'` — ingested from `telegram/kol-calls-ingestion/` (a KOL made a call, not yet approved)
+    - `origin: 'our'` — approved by filter, published to vip-calls-channel (OUR call)
+  - The BC owns the Call aggregate, status state machine, and per-call tracking for OUR calls only
+  - KOL call tracking (aggregate) lives in `kol/reputation/` (separate BC, separate concern)
+- **CRITICAL clarification (user feedback)**: A Call has 2 origins but is ONE aggregate:
+  1. **`call/` (this INV)** — owns: Call aggregate, status state machine, **per-call tracking + achievements for OUR calls** (origin='our'). Triggered by `CallApprovedEvent`. Single sub-BC removed — everything inside `call/` directly.
+  2. **`kol/reputation/`** (INV-20) — owns: aggregate KOL call tracking (count, x2/x5/x10 totals, reputation score, KOL achievements). Triggered by `CallReceivedEvent` from `telegram/kol-calls-ingestion/`.
+- **Why NO sub-BC inside `call/`** (user's key feedback): "en lugar de tener call con un solo sub bc lifecycle no sería mejor tener simplemente un src/call que defina que es una call?" — the Call aggregate, lifecycle, and achievements are ONE concern, not three. Putting them in sub-folders adds ceremony without value.
+- **My opinion**: **Strong yes** — this is the cleanest version of the call domain. Flat BC, no sub-BC, single aggregate with origin discriminator.
 
 - **Proposed domain definition**:
 
@@ -1103,54 +1105,45 @@ All auto-applied on `npm run start:dev` via the wired `db:migrate` runner; track
 
   The Call is the **bounded aggregate** for everything related to a single approved token. All other concepts (tracking, achievements, lifecycle) are sub-concerns of a Call.
 
-- **Proposed layout** (parent BC with sub-BCs):
+- **Proposed layout** (parent BC with ONE sub-BC, not split):
   ```
   apps/backend/src/call/
   ├── domain/
   │   ├── call.aggregate.ts (root)
   │   ├── value-objects/
   │   │   ├── call-status.vo.ts (PENDING | PUBLISHED | TRACKED | ARCHIVED)
-  │   │   ├── achievement-tier.vo.ts (X2, X3, X5, X10, X20, X50, X100)
-  │   │   └── call-metrics.vo.ts (currentPrice, athPrice, athMultiple, etc.)
+  │   │   └── call-metrics.vo.ts (currentPrice, athPrice, athMultiple, milestones, etc.)
   │   └── events/
   │       ├── call-approved.event.ts
   │       ├── call-published.event.ts
   │       ├── call-archived.event.ts
-  │       └── achievement-unlocked.event.ts
+  │       └── call-milestone-unlocked.event.ts
   ├── call.module.ts (parent)
   │
-  ├── tracking/                           ← was token/call-tracking/
+  ├── lifecycle/                            ← SINGLE sub-BC, not split
   │   ├── application/
   │   │   ├── handlers/
-  │   │   │   ├── track-call.use-case.ts (subscribes to CallPublishedEvent)
-  │   │   │   ├── update-call-tracking.use-case.ts (cron: re-fetch current price)
-  │   │   │   └── get-tracked-calls.use-case.ts (list, paginated)
+  │   │   │   ├── start-call-tracking.use-case.ts (subscribes to CallApprovedEvent, sets entry snapshot)
+  │   │   │   ├── update-call-tracking.use-case.ts (cron: refresh price, check thresholds, emit milestones — atomic)
+  │   │   │   ├── archive-tracking.use-case.ts (manually or auto-archive)
+  │   │   │   └── get-call-tracking.use-case.ts (single + paginated list)
   │   │   └── ports/
-  │   │       └── tracked-call.repository.ts
+  │   │       └── call-lifecycle.repository.ts
   │   ├── infrastructure/
-  │   │   ├── persistence/typeorm/entities/tracked-call.entity.ts
-  │   │   └── scheduling/tracking-cron.scheduler.ts (every 5 min)
-  │   └── tracking.module.ts
-  │
-  ├── achievements/                       ← was token/milestone/ (renamed + extended)
-  │   ├── application/
-  │   │   ├── handlers/
-  │   │   │   ├── evaluate-achievement.use-case.ts (check if X2/X5/etc reached)
-  │   │   │   ├── unlock-achievement.use-case.ts (record + emit event)
-  │   │   │   └── get-call-achievements.use-case.ts (history per call)
-  │   │   └── ports/
-  │   │       └── call-achievement.repository.ts
-  │   ├── infrastructure/
-  │   │   ├── persistence/typeorm/entities/call-achievement.entity.ts
-  │   │   └── scheduling/achievement-evaluator.scheduler.ts (every 1 min)
-  │   └── achievements.module.ts
+  │   │   ├── persistence/typeorm/entities/call-lifecycle.entity.ts
+  │   │   │   // columns: chain, address, kol_id, status, entry_price, current_price,
+  │   │   │   //          ath_price, ath_multiple, milestones (jsonb: ['X2', 'X5']),
+  │   │   │   //          published_at, archived_at, last_updated_at
+  │   │   └── scheduling/lifecycle-cron.scheduler.ts (every 5 min)
+  │   └── lifecycle.module.ts
   │
   ├── api/
-  │   ├── http/call.controller.ts (GET /calls, /calls/:chain/:address)
-  │   └── http/achievement.controller.ts (GET /calls/:chain/:address/achievements)
+  │   └── http/call.controller.ts (GET /calls, /calls/:chain/:address, POST /calls/:chain/:address/archive)
   │
-  └── README.md (aggregate definition, lifecycle, event flow)
+  └── README.md (aggregate definition, lifecycle state machine, event flow)
   ```
+
+  **Why single sub-BC** (user feedback): "si tenemos un src/call y no tiene mas de 1 sub bc no tendría sentido tener un call/tracking o call/achivements" — splitting them adds cross-BC coordination (event → subscription → handling) for the SAME workflow (snapshot update → check thresholds → record unlock). The milestone (achievement) is **derived state** from the tracking data, not a separate concern. Atomic check-and-emit in `update-call-tracking.use-case.ts` keeps it in one place.
 
 - **Current scattered locations to migrate**:
   - `token/call-tracking/` → `call/tracking/`
@@ -1166,40 +1159,167 @@ All auto-applied on `npm run start:dev` via the wired `db:migrate` runner; track
   - Achievements are achievements OF a call, milestones are abstract goals
   - The user-facing language ("X2 call", "achievement unlocked") aligns with this
 
-- **Multi-sub-BC coordination**:
-  - `call/` parent module imports both sub-modules
-  - `tracking/` subscribes to `CallPublishedEvent` (from `call/` itself when `vip-calls-channel` publishes)
-  - `achievements/` subscribes to `CallTrackingUpdatedEvent` (from `tracking/`) → checks if X2/X5/etc reached → unlocks achievement
-  - All event flow stays inside `call/` — no cross-BC coupling
+- **Multi-sub-BC coordination** (none — single sub-BC):
+  - `call/` parent module imports `lifecycle/` only
+  - `lifecycle/` subscribes to `CallPublishedEvent` (from `call/` itself when `vip-calls-channel` publishes)
+  - `lifecycle/` atomically updates price AND checks thresholds AND emits `CallMilestoneUnlockedEvent` in one operation
+  - All event flow stays inside `call/` — no cross-sub-BC coupling needed
 
 - **API contract** (cleaner than current):
-  - `GET /calls?status=published&limit=50` → list calls
-  - `GET /calls/:chain/:address` → single call detail
-  - `GET /calls/:chain/:address/tracking` → current tracking data
-  - `GET /calls/:chain/:address/achievements` → achievement history
-  - `GET /calls/leaderboard?metric=ath_multiple&limit=10` → top achievers
+  - `GET /calls?status=published&limit=50` → list calls (lifecycle state + current metrics)
+  - `GET /calls/:chain/:address` → single call detail (current price, ATH, milestones[])
+  - `GET /calls/leaderboard?metric=ath_multiple&limit=10` → top achievers (by ATH multiple)
   - `POST /calls/:chain/:address/archive` → manual archive
+  - Achievements are accessible via `GET /calls/:chain/:address` (the `milestones` field in the response)
 
 - **Migration steps** (when implementing — large refactor):
   1. Define `Call` aggregate + `CallStatus` VO + events in `call/domain/`
-  2. Create `call/tracking/` from `token/call-tracking/` (rename files, update imports)
-  3. Create `call/achievements/` from `token/milestone/` (rename, add achievement tier VO)
-  4. Update `token/token-gating/` to emit `CallApprovedEvent` to `call/`
-  5. Update `telegram/vip-calls-channel/` to emit `CallPublishedEvent` to `call/`
-  6. Wire events: published → tracking starts → tracking updates → achievements unlock
-  7. Add new API endpoints
-  8. Update `kol/reputation/` to consume `AchievementUnlockedEvent` (Kol reputation is now derived from call achievements, not just call performance)
-  9. Deprecate old `token/call-tracking/` + `token/milestone/` modules
-  10. Run full test suite + verify with playwright
+  2. Create `call/` by merging `token/call-tracking/` + `token/milestone/` into ONE sub-BC:
+     - Single entity `CallLifecycle` (was `TrackedCall` + `Milestone` separately)
+     - Single `update-call-tracking.use-case.ts` that updates price + checks thresholds + emits milestones atomically
+     - Single cron scheduler
+  3. Update `token/token-gating/` to emit `CallApprovedEvent` to `call/`
+  4. Update `telegram/vip-calls-channel/` to emit `CallPublishedEvent` to `call/`
+  5. Wire events: published → lifecycle starts → price updates → milestones unlock
+  6. Add new API endpoints
+  7. Update `kol/reputation/` to consume `CallMilestoneUnlockedEvent` (see INV-20)
+  8. Deprecate old `token/call-tracking/` + `token/milestone/` modules
+  9. Run full test suite + verify with playwright
 
 - **Status**: Planning only. NOT implementing in this session. **This is the highest-leverage refactor proposed in this session** — it unifies the domain language, enables the Kol reputation system to be accurate (currently it shows 0.50 for all KOLs because `call_performances` is empty; the new model would derive reputation from achievements, giving real scores).
 
 - **Synergy with all previous BCs**:
-  - `call/tracking` uses `token/snapshot` (INV-17) to get current price
-  - `call/tracking` uses `token/image` (INV-16) for the call's image
-  - `call/achievements` emits `AchievementUnlockedEvent` → consumed by `kol/reputation` (fixes INV-9 uniform 0.50 scores)
+  - `call/lifecycle` uses `token/snapshot` (INV-17) to get current price
+  - `call/lifecycle` uses `token/image` (INV-16) for the call's image
+  - `call/lifecycle` emits `CallMilestoneUnlockedEvent` → consumed by `kol/reputation` (INV-20, fixes INV-9 uniform 0.50 scores)
   - `call/` consumes from `chain/data-provider` (INV-15) for any provider data not yet in snapshot
-  - The 4 BCs form a complete layer: chain → token (snapshot + image) → call (tracking + achievements)
+  - The 4 BCs form a complete layer: chain → token (snapshot + image) → call (lifecycle)
+
+### INV-20: `kol/reputation/` enhanced — KOL calls from ingestion + KOL reputation + KOL achievements (SINGLE BC, not new `kol/tracking/`)
+
+- **User clarification**: `kol/reputation/` (existing) is the right place for KOL tracking. It just needs to be ENHANCED, not replaced with a new `kol/tracking/` BC.
+- **What `kol/reputation/` owns** (after enhancement):
+  - **Input**: `CallReceivedEvent` from `telegram/kol-calls-ingestion/` (INV-19) — EVERY call from EVERY KOL, regardless of approval status
+  - **Aggregation**: per KOL — total calls, X2/X5/X10 counts, avg ATH, hit rate, time-weighted reputation
+  - **Output**: reputation score per KOL (fixes INV-9 uniform 0.50)
+  - **KOL achievements**: First call, 10 calls, 100 calls, First X2, 5 X2 calls, 10 X2 calls, First X5, etc.
+- **Tracking distinction** (user feedback):
+  - **MY calls** → tracked by `call/` (INV-18) starting from `CallApprovedEvent`
+  - **KOL calls** → tracked by `kol/reputation/` (this INV) starting from `CallReceivedEvent` (ingestion, no approval filter)
+  - The two tracking flows are SEPARATE concerns with different triggers, different aggregation levels, different outputs
+  - MY call tracking is per-call (one ATH, current price)
+  - KOL call tracking is aggregate (reputation across many calls)
+- **Why "kol/reputation" is the right name** (not "kol/tracking"):
+  - The user-facing output IS reputation (the leaderboard shows reputation scores)
+  - Tracking is the internal mechanism, reputation is the user-facing product
+  - "kol/tracking" would expose implementation details; "kol/reputation" exposes the domain concept
+- **Proposed enhanced layout** (existing `kol/reputation/`, evolved):
+  ```
+  apps/backend/src/kol/reputation/        ← already exists, ENHANCED in place
+  ├── domain/
+  │   ├── kol-reputation.aggregate.ts (extends existing — adds call aggregation)
+  │   ├── value-objects/
+  │   │   ├── reputation-score.vo.ts (existing, refined)
+  │   │   ├── kol-call-stats.vo.ts (NEW: totalCalls, x2Count, x5Count, avgATH, hitRate)
+  │   │   └── kol-achievement-tier.vo.ts (NEW: FIRST_CALL, X_CALLS_10, X_CALLS_100, FIRST_X2, FIVE_X2, etc.)
+  │   └── events/
+  │       ├── kol-reputation-updated.event.ts (NEW: emitted on each call result)
+  │       └── kol-achievement-unlocked.event.ts (NEW: emitted when threshold reached)
+  ├── application/
+  │   ├── handlers/
+  │   │   ├── record-kol-call.use-case.ts (NEW: subscribes to CallReceivedEvent)
+  │   │   ├── evaluate-kol-call-result.use-case.ts (NEW: subscribes to CallMilestoneUnlockedEvent from call/lifecycle, updates aggregate)
+  │   │   ├── recompute-kol-reputation.use-case.ts (existing, refined)
+  │   │   └── unlock-kol-achievement.use-case.ts (NEW: detects thresholds)
+  │   └── ports/
+  │       └── kol-reputation.repository.ts (existing, extended)
+  ├── infrastructure/
+  │   ├── persistence/typeorm/entities/kol-reputation.entity.ts (existing, extended with new columns)
+  │   ├── persistence/typeorm/entities/kol-achievement.entity.ts (NEW)
+  │   └── scheduling/kol-reputation.scheduler.ts (existing cron, refined)
+  ├── api/http/kol-reputation.controller.ts (existing, extended with /achievements endpoint)
+  └── kol-reputation.module.ts (existing, refined)
+  ```
+- **Event flow**:
+  ```
+  telegram/kol-calls-ingestion (parses incoming message)
+    ↓ emits CallReceivedEvent
+  kol/reputation/record-kol-call (increments KOL's total calls)
+    ↓ every N calls, checks thresholds
+  kol/reputation/evaluate-kol-call-result (subscribes to call/lifecycle events)
+    ↓ on CallMilestoneUnlockedEvent for a KOL's call
+    ↓ updates KOL's x2/x5/x10 counts
+    ↓ recomputes reputation score
+    ↓ emits KolReputationUpdatedEvent + KolAchievementUnlockedEvent (if threshold)
+  ```
+- **API contract** (new endpoints):
+  - `GET /kol-reputation/leaderboard?metric=reputation&limit=10` (existing, refined)
+  - `GET /kol-reputation/kols/:kolId/achievements` (NEW) — achievement history
+  - `GET /kol-reputation/kols/:kolId/calls` (NEW) — call history with results
+- **KOL achievement catalog** (concrete tiers to unlock):
+  - `FIRST_CALL` — first call ever tracked
+  - `CALLS_10` / `CALLS_50` / `CALLS_100` / `CALLS_500` / `CALLS_1000` — volume milestones
+  - `FIRST_X2` — first call that hit 2x ATH
+  - `X2_FIVE` / `X2_TEN` / `X2_FIFTY` — 5/10/50 calls hit 2x
+  - `FIRST_X5` — first call that hit 5x ATH
+  - `X5_THREE` / `X5_TEN` — 3/10 calls hit 5x
+  - `FIRST_X10` — first call that hit 10x ATH
+  - `STREAK_5` / `STREAK_10` — 5/10 winning calls in a row
+  - `TOP_10_DAILY` / `TOP_10_WEEKLY` — leaderboard position
+- **Migration steps** (in place — no new BC):
+  1. Add new VOs to `kol/reputation/domain/value-objects/`
+  2. Add new event types to `kol/reputation/domain/events/`
+  3. Add new use cases (record-kol-call, evaluate-kol-call-result, unlock-kol-achievement)
+  4. Extend `kol-reputation.entity.ts` with new columns
+  5. Add new endpoints to `kol-reputation.controller.ts`
+  6. Wire event subscriptions: `CallReceivedEvent` → record, `CallMilestoneUnlockedEvent` → evaluate
+  7. Test that reputation scores now vary across KOLs (fixes INV-9)
+- **Status**: Planning only. NOT implementing in this session.
+- **Synergy**:
+  - Consumes `CallReceivedEvent` from `telegram/kol-calls-ingestion/` (INV-19)
+  - Consumes `CallMilestoneUnlockedEvent` from `call/` (INV-18)
+  - Emits `KolReputationUpdatedEvent` and `KolAchievementUnlockedEvent`
+  - These events consumed by: `telegram/chain-dexter-bot` (notify KOLs), `kol/identity/` (KOL profile), UI (leaderboard)
+
+### INV-21: `shared/achievements/` — shared kernel for cross-BC achievement concept (AchievementTier VO + event base)
+
+- **Why shared kernel**: `call/` and `kol/reputation/` both produce achievements but with different entity types (`call` vs `kol`) and different tier semantics (X2/X5 for calls, FIRST_CALL/X_CALLS_10 for KOLs). A shared kernel provides:
+  - Consistent `AchievementTier` enum (all possible tiers across both domains)
+  - Base event class with common shape (`entityType`, `entityId`, `tier`, `unlockedAt`, `context`)
+  - UI can render any achievement uniformly (icon, label, color)
+- **Proposed layout**:
+  ```
+  apps/backend/src/shared/achievements/         ← NEW shared kernel
+  ├── value-objects/
+  │   ├── achievement-tier.vo.ts (union of call tiers + KOL tiers)
+  │   │   // Call tiers:    X2, X3, X5, X10, X20, X50, X100
+  │   │   // KOL tiers:     FIRST_CALL, CALLS_10, CALLS_50, CALLS_100, CALLS_500, CALLS_1000,
+  │   │   //                FIRST_X2, X2_FIVE, X2_TEN, X2_FIFTY, FIRST_X5, X5_THREE, X5_TEN,
+  │   │   //                FIRST_X10, STREAK_5, STREAK_10, TOP_10_DAILY, TOP_10_WEEKLY
+  │   │   // Method: getEntityType(tier): 'call' | 'kol' for typed discrimination
+  │   └── achievement-event.vo.ts (base event shape)
+  └── shared-achievements.module.ts
+  ```
+- **Usage**:
+  - `call/` emits `CallMilestoneUnlockedEvent extends AchievementEvent { entityType: 'call' }`
+  - `kol/reputation/` emits `KolAchievementUnlockedEvent extends AchievementEvent { entityType: 'kol' }`
+  - Both events share `tier: AchievementTier`, `unlockedAt`, `context`
+  - UI reads `entityType` + `tier` to render appropriate icon/label
+- **Dependency direction** (clean):
+  - `shared/achievements/` has NO dependencies on `call/` or `kol/`
+  - `call/` and `kol/` both import from `shared/achievements/`
+  - The VO is just data (tier enum + label/icon metadata), no behavior
+- **Why NOT a separate `achievements/` BC with its own logic**:
+  - Logic is domain-specific (call achievements = current price > threshold; KOL achievements = total count > threshold)
+  - No shared behavior to extract
+  - Shared kernel is enough — just the data types
+- **Migration steps** (when implementing):
+  1. Create `shared/achievements/value-objects/achievement-tier.vo.ts` with union enum
+  2. Create `shared/achievements/value-objects/achievement-event.vo.ts` with base event class
+  3. Update `call/` to use `AchievementTier` from shared (replacing the local one)
+  4. Update `kol/reputation/` to use `AchievementTier` from shared
+  5. Update UI to read tier from shared enum (single source of truth for tier metadata)
+- **Status**: Planning only. NOT implementing in this session.
 
 ### INV-19: `telegram` BC — consolidate all Telegram logic + rename `kol/ingestion/` to `telegram/kol-calls-ingestion/`
 
