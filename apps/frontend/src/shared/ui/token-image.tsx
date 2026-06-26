@@ -91,7 +91,7 @@ export function TokenImage({
   const currentUrl = urls[idx];
 
   const handleError = () => {
-    if (idx < urls.length - 1) setIdx(idx + 1);
+    setIdx(idx + 1);
   };
 
   const sizeClass = SIZE_CLASS[size];
