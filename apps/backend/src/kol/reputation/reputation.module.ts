@@ -17,6 +17,10 @@ import {
 import { RecomputeKolReputationUseCase } from 'kol/reputation/application/handlers/recompute-kol-reputation.use-case';
 import { InMemoryKolReputationRepository } from 'kol/reputation/infrastructure/repositories/in-memory-kol-reputation.repository';
 import { DefaultKnownKolRegistry } from 'kol/reputation/infrastructure/known-kol/default-known-kol.registry';
+import { DbBackedKnownKolRegistry } from 'kol/reputation/infrastructure/known-kol/db-backed-known-kol.registry';
+import { KolKnownListEntity } from 'kol/reputation/infrastructure/persistence/typeorm/entities/kol-known-list.entity';
+import { KolKnownListRepository } from 'kol/reputation/application/ports/kol-known-list.repository';
+import { TypeOrmKolKnownListRepository } from 'kol/reputation/infrastructure/persistence/typeorm/repositories/typeorm-kol-known-list.repository';
 import { KolReputationEntity } from 'kol/reputation/infrastructure/persistence/typeorm/entities/kol-reputation.entity';
 import { TypeOrmKolReputationRepository } from 'kol/reputation/infrastructure/persistence/typeorm/repositories/typeorm-kol-reputation.repository';
 import { KolReputationController } from 'kol/reputation/api/http/kol-reputation.controller';
@@ -48,12 +52,16 @@ import { KolReputationScheduler } from 'kol/reputation/infrastructure/scheduling
     IdentityModule,
     NormalizationModule,
     ...(isDatabaseEnabled()
-      ? [TypeOrmModule.forFeature([KolReputationEntity])]
+      ? [TypeOrmModule.forFeature([
+          KolReputationEntity,
+          KolKnownListEntity,
+        ])]
       : []),
   ],
   controllers: [KolReputationController],
   providers: [
     InMemoryKolReputationRepository,
+    TypeOrmKolKnownListRepository,
     ...(isDatabaseEnabled() ? [TypeOrmKolReputationRepository] : []),
     {
       provide: KolReputationRepository,
@@ -73,9 +81,27 @@ import { KolReputationScheduler } from 'kol/reputation/infrastructure/scheduling
       },
     },
     {
-      provide: KnownKolPort,
-      useClass: DefaultKnownKolRegistry,
+      provide: KolKnownListRepository,
+      useExisting: TypeOrmKolKnownListRepository,
     },
+    {
+      provide: KnownKolPort,
+      useFactory: (
+        config: ConfigService,
+        repo: KolKnownListRepository,
+        fallback: DefaultKnownKolRegistry,
+      ): KnownKolPort => {
+        const enabled =
+          config.get<AppConfig>('app')?.database?.enabled === true;
+        return enabled ? new DbBackedKnownKolRegistry(repo) : fallback;
+      },
+      inject: [
+        ConfigService,
+        KolKnownListRepository,
+        DefaultKnownKolRegistry,
+      ],
+    },
+    DefaultKnownKolRegistry,
     GetKolReputationUseCase,
     GetTopKolsUseCase,
     ListAllKolReputationsUseCase,
