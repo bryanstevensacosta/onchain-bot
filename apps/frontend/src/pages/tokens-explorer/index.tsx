@@ -15,6 +15,7 @@ import { useQuery } from '@tanstack/react-query';
 import { httpGet } from '@/shared/api';
 import { ENDPOINTS } from '@/shared/api/endpoints';
 import { Badge, Card, ChainIcon, TokenImage } from '@/shared/ui';
+import { formatRelativeTime, usePagination } from '@/shared/lib';
 
 type FilterType = 'all' | 'approved' | 'rejected';
 
@@ -87,6 +88,9 @@ function DecisionRow({
           >
             {copied ? '✓' : '⧉'}
           </button>
+          <span className="text-[10px] text-slate-600 ml-auto">
+            {formatRelativeTime(decision.decidedAt)}
+          </span>
         </div>
       </div>
 
@@ -109,9 +113,9 @@ function DecisionRow({
 export function TokensExplorerPage() {
   const [filter, setFilter] = useState<FilterType>('all');
 
-  const { data: allData, isLoading: allLoading } = useRecentDecisions(50);
-  const { data: approvedData, isLoading: approvedLoading } = useApproved(50);
-  const { data: rejectedData, isLoading: rejectedLoading } = useRejected(50);
+  const { data: allData, isLoading: allLoading } = useRecentDecisions(100);
+  const { data: approvedData, isLoading: approvedLoading } = useApproved(100);
+  const { data: rejectedData, isLoading: rejectedLoading } = useRejected(100);
 
   const { data: scores } = useRecentScores(50);
   const { data: canonicals } = useRecentCanonical(50);
@@ -140,6 +144,18 @@ export function TokensExplorerPage() {
       : filter === 'approved'
         ? approvedLoading
         : rejectedLoading;
+
+  const {
+    visible,
+    page,
+    totalPages,
+    canPrev,
+    canNext,
+    setPage,
+    rangeStart,
+    rangeEnd,
+    total,
+  } = usePagination(data, 10);
 
   const qc = useQueryClient();
   const onDecisionEvent = useCallback(() => {
@@ -212,7 +228,7 @@ export function TokensExplorerPage() {
       {isLoading && <Card className="text-xs text-slate-500">Cargando…</Card>}
 
       <div className="space-y-2">
-        {data?.map((decision) => {
+        {visible?.map((decision) => {
           const key = `${decision.chain}:${decision.address.toLowerCase()}`;
           return (
             <DecisionRow
@@ -230,6 +246,28 @@ export function TokensExplorerPage() {
           </Card>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-4 text-sm">
+          <button
+            disabled={!canPrev}
+            onClick={() => setPage(page - 1)}
+            className="px-3 py-1 rounded bg-slate-700 disabled:opacity-30 text-slate-200"
+          >
+            ← Prev
+          </button>
+          <span className="text-slate-400">
+            {rangeStart}–{rangeEnd} of {total}
+          </span>
+          <button
+            disabled={!canNext}
+            onClick={() => setPage(page + 1)}
+            className="px-3 py-1 rounded bg-slate-700 disabled:opacity-30 text-slate-200"
+          >
+            Next →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

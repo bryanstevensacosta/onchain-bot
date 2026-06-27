@@ -1,6 +1,35 @@
 {
-  "active_plan": "/Users/bryanstevens/dev/onchain-bot/.sisyphus/plans/vip-calls-formatter-example.md",
-  "started_at": "2026-06-22T19:00:00.000Z",
-  "session_ids": ["ses_1107f5797ffeXuH28uJRmZQ70w", "ses_10fe60577ffeEt8rf506g6Hh5F"],
-  "plan_name": "vip-calls-formatter-example"
+  "schema_version": 2,
+  "active_work_id": "consolidate-live-into-tokens-684a144d",
+  "works": {
+    "consolidate-live-into-tokens-684a144d": {
+      "work_id": "consolidate-live-into-tokens-684a144d",
+      "active_plan": "/Users/bryanstevens/dev/onchain-bot/.omo/plans/consolidate-live-into-tokens.md",
+      "plan_name": "consolidate-live-into-tokens",
+      "status": "active",
+      "started_at": "2026-06-27T02:58:26.732Z",
+      "updated_at": "2026-06-27T02:58:26.732Z",
+      "session_ids": [
+        "opencode:ses_1074ba50fffex6VHeXNwNpnTFg"
+      ],
+      "session_origins": {
+        "opencode:ses_1074ba50fffex6VHeXNwNpnTFg": "direct"
+      },
+      "agent": "atlas",
+      "task_sessions": {}
+    }
+  },
+  "active_plan": "/Users/bryanstevens/dev/onchain-bot/.omo/plans/consolidate-live-into-tokens.md",
+  "started_at": "2026-06-27T02:58:26.732Z",
+  "status": "active",
+  "updated_at": "2026-06-27T02:58:26.732Z",
+  "session_ids": [
+    "opencode:ses_1074ba50fffex6VHeXNwNpnTFg"
+  ],
+  "session_origins": {
+    "opencode:ses_1074ba50fffex6VHeXNwNpnTFg": "direct"
+  },
+  "plan_name": "consolidate-live-into-tokens",
+  "task_sessions": {},
+  "agent": "atlas"
 }
