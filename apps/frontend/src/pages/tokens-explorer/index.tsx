@@ -1,5 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEventStream } from '@/shared/realtime';
+import { decisionKeys } from '@/entities/filter-decision';
 import {
   useApproved,
   useRecentDecisions,
@@ -137,6 +140,12 @@ export function TokensExplorerPage() {
       : filter === 'approved'
         ? approvedLoading
         : rejectedLoading;
+
+  const qc = useQueryClient();
+  const onDecisionEvent = useCallback(() => {
+    void qc.invalidateQueries({ queryKey: decisionKeys.all });
+  }, [qc]);
+  useEventStream('token-gating.decision.applied', onDecisionEvent);
 
   const scoreMap = useMemo(() => {
     const m = new Map<string, { score: number; tier: string }>();
