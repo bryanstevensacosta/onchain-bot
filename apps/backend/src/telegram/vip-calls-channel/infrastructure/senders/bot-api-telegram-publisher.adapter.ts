@@ -94,8 +94,7 @@ export class VipCallsBotApiPublisherAdapter extends TelegramPublisherPort {
     while (this.pendingQueue.length > 0) {
       const elapsed = Date.now() - this.lastSentAt;
       if (elapsed < VipCallsBotApiPublisherAdapter.RATE_LIMIT_MS) {
-        const waitMs =
-          VipCallsBotApiPublisherAdapter.RATE_LIMIT_MS - elapsed;
+        const waitMs = VipCallsBotApiPublisherAdapter.RATE_LIMIT_MS - elapsed;
         this.logger.debug(
           `Rate limit: waiting ${waitMs}ms before next send (${this.pendingQueue.length} queued)`,
         );
@@ -110,8 +109,7 @@ export class VipCallsBotApiPublisherAdapter extends TelegramPublisherPort {
         const result = await this.sendOne(entry.text, entry.imageUrl);
         entry.resolve(result);
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : 'unknown error';
+        const message = err instanceof Error ? err.message : 'unknown error';
         this.logger.error(`sendOne failed: ${message}`);
         entry.resolve({ ok: false, messageId: null, error: message });
       }

@@ -22,7 +22,8 @@ import { MilestoneReachedHandler } from './infrastructure/event-bus/milestone-re
 import { TokenApprovedPublishHandler } from './infrastructure/event-bus/token-approved-publish.handler';
 import { SettingsModule } from 'settings/settings.module';
 import { NormalizationModule } from 'token/normalization/normalization.module';
-import { ChainExplorerModule } from 'chain/explorer/chain-explorer.module';
+import { EnrichmentModule } from 'token/enrichment/enrichment.module';
+import { TickerResolverService } from './application/services/ticker-resolver.service';
 
 @Module({
   imports: [
@@ -30,7 +31,7 @@ import { ChainExplorerModule } from 'chain/explorer/chain-explorer.module';
     ChainRegistryModule,
     SettingsModule,
     NormalizationModule,
-    ChainExplorerModule,
+    EnrichmentModule,
     ...(isDatabaseEnabled()
       ? [TypeOrmModule.forFeature([PublishedCallEntity])]
       : []),
@@ -43,6 +44,7 @@ import { ChainExplorerModule } from 'chain/explorer/chain-explorer.module';
     VipCallsMessageFormatterAdapter,
     MilestoneReachedHandler,
     TokenApprovedPublishHandler,
+    TickerResolverService,
     InMemoryPublishedCallRepository,
     ...(isDatabaseEnabled() ? [TypeOrmPublishedCallRepository] : []),
     {
@@ -52,9 +54,8 @@ import { ChainExplorerModule } from 'chain/explorer/chain-explorer.module';
           ? [TypeOrmPublishedCallRepository]
           : [InMemoryPublishedCallRepository]),
       ],
-      useFactory: (
-        repo: PublishedCallRepository,
-      ): PublishedCallRepository => repo,
+      useFactory: (repo: PublishedCallRepository): PublishedCallRepository =>
+        repo,
     },
     {
       provide: PublishingEventPublisher,

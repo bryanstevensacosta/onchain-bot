@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ChainId } from 'chain/identity/chain-id.vo';
 import { InMemoryPublishedCallRepository } from '../../infrastructure/repositories/in-memory-published-call.repository';
@@ -14,13 +13,11 @@ function makeFormatter(returnValue: string): FakeFormatter {
 interface FakePublisher {
   sendMessage: jest.Mock;
 }
-function makePublisher(
-  result: {
-    ok: boolean;
-    messageId: number | null;
-    error: string | null;
-  },
-): FakePublisher {
+function makePublisher(result: {
+  ok: boolean;
+  messageId: number | null;
+  error: string | null;
+}): FakePublisher {
   return { sendMessage: jest.fn().mockResolvedValue(result) };
 }
 
@@ -74,21 +71,29 @@ function buildUseCase(
 ) {
   const formatter = overrides.formatter ?? makeFormatter('formatted-msg');
   const publisher =
-    overrides.publisher ?? makePublisher({ ok: true, messageId: 42, error: null });
+    overrides.publisher ??
+    makePublisher({ ok: true, messageId: 42, error: null });
   const repo = overrides.repo ?? new InMemoryPublishedCallRepository();
-  const eventPublisher =
-    overrides.eventPublisher ?? makeEventPublisher();
+  const eventPublisher = overrides.eventPublisher ?? makeEventPublisher();
   const eventEmitter = overrides.eventEmitter ?? new FakeEventEmitter();
   const settings = overrides.settings ?? new FakeSettings();
   const useCase = new VipCallsPublishUseCase(
     formatter as never,
-    publisher as never,
+    publisher,
     repo,
     eventPublisher as never,
     eventEmitter as unknown as EventEmitter2,
     settings as never,
   );
-  return { useCase, formatter, publisher, repo, eventPublisher, eventEmitter, settings };
+  return {
+    useCase,
+    formatter,
+    publisher,
+    repo,
+    eventPublisher,
+    eventEmitter,
+    settings,
+  };
 }
 
 describe('VipCallsPublishUseCase', () => {
@@ -396,9 +401,7 @@ describe('VipCallsPublishUseCase', () => {
         score: 80,
         classification: 'GOOD',
       });
-      expect(out.publishedAt).toMatch(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
-      );
+      expect(out.publishedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
     });
 
     it('returns headerImageUrl = first imageUrl when provided', async () => {

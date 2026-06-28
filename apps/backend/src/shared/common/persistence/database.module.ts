@@ -10,7 +10,7 @@ import { CallPerformanceEntity } from 'token/call-tracking/infrastructure/persis
 import { CallEvaluationJobEntity } from 'token/call-tracking/infrastructure/persistence/typeorm/entities/call-evaluation-job.entity';
 import { TrackedPublishedCallOrmEntity } from 'token/call-tracking/infrastructure/persistence/typeorm/entities/tracked-published-call.entity';
 import { FilterDecisionEntity } from 'token/token-gating/infrastructure/persistence/typeorm/entities/filter-decision.entity';
-import { TokenSnapshotEntity } from 'chain/explorer/infrastructure/persistence/typeorm/entities/token-snapshot.entity';
+import { TokenSnapshotEntity } from 'token/enrichment/infrastructure/persistence/typeorm/entities/token-snapshot.entity';
 import { ExtractionResultEntity } from 'token/intake/extraction/infrastructure/persistence/typeorm/entities/extraction-result.entity';
 import { TokenCallEntity } from 'token/intake/parsing/infrastructure/persistence/typeorm/entities/token-call.entity';
 import { HoneypotAnalysisEntity } from 'token/honeypot/infrastructure/persistence/typeorm/entities/honeypot-analysis.entity';

@@ -1,5 +1,5 @@
 import { TokenEnrichedHandler } from 'token/classification/infrastructure/event-bus/token-enriched.handler';
-import { TokenEnrichedEvent } from 'chain/explorer/domain/events/token-enriched.event';
+import { TokenEnrichedEvent } from 'token/enrichment/domain/events/token-enriched.event';
 
 const FIXED_DATE = new Date('2026-01-01T00:00:00Z');
 const EVM = '0xabcdef0123456789abcdef0123456789abcdef01';

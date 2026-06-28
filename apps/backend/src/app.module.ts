@@ -12,7 +12,7 @@ import { ParsingModule } from 'token/intake/parsing/parsing.module';
 import { NormalizationModule } from 'token/normalization/normalization.module';
 import { ChainDetectionModule } from 'chain/detection/chain-detection.module';
 import { ChainRegistryModule } from 'chain/registry/chain-registry.module';
-import { ChainExplorerModule } from 'chain/explorer/chain-explorer.module';
+import { EnrichmentModule } from 'token/enrichment/enrichment.module';
 import { ClassificationModule } from 'token/classification/classification.module';
 import { ScoringModule } from 'token/scoring/scoring.module';
 import { FiltersModule } from 'token/token-gating/filters.module';
@@ -23,10 +23,12 @@ import { MilestoneModule } from 'token/milestone/milestone.module';
 import { ReputationModule } from 'kol/reputation/reputation.module';
 import { HoneypotModule } from 'token/honeypot/honeypot.module';
 import { IdentityModule } from 'kol/identity/identity.module';
+import { TelegramIngestionModule } from 'telegram/ingestion/telegram-ingestion.module';
 import { SourceModule } from 'kol/source/source.module';
 import { StatsModule } from 'kol/stats/stats.module';
 import { WsModule } from 'shared/ws/ws.module';
 import { SettingsModule } from 'settings/settings.module';
+import { DataProviderModule } from 'data-provider/core/data-provider.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -46,6 +48,7 @@ import { AppService } from './app.service';
     ScheduleModule.forRoot(),
     DatabaseModule.forRootFromEnv(),
     RedisModule,
+    TelegramIngestionModule,
     IdentityModule,
     SourceModule,
     StatsModule,
@@ -54,7 +57,7 @@ import { AppService } from './app.service';
     NormalizationModule,
     ChainDetectionModule,
     ChainRegistryModule,
-    ChainExplorerModule,
+    EnrichmentModule,
     ClassificationModule,
     ScoringModule,
     FiltersModule,
@@ -67,6 +70,7 @@ import { AppService } from './app.service';
     DashboardModule,
     WsModule,
     SettingsModule,
+    DataProviderModule,
   ],
   controllers: [AppController],
   providers: [AppService, DevBackfillHook],

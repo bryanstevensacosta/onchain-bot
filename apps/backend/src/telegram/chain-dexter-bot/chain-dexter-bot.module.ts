@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { isDatabaseEnabled } from 'shared/common/persistence/database.module';
 import { ChainDetectionModule } from 'chain/detection/chain-detection.module';
-import { ChainExplorerModule } from 'chain/explorer/chain-explorer.module';
+import { EnrichmentModule } from 'token/enrichment/enrichment.module';
 import { ChainDexterBotAdapter } from './infrastructure/telegram/chain-dexter-bot.adapter';
 import { MessageFormatterAdapter } from './infrastructure/telegram/message-formatter.adapter';
 import { TelegramBotClient } from './infrastructure/telegram/bot-client';
@@ -46,7 +46,7 @@ import type { AppConfig } from 'shared/common/config/app.config';
   imports: [
     HttpModule,
     ChainDetectionModule,
-    ChainExplorerModule,
+    EnrichmentModule,
     SettingsModule,
     ...(isDatabaseEnabled()
       ? [TypeOrmModule.forFeature([ChatGroupEntity, ChatSettingsEntity])]

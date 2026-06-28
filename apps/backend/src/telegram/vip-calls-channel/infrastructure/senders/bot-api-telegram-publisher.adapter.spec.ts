@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { of, throwError } from 'rxjs';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
@@ -102,7 +101,9 @@ describe('VipCallsBotApiPublisherAdapter', () => {
         of({ data: { ok: true, result: { message_id: 1 } } }),
       );
       const adapter = new VipCallsBotApiPublisherAdapter(
-        makeConfig({ outputChannel: '-1009999999999' }) as unknown as ConfigService,
+        makeConfig({
+          outputChannel: '-1009999999999',
+        }) as unknown as ConfigService,
         http as unknown as HttpService,
       );
 
@@ -264,11 +265,7 @@ describe('VipCallsBotApiPublisherAdapter', () => {
         http as unknown as HttpService,
       );
 
-      await adapter.sendMessage(
-        'ignored',
-        'short caption',
-        'https://x/y.png',
-      );
+      await adapter.sendMessage('ignored', 'short caption', 'https://x/y.png');
 
       expect(http.post).toHaveBeenCalledWith(
         expect.any(String),
@@ -325,7 +322,9 @@ describe('VipCallsBotApiPublisherAdapter', () => {
     it('returns error when sendPhoto fails', async () => {
       const http = makeHttp();
       http.post.mockReturnValueOnce(
-        of({ data: { ok: false, description: 'Bad Request: invalid photo URL' } }),
+        of({
+          data: { ok: false, description: 'Bad Request: invalid photo URL' },
+        }),
       );
       const adapter = new VipCallsBotApiPublisherAdapter(
         makeConfig() as unknown as ConfigService,

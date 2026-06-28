@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ChainId } from 'chain/identity/chain-id.vo';
-import { TokenSnapshotRepository } from 'chain/explorer/application/ports/token-snapshot.repository';
+import { TokenSnapshotRepository } from 'token/enrichment/application/ports/token-snapshot.repository';
 import { FilterDecisionRepository } from 'token/token-gating/application/ports/filter-decision.repository';
 import { FilterReason } from 'token/token-gating/domain/value-objects/filter-reason.vo';
 

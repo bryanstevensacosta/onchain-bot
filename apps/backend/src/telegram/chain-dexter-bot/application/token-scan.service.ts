@@ -4,8 +4,8 @@ import { DetectChainUseCase } from 'chain/detection/application/handlers/detect-
 import {
   EnrichTokenUseCase,
   EnrichResult,
-} from 'chain/explorer/application/handlers/enrich-token.use-case';
-import { TokenSnapshotRepository } from 'chain/explorer/application/ports/token-snapshot.repository';
+} from 'token/enrichment/application/handlers/enrich-token.use-case';
+import { TokenSnapshotRepository } from 'token/enrichment/application/ports/token-snapshot.repository';
 
 interface AppConfigShape {
   readonly telegram: {

@@ -1,13 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ChainId } from 'chain/identity/chain-id.vo';
-import { EnrichTokenUseCase } from 'chain/explorer/application/handlers/enrich-token.use-case';
-import { TokenSnapshotRepository } from 'chain/explorer/application/ports/token-snapshot.repository';
+import { EnrichTokenUseCase } from 'token/enrichment/application/handlers/enrich-token.use-case';
+import { TokenSnapshotRepository } from 'token/enrichment/application/ports/token-snapshot.repository';
 import { FilterDecisionRepository } from 'token/token-gating/application/ports/filter-decision.repository';
 import {
   FilterDecisionView,
   FilterDecisionMapper,
 } from 'token/token-gating/application/mappers/filter-decision.mapper';
-import { TokenSnapshotView } from 'chain/explorer/application/mappers/token-snapshot.mapper';
+import { TokenSnapshotView } from 'token/enrichment/application/mappers/token-snapshot.mapper';
 
 export type ReprocessStatus =
   | 'REPROCESSED'

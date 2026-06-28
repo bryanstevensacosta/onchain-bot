@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { TokenFilteredEvent } from 'token/token-gating/domain/events/token-filtered.event';
 import { CanonicalTokenCallRepository } from 'token/normalization/application/ports/canonical-token-call.repository';
-import { TokenSnapshotRepository } from 'chain/explorer/application/ports/token-snapshot.repository';
+import { TokenSnapshotRepository } from 'token/enrichment/application/ports/token-snapshot.repository';
 import { TokenApprovedPublishHandler } from './token-approved-publish.handler';
 import { VipCallsPublishUseCase } from '../../application/handlers/vip-calls-publish.use-case';
+import { PublishedCallRepository } from 'telegram/shared';
+import { TickerResolverService } from '../../application/services/ticker-resolver.service';
 
 const SOL_ADDR = '4quuyzseunkbdwr3xqv83cqeb9enat348b9exbhgwory';
 
@@ -29,6 +31,18 @@ function mockSnapshotRepo(): TokenSnapshotRepository {
   } as unknown as TokenSnapshotRepository;
 }
 
+function mockPublishedCallRepo(): PublishedCallRepository {
+  return {
+    findByChainAndAddress: jest.fn().mockResolvedValue(null),
+  } as unknown as PublishedCallRepository;
+}
+
+function mockTickerResolver(): TickerResolverService {
+  return {
+    resolveTicker: jest.fn().mockResolvedValue(null),
+  } as unknown as TickerResolverService;
+}
+
 describe('TokenApprovedPublishHandler', () => {
   it('subscribes to filters.token.approved', () => {
     expect(TokenFilteredEvent.EVENT_NAME).toBe('filters.token.approved');
@@ -36,10 +50,14 @@ describe('TokenApprovedPublishHandler', () => {
 
   it('invokes publish.execute with chain, address, score, classification, and defaults for unknown ticker', async () => {
     const execute = jest.fn().mockResolvedValue({ id: 'call-1' });
+    const publishedCallRepo = mockPublishedCallRepo();
+    const tickerResolver = mockTickerResolver();
     const handler = new TokenApprovedPublishHandler(
       { execute } as unknown as VipCallsPublishUseCase,
       mockTokenRepo(),
       mockSnapshotRepo(),
+      publishedCallRepo,
+      tickerResolver,
     );
 
     await handler.handle(makeEvent());
@@ -50,7 +68,7 @@ describe('TokenApprovedPublishHandler', () => {
       address: SOL_ADDR,
       score: 80,
       classification: 'GOOD',
-      ticker: null,
+      ticker: 'ANON',
       name: null,
       marketCapUsd: null,
       liquidityUsd: null,
@@ -58,6 +76,11 @@ describe('TokenApprovedPublishHandler', () => {
       sourceCount: 1,
       mentionCount: 1,
       chart: null,
+    });
+    expect(tickerResolver.resolveTicker).toHaveBeenCalledWith({
+      chain: 'solana',
+      address: SOL_ADDR,
+      name: null,
     });
   });
 
@@ -71,10 +94,14 @@ describe('TokenApprovedPublishHandler', () => {
         mentionCount: 5,
       }),
     } as unknown as CanonicalTokenCallRepository;
+    const publishedCallRepo = mockPublishedCallRepo();
+    const tickerResolver = mockTickerResolver();
     const handler = new TokenApprovedPublishHandler(
       { execute } as unknown as VipCallsPublishUseCase,
       tokenRepo,
       mockSnapshotRepo(),
+      publishedCallRepo,
+      tickerResolver,
     );
 
     await handler.handle(makeEvent());
@@ -93,6 +120,7 @@ describe('TokenApprovedPublishHandler', () => {
       mentionCount: 5,
       chart: null,
     });
+    expect(tickerResolver.resolveTicker).not.toHaveBeenCalled();
   });
 
   it('passes market metrics from canonical bestMetrics when snapshot is empty', async () => {
@@ -109,10 +137,14 @@ describe('TokenApprovedPublishHandler', () => {
         mentionCount: 4,
       }),
     } as unknown as CanonicalTokenCallRepository;
+    const publishedCallRepo = mockPublishedCallRepo();
+    const tickerResolver = mockTickerResolver();
     const handler = new TokenApprovedPublishHandler(
       { execute } as unknown as VipCallsPublishUseCase,
       tokenRepo,
       mockSnapshotRepo(),
+      publishedCallRepo,
+      tickerResolver,
     );
 
     await handler.handle(makeEvent());
@@ -131,6 +163,7 @@ describe('TokenApprovedPublishHandler', () => {
       mentionCount: 4,
       chart: null,
     });
+    expect(tickerResolver.resolveTicker).not.toHaveBeenCalled();
   });
 
   it('prefers snapshot marketCapUsd over canonical bestMetrics when both exist', async () => {
@@ -151,10 +184,14 @@ describe('TokenApprovedPublishHandler', () => {
         name: 'Solana Token (enriched)',
       }),
     } as unknown as TokenSnapshotRepository;
+    const publishedCallRepo = mockPublishedCallRepo();
+    const tickerResolver = mockTickerResolver();
     const handler = new TokenApprovedPublishHandler(
       { execute } as unknown as VipCallsPublishUseCase,
       tokenRepo,
       snapshotRepo,
+      publishedCallRepo,
+      tickerResolver,
     );
 
     await handler.handle(makeEvent());
@@ -173,14 +210,19 @@ describe('TokenApprovedPublishHandler', () => {
       mentionCount: 1,
       chart: null,
     });
+    expect(tickerResolver.resolveTicker).not.toHaveBeenCalled();
   });
 
   it('swallows publish errors and logs warning (does not throw)', async () => {
     const execute = jest.fn().mockRejectedValue(new Error('telegram down'));
+    const publishedCallRepo = mockPublishedCallRepo();
+    const tickerResolver = mockTickerResolver();
     const handler = new TokenApprovedPublishHandler(
       { execute } as unknown as VipCallsPublishUseCase,
       mockTokenRepo(),
       mockSnapshotRepo(),
+      publishedCallRepo,
+      tickerResolver,
     );
 
     await expect(handler.handle(makeEvent())).resolves.toBeUndefined();

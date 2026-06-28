@@ -4,9 +4,11 @@ import { ChainId } from 'chain/identity/chain-id.vo';
 import { ChainFamily } from 'chain/identity/chain-family.vo';
 import { NormalizedAddress } from 'token/identity/normalized-address.vo';
 import { CanonicalTokenCallRepository } from 'token/normalization/application/ports/canonical-token-call.repository';
-import { TokenSnapshotRepository } from 'chain/explorer/application/ports/token-snapshot.repository';
+import { TokenSnapshotRepository } from 'token/enrichment/application/ports/token-snapshot.repository';
 import { TokenFilteredEvent } from 'token/token-gating/domain/events/token-filtered.event';
 import { VipCallsPublishUseCase } from '../../application/handlers/vip-calls-publish.use-case';
+import { PublishedCallRepository } from 'telegram/shared';
+import { TickerResolverService } from '../../application/services/ticker-resolver.service';
 
 @Injectable()
 export class TokenApprovedPublishHandler {
@@ -16,14 +18,39 @@ export class TokenApprovedPublishHandler {
     private readonly publish: VipCallsPublishUseCase,
     private readonly tokenRepo: CanonicalTokenCallRepository,
     private readonly snapshotRepo: TokenSnapshotRepository,
+    private readonly publishedCallRepo: PublishedCallRepository,
+    private readonly tickerResolver: TickerResolverService,
   ) {}
 
   @OnEvent(TokenFilteredEvent.EVENT_NAME, { async: true })
   async handle(event: TokenFilteredEvent): Promise<void> {
     try {
       const chainId = ChainId.fromString(event.payload.chain);
-      const family = chainId.isEvm ? ChainFamily.EVM : ChainFamily.SOLANA;
       const addressLower = event.payload.address.toLowerCase();
+      const normalizedAddress = chainId.isEvm
+        ? addressLower
+        : event.payload.address;
+
+      // Check for duplicate publication
+      try {
+        const existing = await this.publishedCallRepo.findByChainAndAddress(
+          chainId,
+          normalizedAddress,
+        );
+        if (existing) {
+          this.logger.log(
+            `Token ${chainId.value}:${normalizedAddress} already published, skipping duplicate publication`,
+          );
+          return;
+        }
+      } catch (err) {
+        // Fail open: if duplicate check fails, proceed with publication
+        this.logger.warn(
+          `Duplicate check failed for ${chainId.value}:${normalizedAddress}, proceeding with publication: ${(err as Error).message}`,
+        );
+      }
+
+      const family = chainId.isEvm ? ChainFamily.EVM : ChainFamily.SOLANA;
       const address = chainId.isEvm
         ? NormalizedAddress.fromEvm(addressLower)
         : NormalizedAddress.fromSolana(event.payload.address);
@@ -34,7 +61,19 @@ export class TokenApprovedPublishHandler {
       ]);
 
       const best = token?.bestMetrics;
-      const ticker = token?.ticker ?? snapshot?.symbol ?? null;
+      let ticker = token?.ticker ?? snapshot?.symbol ?? null;
+      if (ticker === null) {
+        this.logger.debug(
+          `Ticker null after DB lookups, attempting cascading fallback for ${event.payload.chain}:${event.payload.address}`,
+        );
+        ticker =
+          (await this.tickerResolver.resolveTicker({
+            chain: event.payload.chain,
+            address: event.payload.address,
+            name: snapshot?.name ?? token?.name ?? null,
+          })) ?? 'ANON';
+        this.logger.debug(`Cascading fallback resolved ticker: ${ticker}`);
+      }
       const name = snapshot?.name ?? token?.name ?? null;
       const marketCapUsd = snapshot?.marketCapUsd ?? best?.marketCapUsd ?? null;
       const liquidityUsd = snapshot?.liquidityUsd ?? best?.liquidityUsd ?? null;

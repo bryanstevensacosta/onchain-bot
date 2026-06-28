@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DetectChainUseCase } from 'chain/detection/application/handlers/detect-chain.use-case';
-import { EnrichTokenUseCase } from 'chain/explorer/application/handlers/enrich-token.use-case';
+import { EnrichTokenUseCase } from 'token/enrichment/application/handlers/enrich-token.use-case';
 import { ChainIdentifier, ResolvedToken, ScanPipeline } from './resolved-token';
 
 @Injectable()

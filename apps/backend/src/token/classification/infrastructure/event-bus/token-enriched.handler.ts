@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { TokenEnrichedEvent } from 'chain/explorer/domain/events/token-enriched.event';
+import { TokenEnrichedEvent } from 'token/enrichment/domain/events/token-enriched.event';
 import { ClassifyTokenUseCase } from 'token/classification/application/handlers/classify-token.use-case';
 
 /**

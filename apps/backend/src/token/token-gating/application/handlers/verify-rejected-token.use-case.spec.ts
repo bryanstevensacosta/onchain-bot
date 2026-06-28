@@ -1,8 +1,8 @@
 import { VerifyRejectedTokenUseCase } from './verify-rejected-token.use-case';
 import { FilterDecisionRepository } from 'token/token-gating/application/ports/filter-decision.repository';
-import { TokenSnapshotRepository } from 'chain/explorer/application/ports/token-snapshot.repository';
+import { TokenSnapshotRepository } from 'token/enrichment/application/ports/token-snapshot.repository';
 import { FilterDecision } from 'token/token-gating/domain/entities/filter-decision.entity';
-import { TokenSnapshot } from 'chain/explorer/domain/entities/token-snapshot.entity';
+import { TokenSnapshot } from 'token/enrichment/domain/entities/token-snapshot.entity';
 import { ChainId } from 'chain/identity/chain-id.vo';
 import { FilterReason } from 'token/token-gating/domain/value-objects/filter-reason.vo';
 import { ApplyFiltersUseCase } from './apply-filters.use-case';
