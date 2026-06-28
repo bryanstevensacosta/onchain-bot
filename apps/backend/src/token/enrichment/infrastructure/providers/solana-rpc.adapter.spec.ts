@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { SolanaRpcAdapter } from 'chain/explorer/infrastructure/providers/solana-rpc.adapter';
+import { SolanaRpcAdapter } from 'token/enrichment/infrastructure/providers/solana-rpc.adapter';
 import axios from 'axios';
 
 jest.mock('axios');

@@ -95,9 +95,10 @@ export class TokenImageService {
     address: string,
     variant: string,
   ): Promise<ImageData> {
-    const palette = PLACEHOLDER_PALETTE[
-      this.hashAddress(address) % PLACEHOLDER_PALETTE.length
-    ];
+    const palette =
+      PLACEHOLDER_PALETTE[
+        this.hashAddress(address) % PLACEHOLDER_PALETTE.length
+      ];
     const initial = (address[0] ?? '?').toUpperCase();
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96"><circle cx="48" cy="48" r="48" fill="${palette}"/><text x="48" y="48" text-anchor="middle" dominant-baseline="central" font-family="system-ui, sans-serif" font-size="48" font-weight="600" fill="white">${initial}</text></svg>`;
     const buffer = Buffer.from(svg, 'utf8');
@@ -120,7 +121,7 @@ export class TokenImageService {
     address: string,
     source?: string,
   ): Promise<FetchedImage> {
-    return this.fetcher!.fetch(chain, address, source);
+    return this.fetcher.fetch(chain, address, source);
   }
 
   private buildKey(

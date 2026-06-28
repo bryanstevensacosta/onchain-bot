@@ -1,4 +1,4 @@
-import { HeliusAdapter } from 'chain/explorer/infrastructure/providers/helius.adapter';
+import { HeliusAdapter } from 'token/enrichment/infrastructure/providers/helius.adapter';
 import axios from 'axios';
 
 jest.mock('axios');

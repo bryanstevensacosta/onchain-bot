@@ -1,4 +1,4 @@
-import { CoinGeckoAdapter } from 'chain/explorer/infrastructure/providers/coingecko.adapter';
+import { CoinGeckoAdapter } from 'token/enrichment/infrastructure/providers/coingecko.adapter';
 
 class FakeConfig {
   constructor(private readonly cfg: Record<string, unknown>) {}

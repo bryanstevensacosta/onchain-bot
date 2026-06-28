@@ -174,10 +174,13 @@ describe('TokenImageService', () => {
       },
     };
     const serviceWithFailingFetcher = new TokenImageService(
-      failingFetcher as never,
+      failingFetcher,
       cache,
     );
-    const result = await serviceWithFailingFetcher.getImage('ethereum', '0xabc');
+    const result = await serviceWithFailingFetcher.getImage(
+      'ethereum',
+      '0xabc',
+    );
     expect(result.contentType).toBe('image/svg+xml');
     expect(result.buffer.toString('utf8')).toContain('<svg');
   });

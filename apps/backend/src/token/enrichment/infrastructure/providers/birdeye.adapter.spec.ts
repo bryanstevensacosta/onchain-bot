@@ -1,4 +1,4 @@
-import { BirdeyeAdapter } from 'chain/explorer/infrastructure/providers/birdeye.adapter';
+import { BirdeyeAdapter } from 'token/enrichment/infrastructure/providers/birdeye.adapter';
 
 class FakeConfig {
   constructor(private readonly cfg: Record<string, unknown>) {}

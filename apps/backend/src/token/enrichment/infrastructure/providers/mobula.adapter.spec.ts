@@ -1,4 +1,4 @@
-import { MobulaAdapter } from 'chain/explorer/infrastructure/providers/mobula.adapter';
+import { MobulaAdapter } from 'token/enrichment/infrastructure/providers/mobula.adapter';
 
 class FakeConfig {
   constructor(private readonly cfg: Record<string, unknown>) {}

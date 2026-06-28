@@ -1,4 +1,4 @@
-import { MoralisAdapter } from 'chain/explorer/infrastructure/providers/moralis.adapter';
+import { MoralisAdapter } from 'token/enrichment/infrastructure/providers/moralis.adapter';
 
 class FakeConfig {
   constructor(private readonly cfg: Record<string, unknown>) {}

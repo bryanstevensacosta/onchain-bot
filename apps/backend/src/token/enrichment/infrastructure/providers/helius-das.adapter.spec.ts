@@ -1,4 +1,4 @@
-import { HeliusDasAdapter } from 'chain/explorer/infrastructure/providers/helius-das.adapter';
+import { HeliusDasAdapter } from 'token/enrichment/infrastructure/providers/helius-das.adapter';
 
 class FakeConfig {
   constructor(private readonly cfg: Record<string, unknown>) {}

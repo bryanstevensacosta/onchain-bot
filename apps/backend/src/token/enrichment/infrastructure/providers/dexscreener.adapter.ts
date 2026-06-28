@@ -4,7 +4,7 @@ import { ChainId } from 'chain/identity/chain-id.vo';
 import {
   MarketData,
   MarketDataProviderPort,
-} from 'chain/explorer/domain/ports/market-data-provider.port';
+} from 'token/enrichment/domain/ports/market-data-provider.port';
 
 interface DexScreenerPair {
   pairAddress: string;
@@ -76,7 +76,7 @@ export class DexScreenerAdapter extends MarketDataProviderPort {
       holders: null,
       top10HolderPercent: null,
       name: best.baseToken.name || null,
-        symbol: best.baseToken.symbol || null,
+      symbol: best.baseToken.symbol || null,
       imageUrls: [
         `https://dd.dexscreener.com/ds-data/tokens/${chainSlug}/${best.baseToken.address}.png`,
       ],

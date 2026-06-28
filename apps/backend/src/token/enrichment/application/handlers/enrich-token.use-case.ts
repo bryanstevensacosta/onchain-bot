@@ -8,7 +8,7 @@ import {
   MarketData,
   MarketDataProviderPort,
 } from '../../domain/ports/market-data-provider.port';
-import { MARKET_DATA_PROVIDERS } from '../../chain-explorer.tokens';
+import { MARKET_DATA_PROVIDERS } from '../../enrichment.tokens';
 import { TokenSnapshot } from '../../domain/entities/token-snapshot.entity';
 import { Pair } from '../../domain/value-objects/pair.vo';
 import { TokenSnapshotRepository } from '../ports/token-snapshot.repository';
