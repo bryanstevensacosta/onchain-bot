@@ -11,6 +11,9 @@ RUN npm ci --no-audit --no-fund
 
 COPY apps/frontend ./apps/frontend
 
+ENV VITE_API_BASE_URL="" \
+    VITE_WS_URL=""
+
 RUN npm run build:frontend
 
 
