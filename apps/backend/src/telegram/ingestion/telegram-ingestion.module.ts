@@ -8,10 +8,11 @@ import { FloodWaitCounterService } from 'telegram/ingestion/infrastructure/servi
 import { FloodWaitHandlerService } from 'telegram/ingestion/infrastructure/services/flood-wait-handler.service';
 import { IngestionConfigController } from 'telegram/ingestion/api/http/ingestion-config.controller';
 import { IngestionHealthController } from 'telegram/ingestion/api/http/ingestion-health.controller';
+import { IdentityModule } from 'kol/identity/identity.module';
 
 @Global()
 @Module({
-  imports: [ConfigModule],
+  imports: [ConfigModule, IdentityModule],
   controllers: [IngestionConfigController, IngestionHealthController],
   providers: [
     { provide: TelegramListenerPort, useClass: TelegramMtprotoListenerAdapter },

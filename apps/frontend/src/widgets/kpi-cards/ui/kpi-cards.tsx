@@ -12,9 +12,9 @@ export function KpiCards() {
   });
 
   const activeKols =
-    healthQuery.data?.activeChannels ?? kpis.data?.activeKols ?? 0;
+    kpis.data?.activeKols ?? healthQuery.data?.activeChannels ?? 0;
   const totalKols =
-    healthQuery.data?.maxSafeChannels ?? kpis.data?.totalKols ?? 0;
+    kpis.data?.totalKols ?? healthQuery.data?.maxSafeChannels ?? 0;
   const totalCalls = kpis.data?.totalCanonicalCalls ?? 0;
   const approvedCount = kpis.data?.approvedDecisions ?? 0;
   const rejectedCount = kpis.data?.rejectedDecisions ?? 0;

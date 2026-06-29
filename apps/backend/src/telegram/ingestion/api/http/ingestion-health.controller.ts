@@ -2,6 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { IngestionSafetyConfig } from 'telegram/ingestion/infrastructure/config/ingestion-safety.config';
 import { SleepWindowService } from 'telegram/ingestion/infrastructure/services/sleep-window.service';
 import { FloodWaitCounterService } from 'telegram/ingestion/infrastructure/services/flood-wait-counter.service';
+import { KolRepository } from 'kol/identity/application/ports/kol.repository';
 
 export interface IngestionHealthDto {
   readonly activeChannels: number;
@@ -24,13 +25,18 @@ export class IngestionHealthController {
     private readonly safetyConfig: IngestionSafetyConfig,
     private readonly sleepWindow: SleepWindowService,
     private readonly floodWait: FloodWaitCounterService,
+    private readonly kolRepo: KolRepository,
   ) {}
 
   @Get('health')
-  public getHealth(): IngestionHealthDto {
+  public async getHealth(): Promise<IngestionHealthDto> {
+    const kols = await this.kolRepo.findAll();
+    const activeChannels = kols.filter((k) => k.isActive).length;
+    const totalSeededChannels = kols.length;
+
     return {
-      activeChannels: 0,
-      totalSeededChannels: 0,
+      activeChannels,
+      totalSeededChannels,
       maxSafeChannels: this.safetyConfig.maxChannels,
       floodWaitCount24h: this.floodWait.count24h,
       floodWaitMaxSeconds24h: this.floodWait.maxSeconds24h,
