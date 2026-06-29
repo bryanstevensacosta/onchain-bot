@@ -25,7 +25,8 @@
     "migration:run": "npm run typeorm -- migration:run",
     "migration:revert": "npm run typeorm -- migration:revert",
     "migration:show": "npm run typeorm -- migration:show",
-    "migration:generate": "npm run typeorm -- migration:generate"
+    "migration:generate": "npm run typeorm -- migration:generate",
+    "db:backup": "bash ../../scripts/backup-db.sh"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
@@ -38,11 +39,11 @@
     "@nestjs/schedule": "^6.1.3",
     "@nestjs/typeorm": "^11.0.2",
     "axios": "^1.18.0",
-    "ioredis": "^5.4.1",
     "bs58": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "dotenv": "^17.4.2",
+    "ioredis": "^5.4.1",
     "pg": "^8.22.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
@@ -64,6 +65,7 @@
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",
+    "fast-check": "^4.8.0",
     "globals": "^16.0.0",
     "jest": "^30.0.0",
     "prettier": "^3.8.4",
@@ -84,7 +86,9 @@
     ],
     "rootDir": ".",
     "testRegex": ".*\\.spec\\.ts$",
-    "setupFiles": ["<rootDir>/jest.setup.ts"],
+    "setupFiles": [
+      "<rootDir>/jest.setup.ts"
+    ],
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
@@ -101,10 +105,11 @@
       "^discovery/(.*)$": "<rootDir>/src/discovery/$1",
       "^chain/(.*)$": "<rootDir>/src/chain/$1",
       "^token/(.*)$": "<rootDir>/src/token/$1",
-
       "^kol/(.*)$": "<rootDir>/src/kol/$1",
       "^dashboard/(.*)$": "<rootDir>/src/dashboard/$1",
       "^settings/(.*)$": "<rootDir>/src/settings/$1",
+      "^data-provider/(.*)$": "<rootDir>/src/data-provider/$1",
+      "^health/(.*)$": "<rootDir>/src/health/$1",
       "^src/(.*)$": "<rootDir>/src/$1"
     }
   }
