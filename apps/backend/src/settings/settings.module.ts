@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { TypeOrmModule, getRepositoryToken } from '@nestjs/typeorm';
 import { isDatabaseEnabled } from 'shared/common/persistence/database.module';
 import { SignalEntity } from 'settings/infrastructure/persistence/typeorm/entities/signal.entity';
 import { ScoringThresholdEntity } from 'settings/infrastructure/persistence/typeorm/entities/scoring-threshold.entity';
 import { SettingsFilterEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-filter.entity';
 import { SettingsAuditLogEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-audit-log.entity';
 import { SettingsPresetEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-preset.entity';
+import { InMemorySettingsFilterRepository } from 'settings/infrastructure/persistence/in-memory/in-memory-settings-filter.repository';
 import { SettingsService } from 'settings/application/services/settings.service';
 import { AuditService } from 'settings/application/services/audit.service';
 import { SettingsPresetsService } from 'settings/application/services/settings-presets.service';
@@ -36,7 +37,19 @@ import { SettingsPresetsController } from 'settings/api/http/settings-presets.co
     AuditController,
     SettingsPresetsController,
   ],
-  providers: [SettingsService, AuditService, SettingsPresetsService],
+  providers: [
+    SettingsService,
+    AuditService,
+    SettingsPresetsService,
+    ...(!isDatabaseEnabled()
+      ? [
+          {
+            provide: getRepositoryToken(SettingsFilterEntity),
+            useClass: InMemorySettingsFilterRepository,
+          },
+        ]
+      : []),
+  ],
   exports: [SettingsService, AuditService, SettingsPresetsService],
 })
 export class SettingsModule {}
