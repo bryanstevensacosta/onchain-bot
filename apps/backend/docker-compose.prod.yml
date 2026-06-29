@@ -62,7 +62,7 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     ports:
-      - "3030:3030"
+      - "127.0.0.1:3030:3030"
     depends_on:
       postgres:
         condition: service_healthy
@@ -88,7 +88,7 @@ services:
     container_name: onchain-bot-frontend
     restart: unless-stopped
     ports:
-      - "5173:80"
+      - "127.0.0.1:5173:80"
     depends_on:
       - backend
     healthcheck:
