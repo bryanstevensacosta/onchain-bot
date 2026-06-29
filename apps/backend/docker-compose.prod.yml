@@ -1,0 +1,89 @@
+name: onchain-bot-prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: onchain-bot-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-alpha_meta_token_scanner}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-alpha_meta_token_scanner}
+    volumes:
+      - onchain-bot-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-alpha_meta_token_scanner} -d ${POSTGRES_DB:-alpha_meta_token_scanner}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    networks:
+      - onchain-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: onchain-bot-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    volumes:
+      - onchain-bot-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    networks:
+      - onchain-net
+
+  backend:
+    build:
+      context: ../..
+      dockerfile: apps/backend/Dockerfile
+    container_name: onchain-bot-backend
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    ports:
+      - "3030:3030"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3030/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+    networks:
+      - onchain-net
+
+networks:
+  onchain-net:
+    driver: bridge
+    name: onchain-bot-net
+
+volumes:
+  onchain-bot-pg-data:
+    name: onchain-bot-pg-data
+  onchain-bot-redis-data:
+    name: onchain-bot-redis-data
