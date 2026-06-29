@@ -2,7 +2,11 @@
 .env
 .env.local
 .env.*.local
+.env.dev
+.env.production
+.env.prod
 !.env.example
+!.env.production.template
 
 # Cache & local state
 .cache/
