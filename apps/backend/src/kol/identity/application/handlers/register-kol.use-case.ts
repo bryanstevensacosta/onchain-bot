@@ -26,6 +26,7 @@ export class RegisterKolUseCase {
   public async execute(input: RegisterKolInput): Promise<KolView> {
     const id = KolId.fromString(input.kolId);
     const handle = input.handle ? KolHandle.fromString(input.handle) : null;
+    const title = input.title?.trim() || input.kolId;
 
     const existing = await this.kolRepo.findById(id);
     if (existing) {
@@ -35,7 +36,7 @@ export class RegisterKolUseCase {
       );
     }
 
-    const kol = Kol.create({ id, handle, title: input.title });
+    const kol = Kol.create({ id, handle, title });
     await this.kolRepo.save(kol);
     await this.eventPublisher.publishAll(kol.commit());
     return KolMapper.toView(kol);

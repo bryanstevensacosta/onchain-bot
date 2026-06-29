@@ -5,5 +5,5 @@
 export interface RegisterKolInput {
   readonly kolId: string;
   readonly handle?: string;
-  readonly title: string;
+  readonly title?: string;
 }
