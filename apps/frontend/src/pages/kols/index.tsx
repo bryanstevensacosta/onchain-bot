@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { KolView } from '@/entities/kol';
 import { useKols } from '@/entities/kol';
 import {
@@ -10,6 +11,7 @@ import { Button, Card } from '@/shared/ui';
 import { formatRelativeTime, usePagination } from '@/shared/lib';
 import { BackfillButton } from '@/features/trigger-backfill';
 import { SetKolLifecycleButton } from '@/features/set-kol-lifecycle';
+import { AddKolModal } from '@/features/add-kol';
 import { RecomputeKolReputationButton } from '@/features/recompute-kol-reputation/ui/recompute-kol-reputation-button';
 import { useKolScoreFormula } from '@/features/kol-score-formula/model/use-kol-score-formula';
 import { KolScoreFormulaSelect } from '@/features/kol-score-formula/ui/kol-score-formula-select';
@@ -91,6 +93,7 @@ export function KolsPage() {
   const { data: topRep } = useTopKolReputation(10);
   const { get: getRep } = useKolReputationMap();
   const { formulaId, setFormulaId } = useKolScoreFormula();
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const {
     visible,
@@ -106,13 +109,27 @@ export function KolsPage() {
 
   return (
     <div className="space-y-4 p-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-bold">KOLs</h1>
-        <p className="text-sm text-slate-400">
-          KOLs de Telegram monitorizados. Toda la info: identidad, lifecycle,
-          reputación por outcomes, y leaderboard top por score.
-        </p>
+      <header className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold">KOLs</h1>
+          <p className="text-sm text-slate-400">
+            KOLs de Telegram monitorizados. Toda la info: identidad, lifecycle,
+            reputación por outcomes, y leaderboard top por score.
+          </p>
+        </div>
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => setShowAddModal(true)}
+        >
+          + Add KOL
+        </Button>
       </header>
+
+      <AddKolModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+      />
 
       <Card className="max-w-md">
         <KolScoreFormulaSelect value={formulaId} onChange={setFormulaId} />
