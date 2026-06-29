@@ -62,7 +62,8 @@ export class TrackedPublishedCall extends AggregateRoot<string> {
         'mcAtPublish must be a non-negative finite number',
       );
     }
-    const normalizedAddress = input.address.toLowerCase();
+    // Solana addresses are Base58-encoded and case-sensitive
+    const normalizedAddress = input.chain === 'solana' ? input.address : input.address.toLowerCase();
     const id = `${input.chain}:${normalizedAddress}`;
     return new TrackedPublishedCall(id, {
       kolId: input.kolId,
@@ -86,8 +87,8 @@ export class TrackedPublishedCall extends AggregateRoot<string> {
     return new TrackedPublishedCall(`${props.chain}:${props.address}`, props);
   }
 
-  public static buildId(chain: string, address: string): string {
-    return `${chain}:${address.toLowerCase()}`;
+  public static buildId(chain: string, normalizedAddress: string): string {
+    return `${chain}:${normalizedAddress}`;
   }
 
   public get id(): string {

@@ -53,11 +53,13 @@ export class CallEvaluationJob extends AggregateRoot<string> {
       throw new DomainError(ErrorCode.VALIDATION, `kolId cannot be empty`);
     }
     const scheduledAt = input.horizon.firesAt(input.callTimestamp);
-    const id = CallEvaluationJob.buildId(input);
+    // Solana addresses are Base58-encoded and case-sensitive
+    const normalizedAddr = input.chain.value === 'solana' ? input.address : input.address.toLowerCase();
+    const id = CallEvaluationJob.buildId(input.kolId, input.chain, normalizedAddr, input.horizon, input.callTimestamp);
     return new CallEvaluationJob(id, {
       kolId: input.kolId,
       chain: input.chain,
-      address: input.address.toLowerCase(),
+      address: normalizedAddr,
       horizon: input.horizon,
       callTimestamp: input.callTimestamp,
       mcAtCall: input.mcAtCall,
@@ -107,19 +109,19 @@ export class CallEvaluationJob extends AggregateRoot<string> {
    * Ensures one job per (channel, token, horizon) — re-enqueueing the
    * same call does not duplicate.
    */
-  public static buildId(input: {
-    kolId: string;
-    chain: ChainId;
-    address: string;
-    horizon: EvaluationHorizonVo;
-    callTimestamp: Date;
-  }): string {
+  public static buildId(
+    kolId: string,
+    chain: ChainId,
+    normalizedAddress: string,
+    horizon: EvaluationHorizonVo,
+    callTimestamp: Date,
+  ): string {
     return [
-      input.kolId.toLowerCase(),
-      input.chain.value,
-      input.address.toLowerCase(),
-      input.horizon.value,
-      input.callTimestamp.getTime().toString(),
+      kolId.toLowerCase(),
+      chain.value,
+      normalizedAddress,
+      horizon.value,
+      callTimestamp.getTime().toString(),
     ].join(':');
   }
 

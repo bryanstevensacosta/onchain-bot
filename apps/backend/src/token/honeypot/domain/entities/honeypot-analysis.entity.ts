@@ -55,11 +55,12 @@ export class HoneypotAnalysis extends AggregateRoot<string> {
     if (!input.address) {
       throw new DomainError(ErrorCode.VALIDATION, `address cannot be empty`);
     }
-    const id = `${input.chain.value}:${input.address.toLowerCase()}`;
+    const normalizedAddr = input.chain.value === 'solana' ? input.address : input.address.toLowerCase();
+    const id = `${input.chain.value}:${normalizedAddr}`;
     const risk = computeRisk(input.signals);
     return new HoneypotAnalysis(id, {
       chain: input.chain,
-      address: input.address.toLowerCase(),
+      address: normalizedAddr,
       risk,
       signals: Object.freeze([...input.signals]),
       buyTax: input.buyTax,

@@ -22,8 +22,9 @@ export class TypeOrmTrackedPublishedCallRepository extends TrackedPublishedCallR
     chain: string,
     address: string,
   ): Promise<TrackedPublishedCallRecord | null> {
+    const normalizedAddress = chain === 'solana' ? address : address.toLowerCase();
     const row = await this.repo.findOne({
-      where: { chain, address: address.toLowerCase() },
+      where: { chain, address: normalizedAddress },
     });
     return row ? TrackedPublishedCallMapper.toRecord(row) : null;
   }

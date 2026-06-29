@@ -74,11 +74,15 @@ export class TokenScore extends AggregateRoot<string> {
     if (!input.address) {
       throw new DomainError(ErrorCode.VALIDATION, `address cannot be empty`);
     }
-    const id = `${input.chain.value}:${input.address.toLowerCase()}`;
+    // Solana addresses are Base58-encoded and case-sensitive; lowercasing breaks them
+    // (e.g., DS5Xsrtg... decodes to 32 bytes, ds5xsrtg... decodes to 33 bytes)
+    // Only lowercase for EVM chains where addresses are hex-based
+    const normalizedAddr = input.chain.value === 'solana' ? input.address : input.address.toLowerCase();
+    const id = `${input.chain.value}:${normalizedAddr}`;
     const tier = ScoreTier.fromScore(input.score.value, input.tierThresholds);
     return new TokenScore(id, {
       chain: input.chain,
-      address: input.address.toLowerCase(),
+      address: normalizedAddr,
       score: input.score,
       tier,
       classification: input.classification,
