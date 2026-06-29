@@ -1,0 +1,58 @@
+# ===== Build artifacts =====
+node_modules
+dist
+build
+coverage
+*.tsbuildinfo
+.vite
+.cache
+
+# ===== Environment files =====
+.env
+.env.local
+.env.*.local
+.env.production
+.env.prod
+.env.dev
+.env.development
+
+# ===== VCS =====
+.git
+.gitignore
+.gitattributes
+
+# ===== Logs =====
+*.log
+logs
+*.pid
+*.seed
+*.pid.lock
+
+# ===== IDE / OS =====
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# ===== Tests =====
+*.spec.ts
+*.test.ts
+*.spec.js
+*.test.js
+__tests__
+test
+spec
+coverage
+
+# ===== Documentation =====
+*.md
+docs
+
+# ===== Misc =====
+tmp
+temp
+.turbo
+.vercel
