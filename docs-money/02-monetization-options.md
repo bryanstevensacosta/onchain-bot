@@ -15,7 +15,7 @@ que te mantiene en zona legal.
 Tus canales de output (`telegram/vip-calls-channel/`) son canales que TÚ controlas →
 publicar ahí es tu UGC, sin problema legal.
 
-Tu ingestion (`kol/ingestion/`) NO se usa para mandar mensajes, solo para
+Tu ingestion (`telegram/ingestion/`) NO se usa para mandar mensajes, solo para
 leer → uso legítimo de user.
 
 **Tu producto, traducido a una frase**: *"Servicio de alertas cripto generado a

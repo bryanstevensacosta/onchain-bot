@@ -10,7 +10,7 @@ import { KolReputationCalculator } from 'kol/reputation/domain/services/kol-repu
 describe('KolScoreFormula presets', () => {
   it('has a default formula', () => {
     expect(KOL_SCORE_FORMULAS[DEFAULT_KOL_SCORE_FORMULA_ID]).toBeDefined();
-    expect(KOL_SCORE_FORMULAS[DEFAULT_KOL_SCORE_FORMULA_ID]!.id).toBe('default');
+    expect(KOL_SCORE_FORMULAS[DEFAULT_KOL_SCORE_FORMULA_ID].id).toBe('default');
   });
 
   it('ships 4 presets (default, mention-heavy, quality-heavy, balanced)', () => {
@@ -131,14 +131,16 @@ describe('KolReputationCalculator with formula', () => {
   });
 
   it('blendScore with explicit formula matches inline weights', () => {
-    const f = KOL_SCORE_FORMULAS['mention-heavy']!;
+    const f = KOL_SCORE_FORMULAS['mention-heavy'];
     const metrics = {
       mentionScore: 0.8,
       qualityScore: 0.6,
       drawdownScore: 0.7,
     };
     const expected =
-      0.8 * f.weights.mention + 0.6 * f.weights.quality + 0.7 * f.weights.drawdown;
+      0.8 * f.weights.mention +
+      0.6 * f.weights.quality +
+      0.7 * f.weights.drawdown;
     const actual = KolReputationCalculator.blendScore(metrics, f);
     expect(actual).toBeCloseTo(expected, 6);
   });

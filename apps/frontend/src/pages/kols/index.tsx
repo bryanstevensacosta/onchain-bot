@@ -52,10 +52,8 @@ function KolRow({ kol, rep, formulaId }: KolRowProps) {
                 {' · '}
                 <span className="text-slate-500">
                   {rep.metrics.totalMentions} calls
-                  {rep.metrics.x5Count > 0 &&
-                    ` · ${rep.metrics.x5Count}X5`}
-                  {rep.metrics.x10Count > 0 &&
-                    ` · ${rep.metrics.x10Count}X10`}
+                  {rep.metrics.x5Count > 0 && ` · ${rep.metrics.x5Count}X5`}
+                  {rep.metrics.x10Count > 0 && ` · ${rep.metrics.x10Count}X10`}
                 </span>
               </>
             )}
@@ -81,10 +79,7 @@ function KolRow({ kol, rep, formulaId }: KolRowProps) {
             label="Deactivate"
           />
         )}
-        <RecomputeKolReputationButton
-          kolId={kol.id}
-          formulaId={formulaId}
-        />
+        <RecomputeKolReputationButton kolId={kol.id} formulaId={formulaId} />
         <BackfillButton kolId={kol.id} limit={20} />
       </div>
     </Card>
@@ -120,10 +115,7 @@ export function KolsPage() {
       </header>
 
       <Card className="max-w-md">
-        <KolScoreFormulaSelect
-          value={formulaId}
-          onChange={setFormulaId}
-        />
+        <KolScoreFormulaSelect value={formulaId} onChange={setFormulaId} />
       </Card>
 
       <KolLeaderboard rows={topRep} isLoading={isLoading} />

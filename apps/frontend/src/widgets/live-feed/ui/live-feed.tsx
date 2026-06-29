@@ -74,17 +74,19 @@ export function LiveFeed() {
       try {
         const decisions = await fetchRecentDecisions(10);
         if (cancelled) return;
-        const historical: FeedItem[] = decisions.map((d: (typeof decisions)[number]) => ({
-          kind: 'decision' as const,
-          at: new Date(d.decidedAt).getTime(),
-          data: {
-            chain: d.chain,
-            address: d.address,
-            verdict: d.verdict,
-            reasons: d.reasons,
-            decidedAt: d.decidedAt,
-          },
-        }));
+        const historical: FeedItem[] = decisions.map(
+          (d: (typeof decisions)[number]) => ({
+            kind: 'decision' as const,
+            at: new Date(d.decidedAt).getTime(),
+            data: {
+              chain: d.chain,
+              address: d.address,
+              verdict: d.verdict,
+              reasons: d.reasons,
+              decidedAt: d.decidedAt,
+            },
+          }),
+        );
         setItems((prev) => {
           const seen = new Set(
             prev.map((i) => `${i.at}-${i.kind}-${i.data.address}`),

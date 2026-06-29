@@ -1,43 +1,6 @@
 # Draft: Milestone Notifications for VIP Calls Channel
 
-> **Status: done** — BC fue implementado en sesiones previas. Draft retenido para trazabilidad.
-
-## Evidence (R1-R9 all met)
-
-| Req | Component | Path |
-|---|---|---|
-| R1 (2x..100x notifications) | `DetectCrossedMilestonesService` + `EvaluateActiveCallsUseCase` | `apps/backend/src/token/milestone/application/services/` + `application/handlers/evaluate-active-calls.use-case.ts` |
-| R2 (configurable thresholds) | `MilestoneThresholdRepository` (Port) + `TypeormMilestoneThresholdRepository` + default-seed via `DefaultThresholdsSeedService` | `apps/backend/src/token/milestone/infrastructure/persistence/` + `infrastructure/default-thresholds-seed.service.ts` |
-| R3 (mcAtCall on publish) | `PublishedCall.mcAtCall?: number \| null` field | `apps/backend/src/telegram/shared/domain/entities/published-call.entity.ts:18,34,79,97,112` |
-| R4 (DB + Redis dedup) | `NotifiedMilestoneRepository` (PG) + `RedisMilestoneCacheAdapter` + `InMemoryMilestoneCacheAdapter` | `apps/backend/src/token/milestone/infrastructure/adapters/` + `repositories/` |
-| R5 (TDD) | Specs on: `evaluate-active-calls.use-case`, `record-notified-milestone.use-case`, `detect-crossed-milestones.service`, `call-milestone-reached.event`, all in-memory repos | see `.spec.ts` files |
-| R6 (token/milestone BC) | full BC: `milestone.module.ts` mounted at root via app.module.ts | `apps/backend/src/token/milestone/milestone.module.ts` |
-| R7 (multi-consumer design) | `MilestoneEventPublisher` Port (interface); current consumer = `MilestoneReachedHandler` in vip-calls-channel | `apps/backend/src/telegram/vip-calls-channel/infrastructure/event-bus/milestone-reached.handler.ts` |
-| R8 (no KOL attribution) | `VipMessageFormatterAdapter.formatMilestoneMessage` (no KOL fields) | `apps/backend/src/telegram/vip-calls-channel/infrastructure/formatters/vip-message-formatter.adapter.ts:107` |
-| R9 (Redis infra) | `RedisModule` (`@Global`) + `RedisMilestoneCacheAdapter` already wired | `apps/backend/src/shared/common/cache/redis.module.ts` |
-
-## What's wired end-to-end
-
-```
-publishing.telegram.published
-  → RegisterMonitoredCallUseCase (writes MonitoredCall)
-  → LiveMilestoneScheduler (cron */5 * * * *)
-    → EvaluateActiveCallsUseCase
-      → DetectCrossedMilestonesService
-      → RecordNotifiedMilestoneUseCase
-        → emits CallMilestoneReachedEvent
-  → MilestoneReachedHandler (vip-calls-channel)
-    → VipMessageFormatterAdapter.formatMilestoneMessage
-    → VipCallsBotApiPublisherAdapter.sendMessage → Telegram
-```
-
-## Known gaps (out of original scope)
-
-- **No integration test** that exercises Redis end-to-end (only in-memory repo specs)
-- **No QA scenarios** documented in `.omo/drafts/` for this BC (would require live channel + DexScreener API)
-- **Settings-driven thresholds**: thresholds are stored as DB rows (`MilestoneThresholdEntity`) but the existing `SettingsMilestoneSettingsAdapter` returns hardcoded `DEFAULT_MILESTONE_THRESHOLDS = [2..100]` from the code, not from DB. The seed service populates DB on first boot so this works, but admin updates via DB rather than `SettingsService.getMilestoneThresholds()`.
-
-## Original Requirements (all met)
+## Requirements (confirmed by user)
 
 - **R1**: Send Telegram notifications to vip-calls-channel when a published call hits ≥2x, 3x, 4x, … up to 100x. Every 1x starting from 2x.
 - **R2**: Thresholds must be **configurable via DB + settings** (admin can change without redeploy). Default = `[2, 3, 4, …, 100]` literal (99 thresholds).
@@ -50,6 +13,18 @@ publishing.telegram.published
 - **R9**: No DB→Redis infrastructure exists yet. Need to add both.
 
 ## Technical Decisions
+
+### Agnostic Constraint (CRITICAL — REINFORCED BY USER)
+
+`token/milestone` MUST be completely agnostic of Telegram:
+- NO imports from `telegram/*` package or path
+- NO Telegram publishers, message formatters, chat IDs, or bot tokens
+- NO knowledge of how notifications are delivered
+- The BC ONLY emits `CallMilestoneReachedEvent` domain events
+
+Consumers in `src/telegram/*` (vip-calls-channel today, others tomorrow) subscribe via `@OnEvent('milestone.call.reached')` and own their own format + send logic.
+
+The only "ingress" to the milestone BC from outside is the `RegisterCallForMilestonesEvent` — any module emits it to enroll a call for monitoring.
 
 ### Architecture
 

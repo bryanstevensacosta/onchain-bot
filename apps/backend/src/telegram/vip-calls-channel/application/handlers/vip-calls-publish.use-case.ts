@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ChainId } from 'chain/identity/chain-id.vo';
 import { ScoreTier } from 'token/scoring/domain/value-objects/score-tier.vo';

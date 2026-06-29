@@ -1,5 +1,3 @@
-import type { KolConfidence } from 'kol/reputation/domain/value-objects/kol-reputation.vo';
-
 export interface KolReputationStats {
   readonly totalMentions: number;
   readonly distinctTokens: number;

@@ -1,4 +1,4 @@
-# Work Plan: Dynamic Settings Module
+# Work Plan: Dynamic Settings Module (✅ COMPLETE)
 
 > **TL;DR**: Migrar ~50 valores hardcodeados en 5 archivos a una capa de configuración dinámica (PostgreSQL + REST CRUD bajo `/settings/*`). Sin auth (Tailscale). Hot-reload con cache en memoria.
 >

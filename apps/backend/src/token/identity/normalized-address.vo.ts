@@ -56,7 +56,7 @@ export class NormalizedAddress extends ValueObject<NormalizedAddressProps> {
       );
     }
     return new NormalizedAddress({
-      value: raw.toLowerCase(),
+      value: raw,
       chain: ChainFamily.SOLANA,
     });
   }

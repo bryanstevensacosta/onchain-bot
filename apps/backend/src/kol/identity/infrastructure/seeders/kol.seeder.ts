@@ -3,11 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import type { AppConfig } from 'shared/common/config/app.config';
 import { RegisterKolUseCase } from 'kol/identity/application/handlers/register-kol.use-case';
-import { StartKolIngestionUseCase } from 'kol/ingestion/application/handlers/start-kol-ingestion.use-case';
+import { KolIngestionOrchestratorUseCase } from 'kol/identity/application/handlers/kol-ingestion-orchestrator.use-case';
 import { KolRepository } from 'kol/identity/application/ports/kol.repository';
 import { ResolvedKolMetadataRepository } from 'kol/identity/application/ports/resolved-kol-metadata.repository';
 import { KolId } from 'kol/identity/domain/value-objects/kol-id.vo';
-import { KolListenerPort } from 'kol/ingestion/domain/ports/kol-listener.port';
+import { TelegramListenerPort } from 'telegram/ingestion/domain/ports/telegram-listener.port';
 import { KOL_SEED } from 'kol/identity/infrastructure/seeds/kol.seed';
 
 /**
@@ -32,8 +32,8 @@ export class KolSeeder implements OnApplicationBootstrap {
     private readonly config: ConfigService,
     private readonly kolRepo: KolRepository,
     private readonly registerKol: RegisterKolUseCase,
-    private readonly startListening: StartKolIngestionUseCase,
-    private readonly listener: KolListenerPort,
+    private readonly startListening: KolIngestionOrchestratorUseCase,
+    private readonly listener: TelegramListenerPort,
     private readonly metadataCache: ResolvedKolMetadataRepository,
   ) {}
 
@@ -209,7 +209,7 @@ export class KolSeeder implements OnApplicationBootstrap {
     }
 
     try {
-      const meta = await this.listener.resolveKolMetadata(kolId);
+      const meta = await this.listener.resolveChannelMetadata(kolId);
       try {
         await this.metadataCache.upsert({
           kolId,
@@ -266,7 +266,7 @@ export class KolSeeder implements OnApplicationBootstrap {
             nextHandle = cached.handle;
           } else {
             const meta = await this.listener
-              .resolveKolMetadata(id.value)
+              .resolveChannelMetadata(id.value)
               .catch(() => null);
             if (meta?.title && !meta.title.startsWith('Telegram channel ')) {
               nextTitle = meta.title;
@@ -320,11 +320,9 @@ export class KolSeeder implements OnApplicationBootstrap {
     }
   }
 
-  private async startListeningSafely(
-    kolIds: string[],
-  ): Promise<boolean> {
+  private async startListeningSafely(kolIds: string[]): Promise<boolean> {
     try {
-      await this.startListening.execute({ kolIds });
+      await this.startListening.execute({ channelIds: kolIds });
       return true;
     } catch (err) {
       this.logger.error(

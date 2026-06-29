@@ -30,7 +30,7 @@ apps/backend/src/
 **Flujo end-to-end:**
 
 ```
-canal KOL público ──► MTProto ingestion (kol/ingestion)
+canal KOL público ──► MTProto ingestion (telegram/ingestion)
                          │
                          ▼
                    extract contract addr + ticker + score
@@ -83,7 +83,7 @@ Esto es lo que te mantiene dentro del marco legal — sigue leyendo.
 ### 2.2 🟡 Ingestion MTProto desde canales KOL (zona borderline)
 
 **Qué haces**: tu cuenta MTProto personal se une a canales KOL y lee mensajes nuevos.
-**Archivos**: `apps/backend/src/kol/ingestion/`,
+**Archivos**: `apps/backend/src/telegram/ingestion/`,
 `apps/backend/src/telegram/shared/infrastructure/senders/mtproto-sender.client.ts`.
 
 **Qué dice Telegram**:

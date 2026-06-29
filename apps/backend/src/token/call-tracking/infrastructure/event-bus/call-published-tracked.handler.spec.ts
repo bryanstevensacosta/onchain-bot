@@ -4,10 +4,11 @@ import { CallPublishedEvent } from 'telegram/shared/domain/events/call-published
 
 describe('CallPublishedTrackedHandler', () => {
   it('subscribes to publishing.telegram.published and delegates to use case', async () => {
+    const executeMock = jest
+      .fn()
+      .mockResolvedValue({ created: true, trackedId: 'sol:abc' });
     const trackUseCase = {
-      execute: jest
-        .fn()
-        .mockResolvedValue({ created: true, trackedId: 'sol:abc' }),
+      execute: executeMock as any,
     } as unknown as TrackPublishedCallUseCase;
     const handler = new CallPublishedTrackedHandler(trackUseCase);
     const event = new CallPublishedEvent({
@@ -23,7 +24,7 @@ describe('CallPublishedTrackedHandler', () => {
 
     await handler.handle(event);
 
-    expect(trackUseCase.execute).toHaveBeenCalledWith({
+    expect(executeMock).toHaveBeenCalledWith({
       chain: 'solana',
       address: 'ABC',
       ticker: 'WIF',
@@ -33,10 +34,11 @@ describe('CallPublishedTrackedHandler', () => {
   });
 
   it('uses null kolId when publishedChannelIds is empty', async () => {
+    const executeMock = jest
+      .fn()
+      .mockResolvedValue({ created: true, trackedId: 'sol:abc' });
     const trackUseCase = {
-      execute: jest
-        .fn()
-        .mockResolvedValue({ created: true, trackedId: 'sol:abc' }),
+      execute: executeMock as any,
     } as unknown as TrackPublishedCallUseCase;
     const handler = new CallPublishedTrackedHandler(trackUseCase);
     const event = new CallPublishedEvent({
@@ -50,14 +52,15 @@ describe('CallPublishedTrackedHandler', () => {
       publishedAt: new Date('2026-06-24T10:00:00Z'),
     });
     await handler.handle(event);
-    expect(trackUseCase.execute).toHaveBeenCalledWith(
+    expect(executeMock).toHaveBeenCalledWith(
       expect.objectContaining({ kolId: null }),
     );
   });
 
   it('does not throw when use case fails (logs and swallows)', async () => {
+    const executeMock = jest.fn().mockRejectedValue(new Error('boom'));
     const trackUseCase = {
-      execute: jest.fn().mockRejectedValue(new Error('boom')),
+      execute: executeMock as any,
     } as unknown as TrackPublishedCallUseCase;
     const handler = new CallPublishedTrackedHandler(trackUseCase);
     const event = new CallPublishedEvent({

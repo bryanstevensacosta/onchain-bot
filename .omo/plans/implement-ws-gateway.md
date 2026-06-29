@@ -1,4 +1,4 @@
-# Implement WebSocket Gateway (Socket.IO)
+# Implement WebSocket Gateway (Socket.IO) (✅ COMPLETE — shared/ws/ exists)
 
 ## TL;DR
 

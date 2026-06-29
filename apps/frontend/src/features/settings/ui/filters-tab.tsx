@@ -16,14 +16,22 @@ export function FiltersTab(): React.ReactElement {
   });
 
   const updateMut = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: Parameters<typeof updateFilter>[1] }) =>
-      updateFilter(id, body),
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string;
+      body: Parameters<typeof updateFilter>[1];
+    }) => updateFilter(id, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: settingsFilterKeys.all }),
   });
 
-  const [edits, setEdits] = useState<Record<string, Partial<SettingsFilter>>>({});
+  const [edits, setEdits] = useState<Record<string, Partial<SettingsFilter>>>(
+    {},
+  );
 
-  if (isLoading) return <Card className="text-xs text-slate-500">Loading filters…</Card>;
+  if (isLoading)
+    return <Card className="text-xs text-slate-500">Loading filters…</Card>;
 
   const filters = data ?? [];
 
@@ -36,7 +44,9 @@ export function FiltersTab(): React.ReactElement {
     <div className="space-y-4">
       {Object.entries(grouped).map(([type, rows]) => (
         <Card key={type}>
-          <h3 className="text-sm font-bold text-slate-200 uppercase mb-2">{type}</h3>
+          <h3 className="text-sm font-bold text-slate-200 uppercase mb-2">
+            {type}
+          </h3>
           <table className="w-full text-xs text-left">
             <thead>
               <tr className="text-slate-500 border-b border-slate-700">
@@ -55,7 +65,9 @@ export function FiltersTab(): React.ReactElement {
                 const hasChanges = dirty !== undefined;
                 return (
                   <tr key={f.id} className="border-b border-slate-800/50">
-                    <td className="py-1.5 pr-2 font-mono text-slate-300">{f.value}</td>
+                    <td className="py-1.5 pr-2 font-mono text-slate-300">
+                      {f.value}
+                    </td>
                     <td className="py-1.5 pr-2">
                       <input
                         type="number"
@@ -67,7 +79,9 @@ export function FiltersTab(): React.ReactElement {
                             [f.id]: {
                               ...prev[f.id],
                               numericValue:
-                                e.target.value === '' ? null : Number(e.target.value),
+                                e.target.value === ''
+                                  ? null
+                                  : Number(e.target.value),
                             },
                           }))
                         }

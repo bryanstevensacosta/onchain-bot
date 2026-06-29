@@ -52,10 +52,7 @@ import { KolReputationScheduler } from 'kol/reputation/infrastructure/scheduling
     IdentityModule,
     NormalizationModule,
     ...(isDatabaseEnabled()
-      ? [TypeOrmModule.forFeature([
-          KolReputationEntity,
-          KolKnownListEntity,
-        ])]
+      ? [TypeOrmModule.forFeature([KolReputationEntity, KolKnownListEntity])]
       : []),
   ],
   controllers: [KolReputationController],
@@ -95,11 +92,7 @@ import { KolReputationScheduler } from 'kol/reputation/infrastructure/scheduling
           config.get<AppConfig>('app')?.database?.enabled === true;
         return enabled ? new DbBackedKnownKolRegistry(repo) : fallback;
       },
-      inject: [
-        ConfigService,
-        KolKnownListRepository,
-        DefaultKnownKolRegistry,
-      ],
+      inject: [ConfigService, KolKnownListRepository, DefaultKnownKolRegistry],
     },
     DefaultKnownKolRegistry,
     GetKolReputationUseCase,

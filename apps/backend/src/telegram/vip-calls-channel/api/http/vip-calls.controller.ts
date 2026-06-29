@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Param, Query } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query } from '@nestjs/common';
 import { VipCallsPublishUseCase } from '../../application/handlers/vip-calls-publish.use-case';
 import { VipCallsListPublishedUseCase } from '../../application/handlers/vip-calls-list-published.use-case';
 

@@ -16,17 +16,13 @@ describe('KolReputationAggregator', () => {
     {
       chain: 'solana',
       address: 'DEF456',
-      sources: [
-        { kolId: '100', mentionCount: 3 },
-      ],
+      sources: [{ kolId: '100', mentionCount: 3 }],
       lastSeenAt: new Date('2026-01-05T00:00:00Z'),
     },
     {
       chain: 'ethereum',
       address: '0xGHI',
-      sources: [
-        { kolId: '100' },
-      ],
+      sources: [{ kolId: '100' }],
       lastSeenAt: new Date('2026-01-03T00:00:00Z'),
     },
   ];
@@ -55,7 +51,12 @@ describe('KolReputationAggregator', () => {
 
   it('coerces numeric kolId to string for comparison', () => {
     const mixed = [
-      { chain: 'solana', address: 'X', sources: [{ kolId: 100, mentionCount: 5 }], lastSeenAt: new Date() },
+      {
+        chain: 'solana',
+        address: 'X',
+        sources: [{ kolId: 100, mentionCount: 5 }],
+        lastSeenAt: new Date(),
+      },
     ];
     const stats = KolReputationAggregator.aggregate('100', mixed);
     expect(stats.totalMentions).toBe(5);
@@ -64,7 +65,9 @@ describe('KolReputationAggregator', () => {
 
 describe('KolReputationScorer', () => {
   it('returns 0.5 LOW for zero mentions', () => {
-    const { score, confidence } = KolReputationScorer.score({ totalMentions: 0 });
+    const { score, confidence } = KolReputationScorer.score({
+      totalMentions: 0,
+    });
     expect(score).toBe(0.5);
     expect(confidence).toBe('LOW');
   });
@@ -81,10 +84,18 @@ describe('KolReputationScorer', () => {
   });
 
   it('confidence reflects volume thresholds', () => {
-    expect(KolReputationScorer.score({ totalMentions: 1 }).confidence).toBe('LOW');
-    expect(KolReputationScorer.score({ totalMentions: 5 }).confidence).toBe('MEDIUM');
-    expect(KolReputationScorer.score({ totalMentions: 20 }).confidence).toBe('HIGH');
-    expect(KolReputationScorer.score({ totalMentions: 50 }).confidence).toBe('VERY_HIGH');
+    expect(KolReputationScorer.score({ totalMentions: 1 }).confidence).toBe(
+      'LOW',
+    );
+    expect(KolReputationScorer.score({ totalMentions: 5 }).confidence).toBe(
+      'MEDIUM',
+    );
+    expect(KolReputationScorer.score({ totalMentions: 20 }).confidence).toBe(
+      'HIGH',
+    );
+    expect(KolReputationScorer.score({ totalMentions: 50 }).confidence).toBe(
+      'VERY_HIGH',
+    );
   });
 });
 
@@ -104,7 +115,10 @@ describe('KolReputationCalculator', () => {
         lastSeenAt: new Date('2026-01-02T00:00:00Z'),
       },
     ];
-    const rep = KolReputationCalculator.calculateFromCanonicalCalls('100', calls);
+    const rep = KolReputationCalculator.calculateFromCanonicalCalls(
+      '100',
+      calls,
+    );
     expect(rep.kolId).toBe('100');
     expect(rep.metrics.totalMentions).toBe(20);
     expect(rep.metrics.neutralCount).toBe(20);

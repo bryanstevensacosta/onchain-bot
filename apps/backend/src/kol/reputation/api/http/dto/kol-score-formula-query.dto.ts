@@ -1,8 +1,6 @@
 import { IsOptional, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
-import {
-  KOL_SCORE_FORMULAS,
-} from 'kol/reputation/domain/value-objects/kol-score-formula.vo';
+import { KOL_SCORE_FORMULAS } from 'kol/reputation/domain/value-objects/kol-score-formula.vo';
 
 const VALID_FORMULA_IDS = Object.keys(KOL_SCORE_FORMULAS);
 

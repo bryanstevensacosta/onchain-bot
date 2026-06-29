@@ -85,7 +85,7 @@ export class VipCallsBotApiPublisherAdapter extends TelegramPublisherPort {
       this.pendingQueue.push({ text, imageUrl, resolve });
       if (!this.processing) {
         this.processing = true;
-        this.processQueue();
+        void this.processQueue();
       }
     });
   }

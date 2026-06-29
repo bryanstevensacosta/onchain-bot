@@ -63,7 +63,11 @@ export class DefaultKolReputationAdapter extends KolReputationPort {
       );
     }
     const stats = await this.statsRepo.findByKol(kolId);
-    if (stats && stats.confidence !== 'LOW' && stats.metrics.totalMentions > 0) {
+    if (
+      stats &&
+      stats.confidence !== 'LOW' &&
+      stats.metrics.totalMentions > 0
+    ) {
       return await Promise.resolve(
         KolReputationSummary.create({
           kolId,
@@ -110,7 +114,11 @@ export class DefaultKolReputationAdapter extends KolReputationPort {
       const byKol = new Map(rows.map((r) => [r.kolId, r]));
       for (const kolId of unresolved) {
         const stats = byKol.get(kolId);
-        if (stats && stats.confidence !== 'LOW' && stats.metrics.totalMentions > 0) {
+        if (
+          stats &&
+          stats.confidence !== 'LOW' &&
+          stats.metrics.totalMentions > 0
+        ) {
           sum += stats.score;
         } else {
           sum += thresholds.unknown;

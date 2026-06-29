@@ -1,11 +1,20 @@
+import { useQuery } from '@tanstack/react-query';
 import { useDashboardKpis } from '@/entities/dashboard';
 import { Card } from '@/shared/ui';
+import { fetchIngestionHealth } from '@/widgets/ingestion-health/api/ingestion-health-queries';
 
 export function KpiCards() {
   const kpis = useDashboardKpis();
+  const healthQuery = useQuery({
+    queryKey: ['ingestion-health'],
+    queryFn: fetchIngestionHealth,
+    refetchInterval: 10_000,
+  });
 
-  const activeKols = kpis.data?.activeKols ?? 0;
-  const totalKols = kpis.data?.totalKols ?? 0;
+  const activeKols =
+    healthQuery.data?.activeChannels ?? kpis.data?.activeKols ?? 0;
+  const totalKols =
+    healthQuery.data?.maxSafeChannels ?? kpis.data?.totalKols ?? 0;
   const totalCalls = kpis.data?.totalCanonicalCalls ?? 0;
   const approvedCount = kpis.data?.approvedDecisions ?? 0;
   const rejectedCount = kpis.data?.rejectedDecisions ?? 0;
@@ -20,7 +29,7 @@ export function KpiCards() {
       <KpiCard
         label="📡 KOLs"
         value={`${activeKols}/${totalKols}`}
-        sub="active"
+        sub={`active channels / max safe`}
       />
       <KpiCard
         label="🔥 Canonical calls"

@@ -364,11 +364,7 @@ export class SettingsService {
         enableBlacklist: boolean;
       };
 
-    const minScore = await this.getFilterNumericValue(
-      'min_score',
-      0,
-      'global',
-    );
+    const minScore = await this.getFilterNumericValue('min_score', 0, 'global');
     const maxRiskWeight = await this.getFilterNumericValue(
       'max_risk_weight',
       999,

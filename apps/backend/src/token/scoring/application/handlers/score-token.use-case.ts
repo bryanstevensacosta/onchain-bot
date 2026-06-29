@@ -148,7 +148,8 @@ export class ScoreTokenUseCase {
     const signalPenaltyMap = await this.buildSignalPenaltyMap();
     const securityCaps = await this.resolvedSettings.getSecurityFlagCaps();
     const bonusTiers = await this.resolvedSettings.getScoringBonusTiers();
-    const tierThresholds = await this.resolvedSettings.getScoringTierThresholds();
+    const tierThresholds =
+      await this.resolvedSettings.getScoringTierThresholds();
     const signalPenalties = await this.resolvedSettings.getSignalPenalties();
 
     score += this.liquidityBonus(input.liquidityUsd, breakdown, bonusTiers);
@@ -441,7 +442,12 @@ export class ScoreTokenUseCase {
     }>,
     breakdown: ScoreBreakdownItem[],
     signalPenaltyMap: Map<string, number>,
-    severityDefaults: { CRITICAL: number; HIGH: number; MEDIUM: number; LOW: number },
+    severityDefaults: {
+      CRITICAL: number;
+      HIGH: number;
+      MEDIUM: number;
+      LOW: number;
+    },
   ): number {
     let total = 0;
     for (const s of signals) {

@@ -1,6 +1,6 @@
 # Plan: Consolidar `/live` en `/tokens`
 
-> Status: draft → ready for executor  
+> Status: ✅ COMPLETE (executed)  
 > Author: Prometheus
 
 ## Goal

@@ -1,7 +1,5 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
-import { KolId } from 'kol/identity/domain/value-objects/kol-id.vo';
 import { Kol } from 'kol/identity/domain/entities/kol.entity';
 import { KolRepository } from 'kol/identity/application/ports/kol.repository';
 import { RecomputeKolReputationUseCase } from '../../application/handlers/recompute-kol-reputation.use-case';
@@ -23,9 +21,7 @@ interface FakeKolRepo extends KolRepository {
 function makeKolRepo(kols: Kol[]): FakeKolRepo {
   return {
     kols,
-    async findAll() {
-      return this.kols;
-    },
+    findAll: async () => kols,
   } as unknown as FakeKolRepo;
 }
 
@@ -34,19 +30,19 @@ interface FakeRecompute extends RecomputeKolReputationUseCase {
   failFor: Set<string>;
 }
 function makeRecompute(): FakeRecompute {
-  return {
+  const mock: FakeRecompute = {
     calls: [],
     failFor: new Set(),
-    async execute(input: { kolId: string }) {
-      this.calls.push(input);
-      if (this.failFor.has(input.kolId)) {
+    execute: async (input: { kolId: string }) => {
+      mock.calls.push(input);
+      if (mock.failFor.has(input.kolId)) {
         throw new Error(`boom for ${input.kolId}`);
       }
       return {} as never;
     },
-  } as unknown as FakeRecompute;
+  };
+  return mock;
 }
-
 function makeConfig(schedulerEnabled: boolean): ConfigService {
   return {
     get: () => ({
@@ -76,10 +72,7 @@ describe('KolReputationScheduler', () => {
 
       await scheduler.tick();
 
-      expect(recompute.calls).toEqual([
-        { kolId: '111' },
-        { kolId: '222' },
-      ]);
+      expect(recompute.calls).toEqual([{ kolId: '111' }, { kolId: '222' }]);
     });
 
     it('continues iterating when one KOL fails', async () => {
@@ -99,7 +92,11 @@ describe('KolReputationScheduler', () => {
 
       await scheduler.tick();
 
-      expect(recompute.calls.map((c) => c.kolId)).toEqual(['111', '222', '333']);
+      expect(recompute.calls.map((c) => c.kolId)).toEqual([
+        '111',
+        '222',
+        '333',
+      ]);
     });
 
     it('skips the tick if previous one is still running', async () => {

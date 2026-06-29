@@ -22,7 +22,9 @@ import { CanonicalTokenCallMapper } from 'token/normalization/infrastructure/per
  */
 @Injectable()
 export class TypeOrmCanonicalTokenCallRepository extends CanonicalTokenCallRepository {
-  private readonly logger = new Logger(TypeOrmCanonicalTokenCallRepository.name);
+  private readonly logger = new Logger(
+    TypeOrmCanonicalTokenCallRepository.name,
+  );
 
   constructor(
     @InjectRepository(CanonicalTokenCallEntity)

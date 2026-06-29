@@ -3,7 +3,14 @@ import { useParams } from 'react-router-dom';
 import { useCanonical } from '@/entities/canonical-call';
 import { useScoreByToken } from '@/entities/token-score';
 import { useSnapshot } from '@/entities/token-snapshot';
-import { Card, Badge, Button, ChainIcon, LiquidityGauge, TokenImage } from '@/shared/ui';
+import {
+  Card,
+  Badge,
+  Button,
+  ChainIcon,
+  LiquidityGauge,
+  TokenImage,
+} from '@/shared/ui';
 import { ScoreGauge, ScoreBreakdown } from '@/entities/token-score';
 import { formatPercent, formatRelativeTime, formatUsd } from '@/shared/lib';
 

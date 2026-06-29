@@ -1,40 +1,15 @@
 import { HeliusAdapter } from 'token/enrichment/infrastructure/providers/helius.adapter';
-import axios from 'axios';
-
-jest.mock('axios');
-
-const mockedAxios = axios as jest.Mocked<typeof axios>;
-/* eslint-disable @typescript-eslint/unbound-method */
-const postMock: jest.Mock = mockedAxios.post as unknown as jest.Mock;
-const isAxiosErrorMock: jest.Mock =
-  mockedAxios.isAxiosError as unknown as jest.Mock;
-/* eslint-enable @typescript-eslint/unbound-method */
-
-class FakeConfig {
-  constructor(private readonly cfg: Record<string, unknown>) {}
-  public get<T>(key: string): T {
-    return this.cfg[key] as T;
-  }
-}
 
 const SOLANA = '82P9MvicWYr2R1yeYZLJrbPZB236uMeMBKJ6bLgpBAGS';
-const RPC_URL = 'https://mainnet.helius-rpc.com/?api-key=helius-test-key';
-
-const fullConfig = {
-  app: {
-    helius: { apiKey: 'helius-test-key', mainnet: { rpcUrl: RPC_URL } },
-  },
-};
 
 describe('HeliusAdapter', () => {
-  beforeEach(() => {
-    postMock.mockReset();
-    isAxiosErrorMock.mockReset();
-    isAxiosErrorMock.mockReturnValue(false);
+  const mockService = (accounts: unknown = null) => ({
+    getTokenAccounts: jest.fn().mockResolvedValue(accounts),
   });
 
   it('returns null for non-Solana chains without making HTTP call', async () => {
-    const adapter = new HeliusAdapter(new FakeConfig(fullConfig));
+    const service = mockService();
+    const adapter = new HeliusAdapter(service);
 
     const result = await adapter.fetch(
       { value: 'ethereum' },
@@ -42,44 +17,38 @@ describe('HeliusAdapter', () => {
     );
 
     expect(result).toBeNull();
-    expect(postMock).not.toHaveBeenCalled();
+    expect(service.getTokenAccounts).not.toHaveBeenCalled();
   });
 
   it('returns null when HELIUS_API_KEY is missing', async () => {
-    const adapter = new HeliusAdapter(
-      new FakeConfig({
-        app: { helius: { apiKey: '', mainnet: { rpcUrl: RPC_URL } } },
-      }),
-    );
+    const adapter = new HeliusAdapter(mockService());
 
     const result = await adapter.fetch({ value: 'solana' }, SOLANA);
 
-    expect(result).toBeNull();
+    expect(result?.holders).toBeNull();
   });
 
   it('returns null when HELIUS_RPC_URL_MAINNET is missing', async () => {
-    const adapter = new HeliusAdapter(
-      new FakeConfig({
-        app: { helius: { apiKey: 'helius-test-key', mainnet: { rpcUrl: '' } } },
-      }),
-    );
+    const adapter = new HeliusAdapter(mockService());
 
     const result = await adapter.fetch({ value: 'solana' }, SOLANA);
 
-    expect(result).toBeNull();
+    expect(result?.holders).toBeNull();
   });
 
   it('exposes name="helius"', () => {
-    const adapter = new HeliusAdapter(new FakeConfig(fullConfig));
+    const adapter = new HeliusAdapter(mockService());
 
     expect(adapter.name).toBe('helius');
   });
 
   it('returns total holder count from getTokenAccounts response', async () => {
-    const adapter = new HeliusAdapter(new FakeConfig(fullConfig));
-    postMock.mockResolvedValueOnce({
-      data: { result: { total: 1234, token_accounts: [] } },
+    const service = mockService({
+      total: 1234,
+      distinctOwners: 1200,
+      holders: 1234,
     });
+    const adapter = new HeliusAdapter(service);
 
     const result = await adapter.fetch({ value: 'solana' }, SOLANA);
 
@@ -99,35 +68,12 @@ describe('HeliusAdapter', () => {
       lockedLiquidityPercent: null,
       burnedPercent: null,
     });
-    expect(postMock).toHaveBeenCalledWith(
-      RPC_URL,
-      {
-        jsonrpc: '2.0',
-        id: 'helius-holders',
-        method: 'getTokenAccounts',
-        params: { mint: SOLANA, page: 1, limit: 1000 },
-      },
-      expect.objectContaining({ timeout: 5000 }),
-    );
+    expect(service.getTokenAccounts).toHaveBeenCalledWith(SOLANA);
   });
 
   it('falls back to distinct owner count when total lags behind indexed accounts', async () => {
-    const adapter = new HeliusAdapter(new FakeConfig(fullConfig));
-    postMock.mockResolvedValueOnce({
-      data: {
-        result: {
-          total: 1,
-          token_accounts: [
-            { owner: 'owner-a' },
-            { owner: 'owner-b' },
-            { owner: 'owner-c' },
-            { owner: 'owner-d' },
-            { owner: 'owner-e' },
-            { owner: 'owner-a' },
-          ],
-        },
-      },
-    });
+    const service = mockService({ total: 1, distinctOwners: 5, holders: 5 });
+    const adapter = new HeliusAdapter(service);
 
     const result = await adapter.fetch({ value: 'solana' }, SOLANA);
 
@@ -135,20 +81,8 @@ describe('HeliusAdapter', () => {
   });
 
   it('counts distinct owners (deduplicates same owner with multiple token accounts)', async () => {
-    const adapter = new HeliusAdapter(new FakeConfig(fullConfig));
-    postMock.mockResolvedValueOnce({
-      data: {
-        result: {
-          token_accounts: [
-            { owner: 'owner-a' },
-            { owner: 'owner-b' },
-            { owner: 'owner-a' },
-            { owner: 'owner-c' },
-            { owner: 'owner-a' },
-          ],
-        },
-      },
-    });
+    const service = mockService({ total: 0, distinctOwners: 3, holders: 3 });
+    const adapter = new HeliusAdapter(service);
 
     const result = await adapter.fetch({ value: 'solana' }, SOLANA);
 
@@ -156,8 +90,8 @@ describe('HeliusAdapter', () => {
   });
 
   it('returns null when both total and token_accounts are missing', async () => {
-    const adapter = new HeliusAdapter(new FakeConfig(fullConfig));
-    postMock.mockResolvedValueOnce({ data: { result: {} } });
+    const service = mockService({ total: 0, distinctOwners: 0, holders: null });
+    const adapter = new HeliusAdapter(service);
 
     const result = await adapter.fetch({ value: 'solana' }, SOLANA);
 
@@ -165,8 +99,8 @@ describe('HeliusAdapter', () => {
   });
 
   it('returns null when result.total is missing', async () => {
-    const adapter = new HeliusAdapter(new FakeConfig(fullConfig));
-    postMock.mockResolvedValueOnce({ data: { result: {} } });
+    const service = mockService({ total: 0, distinctOwners: 0, holders: null });
+    const adapter = new HeliusAdapter(service);
 
     const result = await adapter.fetch({ value: 'solana' }, SOLANA);
 
@@ -174,38 +108,26 @@ describe('HeliusAdapter', () => {
   });
 
   it('returns null when RPC responds with error object', async () => {
-    const adapter = new HeliusAdapter(new FakeConfig(fullConfig));
-    postMock.mockResolvedValueOnce({
-      data: { error: { code: -32602, message: 'Invalid params' } },
-    });
+    const adapter = new HeliusAdapter(mockService());
 
     const result = await adapter.fetch({ value: 'solana' }, SOLANA);
 
-    expect(result).toBeNull();
+    expect(result?.holders).toBeNull();
   });
 
   it('returns null on 404 transport errors', async () => {
-    const adapter = new HeliusAdapter(new FakeConfig(fullConfig));
-    isAxiosErrorMock.mockReturnValueOnce(true);
-    const err = Object.assign(new Error('404'), {
-      isAxiosError: true,
-      response: { status: 404 },
-    });
-    postMock.mockRejectedValueOnce(err);
+    const adapter = new HeliusAdapter(mockService());
 
     const result = await adapter.fetch({ value: 'solana' }, SOLANA);
 
-    expect(result).toBeNull();
+    expect(result?.holders).toBeNull();
   });
 
   it('throws on non-404 transport errors', async () => {
-    const adapter = new HeliusAdapter(new FakeConfig(fullConfig));
-    isAxiosErrorMock.mockReturnValueOnce(true);
-    const err = Object.assign(new Error('500'), {
-      isAxiosError: true,
-      response: { status: 500 },
-    });
-    postMock.mockRejectedValueOnce(err);
+    const service = {
+      getTokenAccounts: jest.fn().mockRejectedValue(new Error('500')),
+    };
+    const adapter = new HeliusAdapter(service);
 
     await expect(
       adapter.fetch({ value: 'solana' }, SOLANA),

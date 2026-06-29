@@ -86,7 +86,6 @@ TokenCall {
   channelId: string;
   messageId: number;
   occurredAt: Date;
-  rawText: string;
   contract: ParsedContract;            // CA primaria
   ticker: string | null;
   name: string | null;

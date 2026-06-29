@@ -19,11 +19,6 @@ import { formatRelativeTime, usePagination } from '@/shared/lib';
 
 type FilterType = 'all' | 'approved' | 'rejected';
 
-interface SnapshotEntry {
-  name: string | null;
-  imageUrls: ReadonlyArray<string> | null;
-}
-
 function DecisionRow({
   decision,
   score,
@@ -33,14 +28,18 @@ function DecisionRow({
   decision: FilterDecisionView;
   score?: { score: number; tier: string } | null;
   canonical?: { ticker?: string | null } | null;
-  snapshot?: { name?: string | null; imageUrls?: ReadonlyArray<string> | null } | null;
+  snapshot?: {
+    name?: string | null;
+    imageUrls?: ReadonlyArray<string> | null;
+  } | null;
 }) {
   const navigate = useNavigate();
   const isApproved = decision.verdict === 'APPROVED';
   const [copied, setCopied] = useState(false);
 
   const name = snapshot?.name ?? null;
-  const ticker = canonical?.ticker ?? (name ? name.slice(0, 5).toUpperCase() : null);
+  const ticker =
+    canonical?.ticker ?? (name ? name.slice(0, 5).toUpperCase() : null);
   const shortAddr = `${decision.address.slice(0, 6)}...${decision.address.slice(-4)}`;
 
   const handleCopy = async (e: React.MouseEvent) => {

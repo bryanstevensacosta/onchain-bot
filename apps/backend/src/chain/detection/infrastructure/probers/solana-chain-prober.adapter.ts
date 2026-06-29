@@ -1,44 +1,18 @@
 import bs58 from 'bs58';
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
   ChainProberPort,
   ProbeResult,
 } from 'chain/detection/domain/ports/chain-prober.port';
-import { JsonRpcClient } from 'chain/detection/infrastructure/http/json-rpc.client';
+import { SolanaRpcService } from 'data-provider/solana-rpc/solana-rpc.service';
 
-interface AppConfigShape {
-  readonly helius: {
-    readonly apiKey: string;
-    readonly mainnet: { readonly rpcUrl: string };
-  };
-}
-
-/**
- * Solana chain prober (Helius mainnet).
- *
- * Uses `getAccountInfo` to check if the address exists on-chain.
- *
- * Format validation happens BEFORE the RPC call (Base58 decode to 32
- * bytes) — invalid Base58 strings short-circuit with responded=false
- * and a format_invalid note, saving an RPC call.
- */
 @Injectable()
 export class SolanaChainProberAdapter extends ChainProberPort {
   public readonly chainName = 'solana';
   private readonly logger = new Logger(SolanaChainProberAdapter.name);
-  private readonly client: JsonRpcClient | null;
 
-  public constructor(configService: ConfigService) {
+  public constructor(private readonly rpc: SolanaRpcService) {
     super();
-    const cfg = configService.get<AppConfigShape>('app');
-    const rpcUrl = cfg?.helius?.mainnet?.rpcUrl;
-    this.client = rpcUrl ? new JsonRpcClient(rpcUrl) : null;
-    if (!this.client) {
-      this.logger.warn(
-        'HELIUS_RPC_URL_MAINNET missing — Solana probing will report responded=false',
-      );
-    }
   }
 
   public async probe(address: string): Promise<ProbeResult> {
@@ -58,23 +32,18 @@ export class SolanaChainProberAdapter extends ChainProberPort {
         notes: ['solana:format_invalid_base58'],
       };
     }
-
-    if (!this.client) {
+    if (!this.rpc.primaryRpcUrl) {
       return {
         responded: false,
         isContract: null,
         notes: ['solana:no_rpc_url'],
       };
     }
-
     try {
-      const result = await this.client.call<{ value: unknown } | null>(
-        'getAccountInfo',
-        [address, { encoding: 'base58', commitment: 'confirmed' }],
-      );
+      const accountInfo = await this.rpc.getAccountInfo(address);
       return {
         responded: true,
-        isContract: result !== null && result.value !== null,
+        isContract: accountInfo !== null,
         notes: [],
       };
     } catch (err) {

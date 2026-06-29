@@ -24,8 +24,8 @@ import { ExtractionController } from 'token/intake/extraction/api/http/extractio
  * - Domain has zero NestJS dependencies
  *
  * Per fix-1: KolMessageIngestedHandler was removed. The use case is
- * invoked via direct call from StartKolIngestionUseCase
- * (kol/ingestion/) so that the raw text never crosses an
+ * invoked via direct call from KolIngestionOrchestratorUseCase
+ * (telegram/ingestion/) so that the raw text never crosses an
  * event bus boundary.
  *
  * Emits: `extraction.candidates.extracted` events (via EventEmitter2) for

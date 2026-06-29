@@ -28,7 +28,7 @@
 
 | Regla | Por qué | Dónde |
 |---|---|---|
-| **Solo persistir metadatos derivados** (`chainId`, `address`, `ticker`, `score`, `kolId`, `timestamp`, métricas). | *"scraping public group or channel contents"* prohibido — Bot Dev §4.3 [https://telegram.org/tos/bot-developers] | `kol/ingestion/` |
+| **Solo persistir metadatos derivados** (`chainId`, `address`, `ticker`, `score`, `kolId`, `timestamp`, métricas). | *"scraping public group or channel contents"* prohibido — Bot Dev §4.3 [https://telegram.org/tos/bot-developers] | `telegram/ingestion/` |
 | Si necesitas el texto temporalmente para extraer entities, **bórralo después de parsear**. | *"only ... strictly required to operate the relevant service"* — Content Licensing [https://telegram.org/tos/content-licensing] | Pipeline de extraction |
 | Borra datos de un KOL en **≤30 días** si lo pide. | *"Delete user data upon their request"* — Bot Dev §4.2 [https://telegram.org/tos/bot-developers] | Cualquier repo con datos de KOL |
 | Implementa **TTL automático** en `canonical-call` (ej: 90 días hot, después aggregated-only). | Reduce superficie de riesgo GDPR. | Postgres |
@@ -98,7 +98,7 @@
 
 ## 3. Patrones de código que te mantienen a salvo
 
-### 3.1 Ingestion (kol/ingestion/)
+### 3.1 Ingestion (telegram/ingestion/)
 
 ```typescript
 // ✅ CORRECTO: extraer entities, descartar texto raw

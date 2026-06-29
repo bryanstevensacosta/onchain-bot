@@ -11,7 +11,6 @@ import { LiveMarketDataPort } from '../ports/live-market-data.port';
 import { MilestoneCachePort } from '../ports/milestone-cache.port';
 import { NotifiedMilestoneRepository } from '../ports/notified-milestone.repository';
 import { DetectCrossedMilestonesService } from '../services/detect-crossed-milestones.service';
-import { RecordNotifiedMilestoneUseCase } from './record-notified-milestone.use-case';
 import { ConfigService } from '@nestjs/config';
 
 class FakeMonitoredRepo extends MonitoredCallRepository {

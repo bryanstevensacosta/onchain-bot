@@ -108,7 +108,6 @@ interface ExtractionResultView {
   readonly channelId: string;
   readonly messageId: number;
   readonly occurredAt: string;                  // ISO-8601
-  readonly rawText: string;
   readonly contractAddresses: ReadonlyArray<{
     readonly value: string;
     readonly chainHint: string;                 // 'evm' | 'solana' | 'unknown'
@@ -135,7 +134,6 @@ ExtractionResult {
   channelId: string;
   messageId: number;
   occurredAt: Date;
-  rawText: string;
   contractAddresses: ReadonlyArray<ContractAddress>;
   tickers: ReadonlyArray<Ticker>;
   urls: ReadonlyArray<Url>;
@@ -170,7 +168,7 @@ Métodos relevantes:
 - `CandidatesExtractedEvent` (`domain/events/candidates-extracted.event.ts:7`)
   - `eventName = 'extraction.candidates.extracted'` (`:34`).
   - `aggregateId = ${channelId}:${messageId}` (`:35`).
-  - Payload aplanado (`:8-22`): `channelId`, `messageId`, `occurredAt`, `rawText`, `contractAddresses: { value, chainHint }[]`, `tickers: string[]`, `urls: { value, scheme }[]`. Esto evita que los VOs crucen el límite de BC.
+  - Payload aplanado (`:8-22`): `channelId`, `messageId`, `occurredAt`, `contractAddresses: { value, chainHint }[]`, `tickers: string[]`, `urls: { value, scheme }[]`. Sin `rawText` por compliance ToS — el texto crudo nunca cruza eventos (fix-1).
   - Constructor freezea el payload completo (`:37`).
   - `toPayload()` (`:40-50`) — `occurredAt` a ISO; `contractAddresses`/`urls` shallow-copy; `tickers` spread.
 

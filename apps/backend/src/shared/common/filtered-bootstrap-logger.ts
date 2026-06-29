@@ -45,9 +45,7 @@ export class FilteredBootstrapLogger implements LoggerService {
   constructor(context?: string) {
     // ConsoleLogger is the default Nest logger and produces the same
     // `[Nest] PID  - DATE  LEVEL [Context] message` format users expect.
-    this.delegate = context
-      ? new ConsoleLogger(context)
-      : new ConsoleLogger();
+    this.delegate = context ? new ConsoleLogger(context) : new ConsoleLogger();
   }
 
   log(message: unknown, context?: string): void {

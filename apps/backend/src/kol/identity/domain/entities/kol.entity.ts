@@ -3,7 +3,7 @@ import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import type { DomainEvent } from 'shared/kernel/domain-event';
 import { KolId } from 'kol/identity/domain/value-objects/kol-id.vo';
 import { KolHandle } from 'kol/identity/domain/value-objects/kol-handle.vo';
-import { KolMessageIngestedEvent } from 'kol/ingestion/domain/events/kol-message-ingested.event';
+import { KolMessageIngestedEvent } from 'kol/identity/domain/events/kol-message-ingested.event';
 
 /**
  * Lifecycle status of a tracked Telegram KOL.

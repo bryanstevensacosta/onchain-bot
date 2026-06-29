@@ -38,7 +38,11 @@ export function OpsPage() {
         ))}
       </div>
 
-      {tab === 'replay' && <Card><ReplayForm /></Card>}
+      {tab === 'replay' && (
+        <Card>
+          <ReplayForm />
+        </Card>
+      )}
       {tab === 'filters' && <FiltersTab />}
       {tab === 'presets' && <PresetsTab />}
     </div>

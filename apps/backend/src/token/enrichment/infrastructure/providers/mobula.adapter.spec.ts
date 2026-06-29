@@ -1,21 +1,16 @@
 import { MobulaAdapter } from 'token/enrichment/infrastructure/providers/mobula.adapter';
 
-class FakeConfig {
-  constructor(private readonly cfg: Record<string, unknown>) {}
-  public get<T>(key: string): T {
-    return this.cfg[key] as T;
-  }
-}
-
 describe('MobulaAdapter', () => {
+  const mockService = (markets: unknown = null) => ({
+    getTokenMarkets: jest.fn().mockResolvedValue(markets),
+  });
+
   it('exposes name="mobula"', () => {
-    const cfg = new FakeConfig({ app: { mobula: { apiKey: 'fake' } } });
-    expect(new MobulaAdapter(cfg).name).toBe('mobula');
+    expect(new MobulaAdapter(mockService()).name).toBe('mobula');
   });
 
   it('returns null when MOBULA_API_KEY is missing', async () => {
-    const cfg = new FakeConfig({ app: { mobula: { apiKey: '' } } });
-    const adapter = new MobulaAdapter(cfg);
+    const adapter = new MobulaAdapter(mockService());
     expect(
       await adapter.fetch(
         { value: 'ethereum' },
@@ -25,10 +20,11 @@ describe('MobulaAdapter', () => {
   });
 
   it('returns null for unsupported chains without HTTP call', async () => {
-    const cfg = new FakeConfig({ app: { mobula: { apiKey: 'fake' } } });
-    const adapter = new MobulaAdapter(cfg);
+    const service = mockService();
+    const adapter = new MobulaAdapter(service);
     expect(
       await adapter.fetch({ value: 'polkadot' } as never, 'addr'),
     ).toBeNull();
+    expect(service.getTokenMarkets).not.toHaveBeenCalled();
   });
 });

@@ -1,8 +1,6 @@
 import { KolReputation } from 'kol/reputation/domain/value-objects/kol-reputation.vo';
 import type { KolConfidence } from 'kol/reputation/domain/value-objects/kol-reputation.vo';
-import {
-  KolMetricsCalculator,
-} from 'kol/reputation/domain/services/kol-metrics-calculator';
+import { KolMetricsCalculator } from 'kol/reputation/domain/services/kol-metrics-calculator';
 import {
   DEFAULT_KOL_SCORE_FORMULA_ID,
   KOL_SCORE_FORMULAS,
@@ -12,7 +10,10 @@ import {
 interface KolReputationCanonicalCall {
   readonly chain: string;
   readonly address: string;
-  readonly sources: ReadonlyArray<{ kolId: string | number; mentionCount?: number }>;
+  readonly sources: ReadonlyArray<{
+    kolId: string | number;
+    mentionCount?: number;
+  }>;
   readonly lastSeenAt: Date;
 }
 
@@ -55,7 +56,9 @@ export class KolReputationCalculator {
     knownBad: boolean | null,
     formulaId: string = DEFAULT_KOL_SCORE_FORMULA_ID,
   ): KolReputation {
-    const formula = KOL_SCORE_FORMULAS[formulaId] ?? KOL_SCORE_FORMULAS[DEFAULT_KOL_SCORE_FORMULA_ID]!;
+    const formula =
+      KOL_SCORE_FORMULAS[formulaId] ??
+      KOL_SCORE_FORMULAS[DEFAULT_KOL_SCORE_FORMULA_ID];
     const metrics = KolMetricsCalculator.calculate(kolId, calls);
     const blended = KolReputationCalculator.blendScore(metrics, formula);
     const adjusted = KolReputationCalculator.applyWhitelist(
@@ -81,7 +84,7 @@ export class KolReputationCalculator {
       readonly qualityScore: number;
       readonly drawdownScore: number;
     },
-    formula: KolScoreFormula = KOL_SCORE_FORMULAS[DEFAULT_KOL_SCORE_FORMULA_ID]!,
+    formula: KolScoreFormula = KOL_SCORE_FORMULAS[DEFAULT_KOL_SCORE_FORMULA_ID],
   ): number {
     return (
       metrics.mentionScore * formula.weights.mention +

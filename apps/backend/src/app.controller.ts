@@ -23,7 +23,7 @@ export class AppController {
 
     @Res() res?: Response,
   ) {
-    const app = await this.appService.getNestApp();
+    const app = this.appService.getNestApp();
     const eventCount = count ? parseInt(count, 10) : 12;
     const delayMs = delay ? parseInt(delay, 10) : 800;
 

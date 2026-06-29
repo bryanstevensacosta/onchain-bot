@@ -43,7 +43,12 @@ export class ScoreTier extends ValueObject<ScoreTierProps> {
 
   public static fromScore(
     score: number,
-    thresholds: { strong: number; decent: number; neutral: number; risky: number },
+    thresholds: {
+      strong: number;
+      decent: number;
+      neutral: number;
+      risky: number;
+    },
   ): ScoreTier {
     if (!Number.isFinite(score) || score < 0 || score > 100) {
       throw new DomainError(

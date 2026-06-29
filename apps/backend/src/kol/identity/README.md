@@ -53,5 +53,5 @@ directly from callers.
 ## See also
 
 - `kol-refactor.md` at the repo root — the plan that moved this BC out of `telegram/channels/`.
-- `kol/ingestion/` — the BC that subscribes to KOLs and produces `KolMessageIngestedEvent`.
+- `telegram/ingestion/` — the BC that subscribes to channels and produces raw messages.
 - `kol/reputation/` — the BC that consumes call outcomes and updates per-KOL reputation.

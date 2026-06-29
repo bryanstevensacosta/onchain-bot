@@ -14,10 +14,13 @@ function buildSettingsStub(): SettingsService {
 
 describe('DefaultTrackingFilterSeedService', () => {
   it('seeds 4 default filters on first run', async () => {
-    const settings = buildSettingsStub();
+    const mockFn = jest.fn().mockResolvedValue(0);
+    const settings = {
+      seedDefaultsIfEmpty: mockFn,
+    } as unknown as SettingsService;
     const seed = new DefaultTrackingFilterSeedService(settings);
     await seed.onModuleInit();
-    expect(settings.seedDefaultsIfEmpty).toHaveBeenCalledWith(
+    expect(mockFn).toHaveBeenCalledWith(
       PUBLISHED_CALL_TRACKING_FILTER_TYPE,
       expect.arrayContaining([
         expect.objectContaining({
@@ -43,7 +46,8 @@ describe('DefaultTrackingFilterSeedService', () => {
 
   it('does not throw when seed returns 0 (already seeded)', async () => {
     const settings = buildSettingsStub();
-    (settings.seedDefaultsIfEmpty as jest.Mock).mockResolvedValue(0);
+    const mockFn = settings.seedDefaultsIfEmpty as jest.Mock;
+    mockFn.mockResolvedValue(0);
     const seed = new DefaultTrackingFilterSeedService(settings);
     await expect(seed.onModuleInit()).resolves.toBeUndefined();
   });

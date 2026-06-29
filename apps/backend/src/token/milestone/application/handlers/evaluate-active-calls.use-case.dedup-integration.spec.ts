@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { ConfigService } from '@nestjs/config';
 import { EvaluateActiveCallsUseCase } from './evaluate-active-calls.use-case';
 import { RecordNotifiedMilestoneUseCase } from './record-notified-milestone.use-case';
@@ -12,12 +11,10 @@ import {
 } from '../ports/milestone-threshold.repository';
 import { LiveMarketDataPort } from '../ports/live-market-data.port';
 import { MilestoneCachePort } from '../ports/milestone-cache.port';
-import { NotifiedMilestoneRepository } from '../ports/notified-milestone.repository';
 import { MilestoneEventPublisher } from '../ports/milestone-event.publisher';
 import { DetectCrossedMilestonesService } from '../services/detect-crossed-milestones.service';
 import { InMemoryNotifiedMilestoneRepository } from '../../infrastructure/repositories/in-memory-notified-milestone.repository';
 import { DomainEvent } from 'shared/kernel/domain-event';
-import type { AppConfig } from 'shared/common/config/app.config';
 
 class FakeMonitoredRepo extends MonitoredCallRepository {
   public calls: MonitoredCallRecord[] = [];
@@ -148,7 +145,9 @@ function buildUseCase(
 ) {
   const monitoredRepo = new FakeMonitoredRepo();
   monitoredRepo.calls = overrides.monitoredCalls ?? [];
-  const thresholdRepo = new FakeThresholdRepo(overrides.thresholds ?? [2, 3, 5]);
+  const thresholdRepo = new FakeThresholdRepo(
+    overrides.thresholds ?? [2, 3, 5],
+  );
   const marketData = new FakeMarketData();
   marketData.m = overrides.mcMap ?? new Map();
   const cache =
@@ -288,7 +287,10 @@ describe('EvaluateActiveCallsUseCase — Redis dedup integration', () => {
 
       expect(result.notified).toBe(1); // only 5x new
       expect(publisher.events).toHaveLength(1);
-      expect((publisher.events[0] as unknown as { payload: { multiple: number } }).payload.multiple).toBe(5);
+      expect(
+        (publisher.events[0] as unknown as { payload: { multiple: number } })
+          .payload.multiple,
+      ).toBe(5);
     });
   });
 

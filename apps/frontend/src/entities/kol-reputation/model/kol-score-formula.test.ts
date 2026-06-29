@@ -10,7 +10,9 @@ import {
 describe('KOL_SCORE_FORMULAS', () => {
   it('has a default formula', () => {
     expect(KOL_SCORE_FORMULAS[DEFAULT_KOL_SCORE_FORMULA_ID]).toBeDefined();
-    expect(KOL_SCORE_FORMULAS[DEFAULT_KOL_SCORE_FORMULA_ID]!.id).toBe('default');
+    expect(KOL_SCORE_FORMULAS[DEFAULT_KOL_SCORE_FORMULA_ID]!.id).toBe(
+      'default',
+    );
   });
 
   it('ships 4 presets (default, mention-heavy, quality-heavy, balanced)', () => {

@@ -23,9 +23,7 @@ import { KolKnownListRepository } from 'kol/reputation/application/ports/kol-kno
 export class DbBackedKnownKolRegistry extends KnownKolPort {
   private static readonly DEFAULT_GOOD_SCORE = 0.9;
 
-  public constructor(
-    private readonly repo: KolKnownListRepository,
-  ) {
+  public constructor(private readonly repo: KolKnownListRepository) {
     super();
   }
 

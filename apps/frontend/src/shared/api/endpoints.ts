@@ -87,4 +87,8 @@ export const ENDPOINTS = {
       `/call-tracking/tracked/${chain}/${address}`,
     gateAllow: '/call-tracking/gate-allow',
   },
+  ingestion: {
+    config: '/ingestion/config',
+    health: '/ingestion/health',
+  },
 } as const;

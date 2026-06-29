@@ -18,8 +18,8 @@ import { ParsingController } from 'token/intake/parsing/api/http/parsing.control
  * Parsing BC module.
  *
  * Per fix-1: CandidatesExtractedHandler was removed. The use case is
- * invoked via direct call from StartKolIngestionUseCase
- * (kol/ingestion/) so that the raw text never crosses an
+ * invoked via direct call from KolIngestionOrchestratorUseCase
+ * (telegram/ingestion/) so that the raw text never crosses an
  * event bus boundary.
  *
  * Emits: `parsing.call.parsed` events for observability (no payload text).

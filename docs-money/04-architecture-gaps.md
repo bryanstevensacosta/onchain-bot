@@ -23,7 +23,7 @@
 **Archivos clave que tocará cada gap**:
 - `apps/backend/src/shared/common/config/app.config.ts:193` — `botToken` ya en config.
 - `apps/backend/src/telegram/shared/infrastructure/senders/mtproto-sender.client.ts:1` — MTProto compartido.
-- `apps/backend/src/kol/ingestion/infrastructure/messaging/` — bus de eventos de ingestion.
+- `apps/backend/src/telegram/ingestion/infrastructure/messaging/` — bus de eventos de ingestion (refactorizado de `kol/ingestion/`).
 
 ---
 

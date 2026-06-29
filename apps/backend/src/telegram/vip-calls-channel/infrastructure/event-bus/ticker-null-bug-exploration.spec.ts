@@ -1,4 +1,3 @@
-import { ChainId } from 'chain/identity/chain-id.vo';
 import { TokenFilteredEvent } from 'token/token-gating/domain/events/token-filtered.event';
 import { CanonicalTokenCallRepository } from 'token/normalization/application/ports/canonical-token-call.repository';
 import { TokenSnapshotRepository } from 'token/enrichment/application/ports/token-snapshot.repository';
@@ -63,19 +62,6 @@ describe('TokenApprovedPublishHandler - Ticker Null Bug Exploration', () => {
    * Mock repository that returns name but no symbol
    * Simulates: Token with name = "Pepe Coin" but symbol = null
    */
-  function mockSnapshotRepoWithNameOnly(): TokenSnapshotRepository {
-    return {
-      findByChainAndAddress: jest.fn().mockResolvedValue({
-        name: 'Pepe Coin',
-        symbol: null,
-        marketCapUsd: 1000000,
-        liquidityUsd: 500000,
-        holders: 1000,
-        primaryPair: '0xabc123',
-      }),
-    } as unknown as TokenSnapshotRepository;
-  }
-
   /**
    * Mock PublishedCallRepository that returns null (no existing publication)
    */

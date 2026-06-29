@@ -1,4 +1,8 @@
-import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
+import {
+  createBrowserRouter,
+  Navigate,
+  RouterProvider,
+} from 'react-router-dom';
 import { RootLayout } from '@/app/layouts/root-layout';
 import { DashboardPage } from '@/pages/dashboard';
 import { TokensExplorerPage } from '@/pages/tokens-explorer';

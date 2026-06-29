@@ -1,4 +1,4 @@
-# KOLs: Default ACTIVE + "Deactivate" label + Remove Block Button
+# KOLs: Default ACTIVE + "Deactivate" label + Remove Block Button (✅ COMPLETE)
 
 ## TL;DR
 

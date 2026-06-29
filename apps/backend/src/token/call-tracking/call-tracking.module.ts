@@ -107,9 +107,7 @@ import { TrackedCallsController } from 'token/call-tracking/api/http/tracked-cal
       provide: TrackedPublishedCallRepository,
       inject: [
         InMemoryTrackedPublishedCallRepository,
-        ...(isDatabaseEnabled()
-          ? [TypeOrmTrackedPublishedCallRepository]
-          : []),
+        ...(isDatabaseEnabled() ? [TypeOrmTrackedPublishedCallRepository] : []),
       ],
       useFactory: (
         inMemory: InMemoryTrackedPublishedCallRepository,

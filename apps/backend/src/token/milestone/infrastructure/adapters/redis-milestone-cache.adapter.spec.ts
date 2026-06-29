@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { RedisMilestoneCacheAdapter } from './redis-milestone-cache.adapter';
 
 interface FakeClient {
@@ -13,17 +12,18 @@ interface FakeRedisService {
   getClient: jest.Mock;
 }
 
-function makeRedis(opts: {
-  enabled: boolean;
-  client?: FakeClient;
-} = { enabled: true }): FakeRedisService {
-  const client: FakeClient =
-    opts.client ?? {
-      smembers: jest.fn(),
-      sadd: jest.fn(),
-      expire: jest.fn(),
-      del: jest.fn(),
-    };
+function makeRedis(
+  opts: {
+    enabled: boolean;
+    client?: FakeClient;
+  } = { enabled: true },
+): FakeRedisService {
+  const client: FakeClient = opts.client ?? {
+    smembers: jest.fn(),
+    sadd: jest.fn(),
+    expire: jest.fn(),
+    del: jest.fn(),
+  };
   return {
     isEnabled: jest.fn().mockReturnValue(opts.enabled),
     getClient: jest.fn().mockReturnValue(client),
@@ -74,7 +74,9 @@ describe('RedisMilestoneCacheAdapter', () => {
 
     it('filters out non-finite values from smembers', async () => {
       const client: FakeClient = {
-        smembers: jest.fn().mockResolvedValue(['2', 'not-a-number', 'NaN', '5']),
+        smembers: jest
+          .fn()
+          .mockResolvedValue(['2', 'not-a-number', 'NaN', '5']),
         sadd: jest.fn(),
         expire: jest.fn(),
         del: jest.fn(),
@@ -93,7 +95,9 @@ describe('RedisMilestoneCacheAdapter', () => {
       };
       const { adapter } = makeAdapter(makeRedis({ enabled: true, client }));
       await adapter.getNotifiedThresholds('solana:abc');
-      expect(client.smembers).toHaveBeenCalledWith('milestone:notified:solana:abc');
+      expect(client.smembers).toHaveBeenCalledWith(
+        'milestone:notified:solana:abc',
+      );
     });
 
     it('returns empty Set + swallows error when smembers throws', async () => {
@@ -208,9 +212,7 @@ describe('RedisMilestoneCacheAdapter', () => {
       };
       const { adapter } = makeAdapter(makeRedis({ enabled: true, client }));
       await adapter.invalidateCall('solana:abc');
-      expect(client.del).toHaveBeenCalledWith(
-        'milestone:notified:solana:abc',
-      );
+      expect(client.del).toHaveBeenCalledWith('milestone:notified:solana:abc');
     });
 
     it('swallows error when del throws', async () => {
@@ -221,9 +223,7 @@ describe('RedisMilestoneCacheAdapter', () => {
         del: jest.fn().mockRejectedValue(new Error('DEL FAILED')),
       };
       const { adapter } = makeAdapter(makeRedis({ enabled: true, client }));
-      await expect(
-        adapter.invalidateCall('call-1'),
-      ).resolves.toBeUndefined();
+      await expect(adapter.invalidateCall('call-1')).resolves.toBeUndefined();
     });
   });
 });

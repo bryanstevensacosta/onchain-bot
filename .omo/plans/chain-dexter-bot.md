@@ -1,4 +1,4 @@
-# Chain Dexter Bot — MVP (Iteración 1) + Roadmap 0→100
+# Chain Dexter Bot — MVP (Iteración 1) + Roadmap 0→100 (✅ COMPLETE)
 
 ## TL;DR
 

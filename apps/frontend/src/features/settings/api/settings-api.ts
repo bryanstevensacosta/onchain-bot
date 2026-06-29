@@ -1,4 +1,9 @@
-import { httpGet, httpPost, httpPatch, httpDelete } from '@/shared/api/http-client';
+import {
+  httpGet,
+  httpPost,
+  httpPatch,
+  httpDelete,
+} from '@/shared/api/http-client';
 import { SETTINGS_ENDPOINTS } from '@/shared/api/settings-endpoints';
 
 // ---- Filter types ----
@@ -49,8 +54,12 @@ export const settingsFilterKeys = {
   list: () => [...settingsFilterKeys.all, 'list'] as const,
 };
 
-export async function fetchAllFilters(): Promise<ReadonlyArray<SettingsFilter>> {
-  return httpGet<ReadonlyArray<SettingsFilter>>(SETTINGS_ENDPOINTS.filters.list);
+export async function fetchAllFilters(): Promise<
+  ReadonlyArray<SettingsFilter>
+> {
+  return httpGet<ReadonlyArray<SettingsFilter>>(
+    SETTINGS_ENDPOINTS.filters.list,
+  );
 }
 
 export async function updateFilter(
@@ -64,7 +73,9 @@ export async function updateFilter(
 }
 
 export async function deleteFilter(id: string): Promise<{ deleted: boolean }> {
-  return httpDelete<{ deleted: boolean }>(SETTINGS_ENDPOINTS.filters.delete(id));
+  return httpDelete<{ deleted: boolean }>(
+    SETTINGS_ENDPOINTS.filters.delete(id),
+  );
 }
 
 // ---- Preset functions ----
@@ -74,8 +85,12 @@ export const settingsPresetKeys = {
   list: () => [...settingsPresetKeys.all, 'list'] as const,
 };
 
-export async function fetchAllPresets(): Promise<ReadonlyArray<SettingsPreset>> {
-  return httpGet<ReadonlyArray<SettingsPreset>>(SETTINGS_ENDPOINTS.presets.list);
+export async function fetchAllPresets(): Promise<
+  ReadonlyArray<SettingsPreset>
+> {
+  return httpGet<ReadonlyArray<SettingsPreset>>(
+    SETTINGS_ENDPOINTS.presets.list,
+  );
 }
 
 export async function fetchActivePreset(): Promise<SettingsPreset | null> {
@@ -92,9 +107,14 @@ export async function createPreset(
 }
 
 export async function applyPreset(id: string): Promise<SettingsPreset> {
-  return httpPost<void, SettingsPreset>(SETTINGS_ENDPOINTS.presets.apply(id), undefined);
+  return httpPost<void, SettingsPreset>(
+    SETTINGS_ENDPOINTS.presets.apply(id),
+    undefined,
+  );
 }
 
 export async function deletePreset(id: string): Promise<{ deleted: boolean }> {
-  return httpDelete<{ deleted: boolean }>(SETTINGS_ENDPOINTS.presets.delete(id));
+  return httpDelete<{ deleted: boolean }>(
+    SETTINGS_ENDPOINTS.presets.delete(id),
+  );
 }

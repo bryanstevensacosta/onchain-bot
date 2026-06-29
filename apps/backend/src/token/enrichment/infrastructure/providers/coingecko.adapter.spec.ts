@@ -1,21 +1,16 @@
 import { CoinGeckoAdapter } from 'token/enrichment/infrastructure/providers/coingecko.adapter';
 
-class FakeConfig {
-  constructor(private readonly cfg: Record<string, unknown>) {}
-  public get<T>(key: string): T {
-    return this.cfg[key] as T;
-  }
-}
-
 describe('CoinGeckoAdapter', () => {
+  const mockService = (info: unknown = null) => ({
+    getTokenContractInfo: jest.fn().mockResolvedValue(info),
+  });
+
   it('exposes name="coingecko"', () => {
-    const cfg = new FakeConfig({ app: { coingecko: { apiKey: 'fake' } } });
-    expect(new CoinGeckoAdapter(cfg).name).toBe('coingecko');
+    expect(new CoinGeckoAdapter(mockService()).name).toBe('coingecko');
   });
 
   it('returns null when COINGECKO_API_KEY is missing', async () => {
-    const cfg = new FakeConfig({ app: { coingecko: { apiKey: '' } } });
-    const adapter = new CoinGeckoAdapter(cfg);
+    const adapter = new CoinGeckoAdapter(mockService());
     expect(
       await adapter.fetch(
         { value: 'ethereum' },
@@ -25,10 +20,11 @@ describe('CoinGeckoAdapter', () => {
   });
 
   it('returns null for unsupported chains', async () => {
-    const cfg = new FakeConfig({ app: { coingecko: { apiKey: 'fake' } } });
-    const adapter = new CoinGeckoAdapter(cfg);
+    const service = mockService();
+    const adapter = new CoinGeckoAdapter(service);
     expect(
       await adapter.fetch({ value: 'polkadot' } as never, 'addr'),
     ).toBeNull();
+    expect(service.getTokenContractInfo).not.toHaveBeenCalled();
   });
 });

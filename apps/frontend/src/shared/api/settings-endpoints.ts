@@ -1,7 +1,8 @@
 export const SETTINGS_ENDPOINTS = {
   filters: {
     list: '/settings/filters',
-    byType: (type: string) => `/settings/filters?type=${encodeURIComponent(type)}`,
+    byType: (type: string) =>
+      `/settings/filters?type=${encodeURIComponent(type)}`,
     update: (id: string) => `/settings/filters/${id}`,
     create: '/settings/filters',
     delete: (id: string) => `/settings/filters/${id}`,

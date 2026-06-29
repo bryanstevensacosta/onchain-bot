@@ -2,7 +2,11 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { isDatabaseEnabled } from 'shared/common/persistence/database.module';
-import { KolIngestionModule } from 'kol/ingestion/kol-ingestion.module';
+import { ExtractionModule } from 'token/intake/extraction/extraction.module';
+import { ParsingModule } from 'token/intake/parsing/parsing.module';
+import { KolEventPublisher } from 'kol/identity/application/ports/kol-event.publisher';
+import { InProcessKolEventPublisher } from 'kol/identity/infrastructure/messaging/in-process-kol-event.publisher';
+import { KolIngestionOrchestratorUseCase } from 'kol/identity/application/handlers/kol-ingestion-orchestrator.use-case';
 import { KolRepository } from 'kol/identity/application/ports/kol.repository';
 import { ResolvedKolMetadataRepository } from 'kol/identity/application/ports/resolved-kol-metadata.repository';
 import { RegisterKolUseCase } from 'kol/identity/application/handlers/register-kol.use-case';
@@ -20,15 +24,15 @@ import type { AppConfig } from 'shared/common/config/app.config';
 /**
  * Identity BC module (Fase 1 + Fase 4 of the kol-refactor plan).
  *
- * Owns the KOL aggregate, lifecycle (ACTIVE/DORMANT/BLACKLISTED), and
- * the resolved-metadata cache. Imports `KolIngestionModule` for the
- * `KolRepository` (re-exposed), `KolEventPublisher`, `KolListenerPort`,
- * and `StartKolIngestionUseCase`.
+ * Owns the KOL aggregate, lifecycle (ACTIVE/DORMANT/BLACKLISTED), the
+ * resolved-metadata cache, the bridge use case, and the event publisher.
+ * Telegram ingestion engine is provided by `TelegramIngestionModule` (global).
  */
 @Module({
   imports: [
     ConfigModule,
-    KolIngestionModule,
+    ExtractionModule,
+    ParsingModule,
     ...(isDatabaseEnabled() ? [TypeOrmModule.forFeature([KolEntity])] : []),
   ],
   controllers: [KolController],
@@ -68,7 +72,17 @@ import type { AppConfig } from 'shared/common/config/app.config';
       },
     },
     KolSeeder,
+    KolIngestionOrchestratorUseCase,
+    {
+      provide: KolEventPublisher,
+      useClass: InProcessKolEventPublisher,
+    },
   ],
-  exports: [KolRepository, ResolvedKolMetadataRepository],
+  exports: [
+    KolRepository,
+    ResolvedKolMetadataRepository,
+    KolEventPublisher,
+    KolIngestionOrchestratorUseCase,
+  ],
 })
 export class IdentityModule {}

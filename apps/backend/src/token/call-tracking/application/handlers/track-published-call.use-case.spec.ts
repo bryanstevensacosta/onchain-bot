@@ -4,7 +4,6 @@ import {
   TrackedPublishedCallRecord,
 } from '../ports/tracked-published-call.repository';
 import { PublishedCallRepository } from 'telegram/shared/application/ports/published-call.repository';
-import { ChainId } from 'chain/identity/chain-id.vo';
 import { PublishedCall } from 'telegram/shared/domain/entities/published-call.entity';
 
 class StubTrackedRepo extends TrackedPublishedCallRepository {
@@ -54,7 +53,6 @@ function makePublishedCall(opts: {
   mcAtCall: number | null;
   channelId?: string;
 }) {
-  const chain = ChainId.fromString('solana');
   const call = Object.create(PublishedCall.prototype);
   Object.defineProperty(call, 'mcAtCall', { get: () => opts.mcAtCall });
   Object.defineProperty(call, 'publishedChannelIds', {

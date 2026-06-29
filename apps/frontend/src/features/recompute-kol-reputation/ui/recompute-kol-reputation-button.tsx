@@ -1,5 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { reputationKeys, recomputeKolReputation } from '@/entities/kol-reputation/api/reputation-queries';
+import {
+  reputationKeys,
+  recomputeKolReputation,
+} from '@/entities/kol-reputation/api/reputation-queries';
 import type { KolScoreFormula } from '@/entities/kol-reputation/model/kol-score-formula';
 import { Button } from '@/shared/ui';
 

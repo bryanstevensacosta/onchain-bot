@@ -1,4 +1,4 @@
-# Fix Market Snapshots + [object Object] in Tokens Explorer
+# Fix Market Snapshots + [object Object] in Tokens Explorer (✅ COMPLETE)
 
 ## TL;DR
 

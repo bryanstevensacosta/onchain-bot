@@ -58,4 +58,10 @@ export default tseslint.config(
       "prettier/prettier": ["error", { endOfLine: "auto" }],
     },
   },
+  {
+    files: ['**/*.spec.ts', '**/*.spec.ts.bak'],
+    rules: {
+      '@typescript-eslint/unbound-method': 'off',
+    },
+  },
 );

@@ -6,7 +6,6 @@ import {
   applyPreset,
   deletePreset,
   settingsPresetKeys,
-  type SettingsPreset,
 } from '@/features/settings/api/settings-api';
 import { Button, Card } from '@/shared/ui';
 
@@ -19,7 +18,11 @@ export function PresetsTab(): React.ReactElement {
 
   const createMut = useMutation({
     mutationFn: (body: { name: string; description?: string }) =>
-      createPreset({ name: body.name, description: body.description, snapshot: {} }),
+      createPreset({
+        name: body.name,
+        description: body.description,
+        snapshot: {},
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: settingsPresetKeys.all }),
   });
   const applyMut = useMutation({
@@ -34,7 +37,8 @@ export function PresetsTab(): React.ReactElement {
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
 
-  if (isLoading) return <Card className="text-xs text-slate-500">Loading presets…</Card>;
+  if (isLoading)
+    return <Card className="text-xs text-slate-500">Loading presets…</Card>;
 
   const presets = data ?? [];
 
@@ -46,7 +50,9 @@ export function PresetsTab(): React.ReactElement {
         </h3>
         <div className="flex gap-2 items-end">
           <div>
-            <label className="block text-[11px] text-slate-500 mb-0.5">Name</label>
+            <label className="block text-[11px] text-slate-500 mb-0.5">
+              Name
+            </label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -70,7 +76,10 @@ export function PresetsTab(): React.ReactElement {
             size="sm"
             disabled={!name.trim() || createMut.isPending}
             onClick={() => {
-              createMut.mutate({ name: name.trim(), description: desc.trim() || undefined });
+              createMut.mutate({
+                name: name.trim(),
+                description: desc.trim() || undefined,
+              });
               setName('');
               setDesc('');
             }}
@@ -81,7 +90,9 @@ export function PresetsTab(): React.ReactElement {
       </Card>
 
       <Card>
-        <h3 className="text-sm font-bold text-slate-200 uppercase mb-2">Presets</h3>
+        <h3 className="text-sm font-bold text-slate-200 uppercase mb-2">
+          Presets
+        </h3>
         <table className="w-full text-xs text-left">
           <thead>
             <tr className="text-slate-500 border-b border-slate-700">
@@ -94,14 +105,19 @@ export function PresetsTab(): React.ReactElement {
           <tbody>
             {presets.length === 0 && (
               <tr>
-                <td colSpan={4} className="py-4 text-center text-slate-600 italic">
+                <td
+                  colSpan={4}
+                  className="py-4 text-center text-slate-600 italic"
+                >
                   No presets yet
                 </td>
               </tr>
             )}
             {presets.map((p) => (
               <tr key={p.id} className="border-b border-slate-800/50">
-                <td className="py-1.5 pr-2 font-mono text-slate-300">{p.name}</td>
+                <td className="py-1.5 pr-2 font-mono text-slate-300">
+                  {p.name}
+                </td>
                 <td className="py-1.5 pr-2">
                   {p.isActive ? (
                     <span className="text-green-400">active</span>

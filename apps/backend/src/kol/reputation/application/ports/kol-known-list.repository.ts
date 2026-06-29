@@ -8,10 +8,15 @@ import type { KolKnownListKind } from 'kol/reputation/infrastructure/persistence
  * (add/remove/list operations).
  */
 export abstract class KolKnownListRepository {
-  public abstract isKnown(kolId: string, kind: KolKnownListKind): Promise<boolean>;
-  public abstract list(kind: KolKnownListKind): Promise<ReadonlyArray<{
-    kolId: string;
-    reason: string | null;
-    addedAt: Date;
-  }>>;
+  public abstract isKnown(
+    kolId: string,
+    kind: KolKnownListKind,
+  ): Promise<boolean>;
+  public abstract list(kind: KolKnownListKind): Promise<
+    ReadonlyArray<{
+      kolId: string;
+      reason: string | null;
+      addedAt: Date;
+    }>
+  >;
 }

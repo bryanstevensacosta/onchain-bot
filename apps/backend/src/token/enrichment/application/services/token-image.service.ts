@@ -32,12 +32,6 @@ const PLACEHOLDER_PALETTE = [
   'teal',
   'orange',
 ] as const;
-type PlaceholderColor = (typeof PLACEHOLDER_PALETTE)[number];
-
-function placeholderBgClass(color: PlaceholderColor, shade = 700): string {
-  return `bg-${color}-${shade}`;
-}
-
 @Injectable()
 export class TokenImageService {
   private readonly logger = new Logger(TokenImageService.name);

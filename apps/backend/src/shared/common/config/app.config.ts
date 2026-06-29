@@ -52,6 +52,7 @@ export interface AppConfig {
 
   mobula: { apiKey: string };
   moralis: { apiKey: string };
+  coinmarketcap: { apiKey: string };
 
   pumpdev: {
     apiKey: string;
@@ -219,6 +220,9 @@ export const appConfig = registerAs(
     moralis: {
       apiKey: process.env.MORALIS_API_KEY ?? '',
     },
+    coinmarketcap: {
+      apiKey: process.env.COINMARKETCAP_API_KEY ?? '',
+    },
 
     pumpdev: {
       apiKey: process.env.PUMPDEV_API_KEY ?? '',
@@ -328,10 +332,12 @@ export const appConfig = registerAs(
       ),
     },
     kolReputation: {
-      schedulerCron: process.env.KOL_REPUTATION_SCHEDULER_CRON ?? '*/15 * * * *',
+      schedulerCron:
+        process.env.KOL_REPUTATION_SCHEDULER_CRON ?? '*/15 * * * *',
       schedulerEnabled:
-        (process.env.KOL_REPUTATION_SCHEDULER_ENABLED ?? 'true').toLowerCase() ===
-        'true',
+        (
+          process.env.KOL_REPUTATION_SCHEDULER_ENABLED ?? 'true'
+        ).toLowerCase() === 'true',
     },
 
     database: {

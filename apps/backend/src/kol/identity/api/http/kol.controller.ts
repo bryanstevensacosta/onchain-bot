@@ -3,7 +3,7 @@ import { RegisterKolUseCase } from 'kol/identity/application/handlers/register-k
 import { GetKolUseCase } from 'kol/identity/application/handlers/get-kol.use-case';
 import { ListKolsUseCase } from 'kol/identity/application/handlers/list-kols.use-case';
 import { SetKolLifecycleUseCase } from 'kol/identity/application/handlers/set-kol-lifecycle.use-case';
-import { StartKolIngestionUseCase } from 'kol/ingestion/application/handlers/start-kol-ingestion.use-case';
+import { KolIngestionOrchestratorUseCase } from 'kol/identity/application/handlers/kol-ingestion-orchestrator.use-case';
 import type { RegisterKolInput } from 'kol/identity/api/input/register-kol.input';
 import type { KolView } from 'kol/identity/application/mappers/kol.mapper';
 import type { KolLifecycleTransition } from 'kol/identity/application/handlers/set-kol-lifecycle.use-case';
@@ -12,8 +12,7 @@ import type { KolLifecycleTransition } from 'kol/identity/application/handlers/s
  * HTTP adapter for Telegram KOL ingestion management.
  * Inbound port (REST API) — exposes KOL CRUD + lifecycle use cases over HTTP.
  *
- * Note: `StartKolIngestionUseCase` lives in `kol/ingestion/` and is
- * invoked programmatically (no own controller yet) — identity/ is purely CRUD.
+ * The ingestion orchestrator is provided by `TelegramIngestionModule` (global).
  *
  * Routes (Fase 1 of the kol-refactor plan):
  *   GET    /kol/identity/kols
@@ -29,7 +28,7 @@ export class KolController {
     private readonly getKol: GetKolUseCase,
     private readonly listKols: ListKolsUseCase,
     private readonly setLifecycle: SetKolLifecycleUseCase,
-    private readonly startListening: StartKolIngestionUseCase,
+    private readonly startListening: KolIngestionOrchestratorUseCase,
   ) {}
 
   @Get('kols')

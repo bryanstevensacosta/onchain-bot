@@ -1,7 +1,5 @@
 import { CallPerformance } from 'token/call-tracking/domain/value-objects/call-performance.vo';
-import {
-  KolReputation,
-} from 'kol/reputation/domain/value-objects/kol-reputation.vo';
+import { KolReputation } from 'kol/reputation/domain/value-objects/kol-reputation.vo';
 
 /**
  * Legacy pure function: compute KolReputation from a list of call

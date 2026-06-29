@@ -1,18 +1,14 @@
 import { BirdeyeAdapter } from 'token/enrichment/infrastructure/providers/birdeye.adapter';
 
-class FakeConfig {
-  constructor(private readonly cfg: Record<string, unknown>) {}
-  public get<T>(key: string): T {
-    return this.cfg[key] as T;
-  }
-}
-
 describe('BirdeyeAdapter', () => {
   const SOLANA = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+  const mockService = (overview: unknown = null) => ({
+    getTokenOverview: jest.fn().mockResolvedValue(overview),
+  });
 
   it('returns null for non-Solana chains without making HTTP call', async () => {
-    const cfg = new FakeConfig({ app: { birdeye: { apiKey: 'fake-key' } } });
-    const adapter = new BirdeyeAdapter(cfg);
+    const service = mockService();
+    const adapter = new BirdeyeAdapter(service);
 
     const result = await adapter.fetch(
       { value: 'ethereum' },
@@ -20,11 +16,11 @@ describe('BirdeyeAdapter', () => {
     );
 
     expect(result).toBeNull();
+    expect(service.getTokenOverview).not.toHaveBeenCalled();
   });
 
   it('returns null when BIRDEYE_API_KEY is missing', async () => {
-    const cfg = new FakeConfig({ app: { birdeye: { apiKey: '' } } });
-    const adapter = new BirdeyeAdapter(cfg);
+    const adapter = new BirdeyeAdapter(mockService());
 
     const result = await adapter.fetch({ value: 'solana' }, SOLANA);
 
@@ -32,8 +28,7 @@ describe('BirdeyeAdapter', () => {
   });
 
   it('exposes name="birdeye"', () => {
-    const cfg = new FakeConfig({ app: { birdeye: { apiKey: 'fake-key' } } });
-    const adapter = new BirdeyeAdapter(cfg);
+    const adapter = new BirdeyeAdapter(mockService());
 
     expect(adapter.name).toBe('birdeye');
   });

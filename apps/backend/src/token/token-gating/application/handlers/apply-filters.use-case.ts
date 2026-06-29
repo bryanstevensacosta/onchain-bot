@@ -162,4 +162,3 @@ export class ApplyFiltersUseCase {
     return FilterDecisionMapper.toView(decision);
   }
 }
-

@@ -70,9 +70,7 @@ describe('TokenImage — URL cycling', () => {
   });
 
   it('renders the deterministic placeholder after the last URL fails', () => {
-    render(
-      <TokenImage chain="solana" address="abc" imageUrls={failing()} />,
-    );
+    render(<TokenImage chain="solana" address="abc" imageUrls={failing()} />);
     fireEvent.error(screen.getByRole('img'));
     expect(screen.queryByRole('img')).toBeNull();
     expect(screen.getByLabelText('abc')).toBeInTheDocument();
@@ -119,11 +117,7 @@ describe('TokenImage — placeholder initial source', () => {
 
   it('falls back to address when both ticker and name are null', () => {
     render(
-      <TokenImage
-        chain="solana"
-        address="DeadBeef"
-        imageUrls={failing()}
-      />,
+      <TokenImage chain="solana" address="DeadBeef" imageUrls={failing()} />,
     );
     fireEvent.error(screen.getByRole('img'));
     expect(screen.getByText('D')).toBeInTheDocument();
@@ -164,7 +158,8 @@ describe('TokenImage — size prop', () => {
 });
 
 describe('TokenImage — placeholder determinism', () => {
-  const paletteRegex = /bg-(rose|amber|emerald|sky|violet|pink|teal|orange)-700/;
+  const paletteRegex =
+    /bg-(rose|amber|emerald|sky|violet|pink|teal|orange)-700/;
 
   it('produces the same palette class for the same address across renders', () => {
     const { unmount } = render(

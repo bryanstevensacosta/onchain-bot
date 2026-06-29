@@ -45,7 +45,10 @@ export class RecomputeKolReputationUseCase {
       calls.map((c) => ({
         chain: c.identity.chain.value,
         address: c.identity.address.value,
-        sources: c.sources.map((s) => ({ kolId: s.kolId, mentionCount: s.messageIds.length })),
+        sources: c.sources.map((s) => ({
+          kolId: s.kolId,
+          mentionCount: s.messageIds.length,
+        })),
         lastSeenAt: c.lastSeenAt,
       })),
       input.formulaId ?? DEFAULT_KOL_SCORE_FORMULA_ID,

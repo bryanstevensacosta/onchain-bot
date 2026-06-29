@@ -9,12 +9,12 @@ import {
   KolView,
 } from 'kol/identity/application/mappers/kol.mapper';
 import { KolRepository } from 'kol/identity/application/ports/kol.repository';
-import { KolEventPublisher } from 'kol/ingestion/application/ports/kol-event.publisher';
+import { KolEventPublisher } from 'kol/identity/application/ports/kol-event.publisher';
 
 /**
  * Use case: register a new Telegram KOL for ingestion.
  *
- * Publishes domain events via `KolEventPublisher` (owned by `kol/ingestion/`).
+ * Publishes domain events via `KolEventPublisher` (owned by `kol/identity/`).
  */
 @Injectable()
 export class RegisterKolUseCase {

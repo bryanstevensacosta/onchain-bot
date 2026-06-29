@@ -77,7 +77,7 @@ export const DEFAULT_KOL_SCORE_PRESET: KolScorePreset = Object.freeze({
   name: 'Default',
   description:
     'Hardcoded fallback — used when settings_presets has no active row. Mirrors the pre-Slice A values.',
-  formula: KOL_SCORE_FORMULAS[DEFAULT_KOL_SCORE_FORMULA_ID]!,
+  formula: KOL_SCORE_FORMULAS[DEFAULT_KOL_SCORE_FORMULA_ID],
   outcomeBuckets: Object.freeze({
     x2: 2,
     x5: 5,
@@ -117,20 +117,33 @@ export function buildKolScorePreset(
   id: string,
   name: string,
   description: string,
-  partial: Partial<Omit<KolScorePreset, 'id' | 'name' | 'description' | 'formula'>> & {
+  partial: Partial<
+    Omit<KolScorePreset, 'id' | 'name' | 'description' | 'formula'>
+  > & {
     formulaId?: string;
   },
 ): KolScorePreset {
-  const formula = KOL_SCORE_FORMULAS[partial.formulaId ?? DEFAULT_KOL_SCORE_FORMULA_ID]
-    ?? KOL_SCORE_FORMULAS[DEFAULT_KOL_SCORE_FORMULA_ID]!;
+  const formula =
+    KOL_SCORE_FORMULAS[partial.formulaId ?? DEFAULT_KOL_SCORE_FORMULA_ID] ??
+    KOL_SCORE_FORMULAS[DEFAULT_KOL_SCORE_FORMULA_ID];
 
   const outcomeBuckets = {
-    x2: partial.outcomeBuckets?.x2 ?? DEFAULT_KOL_SCORE_PRESET.outcomeBuckets.x2,
-    x5: partial.outcomeBuckets?.x5 ?? DEFAULT_KOL_SCORE_PRESET.outcomeBuckets.x5,
-    x10: partial.outcomeBuckets?.x10 ?? DEFAULT_KOL_SCORE_PRESET.outcomeBuckets.x10,
-    x50: partial.outcomeBuckets?.x50 ?? DEFAULT_KOL_SCORE_PRESET.outcomeBuckets.x50,
-    rug50: partial.outcomeBuckets?.rug50 ?? DEFAULT_KOL_SCORE_PRESET.outcomeBuckets.rug50,
-    rug80: partial.outcomeBuckets?.rug80 ?? DEFAULT_KOL_SCORE_PRESET.outcomeBuckets.rug80,
+    x2:
+      partial.outcomeBuckets?.x2 ?? DEFAULT_KOL_SCORE_PRESET.outcomeBuckets.x2,
+    x5:
+      partial.outcomeBuckets?.x5 ?? DEFAULT_KOL_SCORE_PRESET.outcomeBuckets.x5,
+    x10:
+      partial.outcomeBuckets?.x10 ??
+      DEFAULT_KOL_SCORE_PRESET.outcomeBuckets.x10,
+    x50:
+      partial.outcomeBuckets?.x50 ??
+      DEFAULT_KOL_SCORE_PRESET.outcomeBuckets.x50,
+    rug50:
+      partial.outcomeBuckets?.rug50 ??
+      DEFAULT_KOL_SCORE_PRESET.outcomeBuckets.rug50,
+    rug80:
+      partial.outcomeBuckets?.rug80 ??
+      DEFAULT_KOL_SCORE_PRESET.outcomeBuckets.rug80,
   };
   if (outcomeBuckets.x2 <= 1) {
     throw new InvalidKolScorePreset('x2 must be > 1');
@@ -147,42 +160,50 @@ export function buildKolScorePreset(
   if (outcomeBuckets.rug50 <= 0 || outcomeBuckets.rug50 >= 1) {
     throw new InvalidKolScorePreset('rug50 must be in (0, 1)');
   }
-  if (outcomeBuckets.rug80 <= 0 || outcomeBuckets.rug80 >= outcomeBuckets.rug50) {
+  if (
+    outcomeBuckets.rug80 <= 0 ||
+    outcomeBuckets.rug80 >= outcomeBuckets.rug50
+  ) {
     throw new InvalidKolScorePreset('rug80 must be in (0, rug50)');
   }
 
   const whitelistMultipliers = {
     knownGood:
-      partial.whitelistMultipliers?.knownGood
-      ?? DEFAULT_KOL_SCORE_PRESET.whitelistMultipliers.knownGood,
+      partial.whitelistMultipliers?.knownGood ??
+      DEFAULT_KOL_SCORE_PRESET.whitelistMultipliers.knownGood,
     knownBad:
-      partial.whitelistMultipliers?.knownBad
-      ?? DEFAULT_KOL_SCORE_PRESET.whitelistMultipliers.knownBad,
+      partial.whitelistMultipliers?.knownBad ??
+      DEFAULT_KOL_SCORE_PRESET.whitelistMultipliers.knownBad,
   };
   if (whitelistMultipliers.knownGood < 0 || whitelistMultipliers.knownBad < 0) {
-    throw new InvalidKolScorePreset('whitelist multipliers must be non-negative');
+    throw new InvalidKolScorePreset(
+      'whitelist multipliers must be non-negative',
+    );
   }
 
   const confidenceThresholds = {
-    low: partial.confidenceThresholds?.low ?? DEFAULT_KOL_SCORE_PRESET.confidenceThresholds.low,
+    low:
+      partial.confidenceThresholds?.low ??
+      DEFAULT_KOL_SCORE_PRESET.confidenceThresholds.low,
     medium:
-      partial.confidenceThresholds?.medium
-      ?? DEFAULT_KOL_SCORE_PRESET.confidenceThresholds.medium,
+      partial.confidenceThresholds?.medium ??
+      DEFAULT_KOL_SCORE_PRESET.confidenceThresholds.medium,
     high:
-      partial.confidenceThresholds?.high
-      ?? DEFAULT_KOL_SCORE_PRESET.confidenceThresholds.high,
+      partial.confidenceThresholds?.high ??
+      DEFAULT_KOL_SCORE_PRESET.confidenceThresholds.high,
   };
   if (
-    confidenceThresholds.low <= 0
-    || confidenceThresholds.low >= confidenceThresholds.medium
-    || confidenceThresholds.medium >= confidenceThresholds.high
+    confidenceThresholds.low <= 0 ||
+    confidenceThresholds.low >= confidenceThresholds.medium ||
+    confidenceThresholds.medium >= confidenceThresholds.high
   ) {
     throw new InvalidKolScorePreset(
       'confidence thresholds must be strictly increasing: low < medium < high',
     );
   }
 
-  const knownGoodScore = partial.knownGoodScore ?? DEFAULT_KOL_SCORE_PRESET.knownGoodScore;
+  const knownGoodScore =
+    partial.knownGoodScore ?? DEFAULT_KOL_SCORE_PRESET.knownGoodScore;
   if (knownGoodScore < 0 || knownGoodScore > 1) {
     throw new InvalidKolScorePreset('knownGoodScore must be in [0, 1]');
   }

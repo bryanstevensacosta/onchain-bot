@@ -1,21 +1,18 @@
 import { MoralisAdapter } from 'token/enrichment/infrastructure/providers/moralis.adapter';
 
-class FakeConfig {
-  constructor(private readonly cfg: Record<string, unknown>) {}
-  public get<T>(key: string): T {
-    return this.cfg[key] as T;
-  }
-}
-
 describe('MoralisAdapter', () => {
+  const mockService = () => ({
+    getTokenAnalytics: jest.fn().mockResolvedValue(null),
+    getTokenHolders: jest.fn().mockResolvedValue(null),
+    getTokenMetadata: jest.fn().mockResolvedValue(null),
+  });
+
   it('exposes name="moralis"', () => {
-    const cfg = new FakeConfig({ app: { moralis: { apiKey: 'fake' } } });
-    expect(new MoralisAdapter(cfg).name).toBe('moralis');
+    expect(new MoralisAdapter(mockService()).name).toBe('moralis');
   });
 
   it('returns null when MORALIS_API_KEY is missing', async () => {
-    const cfg = new FakeConfig({ app: { moralis: { apiKey: '' } } });
-    const adapter = new MoralisAdapter(cfg);
+    const adapter = new MoralisAdapter(mockService());
     expect(
       await adapter.fetch(
         { value: 'ethereum' },
@@ -25,8 +22,7 @@ describe('MoralisAdapter', () => {
   });
 
   it('returns null for Solana (Moralis is EVM-only)', async () => {
-    const cfg = new FakeConfig({ app: { moralis: { apiKey: 'fake' } } });
-    const adapter = new MoralisAdapter(cfg);
+    const adapter = new MoralisAdapter(mockService());
     expect(
       await adapter.fetch(
         { value: 'solana' },

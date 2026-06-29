@@ -1,6 +1,4 @@
-import type {
-  KolReputationMetrics,
-} from 'kol/reputation/domain/value-objects/kol-reputation-metrics.vo';
+import type { KolReputationMetrics } from 'kol/reputation/domain/value-objects/kol-reputation-metrics.vo';
 
 interface KolMetricsCanonicalCallSource {
   readonly kolId: string | number;
@@ -30,9 +28,8 @@ export class KolMetricsCalculator {
     calls: ReadonlyArray<KolMetricsCanonicalCall>,
   ): KolReputationMetrics {
     const totalMentions = KolMetricsCalculator.countMentions(kolId, calls);
-    const mentionScore = KolMetricsCalculator.computeMentionScore(
-      totalMentions,
-    );
+    const mentionScore =
+      KolMetricsCalculator.computeMentionScore(totalMentions);
 
     // Outcome counts stay 0 until call/lifecycle BC ships.
     // The shape is in place so adding them later is a code change,
@@ -94,7 +91,8 @@ export class KolMetricsCalculator {
     x10Count: number,
     x50Count: number,
   ): number {
-    const totalWeighted = x2Count * 1 + x5Count * 2 + x10Count * 3 + x50Count * 5;
+    const totalWeighted =
+      x2Count * 1 + x5Count * 2 + x10Count * 3 + x50Count * 5;
     if (totalWeighted === 0) return 0.5;
     const totalCalls = x2Count + x5Count + x10Count + x50Count;
     const rate = totalWeighted / Math.max(1, totalCalls);

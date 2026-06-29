@@ -35,7 +35,7 @@ describe('TrackingCronScheduler', () => {
     );
 
     const first = scheduler.tick();
-    const second = await scheduler.tick();
+    await scheduler.tick();
     expect(updateUseCase.execute).toHaveBeenCalledTimes(1);
     resolveExecute();
     await first;

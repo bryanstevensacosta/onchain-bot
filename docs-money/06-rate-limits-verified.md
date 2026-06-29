@@ -11,16 +11,16 @@
 
 | Límite | Valor revisado | Fuente |
 |---|---|---|
-| **Channels/grupos por cuenta MTProto** | **30–50 máx** (no 500) | [tginfo.me](https://limits.tginfo.me/en) + [gramjs#673](https://github.com/gram-js/gramjs/issues/673) |
+| **Channels/grupos por cuenta MTProto** | **50 máx** (no 500) | [tginfo.me](https://limits.tginfo.me/en) + [gramjs#673](https://github.com/gram-js/gramjs/issues/673) |
 | **getMessages/seg** | **2–3/seg** (no 1.5) | [gramio.dev/rate-limits](https://gramio.dev/rate-limits) |
 | **Backfill batch** | **100 msgs, 60s delay** | Conservador + empírico |
 | **FLOOD_WAIT backoff** | **Exponencial 5s → 1h** | [core.telegram.org/api/errors](https://core.telegram.org/api/errors) |
-| **Sleep window** | **6–8h random/día** | Behavior detection, no documentado |
+| **Sleep window** | **6–8h random/día** (UTC 4-10 base) | Behavior detection, no documentado |
 | **Jitter en intervals** | **±30% obligatorio** | Behavior detection, no documentado |
-| **Concurrent ops/cuenta** | **≤ 3** | Empirismo |
-| **Cuentas para tu caso (46 KOLs)** | **2–3 cuentas** | 46 / 30–50 = 1, +safety = 2–3 |
+| **Staggered polling** | **(pollInterval/N) * index + jitter** | Anti-bot: no polls simultáneos |
+| **Cuentas para tu caso (46 KOLs)** | **1 cuenta** (con staggered + sleep + backoff) | Decisión: 46 < 50 max, mitigado con mimicry |
 
-**El error que cometí antes**: fui demasiado conservador en **volumen** (12 KOLs/cuenta cuando el hard cap es 500). Telegram **sí publica** límites de envío pero **no publica** los límites de read/ingest — ahí es donde está el riesgo real.
+**Decisión final**: 1 cuenta MTProto con 46 KOLs (50 max). El riesgo se mitiga con staggered polling (polls secuenciales con jitter), sleep window (UTC 4-10 con ±30min rotación diaria), y FLOOD_WAIT backoff exponencial. Si se exceden 5 intentos, la cuenta se pausa 1h automáticamente.
 
 ---
 
@@ -123,75 +123,33 @@ Telegram deliberadamente NO publica:
 
 ### 4.1 Por cuenta MTProto
 
-| Parámetro | Valor | Fuente que lo soporta |
-|---|---|---|
-| `maxChannelsPerAccount` | **30** (con margen) | [tginfo.me](https://limits.tginfo.me/en) hard cap 500 ÷ 10 margen seguridad ÷ 1.5 poller |
-| `maxGetMessagesPerSecond` | **2.5** | [gramio.dev](https://gramio.dev/rate-limits) community estimate |
-| `maxConcurrentOpsPerAccount` | **3** | Empirismo (no fuente oficial) |
-| `minPollIntervalMs` | **30_000** (30s) | Para canales activos (SpyDefi/KOLscope) |
-| `maxPollIntervalMs` | **600_000** (10min) | Para canales digest (CallAnalyser-style) |
-| `jitterPercent` | **0.30** (±30%) | Behavior mimicry, no documentado pero estándar community |
-| `backfillBatchSize` | **100** | Empirismo |
-| `backfillBatchDelayMs` | **60_000** (60s) | Empirismo |
-| `sleepWindow.enabled` | **true** | Empirismo + community consensus |
-| `sleepWindow.hoursPerDay` | **6–8** random | Empirismo |
+| Parámetro (env var) | Clase / método | Valor real | Fuente |
+|---|---|---|---|
+| `maxChannels` (`INGESTION_MAX_CHANNELS`) | `IngestionSafetyConfig` | **50** | [tginfo.me](https://limits.tginfo.me/en) hard cap 500 ÷ 10 margen |
+| `pollIntervalBaseMs` (`INGESTION_POLL_INTERVAL_BASE_MS`) | `IngestionSafetyConfig` | **90_000 (90s)** | Empírico — base para staggered: 90s / N canales |
+| `jitterPercent` (`INGESTION_JITTER_PERCENT`) | `IngestionSafetyConfig` | **0.30 (±30%)** | Behavior mimicry, estándar community |
+| `sleepStartUtc` (`INGESTION_SLEEP_START_UTC`) | `IngestionSafetyConfig` + `SleepWindowService` | **4** (UTC 4:00) | Behavior detection |
+| `sleepEndUtc` (`INGESTION_SLEEP_END_UTC`) | `IngestionSafetyConfig` + `SleepWindowService` | **10** (UTC 10:00) | Behavior detection |
+| `floodInitialMs` (`INGESTION_FLOOD_INITIAL_MS`) | `IngestionSafetyConfig` + `FloodWaitHandlerService` | **5_000 (5s)** | [core.telegram.org/api/errors](https://core.telegram.org/api/errors) |
+| `floodMultiplier` (`INGESTION_FLOOD_MULTIPLIER`) | `IngestionSafetyConfig` + `FloodWaitHandlerService` | **2** (exponencial) | [core.telegram.org/api/errors](https://core.telegram.org/api/errors) |
+| `floodMaxMs` (`INGESTION_FLOOD_MAX_MS`) | `IngestionSafetyConfig` + `FloodWaitHandlerService` | **3_600_000 (1h)** | [core.telegram.org/api/errors](https://core.telegram.org/api/errors) |
+| `floodMaxAttempts` (`INGESTION_FLOOD_MAX_ATTEMPTS`) | `IngestionSafetyConfig` + `FloodWaitHandlerService` | **5** | Empírico — tras 5, auto-pausa 1h |
 
-### 4.2 FLOOD_WAIT backoff (respeta código 420 oficial)
+### 4.2 FLOOD_WAIT backoff (respeta código 420 oficial) ✅ IMPLEMENTADO
 
-```typescript
-// apps/backend/src/kol/ingestion/infrastructure/config/flood-wait-backoff.ts
+**Ruta real**: `apps/backend/src/telegram/ingestion/infrastructure/services/flood-wait-handler.service.ts`
+**Config env vars**: `INGESTION_FLOOD_INITIAL_MS`, `INGESTION_FLOOD_MULTIPLIER`, `INGESTION_FLOOD_MAX_MS`, `INGESTION_FLOOD_MAX_ATTEMPTS`
 
-import { FloodWaitError } from 'telegram/errors';
+Los valores configurados (5s → exponencial ×2 → 1h tope, max 5 intentos) están en `IngestionSafetyConfig` y son operados por `FloodWaitHandlerService.withRetry()`. El servicio también:
+- Extrae `seconds` del error FLOOD_WAIT (busca `err.seconds` numérico o lo parsea del mensaje).
+- Elige `max(seconds_solicitados, backoff_calculado)` como espera real.
+- **Auto-pausa la cuenta 1h** si se alcanzan 5 intentos consecutivos (`isPaused` / `pausedUntilDate`).
+- Expone `FloodWaitCounterService` (contador in-memory con TTL 24h) para el health endpoint.
 
-export const FLOOD_WAIT_BACKOFF = {
-  // Telegram código 420 (verificado en core.telegram.org/api/errors)
-  initialMs:          5_000,      // 5s antes del primer reintento
-  multiplier:         2,          // 5s → 10s → 20s → 40s → 80s → 160s...
-  maxMs:              3_600_000,  // 1h tope
-  maxAttempts:        5,          // tras 5 intentos, parar la cuenta
-  resetAfterSuccessMs: 60_000,    // resetear el contador si pasan 60s sin FLOOD_WAIT
-};
+### 4.3 Behavioral mimicry (lo crítico, no documentado) ✅ IMPLEMENTADO
 
-// En el cliente:
-async function withFloodWaitRetry<T>(op: () => Promise<T>): Promise<T> {
-  let attempt = 0;
-  let backoffMs = FLOOD_WAIT_BACKOFF.initialMs;
-  let lastFloodWait = 0;
-  
-  while (attempt < FLOOD_WAIT_BACKOFF.maxAttempts) {
-    try {
-      const result = await op();
-      // Reset si pasó tiempo desde el último FLOOD_WAIT
-      if (Date.now() - lastFloodWait > FLOOD_WAIT_BACKOFF.resetAfterSuccessMs) {
-        attempt = 0;
-        backoffMs = FLOOD_WAIT_BACKOFF.initialMs;
-      }
-      return result;
-    } catch (err) {
-      if (err instanceof FloodWaitError) {
-        lastFloodWait = Date.now();
-        const requestedWait = (err.seconds ?? 60) * 1000;
-        const actualWait = Math.max(requestedWait, backoffMs);
-        logger.warn(`FLOOD_WAIT ${err.seconds}s, retrying in ${actualWait}ms (attempt ${attempt + 1})`);
-        
-        // Métrica para alerta
-        floodWaitCounter.inc({ account_id: accountId, method: op.name });
-        lastFloodWaitSeconds.set({ account_id: accountId }, err.seconds ?? 0);
-        
-        await sleep(actualWait);
-        backoffMs = Math.min(backoffMs * FLOOD_WAIT_BACKOFF.multiplier, FLOOD_WAIT_BACKOFF.maxMs);
-        attempt++;
-      } else {
-        throw err;
-      }
-    }
-  }
-  
-  throw new Error(`Max FLOOD_WAIT retries (${FLOOD_WAIT_BACKOFF.maxAttempts}) exceeded for ${op.name}`);
-}
-```
-
-### 4.3 Behavioral mimicry (lo crítico, no documentado)
+**Ruta real**: `apps/backend/src/telegram/ingestion/infrastructure/services/sleep-window.service.ts`
+**Config env vars**: `INGESTION_SLEEP_START_UTC` (default 4), `INGESTION_SLEEP_END_UTC` (default 10), `INGESTION_JITTER_PERCENT` (default 0.30)
 
 | Patrón humano | Patrón bot (te banea) |
 |---|---|
@@ -202,132 +160,63 @@ async function withFloodWaitRetry<T>(op: () => Promise<T>): Promise<T> {
 | Intervalos variables (jitter) | Intervalos exactos |
 | Vuelve a mensajes viejos a veces | Solo del más reciente hacia atrás |
 
+**SleepWindowService**: usa `baseStartUtc/baseEndUtc` fijos de config con **rotación diaria ±30min** (`rotationMinutes` basado en día del año) para evitar patrón fijo detectable. Expone `isAsleep()` y `getNextWakeTime()`.
+
+**Jitter**: aplicado inline en `TelegramMtprotoListenerAdapter.startPollingLoop()` — cada canal recibe `staggerBase * i + jitter` donde `jitter = (Math.random() - 0.5) * 2 * staggerBase * jitterPct`.
+
 ```typescript
-// Jitter obligatorio en cualquier intervalo
-export function withJitter(baseMs: number, jitterPercent = 0.30): number {
-  const min = baseMs * (1 - jitterPercent);
-  const max = baseMs * (1 + jitterPercent);
-  return Math.floor(min + Math.random() * (max - min));
+// Staggered delay per channel con jitter en el adapter:
+const staggerBase = this.safetyConfig.pollIntervalBaseMs / peers.length;
+const jitterPct = this.safetyConfig.jitterPercent;
+for (let i = 0; i < peers.length; i++) {
+  const jitter = (Math.random() - 0.5) * 2 * staggerBase * jitterPct;
+  const delay = Math.max(staggerBase * i + jitter, 0);
+  await this.sleep(delay);
+  // poll channel i...
 }
 
-// Uso:
-const nextDelay = withJitter(30_000);  // 21_000 - 39_000 ms
-setTimeout(pollKol, nextDelay);
-
-// Sleep window (anti-bot detection)
-export class SleepWindowService {
-  private sleepStartUtc: number;
-  private sleepEndUtc: number;
-  
-  constructor(private readonly hoursPerDay: { min: number; max: number }) {
-    this.rotateWindow();
-  }
-  
-  private rotateWindow(): void {
-    // Elige una ventana random de 6-8h dentro de las "horas de dormir" humanas (UTC 22-06)
-    const sleepHours = this.hoursPerDay.min + Math.random() * (this.hoursPerDay.max - this.hoursPerDay.min);
-    this.sleepStartUtc = 22 + Math.random() * (24 - sleepHours - 16);  // empieza entre 22:00 y 02:00 UTC
-    this.sleepEndUtc = (this.sleepStartUtc + sleepHours) % 24;
-  }
-  
-  isAsleep(): boolean {
-    const hour = new Date().getUTCHours();
-    if (this.sleepStartUtc < this.sleepEndUtc) {
-      return hour >= this.sleepStartUtc && hour < this.sleepEndUtc;
-    }
-    return hour >= this.sleepStartUtc || hour < this.sleepEndUtc;
-  }
-}
-
-// En el poll loop:
+// Sleep window check antes de cada ciclo:
 if (this.sleepWindow.isAsleep()) {
-  this.logger.debug('Account sleeping (anti-bot)');
-  return;
+  this.logger.debug(`Sleep window active — pausing until ${this.sleepWindow.getNextWakeTime()?.toISOString()}`);
+  await this.sleep(60_000);
+  continue;
 }
 ```
 
-### 4.4 Multi-account sharding (para 46 KOLs actuales)
+### 4.4 Staggered polling (1 cuenta, 46 KOLs) ✅ IMPLEMENTADO
 
-```typescript
-// apps/backend/src/kol/ingestion/infrastructure/config/sharding.config.ts
+**Decisión**: 1 cuenta MTProto con hasta 50 KOLs. El riesgo se mitiga con staggered polling en vez de múltiples cuentas.
 
-export const SHARDING_CONFIG = {
-  // 46 KOLs ÷ ~20 KOLs/cuenta conservadora = 3 cuentas mínimo
-  // (tginfo.me permite hasta 500 hard cap; soft cap para reads es mucho menor)
-  accounts: [
-    {
-      id: 'mtproto-a',
-      sessionEnv: 'TELEGRAM_MTPROTO_SESSION_A',
-      maxKols: 20,
-      // KOLs de baja frecuencia (digest)
-      kolFilter: (kol) => kol.tier === 'LOW_FREQ',
-    },
-    {
-      id: 'mtproto-b',
-      sessionEnv: 'TELEGRAM_MTPROTO_SESSION_B',
-      maxKols: 18,
-      kolFilter: (kol) => kol.tier === 'MEDIUM_FREQ',
-    },
-    {
-      id: 'mtproto-c',
-      sessionEnv: 'TELEGRAM_MTPROTO_SESSION_C',
-      maxKols: 12,
-      kolFilter: (kol) => kol.tier === 'HIGH_FREQ',
-    },
-  ],
-  
-  // Si una cuenta cae, redistribuir con backoff
-  failoverDelayMs: 300_000,    // 5min antes de tomar KOLs
-  failoverBackoffMs: 3_600_000, // si failover también falla, esperar 1h
-};
+**Ruta real**: `apps/backend/src/telegram/ingestion/api/mtproto/telegram-mtproto-listener.adapter.ts` (método `startPollingLoop()`)
+**Config**: Los valores están en `IngestionSafetyConfig` (no hay archivo separado de config para staggered polling).
+
+El staggered polling se calcula en runtime dentro del adapter:
+
 ```
+staggerBase = pollIntervalBaseMs (90_000) / totalChannels (46) ≈ 1.957s
+channel[i].delay = staggerBase * i + jitter(±30%)
+  → channel[0]  ~0s       (primero, sin espera)
+  → channel[10] ~19.6s    (±30% = 13.7s–25.5s)
+  → channel[45] ~88s      (±30% = 61.7s–114.5s)
+Ciclo completo: ~90s (un channel poll cada ~2s en promedio)
+Sleep window: UTC 4-10 con rotación diaria ±30min
+```
+
+El loop también:
+- Verifica `floodWaitHandler.isPaused` antes de cada ciclo (auto-pausa 1h si FLOOD_WAIT excede intentos).
+- Mide `lastPollAt` para el health endpoint.
+- Usa `withRetry()` del `FloodWaitHandlerService` para cada channel poll individual.
 
 ---
 
 ## 5. Métricas Prometheus (alertas críticas)
 
+> ⚠️ **No implementado aún**. Este código es aspiracional — las métricas Prometheus están planificadas pero no desplegadas. El health endpoint (`GET /ingestion/health`) expone datos equivalentes vía REST como sustituto temporal (flood wait count 24h, channel count, last poll at, sleep status).
+
 ```typescript
-// apps/backend/src/shared/observability/telegram-metrics.ts
-
-export const telegramMetrics = {
-  // FLOOD_WAIT por cuenta/método
-  floodWaitTotal: new Counter({
-    name: 'telegram_flood_wait_total',
-    help: 'Total FLOOD_WAIT errors received from Telegram',
-    labelNames: ['account_id', 'method'],
-  }),
-  
-  // Segundos del último FLOOD_WAIT
-  lastFloodWaitSeconds: new Gauge({
-    name: 'telegram_last_flood_wait_seconds',
-    help: 'Seconds of the last FLOOD_WAIT (0 if none)',
-    labelNames: ['account_id'],
-  }),
-  
-  // Read success rate
-  readSuccessRate: new Gauge({
-    name: 'telegram_read_success_rate',
-    help: 'Read success rate per account (0.0 - 1.0)',
-    labelNames: ['account_id'],
-  }),
-  
-  // Channels activos por cuenta
-  channelsPerAccount: new Gauge({
-    name: 'telegram_channels_per_account',
-    help: 'Number of channels being ingested by each account',
-    labelNames: ['account_id'],
-  }),
-  
-  // Effective polling interval (con jitter aplicado)
-  effectivePollIntervalMs: new Gauge({
-    name: 'telegram_effective_poll_interval_ms',
-    help: 'Actual polling interval being used (with jitter)',
-    labelNames: ['account_id', 'kol_id'],
-  }),
-};
-
-// Alertas Prometheus:
-// telegram_flood_wait_total > 5 en 1h → revisar cuenta (posible baneo inminente)
+// 🔜 apps/backend/src/shared/observability/telegram-metrics.ts (TBD)
+// Alertas Prometheus planificadas:
+// telegram_flood_wait_total > 5 en 1h → revisar cuenta
 // telegram_last_flood_wait_seconds > 60 → cuenta cerca del soft cap
 // telegram_read_success_rate < 0.8 → cuenta degradada
 // telegram_channels_per_account > 30 → escala horizontal
@@ -351,75 +240,32 @@ export const telegramMetrics = {
 
 ---
 
-## 7. Plan de migración para tu seed actual (46 KOLs + 1 cuenta)
+## 7. Estado actual de la implementación (46 KOLs + 1 cuenta)
 
-**Hoy**: 1 cuenta MTProto + 46 KOLs en seed + `AUTO_START=true` → **alto riesgo de FLOOD_WAIT + baneo progresivo**.
+**Hoy**: 1 cuenta MTProto + 46 KOLs + safety limits completamente implementados.
 
-### Semana 1: Provisioning
+### ✅ Implementado (Julio 2026)
 
-```bash
-# 1. Comprar 2-3 números virtuales nuevos (~$5 c/u)
-#    SMS-Activate, TextNow, Google Voice (con cuidado de TOS)
-#
-# 2. Por cada uno:
-#    a. Login en https://my.telegram.org con el número
-#    b. "API development tools" → crear app → obtener api_id + api_hash
-#    c. Generar session string con gramJS:
-#
-node -e "
-const { TelegramClient } = require('telegram');
-const { StringSession } = require('telegram/sessions');
-const readline = require('readline');
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-const prompt = (q) => new Promise(r => rl.question(q, r));
-(async () => {
-  const apiId = await prompt('api_id: ');
-  const apiHash = await prompt('api_hash: ');
-  const client = new TelegramClient(new StringSession(''), parseInt(apiId), apiHash, { connectionRetries: 3 });
-  await client.start({
-    phoneNumber: async () => await prompt('Phone (+XXX...): '),
-    phoneCode: async () => await prompt('Code: '),
-    password: async () => await prompt('2FA: '),
-  });
-  console.log('SESSION:', client.session.save());
-  await client.disconnect();
-})();
-"
-#    d. Guardar en .env: TELEGRAM_MTPROTO_SESSION_A, _B
-#
-# 3. Configurar sharding (por tier de frecuencia)
-```
+| Componente | Archivo | Estado |
+|---|---|---|
+| `IngestionSafetyConfig` (9 env vars) | `infrastructure/config/ingestion-safety.config.ts` | ✅ |
+| `SleepWindowService` (UTC 4-10 + rotación ±30min) | `infrastructure/services/sleep-window.service.ts` | ✅ |
+| `FloodWaitHandlerService` (exponencial 5s→1h, auto-pausa) | `infrastructure/services/flood-wait-handler.service.ts` | ✅ |
+| `FloodWaitCounterService` (in-memory 24h TTL) | `infrastructure/services/flood-wait-counter.service.ts` | ✅ |
+| Staggered polling con jitter | `api/mtproto/telegram-mtproto-listener.adapter.ts` | ✅ |
+| `GET /ingestion/health` + `GET /ingestion/config` | `api/http/ingestion-health.controller.ts`, `api/http/ingestion-config.controller.ts` | ✅ |
+| Dashboard widget "📡 Ingestion Health" | `apps/frontend/src/widgets/ingestion-health/` | ✅ |
+| KPI cards: "45/50 active" | frontend kpi-cards | ✅ |
+| Tests pasan (531/531) | — | ✅ |
 
-### Semana 2: Throttling + adaptive polling
+### 🔜 Pendiente (planificado)
 
-```typescript
-// Implementar:
-// - AccountThrottle (limita getMessages concurrentes por cuenta)
-// - AdaptiveTierClassifier (clasifica kol por cadencia observada)
-// - ChannelTierStorage (cache del tier calculado)
-// - Backfill progresivo: 5 KOLs/día × 10 días = 50 KOLs
-```
-
-### Semana 3: Behavioral mimicry + métricas
-
-```typescript
-// Implementar:
-// - SleepWindowService (6-8h random/día)
-// - Jitter obligatorio (withJitter() en cada intervalo)
-// - Métricas Prometheus (floodWaitTotal, readSuccessRate, etc.)
-// - Alertas Grafana (o similar)
-// - Runbook de respuesta a FLOOD_WAIT repetidos
-```
-
-### Semana 4: Producción
-
-```typescript
-// 1. AUTO_START=true en .env
-// 2. Sleep window habilitada
-// 3. Métricas expuestas en /metrics
-// 4. Alertas configuradas (PagerDuty/OpsGenie)
-// 5. Runbook accesible al equipo de guardia
-```
+| Componente | Prioridad |
+|---|---|
+| **Multi-account sharding** (cuando KOLs > 50) | Baja (ahora caben en 1 cuenta) |
+| **Métricas Prometheus** (`/metrics`) | Media |
+| **AdaptiveTierClassifier** (clasificar KOLs por cadencia observada) | Baja |
+| **Backfill progresivo** (5 KOLs/día × 10 días) | Baja (backfill manual ya funciona) |
 
 ---
 
@@ -500,10 +346,8 @@ const prompt = (q) => new Promise(r => rl.question(q, r));
 
 ## 11. Próximo paso
 
-1. **Revisa y ajusta** los valores de la sección 4 según tu contexto.
-2. **Provisiona 2–3 cuentas MTProto** siguiendo el plan de la sección 7.
-3. **Implementa las métricas Prometheus** de la sección 5 antes de producción.
-4. **Ejecuta el script de un-off research** (`scripts/fetch-kol-samples.mjs`) si quieres
-   verificar la cadencia real de cada KOL antes de asignarlo a una cuenta.
-5. **Vuelve a `fix-1/solution.md`** para cerrar el fix de compliance antes de
-   empezar la migración.
+1. ✅ ~~Revisa y ajusta valores~~ — Implementado y verificado (sección 4 refleja valores reales).
+2. ✅ ~~Migration plan~~ — Implementado: staggered polling, sleep window, FLOOD_WAIT backoff, health endpoints.
+3. 🔜 **Implementa métricas Prometheus** de la sección 5 — el health endpoint REST cubre temporalmente.
+4. 🔜 **Ejecuta `scripts/fetch-kol-samples.mjs`** si quieres verificar cadencia real de cada KOL.
+5. 🔜 **Vuelve a `fix-1/solution.md`** para cerrar el fix de compliance.

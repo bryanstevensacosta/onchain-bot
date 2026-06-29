@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { LRUCache } from 'lru-cache';
+import LRUCache from 'lru-cache';
 import Redis from 'ioredis';
 
 export const TOKEN_IMAGE_CACHE = Symbol('TOKEN_IMAGE_CACHE');
@@ -28,7 +28,7 @@ export interface TokenImageCache {
 export class LruTokenImageCache implements TokenImageCache {
   private readonly cache = new LRUCache<string, CachedTokenImage>({
     max: DEFAULT_LRU_MAX_ENTRIES,
-    ttl: DEFAULT_LRU_TTL_MS,
+    maxAge: DEFAULT_LRU_TTL_MS,
   });
 
   public async get(key: string): Promise<CachedTokenImage | null> {
@@ -41,13 +41,13 @@ export class LruTokenImageCache implements TokenImageCache {
     contentType: string,
     ttlMs: number,
   ): Promise<void> {
-    this.cache.set(key, { buffer, contentType }, { ttl: ttlMs });
+    this.cache.set(key, { buffer, contentType }, ttlMs);
   }
 
   public async invalidate(prefix: string): Promise<void> {
     for (const key of this.cache.keys()) {
       if (key.startsWith(prefix)) {
-        this.cache.delete(key);
+        this.cache.del(key);
       }
     }
   }

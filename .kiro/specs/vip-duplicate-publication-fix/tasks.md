@@ -1,0 +1,85 @@
+# Implementation Plan
+
+- [x] 1. Write bug condition exploration test
+  - **Property 1: Bug Condition** - Duplicate TokenFilteredEvent Publications
+  - **CRITICAL**: This test MUST FAIL on unfixed code - failure confirms the bug exists
+  - **DO NOT attempt to fix the test or the code when it fails**
+  - **NOTE**: This test encodes the expected behavior - it will validate the fix when it passes after implementation
+  - **GOAL**: Surface counterexamples that demonstrate duplicate publications occur
+  - **Scoped PBT Approach**: For deterministic bugs, scope the property to concrete failing cases to ensure reproducibility
+  - Write integration test that emits two `TokenFilteredEvent` instances for the same token (same chain + address)
+  - Test both Solana token (`solana:3i6jxygrsaedj3be2vjxcrqqxhqxq1bpraxbxjprpump`) and Ethereum token (`ethereum:0x2d61bbbe5ad9a8f18fef35940301fd24f143a72b`)
+  - Assert: Bug Condition holds when `existingCall = PublishedCallRepository.findByChainAndAddress(chain, normalizedAddress)` returns NOT NULL AND handler does NOT check existingCall before publishing AND `VipCallsPublishUseCase.execute()` is called unconditionally
+  - Expected behavior after fix: For inputs where bug condition holds, handler logs "Token {chain}:{address} already published, skipping duplicate publication" and returns early without calling `VipCallsPublishUseCase.execute()`
+  - Run test on UNFIXED code
+  - **EXPECTED OUTCOME**: Test FAILS on unfixed code (confirms duplicate publications occur)
+  - Document counterexamples found: Multiple Telegram messages with different message IDs for the same token, only one database record persisted
+  - Mark task complete when test is written, run, and failure is documented
+  - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3_
+
+- [x] 2. Write preservation property tests (BEFORE implementing fix)
+  - **Property 2: Preservation** - First-Time Publication Behavior
+  - **IMPORTANT**: Follow observation-first methodology
+  - Observe behavior on UNFIXED code for first-time token publications (tokens NOT in `published_calls` table)
+  - Write property-based tests capturing observed behavior patterns:
+    - Handler calls `VipCallsPublishUseCase.execute()` with correct arguments
+    - Token metadata is assembled from `CanonicalTokenCallRepository` and `TokenSnapshotRepository`
+    - Message formatting uses `MessageFormatterPort.format()` with same `ApprovedCallInput` structure
+    - Telegram message is sent via `TelegramPublisherPort.sendMessage()`
+    - Database persists `PublishedCall` record with status "PUBLISHED" on success or "FAILED" on error
+    - `RegisterCallForMilestonesEvent` is emitted for tokens with valid market cap
+    - Error handling logs warnings without crashing
+  - Property-based testing generates many test cases for stronger guarantees
+  - Generate random `TokenFilteredEvent` instances (varying chain, address, score, classification)
+  - Verify first-time publications proceed identically to original behavior
+  - Run tests on UNFIXED code
+  - **EXPECTED OUTCOME**: Tests PASS on unfixed code (confirms baseline behavior to preserve)
+  - Mark task complete when tests are written, run, and passing on unfixed code
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
+
+- [x] 3. Fix for VIP duplicate publication
+
+  - [x] 3.1 Implement duplicate check in TokenApprovedPublishHandler
+    - Inject `PublishedCallRepository` into `TokenApprovedPublishHandler` constructor
+    - Add duplicate check at start of `handle()` method after parsing `chainId` and `address`
+    - Normalize address consistently: lowercase for EVM chains, preserve case for Solana
+    - Query `this.publishedCallRepo.findByChainAndAddress(chainId, normalizedAddress)`
+    - If existing record found, log "Token {chain}:{address} already published, skipping duplicate publication" at INFO level
+    - Return early without calling `VipCallsPublishUseCase.execute()`
+    - Preserve error handling: if `findByChainAndAddress()` throws, log warning and proceed with publication (fail open)
+    - No changes to `VipCallsPublishUseCase` - keep use case unchanged
+    - _Bug_Condition: isBugCondition(event) where existingCall = PublishedCallRepository.findByChainAndAddress(chain, normalizedAddress) IS NOT NULL AND handler does NOT check existingCall before publishing_
+    - _Expected_Behavior: When bug condition holds, handler SHALL query repository, detect existing record, log duplicate attempt, and return early without calling VipCallsPublishUseCase.execute()_
+    - _Preservation: All first-time publication behaviors (metadata fetching, message formatting, Telegram publishing, database persistence, event emission, error handling) SHALL remain unchanged_
+    - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
+
+  - [x] 3.2 Verify bug condition exploration test now passes
+    - **Property 1: Expected Behavior** - Duplicate Publications Prevented
+    - **IMPORTANT**: Re-run the SAME test from task 1 - do NOT write a new test
+    - The test from task 1 encodes the expected behavior
+    - When this test passes, it confirms duplicate publications are prevented
+    - Run bug condition exploration test from step 1
+    - **EXPECTED OUTCOME**: Test PASSES (confirms bug is fixed)
+    - Verify handler logs duplicate detection and skips publication for duplicate events
+    - Verify only one Telegram message is sent for the same token
+    - _Requirements: 2.1, 2.2, 2.3_
+
+  - [x] 3.3 Verify preservation tests still pass
+    - **Property 2: Preservation** - First-Time Publication Behavior Unchanged
+    - **IMPORTANT**: Re-run the SAME tests from task 2 - do NOT write new tests
+    - Run preservation property tests from step 2
+    - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions)
+    - Confirm all first-time publication behaviors remain identical:
+      - Metadata assembly works correctly
+      - Message formatting produces same output
+      - Telegram publishing succeeds
+      - Database persistence works
+      - Event emission continues
+      - Error handling unchanged
+    - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
+
+- [x] 4. Checkpoint - Ensure all tests pass
+  - Verify bug condition test passes (no duplicate publications)
+  - Verify preservation tests pass (first-time publications unchanged)
+  - Ensure all integration tests pass
+  - Ask the user if questions arise

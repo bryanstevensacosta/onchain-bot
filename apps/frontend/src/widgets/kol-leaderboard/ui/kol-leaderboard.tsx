@@ -41,7 +41,9 @@ export function KolLeaderboard({ rows, isLoading }: KolLeaderboardProps = {}) {
                 </Badge>
               </td>
               <td className="tabular-nums">{r.metrics.totalMentions}</td>
-              <td className="tabular-nums text-green-400">{r.metrics.x2Count}</td>
+              <td className="tabular-nums text-green-400">
+                {r.metrics.x2Count}
+              </td>
             </tr>
           ))}
           {isLoading && (

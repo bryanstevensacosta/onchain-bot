@@ -264,11 +264,11 @@ mensajes desde esas cuentas (solo leer).
 ### 4.4 Configuración operativa segura
 
 ```typescript
-// apps/backend/src/kol/ingestion/infrastructure/config/scaling.config.ts
+// apps/backend/src/telegram/ingestion/domain/config/ingestion-scaling.config.ts
 
-export const SCALING_CONFIG = {
+export const INGESTION_SCALING_CONFIG = {
   // Por cuenta MTProto
-  maxChannelsPerAccount: 200,
+  maxChannelsPerAccount: 50,
   maxBackfillPerBatch: 100,
   backfillDelayBetweenKolMs: 60_000,   // 60s entre KOLs
   liveIngestDelayBetweenMsgsMs: 50,    // ~20 msg/s

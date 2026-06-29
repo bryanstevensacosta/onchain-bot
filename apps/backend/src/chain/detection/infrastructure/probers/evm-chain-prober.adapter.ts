@@ -1,53 +1,29 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
   ChainProberPort,
   ProbeResult,
 } from 'chain/detection/domain/ports/chain-prober.port';
-import { JsonRpcClient } from 'chain/detection/infrastructure/http/json-rpc.client';
-
-interface AppConfigShape {
-  readonly alchemy: { readonly apiKey: string };
-}
+import { AlchemyService } from 'data-provider/alchemy/alchemy.service';
 
 /**
  * EVM chain prober (Ethereum mainnet via Alchemy).
  *
- * Uses `eth_getCode` to check if the address has contract code.
- * Empty bytecode (`0x`) means EOA or uninitialized account — still a
- * valid Ethereum address, just not a contract.
+ * Uses `eth_getCode` via `AlchemyService` to check if the address has
+ * contract code. Empty bytecode (`0x`) means EOA or uninitialized account.
  *
  * v1 supports Ethereum only. BSC/Base/Arbitrum can be added by swapping
- * the Alchemy subdomain and `chainName`.
+ * in a different RPC / prober.
  */
 @Injectable()
 export class EvmChainProberAdapter extends ChainProberPort {
   public readonly chainName = 'ethereum';
   private readonly logger = new Logger(EvmChainProberAdapter.name);
-  private readonly client: JsonRpcClient | null;
 
-  public constructor(configService: ConfigService) {
+  public constructor(private readonly alchemy: AlchemyService) {
     super();
-    const cfg = configService.get<AppConfigShape>('app');
-    const apiKey = cfg?.alchemy.apiKey;
-    this.client = apiKey
-      ? new JsonRpcClient(`https://eth-mainnet.g.alchemy.com/v2/${apiKey}`)
-      : null;
-    if (!this.client) {
-      this.logger.warn(
-        'ALCHEMY_API_KEY missing — EVM probing will report responded=false',
-      );
-    }
   }
 
   public async probe(address: string): Promise<ProbeResult> {
-    if (!this.client) {
-      return {
-        responded: false,
-        isContract: null,
-        notes: ['alchemy:no_api_key'],
-      };
-    }
     if (!/^0x[a-fA-F0-9]{40}$/i.test(address)) {
       return {
         responded: false,
@@ -55,11 +31,22 @@ export class EvmChainProberAdapter extends ChainProberPort {
         notes: ['evm:format_invalid'],
       };
     }
+    if (!this.alchemy.apiKey) {
+      return {
+        responded: false,
+        isContract: null,
+        notes: ['alchemy:no_api_key'],
+      };
+    }
     try {
-      const code = await this.client.call<string>('eth_getCode', [
-        address,
-        'latest',
-      ]);
+      const code = await this.alchemy.getCode(address);
+      if (code === null) {
+        return {
+          responded: false,
+          isContract: null,
+          notes: ['alchemy:no_api_key_or_error'],
+        };
+      }
       return {
         responded: true,
         isContract: code !== '0x' && code !== '0x0',
