@@ -23,6 +23,8 @@
       "settings/*": ["src/settings/*"],
       "dashboard/*": ["src/dashboard/*"],
       "settings/*": ["src/settings/*"],
+      "data-provider/*": ["src/data-provider/*"],
+      "health/*": ["src/health/*"],
       "src/*": ["src/*"]
     }
   },

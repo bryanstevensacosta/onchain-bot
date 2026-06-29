@@ -29,6 +29,7 @@ import { StatsModule } from 'kol/stats/stats.module';
 import { WsModule } from 'shared/ws/ws.module';
 import { SettingsModule } from 'settings/settings.module';
 import { DataProviderModule } from 'data-provider/core/data-provider.module';
+import { HealthModule } from 'health/health.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -36,7 +37,7 @@ import { AppService } from './app.service';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['.env'],
+      envFilePath: ['.env.dev', '.env'],
       load: [appConfig],
     }),
     EventEmitterModule.forRoot({
@@ -48,6 +49,7 @@ import { AppService } from './app.service';
     ScheduleModule.forRoot(),
     DatabaseModule.forRootFromEnv(),
     RedisModule,
+    HealthModule,
     TelegramIngestionModule,
     IdentityModule,
     SourceModule,
