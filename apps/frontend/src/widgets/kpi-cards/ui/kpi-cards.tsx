@@ -11,10 +11,12 @@ export function KpiCards() {
     refetchInterval: 10_000,
   });
 
-  const activeKols =
-    kpis.data?.activeKols ?? healthQuery.data?.activeChannels ?? 0;
-  const totalKols =
-    kpis.data?.totalKols ?? healthQuery.data?.maxSafeChannels ?? 0;
+  const activeKols = kpis.isSuccess
+    ? kpis.data.activeKols
+    : (healthQuery.data?.activeChannels ?? 0);
+  const totalKols = kpis.isSuccess
+    ? kpis.data.totalKols
+    : (healthQuery.data?.maxSafeChannels ?? 0);
   const totalCalls = kpis.data?.totalCanonicalCalls ?? 0;
   const approvedCount = kpis.data?.approvedDecisions ?? 0;
   const rejectedCount = kpis.data?.rejectedDecisions ?? 0;
@@ -29,7 +31,7 @@ export function KpiCards() {
       <KpiCard
         label="📡 KOLs"
         value={`${activeKols}/${totalKols}`}
-        sub={`active channels / max safe`}
+        sub={`${activeKols} active / ${totalKols} total`}
       />
       <KpiCard
         label="🔥 Canonical calls"
