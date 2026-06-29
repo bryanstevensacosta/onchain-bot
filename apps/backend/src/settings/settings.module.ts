@@ -7,6 +7,7 @@ import { SettingsFilterEntity } from 'settings/infrastructure/persistence/typeor
 import { SettingsAuditLogEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-audit-log.entity';
 import { SettingsPresetEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-preset.entity';
 import { InMemorySettingsFilterRepository } from 'settings/infrastructure/persistence/in-memory/in-memory-settings-filter.repository';
+import { InMemorySettingsAuditLogRepository } from 'settings/infrastructure/persistence/in-memory/in-memory-settings-audit-log.repository';
 import { SettingsService } from 'settings/application/services/settings.service';
 import { AuditService } from 'settings/application/services/audit.service';
 import { SettingsPresetsService } from 'settings/application/services/settings-presets.service';
@@ -46,6 +47,10 @@ import { SettingsPresetsController } from 'settings/api/http/settings-presets.co
           {
             provide: getRepositoryToken(SettingsFilterEntity),
             useClass: InMemorySettingsFilterRepository,
+          },
+          {
+            provide: getRepositoryToken(SettingsAuditLogEntity),
+            useClass: InMemorySettingsAuditLogRepository,
           },
         ]
       : []),

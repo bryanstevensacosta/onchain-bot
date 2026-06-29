@@ -1,4 +1,6 @@
-import 'dotenv/config';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { config as dotenvConfig } from 'dotenv';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -8,6 +10,16 @@ import { AppService } from './app.service';
 import { DomainErrorFilter } from './shared/filters/domain-error.filter';
 import { FilteredBootstrapLogger } from './shared/common/filtered-bootstrap-logger';
 import type { AppConfig } from 'shared/common/config/app.config';
+
+// Load .env.dev then .env before any module import. Required so decorator-time
+// helpers (isDatabaseEnabled) see DATABASE_ENABLED before SettingsModule /
+// IdentityModule evaluate their @Module imports.
+for (const name of ['.env.dev', '.env']) {
+  const p = path.resolve(process.cwd(), name);
+  if (fs.existsSync(p)) {
+    dotenvConfig({ path: p, override: false });
+  }
+}
 
 // Safety net: log unhandled rejections instead of crashing.
 // Background event handlers / queue consumers may produce async errors
