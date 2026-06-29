@@ -30,9 +30,7 @@ import { FiltersController } from 'token/token-gating/api/http/filters.controlle
 @Module({
   imports: [
     SettingsModule,
-    ...(isDatabaseEnabled()
-      ? [TypeOrmModule.forFeature([FilterDecisionEntity])]
-      : []),
+    TypeOrmModule.forFeature([FilterDecisionEntity]),
   ],
   controllers: [FiltersController],
   providers: [

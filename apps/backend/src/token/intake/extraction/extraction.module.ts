@@ -34,11 +34,7 @@ import { ExtractionController } from 'token/intake/extraction/api/http/extractio
  * N18: ExtractionResult persisted via TypeORM (Tier-2).
  */
 @Module({
-  imports: [
-    ...(isDatabaseEnabled()
-      ? [TypeOrmModule.forFeature([ExtractionResultEntity])]
-      : []),
-  ],
+  imports: [TypeOrmModule.forFeature([ExtractionResultEntity])],
   controllers: [ExtractionController],
   providers: [
     ExtractFromMessageUseCase,

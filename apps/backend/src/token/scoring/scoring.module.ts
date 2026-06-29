@@ -38,9 +38,7 @@ import { SettingsModule } from 'settings/settings.module';
   imports: [
     ReputationModule,
     SettingsModule,
-    ...(isDatabaseEnabled()
-      ? [TypeOrmModule.forFeature([TokenScoreEntity])]
-      : []),
+    TypeOrmModule.forFeature([TokenScoreEntity]),
   ],
   controllers: [ScoringController],
   providers: [

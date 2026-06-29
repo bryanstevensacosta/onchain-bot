@@ -48,9 +48,7 @@ import type { AppConfig } from 'shared/common/config/app.config';
     ChainDetectionModule,
     EnrichmentModule,
     SettingsModule,
-    ...(isDatabaseEnabled()
-      ? [TypeOrmModule.forFeature([ChatGroupEntity, ChatSettingsEntity])]
-      : []),
+    TypeOrmModule.forFeature([ChatGroupEntity, ChatSettingsEntity]),
   ],
   controllers: [ChainDexterController, ChainDexterWebhookController],
   providers: [

@@ -30,11 +30,7 @@ import { HoneypotController } from 'token/honeypot/api/http/honeypot.controller'
  * N18: HoneypotAnalysis persisted via TypeORM (Tier-2).
  */
 @Module({
-  imports: [
-    ...(isDatabaseEnabled()
-      ? [TypeOrmModule.forFeature([HoneypotAnalysisEntity])]
-      : []),
-  ],
+  imports: [TypeOrmModule.forFeature([HoneypotAnalysisEntity])],
   controllers: [HoneypotController],
   providers: [
     AnalyzeTokenHoneypotUseCase,

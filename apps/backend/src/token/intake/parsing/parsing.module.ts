@@ -29,11 +29,7 @@ import { ParsingController } from 'token/intake/parsing/api/http/parsing.control
  * N18: TokenCall persisted via TypeORM (Tier-2).
  */
 @Module({
-  imports: [
-    ...(isDatabaseEnabled()
-      ? [TypeOrmModule.forFeature([TokenCallEntity])]
-      : []),
-  ],
+  imports: [TypeOrmModule.forFeature([TokenCallEntity])],
   controllers: [ParsingController],
   providers: [
     ParseFromCandidatesUseCase,

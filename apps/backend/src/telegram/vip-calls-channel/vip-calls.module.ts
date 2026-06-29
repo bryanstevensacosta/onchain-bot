@@ -32,9 +32,7 @@ import { TickerResolverService } from './application/services/ticker-resolver.se
     SettingsModule,
     NormalizationModule,
     EnrichmentModule,
-    ...(isDatabaseEnabled()
-      ? [TypeOrmModule.forFeature([PublishedCallEntity])]
-      : []),
+    TypeOrmModule.forFeature([PublishedCallEntity]),
   ],
   controllers: [VipCallsController],
   providers: [

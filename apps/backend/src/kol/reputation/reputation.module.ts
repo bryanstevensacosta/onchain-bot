@@ -51,9 +51,7 @@ import { KolReputationScheduler } from 'kol/reputation/infrastructure/scheduling
     forwardRef(() => CallTrackingModule),
     IdentityModule,
     NormalizationModule,
-    ...(isDatabaseEnabled()
-      ? [TypeOrmModule.forFeature([KolReputationEntity, KolKnownListEntity])]
-      : []),
+    TypeOrmModule.forFeature([KolReputationEntity, KolKnownListEntity]),
   ],
   controllers: [KolReputationController],
   providers: [

@@ -33,7 +33,7 @@ import type { AppConfig } from 'shared/common/config/app.config';
     ConfigModule,
     ExtractionModule,
     ParsingModule,
-    ...(isDatabaseEnabled() ? [TypeOrmModule.forFeature([KolEntity])] : []),
+    TypeOrmModule.forFeature([KolEntity]),
   ],
   controllers: [KolController],
   providers: [

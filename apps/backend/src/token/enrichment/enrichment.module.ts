@@ -53,9 +53,7 @@ import {
 @Module({
   imports: [
     ChainRegistryModule,
-    ...(isDatabaseEnabled()
-      ? [TypeOrmModule.forFeature([TokenSnapshotEntity])]
-      : []),
+    TypeOrmModule.forFeature([TokenSnapshotEntity]),
   ],
   controllers: [EnrichmentController, TokenImageController],
   providers: [

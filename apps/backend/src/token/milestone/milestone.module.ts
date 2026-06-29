@@ -40,9 +40,7 @@ const PERSISTED_ENTITIES = [
 ];
 
 @Module({
-  imports: isDatabaseEnabled()
-    ? [TypeOrmModule.forFeature(PERSISTED_ENTITIES)]
-    : [],
+  imports: [TypeOrmModule.forFeature(PERSISTED_ENTITIES)],
   controllers: [MilestoneController],
   providers: [
     DetectCrossedMilestonesService,

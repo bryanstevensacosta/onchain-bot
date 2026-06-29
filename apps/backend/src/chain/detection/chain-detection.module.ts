@@ -32,11 +32,7 @@ import { CHAIN_PROBERS } from 'chain/detection/chain-detection.tokens';
  * N18: ChainDetectionResult persisted via TypeORM (Tier-2).
  */
 @Module({
-  imports: [
-    ...(isDatabaseEnabled()
-      ? [TypeOrmModule.forFeature([ChainDetectionResultEntity])]
-      : []),
-  ],
+  imports: [TypeOrmModule.forFeature([ChainDetectionResultEntity])],
   controllers: [ChainDetectionController],
   providers: [
     DetectChainUseCase,

@@ -25,11 +25,7 @@ import { ClassificationController } from 'token/classification/api/http/classifi
  * N18: TokenClassification persisted via TypeORM (Tier-2).
  */
 @Module({
-  imports: [
-    ...(isDatabaseEnabled()
-      ? [TypeOrmModule.forFeature([TokenClassificationEntity])]
-      : []),
-  ],
+  imports: [TypeOrmModule.forFeature([TokenClassificationEntity])],
   controllers: [ClassificationController],
   providers: [
     ClassifyTokenUseCase,

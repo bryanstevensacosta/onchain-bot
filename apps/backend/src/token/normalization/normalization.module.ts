@@ -18,9 +18,7 @@ import type { AppConfig } from 'shared/common/config/app.config';
 @Module({
   imports: [
     ConfigModule,
-    ...(isDatabaseEnabled()
-      ? [TypeOrmModule.forFeature([CanonicalTokenCallEntity])]
-      : []),
+    TypeOrmModule.forFeature([CanonicalTokenCallEntity]),
   ],
   controllers: [NormalizationController],
   providers: [
