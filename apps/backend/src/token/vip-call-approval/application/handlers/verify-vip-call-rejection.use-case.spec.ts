@@ -1,4 +1,4 @@
-import { VerifyVipCallRejectionUseCase } from './verify-rejected-token.use-case';
+import { VerifyVipCallRejectionUseCase } from './verify-vip-call-rejection.use-case';
 import { VipCallApprovalDecisionRepository } from 'token/vip-call-approval/application/ports/vip-call-approval-decision.repository';
 import { TokenSnapshotRepository } from 'token/enrichment/application/ports/token-snapshot.repository';
 import { VipCallApprovalDecision } from 'token/vip-call-approval/domain/entities/vip-call-approval-decision.entity';
