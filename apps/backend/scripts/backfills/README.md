@@ -22,7 +22,8 @@ This directory exists so:
 
 `YYYY-MM-DD-<short-name>.sql` or `.ts`. Date prefix sorts lexically. Examples:
 
-- `2026-06-26-token-score-breakdown.sql` ✅
+- `2026-06-26-published-calls.sql` ✅
+- `2026-06-30-milestone-to-achievement-rename.sql` ✅
 - `token-score-breakdown.sql` ❌ (no date, can't order)
 
 Skip the runner scripts: `migrate.js`, `migrate.ts`, `README.md`, `_template.*`.
@@ -91,6 +92,11 @@ Example: `2026-XX-XX-kol-title-handle-backfill.ts` for 2 KOLs missing Telegram-r
 - Dev seed data (e.g., `seed-pipeline-events.ts`) — keep in `scripts/` root.
 - Schema migrations (TypeORM `synchronize` handles dev; production needs proper migrations via `migration:generate`).
 - Recurring cleanup jobs (e.g., daily purge of stale snapshots) — use a scheduler, not a backfill.
+
+## Backfill registry
+
+- 2026-06-26: published-calls (create `published_calls` table with telegram_message_id)
+- 2026-06-30: milestone-to-achievement-rename (rename 3 tables + add telegram_message_id column to notified_achievements)
 
 ## See also
 
