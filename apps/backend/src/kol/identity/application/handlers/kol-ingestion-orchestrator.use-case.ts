@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { KolRepository } from 'kol/identity/application/ports/kol.repository';
 import { KolEventPublisher } from 'kol/identity/application/ports/kol-event.publisher';
-import { TelegramListenerPort } from 'telegram/ingestion/domain/ports/telegram-listener.port';
+import { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import { KolId } from 'kol/identity/domain/value-objects/kol-id.vo';
-import type { StartIngestionInput } from 'telegram/ingestion/api/input/start-ingestion.input';
+import type { StartIngestionInput } from 'telegram/ingestion/shared/api/input/start-ingestion.input';
 import {
   KolMapper,
   KolView,

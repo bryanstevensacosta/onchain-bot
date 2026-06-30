@@ -1,7 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
-import { IngestionSafetyConfig } from 'telegram/ingestion/infrastructure/config/ingestion-safety.config';
-import { SleepWindowService } from 'telegram/ingestion/infrastructure/services/sleep-window.service';
-import { FloodWaitCounterService } from 'telegram/ingestion/infrastructure/services/flood-wait-counter.service';
+import { IngestionSafetyConfig } from 'telegram/ingestion/shared/infrastructure/config/ingestion-safety.config';
+import { SleepWindowService } from 'telegram/ingestion/shared/infrastructure/services/sleep-window.service';
+import { FloodWaitCounterService } from 'telegram/ingestion/shared/infrastructure/services/flood-wait-counter.service';
 import { KolRepository } from 'kol/identity/application/ports/kol.repository';
 
 export interface IngestionHealthDto {

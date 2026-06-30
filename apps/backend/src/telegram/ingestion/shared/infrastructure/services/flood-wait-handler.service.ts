@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { IngestionSafetyConfig } from 'telegram/ingestion/infrastructure/config/ingestion-safety.config';
-import { FloodWaitCounterService } from 'telegram/ingestion/infrastructure/services/flood-wait-counter.service';
+import { IngestionSafetyConfig } from 'telegram/ingestion/shared/infrastructure/config/ingestion-safety.config';
+import { FloodWaitCounterService } from 'telegram/ingestion/shared/infrastructure/services/flood-wait-counter.service';
 
 @Injectable()
 export class FloodWaitHandlerService {

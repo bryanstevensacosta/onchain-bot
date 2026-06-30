@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { IngestionSafetyConfig } from 'telegram/ingestion/infrastructure/config/ingestion-safety.config';
+import { IngestionSafetyConfig } from 'telegram/ingestion/shared/infrastructure/config/ingestion-safety.config';
 
 @Controller('ingestion')
 export class IngestionConfigController {

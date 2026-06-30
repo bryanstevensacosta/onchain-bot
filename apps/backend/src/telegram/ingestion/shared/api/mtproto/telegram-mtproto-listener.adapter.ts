@@ -16,11 +16,11 @@ import type {
   ResolvedChannelMetadata,
   TelegramListenerPort,
   JoinChannelResult,
-} from 'telegram/ingestion/domain/ports/telegram-listener.port';
-import { IngestionSafetyConfig } from 'telegram/ingestion/infrastructure/config/ingestion-safety.config';
-import { SleepWindowService } from 'telegram/ingestion/infrastructure/services/sleep-window.service';
-import { FloodWaitCounterService } from 'telegram/ingestion/infrastructure/services/flood-wait-counter.service';
-import { FloodWaitHandlerService } from 'telegram/ingestion/infrastructure/services/flood-wait-handler.service';
+} from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
+import { IngestionSafetyConfig } from 'telegram/ingestion/shared/infrastructure/config/ingestion-safety.config';
+import { SleepWindowService } from 'telegram/ingestion/shared/infrastructure/services/sleep-window.service';
+import { FloodWaitCounterService } from 'telegram/ingestion/shared/infrastructure/services/flood-wait-counter.service';
+import { FloodWaitHandlerService } from 'telegram/ingestion/shared/infrastructure/services/flood-wait-handler.service';
 
 @Injectable()
 export class TelegramMtprotoListenerAdapter

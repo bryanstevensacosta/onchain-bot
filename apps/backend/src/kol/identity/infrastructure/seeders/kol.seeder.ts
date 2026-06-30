@@ -7,7 +7,7 @@ import { KolIngestionOrchestratorUseCase } from 'kol/identity/application/handle
 import { KolRepository } from 'kol/identity/application/ports/kol.repository';
 import { ResolvedKolMetadataRepository } from 'kol/identity/application/ports/resolved-kol-metadata.repository';
 import { KolId } from 'kol/identity/domain/value-objects/kol-id.vo';
-import { TelegramListenerPort } from 'telegram/ingestion/domain/ports/telegram-listener.port';
+import { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import { KOL_SEED } from 'kol/identity/infrastructure/seeds/kol.seed';
 
 /**
