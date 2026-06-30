@@ -1,6 +1,6 @@
 # apps/frontend — Alpha Meta Token Scanner Dashboard
 
-React 18 + Vite 5 dashboard para monitorizar en tiempo real el pipeline de alpha-calls. Dark theme, polling + WebSocket, 6 páginas.
+React 18 + Vite 5 dashboard para monitorizar en tiempo real el pipeline de alpha-calls. Dark theme, polling + WebSocket, 5 páginas.
 
 **Stack**: React 18 · Vite 5 · TanStack Query v5 · Socket.IO · Tailwind CSS 3 · React Router v6
 
@@ -11,13 +11,12 @@ React 18 + Vite 5 dashboard para monitorizar en tiempo real el pipeline de alpha
 | Ruta | Página | Descripción |
 |------|--------|-------------|
 | `/` | Dashboard | KPIs (KOLs, calls, approval rate, published) + Live Feed + Top Tokens |
-| `/live` | Live Feed | Feed completo de eventos del pipeline en tiempo real |
 | `/tokens` | Tokens Explorer | Tokens canónicos recientes (deduplicados) |
 | `/tokens/:chain/:address` | Token Detail | Detalle de un token: score, snapshot, decisiones |
 | `/kols` | KOLs | Lista de KOLs, controles de lifecycle, leaderboard de reputación |
 | `/ops` | Ops Panel | Replay de mensajes a través del pipeline |
 
-Navegación sticky en header con 5 links (Dashboard · Live · Tokens · KOLs · Ops).
+Navegación sticky en header con 4 links (Dashboard · Tokens · KOLs · Ops).
 
 ---
 
@@ -26,7 +25,7 @@ Navegación sticky en header con 5 links (Dashboard · Live · Tokens · KOLs ·
 | Widget | Ubicación | Descripción |
 |--------|-----------|-------------|
 | `KpiCards` | Dashboard | 4 cards: 📡 KOLs (activos/total), 🔥 Canonical calls, ✅ Approval rate, 📤 Published |
-| `LiveFeed` | Dashboard + /live | Eventos en tiempo real via Socket.IO (scored, approved/rejected, normalized) |
+| `LiveFeed` | Dashboard | Eventos en tiempo real via Socket.IO (scored, approved/rejected, normalized) |
 | `TopTokensTable` | Dashboard | Top token scores con chain badge, score gauge, tier |
 | `KolLeaderboard` | /kols | Tabla de KOLs por reputación |
 

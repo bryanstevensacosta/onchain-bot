@@ -103,4 +103,3 @@ npm run format       # Prettier --write
 - **@/ alias** — frontend-only. Do NOT use in backend imports.
 - **MSW status** — installed but not configured. Add `src/mocks/handlers.ts` and wire in `test/setup.ts` if needed.
 - **Zustand status** — DO NOT add. All state lives in TanStack Query cache + socket subscriptions.
-- **Live route** — `/live` redirects to `/tokens`. No separate live page exists.

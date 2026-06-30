@@ -2,7 +2,6 @@ import { Link, NavLink, Outlet } from 'react-router-dom';
 
 const NAV = [
   { to: '/', label: 'Dashboard' },
-  { to: '/live', label: 'Live' },
   { to: '/tokens', label: 'Tokens' },
   { to: '/kols', label: 'KOLs' },
   { to: '/ops', label: 'Ops' },
