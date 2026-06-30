@@ -13,6 +13,8 @@ import { InMemoryExtractionResultRepository } from 'token/intake/extraction/infr
 import { ExtractionResultEntity } from 'token/intake/extraction/infrastructure/persistence/typeorm/entities/extraction-result.entity';
 import { TypeOrmExtractionResultRepository } from 'token/intake/extraction/infrastructure/persistence/typeorm/repositories/typeorm-extraction-result.repository';
 import { ExtractionController } from 'token/intake/extraction/api/http/extraction.controller';
+import { EnrichmentModule } from 'token/enrichment/enrichment.module';
+import { EnrichOnExtractionHandler } from 'token/intake/extraction/infrastructure/event-bus/enrich-on-extraction.handler';
 
 /**
  * Extraction BC module.
@@ -34,9 +36,13 @@ import { ExtractionController } from 'token/intake/extraction/api/http/extractio
  * N18: ExtractionResult persisted via TypeORM (Tier-2).
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([ExtractionResultEntity])],
+  imports: [
+    TypeOrmModule.forFeature([ExtractionResultEntity]),
+    EnrichmentModule,
+  ],
   controllers: [ExtractionController],
   providers: [
+    EnrichOnExtractionHandler,
     ExtractFromMessageUseCase,
     GetExtractionResultUseCase,
     GetRecentResultsUseCase,
