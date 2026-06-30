@@ -54,8 +54,17 @@ export class CallEvaluationJob extends AggregateRoot<string> {
     }
     const scheduledAt = input.horizon.firesAt(input.callTimestamp);
     // Solana addresses are Base58-encoded and case-sensitive
-    const normalizedAddr = input.chain.value === 'solana' ? input.address : input.address.toLowerCase();
-    const id = CallEvaluationJob.buildId(input.kolId, input.chain, normalizedAddr, input.horizon, input.callTimestamp);
+    const normalizedAddr =
+      input.chain.value === 'solana'
+        ? input.address
+        : input.address.toLowerCase();
+    const id = CallEvaluationJob.buildId(
+      input.kolId,
+      input.chain,
+      normalizedAddr,
+      input.horizon,
+      input.callTimestamp,
+    );
     return new CallEvaluationJob(id, {
       kolId: input.kolId,
       chain: input.chain,

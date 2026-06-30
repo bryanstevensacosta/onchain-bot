@@ -79,7 +79,10 @@ export class TokenSnapshot extends AggregateRoot<string> {
     if (!input.address) {
       throw new DomainError(ErrorCode.VALIDATION, `address cannot be empty`);
     }
-    const normalizedAddr = input.chain.value === 'solana' ? input.address : input.address.toLowerCase();
+    const normalizedAddr =
+      input.chain.value === 'solana'
+        ? input.address
+        : input.address.toLowerCase();
     const id = `${input.chain.value}:${normalizedAddr}`;
     const primaryPair = pickPrimaryPair(input.pairs);
 

@@ -10,15 +10,9 @@ class InMemoryQueryBuilder {
   private orderField: string | null = null;
   private limitValue = Infinity;
 
-  public constructor(
-    private readonly source: SettingsAuditLogEntity[],
-  ) {}
+  public constructor(private readonly source: SettingsAuditLogEntity[]) {}
 
-  public andWhere(
-    field: string,
-    _paramName: string,
-    value: unknown,
-  ): this {
+  public andWhere(field: string, _paramName: string, value: unknown): this {
     this.predicates.push((row) => this.matchField(row, field, value));
     return this;
   }

@@ -50,7 +50,10 @@ export class FilterDecision extends AggregateRoot<string> {
       input.reasons.length === 0
         ? FilterVerdict.APPROVED
         : FilterVerdict.REJECTED;
-    const normalizedAddr = input.chain.value === 'solana' ? input.address : input.address.toLowerCase();
+    const normalizedAddr =
+      input.chain.value === 'solana'
+        ? input.address
+        : input.address.toLowerCase();
     const id = `${input.chain.value}:${normalizedAddr}`;
     return new FilterDecision(id, {
       chain: input.chain,

@@ -41,7 +41,8 @@ export class EvaluateCallPerformanceUseCase {
   ) {}
 
   public async execute(input: EvaluateAndRecordInput): Promise<KolReputation> {
-    const normalizedAddress = input.chain === 'solana' ? input.address : input.address.toLowerCase();
+    const normalizedAddress =
+      input.chain === 'solana' ? input.address : input.address.toLowerCase();
     const tokenId = `${input.chain}:${normalizedAddress}`;
     const evaluation = await this.evaluator.evaluateCall({
       chain: input.chain,

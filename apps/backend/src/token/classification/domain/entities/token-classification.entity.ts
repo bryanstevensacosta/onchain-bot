@@ -54,7 +54,10 @@ export class TokenClassification extends AggregateRoot<string> {
         `snapshotCompleteness must be 0..1, got ${input.snapshotCompleteness}`,
       );
     }
-    const normalizedAddr = input.chain.value === 'solana' ? input.address : input.address.toLowerCase();
+    const normalizedAddr =
+      input.chain.value === 'solana'
+        ? input.address
+        : input.address.toLowerCase();
     const id = `${input.chain.value}:${normalizedAddr}`;
     const confidence = computeConfidence(
       input.classification,

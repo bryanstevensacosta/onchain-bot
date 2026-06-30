@@ -51,9 +51,7 @@ export class InMemorySettingsFilterRepository {
     return null;
   }
 
-  public create(
-    dto: Partial<SettingsFilterEntity>,
-  ): SettingsFilterEntity {
+  public create(dto: Partial<SettingsFilterEntity>): SettingsFilterEntity {
     const entity = new SettingsFilterEntity();
     entity.id = dto.id ?? randomUUID();
     entity.type = dto.type ?? '';
@@ -78,10 +76,7 @@ export class InMemorySettingsFilterRepository {
     return entity;
   }
 
-  private matchesWhere(
-    row: SettingsFilterEntity,
-    where: WhereClause,
-  ): boolean {
+  private matchesWhere(row: SettingsFilterEntity, where: WhereClause): boolean {
     if (where.type !== undefined && row.type !== where.type) return false;
     if (where.value !== undefined && row.value !== where.value) return false;
     if (where.enabled !== undefined && row.enabled !== where.enabled)

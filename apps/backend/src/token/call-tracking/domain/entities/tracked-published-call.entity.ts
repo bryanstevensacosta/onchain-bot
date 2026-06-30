@@ -63,7 +63,8 @@ export class TrackedPublishedCall extends AggregateRoot<string> {
       );
     }
     // Solana addresses are Base58-encoded and case-sensitive
-    const normalizedAddress = input.chain === 'solana' ? input.address : input.address.toLowerCase();
+    const normalizedAddress =
+      input.chain === 'solana' ? input.address : input.address.toLowerCase();
     const id = `${input.chain}:${normalizedAddress}`;
     return new TrackedPublishedCall(id, {
       kolId: input.kolId,

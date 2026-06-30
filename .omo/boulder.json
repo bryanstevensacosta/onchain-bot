@@ -1,16 +1,40 @@
 {
   "schema_version": 2,
-  "active_work_id": "deployment-prod-2026-06-29",
+  "active_work_id": "refactor-milestone-to-achievement",
   "works": {
-    "deployment-prod-2026-06-29": {
-      "work_id": "deployment-prod-2026-06-29",
-      "active_plan": "/Users/bryanstevens/dev/onchain-bot/.omo/plans/deployment-prod.md",
-      "plan_name": "deployment-prod",
+    "refactor-milestone-to-achievement": {
+      "work_id": "refactor-milestone-to-achievement",
+      "active_plan": "/Users/bryanstevens/dev/onchain-bot/.omo/plans/refactor-milestone-to-achievement.md",
+      "plan_name": "refactor-milestone-to-achievement",
       "session_ids": ["opencode:current"],
-      "status": "completed",
+      "status": "active",
       "worktree_path": null,
-      "started_at": "2026-06-29T03:45:00.000Z",
-      "ended_at": "2026-06-29T04:35:00.000Z"
+      "started_at": "2026-06-29T17:50:00.000Z",
+      "session_origins": {},
+      "agent": "sisyphus",
+      "task_sessions": {}
+    },
+    "add-kol-modal": {
+      "work_id": "add-kol-modal",
+      "active_plan": "/Users/bryanstevens/dev/onchain-bot/.omo/plans/add-kol-modal.md",
+      "plan_name": "add-kol-modal",
+      "session_ids": [
+        "opencode:current",
+        "opencode:ses_0ea9de1baffeWAxesIQ2JF3X9Y"
+      ],
+      "status": "active",
+      "worktree_path": null,
+      "started_at": "2026-06-29T10:00:00.000Z",
+      "session_origins": {},
+      "agent": "atlas",
+      "task_sessions": {}
     }
-  }
+  },
+  "session_ids": ["opencode:current"],
+  "session_origins": {},
+  "task_sessions": {},
+  "active_plan": "/Users/bryanstevens/dev/onchain-bot/.omo/plans/refactor-milestone-to-achievement.md",
+  "plan_name": "refactor-milestone-to-achievement",
+  "status": "active",
+  "started_at": "2026-06-29T17:50:00.000Z"
 }
