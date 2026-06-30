@@ -22,6 +22,12 @@ export interface SeedKolEntry {
   title?: string;
 }
 
+export interface SeedNewsChannelEntry {
+  channelId: string;
+  handle?: string;
+  title?: string;
+}
+
 export interface AppConfig {
   // Milestone notification settings
   milestone: {
@@ -73,6 +79,10 @@ export interface AppConfig {
         enabled: boolean;
         autoStartListening: boolean;
         channels: SeedKolEntry[];
+      };
+      newsSeed: {
+        enabled: boolean;
+        channels: SeedNewsChannelEntry[];
       };
       metadataCache: {
         filePath: string;
@@ -175,6 +185,35 @@ function parseSeedKols(raw: string | undefined): SeedKolEntry[] {
     });
 }
 
+/**
+ * Parse INGESTION_TELEGRAM_SEED_NEWS env var (format: "channelId|handle|title,...").
+ * Mirrors parseSeedKols but produces SeedNewsChannelEntry.
+ */
+function parseSeedNewsChannels(
+  raw: string | undefined,
+): SeedNewsChannelEntry[] {
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0)
+    .map((entry) => {
+      const parts = entry.split('|').map((p) => p.trim());
+      const channelId = parts[0];
+      if (!channelId) {
+        throw new Error(
+          `Invalid INGESTION_TELEGRAM_SEED_NEWS entry: "${entry}". Expected at least a channelId.`,
+        );
+      }
+      const handle = parts[1] || undefined;
+      const title = parts[2] || undefined;
+      const out: SeedNewsChannelEntry = { channelId };
+      if (handle) out.handle = handle;
+      if (title) out.title = title;
+      return out;
+    });
+}
+
 export const appConfig = registerAs(
   'app',
   (): AppConfig => ({
@@ -254,6 +293,15 @@ export const appConfig = registerAs(
           channels: parseSeedKols(
             process.env.INGESTION_TELEGRAM_SEED_KOLS ??
               process.env.INGESTION_TELEGRAM_SEED_CHANNELS,
+          ),
+        },
+        newsSeed: {
+          enabled:
+            (
+              process.env.INGESTION_TELEGRAM_NEWS_SEED_ENABLED ?? 'true'
+            ).toLowerCase() === 'true',
+          channels: parseSeedNewsChannels(
+            process.env.INGESTION_TELEGRAM_SEED_NEWS,
           ),
         },
         metadataCache: {

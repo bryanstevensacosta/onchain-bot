@@ -17,7 +17,7 @@ import 'dotenv/config';
 import { TelegramClient } from 'telegram';
 import { StringSession } from 'telegram/sessions';
 import { Logger as GramjsLogger, LogLevel } from 'telegram/extensions/Logger';
-import { KOL_SEED } from '../src/kol/identity/infrastructure/seeds/kol.seed';
+import { KOL_SEED } from '../src/telegram/ingestion/kol/seeds/kol.seed';
 
 interface ResolvedKol {
   kolId: string;
