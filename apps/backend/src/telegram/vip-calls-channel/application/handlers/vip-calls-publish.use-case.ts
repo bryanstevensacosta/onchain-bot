@@ -122,7 +122,6 @@ export class VipCallsPublishUseCase {
         callId: call.id,
         chain: call.chain.value,
         address: call.address,
-        mcAtCall,
         publishedAt: call.publishedAt.toISOString(),
       });
       this.eventEmitter.emit(registerEvent.eventName, registerEvent);

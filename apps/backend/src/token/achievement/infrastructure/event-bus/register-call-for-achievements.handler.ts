@@ -16,7 +16,6 @@ export class RegisterCallForAchievementsHandler {
         callId: event.payload.callId,
         chain: event.payload.chain,
         address: event.payload.address,
-        mcAtCall: event.payload.mcAtCall,
         publishedAt: new Date(event.payload.publishedAt),
       });
     } catch (err) {

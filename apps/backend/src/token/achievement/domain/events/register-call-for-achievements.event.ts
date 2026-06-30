@@ -4,7 +4,6 @@ export interface RegisterCallForAchievementsPayload {
   callId: string;
   chain: string;
   address: string;
-  mcAtCall: number;
   publishedAt: string;
 }
 

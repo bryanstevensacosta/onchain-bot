@@ -191,7 +191,7 @@ describe('VipCallsPublishUseCase', () => {
             callId: expect.any(String),
             chain: 'solana',
             address: 'TokenMint123',
-            mcAtCall: 50000,
+            publishedAt: expect.any(String),
           }),
         }),
       );
@@ -199,7 +199,7 @@ describe('VipCallsPublishUseCase', () => {
   });
 
   describe('mcAtCall handling', () => {
-    it('uses input.marketCapUsd as mcAtCall when > 0', async () => {
+    it('emits event without mcAtCall (now looked up from enrichment snapshot)', async () => {
       const { useCase, eventEmitter } = buildUseCase();
       await useCase.execute({
         chain: 'solana',
@@ -212,7 +212,11 @@ describe('VipCallsPublishUseCase', () => {
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         'achievement.register.call',
         expect.objectContaining({
-          payload: expect.objectContaining({ mcAtCall: 125000 }),
+          payload: expect.objectContaining({
+            chain: 'solana',
+            address: 'abc',
+            publishedAt: expect.any(String),
+          }),
         }),
       );
     });
