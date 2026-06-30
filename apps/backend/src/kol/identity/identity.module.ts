@@ -18,7 +18,6 @@ import { JsonResolvedKolMetadataRepository } from 'kol/identity/infrastructure/p
 import { TypeOrmKolRepository } from 'kol/identity/infrastructure/persistence/typeorm/repositories/typeorm-kol.repository';
 import { KolEntity } from 'kol/identity/infrastructure/persistence/typeorm/entities/kol.entity';
 import { KolController } from 'kol/identity/api/http/kol.controller';
-import { KolSeeder } from 'kol/identity/infrastructure/seeders/kol.seeder';
 import type { AppConfig } from 'shared/common/config/app.config';
 
 /**
@@ -71,7 +70,6 @@ import type { AppConfig } from 'shared/common/config/app.config';
         return new JsonResolvedKolMetadataRepository(filePath);
       },
     },
-    KolSeeder,
     KolIngestionOrchestratorUseCase,
     {
       provide: KolEventPublisher,
