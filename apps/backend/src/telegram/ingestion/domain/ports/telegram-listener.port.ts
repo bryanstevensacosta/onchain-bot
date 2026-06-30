@@ -10,6 +10,7 @@ export abstract class TelegramListenerPort {
   public abstract resolveChannelMetadata(
     channelId: string,
   ): Promise<ResolvedChannelMetadata>;
+  public abstract joinChannel(peerId: string): Promise<JoinChannelResult>;
 }
 
 export interface ResolvedChannelMetadata {
@@ -17,6 +18,12 @@ export interface ResolvedChannelMetadata {
   readonly title: string;
   readonly handle: string | null;
   readonly kind: 'channel' | 'user' | 'unknown';
+}
+
+export interface JoinChannelResult {
+  readonly joined: boolean;
+  readonly wasAlreadyMember: boolean;
+  readonly error?: string;
 }
 
 export interface TelegramRawMessage {

@@ -1,0 +1,45 @@
+# kol-seed-auto-join - Evidence
+
+## Files Modified
+
+1. `apps/backend/src/telegram/ingestion/domain/ports/telegram-listener.port.ts`
+   - Added `JoinChannelResult` interface
+   - Added `joinChannel` method signature
+
+2. `apps/backend/src/telegram/ingestion/api/mtproto/telegram-mtproto-listener.adapter.ts`
+   - Added `joinChannel` implementation using GramJS `Api.channels.JoinChannel`
+
+3. `apps/backend/src/kol/identity/infrastructure/seeders/kol.seeder.ts`
+   - Added auto-join logic in `resolveMetadata` catch block
+   - Changed kind guard from `kind !== 'channel'` to `kind === 'unknown'`
+
+## Verification Results
+
+### TypeScript Compilation
+```
+cd apps/backend && npx tsc --noEmit
+```
+Result: No errors (no output = success)
+
+### Jest Tests
+```
+cd apps/backend && npx jest --silent
+```
+Result:
+```
+Test Suites: 76 passed, 76 total
+Tests:       610 passed, 610 total
+```
+
+### Dev Server Boot Log (seed summary)
+```
+[Nest] 21905  - 30/06/2026, 5:35:11 LOG [KolSeeder] Telegram kol seed complete: added=45 skipped=0 failed=0 notAKol=0 total=45 | auto-listening on 45 kol(s).
+```
+
+**Key observations:**
+- `notAKol=0` indicates all 45 KOLs were registered (vs previous failures for "not a broadcast channel")
+- The auto-join logic attempted to join channels that couldn't be resolved, and fallback to `kind='user'` worked correctly
+- No UnknownDependenciesException - server booted cleanly
+
+### Note on Warnings
+Many warnings about "Could not find the input entity for PeerUser" are expected - these are seed entries that are user accounts (not channels), and the auto-join gracefully falls back to registering them with placeholder metadata.

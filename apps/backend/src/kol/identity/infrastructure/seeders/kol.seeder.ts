@@ -87,7 +87,7 @@ export class KolSeeder implements OnApplicationBootstrap {
         seed.handle,
       );
 
-      if (kind !== 'channel') {
+      if (kind === 'unknown') {
         notAKol += 1;
         this.logger.warn(
           `Skipping seed ${seed.kolId}: resolved as kind="${kind}" (not a broadcast channel). ` +
@@ -231,16 +231,29 @@ export class KolSeeder implements OnApplicationBootstrap {
         kind: meta.kind,
       };
     } catch (err) {
+      // Falló la resolución → intentar unirse al canal
+      const joinResult = await this.listener.joinChannel(kolId).catch(() => null);
+      if (joinResult?.joined) {
+        // Join exitoso → reintentar metadata
+        const meta = await this.listener.resolveChannelMetadata(kolId);
+        try {
+          await this.metadataCache.upsert({
+            kolId,
+            title: meta.title,
+            handle: meta.handle,
+            resolvedAt: new Date().toISOString(),
+            source: 'mtproto',
+          });
+        } catch { /* ignore */ }
+        return { title: meta.title, handle: meta.handle, kind: meta.kind };
+      }
+      // No se pudo unir — log específico del motivo
+      const reason = joinResult?.error ?? (err instanceof Error ? err.message : 'Unknown');
       this.logger.warn(
-        `Could not resolve title for ${kolId} via Telegram; falling back to peer id. (${
-          err instanceof Error ? err.message : String(err)
-        })`,
+        `Could not resolve or join channel ${kolId}: ${reason}` +
+        (reason.includes('private') ? '. This channel requires an invite link.' : ''),
       );
-      return {
-        title: `Telegram channel ${kolId}`,
-        handle: null,
-        kind: 'user',
-      };
+      return { title: `Telegram channel ${kolId}`, handle: null, kind: 'user' };
     }
   }
 

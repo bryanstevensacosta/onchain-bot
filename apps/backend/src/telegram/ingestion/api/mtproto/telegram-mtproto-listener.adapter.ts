@@ -5,7 +5,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { TelegramClient } from 'telegram';
+import { TelegramClient, Api } from 'telegram';
 import { StringSession } from 'telegram/sessions';
 import { Logger as GramjsLogger, LogLevel } from 'telegram/extensions/Logger';
 import { NewMessage } from 'telegram/events';
@@ -15,6 +15,7 @@ import type {
   TelegramRawMessage,
   ResolvedChannelMetadata,
   TelegramListenerPort,
+  JoinChannelResult,
 } from 'telegram/ingestion/domain/ports/telegram-listener.port';
 import { IngestionSafetyConfig } from 'telegram/ingestion/infrastructure/config/ingestion-safety.config';
 import { SleepWindowService } from 'telegram/ingestion/infrastructure/services/sleep-window.service';
@@ -285,6 +286,30 @@ export class TelegramMtprotoListenerAdapter
           ? 'user'
           : 'unknown',
     };
+  }
+
+  async joinChannel(peerId: string): Promise<JoinChannelResult> {
+    const client = this.ensureClient();
+    try {
+      const peer = await this.resolvePeerAsChannel(peerId);
+      await client.invoke(new Api.channels.JoinChannel({ channel: peer }));
+      return { joined: true, wasAlreadyMember: false };
+    } catch (err) {
+      const msg = (err as Error)?.message ?? '';
+      if (msg.includes('USER_ALREADY_PARTICIPANT')) {
+        return { joined: true, wasAlreadyMember: true };
+      }
+      if (msg.includes('CHANNEL_PRIVATE') || msg.includes('CHANNEL_INVALID')) {
+        return { joined: false, wasAlreadyMember: false, error: `Channel is private or invalid: ${peerId}` };
+      }
+      if (msg.includes('CHANNELS_TOO_MUCH')) {
+        return { joined: false, wasAlreadyMember: false, error: `Account has joined too many channels` };
+      }
+      if (msg.includes('FLOOD_WAIT')) {
+        return { joined: false, wasAlreadyMember: false, error: `Flood wait: ${msg}` };
+      }
+      return { joined: false, wasAlreadyMember: false, error: msg };
+    }
   }
 
   private async markAuthorizedIfTrue(): Promise<void> {
