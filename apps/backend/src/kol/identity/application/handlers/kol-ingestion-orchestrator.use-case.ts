@@ -52,18 +52,28 @@ export class KolIngestionOrchestratorUseCase {
       await this.eventPublisher.publishAll(kol.commit());
     }
 
-    void this.consumeStream(kolIds.map((id: KolId) => id.value));
-
     const validKols = kols.filter(
       (k): k is NonNullable<typeof k> => k !== null && k !== undefined,
     );
     return validKols.map((k) => KolMapper.toView(k));
   }
 
-  private async consumeStream(channelIds: string[]): Promise<void> {
-    for await (const raw of this.listener.subscribe(channelIds)) {
-      await this.processMessage(raw);
-    }
+  /**
+   * Process a single raw message from the Telegram listener subscription.
+   *
+   * Called by IngestionCoordinator (telegram/ingestion/shared/) per
+   * incoming message. Routes through extraction → parsing pipeline.
+   *
+   * Per fix-1 (Bot Dev ToS §4.3): raw text flows ONLY through direct
+   * method calls. Events emitted are observability-only (no text).
+   */
+  public async onMessageReceived(raw: {
+    readonly peerId: string;
+    readonly messageId: number;
+    readonly text: string;
+    readonly occurredAt: Date;
+  }): Promise<void> {
+    await this.processMessage(raw);
   }
 
   /**
