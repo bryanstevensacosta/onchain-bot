@@ -1,4 +1,4 @@
-import { RegisterCallForAchievementsEvent } from './register-call-for-milestones.event';
+import { RegisterCallForAchievementsEvent } from './register-call-for-achievements.event';
 
 describe('RegisterCallForAchievementsEvent', () => {
   const payload = {

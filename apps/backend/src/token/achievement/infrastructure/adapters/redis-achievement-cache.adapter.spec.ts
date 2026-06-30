@@ -1,4 +1,4 @@
-import { RedisAchievementCacheAdapter } from './redis-milestone-cache.adapter';
+import { RedisAchievementCacheAdapter } from './redis-achievement-cache.adapter';
 
 interface FakeClient {
   smembers: jest.Mock;

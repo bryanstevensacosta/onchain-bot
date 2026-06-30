@@ -1,4 +1,4 @@
-import { InMemoryAchievementThresholdRepository } from './in-memory-milestone-threshold.repository';
+import { InMemoryAchievementThresholdRepository } from './in-memory-achievement-threshold.repository';
 
 describe('InMemoryAchievementThresholdRepository', () => {
   let repo: InMemoryAchievementThresholdRepository;
