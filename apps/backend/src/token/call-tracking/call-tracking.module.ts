@@ -1,7 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { isDatabaseEnabled } from 'shared/common/persistence/database.module';
-import { MilestoneModule } from 'token/milestone/milestone.module';
+import { AchievementModule } from 'token/achievement/achievement.module';
 import { SettingsModule } from 'settings/settings.module';
 import { VipCallsModule } from 'telegram/vip-calls-channel/vip-calls.module';
 import { ReputationModule } from 'kol/reputation/reputation.module';
@@ -48,14 +48,14 @@ import { TrackedCallsController } from 'token/call-tracking/api/http/tracked-cal
  *
  * Inputs: `TokenScoredEvent` (enqueue), `CallPublishedEvent` (track).
  * Outputs: `CallPerformance`, `CallEvaluationJob`, `TrackedPublishedCall`,
- *          `milestone.call.reached` (via MilestoneModule).
+ *          `achievement.call.reached` (via AchievementModule).
  *
  * Extracted from `token/analytics/` (N3 in name-refactor.md).
  * N18: persisted via TypeORM (Tier-2).
  */
 @Module({
   imports: [
-    MilestoneModule,
+    AchievementModule,
     SettingsModule,
     VipCallsModule,
     forwardRef(() => ReputationModule),

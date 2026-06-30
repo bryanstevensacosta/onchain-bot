@@ -18,7 +18,7 @@ import { InProcessPublishingEventPublisher } from 'telegram/shared';
 import { VipCallsPublishUseCase } from './application/handlers/vip-calls-publish.use-case';
 import { VipCallsListPublishedUseCase } from './application/handlers/vip-calls-list-published.use-case';
 import { VipCallsController } from './api/http/vip-calls.controller';
-import { MilestoneReachedHandler } from './infrastructure/event-bus/milestone-reached.handler';
+import { AchievementReachedHandler } from './infrastructure/event-bus/achievement-reached.handler';
 import { TokenApprovedPublishHandler } from './infrastructure/event-bus/token-approved-publish.handler';
 import { SettingsModule } from 'settings/settings.module';
 import { NormalizationModule } from 'token/normalization/normalization.module';
@@ -40,7 +40,7 @@ import { TickerResolverService } from './application/services/ticker-resolver.se
     VipCallsListPublishedUseCase,
     VipCallsBotApiPublisherAdapter,
     VipCallsMessageFormatterAdapter,
-    MilestoneReachedHandler,
+    AchievementReachedHandler,
     TokenApprovedPublishHandler,
     TickerResolverService,
     InMemoryPublishedCallRepository,

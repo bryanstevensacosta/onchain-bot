@@ -11,7 +11,7 @@ import {
   PublishedCallRepository,
   PublishingEventPublisher,
 } from 'telegram/shared';
-import { RegisterCallForMilestonesEvent } from 'token/milestone/domain/events/register-call-for-milestones.event';
+import { RegisterCallForAchievementsEvent } from 'token/achievement/domain/events/register-call-for-achievements.event';
 
 export interface VipCallsPublishInput {
   readonly chain: string;
@@ -118,7 +118,7 @@ export class VipCallsPublishUseCase {
     await this.eventPublisher.publishAll(call.commit());
 
     if (call.isPublished && mcAtCall !== null && mcAtCall > 0) {
-      const registerEvent = new RegisterCallForMilestonesEvent(call.id, {
+      const registerEvent = new RegisterCallForAchievementsEvent(call.id, {
         callId: call.id,
         chain: call.chain.value,
         address: call.address,

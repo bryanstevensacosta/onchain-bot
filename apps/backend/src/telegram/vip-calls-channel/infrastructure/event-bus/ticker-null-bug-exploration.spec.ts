@@ -1,4 +1,4 @@
-import { TokenFilteredEvent } from 'token/token-gating/domain/events/token-filtered.event';
+import { VipCallApprovedEvent } from 'token/vip-call-approval/domain/events/token-filtered.event';
 import { CanonicalTokenCallRepository } from 'token/normalization/application/ports/canonical-token-call.repository';
 import { TokenSnapshotRepository } from 'token/enrichment/application/ports/token-snapshot.repository';
 import { TokenApprovedPublishHandler } from './token-approved-publish.handler';
@@ -113,7 +113,7 @@ describe('TokenApprovedPublishHandler - Ticker Null Bug Exploration', () => {
     );
 
     // Act: Process event for token with no metadata in DB
-    const event = new TokenFilteredEvent({
+    const event = new VipCallApprovedEvent({
       chain: 'solana',
       address: SOLANA_TOKEN_NO_METADATA,
       score: 85,
@@ -172,7 +172,7 @@ describe('TokenApprovedPublishHandler - Ticker Null Bug Exploration', () => {
     );
 
     // Act
-    const event = new TokenFilteredEvent({
+    const event = new VipCallApprovedEvent({
       chain: 'ethereum',
       address: ETHEREUM_TOKEN_NO_SYMBOL,
       score: 75,
@@ -224,7 +224,7 @@ describe('TokenApprovedPublishHandler - Ticker Null Bug Exploration', () => {
     );
 
     // Act
-    const event = new TokenFilteredEvent({
+    const event = new VipCallApprovedEvent({
       chain: 'ethereum',
       address: '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599', // WBTC
       score: 95,
@@ -275,7 +275,7 @@ describe('TokenApprovedPublishHandler - Ticker Null Bug Exploration', () => {
     );
 
     // Act
-    const event = new TokenFilteredEvent({
+    const event = new VipCallApprovedEvent({
       chain: 'ethereum',
       address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', // WETH
       score: 90,

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { RegisterCallForAchievementsEvent } from '../../domain/events/register-call-for-milestones.event';
+import { RegisterCallForAchievementsEvent } from '../../domain/events/register-call-for-achievements.event';
 import { RegisterMonitoredCallUseCase } from '../../application/handlers/register-monitored-call.use-case';
 
 @Injectable()

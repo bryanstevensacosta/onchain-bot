@@ -1,4 +1,4 @@
-import { TokenFilteredEvent } from 'token/token-gating/domain/events/token-filtered.event';
+import { VipCallApprovedEvent } from 'token/vip-call-approval/domain/events/token-filtered.event';
 import { CanonicalTokenCallRepository } from 'token/normalization/application/ports/canonical-token-call.repository';
 import { TokenSnapshotRepository } from 'token/enrichment/application/ports/token-snapshot.repository';
 import { PublishedCallRepository } from 'telegram/shared';
@@ -155,7 +155,7 @@ describe('TokenApprovedPublishHandler - Preservation Properties', () => {
             );
 
             // Act: Process event
-            const event = new TokenFilteredEvent({
+            const event = new VipCallApprovedEvent({
               chain,
               address,
               score: 85,
@@ -220,7 +220,7 @@ describe('TokenApprovedPublishHandler - Preservation Properties', () => {
       );
 
       // Act
-      const event = new TokenFilteredEvent({
+      const event = new VipCallApprovedEvent({
         chain: 'ethereum',
         address: '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
         score: 95,
@@ -297,7 +297,7 @@ describe('TokenApprovedPublishHandler - Preservation Properties', () => {
             );
 
             // Act
-            const event = new TokenFilteredEvent({
+            const event = new VipCallApprovedEvent({
               chain,
               address,
               score: 80,
@@ -354,7 +354,7 @@ describe('TokenApprovedPublishHandler - Preservation Properties', () => {
       );
 
       // Act
-      const event = new TokenFilteredEvent({
+      const event = new VipCallApprovedEvent({
         chain: 'ethereum',
         address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', // WETH
         score: 90,
@@ -420,7 +420,7 @@ describe('TokenApprovedPublishHandler - Preservation Properties', () => {
       );
 
       // Act
-      const event = new TokenFilteredEvent({
+      const event = new VipCallApprovedEvent({
         chain: 'ethereum',
         address: '0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce', // SHIB (example)
         score: 85,
@@ -481,7 +481,7 @@ describe('TokenApprovedPublishHandler - Preservation Properties', () => {
       );
 
       // Act
-      const event = new TokenFilteredEvent({
+      const event = new VipCallApprovedEvent({
         chain: 'ethereum',
         address: '0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce', // SHIB
         score: 85,
@@ -555,7 +555,7 @@ describe('TokenApprovedPublishHandler - Preservation Properties', () => {
       );
 
       // Act
-      const event = new TokenFilteredEvent({
+      const event = new VipCallApprovedEvent({
         chain: 'solana',
         address: 'So11111111111111111111111111111111111111112', // Valid Solana address (SOL)
         score: 85,
@@ -608,7 +608,7 @@ describe('TokenApprovedPublishHandler - Preservation Properties', () => {
       );
 
       // Act & Assert: Should not throw (handler catches errors)
-      const event = new TokenFilteredEvent({
+      const event = new VipCallApprovedEvent({
         chain: 'solana',
         address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // Valid Solana address (USDC)
         score: 80,
@@ -684,7 +684,7 @@ describe('TokenApprovedPublishHandler - Preservation Properties', () => {
               mockPublishedCallRepoNeverFound(),
             );
 
-            const event = new TokenFilteredEvent({
+            const event = new VipCallApprovedEvent({
               chain,
               address,
               score: 80,

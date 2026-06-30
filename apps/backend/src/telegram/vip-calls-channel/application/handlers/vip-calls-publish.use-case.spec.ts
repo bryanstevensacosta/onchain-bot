@@ -173,7 +173,7 @@ describe('VipCallsPublishUseCase', () => {
       expect(eventPublisher.publishAll).toHaveBeenCalledTimes(1);
     });
 
-    it('emits the RegisterCallForMilestonesEvent when mcAtCall > 0', async () => {
+    it('emits the RegisterCallForAchievementsEvent when mcAtCall > 0', async () => {
       const { useCase, eventEmitter } = buildUseCase();
       await useCase.execute({
         chain: 'solana',
@@ -184,9 +184,9 @@ describe('VipCallsPublishUseCase', () => {
       });
 
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        'milestone.register.call',
+        'achievement.register.call',
         expect.objectContaining({
-          eventName: 'milestone.register.call',
+          eventName: 'achievement.register.call',
           payload: expect.objectContaining({
             callId: expect.any(String),
             chain: 'solana',
@@ -210,14 +210,14 @@ describe('VipCallsPublishUseCase', () => {
       });
 
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        'milestone.register.call',
+        'achievement.register.call',
         expect.objectContaining({
           payload: expect.objectContaining({ mcAtCall: 125000 }),
         }),
       );
     });
 
-    it('does NOT emit RegisterCallForMilestonesEvent when marketCapUsd is undefined', async () => {
+    it('does NOT emit RegisterCallForAchievementsEvent when marketCapUsd is undefined', async () => {
       const { useCase, eventEmitter } = buildUseCase();
       await useCase.execute({
         chain: 'solana',
@@ -229,7 +229,7 @@ describe('VipCallsPublishUseCase', () => {
       expect(eventEmitter.emit).not.toHaveBeenCalled();
     });
 
-    it('does NOT emit RegisterCallForMilestonesEvent when marketCapUsd is 0', async () => {
+    it('does NOT emit RegisterCallForAchievementsEvent when marketCapUsd is 0', async () => {
       const { useCase, eventEmitter } = buildUseCase();
       await useCase.execute({
         chain: 'solana',
@@ -242,7 +242,7 @@ describe('VipCallsPublishUseCase', () => {
       expect(eventEmitter.emit).not.toHaveBeenCalled();
     });
 
-    it('does NOT emit RegisterCallForMilestonesEvent when marketCapUsd is negative', async () => {
+    it('does NOT emit RegisterCallForAchievementsEvent when marketCapUsd is negative', async () => {
       const { useCase, eventEmitter } = buildUseCase();
       await useCase.execute({
         chain: 'solana',
@@ -285,7 +285,7 @@ describe('VipCallsPublishUseCase', () => {
       expect(saved?.isPublished).toBe(false);
     });
 
-    it('does NOT emit RegisterCallForMilestonesEvent when publish failed (only published calls are monitored)', async () => {
+    it('does NOT emit RegisterCallForAchievementsEvent when publish failed (only published calls are monitored)', async () => {
       const publisher = makePublisher({
         ok: false,
         messageId: null,

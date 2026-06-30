@@ -133,7 +133,7 @@ export const WS_EVENTS = {
   EnrichmentEnriched: 'enrichment.token.enriched',
   ClassificationClassified: 'classification.token.classified',
   ScoringScored: 'scoring.token.scored',
-  FiltersDecision: 'token-gating.decision.applied',
+  FiltersDecision: 'vip-call-approval.decision.applied',
   PublishingPublished: 'publishing.telegram.published',
   PublishingFailed: 'publishing.telegram.failed',
   AnalyticsCompleted: 'analytics.evaluation.completed',

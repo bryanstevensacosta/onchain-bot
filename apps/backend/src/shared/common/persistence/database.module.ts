@@ -9,7 +9,7 @@ import { TokenClassificationEntity } from 'token/classification/infrastructure/p
 import { CallPerformanceEntity } from 'token/call-tracking/infrastructure/persistence/typeorm/entities/call-performance.entity';
 import { CallEvaluationJobEntity } from 'token/call-tracking/infrastructure/persistence/typeorm/entities/call-evaluation-job.entity';
 import { TrackedPublishedCallOrmEntity } from 'token/call-tracking/infrastructure/persistence/typeorm/entities/tracked-published-call.entity';
-import { FilterDecisionEntity } from 'token/token-gating/infrastructure/persistence/typeorm/entities/filter-decision.entity';
+import { VipCallApprovalDecisionEntity } from 'token/vip-call-approval/infrastructure/persistence/typeorm/entities/vip-call-approval-decision.entity';
 import { TokenSnapshotEntity } from 'token/enrichment/infrastructure/persistence/typeorm/entities/token-snapshot.entity';
 import { ExtractionResultEntity } from 'token/intake/extraction/infrastructure/persistence/typeorm/entities/extraction-result.entity';
 import { TokenCallEntity } from 'token/intake/parsing/infrastructure/persistence/typeorm/entities/token-call.entity';
@@ -22,9 +22,9 @@ import { ScoringThresholdEntity } from 'settings/infrastructure/persistence/type
 import { SettingsFilterEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-filter.entity';
 import { SettingsAuditLogEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-audit-log.entity';
 import { SettingsPresetEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-preset.entity';
-import { MilestoneThresholdEntity } from 'token/milestone/domain/entities/milestone-threshold.entity';
-import { MonitoredCallEntity } from 'token/milestone/domain/entities/monitored-call.entity';
-import { NotifiedMilestoneEntity } from 'token/milestone/domain/entities/notified-milestone.entity';
+import { AchievementThresholdEntity } from 'token/achievement/domain/entities/achievement-threshold.entity';
+import { MonitoredCallEntity } from 'token/achievement/domain/entities/monitored-call.entity';
+import { NotifiedAchievementEntity } from 'token/achievement/domain/entities/notified-achievement.entity';
 import { PublishedCallEntity } from 'telegram/vip-calls-channel/infrastructure/persistence/typeorm/entities/published-call.entity';
 import type { AppConfig } from 'shared/common/config/app.config';
 
@@ -37,7 +37,7 @@ const PERSISTED_ENTITIES = [
   CallPerformanceEntity,
   CallEvaluationJobEntity,
   TrackedPublishedCallOrmEntity,
-  FilterDecisionEntity,
+  VipCallApprovalDecisionEntity,
   TokenSnapshotEntity,
   ExtractionResultEntity,
   TokenCallEntity,
@@ -50,9 +50,9 @@ const PERSISTED_ENTITIES = [
   SettingsFilterEntity,
   SettingsAuditLogEntity,
   SettingsPresetEntity,
-  MilestoneThresholdEntity,
+  AchievementThresholdEntity,
   MonitoredCallEntity,
-  NotifiedMilestoneEntity,
+  NotifiedAchievementEntity,
   PublishedCallEntity,
 ];
 

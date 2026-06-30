@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { KolRepository } from 'kol/identity/application/ports/kol.repository';
 import { CanonicalTokenCallRepository } from 'token/normalization/application/ports/canonical-token-call.repository';
-import { FilterDecisionRepository } from 'token/token-gating/application/ports/filter-decision.repository';
+import { VipCallApprovalDecisionRepository } from 'token/vip-call-approval/application/ports/vip-call-approval-decision.repository';
 import { PublishedCallRepository } from 'telegram/shared';
 import type { DashboardKpis } from '../ports/dashboard-kpis.port';
 import { DashboardKpisCachePort } from '../ports/dashboard-kpis-cache.port';
@@ -19,7 +19,7 @@ export class GetDashboardKpisUseCase {
   public constructor(
     private readonly kolRepo: KolRepository,
     private readonly canonicalCallRepo: CanonicalTokenCallRepository,
-    private readonly filterDecisionRepo: FilterDecisionRepository,
+    private readonly filterDecisionRepo: VipCallApprovalDecisionRepository,
     private readonly publishedCallRepo: PublishedCallRepository,
     private readonly cache: DashboardKpisCachePort,
   ) {}

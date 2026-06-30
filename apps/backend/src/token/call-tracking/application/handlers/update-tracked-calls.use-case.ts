@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { TrackedPublishedCallRepository } from '../ports/tracked-published-call.repository';
-import { LiveMarketDataPort } from 'token/milestone/application/ports/live-market-data.port';
-import { MilestoneThresholdRepository } from 'token/milestone/application/ports/milestone-threshold.repository';
-import { MilestoneCachePort } from 'token/milestone/application/ports/milestone-cache.port';
+import { LiveMarketDataPort } from 'token/achievement/application/ports/live-market-data.port';
+import { AchievementThresholdRepository } from 'token/achievement/application/ports/achievement-threshold.repository';
+import { AchievementCachePort } from 'token/achievement/application/ports/achievement-cache.port';
 import { TrackedPublishedCall } from '../../domain/entities/tracked-published-call.entity';
 
 export interface UpdateTrackedCallsResult {
@@ -18,8 +18,8 @@ export class UpdateTrackedCallsUseCase {
   constructor(
     private readonly trackedRepo: TrackedPublishedCallRepository,
     private readonly liveMarketData: LiveMarketDataPort,
-    private readonly thresholdRepo: MilestoneThresholdRepository,
-    private readonly cache: MilestoneCachePort,
+    private readonly thresholdRepo: AchievementThresholdRepository,
+    private readonly cache: AchievementCachePort,
   ) {}
 
   async execute(

@@ -1,6 +1,6 @@
 import { ChainId } from 'chain/identity/chain-id.vo';
 import { PublishedCall } from 'telegram/shared';
-import { TokenFilteredEvent } from 'token/token-gating/domain/events/token-filtered.event';
+import { VipCallApprovedEvent } from 'token/vip-call-approval/domain/events/token-filtered.event';
 import { CanonicalTokenCallRepository } from 'token/normalization/application/ports/canonical-token-call.repository';
 import { TokenSnapshotRepository } from 'token/enrichment/application/ports/token-snapshot.repository';
 import { TokenApprovedPublishHandler } from './token-approved-publish.handler';
@@ -11,12 +11,12 @@ import { InMemoryPublishedCallRepository } from '../repositories/in-memory-publi
  * Bug Condition Exploration Test
  * **Validates: Requirements 1.1, 1.2, 1.3, 2.1, 2.2, 2.3**
  *
- * **Property 1: Bug Condition** - Duplicate TokenFilteredEvent Publications
+ * **Property 1: Bug Condition** - Duplicate VipCallApprovedEvent Publications
  *
  * **CRITICAL**: This test MUST FAIL on unfixed code - failure confirms the bug exists
  *
  * This test encodes the EXPECTED behavior (after fix):
- * - When a TokenFilteredEvent is emitted for a token already in published_calls
+ * - When a VipCallApprovedEvent is emitted for a token already in published_calls
  * - The handler should detect the duplicate and skip publication
  * - VipCallsPublishUseCase.execute() should NOT be called
  *
@@ -119,8 +119,8 @@ describe('TokenApprovedPublishHandler - Bug Condition Exploration', () => {
       mockTickerResolver(),
     );
 
-    // Act: Emit TWO TokenFilteredEvent instances for the SAME token
-    const event1 = new TokenFilteredEvent({
+    // Act: Emit TWO VipCallApprovedEvent instances for the SAME token
+    const event1 = new VipCallApprovedEvent({
       chain: 'solana',
       address: SOLANA_TOKEN,
       score: 85,
@@ -128,7 +128,7 @@ describe('TokenApprovedPublishHandler - Bug Condition Exploration', () => {
       decidedAt: new Date(),
     });
 
-    const event2 = new TokenFilteredEvent({
+    const event2 = new VipCallApprovedEvent({
       chain: 'solana',
       address: SOLANA_TOKEN,
       score: 90,
@@ -197,7 +197,7 @@ describe('TokenApprovedPublishHandler - Bug Condition Exploration', () => {
     );
 
     // Act: Emit TWO events for the same Ethereum token
-    const event1 = new TokenFilteredEvent({
+    const event1 = new VipCallApprovedEvent({
       chain: 'ethereum',
       address: ETHEREUM_TOKEN,
       score: 78,
@@ -205,7 +205,7 @@ describe('TokenApprovedPublishHandler - Bug Condition Exploration', () => {
       decidedAt: new Date(),
     });
 
-    const event2 = new TokenFilteredEvent({
+    const event2 = new VipCallApprovedEvent({
       chain: 'ethereum',
       address: ETHEREUM_TOKEN,
       score: 82,
@@ -251,7 +251,7 @@ describe('TokenApprovedPublishHandler - Bug Condition Exploration', () => {
 
     // Act: Emit event for a NEW token (never published before)
     // Using a valid Solana address format (base58, 32-44 chars)
-    const newTokenEvent = new TokenFilteredEvent({
+    const newTokenEvent = new VipCallApprovedEvent({
       chain: 'solana',
       address: 'So11111111111111111111111111111111111111112',
       score: 90,

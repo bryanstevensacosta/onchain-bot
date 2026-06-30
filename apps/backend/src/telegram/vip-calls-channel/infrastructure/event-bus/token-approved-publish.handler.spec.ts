@@ -1,4 +1,4 @@
-import { TokenFilteredEvent } from 'token/token-gating/domain/events/token-filtered.event';
+import { VipCallApprovedEvent } from 'token/vip-call-approval/domain/events/token-filtered.event';
 import { CanonicalTokenCallRepository } from 'token/normalization/application/ports/canonical-token-call.repository';
 import { TokenSnapshotRepository } from 'token/enrichment/application/ports/token-snapshot.repository';
 import { TokenApprovedPublishHandler } from './token-approved-publish.handler';
@@ -8,8 +8,8 @@ import { TickerResolverService } from '../../application/services/ticker-resolve
 
 const SOL_ADDR = '4quuyzseunkbdwr3xqv83cqeb9enat348b9exbhgwory';
 
-function makeEvent(): TokenFilteredEvent {
-  return new TokenFilteredEvent({
+function makeEvent(): VipCallApprovedEvent {
+  return new VipCallApprovedEvent({
     chain: 'solana',
     address: SOL_ADDR,
     score: 80,
@@ -44,7 +44,7 @@ function mockTickerResolver(): TickerResolverService {
 
 describe('TokenApprovedPublishHandler', () => {
   it('subscribes to filters.token.approved', () => {
-    expect(TokenFilteredEvent.EVENT_NAME).toBe('filters.token.approved');
+    expect(VipCallApprovedEvent.EVENT_NAME).toBe('vip-call.approval.approved');
   });
 
   it('invokes publish.execute with chain, address, score, classification, and defaults for unknown ticker', async () => {

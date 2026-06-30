@@ -1,4 +1,4 @@
-import { TokenFilteredEvent } from 'token/token-gating/domain/events/token-filtered.event';
+import { VipCallApprovedEvent } from 'token/vip-call-approval/domain/events/token-filtered.event';
 import { CanonicalTokenCallRepository } from 'token/normalization/application/ports/canonical-token-call.repository';
 import { TokenSnapshotRepository } from 'token/enrichment/application/ports/token-snapshot.repository';
 import { PublishedCallRepository } from 'telegram/shared';
@@ -113,7 +113,7 @@ describe('TokenApprovedPublishHandler - Ticker Bug Condition Exploration', () =>
     );
 
     // Act: Emit event for a newly listed token
-    const event = new TokenFilteredEvent({
+    const event = new VipCallApprovedEvent({
       chain: 'solana',
       address: SOLANA_TOKEN_NEW,
       score: 85,
@@ -189,7 +189,7 @@ describe('TokenApprovedPublishHandler - Ticker Bug Condition Exploration', () =>
     );
 
     // Act
-    const event = new TokenFilteredEvent({
+    const event = new VipCallApprovedEvent({
       chain: 'ethereum',
       address: ETHEREUM_TOKEN_NEW,
       score: 78,
@@ -254,7 +254,7 @@ describe('TokenApprovedPublishHandler - Ticker Bug Condition Exploration', () =>
     );
 
     // Act
-    const event = new TokenFilteredEvent({
+    const event = new VipCallApprovedEvent({
       chain: 'bsc',
       address: BSC_TOKEN_PARTIAL,
       score: 75,
@@ -312,7 +312,7 @@ describe('TokenApprovedPublishHandler - Ticker Bug Condition Exploration', () =>
     );
 
     // Act
-    const event = new TokenFilteredEvent({
+    const event = new VipCallApprovedEvent({
       chain: 'solana',
       address: SOLANA_TOKEN_NEW,
       score: 90,
@@ -377,7 +377,7 @@ describe('TokenApprovedPublishHandler - Ticker Bug Condition Exploration', () =>
     );
 
     // Act
-    const event = new TokenFilteredEvent({
+    const event = new VipCallApprovedEvent({
       chain: 'ethereum',
       address: ETHEREUM_TOKEN_NEW,
       score: 70,

@@ -5,7 +5,7 @@ import { ChainFamily } from 'chain/identity/chain-family.vo';
 import { NormalizedAddress } from 'token/identity/normalized-address.vo';
 import { CanonicalTokenCallRepository } from 'token/normalization/application/ports/canonical-token-call.repository';
 import { TokenSnapshotRepository } from 'token/enrichment/application/ports/token-snapshot.repository';
-import { TokenFilteredEvent } from 'token/token-gating/domain/events/token-filtered.event';
+import { VipCallApprovedEvent } from 'token/vip-call-approval/domain/events/vip-call-approved.event';
 import { VipCallsPublishUseCase } from '../../application/handlers/vip-calls-publish.use-case';
 import { PublishedCallRepository } from 'telegram/shared';
 import { TickerResolverService } from '../../application/services/ticker-resolver.service';
@@ -22,8 +22,8 @@ export class TokenApprovedPublishHandler {
     private readonly tickerResolver: TickerResolverService,
   ) {}
 
-  @OnEvent(TokenFilteredEvent.EVENT_NAME, { async: true })
-  async handle(event: TokenFilteredEvent): Promise<void> {
+  @OnEvent(VipCallApprovedEvent.EVENT_NAME, { async: true })
+  async handle(event: VipCallApprovedEvent): Promise<void> {
     try {
       const chainId = ChainId.fromString(event.payload.chain);
       const addressLower = event.payload.address.toLowerCase();

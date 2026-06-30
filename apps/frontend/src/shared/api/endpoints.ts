@@ -50,16 +50,16 @@ export const ENDPOINTS = {
       `/token/scoring/tokens/${chain}/${address}`,
   },
   filters: {
-    apply: '/token/token-gating/apply',
-    approved: '/token/token-gating/decisions/approved',
-    rejected: '/token/token-gating/decisions/rejected',
-    recent: '/token/token-gating/decisions/recent',
+    apply: '/token/vip-call-approval/apply',
+    approved: '/token/vip-call-approval/decisions/approved',
+    rejected: '/token/vip-call-approval/decisions/rejected',
+    recent: '/token/vip-call-approval/decisions/recent',
     byToken: (chain: string, address: string) =>
-      `/token/token-gating/decisions/${chain}/${address}`,
-    decisionsRejectedVerify: '/token/token-gating/decisions/rejected/verify',
-    reprocessBatch: '/token/token-gating/reprocess/rejected',
+      `/token/vip-call-approval/decisions/${chain}/${address}`,
+    decisionsRejectedVerify: '/token/vip-call-approval/decisions/rejected/verify',
+    reprocessBatch: '/token/vip-call-approval/reprocess/rejected',
     reprocessOne: (chain: string, address: string) =>
-      `/token/token-gating/reprocess/${chain}/${address}`,
+      `/token/vip-call-approval/reprocess/${chain}/${address}`,
   },
   honeypot: {
     analyze: '/token/honeypot/analyze',

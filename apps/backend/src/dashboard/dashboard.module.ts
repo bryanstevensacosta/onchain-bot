@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { IdentityModule } from 'kol/identity/identity.module';
 import { NormalizationModule } from 'token/normalization/normalization.module';
-import { FiltersModule } from 'token/token-gating/filters.module';
+import { VipCallApprovalModule } from 'token/vip-call-approval/vip-call-approval.module';
 import { VipCallsModule as TelegramPublishingModule } from 'telegram/vip-calls-channel/vip-calls.module';
 import { GetDashboardKpisUseCase } from 'dashboard/application/handlers/get-dashboard-kpis.use-case';
 import { DashboardController } from 'dashboard/api/http/dashboard.controller';
@@ -15,14 +15,14 @@ import { RefreshKpisService } from 'dashboard/application/services/refresh-kpis.
  * Dashboard BC.
  *
  * Cross-BC read-only aggregator. Depends on the application ports of
- * KOL identity, normalization, token-gating and publishing — does not
+ * KOL identity, normalization, vip-call-approval and publishing — does not
  * touch their internals.
  */
 @Module({
   imports: [
     IdentityModule,
     NormalizationModule,
-    FiltersModule,
+    VipCallApprovalModule,
     TelegramPublishingModule,
   ],
   controllers: [DashboardController],

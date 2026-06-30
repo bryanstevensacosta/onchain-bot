@@ -3,9 +3,9 @@ import {
   TrackedPublishedCallRepository,
   TrackedPublishedCallRecord,
 } from '../ports/tracked-published-call.repository';
-import { LiveMarketDataPort } from 'token/milestone/application/ports/live-market-data.port';
-import { MilestoneThresholdRepository } from 'token/milestone/application/ports/milestone-threshold.repository';
-import { MilestoneCachePort } from 'token/milestone/application/ports/milestone-cache.port';
+import { LiveMarketDataPort } from 'token/achievement/application/ports/live-market-data.port';
+import { AchievementThresholdRepository } from 'token/achievement/application/ports/achievement-threshold.repository';
+import { AchievementCachePort } from 'token/achievement/application/ports/achievement-cache.port';
 
 class StubTrackedRepo extends TrackedPublishedCallRepository {
   records = new Map<string, TrackedPublishedCallRecord>();
@@ -46,7 +46,7 @@ class StubMarketData extends LiveMarketDataPort {
   }
 }
 
-class StubThresholds extends MilestoneThresholdRepository {
+class StubThresholds extends AchievementThresholdRepository {
   multiples: number[] = [];
   async findEnabled() {
     return this.multiples.map((m) => ({ multiple: m }));
@@ -68,7 +68,7 @@ class StubThresholds extends MilestoneThresholdRepository {
   }
 }
 
-class StubCache extends MilestoneCachePort {
+class StubCache extends AchievementCachePort {
   notified = new Map<string, Set<number>>();
   async getNotifiedThresholds(callId: string) {
     return new Set(this.notified.get(callId) ?? []);

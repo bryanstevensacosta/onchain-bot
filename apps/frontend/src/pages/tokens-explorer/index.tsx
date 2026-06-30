@@ -160,7 +160,7 @@ export function TokensExplorerPage() {
   const onDecisionEvent = useCallback(() => {
     void qc.invalidateQueries({ queryKey: decisionKeys.all });
   }, [qc]);
-  useEventStream('token-gating.decision.applied', onDecisionEvent);
+  useEventStream('vip-call-approval.decision.applied', onDecisionEvent);
 
   const scoreMap = useMemo(() => {
     const m = new Map<string, { score: number; tier: string }>();

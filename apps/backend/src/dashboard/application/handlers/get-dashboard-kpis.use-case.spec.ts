@@ -4,8 +4,8 @@ import { Kol } from 'kol/identity/domain/entities/kol.entity';
 import { KolId } from 'kol/identity/domain/value-objects/kol-id.vo';
 import { CanonicalTokenCallRepository } from 'token/normalization/application/ports/canonical-token-call.repository';
 import { CanonicalTokenCall } from 'token/normalization/domain/entities/canonical-token-call.entity';
-import { FilterDecisionRepository } from 'token/token-gating/application/ports/filter-decision.repository';
-import { FilterDecision } from 'token/token-gating/domain/entities/filter-decision.entity';
+import { VipCallApprovalDecisionRepository } from 'token/vip-call-approval/application/ports/vip-call-approval-decision.repository';
+import { VipCallApprovalDecision } from 'token/vip-call-approval/domain/entities/vip-call-approval-decision.entity';
 import { PublishedCallRepository, PublishedCall } from 'telegram/shared';
 
 class FakeKolRepo extends KolRepository {
@@ -47,20 +47,20 @@ class FakeCanonicalRepo extends CanonicalTokenCallRepository {
   }
 }
 
-class FakeFilterRepo extends FilterDecisionRepository {
+class FakeFilterRepo extends VipCallApprovalDecisionRepository {
   public verdicts: Array<'APPROVED' | 'REJECTED'> = [];
   public countByVerdictCalls = 0;
   public async save(): Promise<void> {}
-  public async findByChainAndAddress(): Promise<FilterDecision | null> {
+  public async findByChainAndAddress(): Promise<VipCallApprovalDecision | null> {
     return null;
   }
-  public async findRecent(): Promise<ReadonlyArray<FilterDecision>> {
+  public async findRecent(): Promise<ReadonlyArray<VipCallApprovalDecision>> {
     return [];
   }
-  public async findApproved(): Promise<ReadonlyArray<FilterDecision>> {
+  public async findApproved(): Promise<ReadonlyArray<VipCallApprovalDecision>> {
     return [];
   }
-  public async findRejected(): Promise<ReadonlyArray<FilterDecision>> {
+  public async findRejected(): Promise<ReadonlyArray<VipCallApprovalDecision>> {
     return [];
   }
   public async countByVerdict(): Promise<{

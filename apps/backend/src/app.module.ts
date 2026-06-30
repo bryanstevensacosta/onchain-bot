@@ -15,11 +15,11 @@ import { ChainRegistryModule } from 'chain/registry/chain-registry.module';
 import { EnrichmentModule } from 'token/enrichment/enrichment.module';
 import { ClassificationModule } from 'token/classification/classification.module';
 import { ScoringModule } from 'token/scoring/scoring.module';
-import { FiltersModule } from 'token/token-gating/filters.module';
+import { VipCallApprovalModule } from 'token/vip-call-approval/vip-call-approval.module';
 import { VipCallsModule as TelegramPublishingModule } from 'telegram/vip-calls-channel/vip-calls.module';
 import { ChainDexterBotModule } from 'telegram/chain-dexter-bot/chain-dexter-bot.module';
 import { CallTrackingModule } from 'token/call-tracking/call-tracking.module';
-import { MilestoneModule } from 'token/milestone/milestone.module';
+import { AchievementModule } from 'token/achievement/achievement.module';
 import { ReputationModule } from 'kol/reputation/reputation.module';
 import { HoneypotModule } from 'token/honeypot/honeypot.module';
 import { IdentityModule } from 'kol/identity/identity.module';
@@ -62,11 +62,11 @@ import { AppService } from './app.service';
     EnrichmentModule,
     ClassificationModule,
     ScoringModule,
-    FiltersModule,
+    VipCallApprovalModule,
     TelegramPublishingModule,
     ChainDexterBotModule,
     CallTrackingModule,
-    MilestoneModule,
+    AchievementModule,
     ReputationModule,
     HoneypotModule,
     DashboardModule,

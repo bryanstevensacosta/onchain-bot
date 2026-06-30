@@ -26,12 +26,12 @@ export class RefreshKpisService {
     await this.refresh();
   }
 
-  @OnEvent('filters.token.approved', { async: true })
+  @OnEvent('vip-call.approval.approved', { async: true })
   public async onApproved(): Promise<void> {
     await this.refresh();
   }
 
-  @OnEvent('filters.token.rejected', { async: true })
+  @OnEvent('vip-call.approval.rejected', { async: true })
   public async onRejected(): Promise<void> {
     await this.refresh();
   }
