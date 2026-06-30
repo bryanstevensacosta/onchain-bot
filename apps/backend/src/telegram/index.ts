@@ -1,4 +1,4 @@
-export { VipCallsModule } from './vip-calls-channel/vip-calls.module';
+export { VipCallsModule } from './vip-calls/vip-channel/vip-channel.module';
 export {
   PublishedCallRepository,
   PublishingEventPublisher,

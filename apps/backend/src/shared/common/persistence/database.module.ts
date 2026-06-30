@@ -25,7 +25,7 @@ import { SettingsPresetEntity } from 'settings/infrastructure/persistence/typeor
 import { AchievementThresholdEntity } from 'token/achievement/domain/entities/achievement-threshold.entity';
 import { MonitoredCallEntity } from 'token/achievement/domain/entities/monitored-call.entity';
 import { NotifiedAchievementEntity } from 'token/achievement/domain/entities/notified-achievement.entity';
-import { PublishedCallEntity } from 'telegram/vip-calls-channel/infrastructure/persistence/typeorm/entities/published-call.entity';
+import { PublishedCallEntity } from 'telegram/vip-calls/vip-channel/infrastructure/persistence/typeorm/entities/published-call.entity';
 import type { AppConfig } from 'shared/common/config/app.config';
 
 const PERSISTED_ENTITIES = [

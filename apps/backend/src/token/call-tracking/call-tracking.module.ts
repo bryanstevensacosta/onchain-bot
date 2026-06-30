@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { isDatabaseEnabled } from 'shared/common/persistence/database.module';
 import { AchievementModule } from 'token/achievement/achievement.module';
 import { SettingsModule } from 'settings/settings.module';
-import { VipCallsModule } from 'telegram/vip-calls-channel/vip-calls.module';
+import { VipCallsModule } from 'telegram/vip-calls/vip-channel/vip-channel.module';
 import { ReputationModule } from 'kol/reputation/reputation.module';
 import { CallEvaluationJobRepository } from 'token/call-tracking/application/ports/call-evaluation-job.repository';
 import { CallPerformanceRepository } from 'token/call-tracking/application/ports/call-performance.repository';

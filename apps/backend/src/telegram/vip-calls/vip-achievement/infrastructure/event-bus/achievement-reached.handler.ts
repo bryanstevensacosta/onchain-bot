@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { CallAchievementReachedEvent } from 'token/achievement/domain/events/call-achievement-reached.event';
 import { MessageFormatterPort, TelegramPublisherPort } from 'telegram/shared';
-import { VipCallsMessageFormatterAdapter } from '../formatters/vip-message-formatter.adapter';
+import { VipCallsMessageFormatterAdapter } from '../../../vip-channel/infrastructure/formatters/vip-message-formatter.adapter';
 
 @Injectable()
 export class AchievementReachedHandler {

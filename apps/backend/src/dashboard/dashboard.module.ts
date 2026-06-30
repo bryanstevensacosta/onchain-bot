@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { IdentityModule } from 'kol/identity/identity.module';
 import { NormalizationModule } from 'token/normalization/normalization.module';
 import { VipCallApprovalModule } from 'token/vip-call-approval/vip-call-approval.module';
-import { VipCallsModule as TelegramPublishingModule } from 'telegram/vip-calls-channel/vip-calls.module';
+import { VipCallsModule as TelegramPublishingModule } from 'telegram/vip-calls/vip-channel/vip-channel.module';
 import { GetDashboardKpisUseCase } from 'dashboard/application/handlers/get-dashboard-kpis.use-case';
 import { DashboardController } from 'dashboard/api/http/dashboard.controller';
 import { DashboardKpisCachePort } from 'dashboard/application/ports/dashboard-kpis-cache.port';

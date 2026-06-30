@@ -9,7 +9,7 @@ import {
   MessageFormatterPort,
   TelegramPublisherPort,
 } from 'telegram/shared';
-import { VipCallsBotApiPublisherAdapter } from './infrastructure/senders/bot-api-telegram-publisher.adapter';
+import { VipCallsBotApiPublisherAdapter } from '../shared/infrastructure/senders/bot-api-telegram-publisher.adapter';
 import { VipCallsMessageFormatterAdapter } from './infrastructure/formatters/vip-message-formatter.adapter';
 import { InMemoryPublishedCallRepository } from './infrastructure/repositories/in-memory-published-call.repository';
 import { TypeOrmPublishedCallRepository } from './infrastructure/persistence/typeorm/repositories/typeorm-published-call.repository';
@@ -18,7 +18,7 @@ import { InProcessPublishingEventPublisher } from 'telegram/shared';
 import { VipCallsPublishUseCase } from './application/handlers/vip-calls-publish.use-case';
 import { VipCallsListPublishedUseCase } from './application/handlers/vip-calls-list-published.use-case';
 import { VipCallsController } from './api/http/vip-calls.controller';
-import { AchievementReachedHandler } from './infrastructure/event-bus/achievement-reached.handler';
+import { AchievementReachedHandler } from '../vip-achievement/infrastructure/event-bus/achievement-reached.handler';
 import { TokenApprovedPublishHandler } from './infrastructure/event-bus/token-approved-publish.handler';
 import { SettingsModule } from 'settings/settings.module';
 import { NormalizationModule } from 'token/normalization/normalization.module';
