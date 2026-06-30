@@ -17,6 +17,7 @@ import { ClassificationModule } from 'token/classification/classification.module
 import { ScoringModule } from 'token/scoring/scoring.module';
 import { VipCallApprovalModule } from 'token/vip-call-approval/vip-call-approval.module';
 import { VipCallsModule as TelegramPublishingModule } from 'telegram/vip-calls/vip-channel/vip-channel.module';
+import { VipDecisionsModule } from 'telegram/vip-calls/vip-decisions/decisions.module';
 import { ChainDexterBotModule } from 'telegram/chain-dexter-bot/chain-dexter-bot.module';
 import { CallTrackingModule } from 'token/call-tracking/call-tracking.module';
 import { AchievementModule } from 'token/achievement/achievement.module';
@@ -64,6 +65,7 @@ import { AppService } from './app.service';
     ScoringModule,
     VipCallApprovalModule,
     TelegramPublishingModule,
+    VipDecisionsModule,
     ChainDexterBotModule,
     CallTrackingModule,
     AchievementModule,

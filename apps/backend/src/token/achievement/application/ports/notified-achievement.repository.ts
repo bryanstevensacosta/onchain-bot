@@ -3,6 +3,7 @@ export interface NotifiedAchievementRecord {
   callId: string;
   threshold: number;
   notifiedAt: Date;
+  telegramMessageId?: number | null;
 }
 
 export abstract class NotifiedAchievementRepository {
@@ -16,4 +17,9 @@ export abstract class NotifiedAchievementRepository {
     notified: NotifiedAchievementRecord,
   ): Promise<NotifiedAchievementRecord>;
   abstract countByCall(callId: string): Promise<number>;
+  abstract updateTelegramMessageId(
+    callId: string,
+    threshold: number,
+    messageId: number,
+  ): Promise<void>;
 }
