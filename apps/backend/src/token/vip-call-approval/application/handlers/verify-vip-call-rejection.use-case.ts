@@ -55,7 +55,7 @@ export class VerifyVipCallRejectionUseCase {
         score: 0,
         classification: 'UNKNOWN',
         reasons: [],
-        snapshotCompleteness: snapshot?.snapshotCompleteness ?? null,
+        snapshotCompleteness: snapshot?.snapshotCompleteness ?? 0,
         providerErrors:
           snapshot?.providerErrors.map((e) => ({
             provider: e.provider,
@@ -85,6 +85,17 @@ export class VerifyVipCallRejectionUseCase {
     const hasChainUnsupported = reasons.some(
       (r) => r.code === 'CHAIN_UNSUPPORTED',
     );
+    const hasScoreTooLow =
+      reasons.length === 1 && reasons.some((r) => r.code === 'SCORE_TOO_LOW');
+
+    let currentVerdict: string = decision.verdict.value;
+    if (hasScoreTooLow) {
+      currentVerdict = 'REJECTED';
+    }
+
+    if (hasBlacklist) {
+      currentVerdict = 'NEEDS_BLACKLIST_REVIEW';
+    }
 
     let recommended: ReprocessRecommendation;
     if (hasBlacklist) {
@@ -100,11 +111,11 @@ export class VerifyVipCallRejectionUseCase {
     return {
       chain: chain.value,
       address: normalizedAddress,
-      currentVerdict: decision.verdict.value,
+      currentVerdict,
       score: decision.score,
       classification: decision.classification,
       reasons,
-      snapshotCompleteness: snapshot?.snapshotCompleteness ?? null,
+      snapshotCompleteness: snapshot?.snapshotCompleteness ?? 0,
       providerErrors:
         snapshot?.providerErrors.map((e) => ({
           provider: e.provider,

@@ -21,7 +21,8 @@ class InMemoryDecisionRepo extends VipCallApprovalDecisionRepository {
     a: string,
   ): Promise<VipCallApprovalDecision | null> {
     await Promise.resolve();
-    return this.store.get(`${c.value}:${a.toLowerCase()}`) ?? null;
+    const lookupKey = c.isSolana ? a : a.toLowerCase();
+    return this.store.get(`${c.value}:${lookupKey}`) ?? null;
   }
   public async findRecent(
     limit: number,
@@ -71,7 +72,8 @@ class InMemorySnapshotRepo extends TokenSnapshotRepository {
     a: string,
   ): Promise<TokenSnapshot | null> {
     await Promise.resolve();
-    return this.store.get(`${c.value}:${a.toLowerCase()}`) ?? null;
+    const lookupKey = c.isSolana ? a : a.toLowerCase();
+    return this.store.get(`${c.value}:${lookupKey}`) ?? null;
   }
   public async findRecent(
     limit: number,
