@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Uuid } from 'shared/common/utils';
 import {
   NotifiedAchievementRepository,
@@ -7,6 +7,7 @@ import {
 
 @Injectable()
 export class InMemoryNotifiedAchievementRepository extends NotifiedAchievementRepository {
+  private readonly logger = new Logger(InMemoryNotifiedAchievementRepository.name);
   private store: NotifiedAchievementRecord[] = [];
 
   async findByCall(callId: string): Promise<NotifiedAchievementRecord[]> {
@@ -41,6 +42,7 @@ export class InMemoryNotifiedAchievementRepository extends NotifiedAchievementRe
       callId: notified.callId,
       threshold: notified.threshold,
       notifiedAt: notified.notifiedAt,
+      telegramMessageId: notified.telegramMessageId ?? null,
     };
     this.store.push(saved);
     return saved;
@@ -48,5 +50,22 @@ export class InMemoryNotifiedAchievementRepository extends NotifiedAchievementRe
 
   async countByCall(callId: string): Promise<number> {
     return this.store.filter((r) => r.callId === callId).length;
+  }
+
+  async updateTelegramMessageId(
+    callId: string,
+    threshold: number,
+    messageId: number,
+  ): Promise<void> {
+    const record = this.store.find(
+      (r) => r.callId === callId && r.threshold === threshold,
+    );
+    if (!record) {
+      this.logger.warn(
+        `Cannot update telegramMessageId: record not found for callId=${callId} threshold=${threshold}`,
+      );
+      return;
+    }
+    record.telegramMessageId = messageId;
   }
 }

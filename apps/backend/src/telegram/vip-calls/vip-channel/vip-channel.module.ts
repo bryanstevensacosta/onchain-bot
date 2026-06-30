@@ -23,6 +23,7 @@ import { TokenApprovedPublishHandler } from './infrastructure/event-bus/token-ap
 import { SettingsModule } from 'settings/settings.module';
 import { NormalizationModule } from 'token/normalization/normalization.module';
 import { EnrichmentModule } from 'token/enrichment/enrichment.module';
+import { AchievementModule } from 'token/achievement/achievement.module';
 import { TickerResolverService } from './application/services/ticker-resolver.service';
 
 @Module({
@@ -32,6 +33,7 @@ import { TickerResolverService } from './application/services/ticker-resolver.se
     SettingsModule,
     NormalizationModule,
     EnrichmentModule,
+    AchievementModule,
     TypeOrmModule.forFeature([PublishedCallEntity]),
   ],
   controllers: [VipCallsController],

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -9,6 +9,8 @@ import { NotifiedAchievementEntity } from '../../../../domain/entities/notified-
 
 @Injectable()
 export class TypeormNotifiedAchievementRepository extends NotifiedAchievementRepository {
+  private readonly logger = new Logger(TypeormNotifiedAchievementRepository.name);
+
   constructor(
     @InjectRepository(NotifiedAchievementEntity)
     private readonly repo: Repository<NotifiedAchievementEntity>,
@@ -44,6 +46,7 @@ export class TypeormNotifiedAchievementRepository extends NotifiedAchievementRep
       callId: notified.callId,
       threshold: notified.threshold,
       notifiedAt: notified.notifiedAt,
+      telegramMessageId: notified.telegramMessageId ?? null,
     });
     const saved = await this.repo.save(entity);
     return this.toRecord(saved);
@@ -53,12 +56,29 @@ export class TypeormNotifiedAchievementRepository extends NotifiedAchievementRep
     return this.repo.count({ where: { callId } });
   }
 
+  async updateTelegramMessageId(
+    callId: string,
+    threshold: number,
+    messageId: number,
+  ): Promise<void> {
+    const result = await this.repo.update(
+      { callId, threshold },
+      { telegramMessageId: messageId },
+    );
+    if (result.affected === 0) {
+      this.logger.warn(
+        `Cannot update telegramMessageId: record not found for callId=${callId} threshold=${threshold}`,
+      );
+    }
+  }
+
   private toRecord(row: NotifiedAchievementEntity): NotifiedAchievementRecord {
     return {
       id: row.id,
       callId: row.callId,
       threshold: row.threshold,
       notifiedAt: row.notifiedAt,
+      telegramMessageId: row.telegramMessageId,
     };
   }
 }

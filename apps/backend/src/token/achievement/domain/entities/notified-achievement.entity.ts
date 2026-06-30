@@ -31,7 +31,9 @@ export class NotifiedAchievementEntity {
 
   static create(props: NotifiedAchievementProps): NotifiedAchievementEntity {
     const entity = new NotifiedAchievementEntity();
-    entity.id = props.id;
+    if (props.id) {
+      entity.id = props.id;
+    }
     entity.callId = props.callId;
     entity.threshold = props.threshold;
     entity.notifiedAt = props.notifiedAt;

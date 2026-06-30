@@ -76,4 +76,21 @@ describe('InMemoryNotifiedAchievementRepository', () => {
     await repo.save({ callId: 'c1', threshold: 2, notifiedAt: at });
     expect(await repo.countByCall('c1')).toBe(1);
   });
+
+  it('updateTelegramMessageId updates an existing record', async () => {
+    await repo.save({
+      callId: 'c1',
+      threshold: 2,
+      notifiedAt: new Date(),
+    });
+    await repo.updateTelegramMessageId('c1', 2, 12345);
+    const records = await repo.findByCall('c1');
+    expect(records[0].telegramMessageId).toBe(12345);
+  });
+
+  it('updateTelegramMessageId does not throw for missing record', async () => {
+    await expect(
+      repo.updateTelegramMessageId('nonexistent', 99, 111),
+    ).resolves.not.toThrow();
+  });
 });
