@@ -237,17 +237,23 @@ export class TelegramMtprotoListenerAdapter
 
   private async resolvePeerAsChannel(channelId: string) {
     const client = this.ensureClient();
-    if (/^-?\d+$/.test(channelId)) {
-      const withPrefix = channelId.startsWith('-100')
-        ? channelId
-        : `-100${channelId.replace(/^-/, '')}`;
-      try {
-        return await client.getEntity(withPrefix);
-      } catch {
-        return await client.getEntity(channelId);
-      }
+    // If starts with @, treat as username - pass directly to getEntity
+    if (channelId.startsWith('@')) {
+      return await client.getEntity(channelId);
     }
-    return await client.getEntity(channelId);
+    // If doesn't match pure numeric (with optional leading -), treat as username/other
+    if (!/^-?\d+$/.test(channelId)) {
+      return await client.getEntity(channelId);
+    }
+    // Numeric ID - try with -100 prefix first, then without
+    const withPrefix = channelId.startsWith('-100')
+      ? channelId
+      : `-100${channelId.replace(/^-/, '')}`;
+    try {
+      return await client.getEntity(withPrefix);
+    } catch {
+      return await client.getEntity(channelId);
+    }
   }
 
   async disconnect(): Promise<void> {
@@ -300,13 +306,25 @@ export class TelegramMtprotoListenerAdapter
         return { joined: true, wasAlreadyMember: true };
       }
       if (msg.includes('CHANNEL_PRIVATE') || msg.includes('CHANNEL_INVALID')) {
-        return { joined: false, wasAlreadyMember: false, error: `Channel is private or invalid: ${peerId}` };
+        return {
+          joined: false,
+          wasAlreadyMember: false,
+          error: `Channel is private or invalid: ${peerId}`,
+        };
       }
       if (msg.includes('CHANNELS_TOO_MUCH')) {
-        return { joined: false, wasAlreadyMember: false, error: `Account has joined too many channels` };
+        return {
+          joined: false,
+          wasAlreadyMember: false,
+          error: `Account has joined too many channels`,
+        };
       }
       if (msg.includes('FLOOD_WAIT')) {
-        return { joined: false, wasAlreadyMember: false, error: `Flood wait: ${msg}` };
+        return {
+          joined: false,
+          wasAlreadyMember: false,
+          error: `Flood wait: ${msg}`,
+        };
       }
       return { joined: false, wasAlreadyMember: false, error: msg };
     }
