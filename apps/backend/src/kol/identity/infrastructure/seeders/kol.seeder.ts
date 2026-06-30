@@ -27,6 +27,7 @@ import { KOL_SEED } from 'kol/identity/infrastructure/seeds/kol.seed';
 @Injectable()
 export class KolSeeder implements OnApplicationBootstrap {
   private readonly logger = new Logger(KolSeeder.name);
+  private needsManualJoin = 0;
 
   constructor(
     private readonly config: ConfigService,
@@ -145,6 +146,11 @@ export class KolSeeder implements OnApplicationBootstrap {
         ? `${summary} | auto-listening on ${listeningStartedOn} kol(s).`
         : summary,
     );
+    if (this.needsManualJoin > 0) {
+      this.logger.log(
+        `${this.needsManualJoin} KOL(s) registered with placeholder titles — join the channels with the Telegram account to resolve real metadata on next boot.`,
+      );
+    }
 
     await this.runBackfillIfEnabled();
   }
@@ -249,10 +255,16 @@ export class KolSeeder implements OnApplicationBootstrap {
       }
       // No se pudo unir — log específico del motivo
       const reason = joinResult?.error ?? (err instanceof Error ? err.message : 'Unknown');
-      this.logger.warn(
-        `Could not resolve or join channel ${kolId}: ${reason}` +
-        (reason.includes('private') ? '. This channel requires an invite link.' : ''),
-      );
+      // PeerUser means the MTProto account isn't a member — suppress individual warnings,
+      // count them and emit a single summary at the end
+      if (reason.includes('PeerUser') || reason.includes('USER_NOT_PARTICIPANT')) {
+        this.needsManualJoin += 1;
+      } else {
+        this.logger.warn(
+          `Could not resolve or join channel ${kolId}: ${reason}` +
+          (reason.includes('private') ? '. This channel requires an invite link.' : ''),
+        );
+      }
       return { title: `Telegram channel ${kolId}`, handle: null, kind: 'user' };
     }
   }
