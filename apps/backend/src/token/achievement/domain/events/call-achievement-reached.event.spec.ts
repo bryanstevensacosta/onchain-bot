@@ -1,4 +1,4 @@
-import { CallAchievementReachedEvent } from './call-milestone-reached.event';
+import { CallAchievementReachedEvent } from './call-achievement-reached.event';
 
 describe('CallAchievementReachedEvent', () => {
   const payload = {

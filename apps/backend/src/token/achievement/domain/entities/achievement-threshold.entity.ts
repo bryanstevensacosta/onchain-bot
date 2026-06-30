@@ -1,7 +1,7 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 /**
- * Represents a configured multiple (e.g., 2×, 3×) that triggers a milestone.
+ * Represents a configured multiple (e.g., 2×, 3×) that triggers an achievement.
  * Stored in `achievement_thresholds` table.
  */
 @Entity({ name: 'achievement_thresholds' })
