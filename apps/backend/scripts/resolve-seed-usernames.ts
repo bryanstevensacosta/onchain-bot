@@ -58,7 +58,9 @@ async function main(): Promise<void> {
   await client.connect();
   const authorized = await client.isUserAuthorized();
   if (!authorized) {
-    console.error('MTProto session not authorized. Run telegram-gen-session first.');
+    console.error(
+      'MTProto session not authorized. Run telegram-gen-session first.',
+    );
     await client.disconnect();
     process.exit(1);
   }
@@ -116,7 +118,12 @@ async function main(): Promise<void> {
       };
 
       const username = e.username?.trim() || null;
-      const title = e.title?.trim() || e.firstName?.trim() || e.lastName?.trim() || `Telegram channel ${e.id}`;
+      const idStr = e.id !== undefined ? String(e.id) : kolId;
+      const title =
+        e.title?.trim() ||
+        e.firstName?.trim() ||
+        e.lastName?.trim() ||
+        `Telegram channel ${idStr}`;
 
       if (username) {
         resolved.push({ kolId, handle: `@${username}`, title });
@@ -141,23 +148,31 @@ async function main(): Promise<void> {
 
   if (resolved.length > 0) {
     console.log('// === RESOLVED (add username field) ===');
-    console.log('export const KOL_SEED_WITH_USERNAMES: ReadonlyArray<SeedKol> = [');
+    console.log(
+      'export const KOL_SEED_WITH_USERNAMES: ReadonlyArray<SeedKol> = [',
+    );
     for (const r of resolved) {
-      console.log(`  { kolId: '${r.kolId}', username: '${r.handle}', title: '${r.title.replace(/'/g, "\\'")}' },`);
+      console.log(
+        `  { kolId: '${r.kolId}', username: '${r.handle}', title: '${r.title.replace(/'/g, "\\'")}' },`,
+      );
     }
     console.log('];\n');
   }
 
   if (failed.length > 0) {
     console.log('// === FAILED TO RESOLVE ===');
-    console.log('// These IDs could not be resolved (not members, private, or invalid):');
+    console.log(
+      '// These IDs could not be resolved (not members, private, or invalid):',
+    );
     for (const f of failed) {
       console.log(`//   ${f.kolId}: ${f.reason}`);
     }
     console.log();
   }
 
-  console.log(`Summary: resolved=${resolved.length} failed=${failed.length} total=${total}`);
+  console.log(
+    `Summary: resolved=${resolved.length} failed=${failed.length} total=${total}`,
+  );
   console.log('\n=========================================================');
   console.log('  USAGE:');
   console.log('=========================================================');

@@ -238,7 +238,9 @@ export class KolSeeder implements OnApplicationBootstrap {
       };
     } catch (err) {
       // Falló la resolución → intentar unirse al canal
-      const joinResult = await this.listener.joinChannel(kolId).catch(() => null);
+      const joinResult = await this.listener
+        .joinChannel(kolId)
+        .catch(() => null);
       if (joinResult?.joined) {
         // Join exitoso → reintentar metadata
         const meta = await this.listener.resolveChannelMetadata(kolId);
@@ -250,19 +252,27 @@ export class KolSeeder implements OnApplicationBootstrap {
             resolvedAt: new Date().toISOString(),
             source: 'mtproto',
           });
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
         return { title: meta.title, handle: meta.handle, kind: meta.kind };
       }
       // No se pudo unir — log específico del motivo
-      const reason = joinResult?.error ?? (err instanceof Error ? err.message : 'Unknown');
+      const reason =
+        joinResult?.error ?? (err instanceof Error ? err.message : 'Unknown');
       // PeerUser means the MTProto account isn't a member — suppress individual warnings,
       // count them and emit a single summary at the end
-      if (reason.includes('PeerUser') || reason.includes('USER_NOT_PARTICIPANT')) {
+      if (
+        reason.includes('PeerUser') ||
+        reason.includes('USER_NOT_PARTICIPANT')
+      ) {
         this.needsManualJoin += 1;
       } else {
         this.logger.warn(
           `Could not resolve or join channel ${kolId}: ${reason}` +
-          (reason.includes('private') ? '. This channel requires an invite link.' : ''),
+            (reason.includes('private')
+              ? '. This channel requires an invite link.'
+              : ''),
         );
       }
       return { title: `Telegram channel ${kolId}`, handle: null, kind: 'user' };
