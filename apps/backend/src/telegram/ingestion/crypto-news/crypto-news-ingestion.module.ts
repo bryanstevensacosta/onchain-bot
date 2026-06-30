@@ -16,6 +16,7 @@ import { InProcessCryptoNewsEventPublisher } from 'telegram/ingestion/crypto-new
 import { RegisterNewsSourceUseCase } from 'telegram/ingestion/crypto-news/application/handlers/register-news-source.use-case';
 import { StoreNewsMessageUseCase } from 'telegram/ingestion/crypto-news/application/handlers/store-news-message.use-case';
 import { CryptoNewsSeeder } from 'telegram/ingestion/crypto-news/infrastructure/seeders/crypto-news.seeder';
+import { CryptoNewsController } from 'telegram/ingestion/crypto-news/api/http/crypto-news.controller';
 
 /**
  * Crypto-news ingestion sub-module.
@@ -32,6 +33,7 @@ import { CryptoNewsSeeder } from 'telegram/ingestion/crypto-news/infrastructure/
     ConfigModule,
     TypeOrmModule.forFeature([CryptoNewsSourceEntity, CryptoNewsMessageEntity]),
   ],
+  controllers: [CryptoNewsController],
   providers: [
     InMemoryCryptoNewsSourceRepository,
     InMemoryCryptoNewsMessageRepository,
