@@ -14,12 +14,14 @@ import { CryptoNewsSource } from 'telegram/ingestion/crypto-news/domain/entities
 import { KolIngestionOrchestratorUseCase } from 'kol/identity/application/handlers/kol-ingestion-orchestrator.use-case';
 import { StoreNewsMessageUseCase } from 'telegram/ingestion/crypto-news/application/handlers/store-news-message.use-case';
 import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { IngestionCoordinator } = require('telegram/ingestion/shared/application/ingestion-coordinator.service') as {
-  IngestionCoordinator: new (...args: unknown[]) => {
-    onApplicationBootstrap(): Promise<void>;
+
+const { IngestionCoordinator } =
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- the static import chain is broken by Jest's inability to map the CJS `telegram/extensions/Logger` subpath (see file header)
+  require('telegram/ingestion/shared/application/ingestion-coordinator.service') as {
+    IngestionCoordinator: new (...args: unknown[]) => {
+      onApplicationBootstrap(): Promise<void>;
+    };
   };
-};
 
 // --- In-memory fakes ---
 
@@ -167,7 +169,7 @@ function buildConfig(overrides: {
       }
       return undefined;
     },
-  } as unknown as ConfigService;
+  };
 }
 
 describe('IngestionCoordinator', () => {
