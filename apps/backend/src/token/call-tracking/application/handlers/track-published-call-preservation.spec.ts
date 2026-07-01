@@ -129,7 +129,7 @@ const tickerArb = fc.oneof(
       minLength: 3,
       maxLength: 5,
     })
-    .map((arr) => arr.join('')),
+    .map((arr: string[]) => arr.join('')),
 );
 
 /**
@@ -145,7 +145,7 @@ const kolIdArb = fc.oneof(
         maxLength: 20,
       },
     )
-    .map((arr) => `kol_${arr.join('')}`),
+    .map((arr: string[]) => `kol_${arr.join('')}`),
 );
 
 /**
