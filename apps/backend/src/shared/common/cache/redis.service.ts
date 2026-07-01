@@ -37,7 +37,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       lazyConnect: true,
     });
 
-    this.client.on('error', (err) => {
+    this.client.on('error', (err: Error) => {
       this.logger.warn(`Connection error: ${err.message}`);
     });
 
@@ -45,7 +45,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       this.logger.log(`Connected to ${cfg.host}:${cfg.port} db=${cfg.db}`);
     });
 
-    this.client.connect().catch((err) => {
+    this.client.connect().catch((err: Error) => {
       this.logger.error(`Initial connection failed: ${err.message}`);
     });
   }
