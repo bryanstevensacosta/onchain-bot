@@ -1,6 +1,7 @@
 import { ValueObject } from 'shared/kernel/value-object';
 
 export type VipCallApprovalReasonCode =
+  | 'INVALID_ADDRESS'
   | 'SCORE_TOO_LOW'
   | 'CLASSIFICATION_BLOCKED'
   | 'BLACKLISTED'
@@ -30,9 +31,12 @@ export class VipCallApprovalReason extends ValueObject<VipCallApprovalReasonProp
   ]);
 
   public static isRetryable(code: string): boolean {
-    return VipCallApprovalReason.RETRYABLE_CODES.has(code as VipCallApprovalReasonCode);
+    return VipCallApprovalReason.RETRYABLE_CODES.has(
+      code as VipCallApprovalReasonCode,
+    );
   }
   private static readonly VALID_CODES = new Set<VipCallApprovalReasonCode>([
+    'INVALID_ADDRESS',
     'SCORE_TOO_LOW',
     'CLASSIFICATION_BLOCKED',
     'BLACKLISTED',
