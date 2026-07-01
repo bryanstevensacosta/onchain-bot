@@ -1,4 +1,5 @@
 import { EvaluateActiveCallsUseCase } from './evaluate-active-calls.use-case';
+import { RecordNotifiedAchievementUseCase } from './record-notified-achievement.use-case';
 import {
   MonitoredCallRecord,
   MonitoredCallRepository,
@@ -51,7 +52,9 @@ class FakeThresholdRepo extends AchievementThresholdRepository {
   async findByMultiple(): Promise<AchievementThresholdRecord | null> {
     return null;
   }
-  async save(r: AchievementThresholdRecord): Promise<AchievementThresholdRecord> {
+  async save(
+    r: AchievementThresholdRecord,
+  ): Promise<AchievementThresholdRecord> {
     return r;
   }
   async replaceAll(): Promise<void> {}
@@ -147,7 +150,7 @@ describe('EvaluateActiveCallsUseCase', () => {
       new FakeCache(),
       new FakeNotifiedRepo(),
       new DetectCrossedAchievementsService(),
-      new FakeRecordUseCase() as any,
+      new FakeRecordUseCase() as unknown as RecordNotifiedAchievementUseCase,
       makeConfig(),
     );
     const result = await uc.execute();
@@ -165,7 +168,7 @@ describe('EvaluateActiveCallsUseCase', () => {
       new FakeCache(),
       new FakeNotifiedRepo(),
       new DetectCrossedAchievementsService(),
-      record as any,
+      record as unknown as RecordNotifiedAchievementUseCase,
       makeConfig(),
     );
     const result = await uc.execute();
@@ -186,7 +189,7 @@ describe('EvaluateActiveCallsUseCase', () => {
       new FakeCache(),
       new FakeNotifiedRepo(),
       new DetectCrossedAchievementsService(),
-      new FakeRecordUseCase() as any,
+      new FakeRecordUseCase() as unknown as RecordNotifiedAchievementUseCase,
       makeConfig(),
     );
     const result = await uc.execute();
@@ -208,7 +211,7 @@ describe('EvaluateActiveCallsUseCase', () => {
       new FakeCache(),
       new FakeNotifiedRepo(),
       new DetectCrossedAchievementsService(),
-      record as any,
+      record as unknown as RecordNotifiedAchievementUseCase,
       makeConfig(),
     );
     const result = await uc.execute();
@@ -235,7 +238,7 @@ describe('EvaluateActiveCallsUseCase', () => {
       cache,
       notified,
       new DetectCrossedAchievementsService(),
-      record as any,
+      record as unknown as RecordNotifiedAchievementUseCase,
       makeConfig(),
     );
     const result = await uc.execute();
@@ -255,7 +258,7 @@ describe('EvaluateActiveCallsUseCase', () => {
       new FakeCache(),
       new FakeNotifiedRepo(),
       new DetectCrossedAchievementsService(),
-      new FakeRecordUseCase() as any,
+      new FakeRecordUseCase() as unknown as RecordNotifiedAchievementUseCase,
       makeConfig(),
     );
     await uc.execute();
@@ -274,7 +277,7 @@ describe('EvaluateActiveCallsUseCase', () => {
       new FakeCache(),
       new FakeNotifiedRepo(),
       new DetectCrossedAchievementsService(),
-      new FakeRecordUseCase() as any,
+      new FakeRecordUseCase() as unknown as RecordNotifiedAchievementUseCase,
       makeConfig(1),
     );
     await uc.execute();

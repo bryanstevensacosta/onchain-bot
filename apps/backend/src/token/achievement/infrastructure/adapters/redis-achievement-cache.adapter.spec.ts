@@ -164,7 +164,7 @@ describe('RedisAchievementCacheAdapter', () => {
       };
       const { adapter } = makeAdapter(makeRedis({ enabled: true, client }));
       await adapter.addNotifiedThreshold('call-1', 7);
-      const saddArg = client.sadd.mock.calls[0][1];
+      const [, saddArg] = client.sadd.mock.calls[0] as [unknown, string];
       expect(typeof saddArg).toBe('string');
       expect(saddArg).toBe('7');
     });
@@ -212,7 +212,9 @@ describe('RedisAchievementCacheAdapter', () => {
       };
       const { adapter } = makeAdapter(makeRedis({ enabled: true, client }));
       await adapter.invalidateCall('solana:abc');
-      expect(client.del).toHaveBeenCalledWith('achievement:notified:solana:abc');
+      expect(client.del).toHaveBeenCalledWith(
+        'achievement:notified:solana:abc',
+      );
     });
 
     it('swallows error when del throws', async () => {

@@ -7,6 +7,7 @@ import { AchievementCachePort } from '../ports/achievement-cache.port';
 import { AchievementEventPublisher } from '../ports/achievement-event.publisher';
 import { DomainEvent } from 'shared/kernel/domain-event';
 import { MonitoredCallRecord } from '../ports/monitored-call.repository';
+import { CallAchievementReachedEvent } from '../../domain/events/call-achievement-reached.event';
 
 class FakeRepo extends NotifiedAchievementRepository {
   public exists = false;
@@ -20,7 +21,9 @@ class FakeRepo extends NotifiedAchievementRepository {
   async existsByCallAndThreshold(): Promise<boolean> {
     return this.exists;
   }
-  async save(rec: NotifiedAchievementRecord): Promise<NotifiedAchievementRecord> {
+  async save(
+    rec: NotifiedAchievementRecord,
+  ): Promise<NotifiedAchievementRecord> {
     this.saved.push(rec);
     return rec;
   }
@@ -74,7 +77,10 @@ describe('RecordNotifiedAchievementUseCase', () => {
     expect(result.recorded).toBe(true);
     expect(repo.saved).toHaveLength(1);
     expect(publisher.events).toHaveLength(1);
-    expect((publisher.events[0] as any).payload.multiple).toBe(2);
+    expect(
+      (publisher.events[0] as unknown as CallAchievementReachedEvent).payload
+        .multiple,
+    ).toBe(2);
   });
 
   it('skips when already exists in DB', async () => {
@@ -134,7 +140,7 @@ describe('RecordNotifiedAchievementUseCase', () => {
     const call = makeCall();
     await uc.execute({ monitoredCall: call, threshold: 5, currentMc: 50000 });
 
-    const evt = publisher.events[0] as any;
+    const evt = publisher.events[0] as unknown as CallAchievementReachedEvent;
     expect(evt.payload.callId).toBe('call-1');
     expect(evt.payload.chain).toBe('solana');
     expect(evt.payload.address).toBe('ABC');

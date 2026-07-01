@@ -62,7 +62,9 @@ class FakeThresholdRepo extends AchievementThresholdRepository {
   async findByMultiple(): Promise<AchievementThresholdRecord | null> {
     return null;
   }
-  async save(r: AchievementThresholdRecord): Promise<AchievementThresholdRecord> {
+  async save(
+    r: AchievementThresholdRecord,
+  ): Promise<AchievementThresholdRecord> {
     return r;
   }
   async replaceAll(): Promise<void> {}
@@ -149,7 +151,7 @@ function buildUseCase(
     overrides.thresholds ?? [2, 3, 5],
   );
   const marketData = new FakeMarketData();
-  marketData.m = overrides.mcMap ?? new Map();
+  marketData.m = overrides.mcMap ?? new Map<string, number>();
   const cache =
     overrides.cache ??
     ((): FakeCache => {

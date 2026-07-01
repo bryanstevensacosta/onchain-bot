@@ -8,9 +8,11 @@ describe('AchievementMultiple', () => {
   });
 
   it('rejects negative numbers', () => {
-    expect(() => AchievementMultiple.fromNumber(-1)).toThrow(DomainError);
-    expect(() => AchievementMultiple.fromNumber(-1)).toThrow(
-      expect.objectContaining({ code: ErrorCode.VALIDATION }),
+    const actual: () => AchievementMultiple = () =>
+      AchievementMultiple.fromNumber(-1);
+    expect(actual).toThrow(DomainError);
+    expect(actual).toThrow(
+      expect.objectContaining({ code: ErrorCode.VALIDATION }) as never,
     );
   });
 
@@ -23,7 +25,9 @@ describe('AchievementMultiple', () => {
   });
 
   it('rejects NaN', () => {
-    expect(() => AchievementMultiple.fromNumber(Number.NaN)).toThrow(DomainError);
+    expect(() => AchievementMultiple.fromNumber(Number.NaN)).toThrow(
+      DomainError,
+    );
   });
 
   it('rejects Infinity', () => {

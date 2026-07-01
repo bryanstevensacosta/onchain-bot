@@ -6,13 +6,13 @@ import {
 import { TokenSnapshotRepository } from 'token/enrichment/application/ports/token-snapshot.repository';
 import { TokenSnapshot } from 'token/enrichment/domain/entities/token-snapshot.entity';
 import { ChainId } from 'chain/identity/chain-id.vo';
-import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
+import { DomainError } from 'shared/kernel/domain-error';
 
 class FakeMonitoredCallRepo extends MonitoredCallRepository {
   public saved: MonitoredCallRecord[] = [];
   public existing: MonitoredCallRecord | null = null;
 
-  async findByCallId(callId: string): Promise<MonitoredCallRecord | null> {
+  async findByCallId(_callId: string): Promise<MonitoredCallRecord | null> {
     return this.existing;
   }
 
@@ -64,7 +64,10 @@ describe('RegisterMonitoredCallUseCase', () => {
     });
     snapshotRepo.snapshot = snapshot;
 
-    const uc = new RegisterMonitoredCallUseCase(monitoredCallRepo, snapshotRepo);
+    const uc = new RegisterMonitoredCallUseCase(
+      monitoredCallRepo,
+      snapshotRepo,
+    );
 
     const result = await uc.execute({
       callId: 'call-1',
@@ -102,7 +105,10 @@ describe('RegisterMonitoredCallUseCase', () => {
     });
     snapshotRepo.snapshot = snapshot;
 
-    const uc = new RegisterMonitoredCallUseCase(monitoredCallRepo, snapshotRepo);
+    const uc = new RegisterMonitoredCallUseCase(
+      monitoredCallRepo,
+      snapshotRepo,
+    );
 
     const result = await uc.execute({
       callId: 'call-2',
@@ -121,7 +127,10 @@ describe('RegisterMonitoredCallUseCase', () => {
     const snapshotRepo = new FakeSnapshotRepo();
     snapshotRepo.snapshot = null;
 
-    const uc = new RegisterMonitoredCallUseCase(monitoredCallRepo, snapshotRepo);
+    const uc = new RegisterMonitoredCallUseCase(
+      monitoredCallRepo,
+      snapshotRepo,
+    );
 
     await expect(
       uc.execute({
@@ -148,7 +157,10 @@ describe('RegisterMonitoredCallUseCase', () => {
     };
     monitoredCallRepo.existing = existingRecord;
 
-    const uc = new RegisterMonitoredCallUseCase(monitoredCallRepo, snapshotRepo);
+    const uc = new RegisterMonitoredCallUseCase(
+      monitoredCallRepo,
+      snapshotRepo,
+    );
 
     const result = await uc.execute({
       callId: 'call-1',
