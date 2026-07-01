@@ -61,23 +61,30 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Backup database
+        # Runner is the 'runner' user; .env.production is chmod 644
+        # (readable). The docker postgres container exposes
+        # 127.0.0.1:5432 already via docker-compose.prod.yml.
         run: |
+          set -a; source apps/backend/.env.production; set +a
           POSTGRES_CONTAINER=onchain-bot-postgres \
           POSTGRES_USER=alpha_meta_token_scanner \
           POSTGRES_DB=alpha_meta_token_scanner \
-          POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}" \
+          POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
           bash scripts/backup-db.sh
 
       - name: Build and deploy
         run: |
           set -euo pipefail
+          set -a; source apps/backend/.env.production; set +a
           echo "=== Building images ==="
           docker compose -f apps/backend/docker-compose.prod.yml build --no-cache backend
           echo "=== Running migrations ==="
-          POSTGRES_HOST=postgres \
+          # POSTGRES_HOST=localhost works because the docker-compose
+          # already binds postgres to 127.0.0.1:5432 on the host.
+          POSTGRES_HOST=localhost \
           POSTGRES_USER=alpha_meta_token_scanner \
           POSTGRES_DB=alpha_meta_token_scanner \
-          POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}" \
+          POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
           docker compose -f apps/backend/docker-compose.prod.yml run --rm -T backend npm run migration:run
           echo "=== Restarting services ==="
           docker compose -f apps/backend/docker-compose.prod.yml up -d --force-recreate backend
