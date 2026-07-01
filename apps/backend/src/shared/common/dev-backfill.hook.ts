@@ -34,6 +34,7 @@ export class DevBackfillHook implements OnApplicationBootstrap {
         `Backfilling ${active.length}/${all.length} ACTIVE KOLs (limit=5 each)`,
       );
       let total = 0;
+      let skippedNotMember = 0;
       for (const kol of active) {
         try {
           const result = await ingestion.backfillKol(kol.id, 5);
@@ -42,10 +43,21 @@ export class DevBackfillHook implements OnApplicationBootstrap {
             `  ${kol.id}: +${result.ingested}/${result.total} msgs`,
           );
         } catch (err) {
-          this.logger.warn(
-            `  ${kol.id}: backfill failed — ${(err as Error).message}`,
-          );
+          const msg = (err as Error).message;
+          if (
+            msg.includes('PeerUser') ||
+            msg.includes('USER_NOT_PARTICIPANT')
+          ) {
+            skippedNotMember += 1;
+            continue;
+          }
+          this.logger.warn(`  ${kol.id}: backfill failed — ${msg}`);
         }
+      }
+      if (skippedNotMember > 0) {
+        this.logger.log(
+          `Dev backfill skipped ${skippedNotMember} KOL(s) (MTProto session not a member — join the channels to enable backfill).`,
+        );
       }
       this.logger.log(`Startup backfill done: ${total} messages`);
     } catch (err) {
