@@ -1,4 +1,4 @@
-import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
+import { DomainError } from 'shared/kernel/domain-error';
 import { CryptoNewsSource } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-source.entity';
 import { CryptoNewsMessageIngestedEvent } from 'telegram/ingestion/crypto-news/domain/events/crypto-news-message-ingested.event';
 import { CryptoNewsSourceSeededEvent } from 'telegram/ingestion/crypto-news/domain/events/crypto-news-source-seeded.event';

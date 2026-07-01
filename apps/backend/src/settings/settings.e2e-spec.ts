@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import request from 'supertest';
+import type { App } from 'supertest/types';
 import { appConfig } from 'shared/common/config/app.config';
 import { SettingsModule } from 'settings/settings.module';
 import { SettingsPresetEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-preset.entity';
@@ -12,8 +13,15 @@ import { ScoringThresholdEntity } from 'settings/infrastructure/persistence/type
 import { SettingsFilterEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-filter.entity';
 import { SettingsAuditLogEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-audit-log.entity';
 
+interface SettingsPresetResponse {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
 describe('SettingsPresets (e2e)', () => {
   let app: INestApplication;
+  let httpServer: App;
   let dataSource: DataSource;
 
   beforeAll(async () => {
@@ -62,6 +70,7 @@ describe('SettingsPresets (e2e)', () => {
       }),
     );
     await app.init();
+    httpServer = app.getHttpServer() as App;
 
     dataSource = app.get(DataSource);
   });
@@ -83,9 +92,7 @@ describe('SettingsPresets (e2e)', () => {
   });
 
   it('GET /settings/presets → 200, includes Default', async () => {
-    const res = await request(app.getHttpServer())
-      .get('/settings/presets')
-      .expect(200);
+    const res = await request(httpServer).get('/settings/presets').expect(200);
     expect(Array.isArray(res.body)).toBe(true);
     const presets = res.body as Array<{ name: string }>;
     expect(presets.some((p) => p.name === 'Default')).toBe(true);
@@ -101,59 +108,65 @@ describe('SettingsPresets (e2e)', () => {
         thresholds: [],
       },
     };
-    const res = await request(app.getHttpServer())
+    const res = await request(httpServer)
       .post('/settings/presets')
       .send(newPreset)
       .expect(201);
-    expect(res.body.name).toBe('TestPresets');
-    expect(res.body.isActive).toBe(false);
+    const body = res.body as SettingsPresetResponse;
+    expect(body.name).toBe('TestPresets');
+    expect(body.isActive).toBe(false);
   });
 
   it('POST /settings/presets/:id/apply → 200, sets is_active=true', async () => {
-    const created = await request(app.getHttpServer())
+    const created = await request(httpServer)
       .post('/settings/presets')
       .send({
         name: 'ToApply',
         snapshot: { filters: { base_score: 80 }, signals: {}, thresholds: [] },
       })
       .expect(201);
+    const createdBody = created.body as SettingsPresetResponse;
 
-    const applied = await request(app.getHttpServer())
-      .post(`/settings/presets/${created.body.id}/apply`)
+    const applied = await request(httpServer)
+      .post(`/settings/presets/${createdBody.id}/apply`)
       .expect(200);
-    expect(applied.body.isActive).toBe(true);
-    expect(applied.body.id).toBe(created.body.id);
+    const appliedBody = applied.body as SettingsPresetResponse;
+    expect(appliedBody.isActive).toBe(true);
+    expect(appliedBody.id).toBe(createdBody.id);
   });
 
   it('GET /settings/presets/active → 200, returns active', async () => {
-    const res = await request(app.getHttpServer())
+    const res = await request(httpServer)
       .get('/settings/presets/active')
       .expect(200);
-    expect(res.body).not.toBeNull();
-    expect(res.body.isActive).toBe(true);
+    const body = res.body as SettingsPresetResponse;
+    expect(body).not.toBeNull();
+    expect(body.isActive).toBe(true);
   });
 
   it('DELETE /settings/presets/:id (non-active) → 204', async () => {
-    const created = await request(app.getHttpServer())
+    const created = await request(httpServer)
       .post('/settings/presets')
       .send({
         name: 'ToDelete',
         snapshot: { filters: {}, signals: {}, thresholds: [] },
       })
       .expect(201);
+    const createdBody = created.body as SettingsPresetResponse;
 
-    await request(app.getHttpServer())
-      .delete(`/settings/presets/${created.body.id}`)
+    await request(httpServer)
+      .delete(`/settings/presets/${createdBody.id}`)
       .expect(204);
   });
 
   it('DELETE /settings/presets/:id (active) → 400', async () => {
-    const active = await request(app.getHttpServer())
+    const active = await request(httpServer)
       .get('/settings/presets/active')
       .expect(200);
+    const activeBody = active.body as SettingsPresetResponse;
 
-    await request(app.getHttpServer())
-      .delete(`/settings/presets/${active.body.id}`)
+    await request(httpServer)
+      .delete(`/settings/presets/${activeBody.id}`)
       .expect(400);
   });
 });
