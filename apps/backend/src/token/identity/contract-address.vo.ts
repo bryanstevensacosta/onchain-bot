@@ -1,3 +1,4 @@
+import bs58 from 'bs58';
 import { ValueObject } from 'shared/kernel/value-object';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import { ChainHint } from 'chain/identity/chain-hint.vo';
@@ -15,7 +16,7 @@ interface ContractAddressProps {
  *
  * Three creation paths:
  * - `fromEvm(raw)`: validates 0x + 40 hex chars, normalizes to lowercase
- * - `fromSolana(raw)`: validates Base58 decodes to 32 bytes (caller pre-validated)
+ * - `fromSolana(raw)`: validates Base58 decodes to exactly 32 bytes (throws DomainError on failure)
  * - `fromUnknown(raw)`: passes raw string through; downstream chain-detection BC resolves
  *
  * Lowercase canonicalization enables structural equality across case variants.
@@ -42,6 +43,18 @@ export class ContractAddress extends ValueObject<ContractAddressProps> {
   }
 
   public static fromSolana(raw: string): ContractAddress {
+    try {
+      const decoded = bs58.decode(raw);
+      if (decoded.length !== 32) {
+        throw new Error('not 32 bytes');
+      }
+    } catch {
+      throw new DomainError(
+        ErrorCode.INVALID_ADDRESS,
+        `Invalid Solana address: ${raw}`,
+        { raw },
+      );
+    }
     return new ContractAddress({
       value: raw,
       chainHint: ChainHint.SOLANA,
