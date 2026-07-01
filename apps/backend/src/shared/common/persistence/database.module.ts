@@ -26,6 +26,7 @@ import { AchievementThresholdEntity } from 'token/achievement/domain/entities/ac
 import { MonitoredCallEntity } from 'token/achievement/domain/entities/monitored-call.entity';
 import { NotifiedAchievementEntity } from 'token/achievement/domain/entities/notified-achievement.entity';
 import { PublishedCallEntity } from 'telegram/vip-calls/vip-channel/infrastructure/persistence/typeorm/entities/published-call.entity';
+import { CryptoNewsSourceEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
 import type { AppConfig } from 'shared/common/config/app.config';
 
 const PERSISTED_ENTITIES = [
@@ -54,6 +55,7 @@ const PERSISTED_ENTITIES = [
   MonitoredCallEntity,
   NotifiedAchievementEntity,
   PublishedCallEntity,
+  CryptoNewsSourceEntity,
 ];
 
 /**
