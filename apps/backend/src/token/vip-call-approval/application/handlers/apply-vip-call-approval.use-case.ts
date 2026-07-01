@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ChainId } from 'chain/identity/chain-id.vo';
+import { NormalizedAddress } from 'token/identity/normalized-address.vo';
 import { VipCallApprovalReason } from 'token/vip-call-approval/domain/value-objects/vip-call-approval-reason.vo';
 import { VipCallApprovalDecision } from 'token/vip-call-approval/domain/entities/vip-call-approval-decision.entity';
 import { VipCallBlacklistPort } from 'token/vip-call-approval/domain/ports/vip-call-blacklist.port';
@@ -33,6 +34,7 @@ export interface ApplyFiltersInput {
  * Use case: apply hard gates to a scored token.
  *
  * Gates (run in order, fail-fast):
+ * 0. INVALID_ADDRESS      — address fails NormalizedAddress validation (defense in depth)
  * 1. SCORE_TOO_LOW        — score < minScore
  * 2. CLASSIFICATION_BLOCKED — classification in blockedClassifications
  * 3. BLACKLISTED          — address in blacklist (if enabled)
@@ -56,7 +58,9 @@ export class ApplyVipCallApprovalUseCase {
     private readonly settings: SettingsService,
   ) {}
 
-  public async execute(input: ApplyFiltersInput): Promise<VipCallApprovalDecisionView> {
+  public async execute(
+    input: ApplyFiltersInput,
+  ): Promise<VipCallApprovalDecisionView> {
     const chain = ChainId.fromString(input.chain);
     const dbConfig = await this.settings.getTokenGateConfig();
     const config: FilterConfig = input.config ?? {
@@ -67,6 +71,22 @@ export class ApplyVipCallApprovalUseCase {
       enableBlacklist: dbConfig.enableBlacklist,
     };
     const reasons: VipCallApprovalReason[] = [];
+
+    // Gate 0: address validity (defense in depth — invalid addresses never reach publish)
+    try {
+      if (input.chain === 'solana') {
+        NormalizedAddress.fromSolana(input.address);
+      } else {
+        NormalizedAddress.fromEvm(input.address);
+      }
+    } catch {
+      reasons.push(
+        VipCallApprovalReason.create({
+          code: 'INVALID_ADDRESS',
+          message: `Invalid ${input.chain} address: ${input.address}`,
+        }),
+      );
+    }
 
     if (input.score < config.minScore) {
       reasons.push(

@@ -75,10 +75,12 @@ class InMemoryRepo extends VipCallApprovalDecisionRepository {
 
 class InMemoryPublisher extends VipCallApprovalEventPublisher {
   public readonly published: DomainEvent[] = [];
-  public async publish(e: DomainEvent): Promise<void> {
+  // `publish` is a jest.Mock so specs can assert call counts; it still pushes
+  // to `published[]` for the existing test pattern (`publisher.published[0]`).
+  public readonly publish = jest.fn(async (e: DomainEvent): Promise<void> => {
     await Promise.resolve();
     this.published.push(e);
-  }
+  });
 }
 
 /**
@@ -447,5 +449,90 @@ describe('ApplyVipCallApprovalUseCase', () => {
     expect(
       viewTight.reasons.find((r) => r.code === 'HONEYPOT_SUSPECTED'),
     ).toBeDefined();
+  });
+
+  // ─── Gate 0: INVALID_ADDRESS — defense in depth ────────────────────────
+
+  const VALID_SOLANA = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+  const INVALID_SOLANA = 'ajj2ksddhk3pe7dbhw2bgqvstp8q7plbqrvxjqbjaspv';
+  const VALID_EVM = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+  const MALFORMED_EVM = 'not-an-address';
+
+  it('Gate 0: rejects a Solana call whose address is not a valid 32-byte base58 (the bug)', async () => {
+    const view = await useCase.execute({
+      chain: 'solana',
+      address: INVALID_SOLANA,
+      score: 100,
+      classification: 'low',
+      riskWeight: 0,
+      snapshotCompleteness: 1,
+    });
+
+    expect(view.verdict).toBe('REJECTED');
+    const reason = view.reasons.find((r) => r.code === 'INVALID_ADDRESS');
+    expect(reason).toBeDefined();
+    expect(reason?.message).toContain('solana');
+    expect(reason?.message).toContain(INVALID_SOLANA);
+    // No approval event should ever be emitted for an invalid address.
+    expect(publisher.publish).not.toHaveBeenCalledWith(
+      expect.objectContaining({ eventName: 'vip-call.approval.approved' }),
+    );
+    // A rejection event IS still emitted (with INVALID_ADDRESS in the payload).
+    expect(publisher.publish).toHaveBeenCalledTimes(1);
+    expect(publisher.published[0].eventName).toBe('vip-call.approval.rejected');
+  });
+
+  it('Gate 0: approves a valid Solana call (USDC mint) and emits vip-call.approval.approved', async () => {
+    const view = await useCase.execute({
+      chain: 'solana',
+      address: VALID_SOLANA,
+      score: 100,
+      classification: 'low',
+      riskWeight: 0,
+      snapshotCompleteness: 1,
+    });
+
+    expect(view.verdict).toBe('APPROVED');
+    expect(view.reasons).toEqual([]);
+    expect(publisher.publish).toHaveBeenCalledTimes(1);
+    expect(publisher.published[0].eventName).toBe('vip-call.approval.approved');
+  });
+
+  it('Gate 0: rejects a malformed EVM address (does not match ^0x[a-fA-F0-9]{40}$)', async () => {
+    const view = await useCase.execute({
+      chain: 'ethereum',
+      address: MALFORMED_EVM,
+      score: 100,
+      classification: 'low',
+      riskWeight: 0,
+      snapshotCompleteness: 1,
+    });
+
+    expect(view.verdict).toBe('REJECTED');
+    const reason = view.reasons.find((r) => r.code === 'INVALID_ADDRESS');
+    expect(reason).toBeDefined();
+    expect(reason?.message).toContain('ethereum');
+    expect(reason?.message).toContain(MALFORMED_EVM);
+    expect(publisher.publish).not.toHaveBeenCalledWith(
+      expect.objectContaining({ eventName: 'vip-call.approval.approved' }),
+    );
+    expect(publisher.publish).toHaveBeenCalledTimes(1);
+    expect(publisher.published[0].eventName).toBe('vip-call.approval.rejected');
+  });
+
+  it('Gate 0: approves a valid EVM address (USDC contract) and emits vip-call.approval.approved', async () => {
+    const view = await useCase.execute({
+      chain: 'ethereum',
+      address: VALID_EVM,
+      score: 100,
+      classification: 'low',
+      riskWeight: 0,
+      snapshotCompleteness: 1,
+    });
+
+    expect(view.verdict).toBe('APPROVED');
+    expect(view.reasons).toEqual([]);
+    expect(publisher.publish).toHaveBeenCalledTimes(1);
+    expect(publisher.published[0].eventName).toBe('vip-call.approval.approved');
   });
 });

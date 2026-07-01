@@ -152,12 +152,12 @@ describe('VerifyVipCallRejectionUseCase', () => {
   });
 
   it('returns diagnostics for a SCORE_TOO_LOW rejection as retryable', async () => {
-    await seedRejected(decisionRepo, 'solana', 'SoLaNaAdDrEsS', [
+    await seedRejected(decisionRepo, 'solana', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', [
       'SCORE_TOO_LOW',
     ]);
     const result = await useCase.execute({
       chain: 'solana',
-      address: 'SoLaNaAdDrEsS',
+      address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
     });
     expect(result.currentVerdict).toBe('REJECTED');
     expect(result.recommended).toBe('REPROCESS');
