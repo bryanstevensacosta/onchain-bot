@@ -1,7 +1,7 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
 import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
-import type { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
+import { TelegramMtprotoListenerAdapter } from 'telegram/ingestion/shared/api/mtproto/telegram-mtproto-listener.adapter';
 
 interface CryptoNewsMessageView {
   readonly id: string;
@@ -27,7 +27,7 @@ export class CryptoNewsController {
   constructor(
     private readonly messageRepo: CryptoNewsMessageRepository,
     private readonly sourceRepo: CryptoNewsSourceRepository,
-    private readonly listener: TelegramListenerPort,
+    private readonly listener: TelegramMtprotoListenerAdapter,
   ) {}
 
   @Get('messages')
@@ -51,7 +51,9 @@ export class CryptoNewsController {
   }
 
   @Get('messages/:id')
-  public async getMessage(@Param('id') id: string): Promise<CryptoNewsMessageView | null> {
+  public async getMessage(
+    @Param('id') id: string,
+  ): Promise<CryptoNewsMessageView | null> {
     const msg = await this.messageRepo.findById(id);
     if (!msg) return null;
     return {

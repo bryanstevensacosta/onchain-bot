@@ -1,7 +1,8 @@
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from 'shared/common/config/app.config';
-import type { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
+import { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
+import { TELEGRAM_LISTENER_PORT_TOKEN } from 'telegram/ingestion/shared/shared-injection-tokens';
 import { KolSeeder } from 'telegram/ingestion/kol/seeders/kol.seeder';
 import { CryptoNewsSeeder } from 'telegram/ingestion/crypto-news/infrastructure/seeders/crypto-news.seeder';
 import { KolRepository } from 'kol/identity/application/ports/kol.repository';
@@ -40,6 +41,7 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
     private readonly cryptoNewsSourceRepo: CryptoNewsSourceRepository,
     private readonly kolOrchestrator: KolIngestionOrchestratorUseCase,
     private readonly storeNewsMessage: StoreNewsMessageUseCase,
+    @Inject(TELEGRAM_LISTENER_PORT_TOKEN)
     private readonly listener: TelegramListenerPort,
   ) {}
 
@@ -76,9 +78,7 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
       return;
     }
 
-    const activeKols = (await this.kolRepo.findAll()).filter(
-      (k) => k.isActive,
-    );
+    const activeKols = (await this.kolRepo.findAll()).filter((k) => k.isActive);
     const activeNews = await this.cryptoNewsSourceRepo.findActive();
     const allChannelIds = [
       ...activeKols.map((k) => k.kolId.value),

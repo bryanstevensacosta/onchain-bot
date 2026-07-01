@@ -1,5 +1,7 @@
-import { ConfigService } from '@nestjs/config';
-import { IngestionCoordinator } from 'telegram/ingestion/shared/application/ingestion-coordinator.service';
+// The IngestionCoordinator imports TelegramMtprotoListenerAdapter which
+// transitively imports `telegram/extensions/Logger` (a CJS subpath not
+// mapped by Jest). We load the coordinator lazily and cast through
+// `unknown` to break the import chain.
 import { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import type { TelegramRawMessage } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import { KolSeeder } from 'telegram/ingestion/kol/seeders/kol.seeder';
@@ -12,6 +14,12 @@ import { CryptoNewsSource } from 'telegram/ingestion/crypto-news/domain/entities
 import { KolIngestionOrchestratorUseCase } from 'kol/identity/application/handlers/kol-ingestion-orchestrator.use-case';
 import { StoreNewsMessageUseCase } from 'telegram/ingestion/crypto-news/application/handlers/store-news-message.use-case';
 import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { IngestionCoordinator } = require('telegram/ingestion/shared/application/ingestion-coordinator.service') as {
+  IngestionCoordinator: new (...args: unknown[]) => {
+    onApplicationBootstrap(): Promise<void>;
+  };
+};
 
 // --- In-memory fakes ---
 
@@ -87,9 +95,7 @@ class FakeListener extends TelegramListenerPort {
 
 class CapturingOrchestrator extends KolIngestionOrchestratorUseCase {
   public received: TelegramRawMessage[] = [];
-  public async onMessageReceived(
-    raw: TelegramRawMessage,
-  ): Promise<void> {
+  public async onMessageReceived(raw: TelegramRawMessage): Promise<void> {
     this.received.push(raw);
   }
 }
@@ -115,13 +121,22 @@ class CapturingStoreUseCase extends StoreNewsMessageUseCase {
 }
 
 class FakeKolSeeder extends KolSeeder {
-  public async seed(): Promise<{ added: number; skipped: number; failed: number; notAKol: number }> {
+  public async seed(): Promise<{
+    added: number;
+    skipped: number;
+    failed: number;
+    notAKol: number;
+  }> {
     return { added: 0, skipped: 0, failed: 0, notAKol: 0 };
   }
 }
 
 class FakeNewsSeeder extends CryptoNewsSeeder {
-  public async seed(): Promise<{ added: number; skipped: number; failed: number }> {
+  public async seed(): Promise<{
+    added: number;
+    skipped: number;
+    failed: number;
+  }> {
     return { added: 0, skipped: 0, failed: 0 };
   }
 }
@@ -176,8 +191,19 @@ describe('IngestionCoordinator', () => {
       {} as never,
     );
     store = new CapturingStoreUseCase({} as never, {} as never);
-    kolSeeder = new FakeKolSeeder({} as never, {} as never, {} as never, {} as never, {} as never);
-    newsSeeder = new FakeNewsSeeder({} as never, {} as never, {} as never, {} as never);
+    kolSeeder = new FakeKolSeeder(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+    newsSeeder = new FakeNewsSeeder(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
   });
 
   it('subscribes once with all active channels (KOL + news)', async () => {
@@ -332,14 +358,23 @@ describe('IngestionCoordinator', () => {
   it('calls KolSeeder and CryptoNewsSeeder during bootstrap', async () => {
     const kolSpy = { called: false };
     const newsSpy = { called: false };
-    const ks = new FakeKolSeeder({} as never, {} as never, {} as never, {} as never, {} as never);
-    const ns = new FakeNewsSeeder({} as never, {} as never, {} as never, {} as never);
-    const seedMethod = jest
-      .spyOn(ks, 'seed')
-      .mockImplementation(async () => {
-        kolSpy.called = true;
-        return { added: 0, skipped: 0, failed: 0, notAKol: 0 };
-      });
+    const ks = new FakeKolSeeder(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+    const ns = new FakeNewsSeeder(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+    const seedMethod = jest.spyOn(ks, 'seed').mockImplementation(async () => {
+      kolSpy.called = true;
+      return { added: 0, skipped: 0, failed: 0, notAKol: 0 };
+    });
     const newsSeedMethod = jest
       .spyOn(ns, 'seed')
       .mockImplementation(async () => {

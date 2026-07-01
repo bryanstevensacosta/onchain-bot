@@ -1,21 +1,24 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { KolSeeder } from 'telegram/ingestion/kol/seeders/kol.seeder';
+import { IdentityModule } from 'kol/identity/identity.module';
+import { SharedIngestionModule } from 'telegram/ingestion/shared/shared-ingestion.module';
 
 /**
  * KOL ingestion sub-module.
  *
  * Owns the KOL seed list and seeder. Provides KolSeeder which is invoked
- * by IngestionCoordinator (in telegram/ingestion/shared/) on application
- * bootstrap. Does NOT auto-start listening — the coordinator collects all
- * channels (KOL + crypto-news) and starts a single subscription.
+ * by IngestionCoordinator (in telegram-ingestion.module.ts root) on
+ * application bootstrap.
  *
- * Dependencies on kol/identity (RegisterKolUseCase, KolRepository,
- * ResolvedKolMetadataRepository) are resolved via DI — no IdentityModule
- * import here to avoid circular dependencies.
+ * Imports IdentityModule to resolve KolRepository, RegisterKolUseCase,
+ * ResolvedKolMetadataRepository. Imports SharedIngestionModule to access
+ * TelegramListenerPort (for metadata resolution). No circular dependency:
+ * IdentityModule does not import KolIngestionModule, and
+ * SharedIngestionModule does not import KolIngestionModule.
  */
 @Module({
-  imports: [ConfigModule],
+  imports: [ConfigModule, IdentityModule, SharedIngestionModule],
   providers: [KolSeeder],
   exports: [KolSeeder],
 })

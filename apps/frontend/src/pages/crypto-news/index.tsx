@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { useCryptoNewsMessages, useCryptoNewsSources } from '@/entities/crypto-news';
+import {
+  useCryptoNewsMessages,
+  useCryptoNewsSources,
+} from '@/entities/crypto-news';
 import { Card } from '@/shared/ui';
 import { formatRelativeTime } from '@/shared/lib';
 
@@ -10,7 +13,7 @@ export function CryptoNewsPage() {
 
   const filteredMessages = channelFilter
     ? (messages.data ?? []).filter((m) => m.channelId === channelFilter)
-    : messages.data ?? [];
+    : (messages.data ?? []);
 
   return (
     <div className="px-6 py-6 space-y-6">
@@ -35,7 +38,9 @@ export function CryptoNewsPage() {
           </div>
         </Card>
         <Card>
-          <div className="text-xs uppercase text-slate-500">Messages (50 most recent)</div>
+          <div className="text-xs uppercase text-slate-500">
+            Messages (50 most recent)
+          </div>
           <div className="text-2xl font-bold text-slate-100 mt-1">
             {(messages.data ?? []).length}
           </div>
@@ -59,11 +64,15 @@ export function CryptoNewsPage() {
       </div>
 
       <Card>
-        <h2 className="text-lg font-semibold text-slate-100 mb-4">Recent messages</h2>
+        <h2 className="text-lg font-semibold text-slate-100 mb-4">
+          Recent messages
+        </h2>
         {messages.isLoading ? (
           <div className="text-slate-500">Cargando...</div>
         ) : messages.error ? (
-          <div className="text-red-400 text-sm">Error: {String(messages.error)}</div>
+          <div className="text-red-400 text-sm">
+            Error: {String(messages.error)}
+          </div>
         ) : filteredMessages.length === 0 ? (
           <div className="text-slate-500 text-sm">No messages yet.</div>
         ) : (

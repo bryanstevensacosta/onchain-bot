@@ -80,6 +80,7 @@ import type { AppConfig } from 'shared/common/config/app.config';
     KolRepository,
     ResolvedKolMetadataRepository,
     KolEventPublisher,
+    RegisterKolUseCase,
     KolIngestionOrchestratorUseCase,
   ],
 })

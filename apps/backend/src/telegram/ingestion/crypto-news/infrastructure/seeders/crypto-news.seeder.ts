@@ -78,10 +78,7 @@ export class CryptoNewsSeeder {
           });
           added += 1;
         } catch (err) {
-          if (
-            err instanceof DomainError &&
-            err.code === ErrorCode.CONFLICT
-          ) {
+          if (err instanceof DomainError && err.code === ErrorCode.CONFLICT) {
             skipped += 1;
             continue;
           }

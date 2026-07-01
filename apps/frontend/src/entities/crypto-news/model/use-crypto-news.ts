@@ -7,10 +7,7 @@ import {
   type CryptoNewsSource,
 } from '@/entities/crypto-news/api/crypto-news-queries';
 
-export function useCryptoNewsMessages(
-  limit = 50,
-  channelId?: string,
-) {
+export function useCryptoNewsMessages(limit = 50, channelId?: string) {
   return useQuery<ReadonlyArray<CryptoNewsMessage>>({
     queryKey: cryptoNewsKeys.messages(limit, channelId),
     queryFn: () => fetchCryptoNewsMessages(limit, channelId),

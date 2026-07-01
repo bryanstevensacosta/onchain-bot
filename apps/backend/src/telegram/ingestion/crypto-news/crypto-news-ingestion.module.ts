@@ -17,6 +17,7 @@ import { RegisterNewsSourceUseCase } from 'telegram/ingestion/crypto-news/applic
 import { StoreNewsMessageUseCase } from 'telegram/ingestion/crypto-news/application/handlers/store-news-message.use-case';
 import { CryptoNewsSeeder } from 'telegram/ingestion/crypto-news/infrastructure/seeders/crypto-news.seeder';
 import { CryptoNewsController } from 'telegram/ingestion/crypto-news/api/http/crypto-news.controller';
+import { SharedIngestionModule } from 'telegram/ingestion/shared/shared-ingestion.module';
 
 /**
  * Crypto-news ingestion sub-module.
@@ -31,6 +32,7 @@ import { CryptoNewsController } from 'telegram/ingestion/crypto-news/api/http/cr
 @Module({
   imports: [
     ConfigModule,
+    SharedIngestionModule,
     TypeOrmModule.forFeature([CryptoNewsSourceEntity, CryptoNewsMessageEntity]),
   ],
   controllers: [CryptoNewsController],
@@ -42,26 +44,36 @@ import { CryptoNewsController } from 'telegram/ingestion/crypto-news/api/http/cr
       : []),
     {
       provide: CryptoNewsSourceRepository,
-      inject: [ConfigService, InMemoryCryptoNewsSourceRepository, TypeOrmCryptoNewsSourceRepository],
+      inject: [
+        ConfigService,
+        InMemoryCryptoNewsSourceRepository,
+        ...(isDatabaseEnabled() ? [TypeOrmCryptoNewsSourceRepository] : []),
+      ],
       useFactory: (
         config: ConfigService,
         inMemory: InMemoryCryptoNewsSourceRepository,
-        typeorm: TypeOrmCryptoNewsSourceRepository,
+        typeorm?: TypeOrmCryptoNewsSourceRepository,
       ): CryptoNewsSourceRepository => {
-        const enabled = config.get<AppConfig>('app')?.database?.enabled === true;
-        return enabled ? typeorm : inMemory;
+        const enabled =
+          config.get<AppConfig>('app')?.database?.enabled === true;
+        return enabled && typeorm ? typeorm : inMemory;
       },
     },
     {
       provide: CryptoNewsMessageRepository,
-      inject: [ConfigService, InMemoryCryptoNewsMessageRepository, TypeOrmCryptoNewsMessageRepository],
+      inject: [
+        ConfigService,
+        InMemoryCryptoNewsMessageRepository,
+        ...(isDatabaseEnabled() ? [TypeOrmCryptoNewsMessageRepository] : []),
+      ],
       useFactory: (
         config: ConfigService,
         inMemory: InMemoryCryptoNewsMessageRepository,
-        typeorm: TypeOrmCryptoNewsMessageRepository,
+        typeorm?: TypeOrmCryptoNewsMessageRepository,
       ): CryptoNewsMessageRepository => {
-        const enabled = config.get<AppConfig>('app')?.database?.enabled === true;
-        return enabled ? typeorm : inMemory;
+        const enabled =
+          config.get<AppConfig>('app')?.database?.enabled === true;
+        return enabled && typeorm ? typeorm : inMemory;
       },
     },
     {

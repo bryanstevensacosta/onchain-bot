@@ -38,6 +38,8 @@ export async function fetchCryptoNewsMessages(
   );
 }
 
-export async function fetchCryptoNewsSources(): Promise<ReadonlyArray<CryptoNewsSource>> {
+export async function fetchCryptoNewsSources(): Promise<
+  ReadonlyArray<CryptoNewsSource>
+> {
   return httpGet<ReadonlyArray<CryptoNewsSource>>('/crypto-news/sources');
 }

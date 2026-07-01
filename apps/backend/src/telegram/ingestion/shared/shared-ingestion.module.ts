@@ -1,7 +1,5 @@
 import { Global, Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { isDatabaseEnabled } from 'shared/common/persistence/database.module';
+import { ConfigModule } from '@nestjs/config';
 import { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import { TelegramMtprotoListenerAdapter } from 'telegram/ingestion/shared/api/mtproto/telegram-mtproto-listener.adapter';
 import { IngestionSafetyConfig } from 'telegram/ingestion/shared/infrastructure/config/ingestion-safety.config';
@@ -10,29 +8,48 @@ import { FloodWaitCounterService } from 'telegram/ingestion/shared/infrastructur
 import { FloodWaitHandlerService } from 'telegram/ingestion/shared/infrastructure/services/flood-wait-handler.service';
 import { IngestionConfigController } from 'telegram/ingestion/shared/api/http/ingestion-config.controller';
 import { IngestionHealthController } from 'telegram/ingestion/shared/api/http/ingestion-health.controller';
-import { IngestionCoordinator } from 'telegram/ingestion/shared/application/ingestion-coordinator.service';
 import { IdentityModule } from 'kol/identity/identity.module';
-import { KolIngestionModule } from 'telegram/ingestion/kol/kol-ingestion.module';
-import { CryptoNewsIngestionModule } from 'telegram/ingestion/crypto-news/crypto-news-ingestion.module';
-import type { AppConfig } from 'shared/common/config/app.config';
+
+/**
+ * Base shared ingestion module.
+ *
+ * Provides globally:
+ * - TelegramListenerPort (useExisting alias of TelegramMtprotoListenerAdapter)
+ * - TelegramMtprotoListenerAdapter
+ * - IngestionSafetyConfig
+ * - Sleep/Flood services
+ *
+ * Does NOT import KolIngestionModule / CryptoNewsIngestionModule /
+ * IdentityModule — those modules import THIS module to access the
+ * listener port. IngestionCoordinator lives in a separate root-level
+ * module (telegram-ingestion.module.ts) to avoid circular imports.
+ */
+import { TELEGRAM_LISTENER_PORT_TOKEN } from './shared-injection-tokens';
 
 @Global()
 @Module({
-  imports: [
-    ConfigModule,
-    IdentityModule,
-    KolIngestionModule,
-    CryptoNewsIngestionModule,
-  ],
+  imports: [ConfigModule, IdentityModule],
   controllers: [IngestionConfigController, IngestionHealthController],
   providers: [
-    { provide: TelegramListenerPort, useClass: TelegramMtprotoListenerAdapter },
     IngestionSafetyConfig,
     SleepWindowService,
     FloodWaitCounterService,
     FloodWaitHandlerService,
-    IngestionCoordinator,
+    TelegramMtprotoListenerAdapter,
+    {
+      provide: TelegramListenerPort,
+      useExisting: TelegramMtprotoListenerAdapter,
+    },
+    {
+      provide: TELEGRAM_LISTENER_PORT_TOKEN,
+      useExisting: TelegramMtprotoListenerAdapter,
+    },
   ],
-  exports: [TelegramListenerPort, IngestionSafetyConfig],
+  exports: [
+    TelegramListenerPort,
+    TELEGRAM_LISTENER_PORT_TOKEN,
+    TelegramMtprotoListenerAdapter,
+    IngestionSafetyConfig,
+  ],
 })
 export class SharedIngestionModule {}
