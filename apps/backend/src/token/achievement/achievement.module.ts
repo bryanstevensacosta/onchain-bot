@@ -1,6 +1,5 @@
 import { Module, OnApplicationBootstrap } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { isDatabaseEnabled } from 'shared/common/persistence/database.module';
 import { EnrichmentModule } from 'token/enrichment/enrichment.module';
 import { AchievementThresholdEntity } from './domain/entities/achievement-threshold.entity';
 import { MonitoredCallEntity } from './domain/entities/monitored-call.entity';
@@ -41,10 +40,7 @@ const PERSISTED_ENTITIES = [
 ];
 
 @Module({
-  imports: [
-    EnrichmentModule,
-    TypeOrmModule.forFeature(PERSISTED_ENTITIES),
-  ],
+  imports: [EnrichmentModule, TypeOrmModule.forFeature(PERSISTED_ENTITIES)],
   controllers: [AchievementController],
   providers: [
     DetectCrossedAchievementsService,
