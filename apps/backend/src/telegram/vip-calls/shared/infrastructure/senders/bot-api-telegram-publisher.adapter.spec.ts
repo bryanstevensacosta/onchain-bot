@@ -24,11 +24,11 @@ function makeConfig(
 }
 
 interface MockHttp {
-  post: jest.Mock;
+  post: jest.Mock<unknown, [string, Record<string, unknown>]>;
 }
 
 function makeHttp(): MockHttp {
-  return { post: jest.fn() };
+  return { post: jest.fn<unknown, [string, Record<string, unknown>]>() };
 }
 
 describe('VipCallsBotApiPublisherAdapter', () => {

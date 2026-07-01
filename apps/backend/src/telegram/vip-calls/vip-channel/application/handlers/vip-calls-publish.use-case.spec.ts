@@ -1,13 +1,16 @@
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ChainId } from 'chain/identity/chain-id.vo';
+import { type ApprovedCallInput } from 'telegram/shared';
 import { InMemoryPublishedCallRepository } from '../../infrastructure/repositories/in-memory-published-call.repository';
 import { VipCallsPublishUseCase } from './vip-calls-publish.use-case';
 
 interface FakeFormatter {
-  format: jest.Mock;
+  format: jest.Mock<string, [ApprovedCallInput]>;
 }
 function makeFormatter(returnValue: string): FakeFormatter {
-  return { format: jest.fn().mockReturnValue(returnValue) };
+  return {
+    format: jest.fn<string, [ApprovedCallInput]>().mockReturnValue(returnValue),
+  };
 }
 
 interface FakePublisher {
@@ -188,11 +191,11 @@ describe('VipCallsPublishUseCase', () => {
         expect.objectContaining({
           eventName: 'achievement.register.call',
           payload: expect.objectContaining({
-            callId: expect.any(String),
+            callId: expect.any(String) as unknown,
             chain: 'solana',
             address: 'TokenMint123',
-            publishedAt: expect.any(String),
-          }),
+            publishedAt: expect.any(String) as unknown,
+          }) as unknown,
         }),
       );
     });
@@ -215,8 +218,8 @@ describe('VipCallsPublishUseCase', () => {
           payload: expect.objectContaining({
             chain: 'solana',
             address: 'abc',
-            publishedAt: expect.any(String),
-          }),
+            publishedAt: expect.any(String) as unknown,
+          }) as unknown,
         }),
       );
     });
