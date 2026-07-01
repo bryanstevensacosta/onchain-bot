@@ -44,7 +44,7 @@ export class KolReputationAggregator {
 
     for (const call of calls) {
       if (!Array.isArray(call.sources)) continue;
-      for (const source of call.sources) {
+      for (const source of call.sources as ReadonlyArray<KolReputationCanonicalCallSource>) {
         if (String(source.kolId) !== targetKolId) continue;
         totalMentions += source.mentionCount ?? 1;
         distinctTokens.add(`${call.chain}:${call.address.toLowerCase()}`);
