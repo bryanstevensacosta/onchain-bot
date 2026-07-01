@@ -9,7 +9,7 @@ export class InMemoryPublishedCallRepository implements PublishedCallRepository 
 
   public async save(call: PublishedCall): Promise<void> {
     if (this.store.size >= InMemoryPublishedCallRepository.MAX_ENTRIES) {
-      const oldestKey = this.store.keys().next().value;
+      const oldestKey: string | undefined = this.store.keys().next().value;
       if (oldestKey) this.store.delete(oldestKey);
     }
     this.store.set(call.id, call);
