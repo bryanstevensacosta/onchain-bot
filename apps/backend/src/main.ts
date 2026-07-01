@@ -52,7 +52,7 @@ async function bootstrap(): Promise<void> {
   // so the FilteredBootstrapLogger can drop boot-machinery lines without us
   // missing any application log that fires during module instantiation.
   const app = await NestFactory.create(AppModule, {
-    bufferLogs: true,
+    bufferLogs: false,
   });
   app.useLogger(new FilteredBootstrapLogger('Nest'));
 
