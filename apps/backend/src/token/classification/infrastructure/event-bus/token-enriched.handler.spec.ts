@@ -1,5 +1,6 @@
 import { TokenEnrichedHandler } from 'token/classification/infrastructure/event-bus/token-enriched.handler';
 import { TokenEnrichedEvent } from 'token/enrichment/domain/events/token-enriched.event';
+import { SnapshotSignals } from 'token/classification/application/handlers/classify-token.use-case';
 
 const FIXED_DATE = new Date('2026-01-01T00:00:00Z');
 const EVM = '0xabcdef0123456789abcdef0123456789abcdef01';
@@ -40,13 +41,15 @@ function buildEvent(
 
 describe('TokenEnrichedHandler', () => {
   it('forwards event payload fields to classify.execute', async () => {
-    const execute = jest.fn().mockResolvedValue({});
+    const execute = jest
+      .fn<Promise<unknown>, [SnapshotSignals]>()
+      .mockResolvedValue({});
     const handler = new TokenEnrichedHandler({ execute } as never);
 
     await handler.handle(buildEvent());
 
     expect(execute).toHaveBeenCalledTimes(1);
-    const arg = execute.mock.calls[0][0] as Record<string, unknown>;
+    const arg = execute.mock.calls[0][0];
     expect(arg.chain).toBe('ethereum');
     expect(arg.address).toBe(EVM);
     expect(arg.hasPairs).toBe(true);
@@ -58,37 +61,45 @@ describe('TokenEnrichedHandler', () => {
   });
 
   it('sets hasName=true when event payload.name is non-empty', async () => {
-    const execute = jest.fn().mockResolvedValue({});
+    const execute = jest
+      .fn<Promise<unknown>, [SnapshotSignals]>()
+      .mockResolvedValue({});
     const handler = new TokenEnrichedHandler({ execute } as never);
 
     await handler.handle(buildEvent({ name: "Wendy's Mascot" }));
 
-    const arg = execute.mock.calls[0][0] as Record<string, unknown>;
+    const arg = execute.mock.calls[0][0];
     expect(arg.hasName).toBe(true);
   });
 
   it('sets hasName=false when event payload.name is null', async () => {
-    const execute = jest.fn().mockResolvedValue({});
+    const execute = jest
+      .fn<Promise<unknown>, [SnapshotSignals]>()
+      .mockResolvedValue({});
     const handler = new TokenEnrichedHandler({ execute } as never);
 
     await handler.handle(buildEvent({ name: null }));
 
-    const arg = execute.mock.calls[0][0] as Record<string, unknown>;
+    const arg = execute.mock.calls[0][0];
     expect(arg.hasName).toBe(false);
   });
 
   it('sets hasName=false when event payload.name is empty/whitespace', async () => {
-    const execute = jest.fn().mockResolvedValue({});
+    const execute = jest
+      .fn<Promise<unknown>, [SnapshotSignals]>()
+      .mockResolvedValue({});
     const handler = new TokenEnrichedHandler({ execute } as never);
 
     await handler.handle(buildEvent({ name: '   ' }));
 
-    const arg = execute.mock.calls[0][0] as Record<string, unknown>;
+    const arg = execute.mock.calls[0][0];
     expect(arg.hasName).toBe(false);
   });
 
   it('absorbs errors thrown by the use case', async () => {
-    const execute = jest.fn().mockRejectedValue(new Error('boom'));
+    const execute = jest
+      .fn<Promise<unknown>, [SnapshotSignals]>()
+      .mockRejectedValue(new Error('boom'));
     const handler = new TokenEnrichedHandler({ execute } as never);
 
     const event = buildEvent({ name: null });

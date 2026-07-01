@@ -53,12 +53,12 @@ function makePublishedCall(opts: {
   mcAtCall: number | null;
   channelId?: string;
 }) {
-  const call = Object.create(PublishedCall.prototype);
+  const call = Object.create(PublishedCall.prototype) as PublishedCall;
   Object.defineProperty(call, 'mcAtCall', { get: () => opts.mcAtCall });
   Object.defineProperty(call, 'publishedChannelIds', {
     get: () => (opts.channelId ? [opts.channelId] : []),
   });
-  return call as unknown as PublishedCall;
+  return call;
 }
 
 describe('TrackPublishedCallUseCase', () => {

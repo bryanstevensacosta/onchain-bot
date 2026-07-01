@@ -1,14 +1,18 @@
 import { CallPublishedTrackedHandler } from './call-published-tracked.handler';
-import { TrackPublishedCallUseCase } from '../../application/handlers/track-published-call.use-case';
+import {
+  TrackPublishedCallUseCase,
+  TrackPublishedCallInput,
+  TrackPublishedCallResult,
+} from '../../application/handlers/track-published-call.use-case';
 import { CallPublishedEvent } from 'telegram/shared/domain/events/call-published.event';
 
 describe('CallPublishedTrackedHandler', () => {
   it('subscribes to publishing.telegram.published and delegates to use case', async () => {
     const executeMock = jest
-      .fn()
+      .fn<Promise<TrackPublishedCallResult>, [TrackPublishedCallInput]>()
       .mockResolvedValue({ created: true, trackedId: 'sol:abc' });
     const trackUseCase = {
-      execute: executeMock as any,
+      execute: executeMock,
     } as unknown as TrackPublishedCallUseCase;
     const handler = new CallPublishedTrackedHandler(trackUseCase);
     const event = new CallPublishedEvent({
@@ -35,10 +39,10 @@ describe('CallPublishedTrackedHandler', () => {
 
   it('uses null kolId when publishedChannelIds is empty', async () => {
     const executeMock = jest
-      .fn()
+      .fn<Promise<TrackPublishedCallResult>, [TrackPublishedCallInput]>()
       .mockResolvedValue({ created: true, trackedId: 'sol:abc' });
     const trackUseCase = {
-      execute: executeMock as any,
+      execute: executeMock,
     } as unknown as TrackPublishedCallUseCase;
     const handler = new CallPublishedTrackedHandler(trackUseCase);
     const event = new CallPublishedEvent({
@@ -58,9 +62,11 @@ describe('CallPublishedTrackedHandler', () => {
   });
 
   it('does not throw when use case fails (logs and swallows)', async () => {
-    const executeMock = jest.fn().mockRejectedValue(new Error('boom'));
+    const executeMock = jest
+      .fn<Promise<TrackPublishedCallResult>, [TrackPublishedCallInput]>()
+      .mockRejectedValue(new Error('boom'));
     const trackUseCase = {
-      execute: executeMock as any,
+      execute: executeMock,
     } as unknown as TrackPublishedCallUseCase;
     const handler = new CallPublishedTrackedHandler(trackUseCase);
     const event = new CallPublishedEvent({
