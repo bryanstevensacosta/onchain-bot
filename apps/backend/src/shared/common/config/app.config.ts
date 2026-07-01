@@ -304,11 +304,15 @@ export const appConfig = registerAs(
             process.env.INGESTION_TELEGRAM_SEED_NEWS,
           ),
         },
-        metadataCache: {
-          filePath:
-            process.env.INGESTION_TELEGRAM_METADATA_CACHE_FILE ??
-            `${process.cwd()}/.cache/kol-metadata.json`,
-        },
+        metadataCache: (() => {
+          const rawCacheFile =
+            process.env.INGESTION_TELEGRAM_METADATA_CACHE_FILE;
+          const cacheFilePath =
+            rawCacheFile && rawCacheFile.trim().length > 0
+              ? rawCacheFile
+              : `${process.cwd()}/.cache/kol-metadata.json`;
+          return { filePath: cacheFilePath };
+        })(),
         backfill: {
           enabled:
             (
