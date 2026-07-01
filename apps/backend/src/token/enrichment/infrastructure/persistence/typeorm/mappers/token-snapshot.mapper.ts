@@ -88,10 +88,12 @@ export class TokenSnapshotMapper {
           ? Number(row.snapshotCompleteness)
           : null,
       providerErrors: row.providerErrors
-        ? row.providerErrors.map((e: any) => ({
-            provider: e.provider,
-            message: e.message,
-          }))
+        ? row.providerErrors.map(
+            (e: { provider: string; message: string }) => ({
+              provider: e.provider,
+              message: e.message,
+            }),
+          )
         : [],
       enrichedAt: row.enrichedAt,
     });
