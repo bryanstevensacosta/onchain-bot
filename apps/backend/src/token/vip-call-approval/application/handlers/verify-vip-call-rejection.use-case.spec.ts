@@ -152,9 +152,12 @@ describe('VerifyVipCallRejectionUseCase', () => {
   });
 
   it('returns diagnostics for a SCORE_TOO_LOW rejection as retryable', async () => {
-    await seedRejected(decisionRepo, 'solana', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', [
-      'SCORE_TOO_LOW',
-    ]);
+    await seedRejected(
+      decisionRepo,
+      'solana',
+      'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+      ['SCORE_TOO_LOW'],
+    );
     const result = await useCase.execute({
       chain: 'solana',
       address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
@@ -176,7 +179,10 @@ describe('VerifyVipCallRejectionUseCase', () => {
       riskWeight: 0,
       snapshotCompleteness: 1,
       reasons: [
-        VipCallApprovalReason.create({ code: 'BLACKLISTED', message: 'is on list' }),
+        VipCallApprovalReason.create({
+          code: 'BLACKLISTED',
+          message: 'is on list',
+        }),
       ],
     });
     await decisionRepo.save(decision);
