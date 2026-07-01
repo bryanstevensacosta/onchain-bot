@@ -60,7 +60,7 @@ export class KolMetricsCalculator {
     let count = 0;
     for (const call of calls) {
       if (!Array.isArray(call.sources)) continue;
-      for (const source of call.sources) {
+      for (const source of call.sources as ReadonlyArray<KolMetricsCanonicalCallSource>) {
         if (String(source.kolId) !== targetKolId) continue;
         count += source.mentionCount ?? 1;
       }
