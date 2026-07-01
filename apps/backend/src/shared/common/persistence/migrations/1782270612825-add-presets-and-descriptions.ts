@@ -27,19 +27,19 @@ export class AddPresetsAndDescriptions1782270612825 implements MigrationInterfac
         WHERE is_active = true
     `);
 
-    const existing = await queryRunner.query(
+    const existing = (await queryRunner.query(
       `SELECT 1 FROM settings_presets WHERE name = $1 LIMIT 1`,
       ['Default'],
-    );
+    )) as Array<unknown>;
     if (existing.length === 0) {
-      const signalsRows: Array<{
+      const signalsRows = (await queryRunner.query(
+        `SELECT code, penalty, risk_level, enabled FROM signals`,
+      )) as Array<{
         code: string;
         penalty: number;
         risk_level: string;
         enabled: boolean;
-      }> = await queryRunner.query(
-        `SELECT code, penalty, risk_level, enabled FROM signals`,
-      );
+      }>;
       const signals: Record<
         string,
         { penalty: number; riskLevel: string; enabled: boolean }
@@ -52,14 +52,14 @@ export class AddPresetsAndDescriptions1782270612825 implements MigrationInterfac
         };
       }
 
-      const thresholdsRows: Array<{
+      const thresholdsRows = (await queryRunner.query(
+        `SELECT scope, min_score, max_score, decision FROM scoring_thresholds`,
+      )) as Array<{
         scope: string;
         min_score: number;
         max_score: number;
         decision: string;
-      }> = await queryRunner.query(
-        `SELECT scope, min_score, max_score, decision FROM scoring_thresholds`,
-      );
+      }>;
       const thresholds = thresholdsRows.map((r) => ({
         scope: r.scope,
         minScore: r.min_score,
