@@ -20,7 +20,6 @@ export interface SeedKolEntry {
   kolId: string;
   handle?: string;
   title?: string;
-  username?: string;
 }
 
 export interface SeedNewsChannelEntry {

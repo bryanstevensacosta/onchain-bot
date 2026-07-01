@@ -88,7 +88,6 @@ export class KolSeeder {
         seed.kolId,
         seed.title,
         seed.handle,
-        seed.username,
       );
 
       if (kind === 'unknown') {
@@ -150,7 +149,6 @@ export class KolSeeder {
     kolId: string,
     seedTitle?: string,
     seedHandle?: string,
-    seedUsername?: string,
   ): Promise<{
     title: string;
     handle: string | null;
@@ -220,12 +218,9 @@ export class KolSeeder {
         kind: meta.kind,
       };
     } catch (err) {
-      // Falló la resolución → intentar unirse al canal.
-      // Preferir @username sobre kolId: getEntity('@username') funciona
-      // para canales públicos sin requerir membership previa.
-      const joinTarget = seedUsername ?? kolId;
+      // Falló la resolución → intentar unirse al canal
       const joinResult = await this.listener
-        .joinChannel(joinTarget)
+        .joinChannel(kolId)
         .catch(() => null);
       if (joinResult?.joined) {
         // Join exitoso → reintentar metadata
