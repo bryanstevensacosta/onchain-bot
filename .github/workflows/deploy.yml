@@ -12,39 +12,20 @@ concurrency:
 jobs:
   test:
     name: Tests
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U test -d test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    # Self-hosted runner lives on the production droplet, so it can
+    # talk directly to the droplet's local postgres + redis (no service
+    # containers needed). This also makes the workflow ~10x faster
+    # (no fresh 500MB node_modules download on every run).
+    runs-on: self-hosted
     env:
       NODE_ENV: test
       DATABASE_ENABLED: true
       DATABASE_SYNCHRONIZE: true
       POSTGRES_HOST: localhost
       POSTGRES_PORT: 5432
-      POSTGRES_USER: test
-      POSTGRES_PASSWORD: test
-      POSTGRES_DB: test
+      POSTGRES_USER: alpha_meta_token_scanner
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      POSTGRES_DB: alpha_meta_token_scanner
       REDIS_ENABLED: true
       REDIS_HOST: localhost
       REDIS_PORT: 6379
@@ -70,17 +51,41 @@ jobs:
 
   deploy:
     name: Deploy to droplet
-    runs-on: ubuntu-latest
+    # Runner is on the droplet itself, so no SSH is needed — it just
+    # runs docker compose directly. Also drops the separate /tmp/deploy.sh
+    # indirection (script_path was a workaround for the SSH-based model).
+    runs-on: self-hosted
     needs: test
     environment: production
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script_path: ${{ github.workspace }}/scripts/deploy.sh
-          command_timeout: 15m
+      - name: Backup database
+        run: |
+          POSTGRES_CONTAINER=onchain-bot-postgres \
+          POSTGRES_USER=alpha_meta_token_scanner \
+          POSTGRES_DB=alpha_meta_token_scanner \
+          POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}" \
+          bash scripts/backup-db.sh
+
+      - name: Build and deploy
+        run: |
+          set -euo pipefail
+          echo "=== Building images ==="
+          docker compose -f apps/backend/docker-compose.prod.yml build --no-cache backend
+          echo "=== Running migrations ==="
+          POSTGRES_HOST=postgres \
+          POSTGRES_USER=alpha_meta_token_scanner \
+          POSTGRES_DB=alpha_meta_token_scanner \
+          POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}" \
+          docker compose -f apps/backend/docker-compose.prod.yml run --rm -T backend npm run migration:run
+          echo "=== Restarting services ==="
+          docker compose -f apps/backend/docker-compose.prod.yml up -d --force-recreate backend
+          echo "=== Waiting for healthcheck ==="
+          sleep 15
+          curl -sf http://localhost:3030/api/health && echo "" || (
+            echo "HEALTHCHECK FAILED"
+            docker compose -f apps/backend/docker-compose.prod.yml logs backend --tail 50
+            exit 1
+          )
+          echo "=== Deploy complete ==="
