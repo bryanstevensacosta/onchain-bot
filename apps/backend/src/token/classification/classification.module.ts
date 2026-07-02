@@ -9,9 +9,9 @@ import { ListClassificationsUseCase } from 'token/classification/application/han
 import { InMemoryTokenClassificationRepository } from 'token/classification/infrastructure/repositories/in-memory-token-classification.repository';
 import { TokenClassificationEntity } from 'token/classification/infrastructure/persistence/typeorm/entities/token-classification.entity';
 import { TypeOrmTokenClassificationRepository } from 'token/classification/infrastructure/persistence/typeorm/repositories/typeorm-token-classification.repository';
-import { InProcessClassificationEventPublisher } from 'token/classification/infrastructure/messaging/in-process-classification-event.publisher';
 import { TokenEnrichedHandler } from 'token/classification/infrastructure/event-bus/token-enriched.handler';
 import { ClassificationController } from 'token/classification/api/http/classification.controller';
+import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 
 /**
  * Classification BC module.
@@ -47,7 +47,7 @@ import { ClassificationController } from 'token/classification/api/http/classifi
     },
     {
       provide: ClassificationEventPublisher,
-      useClass: InProcessClassificationEventPublisher,
+      useClass: InProcessDomainEventPublisher,
     },
   ],
   exports: [TokenClassificationRepository, ClassificationEventPublisher],

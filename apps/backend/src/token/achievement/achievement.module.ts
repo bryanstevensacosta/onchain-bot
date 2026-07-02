@@ -18,8 +18,8 @@ import { DexScreenerLiveMarketDataAdapter } from './infrastructure/adapters/dexs
 import { RedisAchievementCacheAdapter } from './infrastructure/adapters/redis-achievement-cache.adapter';
 import { InMemoryAchievementCacheAdapter } from './infrastructure/adapters/in-memory-achievement-cache.adapter';
 import { SettingsAchievementSettingsAdapter } from './infrastructure/adapters/settings-achievement-settings.adapter';
-import { InProcessAchievementEventPublisher } from './infrastructure/messaging/in-process-achievement-event.publisher';
 import { RegisterCallForAchievementsHandler } from './infrastructure/event-bus/register-call-for-achievements.handler';
+import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 import { DefaultThresholdsSeedService } from './infrastructure/default-thresholds-seed.service';
 import { LiveAchievementScheduler } from './infrastructure/scheduling/live-achievement.scheduler';
 import { AchievementController } from './api/http/achievement.controller';
@@ -50,7 +50,7 @@ const PERSISTED_ENTITIES = [
     DefaultThresholdsSeedService,
     LiveAchievementScheduler,
     RegisterCallForAchievementsHandler,
-    InProcessAchievementEventPublisher,
+    InProcessDomainEventPublisher,
     DexScreenerLiveMarketDataAdapter,
     SettingsAchievementSettingsAdapter,
     InMemoryAchievementCacheAdapter,
@@ -60,7 +60,7 @@ const PERSISTED_ENTITIES = [
     InMemoryNotifiedAchievementRepository,
     {
       provide: AchievementEventPublisher,
-      useExisting: InProcessAchievementEventPublisher,
+      useExisting: InProcessDomainEventPublisher,
     },
     {
       provide: AchievementSettingsPort,

@@ -8,11 +8,11 @@ import { ParseFromCandidatesUseCase } from 'token/intake/parsing/application/han
 import { GetTokenCallUseCase } from 'token/intake/parsing/application/handlers/get-token-call.use-case';
 import { GetRecentCallsUseCase } from 'token/intake/parsing/application/handlers/get-recent-calls.use-case';
 import { HeuristicParserAdapter } from 'token/intake/parsing/infrastructure/adapters/heuristic-parser.adapter';
-import { InProcessParsingEventPublisher } from 'token/intake/parsing/infrastructure/messaging/in-process-parsing-event.publisher';
 import { InMemoryTokenCallRepository } from 'token/intake/parsing/infrastructure/repositories/in-memory-token-call.repository';
 import { TokenCallEntity } from 'token/intake/parsing/infrastructure/persistence/typeorm/entities/token-call.entity';
 import { TypeOrmTokenCallRepository } from 'token/intake/parsing/infrastructure/persistence/typeorm/repositories/typeorm-token-call.repository';
 import { ParsingController } from 'token/intake/parsing/api/http/parsing.controller';
+import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 
 /**
  * Parsing BC module.
@@ -38,7 +38,7 @@ import { ParsingController } from 'token/intake/parsing/api/http/parsing.control
     { provide: ParserPort, useClass: HeuristicParserAdapter },
     {
       provide: ParsingEventPublisher,
-      useClass: InProcessParsingEventPublisher,
+      useClass: InProcessDomainEventPublisher,
     },
     InMemoryTokenCallRepository,
     ...(isDatabaseEnabled() ? [TypeOrmTokenCallRepository] : []),

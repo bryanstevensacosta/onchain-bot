@@ -12,10 +12,10 @@ import { SolanaChainProberAdapter } from 'chain/detection/infrastructure/probers
 import { InMemoryChainDetectionRepository } from 'chain/detection/infrastructure/repositories/in-memory-chain-detection.repository';
 import { ChainDetectionResultEntity } from 'chain/detection/infrastructure/persistence/typeorm/entities/chain-detection-result.entity';
 import { TypeOrmChainDetectionRepository } from 'chain/detection/infrastructure/persistence/typeorm/repositories/typeorm-chain-detection.repository';
-import { InProcessChainDetectionEventPublisher } from 'chain/detection/infrastructure/messaging/in-process-chain-detection-event.publisher';
 import { CallNormalizedHandler } from 'chain/detection/infrastructure/event-bus/call-normalized.handler';
 import { ChainDetectionController } from 'chain/detection/api/http/chain-detection.controller';
 import { CHAIN_PROBERS } from 'chain/detection/chain-detection.tokens';
+import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 
 /**
  * Chain Detection BC module.
@@ -56,7 +56,7 @@ import { CHAIN_PROBERS } from 'chain/detection/chain-detection.tokens';
     },
     {
       provide: ChainDetectionEventPublisher,
-      useClass: InProcessChainDetectionEventPublisher,
+      useClass: InProcessDomainEventPublisher,
     },
     {
       provide: CHAIN_PROBERS,

@@ -10,5 +10,4 @@ export {
   CallPublishedEvent,
   CallPublishFailedEvent,
   PublishedCall,
-  InProcessPublishingEventPublisher,
 } from './shared';

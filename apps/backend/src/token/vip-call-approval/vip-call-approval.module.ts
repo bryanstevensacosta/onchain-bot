@@ -12,9 +12,9 @@ import { InMemoryVipCallBlacklistAdapter } from 'token/vip-call-approval/infrast
 import { InMemoryVipCallApprovalDecisionRepository } from 'token/vip-call-approval/infrastructure/repositories/in-memory-vip-call-approval-decision.repository';
 import { VipCallApprovalDecisionEntity } from 'token/vip-call-approval/infrastructure/persistence/typeorm/entities/vip-call-approval-decision.entity';
 import { TypeOrmVipCallApprovalDecisionRepository } from 'token/vip-call-approval/infrastructure/persistence/typeorm/repositories/typeorm-vip-call-approval-decision.repository';
-import { InProcessVipCallApprovalEventPublisher } from 'token/vip-call-approval/infrastructure/messaging/in-process-vip-call-approval-event.publisher';
 import { VipCallScoreHandler } from 'token/vip-call-approval/infrastructure/event-bus/vip-call-score.handler';
 import { VipCallApprovalController } from 'token/vip-call-approval/api/http/vip-call-approval.controller';
+import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 
 /**
  * Filters BC module — final gate before publishing.
@@ -59,7 +59,7 @@ import { VipCallApprovalController } from 'token/vip-call-approval/api/http/vip-
     },
     {
       provide: VipCallApprovalEventPublisher,
-      useClass: InProcessVipCallApprovalEventPublisher,
+      useClass: InProcessDomainEventPublisher,
     },
   ],
   exports: [VipCallApprovalDecisionRepository, VipCallApprovalEventPublisher],

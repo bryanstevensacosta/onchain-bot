@@ -22,10 +22,10 @@ import { ListSnapshotsUseCase } from 'token/enrichment/application/handlers/list
 import { InMemoryTokenSnapshotRepository } from 'token/enrichment/infrastructure/repositories/in-memory-token-snapshot.repository';
 import { TokenSnapshotEntity } from 'token/enrichment/infrastructure/persistence/typeorm/entities/token-snapshot.entity';
 import { TypeOrmTokenSnapshotRepository } from 'token/enrichment/infrastructure/persistence/typeorm/repositories/typeorm-token-snapshot.repository';
-import { InProcessEnrichmentEventPublisher } from 'token/enrichment/infrastructure/messaging/in-process-enrichment-event.publisher';
 import { CallNormalizedHandler } from 'token/enrichment/infrastructure/event-bus/call-normalized.handler';
 import { EnrichmentController } from 'token/enrichment/api/http/enrichment.controller';
 import { TokenImageController } from 'token/enrichment/api/http/token-image.controller';
+import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 import { TokenImageService } from 'token/enrichment/application/services/token-image.service';
 import { TOKEN_IMAGE_FETCHER } from 'token/enrichment/application/ports/token-image.fetcher';
 import { TokenImageFetcher as TokenImageFetcherImpl } from 'token/enrichment/infrastructure/fetchers/token-image.fetcher';
@@ -134,7 +134,7 @@ import {
     },
     {
       provide: EnrichmentEventPublisher,
-      useClass: InProcessEnrichmentEventPublisher,
+      useClass: InProcessDomainEventPublisher,
     },
   ],
   exports: [

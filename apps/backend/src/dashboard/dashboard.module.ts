@@ -8,8 +8,8 @@ import { DashboardController } from 'dashboard/api/http/dashboard.controller';
 import { DashboardKpisCachePort } from 'dashboard/application/ports/dashboard-kpis-cache.port';
 import { InMemoryDashboardKpisCacheRepository } from 'dashboard/infrastructure/repositories/in-memory-dashboard-kpis-cache.repository';
 import { KpisUpdatedEventPublisher } from 'dashboard/application/ports/kpis-updated-event.publisher';
-import { InProcessKpisUpdatedEventPublisher } from 'dashboard/infrastructure/messaging/in-process-kpis-updated-event.publisher';
 import { RefreshKpisService } from 'dashboard/application/services/refresh-kpis.service';
+import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 
 /**
  * Dashboard BC.
@@ -33,10 +33,10 @@ import { RefreshKpisService } from 'dashboard/application/services/refresh-kpis.
       provide: DashboardKpisCachePort,
       useExisting: InMemoryDashboardKpisCacheRepository,
     },
-    InProcessKpisUpdatedEventPublisher,
+    InProcessDomainEventPublisher,
     {
       provide: KpisUpdatedEventPublisher,
-      useExisting: InProcessKpisUpdatedEventPublisher,
+      useExisting: InProcessDomainEventPublisher,
     },
     RefreshKpisService,
   ],

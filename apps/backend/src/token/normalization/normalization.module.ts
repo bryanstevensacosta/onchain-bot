@@ -10,10 +10,10 @@ import { ListCanonicalCallsUseCase } from 'token/normalization/application/handl
 import { InMemoryCanonicalTokenCallRepository } from 'token/normalization/infrastructure/repositories/in-memory-canonical-token-call.repository';
 import { TypeOrmCanonicalTokenCallRepository } from 'token/normalization/infrastructure/persistence/typeorm/repositories/typeorm-canonical-token-call.repository';
 import { CanonicalTokenCallEntity } from 'token/normalization/infrastructure/persistence/typeorm/entities/canonical-token-call.entity';
-import { InProcessNormalizationEventPublisher } from 'token/normalization/infrastructure/messaging/in-process-normalization-event.publisher';
 import { CallParsedHandler } from 'token/normalization/infrastructure/event-bus/call-parsed.handler';
 import { NormalizationController } from 'token/normalization/api/http/normalization.controller';
 import type { AppConfig } from 'shared/common/config/app.config';
+import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 
 @Module({
   imports: [ConfigModule, TypeOrmModule.forFeature([CanonicalTokenCallEntity])],
@@ -44,7 +44,7 @@ import type { AppConfig } from 'shared/common/config/app.config';
     },
     {
       provide: NormalizationEventPublisher,
-      useClass: InProcessNormalizationEventPublisher,
+      useClass: InProcessDomainEventPublisher,
     },
   ],
   exports: [CanonicalTokenCallRepository, NormalizationEventPublisher],

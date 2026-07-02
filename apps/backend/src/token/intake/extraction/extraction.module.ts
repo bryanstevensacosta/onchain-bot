@@ -8,13 +8,13 @@ import { ExtractFromMessageUseCase } from 'token/intake/extraction/application/h
 import { GetExtractionResultUseCase } from 'token/intake/extraction/application/handlers/get-extraction-result.use-case';
 import { GetRecentResultsUseCase } from 'token/intake/extraction/application/handlers/get-recent-results.use-case';
 import { RegexBasedExtractorAdapter } from 'token/intake/extraction/infrastructure/adapters/regex-based-extractor.adapter';
-import { InProcessExtractionEventPublisher } from 'token/intake/extraction/infrastructure/messaging/in-process-extraction-event.publisher';
 import { InMemoryExtractionResultRepository } from 'token/intake/extraction/infrastructure/repositories/in-memory-extraction-result.repository';
 import { ExtractionResultEntity } from 'token/intake/extraction/infrastructure/persistence/typeorm/entities/extraction-result.entity';
 import { TypeOrmExtractionResultRepository } from 'token/intake/extraction/infrastructure/persistence/typeorm/repositories/typeorm-extraction-result.repository';
 import { ExtractionController } from 'token/intake/extraction/api/http/extraction.controller';
 import { EnrichmentModule } from 'token/enrichment/enrichment.module';
 import { EnrichOnExtractionHandler } from 'token/intake/extraction/infrastructure/event-bus/enrich-on-extraction.handler';
+import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 
 /**
  * Extraction BC module.
@@ -49,7 +49,7 @@ import { EnrichOnExtractionHandler } from 'token/intake/extraction/infrastructur
     { provide: ExtractorPort, useClass: RegexBasedExtractorAdapter },
     {
       provide: ExtractionEventPublisher,
-      useClass: InProcessExtractionEventPublisher,
+      useClass: InProcessDomainEventPublisher,
     },
     InMemoryExtractionResultRepository,
     ...(isDatabaseEnabled() ? [TypeOrmExtractionResultRepository] : []),

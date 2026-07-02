@@ -14,7 +14,7 @@ import { VipCallsMessageFormatterAdapter } from './infrastructure/formatters/vip
 import { InMemoryPublishedCallRepository } from './infrastructure/repositories/in-memory-published-call.repository';
 import { TypeOrmPublishedCallRepository } from './infrastructure/persistence/typeorm/repositories/typeorm-published-call.repository';
 import { PublishedCallEntity } from './infrastructure/persistence/typeorm/entities/published-call.entity';
-import { InProcessPublishingEventPublisher } from 'telegram/shared';
+import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 import { VipCallsPublishUseCase } from './application/handlers/vip-calls-publish.use-case';
 import { VipCallsListPublishedUseCase } from './application/handlers/vip-calls-list-published.use-case';
 import { ReconcileStuckReservationsUseCase } from './application/handlers/reconcile-stuck-reservations.use-case';
@@ -63,7 +63,7 @@ import { TickerResolverService } from './application/services/ticker-resolver.se
     },
     {
       provide: PublishingEventPublisher,
-      useClass: InProcessPublishingEventPublisher,
+      useClass: InProcessDomainEventPublisher,
     },
     {
       provide: MessageFormatterPort,

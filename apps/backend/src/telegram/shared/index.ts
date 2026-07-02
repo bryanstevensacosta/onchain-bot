@@ -22,4 +22,3 @@ export type {
   FinalizePayload,
 } from './application/ports/published-call.repository';
 export { PublishingEventPublisher } from './application/ports/publishing-event.publisher';
-export { InProcessPublishingEventPublisher } from './infrastructure/messaging/in-process-publishing-event.publisher';

@@ -12,12 +12,12 @@ import { InMemoryCryptoNewsSourceRepository } from 'telegram/ingestion/crypto-ne
 import { InMemoryCryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/infrastructure/repositories/in-memory-crypto-news-message.repository';
 import { TypeOrmCryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/repositories/typeorm-crypto-news-source.repository';
 import { TypeOrmCryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/repositories/typeorm-crypto-news-message.repository';
-import { InProcessCryptoNewsEventPublisher } from 'telegram/ingestion/crypto-news/infrastructure/messaging/in-process-crypto-news-event.publisher';
 import { RegisterNewsSourceUseCase } from 'telegram/ingestion/crypto-news/application/handlers/register-news-source.use-case';
 import { StoreNewsMessageUseCase } from 'telegram/ingestion/crypto-news/application/handlers/store-news-message.use-case';
 import { CryptoNewsSeeder } from 'telegram/ingestion/crypto-news/infrastructure/seeders/crypto-news.seeder';
 import { CryptoNewsController } from 'telegram/ingestion/crypto-news/api/http/crypto-news.controller';
 import { SharedIngestionModule } from 'telegram/ingestion/shared/shared-ingestion.module';
+import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 
 /**
  * Crypto-news ingestion sub-module.
@@ -78,7 +78,7 @@ import { SharedIngestionModule } from 'telegram/ingestion/shared/shared-ingestio
     },
     {
       provide: CryptoNewsEventPublisher,
-      useClass: InProcessCryptoNewsEventPublisher,
+      useClass: InProcessDomainEventPublisher,
     },
     RegisterNewsSourceUseCase,
     StoreNewsMessageUseCase,

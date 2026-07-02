@@ -12,11 +12,11 @@ import { DefaultKolReputationAdapter } from 'token/scoring/infrastructure/adapte
 import { InMemoryTokenScoreRepository } from 'token/scoring/infrastructure/repositories/in-memory-token-score.repository';
 import { TokenScoreEntity } from 'token/scoring/infrastructure/persistence/typeorm/entities/token-score.entity';
 import { TypeOrmTokenScoreRepository } from 'token/scoring/infrastructure/persistence/typeorm/repositories/typeorm-token-score.repository';
-import { InProcessScoringEventPublisher } from 'token/scoring/infrastructure/messaging/in-process-scoring-event.publisher';
 import { TokenClassifiedHandler } from 'token/scoring/infrastructure/event-bus/token-classified.handler';
 import { ScoringController } from 'token/scoring/api/http/scoring.controller';
 import { ReputationModule } from 'kol/reputation/reputation.module';
 import { SettingsModule } from 'settings/settings.module';
+import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 
 /**
  * Scoring BC module.
@@ -66,7 +66,7 @@ import { SettingsModule } from 'settings/settings.module';
     },
     {
       provide: ScoringEventPublisher,
-      useClass: InProcessScoringEventPublisher,
+      useClass: InProcessDomainEventPublisher,
     },
   ],
   exports: [TokenScoreRepository, ScoringEventPublisher],
