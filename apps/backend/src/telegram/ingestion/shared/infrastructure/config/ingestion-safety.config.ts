@@ -1,4 +1,30 @@
 import { Injectable } from '@nestjs/common';
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
+
+interface IngestionConfigJson {
+  maxChannels: number;
+  pollIntervalBaseMs: number;
+  jitterPercent: number;
+  sleepWindow: { startUtc: number; endUtc: number };
+  floodProtection: {
+    initialMs: number;
+    multiplier: number;
+    maxMs: number;
+    maxAttempts: number;
+  };
+}
+
+const CONFIG_PATH = join(process.cwd(), 'config', 'ingestion.config.json');
+
+function loadConfigFromFile(): IngestionConfigJson | null {
+  if (!existsSync(CONFIG_PATH)) return null;
+  try {
+    return JSON.parse(readFileSync(CONFIG_PATH, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
 
 @Injectable()
 export class IngestionSafetyConfig {
@@ -13,24 +39,16 @@ export class IngestionSafetyConfig {
   public readonly floodMaxAttempts: number;
 
   constructor() {
-    this.maxChannels =
-      parseInt(process.env.INGESTION_MAX_CHANNELS ?? '50', 10) || 50;
-    this.pollIntervalBaseMs =
-      parseInt(process.env.INGESTION_POLL_INTERVAL_BASE_MS ?? '90000', 10) ||
-      90000;
-    this.jitterPercent =
-      parseFloat(process.env.INGESTION_JITTER_PERCENT ?? '0.30') || 0.3;
-    this.sleepStartUtc =
-      parseInt(process.env.INGESTION_SLEEP_START_UTC ?? '4', 10) || 4;
-    this.sleepEndUtc =
-      parseInt(process.env.INGESTION_SLEEP_END_UTC ?? '8', 10) || 8;
-    this.floodInitialMs =
-      parseInt(process.env.INGESTION_FLOOD_INITIAL_MS ?? '5000', 10) || 5000;
-    this.floodMultiplier =
-      parseInt(process.env.INGESTION_FLOOD_MULTIPLIER ?? '2', 10) || 2;
-    this.floodMaxMs =
-      parseInt(process.env.INGESTION_FLOOD_MAX_MS ?? '3600000', 10) || 3600000;
-    this.floodMaxAttempts =
-      parseInt(process.env.INGESTION_FLOOD_MAX_ATTEMPTS ?? '5', 10) || 5;
+    const fileConfig = loadConfigFromFile();
+
+    this.maxChannels = fileConfig?.maxChannels ?? 50;
+    this.pollIntervalBaseMs = fileConfig?.pollIntervalBaseMs ?? 90000;
+    this.jitterPercent = fileConfig?.jitterPercent ?? 0.3;
+    this.sleepStartUtc = fileConfig?.sleepWindow?.startUtc ?? 4;
+    this.sleepEndUtc = fileConfig?.sleepWindow?.endUtc ?? 8;
+    this.floodInitialMs = fileConfig?.floodProtection?.initialMs ?? 5000;
+    this.floodMultiplier = fileConfig?.floodProtection?.multiplier ?? 2;
+    this.floodMaxMs = fileConfig?.floodProtection?.maxMs ?? 3600000;
+    this.floodMaxAttempts = fileConfig?.floodProtection?.maxAttempts ?? 5;
   }
 }

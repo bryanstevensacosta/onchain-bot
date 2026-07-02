@@ -65,6 +65,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env.production
+    volumes:
+      - ./config:/app/config:ro
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432

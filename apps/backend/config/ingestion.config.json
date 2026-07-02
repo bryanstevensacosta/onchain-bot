@@ -1,0 +1,15 @@
+{
+  "maxChannels": 50,
+  "pollIntervalBaseMs": 90000,
+  "jitterPercent": 0.3,
+  "sleepWindow": {
+    "startUtc": 4,
+    "endUtc": 8
+  },
+  "floodProtection": {
+    "initialMs": 5000,
+    "multiplier": 2,
+    "maxMs": 3600000,
+    "maxAttempts": 5
+  }
+}
