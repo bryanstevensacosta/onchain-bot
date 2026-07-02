@@ -73,6 +73,10 @@ jobs:
         # 127.0.0.1:5432 already via docker-compose.prod.yml.
         # Use ABSOLUTE paths because the runner's checkout is at
         # /opt/actions-runner/_work/... (not the live /opt/onchain-bot).
+        # NOTE: .env.production was missing from the droplet at one point
+        # (a cleanup accidentally deleted it). Recreated from the running
+        # container's env vars. If the deploy fails on this step saying
+        # "No such file", the .env.production file was deleted again.
         run: |
           set -a; source /opt/onchain-bot/apps/backend/.env.production; set +a
           POSTGRES_CONTAINER=onchain-bot-postgres \
