@@ -113,3 +113,6 @@ jobs:
             exit 1
           )
           echo "=== Deploy complete ==="
+          # Trivial touch to trigger re-run after fixing the .env.production
+          # line 50 (ANALYTICS_SCHEDULER_CRON had no '=' so bash tried to
+          # execute it as a command). Source step now succeeds.
