@@ -107,6 +107,14 @@ jobs:
           POSTGRES_USER=alpha_meta_token_scanner \
           POSTGRES_DB=alpha_meta_token_scanner \
           POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
+          # cd to backend dir because npm run looks for scripts in
+          # the current working directory (the runner's workspace root
+          # has a different package.json without migration:run).
+          cd /opt/onchain-bot/apps/backend && \
+          POSTGRES_HOST=localhost \
+          POSTGRES_USER=alpha_meta_token_scanner \
+          POSTGRES_DB=alpha_meta_token_scanner \
+          POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
           npm run migration:run
           echo "=== Restarting services ==="
           docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml up -d --force-recreate backend
