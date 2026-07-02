@@ -580,7 +580,11 @@ describe('TokenApprovedPublishHandler - Preservation Properties', () => {
       );
     });
 
-    it('should handle errors gracefully (preservation of error handling)', async () => {
+    it('should fail-closed on publish errors (preservation of error handling — UPDATED contract)', async () => {
+      // Contract updated 2026-07-01 per .omo/plans/vip-calls-publish-duplication-fix.md (Wave 2 Task 4).
+      // The previous contract was silent-swallow via `logger.warn` + return, which hid the WOKE
+      // 1014/1015 duplicate-publication incident. The new contract is fail-closed: log error
+      // AND re-throw so Nest's @OnEvent machinery can act on the failure (retry, DLQ, etc.).
       // Arrange: Simulate error in publishing
       const publishUseCase = {
         execute: jest.fn().mockRejectedValue(new Error('Publishing failed')),
@@ -607,7 +611,7 @@ describe('TokenApprovedPublishHandler - Preservation Properties', () => {
         mockPublishedCallRepoNeverFound(),
       );
 
-      // Act & Assert: Should not throw (handler catches errors)
+      // Act & Assert: handler MUST re-throw the publish error (fail-closed).
       const event = new VipCallApprovedEvent({
         chain: 'solana',
         address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // Valid Solana address (USDC)
@@ -616,7 +620,7 @@ describe('TokenApprovedPublishHandler - Preservation Properties', () => {
         decidedAt: new Date(),
       });
 
-      await expect(handler.handle(event)).resolves.not.toThrow();
+      await expect(handler.handle(event)).rejects.toThrow('Publishing failed');
     });
   });
 

@@ -212,7 +212,7 @@ describe('TokenApprovedPublishHandler', () => {
     expect(tickerResolver.resolveTicker).not.toHaveBeenCalled();
   });
 
-  it('swallows publish errors and logs warning (does not throw)', async () => {
+  it('propagates publish errors (logs error + re-throws)', async () => {
     const execute = jest.fn().mockRejectedValue(new Error('telegram down'));
     const publishedCallRepo = mockPublishedCallRepo();
     const tickerResolver = mockTickerResolver();
@@ -223,7 +223,13 @@ describe('TokenApprovedPublishHandler', () => {
       publishedCallRepo,
       tickerResolver,
     );
+    const errorSpy = jest.spyOn(handler['logger'], 'error');
 
-    await expect(handler.handle(makeEvent())).resolves.toBeUndefined();
+    await expect(handler.handle(makeEvent())).rejects.toThrow('telegram down');
+    expect(errorSpy).toHaveBeenCalled();
+    const errorMessage = String(errorSpy.mock.calls[0]?.[0] ?? '');
+    expect(errorMessage).toMatch(/Publish-on-approval failed for solana:/);
+    expect(errorMessage).toMatch(/telegram down/);
+    expect(errorMessage).toMatch(/\[[0-9a-f-]{36}\]/);
   });
 });

@@ -17,9 +17,11 @@ import { PublishedCallEntity } from './infrastructure/persistence/typeorm/entiti
 import { InProcessPublishingEventPublisher } from 'telegram/shared';
 import { VipCallsPublishUseCase } from './application/handlers/vip-calls-publish.use-case';
 import { VipCallsListPublishedUseCase } from './application/handlers/vip-calls-list-published.use-case';
+import { ReconcileStuckReservationsUseCase } from './application/handlers/reconcile-stuck-reservations.use-case';
 import { VipCallsController } from './api/http/vip-calls.controller';
 import { AchievementReachedHandler } from '../vip-achievement/infrastructure/event-bus/achievement-reached.handler';
 import { TokenApprovedPublishHandler } from './infrastructure/event-bus/token-approved-publish.handler';
+import { ReconcileStuckReservationsScheduler } from './infrastructure/schedulers/reconcile-stuck-reservations.scheduler';
 import { SettingsModule } from 'settings/settings.module';
 import { NormalizationModule } from 'token/normalization/normalization.module';
 import { EnrichmentModule } from 'token/enrichment/enrichment.module';
@@ -40,6 +42,8 @@ import { TickerResolverService } from './application/services/ticker-resolver.se
   providers: [
     VipCallsPublishUseCase,
     VipCallsListPublishedUseCase,
+    ReconcileStuckReservationsUseCase,
+    ReconcileStuckReservationsScheduler,
     VipCallsBotApiPublisherAdapter,
     VipCallsMessageFormatterAdapter,
     AchievementReachedHandler,
