@@ -1,11 +1,15 @@
+import * as path from 'node:path';
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { DevBackfillHook } from 'shared/common/dev-backfill.hook';
 import { ScheduleModule } from '@nestjs/schedule';
+import { LoggerModule } from 'nestjs-pino';
 import { appConfig } from 'shared/common/config/app.config';
+import type { AppConfig } from 'shared/common/config/app.config';
 import { DatabaseModule } from 'shared/common/persistence/database.module';
 import { RedisModule } from 'shared/common/cache/redis.module';
+import { FilteredBootstrapLogger } from 'shared/common/filtered-bootstrap-logger';
 import { DashboardModule } from 'dashboard/dashboard.module';
 import { ExtractionModule } from 'token/intake/extraction/extraction.module';
 import { ParsingModule } from 'token/intake/parsing/parsing.module';
@@ -49,6 +53,41 @@ import { AppService } from './app.service';
     }),
     ScheduleModule.forRoot(),
     DatabaseModule.forRootFromEnv(),
+    LoggerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const logCfg = config.get<AppConfig>('app')?.logging;
+        if (!logCfg) return {};
+        const filePath = path.resolve(
+          process.cwd(),
+          logCfg.dir,
+          logCfg.fileName,
+        );
+        return {
+          pinoHttp: {
+            level: logCfg.level,
+            transport: logCfg.prettyInDev
+              ? {
+                  target: 'pino-pretty',
+                  options: {
+                    singleLine: true,
+                    translateTime: 'SYS:HH:MM:ss.l',
+                  },
+                }
+              : {
+                  target: 'pino-roll',
+                  options: {
+                    file: filePath,
+                    size: logCfg.rotationSize,
+                    mkdir: true,
+                    limit: { count: logCfg.rotationLimit },
+                  },
+                },
+            autoLogging: true,
+          },
+        };
+      },
+    }),
     RedisModule,
     HealthModule,
     TelegramIngestionModule,
@@ -77,6 +116,6 @@ import { AppService } from './app.service';
     DataProviderModule,
   ],
   controllers: [AppController],
-  providers: [AppService, DevBackfillHook],
+  providers: [AppService, DevBackfillHook, FilteredBootstrapLogger],
 })
 export class AppModule {}

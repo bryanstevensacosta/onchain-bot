@@ -1,9 +1,10 @@
-import { LoggerService, LogLevel } from '@nestjs/common';
+import { Injectable, LoggerService, LogLevel } from '@nestjs/common';
 import { ConsoleLogger } from '@nestjs/common/services/console-logger.service';
+import { Logger as PinoLogger } from 'nestjs-pino';
 
 /**
- * Boot-only logger that suppresses Nest's framework chatter while keeping
- * every log our own application code emits.
+ * App-wide `LoggerService` that suppresses Nest's framework chatter while
+ * keeping every log our own application code emits.
  *
  * Why this exists
  * ---------------
@@ -16,10 +17,10 @@ import { ConsoleLogger } from '@nestjs/common/services/console-logger.service';
  *
  * What it drops
  * -------------
- * - InstanceLoader       — every `X dependencies initialized +Yms`
- * - RouterExplorer       — every `Mapped {/route, METHOD} route +Yms`
- * - RoutesResolver       — every `Controller {prefix}: +Yms`
- * - WebSocketsController — every `Gateway subscribed to "X" message +Yms`
+ * - InstanceLoader       - every `X dependencies initialized +Yms`
+ * - RouterExplorer       - every `Mapped {/route, METHOD} route +Yms`
+ * - RoutesResolver       - every `Controller {prefix}: +Yms`
+ * - WebSocketsController - every `Gateway subscribed to "X" message +Yms`
  *
  * What it keeps
  * -------------
@@ -29,9 +30,20 @@ import { ConsoleLogger } from '@nestjs/common/services/console-logger.service';
  *
  * Why a custom class instead of `logger: false`
  * --------------------------------------------
- * `logger: false` would also silence our own Logger instances — they're
+ * `logger: false` would also silence our own Logger instances - they're
  * resolved through the same service. We need app logs to keep flowing.
+ *
+ * Backend emission
+ * ----------------
+ * When wired through `app.useLogger(app.get(FilteredBootstrapLogger))` in
+ * `main.ts`, this class delegates writing to the nestjs-pino `Logger` so
+ * that logs land in:
+ *   - `apps/backend/logs/backend-<NODE_ENV>.log` (rotated by pino-roll),
+ *   - console (pretty-printed by pino-pretty in non-production).
+ * Tests and edge cases that construct this class without DI fall back to
+ * Nest's default `ConsoleLogger` so unit tests still print to stdout.
  */
+@Injectable()
 export class FilteredBootstrapLogger implements LoggerService {
   private static readonly DROPPED_CONTEXTS = new Set<string>([
     'InstanceLoader',
@@ -41,29 +53,45 @@ export class FilteredBootstrapLogger implements LoggerService {
   ]);
 
   private readonly delegate: ConsoleLogger;
+  private readonly pino: PinoLogger | undefined;
 
-  constructor(context?: string) {
-    // ConsoleLogger is the default Nest logger and produces the same
-    // `[Nest] PID  - DATE  LEVEL [Context] message` format users expect.
-    this.delegate = context ? new ConsoleLogger(context) : new ConsoleLogger();
+  constructor(pino?: PinoLogger) {
+    // ConsoleLogger produces the same `[Nest] PID  - DATE  LEVEL [Context]`
+    // format Nest's default logger expects, so non-DI callers (unit tests)
+    // still see recognisable stdout output.
+    this.delegate = new ConsoleLogger();
+    this.pino = pino;
+  }
+
+  private static isDropped(context: unknown): boolean {
+    return (
+      typeof context === 'string' &&
+      FilteredBootstrapLogger.DROPPED_CONTEXTS.has(context)
+    );
   }
 
   log(message: unknown, context?: string): void {
-    if (context && FilteredBootstrapLogger.DROPPED_CONTEXTS.has(context)) {
+    if (FilteredBootstrapLogger.isDropped(context)) return;
+    if (this.pino) {
+      this.pino.log(message, ...(context ? [context] : []));
       return;
     }
     this.delegate.log(message, context ?? '');
   }
 
   warn(message: unknown, context?: string): void {
-    if (context && FilteredBootstrapLogger.DROPPED_CONTEXTS.has(context)) {
+    if (FilteredBootstrapLogger.isDropped(context)) return;
+    if (this.pino) {
+      this.pino.warn(message, ...(context ? [context] : []));
       return;
     }
     this.delegate.warn(message, context ?? '');
   }
 
   error(message: unknown, context?: string): void {
-    if (context && FilteredBootstrapLogger.DROPPED_CONTEXTS.has(context)) {
+    if (FilteredBootstrapLogger.isDropped(context)) return;
+    if (this.pino) {
+      this.pino.error(message, ...(context ? [context] : []));
       return;
     }
     this.delegate.error(message, context ?? '');
@@ -83,6 +111,10 @@ export class FilteredBootstrapLogger implements LoggerService {
   }
 
   fatal(message: unknown, context?: string): void {
+    if (this.pino) {
+      this.pino.fatal(message, ...(context ? [context] : []));
+      return;
+    }
     this.delegate.fatal?.(message, context ?? '');
   }
 

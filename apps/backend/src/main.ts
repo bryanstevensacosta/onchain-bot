@@ -54,7 +54,7 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,
   });
-  app.useLogger(new FilteredBootstrapLogger('Nest'));
+  app.useLogger(app.get(FilteredBootstrapLogger));
 
   const appService = app.get(AppService);
   appService.setNestApp(app);

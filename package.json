@@ -10,7 +10,7 @@
   "scripts": {
     "predev": "node scripts/cleanup-ports.mjs",
     "dev": "concurrently -k -n backend,frontend -c blue,magenta \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:backend": "node scripts/cleanup-ports.mjs --force 3030 && npm run start:dev -w @alpha-meta-token-scanner/backend",
+    "dev:backend": "node -e \"console.log('Backend logs → apps/backend/logs/backend-development.log');\" && LOG_DIR=apps/backend/logs node scripts/cleanup-ports.mjs --force 3030 && LOG_DIR=apps/backend/logs npm run start:dev -w @alpha-meta-token-scanner/backend",
     "dev:frontend": "node scripts/cleanup-ports.mjs --force 5173 && npm run dev -w @alpha-meta-token-scanner/frontend",
     "dev:backend-only": "npm run dev:backend",
     "dev:frontend-only": "npm run dev:frontend",

@@ -5,6 +5,57 @@
  * for development. In production, env vars should be set by the platform.
  *
  * All env vars are read once at startup and exposed via ConfigService.
+ *
+ * Environment variables consumed here:
+ *
+ *   General:
+ *     PORT (default 3000)
+ *     NODE_ENV (default 'development')
+ *
+ *   Provider keys (all empty-string by default):
+ *     ALCHEMY_API_KEY, BIRDEYE_API_KEY, COINMARKETCAP_API_KEY,
+ *     FLUXRPC_API_KEY/FLUXRPC_RPC/FLUXRPC_WS,
+ *     HELIUS_API_KEY + HELIUS_*_{MAINNET,DEVNET},
+ *     MOBULA_API_KEY, MORALIS_API_KEY,
+ *     PUMPDEV_API_KEY/WALLET_PUBLIC/WALLET_PRIVATE,
+ *     TELEGRAM_BOT_TOKEN, INGESTION_TELEGRAM_MTPROTO_API_ID/HASH/SESSION
+ *
+ *   Pipeline behaviour:
+ *     INGESTION_TELEGRAM_SEED_* (KOL seed)
+ *     INGESTION_TELEGRAM_SEED_NEWS (news seed)
+ *     INGESTION_TELEGRAM_METADATA_CACHE_FILE
+ *     INGESTION_TELEGRAM_BACKFILL_ENABLED
+ *     PUBLISHING_TELEGRAM_USE_REAL_MTPROTO/OUTPUT_CHANNEL,
+ *     VIP_CALLS_BOT_TOKEN/OUTPUT_CHANNEL,
+ *     CHAIN_DEXTER_BOT_TOKEN/WEBHOOK_SECRET/INGEST_MODE/POLLING_INTERVAL_MS/DEFAULT_TRADE_BUTTONS,
+ *     PUBLISHING_RECONCILIATION_ENABLED
+ *     ANALYTICS_EVALUATION_HORIZONS_HOURS,
+ *     ANALYTICS_SCHEDULER_{CRON,ENABLED,BATCH_SIZE}
+ *     MILESTONE_ACTIVE_WINDOW_HOURS,
+ *     MILESTONE_SCHEDULER_{CRON,ENABLED,BATCH_SIZE}
+ *     KOL_REPUTATION_SCHEDULER_{CRON,ENABLED}
+ *
+ *   Persistence:
+ *     DATABASE_ENABLED, POSTGRES_{HOST,PORT,USER,PASSWORD,DB},
+ *     DATABASE_SYNCHRONIZE, DATABASE_LOGGING
+ *     REDIS_ENABLED, REDIS_{HOST,PORT,PASSWORD,DB}
+ *
+ *   Logging (consumed by the `logging` config block; see src/app.module.ts
+ *   where it is wired into nestjs-pino's LoggerModule.forRootAsync):
+ *     LOG_LEVEL       — pino level (default 'info' in production, 'debug'
+ *                       otherwise). Examples: 'trace','debug','info','warn',
+ *                       'error','fatal','silent'.
+ *     LOG_DIR         — directory for the rotating log file
+ *                       (default 'apps/backend/logs'; resolved against
+ *                       process.cwd() at app boot).
+ *     LOG_FILE        — log file name (default
+ *                       `backend-${NODE_ENV}.log`, e.g.
+ *                       'backend-development.log' or 'backend-production.log').
+ *     LOG_ROTATION_SIZE — pino-roll size threshold, e.g. '10m', '1g'
+ *                       (default '10m'). Trigger a rotation when the file
+ *                       reaches this size.
+ *     LOG_ROTATION_LIMIT — max number of rotated files to keep
+ *                       (default 5). Older rotations are pruned automatically.
  */
 import { registerAs } from '@nestjs/config';
 
@@ -105,6 +156,9 @@ export interface AppConfig {
     chainDexterBot: {
       botToken: string;
     };
+    reconciliation: {
+      enabled: boolean;
+    };
   };
 
   chainDexterBot: {
@@ -138,6 +192,15 @@ export interface AppConfig {
     port: number;
     password: string;
     db: number;
+  };
+
+  logging: {
+    level: string;
+    dir: string;
+    fileName: string;
+    rotationSize: string;
+    rotationLimit: number;
+    prettyInDev: boolean;
   };
 }
 
@@ -337,6 +400,12 @@ export const appConfig = registerAs(
       chainDexterBot: {
         botToken: process.env.CHAIN_DEXTER_BOT_TOKEN ?? '',
       },
+      reconciliation: {
+        enabled:
+          (
+            process.env.PUBLISHING_RECONCILIATION_ENABLED ?? 'true'
+          ).toLowerCase() === 'true',
+      },
     },
 
     chainDexterBot: {
@@ -412,6 +481,19 @@ export const appConfig = registerAs(
       port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
       password: process.env.REDIS_PASSWORD ?? '',
       db: parseInt(process.env.REDIS_DB ?? '0', 10),
+    },
+
+    logging: {
+      level:
+        process.env.LOG_LEVEL ??
+        (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
+      dir: process.env.LOG_DIR ?? 'apps/backend/logs',
+      fileName:
+        process.env.LOG_FILE ??
+        `backend-${process.env.NODE_ENV ?? 'development'}.log`,
+      rotationSize: process.env.LOG_ROTATION_SIZE ?? '10m',
+      rotationLimit: Number(process.env.LOG_ROTATION_LIMIT ?? 5),
+      prettyInDev: process.env.NODE_ENV !== 'production',
     },
   }),
 );
