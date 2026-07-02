@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { randomUUID } from 'crypto';
 import { ChainId } from 'chain/identity/chain-id.vo';
 import { ScoreTier } from 'token/scoring/domain/value-objects/score-tier.vo';
 import { SettingsService } from 'settings/application/services/settings.service';
@@ -62,12 +63,15 @@ export class VipCallsPublishUseCase {
   public async execute(
     input: VipCallsPublishInput,
   ): Promise<VipCallsPublishOutput> {
+    // (1) entered
+    const correlationId = `pub-${randomUUID()}`;
     const chain = ChainId.fromString(input.chain);
     const tierThresholds = await this.settings.getScoringTierThresholds();
     const tier = ScoreTier.fromScore(input.score, tierThresholds);
 
     const imageUrls = input.imageUrls ?? [];
     const headerImageUrl = imageUrls[0] ?? null;
+    const mcAtCall = input.marketCapUsd ?? null;
 
     const approvedInput: ApprovedCallInput = {
       chain: input.chain,
@@ -87,37 +91,187 @@ export class VipCallsPublishUseCase {
 
     const message = this.formatter.format(approvedInput);
 
-    const result = await this.publisher.sendMessage(
-      '',
-      message,
-      headerImageUrl ?? undefined,
-    );
-
-    const published = result.ok ? ['vip-calls'] : [];
-    const failed = result.ok ? [] : ['vip-calls'];
-
-    const mcAtCall = input.marketCapUsd ?? null;
-    const call = PublishedCall.create(
-      {
-        chain,
+    this.logger.log(
+      JSON.stringify({
+        event: 'entered',
+        correlationId,
+        chain: input.chain,
         address: input.address,
-        ticker: input.ticker ?? null,
-        score: input.score,
         tier: tier.value,
-        classification: input.classification,
-        message,
-        targetChannels: ['vip-calls'],
-        mcAtCall,
-        telegramMessageId: result.messageId,
-      },
-      { published, failed },
+        score: input.score,
+      }),
     );
 
-    await this.callRepo.save(call);
-    call.emit();
-    await this.eventPublisher.publishAll(call.commit());
+    // (2) Reserve atomically. If a row already exists for (chain, address),
+    // skip Telegram + finalize and return the existing snapshot.
+    const reservation = await this.callRepo.tryReserve({
+      chain,
+      address: input.address,
+      ticker: input.ticker ?? null,
+      score: input.score,
+      tier: tier.value,
+      classification: input.classification,
+      message,
+      targetChannels: ['vip-calls'],
+      mcAtCall,
+      correlationId,
+    });
 
-    if (call.isPublished && mcAtCall !== null && mcAtCall > 0) {
+    if (!reservation.reserved) {
+      this.logger.warn(
+        JSON.stringify({
+          event: 'duplicate_detected',
+          correlationId,
+          id: reservation.id,
+        }),
+      );
+      const existing = reservation.existing as PublishedCall;
+      return {
+        id: existing.id,
+        chain: existing.chain.value,
+        address: existing.address,
+        ticker: existing.ticker,
+        score: existing.score,
+        tier: existing.tier,
+        classification: existing.classification,
+        message: existing.message,
+        status: existing.status.value,
+        publishedChannelIds: [...existing.publishedChannelIds],
+        failedChannelIds: [...existing.failedChannelIds],
+        successCount: existing.successCount,
+        publishedAt: existing.publishedAt.toISOString(),
+        headerImageUrl,
+      };
+    }
+
+    // (3) before_sendMessage
+    this.logger.log(
+      JSON.stringify({
+        event: 'before_sendMessage',
+        correlationId,
+        id: reservation.id,
+      }),
+    );
+
+    let sendResult: {
+      readonly ok: boolean;
+      readonly messageId: number | null;
+      readonly error: string | null;
+    };
+    try {
+      sendResult = await this.publisher.sendMessage(
+        '',
+        message,
+        headerImageUrl ?? undefined,
+      );
+    } catch (err) {
+      // (3a) after_sendMessage with throw
+      this.logger.error(
+        JSON.stringify({
+          event: 'after_sendMessage',
+          correlationId,
+          id: reservation.id,
+          ok: false,
+          error: err instanceof Error ? err.message : 'unknown',
+        }),
+      );
+      // Mark the reserved row as FAILED before re-throwing so we don't
+      // leak dangling RESERVED entries. markFailed is best-effort:
+      // if it also throws, log and continue with the original error.
+      const reason = `sendMessage: ${
+        err instanceof Error ? err.message : 'unknown error'
+      }`;
+      try {
+        await this.callRepo.markFailed(reservation.id, reason);
+      } catch (markFailedErr) {
+        this.logger.error(
+          JSON.stringify({
+            event: 'markFailed_failed',
+            correlationId,
+            id: reservation.id,
+            error:
+              markFailedErr instanceof Error
+                ? markFailedErr.message
+                : 'unknown',
+          }),
+        );
+      }
+      throw err;
+    }
+
+    // (3b) after_sendMessage success path
+    this.logger.log(
+      JSON.stringify({
+        event: 'after_sendMessage',
+        correlationId,
+        id: reservation.id,
+        ok: sendResult.ok,
+        messageId: sendResult.messageId,
+      }),
+    );
+
+    // (4) before_finalize (replaces before_save)
+    this.logger.log(
+      JSON.stringify({
+        event: 'before_finalize',
+        correlationId,
+        id: reservation.id,
+        status: sendResult.ok ? 'PUBLISHED' : 'FAILED',
+      }),
+    );
+
+    try {
+      await this.callRepo.finalize(reservation.id, {
+        status: sendResult.ok ? 'PUBLISHED' : 'FAILED',
+        telegramMessageId: sendResult.messageId,
+        failedReason: sendResult.ok
+          ? undefined
+          : (sendResult.error ?? 'unknown'),
+      });
+    } catch (finalizeErr) {
+      this.logger.error(
+        JSON.stringify({
+          event: 'finalize_failed',
+          correlationId,
+          id: reservation.id,
+          error: finalizeErr instanceof Error ? finalizeErr.message : 'unknown',
+        }),
+      );
+      // The row stays RESERVED — no deleteMessage, no further action.
+      // Re-throw the original finalize error so the caller sees what
+      // actually went wrong.
+      throw finalizeErr;
+    }
+
+    // (5) after_finalize (replaces after_save)
+    this.logger.log(
+      JSON.stringify({
+        event: 'after_finalize',
+        correlationId,
+        id: reservation.id,
+      }),
+    );
+
+    // Reload the row to publish any events queued by markPublished /
+    // markFailed during finalize (in-memory repo) and to read final
+    // state for the output (TypeORM).
+    const call = await this.callRepo.findByChainAndAddress(
+      chain,
+      input.address,
+    );
+
+    if (call) {
+      // The in-memory repo's finalize() invokes markPublished /
+      // markFailed, which queue events on the aggregate. The
+      // TypeORM repo's finalize() is a raw SQL UPDATE and queues
+      // nothing — but the resulting aggregate is in its final
+      // state. Either way, commit() then publishAll() handles both
+      // paths safely (an empty event list is a no-op).
+      await this.eventPublisher.publishAll(call.commit());
+    }
+
+    // (6) Emit achievement event ONLY when published with mcAtCall > 0.
+    if (call && call.isPublished && mcAtCall !== null && mcAtCall > 0) {
       const registerEvent = new RegisterCallForAchievementsEvent(call.id, {
         callId: call.id,
         chain: call.chain.value,
@@ -125,6 +279,24 @@ export class VipCallsPublishUseCase {
         publishedAt: call.publishedAt.toISOString(),
       });
       this.eventEmitter.emit(registerEvent.eventName, registerEvent);
+    }
+
+    // (7) returning
+    this.logger.log(
+      JSON.stringify({
+        event: 'returning',
+        correlationId,
+        id: reservation.id,
+        status: call?.status.value ?? 'UNKNOWN',
+      }),
+    );
+
+    if (!call) {
+      // Defensive: should never happen because we just reserved/finalized
+      // the row. Throw a domain error so the caller sees something.
+      throw new Error(
+        `PublishedCall missing after finalize for id ${reservation.id}`,
+      );
     }
 
     return {

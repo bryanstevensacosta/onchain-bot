@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
+import { randomUUID } from 'crypto';
 import { ChainId } from 'chain/identity/chain-id.vo';
 import { ChainFamily } from 'chain/identity/chain-family.vo';
 import { NormalizedAddress } from 'token/identity/normalized-address.vo';
@@ -24,6 +25,7 @@ export class TokenApprovedPublishHandler {
 
   @OnEvent(VipCallApprovedEvent.EVENT_NAME, { async: true })
   async handle(event: VipCallApprovedEvent): Promise<void> {
+    const correlationId = randomUUID();
     try {
       const chainId = ChainId.fromString(event.payload.chain);
       const addressLower = event.payload.address.toLowerCase();
@@ -44,9 +46,10 @@ export class TokenApprovedPublishHandler {
           return;
         }
       } catch (err) {
-        // Fail open: if duplicate check fails, proceed with publication
+        // Fail open: if duplicate check fails, proceed with publication.
+        // The tryReserve call inside VipCallsPublishUseCase is the authoritative dedup guard.
         this.logger.warn(
-          `Duplicate check failed for ${chainId.value}:${normalizedAddress}, proceeding with publication: ${(err as Error).message}`,
+          `[${correlationId}] Duplicate check failed for ${chainId.value}:${normalizedAddress}, proceeding with publication: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
 
@@ -97,9 +100,11 @@ export class TokenApprovedPublishHandler {
         classification: event.payload.classification,
       });
     } catch (err) {
-      this.logger.warn(
-        `Publish-on-approval failed for ${event.payload.chain}:${event.payload.address}: ${(err as Error).message}`,
+      this.logger.error(
+        `[${correlationId}] Publish-on-approval failed for ${event.payload.chain}:${event.payload.address}: ${(err as Error).message}`,
+        (err as Error).stack,
       );
+      throw err;
     }
   }
 }

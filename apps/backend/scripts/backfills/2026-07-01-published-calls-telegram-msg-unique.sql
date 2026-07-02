@@ -1,0 +1,42 @@
+-- Backfill: partial unique index on published_calls.telegram_message_id
+-- Author: bstevens
+-- Date:   2026-07-01
+--
+-- What: Adds a partial UNIQUE index on published_calls.telegram_message_id
+--       for non-null values. Prevents two DB rows from claiming the same
+--       Telegram message id.
+--
+-- Why:  The publishing pipeline is two-phase (RESERVED → PUBLISHED/FAILED).
+--       A crash, kill -9, or thrown exception between the Telegram Bot API
+--       sendMessage call and the finalize() UPDATE can leave a row stuck
+--       in RESERVED with a telegram_message_id set. A subsequent retry sees
+--       the reservation and skips — but the Telegram-side message id never
+--       makes it into the unique-index-protected column. Without a unique
+--       constraint here, a second writer could legally INSERT a row that
+--       collides on telegram_message_id, which means downstream operators
+--       (the reconciler, the dashboard) would have two rows pointing at
+--       the same Telegram message — i.e. a silent duplicate.
+--
+-- This partial index only enforces uniqueness for non-null values, so the
+-- many legacy RESERVED/FAILED rows with telegram_message_id IS NULL can
+-- coexist (the WHERE clause is the partial-index discriminator).
+--
+-- The index is also CONCURRENTLY-built and IF NOT EXISTS so the script
+-- is safe to re-run after a partial application.
+--
+-- Verification:
+--   SELECT indexname, indexdef FROM pg_indexes
+--     WHERE tablename = 'published_calls'
+--       AND indexname = 'uq_published_calls_telegram_msg_id';
+--   -- expected: 1 row, partial UNIQUE on telegram_message_id
+--       WHERE telegram_message_id IS NOT NULL
+--
+-- Idempotency: Re-running is safe. CREATE UNIQUE INDEX CONCURRENTLY
+--   IF NOT EXISTS is a no-op when the index already exists.
+--
+-- Rollback:
+--   DROP INDEX CONCURRENTLY IF EXISTS uq_published_calls_telegram_msg_id;
+
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS uq_published_calls_telegram_msg_id
+  ON published_calls (telegram_message_id)
+  WHERE telegram_message_id IS NOT NULL;
