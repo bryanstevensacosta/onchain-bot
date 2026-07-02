@@ -38,8 +38,8 @@ jobs:
 
       - name: Fix PATH for self-hosted runner
         run: |
-          export PATH="/opt/actions-runner/_work/_tool/node/22.23.1/bin:$PATH"
-          echo "/opt/actions-runner/_work/_tool/node/22.23.1/bin" >> $GITHUB_PATH
+          export PATH="/opt/actions-runner/_work/_tool/node/22.23.1/x64/bin:$PATH"
+          echo "/opt/actions-runner/_work/_tool/node/22.23.1/x64/bin" >> $GITHUB_PATH
           node --version
 
       - name: Install dependencies
