@@ -96,13 +96,18 @@ jobs:
           echo "=== Building images ==="
           docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml build --no-cache backend
           echo "=== Running migrations ==="
-          # POSTGRES_HOST=localhost works because the docker-compose
-          # already binds postgres to 127.0.0.1:5432 on the host.
+          # Run migrations from the HOST (not inside the container) because
+          # the production container only ships the compiled `dist/` directory,
+          # not the TypeScript source. TypeORM's data-source.ts lives in `src/`
+          # and the container doesn't have it. The runner is on the same droplet
+          # and has the source tree at /opt/onchain-bot/apps/backend, so we
+          # run TypeORM directly there with POSTGRES_HOST=localhost (the
+          # docker-compose already binds postgres to 127.0.0.1:5432 on the host).
           POSTGRES_HOST=localhost \
           POSTGRES_USER=alpha_meta_token_scanner \
           POSTGRES_DB=alpha_meta_token_scanner \
           POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
-          docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml run --rm -T backend npm run migration:run
+          npm run migration:run
           echo "=== Restarting services ==="
           docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml up -d --force-recreate backend
           echo "=== Waiting for healthcheck ==="
