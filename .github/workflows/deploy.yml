@@ -35,7 +35,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
+
+      - name: Fix PATH for self-hosted runner
+        run: |
+          export PATH="/opt/actions-runner/_work/_tool/node/22.23.1/bin:$PATH"
+          echo "/opt/actions-runner/_work/_tool/node/22.23.1/bin" >> $GITHUB_PATH
+          node --version
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
