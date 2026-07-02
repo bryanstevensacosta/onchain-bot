@@ -19,8 +19,14 @@ export class SleepWindowService {
     const totalMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
     const startMin = this.baseStartUtc * 60 + this.rotationMinutes;
     const endMin = this.baseEndUtc * 60 + this.rotationMinutes;
-    if (startMin <= endMin)
+
+    // Normal case (e.g., 4-8): sleep between start and end
+    if (startMin < endMin) {
       return totalMinutes >= startMin && totalMinutes < endMin;
+    }
+
+    // Overnight case (e.g., 18-10): sleep after start OR before end
+    // This means: from start (e.g., 18:00) to end next day (e.g., 10:00)
     return totalMinutes >= startMin || totalMinutes < endMin;
   }
 
