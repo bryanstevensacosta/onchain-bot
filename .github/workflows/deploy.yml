@@ -71,13 +71,15 @@ jobs:
         # Runner is the 'runner' user; .env.production is chmod 644
         # (readable). The docker postgres container exposes
         # 127.0.0.1:5432 already via docker-compose.prod.yml.
+        # Use ABSOLUTE paths because the runner's checkout is at
+        # /opt/actions-runner/_work/... (not the live /opt/onchain-bot).
         run: |
-          set -a; source apps/backend/.env.production; set +a
+          set -a; source /opt/onchain-bot/apps/backend/.env.production; set +a
           POSTGRES_CONTAINER=onchain-bot-postgres \
           POSTGRES_USER=alpha_meta_token_scanner \
           POSTGRES_DB=alpha_meta_token_scanner \
           POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
-          bash scripts/backup-db.sh
+          bash /opt/onchain-bot/scripts/backup-db.sh
 
       - name: Build and deploy
         run: |
