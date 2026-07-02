@@ -82,9 +82,13 @@ jobs:
       - name: Build and deploy
         run: |
           set -euo pipefail
-          set -a; source apps/backend/.env.production; set +a
+          # Absolute paths because the runner's checkout is at
+          # /opt/actions-runner/_work/onchain-bot/onchain-bot/ but
+          # the live deployment lives at /opt/onchain-bot/. The runner
+          # is on the same droplet, so it can read directly from there.
+          set -a; source /opt/onchain-bot/apps/backend/.env.production; set +a
           echo "=== Building images ==="
-          docker compose -f apps/backend/docker-compose.prod.yml build --no-cache backend
+          docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml build --no-cache backend
           echo "=== Running migrations ==="
           # POSTGRES_HOST=localhost works because the docker-compose
           # already binds postgres to 127.0.0.1:5432 on the host.
@@ -92,14 +96,14 @@ jobs:
           POSTGRES_USER=alpha_meta_token_scanner \
           POSTGRES_DB=alpha_meta_token_scanner \
           POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
-          docker compose -f apps/backend/docker-compose.prod.yml run --rm -T backend npm run migration:run
+          docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml run --rm -T backend npm run migration:run
           echo "=== Restarting services ==="
-          docker compose -f apps/backend/docker-compose.prod.yml up -d --force-recreate backend
+          docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml up -d --force-recreate backend
           echo "=== Waiting for healthcheck ==="
           sleep 15
           curl -sf http://localhost:3030/api/health && echo "" || (
             echo "HEALTHCHECK FAILED"
-            docker compose -f apps/backend/docker-compose.prod.yml logs backend --tail 50
+            docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml logs backend --tail 50
             exit 1
           )
           echo "=== Deploy complete ==="
