@@ -27,7 +27,9 @@ export class StoreNewsMessageUseCase {
     private readonly eventPublisher: CryptoNewsEventPublisher,
   ) {}
 
-  public async execute(input: StoreNewsMessageInput): Promise<CryptoNewsMessage> {
+  public async execute(
+    input: StoreNewsMessageInput,
+  ): Promise<CryptoNewsMessage> {
     const message = CryptoNewsMessage.create({
       channelId: input.channelId,
       messageId: input.messageId,

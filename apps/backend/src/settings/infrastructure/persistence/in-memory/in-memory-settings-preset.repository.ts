@@ -50,7 +50,9 @@ export class InMemorySettingsPresetRepository {
     return matches;
   }
 
-  public async findOne(opts: { where: WhereClause }): Promise<SettingsPresetEntity | null> {
+  public async findOne(opts: {
+    where: WhereClause;
+  }): Promise<SettingsPresetEntity | null> {
     const where = opts.where;
     for (const row of this.store.values()) {
       if (this.matchesWhere(row, where)) {
@@ -91,7 +93,8 @@ export class InMemorySettingsPresetRepository {
   private matchesWhere(row: SettingsPresetEntity, where: WhereClause): boolean {
     if (where.id !== undefined && row.id !== where.id) return false;
     if (where.name !== undefined && row.name !== where.name) return false;
-    if (where.isActive !== undefined && row.isActive !== where.isActive) return false;
+    if (where.isActive !== undefined && row.isActive !== where.isActive)
+      return false;
     return true;
   }
 }

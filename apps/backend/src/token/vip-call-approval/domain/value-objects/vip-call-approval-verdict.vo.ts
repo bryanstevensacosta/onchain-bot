@@ -13,9 +13,15 @@ interface VipCallApprovalVerdictProps {
  * - PENDING: awaiting async check (e.g., on-chain honeypot simulation)
  */
 export class VipCallApprovalVerdict extends ValueObject<VipCallApprovalVerdictProps> {
-  public static readonly APPROVED = new VipCallApprovalVerdict({ value: 'APPROVED' });
-  public static readonly REJECTED = new VipCallApprovalVerdict({ value: 'REJECTED' });
-  public static readonly PENDING = new VipCallApprovalVerdict({ value: 'PENDING' });
+  public static readonly APPROVED = new VipCallApprovalVerdict({
+    value: 'APPROVED',
+  });
+  public static readonly REJECTED = new VipCallApprovalVerdict({
+    value: 'REJECTED',
+  });
+  public static readonly PENDING = new VipCallApprovalVerdict({
+    value: 'PENDING',
+  });
 
   private static readonly VALID = new Set<VipCallApprovalVerdictValue>([
     'APPROVED',

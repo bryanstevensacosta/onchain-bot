@@ -9,7 +9,9 @@ import {
 
 @Injectable()
 export class GetVipCallApprovalDecisionUseCase {
-  public constructor(private readonly decisionRepo: VipCallApprovalDecisionRepository) {}
+  public constructor(
+    private readonly decisionRepo: VipCallApprovalDecisionRepository,
+  ) {}
 
   public async execute(
     chain: string,

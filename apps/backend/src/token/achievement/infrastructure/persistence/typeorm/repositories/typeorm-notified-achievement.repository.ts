@@ -9,7 +9,9 @@ import { NotifiedAchievementEntity } from '../../../../domain/entities/notified-
 
 @Injectable()
 export class TypeormNotifiedAchievementRepository extends NotifiedAchievementRepository {
-  private readonly logger = new Logger(TypeormNotifiedAchievementRepository.name);
+  private readonly logger = new Logger(
+    TypeormNotifiedAchievementRepository.name,
+  );
 
   constructor(
     @InjectRepository(NotifiedAchievementEntity)

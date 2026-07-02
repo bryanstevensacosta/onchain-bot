@@ -16,10 +16,7 @@ import { NormalizationController } from 'token/normalization/api/http/normalizat
 import type { AppConfig } from 'shared/common/config/app.config';
 
 @Module({
-  imports: [
-    ConfigModule,
-    TypeOrmModule.forFeature([CanonicalTokenCallEntity]),
-  ],
+  imports: [ConfigModule, TypeOrmModule.forFeature([CanonicalTokenCallEntity])],
   controllers: [NormalizationController],
   providers: [
     NormalizeCallUseCase,

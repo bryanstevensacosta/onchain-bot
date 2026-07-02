@@ -10,7 +10,9 @@ export type VipCallApprovalListKind = 'recent' | 'approved' | 'rejected';
 
 @Injectable()
 export class ListVipCallApprovalDecisionsUseCase {
-  public constructor(private readonly decisionRepo: VipCallApprovalDecisionRepository) {}
+  public constructor(
+    private readonly decisionRepo: VipCallApprovalDecisionRepository,
+  ) {}
 
   public async execute(
     kind: VipCallApprovalListKind,

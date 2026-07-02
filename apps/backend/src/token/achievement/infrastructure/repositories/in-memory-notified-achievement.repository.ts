@@ -7,7 +7,9 @@ import {
 
 @Injectable()
 export class InMemoryNotifiedAchievementRepository extends NotifiedAchievementRepository {
-  private readonly logger = new Logger(InMemoryNotifiedAchievementRepository.name);
+  private readonly logger = new Logger(
+    InMemoryNotifiedAchievementRepository.name,
+  );
   private store: NotifiedAchievementRecord[] = [];
 
   async findByCall(callId: string): Promise<NotifiedAchievementRecord[]> {

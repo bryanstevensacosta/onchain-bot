@@ -23,7 +23,9 @@ export class RegisterNewsSourceUseCase {
     private readonly eventPublisher: CryptoNewsEventPublisher,
   ) {}
 
-  public async execute(input: RegisterNewsSourceInput): Promise<CryptoNewsSource> {
+  public async execute(
+    input: RegisterNewsSourceInput,
+  ): Promise<CryptoNewsSource> {
     const existing = await this.sourceRepo.findByChannelId(input.channelId);
     if (existing) {
       throw new DomainError(

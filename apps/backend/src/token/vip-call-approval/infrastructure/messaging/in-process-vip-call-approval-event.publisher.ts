@@ -5,7 +5,9 @@ import { VipCallApprovalEventPublisher } from 'token/vip-call-approval/applicati
 
 @Injectable()
 export class InProcessVipCallApprovalEventPublisher extends VipCallApprovalEventPublisher {
-  private readonly logger = new Logger(InProcessVipCallApprovalEventPublisher.name);
+  private readonly logger = new Logger(
+    InProcessVipCallApprovalEventPublisher.name,
+  );
 
   public constructor(private readonly eventEmitter: EventEmitter2) {
     super();

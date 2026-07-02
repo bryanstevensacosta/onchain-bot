@@ -111,7 +111,7 @@ export const KOL_SEED: ReadonlyArray<SeedKol> = [
   {
     kolId: '1937478270',
     handle: '@ghastlygems',
-    title: "Evee cook\u2019s",
+    title: 'Evee cook\u2019s',
   },
   {
     kolId: '1763265784',
@@ -131,12 +131,12 @@ export const KOL_SEED: ReadonlyArray<SeedKol> = [
   {
     kolId: '1824357363',
     handle: '@ramcalls',
-    title: "Ram\u2019s Gems Calls ✨ (ONLY CHANNEL)",
+    title: 'Ram\u2019s Gems Calls ✨ (ONLY CHANNEL)',
   },
   {
     kolId: '1613001878',
     handle: '@buildermanlaunches',
-    title: "Builderman\u2019s Roulette",
+    title: 'Builderman\u2019s Roulette',
   },
   {
     kolId: '1992057930',
@@ -151,7 +151,7 @@ export const KOL_SEED: ReadonlyArray<SeedKol> = [
   {
     kolId: '1413058397',
     handle: '@GambleLounge',
-    title: "Gambler\u2019s Lounge",
+    title: 'Gambler\u2019s Lounge',
   },
   {
     kolId: '1832386664',
@@ -202,7 +202,7 @@ export const KOL_SEED: ReadonlyArray<SeedKol> = [
   {
     kolId: '1874732560',
     handle: '@LevisGemCalls',
-    title: "Levi\u2019s Gem Calls",
+    title: 'Levi\u2019s Gem Calls',
   },
   {
     kolId: '1880851888',
@@ -212,7 +212,7 @@ export const KOL_SEED: ReadonlyArray<SeedKol> = [
   {
     kolId: '1819368322',
     handle: '@houseofdegeneracy',
-    title: "Iced\u2019s House of Degeneracy",
+    title: 'Iced\u2019s House of Degeneracy',
   },
   {
     kolId: '1667198684',
@@ -227,7 +227,7 @@ export const KOL_SEED: ReadonlyArray<SeedKol> = [
   {
     kolId: '1572093129',
     handle: '@CryptoRocketeerCalls',
-    title: "Crypto Rocketeer\u2019s Calls 💎",
+    title: 'Crypto Rocketeer\u2019s Calls 💎',
   },
   {
     kolId: '1523523939',

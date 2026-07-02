@@ -19,6 +19,19 @@ export interface PublishInput {
   readonly telegramMessageId?: number | null;
 }
 
+export interface ReserveInput {
+  readonly chain: ChainId;
+  readonly address: string;
+  readonly ticker: string | null;
+  readonly score: number;
+  readonly tier: string;
+  readonly classification: string;
+  readonly message: string;
+  readonly targetChannels: ReadonlyArray<string>;
+  readonly mcAtCall: number | null;
+  readonly correlationId: string;
+}
+
 interface PublishedCallProps {
   readonly chain: ChainId;
   readonly address: string;
@@ -28,16 +41,22 @@ interface PublishedCallProps {
   readonly classification: string;
   readonly message: string;
   readonly targetChannels: ReadonlyArray<string>;
-  readonly status: PublishStatus;
-  readonly publishedChannelIds: ReadonlyArray<string>;
-  readonly failedChannelIds: ReadonlyArray<string>;
-  readonly publishedAt: Date;
+  status: PublishStatus;
+  publishedChannelIds: ReadonlyArray<string>;
+  failedChannelIds: ReadonlyArray<string>;
+  publishedAt: Date;
   readonly mcAtCall: number | null;
-  readonly telegramMessageId: number | null;
+  telegramMessageId: number | null;
+  readonly reservedAt: Date;
+  readonly correlationId: string | null;
+  failedReason: string | null;
 }
 
 export class PublishedCall extends AggregateRoot<string> {
-  private readonly state: PublishedCallProps;
+  // State is intentionally non-readonly so that lifecycle methods
+  // (markPublished / markFailed) can mutate it in place. Callers
+  // should not depend on field identity; use the public getters.
+  private state: PublishedCallProps;
 
   protected constructor(id: string, props: PublishedCallProps) {
     super(id);
@@ -65,6 +84,7 @@ export class PublishedCall extends AggregateRoot<string> {
       results.published.length > 0
         ? PublishStatus.PUBLISHED
         : PublishStatus.FAILED;
+    const now = new Date();
     return new PublishedCall(id, {
       chain: input.chain,
       address: normalizedAddress,
@@ -77,9 +97,38 @@ export class PublishedCall extends AggregateRoot<string> {
       status,
       publishedChannelIds: Object.freeze([...results.published]),
       failedChannelIds: Object.freeze([...results.failed]),
-      publishedAt: new Date(),
+      publishedAt: now,
       mcAtCall: input.mcAtCall ?? null,
       telegramMessageId: input.telegramMessageId ?? null,
+      reservedAt: now,
+      correlationId: null,
+      failedReason: null,
+    });
+  }
+
+  public static reserve(input: ReserveInput): PublishedCall {
+    const normalizedAddress = input.chain.isSolana
+      ? input.address
+      : input.address.toLowerCase();
+    const id = `${input.chain.value}:${normalizedAddress}`;
+    return new PublishedCall(id, {
+      chain: input.chain,
+      address: normalizedAddress,
+      ticker: input.ticker,
+      score: input.score,
+      tier: input.tier,
+      classification: input.classification,
+      message: input.message,
+      targetChannels: Object.freeze([...input.targetChannels]),
+      status: PublishStatus.RESERVED,
+      publishedChannelIds: Object.freeze([]),
+      failedChannelIds: Object.freeze([]),
+      publishedAt: new Date(),
+      mcAtCall: input.mcAtCall,
+      telegramMessageId: null,
+      reservedAt: new Date(),
+      correlationId: input.correlationId,
+      failedReason: null,
     });
   }
 
@@ -99,6 +148,9 @@ export class PublishedCall extends AggregateRoot<string> {
     publishedAt: Date;
     mcAtCall?: number | null;
     telegramMessageId?: number | null;
+    reservedAt?: Date;
+    correlationId?: string | null;
+    failedReason?: string | null;
   }): PublishedCall {
     return new PublishedCall(input.id, {
       chain: input.chain,
@@ -115,6 +167,9 @@ export class PublishedCall extends AggregateRoot<string> {
       publishedAt: input.publishedAt,
       mcAtCall: input.mcAtCall ?? null,
       telegramMessageId: input.telegramMessageId ?? null,
+      reservedAt: input.reservedAt ?? input.publishedAt,
+      correlationId: input.correlationId ?? null,
+      failedReason: input.failedReason ?? null,
     });
   }
 
@@ -160,14 +215,97 @@ export class PublishedCall extends AggregateRoot<string> {
   public get telegramMessageId(): number | null {
     return this.state.telegramMessageId;
   }
+  public get reservedAt(): Date {
+    return this.state.reservedAt;
+  }
+  public get correlationId(): string | null {
+    return this.state.correlationId;
+  }
+  public get failedReason(): string | null {
+    return this.state.failedReason;
+  }
   public get isPublished(): boolean {
     return this.state.status.value === 'PUBLISHED';
   }
   public get isFailed(): boolean {
     return this.state.status.value === 'FAILED';
   }
+  public get isReserved(): boolean {
+    return this.state.status.value === 'RESERVED';
+  }
   public get successCount(): number {
     return this.state.publishedChannelIds.length;
+  }
+
+  /**
+   * Transition RESERVED → PUBLISHED. Sets the Telegram message id and
+   * `publishedAt` to now, then emits `CallPublishedEvent` via the
+   * `apply` queue so the use case can publish it after the row is
+   * committed to the database.
+   *
+   * Throws `DomainError` (code: VALIDATION) if the aggregate is not
+   * in RESERVED state — this enforces the state machine invariant
+   * (no double-publish, no skip-from-RESERVED).
+   */
+  public markPublished(telegramMessageId: number): void {
+    if (this.state.status.value !== 'RESERVED') {
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        `INVALID_STATE_TRANSITION: markPublished requires RESERVED status, got ${this.state.status.value}`,
+        { currentStatus: this.state.status.value },
+      );
+    }
+    this.state.status = PublishStatus.PUBLISHED;
+    this.state.telegramMessageId = telegramMessageId;
+    this.state.publishedAt = new Date();
+    this.state.publishedChannelIds = Object.freeze([
+      ...this.state.targetChannels,
+    ]);
+    this.state.failedChannelIds = Object.freeze([]);
+
+    this.apply(
+      new CallPublishedEvent({
+        chain: this.state.chain.value,
+        address: this.state.address,
+        ticker: this.state.ticker,
+        score: this.state.score,
+        tier: this.state.tier,
+        classification: this.state.classification,
+        publishedChannelIds: [...this.state.targetChannels],
+        publishedAt: this.state.publishedAt,
+      }),
+    );
+  }
+
+  /**
+   * Transition RESERVED → FAILED. Records `failedReason` and emits
+   * `CallPublishFailedEvent`. Idempotent only in the sense that calling
+   * it from a non-RESERVED state throws — concurrent callers must
+   * serialize at the repository level.
+   */
+  public markFailed(reason: string): void {
+    if (this.state.status.value !== 'RESERVED') {
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        `INVALID_STATE_TRANSITION: markFailed requires RESERVED status, got ${this.state.status.value}`,
+        { currentStatus: this.state.status.value },
+      );
+    }
+    this.state.status = PublishStatus.FAILED;
+    this.state.failedReason = reason;
+    this.state.publishedChannelIds = Object.freeze([]);
+    this.state.failedChannelIds = Object.freeze([...this.state.targetChannels]);
+
+    this.apply(
+      new CallPublishFailedEvent({
+        chain: this.state.chain.value,
+        address: this.state.address,
+        score: this.state.score,
+        targetChannels: [...this.state.targetChannels],
+        failedChannelIds: [...this.state.targetChannels],
+        failedAt: new Date(),
+      }),
+    );
   }
 
   public emit(): void {
@@ -184,7 +322,7 @@ export class PublishedCall extends AggregateRoot<string> {
           publishedAt: this.state.publishedAt,
         }),
       );
-    } else {
+    } else if (this.isFailed) {
       this.apply(
         new CallPublishFailedEvent({
           chain: this.state.chain.value,

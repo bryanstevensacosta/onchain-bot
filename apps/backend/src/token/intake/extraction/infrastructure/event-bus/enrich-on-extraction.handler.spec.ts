@@ -13,8 +13,14 @@ describe('EnrichOnExtractionHandler', () => {
       messageId: 67890,
       occurredAt: FIXED_DATE,
       contractAddresses: [
-        { value: '0xabcdef0123456789abcdef0123456789abcdef01', chainHint: 'evm' },
-        { value: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', chainHint: 'solana' },
+        {
+          value: '0xabcdef0123456789abcdef0123456789abcdef01',
+          chainHint: 'evm',
+        },
+        {
+          value: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+          chainHint: 'solana',
+        },
       ],
       tickers: ['WIF'],
       urls: [],
@@ -64,9 +70,18 @@ describe('EnrichOnExtractionHandler', () => {
       messageId: 67890,
       occurredAt: FIXED_DATE,
       contractAddresses: [
-        { value: '0x1111111111111111111111111111111111111111', chainHint: 'evm' },
-        { value: '0x2222222222222222222222222222222222222222', chainHint: 'evm' },
-        { value: '0x3333333333333333333333333333333333333333', chainHint: 'evm' },
+        {
+          value: '0x1111111111111111111111111111111111111111',
+          chainHint: 'evm',
+        },
+        {
+          value: '0x2222222222222222222222222222222222222222',
+          chainHint: 'evm',
+        },
+        {
+          value: '0x3333333333333333333333333333333333333333',
+          chainHint: 'evm',
+        },
       ],
       tickers: [],
       urls: [],
@@ -88,7 +103,10 @@ describe('EnrichOnExtractionHandler', () => {
       messageId: 67890,
       occurredAt: FIXED_DATE,
       contractAddresses: [
-        { value: '0xabcdef0123456789abcdef0123456789abcdef01', chainHint: 'evm' },
+        {
+          value: '0xabcdef0123456789abcdef0123456789abcdef01',
+          chainHint: 'evm',
+        },
       ],
       tickers: [],
       urls: [],

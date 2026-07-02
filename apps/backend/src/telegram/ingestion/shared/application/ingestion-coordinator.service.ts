@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnApplicationBootstrap, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnApplicationBootstrap,
+  Inject,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from 'shared/common/config/app.config';
 import { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';

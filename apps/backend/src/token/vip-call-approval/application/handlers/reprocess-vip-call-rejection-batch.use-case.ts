@@ -14,7 +14,9 @@ export interface ReprocessBatchInput {
 export class ReprocessRejectedBatchUseCase {
   private readonly logger = new Logger(ReprocessRejectedBatchUseCase.name);
 
-  public constructor(private readonly single: ReprocessVipCallRejectionUseCase) {}
+  public constructor(
+    private readonly single: ReprocessVipCallRejectionUseCase,
+  ) {}
 
   public async execute(
     input: ReprocessBatchInput,

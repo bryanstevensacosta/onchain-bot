@@ -12,7 +12,10 @@ export class RegisterCallForAchievementsEvent extends DomainEvent {
 
   public readonly payload: RegisterCallForAchievementsPayload;
 
-  constructor(aggregateId: string, payload: RegisterCallForAchievementsPayload) {
+  constructor(
+    aggregateId: string,
+    payload: RegisterCallForAchievementsPayload,
+  ) {
     super(RegisterCallForAchievementsEvent.EVENT_NAME, aggregateId);
     this.payload = Object.freeze({ ...payload });
   }

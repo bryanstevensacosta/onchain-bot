@@ -21,7 +21,7 @@ export class IngestionSafetyConfig {
     this.jitterPercent =
       parseFloat(process.env.INGESTION_JITTER_PERCENT ?? '0.30') || 0.3;
     this.sleepStartUtc =
-      parseInt(process.env.INGESTION_SLEEP_START_UTC ?? '4', 10) || 4;
+      parseInt(process.env.INGESTION_SLEEP_START_UTC ?? '8', 10) || 8;
     this.sleepEndUtc =
       parseInt(process.env.INGESTION_SLEEP_END_UTC ?? '10', 10) || 10;
     this.floodInitialMs =

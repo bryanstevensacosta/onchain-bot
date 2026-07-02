@@ -12,7 +12,9 @@ export interface VipCallApprovalDecisionView {
 }
 
 export class VipCallApprovalDecisionMapper {
-  public static toView(d: VipCallApprovalDecision): VipCallApprovalDecisionView {
+  public static toView(
+    d: VipCallApprovalDecision,
+  ): VipCallApprovalDecisionView {
     return {
       id: d.id,
       chain: d.chain.value,

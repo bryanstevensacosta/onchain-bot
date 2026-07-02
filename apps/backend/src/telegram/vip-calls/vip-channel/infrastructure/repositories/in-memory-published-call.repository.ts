@@ -120,10 +120,7 @@ export class InMemoryPublishedCallRepository implements PublishedCallRepository 
    * If the stored entry is not in RESERVED status (already finalized),
    * finalize is a no-op so retries are safe.
    */
-  public async finalize(
-    id: string,
-    payload: FinalizePayload,
-  ): Promise<void> {
+  public async finalize(id: string, payload: FinalizePayload): Promise<void> {
     const existing = this.store.get(id);
     if (!existing || !existing.isReserved) {
       return;
@@ -148,5 +145,16 @@ export class InMemoryPublishedCallRepository implements PublishedCallRepository 
       return;
     }
     existing.markFailed(reason);
+  }
+
+  public async findStuckReservations(
+    olderThanMs: number,
+    limit: number,
+  ): Promise<ReadonlyArray<PublishedCall>> {
+    const threshold = Date.now() - olderThanMs;
+    return Array.from(this.store.values())
+      .filter((c) => c.isReserved && c.reservedAt.getTime() <= threshold)
+      .sort((a, b) => a.reservedAt.getTime() - b.reservedAt.getTime())
+      .slice(0, limit);
   }
 }

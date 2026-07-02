@@ -132,7 +132,9 @@ export class ReprocessVipCallRejectionUseCase {
     address: string,
     previousDecidedAt: Date,
   ): Promise<
-    Awaited<ReturnType<VipCallApprovalDecisionRepository['findByChainAndAddress']>>
+    Awaited<
+      ReturnType<VipCallApprovalDecisionRepository['findByChainAndAddress']>
+    >
   > {
     const deadline = Date.now() + MAX_WAIT_MS;
     while (Date.now() < deadline) {

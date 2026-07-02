@@ -35,7 +35,9 @@ export class CryptoNewsMessage {
       throw new Error('CryptoNewsMessage channelId cannot be empty');
     }
     if (!Number.isFinite(input.messageId) || input.messageId < 0) {
-      throw new Error('CryptoNewsMessage messageId must be a non-negative number');
+      throw new Error(
+        'CryptoNewsMessage messageId must be a non-negative number',
+      );
     }
     if (input.content === null || input.content === undefined) {
       throw new Error('CryptoNewsMessage content cannot be null/undefined');

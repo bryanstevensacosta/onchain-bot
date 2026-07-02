@@ -16,5 +16,10 @@ export { CallPublishedEvent } from './domain/events/call-published.event';
 export { CallPublishFailedEvent } from './domain/events/call-publish-failed.event';
 export { PublishedCall } from './domain/entities/published-call.entity';
 export { PublishedCallRepository } from './application/ports/published-call.repository';
+export type {
+  ReservePayload,
+  TryReserveResult,
+  FinalizePayload,
+} from './application/ports/published-call.repository';
 export { PublishingEventPublisher } from './application/ports/publishing-event.publisher';
 export { InProcessPublishingEventPublisher } from './infrastructure/messaging/in-process-publishing-event.publisher';

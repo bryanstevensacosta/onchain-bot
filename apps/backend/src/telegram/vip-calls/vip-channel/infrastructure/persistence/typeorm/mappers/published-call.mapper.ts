@@ -24,6 +24,9 @@ export class PublishedCallMapper {
     row.publishedAt = call.publishedAt;
     row.mcAtCall = call.mcAtCall;
     row.telegramMessageId = call.telegramMessageId;
+    row.reservedAt = call.reservedAt;
+    row.correlationId = call.correlationId;
+    row.failedReason = call.failedReason;
     return row;
   }
 
@@ -44,6 +47,9 @@ export class PublishedCallMapper {
       publishedAt: row.publishedAt,
       mcAtCall: row.mcAtCall,
       telegramMessageId: row.telegramMessageId,
+      reservedAt: row.reservedAt ?? row.publishedAt,
+      correlationId: row.correlationId,
+      failedReason: row.failedReason,
     });
   }
 }

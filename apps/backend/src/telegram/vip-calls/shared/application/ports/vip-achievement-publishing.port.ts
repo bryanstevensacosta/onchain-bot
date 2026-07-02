@@ -13,5 +13,7 @@ export interface VipAchievementPublishOutput {
 }
 
 export abstract class VipAchievementPublishingPort {
-  abstract publishAchievement(input: VipAchievementPublishInput): Promise<VipAchievementPublishOutput>;
+  abstract publishAchievement(
+    input: VipAchievementPublishInput,
+  ): Promise<VipAchievementPublishOutput>;
 }

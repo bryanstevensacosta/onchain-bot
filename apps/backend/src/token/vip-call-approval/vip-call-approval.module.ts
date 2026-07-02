@@ -38,14 +38,19 @@ import { VipCallApprovalController } from 'token/vip-call-approval/api/http/vip-
     GetVipCallApprovalDecisionUseCase,
     ListVipCallApprovalDecisionsUseCase,
     VipCallScoreHandler,
-    { provide: VipCallBlacklistPort, useClass: InMemoryVipCallBlacklistAdapter },
+    {
+      provide: VipCallBlacklistPort,
+      useClass: InMemoryVipCallBlacklistAdapter,
+    },
     InMemoryVipCallApprovalDecisionRepository,
     ...(isDatabaseEnabled() ? [TypeOrmVipCallApprovalDecisionRepository] : []),
     {
       provide: VipCallApprovalDecisionRepository,
       inject: [
         InMemoryVipCallApprovalDecisionRepository,
-        ...(isDatabaseEnabled() ? [TypeOrmVipCallApprovalDecisionRepository] : []),
+        ...(isDatabaseEnabled()
+          ? [TypeOrmVipCallApprovalDecisionRepository]
+          : []),
       ],
       useFactory: (
         inMemory: InMemoryVipCallApprovalDecisionRepository,

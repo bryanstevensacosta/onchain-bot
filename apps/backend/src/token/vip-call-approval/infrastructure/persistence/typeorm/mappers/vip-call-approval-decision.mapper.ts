@@ -5,7 +5,9 @@ import { VipCallApprovalReason } from 'token/vip-call-approval/domain/value-obje
 import { VipCallApprovalDecisionEntity } from 'token/vip-call-approval/infrastructure/persistence/typeorm/entities/vip-call-approval-decision.entity';
 
 export class VipCallApprovalDecisionMapper {
-  public static toRow(d: VipCallApprovalDecision): VipCallApprovalDecisionEntity {
+  public static toRow(
+    d: VipCallApprovalDecision,
+  ): VipCallApprovalDecisionEntity {
     const row = new VipCallApprovalDecisionEntity();
     row.id = d.id;
     row.chain = d.chain.value;
@@ -18,9 +20,14 @@ export class VipCallApprovalDecisionMapper {
     return row;
   }
 
-  public static toDomain(row: VipCallApprovalDecisionEntity): VipCallApprovalDecision {
+  public static toDomain(
+    row: VipCallApprovalDecisionEntity,
+  ): VipCallApprovalDecision {
     const reasons = row.reasons.map((r) =>
-      VipCallApprovalReason.create({ code: r.code as never, message: r.message }),
+      VipCallApprovalReason.create({
+        code: r.code as never,
+        message: r.message,
+      }),
     );
     return VipCallApprovalDecision.rehydrate({
       id: row.id,

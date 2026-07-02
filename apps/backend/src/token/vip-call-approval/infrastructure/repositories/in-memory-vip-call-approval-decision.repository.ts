@@ -11,7 +11,9 @@ export class InMemoryVipCallApprovalDecisionRepository extends VipCallApprovalDe
   public async save(decision: VipCallApprovalDecision): Promise<void> {
     await Promise.resolve();
     this.store.set(decision.id, decision);
-    while (this.store.size > InMemoryVipCallApprovalDecisionRepository.MAX_ENTRIES) {
+    while (
+      this.store.size > InMemoryVipCallApprovalDecisionRepository.MAX_ENTRIES
+    ) {
       const oldest: string | undefined = this.store.keys().next().value as
         | string
         | undefined;
