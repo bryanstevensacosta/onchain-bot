@@ -1,6 +1,3 @@
-import { DomainEvent } from 'shared/kernel/domain-event';
+import { DomainEventPublisher } from 'shared/common/ports/domain-event.publisher';
 
-export abstract class AchievementEventPublisher {
-  abstract publish(event: DomainEvent): Promise<void>;
-  abstract publishAll(events: ReadonlyArray<DomainEvent>): Promise<void>;
-}
+export abstract class AchievementEventPublisher extends DomainEventPublisher {}

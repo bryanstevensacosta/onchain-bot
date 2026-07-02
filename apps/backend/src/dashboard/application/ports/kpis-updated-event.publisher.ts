@@ -1,5 +1,3 @@
-import { DomainEvent } from 'shared/kernel/domain-event';
+import { DomainEventPublisher } from 'shared/common/ports/domain-event.publisher';
 
-export abstract class KpisUpdatedEventPublisher {
-  public abstract publish(event: DomainEvent): Promise<void>;
-}
+export abstract class KpisUpdatedEventPublisher extends DomainEventPublisher {}

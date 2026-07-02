@@ -1,15 +1,8 @@
-import { DomainEvent } from 'shared/kernel/domain-event';
+import { DomainEventPublisher } from 'shared/common/ports/domain-event.publisher';
 
 /**
  * Outbound port: publishing of crypto-news domain events.
  *
  * Implemented in infrastructure/messaging (in-process via EventEmitter2).
  */
-export abstract class CryptoNewsEventPublisher {
-  public abstract publish(event: DomainEvent): Promise<void>;
-  public async publishAll(events: ReadonlyArray<DomainEvent>): Promise<void> {
-    for (const event of events) {
-      await this.publish(event);
-    }
-  }
-}
+export abstract class CryptoNewsEventPublisher extends DomainEventPublisher {}
