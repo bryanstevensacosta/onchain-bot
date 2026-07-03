@@ -58,6 +58,10 @@ import { TELEGRAM_LISTENER_PORT_TOKEN } from './shared-injection-tokens';
     TELEGRAM_LISTENER_PORT_TOKEN,
     TelegramMtprotoListenerAdapter,
     IngestionSafetyConfig,
+    // Required by sub-BC adapters (e.g. MtprotoMediaDownloader).
+    SleepWindowService,
+    FloodWaitCounterService,
+    FloodWaitHandlerService,
   ],
 })
 export class SharedIngestionModule {}
