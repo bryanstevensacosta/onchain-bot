@@ -1,13 +1,22 @@
 import { httpGet } from '@/shared/api/http-client';
 
+export interface CryptoNewsMediaView {
+  readonly id: string;
+  readonly index: number;
+  readonly type: string;
+  readonly url: string;
+  readonly mimeType: string | null;
+}
+
 export interface CryptoNewsMessage {
-  id: string;
-  channelId: string;
-  messageId: number;
-  title: string | null;
-  content: string;
-  publishedAt: string;
-  ingestedAt: string;
+  readonly id: string;
+  readonly channelId: string;
+  readonly messageId: number;
+  readonly title: string | null;
+  readonly content: string;
+  readonly publishedAt: string;
+  readonly ingestedAt: string;
+  readonly media: ReadonlyArray<CryptoNewsMediaView>;
 }
 
 export interface CryptoNewsSource {

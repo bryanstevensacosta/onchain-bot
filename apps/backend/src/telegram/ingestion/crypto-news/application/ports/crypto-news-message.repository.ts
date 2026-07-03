@@ -1,4 +1,5 @@
 import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
+import { CryptoNewsMessageMediaEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
 
 /**
  * Outbound port: persistence for ingested crypto-news messages.
@@ -16,4 +17,12 @@ export abstract class CryptoNewsMessageRepository {
     channelId: string,
     limit: number,
   ): Promise<ReadonlyArray<CryptoNewsMessage>>;
+  /**
+   * Look up a single media attachment by its primary key. Returns `null`
+   * when no row matches. Used by the binary-serve endpoint (T7) to
+   * resolve a `mediaId` to a `filePath` on disk.
+   */
+  public abstract findMediaById(
+    mediaId: string,
+  ): Promise<CryptoNewsMessageMediaEntity | null>;
 }

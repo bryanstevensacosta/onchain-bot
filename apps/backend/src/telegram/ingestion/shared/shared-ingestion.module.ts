@@ -1,4 +1,4 @@
-import { Global, Module } from '@nestjs/common';
+import { forwardRef, Global, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import { TelegramMtprotoListenerAdapter } from 'telegram/ingestion/shared/api/mtproto/telegram-mtproto-listener.adapter';
@@ -9,6 +9,7 @@ import { FloodWaitHandlerService } from 'telegram/ingestion/shared/infrastructur
 import { IngestionConfigController } from 'telegram/ingestion/shared/api/http/ingestion-config.controller';
 import { IngestionHealthController } from 'telegram/ingestion/shared/api/http/ingestion-health.controller';
 import { IdentityModule } from 'kol/identity/identity.module';
+import { CryptoNewsIngestionModule } from 'telegram/ingestion/crypto-news/crypto-news-ingestion.module';
 
 /**
  * Base shared ingestion module.
@@ -28,7 +29,14 @@ import { TELEGRAM_LISTENER_PORT_TOKEN } from './shared-injection-tokens';
 
 @Global()
 @Module({
-  imports: [ConfigModule, IdentityModule],
+  imports: [
+    ConfigModule,
+    IdentityModule,
+    // `CryptoNewsIngestionModule` provides `CryptoNewsMediaDownloader`,
+    // which the listener below injects. Both sides use `forwardRef`
+    // to break the circular DI dependency.
+    forwardRef(() => CryptoNewsIngestionModule),
+  ],
   controllers: [IngestionConfigController, IngestionHealthController],
   providers: [
     IngestionSafetyConfig,

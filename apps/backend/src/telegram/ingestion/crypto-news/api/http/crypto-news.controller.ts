@@ -1,7 +1,21 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { Controller, Get, Logger, Param, Query, Res } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import type { Response } from 'express';
+import { Repository } from 'typeorm';
 import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
 import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
 import { TelegramMtprotoListenerAdapter } from 'telegram/ingestion/shared/api/mtproto/telegram-mtproto-listener.adapter';
+import { CryptoNewsMessageMediaEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
+
+export interface CryptoNewsMediaView {
+  readonly id: string;
+  readonly index: number;
+  readonly type: string;
+  readonly url: string;
+  readonly mimeType: string | null;
+}
 
 interface CryptoNewsMessageView {
   readonly id: string;
@@ -11,6 +25,7 @@ interface CryptoNewsMessageView {
   readonly content: string;
   readonly publishedAt: string;
   readonly ingestedAt: string;
+  readonly media: ReadonlyArray<CryptoNewsMediaView>;
 }
 
 interface CryptoNewsSourceView {
@@ -22,12 +37,41 @@ interface CryptoNewsSourceView {
   readonly addedAt: string;
 }
 
+/**
+ * Resolve the MIME type for a media file. Prefers the value persisted in
+ * the DB (detected from magic bytes at download time) and falls back to
+ * the file extension. The `/api/` prefix in the URL matches the Vite
+ * dev-server proxy (strips `/api` before forwarding to Nest).
+ */
+function resolveMimeType(
+  filePath: string,
+  mimeTypeFromDb: string | null,
+): string {
+  if (mimeTypeFromDb && mimeTypeFromDb.trim().length > 0) {
+    return mimeTypeFromDb;
+  }
+  const ext = path.extname(filePath).slice(1).toLowerCase();
+  const map: Record<string, string> = {
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    bin: 'application/octet-stream',
+  };
+  return map[ext] ?? 'application/octet-stream';
+}
+
 @Controller('crypto-news')
 export class CryptoNewsController {
+  private readonly logger = new Logger(CryptoNewsController.name);
+
   constructor(
     private readonly messageRepo: CryptoNewsMessageRepository,
     private readonly sourceRepo: CryptoNewsSourceRepository,
     private readonly listener: TelegramMtprotoListenerAdapter,
+    @InjectRepository(CryptoNewsMessageMediaEntity)
+    private readonly mediaEntityRepo: Repository<CryptoNewsMessageMediaEntity>,
   ) {}
 
   @Get('messages')
@@ -39,15 +83,18 @@ export class CryptoNewsController {
     const messages = channelId
       ? await this.messageRepo.findByChannelId(channelId, n)
       : await this.messageRepo.findRecent(n);
-    return messages.map((m) => ({
-      id: m.id,
-      channelId: m.channelId,
-      messageId: m.messageId,
-      title: m.title,
-      content: m.content,
-      publishedAt: m.publishedAt.toISOString(),
-      ingestedAt: m.ingestedAt.toISOString(),
-    }));
+    return Promise.all(
+      messages.map(async (m) => ({
+        id: m.id,
+        channelId: m.channelId,
+        messageId: m.messageId,
+        title: m.title,
+        content: m.content,
+        publishedAt: m.publishedAt.toISOString(),
+        ingestedAt: m.ingestedAt.toISOString(),
+        media: await this.loadMediaForMessage(m.id),
+      })),
+    );
   }
 
   @Get('messages/:id')
@@ -64,6 +111,50 @@ export class CryptoNewsController {
       content: msg.content,
       publishedAt: msg.publishedAt.toISOString(),
       ingestedAt: msg.ingestedAt.toISOString(),
+      media: await this.loadMediaForMessage(msg.id),
+    };
+  }
+
+  /**
+   * Look up media entity rows for a given message id and map them to
+   * the public view shape. The domain `CryptoNewsMessage.media` VO does
+   * NOT carry the DB-assigned UUID (only `CryptoNewsMessageMediaEntity`
+   * does), so the controller must hit the entity repo directly to
+   * surface a stable `id`/`url` pair in the view.
+   *
+   * Returns `[]` when no rows exist (messages without photos) and also
+   * when the entity repo is not wired (in-memory mode in tests/dev
+   * without DB) — the catch is intentional: missing table → empty
+   * `media` in the view rather than a 500.
+   */
+  private async loadMediaForMessage(
+    messageId: string,
+  ): Promise<ReadonlyArray<CryptoNewsMediaView>> {
+    try {
+      const rows = await this.mediaEntityRepo.find({
+        where: { messageId },
+        order: { index: 'ASC' },
+      });
+      return rows.map((row) => CryptoNewsController.toMediaView(row));
+    } catch (err) {
+      this.logger.debug(
+        `No media entity repo available for message=${messageId}: ${
+          (err as Error).message
+        }`,
+      );
+      return [];
+    }
+  }
+
+  private static toMediaView(
+    mediaEntity: CryptoNewsMessageMediaEntity,
+  ): CryptoNewsMediaView {
+    return {
+      id: mediaEntity.id,
+      index: mediaEntity.index,
+      type: mediaEntity.type,
+      url: `/api/crypto-news/media/${mediaEntity.id}`,
+      mimeType: mediaEntity.mimeType,
     };
   }
 
@@ -93,5 +184,47 @@ export class CryptoNewsController {
     const n = Math.max(1, Math.min(100, parseInt(limit ?? '20', 10) || 20));
     const messages = await this.listener.backfill(channelId, n);
     return { fetched: messages.length, channelId };
+  }
+
+  /**
+   * Serve a single crypto-news photo attachment by its DB-assigned UUID.
+   * 200 + binary body when the row exists and the on-disk file is readable.
+   * 404 when the row is unknown or the file is missing on disk — never 500
+   * for a stale path (the file lifecycle is decoupled from the DB row).
+   * `Cache-Control: public, max-age=86400, immutable` so the dashboard's
+   * `<img loading="lazy">` hits don't re-fetch on every navigation.
+   */
+  @Get('media/:mediaId')
+  public async getMedia(
+    @Param('mediaId') mediaId: string,
+    @Res({ passthrough: false }) res: Response,
+  ): Promise<void> {
+    const media = await this.messageRepo.findMediaById(mediaId);
+    if (!media) {
+      res.status(404).json({ error: 'Media not found' });
+      return;
+    }
+
+    let fileBuffer: Buffer;
+    try {
+      fileBuffer = await fs.promises.readFile(media.filePath);
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code === 'ENOENT') {
+        this.logger.warn(
+          `Media file missing on disk: id=${mediaId} path=${media.filePath}`,
+        );
+        res.status(404).json({ error: 'Media file missing on disk' });
+        return;
+      }
+      throw err;
+    }
+
+    const mimeType = resolveMimeType(media.filePath, media.mimeType);
+
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Length', fileBuffer.length.toString());
+    res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+    res.send(fileBuffer);
   }
 }

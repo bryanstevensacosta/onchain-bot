@@ -3,6 +3,7 @@ import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entitie
 import { CryptoNewsMessageIngestedEvent } from 'telegram/ingestion/crypto-news/domain/events/crypto-news-message-ingested.event';
 import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
 import { CryptoNewsEventPublisher } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-event.publisher';
+import { CryptoNewsMedia } from 'telegram/ingestion/crypto-news/domain/value-objects/crypto-news-media.vo';
 
 export interface StoreNewsMessageInput {
   readonly channelId: string;
@@ -10,6 +11,12 @@ export interface StoreNewsMessageInput {
   readonly title: string | null;
   readonly content: string;
   readonly occurredAt: Date;
+  /**
+   * Optional photo attachments downloaded by the listener at ingestion
+   * time. When undefined or empty, the message is stored with no media
+   * (backward compatible with pre-T6 callers).
+   */
+  readonly media?: ReadonlyArray<CryptoNewsMedia>;
 }
 
 /**
@@ -36,6 +43,7 @@ export class StoreNewsMessageUseCase {
       title: input.title,
       content: input.content,
       publishedAt: input.occurredAt,
+      media: input.media,
     });
 
     await this.messageRepo.save(message);

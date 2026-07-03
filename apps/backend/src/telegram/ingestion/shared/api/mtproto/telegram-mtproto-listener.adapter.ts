@@ -1,4 +1,6 @@
 import {
+  forwardRef,
+  Inject,
   Injectable,
   Logger,
   OnModuleDestroy,
@@ -16,11 +18,13 @@ import type {
   ResolvedChannelMetadata,
   TelegramListenerPort,
   JoinChannelResult,
+  TelegramMediaAttachment,
 } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import { IngestionSafetyConfig } from 'telegram/ingestion/shared/infrastructure/config/ingestion-safety.config';
 import { SleepWindowService } from 'telegram/ingestion/shared/infrastructure/services/sleep-window.service';
 import { FloodWaitCounterService } from 'telegram/ingestion/shared/infrastructure/services/flood-wait-counter.service';
 import { FloodWaitHandlerService } from 'telegram/ingestion/shared/infrastructure/services/flood-wait-handler.service';
+import { CryptoNewsMediaDownloader } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-media-downloader.port';
 
 @Injectable()
 export class TelegramMtprotoListenerAdapter
@@ -42,7 +46,21 @@ export class TelegramMtprotoListenerAdapter
     private readonly sleepWindow: SleepWindowService,
     private readonly floodWaitCounter: FloodWaitCounterService,
     private readonly floodWaitHandler: FloodWaitHandlerService,
+    @Inject(forwardRef(() => CryptoNewsMediaDownloader))
+    private readonly mediaDownloader: CryptoNewsMediaDownloader,
   ) {}
+
+  /**
+   * Returns the currently initialised TelegramClient, or null if the
+   * client has not been created yet (no MTProto credentials configured
+   * or `subscribe()` has not been called).
+   *
+   * Exposed for the `MtprotoMediaDownloader` factory so it can lazily
+   * access the listener-owned client at download time.
+   */
+  public getClient(): TelegramClient | null {
+    return this.client;
+  }
 
   async onModuleInit(): Promise<void> {
     const cfg = this.config.get<AppConfig>('app');
@@ -162,17 +180,24 @@ export class TelegramMtprotoListenerAdapter
             const peer = await this.resolvePeerAsChannel(peerId);
             const messages = await this.client!.getMessages(peer, { limit: 1 });
             const msg = (
-              messages as { id: number; message?: string; date: number }[]
+              messages as {
+                id: number;
+                message?: string;
+                date: number;
+                media?: unknown;
+              }[]
             )[0];
             if (msg) {
               const lastSeen = this.lastSeenMessageId.get(peerId) ?? -1;
               if (msg.id > lastSeen) {
                 this.lastSeenMessageId.set(peerId, msg.id);
+                const media = await this.extractMediaForMessage(peerId, msg);
                 this.queue.push({
                   peerId,
                   messageId: msg.id,
                   text: msg.message ?? '',
                   occurredAt: new Date(msg.date * 1000),
+                  ...(media ? { media } : {}),
                 });
                 const resolver = this.waitingResolvers.shift();
                 if (resolver) resolver();
@@ -197,6 +222,7 @@ export class TelegramMtprotoListenerAdapter
             id: number;
             message?: string;
             date: number;
+            media?: unknown;
             getChat?: () => Promise<{ id: unknown }>;
           };
         }
@@ -205,11 +231,13 @@ export class TelegramMtprotoListenerAdapter
       const chat = await msg.getChat?.();
       const channelId = chat ? String(chat.id) : '';
       if (!channelId || !this.subscribedChannelIds.includes(channelId)) return;
+      const media = await this.extractMediaForMessage(channelId, msg);
       this.queue.push({
         peerId: channelId,
         messageId: msg.id,
         text: msg.message ?? '',
         occurredAt: new Date(msg.date * 1000),
+        ...(media ? { media } : {}),
       });
       const resolver = this.waitingResolvers.shift();
       if (resolver) resolver();
@@ -225,14 +253,23 @@ export class TelegramMtprotoListenerAdapter
     const client = this.ensureClient();
     const peer = await this.resolvePeerAsChannel(channelId);
     const messages: unknown[] = await client.getMessages(peer, { limit });
-    return (messages as { id: number; message?: string; date: number }[]).map(
-      (m) => ({
+    return (
+      messages as {
+        id: number;
+        message?: string;
+        date: number;
+        media?: unknown;
+      }[]
+    ).map((m) => {
+      const rawMedia = this.extractRawPhotoAttachment(m.media);
+      return {
         peerId: channelId,
         messageId: m.id,
         text: m.message ?? '',
         occurredAt: new Date(m.date * 1000),
-      }),
-    );
+        ...(rawMedia ? { media: [rawMedia] } : {}),
+      };
+    });
   }
 
   private async resolvePeerAsChannel(channelId: string) {
@@ -253,6 +290,95 @@ export class TelegramMtprotoListenerAdapter
       return await client.getEntity(withPrefix);
     } catch {
       return await client.getEntity(channelId);
+    }
+  }
+
+  /**
+   * Build a `TelegramMediaAttachment` from `msg.media.photo` (if present)
+   * WITHOUT downloading. Used by `backfill()` where the controller does
+   * not persist media rows anyway.
+   */
+  private extractRawPhotoAttachment(
+    media: unknown,
+  ): TelegramMediaAttachment | null {
+    if (!media || typeof media !== 'object') return null;
+    const photo = (media as { photo?: unknown }).photo;
+    if (!photo || typeof photo !== 'object') return null;
+    const p = photo as {
+      id?: unknown;
+      accessHash?: unknown;
+      fileReference?: unknown;
+    };
+    if (
+      typeof p.id !== 'bigint' &&
+      typeof p.id !== 'string' &&
+      typeof p.id !== 'number'
+    ) {
+      return null;
+    }
+    if (p.fileReference === undefined || p.fileReference === null) return null;
+    let fileRefBuffer: Buffer | null = null;
+    if (Buffer.isBuffer(p.fileReference)) {
+      fileRefBuffer = p.fileReference;
+    } else if (typeof p.fileReference === 'string') {
+      fileRefBuffer = Buffer.from(p.fileReference, 'binary');
+    } else if (Array.isArray(p.fileReference)) {
+      fileRefBuffer = Buffer.from(p.fileReference);
+    } else {
+      return null;
+    }
+    return {
+      type: 'photo',
+      fileId: p.id as bigint | string,
+      accessHash: p.accessHash as bigint | string,
+      fileReference: fileRefBuffer.toString('base64'),
+      mimeType: null,
+    };
+  }
+
+  /**
+   * Extract and synchronously download the photo attached to a Telegram
+   * message. Returns the resulting attachment list (one entry per photo
+   * index), or `undefined` if the message has no photo or the download
+   * failed — text-only messages continue without media.
+   */
+  private async extractMediaForMessage(
+    peerId: string,
+    msg: {
+      id: number;
+      media?: unknown;
+    },
+  ): Promise<ReadonlyArray<TelegramMediaAttachment> | undefined> {
+    const attachment = this.extractRawPhotoAttachment(msg.media);
+    if (!attachment) return undefined;
+    try {
+      const downloaded = await this.mediaDownloader.download(
+        peerId,
+        msg.id,
+        0,
+        attachment,
+      );
+      const enriched: TelegramMediaAttachment = {
+        type: attachment.type,
+        fileId: attachment.fileId,
+        accessHash: attachment.accessHash,
+        fileReference: attachment.fileReference,
+        mimeType: downloaded.mimeType,
+        filePath: downloaded.filePath,
+        fileSize: downloaded.fileSize,
+        index: 0, // Telegram photos come as a single PhotoSize array per
+        // message (multiple sizes but one logical photo). Multi-photo
+        // album support is out of scope and will be addressed in a later
+        // extension to iterate per-photo.
+      };
+      return [enriched];
+    } catch (err) {
+      this.logger.warn(
+        `Media download failed for ${peerId}:${msg.id} — message continues without media: ${
+          (err as Error).message
+        }`,
+      );
+      return undefined;
     }
   }
 

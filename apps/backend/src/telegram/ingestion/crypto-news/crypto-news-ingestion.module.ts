@@ -1,13 +1,16 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { isDatabaseEnabled } from 'shared/common/persistence/database.module';
 import type { AppConfig } from 'shared/common/config/app.config';
 import { CryptoNewsSourceEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
 import { CryptoNewsMessageEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
+import { CryptoNewsMessageMediaEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
 import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
 import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
 import { CryptoNewsEventPublisher } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-event.publisher';
+import { CryptoNewsMediaDownloader } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-media-downloader.port';
+import { MtprotoMediaDownloader } from 'telegram/ingestion/crypto-news/infrastructure/api/mtproto/mtproto-media-downloader';
 import { InMemoryCryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/infrastructure/repositories/in-memory-crypto-news-source.repository';
 import { InMemoryCryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/infrastructure/repositories/in-memory-crypto-news-message.repository';
 import { TypeOrmCryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/repositories/typeorm-crypto-news-source.repository';
@@ -17,13 +20,20 @@ import { StoreNewsMessageUseCase } from 'telegram/ingestion/crypto-news/applicat
 import { CryptoNewsSeeder } from 'telegram/ingestion/crypto-news/infrastructure/seeders/crypto-news.seeder';
 import { CryptoNewsController } from 'telegram/ingestion/crypto-news/api/http/crypto-news.controller';
 import { SharedIngestionModule } from 'telegram/ingestion/shared/shared-ingestion.module';
+import { TelegramMtprotoListenerAdapter } from 'telegram/ingestion/shared/api/mtproto/telegram-mtproto-listener.adapter';
+import { FloodWaitHandlerService } from 'telegram/ingestion/shared/infrastructure/services/flood-wait-handler.service';
 import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 
 /**
  * Crypto-news ingestion sub-module.
  *
- * Provides: ports, use cases, repositories, event publisher, seeder.
- * Wires TypeORM (when DATABASE_ENABLED) or in-memory (dev/tests) repos.
+ * Provides: ports, use cases, repositories, event publisher, seeder,
+ * and the MTProto media downloader (for photos attached to news
+ * messages). Wires TypeORM (when DATABASE_ENABLED) or in-memory
+ * (dev/tests) repos.
+ *
+ * The media downloader factory injects `TelegramMtprotoListenerAdapter`
+ * to access the lazy-initialised `TelegramClient` via `getClient()`.
  *
  * No NestJS module imports from kol/ — dependencies on
  * RegisterKolUseCase, KolRepository, etc. are resolved via DI through
@@ -32,8 +42,15 @@ import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-proces
 @Module({
   imports: [
     ConfigModule,
-    SharedIngestionModule,
-    TypeOrmModule.forFeature([CryptoNewsSourceEntity, CryptoNewsMessageEntity]),
+    // `forwardRef` resolves the cycle: `TelegramMtprotoListenerAdapter`
+    // (in `SharedIngestionModule`) injects `CryptoNewsMediaDownloader`
+    // (provided here).
+    forwardRef(() => SharedIngestionModule),
+    TypeOrmModule.forFeature([
+      CryptoNewsSourceEntity,
+      CryptoNewsMessageEntity,
+      CryptoNewsMessageMediaEntity,
+    ]),
   ],
   controllers: [CryptoNewsController],
   providers: [
@@ -80,6 +97,27 @@ import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-proces
       provide: CryptoNewsEventPublisher,
       useClass: InProcessDomainEventPublisher,
     },
+    {
+      // The MTProto media downloader is wired here so it can be injected
+      // (via the CryptoNewsMediaDownloader token) into the shared
+      // TelegramMtprotoListenerAdapter, which lives in SharedIngestionModule.
+      provide: CryptoNewsMediaDownloader,
+      inject: [
+        TelegramMtprotoListenerAdapter,
+        FloodWaitHandlerService,
+        ConfigService,
+      ],
+      useFactory: (
+        listener: TelegramMtprotoListenerAdapter,
+        floodWaitHandler: FloodWaitHandlerService,
+        config: ConfigService,
+      ): CryptoNewsMediaDownloader =>
+        new MtprotoMediaDownloader(
+          () => listener.getClient(),
+          floodWaitHandler,
+          config,
+        ),
+    },
     RegisterNewsSourceUseCase,
     StoreNewsMessageUseCase,
     CryptoNewsSeeder,
@@ -88,6 +126,7 @@ import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-proces
     CryptoNewsSourceRepository,
     CryptoNewsMessageRepository,
     CryptoNewsEventPublisher,
+    CryptoNewsMediaDownloader,
     RegisterNewsSourceUseCase,
     StoreNewsMessageUseCase,
     CryptoNewsSeeder,

@@ -40,6 +40,10 @@
  *     DATABASE_SYNCHRONIZE, DATABASE_LOGGING
  *     REDIS_ENABLED, REDIS_{HOST,PORT,PASSWORD,DB}
  *
+ *   Local media storage (crypto-news photos downloaded at ingestion):
+ *     UPLOADS_ROOT — absolute or cwd-relative directory for downloaded
+ *                    attachments (default `<cwd>/uploads`).
+ *
  *   Logging (consumed by the `logging` config block; see src/app.module.ts
  *   where it is wired into nestjs-pino's LoggerModule.forRootAsync):
  *     LOG_LEVEL       — pino level (default 'info' in production, 'debug'
@@ -58,6 +62,7 @@
  *                       (default 5). Older rotations are pruned automatically.
  */
 import { registerAs } from '@nestjs/config';
+import { join } from 'path';
 
 export interface HeliusNetworkConfig {
   rpcUrl: string;
@@ -193,6 +198,8 @@ export interface AppConfig {
     password: string;
     db: number;
   };
+
+  uploadsRoot: string;
 
   logging: {
     level: string;
@@ -482,6 +489,8 @@ export const appConfig = registerAs(
       password: process.env.REDIS_PASSWORD ?? '',
       db: parseInt(process.env.REDIS_DB ?? '0', 10),
     },
+
+    uploadsRoot: process.env.UPLOADS_ROOT ?? join(process.cwd(), 'uploads'),
 
     logging: {
       level:

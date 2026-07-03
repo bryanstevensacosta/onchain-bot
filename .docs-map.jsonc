@@ -30,7 +30,8 @@
     { "path": "apps/backend/src/shared", "doc": "apps/backend/src/shared/AGENTS.md", "level": 2 },
 
     // L3 - Sub-BC (backend)
-    { "path": "apps/backend/src/telegram/vip-calls", "doc": "apps/backend/src/telegram/vip-calls/AGENTS.md", "level": 3 }
+    { "path": "apps/backend/src/telegram/vip-calls", "doc": "apps/backend/src/telegram/vip-calls/AGENTS.md", "level": 3 },
+    { "path": "apps/backend/src/telegram/ingestion/crypto-news", "doc": "apps/backend/src/telegram/ingestion/crypto-news/AGENTS.md", "level": 3 }
     // NOTA: cuando se creen nuevos AGENTS.md en L3 o L4+, agregar entradas aquí
   ]
 }

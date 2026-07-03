@@ -7,6 +7,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from 'shared/common/config/app.config';
 import { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
+import type { TelegramRawMessage } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
+import { CryptoNewsMedia } from 'telegram/ingestion/crypto-news/domain/value-objects/crypto-news-media.vo';
 import { TELEGRAM_LISTENER_PORT_TOKEN } from 'telegram/ingestion/shared/shared-injection-tokens';
 import { KolSeeder } from 'telegram/ingestion/kol/seeders/kol.seeder';
 import { CryptoNewsSeeder } from 'telegram/ingestion/crypto-news/infrastructure/seeders/crypto-news.seeder';
@@ -116,23 +118,34 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
     }
   }
 
-  private async route(raw: {
-    readonly peerId: string;
-    readonly messageId: number;
-    readonly text: string;
-    readonly occurredAt: Date;
-  }): Promise<void> {
+  private async route(raw: TelegramRawMessage): Promise<void> {
     try {
       const newsSource = await this.cryptoNewsSourceRepo.findByChannelId(
         raw.peerId,
       );
       if (newsSource) {
+        const media =
+          raw.media !== undefined && raw.media.length > 0
+            ? raw.media
+                .filter((m) => m.filePath !== undefined && m.filePath !== '')
+                .map((m) =>
+                  CryptoNewsMedia.create({
+                    index: m.index ?? 0,
+                    type: m.type,
+                    filePath: m.filePath as string,
+                    mimeType: m.mimeType,
+                    fileSize: m.fileSize ?? null,
+                  }),
+                )
+            : undefined;
+
         await this.storeNewsMessage.execute({
           channelId: raw.peerId,
           messageId: raw.messageId,
           title: null,
           content: raw.text,
           occurredAt: raw.occurredAt,
+          ...(media !== undefined ? { media } : {}),
         });
         return;
       }

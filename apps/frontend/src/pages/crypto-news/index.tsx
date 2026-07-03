@@ -18,7 +18,7 @@ export function CryptoNewsPage() {
   return (
     <div className="px-6 py-6 space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-slate-100">📰 Crypto News</h1>
+        <h1 className="text-2xl font-bold text-slate-100">Crypto News</h1>
         <p className="text-sm text-slate-400 mt-1">
           Ingested messages from monitored crypto-news Telegram channels.
         </p>
@@ -99,6 +99,19 @@ export function CryptoNewsPage() {
                     ? `${msg.content.slice(0, 500)}…`
                     : msg.content}
                 </p>
+                {msg.media?.length > 0 && (
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {msg.media.map((m) => (
+                      <img
+                        key={m.id}
+                        src={m.url}
+                        alt={`${msg.title ?? 'image'} ${m.index + 1}`}
+                        className="h-auto max-h-96 w-full rounded-lg object-cover"
+                        loading="lazy"
+                      />
+                    ))}
+                  </div>
+                )}
               </article>
             ))}
           </div>

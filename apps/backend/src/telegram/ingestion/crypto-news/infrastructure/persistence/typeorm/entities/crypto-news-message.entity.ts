@@ -1,4 +1,5 @@
-import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
+import { Column, Entity, Index, OneToMany, PrimaryColumn } from 'typeorm';
+import { CryptoNewsMessageMediaEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
 
 /**
  * TypeORM persistence shape for `CryptoNewsMessage`.
@@ -37,4 +38,19 @@ export class CryptoNewsMessageEntity {
 
   @Column({ name: 'ingested_at', type: 'timestamptz' })
   public ingestedAt!: Date;
+
+  /**
+   * Photo attachments for this message. FK-level `ON DELETE CASCADE` is
+   * declared on the child side at `CryptoNewsMessageMediaEntity`'s
+   * `@ManyToOne({ onDelete: 'CASCADE' })` — in TypeORM 0.3.30 the
+   * `onDelete` FK option lives on the relation decorator, NOT on
+   * `@JoinColumn` (whose option type rejects it). The
+   * `cascade: ['insert', 'update']` here is the TypeORM-level
+   * save cascade (not FK-level).
+   */
+  @OneToMany(() => CryptoNewsMessageMediaEntity, (m) => m.message, {
+    cascade: ['insert', 'update'],
+    eager: true,
+  })
+  public media!: CryptoNewsMessageMediaEntity[];
 }

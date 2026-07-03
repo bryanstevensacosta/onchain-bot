@@ -29,6 +29,9 @@ class InMemoryMessageRepo extends CryptoNewsMessageRepository {
       .filter((m) => m.channelId === channelId)
       .slice(0, limit);
   }
+  public async findMediaById(): Promise<null> {
+    return null;
+  }
 }
 
 class RecordingPublisher extends CryptoNewsEventPublisher {

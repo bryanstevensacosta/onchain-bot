@@ -9,7 +9,14 @@
  * — news content is opaque to the alpha pipeline). Note: this is the
  * STORED shape, distinct from any domain event payload (which is metadata
  * only per fix-1 ToS compliance).
+ *
+ * `media` carries the list of downloaded photo attachments (Telegram
+ * `msg.media.photo` items persisted with their on-disk filePath). It is
+ * always populated (defaults to `[]`) so consumers can iterate without
+ * nullish checks; messages without photos just have an empty array.
  */
+import { CryptoNewsMedia } from 'telegram/ingestion/crypto-news/domain/value-objects/crypto-news-media.vo';
+
 export interface CryptoNewsMessageProps {
   readonly id: string;
   readonly channelId: string;
@@ -18,6 +25,7 @@ export interface CryptoNewsMessageProps {
   readonly content: string;
   readonly publishedAt: Date;
   readonly ingestedAt: Date;
+  readonly media?: ReadonlyArray<CryptoNewsMedia>;
 }
 
 export class CryptoNewsMessage {
@@ -30,6 +38,7 @@ export class CryptoNewsMessage {
     content: string;
     publishedAt: Date;
     ingestedAt?: Date;
+    media?: ReadonlyArray<CryptoNewsMedia>;
   }): CryptoNewsMessage {
     if (!input.channelId?.trim()) {
       throw new Error('CryptoNewsMessage channelId cannot be empty');
@@ -50,6 +59,7 @@ export class CryptoNewsMessage {
       content: input.content,
       publishedAt: input.publishedAt,
       ingestedAt: input.ingestedAt ?? new Date(),
+      media: input.media ?? [],
     });
   }
 
@@ -87,5 +97,9 @@ export class CryptoNewsMessage {
 
   public get ingestedAt(): Date {
     return this.props.ingestedAt;
+  }
+
+  public get media(): ReadonlyArray<CryptoNewsMedia> {
+    return this.props.media ?? [];
   }
 }

@@ -26,6 +26,34 @@ export interface JoinChannelResult {
   readonly error?: string;
 }
 
+/**
+ * Metadata for downloading a photo attached to a Telegram message. This
+ * starts as POINTER data only — `fileId`, `accessHash`, and `fileReference`
+ * are what Telegram needs to fetch the bytes. The listener populates the
+ * `filePath`, `fileSize`, and `index` fields after the bytes have been
+ * successfully downloaded to disk via the `mediaDownloader` port; for
+ * backfill / metadata-only paths (where no download is attempted) those
+ * fields remain `undefined`.
+ *
+ * IMPORTANT: Telegram's `fileReference` expires after roughly 1 hour. The
+ * image bytes MUST be downloaded from Telegram at ingestion time and stored
+ * locally before any pointer in this struct leaves the ingestion path. Do
+ * not defer the download, persist these fields alone, or assume the
+ * reference is still valid later.
+ */
+export interface TelegramMediaAttachment {
+  readonly type: 'photo';
+  readonly fileId: bigint | string;
+  readonly accessHash: bigint | string;
+  readonly fileReference: string;
+  readonly mimeType: string | null;
+  // Populated AFTER successful download by the listener. Undefined if
+  // download has not yet completed (e.g., for backfill metadata only).
+  readonly filePath?: string;
+  readonly fileSize?: number | null;
+  readonly index?: number;
+}
+
 export interface TelegramRawMessage {
   readonly peerId: string;
   readonly messageId: number;
@@ -37,5 +65,5 @@ export interface TelegramRawMessage {
     readonly length: number;
     readonly url?: string;
   }>;
-  readonly hasMedia?: boolean;
+  readonly media?: ReadonlyArray<TelegramMediaAttachment>;
 }
