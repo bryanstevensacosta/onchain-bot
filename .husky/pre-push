@@ -1,5 +1,1 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/h"
-
-# .husky/pre-push — ejecuta tests antes de hacer push
 npm test

@@ -1,5 +1,1 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/h"
-
-# .husky/commit-msg — valida mensaje de commit con conventional commits
 npx --no -- commitlint --edit $1

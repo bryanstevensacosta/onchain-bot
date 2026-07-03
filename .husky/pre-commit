@@ -1,14 +1,7 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/h"
-
-# .husky/pre-commit — lint-staged en staged files + type-check + docs check
-# lint-staged y tsc BLOQUEAN el commit si fallan.
-# check-docs-staleness.mjs NO bloquea — solo warning informativo.
-
 npx --no -- lint-staged || exit 1
 
 npx --no -- tsc --noEmit --incremental false -p apps/backend/tsconfig.json && \
   npx --no -- tsc --noEmit --incremental false -p apps/frontend/tsconfig.json || exit 1
 
-# Docs staleness check (no-bloqueante)
+# Docs staleness check (no-bloqueante, solo warning informativo)
 node scripts/check-docs-staleness.mjs
