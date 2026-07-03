@@ -72,6 +72,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Sync live source tree with master
+        # The runner is on the droplet but the LIVE deployment lives at
+        # /opt/onchain-bot (not the runner's checkout at
+        # /opt/actions-runner/_work/...). The Docker build context uses
+        # /opt/onchain-bot, so we must pull the latest master there
+        # BEFORE building — otherwise the build uses stale source from
+        # the previous deploy.
+        run: |
+          set -euo pipefail
+          cd /opt/onchain-bot
+          echo "=== Pre-pull HEAD ==="
+          git rev-parse HEAD
+          echo "=== Pulling origin/master ==="
+          git pull --ff-only origin master
+          echo "=== Post-pull HEAD ==="
+          git rev-parse HEAD
+
       - name: Backup database
         # Runner is the 'runner' user; .env.production is chmod 644
         # (readable). The docker postgres container exposes

@@ -60,6 +60,12 @@ export class CryptoNewsSeeder {
       try {
         const existing = await this.sourceRepo.findByChannelId(seed.channelId);
         if (existing) {
+          // Activate any pre-existing source that was registered before
+          // this fix shipped, so the listener subscribes to it.
+          if (!existing.isActive) {
+            existing.activate();
+            await this.sourceRepo.save(existing);
+          }
           skipped += 1;
           continue;
         }
@@ -71,11 +77,16 @@ export class CryptoNewsSeeder {
         );
 
         try {
-          await this.registerSource.execute({
+          const source = await this.registerSource.execute({
             channelId: seed.channelId,
             handle,
             title,
           });
+          // CryptoNewsSource.create() initializes isActive=false; the
+          // seeder activates the source so IngestionCoordinator picks it
+          // up via findActive() and the listener subscribes.
+          source.activate();
+          await this.sourceRepo.save(source);
           added += 1;
         } catch (err) {
           if (err instanceof DomainError && err.code === ErrorCode.CONFLICT) {
