@@ -14,7 +14,11 @@ services:
     volumes:
       - onchain-bot-pg-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-alpha_meta_token_scanner} -d ${POSTGRES_DB:-alpha_meta_token_scanner}"]
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-alpha_meta_token_scanner} -d ${POSTGRES_DB:-alpha_meta_token_scanner}',
+        ]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -24,7 +28,7 @@ services:
     # exposes the port inside the compose network, which the runner
     # can't see (the runner is a host process, not in the network).
     ports:
-      - "127.0.0.1:5432:5432"
+      - '127.0.0.1:5432:5432'
     deploy:
       resources:
         limits:
@@ -42,14 +46,14 @@ services:
     volumes:
       - onchain-bot-redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'ping']
       interval: 5s
       timeout: 3s
       retries: 10
     # Same reason as the postgres ports binding — the self-hosted
     # runner runs tests that need to reach redis on the host loopback.
     ports:
-      - "127.0.0.1:6379:6379"
+      - '127.0.0.1:6379:6379'
     deploy:
       resources:
         limits:
@@ -65,7 +69,24 @@ services:
     restart: unless-stopped
     env_file:
       - .env.production
+    # crypto-news media persistence (fix-1 / "Media volatile on deploy")
+    # ---------------------------------------------------------------
+    # The MTProto listener downloads Telegram photos and writes them to
+    # `uploads/crypto-news/media/...` inside the container. Without this
+    # bind mount, every `docker compose build --no-cache` (run by the
+    # deploy workflow) wipes them — the container's filesystem is
+    # ephemeral. Binding the host's `./uploads` to `/app/uploads` makes
+    # the media survive rebuilds.
+    #
+    # PERMS NOTE: the backend image runs as the `node` user (UID 1000,
+    # see apps/backend/Dockerfile). The host's `./uploads` directory
+    # must therefore be writable by UID 1000 (e.g. `chown 1000:1000
+    # apps/backend/uploads` once on the droplet). Bind-mounts create the
+    # target directory automatically on first run if it does not exist,
+    # but it will be owned by root in that case — create it beforehand
+    # with the correct ownership.
     volumes:
+      - ./uploads:/app/uploads # crypto-news media persistence (MountPoint)
       - ./config:/app/config:ro
     environment:
       POSTGRES_HOST: postgres
@@ -75,14 +96,22 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     ports:
-      - "127.0.0.1:3030:3030"
+      - '127.0.0.1:3030:3030'
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3030/api/health"]
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '--spider',
+          'http://localhost:3030/api/health',
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -101,11 +130,19 @@ services:
     container_name: onchain-bot-frontend
     restart: unless-stopped
     ports:
-      - "127.0.0.1:5173:80"
+      - '127.0.0.1:5173:80'
     depends_on:
       - backend
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '--spider',
+          'http://localhost/',
+        ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -127,3 +164,11 @@ volumes:
     name: onchain-bot-pg-data
   onchain-bot-redis-data:
     name: onchain-bot-redis-data
+  # NOTE: the backend's `uploads` directory is intentionally a BIND
+  # mount (host → container), not a named volume. Named volumes would
+  # put the data inside Docker's volume store where the deploy workflow
+  # can't easily inspect/backup it; the bind mount keeps the media on
+  # the droplet filesystem alongside the rest of the app data, which
+  # is what `scripts/backup-db.sh` and `apps/backend/.env.production`
+  # already expect. If you ever migrate to a named volume, update the
+  # deploy workflow to back up that volume too.
