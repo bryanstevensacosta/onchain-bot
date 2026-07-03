@@ -41,10 +41,18 @@ node_modules/
 # .omo/drafts/ and .omo/plans/ are tracked (planning docs)
 .omo/run-continuation/
 .omo/evidence/
+.omo/notepads/
+.omo/start-work/
 .sisyphus/evidence/
 
 # Playwright MCP screenshots / snapshots / console logs (dev artifacts)
 .playwright-mcp/
+
+# Local screenshots (dev artifacts, root only)
+/*.png
+
+# Generated helpers (ts-node register script, etc.)
+apps/backend/scripts/.register.cjs
 
 # Backend logs
 apps/backend/logs/
