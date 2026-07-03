@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { MonitoredCallRecord } from '../ports/monitored-call.repository';
-import { NotifiedAchievementRepository } from '../ports/notified-achievement.repository';
 import { AchievementCachePort } from '../ports/achievement-cache.port';
 import { AchievementEventPublisher } from '../ports/achievement-event.publisher';
 import {
@@ -14,37 +13,35 @@ export interface RecordNotifiedAchievementInput {
   currentMc: number;
 }
 
-export interface RecordNotifiedAchievementResult {
-  recorded: boolean;
-  event?: CallAchievementReachedEvent;
-}
-
+/**
+ * Best-effort: announces that a milestone threshold was crossed for a call.
+ *
+ * Persistence of the notified record is now owned by `vip-achievement` — the
+ * authoritative dedup happens downstream in the `AchievementReachedHandler`
+ * via the atomic `(callId, threshold)` constraint. This use case is now a
+ * thin orchestrator that:
+ *
+ *   1. Memoizes the threshold in the cache so `EvaluateActiveCallsUseCase`
+ *      skips it on subsequent ticks (best-effort, not authoritative).
+ *   2. Emits `CallAchievementReachedEvent` — the event bridge to vip-achievement.
+ *
+ * Returns void: duplicate detection is the handler's responsibility. Callers
+ * that need to know whether the event was actually persisted should listen
+ * on the vip-achievement side, not check this return value.
+ */
 @Injectable()
 export class RecordNotifiedAchievementUseCase {
   private readonly logger = new Logger(RecordNotifiedAchievementUseCase.name);
 
   constructor(
-    private readonly repo: NotifiedAchievementRepository,
     private readonly cache: AchievementCachePort,
     private readonly publisher: AchievementEventPublisher,
   ) {}
 
-  async execute(
-    input: RecordNotifiedAchievementInput,
-  ): Promise<RecordNotifiedAchievementResult> {
+  async execute(input: RecordNotifiedAchievementInput): Promise<void> {
     const { monitoredCall, threshold, currentMc } = input;
     const callId = monitoredCall.callId;
-
-    const alreadyExists = await this.repo.existsByCallAndThreshold(
-      callId,
-      threshold,
-    );
-    if (alreadyExists) {
-      return { recorded: false };
-    }
-
     const notifiedAt = new Date();
-    await this.repo.save({ callId, threshold, notifiedAt });
 
     try {
       await this.cache.addNotifiedThreshold(callId, threshold);
@@ -65,7 +62,5 @@ export class RecordNotifiedAchievementUseCase {
     };
     const event = new CallAchievementReachedEvent(callId, payload);
     await this.publisher.publish(event);
-
-    return { recorded: true, event };
   }
 }

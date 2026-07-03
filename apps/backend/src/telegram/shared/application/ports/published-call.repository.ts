@@ -42,22 +42,18 @@ export abstract class PublishedCallRepository {
     limit: number,
   ): Promise<ReadonlyArray<PublishedCall>>;
   public abstract countPublished(): Promise<number>;
+
   public abstract tryReserve(
     payload: ReservePayload,
   ): Promise<TryReserveResult>;
-  public abstract finalize(id: string, payload: FinalizePayload): Promise<void>;
+
+  public abstract finalize(
+    id: string,
+    payload: FinalizePayload,
+  ): Promise<void>;
+
   public abstract markFailed(id: string, reason: string): Promise<void>;
 
-  /**
-   * Return RESERVED rows whose `reservedAt` is older than `olderThanMs`
-   * milliseconds, ordered oldest-first and capped at `limit`.
-   *
-   * Used by the reconciler to finalize rows that got stuck between the
-   * Telegram `sendMessage` call and the `finalize()` UPDATE (e.g. process
-   * kill, network drop, finalize throwing). The use case decides whether
-   * to mark each as PUBLISHED (when the Telegram id is already known)
-   * or FAILED (when sendMessage never returned).
-   */
   public abstract findStuckReservations(
     olderThanMs: number,
     limit: number,

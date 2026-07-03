@@ -19,6 +19,26 @@ export interface PublishInput {
   readonly telegramMessageId?: number | null;
 }
 
+interface PublishedCallProps {
+  readonly chain: ChainId;
+  readonly address: string;
+  readonly ticker: string | null;
+  readonly score: number;
+  readonly tier: string;
+  readonly classification: string;
+  readonly message: string;
+  readonly targetChannels: ReadonlyArray<string>;
+  status: PublishStatus;
+  publishedChannelIds: ReadonlyArray<string>;
+  failedChannelIds: ReadonlyArray<string>;
+  publishedAt: Date | null;
+  readonly mcAtCall: number | null;
+  telegramMessageId: number | null;
+  readonly reservedAt: Date;
+  readonly correlationId: string;
+  failedReason: string | null;
+}
+
 export interface ReserveInput {
   readonly chain: ChainId;
   readonly address: string;
@@ -32,30 +52,7 @@ export interface ReserveInput {
   readonly correlationId: string;
 }
 
-interface PublishedCallProps {
-  readonly chain: ChainId;
-  readonly address: string;
-  readonly ticker: string | null;
-  readonly score: number;
-  readonly tier: string;
-  readonly classification: string;
-  readonly message: string;
-  readonly targetChannels: ReadonlyArray<string>;
-  status: PublishStatus;
-  publishedChannelIds: ReadonlyArray<string>;
-  failedChannelIds: ReadonlyArray<string>;
-  publishedAt: Date;
-  readonly mcAtCall: number | null;
-  telegramMessageId: number | null;
-  readonly reservedAt: Date;
-  readonly correlationId: string | null;
-  failedReason: string | null;
-}
-
 export class PublishedCall extends AggregateRoot<string> {
-  // State is intentionally non-readonly so that lifecycle methods
-  // (markPublished / markFailed) can mutate it in place. Callers
-  // should not depend on field identity; use the public getters.
   private state: PublishedCallProps;
 
   protected constructor(id: string, props: PublishedCallProps) {
@@ -101,12 +98,24 @@ export class PublishedCall extends AggregateRoot<string> {
       mcAtCall: input.mcAtCall ?? null,
       telegramMessageId: input.telegramMessageId ?? null,
       reservedAt: now,
-      correlationId: null,
+      correlationId: 'legacy',
       failedReason: null,
     });
   }
 
   public static reserve(input: ReserveInput): PublishedCall {
+    if (!input.address) {
+      throw new DomainError(ErrorCode.VALIDATION, `address cannot be empty`);
+    }
+    if (!input.message.trim()) {
+      throw new DomainError(ErrorCode.VALIDATION, `message cannot be empty`);
+    }
+    if (!input.correlationId) {
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        `correlationId cannot be empty`,
+      );
+    }
     const normalizedAddress = input.chain.isSolana
       ? input.address
       : input.address.toLowerCase();
@@ -123,7 +132,7 @@ export class PublishedCall extends AggregateRoot<string> {
       status: PublishStatus.RESERVED,
       publishedChannelIds: Object.freeze([]),
       failedChannelIds: Object.freeze([]),
-      publishedAt: new Date(),
+      publishedAt: null,
       mcAtCall: input.mcAtCall,
       telegramMessageId: null,
       reservedAt: new Date(),
@@ -145,13 +154,14 @@ export class PublishedCall extends AggregateRoot<string> {
     status: PublishStatus;
     publishedChannelIds: ReadonlyArray<string>;
     failedChannelIds: ReadonlyArray<string>;
-    publishedAt: Date;
+    publishedAt: Date | null;
     mcAtCall?: number | null;
     telegramMessageId?: number | null;
     reservedAt?: Date;
-    correlationId?: string | null;
+    correlationId?: string;
     failedReason?: string | null;
   }): PublishedCall {
+    const reservedAt = input.reservedAt ?? input.publishedAt ?? new Date(0);
     return new PublishedCall(input.id, {
       chain: input.chain,
       address: input.address,
@@ -167,8 +177,8 @@ export class PublishedCall extends AggregateRoot<string> {
       publishedAt: input.publishedAt,
       mcAtCall: input.mcAtCall ?? null,
       telegramMessageId: input.telegramMessageId ?? null,
-      reservedAt: input.reservedAt ?? input.publishedAt,
-      correlationId: input.correlationId ?? null,
+      reservedAt,
+      correlationId: input.correlationId ?? 'rehydrated',
       failedReason: input.failedReason ?? null,
     });
   }
@@ -206,7 +216,7 @@ export class PublishedCall extends AggregateRoot<string> {
   public get failedChannelIds(): ReadonlyArray<string> {
     return this.state.failedChannelIds;
   }
-  public get publishedAt(): Date {
+  public get publishedAt(): Date | null {
     return this.state.publishedAt;
   }
   public get mcAtCall(): number | null {
@@ -214,15 +224,6 @@ export class PublishedCall extends AggregateRoot<string> {
   }
   public get telegramMessageId(): number | null {
     return this.state.telegramMessageId;
-  }
-  public get reservedAt(): Date {
-    return this.state.reservedAt;
-  }
-  public get correlationId(): string | null {
-    return this.state.correlationId;
-  }
-  public get failedReason(): string | null {
-    return this.state.failedReason;
   }
   public get isPublished(): boolean {
     return this.state.status.value === 'PUBLISHED';
@@ -236,23 +237,33 @@ export class PublishedCall extends AggregateRoot<string> {
   public get successCount(): number {
     return this.state.publishedChannelIds.length;
   }
+  public get reservedAt(): Date {
+    return this.state.reservedAt;
+  }
+  public get correlationId(): string {
+    return this.state.correlationId;
+  }
+  public get failedReason(): string | null {
+    return this.state.failedReason;
+  }
 
-  /**
-   * Transition RESERVED → PUBLISHED. Sets the Telegram message id and
-   * `publishedAt` to now, then emits `CallPublishedEvent` via the
-   * `apply` queue so the use case can publish it after the row is
-   * committed to the database.
-   *
-   * Throws `DomainError` (code: VALIDATION) if the aggregate is not
-   * in RESERVED state — this enforces the state machine invariant
-   * (no double-publish, no skip-from-RESERVED).
-   */
   public markPublished(telegramMessageId: number): void {
     if (this.state.status.value !== 'RESERVED') {
       throw new DomainError(
+        ErrorCode.CONFLICT,
+        `Cannot mark published: aggregate is in ${this.state.status.value} state (expected RESERVED)`,
+        {
+          id: this.id,
+          status: this.state.status.value,
+          telegramMessageId,
+        },
+      );
+    }
+    if (!Number.isFinite(telegramMessageId)) {
+      throw new DomainError(
         ErrorCode.VALIDATION,
-        `INVALID_STATE_TRANSITION: markPublished requires RESERVED status, got ${this.state.status.value}`,
-        { currentStatus: this.state.status.value },
+        `telegramMessageId must be a finite number`,
+        { id: this.id, telegramMessageId },
       );
     }
     this.state.status = PublishStatus.PUBLISHED;
@@ -262,7 +273,7 @@ export class PublishedCall extends AggregateRoot<string> {
       ...this.state.targetChannels,
     ]);
     this.state.failedChannelIds = Object.freeze([]);
-
+    this.state.failedReason = null;
     this.apply(
       new CallPublishedEvent({
         chain: this.state.chain.value,
@@ -271,39 +282,46 @@ export class PublishedCall extends AggregateRoot<string> {
         score: this.state.score,
         tier: this.state.tier,
         classification: this.state.classification,
-        publishedChannelIds: [...this.state.targetChannels],
+        publishedChannelIds: [...this.state.publishedChannelIds],
         publishedAt: this.state.publishedAt,
       }),
     );
   }
 
-  /**
-   * Transition RESERVED → FAILED. Records `failedReason` and emits
-   * `CallPublishFailedEvent`. Idempotent only in the sense that calling
-   * it from a non-RESERVED state throws — concurrent callers must
-   * serialize at the repository level.
-   */
   public markFailed(reason: string): void {
     if (this.state.status.value !== 'RESERVED') {
       throw new DomainError(
+        ErrorCode.CONFLICT,
+        `Cannot mark failed: aggregate is in ${this.state.status.value} state (expected RESERVED)`,
+        {
+          id: this.id,
+          status: this.state.status.value,
+          reason,
+        },
+      );
+    }
+    if (!reason || !reason.trim()) {
+      throw new DomainError(
         ErrorCode.VALIDATION,
-        `INVALID_STATE_TRANSITION: markFailed requires RESERVED status, got ${this.state.status.value}`,
-        { currentStatus: this.state.status.value },
+        `failed reason cannot be empty`,
+        { id: this.id },
       );
     }
     this.state.status = PublishStatus.FAILED;
-    this.state.failedReason = reason;
+    this.state.publishedAt = new Date();
     this.state.publishedChannelIds = Object.freeze([]);
-    this.state.failedChannelIds = Object.freeze([...this.state.targetChannels]);
-
+    this.state.failedChannelIds = Object.freeze([
+      ...this.state.targetChannels,
+    ]);
+    this.state.failedReason = reason;
     this.apply(
       new CallPublishFailedEvent({
         chain: this.state.chain.value,
         address: this.state.address,
         score: this.state.score,
         targetChannels: [...this.state.targetChannels],
-        failedChannelIds: [...this.state.targetChannels],
-        failedAt: new Date(),
+        failedChannelIds: [...this.state.failedChannelIds],
+        failedAt: this.state.publishedAt,
       }),
     );
   }
@@ -319,10 +337,10 @@ export class PublishedCall extends AggregateRoot<string> {
           tier: this.state.tier,
           classification: this.state.classification,
           publishedChannelIds: [...this.state.publishedChannelIds],
-          publishedAt: this.state.publishedAt,
+          publishedAt: this.state.publishedAt ?? new Date(),
         }),
       );
-    } else if (this.isFailed) {
+    } else {
       this.apply(
         new CallPublishFailedEvent({
           chain: this.state.chain.value,
@@ -330,7 +348,7 @@ export class PublishedCall extends AggregateRoot<string> {
           score: this.state.score,
           targetChannels: [...this.state.targetChannels],
           failedChannelIds: [...this.state.failedChannelIds],
-          failedAt: this.state.publishedAt,
+          failedAt: this.state.publishedAt ?? this.state.reservedAt,
         }),
       );
     }

@@ -1,36 +1,9 @@
 import { RecordNotifiedAchievementUseCase } from './record-notified-achievement.use-case';
-import {
-  NotifiedAchievementRepository,
-  NotifiedAchievementRecord,
-} from '../ports/notified-achievement.repository';
 import { AchievementCachePort } from '../ports/achievement-cache.port';
 import { AchievementEventPublisher } from '../ports/achievement-event.publisher';
 import { DomainEvent } from 'shared/kernel/domain-event';
 import { MonitoredCallRecord } from '../ports/monitored-call.repository';
 import { CallAchievementReachedEvent } from '../../domain/events/call-achievement-reached.event';
-
-class FakeRepo extends NotifiedAchievementRepository {
-  public exists = false;
-  public saved: NotifiedAchievementRecord[] = [];
-  async findByCall(): Promise<NotifiedAchievementRecord[]> {
-    return [];
-  }
-  async findThresholdsForCall(): Promise<number[]> {
-    return [];
-  }
-  async existsByCallAndThreshold(): Promise<boolean> {
-    return this.exists;
-  }
-  async save(
-    rec: NotifiedAchievementRecord,
-  ): Promise<NotifiedAchievementRecord> {
-    this.saved.push(rec);
-    return rec;
-  }
-  async countByCall(): Promise<number> {
-    return 0;
-  }
-}
 
 class FakeCache extends AchievementCachePort {
   public added: Array<{ callId: string; threshold: number }> = [];
@@ -39,6 +12,16 @@ class FakeCache extends AchievementCachePort {
   }
   async addNotifiedThreshold(callId: string, threshold: number): Promise<void> {
     this.added.push({ callId, threshold });
+  }
+  async invalidateCall(): Promise<void> {}
+}
+
+class FailingCache extends AchievementCachePort {
+  async getNotifiedThresholds(): Promise<Set<number>> {
+    return new Set();
+  }
+  async addNotifiedThreshold(): Promise<void> {
+    throw new Error('redis down');
   }
   async invalidateCall(): Promise<void> {}
 }
@@ -62,84 +45,29 @@ function makeCall(): MonitoredCallRecord {
 }
 
 describe('RecordNotifiedAchievementUseCase', () => {
-  it('records new achievement and emits event', async () => {
-    const repo = new FakeRepo();
+  it('updates the cache with the notified threshold', async () => {
     const cache = new FakeCache();
     const publisher = new FakePublisher();
-    const uc = new RecordNotifiedAchievementUseCase(repo, cache, publisher);
-
-    const result = await uc.execute({
-      monitoredCall: makeCall(),
-      threshold: 2,
-      currentMc: 25000,
-    });
-
-    expect(result.recorded).toBe(true);
-    expect(repo.saved).toHaveLength(1);
-    expect(publisher.events).toHaveLength(1);
-    expect(
-      (publisher.events[0] as unknown as CallAchievementReachedEvent).payload
-        .multiple,
-    ).toBe(2);
-  });
-
-  it('skips when already exists in DB', async () => {
-    const repo = new FakeRepo();
-    repo.exists = true;
-    const cache = new FakeCache();
-    const publisher = new FakePublisher();
-    const uc = new RecordNotifiedAchievementUseCase(repo, cache, publisher);
-
-    const result = await uc.execute({
-      monitoredCall: makeCall(),
-      threshold: 2,
-      currentMc: 25000,
-    });
-
-    expect(result.recorded).toBe(false);
-    expect(repo.saved).toHaveLength(0);
-    expect(publisher.events).toHaveLength(0);
-  });
-
-  it('updates cache after save', async () => {
-    const repo = new FakeRepo();
-    const cache = new FakeCache();
-    const publisher = new FakePublisher();
-    const uc = new RecordNotifiedAchievementUseCase(repo, cache, publisher);
+    const uc = new RecordNotifiedAchievementUseCase(cache, publisher);
 
     await uc.execute({
       monitoredCall: makeCall(),
-      threshold: 3,
-      currentMc: 30000,
+      threshold: 2,
+      currentMc: 25000,
     });
 
-    expect(cache.added).toEqual([{ callId: 'call-1', threshold: 3 }]);
+    expect(cache.added).toEqual([{ callId: 'call-1', threshold: 2 }]);
   });
 
-  it('does not throw on cache failure', async () => {
-    const repo = new FakeRepo();
-    const cache = new FailingCache();
-    const publisher = new FakePublisher();
-    const uc = new RecordNotifiedAchievementUseCase(repo, cache, publisher);
-
-    const result = await uc.execute({
-      monitoredCall: makeCall(),
-      threshold: 4,
-      currentMc: 40000,
-    });
-    expect(result.recorded).toBe(true);
-    expect(publisher.events).toHaveLength(1);
-  });
-
-  it('emits correct event payload', async () => {
-    const repo = new FakeRepo();
+  it('emits a CallAchievementReachedEvent with correct payload', async () => {
     const cache = new FakeCache();
     const publisher = new FakePublisher();
-    const uc = new RecordNotifiedAchievementUseCase(repo, cache, publisher);
+    const uc = new RecordNotifiedAchievementUseCase(cache, publisher);
 
     const call = makeCall();
     await uc.execute({ monitoredCall: call, threshold: 5, currentMc: 50000 });
 
+    expect(publisher.events).toHaveLength(1);
     const evt = publisher.events[0] as unknown as CallAchievementReachedEvent;
     expect(evt.payload.callId).toBe('call-1');
     expect(evt.payload.chain).toBe('solana');
@@ -149,14 +77,58 @@ describe('RecordNotifiedAchievementUseCase', () => {
     expect(evt.payload.mcNow).toBe(50000);
     expect(typeof evt.payload.notifiedAt).toBe('string');
   });
-});
 
-class FailingCache extends AchievementCachePort {
-  async getNotifiedThresholds(): Promise<Set<number>> {
-    return new Set();
-  }
-  async addNotifiedThreshold(): Promise<void> {
-    throw new Error('redis down');
-  }
-  async invalidateCall(): Promise<void> {}
-}
+  it('does not throw when the cache fails (best-effort, event still emitted)', async () => {
+    const cache = new FailingCache();
+    const publisher = new FakePublisher();
+    const uc = new RecordNotifiedAchievementUseCase(cache, publisher);
+
+    await expect(
+      uc.execute({
+        monitoredCall: makeCall(),
+        threshold: 4,
+        currentMc: 40000,
+      }),
+    ).resolves.toBeUndefined();
+    expect(publisher.events).toHaveLength(1);
+  });
+
+  it('returns void (no recorded-flag — dedup is downstream responsibility)', async () => {
+    const cache = new FakeCache();
+    const publisher = new FakePublisher();
+    const uc = new RecordNotifiedAchievementUseCase(cache, publisher);
+
+    const result = await uc.execute({
+      monitoredCall: makeCall(),
+      threshold: 2,
+      currentMc: 25000,
+    });
+
+    expect(result).toBeUndefined();
+  });
+
+  it('updates the cache for each invocation regardless of duplicates (best-effort)', async () => {
+    const cache = new FakeCache();
+    const publisher = new FakePublisher();
+    const uc = new RecordNotifiedAchievementUseCase(cache, publisher);
+
+    // Authoritative dedup is downstream — this use case is intentionally idempotent
+    // only in the sense that the cache update is a no-op for already-present entries.
+    await uc.execute({
+      monitoredCall: makeCall(),
+      threshold: 3,
+      currentMc: 30000,
+    });
+    await uc.execute({
+      monitoredCall: makeCall(),
+      threshold: 3,
+      currentMc: 30000,
+    });
+
+    expect(cache.added).toEqual([
+      { callId: 'call-1', threshold: 3 },
+      { callId: 'call-1', threshold: 3 },
+    ]);
+    expect(publisher.events).toHaveLength(2);
+  });
+});

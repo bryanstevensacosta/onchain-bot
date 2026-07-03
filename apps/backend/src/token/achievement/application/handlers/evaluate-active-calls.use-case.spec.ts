@@ -10,7 +10,6 @@ import {
 } from '../ports/achievement-threshold.repository';
 import { LiveMarketDataPort } from '../ports/live-market-data.port';
 import { AchievementCachePort } from '../ports/achievement-cache.port';
-import { NotifiedAchievementRepository } from '../ports/notified-achievement.repository';
 import { DetectCrossedAchievementsService } from '../services/detect-crossed-achievements.service';
 import { ConfigService } from '@nestjs/config';
 
@@ -75,7 +74,9 @@ class FakeMarketData extends LiveMarketDataPort {
 
 class FakeCache extends AchievementCachePort {
   public map: Map<string, Set<number>> = new Map();
+  public getCalls = 0;
   async getNotifiedThresholds(callId: string): Promise<Set<number>> {
+    this.getCalls++;
     return new Set(this.map.get(callId) ?? []);
   }
   async addNotifiedThreshold(callId: string, threshold: number): Promise<void> {
@@ -86,25 +87,6 @@ class FakeCache extends AchievementCachePort {
   async invalidateCall(): Promise<void> {}
 }
 
-class FakeNotifiedRepo extends NotifiedAchievementRepository {
-  public map: Map<string, Set<number>> = new Map();
-  async findByCall(): Promise<any[]> {
-    return [];
-  }
-  async findThresholdsForCall(callId: string): Promise<number[]> {
-    return [...(this.map.get(callId) ?? [])];
-  }
-  async existsByCallAndThreshold(): Promise<boolean> {
-    return false;
-  }
-  async save(): Promise<any> {
-    return null;
-  }
-  async countByCall(): Promise<number> {
-    return 0;
-  }
-}
-
 class FakeRecordUseCase {
   public calls: Array<{ threshold: number; mcNow: number }> = [];
   async execute(input: {
@@ -113,7 +95,6 @@ class FakeRecordUseCase {
     currentMc: number;
   }) {
     this.calls.push({ threshold: input.threshold, mcNow: input.currentMc });
-    return { recorded: true };
   }
 }
 
@@ -143,18 +124,19 @@ function callWithId(
 
 describe('EvaluateActiveCallsUseCase', () => {
   it('returns zeros when no active calls', async () => {
+    const cache = new FakeCache();
     const uc = new EvaluateActiveCallsUseCase(
       new FakeMonitoredRepo(),
       new FakeThresholdRepo(),
       new FakeMarketData(),
-      new FakeCache(),
-      new FakeNotifiedRepo(),
+      cache,
       new DetectCrossedAchievementsService(),
       new FakeRecordUseCase() as unknown as RecordNotifiedAchievementUseCase,
       makeConfig(),
     );
     const result = await uc.execute();
     expect(result).toEqual({ evaluated: 0, notified: 0, skipped: 0 });
+    expect(cache.getCalls).toBe(0);
   });
 
   it('skips call when mcNow is null', async () => {
@@ -166,7 +148,6 @@ describe('EvaluateActiveCallsUseCase', () => {
       new FakeThresholdRepo(),
       new FakeMarketData(),
       new FakeCache(),
-      new FakeNotifiedRepo(),
       new DetectCrossedAchievementsService(),
       record as unknown as RecordNotifiedAchievementUseCase,
       makeConfig(),
@@ -187,7 +168,6 @@ describe('EvaluateActiveCallsUseCase', () => {
       new FakeThresholdRepo(),
       market,
       new FakeCache(),
-      new FakeNotifiedRepo(),
       new DetectCrossedAchievementsService(),
       new FakeRecordUseCase() as unknown as RecordNotifiedAchievementUseCase,
       makeConfig(),
@@ -209,7 +189,6 @@ describe('EvaluateActiveCallsUseCase', () => {
       thresholds,
       market,
       new FakeCache(),
-      new FakeNotifiedRepo(),
       new DetectCrossedAchievementsService(),
       record as unknown as RecordNotifiedAchievementUseCase,
       makeConfig(),
@@ -219,7 +198,7 @@ describe('EvaluateActiveCallsUseCase', () => {
     expect(record.calls.map((c) => c.threshold)).toEqual([2, 3, 5]);
   });
 
-  it('merges cache + DB dedup sets correctly', async () => {
+  it('uses cache-only dedup (no DB repo consulted)', async () => {
     const monitored = new FakeMonitoredRepo();
     monitored.calls = [callWithId('c1', 1000, 1000)];
     const market = new FakeMarketData();
@@ -227,23 +206,24 @@ describe('EvaluateActiveCallsUseCase', () => {
     const thresholds = new FakeThresholdRepo();
     thresholds.records = [{ multiple: 2 }, { multiple: 3 }, { multiple: 5 }];
     const cache = new FakeCache();
+    // Mark 2x as already notified (cache-only path)
     cache.map.set('c1', new Set([2]));
-    const notified = new FakeNotifiedRepo();
-    notified.map.set('c1', new Set([3]));
     const record = new FakeRecordUseCase();
     const uc = new EvaluateActiveCallsUseCase(
       monitored,
       thresholds,
       market,
       cache,
-      notified,
       new DetectCrossedAchievementsService(),
       record as unknown as RecordNotifiedAchievementUseCase,
       makeConfig(),
     );
     const result = await uc.execute();
-    expect(result.notified).toBe(1);
-    expect(record.calls.map((c) => c.threshold)).toEqual([5]);
+    // 2x is deduped; 3x and 5x are recorded
+    expect(result.notified).toBe(2);
+    expect(record.calls.map((c) => c.threshold)).toEqual([3, 5]);
+    // Cache get was consulted (per-call)
+    expect(cache.getCalls).toBe(1);
   });
 
   it('updates lastEvaluatedAt on each call', async () => {
@@ -256,7 +236,6 @@ describe('EvaluateActiveCallsUseCase', () => {
       new FakeThresholdRepo(),
       market,
       new FakeCache(),
-      new FakeNotifiedRepo(),
       new DetectCrossedAchievementsService(),
       new FakeRecordUseCase() as unknown as RecordNotifiedAchievementUseCase,
       makeConfig(),
@@ -275,7 +254,6 @@ describe('EvaluateActiveCallsUseCase', () => {
       new FakeThresholdRepo(),
       market,
       new FakeCache(),
-      new FakeNotifiedRepo(),
       new DetectCrossedAchievementsService(),
       new FakeRecordUseCase() as unknown as RecordNotifiedAchievementUseCase,
       makeConfig(1),
