@@ -1,0 +1,36 @@
+{
+  // .docs-map.jsonc — Mapeo de directorios a AGENTS.md
+  // Cada entrada asocia un path a su AGENTS.md y nivel.
+  // El script check-docs-staleness.mjs usa este mapa para determinar
+  // qué AGENTS.md deben actualizarse al cambiar archivos.
+  //
+  // Niveles:
+  //   L0 = Proyecto root
+  //   L1 = App (backend, frontend)
+  //   L2 = Bounded Context (telegram, token, kol, ...) ← STOP level
+  //   L3 = Sub-BC (vip-calls, chain-dexter-bot, crypto-news, ...)
+  //   L4+ = Módulo interno (shared, ingestion, ...)
+  //
+  // Regla: al cambiar un archivo, se reportan todos los AGENTS.md
+  // desde el más cercano hasta L2 (inclusive). No se sube a L1 o L0.
+  "version": 1,
+  "maps": [
+    // L0 - Proyecto
+    { "path": "", "doc": "AGENTS.md", "level": 0 },
+
+    // L1 - Apps
+    { "path": "apps/backend", "doc": "apps/backend/AGENTS.md", "level": 1 },
+    { "path": "apps/frontend", "doc": "apps/frontend/AGENTS.md", "level": 1 },
+
+    // L2 - Bounded Contexts (backend)
+    { "path": "apps/backend/src/telegram", "doc": "apps/backend/src/telegram/AGENTS.md", "level": 2 },
+    { "path": "apps/backend/src/token", "doc": "apps/backend/src/token/AGENTS.md", "level": 2 },
+    { "path": "apps/backend/src/kol", "doc": "apps/backend/src/kol/AGENTS.md", "level": 2 },
+    { "path": "apps/backend/src/data-provider", "doc": "apps/backend/src/data-provider/AGENTS.md", "level": 2 },
+    { "path": "apps/backend/src/shared", "doc": "apps/backend/src/shared/AGENTS.md", "level": 2 },
+
+    // L3 - Sub-BC (backend)
+    { "path": "apps/backend/src/telegram/vip-calls", "doc": "apps/backend/src/telegram/vip-calls/AGENTS.md", "level": 3 }
+    // NOTA: cuando se creen nuevos AGENTS.md en L3 o L4+, agregar entradas aquí
+  ]
+}

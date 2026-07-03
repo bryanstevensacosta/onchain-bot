@@ -26,10 +26,16 @@
     "format": "prettier --write \"apps/*/src/**/*.{ts,tsx}\"",
     "docker:up": "docker compose -f apps/backend/docker-compose.yml up -d",
     "docker:down": "docker compose -f apps/backend/docker-compose.yml down",
-    "cleanup": "node scripts/cleanup-ports.mjs"
+    "cleanup": "node scripts/cleanup-ports.mjs",
+    "docs:check": "node scripts/check-docs-staleness.mjs",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
     "concurrently": "^9.1.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
     "prettier": "^3.4.2",
     "typescript": "^5.9.3"
   }
