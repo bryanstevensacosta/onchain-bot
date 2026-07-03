@@ -73,24 +73,29 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Sync live source tree with master
-        # The runner is on the droplet but the LIVE deployment lives at
-        # /opt/onchain-bot (not the runner's checkout at
-        # /opt/actions-runner/_work/...). The Docker build context uses
-        # /opt/onchain-bot, so we must pull the latest master there
-        # BEFORE building — otherwise the build uses stale source from
-        # the previous deploy. The 'safe.directory' whitelist is needed
-        # because the runner user doesn't own /opt/onchain-bot (git
-        # refuses unknown-ownership repos by default as a CVE mitigation).
+        # Build context is /opt/onchain-bot but the runner's checkout
+        # (with git credentials) is at /opt/actions-runner/_work/.../
+        # — so we rsync instead of 'git pull' (which would need global
+        # creds). --delete + excludes keeps the live tree's runtime
+        # state (node_modules, .env*, backups, logs, dist) intact.
         run: |
           set -euo pipefail
-          git config --global --add safe.directory /opt/onchain-bot
-          cd /opt/onchain-bot
-          echo "=== Pre-pull HEAD ==="
-          git rev-parse HEAD
-          echo "=== Pulling origin/master ==="
-          git pull --ff-only origin master
-          echo "=== Post-pull HEAD ==="
-          git rev-parse HEAD
+          rsync -a --delete \
+            --exclude='.git' \
+            --exclude='.git/**' \
+            --exclude='node_modules' \
+            --exclude='node_modules/**' \
+            --exclude='dist' \
+            --exclude='dist/**' \
+            --exclude='backups' \
+            --exclude='backups/**' \
+            --exclude='logs' \
+            --exclude='logs/**' \
+            --exclude='.env*' \
+            /opt/actions-runner/_work/onchain-bot/onchain-bot/ \
+            /opt/onchain-bot/
+          echo "=== Post-sync HEAD ==="
+          git -C /opt/onchain-bot rev-parse HEAD
 
       - name: Backup database
         # Runner is the 'runner' user; .env.production is chmod 644
