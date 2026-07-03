@@ -178,6 +178,41 @@ npm run docker:down
 1. **test** job: `npm ci` → `npm run test:backend` → `npm run test:frontend` → `npm run lint`
 2. **deploy** job (needs: test): `appleboy/ssh-action@v1` → on droplet: `git pull` → `backup-db.sh` → `docker compose build --no-cache` → `migration:run` → `up -d --force-recreate` → `curl :3030/api/health`
 
+## PRODUCTION DROPLET
+
+| Name | Host | IP | SSH Config |
+|------|------|-----|------------|
+| Production | CryptoGanster | 144.126.203.139 | SSH alias in VS Code Remote |
+
+### Quick Access (from local)
+
+```bash
+# SSH to droplet (via VS Code Remote or direct)
+ssh CryptoGanster
+
+# Or direct IP
+ssh root@144.126.203.139
+```
+
+### Production Commands
+
+```bash
+# Logs
+docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml logs backend --tail 100
+
+# Restart
+docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml restart backend
+
+# Health check
+curl -s http://localhost:3030/api/health
+
+# Recent published calls
+curl -s http://localhost:3030/api/vip-calls/calls/recent?limit=5
+
+# Failed calls
+curl -s http://localhost:3030/api/vip-calls/calls/failed?limit=10
+```
+
 > **Security:** Never commit production credentials. SSH access details, tokens, and passwords belong in `.env` files (gitignored) or password managers — not in this knowledge base.
 
 ## NOTES

@@ -18,8 +18,13 @@ export interface SeedCryptoNewsChannel {
 }
 
 export const CRYPTO_NEWS_SEED: ReadonlyArray<SeedCryptoNewsChannel> = [
-  // Placeholder — user to fill in actual crypto-news channel IDs.
-  // Example:
-  // { channelId: '1000000001', title: 'CoinDesk' },
-  // { channelId: '1000000002', title: 'CoinTelegraph' },
+  { channelId: '1811915252', handle: 'shoalresearch', title: 'shoalresearch' },
+  { channelId: '1556054753', handle: 'WatcherGuru', title: 'WatcherGuru' },
+  { channelId: '1072723547', handle: 'cointelegraph', title: 'cointelegraph' },
+  {
+    channelId: '2207386483',
+    handle: 'lookonchainchannel',
+    title: 'lookonchainchannel',
+  },
+  { channelId: '1569666929', handle: 'unfolded_defi', title: 'unfolded_defi' },
 ];

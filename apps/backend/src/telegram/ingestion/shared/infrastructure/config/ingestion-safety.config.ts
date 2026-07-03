@@ -20,7 +20,9 @@ const CONFIG_PATH = join(process.cwd(), 'config', 'ingestion.config.json');
 function loadConfigFromFile(): IngestionConfigJson | null {
   if (!existsSync(CONFIG_PATH)) return null;
   try {
-    return JSON.parse(readFileSync(CONFIG_PATH, 'utf-8')) as IngestionConfigJson;
+    return JSON.parse(
+      readFileSync(CONFIG_PATH, 'utf-8'),
+    ) as IngestionConfigJson;
   } catch {
     return null;
   }

@@ -56,7 +56,8 @@ export const ENDPOINTS = {
     recent: '/token/vip-call-approval/decisions/recent',
     byToken: (chain: string, address: string) =>
       `/token/vip-call-approval/decisions/${chain}/${address}`,
-    decisionsRejectedVerify: '/token/vip-call-approval/decisions/rejected/verify',
+    decisionsRejectedVerify:
+      '/token/vip-call-approval/decisions/rejected/verify',
     reprocessBatch: '/token/vip-call-approval/reprocess/rejected',
     reprocessOne: (chain: string, address: string) =>
       `/token/vip-call-approval/reprocess/${chain}/${address}`,
