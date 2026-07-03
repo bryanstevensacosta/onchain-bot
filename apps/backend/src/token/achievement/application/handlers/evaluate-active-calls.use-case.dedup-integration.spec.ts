@@ -13,7 +13,6 @@ import { LiveMarketDataPort } from '../ports/live-market-data.port';
 import { AchievementCachePort } from '../ports/achievement-cache.port';
 import { AchievementEventPublisher } from '../ports/achievement-event.publisher';
 import { DetectCrossedAchievementsService } from '../services/detect-crossed-achievements.service';
-import { InMemoryNotifiedAchievementRepository } from '../../infrastructure/repositories/in-memory-notified-achievement.repository';
 import { DomainEvent } from 'shared/kernel/domain-event';
 
 class FakeMonitoredRepo extends MonitoredCallRepository {
@@ -47,7 +46,7 @@ class FakeThresholdRepo extends AchievementThresholdRepository {
   constructor(thresholds: number[]) {
     super();
     this.records = thresholds.map((t) => ({
-      id: `id-${t}`,
+      id: t,
       multiple: t,
       enabled: true,
     }));
@@ -136,7 +135,6 @@ function makeCall(callId: string, mcAtCall: number): MonitoredCallRecord {
 }
 
 function buildUseCase(
-  notifiedRepo: InMemoryNotifiedAchievementRepository,
   overrides: {
     cache?: FakeCache;
     cacheGetShouldThrow?: boolean;
@@ -157,43 +155,38 @@ function buildUseCase(
     ((): FakeCache => {
       const c = new FakeCache();
       if (overrides.cacheGetShouldThrow) {
-        const originalGet = c.getNotifiedThresholds.bind(c);
         c.getNotifiedThresholds = async (): Promise<Set<number>> => {
           throw new Error('redis read failed');
         };
-        void originalGet;
       }
       return c;
     })();
   const detector = new DetectCrossedAchievementsService();
   const publisher = new FakePublisher();
-  const recordUseCase = new RecordNotifiedAchievementUseCase(
-    notifiedRepo,
-    cache,
-    publisher,
-  );
+  // RecordNotifiedAchievementUseCase no longer depends on a DB repo —
+  // dedup is downstream in vip-achievement's handler. This use case is a
+  // thin orchestrator: cache memo + event publish.
+  const recordUseCase = new RecordNotifiedAchievementUseCase(cache, publisher);
   const config = new FakeConfig() as unknown as ConfigService;
   const useCase = new EvaluateActiveCallsUseCase(
     monitoredRepo,
     thresholdRepo,
     marketData,
     cache,
-    notifiedRepo,
     detector,
     recordUseCase,
     config,
   );
-  return { useCase, monitoredRepo, cache, publisher, notifiedRepo };
+  return { useCase, monitoredRepo, cache, publisher, recordUseCase };
 }
 
-describe('EvaluateActiveCallsUseCase — Redis dedup integration', () => {
-  describe('cache + DB union dedup', () => {
+describe('EvaluateActiveCallsUseCase — cache-only dedup integration', () => {
+  describe('cache-only dedup', () => {
     it('does NOT re-record when threshold is in cache only', async () => {
-      const notifiedRepo = new InMemoryNotifiedAchievementRepository();
       const cache = new FakeCache();
       cache.map.set('call-1', new Set([2]));
       const mcMap = new Map([['solana:abc', 25000]]); // 2.5x
-      const { useCase, publisher } = buildUseCase(notifiedRepo, {
+      const { useCase, publisher } = buildUseCase({
         cache,
         monitoredCalls: [makeCall('call-1', 10000)],
         mcMap,
@@ -205,59 +198,10 @@ describe('EvaluateActiveCallsUseCase — Redis dedup integration', () => {
       expect(publisher.events).toHaveLength(0);
     });
 
-    it('does NOT re-record when ALL crossed thresholds are in DB only', async () => {
-      const notifiedRepo = new InMemoryNotifiedAchievementRepository();
-      await notifiedRepo.save({
-        callId: 'call-1',
-        threshold: 2,
-        notifiedAt: new Date(),
-      });
-      await notifiedRepo.save({
-        callId: 'call-1',
-        threshold: 3,
-        notifiedAt: new Date(),
-      });
-      const cache = new FakeCache();
-      const mcMap = new Map([['solana:abc', 35000]]);
-      const { useCase, publisher } = buildUseCase(notifiedRepo, {
-        cache,
-        monitoredCalls: [makeCall('call-1', 10000)],
-        mcMap,
-      });
-
-      const result = await useCase.execute();
-
-      expect(result.notified).toBe(0);
-      expect(publisher.events).toHaveLength(0);
-    });
-
-    it('does NOT re-record when threshold is in both cache and DB (deduplicated union)', async () => {
-      const notifiedRepo = new InMemoryNotifiedAchievementRepository();
-      await notifiedRepo.save({
-        callId: 'call-1',
-        threshold: 2,
-        notifiedAt: new Date(),
-      });
-      const cache = new FakeCache();
-      cache.map.set('call-1', new Set([2]));
-      const mcMap = new Map([['solana:abc', 25000]]); // 2.5x
-      const { useCase, publisher } = buildUseCase(notifiedRepo, {
-        cache,
-        monitoredCalls: [makeCall('call-1', 10000)],
-        mcMap,
-      });
-
-      const result = await useCase.execute();
-
-      expect(result.notified).toBe(0);
-      expect(publisher.events).toHaveLength(0);
-    });
-
-    it('records when threshold is in neither cache nor DB', async () => {
-      const notifiedRepo = new InMemoryNotifiedAchievementRepository();
+    it('records when threshold is in neither cache nor any other store', async () => {
       const cache = new FakeCache(); // empty
       const mcMap = new Map([['solana:abc', 25000]]); // 2.5x
-      const { useCase, publisher } = buildUseCase(notifiedRepo, {
+      const { useCase, publisher } = buildUseCase({
         cache,
         monitoredCalls: [makeCall('call-1', 10000)],
         mcMap,
@@ -267,19 +211,16 @@ describe('EvaluateActiveCallsUseCase — Redis dedup integration', () => {
 
       expect(result.notified).toBe(1);
       expect(publisher.events).toHaveLength(1);
+      // Side-effect: cache is updated as best-effort memoization
+      expect(cache.map.get('call-1')).toEqual(new Set([2]));
     });
 
     it('records only NEW crossings (mix of old + new thresholds)', async () => {
-      const notifiedRepo = new InMemoryNotifiedAchievementRepository();
-      await notifiedRepo.save({
-        callId: 'call-1',
-        threshold: 2,
-        notifiedAt: new Date(),
-      });
       const cache = new FakeCache();
-      cache.map.set('call-1', new Set([3]));
+      // Cache "knows" 2x and 3x were already notified
+      cache.map.set('call-1', new Set([2, 3]));
       const mcMap = new Map([['solana:abc', 50000]]); // 5x — crosses 2, 3, 5
-      const { useCase, publisher } = buildUseCase(notifiedRepo, {
+      const { useCase, publisher } = buildUseCase({
         cache,
         monitoredCalls: [makeCall('call-1', 10000)],
         mcMap,
@@ -287,22 +228,23 @@ describe('EvaluateActiveCallsUseCase — Redis dedup integration', () => {
 
       const result = await useCase.execute();
 
-      expect(result.notified).toBe(1); // only 5x new
+      expect(result.notified).toBe(1); // only 5x is new
       expect(publisher.events).toHaveLength(1);
       expect(
         (publisher.events[0] as unknown as { payload: { multiple: number } })
           .payload.multiple,
       ).toBe(5);
+      // Cache now also has 5x
+      expect(cache.map.get('call-1')).toEqual(new Set([2, 3, 5]));
     });
-  });
 
-  describe('write-through best-effort', () => {
-    it('still records to DB when cache.addNotifiedThreshold fails', async () => {
-      const notifiedRepo = new InMemoryNotifiedAchievementRepository();
-      const cache = new FakeCache();
-      cache.failAdd = true;
-      const mcMap = new Map([['solana:abc', 25000]]);
-      const { useCase, publisher } = buildUseCase(notifiedRepo, {
+    it('treats a fresh process (cold cache) as "nothing notified yet"', async () => {
+      // Even if the DB has records (vip-achievement authoritative dedup),
+      // a cold cache must NOT block notifications — the vip-achievement
+      // handler is the race-free source of truth.
+      const cache = new FakeCache(); // cold
+      const mcMap = new Map([['solana:abc', 25000]]); // 2.5x — crosses only 2x
+      const { useCase, publisher } = buildUseCase({
         cache,
         monitoredCalls: [makeCall('call-1', 10000)],
         mcMap,
@@ -310,17 +252,36 @@ describe('EvaluateActiveCallsUseCase — Redis dedup integration', () => {
 
       const result = await useCase.execute();
 
+      // 2x is re-emitted; vip-achievement handler will dedup atomically.
       expect(result.notified).toBe(1);
       expect(publisher.events).toHaveLength(1);
-      // DB still has the record (DB is source of truth)
-      const dbThresholds = await notifiedRepo.findThresholdsForCall('call-1');
-      expect(dbThresholds).toEqual([2]);
+    });
+  });
+
+  describe('write-through best-effort (cache)', () => {
+    it('still emits the event when cache.addNotifiedThreshold fails', async () => {
+      const cache = new FakeCache();
+      cache.failAdd = true;
+      const mcMap = new Map([['solana:abc', 25000]]);
+      const { useCase, publisher } = buildUseCase({
+        cache,
+        monitoredCalls: [makeCall('call-1', 10000)],
+        mcMap,
+      });
+
+      const result = await useCase.execute();
+
+      // Cache write failed but the event still goes out —
+      // vip-achievement handler is the authoritative dedup.
+      expect(result.notified).toBe(1);
+      expect(publisher.events).toHaveLength(1);
+      // Cache map is empty (the add failed)
+      expect(cache.map.get('call-1')).toBeUndefined();
     });
 
     it('propagates cache.getNotifiedThresholds throw (cache adapter should swallow internally)', async () => {
-      const notifiedRepo = new InMemoryNotifiedAchievementRepository();
       const mcMap = new Map([['solana:abc', 25000]]);
-      const { useCase } = buildUseCase(notifiedRepo, {
+      const { useCase } = buildUseCase({
         cacheGetShouldThrow: true,
         monitoredCalls: [makeCall('call-1', 10000)],
         mcMap,

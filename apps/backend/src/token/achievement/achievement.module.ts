@@ -3,17 +3,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { EnrichmentModule } from 'token/enrichment/enrichment.module';
 import { AchievementThresholdEntity } from './domain/entities/achievement-threshold.entity';
 import { MonitoredCallEntity } from './domain/entities/monitored-call.entity';
-import { NotifiedAchievementEntity } from './domain/entities/notified-achievement.entity';
 import { DetectCrossedAchievementsService } from './application/services/detect-crossed-achievements.service';
 import { RecordNotifiedAchievementUseCase } from './application/handlers/record-notified-achievement.use-case';
 import { RegisterMonitoredCallUseCase } from './application/handlers/register-monitored-call.use-case';
 import { EvaluateActiveCallsUseCase } from './application/handlers/evaluate-active-calls.use-case';
 import { TypeormAchievementThresholdRepository } from './infrastructure/persistence/typeorm/repositories/typeorm-achievement-threshold.repository';
 import { TypeormMonitoredCallRepository } from './infrastructure/persistence/typeorm/repositories/typeorm-monitored-call.repository';
-import { TypeormNotifiedAchievementRepository } from './infrastructure/persistence/typeorm/repositories/typeorm-notified-achievement.repository';
 import { InMemoryAchievementThresholdRepository } from './infrastructure/repositories/in-memory-achievement-threshold.repository';
 import { InMemoryMonitoredCallRepository } from './infrastructure/repositories/in-memory-monitored-call.repository';
-import { InMemoryNotifiedAchievementRepository } from './infrastructure/repositories/in-memory-notified-achievement.repository';
 import { DexScreenerLiveMarketDataAdapter } from './infrastructure/adapters/dexscreener-live-market-data.adapter';
 import { RedisAchievementCacheAdapter } from './infrastructure/adapters/redis-achievement-cache.adapter';
 import { InMemoryAchievementCacheAdapter } from './infrastructure/adapters/in-memory-achievement-cache.adapter';
@@ -29,14 +26,12 @@ import {
   AchievementSettingsPort,
   AchievementThresholdRepository,
   MonitoredCallRepository,
-  NotifiedAchievementRepository,
   LiveMarketDataPort,
 } from './application/ports/index-export';
 
 const PERSISTED_ENTITIES = [
   AchievementThresholdEntity,
   MonitoredCallEntity,
-  NotifiedAchievementEntity,
 ];
 
 @Module({
@@ -57,7 +52,6 @@ const PERSISTED_ENTITIES = [
     RedisAchievementCacheAdapter,
     InMemoryAchievementThresholdRepository,
     InMemoryMonitoredCallRepository,
-    InMemoryNotifiedAchievementRepository,
     {
       provide: AchievementEventPublisher,
       useExisting: InProcessDomainEventPublisher,
@@ -82,16 +76,11 @@ const PERSISTED_ENTITIES = [
       provide: MonitoredCallRepository,
       useClass: TypeormMonitoredCallRepository,
     },
-    {
-      provide: NotifiedAchievementRepository,
-      useClass: TypeormNotifiedAchievementRepository,
-    },
   ],
   exports: [
     AchievementEventPublisher,
     AchievementThresholdRepository,
     MonitoredCallRepository,
-    NotifiedAchievementRepository,
     AchievementCachePort,
     LiveMarketDataPort,
     AchievementSettingsPort,

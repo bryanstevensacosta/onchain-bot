@@ -24,8 +24,8 @@ import { SettingsAuditLogEntity } from 'settings/infrastructure/persistence/type
 import { SettingsPresetEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-preset.entity';
 import { AchievementThresholdEntity } from 'token/achievement/domain/entities/achievement-threshold.entity';
 import { MonitoredCallEntity } from 'token/achievement/domain/entities/monitored-call.entity';
-import { NotifiedAchievementEntity } from 'token/achievement/domain/entities/notified-achievement.entity';
 import { PublishedCallEntity } from 'telegram/vip-calls/vip-channel/infrastructure/persistence/typeorm/entities/published-call.entity';
+import { VipAchievementEntity } from 'telegram/vip-calls/vip-achievement/infrastructure/persistence/typeorm/entities/vip-achievement.entity';
 import { CryptoNewsSourceEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
 import { CryptoNewsMessageEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
 import { CryptoNewsMessageMediaEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
@@ -55,8 +55,8 @@ const PERSISTED_ENTITIES = [
   SettingsPresetEntity,
   AchievementThresholdEntity,
   MonitoredCallEntity,
-  NotifiedAchievementEntity,
   PublishedCallEntity,
+  VipAchievementEntity,
   CryptoNewsSourceEntity,
   CryptoNewsMessageEntity,
   CryptoNewsMessageMediaEntity,

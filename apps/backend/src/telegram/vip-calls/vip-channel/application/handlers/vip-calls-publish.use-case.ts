@@ -139,7 +139,8 @@ export class VipCallsPublishUseCase {
         publishedChannelIds: [...existing.publishedChannelIds],
         failedChannelIds: [...existing.failedChannelIds],
         successCount: existing.successCount,
-        publishedAt: existing.publishedAt.toISOString(),
+        publishedAt:
+          existing.publishedAt?.toISOString() ?? existing.reservedAt.toISOString(),
         headerImageUrl,
       };
     }
@@ -276,7 +277,8 @@ export class VipCallsPublishUseCase {
         callId: call.id,
         chain: call.chain.value,
         address: call.address,
-        publishedAt: call.publishedAt.toISOString(),
+        publishedAt:
+          call.publishedAt?.toISOString() ?? call.reservedAt.toISOString(),
       });
       this.eventEmitter.emit(registerEvent.eventName, registerEvent);
     }
@@ -312,7 +314,8 @@ export class VipCallsPublishUseCase {
       publishedChannelIds: [...call.publishedChannelIds],
       failedChannelIds: [...call.failedChannelIds],
       successCount: call.successCount,
-      publishedAt: call.publishedAt.toISOString(),
+      publishedAt:
+        call.publishedAt?.toISOString() ?? call.reservedAt.toISOString(),
       headerImageUrl,
     };
   }

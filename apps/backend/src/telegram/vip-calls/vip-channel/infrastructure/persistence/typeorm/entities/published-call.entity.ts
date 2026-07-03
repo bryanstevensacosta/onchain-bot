@@ -6,9 +6,9 @@ import {
   PrimaryColumn,
 } from 'typeorm';
 
-@Entity({ name: 'published_calls' })
-@Index('idx_published_calls_status', ['status'])
-@Index('idx_published_calls_published_at', ['publishedAt'])
+@Entity({ name: 'vip_published_calls' })
+@Index('idx_vip_published_calls_status', ['status'])
+@Index('idx_vip_published_calls_published_at', ['publishedAt'])
 export class PublishedCallEntity {
   @PrimaryColumn({ name: 'id', type: 'varchar' })
   public id!: string;

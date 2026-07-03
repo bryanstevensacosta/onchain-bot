@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { CallAchievementReachedEvent } from 'token/achievement/domain/events/call-achievement-reached.event';
-import { NotifiedAchievementRepository } from 'token/achievement/application/ports/notified-achievement.repository';
+import { VipAchievementRepository } from '../../application/ports/vip-achievement.repository';
 import { MessageFormatterPort, TelegramPublisherPort } from 'telegram/shared';
 import { VipCallsMessageFormatterAdapter } from '../../../vip-channel/infrastructure/formatters/vip-message-formatter.adapter';
 
@@ -14,14 +14,29 @@ export class AchievementReachedHandler {
     private readonly formatter: VipCallsMessageFormatterAdapter,
     @Inject(TelegramPublisherPort)
     private readonly publisher: TelegramPublisherPort,
-    @Inject(NotifiedAchievementRepository)
-    private readonly notifiedRepo: NotifiedAchievementRepository,
+    @Inject(VipAchievementRepository)
+    private readonly repo: VipAchievementRepository,
   ) {}
 
   @OnEvent(CallAchievementReachedEvent.EVENT_NAME, { async: true })
   async handle(event: CallAchievementReachedEvent): Promise<void> {
     const { callId, chain, address, multiple, mcAtCall, mcNow } = event.payload;
     try {
+      // Atomic dedup: `save()` returns null when the (callId, threshold)
+      // unique constraint is violated by a concurrent invocation.
+      const saved = await this.repo.save({
+        callId,
+        threshold: multiple,
+        notifiedAt: new Date(),
+        telegramMessageId: null,
+      });
+      if (saved === null) {
+        this.logger.debug(
+          `Achievement ${multiple}x callId=${callId} already recorded — skipping send`,
+        );
+        return;
+      }
+
       const message = this.formatter.formatMilestoneMessage({
         chain,
         address,
@@ -37,7 +52,7 @@ export class AchievementReachedHandler {
         return;
       }
       if (result.messageId != null) {
-        await this.notifiedRepo.updateTelegramMessageId(
+        await this.repo.updateTelegramMessageId(
           callId,
           multiple,
           result.messageId,

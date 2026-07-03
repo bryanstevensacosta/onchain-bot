@@ -2,8 +2,6 @@ export { AchievementThresholdRepository } from './achievement-threshold.reposito
 export type { AchievementThresholdRecord } from './achievement-threshold.repository';
 export { MonitoredCallRepository } from './monitored-call.repository';
 export type { MonitoredCallRecord } from './monitored-call.repository';
-export { NotifiedAchievementRepository } from './notified-achievement.repository';
-export type { NotifiedAchievementRecord } from './notified-achievement.repository';
 export { AchievementCachePort } from './achievement-cache.port';
 export { LiveMarketDataPort } from './live-market-data.port';
 export type { MarketDataItem } from './live-market-data.port';

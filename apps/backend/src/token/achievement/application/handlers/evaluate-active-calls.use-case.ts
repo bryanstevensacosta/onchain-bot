@@ -7,7 +7,6 @@ import {
 import { AchievementThresholdRepository } from '../ports/achievement-threshold.repository';
 import { LiveMarketDataPort } from '../ports/live-market-data.port';
 import { AchievementCachePort } from '../ports/achievement-cache.port';
-import { NotifiedAchievementRepository } from '../ports/notified-achievement.repository';
 import { DetectCrossedAchievementsService } from '../services/detect-crossed-achievements.service';
 import { RecordNotifiedAchievementUseCase } from './record-notified-achievement.use-case';
 import type { AppConfig } from 'shared/common/config/app.config';
@@ -27,7 +26,6 @@ export class EvaluateActiveCallsUseCase {
     private readonly thresholdRepo: AchievementThresholdRepository,
     private readonly liveMarketData: LiveMarketDataPort,
     private readonly cache: AchievementCachePort,
-    private readonly notifiedRepo: NotifiedAchievementRepository,
     private readonly detector: DetectCrossedAchievementsService,
     private readonly recordUseCase: RecordNotifiedAchievementUseCase,
     private readonly config: ConfigService,
@@ -71,11 +69,9 @@ export class EvaluateActiveCallsUseCase {
       }
 
       const athMultiple = mcNow / call.mcAtCall;
-      const cacheSet = await this.cache.getNotifiedThresholds(call.callId);
-      const dbSet = new Set(
-        await this.notifiedRepo.findThresholdsForCall(call.callId),
+      const alreadyNotified = await this.cache.getNotifiedThresholds(
+        call.callId,
       );
-      const alreadyNotified = new Set<number>([...cacheSet, ...dbSet]);
 
       const { crossed } = this.detector.detect({
         athMultiple,
@@ -84,16 +80,12 @@ export class EvaluateActiveCallsUseCase {
       });
 
       for (const c of crossed) {
-        const result = await this.recordUseCase.execute({
+        await this.recordUseCase.execute({
           monitoredCall: call,
           threshold: c.multiple,
           currentMc: mcNow,
         });
-        if (result.recorded) {
-          notified++;
-        } else {
-          skipped++;
-        }
+        notified++;
       }
 
       if (call.id) await this.monitoredRepo.updateLastEvaluated(call.id, now);

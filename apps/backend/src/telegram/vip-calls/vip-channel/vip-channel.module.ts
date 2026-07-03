@@ -6,11 +6,7 @@ import { ChainRegistryModule } from 'chain/registry/chain-registry.module';
 import {
   PublishedCallRepository,
   PublishingEventPublisher,
-  MessageFormatterPort,
-  TelegramPublisherPort,
 } from 'telegram/shared';
-import { VipCallsBotApiPublisherAdapter } from '../shared/infrastructure/senders/bot-api-telegram-publisher.adapter';
-import { VipCallsMessageFormatterAdapter } from './infrastructure/formatters/vip-message-formatter.adapter';
 import { InMemoryPublishedCallRepository } from './infrastructure/repositories/in-memory-published-call.repository';
 import { TypeOrmPublishedCallRepository } from './infrastructure/persistence/typeorm/repositories/typeorm-published-call.repository';
 import { PublishedCallEntity } from './infrastructure/persistence/typeorm/entities/published-call.entity';
@@ -19,13 +15,12 @@ import { VipCallsPublishUseCase } from './application/handlers/vip-calls-publish
 import { VipCallsListPublishedUseCase } from './application/handlers/vip-calls-list-published.use-case';
 import { ReconcileStuckReservationsUseCase } from './application/handlers/reconcile-stuck-reservations.use-case';
 import { VipCallsController } from './api/http/vip-calls.controller';
-import { AchievementReachedHandler } from '../vip-achievement/infrastructure/event-bus/achievement-reached.handler';
 import { TokenApprovedPublishHandler } from './infrastructure/event-bus/token-approved-publish.handler';
 import { ReconcileStuckReservationsScheduler } from './infrastructure/schedulers/reconcile-stuck-reservations.scheduler';
 import { SettingsModule } from 'settings/settings.module';
 import { NormalizationModule } from 'token/normalization/normalization.module';
 import { EnrichmentModule } from 'token/enrichment/enrichment.module';
-import { AchievementModule } from 'token/achievement/achievement.module';
+import { VipAchievementModule } from '../vip-achievement/vip-achievement.module';
 import { TickerResolverService } from './application/services/ticker-resolver.service';
 
 @Module({
@@ -35,7 +30,7 @@ import { TickerResolverService } from './application/services/ticker-resolver.se
     SettingsModule,
     NormalizationModule,
     EnrichmentModule,
-    AchievementModule,
+    VipAchievementModule,
     TypeOrmModule.forFeature([PublishedCallEntity]),
   ],
   controllers: [VipCallsController],
@@ -44,9 +39,6 @@ import { TickerResolverService } from './application/services/ticker-resolver.se
     VipCallsListPublishedUseCase,
     ReconcileStuckReservationsUseCase,
     ReconcileStuckReservationsScheduler,
-    VipCallsBotApiPublisherAdapter,
-    VipCallsMessageFormatterAdapter,
-    AchievementReachedHandler,
     TokenApprovedPublishHandler,
     TickerResolverService,
     InMemoryPublishedCallRepository,
@@ -64,14 +56,6 @@ import { TickerResolverService } from './application/services/ticker-resolver.se
     {
       provide: PublishingEventPublisher,
       useClass: InProcessDomainEventPublisher,
-    },
-    {
-      provide: MessageFormatterPort,
-      useClass: VipCallsMessageFormatterAdapter,
-    },
-    {
-      provide: TelegramPublisherPort,
-      useClass: VipCallsBotApiPublisherAdapter,
     },
   ],
   exports: [PublishedCallRepository, PublishingEventPublisher],
