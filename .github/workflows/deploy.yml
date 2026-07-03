@@ -78,9 +78,12 @@ jobs:
         # /opt/actions-runner/_work/...). The Docker build context uses
         # /opt/onchain-bot, so we must pull the latest master there
         # BEFORE building — otherwise the build uses stale source from
-        # the previous deploy.
+        # the previous deploy. The 'safe.directory' whitelist is needed
+        # because the runner user doesn't own /opt/onchain-bot (git
+        # refuses unknown-ownership repos by default as a CVE mitigation).
         run: |
           set -euo pipefail
+          git config --global --add safe.directory /opt/onchain-bot
           cd /opt/onchain-bot
           echo "=== Pre-pull HEAD ==="
           git rev-parse HEAD
