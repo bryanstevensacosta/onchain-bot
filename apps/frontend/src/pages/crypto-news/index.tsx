@@ -3,13 +3,15 @@ import {
   useCryptoNewsMessages,
   useCryptoNewsSources,
 } from '@/entities/crypto-news';
-import { Card } from '@/shared/ui';
+import { Button, Card } from '@/shared/ui';
 import { formatRelativeTime } from '@/shared/lib';
+import { AddCryptoNewsSourceModal } from '@/features/add-crypto-news-source';
 
 export function CryptoNewsPage() {
   const messages = useCryptoNewsMessages(50);
   const sources = useCryptoNewsSources();
   const [channelFilter, setChannelFilter] = useState<string>('');
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const filteredMessages = channelFilter
     ? (messages.data ?? []).filter((m) => m.channelId === channelFilter)
@@ -17,12 +19,26 @@ export function CryptoNewsPage() {
 
   return (
     <div className="px-6 py-6 space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold text-slate-100">Crypto News</h1>
-        <p className="text-sm text-slate-400 mt-1">
-          Ingested messages from monitored crypto-news Telegram channels.
-        </p>
+      <header className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold text-slate-100">Crypto News</h1>
+          <p className="text-sm text-slate-400 mt-1">
+            Ingested messages from monitored crypto-news Telegram channels.
+          </p>
+        </div>
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => setShowAddModal(true)}
+        >
+          + Add Source
+        </Button>
       </header>
+
+      <AddCryptoNewsSourceModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
