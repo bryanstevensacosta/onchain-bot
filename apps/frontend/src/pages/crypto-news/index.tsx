@@ -139,11 +139,6 @@ export function CryptoNewsPage() {
                     {msg.title}
                   </h3>
                 )}
-                <p className="text-sm text-slate-300 mt-1 whitespace-pre-wrap">
-                  {msg.content.length > 500
-                    ? `${msg.content.slice(0, 500)}…`
-                    : msg.content}
-                </p>
                 {msg.media?.length > 0 && (
                   <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {msg.media.map((m) => (
@@ -157,6 +152,11 @@ export function CryptoNewsPage() {
                     ))}
                   </div>
                 )}
+                <p className="text-sm text-slate-300 mt-1 whitespace-pre-wrap">
+                  {msg.content.length > 500
+                    ? `${msg.content.slice(0, 500)}…`
+                    : msg.content}
+                </p>
               </article>
             ))}
           </div>
