@@ -6,6 +6,7 @@ import { RegisterNewsSourceUseCase } from 'telegram/ingestion/crypto-news/applic
 import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
 import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
 import { CryptoNewsMetadataResolver } from 'telegram/ingestion/crypto-news/application/services/crypto-news-metadata-resolver.service';
+import { StoreNewsMessageUseCase } from 'telegram/ingestion/crypto-news/application/handlers/store-news-message.use-case';
 import { CryptoNewsMessageMediaEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
 import { CryptoNewsSource } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-source.entity';
 import { CryptoNewsEventPublisher } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-event.publisher';
@@ -184,6 +185,10 @@ async function buildController(
       { provide: CryptoNewsMessageRepository, useValue: messageRepo },
       { provide: TelegramMtprotoListenerAdapter, useValue: {} },
       { provide: CryptoNewsMetadataResolver, useValue: resolver },
+      {
+        provide: StoreNewsMessageUseCase,
+        useValue: { execute: jest.fn().mockResolvedValue(undefined) },
+      },
       {
         provide: getRepositoryToken(CryptoNewsMessageMediaEntity),
         useValue: stubMediaEntityRepo,
