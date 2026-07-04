@@ -1,9 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import type { AppConfig } from 'shared/common/config/app.config';
 import { RegisterNewsSourceUseCase } from 'telegram/ingestion/crypto-news/application/handlers/register-news-source.use-case';
 import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
+import { CryptoNewsMetadataResolver } from 'telegram/ingestion/crypto-news/application/services/crypto-news-metadata-resolver.service';
 import { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import { CRYPTO_NEWS_SEED } from 'telegram/ingestion/crypto-news/infrastructure/seeds/crypto-news.seed';
 
@@ -24,6 +25,11 @@ import { CRYPTO_NEWS_SEED } from 'telegram/ingestion/crypto-news/infrastructure/
 export class CryptoNewsSeeder {
   private readonly logger = new Logger(CryptoNewsSeeder.name);
   private needsManualJoin = 0;
+
+  // Property-injected so the constructor can stay 4-positional-args
+  // (the existing seeder spec instantiates via `new` without DI).
+  @Inject(CryptoNewsMetadataResolver)
+  private readonly metadataResolver: CryptoNewsMetadataResolver;
 
   constructor(
     private readonly config: ConfigService,
@@ -70,7 +76,7 @@ export class CryptoNewsSeeder {
           continue;
         }
 
-        const { title, handle } = await this.resolveMetadata(
+        const { title, handle } = await this.resolveTitleAndHandle(
           seed.channelId,
           seed.title,
           seed.handle,
@@ -122,7 +128,7 @@ export class CryptoNewsSeeder {
     return { added, skipped, failed };
   }
 
-  private async resolveMetadata(
+  private async resolveTitleAndHandle(
     channelId: string,
     seedTitle?: string,
     seedHandle?: string,
@@ -130,32 +136,10 @@ export class CryptoNewsSeeder {
     if (seedTitle && seedTitle.trim().length > 0) {
       return { title: seedTitle.trim(), handle: seedHandle?.trim() || null };
     }
-
-    try {
-      const meta = await this.listener.resolveChannelMetadata(channelId);
-      return { title: meta.title, handle: meta.handle };
-    } catch (err) {
-      // Try to join and retry
-      const joinResult = await this.listener
-        .joinChannel(channelId)
-        .catch(() => null);
-      if (joinResult?.joined) {
-        const meta = await this.listener.resolveChannelMetadata(channelId);
-        return { title: meta.title, handle: meta.handle };
-      }
-      const reason =
-        joinResult?.error ?? (err instanceof Error ? err.message : 'Unknown');
-      if (
-        reason.includes('PeerUser') ||
-        reason.includes('USER_NOT_PARTICIPANT')
-      ) {
-        this.needsManualJoin += 1;
-      } else {
-        this.logger.warn(
-          `Could not resolve or join crypto-news channel ${channelId}: ${reason}`,
-        );
-      }
-      return { title: `Telegram channel ${channelId}`, handle: null };
+    const resolved = await this.metadataResolver.resolve(channelId);
+    if (resolved.needsManualJoin) {
+      this.needsManualJoin += 1;
     }
+    return { title: resolved.title, handle: resolved.handle };
   }
 }

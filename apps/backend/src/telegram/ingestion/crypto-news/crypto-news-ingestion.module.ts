@@ -17,6 +17,7 @@ import { TypeOrmCryptoNewsSourceRepository } from 'telegram/ingestion/crypto-new
 import { TypeOrmCryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/repositories/typeorm-crypto-news-message.repository';
 import { RegisterNewsSourceUseCase } from 'telegram/ingestion/crypto-news/application/handlers/register-news-source.use-case';
 import { StoreNewsMessageUseCase } from 'telegram/ingestion/crypto-news/application/handlers/store-news-message.use-case';
+import { CryptoNewsMetadataResolver } from 'telegram/ingestion/crypto-news/application/services/crypto-news-metadata-resolver.service';
 import { CryptoNewsSeeder } from 'telegram/ingestion/crypto-news/infrastructure/seeders/crypto-news.seeder';
 import { CryptoNewsController } from 'telegram/ingestion/crypto-news/api/http/crypto-news.controller';
 import { SharedIngestionModule } from 'telegram/ingestion/shared/shared-ingestion.module';
@@ -121,6 +122,7 @@ import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-proces
     RegisterNewsSourceUseCase,
     StoreNewsMessageUseCase,
     CryptoNewsSeeder,
+    CryptoNewsMetadataResolver,
   ],
   exports: [
     CryptoNewsSourceRepository,
@@ -130,6 +132,7 @@ import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-proces
     RegisterNewsSourceUseCase,
     StoreNewsMessageUseCase,
     CryptoNewsSeeder,
+    CryptoNewsMetadataResolver,
   ],
 })
 export class CryptoNewsIngestionModule {}
