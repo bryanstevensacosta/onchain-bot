@@ -99,10 +99,7 @@ export function CryptoNewsPage() {
         ) : (
           <div className="space-y-3">
             {filteredMessages.map((msg) => (
-              <article
-                key={msg.id}
-                className="border-b border-slate-800 pb-3 last:border-b-0"
-              >
+              <article key={msg.id} className="rounded-xl bg-slate-800/50 p-4">
                 <div className="flex items-center gap-2 text-xs text-slate-500">
                   {(() => {
                     const source = sourceByChannelId.get(msg.channelId);
