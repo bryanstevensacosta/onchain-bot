@@ -59,6 +59,13 @@ export interface TelegramMediaAttachment {
   readonly filePath?: string;
   readonly fileSize?: number | null;
   readonly index?: number;
+  /** Link preview (MessageMediaWebPage → WebPage). Populated when the
+   *  message carries a URL preview. The `fileId`/`fileReference` fields
+   *  refer to the webpage's `photo` (if present), not a direct photo. */
+  readonly webpageUrl?: string | null;
+  readonly webpageTitle?: string | null;
+  readonly webpageDescription?: string | null;
+  readonly webpageSiteName?: string | null;
 }
 
 export interface TelegramRawMessage {

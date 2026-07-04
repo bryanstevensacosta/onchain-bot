@@ -316,9 +316,23 @@ export class TelegramMtprotoListenerAdapter
   private extractRawPhotoAttachment(
     media: unknown,
   ): TelegramMediaAttachment | null {
-    if (!media || typeof media !== 'object') return null;
+    if (!media || typeof media !== 'object') {
+      const wpResult = this.extractWebpagePreview(media);
+      if (wpResult) return wpResult;
+      return null;
+    }
     const photo = (media as { photo?: unknown }).photo;
-    if (!photo || typeof photo !== 'object') return null;
+    if (!photo || typeof photo !== 'object') {
+      const wpResult = this.extractWebpagePreview(media);
+      if (wpResult) return wpResult;
+      return null;
+    }
+    return this.extractPhotoFromPhotoObject(photo);
+  }
+
+  private extractPhotoFromPhotoObject(
+    photo: unknown,
+  ): TelegramMediaAttachment | null {
     const p = photo as {
       id?: unknown;
       accessHash?: unknown;
@@ -355,6 +369,25 @@ export class TelegramMtprotoListenerAdapter
       mimeType: null,
       dcId: (p as { dcId?: unknown }).dcId as number | undefined,
       date: (p as { date?: unknown }).date as number | undefined,
+    };
+  }
+
+  private extractWebpagePreview(
+    media: unknown,
+  ): TelegramMediaAttachment | null {
+    if (!media || typeof media !== 'object') return null;
+    const webpage = (media as { webpage?: Record<string, unknown> }).webpage;
+    if (!webpage || typeof webpage !== 'object') return null;
+    const wpPhoto = webpage.photo;
+    if (!wpPhoto || typeof wpPhoto !== 'object') return null;
+    const photoResult = this.extractPhotoFromPhotoObject(wpPhoto);
+    if (!photoResult) return null;
+    return {
+      ...photoResult,
+      webpageUrl: (webpage.url as string) ?? null,
+      webpageTitle: (webpage.title as string) ?? null,
+      webpageDescription: (webpage.description as string) ?? null,
+      webpageSiteName: (webpage.siteName as string) ?? null,
     };
   }
 

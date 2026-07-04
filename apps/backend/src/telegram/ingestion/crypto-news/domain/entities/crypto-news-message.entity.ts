@@ -26,6 +26,10 @@ export interface CryptoNewsMessageProps {
   readonly publishedAt: Date;
   readonly ingestedAt: Date;
   readonly media?: ReadonlyArray<CryptoNewsMedia>;
+  readonly linkPreviewUrl: string | null;
+  readonly linkPreviewTitle: string | null;
+  readonly linkPreviewDescription: string | null;
+  readonly linkPreviewSiteName: string | null;
 }
 
 export class CryptoNewsMessage {
@@ -39,6 +43,10 @@ export class CryptoNewsMessage {
     publishedAt: Date;
     ingestedAt?: Date;
     media?: ReadonlyArray<CryptoNewsMedia>;
+    linkPreviewUrl?: string | null;
+    linkPreviewTitle?: string | null;
+    linkPreviewDescription?: string | null;
+    linkPreviewSiteName?: string | null;
   }): CryptoNewsMessage {
     if (!input.channelId?.trim()) {
       throw new Error('CryptoNewsMessage channelId cannot be empty');
@@ -60,6 +68,10 @@ export class CryptoNewsMessage {
       publishedAt: input.publishedAt,
       ingestedAt: input.ingestedAt ?? new Date(),
       media: input.media ?? [],
+      linkPreviewUrl: input.linkPreviewUrl ?? null,
+      linkPreviewTitle: input.linkPreviewTitle ?? null,
+      linkPreviewDescription: input.linkPreviewDescription ?? null,
+      linkPreviewSiteName: input.linkPreviewSiteName ?? null,
     });
   }
 
@@ -101,5 +113,21 @@ export class CryptoNewsMessage {
 
   public get media(): ReadonlyArray<CryptoNewsMedia> {
     return this.props.media ?? [];
+  }
+
+  public get linkPreviewUrl(): string | null {
+    return this.props.linkPreviewUrl ?? null;
+  }
+
+  public get linkPreviewTitle(): string | null {
+    return this.props.linkPreviewTitle ?? null;
+  }
+
+  public get linkPreviewDescription(): string | null {
+    return this.props.linkPreviewDescription ?? null;
+  }
+
+  public get linkPreviewSiteName(): string | null {
+    return this.props.linkPreviewSiteName ?? null;
   }
 }

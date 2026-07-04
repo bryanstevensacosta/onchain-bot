@@ -152,6 +152,36 @@ export function CryptoNewsPage() {
                     ? `${msg.content.slice(0, 500)}…`
                     : msg.content}
                 </p>
+                {msg.linkPreviewUrl && (
+                  <a
+                    href={msg.linkPreviewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 block rounded border border-slate-700 bg-slate-800 p-3 hover:border-slate-500 transition-colors"
+                  >
+                    {msg.media && msg.media.length > 0 && (
+                      <img
+                        src={msg.media[0].url}
+                        alt=""
+                        className="mb-2 h-auto w-full max-h-48 rounded object-cover"
+                        loading="lazy"
+                      />
+                    )}
+                    {msg.linkPreviewTitle && (
+                      <h4 className="text-sm font-semibold text-slate-100">
+                        {msg.linkPreviewTitle}
+                      </h4>
+                    )}
+                    {msg.linkPreviewDescription && (
+                      <p className="mt-1 text-xs text-slate-400 line-clamp-2">
+                        {msg.linkPreviewDescription}
+                      </p>
+                    )}
+                    <span className="mt-1 block text-xs text-blue-400">
+                      {msg.linkPreviewUrl}
+                    </span>
+                  </a>
+                )}
               </article>
             ))}
           </div>

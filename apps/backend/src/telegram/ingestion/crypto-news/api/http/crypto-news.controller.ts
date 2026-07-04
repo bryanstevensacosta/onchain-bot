@@ -45,6 +45,10 @@ interface CryptoNewsMessageView {
   readonly publishedAt: string;
   readonly ingestedAt: string;
   readonly media: ReadonlyArray<CryptoNewsMediaView>;
+  readonly linkPreviewUrl: string | null;
+  readonly linkPreviewTitle: string | null;
+  readonly linkPreviewDescription: string | null;
+  readonly linkPreviewSiteName: string | null;
 }
 
 interface CryptoNewsSourceView {
@@ -115,6 +119,10 @@ export class CryptoNewsController {
         publishedAt: m.publishedAt.toISOString(),
         ingestedAt: m.ingestedAt.toISOString(),
         media: await this.loadMediaForMessage(m.id),
+        linkPreviewUrl: m.linkPreviewUrl,
+        linkPreviewTitle: m.linkPreviewTitle,
+        linkPreviewDescription: m.linkPreviewDescription,
+        linkPreviewSiteName: m.linkPreviewSiteName,
       })),
     );
   }
@@ -134,6 +142,10 @@ export class CryptoNewsController {
       publishedAt: msg.publishedAt.toISOString(),
       ingestedAt: msg.ingestedAt.toISOString(),
       media: await this.loadMediaForMessage(msg.id),
+      linkPreviewUrl: msg.linkPreviewUrl,
+      linkPreviewTitle: msg.linkPreviewTitle,
+      linkPreviewDescription: msg.linkPreviewDescription,
+      linkPreviewSiteName: msg.linkPreviewSiteName,
     };
   }
 

@@ -17,6 +17,10 @@ export interface CryptoNewsMessage {
   readonly publishedAt: string;
   readonly ingestedAt: string;
   readonly media: ReadonlyArray<CryptoNewsMediaView>;
+  readonly linkPreviewUrl: string | null;
+  readonly linkPreviewTitle: string | null;
+  readonly linkPreviewDescription: string | null;
+  readonly linkPreviewSiteName: string | null;
 }
 
 export interface CryptoNewsSource {

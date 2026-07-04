@@ -39,6 +39,23 @@ export class CryptoNewsMessageEntity {
   @Column({ name: 'ingested_at', type: 'timestamptz' })
   public ingestedAt!: Date;
 
+  @Column({ name: 'link_preview_url', type: 'text', nullable: true })
+  public linkPreviewUrl!: string | null;
+
+  @Column({ name: 'link_preview_title', type: 'text', nullable: true })
+  public linkPreviewTitle!: string | null;
+
+  @Column({ name: 'link_preview_description', type: 'text', nullable: true })
+  public linkPreviewDescription!: string | null;
+
+  @Column({
+    name: 'link_preview_site_name',
+    type: 'varchar',
+    length: 128,
+    nullable: true,
+  })
+  public linkPreviewSiteName!: string | null;
+
   /**
    * Photo attachments for this message. FK-level `ON DELETE CASCADE` is
    * declared on the child side at `CryptoNewsMessageMediaEntity`'s

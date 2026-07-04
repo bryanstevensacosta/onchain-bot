@@ -89,6 +89,10 @@ describe('CryptoNewsPage — media rendering', () => {
           mimeType: 'image/png',
         },
       ],
+      linkPreviewUrl: null,
+      linkPreviewTitle: null,
+      linkPreviewDescription: null,
+      linkPreviewSiteName: null,
     };
 
     mockedUseMessages.mockReturnValue(makeMessagesQuery([msgWithMedia]));
@@ -118,6 +122,10 @@ describe('CryptoNewsPage — media rendering', () => {
       publishedAt: '2025-01-01T00:00:00.000Z',
       ingestedAt: '2025-01-01T00:00:01.000Z',
       media: [],
+      linkPreviewUrl: null,
+      linkPreviewTitle: null,
+      linkPreviewDescription: null,
+      linkPreviewSiteName: null,
     };
 
     mockedUseMessages.mockReturnValue(makeMessagesQuery([msgWithoutMedia]));
@@ -179,6 +187,10 @@ describe('CryptoNewsPage — source handle/link rendering', () => {
       publishedAt: '2025-01-01T00:00:00.000Z',
       ingestedAt: '2025-01-01T00:00:01.000Z',
       media: [],
+      linkPreviewUrl: null,
+      linkPreviewTitle: null,
+      linkPreviewDescription: null,
+      linkPreviewSiteName: null,
     };
 
     mockedUseSources.mockReturnValue(makeSourcesQuery([sourceWithHandle]));
@@ -211,6 +223,10 @@ describe('CryptoNewsPage — source handle/link rendering', () => {
       publishedAt: '2025-01-01T00:00:00.000Z',
       ingestedAt: '2025-01-01T00:00:01.000Z',
       media: [],
+      linkPreviewUrl: null,
+      linkPreviewTitle: null,
+      linkPreviewDescription: null,
+      linkPreviewSiteName: null,
     };
 
     mockedUseSources.mockReturnValue(makeSourcesQuery([sourceNoHandle]));
@@ -243,6 +259,10 @@ describe('CryptoNewsPage — source handle/link rendering', () => {
       publishedAt: '2025-01-01T00:00:00.000Z',
       ingestedAt: '2025-01-01T00:00:01.000Z',
       media: [],
+      linkPreviewUrl: null,
+      linkPreviewTitle: null,
+      linkPreviewDescription: null,
+      linkPreviewSiteName: null,
     };
 
     mockedUseSources.mockReturnValue(makeSourcesQuery([otherSource]));
