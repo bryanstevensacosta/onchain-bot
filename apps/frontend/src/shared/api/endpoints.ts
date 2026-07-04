@@ -82,6 +82,11 @@ export const ENDPOINTS = {
     evaluateDue: '/token/call-tracking/jobs/evaluate-due',
     enqueue: '/token/call-tracking/jobs/enqueue',
   },
+  cryptoNews: {
+    sources: {
+      add: '/crypto-news/sources',
+    },
+  },
   trackedCalls: {
     list: '/call-tracking/tracked',
     detail: (chain: string, address: string) =>
