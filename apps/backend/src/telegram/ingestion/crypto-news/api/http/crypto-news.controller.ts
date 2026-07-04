@@ -1,11 +1,27 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { Controller, Get, Logger, Param, Query, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Logger,
+  Param,
+  Post,
+  Query,
+  Res,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Response } from 'express';
 import { Repository } from 'typeorm';
 import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
 import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
+import {
+  RegisterNewsSourceInput,
+  RegisterNewsSourceUseCase,
+} from 'telegram/ingestion/crypto-news/application/handlers/register-news-source.use-case';
+import { CryptoNewsMetadataResolver } from 'telegram/ingestion/crypto-news/application/services/crypto-news-metadata-resolver.service';
 import { TelegramMtprotoListenerAdapter } from 'telegram/ingestion/shared/api/mtproto/telegram-mtproto-listener.adapter';
 import { CryptoNewsMessageMediaEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
 
@@ -72,6 +88,8 @@ export class CryptoNewsController {
     private readonly listener: TelegramMtprotoListenerAdapter,
     @InjectRepository(CryptoNewsMessageMediaEntity)
     private readonly mediaEntityRepo: Repository<CryptoNewsMessageMediaEntity>,
+    private readonly registerSource: RegisterNewsSourceUseCase,
+    private readonly metadataResolver: CryptoNewsMetadataResolver,
   ) {}
 
   @Get('messages')
@@ -169,6 +187,61 @@ export class CryptoNewsController {
       lifecycleStatus: s.lifecycleStatus,
       addedAt: s.addedAt.toISOString(),
     }));
+  }
+
+  /**
+   * Register a Telegram channel as a crypto-news source.
+   *
+   * Body: `{ channelId: string; handle?: string; title?: string }`.
+   * `title` is optional — when absent (or empty) the controller delegates
+   * to `CryptoNewsMetadataResolver` which probes Telegram for the
+   * channel's real title + handle (and joins the channel on miss).
+   *
+   * After registration the source is activated in-line (mirrors the
+   * seeder) so the listener picks it up immediately on the next
+   * `findActive()` sweep. CONFLICT (duplicate channelId) and VALIDATION
+   * (non-numeric channelId / empty title) errors propagate unchanged and
+   * are translated to HTTP 409 / 400 by `DomainErrorFilter`.
+   */
+  @Post('sources')
+  @HttpCode(HttpStatus.CREATED)
+  public async addSource(
+    @Body() input: { channelId: string; handle?: string; title?: string },
+  ): Promise<CryptoNewsSourceView> {
+    const channelId = input.channelId;
+    const trimmedTitle = input.title?.trim();
+
+    let resolvedTitle: string;
+    let resolvedHandle: string | null;
+
+    if (trimmedTitle && trimmedTitle.length > 0) {
+      // Caller-supplied title wins; skip resolver to honour the override.
+      resolvedTitle = trimmedTitle;
+      resolvedHandle = input.handle ?? null;
+    } else {
+      const resolved = await this.metadataResolver.resolve(channelId);
+      resolvedTitle = resolved.title;
+      resolvedHandle = input.handle ?? resolved.handle;
+    }
+
+    const source = await this.registerSource.execute({
+      channelId,
+      handle: resolvedHandle,
+      title: resolvedTitle,
+    } satisfies RegisterNewsSourceInput);
+
+    // Mirror CryptoNewsSeeder: activate + persist so findActive() picks it up.
+    source.activate();
+    await this.sourceRepo.save(source);
+
+    return {
+      channelId: source.channelId,
+      handle: source.handle,
+      title: source.title,
+      isActive: source.isActive,
+      lifecycleStatus: source.lifecycleStatus,
+      addedAt: source.addedAt.toISOString(),
+    };
   }
 
   /**
