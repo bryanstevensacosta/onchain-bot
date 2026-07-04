@@ -99,7 +99,10 @@ export function CryptoNewsPage() {
         ) : (
           <div className="space-y-3">
             {filteredMessages.map((msg) => (
-              <article key={msg.id} className="rounded-xl bg-slate-800/50 p-4">
+              <article
+                key={msg.id}
+                className="rounded-xl bg-slate-800/50 p-4 text-left"
+              >
                 <div className="flex items-center gap-2 text-xs text-slate-500">
                   {(() => {
                     const source = sourceByChannelId.get(msg.channelId);
@@ -228,7 +231,7 @@ function CryptoNewsMediaGrid({
     <div
       className={`grid gap-2 ${
         allSquare ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'
-      }`}
+      } justify-items-start`}
     >
       {media.map((m) => (
         <img
