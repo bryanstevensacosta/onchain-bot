@@ -194,14 +194,20 @@ function CryptoNewsMediaGrid({
   if (media.length === 0) return null;
 
   return (
-    <div className={`grid gap-2 ${allSquare ? 'grid-cols-2' : 'grid-cols-1'}`}>
+    <div
+      className={`grid gap-2 ${
+        allSquare ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'
+      }`}
+    >
       {media.map((m) => (
         <img
           key={m.id}
           src={m.url}
           alt={`${prefixTitle ?? 'image'} ${m.index + 1}`}
           className={`h-auto w-full rounded-lg ${
-            allSquare ? 'object-cover aspect-square' : 'object-contain max-h-96'
+            allSquare
+              ? 'object-cover aspect-square object-left'
+              : 'object-contain max-h-96'
           }`}
           loading="lazy"
           onLoad={handleLoad}
