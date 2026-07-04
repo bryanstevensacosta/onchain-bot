@@ -47,6 +47,13 @@ export interface TelegramMediaAttachment {
   readonly accessHash: bigint | string;
   readonly fileReference: string;
   readonly mimeType: string | null;
+  /** Telegram datacenter ID. Required by `client.downloadMedia()` to
+   *  locate the file. Extracted from the `Photo` object at ingestion
+   *  time; `undefined` for backfill-only metadata paths. */
+  readonly dcId?: number;
+  /** Unix timestamp of the photo. Stored in the `Photo` object by
+   *  Telegram; required by some gramjs code paths for validation. */
+  readonly date?: number;
   // Populated AFTER successful download by the listener. Undefined if
   // download has not yet completed (e.g., for backfill metadata only).
   readonly filePath?: string;

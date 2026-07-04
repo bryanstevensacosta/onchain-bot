@@ -23,6 +23,9 @@ import {
 } from 'telegram/ingestion/crypto-news/application/handlers/register-news-source.use-case';
 import { CryptoNewsMetadataResolver } from 'telegram/ingestion/crypto-news/application/services/crypto-news-metadata-resolver.service';
 import { TelegramMtprotoListenerAdapter } from 'telegram/ingestion/shared/api/mtproto/telegram-mtproto-listener.adapter';
+import { TelegramMediaAttachment } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
+import { CryptoNewsMedia } from 'telegram/ingestion/crypto-news/domain/value-objects/crypto-news-media.vo';
+import { StoreNewsMessageUseCase } from 'telegram/ingestion/crypto-news/application/handlers/store-news-message.use-case';
 import { CryptoNewsMessageMediaEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
 
 export interface CryptoNewsMediaView {
@@ -90,6 +93,7 @@ export class CryptoNewsController {
     private readonly mediaEntityRepo: Repository<CryptoNewsMessageMediaEntity>,
     private readonly registerSource: RegisterNewsSourceUseCase,
     private readonly metadataResolver: CryptoNewsMetadataResolver,
+    private readonly storeNewsMessage: StoreNewsMessageUseCase,
   ) {}
 
   @Get('messages')
@@ -171,7 +175,7 @@ export class CryptoNewsController {
       id: mediaEntity.id,
       index: mediaEntity.index,
       type: mediaEntity.type,
-      url: `/api/crypto-news/media/${mediaEntity.id}`,
+      url: `/crypto-news/media/${mediaEntity.id}`,
       mimeType: mediaEntity.mimeType,
     };
   }
@@ -247,16 +251,62 @@ export class CryptoNewsController {
   /**
    * On-demand historical backfill for one crypto-news source.
    * Fetches up to `limit` recent messages and routes them through the
-   * news storage pipeline.
+   * news storage pipeline (dev/test only; production uses live polling).
    */
   @Get('backfill/:channelId')
   public async backfill(
     @Param('channelId') channelId: string,
     @Query('limit') limit?: string,
-  ): Promise<{ fetched: number; channelId: string }> {
+  ): Promise<{
+    fetched: number;
+    stored: number;
+    skipped: number;
+    channelId: string;
+  }> {
     const n = Math.max(1, Math.min(100, parseInt(limit ?? '20', 10) || 20));
     const messages = await this.listener.backfill(channelId, n);
-    return { fetched: messages.length, channelId };
+    let stored = 0;
+    let skipped = 0;
+    for (const raw of messages) {
+      try {
+        await this.storeNewsMessage.execute({
+          channelId: raw.peerId,
+          messageId: raw.messageId,
+          title: null,
+          content: raw.text,
+          occurredAt: raw.occurredAt,
+          ...(raw.media !== undefined
+            ? { media: this.toMediaVO(raw.media) }
+            : {}),
+        });
+        stored += 1;
+      } catch (err) {
+        const msg = (err as Error).message;
+        if (msg.includes('already exists') || msg.includes('unique')) {
+          skipped += 1;
+        } else {
+          this.logger.warn(
+            `backfill store failed for ${raw.peerId}/${raw.messageId}: ${msg}`,
+          );
+          skipped += 1;
+        }
+      }
+    }
+    return { fetched: messages.length, stored, skipped, channelId };
+  }
+
+  private toMediaVO(rawMedia: ReadonlyArray<TelegramMediaAttachment>) {
+    return rawMedia
+      .filter((m) => m.filePath !== undefined && m.filePath !== '')
+      .map((m) =>
+        CryptoNewsMedia.create({
+          index: m.index ?? 0,
+          type: m.type,
+          filePath: m.filePath as string,
+          mimeType: m.mimeType,
+          fileSize: m.fileSize ?? null,
+        }),
+      );
   }
 
   /**

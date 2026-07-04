@@ -1,7 +1,6 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { isDatabaseEnabled } from 'shared/common/persistence/database.module';
 import type { AppConfig } from 'shared/common/config/app.config';
 import { CryptoNewsSourceEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
 import { CryptoNewsMessageEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
@@ -57,24 +56,27 @@ import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-proces
   providers: [
     InMemoryCryptoNewsSourceRepository,
     InMemoryCryptoNewsMessageRepository,
-    ...(isDatabaseEnabled()
-      ? [TypeOrmCryptoNewsSourceRepository, TypeOrmCryptoNewsMessageRepository]
-      : []),
+    // TypeORM repos are always registered so their `useFactory` branches
+    // can resolve them when DATABASE_ENABLED is true at runtime. Using
+    // `isDatabaseEnabled()` at top-level here would fail because dotenv
+    // has not yet loaded .env.dev when this module is imported.
+    TypeOrmCryptoNewsSourceRepository,
+    TypeOrmCryptoNewsMessageRepository,
     {
       provide: CryptoNewsSourceRepository,
       inject: [
         ConfigService,
         InMemoryCryptoNewsSourceRepository,
-        ...(isDatabaseEnabled() ? [TypeOrmCryptoNewsSourceRepository] : []),
+        TypeOrmCryptoNewsSourceRepository,
       ],
       useFactory: (
         config: ConfigService,
         inMemory: InMemoryCryptoNewsSourceRepository,
-        typeorm?: TypeOrmCryptoNewsSourceRepository,
+        typeorm: TypeOrmCryptoNewsSourceRepository,
       ): CryptoNewsSourceRepository => {
         const enabled =
           config.get<AppConfig>('app')?.database?.enabled === true;
-        return enabled && typeorm ? typeorm : inMemory;
+        return enabled ? typeorm : inMemory;
       },
     },
     {
@@ -82,16 +84,16 @@ import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-proces
       inject: [
         ConfigService,
         InMemoryCryptoNewsMessageRepository,
-        ...(isDatabaseEnabled() ? [TypeOrmCryptoNewsMessageRepository] : []),
+        TypeOrmCryptoNewsMessageRepository,
       ],
       useFactory: (
         config: ConfigService,
         inMemory: InMemoryCryptoNewsMessageRepository,
-        typeorm?: TypeOrmCryptoNewsMessageRepository,
+        typeorm: TypeOrmCryptoNewsMessageRepository,
       ): CryptoNewsMessageRepository => {
         const enabled =
           config.get<AppConfig>('app')?.database?.enabled === true;
-        return enabled && typeorm ? typeorm : inMemory;
+        return enabled ? typeorm : inMemory;
       },
     },
     {

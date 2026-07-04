@@ -5,6 +5,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { DevBackfillHook } from 'shared/common/dev-backfill.hook';
 import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
+import pino from 'pino';
 import { appConfig } from 'shared/common/config/app.config';
 import type { AppConfig } from 'shared/common/config/app.config';
 import { DatabaseModule } from 'shared/common/persistence/database.module';
@@ -83,7 +84,18 @@ import { AppService } from './app.service';
                     limit: { count: logCfg.rotationLimit },
                   },
                 },
-            autoLogging: true,
+            autoLogging: {
+              ignore: (req: { url?: string }) => req.url === '/api/health',
+            },
+            serializers: {
+              req(req: { method: string; url?: string; id: unknown }) {
+                return { method: req.method, url: req.url, id: req.id };
+              },
+              res(res: { statusCode: number }) {
+                return { statusCode: res.statusCode };
+              },
+              err: pino.stdSerializers.err,
+            },
           },
         };
       },

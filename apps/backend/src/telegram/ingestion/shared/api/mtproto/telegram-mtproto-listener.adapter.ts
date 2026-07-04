@@ -253,23 +253,38 @@ export class TelegramMtprotoListenerAdapter
     const client = this.ensureClient();
     const peer = await this.resolvePeerAsChannel(channelId);
     const messages: unknown[] = await client.getMessages(peer, { limit });
-    return (
-      messages as {
-        id: number;
-        message?: string;
-        date: number;
-        media?: unknown;
-      }[]
-    ).map((m) => {
-      const rawMedia = this.extractRawPhotoAttachment(m.media);
-      return {
+    const out: TelegramRawMessage[] = [];
+    for (const m of messages as {
+      id: number;
+      message?: string;
+      date: number;
+      media?: unknown;
+    }[]) {
+      // `client.getMessages({ limit })` returns each message with
+      // `media.photo` populated but only a partial Photo stub — no
+      // `id`, no `accessHash`, no `fileReference`. We need a per-id
+      // fetch so `client.downloadMedia()` can resolve the file.
+      let resolved = m;
+      if (m.media && typeof m.media === 'object') {
+        try {
+          const detailed = await client.getMessages(peer, { ids: [m.id] });
+          if (Array.isArray(detailed) && detailed[0]) {
+            resolved = detailed[0];
+          }
+        } catch {
+          resolved = m;
+        }
+      }
+      const media = await this.extractMediaForMessage(channelId, resolved);
+      out.push({
         peerId: channelId,
         messageId: m.id,
         text: m.message ?? '',
         occurredAt: new Date(m.date * 1000),
-        ...(rawMedia ? { media: [rawMedia] } : {}),
-      };
-    });
+        ...(media && media.length > 0 ? { media: [...media] } : {}),
+      });
+    }
+    return out;
   }
 
   private async resolvePeerAsChannel(channelId: string) {
@@ -312,7 +327,8 @@ export class TelegramMtprotoListenerAdapter
     if (
       typeof p.id !== 'bigint' &&
       typeof p.id !== 'string' &&
-      typeof p.id !== 'number'
+      typeof p.id !== 'number' &&
+      typeof p.id !== 'object'
     ) {
       return null;
     }
@@ -327,12 +343,18 @@ export class TelegramMtprotoListenerAdapter
     } else {
       return null;
     }
+    const coerceToString = (v: unknown): bigint | string =>
+      typeof v === 'object' && v !== null
+        ? (v as { toString(): string }).toString()
+        : (v as bigint | string);
     return {
       type: 'photo',
-      fileId: p.id as bigint | string,
-      accessHash: p.accessHash as bigint | string,
+      fileId: coerceToString(p.id),
+      accessHash: coerceToString(p.accessHash),
       fileReference: fileRefBuffer.toString('base64'),
       mimeType: null,
+      dcId: (p as { dcId?: unknown }).dcId as number | undefined,
+      date: (p as { date?: unknown }).date as number | undefined,
     };
   }
 
@@ -350,13 +372,32 @@ export class TelegramMtprotoListenerAdapter
     },
   ): Promise<ReadonlyArray<TelegramMediaAttachment> | undefined> {
     const attachment = this.extractRawPhotoAttachment(msg.media);
-    if (!attachment) return undefined;
+    if (!attachment) {
+      this.logger.warn(
+        `extractMediaForMessage(${peerId}:${msg.id}) — no photo attachment (media type=${typeof msg.media}, hasPhoto=${(msg.media as { photo?: unknown })?.photo !== undefined})`,
+      );
+      return undefined;
+    }
     try {
-      const downloaded = await this.mediaDownloader.download(
+      // Pass the ORIGINAL msg.media object (which has every gramjs field
+      // including `sizes`, `dcId`, `date`) directly to downloadMedia.
+      // Reconstructing from the extracted fields loses `sizes`, which
+      // gramjs requires to build the InputPhotoFileLocation.
+      const client = this.client;
+      if (!client) throw new Error('Telegram client not available');
+      const buffer: unknown = await this.floodWaitHandler.withRetry(
+        `media-download:${peerId}:${msg.id}`,
+        () => client.downloadMedia(msg.media as any, {}),
+      );
+      if (buffer === undefined || buffer instanceof Buffer === false) {
+        throw new Error('downloadMedia returned no data');
+      }
+      const downloaded = await this.mediaDownloader.saveToDisk(
         peerId,
         msg.id,
         0,
         attachment,
+        buffer as Buffer,
       );
       const enriched: TelegramMediaAttachment = {
         type: attachment.type,
@@ -366,6 +407,8 @@ export class TelegramMtprotoListenerAdapter
         mimeType: downloaded.mimeType,
         filePath: downloaded.filePath,
         fileSize: downloaded.fileSize,
+        dcId: attachment.dcId,
+        date: attachment.date,
         index: 0, // Telegram photos come as a single PhotoSize array per
         // message (multiple sizes but one logical photo). Multi-photo
         // album support is out of scope and will be addressed in a later

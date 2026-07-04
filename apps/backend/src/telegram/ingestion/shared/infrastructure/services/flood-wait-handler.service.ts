@@ -71,6 +71,13 @@ export class FloodWaitHandlerService {
       return obj.seconds;
     }
     if (err instanceof Error) {
+      // Only treat errors that explicitly carry the FLOOD_WAIT marker
+      // as flood-wait. Otherwise non-FLOOD_WAIT errors (e.g. "Could not
+      // find the input entity for {userId:2207386483}") get misread
+      // as wait seconds and pause the listener for years.
+      if (!/FLOOD_WAIT|FloodWaitError/i.test(err.message)) {
+        return null;
+      }
       const match = err.message.match(/(\d+)/);
       return match ? parseInt(match[1], 10) : null;
     }

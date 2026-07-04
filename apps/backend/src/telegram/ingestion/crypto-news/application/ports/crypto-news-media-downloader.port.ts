@@ -33,10 +33,27 @@ export interface DownloadedMedia {
  * ~1 hour, so deferring the download to a later stage would lose the image.
  */
 export abstract class CryptoNewsMediaDownloader {
+  /** Legacy path: reconstruct a `MessageMediaPhoto` from the extracted
+   *  attachment fields and try to download. Only works when the photo
+   *  has `sizes` available — prefer `downloadFromRaw` for live messages
+   *  where the original `msg.media` object includes all gramjs fields. */
   public abstract download(
     channelId: string,
     messageId: number,
     index: number,
     media: TelegramMediaAttachment,
+  ): Promise<DownloadedMedia>;
+
+  /** Save a pre-downloaded buffer to disk (MIME detection, path
+   *  sanitisation, size cap) without re-downloading. Used when the
+   *  caller (e.g. the live Telegram listener) already called
+   *  `client.downloadMedia()` with the original `msg.media` object
+   *  and just needs the disk-persist + metadata steps. */
+  public abstract saveToDisk(
+    channelId: string,
+    messageId: number,
+    index: number,
+    media: TelegramMediaAttachment,
+    buffer: Buffer,
   ): Promise<DownloadedMedia>;
 }

@@ -63,17 +63,6 @@ export class MtprotoMediaDownloader extends CryptoNewsMediaDownloader {
       throw new Error('Telegram MTProto client is not initialised');
     }
 
-    const safeChannelId = channelId.replace(SAFE_CHANNEL_ID_PATTERN, '_');
-    const uploadsRoot = this.resolveUploadsRoot();
-    const targetDir = path.join(
-      uploadsRoot,
-      'crypto-news',
-      'media',
-      safeChannelId,
-    );
-
-    await fs.mkdir(targetDir, { recursive: true });
-
     const buffer = await this.downloadWithOptionalRefresh(
       client,
       channelId,
@@ -86,6 +75,41 @@ export class MtprotoMediaDownloader extends CryptoNewsMediaDownloader {
         `Telegram returned empty media for ${channelId}:${messageId}`,
       );
     }
+
+    return this.doSaveToDisk(channelId, messageId, index, media, buffer);
+  }
+
+  public async saveToDisk(
+    channelId: string,
+    messageId: number,
+    index: number,
+    media: TelegramMediaAttachment,
+    buffer: Buffer,
+  ): Promise<DownloadedMedia> {
+    if (buffer.length === 0) {
+      throw new Error(
+        `Cannot save empty media buffer for ${channelId}:${messageId}`,
+      );
+    }
+    return this.doSaveToDisk(channelId, messageId, index, media, buffer);
+  }
+
+  private async doSaveToDisk(
+    channelId: string,
+    messageId: number,
+    index: number,
+    _media: TelegramMediaAttachment,
+    buffer: Buffer,
+  ): Promise<DownloadedMedia> {
+    const safeChannelId = channelId.replace(SAFE_CHANNEL_ID_PATTERN, '_');
+    const uploadsRoot = this.resolveUploadsRoot();
+    const targetDir = path.join(
+      uploadsRoot,
+      'crypto-news',
+      'media',
+      safeChannelId,
+    );
+    await fs.mkdir(targetDir, { recursive: true });
 
     if (buffer.length > MAX_MEDIA_BYTES) {
       this.logger.warn(
@@ -101,11 +125,7 @@ export class MtprotoMediaDownloader extends CryptoNewsMediaDownloader {
     const filePath = path.join(targetDir, `${messageId}_${index}.${ext}`);
     await fs.writeFile(filePath, buffer);
 
-    return {
-      filePath,
-      mimeType,
-      fileSize: buffer.length,
-    };
+    return { filePath, mimeType, fileSize: buffer.length };
   }
 
   private resolveUploadsRoot(): string {
@@ -185,9 +205,9 @@ export class MtprotoMediaDownloader extends CryptoNewsMediaDownloader {
       id: coerceToLong(media.fileId),
       accessHash: coerceToLong(media.accessHash),
       fileReference,
-      date: 0,
+      date: media.date ?? 0,
       sizes: [],
-      dcId: 0,
+      dcId: media.dcId ?? 0,
     });
     return new Api.MessageMediaPhoto({ photo });
   }
