@@ -154,3 +154,105 @@ describe('CryptoNewsPage — media rendering', () => {
     ).toBeInTheDocument();
   });
 });
+
+describe('CryptoNewsPage — source handle/link rendering', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders message with source handle as clickable link to public Telegram URL', () => {
+    const sourceWithHandle: CryptoNewsSource = {
+      channelId: '123',
+      handle: '@test-handle',
+      title: 'Test Source',
+      isActive: true,
+      lifecycleStatus: 'ACTIVE',
+      addedAt: '2025-01-01T00:00:00.000Z',
+    };
+
+    const msgWithHandle: CryptoNewsMessage = {
+      id: 'msg-1',
+      channelId: '123',
+      messageId: 5,
+      title: 'Test Message',
+      content: 'Content here.',
+      publishedAt: '2025-01-01T00:00:00.000Z',
+      ingestedAt: '2025-01-01T00:00:01.000Z',
+      media: [],
+    };
+
+    mockedUseSources.mockReturnValue(makeSourcesQuery([sourceWithHandle]));
+    mockedUseMessages.mockReturnValue(makeMessagesQuery([msgWithHandle]));
+
+    renderWithClient(<CryptoNewsPage />);
+
+    const link = screen.getByRole('link', { name: /test-handle/i });
+    expect(link).toHaveAttribute('href', 'https://t.me/test-handle/5');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('renders message with source no handle (private channel) using c/ URL format', () => {
+    const sourceNoHandle: CryptoNewsSource = {
+      channelId: '123',
+      handle: null,
+      title: 'Test Channel',
+      isActive: true,
+      lifecycleStatus: 'ACTIVE',
+      addedAt: '2025-01-01T00:00:00.000Z',
+    };
+
+    const msgNoHandle: CryptoNewsMessage = {
+      id: 'msg-2',
+      channelId: '123',
+      messageId: 5,
+      title: 'Private Message',
+      content: 'Secret content.',
+      publishedAt: '2025-01-01T00:00:00.000Z',
+      ingestedAt: '2025-01-01T00:00:01.000Z',
+      media: [],
+    };
+
+    mockedUseSources.mockReturnValue(makeSourcesQuery([sourceNoHandle]));
+    mockedUseMessages.mockReturnValue(makeMessagesQuery([msgNoHandle]));
+
+    renderWithClient(<CryptoNewsPage />);
+
+    const link = screen.getByRole('link', { name: /Test Channel/i });
+    expect(link).toHaveAttribute('href', 'https://t.me/c/123/5');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('renders source not found - falls back to raw channelId without link', () => {
+    const otherSource: CryptoNewsSource = {
+      channelId: 'other-channel',
+      handle: '@OtherChannel',
+      title: 'Other Channel',
+      isActive: true,
+      lifecycleStatus: 'ACTIVE',
+      addedAt: '2025-01-01T00:00:00.000Z',
+    };
+
+    const msgUnknown: CryptoNewsMessage = {
+      id: 'msg-3',
+      channelId: 'unknown-channel',
+      messageId: 99,
+      title: 'Unknown Message',
+      content: 'Some content.',
+      publishedAt: '2025-01-01T00:00:00.000Z',
+      ingestedAt: '2025-01-01T00:00:01.000Z',
+      media: [],
+    };
+
+    mockedUseSources.mockReturnValue(makeSourcesQuery([otherSource]));
+    mockedUseMessages.mockReturnValue(makeMessagesQuery([msgUnknown]));
+
+    renderWithClient(<CryptoNewsPage />);
+
+    const article = screen.getByRole('article');
+    expect(within(article).getByText('unknown-channel')).toBeInTheDocument();
+    const links = within(article).queryAllByRole('link');
+    expect(links).toHaveLength(0);
+  });
+});

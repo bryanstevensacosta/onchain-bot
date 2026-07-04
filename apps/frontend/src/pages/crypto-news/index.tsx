@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   useCryptoNewsMessages,
   useCryptoNewsSources,
@@ -12,6 +12,11 @@ export function CryptoNewsPage() {
   const sources = useCryptoNewsSources();
   const [channelFilter, setChannelFilter] = useState<string>('');
   const [showAddModal, setShowAddModal] = useState(false);
+
+  const sourceByChannelId = useMemo(
+    () => new Map((sources.data ?? []).map((s) => [s.channelId, s])),
+    [sources.data],
+  );
 
   const filteredMessages = channelFilter
     ? (messages.data ?? []).filter((m) => m.channelId === channelFilter)
@@ -99,7 +104,31 @@ export function CryptoNewsPage() {
                 className="border-b border-slate-800 pb-3 last:border-b-0"
               >
                 <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <span className="font-mono">{msg.channelId}</span>
+                  {(() => {
+                    const source = sourceByChannelId.get(msg.channelId);
+                    if (!source) {
+                      return <span className="font-mono">{msg.channelId}</span>;
+                    }
+                    const displayName =
+                      source.handle?.replace(/^@/, '') ??
+                      source.title ??
+                      msg.channelId;
+                    const cleanHandle =
+                      source.handle?.replace(/^@/, '') ?? null;
+                    const telegramUrl = cleanHandle
+                      ? `https://t.me/${cleanHandle}/${msg.messageId}`
+                      : `https://t.me/c/${msg.channelId}/${msg.messageId}`;
+                    return (
+                      <a
+                        href={telegramUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-blue-400 hover:text-blue-300 underline"
+                      >
+                        {displayName}
+                      </a>
+                    );
+                  })()}
                   <span>·</span>
                   <span>msg {msg.messageId}</span>
                   <span>·</span>
