@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   useCryptoNewsMessages,
   useCryptoNewsSources,
@@ -140,16 +140,11 @@ export function CryptoNewsPage() {
                   </h3>
                 )}
                 {msg.media?.length > 0 && (
-                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {msg.media.map((m) => (
-                      <img
-                        key={m.id}
-                        src={m.url}
-                        alt={`${msg.title ?? 'image'} ${m.index + 1}`}
-                        className="h-auto max-h-96 w-full rounded-lg object-cover"
-                        loading="lazy"
-                      />
-                    ))}
+                  <div className="mt-3">
+                    <CryptoNewsMediaGrid
+                      media={msg.media}
+                      prefixTitle={msg.title ?? undefined}
+                    />
                   </div>
                 )}
                 <p className="text-sm text-slate-300 mt-1 whitespace-pre-wrap">
@@ -162,6 +157,56 @@ export function CryptoNewsPage() {
           </div>
         )}
       </Card>
+    </div>
+  );
+}
+
+/** Checks image aspect ratios on load and lays them out:
+ * - All square → horizontal 2-column grid (side by side)
+ * - Any non-square → vertical 1-column grid (stacked) */
+function CryptoNewsMediaGrid({
+  media,
+  prefixTitle,
+}: {
+  media: ReadonlyArray<{
+    id: string;
+    index: number;
+    type: string;
+    url: string;
+    mimeType: string | null;
+  }>;
+  prefixTitle?: string;
+}) {
+  const [allSquare, setAllSquare] = useState(true);
+  const checkedRef = useRef(0);
+
+  const handleLoad = useCallback(
+    (e: React.SyntheticEvent<HTMLImageElement>) => {
+      const img = e.currentTarget;
+      if (img.naturalWidth !== img.naturalHeight) {
+        setAllSquare(false);
+      }
+      checkedRef.current += 1;
+    },
+    [],
+  );
+
+  if (media.length === 0) return null;
+
+  return (
+    <div className={`grid gap-2 ${allSquare ? 'grid-cols-2' : 'grid-cols-1'}`}>
+      {media.map((m) => (
+        <img
+          key={m.id}
+          src={m.url}
+          alt={`${prefixTitle ?? 'image'} ${m.index + 1}`}
+          className={`h-auto w-full rounded-lg ${
+            allSquare ? 'object-cover aspect-square' : 'object-contain max-h-96'
+          }`}
+          loading="lazy"
+          onLoad={handleLoad}
+        />
+      ))}
     </div>
   );
 }
