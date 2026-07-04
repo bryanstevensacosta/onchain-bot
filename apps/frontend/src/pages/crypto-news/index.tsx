@@ -139,14 +139,18 @@ export function CryptoNewsPage() {
                     {msg.title}
                   </h3>
                 )}
-                {msg.media?.length > 0 && (
-                  <div className="mt-3">
-                    <CryptoNewsMediaGrid
-                      media={msg.media}
-                      prefixTitle={msg.title ?? undefined}
-                    />
-                  </div>
-                )}
+                {msg.media &&
+                  msg.media.filter((_, i) => !msg.linkPreviewUrl || i > 0)
+                    .length > 0 && (
+                    <div className="mt-3">
+                      <CryptoNewsMediaGrid
+                        media={msg.media.filter(
+                          (_, i) => !msg.linkPreviewUrl || i > 0,
+                        )}
+                        prefixTitle={msg.title ?? undefined}
+                      />
+                    </div>
+                  )}
                 <p className="text-sm text-slate-300 mt-1 whitespace-pre-wrap">
                   {msg.content.length > 500
                     ? `${msg.content.slice(0, 500)}…`
