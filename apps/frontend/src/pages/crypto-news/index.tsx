@@ -174,13 +174,19 @@ export function CryptoNewsPage() {
                       }`}
                     >
                       {msg.media.map((m, i) => (
-                        <img
+                        <a
                           key={m.id}
-                          src={m.url}
-                          alt={`${msg.title ?? 'image'} ${i + 1}`}
-                          className="h-auto w-full max-h-56 rounded object-contain"
-                          loading="lazy"
-                        />
+                          href={m.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <img
+                            src={m.url}
+                            alt={`${msg.title ?? 'image'} ${i + 1}`}
+                            className="h-auto w-full max-h-56 rounded object-contain cursor-pointer transition-opacity hover:opacity-80"
+                            loading="lazy"
+                          />
+                        </a>
                       ))}
                     </div>
                   )}
