@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   useCryptoNewsMessages,
   useCryptoNewsSources,
@@ -139,18 +139,23 @@ export function CryptoNewsPage() {
                     {msg.title}
                   </h3>
                 )}
-                {msg.media &&
-                  msg.media.filter((_, i) => !msg.linkPreviewUrl || i > 0)
-                    .length > 0 && (
-                    <div className="mt-3">
-                      <CryptoNewsMediaGrid
-                        media={msg.media.filter(
-                          (_, i) => !msg.linkPreviewUrl || i > 0,
-                        )}
-                        prefixTitle={msg.title ?? undefined}
+                {msg.media && msg.media.length > 0 && (
+                  <div
+                    className={`mt-3 grid gap-1 ${
+                      msg.media.length === 1 ? 'grid-cols-1' : 'grid-cols-2'
+                    }`}
+                  >
+                    {msg.media.map((m, i) => (
+                      <img
+                        key={m.id}
+                        src={m.url}
+                        alt={`${msg.title ?? 'image'} ${i + 1}`}
+                        className="h-auto w-full rounded object-contain"
+                        loading="lazy"
                       />
-                    </div>
-                  )}
+                    ))}
+                  </div>
+                )}
                 <p className="text-sm text-slate-300 mt-1 whitespace-pre-wrap">
                   {msg.content.length > 500
                     ? `${msg.content.slice(0, 500)}…`
@@ -163,14 +168,6 @@ export function CryptoNewsPage() {
                     rel="noopener noreferrer"
                     className="mt-2 block rounded border border-slate-700 bg-slate-800 p-3 hover:border-slate-500 transition-colors"
                   >
-                    {msg.media && msg.media.length > 0 && (
-                      <img
-                        src={msg.media[0].url}
-                        alt=""
-                        className="mb-2 h-auto w-full max-h-48 rounded object-cover"
-                        loading="lazy"
-                      />
-                    )}
                     {msg.linkPreviewTitle && (
                       <h4 className="text-sm font-semibold text-slate-100">
                         {msg.linkPreviewTitle}
@@ -179,6 +176,11 @@ export function CryptoNewsPage() {
                     {msg.linkPreviewDescription && (
                       <p className="mt-1 text-xs text-slate-400 line-clamp-2">
                         {msg.linkPreviewDescription}
+                      </p>
+                    )}
+                    {msg.linkPreviewSiteName && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        {msg.linkPreviewSiteName}
                       </p>
                     )}
                     <span className="mt-1 block text-xs text-blue-400">
@@ -198,55 +200,3 @@ export function CryptoNewsPage() {
 /** Checks image aspect ratios on load and lays them out:
  * - All square → horizontal 2-column grid (side by side)
  * - Any non-square → vertical 1-column grid (stacked) */
-function CryptoNewsMediaGrid({
-  media,
-  prefixTitle,
-}: {
-  media: ReadonlyArray<{
-    id: string;
-    index: number;
-    type: string;
-    url: string;
-    mimeType: string | null;
-  }>;
-  prefixTitle?: string;
-}) {
-  const [allSquare, setAllSquare] = useState(true);
-  const checkedRef = useRef(0);
-
-  const handleLoad = useCallback(
-    (e: React.SyntheticEvent<HTMLImageElement>) => {
-      const img = e.currentTarget;
-      if (img.naturalWidth !== img.naturalHeight) {
-        setAllSquare(false);
-      }
-      checkedRef.current += 1;
-    },
-    [],
-  );
-
-  if (media.length === 0) return null;
-
-  return (
-    <div
-      className={`grid gap-2 ${
-        allSquare ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'
-      } justify-items-start`}
-    >
-      {media.map((m) => (
-        <img
-          key={m.id}
-          src={m.url}
-          alt={`${prefixTitle ?? 'image'} ${m.index + 1}`}
-          className={`h-auto w-full rounded-lg ${
-            allSquare
-              ? 'object-cover aspect-square object-left'
-              : 'object-contain max-h-96'
-          }`}
-          loading="lazy"
-          onLoad={handleLoad}
-        />
-      ))}
-    </div>
-  );
-}
