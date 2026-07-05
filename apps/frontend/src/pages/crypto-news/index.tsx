@@ -23,7 +23,7 @@ export function CryptoNewsPage() {
     : (messages.data ?? []);
 
   return (
-    <div className="px-6 py-6 space-y-6 max-w-xl">
+    <div className="px-6 py-6 space-y-6 max-w-xl mx-auto">
       <header className="flex items-start justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold text-slate-100">Crypto News</h1>
