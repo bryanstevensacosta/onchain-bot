@@ -49,6 +49,12 @@ interface CryptoNewsMessageView {
   readonly linkPreviewTitle: string | null;
   readonly linkPreviewDescription: string | null;
   readonly linkPreviewSiteName: string | null;
+  readonly formattingEntities: ReadonlyArray<{
+    offset: number;
+    length: number;
+    type: string;
+    url?: string | null;
+  }> | null;
 }
 
 interface CryptoNewsSourceView {
@@ -123,6 +129,19 @@ export class CryptoNewsController {
         linkPreviewTitle: m.linkPreviewTitle,
         linkPreviewDescription: m.linkPreviewDescription,
         linkPreviewSiteName: m.linkPreviewSiteName,
+        formattingEntities: (() => {
+          if (!m.formattingEntities) return null;
+          try {
+            return JSON.parse(m.formattingEntities) as Array<{
+              offset: number;
+              length: number;
+              type: string;
+              url?: string | null;
+            }>;
+          } catch {
+            return null;
+          }
+        })(),
       })),
     );
   }
@@ -146,6 +165,19 @@ export class CryptoNewsController {
       linkPreviewTitle: msg.linkPreviewTitle,
       linkPreviewDescription: msg.linkPreviewDescription,
       linkPreviewSiteName: msg.linkPreviewSiteName,
+      formattingEntities: (() => {
+        if (!msg.formattingEntities) return null;
+        try {
+          return JSON.parse(msg.formattingEntities) as Array<{
+            offset: number;
+            length: number;
+            type: string;
+            url?: string | null;
+          }>;
+        } catch {
+          return null;
+        }
+      })(),
     };
   }
 
@@ -290,6 +322,7 @@ export class CryptoNewsController {
           ...(raw.media !== undefined
             ? { media: this.toMediaVO(raw.media) }
             : {}),
+          ...(raw.entities !== undefined ? { entities: raw.entities } : {}),
         });
         stored += 1;
       } catch (err) {

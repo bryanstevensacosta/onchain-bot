@@ -5,6 +5,7 @@ import {
 } from '@/entities/crypto-news';
 import { Button, Card } from '@/shared/ui';
 import { formatRelativeTime } from '@/shared/lib';
+import { renderFormattedText } from '@/shared/lib/render-telegram-entities';
 import { AddCryptoNewsSourceModal } from '@/features/add-crypto-news-source';
 
 export function CryptoNewsPage() {
@@ -158,8 +159,11 @@ export function CryptoNewsPage() {
                 )}
                 <p className="text-sm text-slate-300 mt-1 whitespace-pre-wrap">
                   {msg.content.length > 500
-                    ? `${msg.content.slice(0, 500)}…`
-                    : msg.content}
+                    ? renderFormattedText(
+                        msg.content.slice(0, 500),
+                        msg.formattingEntities,
+                      )
+                    : renderFormattedText(msg.content, msg.formattingEntities)}
                 </p>
                 {msg.linkPreviewUrl && (
                   <a

@@ -17,6 +17,15 @@ export interface StoreNewsMessageInput {
    * (backward compatible with pre-T6 callers).
    */
   readonly media?: ReadonlyArray<CryptoNewsMedia>;
+  /**
+   * Optional text formatting entities from Telegram (bold, links, etc.)
+   */
+  readonly entities?: ReadonlyArray<{
+    readonly offset: number;
+    readonly length: number;
+    readonly type: string;
+    readonly url?: string;
+  }>;
 }
 
 /**
@@ -44,6 +53,9 @@ export class StoreNewsMessageUseCase {
       content: input.content,
       publishedAt: input.occurredAt,
       media: input.media,
+      formattingEntities: input.entities
+        ? JSON.stringify(input.entities)
+        : null,
     });
 
     await this.messageRepo.save(message);

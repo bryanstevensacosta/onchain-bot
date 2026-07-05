@@ -30,6 +30,7 @@ export class CryptoNewsMessageMapper {
     row.linkPreviewTitle = message.linkPreviewTitle;
     row.linkPreviewDescription = message.linkPreviewDescription;
     row.linkPreviewSiteName = message.linkPreviewSiteName;
+    row.messageEntities = message.formattingEntities;
     row.media = (message.media ?? []).map((m) =>
       CryptoNewsMessageMapper.mediaToEntity(m),
     );
@@ -49,6 +50,7 @@ export class CryptoNewsMessageMapper {
       linkPreviewTitle: row.linkPreviewTitle ?? null,
       linkPreviewDescription: row.linkPreviewDescription ?? null,
       linkPreviewSiteName: row.linkPreviewSiteName ?? null,
+      formattingEntities: row.messageEntities ?? null,
       media: (row.media ?? []).map((m) =>
         CryptoNewsMessageMapper.mediaToDomain(m),
       ),

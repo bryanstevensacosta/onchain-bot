@@ -21,6 +21,12 @@ export interface CryptoNewsMessage {
   readonly linkPreviewTitle: string | null;
   readonly linkPreviewDescription: string | null;
   readonly linkPreviewSiteName: string | null;
+  readonly formattingEntities?: ReadonlyArray<{
+    readonly offset: number;
+    readonly length: number;
+    readonly type: string;
+    readonly url?: string | null;
+  }>;
 }
 
 export interface CryptoNewsSource {

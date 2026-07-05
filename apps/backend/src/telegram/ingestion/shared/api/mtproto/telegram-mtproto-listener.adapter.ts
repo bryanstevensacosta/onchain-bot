@@ -192,11 +192,25 @@ export class TelegramMtprotoListenerAdapter
               if (msg.id > lastSeen) {
                 this.lastSeenMessageId.set(peerId, msg.id);
                 const media = await this.extractMediaForMessage(peerId, msg);
+                const msgAny = msg as any;
                 this.queue.push({
                   peerId,
                   messageId: msg.id,
                   text: msg.message ?? '',
                   occurredAt: new Date(msg.date * 1000),
+                  entities: (
+                    (msgAny.entities ?? []) as Array<{
+                      offset: number;
+                      length: number;
+                      className?: string;
+                      url?: string;
+                    }>
+                  ).map((e) => ({
+                    offset: e.offset,
+                    length: e.length,
+                    type: this.normalizeEntityType(e.className),
+                    ...(e.url ? { url: e.url } : {}),
+                  })),
                   ...(media ? { media } : {}),
                 });
                 const resolver = this.waitingResolvers.shift();
@@ -232,11 +246,25 @@ export class TelegramMtprotoListenerAdapter
       const channelId = chat ? String(chat.id) : '';
       if (!channelId || !this.subscribedChannelIds.includes(channelId)) return;
       const media = await this.extractMediaForMessage(channelId, msg);
+      const msgAny = msg as any;
       this.queue.push({
         peerId: channelId,
         messageId: msg.id,
         text: msg.message ?? '',
         occurredAt: new Date(msg.date * 1000),
+        entities: (
+          (msgAny.entities ?? []) as Array<{
+            offset: number;
+            length: number;
+            className?: string;
+            url?: string;
+          }>
+        ).map((e) => ({
+          offset: e.offset,
+          length: e.length,
+          type: this.normalizeEntityType(e.className),
+          ...(e.url ? { url: e.url } : {}),
+        })),
         ...(media ? { media } : {}),
       });
       const resolver = this.waitingResolvers.shift();
@@ -276,11 +304,25 @@ export class TelegramMtprotoListenerAdapter
         }
       }
       const media = await this.extractMediaForMessage(channelId, resolved);
+      const mAny = m as any;
       out.push({
         peerId: channelId,
         messageId: m.id,
         text: m.message ?? '',
         occurredAt: new Date(m.date * 1000),
+        entities: (
+          (mAny.entities ?? []) as Array<{
+            offset: number;
+            length: number;
+            className?: string;
+            url?: string;
+          }>
+        ).map((e) => ({
+          offset: e.offset,
+          length: e.length,
+          type: this.normalizeEntityType(e.className),
+          ...(e.url ? { url: e.url } : {}),
+        })),
         ...(media && media.length > 0 ? { media: [...media] } : {}),
       });
     }
@@ -545,5 +587,23 @@ export class TelegramMtprotoListenerAdapter
 
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private normalizeEntityType(className?: string): string {
+    const map: Record<string, string> = {
+      MessageEntityUrl: 'url',
+      MessageEntityTextUrl: 'text_url',
+      MessageEntityBold: 'bold',
+      MessageEntityItalic: 'italic',
+      MessageEntityCode: 'code',
+      MessageEntityPre: 'pre',
+      MessageEntityStrike: 'strike',
+      MessageEntityUnderline: 'underline',
+      MessageEntitySpoiler: 'spoiler',
+      MessageEntityMention: 'mention',
+      MessageEntityHashtag: 'hashtag',
+      MessageEntityCashtag: 'cashtag',
+    };
+    return map[className ?? ''] ?? 'unknown';
   }
 }

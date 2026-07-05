@@ -93,6 +93,7 @@ describe('CryptoNewsPage — media rendering', () => {
       linkPreviewTitle: null,
       linkPreviewDescription: null,
       linkPreviewSiteName: null,
+      formattingEntities: undefined,
     };
 
     mockedUseMessages.mockReturnValue(makeMessagesQuery([msgWithMedia]));
@@ -126,6 +127,7 @@ describe('CryptoNewsPage — media rendering', () => {
       linkPreviewTitle: null,
       linkPreviewDescription: null,
       linkPreviewSiteName: null,
+      formattingEntities: undefined,
     };
 
     mockedUseMessages.mockReturnValue(makeMessagesQuery([msgWithoutMedia]));
@@ -191,6 +193,7 @@ describe('CryptoNewsPage — source handle/link rendering', () => {
       linkPreviewTitle: null,
       linkPreviewDescription: null,
       linkPreviewSiteName: null,
+      formattingEntities: undefined,
     };
 
     mockedUseSources.mockReturnValue(makeSourcesQuery([sourceWithHandle]));
@@ -227,6 +230,7 @@ describe('CryptoNewsPage — source handle/link rendering', () => {
       linkPreviewTitle: null,
       linkPreviewDescription: null,
       linkPreviewSiteName: null,
+      formattingEntities: undefined,
     };
 
     mockedUseSources.mockReturnValue(makeSourcesQuery([sourceNoHandle]));
@@ -263,6 +267,7 @@ describe('CryptoNewsPage — source handle/link rendering', () => {
       linkPreviewTitle: null,
       linkPreviewDescription: null,
       linkPreviewSiteName: null,
+      formattingEntities: undefined,
     };
 
     mockedUseSources.mockReturnValue(makeSourcesQuery([otherSource]));
@@ -274,5 +279,89 @@ describe('CryptoNewsPage — source handle/link rendering', () => {
     expect(within(article).getByText('unknown-channel')).toBeInTheDocument();
     const links = within(article).queryAllByRole('link');
     expect(links).toHaveLength(0);
+  });
+});
+
+describe('CryptoNewsPage — formatting entities rendering', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedUseSources.mockReturnValue(makeSourcesQuery([baseSource]));
+  });
+
+  it('renders text_url entity as anchor link', () => {
+    const msgWithLink: CryptoNewsMessage = {
+      id: 'msg-link',
+      channelId: 'WatcherGuru',
+      messageId: 100,
+      title: 'Link test',
+      content: 'Check out this site click here for more info',
+      publishedAt: '2025-01-01T00:00:00.000Z',
+      ingestedAt: '2025-01-01T00:00:01.000Z',
+      media: [],
+      linkPreviewUrl: null,
+      linkPreviewTitle: null,
+      linkPreviewDescription: null,
+      linkPreviewSiteName: null,
+      formattingEntities: [
+        {
+          offset: 20,
+          length: 10,
+          type: 'text_url',
+          url: 'https://example.com',
+        },
+      ],
+    };
+
+    mockedUseMessages.mockReturnValue(makeMessagesQuery([msgWithLink]));
+
+    renderWithClient(<CryptoNewsPage />);
+
+    const article = screen.getByRole('article');
+    const allLinks = within(article).getAllByRole('link');
+    const contentLink = allLinks.find(
+      (l) => l.getAttribute('href') === 'https://example.com',
+    );
+    expect(contentLink).toBeDefined();
+    expect(contentLink).toHaveAttribute('target', '_blank');
+    expect(contentLink).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('renders text without entities as plain text (no anchor tags)', () => {
+    const sourceNoHandle: CryptoNewsSource = {
+      channelId: '123456',
+      handle: null,
+      title: 'No Handle Channel',
+      isActive: true,
+      lifecycleStatus: 'ACTIVE',
+      addedAt: '2025-01-01T00:00:00.000Z',
+    };
+
+    const msgPlainText: CryptoNewsMessage = {
+      id: 'msg-plain',
+      channelId: '123456',
+      messageId: 101,
+      title: 'Plain text test',
+      content: 'This is just plain text with no formatting.',
+      publishedAt: '2025-01-01T00:00:00.000Z',
+      ingestedAt: '2025-01-01T00:00:01.000Z',
+      media: [],
+      linkPreviewUrl: null,
+      linkPreviewTitle: null,
+      linkPreviewDescription: null,
+      linkPreviewSiteName: null,
+      formattingEntities: undefined,
+    };
+
+    mockedUseSources.mockReturnValue(makeSourcesQuery([sourceNoHandle]));
+    mockedUseMessages.mockReturnValue(makeMessagesQuery([msgPlainText]));
+
+    renderWithClient(<CryptoNewsPage />);
+
+    const article = screen.getByRole('article');
+    const contentPara = within(article).getByText(
+      'This is just plain text with no formatting.',
+    );
+    expect(contentPara).toBeInTheDocument();
+    expect(contentPara).not.toHaveAttribute('href');
   });
 });

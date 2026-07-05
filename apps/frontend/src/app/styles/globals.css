@@ -12,4 +12,15 @@
   .scrollbar-thin {
     scrollbar-width: thin;
   }
+  .spoiler {
+    background: #334155;
+    border-radius: 2px;
+    cursor: pointer;
+    filter: blur(4px);
+    transition: filter 0.2s;
+  }
+  .spoiler:hover,
+  .spoiler:focus {
+    filter: none;
+  }
 }
