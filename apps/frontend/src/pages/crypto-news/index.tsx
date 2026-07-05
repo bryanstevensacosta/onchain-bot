@@ -23,7 +23,7 @@ export function CryptoNewsPage() {
     : (messages.data ?? []);
 
   return (
-    <div className="px-6 py-6 space-y-6">
+    <div className="px-6 py-6 space-y-6 max-w-xl">
       <header className="flex items-start justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold text-slate-100">Crypto News</h1>
@@ -150,7 +150,7 @@ export function CryptoNewsPage() {
                         key={m.id}
                         src={m.url}
                         alt={`${msg.title ?? 'image'} ${i + 1}`}
-                        className="h-auto w-full rounded object-contain"
+                        className="h-auto w-full max-h-56 rounded object-contain"
                         loading="lazy"
                       />
                     ))}
