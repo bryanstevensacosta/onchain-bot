@@ -310,9 +310,7 @@ export class PublishedCall extends AggregateRoot<string> {
     this.state.status = PublishStatus.FAILED;
     this.state.publishedAt = new Date();
     this.state.publishedChannelIds = Object.freeze([]);
-    this.state.failedChannelIds = Object.freeze([
-      ...this.state.targetChannels,
-    ]);
+    this.state.failedChannelIds = Object.freeze([...this.state.targetChannels]);
     this.state.failedReason = reason;
     this.apply(
       new CallPublishFailedEvent({

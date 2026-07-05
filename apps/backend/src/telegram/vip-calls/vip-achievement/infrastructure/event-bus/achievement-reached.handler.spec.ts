@@ -21,9 +21,7 @@ jest.mock('telegram/shared', () => {
 import { AchievementReachedHandler } from './achievement-reached.handler';
 import { CallAchievementReachedEvent } from 'token/achievement/domain/events/call-achievement-reached.event';
 import { VipCallsMessageFormatterAdapter } from '../../../vip-channel/infrastructure/formatters/vip-message-formatter.adapter';
-import {
-  TelegramPublisherPort,
-} from 'telegram/shared';
+import { TelegramPublisherPort } from 'telegram/shared';
 import {
   VipAchievementRecord,
   VipAchievementRepository,
@@ -153,11 +151,7 @@ function makeHandler(deps?: {
   const repo = deps?.repo ?? new FakeVipAchievementRepository();
   const publisher = deps?.publisher ?? new FakeTelegramPublisher();
   const formatter = deps?.formatter ?? makeFormatter();
-  return new AchievementReachedHandler(
-    formatter,
-    publisher,
-    repo,
-  );
+  return new AchievementReachedHandler(formatter, publisher, repo);
 }
 
 describe('AchievementReachedHandler', () => {

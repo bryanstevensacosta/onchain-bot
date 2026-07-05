@@ -55,6 +55,7 @@ interface CryptoNewsMessageView {
     type: string;
     url?: string | null;
   }> | null;
+  readonly groupedId: string | null;
 }
 
 interface CryptoNewsSourceView {
@@ -129,6 +130,7 @@ export class CryptoNewsController {
         linkPreviewTitle: m.linkPreviewTitle,
         linkPreviewDescription: m.linkPreviewDescription,
         linkPreviewSiteName: m.linkPreviewSiteName,
+        groupedId: m.groupedId,
         formattingEntities: (() => {
           if (!m.formattingEntities) return null;
           try {
@@ -165,6 +167,7 @@ export class CryptoNewsController {
       linkPreviewTitle: msg.linkPreviewTitle,
       linkPreviewDescription: msg.linkPreviewDescription,
       linkPreviewSiteName: msg.linkPreviewSiteName,
+      groupedId: msg.groupedId,
       formattingEntities: (() => {
         if (!msg.formattingEntities) return null;
         try {

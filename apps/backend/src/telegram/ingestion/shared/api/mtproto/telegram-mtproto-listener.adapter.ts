@@ -212,6 +212,7 @@ export class TelegramMtprotoListenerAdapter
                     ...(e.url ? { url: e.url } : {}),
                   })),
                   ...(media ? { media } : {}),
+                  groupedId: (msgAny.groupedId as string) ?? null,
                 });
                 const resolver = this.waitingResolvers.shift();
                 if (resolver) resolver();
@@ -266,6 +267,7 @@ export class TelegramMtprotoListenerAdapter
           ...(e.url ? { url: e.url } : {}),
         })),
         ...(media ? { media } : {}),
+        groupedId: (msgAny.groupedId as string) ?? null,
       });
       const resolver = this.waitingResolvers.shift();
       if (resolver) resolver();
@@ -324,6 +326,7 @@ export class TelegramMtprotoListenerAdapter
           ...(e.url ? { url: e.url } : {}),
         })),
         ...(media && media.length > 0 ? { media: [...media] } : {}),
+        groupedId: (mAny.groupedId as string) ?? null,
       });
     }
     return out;

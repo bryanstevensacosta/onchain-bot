@@ -31,6 +31,7 @@ export interface CryptoNewsMessageProps {
   readonly linkPreviewDescription: string | null;
   readonly linkPreviewSiteName: string | null;
   readonly formattingEntities: string | null;
+  readonly groupedId: string | null;
 }
 
 export class CryptoNewsMessage {
@@ -49,6 +50,7 @@ export class CryptoNewsMessage {
     linkPreviewDescription?: string | null;
     linkPreviewSiteName?: string | null;
     formattingEntities?: string | null;
+    groupedId?: string | null;
   }): CryptoNewsMessage {
     if (!input.channelId?.trim()) {
       throw new Error('CryptoNewsMessage channelId cannot be empty');
@@ -75,6 +77,7 @@ export class CryptoNewsMessage {
       linkPreviewDescription: input.linkPreviewDescription ?? null,
       linkPreviewSiteName: input.linkPreviewSiteName ?? null,
       formattingEntities: input.formattingEntities ?? null,
+      groupedId: input.groupedId ?? null,
     });
   }
 
@@ -136,5 +139,9 @@ export class CryptoNewsMessage {
 
   public get formattingEntities(): string | null {
     return this.props.formattingEntities ?? null;
+  }
+
+  public get groupedId(): string | null {
+    return this.props.groupedId ?? null;
   }
 }

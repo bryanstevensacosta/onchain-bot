@@ -147,6 +147,9 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
           occurredAt: raw.occurredAt,
           ...(media !== undefined ? { media } : {}),
           ...(raw.entities !== undefined ? { entities: raw.entities } : {}),
+          ...(raw.groupedId !== undefined && raw.groupedId !== null
+            ? { groupedId: String(raw.groupedId) }
+            : {}),
         });
         return;
       }

@@ -80,4 +80,8 @@ export interface TelegramRawMessage {
     readonly url?: string;
   }>;
   readonly media?: ReadonlyArray<TelegramMediaAttachment>;
+  /** Telegram media group / album identifier. Messages sent together as
+   *  an album share the same groupedId. Group consecutive messages by
+   *  this field when rendering. */
+  readonly groupedId?: bigint | string;
 }

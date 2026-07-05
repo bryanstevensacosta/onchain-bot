@@ -26,6 +26,7 @@ export interface StoreNewsMessageInput {
     readonly type: string;
     readonly url?: string;
   }>;
+  readonly groupedId?: string | null;
 }
 
 /**
@@ -56,6 +57,7 @@ export class StoreNewsMessageUseCase {
       formattingEntities: input.entities
         ? JSON.stringify(input.entities)
         : null,
+      groupedId: input.groupedId ?? null,
     });
 
     await this.messageRepo.save(message);

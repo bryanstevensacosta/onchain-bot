@@ -66,7 +66,10 @@ export class VipAchievement extends Entity<string> {
         'VipAchievement.create: threshold must be a finite number',
       );
     }
-    if (!(props.notifiedAt instanceof Date) || Number.isNaN(props.notifiedAt.getTime())) {
+    if (
+      !(props.notifiedAt instanceof Date) ||
+      Number.isNaN(props.notifiedAt.getTime())
+    ) {
       throw new DomainError(
         ErrorCode.VALIDATION,
         'VipAchievement.create: notifiedAt must be a valid Date',

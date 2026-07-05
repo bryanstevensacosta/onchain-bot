@@ -2,10 +2,7 @@ import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { isDatabaseEnabled } from 'shared/common/persistence/database.module';
-import {
-  MessageFormatterPort,
-  TelegramPublisherPort,
-} from 'telegram/shared';
+import { MessageFormatterPort, TelegramPublisherPort } from 'telegram/shared';
 import { VipCallsBotApiPublisherAdapter } from '../shared/infrastructure/senders/bot-api-telegram-publisher.adapter';
 import { VipCallsMessageFormatterAdapter } from '../vip-channel/infrastructure/formatters/vip-message-formatter.adapter';
 import { VipAchievementRepository } from './application/ports/vip-achievement.repository';
@@ -35,10 +32,7 @@ import { AchievementReachedHandler } from './infrastructure/event-bus/achievemen
  * handler registration from `vip-channel.module`.
  */
 @Module({
-  imports: [
-    HttpModule,
-    TypeOrmModule.forFeature([VipAchievementEntity]),
-  ],
+  imports: [HttpModule, TypeOrmModule.forFeature([VipAchievementEntity])],
   controllers: [],
   providers: [
     InMemoryVipAchievementRepository,
@@ -50,9 +44,8 @@ import { AchievementReachedHandler } from './infrastructure/event-bus/achievemen
           ? [TypeormVipAchievementRepository]
           : [InMemoryVipAchievementRepository]),
       ],
-      useFactory: (
-        repo: VipAchievementRepository,
-      ): VipAchievementRepository => repo,
+      useFactory: (repo: VipAchievementRepository): VipAchievementRepository =>
+        repo,
     },
     InProcessVipAchievementEventPublisher,
     AchievementReachedHandler,

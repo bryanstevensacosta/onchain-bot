@@ -47,10 +47,7 @@ export abstract class PublishedCallRepository {
     payload: ReservePayload,
   ): Promise<TryReserveResult>;
 
-  public abstract finalize(
-    id: string,
-    payload: FinalizePayload,
-  ): Promise<void>;
+  public abstract finalize(id: string, payload: FinalizePayload): Promise<void>;
 
   public abstract markFailed(id: string, reason: string): Promise<void>;
 

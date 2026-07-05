@@ -20,20 +20,14 @@ import {
  */
 @Injectable()
 export class InMemoryVipAchievementRepository extends VipAchievementRepository {
-  private readonly logger = new Logger(
-    InMemoryVipAchievementRepository.name,
-  );
+  private readonly logger = new Logger(InMemoryVipAchievementRepository.name);
   private readonly store = new Map<string, VipAchievementRecord[]>();
 
-  public async findByCall(
-    callId: string,
-  ): Promise<VipAchievementRecord[]> {
+  public async findByCall(callId: string): Promise<VipAchievementRecord[]> {
     return [...(this.store.get(callId) ?? [])];
   }
 
-  public async findThresholdsForCall(
-    callId: string,
-  ): Promise<number[]> {
+  public async findThresholdsForCall(callId: string): Promise<number[]> {
     return (this.store.get(callId) ?? []).map((r) => r.threshold);
   }
 

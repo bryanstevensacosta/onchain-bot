@@ -99,108 +99,135 @@ export function CryptoNewsPage() {
           <div className="text-slate-500 text-sm">No messages yet.</div>
         ) : (
           <div className="space-y-3">
-            {filteredMessages.map((msg) => (
-              <article
-                key={msg.id}
-                className="rounded-xl bg-slate-800/50 p-4 text-left"
-              >
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  {(() => {
-                    const source = sourceByChannelId.get(msg.channelId);
-                    if (!source) {
-                      return <span className="font-mono">{msg.channelId}</span>;
-                    }
-                    const displayName =
-                      source.handle?.replace(/^@/, '') ??
-                      source.title ??
-                      msg.channelId;
-                    const cleanHandle =
-                      source.handle?.replace(/^@/, '') ?? null;
-                    const telegramUrl = cleanHandle
-                      ? `https://t.me/${cleanHandle}/${msg.messageId}`
-                      : `https://t.me/c/${msg.channelId}/${msg.messageId}`;
-                    return (
-                      <a
-                        href={telegramUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-mono text-blue-400 hover:text-blue-300 underline"
-                      >
-                        {displayName}
-                      </a>
-                    );
-                  })()}
-                  <span>·</span>
-                  <span>msg {msg.messageId}</span>
-                  <span>·</span>
-                  <span>{formatRelativeTime(msg.ingestedAt)}</span>
-                </div>
-                {msg.title && (
-                  <h3 className="text-sm font-semibold text-slate-100 mt-1">
-                    {msg.title}
-                  </h3>
-                )}
-                {msg.media && msg.media.length > 0 && (
-                  <div
-                    className={`mt-3 grid gap-1 ${
-                      msg.media.length === 1 ? 'grid-cols-1' : 'grid-cols-2'
-                    }`}
-                  >
-                    {msg.media.map((m, i) => (
-                      <img
-                        key={m.id}
-                        src={m.url}
-                        alt={`${msg.title ?? 'image'} ${i + 1}`}
-                        className="h-auto w-full max-h-56 rounded object-contain"
-                        loading="lazy"
-                      />
-                    ))}
+            {(() => {
+              // Group consecutive messages with the same groupedId
+              // (Telegram media albums are sent as separate messages)
+              const groups: (typeof filteredMessages)[number][] = [];
+              let i = 0;
+              while (i < filteredMessages.length) {
+                const curr = filteredMessages[i];
+                const next = filteredMessages[i + 1];
+                if (
+                  next &&
+                  curr.groupedId &&
+                  next.groupedId === curr.groupedId
+                ) {
+                  groups.push({
+                    ...curr,
+                    content: curr.content || next.content,
+                    media: [...curr.media, ...next.media],
+                    groupedId: null, // prevent re-grouping
+                  });
+                  i += 2;
+                } else {
+                  groups.push(curr);
+                  i += 1;
+                }
+              }
+              return groups.map((msg) => (
+                <article
+                  key={msg.id}
+                  className="rounded-xl bg-slate-800/50 p-4 text-left"
+                >
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    {(() => {
+                      const source = sourceByChannelId.get(msg.channelId);
+                      if (!source) {
+                        return (
+                          <span className="font-mono">{msg.channelId}</span>
+                        );
+                      }
+                      const displayName =
+                        source.handle?.replace(/^@/, '') ??
+                        source.title ??
+                        msg.channelId;
+                      const cleanHandle =
+                        source.handle?.replace(/^@/, '') ?? null;
+                      const telegramUrl = cleanHandle
+                        ? `https://t.me/${cleanHandle}/${msg.messageId}`
+                        : `https://t.me/c/${msg.channelId}/${msg.messageId}`;
+                      return (
+                        <a
+                          href={telegramUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono text-blue-400 hover:text-blue-300 underline"
+                        >
+                          {displayName}
+                        </a>
+                      );
+                    })()}
+                    <span>·</span>
+                    <span>msg {msg.messageId}</span>
+                    <span>·</span>
+                    <span>{formatRelativeTime(msg.ingestedAt)}</span>
                   </div>
-                )}
-                <p className="text-sm text-slate-300 mt-1 whitespace-pre-wrap">
-                  {msg.content.length > 500
-                    ? renderFormattedText(
-                        msg.content.slice(0, 500),
-                        msg.formattingEntities,
-                      )
-                    : renderFormattedText(msg.content, msg.formattingEntities)}
-                </p>
-                {msg.linkPreviewUrl && (
-                  <a
-                    href={msg.linkPreviewUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-2 block rounded border border-slate-700 bg-slate-800 p-3 hover:border-slate-500 transition-colors"
-                  >
-                    {msg.linkPreviewTitle && (
-                      <h4 className="text-sm font-semibold text-slate-100">
-                        {msg.linkPreviewTitle}
-                      </h4>
-                    )}
-                    {msg.linkPreviewDescription && (
-                      <p className="mt-1 text-xs text-slate-400 line-clamp-2">
-                        {msg.linkPreviewDescription}
-                      </p>
-                    )}
-                    {msg.linkPreviewSiteName && (
-                      <p className="mt-1 text-xs text-slate-500">
-                        {msg.linkPreviewSiteName}
-                      </p>
-                    )}
-                    <span className="mt-1 block text-xs text-blue-400">
-                      {msg.linkPreviewUrl}
-                    </span>
-                  </a>
-                )}
-              </article>
-            ))}
+                  {msg.title && (
+                    <h3 className="text-sm font-semibold text-slate-100 mt-1">
+                      {msg.title}
+                    </h3>
+                  )}
+                  {msg.media && msg.media.length > 0 && (
+                    <div
+                      className={`mt-3 grid gap-1 ${
+                        msg.media.length === 1 ? 'grid-cols-1' : 'grid-cols-2'
+                      }`}
+                    >
+                      {msg.media.map((m, i) => (
+                        <img
+                          key={m.id}
+                          src={m.url}
+                          alt={`${msg.title ?? 'image'} ${i + 1}`}
+                          className="h-auto w-full max-h-56 rounded object-contain"
+                          loading="lazy"
+                        />
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-sm text-slate-300 mt-1 whitespace-pre-wrap">
+                    {msg.content.length > 500
+                      ? renderFormattedText(
+                          msg.content.slice(0, 500),
+                          msg.formattingEntities,
+                        )
+                      : renderFormattedText(
+                          msg.content,
+                          msg.formattingEntities,
+                        )}
+                  </p>
+                  {msg.linkPreviewUrl && (
+                    <a
+                      href={msg.linkPreviewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 block rounded border border-slate-700 bg-slate-800 p-3 hover:border-slate-500 transition-colors"
+                    >
+                      {msg.linkPreviewTitle && (
+                        <h4 className="text-sm font-semibold text-slate-100">
+                          {msg.linkPreviewTitle}
+                        </h4>
+                      )}
+                      {msg.linkPreviewDescription && (
+                        <p className="mt-1 text-xs text-slate-400 line-clamp-2">
+                          {msg.linkPreviewDescription}
+                        </p>
+                      )}
+                      {msg.linkPreviewSiteName && (
+                        <p className="mt-1 text-xs text-slate-500">
+                          {msg.linkPreviewSiteName}
+                        </p>
+                      )}
+                      <span className="mt-1 block text-xs text-blue-400">
+                        {msg.linkPreviewUrl}
+                      </span>
+                    </a>
+                  )}
+                </article>
+              ));
+            })()}
           </div>
         )}
       </Card>
     </div>
   );
 }
-
-/** Checks image aspect ratios on load and lays them out:
- * - All square → horizontal 2-column grid (side by side)
- * - Any non-square → vertical 1-column grid (stacked) */

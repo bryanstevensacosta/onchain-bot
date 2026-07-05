@@ -59,6 +59,9 @@ export class CryptoNewsMessageEntity {
   @Column({ name: 'message_entities', type: 'text', nullable: true })
   public messageEntities!: string | null;
 
+  @Column({ name: 'grouped_id', type: 'varchar', length: 64, nullable: true })
+  public groupedId!: string | null;
+
   /**
    * Photo attachments for this message. FK-level `ON DELETE CASCADE` is
    * declared on the child side at `CryptoNewsMessageMediaEntity`'s

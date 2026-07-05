@@ -27,6 +27,7 @@ export interface CryptoNewsMessage {
     readonly type: string;
     readonly url?: string | null;
   }>;
+  readonly groupedId?: string | null;
 }
 
 export interface CryptoNewsSource {

@@ -19,9 +19,7 @@ import { VipAchievementEntity } from '../entities/vip-achievement.entity';
  */
 @Injectable()
 export class TypeormVipAchievementRepository extends VipAchievementRepository {
-  private readonly logger = new Logger(
-    TypeormVipAchievementRepository.name,
-  );
+  private readonly logger = new Logger(TypeormVipAchievementRepository.name);
 
   constructor(
     @InjectRepository(VipAchievementEntity)
@@ -30,16 +28,12 @@ export class TypeormVipAchievementRepository extends VipAchievementRepository {
     super();
   }
 
-  public async findByCall(
-    callId: string,
-  ): Promise<VipAchievementRecord[]> {
+  public async findByCall(callId: string): Promise<VipAchievementRecord[]> {
     const rows = await this.repo.find({ where: { callId } });
     return rows.map((r) => this.toRecord(r));
   }
 
-  public async findThresholdsForCall(
-    callId: string,
-  ): Promise<number[]> {
+  public async findThresholdsForCall(callId: string): Promise<number[]> {
     const rows = await this.repo.find({
       where: { callId },
       select: ['threshold'],

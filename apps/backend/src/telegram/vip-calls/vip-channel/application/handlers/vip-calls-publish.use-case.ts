@@ -140,7 +140,8 @@ export class VipCallsPublishUseCase {
         failedChannelIds: [...existing.failedChannelIds],
         successCount: existing.successCount,
         publishedAt:
-          existing.publishedAt?.toISOString() ?? existing.reservedAt.toISOString(),
+          existing.publishedAt?.toISOString() ??
+          existing.reservedAt.toISOString(),
         headerImageUrl,
       };
     }
