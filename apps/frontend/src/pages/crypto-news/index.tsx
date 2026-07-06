@@ -111,25 +111,40 @@ export function CryptoNewsPage() {
         ) : (
           <div className="space-y-3">
             {(() => {
-              // Group consecutive messages with the same groupedId
+              // Group N consecutive messages sharing the same groupedId
               // (Telegram media albums are sent as separate messages)
               const groups: (typeof filteredMessages)[number][] = [];
               let i = 0;
               while (i < filteredMessages.length) {
                 const curr = filteredMessages[i];
-                const next = filteredMessages[i + 1];
-                if (
-                  next &&
-                  curr.groupedId &&
-                  next.groupedId === curr.groupedId
-                ) {
-                  groups.push({
-                    ...curr,
-                    content: curr.content || next.content,
-                    media: [...curr.media, ...next.media],
-                    groupedId: null, // prevent re-grouping
-                  });
-                  i += 2;
+                if (curr.groupedId) {
+                  let j = i + 1;
+                  while (
+                    j < filteredMessages.length &&
+                    filteredMessages[j].groupedId === curr.groupedId
+                  ) {
+                    j++;
+                  }
+                  if (j > i + 1) {
+                    // Merge messages[i..j-1] into one
+                    const merged = {
+                      ...curr,
+                      content:
+                        curr.content ||
+                        filteredMessages.slice(i + 1, j).find((m) => m.content)
+                          ?.content ||
+                        '',
+                      media: filteredMessages
+                        .slice(i, j)
+                        .flatMap((m) => m.media),
+                      groupedId: null,
+                    };
+                    groups.push(merged);
+                    i = j;
+                  } else {
+                    groups.push(curr);
+                    i += 1;
+                  }
                 } else {
                   groups.push(curr);
                   i += 1;
