@@ -20,6 +20,7 @@ export function CryptoNewsPage() {
   const messages = useCryptoNewsMessages(50);
   const sources = useCryptoNewsSources();
   const [channelFilter, setChannelFilter] = useState<string>('');
+  const [search, setSearch] = useState<string>('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [lightboxMedia, setLightboxMedia] = useState<
@@ -31,9 +32,18 @@ export function CryptoNewsPage() {
     [sources.data],
   );
 
-  const filteredMessages = channelFilter
-    ? (messages.data ?? []).filter((m) => m.channelId === channelFilter)
-    : (messages.data ?? []);
+  const filteredMessages = useMemo(() => {
+    const all = messages.data ?? [];
+    const needle = search.trim().toLowerCase();
+    return all.filter((m) => {
+      if (channelFilter && m.channelId !== channelFilter) return false;
+      if (needle) {
+        const haystack = `${m.title ?? ''}\n${m.content}`.toLowerCase();
+        if (!haystack.includes(needle)) return false;
+      }
+      return true;
+    });
+  }, [messages.data, channelFilter, search]);
 
   return (
     <div className="px-6 py-6 space-y-6 max-w-xl mx-auto">
@@ -81,7 +91,7 @@ export function CryptoNewsPage() {
         </Card>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <label className="text-sm text-slate-400">Filter by source:</label>
         <select
           value={channelFilter}
@@ -95,6 +105,14 @@ export function CryptoNewsPage() {
             </option>
           ))}
         </select>
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search messages…"
+          aria-label="Search messages by text"
+          className="bg-slate-800 text-slate-100 text-sm rounded px-3 py-1.5 border border-slate-700 placeholder:text-slate-500"
+        />
       </div>
 
       <Card>

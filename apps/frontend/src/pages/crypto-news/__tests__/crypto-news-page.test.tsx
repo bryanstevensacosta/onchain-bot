@@ -624,3 +624,93 @@ describe('CryptoNewsPage — publisher (keywords + queue)', () => {
     );
   });
 });
+
+describe('CryptoNewsPage — search filter (free-text)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedUseSources.mockReturnValue(makeSourcesQuery([baseSource]));
+  });
+
+  function makeMsg(
+    messageId: number,
+    content: string,
+    channelId = baseSource.channelId,
+  ): CryptoNewsMessage {
+    return {
+      id: `m-${messageId}`,
+      channelId,
+      messageId,
+      title: null,
+      content,
+      publishedAt: '2025-01-01T00:00:00.000Z',
+      ingestedAt: '2025-01-01T00:00:01.000Z',
+      media: [],
+      linkPreviewUrl: null,
+      linkPreviewTitle: null,
+      linkPreviewDescription: null,
+      linkPreviewSiteName: null,
+      formattingEntities: undefined,
+    };
+  }
+
+  it('filters by case-insensitive substring match against message content', () => {
+    mockedUseMessages.mockReturnValue(
+      makeMessagesQuery([
+        makeMsg(1, 'Bitcoin breaks 100k'),
+        makeMsg(2, 'Ethereum news today'),
+        makeMsg(3, 'Bitcoin halving soon'),
+      ]),
+    );
+    renderWithClient(<CryptoNewsPage />);
+
+    const input = screen.getByPlaceholderText(/search messages/i);
+    fireEvent.change(input, { target: { value: 'BITCOIN' } });
+
+    const articles = screen.getAllByRole('article');
+    expect(articles).toHaveLength(2);
+    expect(screen.getByText(/Bitcoin breaks 100k/)).toBeInTheDocument();
+    expect(screen.getByText(/Bitcoin halving soon/)).toBeInTheDocument();
+    expect(screen.queryByText(/Ethereum news today/)).not.toBeInTheDocument();
+  });
+
+  it('combines search filter AND source filter (intersection)', () => {
+    const sourceA = { ...baseSource, channelId: 'srcA', title: 'Source A' };
+    mockedUseSources.mockReturnValue(makeSourcesQuery([sourceA, baseSource]));
+    mockedUseMessages.mockReturnValue(
+      makeMessagesQuery([
+        makeMsg(10, 'Bitcoin update', 'srcA'),
+        makeMsg(11, 'Bitcoin update'),
+      ]),
+    );
+    renderWithClient(<CryptoNewsPage />);
+
+    const input = screen.getByPlaceholderText(/search messages/i);
+    fireEvent.change(input, { target: { value: 'bitcoin' } });
+    expect(screen.getAllByRole('article')).toHaveLength(2);
+
+    const select = screen.getByRole('combobox');
+    fireEvent.change(select, { target: { value: 'srcA' } });
+
+    const articles = screen.getAllByRole('article');
+    expect(articles).toHaveLength(1);
+    expect(
+      within(articles[0]!).getByText(/Bitcoin update/),
+    ).toBeInTheDocument();
+  });
+
+  it('shows all messages when search is empty or whitespace', () => {
+    mockedUseMessages.mockReturnValue(
+      makeMessagesQuery([makeMsg(1, 'first'), makeMsg(2, 'second')]),
+    );
+    renderWithClient(<CryptoNewsPage />);
+
+    expect(screen.getAllByRole('article')).toHaveLength(2);
+
+    const input = screen.getByPlaceholderText(/search messages/i);
+    fireEvent.change(input, { target: { value: '   ' } });
+    expect(screen.getAllByRole('article')).toHaveLength(2);
+
+    fireEvent.change(input, { target: { value: '' } });
+    expect(screen.getAllByRole('article')).toHaveLength(2);
+  });
+});
