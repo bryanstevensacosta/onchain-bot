@@ -1,4 +1,7 @@
-export { TelegramPublisherPort } from './domain/ports/telegram-publisher.port';
+export {
+  TelegramPublisherPort,
+  type SendResult,
+} from './domain/ports/telegram-publisher.port';
 export {
   MessageFormatterPort,
   type ApprovedCallInput,

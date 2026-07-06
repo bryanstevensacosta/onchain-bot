@@ -73,6 +73,9 @@ class StubMessageRepo extends CryptoNewsMessageRepository {
   public async findByChannelId(): Promise<never[]> {
     return [];
   }
+  public async findByChannelAndMessageId() {
+    return null;
+  }
   public async findMediaById() {
     return null;
   }

@@ -18,6 +18,18 @@ export abstract class CryptoNewsMessageRepository {
     limit: number,
   ): Promise<ReadonlyArray<CryptoNewsMessage>>;
   /**
+   * Look up a single message by its Telegram-side (channelId, messageId).
+   * Returns `null` when no row matches. Used by the crypto-news-publisher
+   * BC (Wave 3) to fetch the full message — including `content`, `media[]`,
+   * `linkPreviewUrl`, `groupedId` — for keyword matching. The
+   * `CryptoNewsMessageIngestedEvent` deliberately does NOT carry `content`
+   * (fix-1 Bot Dev ToS §4.3), so consumers must go through this lookup.
+   */
+  public abstract findByChannelAndMessageId(
+    channelId: string,
+    messageId: number,
+  ): Promise<CryptoNewsMessage | null>;
+  /**
    * Look up a single media attachment by its primary key. Returns `null`
    * when no row matches. Used by the binary-serve endpoint (T7) to
    * resolve a `mediaId` to a `filePath` on disk.

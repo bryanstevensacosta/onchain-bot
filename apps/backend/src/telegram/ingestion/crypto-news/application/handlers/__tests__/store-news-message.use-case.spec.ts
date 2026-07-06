@@ -29,6 +29,17 @@ class InMemoryMessageRepo extends CryptoNewsMessageRepository {
       .filter((m) => m.channelId === channelId)
       .slice(0, limit);
   }
+  public async findByChannelAndMessageId(
+    channelId: string,
+    messageId: number,
+  ): Promise<CryptoNewsMessage | null> {
+    for (const m of this.store.values()) {
+      if (m.channelId === channelId && m.messageId === messageId) {
+        return m;
+      }
+    }
+    return null;
+  }
   public async findMediaById(): Promise<null> {
     return null;
   }

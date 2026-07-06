@@ -27,6 +27,7 @@
  *     INGESTION_TELEGRAM_BACKFILL_ENABLED
  *     PUBLISHING_TELEGRAM_USE_REAL_MTPROTO/OUTPUT_CHANNEL,
  *     VIP_CALLS_BOT_TOKEN/OUTPUT_CHANNEL,
+ *     CRYPTO_NEWS_BOT_TOKEN/OUTPUT_CHANNEL,
  *     CHAIN_DEXTER_BOT_TOKEN/WEBHOOK_SECRET/INGEST_MODE/POLLING_INTERVAL_MS/DEFAULT_TRADE_BUTTONS,
  *     PUBLISHING_RECONCILIATION_ENABLED
  *     ANALYTICS_EVALUATION_HORIZONS_HOURS,
@@ -155,6 +156,10 @@ export interface AppConfig {
       outputChannel: string;
     };
     vipCalls: {
+      botToken: string;
+      outputChannel: string;
+    };
+    cryptoNews: {
       botToken: string;
       outputChannel: string;
     };
@@ -403,6 +408,10 @@ export const appConfig = registerAs(
       vipCalls: {
         botToken: process.env.VIP_CALLS_BOT_TOKEN ?? '',
         outputChannel: process.env.VIP_CALLS_OUTPUT_CHANNEL ?? '',
+      },
+      cryptoNews: {
+        botToken: process.env.CRYPTO_NEWS_BOT_TOKEN ?? '',
+        outputChannel: process.env.CRYPTO_NEWS_OUTPUT_CHANNEL ?? '',
       },
       chainDexterBot: {
         botToken: process.env.CHAIN_DEXTER_BOT_TOKEN ?? '',

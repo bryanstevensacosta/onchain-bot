@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { TelegramPublisherPort } from 'telegram/shared';
+import { TelegramPublisherPort, type SendResult } from 'telegram/shared';
 import { firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
 
@@ -32,11 +32,7 @@ export class VipCallsBotApiPublisherAdapter extends TelegramPublisherPort {
   private readonly pendingQueue: Array<{
     text: string;
     imageUrl: string | undefined;
-    resolve: (result: {
-      readonly ok: boolean;
-      readonly messageId: number | null;
-      readonly error: string | null;
-    }) => void;
+    resolve: (result: SendResult) => void;
   }> = [];
 
   public constructor(
@@ -72,11 +68,7 @@ export class VipCallsBotApiPublisherAdapter extends TelegramPublisherPort {
     _chatId: string,
     text: string,
     imageUrl?: string,
-  ): Promise<{
-    readonly ok: boolean;
-    readonly messageId: number | null;
-    readonly error: string | null;
-  }> {
+  ): Promise<SendResult> {
     if (!text || text.length === 0) {
       return { ok: false, messageId: null, error: 'empty message' };
     }
@@ -88,6 +80,24 @@ export class VipCallsBotApiPublisherAdapter extends TelegramPublisherPort {
         void this.processQueue();
       }
     });
+  }
+
+  /**
+   * `sendPhoto` (local-file multipart upload) is not used by the
+   * vip-calls flow — vip-calls only sends remote URLs. The crypto-news
+   * BC has its own dedicated publisher adapter that owns this path.
+   * Stubbed here to satisfy the abstract port contract.
+   */
+  public async sendPhoto(
+    _chatId: string,
+    _text: string,
+    _imagePath: string,
+  ): Promise<SendResult> {
+    return {
+      ok: false,
+      messageId: null,
+      error: 'sendPhoto not implemented for vip-calls',
+    };
   }
 
   private async processQueue(): Promise<void> {
@@ -117,14 +127,7 @@ export class VipCallsBotApiPublisherAdapter extends TelegramPublisherPort {
     this.processing = false;
   }
 
-  private async sendOne(
-    text: string,
-    imageUrl?: string,
-  ): Promise<{
-    readonly ok: boolean;
-    readonly messageId: number | null;
-    readonly error: string | null;
-  }> {
+  private async sendOne(text: string, imageUrl?: string): Promise<SendResult> {
     const chatId = this.outputChannel;
     try {
       if (imageUrl) {
@@ -152,11 +155,7 @@ export class VipCallsBotApiPublisherAdapter extends TelegramPublisherPort {
     chatId: string,
     text: string,
     imageUrl: string,
-  ): Promise<{
-    readonly ok: boolean;
-    readonly messageId: number | null;
-    readonly error: string | null;
-  }> {
+  ): Promise<SendResult> {
     let lastMessageId: number | null = null;
 
     const caption =
@@ -206,14 +205,7 @@ export class VipCallsBotApiPublisherAdapter extends TelegramPublisherPort {
     return chunks;
   }
 
-  private async sendChunk(
-    chatId: string,
-    text: string,
-  ): Promise<{
-    readonly ok: boolean;
-    readonly messageId: number | null;
-    readonly error: string | null;
-  }> {
+  private async sendChunk(chatId: string, text: string): Promise<SendResult> {
     const url = `${VipCallsBotApiPublisherAdapter.API_BASE}${this.botToken}/sendMessage`;
 
     try {
@@ -259,11 +251,7 @@ export class VipCallsBotApiPublisherAdapter extends TelegramPublisherPort {
     chatId: string,
     imageUrl: string,
     caption: string,
-  ): Promise<{
-    readonly ok: boolean;
-    readonly messageId: number | null;
-    readonly error: string | null;
-  }> {
+  ): Promise<SendResult> {
     const url = `${VipCallsBotApiPublisherAdapter.API_BASE}${this.botToken}/sendPhoto`;
 
     try {

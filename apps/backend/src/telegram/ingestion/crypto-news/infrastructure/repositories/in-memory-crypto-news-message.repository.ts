@@ -37,6 +37,18 @@ export class InMemoryCryptoNewsMessageRepository extends CryptoNewsMessageReposi
       .slice(0, limit);
   }
 
+  public async findByChannelAndMessageId(
+    channelId: string,
+    messageId: number,
+  ): Promise<CryptoNewsMessage | null> {
+    for (const m of this.store.values()) {
+      if (m.channelId === channelId && m.messageId === messageId) {
+        return m;
+      }
+    }
+    return null;
+  }
+
   /**
    * Intended O(n*m) lookup over `store.values()` × message.media, but
    * `CryptoNewsMedia` VOs do NOT carry the UUID assigned by the DB row,
