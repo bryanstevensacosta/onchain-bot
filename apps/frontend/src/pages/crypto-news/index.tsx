@@ -8,6 +8,7 @@ import { Lightbox } from '@/shared/ui/lightbox';
 import { formatRelativeTime } from '@/shared/lib';
 import { renderFormattedText } from '@/shared/lib/render-telegram-entities';
 import { AddCryptoNewsSourceModal } from '@/features/add-crypto-news-source';
+import { KeywordsManager, QueueView } from '@/features/crypto-news-publisher';
 
 interface LightboxMediaItem {
   id: string;
@@ -277,6 +278,16 @@ export function CryptoNewsPage() {
           onClose={() => setLightboxIndex(null)}
         />
       )}
+
+      <details open className="space-y-3">
+        <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 select-none">
+          Publisher (keywords + queue)
+        </summary>
+        <div className="space-y-4 pt-2">
+          <KeywordsManager />
+          <QueueView />
+        </div>
+      </details>
     </div>
   );
 }

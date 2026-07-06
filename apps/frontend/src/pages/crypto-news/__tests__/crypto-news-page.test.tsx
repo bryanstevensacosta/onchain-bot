@@ -2,7 +2,13 @@
 import '@/test/setup';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 
@@ -11,18 +17,118 @@ vi.mock('@/entities/crypto-news/model/use-crypto-news', () => ({
   useCryptoNewsSources: vi.fn(),
 }));
 
+vi.mock('@/features/crypto-news-publisher/model/use-keywords', () => ({
+  useKeywords: vi.fn(),
+  useCreateKeyword: vi.fn(),
+  useUpdateKeyword: vi.fn(),
+  useDeleteKeyword: vi.fn(),
+}));
+
+vi.mock('@/features/crypto-news-publisher/model/use-queue', () => ({
+  useQueue: vi.fn(),
+  useQueueCounts: vi.fn(),
+}));
+
 import {
   useCryptoNewsMessages,
   useCryptoNewsSources,
 } from '@/entities/crypto-news/model/use-crypto-news';
+import {
+  useKeywords,
+  useCreateKeyword,
+  useUpdateKeyword,
+  useDeleteKeyword,
+} from '@/features/crypto-news-publisher/model/use-keywords';
+import {
+  useQueue,
+  useQueueCounts,
+} from '@/features/crypto-news-publisher/model/use-queue';
 import { CryptoNewsPage } from '../index';
 import type {
   CryptoNewsMessage,
   CryptoNewsSource,
 } from '@/entities/crypto-news/api/crypto-news-queries';
+import type { KeywordView } from '@/features/crypto-news-publisher/api/keywords-api';
+import type {
+  QueueCountsView,
+  QueueEntryView,
+} from '@/features/crypto-news-publisher/api/queue-api';
 
 const mockedUseMessages = vi.mocked(useCryptoNewsMessages);
 const mockedUseSources = vi.mocked(useCryptoNewsSources);
+const mockedUseKeywords = vi.mocked(useKeywords);
+const mockedUseQueue = vi.mocked(useQueue);
+const mockedUseQueueCounts = vi.mocked(useQueueCounts);
+const mockedUseCreateKeyword = vi.mocked(useCreateKeyword);
+const mockedUseUpdateKeyword = vi.mocked(useUpdateKeyword);
+const mockedUseDeleteKeyword = vi.mocked(useDeleteKeyword);
+
+function makeEmptyKeywordsQuery() {
+  return {
+    data: [] as ReadonlyArray<KeywordView>,
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof useKeywords>;
+}
+
+function makeKeywordsQuery(data: ReadonlyArray<KeywordView>) {
+  return {
+    data,
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof useKeywords>;
+}
+
+function makeQueueQuery(data: ReadonlyArray<QueueEntryView>) {
+  return {
+    data,
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof useQueue>;
+}
+
+function makeCountsQuery(data: QueueCountsView) {
+  return {
+    data,
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof useQueueCounts>;
+}
+
+function makeEmptyQueueQuery() {
+  return {
+    data: [] as ReadonlyArray<QueueEntryView>,
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof useQueue>;
+}
+
+function makeZeroCountsQuery() {
+  return {
+    data: { pending: 0, publishedToday: 0, remaining: 0 } as QueueCountsView,
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof useQueueCounts>;
+}
+
+function makeMutStub() {
+  return {
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+    isPending: false,
+    isError: false,
+    isSuccess: false,
+    error: null,
+    reset: vi.fn(),
+    data: undefined,
+  };
+}
 
 function renderWithClient(ui: ReactNode) {
   const qc = new QueryClient({
@@ -57,6 +163,22 @@ function makeSourcesQuery(data: ReadonlyArray<CryptoNewsSource>) {
 }
 
 afterEach(cleanup);
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockedUseKeywords.mockReturnValue(makeEmptyKeywordsQuery());
+  mockedUseQueue.mockReturnValue(makeEmptyQueueQuery());
+  mockedUseQueueCounts.mockReturnValue(makeZeroCountsQuery());
+  mockedUseCreateKeyword.mockReturnValue(
+    makeMutStub() as unknown as ReturnType<typeof useCreateKeyword>,
+  );
+  mockedUseUpdateKeyword.mockReturnValue(
+    makeMutStub() as unknown as ReturnType<typeof useUpdateKeyword>,
+  );
+  mockedUseDeleteKeyword.mockReturnValue(
+    makeMutStub() as unknown as ReturnType<typeof useDeleteKeyword>,
+  );
+});
 
 describe('CryptoNewsPage — media rendering', () => {
   beforeEach(() => {
@@ -363,5 +485,142 @@ describe('CryptoNewsPage — formatting entities rendering', () => {
     );
     expect(contentPara).toBeInTheDocument();
     expect(contentPara).not.toHaveAttribute('href');
+  });
+});
+
+describe('CryptoNewsPage — publisher (keywords + queue)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedUseSources.mockReturnValue(makeSourcesQuery([baseSource]));
+    mockedUseMessages.mockReturnValue(makeMessagesQuery([]));
+    mockedUseCreateKeyword.mockReturnValue(
+      makeMutStub() as unknown as ReturnType<typeof useCreateKeyword>,
+    );
+    mockedUseUpdateKeyword.mockReturnValue(
+      makeMutStub() as unknown as ReturnType<typeof useUpdateKeyword>,
+    );
+    mockedUseDeleteKeyword.mockReturnValue(
+      makeMutStub() as unknown as ReturnType<typeof useDeleteKeyword>,
+    );
+  });
+
+  it('renders keyword rows with phrase, case-sensitive flag, and enabled toggle', () => {
+    const keywords: ReadonlyArray<KeywordView> = [
+      {
+        id: 'kw-1',
+        phrase: 'SEC',
+        caseSensitive: true,
+        enabled: true,
+        createdAt: '2025-01-02T03:04:05.000Z',
+      },
+      {
+        id: 'kw-2',
+        phrase: 'halving',
+        caseSensitive: false,
+        enabled: false,
+        createdAt: '2025-01-02T03:04:06.000Z',
+      },
+    ];
+    mockedUseKeywords.mockReturnValue(makeKeywordsQuery(keywords));
+
+    renderWithClient(<CryptoNewsPage />);
+
+    expect(screen.getByText('SEC')).toBeInTheDocument();
+    expect(screen.getByText('halving')).toBeInTheDocument();
+    expect(screen.getByText('Keywords (2)')).toBeInTheDocument();
+
+    const secToggle = screen.getByLabelText('Toggle SEC') as HTMLInputElement;
+    expect(secToggle.checked).toBe(true);
+    const halvingToggle = screen.getByLabelText(
+      'Toggle halving',
+    ) as HTMLInputElement;
+    expect(halvingToggle.checked).toBe(false);
+  });
+
+  it('renders queue counters and queue rows with status badge', () => {
+    mockedUseKeywords.mockReturnValue(makeEmptyKeywordsQuery());
+
+    mockedUseQueueCounts.mockReturnValue(
+      makeCountsQuery({ pending: 5, publishedToday: 12, remaining: 24 }),
+    );
+
+    const queue: ReadonlyArray<QueueEntryView> = [
+      {
+        id: 'q-1',
+        channelId: 'WatcherGuru',
+        messageId: 777,
+        rawTitle: 'ETF approval imminent',
+        imagePath: null,
+        groupedId: null,
+        status: 'PENDING',
+        messageReceivedAt: '2025-01-02T03:04:05.000Z',
+        publishedAt: null,
+        telegramMessageId: null,
+        lastError: null,
+        attempts: 0,
+      },
+      {
+        id: 'q-2',
+        channelId: 'WatcherGuru',
+        messageId: 778,
+        rawTitle: null,
+        imagePath: null,
+        groupedId: null,
+        status: 'PUBLISHED',
+        messageReceivedAt: '2025-01-02T03:04:06.000Z',
+        publishedAt: '2025-01-02T03:10:00.000Z',
+        telegramMessageId: 'tg-99',
+        lastError: null,
+        attempts: 1,
+      },
+    ];
+    mockedUseQueue.mockReturnValue(makeQueueQuery(queue));
+
+    renderWithClient(<CryptoNewsPage />);
+
+    expect(screen.getByText('5')).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(screen.getByText('24')).toBeInTheDocument();
+
+    expect(screen.getByText('Queue (2)')).toBeInTheDocument();
+    expect(screen.getByText('ETF approval imminent')).toBeInTheDocument();
+    expect(screen.getByText('PENDING')).toBeInTheDocument();
+    expect(screen.getByText('PUBLISHED')).toBeInTheDocument();
+    expect(screen.getByText('attempts 0')).toBeInTheDocument();
+    expect(screen.getByText('attempts 1')).toBeInTheDocument();
+  });
+
+  it('submits the add-keyword form via the create mutation', () => {
+    const mutateSpy = vi.fn();
+    mockedUseCreateKeyword.mockReturnValue({
+      mutate: mutateSpy,
+      mutateAsync: vi.fn(),
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      reset: vi.fn(),
+      data: undefined,
+    } as unknown as ReturnType<typeof useCreateKeyword>);
+
+    mockedUseKeywords.mockReturnValue(makeEmptyKeywordsQuery());
+    mockedUseQueue.mockReturnValue(makeEmptyQueueQuery());
+    mockedUseQueueCounts.mockReturnValue(makeZeroCountsQuery());
+
+    renderWithClient(<CryptoNewsPage />);
+
+    const phraseInput = screen.getByLabelText('Phrase') as HTMLInputElement;
+    fireEvent.change(phraseInput, { target: { value: 'FOMC' } });
+
+    const submit = screen.getByRole('button', { name: /\+ Add keyword/i });
+    fireEvent.click(submit);
+
+    expect(mutateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phrase: 'FOMC',
+        caseSensitive: false,
+      }),
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
   });
 });
