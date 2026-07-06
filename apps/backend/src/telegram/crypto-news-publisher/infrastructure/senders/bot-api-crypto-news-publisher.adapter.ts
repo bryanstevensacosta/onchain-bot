@@ -41,28 +41,44 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
 
   public constructor(private readonly configService: ConfigService) {
     super();
-    this.botToken = this.resolveBotToken();
-    this.outputChannel = this.resolveOutputChannel();
+    const cfg = this.configService.get<AppConfigShape>('app');
+    const token = cfg?.publishing?.cryptoNews?.botToken ?? '';
+    const channel = cfg?.publishing?.cryptoNews?.outputChannel ?? '';
+    // Read eagerly from config but do NOT throw if missing. The adapter
+    // would otherwise crash the module at boot when the env vars are
+    // absent (e.g. tests, fresh installs). Each send method validates
+    // at call time and returns a structured error — this lets the cron
+    // log a warning and skip gracefully instead of the whole process
+    // refusing to start.
+    this.botToken = token;
+    this.outputChannel = channel;
+    if (!token || !channel) {
+      this.logger.warn(
+        `BotApiCryptoNewsPublisherAdapter not fully configured ` +
+          `(botToken=${token ? 'set' : 'EMPTY'}, ` +
+          `outputChannel=${channel ? 'set' : 'EMPTY'}) — ` +
+          `sendMessage/sendPhoto will return ok=false until configured.`,
+      );
+    }
   }
 
-  private resolveBotToken(): string {
-    const cfg = this.configService.get<AppConfigShape>('app');
-    const token = cfg?.publishing?.cryptoNews?.botToken;
-    if (!token) {
-      this.logger.error('CRYPTO_NEWS_BOT_TOKEN not configured');
-      throw new Error('CRYPTO_NEWS_BOT_TOKEN not configured');
+  /**
+   * Returns a not-configured error if the bot token / output channel
+   * are missing. Centralised so both `sendMessage` and `sendPhoto` use
+   * the same fallback path.
+   */
+  private requireConfig(): { ok: false; reason: string } | null {
+    if (!this.botToken || !this.outputChannel) {
+      return {
+        ok: false,
+        reason:
+          `BotApiCryptoNewsPublisherAdapter: ` +
+          `missing ${!this.botToken ? 'CRYPTO_NEWS_BOT_TOKEN' : ''}` +
+          `${!this.botToken && !this.outputChannel ? ' and ' : ''}` +
+          `${!this.outputChannel ? 'CRYPTO_NEWS_OUTPUT_CHANNEL' : ''}`,
+      };
     }
-    return token;
-  }
-
-  private resolveOutputChannel(): string {
-    const cfg = this.configService.get<AppConfigShape>('app');
-    const channel = cfg?.publishing?.cryptoNews?.outputChannel;
-    if (!channel) {
-      this.logger.error('CRYPTO_NEWS_OUTPUT_CHANNEL not configured');
-      throw new Error('CRYPTO_NEWS_OUTPUT_CHANNEL not configured');
-    }
-    return channel;
+    return null;
   }
 
   /**
@@ -74,6 +90,8 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     text: string,
     imageUrl?: string,
   ): Promise<SendResult> {
+    const missing = this.requireConfig();
+    if (missing) return { ok: false, messageId: null, error: missing.reason };
     if (!text || text.length === 0) {
       return { ok: false, messageId: null, error: 'empty message' };
     }
@@ -103,6 +121,8 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     text: string,
     imagePath: string,
   ): Promise<SendResult> {
+    const missing = this.requireConfig();
+    if (missing) return { ok: false, messageId: null, error: missing.reason };
     if (!text || text.length === 0) {
       return { ok: false, messageId: null, error: 'empty message' };
     }

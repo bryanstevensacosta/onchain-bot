@@ -88,8 +88,35 @@ export class ProcessNextQueuedArticleUseCase {
         `published queue entry ${entry.id} as telegram message ${result.messageId}`,
       );
     } catch (err) {
+      // If the publisher isn't configured (bot token / output channel
+      // missing), don't mark the entry as FAILED — the entry stays
+      // PENDING and we simply skip this tick so the operator can fix
+      // the config. Without this guard a misconfigured deploy would
+      // burn through the retry budget on every poll.
+      if (this.isNotConfiguredError(err)) {
+        this.logger.warn(
+          `publisher not configured — leaving entry ${entry.id} PENDING ` +
+            `(${(err as Error).message})`,
+        );
+        return;
+      }
       await this.handlePublishFailure(entry, err);
     }
+  }
+
+  /**
+   * True when the publisher adapter rejected the publish because the
+   * operator has not set CRYPTO_NEWS_BOT_TOKEN /
+   * CRYPTO_NEWS_OUTPUT_CHANNEL. Identified by the exact error message
+   * prefix the adapter returns; kept dumb on purpose (no shared type)
+   * because the adapter is the source of truth.
+   */
+  private isNotConfiguredError(err: unknown): boolean {
+    const msg = err instanceof Error ? err.message : String(err);
+    return (
+      msg.includes('CRYPTO_NEWS_BOT_TOKEN') ||
+      msg.includes('CRYPTO_NEWS_OUTPUT_CHANNEL')
+    );
   }
 
   /**
