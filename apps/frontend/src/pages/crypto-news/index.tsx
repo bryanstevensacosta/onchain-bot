@@ -4,15 +4,26 @@ import {
   useCryptoNewsSources,
 } from '@/entities/crypto-news';
 import { Button, Card } from '@/shared/ui';
+import { Lightbox } from '@/shared/ui/lightbox';
 import { formatRelativeTime } from '@/shared/lib';
 import { renderFormattedText } from '@/shared/lib/render-telegram-entities';
 import { AddCryptoNewsSourceModal } from '@/features/add-crypto-news-source';
+
+interface LightboxMediaItem {
+  id: string;
+  url: string;
+  alt: string;
+}
 
 export function CryptoNewsPage() {
   const messages = useCryptoNewsMessages(50);
   const sources = useCryptoNewsSources();
   const [channelFilter, setChannelFilter] = useState<string>('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [lightboxMedia, setLightboxMedia] = useState<
+    ReadonlyArray<LightboxMediaItem>
+  >([]);
 
   const sourceByChannelId = useMemo(
     () => new Map((sources.data ?? []).map((s) => [s.channelId, s])),
@@ -173,20 +184,29 @@ export function CryptoNewsPage() {
                         msg.media.length === 1 ? 'grid-cols-1' : 'grid-cols-2'
                       }`}
                     >
-                      {msg.media.map((m, i) => (
-                        <a
+                      {msg.media.map((m, idx) => (
+                        <button
                           key={m.id}
-                          href={m.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          type="button"
+                          onClick={() => {
+                            setLightboxIndex(idx);
+                            setLightboxMedia(
+                              msg.media.map((media, mediaIdx) => ({
+                                id: media.id,
+                                url: media.url,
+                                alt: `${msg.title ?? 'image'} ${mediaIdx + 1}`,
+                              })),
+                            );
+                          }}
+                          className="block w-full text-left"
                         >
                           <img
                             src={m.url}
-                            alt={`${msg.title ?? 'image'} ${i + 1}`}
+                            alt={`${msg.title ?? 'image'} ${idx + 1}`}
                             className="h-auto w-full max-h-56 rounded object-contain cursor-pointer transition-opacity hover:opacity-80"
                             loading="lazy"
                           />
-                        </a>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -234,6 +254,14 @@ export function CryptoNewsPage() {
           </div>
         )}
       </Card>
+
+      {lightboxIndex !== null && (
+        <Lightbox
+          images={lightboxMedia}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      )}
     </div>
   );
 }
