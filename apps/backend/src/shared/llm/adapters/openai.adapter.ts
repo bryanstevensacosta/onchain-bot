@@ -15,6 +15,10 @@ export class OpenAiAdapter extends LlmPort {
     ];
     if (request.imageUrl) {
       content.push({ type: 'image_url', image_url: { url: request.imageUrl } });
+    } else if (request.imageBase64) {
+      const mime = request.mimeType ?? 'image/jpeg';
+      const dataUrl = `data:${mime};base64,${request.imageBase64}`;
+      content.push({ type: 'image_url', image_url: { url: dataUrl } });
     }
     const resp = await this.client.chat.completions.create({
       model: 'gpt-4o-mini',

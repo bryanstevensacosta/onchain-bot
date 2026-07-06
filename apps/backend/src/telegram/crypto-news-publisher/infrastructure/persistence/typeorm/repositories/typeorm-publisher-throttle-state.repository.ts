@@ -33,4 +33,14 @@ export class TypeOrmPublisherThrottleStateRepository extends PublisherThrottleSt
       updatedAt: new Date(),
     });
   }
+
+  public async getLastPublishAt(): Promise<Date | null> {
+    const state = await this.load();
+    return state.lastPublishAt;
+  }
+
+  public async setLastPublishAt(at: Date): Promise<void> {
+    const state = PublisherThrottleState.fromLastPublishAt(at);
+    await this.save(state);
+  }
 }
