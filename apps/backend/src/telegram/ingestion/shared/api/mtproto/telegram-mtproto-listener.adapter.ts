@@ -178,45 +178,44 @@ export class TelegramMtprotoListenerAdapter
         try {
           await this.floodWaitHandler.withRetry(`poll:${peerId}`, async () => {
             const peer = await this.resolvePeerAsChannel(peerId);
-            const messages = await this.client!.getMessages(peer, { limit: 1 });
-            const msg = (
-              messages as {
-                id: number;
-                message?: string;
-                date: number;
-                media?: unknown;
-              }[]
-            )[0];
-            if (msg) {
-              const lastSeen = this.lastSeenMessageId.get(peerId) ?? -1;
-              if (msg.id > lastSeen) {
-                this.lastSeenMessageId.set(peerId, msg.id);
-                const media = await this.extractMediaForMessage(peerId, msg);
-                const msgAny = msg as any;
-                this.queue.push({
-                  peerId,
-                  messageId: msg.id,
-                  text: msg.message ?? '',
-                  occurredAt: new Date(msg.date * 1000),
-                  entities: (
-                    (msgAny.entities ?? []) as Array<{
-                      offset: number;
-                      length: number;
-                      className?: string;
-                      url?: string;
-                    }>
-                  ).map((e) => ({
-                    offset: e.offset,
-                    length: e.length,
-                    type: this.normalizeEntityType(e.className),
-                    ...(e.url ? { url: e.url } : {}),
-                  })),
-                  ...(media ? { media } : {}),
-                  groupedId: (msgAny.groupedId as string) ?? null,
-                });
-                const resolver = this.waitingResolvers.shift();
-                if (resolver) resolver();
-              }
+            const lastSeen = this.lastSeenMessageId.get(peerId) ?? -1;
+            const messages = await this.client!.getMessages(peer, {
+              minId: lastSeen,
+              limit: 50,
+            });
+            for (const rawMsg of messages as Array<{
+              id: number;
+              message?: string;
+              date: number;
+              media?: unknown;
+            }>) {
+              if (rawMsg.id <= lastSeen) continue;
+              this.lastSeenMessageId.set(peerId, rawMsg.id);
+              const media = await this.extractMediaForMessage(peerId, rawMsg);
+              const msgAny = rawMsg as any;
+              this.queue.push({
+                peerId,
+                messageId: rawMsg.id,
+                text: rawMsg.message ?? '',
+                occurredAt: new Date(rawMsg.date * 1000),
+                entities: (
+                  (msgAny.entities ?? []) as Array<{
+                    offset: number;
+                    length: number;
+                    className?: string;
+                    url?: string;
+                  }>
+                ).map((e) => ({
+                  offset: e.offset,
+                  length: e.length,
+                  type: this.normalizeEntityType(e.className),
+                  ...(e.url ? { url: e.url } : {}),
+                })),
+                ...(media ? { media } : {}),
+                groupedId: (msgAny.groupedId as string) ?? null,
+              });
+              const resolver = this.waitingResolvers.shift();
+              if (resolver) resolver();
             }
           });
           this.lastPollAt = new Date();
