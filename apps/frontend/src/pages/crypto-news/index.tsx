@@ -68,8 +68,8 @@ export function CryptoNewsPage() {
         onClose={() => setShowAddModal(false)}
       />
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="space-y-6 lg:col-span-1">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <div className="text-xs uppercase text-slate-500">
@@ -307,7 +307,7 @@ export function CryptoNewsPage() {
           )}
         </div>
 
-        <aside className="lg:col-span-1 space-y-4 lg:sticky lg:top-4">
+        <aside className="space-y-4 lg:col-span-1 lg:sticky lg:top-4">
           <details
             open
             className="space-y-3 rounded-lg border border-slate-700 bg-slate-800/30 p-4"
