@@ -9,21 +9,27 @@ import { PublisherThrottleStateRepository } from 'telegram/crypto-news-publisher
 import { TypeOrmKeywordRepository } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/repositories/typeorm-keyword.repository';
 import { TypeOrmPublisherQueueRepository } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/repositories/typeorm-publisher-queue.repository';
 import { TypeOrmPublisherThrottleStateRepository } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/repositories/typeorm-publisher-throttle-state.repository';
+import { EnqueueMatchingMessageUseCase } from 'telegram/crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
+import { CryptoNewsMessageIngestedHandler } from 'telegram/crypto-news-publisher/infrastructure/event-bus/crypto-news-message-ingested.handler';
+import { KeywordsController } from 'telegram/crypto-news-publisher/api/http/keywords.controller';
+import { QueueController } from 'telegram/crypto-news-publisher/api/http/queue.controller';
+import { CryptoNewsIngestionModule } from 'telegram/ingestion/crypto-news/crypto-news-ingestion.module';
 
 /**
  * Crypto-news publisher BC.
  *
- * Wave 2 scope: domain entities, ports, TypeORM infrastructure, and
- * the module wiring. NO controllers, event handlers, use cases or
- * schedulers yet — those land in Wave 3 (event-driven ingestion) and
- * Wave 4 (cron publisher).
+ * Wave 3 scope adds the event-driven ingestion path:
+ *  - `EnqueueMatchingMessageUseCase` builds and persists a
+ *    `PublisherQueueEntry` from a matched `CryptoNewsMessage`.
+ *  - `CryptoNewsMessageIngestedHandler` subscribes to
+ *    `CryptoNewsMessageIngestedEvent`, fetches the full message,
+ *    tests enabled keywords, and enqueues matches.
+ *  - `KeywordsController` (CRUD) and `QueueController` (read) expose
+ *    the BC to the dashboard.
  *
- * The 3 TypeORM entities (`KeywordEntity`, `PublisherQueueEntity`,
- * `PublisherThrottleStateEntity`) are registered with `forFeature` so
- * the `InjectRepository(...)` decorators inside the repos resolve at
- * runtime. Repos are exported via the abstract port tokens
- * (`KeywordRepository`, `PublisherQueueRepository`,
- * `PublisherThrottleStateRepository`).
+ * `CryptoNewsMessageRepository` is provided by `CryptoNewsIngestionModule`
+ * (no duplicate provider here — Nest resolves the injection token from
+ * the imported module's exports).
  */
 @Module({
   imports: [
@@ -32,7 +38,9 @@ import { TypeOrmPublisherThrottleStateRepository } from 'telegram/crypto-news-pu
       PublisherQueueEntity,
       PublisherThrottleStateEntity,
     ]),
+    CryptoNewsIngestionModule,
   ],
+  controllers: [KeywordsController, QueueController],
   providers: [
     TypeOrmKeywordRepository,
     TypeOrmPublisherQueueRepository,
@@ -49,6 +57,8 @@ import { TypeOrmPublisherThrottleStateRepository } from 'telegram/crypto-news-pu
       provide: PublisherThrottleStateRepository,
       useClass: TypeOrmPublisherThrottleStateRepository,
     },
+    EnqueueMatchingMessageUseCase,
+    CryptoNewsMessageIngestedHandler,
   ],
   exports: [
     KeywordRepository,

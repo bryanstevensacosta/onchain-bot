@@ -24,6 +24,7 @@ import { VipCallApprovalModule } from 'token/vip-call-approval/vip-call-approval
 import { VipCallsModule as TelegramPublishingModule } from 'telegram/vip-calls/vip-channel/vip-channel.module';
 import { VipDecisionsModule } from 'telegram/vip-calls/vip-decisions/decisions.module';
 import { ChainDexterBotModule } from 'telegram/chain-dexter-bot/chain-dexter-bot.module';
+import { CryptoNewsPublisherModule } from 'telegram/crypto-news-publisher/crypto-news-publisher.module';
 import { CallTrackingModule } from 'token/call-tracking/call-tracking.module';
 import { AchievementModule } from 'token/achievement/achievement.module';
 import { ReputationModule } from 'kol/reputation/reputation.module';
@@ -36,6 +37,7 @@ import { WsModule } from 'shared/ws/ws.module';
 import { SettingsModule } from 'settings/settings.module';
 import { DataProviderModule } from 'data-provider/core/data-provider.module';
 import { HealthModule } from 'health/health.module';
+import { LlmModule } from 'shared/llm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -118,6 +120,7 @@ import { AppService } from './app.service';
     TelegramPublishingModule,
     VipDecisionsModule,
     ChainDexterBotModule,
+    CryptoNewsPublisherModule,
     CallTrackingModule,
     AchievementModule,
     ReputationModule,
@@ -126,6 +129,7 @@ import { AppService } from './app.service';
     WsModule,
     SettingsModule,
     DataProviderModule,
+    LlmModule,
   ],
   controllers: [AppController],
   providers: [AppService, DevBackfillHook, FilteredBootstrapLogger],

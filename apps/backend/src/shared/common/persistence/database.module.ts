@@ -29,6 +29,9 @@ import { VipAchievementEntity } from 'telegram/vip-calls/vip-achievement/infrast
 import { CryptoNewsSourceEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
 import { CryptoNewsMessageEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
 import { CryptoNewsMessageMediaEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
+import { KeywordEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/keyword.entity';
+import { PublisherQueueEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/publisher-queue.entity';
+import { PublisherThrottleStateEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/publisher-throttle-state.entity';
 import type { AppConfig } from 'shared/common/config/app.config';
 
 const PERSISTED_ENTITIES = [
@@ -60,6 +63,9 @@ const PERSISTED_ENTITIES = [
   CryptoNewsSourceEntity,
   CryptoNewsMessageEntity,
   CryptoNewsMessageMediaEntity,
+  KeywordEntity,
+  PublisherQueueEntity,
+  PublisherThrottleStateEntity,
 ];
 
 /**

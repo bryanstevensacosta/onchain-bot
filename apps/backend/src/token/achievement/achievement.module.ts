@@ -29,10 +29,7 @@ import {
   LiveMarketDataPort,
 } from './application/ports/index-export';
 
-const PERSISTED_ENTITIES = [
-  AchievementThresholdEntity,
-  MonitoredCallEntity,
-];
+const PERSISTED_ENTITIES = [AchievementThresholdEntity, MonitoredCallEntity];
 
 @Module({
   imports: [EnrichmentModule, TypeOrmModule.forFeature(PERSISTED_ENTITIES)],
