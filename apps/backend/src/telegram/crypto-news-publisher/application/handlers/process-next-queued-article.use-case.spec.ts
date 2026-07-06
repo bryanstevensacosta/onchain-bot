@@ -5,6 +5,9 @@ import { ThrottleSchedulerService } from '../services/throttle-scheduler.service
 import { CryptoNewsLlmAdapter } from 'telegram/crypto-news-publisher/infrastructure/llm/crypto-news-llm.adapter';
 import { TelegramPublisherPort, type SendResult } from 'telegram/shared';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
+import { loadCryptoNewsPublisherConfig } from 'telegram/crypto-news-publisher/infrastructure/config/crypto-news-publisher.config';
+
+const TEST_TARGET_CHANNEL = loadCryptoNewsPublisherConfig().targetChannel;
 
 describe('ProcessNextQueuedArticleUseCase', () => {
   let useCase: ProcessNextQueuedArticleUseCase;
@@ -145,7 +148,7 @@ describe('ProcessNextQueuedArticleUseCase', () => {
 
       expect(llmAdapter.generateForEntry).toHaveBeenCalledWith(entry);
       expect(publisher.sendPhoto).toHaveBeenCalledWith(
-        '',
+        TEST_TARGET_CHANNEL,
         '✨ BTC rompe $100k',
         '/tmp/img.jpg',
       );
@@ -176,7 +179,10 @@ describe('ProcessNextQueuedArticleUseCase', () => {
 
       await useCase.execute();
 
-      expect(publisher.sendMessage).toHaveBeenCalledWith('', 'texto');
+      expect(publisher.sendMessage).toHaveBeenCalledWith(
+        TEST_TARGET_CHANNEL,
+        'texto',
+      );
       expect(publisher.sendPhoto).not.toHaveBeenCalled();
       expect(queueRepo.markPublished).toHaveBeenCalledWith(
         'entry-text',

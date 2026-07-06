@@ -1,0 +1,15 @@
+{
+  "enabled": true,
+  "targetChannel": "4371535900",
+  "publishing": {
+    "dailyCap": 36,
+    "dailyResetUtcHour": 4,
+    "randomDelayMinMs": 180000,
+    "randomDelayMaxMs": 900000,
+    "llmMaxAttempts": 3
+  },
+  "prompt": {
+    "model": "opencode-zen/deepseek-v4-flash",
+    "template": "Reformula la siguiente noticia crypto en español profesional y conciso (<500 chars). El post incluye imagen adjunta: {{hasImage}}.\n\nTítulo: {{title}}\n\nContenido original: {{original}}\n\nGenera un post atractivo con un emoji relevante al inicio."
+  }
+}

@@ -45,6 +45,12 @@
  *     UPLOADS_ROOT — absolute or cwd-relative directory for downloaded
  *                    attachments (default `<cwd>/uploads`).
  *
+ *   LLM gateway (LiteLLM-compatible proxy, OpenAI-compatible API):
+ *     LLM_GATEWAY_BASE_URL — gateway base URL (default http://localhost:4845)
+ *     LLM_GATEWAY_API_KEY  — virtual key issued by the gateway
+ *     LLM_GATEWAY_MODEL    — model identifier (default
+ *                            `opencode-zen/deepseek-v4-flash`)
+ *
  *   Logging (consumed by the `logging` config block; see src/app.module.ts
  *   where it is wired into nestjs-pino's LoggerModule.forRootAsync):
  *     LOG_LEVEL       — pino level (default 'info' in production, 'debug'
@@ -85,7 +91,17 @@ export interface SeedNewsChannelEntry {
   title?: string;
 }
 
-export interface AppConfig {
+export interface LlmConfigShape {
+  readonly llm: {
+    readonly gateway: {
+      readonly baseUrl: string;
+      readonly apiKey: string;
+      readonly model: string;
+    };
+  };
+}
+
+export interface AppConfig extends LlmConfigShape {
   // Milestone notification settings
   milestone: {
     activeWindowHours: number;
@@ -500,6 +516,15 @@ export const appConfig = registerAs(
     },
 
     uploadsRoot: process.env.UPLOADS_ROOT ?? join(process.cwd(), 'uploads'),
+
+    llm: {
+      gateway: {
+        baseUrl: process.env.LLM_GATEWAY_BASE_URL ?? 'http://localhost:4845',
+        apiKey: process.env.LLM_GATEWAY_API_KEY ?? '',
+        model:
+          process.env.LLM_GATEWAY_MODEL ?? 'opencode-zen/deepseek-v4-flash',
+      },
+    },
 
     logging: {
       level:

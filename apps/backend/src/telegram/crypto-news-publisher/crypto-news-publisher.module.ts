@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { LlmPort } from 'shared/llm';
+import { LlmGatewayAdapter } from 'shared/llm/adapters/llm-gateway.adapter';
 import { KeywordEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/keyword.entity';
 import { PublisherQueueEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/publisher-queue.entity';
 import { PublisherThrottleStateEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/publisher-throttle-state.entity';
@@ -77,6 +79,12 @@ import { CryptoNewsIngestionModule } from 'telegram/ingestion/crypto-news/crypto
     {
       provide: TelegramPublisherPort,
       useClass: BotApiCryptoNewsPublisherAdapter,
+    },
+    // Overrides the globally-bound `LlmPort` from `LlmModule` for
+    // crypto-news-publisher only; other BCs keep using OpenAI/Mock.
+    {
+      provide: LlmPort,
+      useClass: LlmGatewayAdapter,
     },
     CryptoNewsLlmAdapter,
     CryptoNewsPublisherConfigService,

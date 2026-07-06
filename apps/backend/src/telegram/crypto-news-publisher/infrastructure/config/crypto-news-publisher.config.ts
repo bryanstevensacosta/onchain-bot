@@ -58,7 +58,7 @@ const DEFAULT_CONFIG: CryptoNewsPublisherConfig = Object.freeze({
     llmMaxAttempts: 3,
   }),
   prompt: Object.freeze({
-    model: 'gpt-4o-mini',
+    model: 'opencode-zen/deepseek-v4-flash',
     template:
       'Reformula la siguiente noticia crypto en español profesional y conciso (<500 chars). El post incluye imagen adjunta: {{hasImage}}.\n\n' +
       'Título: {{title}}\n\n' +
