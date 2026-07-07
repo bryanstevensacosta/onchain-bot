@@ -7,12 +7,14 @@ import {
   useUpdateKeyword,
 } from '@/features/crypto-news-publisher/model/use-keywords';
 import { useTemplates } from '@/features/crypto-news-publisher/model/use-llm-config';
+import { useCryptoNewsSources } from '@/entities/crypto-news';
 import type { KeywordView } from '@/features/crypto-news-publisher/api/keywords-api';
 import type { PromptTemplate } from '@/features/crypto-news-publisher/api/llm-config-api';
 
 interface EditingRow {
   id: string;
   phrase: string;
+  sourceChannelId: string | null;
   templateId: string | null;
 }
 
@@ -35,14 +37,19 @@ export function KeywordsManager(): React.ReactElement {
   const updateMut = useUpdateKeyword();
   const deleteMut = useDeleteKeyword();
   const { data: templates } = useTemplates();
+  const { data: sources } = useCryptoNewsSources();
 
   const [newPhrase, setNewPhrase] = useState('');
   const [newCaseSensitive, setNewCaseSensitive] = useState(false);
+  const [newSourceChannelId, setNewSourceChannelId] = useState<string | null>(
+    null,
+  );
   const [newTemplateId, setNewTemplateId] = useState<string | null>(null);
   const [editing, setEditing] = useState<EditingRow | null>(null);
 
   const keywords = data ?? [];
   const templateOptions = templates ?? [];
+  const sourceOptions = sources ?? [];
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -52,12 +59,14 @@ export function KeywordsManager(): React.ReactElement {
       {
         phrase,
         caseSensitive: newCaseSensitive,
+        sourceChannelId: newSourceChannelId,
         templateId: newTemplateId,
       },
       {
         onSuccess: () => {
           setNewPhrase('');
           setNewCaseSensitive(false);
+          setNewSourceChannelId(null);
           setNewTemplateId(null);
         },
       },
@@ -75,7 +84,11 @@ export function KeywordsManager(): React.ReactElement {
     updateMut.mutate(
       {
         id: editing.id,
-        body: { phrase, templateId: editing.templateId },
+        body: {
+          phrase,
+          sourceChannelId: editing.sourceChannelId,
+          templateId: editing.templateId,
+        },
       },
       { onSuccess: () => setEditing(null) },
     );
@@ -187,7 +200,8 @@ export function KeywordsManager(): React.ReactElement {
             <thead>
               <tr className="text-xs text-slate-500 border-b border-slate-700">
                 <th className="py-2 pr-3">Phrase</th>
-                <th className="py-2 pr-3">Case sensitive</th>
+                <th className="py-2 pr-3">Source</th>
+                <th className="py-2 pr-3">Case</th>
                 <th className="py-2 pr-3">Enabled</th>
                 <th className="py-2 pr-3">Template</th>
                 <th className="py-2 pr-3">Created</th>
@@ -208,17 +222,44 @@ export function KeywordsManager(): React.ReactElement {
                           type="text"
                           value={editing!.phrase}
                           onChange={(e) =>
-                            setEditing({
-                              id: kw.id,
-                              phrase: e.target.value,
-                              templateId: editing!.templateId,
-                            })
+                            setEditing({ ...editing!, phrase: e.target.value })
                           }
                           className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-slate-100 font-mono focus:outline-none focus:border-blue-500"
                           disabled={updateMut.isPending}
                         />
                       ) : (
                         kw.phrase
+                      )}
+                    </td>
+                    <td className="py-2 pr-3">
+                      {isEditing ? (
+                        <select
+                          value={editing!.sourceChannelId ?? ''}
+                          onChange={(e) =>
+                            setEditing({
+                              ...editing!,
+                              sourceChannelId:
+                                e.target.value === '' ? null : e.target.value,
+                            })
+                          }
+                          className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                          disabled={updateMut.isPending}
+                        >
+                          <option value="">All sources (global)</option>
+                          {sourceOptions.map((s) => (
+                            <option key={s.channelId} value={s.channelId}>
+                              {s.title ?? s.handle}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="text-xs text-slate-300">
+                          {kw.sourceChannelId
+                            ? (sourceOptions.find(
+                                (s) => s.channelId === kw.sourceChannelId,
+                              )?.title ?? kw.sourceChannelId)
+                            : 'Global'}
+                        </span>
                       )}
                     </td>
                     <td className="py-2 pr-3 text-slate-400">
@@ -241,8 +282,7 @@ export function KeywordsManager(): React.ReactElement {
                           value={editing!.templateId ?? NO_TEMPLATE}
                           onChange={(e) =>
                             setEditing({
-                              id: kw.id,
-                              phrase: editing!.phrase,
+                              ...editing!,
                               templateId:
                                 e.target.value === NO_TEMPLATE
                                   ? null
@@ -302,6 +342,7 @@ export function KeywordsManager(): React.ReactElement {
                               setEditing({
                                 id: kw.id,
                                 phrase: kw.phrase,
+                                sourceChannelId: kw.sourceChannelId,
                                 templateId: kw.templateId,
                               })
                             }

@@ -17,6 +17,7 @@ export interface KeywordView {
   readonly id: string;
   readonly phrase: string;
   readonly caseSensitive: boolean;
+  readonly sourceChannelId: string | null;
   readonly enabled: boolean;
   readonly templateId: string | null;
   readonly createdAt: string;
@@ -26,6 +27,7 @@ interface CreateKeywordDto {
   phrase: string;
   caseSensitive?: boolean;
   enabled?: boolean;
+  sourceChannelId?: string | null;
   /**
    * Optional override binding to a `PromptTemplate.id`. When null
    * (the default), the keyword falls back to the global default
@@ -39,6 +41,7 @@ interface UpdateKeywordDto {
   phrase?: string;
   caseSensitive?: boolean;
   enabled?: boolean;
+  sourceChannelId?: string | null;
   /**
    * Partial template binding update:
    *  - `undefined` → leave existing binding untouched
@@ -91,6 +94,7 @@ export class KeywordsController {
       phrase: dto.phrase,
       caseSensitive: dto.caseSensitive,
       enabled: dto.enabled,
+      sourceChannelId: dto.sourceChannelId ?? null,
       templateId: dto.templateId ?? null,
     });
     await this.keywordRepo.save(keyword);
@@ -119,6 +123,10 @@ export class KeywordsController {
     } else if (dto.enabled === false) {
       nextEnabled = false;
     }
+    const nextSourceChannelId =
+      dto.sourceChannelId !== undefined
+        ? dto.sourceChannelId
+        : existing.sourceChannelId;
     const nextTemplateId =
       dto.templateId !== undefined ? dto.templateId : existing.templateId;
 
@@ -126,6 +134,7 @@ export class KeywordsController {
       id: existing.id,
       phrase: nextPhrase,
       caseSensitive: nextCaseSensitive,
+      sourceChannelId: nextSourceChannelId,
       templateId: nextTemplateId,
       enabled: nextEnabled,
       createdAt: existing.createdAt,
@@ -145,6 +154,7 @@ export class KeywordsController {
     id: keyword.id,
     phrase: keyword.phrase,
     caseSensitive: keyword.caseSensitive,
+    sourceChannelId: keyword.sourceChannelId,
     enabled: keyword.enabled,
     templateId: keyword.templateId,
     createdAt: keyword.createdAt.toISOString(),

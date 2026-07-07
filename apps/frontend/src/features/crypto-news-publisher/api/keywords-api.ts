@@ -9,6 +9,7 @@ export interface KeywordView {
   readonly id: string;
   readonly phrase: string;
   readonly caseSensitive: boolean;
+  readonly sourceChannelId: string | null;
   readonly enabled: boolean;
   /**
    * Optional `PromptTemplate` override. When `null` the keyword falls
@@ -22,6 +23,7 @@ export interface CreateKeywordBody {
   phrase: string;
   caseSensitive?: boolean;
   enabled?: boolean;
+  sourceChannelId?: string | null;
   /**
    * Optional override binding. `null` (default) uses the global
    * default template; a string binds the keyword to that template.
@@ -33,6 +35,7 @@ export interface UpdateKeywordBody {
   phrase?: string;
   caseSensitive?: boolean;
   enabled?: boolean;
+  sourceChannelId?: string | null;
   /**
    * Partial template binding update:
    *  - `undefined` → leave existing binding untouched

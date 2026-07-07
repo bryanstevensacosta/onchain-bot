@@ -66,8 +66,10 @@ export class CryptoNewsMessageIngestedHandler {
         return;
       }
 
-      // Get enabled keywords (cached)
-      const keywords = await this.getEnabledKeywords();
+      const allKeywords = await this.getEnabledKeywords();
+      const keywords = allKeywords.filter(
+        (kw) => kw.sourceChannelId === null || kw.sourceChannelId === channelId,
+      );
 
       // Test each keyword against content
       const matchedKeyword = keywords.find((kw) => kw.matches(message.content));

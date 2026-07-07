@@ -11,6 +11,7 @@ export class KeywordMapper {
     row.id = keyword.id;
     row.phrase = keyword.phrase;
     row.caseSensitive = keyword.caseSensitive;
+    row.sourceChannelId = keyword.sourceChannelId;
     row.templateId = keyword.templateId;
     row.enabled = keyword.enabled;
     row.createdAt = keyword.createdAt;
@@ -22,6 +23,7 @@ export class KeywordMapper {
       id: row.id,
       phrase: row.phrase,
       caseSensitive: row.caseSensitive,
+      sourceChannelId: row.sourceChannelId,
       templateId: row.templateId,
       enabled: row.enabled,
       createdAt: row.createdAt,

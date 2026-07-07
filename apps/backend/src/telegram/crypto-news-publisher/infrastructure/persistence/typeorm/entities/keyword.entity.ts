@@ -31,6 +31,14 @@ export class KeywordEntity {
   @Column({ name: 'case_sensitive', type: 'boolean', default: false })
   public caseSensitive!: boolean;
 
+  @Column({
+    name: 'source_channel_id',
+    type: 'varchar',
+    length: 64,
+    nullable: true,
+  })
+  public sourceChannelId!: string | null;
+
   /**
    * Optional binding to a `PromptTemplate`. When non-null the publisher
    * uses this template (instead of `LlmConfig.defaultTemplateId`) when
