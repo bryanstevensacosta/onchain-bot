@@ -456,18 +456,26 @@ export class TelegramMtprotoListenerAdapter
       return undefined;
     }
     try {
-      // Use the downloader's download() which handles fileReference
-      // refresh internally. Without this, forwarding a post whose photo
-      // was already ingested (and whose fileReference has since expired,
-      // ~1h lifetime) would fail because direct client.downloadMedia()
-      // with a stale fileReference returns undefined. The downloader's
-      // downloadWithOptionalRefresh re-fetches the message metadata
-      // from Telegram to get a fresh fileReference, then retries.
-      const downloaded = await this.mediaDownloader.download(
+      // Use the ORIGINAL msg.media object (which includes `sizes`,
+      // `dcId`, `date`) directly — reconstructing from the extracted
+      // fields via buildPhotoMedia loses `sizes`, which gramjs
+      // requires for downloadMedia to work. The saveToDisk() helper
+      // does the final disk-write with MIME detection + path safety.
+      const client = this.client;
+      if (!client) throw new Error('Telegram client not available');
+      const buffer: unknown = await this.floodWaitHandler.withRetry(
+        `media-download:${peerId}:${msg.id}`,
+        () => client.downloadMedia(msg.media as never, {}),
+      );
+      if (buffer === undefined || buffer instanceof Buffer === false) {
+        throw new Error('downloadMedia returned no data');
+      }
+      const downloaded = await this.mediaDownloader.saveToDisk(
         peerId,
         msg.id,
         0,
         attachment,
+        buffer as Buffer,
       );
       const enriched: TelegramMediaAttachment = {
         type: attachment.type,
