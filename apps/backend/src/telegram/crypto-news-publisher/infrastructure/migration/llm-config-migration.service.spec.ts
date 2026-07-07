@@ -133,6 +133,7 @@ describe('LlmConfigMigrationService.seedIfEmpty', () => {
     expect(savedTpl.name).toBe('Default (imported)');
     expect(savedTpl.model).toBe('custom-model');
     expect(savedTpl.promptText).toBe('CUSTOM TEMPLATE {{original}}');
+    expect(savedTpl.systemPromptText).toBe('');
     expect(savedTpl.maxTokens).toBe(2000);
     expect(savedTpl.temperature).toBe(0.7);
     expect(savedTpl.reasoningEffort).toBeNull();
@@ -199,6 +200,7 @@ describe('LlmConfigMigrationService.seedIfEmpty', () => {
     expect(savedTpl.maxTokens).toBe(2000);
     expect(savedTpl.temperature).toBe(0.7);
     expect(savedTpl.reasoningEffort).toBeNull();
+    expect(savedTpl.systemPromptText).toBe('');
     expect(savedTpl.promptText.length).toBeGreaterThan(0);
 
     expect(savedCfg.targetChannel).toBe('');

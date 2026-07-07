@@ -22,6 +22,7 @@ export interface PromptTemplateProps {
   temperature: number;
   reasoningEffort: ReasoningEffort | null;
   promptText: string;
+  systemPromptText: string;
   readonly createdAt: Date;
   updatedAt: Date;
 }
@@ -63,6 +64,7 @@ export class PromptTemplate extends AggregateRoot<string> {
     temperature: number;
     reasoningEffort?: ReasoningEffort | null;
     promptText: string;
+    systemPromptText?: string;
     createdAt?: Date;
     updatedAt?: Date;
   }): PromptTemplate {
@@ -75,6 +77,7 @@ export class PromptTemplate extends AggregateRoot<string> {
       input.reasoningEffort ?? null,
     );
     const promptText = validatePromptText(input.promptText);
+    const systemPromptText = (input.systemPromptText ?? '').trim();
 
     const now = new Date();
     return new PromptTemplate(input.id ?? crypto.randomUUID(), {
@@ -86,6 +89,7 @@ export class PromptTemplate extends AggregateRoot<string> {
       temperature,
       reasoningEffort,
       promptText,
+      systemPromptText,
       createdAt: input.createdAt ?? now,
       updatedAt: input.updatedAt ?? now,
     });
@@ -127,6 +131,10 @@ export class PromptTemplate extends AggregateRoot<string> {
     return this.state.promptText;
   }
 
+  public get systemPromptText(): string {
+    return this.state.systemPromptText;
+  }
+
   public get createdAt(): Date {
     return this.state.createdAt;
   }
@@ -148,6 +156,7 @@ export class PromptTemplate extends AggregateRoot<string> {
     temperature?: number;
     reasoningEffort?: ReasoningEffort | null;
     promptText?: string;
+    systemPromptText?: string;
   }): void {
     if (patch.name !== undefined) {
       this.state.name = validateName(patch.name);
@@ -171,6 +180,9 @@ export class PromptTemplate extends AggregateRoot<string> {
     }
     if (patch.promptText !== undefined) {
       this.state.promptText = validatePromptText(patch.promptText);
+    }
+    if (patch.systemPromptText !== undefined) {
+      this.state.systemPromptText = patch.systemPromptText.trim();
     }
     this.state.updatedAt = new Date();
   }

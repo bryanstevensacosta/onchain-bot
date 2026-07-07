@@ -10,6 +10,7 @@ export interface PromptTemplateView {
   readonly temperature: number;
   readonly reasoningEffort: 'low' | 'medium' | 'high' | null;
   readonly promptText: string;
+  readonly systemPromptText: string;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -38,6 +39,7 @@ export const toTemplateView = (
   temperature: template.temperature,
   reasoningEffort: template.reasoningEffort,
   promptText: template.promptText,
+  systemPromptText: template.systemPromptText,
   createdAt: template.createdAt.toISOString(),
   updatedAt: template.updatedAt.toISOString(),
 });

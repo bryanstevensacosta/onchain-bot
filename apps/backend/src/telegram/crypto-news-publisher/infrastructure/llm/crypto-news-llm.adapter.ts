@@ -56,9 +56,11 @@ export class CryptoNewsLlmAdapter {
     }
     const prompt = renderPrompt(template.promptText, entry);
     const { base64, mimeType } = this.readImagePayload(entry);
+    const systemPrompt = template.systemPromptText.trim();
 
     return this.llmPort.generateText({
       prompt,
+      ...(systemPrompt ? { systemPrompt } : {}),
       imageUrl: undefined,
       imageBase64: base64,
       mimeType,

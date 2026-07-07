@@ -120,6 +120,7 @@ export class LlmConfigController {
       temperature: dto.temperature,
       reasoningEffort: dto.reasoningEffort ?? null,
       promptText: dto.promptText,
+      systemPromptText: dto.systemPromptText ?? '',
     });
     try {
       const saved = await this.templateRepo.save(created);
@@ -151,6 +152,7 @@ export class LlmConfigController {
       temperature: dto.temperature,
       reasoningEffort: dto.reasoningEffort,
       promptText: dto.promptText,
+      systemPromptText: dto.systemPromptText,
     });
     try {
       const saved = await this.templateRepo.save(existing);

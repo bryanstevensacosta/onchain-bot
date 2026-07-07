@@ -101,6 +101,84 @@ describe('LlmGatewayAdapter', () => {
       expect(callArg.temperature).toBe(0.7);
     });
 
+    it('prepends a system message when systemPrompt is provided', async () => {
+      const adapter = new LlmGatewayAdapter(buildConfig({}));
+      const instance = OpenAIConstructor.mock.results[0]
+        .value as MockOpenAIClient;
+      instance.chat.completions.create.mockResolvedValue({
+        choices: [{ message: { content: 'ok' } }],
+      });
+
+      await adapter.generateText({
+        prompt: 'say hi',
+        systemPrompt: 'You are a journalist.',
+      });
+
+      const callArg = instance.chat.completions.create.mock.calls[0][0];
+      expect(callArg.messages).toEqual([
+        { role: 'system', content: 'You are a journalist.' },
+        { role: 'user', content: [{ type: 'text', text: 'say hi' }] },
+      ]);
+    });
+
+    it('trims whitespace from systemPrompt before sending', async () => {
+      const adapter = new LlmGatewayAdapter(buildConfig({}));
+      const instance = OpenAIConstructor.mock.results[0]
+        .value as MockOpenAIClient;
+      instance.chat.completions.create.mockResolvedValue({
+        choices: [{ message: { content: 'ok' } }],
+      });
+
+      await adapter.generateText({
+        prompt: 'say hi',
+        systemPrompt: '  You are a journalist.  ',
+      });
+
+      const callArg = instance.chat.completions.create.mock.calls[0][0];
+      expect(callArg.messages).toEqual([
+        { role: 'system', content: 'You are a journalist.' },
+        { role: 'user', content: [{ type: 'text', text: 'say hi' }] },
+      ]);
+    });
+
+    it('omits the system message when systemPrompt is empty', async () => {
+      const adapter = new LlmGatewayAdapter(buildConfig({}));
+      const instance = OpenAIConstructor.mock.results[0]
+        .value as MockOpenAIClient;
+      instance.chat.completions.create.mockResolvedValue({
+        choices: [{ message: { content: 'ok' } }],
+      });
+
+      await adapter.generateText({
+        prompt: 'say hi',
+        systemPrompt: '',
+      });
+
+      const callArg = instance.chat.completions.create.mock.calls[0][0];
+      expect(callArg.messages).toEqual([
+        { role: 'user', content: [{ type: 'text', text: 'say hi' }] },
+      ]);
+    });
+
+    it('omits the system message when systemPrompt is only whitespace', async () => {
+      const adapter = new LlmGatewayAdapter(buildConfig({}));
+      const instance = OpenAIConstructor.mock.results[0]
+        .value as MockOpenAIClient;
+      instance.chat.completions.create.mockResolvedValue({
+        choices: [{ message: { content: 'ok' } }],
+      });
+
+      await adapter.generateText({
+        prompt: 'say hi',
+        systemPrompt: '   \n  ',
+      });
+
+      const callArg = instance.chat.completions.create.mock.calls[0][0];
+      expect(callArg.messages).toEqual([
+        { role: 'user', content: [{ type: 'text', text: 'say hi' }] },
+      ]);
+    });
+
     it('builds a multimodal content array when imageBase64 + mimeType are provided', async () => {
       const adapter = new LlmGatewayAdapter(buildConfig({}));
       const instance = OpenAIConstructor.mock.results[0]

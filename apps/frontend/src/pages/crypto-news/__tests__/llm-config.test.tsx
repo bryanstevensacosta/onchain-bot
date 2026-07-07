@@ -249,6 +249,7 @@ const baseTemplates: ReadonlyArray<PromptTemplate> = [
     temperature: 0.7,
     reasoningEffort: null,
     promptText: 'Rewrite: {{title}} | {{original}} | {{hasImage}}',
+    systemPromptText: 'You are a crypto journalist.',
     createdAt: '2025-01-01T00:00:00.000Z',
     updatedAt: '2025-01-01T00:00:00.000Z',
   },
@@ -261,6 +262,7 @@ const baseTemplates: ReadonlyArray<PromptTemplate> = [
     temperature: 1.0,
     reasoningEffort: 'low',
     promptText: 'Headline: {{title}}',
+    systemPromptText: '',
     createdAt: '2025-01-02T00:00:00.000Z',
     updatedAt: '2025-01-02T00:00:00.000Z',
   },
@@ -473,6 +475,12 @@ describe('PromptTemplates', () => {
     fireEvent.change(screen.getByLabelText('Reasoning effort'), {
       target: { value: 'low' },
     });
+    fireEvent.change(
+      screen.getByLabelText('System prompt (persona, role, style)'),
+      {
+        target: { value: 'You are a newsroom editor.' },
+      },
+    );
     fireEvent.change(screen.getByLabelText('Prompt template'), {
       target: {
         value: 'Rewrite the following for our newsroom: {{original}}',
@@ -490,11 +498,31 @@ describe('PromptTemplates', () => {
           maxTokens: 1200,
           temperature: 0.4,
           reasoningEffort: 'low',
+          systemPromptText: 'You are a newsroom editor.',
           promptText: 'Rewrite the following for our newsroom: {{original}}',
         }),
         expect.objectContaining({ onSuccess: expect.any(Function) }),
       );
     });
+  });
+
+  it('renders two textareas (system + prompt) in the create modal', () => {
+    renderWithClient(<PromptTemplates />);
+    fireEvent.click(screen.getByRole('button', { name: /\+ New template/i }));
+
+    const systemTextarea = screen.getByLabelText(
+      'System prompt (persona, role, style)',
+    );
+    const promptTextarea = screen.getByLabelText('Prompt template');
+
+    expect(systemTextarea.tagName.toLowerCase()).toBe('textarea');
+    expect(promptTextarea.tagName.toLowerCase()).toBe('textarea');
+    expect(systemTextarea).toHaveValue('');
+  });
+
+  it('shows a "Has system prompt" indicator for templates that define one', () => {
+    renderWithClient(<PromptTemplates />);
+    expect(screen.getByText(/Has system prompt/i)).toBeInTheDocument();
   });
 
   it('shows a window.confirm dialog when clicking delete on a non-default, unused template', () => {

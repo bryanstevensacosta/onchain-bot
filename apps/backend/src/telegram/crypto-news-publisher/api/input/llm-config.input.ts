@@ -44,6 +44,10 @@ export class CreatePromptTemplateDto {
   @IsString()
   @Length(1)
   public promptText!: string;
+
+  @IsOptional()
+  @IsString()
+  public systemPromptText?: string;
 }
 
 export class UpdatePromptTemplateDto {
@@ -81,6 +85,10 @@ export class UpdatePromptTemplateDto {
   @IsString()
   @Length(1)
   public promptText?: string;
+
+  @IsOptional()
+  @IsString()
+  public systemPromptText?: string;
 }
 
 export class UpdateLlmConfigDto {

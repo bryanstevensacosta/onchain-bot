@@ -60,6 +60,9 @@ export class PromptTemplateEntity {
   @Column({ name: 'prompt_text', type: 'text' })
   public promptText!: string;
 
+  @Column({ name: 'system_prompt_text', type: 'text', nullable: true })
+  public systemPromptText!: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   public createdAt!: Date;
 

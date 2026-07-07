@@ -18,11 +18,24 @@ describe('PromptTemplate', () => {
       expect(tpl.temperature).toBe(0.7);
       expect(tpl.reasoningEffort).toBe('medium');
       expect(tpl.promptText).toBe('Rewrite: {{original}}');
+      expect(tpl.systemPromptText).toBe('');
       expect(tpl.description).toBeNull();
       expect(tpl.id).toEqual(expect.any(String));
       expect(tpl.createdAt).toBeInstanceOf(Date);
       expect(tpl.updatedAt).toBeInstanceOf(Date);
       expect(tpl.createdAt.getTime()).toBe(tpl.updatedAt.getTime());
+    });
+
+    it('accepts and trims systemPromptText', () => {
+      const tpl = PromptTemplate.create({
+        name: 't',
+        model: 'm',
+        maxTokens: 100,
+        temperature: 0.5,
+        promptText: 'p',
+        systemPromptText: '  You are a journalist.  ',
+      });
+      expect(tpl.systemPromptText).toBe('You are a journalist.');
     });
 
     it('treats absent reasoningEffort as null', () => {
@@ -182,6 +195,7 @@ describe('PromptTemplate', () => {
         temperature: 0.7,
         reasoningEffort: 'low',
         promptText: 'original',
+        systemPromptText: 'You are a journalist.',
       });
 
     it('updates the provided fields and bumps updatedAt', async () => {
@@ -200,6 +214,19 @@ describe('PromptTemplate', () => {
       expect(tpl.maxTokens).toBe(2000);
       expect(tpl.reasoningEffort).toBe('low');
       expect(tpl.promptText).toBe('original');
+      expect(tpl.systemPromptText).toBe('You are a journalist.');
+    });
+
+    it('updates systemPromptText with trimming', () => {
+      const tpl = build();
+      tpl.update({ systemPromptText: '  You are an analyst.  ' });
+      expect(tpl.systemPromptText).toBe('You are an analyst.');
+    });
+
+    it('clears systemPromptText when set to empty string', () => {
+      const tpl = build();
+      tpl.update({ systemPromptText: '' });
+      expect(tpl.systemPromptText).toBe('');
     });
 
     it('trims whitespace on update', () => {
@@ -250,11 +277,13 @@ describe('PromptTemplate', () => {
         temperature: 0,
         reasoningEffort: null,
         promptText: 'p',
+        systemPromptText: 's',
         createdAt: date,
         updatedAt: date,
       });
       expect(tpl.id).toBe('fixed');
       expect(tpl.createdAt).toBe(date);
+      expect(tpl.systemPromptText).toBe('s');
     });
   });
 });

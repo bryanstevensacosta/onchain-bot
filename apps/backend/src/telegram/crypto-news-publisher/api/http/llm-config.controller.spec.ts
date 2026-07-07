@@ -165,11 +165,26 @@ describe('LlmConfigController', () => {
         temperature: 0.3,
         reasoningEffort: 'high',
         promptText: 'Hi {{original}}',
+        systemPromptText: 'You are a crypto journalist.',
       });
       expect(result.name).toBe('Alpha');
       expect(result.maxTokens).toBe(1500);
       expect(result.reasoningEffort).toBe('high');
+      expect(result.systemPromptText).toBe('You are a crypto journalist.');
+      expect(result.promptText).toBe('Hi {{original}}');
       expect(templateRepo.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('defaults systemPromptText to empty string when omitted', async () => {
+      templateRepo.save.mockImplementation(async (t) => t);
+      const result = await controller.createTemplate({
+        name: 'Alpha',
+        model: 'gpt-test',
+        maxTokens: 1500,
+        temperature: 0.3,
+        promptText: 'Hi {{original}}',
+      });
+      expect(result.systemPromptText).toBe('');
     });
 
     it('maps a unique-name violation to 409', async () => {
@@ -204,6 +219,17 @@ describe('LlmConfigController', () => {
       });
       expect(result.name).toBe('Renamed');
       expect(result.temperature).toBe(0.9);
+      expect(result.systemPromptText).toBe('');
+    });
+
+    it('updates systemPromptText when provided in the patch', async () => {
+      const existing = buildTemplate({ name: 'Old' });
+      templateRepo.findById.mockResolvedValue(existing);
+      templateRepo.save.mockImplementation(async (t) => t);
+      const result = await controller.updateTemplate(existing.id, {
+        systemPromptText: 'You are an analyst.',
+      });
+      expect(result.systemPromptText).toBe('You are an analyst.');
     });
 
     it('maps unique-name violation to 409', async () => {

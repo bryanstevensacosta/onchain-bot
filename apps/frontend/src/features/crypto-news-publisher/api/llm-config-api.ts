@@ -21,6 +21,7 @@ export interface PromptTemplate {
   readonly temperature: number;
   readonly reasoningEffort: 'low' | 'medium' | 'high' | null;
   readonly promptText: string;
+  readonly systemPromptText: string;
   readonly createdAt: string;
   readonly updatedAt: string;
 }

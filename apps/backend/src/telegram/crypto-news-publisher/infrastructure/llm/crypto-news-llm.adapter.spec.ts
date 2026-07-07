@@ -46,6 +46,7 @@ const buildTemplate = (
     temperature?: number;
     reasoningEffort?: 'low' | 'medium' | 'high' | null;
     promptText?: string;
+    systemPromptText?: string;
   } = {},
 ): PromptTemplate =>
   PromptTemplate.create({
@@ -56,6 +57,7 @@ const buildTemplate = (
     temperature: overrides.temperature ?? 0.42,
     reasoningEffort: overrides.reasoningEffort ?? null,
     promptText: overrides.promptText ?? TEMPLATE_PROMPT,
+    systemPromptText: overrides.systemPromptText ?? '',
   });
 
 const buildLlmConfig = (defaultTemplateId: string): LlmConfig =>
@@ -303,6 +305,46 @@ describe('CryptoNewsLlmAdapter', () => {
       await expect(adapter.generateForEntry(entry)).rejects.toThrow(
         'openai down',
       );
+    });
+
+    it('forwards template.systemPromptText as systemPrompt when present', async () => {
+      const defaultTemplate = buildTemplate(DEFAULT_TEMPLATE_ID, {
+        systemPromptText: 'You are a crypto journalist.',
+      });
+      llmConfigRepo.load.mockResolvedValue(buildLlmConfig(DEFAULT_TEMPLATE_ID));
+      templateRepo.findById.mockResolvedValue(defaultTemplate);
+
+      const entry = buildEntry({ imagePath: null });
+      await adapter.generateForEntry(entry);
+
+      const req = llmPort.generateText.mock.calls[0][0];
+      expect(req.systemPrompt).toBe('You are a crypto journalist.');
+    });
+
+    it('omits systemPrompt when the template has no system prompt', async () => {
+      const defaultTemplate = buildTemplate(DEFAULT_TEMPLATE_ID);
+      llmConfigRepo.load.mockResolvedValue(buildLlmConfig(DEFAULT_TEMPLATE_ID));
+      templateRepo.findById.mockResolvedValue(defaultTemplate);
+
+      const entry = buildEntry({ imagePath: null });
+      await adapter.generateForEntry(entry);
+
+      const req = llmPort.generateText.mock.calls[0][0];
+      expect(req.systemPrompt).toBeUndefined();
+    });
+
+    it('trims surrounding whitespace from the system prompt', async () => {
+      const defaultTemplate = buildTemplate(DEFAULT_TEMPLATE_ID, {
+        systemPromptText: '   You are an analyst.   ',
+      });
+      llmConfigRepo.load.mockResolvedValue(buildLlmConfig(DEFAULT_TEMPLATE_ID));
+      templateRepo.findById.mockResolvedValue(defaultTemplate);
+
+      const entry = buildEntry({ imagePath: null });
+      await adapter.generateForEntry(entry);
+
+      const req = llmPort.generateText.mock.calls[0][0];
+      expect(req.systemPrompt).toBe('You are an analyst.');
     });
   });
 });

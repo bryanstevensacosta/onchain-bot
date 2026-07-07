@@ -202,6 +202,7 @@ export class LlmConfigMigrationService implements OnApplicationBootstrap {
       temperature: LlmConfigMigrationService.TEMPERATURE_DEFAULT,
       reasoningEffort: null,
       promptText,
+      systemPromptText: '',
     });
   }
 

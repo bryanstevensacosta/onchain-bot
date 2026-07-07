@@ -16,6 +16,7 @@ export class PromptTemplateMapper {
     row.temperature = template.temperature;
     row.reasoningEffort = template.reasoningEffort;
     row.promptText = template.promptText;
+    row.systemPromptText = template.systemPromptText;
     row.createdAt = template.createdAt;
     row.updatedAt = template.updatedAt;
     return row;
@@ -31,6 +32,7 @@ export class PromptTemplateMapper {
       temperature: row.temperature,
       reasoningEffort: row.reasoningEffort,
       promptText: row.promptText,
+      systemPromptText: row.systemPromptText ?? '',
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     });

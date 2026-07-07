@@ -25,6 +25,7 @@ interface FormState {
   temperature: string;
   reasoningEffort: ReasoningEffort;
   promptText: string;
+  systemPromptText: string;
 }
 
 const REASONING_OPTIONS: ReadonlyArray<{
@@ -45,6 +46,7 @@ const EMPTY_FORM: FormState = {
   temperature: '0.7',
   reasoningEffort: null,
   promptText: '',
+  systemPromptText: '',
 };
 
 function formFromTemplate(t: PromptTemplate): FormState {
@@ -56,6 +58,7 @@ function formFromTemplate(t: PromptTemplate): FormState {
     temperature: String(t.temperature),
     reasoningEffort: t.reasoningEffort,
     promptText: t.promptText,
+    systemPromptText: t.systemPromptText,
   };
 }
 
@@ -68,6 +71,7 @@ function buildBody(form: FormState): CreatePromptTemplateBody {
     temperature: Number(form.temperature),
     reasoningEffort: form.reasoningEffort,
     promptText: form.promptText,
+    systemPromptText: form.systemPromptText,
   };
 }
 
@@ -299,6 +303,25 @@ function TemplateFormModal({
         </div>
         <div>
           <label
+            htmlFor="tpl-system-prompt"
+            className="block text-xs uppercase text-slate-500 mb-1"
+          >
+            System prompt (persona, role, style)
+          </label>
+          <textarea
+            id="tpl-system-prompt"
+            value={form.systemPromptText}
+            onChange={(e) =>
+              setForm({ ...form, systemPromptText: e.target.value })
+            }
+            rows={3}
+            className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 font-mono focus:outline-none focus:border-blue-500"
+            disabled={pending}
+            placeholder="e.g. Eres un periodista crypto profesional, escribes en español, sin markdown..."
+          />
+        </div>
+        <div>
+          <label
             htmlFor="tpl-prompt"
             className="block text-xs uppercase text-slate-500 mb-1"
           >
@@ -380,6 +403,12 @@ function TemplateRow({
         <div className="font-medium text-slate-100">{template.name}</div>
         {template.description && (
           <div className="text-xs text-slate-500">{template.description}</div>
+        )}
+        {template.systemPromptText && (
+          <div className="mt-1 inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-blue-300/80">
+            <span aria-hidden="true">●</span>
+            Has system prompt
+          </div>
         )}
       </td>
       <td className="py-2 pr-3 font-mono text-xs text-slate-300 align-top">

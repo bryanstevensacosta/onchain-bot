@@ -1,6 +1,14 @@
 export interface LlmGenerateRequest {
   prompt: string;
   /**
+   * Optional system message prepended to the messages array. When
+   * set (and non-empty after trim) adapters send a `[system, user]`
+   * pair; otherwise only the user message is sent. Lets a
+   * `PromptTemplate.systemPromptText` carry the persona/role/style
+   * separately from the user prompt body.
+   */
+  systemPrompt?: string;
+  /**
    * Optional per-request model override. When set, adapters use
    * this model identifier instead of their own configured default.
    * Lets a `PromptTemplate.model` win over the gateway-wide
