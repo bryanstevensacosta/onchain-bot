@@ -56,3 +56,4 @@ apps/backend/scripts/.register.cjs
 
 # Backend logs
 apps/backend/logs/
+uploads/
