@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
 import { CryptoNewsMessageIngestedEvent } from 'telegram/ingestion/crypto-news/domain/events/crypto-news-message-ingested.event';
 import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
@@ -39,6 +39,8 @@ export interface StoreNewsMessageInput {
  */
 @Injectable()
 export class StoreNewsMessageUseCase {
+  private readonly logger = new Logger(StoreNewsMessageUseCase.name);
+
   constructor(
     private readonly messageRepo: CryptoNewsMessageRepository,
     private readonly eventPublisher: CryptoNewsEventPublisher,
@@ -47,6 +49,23 @@ export class StoreNewsMessageUseCase {
   public async execute(
     input: StoreNewsMessageInput,
   ): Promise<CryptoNewsMessage> {
+    // Skip if the message already exists in the DB (e.g. listener
+    // re-polled a message that was already ingested before a restart).
+    // Without this guard, every duplicate key error is logged at ERROR
+    // level, polluting the logs and confusing operators. It also
+    // prevents a duplicate event from reaching the event bus (which
+    // would re-trigger the publisher handler).
+    const existing = await this.messageRepo.findByChannelAndMessageId(
+      input.channelId,
+      input.messageId,
+    );
+    if (existing) {
+      this.logger.debug(
+        `skip duplicate: ${input.channelId}:${input.messageId}`,
+      );
+      return existing;
+    }
+
     const message = CryptoNewsMessage.create({
       channelId: input.channelId,
       messageId: input.messageId,
