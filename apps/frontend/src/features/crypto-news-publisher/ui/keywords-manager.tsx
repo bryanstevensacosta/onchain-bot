@@ -162,7 +162,33 @@ export function KeywordsManager(): React.ReactElement {
             ))}
           </select>
         </div>
-        <div className="flex items-end gap-3 justify-between">
+        <div>
+          <label
+            htmlFor="kw-source"
+            className="block text-xs uppercase text-slate-500 mb-1"
+          >
+            Source
+          </label>
+          <select
+            id="kw-source"
+            value={newSourceChannelId ?? ''}
+            onChange={(e) =>
+              setNewSourceChannelId(
+                e.target.value === '' ? null : e.target.value,
+              )
+            }
+            className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-blue-500"
+            disabled={createMut.isPending}
+          >
+            <option value="">All sources (global)</option>
+            {sourceOptions.map((s) => (
+              <option key={s.channelId} value={s.channelId}>
+                {s.title ?? s.handle}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-wrap items-end gap-3">
           <label className="flex items-center gap-2 text-sm text-slate-300">
             <input
               type="checkbox"
