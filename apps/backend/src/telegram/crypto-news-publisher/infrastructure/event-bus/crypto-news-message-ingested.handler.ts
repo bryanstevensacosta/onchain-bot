@@ -48,7 +48,7 @@ export class CryptoNewsMessageIngestedHandler {
    *  4. On match, enqueue via use case
    *  5. Log result (without leaking content)
    */
-  @OnEvent('CryptoNewsMessageIngestedEvent', { async: true })
+  @OnEvent('CryptoNewsMessageIngestedEvent')
   async handle(event: CryptoNewsMessageIngestedEvent): Promise<void> {
     const { channelId, messageId, title } = event.payload;
 
