@@ -74,6 +74,11 @@ function QueueRow({ entry }: { entry: QueueEntryView }): React.ReactElement {
           {entry.rawTitle}
         </h4>
       )}
+      {entry.rawContent && (
+        <p className="mt-2 text-sm text-slate-300 line-clamp-3 whitespace-pre-wrap">
+          {entry.rawContent}
+        </p>
+      )}
       {entry.lastError && (
         <p className="mt-1 text-xs text-red-300 font-mono break-all">
           {entry.lastError}

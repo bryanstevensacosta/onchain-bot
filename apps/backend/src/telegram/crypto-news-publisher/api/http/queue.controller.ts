@@ -7,6 +7,7 @@ export interface QueueEntryView {
   readonly channelId: string;
   readonly messageId: number;
   readonly rawTitle: string | null;
+  readonly rawContent: string | null;
   readonly imagePath: string | null;
   readonly groupedId: string | null;
   readonly status: string;
@@ -83,6 +84,7 @@ export class QueueController {
     channelId: entry.channelId,
     messageId: entry.messageId,
     rawTitle: entry.rawTitle,
+    rawContent: entry.rawContent,
     imagePath: entry.imagePath,
     groupedId: entry.groupedId,
     status: entry.status,

@@ -5,6 +5,7 @@ export interface QueueEntryView {
   readonly channelId: string;
   readonly messageId: number;
   readonly rawTitle: string | null;
+  readonly rawContent: string | null;
   readonly imagePath: string | null;
   readonly groupedId: string | null;
   readonly status: string;
