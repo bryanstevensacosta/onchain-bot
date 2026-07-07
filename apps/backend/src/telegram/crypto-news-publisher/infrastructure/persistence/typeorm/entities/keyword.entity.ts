@@ -20,6 +20,7 @@ import {
  */
 @Entity({ name: 'crypto_news_publisher_keywords' })
 @Index('idx_crypto_news_publisher_keywords_enabled', ['enabled'])
+@Index('idx_crypto_news_publisher_keywords_template_id', ['templateId'])
 export class KeywordEntity {
   @PrimaryColumn({ name: 'id', type: 'uuid' })
   public id!: string;
@@ -29,6 +30,18 @@ export class KeywordEntity {
 
   @Column({ name: 'case_sensitive', type: 'boolean', default: false })
   public caseSensitive!: boolean;
+
+  /**
+   * Optional binding to a `PromptTemplate`. When non-null the publisher
+   * uses this template (instead of `LlmConfig.defaultTemplateId`) when
+   * refining messages matched by this keyword. The FK is enforced at
+   * the application layer (DELETE on a template that is in use is
+   * refused at the controller — T2) — there is no DB-level FK so the
+   * migration can land without a circular dependency on PromptTemplate
+   * being seeded first.
+   */
+  @Column({ name: 'template_id', type: 'uuid', nullable: true })
+  public templateId!: string | null;
 
   @Column({ name: 'enabled', type: 'boolean', default: true })
   public enabled!: boolean;

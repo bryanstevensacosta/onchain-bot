@@ -1,5 +1,14 @@
 export interface LlmGenerateRequest {
   prompt: string;
+  /**
+   * Optional per-request model override. When set, adapters use
+   * this model identifier instead of their own configured default.
+   * Lets a `PromptTemplate.model` win over the gateway-wide
+   * `app.llm.gateway.model` setting without restarting the process.
+   * Adapters that hard-code a model (e.g. `OpenAiAdapter`) honour
+   * this too so tests can pin a specific model.
+   */
+  model?: string;
   /** Optional image URL to include as multimodal context.
    *  GPT-4o/etc can process images URLs natively. Text-only
    *  adapters log a warning and ignore this. */

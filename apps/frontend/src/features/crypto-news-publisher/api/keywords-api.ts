@@ -10,6 +10,11 @@ export interface KeywordView {
   readonly phrase: string;
   readonly caseSensitive: boolean;
   readonly enabled: boolean;
+  /**
+   * Optional `PromptTemplate` override. When `null` the keyword falls
+   * back to `LlmConfig.defaultTemplateId` at publish time.
+   */
+  readonly templateId: string | null;
   readonly createdAt: string;
 }
 
@@ -17,12 +22,24 @@ export interface CreateKeywordBody {
   phrase: string;
   caseSensitive?: boolean;
   enabled?: boolean;
+  /**
+   * Optional override binding. `null` (default) uses the global
+   * default template; a string binds the keyword to that template.
+   */
+  templateId?: string | null;
 }
 
 export interface UpdateKeywordBody {
   phrase?: string;
   caseSensitive?: boolean;
   enabled?: boolean;
+  /**
+   * Partial template binding update:
+   *  - `undefined` → leave existing binding untouched
+   *  - `null`      → clear the binding (fall back to default)
+   *  - `"<uuid>"`  → bind to that template
+   */
+  templateId?: string | null;
 }
 
 export const keywordsKeys = {

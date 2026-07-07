@@ -1,13 +1,34 @@
 import { ProcessNextQueuedArticleUseCase } from './process-next-queued-article.use-case';
 import { PublisherQueueRepository } from '../ports/publisher-queue.repository';
 import { PublisherThrottleStateRepository } from '../ports/publisher-throttle-state.repository';
+import { LlmConfigRepository } from '../ports/llm-config.repository';
 import { ThrottleSchedulerService } from '../services/throttle-scheduler.service';
 import { CryptoNewsLlmAdapter } from 'telegram/crypto-news-publisher/infrastructure/llm/crypto-news-llm.adapter';
 import { TelegramPublisherPort, type SendResult } from 'telegram/shared';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
-import { loadCryptoNewsPublisherConfig } from 'telegram/crypto-news-publisher/infrastructure/config/crypto-news-publisher.config';
+import { LlmConfig } from 'telegram/crypto-news-publisher/domain/entities/llm-config.entity';
 
-const TEST_TARGET_CHANNEL = loadCryptoNewsPublisherConfig().targetChannel;
+const TEST_TARGET_CHANNEL = '@crypto-news-test';
+
+const buildLlmConfig = (overrides: {
+  targetChannel?: string;
+  dailyCap?: number;
+  dailyResetUtcHour?: number;
+  randomDelayMinMs?: number;
+  randomDelayMaxMs?: number;
+  llmMaxAttempts?: number;
+  defaultTemplateId?: string;
+}): LlmConfig =>
+  LlmConfig.load({
+    defaultTemplateId: overrides.defaultTemplateId ?? 'tpl-default',
+    targetChannel: overrides.targetChannel ?? TEST_TARGET_CHANNEL,
+    enabled: true,
+    dailyCap: overrides.dailyCap ?? 36,
+    dailyResetUtcHour: overrides.dailyResetUtcHour ?? 4,
+    randomDelayMinMs: overrides.randomDelayMinMs ?? 180_000,
+    randomDelayMaxMs: overrides.randomDelayMaxMs ?? 900_000,
+    llmMaxAttempts: overrides.llmMaxAttempts ?? 3,
+  });
 
 describe('ProcessNextQueuedArticleUseCase', () => {
   let useCase: ProcessNextQueuedArticleUseCase;
@@ -16,6 +37,7 @@ describe('ProcessNextQueuedArticleUseCase', () => {
   let llmAdapter: jest.Mocked<CryptoNewsLlmAdapter>;
   let publisher: jest.Mocked<TelegramPublisherPort>;
   let throttleStateRepo: jest.Mocked<PublisherThrottleStateRepository>;
+  let llmConfigRepo: jest.Mocked<LlmConfigRepository>;
 
   const buildEntry = (overrides: {
     id?: string;
@@ -31,6 +53,7 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       imagePath: overrides.imagePath === undefined ? null : overrides.imagePath,
       groupedId: null,
       messageReceivedAt: new Date('2026-07-06T12:00:00Z'),
+      keywordTemplateId: null,
       status: 'PENDING',
       publishedAt: null,
       telegramMessageId: null,
@@ -59,7 +82,7 @@ describe('ProcessNextQueuedArticleUseCase', () => {
 
     llmAdapter = {
       generateForEntry: jest.fn(),
-      buildPrompt: jest.fn(),
+      renderPromptFor: jest.fn(),
     };
 
     publisher = {
@@ -74,12 +97,19 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       save: jest.fn(),
     };
 
+    llmConfigRepo = {
+      load: jest.fn(),
+      save: jest.fn(),
+    };
+    llmConfigRepo.load.mockResolvedValue(buildLlmConfig({}));
+
     useCase = new ProcessNextQueuedArticleUseCase(
       queueRepo,
       throttleScheduler,
       llmAdapter,
       publisher,
       throttleStateRepo,
+      llmConfigRepo,
     );
   });
 
@@ -298,6 +328,51 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       );
       expect(queueRepo.incrementAttempts).not.toHaveBeenCalled();
     });
+
+    it('reads attempts cap from LlmConfig (per-tick override)', async () => {
+      // Override the LlmConfig to set max attempts to 2 instead of 3.
+      llmConfigRepo.load.mockResolvedValue(
+        buildLlmConfig({ llmMaxAttempts: 2 }),
+      );
+      const entry = buildEntry({ id: 'entry-cap-2', attempts: 1 });
+      queueRepo.countPublishedToday.mockResolvedValue(0);
+      throttleScheduler.shouldPublish.mockResolvedValue({
+        canPublish: true,
+        nextDelayMs: 0,
+      });
+      queueRepo.findNextPending.mockResolvedValue(entry);
+      llmAdapter.generateForEntry.mockResolvedValue('texto');
+      publisher.sendMessage.mockResolvedValue(sendFail('permanent'));
+      queueRepo.markFailed.mockResolvedValue(entry);
+
+      await useCase.execute();
+
+      // attempts=1 + 1 = 2 is NOT < 2 → fail (cap honored from config)
+      expect(queueRepo.markFailed).toHaveBeenCalledWith(
+        'entry-cap-2',
+        'permanent',
+      );
+    });
+
+    it('does not mark FAILED on publisher-not-configured errors', async () => {
+      const entry = buildEntry({ id: 'entry-no-cfg', attempts: 5 });
+      queueRepo.countPublishedToday.mockResolvedValue(0);
+      throttleScheduler.shouldPublish.mockResolvedValue({
+        canPublish: true,
+        nextDelayMs: 0,
+      });
+      queueRepo.findNextPending.mockResolvedValue(entry);
+      llmAdapter.generateForEntry.mockResolvedValue('texto');
+      publisher.sendMessage.mockResolvedValue(
+        sendFail('CRYPTO_NEWS_BOT_TOKEN is not set'),
+      );
+
+      await useCase.execute();
+
+      expect(queueRepo.markFailed).not.toHaveBeenCalled();
+      expect(queueRepo.markPublished).not.toHaveBeenCalled();
+      expect(throttleScheduler.setLastPublishAt).not.toHaveBeenCalled();
+    });
   });
 
   describe('orchestration invariants', () => {
@@ -311,6 +386,30 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       queueRepo.countPublishedToday.mockResolvedValue(36);
       await useCase.execute();
       expect(queueRepo.countPublishedToday).toHaveBeenCalledWith(4);
+    });
+
+    it('reads targetChannel from LlmConfig (not the JSON file)', async () => {
+      llmConfigRepo.load.mockResolvedValue(
+        buildLlmConfig({ targetChannel: '@from-config-row' }),
+      );
+      const entry = buildEntry({ id: 'entry-target', imagePath: null });
+      queueRepo.countPublishedToday.mockResolvedValue(0);
+      throttleScheduler.shouldPublish.mockResolvedValue({
+        canPublish: true,
+        nextDelayMs: 0,
+      });
+      queueRepo.findNextPending.mockResolvedValue(entry);
+      llmAdapter.generateForEntry.mockResolvedValue('texto');
+      publisher.sendMessage.mockResolvedValue(sendOk(99_100));
+      queueRepo.markPublished.mockResolvedValue(entry);
+      throttleScheduler.setLastPublishAt.mockResolvedValue();
+
+      await useCase.execute();
+
+      expect(publisher.sendMessage).toHaveBeenCalledWith(
+        '@from-config-row',
+        'texto',
+      );
     });
   });
 });

@@ -30,6 +30,8 @@ import { CryptoNewsSourceEntity } from 'telegram/ingestion/crypto-news/infrastru
 import { CryptoNewsMessageEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
 import { CryptoNewsMessageMediaEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
 import { KeywordEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/keyword.entity';
+import { LlmConfigEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/llm-config.entity';
+import { PromptTemplateEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/prompt-template.entity';
 import { PublisherQueueEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/publisher-queue.entity';
 import { PublisherThrottleStateEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/publisher-throttle-state.entity';
 import type { AppConfig } from 'shared/common/config/app.config';
@@ -64,6 +66,8 @@ const PERSISTED_ENTITIES = [
   CryptoNewsMessageEntity,
   CryptoNewsMessageMediaEntity,
   KeywordEntity,
+  LlmConfigEntity,
+  PromptTemplateEntity,
   PublisherQueueEntity,
   PublisherThrottleStateEntity,
 ];

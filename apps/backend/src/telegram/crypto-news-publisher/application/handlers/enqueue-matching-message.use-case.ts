@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
+import { Keyword } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
 
@@ -11,9 +12,18 @@ import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/applica
  * `filePath` when present (local filesystem path resolved at ingestion
  * time by the crypto-news BC). Telegram CDN URLs are NOT used here:
  * they expire after ~1h and the queue may not be drained for hours.
+ *
+ * `matchedKeyword` is the keyword the caller matched against the
+ * message. It is optional for flexibility (match logic may evolve),
+ * but in the current pipeline the handler always passes it. When
+ * present, its `templateId` is FROZEN onto the queue entry — the
+ * `CryptoNewsLlmAdapter` resolves the template from the entry at
+ * publish time, so a later template / keyword edit does not
+ * retroactively re-route an already-queued entry.
  */
 export interface EnqueueMatchingMessageInput {
   readonly message: CryptoNewsMessage;
+  readonly matchedKeyword?: Keyword;
 }
 
 /**
@@ -74,6 +84,7 @@ export class EnqueueMatchingMessageUseCase {
       imagePath,
       groupedId: message.groupedId,
       messageReceivedAt: new Date(),
+      keywordTemplateId: input.matchedKeyword?.templateId ?? null,
     });
 
     await this.queueRepo.enqueue(entry);

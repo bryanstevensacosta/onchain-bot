@@ -1,14 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
 import { PublisherThrottleStateRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-throttle-state.repository';
+import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
+import { LlmConfig } from 'telegram/crypto-news-publisher/domain/entities/llm-config.entity';
 import { ThrottleSchedulerService } from 'telegram/crypto-news-publisher/application/services/throttle-scheduler.service';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
 import { TelegramPublisherPort } from 'telegram/shared';
 import { CryptoNewsLlmAdapter } from 'telegram/crypto-news-publisher/infrastructure/llm/crypto-news-llm.adapter';
-import {
-  loadCryptoNewsPublisherConfig,
-  type CryptoNewsPublisherConfig,
-} from 'telegram/crypto-news-publisher/infrastructure/config/crypto-news-publisher.config';
 
 /**
  * Orchestrator use case: drain one PENDING entry from the publisher
@@ -17,8 +15,8 @@ import {
  * Order of operations (mirrors plan §T5 of
  * `.omo/plans/crypto-news-publisher.md`):
  *
- *   1. Daily-cap check — if 36+ already published in the current UTC
- *      window, return without touching anything.
+ *   1. Daily-cap check — if `dailyCap`+ PUBLISHED rows already exist
+ *      in the current UTC window, return without touching anything.
  *   2. Throttle check — the random-delay window is honoured; if the
  *      cron ticked too soon after the previous publish, return.
  *   3. Queue dequeue — oldest PENDING entry. If none, return.
@@ -30,7 +28,13 @@ import {
  *   6. On success: mark the entry PUBLISHED, persist the new
  *      `lastPublishAt` so the next tick honours the random delay.
  *   7. On failure: increment attempts (re-queue) up to
- *      `publishing.llmMaxAttempts`; past that, mark FAILED.
+ *      `llmMaxAttempts`; past that, mark FAILED.
+ *
+ * All publishing knobs are read from `LlmConfigRepository.load()` at
+ * the top of `execute()` — Wave 2 removes the JSON-config dependency
+ * (the Wave 1 migration seeded `LlmConfig`; the JSON file is kept on
+ * disk only for backwards compatibility / migration and will be
+ * deleted in Wave 3).
  *
  * The use case is fail-safe: every step is wrapped so a thrown error
  * does not crash the cron tick — the error is logged and the entry's
@@ -47,11 +51,8 @@ export class ProcessNextQueuedArticleUseCase {
     private readonly llmAdapter: CryptoNewsLlmAdapter,
     private readonly publisher: TelegramPublisherPort,
     private readonly throttleStateRepo: PublisherThrottleStateRepository,
+    private readonly llmConfigRepo: LlmConfigRepository,
   ) {}
-
-  private getConfig(): CryptoNewsPublisherConfig {
-    return loadCryptoNewsPublisherConfig();
-  }
 
   /**
    * Drain one entry. Always returns `void` — the only observable
@@ -59,7 +60,9 @@ export class ProcessNextQueuedArticleUseCase {
    * state's `lastPublishAt`, and (c) a Telegram message.
    */
   public async execute(): Promise<void> {
-    if (!(await this.canPublishToday())) {
+    const cfg = await this.llmConfigRepo.load();
+
+    if (!(await this.canPublishToday(cfg))) {
       this.logger.log('daily cap reached — skipping tick');
       return;
     }
@@ -79,7 +82,7 @@ export class ProcessNextQueuedArticleUseCase {
 
     try {
       const refinedText = await this.llmAdapter.generateForEntry(entry);
-      const result = await this.dispatchToTelegram(entry, refinedText);
+      const result = await this.dispatchToTelegram(entry, refinedText, cfg);
       if (!result.ok || result.messageId === null) {
         throw new Error(result.error ?? 'telegram publish returned no id');
       }
@@ -101,7 +104,7 @@ export class ProcessNextQueuedArticleUseCase {
         );
         return;
       }
-      await this.handlePublishFailure(entry, err);
+      await this.handlePublishFailure(entry, err, cfg);
     }
   }
 
@@ -129,41 +132,39 @@ export class ProcessNextQueuedArticleUseCase {
   private async dispatchToTelegram(
     entry: PublisherQueueEntry,
     refinedText: string,
+    cfg: LlmConfig,
   ) {
     if (entry.imagePath) {
       return this.publisher.sendPhoto(
-        this.getConfig().targetChannel,
+        cfg.targetChannel,
         refinedText,
         entry.imagePath,
       );
     }
-    return this.publisher.sendMessage(
-      this.getConfig().targetChannel,
-      refinedText,
-    );
+    return this.publisher.sendMessage(cfg.targetChannel, refinedText);
   }
 
   /**
    * Translate a publish failure into the correct queue state
-   * transition. Retry budget is `publishing.llmMaxAttempts` from
-   * config. Past the cap, the entry is marked FAILED (terminal).
+   * transition. Retry budget is `llmMaxAttempts` from LlmConfig. Past
+   * the cap, the entry is marked FAILED (terminal).
    */
   private async handlePublishFailure(
     entry: PublisherQueueEntry,
     err: unknown,
+    cfg: LlmConfig,
   ): Promise<void> {
     const reason = err instanceof Error ? err.message : 'unknown error';
     this.logger.error(
       `failed to publish queue entry ${entry.id}: ${reason}`,
       err instanceof Error ? err.stack : undefined,
     );
-    if (entry.attempts + 1 < this.getConfig().publishing.llmMaxAttempts) {
+    if (entry.attempts + 1 < cfg.llmMaxAttempts) {
       try {
         await this.queueRepo.incrementAttempts(entry.id);
         this.logger.log(
           `incremented attempts for queue entry ${entry.id} ` +
-            `(attempts=${entry.attempts + 1}/` +
-            `${this.getConfig().publishing.llmMaxAttempts})`,
+            `(attempts=${entry.attempts + 1}/${cfg.llmMaxAttempts})`,
         );
       } catch (incErr) {
         this.logger.error(
@@ -188,13 +189,13 @@ export class ProcessNextQueuedArticleUseCase {
   }
 
   /**
-   * Daily cap: at most `publishing.dailyCap` PUBLISHED rows in the
-   * current UTC window (resets at `dailyResetUtcHour`).
+   * Daily cap: at most `dailyCap` PUBLISHED rows in the current UTC
+   * window (resets at `dailyResetUtcHour`).
    */
-  private async canPublishToday(): Promise<boolean> {
+  private async canPublishToday(cfg: LlmConfig): Promise<boolean> {
     const published = await this.queueRepo.countPublishedToday(
-      this.getConfig().publishing.dailyResetUtcHour,
+      cfg.dailyResetUtcHour,
     );
-    return published < this.getConfig().publishing.dailyCap;
+    return published < cfg.dailyCap;
   }
 }

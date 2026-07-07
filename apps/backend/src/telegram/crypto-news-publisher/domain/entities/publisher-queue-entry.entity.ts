@@ -24,6 +24,16 @@ export interface PublisherQueueEntryProps {
   readonly imagePath: string | null;
   readonly groupedId: string | null;
   readonly messageReceivedAt: Date;
+  /**
+   * Captured at enqueue time: the `PromptTemplate.id` that the
+   * matched keyword was bound to, or `null` when the keyword has no
+   * override (the LLM adapter falls back to
+   * `LlmConfig.defaultTemplateId`). Frozen at enqueue so a later
+   * keyword/template edit does not retroactively re-route an
+   * already-queued entry — the entry's resolved template is the
+   * contract with the queue's cron publisher.
+   */
+  readonly keywordTemplateId: string | null;
   status: PublisherQueueStatus;
   publishedAt: Date | null;
   telegramMessageId: string | null;
@@ -71,6 +81,7 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
     imagePath: string | null;
     groupedId: string | null;
     messageReceivedAt: Date;
+    keywordTemplateId?: string | null;
   }): PublisherQueueEntry {
     if (!input.channelId?.trim()) {
       throw new DomainError(
@@ -91,6 +102,17 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
         'PublisherQueueEntry rawContent cannot be null/undefined',
       );
     }
+    if (
+      input.keywordTemplateId !== undefined &&
+      input.keywordTemplateId !== null &&
+      (typeof input.keywordTemplateId !== 'string' ||
+        input.keywordTemplateId.trim().length === 0)
+    ) {
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        'PublisherQueueEntry keywordTemplateId, when provided, must be a non-empty string or null',
+      );
+    }
     return new PublisherQueueEntry(input.id ?? crypto.randomUUID(), {
       id: input.id ?? crypto.randomUUID(),
       channelId: input.channelId,
@@ -100,6 +122,7 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
       imagePath: input.imagePath,
       groupedId: input.groupedId,
       messageReceivedAt: input.messageReceivedAt,
+      keywordTemplateId: input.keywordTemplateId ?? null,
       status: 'PENDING',
       publishedAt: null,
       telegramMessageId: null,
@@ -144,6 +167,10 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
 
   public get groupedId(): string | null {
     return this.state.groupedId;
+  }
+
+  public get keywordTemplateId(): string | null {
+    return this.state.keywordTemplateId;
   }
 
   public get messageReceivedAt(): Date {

@@ -511,6 +511,7 @@ describe('CryptoNewsPage — publisher (keywords + queue)', () => {
         phrase: 'SEC',
         caseSensitive: true,
         enabled: true,
+        templateId: null,
         createdAt: '2025-01-02T03:04:05.000Z',
       },
       {
@@ -518,6 +519,7 @@ describe('CryptoNewsPage — publisher (keywords + queue)', () => {
         phrase: 'halving',
         caseSensitive: false,
         enabled: false,
+        templateId: 'tpl-clickbait',
         createdAt: '2025-01-02T03:04:06.000Z',
       },
     ];
@@ -688,7 +690,7 @@ describe('CryptoNewsPage — search filter (free-text)', () => {
     fireEvent.change(input, { target: { value: 'bitcoin' } });
     expect(screen.getAllByRole('article')).toHaveLength(2);
 
-    const select = screen.getByRole('combobox');
+    const select = screen.getAllByRole('combobox')[0] as HTMLSelectElement;
     fireEvent.change(select, { target: { value: 'srcA' } });
 
     const articles = screen.getAllByRole('article');

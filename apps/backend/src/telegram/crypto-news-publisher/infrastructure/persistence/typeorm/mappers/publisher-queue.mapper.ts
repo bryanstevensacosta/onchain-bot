@@ -16,6 +16,7 @@ export class PublisherQueueMapper {
     row.imagePath = entry.imagePath;
     row.groupedId = entry.groupedId;
     row.messageReceivedAt = entry.messageReceivedAt;
+    row.keywordTemplateId = entry.keywordTemplateId;
     row.status = entry.status;
     row.publishedAt = entry.publishedAt;
     row.telegramMessageId = entry.telegramMessageId;

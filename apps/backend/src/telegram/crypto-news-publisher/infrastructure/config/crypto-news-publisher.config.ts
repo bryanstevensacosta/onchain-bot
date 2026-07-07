@@ -47,7 +47,14 @@ const CONFIG_PATH = join(
   'crypto-news-publisher.config.json',
 );
 
-const DEFAULT_CONFIG: CryptoNewsPublisherConfig = Object.freeze({
+/**
+ * Hard-coded defaults. Exported so the bootstrap migration
+ * (`LlmConfigMigrationService`) can seed `LlmConfig` + a
+ * `PromptTemplate` with the same values when the on-disk JSON file
+ * is absent — single source of truth across the two paths. Frozen
+ * to make accidental mutation a noisy TypeError.
+ */
+export const DEFAULT_CONFIG: CryptoNewsPublisherConfig = Object.freeze({
   enabled: false,
   targetChannel: '',
   publishing: Object.freeze({
@@ -83,6 +90,10 @@ function loadFromDisk(): CryptoNewsPublisherConfigJson | null {
  * defaults. Exported so the ThrottleSchedulerService and the
  * ProcessNextQueuedArticleUseCase can both read the same snapshot
  * (no module-singleton state — easier to test).
+ *
+ * Falls back to `DEFAULT_CONFIG` when the file is missing or
+ * unparseable — Wave 1 keeps the cron publisher functional before
+ * T2 swaps it to read from `LlmConfigRepository` directly.
  */
 export function loadCryptoNewsPublisherConfig(): CryptoNewsPublisherConfig {
   const fileConfig = loadFromDisk();

@@ -70,7 +70,7 @@ describe('CryptoNewsMessageIngestedHandler', () => {
   });
 
   describe('handle', () => {
-    it('should enqueue when a keyword matches', async () => {
+    it('should enqueue when a keyword matches, passing the matched keyword', async () => {
       const event = createEvent({ title: 'BTC breaks $100k' });
       const message = {
         id: 'msg-1',
@@ -105,7 +105,47 @@ describe('CryptoNewsMessageIngestedHandler', () => {
         42,
       );
       expect(keywordRepo.findEnabled).toHaveBeenCalledTimes(1);
-      expect(enqueue.execute).toHaveBeenCalledWith({ message });
+      expect(enqueue.execute).toHaveBeenCalledWith({
+        message,
+        matchedKeyword: keyword,
+      });
+    });
+
+    it('should freeze a keyword-bound template onto the queue entry', async () => {
+      const templateId = crypto.randomUUID();
+      const event = createEvent({ title: 'BTC breaks $100k' });
+      const message = {
+        id: 'msg-1',
+        channelId: 'crypto-news',
+        messageId: 42,
+        content: 'Bitcoin news: BTC breaks $100k',
+        title: 'BTC breaks $100k',
+        media: [],
+        groupedId: null,
+        receivedAt: new Date(),
+      } as unknown as Awaited<
+        ReturnType<typeof messageRepo.findByChannelAndMessageId>
+      >;
+      const keyword = Keyword.create({ phrase: 'btc', templateId });
+      const entry = PublisherQueueEntry.create({
+        channelId: 'crypto-news',
+        messageId: 42,
+        rawContent: 'Bitcoin news: BTC breaks $100k',
+        rawTitle: 'BTC breaks $100k',
+        imagePath: null,
+        groupedId: null,
+        messageReceivedAt: new Date(),
+        keywordTemplateId: templateId,
+      });
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([keyword]);
+      enqueue.execute.mockResolvedValue(entry);
+
+      await handler.handle(event);
+
+      const callArg = enqueue.execute.mock.calls[0][0];
+      expect(callArg.matchedKeyword).toBe(keyword);
+      expect(entry.keywordTemplateId).toBe(templateId);
     });
 
     it('should not enqueue when no keyword matches', async () => {

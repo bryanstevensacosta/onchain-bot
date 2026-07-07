@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException } from '@nestjs/common';
 import { KeywordsController } from './keywords.controller';
 import { KeywordRepository } from 'telegram/crypto-news-publisher/application/ports/keyword.repository';
 import { Keyword } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
@@ -58,12 +59,12 @@ describe('KeywordsController', () => {
       expect(result?.phrase).toBe('btc');
     });
 
-    it('should return null when keyword not found', async () => {
+    it('should throw NotFound when keyword not found', async () => {
       keywordRepo.findAll.mockResolvedValue([]);
 
-      const result = await controller.getOne('nonexistent');
-
-      expect(result).toBeNull();
+      await expect(controller.getOne('nonexistent')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 
@@ -75,6 +76,7 @@ describe('KeywordsController', () => {
 
       expect(result.phrase).toBe('bitcoin');
       expect(result.enabled).toBe(true);
+      expect(result.templateId).toBeNull();
       expect(keywordRepo.save).toHaveBeenCalledTimes(1);
     });
 
@@ -87,6 +89,18 @@ describe('KeywordsController', () => {
       });
 
       expect(result.caseSensitive).toBe(true);
+    });
+
+    it('binds a templateId on create when provided', async () => {
+      keywordRepo.save.mockResolvedValue();
+      const templateId = crypto.randomUUID();
+
+      const result = await controller.create({
+        phrase: 'btc',
+        templateId,
+      });
+
+      expect(result.templateId).toBe(templateId);
     });
   });
 
@@ -124,12 +138,49 @@ describe('KeywordsController', () => {
       expect(result.enabled).toBe(false);
     });
 
-    it('should throw when keyword not found', async () => {
+    it('should bind a templateId via update', async () => {
+      const existing = makeKeyword('btc');
+      keywordRepo.findAll.mockResolvedValue([existing]);
+      keywordRepo.save.mockResolvedValue();
+      const templateId = crypto.randomUUID();
+
+      const result = await controller.update(existing.id, { templateId });
+
+      expect(result.templateId).toBe(templateId);
+    });
+
+    it('should clear an existing templateId via update with null', async () => {
+      const existing = Keyword.create({
+        phrase: 'btc',
+        templateId: crypto.randomUUID(),
+      });
+      keywordRepo.findAll.mockResolvedValue([existing]);
+      keywordRepo.save.mockResolvedValue();
+
+      const result = await controller.update(existing.id, { templateId: null });
+
+      expect(result.templateId).toBeNull();
+    });
+
+    it('should preserve an existing templateId when update omits it', async () => {
+      const templateId = crypto.randomUUID();
+      const existing = Keyword.create({ phrase: 'btc', templateId });
+      keywordRepo.findAll.mockResolvedValue([existing]);
+      keywordRepo.save.mockResolvedValue();
+
+      const result = await controller.update(existing.id, {
+        enabled: true,
+      });
+
+      expect(result.templateId).toBe(templateId);
+    });
+
+    it('should throw NotFound when keyword not found', async () => {
       keywordRepo.findAll.mockResolvedValue([]);
 
       await expect(
         controller.update('nonexistent', { enabled: true }),
-      ).rejects.toThrow('Keyword not found');
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 

@@ -79,8 +79,13 @@ export class CryptoNewsMessageIngestedHandler {
         return;
       }
 
-      // Enqueue the matched message
-      const entry = await this.enqueue.execute({ message });
+      // Pass `matchedKeyword` so its `templateId` is frozen onto the
+      // queue entry — a later template edit cannot retroactively
+      // re-route an already-queued entry.
+      const entry = await this.enqueue.execute({
+        message,
+        matchedKeyword,
+      });
 
       this.logger.log(
         `Keyword matched and enqueued: channelId=${channelId}, messageId=${messageId}, title=${title ?? '(none)'}, keyword="${matchedKeyword.phrase}", queueId=${entry.id}`,

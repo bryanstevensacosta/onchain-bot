@@ -8,7 +8,12 @@ import { Lightbox } from '@/shared/ui/lightbox';
 import { formatRelativeTime } from '@/shared/lib';
 import { renderFormattedText } from '@/shared/lib/render-telegram-entities';
 import { AddCryptoNewsSourceModal } from '@/features/add-crypto-news-source';
-import { KeywordsManager, QueueView } from '@/features/crypto-news-publisher';
+import {
+  KeywordsManager,
+  LlmConfigForm,
+  PromptTemplates,
+  QueueView,
+} from '@/features/crypto-news-publisher';
 
 interface LightboxMediaItem {
   id: string;
@@ -318,6 +323,19 @@ export function CryptoNewsPage() {
             <div className="space-y-4 pt-2">
               <KeywordsManager />
               <QueueView />
+            </div>
+          </details>
+
+          <details
+            open
+            className="space-y-3 rounded-lg border border-slate-700 bg-slate-800/30 p-4"
+          >
+            <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 select-none">
+              LLM Configuration
+            </summary>
+            <div className="space-y-4 pt-2">
+              <LlmConfigForm />
+              <PromptTemplates />
             </div>
           </details>
         </aside>

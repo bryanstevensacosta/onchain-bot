@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { EnqueueMatchingMessageUseCase } from './enqueue-matching-message.use-case';
 import { PublisherQueueRepository } from '../ports/publisher-queue.repository';
 import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
-import { PublisherQueueEntry } from '../../domain/entities/publisher-queue-entry.entity';
+import { Keyword } from '../../domain/entities/keyword.entity';
 
 describe('EnqueueMatchingMessageUseCase', () => {
   let useCase: EnqueueMatchingMessageUseCase;
@@ -120,6 +120,39 @@ describe('EnqueueMatchingMessageUseCase', () => {
         useCase.execute({ message: whitespaceChannelMessage }),
       ).rejects.toThrow('EnqueueMatchingMessageUseCase: missing channelId');
       expect(queueRepo.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('should freeze the matched keyword templateId onto the queue entry', async () => {
+      const templateId = crypto.randomUUID();
+      const matchedKeyword = Keyword.create({
+        phrase: 'btc',
+        templateId,
+      });
+      queueRepo.enqueue.mockResolvedValue();
+
+      await useCase.execute({ message: mockMessage, matchedKeyword });
+
+      const callArg = queueRepo.enqueue.mock.calls[0][0];
+      expect(callArg.keywordTemplateId).toBe(templateId);
+    });
+
+    it('should treat a matched keyword with no templateId as null', async () => {
+      const matchedKeyword = Keyword.create({ phrase: 'btc' });
+      queueRepo.enqueue.mockResolvedValue();
+
+      await useCase.execute({ message: mockMessage, matchedKeyword });
+
+      const callArg = queueRepo.enqueue.mock.calls[0][0];
+      expect(callArg.keywordTemplateId).toBeNull();
+    });
+
+    it('should default keywordTemplateId to null when matchedKeyword is omitted', async () => {
+      queueRepo.enqueue.mockResolvedValue();
+
+      await useCase.execute({ message: mockMessage });
+
+      const callArg = queueRepo.enqueue.mock.calls[0][0];
+      expect(callArg.keywordTemplateId).toBeNull();
     });
 
     it('should return the enqueued entry for logging', async () => {

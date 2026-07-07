@@ -6,11 +6,27 @@ import {
   useKeywords,
   useUpdateKeyword,
 } from '@/features/crypto-news-publisher/model/use-keywords';
+import { useTemplates } from '@/features/crypto-news-publisher/model/use-llm-config';
 import type { KeywordView } from '@/features/crypto-news-publisher/api/keywords-api';
+import type { PromptTemplate } from '@/features/crypto-news-publisher/api/llm-config-api';
 
 interface EditingRow {
   id: string;
   phrase: string;
+  templateId: string | null;
+}
+
+const NO_TEMPLATE = '__default__';
+
+function templateLabel(
+  templateId: string | null,
+  templates: ReadonlyArray<PromptTemplate>,
+): string {
+  if (templateId === null) return 'Default';
+  const found = templates.find((t) => t.id === templateId);
+  return found
+    ? `Template: ${found.name}`
+    : `Template: ${templateId.slice(0, 8)}…`;
 }
 
 export function KeywordsManager(): React.ReactElement {
@@ -18,23 +34,31 @@ export function KeywordsManager(): React.ReactElement {
   const createMut = useCreateKeyword();
   const updateMut = useUpdateKeyword();
   const deleteMut = useDeleteKeyword();
+  const { data: templates } = useTemplates();
 
   const [newPhrase, setNewPhrase] = useState('');
   const [newCaseSensitive, setNewCaseSensitive] = useState(false);
+  const [newTemplateId, setNewTemplateId] = useState<string | null>(null);
   const [editing, setEditing] = useState<EditingRow | null>(null);
 
   const keywords = data ?? [];
+  const templateOptions = templates ?? [];
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     const phrase = newPhrase.trim();
     if (!phrase) return;
     createMut.mutate(
-      { phrase, caseSensitive: newCaseSensitive },
+      {
+        phrase,
+        caseSensitive: newCaseSensitive,
+        templateId: newTemplateId,
+      },
       {
         onSuccess: () => {
           setNewPhrase('');
           setNewCaseSensitive(false);
+          setNewTemplateId(null);
         },
       },
     );
@@ -49,7 +73,10 @@ export function KeywordsManager(): React.ReactElement {
     const phrase = editing.phrase.trim();
     if (!phrase) return;
     updateMut.mutate(
-      { id: editing.id, body: { phrase } },
+      {
+        id: editing.id,
+        body: { phrase, templateId: editing.templateId },
+      },
       { onSuccess: () => setEditing(null) },
     );
   }
@@ -72,9 +99,9 @@ export function KeywordsManager(): React.ReactElement {
 
       <form
         onSubmit={handleCreate}
-        className="flex flex-wrap items-end gap-3 mb-4 pb-4 border-b border-slate-800"
+        className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4 pb-4 border-b border-slate-800"
       >
-        <div className="flex-1 min-w-[200px]">
+        <div className="md:col-span-2">
           <label
             htmlFor="kw-phrase"
             className="block text-xs uppercase text-slate-500 mb-1"
@@ -91,23 +118,51 @@ export function KeywordsManager(): React.ReactElement {
             disabled={createMut.isPending}
           />
         </div>
-        <label className="flex items-center gap-2 text-sm text-slate-300">
-          <input
-            type="checkbox"
-            checked={newCaseSensitive}
-            onChange={(e) => setNewCaseSensitive(e.target.checked)}
+        <div>
+          <label
+            htmlFor="kw-template"
+            className="block text-xs uppercase text-slate-500 mb-1"
+          >
+            Template
+          </label>
+          <select
+            id="kw-template"
+            value={newTemplateId ?? NO_TEMPLATE}
+            onChange={(e) =>
+              setNewTemplateId(
+                e.target.value === NO_TEMPLATE ? null : e.target.value,
+              )
+            }
+            className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-blue-500"
             disabled={createMut.isPending}
-          />
-          <span>Case sensitive</span>
-        </label>
-        <Button
-          type="submit"
-          variant="primary"
-          size="sm"
-          disabled={createMut.isPending || newPhrase.trim() === ''}
-        >
-          {createMut.isPending ? 'Adding…' : '+ Add keyword'}
-        </Button>
+          >
+            <option value={NO_TEMPLATE}>Use global default</option>
+            {templateOptions.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-end gap-3 justify-between">
+          <label className="flex items-center gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={newCaseSensitive}
+              onChange={(e) => setNewCaseSensitive(e.target.checked)}
+              disabled={createMut.isPending}
+            />
+            <span>Case sensitive</span>
+          </label>
+          <Button
+            type="submit"
+            variant="primary"
+            size="sm"
+            disabled={createMut.isPending || newPhrase.trim() === ''}
+          >
+            {createMut.isPending ? 'Adding…' : '+ Add keyword'}
+          </Button>
+        </div>
       </form>
 
       {createMut.error && (
@@ -134,6 +189,7 @@ export function KeywordsManager(): React.ReactElement {
                 <th className="py-2 pr-3">Phrase</th>
                 <th className="py-2 pr-3">Case sensitive</th>
                 <th className="py-2 pr-3">Enabled</th>
+                <th className="py-2 pr-3">Template</th>
                 <th className="py-2 pr-3">Created</th>
                 <th className="py-2 pr-3 text-right">Actions</th>
               </tr>
@@ -152,7 +208,11 @@ export function KeywordsManager(): React.ReactElement {
                           type="text"
                           value={editing!.phrase}
                           onChange={(e) =>
-                            setEditing({ id: kw.id, phrase: e.target.value })
+                            setEditing({
+                              id: kw.id,
+                              phrase: e.target.value,
+                              templateId: editing!.templateId,
+                            })
                           }
                           className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-slate-100 font-mono focus:outline-none focus:border-blue-500"
                           disabled={updateMut.isPending}
@@ -174,6 +234,38 @@ export function KeywordsManager(): React.ReactElement {
                           aria-label={`Toggle ${kw.phrase}`}
                         />
                       </label>
+                    </td>
+                    <td className="py-2 pr-3 text-xs">
+                      {isEditing ? (
+                        <select
+                          value={editing!.templateId ?? NO_TEMPLATE}
+                          onChange={(e) =>
+                            setEditing({
+                              id: kw.id,
+                              phrase: editing!.phrase,
+                              templateId:
+                                e.target.value === NO_TEMPLATE
+                                  ? null
+                                  : e.target.value,
+                            })
+                          }
+                          className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                          disabled={updateMut.isPending}
+                        >
+                          <option value={NO_TEMPLATE}>
+                            Use global default
+                          </option>
+                          {templateOptions.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {t.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="text-slate-300">
+                          {templateLabel(kw.templateId, templateOptions)}
+                        </span>
+                      )}
                     </td>
                     <td className="py-2 pr-3 text-xs text-slate-500">
                       {new Date(kw.createdAt).toLocaleString()}
@@ -207,7 +299,11 @@ export function KeywordsManager(): React.ReactElement {
                             variant="secondary"
                             size="sm"
                             onClick={() =>
-                              setEditing({ id: kw.id, phrase: kw.phrase })
+                              setEditing({
+                                id: kw.id,
+                                phrase: kw.phrase,
+                                templateId: kw.templateId,
+                              })
                             }
                           >
                             Edit

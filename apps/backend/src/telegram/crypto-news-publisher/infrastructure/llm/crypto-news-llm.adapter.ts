@@ -2,70 +2,84 @@ import { Injectable, Logger } from '@nestjs/common';
 import { readFileSync } from 'node:fs';
 import { extname } from 'node:path';
 import { LlmPort } from 'shared/llm';
+import { PromptTemplateRepository } from 'telegram/crypto-news-publisher/application/ports/prompt-template.repository';
+import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
-import {
-  loadCryptoNewsPublisherConfig,
-  type CryptoNewsPublisherConfig,
-} from 'telegram/crypto-news-publisher/infrastructure/config/crypto-news-publisher.config';
 
 /**
  * Crypto-news-specific wrapper around the shared `LlmPort`.
  *
  * Responsibilities (vs the generic LlmPort):
- *  - Load the prompt template from the on-disk config
- *    (`config/crypto-news-publisher.config.json`).
+ *  - Resolve the right `PromptTemplate` for the entry: the
+ *    keyword-bound id (`entry.keywordTemplateId`) takes precedence;
+ *    when null, falls back to `LlmConfig.defaultTemplateId`.
  *  - Substitute `{{title}}`, `{{original}}`, `{{hasImage}}` from the
- *    queue entry.
+ *    queue entry into the template's `promptText` in a single regex
+ *    pass (not chained `.replace()`).
  *  - If the entry has a local `imagePath`, read the bytes, base64-
  *    encode them, and pass them to the underlying LlmPort so the
  *    model can use the image as multimodal context. The file is
  *    already on disk (downloaded at ingest time by the crypto-news
  *    listener) — Telegram CDN URLs are NOT used here (they expire
  *    after ~1h; the queue may not be drained for hours).
- *  - Extract the textual response from the LlmPort output. The base
- *    `LlmPort.generateText` contract already returns a string, so
- *    this is a thin pass-through.
+ *  - Forward the template's per-call knobs (`model`, `maxTokens`,
+ *    `temperature`, `reasoningEffort`) into the `LlmPort.generateText`
+ *    call so a single physical gateway can serve many template
+ *    variants without restarting.
  */
 @Injectable()
 export class CryptoNewsLlmAdapter {
   private readonly logger = new Logger(CryptoNewsLlmAdapter.name);
-  private readonly config: CryptoNewsPublisherConfig;
 
-  public constructor(private readonly llmPort: LlmPort) {
-    this.config = loadCryptoNewsPublisherConfig();
-  }
+  public constructor(
+    private readonly llmPort: LlmPort,
+    private readonly templateRepo: PromptTemplateRepository,
+    private readonly llmConfigRepo: LlmConfigRepository,
+  ) {}
 
   /**
    * Generate a refined Spanish-language post for the given queue
-   * entry. Returns the LLM-generated text (caption). Throws whatever
-   * the underlying `LlmPort` throws — the caller (the cron publisher)
-   * is responsible for translating LLM failures into queue state
-   * transitions (increment attempts / mark failed).
+   * entry. Returns the LLM-generated text (caption). Throws when the
+   * resolved template row is missing (config error — the default or
+   * keyword-bound id points at a non-existent template) so the
+   * operator notices from the queue's FAILED transitions rather than
+   * silently using an empty prompt.
    */
   public async generateForEntry(entry: PublisherQueueEntry): Promise<string> {
-    const prompt = this.buildPrompt(entry);
-    const imagePayload = this.readImagePayload(entry);
+    const cfg = await this.llmConfigRepo.load();
+    const templateId = entry.keywordTemplateId ?? cfg.defaultTemplateId;
+    const template = await this.templateRepo.findById(templateId);
+    if (!template) {
+      throw new Error(
+        `PromptTemplate not found: ${templateId} (set as default in LlmConfig)`,
+      );
+    }
+    const prompt = renderPrompt(template.promptText, entry);
+    const { base64, mimeType } = this.readImagePayload(entry);
+
     return this.llmPort.generateText({
       prompt,
       imageUrl: undefined,
-      imageBase64: imagePayload.base64,
-      mimeType: imagePayload.mimeType,
-      maxTokens: 2000,
-      temperature: 0.7,
+      imageBase64: base64,
+      mimeType,
+      model: template.model,
+      maxTokens: template.maxTokens,
+      temperature: template.temperature,
+      ...(template.reasoningEffort
+        ? { reasoningEffort: template.reasoningEffort }
+        : {}),
     });
   }
 
   /**
-   * Build the prompt string by substituting placeholders in the
-   * configured template. Exposed for testing.
+   * Exposed for tests: re-render a template body with the same
+   * single-regex-pass logic the adapter uses at runtime.
    */
-  public buildPrompt(entry: PublisherQueueEntry): string {
-    const template = this.config.prompt.template;
-    const hasImage = entry.imagePath ? 'sí' : 'no';
-    return template
-      .replace('{{title}}', entry.rawTitle ?? '(sin título)')
-      .replace('{{original}}', entry.rawContent)
-      .replace('{{hasImage}}', hasImage);
+  public renderPromptFor(
+    templatePromptText: string,
+    entry: PublisherQueueEntry,
+  ): string {
+    return renderPrompt(templatePromptText, entry);
   }
 
   /**
@@ -102,6 +116,38 @@ export class CryptoNewsLlmAdapter {
     }
   }
 }
+
+/**
+ * Substitute the three template placeholders in `templatePromptText`
+ * using values from the queue entry. Done in one `.replace()` pass
+ * (with a regex + function callback) so the resulting string stays
+ * O(N) in the template length rather than O(N×M) for chained
+ * `.replace()` calls. An entry with `rawTitle = null` substitutes the
+ * placeholder with an empty string (the template author can fall
+ * back to a literal placeholder inside the template if they want a
+ * sentinel — we don't impose one here).
+ */
+export const renderPrompt = (
+  templatePromptText: string,
+  entry: PublisherQueueEntry,
+): string => {
+  const hasImage = entry.imagePath ? 'sí' : 'no';
+  return templatePromptText.replace(
+    /\{\{(title|original|hasImage)\}\}/g,
+    (_match, key: string) => {
+      switch (key) {
+        case 'title':
+          return entry.rawTitle ?? '';
+        case 'original':
+          return entry.rawContent;
+        case 'hasImage':
+          return hasImage;
+        default:
+          return _match;
+      }
+    },
+  );
+};
 
 /**
  * Best-effort MIME inference from a file extension. The crypto-news

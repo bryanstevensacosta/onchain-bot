@@ -185,5 +185,38 @@ describe('LlmGatewayAdapter', () => {
         'LLM gateway request failed: connection refused',
       );
     });
+
+    it('uses request.model when provided, overriding the adapter configured model', async () => {
+      const adapter = new LlmGatewayAdapter(buildConfig({}));
+      const instance = OpenAIConstructor.mock.results[0]
+        .value as MockOpenAIClient;
+      instance.chat.completions.create.mockResolvedValue({
+        choices: [{ message: { content: 'ok' } }],
+      });
+
+      await adapter.generateText({
+        prompt: 'use this model',
+        model: 'anthropic/claude-3-opus',
+      });
+
+      const callArg = instance.chat.completions.create.mock.calls[0][0];
+      expect(callArg.model).toBe('anthropic/claude-3-opus');
+    });
+
+    it('falls back to the adapter configured model when request.model is omitted', async () => {
+      const adapter = new LlmGatewayAdapter(
+        buildConfig({ model: 'gateway-default-model' }),
+      );
+      const instance = OpenAIConstructor.mock.results[0]
+        .value as MockOpenAIClient;
+      instance.chat.completions.create.mockResolvedValue({
+        choices: [{ message: { content: 'ok' } }],
+      });
+
+      await adapter.generateText({ prompt: 'no override' });
+
+      const callArg = instance.chat.completions.create.mock.calls[0][0];
+      expect(callArg.model).toBe('gateway-default-model');
+    });
   });
 });

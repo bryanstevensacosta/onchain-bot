@@ -25,6 +25,7 @@ import type {
 @Entity({ name: 'crypto_news_publisher_queue' })
 @Index('idx_publisher_queue_message_received_at', ['messageReceivedAt'])
 @Index('idx_publisher_queue_status', ['status'])
+@Index('idx_publisher_queue_keyword_template_id', ['keywordTemplateId'])
 @Index('uq_publisher_queue_channel_message', ['channelId', 'messageId'], {
   unique: true,
 })
@@ -53,6 +54,15 @@ export class PublisherQueueEntity {
   @Column({ name: 'message_received_at', type: 'timestamptz' })
   public messageReceivedAt!: Date;
 
+  /**
+   * Frozen at enqueue time. Null means "no per-keyword override" —
+   * the LLM adapter falls back to `LlmConfig.defaultTemplateId`.
+   * The index supports future per-template analytics queries; the
+   * lookup at publish time is by id, not by index.
+   */
+  @Column({ name: 'keyword_template_id', type: 'uuid', nullable: true })
+  public keywordTemplateId!: string | null;
+
   @Column({ name: 'status', type: 'varchar', length: 16 })
   public status!: PublisherQueueStatus;
 
@@ -79,6 +89,7 @@ export class PublisherQueueEntity {
       imagePath: this.imagePath,
       groupedId: this.groupedId,
       messageReceivedAt: this.messageReceivedAt,
+      keywordTemplateId: this.keywordTemplateId,
       status: this.status,
       publishedAt: this.publishedAt,
       telegramMessageId: this.telegramMessageId,

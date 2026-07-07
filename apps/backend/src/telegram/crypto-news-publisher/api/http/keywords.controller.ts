@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   Patch,
   Post,
@@ -17,6 +18,7 @@ export interface KeywordView {
   readonly phrase: string;
   readonly caseSensitive: boolean;
   readonly enabled: boolean;
+  readonly templateId: string | null;
   readonly createdAt: string;
 }
 
@@ -24,12 +26,26 @@ interface CreateKeywordDto {
   phrase: string;
   caseSensitive?: boolean;
   enabled?: boolean;
+  /**
+   * Optional override binding to a `PromptTemplate.id`. When null
+   * (the default), the keyword falls back to the global default
+   * template referenced by `LlmConfig.defaultTemplateId` at publish
+   * time.
+   */
+  templateId?: string | null;
 }
 
 interface UpdateKeywordDto {
   phrase?: string;
   caseSensitive?: boolean;
   enabled?: boolean;
+  /**
+   * Partial template binding update:
+   *  - `undefined` → leave existing binding untouched
+   *  - `null`      → clear the binding (fall back to default)
+   *  - `"<uuid>"`  → bind to that template
+   */
+  templateId?: string | null;
 }
 
 /**
@@ -39,8 +55,14 @@ interface UpdateKeywordDto {
  *  - GET    /          List all keywords
  *  - GET    /:id       Get one keyword
  *  - POST   /          Create a new keyword
- *  - PATCH  /:id       Update a keyword
+ *  - PATCH  /:id       Update a keyword (partial — `templateId` may
+ *                      be explicitly cleared with `null`)
  *  - DELETE /:id       Remove a keyword
+ *
+ * `templateId` is the single argument that wires the keyword to a
+ * `PromptTemplate`; the `LlmConfigController` enforces that
+ * `PromptTemplate` rows referenced by any keyword (or the global
+ * default) cannot be deleted.
  */
 @Controller('crypto-news-publisher/keywords')
 export class KeywordsController {
@@ -53,10 +75,13 @@ export class KeywordsController {
   }
 
   @Get(':id')
-  public async getOne(@Param('id') id: string): Promise<KeywordView | null> {
+  public async getOne(@Param('id') id: string): Promise<KeywordView> {
     const all = await this.keywordRepo.findAll();
     const kw = all.find((k) => k.id === id);
-    return kw ? KeywordsController.toView(kw) : null;
+    if (!kw) {
+      throw new NotFoundException(`Keyword ${id} not found`);
+    }
+    return KeywordsController.toView(kw);
   }
 
   @Post()
@@ -66,6 +91,7 @@ export class KeywordsController {
       phrase: dto.phrase,
       caseSensitive: dto.caseSensitive,
       enabled: dto.enabled,
+      templateId: dto.templateId ?? null,
     });
     await this.keywordRepo.save(keyword);
     return KeywordsController.toView(keyword);
@@ -79,7 +105,7 @@ export class KeywordsController {
     const all = await this.keywordRepo.findAll();
     const existing = all.find((k) => k.id === id);
     if (!existing) {
-      throw new Error(`Keyword not found: ${id}`);
+      throw new NotFoundException(`Keyword ${id} not found`);
     }
 
     const nextPhrase = dto.phrase !== undefined ? dto.phrase : existing.phrase;
@@ -93,11 +119,14 @@ export class KeywordsController {
     } else if (dto.enabled === false) {
       nextEnabled = false;
     }
+    const nextTemplateId =
+      dto.templateId !== undefined ? dto.templateId : existing.templateId;
 
     const updated = Keyword.reconstitute({
       id: existing.id,
       phrase: nextPhrase,
       caseSensitive: nextCaseSensitive,
+      templateId: nextTemplateId,
       enabled: nextEnabled,
       createdAt: existing.createdAt,
     });
@@ -117,6 +146,7 @@ export class KeywordsController {
     phrase: keyword.phrase,
     caseSensitive: keyword.caseSensitive,
     enabled: keyword.enabled,
+    templateId: keyword.templateId,
     createdAt: keyword.createdAt.toISOString(),
   });
 }

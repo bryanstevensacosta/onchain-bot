@@ -8,6 +8,7 @@ const MAX_PHRASE_LENGTH = 200;
 interface KeywordProps {
   readonly phrase: string;
   readonly caseSensitive: boolean;
+  templateId: string | null;
   enabled: boolean;
   readonly createdAt: Date;
 }
@@ -21,6 +22,13 @@ interface KeywordProps {
  * pipeline. Domain events on this aggregate are intentionally minimal —
  * the publisher cares about the persisted state, not the lifecycle
  * history of each keyword.
+ *
+ * `templateId` is an OPTIONAL override: when set, the publisher uses
+ * the `PromptTemplate` identified by this id when refining the
+ * matched message. When null, the publisher falls back to the global
+ * default template referenced by `LlmConfig.defaultTemplateId`. The
+ * binding is stored at match time (so a keyword renumbering takes
+ * effect for new ingests without replaying history).
  */
 export class Keyword extends AggregateRoot<string> {
   private state: KeywordProps;
@@ -38,6 +46,7 @@ export class Keyword extends AggregateRoot<string> {
     id?: string;
     phrase: string;
     caseSensitive?: boolean;
+    templateId?: string | null;
     enabled?: boolean;
     createdAt?: Date;
   }): Keyword {
@@ -68,9 +77,20 @@ export class Keyword extends AggregateRoot<string> {
         { length: trimmed.length, max: MAX_PHRASE_LENGTH },
       );
     }
+    if (
+      input.templateId !== undefined &&
+      input.templateId !== null &&
+      (typeof input.templateId !== 'string' || input.templateId.length === 0)
+    ) {
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        'Keyword templateId, when provided, must be a non-empty string or null',
+      );
+    }
     return new Keyword(input.id ?? crypto.randomUUID(), {
       phrase: trimmed,
       caseSensitive: input.caseSensitive ?? false,
+      templateId: input.templateId ?? null,
       enabled: input.enabled ?? true,
       createdAt: input.createdAt ?? new Date(),
     });
@@ -84,12 +104,14 @@ export class Keyword extends AggregateRoot<string> {
     id: string;
     phrase: string;
     caseSensitive: boolean;
+    templateId: string | null;
     enabled: boolean;
     createdAt: Date;
   }): Keyword {
     return new Keyword(input.id, {
       phrase: input.phrase,
       caseSensitive: input.caseSensitive,
+      templateId: input.templateId,
       enabled: input.enabled,
       createdAt: input.createdAt,
     });
@@ -101,6 +123,10 @@ export class Keyword extends AggregateRoot<string> {
 
   public get caseSensitive(): boolean {
     return this.state.caseSensitive;
+  }
+
+  public get templateId(): string | null {
+    return this.state.templateId;
   }
 
   public get enabled(): boolean {
@@ -137,6 +163,26 @@ export class Keyword extends AggregateRoot<string> {
 
   public disable(): void {
     this.state.enabled = false;
+  }
+
+  /**
+   * Bind this keyword to a specific `PromptTemplate` (overriding the
+   * global default). Pass `null` to clear the binding and fall back to
+   * the global default again. The templateId is trimmed of surrounding
+   * whitespace and must be a non-empty string when provided.
+   */
+  public setTemplateId(templateId: string | null): void {
+    if (templateId === null) {
+      this.state.templateId = null;
+      return;
+    }
+    if (typeof templateId !== 'string' || templateId.trim().length === 0) {
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        'templateId must be a non-empty string or null',
+      );
+    }
+    this.state.templateId = templateId.trim();
   }
 
   protected mutate(_event: DomainEvent): void {

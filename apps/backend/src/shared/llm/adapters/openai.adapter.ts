@@ -21,7 +21,7 @@ export class OpenAiAdapter extends LlmPort {
       content.push({ type: 'image_url', image_url: { url: dataUrl } });
     }
     const resp = await this.client.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: request.model ?? 'gpt-4o-mini',
       messages: [{ role: 'user', content }],
       max_tokens: request.maxTokens ?? 500,
       temperature: request.temperature ?? 0.7,
