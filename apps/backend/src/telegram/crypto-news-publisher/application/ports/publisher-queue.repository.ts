@@ -13,6 +13,8 @@ import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entit
  *   messageReceivedAt ASC).
  * - `findAllForDisplay(limit)` returns the most-recent entries
  *   regardless of status, for the dashboard / queue view.
+ * - `findByIdForDisplay(id)` returns a single entry by id, used by
+ *   the media-serving endpoint to resolve `imagePath`.
  * - `countPublishedToday(resetHourUtc)` returns the number of
  *   PUBLISHED rows whose publishedAt falls in the current day window
  *   (window starts at `resetHourUtc` UTC, e.g. 04:00 UTC).
@@ -40,4 +42,7 @@ export abstract class PublisherQueueRepository {
   ): Promise<ReadonlyArray<PublisherQueueEntry>>;
   public abstract countPublishedToday(resetHourUtc: number): Promise<number>;
   public abstract findById(id: string): Promise<PublisherQueueEntry | null>;
+  public abstract findByIdForDisplay(
+    id: string,
+  ): Promise<PublisherQueueEntry | null>;
 }

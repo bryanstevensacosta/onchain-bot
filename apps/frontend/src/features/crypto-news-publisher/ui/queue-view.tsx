@@ -79,6 +79,14 @@ function QueueRow({ entry }: { entry: QueueEntryView }): React.ReactElement {
           {entry.rawContent}
         </p>
       )}
+      {entry.imagePath && (
+        <img
+          src={`/crypto-news-publisher/queue/${entry.id}/media`}
+          alt="Media"
+          className="mt-2 h-auto w-full max-h-48 rounded object-contain bg-slate-900"
+          loading="lazy"
+        />
+      )}
       {entry.lastError && (
         <p className="mt-1 text-xs text-red-300 font-mono break-all">
           {entry.lastError}

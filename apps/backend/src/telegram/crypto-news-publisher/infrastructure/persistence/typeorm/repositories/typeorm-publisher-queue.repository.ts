@@ -142,4 +142,10 @@ export class TypeOrmPublisherQueueRepository extends PublisherQueueRepository {
     const row = await this.repo.findOne({ where: { id } });
     return row ? PublisherQueueMapper.toDomain(row) : null;
   }
+
+  public async findByIdForDisplay(
+    id: string,
+  ): Promise<PublisherQueueEntry | null> {
+    return this.findById(id);
+  }
 }
