@@ -54,6 +54,9 @@ export class KeywordEntity {
   @Column({ name: 'enabled', type: 'boolean', default: true })
   public enabled!: boolean;
 
+  @Column({ name: 'require_image', type: 'boolean', default: false })
+  public requireImage!: boolean;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   public createdAt!: Date;
 }

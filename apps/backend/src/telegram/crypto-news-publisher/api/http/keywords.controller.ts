@@ -19,6 +19,7 @@ export interface KeywordView {
   readonly caseSensitive: boolean;
   readonly sourceChannelId: string | null;
   readonly enabled: boolean;
+  readonly requireImage: boolean;
   readonly templateId: string | null;
   readonly createdAt: string;
 }
@@ -35,6 +36,11 @@ interface CreateKeywordDto {
    * time.
    */
   templateId?: string | null;
+  /**
+   * When true, only messages that have at least one media item are
+   * enqueued; otherwise the match is dropped (no PENDING entry).
+   */
+  requireImage?: boolean;
 }
 
 interface UpdateKeywordDto {
@@ -49,6 +55,7 @@ interface UpdateKeywordDto {
    *  - `"<uuid>"`  → bind to that template
    */
   templateId?: string | null;
+  requireImage?: boolean;
 }
 
 /**
@@ -96,6 +103,7 @@ export class KeywordsController {
       enabled: dto.enabled,
       sourceChannelId: dto.sourceChannelId ?? null,
       templateId: dto.templateId ?? null,
+      requireImage: dto.requireImage ?? false,
     });
     await this.keywordRepo.save(keyword);
     return KeywordsController.toView(keyword);
@@ -129,6 +137,8 @@ export class KeywordsController {
         : existing.sourceChannelId;
     const nextTemplateId =
       dto.templateId !== undefined ? dto.templateId : existing.templateId;
+    const nextRequireImage =
+      dto.requireImage !== undefined ? dto.requireImage : existing.requireImage;
 
     const updated = Keyword.reconstitute({
       id: existing.id,
@@ -137,6 +147,7 @@ export class KeywordsController {
       sourceChannelId: nextSourceChannelId,
       templateId: nextTemplateId,
       enabled: nextEnabled,
+      requireImage: nextRequireImage,
       createdAt: existing.createdAt,
     });
 
@@ -156,6 +167,7 @@ export class KeywordsController {
     caseSensitive: keyword.caseSensitive,
     sourceChannelId: keyword.sourceChannelId,
     enabled: keyword.enabled,
+    requireImage: keyword.requireImage,
     templateId: keyword.templateId,
     createdAt: keyword.createdAt.toISOString(),
   });

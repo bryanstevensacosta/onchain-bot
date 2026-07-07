@@ -11,6 +11,7 @@ interface KeywordProps {
   sourceChannelId: string | null;
   templateId: string | null;
   enabled: boolean;
+  readonly requireImage: boolean;
   readonly createdAt: Date;
 }
 
@@ -50,6 +51,7 @@ export class Keyword extends AggregateRoot<string> {
     sourceChannelId?: string | null;
     templateId?: string | null;
     enabled?: boolean;
+    requireImage?: boolean;
     createdAt?: Date;
   }): Keyword {
     if (input.phrase === null || input.phrase === undefined) {
@@ -95,6 +97,7 @@ export class Keyword extends AggregateRoot<string> {
       sourceChannelId: input.sourceChannelId ?? null,
       templateId: input.templateId ?? null,
       enabled: input.enabled ?? true,
+      requireImage: input.requireImage ?? false,
       createdAt: input.createdAt ?? new Date(),
     });
   }
@@ -110,6 +113,7 @@ export class Keyword extends AggregateRoot<string> {
     sourceChannelId: string | null;
     templateId: string | null;
     enabled: boolean;
+    requireImage: boolean;
     createdAt: Date;
   }): Keyword {
     return new Keyword(input.id, {
@@ -118,6 +122,7 @@ export class Keyword extends AggregateRoot<string> {
       sourceChannelId: input.sourceChannelId,
       templateId: input.templateId,
       enabled: input.enabled,
+      requireImage: input.requireImage,
       createdAt: input.createdAt,
     });
   }
@@ -140,6 +145,10 @@ export class Keyword extends AggregateRoot<string> {
 
   public get enabled(): boolean {
     return this.state.enabled;
+  }
+
+  public get requireImage(): boolean {
+    return this.state.requireImage;
   }
 
   public get createdAt(): Date {

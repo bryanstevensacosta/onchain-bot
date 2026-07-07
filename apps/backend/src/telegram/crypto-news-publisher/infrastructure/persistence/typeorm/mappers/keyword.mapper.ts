@@ -14,6 +14,7 @@ export class KeywordMapper {
     row.sourceChannelId = keyword.sourceChannelId;
     row.templateId = keyword.templateId;
     row.enabled = keyword.enabled;
+    row.requireImage = keyword.requireImage;
     row.createdAt = keyword.createdAt;
     return row;
   }
@@ -26,6 +27,7 @@ export class KeywordMapper {
       sourceChannelId: row.sourceChannelId,
       templateId: row.templateId,
       enabled: row.enabled,
+      requireImage: row.requireImage,
       createdAt: row.createdAt,
     });
   }

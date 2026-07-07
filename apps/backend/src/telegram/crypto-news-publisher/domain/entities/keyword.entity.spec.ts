@@ -8,6 +8,7 @@ describe('Keyword', () => {
       expect(kw.caseSensitive).toBe(false);
       expect(kw.enabled).toBe(true);
       expect(kw.templateId).toBeNull();
+      expect(kw.requireImage).toBe(false);
       expect(kw.id).toEqual(expect.any(String));
       expect(kw.createdAt).toBeInstanceOf(Date);
     });
@@ -58,6 +59,16 @@ describe('Keyword', () => {
       const fixedId = crypto.randomUUID();
       const kw = Keyword.create({ id: fixedId, phrase: 'btc' });
       expect(kw.id).toBe(fixedId);
+    });
+
+    it('defaults requireImage to false when not provided', () => {
+      const kw = Keyword.create({ phrase: 'btc' });
+      expect(kw.requireImage).toBe(false);
+    });
+
+    it('honours explicit requireImage=true on create', () => {
+      const kw = Keyword.create({ phrase: 'btc', requireImage: true });
+      expect(kw.requireImage).toBe(true);
     });
   });
 
@@ -152,6 +163,7 @@ describe('Keyword', () => {
         caseSensitive: true,
         templateId: tpl,
         enabled: false,
+        requireImage: true,
         createdAt: originalDate,
       });
       expect(kw.id).toBe(originalId);
@@ -159,6 +171,7 @@ describe('Keyword', () => {
       expect(kw.caseSensitive).toBe(true);
       expect(kw.templateId).toBe(tpl);
       expect(kw.enabled).toBe(false);
+      expect(kw.requireImage).toBe(true);
       expect(kw.createdAt).toBe(originalDate);
     });
 
@@ -169,6 +182,7 @@ describe('Keyword', () => {
         caseSensitive: false,
         templateId: null,
         enabled: true,
+        requireImage: false,
         createdAt: new Date(),
       });
       expect(kw.templateId).toBeNull();

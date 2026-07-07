@@ -16,6 +16,7 @@ interface EditingRow {
   phrase: string;
   sourceChannelId: string | null;
   templateId: string | null;
+  requireImage: boolean;
 }
 
 const NO_TEMPLATE = '__default__';
@@ -41,6 +42,7 @@ export function KeywordsManager(): React.ReactElement {
 
   const [newPhrase, setNewPhrase] = useState('');
   const [newCaseSensitive, setNewCaseSensitive] = useState(false);
+  const [newRequireImage, setNewRequireImage] = useState(false);
   const [newSourceChannelId, setNewSourceChannelId] = useState<string | null>(
     null,
   );
@@ -61,11 +63,13 @@ export function KeywordsManager(): React.ReactElement {
         caseSensitive: newCaseSensitive,
         sourceChannelId: newSourceChannelId,
         templateId: newTemplateId,
+        requireImage: newRequireImage,
       },
       {
         onSuccess: () => {
           setNewPhrase('');
           setNewCaseSensitive(false);
+          setNewRequireImage(false);
           setNewSourceChannelId(null);
           setNewTemplateId(null);
         },
@@ -88,6 +92,7 @@ export function KeywordsManager(): React.ReactElement {
           phrase,
           sourceChannelId: editing.sourceChannelId,
           templateId: editing.templateId,
+          requireImage: editing.requireImage,
         },
       },
       { onSuccess: () => setEditing(null) },
@@ -167,6 +172,15 @@ export function KeywordsManager(): React.ReactElement {
             />
             <span>Case sensitive</span>
           </label>
+          <label className="flex items-center gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={newRequireImage}
+              onChange={(e) => setNewRequireImage(e.target.checked)}
+              disabled={createMut.isPending}
+            />
+            <span>Only with image</span>
+          </label>
           <Button
             type="submit"
             variant="primary"
@@ -228,7 +242,17 @@ export function KeywordsManager(): React.ReactElement {
                           disabled={updateMut.isPending}
                         />
                       ) : (
-                        kw.phrase
+                        <span className="inline-flex items-center gap-1">
+                          {kw.phrase}
+                          {kw.requireImage && (
+                            <span
+                              title="Only enqueue messages with images"
+                              aria-label="Only with image"
+                            >
+                              📷
+                            </span>
+                          )}
+                        </span>
                       )}
                     </td>
                     <td className="py-2 pr-3">
@@ -263,7 +287,26 @@ export function KeywordsManager(): React.ReactElement {
                       )}
                     </td>
                     <td className="py-2 pr-3 text-slate-400">
-                      {kw.caseSensitive ? 'Yes' : 'No'}
+                      {isEditing ? (
+                        <label className="flex items-center gap-2 text-xs text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={editing!.requireImage}
+                            onChange={(e) =>
+                              setEditing({
+                                ...editing!,
+                                requireImage: e.target.checked,
+                              })
+                            }
+                            disabled={updateMut.isPending}
+                          />
+                          <span>Only with image</span>
+                        </label>
+                      ) : kw.caseSensitive ? (
+                        'Yes'
+                      ) : (
+                        'No'
+                      )}
                     </td>
                     <td className="py-2 pr-3">
                       <label className="inline-flex items-center cursor-pointer">
@@ -344,6 +387,7 @@ export function KeywordsManager(): React.ReactElement {
                                 phrase: kw.phrase,
                                 sourceChannelId: kw.sourceChannelId,
                                 templateId: kw.templateId,
+                                requireImage: kw.requireImage,
                               })
                             }
                           >

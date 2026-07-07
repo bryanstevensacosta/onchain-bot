@@ -89,6 +89,10 @@ export class CryptoNewsMessageIngestedHandler {
         matchedKeyword,
       });
 
+      if (!entry) {
+        return;
+      }
+
       this.logger.log(
         `Keyword matched and enqueued: channelId=${channelId}, messageId=${messageId}, title=${title ?? '(none)'}, keyword="${matchedKeyword.phrase}", queueId=${entry.id}`,
       );

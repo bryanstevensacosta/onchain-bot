@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
 import { Keyword } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
@@ -55,24 +55,39 @@ export class EnqueueMatchingMessageUseCase {
    */
   public static readonly MAX_QUEUE_DEPTH = 36;
 
+  private readonly logger = new Logger(EnqueueMatchingMessageUseCase.name);
+
   public constructor(private readonly queueRepo: PublisherQueueRepository) {}
 
   /**
    * Enqueue a single matched crypto-news message for publication.
    *
    * Returns the freshly-built `PublisherQueueEntry` so the caller can
-   * log the persisted id (without leaking `content`). Throws
-   * `DomainError(VALIDATION)` when the message carries no usable
-   * channelId/messageId.
+   * log the persisted id (without leaking `content`). Returns `null`
+   * when the matched keyword requires an image but the message has no
+   * media (the entry is silently skipped, never enters the queue).
+   * Throws an Error when the message carries no usable channelId.
    */
   public async execute(
     input: EnqueueMatchingMessageInput,
-  ): Promise<PublisherQueueEntry> {
+  ): Promise<PublisherQueueEntry | null> {
     const message = input.message;
     if (!message.channelId?.trim()) {
       // Defensive: the upstream store guarantees this is non-empty,
       // but the use case boundary is the right place to fail loudly.
       throw new Error('EnqueueMatchingMessageUseCase: missing channelId');
+    }
+
+    const matchedKeyword = input.matchedKeyword;
+    if (
+      matchedKeyword &&
+      matchedKeyword.requireImage &&
+      message.media.length === 0
+    ) {
+      this.logger.debug(
+        `keyword ${matchedKeyword.id} (${matchedKeyword.phrase}) requires image; message ${message.id} has no media — skipping`,
+      );
+      return null;
     }
 
     const imagePath = this.firstImagePath(message);

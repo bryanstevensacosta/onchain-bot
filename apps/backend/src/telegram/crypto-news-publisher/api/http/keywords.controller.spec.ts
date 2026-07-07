@@ -77,6 +77,7 @@ describe('KeywordsController', () => {
       expect(result.phrase).toBe('bitcoin');
       expect(result.enabled).toBe(true);
       expect(result.templateId).toBeNull();
+      expect(result.requireImage).toBe(false);
       expect(keywordRepo.save).toHaveBeenCalledTimes(1);
     });
 
@@ -101,6 +102,17 @@ describe('KeywordsController', () => {
       });
 
       expect(result.templateId).toBe(templateId);
+    });
+
+    it('passes requireImage=true through to the created keyword', async () => {
+      keywordRepo.save.mockResolvedValue();
+
+      const result = await controller.create({
+        phrase: 'btc',
+        requireImage: true,
+      });
+
+      expect(result.requireImage).toBe(true);
     });
   });
 
@@ -173,6 +185,30 @@ describe('KeywordsController', () => {
       });
 
       expect(result.templateId).toBe(templateId);
+    });
+
+    it('should toggle requireImage via update', async () => {
+      const existing = Keyword.create({ phrase: 'btc', requireImage: false });
+      keywordRepo.findAll.mockResolvedValue([existing]);
+      keywordRepo.save.mockResolvedValue();
+
+      const result = await controller.update(existing.id, {
+        requireImage: true,
+      });
+
+      expect(result.requireImage).toBe(true);
+    });
+
+    it('should preserve an existing requireImage when update omits it', async () => {
+      const existing = Keyword.create({ phrase: 'btc', requireImage: true });
+      keywordRepo.findAll.mockResolvedValue([existing]);
+      keywordRepo.save.mockResolvedValue();
+
+      const result = await controller.update(existing.id, {
+        enabled: true,
+      });
+
+      expect(result.requireImage).toBe(true);
     });
 
     it('should throw NotFound when keyword not found', async () => {
