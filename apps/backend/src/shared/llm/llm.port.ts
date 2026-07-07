@@ -21,6 +21,14 @@ export interface LlmGenerateRequest {
   mimeType?: string;
   maxTokens?: number;
   temperature?: number;
+  /**
+   * Reasoning effort hint for models that expose one (e.g.
+   * `opencode-zen/deepseek-v4-flash`). Maps to OpenAI's
+   * `reasoning_effort` field. Use `'low'` to give the model less
+   * room to "think" so the actual output fits in `maxTokens`.
+   * Ignored by adapters/models that do not support it.
+   */
+  reasoningEffort?: 'low' | 'medium' | 'high';
 }
 
 export abstract class LlmPort {

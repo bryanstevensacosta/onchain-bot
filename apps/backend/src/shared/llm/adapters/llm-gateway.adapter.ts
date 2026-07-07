@@ -56,8 +56,11 @@ export class LlmGatewayAdapter extends LlmPort {
       const resp = await this.client.chat.completions.create({
         model: this.model,
         messages: [{ role: 'user', content }],
-        max_tokens: request.maxTokens ?? 500,
+        max_tokens: request.maxTokens ?? 2000,
         temperature: request.temperature ?? 0.7,
+        ...(request.reasoningEffort
+          ? { reasoning_effort: request.reasoningEffort }
+          : {}),
       });
       return resp.choices[0]?.message?.content ?? '';
     } catch (err) {

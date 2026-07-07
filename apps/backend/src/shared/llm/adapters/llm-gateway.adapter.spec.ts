@@ -97,7 +97,7 @@ describe('LlmGatewayAdapter', () => {
           content: [{ type: 'text', text: 'say hi' }],
         },
       ]);
-      expect(callArg.max_tokens).toBe(500);
+      expect(callArg.max_tokens).toBe(2000);
       expect(callArg.temperature).toBe(0.7);
     });
 
@@ -132,6 +132,33 @@ describe('LlmGatewayAdapter', () => {
       ]);
       expect(callArg.max_tokens).toBe(100);
       expect(callArg.temperature).toBe(0.2);
+    });
+
+    it('forwards reasoningEffort as reasoning_effort when provided', async () => {
+      const adapter = new LlmGatewayAdapter(buildConfig({}));
+      const instance = OpenAIConstructor.mock.results[0]
+        .value as MockOpenAIClient;
+      instance.chat.completions.create.mockResolvedValue({
+        choices: [{ message: { content: 'ok' } }],
+      });
+      await adapter.generateText({
+        prompt: 'think less',
+        reasoningEffort: 'low',
+      });
+      const callArg = instance.chat.completions.create.mock.calls[0][0];
+      expect(callArg.reasoning_effort).toBe('low');
+    });
+
+    it('omits reasoning_effort when not provided', async () => {
+      const adapter = new LlmGatewayAdapter(buildConfig({}));
+      const instance = OpenAIConstructor.mock.results[0]
+        .value as MockOpenAIClient;
+      instance.chat.completions.create.mockResolvedValue({
+        choices: [{ message: { content: 'ok' } }],
+      });
+      await adapter.generateText({ prompt: 'think default' });
+      const callArg = instance.chat.completions.create.mock.calls[0][0];
+      expect(callArg.reasoning_effort).toBeUndefined();
     });
 
     it('returns an empty string when the response has no content', async () => {

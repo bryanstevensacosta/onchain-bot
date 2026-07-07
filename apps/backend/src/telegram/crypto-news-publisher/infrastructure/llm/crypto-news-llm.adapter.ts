@@ -50,7 +50,7 @@ export class CryptoNewsLlmAdapter {
       imageUrl: undefined,
       imageBase64: imagePayload.base64,
       mimeType: imagePayload.mimeType,
-      maxTokens: 500,
+      maxTokens: 2000,
       temperature: 0.7,
     });
   }

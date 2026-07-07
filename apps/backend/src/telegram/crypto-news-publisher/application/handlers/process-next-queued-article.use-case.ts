@@ -40,7 +40,6 @@ import {
 @Injectable()
 export class ProcessNextQueuedArticleUseCase {
   private readonly logger = new Logger(ProcessNextQueuedArticleUseCase.name);
-  private readonly config: CryptoNewsPublisherConfig;
 
   public constructor(
     private readonly queueRepo: PublisherQueueRepository,
@@ -48,8 +47,10 @@ export class ProcessNextQueuedArticleUseCase {
     private readonly llmAdapter: CryptoNewsLlmAdapter,
     private readonly publisher: TelegramPublisherPort,
     private readonly throttleStateRepo: PublisherThrottleStateRepository,
-  ) {
-    this.config = loadCryptoNewsPublisherConfig();
+  ) {}
+
+  private getConfig(): CryptoNewsPublisherConfig {
+    return loadCryptoNewsPublisherConfig();
   }
 
   /**
@@ -131,12 +132,15 @@ export class ProcessNextQueuedArticleUseCase {
   ) {
     if (entry.imagePath) {
       return this.publisher.sendPhoto(
-        this.config.targetChannel,
+        this.getConfig().targetChannel,
         refinedText,
         entry.imagePath,
       );
     }
-    return this.publisher.sendMessage(this.config.targetChannel, refinedText);
+    return this.publisher.sendMessage(
+      this.getConfig().targetChannel,
+      refinedText,
+    );
   }
 
   /**
@@ -153,13 +157,13 @@ export class ProcessNextQueuedArticleUseCase {
       `failed to publish queue entry ${entry.id}: ${reason}`,
       err instanceof Error ? err.stack : undefined,
     );
-    if (entry.attempts + 1 < this.config.publishing.llmMaxAttempts) {
+    if (entry.attempts + 1 < this.getConfig().publishing.llmMaxAttempts) {
       try {
         await this.queueRepo.incrementAttempts(entry.id);
         this.logger.log(
           `incremented attempts for queue entry ${entry.id} ` +
             `(attempts=${entry.attempts + 1}/` +
-            `${this.config.publishing.llmMaxAttempts})`,
+            `${this.getConfig().publishing.llmMaxAttempts})`,
         );
       } catch (incErr) {
         this.logger.error(
@@ -189,8 +193,8 @@ export class ProcessNextQueuedArticleUseCase {
    */
   private async canPublishToday(): Promise<boolean> {
     const published = await this.queueRepo.countPublishedToday(
-      this.config.publishing.dailyResetUtcHour,
+      this.getConfig().publishing.dailyResetUtcHour,
     );
-    return published < this.config.publishing.dailyCap;
+    return published < this.getConfig().publishing.dailyCap;
   }
 }
