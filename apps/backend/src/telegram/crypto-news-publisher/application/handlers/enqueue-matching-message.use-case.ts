@@ -90,13 +90,13 @@ export class EnqueueMatchingMessageUseCase {
       return null;
     }
 
-    const imagePath = this.firstImagePath(message);
+    const imagePaths = this.collectImagePaths(message);
     const entry = PublisherQueueEntry.create({
       channelId: message.channelId,
       messageId: message.messageId,
       rawContent: message.content,
       rawTitle: message.title,
-      imagePath,
+      imagePaths,
       groupedId: message.groupedId,
       messageReceivedAt: new Date(),
       keywordTemplateId: input.matchedKeyword?.templateId ?? null,
@@ -106,8 +106,9 @@ export class EnqueueMatchingMessageUseCase {
     return entry;
   }
 
-  private firstImagePath(message: CryptoNewsMessage): string | null {
-    const first = message.media[0];
-    return first?.filePath ?? null;
+  private collectImagePaths(message: CryptoNewsMessage): string[] {
+    return message.media
+      .map((m) => m.filePath)
+      .filter((p): p is string => p !== null && p !== undefined);
   }
 }

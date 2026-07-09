@@ -32,12 +32,13 @@ export class KeywordEntity {
   public caseSensitive!: boolean;
 
   @Column({
-    name: 'source_channel_id',
-    type: 'varchar',
-    length: 64,
+    name: 'source_channel_ids',
+    type: 'text',
+    array: true,
     nullable: true,
+    default: '{}',
   })
-  public sourceChannelId!: string | null;
+  public sourceChannelIds!: string[];
 
   /**
    * Optional binding to a `PromptTemplate`. When non-null the publisher

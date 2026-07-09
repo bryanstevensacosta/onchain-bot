@@ -55,7 +55,7 @@ export class PromptTemplateEntity {
     length: 16,
     nullable: true,
   })
-  public reasoningEffort!: 'low' | 'medium' | 'high' | null;
+  public reasoningEffort!: 'low' | 'medium' | 'high' | 'max' | null;
 
   @Column({ name: 'prompt_text', type: 'text' })
   public promptText!: string;
