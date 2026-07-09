@@ -61,9 +61,9 @@ export class CryptoNewsMessageMediaEntity {
   @Column({ name: 'media_index', type: 'smallint' })
   public index!: number;
 
-  /** Discriminator. Only `'photo'` for now; reserved future-proofing for video/sticker. */
+  /** Discriminator. `'photo'` or `'video'`; reserved future-proofing for sticker. */
   @Column({ name: 'type', type: 'varchar', length: 16, default: 'photo' })
-  public type!: 'photo';
+  public type!: 'photo' | 'video';
 
   /** Absolute or workspace-relative path on disk; served by the API in T7. */
   @Column({ name: 'file_path', type: 'text' })
