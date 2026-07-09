@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   useCryptoNewsMessages,
   useCryptoNewsSources,
@@ -31,6 +31,7 @@ export function CryptoNewsPage() {
   const [lightboxMedia, setLightboxMedia] = useState<
     ReadonlyArray<LightboxMediaItem>
   >([]);
+  const [msgPage, setMsgPage] = useState(0);
 
   const sourceByChannelId = useMemo(
     () => new Map((sources.data ?? []).map((s) => [s.channelId, s])),
@@ -49,6 +50,21 @@ export function CryptoNewsPage() {
       return true;
     });
   }, [messages.data, channelFilter, search]);
+
+  const msgPerPage = 10;
+  const msgTotalPages = Math.max(
+    1,
+    Math.ceil(filteredMessages.length / msgPerPage),
+  );
+  const msgSafePage = Math.min(msgPage, msgTotalPages - 1);
+
+  useEffect(() => {
+    setMsgPage(0);
+  }, [channelFilter, search]);
+  const pagedMessages = filteredMessages.slice(
+    msgSafePage * msgPerPage,
+    (msgSafePage + 1) * msgPerPage,
+  );
 
   return (
     <div className="px-6 py-6 space-y-6">
@@ -112,7 +128,7 @@ export function CryptoNewsPage() {
               <option value="">All sources</option>
               {(sources.data ?? []).map((s) => (
                 <option key={s.channelId} value={s.channelId}>
-                  {s.title} ({s.channelId})
+                  {s.title}
                 </option>
               ))}
             </select>
@@ -126,10 +142,13 @@ export function CryptoNewsPage() {
             />
           </div>
 
-          <Card>
-            <h2 className="text-lg font-semibold text-slate-100 mb-4">
+          <details
+            open
+            className="rounded-lg border border-slate-700 bg-slate-800/30 p-4"
+          >
+            <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 select-none mb-4">
               Recent messages
-            </h2>
+            </summary>
             {messages.isLoading ? (
               <div className="text-slate-500">Cargando...</div>
             ) : messages.error ? (
@@ -143,9 +162,9 @@ export function CryptoNewsPage() {
                 {(() => {
                   // Group N consecutive messages sharing the same groupedId
                   // (Telegram media albums are sent as separate messages)
-                  const groups: (typeof filteredMessages)[number][] = [];
+                  const groups: (typeof pagedMessages)[number][] = [];
                   let i = 0;
-                  while (i < filteredMessages.length) {
+                  while (i < pagedMessages.length) {
                     const curr = filteredMessages[i];
                     if (curr.groupedId) {
                       let j = i + 1;
@@ -248,12 +267,26 @@ export function CryptoNewsPage() {
                               }}
                               className="block w-full text-left"
                             >
-                              <img
-                                src={m.url}
-                                alt={`${msg.title ?? 'image'} ${idx + 1}`}
-                                className="h-auto w-full max-h-56 rounded object-contain cursor-pointer transition-opacity hover:opacity-80"
-                                loading="lazy"
-                              />
+                              {m.mimeType?.startsWith('video/') ? (
+                                <video
+                                  key={m.url}
+                                  controls
+                                  className="h-auto w-full max-h-56 rounded object-contain bg-slate-900"
+                                >
+                                  <source
+                                    src={m.url}
+                                    type={m.mimeType ?? 'video/mp4'}
+                                  />
+                                  Your browser does not support video playback.
+                                </video>
+                              ) : (
+                                <img
+                                  src={m.url}
+                                  alt={`${msg.title ?? 'image'} ${idx + 1}`}
+                                  className="h-auto w-full max-h-56 rounded object-contain cursor-pointer transition-opacity hover:opacity-80"
+                                  loading="lazy"
+                                />
+                              )}
                             </button>
                           ))}
                         </div>
@@ -301,7 +334,32 @@ export function CryptoNewsPage() {
                 })()}
               </div>
             )}
-          </Card>
+            {msgTotalPages > 1 && (
+              <div className="flex items-center justify-between pt-4 text-sm">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={msgSafePage === 0}
+                  onClick={() => setMsgPage((p) => Math.max(0, p - 1))}
+                >
+                  ‹ Previous
+                </Button>
+                <span className="text-slate-400">
+                  {msgSafePage + 1} / {msgTotalPages}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={msgSafePage >= msgTotalPages - 1}
+                  onClick={() =>
+                    setMsgPage((p) => Math.min(msgTotalPages - 1, p + 1))
+                  }
+                >
+                  Next ›
+                </Button>
+              </div>
+            )}
+          </details>
 
           {lightboxIndex !== null && (
             <Lightbox
@@ -318,10 +376,21 @@ export function CryptoNewsPage() {
             className="space-y-3 rounded-lg border border-slate-700 bg-slate-800/30 p-4"
           >
             <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 select-none">
-              Publisher (keywords + queue)
+              Keywords
             </summary>
-            <div className="space-y-4 pt-2">
+            <div className="pt-2">
               <KeywordsManager />
+            </div>
+          </details>
+
+          <details
+            open
+            className="space-y-3 rounded-lg border border-slate-700 bg-slate-800/30 p-4"
+          >
+            <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 select-none">
+              Queue
+            </summary>
+            <div className="pt-2">
               <QueueView />
             </div>
           </details>
