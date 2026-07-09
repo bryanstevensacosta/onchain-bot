@@ -66,28 +66,24 @@ import { AppService } from './app.service';
           logCfg.dir,
           logCfg.fileName,
         );
+        const isDev = logCfg.prettyInDev;
         return {
           pinoHttp: {
             level: logCfg.level,
-            transport: logCfg.prettyInDev
-              ? {
-                  target: 'pino-pretty',
-                  options: {
-                    singleLine: true,
-                    translateTime: 'SYS:HH:MM:ss.l',
-                  },
-                }
-              : {
-                  target: 'pino-roll',
-                  options: {
-                    file: filePath,
-                    size: logCfg.rotationSize,
-                    mkdir: true,
-                    limit: { count: logCfg.rotationLimit },
-                  },
-                },
+            transport: {
+              target: 'pino-roll',
+              options: {
+                file: filePath,
+                frequency: 'daily',
+                mkdir: true,
+                limit: { count: 1 },
+              },
+            },
             autoLogging: {
-              ignore: (req: { url?: string }) => req.url === '/api/health',
+              ignore: (req: { url?: string }) =>
+                req.url === '/api/health' ||
+                (req.url?.startsWith('/crypto-news/') ?? false) ||
+                (req.url?.startsWith('/crypto-news-publisher/') ?? false),
             },
             serializers: {
               req(req: { method: string; url?: string; id: unknown }) {

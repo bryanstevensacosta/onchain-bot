@@ -56,17 +56,14 @@
  *     LOG_LEVEL       — pino level (default 'info' in production, 'debug'
  *                       otherwise). Examples: 'trace','debug','info','warn',
  *                       'error','fatal','silent'.
- *     LOG_DIR         — directory for the rotating log file
- *                       (default 'apps/backend/logs'; resolved against
- *                       process.cwd() at app boot).
- *     LOG_FILE        — log file name (default
- *                       `backend-${NODE_ENV}.log`, e.g.
- *                       'backend-development.log' or 'backend-production.log').
- *     LOG_ROTATION_SIZE — pino-roll size threshold, e.g. '10m', '1g'
- *                       (default '10m'). Trigger a rotation when the file
- *                       reaches this size.
- *     LOG_ROTATION_LIMIT — max number of rotated files to keep
- *                       (default 5). Older rotations are pruned automatically.
+ *     LOG_DIR         — directory for the log file (default '.', i.e. project
+ *                       root; resolved against process.cwd() at app boot).
+ *     LOG_FILE        — log file name (default 'backend.log').
+ *
+ *   Log rotation (pino-roll, production only):
+ *     Rotates daily at midnight (timezone = system local, America/Santo_Domingo).
+ *     Only the current file + 1 previous rotation are kept.
+ *     To override: set `LOG_DIR` and/or `LOG_FILE` env vars.
  */
 import { registerAs } from '@nestjs/config';
 import { join } from 'path';
@@ -530,10 +527,8 @@ export const appConfig = registerAs(
       level:
         process.env.LOG_LEVEL ??
         (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
-      dir: process.env.LOG_DIR ?? 'apps/backend/logs',
-      fileName:
-        process.env.LOG_FILE ??
-        `backend-${process.env.NODE_ENV ?? 'development'}.log`,
+      dir: process.env.LOG_DIR ?? '.',
+      fileName: process.env.LOG_FILE ?? 'backend.log',
       rotationSize: process.env.LOG_ROTATION_SIZE ?? '10m',
       rotationLimit: Number(process.env.LOG_ROTATION_LIMIT ?? 5),
       prettyInDev: process.env.NODE_ENV !== 'production',
