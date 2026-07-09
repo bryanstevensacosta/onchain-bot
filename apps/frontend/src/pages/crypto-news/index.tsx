@@ -165,12 +165,12 @@ export function CryptoNewsPage() {
                   const groups: (typeof pagedMessages)[number][] = [];
                   let i = 0;
                   while (i < pagedMessages.length) {
-                    const curr = filteredMessages[i];
+                    const curr = pagedMessages[i];
                     if (curr.groupedId) {
                       let j = i + 1;
                       while (
-                        j < filteredMessages.length &&
-                        filteredMessages[j].groupedId === curr.groupedId
+                        j < pagedMessages.length &&
+                        pagedMessages[j].groupedId === curr.groupedId
                       ) {
                         j++;
                       }
@@ -180,11 +180,11 @@ export function CryptoNewsPage() {
                           ...curr,
                           content:
                             curr.content ||
-                            filteredMessages
+                            pagedMessages
                               .slice(i + 1, j)
                               .find((m) => m.content)?.content ||
                             '',
-                          media: filteredMessages
+                          media: pagedMessages
                             .slice(i, j)
                             .flatMap((m) => m.media),
                           groupedId: null,
