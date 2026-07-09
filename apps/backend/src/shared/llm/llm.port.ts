@@ -43,9 +43,10 @@ export interface LlmGenerateRequest {
    * `opencode-zen/deepseek-v4-flash`). Maps to OpenAI's
    * `reasoning_effort` field. Use `'low'` to give the model less
    * room to "think" so the actual output fits in `maxTokens`.
+   * DeepSeek V4 Flash supports 4 modes: `low`, `medium`, `high`, `max`.
    * Ignored by adapters/models that do not support it.
    */
-  reasoningEffort?: 'low' | 'medium' | 'high';
+  reasoningEffort?: 'low' | 'medium' | 'high' | 'max';
 }
 
 export abstract class LlmPort {
