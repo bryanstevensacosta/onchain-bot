@@ -44,7 +44,7 @@ const buildTemplate = (
     model?: string;
     maxTokens?: number;
     temperature?: number;
-    reasoningEffort?: 'low' | 'medium' | 'high' | null;
+    reasoningEffort?: 'low' | 'medium' | 'high' | 'max' | null;
     promptText?: string;
     systemPromptText?: string;
   } = {},
