@@ -584,44 +584,24 @@ export class TelegramMtprotoListenerAdapter
       const client = this.client;
       if (!client) throw new Error('Telegram client not available');
 
-      // Build the appropriate MessageMedia type depending on attachment type.
-      // For photos we preserve original sizes from msg.media; for videos
-      // we construct a MessageMediaDocument wrapping an Api.Document.
-      const fileRefBuffer = Buffer.from(attachment.fileReference, 'base64');
-
-      let dlMedia: Api.TypeMessageMedia;
-      if (attachment.type === 'video') {
-        dlMedia = new Api.MessageMediaDocument({
-          document: new Api.Document({
-            id: coerceToLong(attachment.fileId),
-            accessHash: coerceToLong(attachment.accessHash),
-            fileReference: fileRefBuffer,
-            date: attachment.date ?? 0,
-            mimeType: attachment.mimeType ?? 'video/mp4',
-            dcId: attachment.dcId ?? 0,
-            size: bigInt.zero,
-            attributes: [],
-          }),
-        });
-      } else {
-        const rawMedia = msg.media as {
-          photo?: { sizes?: Array<unknown> };
-          webpage?: { photo?: { sizes?: Array<unknown> } };
-        };
-        const originalSizes =
-          rawMedia?.photo?.sizes ?? rawMedia?.webpage?.photo?.sizes ?? [];
-        dlMedia = new Api.MessageMediaPhoto({
-          photo: new Api.Photo({
-            id: coerceToLong(attachment.fileId),
-            accessHash: coerceToLong(attachment.accessHash),
-            fileReference: fileRefBuffer,
-            date: attachment.date ?? 0,
-            sizes: originalSizes as never,
-            dcId: attachment.dcId ?? 0,
-          }),
-        });
+      // Use msg.media directly — gramjs handles DC migration, fileReference
+      // expiry, thumbSize selection, and MessageMediaWebPage unwrapping
+      // internally. We must NOT reconstruct Api.MessageMediaPhoto or
+      // Api.MessageMediaDocument from extracted fields, because that
+      // strips the object context gramjs needs for DC migration (e.g.
+      // ExportAuthorization to another datacenter), causing
+      // AUTH_KEY_UNREGISTERED on upload.GetFile.
+      const dlMedia = msg.media as Api.TypeMessageMedia | undefined;
+      if (!dlMedia) {
+        this.logger.warn(
+          `extractMediaAttachments(${peerId}:${msg.id}) — msg.media is null after extraction`,
+        );
+        return undefined;
       }
 
+      // gramjs.downloadMedia handles MessageMediaWebPage internally
+      // (extracts webpage.document || webpage.photo), so we pass the raw
+      // media object without unwrapping.
       const buffer = await this.floodWaitHandler.withRetry(
         `media-download:${peerId}:${msg.id}`,
         () => client.downloadMedia(dlMedia, {}),
