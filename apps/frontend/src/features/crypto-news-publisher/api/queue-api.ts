@@ -7,13 +7,21 @@ export interface QueueEntryView {
   readonly rawTitle: string | null;
   readonly rawContent: string | null;
   readonly imagePath: string | null;
+  readonly imagePaths: string[];
   readonly groupedId: string | null;
   readonly status: string;
   readonly messageReceivedAt: string;
   readonly publishedAt: string | null;
   readonly telegramMessageId: string | null;
+  readonly telegramUrl: string | null;
   readonly lastError: string | null;
   readonly attempts: number;
+  readonly generatedContent: string | null;
+  readonly generatedSystemPrompt: string | null;
+  readonly generatedUserPrompt: string | null;
+  readonly generatedTemperature: number | null;
+  readonly generatedReasoningEffort: string | null;
+  readonly generatedModel: string | null;
 }
 
 export interface QueueCountsView {

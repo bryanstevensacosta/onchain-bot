@@ -9,7 +9,7 @@ export interface KeywordView {
   readonly id: string;
   readonly phrase: string;
   readonly caseSensitive: boolean;
-  readonly sourceChannelId: string | null;
+  readonly sourceChannelIds: string[];
   readonly enabled: boolean;
   /**
    * When true, only messages with at least one media item are
@@ -28,7 +28,7 @@ export interface CreateKeywordBody {
   phrase: string;
   caseSensitive?: boolean;
   enabled?: boolean;
-  sourceChannelId?: string | null;
+  sourceChannelIds?: string[];
   /**
    * Optional override binding. `null` (default) uses the global
    * default template; a string binds the keyword to that template.
@@ -41,7 +41,7 @@ export interface UpdateKeywordBody {
   phrase?: string;
   caseSensitive?: boolean;
   enabled?: boolean;
-  sourceChannelId?: string | null;
+  sourceChannelIds?: string[];
   /**
    * Partial template binding update:
    *  - `undefined` → leave existing binding untouched
