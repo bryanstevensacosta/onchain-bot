@@ -575,7 +575,7 @@ export class TelegramMtprotoListenerAdapter
       this.extractRawPhotoAttachment(msg.media) ??
       this.extractRawVideoAttachment(msg.media);
     if (!attachment) {
-      this.logger.debug(
+      this.logger.warn(
         `extractMediaAttachments(${peerId}:${msg.id}) — no photo or video attachment`,
       );
       return undefined;
