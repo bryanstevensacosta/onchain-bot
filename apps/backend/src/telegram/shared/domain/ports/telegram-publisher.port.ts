@@ -40,4 +40,22 @@ export abstract class TelegramPublisherPort {
     text: string,
     imagePath: string,
   ): Promise<SendResult>;
+
+  public abstract sendMediaGroup(
+    chatId: string,
+    text: string,
+    imagePaths: string[],
+  ): Promise<SendResult>;
+
+  /**
+   * Send `text` together with a video read from `videoPath` (local
+   * file path on the server). The adapter is responsible for
+   * multipart-encoding the request. Telegram's `sendVideo` accepts
+   * `caption` (up to 1024 chars) and `supports_streaming: true`.
+   */
+  public abstract sendVideo(
+    chatId: string,
+    text: string,
+    videoPath: string,
+  ): Promise<SendResult>;
 }

@@ -88,6 +88,8 @@ describe('ProcessNextQueuedArticleUseCase', () => {
     publisher = {
       sendMessage: jest.fn(),
       sendPhoto: jest.fn(),
+      sendVideo: jest.fn(),
+      sendMediaGroup: jest.fn(),
     };
 
     throttleStateRepo = {
@@ -169,7 +171,14 @@ describe('ProcessNextQueuedArticleUseCase', () => {
         nextDelayMs: 0,
       });
       queueRepo.findNextPending.mockResolvedValue(entry);
-      llmAdapter.generateForEntry.mockResolvedValue('✨ BTC rompe $100k');
+      llmAdapter.generateForEntry.mockResolvedValue({
+        content: '✨ BTC rompe $100k',
+        systemPrompt: null,
+        userPrompt: 'test prompt',
+        temperature: 0.7,
+        reasoningEffort: null,
+        model: 'test-model',
+      });
       publisher.sendPhoto.mockResolvedValue(sendOk(99_001));
       queueRepo.markPublished.mockResolvedValue(entry);
       throttleScheduler.setLastPublishAt.mockResolvedValue();

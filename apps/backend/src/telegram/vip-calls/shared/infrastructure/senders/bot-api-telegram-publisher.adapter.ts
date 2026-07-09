@@ -100,6 +100,35 @@ export class VipCallsBotApiPublisherAdapter extends TelegramPublisherPort {
     };
   }
 
+  public async sendMediaGroup(
+    _chatId: string,
+    _text: string,
+    _imagePaths: string[],
+  ): Promise<SendResult> {
+    return {
+      ok: false,
+      messageId: null,
+      error: 'sendMediaGroup not implemented for vip-calls',
+    };
+  }
+
+  /**
+   * `sendVideo` (local-file multipart upload) is not used by the
+   * vip-calls flow — only the crypto-news publisher needs it.
+   * Stubbed here to satisfy the abstract port contract.
+   */
+  public async sendVideo(
+    _chatId: string,
+    _text: string,
+    _videoPath: string,
+  ): Promise<SendResult> {
+    return {
+      ok: false,
+      messageId: null,
+      error: 'sendVideo not implemented for vip-calls',
+    };
+  }
+
   private async processQueue(): Promise<void> {
     while (this.pendingQueue.length > 0) {
       const elapsed = Date.now() - this.lastSentAt;

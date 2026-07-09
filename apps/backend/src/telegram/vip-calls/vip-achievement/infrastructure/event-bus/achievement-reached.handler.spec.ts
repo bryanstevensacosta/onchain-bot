@@ -120,6 +120,30 @@ class FakeTelegramPublisher extends TelegramPublisherPort {
     this.lastMessage = text;
     return this.okResult;
   }
+
+  async sendPhoto(): Promise<{
+    readonly ok: boolean;
+    readonly messageId: number | null;
+    readonly error: string | null;
+  }> {
+    return { ok: false, messageId: null, error: 'stub' };
+  }
+
+  async sendMediaGroup(): Promise<{
+    readonly ok: boolean;
+    readonly messageId: number | null;
+    readonly error: string | null;
+  }> {
+    return { ok: false, messageId: null, error: 'stub' };
+  }
+
+  async sendVideo(): Promise<{
+    readonly ok: boolean;
+    readonly messageId: number | null;
+    readonly error: string | null;
+  }> {
+    return { ok: false, messageId: null, error: 'stub' };
+  }
 }
 
 /**
