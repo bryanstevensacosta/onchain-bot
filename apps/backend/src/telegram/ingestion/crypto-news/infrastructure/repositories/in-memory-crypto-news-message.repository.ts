@@ -49,6 +49,15 @@ export class InMemoryCryptoNewsMessageRepository extends CryptoNewsMessageReposi
     return null;
   }
 
+  public async findByChannelAndGroupedId(
+    channelId: string,
+    groupedId: string,
+  ): Promise<ReadonlyArray<CryptoNewsMessage>> {
+    return Array.from(this.store.values())
+      .filter((m) => m.channelId === channelId && m.groupedId === groupedId)
+      .sort((a, b) => a.messageId - b.messageId);
+  }
+
   /**
    * Intended O(n*m) lookup over `store.values()` × message.media, but
    * `CryptoNewsMedia` VOs do NOT carry the UUID assigned by the DB row,

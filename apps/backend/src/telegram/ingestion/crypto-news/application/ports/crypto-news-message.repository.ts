@@ -37,4 +37,19 @@ export abstract class CryptoNewsMessageRepository {
   public abstract findMediaById(
     mediaId: string,
   ): Promise<CryptoNewsMessageMediaEntity | null>;
+
+  /**
+   * Find all messages in the same Telegram album/media group. Returns all
+   * messages that share the same `groupedId` AND the same `channelId`.
+   * Used by the publisher enqueue use case to merge album photos into a
+   * single queue entry with multiple `imagePaths` so the publisher can
+   * dispatch them as a `sendMediaGroup` (album) instead of separate
+   * `sendPhoto` calls.
+   *
+   * Returns an empty array when no grouped siblings exist.
+   */
+  public abstract findByChannelAndGroupedId(
+    channelId: string,
+    groupedId: string,
+  ): Promise<ReadonlyArray<CryptoNewsMessage>>;
 }

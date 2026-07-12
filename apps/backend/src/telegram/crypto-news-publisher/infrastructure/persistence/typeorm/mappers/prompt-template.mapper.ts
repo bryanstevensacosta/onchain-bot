@@ -12,6 +12,7 @@ export class PromptTemplateMapper {
     row.name = template.name;
     row.description = template.description;
     row.model = template.model;
+    row.supportsVision = template.supportsVision;
     row.maxTokens = template.maxTokens;
     row.temperature = template.temperature;
     row.reasoningEffort = template.reasoningEffort;
@@ -28,6 +29,7 @@ export class PromptTemplateMapper {
       name: row.name,
       description: row.description,
       model: row.model,
+      supportsVision: row.supportsVision ?? true,
       maxTokens: row.maxTokens,
       temperature: row.temperature,
       reasoningEffort: row.reasoningEffort,

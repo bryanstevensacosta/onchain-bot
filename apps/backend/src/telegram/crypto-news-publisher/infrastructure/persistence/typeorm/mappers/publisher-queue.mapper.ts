@@ -17,6 +17,7 @@ export class PublisherQueueMapper {
     row.imagePaths = entry.imagePaths;
     row.groupedId = entry.groupedId;
     row.messageReceivedAt = entry.messageReceivedAt;
+    row.matchedKeywordIds = entry.matchedKeywordIds;
     row.keywordTemplateId = entry.keywordTemplateId;
     row.status = entry.status;
     row.publishedAt = entry.publishedAt;

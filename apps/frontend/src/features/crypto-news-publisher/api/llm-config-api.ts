@@ -17,6 +17,7 @@ export interface PromptTemplate {
   readonly name: string;
   readonly description: string | null;
   readonly model: string;
+  readonly supportsVision: boolean;
   readonly maxTokens: number;
   readonly temperature: number;
   readonly reasoningEffort: 'low' | 'medium' | 'high' | 'max' | null;

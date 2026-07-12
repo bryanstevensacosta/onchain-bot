@@ -8,7 +8,8 @@ export type PublisherQueueStatus =
   | 'SCHEDULED'
   | 'PUBLISHING'
   | 'PUBLISHED'
-  | 'FAILED';
+  | 'FAILED'
+  | 'BLOCKED';
 
 const VALID_PUBLISH_TRANSITIONS = new Set<PublisherQueueStatus>([
   'PENDING',
@@ -34,6 +35,15 @@ export interface PublisherQueueEntryProps {
    * already-queued entry — the entry's resolved template is the
    * contract with the queue's cron publisher.
    */
+  /**
+   * IDs of the keywords matched at enqueue time. Empty array when no
+   * keyword matched (should not happen in normal flow, but the field
+   * is optional to handle edge cases). Used by the frontend to display
+   * which keyword(s) triggered this queue entry — saved as IDs so a
+   * later keyword rename is reflected immediately via the frontend's
+   * keyword cache.
+   */
+  readonly matchedKeywordIds: string[];
   readonly keywordTemplateId: string | null;
   status: PublisherQueueStatus;
   publishedAt: Date | null;
@@ -52,6 +62,7 @@ export interface PublisherQueueEntryProps {
   generatedReasoningEffort: string | null;
   /** Model used when generating the post. */
   generatedModel: string | null;
+  blockedReason: string | null;
 }
 
 /**
@@ -95,6 +106,7 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
     imagePaths?: string[];
     groupedId: string | null;
     messageReceivedAt: Date;
+    matchedKeywordIds?: string[];
     keywordTemplateId?: string | null;
   }): PublisherQueueEntry {
     if (!input.channelId?.trim()) {
@@ -139,6 +151,7 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
       imagePaths: allPaths,
       groupedId: input.groupedId,
       messageReceivedAt: input.messageReceivedAt,
+      matchedKeywordIds: input.matchedKeywordIds ?? [],
       keywordTemplateId: input.keywordTemplateId ?? null,
       status: 'PENDING',
       publishedAt: null,
@@ -151,6 +164,7 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
       generatedTemperature: null,
       generatedReasoningEffort: null,
       generatedModel: null,
+      blockedReason: null,
     });
   }
 
@@ -194,6 +208,10 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
 
   public get groupedId(): string | null {
     return this.state.groupedId;
+  }
+
+  public get matchedKeywordIds(): string[] {
+    return this.state.matchedKeywordIds;
   }
 
   public get keywordTemplateId(): string | null {
@@ -248,8 +266,16 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
     return this.state.generatedModel;
   }
 
+  public get blockedReason(): string | null {
+    return this.state.blockedReason;
+  }
+
   public get isTerminal(): boolean {
-    return this.state.status === 'PUBLISHED' || this.state.status === 'FAILED';
+    return (
+      this.state.status === 'PUBLISHED' ||
+      this.state.status === 'FAILED' ||
+      this.state.status === 'BLOCKED'
+    );
   }
 
   /**

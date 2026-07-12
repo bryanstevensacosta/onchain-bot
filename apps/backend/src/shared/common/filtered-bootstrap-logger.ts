@@ -72,35 +72,29 @@ export class FilteredBootstrapLogger implements LoggerService {
 
   log(message: unknown, context?: string): void {
     if (FilteredBootstrapLogger.isDropped(context)) return;
+    this.delegate.log(message, context ?? '');
     if (this.pino) {
       this.pino.log(message, ...(context ? [context] : []));
-      return;
     }
-    this.delegate.log(message, context ?? '');
   }
 
   warn(message: unknown, context?: string): void {
     if (FilteredBootstrapLogger.isDropped(context)) return;
+    this.delegate.warn(message, context ?? '');
     if (this.pino) {
       this.pino.warn(message, ...(context ? [context] : []));
-      return;
     }
-    this.delegate.warn(message, context ?? '');
   }
 
   error(message: unknown, context?: string): void {
     if (FilteredBootstrapLogger.isDropped(context)) return;
+    this.delegate.error(message, context ?? '');
     if (this.pino) {
       this.pino.error(message, ...(context ? [context] : []));
-      return;
     }
-    this.delegate.error(message, context ?? '');
   }
 
   debug(message: unknown, context?: string): void {
-    // Intentionally not implemented: the agreed log-level policy is
-    // log/warn/error only. Any caller using `logger.debug()` will get a
-    // no-op via the interface default and emit nothing.
     void message;
     void context;
   }
@@ -111,11 +105,10 @@ export class FilteredBootstrapLogger implements LoggerService {
   }
 
   fatal(message: unknown, context?: string): void {
+    this.delegate.fatal?.(message, context ?? '');
     if (this.pino) {
       this.pino.fatal(message, ...(context ? [context] : []));
-      return;
     }
-    this.delegate.fatal?.(message, context ?? '');
   }
 
   setLogLevels(levels: LogLevel[]): void {

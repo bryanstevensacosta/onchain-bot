@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button, Card, Modal } from '@/shared/ui';
 import {
+  useCancelQueueEntry,
   useQueue,
   useQueueCounts,
 } from '@/features/crypto-news-publisher/model/use-queue';
+import { useKeywords } from '@/features/crypto-news-publisher/model/use-keywords';
 import type { QueueEntryView } from '@/features/crypto-news-publisher/api/queue-api';
 
 function StatusBadge({ status }: { status: string }): React.ReactElement {
@@ -13,6 +15,7 @@ function StatusBadge({ status }: { status: string }): React.ReactElement {
     PUBLISHING: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
     PUBLISHED: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
     FAILED: 'bg-red-500/20 text-red-300 border-red-500/40',
+    BLOCKED: 'bg-red-500/20 text-red-300 border-red-500/40',
   };
   const classes =
     colorByStatus[status] ??
@@ -50,10 +53,7 @@ function CounterCard({
   );
 }
 
-function telegramPostUrl(
-  channelId: string,
-  messageId: string,
-): string {
+function telegramPostUrl(channelId: string, messageId: string): string {
   return `https://t.me/c/${channelId}/${messageId}`;
 }
 
@@ -64,6 +64,15 @@ function DetailsModal({
   entry: QueueEntryView;
   onClose: () => void;
 }): React.ReactElement {
+  const { data: keywords } = useKeywords();
+  const matchedKeywordNames = useMemo(() => {
+    if (!entry.matchedKeywordIds?.length || !keywords?.length) return null;
+    return entry.matchedKeywordIds
+      .map((id) => keywords.find((k) => k.id === id)?.phrase)
+      .filter(Boolean)
+      .join(', ');
+  }, [entry.matchedKeywordIds, keywords]);
+
   return (
     <Modal isOpen onClose={onClose} title="Queue Entry Details" size="lg">
       <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
@@ -81,6 +90,11 @@ function DetailsModal({
               </span>
             )}
           </div>
+          {entry.status === 'BLOCKED' && entry.blockedReason && (
+            <p className="mt-2 text-xs text-red-300 font-mono break-all whitespace-pre-wrap bg-red-900/50 rounded p-2">
+              Blocked: {entry.blockedReason}
+            </p>
+          )}
           {entry.lastError && (
             <p className="mt-2 text-xs text-red-300 font-mono break-all whitespace-pre-wrap">
               {entry.lastError}
@@ -97,6 +111,16 @@ function DetailsModal({
             </a>
           )}
         </section>
+
+        {/* Matched keywords */}
+        {matchedKeywordNames && (
+          <section>
+            <h3 className="text-xs uppercase text-slate-500 mb-2">
+              Matched Keywords
+            </h3>
+            <p className="text-sm text-amber-300">{matchedKeywordNames}</p>
+          </section>
+        )}
 
         {/* Raw input */}
         {entry.rawContent && (
@@ -194,13 +218,24 @@ function DetailsModal({
 
 function QueueRow({ entry }: { entry: QueueEntryView }): React.ReactElement {
   const [showDetails, setShowDetails] = useState(false);
-  const isPublished = entry.status === 'PUBLISHED' || entry.status === 'FAILED';
+  const cancelMutation = useCancelQueueEntry();
 
   return (
     <>
       <article className="rounded-lg bg-slate-800/50 p-3 text-sm">
         <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-          <span className="font-mono text-slate-300">{entry.channelId}</span>
+          {entry.sourceHandle ? (
+            <a
+              href={entry.telegramUrl ?? undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-blue-400 hover:text-blue-300 underline"
+            >
+              @{entry.sourceHandle}
+            </a>
+          ) : (
+            <span className="font-mono text-slate-300">{entry.channelId}</span>
+          )}
           <span>·</span>
           <span>msg {entry.messageId}</span>
           <span>·</span>
@@ -225,7 +260,9 @@ function QueueRow({ entry }: { entry: QueueEntryView }): React.ReactElement {
           </p>
         )}
         {entry.imagePaths.length > 0 && (
-          <div className={`mt-2 grid gap-1 ${entry.imagePaths.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+          <div
+            className={`mt-2 grid gap-1 ${entry.imagePaths.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}
+          >
             {entry.imagePaths.map((_, idx) => (
               <img
                 key={idx}
@@ -242,13 +279,34 @@ function QueueRow({ entry }: { entry: QueueEntryView }): React.ReactElement {
             {entry.lastError}
           </p>
         )}
-        {isPublished && (
-          <div className="mt-2">
-            <Button variant="ghost" size="sm" onClick={() => setShowDetails(true)}>
-              Details
-            </Button>
-          </div>
+        {entry.status === 'BLOCKED' && entry.blockedReason && (
+          <p className="mt-1 text-xs text-red-300 font-mono break-all">
+            Blocked: {entry.blockedReason}
+          </p>
         )}
+        <div className="mt-2 flex gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowDetails(true)}
+          >
+            Details
+          </Button>
+          {entry.status === 'PENDING' && (
+            <Button
+              variant="danger"
+              size="sm"
+              disabled={cancelMutation.isPending}
+              onClick={() => {
+                if (window.confirm('Cancel this queue entry?')) {
+                  cancelMutation.mutate(entry.id);
+                }
+              }}
+            >
+              {cancelMutation.isPending ? 'Cancelling…' : 'Cancel'}
+            </Button>
+          )}
+        </div>
       </article>
       {showDetails && (
         <DetailsModal entry={entry} onClose={() => setShowDetails(false)} />
@@ -265,7 +323,10 @@ export function QueueView(): React.ReactElement {
   const entries = queue.data ?? [];
   const totalPages = Math.max(1, Math.ceil(entries.length / perPage));
   const safePage = Math.min(page, totalPages - 1);
-  const pageEntries = entries.slice(safePage * perPage, (safePage + 1) * perPage);
+  const pageEntries = entries.slice(
+    safePage * perPage,
+    (safePage + 1) * perPage,
+  );
 
   return (
     <div className="space-y-4">
@@ -322,7 +383,9 @@ export function QueueView(): React.ReactElement {
                   variant="ghost"
                   size="sm"
                   disabled={safePage >= totalPages - 1}
-                  onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                  onClick={() =>
+                    setPage((p) => Math.min(totalPages - 1, p + 1))
+                  }
                 >
                   Next ›
                 </Button>

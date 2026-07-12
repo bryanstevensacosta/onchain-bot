@@ -514,6 +514,7 @@ describe('CryptoNewsPage — publisher (keywords + queue)', () => {
         sourceChannelIds: [],
         requireImage: false,
         templateId: null,
+        matchMode: 'exact',
         createdAt: '2025-01-01T00:00:00.000Z',
       },
       {
@@ -524,6 +525,7 @@ describe('CryptoNewsPage — publisher (keywords + queue)', () => {
         sourceChannelIds: [],
         requireImage: false,
         templateId: 'tpl-clickbait',
+        matchMode: 'exact',
         createdAt: '2025-01-02T03:04:06.000Z',
       },
     ];
@@ -553,13 +555,16 @@ describe('CryptoNewsPage — publisher (keywords + queue)', () => {
     const queue: ReadonlyArray<QueueEntryView> = [
       {
         id: 'q-1',
-        channelId: 'WatcherGuru',
+        channelId: '-1001234567890',
+        sourceHandle: 'WatcherGuru',
+        sourceTitle: 'Watcher Guru',
         messageId: 777,
         rawTitle: 'ETF approval imminent',
         rawContent: null,
         imagePath: null,
         imagePaths: [],
         groupedId: null,
+        matchedKeywordIds: [],
         status: 'PENDING',
         messageReceivedAt: '2025-01-02T03:04:05.000Z',
         publishedAt: null,
@@ -573,16 +578,20 @@ describe('CryptoNewsPage — publisher (keywords + queue)', () => {
         generatedTemperature: null,
         generatedReasoningEffort: null,
         generatedModel: null,
+        blockedReason: null,
       },
       {
         id: 'q-2',
-        channelId: 'WatcherGuru',
+        channelId: '-1001234567890',
+        sourceHandle: 'WatcherGuru',
+        sourceTitle: 'Watcher Guru',
         messageId: 778,
         rawTitle: null,
         rawContent: null,
         imagePath: null,
         imagePaths: [],
         groupedId: null,
+        matchedKeywordIds: [],
         status: 'PUBLISHED',
         messageReceivedAt: '2025-01-02T03:04:06.000Z',
         publishedAt: '2025-01-02T03:10:00.000Z',
@@ -596,6 +605,7 @@ describe('CryptoNewsPage — publisher (keywords + queue)', () => {
         generatedTemperature: null,
         generatedReasoningEffort: null,
         generatedModel: null,
+        blockedReason: null,
       },
     ];
     mockedUseQueue.mockReturnValue(makeQueueQuery(queue));

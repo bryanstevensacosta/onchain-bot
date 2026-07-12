@@ -58,6 +58,14 @@ export class KeywordEntity {
   @Column({ name: 'require_image', type: 'boolean', default: false })
   public requireImage!: boolean;
 
+  @Column({
+    name: 'match_mode',
+    type: 'varchar',
+    length: 16,
+    default: 'substring',
+  })
+  public matchMode!: string;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   public createdAt!: Date;
 }

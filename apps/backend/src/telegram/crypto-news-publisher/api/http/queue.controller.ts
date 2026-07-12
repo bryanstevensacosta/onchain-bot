@@ -17,16 +17,21 @@ import type { AppConfig } from 'shared/common/config/app.config';
 import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
+import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
+import { CryptoNewsSource } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-source.entity';
 
 export interface QueueEntryView {
   readonly id: string;
   readonly channelId: string;
+  readonly sourceHandle: string | null;
+  readonly sourceTitle: string | null;
   readonly messageId: number;
   readonly rawTitle: string | null;
   readonly rawContent: string | null;
   readonly imagePath: string | null;
   readonly imagePaths: string[];
   readonly groupedId: string | null;
+  readonly matchedKeywordIds: string[];
   readonly status: string;
   readonly messageReceivedAt: string;
   readonly publishedAt: string | null;
@@ -40,6 +45,7 @@ export interface QueueEntryView {
   readonly generatedTemperature: number | null;
   readonly generatedReasoningEffort: string | null;
   readonly generatedModel: string | null;
+  readonly blockedReason: string | null;
 }
 
 export interface QueueCountsView {
@@ -67,6 +73,7 @@ export class QueueController {
   public constructor(
     private readonly queueRepo: PublisherQueueRepository,
     private readonly llmConfigRepo: LlmConfigRepository,
+    private readonly sourceRepo: CryptoNewsSourceRepository,
     config: ConfigService,
   ) {
     const appCfg = config.get<AppConfig>('app');
@@ -76,11 +83,20 @@ export class QueueController {
   @Get()
   public async list(
     @Query('limit') limit?: string,
+    @Query('status') status?: string,
   ): Promise<ReadonlyArray<QueueEntryView>> {
     const parsed = parseInt(limit ?? '', 10);
     const n = Math.max(1, Math.min(500, Number.isFinite(parsed) ? parsed : 50));
     const entries = await this.queueRepo.findAllForDisplay(n);
-    return entries.map((e) => this.toView(e));
+    const allSources = await this.sourceRepo.findAll();
+    const sourceByChannelId = new Map(allSources.map((s) => [s.channelId, s]));
+    const views = await Promise.all(
+      entries.map((e) => this.toView(e, sourceByChannelId)),
+    );
+    if (status) {
+      return views.filter((v) => v.status === status);
+    }
+    return views;
   }
 
   @Get('counts')
@@ -173,21 +189,45 @@ export class QueueController {
     return entries.filter((e) => e.status === 'PENDING').length;
   }
 
-  private toView(entry: PublisherQueueEntry): QueueEntryView {
-    const channelForLink = this.outputChannel.replace(/^-100/, '');
-    const telegramUrl =
-      entry.telegramMessageId && channelForLink
-        ? `https://t.me/c/${channelForLink}/${entry.telegramMessageId}`
+  private async toView(
+    entry: PublisherQueueEntry,
+    sourceByChannelId: Map<string, CryptoNewsSource>,
+  ): Promise<QueueEntryView> {
+    const source = sourceByChannelId.get(entry.channelId) ?? null;
+    const sourceHandle = source?.handle ?? null;
+    const sourceTitle = source?.title ?? null;
+
+    // Telegram link to the ORIGINAL post in the source channel
+    const sourceChannelForLink = entry.channelId.replace(/^-100/, '');
+    const sourceTelegramUrl =
+      entry.messageId && sourceHandle
+        ? `https://t.me/${sourceHandle}/${entry.messageId}`
+        : entry.messageId && sourceChannelForLink
+          ? `https://t.me/c/${sourceChannelForLink}/${entry.messageId}`
+          : null;
+
+    // Telegram link to the PUBLISHED post (output channel)
+    const outputChannelForLink = this.outputChannel.replace(/^-100/, '');
+    const publishedTelegramUrl =
+      entry.telegramMessageId && outputChannelForLink
+        ? `https://t.me/c/${outputChannelForLink}/${entry.telegramMessageId}`
         : null;
+
+    // Queue list always shows source link; DetailsModal shows published link
+    const telegramUrl = sourceTelegramUrl;
+
     return {
       id: entry.id,
       channelId: entry.channelId,
+      sourceHandle,
+      sourceTitle,
       messageId: entry.messageId,
       rawTitle: entry.rawTitle,
       rawContent: entry.rawContent,
       imagePath: entry.imagePath,
       imagePaths: entry.imagePaths,
       groupedId: entry.groupedId,
+      matchedKeywordIds: entry.matchedKeywordIds,
       status: entry.status,
       messageReceivedAt: entry.messageReceivedAt.toISOString(),
       publishedAt: entry.publishedAt?.toISOString() ?? null,
@@ -201,6 +241,7 @@ export class QueueController {
       generatedTemperature: entry.generatedTemperature,
       generatedReasoningEffort: entry.generatedReasoningEffort,
       generatedModel: entry.generatedModel,
+      blockedReason: entry.blockedReason,
     };
   }
 }

@@ -1,12 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EnqueueMatchingMessageUseCase } from './enqueue-matching-message.use-case';
 import { PublisherQueueRepository } from '../ports/publisher-queue.repository';
+import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
 import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
 import { Keyword } from '../../domain/entities/keyword.entity';
 
 describe('EnqueueMatchingMessageUseCase', () => {
   let useCase: EnqueueMatchingMessageUseCase;
   let queueRepo: jest.Mocked<PublisherQueueRepository>;
+  let messageRepo: jest.Mocked<CryptoNewsMessageRepository>;
 
   const mockMessage: CryptoNewsMessage = {
     id: 'msg-123',
@@ -38,6 +40,12 @@ describe('EnqueueMatchingMessageUseCase', () => {
             enqueue: jest.fn(),
           },
         },
+        {
+          provide: CryptoNewsMessageRepository,
+          useValue: {
+            findByChannelAndGroupedId: jest.fn().mockResolvedValue([]),
+          },
+        },
       ],
     }).compile();
 
@@ -45,6 +53,7 @@ describe('EnqueueMatchingMessageUseCase', () => {
       EnqueueMatchingMessageUseCase,
     );
     queueRepo = module.get(PublisherQueueRepository);
+    messageRepo = module.get(CryptoNewsMessageRepository);
   });
 
   it('should be defined', () => {

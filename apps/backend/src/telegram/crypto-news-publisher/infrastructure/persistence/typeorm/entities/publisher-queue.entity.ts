@@ -48,7 +48,13 @@ export class PublisherQueueEntity {
   @Column({ name: 'image_path', type: 'text', nullable: true })
   public imagePath!: string | null;
 
-  @Column({ name: 'image_paths', type: 'text', array: true, nullable: true, default: '{}' })
+  @Column({
+    name: 'image_paths',
+    type: 'text',
+    array: true,
+    nullable: true,
+    default: '{}',
+  })
   public imagePaths!: string[];
 
   @Column({ name: 'grouped_id', type: 'varchar', length: 64, nullable: true })
@@ -56,6 +62,15 @@ export class PublisherQueueEntity {
 
   @Column({ name: 'message_received_at', type: 'timestamptz' })
   public messageReceivedAt!: Date;
+
+  @Column({
+    name: 'matched_keyword_ids',
+    type: 'text',
+    array: true,
+    nullable: true,
+    default: '{}',
+  })
+  public matchedKeywordIds!: string[];
 
   /**
    * Frozen at enqueue time. Null means "no per-keyword override" —
@@ -93,11 +108,24 @@ export class PublisherQueueEntity {
   @Column({ name: 'generated_temperature', type: 'real', nullable: true })
   public generatedTemperature!: number | null;
 
-  @Column({ name: 'generated_reasoning_effort', type: 'varchar', length: 16, nullable: true })
+  @Column({
+    name: 'generated_reasoning_effort',
+    type: 'varchar',
+    length: 16,
+    nullable: true,
+  })
   public generatedReasoningEffort!: string | null;
 
-  @Column({ name: 'generated_model', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'generated_model',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   public generatedModel!: string | null;
+
+  @Column({ name: 'blocked_reason', type: 'text', nullable: true })
+  public blockedReason!: string | null;
 
   /** Round-trip helper for tests / debug. */
   public toProps(): PublisherQueueEntryProps {
@@ -111,6 +139,7 @@ export class PublisherQueueEntity {
       imagePaths: this.imagePaths ?? [],
       groupedId: this.groupedId,
       messageReceivedAt: this.messageReceivedAt,
+      matchedKeywordIds: this.matchedKeywordIds ?? [],
       keywordTemplateId: this.keywordTemplateId,
       status: this.status,
       publishedAt: this.publishedAt,
@@ -123,6 +152,7 @@ export class PublisherQueueEntity {
       generatedTemperature: this.generatedTemperature,
       generatedReasoningEffort: this.generatedReasoningEffort,
       generatedModel: this.generatedModel,
+      blockedReason: this.blockedReason,
     };
   }
 }

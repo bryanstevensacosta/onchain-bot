@@ -2,16 +2,19 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LlmPort } from 'shared/llm';
 import { LlmGatewayAdapter } from 'shared/llm/adapters/llm-gateway.adapter';
+import { BlacklistPhraseEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/blacklist-phrase.entity';
 import { KeywordEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/keyword.entity';
 import { LlmConfigEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/llm-config.entity';
 import { PromptTemplateEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/prompt-template.entity';
 import { PublisherQueueEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/publisher-queue.entity';
 import { PublisherThrottleStateEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/publisher-throttle-state.entity';
+import { BlacklistPhraseRepository } from 'telegram/crypto-news-publisher/application/ports/blacklist-phrase.repository';
 import { KeywordRepository } from 'telegram/crypto-news-publisher/application/ports/keyword.repository';
 import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 import { PromptTemplateRepository } from 'telegram/crypto-news-publisher/application/ports/prompt-template.repository';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
 import { PublisherThrottleStateRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-throttle-state.repository';
+import { TypeOrmBlacklistPhraseRepository } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/repositories/typeorm-blacklist-phrase.repository';
 import { TypeOrmKeywordRepository } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/repositories/typeorm-keyword.repository';
 import { TypeOrmLlmConfigRepository } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/repositories/typeorm-llm-config.repository';
 import { TypeOrmPromptTemplateRepository } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/repositories/typeorm-prompt-template.repository';
@@ -22,6 +25,7 @@ import { ProcessNextQueuedArticleUseCase } from 'telegram/crypto-news-publisher/
 import { GetLlmModelsUseCase } from 'telegram/crypto-news-publisher/application/handlers/get-llm-models.use-case';
 import { ThrottleSchedulerService } from 'telegram/crypto-news-publisher/application/services/throttle-scheduler.service';
 import { CryptoNewsMessageIngestedHandler } from 'telegram/crypto-news-publisher/infrastructure/event-bus/crypto-news-message-ingested.handler';
+import { BlacklistController } from 'telegram/crypto-news-publisher/api/http/blacklist.controller';
 import { KeywordsController } from 'telegram/crypto-news-publisher/api/http/keywords.controller';
 import { QueueController } from 'telegram/crypto-news-publisher/api/http/queue.controller';
 import { LlmConfigController } from 'telegram/crypto-news-publisher/api/http/llm-config.controller';
@@ -62,6 +66,7 @@ import { CryptoNewsIngestionModule } from 'telegram/ingestion/crypto-news/crypto
 @Module({
   imports: [
     TypeOrmModule.forFeature([
+      BlacklistPhraseEntity,
       KeywordEntity,
       LlmConfigEntity,
       PromptTemplateEntity,
@@ -70,13 +75,23 @@ import { CryptoNewsIngestionModule } from 'telegram/ingestion/crypto-news/crypto
     ]),
     CryptoNewsIngestionModule,
   ],
-  controllers: [KeywordsController, QueueController, LlmConfigController],
+  controllers: [
+    BlacklistController,
+    KeywordsController,
+    QueueController,
+    LlmConfigController,
+  ],
   providers: [
+    TypeOrmBlacklistPhraseRepository,
     TypeOrmKeywordRepository,
     TypeOrmLlmConfigRepository,
     TypeOrmPromptTemplateRepository,
     TypeOrmPublisherQueueRepository,
     TypeOrmPublisherThrottleStateRepository,
+    {
+      provide: BlacklistPhraseRepository,
+      useClass: TypeOrmBlacklistPhraseRepository,
+    },
     {
       provide: KeywordRepository,
       useClass: TypeOrmKeywordRepository,
@@ -118,6 +133,7 @@ import { CryptoNewsIngestionModule } from 'telegram/ingestion/crypto-news/crypto
     PublisherCronScheduler,
   ],
   exports: [
+    BlacklistPhraseRepository,
     KeywordRepository,
     LlmConfigRepository,
     PromptTemplateRepository,

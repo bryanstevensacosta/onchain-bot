@@ -1,9 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
+import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
 import { CryptoNewsMessageIngestedEvent } from 'telegram/ingestion/crypto-news/domain/events/crypto-news-message-ingested.event';
 import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
 import { KeywordRepository } from 'telegram/crypto-news-publisher/application/ports/keyword.repository';
 import { Keyword } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
+import { BlacklistPhraseRepository } from 'telegram/crypto-news-publisher/application/ports/blacklist-phrase.repository';
+import { BlacklistPhrase } from 'telegram/crypto-news-publisher/domain/entities/blacklist-phrase.entity';
+import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
+import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
 import { EnqueueMatchingMessageUseCase } from 'telegram/crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
 
 /**
@@ -27,14 +32,27 @@ export class CryptoNewsMessageIngestedHandler {
   private static readonly KEYWORD_CACHE_TTL_MS = 10_000;
 
   /**
+   * Cache TTL for enabled blacklist phrases. Same as keywords.
+   */
+  private static readonly BLACKLIST_CACHE_TTL_MS = 10_000;
+
+  /**
    * Cached enabled keywords, refreshed after KEYWORD_CACHE_TTL_MS.
    */
   private cachedKeywords: readonly Keyword[] = [];
-  private cacheTimestamp: number = 0;
+  private keywordCacheTimestamp: number = 0;
+
+  /**
+   * Cached enabled blacklist phrases, refreshed after BLACKLIST_CACHE_TTL_MS.
+   */
+  private cachedBlacklistPhrases: readonly BlacklistPhrase[] = [];
+  private blacklistCacheTimestamp: number = 0;
 
   public constructor(
     private readonly messageRepo: CryptoNewsMessageRepository,
     private readonly keywordRepo: KeywordRepository,
+    private readonly blacklistRepo: BlacklistPhraseRepository,
+    private readonly queueRepo: PublisherQueueRepository,
     private readonly enqueue: EnqueueMatchingMessageUseCase,
   ) {}
 
@@ -45,8 +63,10 @@ export class CryptoNewsMessageIngestedHandler {
    *  1. Fetch full message (with content) via repository lookup
    *  2. Get enabled keywords (cached with 10s TTL)
    *  3. Test keyword.matches() against message content
-   *  4. On match, enqueue via use case
-   *  5. Log result (without leaking content)
+   *  4. On match, check blacklist phrases
+   *  5. If blocked by blacklist, create queue entry with BLOCKED status
+   *  6. Otherwise, enqueue via use case
+   *  7. Log result (without leaking content)
    */
   @OnEvent('crypto-news.message.ingested')
   async handle(event: CryptoNewsMessageIngestedEvent): Promise<void> {
@@ -73,22 +93,71 @@ export class CryptoNewsMessageIngestedHandler {
           kw.sourceChannelIds.includes(channelId),
       );
 
-      // Test each keyword against content
-      const matchedKeyword = keywords.find((kw) => kw.matches(message.content));
+      // Test each keyword against content - find ALL matches
+      const matchedKeywords = keywords.filter((kw) =>
+        kw.matches(message.content),
+      );
 
-      if (!matchedKeyword) {
+      if (matchedKeywords.length === 0) {
         this.logger.debug(
           `No keyword matched: channelId=${channelId}, messageId=${messageId}, title=${title ?? '(none)'}`,
         );
         return;
       }
 
-      // Pass `matchedKeyword` so its `templateId` is frozen onto the
+      // Check blacklist AFTER keyword match, BEFORE enqueue.
+      // If the blacklist repo fails (e.g. transient error), we proceed as-if
+      // no blacklist matched — a blacklist outage must not block publication.
+      let blockingPhrase: BlacklistPhrase | null = null;
+      try {
+        blockingPhrase = await this.checkBlacklist(channelId, message.content);
+      } catch (blErr) {
+        this.logger.warn(
+          `Blacklist check failed, proceeding without blocking: channelId=${channelId}, messageId=${messageId}, title=${title ?? '(none)'}: ${(blErr as Error).message}`,
+        );
+      }
+
+      if (blockingPhrase) {
+        // Message matched a keyword but also matched a blacklist phrase - block it
+        const imagePaths = await this.collectAlbumImagePaths(message);
+        const entry = PublisherQueueEntry.create({
+          channelId: message.channelId,
+          messageId: message.messageId,
+          rawContent: message.content,
+          rawTitle: message.title,
+          imagePaths,
+          groupedId: message.groupedId,
+          messageReceivedAt: new Date(),
+          matchedKeywordIds: matchedKeywords.map((k) => k.id),
+          keywordTemplateId: matchedKeywords[0]?.templateId ?? null,
+        });
+        // Override status to BLOCKED and set blockedReason
+        (
+          entry as unknown as {
+            state: { status: string; blockedReason: string };
+          }
+        ).state = {
+          ...(
+            entry as unknown as {
+              state: { status: string; blockedReason: string };
+            }
+          ).state,
+          status: 'BLOCKED',
+          blockedReason: blockingPhrase.phrase,
+        };
+        await this.queueRepo.enqueue(entry);
+        this.logger.debug(
+          `Message blocked: channelId=${channelId}, messageId=${messageId}, title=${title ?? '(none)'}, keyword="${matchedKeywords.map((k) => k.phrase).join(',')}", blacklist="${blockingPhrase.phrase}"`,
+        );
+        return;
+      }
+
+      // Pass all matched keywords so their `templateId` is frozen onto the
       // queue entry — a later template edit cannot retroactively
       // re-route an already-queued entry.
       const entry = await this.enqueue.execute({
         message,
-        matchedKeyword,
+        matchedKeywords,
       });
 
       if (!entry) {
@@ -96,7 +165,7 @@ export class CryptoNewsMessageIngestedHandler {
       }
 
       this.logger.log(
-        `Keyword matched and enqueued: channelId=${channelId}, messageId=${messageId}, title=${title ?? '(none)'}, keyword="${matchedKeyword.phrase}", queueId=${entry.id}`,
+        `Keyword matched and enqueued: channelId=${channelId}, messageId=${messageId}, title=${title ?? '(none)'}, keywords="${matchedKeywords.map((k) => k.phrase).join(',')}", queueId=${entry.id}`,
       );
     } catch (err) {
       this.logger.error(
@@ -108,6 +177,44 @@ export class CryptoNewsMessageIngestedHandler {
   }
 
   /**
+   * Collect file paths from the message's own media, then (when the
+   * message belongs to a Telegram album) also fetch sibling messages
+   * in the same album group and merge their media paths. Deduplicates
+   * by path. Returns a flat, unique array of absolute file paths.
+   *
+   * Shared logic with `EnqueueMatchingMessageUseCase.collectAlbumImagePaths`.
+   */
+  private async collectAlbumImagePaths(
+    message: CryptoNewsMessage,
+  ): Promise<string[]> {
+    const ownPaths = message.media
+      .map((m) => m.filePath)
+      .filter((p): p is string => p !== null && p !== undefined);
+    if (!message.groupedId) {
+      return ownPaths;
+    }
+    try {
+      const siblings = await this.messageRepo.findByChannelAndGroupedId(
+        message.channelId,
+        message.groupedId,
+      );
+      const siblingPaths = siblings
+        .filter((s) => s.messageId !== message.messageId)
+        .flatMap((s) =>
+          s.media
+            .map((m) => m.filePath)
+            .filter((p): p is string => p !== null && p !== undefined),
+        );
+      return [...new Set([...ownPaths, ...siblingPaths])];
+    } catch (err) {
+      this.logger.warn(
+        `Failed to fetch grouped siblings for ${message.channelId}:${message.messageId} (groupedId=${message.groupedId}): ${(err as Error).message} — falling back to own media only`,
+      );
+      return ownPaths;
+    }
+  }
+
+  /**
    * Get enabled keywords, using a simple TTL cache.
    */
   private async getEnabledKeywords(): Promise<readonly Keyword[]> {
@@ -115,16 +222,62 @@ export class CryptoNewsMessageIngestedHandler {
 
     if (
       this.cachedKeywords.length === 0 ||
-      now - this.cacheTimestamp >
+      now - this.keywordCacheTimestamp >
         CryptoNewsMessageIngestedHandler.KEYWORD_CACHE_TTL_MS
     ) {
       this.cachedKeywords = await this.keywordRepo.findEnabled();
-      this.cacheTimestamp = now;
+      this.keywordCacheTimestamp = now;
       this.logger.debug(
         `Refreshed keyword cache: ${this.cachedKeywords.length} enabled keywords`,
       );
     }
 
     return this.cachedKeywords;
+  }
+
+  /**
+   * Get enabled blacklist phrases, using a simple TTL cache.
+   */
+  private async getEnabledBlacklistPhrases(): Promise<
+    readonly BlacklistPhrase[]
+  > {
+    const now = Date.now();
+
+    if (
+      this.cachedBlacklistPhrases.length === 0 ||
+      now - this.blacklistCacheTimestamp >
+        CryptoNewsMessageIngestedHandler.BLACKLIST_CACHE_TTL_MS
+    ) {
+      this.cachedBlacklistPhrases = await this.blacklistRepo.findEnabled();
+      this.blacklistCacheTimestamp = now;
+      this.logger.debug(
+        `Refreshed blacklist cache: ${this.cachedBlacklistPhrases.length} enabled phrases`,
+      );
+    }
+
+    return this.cachedBlacklistPhrases;
+  }
+
+  /**
+   * Check if message content matches any blacklist phrase applicable to the channel.
+   * Returns the matching BlacklistPhrase if blocked, null otherwise.
+   */
+  private async checkBlacklist(
+    channelId: string,
+    content: string,
+  ): Promise<BlacklistPhrase | null> {
+    const allBlacklist = await this.getEnabledBlacklistPhrases();
+
+    const applicableBlacklist = allBlacklist.filter((phrase) =>
+      phrase.isApplicableTo(channelId),
+    );
+
+    for (const phrase of applicableBlacklist) {
+      if (phrase.matches(content)) {
+        return phrase;
+      }
+    }
+
+    return null;
   }
 }

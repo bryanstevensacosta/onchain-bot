@@ -66,6 +66,17 @@ export class TypeOrmCryptoNewsMessageRepository extends CryptoNewsMessageReposit
     return row ? CryptoNewsMessageMapper.toDomain(row) : null;
   }
 
+  public async findByChannelAndGroupedId(
+    channelId: string,
+    groupedId: string,
+  ): Promise<ReadonlyArray<CryptoNewsMessage>> {
+    const rows = await this.repo.find({
+      where: { channelId, groupedId },
+      order: { messageId: 'ASC' },
+    });
+    return rows.map((r) => CryptoNewsMessageMapper.toDomain(r));
+  }
+
   public async findMediaById(
     mediaId: string,
   ): Promise<CryptoNewsMessageMediaEntity | null> {

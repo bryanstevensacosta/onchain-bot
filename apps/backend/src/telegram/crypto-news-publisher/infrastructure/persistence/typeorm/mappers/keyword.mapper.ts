@@ -15,6 +15,7 @@ export class KeywordMapper {
     row.templateId = keyword.templateId;
     row.enabled = keyword.enabled;
     row.requireImage = keyword.requireImage;
+    row.matchMode = keyword.matchMode;
     row.createdAt = keyword.createdAt;
     return row;
   }
@@ -28,6 +29,7 @@ export class KeywordMapper {
       templateId: row.templateId,
       enabled: row.enabled,
       requireImage: row.requireImage,
+      matchMode: row.matchMode as 'exact' | 'substring',
       createdAt: row.createdAt,
     });
   }

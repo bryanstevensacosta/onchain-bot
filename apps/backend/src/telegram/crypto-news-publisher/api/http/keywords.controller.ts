@@ -22,6 +22,7 @@ export interface KeywordView {
   readonly enabled: boolean;
   readonly requireImage: boolean;
   readonly templateId: string | null;
+  readonly matchMode: 'exact' | 'substring';
   readonly createdAt: string;
 }
 
@@ -42,6 +43,11 @@ interface CreateKeywordDto {
    * enqueued; otherwise the match is dropped (no PENDING entry).
    */
   requireImage?: boolean;
+  /**
+   * Matching mode: `'exact'` (word-boundary regex, default for new
+   * keywords) or `'substring'` (simple `includes()`).
+   */
+  matchMode?: 'exact' | 'substring';
 }
 
 interface UpdateKeywordDto {
@@ -57,6 +63,11 @@ interface UpdateKeywordDto {
    */
   templateId?: string | null;
   requireImage?: boolean;
+  /**
+   * Matching mode: `'exact'` (word-boundary regex) or
+   * `'substring'` (simple `includes()`).
+   */
+  matchMode?: 'exact' | 'substring';
 }
 
 /**
@@ -104,9 +115,7 @@ export class KeywordsController {
       (k) => k.phrase.toLowerCase() === trimmed.toLowerCase(),
     );
     if (dup) {
-      throw new ConflictException(
-        `Keyword "${dto.phrase}" already exists`,
-      );
+      throw new ConflictException(`Keyword "${dto.phrase}" already exists`);
     }
 
     const keyword = Keyword.create({
@@ -116,6 +125,7 @@ export class KeywordsController {
       sourceChannelIds: dto.sourceChannelIds ?? [],
       templateId: dto.templateId ?? null,
       requireImage: dto.requireImage ?? false,
+      matchMode: dto.matchMode,
     });
     await this.keywordRepo.save(keyword);
     return KeywordsController.toView(keyword);
@@ -151,6 +161,8 @@ export class KeywordsController {
       dto.templateId !== undefined ? dto.templateId : existing.templateId;
     const nextRequireImage =
       dto.requireImage !== undefined ? dto.requireImage : existing.requireImage;
+    const nextMatchMode =
+      dto.matchMode !== undefined ? dto.matchMode : existing.matchMode;
 
     const updated = Keyword.reconstitute({
       id: existing.id,
@@ -160,6 +172,7 @@ export class KeywordsController {
       templateId: nextTemplateId,
       enabled: nextEnabled,
       requireImage: nextRequireImage,
+      matchMode: nextMatchMode,
       createdAt: existing.createdAt,
     });
 
@@ -181,6 +194,7 @@ export class KeywordsController {
     enabled: keyword.enabled,
     requireImage: keyword.requireImage,
     templateId: keyword.templateId,
+    matchMode: keyword.matchMode,
     createdAt: keyword.createdAt.toISOString(),
   });
 }

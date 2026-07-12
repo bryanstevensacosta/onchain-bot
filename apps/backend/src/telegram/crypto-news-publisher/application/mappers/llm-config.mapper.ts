@@ -6,6 +6,7 @@ export interface PromptTemplateView {
   readonly name: string;
   readonly description: string | null;
   readonly model: string;
+  readonly supportsVision: boolean;
   readonly maxTokens: number;
   readonly temperature: number;
   readonly reasoningEffort: 'low' | 'medium' | 'high' | 'max' | null;
@@ -35,6 +36,7 @@ export const toTemplateView = (
   name: template.name,
   description: template.description,
   model: template.model,
+  supportsVision: template.supportsVision,
   maxTokens: template.maxTokens,
   temperature: template.temperature,
   reasoningEffort: template.reasoningEffort,

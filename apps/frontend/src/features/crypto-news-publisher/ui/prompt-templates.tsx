@@ -21,6 +21,7 @@ interface FormState {
   name: string;
   description: string;
   model: string;
+  supportsVision: boolean;
   maxTokens: string;
   temperature: string;
   reasoningEffort: ReasoningEffort;
@@ -43,6 +44,7 @@ const EMPTY_FORM: FormState = {
   name: '',
   description: '',
   model: '',
+  supportsVision: true,
   maxTokens: '2000',
   temperature: '0.7',
   reasoningEffort: null,
@@ -55,6 +57,7 @@ function formFromTemplate(t: PromptTemplate): FormState {
     name: t.name,
     description: t.description ?? '',
     model: t.model,
+    supportsVision: t.supportsVision ?? true,
     maxTokens: String(t.maxTokens),
     temperature: String(t.temperature),
     reasoningEffort: t.reasoningEffort,
@@ -68,6 +71,7 @@ function buildBody(form: FormState): CreatePromptTemplateBody {
     name: form.name.trim(),
     description: form.description.trim() ? form.description.trim() : null,
     model: form.model,
+    supportsVision: form.supportsVision,
     maxTokens: Number(form.maxTokens),
     temperature: Number(form.temperature),
     reasoningEffort: form.reasoningEffort,
@@ -229,6 +233,24 @@ function TemplateFormModal({
               )}
               {renderModelOptions(models, form.model)}
             </select>
+          </div>
+          <div className="flex items-center">
+            <input
+              id="tpl-supports-vision"
+              type="checkbox"
+              checked={form.supportsVision}
+              onChange={(e) =>
+                setForm({ ...form, supportsVision: e.target.checked })
+              }
+              className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-blue-500 focus:ring-blue-500"
+              disabled={pending}
+            />
+            <label
+              htmlFor="tpl-supports-vision"
+              className="ml-2 text-sm text-slate-300"
+            >
+              Vision (imágenes)
+            </label>
           </div>
           <div>
             <label

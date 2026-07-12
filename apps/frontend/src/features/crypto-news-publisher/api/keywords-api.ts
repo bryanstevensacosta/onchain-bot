@@ -21,6 +21,7 @@ export interface KeywordView {
    * back to `LlmConfig.defaultTemplateId` at publish time.
    */
   readonly templateId: string | null;
+  readonly matchMode: 'exact' | 'substring';
   readonly createdAt: string;
 }
 
@@ -35,6 +36,7 @@ export interface CreateKeywordBody {
    */
   templateId?: string | null;
   requireImage?: boolean;
+  matchMode?: 'exact' | 'substring';
 }
 
 export interface UpdateKeywordBody {
@@ -50,6 +52,7 @@ export interface UpdateKeywordBody {
    */
   templateId?: string | null;
   requireImage?: boolean;
+  matchMode?: 'exact' | 'substring';
 }
 
 export const keywordsKeys = {

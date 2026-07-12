@@ -27,6 +27,10 @@ export class CreatePromptTemplateDto {
   @Length(1, 200)
   public model!: string;
 
+  @IsOptional()
+  @IsBoolean()
+  public supportsVision?: boolean;
+
   @IsInt()
   @Min(1)
   @Max(8000)
@@ -64,6 +68,10 @@ export class UpdatePromptTemplateDto {
   @IsString()
   @Length(1, 200)
   public model?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  public supportsVision?: boolean;
 
   @IsOptional()
   @IsInt()

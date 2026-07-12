@@ -5,6 +5,8 @@ import type { DomainEvent } from 'shared/kernel/domain-event';
 const MIN_PHRASE_LENGTH = 1;
 const MAX_PHRASE_LENGTH = 200;
 
+export type MatchMode = 'exact' | 'substring';
+
 interface KeywordProps {
   readonly phrase: string;
   readonly caseSensitive: boolean;
@@ -12,6 +14,7 @@ interface KeywordProps {
   templateId: string | null;
   enabled: boolean;
   readonly requireImage: boolean;
+  readonly matchMode: MatchMode;
   readonly createdAt: Date;
 }
 
@@ -52,6 +55,7 @@ export class Keyword extends AggregateRoot<string> {
     templateId?: string | null;
     enabled?: boolean;
     requireImage?: boolean;
+    matchMode?: MatchMode;
     createdAt?: Date;
   }): Keyword {
     if (input.phrase === null || input.phrase === undefined) {
@@ -98,6 +102,7 @@ export class Keyword extends AggregateRoot<string> {
       templateId: input.templateId ?? null,
       enabled: input.enabled ?? true,
       requireImage: input.requireImage ?? false,
+      matchMode: input.matchMode ?? 'exact',
       createdAt: input.createdAt ?? new Date(),
     });
   }
@@ -114,6 +119,7 @@ export class Keyword extends AggregateRoot<string> {
     templateId: string | null;
     enabled: boolean;
     requireImage: boolean;
+    matchMode?: MatchMode;
     createdAt: Date;
   }): Keyword {
     return new Keyword(input.id, {
@@ -123,6 +129,7 @@ export class Keyword extends AggregateRoot<string> {
       templateId: input.templateId,
       enabled: input.enabled,
       requireImage: input.requireImage,
+      matchMode: input.matchMode ?? 'substring',
       createdAt: input.createdAt,
     });
   }
@@ -151,6 +158,10 @@ export class Keyword extends AggregateRoot<string> {
     return this.state.requireImage;
   }
 
+  public get matchMode(): MatchMode {
+    return this.state.matchMode;
+  }
+
   public get createdAt(): Date {
     return this.state.createdAt;
   }
@@ -158,10 +169,11 @@ export class Keyword extends AggregateRoot<string> {
   /**
    * Test whether the supplied content contains the keyword phrase.
    *
-   * - Case-insensitive keywords lower-case both sides.
-   * - Substring match: `phrase in content` (NOT word-bounded; deliberate
-   *   — a phrase like "btc" must still match "btcusdt" because that is
-   *   how crypto-news shorthand works).
+   * Two modes controlled by `matchMode`:
+   * - `exact` (default for new keywords): word-boundary regex — `"AI"`
+   *   matches `"AI"` / `"AI's"` / `"AI,"` but NOT `"chain"` or `"cairo"`.
+   * - `substring`: simple `includes()` — `"btc"` matches `"btcusdt"`,
+   *   useful for URLs like `"arkm.com/explorer"` inside a longer URL.
    *
    * Returns `false` for empty content.
    */
@@ -169,6 +181,14 @@ export class Keyword extends AggregateRoot<string> {
     if (!content || content.length === 0) {
       return false;
     }
+
+    if (this.state.matchMode === 'exact') {
+      const flags = this.state.caseSensitive ? '' : 'i';
+      const escaped = this.state.phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp(`\\b${escaped}\\b`, flags).test(content);
+    }
+
+    // substring mode
     if (this.state.caseSensitive) {
       return content.includes(this.state.phrase);
     }
