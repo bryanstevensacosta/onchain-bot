@@ -97,6 +97,16 @@ jobs:
             echo "⚠️  WARNING: .env.staging created from template — update secrets manually"
           fi
 
+      - name: Inject staging env vars from GitHub
+        run: |
+          # USE_MOCK_AI injected via GitHub Actions vars (can be changed in repo settings)
+          if ! grep -q "USE_MOCK_AI" /opt/onchain-bot-staging/apps/backend/.env.staging; then
+            echo "USE_MOCK_AI=true" >> /opt/onchain-bot-staging/apps/backend/.env.staging
+            echo "=== Added USE_MOCK_AI=true to .env.staging ==="
+          else
+            echo "=== USE_MOCK_AI already present in .env.staging ==="
+          fi
+
       - name: Sync live source tree with dev
         run: |
           set -euo pipefail
