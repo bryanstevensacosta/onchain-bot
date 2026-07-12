@@ -1,0 +1,76 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: onchain-bot-staging-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-alpha_meta_token_scanner}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alpha_meta_token_scanner}
+      POSTGRES_DB: ${POSTGRES_DB:-alpha_meta_token_scanner_staging}
+    ports:
+      - '5433:5432'
+    volumes:
+      - onchain-bot-staging-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-alpha_meta_token_scanner} -d ${POSTGRES_DB:-alpha_meta_token_scanner_staging}',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: onchain-bot-staging-redis
+    restart: unless-stopped
+    ports:
+      - '6380:6379'
+    volumes:
+      - onchain-bot-staging-redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: onchain-bot-staging-backend
+    restart: unless-stopped
+    env_file:
+      - .env.staging
+    environment:
+      NODE_ENV: staging
+    ports:
+      - '3031:3030'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: onchain-bot-staging-frontend
+    restart: unless-stopped
+    ports:
+      - '4173:80'
+    depends_on:
+      - backend
+
+networks:
+  default:
+    name: onchain-bot-staging-net
+
+volumes:
+  onchain-bot-staging-pg-data:
+    name: onchain-bot-staging-pg-data
+  onchain-bot-staging-redis-data:
+    name: onchain-bot-staging-redis-data
