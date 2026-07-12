@@ -1,40 +1,14 @@
 {
   "schema_version": 2,
-  "active_work_id": "refactor-milestone-to-achievement",
+  "active_work_id": "mock-ai-dev-staging",
   "works": {
-    "refactor-milestone-to-achievement": {
-      "work_id": "refactor-milestone-to-achievement",
-      "active_plan": "/Users/bryanstevens/dev/onchain-bot/.omo/plans/refactor-milestone-to-achievement.md",
-      "plan_name": "refactor-milestone-to-achievement",
-      "session_ids": ["opencode:current"],
+    "mock-ai-dev-staging": {
+      "work_id": "mock-ai-dev-staging",
+      "active_plan": "/Users/bryanstevens/dev/onchain-bot/.omo/plans/mock-ai-dev-staging.md",
+      "plan_name": "mock-ai-dev-staging",
+      "session_ids": ["codex:current"],
       "status": "active",
-      "worktree_path": null,
-      "started_at": "2026-06-29T17:50:00.000Z",
-      "session_origins": {},
-      "agent": "sisyphus",
-      "task_sessions": {}
-    },
-    "add-kol-modal": {
-      "work_id": "add-kol-modal",
-      "active_plan": "/Users/bryanstevens/dev/onchain-bot/.omo/plans/add-kol-modal.md",
-      "plan_name": "add-kol-modal",
-      "session_ids": [
-        "opencode:current",
-        "opencode:ses_0ea9de1baffeWAxesIQ2JF3X9Y"
-      ],
-      "status": "active",
-      "worktree_path": null,
-      "started_at": "2026-06-29T10:00:00.000Z",
-      "session_origins": {},
-      "agent": "atlas",
-      "task_sessions": {}
+      "worktree_path": null
     }
-  },
-  "session_ids": ["opencode:current"],
-  "session_origins": {},
-  "task_sessions": {},
-  "active_plan": "/Users/bryanstevens/dev/onchain-bot/.omo/plans/refactor-milestone-to-achievement.md",
-  "plan_name": "refactor-milestone-to-achievement",
-  "status": "active",
-  "started_at": "2026-06-29T17:50:00.000Z"
+  }
 }
