@@ -14,12 +14,11 @@ provider "github" {
 
 # Branch protection for master (strict)
 resource "github_branch_protection" "master" {
-  repository_id          = "onchain-bot"
-  pattern                = "master"
-  requires_status_checks = true
-  strict                 = true
+  repository_id = "onchain-bot"
+  pattern       = "master"
 
   required_status_checks {
+    strict   = true
     contexts = ["Tests", "Lint", "TypeScript Check"]
   }
 
@@ -28,14 +27,13 @@ resource "github_branch_protection" "master" {
     push_allowances = []
   }
 
-  required_linear_history  = true
+  required_linear_history = true
 }
 
 # Branch protection for dev (permissive)
 resource "github_branch_protection" "dev" {
-  repository_id          = "onchain-bot"
-  pattern                = "dev"
-  requires_status_checks = false
+  repository_id = "onchain-bot"
+  pattern       = "dev"
 
   restrict_pushes {
     push_allowances = []

@@ -7,21 +7,11 @@ variable "github_token" {
 variable "github_owner" {
   description = "GitHub organization or owner"
   type        = string
-  default     = ""
+  default     = "bryanstevensacosta"
 }
 
 variable "github_repo" {
   description = "GitHub repository name"
   type        = string
-  default     = ""
-}
-
-output "repository_id" {
-  description = "The ID of the repository"
-  value       = github_repository.main.id
-}
-
-output "repository_name" {
-  description = "The name of the repository"
-  value       = github_repository.main.name
+  default     = "onchain-bot"
 }
