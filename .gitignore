@@ -57,3 +57,11 @@ apps/backend/scripts/.register.cjs
 # Backend logs
 apps/backend/logs/
 uploads/
+
+# Terraform state (sensitive, contains tokens)
+infra/terraform/.terraform/
+*.tfstate
+*.tfstate.*
+
+# Agent workspace state (auto-generated)
+.omo/boulder.json
