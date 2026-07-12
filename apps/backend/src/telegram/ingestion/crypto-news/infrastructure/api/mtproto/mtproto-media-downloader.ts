@@ -4,6 +4,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Api, TelegramClient } from 'telegram';
 import bigInt from 'big-integer';
+import sharp from 'sharp';
 import type { AppConfig } from 'shared/common/config/app.config';
 import {
   CryptoNewsMediaDownloader,
@@ -12,12 +13,20 @@ import {
 import type { TelegramMediaAttachment } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import { FloodWaitHandlerService } from 'telegram/ingestion/shared/infrastructure/services/flood-wait-handler.service';
 
-/**
- * Maximum bytes accepted from a single Telegram media download.
- * Anything larger is discarded without writing to disk (50 MB).
- * Increased from 10 MB to support video files.
- */
+/** Maximum bytes accepted from a single Telegram media download (50 MB). */
 const MAX_MEDIA_BYTES = 50 * 1024 * 1024;
+
+/**
+ * Telegram Bot API limit for photo uploads is 10 MB.
+ * We compress at 9 MB to leave a safety margin for metadata overhead.
+ */
+const BOT_API_PHOTO_UPLOAD_LIMIT = 9 * 1024 * 1024;
+
+/** Max dimension for compressed images (preserves aspect ratio). */
+const MAX_COMPRESS_DIMENSION = 1920;
+
+/** JPEG quality for compressed output (0-100). */
+const COMPRESS_QUALITY = 80;
 
 /**
  * Regex used to sanitise channel IDs before they are joined into a
@@ -124,10 +133,14 @@ export class MtprotoMediaDownloader extends CryptoNewsMediaDownloader {
     }
 
     const { mimeType, ext } = detectMimeAndExt(buffer);
-    const filePath = path.join(targetDir, `${messageId}_${index}.${ext}`);
-    await fs.writeFile(filePath, buffer);
 
-    return { filePath, mimeType, fileSize: buffer.length };
+    // Compress before saving if the image exceeds Bot API upload limits
+    const outputBuffer = await compressIfImageExceedsLimit(buffer, mimeType);
+
+    const filePath = path.join(targetDir, `${messageId}_${index}.${ext}`);
+    await fs.writeFile(filePath, outputBuffer);
+
+    return { filePath, mimeType, fileSize: outputBuffer.length };
   }
 
   private resolveUploadsRoot(): string {
@@ -306,4 +319,34 @@ function detectMimeAndExt(buffer: Buffer): {
     return { mimeType: 'image/webp', ext: 'webp' };
   }
   return { mimeType: 'application/octet-stream', ext: 'bin' };
+}
+
+async function compressIfImageExceedsLimit(
+  buffer: Buffer,
+  mimeType: string,
+): Promise<Buffer> {
+  if (buffer.length <= BOT_API_PHOTO_UPLOAD_LIMIT) {
+    return buffer;
+  }
+  if (!isCompressibleMime(mimeType)) {
+    return buffer;
+  }
+  return sharp(buffer)
+    .jpeg({ quality: COMPRESS_QUALITY })
+    .resize({
+      width: MAX_COMPRESS_DIMENSION,
+      height: MAX_COMPRESS_DIMENSION,
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
+    .withMetadata()
+    .toBuffer();
+}
+
+function isCompressibleMime(mimeType: string): boolean {
+  return (
+    mimeType === 'image/jpeg' ||
+    mimeType === 'image/png' ||
+    mimeType === 'image/webp'
+  );
 }
