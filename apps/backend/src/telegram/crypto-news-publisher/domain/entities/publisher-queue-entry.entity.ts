@@ -22,6 +22,7 @@ export interface PublisherQueueEntryProps {
   readonly rawContent: string;
   readonly rawTitle: string | null;
   readonly imagePath: string | null;
+  readonly imagePaths: string[];
   readonly groupedId: string | null;
   readonly messageReceivedAt: Date;
   /**
@@ -39,6 +40,18 @@ export interface PublisherQueueEntryProps {
   telegramMessageId: string | null;
   lastError: string | null;
   attempts: number;
+  /** LLM-generated refined post content. Set when the entry is published. */
+  generatedContent: string | null;
+  /** System prompt used when generating the refined post. */
+  generatedSystemPrompt: string | null;
+  /** User prompt (template rendered with entry data) sent to the LLM. */
+  generatedUserPrompt: string | null;
+  /** Temperature used when generating. */
+  generatedTemperature: number | null;
+  /** Reasoning effort used (low/medium/high/max). */
+  generatedReasoningEffort: string | null;
+  /** Model used when generating the post. */
+  generatedModel: string | null;
 }
 
 /**
@@ -78,7 +91,8 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
     messageId: number;
     rawContent: string;
     rawTitle: string | null;
-    imagePath: string | null;
+    imagePath?: string | null;
+    imagePaths?: string[];
     groupedId: string | null;
     messageReceivedAt: Date;
     keywordTemplateId?: string | null;
@@ -113,13 +127,16 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
         'PublisherQueueEntry keywordTemplateId, when provided, must be a non-empty string or null',
       );
     }
+    const allPaths = input.imagePaths ?? [];
+    const firstPath = input.imagePath ?? allPaths[0] ?? null;
     return new PublisherQueueEntry(input.id ?? crypto.randomUUID(), {
       id: input.id ?? crypto.randomUUID(),
       channelId: input.channelId,
       messageId: input.messageId,
       rawContent: input.rawContent,
       rawTitle: input.rawTitle,
-      imagePath: input.imagePath,
+      imagePath: firstPath,
+      imagePaths: allPaths,
       groupedId: input.groupedId,
       messageReceivedAt: input.messageReceivedAt,
       keywordTemplateId: input.keywordTemplateId ?? null,
@@ -128,6 +145,12 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
       telegramMessageId: null,
       lastError: null,
       attempts: 0,
+      generatedContent: null,
+      generatedSystemPrompt: null,
+      generatedUserPrompt: null,
+      generatedTemperature: null,
+      generatedReasoningEffort: null,
+      generatedModel: null,
     });
   }
 
@@ -165,6 +188,10 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
     return this.state.imagePath;
   }
 
+  public get imagePaths(): string[] {
+    return this.state.imagePaths ?? [];
+  }
+
   public get groupedId(): string | null {
     return this.state.groupedId;
   }
@@ -197,6 +224,30 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
     return this.state.attempts;
   }
 
+  public get generatedContent(): string | null {
+    return this.state.generatedContent;
+  }
+
+  public get generatedSystemPrompt(): string | null {
+    return this.state.generatedSystemPrompt;
+  }
+
+  public get generatedUserPrompt(): string | null {
+    return this.state.generatedUserPrompt;
+  }
+
+  public get generatedTemperature(): number | null {
+    return this.state.generatedTemperature;
+  }
+
+  public get generatedReasoningEffort(): string | null {
+    return this.state.generatedReasoningEffort;
+  }
+
+  public get generatedModel(): string | null {
+    return this.state.generatedModel;
+  }
+
   public get isTerminal(): boolean {
     return this.state.status === 'PUBLISHED' || this.state.status === 'FAILED';
   }
@@ -216,7 +267,17 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
    * Transition PENDING/SCHEDULED → PUBLISHED. Records the Telegram-side
    * message id, publishedAt, and emits an `ArticlePublishedEvent`.
    */
-  public markPublished(telegramMessageId: string): void {
+  public markPublished(
+    telegramMessageId: string,
+    generated?: {
+      content: string;
+      systemPrompt: string | null;
+      userPrompt: string | null;
+      temperature: number | null;
+      reasoningEffort: string | null;
+      model?: string | null;
+    },
+  ): void {
     this.assertPublishTransition('markPublished');
     if (!telegramMessageId?.trim()) {
       throw new DomainError(
@@ -230,6 +291,12 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
     this.state.telegramMessageId = telegramMessageId;
     this.state.publishedAt = now;
     this.state.lastError = null;
+    this.state.generatedContent = generated?.content ?? null;
+    this.state.generatedSystemPrompt = generated?.systemPrompt ?? null;
+    this.state.generatedUserPrompt = generated?.userPrompt ?? null;
+    this.state.generatedTemperature = generated?.temperature ?? null;
+    this.state.generatedReasoningEffort = generated?.reasoningEffort ?? null;
+    this.state.generatedModel = generated?.model ?? null;
     this.apply(
       new ArticlePublishedEvent({
         channelId: this.state.channelId,

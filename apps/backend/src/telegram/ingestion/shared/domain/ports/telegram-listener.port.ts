@@ -42,7 +42,7 @@ export interface JoinChannelResult {
  * reference is still valid later.
  */
 export interface TelegramMediaAttachment {
-  readonly type: 'photo';
+  readonly type: 'photo' | 'video';
   readonly fileId: bigint | string;
   readonly accessHash: bigint | string;
   readonly fileReference: string;

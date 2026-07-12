@@ -18,13 +18,26 @@ export interface SeedCryptoNewsChannel {
 }
 
 export const CRYPTO_NEWS_SEED: ReadonlyArray<SeedCryptoNewsChannel> = [
-  { channelId: '1811915252', handle: 'shoalresearch', title: 'shoalresearch' },
-  { channelId: '1556054753', handle: 'WatcherGuru', title: 'WatcherGuru' },
-  { channelId: '1072723547', handle: 'cointelegraph', title: 'cointelegraph' },
+  {
+    channelId: '1811915252',
+    handle: 'shoalresearch',
+    title: 'Shoal Research Hub',
+  },
+  { channelId: '1556054753', handle: 'WatcherGuru', title: 'Watcher Guru' },
+  { channelId: '1072723547', handle: 'cointelegraph', title: 'Cointelegraph' },
   {
     channelId: '2207386483',
     handle: 'lookonchainchannel',
-    title: 'lookonchainchannel',
+    title: 'Lookonchain',
   },
-  { channelId: '1569666929', handle: 'unfolded_defi', title: 'unfolded_defi' },
+  {
+    channelId: '1569666929',
+    handle: 'unfolded_defi',
+    title: 'unfolded. DeFi',
+  },
+  {
+    channelId: '4466661332',
+    handle: undefined,
+    title: 'Test Ingestion',
+  },
 ];

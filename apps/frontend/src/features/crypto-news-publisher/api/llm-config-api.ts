@@ -5,7 +5,7 @@ import {
   httpPost,
 } from '@/shared/api/http-client';
 
-export type ReasoningEffort = 'low' | 'medium' | 'high' | null;
+export type ReasoningEffort = 'low' | 'medium' | 'high' | 'max' | null;
 
 export interface LlmModel {
   readonly id: string;
@@ -19,7 +19,7 @@ export interface PromptTemplate {
   readonly model: string;
   readonly maxTokens: number;
   readonly temperature: number;
-  readonly reasoningEffort: 'low' | 'medium' | 'high' | null;
+  readonly reasoningEffort: 'low' | 'medium' | 'high' | 'max' | null;
   readonly promptText: string;
   readonly systemPromptText: string;
   readonly createdAt: string;

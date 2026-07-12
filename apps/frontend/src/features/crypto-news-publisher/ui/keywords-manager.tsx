@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Card } from '@/shared/ui';
 import {
   useCreateKeyword,
@@ -14,12 +14,114 @@ import type { PromptTemplate } from '@/features/crypto-news-publisher/api/llm-co
 interface EditingRow {
   id: string;
   phrase: string;
-  sourceChannelId: string | null;
+  sourceChannelIds: string[];
   templateId: string | null;
   requireImage: boolean;
 }
 
 const NO_TEMPLATE = '__default__';
+
+interface SourceOption {
+  channelId: string;
+  title: string | null;
+  handle: string | null;
+}
+
+function sourceLabel(s: SourceOption): string {
+  return s.title ?? s.handle ?? s.channelId;
+}
+
+function SourceMultiSelect({
+  ids,
+  onChange,
+  sourceOptions,
+  disabled,
+}: {
+  ids: string[];
+  onChange: (ids: string[]) => void;
+  sourceOptions: ReadonlyArray<SourceOption>;
+  disabled?: boolean;
+}): React.ReactElement {
+  const [open, setOpen] = useState(false);
+  const isGlobal = ids.length === 0;
+
+  const label = isGlobal
+    ? 'All sources (global)'
+    : ids.length === 1
+      ? sourceOptions.find((s) => s.channelId === ids[0])
+        ? sourceLabel(sourceOptions.find((s) => s.channelId === ids[0])!)
+        : '1 source'
+      : `${ids.length} sources`;
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        disabled={disabled}
+        className="w-full flex items-center justify-between gap-2 bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-blue-500 disabled:opacity-50"
+      >
+        <span className="truncate">{label}</span>
+        <svg
+          className={`w-3.5 h-3.5 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div
+            ref={(el) => {
+              if (!el || typeof window === 'undefined') return;
+              const btn = el.parentElement?.querySelector('button');
+              if (!btn) return;
+              const rect = btn.getBoundingClientRect();
+              el.style.position = 'fixed';
+              el.style.top = `${rect.bottom + 4}px`;
+              el.style.left = `${rect.left}px`;
+              el.style.width = `${rect.width}px`;
+            }}
+            className="z-20 max-h-56 overflow-y-auto bg-slate-800 border border-slate-600 rounded shadow-lg p-1.5 space-y-0.5"
+          >
+            <label className="flex items-center gap-2 px-2 py-1 rounded text-sm text-slate-300 cursor-pointer hover:bg-slate-700/50">
+              <input
+                type="checkbox"
+                checked={isGlobal}
+                onChange={() => onChange([])}
+                disabled={disabled}
+              />
+              <span className="italic text-slate-400">All sources (global)</span>
+            </label>
+            {sourceOptions.map((s) => (
+              <label
+                key={s.channelId}
+                className="flex items-center gap-2 px-2 py-1 rounded text-sm text-slate-300 cursor-pointer hover:bg-slate-700/50"
+              >
+                <input
+                  type="checkbox"
+                  checked={ids.includes(s.channelId)}
+                  onChange={() =>
+                    onChange(
+                      ids.includes(s.channelId)
+                        ? ids.filter((id) => id !== s.channelId)
+                        : [...ids, s.channelId],
+                    )
+                  }
+                  disabled={disabled}
+                />
+                <span>{sourceLabel(s)}</span>
+              </label>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 function templateLabel(
   templateId: string | null,
@@ -43,13 +145,25 @@ export function KeywordsManager(): React.ReactElement {
   const [newPhrase, setNewPhrase] = useState('');
   const [newCaseSensitive, setNewCaseSensitive] = useState(false);
   const [newRequireImage, setNewRequireImage] = useState(false);
-  const [newSourceChannelId, setNewSourceChannelId] = useState<string | null>(
-    null,
-  );
+  const [newSourceChannelIds, setNewSourceChannelIds] = useState<string[]>([]);
   const [newTemplateId, setNewTemplateId] = useState<string | null>(null);
   const [editing, setEditing] = useState<EditingRow | null>(null);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 5;
 
-  const keywords = data ?? [];
+  const keywords = (data ?? []).slice().sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+
+  const newPhraseTrimmed = newPhrase.trim();
+  const isDuplicate = newPhraseTrimmed.length > 0
+    ? keywords.some((kw) => kw.phrase.toLowerCase() === newPhraseTrimmed.toLowerCase())
+    : false;
+
+  const totalPages = Math.ceil(keywords.length / PAGE_SIZE);
+  useEffect(() => {
+    if (page >= totalPages && totalPages > 0) setPage(totalPages - 1);
+  }, [keywords.length, page, totalPages]);
   const templateOptions = templates ?? [];
   const sourceOptions = sources ?? [];
 
@@ -57,11 +171,11 @@ export function KeywordsManager(): React.ReactElement {
     e.preventDefault();
     const phrase = newPhrase.trim();
     if (!phrase) return;
-    createMut.mutate(
+      createMut.mutate(
       {
         phrase,
         caseSensitive: newCaseSensitive,
-        sourceChannelId: newSourceChannelId,
+        sourceChannelIds: newSourceChannelIds,
         templateId: newTemplateId,
         requireImage: newRequireImage,
       },
@@ -70,7 +184,7 @@ export function KeywordsManager(): React.ReactElement {
           setNewPhrase('');
           setNewCaseSensitive(false);
           setNewRequireImage(false);
-          setNewSourceChannelId(null);
+          setNewSourceChannelIds([]);
           setNewTemplateId(null);
         },
       },
@@ -85,12 +199,12 @@ export function KeywordsManager(): React.ReactElement {
     if (!editing) return;
     const phrase = editing.phrase.trim();
     if (!phrase) return;
-    updateMut.mutate(
+      updateMut.mutate(
       {
         id: editing.id,
         body: {
           phrase,
-          sourceChannelId: editing.sourceChannelId,
+          sourceChannelIds: editing.sourceChannelIds,
           templateId: editing.templateId,
           requireImage: editing.requireImage,
         },
@@ -135,6 +249,11 @@ export function KeywordsManager(): React.ReactElement {
             className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
             disabled={createMut.isPending}
           />
+          {isDuplicate && (
+            <span className="text-xs text-red-400 mt-1 block">
+              Esa keyword ya existe
+            </span>
+          )}
         </div>
         <div>
           <label
@@ -163,30 +282,15 @@ export function KeywordsManager(): React.ReactElement {
           </select>
         </div>
         <div>
-          <label
-            htmlFor="kw-source"
-            className="block text-xs uppercase text-slate-500 mb-1"
-          >
-            Source
+          <label className="block text-xs uppercase text-slate-500 mb-1">
+            Sources
           </label>
-          <select
-            id="kw-source"
-            value={newSourceChannelId ?? ''}
-            onChange={(e) =>
-              setNewSourceChannelId(
-                e.target.value === '' ? null : e.target.value,
-              )
-            }
-            className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-blue-500"
+          <SourceMultiSelect
+            ids={newSourceChannelIds}
+            onChange={setNewSourceChannelIds}
+            sourceOptions={sourceOptions}
             disabled={createMut.isPending}
-          >
-            <option value="">All sources (global)</option>
-            {sourceOptions.map((s) => (
-              <option key={s.channelId} value={s.channelId}>
-                {s.title ?? s.handle}
-              </option>
-            ))}
-          </select>
+          />
         </div>
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex items-center gap-2 text-sm text-slate-300">
@@ -211,7 +315,7 @@ export function KeywordsManager(): React.ReactElement {
             type="submit"
             variant="primary"
             size="sm"
-            disabled={createMut.isPending || newPhrase.trim() === ''}
+            disabled={createMut.isPending || newPhraseTrimmed === '' || isDuplicate}
           >
             {createMut.isPending ? 'Adding…' : '+ Add keyword'}
           </Button>
@@ -249,7 +353,7 @@ export function KeywordsManager(): React.ReactElement {
               </tr>
             </thead>
             <tbody>
-              {keywords.map((kw) => {
+              {keywords.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((kw) => {
                 const isEditing = editing?.id === kw.id;
                 return (
                   <tr
@@ -283,32 +387,26 @@ export function KeywordsManager(): React.ReactElement {
                     </td>
                     <td className="py-2 pr-3">
                       {isEditing ? (
-                        <select
-                          value={editing!.sourceChannelId ?? ''}
-                          onChange={(e) =>
-                            setEditing({
-                              ...editing!,
-                              sourceChannelId:
-                                e.target.value === '' ? null : e.target.value,
-                            })
+                        <SourceMultiSelect
+                          ids={editing!.sourceChannelIds}
+                          onChange={(ids) =>
+                            setEditing({ ...editing!, sourceChannelIds: ids })
                           }
-                          className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                          sourceOptions={sourceOptions}
                           disabled={updateMut.isPending}
-                        >
-                          <option value="">All sources (global)</option>
-                          {sourceOptions.map((s) => (
-                            <option key={s.channelId} value={s.channelId}>
-                              {s.title ?? s.handle}
-                            </option>
-                          ))}
-                        </select>
+                        />
                       ) : (
                         <span className="text-xs text-slate-300">
-                          {kw.sourceChannelId
-                            ? (sourceOptions.find(
-                                (s) => s.channelId === kw.sourceChannelId,
-                              )?.title ?? kw.sourceChannelId)
-                            : 'Global'}
+                          {kw.sourceChannelIds.length === 0
+                            ? 'Global'
+                            : kw.sourceChannelIds
+                                .map(
+                                  (id) =>
+                                    sourceOptions.find(
+                                      (s) => s.channelId === id,
+                                    )?.title ?? id,
+                                )
+                                .join(', ')}
                         </span>
                       )}
                     </td>
@@ -411,7 +509,7 @@ export function KeywordsManager(): React.ReactElement {
                               setEditing({
                                 id: kw.id,
                                 phrase: kw.phrase,
-                                sourceChannelId: kw.sourceChannelId,
+                                sourceChannelIds: kw.sourceChannelIds,
                                 templateId: kw.templateId,
                                 requireImage: kw.requireImage,
                               })
@@ -435,6 +533,48 @@ export function KeywordsManager(): React.ReactElement {
               })}
             </tbody>
           </table>
+          {keywords.length > PAGE_SIZE && (
+            <div className="flex items-center justify-between pt-3 text-xs text-slate-500">
+              <span>
+                {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, keywords.length)} of {keywords.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={page === 0}
+                  onClick={() => setPage(page - 1)}
+                  className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Prev
+                </button>
+                {Array.from(
+                  { length: Math.ceil(keywords.length / PAGE_SIZE) },
+                  (_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setPage(i)}
+                      className={`px-2 py-1 rounded border ${
+                        i === page
+                          ? 'bg-blue-600 border-blue-500 text-white'
+                          : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ),
+                )}
+                <button
+                  type="button"
+                  disabled={(page + 1) * PAGE_SIZE >= keywords.length}
+                  onClick={() => setPage(page + 1)}
+                  className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </Card>

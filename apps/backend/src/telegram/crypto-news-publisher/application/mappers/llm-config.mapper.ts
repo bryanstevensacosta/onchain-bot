@@ -8,7 +8,7 @@ export interface PromptTemplateView {
   readonly model: string;
   readonly maxTokens: number;
   readonly temperature: number;
-  readonly reasoningEffort: 'low' | 'medium' | 'high' | null;
+  readonly reasoningEffort: 'low' | 'medium' | 'high' | 'max' | null;
   readonly promptText: string;
   readonly systemPromptText: string;
   readonly createdAt: string;

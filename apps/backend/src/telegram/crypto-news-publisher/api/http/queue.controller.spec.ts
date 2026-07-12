@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import * as fs from 'node:fs';
 import type { Response } from 'express';
 import { QueueController } from './queue.controller';
@@ -48,6 +49,18 @@ describe('QueueController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [QueueController],
       providers: [
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn().mockReturnValue({
+              publishing: {
+                cryptoNews: {
+                  outputChannel: '',
+                },
+              },
+            }),
+          },
+        },
         {
           provide: PublisherQueueRepository,
           useValue: {
@@ -121,16 +134,16 @@ describe('QueueController', () => {
       expect(result.pending).toBe(3);
       expect(result.publishedToday).toBe(10);
       expect(result.dailyCap).toBe(36);
-      expect(result.remainingToday).toBe(26);
+      expect(result.remaining).toBe(26);
     });
 
-    it('should not let remainingToday go below zero', async () => {
+    it('should not let remaining go below zero', async () => {
       queueRepo.findAllForDisplay.mockResolvedValue([]);
       queueRepo.countPublishedToday.mockResolvedValue(50);
 
       const result = await controller.counts();
 
-      expect(result.remainingToday).toBe(0);
+      expect(result.remaining).toBe(0);
     });
   });
 

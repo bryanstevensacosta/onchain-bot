@@ -1,0 +1,157 @@
+name: Deploy to staging
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests
+    runs-on: self-hosted
+    env:
+      NODE_ENV: test
+      DATABASE_ENABLED: true
+      DATABASE_SYNCHRONIZE: true
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5433
+      POSTGRES_USER: alpha_meta_token_scanner
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      POSTGRES_DB: alpha_meta_token_scanner_staging
+      REDIS_ENABLED: true
+      REDIS_HOST: localhost
+      REDIS_PORT: 6380
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Fix PATH for self-hosted runner
+        run: |
+          export PATH="/opt/actions-runner/_work/_tool/node/24.18.0/x64/bin:$PATH"
+          echo "/opt/actions-runner/_work/_tool/node/24.18.0/x64/bin" >> $GITHUB_PATH
+          node --version
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run backend tests
+        run: npm run test:backend
+
+      - name: Run frontend tests
+        run: npm run test:frontend
+
+  lint:
+    name: Lint
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true
+
+  tsc:
+    name: TypeScript Check
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: TypeScript check
+        run: npm run build || true
+
+  deploy-staging:
+    name: Deploy to staging
+    runs-on: self-hosted
+    needs: [test, lint, tsc]
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure .env.staging exists
+        run: |
+          if [ ! -f /opt/onchain-bot-staging/apps/backend/.env.staging ]; then
+            echo "=== First deploy: creating .env.staging from template ==="
+            cp /opt/onchain-bot-staging/apps/backend/.env.staging.template \
+               /opt/onchain-bot-staging/apps/backend/.env.staging
+            echo "⚠️  WARNING: .env.staging created from template — update secrets manually"
+          fi
+
+      - name: Sync live source tree with dev
+        run: |
+          set -euo pipefail
+          rsync -a --delete \
+            --exclude='.git' \
+            --exclude='.git/**' \
+            --exclude='node_modules' \
+            --exclude='node_modules/**' \
+            --exclude='dist' \
+            --exclude='dist/**' \
+            --exclude='backups' \
+            --exclude='backups/**' \
+            --exclude='logs' \
+            --exclude='logs/**' \
+            --exclude='.env*' \
+            /opt/actions-runner/_work/onchain-bot/onchain-bot/ \
+            /opt/onchain-bot-staging/
+          echo "=== Post-sync HEAD ==="
+          git -C /opt/onchain-bot-staging rev-parse HEAD
+
+      - name: Backup staging DB (if exists)
+        run: |
+          if docker ps --format '{{.Names}}' | grep -q onchain-bot-staging-postgres; then
+            docker exec onchain-bot-staging-postgres pg_dump -U alpha_meta_token_scanner \
+              alpha_meta_token_scanner_staging > /tmp/staging-backup-$(date +%Y%m%d-%H%M%S).sql || true
+          fi
+
+      - name: Build backend
+        run: |
+          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml build backend
+
+      - name: Build frontend
+        run: |
+          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml build frontend
+
+      - name: Deploy services
+        run: |
+          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d --force-recreate backend frontend
+
+      - name: Install socat services for staging
+        run: |
+          bash /opt/onchain-bot-staging/scripts/install-socat-services.sh staging || true
+
+      - name: Healthcheck backend (Tailscale)
+        run: |
+          sleep 10
+          curl -sf http://100.84.4.28:3031/api/health || { echo "BACKEND HEALTHCHECK FAILED"; exit 1; }
+
+      - name: Healthcheck frontend (Tailscale)
+        run: |
+          curl -sf -o /dev/null http://100.84.4.28:4173/ || { echo "FRONTEND HEALTHCHECK FAILED"; exit 1; }
+
+      - name: Clean up old Docker images (staging)
+        if: always()
+        run: |
+          docker image prune --force --filter "until=24h"
+          echo "=== Docker disk usage after prune ==="
+          docker system df

@@ -1,4 +1,5 @@
-import { Card } from '@/shared/ui';
+import { useState } from 'react';
+import { Button, Card, Modal } from '@/shared/ui';
 import {
   useQueue,
   useQueueCounts,
@@ -49,56 +50,222 @@ function CounterCard({
   );
 }
 
-function QueueRow({ entry }: { entry: QueueEntryView }): React.ReactElement {
+function telegramPostUrl(
+  channelId: string,
+  messageId: string,
+): string {
+  return `https://t.me/c/${channelId}/${messageId}`;
+}
+
+function DetailsModal({
+  entry,
+  onClose,
+}: {
+  entry: QueueEntryView;
+  onClose: () => void;
+}): React.ReactElement {
   return (
-    <article className="rounded-lg bg-slate-800/50 p-3 text-sm">
-      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-        <span className="font-mono text-slate-300">{entry.channelId}</span>
-        <span>·</span>
-        <span>msg {entry.messageId}</span>
-        <span>·</span>
-        <StatusBadge status={entry.status} />
-        <span>·</span>
-        <span>attempts {entry.attempts}</span>
-        <span>·</span>
-        <span>received {formatTime(entry.messageReceivedAt)}</span>
-        {entry.publishedAt && (
-          <>
-            <span>·</span>
-            <span>published {formatTime(entry.publishedAt)}</span>
-          </>
+    <Modal isOpen onClose={onClose} title="Queue Entry Details" size="lg">
+      <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+        {/* Status + timestamps */}
+        <section>
+          <h3 className="text-xs uppercase text-slate-500 mb-2">Status</h3>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <StatusBadge status={entry.status} />
+            <span className="text-slate-400">
+              · received {formatTime(entry.messageReceivedAt)}
+            </span>
+            {entry.publishedAt && (
+              <span className="text-slate-400">
+                · published {formatTime(entry.publishedAt)}
+              </span>
+            )}
+          </div>
+          {entry.lastError && (
+            <p className="mt-2 text-xs text-red-300 font-mono break-all whitespace-pre-wrap">
+              {entry.lastError}
+            </p>
+          )}
+          {entry.telegramUrl && (
+            <a
+              href={entry.telegramUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 underline"
+            >
+              Open in Telegram ↗
+            </a>
+          )}
+        </section>
+
+        {/* Raw input */}
+        {entry.rawContent && (
+          <section>
+            <h3 className="text-xs uppercase text-slate-500 mb-2">
+              Input (raw message)
+            </h3>
+            {entry.rawTitle && (
+              <p className="text-sm font-semibold text-slate-200 mb-1">
+                {entry.rawTitle}
+              </p>
+            )}
+            <pre className="text-xs text-slate-300 whitespace-pre-wrap font-sans bg-slate-800/50 rounded p-2 max-h-40 overflow-y-auto">
+              {entry.rawContent}
+            </pre>
+          </section>
+        )}
+
+        {/* Generated output */}
+        {entry.generatedContent && (
+          <section>
+            <h3 className="text-xs uppercase text-slate-500 mb-2">
+              Output (refined post)
+            </h3>
+            <pre className="text-sm text-emerald-300 whitespace-pre-wrap font-sans bg-slate-800/50 rounded p-2 max-h-40 overflow-y-auto">
+              {entry.generatedContent}
+            </pre>
+          </section>
+        )}
+
+        {/* System prompt */}
+        {entry.generatedSystemPrompt && (
+          <section>
+            <h3 className="text-xs uppercase text-slate-500 mb-2">
+              System Prompt
+            </h3>
+            <pre className="text-xs text-slate-300 whitespace-pre-wrap font-sans bg-slate-800/50 rounded p-2 max-h-32 overflow-y-auto">
+              {entry.generatedSystemPrompt}
+            </pre>
+          </section>
+        )}
+
+        {/* User prompt */}
+        {entry.generatedUserPrompt && (
+          <section>
+            <h3 className="text-xs uppercase text-slate-500 mb-2">
+              User Prompt (LLM input)
+            </h3>
+            <pre className="text-xs text-slate-300 whitespace-pre-wrap font-sans bg-slate-800/50 rounded p-2 max-h-40 overflow-y-auto">
+              {entry.generatedUserPrompt}
+            </pre>
+          </section>
+        )}
+
+        {/* Generation params */}
+        {(entry.generatedTemperature !== null ||
+          entry.generatedReasoningEffort ||
+          entry.generatedModel) && (
+          <section>
+            <h3 className="text-xs uppercase text-slate-500 mb-2">
+              Generation Parameters
+            </h3>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              {entry.generatedModel && (
+                <div>
+                  <span className="text-slate-400">Model:</span>{' '}
+                  <span className="text-slate-200 font-mono text-xs">
+                    {entry.generatedModel}
+                  </span>
+                </div>
+              )}
+              {entry.generatedTemperature !== null && (
+                <div>
+                  <span className="text-slate-400">Temperature:</span>{' '}
+                  <span className="text-slate-200">
+                    {entry.generatedTemperature}
+                  </span>
+                </div>
+              )}
+              {entry.generatedReasoningEffort && (
+                <div>
+                  <span className="text-slate-400">Reasoning effort:</span>{' '}
+                  <span className="text-slate-200">
+                    {entry.generatedReasoningEffort}
+                  </span>
+                </div>
+              )}
+            </div>
+          </section>
         )}
       </div>
-      {entry.rawTitle && (
-        <h4 className="text-sm font-semibold text-slate-100 mt-1">
-          {entry.rawTitle}
-        </h4>
+    </Modal>
+  );
+}
+
+function QueueRow({ entry }: { entry: QueueEntryView }): React.ReactElement {
+  const [showDetails, setShowDetails] = useState(false);
+  const isPublished = entry.status === 'PUBLISHED' || entry.status === 'FAILED';
+
+  return (
+    <>
+      <article className="rounded-lg bg-slate-800/50 p-3 text-sm">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+          <span className="font-mono text-slate-300">{entry.channelId}</span>
+          <span>·</span>
+          <span>msg {entry.messageId}</span>
+          <span>·</span>
+          <StatusBadge status={entry.status} />
+          <span>·</span>
+          <span>received {formatTime(entry.messageReceivedAt)}</span>
+          {entry.publishedAt && (
+            <>
+              <span>·</span>
+              <span>published {formatTime(entry.publishedAt)}</span>
+            </>
+          )}
+        </div>
+        {entry.rawTitle && (
+          <h4 className="text-sm font-semibold text-slate-100 mt-1">
+            {entry.rawTitle}
+          </h4>
+        )}
+        {entry.rawContent && (
+          <p className="mt-2 text-sm text-slate-300 line-clamp-3 whitespace-pre-wrap">
+            {entry.rawContent}
+          </p>
+        )}
+        {entry.imagePaths.length > 0 && (
+          <div className={`mt-2 grid gap-1 ${entry.imagePaths.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+            {entry.imagePaths.map((_, idx) => (
+              <img
+                key={idx}
+                src={`/crypto-news-publisher/queue/${entry.id}/media?index=${idx}`}
+                alt={`Media ${idx + 1}`}
+                className="h-auto w-full max-h-48 rounded object-contain bg-slate-900"
+                loading="lazy"
+              />
+            ))}
+          </div>
+        )}
+        {entry.lastError && (
+          <p className="mt-1 text-xs text-red-300 font-mono break-all">
+            {entry.lastError}
+          </p>
+        )}
+        {isPublished && (
+          <div className="mt-2">
+            <Button variant="ghost" size="sm" onClick={() => setShowDetails(true)}>
+              Details
+            </Button>
+          </div>
+        )}
+      </article>
+      {showDetails && (
+        <DetailsModal entry={entry} onClose={() => setShowDetails(false)} />
       )}
-      {entry.rawContent && (
-        <p className="mt-2 text-sm text-slate-300 line-clamp-3 whitespace-pre-wrap">
-          {entry.rawContent}
-        </p>
-      )}
-      {entry.imagePath && (
-        <img
-          src={`/crypto-news-publisher/queue/${entry.id}/media`}
-          alt="Media"
-          className="mt-2 h-auto w-full max-h-48 rounded object-contain bg-slate-900"
-          loading="lazy"
-        />
-      )}
-      {entry.lastError && (
-        <p className="mt-1 text-xs text-red-300 font-mono break-all">
-          {entry.lastError}
-        </p>
-      )}
-    </article>
+    </>
   );
 }
 
 export function QueueView(): React.ReactElement {
   const queue = useQueue(50);
   const counts = useQueueCounts();
+  const [page, setPage] = useState(0);
+  const perPage = 5;
+  const entries = queue.data ?? [];
+  const totalPages = Math.max(1, Math.ceil(entries.length / perPage));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageEntries = entries.slice(safePage * perPage, (safePage + 1) * perPage);
 
   return (
     <div className="space-y-4">
@@ -132,11 +299,36 @@ export function QueueView(): React.ReactElement {
             Queue is empty — no messages waiting to publish.
           </div>
         ) : (
-          <div className="space-y-2">
-            {(queue.data ?? []).map((entry) => (
-              <QueueRow key={entry.id} entry={entry} />
-            ))}
-          </div>
+          <>
+            <div className="space-y-2">
+              {pageEntries.map((entry) => (
+                <QueueRow key={entry.id} entry={entry} />
+              ))}
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-4 text-sm">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={safePage === 0}
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                >
+                  ‹ Previous
+                </Button>
+                <span className="text-slate-400">
+                  {safePage + 1} / {totalPages}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={safePage >= totalPages - 1}
+                  onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                >
+                  Next ›
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </Card>
     </div>

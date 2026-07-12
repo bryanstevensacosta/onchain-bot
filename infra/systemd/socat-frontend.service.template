@@ -1,0 +1,14 @@
+[Unit]
+Description=Socat proxy for frontend (Tailscale {TAILSCALE_IP}:{TAILSCALE_PORT} → localhost:{LOCAL_PORT})
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/socat TCP-LISTEN:{LOCAL_PORT},fork,reuseaddr,bind=127.0.0.1 TCP:{TAILSCALE_IP}:{TAILSCALE_PORT}
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

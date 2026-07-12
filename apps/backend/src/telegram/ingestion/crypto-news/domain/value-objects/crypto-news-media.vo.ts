@@ -1,9 +1,6 @@
 /**
- * Value object representing a single media attachment (photo) downloaded
- * from a Telegram crypto-news message.
- *
- * Currently supports photos only — videos, GIFs, stickers, and documents
- * are intentionally not modelled (see plan scope guardrails).
+ * Value object representing a single media attachment (photo or video)
+ * downloaded from a Telegram crypto-news message.
  *
  * Strict VO: `create()` throws `DomainError(VALIDATION)` on invalid input.
  * Callers (e.g. `StoreNewsMessageUseCase`) are expected to catch and
@@ -16,7 +13,7 @@
 import { ValueObject } from 'shared/kernel/value-object';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 
-export type CryptoNewsMediaType = 'photo';
+export type CryptoNewsMediaType = 'photo' | 'video';
 
 export interface CryptoNewsMediaProps {
   readonly index: number;

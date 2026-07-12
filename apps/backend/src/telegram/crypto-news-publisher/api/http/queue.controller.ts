@@ -1,7 +1,20 @@
-import { Controller, Get, Param, Query, Res } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  NotFoundException,
+  Param,
+  Query,
+  Res,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { Response } from 'express';
+import type { AppConfig } from 'shared/common/config/app.config';
+import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
 
@@ -12,20 +25,28 @@ export interface QueueEntryView {
   readonly rawTitle: string | null;
   readonly rawContent: string | null;
   readonly imagePath: string | null;
+  readonly imagePaths: string[];
   readonly groupedId: string | null;
   readonly status: string;
   readonly messageReceivedAt: string;
   readonly publishedAt: string | null;
   readonly telegramMessageId: string | null;
+  readonly telegramUrl: string | null;
   readonly lastError: string | null;
   readonly attempts: number;
+  readonly generatedContent: string | null;
+  readonly generatedSystemPrompt: string | null;
+  readonly generatedUserPrompt: string | null;
+  readonly generatedTemperature: number | null;
+  readonly generatedReasoningEffort: string | null;
+  readonly generatedModel: string | null;
 }
 
 export interface QueueCountsView {
   readonly pending: number;
   readonly publishedToday: number;
   readonly dailyCap: number;
-  readonly remainingToday: number;
+  readonly remaining: number;
 }
 
 /**
@@ -38,13 +59,19 @@ export interface QueueCountsView {
  */
 @Controller('crypto-news-publisher/queue')
 export class QueueController {
-  /** Hard cap of publishes per 24h window (matches `MAX_QUEUE_DEPTH` for now). */
-  private static readonly DAILY_PUBLISH_CAP = 36;
-
   /** UTC reset hour for the 24h window (4am UTC). */
   private static readonly RESET_HOUR_UTC = 4;
 
-  public constructor(private readonly queueRepo: PublisherQueueRepository) {}
+  private readonly outputChannel: string;
+
+  public constructor(
+    private readonly queueRepo: PublisherQueueRepository,
+    private readonly llmConfigRepo: LlmConfigRepository,
+    config: ConfigService,
+  ) {
+    const appCfg = config.get<AppConfig>('app');
+    this.outputChannel = appCfg?.publishing?.cryptoNews?.outputChannel ?? '';
+  }
 
   @Get()
   public async list(
@@ -53,26 +80,25 @@ export class QueueController {
     const parsed = parseInt(limit ?? '', 10);
     const n = Math.max(1, Math.min(500, Number.isFinite(parsed) ? parsed : 50));
     const entries = await this.queueRepo.findAllForDisplay(n);
-    return entries.map(QueueController.toView);
+    return entries.map((e) => this.toView(e));
   }
 
   @Get('counts')
   public async counts(): Promise<QueueCountsView> {
-    const [pending, publishedToday] = await Promise.all([
+    const [pending, publishedToday, cfg] = await Promise.all([
       this.countPending(),
       this.queueRepo.countPublishedToday(QueueController.RESET_HOUR_UTC),
+      this.llmConfigRepo.load(),
     ]);
 
-    const remainingToday = Math.max(
-      0,
-      QueueController.DAILY_PUBLISH_CAP - publishedToday,
-    );
+    const dailyCap = cfg.dailyCap;
+    const remaining = Math.max(0, dailyCap - publishedToday);
 
     return {
       pending,
       publishedToday,
-      dailyCap: QueueController.DAILY_PUBLISH_CAP,
-      remainingToday,
+      dailyCap,
+      remaining,
     };
   }
 
@@ -85,20 +111,45 @@ export class QueueController {
       webp: 'image/webp',
     };
 
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  public async remove(@Param('id') id: string): Promise<void> {
+    const entry = await this.queueRepo.findByIdForDisplay(id);
+    if (!entry) {
+      throw new NotFoundException(`Queue entry ${id} not found`);
+    }
+    await this.queueRepo.delete(id);
+  }
+
   @Get(':id/media')
   public async getQueueMedia(
     @Param('id') id: string,
     @Res({ passthrough: false }) res: Response,
+    @Query('index') index?: string,
   ): Promise<void> {
     const entry = await this.queueRepo.findByIdForDisplay(id);
-    if (!entry || !entry.imagePath) {
+    if (!entry) {
+      res.status(404).json({ error: 'Entry not found' });
+      return;
+    }
+
+    // Determine which image path to serve
+    let imagePath: string | null;
+    if (index !== undefined && index !== '') {
+      const idx = parseInt(index, 10);
+      imagePath = Number.isFinite(idx) ? (entry.imagePaths[idx] ?? null) : null;
+    } else {
+      imagePath = entry.imagePath;
+    }
+
+    if (!imagePath) {
       res.status(404).json({ error: 'Media not found' });
       return;
     }
 
     let fileBuffer: Buffer;
     try {
-      fileBuffer = await fs.promises.readFile(entry.imagePath);
+      fileBuffer = await fs.promises.readFile(imagePath);
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
         res.status(404).json({ error: 'Media file missing on disk' });
@@ -107,7 +158,7 @@ export class QueueController {
       throw err;
     }
 
-    const ext = path.extname(entry.imagePath).slice(1).toLowerCase();
+    const ext = path.extname(imagePath).slice(1).toLowerCase();
     const mimeType =
       QueueController.MEDIA_MIME_BY_EXT[ext] ?? 'application/octet-stream';
 
@@ -122,21 +173,34 @@ export class QueueController {
     return entries.filter((e) => e.status === 'PENDING').length;
   }
 
-  private static readonly toView = (
-    entry: PublisherQueueEntry,
-  ): QueueEntryView => ({
-    id: entry.id,
-    channelId: entry.channelId,
-    messageId: entry.messageId,
-    rawTitle: entry.rawTitle,
-    rawContent: entry.rawContent,
-    imagePath: entry.imagePath,
-    groupedId: entry.groupedId,
-    status: entry.status,
-    messageReceivedAt: entry.messageReceivedAt.toISOString(),
-    publishedAt: entry.publishedAt?.toISOString() ?? null,
-    telegramMessageId: entry.telegramMessageId,
-    lastError: entry.lastError,
-    attempts: entry.attempts,
-  });
+  private toView(entry: PublisherQueueEntry): QueueEntryView {
+    const channelForLink = this.outputChannel.replace(/^-100/, '');
+    const telegramUrl =
+      entry.telegramMessageId && channelForLink
+        ? `https://t.me/c/${channelForLink}/${entry.telegramMessageId}`
+        : null;
+    return {
+      id: entry.id,
+      channelId: entry.channelId,
+      messageId: entry.messageId,
+      rawTitle: entry.rawTitle,
+      rawContent: entry.rawContent,
+      imagePath: entry.imagePath,
+      imagePaths: entry.imagePaths,
+      groupedId: entry.groupedId,
+      status: entry.status,
+      messageReceivedAt: entry.messageReceivedAt.toISOString(),
+      publishedAt: entry.publishedAt?.toISOString() ?? null,
+      telegramMessageId: entry.telegramMessageId,
+      telegramUrl,
+      lastError: entry.lastError,
+      attempts: entry.attempts,
+      generatedContent: entry.generatedContent,
+      generatedSystemPrompt: entry.generatedSystemPrompt,
+      generatedUserPrompt: entry.generatedUserPrompt,
+      generatedTemperature: entry.generatedTemperature,
+      generatedReasoningEffort: entry.generatedReasoningEffort,
+      generatedModel: entry.generatedModel,
+    };
+  }
 }

@@ -11,7 +11,7 @@ import {
   Min,
 } from 'class-validator';
 
-const REASONING_EFFORTS = ['low', 'medium', 'high'] as const;
+const REASONING_EFFORTS = ['low', 'medium', 'high', 'max'] as const;
 export type ReasoningEffortDto = (typeof REASONING_EFFORTS)[number];
 
 export class CreatePromptTemplateDto {

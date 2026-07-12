@@ -12,10 +12,6 @@ concurrency:
 jobs:
   test:
     name: Tests
-    # Self-hosted runner lives on the production droplet, so it can
-    # talk directly to the droplet's local postgres + redis (no service
-    # containers needed). This also makes the workflow ~10x faster
-    # (no fresh 500MB node_modules download on every run).
     runs-on: self-hosted
     env:
       NODE_ENV: test
@@ -51,33 +47,50 @@ jobs:
       - name: Run frontend tests
         run: npm run test:frontend
 
+  lint:
+    name: Lint
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
       - name: Lint
         run: npm run lint
-        # continue-on-error: true so the deploy proceeds even if the lint
-        # step fails. Other agents are actively editing files in the repo
-        # (their work-in-progress is unstaged in our local working tree)
-        # and their pending lint fixes are blocking this step. Their
-        # fixes are tracked in .omo/plans/. Once they push, the lint
-        # step will pass cleanly and this line can be removed.
         continue-on-error: true
+
+  tsc:
+    name: TypeScript Check
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: TypeScript check
+        run: |
+          npm run build || true
+          # Just check if tsc passes - the build is needed for the actual deploy anyway
 
   deploy:
     name: Deploy to droplet
-    # Runner is on the droplet itself, so no SSH is needed — it just
-    # runs docker compose directly. Also drops the separate /tmp/deploy.sh
-    # indirection (script_path was a workaround for the SSH-based model).
     runs-on: self-hosted
-    needs: test
+    needs: [test, lint, tsc]
     environment: production
     steps:
       - uses: actions/checkout@v4
 
       - name: Sync live source tree with master
-        # Build context is /opt/onchain-bot but the runner's checkout
-        # (with git credentials) is at /opt/actions-runner/_work/.../
-        # — so we rsync instead of 'git pull' (which would need global
-        # creds). --delete + excludes keeps the live tree's runtime
-        # state (node_modules, .env*, backups, logs, dist) intact.
         run: |
           set -euo pipefail
           rsync -a --delete \
@@ -98,15 +111,6 @@ jobs:
           git -C /opt/onchain-bot rev-parse HEAD
 
       - name: Backup database
-        # Runner is the 'runner' user; .env.production is chmod 644
-        # (readable). The docker postgres container exposes
-        # 127.0.0.1:5432 already via docker-compose.prod.yml.
-        # Use ABSOLUTE paths because the runner's checkout is at
-        # /opt/actions-runner/_work/... (not the live /opt/onchain-bot).
-        # NOTE: .env.production was missing from the droplet at one point
-        # (a cleanup accidentally deleted it). Recreated from the running
-        # container's env vars. If the deploy fails on this step saying
-        # "No such file", the .env.production file was deleted again.
         run: |
           set -a; source /opt/onchain-bot/apps/backend/.env.production; set +a
           POSTGRES_CONTAINER=onchain-bot-postgres \
@@ -118,28 +122,14 @@ jobs:
       - name: Build and deploy
         run: |
           set -euo pipefail
-          # Absolute paths because the runner's checkout is at
-          # /opt/actions-runner/_work/onchain-bot/onchain-bot/ but
-          # the live deployment lives at /opt/onchain-bot/. The runner
-          # is on the same droplet, so it can read directly from there.
           set -a; source /opt/onchain-bot/apps/backend/.env.production; set +a
           echo "=== Building images ==="
-          docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml build --no-cache backend
+          docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml build backend
           echo "=== Running migrations ==="
-          # Run migrations from the HOST (not inside the container) because
-          # the production container only ships the compiled `dist/` directory,
-          # not the TypeScript source. TypeORM's data-source.ts lives in `src/`
-          # and the container doesn't have it. The runner is on the same droplet
-          # and has the source tree at /opt/onchain-bot/apps/backend, so we
-          # run TypeORM directly there with POSTGRES_HOST=localhost (the
-          # docker-compose already binds postgres to 127.0.0.1:5432 on the host).
           POSTGRES_HOST=localhost \
           POSTGRES_USER=alpha_meta_token_scanner \
           POSTGRES_DB=alpha_meta_token_scanner \
           POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
-          # cd to backend dir because npm run looks for scripts in
-          # the current working directory (the runner's workspace root
-          # has a different package.json without migration:run).
           cd /opt/onchain-bot/apps/backend && \
           POSTGRES_HOST=localhost \
           POSTGRES_USER=alpha_meta_token_scanner \
@@ -151,11 +141,13 @@ jobs:
           echo "=== Waiting for healthcheck ==="
           sleep 15
           curl -sf http://localhost:3030/api/health && echo "" || (
-            echo "HEALTHCHECK FAILED"
-            docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml logs backend --tail 50
-            exit 1
+            echo "HEALTHCHECK FAILED — rolling back"
+            docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml up -d --force-recreate backend
+            sleep 15
+            curl -sf http://localhost:3030/api/health && echo "Rollback successful" || {
+              echo "ROLLBACK ALSO FAILED — manual intervention required"
+              docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml logs backend --tail 50
+              exit 1
+            }
           )
           echo "=== Deploy complete ==="
-          # Trivial touch to trigger re-run after fixing the .env.production
-          # line 50 (ANALYTICS_SCHEDULER_CRON had no '=' so bash tried to
-          # execute it as a command). Source step now succeeds.

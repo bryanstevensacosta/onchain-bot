@@ -7,13 +7,14 @@ export const MAX_MAX_TOKENS = 8000;
 export const MIN_TEMPERATURE = 0;
 export const MAX_TEMPERATURE = 2;
 
-export type ReasoningEffort = 'low' | 'medium' | 'high';
+export type ReasoningEffort = 'low' | 'medium' | 'high' | 'max';
 
 const ALLOWED_REASONING_EFFORTS: ReadonlyArray<ReasoningEffort | null> = [
   null,
   'low',
   'medium',
   'high',
+  'max',
 ];
 
 const requireString = (raw: unknown, field: string): string => {
@@ -108,7 +109,7 @@ export const validateReasoningEffort = (
   if (!ALLOWED_REASONING_EFFORTS.includes(raw as ReasoningEffort | null)) {
     throw new DomainError(
       ErrorCode.VALIDATION,
-      'PromptTemplate reasoningEffort must be one of: null, low, medium, high',
+      'PromptTemplate reasoningEffort must be one of: null, low, medium, high, max',
       { reasoningEffort: raw },
     );
   }

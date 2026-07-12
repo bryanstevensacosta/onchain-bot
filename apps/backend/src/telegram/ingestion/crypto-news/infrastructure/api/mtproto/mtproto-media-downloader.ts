@@ -14,9 +14,10 @@ import { FloodWaitHandlerService } from 'telegram/ingestion/shared/infrastructur
 
 /**
  * Maximum bytes accepted from a single Telegram media download.
- * Anything larger is discarded without writing to disk (10 MB).
+ * Anything larger is discarded without writing to disk (50 MB).
+ * Increased from 10 MB to support video files.
  */
-const MAX_MEDIA_BYTES = 10 * 1024 * 1024;
+const MAX_MEDIA_BYTES = 50 * 1024 * 1024;
 
 /**
  * Regex used to sanitise channel IDs before they are joined into a
@@ -28,10 +29,11 @@ const SAFE_CHANNEL_ID_PATTERN = /[^a-zA-Z0-9_-]/g;
 /**
  * MTProto adapter for {@link CryptoNewsMediaDownloader}.
  *
- * Downloads a single Telegram photo attachment to local disk using the
- * shared `TelegramClient` owned by the listener. Each `downloadMedia`
- * call is wrapped with `FloodWaitHandlerService.withRetry()` so a
- * transient FLOOD_WAIT does not lose the message; on
+ * Downloads a single Telegram media attachment (photo or video) to
+ * local disk using the shared `TelegramClient` owned by the listener.
+ * Each `downloadMedia` call is wrapped with
+ * `FloodWaitHandlerService.withRetry()` so a transient FLOOD_WAIT does
+ * not lose the message; on
  * `FILE_REFERENCE_EXPIRED` we re-fetch the message to refresh the
  * `fileReference` and retry once.
  *

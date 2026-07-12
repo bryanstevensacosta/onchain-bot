@@ -25,12 +25,22 @@ import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entit
  *   / `incrementAttempts(id)` — state machine transitions, returning
  *   the updated aggregate.
  */
+export interface GeneratedPublishData {
+  readonly content: string;
+  readonly systemPrompt: string | null;
+  readonly userPrompt: string;
+  readonly temperature: number | null;
+  readonly reasoningEffort: string | null;
+  readonly model: string;
+}
+
 export abstract class PublisherQueueRepository {
   public abstract enqueue(entry: PublisherQueueEntry): Promise<void>;
   public abstract findNextPending(): Promise<PublisherQueueEntry | null>;
   public abstract markPublished(
     id: string,
     telegramMessageId: string,
+    generated?: GeneratedPublishData,
   ): Promise<PublisherQueueEntry>;
   public abstract markFailed(
     id: string,
@@ -45,4 +55,5 @@ export abstract class PublisherQueueRepository {
   public abstract findByIdForDisplay(
     id: string,
   ): Promise<PublisherQueueEntry | null>;
+  public abstract delete(id: string): Promise<void>;
 }

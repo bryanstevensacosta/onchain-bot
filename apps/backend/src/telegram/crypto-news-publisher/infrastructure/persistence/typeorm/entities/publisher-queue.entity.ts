@@ -48,6 +48,9 @@ export class PublisherQueueEntity {
   @Column({ name: 'image_path', type: 'text', nullable: true })
   public imagePath!: string | null;
 
+  @Column({ name: 'image_paths', type: 'text', array: true, nullable: true, default: '{}' })
+  public imagePaths!: string[];
+
   @Column({ name: 'grouped_id', type: 'varchar', length: 64, nullable: true })
   public groupedId!: string | null;
 
@@ -78,6 +81,24 @@ export class PublisherQueueEntity {
   @Column({ name: 'attempts', type: 'integer', default: 0 })
   public attempts!: number;
 
+  @Column({ name: 'generated_content', type: 'text', nullable: true })
+  public generatedContent!: string | null;
+
+  @Column({ name: 'generated_system_prompt', type: 'text', nullable: true })
+  public generatedSystemPrompt!: string | null;
+
+  @Column({ name: 'generated_user_prompt', type: 'text', nullable: true })
+  public generatedUserPrompt!: string | null;
+
+  @Column({ name: 'generated_temperature', type: 'real', nullable: true })
+  public generatedTemperature!: number | null;
+
+  @Column({ name: 'generated_reasoning_effort', type: 'varchar', length: 16, nullable: true })
+  public generatedReasoningEffort!: string | null;
+
+  @Column({ name: 'generated_model', type: 'varchar', length: 255, nullable: true })
+  public generatedModel!: string | null;
+
   /** Round-trip helper for tests / debug. */
   public toProps(): PublisherQueueEntryProps {
     return {
@@ -87,6 +108,7 @@ export class PublisherQueueEntity {
       rawContent: this.rawContent,
       rawTitle: this.rawTitle,
       imagePath: this.imagePath,
+      imagePaths: this.imagePaths ?? [],
       groupedId: this.groupedId,
       messageReceivedAt: this.messageReceivedAt,
       keywordTemplateId: this.keywordTemplateId,
@@ -95,6 +117,12 @@ export class PublisherQueueEntity {
       telegramMessageId: this.telegramMessageId,
       lastError: this.lastError,
       attempts: this.attempts,
+      generatedContent: this.generatedContent,
+      generatedSystemPrompt: this.generatedSystemPrompt,
+      generatedUserPrompt: this.generatedUserPrompt,
+      generatedTemperature: this.generatedTemperature,
+      generatedReasoningEffort: this.generatedReasoningEffort,
+      generatedModel: this.generatedModel,
     };
   }
 }

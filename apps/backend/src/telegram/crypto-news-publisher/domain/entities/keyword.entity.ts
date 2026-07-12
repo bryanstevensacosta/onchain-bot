@@ -8,7 +8,7 @@ const MAX_PHRASE_LENGTH = 200;
 interface KeywordProps {
   readonly phrase: string;
   readonly caseSensitive: boolean;
-  sourceChannelId: string | null;
+  sourceChannelIds: string[];
   templateId: string | null;
   enabled: boolean;
   readonly requireImage: boolean;
@@ -48,7 +48,7 @@ export class Keyword extends AggregateRoot<string> {
     id?: string;
     phrase: string;
     caseSensitive?: boolean;
-    sourceChannelId?: string | null;
+    sourceChannelIds?: string[];
     templateId?: string | null;
     enabled?: boolean;
     requireImage?: boolean;
@@ -94,7 +94,7 @@ export class Keyword extends AggregateRoot<string> {
     return new Keyword(input.id ?? crypto.randomUUID(), {
       phrase: trimmed,
       caseSensitive: input.caseSensitive ?? false,
-      sourceChannelId: input.sourceChannelId ?? null,
+      sourceChannelIds: input.sourceChannelIds ?? [],
       templateId: input.templateId ?? null,
       enabled: input.enabled ?? true,
       requireImage: input.requireImage ?? false,
@@ -110,7 +110,7 @@ export class Keyword extends AggregateRoot<string> {
     id: string;
     phrase: string;
     caseSensitive: boolean;
-    sourceChannelId: string | null;
+    sourceChannelIds: string[];
     templateId: string | null;
     enabled: boolean;
     requireImage: boolean;
@@ -119,7 +119,7 @@ export class Keyword extends AggregateRoot<string> {
     return new Keyword(input.id, {
       phrase: input.phrase,
       caseSensitive: input.caseSensitive,
-      sourceChannelId: input.sourceChannelId,
+      sourceChannelIds: input.sourceChannelIds,
       templateId: input.templateId,
       enabled: input.enabled,
       requireImage: input.requireImage,
@@ -135,8 +135,8 @@ export class Keyword extends AggregateRoot<string> {
     return this.state.caseSensitive;
   }
 
-  public get sourceChannelId(): string | null {
-    return this.state.sourceChannelId;
+  public get sourceChannelIds(): string[] {
+    return this.state.sourceChannelIds;
   }
 
   public get templateId(): string | null {

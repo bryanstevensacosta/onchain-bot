@@ -81,12 +81,20 @@ export class ProcessNextQueuedArticleUseCase {
     }
 
     try {
-      const refinedText = await this.llmAdapter.generateForEntry(entry);
-      const result = await this.dispatchToTelegram(entry, refinedText, cfg);
+      const generated = await this.llmAdapter.generateForEntry(entry);
+      const result = await this.dispatchToTelegram(
+        entry,
+        generated.content,
+        cfg,
+      );
       if (!result.ok || result.messageId === null) {
         throw new Error(result.error ?? 'telegram publish returned no id');
       }
-      await this.queueRepo.markPublished(entry.id, String(result.messageId));
+      await this.queueRepo.markPublished(
+        entry.id,
+        String(result.messageId),
+        generated,
+      );
       await this.throttleScheduler.setLastPublishAt(now);
       this.logger.log(
         `published queue entry ${entry.id} as telegram message ${result.messageId}`,
@@ -129,16 +137,54 @@ export class ProcessNextQueuedArticleUseCase {
    * itself decides what to do with the `chatId` argument — the
    * crypto-news adapter ignores it and uses the configured channel.
    */
+  /**
+   * Check if a file path is a video based on extension.
+   */
+  private isVideoPath(path: string): boolean {
+    const ext = path.toLowerCase().split('.').pop();
+    return ext === 'mp4' || ext === 'mov' || ext === 'avi' || ext === 'mkv';
+  }
+
+  /**
+   * Pick the right Telegram API for the entry's images:
+   *  - 2+ images → `sendMediaGroup` (album), or `sendVideo` if any is video
+   *  - 1 image   → `sendPhoto` or `sendVideo` if video
+   *  - 0 images   → `sendMessage`
+   */
   private async dispatchToTelegram(
     entry: PublisherQueueEntry,
     refinedText: string,
     cfg: LlmConfig,
   ) {
-    if (entry.imagePath) {
+    const paths = entry.imagePaths;
+    if (paths.length > 1) {
+      const videoIdx = paths.findIndex(p => this.isVideoPath(p));
+      if (videoIdx >= 0) {
+        // Send the video individually (no mixed album support)
+        return this.publisher.sendVideo(
+          cfg.targetChannel,
+          refinedText,
+          paths[videoIdx],
+        );
+      }
+      return this.publisher.sendMediaGroup(
+        cfg.targetChannel,
+        refinedText,
+        paths,
+      );
+    }
+    if (paths.length === 1) {
+      if (this.isVideoPath(paths[0])) {
+        return this.publisher.sendVideo(
+          cfg.targetChannel,
+          refinedText,
+          paths[0],
+        );
+      }
       return this.publisher.sendPhoto(
         cfg.targetChannel,
         refinedText,
-        entry.imagePath,
+        paths[0],
       );
     }
     return this.publisher.sendMessage(cfg.targetChannel, refinedText);

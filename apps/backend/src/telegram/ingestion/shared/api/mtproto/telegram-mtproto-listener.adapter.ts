@@ -7,6 +7,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import bigInt from 'big-integer';
 import { TelegramClient, Api } from 'telegram';
 import { StringSession } from 'telegram/sessions';
 import { Logger as GramjsLogger, LogLevel } from 'telegram/extensions/Logger';
@@ -191,7 +192,7 @@ export class TelegramMtprotoListenerAdapter
             }>) {
               if (rawMsg.id <= lastSeen) continue;
               this.lastSeenMessageId.set(peerId, rawMsg.id);
-              const media = await this.extractMediaForMessage(peerId, rawMsg);
+              const media = await this.extractMediaAttachments(peerId, rawMsg);
               const msgAny = rawMsg as any;
               this.queue.push({
                 peerId,
@@ -245,7 +246,7 @@ export class TelegramMtprotoListenerAdapter
       const chat = await msg.getChat?.();
       const channelId = chat ? String(chat.id) : '';
       if (!channelId || !this.subscribedChannelIds.includes(channelId)) return;
-      const media = await this.extractMediaForMessage(channelId, msg);
+      const media = await this.extractMediaAttachments(channelId, msg);
       const msgAny = msg as any;
       this.queue.push({
         peerId: channelId,
@@ -304,7 +305,7 @@ export class TelegramMtprotoListenerAdapter
           resolved = m;
         }
       }
-      const media = await this.extractMediaForMessage(channelId, resolved);
+      const media = await this.extractMediaAttachments(channelId, resolved);
       const mAny = m as any;
       out.push({
         peerId: channelId,
@@ -436,36 +437,174 @@ export class TelegramMtprotoListenerAdapter
   }
 
   /**
-   * Extract and synchronously download the photo attached to a Telegram
-   * message. Returns the resulting attachment list (one entry per photo
-   * index), or `undefined` if the message has no photo or the download
+   * Extract video attachment from MessageMediaVideo or MessageMediaDocument
+   * (with video MIME type). Returns TelegramMediaAttachment or null.
+   */
+  private extractRawVideoAttachment(
+    media: unknown,
+  ): TelegramMediaAttachment | null {
+    if (!media || typeof media !== 'object') return null;
+
+    const msgMedia = media as {
+      video?: unknown;
+      document?: unknown;
+    };
+
+    // Check MessageMediaVideo (media.video exists and is Api.Document)
+    if (msgMedia.video && typeof msgMedia.video === 'object') {
+      const video = msgMedia.video as {
+        id?: unknown;
+        accessHash?: unknown;
+        fileReference?: unknown;
+        mimeType?: unknown;
+        dcId?: unknown;
+        date?: unknown;
+      };
+      const videoDoc = video as {
+        id?: unknown;
+        accessHash?: unknown;
+        fileReference?: unknown;
+        mimeType?: unknown;
+        dcId?: unknown;
+        date?: unknown;
+      };
+      if (
+        typeof videoDoc.id !== 'bigint' &&
+        typeof videoDoc.id !== 'string' &&
+        typeof videoDoc.id !== 'number' &&
+        typeof videoDoc.id !== 'object'
+      ) {
+        return null;
+      }
+      if (
+        videoDoc.fileReference === undefined ||
+        videoDoc.fileReference === null
+      )
+        return null;
+      let fileRefBuffer: Buffer | null = null;
+      if (Buffer.isBuffer(videoDoc.fileReference)) {
+        fileRefBuffer = videoDoc.fileReference;
+      } else if (typeof videoDoc.fileReference === 'string') {
+        fileRefBuffer = Buffer.from(videoDoc.fileReference, 'binary');
+      } else if (Array.isArray(videoDoc.fileReference)) {
+        fileRefBuffer = Buffer.from(videoDoc.fileReference);
+      } else {
+        return null;
+      }
+      const coerceToString = (v: unknown): bigint | string =>
+        typeof v === 'object' && v !== null
+          ? (v as { toString(): string }).toString()
+          : (v as bigint | string);
+      return {
+        type: 'video',
+        fileId: coerceToString(videoDoc.id),
+        accessHash: coerceToString(videoDoc.accessHash),
+        fileReference: fileRefBuffer.toString('base64'),
+        mimeType: (videoDoc.mimeType as string) ?? null,
+        dcId: (videoDoc.dcId as number) ?? undefined,
+        date: (videoDoc.date as number) ?? undefined,
+      };
+    }
+
+    // Check MessageMediaDocument with video MIME type
+    if (msgMedia.document && typeof msgMedia.document === 'object') {
+      const doc = msgMedia.document as {
+        id?: unknown;
+        accessHash?: unknown;
+        fileReference?: unknown;
+        mimeType?: unknown;
+        dcId?: unknown;
+        date?: unknown;
+      };
+      const mime = (doc.mimeType as string) ?? '';
+      if (!mime.toLowerCase().startsWith('video/')) {
+        return null;
+      }
+      if (
+        typeof doc.id !== 'bigint' &&
+        typeof doc.id !== 'string' &&
+        typeof doc.id !== 'number' &&
+        typeof doc.id !== 'object'
+      ) {
+        return null;
+      }
+      if (doc.fileReference === undefined || doc.fileReference === null)
+        return null;
+      let fileRefBuffer: Buffer | null = null;
+      if (Buffer.isBuffer(doc.fileReference)) {
+        fileRefBuffer = doc.fileReference;
+      } else if (typeof doc.fileReference === 'string') {
+        fileRefBuffer = Buffer.from(doc.fileReference, 'binary');
+      } else if (Array.isArray(doc.fileReference)) {
+        fileRefBuffer = Buffer.from(doc.fileReference);
+      } else {
+        return null;
+      }
+      const coerceToString = (v: unknown): bigint | string =>
+        typeof v === 'object' && v !== null
+          ? (v as { toString(): string }).toString()
+          : (v as bigint | string);
+      return {
+        type: 'video',
+        fileId: coerceToString(doc.id),
+        accessHash: coerceToString(doc.accessHash),
+        fileReference: fileRefBuffer.toString('base64'),
+        mimeType: doc.mimeType as string,
+        dcId: (doc.dcId as number) ?? undefined,
+        date: (doc.date as number) ?? undefined,
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract and synchronously download the photo or video attached to a
+   * Telegram message. Returns the resulting attachment list (one entry),
+   * or `undefined` if the message has no supported media or the download
    * failed — text-only messages continue without media.
    */
-  private async extractMediaForMessage(
+  private async extractMediaAttachments(
     peerId: string,
     msg: {
       id: number;
       media?: unknown;
     },
   ): Promise<ReadonlyArray<TelegramMediaAttachment> | undefined> {
-    const attachment = this.extractRawPhotoAttachment(msg.media);
+    const attachment =
+      this.extractRawPhotoAttachment(msg.media) ??
+      this.extractRawVideoAttachment(msg.media);
     if (!attachment) {
       this.logger.warn(
-        `extractMediaForMessage(${peerId}:${msg.id}) — no photo attachment (media type=${typeof msg.media}, hasPhoto=${(msg.media as { photo?: unknown })?.photo !== undefined})`,
+        `extractMediaAttachments(${peerId}:${msg.id}) — no photo or video attachment`,
       );
       return undefined;
     }
     try {
-      // Use the ORIGINAL msg.media object (which includes `sizes`,
-      // `dcId`, `date`) directly — reconstructing from the extracted
-      // fields via buildPhotoMedia loses `sizes`, which gramjs
-      // requires for downloadMedia to work. The saveToDisk() helper
-      // does the final disk-write with MIME detection + path safety.
       const client = this.client;
       if (!client) throw new Error('Telegram client not available');
-      const buffer: unknown = await this.floodWaitHandler.withRetry(
+
+      // Use msg.media directly — gramjs handles DC migration, fileReference
+      // expiry, thumbSize selection, and MessageMediaWebPage unwrapping
+      // internally. We must NOT reconstruct Api.MessageMediaPhoto or
+      // Api.MessageMediaDocument from extracted fields, because that
+      // strips the object context gramjs needs for DC migration (e.g.
+      // ExportAuthorization to another datacenter), causing
+      // AUTH_KEY_UNREGISTERED on upload.GetFile.
+      const dlMedia = msg.media as Api.TypeMessageMedia | undefined;
+      if (!dlMedia) {
+        this.logger.warn(
+          `extractMediaAttachments(${peerId}:${msg.id}) — msg.media is null after extraction`,
+        );
+        return undefined;
+      }
+
+      // gramjs.downloadMedia handles MessageMediaWebPage internally
+      // (extracts webpage.document || webpage.photo), so we pass the raw
+      // media object without unwrapping.
+      const buffer = await this.floodWaitHandler.withRetry(
         `media-download:${peerId}:${msg.id}`,
-        () => client.downloadMedia(msg.media as never, {}),
+        () => client.downloadMedia(dlMedia, {}),
       );
       if (buffer === undefined || buffer instanceof Buffer === false) {
         throw new Error('downloadMedia returned no data');
@@ -478,22 +617,81 @@ export class TelegramMtprotoListenerAdapter
         buffer as Buffer,
       );
       const enriched: TelegramMediaAttachment = {
-        type: attachment.type,
-        fileId: attachment.fileId,
-        accessHash: attachment.accessHash,
-        fileReference: attachment.fileReference,
+        ...attachment,
         mimeType: downloaded.mimeType,
         filePath: downloaded.filePath,
         fileSize: downloaded.fileSize,
-        dcId: attachment.dcId,
-        date: attachment.date,
-        index: 0, // Telegram photos come as a single PhotoSize array per
-        // message (multiple sizes but one logical photo). Multi-photo
-        // album support is out of scope and will be addressed in a later
-        // extension to iterate per-photo.
+        index: 0,
       };
       return [enriched];
     } catch (err) {
+      // Before giving up, try to re-fetch the message from Telegram
+      // and use the fresh photo object — this handles cases where the
+      // original msg.media had missing/incomplete sizes or an expired
+      // fileReference (common for forwarded messages and link previews).
+      try {
+        const client = this.client;
+        if (client && isRefreshableDownloadError(err)) {
+          this.logger.warn(
+            `Refreshing message ${peerId}:${msg.id} after download error`,
+          );
+          const peer = await this.resolvePeerAsChannel(peerId);
+          const refreshed = await this.floodWaitHandler.withRetry(
+            `media-refresh:${peerId}:${msg.id}`,
+            () => client.getMessages(peer, { ids: [msg.id] }),
+          );
+          const fresh = (Array.isArray(refreshed) ? refreshed[0] : refreshed) as
+            | { media?: { photo?: { sizes?: unknown[]; id?: unknown; accessHash?: unknown; fileReference?: unknown } } }
+            | undefined;
+          const freshPhoto = fresh?.media?.photo;
+          if (freshPhoto?.sizes && freshPhoto.sizes.length > 0) {
+            const freshFileRef = Buffer.isBuffer(freshPhoto.fileReference)
+              ? freshPhoto.fileReference
+              : Buffer.from(Array.isArray(freshPhoto.fileReference) ? freshPhoto.fileReference : []);
+            const freshPhotoMedia = new Api.MessageMediaPhoto({
+              photo: new Api.Photo({
+                id: coerceToLong(
+                  typeof freshPhoto.id === 'bigint'
+                    ? freshPhoto.id
+                    : String(freshPhoto.id ?? ''),
+                ),
+                accessHash: coerceToLong(
+                  typeof freshPhoto.accessHash === 'bigint'
+                    ? freshPhoto.accessHash
+                    : String(freshPhoto.accessHash ?? ''),
+                ),
+                fileReference: freshFileRef,
+                date: attachment.date ?? 0,
+                sizes: freshPhoto.sizes as never,
+                dcId: attachment.dcId ?? 0,
+              }),
+            });
+            const buffer = await this.floodWaitHandler.withRetry(
+              `media-download-retry:${peerId}:${msg.id}`,
+              () => client.downloadMedia(freshPhotoMedia, {}),
+            );
+            if (buffer instanceof Buffer && buffer.length > 0) {
+              const downloaded = await this.mediaDownloader.saveToDisk(
+                peerId,
+                msg.id,
+                0,
+                attachment,
+                buffer,
+              );
+              const enriched: TelegramMediaAttachment = {
+                ...attachment,
+                mimeType: downloaded.mimeType,
+                filePath: downloaded.filePath,
+                fileSize: downloaded.fileSize,
+                index: 0,
+              };
+              return [enriched];
+            }
+          }
+        }
+      } catch {
+        // refresh also failed — fall through to the warn below
+      }
       this.logger.warn(
         `Media download failed for ${peerId}:${msg.id} — message continues without media: ${
           (err as Error).message
@@ -609,4 +807,21 @@ export class TelegramMtprotoListenerAdapter
     };
     return map[className ?? ''] ?? 'unknown';
   }
+}
+
+function coerceToLong(value: bigint | string): bigInt.BigInteger {
+  if (typeof value === 'bigint') return bigInt(value.toString());
+  return bigInt(String(value));
+}
+
+function isRefreshableDownloadError(err: unknown): boolean {
+  const msg = (err as Error)?.message ?? '';
+  return (
+    msg.includes('FILE_REFERENCE_EXPIRED') ||
+    msg.includes('FILEREF_UPGRADE_NEEDED') ||
+    msg.includes('FILE_REFERENCE_INVALID') ||
+    msg.includes('sizes') ||
+    msg.includes('no photo') ||
+    msg.includes('No file')
+  );
 }

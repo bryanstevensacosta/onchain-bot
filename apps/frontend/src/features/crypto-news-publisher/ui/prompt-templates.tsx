@@ -36,6 +36,7 @@ const REASONING_OPTIONS: ReadonlyArray<{
   { value: 'low', label: 'low' },
   { value: 'medium', label: 'medium' },
   { value: 'high', label: 'high' },
+  { value: 'max', label: 'max' },
 ];
 
 const EMPTY_FORM: FormState = {

@@ -39,13 +39,21 @@ export class CryptoNewsLlmAdapter {
 
   /**
    * Generate a refined Spanish-language post for the given queue
-   * entry. Returns the LLM-generated text (caption). Throws when the
-   * resolved template row is missing (config error — the default or
-   * keyword-bound id points at a non-existent template) so the
-   * operator notices from the queue's FAILED transitions rather than
-   * silently using an empty prompt.
+   * entry. Returns the LLM-generated text along with metadata about
+   * the generation (prompts, temperature, reasoning effort). Throws
+   * when the resolved template row is missing (config error) so the
+   * operator notices from the queue's FAILED transitions.
    */
-  public async generateForEntry(entry: PublisherQueueEntry): Promise<string> {
+  public async generateForEntry(
+    entry: PublisherQueueEntry,
+  ): Promise<{
+    content: string;
+    systemPrompt: string | null;
+    userPrompt: string;
+    temperature: number | null;
+    reasoningEffort: string | null;
+    model: string;
+  }> {
     const cfg = await this.llmConfigRepo.load();
     const templateId = entry.keywordTemplateId ?? cfg.defaultTemplateId;
     const template = await this.templateRepo.findById(templateId);
@@ -55,10 +63,14 @@ export class CryptoNewsLlmAdapter {
       );
     }
     const prompt = renderPrompt(template.promptText, entry);
-    const { base64, mimeType } = this.readImagePayload(entry);
     const systemPrompt = template.systemPromptText.trim();
 
-    return this.llmPort.generateText({
+    const supportsVision = !template.model.includes('deepseek');
+    const { base64, mimeType } = supportsVision
+      ? this.readImagePayload(entry)
+      : { base64: undefined, mimeType: undefined };
+
+    const content = await this.llmPort.generateText({
       prompt,
       ...(systemPrompt ? { systemPrompt } : {}),
       imageUrl: undefined,
@@ -71,6 +83,15 @@ export class CryptoNewsLlmAdapter {
         ? { reasoningEffort: template.reasoningEffort }
         : {}),
     });
+
+    return {
+      content,
+      systemPrompt: systemPrompt || null,
+      userPrompt: prompt,
+      temperature: template.temperature,
+      reasoningEffort: template.reasoningEffort,
+      model: template.model,
+    };
   }
 
   /**

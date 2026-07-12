@@ -1,5 +1,6 @@
 import {
   Body,
+  ConflictException,
   Controller,
   Delete,
   Get,
@@ -17,7 +18,7 @@ export interface KeywordView {
   readonly id: string;
   readonly phrase: string;
   readonly caseSensitive: boolean;
-  readonly sourceChannelId: string | null;
+  readonly sourceChannelIds: string[];
   readonly enabled: boolean;
   readonly requireImage: boolean;
   readonly templateId: string | null;
@@ -28,7 +29,7 @@ interface CreateKeywordDto {
   phrase: string;
   caseSensitive?: boolean;
   enabled?: boolean;
-  sourceChannelId?: string | null;
+  sourceChannelIds?: string[];
   /**
    * Optional override binding to a `PromptTemplate.id`. When null
    * (the default), the keyword falls back to the global default
@@ -47,7 +48,7 @@ interface UpdateKeywordDto {
   phrase?: string;
   caseSensitive?: boolean;
   enabled?: boolean;
-  sourceChannelId?: string | null;
+  sourceChannelIds?: string[];
   /**
    * Partial template binding update:
    *  - `undefined` → leave existing binding untouched
@@ -97,11 +98,22 @@ export class KeywordsController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   public async create(@Body() dto: CreateKeywordDto): Promise<KeywordView> {
+    const trimmed = dto.phrase.trim();
+    const existing = await this.keywordRepo.findAll();
+    const dup = existing.find(
+      (k) => k.phrase.toLowerCase() === trimmed.toLowerCase(),
+    );
+    if (dup) {
+      throw new ConflictException(
+        `Keyword "${dto.phrase}" already exists`,
+      );
+    }
+
     const keyword = Keyword.create({
       phrase: dto.phrase,
       caseSensitive: dto.caseSensitive,
       enabled: dto.enabled,
-      sourceChannelId: dto.sourceChannelId ?? null,
+      sourceChannelIds: dto.sourceChannelIds ?? [],
       templateId: dto.templateId ?? null,
       requireImage: dto.requireImage ?? false,
     });
@@ -131,10 +143,10 @@ export class KeywordsController {
     } else if (dto.enabled === false) {
       nextEnabled = false;
     }
-    const nextSourceChannelId =
-      dto.sourceChannelId !== undefined
-        ? dto.sourceChannelId
-        : existing.sourceChannelId;
+    const nextSourceChannelIds =
+      dto.sourceChannelIds !== undefined
+        ? dto.sourceChannelIds
+        : existing.sourceChannelIds;
     const nextTemplateId =
       dto.templateId !== undefined ? dto.templateId : existing.templateId;
     const nextRequireImage =
@@ -144,7 +156,7 @@ export class KeywordsController {
       id: existing.id,
       phrase: nextPhrase,
       caseSensitive: nextCaseSensitive,
-      sourceChannelId: nextSourceChannelId,
+      sourceChannelIds: nextSourceChannelIds,
       templateId: nextTemplateId,
       enabled: nextEnabled,
       requireImage: nextRequireImage,
@@ -165,7 +177,7 @@ export class KeywordsController {
     id: keyword.id,
     phrase: keyword.phrase,
     caseSensitive: keyword.caseSensitive,
-    sourceChannelId: keyword.sourceChannelId,
+    sourceChannelIds: keyword.sourceChannelIds,
     enabled: keyword.enabled,
     requireImage: keyword.requireImage,
     templateId: keyword.templateId,

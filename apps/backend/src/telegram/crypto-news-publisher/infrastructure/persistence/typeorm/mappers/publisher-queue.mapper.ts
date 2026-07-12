@@ -14,6 +14,7 @@ export class PublisherQueueMapper {
     row.rawContent = entry.rawContent;
     row.rawTitle = entry.rawTitle;
     row.imagePath = entry.imagePath;
+    row.imagePaths = entry.imagePaths;
     row.groupedId = entry.groupedId;
     row.messageReceivedAt = entry.messageReceivedAt;
     row.keywordTemplateId = entry.keywordTemplateId;
@@ -22,6 +23,11 @@ export class PublisherQueueMapper {
     row.telegramMessageId = entry.telegramMessageId;
     row.lastError = entry.lastError;
     row.attempts = entry.attempts;
+    row.generatedContent = entry.generatedContent;
+    row.generatedSystemPrompt = entry.generatedSystemPrompt;
+    row.generatedUserPrompt = entry.generatedUserPrompt;
+    row.generatedTemperature = entry.generatedTemperature;
+    row.generatedReasoningEffort = entry.generatedReasoningEffort;
     return row;
   }
 

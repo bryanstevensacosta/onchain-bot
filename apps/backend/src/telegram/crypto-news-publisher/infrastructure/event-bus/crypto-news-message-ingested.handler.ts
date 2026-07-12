@@ -68,7 +68,9 @@ export class CryptoNewsMessageIngestedHandler {
 
       const allKeywords = await this.getEnabledKeywords();
       const keywords = allKeywords.filter(
-        (kw) => kw.sourceChannelId === null || kw.sourceChannelId === channelId,
+        (kw) =>
+          kw.sourceChannelIds.length === 0 ||
+          kw.sourceChannelIds.includes(channelId),
       );
 
       // Test each keyword against content

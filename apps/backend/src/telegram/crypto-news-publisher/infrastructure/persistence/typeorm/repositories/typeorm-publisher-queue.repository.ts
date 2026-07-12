@@ -68,13 +68,21 @@ export class TypeOrmPublisherQueueRepository extends PublisherQueueRepository {
   public async markPublished(
     id: string,
     telegramMessageId: string,
+    generated?: {
+      content: string;
+      systemPrompt: string | null;
+      userPrompt: string;
+      temperature: number | null;
+      reasoningEffort: string | null;
+      model: string;
+    },
   ): Promise<PublisherQueueEntry> {
     const row = await this.repo.findOne({ where: { id } });
     if (!row) {
       throw new Error(`Queue entry not found: ${id}`);
     }
     const entry = PublisherQueueMapper.toDomain(row);
-    entry.markPublished(telegramMessageId);
+    entry.markPublished(telegramMessageId, generated);
     await this.repo.save(PublisherQueueMapper.toEntity(entry));
     return entry;
   }
@@ -147,5 +155,9 @@ export class TypeOrmPublisherQueueRepository extends PublisherQueueRepository {
     id: string,
   ): Promise<PublisherQueueEntry | null> {
     return this.findById(id);
+  }
+
+  public async delete(id: string): Promise<void> {
+    await this.repo.delete(id);
   }
 }

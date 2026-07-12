@@ -87,6 +87,10 @@ function resolveMimeType(
     png: 'image/png',
     gif: 'image/gif',
     webp: 'image/webp',
+    mp4: 'video/mp4',
+    mov: 'video/quicktime',
+    avi: 'video/x-msvideo',
+    mkv: 'video/x-matroska',
     bin: 'application/octet-stream',
   };
   return map[ext] ?? 'application/octet-stream';
