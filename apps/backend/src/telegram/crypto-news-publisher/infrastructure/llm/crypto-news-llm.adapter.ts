@@ -56,6 +56,20 @@ export class CryptoNewsLlmAdapter {
     reasoningEffort: string | null;
     model: string;
   }> {
+    if (process.env.USE_MOCK_AI === 'true') {
+      this.logger.log(
+        'USE_MOCK_AI active — returning raw content, skipping LLM call',
+      );
+      return {
+        content: entry.rawContent,
+        systemPrompt: null,
+        userPrompt: '[mock-mode]',
+        temperature: null,
+        reasoningEffort: null,
+        model: 'mock',
+      };
+    }
+
     const cfg = await this.llmConfigRepo.load();
     const templateId = entry.keywordTemplateId ?? cfg.defaultTemplateId;
     const template = await this.templateRepo.findById(templateId);
