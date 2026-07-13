@@ -7,6 +7,8 @@ import { EnqueueMatchingMessageUseCase } from 'telegram/crypto-news-publisher/ap
 import { CryptoNewsMessageIngestedEvent } from 'telegram/ingestion/crypto-news/domain/events/crypto-news-message-ingested.event';
 import { Keyword } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
+import { BlacklistPhraseRepository } from 'telegram/crypto-news-publisher/application/ports/blacklist-phrase.repository';
+import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
 
 describe('CryptoNewsMessageIngestedHandler', () => {
   let handler: CryptoNewsMessageIngestedHandler;
@@ -46,6 +48,18 @@ describe('CryptoNewsMessageIngestedHandler', () => {
           provide: KeywordRepository,
           useValue: {
             findEnabled: jest.fn(),
+          },
+        },
+        {
+          provide: BlacklistPhraseRepository,
+          useValue: {
+            findAllEnabled: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: PublisherQueueRepository,
+          useValue: {
+            enqueue: jest.fn(),
           },
         },
         {
@@ -107,7 +121,7 @@ describe('CryptoNewsMessageIngestedHandler', () => {
       expect(keywordRepo.findEnabled).toHaveBeenCalledTimes(1);
       expect(enqueue.execute).toHaveBeenCalledWith({
         message,
-        matchedKeyword: keyword,
+        matchedKeywords: [keyword],
       });
     });
 
@@ -144,7 +158,7 @@ describe('CryptoNewsMessageIngestedHandler', () => {
       await handler.handle(event);
 
       const callArg = enqueue.execute.mock.calls[0][0];
-      expect(callArg.matchedKeyword).toBe(keyword);
+      expect(callArg.matchedKeywords).toEqual([keyword]);
       expect(entry.keywordTemplateId).toBe(templateId);
     });
 

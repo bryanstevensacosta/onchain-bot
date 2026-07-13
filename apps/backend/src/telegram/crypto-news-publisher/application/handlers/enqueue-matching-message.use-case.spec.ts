@@ -139,7 +139,10 @@ describe('EnqueueMatchingMessageUseCase', () => {
       });
       queueRepo.enqueue.mockResolvedValue();
 
-      await useCase.execute({ message: mockMessage, matchedKeyword });
+      await useCase.execute({
+        message: mockMessage,
+        matchedKeywords: [matchedKeyword],
+      });
 
       const callArg = queueRepo.enqueue.mock.calls[0][0];
       expect(callArg.keywordTemplateId).toBe(templateId);
@@ -149,7 +152,10 @@ describe('EnqueueMatchingMessageUseCase', () => {
       const matchedKeyword = Keyword.create({ phrase: 'btc' });
       queueRepo.enqueue.mockResolvedValue();
 
-      await useCase.execute({ message: mockMessage, matchedKeyword });
+      await useCase.execute({
+        message: mockMessage,
+        matchedKeywords: [matchedKeyword],
+      });
 
       const callArg = queueRepo.enqueue.mock.calls[0][0];
       expect(callArg.keywordTemplateId).toBeNull();
@@ -186,7 +192,7 @@ describe('EnqueueMatchingMessageUseCase', () => {
 
       const result = await useCase.execute({
         message: noMediaMessage,
-        matchedKeyword,
+        matchedKeywords: [matchedKeyword],
       });
 
       expect(result).toBeNull();
@@ -202,7 +208,7 @@ describe('EnqueueMatchingMessageUseCase', () => {
 
       const result = await useCase.execute({
         message: mockMessage,
-        matchedKeyword,
+        matchedKeywords: [matchedKeyword],
       });
 
       expect(result).not.toBeNull();

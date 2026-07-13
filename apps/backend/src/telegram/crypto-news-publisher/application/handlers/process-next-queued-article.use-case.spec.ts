@@ -43,6 +43,7 @@ describe('ProcessNextQueuedArticleUseCase', () => {
     id?: string;
     attempts?: number;
     imagePath?: string | null;
+    imagePaths?: string[];
   }): PublisherQueueEntry => {
     return PublisherQueueEntry.reconstitute({
       id: overrides.id ?? 'entry-1',
@@ -51,6 +52,7 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       rawContent: 'BTC $100k',
       rawTitle: 'BTC $100k',
       imagePath: overrides.imagePath === undefined ? null : overrides.imagePath,
+      imagePaths: overrides.imagePaths ?? [],
       groupedId: null,
       messageReceivedAt: new Date('2026-07-06T12:00:00Z'),
       keywordTemplateId: null,
@@ -204,7 +206,11 @@ describe('ProcessNextQueuedArticleUseCase', () => {
 
   describe('happy path without image', () => {
     it('falls back to sendMessage when imagePath is null', async () => {
-      const entry = buildEntry({ id: 'entry-text', imagePath: null });
+      const entry = buildEntry({
+        id: 'entry-text',
+        imagePath: null,
+        imagePaths: [],
+      });
       queueRepo.countPublishedToday.mockResolvedValue(0);
       throttleScheduler.shouldPublish.mockResolvedValue({
         canPublish: true,
@@ -401,7 +407,11 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       llmConfigRepo.load.mockResolvedValue(
         buildLlmConfig({ targetChannel: '@from-config-row' }),
       );
-      const entry = buildEntry({ id: 'entry-target', imagePath: null });
+      const entry = buildEntry({
+        id: 'entry-target',
+        imagePath: null,
+        imagePaths: [],
+      });
       queueRepo.countPublishedToday.mockResolvedValue(0);
       throttleScheduler.shouldPublish.mockResolvedValue({
         canPublish: true,

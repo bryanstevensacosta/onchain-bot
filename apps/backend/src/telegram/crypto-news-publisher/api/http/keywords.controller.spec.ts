@@ -20,6 +20,7 @@ describe('KeywordsController', () => {
           useValue: {
             findAll: jest.fn(),
             findEnabled: jest.fn(),
+            findById: jest.fn(),
             save: jest.fn(),
             delete: jest.fn(),
           },
@@ -70,6 +71,7 @@ describe('KeywordsController', () => {
 
   describe('create', () => {
     it('should create a keyword and save it', async () => {
+      keywordRepo.findAll.mockResolvedValue([]);
       keywordRepo.save.mockResolvedValue();
 
       const result = await controller.create({ phrase: 'bitcoin' });
@@ -82,6 +84,7 @@ describe('KeywordsController', () => {
     });
 
     it('should honour caseSensitive flag', async () => {
+      keywordRepo.findAll.mockResolvedValue([]);
       keywordRepo.save.mockResolvedValue();
 
       const result = await controller.create({
@@ -93,6 +96,7 @@ describe('KeywordsController', () => {
     });
 
     it('binds a templateId on create when provided', async () => {
+      keywordRepo.findAll.mockResolvedValue([]);
       keywordRepo.save.mockResolvedValue();
       const templateId = crypto.randomUUID();
 
@@ -105,6 +109,7 @@ describe('KeywordsController', () => {
     });
 
     it('passes requireImage=true through to the created keyword', async () => {
+      keywordRepo.findAll.mockResolvedValue([]);
       keywordRepo.save.mockResolvedValue();
 
       const result = await controller.create({

@@ -4,7 +4,9 @@ import * as fs from 'node:fs';
 import type { Response } from 'express';
 import { QueueController } from './queue.controller';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
+import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
+import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
 
 describe('QueueController', () => {
   let controller: QueueController;
@@ -73,6 +75,19 @@ describe('QueueController', () => {
             countPublishedToday: jest.fn(),
             findById: jest.fn(),
             findByIdForDisplay: jest.fn(),
+          },
+        },
+        {
+          provide: LlmConfigRepository,
+          useValue: {
+            load: jest.fn(),
+            save: jest.fn(),
+          },
+        },
+        {
+          provide: CryptoNewsSourceRepository,
+          useValue: {
+            findAll: jest.fn(),
           },
         },
       ],

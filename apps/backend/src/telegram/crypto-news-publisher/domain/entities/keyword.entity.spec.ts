@@ -94,7 +94,7 @@ describe('Keyword', () => {
       });
 
       it('matches substrings inside larger tokens (e.g. btc in btcusdt)', () => {
-        const kw2 = Keyword.create({ phrase: 'btc' });
+        const kw2 = Keyword.create({ phrase: 'btc', matchMode: 'substring' });
         expect(kw2.matches('btcusdt pair is live')).toBe(true);
       });
     });
