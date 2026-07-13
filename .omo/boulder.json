@@ -1,11 +1,11 @@
 {
   "schema_version": 2,
-  "active_work_id": "mock-ai-dev-staging",
+  "active_work_id": "startup-config-validator",
   "works": {
-    "mock-ai-dev-staging": {
-      "work_id": "mock-ai-dev-staging",
-      "active_plan": "/Users/bryanstevens/dev/onchain-bot/.omo/plans/mock-ai-dev-staging.md",
-      "plan_name": "mock-ai-dev-staging",
+    "startup-config-validator": {
+      "work_id": "startup-config-validator",
+      "active_plan": "/Users/bryanstevens/dev/onchain-bot/.omo/plans/startup-config-validator.md",
+      "plan_name": "startup-config-validator",
       "session_ids": ["codex:current"],
       "status": "active",
       "worktree_path": null
