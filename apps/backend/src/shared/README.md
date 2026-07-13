@@ -46,12 +46,12 @@ src/shared/
 
 ### Reglas de promoción
 
-| Carpeta | Qué contiene | Cambiar rompe |
-|---|---|---|
-| `kernel/` | Primitivas DDD (AggregateRoot, Entity, VO, DomainEvent) + errores | **Toda la app** — son contrato universal |
-| `common/` | Helpers, config, persistence, utils | Solo los BCs que importan el símbolo modificado |
-| `common/value-objects/` | VOs cross-BC promovidos (ChainId, TokenMetrics) | Solo los BCs que los importan |
-| **VO privado en BC** | VOs de un solo BC | Solo ese BC |
+| Carpeta                 | Qué contiene                                                      | Cambiar rompe                                   |
+| ----------------------- | ----------------------------------------------------------------- | ----------------------------------------------- |
+| `kernel/`               | Primitivas DDD (AggregateRoot, Entity, VO, DomainEvent) + errores | **Toda la app** — son contrato universal        |
+| `common/`               | Helpers, config, persistence, utils                               | Solo los BCs que importan el símbolo modificado |
+| `common/value-objects/` | VOs cross-BC promovidos (ChainId, TokenMetrics)                   | Solo los BCs que los importan                   |
+| **VO privado en BC**    | VOs de un solo BC                                                 | Solo ese BC                                     |
 
 ### Cuándo promover un VO de BC a `common/value-objects/`
 
@@ -65,18 +65,18 @@ src/shared/
 
 ## 3. Responsabilidades
 
-| Responsabilidad | Dónde vive |
-|---|---|
-| Base class `AggregateRoot<TId>` con cola de eventos | `kernel/aggregate-root.ts:17` |
-| Base class `Entity<TId>` con igualdad por id | `kernel/entity.ts:10` |
-| Base class `ValueObject<TProps>` con inmutabilidad y deep-equals | `kernel/value-object.ts:12` |
-| Base class `DomainEvent` con `eventId`/`occurredAt` UUID | `kernel/domain-event.ts:13` |
-| Enum `ErrorCode` y class `DomainError` | `kernel/domain-error.ts:7, 35` |
-| VO `ChainId` (promoted from `ca/chain-detection`) | `common/value-objects/chain-id.vo.ts:27` |
-| VO `TokenMetrics` (promoted from `ca/parsing`) | `common/value-objects/token-metrics.vo.ts:16` |
-| Carga de `AppConfig` desde `process.env` | `common/config/app.config.ts:137` |
-| `DatabaseModule` (TypeORM root, opcional) | `common/persistence/database.module.ts:33` |
-| Utilidades `Uuid` y `DateTime` | `common/utils/index.ts:4, 10` |
+| Responsabilidad                                                  | Dónde vive                                    |
+| ---------------------------------------------------------------- | --------------------------------------------- |
+| Base class `AggregateRoot<TId>` con cola de eventos              | `kernel/aggregate-root.ts:17`                 |
+| Base class `Entity<TId>` con igualdad por id                     | `kernel/entity.ts:10`                         |
+| Base class `ValueObject<TProps>` con inmutabilidad y deep-equals | `kernel/value-object.ts:12`                   |
+| Base class `DomainEvent` con `eventId`/`occurredAt` UUID         | `kernel/domain-event.ts:13`                   |
+| Enum `ErrorCode` y class `DomainError`                           | `kernel/domain-error.ts:7, 35`                |
+| VO `ChainId` (promoted from `ca/chain-detection`)                | `common/value-objects/chain-id.vo.ts:27`      |
+| VO `TokenMetrics` (promoted from `ca/parsing`)                   | `common/value-objects/token-metrics.vo.ts:16` |
+| Carga de `AppConfig` desde `process.env`                         | `common/config/app.config.ts:137`             |
+| `DatabaseModule` (TypeORM root, opcional)                        | `common/persistence/database.module.ts:33`    |
+| Utilidades `Uuid` y `DateTime`                                   | `common/utils/index.ts:4, 10`                 |
 
 **Fuera del scope:**
 
@@ -97,32 +97,32 @@ src/shared/
 
 ## 5. Lenguaje ubicuo (kernel)
 
-| Término | Definición | Referencia |
-|---|---|---|
-| `AggregateRoot` | Entidad que posee un cluster de dominio, emite eventos vía `apply()`, muta vía `mutate()` abstracto | `kernel/aggregate-root.ts:17` |
-| `Entity` | Objeto definido por id, igualdad por id (vs VO por valor) | `kernel/entity.ts:10` |
-| `ValueObject` | Objeto inmutable definido por valor, `equals()` por deep-equal | `kernel/value-object.ts:12` |
-| `DomainEvent` | Hecho pasado, inmutable, con `eventId` UUID y `occurredAt` | `kernel/domain-event.ts:13` |
-| `ErrorCode` | Enum string-literal con códigos estables para `DomainError` | `kernel/domain-error.ts:7-31` |
-| `DomainError` | `Error` tipado con `code: ErrorCodeType` y `details?` | `kernel/domain-error.ts:35-43` |
+| Término         | Definición                                                                                          | Referencia                     |
+| --------------- | --------------------------------------------------------------------------------------------------- | ------------------------------ |
+| `AggregateRoot` | Entidad que posee un cluster de dominio, emite eventos vía `apply()`, muta vía `mutate()` abstracto | `kernel/aggregate-root.ts:17`  |
+| `Entity`        | Objeto definido por id, igualdad por id (vs VO por valor)                                           | `kernel/entity.ts:10`          |
+| `ValueObject`   | Objeto inmutable definido por valor, `equals()` por deep-equal                                      | `kernel/value-object.ts:12`    |
+| `DomainEvent`   | Hecho pasado, inmutable, con `eventId` UUID y `occurredAt`                                          | `kernel/domain-event.ts:13`    |
+| `ErrorCode`     | Enum string-literal con códigos estables para `DomainError`                                         | `kernel/domain-error.ts:7-31`  |
+| `DomainError`   | `Error` tipado con `code: ErrorCodeType` y `details?`                                               | `kernel/domain-error.ts:35-43` |
 
 ---
 
 ## 6. Lenguaje ubicuo (common)
 
-| Término | Definición | Referencia |
-|---|---|---|
-| `ChainId` | Identificador canónico de chain (`ethereum`/`solana`/`bsc`/`base`/`arbitrum`/`polygon`/`unknown`) | `common/value-objects/chain-id.vo.ts:27` |
-| `ChainId.fromString(raw)` | Factory que valida y lanza `DomainError(UNSUPPORTED_CHAIN)` si raw no es válido | `common/value-objects/chain-id.vo.ts:49` |
-| `ChainId.isEvm` | `true` para EVM chains (ethereum/bsc/base/arbitrum/polygon) | `common/value-objects/chain-id.vo.ts:65` |
-| `ChainId.isSolana` | `true` solo para `solana` | `common/value-objects/chain-id.vo.ts:71` |
-| `TokenMetrics` | Métricas USD parseadas de un alpha-call (MC, LP, FDV, holders) | `common/value-objects/token-metrics.vo.ts:16` |
-| `TokenMetrics.empty()` | Factory con todos los campos `null` | `common/value-objects/token-metrics.vo.ts:21` |
-| `TokenMetrics.completeness` | Ratio (0..1) de campos no-null vs total (4 campos) | `common/value-objects/token-metrics.vo.ts:47` |
-| `AppConfig` | Shape de la configuración cargada al boot | `common/config/app.config.ts:25-94` |
-| `HeliusNetworkConfig` | Sub-config para cada red Helius (mainnet/devnet) | `common/config/app.config.ts:11-17` |
-| `DatabaseModule` | Wrapper NestJS para `TypeOrmModule.forRootAsync()` opcional | `common/persistence/database.module.ts:33` |
-| `isDatabaseEnabled()` | Helper para decidir si activar Postgres | `common/persistence/database.module.ts:22` |
+| Término                     | Definición                                                                                        | Referencia                                    |
+| --------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `ChainId`                   | Identificador canónico de chain (`ethereum`/`solana`/`bsc`/`base`/`arbitrum`/`polygon`/`unknown`) | `common/value-objects/chain-id.vo.ts:27`      |
+| `ChainId.fromString(raw)`   | Factory que valida y lanza `DomainError(UNSUPPORTED_CHAIN)` si raw no es válido                   | `common/value-objects/chain-id.vo.ts:49`      |
+| `ChainId.isEvm`             | `true` para EVM chains (ethereum/bsc/base/arbitrum/polygon)                                       | `common/value-objects/chain-id.vo.ts:65`      |
+| `ChainId.isSolana`          | `true` solo para `solana`                                                                         | `common/value-objects/chain-id.vo.ts:71`      |
+| `TokenMetrics`              | Métricas USD parseadas de un alpha-call (MC, LP, FDV, holders)                                    | `common/value-objects/token-metrics.vo.ts:16` |
+| `TokenMetrics.empty()`      | Factory con todos los campos `null`                                                               | `common/value-objects/token-metrics.vo.ts:21` |
+| `TokenMetrics.completeness` | Ratio (0..1) de campos no-null vs total (4 campos)                                                | `common/value-objects/token-metrics.vo.ts:47` |
+| `AppConfig`                 | Shape de la configuración cargada al boot                                                         | `common/config/app.config.ts:25-94`           |
+| `HeliusNetworkConfig`       | Sub-config para cada red Helius (mainnet/devnet)                                                  | `common/config/app.config.ts:11-17`           |
+| `DatabaseModule`            | Wrapper NestJS para `TypeOrmModule.forRootAsync()` opcional                                       | `common/persistence/database.module.ts:33`    |
+| `isDatabaseEnabled()`       | Helper para decidir si activar Postgres                                                           | `common/persistence/database.module.ts:22`    |
 
 ---
 
@@ -199,12 +199,12 @@ Subclases concretas (en cada BC) extienden `DomainEvent`, llaman `super(eventNam
 
 `ErrorCode` (`kernel/domain-error.ts:7-31`) — enum `as const`:
 
-| Categoría | Códigos |
-|---|---|
-| Genérico | `INTERNAL`, `NOT_FOUND`, `VALIDATION`, `CONFLICT`, `UNAUTHORIZED`, `FORBIDDEN`, `RATE_LIMITED` |
-| Token context | `TOKEN_NOT_FOUND`, `INVALID_ADDRESS`, `UNSUPPORTED_CHAIN`, `HONEYPOT_DETECTED` |
-| Trading | `INSUFFICIENT_BALANCE`, `SLIPPAGE_EXCEEDED`, `ORDER_FAILED` |
-| discovery pipeline | `NO_CONTRACT_ADDRESS`, `NO_PARSED_CALL` |
+| Categoría          | Códigos                                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------------------- |
+| Genérico           | `INTERNAL`, `NOT_FOUND`, `VALIDATION`, `CONFLICT`, `UNAUTHORIZED`, `FORBIDDEN`, `RATE_LIMITED` |
+| Token context      | `TOKEN_NOT_FOUND`, `INVALID_ADDRESS`, `UNSUPPORTED_CHAIN`, `HONEYPOT_DETECTED`                 |
+| Trading            | `INSUFFICIENT_BALANCE`, `SLIPPAGE_EXCEEDED`, `ORDER_FAILED`                                    |
+| discovery pipeline | `NO_CONTRACT_ADDRESS`, `NO_PARSED_CALL`                                                        |
 
 `DomainError extends Error` (`:35-43`) — constructor `(code, message, details?)`. `details` se conserva como `Record<string, unknown>` para que handlers HTTP/loggers lo serialicen.
 
@@ -252,24 +252,24 @@ TokenMetrics {
 
 Archivo: `common/config/app.config.ts:137`. Registrado vía `registerAs('app', factory)`.
 
-| Sección | Env vars |
-|---|---|
-| `port` | `PORT` (default `3000`) |
-| `nodeEnv` | `NODE_ENV` (default `'development'`) |
-| `alchemy.apiKey` | `ALCHEMY_API_KEY` |
-| `birdeye.apiKey` | `BIRDEYE_API_KEY` |
-| `fluxrpc.{apiKey, rpcUrl, wsUrl?}` | `FLUXRPC_API_KEY`, `FLUXRPC_RPC`, `FLUXRPC_WS` |
-| `helius.apiKey` | `HELIUS_API_KEY` |
-| `helius.mainnet.*` | `HELIUS_RPC_URL_MAINNET`, `HELIUS_GATEKEEPER_RPC_URL_MAINNET`, `HELIUS_PARSE_SOLANA_TRANSACTION_MAINNET`, `HELIUS_PARSE_SOLANA_TRANSACTION_HISTORY_MAINNET`, `HELIUS_WS_MAINNET` |
-| `helius.devnet.*` | mismo set con sufijo `_DEVNET` |
-| `mobula.apiKey` | `MOBULA_API_KEY` |
-| `moralis.apiKey` | `MORALIS_API_KEY` |
-| `pumpdev.{apiKey, walletPublic, walletPrivate}` | `PUMPDEV_API_KEY`, `PUMPDEV_WALLET_PUBLIC`, `PUMPDEV_WALLET_PRIVATE` |
-| `telegram.{botToken, mtprotoApiId, mtprotoApiHash, mtprotoSession}` | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_MTPROTO_API_ID`, `TELEGRAM_MTPROTO_API_HASH`, `TELEGRAM_MTPROTO_SESSION` |
-| `ingestion.telegram.*` | `INGESTION_TELEGRAM_SEED_*`, `INGESTION_TELEGRAM_METADATA_CACHE_FILE`, `INGESTION_TELEGRAM_BACKFILL_*` |
-| `publishing.telegram.useRealMtproto` | `PUBLISHING_TELEGRAM_USE_REAL_MTPROTO` |
-| `analytics.*` | `ANALYTICS_EVALUATION_HORIZONS_HOURS`, `ANALYTICS_SCHEDULER_*` |
-| `database.*` | `DATABASE_ENABLED`, `POSTGRES_*`, `DATABASE_SYNCHRONIZE`, `DATABASE_LOGGING` |
+| Sección                                                                          | Env vars                                                                                                                                                                                                                  |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `port`                                                                           | `PORT` (default `3000`)                                                                                                                                                                                                   |
+| `nodeEnv`                                                                        | `NODE_ENV` (default `'development'`)                                                                                                                                                                                      |
+| `alchemy.apiKey`                                                                 | `ALCHEMY_API_KEY`                                                                                                                                                                                                         |
+| `birdeye.apiKey`                                                                 | `BIRDEYE_API_KEY`                                                                                                                                                                                                         |
+| `fluxrpc.{apiKey, rpcUrl, wsUrl?}`                                               | `FLUXRPC_API_KEY`, `FLUXRPC_RPC`, `FLUXRPC_WS`                                                                                                                                                                            |
+| `helius.apiKey`                                                                  | `HELIUS_API_KEY`                                                                                                                                                                                                          |
+| `helius.mainnet.*`                                                               | `HELIUS_RPC_URL_MAINNET`, `HELIUS_GATEKEEPER_RPC_URL_MAINNET`, `HELIUS_PARSE_SOLANA_TRANSACTION_MAINNET`, `HELIUS_PARSE_SOLANA_TRANSACTION_HISTORY_MAINNET`, `HELIUS_WS_MAINNET`                                          |
+| `helius.devnet.*`                                                                | mismo set con sufijo `_DEVNET`                                                                                                                                                                                            |
+| `mobula.apiKey`                                                                  | `MOBULA_API_KEY`                                                                                                                                                                                                          |
+| `moralis.apiKey`                                                                 | `MORALIS_API_KEY`                                                                                                                                                                                                         |
+| `pumpdev.{apiKey, walletPublic, walletPrivate}`                                  | `PUMPDEV_API_KEY`, `PUMPDEV_WALLET_PUBLIC`, `PUMPDEV_WALLET_PRIVATE`                                                                                                                                                      |
+| `telegram.{botToken (deprecated), mtprotoApiId, mtprotoApiHash, mtprotoSession}` | `TELEGRAM_BOT_TOKEN` (deprecated — use specific bot tokens: `VIP_CALLS_BOT_TOKEN`, `CRYPTO_NEWS_BOT_TOKEN`, `CHAIN_DEXTER_BOT_TOKEN`), `TELEGRAM_MTPROTO_API_ID`, `TELEGRAM_MTPROTO_API_HASH`, `TELEGRAM_MTPROTO_SESSION` |
+| `ingestion.telegram.*`                                                           | `INGESTION_TELEGRAM_SEED_*`, `INGESTION_TELEGRAM_METADATA_CACHE_FILE`, `INGESTION_TELEGRAM_BACKFILL_*`                                                                                                                    |
+| `publishing.telegram.useRealMtproto`                                             | `PUBLISHING_TELEGRAM_USE_REAL_MTPROTO`                                                                                                                                                                                    |
+| `analytics.*`                                                                    | `ANALYTICS_EVALUATION_HORIZONS_HOURS`, `ANALYTICS_SCHEDULER_*`                                                                                                                                                            |
+| `database.*`                                                                     | `DATABASE_ENABLED`, `POSTGRES_*`, `DATABASE_SYNCHRONIZE`, `DATABASE_LOGGING`                                                                                                                                              |
 
 Strings vacíos son valores por defecto para todas las api keys. El caller debe validar antes de usar.
 
@@ -285,8 +285,8 @@ Tres TypeORM entities registrados desde diferentes BCs:
 
 ```ts
 const PERSISTED_ENTITIES = [
-  TelegramChannelEntity,        // ca/ingestion/telegram
-  CanonicalTokenCallEntity,     // ca/normalization
+  TelegramChannelEntity, // ca/ingestion/telegram
+  CanonicalTokenCallEntity, // ca/normalization
   ChannelReputationStatsEntity, // ca/analytics
 ];
 ```
@@ -308,14 +308,14 @@ No hay otras utilidades (logger, retry, etc.). Si se necesitan, se prefieren lib
 
 `shared` no tiene casos de uso (no es un BC). Es código reutilizable. Ejemplos de uso por los BCs:
 
-| BC | Cómo lo usa |
-|---|---|
-| `ca/extraction` | `ExtractionResult extends AggregateRoot<string>`; lanza `DomainError(VALIDATION)`, `DomainError(INVALID_ADDRESS)`, `DomainError(NOT_FOUND)` |
-| `ca/parsing` | `TokenCall extends AggregateRoot<string>`; lanza `DomainError(NO_CONTRACT_ADDRESS)`, `DomainError(NO_PARSED_CALL)` |
-| `ca/ingestion/telegram` | `TelegramChannel` y otros agregados extienden `AggregateRoot`; eventos extienden `DomainEvent` |
-| `ca/chain-detection`, `ca/enrichment`, `ca/classification`, `ca/scoring`, `ca/filters`, `ca/honeypot`, `ca/analytics`, `ca/publishing/telegram` | Importan `ChainId` desde `common/value-objects/chain-id.vo` |
-| `ca/parsing`, `ca/normalization` | Importan `TokenMetrics` desde `common/value-objects/token-metrics.vo` |
-| `ca/*` (todos) | Los VOs extienden `ValueObject<TProps>` con factories estáticas que lanzan `DomainError` |
+| BC                                                                                                                                              | Cómo lo usa                                                                                                                                 |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ca/extraction`                                                                                                                                 | `ExtractionResult extends AggregateRoot<string>`; lanza `DomainError(VALIDATION)`, `DomainError(INVALID_ADDRESS)`, `DomainError(NOT_FOUND)` |
+| `ca/parsing`                                                                                                                                    | `TokenCall extends AggregateRoot<string>`; lanza `DomainError(NO_CONTRACT_ADDRESS)`, `DomainError(NO_PARSED_CALL)`                          |
+| `ca/ingestion/telegram`                                                                                                                         | `TelegramChannel` y otros agregados extienden `AggregateRoot`; eventos extienden `DomainEvent`                                              |
+| `ca/chain-detection`, `ca/enrichment`, `ca/classification`, `ca/scoring`, `ca/filters`, `ca/honeypot`, `ca/analytics`, `ca/publishing/telegram` | Importan `ChainId` desde `common/value-objects/chain-id.vo`                                                                                 |
+| `ca/parsing`, `ca/normalization`                                                                                                                | Importan `TokenMetrics` desde `common/value-objects/token-metrics.vo`                                                                       |
+| `ca/*` (todos)                                                                                                                                  | Los VOs extienden `ValueObject<TProps>` con factories estáticas que lanzan `DomainError`                                                    |
 
 ---
 
