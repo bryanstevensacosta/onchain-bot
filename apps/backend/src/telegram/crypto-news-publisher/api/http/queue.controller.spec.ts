@@ -178,7 +178,7 @@ describe('QueueController', () => {
       await controller.getQueueMedia('missing', res);
 
       expect(res.status).toHaveBeenCalledWith(404);
-      expect(json).toHaveBeenCalledWith({ error: 'Media not found' });
+      expect(json).toHaveBeenCalledWith({ error: 'Entry not found' });
     });
 
     it('should return 404 when the entry has no imagePath', async () => {

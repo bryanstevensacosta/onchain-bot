@@ -292,7 +292,7 @@ describe('CryptoNewsMessageIngestedHandler', () => {
 
       // Force cache expiry by manipulating the timestamp
 
-      (handler as any).cacheTimestamp = 0;
+      (handler as any).keywordCacheTimestamp = 0;
 
       // Second call should refresh
       await handler.handle(createEvent({ messageId: 2 }));

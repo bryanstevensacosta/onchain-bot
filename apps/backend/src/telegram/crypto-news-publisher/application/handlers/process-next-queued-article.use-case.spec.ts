@@ -221,7 +221,14 @@ describe('ProcessNextQueuedArticleUseCase', () => {
         nextDelayMs: 0,
       });
       queueRepo.findNextPending.mockResolvedValue(entry);
-      llmAdapter.generateForEntry.mockResolvedValue('texto');
+      llmAdapter.generateForEntry.mockResolvedValue({
+        content: 'texto',
+        systemPrompt: null,
+        userPrompt: 'test',
+        temperature: null,
+        reasoningEffort: null,
+        model: 'test',
+      });
       publisher.sendMessage.mockResolvedValue(sendOk(99_002));
       queueRepo.markPublished.mockResolvedValue(entry);
       throttleScheduler.setLastPublishAt.mockResolvedValue();
@@ -234,8 +241,11 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       );
       expect(publisher.sendPhoto).not.toHaveBeenCalled();
       expect(queueRepo.markPublished).toHaveBeenCalledWith(
-        'entry-text',
+        'entry-no-img',
         '99002',
+        expect.objectContaining({
+          content: 'texto',
+        }),
       );
     });
   });
