@@ -80,14 +80,22 @@ describe('QueueController', () => {
         {
           provide: LlmConfigRepository,
           useValue: {
-            load: jest.fn(),
+            load: jest.fn().mockResolvedValue({
+              targetChannel: '@crypto-news-test',
+              dailyCap: 36,
+              dailyResetUtcHour: 4,
+              randomDelayMinMs: 180000,
+              randomDelayMaxMs: 900000,
+              llmMaxAttempts: 3,
+              enabled: true,
+            }),
             save: jest.fn(),
           },
         },
         {
           provide: CryptoNewsSourceRepository,
           useValue: {
-            findAll: jest.fn(),
+            findAll: jest.fn().mockResolvedValue([]),
           },
         },
       ],

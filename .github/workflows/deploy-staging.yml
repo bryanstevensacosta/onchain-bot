@@ -42,13 +42,7 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Run backend tests
-        run: |
-          # Run tests but allow known pre-existing failures to not block deployment
-          # These failures are in crypto-news-publisher tests and are pre-existing issues
-          # Core functionality is verified by running adapter tests specifically
-          npm run test:backend || true
-          # Verify core crypto-news-publisher functionality works
-          npm run test:backend -- --testPathPatterns="crypto-news-llm.adapter.spec" || true
+        run: npm run test:backend
 
       - name: Run frontend tests
         run: npm run test:frontend

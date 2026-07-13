@@ -166,6 +166,7 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       const entry = buildEntry({
         id: 'entry-happy',
         imagePath: '/tmp/img.jpg',
+        imagePaths: ['/tmp/img.jpg'],
       });
       queueRepo.countPublishedToday.mockResolvedValue(0);
       throttleScheduler.shouldPublish.mockResolvedValue({
@@ -197,6 +198,9 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       expect(queueRepo.markPublished).toHaveBeenCalledWith(
         'entry-happy',
         '99001',
+        expect.objectContaining({
+          content: '✨ BTC rompe $100k',
+        }),
       );
       expect(throttleScheduler.setLastPublishAt).toHaveBeenCalledTimes(1);
       const persistedAt = throttleScheduler.setLastPublishAt.mock.calls[0][0];
@@ -207,7 +211,7 @@ describe('ProcessNextQueuedArticleUseCase', () => {
   describe('happy path without image', () => {
     it('falls back to sendMessage when imagePath is null', async () => {
       const entry = buildEntry({
-        id: 'entry-text',
+        id: 'entry-no-img',
         imagePath: null,
         imagePaths: [],
       });
@@ -418,7 +422,14 @@ describe('ProcessNextQueuedArticleUseCase', () => {
         nextDelayMs: 0,
       });
       queueRepo.findNextPending.mockResolvedValue(entry);
-      llmAdapter.generateForEntry.mockResolvedValue('texto');
+      llmAdapter.generateForEntry.mockResolvedValue({
+        content: 'texto',
+        systemPrompt: null,
+        userPrompt: 'test',
+        temperature: null,
+        reasoningEffort: null,
+        model: 'test',
+      });
       publisher.sendMessage.mockResolvedValue(sendOk(99_100));
       queueRepo.markPublished.mockResolvedValue(entry);
       throttleScheduler.setLastPublishAt.mockResolvedValue();
