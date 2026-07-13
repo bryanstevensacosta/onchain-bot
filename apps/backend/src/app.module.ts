@@ -11,6 +11,7 @@ import type { AppConfig } from 'shared/common/config/app.config';
 import { DatabaseModule } from 'shared/common/persistence/database.module';
 import { RedisModule } from 'shared/common/cache/redis.module';
 import { FilteredBootstrapLogger } from 'shared/common/filtered-bootstrap-logger';
+import { ConfigConnectivityService } from 'shared/common/config/config-connectivity.service';
 import { DashboardModule } from 'dashboard/dashboard.module';
 import { ExtractionModule } from 'token/intake/extraction/extraction.module';
 import { ParsingModule } from 'token/intake/parsing/parsing.module';
@@ -128,6 +129,11 @@ import { AppService } from './app.service';
     LlmModule,
   ],
   controllers: [AppController],
-  providers: [AppService, DevBackfillHook, FilteredBootstrapLogger],
+  providers: [
+    AppService,
+    DevBackfillHook,
+    FilteredBootstrapLogger,
+    ConfigConnectivityService,
+  ],
 })
 export class AppModule {}

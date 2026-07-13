@@ -10,6 +10,11 @@ import { AppService } from './app.service';
 import { DomainErrorFilter } from './shared/filters/domain-error.filter';
 import { FilteredBootstrapLogger } from './shared/common/filtered-bootstrap-logger';
 import type { AppConfig } from 'shared/common/config/app.config';
+import { appConfig } from 'shared/common/config/app.config';
+import {
+  validateAppConfig,
+  ConfigValidationError,
+} from 'shared/common/config/config-validator';
 
 // Load .env.dev then .env before any module import. Required so decorator-time
 // helpers (isDatabaseEnabled) see DATABASE_ENABLED before SettingsModule /
@@ -46,6 +51,21 @@ process.on('uncaughtException', (err) => {
 // print of deprecation warnings in Node 22+ — they print first, then the
 // listener fires. The reliable way to mute them is the noDeprecation flag.
 process.noDeprecation = true;
+
+// Pre-boot config validation: fail fast on missing critical env vars
+const cfg = appConfig();
+try {
+  const { warnings } = validateAppConfig(cfg);
+  for (const w of warnings) {
+    bootLogger.warn(`Config warning: ${w}`);
+  }
+} catch (err) {
+  if (err instanceof ConfigValidationError) {
+    bootLogger.fatal(err.message);
+    process.exit(1);
+  }
+  throw err;
+}
 
 async function bootstrap(): Promise<void> {
   // bufferLogs: true defers all logger output until app.useLogger() is called,
