@@ -1,4 +1,4 @@
-# startup-config-validator - Work Plan
+# startup-config-validator - Work Plan (✅ COMPLETE)
 
 ## TL;DR (For humans)
 
@@ -76,7 +76,7 @@ Your next move: Approve the plan, then run `$start-work`.
 
 <!-- APPEND TASK BATCHES BELOW THIS LINE WITH edit/apply_patch - never rewrite the headers above. -->
 
-- [ ] 1. Create ConfigValidator core + manifest + unit tests
+- [x] 1. Create ConfigValidator core + manifest + unit tests
      What to do / Must NOT do:
   - Create `apps/backend/src/shared/common/config/config-validator.ts`
   - Export `ConfigValidationError` class extending `Error` with a `details` array of all missing var names
@@ -136,7 +136,7 @@ Your next move: Approve the plan, then run `$start-work`.
     - Evidence: `.omo/evidence/task-1-startup-config-validator.test.log` and `.omo/evidence/task-1-startup-config-validator.tslint.log`
   - Commit: Y | `feat(backend): add startup config validator with blocking tier and conditional checks`
 
-- [ ] 2. Create ConfigConnectivityService + tests
+- [x] 2. Create ConfigConnectivityService + tests
      What to do / Must NOT do:
   - Create `apps/backend/src/shared/common/config/config-connectivity.service.ts`
   - Export `ConfigConnectivityService` class:
@@ -179,7 +179,7 @@ Your next move: Approve the plan, then run `$start-work`.
     - Evidence: `.omo/evidence/task-2-startup-config-validator.test.log`
   - Commit: Y | `feat(backend): add OnApplicationBootstrap connectivity checker for DB, Redis, Telegram`
 
-- [ ] 3. Wire ConfigValidator in main.ts
+- [x] 3. Wire ConfigValidator in main.ts
      What to do / Must NOT do:
   - Edit `apps/backend/src/main.ts` to add config validation call
   - Import `ConfigValidator` and `ConfigValidationError` (or just `validateAppConfig}`) from the new module
@@ -230,7 +230,7 @@ Your next move: Approve the plan, then run `$start-work`.
     - Evidence: `.omo/evidence/task-3-startup-config-validator.manual.log`
   - Commit: Y (include with Todo 1 if same logical change, or separate commit) | `chore(backend): wire startup config validator in main.ts`
 
-- [ ] 4. Wire ConfigConnectivityService in AppModule
+- [x] 4. Wire ConfigConnectivityService in AppModule
      What to do / Must NOT do:
   - Edit `apps/backend/src/app.module.ts` to add `ConfigConnectivityService` as a provider
   - Add to the `providers:` array in `AppModule` (since it needs `ConfigService` injection)
@@ -255,10 +255,10 @@ Your next move: Approve the plan, then run `$start-work`.
 
 > Runs in parallel after ALL todos. ALL must APPROVE. Surface results and wait for the user's explicit okay before declaring complete.
 
-- [ ] F1. Plan compliance audit — every todo marked complete, no scope leaks
-- [ ] F2. Code quality review — `cd apps/backend && npm run lint` passes, no any-types, no slop
-- [ ] F3. Real manual QA — run `npm run dev:backend-only` with complete .env (success) and with missing TELEGRAM_BOT_TOKEN (failure + clear error)
-- [ ] F4. Scope fidelity — no changes to app.config.ts, no new deps, no blocking connectivity
+- [x] F1. Plan compliance audit — every todo marked complete, no scope leaks
+- [x] F2. Code quality review — `cd apps/backend && npm run lint` passes, no any-types, no slop
+- [x] F3. Real manual QA — run `npm run dev:backend-only` with complete .env (success) and with missing TELEGRAM_BOT_TOKEN (failure + clear error)
+- [x] F4. Scope fidelity — no changes to app.config.ts, no new deps, no blocking connectivity
 
 ## Commit strategy
 
