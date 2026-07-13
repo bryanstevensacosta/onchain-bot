@@ -114,7 +114,7 @@ export interface AppConfig extends LlmConfigShape {
   };
 
   port: number;
-  nodeEnv: 'development' | 'production' | 'test';
+  nodeEnv: 'development' | 'production' | 'staging' | 'test';
 
   alchemy: { apiKey: string };
   birdeye: { apiKey: string };

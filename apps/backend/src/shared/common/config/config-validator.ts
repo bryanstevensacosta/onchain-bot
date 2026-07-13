@@ -204,7 +204,7 @@ const CONFIG_MANIFEST: ConfigVarDef[] = [
     configPath: 'nodeEnv',
     category: 'format',
     format: (value: unknown): string | null => {
-      const valid = ['development', 'production', 'test'];
+      const valid = ['development', 'production', 'staging', 'test'];
       if (!valid.includes(value as string)) {
         return `must be one of: ${valid.join(', ')}`;
       }

@@ -314,9 +314,24 @@ describe('validateAppConfig', () => {
       }
     });
 
-    it('should throw format error when NODE_ENV is "staging"', () => {
+    it('should accept NODE_ENV "staging" as valid', () => {
       const cfg = createMutableConfig();
-      cfg.nodeEnv = 'staging' as 'development' | 'production' | 'test';
+      cfg.nodeEnv = 'staging';
+
+      const result = validateAppConfig(cfg);
+      expect(result.warnings).toBeDefined();
+    });
+
+    it('should throw format error when NODE_ENV is unknown', () => {
+      const cfg = createMutableConfig();
+      (cfg as Record<string, unknown>).nodeEnv = 'unknown';
+
+      expect(() => validateAppConfig(cfg)).toThrow(ConfigValidationError);
+    });
+
+    it('should throw format error when NODE_ENV is "invalid-env"', () => {
+      const cfg = createMutableConfig();
+      (cfg as Record<string, unknown>).nodeEnv = 'invalid-env';
 
       expect(() => validateAppConfig(cfg)).toThrow(ConfigValidationError);
       try {
@@ -327,7 +342,7 @@ describe('validateAppConfig', () => {
           expect.objectContaining({ envVar: 'NODE_ENV' }),
         );
         expect(error.details[0].message).toContain(
-          'development, production, test',
+          'development, production, staging, test',
         );
       }
     });
