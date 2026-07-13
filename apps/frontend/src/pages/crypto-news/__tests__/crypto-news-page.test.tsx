@@ -27,6 +27,11 @@ vi.mock('@/features/crypto-news-publisher/model/use-keywords', () => ({
 vi.mock('@/features/crypto-news-publisher/model/use-queue', () => ({
   useQueue: vi.fn(),
   useQueueCounts: vi.fn(),
+  useCancelQueueEntry: vi.fn(() => ({
+    isPending: false,
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+  })),
 }));
 
 import {
@@ -617,11 +622,11 @@ describe('CryptoNewsPage — publisher (keywords + queue)', () => {
     expect(screen.getByText('24')).toBeInTheDocument();
 
     expect(screen.getByText('Queue (2)')).toBeInTheDocument();
-    expect(screen.getByText('ETF approval imminent')).toBeInTheDocument();
+    expect(screen.getAllByText('ETF approval imminent').length).toBe(2);
     expect(screen.getByText('PENDING')).toBeInTheDocument();
     expect(screen.getByText('PUBLISHED')).toBeInTheDocument();
-    expect(screen.getByText('attempts 0')).toBeInTheDocument();
-    expect(screen.getByText('attempts 1')).toBeInTheDocument();
+    expect(screen.getByText('msg 777')).toBeInTheDocument();
+    expect(screen.getByText('msg 778')).toBeInTheDocument();
   });
 
   it('submits the add-keyword form via the create mutation', () => {
