@@ -30,7 +30,13 @@ services:
     volumes:
       - onchain-bot-staging-redis-data:/data
     healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
+      test:
+        [
+          'CMD',
+          'sh',
+          '-c',
+          'redis-cli -a "$REDIS_PASSWORD" ping | grep -q PONG',
+        ]
       interval: 5s
       timeout: 3s
       retries: 10
