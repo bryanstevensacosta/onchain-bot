@@ -38,8 +38,8 @@ services:
 
   backend:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/backend/Dockerfile
     container_name: onchain-bot-staging-backend
     restart: unless-stopped
     env_file:
