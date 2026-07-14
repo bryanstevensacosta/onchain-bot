@@ -35,7 +35,7 @@ services:
           'CMD',
           'sh',
           '-c',
-          'redis-cli -a "$REDIS_PASSWORD" ping | grep -q PONG',
+          'if [ -n "$REDIS_PASSWORD" ]; then redis-cli -a "$REDIS_PASSWORD" ping | grep -q PONG; else redis-cli ping | grep -q PONG; fi',
         ]
       interval: 5s
       timeout: 3s
