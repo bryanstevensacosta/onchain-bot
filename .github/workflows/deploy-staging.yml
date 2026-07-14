@@ -108,6 +108,12 @@ jobs:
             /opt/onchain-bot-staging/
           echo "=== Sync complete ==="
 
+      - name: Clean stale node_modules (rsync --exclude prevents deletion)
+        run: |
+          echo "=== Removing stale node_modules that rsync --exclude preserves ==="
+          find /opt/onchain-bot-staging -name node_modules -type d -prune -exec rm -rf {} + 2>/dev/null || true
+          echo "=== Done ==="
+
       - name: Ensure .env.staging exists
         run: |
           mkdir -p /opt/onchain-bot-staging/apps/backend
