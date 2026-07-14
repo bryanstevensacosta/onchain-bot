@@ -106,8 +106,7 @@ jobs:
             --exclude='.env*' \
             /opt/actions-runner/_work/onchain-bot/onchain-bot/ \
             /opt/onchain-bot-staging/
-          echo "=== Post-sync HEAD ==="
-          git -C /opt/onchain-bot-staging rev-parse HEAD
+          echo "=== Sync complete ==="
 
       - name: Ensure .env.staging exists
         run: |
