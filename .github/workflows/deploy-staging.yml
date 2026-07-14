@@ -152,6 +152,8 @@ jobs:
 
       - name: Deploy services
         run: |
+          # Create .env file so docker compose resolves ${REDIS_PASSWORD} for redis service
+          echo "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}" > /opt/onchain-bot-staging/apps/backend/.env
           docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d --force-recreate backend frontend
 
       - name: Install socat services for staging
