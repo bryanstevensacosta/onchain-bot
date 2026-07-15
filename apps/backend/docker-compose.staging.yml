@@ -54,6 +54,8 @@ services:
       NODE_ENV: staging
     ports:
       - '3031:3030'
+    volumes:
+      - onchain-bot-staging-uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -80,3 +82,5 @@ volumes:
     name: onchain-bot-staging-pg-data
   onchain-bot-staging-redis-data:
     name: onchain-bot-staging-redis-data
+  onchain-bot-staging-uploads:
+    name: onchain-bot-staging-uploads
