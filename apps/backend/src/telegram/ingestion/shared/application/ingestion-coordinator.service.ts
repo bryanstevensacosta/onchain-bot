@@ -80,11 +80,6 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
       this.logger.debug('Crypto-news seed disabled; skipping.');
     }
 
-    if (!seedConfig?.autoStartListening) {
-      this.logger.debug('Auto-start listening disabled; coordinator idle.');
-      return;
-    }
-
     const activeKols = (await this.kolRepo.findAll()).filter((k) => k.isActive);
     const activeNews = await this.cryptoNewsSourceRepo.findActive();
     const allChannelIds = [

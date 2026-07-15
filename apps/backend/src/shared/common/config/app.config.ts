@@ -147,7 +147,6 @@ export interface AppConfig extends LlmConfigShape {
     telegram: {
       seed: {
         enabled: boolean;
-        autoStartListening: boolean;
         channels: SeedKolEntry[];
       };
       newsSeed: {
@@ -373,10 +372,6 @@ export const appConfig = registerAs(
           enabled:
             (
               process.env.INGESTION_TELEGRAM_SEED_ENABLED ?? 'true'
-            ).toLowerCase() === 'true',
-          autoStartListening:
-            (
-              process.env.INGESTION_TELEGRAM_SEED_AUTO_START ?? 'true'
             ).toLowerCase() === 'true',
           channels: parseSeedKols(
             process.env.INGESTION_TELEGRAM_SEED_KOLS ??

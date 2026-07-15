@@ -146,7 +146,6 @@ class FakeNewsSeeder extends CryptoNewsSeeder {
 function buildConfig(overrides: {
   seedEnabled?: boolean;
   newsSeedEnabled?: boolean;
-  autoStart?: boolean;
 }): ConfigService {
   return {
     get: (key: string) => {
@@ -156,7 +155,6 @@ function buildConfig(overrides: {
             telegram: {
               seed: {
                 enabled: overrides.seedEnabled ?? true,
-                autoStartListening: overrides.autoStart ?? true,
                 channels: [],
               },
               newsSeed: {
@@ -313,31 +311,6 @@ describe('IngestionCoordinator', () => {
     expect(store.stored[0].channelId).toBe('200');
     expect(store.stored[0].content).toBe('breaking news');
     expect(orchestrator.received).toHaveLength(0);
-  });
-
-  it('does not subscribe when autoStart is disabled', async () => {
-    const kol = Kol.create({
-      id: KolId.fromString('100'),
-      handle: null,
-      title: 'KOL',
-    });
-    kol.activate();
-    kolRepo.seed(kol);
-
-    const coord = new IngestionCoordinator(
-      buildConfig({ autoStart: false }),
-      kolSeeder,
-      newsSeeder,
-      kolRepo,
-      sourceRepo,
-      orchestrator,
-      store,
-      listener,
-    );
-    await coord.onApplicationBootstrap();
-    await new Promise((r) => setImmediate(r));
-
-    expect(listener.subscribeCalls).toHaveLength(0);
   });
 
   it('does not subscribe when no channels are active', async () => {

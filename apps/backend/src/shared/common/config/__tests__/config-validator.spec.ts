@@ -50,7 +50,6 @@ function createMutableConfig(): Omit<AppConfig, 'llm'> & {
       telegram: {
         seed: {
           enabled: true,
-          autoStartListening: true,
           channels: [{ kolId: '123', handle: 'test', title: 'Test' }],
         },
         newsSeed: {
