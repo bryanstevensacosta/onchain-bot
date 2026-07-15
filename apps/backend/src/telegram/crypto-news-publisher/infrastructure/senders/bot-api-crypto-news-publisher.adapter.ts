@@ -23,14 +23,14 @@ interface AppConfigShape {
  *
  * - `sendMessage`: plain text (or text + remote URL photo). Same JSON
  *   shape as Telegram Bot API.
-* - `sendPhoto`: text + LOCAL file path. We read the file from disk
-   *   and `POST` it to the Bot API's `sendPhoto` endpoint as
-   *   `multipart/form-data` (constructed manually — no new deps).
-   * - `sendVideo`: same pattern as `sendPhoto`, but POSTs to `sendVideo`
-   *   with `supports_streaming: true`.
-   *
-   * The default output channel is read from config (the `chatId`
-   * argument is ignored); crypto-news always publishes to one channel.
+ * - `sendPhoto`: text + LOCAL file path. We read the file from disk
+ *   and `POST` it to the Bot API's `sendPhoto` endpoint as
+ *   `multipart/form-data` (constructed manually — no new deps).
+ * - `sendVideo`: same pattern as `sendPhoto`, but POSTs to `sendVideo`
+ *   with `supports_streaming: true`.
+ *
+ * The default output channel is read from config (the `chatId`
+ * argument is ignored); crypto-news always publishes to one channel.
  */
 @Injectable()
 export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
@@ -253,7 +253,11 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
 
     for (const imagePath of imagePaths) {
       if (!existsSync(imagePath)) {
-        return { ok: false, messageId: null, error: `file not found: ${imagePath}` };
+        return {
+          ok: false,
+          messageId: null,
+          error: `file not found: ${imagePath}`,
+        };
       }
     }
 
@@ -379,7 +383,9 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
         },
       );
       req.on('error', (err) => {
-        this.logger.error(`sendMediaGroup HTTPS request failed: ${err.message}`);
+        this.logger.error(
+          `sendMediaGroup HTTPS request failed: ${err.message}`,
+        );
         resolve({
           ok: false,
           messageId: null,
@@ -389,6 +395,50 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
       req.write(body);
       req.end();
     });
+  }
+
+  /**
+   * Call Telegram's `getChat` endpoint to verify a chat exists and the
+   * bot can access it. Makes a GET request to the Bot API.
+   *
+   * Network errors (timeout, DNS failure) log a warning and return
+   * `{ ok: false, error: 'unreachable' }` so callers can distinguish
+   * "chat not found" from "cannot reach Telegram".
+   */
+  public async getChat(
+    chatId: string,
+  ): Promise<{ ok: boolean; error?: string }> {
+    const missing = this.requireConfig();
+    if (missing) return missing;
+    if (!chatId || chatId.trim().length === 0) {
+      return { ok: false, error: 'empty chat_id' };
+    }
+    const url = `${BotApiCryptoNewsPublisherAdapter.API_BASE}${this.botToken}/getChat?chat_id=${encodeURIComponent(chatId)}`;
+    try {
+      const body = await new Promise<string>((resolve, reject) => {
+        const req = httpsRequest(url, { method: 'GET' }, (res) => {
+          const chunks: Buffer[] = [];
+          res.on('data', (chunk: Buffer) => chunks.push(chunk));
+          res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+        });
+        req.on('error', reject);
+        req.end();
+      });
+      const data = JSON.parse(body) as {
+        ok: boolean;
+        description?: string;
+      };
+      if (data.ok) return { ok: true };
+      this.logger.warn(
+        `getChat failed for ${chatId}: ${data.description ?? 'unknown error'}`,
+      );
+      return { ok: false, error: data.description ?? 'chat not found' };
+    } catch (err) {
+      this.logger.warn(
+        `getChat network error for ${chatId}: ${(err as Error).message}`,
+      );
+      return { ok: false, error: 'unreachable' };
+    }
   }
 
   private async postJson(

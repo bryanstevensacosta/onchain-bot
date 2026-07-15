@@ -23,6 +23,23 @@ export interface SendResult {
 }
 
 export abstract class TelegramPublisherPort {
+  /**
+   * Check that a Telegram chat exists and the bot can access it.
+   * Calls the Bot API `getChat` endpoint under the hood.
+   *
+   * Returns `{ ok: true }` when the chat exists and is accessible.
+   * Returns `{ ok: false, error }` when the chat does not exist, the bot
+   * has been kicked, or the chat is private and the bot is not a member.
+   *
+   * The default implementation throws — adapters that need this method
+   * MUST override it (currently only `BotApiCryptoNewsPublisherAdapter`).
+   */
+  public async getChat(
+    _chatId: string,
+  ): Promise<{ ok: boolean; error?: string }> {
+    throw new Error('getChat not implemented by this adapter');
+  }
+
   public abstract sendMessage(
     chatId: string,
     text: string,

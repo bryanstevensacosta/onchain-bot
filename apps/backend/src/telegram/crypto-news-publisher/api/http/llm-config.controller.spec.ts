@@ -9,6 +9,7 @@ import { PromptTemplateRepository } from 'telegram/crypto-news-publisher/applica
 import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 import { KeywordRepository } from 'telegram/crypto-news-publisher/application/ports/keyword.repository';
 import { GetLlmModelsUseCase } from 'telegram/crypto-news-publisher/application/handlers/get-llm-models.use-case';
+import { TelegramPublisherPort } from 'telegram/shared';
 import { PromptTemplate } from 'telegram/crypto-news-publisher/domain/entities/prompt-template.entity';
 import { LlmConfig } from 'telegram/crypto-news-publisher/domain/entities/llm-config.entity';
 import { Keyword } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
@@ -81,6 +82,16 @@ describe('LlmConfigController', () => {
           provide: GetLlmModelsUseCase,
           useValue: {
             execute: jest.fn(),
+          },
+        },
+        {
+          provide: TelegramPublisherPort,
+          useValue: {
+            sendMessage: jest.fn(),
+            sendPhoto: jest.fn(),
+            sendVideo: jest.fn(),
+            sendMediaGroup: jest.fn(),
+            getChat: jest.fn().mockResolvedValue({ ok: true }),
           },
         },
       ],
