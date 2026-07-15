@@ -33,6 +33,9 @@ export class PublisherQueueEntity {
   @PrimaryColumn({ name: 'id', type: 'uuid' })
   public id!: string;
 
+  @Column({ name: 'trace_id', type: 'uuid' })
+  public traceId!: string;
+
   @Column({ name: 'channel_id', type: 'varchar', length: 64 })
   public channelId!: string;
 
@@ -131,6 +134,7 @@ export class PublisherQueueEntity {
   public toProps(): PublisherQueueEntryProps {
     return {
       id: this.id,
+      traceId: this.traceId,
       channelId: this.channelId,
       messageId: this.messageId,
       rawContent: this.rawContent,

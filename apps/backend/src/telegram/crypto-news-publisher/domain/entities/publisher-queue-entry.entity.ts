@@ -18,6 +18,7 @@ const VALID_PUBLISH_TRANSITIONS = new Set<PublisherQueueStatus>([
 
 export interface PublisherQueueEntryProps {
   readonly id: string;
+  readonly traceId: string;
   readonly channelId: string;
   readonly messageId: number;
   readonly rawContent: string;
@@ -141,8 +142,10 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
     }
     const allPaths = input.imagePaths ?? [];
     const firstPath = input.imagePath ?? allPaths[0] ?? null;
-    return new PublisherQueueEntry(input.id ?? crypto.randomUUID(), {
-      id: input.id ?? crypto.randomUUID(),
+    const id = input.id ?? crypto.randomUUID();
+    return new PublisherQueueEntry(id, {
+      id,
+      traceId: crypto.randomUUID(),
       channelId: input.channelId,
       messageId: input.messageId,
       rawContent: input.rawContent,
@@ -180,6 +183,10 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
 
   public get id(): string {
     return this.state.id;
+  }
+
+  public get traceId(): string {
+    return this.state.traceId;
   }
 
   public get channelId(): string {

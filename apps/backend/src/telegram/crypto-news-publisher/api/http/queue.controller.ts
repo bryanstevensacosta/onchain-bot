@@ -22,6 +22,7 @@ import { CryptoNewsSource } from 'telegram/ingestion/crypto-news/domain/entities
 
 export interface QueueEntryView {
   readonly id: string;
+  readonly traceId: string;
   readonly channelId: string;
   readonly sourceHandle: string | null;
   readonly sourceTitle: string | null;
@@ -218,6 +219,7 @@ export class QueueController {
 
     return {
       id: entry.id,
+      traceId: entry.traceId,
       channelId: entry.channelId,
       sourceHandle,
       sourceTitle,
