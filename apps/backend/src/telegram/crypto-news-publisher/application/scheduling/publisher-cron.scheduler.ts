@@ -3,7 +3,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { DataSource } from 'typeorm';
 import { ProcessNextQueuedArticleUseCase } from 'telegram/crypto-news-publisher/application/handlers/process-next-queued-article.use-case';
-import { CryptoNewsPublisherConfigService } from 'telegram/crypto-news-publisher/infrastructure/config/crypto-news-publisher.config';
+import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 
 /**
  * Postgres advisory-lock ID used to ensure only one publisher
@@ -46,13 +46,18 @@ export class PublisherCronScheduler implements OnApplicationBootstrap {
   public constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly processNextUseCase: ProcessNextQueuedArticleUseCase,
-    private readonly config: CryptoNewsPublisherConfigService,
+    private readonly llmConfigRepo: LlmConfigRepository,
   ) {}
 
-  public onApplicationBootstrap(): void {
-    this.logger.log(
-      `PublisherCronScheduler ready (enabled=${this.config.config.enabled})`,
-    );
+  public async onApplicationBootstrap(): Promise<void> {
+    try {
+      const cfg = await this.llmConfigRepo.load();
+      this.logger.log(`PublisherCronScheduler ready (enabled=${cfg.enabled})`);
+    } catch {
+      this.logger.warn(
+        'PublisherCronScheduler ready — could not load LlmConfig; scheduler will retry on each tick',
+      );
+    }
   }
 
   /**
@@ -66,7 +71,17 @@ export class PublisherCronScheduler implements OnApplicationBootstrap {
       this.logger.warn('previous tick still running; skipping this tick');
       return;
     }
-    if (!this.config.config.enabled) {
+    let enabled = false;
+    try {
+      const cfg = await this.llmConfigRepo.load();
+      enabled = cfg.enabled;
+    } catch (err) {
+      this.logger.error(
+        `failed to load LlmConfig on tick: ${(err as Error).message} — skipping`,
+      );
+      return;
+    }
+    if (!enabled) {
       return;
     }
     this.running = true;
