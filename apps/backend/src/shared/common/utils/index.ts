@@ -1,6 +1,8 @@
 /**
  * Common utility helpers used across Bounded Contexts.
  */
+export { formatUrlsAsMarkdown } from './telegram-url-formatter';
+
 export class Uuid {
   public static v4(): string {
     return crypto.randomUUID();

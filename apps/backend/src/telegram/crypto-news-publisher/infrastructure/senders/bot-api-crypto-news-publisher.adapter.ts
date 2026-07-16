@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TelegramPublisherPort, type SendResult } from 'telegram/shared';
+import { formatUrlsAsMarkdown } from 'shared/common/utils/telegram-url-formatter';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { basename, extname } from 'node:path';
 import { request as httpsRequest } from 'node:https';
@@ -97,9 +98,10 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     if (!text || text.length === 0) {
       return { ok: false, messageId: null, error: 'empty message' };
     }
+    const formattedText = formatUrlsAsMarkdown(text);
     const payload: Record<string, unknown> = {
       chat_id: this.outputChannel,
-      text,
+      text: formattedText,
       parse_mode: 'Markdown',
       disable_web_page_preview: false,
     };
@@ -148,10 +150,12 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
       return { ok: false, messageId: null, error: message };
     }
 
+    const formattedText = formatUrlsAsMarkdown(text);
     const caption =
-      text.length <= BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH
-        ? text
-        : text.slice(
+      formattedText.length <=
+      BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH
+        ? formattedText
+        : formattedText.slice(
             0,
             BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH - 1,
           ) + '…';
@@ -206,10 +210,12 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
       return { ok: false, messageId: null, error: message };
     }
 
+    const formattedText = formatUrlsAsMarkdown(text);
     const caption =
-      text.length <= BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH
-        ? text
-        : text.slice(
+      formattedText.length <=
+      BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH
+        ? formattedText
+        : formattedText.slice(
             0,
             BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH - 1,
           ) + '…';
@@ -280,10 +286,12 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
       }
     }
 
+    const formattedText = formatUrlsAsMarkdown(text);
     const caption =
-      text.length <= BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH
-        ? text
-        : text.slice(
+      formattedText.length <=
+      BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH
+        ? formattedText
+        : formattedText.slice(
             0,
             BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH - 1,
           ) + '…';
