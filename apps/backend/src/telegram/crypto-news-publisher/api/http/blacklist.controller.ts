@@ -13,11 +13,13 @@ import {
 } from '@nestjs/common';
 import { BlacklistPhraseRepository } from 'telegram/crypto-news-publisher/application/ports/blacklist-phrase.repository';
 import { BlacklistPhrase } from 'telegram/crypto-news-publisher/domain/entities/blacklist-phrase.entity';
+import type { MatchMode } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
 
 export interface BlacklistPhraseView {
   readonly id: string;
   readonly phrase: string;
   readonly caseSensitive: boolean;
+  readonly matchMode: MatchMode;
   readonly sourceChannelIds: string[];
   readonly enabled: boolean;
   readonly createdAt: string;
@@ -26,6 +28,7 @@ export interface BlacklistPhraseView {
 interface CreateBlacklistDto {
   phrase: string;
   caseSensitive?: boolean;
+  matchMode?: MatchMode;
   enabled?: boolean;
   sourceChannelIds?: string[];
 }
@@ -33,6 +36,7 @@ interface CreateBlacklistDto {
 interface UpdateBlacklistDto {
   phrase?: string;
   caseSensitive?: boolean;
+  matchMode?: MatchMode;
   enabled?: boolean;
   sourceChannelIds?: string[];
 }
@@ -88,6 +92,7 @@ export class BlacklistController {
     const phrase = BlacklistPhrase.create({
       phrase: dto.phrase,
       caseSensitive: dto.caseSensitive,
+      matchMode: dto.matchMode ?? 'exact',
       enabled: dto.enabled,
       sourceChannelIds: dto.sourceChannelIds ?? [],
     });
@@ -111,6 +116,8 @@ export class BlacklistController {
       dto.caseSensitive !== undefined
         ? dto.caseSensitive
         : existing.caseSensitive;
+    const nextMatchMode =
+      dto.matchMode !== undefined ? dto.matchMode : existing.matchMode;
     let nextEnabled = existing.enabled;
     if (dto.enabled === true) {
       nextEnabled = true;
@@ -126,6 +133,7 @@ export class BlacklistController {
       id: existing.id,
       phrase: nextPhrase,
       caseSensitive: nextCaseSensitive,
+      matchMode: nextMatchMode,
       sourceChannelIds: nextSourceChannelIds,
       enabled: nextEnabled,
       createdAt: existing.createdAt,
@@ -147,6 +155,7 @@ export class BlacklistController {
     id: phrase.id,
     phrase: phrase.phrase,
     caseSensitive: phrase.caseSensitive,
+    matchMode: phrase.matchMode,
     sourceChannelIds: phrase.sourceChannelIds,
     enabled: phrase.enabled,
     createdAt: phrase.createdAt.toISOString(),

@@ -13,6 +13,7 @@ export class BlacklistPhraseMapper {
     row.id = blacklistPhrase.id;
     row.phrase = blacklistPhrase.phrase;
     row.caseSensitive = blacklistPhrase.caseSensitive;
+    row.matchMode = blacklistPhrase.matchMode;
     row.sourceChannelIds = blacklistPhrase.sourceChannelIds;
     row.enabled = blacklistPhrase.enabled;
     row.createdAt = blacklistPhrase.createdAt;
@@ -24,6 +25,7 @@ export class BlacklistPhraseMapper {
       id: row.id,
       phrase: row.phrase,
       caseSensitive: row.caseSensitive,
+      matchMode: row.matchMode,
       sourceChannelIds: row.sourceChannelIds ?? [],
       enabled: row.enabled,
       createdAt: row.createdAt,

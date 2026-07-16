@@ -5,6 +5,7 @@ import {
   Index,
   PrimaryColumn,
 } from 'typeorm';
+import type { MatchMode } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
 
 /**
  * TypeORM persistence shape for `BlacklistPhrase`.
@@ -29,6 +30,14 @@ export class BlacklistPhraseEntity {
 
   @Column({ name: 'case_sensitive', type: 'boolean', default: false })
   public caseSensitive!: boolean;
+
+  @Column({
+    name: 'match_mode',
+    type: 'varchar',
+    length: 20,
+    default: 'substring',
+  })
+  public matchMode!: MatchMode;
 
   @Column({
     name: 'source_channel_ids',

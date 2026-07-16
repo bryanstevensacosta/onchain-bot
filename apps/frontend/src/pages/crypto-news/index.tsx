@@ -9,7 +9,6 @@ import { formatRelativeTime } from '@/shared/lib';
 import { renderFormattedText } from '@/shared/lib/render-telegram-entities';
 import { AddCryptoNewsSourceModal } from '@/features/add-crypto-news-source';
 import {
-  BlacklistManager,
   BlockedPostsList,
   KeywordsManager,
   LlmConfigForm,
@@ -383,15 +382,6 @@ export function CryptoNewsPage() {
             </summary>
             <div className="pt-2">
               <KeywordsManager />
-            </div>
-          </details>
-
-          <details className="space-y-3 rounded-lg border border-slate-700 bg-slate-800/30 p-4">
-            <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 select-none">
-              Blacklist
-            </summary>
-            <div className="pt-2">
-              <BlacklistManager />
             </div>
           </details>
 

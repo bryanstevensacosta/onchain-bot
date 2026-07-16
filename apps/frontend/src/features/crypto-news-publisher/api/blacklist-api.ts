@@ -8,6 +8,7 @@ import {
 export interface BlacklistPhraseView {
   readonly id: string;
   readonly phrase: string;
+  readonly matchMode: 'exact' | 'substring';
   readonly caseSensitive: boolean;
   readonly sourceChannelIds: string[];
   readonly enabled: boolean;
@@ -16,6 +17,7 @@ export interface BlacklistPhraseView {
 
 export interface CreateBlacklistBody {
   phrase: string;
+  matchMode?: 'exact' | 'substring';
   caseSensitive?: boolean;
   enabled?: boolean;
   sourceChannelIds?: string[];
@@ -23,6 +25,7 @@ export interface CreateBlacklistBody {
 
 export interface UpdateBlacklistBody {
   phrase?: string;
+  matchMode?: 'exact' | 'substring';
   caseSensitive?: boolean;
   enabled?: boolean;
   sourceChannelIds?: string[];

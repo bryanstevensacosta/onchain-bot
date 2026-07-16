@@ -657,7 +657,7 @@ describe('CryptoNewsPage — LLM section integration', () => {
 
     renderWithClient(<CryptoNewsPage />);
 
-    fireEvent.change(screen.getByLabelText('Phrase'), {
+    fireEvent.change(screen.getAllByLabelText('Phrase')[0], {
       target: { value: 'FOMC' },
     });
     fireEvent.change(screen.getByLabelText('Template'), {

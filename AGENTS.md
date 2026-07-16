@@ -150,6 +150,13 @@ To bypass all hooks for a single commit: `git commit --no-verify -m "..."`.
 
 Source: `apps/backend/docs/spydefi/arch/09-anti-patterns.md` — project-level rules.
 
+### Git Operations (CRITICAL)
+
+- **Never execute `git reset --hard`** — This permanently destroys uncommitted changes and cannot be undone. If there are TypeScript errors during commit, fix them manually, do NOT reset.
+- **Never execute `git revert --no-commit`** — Same reason as above; this attempt to "undo" changes before committing destroys work.
+- **Never use destructive git commands without explicit user approval** — Commands like `reset`, `rebase`, `force-push` require explicit permission.
+- **When TypeScript errors occur during commit**: Read the errors, fix them in the affected files manually, then retry the commit. Do NOT attempt to "undo" the staged changes.
+
 ### Architectural
 
 - **No `@Entity` in domain layer.** Domain entities are plain TS; ORM entities live in `infrastructure/persistence/typeorm/entities/`.

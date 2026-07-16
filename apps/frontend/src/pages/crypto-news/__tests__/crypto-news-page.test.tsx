@@ -648,7 +648,9 @@ describe('CryptoNewsPage — publisher (keywords + queue)', () => {
 
     renderWithClient(<CryptoNewsPage />);
 
-    const phraseInput = screen.getByLabelText('Phrase') as HTMLInputElement;
+    const phraseInput = screen.getAllByLabelText(
+      'Phrase',
+    )[0] as HTMLInputElement;
     fireEvent.change(phraseInput, { target: { value: 'FOMC' } });
 
     const submit = screen.getByRole('button', { name: /\+ Add keyword/i });

@@ -1,6 +1,7 @@
 import { AggregateRoot } from 'shared/kernel/aggregate-root';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import type { DomainEvent } from 'shared/kernel/domain-event';
+import type { MatchMode } from './keyword.entity';
 
 const MIN_PHRASE_LENGTH = 1;
 const MAX_PHRASE_LENGTH = 200;
@@ -8,6 +9,7 @@ const MAX_PHRASE_LENGTH = 200;
 interface BlacklistPhraseProps {
   readonly phrase: string;
   readonly caseSensitive: boolean;
+  readonly matchMode: MatchMode;
   sourceChannelIds: string[];
   enabled: boolean;
   readonly createdAt: Date;
@@ -37,6 +39,7 @@ export class BlacklistPhrase extends AggregateRoot<string> {
     id?: string;
     phrase: string;
     caseSensitive?: boolean;
+    matchMode?: MatchMode;
     sourceChannelIds?: string[];
     enabled?: boolean;
     createdAt?: Date;
@@ -71,6 +74,7 @@ export class BlacklistPhrase extends AggregateRoot<string> {
     return new BlacklistPhrase(input.id ?? crypto.randomUUID(), {
       phrase: trimmed,
       caseSensitive: input.caseSensitive ?? false,
+      matchMode: input.matchMode ?? 'exact',
       sourceChannelIds: input.sourceChannelIds ?? [],
       enabled: input.enabled ?? true,
       createdAt: input.createdAt ?? new Date(),
@@ -85,6 +89,7 @@ export class BlacklistPhrase extends AggregateRoot<string> {
     id: string;
     phrase: string;
     caseSensitive: boolean;
+    matchMode?: MatchMode;
     sourceChannelIds: string[];
     enabled: boolean;
     createdAt: Date;
@@ -92,6 +97,7 @@ export class BlacklistPhrase extends AggregateRoot<string> {
     return new BlacklistPhrase(input.id, {
       phrase: input.phrase,
       caseSensitive: input.caseSensitive,
+      matchMode: input.matchMode ?? 'substring',
       sourceChannelIds: input.sourceChannelIds,
       enabled: input.enabled,
       createdAt: input.createdAt,
@@ -104,6 +110,10 @@ export class BlacklistPhrase extends AggregateRoot<string> {
 
   public get caseSensitive(): boolean {
     return this.state.caseSensitive;
+  }
+
+  public get matchMode(): MatchMode {
+    return this.state.matchMode;
   }
 
   public get sourceChannelIds(): string[] {
@@ -121,8 +131,11 @@ export class BlacklistPhrase extends AggregateRoot<string> {
   /**
    * Test whether the supplied content contains the blacklist phrase.
    *
-   * - Case-insensitive phrases lower-case both sides.
-   * - Substring match: `phrase in content` (NOT word-bounded).
+   * Two modes controlled by `matchMode`:
+   * - `exact` (default for new phrases): word-boundary regex — `"AI"`
+   *   matches `"AI"` / `"AI's"` / `"AI,"` but NOT `"chain"` or `"cairo"`.
+   * - `substring`: simple `includes()` — `"btc"` matches `"btcusdt"`,
+   *   useful for URLs like `"arkm.com/explorer"` inside a longer URL.
    *
    * Returns `false` for empty content.
    */
@@ -130,6 +143,14 @@ export class BlacklistPhrase extends AggregateRoot<string> {
     if (!content || content.length === 0) {
       return false;
     }
+
+    if (this.state.matchMode === 'exact') {
+      const flags = this.state.caseSensitive ? '' : 'i';
+      const escaped = this.state.phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp(`\\b${escaped}\\b`, flags).test(content);
+    }
+
+    // substring mode
     if (this.state.caseSensitive) {
       return content.includes(this.state.phrase);
     }
