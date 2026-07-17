@@ -27,7 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends wget gosu && rm
 COPY --from=build /repo/node_modules ./node_modules
 COPY --from=build /repo/apps/backend/dist ./dist
 COPY --from=build /repo/apps/backend/package.json ./package.json
-COPY docker-entrypoint.sh /usr/local/bin/
+COPY apps/backend/docker-entrypoint.sh /usr/local/bin/
 
 RUN chown -R node:node /app && chmod +x /usr/local/bin/docker-entrypoint.sh
 
