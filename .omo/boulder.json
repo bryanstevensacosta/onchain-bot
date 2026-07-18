@@ -1,13 +1,13 @@
 {
   "schema_version": 2,
-  "active_work_id": "startup-config-validator",
+  "active_work_id": "mtproto-adapter-decompose",
   "works": {
-    "startup-config-validator": {
-      "work_id": "startup-config-validator",
-      "active_plan": "/Users/bryanstevens/dev/onchain-bot/.omo/plans/startup-config-validator.md",
-      "plan_name": "startup-config-validator",
-      "session_ids": ["codex:current"],
-      "status": "active",
+    "mtproto-adapter-decompose": {
+      "work_id": "mtproto-adapter-decompose",
+      "active_plan": ".omo/plans/mtproto-adapter-decompose.md",
+      "plan_name": "mtproto-adapter-decompose",
+      "session_ids": ["opencode:current"],
+      "status": "completed",
       "worktree_path": null
     }
   }
