@@ -26,6 +26,7 @@ import { SleepWindowService } from 'telegram/ingestion/shared/infrastructure/ser
 import { FloodWaitCounterService } from 'telegram/ingestion/shared/infrastructure/services/flood-wait-counter.service';
 import { FloodWaitHandlerService } from 'telegram/ingestion/shared/infrastructure/services/flood-wait-handler.service';
 import { CryptoNewsMediaDownloader } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-media-downloader.port';
+import { RedisService } from 'shared/common/cache/redis.service';
 
 @Injectable()
 export class TelegramMtprotoListenerAdapter
@@ -47,6 +48,7 @@ export class TelegramMtprotoListenerAdapter
     private readonly sleepWindow: SleepWindowService,
     private readonly floodWaitCounter: FloodWaitCounterService,
     private readonly floodWaitHandler: FloodWaitHandlerService,
+    private readonly redis: RedisService,
     @Inject(forwardRef(() => CryptoNewsMediaDownloader))
     private readonly mediaDownloader: CryptoNewsMediaDownloader,
   ) {}
@@ -119,7 +121,28 @@ export class TelegramMtprotoListenerAdapter
       void this.handleEvent(event);
     }, new NewMessage({}));
     this.logger.log(
-      `Subscribed to ${channelIds.length} channel(s) — starting staggered polling`,
+      `Subscribed to ${channelIds.length} channel(s) — loading lastSeen offsets from Redis`,
+    );
+
+    for (const peerId of channelIds) {
+      const key = `ingestion:lastSeen:${this.normalizePeerId(peerId)}`;
+      try {
+        const cached = await this.redis.get(key);
+        if (cached) {
+          const parsed = parseInt(cached, 10);
+          if (!Number.isNaN(parsed) && parsed > 0) {
+            this.lastSeenMessageId.set(peerId, parsed);
+          }
+        }
+      } catch (err) {
+        this.logger.warn(
+          `Failed to load lastSeen from Redis for ${peerId}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
+    this.logger.log(
+      `Loaded ${this.lastSeenMessageId.size}/${channelIds.length} lastSeen offsets — starting staggered polling`,
     );
     void this.startPollingLoop();
     while (this.running) {
@@ -220,6 +243,14 @@ export class TelegramMtprotoListenerAdapter
             }
           });
           this.lastPollAt = new Date();
+
+          const lastSeen = this.lastSeenMessageId.get(peerId);
+          if (lastSeen !== undefined && lastSeen > 0) {
+            await this.safeRedisSet(
+              `ingestion:lastSeen:${this.normalizePeerId(peerId)}`,
+              lastSeen.toString(),
+            );
+          }
         } catch (err) {
           this.logger.error(
             `Poll failed for ${peerId}: ${(err as Error).message}`,
@@ -806,6 +837,25 @@ export class TelegramMtprotoListenerAdapter
       MessageEntityCashtag: 'cashtag',
     };
     return map[className ?? ''] ?? 'unknown';
+  }
+
+  private normalizePeerId(peerId: string): string {
+    let normalized = peerId.startsWith('@') ? peerId.slice(1) : peerId;
+    if (normalized.startsWith('-100')) {
+      normalized = normalized.slice(4);
+    }
+    return normalized;
+  }
+
+  private async safeRedisSet(key: string, value: string): Promise<void> {
+    if (!this.redis?.isEnabled()) return;
+    try {
+      await this.redis.set(key, value);
+    } catch (err) {
+      this.logger.warn(
+        `Redis set failed (key=${key}): ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 }
 
