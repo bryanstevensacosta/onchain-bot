@@ -8,19 +8,10 @@
       "git log *": "allow",
       "git branch *": "allow",
       "git fetch *": "allow",
-      "git pull *": "ask",
-      "git push *": "deny",
-      "git push --force *": "deny",
-      "git reset *": "deny",
-      "git reset --hard *": "deny",
-      "git revert *": "deny",
-      "git rebase *": "deny",
-      "git clean *": "deny",
-      "rm -rf *": "deny",
-      "rm -r *": "deny",
-      "git stash drop *": "deny",
-      "git stash clear *": "deny",
-      "git commit *": "ask"
+      "gh run view": "allow",
+      "gh run view *": "allow",
+      "gh run list": "allow",
+      "gh run list *": "allow"
     }
   }
 }
