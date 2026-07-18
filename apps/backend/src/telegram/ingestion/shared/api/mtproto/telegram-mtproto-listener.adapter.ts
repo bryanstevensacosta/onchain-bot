@@ -28,6 +28,22 @@ import { FloodWaitHandlerService } from 'telegram/ingestion/shared/infrastructur
 import { CryptoNewsMediaDownloader } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-media-downloader.port';
 import { RedisService } from 'shared/common/cache/redis.service';
 
+interface GramjsMessageEntity {
+  offset: number;
+  length: number;
+  className?: string;
+  url?: string;
+}
+
+interface GramjsRawMessage {
+  id: number;
+  message?: string;
+  date: number;
+  media?: unknown;
+  entities?: GramjsMessageEntity[];
+  groupedId?: string;
+}
+
 @Injectable()
 export class TelegramMtprotoListenerAdapter
   implements TelegramListenerPort, OnModuleInit, OnModuleDestroy
@@ -207,36 +223,23 @@ export class TelegramMtprotoListenerAdapter
               minId: lastSeen,
               limit: 50,
             });
-            for (const rawMsg of messages as Array<{
-              id: number;
-              message?: string;
-              date: number;
-              media?: unknown;
-            }>) {
+            for (const rawMsg of messages as GramjsRawMessage[]) {
               if (rawMsg.id <= lastSeen) continue;
               this.lastSeenMessageId.set(peerId, rawMsg.id);
               const media = await this.extractMediaAttachments(peerId, rawMsg);
-              const msgAny = rawMsg as any;
               this.queue.push({
                 peerId,
                 messageId: rawMsg.id,
                 text: rawMsg.message ?? '',
                 occurredAt: new Date(rawMsg.date * 1000),
-                entities: (
-                  (msgAny.entities ?? []) as Array<{
-                    offset: number;
-                    length: number;
-                    className?: string;
-                    url?: string;
-                  }>
-                ).map((e) => ({
+                entities: (rawMsg.entities ?? []).map((e) => ({
                   offset: e.offset,
                   length: e.length,
                   type: this.normalizeEntityType(e.className),
                   ...(e.url ? { url: e.url } : {}),
                 })),
                 ...(media ? { media } : {}),
-                groupedId: (msgAny.groupedId as string) ?? null,
+                groupedId: rawMsg.groupedId,
               });
               const resolver = this.waitingResolvers.shift();
               if (resolver) resolver();
@@ -278,27 +281,20 @@ export class TelegramMtprotoListenerAdapter
       const channelId = chat ? String(chat.id) : '';
       if (!channelId || !this.subscribedChannelIds.includes(channelId)) return;
       const media = await this.extractMediaAttachments(channelId, msg);
-      const msgAny = msg as any;
+      const rawMsg = msg as GramjsRawMessage;
       this.queue.push({
         peerId: channelId,
         messageId: msg.id,
         text: msg.message ?? '',
         occurredAt: new Date(msg.date * 1000),
-        entities: (
-          (msgAny.entities ?? []) as Array<{
-            offset: number;
-            length: number;
-            className?: string;
-            url?: string;
-          }>
-        ).map((e) => ({
+        entities: (rawMsg.entities ?? []).map((e) => ({
           offset: e.offset,
           length: e.length,
           type: this.normalizeEntityType(e.className),
           ...(e.url ? { url: e.url } : {}),
         })),
         ...(media ? { media } : {}),
-        groupedId: (msgAny.groupedId as string) ?? null,
+        groupedId: rawMsg.groupedId,
       });
       const resolver = this.waitingResolvers.shift();
       if (resolver) resolver();
@@ -337,27 +333,20 @@ export class TelegramMtprotoListenerAdapter
         }
       }
       const media = await this.extractMediaAttachments(channelId, resolved);
-      const mAny = m as any;
+      const rawMsg = m as GramjsRawMessage;
       out.push({
         peerId: channelId,
         messageId: m.id,
         text: m.message ?? '',
         occurredAt: new Date(m.date * 1000),
-        entities: (
-          (mAny.entities ?? []) as Array<{
-            offset: number;
-            length: number;
-            className?: string;
-            url?: string;
-          }>
-        ).map((e) => ({
+        entities: (rawMsg.entities ?? []).map((e) => ({
           offset: e.offset,
           length: e.length,
           type: this.normalizeEntityType(e.className),
           ...(e.url ? { url: e.url } : {}),
         })),
         ...(media && media.length > 0 ? { media: [...media] } : {}),
-        groupedId: (mAny.groupedId as string) ?? null,
+        groupedId: rawMsg.groupedId,
       });
     }
     return out;
@@ -483,15 +472,7 @@ export class TelegramMtprotoListenerAdapter
 
     // Check MessageMediaVideo (media.video exists and is Api.Document)
     if (msgMedia.video && typeof msgMedia.video === 'object') {
-      const video = msgMedia.video as {
-        id?: unknown;
-        accessHash?: unknown;
-        fileReference?: unknown;
-        mimeType?: unknown;
-        dcId?: unknown;
-        date?: unknown;
-      };
-      const videoDoc = video as {
+      const videoDoc = msgMedia.video as {
         id?: unknown;
         accessHash?: unknown;
         fileReference?: unknown;
@@ -645,7 +626,7 @@ export class TelegramMtprotoListenerAdapter
         msg.id,
         0,
         attachment,
-        buffer as Buffer,
+        buffer,
       );
       const enriched: TelegramMediaAttachment = {
         ...attachment,
@@ -671,25 +652,40 @@ export class TelegramMtprotoListenerAdapter
             `media-refresh:${peerId}:${msg.id}`,
             () => client.getMessages(peer, { ids: [msg.id] }),
           );
-          const fresh = (Array.isArray(refreshed) ? refreshed[0] : refreshed) as
-            | { media?: { photo?: { sizes?: unknown[]; id?: unknown; accessHash?: unknown; fileReference?: unknown } } }
+          const fresh = (
+            Array.isArray(refreshed) ? refreshed[0] : refreshed
+          ) as
+            | {
+                media?: {
+                  photo?: {
+                    sizes?: unknown[];
+                    id?: unknown;
+                    accessHash?: unknown;
+                    fileReference?: unknown;
+                  };
+                };
+              }
             | undefined;
           const freshPhoto = fresh?.media?.photo;
           if (freshPhoto?.sizes && freshPhoto.sizes.length > 0) {
             const freshFileRef = Buffer.isBuffer(freshPhoto.fileReference)
               ? freshPhoto.fileReference
-              : Buffer.from(Array.isArray(freshPhoto.fileReference) ? freshPhoto.fileReference : []);
+              : Buffer.from(
+                  Array.isArray(freshPhoto.fileReference)
+                    ? freshPhoto.fileReference
+                    : [],
+                );
             const freshPhotoMedia = new Api.MessageMediaPhoto({
               photo: new Api.Photo({
                 id: coerceToLong(
                   typeof freshPhoto.id === 'bigint'
                     ? freshPhoto.id
-                    : String(freshPhoto.id ?? ''),
+                    : safeToString(freshPhoto.id),
                 ),
                 accessHash: coerceToLong(
                   typeof freshPhoto.accessHash === 'bigint'
                     ? freshPhoto.accessHash
-                    : String(freshPhoto.accessHash ?? ''),
+                    : safeToString(freshPhoto.accessHash),
                 ),
                 fileReference: freshFileRef,
                 date: attachment.date ?? 0,
@@ -857,6 +853,16 @@ export class TelegramMtprotoListenerAdapter
       );
     }
   }
+}
+
+function safeToString(v: unknown): string {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number') return String(v);
+  if (typeof v === 'bigint') return v.toString();
+  if (typeof v === 'boolean') return v ? 'true' : 'false';
+  if (typeof v === 'symbol') return v.toString();
+  return (v as { toString(): string }).toString();
 }
 
 function coerceToLong(value: bigint | string): bigInt.BigInteger {
