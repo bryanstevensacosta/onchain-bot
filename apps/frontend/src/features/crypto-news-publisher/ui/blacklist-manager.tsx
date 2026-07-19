@@ -12,6 +12,7 @@ import {
   useCryptoNewsSources,
   type CryptoNewsSource,
 } from '@/entities/crypto-news';
+import { SourceMultiSelect } from './source-multi-select';
 import type {
   BlacklistPhraseView,
   CreateBlacklistBody,
@@ -24,8 +25,9 @@ interface BlacklistModalProps {
   title: string;
   initialPhrase: string;
   initialCaseSensitive: boolean;
-  initialSourceChannelIds: string;
+  initialSourceChannelIds: string[];
   initialEnabled: boolean;
+  sourceOptions: readonly CryptoNewsSource[];
   onSubmit: (body: CreateBlacklistBody | UpdateBlacklistBody) => void;
   pending: boolean;
   errorMessage: string | null;
@@ -39,6 +41,7 @@ function BlacklistModal({
   initialCaseSensitive,
   initialSourceChannelIds,
   initialEnabled,
+  sourceOptions,
   onSubmit,
   pending,
   errorMessage,
@@ -65,15 +68,12 @@ function BlacklistModal({
     e.preventDefault();
     if (!canSubmit) return;
     const trimmedPhrase = phrase.trim();
-    const sourceIds = sourceChannelIds
-      .split(',')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
     onSubmit({
       phrase: trimmedPhrase,
       caseSensitive,
       enabled,
-      sourceChannelIds: sourceIds.length > 0 ? sourceIds : undefined,
+      sourceChannelIds:
+        sourceChannelIds.length > 0 ? sourceChannelIds : undefined,
     });
   }
 
@@ -100,25 +100,15 @@ function BlacklistModal({
         </div>
 
         <div>
-          <label
-            htmlFor="bl-sources"
-            className="block text-xs uppercase text-slate-500 mb-1"
-          >
-            Source Channel IDs (comma-separated, optional)
+          <label className="block text-xs uppercase text-slate-500 mb-1">
+            Source Channels
           </label>
-          <input
-            id="bl-sources"
-            type="text"
-            value={sourceChannelIds}
-            onChange={(e) => setSourceChannelIds(e.target.value)}
-            placeholder="e.g. 123456789, 987654321 (empty = all sources)"
-            className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+          <SourceMultiSelect
+            ids={sourceChannelIds}
+            onChange={setSourceChannelIds}
+            sourceOptions={sourceOptions}
             disabled={pending}
           />
-          <p className="mt-1 text-[10px] text-slate-500">
-            Leave empty to apply to all sources. IDs can be found in the Sources
-            list.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
@@ -277,8 +267,9 @@ export function BlacklistManager(): React.ReactElement {
         title="Add Blacklist Phrase"
         initialPhrase=""
         initialCaseSensitive={false}
-        initialSourceChannelIds=""
+        initialSourceChannelIds={[]}
         initialEnabled={true}
+        sourceOptions={sources ?? []}
         onSubmit={handleCreateSubmit}
         pending={createMut.isPending}
         errorMessage={createMut.error?.message ?? null}
@@ -290,8 +281,9 @@ export function BlacklistManager(): React.ReactElement {
         title="Edit Blacklist Phrase"
         initialPhrase={editingItem?.phrase ?? ''}
         initialCaseSensitive={editingItem?.caseSensitive ?? false}
-        initialSourceChannelIds={editingItem?.sourceChannelIds.join(', ') ?? ''}
+        initialSourceChannelIds={editingItem?.sourceChannelIds ?? []}
         initialEnabled={editingItem?.enabled ?? true}
+        sourceOptions={sources ?? []}
         onSubmit={handleEditSubmit}
         pending={updateMut.isPending}
         errorMessage={updateMut.error?.message ?? null}
