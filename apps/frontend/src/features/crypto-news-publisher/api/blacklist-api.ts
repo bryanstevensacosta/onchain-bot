@@ -13,6 +13,8 @@ export interface BlacklistPhraseView {
   readonly sourceChannelIds: string[];
   readonly enabled: boolean;
   readonly createdAt: string;
+  readonly andGroupId: string | null;
+  readonly requireMedia: boolean;
 }
 
 export interface CreateBlacklistBody {
@@ -21,6 +23,8 @@ export interface CreateBlacklistBody {
   caseSensitive?: boolean;
   enabled?: boolean;
   sourceChannelIds?: string[];
+  andGroupId?: string | null;
+  requireMedia?: boolean;
 }
 
 export interface UpdateBlacklistBody {
@@ -29,6 +33,8 @@ export interface UpdateBlacklistBody {
   caseSensitive?: boolean;
   enabled?: boolean;
   sourceChannelIds?: string[];
+  andGroupId?: string | null;
+  requireMedia?: boolean;
 }
 
 export const blacklistKeys = {

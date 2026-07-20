@@ -12,17 +12,18 @@ export interface KeywordView {
   readonly sourceChannelIds: string[];
   readonly enabled: boolean;
   /**
-   * When true, only messages with at least one media item are
-   * enqueued for this keyword; otherwise the match is dropped.
-   */
-  readonly requireImage: boolean;
-  /**
    * Optional `PromptTemplate` override. When `null` the keyword falls
    * back to `LlmConfig.defaultTemplateId` at publish time.
    */
   readonly templateId: string | null;
   readonly matchMode: 'exact' | 'substring';
   readonly createdAt: string;
+  readonly andGroupId: string | null;
+  /**
+   * When true, only messages with at least one media item are
+   * enqueued for this keyword; otherwise the match is dropped.
+   */
+  readonly requireMedia: boolean;
 }
 
 export interface CreateKeywordBody {
@@ -35,8 +36,9 @@ export interface CreateKeywordBody {
    * default template; a string binds the keyword to that template.
    */
   templateId?: string | null;
-  requireImage?: boolean;
+  requireMedia?: boolean;
   matchMode?: 'exact' | 'substring';
+  andGroupId?: string | null;
 }
 
 export interface UpdateKeywordBody {
@@ -51,8 +53,9 @@ export interface UpdateKeywordBody {
    *  - `"<uuid>"`  → bind to that template
    */
   templateId?: string | null;
-  requireImage?: boolean;
+  requireMedia?: boolean;
   matchMode?: 'exact' | 'substring';
+  andGroupId?: string | null;
 }
 
 export const keywordsKeys = {
