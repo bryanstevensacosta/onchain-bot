@@ -150,17 +150,38 @@ jobs:
         run: |
           docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml build frontend
 
-      - name: Deploy services
+      - name: Configure deploy environment
         run: |
-          # Create .env file so docker compose resolves ${REDIS_PASSWORD} for redis service
-          # Only write if secret exists — empty value would make redis enable password auth with empty pass
-          # Also remove stale .env from prior failed runs that may contain REDIS_PASSWORD=
+          # Run once before deploy steps — postgres/redis don't restart
           if [ -n "${{ secrets.REDIS_PASSWORD }}" ]; then
             echo "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}" > /opt/onchain-bot-staging/apps/backend/.env
           else
             rm -f /opt/onchain-bot-staging/apps/backend/.env
           fi
-          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d --force-recreate backend frontend
+
+      - name: Deploy backend
+        run: |
+          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d --no-deps backend
+
+      - name: Wait for backend healthcheck
+        run: |
+          echo "=== Waiting for backend to become healthy ==="
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3031/api/health > /dev/null 2>&1; then
+              echo "✓ Backend is healthy (attempt $i)"
+              break
+            fi
+            echo "  Waiting... attempt $i/30"
+            sleep 2
+            if [ "$i" -eq 30 ]; then
+              echo "❌ Backend healthcheck failed after 30 attempts"
+              exit 1
+            fi
+          done
+
+      - name: Deploy frontend
+        run: |
+          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d frontend
 
       - name: Install socat services for staging
         run: |
@@ -168,7 +189,6 @@ jobs:
 
       - name: Healthcheck backend (Tailscale)
         run: |
-          sleep 10
           curl -sf http://100.84.4.28:3031/api/health || { echo "BACKEND HEALTHCHECK FAILED"; exit 1; }
 
       - name: Healthcheck frontend (Tailscale)
