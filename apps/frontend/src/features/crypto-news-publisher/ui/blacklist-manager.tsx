@@ -28,6 +28,8 @@ interface BlacklistModalProps {
   initialMatchMode: 'exact' | 'substring';
   initialSourceChannelIds: string[];
   initialEnabled: boolean;
+  initialAndGroupId: string | null;
+  initialRequireMedia: boolean;
   sourceOptions: readonly CryptoNewsSource[];
   onSubmit: (body: CreateBlacklistBody | UpdateBlacklistBody) => void;
   pending: boolean;
@@ -43,6 +45,8 @@ function BlacklistModal({
   initialMatchMode,
   initialSourceChannelIds,
   initialEnabled,
+  initialAndGroupId,
+  initialRequireMedia,
   sourceOptions,
   onSubmit,
   pending,
@@ -57,6 +61,8 @@ function BlacklistModal({
   const [matchMode, setMatchMode] = useState<'exact' | 'substring'>(
     initialMatchMode,
   );
+  const [isCompound, setIsCompound] = useState(initialAndGroupId !== null);
+  const [requireMedia, setRequireMedia] = useState(initialRequireMedia);
 
   const canSubmit = phrase.trim().length > 0 && !pending;
 
@@ -67,6 +73,8 @@ function BlacklistModal({
     setSourceChannelIds(initialSourceChannelIds);
     setEnabled(initialEnabled);
     setMatchMode(initialMatchMode);
+    setIsCompound(initialAndGroupId !== null);
+    setRequireMedia(initialRequireMedia);
     onClose();
   }
 
@@ -74,6 +82,9 @@ function BlacklistModal({
     e.preventDefault();
     if (!canSubmit) return;
     const trimmedPhrase = phrase.trim();
+    const andGroupId = isCompound
+      ? (initialAndGroupId ?? crypto.randomUUID())
+      : null;
     onSubmit({
       phrase: trimmedPhrase,
       caseSensitive,
@@ -81,6 +92,8 @@ function BlacklistModal({
       enabled,
       sourceChannelIds:
         sourceChannelIds.length > 0 ? sourceChannelIds : undefined,
+      andGroupId,
+      requireMedia,
     });
   }
 
@@ -153,6 +166,27 @@ function BlacklistModal({
           </label>
         </div>
 
+        <div className="flex flex-wrap items-center gap-4">
+          <label className="flex items-center gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={isCompound}
+              onChange={(e) => setIsCompound(e.target.checked)}
+              disabled={pending}
+            />
+            <span>Compound (AND group)</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={requireMedia}
+              onChange={(e) => setRequireMedia(e.target.checked)}
+              disabled={pending}
+            />
+            <span>Require Media</span>
+          </label>
+        </div>
+
         {errorMessage && (
           <div
             role="alert"
@@ -195,6 +229,7 @@ export function BlacklistManager(): React.ReactElement {
 
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 5;
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -209,7 +244,63 @@ export function BlacklistManager(): React.ReactElement {
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
 
-  const totalPages = Math.ceil(blacklist.length / PAGE_SIZE);
+  // Group items: simple (andGroupId=null) vs compound (same andGroupId)
+  const simpleItems = blacklist.filter((item) => item.andGroupId === null);
+  const groupedByCompound = blacklist
+    .filter((item) => item.andGroupId !== null)
+    .reduce(
+      (acc, item) => {
+        const groupId = item.andGroupId!;
+        if (!acc[groupId]) {
+          acc[groupId] = [];
+        }
+        acc[groupId].push(item);
+        return acc;
+      },
+      {} as Record<string, BlacklistPhraseView[]>,
+    );
+  const compoundGroups = Object.values(groupedByCompound).map((items) => ({
+    id: items[0].andGroupId!,
+    items: items.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    ),
+    enabled: items.every((i) => i.enabled),
+  }));
+
+  // Combined view: simple items + compound groups (paginated)
+  const combinedItems: Array<
+    | { type: 'simple'; item: BlacklistPhraseView }
+    | { type: 'compound'; group: (typeof compoundGroups)[0] }
+  > = [
+    ...simpleItems.map((item) => ({ type: 'simple' as const, item })),
+    ...compoundGroups.map((group) => ({ type: 'compound' as const, group })),
+  ];
+  combinedItems.sort((a, b) => {
+    const dateA =
+      a.type === 'simple'
+        ? new Date(a.item.createdAt).getTime()
+        : new Date(a.group.items[0].createdAt).getTime();
+    const dateB =
+      b.type === 'simple'
+        ? new Date(b.item.createdAt).getTime()
+        : new Date(b.group.items[0].createdAt).getTime();
+    return dateB - dateA;
+  });
+
+  const totalPages = Math.ceil(combinedItems.length / PAGE_SIZE);
+
+  function toggleGroup(groupId: string) {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  }
 
   function handleOpenCreate() {
     setCreateModalOpen(true);
@@ -246,12 +337,34 @@ export function BlacklistManager(): React.ReactElement {
     updateMut.mutate({ id: item.id, body: { enabled: !item.enabled } });
   }
 
+  function handleCompoundToggle(group: (typeof compoundGroups)[0]) {
+    const newEnabled = !group.enabled;
+    group.items.forEach((item) => {
+      updateMut.mutate({
+        id: item.id,
+        body: { enabled: newEnabled },
+      });
+    });
+  }
+
   function handleDelete(item: BlacklistPhraseView) {
     if (typeof window !== 'undefined') {
       const ok = window.confirm(`Delete blacklist phrase "${item.phrase}"?`);
       if (!ok) return;
     }
     deleteMut.mutate(item.id);
+  }
+
+  function handleCompoundDelete(group: (typeof compoundGroups)[0]) {
+    if (typeof window !== 'undefined') {
+      const ok = window.confirm(
+        `Delete compound group with ${group.items.length} phrases?`,
+      );
+      if (!ok) return;
+    }
+    group.items.forEach((item) => {
+      deleteMut.mutate(item.id);
+    });
   }
 
   function sourceDisplay(item: BlacklistPhraseView): string {
@@ -269,7 +382,7 @@ export function BlacklistManager(): React.ReactElement {
     <Card>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-slate-100">
-          Blacklist Phrases ({blacklist.length})
+          Blacklist Phrases ({combinedItems.length})
         </h2>
         <Button variant="primary" size="sm" onClick={handleOpenCreate}>
           + Add Phrase
@@ -291,6 +404,8 @@ export function BlacklistManager(): React.ReactElement {
         initialMatchMode="exact"
         initialSourceChannelIds={[]}
         initialEnabled={true}
+        initialAndGroupId={null}
+        initialRequireMedia={false}
         sourceOptions={sources ?? []}
         onSubmit={handleCreateSubmit}
         pending={createMut.isPending}
@@ -306,6 +421,8 @@ export function BlacklistManager(): React.ReactElement {
         initialMatchMode={editingItem?.matchMode ?? 'substring'}
         initialSourceChannelIds={editingItem?.sourceChannelIds ?? []}
         initialEnabled={editingItem?.enabled ?? true}
+        initialAndGroupId={editingItem?.andGroupId ?? null}
+        initialRequireMedia={editingItem?.requireMedia ?? false}
         sourceOptions={sources ?? []}
         onSubmit={handleEditSubmit}
         pending={updateMut.isPending}
@@ -318,7 +435,7 @@ export function BlacklistManager(): React.ReactElement {
         <div className="text-sm text-red-400">
           Failed to load blacklist: {String(error)}
         </div>
-      ) : blacklist.length === 0 ? (
+      ) : combinedItems.length === 0 ? (
         <div className="text-sm text-slate-500">
           No blacklist phrases yet. Add one above to start filtering crypto-news
           messages.
@@ -329,79 +446,254 @@ export function BlacklistManager(): React.ReactElement {
             <thead>
               <tr className="text-xs text-slate-500 border-b border-slate-700">
                 <th className="py-2 pr-3">Phrase</th>
-                <th className="py-2 pr-3">Case Sensitive</th>
+                <th className="py-2 pr-3">Case</th>
                 <th className="py-2 pr-3">Sources</th>
                 <th className="py-2 pr-3">Match</th>
+                <th className="py-2 pr-3">Media</th>
                 <th className="py-2 pr-3">Enabled</th>
                 <th className="py-2 pr-3">Created</th>
                 <th className="py-2 pr-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {blacklist
+              {combinedItems
                 .slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
-                .map((item) => (
-                  <tr
-                    key={item.id}
-                    className="border-b border-slate-800/60 last:border-0"
-                  >
-                    <td className="py-2 pr-3 font-mono text-slate-200">
-                      {item.phrase}
-                    </td>
-                    <td className="py-2 pr-3 text-slate-400">
-                      {item.caseSensitive ? 'Yes' : 'No'}
-                    </td>
-                    <td className="py-2 pr-3 text-xs text-slate-300">
-                      {sourceDisplay(item)}
-                    </td>
-                    <td className="py-2 pr-3">
-                      <span className="text-xs font-mono text-slate-400 uppercase">
-                        {item.matchMode}
-                      </span>
-                    </td>
-                    <td className="py-2 pr-3">
-                      <label className="inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={item.enabled}
-                          onChange={() => handleToggle(item)}
-                          disabled={updateMut.isPending}
-                          aria-label={`Toggle ${item.phrase}`}
-                        />
-                      </label>
-                    </td>
-                    <td className="py-2 pr-3 text-xs text-slate-500">
-                      {new Date(item.createdAt).toLocaleString()}
-                    </td>
-                    <td className="py-2 pr-3 text-right">
-                      <div className="inline-flex gap-2">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => handleOpenEdit(item)}
+                .map((entry) => {
+                  if (entry.type === 'simple') {
+                    const item = entry.item;
+                    const hasMedia = item.requireMedia;
+                    return (
+                      <tr
+                        key={item.id}
+                        className="border-b border-slate-800/60 last:border-0"
+                      >
+                        <td className="py-2 pr-3 font-mono text-slate-200 max-w-[200px] truncate">
+                          {item.phrase}
+                        </td>
+                        <td className="py-2 pr-3 text-slate-400 text-xs">
+                          {item.caseSensitive ? (
+                            <span className="text-yellow-400">Aa</span>
+                          ) : (
+                            <span className="text-slate-600">—</span>
+                          )}
+                        </td>
+                        <td className="py-2 pr-3 text-xs text-slate-300 max-w-[120px] truncate">
+                          {sourceDisplay(item)}
+                        </td>
+                        <td className="py-2 pr-3">
+                          <span className="text-xs font-mono text-slate-400 uppercase">
+                            {item.matchMode}
+                          </span>
+                        </td>
+                        <td className="py-2 pr-3">
+                          {hasMedia ? (
+                            <span
+                              className="text-xs text-cyan-400"
+                              title="Requires media"
+                            >
+                              🎬
+                            </span>
+                          ) : (
+                            <span className="text-slate-600">—</span>
+                          )}
+                        </td>
+                        <td className="py-2 pr-3">
+                          <label className="inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={item.enabled}
+                              onChange={() => handleToggle(item)}
+                              disabled={updateMut.isPending}
+                              aria-label={`Toggle ${item.phrase}`}
+                            />
+                          </label>
+                        </td>
+                        <td className="py-2 pr-3 text-xs text-slate-500">
+                          {new Date(item.createdAt).toLocaleString()}
+                        </td>
+                        <td className="py-2 pr-3 text-right">
+                          <div className="inline-flex gap-2">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => handleOpenEdit(item)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => handleDelete(item)}
+                              disabled={deleteMut.isPending}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  const group = entry.group;
+                  const isExpanded = expandedGroups.has(group.id);
+
+                  return (
+                    <>
+                      <tr
+                        key={group.id}
+                        className="border-b border-slate-700/80 bg-slate-800/40"
+                      >
+                        <td
+                          className="py-2 pr-3 font-mono text-slate-200"
+                          colSpan={8}
                         >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => handleDelete(item)}
-                          disabled={deleteMut.isPending}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => toggleGroup(group.id)}
+                              className="text-slate-400 hover:text-slate-200 transition-colors"
+                              aria-label={
+                                isExpanded ? 'Collapse group' : 'Expand group'
+                              }
+                            >
+                              <svg
+                                className={`w-4 h-4 transition-transform ${
+                                  isExpanded ? 'rotate-90' : ''
+                                }`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 5l7 7-7 7"
+                                />
+                              </svg>
+                            </button>
+                            <span className="text-xs font-semibold uppercase text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">
+                              Compound
+                            </span>
+                            <span className="text-sm text-slate-300">
+                              {group.items.length} phrases
+                            </span>
+                            {group.items.some((i) => i.requireMedia) && (
+                              <span className="text-xs text-cyan-400">🎬</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                      {isExpanded &&
+                        group.items.map((child) => (
+                          <tr
+                            key={child.id}
+                            className="border-b border-slate-800/40 bg-slate-900/30"
+                          >
+                            <td className="py-1.5 pl-8 pr-3 font-mono text-slate-300 text-xs max-w-[200px] truncate">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] uppercase text-amber-500/70 font-semibold bg-amber-500/10 px-1 rounded">
+                                  AND
+                                </span>
+                                <span>{child.phrase}</span>
+                              </div>
+                            </td>
+                            <td className="py-1.5 pr-3 text-slate-400 text-xs">
+                              {child.caseSensitive ? (
+                                <span className="text-yellow-400">Aa</span>
+                              ) : (
+                                <span className="text-slate-600">—</span>
+                              )}
+                            </td>
+                            <td className="py-1.5 pr-3 text-xs text-slate-400 max-w-[120px] truncate">
+                              {sourceDisplay(child)}
+                            </td>
+                            <td className="py-1.5 pr-3">
+                              <span className="text-xs font-mono text-slate-500 uppercase">
+                                {child.matchMode}
+                              </span>
+                            </td>
+                            <td className="py-1.5 pr-3">
+                              {child.requireMedia ? (
+                                <span
+                                  className="text-xs text-cyan-400"
+                                  title="Requires media"
+                                >
+                                  🎬
+                                </span>
+                              ) : (
+                                <span className="text-slate-600">—</span>
+                              )}
+                            </td>
+                            <td className="py-1.5 pr-3">
+                              <label className="inline-flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={child.enabled}
+                                  onChange={() => handleToggle(child)}
+                                  disabled={updateMut.isPending}
+                                  aria-label={`Toggle ${child.phrase}`}
+                                />
+                              </label>
+                            </td>
+                            <td className="py-1.5 pr-3 text-xs text-slate-500">
+                              {new Date(child.createdAt).toLocaleString()}
+                            </td>
+                            <td className="py-1.5 pr-3 text-right">
+                              <div className="inline-flex gap-1">
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => handleOpenEdit(child)}
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="danger"
+                                  size="sm"
+                                  onClick={() => handleDelete(child)}
+                                  disabled={deleteMut.isPending}
+                                >
+                                  Del
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      <tr className="border-b border-slate-800/60">
+                        <td colSpan={8} className="py-1.5 px-3">
+                          <div className="flex items-center gap-3">
+                            <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={group.enabled}
+                                onChange={() => handleCompoundToggle(group)}
+                                disabled={updateMut.isPending}
+                              />
+                              <span>Toggle all</span>
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => handleCompoundDelete(group)}
+                              disabled={deleteMut.isPending}
+                              className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                            >
+                              Delete group ({group.items.length})
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </>
+                  );
+                })}
             </tbody>
           </table>
-          {blacklist.length > PAGE_SIZE && (
+          {combinedItems.length > PAGE_SIZE && (
             <div className="flex items-center justify-between pt-3 text-xs text-slate-500">
               <span>
                 {page * PAGE_SIZE + 1}–
-                {Math.min((page + 1) * PAGE_SIZE, blacklist.length)} of{' '}
-                {blacklist.length}
+                {Math.min((page + 1) * PAGE_SIZE, combinedItems.length)} of{' '}
+                {combinedItems.length}
               </span>
               <div className="flex items-center gap-1">
                 <button
@@ -413,7 +705,7 @@ export function BlacklistManager(): React.ReactElement {
                   Prev
                 </button>
                 {Array.from(
-                  { length: Math.ceil(blacklist.length / PAGE_SIZE) },
+                  { length: Math.ceil(combinedItems.length / PAGE_SIZE) },
                   (_, i) => (
                     <button
                       key={i}
@@ -431,7 +723,7 @@ export function BlacklistManager(): React.ReactElement {
                 )}
                 <button
                   type="button"
-                  disabled={(page + 1) * PAGE_SIZE >= blacklist.length}
+                  disabled={(page + 1) * PAGE_SIZE >= combinedItems.length}
                   onClick={() => setPage(page + 1)}
                   className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
