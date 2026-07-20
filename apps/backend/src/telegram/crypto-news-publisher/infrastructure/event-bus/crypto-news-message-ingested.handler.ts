@@ -94,8 +94,12 @@ export class CryptoNewsMessageIngestedHandler {
       );
 
       // Test each keyword against content - find ALL matches
-      const matchedKeywords = keywords.filter((kw) =>
-        kw.matches(message.content),
+      // Separate simples (andGroupId=null) from compounds (grouped by andGroupId)
+      const hasMedia = this.messageHasMedia(message);
+      const matchedKeywords = this.findMatchingKeywords(
+        keywords,
+        message.content,
+        hasMedia,
       );
 
       if (matchedKeywords.length === 0) {
@@ -110,7 +114,11 @@ export class CryptoNewsMessageIngestedHandler {
       // no blacklist matched — a blacklist outage must not block publication.
       let blockingPhrase: BlacklistPhrase | null = null;
       try {
-        blockingPhrase = await this.checkBlacklist(channelId, message.content);
+        blockingPhrase = await this.checkBlacklist(
+          channelId,
+          message.content,
+          hasMedia,
+        );
       } catch (blErr) {
         this.logger.warn(
           `Blacklist check failed, proceeding without blocking: channelId=${channelId}, messageId=${messageId}, title=${title ?? '(none)'}: ${(blErr as Error).message}`,
@@ -265,6 +273,7 @@ export class CryptoNewsMessageIngestedHandler {
   private async checkBlacklist(
     channelId: string,
     content: string,
+    hasMedia: boolean,
   ): Promise<BlacklistPhrase | null> {
     const allBlacklist = await this.getEnabledBlacklistPhrases();
 
@@ -272,10 +281,96 @@ export class CryptoNewsMessageIngestedHandler {
       phrase.isApplicableTo(channelId),
     );
 
-    for (const phrase of applicableBlacklist) {
-      if (phrase.matches(content)) {
+    return this.findBlockingBlacklistPhrase(
+      applicableBlacklist,
+      content,
+      hasMedia,
+    );
+  }
+
+  private messageHasMedia(message: CryptoNewsMessage): boolean {
+    return message.media.length > 0;
+  }
+
+  private findMatchingKeywords(
+    keywords: readonly Keyword[],
+    content: string,
+    hasMedia: boolean,
+  ): Keyword[] {
+    const simples: Keyword[] = [];
+    const compounds = new Map<string, Keyword[]>();
+
+    for (const kw of keywords) {
+      if (kw.andGroupId === null) {
+        simples.push(kw);
+      } else {
+        const group = compounds.get(kw.andGroupId) ?? [];
+        group.push(kw);
+        compounds.set(kw.andGroupId, group);
+      }
+    }
+
+    const matched: Keyword[] = [];
+
+    for (const kw of simples) {
+      if (kw.matches(content) && (!kw.requireMedia || hasMedia)) {
+        matched.push(kw);
+      }
+    }
+
+    for (const [, groupKeywords] of compounds) {
+      const allMatch = groupKeywords.every((kw) => kw.matches(content));
+      if (!allMatch) {
+        continue;
+      }
+      const anyRequiresMedia = groupKeywords.some((kw) => kw.requireMedia);
+      if (anyRequiresMedia && !hasMedia) {
+        continue;
+      }
+      for (const kw of groupKeywords) {
+        if (!matched.some((m) => m.id === kw.id)) {
+          matched.push(kw);
+        }
+      }
+    }
+
+    return matched;
+  }
+
+  private findBlockingBlacklistPhrase(
+    phrases: readonly BlacklistPhrase[],
+    content: string,
+    hasMedia: boolean,
+  ): BlacklistPhrase | null {
+    const simples: BlacklistPhrase[] = [];
+    const compounds = new Map<string, BlacklistPhrase[]>();
+
+    for (const phrase of phrases) {
+      if (phrase.andGroupId === null) {
+        simples.push(phrase);
+      } else {
+        const group = compounds.get(phrase.andGroupId) ?? [];
+        group.push(phrase);
+        compounds.set(phrase.andGroupId, group);
+      }
+    }
+
+    for (const phrase of simples) {
+      if (phrase.checkMatchesWithMedia(content, hasMedia)) {
         return phrase;
       }
+    }
+
+    for (const [, groupPhrases] of compounds) {
+      const allMatch = groupPhrases.every((p) => p.matches(content));
+      if (!allMatch) {
+        continue;
+      }
+      const anyRequiresMedia = groupPhrases.some((p) => p.requireMedia);
+      if (anyRequiresMedia && !hasMedia) {
+        continue;
+      }
+      return groupPhrases[0];
     }
 
     return null;

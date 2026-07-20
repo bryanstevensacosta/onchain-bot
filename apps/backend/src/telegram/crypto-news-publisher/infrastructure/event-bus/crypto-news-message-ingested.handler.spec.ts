@@ -8,16 +8,63 @@ import { CryptoNewsMessageIngestedEvent } from 'telegram/ingestion/crypto-news/d
 import { Keyword } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
 import { BlacklistPhraseRepository } from 'telegram/crypto-news-publisher/application/ports/blacklist-phrase.repository';
+import { BlacklistPhrase } from 'telegram/crypto-news-publisher/domain/entities/blacklist-phrase.entity';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
 
 describe('CryptoNewsMessageIngestedHandler', () => {
   let handler: CryptoNewsMessageIngestedHandler;
   let messageRepo: jest.Mocked<CryptoNewsMessageRepository>;
   let keywordRepo: jest.Mocked<KeywordRepository>;
+  let blacklistRepo: jest.Mocked<BlacklistPhraseRepository>;
   let enqueue: jest.Mocked<EnqueueMatchingMessageUseCase>;
+
+  const createMessage = (content: string, media: unknown[] = []) => ({
+    id: 'msg-1',
+    channelId: 'crypto-news',
+    messageId: 42,
+    content,
+    title: 'Test title',
+    media,
+    groupedId: null,
+    receivedAt: new Date(),
+  });
 
   const createKeyword = (phrase: string, caseSensitive = false): Keyword =>
     Keyword.create({ phrase, caseSensitive, enabled: true });
+
+  const createKeywordWithOptions = (options: {
+    phrase: string;
+    caseSensitive?: boolean;
+    andGroupId?: string | null;
+    requireMedia?: boolean;
+  }): Keyword =>
+    Keyword.create({
+      phrase: options.phrase,
+      caseSensitive: options.caseSensitive ?? false,
+      enabled: true,
+      andGroupId: options.andGroupId ?? null,
+      requireMedia: options.requireMedia ?? false,
+    });
+
+  const createBlacklistPhrase = (
+    phrase: string,
+    caseSensitive = false,
+  ): BlacklistPhrase =>
+    BlacklistPhrase.create({ phrase, caseSensitive, enabled: true });
+
+  const createBlacklistPhraseWithOptions = (options: {
+    phrase: string;
+    caseSensitive?: boolean;
+    andGroupId?: string | null;
+    requireMedia?: boolean;
+  }): BlacklistPhrase =>
+    BlacklistPhrase.create({
+      phrase: options.phrase,
+      caseSensitive: options.caseSensitive ?? false,
+      enabled: true,
+      andGroupId: options.andGroupId ?? null,
+      requireMedia: options.requireMedia ?? false,
+    });
 
   const createEvent = (
     overrides: Partial<{
@@ -53,7 +100,7 @@ describe('CryptoNewsMessageIngestedHandler', () => {
         {
           provide: BlacklistPhraseRepository,
           useValue: {
-            findAllEnabled: jest.fn().mockResolvedValue([]),
+            findEnabled: jest.fn().mockResolvedValue([]),
           },
         },
         {
@@ -76,6 +123,7 @@ describe('CryptoNewsMessageIngestedHandler', () => {
     );
     messageRepo = module.get(CryptoNewsMessageRepository);
     keywordRepo = module.get(KeywordRepository);
+    blacklistRepo = module.get(BlacklistPhraseRepository);
     enqueue = module.get(EnqueueMatchingMessageUseCase);
   });
 
@@ -297,6 +345,282 @@ describe('CryptoNewsMessageIngestedHandler', () => {
       // Second call should refresh
       await handler.handle(createEvent({ messageId: 2 }));
       expect(keywordRepo.findEnabled).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('compound keywords (AND groups)', () => {
+    it('should enqueue when all phrases in a compound group match', async () => {
+      const event = createEvent();
+      const message = createMessage('Bitcoin and Ethereum are up');
+      const kw1 = createKeywordWithOptions({
+        phrase: 'bitcoin',
+        andGroupId: 'group-1',
+      });
+      const kw2 = createKeywordWithOptions({
+        phrase: 'ethereum',
+        andGroupId: 'group-1',
+      });
+      const entry = PublisherQueueEntry.create({
+        channelId: 'crypto-news',
+        messageId: 42,
+        rawContent: 'Bitcoin and Ethereum are up',
+        rawTitle: 'Test title',
+        imagePath: null,
+        groupedId: null,
+        messageReceivedAt: new Date(),
+      });
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw1, kw2]);
+      enqueue.execute.mockResolvedValue(entry);
+
+      await handler.handle(event);
+
+      expect(enqueue.execute).toHaveBeenCalled();
+      const callArg = enqueue.execute.mock.calls[0][0];
+      expect(callArg.matchedKeywords).toHaveLength(2);
+    });
+
+    it('should NOT enqueue when compound group partially matches', async () => {
+      const event = createEvent();
+      const message = createMessage('Bitcoin is up');
+      const kw1 = createKeywordWithOptions({
+        phrase: 'bitcoin',
+        andGroupId: 'group-1',
+      });
+      const kw2 = createKeywordWithOptions({
+        phrase: 'ethereum',
+        andGroupId: 'group-1',
+      });
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw1, kw2]);
+      enqueue.execute.mockResolvedValue(
+        undefined as unknown as PublisherQueueEntry,
+      );
+
+      await handler.handle(event);
+
+      expect(enqueue.execute).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('requireMedia', () => {
+    it('should match simple keyword with requireMedia when media is present', async () => {
+      const event = createEvent();
+      const message = createMessage('Bitcoin news', [
+        { filePath: '/img/btc.jpg' },
+      ]);
+      const kw = createKeywordWithOptions({
+        phrase: 'bitcoin',
+        requireMedia: true,
+      });
+      const entry = PublisherQueueEntry.create({
+        channelId: 'crypto-news',
+        messageId: 42,
+        rawContent: 'Bitcoin news',
+        rawTitle: 'Test title',
+        imagePath: null,
+        groupedId: null,
+        messageReceivedAt: new Date(),
+      });
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw]);
+      enqueue.execute.mockResolvedValue(entry);
+
+      await handler.handle(event);
+
+      expect(enqueue.execute).toHaveBeenCalled();
+    });
+
+    it('should NOT match simple keyword with requireMedia when media is absent', async () => {
+      const event = createEvent();
+      const message = createMessage('Bitcoin news', []);
+      const kw = createKeywordWithOptions({
+        phrase: 'bitcoin',
+        requireMedia: true,
+      });
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw]);
+      enqueue.execute.mockResolvedValue(
+        undefined as unknown as PublisherQueueEntry,
+      );
+
+      await handler.handle(event);
+
+      expect(enqueue.execute).not.toHaveBeenCalled();
+    });
+
+    it('should skip compound group if any phrase requires media and message has no media', async () => {
+      const event = createEvent();
+      const message = createMessage('Bitcoin and Ethereum', []);
+      const kw1 = createKeywordWithOptions({
+        phrase: 'bitcoin',
+        andGroupId: 'group-1',
+        requireMedia: true,
+      });
+      const kw2 = createKeywordWithOptions({
+        phrase: 'ethereum',
+        andGroupId: 'group-1',
+      });
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw1, kw2]);
+      enqueue.execute.mockResolvedValue(
+        undefined as unknown as PublisherQueueEntry,
+      );
+
+      await handler.handle(event);
+
+      expect(enqueue.execute).not.toHaveBeenCalled();
+    });
+
+    it('should match compound group when all phrases match and media is present', async () => {
+      const event = createEvent();
+      const message = createMessage('Bitcoin and Ethereum', [
+        { filePath: '/img/chart.png' },
+      ]);
+      const kw1 = createKeywordWithOptions({
+        phrase: 'bitcoin',
+        andGroupId: 'group-1',
+        requireMedia: true,
+      });
+      const kw2 = createKeywordWithOptions({
+        phrase: 'ethereum',
+        andGroupId: 'group-1',
+      });
+      const entry = PublisherQueueEntry.create({
+        channelId: 'crypto-news',
+        messageId: 42,
+        rawContent: 'Bitcoin and Ethereum',
+        rawTitle: 'Test title',
+        imagePath: null,
+        groupedId: null,
+        messageReceivedAt: new Date(),
+      });
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw1, kw2]);
+      enqueue.execute.mockResolvedValue(entry);
+
+      await handler.handle(event);
+
+      expect(enqueue.execute).toHaveBeenCalled();
+    });
+  });
+
+  describe('blacklist compounds', () => {
+    it('should block when all phrases in a compound blacklist group match', async () => {
+      const event = createEvent();
+      const message = createMessage('Bitcoin scam alert');
+      const kw = createKeyword('bitcoin');
+      const bl1 = createBlacklistPhraseWithOptions({
+        phrase: 'bitcoin',
+        andGroupId: 'bl-group-1',
+      });
+      const bl2 = createBlacklistPhraseWithOptions({
+        phrase: 'scam',
+        andGroupId: 'bl-group-1',
+      });
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw]);
+      blacklistRepo.findEnabled.mockResolvedValue([bl1, bl2]);
+
+      await handler.handle(event);
+
+      expect(enqueue.execute).not.toHaveBeenCalled();
+    });
+
+    it('should NOT block when compound blacklist partially matches', async () => {
+      const event = createEvent();
+      const message = createMessage('Bitcoin price update');
+      const kw = createKeyword('bitcoin');
+      const bl1 = createBlacklistPhraseWithOptions({
+        phrase: 'bitcoin',
+        andGroupId: 'bl-group-1',
+      });
+      const bl2 = createBlacklistPhraseWithOptions({
+        phrase: 'scam',
+        andGroupId: 'bl-group-1',
+      });
+      const entry = PublisherQueueEntry.create({
+        channelId: 'crypto-news',
+        messageId: 42,
+        rawContent: 'Bitcoin price update',
+        rawTitle: 'Test title',
+        imagePath: null,
+        groupedId: null,
+        messageReceivedAt: new Date(),
+      });
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw]);
+      blacklistRepo.findEnabled.mockResolvedValue([bl1, bl2]);
+      enqueue.execute.mockResolvedValue(entry);
+
+      await handler.handle(event);
+
+      expect(enqueue.execute).toHaveBeenCalled();
+    });
+
+    it('should use checkMatchesWithMedia for simple blacklist phrases', async () => {
+      const event = createEvent();
+      const message = createMessage('Bitcoin news', []);
+      const kw = createKeyword('bitcoin');
+      const bl = createBlacklistPhraseWithOptions({
+        phrase: 'bitcoin',
+        requireMedia: true,
+      });
+      const entry = PublisherQueueEntry.create({
+        channelId: 'crypto-news',
+        messageId: 42,
+        rawContent: 'Bitcoin news',
+        rawTitle: 'Test title',
+        imagePath: null,
+        groupedId: null,
+        messageReceivedAt: new Date(),
+      });
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw]);
+      blacklistRepo.findEnabled.mockResolvedValue([bl]);
+      enqueue.execute.mockResolvedValue(entry);
+
+      await handler.handle(event);
+
+      expect(enqueue.execute).toHaveBeenCalled();
+    });
+  });
+
+  describe('mixed simples and compounds', () => {
+    it('should match simple keyword alongside compound group', async () => {
+      const event = createEvent();
+      const message = createMessage('Bitcoin and Ethereum surge');
+      const simpleKw = createKeyword('surge');
+      const compoundKw1 = createKeywordWithOptions({
+        phrase: 'bitcoin',
+        andGroupId: 'group-1',
+      });
+      const compoundKw2 = createKeywordWithOptions({
+        phrase: 'ethereum',
+        andGroupId: 'group-1',
+      });
+      const entry = PublisherQueueEntry.create({
+        channelId: 'crypto-news',
+        messageId: 42,
+        rawContent: 'Bitcoin and Ethereum surge',
+        rawTitle: 'Test title',
+        imagePath: null,
+        groupedId: null,
+        messageReceivedAt: new Date(),
+      });
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([
+        simpleKw,
+        compoundKw1,
+        compoundKw2,
+      ]);
+      enqueue.execute.mockResolvedValue(entry);
+
+      await handler.handle(event);
+
+      expect(enqueue.execute).toHaveBeenCalled();
+      const callArg = enqueue.execute.mock.calls[0][0];
+      expect(callArg.matchedKeywords).toHaveLength(3);
     });
   });
 });

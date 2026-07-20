@@ -92,7 +92,7 @@ export class EnqueueMatchingMessageUseCase {
     const firstKeyword = matchedKeywords[0];
     if (
       firstKeyword &&
-      firstKeyword.requireImage &&
+      firstKeyword.requireMedia &&
       message.media.length === 0
     ) {
       this.logger.debug(
