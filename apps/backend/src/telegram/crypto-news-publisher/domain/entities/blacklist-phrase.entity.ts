@@ -10,6 +10,8 @@ interface BlacklistPhraseProps {
   readonly phrase: string;
   readonly caseSensitive: boolean;
   readonly matchMode: MatchMode;
+  readonly andGroupId: string | null;
+  readonly requireMedia: boolean;
   sourceChannelIds: string[];
   enabled: boolean;
   readonly createdAt: Date;
@@ -40,6 +42,8 @@ export class BlacklistPhrase extends AggregateRoot<string> {
     phrase: string;
     caseSensitive?: boolean;
     matchMode?: MatchMode;
+    andGroupId?: string | null;
+    requireMedia?: boolean;
     sourceChannelIds?: string[];
     enabled?: boolean;
     createdAt?: Date;
@@ -75,6 +79,8 @@ export class BlacklistPhrase extends AggregateRoot<string> {
       phrase: trimmed,
       caseSensitive: input.caseSensitive ?? false,
       matchMode: input.matchMode ?? 'exact',
+      andGroupId: input.andGroupId ?? null,
+      requireMedia: input.requireMedia ?? false,
       sourceChannelIds: input.sourceChannelIds ?? [],
       enabled: input.enabled ?? true,
       createdAt: input.createdAt ?? new Date(),
@@ -90,6 +96,8 @@ export class BlacklistPhrase extends AggregateRoot<string> {
     phrase: string;
     caseSensitive: boolean;
     matchMode?: MatchMode;
+    andGroupId?: string | null;
+    requireMedia?: boolean;
     sourceChannelIds: string[];
     enabled: boolean;
     createdAt: Date;
@@ -98,6 +106,8 @@ export class BlacklistPhrase extends AggregateRoot<string> {
       phrase: input.phrase,
       caseSensitive: input.caseSensitive,
       matchMode: input.matchMode ?? 'substring',
+      andGroupId: input.andGroupId ?? null,
+      requireMedia: input.requireMedia ?? false,
       sourceChannelIds: input.sourceChannelIds,
       enabled: input.enabled,
       createdAt: input.createdAt,
@@ -114,6 +124,14 @@ export class BlacklistPhrase extends AggregateRoot<string> {
 
   public get matchMode(): MatchMode {
     return this.state.matchMode;
+  }
+
+  public get andGroupId(): string | null {
+    return this.state.andGroupId;
+  }
+
+  public get requireMedia(): boolean {
+    return this.state.requireMedia;
   }
 
   public get sourceChannelIds(): string[] {
@@ -155,6 +173,27 @@ export class BlacklistPhrase extends AggregateRoot<string> {
       return content.includes(this.state.phrase);
     }
     return content.toLowerCase().includes(this.state.phrase.toLowerCase());
+  }
+
+  /**
+   * Test whether the supplied content matches AND (optionally) has media.
+   *
+   * This method extends `matches()` with an additional check: when `requireMedia`
+   * is true and the content has no media, returns false even if phrase matches.
+   *
+   * Logic:
+   * - If `matches(content)` returns false → return false
+   * - If `matches(content)` returns true AND `requireMedia` is true AND `hasMedia` is false → return false
+   * - Otherwise → return true
+   */
+  public checkMatchesWithMedia(content: string, hasMedia: boolean): boolean {
+    if (!this.matches(content)) {
+      return false;
+    }
+    if (this.state.requireMedia && !hasMedia) {
+      return false;
+    }
+    return true;
   }
 
   /**

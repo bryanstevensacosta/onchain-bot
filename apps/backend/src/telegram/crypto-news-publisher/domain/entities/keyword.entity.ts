@@ -13,7 +13,8 @@ interface KeywordProps {
   sourceChannelIds: string[];
   templateId: string | null;
   enabled: boolean;
-  readonly requireImage: boolean;
+  readonly requireMedia: boolean;
+  readonly andGroupId: string | null;
   readonly matchMode: MatchMode;
   readonly createdAt: Date;
 }
@@ -54,7 +55,8 @@ export class Keyword extends AggregateRoot<string> {
     sourceChannelIds?: string[];
     templateId?: string | null;
     enabled?: boolean;
-    requireImage?: boolean;
+    requireMedia?: boolean;
+    andGroupId?: string | null;
     matchMode?: MatchMode;
     createdAt?: Date;
   }): Keyword {
@@ -101,7 +103,8 @@ export class Keyword extends AggregateRoot<string> {
       sourceChannelIds: input.sourceChannelIds ?? [],
       templateId: input.templateId ?? null,
       enabled: input.enabled ?? true,
-      requireImage: input.requireImage ?? false,
+      requireMedia: input.requireMedia ?? false,
+      andGroupId: input.andGroupId ?? null,
       matchMode: input.matchMode ?? 'exact',
       createdAt: input.createdAt ?? new Date(),
     });
@@ -118,7 +121,8 @@ export class Keyword extends AggregateRoot<string> {
     sourceChannelIds: string[];
     templateId: string | null;
     enabled: boolean;
-    requireImage: boolean;
+    requireMedia: boolean;
+    andGroupId: string | null;
     matchMode?: MatchMode;
     createdAt: Date;
   }): Keyword {
@@ -128,7 +132,8 @@ export class Keyword extends AggregateRoot<string> {
       sourceChannelIds: input.sourceChannelIds,
       templateId: input.templateId,
       enabled: input.enabled,
-      requireImage: input.requireImage,
+      requireMedia: input.requireMedia,
+      andGroupId: input.andGroupId,
       matchMode: input.matchMode ?? 'substring',
       createdAt: input.createdAt,
     });
@@ -154,8 +159,12 @@ export class Keyword extends AggregateRoot<string> {
     return this.state.enabled;
   }
 
-  public get requireImage(): boolean {
-    return this.state.requireImage;
+  public get requireMedia(): boolean {
+    return this.state.requireMedia;
+  }
+
+  public get andGroupId(): string | null {
+    return this.state.andGroupId;
   }
 
   public get matchMode(): MatchMode {
