@@ -20,7 +20,8 @@ export interface KeywordView {
   readonly caseSensitive: boolean;
   readonly sourceChannelIds: string[];
   readonly enabled: boolean;
-  readonly requireImage: boolean;
+  readonly andGroupId: string | null;
+  readonly requireMedia: boolean;
   readonly templateId: string | null;
   readonly matchMode: 'exact' | 'substring';
   readonly createdAt: string;
@@ -39,10 +40,16 @@ interface CreateKeywordDto {
    */
   templateId?: string | null;
   /**
+   * Compound keyword group ID. When non-null, this keyword is part of
+   * an AND-group: messages must match ALL keywords in the group to
+   * trigger a match.
+   */
+  andGroupId?: string | null;
+  /**
    * When true, only messages that have at least one media item are
    * enqueued; otherwise the match is dropped (no PENDING entry).
    */
-  requireImage?: boolean;
+  requireMedia?: boolean;
   /**
    * Matching mode: `'exact'` (word-boundary regex, default for new
    * keywords) or `'substring'` (simple `includes()`).
@@ -62,7 +69,13 @@ interface UpdateKeywordDto {
    *  - `"<uuid>"`  → bind to that template
    */
   templateId?: string | null;
-  requireImage?: boolean;
+  /**
+   * Compound keyword group ID. When non-null, this keyword is part of
+   * an AND-group: messages must match ALL keywords in the group to
+   * trigger a match.
+   */
+  andGroupId?: string | null;
+  requireMedia?: boolean;
   /**
    * Matching mode: `'exact'` (word-boundary regex) or
    * `'substring'` (simple `includes()`).
@@ -112,7 +125,9 @@ export class KeywordsController {
     const trimmed = dto.phrase.trim();
     const existing = await this.keywordRepo.findAll();
     const dup = existing.find(
-      (k) => k.phrase.toLowerCase() === trimmed.toLowerCase(),
+      (k) =>
+        k.phrase.toLowerCase() === trimmed.toLowerCase() &&
+        k.andGroupId === (dto.andGroupId ?? null),
     );
     if (dup) {
       throw new ConflictException(`Keyword "${dto.phrase}" already exists`);
@@ -124,7 +139,8 @@ export class KeywordsController {
       enabled: dto.enabled,
       sourceChannelIds: dto.sourceChannelIds ?? [],
       templateId: dto.templateId ?? null,
-      requireImage: dto.requireImage ?? false,
+      andGroupId: dto.andGroupId ?? null,
+      requireMedia: dto.requireMedia ?? false,
       matchMode: dto.matchMode,
     });
     await this.keywordRepo.save(keyword);
@@ -159,8 +175,10 @@ export class KeywordsController {
         : existing.sourceChannelIds;
     const nextTemplateId =
       dto.templateId !== undefined ? dto.templateId : existing.templateId;
-    const nextRequireImage =
-      dto.requireImage !== undefined ? dto.requireImage : existing.requireImage;
+    const nextAndGroupId =
+      dto.andGroupId !== undefined ? dto.andGroupId : existing.andGroupId;
+    const nextRequireMedia =
+      dto.requireMedia !== undefined ? dto.requireMedia : existing.requireMedia;
     const nextMatchMode =
       dto.matchMode !== undefined ? dto.matchMode : existing.matchMode;
 
@@ -171,7 +189,8 @@ export class KeywordsController {
       sourceChannelIds: nextSourceChannelIds,
       templateId: nextTemplateId,
       enabled: nextEnabled,
-      requireImage: nextRequireImage,
+      andGroupId: nextAndGroupId,
+      requireMedia: nextRequireMedia,
       matchMode: nextMatchMode,
       createdAt: existing.createdAt,
     });
@@ -192,7 +211,8 @@ export class KeywordsController {
     caseSensitive: keyword.caseSensitive,
     sourceChannelIds: keyword.sourceChannelIds,
     enabled: keyword.enabled,
-    requireImage: keyword.requireImage,
+    andGroupId: keyword.andGroupId,
+    requireMedia: keyword.requireMedia,
     templateId: keyword.templateId,
     matchMode: keyword.matchMode,
     createdAt: keyword.createdAt.toISOString(),

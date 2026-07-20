@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { KeywordsController } from './keywords.controller';
 import { KeywordRepository } from 'telegram/crypto-news-publisher/application/ports/keyword.repository';
 import { Keyword } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
@@ -8,8 +8,11 @@ describe('KeywordsController', () => {
   let controller: KeywordsController;
   let keywordRepo: jest.Mocked<KeywordRepository>;
 
-  const makeKeyword = (phrase: string, enabled = true): Keyword =>
-    Keyword.create({ phrase, enabled });
+  const makeKeyword = (
+    phrase: string,
+    enabled = true,
+    andGroupId: string | null = null,
+  ): Keyword => Keyword.create({ phrase, enabled, andGroupId });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -79,7 +82,7 @@ describe('KeywordsController', () => {
       expect(result.phrase).toBe('bitcoin');
       expect(result.enabled).toBe(true);
       expect(result.templateId).toBeNull();
-      expect(result.requireImage).toBe(false);
+      expect(result.requireMedia).toBe(false);
       expect(keywordRepo.save).toHaveBeenCalledTimes(1);
     });
 
@@ -108,16 +111,63 @@ describe('KeywordsController', () => {
       expect(result.templateId).toBe(templateId);
     });
 
-    it('passes requireImage=true through to the created keyword', async () => {
+    it('passes requireMedia=true through to the created keyword', async () => {
       keywordRepo.findAll.mockResolvedValue([]);
       keywordRepo.save.mockResolvedValue();
 
       const result = await controller.create({
         phrase: 'btc',
-        requireImage: true,
+        requireMedia: true,
       });
 
-      expect(result.requireImage).toBe(true);
+      expect(result.requireMedia).toBe(true);
+    });
+
+    it('passes andGroupId through to the created keyword', async () => {
+      keywordRepo.findAll.mockResolvedValue([]);
+      keywordRepo.save.mockResolvedValue();
+      const andGroupId = crypto.randomUUID();
+
+      const result = await controller.create({
+        phrase: 'btc',
+        andGroupId,
+      });
+
+      expect(result.andGroupId).toBe(andGroupId);
+    });
+
+    it('allows same phrase in different groups', async () => {
+      const andGroupId = crypto.randomUUID();
+      const existing = Keyword.create({
+        phrase: 'btc',
+        andGroupId,
+      });
+      keywordRepo.findAll.mockResolvedValue([existing]);
+      keywordRepo.save.mockResolvedValue();
+
+      // Same phrase, different group -> should succeed
+      const result = await controller.create({
+        phrase: 'btc',
+        andGroupId: null,
+      });
+
+      expect(result.andGroupId).toBeNull();
+    });
+
+    it('rejects same phrase with same group', async () => {
+      const andGroupId = crypto.randomUUID();
+      const existing = Keyword.create({
+        phrase: 'btc',
+        andGroupId,
+      });
+      keywordRepo.findAll.mockResolvedValue([existing]);
+
+      await expect(
+        controller.create({
+          phrase: 'btc',
+          andGroupId,
+        }),
+      ).rejects.toBeInstanceOf(ConflictException);
     });
   });
 
@@ -192,20 +242,20 @@ describe('KeywordsController', () => {
       expect(result.templateId).toBe(templateId);
     });
 
-    it('should toggle requireImage via update', async () => {
-      const existing = Keyword.create({ phrase: 'btc', requireImage: false });
+    it('should toggle requireMedia via update', async () => {
+      const existing = Keyword.create({ phrase: 'btc', requireMedia: false });
       keywordRepo.findAll.mockResolvedValue([existing]);
       keywordRepo.save.mockResolvedValue();
 
       const result = await controller.update(existing.id, {
-        requireImage: true,
+        requireMedia: true,
       });
 
-      expect(result.requireImage).toBe(true);
+      expect(result.requireMedia).toBe(true);
     });
 
-    it('should preserve an existing requireImage when update omits it', async () => {
-      const existing = Keyword.create({ phrase: 'btc', requireImage: true });
+    it('should preserve an existing requireMedia when update omits it', async () => {
+      const existing = Keyword.create({ phrase: 'btc', requireMedia: true });
       keywordRepo.findAll.mockResolvedValue([existing]);
       keywordRepo.save.mockResolvedValue();
 
@@ -213,7 +263,42 @@ describe('KeywordsController', () => {
         enabled: true,
       });
 
-      expect(result.requireImage).toBe(true);
+      expect(result.requireMedia).toBe(true);
+    });
+
+    it('should set andGroupId via update', async () => {
+      const existing = Keyword.create({ phrase: 'btc', andGroupId: null });
+      keywordRepo.findAll.mockResolvedValue([existing]);
+      keywordRepo.save.mockResolvedValue();
+      const andGroupId = crypto.randomUUID();
+
+      const result = await controller.update(existing.id, { andGroupId });
+
+      expect(result.andGroupId).toBe(andGroupId);
+    });
+
+    it('should clear andGroupId via update with null', async () => {
+      const andGroupId = crypto.randomUUID();
+      const existing = Keyword.create({ phrase: 'btc', andGroupId });
+      keywordRepo.findAll.mockResolvedValue([existing]);
+      keywordRepo.save.mockResolvedValue();
+
+      const result = await controller.update(existing.id, { andGroupId: null });
+
+      expect(result.andGroupId).toBeNull();
+    });
+
+    it('should preserve an existing andGroupId when update omits it', async () => {
+      const andGroupId = crypto.randomUUID();
+      const existing = Keyword.create({ phrase: 'btc', andGroupId });
+      keywordRepo.findAll.mockResolvedValue([existing]);
+      keywordRepo.save.mockResolvedValue();
+
+      const result = await controller.update(existing.id, {
+        enabled: true,
+      });
+
+      expect(result.andGroupId).toBe(andGroupId);
     });
 
     it('should throw NotFound when keyword not found', async () => {

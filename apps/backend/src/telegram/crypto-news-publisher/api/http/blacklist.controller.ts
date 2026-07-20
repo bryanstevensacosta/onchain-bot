@@ -22,6 +22,8 @@ export interface BlacklistPhraseView {
   readonly matchMode: MatchMode;
   readonly sourceChannelIds: string[];
   readonly enabled: boolean;
+  readonly andGroupId: string | null;
+  readonly requireMedia: boolean;
   readonly createdAt: string;
 }
 
@@ -31,6 +33,8 @@ interface CreateBlacklistDto {
   matchMode?: MatchMode;
   enabled?: boolean;
   sourceChannelIds?: string[];
+  andGroupId?: string | null;
+  requireMedia?: boolean;
 }
 
 interface UpdateBlacklistDto {
@@ -39,6 +43,8 @@ interface UpdateBlacklistDto {
   matchMode?: MatchMode;
   enabled?: boolean;
   sourceChannelIds?: string[];
+  andGroupId?: string | null;
+  requireMedia?: boolean;
 }
 
 /**
@@ -81,7 +87,9 @@ export class BlacklistController {
     const trimmed = dto.phrase.trim();
     const existing = await this.blacklistRepo.findAll();
     const dup = existing.find(
-      (p) => p.phrase.toLowerCase() === trimmed.toLowerCase(),
+      (k) =>
+        k.phrase.toLowerCase() === trimmed.toLowerCase() &&
+        k.andGroupId === (dto.andGroupId ?? null),
     );
     if (dup) {
       throw new ConflictException(
@@ -95,6 +103,8 @@ export class BlacklistController {
       matchMode: dto.matchMode ?? 'exact',
       enabled: dto.enabled,
       sourceChannelIds: dto.sourceChannelIds ?? [],
+      andGroupId: dto.andGroupId ?? null,
+      requireMedia: dto.requireMedia ?? false,
     });
     await this.blacklistRepo.save(phrase);
     return BlacklistController.toView(phrase);
@@ -128,6 +138,10 @@ export class BlacklistController {
       dto.sourceChannelIds !== undefined
         ? dto.sourceChannelIds
         : existing.sourceChannelIds;
+    const nextAndGroupId =
+      dto.andGroupId !== undefined ? dto.andGroupId : existing.andGroupId;
+    const nextRequireMedia =
+      dto.requireMedia !== undefined ? dto.requireMedia : existing.requireMedia;
 
     const updated = BlacklistPhrase.reconstitute({
       id: existing.id,
@@ -136,6 +150,8 @@ export class BlacklistController {
       matchMode: nextMatchMode,
       sourceChannelIds: nextSourceChannelIds,
       enabled: nextEnabled,
+      andGroupId: nextAndGroupId,
+      requireMedia: nextRequireMedia,
       createdAt: existing.createdAt,
     });
 
@@ -158,6 +174,8 @@ export class BlacklistController {
     matchMode: phrase.matchMode,
     sourceChannelIds: phrase.sourceChannelIds,
     enabled: phrase.enabled,
+    andGroupId: phrase.andGroupId,
+    requireMedia: phrase.requireMedia,
     createdAt: phrase.createdAt.toISOString(),
   });
 }
