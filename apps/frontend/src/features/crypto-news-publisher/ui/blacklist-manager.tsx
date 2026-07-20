@@ -25,6 +25,7 @@ interface BlacklistModalProps {
   title: string;
   initialPhrase: string;
   initialCaseSensitive: boolean;
+  initialMatchMode: 'exact' | 'substring';
   initialSourceChannelIds: string[];
   initialEnabled: boolean;
   sourceOptions: readonly CryptoNewsSource[];
@@ -39,6 +40,7 @@ function BlacklistModal({
   title,
   initialPhrase,
   initialCaseSensitive,
+  initialMatchMode,
   initialSourceChannelIds,
   initialEnabled,
   sourceOptions,
@@ -52,6 +54,9 @@ function BlacklistModal({
     initialSourceChannelIds,
   );
   const [enabled, setEnabled] = useState(initialEnabled);
+  const [matchMode, setMatchMode] = useState<'exact' | 'substring'>(
+    initialMatchMode,
+  );
 
   const canSubmit = phrase.trim().length > 0 && !pending;
 
@@ -61,6 +66,7 @@ function BlacklistModal({
     setCaseSensitive(initialCaseSensitive);
     setSourceChannelIds(initialSourceChannelIds);
     setEnabled(initialEnabled);
+    setMatchMode(initialMatchMode);
     onClose();
   }
 
@@ -71,6 +77,7 @@ function BlacklistModal({
     onSubmit({
       phrase: trimmedPhrase,
       caseSensitive,
+      matchMode,
       enabled,
       sourceChannelIds:
         sourceChannelIds.length > 0 ? sourceChannelIds : undefined,
@@ -120,6 +127,20 @@ function BlacklistModal({
               disabled={pending}
             />
             <span>Case sensitive</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-300">
+            <span className="text-xs uppercase text-slate-500">Match</span>
+            <select
+              value={matchMode}
+              onChange={(e) =>
+                setMatchMode(e.target.value as 'exact' | 'substring')
+              }
+              disabled={pending}
+              className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-slate-100 focus:outline-none focus:border-blue-500"
+            >
+              <option value="exact">Exact</option>
+              <option value="substring">Substring</option>
+            </select>
           </label>
           <label className="flex items-center gap-2 text-sm text-slate-300">
             <input
@@ -267,6 +288,7 @@ export function BlacklistManager(): React.ReactElement {
         title="Add Blacklist Phrase"
         initialPhrase=""
         initialCaseSensitive={false}
+        initialMatchMode="exact"
         initialSourceChannelIds={[]}
         initialEnabled={true}
         sourceOptions={sources ?? []}
@@ -281,6 +303,7 @@ export function BlacklistManager(): React.ReactElement {
         title="Edit Blacklist Phrase"
         initialPhrase={editingItem?.phrase ?? ''}
         initialCaseSensitive={editingItem?.caseSensitive ?? false}
+        initialMatchMode={editingItem?.matchMode ?? 'substring'}
         initialSourceChannelIds={editingItem?.sourceChannelIds ?? []}
         initialEnabled={editingItem?.enabled ?? true}
         sourceOptions={sources ?? []}
@@ -308,6 +331,7 @@ export function BlacklistManager(): React.ReactElement {
                 <th className="py-2 pr-3">Phrase</th>
                 <th className="py-2 pr-3">Case Sensitive</th>
                 <th className="py-2 pr-3">Sources</th>
+                <th className="py-2 pr-3">Match</th>
                 <th className="py-2 pr-3">Enabled</th>
                 <th className="py-2 pr-3">Created</th>
                 <th className="py-2 pr-3 text-right">Actions</th>
@@ -329,6 +353,11 @@ export function BlacklistManager(): React.ReactElement {
                     </td>
                     <td className="py-2 pr-3 text-xs text-slate-300">
                       {sourceDisplay(item)}
+                    </td>
+                    <td className="py-2 pr-3">
+                      <span className="text-xs font-mono text-slate-400 uppercase">
+                        {item.matchMode}
+                      </span>
                     </td>
                     <td className="py-2 pr-3">
                       <label className="inline-flex items-center cursor-pointer">
