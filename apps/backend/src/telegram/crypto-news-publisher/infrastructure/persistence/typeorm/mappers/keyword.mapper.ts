@@ -14,7 +14,8 @@ export class KeywordMapper {
     row.sourceChannelIds = keyword.sourceChannelIds;
     row.templateId = keyword.templateId;
     row.enabled = keyword.enabled;
-    row.requireImage = keyword.requireImage;
+    row.andGroupId = keyword.andGroupId;
+    row.requireMedia = keyword.requireMedia;
     row.matchMode = keyword.matchMode;
     row.createdAt = keyword.createdAt;
     return row;
@@ -28,7 +29,8 @@ export class KeywordMapper {
       sourceChannelIds: row.sourceChannelIds ?? [],
       templateId: row.templateId,
       enabled: row.enabled,
-      requireImage: row.requireImage,
+      andGroupId: row.andGroupId,
+      requireMedia: row.requireMedia,
       matchMode: row.matchMode as 'exact' | 'substring',
       createdAt: row.createdAt,
     });

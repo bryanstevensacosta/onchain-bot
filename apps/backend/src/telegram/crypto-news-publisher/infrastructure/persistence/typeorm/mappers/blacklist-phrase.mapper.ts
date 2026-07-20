@@ -16,6 +16,8 @@ export class BlacklistPhraseMapper {
     row.matchMode = blacklistPhrase.matchMode;
     row.sourceChannelIds = blacklistPhrase.sourceChannelIds;
     row.enabled = blacklistPhrase.enabled;
+    row.andGroupId = blacklistPhrase.andGroupId;
+    row.requireMedia = blacklistPhrase.requireMedia;
     row.createdAt = blacklistPhrase.createdAt;
     return row;
   }
@@ -28,6 +30,8 @@ export class BlacklistPhraseMapper {
       matchMode: row.matchMode,
       sourceChannelIds: row.sourceChannelIds ?? [],
       enabled: row.enabled,
+      andGroupId: row.andGroupId,
+      requireMedia: row.requireMedia,
       createdAt: row.createdAt,
     });
   }

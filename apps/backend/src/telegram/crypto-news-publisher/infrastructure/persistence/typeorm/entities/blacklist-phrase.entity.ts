@@ -48,6 +48,12 @@ export class BlacklistPhraseEntity {
   })
   public sourceChannelIds!: string[];
 
+  @Column({ name: 'and_group_id', type: 'uuid', nullable: true })
+  public andGroupId!: string | null;
+
+  @Column({ name: 'require_image', type: 'boolean', default: false })
+  public requireMedia!: boolean;
+
   @Column({ name: 'enabled', type: 'boolean', default: true })
   public enabled!: boolean;
 
