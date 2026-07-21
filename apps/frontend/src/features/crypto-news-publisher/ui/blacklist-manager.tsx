@@ -229,6 +229,7 @@ export function BlacklistManager(): React.ReactElement {
 
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 5;
+  const [searchQuery, setSearchQuery] = useState('');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -288,7 +289,18 @@ export function BlacklistManager(): React.ReactElement {
     return dateB - dateA;
   });
 
-  const totalPages = Math.ceil(combinedItems.length / PAGE_SIZE);
+  const q = searchQuery.toLowerCase().trim();
+  const filteredItems = q
+    ? combinedItems.filter((entry) => {
+        const phrase =
+          entry.type === 'simple'
+            ? entry.item.phrase
+            : entry.group.items.map((i) => i.phrase).join(' ');
+        return phrase.toLowerCase().includes(q);
+      })
+    : combinedItems;
+
+  const totalPages = Math.ceil(filteredItems.length / PAGE_SIZE);
 
   function toggleGroup(groupId: string) {
     setExpandedGroups((prev) => {
@@ -382,7 +394,7 @@ export function BlacklistManager(): React.ReactElement {
     <Card>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-slate-100">
-          Blacklist Phrases ({combinedItems.length})
+          Blacklist Phrases ({filteredItems.length}/{combinedItems.length})
         </h2>
         <Button variant="primary" size="sm" onClick={handleOpenCreate}>
           + Add Phrase
@@ -394,6 +406,20 @@ export function BlacklistManager(): React.ReactElement {
           Failed to add phrase: {String(createMut.error)}
         </div>
       )}
+
+      {/* ---------- Search ---------- */}
+      <div className="mb-3">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setPage(0);
+          }}
+          placeholder="Search blacklist phrases…"
+          className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+        />
+      </div>
 
       <BlacklistModal
         isOpen={createModalOpen}
@@ -435,10 +461,11 @@ export function BlacklistManager(): React.ReactElement {
         <div className="text-sm text-red-400">
           Failed to load blacklist: {String(error)}
         </div>
-      ) : combinedItems.length === 0 ? (
+      ) : filteredItems.length === 0 ? (
         <div className="text-sm text-slate-500">
-          No blacklist phrases yet. Add one above to start filtering crypto-news
-          messages.
+          {q
+            ? `No blacklist phrases match "${searchQuery}".`
+            : 'No blacklist phrases yet. Add one above to start filtering crypto-news messages.'}
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -456,7 +483,7 @@ export function BlacklistManager(): React.ReactElement {
               </tr>
             </thead>
             <tbody>
-              {combinedItems
+              {filteredItems
                 .slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
                 .map((entry) => {
                   if (entry.type === 'simple') {
@@ -688,12 +715,12 @@ export function BlacklistManager(): React.ReactElement {
                 })}
             </tbody>
           </table>
-          {combinedItems.length > PAGE_SIZE && (
+          {filteredItems.length > PAGE_SIZE && (
             <div className="flex items-center justify-between pt-3 text-xs text-slate-500">
               <span>
                 {page * PAGE_SIZE + 1}–
-                {Math.min((page + 1) * PAGE_SIZE, combinedItems.length)} of{' '}
-                {combinedItems.length}
+                {Math.min((page + 1) * PAGE_SIZE, filteredItems.length)} of{' '}
+                {filteredItems.length}
               </span>
               <div className="flex items-center gap-1">
                 <button
@@ -705,7 +732,7 @@ export function BlacklistManager(): React.ReactElement {
                   Prev
                 </button>
                 {Array.from(
-                  { length: Math.ceil(combinedItems.length / PAGE_SIZE) },
+                  { length: Math.ceil(filteredItems.length / PAGE_SIZE) },
                   (_, i) => (
                     <button
                       key={i}
@@ -723,7 +750,7 @@ export function BlacklistManager(): React.ReactElement {
                 )}
                 <button
                   type="button"
-                  disabled={(page + 1) * PAGE_SIZE >= combinedItems.length}
+                  disabled={(page + 1) * PAGE_SIZE >= filteredItems.length}
                   onClick={() => setPage(page + 1)}
                   className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
