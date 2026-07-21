@@ -631,7 +631,7 @@ describe('CryptoNewsPage — publisher (keywords + queue)', () => {
     expect(screen.getByText('msg 778')).toBeInTheDocument();
   });
 
-  it('submits the add-keyword form via the create mutation', () => {
+  it('submits the add-keyword form via the create mutation', async () => {
     const mutateSpy = vi.fn();
     mockedUseCreateKeyword.mockReturnValue({
       mutate: mutateSpy,
@@ -650,12 +650,18 @@ describe('CryptoNewsPage — publisher (keywords + queue)', () => {
 
     renderWithClient(<CryptoNewsPage />);
 
-    const phraseInput = screen.getAllByLabelText(
-      'Phrase',
-    )[0] as HTMLInputElement;
-    fireEvent.change(phraseInput, { target: { value: 'FOMC' } });
+    // Open the add-keyword modal first
+    fireEvent.click(screen.getByRole('button', { name: /\+ Add keyword/i }));
 
-    const submit = screen.getByRole('button', { name: /\+ Add keyword/i });
+    // Find the modal form via the Phrase input, then click its Save button
+    const phraseInput = (await screen.findByLabelText(
+      /Phrase/i,
+    )) as HTMLInputElement;
+    fireEvent.change(phraseInput, { target: { value: 'FOMC' } });
+    const modalForm = phraseInput.closest('form')!;
+    const submit = modalForm.querySelector<HTMLButtonElement>(
+      'button[type="submit"]',
+    )!;
     fireEvent.click(submit);
 
     expect(mutateSpy).toHaveBeenCalledWith(

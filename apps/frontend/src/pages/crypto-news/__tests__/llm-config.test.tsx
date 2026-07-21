@@ -631,9 +631,13 @@ describe('CryptoNewsPage — LLM section integration', () => {
     expect(screen.getByText('Template: Clickbait')).toBeInTheDocument();
   });
 
-  it('keyword create form includes a Template dropdown', () => {
+  it('keyword create form includes a Template dropdown', async () => {
     renderWithClient(<CryptoNewsPage />);
-    const select = screen.getByLabelText('Template') as HTMLSelectElement;
+    // Open the add-keyword modal first
+    fireEvent.click(screen.getByRole('button', { name: /\+ Add keyword/i }));
+    const select = (await screen.findByLabelText(
+      'Template',
+    )) as HTMLSelectElement;
     expect(select).toBeInTheDocument();
     // The dropdown includes both templates from baseTemplates.
     const options = Array.from(select.options).map((o) => o.text);
@@ -642,7 +646,7 @@ describe('CryptoNewsPage — LLM section integration', () => {
     expect(options).toContain('Clickbait');
   });
 
-  it('submits the create-keyword form with the selected templateId', () => {
+  it('submits the create-keyword form with the selected templateId', async () => {
     const mutateSpy = vi.fn((_body, opts) => {
       opts?.onSuccess?.();
     });
@@ -660,20 +664,32 @@ describe('CryptoNewsPage — LLM section integration', () => {
 
     renderWithClient(<CryptoNewsPage />);
 
-    fireEvent.change(screen.getAllByLabelText('Phrase')[0], {
+    // Open the add-keyword modal first
+    fireEvent.click(screen.getByRole('button', { name: /\+ Add keyword/i }));
+
+    fireEvent.change(await screen.findByLabelText(/Phrase/i), {
       target: { value: 'FOMC' },
     });
-    fireEvent.change(screen.getByLabelText('Template'), {
+    fireEvent.change(await screen.findByLabelText('Template'), {
       target: { value: 'tpl-clickbait' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /\+ Add keyword/i }));
+    // Submit via the modal's Save button (scoped to the modal form)
+    const modalForm = (await screen.findByLabelText(/Phrase/i)).closest(
+      'form',
+    )!;
+    const saveBtn = modalForm.querySelector<HTMLButtonElement>(
+      'button[type="submit"]',
+    )!;
+    fireEvent.click(saveBtn);
 
     expect(mutateSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         phrase: 'FOMC',
         caseSensitive: false,
-        sourceChannelIds: [],
         templateId: 'tpl-clickbait',
+        matchMode: 'exact',
+        enabled: true,
+        requireMedia: false,
       }),
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
