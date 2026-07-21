@@ -180,14 +180,14 @@ describe('EnqueueMatchingMessageUseCase', () => {
       expect(result!.channelId).toBe('crypto-news');
     });
 
-    it('should skip enqueue when matched keyword requires image and message has no media', async () => {
+    it('should skip enqueue when matched keyword requires media and message has no media', async () => {
       const noMediaMessage = {
         ...mockMessage,
         media: [],
       } as unknown as CryptoNewsMessage;
       const matchedKeyword = Keyword.create({
         phrase: 'btc',
-        requireImage: true,
+        requireMedia: true,
       });
 
       const result = await useCase.execute({
@@ -199,11 +199,11 @@ describe('EnqueueMatchingMessageUseCase', () => {
       expect(queueRepo.enqueue).not.toHaveBeenCalled();
     });
 
-    it('should enqueue when matched keyword requires image and message has media', async () => {
+    it('should enqueue when matched keyword requires media and message has media', async () => {
       queueRepo.enqueue.mockResolvedValue();
       const matchedKeyword = Keyword.create({
         phrase: 'btc',
-        requireImage: true,
+        requireMedia: true,
       });
 
       const result = await useCase.execute({
@@ -217,7 +217,7 @@ describe('EnqueueMatchingMessageUseCase', () => {
       expect(callArg.keywordTemplateId).toBeNull();
     });
 
-    it('should not apply the requireImage filter when no matched keyword is supplied', async () => {
+    it('should not apply the requireMedia filter when no matched keyword is supplied', async () => {
       const noMediaMessage = {
         ...mockMessage,
         media: [],
