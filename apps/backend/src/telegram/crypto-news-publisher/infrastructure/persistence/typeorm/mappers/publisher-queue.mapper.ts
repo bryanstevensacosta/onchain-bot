@@ -29,6 +29,7 @@ export class PublisherQueueMapper {
     row.generatedUserPrompt = entry.generatedUserPrompt;
     row.generatedTemperature = entry.generatedTemperature;
     row.generatedReasoningEffort = entry.generatedReasoningEffort;
+    row.blockedReason = entry.blockedReason;
     return row;
   }
 
