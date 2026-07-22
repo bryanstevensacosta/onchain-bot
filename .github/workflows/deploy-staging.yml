@@ -10,9 +10,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  stop-services:
+    name: Stop non-essential services
+    runs-on: self-hosted
+    steps:
+      - name: Stop staging backend + frontend
+        run: |
+          echo "=== Stopping staging backend + frontend ==="
+          onchainbot staging stop
+      - name: Stop litellm-gateway
+        run: |
+          echo "=== Stopping litellm-gateway ==="
+          docker stop litellm-gateway || true
+
   test:
     name: Tests
     runs-on: self-hosted
+    needs: [stop-services]
     env:
       NODE_ENV: test
       DATABASE_ENABLED: true
@@ -227,3 +241,18 @@ jobs:
           docker image prune --force --filter "until=24h"
           echo "=== Docker disk usage after prune ==="
           docker system df
+
+  restart-services:
+    name: Restart services
+    if: ${{ always() }}
+    runs-on: self-hosted
+    needs: [deploy-staging]
+    steps:
+      - name: Restart litellm-gateway
+        run: |
+          echo "=== Restarting litellm-gateway ==="
+          docker start litellm-gateway || true
+      - name: Restart staging backend + frontend
+        run: |
+          echo "=== Restarting staging ==="
+          onchainbot staging start
