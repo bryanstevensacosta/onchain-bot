@@ -50,6 +50,7 @@ jobs:
   lint:
     name: Lint
     runs-on: self-hosted
+    needs: [test]
     steps:
       - uses: actions/checkout@v4
 
@@ -67,6 +68,7 @@ jobs:
   tsc:
     name: TypeScript Check
     runs-on: self-hosted
+    needs: [lint]
     steps:
       - uses: actions/checkout@v4
 
