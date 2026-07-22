@@ -41,6 +41,19 @@ export interface CreateKeywordBody {
   andGroupId?: string | null;
 }
 
+export interface CreateKeywordBatchBody {
+  phrases: CreateKeywordBody[];
+}
+
+export async function createKeywordBatch(
+  body: CreateKeywordBatchBody,
+): Promise<ReadonlyArray<KeywordView>> {
+  return httpPost<CreateKeywordBatchBody, ReadonlyArray<KeywordView>>(
+    '/crypto-news-publisher/keywords/batch',
+    body,
+  );
+}
+
 export interface UpdateKeywordBody {
   phrase?: string;
   caseSensitive?: boolean;

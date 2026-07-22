@@ -27,6 +27,17 @@ export interface CreateBlacklistBody {
   requireMedia?: boolean;
 }
 
+export interface CreateBlacklistBatchBody {
+  phrases: Array<{
+    phrase: string;
+    caseSensitive?: boolean;
+    matchMode?: 'exact' | 'substring';
+    enabled?: boolean;
+    sourceChannelIds?: string[];
+    requireMedia?: boolean;
+  }>;
+}
+
 export interface UpdateBlacklistBody {
   phrase?: string;
   matchMode?: 'exact' | 'substring';
@@ -55,6 +66,15 @@ export async function createBlacklist(
 ): Promise<BlacklistPhraseView> {
   return httpPost<CreateBlacklistBody, BlacklistPhraseView>(
     '/crypto-news-publisher/blacklist',
+    body,
+  );
+}
+
+export async function createBlacklistBatch(
+  body: CreateBlacklistBatchBody,
+): Promise<ReadonlyArray<BlacklistPhraseView>> {
+  return httpPost<CreateBlacklistBatchBody, ReadonlyArray<BlacklistPhraseView>>(
+    '/crypto-news-publisher/blacklist/batch',
     body,
   );
 }

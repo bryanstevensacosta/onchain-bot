@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Card, Button, Modal } from '@/shared/ui';
 import {
   useCreateKeyword,
+  useCreateKeywordBatch,
   useDeleteKeyword,
   useKeywords,
   useUpdateKeyword,
@@ -15,6 +16,7 @@ import type {
 } from '@/features/crypto-news-publisher/api/keywords-api';
 import type { CryptoNewsSource } from '@/entities/crypto-news';
 import { SourceMultiSelect, templateLabel } from './source-multi-select';
+import { CompoundGroupModal } from '@/features/crypto-news-publisher/ui/compound-group-modal';
 
 const NO_TEMPLATE = '__default__';
 const KW_PAGE_SIZE = 5;
@@ -346,10 +348,12 @@ export function KeywordsSection(): React.ReactElement {
   const createMut = useCreateKeyword();
   const updateMut = useUpdateKeyword();
   const deleteMut = useDeleteKeyword();
+  const createBatchMut = useCreateKeywordBatch();
   const { data: templates } = useTemplates();
   const { data: sources } = useCryptoNewsSources();
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [compoundModalOpen, setCompoundModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<KeywordView | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -463,6 +467,28 @@ export function KeywordsSection(): React.ReactElement {
     });
   }
 
+  function handleCompoundGroupSubmit(
+    phrases: ReadonlyArray<{
+      phrase: string;
+      caseSensitive?: boolean;
+      matchMode?: 'exact' | 'substring';
+      sourceChannelIds?: string[];
+      enabled?: boolean;
+      requireMedia?: boolean;
+      templateId?: string | null;
+    }>,
+  ) {
+    const body = {
+      phrases: phrases.map((p) => ({
+        ...p,
+        sourceChannelIds: p.sourceChannelIds?.length
+          ? p.sourceChannelIds
+          : undefined,
+      })),
+    };
+    createBatchMut.mutateAsync(body).then(() => setCompoundModalOpen(false));
+  }
+
   function sourceDisplay(
     item: KeywordView,
     sourceOpts: readonly CryptoNewsSource[],
@@ -484,9 +510,18 @@ export function KeywordsSection(): React.ReactElement {
         <h2 className="text-lg font-semibold text-slate-100">
           Keywords ({keywords.length})
         </h2>
-        <Button variant="primary" size="sm" onClick={handleOpenCreate}>
-          + Add keyword
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="primary" size="sm" onClick={handleOpenCreate}>
+            + Add keyword
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setCompoundModalOpen(true)}
+          >
+            + Add Compound Group
+          </Button>
+        </div>
       </div>
 
       {/* ---------- Modals ---------- */}
@@ -529,6 +564,21 @@ export function KeywordsSection(): React.ReactElement {
         onSubmit={handleEditSubmit}
         pending={updateMut.isPending}
         errorMessage={updateMut.error?.message ?? null}
+      />
+
+      <CompoundGroupModal
+        isOpen={compoundModalOpen}
+        onClose={() => {
+          setCompoundModalOpen(false);
+          createBatchMut.reset();
+        }}
+        title="Add Compound Group"
+        sourceOptions={sourceOptions}
+        showTemplate
+        templateOptions={templateOptions}
+        onSubmit={handleCompoundGroupSubmit}
+        pending={createBatchMut.isPending}
+        errorMessage={createBatchMut.error?.message ?? null}
       />
 
       {createMut.error && (

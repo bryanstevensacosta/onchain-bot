@@ -47,6 +47,17 @@ interface UpdateBlacklistDto {
   requireMedia?: boolean;
 }
 
+interface CreateBlacklistBatchDto {
+  phrases: Array<{
+    phrase: string;
+    caseSensitive?: boolean;
+    matchMode?: MatchMode;
+    enabled?: boolean;
+    sourceChannelIds?: string[];
+    requireMedia?: boolean;
+  }>;
+}
+
 /**
  * REST API for crypto-news-publisher blacklist phrases.
  *
@@ -108,6 +119,44 @@ export class BlacklistController {
     });
     await this.blacklistRepo.save(phrase);
     return BlacklistController.toView(phrase);
+  }
+
+  @Post('batch')
+  @HttpCode(HttpStatus.CREATED)
+  public async createBatch(
+    @Body() dto: CreateBlacklistBatchDto,
+  ): Promise<ReadonlyArray<BlacklistPhraseView>> {
+    const andGroupId = crypto.randomUUID();
+    const results: BlacklistPhraseView[] = [];
+
+    for (const item of dto.phrases) {
+      const trimmed = item.phrase.trim();
+      const existing = await this.blacklistRepo.findAll();
+      const dup = existing.find(
+        (k) =>
+          k.phrase.toLowerCase() === trimmed.toLowerCase() &&
+          k.andGroupId === andGroupId,
+      );
+      if (dup) {
+        throw new ConflictException(
+          `Blacklist phrase "${item.phrase}" already exists`,
+        );
+      }
+
+      const phrase = BlacklistPhrase.create({
+        phrase: item.phrase,
+        caseSensitive: item.caseSensitive,
+        matchMode: item.matchMode ?? 'exact',
+        enabled: item.enabled,
+        sourceChannelIds: item.sourceChannelIds ?? [],
+        andGroupId,
+        requireMedia: item.requireMedia ?? false,
+      });
+      await this.blacklistRepo.save(phrase);
+      results.push(BlacklistController.toView(phrase));
+    }
+
+    return results;
   }
 
   @Patch(':id')

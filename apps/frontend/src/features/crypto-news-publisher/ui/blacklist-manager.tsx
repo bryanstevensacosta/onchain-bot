@@ -7,7 +7,9 @@ import {
   useCreateBlacklist,
   useUpdateBlacklist,
   useDeleteBlacklist,
+  useCreateBlacklistBatch,
 } from '../model/use-blacklist';
+import { CompoundGroupModal } from '@/features/crypto-news-publisher/ui/compound-group-modal';
 import {
   useCryptoNewsSources,
   type CryptoNewsSource,
@@ -247,10 +249,13 @@ export function BlacklistManager(): React.ReactElement {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [compoundModalOpen, setCompoundModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<BlacklistPhraseView | null>(
     null,
   );
+
+  const createBatchMut = useCreateBlacklistBatch();
 
   const blacklist = (data ?? [])
     .slice()
@@ -397,6 +402,27 @@ export function BlacklistManager(): React.ReactElement {
     });
   }
 
+  function handleCompoundGroupSubmit(
+    phrases: ReadonlyArray<{
+      phrase: string;
+      caseSensitive?: boolean;
+      matchMode?: 'exact' | 'substring';
+      sourceChannelIds?: string[];
+      enabled?: boolean;
+      requireMedia?: boolean;
+    }>,
+  ) {
+    const body = {
+      phrases: phrases.map((p) => ({
+        ...p,
+        sourceChannelIds: p.sourceChannelIds?.length
+          ? p.sourceChannelIds
+          : undefined,
+      })),
+    };
+    createBatchMut.mutateAsync(body).then(() => setCompoundModalOpen(false));
+  }
+
   function sourceDisplay(item: BlacklistPhraseView): string {
     if (item.sourceChannelIds.length === 0) return 'All sources';
     const sourceOptions = sources ?? [];
@@ -414,9 +440,18 @@ export function BlacklistManager(): React.ReactElement {
         <h2 className="text-lg font-semibold text-slate-100">
           Blacklist Phrases ({filteredItems.length}/{combinedItems.length})
         </h2>
-        <Button variant="primary" size="sm" onClick={handleOpenCreate}>
-          + Add Phrase
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="primary" size="sm" onClick={handleOpenCreate}>
+            + Add Phrase
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setCompoundModalOpen(true)}
+          >
+            + Add Compound Group
+          </Button>
+        </div>
       </div>
 
       {createMut.error && (
@@ -473,6 +508,19 @@ export function BlacklistManager(): React.ReactElement {
         onSubmit={handleEditSubmit}
         pending={updateMut.isPending}
         errorMessage={updateMut.error?.message ?? null}
+      />
+
+      <CompoundGroupModal
+        isOpen={compoundModalOpen}
+        onClose={() => {
+          setCompoundModalOpen(false);
+          createBatchMut.reset();
+        }}
+        title="Add Compound Group"
+        sourceOptions={sources ?? []}
+        onSubmit={handleCompoundGroupSubmit}
+        pending={createBatchMut.isPending}
+        errorMessage={createBatchMut.error?.message ?? null}
       />
 
       {isLoading ? (

@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createKeyword,
+  createKeywordBatch,
   deleteKeyword,
   fetchKeywords,
   keywordsKeys,
   updateKeyword,
+  type CreateKeywordBatchBody,
   type CreateKeywordBody,
   type KeywordView,
   type UpdateKeywordBody,
@@ -35,6 +37,14 @@ export function useUpdateKeyword() {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: UpdateKeywordBody }) =>
       updateKeyword(id, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keywordsKeys.all }),
+  });
+}
+
+export function useCreateKeywordBatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateKeywordBatchBody) => createKeywordBatch(body),
     onSuccess: () => qc.invalidateQueries({ queryKey: keywordsKeys.all }),
   });
 }

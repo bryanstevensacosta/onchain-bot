@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createBlacklist,
+  createBlacklistBatch,
   deleteBlacklist,
   fetchBlacklist,
   blacklistKeys,
   updateBlacklist,
+  type CreateBlacklistBatchBody,
   type CreateBlacklistBody,
   type BlacklistPhraseView,
   type UpdateBlacklistBody,
@@ -26,6 +28,14 @@ export function useCreateBlacklist() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: CreateBlacklistBody) => createBlacklist(body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: blacklistKeys.all }),
+  });
+}
+
+export function useCreateBlacklistBatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateBlacklistBatchBody) => createBlacklistBatch(body),
     onSuccess: () => qc.invalidateQueries({ queryKey: blacklistKeys.all }),
   });
 }
