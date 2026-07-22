@@ -12,30 +12,7 @@ concurrency:
 jobs:
   test:
     name: Tests
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: alpha_meta_token_scanner
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          POSTGRES_DB: alpha_meta_token_scanner_staging
-        ports:
-          - 5433:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6380:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    runs-on: self-hosted
     env:
       NODE_ENV: test
       DATABASE_ENABLED: true
@@ -55,8 +32,22 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Fix PATH for self-hosted runner
+        run: |
+          export PATH="/opt/actions-runner/_work/_tool/node/24.18.0/x64/bin:$PATH"
+          echo "/opt/actions-runner/_work/_tool/node/24.18.0/x64/bin" >> $GITHUB_PATH
+          node --version
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 
       - name: Run backend tests
         run: npm run test:backend
@@ -66,7 +57,7 @@ jobs:
 
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [test]
     steps:
       - uses: actions/checkout@v4
@@ -75,8 +66,16 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 
       - name: Lint
         run: npm run lint
@@ -84,7 +83,7 @@ jobs:
 
   tsc:
     name: TypeScript Check
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [lint]
     steps:
       - uses: actions/checkout@v4
@@ -93,8 +92,16 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 
       - name: TypeScript check
         run: npm run build || true
