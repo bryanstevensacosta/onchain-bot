@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "active_work_id": "mtproto-adapter-decompose",
+  "active_work_id": "crypto-news-dedup",
   "works": {
     "mtproto-adapter-decompose": {
       "work_id": "mtproto-adapter-decompose",
@@ -9,6 +9,16 @@
       "session_ids": ["opencode:current"],
       "status": "completed",
       "worktree_path": null
+    },
+    "crypto-news-dedup": {
+      "work_id": "crypto-news-dedup",
+      "active_plan": ".omo/plans/crypto-news-dedup.md",
+      "plan_name": "crypto-news-dedup",
+      "session_ids": ["opencode:current"],
+      "status": "completed",
+      "worktree_path": null,
+      "current_checkbox": "done",
+      "plan_completed": true
     }
   }
 }
