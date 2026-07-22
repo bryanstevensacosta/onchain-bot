@@ -158,7 +158,7 @@ export class ProcessNextQueuedArticleUseCase {
   ) {
     const paths = entry.imagePaths;
     if (paths.length > 1) {
-      const videoIdx = paths.findIndex(p => this.isVideoPath(p));
+      const videoIdx = paths.findIndex((p) => this.isVideoPath(p));
       if (videoIdx >= 0) {
         // Send the video individually (no mixed album support)
         return this.publisher.sendVideo(
@@ -181,11 +181,7 @@ export class ProcessNextQueuedArticleUseCase {
           paths[0],
         );
       }
-      return this.publisher.sendPhoto(
-        cfg.targetChannel,
-        refinedText,
-        paths[0],
-      );
+      return this.publisher.sendPhoto(cfg.targetChannel, refinedText, paths[0]);
     }
     return this.publisher.sendMessage(cfg.targetChannel, refinedText);
   }

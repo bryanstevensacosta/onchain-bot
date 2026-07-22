@@ -72,8 +72,8 @@ export class LlmGatewayAdapter extends LlmPort {
         temperature: request.temperature ?? 0.7,
         ...(request.reasoningEffort
           ? {
-              reasoning_effort: request
-                .reasoningEffort as OpenAI.Chat.ChatCompletionReasoningEffort,
+              reasoning_effort:
+                request.reasoningEffort as OpenAI.Chat.ChatCompletionReasoningEffort,
             }
           : {}),
       });
