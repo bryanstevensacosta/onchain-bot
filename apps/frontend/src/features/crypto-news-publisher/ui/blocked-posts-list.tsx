@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button, Card } from '@/shared/ui';
 import { useQueue } from '@/features/crypto-news-publisher/model/use-queue';
 import type { QueueEntryView } from '@/features/crypto-news-publisher/api/queue-api';
+import { DetailsModal } from '@/features/crypto-news-publisher/ui/queue-view';
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleString();
@@ -14,11 +15,18 @@ function truncateText(text: string | null, maxLength = 50): string {
 
 interface BlockedPostRowProps {
   entry: QueueEntryView;
+  onSelect: (entry: QueueEntryView) => void;
 }
 
-function BlockedPostRow({ entry }: BlockedPostRowProps): React.ReactElement {
+function BlockedPostRow({
+  entry,
+  onSelect,
+}: BlockedPostRowProps): React.ReactElement {
   return (
-    <tr className="border-b border-slate-700/50">
+    <tr
+      className="border-b border-slate-700/50 cursor-pointer hover:bg-slate-800/40 transition-colors"
+      onClick={() => onSelect(entry)}
+    >
       <td className="py-3 px-2 text-xs font-mono text-slate-300 whitespace-nowrap">
         {entry.channelId}
       </td>
@@ -41,6 +49,9 @@ function BlockedPostRow({ entry }: BlockedPostRowProps): React.ReactElement {
 export function BlockedPostsList(): React.ReactElement {
   const queue = useQueue(50, 'BLOCKED');
   const [page, setPage] = useState(0);
+  const [selectedEntry, setSelectedEntry] = useState<QueueEntryView | null>(
+    null,
+  );
   const perPage = 5;
 
   const entries = queue.data ?? [];
@@ -90,7 +101,11 @@ export function BlockedPostsList(): React.ReactElement {
                 </thead>
                 <tbody>
                   {pageEntries.map((entry) => (
-                    <BlockedPostRow key={entry.id} entry={entry} />
+                    <BlockedPostRow
+                      key={entry.id}
+                      entry={entry}
+                      onSelect={setSelectedEntry}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -123,6 +138,12 @@ export function BlockedPostsList(): React.ReactElement {
           </>
         )}
       </Card>
+      {selectedEntry && (
+        <DetailsModal
+          entry={selectedEntry}
+          onClose={() => setSelectedEntry(null)}
+        />
+      )}
     </div>
   );
 }

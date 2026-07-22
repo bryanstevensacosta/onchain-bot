@@ -57,7 +57,7 @@ function telegramPostUrl(channelId: string, messageId: string): string {
   return `https://t.me/c/${channelId}/${messageId}`;
 }
 
-function DetailsModal({
+export function DetailsModal({
   entry,
   onClose,
 }: {
