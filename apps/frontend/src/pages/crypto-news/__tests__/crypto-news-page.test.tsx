@@ -17,12 +17,24 @@ vi.mock('@/entities/crypto-news/model/use-crypto-news', () => ({
   useCryptoNewsSources: vi.fn(),
 }));
 
-vi.mock('@/features/crypto-news-publisher/model/use-keywords', () => ({
-  useKeywords: vi.fn(),
-  useCreateKeyword: vi.fn(),
-  useUpdateKeyword: vi.fn(),
-  useDeleteKeyword: vi.fn(),
-}));
+vi.mock('@/features/crypto-news-publisher/model/use-keywords', () => {
+  const mutStub = {
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+    isPending: false,
+    isError: false,
+    isSuccess: false,
+    error: null,
+    reset: vi.fn(),
+  };
+  return {
+    useKeywords: vi.fn(),
+    useCreateKeyword: vi.fn(() => ({ ...mutStub })),
+    useCreateKeywordBatch: vi.fn(() => ({ ...mutStub })),
+    useUpdateKeyword: vi.fn(() => ({ ...mutStub })),
+    useDeleteKeyword: vi.fn(() => ({ ...mutStub })),
+  };
+});
 
 vi.mock('@/features/crypto-news-publisher/model/use-queue', () => ({
   useQueue: vi.fn(),
