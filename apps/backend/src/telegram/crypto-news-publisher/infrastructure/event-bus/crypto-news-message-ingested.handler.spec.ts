@@ -10,6 +10,28 @@ import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entit
 import { BlacklistPhraseRepository } from 'telegram/crypto-news-publisher/application/ports/blacklist-phrase.repository';
 import { BlacklistPhrase } from 'telegram/crypto-news-publisher/domain/entities/blacklist-phrase.entity';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
+import { DeduplicationService } from 'shared/deduplication/application/services/deduplication.service';
+
+let dedupModule: jest.Mocked<DeduplicationService>;
+
+function mockDedup(overrides: Record<string, any>) {
+  if (dedupModule.checkExact) {
+    dedupModule.checkExact.mockReset();
+  }
+  if (dedupModule.checkContent) {
+    dedupModule.checkContent.mockReset();
+  }
+  if (dedupModule.checkUrl) {
+    dedupModule.checkUrl.mockReset();
+  }
+  if (dedupModule.checkSemantic) {
+    dedupModule.checkSemantic.mockReset();
+  }
+  if (dedupModule.markAsSeen) {
+    dedupModule.markAsSeen.mockReset();
+  }
+  Object.assign(dedupModule, overrides);
+}
 
 describe('CryptoNewsMessageIngestedHandler', () => {
   let handler: CryptoNewsMessageIngestedHandler;
@@ -84,6 +106,16 @@ describe('CryptoNewsMessageIngestedHandler', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        {
+          provide: DeduplicationService,
+          useValue: {
+            checkExact: jest.fn().mockResolvedValue({ isDuplicate: false }),
+            checkContent: jest.fn().mockResolvedValue({ isDuplicate: false }),
+            checkUrl: jest.fn().mockResolvedValue({ isDuplicate: false }),
+            checkSemantic: jest.fn().mockResolvedValue({ isDuplicate: false }),
+            markAsSeen: jest.fn().mockResolvedValue(undefined),
+          },
+        },
         CryptoNewsMessageIngestedHandler,
         {
           provide: CryptoNewsMessageRepository,
@@ -125,6 +157,7 @@ describe('CryptoNewsMessageIngestedHandler', () => {
     keywordRepo = module.get(KeywordRepository);
     blacklistRepo = module.get(BlacklistPhraseRepository);
     enqueue = module.get(EnqueueMatchingMessageUseCase);
+    dedupModule = module.get(DeduplicationService);
   });
 
   it('should be defined', () => {
@@ -621,6 +654,320 @@ describe('CryptoNewsMessageIngestedHandler', () => {
       expect(enqueue.execute).toHaveBeenCalled();
       const callArg = enqueue.execute.mock.calls[0][0];
       expect(callArg.matchedKeywords).toHaveLength(3);
+    });
+  });
+
+  describe('dedup integration', () => {
+    let queueRepo: jest.Mocked<PublisherQueueRepository>;
+    let testingModule: TestingModule;
+    let dedupService: jest.Mocked<DeduplicationService>;
+
+    beforeEach(async () => {
+      testingModule = await Test.createTestingModule({
+        providers: [
+          {
+            provide: DeduplicationService,
+            useValue: {
+              checkExact: jest.fn().mockResolvedValue({ isDuplicate: false }),
+              checkContent: jest.fn().mockResolvedValue({ isDuplicate: false }),
+              checkUrl: jest.fn().mockResolvedValue({ isDuplicate: false }),
+              checkSemantic: jest
+                .fn()
+                .mockResolvedValue({ isDuplicate: false }),
+              markAsSeen: jest.fn().mockResolvedValue(undefined),
+            },
+          },
+          CryptoNewsMessageIngestedHandler,
+          {
+            provide: CryptoNewsMessageRepository,
+            useValue: {
+              findByChannelAndMessageId: jest.fn(),
+            },
+          },
+          {
+            provide: KeywordRepository,
+            useValue: {
+              findEnabled: jest.fn(),
+            },
+          },
+          {
+            provide: BlacklistPhraseRepository,
+            useValue: {
+              findEnabled: jest.fn().mockResolvedValue([]),
+            },
+          },
+          {
+            provide: PublisherQueueRepository,
+            useValue: {
+              enqueue: jest.fn(),
+            },
+          },
+          {
+            provide: EnqueueMatchingMessageUseCase,
+            useValue: {
+              execute: jest.fn(),
+            },
+          },
+        ],
+      }).compile();
+
+      handler = testingModule.get<CryptoNewsMessageIngestedHandler>(
+        CryptoNewsMessageIngestedHandler,
+      );
+      messageRepo = testingModule.get(CryptoNewsMessageRepository);
+      keywordRepo = testingModule.get(KeywordRepository);
+      blacklistRepo = testingModule.get(BlacklistPhraseRepository);
+      enqueue = testingModule.get(EnqueueMatchingMessageUseCase);
+      queueRepo = testingModule.get(PublisherQueueRepository);
+      dedupModule = testingModule.get(DeduplicationService);
+      dedupService = testingModule.get(DeduplicationService);
+    });
+
+    it('should BLOCKED with duplicate reason on exact match', async () => {
+      dedupService.checkExact.mockResolvedValue({
+        isDuplicate: true,
+        blockedReason: 'Duplicate of queue',
+      });
+
+      const event = createEvent({ title: 'BTC update' });
+      const message = createMessage('Bitcoin news content');
+      const kw = createKeyword('bitcoin');
+
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw]);
+
+      await handler.handle(event);
+
+      expect(enqueue.execute).not.toHaveBeenCalled();
+      expect(queueRepo.enqueue).toHaveBeenCalled();
+      const enqueuedEntry = queueRepo.enqueue.mock.calls[0][0];
+      expect(enqueuedEntry).toHaveProperty('state');
+      expect((enqueuedEntry as any).state.status).toBe('BLOCKED');
+      expect((enqueuedEntry as any).state.blockedReason).toBe(
+        'Duplicate of queue',
+      );
+    });
+
+    it('should BLOCKED with content reason on content match', async () => {
+      dedupService.checkExact.mockResolvedValue({ isDuplicate: false });
+      dedupService.checkContent.mockResolvedValue({
+        isDuplicate: true,
+        blockedReason: 'Duplicate content of queue',
+      });
+
+      const event = createEvent({ title: 'BTC update' });
+      const message = createMessage('Bitcoin news content');
+      const kw = createKeyword('bitcoin');
+
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw]);
+
+      await handler.handle(event);
+
+      expect(enqueue.execute).not.toHaveBeenCalled();
+      expect(queueRepo.enqueue).toHaveBeenCalled();
+      const enqueuedEntry = queueRepo.enqueue.mock.calls[0][0];
+      expect((enqueuedEntry as any).state.status).toBe('BLOCKED');
+      expect((enqueuedEntry as any).state.blockedReason).toBe(
+        'Duplicate content of queue',
+      );
+    });
+
+    it('should BLOCKED with URL reason on URL match', async () => {
+      dedupService.checkExact.mockResolvedValue({ isDuplicate: false });
+      dedupService.checkContent.mockResolvedValue({ isDuplicate: false });
+      dedupService.checkUrl.mockResolvedValue({
+        isDuplicate: true,
+        blockedReason: 'Duplicate URL',
+      });
+
+      const event = createEvent({ title: 'BTC update' });
+      const message = createMessage('Bitcoin news with https://example.com');
+      const kw = createKeyword('bitcoin');
+
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw]);
+
+      await handler.handle(event);
+
+      expect(enqueue.execute).not.toHaveBeenCalled();
+      expect(queueRepo.enqueue).toHaveBeenCalled();
+      const enqueuedEntry = queueRepo.enqueue.mock.calls[0][0];
+      expect((enqueuedEntry as any).state.status).toBe('BLOCKED');
+      expect((enqueuedEntry as any).state.blockedReason).toBe('Duplicate URL');
+    });
+
+    it('should BLOCKED with semantic reason on semantic high score', async () => {
+      dedupService.checkExact.mockResolvedValue({ isDuplicate: false });
+      dedupService.checkContent.mockResolvedValue({ isDuplicate: false });
+      dedupService.checkUrl.mockResolvedValue({ isDuplicate: false });
+      dedupService.checkSemantic.mockResolvedValue({
+        isDuplicate: true,
+        blockedReason: 'Semantic duplicate of queue',
+      });
+
+      const event = createEvent({ title: 'BTC update' });
+      const message = createMessage('Bitcoin news content');
+      const kw = createKeyword('bitcoin');
+
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw]);
+
+      await handler.handle(event);
+
+      expect(enqueue.execute).not.toHaveBeenCalled();
+      expect(queueRepo.enqueue).toHaveBeenCalled();
+      const enqueuedEntry = queueRepo.enqueue.mock.calls[0][0];
+      expect((enqueuedEntry as any).state.status).toBe('BLOCKED');
+      expect((enqueuedEntry as any).state.blockedReason).toBe(
+        'Semantic duplicate of queue',
+      );
+    });
+
+    it('should PENDING on LLM UPDATE (non-blocking)', async () => {
+      dedupService.checkExact.mockResolvedValue({ isDuplicate: false });
+      dedupService.checkContent.mockResolvedValue({ isDuplicate: false });
+      dedupService.checkUrl.mockResolvedValue({ isDuplicate: false });
+      dedupService.checkSemantic.mockResolvedValue({
+        isDuplicate: false,
+        zone: 'different',
+        eventRelation: 'update',
+        existingRecord: { id: 'existing-123' },
+      });
+
+      const event = createEvent({ title: 'BTC update' });
+      const message = createMessage('Bitcoin news content');
+      const kw = createKeyword('bitcoin');
+      const entry = PublisherQueueEntry.create({
+        channelId: 'crypto-news',
+        messageId: 42,
+        rawContent: 'Bitcoin news content',
+        rawTitle: 'BTC update',
+        imagePath: null,
+        groupedId: null,
+        messageReceivedAt: new Date(),
+      });
+
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw]);
+      enqueue.execute.mockResolvedValue(entry);
+
+      await handler.handle(event);
+
+      expect(enqueue.execute).toHaveBeenCalled();
+    });
+
+    it('should PENDING on no duplicate', async () => {
+      const event = createEvent({ title: 'BTC update' });
+      const message = createMessage('Bitcoin news content');
+      const kw = createKeyword('bitcoin');
+      const entry = PublisherQueueEntry.create({
+        channelId: 'crypto-news',
+        messageId: 42,
+        rawContent: 'Bitcoin news content',
+        rawTitle: 'BTC update',
+        imagePath: null,
+        groupedId: null,
+        messageReceivedAt: new Date(),
+      });
+
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw]);
+      enqueue.execute.mockResolvedValue(entry);
+
+      await handler.handle(event);
+
+      expect(enqueue.execute).toHaveBeenCalled();
+    });
+
+    it('should stop at first match (exact match prevents content/URL checks)', async () => {
+      dedupService.checkExact.mockResolvedValue({
+        isDuplicate: true,
+        blockedReason: 'Exact duplicate',
+      });
+
+      const event = createEvent({ title: 'BTC update' });
+      const message = createMessage('Bitcoin news content');
+      const kw = createKeyword('bitcoin');
+
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw]);
+
+      await handler.handle(event);
+
+      expect(dedupService.checkExact).toHaveBeenCalled();
+      expect(dedupService.checkContent).not.toHaveBeenCalled();
+      expect(dedupService.checkUrl).not.toHaveBeenCalled();
+      expect(dedupService.checkSemantic).not.toHaveBeenCalled();
+      expect(enqueue.execute).not.toHaveBeenCalled();
+    });
+
+    it('should call markAsSeen after successful enqueue', async () => {
+      dedupService.checkExact.mockResolvedValue({ isDuplicate: false });
+      dedupService.checkContent.mockResolvedValue({ isDuplicate: false });
+      dedupService.checkUrl.mockResolvedValue({ isDuplicate: false });
+      dedupService.checkSemantic.mockResolvedValue({
+        isDuplicate: false,
+        zone: 'different',
+        eventRelation: 'update',
+        existingRecord: { id: 'existing-123' },
+      });
+
+      const event = createEvent({ title: 'BTC update' });
+      const message = createMessage('Bitcoin news content');
+      const kw = createKeyword('bitcoin');
+      const entry = PublisherQueueEntry.create({
+        channelId: 'crypto-news',
+        messageId: 42,
+        rawContent: 'Bitcoin news content',
+        rawTitle: 'BTC update',
+        imagePath: null,
+        groupedId: null,
+        messageReceivedAt: new Date(),
+      });
+
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw]);
+      enqueue.execute.mockResolvedValue(entry);
+
+      await handler.handle(event);
+
+      expect(dedupService.markAsSeen).toHaveBeenCalled();
+    });
+
+    it('should call markAsSeen for blacklist blocked entries', async () => {
+      dedupService.checkExact.mockResolvedValue({ isDuplicate: false });
+      dedupService.checkContent.mockResolvedValue({ isDuplicate: false });
+      dedupService.checkUrl.mockResolvedValue({ isDuplicate: false });
+      dedupService.checkSemantic.mockResolvedValue({ isDuplicate: false });
+
+      const event = createEvent({ title: 'Bitcoin scam alert' });
+      const message = createMessage('Bitcoin scam alert');
+      const kw = createKeyword('bitcoin');
+      const bl = createBlacklistPhrase('scam');
+
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw]);
+      blacklistRepo.findEnabled.mockResolvedValue([bl]);
+
+      await handler.handle(event);
+
+      expect(queueRepo.enqueue).toHaveBeenCalled();
+    });
+
+    it('should handle dedup service failure gracefully', async () => {
+      dedupService.checkExact.mockRejectedValue(
+        new Error('Dedup service down'),
+      );
+
+      const event = createEvent({ title: 'BTC update' });
+      const message = createMessage('Bitcoin news content');
+      const kw = createKeyword('bitcoin');
+
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw]);
+
+      await expect(handler.handle(event)).resolves.toBeUndefined();
     });
   });
 });

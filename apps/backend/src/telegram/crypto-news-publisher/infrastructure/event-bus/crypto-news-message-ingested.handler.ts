@@ -10,6 +10,7 @@ import { BlacklistPhrase } from 'telegram/crypto-news-publisher/domain/entities/
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
 import { EnqueueMatchingMessageUseCase } from 'telegram/crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
+import { DeduplicationService } from 'shared/deduplication/application/services/deduplication.service';
 
 /**
  * Event handler: reacts to ingested crypto-news messages.
@@ -54,6 +55,7 @@ export class CryptoNewsMessageIngestedHandler {
     private readonly blacklistRepo: BlacklistPhraseRepository,
     private readonly queueRepo: PublisherQueueRepository,
     private readonly enqueue: EnqueueMatchingMessageUseCase,
+    private readonly deduplicationService: DeduplicationService,
   ) {}
 
   /**
@@ -160,6 +162,109 @@ export class CryptoNewsMessageIngestedHandler {
         return;
       }
 
+      // DEDUP: Run dedup pipeline after keyword match + blacklist pass
+      // If the dedup service fails (e.g., transient error), we proceed as-if
+      // no duplicate was found — a dedup outage must not block publication.
+      const source = 'crypto-news-publisher';
+      const content = message.content || '';
+
+      try {
+        // Level 1: Exact match check
+        const exactResult = await this.deduplicationService.checkExact(
+          source,
+          channelId,
+          messageId,
+        );
+        if (exactResult.isDuplicate) {
+          this.logger.debug(
+            `Dedup exact match: channelId=${channelId}, messageId=${messageId}`,
+          );
+          await this.createBlockedEntry(
+            message,
+            matchedKeywords,
+            exactResult.blockedReason ?? 'Duplicate: exact match',
+          );
+          return;
+        }
+
+        // Level 2: Content hash check
+        const contentResult = await this.deduplicationService.checkContent(
+          source,
+          content,
+        );
+        if (contentResult.isDuplicate) {
+          this.logger.debug(
+            `Dedup content match: channelId=${channelId}, messageId=${messageId}`,
+          );
+          await this.createBlockedEntry(
+            message,
+            matchedKeywords,
+            contentResult.blockedReason ?? 'Duplicate: content match',
+          );
+          return;
+        }
+
+        // Level 3: URL check
+        const urlResult = await this.deduplicationService.checkUrl(
+          source,
+          content,
+        );
+        if (urlResult.isDuplicate) {
+          this.logger.debug(
+            `Dedup URL match: channelId=${channelId}, messageId=${messageId}`,
+          );
+          await this.createBlockedEntry(
+            message,
+            matchedKeywords,
+            urlResult.blockedReason ?? 'Duplicate: URL match',
+          );
+          return;
+        }
+
+        // Level 4: Semantic check
+        const semanticResult = await this.deduplicationService.checkSemantic(
+          source,
+          content,
+          channelId,
+          messageId,
+        );
+
+        if (semanticResult.isDuplicate) {
+          this.logger.debug(
+            `Dedup semantic match: channelId=${channelId}, messageId=${messageId}`,
+          );
+          await this.createBlockedEntry(
+            message,
+            matchedKeywords,
+            semanticResult.blockedReason ?? 'Duplicate: semantic match',
+          );
+          return;
+        }
+
+        // Handle UPDATE case - event is related but adds new info
+        if (semanticResult.eventRelation === 'update') {
+          // Mark the current message as seen with reference to the existing record
+          if (semanticResult.existingRecord) {
+            await this.deduplicationService.markAsSeen(
+              source,
+              channelId,
+              messageId,
+              content,
+              undefined,
+              semanticResult.existingRecord.id,
+            );
+          }
+          // Proceed to enqueue but it's an UPDATE
+          this.logger.debug(
+            `Dedup update: channelId=${channelId}, messageId=${messageId}, referencedEntryId=${semanticResult.existingRecord?.id}`,
+          );
+        }
+      } catch (dedupErr) {
+        this.logger.warn(
+          `Dedup check failed, proceeding without dedup: channelId=${channelId}, messageId=${messageId}, title=${title ?? '(none)'}: ${(dedupErr as Error).message}`,
+        );
+      }
+
       // Pass all matched keywords so their `templateId` is frozen onto the
       // queue entry — a later template edit cannot retroactively
       // re-route an already-queued entry.
@@ -220,6 +325,35 @@ export class CryptoNewsMessageIngestedHandler {
       );
       return ownPaths;
     }
+  }
+
+  private async createBlockedEntry(
+    message: CryptoNewsMessage,
+    matchedKeywords: Keyword[],
+    blockedReason: string,
+  ): Promise<void> {
+    const imagePaths = await this.collectAlbumImagePaths(message);
+    const entry = PublisherQueueEntry.create({
+      channelId: message.channelId,
+      messageId: message.messageId,
+      rawContent: message.content,
+      rawTitle: message.title,
+      imagePaths,
+      groupedId: message.groupedId,
+      messageReceivedAt: new Date(),
+      matchedKeywordIds: matchedKeywords.map((k) => k.id),
+      keywordTemplateId: matchedKeywords[0]?.templateId ?? null,
+    });
+    (
+      entry as unknown as { state: { status: string; blockedReason: string } }
+    ).state = {
+      ...(
+        entry as unknown as { state: { status: string; blockedReason: string } }
+      ).state,
+      status: 'BLOCKED',
+      blockedReason,
+    };
+    await this.queueRepo.enqueue(entry);
   }
 
   /**

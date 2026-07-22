@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LlmPort } from 'shared/llm';
 import { LlmGatewayAdapter } from 'shared/llm/adapters/llm-gateway.adapter';
+import { DeduplicationModule } from 'shared/deduplication/deduplication.module';
 import { BlacklistPhraseEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/blacklist-phrase.entity';
 import { KeywordEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/keyword.entity';
 import { LlmConfigEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/llm-config.entity';
@@ -74,6 +75,7 @@ import { CryptoNewsIngestionModule } from 'telegram/ingestion/crypto-news/crypto
       PublisherThrottleStateEntity,
     ]),
     CryptoNewsIngestionModule,
+    DeduplicationModule,
   ],
   controllers: [
     BlacklistController,

@@ -39,6 +39,7 @@ import { SettingsModule } from 'settings/settings.module';
 import { DataProviderModule } from 'data-provider/core/data-provider.module';
 import { HealthModule } from 'health/health.module';
 import { LlmModule } from 'shared/llm';
+import { DeduplicationModule } from 'shared/deduplication/deduplication.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -127,6 +128,7 @@ import { AppService } from './app.service';
     SettingsModule,
     DataProviderModule,
     LlmModule,
+    DeduplicationModule,
   ],
   controllers: [AppController],
   providers: [
