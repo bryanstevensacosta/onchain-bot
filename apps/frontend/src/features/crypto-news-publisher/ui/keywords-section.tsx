@@ -37,6 +37,7 @@ interface KeywordsModalProps {
   initialTemplateId: string | null;
   sourceOptions: readonly CryptoNewsSource[];
   templateOptions: readonly { id: string; name: string }[];
+  compoundGroups: Array<{ id: string; label: string }>;
   onSubmit: (body: CreateKeywordBody | UpdateKeywordBody) => void;
   pending: boolean;
   errorMessage: string | null;
@@ -56,6 +57,7 @@ function KeywordsModal({
   initialTemplateId,
   sourceOptions,
   templateOptions,
+  compoundGroups,
   onSubmit,
   pending,
   errorMessage,
@@ -72,7 +74,9 @@ function KeywordsModal({
   const [templateId, setTemplateId] = useState<string | null>(
     initialTemplateId,
   );
-  const [isCompound, setIsCompound] = useState(initialAndGroupId !== null);
+  const [compoundGroupId, setCompoundGroupId] = useState<string | null>(
+    initialAndGroupId,
+  );
   const [requireMedia, setRequireMedia] = useState(initialRequireMedia);
 
   const canSubmit = phrase.trim().length > 0 && !pending;
@@ -85,7 +89,7 @@ function KeywordsModal({
     setEnabled(initialEnabled);
     setMatchMode(initialMatchMode);
     setTemplateId(initialTemplateId);
-    setIsCompound(initialAndGroupId !== null);
+    setCompoundGroupId(initialAndGroupId);
     setRequireMedia(initialRequireMedia);
     onClose();
   }
@@ -94,9 +98,8 @@ function KeywordsModal({
     e.preventDefault();
     if (!canSubmit) return;
     const trimmedPhrase = phrase.trim();
-    const andGroupId = isCompound
-      ? (initialAndGroupId ?? crypto.randomUUID())
-      : null;
+    const isNewCompound = compoundGroupId === '__new__';
+    const andGroupId = isNewCompound ? crypto.randomUUID() : compoundGroupId;
     onSubmit({
       phrase: trimmedPhrase,
       caseSensitive,
@@ -208,13 +211,24 @@ function KeywordsModal({
 
         <div className="flex flex-wrap items-center gap-4">
           <label className="flex items-center gap-2 text-sm text-slate-300">
-            <input
-              type="checkbox"
-              checked={isCompound}
-              onChange={(e) => setIsCompound(e.target.checked)}
+            <span className="text-xs uppercase text-slate-500">Compound</span>
+            <select
+              value={compoundGroupId ?? ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                setCompoundGroupId(val === '' ? null : val);
+              }}
               disabled={pending}
-            />
-            <span>Compound (AND group)</span>
+              className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-slate-100 focus:outline-none focus:border-blue-500 min-w-[160px]"
+            >
+              <option value="">None (OR)</option>
+              {compoundGroups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.label}
+                </option>
+              ))}
+              <option value="__new__">+ Create new compound group</option>
+            </select>
           </label>
           <label className="flex items-center gap-2 text-sm text-slate-300">
             <input
@@ -357,6 +371,10 @@ export function KeywordsSection(): React.ReactElement {
     : keywords;
 
   const combinedRows = buildCombinedRows(filteredKeywords);
+  const compoundGroups = buildCompoundGroups(filteredKeywords).map((g) => ({
+    id: g.id,
+    label: `${g.items[0].phrase} (+${g.items.length - 1} more)`,
+  }));
   const totalPages = Math.ceil(combinedRows.length / KW_PAGE_SIZE);
 
   useEffect(() => {
@@ -487,6 +505,7 @@ export function KeywordsSection(): React.ReactElement {
         initialTemplateId={null}
         sourceOptions={sourceOptions}
         templateOptions={templateOptions}
+        compoundGroups={compoundGroups}
         onSubmit={handleCreateSubmit}
         pending={createMut.isPending}
         errorMessage={createMut.error?.message ?? null}
@@ -506,6 +525,7 @@ export function KeywordsSection(): React.ReactElement {
         initialTemplateId={editingItem?.templateId ?? null}
         sourceOptions={sourceOptions}
         templateOptions={templateOptions}
+        compoundGroups={compoundGroups}
         onSubmit={handleEditSubmit}
         pending={updateMut.isPending}
         errorMessage={updateMut.error?.message ?? null}

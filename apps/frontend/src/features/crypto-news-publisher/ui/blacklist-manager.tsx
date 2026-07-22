@@ -31,6 +31,7 @@ interface BlacklistModalProps {
   initialAndGroupId: string | null;
   initialRequireMedia: boolean;
   sourceOptions: readonly CryptoNewsSource[];
+  compoundGroups: Array<{ id: string; label: string }>;
   onSubmit: (body: CreateBlacklistBody | UpdateBlacklistBody) => void;
   pending: boolean;
   errorMessage: string | null;
@@ -48,6 +49,7 @@ function BlacklistModal({
   initialAndGroupId,
   initialRequireMedia,
   sourceOptions,
+  compoundGroups,
   onSubmit,
   pending,
   errorMessage,
@@ -61,7 +63,9 @@ function BlacklistModal({
   const [matchMode, setMatchMode] = useState<'exact' | 'substring'>(
     initialMatchMode,
   );
-  const [isCompound, setIsCompound] = useState(initialAndGroupId !== null);
+  const [compoundGroupId, setCompoundGroupId] = useState<string | null>(
+    initialAndGroupId,
+  );
   const [requireMedia, setRequireMedia] = useState(initialRequireMedia);
 
   const canSubmit = phrase.trim().length > 0 && !pending;
@@ -73,7 +77,7 @@ function BlacklistModal({
     setSourceChannelIds(initialSourceChannelIds);
     setEnabled(initialEnabled);
     setMatchMode(initialMatchMode);
-    setIsCompound(initialAndGroupId !== null);
+    setCompoundGroupId(initialAndGroupId);
     setRequireMedia(initialRequireMedia);
     onClose();
   }
@@ -82,9 +86,8 @@ function BlacklistModal({
     e.preventDefault();
     if (!canSubmit) return;
     const trimmedPhrase = phrase.trim();
-    const andGroupId = isCompound
-      ? (initialAndGroupId ?? crypto.randomUUID())
-      : null;
+    const isNewCompound = compoundGroupId === '__new__';
+    const andGroupId = isNewCompound ? crypto.randomUUID() : compoundGroupId;
     onSubmit({
       phrase: trimmedPhrase,
       caseSensitive,
@@ -168,13 +171,24 @@ function BlacklistModal({
 
         <div className="flex flex-wrap items-center gap-4">
           <label className="flex items-center gap-2 text-sm text-slate-300">
-            <input
-              type="checkbox"
-              checked={isCompound}
-              onChange={(e) => setIsCompound(e.target.checked)}
+            <span className="text-xs uppercase text-slate-500">Compound</span>
+            <select
+              value={compoundGroupId ?? ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                setCompoundGroupId(val === '' ? null : val);
+              }}
               disabled={pending}
-            />
-            <span>Compound (AND group)</span>
+              className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-slate-100 focus:outline-none focus:border-blue-500 min-w-[160px]"
+            >
+              <option value="">None (OR)</option>
+              {compoundGroups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.label}
+                </option>
+              ))}
+              <option value="__new__">+ Create new compound group</option>
+            </select>
           </label>
           <label className="flex items-center gap-2 text-sm text-slate-300">
             <input
@@ -267,6 +281,10 @@ export function BlacklistManager(): React.ReactElement {
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     ),
     enabled: items.every((i) => i.enabled),
+  }));
+  const compoundGroupOptions = compoundGroups.map((g) => ({
+    id: g.id,
+    label: `${g.items[0].phrase} (+${g.items.length - 1} more)`,
   }));
 
   // Combined view: simple items + compound groups (paginated)
@@ -433,6 +451,7 @@ export function BlacklistManager(): React.ReactElement {
         initialAndGroupId={null}
         initialRequireMedia={false}
         sourceOptions={sources ?? []}
+        compoundGroups={compoundGroupOptions}
         onSubmit={handleCreateSubmit}
         pending={createMut.isPending}
         errorMessage={createMut.error?.message ?? null}
@@ -450,6 +469,7 @@ export function BlacklistManager(): React.ReactElement {
         initialAndGroupId={editingItem?.andGroupId ?? null}
         initialRequireMedia={editingItem?.requireMedia ?? false}
         sourceOptions={sources ?? []}
+        compoundGroups={compoundGroupOptions}
         onSubmit={handleEditSubmit}
         pending={updateMut.isPending}
         errorMessage={updateMut.error?.message ?? null}
