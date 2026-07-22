@@ -139,6 +139,49 @@ export function DetailsModal({
           </section>
         )}
 
+        {/* Media (images/videos) */}
+        {entry.imagePaths && entry.imagePaths.length > 0 && (
+          <section>
+            <h3 className="text-xs uppercase text-slate-500 mb-2">
+              Media ({entry.imagePaths.length})
+            </h3>
+            <div
+              className={`grid gap-1 ${
+                entry.imagePaths.length === 1 ? 'grid-cols-1' : 'grid-cols-2'
+              }`}
+            >
+              {entry.imagePaths.map((path, idx) => {
+                const isVideo =
+                  path.endsWith('.bin') ||
+                  path.endsWith('.mp4') ||
+                  path.includes('/video_') ||
+                  path.includes('/document');
+                return isVideo ? (
+                  <video
+                    key={idx}
+                    controls
+                    className="h-auto w-full max-h-48 rounded object-contain bg-slate-900"
+                  >
+                    <source
+                      src={`/crypto-news-publisher/queue/${entry.id}/media?index=${idx}`}
+                      type="video/mp4"
+                    />
+                    Your browser does not support the video tag.
+                  </video>
+                ) : (
+                  <img
+                    key={idx}
+                    src={`/crypto-news-publisher/queue/${entry.id}/media?index=${idx}`}
+                    alt={`Media ${idx + 1}`}
+                    className="h-auto w-full max-h-48 rounded object-contain bg-slate-900"
+                    loading="lazy"
+                  />
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {/* Generated output */}
         {entry.generatedContent && (
           <section>
