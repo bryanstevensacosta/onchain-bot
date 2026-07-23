@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Card, Button, Modal } from '@/shared/ui';
+import { generateId } from '@/shared/lib/uuid';
 import {
   useCreateKeyword,
   useCreateKeywordBatch,
@@ -101,7 +102,7 @@ function KeywordsModal({
     if (!canSubmit) return;
     const trimmedPhrase = phrase.trim();
     const isNewCompound = compoundGroupId === '__new__';
-    const andGroupId = isNewCompound ? crypto.randomUUID() : compoundGroupId;
+    const andGroupId = isNewCompound ? generateId() : compoundGroupId;
     onSubmit({
       phrase: trimmedPhrase,
       caseSensitive,

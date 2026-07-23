@@ -3,6 +3,7 @@ import { Modal } from '@/shared/ui/modal';
 import { Button } from '@/shared/ui/button';
 import { SourceMultiSelect } from './source-multi-select';
 import type { CryptoNewsSource } from '@/entities/crypto-news';
+import { generateId } from '@/shared/lib/uuid';
 
 export interface PhraseRow {
   id: string;
@@ -37,7 +38,7 @@ export interface CompoundGroupModalProps {
 
 function createEmptyRow(): PhraseRow {
   return {
-    id: crypto.randomUUID(),
+    id: generateId(),
     phrase: '',
     caseSensitive: false,
     matchMode: 'substring',

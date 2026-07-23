@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Card } from '@/shared/ui/card';
 import { Button } from '@/shared/ui/button';
 import { Modal } from '@/shared/ui/modal';
+import { generateId } from '@/shared/lib/uuid';
 import {
   useBlacklist,
   useCreateBlacklist,
@@ -89,7 +90,7 @@ function BlacklistModal({
     if (!canSubmit) return;
     const trimmedPhrase = phrase.trim();
     const isNewCompound = compoundGroupId === '__new__';
-    const andGroupId = isNewCompound ? crypto.randomUUID() : compoundGroupId;
+    const andGroupId = isNewCompound ? generateId() : compoundGroupId;
     onSubmit({
       phrase: trimmedPhrase,
       caseSensitive,
