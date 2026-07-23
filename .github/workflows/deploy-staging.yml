@@ -199,6 +199,25 @@ jobs:
             rm -f /opt/onchain-bot-staging/apps/backend/.env
           fi
 
+      - name: Install dependencies (for host-side migrations)
+        run: |
+          echo "=== Installing host deps (migrations, scripts) ==="
+          npm --prefix /opt/onchain-bot-staging ci --no-audit --no-fund 2>&1 | tail -3
+
+      - name: Run migrations
+        run: |
+          set -euo pipefail
+          echo "=== Running staging migrations ==="
+          set -a
+          source /opt/onchain-bot-staging/apps/backend/.env.staging || true
+          set +a
+          POSTGRES_HOST=localhost \
+          POSTGRES_PORT=5433 \
+          POSTGRES_USER="${POSTGRES_USER:-alpha_meta_token_scanner}" \
+          POSTGRES_DB="${POSTGRES_DB:-alpha_meta_token_scanner_staging}" \
+          POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-alpha_meta_token_scanner}" \
+          npm --prefix /opt/onchain-bot-staging/apps/backend run migration:run
+
       - name: Deploy backend
         run: |
           docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d --no-deps backend
