@@ -73,8 +73,11 @@ export function DetailsModal({
       .join(', ');
   }, [entry.matchedKeywordIds, keywords]);
 
+  const modalTitle =
+    entry.status === 'BLOCKED' ? 'Blocked Post Details' : 'Queue Entry Details';
+
   return (
-    <Modal isOpen onClose={onClose} title="Queue Entry Details" size="lg">
+    <Modal isOpen onClose={onClose} title={modalTitle} size="lg">
       <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
         {/* Status + timestamps */}
         <section>
