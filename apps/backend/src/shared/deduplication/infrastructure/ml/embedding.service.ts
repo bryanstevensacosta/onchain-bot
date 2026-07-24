@@ -3,7 +3,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 @Injectable()
 export class EmbeddingService implements OnModuleInit {
   private readonly logger = new Logger(EmbeddingService.name);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   private model: any = null;
   private isLoaded = false;
   private loadError: Error | null = null;

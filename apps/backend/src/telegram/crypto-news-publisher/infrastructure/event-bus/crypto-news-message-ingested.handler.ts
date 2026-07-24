@@ -258,6 +258,13 @@ export class CryptoNewsMessageIngestedHandler {
           this.logger.debug(
             `Dedup update: channelId=${channelId}, messageId=${messageId}, referencedEntryId=${semanticResult.existingRecord?.id}`,
           );
+        } else {
+          await this.deduplicationService.markAsSeen(
+            source,
+            channelId,
+            messageId,
+            content,
+          );
         }
       } catch (dedupErr) {
         this.logger.warn(

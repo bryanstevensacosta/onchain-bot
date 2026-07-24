@@ -211,12 +211,13 @@ jobs:
           set -a
           source /opt/onchain-bot-staging/apps/backend/.env.staging || true
           set +a
+          cd /opt/onchain-bot-staging/apps/backend && \
           POSTGRES_HOST=localhost \
           POSTGRES_PORT=5433 \
           POSTGRES_USER="${POSTGRES_USER:-alpha_meta_token_scanner}" \
           POSTGRES_DB="${POSTGRES_DB:-alpha_meta_token_scanner_staging}" \
           POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-alpha_meta_token_scanner}" \
-          npm --prefix /opt/onchain-bot-staging/apps/backend run migration:run
+          npm run migration:run
 
       - name: Deploy backend
         run: |
