@@ -102,8 +102,24 @@ export function DetailsModal({
           {entry.status === 'BLOCKED' &&
             (entry.duplicateOfChannelId || entry.duplicateOfMessageId) && (
               <p className="mt-2 text-xs text-amber-300 font-mono break-all whitespace-pre-wrap bg-amber-900/30 rounded p-2">
-                Duplicate of: channel {entry.duplicateOfChannelId}, message{' '}
-                {entry.duplicateOfMessageId}
+                Duplicate of:{' '}
+                {entry.duplicateOfChannelId && entry.duplicateOfMessageId && (
+                  <a
+                    href={`https://t.me/c/${entry.duplicateOfChannelId}/${entry.duplicateOfMessageId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 underline"
+                  >
+                    Telegram message ↗
+                  </a>
+                )}
+                {(!entry.duplicateOfChannelId ||
+                  !entry.duplicateOfMessageId) && (
+                  <>
+                    channel {entry.duplicateOfChannelId}, message{' '}
+                    {entry.duplicateOfMessageId}
+                  </>
+                )}
                 {entry.duplicateOfEntryId && (
                   <> (queue entry: {entry.duplicateOfEntryId})</>
                 )}
