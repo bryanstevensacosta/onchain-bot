@@ -47,6 +47,9 @@ export interface QueueEntryView {
   readonly generatedReasoningEffort: string | null;
   readonly generatedModel: string | null;
   readonly blockedReason: string | null;
+  readonly duplicateOfChannelId: string | null;
+  readonly duplicateOfMessageId: number | null;
+  readonly duplicateOfEntryId: string | null;
 }
 
 export interface QueueCountsView {
@@ -244,6 +247,9 @@ export class QueueController {
       generatedReasoningEffort: entry.generatedReasoningEffort,
       generatedModel: entry.generatedModel,
       blockedReason: entry.blockedReason,
+      duplicateOfChannelId: entry.duplicateOfChannelId,
+      duplicateOfMessageId: entry.duplicateOfMessageId,
+      duplicateOfEntryId: entry.duplicateOfEntryId,
     };
   }
 }

@@ -131,6 +131,20 @@ export class PublisherQueueEntity {
   @Column({ name: 'blocked_reason', type: 'text', nullable: true })
   public blockedReason!: string | null;
 
+  @Column({
+    name: 'duplicate_of_channel_id',
+    type: 'varchar',
+    length: 64,
+    nullable: true,
+  })
+  public duplicateOfChannelId!: string | null;
+
+  @Column({ name: 'duplicate_of_message_id', type: 'integer', nullable: true })
+  public duplicateOfMessageId!: number | null;
+
+  @Column({ name: 'duplicate_of_entry_id', type: 'uuid', nullable: true })
+  public duplicateOfEntryId!: string | null;
+
   /** Round-trip helper for tests / debug. */
   public toProps(): PublisherQueueEntryProps {
     return {
@@ -158,6 +172,9 @@ export class PublisherQueueEntity {
       generatedReasoningEffort: this.generatedReasoningEffort,
       generatedModel: this.generatedModel,
       blockedReason: this.blockedReason,
+      duplicateOfChannelId: this.duplicateOfChannelId,
+      duplicateOfMessageId: this.duplicateOfMessageId,
+      duplicateOfEntryId: this.duplicateOfEntryId,
     };
   }
 }

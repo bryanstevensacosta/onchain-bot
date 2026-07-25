@@ -64,6 +64,12 @@ export interface PublisherQueueEntryProps {
   /** Model used when generating the post. */
   generatedModel: string | null;
   blockedReason: string | null;
+  /** Channel ID of the message this entry is a duplicate of (only for BLOCKED status, dedup). */
+  duplicateOfChannelId: string | null;
+  /** Message ID of the message this entry is a duplicate of (only for BLOCKED status, dedup). */
+  duplicateOfMessageId: number | null;
+  /** Queue entry ID that this entry is a duplicate of (only for BLOCKED status, dedup). */
+  duplicateOfEntryId: string | null;
 }
 
 /**
@@ -168,6 +174,9 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
       generatedReasoningEffort: null,
       generatedModel: null,
       blockedReason: null,
+      duplicateOfChannelId: null,
+      duplicateOfMessageId: null,
+      duplicateOfEntryId: null,
     });
   }
 
@@ -275,6 +284,18 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
 
   public get blockedReason(): string | null {
     return this.state.blockedReason;
+  }
+
+  public get duplicateOfChannelId(): string | null {
+    return this.state.duplicateOfChannelId;
+  }
+
+  public get duplicateOfMessageId(): number | null {
+    return this.state.duplicateOfMessageId;
+  }
+
+  public get duplicateOfEntryId(): string | null {
+    return this.state.duplicateOfEntryId;
   }
 
   public get isTerminal(): boolean {

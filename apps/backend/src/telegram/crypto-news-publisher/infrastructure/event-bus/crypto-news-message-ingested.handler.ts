@@ -183,6 +183,9 @@ export class CryptoNewsMessageIngestedHandler {
             message,
             matchedKeywords,
             exactResult.blockedReason ?? 'Duplicate: exact match',
+            exactResult.existingRecord?.channelId,
+            exactResult.existingRecord?.messageId,
+            exactResult.existingRecord?.id,
           );
           return;
         }
@@ -200,6 +203,9 @@ export class CryptoNewsMessageIngestedHandler {
             message,
             matchedKeywords,
             contentResult.blockedReason ?? 'Duplicate: content match',
+            contentResult.existingRecord?.channelId,
+            contentResult.existingRecord?.messageId,
+            contentResult.existingRecord?.id,
           );
           return;
         }
@@ -217,6 +223,9 @@ export class CryptoNewsMessageIngestedHandler {
             message,
             matchedKeywords,
             urlResult.blockedReason ?? 'Duplicate: URL match',
+            urlResult.existingRecord?.channelId,
+            urlResult.existingRecord?.messageId,
+            urlResult.existingRecord?.id,
           );
           return;
         }
@@ -237,6 +246,9 @@ export class CryptoNewsMessageIngestedHandler {
             message,
             matchedKeywords,
             semanticResult.blockedReason ?? 'Duplicate: semantic match',
+            semanticResult.existingRecord?.channelId,
+            semanticResult.existingRecord?.messageId,
+            semanticResult.existingRecord?.id,
           );
           return;
         }
@@ -338,6 +350,9 @@ export class CryptoNewsMessageIngestedHandler {
     message: CryptoNewsMessage,
     matchedKeywords: Keyword[],
     blockedReason: string,
+    duplicateOfChannelId?: string,
+    duplicateOfMessageId?: number,
+    duplicateOfEntryId?: string,
   ): Promise<void> {
     const imagePaths = await this.collectAlbumImagePaths(message);
     const entry = PublisherQueueEntry.create({
@@ -352,13 +367,32 @@ export class CryptoNewsMessageIngestedHandler {
       keywordTemplateId: matchedKeywords[0]?.templateId ?? null,
     });
     (
-      entry as unknown as { state: { status: string; blockedReason: string } }
+      entry as unknown as {
+        state: {
+          status: string;
+          blockedReason: string;
+          duplicateOfChannelId: string | null;
+          duplicateOfMessageId: number | null;
+          duplicateOfEntryId: string | null;
+        };
+      }
     ).state = {
       ...(
-        entry as unknown as { state: { status: string; blockedReason: string } }
+        entry as unknown as {
+          state: {
+            status: string;
+            blockedReason: string;
+            duplicateOfChannelId: string | null;
+            duplicateOfMessageId: number | null;
+            duplicateOfEntryId: string | null;
+          };
+        }
       ).state,
       status: 'BLOCKED',
       blockedReason,
+      duplicateOfChannelId: duplicateOfChannelId ?? null,
+      duplicateOfMessageId: duplicateOfMessageId ?? null,
+      duplicateOfEntryId: duplicateOfEntryId ?? null,
     };
     await this.queueRepo.enqueue(entry);
   }

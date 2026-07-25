@@ -98,6 +98,17 @@ export function DetailsModal({
               Blocked: {entry.blockedReason}
             </p>
           )}
+          {/* Duplicate Reference for BLOCKED entries */}
+          {entry.status === 'BLOCKED' &&
+            (entry.duplicateOfChannelId || entry.duplicateOfMessageId) && (
+              <p className="mt-2 text-xs text-amber-300 font-mono break-all whitespace-pre-wrap bg-amber-900/30 rounded p-2">
+                Duplicate of: channel {entry.duplicateOfChannelId}, message{' '}
+                {entry.duplicateOfMessageId}
+                {entry.duplicateOfEntryId && (
+                  <> (queue entry: {entry.duplicateOfEntryId})</>
+                )}
+              </p>
+            )}
           {entry.lastError && (
             <p className="mt-2 text-xs text-red-300 font-mono break-all whitespace-pre-wrap">
               {entry.lastError}

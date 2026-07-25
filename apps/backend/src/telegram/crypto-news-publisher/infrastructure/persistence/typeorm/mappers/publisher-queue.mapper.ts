@@ -30,6 +30,9 @@ export class PublisherQueueMapper {
     row.generatedTemperature = entry.generatedTemperature;
     row.generatedReasoningEffort = entry.generatedReasoningEffort;
     row.blockedReason = entry.blockedReason;
+    row.duplicateOfChannelId = entry.duplicateOfChannelId;
+    row.duplicateOfMessageId = entry.duplicateOfMessageId;
+    row.duplicateOfEntryId = entry.duplicateOfEntryId;
     return row;
   }
 

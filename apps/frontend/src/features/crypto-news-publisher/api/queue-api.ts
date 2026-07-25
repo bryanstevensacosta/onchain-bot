@@ -27,6 +27,9 @@ export interface QueueEntryView {
   readonly generatedReasoningEffort: string | null;
   readonly generatedModel: string | null;
   readonly blockedReason: string | null;
+  readonly duplicateOfChannelId?: string;
+  readonly duplicateOfMessageId?: number;
+  readonly duplicateOfEntryId?: string;
 }
 
 export interface QueueCountsView {
