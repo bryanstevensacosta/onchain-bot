@@ -9,6 +9,7 @@ COPY scripts ./scripts
 COPY apps/backend/tsconfig*.json apps/backend/nest-cli.json ./apps/backend/
 
 RUN npm ci --no-audit --no-fund --ignore-scripts
+RUN npm rebuild sharp
 
 COPY apps/backend ./apps/backend
 
@@ -22,7 +23,7 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends wget gosu && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends wget gosu libvips && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /repo/node_modules ./node_modules
 COPY --from=build /repo/apps/backend/dist ./dist
