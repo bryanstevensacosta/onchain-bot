@@ -210,32 +210,20 @@ export class CryptoNewsMessageIngestedHandler {
           return;
         }
 
-        // Level 3: URL check
+        // Level 3: URL check (now returns urlOverlapCount as signal, not hard block)
         const urlResult = await this.deduplicationService.checkUrl(
           source,
           content,
         );
-        if (urlResult.isDuplicate) {
-          this.logger.debug(
-            `Dedup URL match: channelId=${channelId}, messageId=${messageId}`,
-          );
-          await this.createBlockedEntry(
-            message,
-            matchedKeywords,
-            urlResult.blockedReason ?? 'Duplicate: URL match',
-            urlResult.existingRecord?.channelId,
-            urlResult.existingRecord?.messageId,
-            urlResult.existingRecord?.id,
-          );
-          return;
-        }
+        const urlOverlapCount = urlResult.urlOverlapCount ?? 0;
 
-        // Level 4: Semantic check
+        // Level 4: Semantic check (pass urlOverlapCount as signal to scorer)
         const semanticResult = await this.deduplicationService.checkSemantic(
           source,
           content,
           channelId,
           messageId,
+          urlOverlapCount,
         );
 
         if (semanticResult.isDuplicate) {

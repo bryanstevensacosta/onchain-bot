@@ -28,6 +28,7 @@ export interface DedupResult {
   similarity?: number;
   signals?: Array<{ name: string; contribution: number }>;
   existingRecord?: DedupRecord;
+  urlOverlapCount?: number;
 }
 
 /**
@@ -133,7 +134,8 @@ export class DeduplicationService {
   /**
    * Level 3: URL match check.
    *
-   * Extracts URLs from content, normalizes, hashes, and checks for duplicates.
+   * Extracts URLs from content, normalizes, hashes, and counts overlapping URLs.
+   * Returns urlOverlapCount as a signal for the semantic scorer instead of hard-blocking.
    */
   async checkUrl(source: string, rawContent: string): Promise<DedupResult> {
     const urls = UrlNormalizerService.extractUrls(rawContent);
@@ -142,30 +144,28 @@ export class DeduplicationService {
       return {
         isDuplicate: false,
         zone: 'different',
+        urlOverlapCount: 0,
       };
     }
 
-    // Check each URL
+    // Check each URL and count overlaps
     const sinceDate = new Date(Date.now() - 48 * 60 * 60 * 1000); // 48 hours
 
+    let overlapCount = 0;
     for (const url of urls) {
       const hash = UrlNormalizerService.hash(url);
 
       const existing = await this.store.findByUrlHash(hash, source, sinceDate);
 
       if (existing) {
-        return {
-          isDuplicate: true,
-          zone: 'duplicate',
-          blockedReason: 'Duplicate URL',
-          existingRecord: existing,
-        };
+        overlapCount++;
       }
     }
 
     return {
       isDuplicate: false,
       zone: 'different',
+      urlOverlapCount: overlapCount,
     };
   }
 
@@ -180,6 +180,7 @@ export class DeduplicationService {
     rawContent: string,
     _channelId: string,
     _messageId: number,
+    urlOverlapCount: number = 0,
   ): Promise<DedupResult> {
     // Extract numbers, entities, cashtags for scoring
     const numbers = ContentNormalizerService.extractNumbers(rawContent);
@@ -246,7 +247,7 @@ export class DeduplicationService {
         entitiesE: [...record.entities],
         cashtagsM: cashtags,
         cashtagsE: [...record.cashtags],
-        urlOverlapCount: 0, // Not available at this point
+        urlOverlapCount,
         sameSource: record.source === source,
         timeDiffMinutes: (Date.now() - record.createdAt.getTime()) / 60000,
       });
@@ -277,7 +278,7 @@ export class DeduplicationService {
       entitiesE: [...bestCandidate.entities],
       cashtagsM: cashtags,
       cashtagsE: [...bestCandidate.cashtags],
-      urlOverlapCount: 0,
+      urlOverlapCount,
       sameSource: bestCandidate.source === source,
       timeDiffMinutes: (Date.now() - bestCandidate.createdAt.getTime()) / 60000,
     });

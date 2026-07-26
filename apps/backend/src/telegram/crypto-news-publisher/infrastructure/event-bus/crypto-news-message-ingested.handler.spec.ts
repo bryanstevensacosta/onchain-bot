@@ -773,13 +773,18 @@ describe('CryptoNewsMessageIngestedHandler', () => {
       );
     });
 
-    it('should BLOCKED with URL reason on URL match', async () => {
+    it('should pass URL overlap as signal instead of blocking', async () => {
       dedupService.checkExact.mockResolvedValue({ isDuplicate: false });
       dedupService.checkContent.mockResolvedValue({ isDuplicate: false });
       dedupService.checkUrl.mockResolvedValue({
-        isDuplicate: true,
-        blockedReason: 'Duplicate URL',
+        isDuplicate: false,
+        urlOverlapCount: 1,
       });
+      dedupService.checkSemantic.mockResolvedValue({
+        isDuplicate: false,
+        zone: 'different',
+      });
+      dedupService.markAsSeen.mockResolvedValue(undefined);
 
       const event = createEvent({ title: 'BTC update' });
       const message = createMessage('Bitcoin news with https://example.com');
@@ -790,11 +795,18 @@ describe('CryptoNewsMessageIngestedHandler', () => {
 
       await handler.handle(event);
 
-      expect(enqueue.execute).not.toHaveBeenCalled();
-      expect(queueRepo.enqueue).toHaveBeenCalled();
-      const enqueuedEntry = queueRepo.enqueue.mock.calls[0][0];
-      expect((enqueuedEntry as any).state.status).toBe('BLOCKED');
-      expect((enqueuedEntry as any).state.blockedReason).toBe('Duplicate URL');
+      expect(dedupService.checkUrl).toHaveBeenCalledWith(
+        'crypto-news-publisher',
+        'Bitcoin news with https://example.com',
+      );
+      expect(dedupService.checkSemantic).toHaveBeenCalledWith(
+        'crypto-news-publisher',
+        'Bitcoin news with https://example.com',
+        'crypto-news',
+        42,
+        1,
+      );
+      expect(enqueue.execute).toHaveBeenCalled();
     });
 
     it('should BLOCKED with semantic reason on semantic high score', async () => {

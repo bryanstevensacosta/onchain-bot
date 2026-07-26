@@ -296,6 +296,45 @@ describe('computeScore', () => {
       expect(urlSignal!.contribution).toBe(DEFAULT_CONFIG.urlBoost);
     });
 
+    it('should NOT include url_boost when urlOverlapCount is 0', () => {
+      const result = computeScore(makeEmptyInput({ urlOverlapCount: 0 }));
+      const urlSignal = result.signals.find((s) => s.name === 'url_boost');
+      expect(urlSignal!.contribution).toBe(0);
+    });
+
+    it('should apply urlBoost signal and increase final score when urlOverlapCount > 0', () => {
+      const resultWithUrl = computeScore(
+        makeEmptyInput({
+          urlOverlapCount: 2,
+          embeddingM: [1, 0],
+          embeddingE: [0, 1],
+          tokensM: ['a', 'b', 'c'],
+          tokensE: ['a', 'b', 'c'],
+        }),
+      );
+
+      const resultWithoutUrl = computeScore(
+        makeEmptyInput({
+          urlOverlapCount: 0,
+          embeddingM: [1, 0],
+          embeddingE: [0, 1],
+          tokensM: ['a', 'b', 'c'],
+          tokensE: ['a', 'b', 'c'],
+        }),
+      );
+
+      const urlSignal = resultWithUrl.signals.find(
+        (s) => s.name === 'url_boost',
+      );
+      expect(urlSignal).toBeDefined();
+      expect(urlSignal!.contribution).toBe(DEFAULT_CONFIG.urlBoost);
+
+      expect(resultWithUrl.score).toBeGreaterThan(resultWithoutUrl.score);
+      expect(resultWithUrl.score - resultWithoutUrl.score).toBe(
+        DEFAULT_CONFIG.urlBoost,
+      );
+    });
+
     it('should include proximity_boost when sameSource and within window', () => {
       const result = computeScore(
         makeEmptyInput({ sameSource: true, timeDiffMinutes: 15 }),
