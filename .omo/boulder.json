@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "active_work_id": "crypto-news-dedup",
+  "active_work_id": "fix-dedup-level-4-and-refactor-level-3",
   "works": {
     "mtproto-adapter-decompose": {
       "work_id": "mtproto-adapter-decompose",
@@ -19,6 +19,15 @@
       "worktree_path": null,
       "current_checkbox": "done",
       "plan_completed": true
+    },
+    "fix-dedup-level-4-and-refactor-level-3": {
+      "work_id": "fix-dedup-level-4-and-refactor-level-3",
+      "active_plan": ".omo/plans/fix-dedup-level-4-and-refactor-level-3.md",
+      "plan_name": "fix-dedup-level-4-and-refactor-level-3",
+      "session_ids": ["opencode:current"],
+      "status": "active",
+      "worktree_path": null,
+      "current_checkbox": "4"
     }
   }
 }

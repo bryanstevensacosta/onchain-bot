@@ -103,7 +103,7 @@ describe('DeduplicationService', () => {
   });
 
   describe('checkUrl', () => {
-    it('should return duplicate when URL matches', async () => {
+    it('should return urlOverlapCount when URL matches (not hard block)', async () => {
       const content = 'Check out https://example.com for more info';
       const existingRecord = DedupRecord.create({
         fingerprint: Fingerprint.url('abc123'),
@@ -116,9 +116,10 @@ describe('DeduplicationService', () => {
 
       const result = await service.checkUrl('telegram', content);
 
-      expect(result.isDuplicate).toBe(true);
-      expect(result.zone).toBe('duplicate');
-      expect(result.blockedReason).toBe('Duplicate URL');
+      expect(result.isDuplicate).toBe(false);
+      expect(result.zone).toBe('different');
+      expect(result.urlOverlapCount).toBe(1);
+      expect(result.blockedReason).toBeUndefined();
     });
 
     it('should return different when no URLs in content', async () => {
@@ -126,6 +127,7 @@ describe('DeduplicationService', () => {
 
       expect(result.isDuplicate).toBe(false);
       expect(result.zone).toBe('different');
+      expect(result.urlOverlapCount).toBe(0);
     });
 
     it('should return different when URLs are unique', async () => {
@@ -137,6 +139,26 @@ describe('DeduplicationService', () => {
 
       expect(result.isDuplicate).toBe(false);
       expect(result.zone).toBe('different');
+      expect(result.urlOverlapCount).toBe(0);
+    });
+
+    it('should count multiple overlapping URLs', async () => {
+      const content =
+        'Check https://example.com and https://test.com for updates';
+
+      mockStore.findByUrlHash.mockResolvedValueOnce(null).mockResolvedValueOnce(
+        DedupRecord.create({
+          fingerprint: Fingerprint.url('hash2'),
+          source: 'telegram',
+          channelId: 'channel1',
+          messageId: 123,
+        }),
+      );
+
+      const result = await service.checkUrl('telegram', content);
+
+      expect(result.isDuplicate).toBe(false);
+      expect(result.urlOverlapCount).toBe(1);
     });
   });
 

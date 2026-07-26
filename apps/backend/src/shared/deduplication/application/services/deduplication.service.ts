@@ -29,6 +29,13 @@ export interface DedupResult {
   signals?: Array<{ name: string; contribution: number }>;
   existingRecord?: DedupRecord;
   urlOverlapCount?: number;
+  /**
+   * The semantic embedding vector computed during this check.
+   * Present when embeddingService was available and an embedding was
+   * successfully computed. Callers should pass this to markAsSeen()
+   * so it is persisted for future semantic comparisons.
+   */
+  embedding?: number[];
 }
 
 /**
@@ -227,6 +234,7 @@ export class DeduplicationService {
       return {
         isDuplicate: false,
         zone: 'different',
+        embedding,
       };
     }
 
@@ -263,6 +271,7 @@ export class DeduplicationService {
       return {
         isDuplicate: false,
         zone: 'different',
+        embedding,
       };
     }
 
@@ -298,6 +307,7 @@ export class DeduplicationService {
       return {
         isDuplicate: false,
         zone: 'different',
+        embedding,
       };
     }
 
@@ -311,6 +321,7 @@ export class DeduplicationService {
         return {
           isDuplicate: false,
           zone: 'gray_zone',
+          embedding,
         };
       }
 
@@ -341,6 +352,7 @@ export class DeduplicationService {
             zone: 'different',
             eventRelation: 'update',
             existingRecord: bestCandidate,
+            embedding,
           };
         }
 
@@ -348,6 +360,7 @@ export class DeduplicationService {
           isDuplicate: false,
           zone: 'different',
           eventRelation: 'different',
+          embedding,
         };
       } catch (error) {
         this.logger.warn(`LLM arbitration failed: ${error}`);
@@ -355,6 +368,7 @@ export class DeduplicationService {
         return {
           isDuplicate: false,
           zone: 'gray_zone',
+          embedding,
         };
       }
     }
@@ -362,6 +376,7 @@ export class DeduplicationService {
     return {
       isDuplicate: false,
       zone: 'different',
+      embedding,
     };
   }
 

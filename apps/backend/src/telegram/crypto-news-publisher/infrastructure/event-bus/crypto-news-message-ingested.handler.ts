@@ -250,7 +250,7 @@ export class CryptoNewsMessageIngestedHandler {
               channelId,
               messageId,
               content,
-              undefined,
+              semanticResult.embedding,
               semanticResult.existingRecord.id,
             );
           }
@@ -264,6 +264,7 @@ export class CryptoNewsMessageIngestedHandler {
             channelId,
             messageId,
             content,
+            semanticResult.embedding,
           );
         }
       } catch (dedupErr) {
