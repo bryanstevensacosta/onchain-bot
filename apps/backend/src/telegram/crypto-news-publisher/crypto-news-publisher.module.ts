@@ -24,12 +24,14 @@ import { TypeOrmPublisherThrottleStateRepository } from 'telegram/crypto-news-pu
 import { EnqueueMatchingMessageUseCase } from 'telegram/crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
 import { ProcessNextQueuedArticleUseCase } from 'telegram/crypto-news-publisher/application/handlers/process-next-queued-article.use-case';
 import { GetLlmModelsUseCase } from 'telegram/crypto-news-publisher/application/handlers/get-llm-models.use-case';
+import { PhraseRegistryService } from 'telegram/crypto-news-publisher/application/services/phrase-registry.service';
 import { ThrottleSchedulerService } from 'telegram/crypto-news-publisher/application/services/throttle-scheduler.service';
 import { CryptoNewsMessageIngestedHandler } from 'telegram/crypto-news-publisher/infrastructure/event-bus/crypto-news-message-ingested.handler';
 import { BlacklistController } from 'telegram/crypto-news-publisher/api/http/blacklist.controller';
 import { KeywordsController } from 'telegram/crypto-news-publisher/api/http/keywords.controller';
 import { QueueController } from 'telegram/crypto-news-publisher/api/http/queue.controller';
 import { LlmConfigController } from 'telegram/crypto-news-publisher/api/http/llm-config.controller';
+import { PhrasesController } from 'telegram/crypto-news-publisher/api/http/phrases.controller';
 import { BotApiCryptoNewsPublisherAdapter } from 'telegram/crypto-news-publisher/infrastructure/senders/bot-api-crypto-news-publisher.adapter';
 import { CryptoNewsLlmAdapter } from 'telegram/crypto-news-publisher/infrastructure/llm/crypto-news-llm.adapter';
 import { CryptoNewsPublisherConfigService } from 'telegram/crypto-news-publisher/infrastructure/config/crypto-news-publisher.config';
@@ -82,6 +84,7 @@ import { CryptoNewsIngestionModule } from 'telegram/ingestion/crypto-news/crypto
     KeywordsController,
     QueueController,
     LlmConfigController,
+    PhrasesController,
   ],
   providers: [
     TypeOrmBlacklistPhraseRepository,
@@ -128,6 +131,7 @@ import { CryptoNewsIngestionModule } from 'telegram/ingestion/crypto-news/crypto
     CryptoNewsPublisherConfigService,
     LlmConfigMigrationService,
     ThrottleSchedulerService,
+    PhraseRegistryService,
     EnqueueMatchingMessageUseCase,
     ProcessNextQueuedArticleUseCase,
     GetLlmModelsUseCase,
