@@ -8,7 +8,7 @@
  * - Level 4: Semantic similarity (optional, requires embedding service)
  */
 
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { DedupRecord } from 'shared/deduplication/domain/entities/dedup-record.entity';
 import { Fingerprint } from 'shared/deduplication/domain/value-objects/fingerprint.vo';
 import { ContentNormalizerService } from 'shared/deduplication/domain/services/content-normalizer.service';
@@ -65,8 +65,11 @@ export class DeduplicationService {
 
   constructor(
     private readonly store: DeduplicationStore,
-    @Optional() private readonly embeddingService?: EmbeddingService,
     @Optional()
+    @Inject('EMBEDDING_SERVICE')
+    private readonly embeddingService?: EmbeddingService,
+    @Optional()
+    @Inject('LLM_ARBITER_SERVICE')
     private readonly arbiterService?: {
       classifyRelation(
         textA: string,

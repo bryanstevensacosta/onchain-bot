@@ -41,6 +41,19 @@ import { DedupRecordEntity } from './infrastructure/persistence/typeorm/entities
     InMemoryDeduplicationStore,
     ...(isDatabaseEnabled() ? [TypeOrmDeduplicationStore] : []),
 
+    // Custom injection tokens for @Optional() interface-based DI
+    // The EmbeddingService (interface) and LlmArbiterService (anonymous type)
+    // in deduplication.service.ts are erased to Object at runtime, so NestJS
+    // cannot resolve them by type alone. These token-based providers bridge that gap.
+    {
+      provide: 'EMBEDDING_SERVICE',
+      useExisting: EmbeddingService,
+    },
+    {
+      provide: 'LLM_ARBITER_SERVICE',
+      useExisting: LlmArbiterService,
+    },
+
     // Factory provider to choose the right adapter
     {
       provide: DeduplicationStore,
