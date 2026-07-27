@@ -662,12 +662,17 @@ describe('CryptoNewsPage — publisher (keywords + queue)', () => {
 
     renderWithClient(<CryptoNewsPage />);
 
-    // Open the add-keyword modal first
-    fireEvent.click(screen.getByRole('button', { name: /\+ Add keyword/i }));
+    // Open the add-keyword modal via the unified Add Phrase dropdown
+    fireEvent.click(
+      screen.getAllByRole('button', { name: /\+ Add Phrase/i })[0],
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Keyword \(simple\)/i }),
+    );
 
     // Find the modal form via the Phrase input, then click its Save button
-    const phraseInput = (await screen.findByLabelText(
-      /Phrase/i,
+    const phraseInput = (await screen.findByPlaceholderText(
+      /e\.g\./,
     )) as HTMLInputElement;
     fireEvent.change(phraseInput, { target: { value: 'FOMC' } });
     const modalForm = phraseInput.closest('form')!;

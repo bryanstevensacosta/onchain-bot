@@ -645,8 +645,13 @@ describe('CryptoNewsPage — LLM section integration', () => {
 
   it('keyword create form includes a Template dropdown', async () => {
     renderWithClient(<CryptoNewsPage />);
-    // Open the add-keyword modal first
-    fireEvent.click(screen.getByRole('button', { name: /\+ Add keyword/i }));
+    // Open the add-keyword modal via the unified Add Phrase dropdown
+    fireEvent.click(
+      screen.getAllByRole('button', { name: /\+ Add Phrase/i })[0],
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Keyword \(simple\)/i }),
+    );
     const select = (await screen.findByLabelText(
       'Template',
     )) as HTMLSelectElement;
@@ -676,17 +681,22 @@ describe('CryptoNewsPage — LLM section integration', () => {
 
     renderWithClient(<CryptoNewsPage />);
 
-    // Open the add-keyword modal first
-    fireEvent.click(screen.getByRole('button', { name: /\+ Add keyword/i }));
+    // Open the add-keyword modal via the unified Add Phrase dropdown
+    fireEvent.click(
+      screen.getAllByRole('button', { name: /\+ Add Phrase/i })[0],
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Keyword \(simple\)/i }),
+    );
 
-    fireEvent.change(await screen.findByLabelText(/Phrase/i), {
+    fireEvent.change(await screen.findByPlaceholderText(/e\.g\./), {
       target: { value: 'FOMC' },
     });
     fireEvent.change(await screen.findByLabelText('Template'), {
       target: { value: 'tpl-clickbait' },
     });
     // Submit via the modal's Save button (scoped to the modal form)
-    const modalForm = (await screen.findByLabelText(/Phrase/i)).closest(
+    const modalForm = (await screen.findByPlaceholderText(/e\.g\./)).closest(
       'form',
     )!;
     const saveBtn = modalForm.querySelector<HTMLButtonElement>(
