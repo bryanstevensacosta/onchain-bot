@@ -360,6 +360,7 @@ export function KeywordsSection(): React.ReactElement {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [kwPage, setKwPage] = useState(0);
+  const [addDropdownOpen, setAddDropdownOpen] = useState(false);
 
   /* ------------------- data preparation ------------------- */
 
@@ -401,10 +402,6 @@ export function KeywordsSection(): React.ReactElement {
       }
       return next;
     });
-  }
-
-  function handleOpenCreate() {
-    setCreateModalOpen(true);
   }
 
   function handleOpenEdit(item: KeywordView) {
@@ -505,23 +502,94 @@ export function KeywordsSection(): React.ReactElement {
 
   /* ------------------------ render ----------------------- */
 
+  function handleAddPhrase(
+    type:
+      | 'keyword-simple'
+      | 'keyword-compound'
+      | 'blacklist-simple'
+      | 'blacklist-compound',
+  ) {
+    setAddDropdownOpen(false);
+    if (type === 'keyword-compound') {
+      setCompoundModalOpen(true);
+    } else if (type === 'blacklist-simple' || type === 'blacklist-compound') {
+      if (typeof window !== 'undefined') {
+        const event = new CustomEvent('add-blacklist-phrase', {
+          detail: { type },
+        });
+        window.dispatchEvent(event);
+      }
+    } else {
+      setCreateModalOpen(true);
+    }
+  }
+
   return (
     <Card>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-slate-100">
           Keywords ({keywords.length})
         </h2>
-        <div className="flex gap-2">
-          <Button variant="primary" size="sm" onClick={handleOpenCreate}>
-            + Add keyword
-          </Button>
+        <div className="relative">
           <Button
-            variant="secondary"
+            variant="primary"
             size="sm"
-            onClick={() => setCompoundModalOpen(true)}
+            onClick={() => setAddDropdownOpen(!addDropdownOpen)}
           >
-            + Add Compound Group
+            + Add Phrase
+            <svg
+              className="w-3 h-3 ml-1 inline-block"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
           </Button>
+          {addDropdownOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-10"
+                onClick={() => setAddDropdownOpen(false)}
+              />
+              <div className="absolute right-0 mt-1 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-lg z-20 py-1">
+                <button
+                  type="button"
+                  onClick={() => handleAddPhrase('keyword-simple')}
+                  className="w-full px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-700 transition-colors"
+                >
+                  Keyword (simple)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddPhrase('keyword-compound')}
+                  className="w-full px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-700 transition-colors"
+                >
+                  Keyword (compound)
+                </button>
+                <div className="border-t border-slate-700 my-1" />
+                <button
+                  type="button"
+                  onClick={() => handleAddPhrase('blacklist-simple')}
+                  className="w-full px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-700 transition-colors"
+                >
+                  Blacklist (simple)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddPhrase('blacklist-compound')}
+                  className="w-full px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-700 transition-colors"
+                >
+                  Blacklist (compound)
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { Card } from '@/shared/ui/card';
 import { Button } from '@/shared/ui/button';
 import { Modal } from '@/shared/ui/modal';
@@ -255,8 +255,27 @@ export function BlacklistManager(): React.ReactElement {
   const [editingItem, setEditingItem] = useState<BlacklistPhraseView | null>(
     null,
   );
+  const [addDropdownOpen, setAddDropdownOpen] = useState(false);
 
   const createBatchMut = useCreateBlacklistBatch();
+
+  useEffect(() => {
+    const handleAddBlacklistPhrase = (e: Event) => {
+      const customEvent = e as CustomEvent<{ type: string }>;
+      if (customEvent.detail?.type === 'blacklist-simple') {
+        setCreateModalOpen(true);
+      } else if (customEvent.detail?.type === 'blacklist-compound') {
+        setCompoundModalOpen(true);
+      }
+    };
+    window.addEventListener('add-blacklist-phrase', handleAddBlacklistPhrase);
+    return () => {
+      window.removeEventListener(
+        'add-blacklist-phrase',
+        handleAddBlacklistPhrase,
+      );
+    };
+  }, []);
 
   const blacklist = (data ?? [])
     .slice()
@@ -324,7 +343,7 @@ export function BlacklistManager(): React.ReactElement {
       })
     : combinedItems;
 
-  const totalPages = Math.ceil(filteredItems.length / PAGE_SIZE);
+  const _totalPages = Math.ceil(filteredItems.length / PAGE_SIZE);
 
   function toggleGroup(groupId: string) {
     setExpandedGroups((prev) => {
@@ -336,10 +355,6 @@ export function BlacklistManager(): React.ReactElement {
       }
       return next;
     });
-  }
-
-  function handleOpenCreate() {
-    setCreateModalOpen(true);
   }
 
   function handleOpenEdit(item: BlacklistPhraseView) {
@@ -441,17 +456,57 @@ export function BlacklistManager(): React.ReactElement {
         <h2 className="text-lg font-semibold text-slate-100">
           Blacklist Phrases ({filteredItems.length}/{combinedItems.length})
         </h2>
-        <div className="flex gap-2">
-          <Button variant="primary" size="sm" onClick={handleOpenCreate}>
-            + Add Phrase
-          </Button>
+        <div className="relative">
           <Button
-            variant="secondary"
+            variant="primary"
             size="sm"
-            onClick={() => setCompoundModalOpen(true)}
+            onClick={() => setAddDropdownOpen(!addDropdownOpen)}
           >
-            + Add Compound Group
+            + Add Phrase
+            <svg
+              className="w-3 h-3 ml-1 inline-block"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
           </Button>
+          {addDropdownOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-10"
+                onClick={() => setAddDropdownOpen(false)}
+              />
+              <div className="absolute right-0 mt-1 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-lg z-20 py-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddDropdownOpen(false);
+                    setCreateModalOpen(true);
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-700 transition-colors"
+                >
+                  Blacklist (simple)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddDropdownOpen(false);
+                    setCompoundModalOpen(true);
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-700 transition-colors"
+                >
+                  Blacklist (compound)
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

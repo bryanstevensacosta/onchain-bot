@@ -15,6 +15,7 @@ import {
   PromptTemplates,
   QueueView,
 } from '@/features/crypto-news-publisher';
+import { useSearchPhrases } from '@/features/crypto-news-publisher/model/use-phrases';
 
 interface LightboxMediaItem {
   id: string;
@@ -27,12 +28,15 @@ export function CryptoNewsPage() {
   const sources = useCryptoNewsSources();
   const [channelFilter, setChannelFilter] = useState<string>('');
   const [search, setSearch] = useState<string>('');
+  const [phraseSearch, setPhraseSearch] = useState<string>('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [lightboxMedia, setLightboxMedia] = useState<
     ReadonlyArray<LightboxMediaItem>
   >([]);
   const [msgPage, setMsgPage] = useState(0);
+
+  const phraseSearchResults = useSearchPhrases(phraseSearch);
 
   const sourceByChannelId = useMemo(
     () => new Map((sources.data ?? []).map((s) => [s.channelId, s])),
@@ -107,7 +111,7 @@ export function CryptoNewsPage() {
   useEffect(() => {
     setMsgPage(0);
   }, [channelFilter, search]);
-  const pagedMessages = filteredMessages.slice(
+  const _pagedMessages = filteredMessages.slice(
     msgSafePage * msgPerPage,
     (msgSafePage + 1) * msgPerPage,
   );
@@ -187,6 +191,69 @@ export function CryptoNewsPage() {
               className="bg-slate-800 text-slate-100 text-sm rounded px-3 py-1.5 border border-slate-700 placeholder:text-slate-500"
             />
           </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="text-sm text-slate-400">Search phrases:</label>
+            <input
+              type="search"
+              value={phraseSearch}
+              onChange={(e) => setPhraseSearch(e.target.value)}
+              placeholder="Search keywords & blacklist…"
+              aria-label="Search phrases by text"
+              className="bg-slate-800 text-slate-100 text-sm rounded px-3 py-1.5 border border-slate-700 placeholder:text-slate-500 flex-1 min-w-[200px]"
+            />
+            {phraseSearch.trim().length > 0 && (
+              <div className="text-xs text-slate-400">
+                {phraseSearchResults.isLoading ? (
+                  <span>Searching...</span>
+                ) : phraseSearchResults.data ? (
+                  <span>
+                    Found {phraseSearchResults.data.length} phrase
+                    {phraseSearchResults.data.length === 1 ? '' : 's'}
+                  </span>
+                ) : (
+                  <span>No results</span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {phraseSearch.trim().length > 0 &&
+            phraseSearchResults.data &&
+            phraseSearchResults.data.length > 0 && (
+              <div className="mb-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+                <div className="text-xs uppercase text-slate-500 mb-2">
+                  Search Results
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {phraseSearchResults.data.slice(0, 10).map((phrase) => (
+                    <span
+                      key={phrase.id}
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
+                        phrase.table === 'keyword'
+                          ? 'bg-blue-900/40 text-blue-300 border border-blue-800'
+                          : 'bg-red-900/40 text-red-300 border border-red-800'
+                      }`}
+                    >
+                      <span className="font-mono">{phrase.phrase}</span>
+                      <span className="text-[10px] opacity-70">
+                        {phrase.table === 'keyword' ? 'KW' : 'BL'}
+                      </span>
+                      {!phrase.enabled && (
+                        <span className="text-slate-500" title="Disabled">
+                          •
+                        </span>
+                      )}
+                    </span>
+                  ))}
+                  {phraseSearchResults.data.length > 10 && (
+                    <span className="text-xs text-slate-500 py-1">
+                      +{phraseSearchResults.data.length - 10} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
 
           <details
             open
