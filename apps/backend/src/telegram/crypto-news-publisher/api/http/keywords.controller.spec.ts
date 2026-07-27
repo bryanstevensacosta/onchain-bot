@@ -3,16 +3,24 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { KeywordsController } from './keywords.controller';
 import { KeywordRepository } from 'telegram/crypto-news-publisher/application/ports/keyword.repository';
 import { Keyword } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
+import { PhraseRegistryService } from 'telegram/crypto-news-publisher/application/services/phrase-registry.service';
 
 describe('KeywordsController', () => {
   let controller: KeywordsController;
   let keywordRepo: jest.Mocked<KeywordRepository>;
+  let phraseRegistry: jest.Mocked<PhraseRegistryService>;
 
   const makeKeyword = (
     phrase: string,
     enabled = true,
     andGroupId: string | null = null,
   ): Keyword => Keyword.create({ phrase, enabled, andGroupId });
+
+  const mockPhraseRegistry = (): jest.Mocked<PhraseRegistryService> => ({
+    throwIfDuplicate: jest.fn().mockResolvedValue(undefined),
+    throwIfIntraTableConflict: jest.fn().mockResolvedValue(undefined),
+    throwIfCrossTableConflict: jest.fn().mockResolvedValue(undefined),
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -28,11 +36,16 @@ describe('KeywordsController', () => {
             delete: jest.fn(),
           },
         },
+        {
+          provide: PhraseRegistryService,
+          useValue: mockPhraseRegistry(),
+        },
       ],
     }).compile();
 
     controller = module.get<KeywordsController>(KeywordsController);
     keywordRepo = module.get(KeywordRepository);
+    phraseRegistry = module.get(PhraseRegistryService);
   });
 
   it('should be defined', () => {
@@ -138,29 +151,28 @@ describe('KeywordsController', () => {
 
     it('allows same phrase in different groups', async () => {
       const andGroupId = crypto.randomUUID();
-      const existing = Keyword.create({
-        phrase: 'btc',
-        andGroupId,
-      });
-      keywordRepo.findAll.mockResolvedValue([existing]);
       keywordRepo.save.mockResolvedValue();
 
-      // Same phrase, different group -> should succeed
       const result = await controller.create({
         phrase: 'btc',
         andGroupId: null,
       });
 
       expect(result.andGroupId).toBeNull();
+      expect(phraseRegistry.throwIfDuplicate).toHaveBeenCalledWith(
+        'keyword',
+        'btc',
+        false,
+        'exact',
+        null,
+      );
     });
 
     it('rejects same phrase with same group', async () => {
       const andGroupId = crypto.randomUUID();
-      const existing = Keyword.create({
-        phrase: 'btc',
-        andGroupId,
-      });
-      keywordRepo.findAll.mockResolvedValue([existing]);
+      phraseRegistry.throwIfDuplicate.mockRejectedValue(
+        new ConflictException('Keyword "btc" already exists'),
+      );
 
       await expect(
         controller.create({

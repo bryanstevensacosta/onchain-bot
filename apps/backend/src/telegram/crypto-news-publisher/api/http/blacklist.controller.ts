@@ -1,6 +1,5 @@
 import {
   Body,
-  ConflictException,
   Controller,
   Delete,
   Get,
@@ -14,6 +13,7 @@ import {
 import { BlacklistPhraseRepository } from 'telegram/crypto-news-publisher/application/ports/blacklist-phrase.repository';
 import { BlacklistPhrase } from 'telegram/crypto-news-publisher/domain/entities/blacklist-phrase.entity';
 import type { MatchMode } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
+import { PhraseRegistryService } from 'telegram/crypto-news-publisher/application/services/phrase-registry.service';
 
 export interface BlacklistPhraseView {
   readonly id: string;
@@ -72,6 +72,7 @@ interface CreateBlacklistBatchDto {
 export class BlacklistController {
   public constructor(
     private readonly blacklistRepo: BlacklistPhraseRepository,
+    private readonly phraseRegistry: PhraseRegistryService,
   ) {}
 
   @Get()
@@ -95,18 +96,13 @@ export class BlacklistController {
   public async create(
     @Body() dto: CreateBlacklistDto,
   ): Promise<BlacklistPhraseView> {
-    const trimmed = dto.phrase.trim();
-    const existing = await this.blacklistRepo.findAll();
-    const dup = existing.find(
-      (k) =>
-        k.phrase.toLowerCase() === trimmed.toLowerCase() &&
-        k.andGroupId === (dto.andGroupId ?? null),
+    await this.phraseRegistry.throwIfDuplicate(
+      'blacklist',
+      dto.phrase,
+      dto.caseSensitive ?? false,
+      dto.matchMode ?? 'exact',
+      dto.andGroupId ?? null,
     );
-    if (dup) {
-      throw new ConflictException(
-        `Blacklist phrase "${dto.phrase}" already exists`,
-      );
-    }
 
     const phrase = BlacklistPhrase.create({
       phrase: dto.phrase,
@@ -130,18 +126,13 @@ export class BlacklistController {
     const results: BlacklistPhraseView[] = [];
 
     for (const item of dto.phrases) {
-      const trimmed = item.phrase.trim();
-      const existing = await this.blacklistRepo.findAll();
-      const dup = existing.find(
-        (k) =>
-          k.phrase.toLowerCase() === trimmed.toLowerCase() &&
-          k.andGroupId === andGroupId,
+      await this.phraseRegistry.throwIfDuplicate(
+        'blacklist',
+        item.phrase,
+        item.caseSensitive ?? false,
+        item.matchMode ?? 'exact',
+        andGroupId,
       );
-      if (dup) {
-        throw new ConflictException(
-          `Blacklist phrase "${item.phrase}" already exists`,
-        );
-      }
 
       const phrase = BlacklistPhrase.create({
         phrase: item.phrase,
@@ -189,6 +180,19 @@ export class BlacklistController {
         : existing.sourceChannelIds;
     const nextAndGroupId =
       dto.andGroupId !== undefined ? dto.andGroupId : existing.andGroupId;
+
+    // When phrase or andGroupId changes, check for duplicates (exclude self).
+    if (dto.phrase !== undefined || dto.andGroupId !== undefined) {
+      await this.phraseRegistry.throwIfDuplicate(
+        'blacklist',
+        nextPhrase,
+        nextCaseSensitive,
+        nextMatchMode,
+        nextAndGroupId,
+        id,
+      );
+    }
+
     const nextRequireMedia =
       dto.requireMedia !== undefined ? dto.requireMedia : existing.requireMedia;
 

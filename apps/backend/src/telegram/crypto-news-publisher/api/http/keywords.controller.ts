@@ -1,6 +1,5 @@
 import {
   Body,
-  ConflictException,
   Controller,
   Delete,
   Get,
@@ -13,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { KeywordRepository } from 'telegram/crypto-news-publisher/application/ports/keyword.repository';
 import { Keyword } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
+import { PhraseRegistryService } from 'telegram/crypto-news-publisher/application/services/phrase-registry.service';
 
 export interface KeywordView {
   readonly id: string;
@@ -101,7 +101,10 @@ interface UpdateKeywordDto {
  */
 @Controller('crypto-news-publisher/keywords')
 export class KeywordsController {
-  public constructor(private readonly keywordRepo: KeywordRepository) {}
+  public constructor(
+    private readonly keywordRepo: KeywordRepository,
+    private readonly phraseRegistry: PhraseRegistryService,
+  ) {}
 
   @Get()
   public async list(): Promise<ReadonlyArray<KeywordView>> {
@@ -122,16 +125,13 @@ export class KeywordsController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   public async create(@Body() dto: CreateKeywordDto): Promise<KeywordView> {
-    const trimmed = dto.phrase.trim();
-    const existing = await this.keywordRepo.findAll();
-    const dup = existing.find(
-      (k) =>
-        k.phrase.toLowerCase() === trimmed.toLowerCase() &&
-        k.andGroupId === (dto.andGroupId ?? null),
+    await this.phraseRegistry.throwIfDuplicate(
+      'keyword',
+      dto.phrase,
+      dto.caseSensitive ?? false,
+      dto.matchMode ?? 'exact',
+      dto.andGroupId ?? null,
     );
-    if (dup) {
-      throw new ConflictException(`Keyword "${dto.phrase}" already exists`);
-    }
 
     const keyword = Keyword.create({
       phrase: dto.phrase,
@@ -163,6 +163,22 @@ export class KeywordsController {
       dto.caseSensitive !== undefined
         ? dto.caseSensitive
         : existing.caseSensitive;
+    const nextMatchMode =
+      dto.matchMode !== undefined ? dto.matchMode : existing.matchMode;
+    const nextAndGroupId =
+      dto.andGroupId !== undefined ? dto.andGroupId : existing.andGroupId;
+
+    // When phrase/andGroupId changes, check for duplicates (exclude self).
+    if (dto.phrase !== undefined || dto.andGroupId !== undefined) {
+      await this.phraseRegistry.throwIfDuplicate(
+        'keyword',
+        nextPhrase,
+        nextCaseSensitive,
+        nextMatchMode,
+        nextAndGroupId,
+        id,
+      );
+    }
     let nextEnabled = existing.enabled;
     if (dto.enabled === true) {
       nextEnabled = true;
@@ -175,12 +191,8 @@ export class KeywordsController {
         : existing.sourceChannelIds;
     const nextTemplateId =
       dto.templateId !== undefined ? dto.templateId : existing.templateId;
-    const nextAndGroupId =
-      dto.andGroupId !== undefined ? dto.andGroupId : existing.andGroupId;
     const nextRequireMedia =
       dto.requireMedia !== undefined ? dto.requireMedia : existing.requireMedia;
-    const nextMatchMode =
-      dto.matchMode !== undefined ? dto.matchMode : existing.matchMode;
 
     const updated = Keyword.reconstitute({
       id: existing.id,

@@ -3,10 +3,12 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { BlacklistController } from './blacklist.controller';
 import { BlacklistPhraseRepository } from 'telegram/crypto-news-publisher/application/ports/blacklist-phrase.repository';
 import { BlacklistPhrase } from 'telegram/crypto-news-publisher/domain/entities/blacklist-phrase.entity';
+import { PhraseRegistryService } from 'telegram/crypto-news-publisher/application/services/phrase-registry.service';
 
 describe('BlacklistController', () => {
   let controller: BlacklistController;
   let blacklistRepo: jest.Mocked<BlacklistPhraseRepository>;
+  let phraseRegistry: jest.Mocked<PhraseRegistryService>;
 
   const makePhrase = (
     phrase: string,
@@ -21,6 +23,12 @@ describe('BlacklistController', () => {
       enabled,
     });
 
+  const mockPhraseRegistry = (): jest.Mocked<PhraseRegistryService> => ({
+    throwIfDuplicate: jest.fn().mockResolvedValue(undefined),
+    throwIfIntraTableConflict: jest.fn().mockResolvedValue(undefined),
+    throwIfCrossTableConflict: jest.fn().mockResolvedValue(undefined),
+  });
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [BlacklistController],
@@ -34,11 +42,16 @@ describe('BlacklistController', () => {
             delete: jest.fn(),
           },
         },
+        {
+          provide: PhraseRegistryService,
+          useValue: mockPhraseRegistry(),
+        },
       ],
     }).compile();
 
     controller = module.get<BlacklistController>(BlacklistController);
     blacklistRepo = module.get(BlacklistPhraseRepository);
+    phraseRegistry = module.get(PhraseRegistryService);
   });
 
   it('should be defined', () => {
@@ -128,8 +141,6 @@ describe('BlacklistController', () => {
     });
 
     it('should allow same phrase in different groups', async () => {
-      const existing = makePhrase('btc', 'group-1');
-      blacklistRepo.findAll.mockResolvedValue([existing]);
       blacklistRepo.save.mockResolvedValue();
 
       const result = await controller.create({
@@ -139,11 +150,19 @@ describe('BlacklistController', () => {
 
       expect(result.phrase).toBe('btc');
       expect(result.andGroupId).toBe('group-2');
+      expect(phraseRegistry.throwIfDuplicate).toHaveBeenCalledWith(
+        'blacklist',
+        'btc',
+        false,
+        'exact',
+        'group-2',
+      );
     });
 
     it('should reject duplicate phrase with same group', async () => {
-      const existing = makePhrase('btc', 'group-1');
-      blacklistRepo.findAll.mockResolvedValue([existing]);
+      phraseRegistry.throwIfDuplicate.mockRejectedValue(
+        new ConflictException('Blacklist phrase "btc" already exists'),
+      );
 
       await expect(
         controller.create({ phrase: 'btc', andGroupId: 'group-1' }),
@@ -151,8 +170,9 @@ describe('BlacklistController', () => {
     });
 
     it('should reject duplicate phrase with null group', async () => {
-      const existing = makePhrase('btc', null);
-      blacklistRepo.findAll.mockResolvedValue([existing]);
+      phraseRegistry.throwIfDuplicate.mockRejectedValue(
+        new ConflictException('Blacklist phrase "btc" already exists'),
+      );
 
       await expect(
         controller.create({ phrase: 'btc', andGroupId: null }),
