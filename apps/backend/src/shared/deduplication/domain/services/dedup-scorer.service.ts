@@ -283,17 +283,18 @@ export function computeScore(
   const urlBoost = input.urlOverlapCount > 0 ? cfg.urlBoost : 0;
   signals.push({ name: 'url_boost', contribution: urlBoost });
 
-  const urlDivergencePenalty =
+  // URL divergence flag: high semantic + no URL overlap + same entities +
+  // partial number update → may be an update from same source.
+  // Signal is informational; zone-override below handles the actual decision.
+  const urlDivergenceActive =
     semantic > cfg.urlDivergenceSemanticThreshold &&
     input.urlOverlapCount === 0 &&
     entityJaccard > cfg.urlDivergenceEntityJaccardThreshold &&
     numberJaccard > cfg.urlDivergenceNumberJaccardMin &&
-    numberJaccard < cfg.urlDivergenceNumberJaccardMax
-      ? cfg.urlDivergencePenalty
-      : 0;
+    numberJaccard < cfg.urlDivergenceNumberJaccardMax;
   signals.push({
     name: 'url_divergence_penalty',
-    contribution: -urlDivergencePenalty,
+    contribution: 0,
   });
 
   // Proximity boost
@@ -312,8 +313,7 @@ export function computeScore(
     numberPenalty -
     entityPenalty -
     cashtagPenalty -
-    templateDivergencePenalty -
-    urlDivergencePenalty;
+    templateDivergencePenalty;
 
   // Clamp to [0, 1]
   score = Math.max(0, Math.min(1, score));
@@ -325,6 +325,13 @@ export function computeScore(
   } else if (score < 0.75) {
     zone = 'different';
   } else {
+    zone = 'gray_zone';
+  }
+
+  // URL divergence override: force gray zone so the LLM arbiter decides
+  // whether it's a duplicate or an update from the same source.
+  if (urlDivergenceActive && zone === 'duplicate') {
+    score = 0.88;
     zone = 'gray_zone';
   }
 

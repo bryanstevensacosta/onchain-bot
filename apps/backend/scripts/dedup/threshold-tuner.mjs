@@ -97,19 +97,23 @@ function computeScore(input) {
   const urlBoost = input.urlOverlapCount > 0 ? config.urlBoost : 0;
   const proximityBoost = input.sameSource && input.timeDiffMinutes < config.proximityWindowMinutes ? config.proximityBoost : 0;
 
-  const urlDivergencePenalty =
+  const urlDivergenceActive =
     base > config.urlDivergenceSemanticThreshold &&
     input.urlOverlapCount === 0 &&
     ej > config.urlDivergenceEntityJaccardThreshold &&
     nj > config.urlDivergenceNumberJaccardMin &&
-    nj < config.urlDivergenceNumberJaccardMax
-      ? config.urlDivergencePenalty
-      : 0;
+    nj < config.urlDivergenceNumberJaccardMax;
 
-  let score = base + jaccardContribution + urlBoost + proximityBoost - numberPenalty - entityPenalty - cashtagPenalty - urlDivergencePenalty;
+  let score = base + jaccardContribution + urlBoost + proximityBoost - numberPenalty - entityPenalty - cashtagPenalty;
   score = Math.max(0, Math.min(1, score));
 
-  const zone = score > 0.95 ? 'duplicate' : score < 0.75 ? 'different' : 'gray_zone';
+  let zone = score > 0.95 ? 'duplicate' : score < 0.75 ? 'different' : 'gray_zone';
+
+  // URL divergence override: force gray zone for partial updates from same source
+  if (urlDivergenceActive && zone === 'duplicate') {
+    score = 0.88;
+    zone = 'gray_zone';
+  }
 
   const signals = [
     { name: 'semantic', contribution: base },
@@ -119,7 +123,7 @@ function computeScore(input) {
     { name: 'number_penalty', contribution: -numberPenalty },
     { name: 'entity_penalty', contribution: -entityPenalty },
     { name: 'cashtag_penalty', contribution: -cashtagPenalty },
-    { name: 'url_divergence_penalty', contribution: -urlDivergencePenalty },
+    { name: 'url_divergence_penalty', contribution: 0 },
   ];
 
   return { score, zone, signals };

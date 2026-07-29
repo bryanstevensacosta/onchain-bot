@@ -341,7 +341,7 @@ describe('computeScore', () => {
   });
 
   describe('url_divergence_penalty', () => {
-    it('Msg111 pattern - partial update applies penalty', () => {
+    it('Msg111 pattern — override to gray zone (partial update, different URL)', () => {
       const y = Math.sqrt(1 - 0.99 * 0.99);
       const result = computeScore(
         makeEmptyInput({
@@ -352,15 +352,17 @@ describe('computeScore', () => {
           entitiesE: ['bitcoin', 'ethereum'],
           numbersM: [6.23, 23.16],
           numbersE: [6.23, 13.16],
+          sameSource: true,
+          timeDiffMinutes: 1,
         }),
       );
-      const penaltySignal = result.signals.find(
+      const signal = result.signals.find(
         (s) => s.name === 'url_divergence_penalty',
       );
-      expect(penaltySignal).toBeDefined();
-      expect(penaltySignal!.contribution).toBe(
-        -DEFAULT_CONFIG.urlDivergencePenalty,
-      );
+      expect(signal).toBeDefined();
+      expect(signal!.contribution).toBe(0);
+      expect(result.zone).toBe('gray_zone');
+      expect(result.score).toBe(0.88);
     });
 
     it('No penalty when urlOverlapCount > 0', () => {
@@ -457,7 +459,7 @@ describe('computeScore', () => {
       expect(penaltySignal!.contribution).toBeCloseTo(0);
     });
 
-    it('Integration: score drops from duplicate zone to gray zone', () => {
+    it('Integration: zone-override drops from duplicate to gray zone', () => {
       const y = Math.sqrt(1 - 0.99 * 0.99);
       const result = computeScore(
         makeEmptyInput({
@@ -469,10 +471,17 @@ describe('computeScore', () => {
           entitiesM: ['bitcoin', 'ethereum'],
           entitiesE: ['bitcoin', 'ethereum'],
           numbersM: [6.23, 23.16],
-          numbersE: [3.23, 13.16],
+          numbersE: [6.23, 13.16],
+          sameSource: true,
+          timeDiffMinutes: 1,
         }),
       );
-      expect(result.score).toBeLessThan(0.95);
+      const signal = result.signals.find(
+        (s) => s.name === 'url_divergence_penalty',
+      );
+      expect(signal).toBeDefined();
+      expect(result.zone).toBe('gray_zone');
+      expect(result.score).toBe(0.88);
     });
   });
 
