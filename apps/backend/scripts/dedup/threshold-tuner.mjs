@@ -73,6 +73,11 @@ function computeScore(input) {
     entityPenaltyMedium: 0.12,
     cashtagPenaltyLow: 0.08,
     cashtagPenaltyMedium: 0.15,
+    urlDivergenceSemanticThreshold: 0.9,
+    urlDivergenceEntityJaccardThreshold: 0.5,
+    urlDivergenceNumberJaccardMin: 0.3,
+    urlDivergenceNumberJaccardMax: 0.9,
+    urlDivergencePenalty: 0.12,
   };
 
   const base = cosineSimilarity(input.embeddingM, input.embeddingE);
@@ -92,7 +97,16 @@ function computeScore(input) {
   const urlBoost = input.urlOverlapCount > 0 ? config.urlBoost : 0;
   const proximityBoost = input.sameSource && input.timeDiffMinutes < config.proximityWindowMinutes ? config.proximityBoost : 0;
 
-  let score = base + jaccardContribution + urlBoost + proximityBoost - numberPenalty - entityPenalty - cashtagPenalty;
+  const urlDivergencePenalty =
+    base > config.urlDivergenceSemanticThreshold &&
+    input.urlOverlapCount === 0 &&
+    ej > config.urlDivergenceEntityJaccardThreshold &&
+    nj > config.urlDivergenceNumberJaccardMin &&
+    nj < config.urlDivergenceNumberJaccardMax
+      ? config.urlDivergencePenalty
+      : 0;
+
+  let score = base + jaccardContribution + urlBoost + proximityBoost - numberPenalty - entityPenalty - cashtagPenalty - urlDivergencePenalty;
   score = Math.max(0, Math.min(1, score));
 
   const zone = score > 0.95 ? 'duplicate' : score < 0.75 ? 'different' : 'gray_zone';
@@ -105,6 +119,7 @@ function computeScore(input) {
     { name: 'number_penalty', contribution: -numberPenalty },
     { name: 'entity_penalty', contribution: -entityPenalty },
     { name: 'cashtag_penalty', contribution: -cashtagPenalty },
+    { name: 'url_divergence_penalty', contribution: -urlDivergencePenalty },
   ];
 
   return { score, zone, signals };

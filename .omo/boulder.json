@@ -1,1 +1,14 @@
-{"schema_version":2,"active_work_id":"template-divergence-signal","works":{"template-divergence-signal":{"work_id":"template-divergence-signal","active_plan":".omo/plans/template-divergence-signal.md","plan_name":"template-divergence-signal","status":"active","worktree_path":null}}}
+{
+  "schema_version": 2,
+  "active_work_id": "url-divergence-penalty-signal",
+  "works": {
+    "url-divergence-penalty-signal": {
+      "work_id": "url-divergence-penalty-signal",
+      "active_plan": ".omo/plans/url-divergence-penalty-signal.md",
+      "plan_name": "url-divergence-penalty-signal",
+      "session_ids": ["codex:current"],
+      "status": "active",
+      "worktree_path": null
+    }
+  }
+}

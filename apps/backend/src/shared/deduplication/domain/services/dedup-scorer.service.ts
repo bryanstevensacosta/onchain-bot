@@ -43,6 +43,11 @@ export interface ScoreConfig {
   templateDivergenceSemanticThreshold: number;
   templateDivergenceNumberJaccardThreshold: number;
   templateDivergencePenalty: number;
+  urlDivergenceSemanticThreshold: number;
+  urlDivergenceEntityJaccardThreshold: number;
+  urlDivergenceNumberJaccardMin: number;
+  urlDivergenceNumberJaccardMax: number;
+  urlDivergencePenalty: number;
 }
 
 /**
@@ -72,6 +77,11 @@ export const DEFAULT_CONFIG: ScoreConfig = {
   templateDivergenceSemanticThreshold: 0.9,
   templateDivergenceNumberJaccardThreshold: 0.4,
   templateDivergencePenalty: 0.15,
+  urlDivergenceSemanticThreshold: 0.9,
+  urlDivergenceEntityJaccardThreshold: 0.5,
+  urlDivergenceNumberJaccardMin: 0.3,
+  urlDivergenceNumberJaccardMax: 0.9,
+  urlDivergencePenalty: 0.12,
 };
 
 /**
@@ -273,6 +283,19 @@ export function computeScore(
   const urlBoost = input.urlOverlapCount > 0 ? cfg.urlBoost : 0;
   signals.push({ name: 'url_boost', contribution: urlBoost });
 
+  const urlDivergencePenalty =
+    semantic > cfg.urlDivergenceSemanticThreshold &&
+    input.urlOverlapCount === 0 &&
+    entityJaccard > cfg.urlDivergenceEntityJaccardThreshold &&
+    numberJaccard > cfg.urlDivergenceNumberJaccardMin &&
+    numberJaccard < cfg.urlDivergenceNumberJaccardMax
+      ? cfg.urlDivergencePenalty
+      : 0;
+  signals.push({
+    name: 'url_divergence_penalty',
+    contribution: -urlDivergencePenalty,
+  });
+
   // Proximity boost
   const proximityBoost =
     input.sameSource && input.timeDiffMinutes < cfg.proximityWindowMinutes
@@ -289,7 +312,8 @@ export function computeScore(
     numberPenalty -
     entityPenalty -
     cashtagPenalty -
-    templateDivergencePenalty;
+    templateDivergencePenalty -
+    urlDivergencePenalty;
 
   // Clamp to [0, 1]
   score = Math.max(0, Math.min(1, score));

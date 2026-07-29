@@ -340,6 +340,142 @@ describe('computeScore', () => {
     });
   });
 
+  describe('url_divergence_penalty', () => {
+    it('Msg111 pattern - partial update applies penalty', () => {
+      const y = Math.sqrt(1 - 0.99 * 0.99);
+      const result = computeScore(
+        makeEmptyInput({
+          embeddingM: [1, 0],
+          embeddingE: [0.99, y],
+          urlOverlapCount: 0,
+          entitiesM: ['bitcoin', 'ethereum'],
+          entitiesE: ['bitcoin', 'ethereum'],
+          numbersM: [6.23, 23.16],
+          numbersE: [6.23, 13.16],
+        }),
+      );
+      const penaltySignal = result.signals.find(
+        (s) => s.name === 'url_divergence_penalty',
+      );
+      expect(penaltySignal).toBeDefined();
+      expect(penaltySignal!.contribution).toBe(
+        -DEFAULT_CONFIG.urlDivergencePenalty,
+      );
+    });
+
+    it('No penalty when urlOverlapCount > 0', () => {
+      const y = Math.sqrt(1 - 0.99 * 0.99);
+      const result = computeScore(
+        makeEmptyInput({
+          embeddingM: [1, 0],
+          embeddingE: [0.99, y],
+          urlOverlapCount: 1,
+          entitiesM: ['bitcoin', 'ethereum'],
+          entitiesE: ['bitcoin', 'ethereum'],
+          numbersM: [6.23, 23.16],
+          numbersE: [3.23, 13.16],
+        }),
+      );
+      const penaltySignal = result.signals.find(
+        (s) => s.name === 'url_divergence_penalty',
+      );
+      expect(penaltySignal!.contribution).toBeCloseTo(0);
+    });
+
+    it('No penalty when semantic is low', () => {
+      const result = computeScore(
+        makeEmptyInput({
+          embeddingM: [1, 0],
+          embeddingE: [0, 1],
+          urlOverlapCount: 0,
+          entitiesM: ['bitcoin', 'ethereum'],
+          entitiesE: ['bitcoin', 'ethereum'],
+          numbersM: [6.23, 23.16],
+          numbersE: [3.23, 13.16],
+        }),
+      );
+      const penaltySignal = result.signals.find(
+        (s) => s.name === 'url_divergence_penalty',
+      );
+      expect(penaltySignal!.contribution).toBeCloseTo(0);
+    });
+
+    it('No penalty when entityJaccard is low', () => {
+      const y = Math.sqrt(1 - 0.99 * 0.99);
+      const result = computeScore(
+        makeEmptyInput({
+          embeddingM: [1, 0],
+          embeddingE: [0.99, y],
+          urlOverlapCount: 0,
+          entitiesM: ['bitcoin'],
+          entitiesE: ['cardano'],
+          numbersM: [6.23, 23.16],
+          numbersE: [3.23, 13.16],
+        }),
+      );
+      const penaltySignal = result.signals.find(
+        (s) => s.name === 'url_divergence_penalty',
+      );
+      expect(penaltySignal!.contribution).toBeCloseTo(0);
+    });
+
+    it('No penalty when numberJaccard is very low (< 0.3)', () => {
+      const y = Math.sqrt(1 - 0.99 * 0.99);
+      const result = computeScore(
+        makeEmptyInput({
+          embeddingM: [1, 0],
+          embeddingE: [0.99, y],
+          urlOverlapCount: 0,
+          entitiesM: ['bitcoin', 'ethereum'],
+          entitiesE: ['bitcoin', 'ethereum'],
+          numbersM: [120000, 5, 100],
+          numbersE: [115000, 99, 200],
+        }),
+      );
+      const penaltySignal = result.signals.find(
+        (s) => s.name === 'url_divergence_penalty',
+      );
+      expect(penaltySignal!.contribution).toBeCloseTo(0);
+    });
+
+    it('No penalty when numberJaccard is very high (> 0.9)', () => {
+      const y = Math.sqrt(1 - 0.99 * 0.99);
+      const result = computeScore(
+        makeEmptyInput({
+          embeddingM: [1, 0],
+          embeddingE: [0.99, y],
+          urlOverlapCount: 0,
+          entitiesM: ['bitcoin', 'ethereum'],
+          entitiesE: ['bitcoin', 'ethereum'],
+          numbersM: [120000, 5],
+          numbersE: [119800, 5],
+        }),
+      );
+      const penaltySignal = result.signals.find(
+        (s) => s.name === 'url_divergence_penalty',
+      );
+      expect(penaltySignal!.contribution).toBeCloseTo(0);
+    });
+
+    it('Integration: score drops from duplicate zone to gray zone', () => {
+      const y = Math.sqrt(1 - 0.99 * 0.99);
+      const result = computeScore(
+        makeEmptyInput({
+          embeddingM: [1, 0],
+          embeddingE: [0.99, y],
+          urlOverlapCount: 0,
+          tokensM: ['a', 'b'],
+          tokensE: ['a', 'b'],
+          entitiesM: ['bitcoin', 'ethereum'],
+          entitiesE: ['bitcoin', 'ethereum'],
+          numbersM: [6.23, 23.16],
+          numbersE: [3.23, 13.16],
+        }),
+      );
+      expect(result.score).toBeLessThan(0.95);
+    });
+  });
+
   describe('score zones', () => {
     it('score > 0.95 returns zone: "duplicate"', () => {
       // High semantic similarity + high jaccard
