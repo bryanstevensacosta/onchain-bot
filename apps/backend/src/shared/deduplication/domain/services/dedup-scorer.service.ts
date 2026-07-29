@@ -40,6 +40,9 @@ export interface ScoreConfig {
   entityPenaltyMedium: number;
   cashtagPenaltyLow: number;
   cashtagPenaltyMedium: number;
+  templateDivergenceSemanticThreshold: number;
+  templateDivergenceNumberJaccardThreshold: number;
+  templateDivergencePenalty: number;
 }
 
 /**
@@ -66,6 +69,9 @@ export const DEFAULT_CONFIG: ScoreConfig = {
   entityPenaltyMedium: 0.12,
   cashtagPenaltyLow: 0.08,
   cashtagPenaltyMedium: 0.15,
+  templateDivergenceSemanticThreshold: 0.9,
+  templateDivergenceNumberJaccardThreshold: 0.4,
+  templateDivergencePenalty: 0.15,
 };
 
 /**
@@ -252,6 +258,17 @@ export function computeScore(
   }
   signals.push({ name: 'cashtag_penalty', contribution: -cashtagPenalty });
 
+  // Template divergence penalty: high semantic + low number similarity = likely an update
+  const templateDivergencePenalty =
+    semantic > cfg.templateDivergenceSemanticThreshold &&
+    numberJaccard < cfg.templateDivergenceNumberJaccardThreshold
+      ? cfg.templateDivergencePenalty
+      : 0;
+  signals.push({
+    name: 'template_divergence_penalty',
+    contribution: -templateDivergencePenalty,
+  });
+
   // URL overlap boost
   const urlBoost = input.urlOverlapCount > 0 ? cfg.urlBoost : 0;
   signals.push({ name: 'url_boost', contribution: urlBoost });
@@ -271,7 +288,8 @@ export function computeScore(
     proximityBoost -
     numberPenalty -
     entityPenalty -
-    cashtagPenalty;
+    cashtagPenalty -
+    templateDivergencePenalty;
 
   // Clamp to [0, 1]
   score = Math.max(0, Math.min(1, score));

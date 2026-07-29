@@ -193,6 +193,7 @@ describe('computeScore', () => {
       expect(signalNames).toContain('number_penalty');
       expect(signalNames).toContain('entity_penalty');
       expect(signalNames).toContain('cashtag_penalty');
+      expect(signalNames).toContain('template_divergence_penalty');
       expect(signalNames).toContain('url_boost');
       expect(signalNames).toContain('proximity_boost');
     });
@@ -257,6 +258,83 @@ describe('computeScore', () => {
       );
       const penaltySignal = result.signals.find(
         (s) => s.name === 'entity_penalty',
+      );
+      expect(penaltySignal!.contribution).toBeCloseTo(0);
+    });
+  });
+
+  describe('template divergence penalty', () => {
+    it('should apply penalty when semantic is high AND numberJaccard is low', () => {
+      // Embeddings [1, 0] and [0.99, sqrt(1-0.99²)] → semantic ≈ 0.99 (very high)
+      const y = Math.sqrt(1 - 0.99 * 0.99);
+      const result = computeScore(
+        makeEmptyInput({
+          embeddingM: [1, 0],
+          embeddingE: [0.99, y],
+          // 120000 vs 115000 is 4.17% > 1% tolerance → no match
+          // 5 vs 99 → no match
+          // Intersection = 0, union = 4 → numberJaccard = 0
+          numbersM: [120000, 5],
+          numbersE: [115000, 99],
+        }),
+      );
+      const penaltySignal = result.signals.find(
+        (s) => s.name === 'template_divergence_penalty',
+      );
+      expect(penaltySignal).toBeDefined();
+      expect(penaltySignal!.contribution).toBe(
+        -DEFAULT_CONFIG.templateDivergencePenalty,
+      );
+    });
+
+    it('should NOT apply penalty when numberJaccard is high', () => {
+      // Embeddings [1, 0] and [0.99, sqrt(1-0.99²)] → semantic ≈ 0.99
+      const y = Math.sqrt(1 - 0.99 * 0.99);
+      const result = computeScore(
+        makeEmptyInput({
+          embeddingM: [1, 0],
+          embeddingE: [0.99, y],
+          // Both within 1% tolerance → numberJaccard ≈ 1.0
+          numbersM: [120000, 5],
+          numbersE: [119800, 5],
+        }),
+      );
+      const penaltySignal = result.signals.find(
+        (s) => s.name === 'template_divergence_penalty',
+      );
+      expect(penaltySignal!.contribution).toBeCloseTo(0);
+    });
+
+    it('should NOT apply penalty when semantic is low', () => {
+      // Embeddings [1, 0] and [0, 1] → semantic = 0
+      const result = computeScore(
+        makeEmptyInput({
+          embeddingM: [1, 0],
+          embeddingE: [0, 1],
+          numbersM: [120000],
+          numbersE: [115000],
+        }),
+      );
+      const penaltySignal = result.signals.find(
+        (s) => s.name === 'template_divergence_penalty',
+      );
+      expect(penaltySignal!.contribution).toBeCloseTo(0);
+    });
+
+    it('should NOT apply penalty when both number arrays are empty', () => {
+      // Embeddings [1, 0] and [0.99, sqrt(1-0.99²)] → semantic ≈ 0.99
+      const y = Math.sqrt(1 - 0.99 * 0.99);
+      // Both empty → numberJaccard = 1
+      const result = computeScore(
+        makeEmptyInput({
+          embeddingM: [1, 0],
+          embeddingE: [0.99, y],
+          numbersM: [],
+          numbersE: [],
+        }),
+      );
+      const penaltySignal = result.signals.find(
+        (s) => s.name === 'template_divergence_penalty',
       );
       expect(penaltySignal!.contribution).toBeCloseTo(0);
     });
