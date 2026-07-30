@@ -124,6 +124,34 @@ describe('BlacklistPhrase', () => {
         expect(bp.matches("AI's")).toBe(true);
         expect(bp.matches('AI,')).toBe(true);
       });
+
+      it('matches phrases starting with # (hashtags)', () => {
+        const bp = BlacklistPhrase.create({
+          phrase: '#Bitcoin ETFs',
+          matchMode: 'exact',
+        });
+        expect(bp.matches('\n#Bitcoin ETFs:\n')).toBe(true);
+        expect(bp.matches('text #Bitcoin ETFs more')).toBe(true);
+        expect(bp.matches('ab#Bitcoin ETFs')).toBe(false);
+      });
+
+      it('matches phrases starting with @ (usernames)', () => {
+        const bp = BlacklistPhrase.create({
+          phrase: '@user',
+          matchMode: 'exact',
+        });
+        expect(bp.matches('hello @user how are you')).toBe(true);
+        expect(bp.matches('hello@user')).toBe(false);
+      });
+
+      it('matches phrases starting with $ (tickers)', () => {
+        const bp = BlacklistPhrase.create({
+          phrase: '$BTC',
+          matchMode: 'exact',
+        });
+        expect(bp.matches('price $BTC is up')).toBe(true);
+        expect(bp.matches('price$BTC')).toBe(false);
+      });
     });
   });
 

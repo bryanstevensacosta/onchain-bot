@@ -150,8 +150,14 @@ export class BlacklistPhrase extends AggregateRoot<string> {
    * Test whether the supplied content contains the blacklist phrase.
    *
    * Two modes controlled by `matchMode`:
-   * - `exact` (default for new phrases): word-boundary regex — `"AI"`
-   *   matches `"AI"` / `"AI's"` / `"AI,"` but NOT `"chain"` or `"cairo"`.
+   * - `exact` (default for new phrases): adaptive word-boundary regex.
+   *   Uses `\b` when the phrase starts/ends with a word character (`\w`),
+   *   or `(?:^|\W)` / `(?:\W|$)` when it starts/ends with a non-word
+   *   character (`#`, `@`, `$`, etc.). This ensures phrases like
+   *   `#Bitcoin ETFs` or `@user` match correctly while still respecting
+   *   word boundaries for plain-text phrases like `"AI"`.
+   *   Examples: `#Bitcoin ETFs` matches `"\n#Bitcoin ETFs:\n"` but NOT
+   *   `"ab#Bitcoin ETFs"`; `AI` matches `"AI's"` but NOT `"chain"`.
    * - `substring`: simple `includes()` — `"btc"` matches `"btcusdt"`,
    *   useful for URLs like `"arkm.com/explorer"` inside a longer URL.
    *
@@ -165,7 +171,11 @@ export class BlacklistPhrase extends AggregateRoot<string> {
     if (this.state.matchMode === 'exact') {
       const flags = this.state.caseSensitive ? '' : 'i';
       const escaped = this.state.phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      return new RegExp(`\\b${escaped}\\b`, flags).test(content);
+      const firstIsWord = /^\w/.test(this.state.phrase);
+      const lastIsWord = /\w$/.test(this.state.phrase);
+      const lb = firstIsWord ? '\\b' : '(?:^|\\W)';
+      const rb = lastIsWord ? '\\b' : '(?:$|\\W)';
+      return new RegExp(`${lb}${escaped}${rb}`, flags).test(content);
     }
 
     // substring mode
