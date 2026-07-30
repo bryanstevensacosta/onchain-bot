@@ -114,9 +114,9 @@ export class CryptoNewsMessageIngestedHandler {
       // Check blacklist AFTER keyword match, BEFORE enqueue.
       // If the blacklist repo fails (e.g. transient error), we proceed as-if
       // no blacklist matched — a blacklist outage must not block publication.
-      let blockingPhrase: BlacklistPhrase | null = null;
+      let blockingPhrases: readonly BlacklistPhrase[] = [];
       try {
-        blockingPhrase = await this.checkBlacklist(
+        blockingPhrases = await this.checkBlacklist(
           channelId,
           message.content,
           hasMedia,
@@ -127,8 +127,9 @@ export class CryptoNewsMessageIngestedHandler {
         );
       }
 
-      if (blockingPhrase) {
+      if (blockingPhrases.length > 0) {
         // Message matched a keyword but also matched a blacklist phrase - block it
+        const reason = blockingPhrases.map((p) => p.phrase).join(', ');
         const imagePaths = await this.collectAlbumImagePaths(message);
         const entry = PublisherQueueEntry.create({
           channelId: message.channelId,
@@ -153,11 +154,11 @@ export class CryptoNewsMessageIngestedHandler {
             }
           ).state,
           status: 'BLOCKED',
-          blockedReason: blockingPhrase.phrase,
+          blockedReason: reason,
         };
         await this.queueRepo.enqueue(entry);
         this.logger.debug(
-          `Message blocked: channelId=${channelId}, messageId=${messageId}, title=${title ?? '(none)'}, keyword="${matchedKeywords.map((k) => k.phrase).join(',')}", blacklist="${blockingPhrase.phrase}"`,
+          `Message blocked: channelId=${channelId}, messageId=${messageId}, title=${title ?? '(none)'}, keyword="${matchedKeywords.map((k) => k.phrase).join(',')}", blacklist="${reason}"`,
         );
         return;
       }
@@ -432,20 +433,20 @@ export class CryptoNewsMessageIngestedHandler {
 
   /**
    * Check if message content matches any blacklist phrase applicable to the channel.
-   * Returns the matching BlacklistPhrase if blocked, null otherwise.
+   * Returns all matching BlacklistPhrases (empty array if none).
    */
   private async checkBlacklist(
     channelId: string,
     content: string,
     hasMedia: boolean,
-  ): Promise<BlacklistPhrase | null> {
+  ): Promise<readonly BlacklistPhrase[]> {
     const allBlacklist = await this.getEnabledBlacklistPhrases();
 
     const applicableBlacklist = allBlacklist.filter((phrase) =>
       phrase.isApplicableTo(channelId),
     );
 
-    return this.findBlockingBlacklistPhrase(
+    return this.findMatchingBlacklistPhrases(
       applicableBlacklist,
       content,
       hasMedia,
@@ -501,11 +502,11 @@ export class CryptoNewsMessageIngestedHandler {
     return matched;
   }
 
-  private findBlockingBlacklistPhrase(
+  private findMatchingBlacklistPhrases(
     phrases: readonly BlacklistPhrase[],
     content: string,
     hasMedia: boolean,
-  ): BlacklistPhrase | null {
+  ): readonly BlacklistPhrase[] {
     const simples: BlacklistPhrase[] = [];
     const compounds = new Map<string, BlacklistPhrase[]>();
 
@@ -519,9 +520,11 @@ export class CryptoNewsMessageIngestedHandler {
       }
     }
 
+    const matched: BlacklistPhrase[] = [];
+
     for (const phrase of simples) {
       if (phrase.checkMatchesWithMedia(content, hasMedia)) {
-        return phrase;
+        matched.push(phrase);
       }
     }
 
@@ -534,9 +537,13 @@ export class CryptoNewsMessageIngestedHandler {
       if (anyRequiresMedia && !hasMedia) {
         continue;
       }
-      return groupPhrases[0];
+      for (const p of groupPhrases) {
+        if (!matched.some((m) => m.id === p.id)) {
+          matched.push(p);
+        }
+      }
     }
 
-    return null;
+    return matched;
   }
 }
