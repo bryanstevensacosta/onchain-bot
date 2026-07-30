@@ -96,8 +96,7 @@ function BlacklistModal({
       caseSensitive,
       matchMode,
       enabled,
-      sourceChannelIds:
-        sourceChannelIds.length > 0 ? sourceChannelIds : undefined,
+      sourceChannelIds,
       andGroupId,
       requireMedia,
     });
@@ -431,9 +430,7 @@ export function BlacklistManager(): React.ReactElement {
     const body = {
       phrases: phrases.map((p) => ({
         ...p,
-        sourceChannelIds: p.sourceChannelIds?.length
-          ? p.sourceChannelIds
-          : undefined,
+        sourceChannelIds: p.sourceChannelIds,
       })),
     };
     createBatchMut.mutateAsync(body).then(() => setCompoundModalOpen(false));

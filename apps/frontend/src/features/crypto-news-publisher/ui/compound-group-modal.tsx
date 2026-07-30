@@ -99,8 +99,7 @@ export function CompoundGroupModal({
       phrase: row.phrase,
       caseSensitive: row.caseSensitive,
       matchMode: row.matchMode,
-      sourceChannelIds:
-        sourceChannelIds.length > 0 ? sourceChannelIds : undefined,
+      sourceChannelIds,
       enabled,
       requireMedia: row.requireMedia,
       templateId: showTemplate ? templateId : undefined,
