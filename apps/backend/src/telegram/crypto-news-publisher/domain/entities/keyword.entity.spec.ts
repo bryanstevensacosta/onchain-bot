@@ -118,6 +118,34 @@ describe('Keyword', () => {
         expect(kw.matches('btc is down')).toBe(false);
         expect(kw.matches('Btc sideways')).toBe(false);
       });
+
+      it('matches phrases starting with # (hashtags)', () => {
+        const kw = Keyword.create({
+          phrase: '#Bitcoin ETFs',
+          matchMode: 'exact',
+        });
+        expect(kw.matches('\n#Bitcoin ETFs:\n')).toBe(true);
+        expect(kw.matches('text #Bitcoin ETFs more')).toBe(true);
+        expect(kw.matches('ab#Bitcoin ETFs')).toBe(false);
+      });
+
+      it('matches phrases starting with @ (usernames)', () => {
+        const kw = Keyword.create({
+          phrase: '@user',
+          matchMode: 'exact',
+        });
+        expect(kw.matches('hello @user how are you')).toBe(true);
+        expect(kw.matches('hello@user')).toBe(false);
+      });
+
+      it('matches phrases starting with $ (tickers)', () => {
+        const kw = Keyword.create({
+          phrase: '$100',
+          matchMode: 'exact',
+        });
+        expect(kw.matches('price is $100')).toBe(true);
+        expect(kw.matches('price$100')).toBe(false);
+      });
     });
   });
 
