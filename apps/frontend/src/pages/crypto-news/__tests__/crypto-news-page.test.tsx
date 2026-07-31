@@ -689,6 +689,48 @@ describe('CryptoNewsPage — publisher (keywords + queue)', () => {
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
   });
+
+  it('pre-fills the edit modal with the keyword values instead of stale defaults', () => {
+    const keywords: ReadonlyArray<KeywordView> = [
+      {
+        id: 'kw-1',
+        phrase: 'telegram',
+        caseSensitive: true,
+        enabled: true,
+        sourceChannelIds: ['WatcherGuru'],
+        andGroupId: null,
+        requireMedia: false,
+        templateId: null,
+        matchMode: 'substring',
+        createdAt: '2025-01-01T00:00:00.000Z',
+      },
+    ];
+    mockedUseKeywords.mockReturnValue(makeKeywordsQuery(keywords));
+
+    renderWithClient(<CryptoNewsPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: /^Edit$/ }));
+
+    const heading = screen.getByRole('heading', { name: 'Edit Keyword' });
+    const modal = heading.closest('.fixed') as HTMLElement;
+
+    // Phrase input is pre-filled with the keyword's phrase
+    expect(within(modal).getByDisplayValue('telegram')).toBeInTheDocument();
+
+    // Source selector shows the specific source, not the "All sources" default
+    expect(
+      within(modal).getByRole('button', { name: 'WatcherGuru' }),
+    ).toBeInTheDocument();
+    expect(
+      within(modal).queryByText('All sources (global)'),
+    ).not.toBeInTheDocument();
+
+    // Match mode reflects the keyword value (substring), not the create default
+    const matchSelect = within(modal).getByDisplayValue(
+      'Substring',
+    ) as HTMLSelectElement;
+    expect(matchSelect.value).toBe('substring');
+  });
 });
 
 describe('CryptoNewsPage — search filter (free-text)', () => {

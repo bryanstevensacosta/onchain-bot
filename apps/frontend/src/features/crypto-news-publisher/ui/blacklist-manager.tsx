@@ -71,6 +71,29 @@ function BlacklistModal({
   );
   const [requireMedia, setRequireMedia] = useState(initialRequireMedia);
 
+  // Reset form state when the modal opens so edits reflect the selected
+  // phrase instead of stale values from a previous mount.
+  useEffect(() => {
+    if (isOpen) {
+      setPhrase(initialPhrase);
+      setCaseSensitive(initialCaseSensitive);
+      setSourceChannelIds(initialSourceChannelIds);
+      setEnabled(initialEnabled);
+      setMatchMode(initialMatchMode);
+      setCompoundGroupId(initialAndGroupId);
+      setRequireMedia(initialRequireMedia);
+    }
+  }, [
+    isOpen,
+    initialPhrase,
+    initialCaseSensitive,
+    initialSourceChannelIds,
+    initialEnabled,
+    initialMatchMode,
+    initialAndGroupId,
+    initialRequireMedia,
+  ]);
+
   const canSubmit = phrase.trim().length > 0 && !pending;
 
   function handleClose() {
