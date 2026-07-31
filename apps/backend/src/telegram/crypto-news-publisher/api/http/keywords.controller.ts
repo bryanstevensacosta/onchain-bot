@@ -83,6 +83,18 @@ interface UpdateKeywordDto {
   matchMode?: 'exact' | 'substring';
 }
 
+interface CreateKeywordBatchDto {
+  phrases: Array<{
+    phrase: string;
+    caseSensitive?: boolean;
+    enabled?: boolean;
+    sourceChannelIds?: string[];
+    templateId?: string | null;
+    requireMedia?: boolean;
+    matchMode?: 'exact' | 'substring';
+  }>;
+}
+
 /**
  * REST API for crypto-news-publisher keywords.
  *
@@ -145,6 +157,40 @@ export class KeywordsController {
     });
     await this.keywordRepo.save(keyword);
     return KeywordsController.toView(keyword);
+  }
+
+  @Post('batch')
+  @HttpCode(HttpStatus.CREATED)
+  public async createBatch(
+    @Body() dto: CreateKeywordBatchDto,
+  ): Promise<ReadonlyArray<KeywordView>> {
+    const andGroupId = crypto.randomUUID();
+    const results: KeywordView[] = [];
+
+    for (const item of dto.phrases) {
+      await this.phraseRegistry.throwIfDuplicate(
+        'keyword',
+        item.phrase,
+        item.caseSensitive ?? false,
+        item.matchMode ?? 'exact',
+        andGroupId,
+      );
+
+      const keyword = Keyword.create({
+        phrase: item.phrase,
+        caseSensitive: item.caseSensitive,
+        enabled: item.enabled,
+        sourceChannelIds: item.sourceChannelIds ?? [],
+        templateId: item.templateId ?? null,
+        andGroupId,
+        requireMedia: item.requireMedia ?? false,
+        matchMode: item.matchMode,
+      });
+      await this.keywordRepo.save(keyword);
+      results.push(KeywordsController.toView(keyword));
+    }
+
+    return results;
   }
 
   @Patch(':id')

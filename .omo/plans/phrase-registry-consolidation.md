@@ -116,7 +116,7 @@ Your next move: approve o high-accuracy review. Full execution detail follows be
   - Evidence: .omo/evidence/t1-phrase-registry.spec.ts
     Commit: Y | feat(backend): add PhraseRegistryService for intra-table and cross-conflict validation
 
-- [ ] 2. Integrar validación en KeywordsController
+- [x] 2. Integrar validación en KeywordsController
      What to do: En POST /keywords y PATCH /keywords/:id, ejecutar:
      1. **Intra-table**: llamar a `PhraseRegistryService.validateIntraTableKeyword(phrase)` → si la frase ya existe en keywords, retornar 409
      2. **Cross-table**: llamar a `PhraseRegistryService.validateCrossTableKeyword(phrase, caseSensitive, matchMode)` → si existe en blacklist con mismos settings, retornar 409
@@ -139,7 +139,7 @@ Your next move: approve o high-accuracy review. Full execution detail follows be
   - Happy: PATCH mismo registro (mismo id, misma frase) → OK
     Commit: Y | fix(backend): add intra-table and cross-conflict validation to keywords endpoints
 
-- [ ] 3. Integrar validación en BlacklistController
+- [x] 3. Integrar validación en BlacklistController
      What to do: En POST /blacklist y PATCH /blacklist/:id, ejecutar:
      1. **Intra-table**: llamar a `PhraseRegistryService.validateIntraTableBlacklist(phrase)` → si la frase ya existe en blacklist, retornar 409
      2. **Cross-table**: llamar a `PhraseRegistryService.validateCrossTableBlacklist(phrase, caseSensitive, matchMode)` → si existe en keyword con mismos settings, retornar 409
@@ -161,7 +161,7 @@ Your next move: approve o high-accuracy review. Full execution detail follows be
   - Failure cross: POST /blacklist con "war" (caseSensitive=false, matchMode=exact) que existe en keyword → 409 Conflict
     Commit: Y | fix(backend): add intra-table and cross-conflict validation to blacklist endpoints
 
-- [ ] 4. Actualizar tests de integración de keywords controller
+- [x] 4. Actualizar tests de integración de keywords controller
      What to do: Agregar test cases para conflicto cruzado en keywords.controller.spec.ts, incluyendo casos con diferentes caseSensitive y matchMode
      Must NOT: No modificar tests existentes que pasan
      Parallelization: Wave 1 | Blocked by: T2 | Blocks: T6,T7

@@ -181,6 +181,67 @@ describe('KeywordsController', () => {
         }),
       ).rejects.toBeInstanceOf(ConflictException);
     });
+
+    it('rejects duplicate phrase with blacklist (same caseSensitive + matchMode)', async () => {
+      phraseRegistry.throwIfDuplicate.mockRejectedValue(
+        new ConflictException(
+          '"war" is already blacklisted (caseSensitive: true, matchMode: exact)',
+        ),
+      );
+
+      await expect(
+        controller.create({
+          phrase: 'war',
+          caseSensitive: true,
+          matchMode: 'exact',
+        }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(phraseRegistry.throwIfDuplicate).toHaveBeenCalledWith(
+        'keyword',
+        'war',
+        true,
+        'exact',
+        null,
+      );
+    });
+
+    it('allows phrase with different caseSensitive', async () => {
+      keywordRepo.save.mockResolvedValue();
+
+      const result = await controller.create({
+        phrase: 'war',
+        caseSensitive: true,
+        matchMode: 'exact',
+      });
+
+      expect(result.caseSensitive).toBe(true);
+      expect(phraseRegistry.throwIfDuplicate).toHaveBeenCalledWith(
+        'keyword',
+        'war',
+        true,
+        'exact',
+        null,
+      );
+    });
+
+    it('allows phrase with different matchMode', async () => {
+      keywordRepo.save.mockResolvedValue();
+
+      const result = await controller.create({
+        phrase: 'war',
+        caseSensitive: false,
+        matchMode: 'substring',
+      });
+
+      expect(result.matchMode).toBe('substring');
+      expect(phraseRegistry.throwIfDuplicate).toHaveBeenCalledWith(
+        'keyword',
+        'war',
+        false,
+        'substring',
+        null,
+      );
+    });
   });
 
   describe('update', () => {
@@ -320,6 +381,46 @@ describe('KeywordsController', () => {
         controller.update('nonexistent', { enabled: true }),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
+
+    it('should reject update when phrase already exists in another keyword', async () => {
+      const existing = makeKeyword('btc');
+      keywordRepo.findAll.mockResolvedValue([existing]);
+      phraseRegistry.throwIfDuplicate.mockRejectedValue(
+        new ConflictException('Keyword "bitcoin" already exists'),
+      );
+
+      await expect(
+        controller.update(existing.id, { phrase: 'bitcoin' }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('should pass excludeId when phrase changes on update', async () => {
+      const existing = makeKeyword('btc');
+      keywordRepo.findAll.mockResolvedValue([existing]);
+      keywordRepo.save.mockResolvedValue();
+
+      await controller.update(existing.id, { phrase: 'bitcoin' });
+
+      expect(phraseRegistry.throwIfDuplicate).toHaveBeenCalledWith(
+        'keyword',
+        'bitcoin',
+        false,
+        'exact',
+        null,
+        existing.id,
+      );
+    });
+
+    it('should not run duplicate validation when phrase is unchanged', async () => {
+      const existing = makeKeyword('btc');
+      keywordRepo.findAll.mockResolvedValue([existing]);
+      keywordRepo.save.mockResolvedValue();
+
+      const result = await controller.update(existing.id, { enabled: false });
+
+      expect(phraseRegistry.throwIfDuplicate).not.toHaveBeenCalled();
+      expect(result.enabled).toBe(false);
+    });
   });
 
   describe('remove', () => {
@@ -329,6 +430,61 @@ describe('KeywordsController', () => {
       await controller.remove('kw-1');
 
       expect(keywordRepo.delete).toHaveBeenCalledWith('kw-1');
+    });
+  });
+
+  describe('createBatch', () => {
+    it('should create all phrases with a shared andGroupId', async () => {
+      keywordRepo.save.mockResolvedValue();
+
+      const result = await controller.createBatch({
+        phrases: [{ phrase: 'btc' }, { phrase: 'eth' }],
+      });
+
+      expect(result).toHaveLength(2);
+      expect(result[0].andGroupId).toBe(result[1].andGroupId);
+      expect(result[0].andGroupId).not.toBeNull();
+      expect(keywordRepo.save).toHaveBeenCalledTimes(2);
+    });
+
+    it('should call throwIfDuplicate per phrase with the shared andGroupId', async () => {
+      keywordRepo.save.mockResolvedValue();
+
+      await controller.createBatch({
+        phrases: [
+          { phrase: 'btc', matchMode: 'substring' },
+          { phrase: 'eth', caseSensitive: true },
+        ],
+      });
+
+      expect(phraseRegistry.throwIfDuplicate).toHaveBeenCalledTimes(2);
+      expect(phraseRegistry.throwIfDuplicate).toHaveBeenNthCalledWith(
+        1,
+        'keyword',
+        'btc',
+        false,
+        'substring',
+        expect.any(String),
+      );
+      expect(phraseRegistry.throwIfDuplicate).toHaveBeenNthCalledWith(
+        2,
+        'keyword',
+        'eth',
+        true,
+        'exact',
+        expect.any(String),
+      );
+    });
+
+    it('should reject the whole batch when a phrase conflicts', async () => {
+      phraseRegistry.throwIfDuplicate.mockRejectedValue(
+        new ConflictException('Keyword "btc" already exists'),
+      );
+
+      await expect(
+        controller.createBatch({ phrases: [{ phrase: 'btc' }] }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(keywordRepo.save).not.toHaveBeenCalled();
     });
   });
 });
