@@ -74,6 +74,7 @@ export class DeduplicationService {
       classifyRelation(
         textA: string,
         textB: string,
+        similarity: number,
       ): Promise<{
         relation: 'duplicate' | 'update' | 'different';
         confidence: number;
@@ -330,11 +331,28 @@ export class DeduplicationService {
 
       // Call LLM to arbitrate
       try {
+        // Fail-open guard: without stored content (NULL or <20 chars
+        // after normalize) the LLM has nothing to compare against.
+        // Skip the call and return gray_zone — mirrors the no-arbiter
+        // fail-open shape above.
+        if (
+          !bestCandidate.content ||
+          ContentNormalizerService.normalize(bestCandidate.content).length < 20
+        ) {
+          this.logger.debug(
+            `Gray zone without usable stored content (content=${bestCandidate.content ? 'short' : 'null'}), failing open to gray_zone`,
+          );
+          return {
+            isDuplicate: false,
+            zone: 'gray_zone',
+            embedding,
+          };
+        }
+
         const arbiterResult = await this.arbiterService.classifyRelation(
           normalized,
-          ContentNormalizerService.normalize(
-            `source: ${bestCandidate.source}, channel: ${bestCandidate.channelId}`,
-          ),
+          ContentNormalizerService.normalize(bestCandidate.content),
+          bestScore,
         );
 
         if (arbiterResult.relation === 'duplicate') {
@@ -434,6 +452,7 @@ export class DeduplicationService {
         source,
         channelId,
         messageId,
+        content: rawContent,
         urlsHashes,
         tokens,
         numbers,
@@ -459,12 +478,23 @@ export class DeduplicationService {
       return null;
     }
 
+    // Fail-open guard: without stored content (NULL or <20 chars
+    // after normalize) the LLM has nothing to compare against.
+    if (
+      !candidate.content ||
+      ContentNormalizerService.normalize(candidate.content).length < 20
+    ) {
+      this.logger.debug(
+        `classifyEvent without usable stored content (content=${candidate.content ? 'short' : 'null'}), returning null`,
+      );
+      return null;
+    }
+
     try {
       const result = await this.arbiterService.classifyRelation(
         normalizedContent,
-        ContentNormalizerService.normalize(
-          `source: ${candidate.source}, channel: ${candidate.channelId}`,
-        ),
+        ContentNormalizerService.normalize(candidate.content),
+        0.85,
       );
 
       return result.relation;

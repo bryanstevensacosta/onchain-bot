@@ -3,6 +3,7 @@ import { DeduplicationService } from '../deduplication.service';
 import { DeduplicationStore } from '../../ports/deduplication-store.port';
 import { DedupRecord } from 'shared/deduplication/domain/entities/dedup-record.entity';
 import { Fingerprint } from 'shared/deduplication/domain/value-objects/fingerprint.vo';
+import { ContentNormalizerService } from 'shared/deduplication/domain/services/content-normalizer.service';
 
 describe('DeduplicationService', () => {
   let service: DeduplicationService;
@@ -241,6 +242,8 @@ describe('DeduplicationService', () => {
         numbers: [5000],
         entities: [],
         cashtags: ['ETH'],
+        content:
+          'Ethereum is pumping hard today and may soon hit five thousand dollars per coin as institutional inflows continue',
       });
 
       mockEmbeddingService.embed.mockResolvedValue([0.5, 0.5, 0.5]);
@@ -263,6 +266,88 @@ describe('DeduplicationService', () => {
 
       expect(result.isDuplicate).toBe(true);
       expect(result.eventRelation).toBe('duplicate');
+      // 3-arg wiring: textA=incoming normalized, textB=candidate's real
+      // normalized stored content, similarity=the real bestScore (not
+      // the hardcoded 0.85 from the buggy prior wiring).
+      expect(mockArbiterService.classifyRelation).toHaveBeenCalledTimes(1);
+      const callArgs = mockArbiterService.classifyRelation.mock.calls[0];
+      expect(callArgs[0]).toBe(ContentNormalizerService.normalize(content));
+      expect(callArgs[1]).toBe(
+        ContentNormalizerService.normalize(
+          'Ethereum is pumping hard today and may soon hit five thousand dollars per coin as institutional inflows continue',
+        ),
+      );
+      expect(typeof callArgs[2]).toBe('number');
+      expect(callArgs[2]).toBeGreaterThan(0);
+    });
+
+    it('should fail-open gray zone with NULL stored content (no LLM call)', async () => {
+      const content = 'Ethereum going to $5k';
+      const existingRecord = DedupRecord.create({
+        fingerprint: Fingerprint.semantic('channel1', 123),
+        source: 'telegram',
+        channelId: 'channel1',
+        messageId: 123,
+        embedding: [0.5, 0.5, 0.5],
+        tokens: ['ethereum', '5k'],
+        numbers: [5000],
+        entities: [],
+        cashtags: ['ETH'],
+        content: null,
+      });
+
+      mockEmbeddingService.embed.mockResolvedValue([0.5, 0.5, 0.5]);
+      mockStore.findSimilarEmbeddings.mockResolvedValue([
+        { record: existingRecord, similarity: 0.8 },
+      ]);
+
+      (service as any).arbiterService = mockArbiterService;
+
+      const result = await service.checkSemantic(
+        'telegram',
+        content,
+        'channel1',
+        124,
+      );
+
+      expect(result.isDuplicate).toBe(false);
+      expect(result.zone).toBe('gray_zone');
+      expect(mockArbiterService.classifyRelation).not.toHaveBeenCalled();
+    });
+
+    it('should fail-open gray zone with short (<20 chars) stored content', async () => {
+      const content = 'Ethereum going to $5k';
+      const existingRecord = DedupRecord.create({
+        fingerprint: Fingerprint.semantic('channel1', 123),
+        source: 'telegram',
+        channelId: 'channel1',
+        messageId: 123,
+        embedding: [0.5, 0.5, 0.5],
+        tokens: ['ethereum', '5k'],
+        numbers: [5000],
+        entities: [],
+        cashtags: ['ETH'],
+        // Short, will normalize to fewer than 20 chars
+        content: 'ETH pumping',
+      });
+
+      mockEmbeddingService.embed.mockResolvedValue([0.5, 0.5, 0.5]);
+      mockStore.findSimilarEmbeddings.mockResolvedValue([
+        { record: existingRecord, similarity: 0.8 },
+      ]);
+
+      (service as any).arbiterService = mockArbiterService;
+
+      const result = await service.checkSemantic(
+        'telegram',
+        content,
+        'channel1',
+        124,
+      );
+
+      expect(result.isDuplicate).toBe(false);
+      expect(result.zone).toBe('gray_zone');
+      expect(mockArbiterService.classifyRelation).not.toHaveBeenCalled();
     });
 
     it('should fail-open gray zone without LLM arbiter', async () => {
@@ -340,6 +425,29 @@ describe('DeduplicationService', () => {
       const calls = mockStore.save.mock.calls;
       expect(calls.length).toBeGreaterThan(0);
     });
+
+    it('should persist rawContent as the content field on each saved record', async () => {
+      const content = 'Bitcoin breaking $100k resistance level today';
+
+      await service.markAsSeen(
+        'telegram',
+        'channel1',
+        123,
+        content,
+        [0.1, 0.2, 0.3],
+      );
+
+      // Every saved record must carry content = rawContent so that future
+      // semantic gray-zone checks have something real to pass to the arbiter
+      // (was missing in the prior wiring, causing the LLM to be passed channel
+      // metadata as textB).
+      const calls = mockStore.save.mock.calls;
+      expect(calls.length).toBeGreaterThan(0);
+      for (const call of calls) {
+        const savedRecord = call[0];
+        expect(savedRecord.content).toBe(content);
+      }
+    });
   });
 
   describe('classifyEvent', () => {
@@ -351,6 +459,7 @@ describe('DeduplicationService', () => {
         source: 'telegram',
         channelId: 'channel1',
         messageId: 123,
+        content: 'plenty of stored content here for the arbiter to read',
       });
 
       const result = await service.classifyEvent('some content', record);
@@ -358,7 +467,7 @@ describe('DeduplicationService', () => {
       expect(result).toBeNull();
     });
 
-    it('should call LLM arbiter when available', async () => {
+    it('should call LLM arbiter with real content + similarity when available', async () => {
       mockArbiterService.classifyRelation.mockResolvedValue({
         relation: 'update',
         confidence: 0.8,
@@ -366,17 +475,65 @@ describe('DeduplicationService', () => {
 
       (service as any).arbiterService = mockArbiterService;
 
+      const storedContent =
+        'Ethereum continues to break resistance levels today with strong volume and bullish momentum building across major exchanges';
       const record = DedupRecord.create({
         fingerprint: Fingerprint.exact('channel1', 123),
         source: 'telegram',
         channelId: 'channel1',
         messageId: 123,
+        content: storedContent,
       });
 
       const result = await service.classifyEvent('some content', record);
 
       expect(result).toBe('update');
-      expect(mockArbiterService.classifyRelation).toHaveBeenCalled();
+      // 3-arg wiring: textA=incoming normalized content, textB=candidate's
+      // real normalized stored content, similarity=0.85 default (callers
+      // don't pass a value).
+      expect(mockArbiterService.classifyRelation).toHaveBeenCalledTimes(1);
+      const callArgs = mockArbiterService.classifyRelation.mock.calls[0];
+      expect(callArgs[0]).toBe(
+        ContentNormalizerService.normalize('some content'),
+      );
+      expect(callArgs[1]).toBe(
+        ContentNormalizerService.normalize(storedContent),
+      );
+      expect(callArgs[2]).toBe(0.85);
+    });
+
+    it('should fail-open classifyEvent to null when candidate has NULL content', async () => {
+      (service as any).arbiterService = mockArbiterService;
+
+      const record = DedupRecord.create({
+        fingerprint: Fingerprint.exact('channel1', 123),
+        source: 'telegram',
+        channelId: 'channel1',
+        messageId: 123,
+        content: null,
+      });
+
+      const result = await service.classifyEvent('some content', record);
+
+      expect(result).toBeNull();
+      expect(mockArbiterService.classifyRelation).not.toHaveBeenCalled();
+    });
+
+    it('should fail-open classifyEvent to null when candidate has short content', async () => {
+      (service as any).arbiterService = mockArbiterService;
+
+      const record = DedupRecord.create({
+        fingerprint: Fingerprint.exact('channel1', 123),
+        source: 'telegram',
+        channelId: 'channel1',
+        messageId: 123,
+        content: 'ETH up',
+      });
+
+      const result = await service.classifyEvent('some content', record);
+
+      expect(result).toBeNull();
+      expect(mockArbiterService.classifyRelation).not.toHaveBeenCalled();
     });
   });
 
