@@ -243,6 +243,22 @@ jobs:
         run: |
           docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d frontend
 
+      - name: Wait for frontend healthcheck
+        run: |
+          echo "=== Waiting for frontend to become healthy ==="
+          for i in $(seq 1 30); do
+            if curl -sf -o /dev/null http://localhost:4173/ > /dev/null 2>&1; then
+              echo "✓ Frontend is healthy (attempt $i)"
+              break
+            fi
+            echo "  Waiting... attempt $i/30"
+            sleep 2
+            if [ "$i" -eq 30 ]; then
+              echo "❌ Frontend healthcheck failed after 30 attempts"
+              exit 1
+            fi
+          done
+
       - name: Install socat services for staging
         run: |
           bash /opt/onchain-bot-staging/scripts/install-socat-services.sh staging || true
