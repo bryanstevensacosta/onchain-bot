@@ -33,6 +33,7 @@ export interface ScoreConfig {
   urlBoost: number;
   proximityBoost: number;
   proximityWindowMinutes: number;
+  boostNumberJaccardThreshold: number;
   jaccardWeight: number;
   numberPenaltyLow: number;
   numberPenaltyMedium: number;
@@ -67,6 +68,7 @@ export const DEFAULT_CONFIG: ScoreConfig = {
   urlBoost: 0.15,
   proximityBoost: 0.1,
   proximityWindowMinutes: 30,
+  boostNumberJaccardThreshold: 0.7,
   jaccardWeight: 0.2,
   numberPenaltyLow: 0.05,
   numberPenaltyMedium: 0.15,
@@ -279,8 +281,15 @@ export function computeScore(
     contribution: -templateDivergencePenalty,
   });
 
-  // URL overlap boost
-  const urlBoost = input.urlOverlapCount > 0 ? cfg.urlBoost : 0;
+  // URL overlap boost — gated on numberJaccard >= boostNumberJaccardThreshold so
+  // pairs that share a URL but have diverged numbers (e.g., UPDATE messages that
+  // re-share the project link with new metrics) don't get cross-boosted past
+  // the duplicate threshold.
+  const urlBoost =
+    input.urlOverlapCount > 0 &&
+    numberJaccard >= cfg.boostNumberJaccardThreshold
+      ? cfg.urlBoost
+      : 0;
   signals.push({ name: 'url_boost', contribution: urlBoost });
 
   // URL divergence flag: high semantic + no URL overlap + same entities +
@@ -297,9 +306,14 @@ export function computeScore(
     contribution: 0,
   });
 
-  // Proximity boost
+  // Proximity boost — same window condition AND numberJaccard gate; rationale
+  // mirrors the urlBoost gate (UPDATE pairs from the same source arrive minutes
+  // apart with diverged numbers; allowing the proximity bonus in that case
+  // would push the score back into 'duplicate' territory).
   const proximityBoost =
-    input.sameSource && input.timeDiffMinutes < cfg.proximityWindowMinutes
+    input.sameSource &&
+    input.timeDiffMinutes < cfg.proximityWindowMinutes &&
+    numberJaccard >= cfg.boostNumberJaccardThreshold
       ? cfg.proximityBoost
       : 0;
   signals.push({ name: 'proximity_boost', contribution: proximityBoost });

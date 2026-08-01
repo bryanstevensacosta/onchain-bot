@@ -66,6 +66,7 @@ function computeScore(input) {
     jaccardWeight: 0.20,
     urlBoost: 0.15,
     proximityBoost: 0.10,
+    boostNumberJaccardThreshold: 0.7,
     proximityWindowMinutes: 30,
     numberPenaltyLow: 0.05,
     numberPenaltyMedium: 0.15,
@@ -94,8 +95,8 @@ function computeScore(input) {
   const cj = jaccardSimilarity(input.cashtagsM, input.cashtagsE);
   const cashtagPenalty = cj < 0.1 ? config.cashtagPenaltyMedium : cj < 0.4 ? config.cashtagPenaltyLow : 0;
 
-  const urlBoost = input.urlOverlapCount > 0 ? config.urlBoost : 0;
-  const proximityBoost = input.sameSource && input.timeDiffMinutes < config.proximityWindowMinutes ? config.proximityBoost : 0;
+  const urlBoost = input.urlOverlapCount > 0 && nj >= config.boostNumberJaccardThreshold ? config.urlBoost : 0;
+  const proximityBoost = input.sameSource && input.timeDiffMinutes < config.proximityWindowMinutes && nj >= config.boostNumberJaccardThreshold ? config.proximityBoost : 0;
 
   const urlDivergenceActive =
     base > config.urlDivergenceSemanticThreshold &&

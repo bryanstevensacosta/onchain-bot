@@ -341,7 +341,7 @@ describe('computeScore', () => {
   });
 
   describe('url_divergence_penalty', () => {
-    it('Msg111 pattern — override to gray zone (partial update, different URL)', () => {
+    it('Msg111 pattern — partial update with partial number divergence → gray_zone', () => {
       const y = Math.sqrt(1 - 0.99 * 0.99);
       const result = computeScore(
         makeEmptyInput({
@@ -362,7 +362,14 @@ describe('computeScore', () => {
       expect(signal).toBeDefined();
       expect(signal!.contribution).toBe(0);
       expect(result.zone).toBe('gray_zone');
-      expect(result.score).toBe(0.88);
+      // Pre-fix: numPenaltyLow + templateDivergence penalty pushed raw past the
+      // duplicate threshold; urlDivergence override then hardcoded the score to 0.88.
+      // Post-fix (boostNumberJaccardThreshold=0.7): numJ=0.333 < 0.7 gates both boosts,
+      // so the raw score sits in the gray_zone band naturally and the override is
+      // a no-op. Pin the band, not a magic number, so the test stays stable when
+      // either the gate or the override threshold is retuned.
+      expect(result.score).toBeGreaterThan(0.75);
+      expect(result.score).toBeLessThan(0.95);
     });
 
     it('No penalty when urlOverlapCount > 0', () => {
@@ -459,7 +466,7 @@ describe('computeScore', () => {
       expect(penaltySignal!.contribution).toBeCloseTo(0);
     });
 
-    it('Integration: zone-override drops from duplicate to gray zone', () => {
+    it('Integration: partial update with token overlap → gray_zone', () => {
       const y = Math.sqrt(1 - 0.99 * 0.99);
       const result = computeScore(
         makeEmptyInput({
@@ -481,7 +488,11 @@ describe('computeScore', () => {
       );
       expect(signal).toBeDefined();
       expect(result.zone).toBe('gray_zone');
-      expect(result.score).toBe(0.88);
+      // Same rationale as the Msg111 test above: the boost gate keeps the raw
+      // score inside gray_zone, so the urlDivergence override is a no-op here.
+      // Pin the user-visible band rather than the override's hardcoded 0.88.
+      expect(result.score).toBeGreaterThan(0.75);
+      expect(result.score).toBeLessThan(0.95);
     });
   });
 
@@ -616,6 +627,137 @@ describe('computeScore', () => {
         }),
       );
       expect(result.score).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  /**
+   * Regression fixture for the staging whale 9591→9616 UPDATE-pair bug.
+   *
+   * Real pair: cos=0.9126, tokJ=0.244, numJ=0.600 (partial hex digits),
+   * entJ=0.333, casJ=0.667, urlOverlap=1, sameSource=true, timeDiff=25min.
+   *
+   * Pre-fix code unconditionally applied urlBoost (+0.15) + proximityBoost (+0.10)
+   * → raw 1.1014 → clamped to 1.0 → classified duplicate (WRONG, the pair is an UPDATE).
+   * Gating both boosts on numberJaccard >= 0.7 yields 0.8514 → gray_zone so the LLM arbiter
+   * can correctly classify the UPDATE.
+   */
+  describe('boostNumberJaccardThreshold gating (whale 9591→9616 staging bug)', () => {
+    // Deterministic unit vectors of width 384 (MiniLM-L6-v2) with cosine = 0.9126 exactly.
+    const COSINE_TARGET = 0.9126;
+    const angle = Math.acos(COSINE_TARGET);
+    const EMBED_DIM = 384;
+    const embeddingM: number[] = new Array(EMBED_DIM)
+      .fill(0)
+      .map((_, i) => (i === 0 ? 1 : 0));
+    const embeddingE: number[] = new Array(EMBED_DIM).fill(0).map((_, i) => {
+      if (i === 0) return Math.cos(angle);
+      if (i === 1) return Math.sin(angle);
+      return 0;
+    });
+    {
+      const norm = Math.hypot(...embeddingE);
+      for (let i = 0; i < embeddingE.length; i += 1) {
+        embeddingE[i] = embeddingE[i] / norm;
+      }
+    }
+
+    // Token/number/entity/cashtag arrays chosen so the Jaccard values the scorer sees
+    // match the whale pair within tolerance:
+    //   tokens: 16 shared of 41 each → tokJ = 16/66 ≈ 0.2424 (target 0.244)
+    //   numbers: 6 shared of 8 each → numJ = 6/10 = 0.6 EXACT
+    //   entities: 1 shared of 2 each → entJ = 1/3 ≈ 0.333 EXACT
+    //   cashtags: 2 shared (3 in M, 2 in E) → casJ = 2/3 ≈ 0.667 EXACT
+    const sharedTokens = Array.from({ length: 16 }, (_, i) => `s${i}`);
+    const tokensM = [
+      ...sharedTokens,
+      ...Array.from({ length: 25 }, (_, i) => `m${i}`),
+    ];
+    const tokensE = [
+      ...sharedTokens,
+      ...Array.from({ length: 25 }, (_, i) => `e${i}`),
+    ];
+    const sharedNumbers = [123450, 678900, 111220, 333440, 555660, 777880];
+    const numbersM = [...sharedNumbers, 1, 2];
+    const numbersE = [...sharedNumbers, 3, 4];
+    const entitiesM = ['bitcoin', 'l2'];
+    const entitiesE = ['bitcoin', 'l1'];
+    const cashtagsM = ['BTC', 'ETH', 'SOL'];
+    const cashtagsE = ['BTC', 'ETH'];
+
+    it('regression: whale 9591→9616 UPDATE pair → gray_zone (LLM arbitrates)', () => {
+      // Expected with the fix:
+      //   semantic            = 0.9126
+      //   jaccard contribution = (0.2424 − 0.3) · 0.2 = −0.01152
+      //   numberJaccard       = 0.6 → no number penalty (≥ 0.6 boundary)
+      //   entityJaccard       = 1/3 ≈ 0.333 → entityPenaltyLow (0.05)
+      //   cashtagJaccard      = 2/3 ≈ 0.667 → no cashtag penalty
+      //   templateDivergence  : semantic > 0.9 AND numJ (0.6) NOT < 0.4 → no penalty
+      //   urlBoost            : numJ < 0.7 → GATED to 0
+      //   proximityBoost      : numJ < 0.7 → GATED to 0
+      //   raw                 ≈ 0.8511, zone 0.75 < s < 0.95 → gray_zone
+      const result = computeScore({
+        embeddingM,
+        embeddingE,
+        tokensM,
+        tokensE,
+        numbersM,
+        numbersE,
+        entitiesM,
+        entitiesE,
+        cashtagsM,
+        cashtagsE,
+        urlOverlapCount: 1,
+        sameSource: true,
+        timeDiffMinutes: 25,
+      });
+      expect(result.score).toBeCloseTo(0.8514, 2);
+      expect(result.zone).toBe('gray_zone');
+    });
+
+    it('control: identical numbers (numJ=1.0) → near-perfect score, duplicate zone', () => {
+      // numJ = 1.0 clears the gate, so urlBoost (0.15) + proximityBoost (0.10) both apply;
+      // raw ≈ 1.1011 → clamped to 1.0 → duplicate.
+      const result = computeScore({
+        embeddingM,
+        embeddingE,
+        tokensM,
+        tokensE,
+        numbersM: sharedNumbers,
+        numbersE: sharedNumbers,
+        entitiesM,
+        entitiesE,
+        cashtagsM,
+        cashtagsE,
+        urlOverlapCount: 1,
+        sameSource: true,
+        timeDiffMinutes: 25,
+      });
+      expect(result.score).toBeGreaterThanOrEqual(0.95);
+      expect(result.zone).toBe('duplicate');
+    });
+
+    it('timeDiff beyond proximity window: same whale inputs with timeDiff=45min → gray_zone', () => {
+      // Pre-fix behavior (urlBoost unconditional, regardless of numJ): raw ≈ 0.9961 → duplicate.
+      // After fix: urlBoost gated by numJ → 0; proximity already excluded by the window.
+      // Pins the gray_zone outcome as the invariant that gates the original staging bug.
+      const result = computeScore({
+        embeddingM,
+        embeddingE,
+        tokensM,
+        tokensE,
+        numbersM,
+        numbersE,
+        entitiesM,
+        entitiesE,
+        cashtagsM,
+        cashtagsE,
+        urlOverlapCount: 1,
+        sameSource: true,
+        timeDiffMinutes: 45,
+      });
+      expect(result.zone).toBe('gray_zone');
+      expect(result.score).toBeGreaterThan(0.75);
+      expect(result.score).toBeLessThan(0.95);
     });
   });
 });
