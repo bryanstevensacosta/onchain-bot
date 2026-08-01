@@ -12,6 +12,7 @@ export class LlmConfigMapper {
     row.defaultTemplateId = config.defaultTemplateId;
     row.targetChannel = config.targetChannel;
     row.enabled = config.enabled;
+    row.rejectNonLatin = config.rejectNonLatin ?? true;
     row.dailyCap = config.dailyCap;
     row.dailyResetUtcHour = config.dailyResetUtcHour;
     row.randomDelayMinMs = config.randomDelayMinMs;
@@ -27,6 +28,7 @@ export class LlmConfigMapper {
       defaultTemplateId: row.defaultTemplateId,
       targetChannel: row.targetChannel,
       enabled: row.enabled,
+      rejectNonLatin: row.rejectNonLatin ?? true,
       dailyCap: row.dailyCap,
       dailyResetUtcHour: row.dailyResetUtcHour,
       randomDelayMinMs: row.randomDelayMinMs,

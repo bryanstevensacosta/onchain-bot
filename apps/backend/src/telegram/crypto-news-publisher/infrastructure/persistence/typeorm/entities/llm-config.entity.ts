@@ -35,6 +35,9 @@ export class LlmConfigEntity {
   @Column({ name: 'enabled', type: 'boolean', default: false })
   public enabled!: boolean;
 
+  @Column({ name: 'reject_non_latin', type: 'boolean', default: true })
+  public rejectNonLatin!: boolean;
+
   @Column({ name: 'daily_cap', type: 'integer' })
   public dailyCap!: number;
 

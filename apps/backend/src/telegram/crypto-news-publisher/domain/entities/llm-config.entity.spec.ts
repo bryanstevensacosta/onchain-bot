@@ -185,6 +185,7 @@ describe('LlmConfig', () => {
         defaultTemplateId: '00000000-0000-0000-0000-000000000099',
         targetChannel: '',
         enabled: false,
+        rejectNonLatin: true,
         dailyCap: 1,
         dailyResetUtcHour: 0,
         randomDelayMinMs: 0,
@@ -194,6 +195,53 @@ describe('LlmConfig', () => {
       });
       expect(cfg.id).toBe(1);
       expect(cfg.dailyResetUtcHour).toBe(0);
+    });
+  });
+
+  describe('rejectNonLatin', () => {
+    // (a) load() without rejectNonLatin -> defaults to true
+    it('load() defaults rejectNonLatin to true when omitted', () => {
+      const cfg = LlmConfig.load(validBase);
+      expect(cfg.rejectNonLatin).toBe(true);
+    });
+
+    // (b) load({ rejectNonLatin: false }) -> getter is false
+    it('load({ rejectNonLatin: false }) sets the flag to false', () => {
+      const cfg = LlmConfig.load({ ...validBase, rejectNonLatin: false });
+      expect(cfg.rejectNonLatin).toBe(false);
+    });
+
+    // (c) update({ rejectNonLatin: false }) -> getter changes to false
+    it('update({ rejectNonLatin: false }) flips the flag to false', () => {
+      const cfg = LlmConfig.load(validBase);
+      expect(cfg.rejectNonLatin).toBe(true);
+      cfg.update({ rejectNonLatin: false });
+      expect(cfg.rejectNonLatin).toBe(false);
+    });
+
+    // (d) update({}) -> getter unchanged
+    it('update({}) leaves rejectNonLatin unchanged (no-op)', () => {
+      const cfg = LlmConfig.load({ ...validBase, rejectNonLatin: false });
+      cfg.update({});
+      expect(cfg.rejectNonLatin).toBe(false);
+    });
+
+    // (e) reconstitute({ ...completeProps, rejectNonLatin: false }) -> getter is false
+    it('reconstitute() honors the explicit rejectNonLatin: false value', () => {
+      const cfg = LlmConfig.reconstitute({
+        id: 1,
+        defaultTemplateId: '00000000-0000-0000-0000-000000000099',
+        targetChannel: '',
+        enabled: false,
+        dailyCap: 1,
+        dailyResetUtcHour: 0,
+        randomDelayMinMs: 0,
+        randomDelayMaxMs: 1,
+        llmMaxAttempts: 1,
+        rejectNonLatin: false,
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
+      });
+      expect(cfg.rejectNonLatin).toBe(false);
     });
   });
 });

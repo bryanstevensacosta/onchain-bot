@@ -13,6 +13,7 @@ export interface LlmConfigProps {
   defaultTemplateId: string;
   targetChannel: string;
   enabled: boolean;
+  rejectNonLatin: boolean;
   dailyCap: number;
   dailyResetUtcHour: number;
   randomDelayMinMs: number;
@@ -63,6 +64,7 @@ export class LlmConfig extends AggregateRoot<number> {
     defaultTemplateId: string;
     targetChannel?: string;
     enabled?: boolean;
+    rejectNonLatin?: boolean;
     dailyCap: number;
     dailyResetUtcHour: number;
     randomDelayMinMs: number;
@@ -88,6 +90,7 @@ export class LlmConfig extends AggregateRoot<number> {
       defaultTemplateId,
       targetChannel: input.targetChannel ?? '',
       enabled: input.enabled ?? false,
+      rejectNonLatin: input.rejectNonLatin ?? true,
       dailyCap,
       dailyResetUtcHour,
       randomDelayMinMs,
@@ -115,6 +118,10 @@ export class LlmConfig extends AggregateRoot<number> {
 
   public get enabled(): boolean {
     return this.state.enabled;
+  }
+
+  public get rejectNonLatin(): boolean {
+    return this.state.rejectNonLatin;
   }
 
   public get dailyCap(): number {
@@ -151,6 +158,7 @@ export class LlmConfig extends AggregateRoot<number> {
   public update(patch: {
     targetChannel?: string;
     enabled?: boolean;
+    rejectNonLatin?: boolean;
     dailyCap?: number;
     dailyResetUtcHour?: number;
     randomDelayMinMs?: number;
@@ -185,6 +193,10 @@ export class LlmConfig extends AggregateRoot<number> {
         : this.state.targetChannel;
     this.state.enabled =
       patch.enabled !== undefined ? patch.enabled : this.state.enabled;
+    this.state.rejectNonLatin =
+      patch.rejectNonLatin !== undefined
+        ? patch.rejectNonLatin
+        : this.state.rejectNonLatin;
     this.state.dailyCap = dailyCap;
     this.state.dailyResetUtcHour = dailyResetUtcHour;
     this.state.randomDelayMinMs = randomDelayMinMs;
