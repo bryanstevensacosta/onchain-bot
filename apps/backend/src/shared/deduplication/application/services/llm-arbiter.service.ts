@@ -3,6 +3,16 @@ import { LlmPort } from 'shared/llm/llm.port';
 
 export type ArbiterVerdict = 'DUPLICATE' | 'UPDATE' | 'DIFFERENT';
 
+/**
+ * Per-side cap for the user-supplied text segments in the arbiter prompt.
+ * Inputs beyond this are symmetrically truncated to head(1400) + '\n… [truncated]\n' + tail(600).
+ * The scorer zone (embedding) is NOT affected — it always sees the full text.
+ */
+const MAX_ARBITER_TEXT_CHARS = 2000;
+const MAX_ARBITER_HEAD_CHARS = 1400;
+const MAX_ARBITER_TAIL_CHARS = 600;
+const TRUNCATION_MARKER = '\n… [truncated]\n';
+
 @Injectable()
 export class LlmArbiterService {
   private readonly logger = new Logger(LlmArbiterService.name);
@@ -32,7 +42,7 @@ export class LlmArbiterService {
         prompt,
         systemPrompt:
           'You are a crypto news deduplication system. Analyze two news items and output EXACTLY one word: DUPLICATE, UPDATE, or DIFFERENT.',
-        maxTokens: 50,
+        maxTokens: Number(process.env.DEDUP_LLM_MAX_TOKENS ?? 300),
         temperature: 0.1, // low temperature for consistent classification
         model: process.env.DEDUP_LLM_MODEL,
       });
@@ -52,13 +62,16 @@ export class LlmArbiterService {
     incomingText: string,
     similarity: number,
   ): string {
+    const existing = this.truncateForPrompt(existingText);
+    const incoming = this.truncateForPrompt(incomingText);
+
     return `Compare these two crypto news items (cosine similarity: ${similarity.toFixed(4)}).
 
 EXISTING ITEM:
-${existingText}
+${existing}
 
 INCOMING ITEM:
-${incomingText}
+${incoming}
 
 Decide if the incoming item is:
 - DUPLICATE: Same event, same facts, same price targets. No new info.
@@ -66,6 +79,17 @@ Decide if the incoming item is:
 - DIFFERENT: Different event, different subject, or substantially different information.
 
 Output EXACTLY one word: DUPLICATE, UPDATE, or DIFFERENT.`;
+  }
+
+  /**
+   * Symmetric head+tail truncation preserving both the subject and any
+   * trailing UPDATE signal (numbers, follow-ups appended at the end of posts).
+   */
+  private truncateForPrompt(text: string): string {
+    if (text.length <= MAX_ARBITER_TEXT_CHARS) return text;
+    const head = text.slice(0, MAX_ARBITER_HEAD_CHARS);
+    const tail = text.slice(text.length - MAX_ARBITER_TAIL_CHARS);
+    return `${head}${TRUNCATION_MARKER}${tail}`;
   }
 
   private parseVerdict(raw: string): ArbiterVerdict {
@@ -97,12 +121,17 @@ Output EXACTLY one word: DUPLICATE, UPDATE, or DIFFERENT.`;
   async classifyRelation(
     existingText: string,
     incomingText: string,
+    similarity: number = 0.85,
   ): Promise<{
     relation: 'duplicate' | 'update' | 'different';
     confidence: number;
     reason?: string;
   }> {
-    const verdict = await this.arbitrate(existingText, incomingText, 0.85);
+    const verdict = await this.arbitrate(
+      existingText,
+      incomingText,
+      similarity,
+    );
     const relationMap: Record<
       ArbiterVerdict,
       'duplicate' | 'update' | 'different'
