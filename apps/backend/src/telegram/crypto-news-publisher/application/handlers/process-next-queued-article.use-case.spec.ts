@@ -18,11 +18,13 @@ const buildLlmConfig = (overrides: {
   randomDelayMaxMs?: number;
   llmMaxAttempts?: number;
   defaultTemplateId?: string;
+  rejectNonLatin?: boolean;
 }): LlmConfig =>
   LlmConfig.load({
     defaultTemplateId: overrides.defaultTemplateId ?? 'tpl-default',
     targetChannel: overrides.targetChannel ?? TEST_TARGET_CHANNEL,
     enabled: true,
+    rejectNonLatin: overrides.rejectNonLatin ?? true,
     dailyCap: overrides.dailyCap ?? 36,
     dailyResetUtcHour: overrides.dailyResetUtcHour ?? 4,
     randomDelayMinMs: overrides.randomDelayMinMs ?? 180_000,
@@ -401,6 +403,123 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       expect(queueRepo.markFailed).not.toHaveBeenCalled();
       expect(queueRepo.markPublished).not.toHaveBeenCalled();
       expect(throttleScheduler.setLastPublishAt).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('LLM output rejected', () => {
+    it('marks FAILED and skips publish when content contains a CJK character (knob ON, default)', async () => {
+      const entry = buildEntry({ id: 'entry-id' });
+      queueRepo.countPublishedToday.mockResolvedValue(0);
+      throttleScheduler.shouldPublish.mockResolvedValue({
+        canPublish: true,
+        nextDelayMs: 0,
+      });
+      queueRepo.findNextPending.mockResolvedValue(entry);
+      llmAdapter.generateForEntry.mockResolvedValue({
+        content: 'BTC 中文',
+        systemPrompt: null,
+        userPrompt: 'p',
+        temperature: null,
+        reasoningEffort: null,
+        model: 'm',
+      });
+      queueRepo.markFailed.mockResolvedValue(entry);
+
+      await useCase.execute();
+
+      // '中' is U+4E2D.
+      expect(queueRepo.markFailed).toHaveBeenCalledWith(
+        'entry-id',
+        expect.stringContaining('U+4E2D'),
+      );
+      // Negative calls are the bug detector: a "silently published"
+      // regression cannot pass these.
+      expect(publisher.sendPhoto).not.toHaveBeenCalled();
+      expect(publisher.sendMessage).not.toHaveBeenCalled();
+      expect(publisher.sendVideo).not.toHaveBeenCalled();
+      expect(publisher.sendMediaGroup).not.toHaveBeenCalled();
+      expect(queueRepo.incrementAttempts).not.toHaveBeenCalled();
+      expect(throttleScheduler.setLastPublishAt).not.toHaveBeenCalled();
+      expect(queueRepo.markPublished).not.toHaveBeenCalled();
+    });
+
+    it('publishes normally when rejectNonLatin=false even with CJK content (knob OFF)', async () => {
+      llmConfigRepo.load.mockResolvedValue(
+        buildLlmConfig({ rejectNonLatin: false }),
+      );
+      const entry = buildEntry({
+        id: 'entry-cjk-allowed',
+        imagePath: null,
+        imagePaths: [],
+      });
+      queueRepo.countPublishedToday.mockResolvedValue(0);
+      throttleScheduler.shouldPublish.mockResolvedValue({
+        canPublish: true,
+        nextDelayMs: 0,
+      });
+      queueRepo.findNextPending.mockResolvedValue(entry);
+      llmAdapter.generateForEntry.mockResolvedValue({
+        content: 'BTC 中文',
+        systemPrompt: null,
+        userPrompt: 'p',
+        temperature: null,
+        reasoningEffort: null,
+        model: 'm',
+      });
+      publisher.sendMessage.mockResolvedValue(sendOk(99_500));
+      queueRepo.markPublished.mockResolvedValue(entry);
+      throttleScheduler.setLastPublishAt.mockResolvedValue();
+
+      await useCase.execute();
+
+      expect(publisher.sendMessage).toHaveBeenCalledWith(
+        TEST_TARGET_CHANNEL,
+        'BTC 中文',
+      );
+      expect(queueRepo.markFailed).not.toHaveBeenCalled();
+      expect(queueRepo.markPublished).toHaveBeenCalledWith(
+        'entry-cjk-allowed',
+        '99500',
+        expect.objectContaining({ content: 'BTC 中文' }),
+      );
+    });
+
+    it('publishes Latin content with accents and emoji when knob ON (default)', async () => {
+      const entry = buildEntry({
+        id: 'entry-latin-accents',
+        imagePath: null,
+        imagePaths: [],
+      });
+      queueRepo.countPublishedToday.mockResolvedValue(0);
+      throttleScheduler.shouldPublish.mockResolvedValue({
+        canPublish: true,
+        nextDelayMs: 0,
+      });
+      queueRepo.findNextPending.mockResolvedValue(entry);
+      llmAdapter.generateForEntry.mockResolvedValue({
+        content: '¡Bitcoin rompe $100k 🚀!',
+        systemPrompt: null,
+        userPrompt: 'p',
+        temperature: null,
+        reasoningEffort: null,
+        model: 'm',
+      });
+      publisher.sendMessage.mockResolvedValue(sendOk(99_600));
+      queueRepo.markPublished.mockResolvedValue(entry);
+      throttleScheduler.setLastPublishAt.mockResolvedValue();
+
+      await useCase.execute();
+
+      expect(publisher.sendMessage).toHaveBeenCalledWith(
+        TEST_TARGET_CHANNEL,
+        '¡Bitcoin rompe $100k 🚀!',
+      );
+      expect(queueRepo.markPublished).toHaveBeenCalledWith(
+        'entry-latin-accents',
+        '99600',
+        expect.objectContaining({ content: '¡Bitcoin rompe $100k 🚀!' }),
+      );
+      expect(queueRepo.markFailed).not.toHaveBeenCalled();
     });
   });
 

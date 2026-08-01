@@ -4,6 +4,7 @@ import { PublisherThrottleStateRepository } from 'telegram/crypto-news-publisher
 import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 import { LlmConfig } from 'telegram/crypto-news-publisher/domain/entities/llm-config.entity';
 import { ThrottleSchedulerService } from 'telegram/crypto-news-publisher/application/services/throttle-scheduler.service';
+import { findNonLatinCharacter } from 'telegram/crypto-news-publisher/application/services/latin-script-validator';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
 import { TelegramPublisherPort } from 'telegram/shared';
 import { CryptoNewsLlmAdapter } from 'telegram/crypto-news-publisher/infrastructure/llm/crypto-news-llm.adapter';
@@ -82,6 +83,19 @@ export class ProcessNextQueuedArticleUseCase {
 
     try {
       const generated = await this.llmAdapter.generateForEntry(entry);
+      if (cfg.rejectNonLatin) {
+        const bad = findNonLatinCharacter(generated.content);
+        if (bad) {
+          const code = bad.codePoint
+            .toString(16)
+            .toUpperCase()
+            .padStart(4, '0');
+          const reason = `LLM output rejected: non-Latin character '${bad.char}' (U+${code}) detected`;
+          this.logger.warn(`queue entry ${entry.id} rejected: ${reason}`);
+          await this.queueRepo.markFailed(entry.id, reason);
+          return;
+        }
+      }
       const result = await this.dispatchToTelegram(
         entry,
         generated.content,
