@@ -21,6 +21,7 @@ export interface LlmConfigView {
   readonly defaultTemplateId: string;
   readonly targetChannel: string;
   readonly enabled: boolean;
+  readonly rejectNonLatin: boolean;
   readonly dailyCap: number;
   readonly dailyResetUtcHour: number;
   readonly randomDelayMinMs: number;
@@ -51,6 +52,7 @@ export const toConfigView = (config: LlmConfig): LlmConfigView => ({
   defaultTemplateId: config.defaultTemplateId,
   targetChannel: config.targetChannel,
   enabled: config.enabled,
+  rejectNonLatin: config.rejectNonLatin,
   dailyCap: config.dailyCap,
   dailyResetUtcHour: config.dailyResetUtcHour,
   randomDelayMinMs: config.randomDelayMinMs,

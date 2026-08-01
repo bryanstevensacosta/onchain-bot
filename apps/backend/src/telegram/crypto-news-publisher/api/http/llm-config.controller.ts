@@ -225,6 +225,7 @@ export class LlmConfigController {
     cfg.update({
       targetChannel: dto.targetChannel,
       enabled: dto.enabled,
+      rejectNonLatin: dto.rejectNonLatin,
       dailyCap: dto.dailyCap,
       dailyResetUtcHour: dto.dailyResetUtcHour,
       randomDelayMinMs: dto.randomDelayMinMs,

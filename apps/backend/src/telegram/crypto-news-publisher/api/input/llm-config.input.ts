@@ -114,6 +114,10 @@ export class UpdateLlmConfigDto {
   public enabled?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  public rejectNonLatin?: boolean;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
