@@ -20,6 +20,7 @@ export interface DedupRecordProps {
   readonly numbers: readonly number[];
   readonly entities: readonly string[];
   readonly cashtags: readonly string[];
+  readonly content: string | null;
   readonly embedding: readonly number[] | null;
   readonly referencedEntryId: string | null;
   readonly referencedChannelId: string | null;
@@ -54,6 +55,7 @@ export class DedupRecord extends Entity<string> {
     numbers?: readonly number[];
     entities?: readonly string[];
     cashtags?: readonly string[];
+    content?: string | null;
     embedding?: readonly number[] | null;
     referencedEntryId?: string | null;
     referencedChannelId?: string | null;
@@ -120,6 +122,7 @@ export class DedupRecord extends Entity<string> {
       numbers: input.numbers ?? [],
       entities: input.entities ?? [],
       cashtags: input.cashtags ?? [],
+      content: input.content ?? null,
       embedding: input.embedding ?? null,
       referencedEntryId: input.referencedEntryId ?? null,
       referencedChannelId: input.referencedChannelId ?? null,
@@ -178,6 +181,10 @@ export class DedupRecord extends Entity<string> {
 
   public get cashtags(): readonly string[] {
     return this.props.cashtags;
+  }
+
+  public get content(): string | null {
+    return this.props.content;
   }
 
   public get embedding(): readonly number[] | null {

@@ -40,6 +40,8 @@ export class DedupRecordMapper {
     const embedding = record.embedding;
     row.embedding = embedding ? [...embedding] : null;
 
+    row.content = record.content;
+
     row.referencedEntryId = record.referencedEntryId;
     row.referencedChannelId = record.referencedChannelId;
     row.referencedMessageId = record.referencedMessageId;
@@ -85,6 +87,7 @@ export class DedupRecordMapper {
       numbers,
       entities,
       cashtags,
+      content: row.content,
       embedding,
       referencedEntryId: row.referencedEntryId,
       referencedChannelId: row.referencedChannelId,

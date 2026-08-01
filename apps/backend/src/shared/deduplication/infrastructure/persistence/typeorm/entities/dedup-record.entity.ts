@@ -53,6 +53,9 @@ export class DedupRecordEntity {
   @Column({ name: 'cashtags', type: 'simple-array', nullable: true })
   cashtags!: string[] | null;
 
+  @Column({ name: 'content', type: 'text', nullable: true })
+  content!: string | null;
+
   @Column({ name: 'embedding', type: 'simple-array', nullable: true })
   embedding!: number[] | null;
 
