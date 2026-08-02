@@ -337,7 +337,7 @@ export function CryptoNewsPage() {
                             }}
                             className="block w-full text-left"
                           >
-                            {m.mimeType?.startsWith('video/') ? (
+                            {m.type === 'video' ? (
                               <video
                                 key={m.url}
                                 controls

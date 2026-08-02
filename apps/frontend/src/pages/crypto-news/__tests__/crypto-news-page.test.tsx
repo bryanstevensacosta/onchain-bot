@@ -252,6 +252,56 @@ describe('CryptoNewsPage — media rendering', () => {
     expect(imgs[1]).toHaveAttribute('alt', 'BTC pump incoming 2');
   });
 
+  it('renders <video> for media with type video even when mimeType is application/octet-stream', () => {
+    const msgWithVideo: CryptoNewsMessage = {
+      id: 'msg-video',
+      channelId: 'WatcherGuru',
+      messageId: 45,
+      title: 'Video message',
+      content: 'A video attachment.',
+      publishedAt: '2025-01-01T00:00:00.000Z',
+      ingestedAt: '2025-01-01T00:00:01.000Z',
+      media: [
+        {
+          id: 'media-video',
+          index: 0,
+          type: 'video',
+          url: '/crypto-news/media/media-video',
+          mimeType: 'application/octet-stream',
+        },
+        {
+          id: 'media-photo',
+          index: 1,
+          type: 'photo',
+          url: '/crypto-news/media/media-photo',
+          mimeType: 'image/jpeg',
+        },
+      ],
+      linkPreviewUrl: null,
+      linkPreviewTitle: null,
+      linkPreviewDescription: null,
+      linkPreviewSiteName: null,
+      formattingEntities: undefined,
+    };
+
+    mockedUseMessages.mockReturnValue(makeMessagesQuery([msgWithVideo]));
+
+    const { container } = renderWithClient(<CryptoNewsPage />);
+
+    const article = screen.getByRole('article');
+    const video = container.querySelector('video');
+
+    expect(video).not.toBeNull();
+    expect(video!.querySelector('source')).toHaveAttribute(
+      'src',
+      '/crypto-news/media/media-video',
+    );
+
+    const imgs = within(article).getAllByRole('img');
+    expect(imgs).toHaveLength(1);
+    expect(imgs[0]).toHaveAttribute('src', '/crypto-news/media/media-photo');
+  });
+
   it('renders no <img> when media array is empty', () => {
     const msgWithoutMedia: CryptoNewsMessage = {
       id: 'msg-2',
