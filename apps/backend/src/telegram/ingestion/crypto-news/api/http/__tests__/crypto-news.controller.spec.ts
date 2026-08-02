@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import * as fs from 'node:fs';
 import { Repository } from 'typeorm';
 import { CryptoNewsController } from 'telegram/ingestion/crypto-news/api/http/crypto-news.controller';
 import { RegisterNewsSourceUseCase } from 'telegram/ingestion/crypto-news/application/handlers/register-news-source.use-case';
@@ -61,6 +62,11 @@ class StubSourceRepo extends CryptoNewsSourceRepository {
 }
 
 class StubMessageRepo extends CryptoNewsMessageRepository {
+  public mediaByFile: {
+    filePath: string;
+    mimeType: string | null;
+  } | null = null;
+
   public async save(): Promise<void> {
     return;
   }
@@ -76,8 +82,17 @@ class StubMessageRepo extends CryptoNewsMessageRepository {
   public async findByChannelAndMessageId() {
     return null;
   }
-  public async findMediaById() {
-    return null;
+  public async findMediaById(): Promise<CryptoNewsMessageMediaEntity | null> {
+    if (!this.mediaByFile) return null;
+    return {
+      id: 'media-1',
+      messageId: 'msg-1',
+      index: 0,
+      type: 'video',
+      filePath: this.mediaByFile.filePath,
+      mimeType: this.mediaByFile.mimeType,
+      fileSize: null,
+    } as CryptoNewsMessageMediaEntity;
   }
 }
 
@@ -350,5 +365,142 @@ describe('CryptoNewsController.addSource (POST /crypto-news/sources)', () => {
     // No partial state — register threw before the controller could
     // call activate() + save.
     expect(sourceRepo.saved).toHaveLength(0);
+  });
+});
+
+describe('CryptoNewsController.getMedia (GET /crypto-news/media/:mediaId)', () => {
+  let fsSpy: jest.SpyInstance;
+  const makeRes = (): {
+    res: import('express').Response;
+    status: jest.Mock;
+    setHeader: jest.Mock;
+    send: jest.Mock;
+    json: jest.Mock;
+  } => {
+    const status = jest.fn().mockReturnThis();
+    const setHeader = jest.fn();
+    const send = jest.fn();
+    const json = jest.fn();
+    const res = {
+      status,
+      setHeader,
+      send,
+      json,
+    } as unknown as import('express').Response;
+    return { res, status, setHeader, send, json };
+  };
+
+  const makeReq = (range?: string): import('express').Request =>
+    ({
+      headers: range ? { range } : {},
+    }) as unknown as import('express').Request;
+
+  beforeEach(() => {
+    fsSpy = jest
+      .spyOn(fs.promises, 'readFile')
+      .mockResolvedValue(Buffer.alloc(0));
+  });
+
+  afterEach(() => {
+    fsSpy.mockRestore();
+  });
+
+  it('returns 404 when the media row is unknown', async () => {
+    const { controller, messageRepo } = await buildController();
+    messageRepo.mediaByFile = null;
+    const { res, json } = makeRes();
+
+    await controller.getMedia('missing', makeReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(json).toHaveBeenCalledWith({ error: 'Media not found' });
+  });
+
+  it('returns 404 when the file is missing on disk', async () => {
+    const { controller, messageRepo } = await buildController();
+    messageRepo.mediaByFile = {
+      filePath: '/tmp/photo.jpg',
+      mimeType: 'image/jpeg',
+    };
+    (fs.promises.readFile as jest.Mock).mockRejectedValue(
+      Object.assign(new Error('nope'), { code: 'ENOENT' }),
+    );
+    const { res, json } = makeRes();
+
+    await controller.getMedia('media-1', makeReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(json).toHaveBeenCalledWith({ error: 'Media file missing on disk' });
+  });
+
+  it('serves an image with 200 and the DB mime', async () => {
+    const { controller, messageRepo } = await buildController();
+    messageRepo.mediaByFile = {
+      filePath: '/tmp/photo.jpg',
+      mimeType: 'image/jpeg',
+    };
+    const fileBuffer = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
+    (fs.promises.readFile as jest.Mock).mockResolvedValue(fileBuffer);
+    const { res, status, setHeader, send } = makeRes();
+
+    await controller.getMedia('media-1', makeReq(), res);
+
+    expect(setHeader).toHaveBeenCalledWith('Content-Type', 'image/jpeg');
+    expect(setHeader).toHaveBeenCalledWith('Accept-Ranges', 'bytes');
+    expect(status).toHaveBeenCalledWith(200);
+    expect(send).toHaveBeenCalledWith(fileBuffer);
+  });
+
+  it('sniffs a .bin MP4 with octet-stream DB mime as video/mp4', async () => {
+    const { controller, messageRepo } = await buildController();
+    messageRepo.mediaByFile = {
+      filePath: '/tmp/video.bin',
+      mimeType: 'application/octet-stream',
+    };
+    const mp4 = Buffer.alloc(16);
+    mp4.writeUInt32BE(16, 0);
+    mp4.write('ftyp', 4);
+    mp4.write('isom', 8);
+    (fs.promises.readFile as jest.Mock).mockResolvedValue(mp4);
+    const { res, setHeader, send } = makeRes();
+
+    await controller.getMedia('media-1', makeReq(), res);
+
+    expect(setHeader).toHaveBeenCalledWith('Content-Type', 'video/mp4');
+    expect(send).toHaveBeenCalledWith(mp4);
+  });
+
+  it('honours a Range request with 206 and a partial body', async () => {
+    const { controller, messageRepo } = await buildController();
+    messageRepo.mediaByFile = {
+      filePath: '/tmp/video.bin',
+      mimeType: 'application/octet-stream',
+    };
+    const fileBuffer = Buffer.from('0123456789'); // 10 bytes
+    (fs.promises.readFile as jest.Mock).mockResolvedValue(fileBuffer);
+    const { res, status, setHeader, send } = makeRes();
+
+    await controller.getMedia('media-1', makeReq('bytes=2-5'), res);
+
+    expect(status).toHaveBeenCalledWith(206);
+    expect(setHeader).toHaveBeenCalledWith('Content-Range', 'bytes 2-5/10');
+    expect(send).toHaveBeenCalledWith(Buffer.from('2345'));
+  });
+
+  it('returns 416 for an unsatisfiable range', async () => {
+    const { controller, messageRepo } = await buildController();
+    messageRepo.mediaByFile = {
+      filePath: '/tmp/video.bin',
+      mimeType: 'application/octet-stream',
+    };
+    (fs.promises.readFile as jest.Mock).mockResolvedValue(
+      Buffer.from('0123456789'),
+    );
+    const { res, status, setHeader } = makeRes();
+
+    await controller.getMedia('media-1', makeReq('bytes=50-60'), res);
+
+    expect(status).toHaveBeenCalledWith(416);
+    expect(setHeader).toHaveBeenCalledWith('Content-Range', 'bytes */10');
   });
 });

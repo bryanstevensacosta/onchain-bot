@@ -7,13 +7,17 @@ import {
   NotFoundException,
   Param,
   Query,
+  Req,
   Res,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'node:fs';
-import * as path from 'node:path';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import type { AppConfig } from 'shared/common/config/app.config';
+import {
+  detectMediaMimeType,
+  serveMediaFile,
+} from 'shared/common/http/media-serving';
 import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
@@ -122,15 +126,6 @@ export class QueueController {
     };
   }
 
-  private static readonly MEDIA_MIME_BY_EXT: Readonly<Record<string, string>> =
-    {
-      jpg: 'image/jpeg',
-      jpeg: 'image/jpeg',
-      png: 'image/png',
-      gif: 'image/gif',
-      webp: 'image/webp',
-    };
-
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   public async remove(@Param('id') id: string): Promise<void> {
@@ -144,6 +139,7 @@ export class QueueController {
   @Get(':id/media')
   public async getQueueMedia(
     @Param('id') id: string,
+    @Req() req: Request,
     @Res({ passthrough: false }) res: Response,
     @Query('index') index?: string,
   ): Promise<void> {
@@ -178,14 +174,9 @@ export class QueueController {
       throw err;
     }
 
-    const ext = path.extname(imagePath).slice(1).toLowerCase();
-    const mimeType =
-      QueueController.MEDIA_MIME_BY_EXT[ext] ?? 'application/octet-stream';
+    const mimeType = detectMediaMimeType(imagePath, null, fileBuffer);
 
-    res.setHeader('Content-Type', mimeType);
-    res.setHeader('Content-Length', fileBuffer.length.toString());
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-    res.send(fileBuffer);
+    serveMediaFile(res, req, fileBuffer, mimeType, 'public, max-age=86400');
   }
 
   private async countPending(): Promise<number> {

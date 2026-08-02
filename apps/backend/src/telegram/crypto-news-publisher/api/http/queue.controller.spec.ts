@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'node:fs';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { QueueController } from './queue.controller';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
 import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
@@ -37,15 +37,19 @@ describe('QueueController', () => {
     json: jest.Mock;
     send: jest.Mock;
     setHeader: jest.Mock;
+    status: jest.Mock;
   }
   const makeRes = (): MockResponse => {
     const json = jest.fn();
     const send = jest.fn();
     const setHeader = jest.fn();
-    const status = jest.fn().mockReturnValue({ json });
-    const res = { status, setHeader, send } as unknown as Response;
-    return { res, json, send, setHeader };
+    const status = jest.fn().mockReturnThis();
+    const res = { status, setHeader, send, json } as unknown as Response;
+    return { res, json, send, setHeader, status };
   };
+
+  const makeReq = (range?: string): Request =>
+    ({ headers: range ? { range } : {} }) as unknown as Request;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -175,7 +179,7 @@ describe('QueueController', () => {
       queueRepo.findByIdForDisplay.mockResolvedValue(null);
       const { res, json } = makeRes();
 
-      await controller.getQueueMedia('missing', res);
+      await controller.getQueueMedia('missing', makeReq(), res);
 
       expect(res.status).toHaveBeenCalledWith(404);
       expect(json).toHaveBeenCalledWith({ error: 'Entry not found' });
@@ -187,7 +191,7 @@ describe('QueueController', () => {
       );
       const { res, json } = makeRes();
 
-      await controller.getQueueMedia('abc', res);
+      await controller.getQueueMedia('abc', makeReq(), res);
 
       expect(res.status).toHaveBeenCalledWith(404);
       expect(json).toHaveBeenCalledWith({ error: 'Media not found' });
@@ -203,10 +207,11 @@ describe('QueueController', () => {
       const { res, send, setHeader } = makeRes();
 
       try {
-        await controller.getQueueMedia('abc', res);
+        await controller.getQueueMedia('abc', makeReq(), res);
 
         expect(readFileSpy).toHaveBeenCalledWith('/tmp/photo.jpg');
         expect(setHeader).toHaveBeenCalledWith('Content-Type', 'image/jpeg');
+        expect(setHeader).toHaveBeenCalledWith('Accept-Ranges', 'bytes');
         expect(setHeader).toHaveBeenCalledWith(
           'Content-Length',
           fileBuffer.length.toString(),
@@ -216,7 +221,7 @@ describe('QueueController', () => {
           'public, max-age=86400',
         );
         expect(send).toHaveBeenCalledWith(fileBuffer);
-        expect(res.status).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(200);
       } finally {
         readFileSpy.mockRestore();
       }
@@ -239,7 +244,7 @@ describe('QueueController', () => {
         const { res, setHeader, send } = makeRes();
 
         try {
-          await controller.getQueueMedia('abc', res);
+          await controller.getQueueMedia('abc', makeReq(), res);
           expect(setHeader).toHaveBeenCalledWith('Content-Type', mime);
           expect(send).toHaveBeenCalled();
         } finally {
@@ -257,12 +262,53 @@ describe('QueueController', () => {
       const { res, setHeader, send } = makeRes();
 
       try {
-        await controller.getQueueMedia('abc', res);
+        await controller.getQueueMedia('abc', makeReq(), res);
         expect(setHeader).toHaveBeenCalledWith(
           'Content-Type',
           'application/octet-stream',
         );
         expect(send).toHaveBeenCalled();
+      } finally {
+        readFileSpy.mockRestore();
+      }
+    });
+
+    it('should serve a .bin MP4 as video/mp4 via magic-byte sniffing', async () => {
+      const entry = makeEntry('PENDING', '/tmp/video.bin');
+      queueRepo.findByIdForDisplay.mockResolvedValue(entry);
+      const mp4 = Buffer.alloc(16);
+      mp4.writeUInt32BE(16, 0);
+      mp4.write('ftyp', 4);
+      mp4.write('isom', 8);
+      const readFileSpy = jest
+        .spyOn(fs.promises, 'readFile')
+        .mockResolvedValue(mp4);
+      const { res, setHeader, send } = makeRes();
+
+      try {
+        await controller.getQueueMedia('abc', makeReq(), res);
+        expect(setHeader).toHaveBeenCalledWith('Content-Type', 'video/mp4');
+        expect(send).toHaveBeenCalledWith(mp4);
+      } finally {
+        readFileSpy.mockRestore();
+      }
+    });
+
+    it('should honour a Range request with 206 and a partial body', async () => {
+      const entry = makeEntry('PENDING', '/tmp/video.bin');
+      queueRepo.findByIdForDisplay.mockResolvedValue(entry);
+      const mp4 = Buffer.from('0123456789'); // 10 bytes
+      const readFileSpy = jest
+        .spyOn(fs.promises, 'readFile')
+        .mockResolvedValue(mp4);
+      const { res, setHeader, send, status } = makeRes();
+
+      try {
+        await controller.getQueueMedia('abc', makeReq('bytes=2-5'), res);
+
+        expect(status).toHaveBeenCalledWith(206);
+        expect(setHeader).toHaveBeenCalledWith('Content-Range', 'bytes 2-5/10');
+        expect(send).toHaveBeenCalledWith(Buffer.from('2345'));
       } finally {
         readFileSpy.mockRestore();
       }
@@ -278,7 +324,7 @@ describe('QueueController', () => {
       const { res, json, send } = makeRes();
 
       try {
-        await controller.getQueueMedia('abc', res);
+        await controller.getQueueMedia('abc', makeReq(), res);
 
         expect(res.status).toHaveBeenCalledWith(404);
         expect(json).toHaveBeenCalledWith({
@@ -300,9 +346,9 @@ describe('QueueController', () => {
       const { res } = makeRes();
 
       try {
-        await expect(controller.getQueueMedia('abc', res)).rejects.toBe(
-          otherErr,
-        );
+        await expect(
+          controller.getQueueMedia('abc', makeReq(), res),
+        ).rejects.toBe(otherErr);
       } finally {
         readFileSpy.mockRestore();
       }

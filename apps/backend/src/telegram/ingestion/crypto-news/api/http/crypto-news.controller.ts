@@ -1,5 +1,4 @@
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import {
   Body,
   Controller,
@@ -10,10 +9,11 @@ import {
   Param,
   Post,
   Query,
+  Req,
   Res,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { Repository } from 'typeorm';
 import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
 import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
@@ -27,6 +27,10 @@ import { TelegramMediaAttachment } from 'telegram/ingestion/shared/domain/ports/
 import { CryptoNewsMedia } from 'telegram/ingestion/crypto-news/domain/value-objects/crypto-news-media.vo';
 import { StoreNewsMessageUseCase } from 'telegram/ingestion/crypto-news/application/handlers/store-news-message.use-case';
 import { CryptoNewsMessageMediaEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
+import {
+  detectMediaMimeType,
+  serveMediaFile,
+} from 'shared/common/http/media-serving';
 
 export interface CryptoNewsMediaView {
   readonly id: string;
@@ -65,35 +69,6 @@ interface CryptoNewsSourceView {
   readonly isActive: boolean;
   readonly lifecycleStatus: string;
   readonly addedAt: string;
-}
-
-/**
- * Resolve the MIME type for a media file. Prefers the value persisted in
- * the DB (detected from magic bytes at download time) and falls back to
- * the file extension. The `/api/` prefix in the URL matches the Vite
- * dev-server proxy (strips `/api` before forwarding to Nest).
- */
-function resolveMimeType(
-  filePath: string,
-  mimeTypeFromDb: string | null,
-): string {
-  if (mimeTypeFromDb && mimeTypeFromDb.trim().length > 0) {
-    return mimeTypeFromDb;
-  }
-  const ext = path.extname(filePath).slice(1).toLowerCase();
-  const map: Record<string, string> = {
-    jpg: 'image/jpeg',
-    jpeg: 'image/jpeg',
-    png: 'image/png',
-    gif: 'image/gif',
-    webp: 'image/webp',
-    mp4: 'video/mp4',
-    mov: 'video/quicktime',
-    avi: 'video/x-msvideo',
-    mkv: 'video/x-matroska',
-    bin: 'application/octet-stream',
-  };
-  return map[ext] ?? 'application/octet-stream';
 }
 
 @Controller('crypto-news')
@@ -362,8 +337,9 @@ export class CryptoNewsController {
   }
 
   /**
-   * Serve a single crypto-news photo attachment by its DB-assigned UUID.
-   * 200 + binary body when the row exists and the on-disk file is readable.
+   * Serve a single crypto-news media attachment by its DB-assigned UUID.
+   * 200 + binary body when the row exists and the on-disk file is readable,
+   * 206 Partial Content for `Range` requests (browser `<video>` seeking).
    * 404 when the row is unknown or the file is missing on disk — never 500
    * for a stale path (the file lifecycle is decoupled from the DB row).
    * `Cache-Control: public, max-age=86400, immutable` so the dashboard's
@@ -372,6 +348,7 @@ export class CryptoNewsController {
   @Get('media/:mediaId')
   public async getMedia(
     @Param('mediaId') mediaId: string,
+    @Req() req: Request,
     @Res({ passthrough: false }) res: Response,
   ): Promise<void> {
     const media = await this.messageRepo.findMediaById(mediaId);
@@ -395,11 +372,18 @@ export class CryptoNewsController {
       throw err;
     }
 
-    const mimeType = resolveMimeType(media.filePath, media.mimeType);
+    const mimeType = detectMediaMimeType(
+      media.filePath,
+      media.mimeType,
+      fileBuffer,
+    );
 
-    res.setHeader('Content-Type', mimeType);
-    res.setHeader('Content-Length', fileBuffer.length.toString());
-    res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
-    res.send(fileBuffer);
+    serveMediaFile(
+      res,
+      req,
+      fileBuffer,
+      mimeType,
+      'public, max-age=86400, immutable',
+    );
   }
 }
