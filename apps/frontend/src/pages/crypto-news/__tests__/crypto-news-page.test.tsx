@@ -60,7 +60,7 @@ import {
   useQueue,
   useQueueCounts,
 } from '@/features/crypto-news-publisher/model/use-queue';
-import { CryptoNewsPage } from '../index';
+import { CryptoNewsPage, TRUNCATION_LIMIT } from '../index';
 import type {
   CryptoNewsMessage,
   CryptoNewsSource,
@@ -919,5 +919,264 @@ describe('CryptoNewsPage — search filter (free-text)', () => {
 
     fireEvent.change(input, { target: { value: '' } });
     expect(screen.getAllByRole('article')).toHaveLength(2);
+  });
+});
+
+describe('CryptoNewsPage — expand/collapse', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedUseSources.mockReturnValue(makeSourcesQuery([baseSource]));
+  });
+
+  // Deterministic content (`_TAIL_UNIQUE_` lives beyond the truncation boundary)
+  // lets tests assert substring presence/absence across the 500-char cutoff.
+  function makeLongMsg(
+    messageId: number,
+    overrides: Partial<CryptoNewsMessage> = {},
+  ): CryptoNewsMessage {
+    return {
+      id: `m-${messageId}`,
+      channelId: baseSource.channelId,
+      messageId,
+      title: null,
+      content: 'A'.repeat(TRUNCATION_LIMIT) + '_TAIL_UNIQUE_',
+      publishedAt: '2025-01-01T00:00:00.000Z',
+      ingestedAt: '2025-01-01T00:00:01.000Z',
+      media: [],
+      linkPreviewUrl: null,
+      linkPreviewTitle: null,
+      linkPreviewDescription: null,
+      linkPreviewSiteName: null,
+      formattingEntities: undefined,
+      ...overrides,
+    };
+  }
+
+  it('a) does not render toggle for short message (< TRUNCATION_LIMIT chars)', () => {
+    mockedUseMessages.mockReturnValue(
+      makeMessagesQuery([
+        {
+          ...makeLongMsg(1),
+          content: 'A short message well under the limit.',
+        },
+      ]),
+    );
+    renderWithClient(<CryptoNewsPage />);
+
+    expect(
+      screen.queryByRole('button', { name: /show more/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/show more/i)).not.toBeInTheDocument();
+  });
+
+  it('b) long message: collapsed hides text past TRUNCATION_LIMIT, expand reveals it, collapse hides again', () => {
+    mockedUseMessages.mockReturnValue(makeMessagesQuery([makeLongMsg(2)]));
+    const { container } = renderWithClient(<CryptoNewsPage />);
+
+    expect(container.textContent).not.toContain('_TAIL_UNIQUE_');
+
+    const toggle = screen.getByRole('button', { name: /show more/i });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(toggle);
+
+    expect(
+      screen.getByRole('button', { name: /show less/i }),
+    ).toBeInTheDocument();
+    expect(container.textContent).toContain('_TAIL_UNIQUE_');
+
+    fireEvent.click(screen.getByRole('button', { name: /show less/i }));
+    expect(
+      screen.queryByRole('button', { name: /show less/i }),
+    ).not.toBeInTheDocument();
+    expect(container.textContent).not.toContain('_TAIL_UNIQUE_');
+  });
+
+  it('c) boundary TRUNCATION_LIMIT (500 chars) has NO button; TRUNCATION_LIMIT+1 (501) HAS a button', () => {
+    const at500 = {
+      ...makeLongMsg(10),
+      content: 'B'.repeat(TRUNCATION_LIMIT),
+    };
+    const at501 = {
+      ...makeLongMsg(11),
+      content: 'C'.repeat(TRUNCATION_LIMIT + 1),
+    };
+    mockedUseMessages.mockReturnValue(makeMessagesQuery([at500, at501]));
+    const { rerender } = renderWithClient(<CryptoNewsPage />);
+
+    const toggles = screen.queryAllByRole('button', { name: /show more/i });
+    expect(toggles).toHaveLength(1);
+
+    mockedUseMessages.mockReturnValue(makeMessagesQuery([at500]));
+    rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <CryptoNewsPage />
+      </QueryClientProvider>,
+    );
+    expect(
+      screen.queryByRole('button', { name: /show more/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('d) empty content (0 chars): renders without crash and without toggle', () => {
+    const empty: CryptoNewsMessage = {
+      ...makeLongMsg(20),
+      content: '',
+    };
+    mockedUseMessages.mockReturnValue(makeMessagesQuery([empty]));
+
+    expect(() => renderWithClient(<CryptoNewsPage />)).not.toThrow();
+    expect(
+      screen.queryByRole('button', { name: /show more/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('article')).toBeInTheDocument();
+  });
+
+  it('e) accordion: expanding B while A is expanded collapses A', () => {
+    mockedUseMessages.mockReturnValue(
+      makeMessagesQuery([makeLongMsg(30), makeLongMsg(31)]),
+    );
+    renderWithClient(<CryptoNewsPage />);
+
+    const articles = screen.getAllByRole('article');
+    const toggleA = within(articles[0]!).getByRole('button', {
+      name: /show more/i,
+    });
+    const toggleB = within(articles[1]!).getByRole('button', {
+      name: /show more/i,
+    });
+
+    fireEvent.click(toggleA);
+    expect(
+      within(articles[0]!).getByRole('button', { name: /show less/i }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(toggleB);
+
+    expect(
+      within(articles[0]!).getByRole('button', { name: /show more/i }),
+    ).toBeInTheDocument();
+    expect(
+      within(articles[0]!).queryByRole('button', { name: /show less/i }),
+    ).not.toBeInTheDocument();
+
+    expect(
+      within(articles[1]!).getByRole('button', { name: /show less/i }),
+    ).toBeInTheDocument();
+
+    const showLessButtons = screen.queryAllByRole('button', {
+      name: /show less/i,
+    });
+    expect(showLessButtons).toHaveLength(1);
+  });
+
+  it('f) reset on search: changing search input collapses any expanded message', () => {
+    mockedUseMessages.mockReturnValue(
+      makeMessagesQuery([makeLongMsg(40), makeLongMsg(41)]),
+    );
+    renderWithClient(<CryptoNewsPage />);
+
+    const articles = screen.getAllByRole('article');
+    fireEvent.click(
+      within(articles[0]!).getByRole('button', { name: /show more/i }),
+    );
+    expect(
+      within(articles[0]!).getByRole('button', { name: /show less/i }),
+    ).toBeInTheDocument();
+
+    const input = screen.getByPlaceholderText(/search messages/i);
+    fireEvent.change(input, { target: { value: 'bitcoin' } });
+
+    expect(
+      screen.queryByRole('button', { name: /show less/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('g) reset on channelFilter: changing the source select collapses any expanded message', () => {
+    mockedUseMessages.mockReturnValue(
+      makeMessagesQuery([makeLongMsg(50), makeLongMsg(51)]),
+    );
+    renderWithClient(<CryptoNewsPage />);
+
+    const articles = screen.getAllByRole('article');
+    fireEvent.click(
+      within(articles[0]!).getByRole('button', { name: /show more/i }),
+    );
+    expect(
+      screen.queryAllByRole('button', { name: /show less/i }),
+    ).toHaveLength(1);
+
+    const select = screen.getAllByRole('combobox')[0] as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: baseSource.channelId } });
+
+    expect(
+      screen.queryByRole('button', { name: /show less/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('h) reset on pagination: paginating to next page collapses the expanded message', () => {
+    const msgs = Array.from({ length: 11 }, (_, i) => makeLongMsg(60 + i));
+    mockedUseMessages.mockReturnValue(makeMessagesQuery(msgs));
+    renderWithClient(<CryptoNewsPage />);
+
+    const articles = screen.getAllByRole('article');
+    expect(articles).toHaveLength(10);
+    fireEvent.click(
+      within(articles[0]!).getByRole('button', { name: /show more/i }),
+    );
+    expect(
+      within(articles[0]!).getByRole('button', { name: /show less/i }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    const page2Articles = screen.getAllByRole('article');
+    expect(page2Articles).toHaveLength(1);
+    expect(
+      screen.queryByRole('button', { name: /show less/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('i) accessibility: toggle has aria-expanded=false collapsed, true when expanded', () => {
+    mockedUseMessages.mockReturnValue(makeMessagesQuery([makeLongMsg(70)]));
+    renderWithClient(<CryptoNewsPage />);
+
+    const toggle = screen.getByRole('button', { name: /show more/i });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(toggle);
+    const expanded = screen.getByRole('button', { name: /show less/i });
+    expect(expanded).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('j) formattingEntities: [] on a 600-char message renders and button is present', () => {
+    const msg: CryptoNewsMessage = {
+      ...makeLongMsg(80),
+      content: 'E'.repeat(600),
+      formattingEntities: [],
+    };
+    mockedUseMessages.mockReturnValue(makeMessagesQuery([msg]));
+    renderWithClient(<CryptoNewsPage />);
+
+    const article = screen.getByRole('article');
+    expect(
+      within(article).getByRole('button', { name: /show more/i }),
+    ).toBeInTheDocument();
+    expect(within(article).getByText(/E+/)).toBeInTheDocument();
+  });
+
+  it('k) formattingEntities: undefined on a 600-char message renders and button is present', () => {
+    const msg: CryptoNewsMessage = {
+      ...makeLongMsg(81),
+      content: 'F'.repeat(600),
+      formattingEntities: undefined,
+    };
+    mockedUseMessages.mockReturnValue(makeMessagesQuery([msg]));
+    renderWithClient(<CryptoNewsPage />);
+
+    const article = screen.getByRole('article');
+    expect(
+      within(article).getByRole('button', { name: /show more/i }),
+    ).toBeInTheDocument();
+    expect(within(article).getByText(/F+/)).toBeInTheDocument();
   });
 });

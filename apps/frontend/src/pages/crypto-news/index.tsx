@@ -23,6 +23,8 @@ interface LightboxMediaItem {
   alt: string;
 }
 
+export const TRUNCATION_LIMIT = 500;
+
 export function CryptoNewsPage() {
   const messages = useCryptoNewsMessages(50);
   const sources = useCryptoNewsSources();
@@ -35,6 +37,7 @@ export function CryptoNewsPage() {
     ReadonlyArray<LightboxMediaItem>
   >([]);
   const [msgPage, setMsgPage] = useState(0);
+  const [expandedMsgId, setExpandedMsgId] = useState<string | null>(null);
 
   const phraseSearchResults = useSearchPhrases(phraseSearch);
 
@@ -110,7 +113,11 @@ export function CryptoNewsPage() {
 
   useEffect(() => {
     setMsgPage(0);
+    setExpandedMsgId(null);
   }, [channelFilter, search]);
+  useEffect(() => {
+    setExpandedMsgId(null);
+  }, [msgPage]);
   const _pagedMessages = filteredMessages.slice(
     msgSafePage * msgPerPage,
     (msgSafePage + 1) * msgPerPage,
@@ -272,132 +279,148 @@ export function CryptoNewsPage() {
               <div className="text-slate-500 text-sm">No messages yet.</div>
             ) : (
               <div className="space-y-3">
-                {pagedGroups.map((msg) => (
-                  <article
-                    key={msg.id}
-                    className="rounded-xl bg-slate-800/50 p-4 text-left"
-                  >
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
-                      {(() => {
-                        const source = sourceByChannelId.get(msg.channelId);
-                        if (!source) {
+                {pagedGroups.map((msg) => {
+                  const isExpanded = expandedMsgId === msg.id;
+                  const isLong = msg.content.length > TRUNCATION_LIMIT;
+                  return (
+                    <article
+                      key={msg.id}
+                      className="rounded-xl bg-slate-800/50 p-4 text-left"
+                    >
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        {(() => {
+                          const source = sourceByChannelId.get(msg.channelId);
+                          if (!source) {
+                            return (
+                              <span className="font-mono">{msg.channelId}</span>
+                            );
+                          }
+                          const displayName =
+                            source.handle?.replace(/^@/, '') ??
+                            source.title ??
+                            msg.channelId;
+                          const cleanHandle =
+                            source.handle?.replace(/^@/, '') ?? null;
+                          const telegramUrl = cleanHandle
+                            ? `https://t.me/${cleanHandle}/${msg.messageId}`
+                            : `https://t.me/c/${msg.channelId}/${msg.messageId}`;
                           return (
-                            <span className="font-mono">{msg.channelId}</span>
+                            <a
+                              href={telegramUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-mono text-blue-400 hover:text-blue-300 underline"
+                            >
+                              {displayName}
+                            </a>
                           );
-                        }
-                        const displayName =
-                          source.handle?.replace(/^@/, '') ??
-                          source.title ??
-                          msg.channelId;
-                        const cleanHandle =
-                          source.handle?.replace(/^@/, '') ?? null;
-                        const telegramUrl = cleanHandle
-                          ? `https://t.me/${cleanHandle}/${msg.messageId}`
-                          : `https://t.me/c/${msg.channelId}/${msg.messageId}`;
-                        return (
-                          <a
-                            href={telegramUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-mono text-blue-400 hover:text-blue-300 underline"
-                          >
-                            {displayName}
-                          </a>
-                        );
-                      })()}
-                      <span>·</span>
-                      <span>msg {msg.messageId}</span>
-                      <span>·</span>
-                      <span>{formatRelativeTime(msg.ingestedAt)}</span>
-                    </div>
-                    {msg.title && (
-                      <h3 className="text-sm font-semibold text-slate-100 mt-1">
-                        {msg.title}
-                      </h3>
-                    )}
-                    {msg.media && msg.media.length > 0 && (
-                      <div
-                        className={`mt-3 grid gap-1 ${
-                          msg.media.length === 1 ? 'grid-cols-1' : 'grid-cols-2'
-                        }`}
-                      >
-                        {msg.media.map((m, idx) => (
-                          <button
-                            key={m.id}
-                            type="button"
-                            onClick={() => {
-                              setLightboxIndex(idx);
-                              setLightboxMedia(
-                                msg.media.map((media, mediaIdx) => ({
-                                  id: media.id,
-                                  url: media.url,
-                                  alt: `${msg.title ?? 'image'} ${mediaIdx + 1}`,
-                                })),
-                              );
-                            }}
-                            className="block w-full text-left"
-                          >
-                            {m.type === 'video' ? (
-                              <video
-                                key={m.url}
-                                controls
-                                className="h-auto w-full max-h-56 rounded object-contain bg-slate-900"
-                              >
-                                <source src={m.url} type="video/mp4" />
-                                Your browser does not support video playback.
-                              </video>
-                            ) : (
-                              <img
-                                src={m.url}
-                                alt={`${msg.title ?? 'image'} ${idx + 1}`}
-                                className="h-auto w-full max-h-56 rounded object-contain cursor-pointer transition-opacity hover:opacity-80"
-                                loading="lazy"
-                              />
-                            )}
-                          </button>
-                        ))}
+                        })()}
+                        <span>·</span>
+                        <span>msg {msg.messageId}</span>
+                        <span>·</span>
+                        <span>{formatRelativeTime(msg.ingestedAt)}</span>
                       </div>
-                    )}
-                    <p className="text-sm text-slate-300 mt-1 whitespace-pre-wrap">
-                      {msg.content.length > 500
-                        ? renderFormattedText(
-                            msg.content.slice(0, 500),
-                            msg.formattingEntities,
-                          )
-                        : renderFormattedText(
-                            msg.content,
-                            msg.formattingEntities,
+                      {msg.title && (
+                        <h3 className="text-sm font-semibold text-slate-100 mt-1">
+                          {msg.title}
+                        </h3>
+                      )}
+                      {msg.media && msg.media.length > 0 && (
+                        <div
+                          className={`mt-3 grid gap-1 ${
+                            msg.media.length === 1
+                              ? 'grid-cols-1'
+                              : 'grid-cols-2'
+                          }`}
+                        >
+                          {msg.media.map((m, idx) => (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => {
+                                setLightboxIndex(idx);
+                                setLightboxMedia(
+                                  msg.media.map((media, mediaIdx) => ({
+                                    id: media.id,
+                                    url: media.url,
+                                    alt: `${msg.title ?? 'image'} ${mediaIdx + 1}`,
+                                  })),
+                                );
+                              }}
+                              className="block w-full text-left"
+                            >
+                              {m.type === 'video' ? (
+                                <video
+                                  key={m.url}
+                                  controls
+                                  className="h-auto w-full max-h-56 rounded object-contain bg-slate-900"
+                                >
+                                  <source src={m.url} type="video/mp4" />
+                                  Your browser does not support video playback.
+                                </video>
+                              ) : (
+                                <img
+                                  src={m.url}
+                                  alt={`${msg.title ?? 'image'} ${idx + 1}`}
+                                  className="h-auto w-full max-h-56 rounded object-contain cursor-pointer transition-opacity hover:opacity-80"
+                                  loading="lazy"
+                                />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <p className="text-sm text-slate-300 mt-1 whitespace-pre-wrap">
+                        {renderFormattedText(
+                          isExpanded || !isLong
+                            ? msg.content
+                            : msg.content.slice(0, TRUNCATION_LIMIT),
+                          msg.formattingEntities,
+                        )}
+                      </p>
+                      {isLong && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="mt-1 text-blue-400 hover:text-blue-300"
+                          aria-expanded={isExpanded}
+                          onClick={() =>
+                            setExpandedMsgId(isExpanded ? null : msg.id)
+                          }
+                        >
+                          {isExpanded ? 'Show less' : 'Show more'}
+                        </Button>
+                      )}
+                      {msg.linkPreviewUrl && (
+                        <a
+                          href={msg.linkPreviewUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 block rounded border border-slate-700 bg-slate-800 p-3 hover:border-slate-500 transition-colors"
+                        >
+                          {msg.linkPreviewTitle && (
+                            <h4 className="text-sm font-semibold text-slate-100">
+                              {msg.linkPreviewTitle}
+                            </h4>
                           )}
-                    </p>
-                    {msg.linkPreviewUrl && (
-                      <a
-                        href={msg.linkPreviewUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-2 block rounded border border-slate-700 bg-slate-800 p-3 hover:border-slate-500 transition-colors"
-                      >
-                        {msg.linkPreviewTitle && (
-                          <h4 className="text-sm font-semibold text-slate-100">
-                            {msg.linkPreviewTitle}
-                          </h4>
-                        )}
-                        {msg.linkPreviewDescription && (
-                          <p className="mt-1 text-xs text-slate-400 line-clamp-2">
-                            {msg.linkPreviewDescription}
-                          </p>
-                        )}
-                        {msg.linkPreviewSiteName && (
-                          <p className="mt-1 text-xs text-slate-500">
-                            {msg.linkPreviewSiteName}
-                          </p>
-                        )}
-                        <span className="mt-1 block text-xs text-blue-400">
-                          {msg.linkPreviewUrl}
-                        </span>
-                      </a>
-                    )}
-                  </article>
-                ))}
+                          {msg.linkPreviewDescription && (
+                            <p className="mt-1 text-xs text-slate-400 line-clamp-2">
+                              {msg.linkPreviewDescription}
+                            </p>
+                          )}
+                          {msg.linkPreviewSiteName && (
+                            <p className="mt-1 text-xs text-slate-500">
+                              {msg.linkPreviewSiteName}
+                            </p>
+                          )}
+                          <span className="mt-1 block text-xs text-blue-400">
+                            {msg.linkPreviewUrl}
+                          </span>
+                        </a>
+                      )}
+                    </article>
+                  );
+                })}
               </div>
             )}
             {msgTotalPages > 1 && (
