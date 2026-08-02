@@ -693,6 +693,56 @@ describe('CryptoNewsPage — publisher (keywords + queue)', () => {
     expect(screen.getByText('msg 778')).toBeInTheDocument();
   });
 
+  it('renders queue video media as <video> instead of broken <img>', () => {
+    mockedUseKeywords.mockReturnValue(makeEmptyKeywordsQuery());
+
+    const queue: ReadonlyArray<QueueEntryView> = [
+      {
+        id: 'q-video',
+        channelId: '1375055530',
+        sourceHandle: 'CoinBureau',
+        sourceTitle: 'Coin Bureau',
+        messageId: 17856,
+        rawTitle: null,
+        rawContent: null,
+        imagePath: '/app/uploads/crypto-news/media/1375055530/17856_0.bin',
+        imagePaths: ['/app/uploads/crypto-news/media/1375055530/17856_0.bin'],
+        groupedId: null,
+        matchedKeywordIds: [],
+        status: 'PUBLISHED',
+        messageReceivedAt: '2025-01-02T03:04:06.000Z',
+        publishedAt: '2025-01-02T03:10:00.000Z',
+        telegramMessageId: 'tg-99',
+        telegramUrl: null,
+        lastError: null,
+        attempts: 1,
+        generatedContent: null,
+        generatedSystemPrompt: null,
+        generatedUserPrompt: null,
+        generatedTemperature: null,
+        generatedReasoningEffort: null,
+        generatedModel: null,
+        blockedReason: null,
+      },
+    ];
+    mockedUseQueue.mockReturnValue(makeQueueQuery(queue));
+
+    const { container } = renderWithClient(<CryptoNewsPage />);
+
+    const video = container.querySelector('video');
+    expect(video).not.toBeNull();
+    expect(video!.querySelector('source')).toHaveAttribute(
+      'src',
+      '/crypto-news-publisher/queue/q-video/media?index=0',
+    );
+    // No <img> should render for the video path
+    // No <img> should render for the video path
+    const queueImgs = Array.from(container.querySelectorAll('img')).filter(
+      (img) => img.src.includes('queue/q-video'),
+    );
+    expect(queueImgs).toHaveLength(0);
+  });
+
   it('submits the add-keyword form via the create mutation', async () => {
     const mutateSpy = vi.fn();
     mockedUseCreateKeyword.mockReturnValue({

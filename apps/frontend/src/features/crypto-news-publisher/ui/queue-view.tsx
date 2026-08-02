@@ -33,6 +33,15 @@ function formatTime(iso: string): string {
   return new Date(iso).toLocaleString();
 }
 
+function isVideoPath(path: string): boolean {
+  return (
+    path.endsWith('.bin') ||
+    path.endsWith('.mp4') ||
+    path.includes('/video_') ||
+    path.includes('/document')
+  );
+}
+
 interface CounterCardProps {
   label: string;
   value: number;
@@ -181,11 +190,7 @@ export function DetailsModal({
               }`}
             >
               {entry.imagePaths.map((path, idx) => {
-                const isVideo =
-                  path.endsWith('.bin') ||
-                  path.endsWith('.mp4') ||
-                  path.includes('/video_') ||
-                  path.includes('/document');
+                const isVideo = isVideoPath(path);
                 return isVideo ? (
                   <video
                     key={idx}
@@ -336,15 +341,29 @@ function QueueRow({ entry }: { entry: QueueEntryView }): React.ReactElement {
           <div
             className={`mt-2 grid gap-1 ${entry.imagePaths.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}
           >
-            {entry.imagePaths.map((_, idx) => (
-              <img
-                key={idx}
-                src={`/crypto-news-publisher/queue/${entry.id}/media?index=${idx}`}
-                alt={`Media ${idx + 1}`}
-                className="h-auto w-full max-h-48 rounded object-contain bg-slate-900"
-                loading="lazy"
-              />
-            ))}
+            {entry.imagePaths.map((path, idx) =>
+              isVideoPath(path) ? (
+                <video
+                  key={idx}
+                  controls
+                  className="h-auto w-full max-h-48 rounded object-contain bg-slate-900"
+                >
+                  <source
+                    src={`/crypto-news-publisher/queue/${entry.id}/media?index=${idx}`}
+                    type="video/mp4"
+                  />
+                  Your browser does not support the video tag.
+                </video>
+              ) : (
+                <img
+                  key={idx}
+                  src={`/crypto-news-publisher/queue/${entry.id}/media?index=${idx}`}
+                  alt={`Media ${idx + 1}`}
+                  className="h-auto w-full max-h-48 rounded object-contain bg-slate-900"
+                  loading="lazy"
+                />
+              ),
+            )}
           </div>
         )}
         {entry.lastError && (
