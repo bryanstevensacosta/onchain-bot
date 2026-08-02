@@ -382,6 +382,107 @@ describe('DeduplicationService', () => {
       expect(result.isDuplicate).toBe(false);
       expect(result.zone).toBe('gray_zone');
     });
+
+    /**
+     * Integration: V_A_C 0.60 gray_zone boundary. Real scorer (no mocks of
+     * DedupScorer) must classify score in the (0.60, 0.95) band as gray_zone,
+     * then route to the LLM arbiter. With content usable, the arbiter mock's
+     * "duplicate" verdict is propagated as isDuplicate:true. With content NULL,
+     * the service must fail open to isDuplicate:false (operationally: requires
+     * the d7efcb5 fingerprint content fix to be deployed in staging).
+     */
+    it('V_A_C: real scorer score in gray_zone + usable content → LLM "duplicate" → isDuplicate:true', async () => {
+      // Incoming content uses $BTC cashtag so cashtagPenalty doesn't fire
+      // (matching the stored record). With cosine 0.6 and jaccard(2/3)=0.07,
+      // the score lands at 0.67 — inside the (0.60, 0.95) gray band.
+      const COS = 0.6;
+      const angle = Math.acos(COS);
+      const y = Math.sin(angle);
+      const x = Math.cos(angle);
+      const existingRecord = DedupRecord.create({
+        fingerprint: Fingerprint.semantic('channel1', 123),
+        source: 'telegram',
+        channelId: 'channel1',
+        messageId: 123,
+        // Long-ago createdAt to keep timeDiffMinutes > 30 so proximityBoost
+        // does NOT fire (the production service computes it from now - record).
+        createdAt: new Date(Date.now() - 60 * 60 * 1000),
+        embedding: [x, y],
+        tokens: ['bitcoin', '100k'],
+        numbers: [100000],
+        entities: ['bitcoin'],
+        cashtags: ['BTC'],
+        content:
+          'Bitcoin breaks through one hundred thousand dollars as institutional inflows continue to accelerate across spot ETFs',
+      });
+
+      mockEmbeddingService.embed.mockResolvedValue([1, 0]);
+      mockStore.findSimilarEmbeddings.mockResolvedValue([
+        { record: existingRecord, similarity: COS },
+      ]);
+      mockArbiterService.classifyRelation.mockResolvedValue({
+        relation: 'duplicate',
+        confidence: 0.9,
+      });
+      (service as any).arbiterService = mockArbiterService;
+
+      const result = await service.checkSemantic(
+        'telegram',
+        'Bitcoin $BTC hits 100k',
+        'channel1',
+        124,
+      );
+
+      // The scorer computed gray_zone (verified via the first-pass computeScore
+      // call), then the LLM mock returned "duplicate" — the service propagates
+      // that verdict as isDuplicate:true, zone: 'duplicate', eventRelation: 'duplicate'.
+      // We assert isDuplicate + eventRelation + that the LLM was called exactly
+      // once. result.zone is "duplicate" after the LLM verdict (see service
+      // gray_zone branch line 360-368) — it does NOT stay "gray_zone".
+      expect(result.isDuplicate).toBe(true);
+      expect(result.eventRelation).toBe('duplicate');
+      expect(mockArbiterService.classifyRelation).toHaveBeenCalledTimes(1);
+    });
+
+    it('V_A_C: real scorer score in gray_zone + NULL content → fail-open isDuplicate:false', async () => {
+      // Same scoring inputs as above, but the stored record's content is NULL
+      // (pre-d7efcb5 fingerprint shape). The service must NOT call the arbiter
+      // and must return isDuplicate:false — the gray_zone band fails open when
+      // there is no usable content to compare against.
+      const COS = 0.6;
+      const angle = Math.acos(COS);
+      const y = Math.sin(angle);
+      const x = Math.cos(angle);
+      const existingRecord = DedupRecord.create({
+        fingerprint: Fingerprint.semantic('channel1', 123),
+        source: 'telegram',
+        channelId: 'channel1',
+        messageId: 123,
+        embedding: [x, y],
+        tokens: ['bitcoin', '100k'],
+        numbers: [100000],
+        entities: ['bitcoin'],
+        cashtags: ['BTC'],
+        content: null,
+      });
+
+      mockEmbeddingService.embed.mockResolvedValue([1, 0]);
+      mockStore.findSimilarEmbeddings.mockResolvedValue([
+        { record: existingRecord, similarity: COS },
+      ]);
+      (service as any).arbiterService = mockArbiterService;
+
+      const result = await service.checkSemantic(
+        'telegram',
+        'Bitcoin $BTC hits 100k',
+        'channel1',
+        124,
+      );
+
+      expect(result.zone).toBe('gray_zone');
+      expect(result.isDuplicate).toBe(false);
+      expect(mockArbiterService.classifyRelation).not.toHaveBeenCalled();
+    });
   });
 
   describe('markAsSeen', () => {

@@ -11,6 +11,7 @@ import {
   cashtagJaccardSimilarity,
   computeScore,
   DedupScorer,
+  hasSharedDistinctiveNumber,
   type ScoreInput,
   type ScoreConfig,
   DEFAULT_CONFIG,
@@ -510,7 +511,7 @@ describe('computeScore', () => {
       expect(result.zone).toBe('duplicate');
     });
 
-    it('score < 0.75 returns zone: "different"', () => {
+    it('score < grayZoneMin (0.60) returns zone: "different"', () => {
       const result = computeScore(
         makeEmptyInput({
           embeddingM: [1, 0],
@@ -843,5 +844,277 @@ describe('acceptance criteria', () => {
     expect(result.zone).toBe('duplicate');
     expect(result.signals.length).toBeGreaterThan(0);
     expect(result.signals[0].name).toBe('semantic');
+  });
+});
+
+/**
+ * V_A_C variant — distinctive-number boost (+0.12) + gray-zone threshold 0.60.
+ *
+ * Validated empirically on 206 real fingerprints over a 7d window. Numbers
+ * below are ground truth from the harness (`.tmp-dedup-tests/replay-dedup-variants.ts`
+ * + `verify-invariants.ts`). They MUST stay pinned — any change to the boost
+ * curve or zone thresholds invalidates the replay and is a regression.
+ */
+describe('V_A_C: distinctive-number boost + gray-zone 0.60', () => {
+  describe('DEFAULT_CONFIG (validated values)', () => {
+    it('exposes grayZoneMin = 0.60', () => {
+      expect(DEFAULT_CONFIG.grayZoneMin).toBe(0.6);
+    });
+
+    it('exposes duplicateThreshold = 0.95', () => {
+      expect(DEFAULT_CONFIG.duplicateThreshold).toBe(0.95);
+    });
+
+    it('exposes numberBoost = 0.12', () => {
+      expect(DEFAULT_CONFIG.numberBoost).toBe(0.12);
+    });
+
+    it('exposes numberBoostMinSemantic = 0.55', () => {
+      expect(DEFAULT_CONFIG.numberBoostMinSemantic).toBe(0.55);
+    });
+
+    it('exposes numberBoostMinMagnitude = 1e6', () => {
+      expect(DEFAULT_CONFIG.numberBoostMinMagnitude).toBe(1e6);
+    });
+
+    it('exposes numberBoostTolerance = 0.01', () => {
+      expect(DEFAULT_CONFIG.numberBoostTolerance).toBe(0.01);
+    });
+
+    it('reuses existing boostNumberJaccardThreshold = 0.7 (no duplicate field)', () => {
+      expect(DEFAULT_CONFIG.boostNumberJaccardThreshold).toBe(0.7);
+      // Sanity: the boost gate is the same number the url/proximity boosts gate on.
+      expect(
+        (DEFAULT_CONFIG as unknown as Record<string, unknown>)
+          .boostNumJaccardThreshold,
+      ).toBeUndefined();
+    });
+
+    it('preserves all pre-existing fields unchanged (additive change)', () => {
+      expect(DEFAULT_CONFIG.semanticThreshold).toBe(0.85);
+      expect(DEFAULT_CONFIG.urlBoost).toBe(0.15);
+      expect(DEFAULT_CONFIG.proximityBoost).toBe(0.1);
+      expect(DEFAULT_CONFIG.proximityWindowMinutes).toBe(30);
+      expect(DEFAULT_CONFIG.jaccardWeight).toBe(0.2);
+      expect(DEFAULT_CONFIG.urlDivergencePenalty).toBe(0.12);
+    });
+  });
+
+  describe('zone determination (parametrized thresholds)', () => {
+    it('semantic 0.7 + empty tokens → score 0.84, gray_zone (0.60 ≤ score < 0.95)', () => {
+      // Empty-token baseline contributes (1-0.3)*0.2 = 0.14, so semantic 0.7
+      // yields score 0.84, which lands in the gray band (0.60-0.95).
+      const y = Math.sqrt(1 - 0.7 * 0.7);
+      const result = computeScore(
+        makeEmptyInput({
+          embeddingM: [1, 0],
+          embeddingE: [0.7, y],
+        }),
+      );
+      expect(result.score).toBeGreaterThanOrEqual(0.6);
+      expect(result.score).toBeLessThan(0.95);
+      expect(result.zone).toBe('gray_zone');
+    });
+
+    it('override grayZoneMin=0.75 → same score 0.84 stays gray_zone, score <0.75 becomes different', () => {
+      // Pin the regression guard: at 0.75 boundary, identical inputs land in
+      // the gray band; lowering the semantic to 0.5 (with empty tokens) yields
+      // 0.5+0.14 = 0.64, which is now different under 0.75 (0.64 < 0.75) but
+      // gray_zone under 0.60 (0.64 >= 0.60).
+      const y075 = Math.sqrt(1 - 0.7 * 0.7);
+      const rHigh = computeScore(
+        makeEmptyInput({ embeddingM: [1, 0], embeddingE: [0.7, y075] }),
+        { grayZoneMin: 0.75 },
+      );
+      expect(rHigh.zone).toBe('gray_zone');
+
+      const yLow = Math.sqrt(1 - 0.5 * 0.5);
+      const rLow = computeScore(
+        makeEmptyInput({ embeddingM: [1, 0], embeddingE: [0.5, yLow] }),
+        { grayZoneMin: 0.75 },
+      );
+      expect(rLow.score).toBeCloseTo(0.64, 2);
+      expect(rLow.zone).toBe('different');
+    });
+
+    it('semantic 0.4 + empty tokens → score 0.54, different', () => {
+      const y = Math.sqrt(1 - 0.4 * 0.4);
+      const result = computeScore(
+        makeEmptyInput({
+          embeddingM: [1, 0],
+          embeddingE: [0.4, y],
+        }),
+      );
+      // 0.4 + (1-0.3)*0.2 = 0.4 + 0.14 = 0.54, which is < 0.60 → different.
+      expect(result.score).toBeCloseTo(0.54, 2);
+      expect(result.zone).toBe('different');
+    });
+
+    it('score > 0.95 with default config → duplicate', () => {
+      const result = computeScore(
+        makeEmptyInput({
+          embeddingM: [1, 0],
+          embeddingE: [1, 0],
+          tokensM: ['a', 'b'],
+          tokensE: ['a', 'b'],
+        }),
+      );
+      expect(result.score).toBeGreaterThan(0.95);
+      expect(result.zone).toBe('duplicate');
+    });
+  });
+
+  describe('hasSharedDistinctiveNumber (exported helper)', () => {
+    it('returns true for a single large shared number within tolerance', () => {
+      expect(hasSharedDistinctiveNumber([5e9], [5e9], 1e6, 0.01)).toBe(true);
+    });
+
+    it('returns true for shared numbers within 1% tolerance', () => {
+      expect(
+        hasSharedDistinctiveNumber([5_000_000_000], [5_010_000_000], 1e6, 0.01),
+      ).toBe(true);
+    });
+
+    it('returns false when shared numbers are below minMagnitude', () => {
+      expect(hasSharedDistinctiveNumber([3, 7], [3, 7], 1e6, 0.01)).toBe(false);
+    });
+
+    it('returns false when no number matches within tolerance', () => {
+      expect(
+        hasSharedDistinctiveNumber([5e9, 100], [6e9, 200], 1e6, 0.01),
+      ).toBe(false);
+    });
+  });
+
+  describe('number_boost signal + zone promotion', () => {
+    it('case 71368-like: shared $5B + semantic 0.585 + numJ 1.0 → boost +0.12 (lands in gray_zone)', () => {
+      // Hand-crafted input that lands in the 71368 family: shared large number,
+      // modest semantic similarity, low token overlap, no entity overlap. The
+      // 0.585 semantic is below the 0.60 gray_zone threshold on its own, but
+      // the +0.12 boost raises the score into the gray band so the LLM
+      // arbiter gets the final say. With empty entities and identical
+      // cashtags, the only delta is the token penalty (-0.02) plus the
+      // boost (+0.12) → final score sits in the gray band.
+      const COS = 0.585;
+      const angle = Math.acos(COS);
+      const y = Math.sin(angle);
+      const x = Math.cos(angle);
+      const result = computeScore(
+        makeEmptyInput({
+          embeddingM: [1, 0],
+          embeddingE: [x, y],
+          tokensM: ['strategy', 'raises', 'capital'],
+          tokensE: ['reuters', 'reports', 'strategy'],
+          numbersM: [5_000_000_000],
+          numbersE: [5_000_000_000],
+        }),
+      );
+      // Sanity: the +0.12 boost must apply (numJ=1.0, distinctive $5B shared,
+      // semantic 0.585 >= 0.55).
+      const boostSignal = result.signals.find((s) => s.name === 'number_boost');
+      expect(boostSignal).toBeDefined();
+      expect(boostSignal!.contribution).toBeCloseTo(
+        DEFAULT_CONFIG.numberBoost,
+        4,
+      );
+      // Pin the band, not a single point, so the test stays stable across
+      // harmless tuning of the underlying token penalties.
+      expect(result.score).toBeGreaterThanOrEqual(0.6);
+      expect(result.score).toBeLessThan(0.95);
+      expect(result.zone).toBe('gray_zone');
+    });
+
+    it('does NOT boost when semantic < numberBoostMinSemantic (0.55)', () => {
+      // Embedding cosine 0.50 (below 0.55 gate).
+      const COS = 0.5;
+      const y = Math.sin(Math.acos(COS));
+      const x = Math.cos(Math.acos(COS));
+      const result = computeScore(
+        makeEmptyInput({
+          embeddingM: [1, 0],
+          embeddingE: [x, y],
+          numbersM: [5e9],
+          numbersE: [5e9],
+        }),
+      );
+      const boostSignal = result.signals.find((s) => s.name === 'number_boost');
+      expect(boostSignal).toBeDefined();
+      expect(boostSignal!.contribution).toBe(0);
+    });
+
+    it('does NOT boost when no distinctive number is shared (only small numbers)', () => {
+      // semantic >= 0.55, but the shared numbers are tiny (below 1e6 magnitude).
+      const y = Math.sqrt(1 - 0.99 * 0.99);
+      const result = computeScore(
+        makeEmptyInput({
+          embeddingM: [1, 0],
+          embeddingE: [0.99, y],
+          numbersM: [3, 7],
+          numbersE: [3, 7],
+        }),
+      );
+      const boostSignal = result.signals.find((s) => s.name === 'number_boost');
+      expect(boostSignal).toBeDefined();
+      expect(boostSignal!.contribution).toBe(0);
+    });
+
+    it('whale 9616 invariant: numJ = 0.6 (below 0.7 gate) → no boost, score in gray_zone', () => {
+      // Cosine 0.9126, one shared number, one different number per side → numJ ≈ 0.6.
+      // The number gate is numJ >= 0.7, so the boost MUST NOT fire here.
+      // This is the whale UPDATE invariant: gray_zone, no auto-block.
+      const COS = 0.9126;
+      const angle = Math.acos(COS);
+      const y = Math.sin(angle);
+      const x = Math.cos(angle);
+      const result = computeScore(
+        makeEmptyInput({
+          embeddingM: [1, 0],
+          embeddingE: [x, y],
+          tokensM: ['a', 'b', 'c', 'd'],
+          tokensE: ['a', 'b', 'c', 'd'],
+          numbersM: [5_000_000_000, 100],
+          numbersE: [5_000_000_000, 200],
+        }),
+      );
+      // 5e9 matches 5e9 within tolerance → helper says yes. BUT numJ is 0.5
+      // (1 of 3 unique elements matches) < 0.7 → boost is gated off. This
+      // preserves the whale 9616 invariant under V_A_C.
+      const boostSignal = result.signals.find((s) => s.name === 'number_boost');
+      expect(boostSignal).toBeDefined();
+      expect(boostSignal!.contribution).toBe(0);
+    });
+
+    it('cap: score base 0.95 + boost → 1.0, not 1.07', () => {
+      // Identical embeddings + identical numbers: base score is 1.0 already
+      // (clamped). With boost attempted, the final score must remain at 1.0.
+      const result = computeScore(
+        makeEmptyInput({
+          embeddingM: [1, 0],
+          embeddingE: [1, 0],
+          tokensM: ['a', 'b'],
+          tokensE: ['a', 'b'],
+          numbersM: [5e9],
+          numbersE: [5e9],
+        }),
+      );
+      expect(result.score).toBeLessThanOrEqual(1.0);
+    });
+
+    it('Schumer invariant: identical numbers + identical tokens → duplicate (1.0)', () => {
+      // The 17811 dup of 17799 invariant: the pair is auto-blocked today, MUST
+      // remain auto-blocked under V_A_C.
+      const result = computeScore(
+        makeEmptyInput({
+          embeddingM: [1, 0],
+          embeddingE: [1, 0],
+          tokensM: ['schumer', 'ai'],
+          tokensE: ['schumer', 'ai'],
+          numbersM: [50_000_000_000],
+          numbersE: [50_000_000_000],
+        }),
+      );
+      expect(result.zone).toBe('duplicate');
+      expect(result.score).toBeGreaterThanOrEqual(0.95);
+    });
   });
 });

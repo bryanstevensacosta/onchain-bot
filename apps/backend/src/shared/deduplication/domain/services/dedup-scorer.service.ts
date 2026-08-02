@@ -49,6 +49,12 @@ export interface ScoreConfig {
   urlDivergenceNumberJaccardMin: number;
   urlDivergenceNumberJaccardMax: number;
   urlDivergencePenalty: number;
+  grayZoneMin: number;
+  duplicateThreshold: number;
+  numberBoost: number;
+  numberBoostMinSemantic: number;
+  numberBoostMinMagnitude: number;
+  numberBoostTolerance: number;
 }
 
 /**
@@ -84,6 +90,12 @@ export const DEFAULT_CONFIG: ScoreConfig = {
   urlDivergenceNumberJaccardMin: 0.3,
   urlDivergenceNumberJaccardMax: 0.9,
   urlDivergencePenalty: 0.12,
+  grayZoneMin: 0.6,
+  duplicateThreshold: 0.95,
+  numberBoost: 0.12,
+  numberBoostMinSemantic: 0.55,
+  numberBoostMinMagnitude: 1e6,
+  numberBoostTolerance: 0.01,
 };
 
 /**
@@ -156,6 +168,40 @@ export function numberJaccardSimilarity(a: number[], b: number[]): number {
   const union = new Set([...setA, ...setB]);
 
   return intersection.size / union.size;
+}
+
+/**
+ * Checks whether two number arrays share at least one "distinctive" number —
+ * a number with |value| >= minMagnitude and a partner within `tolerance`
+ * (relative difference). Used by the number-boost signal to gate the boost
+ * on shared large values (e.g., $5B, $50B) rather than small or coincidental
+ * matches (dates, percentages, ids).
+ *
+ * @param a - First array of numbers
+ * @param b - Second array of numbers
+ * @param minMagnitude - Minimum |value| to qualify as "distinctive"
+ * @param tolerance - Max relative difference |a-b|/max(|a|,|b|) to count as a match
+ * @returns true if a pair (x in a, y in b) passes both checks
+ */
+export function hasSharedDistinctiveNumber(
+  a: number[],
+  b: number[],
+  minMagnitude: number,
+  tolerance: number,
+): boolean {
+  const isWithin = (x: number, y: number): boolean => {
+    const maxVal = Math.max(Math.abs(x), Math.abs(y));
+    if (maxVal === 0) return x === y;
+    return Math.abs(x - y) / maxVal < tolerance;
+  };
+  for (const x of a) {
+    if (Math.abs(x) < minMagnitude) continue;
+    for (const y of b) {
+      if (Math.abs(y) < minMagnitude) continue;
+      if (isWithin(x, y)) return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -329,14 +375,34 @@ export function computeScore(
     cashtagPenalty -
     templateDivergencePenalty;
 
+  // Distinctive-number boost: if both sides share a "large" number (>= minMagnitude,
+  // within tolerance) and the semantic similarity clears the bar, lift the score.
+  // This rescues pairs that diverge in wording but match on a salient figure
+  // (e.g., "$5B raise", "$50B AI investment"). Gated on numberJaccard so the boost
+  // only fires for numerically close pairs — purely semantic pairs do not get it.
+  const numberBoost =
+    cfg.numberBoost > 0 &&
+    numberJaccard >= cfg.boostNumberJaccardThreshold &&
+    hasSharedDistinctiveNumber(
+      input.numbersM,
+      input.numbersE,
+      cfg.numberBoostMinMagnitude,
+      cfg.numberBoostTolerance,
+    ) &&
+    semantic >= cfg.numberBoostMinSemantic
+      ? cfg.numberBoost
+      : 0;
+  signals.push({ name: 'number_boost', contribution: numberBoost });
+  score += numberBoost;
+
   // Clamp to [0, 1]
   score = Math.max(0, Math.min(1, score));
 
   // Determine zone
   let zone: 'duplicate' | 'different' | 'gray_zone';
-  if (score > 0.95) {
+  if (score > cfg.duplicateThreshold) {
     zone = 'duplicate';
-  } else if (score < 0.75) {
+  } else if (score < cfg.grayZoneMin) {
     zone = 'different';
   } else {
     zone = 'gray_zone';
