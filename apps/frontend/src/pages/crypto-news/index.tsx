@@ -343,10 +343,7 @@ export function CryptoNewsPage() {
                                 controls
                                 className="h-auto w-full max-h-56 rounded object-contain bg-slate-900"
                               >
-                                <source
-                                  src={m.url}
-                                  type={m.mimeType ?? 'video/mp4'}
-                                />
+                                <source src={m.url} type="video/mp4" />
                                 Your browser does not support video playback.
                               </video>
                             ) : (

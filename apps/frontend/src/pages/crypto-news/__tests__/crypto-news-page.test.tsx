@@ -292,10 +292,9 @@ describe('CryptoNewsPage — media rendering', () => {
     const video = container.querySelector('video');
 
     expect(video).not.toBeNull();
-    expect(video!.querySelector('source')).toHaveAttribute(
-      'src',
-      '/crypto-news/media/media-video',
-    );
+    const sourceEl = video!.querySelector('source');
+    expect(sourceEl).toHaveAttribute('src', '/crypto-news/media/media-video');
+    expect(sourceEl).toHaveAttribute('type', 'video/mp4');
 
     const imgs = within(article).getAllByRole('img');
     expect(imgs).toHaveLength(1);
