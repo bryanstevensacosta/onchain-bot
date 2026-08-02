@@ -33,6 +33,8 @@ export function renderFormattedText(
     const start = Math.max(entity.offset, cursor);
     const end = Math.min(entity.offset + entity.length, content.length);
 
+    if (start >= content.length) break;
+
     // Add plain segment before this entity (if any)
     if (start > cursor) {
       segments.push({
