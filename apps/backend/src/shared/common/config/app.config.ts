@@ -51,6 +51,14 @@
  *     LLM_GATEWAY_MODEL    — model identifier (default
  *                            `opencode-zen/deepseek-v4-flash`)
  *
+ *   Deduplication (semantic-gated arbiter consult — see plan
+ *   `.omo/plans/dedup-semantic-arbiter.md`):
+ *     DEDUP_SEMANTIC_ARBITER_THRESHOLD — cosine gate above which the
+ *                            LLM arbiter is consulted even when the
+ *                            composite dedup score is in the
+ *                            'different' zone. Default 0.70. Set to
+ *                            0 to disable (byte-identical to no gate).
+ *
  *   Logging (consumed by the `logging` config block; see src/app.module.ts
  *   where it is wired into nestjs-pino's LoggerModule.forRootAsync):
  *     LOG_LEVEL       — pino level (default 'info' in production, 'debug'
@@ -223,6 +231,18 @@ export interface AppConfig extends LlmConfigShape {
   // same env var so the visible window and the deletion threshold
   // can never desync — every visible message keeps its media.
   cryptoNewsMediaRetentionHours: number;
+
+  // Semantic-gate threshold for the dedup LLM arbiter consult.
+  //
+  // When the composite dedup score lands in the 'different' zone but
+  // the raw semantic cosine of the best candidate is at/above this
+  // threshold, DeduplicationService.checkSemantic() routes the pair
+  // to the LLM arbiter before fail-opening. Set to 0 (or leave
+  // unset in non-dev environments) to disable the gate entirely —
+  // the 'different' zone then returns immediately, byte-identical
+  // to pre-gate behavior. Default 0.70 was chosen empirically in
+  // Wave 1 of the dedup-semantic-arbiter plan.
+  dedupSemanticArbiterThreshold: number;
 
   logging: {
     level: string;
@@ -519,6 +539,9 @@ export const appConfig = registerAs(
       process.env.CRYPTO_NEWS_MEDIA_RETENTION_HOURS ?? '48',
       10,
     ),
+
+    dedupSemanticArbiterThreshold:
+      parseFloat(process.env.DEDUP_SEMANTIC_ARBITER_THRESHOLD ?? '0.7') || 0,
 
     llm: {
       gateway: {

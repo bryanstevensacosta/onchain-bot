@@ -9,6 +9,7 @@
  */
 
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { DedupRecord } from 'shared/deduplication/domain/entities/dedup-record.entity';
 import { Fingerprint } from 'shared/deduplication/domain/value-objects/fingerprint.vo';
 import { ContentNormalizerService } from 'shared/deduplication/domain/services/content-normalizer.service';
@@ -63,6 +64,17 @@ export interface EmbeddingService {
 export class DeduplicationService {
   private readonly logger = new Logger(DeduplicationService.name);
 
+  /**
+   * Configured via DEDUP_SEMANTIC_ARBITER_THRESHOLD (see
+   * apps/backend/src/shared/common/config/app.config.ts). Snapshotted
+   * once at construction. A value of 0 (or NaN) disables the gate —
+   * the 'different' zone then returns immediately, byte-identical to
+   * pre-gate behavior. Without ConfigService, defaults to 0.7 so the
+   * existing-injection tests (which omit ConfigModule) still exercise
+   * the gate path if they so choose.
+   */
+  private readonly semanticArbiterThreshold: number;
+
   constructor(
     private readonly store: DeduplicationStore,
     @Optional()
@@ -81,7 +93,16 @@ export class DeduplicationService {
         reason?: string;
       }>;
     },
+    @Optional() configService?: ConfigService,
   ) {
+    const rawThreshold = configService?.get<number>(
+      'app.dedupSemanticArbiterThreshold',
+    );
+    const parsed =
+      typeof rawThreshold === 'number' && Number.isFinite(rawThreshold)
+        ? rawThreshold
+        : 0.7;
+    this.semanticArbiterThreshold = parsed > 0 ? parsed : 0;
     // Static services are used directly without injection:
     // - ContentNormalizerService.normalize()
     // - ContentHashService.hash()
@@ -308,6 +329,30 @@ export class DeduplicationService {
     }
 
     if (bestScoreResult.zone === 'different') {
+      // Semantic-gated arbiter consult: when the raw semantic cosine of
+      // the best candidate meets the configured threshold, route the
+      // pair through the LLM arbiter before fail-opening — even though
+      // the composite score put us in the 'different' zone. This
+      // catches pairs (e.g. Trump Media 0.4051) that the composite
+      // scorer can't separate but the embedding model clearly does.
+      // Gate is disabled when threshold=0 (byte-identical to today).
+      const semanticSignal =
+        bestSignals.find((s) => s.name === 'semantic')?.contribution ?? 0;
+      if (
+        this.semanticArbiterThreshold > 0 &&
+        semanticSignal >= this.semanticArbiterThreshold
+      ) {
+        const arbiterOutcome = await this.runSemanticGateArbitration(
+          normalized,
+          bestCandidate,
+          bestScore,
+          bestSignals,
+          embedding,
+        );
+        if (arbiterOutcome !== null) {
+          return arbiterOutcome;
+        }
+      }
       return {
         isDuplicate: false,
         zone: 'different',
@@ -399,6 +444,86 @@ export class DeduplicationService {
       zone: 'different',
       embedding,
     };
+  }
+
+  /**
+   * Shared arbitration body for the semantic-gated 'different' path
+   * AND the existing gray_zone path. Mirrors the gray_zone fail-open
+   * guards exactly (no stored content / short content → null; arbiter
+   * throws → null; arbiter `update` → fail-open with eventRelation
+   * 'update'; arbiter `different` → fail-open; arbiter `duplicate` →
+   * blocked with reason 'Semantic duplicate of queue'). Returns null
+   * when the gate path decides NOT to block, signalling the caller
+   * to fall back to the normal 'different' return shape.
+   */
+  private async runSemanticGateArbitration(
+    normalizedIncoming: string,
+    bestCandidate: DedupRecord,
+    bestScore: number,
+    bestSignals: Array<{ name: string; contribution: number }>,
+    embedding: number[],
+  ): Promise<DedupResult | null> {
+    if (!this.arbiterService) {
+      // No arbiter wired → fail-open (gate is bypassed). Mirrors
+      // gray_zone branch behavior at line 320-330.
+      this.logger.debug(
+        'Semantic-gated different without LLM arbiter, failing open to different',
+      );
+      return null;
+    }
+
+    // Same fail-open guard as the gray_zone path: without stored
+    // content (NULL or <20 chars after normalize) the LLM has nothing
+    // to compare against.
+    if (
+      !bestCandidate.content ||
+      ContentNormalizerService.normalize(bestCandidate.content).length < 20
+    ) {
+      this.logger.debug(
+        `Semantic-gated different without usable stored content (content=${bestCandidate.content ? 'short' : 'null'}), failing open`,
+      );
+      return null;
+    }
+
+    try {
+      const arbiterResult = await this.arbiterService.classifyRelation(
+        normalizedIncoming,
+        ContentNormalizerService.normalize(bestCandidate.content),
+        bestScore,
+      );
+
+      if (arbiterResult.relation === 'duplicate') {
+        return {
+          isDuplicate: true,
+          zone: 'duplicate',
+          blockedReason: 'Semantic duplicate of queue',
+          similarity: bestScore,
+          signals: bestSignals,
+          eventRelation: 'duplicate',
+          existingRecord: bestCandidate,
+        };
+      }
+
+      if (arbiterResult.relation === 'update') {
+        return {
+          isDuplicate: false,
+          zone: 'different',
+          eventRelation: 'update',
+          existingRecord: bestCandidate,
+          embedding,
+        };
+      }
+
+      return {
+        isDuplicate: false,
+        zone: 'different',
+        eventRelation: 'different',
+        embedding,
+      };
+    } catch (error) {
+      this.logger.warn(`LLM arbitration (semantic-gate) failed: ${error}`);
+      return null;
+    }
   }
 
   /**
