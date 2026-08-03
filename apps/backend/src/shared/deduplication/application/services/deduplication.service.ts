@@ -496,7 +496,7 @@ export class DeduplicationService {
         return {
           isDuplicate: true,
           zone: 'duplicate',
-          blockedReason: 'Semantic duplicate of queue',
+          blockedReason: 'Semantic duplicate (LLM confirmed)',
           similarity: bestScore,
           signals: bestSignals,
           eventRelation: 'duplicate',

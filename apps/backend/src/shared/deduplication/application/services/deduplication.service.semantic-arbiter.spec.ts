@@ -11,7 +11,7 @@
  * Test cases (per plan T5):
  *  1. semantic ≥ 0.70 + composite zone 'different' → arbiter IS
  *     consulted, arbiter DUPLICATE → blocked with reason
- *     'Semantic duplicate of queue'.
+ *     'Semantic duplicate (LLM confirmed)'.
  *  2. semantic ≥ 0.70 + composite zone 'different' + arbiter throws
  *     → fail-open 'different' (not blocked).
  *  3. semantic < 0.70 → arbiter NOT consulted, existing fail-open
@@ -118,7 +118,7 @@ describe('DeduplicationService — semantic-gated LLM arbiter', () => {
     // nothing to clean here — restoreEnv is per-test
   });
 
-  it('routes zone-different + semantic ≥ 0.70 to the arbiter; DUPLICATE verdict blocks with reason "Semantic duplicate of queue"', async () => {
+  it('routes zone-different + semantic ≥ 0.70 to the arbiter; DUPLICATE verdict blocks with reason "Semantic duplicate (LLM confirmed)"', async () => {
     // semantic=0.75 (≥ 0.70), but composite lands in 'different' because
     // every other signal is mismatched. The expected composite score
     // with cosine=0.75 + zero jaccard + medium number/entity/cashtag
@@ -163,7 +163,7 @@ describe('DeduplicationService — semantic-gated LLM arbiter', () => {
       expect(mockArbiterService.classifyRelation).toHaveBeenCalledTimes(1);
       expect(result.isDuplicate).toBe(true);
       expect(result.zone).toBe('duplicate');
-      expect(result.blockedReason).toBe('Semantic duplicate of queue');
+      expect(result.blockedReason).toBe('Semantic duplicate (LLM confirmed)');
     } finally {
       restoreEnv();
     }
