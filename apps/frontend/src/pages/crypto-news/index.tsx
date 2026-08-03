@@ -26,7 +26,7 @@ interface LightboxMediaItem {
 export const TRUNCATION_LIMIT = 500;
 
 export function CryptoNewsPage() {
-  const messages = useCryptoNewsMessages(50);
+  const messages = useCryptoNewsMessages(500);
   const sources = useCryptoNewsSources();
   const [channelFilter, setChannelFilter] = useState<string>('');
   const [search, setSearch] = useState<string>('');
@@ -167,7 +167,7 @@ export function CryptoNewsPage() {
             </Card>
             <Card>
               <div className="text-xs uppercase text-slate-500">
-                Messages (50 most recent)
+                Messages (last 48h)
               </div>
               <div className="text-2xl font-bold text-slate-100 mt-1">
                 {(messages.data ?? []).length}
