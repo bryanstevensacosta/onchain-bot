@@ -132,15 +132,23 @@ export class ContentNormalizerService {
    */
   public static extractNumbers(content: string): number[] {
     const numbers: number[] = [];
-    const regex = /(\d+[.,]?\d*)\s*([kKmMbBtT%])?/g;
+    // Number match: thousands-grouped (\d{1,3}(?:,\d{3})+) OR plain
+    // (\d+(?:[.,]\d+)?). The negative lookahead (?![A-Za-z]) on the suffix
+    // group prevents the suffix from matching the first letter of the next
+    // word (e.g. 'B' of 'BTC', 't' of 'today').
+    const regex =
+      /(\d{1,3}(?:,\d{3})+|\d+(?:[.,]\d+)?)\s*(?:([kKmMbBtT%]))?(?![A-Za-z])/g;
 
     let match;
     while ((match = regex.exec(content)) !== null) {
       let numStr = match[1];
       const suffix = match[2]?.toUpperCase() || '';
 
-      // Convert decimal separator: both 1.5 and 1,5 → 1.5
-      numStr = numStr.replace(',', '.');
+      if (/^\d{1,3}(,\d{3})+$/.test(numStr)) {
+        numStr = numStr.replace(/,/g, '');
+      } else if (numStr.includes(',')) {
+        numStr = numStr.replace(',', '.');
+      }
 
       let value = parseFloat(numStr);
 

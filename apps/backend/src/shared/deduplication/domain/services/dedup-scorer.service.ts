@@ -55,6 +55,7 @@ export interface ScoreConfig {
   numberBoostMinSemantic: number;
   numberBoostMinMagnitude: number;
   numberBoostTolerance: number;
+  numberJaccardTolerance: number;
 }
 
 /**
@@ -96,6 +97,7 @@ export const DEFAULT_CONFIG: ScoreConfig = {
   numberBoostMinSemantic: 0.55,
   numberBoostMinMagnitude: 1e6,
   numberBoostTolerance: 0.01,
+  numberJaccardTolerance: 0.01,
 };
 
 /**
@@ -125,9 +127,12 @@ export function jaccardSimilarity(a: string[], b: string[]): number {
 }
 
 /**
- * Computes Jaccard similarity between two number arrays with 1% tolerance.
+ * Computes Jaccard similarity between two number arrays with a configurable
+ * relative tolerance.
  *
- * Two numbers match if |a - b| / max(a, b) < 0.01
+ * Two numbers match if |a - b| / max(|a|, |b|) < `tolerance`. The default
+ * tolerance is 0.01 (1%), exposed via `DEFAULT_CONFIG.numberJaccardTolerance`
+ * and overridable through the `ScoreConfig` passed to `computeScore`.
  *
  * @param a - First array of numbers
  * @param b - Second array of numbers
@@ -136,6 +141,25 @@ export function jaccardSimilarity(a: string[], b: string[]): number {
  *          Returns 0 if only one is empty
  */
 export function numberJaccardSimilarity(a: number[], b: number[]): number {
+  return _numberJaccardWithTolerance(
+    a,
+    b,
+    DEFAULT_CONFIG.numberJaccardTolerance,
+  );
+}
+
+/**
+ * Private helper for `numberJaccardSimilarity` that takes the tolerance
+ * explicitly. Used by `computeScore` to honor a per-call `ScoreConfig`
+ * override, and by tests to exercise configurable behavior.
+ *
+ * Not exported — keep `numberJaccardSimilarity(a, b)` as the public API.
+ */
+function _numberJaccardWithTolerance(
+  a: number[],
+  b: number[],
+  tolerance: number,
+): number {
   if (a.length === 0 && b.length === 0) {
     return 1;
   }
@@ -150,7 +174,7 @@ export function numberJaccardSimilarity(a: number[], b: number[]): number {
     const maxVal = Math.max(Math.abs(x), Math.abs(y));
     if (maxVal === 0) return x === y;
     const diffRatio = Math.abs(x - y) / maxVal;
-    return diffRatio < 0.01;
+    return diffRatio < tolerance;
   };
 
   // Count unique numbers in a that have a match in b
@@ -281,7 +305,11 @@ export function computeScore(
   signals.push({ name: 'jaccard', contribution: jaccardContribution });
 
   // Number similarity with penalty
-  const numberJaccard = numberJaccardSimilarity(input.numbersM, input.numbersE);
+  const numberJaccard = _numberJaccardWithTolerance(
+    input.numbersM,
+    input.numbersE,
+    cfg.numberJaccardTolerance,
+  );
   let numberPenalty = 0;
   if (numberJaccard < 0.3) {
     numberPenalty = cfg.numberPenaltyMedium;
