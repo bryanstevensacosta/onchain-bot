@@ -7,6 +7,7 @@ function createMutableConfig(): Omit<AppConfig, 'llm'> & {
   return {
     port: 3000,
     nodeEnv: 'development',
+    cryptoNewsMediaRetentionHours: 48,
 
     alchemy: { apiKey: 'alchemy-key' },
     birdeye: { apiKey: 'birdeye-key' },
