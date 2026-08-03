@@ -294,7 +294,11 @@ export function DetailsModal({
   );
 }
 
-function QueueRow({ entry }: { entry: QueueEntryView }): React.ReactElement {
+export function QueueRow({
+  entry,
+}: {
+  entry: QueueEntryView;
+}): React.ReactElement {
   const [showDetails, setShowDetails] = useState(false);
   const cancelMutation = useCancelQueueEntry();
 
@@ -302,15 +306,21 @@ function QueueRow({ entry }: { entry: QueueEntryView }): React.ReactElement {
     <>
       <article className="rounded-lg bg-slate-800/50 p-3 text-sm">
         <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-          {entry.sourceHandle ? (
-            <a
-              href={entry.telegramUrl ?? undefined}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-blue-400 hover:text-blue-300 underline"
-            >
-              @{entry.sourceHandle}
-            </a>
+          {entry.displayName ? (
+            entry.telegramUrl ? (
+              <a
+                href={entry.telegramUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-blue-400 hover:text-blue-300 underline"
+              >
+                {entry.displayName}
+              </a>
+            ) : (
+              <span className="font-mono text-slate-300">
+                {entry.displayName}
+              </span>
+            )
           ) : (
             <span className="font-mono text-slate-300">{entry.channelId}</span>
           )}
