@@ -17,6 +17,7 @@ import { TypeOrmCryptoNewsMessageRepository } from 'telegram/ingestion/crypto-ne
 import { RegisterNewsSourceUseCase } from 'telegram/ingestion/crypto-news/application/handlers/register-news-source.use-case';
 import { StoreNewsMessageUseCase } from 'telegram/ingestion/crypto-news/application/handlers/store-news-message.use-case';
 import { CryptoNewsMetadataResolver } from 'telegram/ingestion/crypto-news/application/services/crypto-news-metadata-resolver.service';
+import { MediaRetentionCleanupScheduler } from 'telegram/ingestion/crypto-news/infrastructure/scheduling/media-retention-cleanup.scheduler';
 import { CryptoNewsSeeder } from 'telegram/ingestion/crypto-news/infrastructure/seeders/crypto-news.seeder';
 import { CryptoNewsController } from 'telegram/ingestion/crypto-news/api/http/crypto-news.controller';
 import { SharedIngestionModule } from 'telegram/ingestion/shared/shared-ingestion.module';
@@ -125,6 +126,11 @@ import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-proces
     StoreNewsMessageUseCase,
     CryptoNewsSeeder,
     CryptoNewsMetadataResolver,
+    // Hourly cleanup of media rows + files older than the retention
+    // window (Todo 3). Injects DataSource (TypeORM global) +
+    // ConfigService (ConfigModule global). The cron is a no-op when
+    // `dataSource.options.type !== 'postgres'` (in-memory repos).
+    MediaRetentionCleanupScheduler,
   ],
   exports: [
     CryptoNewsSourceRepository,
