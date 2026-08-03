@@ -4,7 +4,7 @@ import '@/test/setup';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 
-import { QueueRow } from './queue-view';
+import { DetailsModal, QueueRow } from './queue-view';
 import type { QueueEntryView } from '../api/queue-api';
 
 afterEach(cleanup);
@@ -55,6 +55,11 @@ function makeEntry(overrides: Partial<QueueEntryView> = {}): QueueEntryView {
     generatedReasoningEffort: null,
     generatedModel: null,
     blockedReason: null,
+    duplicateOfChannelId: undefined,
+    duplicateOfMessageId: undefined,
+    duplicateOfEntryId: undefined,
+    duplicateOfSourceHandle: null,
+    duplicateOfTelegramUrl: null,
     ...overrides,
   };
 }
@@ -87,5 +92,43 @@ describe('QueueRow displayName', () => {
     );
     const link = screen.getByRole('link', { name: /coinmarket/ });
     expect(link).toHaveAttribute('href', 'https://t.me/coinmarket/10201');
+  });
+});
+
+describe('DetailsModal duplicate-of link', () => {
+  it('renders the public duplicateOfTelegramUrl when provided', () => {
+    render(
+      <DetailsModal
+        entry={makeEntry({
+          duplicateOfChannelId: '1375055530',
+          duplicateOfMessageId: 17843,
+          duplicateOfSourceHandle: 'CoinBureau',
+          duplicateOfTelegramUrl: 'https://t.me/CoinBureau/17843',
+          status: 'BLOCKED',
+          blockedReason: 'Semantic duplicate (LLM confirmed)',
+        })}
+        onClose={vi.fn()}
+      />,
+    );
+    const link = screen.getByRole('link', { name: /Telegram message/ });
+    expect(link).toHaveAttribute('href', 'https://t.me/CoinBureau/17843');
+  });
+
+  it('falls back to t.me/c/${id} when duplicateOfTelegramUrl is null', () => {
+    render(
+      <DetailsModal
+        entry={makeEntry({
+          duplicateOfChannelId: '1375055530',
+          duplicateOfMessageId: 17843,
+          duplicateOfSourceHandle: null,
+          duplicateOfTelegramUrl: null,
+          status: 'BLOCKED',
+          blockedReason: 'Duplicate: content match',
+        })}
+        onClose={vi.fn()}
+      />,
+    );
+    const link = screen.getByRole('link', { name: /Telegram message/ });
+    expect(link).toHaveAttribute('href', 'https://t.me/c/1375055530/17843');
   });
 });

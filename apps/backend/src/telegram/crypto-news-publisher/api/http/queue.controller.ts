@@ -54,6 +54,8 @@ export interface QueueEntryView {
   readonly duplicateOfChannelId: string | null;
   readonly duplicateOfMessageId: number | null;
   readonly duplicateOfEntryId: string | null;
+  readonly duplicateOfSourceHandle: string | null;
+  readonly duplicateOfTelegramUrl: string | null;
   readonly displayName: string;
 }
 
@@ -209,6 +211,20 @@ export class QueueController {
         ? `https://t.me/c/${outputChannelForLink}/${entry.telegramMessageId}`
         : null;
 
+    // Telegram link to the DUPLICATE-OF source (used by Blocked Post Details modal)
+    const duplicateOfSource = entry.duplicateOfChannelId
+      ? (sourceByChannelId.get(entry.duplicateOfChannelId) ?? null)
+      : null;
+    const duplicateOfSourceHandle = duplicateOfSource?.handle ?? null;
+    const duplicateOfChannelForLink =
+      entry.duplicateOfChannelId?.replace(/^-100/, '') ?? null;
+    const duplicateOfTelegramUrl =
+      entry.duplicateOfMessageId && duplicateOfSourceHandle
+        ? `https://t.me/${duplicateOfSourceHandle}/${entry.duplicateOfMessageId}`
+        : entry.duplicateOfMessageId && duplicateOfChannelForLink
+          ? `https://t.me/c/${duplicateOfChannelForLink}/${entry.duplicateOfMessageId}`
+          : null;
+
     // Queue list always shows source link; DetailsModal shows published link
     const telegramUrl = sourceTelegramUrl;
 
@@ -242,6 +258,8 @@ export class QueueController {
       duplicateOfChannelId: entry.duplicateOfChannelId,
       duplicateOfMessageId: entry.duplicateOfMessageId,
       duplicateOfEntryId: entry.duplicateOfEntryId,
+      duplicateOfSourceHandle,
+      duplicateOfTelegramUrl,
       displayName:
         sourceHandle?.replace(/^@/, '') ?? sourceTitle ?? entry.channelId,
     };

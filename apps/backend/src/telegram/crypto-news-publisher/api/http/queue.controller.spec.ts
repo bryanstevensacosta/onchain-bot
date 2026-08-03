@@ -243,6 +243,92 @@ describe('QueueController', () => {
     });
   });
 
+  describe('list (duplicateOf cascade)', () => {
+    const makeBlockedEntry = (
+      channelId: string,
+      messageId: number,
+      duplicateOfChannelId: string | null,
+      duplicateOfMessageId: number | null,
+    ): PublisherQueueEntry =>
+      PublisherQueueEntry.reconstitute({
+        id: 'entry-id',
+        traceId: 'trace-id',
+        channelId,
+        messageId,
+        rawContent: 'body',
+        rawTitle: null,
+        imagePath: null,
+        imagePaths: [],
+        groupedId: null,
+        messageReceivedAt: new Date(),
+        matchedKeywordIds: [],
+        keywordTemplateId: null,
+        status: 'BLOCKED',
+        publishedAt: null,
+        telegramMessageId: null,
+        lastError: null,
+        attempts: 0,
+        generatedContent: null,
+        generatedSystemPrompt: null,
+        generatedUserPrompt: null,
+        generatedTemperature: null,
+        generatedReasoningEffort: null,
+        generatedModel: null,
+        blockedReason: 'duplicate',
+        duplicateOfChannelId,
+        duplicateOfMessageId,
+        duplicateOfEntryId: null,
+      });
+
+    const makeSource = (
+      channelId: string,
+      handle: string | null,
+      title: string,
+    ): CryptoNewsSource =>
+      CryptoNewsSource.create({ channelId, handle, title });
+
+    it('uses handle to build public URL when source has handle', async () => {
+      const entry = makeBlockedEntry('1350475252', 10201, '1375055530', 17843);
+      queueRepo.findAllForDisplay.mockResolvedValue([entry]);
+      sourceRepo.findAll.mockResolvedValue([
+        makeSource('1375055530', 'CoinBureau', 'Coin Bureau'),
+      ]);
+
+      const result = await controller.list();
+
+      expect(result[0].duplicateOfSourceHandle).toBe('CoinBureau');
+      expect(result[0].duplicateOfTelegramUrl).toBe(
+        'https://t.me/CoinBureau/17843',
+      );
+    });
+
+    it('falls back to t.me/c/${id} when source has no handle', async () => {
+      const entry = makeBlockedEntry('1350475252', 10201, '1375055530', 17843);
+      queueRepo.findAllForDisplay.mockResolvedValue([entry]);
+      sourceRepo.findAll.mockResolvedValue([
+        makeSource('1375055530', null, 'Test Channel'),
+      ]);
+
+      const result = await controller.list();
+
+      expect(result[0].duplicateOfSourceHandle).toBeNull();
+      expect(result[0].duplicateOfTelegramUrl).toBe(
+        'https://t.me/c/1375055530/17843',
+      );
+    });
+
+    it('returns null URL when duplicateOfChannelId is null', async () => {
+      const entry = makeBlockedEntry('1350475252', 10201, null, 17843);
+      queueRepo.findAllForDisplay.mockResolvedValue([entry]);
+      sourceRepo.findAll.mockResolvedValue([]);
+
+      const result = await controller.list();
+
+      expect(result[0].duplicateOfSourceHandle).toBeNull();
+      expect(result[0].duplicateOfTelegramUrl).toBeNull();
+    });
+  });
+
   describe('getQueueMedia', () => {
     it('should return 404 when the entry is not found', async () => {
       queueRepo.findByIdForDisplay.mockResolvedValue(null);

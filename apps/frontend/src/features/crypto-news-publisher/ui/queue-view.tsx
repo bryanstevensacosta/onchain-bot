@@ -114,7 +114,10 @@ export function DetailsModal({
                 Duplicate of:{' '}
                 {entry.duplicateOfChannelId && entry.duplicateOfMessageId && (
                   <a
-                    href={`https://t.me/c/${entry.duplicateOfChannelId}/${entry.duplicateOfMessageId}`}
+                    href={
+                      entry.duplicateOfTelegramUrl ??
+                      `https://t.me/c/${entry.duplicateOfChannelId}/${entry.duplicateOfMessageId}`
+                    }
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-400 hover:text-blue-300 underline"

@@ -31,6 +31,8 @@ export interface QueueEntryView {
   readonly duplicateOfChannelId?: string;
   readonly duplicateOfMessageId?: number;
   readonly duplicateOfEntryId?: string;
+  readonly duplicateOfSourceHandle?: string | null;
+  readonly duplicateOfTelegramUrl?: string | null;
 }
 
 export interface QueueCountsView {
