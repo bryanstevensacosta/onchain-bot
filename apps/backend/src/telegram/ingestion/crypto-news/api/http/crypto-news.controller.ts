@@ -12,6 +12,7 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Request, Response } from 'express';
 import { Repository } from 'typeorm';
@@ -31,6 +32,7 @@ import {
   detectMediaMimeType,
   serveMediaFile,
 } from 'shared/common/http/media-serving';
+import type { AppConfig } from 'shared/common/config/app.config';
 
 export interface CryptoNewsMediaView {
   readonly id: string;
@@ -84,17 +86,25 @@ export class CryptoNewsController {
     private readonly registerSource: RegisterNewsSourceUseCase,
     private readonly metadataResolver: CryptoNewsMetadataResolver,
     private readonly storeNewsMessage: StoreNewsMessageUseCase,
+    private readonly config: ConfigService,
   ) {}
 
   @Get('messages')
   public async listMessages(
     @Query('limit') limit?: string,
     @Query('channelId') channelId?: string,
+    @Query('hours') hours?: string,
   ): Promise<ReadonlyArray<CryptoNewsMessageView>> {
     const n = Math.max(1, Math.min(500, parseInt(limit ?? '50', 10) || 50));
+    const cfgHours =
+      this.config.get<AppConfig>('app')?.cryptoNewsMediaRetentionHours ?? 48;
+    const h = hours
+      ? Math.max(1, Math.min(8760, parseInt(hours, 10) || cfgHours))
+      : cfgHours;
+    const since = new Date(Date.now() - h * 3600 * 1000);
     const messages = channelId
-      ? await this.messageRepo.findByChannelId(channelId, n)
-      : await this.messageRepo.findRecent(n);
+      ? await this.messageRepo.findByChannelId(channelId, n, since)
+      : await this.messageRepo.findRecent(n, since);
     return Promise.all(
       messages.map(async (m) => ({
         id: m.id,

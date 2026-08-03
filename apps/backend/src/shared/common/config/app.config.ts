@@ -218,6 +218,12 @@ export interface AppConfig extends LlmConfigShape {
 
   uploadsRoot: string;
 
+  // Retention window (in hours) for the crypto-news read-side filter
+  // AND the media-retention cleanup cron (Todo 3). Both consume the
+  // same env var so the visible window and the deletion threshold
+  // can never desync — every visible message keeps its media.
+  cryptoNewsMediaRetentionHours: number;
+
   logging: {
     level: string;
     dir: string;
@@ -508,6 +514,11 @@ export const appConfig = registerAs(
     },
 
     uploadsRoot: process.env.UPLOADS_ROOT ?? join(process.cwd(), 'uploads'),
+
+    cryptoNewsMediaRetentionHours: parseInt(
+      process.env.CRYPTO_NEWS_MEDIA_RETENTION_HOURS ?? '48',
+      10,
+    ),
 
     llm: {
       gateway: {

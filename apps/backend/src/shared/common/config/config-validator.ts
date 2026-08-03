@@ -359,6 +359,13 @@ const CONFIG_MANIFEST: ConfigVarDef[] = [
     description: 'Uploads root directory',
   },
   {
+    envVar: 'CRYPTO_NEWS_MEDIA_RETENTION_HOURS',
+    configPath: 'cryptoNewsMediaRetentionHours',
+    category: 'optional',
+    description:
+      'Crypto-news media retention window in hours (read filter + media cleanup cron)',
+  },
+  {
     envVar: 'LOG_LEVEL',
     configPath: 'logging.level',
     category: 'optional',

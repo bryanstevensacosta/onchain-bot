@@ -94,4 +94,94 @@ describe('InMemoryCryptoNewsMessageRepository', () => {
     expect(result[0].id).toBe(a2.id);
     expect(result[1].id).toBe(a.id);
   });
+
+  describe('retention window (since filter)', () => {
+    const HOUR = 3600 * 1000;
+    const NOW = new Date('2026-02-01T00:00:00.000Z');
+    let origDateNow: () => number;
+
+    beforeEach(() => {
+      origDateNow = Date.now;
+      Date.now = () => NOW.getTime();
+    });
+
+    afterEach(() => {
+      Date.now = origDateNow;
+    });
+
+    it('excludes a message older than 48h when since = now-48h', async () => {
+      const cutoff = new Date(NOW.getTime() - 48 * HOUR);
+      const old = CryptoNewsMessage.create({
+        channelId: 'c1',
+        messageId: 1,
+        title: null,
+        content: 'old',
+        publishedAt: new Date(),
+        ingestedAt: new Date(cutoff.getTime() - 24 * HOUR), // 72h old
+      });
+      const recent = CryptoNewsMessage.create({
+        channelId: 'c1',
+        messageId: 2,
+        title: null,
+        content: 'recent',
+        publishedAt: new Date(),
+        ingestedAt: new Date(cutoff.getTime() + 1 * HOUR), // 47h old
+      });
+      await repo.save(old);
+      await repo.save(recent);
+
+      const result = await repo.findRecent(50, cutoff);
+      expect(result.map((m) => m.id)).toEqual([recent.id]);
+    });
+
+    it('INCLUDES a message whose ingestedAt is exactly equal to since (boundary)', async () => {
+      const cutoff = new Date(NOW.getTime() - 48 * HOUR);
+      const boundary = CryptoNewsMessage.create({
+        channelId: 'c1',
+        messageId: 3,
+        title: null,
+        content: 'boundary',
+        publishedAt: new Date(),
+        ingestedAt: new Date(cutoff.getTime()), // exactly == since
+      });
+      await repo.save(boundary);
+
+      const result = await repo.findRecent(50, cutoff);
+      expect(result.map((m) => m.id)).toEqual([boundary.id]);
+    });
+
+    it('findByChannelId honours the same boundary contract', async () => {
+      const cutoff = new Date(NOW.getTime() - 48 * HOUR);
+      const old = CryptoNewsMessage.create({
+        channelId: 'c1',
+        messageId: 1,
+        title: null,
+        content: 'old',
+        publishedAt: new Date(),
+        ingestedAt: new Date(cutoff.getTime() - 24 * HOUR), // 72h old
+      });
+      const boundary = CryptoNewsMessage.create({
+        channelId: 'c1',
+        messageId: 2,
+        title: null,
+        content: 'boundary',
+        publishedAt: new Date(),
+        ingestedAt: new Date(cutoff.getTime()), // exactly == since
+      });
+      const otherChannel = CryptoNewsMessage.create({
+        channelId: 'c2',
+        messageId: 1,
+        title: null,
+        content: 'other',
+        publishedAt: new Date(),
+        ingestedAt: new Date(cutoff.getTime()), // exactly == since, but different channel
+      });
+      await repo.save(old);
+      await repo.save(boundary);
+      await repo.save(otherChannel);
+
+      const result = await repo.findByChannelId('c1', 50, cutoff);
+      expect(result.map((m) => m.id)).toEqual([boundary.id]);
+    });
+  });
 });

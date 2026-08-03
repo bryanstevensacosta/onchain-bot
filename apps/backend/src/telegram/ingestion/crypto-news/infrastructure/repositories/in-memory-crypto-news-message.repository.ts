@@ -21,8 +21,10 @@ export class InMemoryCryptoNewsMessageRepository extends CryptoNewsMessageReposi
 
   public async findRecent(
     limit: number,
+    since?: Date,
   ): Promise<ReadonlyArray<CryptoNewsMessage>> {
     return Array.from(this.store.values())
+      .filter((m) => (since ? m.ingestedAt.getTime() >= since.getTime() : true))
       .sort((a, b) => b.ingestedAt.getTime() - a.ingestedAt.getTime())
       .slice(0, limit);
   }
@@ -30,9 +32,14 @@ export class InMemoryCryptoNewsMessageRepository extends CryptoNewsMessageReposi
   public async findByChannelId(
     channelId: string,
     limit: number,
+    since?: Date,
   ): Promise<ReadonlyArray<CryptoNewsMessage>> {
     return Array.from(this.store.values())
-      .filter((m) => m.channelId === channelId)
+      .filter(
+        (m) =>
+          m.channelId === channelId &&
+          (since ? m.ingestedAt.getTime() >= since.getTime() : true),
+      )
       .sort((a, b) => b.ingestedAt.getTime() - a.ingestedAt.getTime())
       .slice(0, limit);
   }
