@@ -54,6 +54,7 @@ export interface QueueEntryView {
   readonly duplicateOfChannelId: string | null;
   readonly duplicateOfMessageId: number | null;
   readonly duplicateOfEntryId: string | null;
+  readonly displayName: string;
 }
 
 export interface QueueCountsView {
@@ -241,6 +242,8 @@ export class QueueController {
       duplicateOfChannelId: entry.duplicateOfChannelId,
       duplicateOfMessageId: entry.duplicateOfMessageId,
       duplicateOfEntryId: entry.duplicateOfEntryId,
+      displayName:
+        sourceHandle?.replace(/^@/, '') ?? sourceTitle ?? entry.channelId,
     };
   }
 }

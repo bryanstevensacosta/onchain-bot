@@ -7,10 +7,12 @@ import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/applica
 import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
 import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
+import { CryptoNewsSource } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-source.entity';
 
 describe('QueueController', () => {
   let controller: QueueController;
   let queueRepo: jest.Mocked<PublisherQueueRepository>;
+  let sourceRepo: jest.Mocked<CryptoNewsSourceRepository>;
 
   const makeEntry = (
     status: 'PENDING' | 'PUBLISHED' = 'PENDING',
@@ -107,6 +109,7 @@ describe('QueueController', () => {
 
     controller = module.get<QueueController>(QueueController);
     queueRepo = module.get(PublisherQueueRepository);
+    sourceRepo = module.get(CryptoNewsSourceRepository);
   });
 
   it('should be defined', () => {
@@ -171,6 +174,72 @@ describe('QueueController', () => {
       const result = await controller.counts();
 
       expect(result.remaining).toBe(0);
+    });
+  });
+
+  describe('list (displayName cascade)', () => {
+    const makeEntryWithChannelId = (channelId: string): PublisherQueueEntry =>
+      PublisherQueueEntry.create({
+        channelId,
+        messageId: 1,
+        rawContent: 'body',
+        rawTitle: 'title',
+        imagePath: null,
+        groupedId: null,
+        messageReceivedAt: new Date(),
+      });
+
+    const makeSource = (
+      channelId: string,
+      handle: string | null,
+      title: string,
+    ): CryptoNewsSource =>
+      CryptoNewsSource.create({ channelId, handle, title });
+
+    it('strips leading @ from handle', async () => {
+      const entry = makeEntryWithChannelId('4466661332');
+      queueRepo.findAllForDisplay.mockResolvedValue([entry]);
+      sourceRepo.findAll.mockResolvedValue([
+        makeSource('4466661332', '@coinmarket', 'Crypto Insider'),
+      ]);
+
+      const result = await controller.list();
+
+      expect(result[0].displayName).toBe('coinmarket');
+    });
+
+    it('uses bare handle as-is when no leading @', async () => {
+      const entry = makeEntryWithChannelId('4466661332');
+      queueRepo.findAllForDisplay.mockResolvedValue([entry]);
+      sourceRepo.findAll.mockResolvedValue([
+        makeSource('4466661332', 'coinmarket', 'Crypto Insider'),
+      ]);
+
+      const result = await controller.list();
+
+      expect(result[0].displayName).toBe('coinmarket');
+    });
+
+    it('falls back to title when handle is null', async () => {
+      const entry = makeEntryWithChannelId('4466661332');
+      queueRepo.findAllForDisplay.mockResolvedValue([entry]);
+      sourceRepo.findAll.mockResolvedValue([
+        makeSource('4466661332', null, 'Crypto Insider'),
+      ]);
+
+      const result = await controller.list();
+
+      expect(result[0].displayName).toBe('Crypto Insider');
+    });
+
+    it('falls back to channelId when both handle and title are unavailable', async () => {
+      const entry = makeEntryWithChannelId('4466661332');
+      queueRepo.findAllForDisplay.mockResolvedValue([entry]);
+      sourceRepo.findAll.mockResolvedValue([]);
+
+      const result = await controller.list();
+
+      expect(result[0].displayName).toBe('4466661332');
     });
   });
 
