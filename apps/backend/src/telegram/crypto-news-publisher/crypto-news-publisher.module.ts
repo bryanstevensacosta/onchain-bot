@@ -42,6 +42,8 @@ import { CryptoNewsPublisherConfigService } from 'telegram/crypto-news-publisher
 import { LlmConfigMigrationService } from 'telegram/crypto-news-publisher/infrastructure/migration/llm-config-migration.service';
 import { PublisherCronScheduler } from 'telegram/crypto-news-publisher/application/scheduling/publisher-cron.scheduler';
 import { TelegramPublisherPort } from 'telegram/shared';
+import { SlotArbitratorPort } from 'telegram/shared/domain/ports/slot-arbitrator.port';
+import { TypeOrmSlotArbitrator } from 'telegram/shared/infrastructure/persistence/typeorm/repositories/typeorm-slot-arbitrator';
 import { CryptoNewsMessageIngestedHandler } from 'telegram/crypto-news-publisher/infrastructure/event-bus/crypto-news-message-ingested.handler';
 
 /**
@@ -134,6 +136,10 @@ import { CryptoNewsMessageIngestedHandler } from 'telegram/crypto-news-publisher
     {
       provide: TelegramPublisherPort,
       useClass: BotApiCryptoNewsPublisherAdapter,
+    },
+    {
+      provide: SlotArbitratorPort,
+      useClass: TypeOrmSlotArbitrator,
     },
     // Overrides the globally-bound `LlmPort` from `LlmModule` for
     // crypto-news-publisher only; other BCs keep using OpenAI/Mock.

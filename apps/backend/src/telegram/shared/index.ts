@@ -25,3 +25,8 @@ export {
   type FinalizePayload,
 } from './application/ports/published-call.repository';
 export { PublishingEventPublisher } from './application/ports/publishing-event.publisher';
+export {
+  SlotArbitratorPort,
+  type SlotScope,
+  type SlotDecision,
+} from './domain/ports/slot-arbitrator.port';
