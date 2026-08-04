@@ -26,6 +26,7 @@ import { VipCallsModule as TelegramPublishingModule } from 'telegram/vip-calls/v
 import { VipDecisionsModule } from 'telegram/vip-calls/vip-decisions/decisions.module';
 import { ChainDexterBotModule } from 'telegram/chain-dexter-bot/chain-dexter-bot.module';
 import { CryptoNewsPublisherModule } from 'telegram/crypto-news-publisher/crypto-news-publisher.module';
+import { CryptoNewsAdsModule } from 'telegram/crypto-news-ads/crypto-news-ads.module';
 import { CallTrackingModule } from 'token/call-tracking/call-tracking.module';
 import { AchievementModule } from 'token/achievement/achievement.module';
 import { ReputationModule } from 'kol/reputation/reputation.module';
@@ -85,7 +86,8 @@ import { AppService } from './app.service';
               ignore: (req: { url?: string }) =>
                 req.url === '/api/health' ||
                 (req.url?.startsWith('/crypto-news/') ?? false) ||
-                (req.url?.startsWith('/crypto-news-publisher/') ?? false),
+                (req.url?.startsWith('/crypto-news-publisher/') ?? false) ||
+                (req.url?.startsWith('/crypto-news-ads/') ?? false),
             },
             serializers: {
               req(req: { method: string; url?: string; id: unknown }) {
@@ -119,6 +121,7 @@ import { AppService } from './app.service';
     VipDecisionsModule,
     ChainDexterBotModule,
     CryptoNewsPublisherModule,
+    CryptoNewsAdsModule,
     CallTrackingModule,
     AchievementModule,
     ReputationModule,
