@@ -7,6 +7,8 @@ import { CryptoNewsLlmAdapter } from 'telegram/crypto-news-publisher/infrastruct
 import { TelegramPublisherPort, type SendResult } from 'telegram/shared';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
 import { LlmConfig } from 'telegram/crypto-news-publisher/domain/entities/llm-config.entity';
+import { SlotArbitratorPort } from 'telegram/shared/domain/ports/slot-arbitrator.port';
+import { AdRotationStateRepository } from 'telegram/crypto-news-ads/application/ports/ad-rotation-state.repository';
 
 const TEST_TARGET_CHANNEL = '@crypto-news-test';
 
@@ -40,6 +42,8 @@ describe('ProcessNextQueuedArticleUseCase', () => {
   let publisher: jest.Mocked<TelegramPublisherPort>;
   let throttleStateRepo: jest.Mocked<SharedThrottleStateRepository>;
   let llmConfigRepo: jest.Mocked<LlmConfigRepository>;
+  let slotArbitrator: jest.Mocked<SlotArbitratorPort>;
+  let rotationStateRepo: jest.Mocked<AdRotationStateRepository>;
 
   const buildEntry = (overrides: {
     id?: string;
@@ -109,6 +113,26 @@ describe('ProcessNextQueuedArticleUseCase', () => {
     };
     llmConfigRepo.load.mockResolvedValue(buildLlmConfig({}));
 
+    slotArbitrator = {
+      canPublishNow: jest.fn(),
+      recordPublish: jest.fn(),
+    };
+    slotArbitrator.canPublishNow.mockResolvedValue({
+      canPublish: true,
+      nextSlotAvailableAt: null,
+      remainingSeconds: 0,
+      lastScope: null,
+      reason: 'ok',
+    });
+
+    rotationStateRepo = {
+      load: jest.fn(),
+      save: jest.fn(),
+      incrementPostsSinceLastAd: jest.fn(),
+      resetPostsSinceLastAd: jest.fn(),
+      markAdPublished: jest.fn(),
+    };
+
     useCase = new ProcessNextQueuedArticleUseCase(
       queueRepo,
       throttleScheduler,
@@ -116,6 +140,8 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       publisher,
       throttleStateRepo,
       llmConfigRepo,
+      slotArbitrator,
+      rotationStateRepo,
     );
   });
 
@@ -568,6 +594,93 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       expect(publisher.sendMessage).toHaveBeenCalledWith(
         '@from-config-row',
         'texto',
+      );
+    });
+  });
+
+  describe('slot arbitration gate', () => {
+    it('returns before daily-cap/dequeue/publish when the slot is held', async () => {
+      slotArbitrator.canPublishNow.mockResolvedValue({
+        canPublish: false,
+        nextSlotAvailableAt: new Date('2026-08-04T10:01:00Z'),
+        remainingSeconds: 30,
+        lastScope: 'ads',
+        reason: 'min-gap-not-met',
+      });
+      await useCase.execute();
+      expect(queueRepo.countPublishedToday).not.toHaveBeenCalled();
+      expect(queueRepo.findNextPending).not.toHaveBeenCalled();
+      expect(llmAdapter.generateForEntry).not.toHaveBeenCalled();
+      expect(publisher.sendPhoto).not.toHaveBeenCalled();
+      expect(publisher.sendMessage).not.toHaveBeenCalled();
+      expect(
+        rotationStateRepo.incrementPostsSinceLastAd,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('calls recordPublish("news") + incrementPostsSinceLastAd on successful publish', async () => {
+      const entry = buildEntry({
+        id: 'entry-slot-ok',
+        imagePath: null,
+        imagePaths: [],
+      });
+      queueRepo.countPublishedToday.mockResolvedValue(0);
+      throttleScheduler.shouldPublish.mockResolvedValue({
+        canPublish: true,
+        nextDelayMs: 0,
+      });
+      queueRepo.findNextPending.mockResolvedValue(entry);
+      llmAdapter.generateForEntry.mockResolvedValue({
+        content: 'texto slot ok',
+        systemPrompt: null,
+        userPrompt: 'test',
+        temperature: null,
+        reasoningEffort: null,
+        model: 'test',
+      });
+      publisher.sendMessage.mockResolvedValue(sendOk(99_700));
+      queueRepo.markPublished.mockResolvedValue(entry);
+      throttleScheduler.setLastPublishAt.mockResolvedValue();
+      slotArbitrator.recordPublish.mockResolvedValue();
+      rotationStateRepo.incrementPostsSinceLastAd.mockResolvedValue();
+
+      await useCase.execute();
+
+      expect(slotArbitrator.canPublishNow).toHaveBeenCalledWith(
+        'news',
+        expect.any(Date),
+      );
+      expect(publisher.sendMessage).toHaveBeenCalled();
+      expect(slotArbitrator.recordPublish).toHaveBeenCalledWith(
+        'news',
+        expect.any(Date),
+      );
+      expect(rotationStateRepo.incrementPostsSinceLastAd).toHaveBeenCalledTimes(
+        1,
+      );
+    });
+
+    it('does NOT call recordPublish nor incrementPostsSinceLastAd when publish fails', async () => {
+      const entry = buildEntry({ id: 'entry-slot-fail', attempts: 2 });
+      queueRepo.countPublishedToday.mockResolvedValue(0);
+      throttleScheduler.shouldPublish.mockResolvedValue({
+        canPublish: true,
+        nextDelayMs: 0,
+      });
+      queueRepo.findNextPending.mockResolvedValue(entry);
+      llmAdapter.generateForEntry.mockResolvedValue('texto');
+      publisher.sendMessage.mockResolvedValue(sendFail('rate limited'));
+      queueRepo.markFailed.mockResolvedValue(entry);
+
+      await useCase.execute();
+
+      expect(slotArbitrator.recordPublish).not.toHaveBeenCalled();
+      expect(
+        rotationStateRepo.incrementPostsSinceLastAd,
+      ).not.toHaveBeenCalled();
+      expect(queueRepo.markFailed).toHaveBeenCalledWith(
+        'entry-slot-fail',
+        'rate limited',
       );
     });
   });

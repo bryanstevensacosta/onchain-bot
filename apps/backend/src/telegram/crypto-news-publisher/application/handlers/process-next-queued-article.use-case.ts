@@ -8,6 +8,8 @@ import { findNonLatinCharacter } from 'telegram/crypto-news-publisher/applicatio
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
 import { TelegramPublisherPort } from 'telegram/shared';
 import { CryptoNewsLlmAdapter } from 'telegram/crypto-news-publisher/infrastructure/llm/crypto-news-llm.adapter';
+import { SlotArbitratorPort } from 'telegram/shared/domain/ports/slot-arbitrator.port';
+import { AdRotationStateRepository } from 'telegram/crypto-news-ads/application/ports/ad-rotation-state.repository';
 
 /**
  * Orchestrator use case: drain one PENDING entry from the publisher
@@ -53,21 +55,33 @@ export class ProcessNextQueuedArticleUseCase {
     private readonly publisher: TelegramPublisherPort,
     private readonly throttleStateRepo: SharedThrottleStateRepository,
     private readonly llmConfigRepo: LlmConfigRepository,
+    private readonly slotArbitrator: SlotArbitratorPort,
+    private readonly rotationStateRepo: AdRotationStateRepository,
   ) {}
 
   /**
    * Drain one entry. Always returns `void` — the only observable
    * effects are (a) the entry's persisted state, (b) the throttle
-   * state's `lastPublishAt`, and (c) a Telegram message.
+   * state's `lastPublishAt`, (c) the slot state (news publish timestamp),
+   * (d) the ads rotation counter, and (e) a Telegram message.
    */
   public async execute(): Promise<void> {
     const cfg = await this.llmConfigRepo.load();
+
+    const now = new Date();
+    const slot = await this.slotArbitrator.canPublishNow('news', now);
+    if (!slot.canPublish) {
+      this.logger.log(
+        `slot held by '${slot.lastScope ?? 'unknown'}' — next slot in ` +
+          `${slot.remainingSeconds}s`,
+      );
+      return;
+    }
 
     if (!(await this.canPublishToday(cfg))) {
       this.logger.log('daily cap reached — skipping tick');
       return;
     }
-    const now = new Date();
     const decision = await this.throttleScheduler.shouldPublish(now);
     if (!decision.canPublish) {
       this.logger.log(
@@ -110,6 +124,8 @@ export class ProcessNextQueuedArticleUseCase {
         generated,
       );
       await this.throttleScheduler.setLastPublishAt(now);
+      await this.slotArbitrator.recordPublish('news', now);
+      await this.rotationStateRepo.incrementPostsSinceLastAd();
       this.logger.log(
         `published queue entry ${entry.id} as telegram message ${result.messageId}`,
       );

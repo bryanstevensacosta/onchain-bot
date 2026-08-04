@@ -31,6 +31,7 @@ import { ProcessNextQueuedArticleUseCase } from 'telegram/crypto-news-publisher/
 import { GetLlmModelsUseCase } from 'telegram/crypto-news-publisher/application/handlers/get-llm-models.use-case';
 import { PhraseRegistryService } from 'telegram/crypto-news-publisher/application/services/phrase-registry.service';
 import { CryptoNewsIngestionModule } from 'telegram/ingestion/crypto-news/crypto-news-ingestion.module';
+import { CryptoNewsAdsModule } from 'telegram/crypto-news-ads/crypto-news-ads.module';
 import { BlacklistController } from 'telegram/crypto-news-publisher/api/http/blacklist.controller';
 import { KeywordsController } from 'telegram/crypto-news-publisher/api/http/keywords.controller';
 import { QueueController } from 'telegram/crypto-news-publisher/api/http/queue.controller';
@@ -83,6 +84,7 @@ import { CryptoNewsMessageIngestedHandler } from 'telegram/crypto-news-publisher
       PublisherThrottleStateEntity,
     ]),
     CryptoNewsIngestionModule,
+    CryptoNewsAdsModule,
     DeduplicationModule,
   ],
   controllers: [
