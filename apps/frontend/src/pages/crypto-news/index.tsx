@@ -15,6 +15,7 @@ import {
   PromptTemplates,
   QueueView,
 } from '@/features/crypto-news-publisher';
+import { AdsManager, AdsRotationConfigForm } from '@/features/crypto-news-ads';
 import { useSearchPhrases } from '@/features/crypto-news-publisher/model/use-phrases';
 
 interface LightboxMediaItem {
@@ -506,6 +507,19 @@ export function CryptoNewsPage() {
             <div className="space-y-4 pt-2">
               <LlmConfigForm />
               <PromptTemplates />
+            </div>
+          </details>
+
+          <details
+            open
+            className="space-y-3 rounded-lg border border-slate-700 bg-slate-800/30 p-4"
+          >
+            <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 select-none">
+              Ads
+            </summary>
+            <div className="space-y-4 pt-2">
+              <AdsManager />
+              <AdsRotationConfigForm />
             </div>
           </details>
         </aside>
