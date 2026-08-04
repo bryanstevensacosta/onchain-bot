@@ -9,24 +9,28 @@ import { LlmConfigEntity } from 'telegram/crypto-news-publisher/infrastructure/p
 import { PromptTemplateEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/prompt-template.entity';
 import { PublisherQueueEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/publisher-queue.entity';
 import { PublisherThrottleStateEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/publisher-throttle-state.entity';
+import {
+  SharedThrottleSchedulerService,
+  SHARED_THROTTLE_BOUNDS,
+} from 'telegram/shared/application/services/shared-throttle-scheduler.service';
+import { SharedThrottleStateRepository } from 'telegram/shared/application/ports/shared-throttle-state.repository';
 import { BlacklistPhraseRepository } from 'telegram/crypto-news-publisher/application/ports/blacklist-phrase.repository';
 import { KeywordRepository } from 'telegram/crypto-news-publisher/application/ports/keyword.repository';
 import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 import { PromptTemplateRepository } from 'telegram/crypto-news-publisher/application/ports/prompt-template.repository';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
-import { PublisherThrottleStateRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-throttle-state.repository';
+import { TypeOrmSharedThrottleStateRepository } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/repositories/typeorm-publisher-throttle-state.repository';
+import { loadCryptoNewsPublisherConfig } from 'telegram/crypto-news-publisher/infrastructure/config/crypto-news-publisher.config';
 import { TypeOrmBlacklistPhraseRepository } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/repositories/typeorm-blacklist-phrase.repository';
 import { TypeOrmKeywordRepository } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/repositories/typeorm-keyword.repository';
 import { TypeOrmLlmConfigRepository } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/repositories/typeorm-llm-config.repository';
 import { TypeOrmPromptTemplateRepository } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/repositories/typeorm-prompt-template.repository';
 import { TypeOrmPublisherQueueRepository } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/repositories/typeorm-publisher-queue.repository';
-import { TypeOrmPublisherThrottleStateRepository } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/repositories/typeorm-publisher-throttle-state.repository';
 import { EnqueueMatchingMessageUseCase } from 'telegram/crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
 import { ProcessNextQueuedArticleUseCase } from 'telegram/crypto-news-publisher/application/handlers/process-next-queued-article.use-case';
 import { GetLlmModelsUseCase } from 'telegram/crypto-news-publisher/application/handlers/get-llm-models.use-case';
 import { PhraseRegistryService } from 'telegram/crypto-news-publisher/application/services/phrase-registry.service';
-import { ThrottleSchedulerService } from 'telegram/crypto-news-publisher/application/services/throttle-scheduler.service';
-import { CryptoNewsMessageIngestedHandler } from 'telegram/crypto-news-publisher/infrastructure/event-bus/crypto-news-message-ingested.handler';
+import { CryptoNewsIngestionModule } from 'telegram/ingestion/crypto-news/crypto-news-ingestion.module';
 import { BlacklistController } from 'telegram/crypto-news-publisher/api/http/blacklist.controller';
 import { KeywordsController } from 'telegram/crypto-news-publisher/api/http/keywords.controller';
 import { QueueController } from 'telegram/crypto-news-publisher/api/http/queue.controller';
@@ -38,13 +42,13 @@ import { CryptoNewsPublisherConfigService } from 'telegram/crypto-news-publisher
 import { LlmConfigMigrationService } from 'telegram/crypto-news-publisher/infrastructure/migration/llm-config-migration.service';
 import { PublisherCronScheduler } from 'telegram/crypto-news-publisher/application/scheduling/publisher-cron.scheduler';
 import { TelegramPublisherPort } from 'telegram/shared';
-import { CryptoNewsIngestionModule } from 'telegram/ingestion/crypto-news/crypto-news-ingestion.module';
+import { CryptoNewsMessageIngestedHandler } from 'telegram/crypto-news-publisher/infrastructure/event-bus/crypto-news-message-ingested.handler';
 
 /**
  * Crypto-news publisher BC.
  *
  * Wave 4 scope adds the publishing path:
- *  - `ThrottleSchedulerService` enforces the random-delay rule
+ *  - `SharedThrottleSchedulerService` enforces the random-delay rule
  *    between consecutive publishes (3-15 min by default).
  *  - `ProcessNextQueuedArticleUseCase` orchestrates daily-cap +
  *    throttle + LLM + publish + state transitions.
@@ -92,7 +96,7 @@ import { CryptoNewsIngestionModule } from 'telegram/ingestion/crypto-news/crypto
     TypeOrmLlmConfigRepository,
     TypeOrmPromptTemplateRepository,
     TypeOrmPublisherQueueRepository,
-    TypeOrmPublisherThrottleStateRepository,
+    TypeOrmSharedThrottleStateRepository,
     {
       provide: BlacklistPhraseRepository,
       useClass: TypeOrmBlacklistPhraseRepository,
@@ -114,8 +118,18 @@ import { CryptoNewsIngestionModule } from 'telegram/ingestion/crypto-news/crypto
       useClass: TypeOrmPublisherQueueRepository,
     },
     {
-      provide: PublisherThrottleStateRepository,
-      useClass: TypeOrmPublisherThrottleStateRepository,
+      provide: SharedThrottleStateRepository,
+      useClass: TypeOrmSharedThrottleStateRepository,
+    },
+    {
+      provide: SHARED_THROTTLE_BOUNDS,
+      useFactory: () => {
+        const cfg = loadCryptoNewsPublisherConfig();
+        return {
+          minDelayMs: cfg.publishing.randomDelayMinMs,
+          maxDelayMs: cfg.publishing.randomDelayMaxMs,
+        };
+      },
     },
     {
       provide: TelegramPublisherPort,
@@ -130,7 +144,7 @@ import { CryptoNewsIngestionModule } from 'telegram/ingestion/crypto-news/crypto
     CryptoNewsLlmAdapter,
     CryptoNewsPublisherConfigService,
     LlmConfigMigrationService,
-    ThrottleSchedulerService,
+    SharedThrottleSchedulerService,
     PhraseRegistryService,
     EnqueueMatchingMessageUseCase,
     ProcessNextQueuedArticleUseCase,
@@ -144,11 +158,11 @@ import { CryptoNewsIngestionModule } from 'telegram/ingestion/crypto-news/crypto
     LlmConfigRepository,
     PromptTemplateRepository,
     PublisherQueueRepository,
-    PublisherThrottleStateRepository,
+    SharedThrottleStateRepository,
     TelegramPublisherPort,
     CryptoNewsLlmAdapter,
     CryptoNewsPublisherConfigService,
-    ThrottleSchedulerService,
+    SharedThrottleSchedulerService,
     ProcessNextQueuedArticleUseCase,
   ],
 })

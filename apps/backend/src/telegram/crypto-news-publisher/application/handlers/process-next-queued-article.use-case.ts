@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
-import { PublisherThrottleStateRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-throttle-state.repository';
+import { SharedThrottleStateRepository } from 'telegram/shared/application/ports/shared-throttle-state.repository';
 import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 import { LlmConfig } from 'telegram/crypto-news-publisher/domain/entities/llm-config.entity';
-import { ThrottleSchedulerService } from 'telegram/crypto-news-publisher/application/services/throttle-scheduler.service';
+import { SharedThrottleSchedulerService } from 'telegram/shared/application/services/shared-throttle-scheduler.service';
 import { findNonLatinCharacter } from 'telegram/crypto-news-publisher/application/services/latin-script-validator';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
 import { TelegramPublisherPort } from 'telegram/shared';
@@ -48,10 +48,10 @@ export class ProcessNextQueuedArticleUseCase {
 
   public constructor(
     private readonly queueRepo: PublisherQueueRepository,
-    private readonly throttleScheduler: ThrottleSchedulerService,
+    private readonly throttleScheduler: SharedThrottleSchedulerService,
     private readonly llmAdapter: CryptoNewsLlmAdapter,
     private readonly publisher: TelegramPublisherPort,
-    private readonly throttleStateRepo: PublisherThrottleStateRepository,
+    private readonly throttleStateRepo: SharedThrottleStateRepository,
     private readonly llmConfigRepo: LlmConfigRepository,
   ) {}
 

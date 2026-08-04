@@ -1,8 +1,8 @@
 import { ProcessNextQueuedArticleUseCase } from './process-next-queued-article.use-case';
 import { PublisherQueueRepository } from '../ports/publisher-queue.repository';
-import { PublisherThrottleStateRepository } from '../ports/publisher-throttle-state.repository';
 import { LlmConfigRepository } from '../ports/llm-config.repository';
-import { ThrottleSchedulerService } from '../services/throttle-scheduler.service';
+import { SharedThrottleSchedulerService } from 'telegram/shared/application/services/shared-throttle-scheduler.service';
+import { SharedThrottleStateRepository } from 'telegram/shared/application/ports/shared-throttle-state.repository';
 import { CryptoNewsLlmAdapter } from 'telegram/crypto-news-publisher/infrastructure/llm/crypto-news-llm.adapter';
 import { TelegramPublisherPort, type SendResult } from 'telegram/shared';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
@@ -35,10 +35,10 @@ const buildLlmConfig = (overrides: {
 describe('ProcessNextQueuedArticleUseCase', () => {
   let useCase: ProcessNextQueuedArticleUseCase;
   let queueRepo: jest.Mocked<PublisherQueueRepository>;
-  let throttleScheduler: jest.Mocked<ThrottleSchedulerService>;
+  let throttleScheduler: jest.Mocked<SharedThrottleSchedulerService>;
   let llmAdapter: jest.Mocked<CryptoNewsLlmAdapter>;
   let publisher: jest.Mocked<TelegramPublisherPort>;
-  let throttleStateRepo: jest.Mocked<PublisherThrottleStateRepository>;
+  let throttleStateRepo: jest.Mocked<SharedThrottleStateRepository>;
   let llmConfigRepo: jest.Mocked<LlmConfigRepository>;
 
   const buildEntry = (overrides: {

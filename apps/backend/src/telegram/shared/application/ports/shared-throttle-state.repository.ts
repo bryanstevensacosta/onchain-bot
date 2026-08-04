@@ -1,7 +1,7 @@
-import { PublisherThrottleState } from 'telegram/crypto-news-publisher/domain/entities/publisher-throttle-state.entity';
+import { SharedThrottleState } from 'telegram/shared/domain/entities/shared-throttle-state.entity';
 
 /**
- * Outbound port: persistence for the publisher throttle state.
+ * Outbound port: persistence for a shared publish-throttle state.
  *
  * Backed by a single-row table (`id=1`). Returns an "empty" state
  * (lastPublishAt=null) when no row exists yet.
@@ -11,12 +11,12 @@ import { PublisherThrottleState } from 'telegram/crypto-news-publisher/domain/en
  *   aggregate). Used by callers that want to compute a new state
  *   from an existing one (`state.withLastPublishAt(...)`).
  * - `getLastPublishAt()` / `setLastPublishAt(at)` — primitive-typed
- *   convenience methods. Used by the cron publisher where a full
+ *   convenience methods. Used by the cron publishers where a full
  *   aggregate round-trip is not required.
  */
-export abstract class PublisherThrottleStateRepository {
-  public abstract load(): Promise<PublisherThrottleState>;
-  public abstract save(state: PublisherThrottleState): Promise<void>;
+export abstract class SharedThrottleStateRepository {
+  public abstract load(): Promise<SharedThrottleState>;
+  public abstract save(state: SharedThrottleState): Promise<void>;
   public abstract getLastPublishAt(): Promise<Date | null>;
   public abstract setLastPublishAt(at: Date): Promise<void>;
 }

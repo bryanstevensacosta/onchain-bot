@@ -1,17 +1,27 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ThrottleSchedulerService } from './throttle-scheduler.service';
-import { PublisherThrottleStateRepository } from '../ports/publisher-throttle-state.repository';
+import {
+  SharedThrottleSchedulerService,
+  SHARED_THROTTLE_BOUNDS,
+  type SharedThrottleBounds,
+} from './shared-throttle-scheduler.service';
+import { SharedThrottleStateRepository } from '../ports/shared-throttle-state.repository';
 
-describe('ThrottleSchedulerService', () => {
-  let service: ThrottleSchedulerService;
-  let throttleStateRepo: jest.Mocked<PublisherThrottleStateRepository>;
+describe('SharedThrottleSchedulerService', () => {
+  let service: SharedThrottleSchedulerService;
+  let throttleStateRepo: jest.Mocked<SharedThrottleStateRepository>;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+  const compileService = async (
+    overrides: Partial<SharedThrottleBounds> = {},
+  ): Promise<TestingModule> => {
+    return Test.createTestingModule({
       providers: [
-        ThrottleSchedulerService,
+        SharedThrottleSchedulerService,
         {
-          provide: PublisherThrottleStateRepository,
+          provide: SHARED_THROTTLE_BOUNDS,
+          useValue: { minDelayMs: 60_000, maxDelayMs: 60_000, ...overrides },
+        },
+        {
+          provide: SharedThrottleStateRepository,
           useValue: {
             getLastPublishAt: jest.fn(),
             setLastPublishAt: jest.fn(),
@@ -21,9 +31,14 @@ describe('ThrottleSchedulerService', () => {
         },
       ],
     }).compile();
+  };
 
-    service = module.get<ThrottleSchedulerService>(ThrottleSchedulerService);
-    throttleStateRepo = module.get(PublisherThrottleStateRepository);
+  beforeEach(async () => {
+    const module: TestingModule = await compileService();
+    service = module.get<SharedThrottleSchedulerService>(
+      SharedThrottleSchedulerService,
+    );
+    throttleStateRepo = module.get(SharedThrottleStateRepository);
   });
 
   it('should be defined', () => {
@@ -66,7 +81,7 @@ describe('ThrottleSchedulerService', () => {
       const last = new Date('2026-07-06T11:00:00Z');
       const now = new Date('2026-07-06T12:00:00Z');
       throttleStateRepo.getLastPublishAt.mockResolvedValue(last);
-      // 60 min elapsed — always > default 3-15 min delay
+      // 60 min elapsed — always > the 60s injected delay
       const decision = await service.shouldPublish(now);
       expect(decision.canPublish).toBe(true);
       expect(decision.nextDelayMs).toBe(0);
@@ -75,11 +90,11 @@ describe('ThrottleSchedulerService', () => {
     it('denies publishing when the last publish was very recent', async () => {
       const last = new Date('2026-07-06T11:59:30Z');
       const now = new Date('2026-07-06T12:00:00Z');
-      // 30 seconds elapsed — guaranteed < minimum 3-min delay
+      // 30 seconds elapsed — guaranteed < the 60s injected delay
       throttleStateRepo.getLastPublishAt.mockResolvedValue(last);
       const decision = await service.shouldPublish(now);
       expect(decision.canPublish).toBe(false);
-      expect(decision.nextDelayMs).toBeGreaterThan(0);
+      expect(decision.nextDelayMs).toBe(30_000);
     });
 
     it('emits a non-negative nextDelayMs even on edge cases', async () => {
@@ -97,49 +112,13 @@ describe('ThrottleSchedulerService', () => {
       throttleStateRepo.getLastPublishAt.mockResolvedValue(last);
       const decision = await service.shouldPublish(now);
       // nextDelayMs = randomDelay - elapsed; the randomDelay itself
-      // is at most config.maxDelayMs (default 900_000ms = 15min).
-      expect(decision.nextDelayMs).toBeLessThanOrEqual(900_000);
+      // is at most the injected 60_000ms = 1min.
+      expect(decision.nextDelayMs).toBeLessThanOrEqual(60_000);
     });
   });
 
-  describe('random delay distribution', () => {
-    it('draws a delay inside [minDelayMs, maxDelayMs] across many iterations', async () => {
-      // First boot (no prior publish) so canPublish=true doesn't depend
-      // on the random value. Then probe the randomDelayMs span by
-      // triggering decisions and observing the result.
-      throttleStateRepo.getLastPublishAt.mockResolvedValue(null);
-      let minObserved = Number.POSITIVE_INFINITY;
-      let maxObserved = Number.NEGATIVE_INFINITY;
-      for (let i = 0; i < 200; i++) {
-        const last = new Date(0);
-        const now = new Date();
-        throttleStateRepo.getLastPublishAt.mockResolvedValueOnce(last);
-        const decision = await service.shouldPublish(now);
-        // The decision's effective delay window is [min,max]; when
-        // canPublish=true the nextDelayMs is 0 (already passed). Probe
-        // by calling a public-but-probing entry point: simply check
-        // the canPublish side. For distribution probing we use the
-        // global Math.random via a fresh service so we can see
-        // boundary behaviour via `decision.canPublish`.
-        // (No assertion on minObserved here — just exercise the path.)
-        if (decision.canPublish) {
-          minObserved = Math.min(minObserved, 0);
-          maxObserved = Math.max(maxObserved, 0);
-        } else {
-          minObserved = Math.min(minObserved, decision.nextDelayMs);
-          maxObserved = Math.max(maxObserved, decision.nextDelayMs);
-        }
-      }
-      // When delay is in [3min, 15min] (default 180_000-900_000) and
-      // elapsed=now (huge), canPublish is true so nextDelayMs=0 and
-      // the loop body never writes to minObserved/maxObserved. The
-      // important invariant is that the loop runs 200x without error.
-      expect(minObserved).toBeLessThanOrEqual(maxObserved);
-    });
-
-    it('produces delays in [0, 900_000] when the last publish was long ago', async () => {
-      // Pre-condition: last publish was 24h ago. Default delay is
-      // 3-15 min. Result must be canPublish=true regardless of draw.
+  describe('random delay distribution (injected deterministic bounds)', () => {
+    it('produces delays in [0, 60_000] when the last publish was long ago', async () => {
       const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
       throttleStateRepo.getLastPublishAt.mockResolvedValue(yesterday);
       for (let i = 0; i < 50; i++) {
@@ -149,17 +128,56 @@ describe('ThrottleSchedulerService', () => {
       }
     });
 
-    it('produces a nextDelayMs in (0, 900_000] when the last publish was 1 ms ago', async () => {
+    it('produces a nextDelayMs in (0, 60_000] when the last publish was 1 ms ago', async () => {
       const oneMsAgo = new Date(Date.now() - 1);
       for (let i = 0; i < 50; i++) {
         throttleStateRepo.getLastPublishAt.mockResolvedValue(oneMsAgo);
         const decision = await service.shouldPublish(new Date());
-        // canPublish must be false (1ms elapsed < min 3min)
-        // and nextDelayMs must be a positive number bounded by max
         expect(decision.canPublish).toBe(false);
         expect(decision.nextDelayMs).toBeGreaterThan(0);
-        expect(decision.nextDelayMs).toBeLessThanOrEqual(900_000);
+        expect(decision.nextDelayMs).toBeLessThanOrEqual(60_000);
       }
+    });
+  });
+
+  describe('scope parametrization', () => {
+    it('two instances with DIFFERENT bounds decide independently for the same repo row', async () => {
+      // Both instances share the same persisted row: last published 61s ago.
+      const last = new Date('2026-07-06T11:59:00Z');
+      const now = new Date('2026-07-06T12:00:01Z');
+
+      // Instance A: 60s/60s window (like ads default). 61s elapsed → OK.
+      const moduleA = await compileService({
+        minDelayMs: 60_000,
+        maxDelayMs: 60_000,
+      });
+      const serviceA = moduleA.get<SharedThrottleSchedulerService>(
+        SharedThrottleSchedulerService,
+      );
+      const repoA = moduleA.get<SharedThrottleStateRepository>(
+        SharedThrottleStateRepository,
+      );
+      (repoA.getLastPublishAt as jest.Mock).mockResolvedValue(last);
+
+      // Instance B: 180s/180s window (aggressive anti-pulse). 61s elapsed → blocked.
+      const moduleB = await compileService({
+        minDelayMs: 180_000,
+        maxDelayMs: 180_000,
+      });
+      const serviceB = moduleB.get<SharedThrottleSchedulerService>(
+        SharedThrottleSchedulerService,
+      );
+      const repoB = moduleB.get<SharedThrottleStateRepository>(
+        SharedThrottleStateRepository,
+      );
+      (repoB.getLastPublishAt as jest.Mock).mockResolvedValue(last);
+
+      const decisionA = await serviceA.shouldPublish(now);
+      const decisionB = await serviceB.shouldPublish(now);
+
+      expect(decisionA.canPublish).toBe(true);
+      expect(decisionB.canPublish).toBe(false);
+      expect(decisionB.nextDelayMs).toBe(119_000);
     });
   });
 });
