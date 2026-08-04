@@ -13,6 +13,8 @@ import { TypeOrmAdRotationConfigRepository } from 'telegram/crypto-news-ads/infr
 import { TypeOrmAdRotationStateRepository } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/repositories/typeorm-ad-rotation-state.repository';
 import { TypeOrmAdsThrottleStateRepository } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/repositories/typeorm-ads-throttle-state.repository';
 import { TypeOrmSlotArbitrator } from 'telegram/shared/infrastructure/persistence/typeorm/repositories/typeorm-slot-arbitrator';
+import { PublishAdUseCase } from 'telegram/crypto-news-ads/application/handlers/publish-ad.use-case';
+import { RotationDeciderService } from 'telegram/crypto-news-ads/application/services/rotation-decider.service';
 import { AdEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad.entity';
 import { AdRotationConfigEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-rotation-config.entity';
 import { AdRotationStateEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-rotation-state.entity';
@@ -55,6 +57,8 @@ import { AdsThrottleStateEntity } from 'telegram/crypto-news-ads/infrastructure/
     TypeOrmAdRotationConfigRepository,
     TypeOrmAdRotationStateRepository,
     TypeOrmAdsThrottleStateRepository,
+    PublishAdUseCase,
+    RotationDeciderService,
     {
       provide: AdRepository,
       useClass: TypeOrmAdRepository,
