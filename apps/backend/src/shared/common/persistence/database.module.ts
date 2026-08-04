@@ -37,6 +37,10 @@ import { PublisherQueueEntity } from 'telegram/crypto-news-publisher/infrastruct
 import { PublisherThrottleStateEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/publisher-throttle-state.entity';
 import { PublisherSlotStateEntity } from 'telegram/shared/infrastructure/persistence/typeorm/entities/publisher-slot-state.entity';
 import { DedupRecordEntity } from 'shared/deduplication/infrastructure/persistence/typeorm/entities/dedup-record.entity';
+import { AdEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad.entity';
+import { AdRotationConfigEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-rotation-config.entity';
+import { AdRotationStateEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-rotation-state.entity';
+import { AdsThrottleStateEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ads-throttle-state.entity';
 import type { AppConfig } from 'shared/common/config/app.config';
 
 const PERSISTED_ENTITIES = [
@@ -75,6 +79,10 @@ const PERSISTED_ENTITIES = [
   PublisherQueueEntity,
   PublisherThrottleStateEntity,
   PublisherSlotStateEntity,
+  AdEntity,
+  AdRotationConfigEntity,
+  AdRotationStateEntity,
+  AdsThrottleStateEntity,
   DedupRecordEntity,
 ];
 
