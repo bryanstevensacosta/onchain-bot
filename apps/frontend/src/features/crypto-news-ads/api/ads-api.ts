@@ -21,6 +21,8 @@ export interface AdView {
   readonly timesPublished: number;
   readonly consecutiveFailures: number;
   readonly lastPublishedAt: string | null;
+  readonly expiresAt: string | null;
+  readonly expirationAction: 'disable' | 'delete';
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -35,6 +37,8 @@ export interface CreateAdBody {
   readonly name: string;
   readonly body: string;
   readonly imagePath?: string;
+  readonly expiresAt?: string;
+  readonly expirationAction?: 'disable' | 'delete';
 }
 
 export type UpdateAdBody = Partial<{
@@ -43,6 +47,8 @@ export type UpdateAdBody = Partial<{
   imagePath: string | null;
   enabled: boolean;
   order: number;
+  expiresAt: string | null;
+  expirationAction: 'disable' | 'delete';
 }>;
 
 export type UpdateRotationConfigBody = Partial<RotationConfigView>;

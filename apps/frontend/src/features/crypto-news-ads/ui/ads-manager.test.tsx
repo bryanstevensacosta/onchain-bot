@@ -4,7 +4,12 @@ import '@/test/setup';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 
-import { AdsManager } from './ads-manager';
+import {
+  AdsManager,
+  formatExpiresIn,
+  isoToLocalInput,
+  localInputToIso,
+} from './ads-manager';
 import type { AdView } from '../api/ads-api';
 
 afterEach(cleanup);
@@ -20,6 +25,8 @@ function makeAd(overrides: Partial<AdView> = {}): AdView {
     timesPublished: 0,
     consecutiveFailures: 0,
     lastPublishedAt: null,
+    expiresAt: null,
+    expirationAction: 'disable',
     createdAt: new Date('2026-08-03').toISOString(),
     updatedAt: new Date('2026-08-03').toISOString(),
     ...overrides,
@@ -142,7 +149,7 @@ describe('AdsManager', () => {
     fireEvent.click(screen.getByText('Save'));
 
     expect(createMut).toHaveBeenCalledWith(
-      { name: 'New banner', body: 'Buy now' },
+      { name: 'New banner', body: 'Buy now', expirationAction: 'disable' },
       expect.anything(),
     );
   });
@@ -161,31 +168,212 @@ describe('AdsManager', () => {
     });
   });
 
-  it('moves an ad up via updateAd order patch', () => {
+  it('moves an ad up by swapping order values with its neighbor', () => {
     mockedUseAds.mockReturnValue({
-      data: [makeAd({ name: 'First', order: 0 }), makeAd({ order: 1 })],
+      data: [
+        makeAd({ id: 'ad-first', name: 'First', order: 0 }),
+        makeAd({ id: 'ad-second', name: 'Second', order: 1 }),
+      ],
       isLoading: false,
       error: null,
     } as never);
     render(<AdsManager />);
-    fireEvent.click(screen.getByLabelText('Move Pump alpha up'));
+    fireEvent.click(screen.getByLabelText('Move Second up'));
     expect(updateAdMock).toHaveBeenCalledWith({
-      id: 'ad-1',
+      id: 'ad-second',
+      patch: { order: 0 },
+    });
+    expect(updateAdMock).toHaveBeenCalledWith({
+      id: 'ad-first',
+      patch: { order: 1 },
+    });
+  });
+
+  it('moves an ad down by swapping order values with its neighbor', () => {
+    mockedUseAds.mockReturnValue({
+      data: [
+        makeAd({ id: 'ad-first', name: 'First', order: 0 }),
+        makeAd({ id: 'ad-second', name: 'Second', order: 1 }),
+      ],
+      isLoading: false,
+      error: null,
+    } as never);
+    render(<AdsManager />);
+    fireEvent.click(screen.getByLabelText('Move First down'));
+    expect(updateAdMock).toHaveBeenCalledWith({
+      id: 'ad-first',
+      patch: { order: 1 },
+    });
+    expect(updateAdMock).toHaveBeenCalledWith({
+      id: 'ad-second',
       patch: { order: 0 },
     });
   });
 
-  it('moves an ad down via updateAd order patch', () => {
+  it('disables move buttons at the list edges', () => {
     mockedUseAds.mockReturnValue({
-      data: [makeAd({ order: 0 }), makeAd({ name: 'Last', order: 1 })],
+      data: [makeAd({ id: 'ad-only', name: 'Only', order: 0 })],
       isLoading: false,
       error: null,
     } as never);
     render(<AdsManager />);
-    fireEvent.click(screen.getByLabelText('Move Pump alpha down'));
-    expect(updateAdMock).toHaveBeenCalledWith({
-      id: 'ad-1',
-      patch: { order: 1 },
+    expect(screen.getByLabelText('Move Only up')).toBeDisabled();
+    expect(screen.getByLabelText('Move Only down')).toBeDisabled();
+  });
+
+  it('shows expiry fields in the create modal', () => {
+    mockedUseAds.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('+ Add Ad'));
+    expect(screen.getByLabelText('Expires at')).toBeInTheDocument();
+    expect(screen.getByLabelText('On expiry')).toBeInTheDocument();
+  });
+
+  it('submits expiry fields when set in the create modal', () => {
+    mockedUseAds.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+    const createMut = vi.fn();
+    mockedUseCreateAd.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: createMut,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('+ Add Ad'));
+    fireEvent.change(screen.getByLabelText(/Name/), {
+      target: { value: 'New banner' },
     });
+    fireEvent.change(screen.getByLabelText(/Body/), {
+      target: { value: 'Buy now' },
+    });
+    fireEvent.change(screen.getByLabelText('Expires at'), {
+      target: { value: '2026-08-10T12:00' },
+    });
+    fireEvent.change(screen.getByLabelText('On expiry'), {
+      target: { value: 'delete' },
+    });
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(createMut).toHaveBeenCalledWith(
+      {
+        name: 'New banner',
+        body: 'Buy now',
+        expiresAt: localInputToIso('2026-08-10T12:00'),
+        expirationAction: 'delete',
+      },
+      expect.anything(),
+    );
+  });
+
+  it('pre-fills the edit modal with the ad expiry', () => {
+    mockedUseAds.mockReturnValue({
+      data: [
+        makeAd({
+          expiresAt: '2026-08-10T12:00:00.000Z',
+          expirationAction: 'delete',
+        }),
+      ],
+      isLoading: false,
+      error: null,
+    } as never);
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('Edit'));
+    expect(screen.getByLabelText('Expires at')).toHaveValue(
+      isoToLocalInput('2026-08-10T12:00:00.000Z'),
+    );
+    expect(screen.getByLabelText('On expiry')).toHaveValue('delete');
+  });
+
+  it('submits an empty expiry on edit as null', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd({ expiresAt: '2026-08-10T12:00:00.000Z' })],
+      isLoading: false,
+      error: null,
+    } as never);
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('Edit'));
+    fireEvent.change(screen.getByLabelText('Expires at'), {
+      target: { value: '' },
+    });
+    fireEvent.click(screen.getByText('Save'));
+    expect(updateAdMock).toHaveBeenCalledWith(
+      { id: 'ad-1', patch: expect.objectContaining({ expiresAt: null }) },
+      expect.anything(),
+    );
+  });
+
+  it('shows an expired badge for an ad past its expiry', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd({ expiresAt: '2026-01-01T00:00:00.000Z' })],
+      isLoading: false,
+      error: null,
+    } as never);
+    render(<AdsManager />);
+    expect(screen.getByText('expired')).toBeInTheDocument();
+  });
+
+  it('shows "no limit" when the ad never expires', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd({ expiresAt: null })],
+      isLoading: false,
+      error: null,
+    } as never);
+    render(<AdsManager />);
+    expect(screen.getByText('no limit')).toBeInTheDocument();
+  });
+});
+
+describe('formatExpiresIn', () => {
+  const NOW = new Date('2026-08-06T12:00:00.000Z');
+
+  it('returns "no limit" for null expiry', () => {
+    expect(formatExpiresIn(null, NOW)).toBe('no limit');
+  });
+
+  it('returns "expired" for an expiry at or before now', () => {
+    expect(formatExpiresIn('2026-08-06T12:00:00.000Z', NOW)).toBe('expired');
+    expect(formatExpiresIn('2026-08-05T12:00:00.000Z', NOW)).toBe('expired');
+  });
+
+  it('formats > 24h as "in Xd Yh"', () => {
+    expect(formatExpiresIn('2026-08-07T13:30:00.000Z', NOW)).toBe('in 1d 1h');
+  });
+
+  it('formats > 1h as "in Xh Ym"', () => {
+    expect(formatExpiresIn('2026-08-06T15:45:00.000Z', NOW)).toBe('in 3h 45m');
+  });
+
+  it('formats <= 1h as "in Xm"', () => {
+    expect(formatExpiresIn('2026-08-06T12:30:00.000Z', NOW)).toBe('in 30m');
+  });
+});
+
+describe('iso/local conversion helpers', () => {
+  it('round-trips a local input through ISO', () => {
+    const local = isoToLocalInput('2026-08-06T12:00:00.000Z');
+    const iso = localInputToIso(local);
+    expect(iso).not.toBeNull();
+    expect(isoToLocalInput(iso!)).toBe(local);
+  });
+
+  it('returns null for an empty or invalid local input', () => {
+    expect(localInputToIso('')).toBeNull();
+    expect(localInputToIso('not-a-date')).toBeNull();
+  });
+
+  it('returns an empty string for an invalid ISO', () => {
+    expect(isoToLocalInput('not-a-date')).toBe('');
   });
 });
