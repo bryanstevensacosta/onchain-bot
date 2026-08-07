@@ -17,6 +17,8 @@ export class AdMapper {
     row.timesPublished = ad.timesPublished;
     row.consecutiveFailures = ad.consecutiveFailures;
     row.lastPublishedAt = ad.lastPublishedAt;
+    row.expiresAt = ad.expiresAt;
+    row.expirationAction = ad.expirationAction;
     row.createdAt = ad.createdAt;
     row.updatedAt = ad.updatedAt;
     return row;
@@ -33,6 +35,8 @@ export class AdMapper {
       timesPublished: row.timesPublished,
       consecutiveFailures: row.consecutiveFailures,
       lastPublishedAt: row.lastPublishedAt ?? null,
+      expiresAt: row.expiresAt ?? null,
+      expirationAction: row.expirationAction ?? 'disable',
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     });

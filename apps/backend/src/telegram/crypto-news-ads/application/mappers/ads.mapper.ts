@@ -15,6 +15,8 @@ export interface AdView {
   readonly timesPublished: number;
   readonly consecutiveFailures: number;
   readonly lastPublishedAt: string | null;
+  readonly expiresAt: string | null;
+  readonly expirationAction: 'disable' | 'delete';
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -35,6 +37,8 @@ export const toAdView = (ad: Ad): AdView => ({
   timesPublished: ad.timesPublished,
   consecutiveFailures: ad.consecutiveFailures,
   lastPublishedAt: ad.lastPublishedAt ? ad.lastPublishedAt.toISOString() : null,
+  expiresAt: ad.expiresAt ? ad.expiresAt.toISOString() : null,
+  expirationAction: ad.expirationAction,
   createdAt: ad.createdAt.toISOString(),
   updatedAt: ad.updatedAt.toISOString(),
 });
@@ -49,8 +53,15 @@ export const toRotationConfigView = (
 
 /**
  * Applies a partial PATCH payload onto an existing immutable `Ad`,
- * returning a NEW instance. `imagePath` supports explicit null (clears
- * the image) vs undefined (unchanged).
+ * returning a NEW instance. `imagePath` and `expiresAt` support explicit
+ * null (clears) vs undefined (unchanged).
+ *
+ * The expiry invariant is enforced on the RESULTING ad: whenever the
+ * patched ad is or would become enabled, it is built through
+ * `Ad.enable(now)` — which throws DomainError(CONFLICT) if expired — so
+ * a patch that only changes `expirationAction` on an expired-enabled ad
+ * still 409s (it is NOT a renewal). `patch.enabled === false` disables
+ * directly, never enabling through the guard.
  */
 export const applyAdPatch = (
   ad: Ad,
@@ -60,7 +71,10 @@ export const applyAdPatch = (
     imagePath?: string | null;
     enabled?: boolean;
     order?: number;
+    expiresAt?: Date | null;
+    expirationAction?: 'disable' | 'delete';
   },
+  now: Date = new Date(),
 ): Ad => {
   const props = {
     id: ad.id,
@@ -72,10 +86,28 @@ export const applyAdPatch = (
     timesPublished: ad.timesPublished,
     consecutiveFailures: ad.consecutiveFailures,
     lastPublishedAt: ad.lastPublishedAt,
+    expiresAt: patch.expiresAt !== undefined ? patch.expiresAt : ad.expiresAt,
+    expirationAction: patch.expirationAction ?? ad.expirationAction,
     createdAt: ad.createdAt,
     updatedAt: ad.updatedAt,
   };
-  return Ad.fromSnapshot(props);
+  const resulting = Ad.fromSnapshot(props);
+  if (patch.enabled === false) {
+    return resulting.disable();
+  }
+  // The ad would be enabled after the patch. It may stay enabled only
+  // if it was NOT already expired (a patch that INTRODUCES an expiry is
+  // allowed at write time — the sweep enforces it later), or if the
+  // patch renewed/cleared the expiry. An ad that was expired before the
+  // patch and still is after it must go through enable(now), which
+  // throws DomainError(CONFLICT) — this is how MA1's "changing ONLY
+  // expirationAction is not a renewal" becomes a 409 mechanically.
+  if (patch.enabled === true || resulting.enabled) {
+    if (ad.isExpired(now) && resulting.isExpired(now)) {
+      return resulting.enable(now);
+    }
+  }
+  return resulting;
 };
 
 /**

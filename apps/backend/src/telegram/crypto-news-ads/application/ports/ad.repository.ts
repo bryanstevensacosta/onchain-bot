@@ -5,7 +5,8 @@ import { Ad } from 'telegram/crypto-news-ads/domain/entities/ad.entity';
  */
 export abstract class AdRepository {
   public abstract findAll(): Promise<ReadonlyArray<Ad>>;
-  public abstract findAllActive(): Promise<ReadonlyArray<Ad>>;
+  public abstract findAllActive(now: Date): Promise<ReadonlyArray<Ad>>;
+  public abstract findExpired(now: Date): Promise<ReadonlyArray<Ad>>;
   public abstract findById(id: string): Promise<Ad | null>;
   public abstract save(ad: Ad): Promise<Ad>;
   public abstract delete(id: string): Promise<void>;

@@ -21,6 +21,7 @@ import {
 @Entity({ name: 'crypto_news_ads' })
 @Unique('uq_crypto_news_ads_name', ['name'])
 @Index('idx_crypto_news_ads_enabled_order', ['enabled', 'order'])
+@Index('idx_crypto_news_ads_expires_at', ['expiresAt'])
 export class AdEntity {
   @PrimaryGeneratedColumn('uuid')
   public id!: string;
@@ -49,6 +50,17 @@ export class AdEntity {
 
   @Column({ name: 'last_published_at', type: 'timestamptz', nullable: true })
   public lastPublishedAt!: Date | null;
+
+  @Column({ name: 'expires_at', type: 'timestamptz', nullable: true })
+  public expiresAt!: Date | null;
+
+  @Column({
+    name: 'expiration_action',
+    type: 'varchar',
+    length: 8,
+    default: 'disable',
+  })
+  public expirationAction!: 'disable' | 'delete';
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   public createdAt!: Date;

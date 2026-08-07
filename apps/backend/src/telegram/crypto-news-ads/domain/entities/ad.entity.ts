@@ -1,4 +1,5 @@
 import * as crypto from 'node:crypto';
+import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 
 /**
  * Domain aggregate for a publishable crypto-news ad.
@@ -23,6 +24,8 @@ export interface AdProps {
   readonly timesPublished: number;
   readonly consecutiveFailures: number;
   readonly lastPublishedAt: Date | null;
+  readonly expiresAt: Date | null;
+  readonly expirationAction: 'disable' | 'delete';
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -36,6 +39,8 @@ export class Ad {
     body: string;
     imagePath?: string | null;
     order?: number;
+    expiresAt?: Date | null;
+    expirationAction?: 'disable' | 'delete';
   }): Ad {
     const now = new Date();
     return new Ad({
@@ -48,6 +53,8 @@ export class Ad {
       timesPublished: 0,
       consecutiveFailures: 0,
       lastPublishedAt: null,
+      expiresAt: input.expiresAt ?? null,
+      expirationAction: input.expirationAction ?? 'disable',
       createdAt: now,
       updatedAt: now,
     });
@@ -93,6 +100,14 @@ export class Ad {
     return this.props.lastPublishedAt;
   }
 
+  public get expiresAt(): Date | null {
+    return this.props.expiresAt;
+  }
+
+  public get expirationAction(): 'disable' | 'delete' {
+    return this.props.expirationAction;
+  }
+
   public get createdAt(): Date {
     return this.props.createdAt;
   }
@@ -101,12 +116,34 @@ export class Ad {
     return this.props.updatedAt;
   }
 
-  public enable(): Ad {
+  /**
+   * An ad is expired when an expiry is configured and it has been
+   * reached (inclusive boundary: expiresAt === now counts as expired).
+   */
+  public isExpired(now: Date): boolean {
+    return (
+      this.props.expiresAt !== null &&
+      this.props.expiresAt.getTime() <= now.getTime()
+    );
+  }
+
+  public enable(now?: Date): Ad {
+    const reference = now ?? new Date();
+    if (this.isExpired(reference)) {
+      throw new DomainError(
+        ErrorCode.CONFLICT,
+        `ad ${this.props.name} is expired — set a future expiry or clear it to re-enable`,
+      );
+    }
     return this.with({ enabled: true });
   }
 
   public disable(): Ad {
     return this.with({ enabled: false });
+  }
+
+  public clearExpiry(): Ad {
+    return this.with({ expiresAt: null });
   }
 
   public markPublished(now: Date): Ad {

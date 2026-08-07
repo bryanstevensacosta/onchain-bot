@@ -23,11 +23,22 @@ export class TypeOrmAdRepository extends AdRepository {
     return rows.map((r) => AdMapper.toDomain(r));
   }
 
-  public async findAllActive(): Promise<ReadonlyArray<Ad>> {
-    const rows = await this.repo.find({
-      where: { enabled: true },
-      order: { order: 'ASC' },
-    });
+  public async findAllActive(now: Date): Promise<ReadonlyArray<Ad>> {
+    const rows = await this.repo
+      .createQueryBuilder('ad')
+      .where('ad.enabled = :enabled', { enabled: true })
+      .andWhere('ad.expires_at IS NULL OR ad.expires_at > :now', { now })
+      .orderBy('ad.order', 'ASC')
+      .getMany();
+    return rows.map((r) => AdMapper.toDomain(r));
+  }
+
+  public async findExpired(now: Date): Promise<ReadonlyArray<Ad>> {
+    const rows = await this.repo
+      .createQueryBuilder('ad')
+      .where('ad.expires_at IS NOT NULL AND ad.expires_at <= :now', { now })
+      .orderBy('ad.order', 'ASC')
+      .getMany();
     return rows.map((r) => AdMapper.toDomain(r));
   }
 

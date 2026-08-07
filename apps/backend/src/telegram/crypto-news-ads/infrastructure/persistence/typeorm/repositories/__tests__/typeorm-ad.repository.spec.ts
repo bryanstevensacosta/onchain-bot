@@ -10,9 +10,25 @@ describe('TypeOrmAdRepository', () => {
   let mockRepo: jest.Mocked<
     Pick<
       Repository<AdEntity>,
-      'find' | 'findOne' | 'save' | 'delete' | 'increment' | 'update'
+      | 'find'
+      | 'findOne'
+      | 'save'
+      | 'delete'
+      | 'increment'
+      | 'update'
+      | 'createQueryBuilder'
     >
   >;
+
+  const makeQb = () => {
+    const qb = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([] as AdEntity[]),
+    };
+    return qb as never;
+  };
 
   beforeEach(async () => {
     mockRepo = {
@@ -22,6 +38,7 @@ describe('TypeOrmAdRepository', () => {
       delete: jest.fn(),
       increment: jest.fn(),
       update: jest.fn(),
+      createQueryBuilder: jest.fn(),
     };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -50,6 +67,8 @@ describe('TypeOrmAdRepository', () => {
           timesPublished: 0,
           consecutiveFailures: 0,
           lastPublishedAt: null,
+          expiresAt: null,
+          expirationAction: 'disable',
           createdAt: new Date(),
           updatedAt: new Date(),
         },
@@ -63,6 +82,8 @@ describe('TypeOrmAdRepository', () => {
           timesPublished: 0,
           consecutiveFailures: 0,
           lastPublishedAt: null,
+          expiresAt: null,
+          expirationAction: 'disable',
           createdAt: new Date(),
           updatedAt: new Date(),
         },
@@ -74,13 +95,80 @@ describe('TypeOrmAdRepository', () => {
       });
     });
 
-    it('findAllActive filters enabled=true', async () => {
-      mockRepo.find.mockResolvedValue([]);
-      await repo.findAllActive();
-      expect(mockRepo.find).toHaveBeenCalledWith({
-        where: { enabled: true },
-        order: { order: 'ASC' },
-      });
+    it('findAllActive filters enabled=true AND (expires_at IS NULL OR expires_at > now)', async () => {
+      const now = new Date('2026-06-15T12:00:00.000Z');
+      const qb = makeQb();
+      mockRepo.createQueryBuilder.mockReturnValue(qb);
+      await repo.findAllActive(now);
+      expect(mockRepo.createQueryBuilder).toHaveBeenCalledWith('ad');
+      expect((qb as { where: jest.Mock }).where).toHaveBeenCalledWith(
+        'ad.enabled = :enabled',
+        { enabled: true },
+      );
+      expect((qb as { andWhere: jest.Mock }).andWhere).toHaveBeenCalledWith(
+        'ad.expires_at IS NULL OR ad.expires_at > :now',
+        {
+          now,
+        },
+      );
+    });
+
+    it('findAllActive excludes past-expiry rows from the result set', async () => {
+      const now = new Date('2026-06-15T12:00:00.000Z');
+      const qb = makeQb();
+      (qb as { getMany: jest.Mock }).getMany.mockResolvedValue([
+        {
+          id: 'ad-future',
+          name: 'Future',
+          body: 'body',
+          imagePath: null,
+          enabled: true,
+          order: 1,
+          timesPublished: 0,
+          consecutiveFailures: 0,
+          lastPublishedAt: null,
+          expiresAt: new Date('2026-06-15T13:00:00.000Z'),
+          expirationAction: 'disable',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ] as AdEntity[]);
+      mockRepo.createQueryBuilder.mockReturnValue(qb);
+      const active = await repo.findAllActive(now);
+      expect(active.map((a) => a.id)).toEqual(['ad-future']);
+      expect(active[0].expiresAt).toEqual(new Date('2026-06-15T13:00:00.000Z'));
+    });
+  });
+
+  describe('findExpired', () => {
+    it('returns rows with expires_at <= now ordered by order ASC', async () => {
+      const now = new Date('2026-06-15T12:00:00.000Z');
+      const qb = makeQb();
+      (qb as { getMany: jest.Mock }).getMany.mockResolvedValue([
+        {
+          id: 'ad-past',
+          name: 'Past',
+          body: 'body',
+          imagePath: null,
+          enabled: true,
+          order: 1,
+          timesPublished: 0,
+          consecutiveFailures: 0,
+          lastPublishedAt: null,
+          expiresAt: new Date('2026-06-15T11:00:00.000Z'),
+          expirationAction: 'disable',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ] as AdEntity[]);
+      mockRepo.createQueryBuilder.mockReturnValue(qb);
+      const expired = await repo.findExpired(now);
+      expect(mockRepo.createQueryBuilder).toHaveBeenCalledWith('ad');
+      expect((qb as { where: jest.Mock }).where).toHaveBeenCalledWith(
+        'ad.expires_at IS NOT NULL AND ad.expires_at <= :now',
+        { now },
+      );
+      expect(expired.map((a) => a.id)).toEqual(['ad-past']);
     });
   });
 
