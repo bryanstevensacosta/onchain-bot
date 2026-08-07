@@ -79,6 +79,7 @@ describe('AdsController', () => {
 
   describe('create', () => {
     it('builds + persists a new ad and returns the view', async () => {
+      adRepo.findAll.mockResolvedValue([]);
       adRepo.save.mockImplementation(async (ad) => ad);
       const result = await controller.create({
         name: 'Pump alpha',
@@ -93,13 +94,25 @@ describe('AdsController', () => {
       expect(adRepo.save).toHaveBeenCalledTimes(1);
     });
 
+    it('assigns the next order after the current max (append semantics)', async () => {
+      adRepo.findAll.mockResolvedValue([
+        buildAd({ name: 'First', order: 0 }),
+        buildAd({ name: 'Second', order: 3 }),
+      ]);
+      adRepo.save.mockImplementation(async (ad) => ad);
+      const result = await controller.create({ name: 'New', body: 'x' });
+      expect(result.order).toBe(4);
+    });
+
     it('defaults imagePath to null when omitted', async () => {
+      adRepo.findAll.mockResolvedValue([]);
       adRepo.save.mockImplementation(async (ad) => ad);
       const result = await controller.create({ name: 'No image', body: 'x' });
       expect(result.imagePath).toBeNull();
     });
 
     it('maps a unique-name violation to 409', async () => {
+      adRepo.findAll.mockResolvedValue([]);
       adRepo.save.mockRejectedValue({ code: '23505' });
       await expect(
         controller.create({ name: 'Alpha', body: 'x' }),

@@ -49,10 +49,14 @@ export class AdsController {
 
   @Post()
   public async create(@Body() dto: CreateAdDto): Promise<AdView> {
+    const existing = await this.adRepo.findAll();
+    const nextOrder =
+      existing.reduce((max, a) => Math.max(max, a.order), -1) + 1;
     const ad = Ad.create({
       name: dto.name,
       body: dto.body,
       imagePath: dto.imagePath ?? null,
+      order: nextOrder,
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
       expirationAction: dto.expirationAction ?? 'disable',
     });
