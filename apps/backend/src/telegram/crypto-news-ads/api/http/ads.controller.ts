@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { AdRepository } from 'telegram/crypto-news-ads/application/ports/ad.repository';
 import { Ad } from 'telegram/crypto-news-ads/domain/entities/ad.entity';
+import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import {
   CreateAdDto,
   UpdateAdDto,
@@ -52,6 +53,8 @@ export class AdsController {
       name: dto.name,
       body: dto.body,
       imagePath: dto.imagePath ?? null,
+      expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
+      expirationAction: dto.expirationAction ?? 'disable',
     });
     try {
       const saved = await this.adRepo.save(ad);
@@ -73,7 +76,21 @@ export class AdsController {
     if (!existing) {
       throw new NotFoundException(`Ad ${id} not found`);
     }
-    const updated = applyAdPatch(existing, dto);
+    const expiresAt =
+      dto.expiresAt === undefined
+        ? undefined
+        : dto.expiresAt === null
+          ? null
+          : new Date(dto.expiresAt);
+    let updated: Ad;
+    try {
+      updated = applyAdPatch(existing, { ...dto, expiresAt }, new Date());
+    } catch (err) {
+      if (err instanceof DomainError && err.code === ErrorCode.CONFLICT) {
+        throw new ConflictException(err.message);
+      }
+      throw err;
+    }
     try {
       const saved = await this.adRepo.save(updated);
       return toAdView(saved);

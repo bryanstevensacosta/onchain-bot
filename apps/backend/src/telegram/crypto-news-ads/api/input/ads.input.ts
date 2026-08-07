@@ -1,11 +1,14 @@
 import {
   IsBoolean,
+  IsIn,
   IsInt,
+  IsISO8601,
   IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 
 /**
@@ -28,6 +31,15 @@ export class CreateAdDto {
   @IsString()
   @MaxLength(512)
   public imagePath?: string;
+
+  @IsOptional()
+  @ValidateIf((o) => o.expiresAt !== undefined && o.expiresAt !== null)
+  @IsISO8601()
+  public expiresAt?: string | null;
+
+  @IsOptional()
+  @IsIn(['disable', 'delete'])
+  public expirationAction?: 'disable' | 'delete';
 }
 
 export class UpdateAdDto {
@@ -55,6 +67,15 @@ export class UpdateAdDto {
   @IsInt()
   @Min(0)
   public order?: number;
+
+  @IsOptional()
+  @ValidateIf((o) => o.expiresAt !== undefined && o.expiresAt !== null)
+  @IsISO8601()
+  public expiresAt?: string | null;
+
+  @IsOptional()
+  @IsIn(['disable', 'delete'])
+  public expirationAction?: 'disable' | 'delete';
 }
 
 export class UpdateRotationConfigDto {

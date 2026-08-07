@@ -10,18 +10,28 @@ const buildAd = (overrides: {
   body?: string;
   imagePath?: string | null;
   order?: number;
-}): Ad =>
-  Ad.create({
+  enabled?: boolean;
+  expiresAt?: Date | null;
+  expirationAction?: 'disable' | 'delete';
+}): Ad => {
+  const created = Ad.create({
     id: overrides.id ?? crypto.randomUUID(),
     name: overrides.name ?? `ad-${Math.random().toString(36).slice(2, 6)}`,
     body: overrides.body ?? 'Buy the dip',
     imagePath: overrides.imagePath,
     order: overrides.order,
+    expiresAt: overrides.expiresAt,
+    expirationAction: overrides.expirationAction,
   });
+  return overrides.enabled === false ? created.disable() : created;
+};
 
 describe('AdsController', () => {
   let controller: AdsController;
   let adRepo: jest.Mocked<AdRepository>;
+
+  const PAST = new Date('2020-01-01T00:00:00.000Z');
+  const FUTURE = new Date('2099-01-01T00:00:00.000Z');
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -32,6 +42,7 @@ describe('AdsController', () => {
           useValue: {
             findAll: jest.fn(),
             findAllActive: jest.fn(),
+            findExpired: jest.fn(),
             findById: jest.fn(),
             save: jest.fn(),
             delete: jest.fn(),
@@ -142,6 +153,93 @@ describe('AdsController', () => {
       await expect(
         controller.update(existing.id, { name: 'Duplicate' }),
       ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    describe('expiry truth table (Metis F5.1 + MA1)', () => {
+      it('409s when enabling an expired ad', async () => {
+        const existing = buildAd({ enabled: false, expiresAt: PAST });
+        adRepo.findById.mockResolvedValue(existing);
+        await expect(
+          controller.update(existing.id, { enabled: true }),
+        ).rejects.toBeInstanceOf(ConflictException);
+        expect(adRepo.save).not.toHaveBeenCalled();
+      });
+
+      it('200s when enabling with a future expiresAt (renewal)', async () => {
+        const existing = buildAd({ enabled: false, expiresAt: PAST });
+        adRepo.findById.mockResolvedValue(existing);
+        adRepo.save.mockImplementation(async (ad) => ad);
+        const result = await controller.update(existing.id, {
+          enabled: true,
+          expiresAt: FUTURE.toISOString(),
+        });
+        expect(result.enabled).toBe(true);
+        expect(result.expiresAt).toBe(FUTURE.toISOString());
+      });
+
+      it('200s when enabling with expiresAt null (clear)', async () => {
+        const existing = buildAd({ enabled: false, expiresAt: PAST });
+        adRepo.findById.mockResolvedValue(existing);
+        adRepo.save.mockImplementation(async (ad) => ad);
+        const result = await controller.update(existing.id, {
+          enabled: true,
+          expiresAt: null,
+        });
+        expect(result.enabled).toBe(true);
+        expect(result.expiresAt).toBeNull();
+      });
+
+      it('200s when disabling an expired ad (enabled:false)', async () => {
+        const existing = buildAd({ enabled: true, expiresAt: PAST });
+        adRepo.findById.mockResolvedValue(existing);
+        adRepo.save.mockImplementation(async (ad) => ad);
+        const result = await controller.update(existing.id, {
+          enabled: false,
+        });
+        expect(result.enabled).toBe(false);
+      });
+
+      it('does not 409 on an empty patch for an enabled non-expired ad', async () => {
+        const existing = buildAd({ enabled: true, expiresAt: FUTURE });
+        adRepo.findById.mockResolvedValue(existing);
+        adRepo.save.mockImplementation(async (ad) => ad);
+        const result = await controller.update(existing.id, {});
+        expect(result.enabled).toBe(true);
+      });
+
+      it('409s when changing ONLY expirationAction on an expired enabled ad (MA1)', async () => {
+        const existing = buildAd({
+          enabled: true,
+          expiresAt: PAST,
+          expirationAction: 'disable',
+        });
+        adRepo.findById.mockResolvedValue(existing);
+        await expect(
+          controller.update(existing.id, { expirationAction: 'delete' }),
+        ).rejects.toBeInstanceOf(ConflictException);
+        expect(adRepo.save).not.toHaveBeenCalled();
+      });
+
+      it('clears expiresAt with an explicit null', async () => {
+        const existing = buildAd({ enabled: true, expiresAt: PAST });
+        adRepo.findById.mockResolvedValue(existing);
+        adRepo.save.mockImplementation(async (ad) => ad);
+        const result = await controller.update(existing.id, {
+          expiresAt: null,
+        });
+        expect(result.expiresAt).toBeNull();
+        expect(result.enabled).toBe(true);
+      });
+
+      it('allows setting a past expiresAt on a non-expired ad (write-time allowed; sweep enforces later)', async () => {
+        const existing = buildAd({ enabled: true, expiresAt: FUTURE });
+        adRepo.findById.mockResolvedValue(existing);
+        adRepo.save.mockImplementation(async (ad) => ad);
+        const result = await controller.update(existing.id, {
+          expiresAt: PAST.toISOString(),
+        });
+        expect(result.expiresAt).toBe(PAST.toISOString());
+      });
     });
   });
 

@@ -3,6 +3,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { DataSource } from 'typeorm';
 import { PublishAdUseCase } from 'telegram/crypto-news-ads/application/handlers/publish-ad.use-case';
+import { AdRepository } from 'telegram/crypto-news-ads/application/ports/ad.repository';
 import { AdRotationConfigRepository } from 'telegram/crypto-news-ads/application/ports/ad-rotation-config.repository';
 
 /**
@@ -18,16 +19,22 @@ const ADS_ADVISORY_LOCK_ID = 8_013_203;
  *
  * Runs every minute. On each tick (mirrors `PublisherCronScheduler`):
  *  1. Skip if the previous tick is still running (busy guard).
- *  2. Load the rotation config and check `.enabled` — if the rotation
- *     is disabled, return with ZERO tick work (ads default OFF).
+ *  2. Load the rotation config (the `.enabled` check is applied AFTER
+ *     the sweep — see 5).
  *  3. `pg_try_advisory_lock(<id>)` — non-blocking; if another process /
  *     tick holds it, log + return.
- *  4. `PublishAdUseCase.execute()` — one ad decision per tick.
- *  5. `pg_advisory_unlock(<id>)` in `finally` so a thrown error in the
- *     use case still releases the lock and resets `running`.
+ *  4. SWEEP expired ads (housekeeping: disable or delete per
+ *     `expirationAction`) — runs even when rotation is OFF so an ad
+ *     that expires while disabled is still cleaned up, and a publish
+ *     failure never prevents it.
+ *  5. Check `.enabled` — now gates ONLY the publish step, not the
+ *     sweep above it.
+ *  6. `PublishAdUseCase.execute()` — one ad decision per tick.
+ *  7. `pg_advisory_unlock(<id>)` in `finally` so a thrown error in the
+ *     sweep or the use case still releases the lock and resets `running`.
  *
  * The enabled check lives BOTH here and inside `PublishAdUseCase`
- * step 1 (T5) — this one short-circuits the whole tick; the use case's
+ * step 1 — this one gates the publish step of the tick; the use case's
  * is a defensive second layer for the REST-toggled path.
  */
 @Injectable()
@@ -39,6 +46,7 @@ export class AdsCronScheduler implements OnApplicationBootstrap {
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly publishAdUseCase: PublishAdUseCase,
     private readonly rotationConfigRepo: AdRotationConfigRepository,
+    private readonly adRepo: AdRepository,
   ) {}
 
   public async onApplicationBootstrap(): Promise<void> {
@@ -68,10 +76,8 @@ export class AdsCronScheduler implements OnApplicationBootstrap {
       );
       return;
     }
-    if (!enabled) {
-      return;
-    }
     this.running = true;
+    const now = new Date();
     let lockHeld = false;
     try {
       lockHeld = await this.tryAcquireLock();
@@ -81,7 +87,11 @@ export class AdsCronScheduler implements OnApplicationBootstrap {
         );
         return;
       }
-      await this.publishAdUseCase.execute();
+      await this.sweepExpiredAds(now);
+      if (!enabled) {
+        return;
+      }
+      await this.publishAdUseCase.execute(now);
     } catch (err) {
       this.logger.error(
         `ads tick failed: ${(err as Error).message}`,
@@ -122,5 +132,35 @@ export class AdsCronScheduler implements OnApplicationBootstrap {
     await this.dataSource.query('SELECT pg_advisory_unlock($1)', [
       ADS_ADVISORY_LOCK_ID,
     ]);
+  }
+
+  /**
+   * Housekeeping pass that runs on every tick — BEFORE the rotation
+   * `.enabled` check — so an ad expiring while rotation is OFF is still
+   * swept, and a publish failure never prevents it. Disable is the
+   * default; `expirationAction === 'delete'` removes the ad entirely.
+   * Idempotent: a second run finds no rows (`findExpired` only returns
+   * `expires_at IS NOT NULL AND expires_at <= now`), and disable/delete
+   * on an already-disabled/deleted row is a repo no-op.
+   */
+  private async sweepExpiredAds(now: Date): Promise<void> {
+    const expired = await this.adRepo.findExpired(now);
+    if (expired.length === 0) {
+      return;
+    }
+    let disabled = 0;
+    let deleted = 0;
+    for (const ad of expired) {
+      if (ad.expirationAction === 'delete') {
+        await this.adRepo.delete(ad.id);
+        deleted += 1;
+      } else {
+        await this.adRepo.disable(ad.id);
+        disabled += 1;
+      }
+    }
+    this.logger.log(
+      `ads sweep: ${expired.length} expired (${disabled} disabled, ${deleted} deleted)`,
+    );
   }
 }

@@ -190,4 +190,67 @@ describe('RotationDeciderService', () => {
       expect(decision.ad?.id).toBe('ad-2');
     });
   });
+
+  describe('expired ads (defense-in-depth filter)', () => {
+    const NOW = new Date('2026-01-01T12:00:00Z');
+
+    function expiredAd(id: string, order = 0): Ad {
+      return Ad.create({
+        id,
+        name: `Ad ${id}`,
+        body: 'body',
+        order,
+        expiresAt: new Date('2026-01-01T10:00:00Z'), // 2h before NOW
+      });
+    }
+
+    function readyState(lastAdId: string | null): AdRotationState {
+      return AdRotationState.fromSnapshot({
+        id: 1,
+        postsSinceLastAd: 4,
+        lastAdId,
+        lastAdPublishedAt: new Date('2026-01-01T11:00:00Z'), // 1h before NOW
+        updatedAt: NOW,
+      });
+    }
+
+    it('skips an expired ad in the input list when picking', async () => {
+      const ads = [ad('ad-1'), expiredAd('ad-expired', 1), ad('ad-2', 2)];
+      const decision = await decider.shouldPublishAd(
+        NOW,
+        cfg(),
+        readyState('ad-1'),
+        ads,
+      );
+      expect(decision.shouldPublish).toBe(true);
+      expect(decision.ad?.id).toBe('ad-2'); // wraps past the expired middle ad
+    });
+
+    it('returns no-active-ads when every ad is expired', async () => {
+      const ads = [expiredAd('ad-1'), expiredAd('ad-2', 1)];
+      const decision = await decider.shouldPublishAd(
+        NOW,
+        cfg(),
+        readyState('ad-1'),
+        ads,
+      );
+      expect(decision).toEqual({
+        shouldPublish: false,
+        ad: null,
+        reason: 'no-active-ads',
+      });
+    });
+
+    it('wraps to the first non-expired ad when lastAdId points at an expired ad', async () => {
+      const ads = [ad('ad-1'), ad('ad-2', 1), expiredAd('ad-expired', 2)];
+      const decision = await decider.shouldPublishAd(
+        NOW,
+        cfg(),
+        readyState('ad-expired'), // cursor on expired ad -> not in eligible
+        ads,
+      );
+      expect(decision.shouldPublish).toBe(true);
+      expect(decision.ad?.id).toBe('ad-1'); // idx === -1 -> falls back to first
+    });
+  });
 });

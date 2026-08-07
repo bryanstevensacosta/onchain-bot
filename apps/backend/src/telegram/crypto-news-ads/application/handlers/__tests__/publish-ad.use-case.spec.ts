@@ -14,6 +14,7 @@ describe('PublishAdUseCase', () => {
   let useCase: PublishAdUseCase;
   const adRepo = {
     findAllActive: jest.fn(),
+    findExpired: jest.fn(),
     incrementFailures: jest.fn(),
     findById: jest.fn(),
     disable: jest.fn(),
@@ -359,6 +360,69 @@ describe('PublishAdUseCase', () => {
       expect(stateRepo.markAdPublished).not.toHaveBeenCalled();
       expect(throttle.setLastPublishAt).not.toHaveBeenCalled();
       expect(arbitrator.recordPublish).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('expired ads (repo-level primary guard)', () => {
+    it('all-active-ads-expired → findAllActive(now) empty → resets + no publish', async () => {
+      const now = new Date('2026-01-01T12:00:00Z');
+      cfgRepo.load.mockResolvedValue(enabledCfg());
+      // the repo filter (T2) already excluded every expired ad
+      adRepo.findAllActive.mockResolvedValue([]);
+
+      await useCase.execute(now);
+
+      expect(adRepo.findAllActive).toHaveBeenCalledWith(now);
+      expect(stateRepo.resetPostsSinceLastAd).toHaveBeenCalled();
+      expect(publisher.sendPhoto).not.toHaveBeenCalled();
+      expect(publisher.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('mixed → decider receives only the non-expired ads, publish picks one', async () => {
+      const now = new Date('2026-01-01T12:00:00Z');
+      const active = [
+        Ad.create({ id: 'ad-1', name: 'Ad 1', body: 'b1' }),
+        Ad.create({ id: 'ad-2', name: 'Ad 2', body: 'b2' }),
+      ];
+      const cfg = enabledCfg();
+      cfgRepo.load.mockResolvedValue(cfg);
+      // an expired ad-3 would never appear here — the repo excluded it
+      adRepo.findAllActive.mockResolvedValue(active);
+      arbitrator.canPublishNow.mockResolvedValue({
+        canPublish: true,
+        nextSlotAvailableAt: null,
+        remainingSeconds: 0,
+        lastScope: null,
+        reason: 'ok',
+      });
+      throttle.shouldPublish.mockResolvedValue({
+        canPublish: true,
+        nextDelayMs: 0,
+      });
+      const state = AdRotationState.empty();
+      stateRepo.load.mockResolvedValue(state);
+      decider.shouldPublishAd.mockResolvedValue({
+        shouldPublish: true,
+        ad: active[1],
+        reason: 'ok',
+      });
+      publisher.sendMessage.mockResolvedValue({
+        ok: true,
+        messageId: 5,
+        error: null,
+      });
+
+      await useCase.execute(now);
+
+      expect(adRepo.findAllActive).toHaveBeenCalledWith(now);
+      // the rotation decision sees exactly the repo-filtered list
+      expect(decider.shouldPublishAd).toHaveBeenCalledWith(
+        now,
+        cfg,
+        state,
+        active,
+      );
+      expect(publisher.sendMessage).toHaveBeenCalledWith('', 'b2');
     });
   });
 });

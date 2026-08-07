@@ -48,7 +48,7 @@ export class PublishAdUseCase {
       return;
     }
 
-    const activeAds = await this.adRepo.findAllActive();
+    const activeAds = await this.adRepo.findAllActive(now);
     if (activeAds.length === 0) {
       await this.rotationStateRepo.resetPostsSinceLastAd();
       return;
