@@ -32,8 +32,8 @@ export class AdEntity {
   @Column({ name: 'body', type: 'text' })
   public body!: string;
 
-  @Column({ name: 'image_path', type: 'varchar', length: 512, nullable: true })
-  public imagePath!: string | null;
+  @Column({ name: 'image_media_id', type: 'uuid', nullable: true })
+  public imageMediaId!: string | null;
 
   @Column({ name: 'enabled', type: 'boolean', default: true })
   public enabled!: boolean;

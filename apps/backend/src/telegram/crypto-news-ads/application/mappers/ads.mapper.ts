@@ -9,7 +9,7 @@ export interface AdView {
   readonly id: string;
   readonly name: string;
   readonly body: string;
-  readonly imagePath: string | null;
+  readonly imageMediaId: string | null;
   readonly enabled: boolean;
   readonly order: number;
   readonly timesPublished: number;
@@ -31,7 +31,7 @@ export const toAdView = (ad: Ad): AdView => ({
   id: ad.id,
   name: ad.name,
   body: ad.body,
-  imagePath: ad.imagePath,
+  imageMediaId: ad.imageMediaId,
   enabled: ad.enabled,
   order: ad.order,
   timesPublished: ad.timesPublished,
@@ -53,8 +53,12 @@ export const toRotationConfigView = (
 
 /**
  * Applies a partial PATCH payload onto an existing immutable `Ad`,
- * returning a NEW instance. `imagePath` and `expiresAt` support explicit
- * null (clears) vs undefined (unchanged).
+ * returning a NEW instance. `expiresAt` supports explicit null (clears)
+ * vs undefined (unchanged).
+ *
+ * Image changes do NOT go through PATCH — they use the dedicated
+ * upload/clear command (`imageMediaId` is read-only from this mapper's
+ * perspective and is preserved from the untouched `ad`).
  *
  * The expiry invariant is enforced on the RESULTING ad: whenever the
  * patched ad is or would become enabled, it is built through
@@ -68,7 +72,6 @@ export const applyAdPatch = (
   patch: {
     name?: string;
     body?: string;
-    imagePath?: string | null;
     enabled?: boolean;
     order?: number;
     expiresAt?: Date | null;
@@ -80,7 +83,7 @@ export const applyAdPatch = (
     id: ad.id,
     name: patch.name ?? ad.name,
     body: patch.body ?? ad.body,
-    imagePath: patch.imagePath !== undefined ? patch.imagePath : ad.imagePath,
+    imageMediaId: ad.imageMediaId,
     enabled: patch.enabled ?? ad.enabled,
     order: patch.order ?? ad.order,
     timesPublished: ad.timesPublished,

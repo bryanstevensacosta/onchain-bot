@@ -162,7 +162,7 @@ describe('Ad', () => {
         id: original.id,
         name: original.name,
         body: original.body,
-        imagePath: original.imagePath,
+        imageMediaId: original.imageMediaId,
         enabled: original.enabled,
         order: original.order,
         timesPublished: original.timesPublished,

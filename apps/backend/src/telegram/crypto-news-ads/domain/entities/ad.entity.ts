@@ -18,7 +18,7 @@ export interface AdProps {
   readonly id: string;
   readonly name: string;
   readonly body: string;
-  readonly imagePath: string | null;
+  readonly imageMediaId: string | null;
   readonly enabled: boolean;
   readonly order: number;
   readonly timesPublished: number;
@@ -37,7 +37,7 @@ export class Ad {
     id?: string;
     name: string;
     body: string;
-    imagePath?: string | null;
+    imageMediaId?: string | null;
     order?: number;
     expiresAt?: Date | null;
     expirationAction?: 'disable' | 'delete';
@@ -47,7 +47,7 @@ export class Ad {
       id: input.id ?? crypto.randomUUID(),
       name: input.name,
       body: input.body,
-      imagePath: input.imagePath ?? null,
+      imageMediaId: input.imageMediaId ?? null,
       enabled: true,
       order: input.order ?? 0,
       timesPublished: 0,
@@ -76,8 +76,8 @@ export class Ad {
     return this.props.body;
   }
 
-  public get imagePath(): string | null {
-    return this.props.imagePath;
+  public get imageMediaId(): string | null {
+    return this.props.imageMediaId;
   }
 
   public get enabled(): boolean {

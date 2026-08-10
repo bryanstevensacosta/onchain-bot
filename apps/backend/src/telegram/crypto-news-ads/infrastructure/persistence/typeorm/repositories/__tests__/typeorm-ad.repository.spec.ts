@@ -61,7 +61,7 @@ describe('TypeOrmAdRepository', () => {
           id: 'ad-1',
           name: 'Ad One',
           body: 'body',
-          imagePath: null,
+          imageMediaId: null,
           enabled: true,
           order: 2,
           timesPublished: 0,
@@ -76,7 +76,7 @@ describe('TypeOrmAdRepository', () => {
           id: 'ad-2',
           name: 'Ad Two',
           body: 'body2',
-          imagePath: null,
+          imageMediaId: null,
           enabled: true,
           order: 1,
           timesPublished: 0,
@@ -121,7 +121,7 @@ describe('TypeOrmAdRepository', () => {
           id: 'ad-future',
           name: 'Future',
           body: 'body',
-          imagePath: null,
+          imageMediaId: null,
           enabled: true,
           order: 1,
           timesPublished: 0,
@@ -149,7 +149,7 @@ describe('TypeOrmAdRepository', () => {
           id: 'ad-past',
           name: 'Past',
           body: 'body',
-          imagePath: null,
+          imageMediaId: null,
           enabled: true,
           order: 1,
           timesPublished: 0,
@@ -183,7 +183,7 @@ describe('TypeOrmAdRepository', () => {
         id: 'ad-1',
         name: 'Ad One',
         body: 'body',
-        imagePath: '/img.png',
+        imageMediaId: '3f4c8a56-2e6d-4e7a-8b9c-1d2e3f4a5b6c',
         enabled: false,
         order: 0,
         timesPublished: 3,
@@ -196,7 +196,7 @@ describe('TypeOrmAdRepository', () => {
       const ad = await repo.findById('ad-1');
       expect(ad).not.toBeNull();
       expect(ad!.id).toBe('ad-1');
-      expect(ad!.imagePath).toBe('/img.png');
+      expect(ad!.imageMediaId).toBe('3f4c8a56-2e6d-4e7a-8b9c-1d2e3f4a5b6c');
       expect(ad!.timesPublished).toBe(3);
     });
   });
@@ -208,7 +208,7 @@ describe('TypeOrmAdRepository', () => {
         id: ad.id,
         name: ad.name,
         body: ad.body,
-        imagePath: ad.imagePath,
+        imageMediaId: ad.imageMediaId,
         enabled: ad.enabled,
         order: ad.order,
         timesPublished: ad.timesPublished,

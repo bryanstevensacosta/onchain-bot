@@ -28,11 +28,6 @@ export class CreateAdDto {
   public body!: string;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(512)
-  public imagePath?: string;
-
-  @IsOptional()
   @ValidateIf((o) => o.expiresAt !== undefined && o.expiresAt !== null)
   @IsISO8601()
   public expiresAt?: string | null;
@@ -53,11 +48,6 @@ export class UpdateAdDto {
   @IsString()
   @IsNotEmpty()
   public body?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(512)
-  public imagePath?: string | null;
 
   @IsOptional()
   @IsBoolean()
