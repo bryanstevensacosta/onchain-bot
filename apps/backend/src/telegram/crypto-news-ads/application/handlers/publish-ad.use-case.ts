@@ -1,7 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { existsSync } from 'node:fs';
+import * as path from 'node:path';
+import type { AppConfig } from 'shared/common/config/app.config';
 import { AdRepository } from 'telegram/crypto-news-ads/application/ports/ad.repository';
 import { AdRotationConfigRepository } from 'telegram/crypto-news-ads/application/ports/ad-rotation-config.repository';
 import { AdRotationStateRepository } from 'telegram/crypto-news-ads/application/ports/ad-rotation-state.repository';
+import { AdMediaRepository } from 'telegram/crypto-news-ads/application/ports/ad-media.repository';
+import { Ad } from 'telegram/crypto-news-ads/domain/entities/ad.entity';
 import { SharedThrottleSchedulerService } from 'telegram/shared/application/services/shared-throttle-scheduler.service';
 import { SlotArbitratorPort } from 'telegram/shared/domain/ports/slot-arbitrator.port';
 import { TelegramPublisherPort } from 'telegram/shared';
@@ -21,9 +27,10 @@ import { RotationDeciderService } from 'telegram/crypto-news-ads/application/ser
  *   4. Throttle: `sharedThrottle.shouldPublish()` false → return.
  *   5. Decision: `RotationDeciderService.shouldPublishAd` → not a
  *      publish → return.
- *   6. Publish: `sendPhoto` when the ad has a local image, else
- *      `sendMessage`. The crypto-news adapter ignores the `chatId`, so
- *      pass `''`.
+ *   6. Publish: `sendPhoto` when the ad has a resolvable local image
+ *      (`imageMediaId` → media row → file on disk), `sendMessage`
+ *      otherwise. Missing media row or file degrades to text with a
+ *      warn — NEVER throws (the publish loop must survive).
  *   7. Success: persist all four state transitions.
  *   8. Failure: increment failures (disable after 3) — and NEVER burn
  *      ads on a not-configured deploy (see `isNotConfiguredError`).
@@ -40,6 +47,8 @@ export class PublishAdUseCase {
     private readonly slotArbitrator: SlotArbitratorPort,
     private readonly decider: RotationDeciderService,
     private readonly publisher: TelegramPublisherPort,
+    private readonly adMediaRepo: AdMediaRepository,
+    private readonly config: ConfigService,
   ) {}
 
   public async execute(now: Date = new Date()): Promise<void> {
@@ -83,9 +92,11 @@ export class PublishAdUseCase {
     }
 
     const ad = decision.ad!;
-    const result = ad.imagePath
-      ? await this.publisher.sendPhoto('', ad.body, ad.imagePath)
-      : await this.publisher.sendMessage('', ad.body);
+    const mediaPath = await this.resolveMediaPath(ad);
+    const result =
+      mediaPath !== null
+        ? await this.publisher.sendPhoto('', ad.body, mediaPath)
+        : await this.publisher.sendMessage('', ad.body);
 
     if (result.ok && result.messageId !== null) {
       await this.rotationStateRepo.markAdPublished(ad.id, now);
@@ -99,6 +110,35 @@ export class PublishAdUseCase {
     }
 
     await this.handlePublishFailure(ad.id, result.error ?? 'unknown error');
+  }
+
+  /**
+   * Resolve the absolute on-disk path for an ad's image, or `null` when
+   * the ad has no image, the media row is gone, or the file is missing
+   * from disk. Any of those degrades the publish to `sendMessage` with
+   * a warn — the publish loop must never crash on a stale media ref.
+   */
+  private async resolveMediaPath(ad: Ad): Promise<string | null> {
+    if (ad.imageMediaId === null) {
+      return null;
+    }
+    const media = await this.adMediaRepo.findById(ad.imageMediaId);
+    if (media === null) {
+      this.logger.warn(
+        `ad ${ad.id} has imageMediaId ${ad.imageMediaId} but no media ` +
+          `row — publishing as text`,
+      );
+      return null;
+    }
+    const appCfg = this.config.getOrThrow<AppConfig>('app');
+    const absPath = path.join(appCfg.uploadsRoot, media.filePath);
+    if (!existsSync(absPath)) {
+      this.logger.warn(
+        `ad ${ad.id} media file missing at ${absPath} — publishing as text`,
+      );
+      return null;
+    }
+    return absPath;
   }
 
   /**
