@@ -1,14 +1,27 @@
+import { promises as fs } from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { AdsController } from './ads.controller';
+import { ConfigService } from '@nestjs/config';
+import type { Request, Response } from 'express';
+import { AdsController, AdsMediaController } from './ads.controller';
 import { AdRepository } from 'telegram/crypto-news-ads/application/ports/ad.repository';
+import {
+  AdMediaRecord,
+  AdMediaRepository,
+} from 'telegram/crypto-news-ads/application/ports/ad-media.repository';
+import { AdMediaStoragePort } from 'telegram/crypto-news-ads/application/ports/ad-media-storage.port';
+import { UploadAdImageUseCase } from 'telegram/crypto-news-ads/application/handlers/upload-ad-image.use-case';
+import { ClearAdImageUseCase } from 'telegram/crypto-news-ads/application/handlers/clear-ad-image.use-case';
 import { Ad } from 'telegram/crypto-news-ads/domain/entities/ad.entity';
+import { toAdView } from 'telegram/crypto-news-ads/application/mappers/ads.mapper';
 
 const buildAd = (overrides: {
   id?: string;
   name?: string;
   body?: string;
-  imagePath?: string | null;
+  imageMediaId?: string | null;
   order?: number;
   enabled?: boolean;
   expiresAt?: Date | null;
@@ -18,7 +31,7 @@ const buildAd = (overrides: {
     id: overrides.id ?? crypto.randomUUID(),
     name: overrides.name ?? `ad-${Math.random().toString(36).slice(2, 6)}`,
     body: overrides.body ?? 'Buy the dip',
-    imagePath: overrides.imagePath,
+    imageMediaId: overrides.imageMediaId,
     order: overrides.order,
     expiresAt: overrides.expiresAt,
     expirationAction: overrides.expirationAction,
@@ -26,16 +39,44 @@ const buildAd = (overrides: {
   return overrides.enabled === false ? created.disable() : created;
 };
 
+const buildMediaRow = (
+  overrides: Partial<AdMediaRecord> = {},
+): AdMediaRecord => ({
+  id: 'media-1',
+  adId: 'ad-1',
+  filePath: 'crypto-news-ads/ad-1/img.png',
+  mimeType: 'image/png',
+  fileSize: 8,
+  createdAt: new Date('2026-01-01T00:00:00Z'),
+  ...overrides,
+});
+
+const createRes = (): Response =>
+  ({
+    status: jest.fn().mockReturnThis(),
+    json: jest.fn(),
+    setHeader: jest.fn(),
+    send: jest.fn(),
+  }) as unknown as Response;
+
 describe('AdsController', () => {
   let controller: AdsController;
+  let mediaController: AdsMediaController;
   let adRepo: jest.Mocked<AdRepository>;
+  let adMediaRepo: jest.Mocked<AdMediaRepository>;
+  let storage: jest.Mocked<AdMediaStoragePort>;
+  let uploadImageUseCase: jest.Mocked<UploadAdImageUseCase>;
+  let clearImageUseCase: jest.Mocked<ClearAdImageUseCase>;
+  let uploadsRoot: string;
 
   const PAST = new Date('2020-01-01T00:00:00.000Z');
   const FUTURE = new Date('2099-01-01T00:00:00.000Z');
+  const MEDIA_UUID = '11111111-2222-3333-4444-555555555555';
 
   beforeEach(async () => {
+    uploadsRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'ads-media-'));
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [AdsController],
+      controllers: [AdsController, AdsMediaController],
       providers: [
         {
           provide: AdRepository,
@@ -51,11 +92,46 @@ describe('AdsController', () => {
             markPublished: jest.fn(),
           },
         },
+        {
+          provide: AdMediaRepository,
+          useValue: {
+            save: jest.fn(),
+            findById: jest.fn(),
+            findByAdId: jest.fn(),
+            delete: jest.fn(),
+            deleteByAdId: jest.fn(),
+          },
+        },
+        {
+          provide: AdMediaStoragePort,
+          useValue: { store: jest.fn(), remove: jest.fn() },
+        },
+        {
+          provide: UploadAdImageUseCase,
+          useValue: { execute: jest.fn() },
+        },
+        {
+          provide: ClearAdImageUseCase,
+          useValue: { execute: jest.fn() },
+        },
+        {
+          provide: ConfigService,
+          useValue: { getOrThrow: jest.fn(() => ({ uploadsRoot })) },
+        },
       ],
     }).compile();
 
     controller = module.get(AdsController);
+    mediaController = module.get(AdsMediaController);
     adRepo = module.get(AdRepository);
+    adMediaRepo = module.get(AdMediaRepository);
+    storage = module.get(AdMediaStoragePort);
+    uploadImageUseCase = module.get(UploadAdImageUseCase);
+    clearImageUseCase = module.get(ClearAdImageUseCase);
+  });
+
+  afterEach(async () => {
+    await fs.rm(uploadsRoot, { recursive: true, force: true });
   });
 
   describe('list', () => {
@@ -84,11 +160,12 @@ describe('AdsController', () => {
       const result = await controller.create({
         name: 'Pump alpha',
         body: 'Something good',
-        imagePath: '/img/pump.jpg',
       });
       expect(result.name).toBe('Pump alpha');
       expect(result.body).toBe('Something good');
-      expect(result.imagePath).toBe('/img/pump.jpg');
+      // Create does not accept image fields (plan D2 — images go through
+      // the dedicated upload command), so the fresh ad has no media.
+      expect(result.imageMediaId).toBeNull();
       expect(result.enabled).toBe(true);
       expect(result.order).toBe(0);
       expect(adRepo.save).toHaveBeenCalledTimes(1);
@@ -104,11 +181,11 @@ describe('AdsController', () => {
       expect(result.order).toBe(4);
     });
 
-    it('defaults imagePath to null when omitted', async () => {
+    it('defaults imageMediaId to null when omitted', async () => {
       adRepo.findAll.mockResolvedValue([]);
       adRepo.save.mockImplementation(async (ad) => ad);
       const result = await controller.create({ name: 'No image', body: 'x' });
-      expect(result.imagePath).toBeNull();
+      expect(result.imageMediaId).toBeNull();
     });
 
     it('maps a unique-name violation to 409', async () => {
@@ -149,14 +226,6 @@ describe('AdsController', () => {
       expect(disabled.enabled).toBe(false);
       const reEnabled = await controller.update(existing.id, { enabled: true });
       expect(reEnabled.enabled).toBe(true);
-    });
-
-    it('clears imagePath with an explicit null', async () => {
-      const existing = buildAd({ imagePath: '/img/a.jpg' });
-      adRepo.findById.mockResolvedValue(existing);
-      adRepo.save.mockImplementation(async (ad) => ad);
-      const result = await controller.update(existing.id, { imagePath: null });
-      expect(result.imagePath).toBeNull();
     });
 
     it('maps unique-name violation to 409', async () => {
@@ -256,6 +325,30 @@ describe('AdsController', () => {
     });
   });
 
+  describe('uploadImage', () => {
+    it('delegates the uploaded file to UploadAdImageUseCase and returns the view', async () => {
+      const ad = buildAd({ id: 'ad-1', imageMediaId: MEDIA_UUID });
+      uploadImageUseCase.execute.mockResolvedValue(toAdView(ad));
+      const file = { buffer: Buffer.from('png-bytes') } as Express.Multer.File;
+      const result = await controller.uploadImage('ad-1', file);
+      expect(uploadImageUseCase.execute).toHaveBeenCalledWith({
+        adId: 'ad-1',
+        buffer: file.buffer,
+      });
+      expect(result.imageMediaId).toBe(MEDIA_UUID);
+    });
+  });
+
+  describe('clearImage', () => {
+    it('delegates to ClearAdImageUseCase and returns the view', async () => {
+      const ad = buildAd({ id: 'ad-1' });
+      clearImageUseCase.execute.mockResolvedValue(toAdView(ad));
+      const result = await controller.clearImage('ad-1');
+      expect(clearImageUseCase.execute).toHaveBeenCalledWith('ad-1');
+      expect(result.id).toBe('ad-1');
+    });
+  });
+
   describe('remove', () => {
     it('returns 404 when missing', async () => {
       adRepo.findById.mockResolvedValue(null);
@@ -270,6 +363,85 @@ describe('AdsController', () => {
       adRepo.findById.mockResolvedValue(ad);
       await controller.remove(ad.id);
       expect(adRepo.delete).toHaveBeenCalledWith(ad.id);
+    });
+
+    it('purges the media file + row before deleting an ad that has an image', async () => {
+      const media = buildMediaRow({ id: 'media-1', adId: 'ad-1' });
+      const ad = buildAd({ id: 'ad-1', imageMediaId: media.id });
+      adRepo.findById.mockResolvedValue(ad);
+      adMediaRepo.findById.mockResolvedValue(media);
+      await controller.remove('ad-1');
+      expect(storage.remove).toHaveBeenCalledWith(media.filePath);
+      expect(adMediaRepo.delete).toHaveBeenCalledWith(media.id);
+      expect(adRepo.delete).toHaveBeenCalledWith('ad-1');
+    });
+
+    it('skips media cleanup for an ad without an image', async () => {
+      const ad = buildAd({ id: 'ad-1' });
+      adRepo.findById.mockResolvedValue(ad);
+      await controller.remove('ad-1');
+      expect(adMediaRepo.findById).not.toHaveBeenCalled();
+      expect(storage.remove).not.toHaveBeenCalled();
+      expect(adRepo.delete).toHaveBeenCalledWith('ad-1');
+    });
+  });
+
+  describe('AdsMediaController.getMedia', () => {
+    it('serves 200 with the correct Content-Type for a known media id', async () => {
+      const media = buildMediaRow({ id: MEDIA_UUID });
+      adMediaRepo.findById.mockResolvedValue(media);
+      await fs.mkdir(path.join(uploadsRoot, 'crypto-news-ads', 'ad-1'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(uploadsRoot, media.filePath),
+        Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      );
+
+      const res = createRes();
+      await mediaController.getMedia(
+        MEDIA_UUID,
+        { headers: {} } as Request,
+        res,
+      );
+
+      expect(adMediaRepo.findById).toHaveBeenCalledWith(MEDIA_UUID);
+      expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'image/png');
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it('returns 404 for a non-UUID media id without hitting the repo', async () => {
+      const res = createRes();
+      await mediaController.getMedia(
+        '../../etc/passwd',
+        { headers: {} } as Request,
+        res,
+      );
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(adMediaRepo.findById).not.toHaveBeenCalled();
+    });
+
+    it('returns 404 when no media row exists for the id', async () => {
+      adMediaRepo.findById.mockResolvedValue(null);
+      const res = createRes();
+      await mediaController.getMedia(
+        MEDIA_UUID,
+        { headers: {} } as Request,
+        res,
+      );
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+
+    it('returns 404 when the on-disk file is missing', async () => {
+      const media = buildMediaRow({ id: MEDIA_UUID });
+      adMediaRepo.findById.mockResolvedValue(media);
+      const res = createRes();
+      await mediaController.getMedia(
+        MEDIA_UUID,
+        { headers: {} } as Request,
+        res,
+      );
+      expect(res.status).toHaveBeenCalledWith(404);
     });
   });
 });

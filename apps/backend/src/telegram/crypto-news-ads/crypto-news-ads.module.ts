@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdRepository } from 'telegram/crypto-news-ads/application/ports/ad.repository';
+import { AdMediaRepository } from 'telegram/crypto-news-ads/application/ports/ad-media.repository';
 import { AdRotationConfigRepository } from 'telegram/crypto-news-ads/application/ports/ad-rotation-config.repository';
 import { AdRotationStateRepository } from 'telegram/crypto-news-ads/application/ports/ad-rotation-state.repository';
 import { SharedThrottleStateRepository } from 'telegram/shared/application/ports/shared-throttle-state.repository';
@@ -9,16 +10,25 @@ import { SlotArbitratorPort } from 'telegram/shared/domain/ports/slot-arbitrator
 import { TelegramPublisherPort } from 'telegram/shared';
 import { BotApiCryptoNewsPublisherAdapter } from 'telegram/crypto-news-publisher/infrastructure/senders/bot-api-crypto-news-publisher.adapter';
 import { TypeOrmAdRepository } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/repositories/typeorm-ad.repository';
+import { TypeOrmAdMediaRepository } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/repositories/typeorm-ad-media.repository';
 import { TypeOrmAdRotationConfigRepository } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/repositories/typeorm-ad-rotation-config.repository';
 import { TypeOrmAdRotationStateRepository } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/repositories/typeorm-ad-rotation-state.repository';
 import { TypeOrmAdsThrottleStateRepository } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/repositories/typeorm-ads-throttle-state.repository';
 import { TypeOrmSlotArbitrator } from 'telegram/shared/infrastructure/persistence/typeorm/repositories/typeorm-slot-arbitrator';
 import { PublishAdUseCase } from 'telegram/crypto-news-ads/application/handlers/publish-ad.use-case';
+import { UploadAdImageUseCase } from 'telegram/crypto-news-ads/application/handlers/upload-ad-image.use-case';
+import { ClearAdImageUseCase } from 'telegram/crypto-news-ads/application/handlers/clear-ad-image.use-case';
 import { RotationDeciderService } from 'telegram/crypto-news-ads/application/services/rotation-decider.service';
 import { AdsCronScheduler } from 'telegram/crypto-news-ads/application/scheduling/ads-cron.scheduler';
-import { AdsController } from 'telegram/crypto-news-ads/api/http/ads.controller';
+import {
+  AdsController,
+  AdsMediaController,
+} from 'telegram/crypto-news-ads/api/http/ads.controller';
 import { AdsRotationConfigController } from 'telegram/crypto-news-ads/api/http/ads-rotation-config.controller';
+import { AdMediaStoragePort } from 'telegram/crypto-news-ads/application/ports/ad-media-storage.port';
+import { LocalAdMediaStorageAdapter } from 'telegram/crypto-news-ads/infrastructure/storage/local-ad-media-storage.adapter';
 import { AdEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad.entity';
+import { AdMediaEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-media.entity';
 import { AdRotationConfigEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-rotation-config.entity';
 import { AdRotationStateEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-rotation-state.entity';
 import { AdsThrottleStateEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ads-throttle-state.entity';
@@ -50,23 +60,35 @@ import { AdsThrottleStateEntity } from 'telegram/crypto-news-ads/infrastructure/
   imports: [
     TypeOrmModule.forFeature([
       AdEntity,
+      AdMediaEntity,
       AdRotationConfigEntity,
       AdRotationStateEntity,
       AdsThrottleStateEntity,
     ]),
   ],
-  controllers: [AdsController, AdsRotationConfigController],
+  controllers: [AdsController, AdsMediaController, AdsRotationConfigController],
   providers: [
     TypeOrmAdRepository,
+    TypeOrmAdMediaRepository,
     TypeOrmAdRotationConfigRepository,
     TypeOrmAdRotationStateRepository,
     TypeOrmAdsThrottleStateRepository,
     PublishAdUseCase,
+    UploadAdImageUseCase,
+    ClearAdImageUseCase,
     RotationDeciderService,
     AdsCronScheduler,
     {
       provide: AdRepository,
       useClass: TypeOrmAdRepository,
+    },
+    {
+      provide: AdMediaRepository,
+      useClass: TypeOrmAdMediaRepository,
+    },
+    {
+      provide: AdMediaStoragePort,
+      useClass: LocalAdMediaStorageAdapter,
     },
     {
       provide: AdRotationConfigRepository,
@@ -100,6 +122,7 @@ import { AdsThrottleStateEntity } from 'telegram/crypto-news-ads/infrastructure/
   ],
   exports: [
     AdRepository,
+    AdMediaRepository,
     AdRotationConfigRepository,
     AdRotationStateRepository,
   ],
