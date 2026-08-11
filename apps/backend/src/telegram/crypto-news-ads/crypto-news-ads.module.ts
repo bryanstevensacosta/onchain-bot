@@ -20,6 +20,7 @@ import { TypeOrmSlotArbitrator } from 'telegram/shared/infrastructure/persistenc
 import { PublishAdUseCase } from 'telegram/crypto-news-ads/application/handlers/publish-ad.use-case';
 import { UploadAdImageUseCase } from 'telegram/crypto-news-ads/application/handlers/upload-ad-image.use-case';
 import { ClearAdImageUseCase } from 'telegram/crypto-news-ads/application/handlers/clear-ad-image.use-case';
+import { ReuseLibraryImageUseCase } from 'telegram/crypto-news-ads/application/handlers/reuse-library-image.use-case';
 import { RotationDeciderService } from 'telegram/crypto-news-ads/application/services/rotation-decider.service';
 import { AdsCronScheduler } from 'telegram/crypto-news-ads/application/scheduling/ads-cron.scheduler';
 import {
@@ -81,6 +82,7 @@ import { AdsThrottleStateEntity } from 'telegram/crypto-news-ads/infrastructure/
     PublishAdUseCase,
     UploadAdImageUseCase,
     ClearAdImageUseCase,
+    ReuseLibraryImageUseCase,
     RotationDeciderService,
     AdsCronScheduler,
     {

@@ -6,6 +6,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   Min,
   ValidateIf,
@@ -82,4 +83,9 @@ export class UpdateRotationConfigDto {
   @IsInt()
   @Min(0)
   public minMinutesBetweenAds?: number;
+}
+
+export class ReuseAdImageDto {
+  @IsUUID()
+  public libraryMediaId!: string;
 }

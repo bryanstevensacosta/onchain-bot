@@ -20,9 +20,11 @@ import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { AdRepository } from 'telegram/crypto-news-ads/application/ports/ad.repository';
 import { AdMediaRepository } from 'telegram/crypto-news-ads/application/ports/ad-media.repository';
+import { AdMediaLibraryRepository } from 'telegram/crypto-news-ads/application/ports/ad-media-library.repository';
 import { AdMediaStoragePort } from 'telegram/crypto-news-ads/application/ports/ad-media-storage.port';
 import { UploadAdImageUseCase } from 'telegram/crypto-news-ads/application/handlers/upload-ad-image.use-case';
 import { ClearAdImageUseCase } from 'telegram/crypto-news-ads/application/handlers/clear-ad-image.use-case';
+import { ReuseLibraryImageUseCase } from 'telegram/crypto-news-ads/application/handlers/reuse-library-image.use-case';
 import { Ad } from 'telegram/crypto-news-ads/domain/entities/ad.entity';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import {
@@ -32,6 +34,7 @@ import {
 import type { AppConfig } from 'shared/common/config/app.config';
 import {
   CreateAdDto,
+  ReuseAdImageDto,
   UpdateAdDto,
 } from 'telegram/crypto-news-ads/api/input/ads.input';
 import {
@@ -72,6 +75,7 @@ export class AdsController {
     private readonly storage: AdMediaStoragePort,
     private readonly uploadImageUseCase: UploadAdImageUseCase,
     private readonly clearImageUseCase: ClearAdImageUseCase,
+    private readonly reuseImageUseCase: ReuseLibraryImageUseCase,
   ) {}
 
   @Get()
@@ -148,7 +152,22 @@ export class AdsController {
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
   ): Promise<AdView> {
-    return this.uploadImageUseCase.execute({ adId: id, buffer: file.buffer });
+    return this.uploadImageUseCase.execute({
+      adId: id,
+      buffer: file.buffer,
+      originalFileName: file.originalname,
+    });
+  }
+
+  @Post(':id/reuse-image')
+  public async reuseImage(
+    @Param('id') id: string,
+    @Body() dto: ReuseAdImageDto,
+  ): Promise<AdView> {
+    return this.reuseImageUseCase.execute({
+      adId: id,
+      libraryMediaId: dto.libraryMediaId,
+    });
   }
 
   @Delete(':id/image')
@@ -186,6 +205,7 @@ export class AdsMediaController {
 
   public constructor(
     private readonly adMediaRepo: AdMediaRepository,
+    private readonly libraryRepo: AdMediaLibraryRepository,
     config: ConfigService,
   ) {
     const appCfg = config.getOrThrow<AppConfig>('app');
@@ -229,6 +249,79 @@ export class AdsMediaController {
     const mimeType = detectMediaMimeType(
       media.filePath,
       media.mimeType,
+      fileBuffer,
+    );
+    serveMediaFile(
+      res,
+      req,
+      fileBuffer,
+      mimeType,
+      'public, max-age=86400, immutable',
+    );
+  }
+
+  @Get('media-library')
+  public async listMediaLibrary(): Promise<
+    ReadonlyArray<{
+      id: string;
+      url: string;
+      originalFileName: string | null;
+      mimeType: string | null;
+      fileSize: number | null;
+      createdAt: Date;
+    }>
+  > {
+    const library = await this.libraryRepo.findAll();
+    return library.map((m) => ({
+      id: m.id,
+      url: `/crypto-news-ads/media-library/${m.id}`,
+      originalFileName: m.originalFileName,
+      mimeType: m.mimeType,
+      fileSize: m.fileSize,
+      createdAt: m.createdAt,
+    }));
+  }
+
+  @Get('media-library/:libraryMediaId')
+  public async getLibraryMedia(
+    @Param('libraryMediaId') libraryMediaId: string,
+    @Req() req: Request,
+    @Res({ passthrough: false }) res: Response,
+  ): Promise<void> {
+    if (!MEDIA_ID_UUID.test(libraryMediaId)) {
+      res.status(404).json({ statusCode: 404, message: 'Media not found' });
+      return;
+    }
+    const record = await this.libraryRepo.findById(libraryMediaId);
+    if (!record) {
+      res.status(404).json({ statusCode: 404, message: 'Media not found' });
+      return;
+    }
+    const resolvedRoot = path.resolve(this.uploadsRoot);
+    const absPath = path.resolve(this.uploadsRoot, record.filePath);
+    if (!absPath.startsWith(resolvedRoot + path.sep)) {
+      res.status(404).json({ statusCode: 404, message: 'Media not found' });
+      return;
+    }
+
+    let fileBuffer: Buffer;
+    try {
+      fileBuffer = await fs.readFile(absPath);
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code === 'ENOENT') {
+        res.status(404).json({
+          statusCode: 404,
+          message: 'Media file missing on disk',
+        });
+        return;
+      }
+      throw err;
+    }
+
+    const mimeType = detectMediaMimeType(
+      record.filePath,
+      record.mimeType,
       fileBuffer,
     );
     serveMediaFile(

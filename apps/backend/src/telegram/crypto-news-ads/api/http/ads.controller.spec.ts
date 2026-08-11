@@ -11,9 +11,14 @@ import {
   AdMediaRecord,
   AdMediaRepository,
 } from 'telegram/crypto-news-ads/application/ports/ad-media.repository';
+import {
+  AdMediaLibraryRecord,
+  AdMediaLibraryRepository,
+} from 'telegram/crypto-news-ads/application/ports/ad-media-library.repository';
 import { AdMediaStoragePort } from 'telegram/crypto-news-ads/application/ports/ad-media-storage.port';
 import { UploadAdImageUseCase } from 'telegram/crypto-news-ads/application/handlers/upload-ad-image.use-case';
 import { ClearAdImageUseCase } from 'telegram/crypto-news-ads/application/handlers/clear-ad-image.use-case';
+import { ReuseLibraryImageUseCase } from 'telegram/crypto-news-ads/application/handlers/reuse-library-image.use-case';
 import { Ad } from 'telegram/crypto-news-ads/domain/entities/ad.entity';
 import { toAdView } from 'telegram/crypto-news-ads/application/mappers/ads.mapper';
 
@@ -51,6 +56,19 @@ const buildMediaRow = (
   ...overrides,
 });
 
+const buildLibraryRecord = (
+  overrides: Partial<AdMediaLibraryRecord> = {},
+): AdMediaLibraryRecord => ({
+  id: '11111111-2222-3333-4444-555555555555',
+  filePath: 'crypto-news-ads-library/b6f32bc41e2a01d0.png',
+  contentHash: 'b6f32bc41e2a01d0',
+  originalFileName: 'hero.png',
+  mimeType: 'image/png',
+  fileSize: 8,
+  createdAt: new Date('2026-01-01T00:00:00Z'),
+  ...overrides,
+});
+
 const createRes = (): Response =>
   ({
     status: jest.fn().mockReturnThis(),
@@ -64,9 +82,11 @@ describe('AdsController', () => {
   let mediaController: AdsMediaController;
   let adRepo: jest.Mocked<AdRepository>;
   let adMediaRepo: jest.Mocked<AdMediaRepository>;
+  let libraryRepo: jest.Mocked<AdMediaLibraryRepository>;
   let storage: jest.Mocked<AdMediaStoragePort>;
   let uploadImageUseCase: jest.Mocked<UploadAdImageUseCase>;
   let clearImageUseCase: jest.Mocked<ClearAdImageUseCase>;
+  let reuseImageUseCase: jest.Mocked<ReuseLibraryImageUseCase>;
   let uploadsRoot: string;
 
   const PAST = new Date('2020-01-01T00:00:00.000Z');
@@ -103,6 +123,16 @@ describe('AdsController', () => {
           },
         },
         {
+          provide: AdMediaLibraryRepository,
+          useValue: {
+            save: jest.fn(),
+            findById: jest.fn(),
+            findByContentHash: jest.fn(),
+            findAll: jest.fn(),
+            delete: jest.fn(),
+          },
+        },
+        {
           provide: AdMediaStoragePort,
           useValue: { store: jest.fn(), remove: jest.fn() },
         },
@@ -112,6 +142,10 @@ describe('AdsController', () => {
         },
         {
           provide: ClearAdImageUseCase,
+          useValue: { execute: jest.fn() },
+        },
+        {
+          provide: ReuseLibraryImageUseCase,
           useValue: { execute: jest.fn() },
         },
         {
@@ -125,9 +159,11 @@ describe('AdsController', () => {
     mediaController = module.get(AdsMediaController);
     adRepo = module.get(AdRepository);
     adMediaRepo = module.get(AdMediaRepository);
+    libraryRepo = module.get(AdMediaLibraryRepository);
     storage = module.get(AdMediaStoragePort);
     uploadImageUseCase = module.get(UploadAdImageUseCase);
     clearImageUseCase = module.get(ClearAdImageUseCase);
+    reuseImageUseCase = module.get(ReuseLibraryImageUseCase);
   });
 
   afterEach(async () => {
@@ -329,11 +365,15 @@ describe('AdsController', () => {
     it('delegates the uploaded file to UploadAdImageUseCase and returns the view', async () => {
       const ad = buildAd({ id: 'ad-1', imageMediaId: MEDIA_UUID });
       uploadImageUseCase.execute.mockResolvedValue(toAdView(ad));
-      const file = { buffer: Buffer.from('png-bytes') } as Express.Multer.File;
+      const file = {
+        buffer: Buffer.from('png-bytes'),
+        originalname: 'hero.png',
+      } as Express.Multer.File;
       const result = await controller.uploadImage('ad-1', file);
       expect(uploadImageUseCase.execute).toHaveBeenCalledWith({
         adId: 'ad-1',
         buffer: file.buffer,
+        originalFileName: 'hero.png',
       });
       expect(result.imageMediaId).toBe(MEDIA_UUID);
     });
@@ -346,6 +386,21 @@ describe('AdsController', () => {
       const result = await controller.clearImage('ad-1');
       expect(clearImageUseCase.execute).toHaveBeenCalledWith('ad-1');
       expect(result.id).toBe('ad-1');
+    });
+  });
+
+  describe('reuseImage', () => {
+    it('delegates libraryMediaId to ReuseLibraryImageUseCase and returns the view', async () => {
+      const ad = buildAd({ id: 'ad-1', imageMediaId: MEDIA_UUID });
+      reuseImageUseCase.execute.mockResolvedValue(toAdView(ad));
+      const result = await controller.reuseImage('ad-1', {
+        libraryMediaId: MEDIA_UUID,
+      });
+      expect(reuseImageUseCase.execute).toHaveBeenCalledWith({
+        adId: 'ad-1',
+        libraryMediaId: MEDIA_UUID,
+      });
+      expect(result.imageMediaId).toBe(MEDIA_UUID);
     });
   });
 
@@ -437,6 +492,92 @@ describe('AdsController', () => {
       adMediaRepo.findById.mockResolvedValue(media);
       const res = createRes();
       await mediaController.getMedia(
+        MEDIA_UUID,
+        { headers: {} } as Request,
+        res,
+      );
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+  });
+
+  describe('AdsMediaController media-library', () => {
+    it('lists every library row mapped to {id,url,originalFileName,mimeType,fileSize,createdAt}', async () => {
+      libraryRepo.findAll.mockResolvedValue([
+        buildLibraryRecord({}),
+        buildLibraryRecord({
+          id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeffff0000',
+          filePath: 'crypto-news-ads-library/abc.png',
+          originalFileName: 'banner.png',
+        }),
+      ]);
+      const list = await mediaController.listMediaLibrary();
+      expect(list).toHaveLength(2);
+      expect(list[0]).toEqual({
+        id: buildLibraryRecord({}).id,
+        url: `/crypto-news-ads/media-library/${buildLibraryRecord({}).id}`,
+        originalFileName: 'hero.png',
+        mimeType: 'image/png',
+        fileSize: 8,
+        createdAt: buildLibraryRecord({}).createdAt,
+      });
+    });
+
+    it('returns an empty array when the library is empty', async () => {
+      libraryRepo.findAll.mockResolvedValue([]);
+      const list = await mediaController.listMediaLibrary();
+      expect(list).toEqual([]);
+    });
+
+    it('serves 200 with the correct Content-Type for a known library id', async () => {
+      const record = buildLibraryRecord({});
+      libraryRepo.findById.mockResolvedValue(record);
+      await fs.mkdir(path.join(uploadsRoot, 'crypto-news-ads-library'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(uploadsRoot, record.filePath),
+        Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      );
+
+      const res = createRes();
+      await mediaController.getLibraryMedia(
+        MEDIA_UUID,
+        { headers: {} } as Request,
+        res,
+      );
+
+      expect(libraryRepo.findById).toHaveBeenCalledWith(MEDIA_UUID);
+      expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'image/png');
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it('returns 404 for a non-UUID library id without hitting the repo', async () => {
+      const res = createRes();
+      await mediaController.getLibraryMedia(
+        '../../etc/passwd',
+        { headers: {} } as Request,
+        res,
+      );
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(libraryRepo.findById).not.toHaveBeenCalled();
+    });
+
+    it('returns 404 when no library row exists for the id', async () => {
+      libraryRepo.findById.mockResolvedValue(null);
+      const res = createRes();
+      await mediaController.getLibraryMedia(
+        MEDIA_UUID,
+        { headers: {} } as Request,
+        res,
+      );
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+
+    it('returns 404 when the on-disk library file is missing', async () => {
+      const record = buildLibraryRecord({});
+      libraryRepo.findById.mockResolvedValue(record);
+      const res = createRes();
+      await mediaController.getLibraryMedia(
         MEDIA_UUID,
         { headers: {} } as Request,
         res,
