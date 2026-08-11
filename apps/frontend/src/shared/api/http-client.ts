@@ -36,6 +36,21 @@ export async function httpPost<TBody, TResp = unknown>(
   return (await res.json()) as TResp;
 }
 
+export async function httpPostForm<TResp = unknown>(
+  path: string,
+  formData: FormData,
+): Promise<TResp> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new HttpError(res.status, text, `POST ${path} → ${res.status}`);
+  }
+  return (await res.json()) as TResp;
+}
+
 export async function httpPatch<TBody, TResp = unknown>(
   path: string,
   body: TBody,
