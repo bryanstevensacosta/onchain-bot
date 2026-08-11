@@ -1,13 +1,24 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from 'react';
 import { Button, Card } from '@/shared/ui';
 import { Modal } from '@/shared/ui/modal';
 import {
   useAds,
+  useClearAdImage,
   useCreateAd,
   useDeleteAd,
   useUpdateAd,
+  useUploadAdImage,
 } from '@/features/crypto-news-ads/model/use-ads';
-import type { AdView } from '@/features/crypto-news-ads/api/ads-api';
+import {
+  adImageUrl,
+  type AdView,
+} from '@/features/crypto-news-ads/api/ads-api';
 
 /**
  * Modal submit payload: unlike `CreateAdBody`, `expiresAt` is ALWAYS present
@@ -17,7 +28,6 @@ import type { AdView } from '@/features/crypto-news-ads/api/ads-api';
 export interface AdModalSubmitBody {
   name: string;
   body: string;
-  imagePath?: string;
   expiresAt: string | null;
   expirationAction: 'disable' | 'delete';
 }
@@ -28,7 +38,6 @@ interface AdModalProps {
   title: string;
   initialName: string;
   initialBody: string;
-  initialImagePath: string;
   initialExpiresAt: string | null;
   initialExpirationAction: 'disable' | 'delete';
   onSubmit: (body: AdModalSubmitBody) => void;
@@ -42,7 +51,6 @@ function AdModal({
   title,
   initialName,
   initialBody,
-  initialImagePath,
   initialExpiresAt,
   initialExpirationAction,
   onSubmit,
@@ -51,7 +59,6 @@ function AdModal({
 }: AdModalProps): React.ReactElement {
   const [name, setName] = useState(initialName);
   const [body, setBody] = useState(initialBody);
-  const [imagePath, setImagePath] = useState(initialImagePath);
   const [expiresAt, setExpiresAt] = useState(
     initialExpiresAt ? isoToLocalInput(initialExpiresAt) : '',
   );
@@ -65,7 +72,6 @@ function AdModal({
     if (isOpen) {
       setName(initialName);
       setBody(initialBody);
-      setImagePath(initialImagePath);
       setExpiresAt(initialExpiresAt ? isoToLocalInput(initialExpiresAt) : '');
       setExpirationAction(initialExpirationAction);
     }
@@ -73,7 +79,6 @@ function AdModal({
     isOpen,
     initialName,
     initialBody,
-    initialImagePath,
     initialExpiresAt,
     initialExpirationAction,
   ]);
@@ -89,12 +94,10 @@ function AdModal({
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!canSubmit) return;
-    const trimmedImagePath = imagePath.trim();
     const expiresAtIso = localInputToIso(expiresAt);
     onSubmit({
       name: name.trim(),
       body: body.trim(),
-      ...(trimmedImagePath !== '' ? { imagePath: trimmedImagePath } : {}),
       // Always include expiresAt: null = explicit CLEAR (Metis R6.1);
       // omitting it would silently keep the old expiry on edit.
       expiresAt: expiresAtIso,
@@ -137,24 +140,6 @@ function AdModal({
             onChange={(e) => setBody(e.target.value)}
             placeholder="Ad copy sent to the output channel"
             rows={3}
-            className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
-            disabled={pending}
-          />
-        </div>
-
-        <div>
-          <label
-            htmlFor="ad-image-path"
-            className="block text-xs uppercase text-slate-500 mb-1"
-          >
-            Image path
-          </label>
-          <input
-            id="ad-image-path"
-            type="text"
-            value={imagePath}
-            onChange={(e) => setImagePath(e.target.value)}
-            placeholder="/path/to/image.jpg (optional)"
             className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
             disabled={pending}
           />
@@ -280,6 +265,81 @@ export function localInputToIso(local: string): string | null {
   return d.toISOString().replace(/\.\d{3}Z$/, 'Z');
 }
 
+interface AdImageCellProps {
+  item: AdView;
+}
+
+function AdImageCell({ item }: AdImageCellProps): React.ReactElement {
+  const uploadMut = useUploadAdImage();
+  const clearMut = useClearAdImage();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const errorMessage =
+    uploadMut.error?.message ?? clearMut.error?.message ?? null;
+
+  function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    uploadMut.mutate({ adId: item.id, file });
+  }
+
+  function handleRemove() {
+    if (typeof window !== 'undefined') {
+      const ok = window.confirm(`Remove image for ad "${item.name}"?`);
+      if (!ok) return;
+    }
+    clearMut.mutate(item.id);
+  }
+
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <div className="inline-flex items-center gap-2">
+        {item.imageMediaId === null ? (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadMut.isPending}
+            >
+              Upload image
+            </Button>
+          </>
+        ) : (
+          <>
+            <img
+              src={adImageUrl(item.imageMediaId)}
+              alt={`${item.name} image`}
+              className="h-8 w-8 rounded object-cover border border-slate-700"
+            />
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={handleRemove}
+              disabled={clearMut.isPending}
+            >
+              Remove
+            </Button>
+          </>
+        )}
+      </div>
+      {errorMessage && (
+        <span role="alert" className="text-xs text-red-400">
+          {errorMessage}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function AdsManager(): React.ReactElement {
   const { data, isLoading, error } = useAds();
   const createMut = useCreateAd();
@@ -312,7 +372,6 @@ export function AdsManager(): React.ReactElement {
       {
         name: body.name,
         body: body.body,
-        ...(body.imagePath ? { imagePath: body.imagePath } : {}),
         ...(body.expiresAt !== null ? { expiresAt: body.expiresAt } : {}),
         expirationAction: body.expirationAction,
       },
@@ -382,7 +441,6 @@ export function AdsManager(): React.ReactElement {
         title="Add Ad"
         initialName=""
         initialBody=""
-        initialImagePath=""
         initialExpiresAt={null}
         initialExpirationAction="disable"
         onSubmit={handleCreateSubmit}
@@ -396,7 +454,6 @@ export function AdsManager(): React.ReactElement {
         title="Edit Ad"
         initialName={editingItem?.name ?? ''}
         initialBody={editingItem?.body ?? ''}
-        initialImagePath={editingItem?.imagePath ?? ''}
         initialExpiresAt={editingItem?.expiresAt ?? null}
         initialExpirationAction={editingItem?.expirationAction ?? 'disable'}
         onSubmit={handleEditSubmit}
@@ -425,6 +482,7 @@ export function AdsManager(): React.ReactElement {
                 <th className="py-2 pr-3">Published</th>
                 <th className="py-2 pr-3">Last published</th>
                 <th className="py-2 pr-3">Expires</th>
+                <th className="py-2 pr-3">Image</th>
                 <th className="py-2 pr-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -492,6 +550,9 @@ export function AdsManager(): React.ReactElement {
                         {formatExpiresIn(item.expiresAt, new Date())}
                       </span>
                     )}
+                  </td>
+                  <td className="py-2 pr-3">
+                    <AdImageCell item={item} />
                   </td>
                   <td className="py-2 pr-3 text-right">
                     <div className="inline-flex gap-2">

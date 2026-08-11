@@ -2,7 +2,13 @@
 import '@/test/setup';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react';
 
 import {
   AdsManager,
@@ -19,7 +25,7 @@ function makeAd(overrides: Partial<AdView> = {}): AdView {
     id: 'ad-1',
     name: 'Pump alpha',
     body: 'Something good',
-    imagePath: null,
+    imageMediaId: null,
     enabled: true,
     order: 0,
     timesPublished: 0,
@@ -40,19 +46,25 @@ vi.mock('@/features/crypto-news-ads/model/use-ads', () => ({
   useCreateAd: vi.fn(),
   useUpdateAd: vi.fn(),
   useDeleteAd: vi.fn(),
+  useUploadAdImage: vi.fn(),
+  useClearAdImage: vi.fn(),
 }));
 
 import {
   useAds,
+  useClearAdImage,
   useCreateAd,
   useDeleteAd,
   useUpdateAd,
+  useUploadAdImage,
 } from '@/features/crypto-news-ads/model/use-ads';
 
 const mockedUseAds = vi.mocked(useAds);
 const mockedUseCreateAd = vi.mocked(useCreateAd);
 const mockedUseUpdateAd = vi.mocked(useUpdateAd);
 const mockedUseDeleteAd = vi.mocked(useDeleteAd);
+const mockedUseUploadAdImage = vi.mocked(useUploadAdImage);
+const mockedUseClearAdImage = vi.mocked(useClearAdImage);
 
 describe('AdsManager', () => {
   beforeEach(() => {
@@ -76,6 +88,24 @@ describe('AdsManager', () => {
       reset: vi.fn(),
     } as never);
     mockedUseDeleteAd.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: vi.fn(),
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+    mockedUseUploadAdImage.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: vi.fn(),
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+    mockedUseClearAdImage.mockReturnValue({
       isPending: false,
       isError: false,
       isSuccess: false,
@@ -332,6 +362,159 @@ describe('AdsManager', () => {
     } as never);
     render(<AdsManager />);
     expect(screen.getByText('no limit')).toBeInTheDocument();
+  });
+
+  it('uploads a selected file via the row file input', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd()],
+      isLoading: false,
+      error: null,
+    } as never);
+    const uploadMut = vi.fn();
+    mockedUseUploadAdImage.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: uploadMut,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+
+    const { container } = render(<AdsManager />);
+    const file = new File(['banner'], 'banner.png', { type: 'image/png' });
+    const input = container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    expect(input).not.toBeNull();
+    fireEvent.change(input, { target: { files: [file] } });
+
+    expect(uploadMut).toHaveBeenCalledWith({ adId: 'ad-1', file });
+  });
+
+  it('renders a preview image when imageMediaId is set', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd({ imageMediaId: 'media-1' })],
+      isLoading: false,
+      error: null,
+    } as never);
+    render(<AdsManager />);
+    const img = screen.getByAltText('Pump alpha image');
+    expect(img).toHaveAttribute('src', '/crypto-news-ads/media/media-1');
+  });
+
+  it('removes the image via clearAdImage after confirmation', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd({ imageMediaId: 'media-1' })],
+      isLoading: false,
+      error: null,
+    } as never);
+    const clearMut = vi.fn();
+    mockedUseClearAdImage.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: clearMut,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('Remove'));
+
+    expect(clearMut).toHaveBeenCalledWith('ad-1');
+    confirmSpy.mockRestore();
+  });
+
+  it('does not remove the image when confirmation is dismissed', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd({ imageMediaId: 'media-1' })],
+      isLoading: false,
+      error: null,
+    } as never);
+    const clearMut = vi.fn();
+    mockedUseClearAdImage.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: clearMut,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('Remove'));
+
+    expect(clearMut).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it('shows an inline error when the upload fails and keeps the upload state', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd()],
+      isLoading: false,
+      error: null,
+    } as never);
+    mockedUseUploadAdImage.mockReturnValue({
+      isPending: false,
+      isError: true,
+      isSuccess: false,
+      error: new Error('upload failed'),
+      mutate: vi.fn(),
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+
+    const { container } = render(<AdsManager />);
+    expect(screen.getByText('upload failed')).toBeInTheDocument();
+    expect(screen.getByText('Upload image')).toBeInTheDocument();
+    expect(screen.queryByAltText('Pump alpha image')).not.toBeInTheDocument();
+    expect(container.querySelector('input[type="file"]')).not.toBeNull();
+  });
+
+  it('renders the create modal without any image field', () => {
+    mockedUseAds.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+    const { container } = render(<AdsManager />);
+    fireEvent.click(screen.getByText('+ Add Ad'));
+
+    const modalCard = screen
+      .getByText('Add Ad')
+      .closest('div.bg-slate-900') as HTMLElement;
+    expect(modalCard).not.toBeNull();
+    expect(modalCard.querySelector('input[type="file"]')).toBeNull();
+    expect(modalCard.querySelector('#ad-image-path')).toBeNull();
+    expect(within(modalCard).getByLabelText(/Name/)).toBeInTheDocument();
+    expect(within(modalCard).getByLabelText(/Body/)).toBeInTheDocument();
+    expect(within(modalCard).getByLabelText('Expires at')).toBeInTheDocument();
+    expect(within(modalCard).getByLabelText('On expiry')).toBeInTheDocument();
+    expect(container.querySelector('input[type="file"]')).toBeNull();
+  });
+
+  it('renders the edit modal without any image field', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd()],
+      isLoading: false,
+      error: null,
+    } as never);
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('Edit'));
+
+    const modalCard = screen
+      .getByText('Edit Ad')
+      .closest('div.bg-slate-900') as HTMLElement;
+    expect(modalCard).not.toBeNull();
+    expect(modalCard.querySelector('input[type="file"]')).toBeNull();
+    expect(modalCard.querySelector('#ad-image-path')).toBeNull();
+    expect(within(modalCard).getByLabelText(/Name/)).toBeInTheDocument();
+    expect(within(modalCard).getByLabelText(/Body/)).toBeInTheDocument();
   });
 });
 
