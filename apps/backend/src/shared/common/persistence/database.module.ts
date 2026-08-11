@@ -42,6 +42,7 @@ import { AdRotationConfigEntity } from 'telegram/crypto-news-ads/infrastructure/
 import { AdRotationStateEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-rotation-state.entity';
 import { AdsThrottleStateEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ads-throttle-state.entity';
 import { AdMediaEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-media.entity';
+import { AdMediaLibraryEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-media-library.entity';
 import type { AppConfig } from 'shared/common/config/app.config';
 
 const PERSISTED_ENTITIES = [
@@ -85,6 +86,7 @@ const PERSISTED_ENTITIES = [
   AdRotationConfigEntity,
   AdRotationStateEntity,
   AdsThrottleStateEntity,
+  AdMediaLibraryEntity,
   DedupRecordEntity,
 ];
 
