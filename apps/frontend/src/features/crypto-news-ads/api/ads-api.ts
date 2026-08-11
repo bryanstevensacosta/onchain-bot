@@ -3,6 +3,7 @@ import {
   httpGet,
   httpPatch,
   httpPost,
+  httpPostForm,
 } from '@/shared/api/http-client';
 
 /**
@@ -15,7 +16,7 @@ export interface AdView {
   readonly id: string;
   readonly name: string;
   readonly body: string;
-  readonly imagePath: string | null;
+  readonly imageMediaId: string | null;
   readonly enabled: boolean;
   readonly order: number;
   readonly timesPublished: number;
@@ -36,7 +37,6 @@ export interface RotationConfigView {
 export interface CreateAdBody {
   readonly name: string;
   readonly body: string;
-  readonly imagePath?: string;
   readonly expiresAt?: string;
   readonly expirationAction?: 'disable' | 'delete';
 }
@@ -44,7 +44,6 @@ export interface CreateAdBody {
 export type UpdateAdBody = Partial<{
   name: string;
   body: string;
-  imagePath: string | null;
   enabled: boolean;
   order: number;
   expiresAt: string | null;
@@ -79,6 +78,25 @@ export async function updateAd(
 
 export async function deleteAd(id: string): Promise<void> {
   await httpDelete<void>(`/crypto-news-ads/ads/${encodeURIComponent(id)}`);
+}
+
+export async function uploadAdImage(adId: string, file: File): Promise<AdView> {
+  const form = new FormData();
+  form.append('file', file);
+  return httpPostForm<AdView>(
+    `/crypto-news-ads/ads/${encodeURIComponent(adId)}/image`,
+    form,
+  );
+}
+
+export async function clearAdImage(adId: string): Promise<AdView> {
+  return httpDelete<AdView>(
+    `/crypto-news-ads/ads/${encodeURIComponent(adId)}/image`,
+  );
+}
+
+export function adImageUrl(mediaId: string): string {
+  return `/crypto-news-ads/media/${encodeURIComponent(mediaId)}`;
 }
 
 export async function fetchRotationConfig(): Promise<RotationConfigView> {

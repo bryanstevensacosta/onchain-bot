@@ -1,12 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   adsKeys,
+  clearAdImage,
   createAd,
   deleteAd,
   fetchAds,
   fetchRotationConfig,
   updateAd,
   updateRotationConfig,
+  uploadAdImage,
   type AdView,
   type CreateAdBody,
   type RotationConfigView,
@@ -53,6 +55,27 @@ export function useDeleteAd() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteAd(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adsKeys.all });
+    },
+  });
+}
+
+export function useUploadAdImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ adId, file }: { adId: string; file: File }) =>
+      uploadAdImage(adId, file),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adsKeys.all });
+    },
+  });
+}
+
+export function useClearAdImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (adId: string) => clearAdImage(adId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: adsKeys.all });
     },
