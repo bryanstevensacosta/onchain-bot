@@ -7,6 +7,10 @@ import {
   AdMediaRepository,
 } from 'telegram/crypto-news-ads/application/ports/ad-media.repository';
 import { AdMediaStoragePort } from 'telegram/crypto-news-ads/application/ports/ad-media-storage.port';
+import {
+  AdMediaLibraryRecord,
+  AdMediaLibraryRepository,
+} from 'telegram/crypto-news-ads/application/ports/ad-media-library.repository';
 import { AdRepository } from 'telegram/crypto-news-ads/application/ports/ad.repository';
 import { Ad } from 'telegram/crypto-news-ads/domain/entities/ad.entity';
 import {
@@ -43,11 +47,13 @@ export class UploadAdImageUseCase {
     private readonly adRepo: AdRepository,
     private readonly adMediaRepo: AdMediaRepository,
     private readonly storage: AdMediaStoragePort,
+    private readonly libraryRepo: AdMediaLibraryRepository,
   ) {}
 
   public async execute(args: {
     adId: string;
     buffer: Buffer;
+    originalFileName?: string | null;
   }): Promise<AdView> {
     if (!args.buffer || args.buffer.byteLength === 0) {
       throw new DomainError(ErrorCode.VALIDATION, 'empty file');
@@ -65,6 +71,32 @@ export class UploadAdImageUseCase {
         ErrorCode.VALIDATION,
         'only image files are allowed',
       );
+    }
+
+    // Library registration runs BEFORE the ad existence check: a fresh
+    // upload is persisted once in the shared library (deduped by sha256),
+    // and a library write failure propagates like any other IO error.
+    const contentHash = crypto
+      .createHash('sha256')
+      .update(args.buffer)
+      .digest('hex');
+    const libraryHit = await this.libraryRepo.findByContentHash(contentHash);
+    if (!libraryHit) {
+      const libStored = await this.storage.storeLibraryFile(
+        args.buffer,
+        mimeType,
+        contentHash,
+      );
+      const libraryRecord: AdMediaLibraryRecord = {
+        id: crypto.randomUUID(),
+        filePath: libStored.relativePath,
+        contentHash,
+        originalFileName: args.originalFileName ?? null,
+        mimeType,
+        fileSize: libStored.size,
+        createdAt: new Date(),
+      };
+      await this.libraryRepo.save(libraryRecord);
     }
 
     const ad = await this.adRepo.findById(args.adId);

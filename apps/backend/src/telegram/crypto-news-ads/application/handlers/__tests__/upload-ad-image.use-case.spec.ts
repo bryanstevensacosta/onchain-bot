@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { UploadAdImageUseCase } from '../upload-ad-image.use-case';
 import { ErrorCode } from 'shared/kernel/domain-error';
 import { Ad } from 'telegram/crypto-news-ads/domain/entities/ad.entity';
@@ -7,6 +8,10 @@ import {
   AdMediaRepository,
 } from 'telegram/crypto-news-ads/application/ports/ad-media.repository';
 import { AdMediaStoragePort } from 'telegram/crypto-news-ads/application/ports/ad-media-storage.port';
+import {
+  AdMediaLibraryRecord,
+  AdMediaLibraryRepository,
+} from 'telegram/crypto-news-ads/application/ports/ad-media-library.repository';
 
 /**
  * Real PNG magic bytes (8 bytes) — enough for `detectMediaMimeType`'s
@@ -35,11 +40,25 @@ describe('UploadAdImageUseCase', () => {
   const storage = {
     store: jest.fn(),
     remove: jest.fn(),
+    storeLibraryFile: jest.fn(),
   } as unknown as jest.Mocked<AdMediaStoragePort>;
+  const libraryRepo = {
+    findByContentHash: jest.fn(),
+    save: jest.fn(),
+  } as unknown as jest.Mocked<AdMediaLibraryRepository>;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    useCase = new UploadAdImageUseCase(adRepo, adMediaRepo, storage);
+    storage.storeLibraryFile.mockResolvedValue({
+      relativePath: 'crypto-news-ads-library/uuid.png',
+      size: 1024,
+    });
+    useCase = new UploadAdImageUseCase(
+      adRepo,
+      adMediaRepo,
+      storage,
+      libraryRepo,
+    );
   });
 
   it('stores a sniffed PNG, saves the media row + rebuilt ad, returns a view with imageMediaId', async () => {
@@ -173,5 +192,97 @@ describe('UploadAdImageUseCase', () => {
     expect(oldRemoveAt).toBeGreaterThan(newAdSaveAt);
     expect(oldDeleteAt).toBeGreaterThan(newMediaSaveAt);
     expect(oldDeleteAt).toBeGreaterThan(newAdSaveAt);
+  });
+
+  it('registers a new library entry for a fresh content hash (storeLibraryFile + save with matching sha256)', async () => {
+    const ad = Ad.create({ id: 'ad-1', name: 'Sponsor', body: 'promo' });
+    adRepo.findById.mockResolvedValue(ad);
+    storage.store.mockResolvedValue({
+      relativePath: 'crypto-news-ads/ad-1/uuid.png',
+      size: 1024,
+    });
+    adMediaRepo.save.mockImplementation(async (media) => media);
+
+    const buffer = pngBuffer();
+    const contentHash = createHash('sha256').update(buffer).digest('hex');
+
+    await useCase.execute({ adId: 'ad-1', buffer });
+
+    expect(storage.storeLibraryFile).toHaveBeenCalledWith(
+      buffer,
+      'image/png',
+      contentHash,
+    );
+    expect(libraryRepo.save).toHaveBeenCalledTimes(1);
+    const savedLibraryRecord = libraryRepo.save.mock.calls[0][0];
+    expect(savedLibraryRecord.contentHash).toBe(contentHash);
+    expect(savedLibraryRecord.filePath).toBe(
+      'crypto-news-ads-library/uuid.png',
+    );
+    expect(savedLibraryRecord.mimeType).toBe('image/png');
+    expect(savedLibraryRecord.fileSize).toBe(1024);
+  });
+
+  it('skips the library write entirely when the content hash already exists', async () => {
+    const existing: AdMediaLibraryRecord = {
+      id: 'lib-1',
+      filePath: 'crypto-news-ads-library/abc.png',
+      contentHash: 'pre-existing-hash',
+      originalFileName: 'old.png',
+      mimeType: 'image/png',
+      fileSize: 1024,
+      createdAt: new Date('2026-01-01T00:00:00Z'),
+    };
+    libraryRepo.findByContentHash.mockResolvedValueOnce(existing);
+    const ad = Ad.create({ id: 'ad-1', name: 'Sponsor', body: 'promo' });
+    adRepo.findById.mockResolvedValue(ad);
+    storage.store.mockResolvedValue({
+      relativePath: 'crypto-news-ads/ad-1/uuid.png',
+      size: 1024,
+    });
+    adMediaRepo.save.mockImplementation(async (media) => media);
+
+    await useCase.execute({ adId: 'ad-1', buffer: pngBuffer() });
+
+    expect(storage.storeLibraryFile).not.toHaveBeenCalled();
+    expect(libraryRepo.save).not.toHaveBeenCalled();
+    // The ad upload itself still proceeds untouched.
+    expect(adMediaRepo.save).toHaveBeenCalledTimes(1);
+    expect(adRepo.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('captures originalFileName on the library record when provided, null when omitted', async () => {
+    libraryRepo.findByContentHash.mockResolvedValue(null);
+    const ad = Ad.create({ id: 'ad-1', name: 'Sponsor', body: 'promo' });
+    adRepo.findById.mockResolvedValue(ad);
+    storage.store.mockResolvedValue({
+      relativePath: 'crypto-news-ads/ad-1/uuid.png',
+      size: 1024,
+    });
+    storage.storeLibraryFile.mockResolvedValue({
+      relativePath: 'crypto-news-ads-library/uuid.png',
+      size: 1024,
+    });
+    adMediaRepo.save.mockImplementation(async (media) => media);
+
+    const buffer = pngBuffer();
+
+    await useCase.execute({
+      adId: 'ad-1',
+      buffer,
+      originalFileName: 'banner.png',
+    });
+    expect(libraryRepo.save.mock.calls[0][0].originalFileName).toBe(
+      'banner.png',
+    );
+
+    jest.clearAllMocks();
+    adRepo.findById.mockResolvedValue(ad);
+    storage.store.mockResolvedValue({
+      relativePath: 'crypto-news-ads/ad-1/uuid.png',
+      size: 1024,
+    });
+    await useCase.execute({ adId: 'ad-1', buffer });
+    expect(libraryRepo.save.mock.calls[0][0].originalFileName).toBeNull();
   });
 });

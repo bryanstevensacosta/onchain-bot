@@ -72,4 +72,33 @@ export class LocalAdMediaStorageAdapter extends AdMediaStoragePort {
     }
     await fs.rm(target, { force: true });
   }
+
+  public async storeLibraryFile(
+    buffer: Buffer,
+    mimeType: string,
+    contentHash: string,
+  ): Promise<{ relativePath: string; size: number }> {
+    const id = contentHash;
+    const ext = MIME_TO_EXT[mimeType] ?? DEFAULT_EXT;
+    const targetDir = path.join(this.root, 'crypto-news-ads-library');
+    await fs.mkdir(targetDir, { recursive: true });
+    const fileName = `${id}${ext}`;
+    await fs.writeFile(path.join(targetDir, fileName), buffer);
+    return {
+      relativePath: `crypto-news-ads-library/${fileName}`,
+      size: buffer.byteLength,
+    };
+  }
+
+  public async readFile(relativePath: string): Promise<Buffer> {
+    const resolvedRoot = path.resolve(this.root);
+    const target = path.resolve(this.root, relativePath);
+    if (!target.startsWith(resolvedRoot + path.sep)) {
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        `media path escapes the uploads root: ${relativePath}`,
+      );
+    }
+    return fs.readFile(target);
+  }
 }

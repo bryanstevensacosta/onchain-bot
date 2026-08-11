@@ -27,4 +27,31 @@ export abstract class AdMediaStoragePort {
    * Removing a file that is already absent is a no-op.
    */
   public abstract remove(relativePath: string): Promise<void>;
+
+  /**
+   * Persist `buffer` as a media-library file under
+   * `<uploadsRoot>/crypto-news-ads-library/<contentHash><ext>`.
+   *
+   * `contentHash` is the sha256 of `buffer` computed by the caller and
+   * doubles as the file name, making the write idempotent: the same hash
+   * always maps to the same canonical path, so re-storing an identical
+   * file simply overwrites in place. `mimeType` is sniffed by the caller
+   * (never client-supplied) and drives the file extension. Returns the
+   * written file's path RELATIVE to the uploads root (forward slashes)
+   * plus its byte size.
+   */
+  public abstract storeLibraryFile(
+    buffer: Buffer,
+    mimeType: string,
+    contentHash: string,
+  ): Promise<{ relativePath: string; size: number }>;
+
+  /**
+   * Read back the file at `relativePath` (relative to the uploads root).
+   * Enforces the same escape guard as `remove` — an absolute input or a
+   * `..`-escaping one throws VALIDATION rather than reading outside the
+   * uploads root. The underlying ENOENT is propagated as-is; callers map
+   * it to a domain-level not-found error.
+   */
+  public abstract readFile(relativePath: string): Promise<Buffer>;
 }
