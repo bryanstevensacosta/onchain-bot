@@ -12,11 +12,14 @@ import {
   useClearAdImage,
   useCreateAd,
   useDeleteAd,
+  useMediaLibrary,
+  useReuseLibraryImage,
   useUpdateAd,
   useUploadAdImage,
 } from '@/features/crypto-news-ads/model/use-ads';
 import {
   adImageUrl,
+  libraryImageUrl,
   type AdView,
 } from '@/features/crypto-news-ads/api/ads-api';
 
@@ -272,10 +275,24 @@ interface AdImageCellProps {
 function AdImageCell({ item }: AdImageCellProps): React.ReactElement {
   const uploadMut = useUploadAdImage();
   const clearMut = useClearAdImage();
+  const libraryQuery = useMediaLibrary();
+  const reuseMut = useReuseLibraryImage();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [reuseOpen, setReuseOpen] = useState(false);
 
   const errorMessage =
-    uploadMut.error?.message ?? clearMut.error?.message ?? null;
+    uploadMut.error?.message ??
+    clearMut.error?.message ??
+    (reuseMut.error instanceof Error ? reuseMut.error.message : null);
+
+  // Close the picker once a reuse succeeds (the hook invalidates the
+  // affected queries). `isSuccess` stays true across re-opens, so the
+  // effect only re-fires when a fresh reuse completes.
+  useEffect(() => {
+    if (reuseMut.isSuccess) {
+      setReuseOpen(false);
+    }
+  }, [reuseMut.isSuccess]);
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -292,28 +309,12 @@ function AdImageCell({ item }: AdImageCellProps): React.ReactElement {
     clearMut.mutate(item.id);
   }
 
+  const libraryItems = libraryQuery.data ?? [];
+
   return (
     <div className="flex flex-col items-start gap-1">
       <div className="inline-flex items-center gap-2">
-        {item.imageMediaId === null ? (
-          <>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadMut.isPending}
-            >
-              Upload image
-            </Button>
-          </>
-        ) : (
+        {item.imageMediaId !== null && (
           <>
             <img
               src={adImageUrl(item.imageMediaId)}
@@ -330,12 +331,80 @@ function AdImageCell({ item }: AdImageCellProps): React.ReactElement {
             </Button>
           </>
         )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploadMut.isPending}
+        >
+          Upload image
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setReuseOpen(true)}
+        >
+          Reuse
+        </Button>
       </div>
       {errorMessage && (
         <span role="alert" className="text-xs text-red-400">
           {errorMessage}
         </span>
       )}
+
+      <Modal
+        isOpen={reuseOpen}
+        onClose={() => setReuseOpen(false)}
+        title="Reuse existing image"
+        size="lg"
+      >
+        {libraryQuery.isLoading ? (
+          <div className="text-sm text-slate-500">Loading...</div>
+        ) : libraryQuery.error ? (
+          <div className="text-sm text-red-400">
+            {libraryQuery.error instanceof Error
+              ? libraryQuery.error.message
+              : String(libraryQuery.error)}
+          </div>
+        ) : libraryItems.length === 0 ? (
+          <div className="text-sm text-slate-500">
+            Library is empty — upload an image first.
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-3">
+            {libraryItems.map((lib) => (
+              <div
+                key={lib.id}
+                className="flex flex-col items-center gap-1"
+                title={lib.originalFileName ?? lib.id}
+              >
+                <img
+                  src={libraryImageUrl(lib.id)}
+                  alt={lib.originalFileName ?? lib.id}
+                  className="h-16 w-16 rounded object-cover border border-slate-700 cursor-pointer hover:border-blue-500"
+                  onClick={() =>
+                    reuseMut.mutate({
+                      adId: item.id,
+                      libraryMediaId: lib.id,
+                    })
+                  }
+                />
+                <span className="text-[10px] text-slate-500 max-w-16 truncate">
+                  {lib.originalFileName ?? lib.id}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

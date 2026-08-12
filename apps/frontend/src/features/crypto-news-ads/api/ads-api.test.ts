@@ -6,9 +6,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   adImageUrl,
   clearAdImage,
+  fetchMediaLibrary,
+  libraryImageUrl,
+  reuseLibraryImage,
   uploadAdImage,
   type AdView,
+  type MediaLibraryView,
 } from './ads-api';
+
+import { HttpError } from '@/shared/api/http-client';
 
 function jsonResponse(body: unknown, init?: ResponseInit): Response {
   return new Response(JSON.stringify(body), {
@@ -103,5 +109,100 @@ describe('clearAdImage', () => {
     ];
     expect(url).toContain('/crypto-news-ads/ads/ad-1/image');
     expect(init?.method).toBe('DELETE');
+  });
+});
+
+describe('fetchMediaLibrary', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('GETs the media library endpoint and parses the list', async () => {
+    const library: MediaLibraryView[] = [
+      {
+        id: 'lib-1',
+        url: '/crypto-news-ads/media/lib-1',
+        originalFileName: 'a.png',
+        mimeType: 'image/png',
+        fileSize: 1024,
+        createdAt: '2026-08-03T00:00:00.000Z',
+      },
+    ];
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse(library));
+
+    const result = await fetchMediaLibrary();
+
+    expect(result).toEqual(library);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] as [
+      string,
+      RequestInit | undefined,
+    ];
+    expect(url).toContain('/crypto-news-ads/media-library');
+    expect(init?.method).toBeUndefined();
+  });
+});
+
+describe('reuseLibraryImage', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('POSTs the library media id to the reuse endpoint and resolves with the view', async () => {
+    const view = makeAdView({ imageMediaId: 'lib-1' });
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse(view));
+
+    const result = await reuseLibraryImage('ad-1', 'lib-1');
+
+    expect(result).toEqual(view);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] as [
+      string,
+      RequestInit | undefined,
+    ];
+    expect(url).toContain('/crypto-news-ads/ads/ad-1/reuse-image');
+    expect(init?.method).toBe('POST');
+    expect(init?.headers).toEqual({ 'Content-Type': 'application/json' });
+    expect(init?.body).toBe(JSON.stringify({ libraryMediaId: 'lib-1' }));
+  });
+
+  it('URL-encodes the ad id in the path', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse(makeAdView()));
+
+    await reuseLibraryImage('ad/1', 'lib-1');
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
+      '/ads/ad%2F1/reuse-image',
+    );
+  });
+
+  it('rejects with an HttpError when the server returns 404', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ message: 'nope' }, { status: 404 }),
+    );
+
+    await expect(reuseLibraryImage('ad-1', 'lib-1')).rejects.toThrow(HttpError);
+    await expect(reuseLibraryImage('ad-1', 'lib-1')).rejects.toThrow(
+      'POST /crypto-news-ads/ads/ad-1/reuse-image → 404',
+    );
+  });
+});
+
+describe('libraryImageUrl', () => {
+  it('builds the library url from a libraryMediaId', () => {
+    expect(libraryImageUrl('lib-1')).toBe(
+      '/crypto-news-ads/media-library/lib-1',
+    );
+  });
+
+  it('encodes special characters in the library media id', () => {
+    expect(libraryImageUrl('a b/c')).toBe(
+      '/crypto-news-ads/media-library/a%20b%2Fc',
+    );
   });
 });

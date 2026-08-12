@@ -5,12 +5,15 @@ import {
   createAd,
   deleteAd,
   fetchAds,
+  fetchMediaLibrary,
   fetchRotationConfig,
+  reuseLibraryImage,
   updateAd,
   updateRotationConfig,
   uploadAdImage,
   type AdView,
   type CreateAdBody,
+  type MediaLibraryView,
   type RotationConfigView,
   type UpdateAdBody,
   type UpdateRotationConfigBody,
@@ -68,6 +71,37 @@ export function useUploadAdImage() {
       uploadAdImage(adId, file),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: adsKeys.all });
+      qc.invalidateQueries({ queryKey: adsKeys.mediaLibrary() });
+    },
+  });
+}
+
+/**
+ * Media library catalog. Polled every 10s so freshly uploaded images show up
+ * in the reuse picker without a manual refresh.
+ */
+export function useMediaLibrary() {
+  return useQuery<ReadonlyArray<MediaLibraryView>>({
+    queryKey: adsKeys.mediaLibrary(),
+    queryFn: fetchMediaLibrary,
+    staleTime: 5_000,
+    refetchInterval: 10_000,
+  });
+}
+
+export function useReuseLibraryImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      adId,
+      libraryMediaId,
+    }: {
+      adId: string;
+      libraryMediaId: string;
+    }) => reuseLibraryImage(adId, libraryMediaId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adsKeys.all });
+      qc.invalidateQueries({ queryKey: adsKeys.mediaLibrary() });
     },
   });
 }

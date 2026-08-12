@@ -16,7 +16,7 @@ import {
   isoToLocalInput,
   localInputToIso,
 } from './ads-manager';
-import type { AdView } from '../api/ads-api';
+import type { AdView, MediaLibraryView } from '../api/ads-api';
 
 afterEach(cleanup);
 
@@ -39,7 +39,22 @@ function makeAd(overrides: Partial<AdView> = {}): AdView {
   };
 }
 
+function makeLib(
+  id: string,
+  originalFileName: string | null,
+): MediaLibraryView {
+  return {
+    id,
+    url: `/crypto-news-ads/media-library/${id}`,
+    originalFileName,
+    mimeType: originalFileName ? 'image/png' : null,
+    fileSize: originalFileName ? 1024 : null,
+    createdAt: new Date('2026-08-03').toISOString(),
+  };
+}
+
 const updateAdMock = vi.fn();
+const reuseMutMock = vi.fn();
 
 vi.mock('@/features/crypto-news-ads/model/use-ads', () => ({
   useAds: vi.fn(),
@@ -48,6 +63,8 @@ vi.mock('@/features/crypto-news-ads/model/use-ads', () => ({
   useDeleteAd: vi.fn(),
   useUploadAdImage: vi.fn(),
   useClearAdImage: vi.fn(),
+  useMediaLibrary: vi.fn(),
+  useReuseLibraryImage: vi.fn(),
 }));
 
 import {
@@ -55,6 +72,8 @@ import {
   useClearAdImage,
   useCreateAd,
   useDeleteAd,
+  useMediaLibrary,
+  useReuseLibraryImage,
   useUpdateAd,
   useUploadAdImage,
 } from '@/features/crypto-news-ads/model/use-ads';
@@ -65,10 +84,13 @@ const mockedUseUpdateAd = vi.mocked(useUpdateAd);
 const mockedUseDeleteAd = vi.mocked(useDeleteAd);
 const mockedUseUploadAdImage = vi.mocked(useUploadAdImage);
 const mockedUseClearAdImage = vi.mocked(useClearAdImage);
+const mockedUseMediaLibrary = vi.mocked(useMediaLibrary);
+const mockedUseReuseLibraryImage = vi.mocked(useReuseLibraryImage);
 
 describe('AdsManager', () => {
   beforeEach(() => {
     updateAdMock.mockReset();
+    reuseMutMock.mockReset();
     mockedUseCreateAd.mockReturnValue({
       isPending: false,
       isError: false,
@@ -111,6 +133,20 @@ describe('AdsManager', () => {
       isSuccess: false,
       error: null,
       mutate: vi.fn(),
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+    mockedUseMediaLibrary.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+    mockedUseReuseLibraryImage.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: reuseMutMock,
       mutateAsync: vi.fn(),
       reset: vi.fn(),
     } as never);
@@ -515,6 +551,189 @@ describe('AdsManager', () => {
     expect(modalCard.querySelector('#ad-image-path')).toBeNull();
     expect(within(modalCard).getByLabelText(/Name/)).toBeInTheDocument();
     expect(within(modalCard).getByLabelText(/Body/)).toBeInTheDocument();
+  });
+
+  it('offers Reuse and Upload in both image states, Remove only with an image', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd()],
+      isLoading: false,
+      error: null,
+    } as never);
+    const { rerender } = render(<AdsManager />);
+    expect(screen.getByText('Reuse')).toBeInTheDocument();
+    expect(screen.getByText('Upload image')).toBeInTheDocument();
+    expect(screen.queryByText('Remove')).not.toBeInTheDocument();
+
+    mockedUseAds.mockReturnValue({
+      data: [makeAd({ imageMediaId: 'media-1' })],
+      isLoading: false,
+      error: null,
+    } as never);
+    rerender(<AdsManager />);
+    expect(screen.getByText('Reuse')).toBeInTheDocument();
+    expect(screen.getByText('Upload image')).toBeInTheDocument();
+    expect(screen.getByText('Remove')).toBeInTheDocument();
+  });
+
+  it('shows library thumbnails in the reuse modal', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd()],
+      isLoading: false,
+      error: null,
+    } as never);
+    mockedUseMediaLibrary.mockReturnValue({
+      data: [makeLib('lib-1', 'banner.png'), makeLib('lib-2', null)],
+      isLoading: false,
+      error: null,
+    } as never);
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('Reuse'));
+
+    expect(screen.getByText('Reuse existing image')).toBeInTheDocument();
+    expect(screen.getByAltText('banner.png')).toHaveAttribute(
+      'src',
+      '/crypto-news-ads/media-library/lib-1',
+    );
+    expect(screen.getByAltText('lib-2')).toHaveAttribute(
+      'src',
+      '/crypto-news-ads/media-library/lib-2',
+    );
+    // caption under each thumbnail
+    expect(screen.getByText('banner.png')).toBeInTheDocument();
+    expect(screen.getByText('lib-2')).toBeInTheDocument();
+  });
+
+  it('reuses a library image when a thumbnail is clicked', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd()],
+      isLoading: false,
+      error: null,
+    } as never);
+    mockedUseMediaLibrary.mockReturnValue({
+      data: [makeLib('lib-1', 'banner.png')],
+      isLoading: false,
+      error: null,
+    } as never);
+    const reuseMut = vi.fn();
+    mockedUseReuseLibraryImage.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: reuseMut,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('Reuse'));
+    fireEvent.click(screen.getByAltText('banner.png'));
+
+    expect(reuseMut).toHaveBeenCalledWith({
+      adId: 'ad-1',
+      libraryMediaId: 'lib-1',
+    });
+  });
+
+  it('shows the library empty state in the reuse modal', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd()],
+      isLoading: false,
+      error: null,
+    } as never);
+    mockedUseMediaLibrary.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('Reuse'));
+
+    expect(
+      screen.getByText('Library is empty — upload an image first.'),
+    ).toBeInTheDocument();
+  });
+
+  it('shows a red library error in the reuse modal with no grid', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd()],
+      isLoading: false,
+      error: null,
+    } as never);
+    mockedUseMediaLibrary.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: new Error('library boom'),
+    } as never);
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('Reuse'));
+
+    expect(screen.getByText('library boom')).toHaveClass('text-red-400');
+    expect(screen.queryAllByRole('img')).toHaveLength(0);
+  });
+
+  it('shows a reuse mutation error in the inline error banner', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd()],
+      isLoading: false,
+      error: null,
+    } as never);
+    mockedUseReuseLibraryImage.mockReturnValue({
+      isPending: false,
+      isError: true,
+      isSuccess: false,
+      error: new Error('reuse failed'),
+      mutate: vi.fn(),
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+
+    render(<AdsManager />);
+    expect(screen.getByText('reuse failed')).toBeInTheDocument();
+  });
+
+  it('closes the reuse modal after a successful reuse', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd()],
+      isLoading: false,
+      error: null,
+    } as never);
+    mockedUseMediaLibrary.mockReturnValue({
+      data: [makeLib('lib-1', 'banner.png')],
+      isLoading: false,
+      error: null,
+    } as never);
+    const reuseMut = vi.fn();
+    mockedUseReuseLibraryImage.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: reuseMut,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+
+    const { rerender } = render(<AdsManager />);
+    fireEvent.click(screen.getByText('Reuse'));
+    expect(screen.getByText('Reuse existing image')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByAltText('banner.png'));
+    mockedUseReuseLibraryImage.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: true,
+      error: null,
+      mutate: reuseMut,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+    rerender(<AdsManager />);
+
+    expect(screen.queryByText('Reuse existing image')).not.toBeInTheDocument();
   });
 });
 

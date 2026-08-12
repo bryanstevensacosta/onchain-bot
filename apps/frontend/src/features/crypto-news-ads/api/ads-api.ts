@@ -34,6 +34,15 @@ export interface RotationConfigView {
   readonly minMinutesBetweenAds: number;
 }
 
+export interface MediaLibraryView {
+  readonly id: string;
+  readonly url: string;
+  readonly originalFileName: string | null;
+  readonly mimeType: string | null;
+  readonly fileSize: number | null;
+  readonly createdAt: string;
+}
+
 export interface CreateAdBody {
   readonly name: string;
   readonly body: string;
@@ -56,10 +65,19 @@ export const adsKeys = {
   all: ['crypto-news-ads'] as const,
   list: () => [...adsKeys.all, 'ads', 'list'] as const,
   config: () => [...adsKeys.all, 'rotation-config'] as const,
+  mediaLibrary: () => [...adsKeys.all, 'media-library'] as const,
 };
 
 export async function fetchAds(): Promise<ReadonlyArray<AdView>> {
   return httpGet<ReadonlyArray<AdView>>('/crypto-news-ads/ads');
+}
+
+export async function fetchMediaLibrary(): Promise<
+  ReadonlyArray<MediaLibraryView>
+> {
+  return httpGet<ReadonlyArray<MediaLibraryView>>(
+    '/crypto-news-ads/media-library',
+  );
 }
 
 export async function createAd(body: CreateAdBody): Promise<AdView> {
@@ -97,6 +115,20 @@ export async function clearAdImage(adId: string): Promise<AdView> {
 
 export function adImageUrl(mediaId: string): string {
   return `/crypto-news-ads/media/${encodeURIComponent(mediaId)}`;
+}
+
+export async function reuseLibraryImage(
+  adId: string,
+  libraryMediaId: string,
+): Promise<AdView> {
+  return httpPost<{ libraryMediaId: string }, AdView>(
+    `/crypto-news-ads/ads/${encodeURIComponent(adId)}/reuse-image`,
+    { libraryMediaId },
+  );
+}
+
+export function libraryImageUrl(libraryMediaId: string): string {
+  return `/crypto-news-ads/media-library/${encodeURIComponent(libraryMediaId)}`;
 }
 
 export async function fetchRotationConfig(): Promise<RotationConfigView> {
