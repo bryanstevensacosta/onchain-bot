@@ -92,6 +92,7 @@ describe('AdsController', () => {
   const PAST = new Date('2020-01-01T00:00:00.000Z');
   const FUTURE = new Date('2099-01-01T00:00:00.000Z');
   const MEDIA_UUID = '11111111-2222-3333-4444-555555555555';
+  const AD_UUID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
 
   beforeEach(async () => {
     uploadsRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'ads-media-'));
@@ -241,6 +242,13 @@ describe('AdsController', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
+    it('returns 404 for a non-UUID id without hitting the repo', async () => {
+      await expect(
+        controller.update('../../etc/passwd', { name: 'Whatever' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(adRepo.findById).not.toHaveBeenCalled();
+    });
+
     it('applies the patch and persists', async () => {
       const existing = buildAd({ name: 'Old' });
       adRepo.findById.mockResolvedValue(existing);
@@ -363,44 +371,69 @@ describe('AdsController', () => {
 
   describe('uploadImage', () => {
     it('delegates the uploaded file to UploadAdImageUseCase and returns the view', async () => {
-      const ad = buildAd({ id: 'ad-1', imageMediaId: MEDIA_UUID });
+      const ad = buildAd({ id: AD_UUID, imageMediaId: MEDIA_UUID });
       uploadImageUseCase.execute.mockResolvedValue(toAdView(ad));
       const file = {
         buffer: Buffer.from('png-bytes'),
         originalname: 'hero.png',
       } as Express.Multer.File;
-      const result = await controller.uploadImage('ad-1', file);
+      const result = await controller.uploadImage(AD_UUID, file);
       expect(uploadImageUseCase.execute).toHaveBeenCalledWith({
-        adId: 'ad-1',
+        adId: AD_UUID,
         buffer: file.buffer,
         originalFileName: 'hero.png',
       });
       expect(result.imageMediaId).toBe(MEDIA_UUID);
     });
+
+    it('returns 404 for a non-UUID id without invoking the use case', async () => {
+      const file = {
+        buffer: Buffer.from('png-bytes'),
+        originalname: 'hero.png',
+      } as Express.Multer.File;
+      await expect(
+        controller.uploadImage('not-a-uuid', file),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(uploadImageUseCase.execute).not.toHaveBeenCalled();
+    });
   });
 
   describe('clearImage', () => {
     it('delegates to ClearAdImageUseCase and returns the view', async () => {
-      const ad = buildAd({ id: 'ad-1' });
+      const ad = buildAd({ id: AD_UUID });
       clearImageUseCase.execute.mockResolvedValue(toAdView(ad));
-      const result = await controller.clearImage('ad-1');
-      expect(clearImageUseCase.execute).toHaveBeenCalledWith('ad-1');
-      expect(result.id).toBe('ad-1');
+      const result = await controller.clearImage(AD_UUID);
+      expect(clearImageUseCase.execute).toHaveBeenCalledWith(AD_UUID);
+      expect(result.id).toBe(AD_UUID);
+    });
+
+    it('returns 404 for a non-UUID id without invoking the use case', async () => {
+      await expect(controller.clearImage('not-a-uuid')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(clearImageUseCase.execute).not.toHaveBeenCalled();
     });
   });
 
   describe('reuseImage', () => {
     it('delegates libraryMediaId to ReuseLibraryImageUseCase and returns the view', async () => {
-      const ad = buildAd({ id: 'ad-1', imageMediaId: MEDIA_UUID });
+      const ad = buildAd({ id: AD_UUID, imageMediaId: MEDIA_UUID });
       reuseImageUseCase.execute.mockResolvedValue(toAdView(ad));
-      const result = await controller.reuseImage('ad-1', {
+      const result = await controller.reuseImage(AD_UUID, {
         libraryMediaId: MEDIA_UUID,
       });
       expect(reuseImageUseCase.execute).toHaveBeenCalledWith({
-        adId: 'ad-1',
+        adId: AD_UUID,
         libraryMediaId: MEDIA_UUID,
       });
       expect(result.imageMediaId).toBe(MEDIA_UUID);
+    });
+
+    it('returns 404 for a non-UUID ad id without invoking the use case', async () => {
+      await expect(
+        controller.reuseImage('not-a-uuid', { libraryMediaId: MEDIA_UUID }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(reuseImageUseCase.execute).not.toHaveBeenCalled();
     });
   });
 
@@ -413,6 +446,14 @@ describe('AdsController', () => {
       expect(adRepo.delete).not.toHaveBeenCalled();
     });
 
+    it('returns 404 for a non-UUID id without hitting the repo', async () => {
+      await expect(controller.remove('not-a-uuid')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(adRepo.findById).not.toHaveBeenCalled();
+      expect(adRepo.delete).not.toHaveBeenCalled();
+    });
+
     it('deletes the ad when found', async () => {
       const ad = buildAd({});
       adRepo.findById.mockResolvedValue(ad);
@@ -421,23 +462,23 @@ describe('AdsController', () => {
     });
 
     it('purges the media file + row before deleting an ad that has an image', async () => {
-      const media = buildMediaRow({ id: 'media-1', adId: 'ad-1' });
-      const ad = buildAd({ id: 'ad-1', imageMediaId: media.id });
+      const media = buildMediaRow({ id: 'media-1', adId: AD_UUID });
+      const ad = buildAd({ id: AD_UUID, imageMediaId: media.id });
       adRepo.findById.mockResolvedValue(ad);
       adMediaRepo.findById.mockResolvedValue(media);
-      await controller.remove('ad-1');
+      await controller.remove(AD_UUID);
       expect(storage.remove).toHaveBeenCalledWith(media.filePath);
       expect(adMediaRepo.delete).toHaveBeenCalledWith(media.id);
-      expect(adRepo.delete).toHaveBeenCalledWith('ad-1');
+      expect(adRepo.delete).toHaveBeenCalledWith(AD_UUID);
     });
 
     it('skips media cleanup for an ad without an image', async () => {
-      const ad = buildAd({ id: 'ad-1' });
+      const ad = buildAd({ id: AD_UUID });
       adRepo.findById.mockResolvedValue(ad);
-      await controller.remove('ad-1');
+      await controller.remove(AD_UUID);
       expect(adMediaRepo.findById).not.toHaveBeenCalled();
       expect(storage.remove).not.toHaveBeenCalled();
-      expect(adRepo.delete).toHaveBeenCalledWith('ad-1');
+      expect(adRepo.delete).toHaveBeenCalledWith(AD_UUID);
     });
   });
 

@@ -44,8 +44,10 @@ import {
   type AdView,
 } from 'telegram/crypto-news-ads/application/mappers/ads.mapper';
 
-/** Media ids are UUIDs — reject anything else before it reaches the lookup. */
-const MEDIA_ID_UUID =
+/** UUID id param (ad or media) — reject anything else before it reaches
+ *  the lookup so non-UUID ids return a clean 404 instead of a Postgres
+ *  `invalid input syntax for type uuid` 500. */
+const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /**
@@ -84,6 +86,12 @@ export class AdsController {
     return ads.map(toAdView);
   }
 
+  private static ensureAdId(id: string): void {
+    if (!UUID_RE.test(id)) {
+      throw new NotFoundException(`Ad ${id} not found`);
+    }
+  }
+
   @Post()
   public async create(@Body() dto: CreateAdDto): Promise<AdView> {
     const existing = await this.adRepo.findAll();
@@ -112,6 +120,7 @@ export class AdsController {
     @Param('id') id: string,
     @Body() dto: UpdateAdDto,
   ): Promise<AdView> {
+    AdsController.ensureAdId(id);
     const existing = await this.adRepo.findById(id);
     if (!existing) {
       throw new NotFoundException(`Ad ${id} not found`);
@@ -152,6 +161,7 @@ export class AdsController {
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
   ): Promise<AdView> {
+    AdsController.ensureAdId(id);
     return this.uploadImageUseCase.execute({
       adId: id,
       buffer: file.buffer,
@@ -164,6 +174,7 @@ export class AdsController {
     @Param('id') id: string,
     @Body() dto: ReuseAdImageDto,
   ): Promise<AdView> {
+    AdsController.ensureAdId(id);
     return this.reuseImageUseCase.execute({
       adId: id,
       libraryMediaId: dto.libraryMediaId,
@@ -172,11 +183,13 @@ export class AdsController {
 
   @Delete(':id/image')
   public async clearImage(@Param('id') id: string): Promise<AdView> {
+    AdsController.ensureAdId(id);
     return this.clearImageUseCase.execute(id);
   }
 
   @Delete(':id')
   public async remove(@Param('id') id: string): Promise<void> {
+    AdsController.ensureAdId(id);
     const existing = await this.adRepo.findById(id);
     if (!existing) {
       throw new NotFoundException(`Ad ${id} not found`);
@@ -218,7 +231,7 @@ export class AdsMediaController {
     @Req() req: Request,
     @Res({ passthrough: false }) res: Response,
   ): Promise<void> {
-    if (!MEDIA_ID_UUID.test(mediaId)) {
+    if (!UUID_RE.test(mediaId)) {
       res.status(404).json({ error: 'Media not found' });
       return;
     }
@@ -288,7 +301,7 @@ export class AdsMediaController {
     @Req() req: Request,
     @Res({ passthrough: false }) res: Response,
   ): Promise<void> {
-    if (!MEDIA_ID_UUID.test(libraryMediaId)) {
+    if (!UUID_RE.test(libraryMediaId)) {
       res.status(404).json({ statusCode: 404, message: 'Media not found' });
       return;
     }
