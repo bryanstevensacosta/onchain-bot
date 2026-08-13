@@ -33,6 +33,9 @@ export interface AdModalSubmitBody {
   body: string;
   expiresAt: string | null;
   expirationAction: 'disable' | 'delete';
+  image?:
+    | { kind: 'upload'; file: File }
+    | { kind: 'reuse'; libraryMediaId: string };
 }
 
 interface AdModalProps {
@@ -43,9 +46,11 @@ interface AdModalProps {
   initialBody: string;
   initialExpiresAt: string | null;
   initialExpirationAction: 'disable' | 'delete';
+  initialImageMediaId: string | null;
   onSubmit: (body: AdModalSubmitBody) => void;
   pending: boolean;
   errorMessage: string | null;
+  pendingLabel?: string;
 }
 
 function AdModal({
@@ -56,9 +61,11 @@ function AdModal({
   initialBody,
   initialExpiresAt,
   initialExpirationAction,
+  initialImageMediaId,
   onSubmit,
   pending,
   errorMessage,
+  pendingLabel = 'Saving…',
 }: AdModalProps): React.ReactElement {
   const [name, setName] = useState(initialName);
   const [body, setBody] = useState(initialBody);
@@ -68,6 +75,14 @@ function AdModal({
   const [expirationAction, setExpirationAction] = useState<
     'disable' | 'delete'
   >(initialExpirationAction);
+  const [pendingImage, setPendingImage] = useState<
+    | { kind: 'upload'; file: File }
+    | { kind: 'reuse'; libraryMediaId: string }
+    | null
+  >(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const libraryQuery = useMediaLibrary();
 
   // Reset form state when the modal opens so edits reflect the selected
   // ad instead of stale values from a previous mount.
@@ -77,6 +92,8 @@ function AdModal({
       setBody(initialBody);
       setExpiresAt(initialExpiresAt ? isoToLocalInput(initialExpiresAt) : '');
       setExpirationAction(initialExpirationAction);
+      setPendingImage(null);
+      setPickerOpen(false);
     }
   }, [
     isOpen,
@@ -84,6 +101,7 @@ function AdModal({
     initialBody,
     initialExpiresAt,
     initialExpirationAction,
+    initialImageMediaId,
   ]);
 
   const canSubmit =
@@ -105,7 +123,15 @@ function AdModal({
       // omitting it would silently keep the old expiry on edit.
       expiresAt: expiresAtIso,
       expirationAction,
+      ...(pendingImage !== null ? { image: pendingImage } : {}),
     });
+  }
+
+  function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPendingImage({ kind: 'upload', file });
   }
 
   return (
@@ -187,6 +213,100 @@ function AdModal({
           </div>
         </div>
 
+        <div>
+          <span className="block text-xs uppercase text-slate-500 mb-1">
+            Image
+          </span>
+          <div className="flex flex-col gap-2">
+            {initialImageMediaId !== null && pendingImage === null && (
+              <img
+                src={adImageUrl(initialImageMediaId)}
+                alt="Current ad image"
+                aria-label="Current ad image"
+                className="h-12 w-12 rounded object-cover border border-slate-700"
+              />
+            )}
+            {pendingImage?.kind === 'upload' && (
+              <span className="text-xs text-slate-300">
+                {pendingImage.file.name}
+              </span>
+            )}
+            {pendingImage?.kind === 'reuse' && (
+              <img
+                src={libraryImageUrl(pendingImage.libraryMediaId)}
+                alt="Selected library image"
+                className="h-12 w-12 rounded object-cover border border-slate-700"
+              />
+            )}
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                aria-label="Ad image file"
+                data-testid="ad-image-file-input"
+                className="hidden"
+                onChange={handleFileChange}
+                disabled={pending}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={pending}
+              >
+                Upload image
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setPickerOpen((open) => !open)}
+                aria-label="Toggle library picker"
+                disabled={pending}
+              >
+                {pickerOpen ? 'Hide library' : 'Pick from library'}
+              </Button>
+            </div>
+            {pickerOpen && (
+              <div className="mt-1">
+                {libraryQuery.isLoading ? (
+                  <div className="text-sm text-slate-500">Loading...</div>
+                ) : libraryQuery.error ? (
+                  <div className="text-sm text-red-400">
+                    {libraryQuery.error instanceof Error
+                      ? libraryQuery.error.message
+                      : String(libraryQuery.error)}
+                  </div>
+                ) : (libraryQuery.data ?? []).length === 0 ? (
+                  <div className="text-sm text-slate-500">
+                    Library is empty — upload an image first.
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-3">
+                    {(libraryQuery.data ?? []).map((lib) => (
+                      <img
+                        key={lib.id}
+                        src={libraryImageUrl(lib.id)}
+                        alt={lib.originalFileName ?? lib.id}
+                        title={lib.originalFileName ?? lib.id}
+                        className="h-12 w-12 rounded object-cover border border-slate-700 cursor-pointer hover:border-blue-500"
+                        onClick={() =>
+                          setPendingImage({
+                            kind: 'reuse',
+                            libraryMediaId: lib.id,
+                          })
+                        }
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
         {errorMessage && (
           <div
             role="alert"
@@ -212,7 +332,7 @@ function AdModal({
             size="sm"
             disabled={!canSubmit}
           >
-            {pending ? 'Saving…' : 'Save'}
+            {pending ? pendingLabel : 'Save'}
           </Button>
         </div>
       </form>
@@ -270,9 +390,15 @@ export function localInputToIso(local: string): string | null {
 
 interface AdImageCellProps {
   item: AdView;
+  disabled?: boolean;
+  externalError?: string | null;
 }
 
-function AdImageCell({ item }: AdImageCellProps): React.ReactElement {
+function AdImageCell({
+  item,
+  disabled = false,
+  externalError = null,
+}: AdImageCellProps): React.ReactElement {
   const uploadMut = useUploadAdImage();
   const clearMut = useClearAdImage();
   const libraryQuery = useMediaLibrary();
@@ -283,7 +409,9 @@ function AdImageCell({ item }: AdImageCellProps): React.ReactElement {
   const errorMessage =
     uploadMut.error?.message ??
     clearMut.error?.message ??
-    (reuseMut.error instanceof Error ? reuseMut.error.message : null);
+    (reuseMut.error instanceof Error ? reuseMut.error.message : null) ??
+    externalError ??
+    null;
 
   // Close the picker once a reuse succeeds (the hook invalidates the
   // affected queries). `isSuccess` stays true across re-opens, so the
@@ -325,7 +453,7 @@ function AdImageCell({ item }: AdImageCellProps): React.ReactElement {
               variant="danger"
               size="sm"
               onClick={handleRemove}
-              disabled={clearMut.isPending}
+              disabled={disabled || clearMut.isPending}
             >
               Remove
             </Button>
@@ -337,12 +465,13 @@ function AdImageCell({ item }: AdImageCellProps): React.ReactElement {
           accept="image/*"
           className="hidden"
           onChange={handleFileChange}
+          disabled={disabled}
         />
         <Button
           variant="secondary"
           size="sm"
           onClick={() => fileInputRef.current?.click()}
-          disabled={uploadMut.isPending}
+          disabled={disabled || uploadMut.isPending}
         >
           Upload image
         </Button>
@@ -350,6 +479,7 @@ function AdImageCell({ item }: AdImageCellProps): React.ReactElement {
           variant="secondary"
           size="sm"
           onClick={() => setReuseOpen(true)}
+          disabled={disabled}
         >
           Reuse
         </Button>
@@ -414,10 +544,16 @@ export function AdsManager(): React.ReactElement {
   const createMut = useCreateAd();
   const updateMut = useUpdateAd();
   const deleteMut = useDeleteAd();
+  const uploadMut = useUploadAdImage();
+  const reuseMut = useReuseLibraryImage();
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<AdView | null>(null);
+  const [lastImageError, setLastImageError] = useState<{
+    adId: string;
+    message: string;
+  } | null>(null);
 
   const ads = (data ?? [])
     .slice()
@@ -425,37 +561,123 @@ export function AdsManager(): React.ReactElement {
       (a, b) => a.order - b.order || a.createdAt.localeCompare(b.createdAt),
     );
 
+  const modalPending =
+    createMut.isPending ||
+    updateMut.isPending ||
+    uploadMut.isPending ||
+    reuseMut.isPending;
+
+  const modalPendingLabel = createMut.isPending
+    ? 'Creating…'
+    : updateMut.isPending
+      ? 'Updating…'
+      : uploadMut.isPending || reuseMut.isPending
+        ? 'Uploading image…'
+        : 'Saving…';
+
   function handleOpenEdit(item: AdView) {
     setEditingItem(item);
     setEditModalOpen(true);
   }
 
-  function handleCloseModals() {
+  function closeModalUi() {
     setCreateModalOpen(false);
     setEditModalOpen(false);
     setEditingItem(null);
   }
 
+  function handleCloseModals() {
+    closeModalUi();
+    setLastImageError(null);
+  }
+
   function handleCreateSubmit(body: AdModalSubmitBody) {
+    const { image, ...metadata } = body;
     createMut.mutate(
       {
-        name: body.name,
-        body: body.body,
-        ...(body.expiresAt !== null ? { expiresAt: body.expiresAt } : {}),
-        expirationAction: body.expirationAction,
+        name: metadata.name,
+        body: metadata.body,
+        ...(metadata.expiresAt !== null
+          ? { expiresAt: metadata.expiresAt }
+          : {}),
+        expirationAction: metadata.expirationAction,
       },
       {
-        onSuccess: () => handleCloseModals(),
+        onSuccess: (created: AdView) => {
+          if (!image) {
+            handleCloseModals();
+            return;
+          }
+          if (image.kind === 'upload') {
+            uploadMut.mutate(
+              { adId: created.id, file: image.file },
+              {
+                onSuccess: () => handleCloseModals(),
+                onError: (err: Error) => {
+                  setLastImageError({ adId: created.id, message: err.message });
+                  closeModalUi();
+                },
+              },
+            );
+          } else {
+            reuseMut.mutate(
+              { adId: created.id, libraryMediaId: image.libraryMediaId },
+              {
+                onSuccess: () => handleCloseModals(),
+                onError: (err: Error) => {
+                  setLastImageError({ adId: created.id, message: err.message });
+                  closeModalUi();
+                },
+              },
+            );
+          }
+        },
       },
     );
   }
 
   function handleEditSubmit(body: AdModalSubmitBody) {
     if (!editingItem) return;
+    const { image, ...metadata } = body;
+    const editingAdId = editingItem.id;
     updateMut.mutate(
-      { id: editingItem.id, patch: body },
+      { id: editingAdId, patch: metadata },
       {
-        onSuccess: () => handleCloseModals(),
+        onSuccess: () => {
+          if (!image) {
+            handleCloseModals();
+            return;
+          }
+          if (image.kind === 'upload') {
+            uploadMut.mutate(
+              { adId: editingAdId, file: image.file },
+              {
+                onSuccess: () => handleCloseModals(),
+                onError: (err: Error) => {
+                  setLastImageError({
+                    adId: editingAdId,
+                    message: err.message,
+                  });
+                  closeModalUi();
+                },
+              },
+            );
+          } else {
+            reuseMut.mutate(
+              { adId: editingAdId, libraryMediaId: image.libraryMediaId },
+              {
+                onSuccess: () => handleCloseModals(),
+                onError: (err: Error) => {
+                  setLastImageError({
+                    adId: editingAdId,
+                    message: err.message,
+                  });
+                  closeModalUi();
+                },
+              },
+            );
+          }
+        },
       },
     );
   }
@@ -512,8 +734,10 @@ export function AdsManager(): React.ReactElement {
         initialBody=""
         initialExpiresAt={null}
         initialExpirationAction="disable"
+        initialImageMediaId={null}
         onSubmit={handleCreateSubmit}
-        pending={createMut.isPending}
+        pending={modalPending}
+        pendingLabel={modalPendingLabel}
         errorMessage={createMut.error?.message ?? null}
       />
 
@@ -525,8 +749,10 @@ export function AdsManager(): React.ReactElement {
         initialBody={editingItem?.body ?? ''}
         initialExpiresAt={editingItem?.expiresAt ?? null}
         initialExpirationAction={editingItem?.expirationAction ?? 'disable'}
+        initialImageMediaId={editingItem?.imageMediaId ?? null}
         onSubmit={handleEditSubmit}
-        pending={updateMut.isPending}
+        pending={modalPending}
+        pendingLabel={modalPendingLabel}
         errorMessage={updateMut.error?.message ?? null}
       />
 
@@ -621,7 +847,16 @@ export function AdsManager(): React.ReactElement {
                     )}
                   </td>
                   <td className="py-2 pr-3">
-                    <AdImageCell item={item} />
+                    <AdImageCell
+                      item={item}
+                      disabled={createModalOpen || editModalOpen}
+                      externalError={
+                        lastImageError !== null &&
+                        item.id === lastImageError.adId
+                          ? lastImageError.message
+                          : null
+                      }
+                    />
                   </td>
                   <td className="py-2 pr-3 text-right">
                     <div className="inline-flex gap-2">

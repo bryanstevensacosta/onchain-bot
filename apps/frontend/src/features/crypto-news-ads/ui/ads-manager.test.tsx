@@ -512,31 +512,31 @@ describe('AdsManager', () => {
     expect(container.querySelector('input[type="file"]')).not.toBeNull();
   });
 
-  it('renders the create modal without any image field', () => {
+  it('renders the create modal with image controls', () => {
     mockedUseAds.mockReturnValue({
       data: [],
       isLoading: false,
       error: null,
     } as never);
-    const { container } = render(<AdsManager />);
+    render(<AdsManager />);
     fireEvent.click(screen.getByText('+ Add Ad'));
 
     const modalCard = screen
       .getByText('Add Ad')
       .closest('div.bg-slate-900') as HTMLElement;
     expect(modalCard).not.toBeNull();
-    expect(modalCard.querySelector('input[type="file"]')).toBeNull();
-    expect(modalCard.querySelector('#ad-image-path')).toBeNull();
-    expect(within(modalCard).getByLabelText(/Name/)).toBeInTheDocument();
-    expect(within(modalCard).getByLabelText(/Body/)).toBeInTheDocument();
-    expect(within(modalCard).getByLabelText('Expires at')).toBeInTheDocument();
-    expect(within(modalCard).getByLabelText('On expiry')).toBeInTheDocument();
-    expect(container.querySelector('input[type="file"]')).toBeNull();
+    expect(
+      within(modalCard).getByTestId('ad-image-file-input'),
+    ).toBeInTheDocument();
+    expect(
+      within(modalCard).getByRole('button', { name: /Toggle library picker/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByAltText(/current ad image/i)).toBeNull();
   });
 
-  it('renders the edit modal without any image field', () => {
+  it('renders the edit modal with image controls when an image exists', () => {
     mockedUseAds.mockReturnValue({
-      data: [makeAd()],
+      data: [makeAd({ imageMediaId: 'media-1' })],
       isLoading: false,
       error: null,
     } as never);
@@ -547,10 +547,19 @@ describe('AdsManager', () => {
       .getByText('Edit Ad')
       .closest('div.bg-slate-900') as HTMLElement;
     expect(modalCard).not.toBeNull();
-    expect(modalCard.querySelector('input[type="file"]')).toBeNull();
-    expect(modalCard.querySelector('#ad-image-path')).toBeNull();
-    expect(within(modalCard).getByLabelText(/Name/)).toBeInTheDocument();
-    expect(within(modalCard).getByLabelText(/Body/)).toBeInTheDocument();
+    expect(
+      within(modalCard).getByTestId('ad-image-file-input'),
+    ).toBeInTheDocument();
+    expect(
+      within(modalCard).getByRole('button', { name: /Toggle library picker/i }),
+    ).toBeInTheDocument();
+    const currentImage = within(modalCard).getByAltText(
+      'Current ad image',
+    ) as HTMLImageElement;
+    expect(currentImage).toHaveAttribute(
+      'src',
+      '/crypto-news-ads/media/media-1',
+    );
   });
 
   it('offers Reuse and Upload in both image states, Remove only with an image', () => {
@@ -734,6 +743,393 @@ describe('AdsManager', () => {
     rerender(<AdsManager />);
 
     expect(screen.queryByText('Reuse existing image')).not.toBeInTheDocument();
+  });
+
+  it('creates an ad and uploads the staged file', () => {
+    mockedUseAds.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+    const createMut = vi.fn(
+      (_body: unknown, opts?: { onSuccess?: (created: AdView) => void }) => {
+        opts?.onSuccess?.(makeAd({ id: 'new-ad' }));
+      },
+    );
+    mockedUseCreateAd.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: createMut,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+    const uploadMut = vi.fn();
+    mockedUseUploadAdImage.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: uploadMut,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('+ Add Ad'));
+
+    const modalCard = screen
+      .getByText('Add Ad')
+      .closest('div.bg-slate-900') as HTMLElement;
+    expect(modalCard).not.toBeNull();
+
+    fireEvent.change(screen.getByLabelText(/Name/), {
+      target: { value: 'New banner' },
+    });
+    fireEvent.change(screen.getByLabelText(/Body/), {
+      target: { value: 'Buy now' },
+    });
+
+    const file = new File(['x'], 'banner.png', { type: 'image/png' });
+    const fileInput = within(modalCard).getByTestId(
+      'ad-image-file-input',
+    ) as HTMLInputElement;
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(createMut).toHaveBeenCalledWith(
+      { name: 'New banner', body: 'Buy now', expirationAction: 'disable' },
+      expect.anything(),
+    );
+    expect(uploadMut).toHaveBeenCalledWith(
+      { adId: 'new-ad', file },
+      expect.anything(),
+    );
+  });
+
+  it('creates an ad and reuses a library image', () => {
+    mockedUseAds.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+    mockedUseMediaLibrary.mockReturnValue({
+      data: [makeLib('lib-1', 'banner.png')],
+      isLoading: false,
+      error: null,
+    } as never);
+    const createMut = vi.fn(
+      (_body: unknown, opts?: { onSuccess?: (created: AdView) => void }) => {
+        opts?.onSuccess?.(makeAd({ id: 'new-ad' }));
+      },
+    );
+    mockedUseCreateAd.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: createMut,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+    const reuseMut = vi.fn();
+    mockedUseReuseLibraryImage.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: reuseMut,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('+ Add Ad'));
+
+    const modalCard = screen
+      .getByText('Add Ad')
+      .closest('div.bg-slate-900') as HTMLElement;
+    expect(modalCard).not.toBeNull();
+
+    fireEvent.change(screen.getByLabelText(/Name/), {
+      target: { value: 'New banner' },
+    });
+    fireEvent.change(screen.getByLabelText(/Body/), {
+      target: { value: 'Buy now' },
+    });
+
+    fireEvent.click(
+      within(modalCard).getByRole('button', {
+        name: /Toggle library picker/i,
+      }),
+    );
+    expect(within(modalCard).getByAltText('banner.png')).toBeInTheDocument();
+
+    fireEvent.click(within(modalCard).getByAltText('banner.png'));
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(createMut).toHaveBeenCalledWith(
+      { name: 'New banner', body: 'Buy now', expirationAction: 'disable' },
+      expect.anything(),
+    );
+    expect(reuseMut).toHaveBeenCalledWith(
+      {
+        adId: 'new-ad',
+        libraryMediaId: 'lib-1',
+      },
+      expect.anything(),
+    );
+  });
+
+  it('edits an ad and replaces its image via upload', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd({ imageMediaId: 'media-1' })],
+      isLoading: false,
+      error: null,
+    } as never);
+    const uploadMut = vi.fn();
+    mockedUseUploadAdImage.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: uploadMut,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+    updateAdMock.mockImplementation(
+      (_args: unknown, opts?: { onSuccess?: (updated: AdView) => void }) => {
+        opts?.onSuccess?.(
+          makeAd({
+            id: 'ad-1',
+            imageMediaId: 'media-1',
+            name: 'Renamed',
+          }),
+        );
+      },
+    );
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('Edit'));
+
+    const modalCard = screen
+      .getByText('Edit Ad')
+      .closest('div.bg-slate-900') as HTMLElement;
+    expect(modalCard).not.toBeNull();
+
+    fireEvent.change(screen.getByLabelText(/Name/), {
+      target: { value: 'Renamed' },
+    });
+
+    const file = new File(['x'], 'banner.png', { type: 'image/png' });
+    const fileInput = within(modalCard).getByTestId(
+      'ad-image-file-input',
+    ) as HTMLInputElement;
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(updateAdMock).toHaveBeenCalledWith(
+      {
+        id: 'ad-1',
+        patch: {
+          name: 'Renamed',
+          body: 'Something good',
+          expiresAt: null,
+          expirationAction: 'disable',
+        },
+      },
+      expect.anything(),
+    );
+    const updateCall = updateAdMock.mock.calls.find(
+      (call) =>
+        (call[0] as { id: string }).id === 'ad-1' &&
+        (call[0] as { patch: { image?: unknown } }).patch.image === undefined,
+    );
+    expect(updateCall).toBeDefined();
+    expect(uploadMut).toHaveBeenCalledWith(
+      { adId: 'ad-1', file },
+      expect.anything(),
+    );
+  });
+
+  it('image upload failure after create surfaces error on the new row', () => {
+    mockedUseAds.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+    const createMut = vi.fn(
+      (_body: unknown, opts?: { onSuccess?: (created: AdView) => void }) => {
+        opts?.onSuccess?.(makeAd({ id: 'new-ad' }));
+      },
+    );
+    mockedUseCreateAd.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: createMut,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+    const uploadMut = vi.fn(
+      (_args: unknown, opts?: { onError?: (err: Error) => void }) => {
+        opts?.onError?.(new Error('upload failed'));
+      },
+    );
+    mockedUseUploadAdImage.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: uploadMut,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+
+    const { rerender } = render(<AdsManager />);
+    fireEvent.click(screen.getByText('+ Add Ad'));
+
+    const modalCard = screen
+      .getByText('Add Ad')
+      .closest('div.bg-slate-900') as HTMLElement;
+    fireEvent.change(screen.getByLabelText(/Name/), {
+      target: { value: 'New banner' },
+    });
+    fireEvent.change(screen.getByLabelText(/Body/), {
+      target: { value: 'Buy now' },
+    });
+    const file = new File(['x'], 'banner.png', { type: 'image/png' });
+    const fileInput = within(modalCard).getByTestId(
+      'ad-image-file-input',
+    ) as HTMLInputElement;
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(uploadMut).toHaveBeenCalled();
+
+    mockedUseAds.mockReturnValue({
+      data: [makeAd({ id: 'new-ad', name: 'New banner' })],
+      isLoading: false,
+      error: null,
+    } as never);
+    rerender(<AdsManager />);
+
+    expect(screen.getByText('New banner')).toBeInTheDocument();
+    expect(screen.getByText('upload failed')).toBeInTheDocument();
+  });
+
+  it('row image buttons are disabled while modal is open', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd()],
+      isLoading: false,
+      error: null,
+    } as never);
+    render(<AdsManager />);
+
+    const row = screen.getByText('Pump alpha').closest('tr') as HTMLElement;
+    expect(row).not.toBeNull();
+    const rowScope = within(row);
+
+    expect(rowScope.getByText('Upload image')).not.toBeDisabled();
+    expect(rowScope.getByText('Reuse')).not.toBeDisabled();
+
+    fireEvent.click(screen.getByText('+ Add Ad'));
+
+    expect(rowScope.getByText('Upload image')).toBeDisabled();
+    expect(rowScope.getByText('Reuse')).toBeDisabled();
+  });
+
+  it('save button label differentiates during phases', () => {
+    mockedUseAds.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+    mockedUseCreateAd.mockReturnValue({
+      isPending: true,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: vi.fn(),
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+    mockedUseUploadAdImage.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: vi.fn(),
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+
+    const { rerender } = render(<AdsManager />);
+    fireEvent.click(screen.getByText('+ Add Ad'));
+
+    expect(screen.getByText('Creating…')).toBeInTheDocument();
+
+    mockedUseCreateAd.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: vi.fn(),
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+    mockedUseUploadAdImage.mockReturnValue({
+      isPending: true,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: vi.fn(),
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+    rerender(<AdsManager />);
+
+    expect(screen.getByText('Uploading image…')).toBeInTheDocument();
+  });
+
+  it('picker toggles open and closed via the toggle button', () => {
+    mockedUseAds.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+    mockedUseMediaLibrary.mockReturnValue({
+      data: [makeLib('lib-1', 'banner.png')],
+      isLoading: false,
+      error: null,
+    } as never);
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('+ Add Ad'));
+
+    const modalCard = screen
+      .getByText('Add Ad')
+      .closest('div.bg-slate-900') as HTMLElement;
+    expect(modalCard).not.toBeNull();
+
+    expect(within(modalCard).queryByAltText('banner.png')).toBeNull();
+
+    const toggle = within(modalCard).getByRole('button', {
+      name: /Toggle library picker/i,
+    });
+    expect(toggle).toHaveTextContent('Pick from library');
+
+    fireEvent.click(toggle);
+    expect(within(modalCard).getByAltText('banner.png')).toBeInTheDocument();
+    expect(toggle).toHaveTextContent('Hide library');
+
+    fireEvent.click(toggle);
+    expect(within(modalCard).queryByAltText('banner.png')).toBeNull();
+    expect(toggle).toHaveTextContent('Pick from library');
   });
 });
 
