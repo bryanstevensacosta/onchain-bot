@@ -470,7 +470,7 @@ function AdModal({
           </div>
         </div>
 
-        {(format === 'text' || format === 'photo') && (
+        {format === 'photo' && (
           <div>
             <span className="block text-xs uppercase text-slate-500 mb-1">
               Image
