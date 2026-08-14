@@ -112,12 +112,17 @@ export class ReuseLibraryImageUseCase {
     };
     await this.adMediaRepo.save(record);
 
-    // The domain `Ad` is immutable — rebuild it with the new media id.
+    // The domain `Ad` is immutable — rebuild it with the new media id,
+    // preserving the ad's format fields (omitting them would let
+    // `fromSnapshot` reset a photo/video/album ad back to `text`).
     const updatedAd = Ad.fromSnapshot({
       id: ad.id,
       name: ad.name,
       body: ad.body,
       imageMediaId: record.id,
+      format: ad.format,
+      videoMediaId: ad.videoMediaId,
+      albumMediaIds: ad.albumMediaIds,
       enabled: ad.enabled,
       order: ad.order,
       timesPublished: ad.timesPublished,
@@ -128,6 +133,7 @@ export class ReuseLibraryImageUseCase {
       createdAt: ad.createdAt,
       updatedAt: ad.updatedAt,
     });
+    updatedAd.validateInvariants();
     await this.adRepo.save(updatedAd);
 
     if (oldMedia) {

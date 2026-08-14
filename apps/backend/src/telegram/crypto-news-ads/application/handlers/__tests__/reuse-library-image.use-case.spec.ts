@@ -230,4 +230,39 @@ describe('ReuseLibraryImageUseCase', () => {
     expect(adMediaRepo.save).not.toHaveBeenCalled();
     expect(adRepo.save).not.toHaveBeenCalled();
   });
+
+  it('preserves the ad format (photo) and media fields when reusing a library image', async () => {
+    const ad = Ad.create({
+      id: 'ad-1',
+      name: 'Sponsor',
+      body: 'promo',
+      format: 'photo',
+      imageMediaId: 'img-1',
+    });
+    adRepo.findById.mockResolvedValue(ad);
+    adMediaRepo.findById.mockResolvedValue(null);
+    libraryRepo.findById.mockResolvedValue(libraryRecord());
+    storage.readFile.mockResolvedValue(pngBuffer());
+    storage.store.mockResolvedValue({
+      relativePath: 'crypto-news-ads/ad-1/uuid.png',
+      size: 1024,
+    });
+    adMediaRepo.save.mockImplementation(async (media) => media);
+
+    const view = await useCase.execute({
+      adId: 'ad-1',
+      libraryMediaId: 'lib-1',
+    });
+
+    const savedAd = adRepo.save.mock.calls[0][0];
+    const savedMedia = adMediaRepo.save.mock.calls[0][0];
+    expect(savedAd.format).toBe('photo');
+    expect(savedAd.videoMediaId).toBeNull();
+    expect(savedAd.albumMediaIds).toBeNull();
+    expect(savedAd.imageMediaId).toBe(savedMedia.id);
+    expect(view.format).toBe('photo');
+    expect(view.imageMediaId).toBe(savedMedia.id);
+    expect(storage.remove).not.toHaveBeenCalled();
+    expect(adMediaRepo.delete).not.toHaveBeenCalled();
+  });
 });
