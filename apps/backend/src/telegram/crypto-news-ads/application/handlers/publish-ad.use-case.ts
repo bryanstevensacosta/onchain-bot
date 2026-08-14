@@ -27,10 +27,12 @@ import { RotationDeciderService } from 'telegram/crypto-news-ads/application/ser
  *   4. Throttle: `sharedThrottle.shouldPublish()` false → return.
  *   5. Decision: `RotationDeciderService.shouldPublishAd` → not a
  *      publish → return.
- *   6. Publish: `sendPhoto` when the ad has a resolvable local image
- *      (`imageMediaId` → media row → file on disk), `sendMessage`
- *      otherwise. Missing media row or file degrades to text with a
- *      warn — NEVER throws (the publish loop must survive).
+ *   6. Publish: `text` posts are pure text via `sendMessage` (any
+ *      `imageMediaId` is ignored). `photo` posts use `sendPhoto` when
+ *      the ad has a resolvable local image (`imageMediaId` → media row
+ *      → file on disk), `sendMessage` otherwise. Missing media row or
+ *      file degrades to text with a warn — NEVER throws (the publish
+ *      loop must survive).
  *   7. Success: persist all four state transitions.
  *   8. Failure: increment failures (disable after 3) — and NEVER burn
  *      ads on a not-configured deploy (see `isNotConfiguredError`).
@@ -113,10 +115,11 @@ export class PublishAdUseCase {
    * publish with `parseMode: 'HTML'` (the sanitizer converts raw URLs to
    * `<a href>` and strips anything outside the Telegram HTML allowlist).
    *
-   * - `text` / `photo`: `sendPhoto` when the ad has a resolvable local
-   *   image (`imageMediaId` → media row → file on disk), `sendMessage`
-   *   otherwise. This preserves the pre-format behavior for legacy ads
-   *   (default `format: 'text'` with an `imageMediaId`).
+   * - `text`: pure text post via `sendMessage` — any `imageMediaId` is
+   *   ignored (no media resolution, no disk access).
+   * - `photo`: `sendPhoto` when the ad has a resolvable local image
+   *   (`imageMediaId` → media row → file on disk), `sendMessage`
+   *   otherwise. Missing media row or file degrades to text with a warn.
    * - `video`: `sendVideo` with `supportsStreaming: true`; missing media
    *   degrades to `sendMessage`.
    * - `album`: `sendMediaGroup` after resolving EVERY media id; if any
@@ -150,9 +153,13 @@ export class PublishAdUseCase {
           parseMode: 'HTML',
         });
       }
-      case 'photo':
-      case 'text':
-      default: {
+      case 'text': {
+        // Pure text post — imageMediaId is deliberately ignored.
+        return this.publisher.sendMessage('', ad.body, undefined, {
+          parseMode: 'HTML',
+        });
+      }
+      case 'photo': {
         const mediaPath = await this.resolveMediaPath(ad.imageMediaId, ad.id);
         if (mediaPath === null) {
           return this.publisher.sendMessage('', ad.body, undefined, {
@@ -160,6 +167,11 @@ export class PublishAdUseCase {
           });
         }
         return this.publisher.sendPhoto('', ad.body, mediaPath, {
+          parseMode: 'HTML',
+        });
+      }
+      default: {
+        return this.publisher.sendMessage('', ad.body, undefined, {
           parseMode: 'HTML',
         });
       }

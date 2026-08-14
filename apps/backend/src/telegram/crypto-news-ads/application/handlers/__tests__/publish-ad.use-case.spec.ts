@@ -213,6 +213,7 @@ describe('PublishAdUseCase', () => {
         id: 'ad-1',
         name: 'Sponsor',
         body: 'promo',
+        format: 'photo',
         imageMediaId: '3f4c8a56-2e6d-4e7a-8b9c-1d2e3f4a5b6c',
       });
       const now = new Date('2026-01-01T12:00:00Z');
@@ -270,6 +271,7 @@ describe('PublishAdUseCase', () => {
         id: 'ad-1',
         name: 'Sponsor',
         body: 'promo',
+        format: 'photo',
         imageMediaId: '3f4c8a56-2e6d-4e7a-8b9c-1d2e3f4a5b6c',
       });
       const now = new Date('2026-01-01T12:00:00Z');
@@ -323,6 +325,7 @@ describe('PublishAdUseCase', () => {
         id: 'ad-1',
         name: 'Sponsor',
         body: 'promo',
+        format: 'photo',
         imageMediaId: '3f4c8a56-2e6d-4e7a-8b9c-1d2e3f4a5b6c',
       });
       const now = new Date('2026-01-01T12:00:00Z');
@@ -421,6 +424,56 @@ describe('PublishAdUseCase', () => {
       );
       expect(publisher.sendPhoto).not.toHaveBeenCalled();
       expect(adMediaRepo.findById).not.toHaveBeenCalled();
+    });
+
+    it('publishes text via sendMessage and ignores imageMediaId (no media resolution)', async () => {
+      const ad = Ad.create({
+        id: 'ad-1',
+        name: 'Sponsor',
+        body: 'text with image set',
+        format: 'text',
+        imageMediaId: '3f4c8a56-2e6d-4e7a-8b9c-1d2e3f4a5b6c',
+      });
+      const now = new Date('2026-01-01T12:00:00Z');
+      cfgRepo.load.mockResolvedValue(enabledCfg());
+      adRepo.findAllActive.mockResolvedValue([ad]);
+      arbitrator.canPublishNow.mockResolvedValue({
+        canPublish: true,
+        nextSlotAvailableAt: null,
+        remainingSeconds: 0,
+        lastScope: null,
+        reason: 'ok',
+      });
+      throttle.shouldPublish.mockResolvedValue({
+        canPublish: true,
+        nextDelayMs: 0,
+      });
+      stateRepo.load.mockResolvedValue(AdRotationState.empty());
+      decider.shouldPublishAd.mockResolvedValue({
+        shouldPublish: true,
+        ad,
+        reason: 'ok',
+      });
+      publisher.sendMessage.mockResolvedValue({
+        ok: true,
+        messageId: 7,
+        error: null,
+      });
+
+      await useCase.execute(now);
+
+      expect(publisher.sendMessage).toHaveBeenCalledWith(
+        '',
+        'text with image set',
+        undefined,
+        {
+          parseMode: 'HTML',
+        },
+      );
+      expect(publisher.sendPhoto).not.toHaveBeenCalled();
+      // resolveMediaPath is private; its observable proxy is adMediaRepo.findById
+      expect(adMediaRepo.findById).not.toHaveBeenCalled();
+      expect(stateRepo.markAdPublished).toHaveBeenCalledWith('ad-1', now);
     });
   });
 
