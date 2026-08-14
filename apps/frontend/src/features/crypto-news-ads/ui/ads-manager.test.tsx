@@ -429,7 +429,7 @@ describe('AdsManager', () => {
 
   it('uploads a selected file via the row file input', () => {
     mockedUseAds.mockReturnValue({
-      data: [makeAd()],
+      data: [makeAd({ format: 'photo' })],
       isLoading: false,
       error: null,
     } as never);
@@ -457,7 +457,7 @@ describe('AdsManager', () => {
 
   it('renders a preview image when imageMediaId is set', () => {
     mockedUseAds.mockReturnValue({
-      data: [makeAd({ imageMediaId: 'media-1' })],
+      data: [makeAd({ imageMediaId: 'media-1', format: 'photo' })],
       isLoading: false,
       error: null,
     } as never);
@@ -468,7 +468,7 @@ describe('AdsManager', () => {
 
   it('removes the image via clearAdImage after confirmation', () => {
     mockedUseAds.mockReturnValue({
-      data: [makeAd({ imageMediaId: 'media-1' })],
+      data: [makeAd({ imageMediaId: 'media-1', format: 'photo' })],
       isLoading: false,
       error: null,
     } as never);
@@ -493,7 +493,7 @@ describe('AdsManager', () => {
 
   it('does not remove the image when confirmation is dismissed', () => {
     mockedUseAds.mockReturnValue({
-      data: [makeAd({ imageMediaId: 'media-1' })],
+      data: [makeAd({ imageMediaId: 'media-1', format: 'photo' })],
       isLoading: false,
       error: null,
     } as never);
@@ -518,7 +518,7 @@ describe('AdsManager', () => {
 
   it('shows an inline error when the upload fails and keeps the upload state', () => {
     mockedUseAds.mockReturnValue({
-      data: [makeAd()],
+      data: [makeAd({ format: 'photo' })],
       isLoading: false,
       error: null,
     } as never);
@@ -539,7 +539,7 @@ describe('AdsManager', () => {
     expect(container.querySelector('input[type="file"]')).not.toBeNull();
   });
 
-  it('renders the create modal with image controls', () => {
+  it('renders create modal; image controls appear for photo', () => {
     mockedUseAds.mockReturnValue({
       data: [],
       isLoading: false,
@@ -552,6 +552,16 @@ describe('AdsManager', () => {
       .getByText('Add Ad')
       .closest('div.bg-slate-900') as HTMLElement;
     expect(modalCard).not.toBeNull();
+
+    expect(within(modalCard).queryByTestId('ad-image-file-input')).toBeNull();
+    expect(
+      within(modalCard).queryByRole('button', {
+        name: /Toggle library picker/i,
+      }),
+    ).toBeNull();
+
+    fireEvent.click(within(modalCard).getByRole('button', { name: /🖼 Foto/ }));
+
     expect(
       within(modalCard).getByTestId('ad-image-file-input'),
     ).toBeInTheDocument();
@@ -563,7 +573,7 @@ describe('AdsManager', () => {
 
   it('renders the edit modal with image controls when an image exists', () => {
     mockedUseAds.mockReturnValue({
-      data: [makeAd({ imageMediaId: 'media-1' })],
+      data: [makeAd({ imageMediaId: 'media-1', format: 'photo' })],
       isLoading: false,
       error: null,
     } as never);
@@ -591,7 +601,7 @@ describe('AdsManager', () => {
 
   it('offers Reuse and Upload in both image states, Remove only with an image', () => {
     mockedUseAds.mockReturnValue({
-      data: [makeAd()],
+      data: [makeAd({ format: 'photo' })],
       isLoading: false,
       error: null,
     } as never);
@@ -601,7 +611,7 @@ describe('AdsManager', () => {
     expect(screen.queryByText('Remove')).not.toBeInTheDocument();
 
     mockedUseAds.mockReturnValue({
-      data: [makeAd({ imageMediaId: 'media-1' })],
+      data: [makeAd({ imageMediaId: 'media-1', format: 'photo' })],
       isLoading: false,
       error: null,
     } as never);
@@ -613,7 +623,7 @@ describe('AdsManager', () => {
 
   it('shows library thumbnails in the reuse modal', () => {
     mockedUseAds.mockReturnValue({
-      data: [makeAd()],
+      data: [makeAd({ format: 'photo' })],
       isLoading: false,
       error: null,
     } as never);
@@ -642,7 +652,7 @@ describe('AdsManager', () => {
 
   it('reuses a library image when a thumbnail is clicked', () => {
     mockedUseAds.mockReturnValue({
-      data: [makeAd()],
+      data: [makeAd({ format: 'photo' })],
       isLoading: false,
       error: null,
     } as never);
@@ -674,7 +684,7 @@ describe('AdsManager', () => {
 
   it('shows the library empty state in the reuse modal', () => {
     mockedUseAds.mockReturnValue({
-      data: [makeAd()],
+      data: [makeAd({ format: 'photo' })],
       isLoading: false,
       error: null,
     } as never);
@@ -694,7 +704,7 @@ describe('AdsManager', () => {
 
   it('shows a red library error in the reuse modal with no grid', () => {
     mockedUseAds.mockReturnValue({
-      data: [makeAd()],
+      data: [makeAd({ format: 'photo' })],
       isLoading: false,
       error: null,
     } as never);
@@ -713,7 +723,7 @@ describe('AdsManager', () => {
 
   it('shows a reuse mutation error in the inline error banner', () => {
     mockedUseAds.mockReturnValue({
-      data: [makeAd()],
+      data: [makeAd({ format: 'photo' })],
       isLoading: false,
       error: null,
     } as never);
@@ -733,7 +743,7 @@ describe('AdsManager', () => {
 
   it('closes the reuse modal after a successful reuse', () => {
     mockedUseAds.mockReturnValue({
-      data: [makeAd()],
+      data: [makeAd({ format: 'photo' })],
       isLoading: false,
       error: null,
     } as never);
@@ -817,6 +827,7 @@ describe('AdsManager', () => {
     fireEvent.change(screen.getByLabelText(/Body/), {
       target: { value: 'Buy now' },
     });
+    fireEvent.click(within(modalCard).getByRole('button', { name: /🖼 Foto/ }));
 
     const file = new File(['x'], 'banner.png', { type: 'image/png' });
     const fileInput = within(modalCard).getByTestId(
@@ -886,6 +897,7 @@ describe('AdsManager', () => {
     fireEvent.change(screen.getByLabelText(/Body/), {
       target: { value: 'Buy now' },
     });
+    fireEvent.click(within(modalCard).getByRole('button', { name: /🖼 Foto/ }));
 
     fireEvent.click(
       within(modalCard).getByRole('button', {
@@ -912,7 +924,7 @@ describe('AdsManager', () => {
 
   it('edits an ad and replaces its image via upload', () => {
     mockedUseAds.mockReturnValue({
-      data: [makeAd({ imageMediaId: 'media-1' })],
+      data: [makeAd({ imageMediaId: 'media-1', format: 'photo' })],
       isLoading: false,
       error: null,
     } as never);
@@ -932,6 +944,7 @@ describe('AdsManager', () => {
           makeAd({
             id: 'ad-1',
             imageMediaId: 'media-1',
+            format: 'photo',
             name: 'Renamed',
           }),
         );
@@ -1029,6 +1042,7 @@ describe('AdsManager', () => {
     fireEvent.change(screen.getByLabelText(/Body/), {
       target: { value: 'Buy now' },
     });
+    fireEvent.click(within(modalCard).getByRole('button', { name: /🖼 Foto/ }));
     const file = new File(['x'], 'banner.png', { type: 'image/png' });
     const fileInput = within(modalCard).getByTestId(
       'ad-image-file-input',
@@ -1039,7 +1053,13 @@ describe('AdsManager', () => {
     expect(uploadMut).toHaveBeenCalled();
 
     mockedUseAds.mockReturnValue({
-      data: [makeAd({ id: 'new-ad', name: 'New banner' })],
+      data: [
+        makeAd({
+          id: 'new-ad',
+          name: 'New banner',
+          format: 'photo',
+        }),
+      ],
       isLoading: false,
       error: null,
     } as never);
@@ -1051,7 +1071,7 @@ describe('AdsManager', () => {
 
   it('row image buttons are disabled while modal is open', () => {
     mockedUseAds.mockReturnValue({
-      data: [makeAd()],
+      data: [makeAd({ format: 'photo' })],
       isLoading: false,
       error: null,
     } as never);
@@ -1143,6 +1163,8 @@ describe('AdsManager', () => {
       .closest('div.bg-slate-900') as HTMLElement;
     expect(modalCard).not.toBeNull();
 
+    fireEvent.click(within(modalCard).getByRole('button', { name: /🖼 Foto/ }));
+
     expect(within(modalCard).queryByAltText('banner.png')).toBeNull();
 
     const toggle = within(modalCard).getByRole('button', {
@@ -1179,9 +1201,7 @@ describe('AdsManager', () => {
       .closest('div.bg-slate-900') as HTMLElement;
     expect(modalCard).not.toBeNull();
 
-    expect(
-      within(modalCard).getByTestId('ad-image-file-input'),
-    ).toBeInTheDocument();
+    expect(within(modalCard).queryByTestId('ad-image-file-input')).toBeNull();
     expect(within(modalCard).queryByTestId('ad-video-file-input')).toBeNull();
     expect(within(modalCard).queryByText('Album images')).toBeNull();
 
@@ -1207,6 +1227,80 @@ describe('AdsManager', () => {
       within(modalCard).getByTestId('ad-image-file-input'),
     ).toBeInTheDocument();
     expect(within(modalCard).queryByTestId('ad-video-file-input')).toBeNull();
+  });
+
+  it('renders no image controls for a text ad row', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd()],
+      isLoading: false,
+      error: null,
+    } as never);
+    render(<AdsManager />);
+    expect(screen.queryByText('Upload image')).toBeNull();
+    expect(screen.queryByText('Reuse')).toBeNull();
+    expect(screen.queryByText('Remove')).toBeNull();
+    expect(screen.queryByAltText('Pump alpha image')).toBeNull();
+  });
+
+  it('renders no image picker in the create modal for text format', () => {
+    mockedUseAds.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('+ Add Ad'));
+
+    const modalCard = screen
+      .getByText('Add Ad')
+      .closest('div.bg-slate-900') as HTMLElement;
+    expect(modalCard).not.toBeNull();
+    expect(within(modalCard).queryByTestId('ad-image-file-input')).toBeNull();
+    expect(
+      within(modalCard).queryByRole('button', {
+        name: /Toggle library picker/i,
+      }),
+    ).toBeNull();
+  });
+
+  it('renders the formatting toolbar for every format in the modal', () => {
+    mockedUseAds.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('+ Add Ad'));
+
+    const modalCard = screen
+      .getByText('Add Ad')
+      .closest('div.bg-slate-900') as HTMLElement;
+    expect(modalCard).not.toBeNull();
+
+    const toolbarTitles = [
+      'Bold',
+      'Italic',
+      'Underline',
+      'Strikethrough',
+      'Spoiler',
+      'Inline code',
+      'Preformatted block',
+      'Blockquote',
+      'Link',
+    ];
+    const expectToolbar = () => {
+      for (const title of toolbarTitles) {
+        expect(within(modalCard).getByTitle(title)).toBeInTheDocument();
+      }
+    };
+
+    expectToolbar();
+    for (const formatLabel of [/🖼 Foto/, /🎬 Video/, /🗂 Álbum/]) {
+      fireEvent.click(
+        within(modalCard).getByRole('button', { name: formatLabel }),
+      );
+      expectToolbar();
+    }
   });
 
   it('creates a video ad via upload then patches the format in order', () => {
