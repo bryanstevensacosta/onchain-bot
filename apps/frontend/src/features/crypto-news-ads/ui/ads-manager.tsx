@@ -1267,16 +1267,18 @@ export function AdsManager(): React.ReactElement {
                     )}
                   </td>
                   <td className="py-2 pr-3">
-                    <AdImageCell
-                      item={item}
-                      disabled={createModalOpen || editModalOpen}
-                      externalError={
-                        lastImageError !== null &&
-                        item.id === lastImageError.adId
-                          ? lastImageError.message
-                          : null
-                      }
-                    />
+                    {item.format === 'photo' && (
+                      <AdImageCell
+                        item={item}
+                        disabled={createModalOpen || editModalOpen}
+                        externalError={
+                          lastImageError !== null &&
+                          item.id === lastImageError.adId
+                            ? lastImageError.message
+                            : null
+                        }
+                      />
+                    )}
                   </td>
                   <td className="py-2 pr-3 text-right">
                     <div className="inline-flex gap-2">
