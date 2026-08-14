@@ -106,4 +106,53 @@ describe('ClearAdImageUseCase', () => {
     expect(adRepo.save.mock.calls[0][0].imageMediaId).toBeNull();
     expect(view.imageMediaId).toBeNull();
   });
+
+  it('explicitly downgrades a photo ad to text when its image is cleared', async () => {
+    const media: AdMediaRecord = {
+      id: 'media-1',
+      adId: 'ad-1',
+      filePath: 'crypto-news-ads/ad-1/img.png',
+      mimeType: 'image/png',
+      fileSize: 1024,
+      createdAt: new Date('2026-01-01T00:00:00Z'),
+    };
+    const ad = Ad.create({
+      id: 'ad-1',
+      name: 'Sponsor',
+      body: 'promo',
+      format: 'photo',
+      imageMediaId: 'img-1',
+    });
+    adRepo.findById.mockResolvedValue(ad);
+    adMediaRepo.findById.mockResolvedValue(media);
+    adRepo.save.mockImplementation(async (saved) => saved);
+
+    const view = await useCase.execute('ad-1');
+
+    // A cleared photo ad can no longer satisfy the photo invariant
+    // (photo requires imageMediaId), so it must be persisted as text.
+    expect(adRepo.save).toHaveBeenCalledTimes(1);
+    expect(adRepo.save.mock.calls[0][0].format).toBe('text');
+    expect(adRepo.save.mock.calls[0][0].imageMediaId).toBeNull();
+    expect(view.format).toBe('text');
+    expect(view.imageMediaId).toBeNull();
+  });
+
+  it('preserves the video format on the no-op path when there is no image', async () => {
+    const ad = Ad.create({
+      id: 'ad-2',
+      name: 'Sponsor2',
+      body: 'promo2',
+      format: 'video',
+      videoMediaId: 'v-1',
+      imageMediaId: null,
+    });
+    adRepo.findById.mockResolvedValue(ad);
+
+    const view = await useCase.execute('ad-2');
+
+    expect(view.format).toBe('video');
+    expect(view.videoMediaId).toBe('v-1');
+    expect(adRepo.save).not.toHaveBeenCalled();
+  });
 });

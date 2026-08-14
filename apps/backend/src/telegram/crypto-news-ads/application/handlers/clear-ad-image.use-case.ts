@@ -44,7 +44,10 @@ export class ClearAdImageUseCase {
       id: ad.id,
       name: ad.name,
       body: ad.body,
+      format: ad.format === 'photo' ? 'text' : ad.format,
       imageMediaId: null,
+      videoMediaId: ad.videoMediaId,
+      albumMediaIds: ad.albumMediaIds,
       enabled: ad.enabled,
       order: ad.order,
       timesPublished: ad.timesPublished,
@@ -55,6 +58,7 @@ export class ClearAdImageUseCase {
       createdAt: ad.createdAt,
       updatedAt: ad.updatedAt,
     });
+    clearedAd.validateInvariants();
     const saved = await this.adRepo.save(clearedAd);
     return toAdView(saved);
   }
