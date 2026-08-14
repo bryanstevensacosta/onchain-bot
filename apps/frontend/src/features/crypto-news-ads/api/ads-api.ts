@@ -12,11 +12,16 @@ import {
  * `apps/backend/src/telegram/crypto-news-ads/application/mappers/ads.mapper.ts`).
  */
 
+export type AdFormat = 'text' | 'photo' | 'video' | 'album';
+
 export interface AdView {
   readonly id: string;
   readonly name: string;
   readonly body: string;
   readonly imageMediaId: string | null;
+  readonly format: AdFormat;
+  readonly videoMediaId: string | null;
+  readonly albumMediaIds: string[] | null;
   readonly enabled: boolean;
   readonly order: number;
   readonly timesPublished: number;
@@ -46,6 +51,9 @@ export interface MediaLibraryView {
 export interface CreateAdBody {
   readonly name: string;
   readonly body: string;
+  readonly format?: AdFormat;
+  readonly videoMediaId?: string | null;
+  readonly albumMediaIds?: string[];
   readonly expiresAt?: string;
   readonly expirationAction?: 'disable' | 'delete';
 }
@@ -53,6 +61,9 @@ export interface CreateAdBody {
 export type UpdateAdBody = Partial<{
   name: string;
   body: string;
+  format: AdFormat;
+  videoMediaId: string | null;
+  albumMediaIds: string[];
   enabled: boolean;
   order: number;
   expiresAt: string | null;
@@ -113,7 +124,26 @@ export async function clearAdImage(adId: string): Promise<AdView> {
   );
 }
 
+export async function uploadAdVideo(adId: string, file: File): Promise<AdView> {
+  const form = new FormData();
+  form.append('file', file);
+  return httpPostForm<AdView>(
+    `/crypto-news-ads/ads/${encodeURIComponent(adId)}/video`,
+    form,
+  );
+}
+
+export async function clearAdVideo(adId: string): Promise<AdView> {
+  return httpDelete<AdView>(
+    `/crypto-news-ads/ads/${encodeURIComponent(adId)}/video`,
+  );
+}
+
 export function adImageUrl(mediaId: string): string {
+  return `/crypto-news-ads/media/${encodeURIComponent(mediaId)}`;
+}
+
+export function adVideoUrl(mediaId: string): string {
   return `/crypto-news-ads/media/${encodeURIComponent(mediaId)}`;
 }
 
@@ -124,6 +154,16 @@ export async function reuseLibraryImage(
   return httpPost<{ libraryMediaId: string }, AdView>(
     `/crypto-news-ads/ads/${encodeURIComponent(adId)}/reuse-image`,
     { libraryMediaId },
+  );
+}
+
+export async function reuseLibraryImages(
+  adId: string,
+  libraryMediaIds: string[],
+): Promise<AdView> {
+  return httpPost<{ libraryMediaIds: string[] }, AdView>(
+    `/crypto-news-ads/ads/${encodeURIComponent(adId)}/reuse-library-images`,
+    { libraryMediaIds },
   );
 }
 

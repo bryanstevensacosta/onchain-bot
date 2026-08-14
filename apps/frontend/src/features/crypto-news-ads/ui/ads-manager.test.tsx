@@ -26,6 +26,9 @@ function makeAd(overrides: Partial<AdView> = {}): AdView {
     name: 'Pump alpha',
     body: 'Something good',
     imageMediaId: null,
+    format: 'text',
+    videoMediaId: null,
+    albumMediaIds: null,
     enabled: true,
     order: 0,
     timesPublished: 0,
@@ -62,9 +65,11 @@ vi.mock('@/features/crypto-news-ads/model/use-ads', () => ({
   useUpdateAd: vi.fn(),
   useDeleteAd: vi.fn(),
   useUploadAdImage: vi.fn(),
+  useUploadAdVideo: vi.fn(),
   useClearAdImage: vi.fn(),
   useMediaLibrary: vi.fn(),
   useReuseLibraryImage: vi.fn(),
+  useReuseLibraryImages: vi.fn(),
 }));
 
 import {
@@ -74,8 +79,10 @@ import {
   useDeleteAd,
   useMediaLibrary,
   useReuseLibraryImage,
+  useReuseLibraryImages,
   useUpdateAd,
   useUploadAdImage,
+  useUploadAdVideo,
 } from '@/features/crypto-news-ads/model/use-ads';
 
 const mockedUseAds = vi.mocked(useAds);
@@ -83,9 +90,11 @@ const mockedUseCreateAd = vi.mocked(useCreateAd);
 const mockedUseUpdateAd = vi.mocked(useUpdateAd);
 const mockedUseDeleteAd = vi.mocked(useDeleteAd);
 const mockedUseUploadAdImage = vi.mocked(useUploadAdImage);
+const mockedUseUploadAdVideo = vi.mocked(useUploadAdVideo);
 const mockedUseClearAdImage = vi.mocked(useClearAdImage);
 const mockedUseMediaLibrary = vi.mocked(useMediaLibrary);
 const mockedUseReuseLibraryImage = vi.mocked(useReuseLibraryImage);
+const mockedUseReuseLibraryImages = vi.mocked(useReuseLibraryImages);
 
 describe('AdsManager', () => {
   beforeEach(() => {
@@ -127,6 +136,15 @@ describe('AdsManager', () => {
       mutateAsync: vi.fn(),
       reset: vi.fn(),
     } as never);
+    mockedUseUploadAdVideo.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: vi.fn(),
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
     mockedUseClearAdImage.mockReturnValue({
       isPending: false,
       isError: false,
@@ -147,6 +165,15 @@ describe('AdsManager', () => {
       isSuccess: false,
       error: null,
       mutate: reuseMutMock,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+    mockedUseReuseLibraryImages.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: vi.fn(),
       mutateAsync: vi.fn(),
       reset: vi.fn(),
     } as never);
@@ -1130,6 +1157,334 @@ describe('AdsManager', () => {
     fireEvent.click(toggle);
     expect(within(modalCard).queryByAltText('banner.png')).toBeNull();
     expect(toggle).toHaveTextContent('Pick from library');
+  });
+
+  it('shows format-specific controls when switching the format selector', () => {
+    mockedUseAds.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+    mockedUseMediaLibrary.mockReturnValue({
+      data: [makeLib('lib-1', 'banner.png')],
+      isLoading: false,
+      error: null,
+    } as never);
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('+ Add Ad'));
+
+    const modalCard = screen
+      .getByText('Add Ad')
+      .closest('div.bg-slate-900') as HTMLElement;
+    expect(modalCard).not.toBeNull();
+
+    expect(
+      within(modalCard).getByTestId('ad-image-file-input'),
+    ).toBeInTheDocument();
+    expect(within(modalCard).queryByTestId('ad-video-file-input')).toBeNull();
+    expect(within(modalCard).queryByText('Album images')).toBeNull();
+
+    fireEvent.click(
+      within(modalCard).getByRole('button', { name: /🎬 Video/ }),
+    );
+    expect(
+      within(modalCard).getByTestId('ad-video-file-input'),
+    ).toBeInTheDocument();
+    expect(within(modalCard).queryByTestId('ad-image-file-input')).toBeNull();
+
+    fireEvent.click(
+      within(modalCard).getByRole('button', { name: /🗂 Álbum/ }),
+    );
+    expect(within(modalCard).getByText('Album images')).toBeInTheDocument();
+    expect(
+      within(modalCard).getByLabelText('Select banner.png for album'),
+    ).toBeInTheDocument();
+    expect(within(modalCard).queryByTestId('ad-video-file-input')).toBeNull();
+
+    fireEvent.click(within(modalCard).getByRole('button', { name: /🖼 Foto/ }));
+    expect(
+      within(modalCard).getByTestId('ad-image-file-input'),
+    ).toBeInTheDocument();
+    expect(within(modalCard).queryByTestId('ad-video-file-input')).toBeNull();
+  });
+
+  it('creates a video ad via upload then patches the format in order', () => {
+    URL.createObjectURL = vi.fn(() => 'blob:mock-video');
+    URL.revokeObjectURL = vi.fn();
+    mockedUseAds.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+    const callOrder: string[] = [];
+    const createMut = vi.fn(
+      (_body: unknown, opts?: { onSuccess?: (created: AdView) => void }) => {
+        callOrder.push('create');
+        opts?.onSuccess?.(makeAd({ id: 'new-ad' }));
+      },
+    );
+    mockedUseCreateAd.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: createMut,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+    const uploadVideoMut = vi.fn(
+      (_args: unknown, opts?: { onSuccess?: (updated: AdView) => void }) => {
+        callOrder.push('uploadVideo');
+        opts?.onSuccess?.(makeAd({ id: 'new-ad', videoMediaId: 'media-v' }));
+      },
+    );
+    mockedUseUploadAdVideo.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: uploadVideoMut,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+    updateAdMock.mockImplementation(
+      (_args: unknown, opts?: { onSuccess?: (updated: AdView) => void }) => {
+        callOrder.push('patchFormat');
+        opts?.onSuccess?.(makeAd({ id: 'new-ad', format: 'video' }));
+      },
+    );
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('+ Add Ad'));
+
+    const modalCard = screen
+      .getByText('Add Ad')
+      .closest('div.bg-slate-900') as HTMLElement;
+    expect(modalCard).not.toBeNull();
+
+    fireEvent.change(screen.getByLabelText(/Name/), {
+      target: { value: 'Video banner' },
+    });
+    fireEvent.change(screen.getByLabelText(/Body/), {
+      target: { value: 'Watch now' },
+    });
+
+    fireEvent.click(
+      within(modalCard).getByRole('button', { name: /🎬 Video/ }),
+    );
+    const file = new File(['x'], 'clip.mp4', { type: 'video/mp4' });
+    const videoInput = within(modalCard).getByTestId(
+      'ad-video-file-input',
+    ) as HTMLInputElement;
+    fireEvent.change(videoInput, { target: { files: [file] } });
+
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(createMut).toHaveBeenCalledWith(
+      { name: 'Video banner', body: 'Watch now', expirationAction: 'disable' },
+      expect.anything(),
+    );
+    expect(uploadVideoMut).toHaveBeenCalledWith(
+      { adId: 'new-ad', file },
+      expect.anything(),
+    );
+    expect(updateAdMock).toHaveBeenCalledWith(
+      { id: 'new-ad', patch: { format: 'video' } },
+      expect.anything(),
+    );
+    expect(callOrder).toEqual(['create', 'uploadVideo', 'patchFormat']);
+  });
+
+  it('creates an album ad reusing library images then patches the format in order', () => {
+    mockedUseAds.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+    mockedUseMediaLibrary.mockReturnValue({
+      data: [makeLib('lib-1', 'a.png'), makeLib('lib-2', 'b.png')],
+      isLoading: false,
+      error: null,
+    } as never);
+    const callOrder: string[] = [];
+    const createMut = vi.fn(
+      (_body: unknown, opts?: { onSuccess?: (created: AdView) => void }) => {
+        callOrder.push('create');
+        opts?.onSuccess?.(makeAd({ id: 'new-ad' }));
+      },
+    );
+    mockedUseCreateAd.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: createMut,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+    const reuseImagesMut = vi.fn(
+      (_args: unknown, opts?: { onSuccess?: (updated: AdView) => void }) => {
+        callOrder.push('reuseImages');
+        opts?.onSuccess?.(makeAd({ id: 'new-ad', albumMediaIds: ['lib-1'] }));
+      },
+    );
+    mockedUseReuseLibraryImages.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: reuseImagesMut,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+    updateAdMock.mockImplementation(
+      (_args: unknown, opts?: { onSuccess?: (updated: AdView) => void }) => {
+        callOrder.push('patchFormat');
+        opts?.onSuccess?.(makeAd({ id: 'new-ad', format: 'album' }));
+      },
+    );
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('+ Add Ad'));
+
+    const modalCard = screen
+      .getByText('Add Ad')
+      .closest('div.bg-slate-900') as HTMLElement;
+    expect(modalCard).not.toBeNull();
+
+    fireEvent.change(screen.getByLabelText(/Name/), {
+      target: { value: 'Album banner' },
+    });
+    fireEvent.change(screen.getByLabelText(/Body/), {
+      target: { value: 'Look at this' },
+    });
+
+    fireEvent.click(
+      within(modalCard).getByRole('button', { name: /🗂 Álbum/ }),
+    );
+    fireEvent.click(within(modalCard).getByLabelText('Select a.png for album'));
+
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(createMut).toHaveBeenCalledWith(
+      {
+        name: 'Album banner',
+        body: 'Look at this',
+        expirationAction: 'disable',
+      },
+      expect.anything(),
+    );
+    expect(reuseImagesMut).toHaveBeenCalledWith(
+      { adId: 'new-ad', libraryMediaIds: ['lib-1'] },
+      expect.anything(),
+    );
+    expect(updateAdMock).toHaveBeenCalledWith(
+      { id: 'new-ad', patch: { format: 'album' } },
+      expect.anything(),
+    );
+    expect(callOrder).toEqual(['create', 'reuseImages', 'patchFormat']);
+  });
+
+  it('disables Save for video format without a staged file', () => {
+    mockedUseAds.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('+ Add Ad'));
+
+    const modalCard = screen
+      .getByText('Add Ad')
+      .closest('div.bg-slate-900') as HTMLElement;
+    fireEvent.change(screen.getByLabelText(/Name/), {
+      target: { value: 'Video banner' },
+    });
+    fireEvent.change(screen.getByLabelText(/Body/), {
+      target: { value: 'Watch now' },
+    });
+    fireEvent.click(
+      within(modalCard).getByRole('button', { name: /🎬 Video/ }),
+    );
+
+    expect(screen.getByText('Save')).toBeDisabled();
+  });
+
+  it('disables Save for album format without a selection', () => {
+    mockedUseAds.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+    mockedUseMediaLibrary.mockReturnValue({
+      data: [makeLib('lib-1', 'a.png')],
+      isLoading: false,
+      error: null,
+    } as never);
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('+ Add Ad'));
+
+    const modalCard = screen
+      .getByText('Add Ad')
+      .closest('div.bg-slate-900') as HTMLElement;
+    fireEvent.change(screen.getByLabelText(/Name/), {
+      target: { value: 'Album banner' },
+    });
+    fireEvent.change(screen.getByLabelText(/Body/), {
+      target: { value: 'Look at this' },
+    });
+    fireEvent.click(
+      within(modalCard).getByRole('button', { name: /🗂 Álbum/ }),
+    );
+
+    expect(screen.getByText('Save')).toBeDisabled();
+  });
+
+  it('renders the body preview with bold formatting', () => {
+    mockedUseAds.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('+ Add Ad'));
+    fireEvent.change(screen.getByLabelText(/Body/), {
+      target: { value: '<b>hola</b>' },
+    });
+
+    const preview = screen.getByLabelText('Ad preview');
+    const bold = within(preview).getByText('hola');
+    expect(bold.tagName).toBe('B');
+    expect(bold).toHaveClass('font-semibold');
+  });
+
+  it('locks the format selector when editing an ad with a video', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd({ format: 'video', videoMediaId: 'media-v' })],
+      isLoading: false,
+      error: null,
+    } as never);
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('Edit'));
+
+    const modalCard = screen
+      .getByText('Edit Ad')
+      .closest('div.bg-slate-900') as HTMLElement;
+    expect(modalCard).not.toBeNull();
+    expect(
+      within(modalCard).getByRole('button', { name: /🎬 Video/ }),
+    ).toBeDisabled();
+    expect(
+      within(modalCard).getByText('Formato bloqueado: el ad ya tiene media.'),
+    ).toBeInTheDocument();
+    expect(
+      within(modalCard).getByLabelText('Current ad video'),
+    ).toHaveAttribute('src', '/crypto-news-ads/media/media-v');
   });
 });
 

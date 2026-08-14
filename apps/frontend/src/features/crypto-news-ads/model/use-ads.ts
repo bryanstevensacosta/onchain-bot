@@ -2,15 +2,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   adsKeys,
   clearAdImage,
+  clearAdVideo,
   createAd,
   deleteAd,
   fetchAds,
   fetchMediaLibrary,
   fetchRotationConfig,
   reuseLibraryImage,
+  reuseLibraryImages,
   updateAd,
   updateRotationConfig,
   uploadAdImage,
+  uploadAdVideo,
   type AdView,
   type CreateAdBody,
   type MediaLibraryView,
@@ -76,6 +79,17 @@ export function useUploadAdImage() {
   });
 }
 
+export function useUploadAdVideo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ adId, file }: { adId: string; file: File }) =>
+      uploadAdVideo(adId, file),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adsKeys.all });
+    },
+  });
+}
+
 /**
  * Media library catalog. Polled every 10s so freshly uploaded images show up
  * in the reuse picker without a manual refresh.
@@ -106,10 +120,37 @@ export function useReuseLibraryImage() {
   });
 }
 
+export function useReuseLibraryImages() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      adId,
+      libraryMediaIds,
+    }: {
+      adId: string;
+      libraryMediaIds: string[];
+    }) => reuseLibraryImages(adId, libraryMediaIds),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adsKeys.all });
+      qc.invalidateQueries({ queryKey: adsKeys.mediaLibrary() });
+    },
+  });
+}
+
 export function useClearAdImage() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (adId: string) => clearAdImage(adId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adsKeys.all });
+    },
+  });
+}
+
+export function useClearAdVideo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (adId: string) => clearAdVideo(adId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: adsKeys.all });
     },
