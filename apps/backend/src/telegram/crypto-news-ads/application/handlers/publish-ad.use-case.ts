@@ -10,7 +10,7 @@ import { AdMediaRepository } from 'telegram/crypto-news-ads/application/ports/ad
 import { Ad } from 'telegram/crypto-news-ads/domain/entities/ad.entity';
 import { SharedThrottleSchedulerService } from 'telegram/shared/application/services/shared-throttle-scheduler.service';
 import { SlotArbitratorPort } from 'telegram/shared/domain/ports/slot-arbitrator.port';
-import { TelegramPublisherPort } from 'telegram/shared';
+import { TelegramPublisherPort, type SendResult } from 'telegram/shared';
 import { RotationDeciderService } from 'telegram/crypto-news-ads/application/services/rotation-decider.service';
 
 /**
@@ -92,11 +92,7 @@ export class PublishAdUseCase {
     }
 
     const ad = decision.ad!;
-    const mediaPath = await this.resolveMediaPath(ad);
-    const result =
-      mediaPath !== null
-        ? await this.publisher.sendPhoto('', ad.body, mediaPath)
-        : await this.publisher.sendMessage('', ad.body);
+    const result = await this.publishByFormat(ad);
 
     if (result.ok && result.messageId !== null) {
       await this.rotationStateRepo.markAdPublished(ad.id, now);
@@ -113,20 +109,81 @@ export class PublishAdUseCase {
   }
 
   /**
-   * Resolve the absolute on-disk path for an ad's image, or `null` when
-   * the ad has no image, the media row is gone, or the file is missing
+   * Pick the Telegram Bot API method for the ad's format. All formats
+   * publish with `parseMode: 'HTML'` (the sanitizer converts raw URLs to
+   * `<a href>` and strips anything outside the Telegram HTML allowlist).
+   *
+   * - `text` / `photo`: `sendPhoto` when the ad has a resolvable local
+   *   image (`imageMediaId` → media row → file on disk), `sendMessage`
+   *   otherwise. This preserves the pre-format behavior for legacy ads
+   *   (default `format: 'text'` with an `imageMediaId`).
+   * - `video`: `sendVideo` with `supportsStreaming: true`; missing media
+   *   degrades to `sendMessage`.
+   * - `album`: `sendMediaGroup` after resolving EVERY media id; if any
+   *   id is missing the publish is skipped and routed to failure
+   *   handling (the ad stays at the front of the rotation).
+   */
+  private async publishByFormat(ad: Ad): Promise<SendResult> {
+    switch (ad.format) {
+      case 'video': {
+        const videoPath = await this.resolveMediaPath(ad.videoMediaId, ad.id);
+        if (videoPath === null) {
+          return this.publisher.sendMessage('', ad.body, undefined, {
+            parseMode: 'HTML',
+          });
+        }
+        return this.publisher.sendVideo('', ad.body, videoPath, {
+          parseMode: 'HTML',
+          supportsStreaming: true,
+        });
+      }
+      case 'album': {
+        const albumPaths = await this.resolveAlbumPaths(ad);
+        if (albumPaths === null) {
+          return {
+            ok: false,
+            messageId: null,
+            error: `ad ${ad.id} album media missing — skipping`,
+          };
+        }
+        return this.publisher.sendMediaGroup('', ad.body, albumPaths, {
+          parseMode: 'HTML',
+        });
+      }
+      case 'photo':
+      case 'text':
+      default: {
+        const mediaPath = await this.resolveMediaPath(ad.imageMediaId, ad.id);
+        if (mediaPath === null) {
+          return this.publisher.sendMessage('', ad.body, undefined, {
+            parseMode: 'HTML',
+          });
+        }
+        return this.publisher.sendPhoto('', ad.body, mediaPath, {
+          parseMode: 'HTML',
+        });
+      }
+    }
+  }
+
+  /**
+   * Resolve the absolute on-disk path for a media id, or `null` when
+   * the id is absent, the media row is gone, or the file is missing
    * from disk. Any of those degrades the publish to `sendMessage` with
    * a warn — the publish loop must never crash on a stale media ref.
    */
-  private async resolveMediaPath(ad: Ad): Promise<string | null> {
-    if (ad.imageMediaId === null) {
+  private async resolveMediaPath(
+    mediaId: string | null,
+    adId: string,
+  ): Promise<string | null> {
+    if (mediaId === null) {
       return null;
     }
-    const media = await this.adMediaRepo.findById(ad.imageMediaId);
+    const media = await this.adMediaRepo.findById(mediaId);
     if (media === null) {
       this.logger.warn(
-        `ad ${ad.id} has imageMediaId ${ad.imageMediaId} but no media ` +
-          `row — publishing as text`,
+        `ad ${adId} has mediaId ${mediaId} but no media row — ` +
+          `publishing as text`,
       );
       return null;
     }
@@ -134,11 +191,44 @@ export class PublishAdUseCase {
     const absPath = path.join(appCfg.uploadsRoot, media.filePath);
     if (!existsSync(absPath)) {
       this.logger.warn(
-        `ad ${ad.id} media file missing at ${absPath} — publishing as text`,
+        `ad ${adId} media file missing at ${absPath} — publishing as text`,
       );
       return null;
     }
     return absPath;
+  }
+
+  /**
+   * Resolve the absolute on-disk paths for an album, or `null` when any
+   * media id is missing (no row or no file). The album is skipped as a
+   * whole — a partial album would look broken in Telegram.
+   */
+  private async resolveAlbumPaths(ad: Ad): Promise<string[] | null> {
+    if (ad.albumMediaIds === null || ad.albumMediaIds.length === 0) {
+      return null;
+    }
+    const appCfg = this.config.getOrThrow<AppConfig>('app');
+    const paths: string[] = [];
+    for (const mediaId of ad.albumMediaIds) {
+      const media = await this.adMediaRepo.findById(mediaId);
+      if (media === null) {
+        this.logger.warn(
+          `ad ${ad.id} album media ${mediaId} has no media row — ` +
+            `skipping ad`,
+        );
+        return null;
+      }
+      const absPath = path.join(appCfg.uploadsRoot, media.filePath);
+      if (!existsSync(absPath)) {
+        this.logger.warn(
+          `ad ${ad.id} album media file missing at ${absPath} — ` +
+            `skipping ad`,
+        );
+        return null;
+      }
+      paths.push(absPath);
+    }
+    return paths;
   }
 
   /**

@@ -19,6 +19,9 @@ import { AdMediaStoragePort } from 'telegram/crypto-news-ads/application/ports/a
 import { UploadAdImageUseCase } from 'telegram/crypto-news-ads/application/handlers/upload-ad-image.use-case';
 import { ClearAdImageUseCase } from 'telegram/crypto-news-ads/application/handlers/clear-ad-image.use-case';
 import { ReuseLibraryImageUseCase } from 'telegram/crypto-news-ads/application/handlers/reuse-library-image.use-case';
+import { UploadAdVideoUseCase } from 'telegram/crypto-news-ads/application/handlers/upload-ad-video.use-case';
+import { ClearAdVideoUseCase } from 'telegram/crypto-news-ads/application/handlers/clear-ad-video.use-case';
+import { ReuseLibraryImagesUseCase } from 'telegram/crypto-news-ads/application/handlers/reuse-library-images.use-case';
 import { Ad } from 'telegram/crypto-news-ads/domain/entities/ad.entity';
 import { toAdView } from 'telegram/crypto-news-ads/application/mappers/ads.mapper';
 
@@ -27,6 +30,8 @@ const buildAd = (overrides: {
   name?: string;
   body?: string;
   imageMediaId?: string | null;
+  videoMediaId?: string | null;
+  albumMediaIds?: string[] | null;
   order?: number;
   enabled?: boolean;
   expiresAt?: Date | null;
@@ -37,6 +42,8 @@ const buildAd = (overrides: {
     name: overrides.name ?? `ad-${Math.random().toString(36).slice(2, 6)}`,
     body: overrides.body ?? 'Buy the dip',
     imageMediaId: overrides.imageMediaId,
+    videoMediaId: overrides.videoMediaId,
+    albumMediaIds: overrides.albumMediaIds,
     order: overrides.order,
     expiresAt: overrides.expiresAt,
     expirationAction: overrides.expirationAction,
@@ -87,6 +94,9 @@ describe('AdsController', () => {
   let uploadImageUseCase: jest.Mocked<UploadAdImageUseCase>;
   let clearImageUseCase: jest.Mocked<ClearAdImageUseCase>;
   let reuseImageUseCase: jest.Mocked<ReuseLibraryImageUseCase>;
+  let uploadVideoUseCase: jest.Mocked<UploadAdVideoUseCase>;
+  let clearVideoUseCase: jest.Mocked<ClearAdVideoUseCase>;
+  let reuseLibraryImagesUseCase: jest.Mocked<ReuseLibraryImagesUseCase>;
   let uploadsRoot: string;
 
   const PAST = new Date('2020-01-01T00:00:00.000Z');
@@ -150,6 +160,18 @@ describe('AdsController', () => {
           useValue: { execute: jest.fn() },
         },
         {
+          provide: UploadAdVideoUseCase,
+          useValue: { execute: jest.fn() },
+        },
+        {
+          provide: ClearAdVideoUseCase,
+          useValue: { execute: jest.fn() },
+        },
+        {
+          provide: ReuseLibraryImagesUseCase,
+          useValue: { execute: jest.fn() },
+        },
+        {
           provide: ConfigService,
           useValue: { getOrThrow: jest.fn(() => ({ uploadsRoot })) },
         },
@@ -165,6 +187,9 @@ describe('AdsController', () => {
     uploadImageUseCase = module.get(UploadAdImageUseCase);
     clearImageUseCase = module.get(ClearAdImageUseCase);
     reuseImageUseCase = module.get(ReuseLibraryImageUseCase);
+    uploadVideoUseCase = module.get(UploadAdVideoUseCase);
+    clearVideoUseCase = module.get(ClearAdVideoUseCase);
+    reuseLibraryImagesUseCase = module.get(ReuseLibraryImagesUseCase);
   });
 
   afterEach(async () => {
@@ -437,6 +462,76 @@ describe('AdsController', () => {
     });
   });
 
+  describe('uploadVideo', () => {
+    it('delegates the uploaded file to UploadAdVideoUseCase and returns the view', async () => {
+      const ad = buildAd({ id: AD_UUID, videoMediaId: MEDIA_UUID });
+      uploadVideoUseCase.execute.mockResolvedValue(toAdView(ad));
+      const file = {
+        buffer: Buffer.from('mp4-bytes'),
+        originalname: 'promo.mp4',
+      } as Express.Multer.File;
+      const result = await controller.uploadVideo(AD_UUID, file);
+      expect(uploadVideoUseCase.execute).toHaveBeenCalledWith({
+        adId: AD_UUID,
+        buffer: file.buffer,
+        originalFileName: 'promo.mp4',
+      });
+      expect(result.videoMediaId).toBe(MEDIA_UUID);
+    });
+
+    it('returns 404 for a non-UUID id without invoking the use case', async () => {
+      const file = {
+        buffer: Buffer.from('mp4-bytes'),
+        originalname: 'promo.mp4',
+      } as Express.Multer.File;
+      await expect(
+        controller.uploadVideo('not-a-uuid', file),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(uploadVideoUseCase.execute).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('clearVideo', () => {
+    it('delegates to ClearAdVideoUseCase and returns the view', async () => {
+      const ad = buildAd({ id: AD_UUID });
+      clearVideoUseCase.execute.mockResolvedValue(toAdView(ad));
+      const result = await controller.clearVideo(AD_UUID);
+      expect(clearVideoUseCase.execute).toHaveBeenCalledWith(AD_UUID);
+      expect(result.id).toBe(AD_UUID);
+    });
+
+    it('returns 404 for a non-UUID id without invoking the use case', async () => {
+      await expect(controller.clearVideo('not-a-uuid')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(clearVideoUseCase.execute).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('reuseLibraryImages', () => {
+    it('delegates libraryMediaIds to ReuseLibraryImagesUseCase and returns the view', async () => {
+      const ad = buildAd({ id: AD_UUID, albumMediaIds: [MEDIA_UUID] });
+      reuseLibraryImagesUseCase.execute.mockResolvedValue(toAdView(ad));
+      const result = await controller.reuseLibraryImages(AD_UUID, {
+        libraryMediaIds: [MEDIA_UUID],
+      });
+      expect(reuseLibraryImagesUseCase.execute).toHaveBeenCalledWith({
+        adId: AD_UUID,
+        libraryMediaIds: [MEDIA_UUID],
+      });
+      expect(result.albumMediaIds).toEqual([MEDIA_UUID]);
+    });
+
+    it('returns 404 for a non-UUID ad id without invoking the use case', async () => {
+      await expect(
+        controller.reuseLibraryImages('not-a-uuid', {
+          libraryMediaIds: [MEDIA_UUID],
+        }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(reuseLibraryImagesUseCase.execute).not.toHaveBeenCalled();
+    });
+  });
+
   describe('remove', () => {
     it('returns 404 when missing', async () => {
       adRepo.findById.mockResolvedValue(null);
@@ -478,6 +573,45 @@ describe('AdsController', () => {
       await controller.remove(AD_UUID);
       expect(adMediaRepo.findById).not.toHaveBeenCalled();
       expect(storage.remove).not.toHaveBeenCalled();
+      expect(adRepo.delete).toHaveBeenCalledWith(AD_UUID);
+    });
+
+    it('purges video + album media files and rows before deleting the ad', async () => {
+      const video = buildMediaRow({
+        id: 'video-1',
+        adId: AD_UUID,
+        filePath: 'crypto-news-ads/ad-1/vid.mp4',
+        mimeType: 'video/mp4',
+      });
+      const albumA = buildMediaRow({
+        id: 'album-a',
+        adId: AD_UUID,
+        filePath: 'crypto-news-ads/ad-1/a.png',
+      });
+      const albumB = buildMediaRow({
+        id: 'album-b',
+        adId: AD_UUID,
+        filePath: 'crypto-news-ads/ad-1/b.png',
+      });
+      const ad = buildAd({
+        id: AD_UUID,
+        videoMediaId: video.id,
+        albumMediaIds: [albumA.id, albumB.id],
+      });
+      adRepo.findById.mockResolvedValue(ad);
+      adMediaRepo.findById.mockImplementation(async (mediaId: string) => {
+        if (mediaId === video.id) return video;
+        if (mediaId === albumA.id) return albumA;
+        if (mediaId === albumB.id) return albumB;
+        return null;
+      });
+      await controller.remove(AD_UUID);
+      expect(storage.remove).toHaveBeenCalledWith(video.filePath);
+      expect(storage.remove).toHaveBeenCalledWith(albumA.filePath);
+      expect(storage.remove).toHaveBeenCalledWith(albumB.filePath);
+      expect(adMediaRepo.delete).toHaveBeenCalledWith(video.id);
+      expect(adMediaRepo.delete).toHaveBeenCalledWith(albumA.id);
+      expect(adMediaRepo.delete).toHaveBeenCalledWith(albumB.id);
       expect(adRepo.delete).toHaveBeenCalledWith(AD_UUID);
     });
   });

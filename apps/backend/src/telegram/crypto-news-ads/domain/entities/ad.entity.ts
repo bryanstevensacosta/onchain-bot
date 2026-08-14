@@ -14,11 +14,18 @@ import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
  * never be mutated in place and accidentally diverge from what was
  * persisted.
  */
+export type AdFormat = 'text' | 'photo' | 'video' | 'album';
+
+const AD_FORMATS: readonly AdFormat[] = ['text', 'photo', 'video', 'album'];
+
 export interface AdProps {
   readonly id: string;
   readonly name: string;
   readonly body: string;
   readonly imageMediaId: string | null;
+  readonly format: AdFormat;
+  readonly videoMediaId: string | null;
+  readonly albumMediaIds: string[] | null;
   readonly enabled: boolean;
   readonly order: number;
   readonly timesPublished: number;
@@ -30,6 +37,20 @@ export interface AdProps {
   readonly updatedAt: Date;
 }
 
+/**
+ * Snapshot input for `fromSnapshot` — the three format fields are
+ * optional so pre-format call sites (and legacy rows) hydrate with
+ * defaults instead of breaking.
+ */
+export type AdSnapshotInput = Omit<
+  AdProps,
+  'format' | 'videoMediaId' | 'albumMediaIds'
+> & {
+  format?: AdFormat;
+  videoMediaId?: string | null;
+  albumMediaIds?: string[] | null;
+};
+
 export class Ad {
   private constructor(private readonly props: AdProps) {}
 
@@ -38,16 +59,29 @@ export class Ad {
     name: string;
     body: string;
     imageMediaId?: string | null;
+    format?: AdFormat;
+    videoMediaId?: string | null;
+    albumMediaIds?: string[] | null;
     order?: number;
     expiresAt?: Date | null;
     expirationAction?: 'disable' | 'delete';
   }): Ad {
     const now = new Date();
-    return new Ad({
+    const format = input.format ?? 'text';
+    if (!AD_FORMATS.includes(format)) {
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        `ad format must be one of: text, photo, video, album (got ${String(format)})`,
+      );
+    }
+    const ad = new Ad({
       id: input.id ?? crypto.randomUUID(),
       name: input.name,
       body: input.body,
       imageMediaId: input.imageMediaId ?? null,
+      format,
+      videoMediaId: input.videoMediaId ?? null,
+      albumMediaIds: input.albumMediaIds ?? null,
       enabled: true,
       order: input.order ?? 0,
       timesPublished: 0,
@@ -58,10 +92,17 @@ export class Ad {
       createdAt: now,
       updatedAt: now,
     });
+    ad.validateInvariants();
+    return ad;
   }
 
-  public static fromSnapshot(props: AdProps): Ad {
-    return new Ad(props);
+  public static fromSnapshot(props: AdSnapshotInput): Ad {
+    return new Ad({
+      ...props,
+      format: props.format ?? 'text',
+      videoMediaId: props.videoMediaId ?? null,
+      albumMediaIds: props.albumMediaIds ?? null,
+    });
   }
 
   public get id(): string {
@@ -78,6 +119,18 @@ export class Ad {
 
   public get imageMediaId(): string | null {
     return this.props.imageMediaId;
+  }
+
+  public get format(): AdFormat {
+    return this.props.format;
+  }
+
+  public get videoMediaId(): string | null {
+    return this.props.videoMediaId;
+  }
+
+  public get albumMediaIds(): string[] | null {
+    return this.props.albumMediaIds;
   }
 
   public get enabled(): boolean {
@@ -162,6 +215,39 @@ export class Ad {
 
   public bumpOrder(n: number): Ad {
     return this.with({ order: this.props.order + n });
+  }
+
+  /**
+   * Enforces per-format media invariants:
+   *  - `photo` requires `imageMediaId`
+   *  - `video` requires `videoMediaId`
+   *  - `album` requires at least one `albumMediaId`
+   * Throws DomainError(VALIDATION) when violated. Called from `create()`
+   * and from the application-layer patch path (`applyAdPatch`).
+   */
+  public validateInvariants(): void {
+    if (this.props.format === 'photo' && this.props.imageMediaId === null) {
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        `ad ${this.props.name} format 'photo' requires imageMediaId`,
+      );
+    }
+    if (this.props.format === 'video' && this.props.videoMediaId === null) {
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        `ad ${this.props.name} format 'video' requires videoMediaId`,
+      );
+    }
+    if (
+      this.props.format === 'album' &&
+      (this.props.albumMediaIds === null ||
+        this.props.albumMediaIds.length === 0)
+    ) {
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        `ad ${this.props.name} format 'album' requires at least one albumMediaId`,
+      );
+    }
   }
 
   private with(patch: Partial<AdProps>): Ad {

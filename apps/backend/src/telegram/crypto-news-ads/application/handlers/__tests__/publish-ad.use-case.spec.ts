@@ -67,6 +67,8 @@ describe('PublishAdUseCase', () => {
   const publisher = {
     sendPhoto: jest.fn(),
     sendMessage: jest.fn(),
+    sendVideo: jest.fn(),
+    sendMediaGroup: jest.fn(),
   } as unknown as jest.Mocked<TelegramPublisherPort>;
   const adMediaRepo = {
     findById: jest.fn(),
@@ -254,6 +256,7 @@ describe('PublishAdUseCase', () => {
         '',
         'promo',
         path.join('/tmp/uploads', 'crypto-news-ads/ad-1/abc123.png'),
+        { parseMode: 'HTML' },
       );
       expect(publisher.sendMessage).not.toHaveBeenCalled();
       expect(stateRepo.markAdPublished).toHaveBeenCalledWith('ad-1', now);
@@ -301,7 +304,14 @@ describe('PublishAdUseCase', () => {
 
       await useCase.execute(now);
 
-      expect(publisher.sendMessage).toHaveBeenCalledWith('', 'promo');
+      expect(publisher.sendMessage).toHaveBeenCalledWith(
+        '',
+        'promo',
+        undefined,
+        {
+          parseMode: 'HTML',
+        },
+      );
       expect(publisher.sendPhoto).not.toHaveBeenCalled();
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('no media'));
       expect(stateRepo.markAdPublished).toHaveBeenCalledWith('ad-1', now);
@@ -355,7 +365,14 @@ describe('PublishAdUseCase', () => {
 
       await useCase.execute(now);
 
-      expect(publisher.sendMessage).toHaveBeenCalledWith('', 'promo');
+      expect(publisher.sendMessage).toHaveBeenCalledWith(
+        '',
+        'promo',
+        undefined,
+        {
+          parseMode: 'HTML',
+        },
+      );
       expect(publisher.sendPhoto).not.toHaveBeenCalled();
       expect(warnSpy).toHaveBeenCalledWith(
         expect.stringContaining('file missing'),
@@ -394,9 +411,261 @@ describe('PublishAdUseCase', () => {
 
       await useCase.execute(now);
 
-      expect(publisher.sendMessage).toHaveBeenCalledWith('', 'text only');
+      expect(publisher.sendMessage).toHaveBeenCalledWith(
+        '',
+        'text only',
+        undefined,
+        {
+          parseMode: 'HTML',
+        },
+      );
       expect(publisher.sendPhoto).not.toHaveBeenCalled();
       expect(adMediaRepo.findById).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('video format branch', () => {
+    it('publishes via sendVideo with supportsStreaming when the video media row and file exist', async () => {
+      const ad = Ad.create({
+        id: 'ad-1',
+        name: 'Sponsor',
+        body: 'watch this',
+        format: 'video',
+        videoMediaId: '3f4c8a56-2e6d-4e7a-8b9c-1d2e3f4a5b6c',
+      });
+      const now = new Date('2026-01-01T12:00:00Z');
+      cfgRepo.load.mockResolvedValue(enabledCfg());
+      adRepo.findAllActive.mockResolvedValue([ad]);
+      arbitrator.canPublishNow.mockResolvedValue({
+        canPublish: true,
+        nextSlotAvailableAt: null,
+        remainingSeconds: 0,
+        lastScope: null,
+        reason: 'ok',
+      });
+      throttle.shouldPublish.mockResolvedValue({
+        canPublish: true,
+        nextDelayMs: 0,
+      });
+      stateRepo.load.mockResolvedValue(AdRotationState.empty());
+      decider.shouldPublishAd.mockResolvedValue({
+        shouldPublish: true,
+        ad,
+        reason: 'ok',
+      });
+      adMediaRepo.findById.mockResolvedValue({
+        id: '3f4c8a56-2e6d-4e7a-8b9c-1d2e3f4a5b6c',
+        adId: 'ad-1',
+        filePath: 'crypto-news-ads/ad-1/promo.mp4',
+        mimeType: 'video/mp4',
+        fileSize: 1234,
+        createdAt: now,
+      });
+      mockedExistsSync.mockReturnValue(true);
+      publisher.sendVideo.mockResolvedValue({
+        ok: true,
+        messageId: 43,
+        error: null,
+      });
+
+      await useCase.execute(now);
+
+      expect(publisher.sendVideo).toHaveBeenCalledWith(
+        '',
+        'watch this',
+        path.join('/tmp/uploads', 'crypto-news-ads/ad-1/promo.mp4'),
+        { parseMode: 'HTML', supportsStreaming: true },
+      );
+      expect(publisher.sendMessage).not.toHaveBeenCalled();
+      expect(stateRepo.markAdPublished).toHaveBeenCalledWith('ad-1', now);
+      expect(adRepo.markPublished).toHaveBeenCalledWith('ad-1', '43', now);
+    });
+
+    it('degrades to sendMessage when the video media row is missing', async () => {
+      const ad = Ad.create({
+        id: 'ad-1',
+        name: 'Sponsor',
+        body: 'watch this',
+        format: 'video',
+        videoMediaId: '3f4c8a56-2e6d-4e7a-8b9c-1d2e3f4a5b6c',
+      });
+      const now = new Date('2026-01-01T12:00:00Z');
+      cfgRepo.load.mockResolvedValue(enabledCfg());
+      adRepo.findAllActive.mockResolvedValue([ad]);
+      arbitrator.canPublishNow.mockResolvedValue({
+        canPublish: true,
+        nextSlotAvailableAt: null,
+        remainingSeconds: 0,
+        lastScope: null,
+        reason: 'ok',
+      });
+      throttle.shouldPublish.mockResolvedValue({
+        canPublish: true,
+        nextDelayMs: 0,
+      });
+      stateRepo.load.mockResolvedValue(AdRotationState.empty());
+      decider.shouldPublishAd.mockResolvedValue({
+        shouldPublish: true,
+        ad,
+        reason: 'ok',
+      });
+      adMediaRepo.findById.mockResolvedValue(null);
+      publisher.sendMessage.mockResolvedValue({
+        ok: true,
+        messageId: 7,
+        error: null,
+      });
+      const warnSpy = jest
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+
+      await useCase.execute(now);
+
+      expect(publisher.sendMessage).toHaveBeenCalledWith(
+        '',
+        'watch this',
+        undefined,
+        { parseMode: 'HTML' },
+      );
+      expect(publisher.sendVideo).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('no media'));
+      expect(stateRepo.markAdPublished).toHaveBeenCalledWith('ad-1', now);
+      warnSpy.mockRestore();
+    });
+  });
+
+  describe('album format branch', () => {
+    it('publishes via sendMediaGroup when every album media row and file exist', async () => {
+      const ad = Ad.create({
+        id: 'ad-1',
+        name: 'Sponsor',
+        body: 'gallery',
+        format: 'album',
+        albumMediaIds: ['img-a', 'img-b'],
+      });
+      const now = new Date('2026-01-01T12:00:00Z');
+      cfgRepo.load.mockResolvedValue(enabledCfg());
+      adRepo.findAllActive.mockResolvedValue([ad]);
+      arbitrator.canPublishNow.mockResolvedValue({
+        canPublish: true,
+        nextSlotAvailableAt: null,
+        remainingSeconds: 0,
+        lastScope: null,
+        reason: 'ok',
+      });
+      throttle.shouldPublish.mockResolvedValue({
+        canPublish: true,
+        nextDelayMs: 0,
+      });
+      stateRepo.load.mockResolvedValue(AdRotationState.empty());
+      decider.shouldPublishAd.mockResolvedValue({
+        shouldPublish: true,
+        ad,
+        reason: 'ok',
+      });
+      adMediaRepo.findById.mockImplementation(async (mediaId: string) => {
+        if (mediaId === 'img-a') {
+          return {
+            id: 'img-a',
+            adId: 'ad-1',
+            filePath: 'crypto-news-ads/ad-1/a.png',
+            mimeType: 'image/png',
+            fileSize: 8,
+            createdAt: now,
+          };
+        }
+        if (mediaId === 'img-b') {
+          return {
+            id: 'img-b',
+            adId: 'ad-1',
+            filePath: 'crypto-news-ads/ad-1/b.png',
+            mimeType: 'image/png',
+            fileSize: 8,
+            createdAt: now,
+          };
+        }
+        return null;
+      });
+      mockedExistsSync.mockReturnValue(true);
+      publisher.sendMediaGroup.mockResolvedValue({
+        ok: true,
+        messageId: 44,
+        error: null,
+      });
+
+      await useCase.execute(now);
+
+      expect(publisher.sendMediaGroup).toHaveBeenCalledWith(
+        '',
+        'gallery',
+        [
+          path.join('/tmp/uploads', 'crypto-news-ads/ad-1/a.png'),
+          path.join('/tmp/uploads', 'crypto-news-ads/ad-1/b.png'),
+        ],
+        { parseMode: 'HTML' },
+      );
+      expect(publisher.sendMessage).not.toHaveBeenCalled();
+      expect(stateRepo.markAdPublished).toHaveBeenCalledWith('ad-1', now);
+      expect(adRepo.markPublished).toHaveBeenCalledWith('ad-1', '44', now);
+    });
+
+    it('skips the publish and routes to failure handling when an album media row is missing', async () => {
+      const ad = Ad.create({
+        id: 'ad-1',
+        name: 'Sponsor',
+        body: 'gallery',
+        format: 'album',
+        albumMediaIds: ['img-a', 'img-missing'],
+      });
+      const now = new Date('2026-01-01T12:00:00Z');
+      cfgRepo.load.mockResolvedValue(enabledCfg());
+      adRepo.findAllActive.mockResolvedValue([ad]);
+      arbitrator.canPublishNow.mockResolvedValue({
+        canPublish: true,
+        nextSlotAvailableAt: null,
+        remainingSeconds: 0,
+        lastScope: null,
+        reason: 'ok',
+      });
+      throttle.shouldPublish.mockResolvedValue({
+        canPublish: true,
+        nextDelayMs: 0,
+      });
+      stateRepo.load.mockResolvedValue(AdRotationState.empty());
+      decider.shouldPublishAd.mockResolvedValue({
+        shouldPublish: true,
+        ad,
+        reason: 'ok',
+      });
+      adMediaRepo.findById.mockImplementation(async (mediaId: string) => {
+        if (mediaId === 'img-a') {
+          return {
+            id: 'img-a',
+            adId: 'ad-1',
+            filePath: 'crypto-news-ads/ad-1/a.png',
+            mimeType: 'image/png',
+            fileSize: 8,
+            createdAt: now,
+          };
+        }
+        return null;
+      });
+      mockedExistsSync.mockReturnValue(true);
+      publisher.sendMediaGroup.mockResolvedValue({
+        ok: true,
+        messageId: 44,
+        error: null,
+      });
+      adRepo.findById.mockResolvedValue(ads(1, { consecutiveFailures: 1 })[0]);
+
+      await useCase.execute(now);
+
+      expect(publisher.sendMediaGroup).not.toHaveBeenCalled();
+      expect(publisher.sendMessage).not.toHaveBeenCalled();
+      expect(adRepo.incrementFailures).toHaveBeenCalledWith(ad.id);
+      expect(stateRepo.markAdPublished).not.toHaveBeenCalled();
+      expect(throttle.setLastPublishAt).not.toHaveBeenCalled();
+      expect(arbitrator.recordPublish).not.toHaveBeenCalled();
     });
   });
 
@@ -569,7 +838,9 @@ describe('PublishAdUseCase', () => {
         state,
         active,
       );
-      expect(publisher.sendMessage).toHaveBeenCalledWith('', 'b2');
+      expect(publisher.sendMessage).toHaveBeenCalledWith('', 'b2', undefined, {
+        parseMode: 'HTML',
+      });
     });
   });
 });

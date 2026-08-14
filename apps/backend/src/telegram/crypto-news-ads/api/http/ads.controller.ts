@@ -25,6 +25,9 @@ import { AdMediaStoragePort } from 'telegram/crypto-news-ads/application/ports/a
 import { UploadAdImageUseCase } from 'telegram/crypto-news-ads/application/handlers/upload-ad-image.use-case';
 import { ClearAdImageUseCase } from 'telegram/crypto-news-ads/application/handlers/clear-ad-image.use-case';
 import { ReuseLibraryImageUseCase } from 'telegram/crypto-news-ads/application/handlers/reuse-library-image.use-case';
+import { UploadAdVideoUseCase } from 'telegram/crypto-news-ads/application/handlers/upload-ad-video.use-case';
+import { ClearAdVideoUseCase } from 'telegram/crypto-news-ads/application/handlers/clear-ad-video.use-case';
+import { ReuseLibraryImagesUseCase } from 'telegram/crypto-news-ads/application/handlers/reuse-library-images.use-case';
 import { Ad } from 'telegram/crypto-news-ads/domain/entities/ad.entity';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import {
@@ -35,6 +38,7 @@ import type { AppConfig } from 'shared/common/config/app.config';
 import {
   CreateAdDto,
   ReuseAdImageDto,
+  ReuseLibraryImagesDto,
   UpdateAdDto,
 } from 'telegram/crypto-news-ads/api/input/ads.input';
 import {
@@ -64,6 +68,13 @@ const UUID_RE =
  *                        `forbidNonWhitelisted` pipe would 400 multipart)
  *  - DELETE /:id/image   Clear the ad image (delegates to
  *                        `ClearAdImageUseCase`)
+ *  - POST   /:id/video   Multipart upload of the ad video (delegates to
+ *                        `UploadAdVideoUseCase`; only MP4/H.264, ≤50 MB)
+ *  - DELETE /:id/video   Clear the ad video (delegates to
+ *                        `ClearAdVideoUseCase`)
+ *  - POST   /:id/reuse-library-images  Set the ad album from 1..10
+ *                        media-library entries (delegates to
+ *                        `ReuseLibraryImagesUseCase`)
  *
  * Request bodies validated by the global `ValidationPipe` (400 on
  * shape violations). `Ad` is immutable — PATCH rebuilds via
@@ -78,6 +89,9 @@ export class AdsController {
     private readonly uploadImageUseCase: UploadAdImageUseCase,
     private readonly clearImageUseCase: ClearAdImageUseCase,
     private readonly reuseImageUseCase: ReuseLibraryImageUseCase,
+    private readonly uploadVideoUseCase: UploadAdVideoUseCase,
+    private readonly clearVideoUseCase: ClearAdVideoUseCase,
+    private readonly reuseLibraryImagesUseCase: ReuseLibraryImagesUseCase,
   ) {}
 
   @Get()
@@ -187,6 +201,40 @@ export class AdsController {
     return this.clearImageUseCase.execute(id);
   }
 
+  @Post(':id/video')
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 50 * 1024 * 1024 } }),
+  )
+  public async uploadVideo(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<AdView> {
+    AdsController.ensureAdId(id);
+    return this.uploadVideoUseCase.execute({
+      adId: id,
+      buffer: file.buffer,
+      originalFileName: file.originalname,
+    });
+  }
+
+  @Delete(':id/video')
+  public async clearVideo(@Param('id') id: string): Promise<AdView> {
+    AdsController.ensureAdId(id);
+    return this.clearVideoUseCase.execute(id);
+  }
+
+  @Post(':id/reuse-library-images')
+  public async reuseLibraryImages(
+    @Param('id') id: string,
+    @Body() dto: ReuseLibraryImagesDto,
+  ): Promise<AdView> {
+    AdsController.ensureAdId(id);
+    return this.reuseLibraryImagesUseCase.execute({
+      adId: id,
+      libraryMediaIds: dto.libraryMediaIds,
+    });
+  }
+
   @Delete(':id')
   public async remove(@Param('id') id: string): Promise<void> {
     AdsController.ensureAdId(id);
@@ -194,8 +242,13 @@ export class AdsController {
     if (!existing) {
       throw new NotFoundException(`Ad ${id} not found`);
     }
-    if (existing.imageMediaId !== null) {
-      const media = await this.adMediaRepo.findById(existing.imageMediaId);
+    const mediaIds = [
+      existing.imageMediaId,
+      existing.videoMediaId,
+      ...(existing.albumMediaIds ?? []),
+    ].filter((mediaId): mediaId is string => mediaId !== null);
+    for (const mediaId of new Set(mediaIds)) {
+      const media = await this.adMediaRepo.findById(mediaId);
       if (media) {
         await this.storage.remove(media.filePath);
         await this.adMediaRepo.delete(media.id);

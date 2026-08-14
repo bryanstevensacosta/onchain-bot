@@ -22,6 +22,20 @@ export interface SendResult {
   readonly error: string | null;
 }
 
+/**
+ * Optional per-call publishing knobs.
+ *
+ * - `parseMode`: `'Markdown'` (default) or `'HTML'`. The crypto-news
+ *   pipeline publishes Markdown; the ads flow publishes HTML.
+ * - `supportsStreaming`: only meaningful for `sendVideo` (Telegram's
+ *   `supports_streaming` flag). Defaults to `true` to preserve the
+ *   pipeline's current behavior.
+ */
+export interface TelegramPublishOptions {
+  readonly parseMode?: 'Markdown' | 'HTML';
+  readonly supportsStreaming?: boolean;
+}
+
 export abstract class TelegramPublisherPort {
   /**
    * Check that a Telegram chat exists and the bot can access it.
@@ -44,6 +58,7 @@ export abstract class TelegramPublisherPort {
     chatId: string,
     text: string,
     imageUrl?: string,
+    options?: TelegramPublishOptions,
   ): Promise<SendResult>;
 
   /**
@@ -56,12 +71,14 @@ export abstract class TelegramPublisherPort {
     chatId: string,
     text: string,
     imagePath: string,
+    options?: TelegramPublishOptions,
   ): Promise<SendResult>;
 
   public abstract sendMediaGroup(
     chatId: string,
     text: string,
     imagePaths: string[],
+    options?: TelegramPublishOptions,
   ): Promise<SendResult>;
 
   /**
@@ -74,5 +91,6 @@ export abstract class TelegramPublisherPort {
     chatId: string,
     text: string,
     videoPath: string,
+    options?: TelegramPublishOptions,
   ): Promise<SendResult>;
 }

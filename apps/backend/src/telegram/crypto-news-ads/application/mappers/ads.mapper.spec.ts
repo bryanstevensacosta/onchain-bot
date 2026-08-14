@@ -15,6 +15,10 @@ describe('ads.mapper', () => {
       enabled?: boolean;
       expiresAt?: Date | null;
       expirationAction?: 'disable' | 'delete';
+      format?: 'text' | 'photo' | 'video' | 'album';
+      imageMediaId?: string | null;
+      videoMediaId?: string | null;
+      albumMediaIds?: string[] | null;
     } = {},
   ): Ad => {
     const created = Ad.create({
@@ -22,6 +26,10 @@ describe('ads.mapper', () => {
       body: 'Buy $X',
       expiresAt: overrides.expiresAt,
       expirationAction: overrides.expirationAction,
+      format: overrides.format,
+      imageMediaId: overrides.imageMediaId,
+      videoMediaId: overrides.videoMediaId,
+      albumMediaIds: overrides.albumMediaIds,
     });
     return overrides.enabled === false ? created.disable() : created;
   };
@@ -41,6 +49,25 @@ describe('ads.mapper', () => {
         buildAd({ expiresAt: FUTURE, expirationAction: 'delete' }),
       );
       expect(view.expirationAction).toBe('delete');
+    });
+
+    it('carries format, videoMediaId and albumMediaIds through the view', () => {
+      const view = toAdView(
+        buildAd({
+          format: 'album',
+          albumMediaIds: ['img-1', 'img-2'],
+        }),
+      );
+      expect(view.format).toBe('album');
+      expect(view.albumMediaIds).toEqual(['img-1', 'img-2']);
+      expect(view.videoMediaId).toBeNull();
+    });
+
+    it('defaults format to "text" and media fields to null in the view', () => {
+      const view = toAdView(buildAd({}));
+      expect(view.format).toBe('text');
+      expect(view.videoMediaId).toBeNull();
+      expect(view.albumMediaIds).toBeNull();
     });
   });
 
@@ -113,6 +140,90 @@ describe('ads.mapper', () => {
       expect(cleared.expiresAt).toBeNull();
       const untouched = applyAdPatch(ad, {}, NOW);
       expect(untouched.expiresAt).toEqual(FUTURE);
+    });
+  });
+
+  describe('applyAdPatch — format invariants on the RESULTING ad', () => {
+    it('patches format to "video" with a videoMediaId', () => {
+      const ad = buildAd({});
+      const patched = applyAdPatch(
+        ad,
+        { format: 'video', videoMediaId: 'vid-1' },
+        NOW,
+      );
+      expect(patched.format).toBe('video');
+      expect(patched.videoMediaId).toBe('vid-1');
+    });
+
+    it('throws DomainError VALIDATION when patching format to "video" without videoMediaId', () => {
+      const ad = buildAd({});
+      let caught: unknown;
+      try {
+        applyAdPatch(ad, { format: 'video' }, NOW);
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(DomainError);
+      expect((caught as DomainError).code).toBe(ErrorCode.VALIDATION);
+      expect((caught as DomainError).message).toContain(
+        "format 'video' requires videoMediaId",
+      );
+    });
+
+    it('throws DomainError VALIDATION when patching format to "photo" without imageMediaId', () => {
+      const ad = buildAd({});
+      let caught: unknown;
+      try {
+        applyAdPatch(ad, { format: 'photo' }, NOW);
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(DomainError);
+      expect((caught as DomainError).code).toBe(ErrorCode.VALIDATION);
+      expect((caught as DomainError).message).toContain(
+        "format 'photo' requires imageMediaId",
+      );
+    });
+
+    it('throws DomainError VALIDATION when patching format to "album" with an empty albumMediaIds array', () => {
+      const ad = buildAd({});
+      let caught: unknown;
+      try {
+        applyAdPatch(ad, { format: 'album', albumMediaIds: [] }, NOW);
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(DomainError);
+      expect((caught as DomainError).code).toBe(ErrorCode.VALIDATION);
+      expect((caught as DomainError).message).toContain(
+        "format 'album' requires at least one albumMediaId",
+      );
+    });
+
+    it('patches format to "album" with a non-empty albumMediaIds array', () => {
+      const ad = buildAd({});
+      const patched = applyAdPatch(
+        ad,
+        { format: 'album', albumMediaIds: ['img-1', 'img-2'] },
+        NOW,
+      );
+      expect(patched.format).toBe('album');
+      expect(patched.albumMediaIds).toEqual(['img-1', 'img-2']);
+    });
+
+    it('treats videoMediaId:null as explicit clear vs undefined as unchanged', () => {
+      const ad = buildAd({ format: 'video', videoMediaId: 'vid-1' });
+      // Clearing videoMediaId on a video ad would violate the invariant,
+      // so the clear is expressed together with a format change to text.
+      const cleared = applyAdPatch(
+        ad,
+        { format: 'text', videoMediaId: null },
+        NOW,
+      );
+      expect(cleared.format).toBe('text');
+      expect(cleared.videoMediaId).toBeNull();
+      const untouched = applyAdPatch(ad, {}, NOW);
+      expect(untouched.videoMediaId).toBe('vid-1');
     });
   });
 });

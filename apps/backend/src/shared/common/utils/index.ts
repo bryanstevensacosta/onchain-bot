@@ -2,6 +2,7 @@
  * Common utility helpers used across Bounded Contexts.
  */
 export { formatUrlsAsMarkdown } from './telegram-url-formatter';
+export { sanitizeTelegramHtml } from './telegram-html-sanitizer';
 
 export class Uuid {
   public static v4(): string {

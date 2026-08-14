@@ -12,6 +12,9 @@ export class AdMapper {
     row.name = ad.name;
     row.body = ad.body;
     row.imageMediaId = ad.imageMediaId;
+    row.format = ad.format;
+    row.videoMediaId = ad.videoMediaId;
+    row.albumMediaIds = ad.albumMediaIds;
     row.enabled = ad.enabled;
     row.order = ad.order;
     row.timesPublished = ad.timesPublished;
@@ -30,6 +33,9 @@ export class AdMapper {
       name: row.name,
       body: row.body,
       imageMediaId: row.imageMediaId ?? null,
+      format: row.format ?? 'text',
+      videoMediaId: row.videoMediaId ?? null,
+      albumMediaIds: row.albumMediaIds ?? null,
       enabled: row.enabled,
       order: row.order,
       timesPublished: row.timesPublished,

@@ -7,18 +7,29 @@ import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import { AdMediaStoragePort } from 'telegram/crypto-news-ads/application/ports/ad-media-storage.port';
 
 /**
- * Maps a sniffed image MIME type to its on-disk extension. Anything
- * outside the four supported image formats falls back to `.bin` (the
- * upload use case rejects such MIMEs before ever reaching us).
+ * Maps a sniffed media MIME type to its on-disk extension. Anything
+ * outside the supported image/video formats falls back to `.bin` (the
+ * upload use cases reject such MIMEs before ever reaching us).
+ *
+ * `video/mp4` is the ONLY video format accepted: Telegram plays inline
+ * only MP4 (H.264) — QuickTime/MKV fall back to Document (finding #4).
  */
 const MIME_TO_EXT: Readonly<Record<string, string>> = {
   'image/png': '.png',
   'image/jpeg': '.jpg',
   'image/webp': '.webp',
   'image/gif': '.gif',
+  'video/mp4': '.mp4',
 };
 
 const DEFAULT_EXT = '.bin';
+
+/**
+ * Hard cap on any single media write (bytes) — the Bot API local-upload
+ * limit for videos (50 MB). Images are capped tighter (10 MB) by the
+ * upload use cases; this is the storage-level defensive ceiling.
+ */
+const MAX_MEDIA_BYTES = 50 * 1024 * 1024;
 
 /**
  * Disk adapter for {@link AdMediaStoragePort}.
@@ -49,6 +60,9 @@ export class LocalAdMediaStorageAdapter extends AdMediaStoragePort {
     buffer: Buffer,
     mimeType: string,
   ): Promise<{ relativePath: string; size: number }> {
+    if (buffer.byteLength > MAX_MEDIA_BYTES) {
+      throw new DomainError(ErrorCode.VALIDATION, 'file exceeds 50 MB');
+    }
     const id = crypto.randomUUID();
     const ext = MIME_TO_EXT[mimeType] ?? DEFAULT_EXT;
     const targetDir = path.join(this.root, 'crypto-news-ads', adId);
@@ -78,6 +92,9 @@ export class LocalAdMediaStorageAdapter extends AdMediaStoragePort {
     mimeType: string,
     contentHash: string,
   ): Promise<{ relativePath: string; size: number }> {
+    if (buffer.byteLength > MAX_MEDIA_BYTES) {
+      throw new DomainError(ErrorCode.VALIDATION, 'file exceeds 50 MB');
+    }
     const id = contentHash;
     const ext = MIME_TO_EXT[mimeType] ?? DEFAULT_EXT;
     const targetDir = path.join(this.root, 'crypto-news-ads-library');

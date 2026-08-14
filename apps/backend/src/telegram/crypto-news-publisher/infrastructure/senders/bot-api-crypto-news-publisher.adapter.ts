@@ -1,7 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { TelegramPublisherPort, type SendResult } from 'telegram/shared';
+import {
+  TelegramPublisherPort,
+  type SendResult,
+  type TelegramPublishOptions,
+} from 'telegram/shared';
 import { formatUrlsAsMarkdown } from 'shared/common/utils/telegram-url-formatter';
+import { sanitizeTelegramHtml } from 'shared/common/utils/telegram-html-sanitizer';
 import { basename, extname } from 'node:path';
 import { request as httpsRequest } from 'node:https';
 import {
@@ -47,6 +52,7 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
   private readonly logger = new Logger(BotApiCryptoNewsPublisherAdapter.name);
   private static readonly API_BASE = 'https://api.telegram.org/bot';
   private static readonly CAPTION_MAX_LENGTH = 1024;
+  private static readonly TEXT_MAX_LENGTH = 4096;
 
   private readonly botToken: string;
   private readonly outputChannel: string;
@@ -100,6 +106,25 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     return null;
   }
 
+  private static truncate(text: string, maxLength: number): string {
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength - 1) + '…';
+  }
+
+  /**
+   * Format `text` for the requested parse mode. `'HTML'` runs the
+   * sanitizer (allowlist + href validation + raw-URL wrapping);
+   * `'Markdown'` keeps the existing `formatUrlsAsMarkdown` flow.
+   */
+  private formatForParseMode(
+    text: string,
+    parseMode: 'Markdown' | 'HTML',
+  ): string {
+    return parseMode === 'HTML'
+      ? sanitizeTelegramHtml(text)
+      : formatUrlsAsMarkdown(text);
+  }
+
   /**
    * Send a plain text message (optionally with a remote image URL).
    * Delegates to the Telegram Bot API via Node's https module.
@@ -108,17 +133,23 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     _chatId: string,
     text: string,
     imageUrl?: string,
+    options?: TelegramPublishOptions,
   ): Promise<SendResult> {
     const missing = this.requireConfig();
     if (missing) return { ok: false, messageId: null, error: missing.reason };
     if (!text || text.length === 0) {
       return { ok: false, messageId: null, error: 'empty message' };
     }
-    const formattedText = formatUrlsAsMarkdown(text);
+    const parseMode = options?.parseMode ?? 'Markdown';
+    const formattedText = this.formatForParseMode(text, parseMode);
+    const truncatedText = BotApiCryptoNewsPublisherAdapter.truncate(
+      formattedText,
+      BotApiCryptoNewsPublisherAdapter.TEXT_MAX_LENGTH,
+    );
     const payload: Record<string, unknown> = {
       chat_id: this.outputChannel,
-      text: formattedText,
-      parse_mode: 'Markdown',
+      text: truncatedText,
+      parse_mode: parseMode,
       disable_web_page_preview: false,
     };
     if (imageUrl) {
@@ -140,6 +171,7 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     _chatId: string,
     text: string,
     imagePath: string,
+    options?: TelegramPublishOptions,
   ): Promise<SendResult> {
     const missing = this.requireConfig();
     if (missing) return { ok: false, messageId: null, error: missing.reason };
@@ -155,15 +187,12 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     }
     const fileBytes = fileResult.bytes;
 
-    const formattedText = formatUrlsAsMarkdown(text);
-    const caption =
-      formattedText.length <=
-      BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH
-        ? formattedText
-        : formattedText.slice(
-            0,
-            BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH - 1,
-          ) + '…';
+    const parseMode = options?.parseMode ?? 'Markdown';
+    const formattedText = this.formatForParseMode(text, parseMode);
+    const caption = BotApiCryptoNewsPublisherAdapter.truncate(
+      formattedText,
+      BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH,
+    );
 
     const boundary = `----cryptoNews${crypto.randomUUID().replace(/-/g, '')}`;
     const fileName = basename(imagePath);
@@ -172,7 +201,7 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     const textFields: Array<[string, string]> = [
       ['chat_id', this.outputChannel],
       ['caption', caption],
-      ['parse_mode', 'Markdown'],
+      ['parse_mode', parseMode],
     ];
 
     const body = buildMultipartBody(boundary, textFields, {
@@ -189,6 +218,7 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     _chatId: string,
     text: string,
     videoPath: string,
+    options?: TelegramPublishOptions,
   ): Promise<SendResult> {
     const missing = this.requireConfig();
     if (missing) return { ok: false, messageId: null, error: missing.reason };
@@ -204,15 +234,13 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     }
     const fileBytes = fileResult.bytes;
 
-    const formattedText = formatUrlsAsMarkdown(text);
-    const caption =
-      formattedText.length <=
-      BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH
-        ? formattedText
-        : formattedText.slice(
-            0,
-            BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH - 1,
-          ) + '…';
+    const parseMode = options?.parseMode ?? 'Markdown';
+    const supportsStreaming = options?.supportsStreaming ?? true;
+    const formattedText = this.formatForParseMode(text, parseMode);
+    const caption = BotApiCryptoNewsPublisherAdapter.truncate(
+      formattedText,
+      BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH,
+    );
 
     const boundary = `----cryptoNews${crypto.randomUUID().replace(/-/g, '')}`;
     const fileName = basename(videoPath);
@@ -221,9 +249,11 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     const textFields: Array<[string, string]> = [
       ['chat_id', this.outputChannel],
       ['caption', caption],
-      ['parse_mode', 'Markdown'],
-      ['supports_streaming', 'true'],
+      ['parse_mode', parseMode],
     ];
+    if (supportsStreaming) {
+      textFields.push(['supports_streaming', 'true']);
+    }
 
     const body = buildMultipartBody(boundary, textFields, {
       fieldName: 'video',
@@ -239,6 +269,7 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     _chatId: string,
     text: string,
     imagePaths: string[],
+    options?: TelegramPublishOptions,
   ): Promise<SendResult> {
     const missing = this.requireConfig();
     if (missing) return { ok: false, messageId: null, error: missing.reason };
@@ -261,15 +292,12 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     }
     const fileBytesArray = filesResult.bytesArray;
 
-    const formattedText = formatUrlsAsMarkdown(text);
-    const caption =
-      formattedText.length <=
-      BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH
-        ? formattedText
-        : formattedText.slice(
-            0,
-            BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH - 1,
-          ) + '…';
+    const parseMode = options?.parseMode ?? 'Markdown';
+    const formattedText = this.formatForParseMode(text, parseMode);
+    const caption = BotApiCryptoNewsPublisherAdapter.truncate(
+      formattedText,
+      BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH,
+    );
 
     const boundary = `----cryptoNews${crypto.randomUUID().replace(/-/g, '')}`;
 
@@ -285,7 +313,7 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
       };
       if (index === 0) {
         mediaItem.caption = caption;
-        mediaItem.parse_mode = 'Markdown';
+        mediaItem.parse_mode = parseMode;
       }
       return mediaItem;
     });

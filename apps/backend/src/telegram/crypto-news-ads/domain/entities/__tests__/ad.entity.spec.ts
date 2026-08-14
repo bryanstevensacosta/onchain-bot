@@ -150,6 +150,137 @@ describe('Ad', () => {
     });
   });
 
+  describe('create() — format defaults', () => {
+    it('defaults format to "text" when omitted', () => {
+      const ad = Ad.create({ name: 'Promo', body: 'Buy $X' });
+      expect(ad.format).toBe('text');
+      expect(ad.videoMediaId).toBeNull();
+      expect(ad.albumMediaIds).toBeNull();
+    });
+
+    it('accepts an explicit format and exposes it via getter', () => {
+      const ad = Ad.create({
+        name: 'Promo',
+        body: 'Buy $X',
+        format: 'video',
+        videoMediaId: 'vid-1',
+      });
+      expect(ad.format).toBe('video');
+      expect(ad.videoMediaId).toBe('vid-1');
+    });
+
+    it('throws DomainError VALIDATION for an invalid format', () => {
+      let caught: unknown;
+      try {
+        Ad.create({
+          name: 'Promo',
+          body: 'Buy $X',
+          format: 'carousel' as never,
+        });
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(DomainError);
+      expect((caught as DomainError).code).toBe(ErrorCode.VALIDATION);
+      expect((caught as DomainError).message).toContain(
+        'ad format must be one of: text, photo, video, album',
+      );
+    });
+  });
+
+  describe('validateInvariants() — per-format media requirements', () => {
+    it('throws DomainError VALIDATION when format "photo" has no imageMediaId', () => {
+      let caught: unknown;
+      try {
+        Ad.create({ name: 'Promo', body: 'Buy $X', format: 'photo' });
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(DomainError);
+      expect((caught as DomainError).code).toBe(ErrorCode.VALIDATION);
+      expect((caught as DomainError).message).toContain(
+        "format 'photo' requires imageMediaId",
+      );
+    });
+
+    it('accepts format "photo" when imageMediaId is present', () => {
+      const ad = Ad.create({
+        name: 'Promo',
+        body: 'Buy $X',
+        format: 'photo',
+        imageMediaId: 'img-1',
+      });
+      expect(ad.format).toBe('photo');
+      expect(ad.imageMediaId).toBe('img-1');
+    });
+
+    it('throws DomainError VALIDATION when format "video" has no videoMediaId', () => {
+      let caught: unknown;
+      try {
+        Ad.create({ name: 'Promo', body: 'Buy $X', format: 'video' });
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(DomainError);
+      expect((caught as DomainError).code).toBe(ErrorCode.VALIDATION);
+      expect((caught as DomainError).message).toContain(
+        "format 'video' requires videoMediaId",
+      );
+    });
+
+    it('accepts format "video" when videoMediaId is present', () => {
+      const ad = Ad.create({
+        name: 'Promo',
+        body: 'Buy $X',
+        format: 'video',
+        videoMediaId: 'vid-1',
+      });
+      expect(ad.format).toBe('video');
+      expect(ad.videoMediaId).toBe('vid-1');
+    });
+
+    it('throws DomainError VALIDATION when format "album" has no albumMediaIds', () => {
+      let caught: unknown;
+      try {
+        Ad.create({ name: 'Promo', body: 'Buy $X', format: 'album' });
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(DomainError);
+      expect((caught as DomainError).code).toBe(ErrorCode.VALIDATION);
+      expect((caught as DomainError).message).toContain(
+        "format 'album' requires at least one albumMediaId",
+      );
+    });
+
+    it('throws DomainError VALIDATION when format "album" has an empty albumMediaIds array', () => {
+      let caught: unknown;
+      try {
+        Ad.create({
+          name: 'Promo',
+          body: 'Buy $X',
+          format: 'album',
+          albumMediaIds: [],
+        });
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(DomainError);
+      expect((caught as DomainError).code).toBe(ErrorCode.VALIDATION);
+    });
+
+    it('accepts format "album" when albumMediaIds has at least one id', () => {
+      const ad = Ad.create({
+        name: 'Promo',
+        body: 'Buy $X',
+        format: 'album',
+        albumMediaIds: ['img-1', 'img-2'],
+      });
+      expect(ad.format).toBe('album');
+      expect(ad.albumMediaIds).toEqual(['img-1', 'img-2']);
+    });
+  });
+
   describe('fromSnapshot()', () => {
     it('round-trips expiresAt and expirationAction through the snapshot path', () => {
       const original = Ad.create({
@@ -176,6 +307,57 @@ describe('Ad', () => {
       const restored = Ad.fromSnapshot(snapshot);
       expect(restored.expiresAt).toEqual(FUTURE);
       expect(restored.expirationAction).toBe('delete');
+    });
+
+    it('defaults format to "text", videoMediaId and albumMediaIds to null when omitted (legacy rows)', () => {
+      const restored = Ad.fromSnapshot({
+        id: 'ad-1',
+        name: 'Legacy',
+        body: 'old',
+        imageMediaId: null,
+        enabled: true,
+        order: 0,
+        timesPublished: 0,
+        consecutiveFailures: 0,
+        lastPublishedAt: null,
+        expiresAt: null,
+        expirationAction: 'disable',
+        createdAt: NOW,
+        updatedAt: NOW,
+      });
+      expect(restored.format).toBe('text');
+      expect(restored.videoMediaId).toBeNull();
+      expect(restored.albumMediaIds).toBeNull();
+    });
+
+    it('round-trips format, videoMediaId and albumMediaIds through the snapshot path', () => {
+      const original = Ad.create({
+        name: 'Promo',
+        body: 'Buy $X',
+        format: 'album',
+        albumMediaIds: ['img-1', 'img-2'],
+      });
+      const snapshot = {
+        id: original.id,
+        name: original.name,
+        body: original.body,
+        imageMediaId: original.imageMediaId,
+        format: original.format,
+        videoMediaId: original.videoMediaId,
+        albumMediaIds: original.albumMediaIds,
+        enabled: original.enabled,
+        order: original.order,
+        timesPublished: original.timesPublished,
+        consecutiveFailures: original.consecutiveFailures,
+        lastPublishedAt: original.lastPublishedAt,
+        expiresAt: original.expiresAt,
+        expirationAction: original.expirationAction,
+        createdAt: original.createdAt,
+        updatedAt: original.updatedAt,
+      };
+      const restored = Ad.fromSnapshot(snapshot);
+      expect(restored.format).toBe('album');
+      expect(restored.albumMediaIds).toEqual(['img-1', 'img-2']);
     });
   });
 });

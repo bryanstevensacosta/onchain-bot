@@ -62,6 +62,20 @@ export class AdEntity {
   })
   public expirationAction!: 'disable' | 'delete';
 
+  @Column({ name: 'format', type: 'varchar', length: 16, default: 'text' })
+  public format?: 'text' | 'photo' | 'video' | 'album';
+
+  @Column({
+    name: 'video_media_id',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  public videoMediaId?: string | null;
+
+  @Column({ name: 'album_media_ids', type: 'jsonb', nullable: true })
+  public albumMediaIds?: string[] | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   public createdAt!: Date;
 

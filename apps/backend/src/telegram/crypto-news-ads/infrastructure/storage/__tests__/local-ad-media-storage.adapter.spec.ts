@@ -100,4 +100,35 @@ describe('LocalAdMediaStorageAdapter — media library file store/read', () => {
     );
     expect(onDisk.equals(buffer)).toBe(true);
   });
+
+  it('writes a video/mp4 ad attachment with the .mp4 extension', async () => {
+    const buffer = Buffer.from('fake-mp4-bytes', 'utf8');
+    const result = await adapter.store('ad-1', buffer, 'video/mp4');
+    expect(result.relativePath).toMatch(
+      /^crypto-news-ads\/ad-1\/[0-9a-f-]+\.mp4$/,
+    );
+    expect(result.size).toBe(buffer.byteLength);
+    const onDisk = await fs.readFile(
+      path.join(uploadsRoot, result.relativePath),
+    );
+    expect(onDisk.equals(buffer)).toBe(true);
+  });
+
+  it('rejects an ad attachment over 50 MB with VALIDATION', async () => {
+    await expect(
+      adapter.store('ad-1', Buffer.alloc(50 * 1024 * 1024 + 1), 'video/mp4'),
+    ).rejects.toMatchObject({ code: ErrorCode.VALIDATION });
+  });
+
+  it('rejects a library file over 50 MB with VALIDATION', async () => {
+    const contentHash =
+      'deadbeef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
+    await expect(
+      adapter.storeLibraryFile(
+        Buffer.alloc(50 * 1024 * 1024 + 1),
+        'video/mp4',
+        contentHash,
+      ),
+    ).rejects.toMatchObject({ code: ErrorCode.VALIDATION });
+  });
 });

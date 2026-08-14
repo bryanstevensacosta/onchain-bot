@@ -1,4 +1,7 @@
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsIn,
   IsInt,
@@ -26,7 +29,23 @@ export class CreateAdDto {
 
   @IsString()
   @IsNotEmpty()
+  @ValidateIf((o) => o.format === undefined || o.format === 'text')
+  @MaxLength(4096)
   public body!: string;
+
+  @IsOptional()
+  @IsIn(['text', 'photo', 'video', 'album'])
+  public format?: 'text' | 'photo' | 'video' | 'album';
+
+  @IsOptional()
+  @IsString()
+  public videoMediaId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  public albumMediaIds?: string[];
 
   @IsOptional()
   @ValidateIf((o) => o.expiresAt !== undefined && o.expiresAt !== null)
@@ -48,7 +67,23 @@ export class UpdateAdDto {
   @IsOptional()
   @IsString()
   @IsNotEmpty()
+  @ValidateIf((o) => o.format === undefined || o.format === 'text')
+  @MaxLength(4096)
   public body?: string;
+
+  @IsOptional()
+  @IsIn(['text', 'photo', 'video', 'album'])
+  public format?: 'text' | 'photo' | 'video' | 'album';
+
+  @IsOptional()
+  @IsString()
+  public videoMediaId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  public albumMediaIds?: string[];
 
   @IsOptional()
   @IsBoolean()
@@ -88,4 +123,12 @@ export class UpdateRotationConfigDto {
 export class ReuseAdImageDto {
   @IsUUID()
   public libraryMediaId!: string;
+}
+
+export class ReuseLibraryImagesDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(10)
+  @IsUUID(4, { each: true })
+  public libraryMediaIds!: string[];
 }

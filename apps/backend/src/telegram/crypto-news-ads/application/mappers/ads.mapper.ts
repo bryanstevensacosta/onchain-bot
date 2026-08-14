@@ -10,6 +10,9 @@ export interface AdView {
   readonly name: string;
   readonly body: string;
   readonly imageMediaId: string | null;
+  readonly format: 'text' | 'photo' | 'video' | 'album';
+  readonly videoMediaId: string | null;
+  readonly albumMediaIds: string[] | null;
   readonly enabled: boolean;
   readonly order: number;
   readonly timesPublished: number;
@@ -32,6 +35,9 @@ export const toAdView = (ad: Ad): AdView => ({
   name: ad.name,
   body: ad.body,
   imageMediaId: ad.imageMediaId,
+  format: ad.format,
+  videoMediaId: ad.videoMediaId,
+  albumMediaIds: ad.albumMediaIds,
   enabled: ad.enabled,
   order: ad.order,
   timesPublished: ad.timesPublished,
@@ -54,11 +60,16 @@ export const toRotationConfigView = (
 /**
  * Applies a partial PATCH payload onto an existing immutable `Ad`,
  * returning a NEW instance. `expiresAt` supports explicit null (clears)
- * vs undefined (unchanged).
+ * vs undefined (unchanged); `videoMediaId`/`albumMediaIds` follow the
+ * same explicit-null-clears convention.
  *
  * Image changes do NOT go through PATCH — they use the dedicated
  * upload/clear command (`imageMediaId` is read-only from this mapper's
- * perspective and is preserved from the untouched `ad`).
+ * perspective and is preserved from the untouched `ad`). Format changes
+ * DO go through PATCH: `format`, `videoMediaId` and `albumMediaIds` are
+ * patchable, and the per-format media invariant is enforced on the
+ * RESULTING ad via `Ad.validateInvariants()` (photo needs imageMediaId,
+ * video needs videoMediaId, album needs ≥1 albumMediaId).
  *
  * The expiry invariant is enforced on the RESULTING ad: whenever the
  * patched ad is or would become enabled, it is built through
@@ -76,6 +87,9 @@ export const applyAdPatch = (
     order?: number;
     expiresAt?: Date | null;
     expirationAction?: 'disable' | 'delete';
+    format?: 'text' | 'photo' | 'video' | 'album';
+    videoMediaId?: string | null;
+    albumMediaIds?: string[] | null;
   },
   now: Date = new Date(),
 ): Ad => {
@@ -84,6 +98,13 @@ export const applyAdPatch = (
     name: patch.name ?? ad.name,
     body: patch.body ?? ad.body,
     imageMediaId: ad.imageMediaId,
+    format: patch.format ?? ad.format,
+    videoMediaId:
+      patch.videoMediaId !== undefined ? patch.videoMediaId : ad.videoMediaId,
+    albumMediaIds:
+      patch.albumMediaIds !== undefined
+        ? patch.albumMediaIds
+        : ad.albumMediaIds,
     enabled: patch.enabled ?? ad.enabled,
     order: patch.order ?? ad.order,
     timesPublished: ad.timesPublished,
@@ -95,6 +116,7 @@ export const applyAdPatch = (
     updatedAt: ad.updatedAt,
   };
   const resulting = Ad.fromSnapshot(props);
+  resulting.validateInvariants();
   if (patch.enabled === false) {
     return resulting.disable();
   }

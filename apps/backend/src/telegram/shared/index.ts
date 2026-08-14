@@ -1,6 +1,7 @@
 export {
   TelegramPublisherPort,
   type SendResult,
+  type TelegramPublishOptions,
 } from './domain/ports/telegram-publisher.port';
 export {
   MessageFormatterPort,
