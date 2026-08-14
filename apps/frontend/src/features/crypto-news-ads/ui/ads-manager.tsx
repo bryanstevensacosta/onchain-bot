@@ -382,31 +382,34 @@ function AdModal({
           >
             Body <span className="text-red-400">*</span>
           </label>
-          {format === 'text' && (
-            <div className="flex flex-wrap gap-1 mb-1.5">
-              {TOOLBAR_BUTTONS.map((btn) => (
-                <button
-                  key={btn.label}
-                  type="button"
-                  title={btn.title}
-                  onClick={() => wrapSelection(btn.open, btn.close)}
-                  disabled={pending}
-                  className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-xs leading-none"
-                >
-                  {btn.label}
-                </button>
-              ))}
+          {/* Formatting toolbar renders for all formats: the body is published
+              as the Telegram caption with parse_mode HTML (sendPhoto/sendVideo/
+              sendMediaGroup in bot-api-crypto-news-publisher.adapter.ts). Note
+              media captions truncate to 1024 chars (CAPTION_MAX_LENGTH) vs 4096
+              for text-only messages. */}
+          <div className="flex flex-wrap gap-1 mb-1.5">
+            {TOOLBAR_BUTTONS.map((btn) => (
               <button
+                key={btn.label}
                 type="button"
-                title="Link"
-                onClick={handleLinkTool}
+                title={btn.title}
+                onClick={() => wrapSelection(btn.open, btn.close)}
                 disabled={pending}
                 className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-xs leading-none"
               >
-                Link
+                {btn.label}
               </button>
-            </div>
-          )}
+            ))}
+            <button
+              type="button"
+              title="Link"
+              onClick={handleLinkTool}
+              disabled={pending}
+              className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-xs leading-none"
+            >
+              Link
+            </button>
+          </div>
           <textarea
             ref={bodyRef}
             id="ad-body"
