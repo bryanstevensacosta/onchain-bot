@@ -92,6 +92,30 @@ describe('UploadAdImageUseCase', () => {
     expect(adMediaRepo.delete).not.toHaveBeenCalled();
   });
 
+  it('preserves the ad format (photo) and the video/album media fields when rebuilding the ad after upload', async () => {
+    const ad = Ad.create({
+      id: 'ad-1',
+      name: 'Sponsor',
+      body: 'promo',
+      format: 'photo',
+      imageMediaId: 'img-1',
+    });
+    adRepo.findById.mockResolvedValue(ad);
+    storage.store.mockResolvedValue({
+      relativePath: 'crypto-news-ads/ad-1/uuid.png',
+      size: 1024,
+    });
+    adMediaRepo.save.mockImplementation(async (media) => media);
+
+    await useCase.execute({ adId: 'ad-1', buffer: pngBuffer() });
+
+    expect(adRepo.save).toHaveBeenCalledTimes(1);
+    const savedAd = adRepo.save.mock.calls[0][0];
+    expect(savedAd.format).toBe('photo');
+    expect(savedAd.videoMediaId).toBeNull();
+    expect(savedAd.albumMediaIds).toBeNull();
+  });
+
   it('rejects an empty buffer with VALIDATION and writes nothing', async () => {
     await expect(
       useCase.execute({ adId: 'ad-1', buffer: Buffer.alloc(0) }),

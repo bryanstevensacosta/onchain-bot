@@ -124,11 +124,17 @@ export class UploadAdImageUseCase {
     await this.adMediaRepo.save(record);
 
     // The domain `Ad` is immutable — rebuild it with the new media id.
+    // The format fields must be carried over explicitly: `fromSnapshot`
+    // defaults omitted ones to `'text'`/null, which would silently
+    // downgrade a photo/video/album ad on every image upload.
     const updatedAd = Ad.fromSnapshot({
       id: ad.id,
       name: ad.name,
       body: ad.body,
+      format: ad.format,
       imageMediaId: record.id,
+      videoMediaId: ad.videoMediaId,
+      albumMediaIds: ad.albumMediaIds,
       enabled: ad.enabled,
       order: ad.order,
       timesPublished: ad.timesPublished,
@@ -139,6 +145,7 @@ export class UploadAdImageUseCase {
       createdAt: ad.createdAt,
       updatedAt: ad.updatedAt,
     });
+    updatedAd.validateInvariants();
     await this.adRepo.save(updatedAd);
 
     if (oldMedia) {
