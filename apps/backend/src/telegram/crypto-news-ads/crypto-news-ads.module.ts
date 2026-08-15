@@ -25,6 +25,7 @@ import { UploadAdVideoUseCase } from 'telegram/crypto-news-ads/application/handl
 import { ClearAdVideoUseCase } from 'telegram/crypto-news-ads/application/handlers/clear-ad-video.use-case';
 import { ReuseLibraryImagesUseCase } from 'telegram/crypto-news-ads/application/handlers/reuse-library-images.use-case';
 import { RotationDeciderService } from 'telegram/crypto-news-ads/application/services/rotation-decider.service';
+import { AdFormatPublisherService } from 'telegram/crypto-news-ads/application/services/ad-format-publisher.service';
 import { AdsCronScheduler } from 'telegram/crypto-news-ads/application/scheduling/ads-cron.scheduler';
 import {
   AdsController,
@@ -90,6 +91,7 @@ import { AdsThrottleStateEntity } from 'telegram/crypto-news-ads/infrastructure/
     ClearAdVideoUseCase,
     ReuseLibraryImagesUseCase,
     RotationDeciderService,
+    AdFormatPublisherService,
     AdsCronScheduler,
     {
       provide: AdRepository,

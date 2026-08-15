@@ -1,17 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { existsSync } from 'node:fs';
-import * as path from 'node:path';
-import type { AppConfig } from 'shared/common/config/app.config';
 import { AdRepository } from 'telegram/crypto-news-ads/application/ports/ad.repository';
 import { AdRotationConfigRepository } from 'telegram/crypto-news-ads/application/ports/ad-rotation-config.repository';
 import { AdRotationStateRepository } from 'telegram/crypto-news-ads/application/ports/ad-rotation-state.repository';
-import { AdMediaRepository } from 'telegram/crypto-news-ads/application/ports/ad-media.repository';
-import { Ad } from 'telegram/crypto-news-ads/domain/entities/ad.entity';
 import { SharedThrottleSchedulerService } from 'telegram/shared/application/services/shared-throttle-scheduler.service';
 import { SlotArbitratorPort } from 'telegram/shared/domain/ports/slot-arbitrator.port';
-import { TelegramPublisherPort, type SendResult } from 'telegram/shared';
 import { RotationDeciderService } from 'telegram/crypto-news-ads/application/services/rotation-decider.service';
+import { AdFormatPublisherService } from 'telegram/crypto-news-ads/application/services/ad-format-publisher.service';
 
 /**
  * Per-tick orchestration for the ads publisher. Mirrors
@@ -27,12 +21,9 @@ import { RotationDeciderService } from 'telegram/crypto-news-ads/application/ser
  *   4. Throttle: `sharedThrottle.shouldPublish()` false → return.
  *   5. Decision: `RotationDeciderService.shouldPublishAd` → not a
  *      publish → return.
- *   6. Publish: `text` posts are pure text via `sendMessage` (any
- *      `imageMediaId` is ignored). `photo` posts use `sendPhoto` when
- *      the ad has a resolvable local image (`imageMediaId` → media row
- *      → file on disk), `sendMessage` otherwise. Missing media row or
- *      file degrades to text with a warn — NEVER throws (the publish
- *      loop must survive).
+ *   6. Publish: format dispatch + media resolution are delegated to
+ *      `AdFormatPublisherService.publish` (see its doc) — it NEVER
+ *      throws (the publish loop must survive).
  *   7. Success: persist all four state transitions.
  *   8. Failure: increment failures (disable after 3) — and NEVER burn
  *      ads on a not-configured deploy (see `isNotConfiguredError`).
@@ -48,9 +39,7 @@ export class PublishAdUseCase {
     private readonly sharedThrottle: SharedThrottleSchedulerService,
     private readonly slotArbitrator: SlotArbitratorPort,
     private readonly decider: RotationDeciderService,
-    private readonly publisher: TelegramPublisherPort,
-    private readonly adMediaRepo: AdMediaRepository,
-    private readonly config: ConfigService,
+    private readonly adFormatPublisher: AdFormatPublisherService,
   ) {}
 
   public async execute(now: Date = new Date()): Promise<void> {
@@ -94,7 +83,7 @@ export class PublishAdUseCase {
     }
 
     const ad = decision.ad!;
-    const result = await this.publishByFormat(ad);
+    const result = await this.adFormatPublisher.publish(ad);
 
     if (result.ok && result.messageId !== null) {
       await this.rotationStateRepo.markAdPublished(ad.id, now);
@@ -108,139 +97,6 @@ export class PublishAdUseCase {
     }
 
     await this.handlePublishFailure(ad.id, result.error ?? 'unknown error');
-  }
-
-  /**
-   * Pick the Telegram Bot API method for the ad's format. All formats
-   * publish with `parseMode: 'HTML'` (the sanitizer converts raw URLs to
-   * `<a href>` and strips anything outside the Telegram HTML allowlist).
-   *
-   * - `text`: pure text post via `sendMessage` — any `imageMediaId` is
-   *   ignored (no media resolution, no disk access).
-   * - `photo`: `sendPhoto` when the ad has a resolvable local image
-   *   (`imageMediaId` → media row → file on disk), `sendMessage`
-   *   otherwise. Missing media row or file degrades to text with a warn.
-   * - `video`: `sendVideo` with `supportsStreaming: true`; missing media
-   *   degrades to `sendMessage`.
-   * - `album`: `sendMediaGroup` after resolving EVERY media id; if any
-   *   id is missing the publish is skipped and routed to failure
-   *   handling (the ad stays at the front of the rotation).
-   */
-  private async publishByFormat(ad: Ad): Promise<SendResult> {
-    switch (ad.format) {
-      case 'video': {
-        const videoPath = await this.resolveMediaPath(ad.videoMediaId, ad.id);
-        if (videoPath === null) {
-          return this.publisher.sendMessage('', ad.body, undefined, {
-            parseMode: 'HTML',
-          });
-        }
-        return this.publisher.sendVideo('', ad.body, videoPath, {
-          parseMode: 'HTML',
-          supportsStreaming: true,
-        });
-      }
-      case 'album': {
-        const albumPaths = await this.resolveAlbumPaths(ad);
-        if (albumPaths === null) {
-          return {
-            ok: false,
-            messageId: null,
-            error: `ad ${ad.id} album media missing — skipping`,
-          };
-        }
-        return this.publisher.sendMediaGroup('', ad.body, albumPaths, {
-          parseMode: 'HTML',
-        });
-      }
-      case 'text': {
-        // Pure text post — imageMediaId is deliberately ignored.
-        return this.publisher.sendMessage('', ad.body, undefined, {
-          parseMode: 'HTML',
-        });
-      }
-      case 'photo': {
-        const mediaPath = await this.resolveMediaPath(ad.imageMediaId, ad.id);
-        if (mediaPath === null) {
-          return this.publisher.sendMessage('', ad.body, undefined, {
-            parseMode: 'HTML',
-          });
-        }
-        return this.publisher.sendPhoto('', ad.body, mediaPath, {
-          parseMode: 'HTML',
-        });
-      }
-      default: {
-        return this.publisher.sendMessage('', ad.body, undefined, {
-          parseMode: 'HTML',
-        });
-      }
-    }
-  }
-
-  /**
-   * Resolve the absolute on-disk path for a media id, or `null` when
-   * the id is absent, the media row is gone, or the file is missing
-   * from disk. Any of those degrades the publish to `sendMessage` with
-   * a warn — the publish loop must never crash on a stale media ref.
-   */
-  private async resolveMediaPath(
-    mediaId: string | null,
-    adId: string,
-  ): Promise<string | null> {
-    if (mediaId === null) {
-      return null;
-    }
-    const media = await this.adMediaRepo.findById(mediaId);
-    if (media === null) {
-      this.logger.warn(
-        `ad ${adId} has mediaId ${mediaId} but no media row — ` +
-          `publishing as text`,
-      );
-      return null;
-    }
-    const appCfg = this.config.getOrThrow<AppConfig>('app');
-    const absPath = path.join(appCfg.uploadsRoot, media.filePath);
-    if (!existsSync(absPath)) {
-      this.logger.warn(
-        `ad ${adId} media file missing at ${absPath} — publishing as text`,
-      );
-      return null;
-    }
-    return absPath;
-  }
-
-  /**
-   * Resolve the absolute on-disk paths for an album, or `null` when any
-   * media id is missing (no row or no file). The album is skipped as a
-   * whole — a partial album would look broken in Telegram.
-   */
-  private async resolveAlbumPaths(ad: Ad): Promise<string[] | null> {
-    if (ad.albumMediaIds === null || ad.albumMediaIds.length === 0) {
-      return null;
-    }
-    const appCfg = this.config.getOrThrow<AppConfig>('app');
-    const paths: string[] = [];
-    for (const mediaId of ad.albumMediaIds) {
-      const media = await this.adMediaRepo.findById(mediaId);
-      if (media === null) {
-        this.logger.warn(
-          `ad ${ad.id} album media ${mediaId} has no media row — ` +
-            `skipping ad`,
-        );
-        return null;
-      }
-      const absPath = path.join(appCfg.uploadsRoot, media.filePath);
-      if (!existsSync(absPath)) {
-        this.logger.warn(
-          `ad ${ad.id} album media file missing at ${absPath} — ` +
-            `skipping ad`,
-        );
-        return null;
-      }
-      paths.push(absPath);
-    }
-    return paths;
   }
 
   /**
