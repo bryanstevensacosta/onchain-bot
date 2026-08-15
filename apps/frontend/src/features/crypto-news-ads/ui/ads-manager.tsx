@@ -13,6 +13,7 @@ import {
   useCreateAd,
   useDeleteAd,
   useMediaLibrary,
+  usePublishAdNow,
   useReuseLibraryImage,
   useReuseLibraryImages,
   useUpdateAd,
@@ -922,6 +923,7 @@ export function AdsManager(): React.ReactElement {
   const reuseMut = useReuseLibraryImage();
   const uploadVideoMut = useUploadAdVideo();
   const reuseImagesMut = useReuseLibraryImages();
+  const publishNowMut = usePublishAdNow();
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -1111,6 +1113,46 @@ export function AdsManager(): React.ReactElement {
     deleteMut.mutate(item.id);
   }
 
+  function handlePublishNow(item: AdView) {
+    if (typeof window !== 'undefined') {
+      const ok = window.confirm(`Send ad "${item.name}" to Telegram now?`);
+      if (!ok) return;
+    }
+    publishNowMut.mutate(item.id);
+  }
+
+  /**
+   * Inline feedback for the manual "Send now" publish. `publishNowMut` is a
+   * SINGLE shared mutation across all rows, so the success/error span must be
+   * gated on `publishNowMut.variables === item.id` — otherwise every row would
+   * show the last publish's outcome.
+   */
+  function renderPublishFeedback(item: AdView) {
+    if (publishNowMut.variables !== item.id) return null;
+    if (publishNowMut.isSuccess && publishNowMut.data?.ok) {
+      return (
+        <span className="text-xs text-green-400">
+          Sent (msg {publishNowMut.data.messageId})
+        </span>
+      );
+    }
+    // 200-with-ok:false is NOT a thrown error — the http-client only throws on
+    // non-2xx, so `data.ok` must be checked explicitly alongside `error`.
+    const errorMessage =
+      publishNowMut.error?.message ??
+      (publishNowMut.data && !publishNowMut.data.ok
+        ? publishNowMut.data.error
+        : null);
+    if (errorMessage) {
+      return (
+        <span role="alert" className="text-xs text-red-400">
+          {errorMessage}
+        </span>
+      );
+    }
+    return null;
+  }
+
   return (
     <Card>
       <div className="flex items-center justify-between mb-4">
@@ -1284,22 +1326,33 @@ export function AdsManager(): React.ReactElement {
                     )}
                   </td>
                   <td className="py-2 pr-3 text-right">
-                    <div className="inline-flex gap-2">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleOpenEdit(item)}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => handleDelete(item)}
-                        disabled={deleteMut.isPending}
-                      >
-                        Delete
-                      </Button>
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="inline-flex gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handlePublishNow(item)}
+                          disabled={publishNowMut.isPending}
+                        >
+                          Send now
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleOpenEdit(item)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => handleDelete(item)}
+                          disabled={deleteMut.isPending}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                      {renderPublishFeedback(item)}
                     </div>
                   </td>
                 </tr>

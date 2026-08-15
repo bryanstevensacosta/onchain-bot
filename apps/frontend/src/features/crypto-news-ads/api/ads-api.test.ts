@@ -10,6 +10,7 @@ import {
   clearAdVideo,
   fetchMediaLibrary,
   libraryImageUrl,
+  publishAdNow,
   reuseLibraryImage,
   reuseLibraryImages,
   uploadAdImage,
@@ -17,6 +18,7 @@ import {
   type AdView,
   type CreateAdBody,
   type MediaLibraryView,
+  type PublishAdNowResult,
   type UpdateAdBody,
 } from './ads-api';
 
@@ -334,6 +336,78 @@ describe('reuseLibraryImages', () => {
     );
     await expect(reuseLibraryImages('ad-1', ['lib-1'])).rejects.toThrow(
       'POST /crypto-news-ads/ads/ad-1/reuse-library-images → 404',
+    );
+  });
+});
+
+describe('publishAdNow', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('POSTs an empty JSON body to the publish-now endpoint and maps the response', async () => {
+    const resultBody: PublishAdNowResult = {
+      ok: true,
+      messageId: 42,
+      error: null,
+    };
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse(resultBody));
+
+    const result = await publishAdNow('ad-1');
+
+    expect(result).toEqual(resultBody);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] as [
+      string,
+      RequestInit | undefined,
+    ];
+    expect(url).toContain('/crypto-news-ads/ads/ad-1/publish-now');
+    expect(init?.method).toBe('POST');
+    expect(init?.headers).toEqual({ 'Content-Type': 'application/json' });
+    expect(init?.body).toBe(JSON.stringify({}));
+  });
+
+  it('URL-encodes the ad id in the path', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        jsonResponse({ ok: true, messageId: 42, error: null }),
+      );
+
+    await publishAdNow('ad/1');
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
+      '/ads/ad%2F1/publish-now',
+    );
+  });
+
+  it('maps a 200 ok:false send failure as data, not a thrown error', async () => {
+    const failureBody: PublishAdNowResult = {
+      ok: false,
+      messageId: null,
+      error: 'telegram down',
+    };
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse(failureBody));
+
+    const result = await publishAdNow('ad-1');
+
+    expect(result).toEqual(failureBody);
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe('telegram down');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects with an HttpError when the server returns 404', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ message: 'nope' }, { status: 404 }),
+    );
+
+    await expect(publishAdNow('ad-1')).rejects.toThrow(HttpError);
+    await expect(publishAdNow('ad-1')).rejects.toThrow(
+      'POST /crypto-news-ads/ads/ad-1/publish-now → 404',
     );
   });
 });

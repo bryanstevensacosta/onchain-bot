@@ -167,6 +167,19 @@ export async function reuseLibraryImages(
   );
 }
 
+export interface PublishAdNowResult {
+  readonly ok: boolean;
+  readonly messageId: number | null;
+  readonly error: string | null;
+}
+
+export async function publishAdNow(id: string): Promise<PublishAdNowResult> {
+  return httpPost<object, PublishAdNowResult>(
+    `/crypto-news-ads/ads/${encodeURIComponent(id)}/publish-now`,
+    {},
+  );
+}
+
 export function libraryImageUrl(libraryMediaId: string): string {
   return `/crypto-news-ads/media-library/${encodeURIComponent(libraryMediaId)}`;
 }

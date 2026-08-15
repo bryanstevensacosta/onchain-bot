@@ -58,6 +58,7 @@ function makeLib(
 
 const updateAdMock = vi.fn();
 const reuseMutMock = vi.fn();
+const publishNowMutMock = vi.fn();
 
 vi.mock('@/features/crypto-news-ads/model/use-ads', () => ({
   useAds: vi.fn(),
@@ -68,6 +69,7 @@ vi.mock('@/features/crypto-news-ads/model/use-ads', () => ({
   useUploadAdVideo: vi.fn(),
   useClearAdImage: vi.fn(),
   useMediaLibrary: vi.fn(),
+  usePublishAdNow: vi.fn(),
   useReuseLibraryImage: vi.fn(),
   useReuseLibraryImages: vi.fn(),
 }));
@@ -78,6 +80,7 @@ import {
   useCreateAd,
   useDeleteAd,
   useMediaLibrary,
+  usePublishAdNow,
   useReuseLibraryImage,
   useReuseLibraryImages,
   useUpdateAd,
@@ -93,6 +96,7 @@ const mockedUseUploadAdImage = vi.mocked(useUploadAdImage);
 const mockedUseUploadAdVideo = vi.mocked(useUploadAdVideo);
 const mockedUseClearAdImage = vi.mocked(useClearAdImage);
 const mockedUseMediaLibrary = vi.mocked(useMediaLibrary);
+const mockedUsePublishAdNow = vi.mocked(usePublishAdNow);
 const mockedUseReuseLibraryImage = vi.mocked(useReuseLibraryImage);
 const mockedUseReuseLibraryImages = vi.mocked(useReuseLibraryImages);
 
@@ -100,6 +104,7 @@ describe('AdsManager', () => {
   beforeEach(() => {
     updateAdMock.mockReset();
     reuseMutMock.mockReset();
+    publishNowMutMock.mockReset();
     mockedUseCreateAd.mockReturnValue({
       isPending: false,
       isError: false,
@@ -158,6 +163,17 @@ describe('AdsManager', () => {
       data: [],
       isLoading: false,
       error: null,
+    } as never);
+    mockedUsePublishAdNow.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      data: undefined,
+      variables: undefined,
+      mutate: publishNowMutMock,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
     } as never);
     mockedUseReuseLibraryImage.mockReturnValue({
       isPending: false,
@@ -514,6 +530,135 @@ describe('AdsManager', () => {
 
     expect(clearMut).not.toHaveBeenCalled();
     confirmSpy.mockRestore();
+  });
+
+  it('sends the ad to Telegram now after confirmation', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd()],
+      isLoading: false,
+      error: null,
+    } as never);
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('Send now'));
+
+    expect(publishNowMutMock).toHaveBeenCalledWith('ad-1');
+    confirmSpy.mockRestore();
+  });
+
+  it('does not send the ad when the confirmation is dismissed', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd()],
+      isLoading: false,
+      error: null,
+    } as never);
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('Send now'));
+
+    expect(publishNowMutMock).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it('shows inline confirmation only on the published row', () => {
+    mockedUseAds.mockReturnValue({
+      data: [
+        makeAd({ id: 'ad-1', name: 'Alpha', order: 0 }),
+        makeAd({ id: 'ad-2', name: 'Bravo', order: 1 }),
+      ],
+      isLoading: false,
+      error: null,
+    } as never);
+    mockedUsePublishAdNow.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: true,
+      error: null,
+      data: { ok: true, messageId: 42, error: null },
+      variables: 'ad-1',
+      mutate: publishNowMutMock,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+
+    render(<AdsManager />);
+    expect(screen.getByText('Sent (msg 42)')).toBeInTheDocument();
+    const rowAlpha = screen.getByText('Alpha').closest('tr') as HTMLElement;
+    expect(rowAlpha).not.toBeNull();
+    expect(within(rowAlpha).getByText('Sent (msg 42)')).toBeInTheDocument();
+    const rowBravo = screen.getByText('Bravo').closest('tr') as HTMLElement;
+    expect(rowBravo).not.toBeNull();
+    expect(
+      within(rowBravo).queryByText('Sent (msg 42)'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows the send failure message when publish-now returns ok:false', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd()],
+      isLoading: false,
+      error: null,
+    } as never);
+    mockedUsePublishAdNow.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: true,
+      error: null,
+      data: { ok: false, messageId: null, error: 'bot offline' },
+      variables: 'ad-1',
+      mutate: publishNowMutMock,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+
+    render(<AdsManager />);
+    expect(screen.getByText('bot offline')).toBeInTheDocument();
+  });
+
+  it('shows the transport error message when the publish request throws', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd()],
+      isLoading: false,
+      error: null,
+    } as never);
+    mockedUsePublishAdNow.mockReturnValue({
+      isPending: false,
+      isError: true,
+      isSuccess: false,
+      error: new Error('network down'),
+      data: undefined,
+      variables: 'ad-1',
+      mutate: publishNowMutMock,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+
+    render(<AdsManager />);
+    expect(screen.getByText('network down')).toBeInTheDocument();
+  });
+
+  it('disables Send now on every row while a publish is pending', () => {
+    mockedUseAds.mockReturnValue({
+      data: [makeAd()],
+      isLoading: false,
+      error: null,
+    } as never);
+    mockedUsePublishAdNow.mockReturnValue({
+      isPending: true,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      data: undefined,
+      variables: 'ad-1',
+      mutate: publishNowMutMock,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+
+    render(<AdsManager />);
+    expect(screen.getByText('Send now')).toBeDisabled();
   });
 
   it('shows an inline error when the upload fails and keeps the upload state', () => {

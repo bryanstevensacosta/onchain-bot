@@ -8,6 +8,7 @@ import {
   fetchAds,
   fetchMediaLibrary,
   fetchRotationConfig,
+  publishAdNow,
   reuseLibraryImage,
   reuseLibraryImages,
   updateAd,
@@ -61,6 +62,16 @@ export function useDeleteAd() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteAd(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adsKeys.all });
+    },
+  });
+}
+
+export function usePublishAdNow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => publishAdNow(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: adsKeys.all });
     },
