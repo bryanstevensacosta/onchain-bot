@@ -12,7 +12,7 @@ import { AdRotationConfigRepository } from 'telegram/crypto-news-ads/application
  * two crons never contend with each other — each ticks independently
  * every minute. All replicas must use the SAME id within one scope.
  */
-const ADS_ADVISORY_LOCK_ID = 8_013_203;
+export const ADS_ADVISORY_LOCK_ID = 8_013_203;
 
 /**
  * Cron scheduler for the ads rotation.

@@ -22,6 +22,7 @@ import { ReuseLibraryImageUseCase } from 'telegram/crypto-news-ads/application/h
 import { UploadAdVideoUseCase } from 'telegram/crypto-news-ads/application/handlers/upload-ad-video.use-case';
 import { ClearAdVideoUseCase } from 'telegram/crypto-news-ads/application/handlers/clear-ad-video.use-case';
 import { ReuseLibraryImagesUseCase } from 'telegram/crypto-news-ads/application/handlers/reuse-library-images.use-case';
+import { PublishAdNowUseCase } from 'telegram/crypto-news-ads/application/handlers/publish-ad-now.use-case';
 import { Ad } from 'telegram/crypto-news-ads/domain/entities/ad.entity';
 import { toAdView } from 'telegram/crypto-news-ads/application/mappers/ads.mapper';
 
@@ -97,6 +98,7 @@ describe('AdsController', () => {
   let uploadVideoUseCase: jest.Mocked<UploadAdVideoUseCase>;
   let clearVideoUseCase: jest.Mocked<ClearAdVideoUseCase>;
   let reuseLibraryImagesUseCase: jest.Mocked<ReuseLibraryImagesUseCase>;
+  let publishAdNowUseCase: jest.Mocked<PublishAdNowUseCase>;
   let uploadsRoot: string;
 
   const PAST = new Date('2020-01-01T00:00:00.000Z');
@@ -172,6 +174,10 @@ describe('AdsController', () => {
           useValue: { execute: jest.fn() },
         },
         {
+          provide: PublishAdNowUseCase,
+          useValue: { execute: jest.fn() },
+        },
+        {
           provide: ConfigService,
           useValue: { getOrThrow: jest.fn(() => ({ uploadsRoot })) },
         },
@@ -190,6 +196,7 @@ describe('AdsController', () => {
     uploadVideoUseCase = module.get(UploadAdVideoUseCase);
     clearVideoUseCase = module.get(ClearAdVideoUseCase);
     reuseLibraryImagesUseCase = module.get(ReuseLibraryImagesUseCase);
+    publishAdNowUseCase = module.get(PublishAdNowUseCase);
   });
 
   afterEach(async () => {
@@ -613,6 +620,52 @@ describe('AdsController', () => {
       expect(adMediaRepo.delete).toHaveBeenCalledWith(albumA.id);
       expect(adMediaRepo.delete).toHaveBeenCalledWith(albumB.id);
       expect(adRepo.delete).toHaveBeenCalledWith(AD_UUID);
+    });
+  });
+
+  describe('publishNow', () => {
+    it('publishes an existing ad and returns the use-case result', async () => {
+      const ad = buildAd({ id: AD_UUID });
+      adRepo.findById.mockResolvedValue(ad);
+      publishAdNowUseCase.execute.mockResolvedValue({
+        ok: true,
+        messageId: 42,
+        error: null,
+      });
+      const result = await controller.publishNow(AD_UUID);
+      expect(result).toEqual({ ok: true, messageId: 42, error: null });
+      expect(publishAdNowUseCase.execute).toHaveBeenCalledWith(
+        ad,
+        expect.any(Date),
+      );
+    });
+
+    it('returns 404 when the ad does not exist', async () => {
+      adRepo.findById.mockResolvedValue(null);
+      await expect(controller.publishNow(AD_UUID)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(publishAdNowUseCase.execute).not.toHaveBeenCalled();
+    });
+
+    it('returns 404 for a non-UUID id without hitting the repo', async () => {
+      await expect(controller.publishNow('not-a-uuid')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(adRepo.findById).not.toHaveBeenCalled();
+      expect(publishAdNowUseCase.execute).not.toHaveBeenCalled();
+    });
+
+    it('propagates an ok:false send outcome as the returned object', async () => {
+      const ad = buildAd({ id: AD_UUID });
+      adRepo.findById.mockResolvedValue(ad);
+      publishAdNowUseCase.execute.mockResolvedValue({
+        ok: false,
+        messageId: null,
+        error: 'boom',
+      });
+      const result = await controller.publishNow(AD_UUID);
+      expect(result).toEqual({ ok: false, messageId: null, error: 'boom' });
     });
   });
 

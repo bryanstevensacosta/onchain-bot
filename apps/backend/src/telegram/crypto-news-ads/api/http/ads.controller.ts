@@ -28,6 +28,10 @@ import { ReuseLibraryImageUseCase } from 'telegram/crypto-news-ads/application/h
 import { UploadAdVideoUseCase } from 'telegram/crypto-news-ads/application/handlers/upload-ad-video.use-case';
 import { ClearAdVideoUseCase } from 'telegram/crypto-news-ads/application/handlers/clear-ad-video.use-case';
 import { ReuseLibraryImagesUseCase } from 'telegram/crypto-news-ads/application/handlers/reuse-library-images.use-case';
+import {
+  PublishAdNowUseCase,
+  type PublishAdNowResult,
+} from 'telegram/crypto-news-ads/application/handlers/publish-ad-now.use-case';
 import { Ad } from 'telegram/crypto-news-ads/domain/entities/ad.entity';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import {
@@ -75,6 +79,11 @@ const UUID_RE =
  *  - POST   /:id/reuse-library-images  Set the ad album from 1..10
  *                        media-library entries (delegates to
  *                        `ReuseLibraryImagesUseCase`)
+ *  - POST   /:id/publish-now  Send the ad to Telegram immediately,
+ *                        bypassing rotation gates (delegates to
+ *                        `PublishAdNowUseCase`; returns
+ *                        `{ok,messageId,error}` — HTTP 200 even when
+ *                        `ok:false`, 404 for unknown id)
  *
  * Request bodies validated by the global `ValidationPipe` (400 on
  * shape violations). `Ad` is immutable — PATCH rebuilds via
@@ -92,6 +101,7 @@ export class AdsController {
     private readonly uploadVideoUseCase: UploadAdVideoUseCase,
     private readonly clearVideoUseCase: ClearAdVideoUseCase,
     private readonly reuseLibraryImagesUseCase: ReuseLibraryImagesUseCase,
+    private readonly publishAdNowUseCase: PublishAdNowUseCase,
   ) {}
 
   @Get()
@@ -233,6 +243,18 @@ export class AdsController {
       adId: id,
       libraryMediaIds: dto.libraryMediaIds,
     });
+  }
+
+  @Post(':id/publish-now')
+  public async publishNow(
+    @Param('id') id: string,
+  ): Promise<PublishAdNowResult> {
+    AdsController.ensureAdId(id);
+    const ad = await this.adRepo.findById(id);
+    if (!ad) {
+      throw new NotFoundException(`Ad ${id} not found`);
+    }
+    return this.publishAdNowUseCase.execute(ad, new Date());
   }
 
   @Delete(':id')
