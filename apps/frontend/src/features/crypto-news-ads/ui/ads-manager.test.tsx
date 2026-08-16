@@ -13,8 +13,8 @@ import {
 import {
   AdsManager,
   formatExpiresIn,
-  isoToLocalInput,
-  localInputToIso,
+  isoToUtcInput,
+  utcInputToIso,
 } from './ads-manager';
 import type { AdView, MediaLibraryView } from '../api/ads-api';
 
@@ -364,7 +364,7 @@ describe('AdsManager', () => {
     } as never);
     render(<AdsManager />);
     fireEvent.click(screen.getByText('+ Add Ad'));
-    expect(screen.getByLabelText('Expires at')).toBeInTheDocument();
+    expect(screen.getByLabelText('Expires at (UTC)')).toBeInTheDocument();
     expect(screen.getByLabelText('On expiry')).toBeInTheDocument();
   });
 
@@ -393,7 +393,7 @@ describe('AdsManager', () => {
     fireEvent.change(screen.getByLabelText(/Body/), {
       target: { value: 'Buy now' },
     });
-    fireEvent.change(screen.getByLabelText('Expires at'), {
+    fireEvent.change(screen.getByLabelText('Expires at (UTC)'), {
       target: { value: '2026-08-10T12:00' },
     });
     fireEvent.change(screen.getByLabelText('On expiry'), {
@@ -405,7 +405,7 @@ describe('AdsManager', () => {
       {
         name: 'New banner',
         body: 'Buy now',
-        expiresAt: localInputToIso('2026-08-10T12:00'),
+        expiresAt: '2026-08-10T12:00:00Z',
         expirationAction: 'delete',
       },
       expect.anything(),
@@ -425,8 +425,8 @@ describe('AdsManager', () => {
     } as never);
     render(<AdsManager />);
     fireEvent.click(screen.getByText('Edit'));
-    expect(screen.getByLabelText('Expires at')).toHaveValue(
-      isoToLocalInput('2026-08-10T12:00:00.000Z'),
+    expect(screen.getByLabelText('Expires at (UTC)')).toHaveValue(
+      '2026-08-10T12:00',
     );
     expect(screen.getByLabelText('On expiry')).toHaveValue('delete');
   });
@@ -439,7 +439,7 @@ describe('AdsManager', () => {
     } as never);
     render(<AdsManager />);
     fireEvent.click(screen.getByText('Edit'));
-    fireEvent.change(screen.getByLabelText('Expires at'), {
+    fireEvent.change(screen.getByLabelText('Expires at (UTC)'), {
       target: { value: '' },
     });
     fireEvent.click(screen.getByText('Save'));
@@ -1778,20 +1778,22 @@ describe('formatExpiresIn', () => {
   });
 });
 
-describe('iso/local conversion helpers', () => {
-  it('round-trips a local input through ISO', () => {
-    const local = isoToLocalInput('2026-08-06T12:00:00.000Z');
-    const iso = localInputToIso(local);
-    expect(iso).not.toBeNull();
-    expect(isoToLocalInput(iso!)).toBe(local);
+describe('iso/utc conversion helpers', () => {
+  it('round-trips a UTC input through ISO', () => {
+    expect(utcInputToIso('2026-08-10T12:00')).toBe('2026-08-10T12:00:00Z');
+    expect(isoToUtcInput('2026-08-10T12:00:00.000Z')).toBe('2026-08-10T12:00');
   });
 
-  it('returns null for an empty or invalid local input', () => {
-    expect(localInputToIso('')).toBeNull();
-    expect(localInputToIso('not-a-date')).toBeNull();
+  it('interprets the input as UTC regardless of the machine timezone', () => {
+    expect(utcInputToIso('2026-08-10T12:00')).toBe('2026-08-10T12:00:00Z');
+  });
+
+  it('returns null for an empty or invalid UTC input', () => {
+    expect(utcInputToIso('')).toBeNull();
+    expect(utcInputToIso('not-a-date')).toBeNull();
   });
 
   it('returns an empty string for an invalid ISO', () => {
-    expect(isoToLocalInput('not-a-date')).toBe('');
+    expect(isoToUtcInput('not-a-date')).toBe('');
   });
 });

@@ -153,7 +153,7 @@ function AdModal({
   const [body, setBody] = useState(initialBody);
   const [format, setFormat] = useState<AdFormat>(initialFormat);
   const [expiresAt, setExpiresAt] = useState(
-    initialExpiresAt ? isoToLocalInput(initialExpiresAt) : '',
+    initialExpiresAt ? isoToUtcInput(initialExpiresAt) : '',
   );
   const [expirationAction, setExpirationAction] = useState<
     'disable' | 'delete'
@@ -189,7 +189,7 @@ function AdModal({
       setName(initialName);
       setBody(initialBody);
       setFormat(initialFormat);
-      setExpiresAt(initialExpiresAt ? isoToLocalInput(initialExpiresAt) : '');
+      setExpiresAt(initialExpiresAt ? isoToUtcInput(initialExpiresAt) : '');
       setExpirationAction(initialExpirationAction);
       setPendingImage(null);
       setPendingVideo(null);
@@ -294,7 +294,7 @@ function AdModal({
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!canSubmit) return;
-    const expiresAtIso = localInputToIso(expiresAt);
+    const expiresAtIso = utcInputToIso(expiresAt);
     onSubmit({
       name: name.trim(),
       body: body.trim(),
@@ -448,7 +448,7 @@ function AdModal({
               htmlFor="ad-expires-at"
               className="block text-xs uppercase text-slate-500 mb-1"
             >
-              Expires at
+              Expires at (UTC)
             </label>
             <input
               id="ad-expires-at"
@@ -458,6 +458,9 @@ function AdModal({
               className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
               disabled={pending}
             />
+            <p className="text-[10px] text-slate-500 mt-1">
+              times are UTC (24h)
+            </p>
           </div>
           <div>
             <label
@@ -753,19 +756,19 @@ export function formatExpiresIn(expiresAt: string | null, now: Date): string {
   return `in ${Math.floor(diffMs / MINUTE)}m`;
 }
 
-/** ISO (UTC) -> local `YYYY-MM-DDTHH:mm` for the datetime-local input. */
-export function isoToLocalInput(iso: string): string {
+/** ISO (UTC) -> UTC `YYYY-MM-DDTHH:mm` for the datetime-local input. */
+export function isoToUtcInput(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
   const pad = (n: number): string => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
 }
 
-/** Local `YYYY-MM-DDTHH:mm` (or '') -> ISO UTC with seconds trimmed; '' -> null. */
-export function localInputToIso(local: string): string | null {
-  const trimmed = local.trim();
+/** UTC `YYYY-MM-DDTHH:mm` (or '') -> ISO UTC with seconds trimmed; '' -> null. */
+export function utcInputToIso(utc: string): string | null {
+  const trimmed = utc.trim();
   if (trimmed === '') return null;
-  const d = new Date(trimmed);
+  const d = new Date(`${trimmed}Z`);
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString().replace(/\.\d{3}Z$/, 'Z');
 }
