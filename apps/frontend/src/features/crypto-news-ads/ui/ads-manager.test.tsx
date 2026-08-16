@@ -263,6 +263,32 @@ describe('AdsManager', () => {
     );
   });
 
+  it('add ad modal only closes via the × button (not backdrop or Escape)', () => {
+    mockedUseAds.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('+ Add Ad'));
+
+    // Backdrop click does NOT close the modal.
+    const backdrop = document.body.querySelector(
+      '.fixed.inset-0.z-50',
+    ) as HTMLElement;
+    expect(backdrop).not.toBeNull();
+    fireEvent.click(backdrop);
+    expect(screen.getByText('Add Ad')).toBeInTheDocument();
+
+    // Escape does NOT close the modal.
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.getByText('Add Ad')).toBeInTheDocument();
+
+    // The × button still closes it.
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByText('Add Ad')).not.toBeInTheDocument();
+  });
+
   it('toggles enabled via updateAd', () => {
     mockedUseAds.mockReturnValue({
       data: [makeAd({ enabled: true })],

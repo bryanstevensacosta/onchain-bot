@@ -116,4 +116,68 @@ describe('Modal', () => {
     );
     expect(document.body.querySelector('.max-w-lg')).toBeInTheDocument();
   });
+
+  it('backdrop click does NOT call onClose with closeOnBackdropClick=false', () => {
+    const onClose = vi.fn();
+    render(
+      <Modal
+        isOpen={true}
+        onClose={onClose}
+        title="Test"
+        closeOnBackdropClick={false}
+      >
+        content
+      </Modal>,
+    );
+    const backdrop = document.body.querySelector(
+      '.fixed.inset-0.z-50',
+    ) as HTMLElement;
+    expect(backdrop).not.toBeNull();
+    fireEvent.click(backdrop);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('ESC key does NOT call onClose with closeOnEscape=false', () => {
+    const onClose = vi.fn();
+    render(
+      <Modal isOpen={true} onClose={onClose} title="Test" closeOnEscape={false}>
+        content
+      </Modal>,
+    );
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('× button still closes with both closeOnBackdropClick and closeOnEscape false', () => {
+    const onClose = vi.fn();
+    render(
+      <Modal
+        isOpen={true}
+        onClose={onClose}
+        title="Test"
+        closeOnBackdropClick={false}
+        closeOnEscape={false}
+      >
+        content
+      </Modal>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('ESC key still closes when only closeOnBackdropClick=false', () => {
+    const onClose = vi.fn();
+    render(
+      <Modal
+        isOpen={true}
+        onClose={onClose}
+        title="Test"
+        closeOnBackdropClick={false}
+      >
+        content
+      </Modal>,
+    );
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

@@ -326,7 +326,14 @@ function AdModal({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title={title} size="md">
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={title}
+      size="md"
+      closeOnBackdropClick={false}
+      closeOnEscape={false}
+    >
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <span className="block text-xs uppercase text-slate-500 mb-1">
