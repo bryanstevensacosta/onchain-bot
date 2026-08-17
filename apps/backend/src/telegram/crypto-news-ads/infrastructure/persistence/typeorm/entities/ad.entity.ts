@@ -76,6 +76,9 @@ export class AdEntity {
   @Column({ name: 'album_media_ids', type: 'jsonb', nullable: true })
   public albumMediaIds?: string[] | null;
 
+  @Column({ name: 'buttons', type: 'jsonb', nullable: true })
+  public buttons?: Array<{ text: string; url: string }> | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   public createdAt!: Date;
 

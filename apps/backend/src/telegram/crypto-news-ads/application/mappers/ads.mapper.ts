@@ -13,6 +13,7 @@ export interface AdView {
   readonly format: 'text' | 'photo' | 'video' | 'album';
   readonly videoMediaId: string | null;
   readonly albumMediaIds: string[] | null;
+  readonly buttons: Array<{ text: string; url: string }> | null;
   readonly enabled: boolean;
   readonly order: number;
   readonly timesPublished: number;
@@ -38,6 +39,7 @@ export const toAdView = (ad: Ad): AdView => ({
   format: ad.format,
   videoMediaId: ad.videoMediaId,
   albumMediaIds: ad.albumMediaIds,
+  buttons: ad.buttons,
   enabled: ad.enabled,
   order: ad.order,
   timesPublished: ad.timesPublished,
@@ -60,8 +62,8 @@ export const toRotationConfigView = (
 /**
  * Applies a partial PATCH payload onto an existing immutable `Ad`,
  * returning a NEW instance. `expiresAt` supports explicit null (clears)
- * vs undefined (unchanged); `videoMediaId`/`albumMediaIds` follow the
- * same explicit-null-clears convention.
+ * vs undefined (unchanged); `videoMediaId`/`albumMediaIds`/`buttons`
+ * follow the same explicit-null-clears convention.
  *
  * Image changes do NOT go through PATCH — they use the dedicated
  * upload/clear command (`imageMediaId` is read-only from this mapper's
@@ -90,6 +92,7 @@ export const applyAdPatch = (
     format?: 'text' | 'photo' | 'video' | 'album';
     videoMediaId?: string | null;
     albumMediaIds?: string[] | null;
+    buttons?: Array<{ text: string; url: string }> | null;
   },
   now: Date = new Date(),
 ): Ad => {
@@ -105,6 +108,7 @@ export const applyAdPatch = (
       patch.albumMediaIds !== undefined
         ? patch.albumMediaIds
         : ad.albumMediaIds,
+    buttons: patch.buttons !== undefined ? patch.buttons : ad.buttons,
     enabled: patch.enabled ?? ad.enabled,
     order: patch.order ?? ad.order,
     timesPublished: ad.timesPublished,

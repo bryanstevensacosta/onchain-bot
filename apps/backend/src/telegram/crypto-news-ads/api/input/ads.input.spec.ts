@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import {
@@ -120,6 +121,53 @@ describe('ads.input DTOs', () => {
       const errors = await validate(dto);
       expect(errors).toHaveLength(1);
       expect(errors[0].property).toBe('expirationAction');
+    });
+
+    it('accepts a valid buttons array', async () => {
+      const dto = plainToInstance(CreateAdDto, {
+        ...validCreate(),
+        buttons: [
+          { text: 'Abrir', url: 'https://ourbit.com/ref?agent=1' },
+          { text: 'Canal', url: 'https://t.me/ourbit' },
+        ],
+      });
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    });
+
+    it('rejects buttons with more than 6 entries', async () => {
+      const dto = plainToInstance(CreateAdDto, {
+        ...validCreate(),
+        buttons: Array.from({ length: 7 }, (_, i) => ({
+          text: `B${i}`,
+          url: `https://ourbit.com/${i}`,
+        })),
+      });
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(1);
+      expect(errors[0].property).toBe('buttons');
+    });
+
+    it('rejects a button with empty text', async () => {
+      const dto = plainToInstance(CreateAdDto, {
+        ...validCreate(),
+        buttons: [{ text: '', url: 'https://ourbit.com/ref' }],
+      });
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(1);
+      expect(errors[0].property).toBe('buttons');
+      expect(errors[0].children?.[0]?.children?.[0]?.property).toBe('text');
+    });
+
+    it('rejects a button with empty url', async () => {
+      const dto = plainToInstance(CreateAdDto, {
+        ...validCreate(),
+        buttons: [{ text: 'Abrir', url: '' }],
+      });
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(1);
+      expect(errors[0].property).toBe('buttons');
+      expect(errors[0].children?.[0]?.children?.[0]?.property).toBe('url');
     });
   });
 

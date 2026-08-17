@@ -125,6 +125,7 @@ export class AdsController {
       name: dto.name,
       body: dto.body,
       order: nextOrder,
+      buttons: dto.buttons ?? null,
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
       expirationAction: dto.expirationAction ?? 'disable',
     });

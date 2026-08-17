@@ -36,6 +36,7 @@ function makeAdView(overrides: Partial<AdView> = {}): AdView {
     id: 'ad-1',
     name: 'Pump alpha',
     body: 'Something good',
+    buttons: null,
     imageMediaId: null,
     format: 'text',
     videoMediaId: null,

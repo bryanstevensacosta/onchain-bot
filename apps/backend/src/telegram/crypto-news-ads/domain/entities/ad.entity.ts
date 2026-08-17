@@ -18,6 +18,8 @@ export type AdFormat = 'text' | 'photo' | 'video' | 'album';
 
 const AD_FORMATS: readonly AdFormat[] = ['text', 'photo', 'video', 'album'];
 
+export type AdButton = { readonly text: string; readonly url: string };
+
 export interface AdProps {
   readonly id: string;
   readonly name: string;
@@ -26,6 +28,7 @@ export interface AdProps {
   readonly format: AdFormat;
   readonly videoMediaId: string | null;
   readonly albumMediaIds: string[] | null;
+  readonly buttons: AdButton[] | null;
   readonly enabled: boolean;
   readonly order: number;
   readonly timesPublished: number;
@@ -38,17 +41,18 @@ export interface AdProps {
 }
 
 /**
- * Snapshot input for `fromSnapshot` — the three format fields are
- * optional so pre-format call sites (and legacy rows) hydrate with
- * defaults instead of breaking.
+ * Snapshot input for `fromSnapshot` — the three format fields and
+ * `buttons` are optional so pre-format call sites (and legacy rows)
+ * hydrate with defaults instead of breaking.
  */
 export type AdSnapshotInput = Omit<
   AdProps,
-  'format' | 'videoMediaId' | 'albumMediaIds'
+  'format' | 'videoMediaId' | 'albumMediaIds' | 'buttons'
 > & {
   format?: AdFormat;
   videoMediaId?: string | null;
   albumMediaIds?: string[] | null;
+  buttons?: AdButton[] | null;
 };
 
 export class Ad {
@@ -62,6 +66,7 @@ export class Ad {
     format?: AdFormat;
     videoMediaId?: string | null;
     albumMediaIds?: string[] | null;
+    buttons?: AdButton[] | null;
     order?: number;
     expiresAt?: Date | null;
     expirationAction?: 'disable' | 'delete';
@@ -82,6 +87,7 @@ export class Ad {
       format,
       videoMediaId: input.videoMediaId ?? null,
       albumMediaIds: input.albumMediaIds ?? null,
+      buttons: input.buttons ?? null,
       enabled: true,
       order: input.order ?? 0,
       timesPublished: 0,
@@ -102,6 +108,7 @@ export class Ad {
       format: props.format ?? 'text',
       videoMediaId: props.videoMediaId ?? null,
       albumMediaIds: props.albumMediaIds ?? null,
+      buttons: props.buttons ?? null,
     });
   }
 
@@ -131,6 +138,10 @@ export class Ad {
 
   public get albumMediaIds(): string[] | null {
     return this.props.albumMediaIds;
+  }
+
+  public get buttons(): AdButton[] | null {
+    return this.props.buttons;
   }
 
   public get enabled(): boolean {

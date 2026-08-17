@@ -340,13 +340,16 @@ describe('AdFormatPublisherService', () => {
     });
   });
 
-  describe('inline keyboard from body anchor', () => {
-    it('attaches a single-button inline keyboard built from the first <a href> anchor', async () => {
+  describe('inline keyboard from ad buttons', () => {
+    it('attaches a single-button inline keyboard from the configured buttons', async () => {
       const ad = Ad.create({
         id: 'ad-1',
         name: 'Sponsor',
         body: 'Join now: <a href="https://ourbit.com/ref?agent=1">Click aquí</a>',
         format: 'text',
+        buttons: [
+          { text: 'Click aquí', url: 'https://ourbit.com/ref?agent=1' },
+        ],
       });
 
       await service.publish(ad);
@@ -364,12 +367,18 @@ describe('AdFormatPublisherService', () => {
       );
     });
 
-    it('uses the full anchor URL even when it contains query params', async () => {
+    it('uses the button url verbatim even when it contains query params', async () => {
       const ad = Ad.create({
         id: 'ad-1',
         name: 'Sponsor',
-        body: '<a href="https://ourbit.com/activity/kol?id=0dbd&agent=7760&inviteCode=MJ77J5">Regístrate</a>',
+        body: 'Regístrate',
         format: 'text',
+        buttons: [
+          {
+            text: 'Regístrate',
+            url: 'https://ourbit.com/activity/kol?id=0dbd&agent=7760&inviteCode=MJ77J5',
+          },
+        ],
       });
 
       await service.publish(ad);
@@ -392,11 +401,11 @@ describe('AdFormatPublisherService', () => {
       );
     });
 
-    it('publishes without replyMarkup when the body has no anchor', async () => {
+    it('publishes without replyMarkup when the ad has no buttons', async () => {
       const ad = Ad.create({
         id: 'ad-1',
         name: 'Sponsor',
-        body: 'no link here',
+        body: '<a href="https://ourbit.com/ref">Click aquí</a>',
         format: 'text',
       });
 
@@ -414,9 +423,10 @@ describe('AdFormatPublisherService', () => {
       const ad = Ad.create({
         id: 'ad-1',
         name: 'Sponsor',
-        body: '<a href="https://ourbit.com/ref">Abrir</a>',
+        body: 'body',
         format: 'photo',
         imageMediaId: 'img-1',
+        buttons: [{ text: 'Abrir', url: 'https://ourbit.com/ref' }],
       });
       adMediaRepo.findById.mockResolvedValue(mediaRecord('img-1'));
       mockedExistsSync.mockReturnValue(true);
@@ -434,12 +444,16 @@ describe('AdFormatPublisherService', () => {
       );
     });
 
-    it('turns every anchor into a button (2 anchors share one row)', async () => {
+    it('puts 2 buttons on one row', async () => {
       const ad = Ad.create({
         id: 'ad-1',
         name: 'Sponsor',
-        body: '<a href="https://ourbit.com/ref">Abrir</a> <a href="https://t.me/ourbit">Canal</a>',
+        body: 'body',
         format: 'text',
+        buttons: [
+          { text: 'Abrir', url: 'https://ourbit.com/ref' },
+          { text: 'Canal', url: 'https://t.me/ourbit' },
+        ],
       });
 
       await service.publish(ad);
@@ -460,12 +474,18 @@ describe('AdFormatPublisherService', () => {
       );
     });
 
-    it('groups buttons into rows of 3', async () => {
+    it('groups 4 buttons into rows of 3', async () => {
       const ad = Ad.create({
         id: 'ad-1',
         name: 'Sponsor',
-        body: '<a href="https://ourbit.com/1">Uno</a> <a href="https://ourbit.com/2">Dos</a> <a href="https://ourbit.com/3">Tres</a> <a href="https://ourbit.com/4">Cuatro</a>',
+        body: 'body',
         format: 'text',
+        buttons: [
+          { text: 'Uno', url: 'https://ourbit.com/1' },
+          { text: 'Dos', url: 'https://ourbit.com/2' },
+          { text: 'Tres', url: 'https://ourbit.com/3' },
+          { text: 'Cuatro', url: 'https://ourbit.com/4' },
+        ],
       });
 
       await service.publish(ad);
@@ -488,16 +508,17 @@ describe('AdFormatPublisherService', () => {
       );
     });
 
-    it('caps the keyboard at 6 buttons, ignoring further anchors', async () => {
-      const anchors = Array.from(
-        { length: 8 },
-        (_, i) => `<a href="https://ourbit.com/${i + 1}">B${i + 1}</a>`,
-      ).join(' ');
+    it('caps the keyboard at 6 buttons, ignoring the rest', async () => {
+      const buttons = Array.from({ length: 8 }, (_, i) => ({
+        text: `B${i + 1}`,
+        url: `https://ourbit.com/${i + 1}`,
+      }));
       const ad = Ad.create({
         id: 'ad-1',
         name: 'Sponsor',
-        body: anchors,
+        body: 'body',
         format: 'text',
+        buttons,
       });
 
       await service.publish(ad);
@@ -524,12 +545,13 @@ describe('AdFormatPublisherService', () => {
       );
     });
 
-    it("falls back to 'Abrir' label for an empty anchor text", async () => {
+    it('publishes without replyMarkup when buttons is an empty array', async () => {
       const ad = Ad.create({
         id: 'ad-1',
         name: 'Sponsor',
-        body: '<a href="https://x.com"></a>',
+        body: 'body',
         format: 'text',
+        buttons: [],
       });
 
       await service.publish(ad);
@@ -538,10 +560,7 @@ describe('AdFormatPublisherService', () => {
         '',
         ad.body,
         undefined,
-        {
-          parseMode: 'HTML',
-          replyMarkup: [[{ text: 'Abrir', url: 'https://x.com' }]],
-        },
+        { parseMode: 'HTML' },
       );
     });
   });

@@ -43,6 +43,8 @@ export interface AdModalSubmitBody {
   name: string;
   body: string;
   format: AdFormat;
+  /** Fully-filled button rows (text + url non-empty); `[]` = no keyboard. */
+  buttons: Array<{ text: string; url: string }>;
   expiresAt: string | null;
   expirationAction: 'disable' | 'delete';
   image?:
@@ -121,6 +123,7 @@ interface AdModalProps {
   title: string;
   initialName: string;
   initialBody: string;
+  initialButtons: Array<{ text: string; url: string }> | null;
   initialFormat: AdFormat;
   initialExpiresAt: string | null;
   initialExpirationAction: 'disable' | 'delete';
@@ -139,6 +142,7 @@ function AdModal({
   title,
   initialName,
   initialBody,
+  initialButtons,
   initialFormat,
   initialExpiresAt,
   initialExpirationAction,
@@ -152,6 +156,9 @@ function AdModal({
 }: AdModalProps): React.ReactElement {
   const [name, setName] = useState(initialName);
   const [body, setBody] = useState(initialBody);
+  const [buttons, setButtons] = useState<Array<{ text: string; url: string }>>(
+    initialButtons ?? [],
+  );
   const [format, setFormat] = useState<AdFormat>(initialFormat);
   const [expiresAt, setExpiresAt] = useState(
     initialExpiresAt ? isoToUtcInput(initialExpiresAt) : '',
@@ -189,6 +196,7 @@ function AdModal({
     if (isOpen) {
       setName(initialName);
       setBody(initialBody);
+      setButtons(initialButtons ?? []);
       setFormat(initialFormat);
       setExpiresAt(initialExpiresAt ? isoToUtcInput(initialExpiresAt) : '');
       setExpirationAction(initialExpirationAction);
@@ -201,6 +209,7 @@ function AdModal({
     isOpen,
     initialName,
     initialBody,
+    initialButtons,
     initialFormat,
     initialExpiresAt,
     initialExpirationAction,
@@ -292,14 +301,34 @@ function AdModal({
     });
   }
 
+  const MAX_BUTTONS = 6;
+
+  function addButton() {
+    setButtons((bs) =>
+      bs.length >= MAX_BUTTONS ? bs : [...bs, { text: '', url: '' }],
+    );
+  }
+
+  function updateButton(index: number, next: { text: string; url: string }) {
+    setButtons((bs) => bs.map((b, i) => (i === index ? next : b)));
+  }
+
+  function removeButton(index: number) {
+    setButtons((bs) => bs.filter((_, i) => i !== index));
+  }
+
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!canSubmit) return;
     const expiresAtIso = utcInputToIso(expiresAt);
+    const filledButtons = buttons
+      .map((b) => ({ text: b.text.trim(), url: b.url.trim() }))
+      .filter((b) => b.text !== '' && b.url !== '');
     onSubmit({
       name: name.trim(),
       body: body.trim(),
       format,
+      buttons: filledButtons,
       // Always include expiresAt: null = explicit CLEAR (Metis R6.1);
       // omitting it would silently keep the old expiry on edit.
       expiresAt: expiresAtIso,
@@ -441,7 +470,68 @@ function AdModal({
           >
             <AdHtmlPreview body={body} />
           </div>
-          <AdButtonPreview body={body} />
+          <AdButtonPreview buttons={buttons} />
+        </div>
+
+        <div>
+          <span className="block text-xs uppercase text-slate-500 mb-1">
+            Buttons (optional)
+          </span>
+          <p className="text-xs text-slate-500 mb-1">
+            Máximo {MAX_BUTTONS} · filas de 3 en Telegram
+          </p>
+          <div className="flex flex-col gap-2">
+            {buttons.map((button, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={button.text}
+                  placeholder="Label"
+                  aria-label={`Button ${index + 1} label`}
+                  onChange={(e) =>
+                    updateButton(index, {
+                      text: e.target.value,
+                      url: button.url,
+                    })
+                  }
+                  disabled={pending}
+                  className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                />
+                <input
+                  type="text"
+                  value={button.url}
+                  placeholder="https://…"
+                  aria-label={`Button ${index + 1} url`}
+                  onChange={(e) =>
+                    updateButton(index, {
+                      text: button.text,
+                      url: e.target.value,
+                    })
+                  }
+                  disabled={pending}
+                  className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeButton(index)}
+                  disabled={pending}
+                  aria-label={`Remove button ${index + 1}`}
+                  className="shrink-0 px-2 py-1.5 rounded text-xs border bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700 hover:text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={addButton}
+              disabled={buttons.length >= MAX_BUTTONS || pending}
+            >
+              + Add button
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -997,6 +1087,9 @@ export function AdsManager(): React.ReactElement {
           ? { expiresAt: metadata.expiresAt }
           : {}),
         expirationAction: metadata.expirationAction,
+        ...(metadata.buttons && metadata.buttons.length > 0
+          ? { buttons: metadata.buttons }
+          : {}),
       },
       {
         onSuccess: (created: AdView) => {
@@ -1192,6 +1285,7 @@ export function AdsManager(): React.ReactElement {
         title="Add Ad"
         initialName=""
         initialBody=""
+        initialButtons={null}
         initialFormat="text"
         initialExpiresAt={null}
         initialExpirationAction="disable"
@@ -1210,6 +1304,7 @@ export function AdsManager(): React.ReactElement {
         title="Edit Ad"
         initialName={editingItem?.name ?? ''}
         initialBody={editingItem?.body ?? ''}
+        initialButtons={editingItem?.buttons ?? null}
         initialFormat={editingItem?.format ?? 'text'}
         initialExpiresAt={editingItem?.expiresAt ?? null}
         initialExpirationAction={editingItem?.expirationAction ?? 'disable'}

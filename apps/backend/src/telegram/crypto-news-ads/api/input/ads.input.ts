@@ -13,13 +13,27 @@ import {
   MaxLength,
   Min,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 /**
  * Request DTOs for the crypto-news-ads REST API. Mirror the
  * `llm-config.input.ts` style: class-validator decorators, validated by
  * the global `ValidationPipe` (400 on shape violations).
  */
+
+export class AdButtonDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(64)
+  public text!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(2048)
+  public url!: string;
+}
 
 export class CreateAdDto {
   @IsString()
@@ -46,6 +60,13 @@ export class CreateAdDto {
   @ArrayMaxSize(10)
   @IsString({ each: true })
   public albumMediaIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(6)
+  @ValidateNested({ each: true })
+  @Type(() => AdButtonDto)
+  public buttons?: AdButtonDto[];
 
   @IsOptional()
   @ValidateIf((o) => o.expiresAt !== undefined && o.expiresAt !== null)
@@ -84,6 +105,13 @@ export class UpdateAdDto {
   @ArrayMaxSize(10)
   @IsString({ each: true })
   public albumMediaIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(6)
+  @ValidateNested({ each: true })
+  @Type(() => AdButtonDto)
+  public buttons?: AdButtonDto[];
 
   @IsOptional()
   @IsBoolean()

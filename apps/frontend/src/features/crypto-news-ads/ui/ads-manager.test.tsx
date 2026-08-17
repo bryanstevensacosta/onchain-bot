@@ -25,6 +25,7 @@ function makeAd(overrides: Partial<AdView> = {}): AdView {
     id: 'ad-1',
     name: 'Pump alpha',
     body: 'Something good',
+    buttons: null,
     imageMediaId: null,
     format: 'text',
     videoMediaId: null,
@@ -261,6 +262,174 @@ describe('AdsManager', () => {
       { name: 'New banner', body: 'Buy now', expirationAction: 'disable' },
       expect.anything(),
     );
+  });
+
+  it('adds a configured button and includes it in the create payload', () => {
+    mockedUseAds.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+    const createMut = vi.fn();
+    mockedUseCreateAd.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: createMut,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('+ Add Ad'));
+    fireEvent.change(screen.getByLabelText(/Name/), {
+      target: { value: 'New banner' },
+    });
+    fireEvent.change(screen.getByLabelText(/Body/), {
+      target: { value: 'Buy now' },
+    });
+
+    fireEvent.click(screen.getByText('+ Add button'));
+    fireEvent.change(screen.getByPlaceholderText('Label'), {
+      target: { value: 'Abrir' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('https://…'), {
+      target: { value: 'https://example.com' },
+    });
+    expect(screen.getByText('Buttons (1)')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(createMut).toHaveBeenCalledWith(
+      {
+        name: 'New banner',
+        body: 'Buy now',
+        expirationAction: 'disable',
+        buttons: [{ text: 'Abrir', url: 'https://example.com' }],
+      },
+      expect.anything(),
+    );
+  });
+
+  it('caps the button editor at 6 rows', () => {
+    mockedUseAds.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('+ Add Ad'));
+
+    const addButton = screen.getByText('+ Add button');
+    for (let i = 0; i < 6; i += 1) {
+      expect(addButton).not.toBeDisabled();
+      fireEvent.click(addButton);
+    }
+    expect(addButton).toBeDisabled();
+    expect(screen.getByText('Buttons (6)')).toBeInTheDocument();
+  });
+
+  it('filters out incomplete button rows on submit', () => {
+    mockedUseAds.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+    const createMut = vi.fn();
+    mockedUseCreateAd.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      mutate: createMut,
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+    } as never);
+
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('+ Add Ad'));
+    fireEvent.change(screen.getByLabelText(/Name/), {
+      target: { value: 'New banner' },
+    });
+    fireEvent.change(screen.getByLabelText(/Body/), {
+      target: { value: 'Buy now' },
+    });
+
+    // A row with only a label (no URL) must be dropped on submit.
+    fireEvent.click(screen.getByText('+ Add button'));
+    fireEvent.change(screen.getByPlaceholderText('Label'), {
+      target: { value: 'Abrir' },
+    });
+
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(createMut).toHaveBeenCalledWith(
+      { name: 'New banner', body: 'Buy now', expirationAction: 'disable' },
+      expect.anything(),
+    );
+    const createPayload = createMut.mock.calls[0][0] as Record<string, unknown>;
+    expect(createPayload.buttons).toBeUndefined();
+  });
+
+  it('pre-fills the edit modal with the ad buttons', () => {
+    mockedUseAds.mockReturnValue({
+      data: [
+        makeAd({
+          buttons: [{ text: 'Abrir', url: 'https://example.com' }],
+        }),
+      ],
+      isLoading: false,
+      error: null,
+    } as never);
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('Edit'));
+
+    expect(screen.getByText('Buttons (1)')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Label')).toHaveValue('Abrir');
+    expect(screen.getByPlaceholderText('https://…')).toHaveValue(
+      'https://example.com',
+    );
+  });
+
+  it('submits buttons in the edit patch', () => {
+    mockedUseAds.mockReturnValue({
+      data: [
+        makeAd({
+          buttons: [{ text: 'Abrir', url: 'https://example.com' }],
+        }),
+      ],
+      isLoading: false,
+      error: null,
+    } as never);
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('Edit'));
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(updateAdMock).toHaveBeenCalledWith(
+      {
+        id: 'ad-1',
+        patch: expect.objectContaining({
+          buttons: [{ text: 'Abrir', url: 'https://example.com' }],
+        }),
+      },
+      expect.anything(),
+    );
+  });
+
+  it('removes a button row via the ✕ button', () => {
+    mockedUseAds.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as never);
+    render(<AdsManager />);
+    fireEvent.click(screen.getByText('+ Add Ad'));
+    fireEvent.click(screen.getByText('+ Add button'));
+    expect(screen.getByText('Buttons (1)')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove button 1' }));
+    expect(screen.queryByText('Buttons (1)')).not.toBeInTheDocument();
   });
 
   it('add ad modal only closes via the × button (not backdrop or Escape)', () => {
@@ -1148,6 +1317,7 @@ describe('AdsManager', () => {
         patch: {
           name: 'Renamed',
           body: 'Something good',
+          buttons: [],
           expiresAt: null,
           expirationAction: 'disable',
         },

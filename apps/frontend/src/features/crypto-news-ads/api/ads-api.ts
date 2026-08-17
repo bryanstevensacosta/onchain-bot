@@ -14,10 +14,21 @@ import {
 
 export type AdFormat = 'text' | 'photo' | 'video' | 'album';
 
+/**
+ * One operator-configured inline keyboard button for an ad. Ads publish
+ * WITHOUT a keyboard unless at least one fully-filled button is persisted
+ * (`ad.buttons`).
+ */
+export type AdButton = {
+  readonly text: string;
+  readonly url: string;
+};
+
 export interface AdView {
   readonly id: string;
   readonly name: string;
   readonly body: string;
+  readonly buttons: Array<AdButton> | null;
   readonly imageMediaId: string | null;
   readonly format: AdFormat;
   readonly videoMediaId: string | null;
@@ -54,6 +65,7 @@ export interface CreateAdBody {
   readonly format?: AdFormat;
   readonly videoMediaId?: string | null;
   readonly albumMediaIds?: string[];
+  readonly buttons?: Array<AdButton>;
   readonly expiresAt?: string;
   readonly expirationAction?: 'disable' | 'delete';
 }
@@ -64,6 +76,7 @@ export type UpdateAdBody = Partial<{
   format: AdFormat;
   videoMediaId: string | null;
   albumMediaIds: string[];
+  buttons: Array<AdButton> | null;
   enabled: boolean;
   order: number;
   expiresAt: string | null;

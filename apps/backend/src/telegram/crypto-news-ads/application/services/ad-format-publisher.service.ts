@@ -12,25 +12,18 @@ import {
 } from 'telegram/shared';
 
 /**
- * Build the inline keyboard for an ad from its body: every
- * `<a href="…">label</a>` anchor becomes a URL button. Ads carry their
- * click targets as HTML anchors (kept by the sanitizer), and inline URL
- * buttons are the only link affordance that renders clickable in every
- * Telegram client/view — text-link entities do not. Buttons are grouped
- * in rows of 3, capped at 6 total, so a link-heavy body cannot blow out
- * the message with a huge keyboard. Returns `null` when the body has no
- * anchor, so the ad publishes without a button (previous behavior).
+ * Build the inline keyboard for an ad from its explicitly configured
+ * `buttons` (opt-in per ad — body anchors are NOT auto-extracted into
+ * buttons). Each `{ text, url }` pair becomes one URL button. Buttons are
+ * grouped in rows of 3, capped at 6 total, so a button-heavy ad cannot
+ * blow out the message with a huge keyboard. Returns `null` when there
+ * are no buttons, so the ad publishes without a keyboard (previous
+ * behavior — an ad without configured buttons gets NO replyMarkup).
  */
-function buildAdInlineKeyboard(body: string): TelegramInlineKeyboard | null {
-  const buttons: Array<{ text: string; url: string }> = [];
-  const anchorRegex = /<a\s+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
-  let match: RegExpExecArray | null;
-  while ((match = anchorRegex.exec(body)) !== null) {
-    if (match[1] === undefined) continue;
-    const label = match[2]?.trim() || 'Abrir';
-    buttons.push({ text: label, url: match[1] });
-  }
-  if (buttons.length === 0) return null;
+function buildAdInlineKeyboard(
+  buttons: Array<{ text: string; url: string }> | null,
+): TelegramInlineKeyboard | null {
+  if (buttons === null || buttons.length === 0) return null;
   const capped = buttons.slice(0, 6);
   const rows: Array<Array<{ text: string; url: string }>> = [];
   for (let i = 0; i < capped.length; i += 3) {
@@ -75,7 +68,7 @@ export class AdFormatPublisherService {
    * handling.
    */
   public async publish(ad: Ad): Promise<SendResult> {
-    const keyboard = buildAdInlineKeyboard(ad.body);
+    const keyboard = buildAdInlineKeyboard(ad.buttons);
     const withKeyboard = keyboard === null ? {} : { replyMarkup: keyboard };
     switch (ad.format) {
       case 'video': {
