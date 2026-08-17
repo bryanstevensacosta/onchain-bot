@@ -433,5 +433,116 @@ describe('AdFormatPublisherService', () => {
         },
       );
     });
+
+    it('turns every anchor into a button (2 anchors share one row)', async () => {
+      const ad = Ad.create({
+        id: 'ad-1',
+        name: 'Sponsor',
+        body: '<a href="https://ourbit.com/ref">Abrir</a> <a href="https://t.me/ourbit">Canal</a>',
+        format: 'text',
+      });
+
+      await service.publish(ad);
+
+      expect(publisher.sendMessage).toHaveBeenCalledWith(
+        '',
+        ad.body,
+        undefined,
+        {
+          parseMode: 'HTML',
+          replyMarkup: [
+            [
+              { text: 'Abrir', url: 'https://ourbit.com/ref' },
+              { text: 'Canal', url: 'https://t.me/ourbit' },
+            ],
+          ],
+        },
+      );
+    });
+
+    it('groups buttons into rows of 3', async () => {
+      const ad = Ad.create({
+        id: 'ad-1',
+        name: 'Sponsor',
+        body: '<a href="https://ourbit.com/1">Uno</a> <a href="https://ourbit.com/2">Dos</a> <a href="https://ourbit.com/3">Tres</a> <a href="https://ourbit.com/4">Cuatro</a>',
+        format: 'text',
+      });
+
+      await service.publish(ad);
+
+      expect(publisher.sendMessage).toHaveBeenCalledWith(
+        '',
+        ad.body,
+        undefined,
+        {
+          parseMode: 'HTML',
+          replyMarkup: [
+            [
+              { text: 'Uno', url: 'https://ourbit.com/1' },
+              { text: 'Dos', url: 'https://ourbit.com/2' },
+              { text: 'Tres', url: 'https://ourbit.com/3' },
+            ],
+            [{ text: 'Cuatro', url: 'https://ourbit.com/4' }],
+          ],
+        },
+      );
+    });
+
+    it('caps the keyboard at 6 buttons, ignoring further anchors', async () => {
+      const anchors = Array.from(
+        { length: 8 },
+        (_, i) => `<a href="https://ourbit.com/${i + 1}">B${i + 1}</a>`,
+      ).join(' ');
+      const ad = Ad.create({
+        id: 'ad-1',
+        name: 'Sponsor',
+        body: anchors,
+        format: 'text',
+      });
+
+      await service.publish(ad);
+
+      expect(publisher.sendMessage).toHaveBeenCalledWith(
+        '',
+        ad.body,
+        undefined,
+        {
+          parseMode: 'HTML',
+          replyMarkup: [
+            [
+              { text: 'B1', url: 'https://ourbit.com/1' },
+              { text: 'B2', url: 'https://ourbit.com/2' },
+              { text: 'B3', url: 'https://ourbit.com/3' },
+            ],
+            [
+              { text: 'B4', url: 'https://ourbit.com/4' },
+              { text: 'B5', url: 'https://ourbit.com/5' },
+              { text: 'B6', url: 'https://ourbit.com/6' },
+            ],
+          ],
+        },
+      );
+    });
+
+    it("falls back to 'Abrir' label for an empty anchor text", async () => {
+      const ad = Ad.create({
+        id: 'ad-1',
+        name: 'Sponsor',
+        body: '<a href="https://x.com"></a>',
+        format: 'text',
+      });
+
+      await service.publish(ad);
+
+      expect(publisher.sendMessage).toHaveBeenCalledWith(
+        '',
+        ad.body,
+        undefined,
+        {
+          parseMode: 'HTML',
+          replyMarkup: [[{ text: 'Abrir', url: 'https://x.com' }]],
+        },
+      );
+    });
   });
 });

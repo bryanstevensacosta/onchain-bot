@@ -27,6 +27,7 @@ import {
   type AdFormat,
   type AdView,
 } from '@/features/crypto-news-ads/api/ads-api';
+import { AdButtonPreview } from './ad-button-preview';
 import { AdHtmlPreview } from './ad-html-preview';
 
 /**
@@ -440,6 +441,7 @@ function AdModal({
           >
             <AdHtmlPreview body={body} />
           </div>
+          <AdButtonPreview body={body} />
         </div>
 
         <div className="grid grid-cols-2 gap-3">

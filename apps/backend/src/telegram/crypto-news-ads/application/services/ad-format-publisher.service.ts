@@ -12,20 +12,31 @@ import {
 } from 'telegram/shared';
 
 /**
- * Build the inline keyboard for an ad from its body: the first
- * `<a href="…">label</a>` anchor becomes a single URL button. Ads carry
- * their click target as an HTML anchor (kept by the sanitizer), and
- * inline URL buttons are the only link affordance that renders
- * clickable in every Telegram client/view — text-link entities do not.
- * Returns `null` when the body has no anchor, so the ad publishes
- * without a button (previous behavior).
+ * Build the inline keyboard for an ad from its body: every
+ * `<a href="…">label</a>` anchor becomes a URL button. Ads carry their
+ * click targets as HTML anchors (kept by the sanitizer), and inline URL
+ * buttons are the only link affordance that renders clickable in every
+ * Telegram client/view — text-link entities do not. Buttons are grouped
+ * in rows of 3, capped at 6 total, so a link-heavy body cannot blow out
+ * the message with a huge keyboard. Returns `null` when the body has no
+ * anchor, so the ad publishes without a button (previous behavior).
  */
 function buildAdInlineKeyboard(body: string): TelegramInlineKeyboard | null {
-  const match = body.match(/<a\s+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
-  if (!match?.[1]) return null;
-  const url = match[1];
-  const label = match[2]?.trim() || 'Abrir';
-  return [[{ text: label, url }]];
+  const buttons: Array<{ text: string; url: string }> = [];
+  const anchorRegex = /<a\s+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = anchorRegex.exec(body)) !== null) {
+    if (match[1] === undefined) continue;
+    const label = match[2]?.trim() || 'Abrir';
+    buttons.push({ text: label, url: match[1] });
+  }
+  if (buttons.length === 0) return null;
+  const capped = buttons.slice(0, 6);
+  const rows: Array<Array<{ text: string; url: string }>> = [];
+  for (let i = 0; i < capped.length; i += 3) {
+    rows.push(capped.slice(i, i + 3));
+  }
+  return rows;
 }
 
 /**
