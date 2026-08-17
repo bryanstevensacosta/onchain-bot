@@ -339,4 +339,99 @@ describe('AdFormatPublisherService', () => {
       expect(adMediaRepo.findById).not.toHaveBeenCalled();
     });
   });
+
+  describe('inline keyboard from body anchor', () => {
+    it('attaches a single-button inline keyboard built from the first <a href> anchor', async () => {
+      const ad = Ad.create({
+        id: 'ad-1',
+        name: 'Sponsor',
+        body: 'Join now: <a href="https://ourbit.com/ref?agent=1">Click aquí</a>',
+        format: 'text',
+      });
+
+      await service.publish(ad);
+
+      expect(publisher.sendMessage).toHaveBeenCalledWith(
+        '',
+        ad.body,
+        undefined,
+        {
+          parseMode: 'HTML',
+          replyMarkup: [
+            [{ text: 'Click aquí', url: 'https://ourbit.com/ref?agent=1' }],
+          ],
+        },
+      );
+    });
+
+    it('uses the full anchor URL even when it contains query params', async () => {
+      const ad = Ad.create({
+        id: 'ad-1',
+        name: 'Sponsor',
+        body: '<a href="https://ourbit.com/activity/kol?id=0dbd&agent=7760&inviteCode=MJ77J5">Regístrate</a>',
+        format: 'text',
+      });
+
+      await service.publish(ad);
+
+      expect(publisher.sendMessage).toHaveBeenCalledWith(
+        '',
+        ad.body,
+        undefined,
+        {
+          parseMode: 'HTML',
+          replyMarkup: [
+            [
+              {
+                text: 'Regístrate',
+                url: 'https://ourbit.com/activity/kol?id=0dbd&agent=7760&inviteCode=MJ77J5',
+              },
+            ],
+          ],
+        },
+      );
+    });
+
+    it('publishes without replyMarkup when the body has no anchor', async () => {
+      const ad = Ad.create({
+        id: 'ad-1',
+        name: 'Sponsor',
+        body: 'no link here',
+        format: 'text',
+      });
+
+      await service.publish(ad);
+
+      expect(publisher.sendMessage).toHaveBeenCalledWith(
+        '',
+        ad.body,
+        undefined,
+        { parseMode: 'HTML' },
+      );
+    });
+
+    it('propagates the keyboard to sendPhoto when the format is photo', async () => {
+      const ad = Ad.create({
+        id: 'ad-1',
+        name: 'Sponsor',
+        body: '<a href="https://ourbit.com/ref">Abrir</a>',
+        format: 'photo',
+        imageMediaId: 'img-1',
+      });
+      adMediaRepo.findById.mockResolvedValue(mediaRecord('img-1'));
+      mockedExistsSync.mockReturnValue(true);
+
+      await service.publish(ad);
+
+      expect(publisher.sendPhoto).toHaveBeenCalledWith(
+        '',
+        ad.body,
+        path.join(UPLOADS_ROOT, 'crypto-news-ads/img-1.png'),
+        {
+          parseMode: 'HTML',
+          replyMarkup: [[{ text: 'Abrir', url: 'https://ourbit.com/ref' }]],
+        },
+      );
+    });
+  });
 });

@@ -155,6 +155,9 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     if (imageUrl) {
       payload.photo = imageUrl;
     }
+    if (options?.replyMarkup) {
+      payload.reply_markup = { inline_keyboard: options.replyMarkup };
+    }
     return this.httpClient.postJson('sendMessage', payload);
   }
 
@@ -203,6 +206,12 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
       ['caption', caption],
       ['parse_mode', parseMode],
     ];
+    if (options?.replyMarkup) {
+      textFields.push([
+        'reply_markup',
+        JSON.stringify({ inline_keyboard: options.replyMarkup }),
+      ]);
+    }
 
     const body = buildMultipartBody(boundary, textFields, {
       fieldName: 'photo',
@@ -253,6 +262,12 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     ];
     if (supportsStreaming) {
       textFields.push(['supports_streaming', 'true']);
+    }
+    if (options?.replyMarkup) {
+      textFields.push([
+        'reply_markup',
+        JSON.stringify({ inline_keyboard: options.replyMarkup }),
+      ]);
     }
 
     const body = buildMultipartBody(boundary, textFields, {
@@ -322,6 +337,12 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
       ['chat_id', this.outputChannel],
       ['media', JSON.stringify(mediaArray)],
     ];
+    if (options?.replyMarkup) {
+      textFields.push([
+        'reply_markup',
+        JSON.stringify({ inline_keyboard: options.replyMarkup }),
+      ]);
+    }
 
     const files = fileBytesArray.map((bytes, index) => ({
       fieldName: `photo${index}`,

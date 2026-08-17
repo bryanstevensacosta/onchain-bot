@@ -5,7 +5,28 @@ import * as path from 'node:path';
 import type { AppConfig } from 'shared/common/config/app.config';
 import { AdMediaRepository } from 'telegram/crypto-news-ads/application/ports/ad-media.repository';
 import { Ad } from 'telegram/crypto-news-ads/domain/entities/ad.entity';
-import { TelegramPublisherPort, type SendResult } from 'telegram/shared';
+import {
+  TelegramPublisherPort,
+  type SendResult,
+  type TelegramInlineKeyboard,
+} from 'telegram/shared';
+
+/**
+ * Build the inline keyboard for an ad from its body: the first
+ * `<a href="…">label</a>` anchor becomes a single URL button. Ads carry
+ * their click target as an HTML anchor (kept by the sanitizer), and
+ * inline URL buttons are the only link affordance that renders
+ * clickable in every Telegram client/view — text-link entities do not.
+ * Returns `null` when the body has no anchor, so the ad publishes
+ * without a button (previous behavior).
+ */
+function buildAdInlineKeyboard(body: string): TelegramInlineKeyboard | null {
+  const match = body.match(/<a\s+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
+  if (!match?.[1]) return null;
+  const url = match[1];
+  const label = match[2]?.trim() || 'Abrir';
+  return [[{ text: label, url }]];
+}
 
 /**
  * Format-and-send for crypto-news ads. Shared by the rotation publisher
@@ -43,17 +64,21 @@ export class AdFormatPublisherService {
    * handling.
    */
   public async publish(ad: Ad): Promise<SendResult> {
+    const keyboard = buildAdInlineKeyboard(ad.body);
+    const withKeyboard = keyboard === null ? {} : { replyMarkup: keyboard };
     switch (ad.format) {
       case 'video': {
         const videoPath = await this.resolveMediaPath(ad.videoMediaId, ad.id);
         if (videoPath === null) {
           return this.publisher.sendMessage('', ad.body, undefined, {
             parseMode: 'HTML',
+            ...withKeyboard,
           });
         }
         return this.publisher.sendVideo('', ad.body, videoPath, {
           parseMode: 'HTML',
           supportsStreaming: true,
+          ...withKeyboard,
         });
       }
       case 'album': {
@@ -67,12 +92,14 @@ export class AdFormatPublisherService {
         }
         return this.publisher.sendMediaGroup('', ad.body, albumPaths, {
           parseMode: 'HTML',
+          ...withKeyboard,
         });
       }
       case 'text': {
         // Pure text post — imageMediaId is deliberately ignored.
         return this.publisher.sendMessage('', ad.body, undefined, {
           parseMode: 'HTML',
+          ...withKeyboard,
         });
       }
       case 'photo': {
@@ -80,15 +107,18 @@ export class AdFormatPublisherService {
         if (mediaPath === null) {
           return this.publisher.sendMessage('', ad.body, undefined, {
             parseMode: 'HTML',
+            ...withKeyboard,
           });
         }
         return this.publisher.sendPhoto('', ad.body, mediaPath, {
           parseMode: 'HTML',
+          ...withKeyboard,
         });
       }
       default: {
         return this.publisher.sendMessage('', ad.body, undefined, {
           parseMode: 'HTML',
+          ...withKeyboard,
         });
       }
     }

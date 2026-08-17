@@ -16,6 +16,8 @@
  * treat them uniformly.
  */
 
+import type { TelegramInlineKeyboard } from './message-formatter.port';
+
 export interface SendResult {
   readonly ok: boolean;
   readonly messageId: number | null;
@@ -30,10 +32,16 @@ export interface SendResult {
  * - `supportsStreaming`: only meaningful for `sendVideo` (Telegram's
  *   `supports_streaming` flag). Defaults to `true` to preserve the
  *   pipeline's current behavior.
+ * - `replyMarkup`: inline keyboard to attach to the message. Rendered
+ *   as Telegram's `reply_markup` → `inline_keyboard`. Text-link
+ *   entities (`<a href>` in HTML mode) do not render as clickable in
+ *   every client/view, while inline URL buttons always do — ads use
+ *   this as the guaranteed-clickable URL affordance.
  */
 export interface TelegramPublishOptions {
   readonly parseMode?: 'Markdown' | 'HTML';
   readonly supportsStreaming?: boolean;
+  readonly replyMarkup?: TelegramInlineKeyboard;
 }
 
 export abstract class TelegramPublisherPort {

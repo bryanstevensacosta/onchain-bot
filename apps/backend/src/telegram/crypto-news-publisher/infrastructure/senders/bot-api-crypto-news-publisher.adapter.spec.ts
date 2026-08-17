@@ -196,6 +196,68 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
     });
   });
 
+  describe('inline keyboard (reply_markup)', () => {
+    it('adds reply_markup inline_keyboard to the sendMessage JSON payload', async () => {
+      mockSuccessResponse(42);
+      const adapter = new BotApiCryptoNewsPublisherAdapter(
+        makeConfigWith('TOKEN', '@channel'),
+      );
+      await adapter.sendMessage('ignored', 'Join us', undefined, {
+        parseMode: 'HTML',
+        replyMarkup: [[{ text: 'Abrir', url: 'https://ourbit.com/ref' }]],
+      });
+
+      const payload = JSON.parse(lastRequestBody()) as {
+        reply_markup: {
+          inline_keyboard: Array<Array<{ text: string; url: string }>>;
+        };
+      };
+      expect(payload.reply_markup).toEqual({
+        inline_keyboard: [[{ text: 'Abrir', url: 'https://ourbit.com/ref' }]],
+      });
+    });
+
+    it('omits reply_markup when no keyboard is passed', async () => {
+      mockSuccessResponse(42);
+      const adapter = new BotApiCryptoNewsPublisherAdapter(
+        makeConfigWith('TOKEN', '@channel'),
+      );
+      await adapter.sendMessage('ignored', 'Join us');
+
+      const payload = JSON.parse(lastRequestBody()) as Record<string, unknown>;
+      expect(payload.reply_markup).toBeUndefined();
+    });
+
+    it('adds reply_markup as a multipart text field on sendPhoto', async () => {
+      mockSuccessResponse(42);
+      const uploadsRoot = await fs.mkdtemp(
+        path.join(os.tmpdir(), 'ads-adapter-'),
+      );
+      const imagePath = path.join(uploadsRoot, 'hero.png');
+      await fs.writeFile(imagePath, Buffer.from('png-bytes'));
+      try {
+        const adapter = new BotApiCryptoNewsPublisherAdapter(
+          makeConfigWith('TOKEN', '@channel'),
+        );
+        await adapter.sendPhoto('ignored', 'caption', imagePath, {
+          parseMode: 'HTML',
+          replyMarkup: [[{ text: 'Abrir', url: 'https://ourbit.com/ref' }]],
+        });
+
+        const body = lastRequestBody();
+        const markupMatch = body.match(
+          /name="reply_markup"\r\n\r\n([\s\S]*?)\r\n/,
+        );
+        expect(markupMatch).not.toBeNull();
+        expect(JSON.parse(markupMatch![1])).toEqual({
+          inline_keyboard: [[{ text: 'Abrir', url: 'https://ourbit.com/ref' }]],
+        });
+      } finally {
+        await fs.rm(uploadsRoot, { recursive: true, force: true });
+      }
+    });
+  });
+
   describe('length limits', () => {
     it('truncates sendMessage text over 4096 chars with a trailing ellipsis', async () => {
       mockSuccessResponse(42);
