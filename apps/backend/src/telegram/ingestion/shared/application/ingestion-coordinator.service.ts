@@ -126,7 +126,7 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
                 .map((m) =>
                   CryptoNewsMedia.create({
                     index: m.index ?? 0,
-                    type: m.type,
+                    type: m.webpageUrl ? 'webpage' : m.type,
                     filePath: m.filePath as string,
                     mimeType: m.mimeType,
                     fileSize: m.fileSize ?? null,

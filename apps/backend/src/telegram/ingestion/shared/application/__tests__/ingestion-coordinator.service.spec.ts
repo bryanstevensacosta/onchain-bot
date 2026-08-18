@@ -14,6 +14,7 @@ import { CryptoNewsSource } from 'telegram/ingestion/crypto-news/domain/entities
 import { KolIngestionOrchestratorUseCase } from 'kol/identity/application/handlers/kol-ingestion-orchestrator.use-case';
 import { StoreNewsMessageUseCase } from 'telegram/ingestion/crypto-news/application/handlers/store-news-message.use-case';
 import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
+import { CryptoNewsMedia } from 'telegram/ingestion/crypto-news/domain/value-objects/crypto-news-media.vo';
 
 const { IngestionCoordinator } =
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- the static import chain is broken by Jest's inability to map the CJS `telegram/extensions/Logger` subpath (see file header)
@@ -109,6 +110,7 @@ class CapturingStoreUseCase extends StoreNewsMessageUseCase {
     title: string | null;
     content: string;
     occurredAt: Date;
+    media?: ReadonlyArray<CryptoNewsMedia>;
   }> = [];
   public async execute(input: {
     channelId: string;
@@ -116,6 +118,7 @@ class CapturingStoreUseCase extends StoreNewsMessageUseCase {
     title: string | null;
     content: string;
     occurredAt: Date;
+    media?: ReadonlyArray<CryptoNewsMedia>;
   }): Promise<CryptoNewsMessage> {
     this.stored.push(input);
     return CryptoNewsMessage.create(input);
@@ -311,6 +314,102 @@ describe('IngestionCoordinator', () => {
     expect(store.stored[0].channelId).toBe('200');
     expect(store.stored[0].content).toBe('breaking news');
     expect(orchestrator.received).toHaveLength(0);
+  });
+
+  it('labels media carrying a webpageUrl as type "webpage"', async () => {
+    const news = CryptoNewsSource.create({
+      channelId: '200',
+      handle: null,
+      title: 'News',
+    });
+    news.activate();
+    sourceRepo.seed(news);
+
+    listener.messages = [
+      {
+        peerId: '200',
+        messageId: 1,
+        text: 'news with link preview',
+        occurredAt: new Date('2026-01-01T00:00:00Z'),
+        media: [
+          {
+            type: 'photo',
+            fileId: 'f1',
+            accessHash: 'h1',
+            fileReference: 'r1',
+            mimeType: 'image/jpeg',
+            filePath: '/tmp/preview.jpg',
+            webpageUrl: 'https://example.com/article',
+            webpageTitle: 'Article',
+            webpageDescription: 'desc',
+            webpageSiteName: 'example.com',
+          },
+        ],
+      },
+    ];
+
+    const coord = new IngestionCoordinator(
+      buildConfig({}),
+      kolSeeder,
+      newsSeeder,
+      kolRepo,
+      sourceRepo,
+      orchestrator,
+      store,
+      listener,
+    );
+    await coord.onApplicationBootstrap();
+    await new Promise((r) => setImmediate(r));
+
+    expect(store.stored).toHaveLength(1);
+    expect(store.stored[0].media).toHaveLength(1);
+    expect(store.stored[0].media![0].type).toBe('webpage');
+  });
+
+  it('keeps type "photo" for media without a webpageUrl', async () => {
+    const news = CryptoNewsSource.create({
+      channelId: '200',
+      handle: null,
+      title: 'News',
+    });
+    news.activate();
+    sourceRepo.seed(news);
+
+    listener.messages = [
+      {
+        peerId: '200',
+        messageId: 1,
+        text: 'news with photo',
+        occurredAt: new Date('2026-01-01T00:00:00Z'),
+        media: [
+          {
+            type: 'photo',
+            fileId: 'f1',
+            accessHash: 'h1',
+            fileReference: 'r1',
+            mimeType: 'image/jpeg',
+            filePath: '/tmp/photo.jpg',
+          },
+        ],
+      },
+    ];
+
+    const coord = new IngestionCoordinator(
+      buildConfig({}),
+      kolSeeder,
+      newsSeeder,
+      kolRepo,
+      sourceRepo,
+      orchestrator,
+      store,
+      listener,
+    );
+    await coord.onApplicationBootstrap();
+    await new Promise((r) => setImmediate(r));
+
+    expect(store.stored).toHaveLength(1);
+    expect(store.stored[0].media).toHaveLength(1);
+    expect(store.stored[0].media![0].type).toBe('photo');
   });
 
   it('does not subscribe when no channels are active', async () => {

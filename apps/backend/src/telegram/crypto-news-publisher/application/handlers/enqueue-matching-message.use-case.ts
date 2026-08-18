@@ -93,7 +93,7 @@ export class EnqueueMatchingMessageUseCase {
     if (
       firstKeyword &&
       firstKeyword.requireMedia &&
-      message.media.length === 0
+      message.media.every((m) => m.type === 'webpage')
     ) {
       this.logger.debug(
         `keyword ${firstKeyword.id} (${firstKeyword.phrase}) requires image; message ${message.id} has no media — skipping`,
@@ -153,6 +153,7 @@ export class EnqueueMatchingMessageUseCase {
 
   private collectImagePaths(message: CryptoNewsMessage): string[] {
     return message.media
+      .filter((m) => m.type !== 'webpage')
       .map((m) => m.filePath)
       .filter((p): p is string => p !== null && p !== undefined);
   }

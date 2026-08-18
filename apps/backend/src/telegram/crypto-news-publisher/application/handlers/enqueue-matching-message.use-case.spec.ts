@@ -229,6 +229,76 @@ describe('EnqueueMatchingMessageUseCase', () => {
       expect(result).not.toBeNull();
       expect(queueRepo.enqueue).toHaveBeenCalledTimes(1);
     });
+
+    it('should skip enqueue when matched keyword requires media and message has only webpage previews', async () => {
+      const webpageOnlyMessage = {
+        ...mockMessage,
+        media: [{ id: 'm1', type: 'webpage', filePath: null }],
+      } as unknown as CryptoNewsMessage;
+      const matchedKeyword = Keyword.create({
+        phrase: 'btc',
+        requireMedia: true,
+      });
+
+      const result = await useCase.execute({
+        message: webpageOnlyMessage,
+        matchedKeywords: [matchedKeyword],
+      });
+
+      expect(result).toBeNull();
+      expect(queueRepo.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('should enqueue when matched keyword requires media and message has a photo', async () => {
+      queueRepo.enqueue.mockResolvedValue();
+      const photoMessage = {
+        ...mockMessage,
+        media: [{ id: 'm1', type: 'photo', filePath: '/uploads/photo.png' }],
+      } as unknown as CryptoNewsMessage;
+      const matchedKeyword = Keyword.create({
+        phrase: 'btc',
+        requireMedia: true,
+      });
+
+      const result = await useCase.execute({
+        message: photoMessage,
+        matchedKeywords: [matchedKeyword],
+      });
+
+      expect(result).not.toBeNull();
+      expect(queueRepo.enqueue).toHaveBeenCalledTimes(1);
+      const callArg = queueRepo.enqueue.mock.calls[0][0];
+      expect(callArg.imagePaths).toEqual(['/uploads/photo.png']);
+    });
+
+    it('should collect no imagePaths when message has only webpage previews', async () => {
+      const webpageOnlyMessage = {
+        ...mockMessage,
+        media: [{ id: 'm1', type: 'webpage', filePath: null }],
+      } as unknown as CryptoNewsMessage;
+      queueRepo.enqueue.mockResolvedValue();
+
+      await useCase.execute({ message: webpageOnlyMessage });
+
+      const callArg = queueRepo.enqueue.mock.calls[0][0];
+      expect(callArg.imagePaths).toEqual([]);
+    });
+
+    it('should collect only photo paths when message mixes photo and webpage preview', async () => {
+      const mixedMediaMessage = {
+        ...mockMessage,
+        media: [
+          { id: 'm1', type: 'photo', filePath: '/uploads/photo.png' },
+          { id: 'm2', type: 'webpage', filePath: null },
+        ],
+      } as unknown as CryptoNewsMessage;
+      queueRepo.enqueue.mockResolvedValue();
+
+      await useCase.execute({ message: mixedMediaMessage });
+
+      const callArg = queueRepo.enqueue.mock.calls[0][0];
+      expect(callArg.imagePaths).toEqual(['/uploads/photo.png']);
+    });
   });
 
   describe('MAX_QUEUE_DEPTH', () => {

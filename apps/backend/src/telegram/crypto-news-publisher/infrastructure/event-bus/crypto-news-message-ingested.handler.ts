@@ -310,6 +310,7 @@ export class CryptoNewsMessageIngestedHandler {
     message: CryptoNewsMessage,
   ): Promise<string[]> {
     const ownPaths = message.media
+      .filter((m) => m.type !== 'webpage')
       .map((m) => m.filePath)
       .filter((p): p is string => p !== null && p !== undefined);
     if (!message.groupedId) {
@@ -324,6 +325,7 @@ export class CryptoNewsMessageIngestedHandler {
         .filter((s) => s.messageId !== message.messageId)
         .flatMap((s) =>
           s.media
+            .filter((m) => m.type !== 'webpage')
             .map((m) => m.filePath)
             .filter((p): p is string => p !== null && p !== undefined),
         );
@@ -454,7 +456,7 @@ export class CryptoNewsMessageIngestedHandler {
   }
 
   private messageHasMedia(message: CryptoNewsMessage): boolean {
-    return message.media.length > 0;
+    return message.media.some((m) => m.type !== 'webpage');
   }
 
   private findMatchingKeywords(

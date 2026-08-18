@@ -482,6 +482,53 @@ describe('CryptoNewsMessageIngestedHandler', () => {
       expect(enqueue.execute).not.toHaveBeenCalled();
     });
 
+    it('should NOT match requireMedia keyword when media is only a webpage preview', async () => {
+      const event = createEvent();
+      const message = createMessage('Bitcoin news', [
+        { type: 'webpage', filePath: null },
+      ]);
+      const kw = createKeywordWithOptions({
+        phrase: 'bitcoin',
+        requireMedia: true,
+      });
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw]);
+      enqueue.execute.mockResolvedValue(
+        undefined as unknown as PublisherQueueEntry,
+      );
+
+      await handler.handle(event);
+
+      expect(enqueue.execute).not.toHaveBeenCalled();
+    });
+
+    it('should match requireMedia keyword when media is a photo (webpage filter regression)', async () => {
+      const event = createEvent();
+      const message = createMessage('Bitcoin news', [
+        { type: 'photo', filePath: '/img/btc.jpg' },
+      ]);
+      const kw = createKeywordWithOptions({
+        phrase: 'bitcoin',
+        requireMedia: true,
+      });
+      const entry = PublisherQueueEntry.create({
+        channelId: 'crypto-news',
+        messageId: 42,
+        rawContent: 'Bitcoin news',
+        rawTitle: 'Test title',
+        imagePath: null,
+        groupedId: null,
+        messageReceivedAt: new Date(),
+      });
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw]);
+      enqueue.execute.mockResolvedValue(entry);
+
+      await handler.handle(event);
+
+      expect(enqueue.execute).toHaveBeenCalled();
+    });
+
     it('should skip compound group if any phrase requires media and message has no media', async () => {
       const event = createEvent();
       const message = createMessage('Bitcoin and Ethereum', []);
@@ -746,6 +793,51 @@ describe('CryptoNewsMessageIngestedHandler', () => {
       expect((enqueuedEntry as any).state.blockedReason).toBe(
         'Duplicate of queue',
       );
+    });
+
+    it('should leave imagePaths empty when blocked entry media is only a webpage preview', async () => {
+      dedupService.checkExact.mockResolvedValue({
+        isDuplicate: true,
+        blockedReason: 'Duplicate of queue',
+      });
+
+      const event = createEvent({ title: 'BTC update' });
+      const message = createMessage('Bitcoin news content', [
+        { type: 'webpage', filePath: null },
+      ]);
+      const kw = createKeyword('bitcoin');
+
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw]);
+
+      await handler.handle(event);
+
+      expect(queueRepo.enqueue).toHaveBeenCalled();
+      const enqueuedEntry = queueRepo.enqueue.mock.calls[0][0];
+      expect(enqueuedEntry.imagePaths).toEqual([]);
+    });
+
+    it('should include only photo paths (not webpage previews) in blocked entry imagePaths', async () => {
+      dedupService.checkExact.mockResolvedValue({
+        isDuplicate: true,
+        blockedReason: 'Duplicate of queue',
+      });
+
+      const event = createEvent({ title: 'BTC update' });
+      const message = createMessage('Bitcoin news content', [
+        { type: 'photo', filePath: '/img/btc.jpg' },
+        { type: 'webpage', filePath: null },
+      ]);
+      const kw = createKeyword('bitcoin');
+
+      messageRepo.findByChannelAndMessageId.mockResolvedValue(message);
+      keywordRepo.findEnabled.mockResolvedValue([kw]);
+
+      await handler.handle(event);
+
+      expect(queueRepo.enqueue).toHaveBeenCalled();
+      const enqueuedEntry = queueRepo.enqueue.mock.calls[0][0];
+      expect(enqueuedEntry.imagePaths).toEqual(['/img/btc.jpg']);
     });
 
     it('should BLOCKED with content reason on content match', async () => {
