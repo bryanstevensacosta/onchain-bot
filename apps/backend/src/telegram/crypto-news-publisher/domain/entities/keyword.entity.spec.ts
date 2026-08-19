@@ -8,7 +8,7 @@ describe('Keyword', () => {
       expect(kw.caseSensitive).toBe(false);
       expect(kw.enabled).toBe(true);
       expect(kw.templateId).toBeNull();
-      expect(kw.requireImage).toBe(false);
+      expect(kw.requireMedia).toBe(false);
       expect(kw.id).toEqual(expect.any(String));
       expect(kw.createdAt).toBeInstanceOf(Date);
     });
@@ -61,14 +61,25 @@ describe('Keyword', () => {
       expect(kw.id).toBe(fixedId);
     });
 
-    it('defaults requireImage to false when not provided', () => {
+    it('defaults requireMedia to false when not provided', () => {
       const kw = Keyword.create({ phrase: 'btc' });
-      expect(kw.requireImage).toBe(false);
+      expect(kw.requireMedia).toBe(false);
     });
 
-    it('honours explicit requireImage=true on create', () => {
-      const kw = Keyword.create({ phrase: 'btc', requireImage: true });
-      expect(kw.requireImage).toBe(true);
+    it('honours explicit requireMedia=true on create', () => {
+      const kw = Keyword.create({ phrase: 'btc', requireMedia: true });
+      expect(kw.requireMedia).toBe(true);
+    });
+
+    it('defaults andGroupId to null when not provided', () => {
+      const kw = Keyword.create({ phrase: 'btc' });
+      expect(kw.andGroupId).toBeNull();
+    });
+
+    it('honours explicit andGroupId on create', () => {
+      const groupId = 'test-group-1';
+      const kw = Keyword.create({ phrase: 'btc', andGroupId: groupId });
+      expect(kw.andGroupId).toBe(groupId);
     });
   });
 
@@ -94,7 +105,7 @@ describe('Keyword', () => {
       });
 
       it('matches substrings inside larger tokens (e.g. btc in btcusdt)', () => {
-        const kw2 = Keyword.create({ phrase: 'btc' });
+        const kw2 = Keyword.create({ phrase: 'btc', matchMode: 'substring' });
         expect(kw2.matches('btcusdt pair is live')).toBe(true);
       });
     });
@@ -106,6 +117,34 @@ describe('Keyword', () => {
         expect(kw.matches('BTC is up')).toBe(true);
         expect(kw.matches('btc is down')).toBe(false);
         expect(kw.matches('Btc sideways')).toBe(false);
+      });
+
+      it('matches phrases starting with # (hashtags)', () => {
+        const kw = Keyword.create({
+          phrase: '#Bitcoin ETFs',
+          matchMode: 'exact',
+        });
+        expect(kw.matches('\n#Bitcoin ETFs:\n')).toBe(true);
+        expect(kw.matches('text #Bitcoin ETFs more')).toBe(true);
+        expect(kw.matches('ab#Bitcoin ETFs')).toBe(false);
+      });
+
+      it('matches phrases starting with @ (usernames)', () => {
+        const kw = Keyword.create({
+          phrase: '@user',
+          matchMode: 'exact',
+        });
+        expect(kw.matches('hello @user how are you')).toBe(true);
+        expect(kw.matches('hello@user')).toBe(false);
+      });
+
+      it('matches phrases starting with $ (tickers)', () => {
+        const kw = Keyword.create({
+          phrase: '$100',
+          matchMode: 'exact',
+        });
+        expect(kw.matches('price is $100')).toBe(true);
+        expect(kw.matches('price$100')).toBe(false);
       });
     });
   });
@@ -163,7 +202,8 @@ describe('Keyword', () => {
         caseSensitive: true,
         templateId: tpl,
         enabled: false,
-        requireImage: true,
+        requireMedia: true,
+        andGroupId: null,
         createdAt: originalDate,
       });
       expect(kw.id).toBe(originalId);
@@ -171,7 +211,8 @@ describe('Keyword', () => {
       expect(kw.caseSensitive).toBe(true);
       expect(kw.templateId).toBe(tpl);
       expect(kw.enabled).toBe(false);
-      expect(kw.requireImage).toBe(true);
+      expect(kw.requireMedia).toBe(true);
+      expect(kw.andGroupId).toBeNull();
       expect(kw.createdAt).toBe(originalDate);
     });
 
@@ -182,7 +223,8 @@ describe('Keyword', () => {
         caseSensitive: false,
         templateId: null,
         enabled: true,
-        requireImage: false,
+        requireMedia: false,
+        andGroupId: null,
         createdAt: new Date(),
       });
       expect(kw.templateId).toBeNull();

@@ -9,6 +9,7 @@ import { PromptTemplateRepository } from 'telegram/crypto-news-publisher/applica
 import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 import { KeywordRepository } from 'telegram/crypto-news-publisher/application/ports/keyword.repository';
 import { GetLlmModelsUseCase } from 'telegram/crypto-news-publisher/application/handlers/get-llm-models.use-case';
+import { TelegramPublisherPort } from 'telegram/shared';
 import { PromptTemplate } from 'telegram/crypto-news-publisher/domain/entities/prompt-template.entity';
 import { LlmConfig } from 'telegram/crypto-news-publisher/domain/entities/llm-config.entity';
 import { Keyword } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
@@ -81,6 +82,16 @@ describe('LlmConfigController', () => {
           provide: GetLlmModelsUseCase,
           useValue: {
             execute: jest.fn(),
+          },
+        },
+        {
+          provide: TelegramPublisherPort,
+          useValue: {
+            sendMessage: jest.fn(),
+            sendPhoto: jest.fn(),
+            sendVideo: jest.fn(),
+            sendMediaGroup: jest.fn(),
+            getChat: jest.fn().mockResolvedValue({ ok: true }),
           },
         },
       ],
@@ -306,13 +317,36 @@ describe('LlmConfigController', () => {
       const view = await controller.updateConfig({
         defaultTemplateId: newDefault,
         enabled: true,
+        rejectNonLatin: false,
         dailyCap: 7,
         llmMaxAttempts: 5,
       });
       expect(view.defaultTemplateId).toBe(newDefault);
       expect(view.dailyCap).toBe(7);
       expect(view.llmMaxAttempts).toBe(5);
+      expect(view.rejectNonLatin).toBe(false);
       expect(llmConfigRepo.save).toHaveBeenCalled();
+      const persisted = llmConfigRepo.save.mock.calls[0]?.[0] as
+        | { rejectNonLatin: boolean }
+        | undefined;
+      expect(persisted?.rejectNonLatin).toBe(false);
+    });
+
+    it('exposes rejectNonLatin on the config view', async () => {
+      const cfg = LlmConfig.load({
+        defaultTemplateId: DEFAULT_TEMPLATE_ID,
+        targetChannel: '@ch',
+        enabled: true,
+        rejectNonLatin: false,
+        dailyCap: 12,
+        dailyResetUtcHour: 4,
+        randomDelayMinMs: 60_000,
+        randomDelayMaxMs: 600_000,
+        llmMaxAttempts: 3,
+      });
+      llmConfigRepo.load.mockResolvedValue(cfg);
+      const view = await controller.getConfig();
+      expect(view.rejectNonLatin).toBe(false);
     });
   });
 });

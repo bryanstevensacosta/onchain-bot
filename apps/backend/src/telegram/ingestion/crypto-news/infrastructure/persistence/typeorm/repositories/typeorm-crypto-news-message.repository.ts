@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, MoreThanOrEqual, Repository } from 'typeorm';
 import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
 import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
 import { CryptoNewsMessageEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
@@ -36,8 +36,10 @@ export class TypeOrmCryptoNewsMessageRepository extends CryptoNewsMessageReposit
 
   public async findRecent(
     limit: number,
+    since?: Date,
   ): Promise<ReadonlyArray<CryptoNewsMessage>> {
     const rows = await this.repo.find({
+      where: since ? { ingestedAt: MoreThanOrEqual(since) } : undefined,
       order: { ingestedAt: 'DESC' },
       take: limit,
     });
@@ -47,9 +49,13 @@ export class TypeOrmCryptoNewsMessageRepository extends CryptoNewsMessageReposit
   public async findByChannelId(
     channelId: string,
     limit: number,
+    since?: Date,
   ): Promise<ReadonlyArray<CryptoNewsMessage>> {
     const rows = await this.repo.find({
-      where: { channelId },
+      where: {
+        channelId,
+        ...(since ? { ingestedAt: MoreThanOrEqual(since) } : {}),
+      },
       order: { ingestedAt: 'DESC' },
       take: limit,
     });
@@ -64,6 +70,17 @@ export class TypeOrmCryptoNewsMessageRepository extends CryptoNewsMessageReposit
       where: { channelId, messageId },
     });
     return row ? CryptoNewsMessageMapper.toDomain(row) : null;
+  }
+
+  public async findByChannelAndGroupedId(
+    channelId: string,
+    groupedId: string,
+  ): Promise<ReadonlyArray<CryptoNewsMessage>> {
+    const rows = await this.repo.find({
+      where: { channelId, groupedId },
+      order: { messageId: 'ASC' },
+    });
+    return rows.map((r) => CryptoNewsMessageMapper.toDomain(r));
   }
 
   public async findMediaById(

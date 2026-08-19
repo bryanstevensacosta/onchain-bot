@@ -1,3 +1,4 @@
+import * as crypto from 'node:crypto';
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 import type {
   PublisherQueueEntryProps,
@@ -33,6 +34,9 @@ export class PublisherQueueEntity {
   @PrimaryColumn({ name: 'id', type: 'uuid' })
   public id!: string;
 
+  @Column({ name: 'trace_id', type: 'uuid', nullable: true })
+  public traceId!: string | null;
+
   @Column({ name: 'channel_id', type: 'varchar', length: 64 })
   public channelId!: string;
 
@@ -48,7 +52,13 @@ export class PublisherQueueEntity {
   @Column({ name: 'image_path', type: 'text', nullable: true })
   public imagePath!: string | null;
 
-  @Column({ name: 'image_paths', type: 'text', array: true, nullable: true, default: '{}' })
+  @Column({
+    name: 'image_paths',
+    type: 'text',
+    array: true,
+    nullable: true,
+    default: '{}',
+  })
   public imagePaths!: string[];
 
   @Column({ name: 'grouped_id', type: 'varchar', length: 64, nullable: true })
@@ -56,6 +66,15 @@ export class PublisherQueueEntity {
 
   @Column({ name: 'message_received_at', type: 'timestamptz' })
   public messageReceivedAt!: Date;
+
+  @Column({
+    name: 'matched_keyword_ids',
+    type: 'text',
+    array: true,
+    nullable: true,
+    default: '{}',
+  })
+  public matchedKeywordIds!: string[];
 
   /**
    * Frozen at enqueue time. Null means "no per-keyword override" —
@@ -93,16 +112,44 @@ export class PublisherQueueEntity {
   @Column({ name: 'generated_temperature', type: 'real', nullable: true })
   public generatedTemperature!: number | null;
 
-  @Column({ name: 'generated_reasoning_effort', type: 'varchar', length: 16, nullable: true })
+  @Column({
+    name: 'generated_reasoning_effort',
+    type: 'varchar',
+    length: 16,
+    nullable: true,
+  })
   public generatedReasoningEffort!: string | null;
 
-  @Column({ name: 'generated_model', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'generated_model',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   public generatedModel!: string | null;
+
+  @Column({ name: 'blocked_reason', type: 'text', nullable: true })
+  public blockedReason!: string | null;
+
+  @Column({
+    name: 'duplicate_of_channel_id',
+    type: 'varchar',
+    length: 64,
+    nullable: true,
+  })
+  public duplicateOfChannelId!: string | null;
+
+  @Column({ name: 'duplicate_of_message_id', type: 'integer', nullable: true })
+  public duplicateOfMessageId!: number | null;
+
+  @Column({ name: 'duplicate_of_entry_id', type: 'uuid', nullable: true })
+  public duplicateOfEntryId!: string | null;
 
   /** Round-trip helper for tests / debug. */
   public toProps(): PublisherQueueEntryProps {
     return {
       id: this.id,
+      traceId: this.traceId ?? crypto.randomUUID(),
       channelId: this.channelId,
       messageId: this.messageId,
       rawContent: this.rawContent,
@@ -111,6 +158,7 @@ export class PublisherQueueEntity {
       imagePaths: this.imagePaths ?? [],
       groupedId: this.groupedId,
       messageReceivedAt: this.messageReceivedAt,
+      matchedKeywordIds: this.matchedKeywordIds ?? [],
       keywordTemplateId: this.keywordTemplateId,
       status: this.status,
       publishedAt: this.publishedAt,
@@ -123,6 +171,10 @@ export class PublisherQueueEntity {
       generatedTemperature: this.generatedTemperature,
       generatedReasoningEffort: this.generatedReasoningEffort,
       generatedModel: this.generatedModel,
+      blockedReason: this.blockedReason,
+      duplicateOfChannelId: this.duplicateOfChannelId,
+      duplicateOfMessageId: this.duplicateOfMessageId,
+      duplicateOfEntryId: this.duplicateOfEntryId,
     };
   }
 }

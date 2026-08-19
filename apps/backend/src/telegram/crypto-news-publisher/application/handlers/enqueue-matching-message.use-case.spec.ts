@@ -1,12 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EnqueueMatchingMessageUseCase } from './enqueue-matching-message.use-case';
 import { PublisherQueueRepository } from '../ports/publisher-queue.repository';
+import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
 import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
 import { Keyword } from '../../domain/entities/keyword.entity';
 
 describe('EnqueueMatchingMessageUseCase', () => {
   let useCase: EnqueueMatchingMessageUseCase;
   let queueRepo: jest.Mocked<PublisherQueueRepository>;
+  let messageRepo: jest.Mocked<CryptoNewsMessageRepository>;
 
   const mockMessage: CryptoNewsMessage = {
     id: 'msg-123',
@@ -38,6 +40,12 @@ describe('EnqueueMatchingMessageUseCase', () => {
             enqueue: jest.fn(),
           },
         },
+        {
+          provide: CryptoNewsMessageRepository,
+          useValue: {
+            findByChannelAndGroupedId: jest.fn().mockResolvedValue([]),
+          },
+        },
       ],
     }).compile();
 
@@ -45,6 +53,7 @@ describe('EnqueueMatchingMessageUseCase', () => {
       EnqueueMatchingMessageUseCase,
     );
     queueRepo = module.get(PublisherQueueRepository);
+    messageRepo = module.get(CryptoNewsMessageRepository);
   });
 
   it('should be defined', () => {
@@ -130,7 +139,10 @@ describe('EnqueueMatchingMessageUseCase', () => {
       });
       queueRepo.enqueue.mockResolvedValue();
 
-      await useCase.execute({ message: mockMessage, matchedKeyword });
+      await useCase.execute({
+        message: mockMessage,
+        matchedKeywords: [matchedKeyword],
+      });
 
       const callArg = queueRepo.enqueue.mock.calls[0][0];
       expect(callArg.keywordTemplateId).toBe(templateId);
@@ -140,7 +152,10 @@ describe('EnqueueMatchingMessageUseCase', () => {
       const matchedKeyword = Keyword.create({ phrase: 'btc' });
       queueRepo.enqueue.mockResolvedValue();
 
-      await useCase.execute({ message: mockMessage, matchedKeyword });
+      await useCase.execute({
+        message: mockMessage,
+        matchedKeywords: [matchedKeyword],
+      });
 
       const callArg = queueRepo.enqueue.mock.calls[0][0];
       expect(callArg.keywordTemplateId).toBeNull();
@@ -165,35 +180,35 @@ describe('EnqueueMatchingMessageUseCase', () => {
       expect(result!.channelId).toBe('crypto-news');
     });
 
-    it('should skip enqueue when matched keyword requires image and message has no media', async () => {
+    it('should skip enqueue when matched keyword requires media and message has no media', async () => {
       const noMediaMessage = {
         ...mockMessage,
         media: [],
       } as unknown as CryptoNewsMessage;
       const matchedKeyword = Keyword.create({
         phrase: 'btc',
-        requireImage: true,
+        requireMedia: true,
       });
 
       const result = await useCase.execute({
         message: noMediaMessage,
-        matchedKeyword,
+        matchedKeywords: [matchedKeyword],
       });
 
       expect(result).toBeNull();
       expect(queueRepo.enqueue).not.toHaveBeenCalled();
     });
 
-    it('should enqueue when matched keyword requires image and message has media', async () => {
+    it('should enqueue when matched keyword requires media and message has media', async () => {
       queueRepo.enqueue.mockResolvedValue();
       const matchedKeyword = Keyword.create({
         phrase: 'btc',
-        requireImage: true,
+        requireMedia: true,
       });
 
       const result = await useCase.execute({
         message: mockMessage,
-        matchedKeyword,
+        matchedKeywords: [matchedKeyword],
       });
 
       expect(result).not.toBeNull();
@@ -202,7 +217,7 @@ describe('EnqueueMatchingMessageUseCase', () => {
       expect(callArg.keywordTemplateId).toBeNull();
     });
 
-    it('should not apply the requireImage filter when no matched keyword is supplied', async () => {
+    it('should not apply the requireMedia filter when no matched keyword is supplied', async () => {
       const noMediaMessage = {
         ...mockMessage,
         media: [],
@@ -213,6 +228,76 @@ describe('EnqueueMatchingMessageUseCase', () => {
 
       expect(result).not.toBeNull();
       expect(queueRepo.enqueue).toHaveBeenCalledTimes(1);
+    });
+
+    it('should skip enqueue when matched keyword requires media and message has only webpage previews', async () => {
+      const webpageOnlyMessage = {
+        ...mockMessage,
+        media: [{ id: 'm1', type: 'webpage', filePath: null }],
+      } as unknown as CryptoNewsMessage;
+      const matchedKeyword = Keyword.create({
+        phrase: 'btc',
+        requireMedia: true,
+      });
+
+      const result = await useCase.execute({
+        message: webpageOnlyMessage,
+        matchedKeywords: [matchedKeyword],
+      });
+
+      expect(result).toBeNull();
+      expect(queueRepo.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('should enqueue when matched keyword requires media and message has a photo', async () => {
+      queueRepo.enqueue.mockResolvedValue();
+      const photoMessage = {
+        ...mockMessage,
+        media: [{ id: 'm1', type: 'photo', filePath: '/uploads/photo.png' }],
+      } as unknown as CryptoNewsMessage;
+      const matchedKeyword = Keyword.create({
+        phrase: 'btc',
+        requireMedia: true,
+      });
+
+      const result = await useCase.execute({
+        message: photoMessage,
+        matchedKeywords: [matchedKeyword],
+      });
+
+      expect(result).not.toBeNull();
+      expect(queueRepo.enqueue).toHaveBeenCalledTimes(1);
+      const callArg = queueRepo.enqueue.mock.calls[0][0];
+      expect(callArg.imagePaths).toEqual(['/uploads/photo.png']);
+    });
+
+    it('should collect no imagePaths when message has only webpage previews', async () => {
+      const webpageOnlyMessage = {
+        ...mockMessage,
+        media: [{ id: 'm1', type: 'webpage', filePath: null }],
+      } as unknown as CryptoNewsMessage;
+      queueRepo.enqueue.mockResolvedValue();
+
+      await useCase.execute({ message: webpageOnlyMessage });
+
+      const callArg = queueRepo.enqueue.mock.calls[0][0];
+      expect(callArg.imagePaths).toEqual([]);
+    });
+
+    it('should collect only photo paths when message mixes photo and webpage preview', async () => {
+      const mixedMediaMessage = {
+        ...mockMessage,
+        media: [
+          { id: 'm1', type: 'photo', filePath: '/uploads/photo.png' },
+          { id: 'm2', type: 'webpage', filePath: null },
+        ],
+      } as unknown as CryptoNewsMessage;
+      queueRepo.enqueue.mockResolvedValue();
+
+      await useCase.execute({ message: mixedMediaMessage });
+
+      const callArg = queueRepo.enqueue.mock.calls[0][0];
+      expect(callArg.imagePaths).toEqual(['/uploads/photo.png']);
     });
   });
 

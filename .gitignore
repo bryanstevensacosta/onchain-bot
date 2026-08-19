@@ -5,8 +5,10 @@
 .env.dev
 .env.production
 .env.prod
+.env.staging
 !.env.example
 !.env.production.template
+!.env.staging.template
 
 # Cache & local state
 .cache/
@@ -57,3 +59,11 @@ apps/backend/scripts/.register.cjs
 # Backend logs
 apps/backend/logs/
 uploads/
+
+# Terraform state (sensitive, contains tokens)
+infra/terraform/.terraform/
+*.tfstate
+*.tfstate.*
+
+# Agent workspace state (auto-generated)
+.omo/boulder.json

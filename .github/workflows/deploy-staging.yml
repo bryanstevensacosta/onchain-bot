@@ -10,9 +10,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  stop-services:
+    name: Stop non-essential services
+    runs-on: self-hosted
+    steps:
+      - name: Stop staging backend + frontend
+        run: |
+          echo "=== Stopping staging backend + frontend ==="
+          onchainbot staging stop
+      - name: Stop litellm-gateway
+        run: |
+          echo "=== Stopping litellm-gateway ==="
+          docker stop litellm-gateway || true
+
   test:
     name: Tests
     runs-on: self-hosted
+    needs: [stop-services]
     env:
       NODE_ENV: test
       DATABASE_ENABLED: true
@@ -38,8 +52,16 @@ jobs:
           echo "/opt/actions-runner/_work/_tool/node/24.18.0/x64/bin" >> $GITHUB_PATH
           node --version
 
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 
       - name: Run backend tests
         run: npm run test:backend
@@ -50,6 +72,7 @@ jobs:
   lint:
     name: Lint
     runs-on: self-hosted
+    needs: [test]
     steps:
       - uses: actions/checkout@v4
 
@@ -57,8 +80,16 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 
       - name: Lint
         run: npm run lint
@@ -67,6 +98,7 @@ jobs:
   tsc:
     name: TypeScript Check
     runs-on: self-hosted
+    needs: [lint]
     steps:
       - uses: actions/checkout@v4
 
@@ -74,8 +106,16 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 
       - name: TypeScript check
         run: npm run build || true
@@ -88,18 +128,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Ensure .env.staging exists
-        run: |
-          if [ ! -f /opt/onchain-bot-staging/apps/backend/.env.staging ]; then
-            echo "=== First deploy: creating .env.staging from template ==="
-            cp /opt/onchain-bot-staging/apps/backend/.env.staging.template \
-               /opt/onchain-bot-staging/apps/backend/.env.staging
-            echo "⚠️  WARNING: .env.staging created from template — update secrets manually"
-          fi
-
       - name: Sync live source tree with dev
         run: |
           set -euo pipefail
+          mkdir -p /opt/onchain-bot-staging
           rsync -a --delete \
             --exclude='.git' \
             --exclude='.git/**' \
@@ -114,8 +146,34 @@ jobs:
             --exclude='.env*' \
             /opt/actions-runner/_work/onchain-bot/onchain-bot/ \
             /opt/onchain-bot-staging/
-          echo "=== Post-sync HEAD ==="
-          git -C /opt/onchain-bot-staging rev-parse HEAD
+          echo "=== Sync complete ==="
+
+      - name: Clean stale node_modules (rsync --exclude prevents deletion)
+        run: |
+          echo "=== Removing stale node_modules that rsync --exclude preserves ==="
+          find /opt/onchain-bot-staging -name node_modules -type d -prune -exec rm -rf {} + 2>/dev/null || true
+          echo "=== Done ==="
+
+      - name: Ensure .env.staging exists
+        run: |
+          mkdir -p /opt/onchain-bot-staging/apps/backend
+          if [ ! -f /opt/onchain-bot-staging/apps/backend/.env.staging ]; then
+            echo "=== First deploy: creating .env.staging from template ==="
+            cp /opt/onchain-bot-staging/apps/backend/.env.staging.template \
+               /opt/onchain-bot-staging/apps/backend/.env.staging 2>/dev/null || \
+              touch /opt/onchain-bot-staging/apps/backend/.env.staging
+            echo "⚠️  WARNING: .env.staging created from template — update secrets manually"
+          fi
+
+      - name: Inject staging env vars from GitHub
+        run: |
+          # USE_MOCK_AI injected via GitHub Actions vars (can be changed in repo settings)
+          if ! grep -q "USE_MOCK_AI" /opt/onchain-bot-staging/apps/backend/.env.staging 2>/dev/null; then
+            echo "USE_MOCK_AI=true" >> /opt/onchain-bot-staging/apps/backend/.env.staging
+            echo "=== Added USE_MOCK_AI=true to .env.staging ==="
+          else
+            echo "=== USE_MOCK_AI already present in .env.staging ==="
+          fi
 
       - name: Backup staging DB (if exists)
         run: |
@@ -132,9 +190,74 @@ jobs:
         run: |
           docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml build frontend
 
-      - name: Deploy services
+      - name: Configure deploy environment
         run: |
-          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d --force-recreate backend frontend
+          # Run once before deploy steps — postgres/redis don't restart
+          if [ -n "${{ secrets.REDIS_PASSWORD }}" ]; then
+            echo "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}" > /opt/onchain-bot-staging/apps/backend/.env
+          else
+            rm -f /opt/onchain-bot-staging/apps/backend/.env
+          fi
+
+      - name: Install dependencies (for host-side migrations)
+        run: |
+          echo "=== Installing host deps (migrations, scripts) ==="
+          npm --prefix /opt/onchain-bot-staging ci --no-audit --no-fund 2>&1 | tail -3
+
+      - name: Run migrations
+        run: |
+          set -euo pipefail
+          echo "=== Running staging migrations ==="
+          set -a
+          source /opt/onchain-bot-staging/apps/backend/.env.staging || true
+          set +a
+          cd /opt/onchain-bot-staging/apps/backend && \
+          POSTGRES_HOST=localhost \
+          POSTGRES_PORT=5433 \
+          POSTGRES_USER="${POSTGRES_USER:-alpha_meta_token_scanner}" \
+          POSTGRES_DB="${POSTGRES_DB:-alpha_meta_token_scanner_staging}" \
+          POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-alpha_meta_token_scanner}" \
+          npm run migration:run
+
+      - name: Deploy backend
+        run: |
+          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d --no-deps backend
+
+      - name: Wait for backend healthcheck
+        run: |
+          echo "=== Waiting for backend to become healthy ==="
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3031/api/health > /dev/null 2>&1; then
+              echo "✓ Backend is healthy (attempt $i)"
+              break
+            fi
+            echo "  Waiting... attempt $i/30"
+            sleep 2
+            if [ "$i" -eq 30 ]; then
+              echo "❌ Backend healthcheck failed after 30 attempts"
+              exit 1
+            fi
+          done
+
+      - name: Deploy frontend
+        run: |
+          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d frontend
+
+      - name: Wait for frontend healthcheck
+        run: |
+          echo "=== Waiting for frontend to become healthy ==="
+          for i in $(seq 1 30); do
+            if curl -sf -o /dev/null http://localhost:4173/ > /dev/null 2>&1; then
+              echo "✓ Frontend is healthy (attempt $i)"
+              break
+            fi
+            echo "  Waiting... attempt $i/30"
+            sleep 2
+            if [ "$i" -eq 30 ]; then
+              echo "❌ Frontend healthcheck failed after 30 attempts"
+              exit 1
+            fi
+          done
 
       - name: Install socat services for staging
         run: |
@@ -142,7 +265,6 @@ jobs:
 
       - name: Healthcheck backend (Tailscale)
         run: |
-          sleep 10
           curl -sf http://100.84.4.28:3031/api/health || { echo "BACKEND HEALTHCHECK FAILED"; exit 1; }
 
       - name: Healthcheck frontend (Tailscale)
@@ -155,3 +277,18 @@ jobs:
           docker image prune --force --filter "until=24h"
           echo "=== Docker disk usage after prune ==="
           docker system df
+
+  restart-services:
+    name: Restart services
+    if: ${{ always() }}
+    runs-on: self-hosted
+    needs: [deploy-staging]
+    steps:
+      - name: Restart litellm-gateway
+        run: |
+          echo "=== Restarting litellm-gateway ==="
+          docker start litellm-gateway || true
+      - name: Restart staging backend + frontend
+        run: |
+          echo "=== Restarting staging ==="
+          onchainbot staging start

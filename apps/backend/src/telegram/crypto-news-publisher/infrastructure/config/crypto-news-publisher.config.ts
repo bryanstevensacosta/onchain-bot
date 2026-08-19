@@ -10,7 +10,6 @@ import { join } from 'node:path';
  * the on-disk file; missing fields fall back to the defaults.
  */
 export interface CryptoNewsPublisherConfigJson {
-  enabled?: boolean;
   targetChannel?: string;
   publishing?: {
     dailyCap?: number;
@@ -26,7 +25,6 @@ export interface CryptoNewsPublisherConfigJson {
 }
 
 export interface CryptoNewsPublisherConfig {
-  readonly enabled: boolean;
   readonly targetChannel: string;
   readonly publishing: {
     readonly dailyCap: number;
@@ -55,7 +53,6 @@ const CONFIG_PATH = join(
  * to make accidental mutation a noisy TypeError.
  */
 export const DEFAULT_CONFIG: CryptoNewsPublisherConfig = Object.freeze({
-  enabled: false,
   targetChannel: '',
   publishing: Object.freeze({
     dailyCap: 36,
@@ -101,7 +98,6 @@ export function loadCryptoNewsPublisherConfig(): CryptoNewsPublisherConfig {
     return DEFAULT_CONFIG;
   }
   return {
-    enabled: fileConfig.enabled ?? DEFAULT_CONFIG.enabled,
     targetChannel: fileConfig.targetChannel ?? DEFAULT_CONFIG.targetChannel,
     publishing: {
       dailyCap:
@@ -139,7 +135,7 @@ export class CryptoNewsPublisherConfigService {
   public constructor() {
     this.config = loadCryptoNewsPublisherConfig();
     this.logger.log(
-      `crypto-news-publisher config loaded: enabled=${this.config.enabled} ` +
+      `crypto-news-publisher config loaded: ` +
         `dailyCap=${this.config.publishing.dailyCap} ` +
         `delayMs=[${this.config.publishing.randomDelayMinMs},${this.config.publishing.randomDelayMaxMs}]`,
     );

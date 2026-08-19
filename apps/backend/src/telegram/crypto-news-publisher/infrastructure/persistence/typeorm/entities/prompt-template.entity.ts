@@ -43,6 +43,9 @@ export class PromptTemplateEntity {
   @Column({ name: 'model', type: 'varchar', length: 200 })
   public model!: string;
 
+  @Column({ name: 'supports_vision', type: 'boolean', default: true })
+  public supportsVision!: boolean;
+
   @Column({ name: 'max_tokens', type: 'integer' })
   public maxTokens!: number;
 

@@ -17,6 +17,7 @@ export class PublisherQueueMapper {
     row.imagePaths = entry.imagePaths;
     row.groupedId = entry.groupedId;
     row.messageReceivedAt = entry.messageReceivedAt;
+    row.matchedKeywordIds = entry.matchedKeywordIds;
     row.keywordTemplateId = entry.keywordTemplateId;
     row.status = entry.status;
     row.publishedAt = entry.publishedAt;
@@ -28,6 +29,10 @@ export class PublisherQueueMapper {
     row.generatedUserPrompt = entry.generatedUserPrompt;
     row.generatedTemperature = entry.generatedTemperature;
     row.generatedReasoningEffort = entry.generatedReasoningEffort;
+    row.blockedReason = entry.blockedReason;
+    row.duplicateOfChannelId = entry.duplicateOfChannelId;
+    row.duplicateOfMessageId = entry.duplicateOfMessageId;
+    row.duplicateOfEntryId = entry.duplicateOfEntryId;
     return row;
   }
 

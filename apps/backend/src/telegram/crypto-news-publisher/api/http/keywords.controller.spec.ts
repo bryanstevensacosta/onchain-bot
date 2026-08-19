@@ -1,15 +1,26 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { KeywordsController } from './keywords.controller';
 import { KeywordRepository } from 'telegram/crypto-news-publisher/application/ports/keyword.repository';
 import { Keyword } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
+import { PhraseRegistryService } from 'telegram/crypto-news-publisher/application/services/phrase-registry.service';
 
 describe('KeywordsController', () => {
   let controller: KeywordsController;
   let keywordRepo: jest.Mocked<KeywordRepository>;
+  let phraseRegistry: jest.Mocked<PhraseRegistryService>;
 
-  const makeKeyword = (phrase: string, enabled = true): Keyword =>
-    Keyword.create({ phrase, enabled });
+  const makeKeyword = (
+    phrase: string,
+    enabled = true,
+    andGroupId: string | null = null,
+  ): Keyword => Keyword.create({ phrase, enabled, andGroupId });
+
+  const mockPhraseRegistry = (): jest.Mocked<PhraseRegistryService> => ({
+    throwIfDuplicate: jest.fn().mockResolvedValue(undefined),
+    throwIfIntraTableConflict: jest.fn().mockResolvedValue(undefined),
+    throwIfCrossTableConflict: jest.fn().mockResolvedValue(undefined),
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -20,15 +31,21 @@ describe('KeywordsController', () => {
           useValue: {
             findAll: jest.fn(),
             findEnabled: jest.fn(),
+            findById: jest.fn(),
             save: jest.fn(),
             delete: jest.fn(),
           },
+        },
+        {
+          provide: PhraseRegistryService,
+          useValue: mockPhraseRegistry(),
         },
       ],
     }).compile();
 
     controller = module.get<KeywordsController>(KeywordsController);
     keywordRepo = module.get(KeywordRepository);
+    phraseRegistry = module.get(PhraseRegistryService);
   });
 
   it('should be defined', () => {
@@ -70,6 +87,7 @@ describe('KeywordsController', () => {
 
   describe('create', () => {
     it('should create a keyword and save it', async () => {
+      keywordRepo.findAll.mockResolvedValue([]);
       keywordRepo.save.mockResolvedValue();
 
       const result = await controller.create({ phrase: 'bitcoin' });
@@ -77,11 +95,12 @@ describe('KeywordsController', () => {
       expect(result.phrase).toBe('bitcoin');
       expect(result.enabled).toBe(true);
       expect(result.templateId).toBeNull();
-      expect(result.requireImage).toBe(false);
+      expect(result.requireMedia).toBe(false);
       expect(keywordRepo.save).toHaveBeenCalledTimes(1);
     });
 
     it('should honour caseSensitive flag', async () => {
+      keywordRepo.findAll.mockResolvedValue([]);
       keywordRepo.save.mockResolvedValue();
 
       const result = await controller.create({
@@ -93,6 +112,7 @@ describe('KeywordsController', () => {
     });
 
     it('binds a templateId on create when provided', async () => {
+      keywordRepo.findAll.mockResolvedValue([]);
       keywordRepo.save.mockResolvedValue();
       const templateId = crypto.randomUUID();
 
@@ -104,15 +124,123 @@ describe('KeywordsController', () => {
       expect(result.templateId).toBe(templateId);
     });
 
-    it('passes requireImage=true through to the created keyword', async () => {
+    it('passes requireMedia=true through to the created keyword', async () => {
+      keywordRepo.findAll.mockResolvedValue([]);
       keywordRepo.save.mockResolvedValue();
 
       const result = await controller.create({
         phrase: 'btc',
-        requireImage: true,
+        requireMedia: true,
       });
 
-      expect(result.requireImage).toBe(true);
+      expect(result.requireMedia).toBe(true);
+    });
+
+    it('passes andGroupId through to the created keyword', async () => {
+      keywordRepo.findAll.mockResolvedValue([]);
+      keywordRepo.save.mockResolvedValue();
+      const andGroupId = crypto.randomUUID();
+
+      const result = await controller.create({
+        phrase: 'btc',
+        andGroupId,
+      });
+
+      expect(result.andGroupId).toBe(andGroupId);
+    });
+
+    it('allows same phrase in different groups', async () => {
+      const andGroupId = crypto.randomUUID();
+      keywordRepo.save.mockResolvedValue();
+
+      const result = await controller.create({
+        phrase: 'btc',
+        andGroupId: null,
+      });
+
+      expect(result.andGroupId).toBeNull();
+      expect(phraseRegistry.throwIfDuplicate).toHaveBeenCalledWith(
+        'keyword',
+        'btc',
+        false,
+        'exact',
+        null,
+      );
+    });
+
+    it('rejects same phrase with same group', async () => {
+      const andGroupId = crypto.randomUUID();
+      phraseRegistry.throwIfDuplicate.mockRejectedValue(
+        new ConflictException('Keyword "btc" already exists'),
+      );
+
+      await expect(
+        controller.create({
+          phrase: 'btc',
+          andGroupId,
+        }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('rejects duplicate phrase with blacklist (same caseSensitive + matchMode)', async () => {
+      phraseRegistry.throwIfDuplicate.mockRejectedValue(
+        new ConflictException(
+          '"war" is already blacklisted (caseSensitive: true, matchMode: exact)',
+        ),
+      );
+
+      await expect(
+        controller.create({
+          phrase: 'war',
+          caseSensitive: true,
+          matchMode: 'exact',
+        }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(phraseRegistry.throwIfDuplicate).toHaveBeenCalledWith(
+        'keyword',
+        'war',
+        true,
+        'exact',
+        null,
+      );
+    });
+
+    it('allows phrase with different caseSensitive', async () => {
+      keywordRepo.save.mockResolvedValue();
+
+      const result = await controller.create({
+        phrase: 'war',
+        caseSensitive: true,
+        matchMode: 'exact',
+      });
+
+      expect(result.caseSensitive).toBe(true);
+      expect(phraseRegistry.throwIfDuplicate).toHaveBeenCalledWith(
+        'keyword',
+        'war',
+        true,
+        'exact',
+        null,
+      );
+    });
+
+    it('allows phrase with different matchMode', async () => {
+      keywordRepo.save.mockResolvedValue();
+
+      const result = await controller.create({
+        phrase: 'war',
+        caseSensitive: false,
+        matchMode: 'substring',
+      });
+
+      expect(result.matchMode).toBe('substring');
+      expect(phraseRegistry.throwIfDuplicate).toHaveBeenCalledWith(
+        'keyword',
+        'war',
+        false,
+        'substring',
+        null,
+      );
     });
   });
 
@@ -187,20 +315,20 @@ describe('KeywordsController', () => {
       expect(result.templateId).toBe(templateId);
     });
 
-    it('should toggle requireImage via update', async () => {
-      const existing = Keyword.create({ phrase: 'btc', requireImage: false });
+    it('should toggle requireMedia via update', async () => {
+      const existing = Keyword.create({ phrase: 'btc', requireMedia: false });
       keywordRepo.findAll.mockResolvedValue([existing]);
       keywordRepo.save.mockResolvedValue();
 
       const result = await controller.update(existing.id, {
-        requireImage: true,
+        requireMedia: true,
       });
 
-      expect(result.requireImage).toBe(true);
+      expect(result.requireMedia).toBe(true);
     });
 
-    it('should preserve an existing requireImage when update omits it', async () => {
-      const existing = Keyword.create({ phrase: 'btc', requireImage: true });
+    it('should preserve an existing requireMedia when update omits it', async () => {
+      const existing = Keyword.create({ phrase: 'btc', requireMedia: true });
       keywordRepo.findAll.mockResolvedValue([existing]);
       keywordRepo.save.mockResolvedValue();
 
@@ -208,7 +336,42 @@ describe('KeywordsController', () => {
         enabled: true,
       });
 
-      expect(result.requireImage).toBe(true);
+      expect(result.requireMedia).toBe(true);
+    });
+
+    it('should set andGroupId via update', async () => {
+      const existing = Keyword.create({ phrase: 'btc', andGroupId: null });
+      keywordRepo.findAll.mockResolvedValue([existing]);
+      keywordRepo.save.mockResolvedValue();
+      const andGroupId = crypto.randomUUID();
+
+      const result = await controller.update(existing.id, { andGroupId });
+
+      expect(result.andGroupId).toBe(andGroupId);
+    });
+
+    it('should clear andGroupId via update with null', async () => {
+      const andGroupId = crypto.randomUUID();
+      const existing = Keyword.create({ phrase: 'btc', andGroupId });
+      keywordRepo.findAll.mockResolvedValue([existing]);
+      keywordRepo.save.mockResolvedValue();
+
+      const result = await controller.update(existing.id, { andGroupId: null });
+
+      expect(result.andGroupId).toBeNull();
+    });
+
+    it('should preserve an existing andGroupId when update omits it', async () => {
+      const andGroupId = crypto.randomUUID();
+      const existing = Keyword.create({ phrase: 'btc', andGroupId });
+      keywordRepo.findAll.mockResolvedValue([existing]);
+      keywordRepo.save.mockResolvedValue();
+
+      const result = await controller.update(existing.id, {
+        enabled: true,
+      });
+
+      expect(result.andGroupId).toBe(andGroupId);
     });
 
     it('should throw NotFound when keyword not found', async () => {
@@ -217,6 +380,46 @@ describe('KeywordsController', () => {
       await expect(
         controller.update('nonexistent', { enabled: true }),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('should reject update when phrase already exists in another keyword', async () => {
+      const existing = makeKeyword('btc');
+      keywordRepo.findAll.mockResolvedValue([existing]);
+      phraseRegistry.throwIfDuplicate.mockRejectedValue(
+        new ConflictException('Keyword "bitcoin" already exists'),
+      );
+
+      await expect(
+        controller.update(existing.id, { phrase: 'bitcoin' }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('should pass excludeId when phrase changes on update', async () => {
+      const existing = makeKeyword('btc');
+      keywordRepo.findAll.mockResolvedValue([existing]);
+      keywordRepo.save.mockResolvedValue();
+
+      await controller.update(existing.id, { phrase: 'bitcoin' });
+
+      expect(phraseRegistry.throwIfDuplicate).toHaveBeenCalledWith(
+        'keyword',
+        'bitcoin',
+        false,
+        'exact',
+        null,
+        existing.id,
+      );
+    });
+
+    it('should not run duplicate validation when phrase is unchanged', async () => {
+      const existing = makeKeyword('btc');
+      keywordRepo.findAll.mockResolvedValue([existing]);
+      keywordRepo.save.mockResolvedValue();
+
+      const result = await controller.update(existing.id, { enabled: false });
+
+      expect(phraseRegistry.throwIfDuplicate).not.toHaveBeenCalled();
+      expect(result.enabled).toBe(false);
     });
   });
 
@@ -227,6 +430,61 @@ describe('KeywordsController', () => {
       await controller.remove('kw-1');
 
       expect(keywordRepo.delete).toHaveBeenCalledWith('kw-1');
+    });
+  });
+
+  describe('createBatch', () => {
+    it('should create all phrases with a shared andGroupId', async () => {
+      keywordRepo.save.mockResolvedValue();
+
+      const result = await controller.createBatch({
+        phrases: [{ phrase: 'btc' }, { phrase: 'eth' }],
+      });
+
+      expect(result).toHaveLength(2);
+      expect(result[0].andGroupId).toBe(result[1].andGroupId);
+      expect(result[0].andGroupId).not.toBeNull();
+      expect(keywordRepo.save).toHaveBeenCalledTimes(2);
+    });
+
+    it('should call throwIfDuplicate per phrase with the shared andGroupId', async () => {
+      keywordRepo.save.mockResolvedValue();
+
+      await controller.createBatch({
+        phrases: [
+          { phrase: 'btc', matchMode: 'substring' },
+          { phrase: 'eth', caseSensitive: true },
+        ],
+      });
+
+      expect(phraseRegistry.throwIfDuplicate).toHaveBeenCalledTimes(2);
+      expect(phraseRegistry.throwIfDuplicate).toHaveBeenNthCalledWith(
+        1,
+        'keyword',
+        'btc',
+        false,
+        'substring',
+        expect.any(String),
+      );
+      expect(phraseRegistry.throwIfDuplicate).toHaveBeenNthCalledWith(
+        2,
+        'keyword',
+        'eth',
+        true,
+        'exact',
+        expect.any(String),
+      );
+    });
+
+    it('should reject the whole batch when a phrase conflicts', async () => {
+      phraseRegistry.throwIfDuplicate.mockRejectedValue(
+        new ConflictException('Keyword "btc" already exists'),
+      );
+
+      await expect(
+        controller.createBatch({ phrases: [{ phrase: 'btc' }] }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(keywordRepo.save).not.toHaveBeenCalled();
     });
   });
 });

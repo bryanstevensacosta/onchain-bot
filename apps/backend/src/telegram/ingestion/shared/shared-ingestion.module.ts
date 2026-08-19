@@ -6,6 +6,10 @@ import { IngestionSafetyConfig } from 'telegram/ingestion/shared/infrastructure/
 import { SleepWindowService } from 'telegram/ingestion/shared/infrastructure/services/sleep-window.service';
 import { FloodWaitCounterService } from 'telegram/ingestion/shared/infrastructure/services/flood-wait-counter.service';
 import { FloodWaitHandlerService } from 'telegram/ingestion/shared/infrastructure/services/flood-wait-handler.service';
+import { TelegramClientManager } from 'telegram/ingestion/shared/infrastructure/services/telegram-client-manager.service';
+import { LastSeenManager } from 'telegram/ingestion/shared/infrastructure/services/last-seen-manager.service';
+import { TelegramMediaDownloadService } from 'telegram/ingestion/shared/infrastructure/services/telegram-media-download.service';
+import { TelegramPeerResolver } from 'telegram/ingestion/shared/infrastructure/services/telegram-peer-resolver';
 import { IngestionConfigController } from 'telegram/ingestion/shared/api/http/ingestion-config.controller';
 import { IngestionHealthController } from 'telegram/ingestion/shared/api/http/ingestion-health.controller';
 import { IdentityModule } from 'kol/identity/identity.module';
@@ -43,6 +47,10 @@ import { TELEGRAM_LISTENER_PORT_TOKEN } from './shared-injection-tokens';
     SleepWindowService,
     FloodWaitCounterService,
     FloodWaitHandlerService,
+    TelegramClientManager,
+    LastSeenManager,
+    TelegramMediaDownloadService,
+    TelegramPeerResolver,
     TelegramMtprotoListenerAdapter,
     {
       provide: TelegramListenerPort,
@@ -58,6 +66,10 @@ import { TELEGRAM_LISTENER_PORT_TOKEN } from './shared-injection-tokens';
     TELEGRAM_LISTENER_PORT_TOKEN,
     TelegramMtprotoListenerAdapter,
     IngestionSafetyConfig,
+    TelegramClientManager,
+    LastSeenManager,
+    TelegramMediaDownloadService,
+    TelegramPeerResolver,
     // Required by sub-BC adapters (e.g. MtprotoMediaDownloader).
     SleepWindowService,
     FloodWaitCounterService,

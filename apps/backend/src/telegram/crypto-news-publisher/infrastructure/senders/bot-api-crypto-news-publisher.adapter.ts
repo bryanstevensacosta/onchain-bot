@@ -1,9 +1,24 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { TelegramPublisherPort, type SendResult } from 'telegram/shared';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import {
+  TelegramPublisherPort,
+  type SendResult,
+  type TelegramPublishOptions,
+} from 'telegram/shared';
+import { formatUrlsAsMarkdown } from 'shared/common/utils/telegram-url-formatter';
+import { sanitizeTelegramHtml } from 'shared/common/utils/telegram-html-sanitizer';
 import { basename, extname } from 'node:path';
 import { request as httpsRequest } from 'node:https';
+import {
+  buildMultipartBody,
+  buildMediaGroupMultipartBody,
+} from './build-multipart-body';
+import { BotApiHttpClient } from './bot-api-http-client';
+import { guessMimeType } from './guess-mime-type';
+import {
+  readFileWithValidation,
+  readMultipleFilesWithValidation,
+} from './telegram-file-utils';
 
 interface AppConfigShape {
   readonly publishing: {
@@ -23,23 +38,25 @@ interface AppConfigShape {
  *
  * - `sendMessage`: plain text (or text + remote URL photo). Same JSON
  *   shape as Telegram Bot API.
-* - `sendPhoto`: text + LOCAL file path. We read the file from disk
-   *   and `POST` it to the Bot API's `sendPhoto` endpoint as
-   *   `multipart/form-data` (constructed manually — no new deps).
-   * - `sendVideo`: same pattern as `sendPhoto`, but POSTs to `sendVideo`
-   *   with `supports_streaming: true`.
-   *
-   * The default output channel is read from config (the `chatId`
-   * argument is ignored); crypto-news always publishes to one channel.
+ * - `sendPhoto`: text + LOCAL file path. We read the file from disk
+ *   and `POST` it to the Bot API's `sendPhoto` endpoint as
+ *   `multipart/form-data` (constructed manually — no new deps).
+ * - `sendVideo`: same pattern as `sendPhoto`, but POSTs to `sendVideo`
+ *   with `supports_streaming: true`.
+ *
+ * The default output channel is read from config (the `chatId`
+ * argument is ignored); crypto-news always publishes to one channel.
  */
 @Injectable()
 export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
   private readonly logger = new Logger(BotApiCryptoNewsPublisherAdapter.name);
   private static readonly API_BASE = 'https://api.telegram.org/bot';
   private static readonly CAPTION_MAX_LENGTH = 1024;
+  private static readonly TEXT_MAX_LENGTH = 4096;
 
   private readonly botToken: string;
   private readonly outputChannel: string;
+  private readonly httpClient: BotApiHttpClient;
 
   public constructor(private readonly configService: ConfigService) {
     super();
@@ -54,6 +71,12 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     // refusing to start.
     this.botToken = token;
     this.outputChannel = channel;
+    this.httpClient = new BotApiHttpClient(
+      this.logger,
+      BotApiCryptoNewsPublisherAdapter.API_BASE,
+      this.botToken,
+      this.outputChannel,
+    );
     if (!token || !channel) {
       this.logger.warn(
         `BotApiCryptoNewsPublisherAdapter not fully configured ` +
@@ -83,6 +106,25 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     return null;
   }
 
+  private static truncate(text: string, maxLength: number): string {
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength - 1) + '…';
+  }
+
+  /**
+   * Format `text` for the requested parse mode. `'HTML'` runs the
+   * sanitizer (allowlist + href validation + raw-URL wrapping);
+   * `'Markdown'` keeps the existing `formatUrlsAsMarkdown` flow.
+   */
+  private formatForParseMode(
+    text: string,
+    parseMode: 'Markdown' | 'HTML',
+  ): string {
+    return parseMode === 'HTML'
+      ? sanitizeTelegramHtml(text)
+      : formatUrlsAsMarkdown(text);
+  }
+
   /**
    * Send a plain text message (optionally with a remote image URL).
    * Delegates to the Telegram Bot API via Node's https module.
@@ -91,22 +133,32 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     _chatId: string,
     text: string,
     imageUrl?: string,
+    options?: TelegramPublishOptions,
   ): Promise<SendResult> {
     const missing = this.requireConfig();
     if (missing) return { ok: false, messageId: null, error: missing.reason };
     if (!text || text.length === 0) {
       return { ok: false, messageId: null, error: 'empty message' };
     }
+    const parseMode = options?.parseMode ?? 'Markdown';
+    const formattedText = this.formatForParseMode(text, parseMode);
+    const truncatedText = BotApiCryptoNewsPublisherAdapter.truncate(
+      formattedText,
+      BotApiCryptoNewsPublisherAdapter.TEXT_MAX_LENGTH,
+    );
     const payload: Record<string, unknown> = {
       chat_id: this.outputChannel,
-      text,
-      parse_mode: 'Markdown',
+      text: truncatedText,
+      parse_mode: parseMode,
       disable_web_page_preview: false,
     };
     if (imageUrl) {
       payload.photo = imageUrl;
     }
-    return this.postJson('sendMessage', payload);
+    if (options?.replyMarkup) {
+      payload.reply_markup = { inline_keyboard: options.replyMarkup };
+    }
+    return this.httpClient.postJson('sendMessage', payload);
   }
 
   /**
@@ -122,6 +174,7 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     _chatId: string,
     text: string,
     imagePath: string,
+    options?: TelegramPublishOptions,
   ): Promise<SendResult> {
     const missing = this.requireConfig();
     if (missing) return { ok: false, messageId: null, error: missing.reason };
@@ -131,30 +184,18 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     if (!imagePath) {
       return { ok: false, messageId: null, error: 'empty image path' };
     }
-    let fileBytes: Buffer;
-    try {
-      const stats = statSync(imagePath);
-      if (!stats.isFile()) {
-        return {
-          ok: false,
-          messageId: null,
-          error: `not a file: ${imagePath}`,
-        };
-      }
-      fileBytes = readFileSync(imagePath);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'unknown error';
-      this.logger.error(`failed to read photo at ${imagePath}: ${message}`);
-      return { ok: false, messageId: null, error: message };
+    const fileResult = readFileWithValidation(imagePath, this.logger, 'photo');
+    if (fileResult.error) {
+      return { ok: false, messageId: null, error: fileResult.error };
     }
+    const fileBytes = fileResult.bytes;
 
-    const caption =
-      text.length <= BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH
-        ? text
-        : text.slice(
-            0,
-            BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH - 1,
-          ) + '…';
+    const parseMode = options?.parseMode ?? 'Markdown';
+    const formattedText = this.formatForParseMode(text, parseMode);
+    const caption = BotApiCryptoNewsPublisherAdapter.truncate(
+      formattedText,
+      BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH,
+    );
 
     const boundary = `----cryptoNews${crypto.randomUUID().replace(/-/g, '')}`;
     const fileName = basename(imagePath);
@@ -163,8 +204,14 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     const textFields: Array<[string, string]> = [
       ['chat_id', this.outputChannel],
       ['caption', caption],
-      ['parse_mode', 'Markdown'],
+      ['parse_mode', parseMode],
     ];
+    if (options?.replyMarkup) {
+      textFields.push([
+        'reply_markup',
+        JSON.stringify({ inline_keyboard: options.replyMarkup }),
+      ]);
+    }
 
     const body = buildMultipartBody(boundary, textFields, {
       fieldName: 'photo',
@@ -173,13 +220,14 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
       bytes: fileBytes,
     });
 
-    return this.postMultipart('sendPhoto', boundary, body);
+    return this.httpClient.postMultipart('sendPhoto', boundary, body);
   }
 
   public async sendVideo(
     _chatId: string,
     text: string,
     videoPath: string,
+    options?: TelegramPublishOptions,
   ): Promise<SendResult> {
     const missing = this.requireConfig();
     if (missing) return { ok: false, messageId: null, error: missing.reason };
@@ -189,30 +237,19 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     if (!videoPath) {
       return { ok: false, messageId: null, error: 'empty video path' };
     }
-    let fileBytes: Buffer;
-    try {
-      const stats = statSync(videoPath);
-      if (!stats.isFile()) {
-        return {
-          ok: false,
-          messageId: null,
-          error: `not a file: ${videoPath}`,
-        };
-      }
-      fileBytes = readFileSync(videoPath);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'unknown error';
-      this.logger.error(`failed to read video at ${videoPath}: ${message}`);
-      return { ok: false, messageId: null, error: message };
+    const fileResult = readFileWithValidation(videoPath, this.logger, 'video');
+    if (fileResult.error) {
+      return { ok: false, messageId: null, error: fileResult.error };
     }
+    const fileBytes = fileResult.bytes;
 
-    const caption =
-      text.length <= BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH
-        ? text
-        : text.slice(
-            0,
-            BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH - 1,
-          ) + '…';
+    const parseMode = options?.parseMode ?? 'Markdown';
+    const supportsStreaming = options?.supportsStreaming ?? true;
+    const formattedText = this.formatForParseMode(text, parseMode);
+    const caption = BotApiCryptoNewsPublisherAdapter.truncate(
+      formattedText,
+      BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH,
+    );
 
     const boundary = `----cryptoNews${crypto.randomUUID().replace(/-/g, '')}`;
     const fileName = basename(videoPath);
@@ -221,9 +258,17 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     const textFields: Array<[string, string]> = [
       ['chat_id', this.outputChannel],
       ['caption', caption],
-      ['parse_mode', 'Markdown'],
-      ['supports_streaming', 'true'],
+      ['parse_mode', parseMode],
     ];
+    if (supportsStreaming) {
+      textFields.push(['supports_streaming', 'true']);
+    }
+    if (options?.replyMarkup) {
+      textFields.push([
+        'reply_markup',
+        JSON.stringify({ inline_keyboard: options.replyMarkup }),
+      ]);
+    }
 
     const body = buildMultipartBody(boundary, textFields, {
       fieldName: 'video',
@@ -232,13 +277,14 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
       bytes: fileBytes,
     });
 
-    return this.postMultipart('sendVideo', boundary, body);
+    return this.httpClient.postMultipart('sendVideo', boundary, body);
   }
 
   public async sendMediaGroup(
     _chatId: string,
     text: string,
     imagePaths: string[],
+    options?: TelegramPublishOptions,
   ): Promise<SendResult> {
     const missing = this.requireConfig();
     if (missing) return { ok: false, messageId: null, error: missing.reason };
@@ -251,38 +297,22 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
       return { ok: false, messageId: null, error: 'no images' };
     }
 
-    for (const imagePath of imagePaths) {
-      if (!existsSync(imagePath)) {
-        return { ok: false, messageId: null, error: `file not found: ${imagePath}` };
-      }
+    const filesResult = readMultipleFilesWithValidation(
+      imagePaths,
+      this.logger,
+      'image',
+    );
+    if (filesResult.error) {
+      return { ok: false, messageId: null, error: filesResult.error };
     }
+    const fileBytesArray = filesResult.bytesArray;
 
-    const fileBytesArray: Buffer[] = [];
-    for (const imagePath of imagePaths) {
-      try {
-        const stats = statSync(imagePath);
-        if (!stats.isFile()) {
-          return {
-            ok: false,
-            messageId: null,
-            error: `not a file: ${imagePath}`,
-          };
-        }
-        fileBytesArray.push(readFileSync(imagePath));
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'unknown error';
-        this.logger.error(`failed to read image at ${imagePath}: ${message}`);
-        return { ok: false, messageId: null, error: message };
-      }
-    }
-
-    const caption =
-      text.length <= BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH
-        ? text
-        : text.slice(
-            0,
-            BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH - 1,
-          ) + '…';
+    const parseMode = options?.parseMode ?? 'Markdown';
+    const formattedText = this.formatForParseMode(text, parseMode);
+    const caption = BotApiCryptoNewsPublisherAdapter.truncate(
+      formattedText,
+      BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH,
+    );
 
     const boundary = `----cryptoNews${crypto.randomUUID().replace(/-/g, '')}`;
 
@@ -298,7 +328,7 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
       };
       if (index === 0) {
         mediaItem.caption = caption;
-        mediaItem.parse_mode = 'Markdown';
+        mediaItem.parse_mode = parseMode;
       }
       return mediaItem;
     });
@@ -307,6 +337,12 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
       ['chat_id', this.outputChannel],
       ['media', JSON.stringify(mediaArray)],
     ];
+    if (options?.replyMarkup) {
+      textFields.push([
+        'reply_markup',
+        JSON.stringify({ inline_keyboard: options.replyMarkup }),
+      ]);
+    }
 
     const files = fileBytesArray.map((bytes, index) => ({
       fieldName: `photo${index}`,
@@ -317,313 +353,54 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
 
     const body = buildMediaGroupMultipartBody(boundary, textFields, files);
 
-    return this.postMultipartMediaGroup('sendMediaGroup', boundary, body);
-  }
-
-  private async postMultipartMediaGroup(
-    method: string,
-    boundary: string,
-    body: Buffer,
-  ): Promise<SendResult> {
-    const url = `${BotApiCryptoNewsPublisherAdapter.API_BASE}${this.botToken}/${method}`;
-    return new Promise((resolve) => {
-      const req = httpsRequest(
-        url,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': `multipart/form-data; boundary=${boundary}`,
-            'Content-Length': body.length,
-          },
-        },
-        (res) => {
-          const chunks: Buffer[] = [];
-          res.on('data', (chunk: Buffer) => chunks.push(chunk));
-          res.on('end', () => {
-            const raw = Buffer.concat(chunks).toString('utf8');
-            try {
-              const data = JSON.parse(raw) as {
-                ok: boolean;
-                result?: Array<{ message_id: number }>;
-                description?: string;
-              };
-              if (data.ok && data.result && data.result.length > 0) {
-                const messageId = data.result[0]?.message_id ?? null;
-                this.logger.log(
-                  `Sent media group to ${this.outputChannel}, first message_id: ${messageId}`,
-                );
-                resolve({
-                  ok: true,
-                  messageId,
-                  error: null,
-                });
-              } else {
-                this.logger.error(
-                  `Telegram sendMediaGroup API error: ${data.description ?? 'unknown error'}`,
-                );
-                resolve({
-                  ok: false,
-                  messageId: null,
-                  error: data.description ?? 'unknown error',
-                });
-              }
-            } catch (err) {
-              const message =
-                err instanceof Error ? err.message : 'invalid response';
-              this.logger.error(
-                `failed to parse sendMediaGroup response: ${message}`,
-              );
-              resolve({ ok: false, messageId: null, error: message });
-            }
-          });
-        },
-      );
-      req.on('error', (err) => {
-        this.logger.error(`sendMediaGroup HTTPS request failed: ${err.message}`);
-        resolve({
-          ok: false,
-          messageId: null,
-          error: err.message,
-        });
-      });
-      req.write(body);
-      req.end();
-    });
-  }
-
-  private async postJson(
-    method: string,
-    payload: Record<string, unknown>,
-  ): Promise<SendResult> {
-    const url = `${BotApiCryptoNewsPublisherAdapter.API_BASE}${this.botToken}/${method}`;
-    const body = JSON.stringify(payload);
-    return new Promise((resolve) => {
-      const req = httpsRequest(
-        url,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(body),
-          },
-        },
-        (res) => {
-          const chunks: Buffer[] = [];
-          res.on('data', (chunk: Buffer) => chunks.push(chunk));
-          res.on('end', () => {
-            const raw = Buffer.concat(chunks).toString('utf8');
-            try {
-              const data = JSON.parse(raw) as {
-                ok: boolean;
-                result?: { message_id: number };
-                description?: string;
-              };
-              if (data.ok && data.result) {
-                resolve({
-                  ok: true,
-                  messageId: data.result.message_id,
-                  error: null,
-                });
-              } else {
-                resolve({
-                  ok: false,
-                  messageId: null,
-                  error: data.description ?? 'unknown error',
-                });
-              }
-            } catch (err) {
-              const message =
-                err instanceof Error ? err.message : 'invalid response';
-              this.logger.error(`failed to parse response: ${message}`);
-              resolve({ ok: false, messageId: null, error: message });
-            }
-          });
-        },
-      );
-      req.on('error', (err) => {
-        this.logger.error(`HTTPS request failed: ${err.message}`);
-        resolve({
-          ok: false,
-          messageId: null,
-          error: err.message,
-        });
-      });
-      req.write(body);
-      req.end();
-    });
-  }
-
-  private async postMultipart(
-    method: string,
-    boundary: string,
-    body: Buffer,
-  ): Promise<SendResult> {
-    const url = `${BotApiCryptoNewsPublisherAdapter.API_BASE}${this.botToken}/${method}`;
-    return new Promise((resolve) => {
-      const req = httpsRequest(
-        url,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': `multipart/form-data; boundary=${boundary}`,
-            'Content-Length': body.length,
-          },
-        },
-        (res) => {
-          const chunks: Buffer[] = [];
-          res.on('data', (chunk: Buffer) => chunks.push(chunk));
-          res.on('end', () => {
-            const raw = Buffer.concat(chunks).toString('utf8');
-            try {
-              const data = JSON.parse(raw) as {
-                ok: boolean;
-                result?: { message_id: number };
-                description?: string;
-              };
-              if (data.ok && data.result) {
-                this.logger.log(
-                  `Sent photo to ${this.outputChannel}, message_id: ${data.result.message_id}`,
-                );
-                resolve({
-                  ok: true,
-                  messageId: data.result.message_id,
-                  error: null,
-                });
-              } else {
-                this.logger.error(
-                  `Telegram sendPhoto API error: ${data.description ?? 'unknown error'}`,
-                );
-                resolve({
-                  ok: false,
-                  messageId: null,
-                  error: data.description ?? 'unknown error',
-                });
-              }
-            } catch (err) {
-              const message =
-                err instanceof Error ? err.message : 'invalid response';
-              this.logger.error(
-                `failed to parse sendPhoto response: ${message}`,
-              );
-              resolve({ ok: false, messageId: null, error: message });
-            }
-          });
-        },
-      );
-      req.on('error', (err) => {
-        this.logger.error(`sendPhoto HTTPS request failed: ${err.message}`);
-        resolve({
-          ok: false,
-          messageId: null,
-          error: err.message,
-        });
-      });
-      req.write(body);
-      req.end();
-    });
-  }
-}
-
-/**
- * Build a multipart/form-data body that contains the supplied text
- * fields followed by one binary file part. Pure function — exported
- * for testing.
- */
-export function buildMultipartBody(
-  boundary: string,
-  textFields: ReadonlyArray<readonly [string, string]>,
-  file: {
-    fieldName: string;
-    fileName: string;
-    mimeType: string;
-    bytes: Buffer;
-  },
-): Buffer {
-  const parts: Buffer[] = [];
-  const CRLF = '\r\n';
-
-  for (const [name, value] of textFields) {
-    parts.push(
-      Buffer.from(
-        `--${boundary}${CRLF}` +
-          `Content-Disposition: form-data; name="${name}"${CRLF}${CRLF}` +
-          `${value}${CRLF}`,
-      ),
+    return this.httpClient.postMultipartMediaGroup(
+      'sendMediaGroup',
+      boundary,
+      body,
     );
   }
 
-  parts.push(
-    Buffer.from(
-      `--${boundary}${CRLF}` +
-        `Content-Disposition: form-data; name="${file.fieldName}"; filename="${file.fileName}"${CRLF}` +
-        `Content-Type: ${file.mimeType}${CRLF}${CRLF}`,
-    ),
-  );
-  parts.push(file.bytes);
-  parts.push(Buffer.from(`${CRLF}--${boundary}--${CRLF}`));
-
-  return Buffer.concat(parts);
-}
-
-export function buildMediaGroupMultipartBody(
-  boundary: string,
-  textFields: ReadonlyArray<readonly [string, string]>,
-  files: ReadonlyArray<{
-    fieldName: string;
-    fileName: string;
-    mimeType: string;
-    bytes: Buffer;
-  }>,
-): Buffer {
-  const parts: Buffer[] = [];
-  const CRLF = '\r\n';
-
-  for (const [name, value] of textFields) {
-    parts.push(
-      Buffer.from(
-        `--${boundary}${CRLF}` +
-          `Content-Disposition: form-data; name="${name}"${CRLF}${CRLF}` +
-          `${value}${CRLF}`,
-      ),
-    );
-  }
-
-  for (const file of files) {
-    parts.push(
-      Buffer.from(
-        `--${boundary}${CRLF}` +
-          `Content-Disposition: form-data; name="${file.fieldName}"; filename="${file.fileName}"${CRLF}` +
-          `Content-Type: ${file.mimeType}${CRLF}${CRLF}`,
-      ),
-    );
-    parts.push(file.bytes);
-    parts.push(Buffer.from(CRLF));
-  }
-
-  parts.push(Buffer.from(`--${boundary}--${CRLF}`));
-
-  return Buffer.concat(parts);
-}
-
-/**
- * Best-effort MIME-type inference from a file extension. Telegram's
- * `sendPhoto` accepts JPEG/PNG/GIF/WebP; anything else falls back to
- * `application/octet-stream` which Telegram still accepts for most
- * common photo formats (it sniffs magic bytes server-side).
- */
-function guessMimeType(ext: string): string {
-  const normalized = ext.toLowerCase();
-  switch (normalized) {
-    case '.jpg':
-    case '.jpeg':
-      return 'image/jpeg';
-    case '.png':
-      return 'image/png';
-    case '.gif':
-      return 'image/gif';
-    case '.webp':
-      return 'image/webp';
-    default:
-      return 'application/octet-stream';
+  /**
+   * Call Telegram's `getChat` endpoint to verify a chat exists and the
+   * bot can access it. Makes a GET request to the Bot API.
+   *
+   * Network errors (timeout, DNS failure) log a warning and return
+   * `{ ok: false, error: 'unreachable' }` so callers can distinguish
+   * "chat not found" from "cannot reach Telegram".
+   */
+  public async getChat(
+    chatId: string,
+  ): Promise<{ ok: boolean; error?: string }> {
+    const missing = this.requireConfig();
+    if (missing) return missing;
+    if (!chatId || chatId.trim().length === 0) {
+      return { ok: false, error: 'empty chat_id' };
+    }
+    const url = `${BotApiCryptoNewsPublisherAdapter.API_BASE}${this.botToken}/getChat?chat_id=${encodeURIComponent(chatId)}`;
+    try {
+      const body = await new Promise<string>((resolve, reject) => {
+        const req = httpsRequest(url, { method: 'GET' }, (res) => {
+          const chunks: Buffer[] = [];
+          res.on('data', (chunk: Buffer) => chunks.push(chunk));
+          res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+        });
+        req.on('error', reject);
+        req.end();
+      });
+      const data = JSON.parse(body) as {
+        ok: boolean;
+        description?: string;
+      };
+      if (data.ok) return { ok: true };
+      this.logger.warn(
+        `getChat failed for ${chatId}: ${data.description ?? 'unknown error'}`,
+      );
+      return { ok: false, error: data.description ?? 'chat not found' };
+    } catch (err) {
+      this.logger.warn(
+        `getChat network error for ${chatId}: ${(err as Error).message}`,
+      );
+      return { ok: false, error: 'unreachable' };
+    }
   }
 }

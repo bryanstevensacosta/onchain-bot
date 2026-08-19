@@ -55,8 +55,19 @@ export class KeywordEntity {
   @Column({ name: 'enabled', type: 'boolean', default: true })
   public enabled!: boolean;
 
+  @Column({ name: 'and_group_id', type: 'uuid', nullable: true })
+  public andGroupId!: string | null;
+
   @Column({ name: 'require_image', type: 'boolean', default: false })
-  public requireImage!: boolean;
+  public requireMedia!: boolean;
+
+  @Column({
+    name: 'match_mode',
+    type: 'varchar',
+    length: 16,
+    default: 'substring',
+  })
+  public matchMode!: string;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   public createdAt!: Date;

@@ -1,4 +1,4 @@
-# add-crypto-news-source - Work Plan
+# add-crypto-news-source - Work Plan (✅ COMPLETE)
 
 ## TL;DR (For humans)
 
@@ -364,12 +364,12 @@ Total: 4 commits. Each commit is independently buildable and testable. Run pre-c
 
 A task is **complete** when:
 
-- [ ] All 8 todos marked done
-- [ ] `npm run build` exits 0 (both backend and frontend)
-- [ ] `npm run lint` exits 0
-- [ ] `npm run test:backend` passes (existing 306 tests + new controller test)
-- [ ] `npm run test:frontend` passes (existing tests + new client + modal tests)
-- [ ] Manual smoke test: button reachable on `/crypto-news`, modal opens, valid channelId submits + source appears, invalid channelId blocks submit, duplicate shows 409 error
-- [ ] 4 atomic commits with conventional commit messages
-- [ ] No files outside the declared scope touched
-- [ ] Evidence files in `.omo/evidence/task-{1-8}-*`
+- [x] All 8 todos marked done
+- [x] `npm run build` exits 0 (both backend and frontend)
+- [x] `npm run lint` exits 0
+- [x] `npm run test:backend` passes (existing 306 tests + new controller test)
+- [x] `npm run test:frontend` passes (existing tests + new client + modal tests)
+- [x] Manual smoke test: button reachable on `/crypto-news`, modal opens, valid channelId submits + source appears, invalid channelId blocks submit, duplicate shows 409 error
+- [x] 4 atomic commits with conventional commit messages
+- [x] No files outside the declared scope touched
+- [x] Evidence files in `.omo/evidence/task-{1-8}-*`

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   ConflictException,
   Controller,
@@ -10,6 +11,7 @@ import {
   Param,
   Patch,
   Post,
+  Logger,
 } from '@nestjs/common';
 import { PromptTemplate } from 'telegram/crypto-news-publisher/domain/entities/prompt-template.entity';
 import { LlmConfig } from 'telegram/crypto-news-publisher/domain/entities/llm-config.entity';
@@ -17,6 +19,7 @@ import { PromptTemplateRepository } from 'telegram/crypto-news-publisher/applica
 import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 import { KeywordRepository } from 'telegram/crypto-news-publisher/application/ports/keyword.repository';
 import { GetLlmModelsUseCase } from 'telegram/crypto-news-publisher/application/handlers/get-llm-models.use-case';
+import { TelegramPublisherPort } from 'telegram/shared';
 import {
   CreatePromptTemplateDto,
   UpdatePromptTemplateDto,
@@ -67,11 +70,14 @@ export type {
  */
 @Controller('crypto-news-publisher/llm')
 export class LlmConfigController {
+  private readonly logger = new Logger(LlmConfigController.name);
+
   public constructor(
     private readonly templateRepo: PromptTemplateRepository,
     private readonly llmConfigRepo: LlmConfigRepository,
     private readonly keywordRepo: KeywordRepository,
     private readonly getLlmModels: GetLlmModelsUseCase,
+    private readonly publisher: TelegramPublisherPort,
   ) {}
 
   @Get('models')
@@ -116,6 +122,7 @@ export class LlmConfigController {
       name: dto.name,
       description: dto.description ?? null,
       model: dto.model,
+      supportsVision: dto.supportsVision ?? true,
       maxTokens: dto.maxTokens,
       temperature: dto.temperature,
       reasoningEffort: dto.reasoningEffort ?? null,
@@ -148,6 +155,7 @@ export class LlmConfigController {
       name: dto.name,
       description: dto.description,
       model: dto.model,
+      supportsVision: dto.supportsVision,
       maxTokens: dto.maxTokens,
       temperature: dto.temperature,
       reasoningEffort: dto.reasoningEffort,
@@ -193,6 +201,23 @@ export class LlmConfigController {
   public async updateConfig(
     @Body() dto: UpdateLlmConfigDto,
   ): Promise<LlmConfigView> {
+    // Validate target channel via Bot API before persisting
+    if (
+      dto.targetChannel !== undefined &&
+      dto.targetChannel.trim().length > 0
+    ) {
+      const result = await this.publisher.getChat(dto.targetChannel);
+      if (!result.ok && result.error !== 'unreachable') {
+        throw new BadRequestException({
+          error: `targetChannel validation failed: ${result.error}`,
+        });
+      }
+      if (!result.ok) {
+        this.logger.warn(
+          `targetChannel validation: Bot API unreachable for ${dto.targetChannel}, saving anyway`,
+        );
+      }
+    }
     const cfg = await this.llmConfigRepo.load();
     if (dto.defaultTemplateId !== undefined) {
       cfg.setDefaultTemplateId(dto.defaultTemplateId);
@@ -200,6 +225,7 @@ export class LlmConfigController {
     cfg.update({
       targetChannel: dto.targetChannel,
       enabled: dto.enabled,
+      rejectNonLatin: dto.rejectNonLatin,
       dailyCap: dto.dailyCap,
       dailyResetUtcHour: dto.dailyResetUtcHour,
       randomDelayMinMs: dto.randomDelayMinMs,

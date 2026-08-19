@@ -29,11 +29,20 @@ import { VipAchievementEntity } from 'telegram/vip-calls/vip-achievement/infrast
 import { CryptoNewsSourceEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
 import { CryptoNewsMessageEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
 import { CryptoNewsMessageMediaEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
+import { BlacklistPhraseEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/blacklist-phrase.entity';
 import { KeywordEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/keyword.entity';
 import { LlmConfigEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/llm-config.entity';
 import { PromptTemplateEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/prompt-template.entity';
 import { PublisherQueueEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/publisher-queue.entity';
 import { PublisherThrottleStateEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/publisher-throttle-state.entity';
+import { PublisherSlotStateEntity } from 'telegram/shared/infrastructure/persistence/typeorm/entities/publisher-slot-state.entity';
+import { DedupRecordEntity } from 'shared/deduplication/infrastructure/persistence/typeorm/entities/dedup-record.entity';
+import { AdEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad.entity';
+import { AdRotationConfigEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-rotation-config.entity';
+import { AdRotationStateEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-rotation-state.entity';
+import { AdsThrottleStateEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ads-throttle-state.entity';
+import { AdMediaEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-media.entity';
+import { AdMediaLibraryEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-media-library.entity';
 import type { AppConfig } from 'shared/common/config/app.config';
 
 const PERSISTED_ENTITIES = [
@@ -65,11 +74,20 @@ const PERSISTED_ENTITIES = [
   CryptoNewsSourceEntity,
   CryptoNewsMessageEntity,
   CryptoNewsMessageMediaEntity,
+  BlacklistPhraseEntity,
   KeywordEntity,
   LlmConfigEntity,
   PromptTemplateEntity,
   PublisherQueueEntity,
   PublisherThrottleStateEntity,
+  PublisherSlotStateEntity,
+  AdEntity,
+  AdMediaEntity,
+  AdRotationConfigEntity,
+  AdRotationStateEntity,
+  AdsThrottleStateEntity,
+  AdMediaLibraryEntity,
+  DedupRecordEntity,
 ];
 
 /**

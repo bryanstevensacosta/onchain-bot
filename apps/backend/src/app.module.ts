@@ -11,6 +11,7 @@ import type { AppConfig } from 'shared/common/config/app.config';
 import { DatabaseModule } from 'shared/common/persistence/database.module';
 import { RedisModule } from 'shared/common/cache/redis.module';
 import { FilteredBootstrapLogger } from 'shared/common/filtered-bootstrap-logger';
+import { ConfigConnectivityService } from 'shared/common/config/config-connectivity.service';
 import { DashboardModule } from 'dashboard/dashboard.module';
 import { ExtractionModule } from 'token/intake/extraction/extraction.module';
 import { ParsingModule } from 'token/intake/parsing/parsing.module';
@@ -25,6 +26,7 @@ import { VipCallsModule as TelegramPublishingModule } from 'telegram/vip-calls/v
 import { VipDecisionsModule } from 'telegram/vip-calls/vip-decisions/decisions.module';
 import { ChainDexterBotModule } from 'telegram/chain-dexter-bot/chain-dexter-bot.module';
 import { CryptoNewsPublisherModule } from 'telegram/crypto-news-publisher/crypto-news-publisher.module';
+import { CryptoNewsAdsModule } from 'telegram/crypto-news-ads/crypto-news-ads.module';
 import { CallTrackingModule } from 'token/call-tracking/call-tracking.module';
 import { AchievementModule } from 'token/achievement/achievement.module';
 import { ReputationModule } from 'kol/reputation/reputation.module';
@@ -38,6 +40,7 @@ import { SettingsModule } from 'settings/settings.module';
 import { DataProviderModule } from 'data-provider/core/data-provider.module';
 import { HealthModule } from 'health/health.module';
 import { LlmModule } from 'shared/llm';
+import { DeduplicationModule } from 'shared/deduplication/deduplication.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -83,7 +86,8 @@ import { AppService } from './app.service';
               ignore: (req: { url?: string }) =>
                 req.url === '/api/health' ||
                 (req.url?.startsWith('/crypto-news/') ?? false) ||
-                (req.url?.startsWith('/crypto-news-publisher/') ?? false),
+                (req.url?.startsWith('/crypto-news-publisher/') ?? false) ||
+                (req.url?.startsWith('/crypto-news-ads/') ?? false),
             },
             serializers: {
               req(req: { method: string; url?: string; id: unknown }) {
@@ -117,6 +121,7 @@ import { AppService } from './app.service';
     VipDecisionsModule,
     ChainDexterBotModule,
     CryptoNewsPublisherModule,
+    CryptoNewsAdsModule,
     CallTrackingModule,
     AchievementModule,
     ReputationModule,
@@ -126,8 +131,14 @@ import { AppService } from './app.service';
     SettingsModule,
     DataProviderModule,
     LlmModule,
+    DeduplicationModule,
   ],
   controllers: [AppController],
-  providers: [AppService, DevBackfillHook, FilteredBootstrapLogger],
+  providers: [
+    AppService,
+    DevBackfillHook,
+    FilteredBootstrapLogger,
+    ConfigConnectivityService,
+  ],
 })
 export class AppModule {}

@@ -8,7 +8,8 @@ export type PublisherQueueStatus =
   | 'SCHEDULED'
   | 'PUBLISHING'
   | 'PUBLISHED'
-  | 'FAILED';
+  | 'FAILED'
+  | 'BLOCKED';
 
 const VALID_PUBLISH_TRANSITIONS = new Set<PublisherQueueStatus>([
   'PENDING',
@@ -17,6 +18,7 @@ const VALID_PUBLISH_TRANSITIONS = new Set<PublisherQueueStatus>([
 
 export interface PublisherQueueEntryProps {
   readonly id: string;
+  readonly traceId: string;
   readonly channelId: string;
   readonly messageId: number;
   readonly rawContent: string;
@@ -34,6 +36,15 @@ export interface PublisherQueueEntryProps {
    * already-queued entry — the entry's resolved template is the
    * contract with the queue's cron publisher.
    */
+  /**
+   * IDs of the keywords matched at enqueue time. Empty array when no
+   * keyword matched (should not happen in normal flow, but the field
+   * is optional to handle edge cases). Used by the frontend to display
+   * which keyword(s) triggered this queue entry — saved as IDs so a
+   * later keyword rename is reflected immediately via the frontend's
+   * keyword cache.
+   */
+  readonly matchedKeywordIds: string[];
   readonly keywordTemplateId: string | null;
   status: PublisherQueueStatus;
   publishedAt: Date | null;
@@ -52,6 +63,13 @@ export interface PublisherQueueEntryProps {
   generatedReasoningEffort: string | null;
   /** Model used when generating the post. */
   generatedModel: string | null;
+  blockedReason: string | null;
+  /** Channel ID of the message this entry is a duplicate of (only for BLOCKED status, dedup). */
+  duplicateOfChannelId: string | null;
+  /** Message ID of the message this entry is a duplicate of (only for BLOCKED status, dedup). */
+  duplicateOfMessageId: number | null;
+  /** Queue entry ID that this entry is a duplicate of (only for BLOCKED status, dedup). */
+  duplicateOfEntryId: string | null;
 }
 
 /**
@@ -95,6 +113,7 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
     imagePaths?: string[];
     groupedId: string | null;
     messageReceivedAt: Date;
+    matchedKeywordIds?: string[];
     keywordTemplateId?: string | null;
   }): PublisherQueueEntry {
     if (!input.channelId?.trim()) {
@@ -129,8 +148,10 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
     }
     const allPaths = input.imagePaths ?? [];
     const firstPath = input.imagePath ?? allPaths[0] ?? null;
-    return new PublisherQueueEntry(input.id ?? crypto.randomUUID(), {
-      id: input.id ?? crypto.randomUUID(),
+    const id = input.id ?? crypto.randomUUID();
+    return new PublisherQueueEntry(id, {
+      id,
+      traceId: crypto.randomUUID(),
       channelId: input.channelId,
       messageId: input.messageId,
       rawContent: input.rawContent,
@@ -139,6 +160,7 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
       imagePaths: allPaths,
       groupedId: input.groupedId,
       messageReceivedAt: input.messageReceivedAt,
+      matchedKeywordIds: input.matchedKeywordIds ?? [],
       keywordTemplateId: input.keywordTemplateId ?? null,
       status: 'PENDING',
       publishedAt: null,
@@ -151,6 +173,10 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
       generatedTemperature: null,
       generatedReasoningEffort: null,
       generatedModel: null,
+      blockedReason: null,
+      duplicateOfChannelId: null,
+      duplicateOfMessageId: null,
+      duplicateOfEntryId: null,
     });
   }
 
@@ -166,6 +192,10 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
 
   public get id(): string {
     return this.state.id;
+  }
+
+  public get traceId(): string {
+    return this.state.traceId;
   }
 
   public get channelId(): string {
@@ -194,6 +224,10 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
 
   public get groupedId(): string | null {
     return this.state.groupedId;
+  }
+
+  public get matchedKeywordIds(): string[] {
+    return this.state.matchedKeywordIds;
   }
 
   public get keywordTemplateId(): string | null {
@@ -248,8 +282,28 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
     return this.state.generatedModel;
   }
 
+  public get blockedReason(): string | null {
+    return this.state.blockedReason;
+  }
+
+  public get duplicateOfChannelId(): string | null {
+    return this.state.duplicateOfChannelId;
+  }
+
+  public get duplicateOfMessageId(): number | null {
+    return this.state.duplicateOfMessageId;
+  }
+
+  public get duplicateOfEntryId(): string | null {
+    return this.state.duplicateOfEntryId;
+  }
+
   public get isTerminal(): boolean {
-    return this.state.status === 'PUBLISHED' || this.state.status === 'FAILED';
+    return (
+      this.state.status === 'PUBLISHED' ||
+      this.state.status === 'FAILED' ||
+      this.state.status === 'BLOCKED'
+    );
   }
 
   /**

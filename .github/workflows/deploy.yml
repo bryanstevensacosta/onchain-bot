@@ -10,9 +10,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  stop-services:
+    name: Stop non-essential services
+    runs-on: self-hosted
+    steps:
+      - name: Stop staging backend + frontend
+        run: |
+          echo "=== Stopping staging backend + frontend ==="
+          onchainbot staging stop || true
+      - name: Stop litellm stack
+        run: |
+          echo "=== Stopping litellm stack ==="
+          docker stop litellm-gateway || true
+          docker stop litellm-db || true
+          docker stop litellm-prometheus || true
+
   test:
     name: Tests
     runs-on: self-hosted
+    needs: [stop-services]
     env:
       NODE_ENV: test
       DATABASE_ENABLED: true
@@ -79,7 +95,7 @@ jobs:
 
       - name: TypeScript check
         run: |
-          npm run build || true
+          npm run build
           # Just check if tsc passes - the build is needed for the actual deploy anyway
 
   deploy:
@@ -151,3 +167,35 @@ jobs:
             }
           )
           echo "=== Deploy complete ==="
+
+      - name: Build + recreate frontend (non-blocking)
+        run: |
+          echo "=== Building frontend ==="
+          docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml build frontend || echo 'WARNING: frontend build failed (non-blocking)'
+          echo "=== Recreating frontend ==="
+          docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml up -d --force-recreate frontend || echo 'WARNING: frontend recreate failed (non-blocking)'
+          echo "=== Waiting for frontend health ==="
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5173/ >/dev/null; then
+              echo "Frontend healthy after ${i} attempts"
+              break
+            fi
+            sleep 2
+          done
+
+  restart-services:
+    name: Restart services
+    if: ${{ always() }}
+    runs-on: self-hosted
+    needs: [deploy]
+    steps:
+      - name: Restart litellm stack
+        run: |
+          echo "=== Restarting litellm stack ==="
+          docker start litellm-gateway || true
+          docker start litellm-db || true
+          docker start litellm-prometheus || true
+      - name: Restart staging backend + frontend
+        run: |
+          echo "=== Restarting staging ==="
+          onchainbot staging start || true

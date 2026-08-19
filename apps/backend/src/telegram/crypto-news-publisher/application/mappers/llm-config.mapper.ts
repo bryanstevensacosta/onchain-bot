@@ -6,6 +6,7 @@ export interface PromptTemplateView {
   readonly name: string;
   readonly description: string | null;
   readonly model: string;
+  readonly supportsVision: boolean;
   readonly maxTokens: number;
   readonly temperature: number;
   readonly reasoningEffort: 'low' | 'medium' | 'high' | 'max' | null;
@@ -20,6 +21,7 @@ export interface LlmConfigView {
   readonly defaultTemplateId: string;
   readonly targetChannel: string;
   readonly enabled: boolean;
+  readonly rejectNonLatin: boolean;
   readonly dailyCap: number;
   readonly dailyResetUtcHour: number;
   readonly randomDelayMinMs: number;
@@ -35,6 +37,7 @@ export const toTemplateView = (
   name: template.name,
   description: template.description,
   model: template.model,
+  supportsVision: template.supportsVision,
   maxTokens: template.maxTokens,
   temperature: template.temperature,
   reasoningEffort: template.reasoningEffort,
@@ -49,6 +52,7 @@ export const toConfigView = (config: LlmConfig): LlmConfigView => ({
   defaultTemplateId: config.defaultTemplateId,
   targetChannel: config.targetChannel,
   enabled: config.enabled,
+  rejectNonLatin: config.rejectNonLatin,
   dailyCap: config.dailyCap,
   dailyResetUtcHour: config.dailyResetUtcHour,
   randomDelayMinMs: config.randomDelayMinMs,

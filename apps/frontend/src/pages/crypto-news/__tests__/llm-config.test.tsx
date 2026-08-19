@@ -17,12 +17,24 @@ vi.mock('@/entities/crypto-news/model/use-crypto-news', () => ({
   useCryptoNewsSources: vi.fn(),
 }));
 
-vi.mock('@/features/crypto-news-publisher/model/use-keywords', () => ({
-  useKeywords: vi.fn(),
-  useCreateKeyword: vi.fn(),
-  useUpdateKeyword: vi.fn(),
-  useDeleteKeyword: vi.fn(),
-}));
+vi.mock('@/features/crypto-news-publisher/model/use-keywords', () => {
+  const mutStub = {
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+    isPending: false,
+    isError: false,
+    isSuccess: false,
+    error: null,
+    reset: vi.fn(),
+  };
+  return {
+    useKeywords: vi.fn(),
+    useCreateKeyword: vi.fn(() => ({ ...mutStub })),
+    useCreateKeywordBatch: vi.fn(() => ({ ...mutStub })),
+    useUpdateKeyword: vi.fn(() => ({ ...mutStub })),
+    useDeleteKeyword: vi.fn(() => ({ ...mutStub })),
+  };
+});
 
 vi.mock('@/features/crypto-news-publisher/model/use-queue', () => ({
   useQueue: vi.fn(),
@@ -245,6 +257,7 @@ const baseTemplates: ReadonlyArray<PromptTemplate> = [
     name: 'Default (imported)',
     description: 'Seeded from migration',
     model: 'gpt-4o-mini',
+    supportsVision: true,
     maxTokens: 2000,
     temperature: 0.7,
     reasoningEffort: null,
@@ -258,6 +271,7 @@ const baseTemplates: ReadonlyArray<PromptTemplate> = [
     name: 'Clickbait',
     description: 'Headline style',
     model: 'gpt-4o-mini',
+    supportsVision: true,
     maxTokens: 1500,
     temperature: 1.0,
     reasoningEffort: 'low',
@@ -420,7 +434,9 @@ describe('PromptTemplates', () => {
         caseSensitive: false,
         enabled: true,
         sourceChannelIds: [],
-        requireImage: false,
+        andGroupId: null,
+        requireMedia: false,
+        matchMode: 'exact',
         templateId: 'tpl-clickbait',
         createdAt: '2025-01-01T00:00:00.000Z',
       },
@@ -598,7 +614,9 @@ describe('CryptoNewsPage — LLM section integration', () => {
         caseSensitive: false,
         enabled: true,
         sourceChannelIds: [],
-        requireImage: false,
+        andGroupId: null,
+        requireMedia: false,
+        matchMode: 'exact',
         templateId: null,
         createdAt: '2025-01-01T00:00:00.000Z',
       },
@@ -608,7 +626,9 @@ describe('CryptoNewsPage — LLM section integration', () => {
         caseSensitive: false,
         enabled: true,
         sourceChannelIds: [],
-        requireImage: false,
+        andGroupId: null,
+        requireMedia: false,
+        matchMode: 'exact',
         templateId: 'tpl-clickbait',
         createdAt: '2025-01-01T00:00:00.000Z',
       },
@@ -623,9 +643,18 @@ describe('CryptoNewsPage — LLM section integration', () => {
     expect(screen.getByText('Template: Clickbait')).toBeInTheDocument();
   });
 
-  it('keyword create form includes a Template dropdown', () => {
+  it('keyword create form includes a Template dropdown', async () => {
     renderWithClient(<CryptoNewsPage />);
-    const select = screen.getByLabelText('Template') as HTMLSelectElement;
+    // Open the add-keyword modal via the unified Add Phrase dropdown
+    fireEvent.click(
+      screen.getAllByRole('button', { name: /\+ Add Phrase/i })[0],
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Keyword \(simple\)/i }),
+    );
+    const select = (await screen.findByLabelText(
+      'Template',
+    )) as HTMLSelectElement;
     expect(select).toBeInTheDocument();
     // The dropdown includes both templates from baseTemplates.
     const options = Array.from(select.options).map((o) => o.text);
@@ -634,7 +663,7 @@ describe('CryptoNewsPage — LLM section integration', () => {
     expect(options).toContain('Clickbait');
   });
 
-  it('submits the create-keyword form with the selected templateId', () => {
+  it('submits the create-keyword form with the selected templateId', async () => {
     const mutateSpy = vi.fn((_body, opts) => {
       opts?.onSuccess?.();
     });
@@ -652,20 +681,37 @@ describe('CryptoNewsPage — LLM section integration', () => {
 
     renderWithClient(<CryptoNewsPage />);
 
-    fireEvent.change(screen.getByLabelText('Phrase'), {
+    // Open the add-keyword modal via the unified Add Phrase dropdown
+    fireEvent.click(
+      screen.getAllByRole('button', { name: /\+ Add Phrase/i })[0],
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Keyword \(simple\)/i }),
+    );
+
+    fireEvent.change(await screen.findByPlaceholderText(/e\.g\./), {
       target: { value: 'FOMC' },
     });
-    fireEvent.change(screen.getByLabelText('Template'), {
+    fireEvent.change(await screen.findByLabelText('Template'), {
       target: { value: 'tpl-clickbait' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /\+ Add keyword/i }));
+    // Submit via the modal's Save button (scoped to the modal form)
+    const modalForm = (await screen.findByPlaceholderText(/e\.g\./)).closest(
+      'form',
+    )!;
+    const saveBtn = modalForm.querySelector<HTMLButtonElement>(
+      'button[type="submit"]',
+    )!;
+    fireEvent.click(saveBtn);
 
     expect(mutateSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         phrase: 'FOMC',
         caseSensitive: false,
-        sourceChannelIds: [],
         templateId: 'tpl-clickbait',
+        matchMode: 'exact',
+        enabled: true,
+        requireMedia: false,
       }),
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );

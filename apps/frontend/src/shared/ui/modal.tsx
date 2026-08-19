@@ -10,6 +10,8 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   size?: ModalSize;
+  closeOnBackdropClick?: boolean;
+  closeOnEscape?: boolean;
 }
 
 const sizeClasses: Record<ModalSize, string> = {
@@ -24,26 +26,28 @@ export function Modal({
   title,
   children,
   size = 'md',
+  closeOnBackdropClick = true,
+  closeOnEscape = true,
 }: ModalProps) {
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && closeOnEscape) {
         onClose();
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, closeOnEscape]);
 
   if (!isOpen) return null;
 
   return createPortal(
     <div
       className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center"
-      onClick={onClose}
+      onClick={closeOnBackdropClick ? onClose : undefined}
     >
       <div
         className={clsx(

@@ -26,6 +26,10 @@ export default defineConfig({
         target: 'http://localhost:3030',
         changeOrigin: false,
       },
+      '/crypto-news-ads': {
+        target: 'http://localhost:3030',
+        changeOrigin: false,
+      },
       '/socket.io': {
         target: 'http://localhost:3030',
         ws: true,

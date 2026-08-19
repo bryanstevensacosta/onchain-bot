@@ -78,6 +78,9 @@ describe('CryptoNewsLlmAdapter', () => {
   let tempDir: string;
 
   beforeEach(() => {
+    // Ensure USE_MOCK_AI is cleared before each test for isolation
+    delete process.env.USE_MOCK_AI;
+
     llmPort = {
       generateText: jest.fn(),
       isAvailable: jest.fn(),
@@ -147,7 +150,7 @@ describe('CryptoNewsLlmAdapter', () => {
 
       const entry = buildEntry({ imagePath: null });
       const result = await adapter.generateForEntry(entry);
-      expect(result).toBe('refined text');
+      expect(result.content).toBe('refined text');
       expect(llmConfigRepo.load).toHaveBeenCalledTimes(1);
       expect(templateRepo.findById).toHaveBeenCalledWith(DEFAULT_TEMPLATE_ID);
       expect(llmPort.generateText).toHaveBeenCalledTimes(1);
@@ -345,6 +348,75 @@ describe('CryptoNewsLlmAdapter', () => {
 
       const req = llmPort.generateText.mock.calls[0][0];
       expect(req.systemPrompt).toBe('You are an analyst.');
+    });
+
+    it('returns rawContent when USE_MOCK_AI is true and does NOT call llmPort.generateText', async () => {
+      const hadEnv = 'USE_MOCK_AI' in process.env;
+      const originalEnv = process.env.USE_MOCK_AI;
+      process.env.USE_MOCK_AI = 'true';
+
+      try {
+        const entry = buildEntry({
+          rawContent: 'Original raw content for testing',
+          rawTitle: 'Test Title',
+        });
+        const result = await adapter.generateForEntry(entry);
+
+        expect(result.content).toBe('Original raw content for testing');
+        expect(llmPort.generateText).not.toHaveBeenCalled();
+      } finally {
+        if (hadEnv) {
+          process.env.USE_MOCK_AI = originalEnv;
+        } else {
+          delete process.env.USE_MOCK_AI;
+        }
+      }
+    });
+
+    it('works with null rawTitle in mock mode', async () => {
+      const hadEnv = 'USE_MOCK_AI' in process.env;
+      const originalEnv = process.env.USE_MOCK_AI;
+      process.env.USE_MOCK_AI = 'true';
+
+      try {
+        const entry = buildEntry({
+          rawTitle: null,
+          rawContent: 'Content with null title',
+        });
+        const result = await adapter.generateForEntry(entry);
+
+        expect(result.content).toBe('Content with null title');
+        expect(llmPort.generateText).not.toHaveBeenCalled();
+      } finally {
+        if (hadEnv) {
+          process.env.USE_MOCK_AI = originalEnv;
+        } else {
+          delete process.env.USE_MOCK_AI;
+        }
+      }
+    });
+
+    it('mock mode returns model=mock and temperature=null', async () => {
+      const hadEnv = 'USE_MOCK_AI' in process.env;
+      const originalEnv = process.env.USE_MOCK_AI;
+      process.env.USE_MOCK_AI = 'true';
+
+      try {
+        const entry = buildEntry({ rawContent: 'Test content' });
+        const result = await adapter.generateForEntry(entry);
+
+        expect(result.model).toBe('mock');
+        expect(result.temperature).toBeNull();
+        expect(result.reasoningEffort).toBeNull();
+        expect(result.systemPrompt).toBeNull();
+        expect(result.userPrompt).toBe('[mock-mode]');
+      } finally {
+        if (hadEnv) {
+          process.env.USE_MOCK_AI = originalEnv;
+        } else {
+          delete process.env.USE_MOCK_AI;
+        }
+      }
     });
   });
 });

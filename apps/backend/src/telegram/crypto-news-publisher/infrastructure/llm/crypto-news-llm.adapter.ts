@@ -43,10 +43,12 @@ export class CryptoNewsLlmAdapter {
    * the generation (prompts, temperature, reasoning effort). Throws
    * when the resolved template row is missing (config error) so the
    * operator notices from the queue's FAILED transitions.
+   *
+   * Auto-detects vision support: if the model fails with a vision-related
+   * error, we auto-disable vision for that template and retry without
+   * the image.
    */
-  public async generateForEntry(
-    entry: PublisherQueueEntry,
-  ): Promise<{
+  public async generateForEntry(entry: PublisherQueueEntry): Promise<{
     content: string;
     systemPrompt: string | null;
     userPrompt: string;
@@ -54,6 +56,20 @@ export class CryptoNewsLlmAdapter {
     reasoningEffort: string | null;
     model: string;
   }> {
+    if (process.env.USE_MOCK_AI === 'true') {
+      this.logger.log(
+        'USE_MOCK_AI active — returning raw content, skipping LLM call',
+      );
+      return {
+        content: entry.rawContent,
+        systemPrompt: null,
+        userPrompt: '[mock-mode]',
+        temperature: null,
+        reasoningEffort: null,
+        model: 'mock',
+      };
+    }
+
     const cfg = await this.llmConfigRepo.load();
     const templateId = entry.keywordTemplateId ?? cfg.defaultTemplateId;
     const template = await this.templateRepo.findById(templateId);
@@ -65,24 +81,63 @@ export class CryptoNewsLlmAdapter {
     const prompt = renderPrompt(template.promptText, entry);
     const systemPrompt = template.systemPromptText.trim();
 
-    const supportsVision = !template.model.includes('deepseek');
-    const { base64, mimeType } = supportsVision
+    const useVision = template.supportsVision;
+    const { base64, mimeType } = useVision
       ? this.readImagePayload(entry)
       : { base64: undefined, mimeType: undefined };
 
-    const content = await this.llmPort.generateText({
-      prompt,
-      ...(systemPrompt ? { systemPrompt } : {}),
-      imageUrl: undefined,
-      imageBase64: base64,
-      mimeType,
-      model: template.model,
-      maxTokens: template.maxTokens,
-      temperature: template.temperature,
-      ...(template.reasoningEffort
-        ? { reasoningEffort: template.reasoningEffort }
-        : {}),
-    });
+    let content: string;
+    try {
+      content = await this.llmPort.generateText({
+        prompt,
+        ...(systemPrompt ? { systemPrompt } : {}),
+        imageUrl: undefined,
+        imageBase64: base64,
+        mimeType,
+        model: template.model,
+        maxTokens: template.maxTokens,
+        temperature: template.temperature,
+        ...(template.reasoningEffort
+          ? { reasoningEffort: template.reasoningEffort }
+          : {}),
+      });
+    } catch (err) {
+      // Auto-detect vision support: if model doesn't support images,
+      // disable vision for this template and retry without image
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      const isVisionError =
+        errorMsg.includes('image input') ||
+        errorMsg.includes('vision') ||
+        errorMsg.includes('No endpoints found') ||
+        errorMsg.includes('does not support image') ||
+        errorMsg.includes('vision model');
+
+      if (useVision && isVisionError && base64) {
+        this.logger.warn(
+          `Model ${template.model} does not support vision, disabling and retrying without image`,
+        );
+        // Auto-disable vision for this template
+        template.update({ supportsVision: false });
+        await this.templateRepo.save(template);
+
+        // Retry without image
+        content = await this.llmPort.generateText({
+          prompt,
+          ...(systemPrompt ? { systemPrompt } : {}),
+          imageUrl: undefined,
+          imageBase64: undefined,
+          mimeType: undefined,
+          model: template.model,
+          maxTokens: template.maxTokens,
+          temperature: template.temperature,
+          ...(template.reasoningEffort
+            ? { reasoningEffort: template.reasoningEffort }
+            : {}),
+        });
+      } else {
+        throw err;
+      }
+    }
 
     return {
       content,

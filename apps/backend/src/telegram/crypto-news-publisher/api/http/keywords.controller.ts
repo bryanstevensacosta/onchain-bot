@@ -1,6 +1,5 @@
 import {
   Body,
-  ConflictException,
   Controller,
   Delete,
   Get,
@@ -13,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { KeywordRepository } from 'telegram/crypto-news-publisher/application/ports/keyword.repository';
 import { Keyword } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
+import { PhraseRegistryService } from 'telegram/crypto-news-publisher/application/services/phrase-registry.service';
 
 export interface KeywordView {
   readonly id: string;
@@ -20,8 +20,10 @@ export interface KeywordView {
   readonly caseSensitive: boolean;
   readonly sourceChannelIds: string[];
   readonly enabled: boolean;
-  readonly requireImage: boolean;
+  readonly andGroupId: string | null;
+  readonly requireMedia: boolean;
   readonly templateId: string | null;
+  readonly matchMode: 'exact' | 'substring';
   readonly createdAt: string;
 }
 
@@ -38,10 +40,21 @@ interface CreateKeywordDto {
    */
   templateId?: string | null;
   /**
+   * Compound keyword group ID. When non-null, this keyword is part of
+   * an AND-group: messages must match ALL keywords in the group to
+   * trigger a match.
+   */
+  andGroupId?: string | null;
+  /**
    * When true, only messages that have at least one media item are
    * enqueued; otherwise the match is dropped (no PENDING entry).
    */
-  requireImage?: boolean;
+  requireMedia?: boolean;
+  /**
+   * Matching mode: `'exact'` (word-boundary regex, default for new
+   * keywords) or `'substring'` (simple `includes()`).
+   */
+  matchMode?: 'exact' | 'substring';
 }
 
 interface UpdateKeywordDto {
@@ -56,7 +69,30 @@ interface UpdateKeywordDto {
    *  - `"<uuid>"`  → bind to that template
    */
   templateId?: string | null;
-  requireImage?: boolean;
+  /**
+   * Compound keyword group ID. When non-null, this keyword is part of
+   * an AND-group: messages must match ALL keywords in the group to
+   * trigger a match.
+   */
+  andGroupId?: string | null;
+  requireMedia?: boolean;
+  /**
+   * Matching mode: `'exact'` (word-boundary regex) or
+   * `'substring'` (simple `includes()`).
+   */
+  matchMode?: 'exact' | 'substring';
+}
+
+interface CreateKeywordBatchDto {
+  phrases: Array<{
+    phrase: string;
+    caseSensitive?: boolean;
+    enabled?: boolean;
+    sourceChannelIds?: string[];
+    templateId?: string | null;
+    requireMedia?: boolean;
+    matchMode?: 'exact' | 'substring';
+  }>;
 }
 
 /**
@@ -77,7 +113,10 @@ interface UpdateKeywordDto {
  */
 @Controller('crypto-news-publisher/keywords')
 export class KeywordsController {
-  public constructor(private readonly keywordRepo: KeywordRepository) {}
+  public constructor(
+    private readonly keywordRepo: KeywordRepository,
+    private readonly phraseRegistry: PhraseRegistryService,
+  ) {}
 
   @Get()
   public async list(): Promise<ReadonlyArray<KeywordView>> {
@@ -98,16 +137,13 @@ export class KeywordsController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   public async create(@Body() dto: CreateKeywordDto): Promise<KeywordView> {
-    const trimmed = dto.phrase.trim();
-    const existing = await this.keywordRepo.findAll();
-    const dup = existing.find(
-      (k) => k.phrase.toLowerCase() === trimmed.toLowerCase(),
+    await this.phraseRegistry.throwIfDuplicate(
+      'keyword',
+      dto.phrase,
+      dto.caseSensitive ?? false,
+      dto.matchMode ?? 'exact',
+      dto.andGroupId ?? null,
     );
-    if (dup) {
-      throw new ConflictException(
-        `Keyword "${dto.phrase}" already exists`,
-      );
-    }
 
     const keyword = Keyword.create({
       phrase: dto.phrase,
@@ -115,10 +151,46 @@ export class KeywordsController {
       enabled: dto.enabled,
       sourceChannelIds: dto.sourceChannelIds ?? [],
       templateId: dto.templateId ?? null,
-      requireImage: dto.requireImage ?? false,
+      andGroupId: dto.andGroupId ?? null,
+      requireMedia: dto.requireMedia ?? false,
+      matchMode: dto.matchMode,
     });
     await this.keywordRepo.save(keyword);
     return KeywordsController.toView(keyword);
+  }
+
+  @Post('batch')
+  @HttpCode(HttpStatus.CREATED)
+  public async createBatch(
+    @Body() dto: CreateKeywordBatchDto,
+  ): Promise<ReadonlyArray<KeywordView>> {
+    const andGroupId = crypto.randomUUID();
+    const results: KeywordView[] = [];
+
+    for (const item of dto.phrases) {
+      await this.phraseRegistry.throwIfDuplicate(
+        'keyword',
+        item.phrase,
+        item.caseSensitive ?? false,
+        item.matchMode ?? 'exact',
+        andGroupId,
+      );
+
+      const keyword = Keyword.create({
+        phrase: item.phrase,
+        caseSensitive: item.caseSensitive,
+        enabled: item.enabled,
+        sourceChannelIds: item.sourceChannelIds ?? [],
+        templateId: item.templateId ?? null,
+        andGroupId,
+        requireMedia: item.requireMedia ?? false,
+        matchMode: item.matchMode,
+      });
+      await this.keywordRepo.save(keyword);
+      results.push(KeywordsController.toView(keyword));
+    }
+
+    return results;
   }
 
   @Patch(':id')
@@ -137,6 +209,22 @@ export class KeywordsController {
       dto.caseSensitive !== undefined
         ? dto.caseSensitive
         : existing.caseSensitive;
+    const nextMatchMode =
+      dto.matchMode !== undefined ? dto.matchMode : existing.matchMode;
+    const nextAndGroupId =
+      dto.andGroupId !== undefined ? dto.andGroupId : existing.andGroupId;
+
+    // When phrase/andGroupId changes, check for duplicates (exclude self).
+    if (dto.phrase !== undefined || dto.andGroupId !== undefined) {
+      await this.phraseRegistry.throwIfDuplicate(
+        'keyword',
+        nextPhrase,
+        nextCaseSensitive,
+        nextMatchMode,
+        nextAndGroupId,
+        id,
+      );
+    }
     let nextEnabled = existing.enabled;
     if (dto.enabled === true) {
       nextEnabled = true;
@@ -149,8 +237,8 @@ export class KeywordsController {
         : existing.sourceChannelIds;
     const nextTemplateId =
       dto.templateId !== undefined ? dto.templateId : existing.templateId;
-    const nextRequireImage =
-      dto.requireImage !== undefined ? dto.requireImage : existing.requireImage;
+    const nextRequireMedia =
+      dto.requireMedia !== undefined ? dto.requireMedia : existing.requireMedia;
 
     const updated = Keyword.reconstitute({
       id: existing.id,
@@ -159,7 +247,9 @@ export class KeywordsController {
       sourceChannelIds: nextSourceChannelIds,
       templateId: nextTemplateId,
       enabled: nextEnabled,
-      requireImage: nextRequireImage,
+      andGroupId: nextAndGroupId,
+      requireMedia: nextRequireMedia,
+      matchMode: nextMatchMode,
       createdAt: existing.createdAt,
     });
 
@@ -179,8 +269,10 @@ export class KeywordsController {
     caseSensitive: keyword.caseSensitive,
     sourceChannelIds: keyword.sourceChannelIds,
     enabled: keyword.enabled,
-    requireImage: keyword.requireImage,
+    andGroupId: keyword.andGroupId,
+    requireMedia: keyword.requireMedia,
     templateId: keyword.templateId,
+    matchMode: keyword.matchMode,
     createdAt: keyword.createdAt.toISOString(),
   });
 }

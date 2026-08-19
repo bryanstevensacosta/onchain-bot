@@ -13,7 +13,7 @@
 import { ValueObject } from 'shared/kernel/value-object';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 
-export type CryptoNewsMediaType = 'photo' | 'video';
+export type CryptoNewsMediaType = 'photo' | 'video' | 'webpage';
 
 export interface CryptoNewsMediaProps {
   readonly index: number;

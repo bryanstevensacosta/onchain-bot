@@ -5,13 +5,17 @@ import type { DomainEvent } from 'shared/kernel/domain-event';
 const MIN_PHRASE_LENGTH = 1;
 const MAX_PHRASE_LENGTH = 200;
 
+export type MatchMode = 'exact' | 'substring';
+
 interface KeywordProps {
   readonly phrase: string;
   readonly caseSensitive: boolean;
   sourceChannelIds: string[];
   templateId: string | null;
   enabled: boolean;
-  readonly requireImage: boolean;
+  readonly requireMedia: boolean;
+  readonly andGroupId: string | null;
+  readonly matchMode: MatchMode;
   readonly createdAt: Date;
 }
 
@@ -51,7 +55,9 @@ export class Keyword extends AggregateRoot<string> {
     sourceChannelIds?: string[];
     templateId?: string | null;
     enabled?: boolean;
-    requireImage?: boolean;
+    requireMedia?: boolean;
+    andGroupId?: string | null;
+    matchMode?: MatchMode;
     createdAt?: Date;
   }): Keyword {
     if (input.phrase === null || input.phrase === undefined) {
@@ -97,7 +103,9 @@ export class Keyword extends AggregateRoot<string> {
       sourceChannelIds: input.sourceChannelIds ?? [],
       templateId: input.templateId ?? null,
       enabled: input.enabled ?? true,
-      requireImage: input.requireImage ?? false,
+      requireMedia: input.requireMedia ?? false,
+      andGroupId: input.andGroupId ?? null,
+      matchMode: input.matchMode ?? 'exact',
       createdAt: input.createdAt ?? new Date(),
     });
   }
@@ -113,7 +121,9 @@ export class Keyword extends AggregateRoot<string> {
     sourceChannelIds: string[];
     templateId: string | null;
     enabled: boolean;
-    requireImage: boolean;
+    requireMedia: boolean;
+    andGroupId: string | null;
+    matchMode?: MatchMode;
     createdAt: Date;
   }): Keyword {
     return new Keyword(input.id, {
@@ -122,7 +132,9 @@ export class Keyword extends AggregateRoot<string> {
       sourceChannelIds: input.sourceChannelIds,
       templateId: input.templateId,
       enabled: input.enabled,
-      requireImage: input.requireImage,
+      requireMedia: input.requireMedia,
+      andGroupId: input.andGroupId,
+      matchMode: input.matchMode ?? 'substring',
       createdAt: input.createdAt,
     });
   }
@@ -147,8 +159,16 @@ export class Keyword extends AggregateRoot<string> {
     return this.state.enabled;
   }
 
-  public get requireImage(): boolean {
-    return this.state.requireImage;
+  public get requireMedia(): boolean {
+    return this.state.requireMedia;
+  }
+
+  public get andGroupId(): string | null {
+    return this.state.andGroupId;
+  }
+
+  public get matchMode(): MatchMode {
+    return this.state.matchMode;
   }
 
   public get createdAt(): Date {
@@ -158,10 +178,17 @@ export class Keyword extends AggregateRoot<string> {
   /**
    * Test whether the supplied content contains the keyword phrase.
    *
-   * - Case-insensitive keywords lower-case both sides.
-   * - Substring match: `phrase in content` (NOT word-bounded; deliberate
-   *   — a phrase like "btc" must still match "btcusdt" because that is
-   *   how crypto-news shorthand works).
+   * Two modes controlled by `matchMode`:
+   * - `exact` (default for new keywords): adaptive word-boundary regex.
+   *   Uses `\b` when the phrase starts/ends with a word character (`\w`),
+   *   or `(?:^|\W)` / `(?:\W|$)` when it starts/ends with a non-word
+   *   character (`#`, `@`, `$`, etc.). This ensures phrases like
+   *   `#Bitcoin ETFs` or `@user` match correctly while still respecting
+   *   word boundaries for plain-text phrases like `"AI"`.
+   *   Examples: `#Bitcoin ETFs` matches `"\n#Bitcoin ETFs:\n"` but NOT
+   *   `"ab#Bitcoin ETFs"`; `AI` matches `"AI's"` but NOT `"chain"`.
+   * - `substring`: simple `includes()` — `"btc"` matches `"btcusdt"`,
+   *   useful for URLs like `"arkm.com/explorer"` inside a longer URL.
    *
    * Returns `false` for empty content.
    */
@@ -169,6 +196,18 @@ export class Keyword extends AggregateRoot<string> {
     if (!content || content.length === 0) {
       return false;
     }
+
+    if (this.state.matchMode === 'exact') {
+      const flags = this.state.caseSensitive ? '' : 'i';
+      const escaped = this.state.phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const firstIsWord = /^\w/.test(this.state.phrase);
+      const lastIsWord = /\w$/.test(this.state.phrase);
+      const lb = firstIsWord ? '\\b' : '(?:^|\\W)';
+      const rb = lastIsWord ? '\\b' : '(?:$|\\W)';
+      return new RegExp(`${lb}${escaped}${rb}`, flags).test(content);
+    }
+
+    // substring mode
     if (this.state.caseSensitive) {
       return content.includes(this.state.phrase);
     }

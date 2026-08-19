@@ -9,7 +9,7 @@ Shared utilities consumed by all 19 Bounded Contexts. DDD primitives + cross-cut
 | Subdir                  | Purpose                                                                         | Representative Symbol                                    |
 | ----------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | `kernel/`               | DDD base classes (AggregateRoot, Entity, ValueObject, DomainEvent, DomainError) | `AggregateRoot<TId>` at aggregate-root.ts:17             |
-| `common/`               | Config, persistence, cache, utils, value-objects                                | `AppConfig` at config/app.config.ts:178                  |
+| `common/`               | Config, persistence, cache, utils, value-objects, HTTP media serving   | `AppConfig` at config/app.config.ts:178, `media-serving.ts` at http/media-serving.ts |
 | `filters/`              | Global NestJS exception filter                                                  | `DomainErrorFilter` at filters/domain-error.filter.ts:12 |
 | `identicon/`            | SVG token identicon generator                                                   | generates from chain+address hash                        |
 | `cache/`                | Token image caching (LRU/Redis)                                                 | `TokenImageCache` interface + adapters                   |
@@ -22,6 +22,7 @@ Shared utilities consumed by all 19 Bounded Contexts. DDD primitives + cross-cut
 | ------------------------------------ | --------------------------------------------------------------------------- |
 | Add a new DDD base class             | `shared/kernel/` — extend `AggregateRoot<TId>`, `Entity`, or `ValueObject`  |
 | Add a cross-BC value-object          | `shared/common/value-objects/` — factory method pattern, no mutations       |
+| Serve a media file with Range/206    | `shared/common/http/media-serving.ts` — `detectMediaMimeType` + `serveMediaFile` |
 | Add a new env var config             | `shared/common/config/app.config.ts` — register in `registerAs('app', ...)` |
 | Add a global exception filter        | `shared/filters/` — implement `ExceptionFilter`, wire in `main.ts`          |
 | Add caching strategy                 | `shared/cache/` — implement `TokenImageCache` port, swap LRU/Redis adapter  |

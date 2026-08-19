@@ -18,6 +18,7 @@ export interface PromptTemplateProps {
   name: string;
   description: string | null;
   model: string;
+  supportsVision: boolean;
   maxTokens: number;
   temperature: number;
   reasoningEffort: ReasoningEffort | null;
@@ -60,6 +61,7 @@ export class PromptTemplate extends AggregateRoot<string> {
     name: string;
     description?: string | null;
     model: string;
+    supportsVision?: boolean;
     maxTokens: number;
     temperature: number;
     reasoningEffort?: ReasoningEffort | null;
@@ -85,6 +87,7 @@ export class PromptTemplate extends AggregateRoot<string> {
       name,
       description,
       model,
+      supportsVision: input.supportsVision ?? true,
       maxTokens,
       temperature,
       reasoningEffort,
@@ -95,7 +98,20 @@ export class PromptTemplate extends AggregateRoot<string> {
     });
   }
 
-  public static reconstitute(input: PromptTemplateProps): PromptTemplate {
+  public static reconstitute(input: {
+    id: string;
+    name: string;
+    description: string | null;
+    model: string;
+    supportsVision: boolean;
+    maxTokens: number;
+    temperature: number;
+    reasoningEffort: ReasoningEffort | null;
+    promptText: string;
+    systemPromptText: string;
+    createdAt: Date;
+    updatedAt: Date;
+  }): PromptTemplate {
     return new PromptTemplate(input.id, input);
   }
 
@@ -113,6 +129,10 @@ export class PromptTemplate extends AggregateRoot<string> {
 
   public get model(): string {
     return this.state.model;
+  }
+
+  public get supportsVision(): boolean {
+    return this.state.supportsVision;
   }
 
   public get maxTokens(): number {
@@ -152,6 +172,7 @@ export class PromptTemplate extends AggregateRoot<string> {
     name?: string;
     description?: string | null;
     model?: string;
+    supportsVision?: boolean;
     maxTokens?: number;
     temperature?: number;
     reasoningEffort?: ReasoningEffort | null;
@@ -166,6 +187,9 @@ export class PromptTemplate extends AggregateRoot<string> {
     }
     if (patch.model !== undefined) {
       this.state.model = validateModel(patch.model);
+    }
+    if (patch.supportsVision !== undefined) {
+      this.state.supportsVision = patch.supportsVision;
     }
     if (patch.maxTokens !== undefined) {
       this.state.maxTokens = validateMaxTokens(patch.maxTokens);

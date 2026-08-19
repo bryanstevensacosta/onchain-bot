@@ -1,8 +1,16 @@
 export { KeywordsManager } from './ui/keywords-manager';
+export { BlacklistManager } from './ui/blacklist-manager';
 export { QueueView } from './ui/queue-view';
+export { BlockedPostsList } from './ui/blocked-posts-list';
 export { LlmConfigForm } from './ui/llm-config';
 export { PromptTemplates } from './ui/prompt-templates';
 export { useKeywords } from './model/use-keywords';
+export {
+  useBlacklist,
+  useCreateBlacklist,
+  useUpdateBlacklist,
+  useDeleteBlacklist,
+} from './model/use-blacklist';
 export { useQueue, useQueueCounts } from './model/use-queue';
 export {
   useCreateTemplate,
@@ -19,6 +27,11 @@ export type {
   CreateKeywordBody,
   UpdateKeywordBody,
 } from './api/keywords-api';
+export type {
+  BlacklistPhraseView,
+  CreateBlacklistBody,
+  UpdateBlacklistBody,
+} from './api/blacklist-api';
 export type { QueueEntryView, QueueCountsView } from './api/queue-api';
 export type {
   CreatePromptTemplateBody,

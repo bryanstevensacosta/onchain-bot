@@ -75,6 +75,42 @@ describe('CryptoNewsMessageMapper', () => {
     expect(back.media[0].fileSize).toBe(102400);
   });
 
+  it('round-trips with a single webpage link preview', () => {
+    const webpage = CryptoNewsMedia.create({
+      index: 0,
+      type: 'webpage',
+      filePath: '/tmp/news/x-0.jpg',
+      mimeType: 'image/jpeg',
+      fileSize: 102400,
+    });
+    const msg = CryptoNewsMessage.create({
+      channelId: '123',
+      messageId: 12,
+      title: 'Has webpage',
+      content: 'body',
+      publishedAt: new Date('2026-06-06T08:00:00Z'),
+      media: [webpage],
+    });
+
+    const entity = CryptoNewsMessageMapper.toEntity(msg);
+    expect(entity.media).toHaveLength(1);
+    expect(entity.media[0].index).toBe(0);
+    expect(entity.media[0].type).toBe('webpage');
+    expect(entity.media[0].filePath).toBe('/tmp/news/x-0.jpg');
+    expect(entity.media[0].mimeType).toBe('image/jpeg');
+    expect(entity.media[0].fileSize).toBe(102400);
+    // FK / id / createdAt left for TypeORM/DB to populate.
+    expect(entity.media[0].id).toBeUndefined();
+
+    const back = CryptoNewsMessageMapper.toDomain(entity);
+    expect(back.media).toHaveLength(1);
+    expect(back.media[0].index).toBe(0);
+    expect(back.media[0].type).toBe('webpage');
+    expect(back.media[0].filePath).toBe('/tmp/news/x-0.jpg');
+    expect(back.media[0].mimeType).toBe('image/jpeg');
+    expect(back.media[0].fileSize).toBe(102400);
+  });
+
   it('round-trips with multiple photos preserving order', () => {
     const photos = [
       CryptoNewsMedia.create({

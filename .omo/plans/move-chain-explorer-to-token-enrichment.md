@@ -1,4 +1,4 @@
-# move-chain-explorer-to-token-enrichment - Work Plan
+# move-chain-explorer-to-token-enrichment - Work Plan (✅ COMPLETE)
 
 ## TL;DR (For humans)
 
@@ -19,7 +19,9 @@ Your next move: Revisar el plan y decidir si ejecutarlo o pasar por high-accurac
 > TL;DR (machine): Short / Low — mover chain/explorer → token/enrichment. ~49 archivos movidos, imports actualizados en ~17 archivos externos, módulo renombrado. Build + tests + curl verify.
 
 ## Scope
+
 ### Must have
+
 - Mover ~49 archivos de `chain/explorer/` a `token/enrichment/`
 - Renombrar `ChainExplorerModule` → `EnrichmentModule`
 - Renombrar `chain-explorer.module.ts` → `enrichment.module.ts`
@@ -28,6 +30,7 @@ Your next move: Revisar el plan y decidir si ejecutarlo o pasar por high-accurac
 - Build exitoso + tests pasan
 
 ### Must NOT have (guardrails)
+
 - NO cambiar lógica de negocio
 - NO cambiar eventos (`enrichment.token.enriched`, `enrichment.token.failed`)
 - NO cambiar paths de endpoints (`/token/market-data/...`)
@@ -36,30 +39,36 @@ Your next move: Revisar el plan y decidir si ejecutarlo o pasar por high-accurac
 - NO modificar frontend, DB, ni agregar dependencias
 
 ## Verification strategy
+
 > Zero human intervention - all verification is agent-executed.
+
 - Test decision: tests-after (los 306 tests validan que nada se rompió)
 - Framework: Jest
 - Evidence: `.omo/evidence/task-*-move-chain-explorer-to-token-enrichment.*`
 
 ## Execution strategy
+
 ### Parallel execution waves
 
-| Wave | Tasks | Descripción |
-|------|-------|-------------|
+| Wave   | Tasks   | Descripción                                     |
+| ------ | ------- | ----------------------------------------------- |
 | Wave 1 | 1, 2, 3 | Filesystem move + import rewrite (secuenciales) |
-| Wave 2 | 4, 5 | Build + test + lint verification |
+| Wave 2 | 4, 5    | Build + test + lint verification                |
 
 ### Dependency matrix
-| Todo | Depends on | Blocks | Can parallelize with |
-| --- | --- | --- | --- |
-| 1 | — | 2, 3 | — |
-| 2 | 1 | — | 3 (pero secuencial es más simple) |
-| 3 | 1 | 4 | 2 (pero secuencial es más simple) |
-| 4 | 3 | 5 | — |
-| 5 | 4 | — | — |
+
+| Todo | Depends on | Blocks | Can parallelize with              |
+| ---- | ---------- | ------ | --------------------------------- |
+| 1    | —          | 2, 3   | —                                 |
+| 2    | 1          | —      | 3 (pero secuencial es más simple) |
+| 3    | 1          | 4      | 2 (pero secuencial es más simple) |
+| 4    | 3          | 5      | —                                 |
+| 5    | 4          | —      | —                                 |
 
 ## Todos
+
 > Implementation + Test = ONE todo. Never separate.
+
 <!-- APPEND TASK BATCHES BELOW THIS LINE WITH edit/apply_patch - never rewrite the headers above. -->
 
 ### Wave 1 — Filesystem move + rename
@@ -113,6 +122,7 @@ Your next move: Revisar el plan y decidir si ejecutarlo o pasar por high-accurac
   - `apps/backend/src/chain/explorer/chain-explorer.tokens.ts` → `enrichment.tokens.ts`
 
   **Acceptance criteria:**
+
   ```bash
   test ! -d apps/backend/src/chain/explorer
   test -f apps/backend/src/token/enrichment/enrichment.module.ts
@@ -157,6 +167,7 @@ Your next move: Revisar el plan y decidir si ejecutarlo o pasar por high-accurac
   - `token/enrichment/enrichment.module.ts` → `class EnrichmentModule`
 
   **Acceptance criteria:**
+
   ```bash
   grep -r 'chain/explorer' apps/backend/src/token/enrichment --include='*.ts' | wc -l  # → 0
   grep -r 'chain-explorer\.tokens' apps/backend/src/token/enrichment --include='*.ts' | wc -l  # → 0
@@ -221,6 +232,7 @@ Your next move: Revisar el plan y decidir si ejecutarlo o pasar por high-accurac
   - Reemplazos: `chain/explorer`→`token/enrichment`, `chain-explorer.module`→`enrichment.module`, `chain-explorer.tokens`→`enrichment.tokens`, `ChainExplorerModule`→`EnrichmentModule`
 
   **Acceptance criteria:**
+
   ```bash
   grep -r 'chain/explorer' apps/backend/src --include='*.ts' | wc -l  # → 0
   grep -r 'ChainExplorerModule' apps/backend/src --include='*.ts' | wc -l  # → 0
@@ -267,6 +279,7 @@ Your next move: Revisar el plan y decidir si ejecutarlo o pasar por high-accurac
   - `apps/backend/package.json` — scripts build/test
 
   **Acceptance criteria:**
+
   ```bash
   cd apps/backend && npm run build 2>&1 | tail -3  # → exit 0
   cd apps/backend && npm test 2>&1 | tail -5       # → "306 passed, 306 total"
@@ -306,6 +319,7 @@ Your next move: Revisar el plan y decidir si ejecutarlo o pasar por high-accurac
   - `apps/backend/package.json` — script lint
 
   **Acceptance criteria:**
+
   ```bash
   cd apps/backend && npm run lint 2>&1 | tail -3  # → exit 0
   grep -r 'chain/explorer' apps/ --include='*.ts' | wc -l  # → 0
@@ -320,6 +334,7 @@ Your next move: Revisar el plan y decidir si ejecutarlo o pasar por high-accurac
 ---
 
 ## Final verification wave
+
 > Runs in parallel after ALL todos. ALL must APPROVE. Surface results and wait for the user's explicit okay before declaring complete.
 
 - [x] **F1. Plan compliance audit** — `oracle`
@@ -363,6 +378,7 @@ Your next move: Revisar el plan y decidir si ejecutarlo o pasar por high-accurac
 ## Success criteria
 
 ### Verification commands
+
 ```bash
 test ! -d apps/backend/src/chain/explorer
 test -f apps/backend/src/token/enrichment/enrichment.module.ts
@@ -372,10 +388,11 @@ cd apps/backend && npm test
 ```
 
 ### Final checklist
-- [ ] `chain/explorer/` eliminado
-- [ ] `token/enrichment/` con ~49+ archivos
-- [ ] `ChainExplorerModule` → `EnrichmentModule` en todos lados
-- [ ] 0 referencias a `chain/explorer` en imports
-- [ ] Build exitoso
-- [ ] Tests pasan (306+)
-- [ ] Endpoints responden 200
+
+- [x] `chain/explorer/` eliminado
+- [x] `token/enrichment/` con ~49+ archivos
+- [x] `ChainExplorerModule` → `EnrichmentModule` en todos lados
+- [x] 0 referencias a `chain/explorer` en imports
+- [x] Build exitoso
+- [x] Tests pasan (306+)
+- [x] Endpoints responden 200

@@ -125,6 +125,7 @@ describe('LlmConfigMigrationService.seedIfEmpty', () => {
     expect(savedCfg.id).toBe(1);
     expect(savedCfg.targetChannel).toBe('-1004371535900');
     expect(savedCfg.enabled).toBe(true);
+    expect(savedCfg.rejectNonLatin).toBe(true);
     expect(savedCfg.dailyCap).toBe(36);
     expect(savedCfg.randomDelayMinMs).toBe(180_000);
     expect(savedCfg.randomDelayMaxMs).toBe(900_000);
@@ -205,6 +206,7 @@ describe('LlmConfigMigrationService.seedIfEmpty', () => {
 
     expect(savedCfg.targetChannel).toBe('');
     expect(savedCfg.enabled).toBe(false);
+    expect(savedCfg.rejectNonLatin).toBe(true);
     expect(savedCfg.dailyCap).toBe(36);
     expect(savedCfg.dailyResetUtcHour).toBe(4);
     expect(savedCfg.randomDelayMinMs).toBe(180_000);

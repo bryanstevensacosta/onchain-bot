@@ -1,5 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import * as fs from 'node:fs';
 import { Repository } from 'typeorm';
 import { CryptoNewsController } from 'telegram/ingestion/crypto-news/api/http/crypto-news.controller';
 import { RegisterNewsSourceUseCase } from 'telegram/ingestion/crypto-news/application/handlers/register-news-source.use-case';
@@ -61,23 +63,53 @@ class StubSourceRepo extends CryptoNewsSourceRepository {
 }
 
 class StubMessageRepo extends CryptoNewsMessageRepository {
+  public mediaByFile: {
+    filePath: string;
+    mimeType: string | null;
+  } | null = null;
+
+  public readonly findRecentCalls: Array<{
+    limit: number;
+    since?: Date;
+  }> = [];
+  public readonly findByChannelIdCalls: Array<{
+    channelId: string;
+    limit: number;
+    since?: Date;
+  }> = [];
+
   public async save(): Promise<void> {
     return;
   }
   public async findById() {
     return null;
   }
-  public async findRecent(): Promise<never[]> {
+  public async findRecent(limit: number, since?: Date): Promise<never[]> {
+    this.findRecentCalls.push({ limit, since });
     return [];
   }
-  public async findByChannelId(): Promise<never[]> {
+  public async findByChannelId(
+    channelId: string,
+    limit: number,
+    since?: Date,
+  ): Promise<never[]> {
+    this.findByChannelIdCalls.push({ channelId, limit, since });
     return [];
   }
   public async findByChannelAndMessageId() {
     return null;
   }
-  public async findMediaById() {
-    return null;
+  public async findMediaById(): Promise<CryptoNewsMessageMediaEntity | null> {
+    if (!this.mediaByFile) return null;
+    return {
+      id: 'media-1',
+      messageId: 'msg-1',
+      index: 0,
+      type: 'video',
+      filePath: this.mediaByFile.filePath,
+      mimeType: this.mediaByFile.mimeType,
+      fileSize: null,
+    } as CryptoNewsMessageMediaEntity;
   }
 }
 
@@ -195,6 +227,12 @@ async function buildController(
       {
         provide: getRepositoryToken(CryptoNewsMessageMediaEntity),
         useValue: stubMediaEntityRepo,
+      },
+      {
+        provide: ConfigService,
+        useValue: {
+          get: () => ({ cryptoNewsMediaRetentionHours: 48 }),
+        },
       },
     ],
   }).compile();
@@ -350,5 +388,244 @@ describe('CryptoNewsController.addSource (POST /crypto-news/sources)', () => {
     // No partial state — register threw before the controller could
     // call activate() + save.
     expect(sourceRepo.saved).toHaveLength(0);
+  });
+});
+
+describe('CryptoNewsController.getMedia (GET /crypto-news/media/:mediaId)', () => {
+  let fsSpy: jest.SpyInstance;
+  const makeRes = (): {
+    res: import('express').Response;
+    status: jest.Mock;
+    setHeader: jest.Mock;
+    send: jest.Mock;
+    json: jest.Mock;
+  } => {
+    const status = jest.fn().mockReturnThis();
+    const setHeader = jest.fn();
+    const send = jest.fn();
+    const json = jest.fn();
+    const res = {
+      status,
+      setHeader,
+      send,
+      json,
+    } as unknown as import('express').Response;
+    return { res, status, setHeader, send, json };
+  };
+
+  const makeReq = (range?: string): import('express').Request =>
+    ({
+      headers: range ? { range } : {},
+    }) as unknown as import('express').Request;
+
+  beforeEach(() => {
+    fsSpy = jest
+      .spyOn(fs.promises, 'readFile')
+      .mockResolvedValue(Buffer.alloc(0));
+  });
+
+  afterEach(() => {
+    fsSpy.mockRestore();
+  });
+
+  it('returns 404 when the media row is unknown', async () => {
+    const { controller, messageRepo } = await buildController();
+    messageRepo.mediaByFile = null;
+    const { res, json } = makeRes();
+
+    await controller.getMedia('missing', makeReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(json).toHaveBeenCalledWith({ error: 'Media not found' });
+  });
+
+  it('returns 404 when the file is missing on disk', async () => {
+    const { controller, messageRepo } = await buildController();
+    messageRepo.mediaByFile = {
+      filePath: '/tmp/photo.jpg',
+      mimeType: 'image/jpeg',
+    };
+    (fs.promises.readFile as jest.Mock).mockRejectedValue(
+      Object.assign(new Error('nope'), { code: 'ENOENT' }),
+    );
+    const { res, json } = makeRes();
+
+    await controller.getMedia('media-1', makeReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(json).toHaveBeenCalledWith({ error: 'Media file missing on disk' });
+  });
+
+  it('serves an image with 200 and the DB mime', async () => {
+    const { controller, messageRepo } = await buildController();
+    messageRepo.mediaByFile = {
+      filePath: '/tmp/photo.jpg',
+      mimeType: 'image/jpeg',
+    };
+    const fileBuffer = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
+    (fs.promises.readFile as jest.Mock).mockResolvedValue(fileBuffer);
+    const { res, status, setHeader, send } = makeRes();
+
+    await controller.getMedia('media-1', makeReq(), res);
+
+    expect(setHeader).toHaveBeenCalledWith('Content-Type', 'image/jpeg');
+    expect(setHeader).toHaveBeenCalledWith('Accept-Ranges', 'bytes');
+    expect(status).toHaveBeenCalledWith(200);
+    expect(send).toHaveBeenCalledWith(fileBuffer);
+  });
+
+  it('sniffs a .bin MP4 with octet-stream DB mime as video/mp4', async () => {
+    const { controller, messageRepo } = await buildController();
+    messageRepo.mediaByFile = {
+      filePath: '/tmp/video.bin',
+      mimeType: 'application/octet-stream',
+    };
+    const mp4 = Buffer.alloc(16);
+    mp4.writeUInt32BE(16, 0);
+    mp4.write('ftyp', 4);
+    mp4.write('isom', 8);
+    (fs.promises.readFile as jest.Mock).mockResolvedValue(mp4);
+    const { res, setHeader, send } = makeRes();
+
+    await controller.getMedia('media-1', makeReq(), res);
+
+    expect(setHeader).toHaveBeenCalledWith('Content-Type', 'video/mp4');
+    expect(send).toHaveBeenCalledWith(mp4);
+  });
+
+  it('honours a Range request with 206 and a partial body', async () => {
+    const { controller, messageRepo } = await buildController();
+    messageRepo.mediaByFile = {
+      filePath: '/tmp/video.bin',
+      mimeType: 'application/octet-stream',
+    };
+    const fileBuffer = Buffer.from('0123456789'); // 10 bytes
+    (fs.promises.readFile as jest.Mock).mockResolvedValue(fileBuffer);
+    const { res, status, setHeader, send } = makeRes();
+
+    await controller.getMedia('media-1', makeReq('bytes=2-5'), res);
+
+    expect(status).toHaveBeenCalledWith(206);
+    expect(setHeader).toHaveBeenCalledWith('Content-Range', 'bytes 2-5/10');
+    expect(send).toHaveBeenCalledWith(Buffer.from('2345'));
+  });
+
+  it('returns 416 for an unsatisfiable range', async () => {
+    const { controller, messageRepo } = await buildController();
+    messageRepo.mediaByFile = {
+      filePath: '/tmp/video.bin',
+      mimeType: 'application/octet-stream',
+    };
+    (fs.promises.readFile as jest.Mock).mockResolvedValue(
+      Buffer.from('0123456789'),
+    );
+    const { res, status, setHeader } = makeRes();
+
+    await controller.getMedia('media-1', makeReq('bytes=50-60'), res);
+
+    expect(status).toHaveBeenCalledWith(416);
+    expect(setHeader).toHaveBeenCalledWith('Content-Range', 'bytes */10');
+  });
+});
+
+describe('CryptoNewsController.listMessages (GET /crypto-news/messages) — retention window', () => {
+  it('when no `hours` query → findRecent called with (50, since) where since ≈ now-48h', async () => {
+    const { controller, messageRepo } = await buildController();
+    const before = Date.now();
+    await controller.listMessages(undefined, undefined);
+    const after = Date.now();
+    expect(messageRepo.findRecentCalls).toHaveLength(1);
+    const call = messageRepo.findRecentCalls[0];
+    expect(call.limit).toBe(50);
+    expect(call.since).toBeInstanceOf(Date);
+    const expected48h = before - 48 * 3600 * 1000;
+    const actual = (call.since as Date).getTime();
+    // Use a 2-second tolerance window; pick whichever of before/after
+    // gives the tighter bound to avoid wall-clock drift.
+    const lo = Math.min(before, after) - 48 * 3600 * 1000;
+    const hi = Math.max(before, after) - 48 * 3600 * 1000;
+    expect(actual).toBeGreaterThanOrEqual(lo - 2000);
+    expect(actual).toBeLessThanOrEqual(hi + 2000);
+    // Sanity: the expected calculation aligns with the actual range.
+    expect(Math.abs(actual - expected48h)).toBeLessThan(2000);
+  });
+
+  it('when hours=72 → findRecent called with since ≈ now-72h', async () => {
+    const { controller, messageRepo } = await buildController();
+    const before = Date.now();
+    await controller.listMessages(undefined, undefined, '72');
+    const after = Date.now();
+    expect(messageRepo.findRecentCalls).toHaveLength(1);
+    const call = messageRepo.findRecentCalls[0];
+    expect(call.since).toBeInstanceOf(Date);
+    const actual = (call.since as Date).getTime();
+    const lo = Math.min(before, after) - 72 * 3600 * 1000;
+    const hi = Math.max(before, after) - 72 * 3600 * 1000;
+    expect(actual).toBeGreaterThanOrEqual(lo - 2000);
+    expect(actual).toBeLessThanOrEqual(hi + 2000);
+  });
+
+  it('when channelId is present → findByChannelId called with (channelId, 50, since)', async () => {
+    const { controller, messageRepo } = await buildController();
+    const before = Date.now();
+    await controller.listMessages(undefined, 'chan-x');
+    const after = Date.now();
+    expect(messageRepo.findByChannelIdCalls).toHaveLength(1);
+    expect(messageRepo.findRecentCalls).toHaveLength(0);
+    const call = messageRepo.findByChannelIdCalls[0];
+    expect(call.channelId).toBe('chan-x');
+    expect(call.limit).toBe(50);
+    expect(call.since).toBeInstanceOf(Date);
+    const actual = (call.since as Date).getTime();
+    const lo = Math.min(before, after) - 48 * 3600 * 1000;
+    const hi = Math.max(before, after) - 48 * 3600 * 1000;
+    expect(actual).toBeGreaterThanOrEqual(lo - 2000);
+    expect(actual).toBeLessThanOrEqual(hi + 2000);
+  });
+
+  it('when hours=abc (malformed) → falls back to cfgHours (48h, no NaN)', async () => {
+    const { controller, messageRepo } = await buildController();
+    const before = Date.now();
+    await controller.listMessages(undefined, undefined, 'abc');
+    const after = Date.now();
+    expect(messageRepo.findRecentCalls).toHaveLength(1);
+    const call = messageRepo.findRecentCalls[0];
+    expect(call.since).toBeInstanceOf(Date);
+    const actual = (call.since as Date).getTime();
+    const lo = Math.min(before, after) - 48 * 3600 * 1000;
+    const hi = Math.max(before, after) - 48 * 3600 * 1000;
+    expect(actual).toBeGreaterThanOrEqual(lo - 2000);
+    expect(actual).toBeLessThanOrEqual(hi + 2000);
+  });
+
+  it('when hours=0 → parseInt(0) is falsy, falls back to cfgHours (48h)', async () => {
+    // Plan formula: `Math.max(1, Math.min(8760, parseInt(hours, 10) || cfgHours))`.
+    // `parseInt('0', 10) = 0`, then `0 || cfgHours` → cfgHours (48). So 0
+    // is treated as "absent/malformed" and falls back, not clamped to 1.
+    const { controller, messageRepo } = await buildController();
+    const before = Date.now();
+    await controller.listMessages(undefined, undefined, '0');
+    const after = Date.now();
+    expect(messageRepo.findRecentCalls).toHaveLength(1);
+    const call = messageRepo.findRecentCalls[0];
+    const actual = (call.since as Date).getTime();
+    const lo = Math.min(before, after) - 48 * 3600 * 1000;
+    const hi = Math.max(before, after) - 48 * 3600 * 1000;
+    expect(actual).toBeGreaterThanOrEqual(lo - 2000);
+    expect(actual).toBeLessThanOrEqual(hi + 2000);
+  });
+
+  it('when hours=99999 → clamped to 8760 (since ≈ now-8760h)', async () => {
+    const { controller, messageRepo } = await buildController();
+    const before = Date.now();
+    await controller.listMessages(undefined, undefined, '99999');
+    const after = Date.now();
+    expect(messageRepo.findRecentCalls).toHaveLength(1);
+    const call = messageRepo.findRecentCalls[0];
+    const actual = (call.since as Date).getTime();
+    const lo = Math.min(before, after) - 8760 * 3600 * 1000;
+    const hi = Math.max(before, after) - 8760 * 3600 * 1000;
+    expect(actual).toBeGreaterThanOrEqual(lo - 2000);
+    expect(actual).toBeLessThanOrEqual(hi + 2000);
   });
 });

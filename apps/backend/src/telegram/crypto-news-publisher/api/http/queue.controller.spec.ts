@@ -1,14 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'node:fs';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { QueueController } from './queue.controller';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
+import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
+import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
+import { CryptoNewsSource } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-source.entity';
 
 describe('QueueController', () => {
   let controller: QueueController;
   let queueRepo: jest.Mocked<PublisherQueueRepository>;
+  let sourceRepo: jest.Mocked<CryptoNewsSourceRepository>;
 
   const makeEntry = (
     status: 'PENDING' | 'PUBLISHED' = 'PENDING',
@@ -35,15 +39,19 @@ describe('QueueController', () => {
     json: jest.Mock;
     send: jest.Mock;
     setHeader: jest.Mock;
+    status: jest.Mock;
   }
   const makeRes = (): MockResponse => {
     const json = jest.fn();
     const send = jest.fn();
     const setHeader = jest.fn();
-    const status = jest.fn().mockReturnValue({ json });
-    const res = { status, setHeader, send } as unknown as Response;
-    return { res, json, send, setHeader };
+    const status = jest.fn().mockReturnThis();
+    const res = { status, setHeader, send, json } as unknown as Response;
+    return { res, json, send, setHeader, status };
   };
+
+  const makeReq = (range?: string): Request =>
+    ({ headers: range ? { range } : {} }) as unknown as Request;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -75,11 +83,33 @@ describe('QueueController', () => {
             findByIdForDisplay: jest.fn(),
           },
         },
+        {
+          provide: LlmConfigRepository,
+          useValue: {
+            load: jest.fn().mockResolvedValue({
+              targetChannel: '@crypto-news-test',
+              dailyCap: 36,
+              dailyResetUtcHour: 4,
+              randomDelayMinMs: 180000,
+              randomDelayMaxMs: 900000,
+              llmMaxAttempts: 3,
+              enabled: true,
+            }),
+            save: jest.fn(),
+          },
+        },
+        {
+          provide: CryptoNewsSourceRepository,
+          useValue: {
+            findAll: jest.fn().mockResolvedValue([]),
+          },
+        },
       ],
     }).compile();
 
     controller = module.get<QueueController>(QueueController);
     queueRepo = module.get(PublisherQueueRepository);
+    sourceRepo = module.get(CryptoNewsSourceRepository);
   });
 
   it('should be defined', () => {
@@ -147,15 +177,167 @@ describe('QueueController', () => {
     });
   });
 
+  describe('list (displayName cascade)', () => {
+    const makeEntryWithChannelId = (channelId: string): PublisherQueueEntry =>
+      PublisherQueueEntry.create({
+        channelId,
+        messageId: 1,
+        rawContent: 'body',
+        rawTitle: 'title',
+        imagePath: null,
+        groupedId: null,
+        messageReceivedAt: new Date(),
+      });
+
+    const makeSource = (
+      channelId: string,
+      handle: string | null,
+      title: string,
+    ): CryptoNewsSource =>
+      CryptoNewsSource.create({ channelId, handle, title });
+
+    it('strips leading @ from handle', async () => {
+      const entry = makeEntryWithChannelId('4466661332');
+      queueRepo.findAllForDisplay.mockResolvedValue([entry]);
+      sourceRepo.findAll.mockResolvedValue([
+        makeSource('4466661332', '@coinmarket', 'Crypto Insider'),
+      ]);
+
+      const result = await controller.list();
+
+      expect(result[0].displayName).toBe('coinmarket');
+    });
+
+    it('uses bare handle as-is when no leading @', async () => {
+      const entry = makeEntryWithChannelId('4466661332');
+      queueRepo.findAllForDisplay.mockResolvedValue([entry]);
+      sourceRepo.findAll.mockResolvedValue([
+        makeSource('4466661332', 'coinmarket', 'Crypto Insider'),
+      ]);
+
+      const result = await controller.list();
+
+      expect(result[0].displayName).toBe('coinmarket');
+    });
+
+    it('falls back to title when handle is null', async () => {
+      const entry = makeEntryWithChannelId('4466661332');
+      queueRepo.findAllForDisplay.mockResolvedValue([entry]);
+      sourceRepo.findAll.mockResolvedValue([
+        makeSource('4466661332', null, 'Crypto Insider'),
+      ]);
+
+      const result = await controller.list();
+
+      expect(result[0].displayName).toBe('Crypto Insider');
+    });
+
+    it('falls back to channelId when both handle and title are unavailable', async () => {
+      const entry = makeEntryWithChannelId('4466661332');
+      queueRepo.findAllForDisplay.mockResolvedValue([entry]);
+      sourceRepo.findAll.mockResolvedValue([]);
+
+      const result = await controller.list();
+
+      expect(result[0].displayName).toBe('4466661332');
+    });
+  });
+
+  describe('list (duplicateOf cascade)', () => {
+    const makeBlockedEntry = (
+      channelId: string,
+      messageId: number,
+      duplicateOfChannelId: string | null,
+      duplicateOfMessageId: number | null,
+    ): PublisherQueueEntry =>
+      PublisherQueueEntry.reconstitute({
+        id: 'entry-id',
+        traceId: 'trace-id',
+        channelId,
+        messageId,
+        rawContent: 'body',
+        rawTitle: null,
+        imagePath: null,
+        imagePaths: [],
+        groupedId: null,
+        messageReceivedAt: new Date(),
+        matchedKeywordIds: [],
+        keywordTemplateId: null,
+        status: 'BLOCKED',
+        publishedAt: null,
+        telegramMessageId: null,
+        lastError: null,
+        attempts: 0,
+        generatedContent: null,
+        generatedSystemPrompt: null,
+        generatedUserPrompt: null,
+        generatedTemperature: null,
+        generatedReasoningEffort: null,
+        generatedModel: null,
+        blockedReason: 'duplicate',
+        duplicateOfChannelId,
+        duplicateOfMessageId,
+        duplicateOfEntryId: null,
+      });
+
+    const makeSource = (
+      channelId: string,
+      handle: string | null,
+      title: string,
+    ): CryptoNewsSource =>
+      CryptoNewsSource.create({ channelId, handle, title });
+
+    it('uses handle to build public URL when source has handle', async () => {
+      const entry = makeBlockedEntry('1350475252', 10201, '1375055530', 17843);
+      queueRepo.findAllForDisplay.mockResolvedValue([entry]);
+      sourceRepo.findAll.mockResolvedValue([
+        makeSource('1375055530', 'CoinBureau', 'Coin Bureau'),
+      ]);
+
+      const result = await controller.list();
+
+      expect(result[0].duplicateOfSourceHandle).toBe('CoinBureau');
+      expect(result[0].duplicateOfTelegramUrl).toBe(
+        'https://t.me/CoinBureau/17843',
+      );
+    });
+
+    it('falls back to t.me/c/${id} when source has no handle', async () => {
+      const entry = makeBlockedEntry('1350475252', 10201, '1375055530', 17843);
+      queueRepo.findAllForDisplay.mockResolvedValue([entry]);
+      sourceRepo.findAll.mockResolvedValue([
+        makeSource('1375055530', null, 'Test Channel'),
+      ]);
+
+      const result = await controller.list();
+
+      expect(result[0].duplicateOfSourceHandle).toBeNull();
+      expect(result[0].duplicateOfTelegramUrl).toBe(
+        'https://t.me/c/1375055530/17843',
+      );
+    });
+
+    it('returns null URL when duplicateOfChannelId is null', async () => {
+      const entry = makeBlockedEntry('1350475252', 10201, null, 17843);
+      queueRepo.findAllForDisplay.mockResolvedValue([entry]);
+      sourceRepo.findAll.mockResolvedValue([]);
+
+      const result = await controller.list();
+
+      expect(result[0].duplicateOfSourceHandle).toBeNull();
+      expect(result[0].duplicateOfTelegramUrl).toBeNull();
+    });
+  });
+
   describe('getQueueMedia', () => {
     it('should return 404 when the entry is not found', async () => {
       queueRepo.findByIdForDisplay.mockResolvedValue(null);
       const { res, json } = makeRes();
 
-      await controller.getQueueMedia('missing', res);
+      await controller.getQueueMedia('missing', makeReq(), res);
 
       expect(res.status).toHaveBeenCalledWith(404);
-      expect(json).toHaveBeenCalledWith({ error: 'Media not found' });
+      expect(json).toHaveBeenCalledWith({ error: 'Entry not found' });
     });
 
     it('should return 404 when the entry has no imagePath', async () => {
@@ -164,7 +346,7 @@ describe('QueueController', () => {
       );
       const { res, json } = makeRes();
 
-      await controller.getQueueMedia('abc', res);
+      await controller.getQueueMedia('abc', makeReq(), res);
 
       expect(res.status).toHaveBeenCalledWith(404);
       expect(json).toHaveBeenCalledWith({ error: 'Media not found' });
@@ -180,10 +362,11 @@ describe('QueueController', () => {
       const { res, send, setHeader } = makeRes();
 
       try {
-        await controller.getQueueMedia('abc', res);
+        await controller.getQueueMedia('abc', makeReq(), res);
 
         expect(readFileSpy).toHaveBeenCalledWith('/tmp/photo.jpg');
         expect(setHeader).toHaveBeenCalledWith('Content-Type', 'image/jpeg');
+        expect(setHeader).toHaveBeenCalledWith('Accept-Ranges', 'bytes');
         expect(setHeader).toHaveBeenCalledWith(
           'Content-Length',
           fileBuffer.length.toString(),
@@ -193,7 +376,7 @@ describe('QueueController', () => {
           'public, max-age=86400',
         );
         expect(send).toHaveBeenCalledWith(fileBuffer);
-        expect(res.status).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(200);
       } finally {
         readFileSpy.mockRestore();
       }
@@ -216,7 +399,7 @@ describe('QueueController', () => {
         const { res, setHeader, send } = makeRes();
 
         try {
-          await controller.getQueueMedia('abc', res);
+          await controller.getQueueMedia('abc', makeReq(), res);
           expect(setHeader).toHaveBeenCalledWith('Content-Type', mime);
           expect(send).toHaveBeenCalled();
         } finally {
@@ -234,12 +417,53 @@ describe('QueueController', () => {
       const { res, setHeader, send } = makeRes();
 
       try {
-        await controller.getQueueMedia('abc', res);
+        await controller.getQueueMedia('abc', makeReq(), res);
         expect(setHeader).toHaveBeenCalledWith(
           'Content-Type',
           'application/octet-stream',
         );
         expect(send).toHaveBeenCalled();
+      } finally {
+        readFileSpy.mockRestore();
+      }
+    });
+
+    it('should serve a .bin MP4 as video/mp4 via magic-byte sniffing', async () => {
+      const entry = makeEntry('PENDING', '/tmp/video.bin');
+      queueRepo.findByIdForDisplay.mockResolvedValue(entry);
+      const mp4 = Buffer.alloc(16);
+      mp4.writeUInt32BE(16, 0);
+      mp4.write('ftyp', 4);
+      mp4.write('isom', 8);
+      const readFileSpy = jest
+        .spyOn(fs.promises, 'readFile')
+        .mockResolvedValue(mp4);
+      const { res, setHeader, send } = makeRes();
+
+      try {
+        await controller.getQueueMedia('abc', makeReq(), res);
+        expect(setHeader).toHaveBeenCalledWith('Content-Type', 'video/mp4');
+        expect(send).toHaveBeenCalledWith(mp4);
+      } finally {
+        readFileSpy.mockRestore();
+      }
+    });
+
+    it('should honour a Range request with 206 and a partial body', async () => {
+      const entry = makeEntry('PENDING', '/tmp/video.bin');
+      queueRepo.findByIdForDisplay.mockResolvedValue(entry);
+      const mp4 = Buffer.from('0123456789'); // 10 bytes
+      const readFileSpy = jest
+        .spyOn(fs.promises, 'readFile')
+        .mockResolvedValue(mp4);
+      const { res, setHeader, send, status } = makeRes();
+
+      try {
+        await controller.getQueueMedia('abc', makeReq('bytes=2-5'), res);
+
+        expect(status).toHaveBeenCalledWith(206);
+        expect(setHeader).toHaveBeenCalledWith('Content-Range', 'bytes 2-5/10');
+        expect(send).toHaveBeenCalledWith(Buffer.from('2345'));
       } finally {
         readFileSpy.mockRestore();
       }
@@ -255,7 +479,7 @@ describe('QueueController', () => {
       const { res, json, send } = makeRes();
 
       try {
-        await controller.getQueueMedia('abc', res);
+        await controller.getQueueMedia('abc', makeReq(), res);
 
         expect(res.status).toHaveBeenCalledWith(404);
         expect(json).toHaveBeenCalledWith({
@@ -277,9 +501,9 @@ describe('QueueController', () => {
       const { res } = makeRes();
 
       try {
-        await expect(controller.getQueueMedia('abc', res)).rejects.toBe(
-          otherErr,
-        );
+        await expect(
+          controller.getQueueMedia('abc', makeReq(), res),
+        ).rejects.toBe(otherErr);
       } finally {
         readFileSpy.mockRestore();
       }

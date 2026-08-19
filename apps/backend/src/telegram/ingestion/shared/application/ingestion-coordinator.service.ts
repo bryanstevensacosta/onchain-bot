@@ -80,11 +80,6 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
       this.logger.debug('Crypto-news seed disabled; skipping.');
     }
 
-    if (!seedConfig?.autoStartListening) {
-      this.logger.debug('Auto-start listening disabled; coordinator idle.');
-      return;
-    }
-
     const activeKols = (await this.kolRepo.findAll()).filter((k) => k.isActive);
     const activeNews = await this.cryptoNewsSourceRepo.findActive();
     const allChannelIds = [
@@ -131,7 +126,7 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
                 .map((m) =>
                   CryptoNewsMedia.create({
                     index: m.index ?? 0,
-                    type: m.type,
+                    type: m.webpageUrl ? 'webpage' : m.type,
                     filePath: m.filePath as string,
                     mimeType: m.mimeType,
                     fileSize: m.fileSize ?? null,

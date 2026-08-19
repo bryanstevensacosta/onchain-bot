@@ -4,6 +4,7 @@ import {
   ApprovedCallInput,
   TelegramInlineKeyboard,
 } from 'telegram/shared';
+import { formatUrlsAsMarkdown } from 'shared/common/utils/telegram-url-formatter';
 
 const CHAIN_EMOJI: Record<string, string> = {
   solana: '🟣',
@@ -42,7 +43,7 @@ export class VipCallsMessageFormatterAdapter extends MessageFormatterPort {
       parts.push(`🦅 [Dexscreener](${input.chart})`);
     }
 
-    return parts.join('\n');
+    return formatUrlsAsMarkdown(parts.join('\n'));
   }
 
   public formatKeyboard(input: ApprovedCallInput): TelegramInlineKeyboard {
@@ -104,11 +105,13 @@ export class VipCallsMessageFormatterAdapter extends MessageFormatterPort {
       input.multiple % 1 === 0
         ? `${input.multiple.toFixed(0)}x`
         : `${input.multiple}x`;
-    return [
-      `🚀 MILESTONE ${multipleLabel} ${chainEmoji} $${input.chain.toUpperCase()}`,
-      '',
-      `MC: \`${this.formatUsd(input.mcAtCall)}\` → \`${this.formatUsd(input.mcNow)}\``,
-      `\`${input.address}\``,
-    ].join('\n');
+    return formatUrlsAsMarkdown(
+      [
+        `🚀 MILESTONE ${multipleLabel} ${chainEmoji} $${input.chain.toUpperCase()}`,
+        '',
+        `MC: \`${this.formatUsd(input.mcAtCall)}\` → \`${this.formatUsd(input.mcNow)}\``,
+        `\`${input.address}\``,
+      ].join('\n'),
+    );
   }
 }
