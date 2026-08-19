@@ -37,7 +37,10 @@ describe('CreateCryptoNewsAdsTables1805000000000 migration', () => {
     expect(ads).toContain('name varchar(128) NOT NULL');
     expect(ads).toContain('CONSTRAINT uq_crypto_news_ads_name UNIQUE (name)');
     expect(ads).toContain('body text NOT NULL');
-    expect(ads).toContain('image_media_id uuid NULL');
+    // Column is `image_path` (intermediate shape) because the later migration
+    // 1820000000000-add-ad-media migrates it to crypto_news_ad_media /
+    // image_media_id and drops it; the final shape matches AdEntity.
+    expect(ads).toContain('image_path varchar(512) NULL');
     expect(ads).toContain('enabled boolean NOT NULL DEFAULT true');
     expect(ads).toContain('"order" integer NOT NULL DEFAULT 0');
     expect(ads).toContain('times_published integer NOT NULL DEFAULT 0');
