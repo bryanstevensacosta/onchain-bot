@@ -119,7 +119,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 512M
     networks:
       - onchain-net
 
