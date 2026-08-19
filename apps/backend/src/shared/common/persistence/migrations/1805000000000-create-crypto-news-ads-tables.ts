@@ -11,6 +11,15 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * (timestamp between 1800000000000 and 1810000000000) creates them first,
  * idempotently, so the rest of the pending batch passes.
  *
+ * NOTE: `crypto_news_ads` is created with the INTERMEDIATE shape (`image_path
+ * varchar(512)`, no `image_media_id`) ON PURPOSE. The later migration
+ * `1820000000000-add-ad-media` (also in the pending batch) migrates
+ * `image_path` into the new `crypto_news_ad_media` table + `image_media_id`
+ * column and drops `image_path`. The FINAL shape after the full batch (with
+ * `image_media_id`, without `image_path`) matches `AdEntity`. Creating the
+ * final shape here instead would break the 182 migration, which expects the
+ * legacy `image_path` column to exist.
+ *
  * DDL replicates the entity shapes EXACTLY (names/types/defaults) so a later
  * `synchronize: true` boot does not alter the schema:
  *   - ad.entity.ts                          -> crypto_news_ads
@@ -28,7 +37,7 @@ export class CreateCryptoNewsAdsTables1805000000000 implements MigrationInterfac
         `id uuid PRIMARY KEY DEFAULT gen_random_uuid(), ` +
         `name varchar(128) NOT NULL, ` +
         `body text NOT NULL, ` +
-        `image_media_id uuid NULL, ` +
+        `image_path varchar(512) NULL, ` +
         `enabled boolean NOT NULL DEFAULT true, ` +
         `"order" integer NOT NULL DEFAULT 0, ` +
         `times_published integer NOT NULL DEFAULT 0, ` +
