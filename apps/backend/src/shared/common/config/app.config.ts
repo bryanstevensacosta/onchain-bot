@@ -149,6 +149,9 @@ export interface AppConfig extends LlmConfigShape {
     mtprotoApiId: number;
     mtprotoApiHash: string;
     mtprotoSession: string;
+    mtprotoLogLevel: string;
+    mtprotoStartupDelayMs: number;
+    mtprotoUseWss: boolean;
   };
 
   ingestion: {
@@ -390,6 +393,19 @@ export const appConfig = registerAs(
       ),
       mtprotoApiHash: process.env.INGESTION_TELEGRAM_MTPROTO_API_HASH ?? '',
       mtprotoSession: process.env.INGESTION_TELEGRAM_MTPROTO_SESSION ?? '',
+      mtprotoLogLevel: (() => {
+        const raw = process.env.INGESTION_TELEGRAM_MTPROTO_LOG_LEVEL;
+        return raw && raw.trim().length > 0 ? raw : 'error';
+      })(),
+      mtprotoStartupDelayMs: (() => {
+        const raw = process.env.INGESTION_TELEGRAM_MTPROTO_STARTUP_DELAY_MS;
+        const parsed = raw && raw.trim().length > 0 ? parseInt(raw, 10) : NaN;
+        return Number.isFinite(parsed) ? parsed : 60000;
+      })(),
+      mtprotoUseWss:
+        (
+          process.env.INGESTION_TELEGRAM_MTPROTO_USE_WSS ?? 'false'
+        ).toLowerCase() === 'true',
     },
 
     ingestion: {
