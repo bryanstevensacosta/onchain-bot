@@ -20,15 +20,27 @@
  * node_modules/telegram/extensions/Logger.d.ts). If gramJS changes its
  * `LogLevel` value shape to numeric in a future version, the assertions
  * here should be updated to match.
+ *
+ * Why we mock the SHIM path (not the absolute `node_modules/...` path):
+ *   The service file does `import ... from 'telegram/extensions/Logger'`,
+ *   which Jest's `^telegram/(.*)$` moduleNameMapper rewrites to the local
+ *   shim file `src/telegram/extensions/Logger.ts`. That shim re-exports from
+ *   a hardcoded absolute `node_modules` path, which works in production but
+ *   breaks portability across machines (the absolute path differs in CI vs
+ *   local). Mocking the shim path directly via the SAME moduleNameMapper
+ *   rewriting keeps the spec portable: any environment that resolves
+ *   `telegram/extensions/Logger` will hit our spy.
  */
 import { ConfigService } from '@nestjs/config';
 
 // --- Mock the `telegram` npm package BEFORE the service module is loaded. ---
 // The service file does `import { TelegramClient } from 'telegram'` +
-// `import { Logger as GramjsLogger, LogLevel } from 'telegram/extensions/Logger'`.
-// The Jest moduleNameMapper rewrites `telegram/extensions/Logger` to a local
-// path (which does not exist for the package subpath), so we mock BOTH with
-// one factory that exposes everything the service file pulls in.
+// `import { Logger as GramjsLogger, LogLevel } from 'telegram/extensions/Logger`.
+// The Jest moduleNameMapper rewrites `telegram/extensions/Logger` to the local
+// shim at `<rootDir>/src/telegram/extensions/Logger`. We mock BOTH the parent
+// (`telegram`) AND the shim path (which is what the service actually loads via
+// the mapper) with one shared factory so that `new GramjsLogger(...)` always
+// uses our spy regardless of which resolution path Jest takes.
 
 const telegramClientInstances: Array<{
   self: { connectCalls: number };
@@ -102,12 +114,13 @@ jest.mock(
   { virtual: true },
 );
 
-// The shim at `src/telegram/extensions/Logger.ts` re-exports the real
-// gramJS Logger from `node_modules/telegram/extensions/Logger`. We mock
-// the absolute path the shim loads from, so every `new GramjsLogger(...)`
-// in the service file uses our spy instead of the real class.
+// Mock the shim resolution path that Jest's moduleNameMapper rewrites
+// `telegram/extensions/Logger` into. We deliberately use the SAME string the
+// mapper rewrites to (the shim file) so that any host resolving
+// `telegram/extensions/Logger` ends up in our factory — no hardcoded absolute
+// path that breaks when the repo is checked out elsewhere (CI vs local).
 jest.mock(
-  '/Users/bryanstevens/dev/onchain-bot/node_modules/telegram/extensions/Logger',
+  'telegram/extensions/Logger',
   () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports -- resolves to the virtual mock above
     const { Logger, LogLevel } = require('telegram');
@@ -163,13 +176,22 @@ function makeConfig(
  * Find the Logger instance that was constructed for the most recent
  * TelegramClient (via the baseLogger param). We track them in lock-step
  * via `loggerInstances` / `telegramClientInstances`.
+ *
+ * Defensive: returns `undefined` (rather than throwing `TypeError: Cannot
+ * read properties of undefined (reading 'level')`) when no Logger was ever
+ * constructed. This guards against test-ordering / mock-resolution
+ * regressions where the Logger spy is bypassed (e.g. on CI when a
+ * hardcoded absolute-path jest.mock key fails to match the runner's
+ * checked-out path and the real gramJS Logger takes over). Failing tests
+ * then surface the empty `loggerInstances` array as a clear signal
+ * instead of a cryptic TypeError on `.level`.
  */
-function lastBaseLoggerLevel(): string {
+function lastBaseLoggerLevel(): string | undefined {
   // TelegramClient construction pushes 1 entry, then its `baseLogger`
   // (a Logger instance) was pushed during ensureClient BEFORE the ctor —
   // so the last Logger is the one paired with the last client.
   const lastLogger = loggerInstances[loggerInstances.length - 1];
-  return lastLogger.level;
+  return lastLogger?.level;
 }
 
 function lastClientParams(): Record<string, unknown> {
