@@ -22,6 +22,8 @@ function resolveGramjsLogLevel(raw: string | undefined): string {
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
+const DEFAULT_CONNECT_TIMEOUT_MS = 20_000;
+
 @Injectable()
 export class TelegramClientManager {
   private client: TelegramClient | null = null;
@@ -82,11 +84,30 @@ export class TelegramClientManager {
 
   async markAuthorizedIfTrue(): Promise<void> {
     if (this.authorizedAtLeastOnce) return;
-    try {
+    const op = (async () => {
       await this.connect();
-      this.authorizedAtLeastOnce = await this.client!.isUserAuthorized();
-    } catch {
-      /* ignore */
+      return this.client!.isUserAuthorized();
+    })();
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error('mtproto-connect-timeout')),
+        DEFAULT_CONNECT_TIMEOUT_MS,
+      );
+    });
+    try {
+      this.authorizedAtLeastOnce = await Promise.race([op, timeout]);
+    } catch (err) {
+      const message = (err as Error)?.message ?? String(err);
+      if (message === 'mtproto-connect-timeout') {
+        this.logger.log(
+          `MTProto connect timed out after ${DEFAULT_CONNECT_TIMEOUT_MS}ms — listener will idle`,
+        );
+      } else {
+        this.logger.error(message);
+      }
+    } finally {
+      if (timer) clearTimeout(timer);
     }
   }
 
