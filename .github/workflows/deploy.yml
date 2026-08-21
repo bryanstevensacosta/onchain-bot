@@ -112,7 +112,8 @@ jobs:
         run: |
           set -euo pipefail
           rsync -a --delete \
-            --exclude='.git' \
+            --exclude='.git'
+            --exclude='uploads' \
             --exclude='.git/**' \
             --exclude='node_modules' \
             --exclude='node_modules/**' \
