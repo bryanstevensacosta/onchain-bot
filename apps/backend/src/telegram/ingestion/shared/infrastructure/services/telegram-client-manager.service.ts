@@ -84,8 +84,20 @@ export class TelegramClientManager {
 
   async markAuthorizedIfTrue(): Promise<void> {
     if (this.authorizedAtLeastOnce) return;
+    this.ensureClient();
+    // Per plan .omo/plans/fix-mtproto-listener-wedge.md:84, the
+    // mtprotoStartupDelayMs MUST run OUTSIDE the 20s race — the
+    // delay is part of AUTH_KEY_DUPLICATED prevention (Todo 2) and
+    // must NOT be cut short by a hang-detection timer. Replicate the
+    // delay here, then race only the actual network/auth operations.
+    const cfg = this.config.get<AppConfig>('app');
+    const delay = cfg?.telegram?.mtprotoStartupDelayMs ?? 0;
+    if (delay > 0) {
+      this.logger.log(`MTProto connect delayed ${delay}ms (startup)`);
+      await sleep(delay);
+    }
     const op = (async () => {
-      await this.connect();
+      await this.client!.connect();
       return this.client!.isUserAuthorized();
     })();
     let timer: NodeJS.Timeout | undefined;
