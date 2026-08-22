@@ -112,7 +112,8 @@ jobs:
         run: |
           set -euo pipefail
           rsync -a --delete \
-            --exclude='.git' \
+            --exclude='.git'
+            --exclude='uploads' \
             --exclude='.git/**' \
             --exclude='node_modules' \
             --exclude='node_modules/**' \
@@ -157,11 +158,11 @@ jobs:
           echo "=== Restarting services ==="
           docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml up -d --force-recreate backend
           echo "=== Waiting for healthcheck ==="
-          sleep 15
+          sleep 180
           curl -sf http://localhost:3030/api/health && echo "" || (
             echo "HEALTHCHECK FAILED — rolling back"
             docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml up -d --force-recreate backend
-            sleep 15
+            sleep 180
             curl -sf http://localhost:3030/api/health && echo "Rollback successful" || {
               echo "ROLLBACK ALSO FAILED — manual intervention required"
               docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml logs backend --tail 50
