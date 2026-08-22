@@ -1,0 +1,174 @@
+name: Branch Governance
+
+on:
+  push:
+    branches: [master, dev]
+  pull_request:
+    branches: [master, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  governance-check:
+    name: Branch Governance Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Necesario para git history, merge-base, reflog
+
+      - name: Setup git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git remote set-url origin https://github.com/${{ github.repository }}.git
+
+      - name: Fetch all branches and tags
+        run: git fetch --all --prune --tags
+
+      # ──────────────────────────────────────────────────────────────
+      # Regla 1: Solo deben existir master y dev como ramas remotas
+      # ──────────────────────────────────────────────────────────────
+      - name: Check remote branches (only master and dev allowed)
+        id: check-remote-branches
+        run: |
+          EXTRA_BRANCHES=$(git ls-remote --heads origin | grep -vE "refs/heads/(master|dev)$" | wc -l)
+          echo "extra_branches=$EXTRA_BRANCHES" >> $GITHUB_OUTPUT
+          if [ "$EXTRA_BRANCHES" -gt 0 ]; then
+            echo "::error::Ramas remotas adicionales detectadas (solo master y dev permitidas):"
+            git ls-remote --heads origin | grep -vE "refs/heads/(master|dev)$" | sed 's/.*refs\/heads\//  - /'
+            exit 1
+          fi
+          echo "✅ Solo master y dev existen en remoto"
+
+      # ──────────────────────────────────────────────────────────────
+      # Regla 2: Contenido de master ⊆ contenido de dev (diff master..dev vacío)
+      # ──────────────────────────────────────────────────────────────
+      - name: Check master content is subset of dev (content equality)
+        id: check-content-equality
+        run: |
+          DIFF_STAT=$(git diff master..dev --stat)
+          if [ -n "$DIFF_STAT" ] && [ "$DIFF_STAT" != "0 files changed" ]; then
+            echo "::error::Contenido de master NO está contenido en dev. Diff master..dev:"
+            echo "$DIFF_STAT"
+            exit 1
+          fi
+          echo "✅ Contenido de master ⊆ contenido de dev (diff vacío)"
+
+      # ──────────────────────────────────────────────────────────────
+      # Regla 3: No commits huérfanos en master (excluyendo merges PR + conv. commits)
+      # ──────────────────────────────────────────────────────────────
+      - name: Check orphan commits in master
+        id: check-orphan-commits
+        run: |
+          python3 << 'PYEOF'
+          import subprocess, re, sys
+
+          out = subprocess.check_output(['git', 'log', '--oneline', 'dev..master'], text=True)
+          lines = out.strip().split('\n')
+
+          allowed_patterns = [
+              r'Merge pull request',
+              r'ci\(',
+              r'fix\(',
+              r'feat\(',
+              r'chore\(',
+              r'docs\(',
+              r'refactor\(',
+              r'perf\(',
+              r'test\(',
+              r'build\(',
+              r'revert\(',
+              r'ci:',
+              r'\(#\d+\)',  # PR reference
+          ]
+
+          orphans = []
+          for line in lines:
+              if not line.strip():
+                  continue
+              allowed = any(re.search(p, line) for p in allowed_patterns)
+              if not allowed:
+                  orphans.append(line)
+
+          if orphans:
+              print("::error::Commits en master que NO están en dev (excluyendo merges PR + commits convencionales):")
+              for o in orphans:
+                  print(f"  - {o}")
+              sys.exit(1)
+
+          print("✅ No hay commits huérfanos en master")
+          PYEOF
+
+      # ──────────────────────────────────────────────────────────────
+      # Regla 4: Force-push detectado en últimas 24h (master y dev)
+      # ──────────────────────────────────────────────────────────────
+      - name: Check force-push in last 24h (master/dev)
+        id: check-force-push
+        run: |
+          FORCE_PUSH_COUNT=0
+          for branch in master dev; do
+            COUNT=$(git reflog --since="24 hours ago" --format="%gs" $branch 2>/dev/null | grep -E "force-push|push --force" | wc -l)
+            FORCE_PUSH_COUNT=$((FORCE_PUSH_COUNT + COUNT))
+            if [ "$COUNT" -gt 0 ]; then
+              echo "::warning::$branch: $COUNT force-push(es) detectados en últimas 24h"
+              git reflog --since="24 hours ago" --format="%h %gs" $branch | grep -E "force-push|push --force" | sed "s/^/  $branch: /"
+            fi
+          done
+          echo "force_push_count=$FORCE_PUSH_COUNT" >> $GITHUB_OUTPUT
+          if [ "$FORCE_PUSH_COUNT" -gt 0 ]; then
+            echo "::error::Force-push detectado en master/dev en últimas 24h. Solo permitido para rollback documentado o backport sync (ver GOVERNANCE.md §5)."
+            exit 1
+          fi
+          echo "✅ No force-push detectado en últimas 24h"
+
+      # ──────────────────────────────────────────────────────────────
+      # Resumen final
+      # ──────────────────────────────────────────────────────────────
+      - name: Governance summary
+        if: always()
+        run: |
+          python3 << 'PYEOF'
+          import subprocess, re
+
+          # Regla 1
+          extra = int(subprocess.check_output(['bash', '-c', 'git ls-remote --heads origin | grep -vE "refs/heads/(master|dev)$" | wc -l'], text=True).strip())
+
+          # Regla 2
+          diff = subprocess.check_output(['git', 'diff', 'master..dev', '--stat'], text=True).strip()
+          content_ok = "YES" if not diff or diff == "0 files changed" else "NO"
+
+          # Regla 3
+          out = subprocess.check_output(['git', 'log', '--oneline', 'dev..master'], text=True)
+          lines = out.strip().split('\n')
+          allowed_patterns = [
+              r'Merge pull request', r'ci\(', r'fix\(', r'feat\(', r'chore\(',
+              r'docs\(', r'refactor\(', r'perf\(', r'test\(', r'build\(', r'revert\(', r'ci:', r'\(#\d+\)'
+          ]
+          orphans = [l for l in lines if l.strip() and not any(re.search(p, l) for p in [
+              r'Merge pull request', r'ci\(', r'fix\(', r'feat\(', r'chore\(', r'docs\(', 
+              r'refactor\(', r'perf\(', r'test\(', r'build\(|revert\(', r'ci:', r'\(#\d+\)'
+          ])]
+
+          # Regla 4
+          force = 0
+          for b in ['master', 'dev']:
+              try:
+                  cnt = int(subprocess.check_output(['bash', '-c', f'git reflog --since="24 hours ago" --format="%gs" {b} 2>/dev/null | grep -E "force-push|push --force" | wc -l'], text=True).strip())
+                  force += cnt
+              except:
+                  pass
+
+          print("==================================")
+          print("  BRANCH GOVERNANCE SUMMARY")
+          print("==================================")
+          print(f"Remote branches: {int(subprocess.check_output(['git', 'ls-remote', '--heads', 'origin'], text=True).strip().count('\n') + 1)} (expected: 2)")
+          print(f"master content ⊆ dev content: {content_ok}")
+          print(f"Orphan commits in master: {len([l for l in out.strip().split('\n') if l.strip() and not any(re.search(p, l) for p in [r'Merge pull request', r'ci\(', r'fix\(', r'feat\(', r'chore\(', r'docs\(', r'refactor\(', r'perf\(', r'test\(', r'build\(|revert\(', r'ci:', r'\(#\d+\)'])])}")
+          print(f"Force-push (24h): {force}")
+          print("==================================")
+          PYEOF
