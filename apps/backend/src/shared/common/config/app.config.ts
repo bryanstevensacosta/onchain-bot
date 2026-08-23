@@ -146,6 +146,7 @@ export interface AppConfig extends LlmConfigShape {
 
   telegram: {
     botToken: string;
+    mtprotoEnabled: boolean;
     mtprotoApiId: number;
     mtprotoApiHash: string;
     mtprotoSession: string;
@@ -196,9 +197,9 @@ export interface AppConfig extends LlmConfigShape {
 
   chainDexterBot: {
     webhookSecret: string;
+    webhookUrl: string;
     ingestMode: 'webhook' | 'polling';
     pollingIntervalMs: number;
-    defaultTradeButtons: string[];
   };
 
   analytics: {
@@ -387,6 +388,10 @@ export const appConfig = registerAs(
 
     telegram: {
       botToken: process.env.TELEGRAM_BOT_TOKEN ?? '',
+      mtprotoEnabled:
+        (
+          process.env.INGESTION_TELEGRAM_MTPROTO_ENABLED ?? 'true'
+        ).toLowerCase() === 'true',
       mtprotoApiId: parseInt(
         process.env.INGESTION_TELEGRAM_MTPROTO_API_ID ?? '0',
         10,
@@ -476,6 +481,7 @@ export const appConfig = registerAs(
 
     chainDexterBot: {
       webhookSecret: process.env.CHAIN_DEXTER_WEBHOOK_SECRET ?? '',
+      webhookUrl: process.env.CHAIN_DEXTER_WEBHOOK_URL ?? '',
       ingestMode: (process.env.CHAIN_DEXTER_INGEST_MODE ?? 'webhook') as
         | 'webhook'
         | 'polling',
@@ -483,12 +489,6 @@ export const appConfig = registerAs(
         process.env.CHAIN_DEXTER_POLLING_INTERVAL_MS ?? '1000',
         10,
       ),
-      defaultTradeButtons: (
-        process.env.CHAIN_DEXTER_DEFAULT_TRADE_BUTTONS ?? 'DEX,PHO,TRO'
-      )
-        .split(',')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0),
     },
 
     analytics: {

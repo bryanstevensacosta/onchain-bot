@@ -72,7 +72,12 @@ export class TelegramMtprotoListenerAdapter
 
   async onModuleInit(): Promise<void> {
     const cfg = this.config.get<AppConfig>('app');
-    if (!cfg?.telegram?.mtprotoApiId || !cfg?.telegram?.mtprotoApiHash) return;
+    if (
+      !cfg?.telegram?.mtprotoEnabled ||
+      !cfg?.telegram?.mtprotoApiId ||
+      !cfg?.telegram?.mtprotoApiHash
+    )
+      return;
     await this.clientManager.markAuthorizedIfTrue();
   }
 
