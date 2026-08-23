@@ -101,18 +101,6 @@ const CONFIG_MANIFEST: ConfigVarDef[] = [
     description: 'PumpFun private wallet key',
   },
   {
-    envVar: 'INGESTION_TELEGRAM_MTPROTO_API_HASH',
-    configPath: 'telegram.mtprotoApiHash',
-    category: 'required',
-    description: 'MTProto API hash for Telegram',
-  },
-  {
-    envVar: 'INGESTION_TELEGRAM_MTPROTO_SESSION',
-    configPath: 'telegram.mtprotoSession',
-    category: 'required',
-    description: 'MTProto session string for Telegram',
-  },
-  {
     envVar: 'VIP_CALLS_BOT_TOKEN',
     configPath: 'publishing.vipCalls.botToken',
     category: 'required',
@@ -132,6 +120,29 @@ const CONFIG_MANIFEST: ConfigVarDef[] = [
   },
 
   // ========== Tier 2: Required When Enabled ==========
+  {
+    envVar: 'INGESTION_TELEGRAM_MTPROTO_API_ID',
+    configPath: 'telegram.mtprotoApiId',
+    category: 'required-if',
+    condition: () => true, // Will be overridden per-test via getter
+    description: 'MTProto API ID for Telegram (required when MTProto enabled)',
+  },
+  {
+    envVar: 'INGESTION_TELEGRAM_MTPROTO_API_HASH',
+    configPath: 'telegram.mtprotoApiHash',
+    category: 'required-if',
+    condition: () => true,
+    description:
+      'MTProto API hash for Telegram (required when MTProto enabled)',
+  },
+  {
+    envVar: 'INGESTION_TELEGRAM_MTPROTO_SESSION',
+    configPath: 'telegram.mtprotoSession',
+    category: 'required-if',
+    condition: () => true,
+    description:
+      'MTProto session string for Telegram (required when MTProto enabled)',
+  },
   {
     envVar: 'POSTGRES_HOST',
     configPath: 'database.host',
@@ -449,6 +460,12 @@ export function validateAppConfig(appCfg: unknown): {
           isRequired = appConfig.database.enabled;
         } else if (def.configPath.startsWith('redis.')) {
           isRequired = appConfig.redis.enabled;
+        } else if (
+          def.configPath === 'telegram.mtprotoApiId' ||
+          def.configPath === 'telegram.mtprotoApiHash' ||
+          def.configPath === 'telegram.mtprotoSession'
+        ) {
+          isRequired = appConfig.telegram.mtprotoEnabled;
         }
 
         if (isRequired) {
