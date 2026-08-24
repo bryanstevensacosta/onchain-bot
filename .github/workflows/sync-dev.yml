@@ -1,0 +1,53 @@
+name: Sync dev with master
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: sync-dev
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  sync-dev:
+    runs-on: ubuntu-latest
+    if: github.repository == 'bryanstevensacosta/onchain-bot'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Merge master into dev (with retry)
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin master dev
+          git checkout dev
+          # Ensure dev is up to date before merging
+          git pull --ff-only origin dev || true
+          if git merge-base --is-ancestor origin/master HEAD; then
+            echo "✅ dev already contains master, nothing to do"
+            exit 0
+          fi
+          echo "Merging origin/master into dev..."
+          git merge origin/master --no-edit
+          # Retry git push up to 3 times with exponential backoff
+          for attempt in 1 2 3; do
+            if git push origin dev; then
+              echo "✅ dev synced with master (attempt $attempt)"
+              exit 0
+            fi
+            echo "⚠️ Push failed (attempt $attempt/3), retrying in $((attempt * 5))s..."
+            sleep $((attempt * 5))
+            # Re-fetch in case remote moved
+            git fetch origin dev
+            git rebase origin/dev || true
+          done
+          echo "❌ Failed to push after 3 attempts"
+          exit 1
