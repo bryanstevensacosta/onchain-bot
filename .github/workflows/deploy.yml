@@ -77,17 +77,8 @@ jobs:
           set -a; source /opt/onchain-bot/apps/backend/.env.production; set +a
           echo "=== Building images ==="
           docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml build backend
-          echo "=== Running migrations ==="
-          POSTGRES_HOST=localhost \
-          POSTGRES_USER=alpha_meta_token_scanner \
-          POSTGRES_DB=alpha_meta_token_scanner \
-          POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
-          cd /opt/onchain-bot/apps/backend && \
-          POSTGRES_HOST=localhost \
-          POSTGRES_USER=alpha_meta_token_scanner \
-          POSTGRES_DB=alpha_meta_token_scanner \
-          POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
-          npm run migration:run
+          echo "=== Running migrations inside Docker ==="
+          docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml run --rm backend npx typeorm --dataSource dist/src/shared/common/persistence/data-source.js migration:run
           echo "=== Restarting services ==="
           docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml up -d --force-recreate backend
           echo "=== Waiting for healthcheck ==="
