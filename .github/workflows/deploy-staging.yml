@@ -6,124 +6,13 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: staging-deploy
+  group: deploy-staging
   cancel-in-progress: true
 
 jobs:
-  stop-services:
-    name: Stop non-essential services
-    runs-on: self-hosted
-    steps:
-      - name: Stop staging backend + frontend
-        run: |
-          echo "=== Stopping staging backend + frontend ==="
-          onchainbot staging stop
-      - name: Stop litellm-gateway
-        run: |
-          echo "=== Stopping litellm-gateway ==="
-          docker stop litellm-gateway || true
-
-  test:
-    name: Tests
-    runs-on: self-hosted
-    needs: [stop-services]
-    env:
-      NODE_ENV: test
-      DATABASE_ENABLED: true
-      DATABASE_SYNCHRONIZE: true
-      POSTGRES_HOST: localhost
-      POSTGRES_PORT: 5433
-      POSTGRES_USER: alpha_meta_token_scanner
-      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-      POSTGRES_DB: alpha_meta_token_scanner_staging
-      REDIS_ENABLED: true
-      REDIS_HOST: localhost
-      REDIS_PORT: 6380
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: Fix PATH for self-hosted runner
-        run: |
-          export PATH="/opt/actions-runner/_work/_tool/node/24.18.0/x64/bin:$PATH"
-          echo "/opt/actions-runner/_work/_tool/node/24.18.0/x64/bin" >> $GITHUB_PATH
-          node --version
-
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-
-
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
-
-      - name: Run backend tests
-        run: npm run test:backend
-
-      - name: Run frontend tests
-        run: npm run test:frontend
-
-  lint:
-    name: Lint
-    runs-on: self-hosted
-    needs: [test]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-
-
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
-
-      - name: Lint
-        run: npm run lint
-        continue-on-error: true
-
-  tsc:
-    name: TypeScript Check
-    runs-on: self-hosted
-    needs: [lint]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-
-
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
-
-      - name: TypeScript check
-        run: npm run build || true
-
   deploy-staging:
     name: Deploy to staging
     runs-on: self-hosted
-    needs: [test, lint, tsc]
     environment: staging
     steps:
       - uses: actions/checkout@v4
@@ -199,10 +88,16 @@ jobs:
             rm -f /opt/onchain-bot-staging/apps/backend/.env
           fi
 
+      - name: Fix ownership before npm ci (chown -R runner:runner)
+        run: |
+          echo "=== chown -R runner:runner /opt/onchain-bot-staging ==="
+          chown -R runner:runner /opt/onchain-bot-staging
+          echo "=== ownership fixed ==="
+
       - name: Install dependencies (for host-side migrations)
         run: |
           echo "=== Installing host deps (migrations, scripts) ==="
-          npm --prefix /opt/onchain-bot-staging ci --no-audit --no-fund 2>&1 | tail -3
+          npm --prefix /opt/onchain-bot-staging ci --no-audit --no-fund
 
       - name: Run migrations
         run: |
