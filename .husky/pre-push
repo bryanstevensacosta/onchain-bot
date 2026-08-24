@@ -1,10 +1,42 @@
-#!/bin/sh
-# Block push directly to master - use PR via dev branch instead
-while read local_ref local_sha remote_ref remote_sha; do
-  if [ "$remote_ref" = "refs/heads/master" ]; then
-    echo "❌ Push directo a master bloqueado. Crea un Pull Request desde dev."
-    exit 1
-  fi
+# Husky v9 pre-push — Harvard-grade enforcement.
+# Husky v9 shim is in .husky/_/h; do NOT add a `#!/usr/bin/env sh` line here.
+#
+# Block direct pushes of the `master` branch to any remote.
+# git invokes the pre-push hook with two args: <remote_name> <remote_url>.
+# The refspec (`master` in `git push origin master`) is consumed by git before
+# the hook runs, so we cannot rely on it directly. Instead we use TWO checks:
+#   1) stdin lines `<local-ref> SP <local-sha> SP <remote-ref> SP <remote-sha>`
+#      — the normal case where the ref would actually be pushed.
+#   2) current branch (`git rev-parse --abbrev-ref HEAD`) is `master` — catches
+#      the common case `git push` from a `master` checkout. Combined with the
+#      pre-commit hook (which blocks commits on master), this closes the loop.
+# Bypass: `git push --no-verify` (see docs/branch-protection.md).
+
+blocked=0
+
+# --- 1) Parse stdin (lines: <local-ref> SP <local-sha> SP <remote-ref> SP <remote-sha>) ---
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/master)
+      blocked=1
+      ;;
+  esac
 done
 
+# --- 2) Current branch is master ---
+current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+if [ "$current_branch" = "master" ]; then
+  blocked=1
+fi
+
+if [ "$blocked" -ne 0 ]; then
+  echo ""
+  echo "❌ Direct push to master is blocked — open a Pull Request from dev."
+  echo "   Workflow:  git push origin dev && gh pr create --base master"
+  echo "   Bypass:    git push --no-verify  (see docs/branch-protection.md)"
+  echo ""
+  exit 1
+fi
+
+# Run the full test suite on push (mirrors CI `Tests` job).
 npm test

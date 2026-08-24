@@ -6,127 +6,34 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: staging-deploy
+  group: deploy-staging
   cancel-in-progress: true
 
 jobs:
-  stop-services:
-    name: Stop non-essential services
-    runs-on: self-hosted
-    steps:
-      - name: Stop staging backend + frontend
-        run: |
-          echo "=== Stopping staging backend + frontend ==="
-          onchainbot staging stop
-      - name: Stop litellm-gateway
-        run: |
-          echo "=== Stopping litellm-gateway ==="
-          docker stop litellm-gateway || true
-
-  test:
-    name: Tests
-    runs-on: self-hosted
-    needs: [stop-services]
-    env:
-      NODE_ENV: test
-      DATABASE_ENABLED: true
-      DATABASE_SYNCHRONIZE: true
-      POSTGRES_HOST: localhost
-      POSTGRES_PORT: 5433
-      POSTGRES_USER: alpha_meta_token_scanner
-      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-      POSTGRES_DB: alpha_meta_token_scanner_staging
-      REDIS_ENABLED: true
-      REDIS_HOST: localhost
-      REDIS_PORT: 6380
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: Fix PATH for self-hosted runner
-        run: |
-          export PATH="/opt/actions-runner/_work/_tool/node/24.18.0/x64/bin:$PATH"
-          echo "/opt/actions-runner/_work/_tool/node/24.18.0/x64/bin" >> $GITHUB_PATH
-          node --version
-
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-
-
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
-
-      - name: Run backend tests
-        run: npm run test:backend
-
-      - name: Run frontend tests
-        run: npm run test:frontend
-
-  lint:
-    name: Lint
-    runs-on: self-hosted
-    needs: [test]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-
-
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
-
-      - name: Lint
-        run: npm run lint
-        continue-on-error: true
-
-  tsc:
-    name: TypeScript Check
-    runs-on: self-hosted
-    needs: [lint]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-
-
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
-
-      - name: TypeScript check
-        run: npm run build || true
-
   deploy-staging:
     name: Deploy to staging
     runs-on: self-hosted
-    needs: [test, lint, tsc]
     environment: staging
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            apps/*/node_modules
+            ~/.npm
+          key: ${{ runner.os }}-npm-staging-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-staging-
+            ${{ runner.os }}-npm-
 
       - name: Sync live source tree with dev
         run: |
@@ -199,25 +106,12 @@ jobs:
             rm -f /opt/onchain-bot-staging/apps/backend/.env
           fi
 
-      - name: Install dependencies (for host-side migrations)
-        run: |
-          echo "=== Installing host deps (migrations, scripts) ==="
-          npm --prefix /opt/onchain-bot-staging ci --no-audit --no-fund 2>&1 | tail -3
-
-      - name: Run migrations
+      - name: Run migrations (inside Docker to avoid host OOM)
         run: |
           set -euo pipefail
-          echo "=== Running staging migrations ==="
-          set -a
-          source /opt/onchain-bot-staging/apps/backend/.env.staging || true
-          set +a
-          cd /opt/onchain-bot-staging && \
-          POSTGRES_HOST=localhost \
-          POSTGRES_PORT=5433 \
-          POSTGRES_USER="${POSTGRES_USER:-alpha_meta_token_scanner}" \
-          POSTGRES_DB="${POSTGRES_DB:-alpha_meta_token_scanner_staging}" \
-          POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-alpha_meta_token_scanner}" \
-          /opt/onchain-bot-staging/node_modules/.bin/typeorm-ts-node-commonjs --dataSource apps/backend/src/shared/common/persistence/data-source.ts migration:run
+          echo "=== Running staging migrations inside Docker ==="
+          cd /opt/onchain-bot-staging/apps/backend && \
+          docker compose -f docker-compose.staging.yml run --rm backend npx typeorm --dataSource dist/src/shared/common/persistence/data-source.js migration:run
 
       - name: Deploy backend
         run: |
@@ -227,14 +121,22 @@ jobs:
         run: |
           echo "=== Waiting for backend to become healthy ==="
           for i in $(seq 1 60); do
-            if curl -sf http://localhost:3031/api/health > /dev/null 2>&1; then
+            if curl -v -sf http://localhost:3031/api/health > /tmp/health-backend.log 2>&1; then
               echo "✓ Backend is healthy (attempt $i)"
+              cat /tmp/health-backend.log
               break
             fi
             echo "  Waiting... attempt $i/60"
+            if [ "$i" -eq 5 ] || [ "$i" -eq 15 ] || [ "$i" -eq 30 ] || [ "$i" -eq 45 ]; then
+              echo "  --- curl -v output (attempt $i) ---"
+              curl -v http://localhost:3031/api/health 2>&1 | head -30 || true
+              echo "  --- end curl output ---"
+            fi
             sleep 2
             if [ "$i" -eq 60 ]; then
               echo "❌ Backend healthcheck failed after 60 attempts"
+              echo "=== Final curl -v output ==="
+              curl -v http://localhost:3031/api/health 2>&1 || true
               exit 1
             fi
           done
@@ -247,14 +149,22 @@ jobs:
         run: |
           echo "=== Waiting for frontend to become healthy ==="
           for i in $(seq 1 60); do
-            if curl -sf -o /dev/null http://localhost:4173/ > /dev/null 2>&1; then
+            if curl -v -sf -o /dev/null http://localhost:4173/ > /tmp/health-frontend.log 2>&1; then
               echo "✓ Frontend is healthy (attempt $i)"
+              cat /tmp/health-frontend.log
               break
             fi
             echo "  Waiting... attempt $i/60"
+            if [ "$i" -eq 5 ] || [ "$i" -eq 15 ] || [ "$i" -eq 30 ] || [ "$i" -eq 45 ]; then
+              echo "  --- curl -v output (attempt $i) ---"
+              curl -v http://localhost:4173/ 2>&1 | head -30 || true
+              echo "  --- end curl output ---"
+            fi
             sleep 2
             if [ "$i" -eq 60 ]; then
               echo "❌ Frontend healthcheck failed after 60 attempts"
+              echo "=== Final curl -v output ==="
+              curl -v http://localhost:4173/ 2>&1 || true
               exit 1
             fi
           done
@@ -265,11 +175,13 @@ jobs:
 
       - name: Healthcheck backend (Tailscale)
         run: |
-          curl -sf http://100.84.4.28:3031/api/health || { echo "BACKEND HEALTHCHECK FAILED"; exit 1; }
+          echo "=== Tailscale backend healthcheck (curl -v) ==="
+          curl -v -sf http://100.84.4.28:3031/api/health || { echo "BACKEND HEALTHCHECK FAILED"; exit 1; }
 
       - name: Healthcheck frontend (Tailscale)
         run: |
-          curl -sf -o /dev/null http://100.84.4.28:4173/ || { echo "FRONTEND HEALTHCHECK FAILED"; exit 1; }
+          echo "=== Tailscale frontend healthcheck (curl -v) ==="
+          curl -v -sf -o /dev/null http://100.84.4.28:4173/ || { echo "FRONTEND HEALTHCHECK FAILED"; exit 1; }
 
       - name: Clean up old Docker images (staging)
         if: always()

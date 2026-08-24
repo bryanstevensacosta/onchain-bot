@@ -1,1 +1,6 @@
-npx --no -- commitlint --edit $1
+# Husky v9 commit-msg — enforce Conventional Commits via commitlint.
+# Husky v9 shim is in .husky/_/h; do NOT add a `#!/usr/bin/env sh` line here.
+#
+# See commitlint.config.js (`@commitlint/config-conventional`).
+# Bypass: `git commit --no-verify` (see docs/branch-protection.md).
+npx --no -- commitlint --edit "$1"
