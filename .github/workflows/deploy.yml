@@ -17,6 +17,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            apps/*/node_modules
+            ~/.npm
+          key: ${{ runner.os }}-npm-prod-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-prod-
+            ${{ runner.os }}-npm-
+
       - name: Sync live source tree with master
         run: |
           set -euo pipefail
@@ -47,6 +65,12 @@ jobs:
           POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
           bash /opt/onchain-bot/scripts/backup-db.sh
 
+      - name: Fix ownership before npm ci (chown -R runner:runner)
+        run: |
+          echo "=== chown -R runner:runner /opt/onchain-bot ==="
+          chown -R runner:runner /opt/onchain-bot
+          echo "=== ownership fixed ==="
+
       - name: Build and deploy
         run: |
           set -euo pipefail
@@ -68,11 +92,13 @@ jobs:
           docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml up -d --force-recreate backend
           echo "=== Waiting for healthcheck ==="
           sleep 180
-          curl -sf http://localhost:3030/api/health && echo "" || (
+          echo "=== Healthcheck attempt (curl -v) ==="
+          curl -v http://localhost:3030/api/health && echo "HEALTHCHECK OK" || (
             echo "HEALTHCHECK FAILED — rolling back"
             docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml up -d --force-recreate backend
             sleep 180
-            curl -sf http://localhost:3030/api/health && echo "Rollback successful" || {
+            echo "=== Rollback healthcheck attempt (curl -v) ==="
+            curl -v http://localhost:3030/api/health && echo "Rollback successful" || {
               echo "ROLLBACK ALSO FAILED — manual intervention required"
               docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml logs backend --tail 50
               exit 1
@@ -88,9 +114,15 @@ jobs:
           docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml up -d --force-recreate frontend || echo 'WARNING: frontend recreate failed (non-blocking)'
           echo "=== Waiting for frontend health ==="
           for i in $(seq 1 30); do
-            if curl -sf http://localhost:5173/ >/dev/null; then
+            if curl -v -sf http://localhost:5173/ >/tmp/health-frontend-prod.log 2>&1; then
               echo "Frontend healthy after ${i} attempts"
+              cat /tmp/health-frontend-prod.log
               break
             fi
+            echo "  Waiting... attempt $i/30"
             sleep 2
+            if [ "$i" -eq 30 ]; then
+              echo "=== Final curl -v output (frontend) ==="
+              curl -v http://localhost:5173/ 2>&1 || true
+            fi
           done

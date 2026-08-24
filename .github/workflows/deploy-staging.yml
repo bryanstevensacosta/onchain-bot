@@ -17,6 +17,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            apps/*/node_modules
+            ~/.npm
+          key: ${{ runner.os }}-npm-staging-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-staging-
+            ${{ runner.os }}-npm-
+
       - name: Sync live source tree with dev
         run: |
           set -euo pipefail
@@ -122,14 +140,22 @@ jobs:
         run: |
           echo "=== Waiting for backend to become healthy ==="
           for i in $(seq 1 60); do
-            if curl -sf http://localhost:3031/api/health > /dev/null 2>&1; then
+            if curl -v -sf http://localhost:3031/api/health > /tmp/health-backend.log 2>&1; then
               echo "✓ Backend is healthy (attempt $i)"
+              cat /tmp/health-backend.log
               break
             fi
             echo "  Waiting... attempt $i/60"
+            if [ "$i" -eq 5 ] || [ "$i" -eq 15 ] || [ "$i" -eq 30 ] || [ "$i" -eq 45 ]; then
+              echo "  --- curl -v output (attempt $i) ---"
+              curl -v http://localhost:3031/api/health 2>&1 | head -30 || true
+              echo "  --- end curl output ---"
+            fi
             sleep 2
             if [ "$i" -eq 60 ]; then
               echo "❌ Backend healthcheck failed after 60 attempts"
+              echo "=== Final curl -v output ==="
+              curl -v http://localhost:3031/api/health 2>&1 || true
               exit 1
             fi
           done
@@ -142,14 +168,22 @@ jobs:
         run: |
           echo "=== Waiting for frontend to become healthy ==="
           for i in $(seq 1 60); do
-            if curl -sf -o /dev/null http://localhost:4173/ > /dev/null 2>&1; then
+            if curl -v -sf -o /dev/null http://localhost:4173/ > /tmp/health-frontend.log 2>&1; then
               echo "✓ Frontend is healthy (attempt $i)"
+              cat /tmp/health-frontend.log
               break
             fi
             echo "  Waiting... attempt $i/60"
+            if [ "$i" -eq 5 ] || [ "$i" -eq 15 ] || [ "$i" -eq 30 ] || [ "$i" -eq 45 ]; then
+              echo "  --- curl -v output (attempt $i) ---"
+              curl -v http://localhost:4173/ 2>&1 | head -30 || true
+              echo "  --- end curl output ---"
+            fi
             sleep 2
             if [ "$i" -eq 60 ]; then
               echo "❌ Frontend healthcheck failed after 60 attempts"
+              echo "=== Final curl -v output ==="
+              curl -v http://localhost:4173/ 2>&1 || true
               exit 1
             fi
           done
@@ -160,11 +194,13 @@ jobs:
 
       - name: Healthcheck backend (Tailscale)
         run: |
-          curl -sf http://100.84.4.28:3031/api/health || { echo "BACKEND HEALTHCHECK FAILED"; exit 1; }
+          echo "=== Tailscale backend healthcheck (curl -v) ==="
+          curl -v -sf http://100.84.4.28:3031/api/health || { echo "BACKEND HEALTHCHECK FAILED"; exit 1; }
 
       - name: Healthcheck frontend (Tailscale)
         run: |
-          curl -sf -o /dev/null http://100.84.4.28:4173/ || { echo "FRONTEND HEALTHCHECK FAILED"; exit 1; }
+          echo "=== Tailscale frontend healthcheck (curl -v) ==="
+          curl -v -sf -o /dev/null http://100.84.4.28:4173/ || { echo "FRONTEND HEALTHCHECK FAILED"; exit 1; }
 
       - name: Clean up old Docker images (staging)
         if: always()
