@@ -202,7 +202,7 @@ jobs:
       - name: Install dependencies (for host-side migrations)
         run: |
           echo "=== Installing host deps (migrations, scripts) ==="
-          npm --prefix /opt/onchain-bot-staging ci --no-audit --no-fund 2>&1 | tail -3
+          npm --prefix /opt/onchain-bot-staging/apps/backend ci --no-audit --no-fund 2>&1 | tail -3
 
       - name: Run migrations
         run: |
