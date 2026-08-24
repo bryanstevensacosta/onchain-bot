@@ -5,17 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.3.0] - 2026-08-23
+> **Automated release notes:** This file is generated and maintained by
+> [release-please](https://github.com/googleapis/release-please) from conventional
+> commits on `master`. Do **not** hand-edit release entries here — open a PR with a
+> `feat:`, `fix:`, `chore:`, `refactor:`, `perf:`, `docs:`, `test:`, `build:`, `ci:`
+> or `style:` commit (see `docs/release-process.md`) and release-please will create
+> the `Release 1.x.0` PR for you.
+
+## [1.2.0](https://github.com/bryanstevensacosta/onchain-bot/releases/tag/v1.2.0) (2026-08-22)
 
 ### Features
 
-- **telegram**: Add `INGESTION_TELEGRAM_MTPROTO_ENABLED` flag to disable MTProto per environment
-- **chain-dexter-bot**: Simplify to plain CA message responses only (breaking change)
+* **governance**: add branch governance CI job + GOVERNANCE.md ([#8](https://github.com/bryanstevensacosta/onchain-bot/pull/8))
+* **ci**: extract CI to GitHub-hosted workflow with cache + concurrency
 
-### Breaking Changes
+## [1.1.0](https://github.com/bryanstevensacosta/onchain-bot/releases/tag/v1.1.0) (2026-08-18)
 
-- **chain-dexter-bot**: Removed all slash commands (`/start`, `/help`, `/x`, `/z`, `/c`, `/tb`, `/settings`). Bot now responds only to plain contract addresses.
+### Features
 
-### Bug Fixes
+* **crypto-news-publisher**: bring crypto-news publisher, ads, dedup and prod frontend fixes to production ([#4](https://github.com/bryanstevensacosta/onchain-bot/pull/4))
 
-- **telegram-ingestion**: Prevent MTProto session conflicts between prod/staging/dev environments
+## [1.0.0](https://github.com/bryanstevensacosta/onchain-bot/releases/tag/v1.0.0) (2026-08-10)
+
+### Features
+
+* **infra**: production deployment infrastructure (self-hosted runner, droplet, deploy workflow)
