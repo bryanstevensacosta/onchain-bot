@@ -1,7 +1,26 @@
+# Husky v9 pre-commit — Harvard-grade enforcement.
+# Husky v9 shim is in .husky/_/h; do NOT add a `#!/usr/bin/env sh` line here
+# (the shim is appended automatically when the hook is invoked by git).
+#
+# 1) Refuse commits on `master` — solo maintainer uses `dev` + PR.
+#    Bypass: `git commit --no-verify` (documented in docs/branch-protection.md
+#    § "Husky --no-verify bypass"; do NOT use casually).
+branch=$(git rev-parse --abbrev-ref HEAD)
+if [ "$branch" = "master" ]; then
+  echo ""
+  echo "❌ No commits on master directly — use the dev branch + Pull Request."
+  echo "   Workflow:  git checkout dev && git commit ... && git push origin dev"
+  echo "   Bypass:    git commit --no-verify  (see docs/branch-protection.md)"
+  echo ""
+  exit 1
+fi
+
+# 2) Lint-staged: ESLint --fix on staged TS/TSX, Prettier on JSON/MD/YAML.
 npx --no -- lint-staged || exit 1
 
+# 3) Strict TypeScript check on both workspaces (mirrors CI `TypeScript Check`).
 npx --no -- tsc --noEmit --incremental false -p apps/backend/tsconfig.json && \
   npx --no -- tsc --noEmit --incremental false -p apps/frontend/tsconfig.json || exit 1
 
-# Docs staleness check (no-bloqueante, solo warning informativo)
-node scripts/check-docs-staleness.mjs
+# 4) Docs staleness check — non-blocking warning, mirrors pre-commit hook default.
+node scripts/check-docs-staleness.mjs || true

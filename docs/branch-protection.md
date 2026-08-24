@@ -153,10 +153,52 @@ Production incidents may require skipping `enforce_admins`. Workflow:
 
 ---
 
+## Husky `--no-verify` bypass
+
+Husky v9 (`[.husky/pre-commit](../.husky/pre-commit)`, `[.husky/pre-push](../.husky/pre-push)`, `[.husky/commit-msg](../.husky/commit-msg)`) is the first line of defense and **cannot be disabled by branch protection** — it runs locally on every developer's machine.
+
+| Hook         | What it blocks                                                                     | What it still allows                                                                                    |
+| ------------ | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `pre-commit` | Commits on `master`; ESLint/Prettier on staged files; `tsc --noEmit` on both apps. | Docs-staleness check (non-blocking warning).                                                            |
+| `commit-msg` | Non-conventional commit messages (commitlint).                                     | Merge commits, revert commits (handled by `git` itself).                                                |
+| `pre-push`   | `git push` of any branch to `refs/heads/master`; runs `npm test`.                  | Force-pushes to non-`master` branches (still caught by GitHub `allow_force_pushes: false` server-side). |
+
+### Emergency bypass — `git commit --no-verify` / `git push --no-verify`
+
+`--no-verify` skips **all** Husky hooks (pre-commit, commit-msg, pre-push) for a single command. Acceptable uses:
+
+- A revert commit on `master` that you will immediately `git push --no-verify` to roll back a broken deploy.
+- A docs-only fix where `tsc` would block on unrelated workspace drift and you accept the risk.
+- A WIP commit on a long-lived feature branch where you intend to squash-merge anyway.
+
+**Forbidden uses:**
+
+- Bypassing a legitimate `tsc` or `eslint` failure that would otherwise block CI.
+- Sneaking a non-conventional commit message past `commitlint` (use a `chore:`/`fix:` prefix instead).
+- Pushing to `master` to "save time". The GitHub branch protection (`enforce_admins: true` + `Branch Governance Check`) still applies, so this WILL fail remotely.
+
+```bash
+# Revert on master (rare, only when dev is broken)
+git checkout master
+git revert --no-edit <bad-sha>
+git commit --no-verify -m "revert: <original subject>"
+git push --no-verify origin master   # still gated by GitHub branch protection
+
+# Docs-only hotfix on dev when tsc is wedged on an unrelated file
+git add docs/
+git commit --no-verify -m "docs: typo in branch-protection.md"
+```
+
+**Audit trail:** every `--no-verify` invocation must be justified in the PR description. Reviewers can detect bypasses with `git log --format=%B -n 1 <sha>` plus a side-channel check: Husky's `pre-commit` logs to `stderr` regardless of `--no-verify`, so CI's `Branch Governance Check` job (`.github/workflows/branch-governance.yml`) re-runs the same lint/tsc gates server-side.
+
+---
+
 ## Related documents
 
 - [CI/CD pipeline & runbook](./ci-cd.md)
 - [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
 - [`.github/workflows/branch-governance.yml`](../.github/workflows/branch-governance.yml)
 - [`.husky/pre-commit`](../.husky/pre-commit)
+- [`.husky/pre-push`](../.husky/pre-push)
+- [`.husky/commit-msg`](../.husky/commit-msg)
 - [`.docs-map.jsonc`](../.docs-map.jsonc)
