@@ -79,10 +79,11 @@ function makeUpdate(
     | 'channel_post'
     | 'edited_channel_post' = 'message',
 ): TelegramUpdate {
+  const isChannel = type === 'channel_post' || type === 'edited_channel_post';
   const baseMessage: TelegramMessage = {
     message_id: 1,
     date: Math.floor(Date.now() / 1000),
-    chat: { id: 123456789, type: 'group' },
+    chat: { id: 123456789, type: isChannel ? 'channel' : 'group' },
     text: messageText,
   };
 
