@@ -217,7 +217,7 @@ jobs:
           POSTGRES_USER="${POSTGRES_USER:-alpha_meta_token_scanner}" \
           POSTGRES_DB="${POSTGRES_DB:-alpha_meta_token_scanner_staging}" \
           POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-alpha_meta_token_scanner}" \
-          npm run migration:run --workspace=@alpha-meta-token-scanner/backend
+          /opt/onchain-bot-staging/node_modules/.bin/typeorm-ts-node-commonjs --dataSource apps/backend/src/shared/common/persistence/data-source.ts migration:run
 
       - name: Deploy backend
         run: |
