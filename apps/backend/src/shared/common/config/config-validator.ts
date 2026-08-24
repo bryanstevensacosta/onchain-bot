@@ -101,18 +101,6 @@ const CONFIG_MANIFEST: ConfigVarDef[] = [
     description: 'PumpFun private wallet key',
   },
   {
-    envVar: 'INGESTION_TELEGRAM_MTPROTO_API_HASH',
-    configPath: 'telegram.mtprotoApiHash',
-    category: 'required',
-    description: 'MTProto API hash for Telegram',
-  },
-  {
-    envVar: 'INGESTION_TELEGRAM_MTPROTO_SESSION',
-    configPath: 'telegram.mtprotoSession',
-    category: 'required',
-    description: 'MTProto session string for Telegram',
-  },
-  {
     envVar: 'VIP_CALLS_BOT_TOKEN',
     configPath: 'publishing.vipCalls.botToken',
     category: 'required',
@@ -180,6 +168,27 @@ const CONFIG_MANIFEST: ConfigVarDef[] = [
     category: 'required-if',
     condition: () => true,
     description: 'Redis port',
+  },
+  {
+    envVar: 'INGESTION_TELEGRAM_MTPROTO_API_HASH',
+    configPath: 'telegram.mtprotoApiHash',
+    category: 'required-if',
+    condition: () => true,
+    description: 'MTProto API hash for Telegram',
+  },
+  {
+    envVar: 'INGESTION_TELEGRAM_MTPROTO_SESSION',
+    configPath: 'telegram.mtprotoSession',
+    category: 'required-if',
+    condition: () => true,
+    description: 'MTProto session string for Telegram',
+  },
+  {
+    envVar: 'INGESTION_TELEGRAM_MTPROTO_API_ID',
+    configPath: 'telegram.mtprotoApiId',
+    category: 'required-if',
+    condition: () => true,
+    description: 'MTProto API ID (required when enabled)',
   },
 
   // ========== Tier 3: Format Validation ==========
@@ -449,6 +458,12 @@ export function validateAppConfig(appCfg: unknown): {
           isRequired = appConfig.database.enabled;
         } else if (def.configPath.startsWith('redis.')) {
           isRequired = appConfig.redis.enabled;
+        } else if (
+          def.configPath === 'telegram.mtprotoApiHash' ||
+          def.configPath === 'telegram.mtprotoSession' ||
+          def.configPath === 'telegram.mtprotoApiId'
+        ) {
+          isRequired = appConfig.telegram.mtprotoEnabled;
         }
 
         if (isRequired) {
