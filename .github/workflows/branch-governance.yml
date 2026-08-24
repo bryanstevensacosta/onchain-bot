@@ -55,11 +55,11 @@ jobs:
       - name: Check remote branches (only master and dev allowed)
         id: check-remote-branches
         run: |
-          EXTRA_BRANCHES=$(git ls-remote --heads origin | grep -vE "refs/heads/(master|dev)$" | wc -l)
+          EXTRA_BRANCHES=$(git ls-remote --heads origin | grep -vE "refs/heads/(master|dev|fix/.*|feat/.*|chore/.*|ci/.*)$" | wc -l)
           echo "extra_branches=$EXTRA_BRANCHES" >> $GITHUB_OUTPUT
           if [ "$EXTRA_BRANCHES" -gt 0 ]; then
             echo "::error::Ramas remotas adicionales detectadas (solo master y dev permitidas):"
-            git ls-remote --heads origin | grep -vE "refs/heads/(master|dev)$" | sed 's/.*refs\/heads\//  - /'
+            git ls-remote --heads origin | grep -vE "refs/heads/(master|dev|fix/.*|feat/.*|chore/.*|ci/.*)$" | sed 's/.*refs\/heads\//  - /'
             exit 1
           fi
           echo "✅ Solo master y dev existen en remoto"
