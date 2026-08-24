@@ -20,6 +20,12 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     refs/heads/master)
       blocked=1
       ;;
+    refs/heads/dev)
+      # allowed - dev is the only working branch
+      ;;
+    refs/heads/*)
+      blocked=2
+      ;;
   esac
 done
 
@@ -29,11 +35,18 @@ if [ "$current_branch" = "master" ]; then
   blocked=1
 fi
 
-if [ "$blocked" -ne 0 ]; then
+if [ "$blocked" -eq 1 ]; then
   echo ""
   echo "❌ Direct push to master is blocked — open a Pull Request from dev."
   echo "   Workflow:  git push origin dev && gh pr create --base master"
   echo "   Bypass:    git push --no-verify  (see docs/branch-protection.md)"
+  echo ""
+  exit 1
+fi
+if [ "$blocked" -eq 2 ]; then
+  echo ""
+  echo "❌ Creación de rama bloqueada — solo master/dev permitidas. Usa dev directo."
+  echo "   Si necesitas una rama temporal, usa el Ruleset bypass en GitHub UI."
   echo ""
   exit 1
 fi
