@@ -15,8 +15,6 @@ import { ExtractionResultEntity } from 'token/intake/extraction/infrastructure/p
 import { TokenCallEntity } from 'token/intake/parsing/infrastructure/persistence/typeorm/entities/token-call.entity';
 import { HoneypotAnalysisEntity } from 'token/honeypot/infrastructure/persistence/typeorm/entities/honeypot-analysis.entity';
 import { ChainDetectionResultEntity } from 'chain/detection/infrastructure/persistence/typeorm/entities/chain-detection-result.entity';
-import { ChatGroupEntity } from 'telegram/chain-dexter-bot/domain/chat-group.entity';
-import { ChatSettingsEntity } from 'telegram/chain-dexter-bot/domain/chat-settings.entity';
 import { SignalEntity } from 'settings/infrastructure/persistence/typeorm/entities/signal.entity';
 import { ScoringThresholdEntity } from 'settings/infrastructure/persistence/typeorm/entities/scoring-threshold.entity';
 import { SettingsFilterEntity } from 'settings/infrastructure/persistence/typeorm/entities/settings-filter.entity';
@@ -60,8 +58,6 @@ const PERSISTED_ENTITIES = [
   TokenCallEntity,
   HoneypotAnalysisEntity,
   ChainDetectionResultEntity,
-  ChatGroupEntity,
-  ChatSettingsEntity,
   SignalEntity,
   ScoringThresholdEntity,
   SettingsFilterEntity,

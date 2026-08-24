@@ -211,13 +211,13 @@ jobs:
           set -a
           source /opt/onchain-bot-staging/apps/backend/.env.staging || true
           set +a
-          cd /opt/onchain-bot-staging/apps/backend && \
+          cd /opt/onchain-bot-staging && \
           POSTGRES_HOST=localhost \
           POSTGRES_PORT=5433 \
           POSTGRES_USER="${POSTGRES_USER:-alpha_meta_token_scanner}" \
           POSTGRES_DB="${POSTGRES_DB:-alpha_meta_token_scanner_staging}" \
           POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-alpha_meta_token_scanner}" \
-          npm run migration:run
+          /opt/onchain-bot-staging/node_modules/.bin/typeorm-ts-node-commonjs --dataSource apps/backend/src/shared/common/persistence/data-source.ts migration:run
 
       - name: Deploy backend
         run: |
@@ -226,15 +226,15 @@ jobs:
       - name: Wait for backend healthcheck
         run: |
           echo "=== Waiting for backend to become healthy ==="
-          for i in $(seq 1 30); do
+          for i in $(seq 1 60); do
             if curl -sf http://localhost:3031/api/health > /dev/null 2>&1; then
               echo "✓ Backend is healthy (attempt $i)"
               break
             fi
-            echo "  Waiting... attempt $i/30"
+            echo "  Waiting... attempt $i/60"
             sleep 2
-            if [ "$i" -eq 30 ]; then
-              echo "❌ Backend healthcheck failed after 30 attempts"
+            if [ "$i" -eq 60 ]; then
+              echo "❌ Backend healthcheck failed after 60 attempts"
               exit 1
             fi
           done
@@ -246,15 +246,15 @@ jobs:
       - name: Wait for frontend healthcheck
         run: |
           echo "=== Waiting for frontend to become healthy ==="
-          for i in $(seq 1 30); do
+          for i in $(seq 1 60); do
             if curl -sf -o /dev/null http://localhost:4173/ > /dev/null 2>&1; then
               echo "✓ Frontend is healthy (attempt $i)"
               break
             fi
-            echo "  Waiting... attempt $i/30"
+            echo "  Waiting... attempt $i/60"
             sleep 2
-            if [ "$i" -eq 30 ]; then
-              echo "❌ Frontend healthcheck failed after 30 attempts"
+            if [ "$i" -eq 60 ]; then
+              echo "❌ Frontend healthcheck failed after 60 attempts"
               exit 1
             fi
           done
