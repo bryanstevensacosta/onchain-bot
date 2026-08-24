@@ -5,6 +5,10 @@ on:
     branches: [master]
   workflow_dispatch:
 
+concurrency:
+  group: sync-dev
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -18,7 +22,7 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Merge master into dev
+      - name: Merge master into dev (with retry)
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -33,5 +37,17 @@ jobs:
           fi
           echo "Merging origin/master into dev..."
           git merge origin/master --no-edit
-          git push origin dev
-          echo "✅ dev synced with master"
+          # Retry git push up to 3 times with exponential backoff
+          for attempt in 1 2 3; do
+            if git push origin dev; then
+              echo "✅ dev synced with master (attempt $attempt)"
+              exit 0
+            fi
+            echo "⚠️ Push failed (attempt $attempt/3), retrying in $((attempt * 5))s..."
+            sleep $((attempt * 5))
+            # Re-fetch in case remote moved
+            git fetch origin dev
+            git rebase origin/dev || true
+          done
+          echo "❌ Failed to push after 3 attempts"
+          exit 1
