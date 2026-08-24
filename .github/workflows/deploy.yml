@@ -68,7 +68,7 @@ jobs:
       - name: Fix ownership before npm ci (chown -R runner:runner)
         run: |
           echo "=== chown -R runner:runner /opt/onchain-bot ==="
-          chown -R runner:runner /opt/onchain-bot
+          sudo chown -R runner:runner /opt/onchain-bot || chown -R runner:runner /opt/onchain-bot || echo 'chown warning (non-fatal)'
           echo "=== ownership fixed ==="
 
       - name: Build and deploy
