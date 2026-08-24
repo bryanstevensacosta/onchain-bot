@@ -259,7 +259,15 @@ describe('ChainDexterBotAdapter', () => {
 
     it('6. Channel post with valid CA → processes and replies', async () => {
       const ca = 'So11111111111111111111111111111111111111112';
-      const update = makeUpdate(`Channel post: ${ca}`, 'channel_post');
+      const update: TelegramUpdate = {
+        update_id: 1,
+        channel_post: {
+          message_id: 1,
+          date: Math.floor(Date.now() / 1000),
+          chat: { id: 123456789, type: 'channel' },
+          text: `Channel post: ${ca}`,
+        },
+      };
 
       await adapter.handleUpdate(update);
 
