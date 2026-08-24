@@ -257,29 +257,25 @@ describe('ChainDexterBotAdapter', () => {
       );
     });
 
-    it('6. Channel post with valid CA → processes and replies', async () => {
-      const ca = 'So11111111111111111111111111111111111111112';
-      const update: TelegramUpdate = {
-        update_id: 1,
-        channel_post: {
-          message_id: 1,
-          date: Math.floor(Date.now() / 1000),
-          chat: { id: 123456789, type: 'channel' },
-          text: `Channel post: ${ca}`,
-        },
-      };
+    it('6. Multiple CAs in single message → processes each', async () => {
+      const ca1 = 'So11111111111111111111111111111111111111112';
+      const ca2 = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+      const update = makeUpdate(`Two tokens: ${ca1} and ${ca2}`);
+      tokenScan.getTokenInfo
+        .mockResolvedValueOnce(
+          makeTokenScanResult({ address: ca1, symbol: 'TOKEN1' }),
+        )
+        .mockResolvedValueOnce(
+          makeTokenScanResult({ address: ca2, symbol: 'TOKEN2' }),
+        );
 
       await adapter.handleUpdate(update);
 
-      expect(tokenScan.getTokenInfo).toHaveBeenCalledWith(ca);
-      expect(formatter.format).toHaveBeenCalled();
-      expect(http.post).toHaveBeenCalledWith(
-        expect.stringContaining('sendMessage'),
-        expect.objectContaining({
-          chat_id: 123456789,
-          text: 'formatted message',
-        }),
-      );
+      expect(tokenScan.getTokenInfo).toHaveBeenCalledTimes(2);
+      expect(tokenScan.getTokenInfo).toHaveBeenNthCalledWith(1, ca1);
+      expect(tokenScan.getTokenInfo).toHaveBeenNthCalledWith(2, ca2);
+      expect(formatter.format).toHaveBeenCalledTimes(2);
+      expect(http.post).toHaveBeenCalledTimes(2);
     });
   });
 
