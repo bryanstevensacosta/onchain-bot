@@ -106,31 +106,12 @@ jobs:
             rm -f /opt/onchain-bot-staging/apps/backend/.env
           fi
 
-      - name: Fix ownership before npm ci (chown -R runner:runner)
-        run: |
-          echo "=== chown -R runner:runner /opt/onchain-bot-staging ==="
-          chown -R runner:runner /opt/onchain-bot-staging
-          echo "=== ownership fixed ==="
-
-      - name: Install dependencies (for host-side migrations)
-        run: |
-          echo "=== Installing host deps (migrations, scripts) ==="
-          npm --prefix /opt/onchain-bot-staging ci --no-audit --no-fund
-
-      - name: Run migrations
+      - name: Run migrations (inside Docker to avoid host OOM)
         run: |
           set -euo pipefail
-          echo "=== Running staging migrations ==="
-          set -a
-          source /opt/onchain-bot-staging/apps/backend/.env.staging || true
-          set +a
-          cd /opt/onchain-bot-staging && \
-          POSTGRES_HOST=localhost \
-          POSTGRES_PORT=5433 \
-          POSTGRES_USER="${POSTGRES_USER:-alpha_meta_token_scanner}" \
-          POSTGRES_DB="${POSTGRES_DB:-alpha_meta_token_scanner_staging}" \
-          POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-alpha_meta_token_scanner}" \
-          /opt/onchain-bot-staging/node_modules/.bin/typeorm-ts-node-commonjs --dataSource apps/backend/src/shared/common/persistence/data-source.ts migration:run
+          echo "=== Running staging migrations inside Docker ==="
+          cd /opt/onchain-bot-staging/apps/backend && \
+          docker compose -f docker-compose.staging.yml run --rm backend npm run migration:run
 
       - name: Deploy backend
         run: |
