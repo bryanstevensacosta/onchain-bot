@@ -111,7 +111,7 @@ jobs:
           set -euo pipefail
           echo "=== Running staging migrations inside Docker ==="
           cd /opt/onchain-bot-staging/apps/backend && \
-          docker compose -f docker-compose.staging.yml run --rm backend npm run migration:run
+          docker compose -f docker-compose.staging.yml run --rm backend npx typeorm --dataSource dist/src/shared/common/persistence/data-source.js migration:run
 
       - name: Deploy backend
         run: |
