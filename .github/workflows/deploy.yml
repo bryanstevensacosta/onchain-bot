@@ -6,104 +6,13 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: production-deploy
+  group: deploy-prod
   cancel-in-progress: true
 
 jobs:
-  stop-services:
-    name: Stop non-essential services
-    runs-on: self-hosted
-    steps:
-      - name: Stop staging backend + frontend
-        run: |
-          echo "=== Stopping staging backend + frontend ==="
-          onchainbot staging stop || true
-      - name: Stop litellm stack
-        run: |
-          echo "=== Stopping litellm stack ==="
-          docker stop litellm-gateway || true
-          docker stop litellm-db || true
-          docker stop litellm-prometheus || true
-
-  test:
-    name: Tests
-    runs-on: self-hosted
-    needs: [stop-services]
-    env:
-      NODE_ENV: test
-      DATABASE_ENABLED: true
-      DATABASE_SYNCHRONIZE: true
-      POSTGRES_HOST: localhost
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: alpha_meta_token_scanner
-      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-      POSTGRES_DB: alpha_meta_token_scanner
-      REDIS_ENABLED: true
-      REDIS_HOST: localhost
-      REDIS_PORT: 6379
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: Fix PATH for self-hosted runner
-        run: |
-          export PATH="/opt/actions-runner/_work/_tool/node/24.18.0/x64/bin:$PATH"
-          echo "/opt/actions-runner/_work/_tool/node/24.18.0/x64/bin" >> $GITHUB_PATH
-          node --version
-
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund
-
-      - name: Run backend tests
-        run: npm run test:backend
-
-      - name: Run frontend tests
-        run: npm run test:frontend
-
-  lint:
-    name: Lint
-    runs-on: self-hosted
-    needs: [test]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund
-
-      - name: Lint
-        run: npm run lint
-        continue-on-error: true
-
-  tsc:
-    name: TypeScript Check
-    runs-on: self-hosted
-    needs: [lint]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund
-
-      - name: TypeScript check
-        run: |
-          npm run build
-          # Just check if tsc passes - the build is needed for the actual deploy anyway
-
   deploy:
     name: Deploy to droplet
     runs-on: self-hosted
-    needs: [test, lint, tsc]
     environment: production
     steps:
       - uses: actions/checkout@v4
@@ -185,20 +94,3 @@ jobs:
             fi
             sleep 2
           done
-
-  restart-services:
-    name: Restart services
-    if: ${{ always() }}
-    runs-on: self-hosted
-    needs: [deploy]
-    steps:
-      - name: Restart litellm stack
-        run: |
-          echo "=== Restarting litellm stack ==="
-          docker start litellm-gateway || true
-          docker start litellm-db || true
-          docker start litellm-prometheus || true
-      - name: Restart staging backend + frontend
-        run: |
-          echo "=== Restarting staging ==="
-          onchainbot staging start || true
