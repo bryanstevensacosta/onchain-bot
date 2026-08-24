@@ -1,15 +1,18 @@
 {
-  "release-type": "simple",
+  "release-type": "node",
+  "package-name": "@alpha-meta-token-scanner/backend",
   "changelog-path": "CHANGELOG.md",
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": false,
   "draft": false,
   "prerelease": false,
   "initial-version": "0.1.0",
+  "release-search-depth": 50,
+  "include-component-in-tag": false,
   "packages": {
-    ".": {
-      "release-type": "simple",
-      "changelog-path": "CHANGELOG.md"
+    "apps/backend": {
+      "release-type": "node",
+      "package-name": "@alpha-meta-token-scanner/backend"
     }
   }
 }
