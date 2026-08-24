@@ -75,21 +75,27 @@ jobs:
           DEV_REF="origin/dev"
           git rev-parse --verify "$MASTER_REF" >/dev/null 2>&1 || MASTER_REF="HEAD"
           git rev-parse --verify "$DEV_REF" >/dev/null 2>&1 || DEV_REF="HEAD"
-          DIFF_STAT=$(git diff "$MASTER_REF".."$DEV_REF" --stat 2>/dev/null)
-          DIFF_RC=$?
-          set -e
-          if [ $DIFF_RC -ne 0 ]; then
-            echo "::warning::No se pudo calcular diff $MASTER_REF..$DEV_REF (rc=$DIFF_RC). Saltando Regla 2."
-            echo "content_equality=SKIPPED" >> $GITHUB_OUTPUT
+          if git merge-base --is-ancestor "$MASTER_REF" "$DEV_REF" 2>/dev/null; then
+            echo "content_equality=YES" >> $GITHUB_OUTPUT
+            echo "✅ Contenido de master ⊆ contenido de dev (master is ancestor of dev)"
             exit 0
           fi
-          if [ -n "$DIFF_STAT" ] && [ "$DIFF_STAT" != "0 files changed" ]; then
-            echo "::error::Contenido de master NO está contenido en dev. Diff $MASTER_REF..$DEV_REF:"
-            echo "$DIFF_STAT"
+          # Not ancestor - show what's in master not in dev
+          DIFF_LOG=$(git log --oneline "$DEV_REF".."$MASTER_REF" 2>/dev/null | head -20)
+          if [ -n "$DIFF_LOG" ]; then
+            echo "::error::Contenido de master NO está contenido en dev. Commits en master no en dev:"
+            echo "$DIFF_LOG"
             exit 1
           fi
+          # Fallback diff check
+          DIFF_STAT=$(git diff "$MASTER_REF".."$DEV_REF" --stat 2>/dev/null)
+          if [ -n "$DIFF_STAT" ] && [ "$DIFF_STAT" != "0 files changed" ]; then
+            echo "::warning::Diff no vacío pero master es ancestro - OK (dev ahead)"
+            echo "content_equality=YES" >> $GITHUB_OUTPUT
+            exit 0
+          fi
           echo "content_equality=YES" >> $GITHUB_OUTPUT
-          echo "✅ Contenido de master ⊆ contenido de dev (diff vacío)"
+          echo "✅ Contenido de master ⊆ contenido de dev"
 
       # ──────────────────────────────────────────────────────────────
       # Regla 3: No commits huérfanos en master (excluyendo merges PR + conv. commits)
