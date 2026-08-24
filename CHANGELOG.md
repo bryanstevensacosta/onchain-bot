@@ -12,21 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > or `style:` commit (see `docs/release-process.md`) and release-please will create
 > the `Release 1.x.0` PR for you.
 
-## [1.3.0] - 2026-08-23
-
-### Features
-
-- **telegram**: Add `INGESTION_TELEGRAM_MTPROTO_ENABLED` flag to disable MTProto per environment
-- **chain-dexter-bot**: Simplify to plain CA message responses only (breaking change)
-
-### Breaking Changes
-
-- **chain-dexter-bot**: Removed all slash commands (`/start`, `/help`, `/x`, `/z`, `/c`, `/tb`, `/settings`). Bot now responds only to plain contract addresses.
-
-### Bug Fixes
-
-- **telegram-ingestion**: Prevent MTProto session conflicts between prod/staging/dev environments
-
 ## [1.2.0](https://github.com/bryanstevensacosta/onchain-bot/releases/tag/v1.2.0) (2026-08-22)
 
 ### Features
