@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/bryanstevensacosta/onchain-bot/compare/v1.3.0...v1.3.1) (2026-08-25)
+
+
+### Performance Improvements
+
+* **infra:** optimize droplet disk (non-breaking Wave 1-3) ([#43](https://github.com/bryanstevensacosta/onchain-bot/issues/43)) ([0fbdc2a](https://github.com/bryanstevensacosta/onchain-bot/commit/0fbdc2a7411c10f2b95a6eee83b46a5c561c314d))
+
 ## [1.3.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v1.2.0...v1.3.0) (2026-08-25)
 
 
