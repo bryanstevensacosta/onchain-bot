@@ -71,6 +71,19 @@ jobs:
           sudo chown -R runner:runner /opt/onchain-bot || chown -R runner:runner /opt/onchain-bot || echo 'chown warning (non-fatal)'
           echo "=== ownership fixed ==="
 
+      - name: Emergency disk cleanup (pre-build)
+        run: |
+          echo "=== Disk before ==="
+          df -h | head -20
+          docker system df 2>&1 | head -20
+          echo "=== Pruning ==="
+          docker system prune -af --volumes 2>&1 | tail -20 || true
+          docker builder prune -af 2>&1 | tail -10 || true
+          sudo journalctl --vacuum-time=3d 2>&1 | tail -5 || true
+          sudo rm -f /opt/actions-runner/_diag/Worker_*.log 2>&1 | tail -5 || true
+          echo "=== Disk after ==="
+          df -h | head -20
+
       - name: Build and deploy
         run: |
           set -euo pipefail
