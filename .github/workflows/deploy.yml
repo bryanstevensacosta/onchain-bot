@@ -76,13 +76,15 @@ jobs:
           echo "=== Disk before ==="
           df -h | head -20
           docker system df 2>&1 | head -20
-          echo "=== Pruning ==="
-          docker system prune -af --volumes 2>&1 | tail -20 || true
-          docker builder prune -af 2>&1 | tail -10 || true
+          echo "=== Pruning (filtered, no volumes) ==="
+          docker system prune -af --filter "until=24h" 2>&1 | tail -20 || true
+          docker builder prune -af --filter "until=24h" 2>&1 | tail -10 || true
           sudo journalctl --vacuum-time=3d 2>&1 | tail -5 || true
+          sudo journalctl --vacuum-size=100M 2>&1 | tail -5 || true
           sudo rm -f /opt/actions-runner/_diag/Worker_*.log 2>&1 | tail -5 || true
           echo "=== Disk after ==="
           df -h | head -20
+          PCT=$(df / | tail -1 | awk '{print $5}' | tr -d '%'); if [ "$PCT" -gt 80 ]; then echo "::warning::disk ${PCT}% full"; fi
 
       - name: Build and deploy
         run: |
