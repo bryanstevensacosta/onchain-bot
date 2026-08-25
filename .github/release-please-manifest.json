@@ -1,7 +1,5 @@
 {
   ".": "1.2.0",
-  "packages": {
-    "apps/backend": "1.2.0",
-    "apps/frontend": "1.2.0"
-  }
+  "apps/backend": "1.2.0",
+  "apps/frontend": "1.2.0"
 }
