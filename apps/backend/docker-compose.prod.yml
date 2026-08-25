@@ -5,6 +5,11 @@ services:
     image: postgres:16-alpine
     container_name: onchain-bot-postgres
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
     env_file:
       - .env.production
     environment:
@@ -40,6 +45,11 @@ services:
     image: redis:7-alpine
     container_name: onchain-bot-redis
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
     env_file:
       - .env.production
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
@@ -67,6 +77,11 @@ services:
       dockerfile: apps/backend/Dockerfile
     container_name: onchain-bot-backend
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
     env_file:
       - .env.production
     # crypto-news media persistence (fix-1 / "Media volatile on deploy")
@@ -129,6 +144,11 @@ services:
       dockerfile: apps/frontend/Dockerfile
     container_name: onchain-bot-frontend
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
     ports:
       - '127.0.0.1:5173:80'
     depends_on:
