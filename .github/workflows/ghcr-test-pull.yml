@@ -1,0 +1,44 @@
+name: GHCR Test — Pull on droplet (measure)
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'GHCR tag to pull (e.g. test-46)'
+        required: false
+        default: 'test-manual'
+
+permissions:
+  contents: read
+
+jobs:
+  pull-and-measure:
+    runs-on: self-hosted
+    steps:
+      - name: Disk before
+        run: |
+          echo "=== df -h ==="
+          df -h | head -10
+          echo "=== docker system df ==="
+          docker system df 2>&1 | head -20
+          echo "=== images before ==="
+          docker images --format "table {{.Repository}}:{{.Tag}}\t{{.Size}}" | head -20
+
+      - name: Pull test image (no build)
+        run: |
+          TAG="${{ inputs.tag }}"
+          echo "Pulling ghcr.io/${{ github.repository }}-backend:$TAG"
+          docker pull ghcr.io/${{ github.repository }}-backend:$TAG 2>&1 | tail -20 || echo "pull failed (expected if tag not yet pushed)"
+
+      - name: Disk after
+        run: |
+          echo "=== df -h after pull ==="
+          df -h | head -10
+          echo "=== docker system df after ==="
+          docker system df 2>&1 | head -20
+          echo "=== images after ==="
+          docker images --format "table {{.Repository}}:{{.Tag}}\t{{.Size}}" | head -20
+          PCT=$(df / | tail -1 | awk '{print $5}' | tr -d '%'); echo "Use%=$PCT"; if [ "$PCT" -gt 80 ]; then echo "::warning::disk ${PCT}% still high after pull"; else echo "disk OK <80%"; fi
+
+      - name: Cleanup test image
+        if: always()
+        run: docker rmi ghcr.io/${{ github.repository }}-backend:${{ inputs.tag }} 2>&1 | tail -5 || true
