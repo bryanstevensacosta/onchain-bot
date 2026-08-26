@@ -120,12 +120,14 @@ jobs:
 
       - name: Pull images from GHCR
         run: |
-          echo "=== Pulling backend ${{ github.sha }} ==="
-          docker pull ghcr.io/${{ github.repository }}-backend:${{ github.sha }}
-          docker tag ghcr.io/${{ github.repository }}-backend:${{ github.sha }} onchain-bot-backend:latest || true
-          echo "=== Pulling frontend ${{ github.sha }} ==="
-          docker pull ghcr.io/${{ github.repository }}-frontend:${{ github.sha }}
-          docker tag ghcr.io/${{ github.repository }}-frontend:${{ github.sha }} onchain-bot-frontend:latest || true
+          echo "=== Pulling backend ${{ github.sha }} (try sha, fallback latest) ==="
+          docker pull ghcr.io/${{ github.repository }}-backend:${{ github.sha }} || docker pull ghcr.io/${{ github.repository }}-backend:latest
+          docker tag ghcr.io/${{ github.repository }}-backend:${{ github.sha }} ghcr.io/${{ github.repository }}-backend:latest 2>/dev/null || true
+          docker tag ghcr.io/${{ github.repository }}-backend:latest ghcr.io/${{ github.repository }}-backend:latest 2>/dev/null || true
+          echo "=== Pulling frontend ${{ github.sha }} (try sha, fallback latest) ==="
+          docker pull ghcr.io/${{ github.repository }}-frontend:${{ github.sha }} || docker pull ghcr.io/${{ github.repository }}-frontend:latest
+          docker tag ghcr.io/${{ github.repository }}-frontend:${{ github.sha }} ghcr.io/${{ github.repository }}-frontend:latest 2>/dev/null || true
+          docker tag ghcr.io/${{ github.repository }}-frontend:latest ghcr.io/${{ github.repository }}-frontend:latest 2>/dev/null || true
           docker images | head -20
 
       - name: Deploy via compose (no build)
