@@ -31,7 +31,7 @@ const CLEANUP_BATCH_SIZE = 1000;
  *     raw SQL on a non-Postgres connection.
  *  1. `pg_try_advisory_lock(<id>)` — non-blocking. If `false`, another
  *     process / tick is already cleaning → return.
- *  2. Read `AppConfig.cryptoNewsMediaRetentionHours` (default 48),
+ *  2. Read `AppConfig.cryptoNewsMediaRetentionHours` (default 24),
  *     clamped to ≥ 1 hour at the seam.
  *  3. Batched JOIN-based cleanup (CRITICAL: `crypto_news_message_media`
  *     has no `ingested_at` of its own — the window is the parent
@@ -105,7 +105,7 @@ export class MediaRetentionCleanupScheduler {
 
       const hours = Math.max(
         1,
-        this.config.get<AppConfig>('app')?.cryptoNewsMediaRetentionHours ?? 48,
+        this.config.get<AppConfig>('app')?.cryptoNewsMediaRetentionHours ?? 24,
       );
 
       // Batched loop: keep deleting 1000 rows at a time until the SELECT

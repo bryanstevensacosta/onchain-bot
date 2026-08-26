@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import * as path from 'path';
+import { execFile } from 'child_process';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Api, TelegramClient } from 'telegram';
@@ -135,9 +136,16 @@ export class MtprotoMediaDownloader extends CryptoNewsMediaDownloader {
     const { mimeType, ext } = detectMimeAndExt(buffer);
 
     // Compress before saving if the image exceeds Bot API upload limits
-    const outputBuffer = await compressIfImageExceedsLimit(buffer, mimeType);
+    let outputBuffer = await compressIfImageExceedsLimit(buffer, mimeType);
 
-    const filePath = path.join(targetDir, `${messageId}_${index}.${ext}`);
+    // Transcode video to HEVC (H.265) for better compression and Telegram compatibility
+    let finalExt = ext;
+    if (mimeType.startsWith('video/')) {
+      outputBuffer = await transcodeToHevc(outputBuffer, this.logger);
+      finalExt = 'mp4'; // HEVC always uses .mp4 container
+    }
+
+    const filePath = path.join(targetDir, `${messageId}_${index}.${finalExt}`);
     await fs.writeFile(filePath, outputBuffer);
 
     return { filePath, mimeType, fileSize: outputBuffer.length };
@@ -273,8 +281,8 @@ function isRefreshableError(err: unknown): boolean {
 /**
  * Detect MIME type and file extension from the first bytes of the
  * downloaded buffer (magic-byte sniffing). Telegram photos arrive as
- * JPEG, PNG, GIF or WEBP; everything else falls back to
- * `application/octet-stream`.
+ * JPEG, PNG, GIF or WEBP; videos as MP4/MOV/WebM; everything else falls
+ * back to `application/octet-stream`.
  */
 function detectMimeAndExt(buffer: Buffer): {
   mimeType: string;
@@ -318,6 +326,31 @@ function detectMimeAndExt(buffer: Buffer): {
   ) {
     return { mimeType: 'image/webp', ext: 'webp' };
   }
+  // Video magic bytes detection
+  // MP4/MOV: 'ftyp' box at offset 4 (first 4 bytes = size, then 'ftyp')
+  if (
+    buffer.length >= 8 &&
+    buffer[4] === 0x66 && // 'f'
+    buffer[5] === 0x74 && // 't'
+    buffer[6] === 0x79 && // 'y'
+    buffer[7] === 0x70 // 'p'
+  ) {
+    return { mimeType: 'video/mp4', ext: 'mp4' };
+  }
+  // WebM: EBML header starts with 0x1a 0x45 0xdf 0xa3
+  if (
+    buffer.length >= 4 &&
+    buffer[0] === 0x1a &&
+    buffer[1] === 0x45 &&
+    buffer[2] === 0xdf &&
+    buffer[3] === 0xa3
+  ) {
+    return { mimeType: 'video/webm', ext: 'webm' };
+  }
+  // MPEG-TS: sync byte 0x47 repeating every 188 bytes (basic check)
+  if (buffer.length >= 188 && buffer[0] === 0x47 && buffer[188] === 0x47) {
+    return { mimeType: 'video/mp2t', ext: 'ts' };
+  }
   return { mimeType: 'application/octet-stream', ext: 'bin' };
 }
 
@@ -349,4 +382,75 @@ function isCompressibleMime(mimeType: string): boolean {
     mimeType === 'image/png' ||
     mimeType === 'image/webp'
   );
+}
+
+/**
+ * Transcode video to HEVC (H.265) using ffmpeg.
+ * Uses libx265 with CRF 28 and fast preset, copies audio stream.
+ * Falls back to original buffer on any error.
+ */
+async function transcodeToHevc(
+  buffer: Buffer,
+  logger: Logger,
+): Promise<Buffer> {
+  return new Promise<Buffer>((resolve) => {
+    const inputArgs = ['-i', 'pipe:0'];
+    const outputArgs = [
+      '-c:v',
+      'libx265',
+      '-crf',
+      '28',
+      '-preset',
+      'fast',
+      '-c:a',
+      'copy',
+      '-f',
+      'mp4',
+      'pipe:1',
+    ];
+
+    const ffmpeg = execFile('ffmpeg', [...inputArgs, ...outputArgs], {
+      maxBuffer: 100 * 1024 * 1024, // 100MB buffer for output
+      timeout: 120000, // 2 minute timeout
+    });
+
+    const outputChunks: Buffer[] = [];
+    let errorOutput = '';
+
+    ffmpeg.stdout?.on('data', (chunk: Buffer) => {
+      outputChunks.push(chunk);
+    });
+
+    ffmpeg.stderr?.on('data', (chunk: Buffer) => {
+      errorOutput += chunk.toString();
+    });
+
+    ffmpeg.on('error', (err) => {
+      logger.warn(
+        `HEVC transcoding failed (ffmpeg spawn error): ${err.message} — falling back to original`,
+      );
+      resolve(buffer);
+    });
+
+    ffmpeg.on('close', (code) => {
+      if (code === 0 && outputChunks.length > 0) {
+        const transcoded = Buffer.concat(outputChunks);
+        if (transcoded.length > 0) {
+          logger.log(
+            `HEVC transcoding succeeded: ${buffer.length} -> ${transcoded.length} bytes (${((1 - transcoded.length / buffer.length) * 100).toFixed(1)}% reduction)`,
+          );
+          resolve(transcoded);
+          return;
+        }
+      }
+      logger.warn(
+        `HEVC transcoding failed (exit code ${code}): ${errorOutput || 'no output'} — falling back to original`,
+      );
+      resolve(buffer);
+    });
+
+    // Write input buffer to ffmpeg stdin
+    ffmpeg.stdin?.write(buffer);
+    ffmpeg.stdin?.end();
+  });
 }
