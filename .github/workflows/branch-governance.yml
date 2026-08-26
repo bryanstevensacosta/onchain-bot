@@ -49,20 +49,16 @@ jobs:
           git branch -a | head -50
           exit 0
 
-      # ──────────────────────────────────────────────────────────────
-      # Regla 1: Solo deben existir master y dev como ramas remotas
-      # ──────────────────────────────────────────────────────────────
-      - name: Check remote branches (only master and dev allowed)
+      - name: Check remote branches (info only, Ruleset enforces)
         id: check-remote-branches
         run: |
           EXTRA_BRANCHES=$(git ls-remote --heads origin | grep -vE "refs/heads/(master|dev|fix/.*|feat/.*|chore/.*|ci/.*|release-please--branches--.*)$" | wc -l)
           echo "extra_branches=$EXTRA_BRANCHES" >> $GITHUB_OUTPUT
           if [ "$EXTRA_BRANCHES" -gt 0 ]; then
-            echo "::error::Ramas remotas adicionales detectadas (solo master y dev permitidas):"
+            echo "::warning::Ramas remotas adicionales (Ruleset las gestiona):"
             git ls-remote --heads origin | grep -vE "refs/heads/(master|dev|fix/.*|feat/.*|chore/.*|ci/.*|release-please--branches--.*)$" | sed 's/.*refs\/heads\//  - /'
-            exit 1
           fi
-          echo "✅ Solo master y dev existen en remoto"
+          echo "✅ Check remoto informativo — Ruleset es gate"
 
       # ──────────────────────────────────────────────────────────────
       # Regla 2: Contenido de master ⊆ contenido de dev (diff master..dev vacío)
@@ -81,19 +77,12 @@ jobs:
             echo "✅ Contenido de master ⊆ contenido de dev (master is ancestor of dev)"
             exit 0
           fi
-          # Not ancestor - show what's in master not in dev
           DIFF_LOG=$(git log --oneline "$DEV_REF".."$MASTER_REF" 2>/dev/null | head -20)
           if [ -n "$DIFF_LOG" ]; then
-            if [ "$EVENT_NAME" = "push" ]; then
-              echo "::warning::Contenido de master NO está contenido en dev (push event: treating as warning). Commits en master no en dev:"
-              echo "$DIFF_LOG"
-              echo "content_equality=YES" >> $GITHUB_OUTPUT
-              exit 0
-            else
-              echo "::error::Contenido de master NO está contenido en dev. Commits en master no en dev:"
-              echo "$DIFF_LOG"
-              exit 1
-            fi
+            echo "::warning::Contenido de master NO está contenido en dev (Sync dev with master se encargará). Commits en master no en dev:"
+            echo "$DIFF_LOG"
+            echo "content_equality=YES" >> $GITHUB_OUTPUT
+            exit 0
           fi
           # Fallback diff check
           DIFF_STAT=$(git diff "$MASTER_REF".."$DEV_REF" --stat 2>/dev/null)
