@@ -75,6 +75,7 @@ services:
     build:
       context: ../..
       dockerfile: apps/backend/Dockerfile
+    image: ghcr.io/bryanstevensacosta/onchain-bot-backend:latest
     container_name: onchain-bot-backend
     restart: unless-stopped
     logging:
@@ -142,6 +143,7 @@ services:
     build:
       context: ../..
       dockerfile: apps/frontend/Dockerfile
+    image: ghcr.io/bryanstevensacosta/onchain-bot-frontend:latest
     container_name: onchain-bot-frontend
     restart: unless-stopped
     logging:
