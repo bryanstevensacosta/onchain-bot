@@ -40,6 +40,7 @@ import { PhrasesController } from 'telegram/crypto-news-publisher/api/http/phras
 import { BotApiCryptoNewsPublisherAdapter } from 'telegram/crypto-news-publisher/infrastructure/senders/bot-api-crypto-news-publisher.adapter';
 import { CryptoNewsLlmAdapter } from 'telegram/crypto-news-publisher/infrastructure/llm/crypto-news-llm.adapter';
 import { CryptoNewsPublisherConfigService } from 'telegram/crypto-news-publisher/infrastructure/config/crypto-news-publisher.config';
+import { MediaCleanupService } from 'telegram/crypto-news-publisher/infrastructure/services/media-cleanup.service';
 import { LlmConfigMigrationService } from 'telegram/crypto-news-publisher/infrastructure/migration/llm-config-migration.service';
 import { PublisherCronScheduler } from 'telegram/crypto-news-publisher/application/scheduling/publisher-cron.scheduler';
 import { TelegramPublisherPort } from 'telegram/shared';
@@ -151,6 +152,7 @@ import { CryptoNewsMessageIngestedHandler } from 'telegram/crypto-news-publisher
     },
     CryptoNewsLlmAdapter,
     CryptoNewsPublisherConfigService,
+    MediaCleanupService,
     LlmConfigMigrationService,
     SharedThrottleSchedulerService,
     PhraseRegistryService,
