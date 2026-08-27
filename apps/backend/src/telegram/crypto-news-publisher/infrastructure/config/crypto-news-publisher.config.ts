@@ -62,7 +62,7 @@ export const DEFAULT_CONFIG: CryptoNewsPublisherConfig = Object.freeze({
     randomDelayMinMs: 180_000,
     randomDelayMaxMs: 900_000,
     llmMaxAttempts: 3,
-    mediaTtlDays: 0,
+    mediaTtlDays: 7,
   }),
   prompt: Object.freeze({
     model: 'opencode-zen/deepseek-v4-flash',

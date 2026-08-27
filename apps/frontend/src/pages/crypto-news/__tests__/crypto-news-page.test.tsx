@@ -1190,12 +1190,12 @@ describe('CryptoNewsPage — 24h window (Todo 2: crypto-news-24h-window-media-re
     mockedUseSources.mockReturnValue(makeSourcesQuery([baseSource]));
   });
 
-  it('renders the KPI label "Messages (last 24h)" instead of the legacy "50 most recent"', () => {
+  it('renders the KPI label "Messages (last 72h)" instead of the legacy "50 most recent"', () => {
     mockedUseMessages.mockReturnValue(makeMessagesQuery([]));
 
     renderWithClient(<CryptoNewsPage />);
 
-    expect(screen.getByText('Messages (last 24h)')).toBeInTheDocument();
+    expect(screen.getByText('Messages (last 72h)')).toBeInTheDocument();
     expect(screen.queryByText(/50 most recent/i)).not.toBeInTheDocument();
   });
 
