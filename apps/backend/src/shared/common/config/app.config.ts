@@ -552,7 +552,7 @@ export const appConfig = registerAs(
     uploadsRoot: process.env.UPLOADS_ROOT ?? join(process.cwd(), 'uploads'),
 
     cryptoNewsMediaRetentionHours: parseInt(
-      process.env.CRYPTO_NEWS_MEDIA_RETENTION_HOURS ?? '48',
+      process.env.CRYPTO_NEWS_MEDIA_RETENTION_HOURS ?? '24',
       10,
     ),
 

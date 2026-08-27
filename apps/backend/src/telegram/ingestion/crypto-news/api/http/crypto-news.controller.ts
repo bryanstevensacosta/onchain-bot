@@ -97,7 +97,7 @@ export class CryptoNewsController {
   ): Promise<ReadonlyArray<CryptoNewsMessageView>> {
     const n = Math.max(1, Math.min(500, parseInt(limit ?? '50', 10) || 50));
     const cfgHours =
-      this.config.get<AppConfig>('app')?.cryptoNewsMediaRetentionHours ?? 48;
+      this.config.get<AppConfig>('app')?.cryptoNewsMediaRetentionHours ?? 24;
     const h = hours
       ? Math.max(1, Math.min(8760, parseInt(hours, 10) || cfgHours))
       : cfgHours;

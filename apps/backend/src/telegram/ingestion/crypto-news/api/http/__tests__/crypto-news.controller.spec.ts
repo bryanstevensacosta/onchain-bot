@@ -231,7 +231,7 @@ async function buildController(
       {
         provide: ConfigService,
         useValue: {
-          get: () => ({ cryptoNewsMediaRetentionHours: 48 }),
+          get: () => ({ cryptoNewsMediaRetentionHours: 24 }),
         },
       },
     ],
@@ -529,7 +529,7 @@ describe('CryptoNewsController.getMedia (GET /crypto-news/media/:mediaId)', () =
 });
 
 describe('CryptoNewsController.listMessages (GET /crypto-news/messages) — retention window', () => {
-  it('when no `hours` query → findRecent called with (50, since) where since ≈ now-48h', async () => {
+  it('when no `hours` query → findRecent called with (50, since) where since ≈ now-24h', async () => {
     const { controller, messageRepo } = await buildController();
     const before = Date.now();
     await controller.listMessages(undefined, undefined);
@@ -538,16 +538,16 @@ describe('CryptoNewsController.listMessages (GET /crypto-news/messages) — rete
     const call = messageRepo.findRecentCalls[0];
     expect(call.limit).toBe(50);
     expect(call.since).toBeInstanceOf(Date);
-    const expected48h = before - 48 * 3600 * 1000;
+    const expected24h = before - 24 * 3600 * 1000;
     const actual = (call.since as Date).getTime();
     // Use a 2-second tolerance window; pick whichever of before/after
     // gives the tighter bound to avoid wall-clock drift.
-    const lo = Math.min(before, after) - 48 * 3600 * 1000;
-    const hi = Math.max(before, after) - 48 * 3600 * 1000;
+    const lo = Math.min(before, after) - 24 * 3600 * 1000;
+    const hi = Math.max(before, after) - 24 * 3600 * 1000;
     expect(actual).toBeGreaterThanOrEqual(lo - 2000);
     expect(actual).toBeLessThanOrEqual(hi + 2000);
     // Sanity: the expected calculation aligns with the actual range.
-    expect(Math.abs(actual - expected48h)).toBeLessThan(2000);
+    expect(Math.abs(actual - expected24h)).toBeLessThan(2000);
   });
 
   it('when hours=72 → findRecent called with since ≈ now-72h', async () => {
@@ -577,13 +577,13 @@ describe('CryptoNewsController.listMessages (GET /crypto-news/messages) — rete
     expect(call.limit).toBe(50);
     expect(call.since).toBeInstanceOf(Date);
     const actual = (call.since as Date).getTime();
-    const lo = Math.min(before, after) - 48 * 3600 * 1000;
-    const hi = Math.max(before, after) - 48 * 3600 * 1000;
+    const lo = Math.min(before, after) - 24 * 3600 * 1000;
+    const hi = Math.max(before, after) - 24 * 3600 * 1000;
     expect(actual).toBeGreaterThanOrEqual(lo - 2000);
     expect(actual).toBeLessThanOrEqual(hi + 2000);
   });
 
-  it('when hours=abc (malformed) → falls back to cfgHours (48h, no NaN)', async () => {
+  it('when hours=abc (malformed) → falls back to cfgHours (24h, no NaN)', async () => {
     const { controller, messageRepo } = await buildController();
     const before = Date.now();
     await controller.listMessages(undefined, undefined, 'abc');
@@ -592,15 +592,15 @@ describe('CryptoNewsController.listMessages (GET /crypto-news/messages) — rete
     const call = messageRepo.findRecentCalls[0];
     expect(call.since).toBeInstanceOf(Date);
     const actual = (call.since as Date).getTime();
-    const lo = Math.min(before, after) - 48 * 3600 * 1000;
-    const hi = Math.max(before, after) - 48 * 3600 * 1000;
+    const lo = Math.min(before, after) - 24 * 3600 * 1000;
+    const hi = Math.max(before, after) - 24 * 3600 * 1000;
     expect(actual).toBeGreaterThanOrEqual(lo - 2000);
     expect(actual).toBeLessThanOrEqual(hi + 2000);
   });
 
-  it('when hours=0 → parseInt(0) is falsy, falls back to cfgHours (48h)', async () => {
+  it('when hours=0 → parseInt(0) is falsy, falls back to cfgHours (24h)', async () => {
     // Plan formula: `Math.max(1, Math.min(8760, parseInt(hours, 10) || cfgHours))`.
-    // `parseInt('0', 10) = 0`, then `0 || cfgHours` → cfgHours (48). So 0
+    // `parseInt('0', 10) = 0`, then `0 || cfgHours` → cfgHours (24). So 0
     // is treated as "absent/malformed" and falls back, not clamped to 1.
     const { controller, messageRepo } = await buildController();
     const before = Date.now();
@@ -609,8 +609,8 @@ describe('CryptoNewsController.listMessages (GET /crypto-news/messages) — rete
     expect(messageRepo.findRecentCalls).toHaveLength(1);
     const call = messageRepo.findRecentCalls[0];
     const actual = (call.since as Date).getTime();
-    const lo = Math.min(before, after) - 48 * 3600 * 1000;
-    const hi = Math.max(before, after) - 48 * 3600 * 1000;
+    const lo = Math.min(before, after) - 24 * 3600 * 1000;
+    const hi = Math.max(before, after) - 24 * 3600 * 1000;
     expect(actual).toBeGreaterThanOrEqual(lo - 2000);
     expect(actual).toBeLessThanOrEqual(hi + 2000);
   });
