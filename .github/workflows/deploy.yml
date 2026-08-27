@@ -9,31 +9,63 @@ concurrency:
   group: deploy-prod
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
+  build-and-push:
+    name: Build and push to GHCR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/backend/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository }}-backend:${{ github.sha }},ghcr.io/${{ github.repository }}-backend:latest
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-backend:cache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-backend:cache,mode=max
+          platforms: linux/amd64
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/frontend/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository }}-frontend:${{ github.sha }},ghcr.io/${{ github.repository }}-frontend:latest
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-frontend:cache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-frontend:cache,mode=max
+          platforms: linux/amd64
+
   deploy:
     name: Deploy to droplet
     runs-on: self-hosted
+    needs: build-and-push
     environment: production
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Login to GHCR
+        uses: docker/login-action@v3
         with:
-          node-version: '24'
-          cache: 'npm'
-
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            node_modules
-            apps/*/node_modules
-            ~/.npm
-          key: ${{ runner.os }}-npm-prod-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-prod-
-            ${{ runner.os }}-npm-
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Sync live source tree with master
         run: |
@@ -65,13 +97,13 @@ jobs:
           POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
           bash /opt/onchain-bot/scripts/backup-db.sh
 
-      - name: Fix ownership before npm ci (chown -R runner:runner)
+      - name: Fix ownership before deploy (chown -R runner:runner)
         run: |
           echo "=== chown -R runner:runner /opt/onchain-bot ==="
           sudo chown -R runner:runner /opt/onchain-bot || chown -R runner:runner /opt/onchain-bot || echo 'chown warning (non-fatal)'
           echo "=== ownership fixed ==="
 
-      - name: Emergency disk cleanup (pre-build)
+      - name: Disk cleanup (pre-pull, filtered)
         run: |
           echo "=== Disk before ==="
           df -h | head -20
@@ -86,17 +118,37 @@ jobs:
           df -h | head -20
           PCT=$(df / | tail -1 | awk '{print $5}' | tr -d '%'); if [ "$PCT" -gt 80 ]; then echo "::warning::disk ${PCT}% full"; fi
 
-      - name: Build and deploy
+      - name: Pull images from GHCR
+        run: |
+          echo "=== Pulling backend ${{ github.sha }} (try sha, fallback latest) ==="
+          docker pull ghcr.io/${{ github.repository }}-backend:${{ github.sha }} || docker pull ghcr.io/${{ github.repository }}-backend:latest
+          docker tag ghcr.io/${{ github.repository }}-backend:${{ github.sha }} ghcr.io/${{ github.repository }}-backend:latest 2>/dev/null || true
+          docker tag ghcr.io/${{ github.repository }}-backend:latest ghcr.io/${{ github.repository }}-backend:latest 2>/dev/null || true
+          echo "=== Pulling frontend ${{ github.sha }} (try sha, fallback latest) ==="
+          docker pull ghcr.io/${{ github.repository }}-frontend:${{ github.sha }} || docker pull ghcr.io/${{ github.repository }}-frontend:latest
+          docker tag ghcr.io/${{ github.repository }}-frontend:${{ github.sha }} ghcr.io/${{ github.repository }}-frontend:latest 2>/dev/null || true
+          docker tag ghcr.io/${{ github.repository }}-frontend:latest ghcr.io/${{ github.repository }}-frontend:latest 2>/dev/null || true
+          docker images | head -20
+
+      - name: Post-pull cleanup (aggressive, keep only current)
+        run: |
+          echo "=== Post-pull prune (remove old SHA tags, keep latest) ==="
+          docker image prune -af 2>&1 | tail -20 || true
+          docker builder prune -af 2>&1 | tail -10 || true
+          echo "=== Disk after pull + prune ==="
+          df -h | head -20
+          docker system df 2>&1 | head -20
+          PCT=$(df / | tail -1 | awk '{print $5}' | tr -d '%'); if [ "$PCT" -gt 80 ]; then echo "::warning::disk ${PCT}% full after pull+prune"; fi
+
+      - name: Deploy via compose (no build)
         run: |
           set -euo pipefail
           set -a; source /opt/onchain-bot/apps/backend/.env.production; set +a
-          echo "=== Building images ==="
-          docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml build backend
-          echo "=== Running migrations inside Docker ==="
-          docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml run --rm backend npx typeorm --dataSource dist/src/shared/common/persistence/data-source.js migration:run
-          echo "=== Restarting services ==="
-          docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml up -d --force-recreate backend
-          echo "=== Waiting for healthcheck ==="
+          echo "=== Running migrations inside pulled backend ==="
+          docker run --rm --network onchain-bot-net --env-file /opt/onchain-bot/apps/backend/.env.production ghcr.io/${{ github.repository }}-backend:${{ github.sha }} npx typeorm --dataSource dist/src/shared/common/persistence/data-source.js migration:run || docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml run --rm backend npx typeorm --dataSource dist/src/shared/common/persistence/data-source.js migration:run
+          echo "=== Recreating services with pulled images ==="
+          docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml up -d --force-recreate backend frontend || docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml up -d --force-recreate
+          echo "=== Waiting for backend healthcheck ==="
           sleep 180
           echo "=== Healthcheck attempt (curl -v) ==="
           curl -v http://localhost:3030/api/health && echo "HEALTHCHECK OK" || (
@@ -110,25 +162,4 @@ jobs:
               exit 1
             }
           )
-          echo "=== Deploy complete ==="
-
-      - name: Build + recreate frontend (non-blocking)
-        run: |
-          echo "=== Building frontend ==="
-          docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml build frontend || echo 'WARNING: frontend build failed (non-blocking)'
-          echo "=== Recreating frontend ==="
-          docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml up -d --force-recreate frontend || echo 'WARNING: frontend recreate failed (non-blocking)'
-          echo "=== Waiting for frontend health ==="
-          for i in $(seq 1 30); do
-            if curl -v -sf http://localhost:5173/ >/tmp/health-frontend-prod.log 2>&1; then
-              echo "Frontend healthy after ${i} attempts"
-              cat /tmp/health-frontend-prod.log
-              break
-            fi
-            echo "  Waiting... attempt $i/30"
-            sleep 2
-            if [ "$i" -eq 30 ]; then
-              echo "=== Final curl -v output (frontend) ==="
-              curl -v http://localhost:5173/ 2>&1 || true
-            fi
-          done
+          echo "=== Deploy complete (GHCR) ==="

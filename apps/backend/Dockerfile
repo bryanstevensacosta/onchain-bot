@@ -8,6 +8,8 @@ COPY apps/backend/package.json ./apps/backend/
 COPY scripts ./scripts
 COPY apps/backend/tsconfig*.json apps/backend/nest-cli.json ./apps/backend/
 
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+
 RUN npm ci --no-audit --no-fund --ignore-scripts
 RUN npm rebuild sharp
 

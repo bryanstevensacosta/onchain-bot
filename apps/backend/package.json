@@ -46,6 +46,7 @@
     "class-validator": "^0.15.1",
     "dotenv": "^17.4.2",
     "ioredis": "^5.4.1",
+    "lru-cache": "^7.18.3",
     "nestjs-pino": "^4.6.1",
     "onnxruntime-node": "^1.27.0",
     "openai": "^6.45.0",

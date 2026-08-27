@@ -110,7 +110,7 @@ describe('MediaRetentionCleanupScheduler', () => {
     const dataSource = makeDataSource('postgres', query);
     const scheduler = new MediaRetentionCleanupScheduler(
       dataSource,
-      makeConfig(48),
+      makeConfig(24),
     );
 
     await scheduler.tick();
@@ -139,7 +139,7 @@ describe('MediaRetentionCleanupScheduler', () => {
     const dataSource = makeDataSource('postgres', query);
     const scheduler = new MediaRetentionCleanupScheduler(
       dataSource,
-      makeConfig(48),
+      makeConfig(24),
     );
 
     await scheduler.tick();
@@ -172,8 +172,8 @@ describe('MediaRetentionCleanupScheduler', () => {
       ),
     );
     expect(selectCalls).toHaveLength(2);
-    // Interval must be derived from the retention hours (48 in this case).
-    expect(selectCalls[0][1]).toEqual([48]);
+    // Interval must be derived from the retention hours (24 in this case).
+    expect(selectCalls[0][1]).toEqual([24]);
 
     // Unlock issued (finally ran).
     const unlockCalls = query.mock.calls.filter(
@@ -202,7 +202,7 @@ describe('MediaRetentionCleanupScheduler', () => {
     const dataSource = makeDataSource('postgres', query);
     const scheduler = new MediaRetentionCleanupScheduler(
       dataSource,
-      makeConfig(48),
+      makeConfig(24),
     );
 
     // Must not throw — the scheduler swallows the cleanup error and returns.
@@ -247,7 +247,7 @@ describe('MediaRetentionCleanupScheduler', () => {
     const dataSource = makeDataSource('postgres', query);
     const scheduler = new MediaRetentionCleanupScheduler(
       dataSource,
-      makeConfig(48),
+      makeConfig(24),
     );
 
     // Kick off the first tick. The cleanup step is blocked on the
@@ -277,7 +277,7 @@ describe('MediaRetentionCleanupScheduler', () => {
     const dataSource = makeDataSource('sqlite', query);
     const scheduler = new MediaRetentionCleanupScheduler(
       dataSource,
-      makeConfig(48),
+      makeConfig(24),
     );
 
     await scheduler.tick();
@@ -330,7 +330,7 @@ describe('MediaRetentionCleanupScheduler', () => {
     expect(Array.isArray(zeroArgs) && zeroArgs[0]).toBe(1);
 
     // Sub-case B: undefined (env var unset) → falls back to the
-    // documented 48-hour default.
+    // documented 24-hour default.
     const queryUndef: QueryFn = jest
       .fn()
       .mockImplementation((sql: string): Promise<unknown[]> => {
@@ -364,6 +364,6 @@ describe('MediaRetentionCleanupScheduler', () => {
     );
     expect(selectUndef).toHaveLength(1);
     const undefArgs = selectUndef[0]?.[1];
-    expect(Array.isArray(undefArgs) && undefArgs[0]).toBe(48);
+    expect(Array.isArray(undefArgs) && undefArgs[0]).toBe(24);
   });
 });
