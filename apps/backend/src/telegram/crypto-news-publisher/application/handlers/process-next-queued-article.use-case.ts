@@ -10,6 +10,8 @@ import { TelegramPublisherPort } from 'telegram/shared';
 import { CryptoNewsLlmAdapter } from 'telegram/crypto-news-publisher/infrastructure/llm/crypto-news-llm.adapter';
 import { SlotArbitratorPort } from 'telegram/shared/domain/ports/slot-arbitrator.port';
 import { AdRotationStateRepository } from 'telegram/crypto-news-ads/application/ports/ad-rotation-state.repository';
+import { MediaCleanupService } from 'telegram/crypto-news-publisher/infrastructure/services/media-cleanup.service';
+import { CryptoNewsPublisherConfigService } from 'telegram/crypto-news-publisher/infrastructure/config/crypto-news-publisher.config';
 
 /**
  * Orchestrator use case: drain one PENDING entry from the publisher
@@ -57,6 +59,8 @@ export class ProcessNextQueuedArticleUseCase {
     private readonly llmConfigRepo: LlmConfigRepository,
     private readonly slotArbitrator: SlotArbitratorPort,
     private readonly rotationStateRepo: AdRotationStateRepository,
+    private readonly mediaCleanup: MediaCleanupService,
+    private readonly publisherConfig: CryptoNewsPublisherConfigService,
   ) {}
 
   /**
@@ -126,6 +130,17 @@ export class ProcessNextQueuedArticleUseCase {
       await this.throttleScheduler.setLastPublishAt(now);
       await this.slotArbitrator.recordPublish('news', now);
       await this.rotationStateRepo.incrementPostsSinceLastAd();
+      try {
+        await this.mediaCleanup.cleanupPublishedMedia(
+          entry.imagePaths,
+          this.publisherConfig.config.publishing.mediaTtlDays,
+        );
+      } catch (cleanupErr) {
+        this.logger.warn(
+          `media cleanup failed for entry ${entry.id} (publish succeeded): ` +
+            `${cleanupErr instanceof Error ? cleanupErr.message : 'unknown error'}`,
+        );
+      }
       this.logger.log(
         `published queue entry ${entry.id} as telegram message ${result.messageId}`,
       );
