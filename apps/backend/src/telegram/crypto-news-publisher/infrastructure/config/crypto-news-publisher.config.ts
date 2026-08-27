@@ -17,6 +17,7 @@ export interface CryptoNewsPublisherConfigJson {
     randomDelayMinMs?: number;
     randomDelayMaxMs?: number;
     llmMaxAttempts?: number;
+    mediaTtlDays?: number;
   };
   prompt?: {
     model?: string;
@@ -32,6 +33,7 @@ export interface CryptoNewsPublisherConfig {
     readonly randomDelayMinMs: number;
     readonly randomDelayMaxMs: number;
     readonly llmMaxAttempts: number;
+    readonly mediaTtlDays: number;
   };
   readonly prompt: {
     readonly model: string;
@@ -60,6 +62,7 @@ export const DEFAULT_CONFIG: CryptoNewsPublisherConfig = Object.freeze({
     randomDelayMinMs: 180_000,
     randomDelayMaxMs: 900_000,
     llmMaxAttempts: 3,
+    mediaTtlDays: 0,
   }),
   prompt: Object.freeze({
     model: 'opencode-zen/deepseek-v4-flash',
@@ -92,6 +95,13 @@ function loadFromDisk(): CryptoNewsPublisherConfigJson | null {
  * unparseable — Wave 1 keeps the cron publisher functional before
  * T2 swaps it to read from `LlmConfigRepository` directly.
  */
+function parseMediaTtlDays(value: string | undefined): number {
+  if (value === undefined) return DEFAULT_CONFIG.publishing.mediaTtlDays;
+  const parsed = Number(value);
+  if (Number.isNaN(parsed)) return DEFAULT_CONFIG.publishing.mediaTtlDays;
+  return Math.min(Math.max(parsed, 0), 365);
+}
+
 export function loadCryptoNewsPublisherConfig(): CryptoNewsPublisherConfig {
   const fileConfig = loadFromDisk();
   if (!fileConfig) {
@@ -114,6 +124,10 @@ export function loadCryptoNewsPublisherConfig(): CryptoNewsPublisherConfig {
       llmMaxAttempts:
         fileConfig.publishing?.llmMaxAttempts ??
         DEFAULT_CONFIG.publishing.llmMaxAttempts,
+      mediaTtlDays: parseMediaTtlDays(
+        process.env.PUBLISHER_MEDIA_TTL_DAYS ??
+          String(fileConfig.publishing?.mediaTtlDays),
+      ),
     },
     prompt: {
       model: fileConfig.prompt?.model ?? DEFAULT_CONFIG.prompt.model,
