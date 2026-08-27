@@ -187,7 +187,7 @@ export class ProcessNextQueuedArticleUseCase {
    */
   private isVideoPath(path: string): boolean {
     const ext = path.toLowerCase().split('.').pop();
-    return ext === 'mp4' || ext === 'mov' || ext === 'avi' || ext === 'mkv';
+    return ext === 'mp4' || ext === 'mov' || ext === 'avi' || ext === 'mkv' || ext === 'webm';
   }
 
   /**
