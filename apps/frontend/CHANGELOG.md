@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.1](https://github.com/bryanstevensacosta/onchain-bot/compare/v1.3.0...v1.3.1) (2026-08-27)
+
+
+### Bug Fixes
+
+* **media:** complete 48h-&gt;24h frontend + HEVC ([#55](https://github.com/bryanstevensacosta/onchain-bot/issues/55)) ([70147d4](https://github.com/bryanstevensacosta/onchain-bot/commit/70147d4bcd7f889d2fdbe3a34534c22555b53969))
+
+
+### Performance Improvements
+
+* **media:** ingestion 24h-&gt;72h (cover queue backlog) + publisher TTL 0-&gt;7d ([#61](https://github.com/bryanstevensacosta/onchain-bot/issues/61)) ([f0996c4](https://github.com/bryanstevensacosta/onchain-bot/commit/f0996c40bf28fdd791c7f79697d198f8b954f10b))
+
 ## [1.3.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v1.2.0...v1.3.0) (2026-08-25)
 
 

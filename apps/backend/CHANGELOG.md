@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.3.2](https://github.com/bryanstevensacosta/onchain-bot/compare/v1.3.1...v1.3.2) (2026-08-27)
+
+
+### Bug Fixes
+
+* **backend:** add lru-cache to dependencies ([#53](https://github.com/bryanstevensacosta/onchain-bot/issues/53)) ([a3e7a79](https://github.com/bryanstevensacosta/onchain-bot/commit/a3e7a792fc2deb1cd3ecc891ef8eb48b6a258852))
+* **media:** complete 48h-&gt;24h frontend + HEVC ([#55](https://github.com/bryanstevensacosta/onchain-bot/issues/55)) ([70147d4](https://github.com/bryanstevensacosta/onchain-bot/commit/70147d4bcd7f889d2fdbe3a34534c22555b53969))
+* **publisher:** add webm to isVideoPath for HEVC ([#57](https://github.com/bryanstevensacosta/onchain-bot/issues/57)) ([156746f](https://github.com/bryanstevensacosta/onchain-bot/commit/156746fbb1758f1e90b82d3ac12296a28bffb0fd))
+* **publisher:** provide MediaCleanupService in module ([#58](https://github.com/bryanstevensacosta/onchain-bot/issues/58)) ([669f405](https://github.com/bryanstevensacosta/onchain-bot/commit/669f405704f1e6de390ebc7daaa237e8522e9666))
+
+
+### Performance Improvements
+
+* **deploy:** GHCR — build on GitHub, pull on droplet (no build on prod) ([#50](https://github.com/bryanstevensacosta/onchain-bot/issues/50)) ([d14ed96](https://github.com/bryanstevensacosta/onchain-bot/commit/d14ed96c3205f6494bf9257d62d81c97b845119f))
+* **media:** ingestion 24h-&gt;72h (cover queue backlog) + publisher TTL 0-&gt;7d ([#61](https://github.com/bryanstevensacosta/onchain-bot/issues/61)) ([f0996c4](https://github.com/bryanstevensacosta/onchain-bot/commit/f0996c40bf28fdd791c7f79697d198f8b954f10b))
+* **publisher:** post-publish cleanup (TTL 0=disabled) + aggressive post-pull prune ([#56](https://github.com/bryanstevensacosta/onchain-bot/issues/56)) ([21a2780](https://github.com/bryanstevensacosta/onchain-bot/commit/21a2780f6c3aeff77cf1e53f8eb529cc315ff784))
+
 ## [1.3.1](https://github.com/bryanstevensacosta/onchain-bot/compare/v1.3.0...v1.3.1) (2026-08-25)
 
 
