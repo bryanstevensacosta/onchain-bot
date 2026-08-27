@@ -168,7 +168,7 @@ export function CryptoNewsPage() {
             </Card>
             <Card>
               <div className="text-xs uppercase text-slate-500">
-                Messages (last 24h)
+                Messages (last 72h)
               </div>
               <div className="text-2xl font-bold text-slate-100 mt-1">
                 {(messages.data ?? []).length}
