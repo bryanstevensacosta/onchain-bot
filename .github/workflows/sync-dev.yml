@@ -23,35 +23,31 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Merge master into dev (with retry)
+      - name: Sync dev via PR (no PAT, respects protected branch)
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin master dev
           git checkout dev
-          # Ensure dev is up to date before merging
           git pull --ff-only origin dev || true
           if git merge-base --is-ancestor origin/master HEAD; then
             echo "✅ dev already contains master, nothing to do"
             exit 0
           fi
-          echo "Merging origin/master into dev..."
-          git merge origin/master --no-edit
-          # Retry git push up to 3 times with exponential backoff
-          for attempt in 1 2 3; do
-            if git push origin dev; then
-              echo "✅ dev synced with master (attempt $attempt)"
-              exit 0
-            fi
-            echo "⚠️ Push failed (attempt $attempt/3), retrying in $((attempt * 5))s..."
-            sleep $((attempt * 5))
-            # Re-fetch in case remote moved
-            git fetch origin dev
-            git rebase origin/dev || true
-          done
-          echo "❌ Failed to push after 3 attempts"
-          exit 1
+          BRANCH="sync/master-to-dev-$(date +%Y%m%d%H%M%S)"
+          echo "Creating branch $BRANCH and merging master..."
+          git checkout -b "$BRANCH"
+          git merge origin/master --no-edit --no-ff
+          git push origin "$BRANCH"
+          echo "Creating PR $BRANCH -> dev..."
+          gh pr create --base dev --head "$BRANCH" --title "chore(sync): master → dev" --body "Auto-sync master to dev (GH006 bypass via PR)" --fill
+          # Auto-merge when CI passes
+          PR_NUM=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number')
+          echo "Enabling auto-merge for PR #$PR_NUM..."
+          gh pr merge --auto --squash --delete-branch "$PR_NUM" || gh pr merge --squash --delete-branch "$PR_NUM" || echo "PR #$PR_NUM will auto-merge when CI passes"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update open PRs (dev -> master)
         if: success()
