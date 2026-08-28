@@ -8,6 +8,7 @@ jobs:
   check-branch-name:
     name: Check branch name
     runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/dev' && github.ref != 'refs/heads/master'
     steps:
       - name: Check branch name
         run: |
