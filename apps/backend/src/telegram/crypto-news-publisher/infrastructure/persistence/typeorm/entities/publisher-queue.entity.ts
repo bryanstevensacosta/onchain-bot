@@ -85,6 +85,9 @@ export class PublisherQueueEntity {
   @Column({ name: 'keyword_template_id', type: 'uuid', nullable: true })
   public keywordTemplateId!: string | null;
 
+  @Column({ name: 'formatting_entities', type: 'text', nullable: true })
+  public formattingEntities!: string | null;
+
   @Column({ name: 'status', type: 'varchar', length: 16 })
   public status!: PublisherQueueStatus;
 
@@ -160,6 +163,7 @@ export class PublisherQueueEntity {
       messageReceivedAt: this.messageReceivedAt,
       matchedKeywordIds: this.matchedKeywordIds ?? [],
       keywordTemplateId: this.keywordTemplateId,
+      formattingEntities: this.formattingEntities,
       status: this.status,
       publishedAt: this.publishedAt,
       telegramMessageId: this.telegramMessageId,

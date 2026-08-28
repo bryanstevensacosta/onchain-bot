@@ -19,6 +19,7 @@ export class PublisherQueueMapper {
     row.messageReceivedAt = entry.messageReceivedAt;
     row.matchedKeywordIds = entry.matchedKeywordIds;
     row.keywordTemplateId = entry.keywordTemplateId;
+    row.formattingEntities = entry.formattingEntities;
     row.status = entry.status;
     row.publishedAt = entry.publishedAt;
     row.telegramMessageId = entry.telegramMessageId;

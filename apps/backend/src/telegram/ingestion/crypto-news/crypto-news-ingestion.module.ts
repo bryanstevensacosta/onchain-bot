@@ -5,6 +5,7 @@ import type { AppConfig } from 'shared/common/config/app.config';
 import { CryptoNewsSourceEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
 import { CryptoNewsMessageEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
 import { CryptoNewsMessageMediaEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
+import { ChannelContentFilterConfigEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/channel-content-filter-config.entity';
 import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
 import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
 import { CryptoNewsEventPublisher } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-event.publisher';
@@ -17,6 +18,7 @@ import { TypeOrmCryptoNewsMessageRepository } from 'telegram/ingestion/crypto-ne
 import { RegisterNewsSourceUseCase } from 'telegram/ingestion/crypto-news/application/handlers/register-news-source.use-case';
 import { StoreNewsMessageUseCase } from 'telegram/ingestion/crypto-news/application/handlers/store-news-message.use-case';
 import { CryptoNewsMetadataResolver } from 'telegram/ingestion/crypto-news/application/services/crypto-news-metadata-resolver.service';
+import { ContentFilterService } from 'telegram/ingestion/crypto-news/application/services/content-filter.service';
 import { MediaRetentionCleanupScheduler } from 'telegram/ingestion/crypto-news/infrastructure/scheduling/media-retention-cleanup.scheduler';
 import { CryptoNewsSeeder } from 'telegram/ingestion/crypto-news/infrastructure/seeders/crypto-news.seeder';
 import { CryptoNewsController } from 'telegram/ingestion/crypto-news/api/http/crypto-news.controller';
@@ -51,6 +53,7 @@ import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-proces
       CryptoNewsSourceEntity,
       CryptoNewsMessageEntity,
       CryptoNewsMessageMediaEntity,
+      ChannelContentFilterConfigEntity,
     ]),
   ],
   controllers: [CryptoNewsController],
@@ -131,6 +134,7 @@ import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-proces
     // ConfigService (ConfigModule global). The cron is a no-op when
     // `dataSource.options.type !== 'postgres'` (in-memory repos).
     MediaRetentionCleanupScheduler,
+    ContentFilterService,
   ],
   exports: [
     CryptoNewsSourceRepository,

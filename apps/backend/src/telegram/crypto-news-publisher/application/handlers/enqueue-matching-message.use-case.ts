@@ -112,6 +112,7 @@ export class EnqueueMatchingMessageUseCase {
       messageReceivedAt: new Date(),
       matchedKeywordIds: matchedKeywords.map((k) => k.id),
       keywordTemplateId: firstKeyword?.templateId ?? null,
+      formattingEntities: message.formattingEntities,
     });
 
     await this.queueRepo.enqueue(entry);

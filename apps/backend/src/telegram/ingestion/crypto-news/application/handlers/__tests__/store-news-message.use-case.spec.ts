@@ -4,6 +4,9 @@ import type { DomainEvent } from 'shared/kernel/domain-event';
 import { StoreNewsMessageUseCase } from 'telegram/ingestion/crypto-news/application/handlers/store-news-message.use-case';
 import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
 import { CryptoNewsEventPublisher } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-event.publisher';
+import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
+import { ContentFilterService } from 'telegram/ingestion/crypto-news/application/services/content-filter.service';
+import { FilterRule } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
 
 class InMemoryMessageRepo extends CryptoNewsMessageRepository {
   private readonly store = new Map<string, CryptoNewsMessage>();
@@ -52,15 +55,68 @@ class RecordingPublisher extends CryptoNewsEventPublisher {
   }
 }
 
+class MockSourceRepo extends CryptoNewsSourceRepository {
+  private readonly filters = new Map<string, FilterRule[]>();
+
+  public setFilters(channelId: string, filters: FilterRule[]): void {
+    this.filters.set(channelId, [...filters]);
+  }
+
+  public async findFiltersByChannelId(
+    channelId: string,
+  ): Promise<ReadonlyArray<FilterRule>> {
+    const filters = this.filters.get(channelId) ?? [];
+    return [...filters].sort((a, b) => {
+      if (a.priority !== b.priority) {
+        return a.priority - b.priority;
+      }
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    });
+  }
+
+  // Required abstract methods - no-op for tests
+  public async save(): Promise<void> {}
+  public async findByChannelId(): Promise<null> {
+    return null;
+  }
+  public async findAll(): Promise<ReadonlyArray<any>> {
+    return [];
+  }
+  public async findActive(): Promise<ReadonlyArray<any>> {
+    return [];
+  }
+  public async delete(): Promise<void> {}
+}
+
+const now = new Date('2026-01-01T00:00:00Z');
+const makeFilter = (overrides: Partial<FilterRule> = {}): FilterRule => ({
+  pattern: '',
+  replacement: '',
+  flags: 'g',
+  priority: 0,
+  isActive: true,
+  createdAt: now,
+  ...overrides,
+});
+
 describe('StoreNewsMessageUseCase', () => {
   let repo: InMemoryMessageRepo;
   let publisher: RecordingPublisher;
+  let sourceRepo: MockSourceRepo;
+  let contentFilter: ContentFilterService;
   let useCase: StoreNewsMessageUseCase;
 
   beforeEach(() => {
     repo = new InMemoryMessageRepo();
     publisher = new RecordingPublisher();
-    useCase = new StoreNewsMessageUseCase(repo, publisher);
+    sourceRepo = new MockSourceRepo();
+    contentFilter = new ContentFilterService();
+    useCase = new StoreNewsMessageUseCase(
+      repo,
+      publisher,
+      sourceRepo,
+      contentFilter,
+    );
   });
 
   it('persists a new message', async () => {
@@ -147,5 +203,154 @@ describe('StoreNewsMessageUseCase', () => {
         occurredAt: new Date(),
       }),
     ).rejects.toThrow();
+  });
+
+  describe('content filter integration', () => {
+    it('applies filters to title and content before persistence (Cointelegraph case)', async () => {
+      const channelId = '1001';
+      sourceRepo.setFilters(channelId, [
+        makeFilter({
+          pattern: 'News \\| Markets \\| YouTube:?\\s*',
+          replacement: '',
+          flags: 'gi',
+          priority: 0,
+        }),
+      ]);
+
+      const occurredAt = new Date('2026-01-01T12:00:00Z');
+      const message = await useCase.execute({
+        channelId,
+        messageId: 1,
+        title: 'News | Markets | YouTube: Bitcoin pumps',
+        content:
+          'Full article: News | Markets | YouTube: Bitcoin pumps to new highs',
+        occurredAt,
+      });
+
+      expect(message.title).toBe('Bitcoin pumps');
+      expect(message.content).toBe('Full article: Bitcoin pumps to new highs');
+    });
+
+    it('applies multiple filters in priority order (lower priority first)', async () => {
+      const channelId = '1002';
+      sourceRepo.setFilters(channelId, [
+        makeFilter({ pattern: 'quick', replacement: 'slow', priority: 10 }),
+        makeFilter({
+          pattern: 'slow brown',
+          replacement: 'fast red',
+          priority: 5,
+        }),
+      ]);
+
+      const message = await useCase.execute({
+        channelId,
+        messageId: 1,
+        title: 'The quick brown fox',
+        content: 'The quick brown fox jumps',
+        occurredAt: new Date(),
+      });
+
+      // Priority 5 runs first: 'slow brown' -> 'fast red' (no match yet)
+      // Priority 10 runs second: 'quick' -> 'slow' => 'The slow brown fox'
+      expect(message.title).toBe('The slow brown fox');
+      expect(message.content).toBe('The slow brown fox jumps');
+    });
+
+    it('returns original content when no filters exist for channel', async () => {
+      const channelId = '1003';
+      // No filters set for this channel
+
+      const message = await useCase.execute({
+        channelId,
+        messageId: 1,
+        title: 'Original Title',
+        content: 'Original content',
+        occurredAt: new Date(),
+      });
+
+      expect(message.title).toBe('Original Title');
+      expect(message.content).toBe('Original content');
+    });
+
+    it('skips inactive filters', async () => {
+      const channelId = '1004';
+      sourceRepo.setFilters(channelId, [
+        makeFilter({
+          pattern: 'REMOVE',
+          replacement: '',
+          priority: 0,
+          isActive: false,
+        }),
+        makeFilter({
+          pattern: 'KEEP',
+          replacement: 'REPLACED',
+          priority: 1,
+          isActive: true,
+        }),
+      ]);
+
+      const message = await useCase.execute({
+        channelId,
+        messageId: 1,
+        title: 'REMOVE KEEP',
+        content: 'REMOVE KEEP',
+        occurredAt: new Date(),
+      });
+
+      // Inactive filter skipped, only active filter applied
+      expect(message.title).toBe('REMOVE REPLACED');
+      expect(message.content).toBe('REMOVE REPLACED');
+    });
+
+    it('includes filtered title in emitted event', async () => {
+      const channelId = '1005';
+      sourceRepo.setFilters(channelId, [
+        makeFilter({ pattern: 'PREFIX: ', replacement: '', priority: 0 }),
+      ]);
+
+      const occurredAt = new Date('2026-01-01T00:00:00Z');
+      await useCase.execute({
+        channelId,
+        messageId: 1,
+        title: 'PREFIX: Filtered Title',
+        content: 'body',
+        occurredAt,
+      });
+
+      const event = publisher.published[0] as CryptoNewsMessageIngestedEvent;
+      const payload = event.toPayload();
+      expect(payload.title).toBe('Filtered Title');
+    });
+
+    it('uses createdAt as tiebreaker for same priority', async () => {
+      const channelId = '1006';
+      const baseTime = new Date('2026-01-01T00:00:00Z');
+      sourceRepo.setFilters(channelId, [
+        makeFilter({
+          pattern: 'A',
+          replacement: '1',
+          priority: 0,
+          createdAt: new Date(baseTime.getTime() + 1000),
+        }),
+        makeFilter({
+          pattern: '1',
+          replacement: '2',
+          priority: 0,
+          createdAt: baseTime,
+        }),
+      ]);
+
+      const message = await useCase.execute({
+        channelId,
+        messageId: 1,
+        title: 'A',
+        content: 'A',
+        occurredAt: new Date(),
+      });
+
+      // Earlier createdAt runs first: '1' -> '2' (no match), then 'A' -> '1' => '1'
+      expect(message.title).toBe('1');
+      expect(message.content).toBe('1');
+    });
   });
 });

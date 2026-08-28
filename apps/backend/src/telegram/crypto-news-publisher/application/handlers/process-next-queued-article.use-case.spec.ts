@@ -9,6 +9,9 @@ import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entit
 import { LlmConfig } from 'telegram/crypto-news-publisher/domain/entities/llm-config.entity';
 import { SlotArbitratorPort } from 'telegram/shared/domain/ports/slot-arbitrator.port';
 import { AdRotationStateRepository } from 'telegram/crypto-news-ads/application/ports/ad-rotation-state.repository';
+import { MediaCleanupService } from 'telegram/crypto-news-publisher/infrastructure/services/media-cleanup.service';
+import { CryptoNewsPublisherConfigService } from 'telegram/crypto-news-publisher/infrastructure/config/crypto-news-publisher.config';
+import { MarkdownConverter } from 'telegram/ingestion/crypto-news/application/services/markdown-converter.service';
 
 const TEST_TARGET_CHANNEL = '@crypto-news-test';
 
@@ -44,12 +47,16 @@ describe('ProcessNextQueuedArticleUseCase', () => {
   let llmConfigRepo: jest.Mocked<LlmConfigRepository>;
   let slotArbitrator: jest.Mocked<SlotArbitratorPort>;
   let rotationStateRepo: jest.Mocked<AdRotationStateRepository>;
+  let mediaCleanup: { cleanupPublishedMedia: jest.Mock };
+  let publisherConfig: { config: { publishing: { mediaTtlDays: number } } };
+  let markdownConverter: { convertToMarkdown: jest.Mock };
 
   const buildEntry = (overrides: {
     id?: string;
     attempts?: number;
     imagePath?: string | null;
     imagePaths?: string[];
+    formattingEntities?: string | null;
   }): PublisherQueueEntry => {
     return PublisherQueueEntry.reconstitute({
       id: overrides.id ?? 'entry-1',
@@ -62,6 +69,7 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       groupedId: null,
       messageReceivedAt: new Date('2026-07-06T12:00:00Z'),
       keywordTemplateId: null,
+      formattingEntities: overrides.formattingEntities ?? null,
       status: 'PENDING',
       publishedAt: null,
       telegramMessageId: null,
@@ -133,6 +141,22 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       markAdPublished: jest.fn(),
     };
 
+    mediaCleanup = {
+      cleanupPublishedMedia: jest.fn().mockResolvedValue(undefined),
+    };
+
+    publisherConfig = {
+      config: {
+        publishing: {
+          mediaTtlDays: 7,
+        },
+      },
+    };
+
+    markdownConverter = {
+      convertToMarkdown: jest.fn().mockImplementation((content: string) => content),
+    };
+
     useCase = new ProcessNextQueuedArticleUseCase(
       queueRepo,
       throttleScheduler,
@@ -142,6 +166,9 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       llmConfigRepo,
       slotArbitrator,
       rotationStateRepo,
+      mediaCleanup,
+      publisherConfig,
+      markdownConverter,
     );
   });
 
