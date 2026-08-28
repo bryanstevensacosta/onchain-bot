@@ -46,6 +46,8 @@ export interface PublisherQueueEntryProps {
    */
   readonly matchedKeywordIds: string[];
   readonly keywordTemplateId: string | null;
+  /** Telegram formatting entities (bold, links, etc.) captured at enqueue time as JSON string. */
+  readonly formattingEntities: string | null;
   status: PublisherQueueStatus;
   publishedAt: Date | null;
   telegramMessageId: string | null;
@@ -115,6 +117,7 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
     messageReceivedAt: Date;
     matchedKeywordIds?: string[];
     keywordTemplateId?: string | null;
+    formattingEntities?: string | null;
   }): PublisherQueueEntry {
     if (!input.channelId?.trim()) {
       throw new DomainError(
@@ -162,6 +165,7 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
       messageReceivedAt: input.messageReceivedAt,
       matchedKeywordIds: input.matchedKeywordIds ?? [],
       keywordTemplateId: input.keywordTemplateId ?? null,
+      formattingEntities: input.formattingEntities ?? null,
       status: 'PENDING',
       publishedAt: null,
       telegramMessageId: null,
@@ -232,6 +236,10 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
 
   public get keywordTemplateId(): string | null {
     return this.state.keywordTemplateId;
+  }
+
+  public get formattingEntities(): string | null {
+    return this.state.formattingEntities;
   }
 
   public get messageReceivedAt(): Date {

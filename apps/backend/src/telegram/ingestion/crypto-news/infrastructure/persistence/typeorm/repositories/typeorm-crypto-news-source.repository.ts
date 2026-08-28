@@ -2,8 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CryptoNewsSource } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-source.entity';
-import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
+import {
+  CryptoNewsSourceRepository,
+  FilterRule,
+} from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
 import { CryptoNewsSourceEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
+import { ChannelContentFilterConfigEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/channel-content-filter-config.entity';
 import { CryptoNewsSourceMapper } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/mappers/crypto-news-source.mapper';
 
 /**
@@ -14,6 +18,8 @@ export class TypeOrmCryptoNewsSourceRepository extends CryptoNewsSourceRepositor
   constructor(
     @InjectRepository(CryptoNewsSourceEntity)
     private readonly repo: Repository<CryptoNewsSourceEntity>,
+    @InjectRepository(ChannelContentFilterConfigEntity)
+    private readonly filterRepo: Repository<ChannelContentFilterConfigEntity>,
   ) {
     super();
   }
@@ -42,5 +48,22 @@ export class TypeOrmCryptoNewsSourceRepository extends CryptoNewsSourceRepositor
 
   public async delete(channelId: string): Promise<void> {
     await this.repo.delete({ channelId });
+  }
+
+  public async findFiltersByChannelId(
+    channelId: string,
+  ): Promise<ReadonlyArray<FilterRule>> {
+    const rows = await this.filterRepo.find({
+      where: { channelId, isActive: true },
+      order: { priority: 'ASC', createdAt: 'ASC' },
+    });
+    return rows.map((row) => ({
+      pattern: row.pattern,
+      replacement: row.replacement,
+      flags: row.flags,
+      priority: row.priority,
+      isActive: row.isActive,
+      createdAt: row.createdAt,
+    }));
   }
 }

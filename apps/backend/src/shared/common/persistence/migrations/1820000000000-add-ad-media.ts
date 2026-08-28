@@ -5,7 +5,11 @@ export class AddAdMedia1820000000000 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `CREATE TABLE IF NOT EXISTS crypto_news_ad_media (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), ad_id uuid NOT NULL UNIQUE, file_path text NOT NULL, mime_type varchar(64) NULL, file_size integer NULL, created_at timestamptz NOT NULL DEFAULT now(), CONSTRAINT fk_crypto_news_ad_media_ad FOREIGN KEY (ad_id) REFERENCES crypto_news_ads (id) ON DELETE CASCADE)`,
+      `CREATE TABLE IF NOT EXISTS crypto_news_ad_media (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), ad_id uuid NOT NULL, file_path text NOT NULL, mime_type varchar(64) NULL, file_size integer NULL, created_at timestamptz NOT NULL DEFAULT now(), CONSTRAINT fk_crypto_news_ad_media_ad FOREIGN KEY (ad_id) REFERENCES crypto_news_ads (id) ON DELETE CASCADE)`,
+    );
+    // Ensure unique constraint on ad_id exists (for ON CONFLICT) - PostgreSQL doesn't support IF NOT EXISTS for ADD CONSTRAINT
+    await queryRunner.query(
+      `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_crypto_news_ad_media_ad_id') THEN ALTER TABLE crypto_news_ad_media ADD CONSTRAINT uq_crypto_news_ad_media_ad_id UNIQUE (ad_id); END IF; END $$`,
     );
     await queryRunner.query(
       `ALTER TABLE crypto_news_ads ADD COLUMN IF NOT EXISTS image_media_id uuid`,

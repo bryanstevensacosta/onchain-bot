@@ -3,6 +3,8 @@ import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entitie
 import { CryptoNewsMessageIngestedEvent } from 'telegram/ingestion/crypto-news/domain/events/crypto-news-message-ingested.event';
 import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
 import { CryptoNewsEventPublisher } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-event.publisher';
+import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
+import { ContentFilterService } from 'telegram/ingestion/crypto-news/application/services/content-filter.service';
 import { CryptoNewsMedia } from 'telegram/ingestion/crypto-news/domain/value-objects/crypto-news-media.vo';
 
 export interface StoreNewsMessageInput {
@@ -36,6 +38,9 @@ export interface StoreNewsMessageInput {
  * However, the emitted domain event (`CryptoNewsMessageIngestedEvent`)
  * carries ONLY metadata (no `content`) — this is fix-1 Bot Dev ToS §4.3
  * compliance: raw content never crosses the event bus.
+ *
+ * Before persistence, message title and content are passed through
+ * ContentFilterService using per-channel filter rules (if any).
  */
 @Injectable()
 export class StoreNewsMessageUseCase {
@@ -44,6 +49,8 @@ export class StoreNewsMessageUseCase {
   constructor(
     private readonly messageRepo: CryptoNewsMessageRepository,
     private readonly eventPublisher: CryptoNewsEventPublisher,
+    private readonly sourceRepo: CryptoNewsSourceRepository,
+    private readonly contentFilter: ContentFilterService,
   ) {}
 
   public async execute(
@@ -66,11 +73,21 @@ export class StoreNewsMessageUseCase {
       return existing;
     }
 
+    // Fetch and apply content filters for this channel before persistence.
+    const filters = await this.sourceRepo.findFiltersByChannelId(
+      input.channelId,
+    );
+    const { title, content } = this.contentFilter.filterTitleAndContent(
+      input.title,
+      input.content,
+      filters,
+    );
+
     const message = CryptoNewsMessage.create({
       channelId: input.channelId,
       messageId: input.messageId,
-      title: input.title,
-      content: input.content,
+      title,
+      content,
       publishedAt: input.occurredAt,
       media: input.media,
       formattingEntities: input.entities
@@ -85,7 +102,7 @@ export class StoreNewsMessageUseCase {
       new CryptoNewsMessageIngestedEvent({
         channelId: input.channelId,
         messageId: input.messageId,
-        title: input.title,
+        title,
         occurredAt: input.occurredAt,
       }),
     );

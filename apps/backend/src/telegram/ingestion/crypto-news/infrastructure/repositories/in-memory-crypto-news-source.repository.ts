@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { CryptoNewsSource } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-source.entity';
-import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
+import { CryptoNewsSourceRepository, FilterRule } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
 
 /**
  * In-memory implementation of CryptoNewsSourceRepository.
@@ -30,5 +30,13 @@ export class InMemoryCryptoNewsSourceRepository extends CryptoNewsSourceReposito
 
   public async delete(channelId: string): Promise<void> {
     this.store.delete(channelId);
+  }
+
+  public async findFiltersByChannelId(
+    channelId: string,
+  ): Promise<ReadonlyArray<FilterRule>> {
+    // In-memory: filters stored via save() on source aggregate
+    // For now, return empty (no filters) for stub implementation
+    return [];
   }
 }

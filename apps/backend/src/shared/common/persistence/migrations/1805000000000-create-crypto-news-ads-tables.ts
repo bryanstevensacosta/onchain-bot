@@ -54,6 +54,10 @@ export class CreateCryptoNewsAdsTables1805000000000 implements MigrationInterfac
         `CONSTRAINT uq_crypto_news_ads_name UNIQUE (name)` +
         `)`,
     );
+    // If table already existed (from synchronize: true), ensure image_path column exists
+    await queryRunner.query(
+      `ALTER TABLE crypto_news_ads ADD COLUMN IF NOT EXISTS image_path varchar(512) NULL`,
+    );
     await queryRunner.query(
       `CREATE INDEX IF NOT EXISTS idx_crypto_news_ads_enabled_order ON crypto_news_ads (enabled, "order")`,
     );

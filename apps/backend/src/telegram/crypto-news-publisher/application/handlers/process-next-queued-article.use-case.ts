@@ -12,6 +12,7 @@ import { SlotArbitratorPort } from 'telegram/shared/domain/ports/slot-arbitrator
 import { AdRotationStateRepository } from 'telegram/crypto-news-ads/application/ports/ad-rotation-state.repository';
 import { MediaCleanupService } from 'telegram/crypto-news-publisher/infrastructure/services/media-cleanup.service';
 import { CryptoNewsPublisherConfigService } from 'telegram/crypto-news-publisher/infrastructure/config/crypto-news-publisher.config';
+import { MarkdownConverter } from 'telegram/ingestion/crypto-news/application/services/markdown-converter.service';
 
 /**
  * Orchestrator use case: drain one PENDING entry from the publisher
@@ -61,6 +62,7 @@ export class ProcessNextQueuedArticleUseCase {
     private readonly rotationStateRepo: AdRotationStateRepository,
     private readonly mediaCleanup: MediaCleanupService,
     private readonly publisherConfig: CryptoNewsPublisherConfigService,
+    private readonly markdownConverter: MarkdownConverter,
   ) {}
 
   /**
@@ -114,9 +116,15 @@ export class ProcessNextQueuedArticleUseCase {
           return;
         }
       }
+      // Convert generated content to Markdown using Telegram formatting entities
+      const markdownContent = this.markdownConverter.convertToMarkdown(
+        generated.content,
+        undefined,
+        entry.formattingEntities,
+      );
       const result = await this.dispatchToTelegram(
         entry,
-        generated.content,
+        markdownContent,
         cfg,
       );
       if (!result.ok || result.messageId === null) {
@@ -187,7 +195,13 @@ export class ProcessNextQueuedArticleUseCase {
    */
   private isVideoPath(path: string): boolean {
     const ext = path.toLowerCase().split('.').pop();
-    return ext === 'mp4' || ext === 'mov' || ext === 'avi' || ext === 'mkv' || ext === 'webm';
+    return (
+      ext === 'mp4' ||
+      ext === 'mov' ||
+      ext === 'avi' ||
+      ext === 'mkv' ||
+      ext === 'webm'
+    );
   }
 
   /**

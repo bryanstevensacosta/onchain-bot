@@ -8,6 +8,15 @@ import {
 } from 'typeorm';
 import type { CryptoNewsSourceLifecycleStatus } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-source.entity';
 
+/** JSON shape for ChannelContentFilterConfig (mirrors ChannelContentFilterConfigEntity fields). */
+export interface ChannelContentFilterConfigJson {
+  pattern: string;
+  replacement?: string;
+  flags?: string;
+  isActive?: boolean;
+  priority?: number;
+}
+
 /**
  * TypeORM persistence shape for `CryptoNewsSource`.
  *
@@ -47,4 +56,7 @@ export class CryptoNewsSourceEntity {
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   public updatedAt!: Date;
+
+  @Column({ name: 'filter_config', type: 'jsonb', nullable: true })
+  public filterConfig!: ChannelContentFilterConfigJson | null;
 }
