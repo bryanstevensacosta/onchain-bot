@@ -46,6 +46,7 @@ services:
     build:
       context: ../..
       dockerfile: apps/backend/Dockerfile
+    image: ghcr.io/bryanstevensacosta/onchain-bot-backend:staging-latest
     container_name: onchain-bot-staging-backend
     restart: unless-stopped
     env_file:
@@ -80,6 +81,7 @@ services:
     build:
       context: ../..
       dockerfile: apps/frontend/Dockerfile
+    image: ghcr.io/bryanstevensacosta/onchain-bot-frontend:staging-latest
     container_name: onchain-bot-staging-frontend
     restart: unless-stopped
     ports:
