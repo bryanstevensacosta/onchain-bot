@@ -74,7 +74,11 @@ export class MarkdownConverter {
     const htmlConverted = this.convertHtmlToMarkdown(content);
 
     // Map entity offsets from original content to HTML-converted content
-    const mappedEntities = this.mapEntityOffsets(content, htmlConverted, allEntities);
+    const mappedEntities = this.mapEntityOffsets(
+      content,
+      htmlConverted,
+      allEntities,
+    );
 
     // Sort entities by offset (ascending) then by length (descending for nesting)
     const sortedEntities = [...mappedEntities].sort((a, b) => {
@@ -128,7 +132,10 @@ export class MarkdownConverter {
     // Apply mapping: entity offsets refer to plain text positions
     return entities.map((entity) => {
       const plainStart = Math.min(entity.offset, plainText.length);
-      const plainEnd = Math.min(plainText.length, entity.offset + entity.length);
+      const plainEnd = Math.min(
+        plainText.length,
+        entity.offset + entity.length,
+      );
       if (plainStart >= plainEnd) {
         return { ...entity, offset: 0, length: 0 };
       }
@@ -168,7 +175,7 @@ export class MarkdownConverter {
     }
   }
 
-/**
+  /**
    * Resolve overlapping entities by extending outer entities to cover inner ones.
    * When two entities overlap but are not properly nested (one doesn't fully contain the other),
    * and the earlier entity has lower priority (should be outer), extend it to cover the later entity
@@ -176,7 +183,10 @@ export class MarkdownConverter {
    */
   private resolveOverlappingEntities(
     entities: ReadonlyArray<TelegramEntity>,
-    entityMarkers: Record<string, { open: string; close: string; priority: number }>,
+    entityMarkers: Record<
+      string,
+      { open: string; close: string; priority: number }
+    >,
     contentLen: number,
   ): TelegramEntity[] {
     const result: TelegramEntity[] = [];
@@ -279,7 +289,11 @@ export class MarkdownConverter {
 
     // Pre-process entities: handle overlapping (non-nested) entities by extending
     // outer entities to cover inner ones when they overlap but aren't properly nested
-    const processedEntities = this.resolveOverlappingEntities(entities, entityMarkers, len);
+    const processedEntities = this.resolveOverlappingEntities(
+      entities,
+      entityMarkers,
+      len,
+    );
 
     // Build annotation map: for each character position, track open/close markers
     // Allocate len + 1 to handle end positions at the boundary (end == len)
@@ -425,10 +439,14 @@ export class MarkdownConverter {
       if (isSelfClosing) continue;
 
       // Skip known void elements
-      if (['br', 'hr', 'img', 'input', 'meta', 'link'].includes(tagName)) continue;
+      if (['br', 'hr', 'img', 'input', 'meta', 'link'].includes(tagName))
+        continue;
 
       if (isClosing) {
-        if (tagStack.length === 0 || tagStack[tagStack.length - 1] !== tagName) {
+        if (
+          tagStack.length === 0 ||
+          tagStack[tagStack.length - 1] !== tagName
+        ) {
           return false; // Mismatched closing tag
         }
         tagStack.pop();
@@ -457,15 +475,18 @@ export class MarkdownConverter {
       let result = content;
 
       // Handle <pre>...</pre> → ```...```
-      result = result.replace(/<pre\b[^>]*>([\s\S]*?)<\/pre>/gi, (_, inner) => {
-        const cleaned = inner.replace(/<\/?[^>]+>/g, '').trim(); // Strip nested tags and trim
-        return `\n\`\`\`\n${cleaned}\n\`\`\`\n`;
-      });
+      result = result.replace(
+        /<pre\b[^>]*>([\s\S]*?)<\/pre>/gi,
+        (_, inner: string) => {
+          const cleaned = inner.replace(/<\/?[^>]+>/g, '').trim(); // Strip nested tags and trim
+          return `\n\`\`\`\n${cleaned}\n\`\`\`\n`;
+        },
+      );
 
       // Handle <code>...</code> → `...`
       result = result.replace(
         /<code\b[^>]*>([\s\S]*?)<\/code>/gi,
-        (_, inner) => {
+        (_, inner: string) => {
           const cleaned = inner.replace(/<\/?[^>]+>/g, '');
           return `\`${cleaned}\``;
         },
@@ -474,7 +495,7 @@ export class MarkdownConverter {
       // Handle <a href="...">...</a> → [...](...)
       result = result.replace(
         /<a\b[^>]*href\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi,
-        (_, href, inner) => {
+        (_, href: string, inner: string) => {
           const cleaned = inner.replace(/<\/?[^>]+>/g, '');
           return `[${cleaned}](${href})`;
         },
@@ -503,7 +524,7 @@ export class MarkdownConverter {
       // Handle <span class="tg-spoiler">...</span> → ||...||
       result = result.replace(
         /<span\b[^>]*class\s*=\s*["'][^"']*tg-spoiler[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi,
-        (_, inner) => `||${inner.replace(/<\/?[^>]+>/g, '')}||`,
+        (_, inner: string) => `||${inner.replace(/<\/?[^>]+>/g, '')}||`,
       );
 
       // Strip any remaining HTML tags (malformed or unsupported)
