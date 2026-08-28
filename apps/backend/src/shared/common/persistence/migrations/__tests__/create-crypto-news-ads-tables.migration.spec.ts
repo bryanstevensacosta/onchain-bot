@@ -19,7 +19,7 @@ describe('CreateCryptoNewsAdsTables1805000000000 migration', () => {
 
     const ddls = query.mock.calls.map((c) => String(c[0]));
 
-    // 5 CREATE TABLE statements + 2 indexes
+    // 5 CREATE TABLE + 2 CREATE INDEX + 1 ALTER TABLE = 8
     const createTableDdls = ddls.filter((d) =>
       d.startsWith('CREATE TABLE IF NOT EXISTS'),
     );
@@ -29,7 +29,7 @@ describe('CreateCryptoNewsAdsTables1805000000000 migration', () => {
       d.startsWith('CREATE INDEX IF NOT EXISTS'),
     );
     expect(regularIndexDdls).toHaveLength(2);
-    expect(ddls).toHaveLength(7);
+    expect(ddls).toHaveLength(8);
 
     // --- crypto_news_ads ---
     const ads = createTableDdls.find((d) => d.includes('crypto_news_ads ('))!;
