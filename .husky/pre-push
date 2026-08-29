@@ -1,55 +1,85 @@
 # Husky v9 pre-push — Harvard-grade enforcement.
 # Husky v9 shim is in .husky/_/h; do NOT add a `#!/usr/bin/env sh` line here.
 #
-# Block direct pushes of the `master` branch to any remote.
-# git invokes the pre-push hook with two args: <remote_name> <remote_url>.
-# The refspec (`master` in `git push origin master`) is consumed by git before
-# the hook runs, so we cannot rely on it directly. Instead we use TWO checks:
-#   1) stdin lines `<local-ref> SP <local-sha> SP <remote-ref> SP <remote-sha>`
-#      — the normal case where the ref would actually be pushed.
-#   2) current branch (`git rev-parse --abbrev-ref HEAD`) is `master` — catches
-#      the common case `git push` from a `master` checkout. Combined with the
-#      pre-commit hook (which blocks commits on master), this closes the loop.
+# THREE-LAYER BRANCH GOVERNANCE:
+#   Layer 1: This pre-push hook (immediate feedback)
+#   Layer 2: GitHub Ruleset (server-side enforcement)
+#   Layer 3: Branch Governance workflow (continuous audit)
+#
+# Validates:
+#   1) Branch naming convention (dev, master, feat/*, fix/*, chore/*, etc.)
+#   2) Blocks direct pushes to master (PR required)
+#   3) Runs full test suite before push
+#
+# Allowed branch patterns:
+#   - dev, master (main branches)
+#   - feat/*, fix/*, chore/*, ci/*, docs/*, refactor/*, perf/*, test/*, build/*, style/*, hotfix/*, release/*, revert/*
+#
 # Bypass: `git push --no-verify` (see docs/branch-protection.md).
 
-blocked=0
+# --- 1) Validate current branch naming convention ---
+current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
 
-# --- 1) Parse stdin (lines: <local-ref> SP <local-sha> SP <remote-ref> SP <remote-sha>) ---
-while read -r local_ref local_sha remote_ref remote_sha; do
-  case "$remote_ref" in
-    refs/heads/master)
-      blocked=1
+# Allowed patterns: dev, master, or conventional commit prefix + slash
+if [ -n "$current_branch" ]; then
+  case "$current_branch" in
+    dev|master)
+      # Main branches - allowed
       ;;
-    refs/heads/dev)
-      # allowed - dev is the only working branch
+    feat/*|fix/*|chore/*|ci/*|docs/*|refactor/*|perf/*|test/*|build/*|style/*|hotfix/*|release/*|revert/*)
+      # Feature branches following conventional commits - allowed
       ;;
-    refs/heads/*)
-      blocked=2
+    *)
+      echo ""
+      echo "❌ Branch name does not follow convention: $current_branch"
+      echo ""
+      echo "   Allowed patterns:"
+      echo "     - dev, master (main branches)"
+      echo "     - feat/*, fix/*, chore/*, ci/*, docs/*, refactor/*, perf/*, test/*"
+      echo "     - build/*, style/*, hotfix/*, release/*, revert/*"
+      echo ""
+      echo "   Examples:"
+      echo "     ✅ dev"
+      echo "     ✅ feat/add-login"
+      echo "     ✅ fix/broken-api"
+      echo "     ✅ chore/update-deps"
+      echo ""
+      echo "   Bypass: git push --no-verify (see GOVERNANCE.md)"
+      echo ""
+      exit 1
       ;;
   esac
+fi
+
+# --- 2) Block direct push to master (PR required) ---
+blocked_master=0
+
+# Check stdin for master pushes
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" = "refs/heads/master" ]; then
+    blocked_master=1
+  fi
 done
 
-# --- 2) Current branch is master ---
-current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+# Also block if current branch is master
 if [ "$current_branch" = "master" ]; then
-  blocked=1
+  blocked_master=1
 fi
 
-if [ "$blocked" -eq 1 ]; then
+if [ "$blocked_master" -eq 1 ]; then
   echo ""
   echo "❌ Direct push to master is blocked — open a Pull Request from dev."
-  echo "   Workflow:  git push origin dev && gh pr create --base master"
-  echo "   Bypass:    git push --no-verify  (see docs/branch-protection.md)"
   echo ""
-  exit 1
-fi
-if [ "$blocked" -eq 2 ]; then
+  echo "   Workflow:"
+  echo "     1. git push origin dev"
+  echo "     2. gh pr create --base master --fill"
   echo ""
-  echo "❌ Creación de rama bloqueada — solo master/dev permitidas. Usa dev directo."
-  echo "   Si necesitas una rama temporal, usa el Ruleset bypass en GitHub UI."
+  echo "   Bypass: git push --no-verify (see GOVERNANCE.md)"
   echo ""
   exit 1
 fi
 
-# Run the full test suite on push (mirrors CI `Tests` job).
+# --- 3) Run full test suite (mirrors CI Tests job) ---
+echo ""
+echo "🧪 Running tests before push..."
 npm test
