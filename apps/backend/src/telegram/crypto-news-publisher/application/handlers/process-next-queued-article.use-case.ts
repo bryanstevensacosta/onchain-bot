@@ -122,11 +122,7 @@ export class ProcessNextQueuedArticleUseCase {
         undefined,
         entry.formattingEntities,
       );
-      const result = await this.dispatchToTelegram(
-        entry,
-        markdownContent,
-        cfg,
-      );
+      const result = await this.dispatchToTelegram(entry, markdownContent, cfg);
       if (!result.ok || result.messageId === null) {
         throw new Error(result.error ?? 'telegram publish returned no id');
       }
@@ -195,7 +191,13 @@ export class ProcessNextQueuedArticleUseCase {
    */
   private isVideoPath(path: string): boolean {
     const ext = path.toLowerCase().split('.').pop();
-    return ext === 'mp4' || ext === 'mov' || ext === 'avi' || ext === 'mkv' || ext === 'webm';
+    return (
+      ext === 'mp4' ||
+      ext === 'mov' ||
+      ext === 'avi' ||
+      ext === 'mkv' ||
+      ext === 'webm'
+    );
   }
 
   /**
