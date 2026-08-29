@@ -9,31 +9,65 @@ concurrency:
   group: deploy-staging
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
+  build-and-push-staging:
+    name: Build and push staging to GHCR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend (staging)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/backend/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository }}-backend:staging-${{ github.sha }},ghcr.io/${{ github.repository }}-backend:staging-latest
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-backend:cache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-backend:cache,mode=max
+          platforms: linux/amd64
+          build-args: |
+            NODE_ENV=staging
+
+      - name: Build and push frontend (staging)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/frontend/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository }}-frontend:staging-${{ github.sha }},ghcr.io/${{ github.repository }}-frontend:staging-latest
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-frontend:cache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-frontend:cache,mode=max
+          platforms: linux/amd64
+
   deploy-staging:
     name: Deploy to staging
     runs-on: self-hosted
+    needs: [build-and-push-staging]
     environment: staging
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Login to GHCR
+        uses: docker/login-action@v3
         with:
-          node-version: '24'
-          cache: 'npm'
-
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            node_modules
-            apps/*/node_modules
-            ~/.npm
-          key: ${{ runner.os }}-npm-staging-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-staging-
-            ${{ runner.os }}-npm-
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Sync live source tree with dev
         run: |
@@ -74,7 +108,6 @@ jobs:
 
       - name: Inject staging env vars from GitHub
         run: |
-          # USE_MOCK_AI injected via GitHub Actions vars (can be changed in repo settings)
           if ! grep -q "USE_MOCK_AI" /opt/onchain-bot-staging/apps/backend/.env.staging 2>/dev/null; then
             echo "USE_MOCK_AI=true" >> /opt/onchain-bot-staging/apps/backend/.env.staging
             echo "=== Added USE_MOCK_AI=true to .env.staging ==="
@@ -89,17 +122,43 @@ jobs:
               alpha_meta_token_scanner_staging > /tmp/staging-backup-$(date +%Y%m%d-%H%M%S).sql || true
           fi
 
-      - name: Build backend
+      - name: Disk cleanup (pre-pull, filtered)
         run: |
-          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml build backend
+          echo "=== Disk before ==="
+          df -h | head -20
+          docker system df 2>&1 | head -20
+          echo "=== Pruning (filtered, no volumes) ==="
+          docker system prune -af --filter "until=24h" 2>&1 | tail -20 || true
+          docker builder prune -af --filter "until=24h" 2>&1 | tail -10 || true
+          sudo journalctl --vacuum-time=3d 2>&1 | tail -5 || true
+          sudo journalctl --vacuum-size=100M 2>&1 | tail -5 || true
+          sudo rm -f /opt/actions-runner/_diag/Worker_*.log 2>&1 | tail -5 || true
+          echo "=== Disk after ==="
+          df -h | head -20
+          PCT=$(df / | tail -1 | awk '{print $5}' | tr -d '%'); if [ "$PCT" -gt 80 ]; then echo "::warning::disk ${PCT}% full"; fi
 
-      - name: Build frontend
+      - name: Pull images from GHCR (staging)
         run: |
-          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml build frontend
+          echo "=== Pulling backend staging ${{ github.sha }} (try sha, fallback latest) ==="
+          docker pull ghcr.io/${{ github.repository }}-backend:staging-${{ github.sha }} || docker pull ghcr.io/${{ github.repository }}-backend:staging-latest
+          docker tag ghcr.io/${{ github.repository }}-backend:staging-${{ github.sha }} ghcr.io/${{ github.repository }}-backend:staging-latest 2>/dev/null || true
+          echo "=== Pulling frontend staging ${{ github.sha }} (try sha, fallback latest) ==="
+          docker pull ghcr.io/${{ github.repository }}-frontend:staging-${{ github.sha }} || docker pull ghcr.io/${{ github.repository }}-frontend:staging-latest
+          docker tag ghcr.io/${{ github.repository }}-frontend:staging-${{ github.sha }} ghcr.io/${{ github.repository }}-frontend:staging-latest 2>/dev/null || true
+          docker images | head -20
+
+      - name: Post-pull cleanup (aggressive, keep only current)
+        run: |
+          echo "=== Post-pull prune (remove old SHA tags, keep latest) ==="
+          docker image prune -af 2>&1 | tail -20 || true
+          docker builder prune -af 2>&1 | tail -10 || true
+          echo "=== Disk after pull + prune ==="
+          df -h | head -20
+          docker system df 2>&1 | head -20
+          PCT=$(df / | tail -1 | awk '{print $5}' | tr -d '%'); if [ "$PCT" -gt 80 ]; then echo "::warning::disk ${PCT}% full after pull+prune"; fi
 
       - name: Configure deploy environment
         run: |
-          # Run once before deploy steps — postgres/redis don't restart
           if [ -n "${{ secrets.REDIS_PASSWORD }}" ]; then
             echo "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}" > /opt/onchain-bot-staging/apps/backend/.env
           else
@@ -113,7 +172,7 @@ jobs:
           cd /opt/onchain-bot-staging/apps/backend && \
           docker compose -f docker-compose.staging.yml run --rm backend npx typeorm --dataSource dist/src/shared/common/persistence/data-source.js migration:run
 
-      - name: Deploy backend
+      - name: Deploy backend (GHCR, no build)
         run: |
           docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d --no-deps backend
 
@@ -141,7 +200,7 @@ jobs:
             fi
           done
 
-      - name: Deploy frontend
+      - name: Deploy frontend (GHCR, no build)
         run: |
           docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d frontend
 
@@ -182,13 +241,6 @@ jobs:
         run: |
           echo "=== Tailscale frontend healthcheck (curl -v) ==="
           curl -v -sf -o /dev/null http://100.84.4.28:4173/ || { echo "FRONTEND HEALTHCHECK FAILED"; exit 1; }
-
-      - name: Clean up old Docker images (staging)
-        if: always()
-        run: |
-          docker image prune --force --filter "until=24h"
-          echo "=== Docker disk usage after prune ==="
-          docker system df
 
   restart-services:
     name: Restart services
