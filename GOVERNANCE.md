@@ -1,12 +1,57 @@
 # Governance de Ramas Git — Alpha Meta Token Scanner
 
-**Versión:** 1.0  
-**Fecha:** 2026-08-22  
+**Versión:** 2.0  
+**Fecha:** 2026-08-29  
 **Estado:** ACTIVO
 
 ---
 
-## 1. Flujo Oficial de Ramas
+## 1. Arquitectura de Branch Governance (3 Capas)
+
+**Estrategia de defensa en profundidad** contra branches no conformes:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Capa 1: Pre-push Hook (.husky/pre-push)                    │
+│ ├─ Validación local ANTES del push                         │
+│ ├─ Feedback inmediato al desarrollador                     │
+│ └─ Bypass: git push --no-verify                            │
+├─────────────────────────────────────────────────────────────┤
+│ Capa 2: GitHub Ruleset (Server-Side)                       │
+│ ├─ Enforcement en GitHub (no bypasseable sin permisos)     │
+│ ├─ Bloquea creación/actualización/eliminación              │
+│ └─ Admin bypass: temporal para operaciones documentadas    │
+├─────────────────────────────────────────────────────────────┤
+│ Capa 3: Branch Governance Workflow (Audit)                 │
+│ ├─ Validación continua post-push                           │
+│ ├─ Detecta anomalías y drift                               │
+│ └─ Falla CI en violaciones                                 │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Branch Naming Convention
+
+**Permitido:**
+
+- `dev`, `master` (main branches)
+- `feat/*`, `fix/*`, `chore/*` (conventional commits)
+- `ci/*`, `docs/*`, `refactor/*`, `perf/*`, `test/*`
+- `build/*`, `style/*`, `hotfix/*`, `release/*`, `revert/*`
+
+**Bloqueado:**
+
+- `random-name`, `test`, `tmp`, `my-branch` (sin convención)
+- Cualquier branch que no siga el patrón
+
+**Enforcement:**
+
+- **Pre-push hook:** Valida branch actual antes del push
+- **GitHub Ruleset:** Bloquea creación en servidor si no cumple patrón
+- **Branch Governance:** Audita branches remotas y reporta extras
+
+---
+
+## 2. Flujo Oficial de Ramas
 
 ```
 dev ──────────────────────────────────────► (integración continua)
@@ -27,20 +72,36 @@ dev ─────────────────────────�
 
 ---
 
-## 2. Reglas de Ramas (Branch Protection)
+## 3. Reglas de Ramas (Branch Protection + Rulesets)
 
 | Rama       | PR requerido | Approvals | Status checks   | Force push | Delete | Conversation resolved |
 | ---------- | ------------ | --------- | --------------- | ---------- | ------ | --------------------- |
 | **master** | ✅           | 1         | test, lint, tsc | ❌         | ❌     | ✅                    |
 | **dev**    | ✅           | 1         | test, lint, tsc | ❌\*       | ❌     | ✅                    |
 
-_\*Excepción dev: maintainers pueden habilitar force-push temporalmente para **backport sync** (requiere 2 aprobaciones en issue/PR). Ver §5._
+_\*Excepción dev: maintainers pueden habilitar force-push temporalmente para **backport sync** (requiere 2 aprobaciones en issue/PR). Ver §6._
+
+### GitHub Rulesets
+
+**Ruleset: "Branch Strategy Enforcement"** (ID: 21297389)
+
+- **Target:** Todas las branches excepto las permitidas
+- **Rules:** Bloquea `creation`, `update`, `deletion`
+- **Permitido:** `dev`, `master`, `feat/*`, `fix/*`, `chore/*`, `ci/*`, `docs/*`, `refactor/*`, `perf/*`, `test/*`, `build/*`, `style/*`, `hotfix/*`, `release/*`, `revert/*`, `release-please--*`
+- **Enforcement:** Active (server-side)
+- **Bypass:** Admin role (temporal, documentado)
+
+**Ruleset: "Master"** (ID: 21130799)
+
+- **Target:** `master` branch
+- **Rules:** Requiere PR, bloquea deletion, bloquea non-fast-forward, solo squash merge
+- **Enforcement:** Active
 
 ---
 
-## 3. Flujo de Trabajo Diario
+## 4. Flujo de Trabajo Diario
 
-### 3.1 Desarrollo en feature branch
+### 4.1 Desarrollo en feature branch
 
 ```bash
 # Desde dev actualizado
@@ -55,14 +116,14 @@ git push origin feature/mi-cambio
 gh pr create --base dev --head feature/mi-cambio --title "feat: mi cambio"
 ```
 
-### 3.2 Merge a dev (integración)
+### 4.2 Merge a dev (integración)
 
 - PR a `dev` con base `dev`
 - Requisitos: 1 approval + CI pass (test, lint, tsc) + conversation resolved
 - **Merge squash** → mantiene historial limpio en dev
 - Rama feature se auto-borra (auto-delete habilitado)
 
-### 3.3 Promoción a master (release)
+### 4.3 Promoción a master (release)
 
 ```bash
 # Cuando dev está listo para producción
@@ -73,7 +134,7 @@ gh pr create --base master --head dev --title "release: vX.Y.Z" --body "Changelo
 
 ---
 
-## 4. Hotfix Policy (Producción)
+## 5. Hotfix Policy (Producción)
 
 **Cuando:** Bug crítico en producción que no puede esperar al siguiente release.
 
@@ -101,9 +162,9 @@ gh pr create --base dev --head backport/hotfix-... --title "backport: hotfix #IS
 
 ---
 
-## 5. Excepciones Controladas
+## 6. Excepciones Controladas
 
-### 5.1 Force-push a dev (Backport Sync)
+### 6.1 Force-push a dev (Backport Sync)
 
 **Cuándo:** Sincronizar commits de master → dev (ej. backport CI fixes, hotfix backport)
 **Proceso:**
@@ -114,7 +175,7 @@ gh pr create --base dev --head backport/hotfix-... --title "backport: hotfix #IS
 4. Ejecutar sync (cherry-pick + force-push a dev)
 5. Deshabilitar force-push inmediatamente
 
-### 5.2 Rollback Master (Emergencia)
+### 6.2 Rollback Master (Emergencia)
 
 **Cuándo:** Merge a master rompe producción
 
@@ -126,13 +187,35 @@ git push origin master --force-with-lease
 
 **SOLO para revert.** Documentado en issue con 2 aprobaciones.
 
-### 5.3 Rollback Dev (Emergencia)
+### 6.3 Rollback Dev (Emergencia)
 
 Igual que master pero en dev. Requiere 2 aprobaciones.
 
+### 6.4 Bypass Pre-push Hook (Local Development)
+
+**Cuándo:** Situación excepcional donde el hook bloquea push legítimo
+
+```bash
+# Solo usar en emergencias documentadas
+git push --no-verify
+```
+
+**Nota:** El GitHub Ruleset seguirá validando en servidor.
+
+### 6.5 Bypass GitHub Ruleset (Admin)
+
+**Cuándo:** Operaciones documentadas que requieren branches temporales
+
+**Proceso:**
+
+1. Abrir issue: "ruleset bypass: crear branch temporal X para Y"
+2. 1 aprobación de maintainer
+3. Admin crea branch con override
+4. Documentar en issue los pasos realizados
+
 ---
 
-## 6. Limpieza Automática
+## 7. Limpieza Automática
 
 - **Auto-delete head branches:** ✅ Habilitado (Settings → General)
 - **Efecto:** Ramas de PR se borran automáticamente al merge en **master**
@@ -140,7 +223,7 @@ Igual que master pero en dev. Requiere 2 aprobaciones.
 
 ---
 
-## 7. Comandos Permitidos / Prohibidos
+## 8. Comandos Permitidos / Prohibidos
 
 | Comando                       | master       | dev          | feature/\*       |
 | ----------------------------- | ------------ | ------------ | ---------------- |
@@ -151,39 +234,48 @@ Igual que master pero en dev. Requiere 2 aprobaciones.
 | `git cherry-pick` + push      | ✅ (vía PR)  | ✅ (vía PR)  | ✅               |
 | `git tag`                     | ✅ (release) | ❌           | ❌               |
 
-_\* Ver excepciones §5_
+_\* Ver excepciones §6_
+
+**Bypass pre-push hook:** `git push --no-verify` (GitHub Ruleset seguirá validando)
 
 ---
 
-## 8. CI Governance Job (`.github/workflows/branch-governance.yml`)
+## 9. CI Governance Job (`.github/workflows/branch-governance.yml`)
 
-Este job **falla el CI** si detecta violaciones:
+Este job **falla el CI** si detecta violaciones (Capa 3 - Audit):
 
-1. **Ramas extra:** `git ls-remote --heads origin | grep -vE "refs/heads/(master|dev)$" | wc -l` > 0
+1. **Ramas extra:** Detecta branches remotas que no cumplan convención
 2. **Ancestor policy:** `master` debe ser ancestor de `dev` (`git merge-base --is-ancestor master dev`)
 3. **Commits huérfanos en master:** `git log --oneline dev..master --grep -v "sync|chore|backport" | wc -l` > 0
 4. **Force-push detectado (24h):** `git reflog --since="24 hours ago" | grep -E "force-push|push --force" | wc -l` > 0 (en master/dev)
 
----
-
-## 9. Referencias Rápidas
-
-| Acción                | Comando                                                                    |
-| --------------------- | -------------------------------------------------------------------------- |
-| Ver protección actual | `gh api repos/OWNER/REPO/branches/BRANCH/protection`                       |
-| Ver ramas remotas     | `git ls-remote --heads origin`                                             |
-| Ver ancestry          | `git merge-base --is-ancestor master dev && echo "master ancestor of dev"` |
-| Ver commits únicos    | `git log --oneline master..dev` / `git log --oneline dev..master`          |
-| Crear PR              | `gh pr create --base BASE --head HEAD --title "..." --body "..."`          |
-| Merge squash          | `gh pr merge --squash --delete-branch`                                     |
+**Nota:** Este workflow es informativo y de auditoría. La prevención real ocurre en Capas 1 y 2.
 
 ---
 
-## 10. Changelog de Este Documento
+## 10. Referencias Rápidas
 
-| Versión | Fecha      | Cambios                                       | Autor         |
-| ------- | ---------- | --------------------------------------------- | ------------- |
-| 1.0     | 2026-08-22 | Creación inicial (Plan sync-repos-governance) | Bryan Stevens |
+| Acción                   | Comando                                                                    |
+| ------------------------ | -------------------------------------------------------------------------- |
+| Ver protección actual    | `gh api repos/OWNER/REPO/branches/BRANCH/protection`                       |
+| Ver rulesets             | `gh api repos/OWNER/REPO/rulesets`                                         |
+| Ver ruleset específico   | `gh api repos/OWNER/REPO/rulesets/ID`                                      |
+| Ver ramas remotas        | `git ls-remote --heads origin`                                             |
+| Ver ancestry             | `git merge-base --is-ancestor master dev && echo "master ancestor of dev"` |
+| Ver commits únicos       | `git log --oneline master..dev` / `git log --oneline dev..master`          |
+| Crear PR                 | `gh pr create --base BASE --head HEAD --title "..." --body "..."`          |
+| Merge squash             | `gh pr merge --squash --delete-branch`                                     |
+| Test pre-push hook local | `git push --dry-run` (ejecuta hook sin push)                               |
+| Bypass pre-push hook     | `git push --no-verify` (emergencias documentadas)                          |
+
+---
+
+## 11. Changelog de Este Documento
+
+| Versión | Fecha      | Cambios                                                                                                                                          | Autor         |
+| ------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| 2.0     | 2026-08-29 | Arquitectura de 3 capas (pre-push hook + GitHub Ruleset + Branch Governance). Eliminado workflow Branch Naming. Actualizado enforcement strategy | Bryan Stevens |
+| 1.0     | 2026-08-22 | Creación inicial (Plan sync-repos-governance)                                                                                                    | Bryan Stevens |
 
 ---
 
