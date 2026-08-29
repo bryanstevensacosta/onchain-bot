@@ -154,7 +154,9 @@ describe('ProcessNextQueuedArticleUseCase', () => {
     };
 
     markdownConverter = {
-      convertToMarkdown: jest.fn().mockImplementation((content: string) => content),
+      convertToMarkdown: jest
+        .fn()
+        .mockImplementation((content: string) => content),
     };
 
     useCase = new ProcessNextQueuedArticleUseCase(

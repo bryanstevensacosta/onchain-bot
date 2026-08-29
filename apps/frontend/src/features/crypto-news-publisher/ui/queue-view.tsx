@@ -62,7 +62,7 @@ function CounterCard({
   );
 }
 
-function telegramPostUrl(channelId: string, messageId: string): string {
+function _telegramPostUrl(channelId: string, messageId: string): string {
   return `https://t.me/c/${channelId}/${messageId}`;
 }
 
