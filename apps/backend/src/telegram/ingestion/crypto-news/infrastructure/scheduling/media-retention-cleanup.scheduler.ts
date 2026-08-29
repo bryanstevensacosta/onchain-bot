@@ -117,6 +117,14 @@ export class MediaRetentionCleanupScheduler {
         errors += result.errors;
         if (result.processed === 0) break;
       }
+      // Permanent fix for orphans: delete files on disk not in DB and older than 24h
+      try {
+        const orphans = await this.cleanupOrphanFiles();
+        if (orphans > 0)
+          this.logger.log(`orphan media cleanup: removed ${orphans} file(s)`);
+      } catch (e) {
+        this.logger.warn(`orphan cleanup failed: ${(e as Error).message}`);
+      }
     } catch (err) {
       this.logger.error(
         `media retention tick failed: ${(err as Error).message}`,
@@ -250,6 +258,60 @@ export class MediaRetentionCleanupScheduler {
    * Falls through with `false` (no lock acquired) when the database
    * is unreachable — the cron must not crash boot or the scheduler.
    */
+  private async cleanupOrphanFiles(): Promise<number> {
+    const { readdir, stat, unlink } = await import('fs/promises');
+    const path = await import('path');
+    const appCfg = this.config.get<AppConfig>('app', { infer: true });
+    const uploadsRoot =
+      appCfg?.uploadsRoot ?? path.join(process.cwd(), 'uploads');
+    const mediaRoot = path.join(uploadsRoot, 'crypto-news', 'media');
+    let dbPaths: Set<string> = new Set<string>();
+    try {
+      const rows: Array<{ file_path: string }> = await this.dataSource.query(
+        'SELECT file_path FROM crypto_news_message_media',
+      );
+      dbPaths = new Set<string>(rows.map((r) => path.basename(r.file_path)));
+    } catch {
+      return 0;
+    }
+    let deleted = 0;
+    const walk = async (dir: string): Promise<void> => {
+      let entries: import('fs').Dirent[] = [];
+      try {
+        entries = await readdir(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const e of entries) {
+        const full = (
+          path as unknown as { join: (...a: string[]) => string }
+        ).join(dir, e.name);
+        if (e.isDirectory()) await walk(full);
+        else if (
+          e.isFile() &&
+          !e.name.endsWith('.tmp') &&
+          !dbPaths.has(e.name)
+        ) {
+          try {
+            const st = await stat(full);
+            if (Date.now() - st.mtimeMs > 24 * 60 * 60 * 1000) {
+              await unlink(full);
+              deleted++;
+            }
+          } catch (_e2) {
+            /* ignore stat/unlink */
+          }
+        }
+      }
+    };
+    try {
+      await walk(mediaRoot);
+    } catch (_e3) {
+      /* ignore walk */
+    }
+    return deleted;
+  }
+
   private async tryAcquireLock(): Promise<boolean> {
     try {
       const result: ReadonlyArray<{ acquired: boolean }> =
