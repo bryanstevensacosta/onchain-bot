@@ -1,12 +1,10 @@
 name: Deploy to staging
 
-# Triggered only after CI completes successfully on dev branch
+# Automatically triggered on push to dev, waits for CI to pass before deploying
 on:
-  workflow_dispatch:
-  workflow_run:
-    workflows: ['CI']
-    types: [completed]
+  push:
     branches: [dev]
+  workflow_dispatch:
 
 concurrency:
   group: deploy-staging
@@ -17,27 +15,27 @@ permissions:
   packages: write
 
 jobs:
-  # Gate: Only proceed if CI workflow passed (or manual dispatch)
-  check-ci-status:
-    name: Check CI Status
+  # Gate: Wait for CI to complete successfully before proceeding
+  wait-for-ci:
+    name: Wait for CI to pass
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     steps:
-      - name: CI Status Check
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "✅ Manual deploy - skipping CI check"
-          elif [ "${{ github.event.workflow_run.conclusion }}" == "success" ]; then
-            echo "✅ CI passed - proceeding with deploy"
-          else
-            echo "❌ CI failed or not completed - blocking deploy"
-            exit 1
-          fi
+      - name: Wait for CI workflow to complete
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.sha }}
+          check-name: 'CI'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10
+          allowed-conclusions: success
+        if: github.event_name == 'push'
+
+      - name: CI check bypassed (manual trigger)
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "✅ Manual deploy - CI check skipped"
 
   build-and-push-staging:
-    needs: [check-ci-status]
+    needs: [wait-for-ci]
     name: Build and push staging to GHCR
     runs-on: ubuntu-latest
     steps:
