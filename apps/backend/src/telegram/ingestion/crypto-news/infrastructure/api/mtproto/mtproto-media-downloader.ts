@@ -146,7 +146,30 @@ export class MtprotoMediaDownloader extends CryptoNewsMediaDownloader {
     }
 
     const filePath = path.join(targetDir, `${messageId}_${index}.${finalExt}`);
-    await fs.writeFile(filePath, outputBuffer);
+    // Permanent orphan fix (1) transactional + (2) dedup: check existing by hash, write to tmp then finalize
+    const crypto = await import('crypto');
+    const hash = crypto.createHash('sha256').update(outputBuffer).digest('hex');
+    const dedupPath = path.join(targetDir, `${hash}.${finalExt}`);
+    try {
+      await fs.access(dedupPath);
+      // Dedup hit — reuse existing file without writing duplicate
+      this.logger.log(
+        `Media dedup hit for ${channelId}:${messageId} hash=${hash.slice(0, 8)}`,
+      );
+      return { filePath: dedupPath, mimeType, fileSize: outputBuffer.length };
+    } catch (_e) {
+      // dedup miss, continue to tmp write
+    }
+    const tmpPath = `${filePath}.tmp-${hash.slice(0, 8)}`;
+    await fs.writeFile(tmpPath, outputBuffer);
+    try {
+      await fs.rename(tmpPath, filePath);
+    } catch (_e2) {
+      await fs.unlink(tmpPath).catch(() => {});
+      throw new Error(
+        `Failed to finalize media file for ${channelId}:${messageId}`,
+      );
+    }
 
     return { filePath, mimeType, fileSize: outputBuffer.length };
   }

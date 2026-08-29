@@ -35,15 +35,31 @@ jobs:
             echo "✅ dev already contains master, nothing to do"
             exit 0
           fi
+          # Clean up any stale sync branches older than 1 day
+          echo "Cleaning stale sync branches..."
+          git branch -r --list 'origin/sync/master-to-dev-*' | while read b; do
+            b=${b#origin/}
+            echo "  Checking $b..."
+            if gh pr view "$b" --json state --jq .state 2>/dev/null | grep -q "MERGED\|CLOSED"; then
+              echo "  Deleting stale $b (PR merged/closed)"
+              git push origin --delete "$b" --no-verify 2>&1 | tail -1 || true
+            fi
+          done || true
           BRANCH="sync/master-to-dev-$(date +%Y%m%d%H%M%S)"
           echo "Creating branch $BRANCH and merging master..."
           git checkout -b "$BRANCH"
           git merge origin/master --no-edit --no-ff
+          # Delete existing remote branch if it somehow exists (from previous failed run)
+          git push origin --delete "$BRANCH" --no-verify 2>&1 | tail -1 || true
           git push origin "$BRANCH"
           echo "Creating PR $BRANCH -> dev..."
-          gh pr create --base dev --head "$BRANCH" --title "chore(sync): master → dev" --body "Auto-sync master to dev (GH006 bypass via PR)" --fill
-          # Auto-merge when CI passes
-          PR_NUM=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number')
+          if gh pr view "$BRANCH" --json number 2>/dev/null | grep -q number; then
+            echo "PR for $BRANCH already exists, skipping create"
+            PR_NUM=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number')
+          else
+            gh pr create --base dev --head "$BRANCH" --title "chore(sync): master → dev" --body "Auto-sync master to dev (GH006 bypass via PR)" --fill
+            PR_NUM=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number')
+          fi
           echo "Enabling auto-merge for PR #$PR_NUM..."
           gh pr merge --auto --squash --delete-branch "$PR_NUM" || gh pr merge --squash --delete-branch "$PR_NUM" || echo "PR #$PR_NUM will auto-merge when CI passes"
         env:
