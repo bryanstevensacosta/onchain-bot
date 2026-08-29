@@ -221,7 +221,7 @@ export class ChannelContentFilterConfig extends AggregateRoot<string> {
     return new RegExp(this.state.pattern, this.state.flags);
   }
 
-  protected mutate(event: DomainEvent): void {
+  protected mutate(_event: DomainEvent): void {
     // No domain events emitted by this aggregate currently.
     // Events can be added later if needed (e.g., FilterConfigUpdatedEvent).
   }

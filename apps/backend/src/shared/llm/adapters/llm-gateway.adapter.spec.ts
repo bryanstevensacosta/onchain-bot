@@ -9,6 +9,19 @@ interface MockOpenAIClient {
   chat: { completions: MockChatCompletions };
 }
 
+interface ChatCompletionCallArgs {
+  model: string;
+  messages: Array<{
+    role: string;
+    content:
+      | string
+      | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+  }>;
+  max_tokens?: number;
+  temperature?: number;
+  reasoning_effort?: string;
+}
+
 // Mock the official `openai` SDK. The gateway adapter only needs
 // `client.chat.completions.create(...)`; we expose it as a jest.fn so
 // each test can configure the resolved value or rejection.
@@ -89,7 +102,8 @@ describe('LlmGatewayAdapter', () => {
 
       expect(result).toBe('hello world');
       expect(instance.chat.completions.create).toHaveBeenCalledTimes(1);
-      const callArg = instance.chat.completions.create.mock.calls[0][0];
+      const callArg = instance.chat.completions.create.mock
+        .calls[0][0] as ChatCompletionCallArgs;
       expect(callArg.model).toBe('opencode-zen/deepseek-v4-flash');
       expect(callArg.messages).toEqual([
         {
@@ -114,7 +128,8 @@ describe('LlmGatewayAdapter', () => {
         systemPrompt: 'You are a journalist.',
       });
 
-      const callArg = instance.chat.completions.create.mock.calls[0][0];
+      const callArg = instance.chat.completions.create.mock
+        .calls[0][0] as ChatCompletionCallArgs;
       expect(callArg.messages).toEqual([
         { role: 'system', content: 'You are a journalist.' },
         { role: 'user', content: [{ type: 'text', text: 'say hi' }] },
@@ -223,7 +238,8 @@ describe('LlmGatewayAdapter', () => {
         prompt: 'think less',
         reasoningEffort: 'low',
       });
-      const callArg = instance.chat.completions.create.mock.calls[0][0];
+      const callArg = instance.chat.completions.create.mock
+        .calls[0][0] as ChatCompletionCallArgs;
       expect(callArg.reasoning_effort).toBe('low');
     });
 
@@ -235,7 +251,8 @@ describe('LlmGatewayAdapter', () => {
         choices: [{ message: { content: 'ok' } }],
       });
       await adapter.generateText({ prompt: 'think default' });
-      const callArg = instance.chat.completions.create.mock.calls[0][0];
+      const callArg = instance.chat.completions.create.mock
+        .calls[0][0] as ChatCompletionCallArgs;
       expect(callArg.reasoning_effort).toBeUndefined();
     });
 

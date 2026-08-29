@@ -17,7 +17,7 @@ describe('CreateCryptoNewsAdsTables1805000000000 migration', () => {
 
     await migration.up(runner);
 
-    const ddls = query.mock.calls.map((c) => String(c[0]));
+    const ddls = query.mock.calls.map((c) => String((c as any[])[0]));
 
     // 5 CREATE TABLE + 2 CREATE INDEX + 1 ALTER TABLE = 8
     const createTableDdls = ddls.filter((d) =>
@@ -143,7 +143,7 @@ describe('CreateCryptoNewsAdsTables1805000000000 migration', () => {
     await migration.down(runner);
 
     expect(query).toHaveBeenCalledTimes(5);
-    const ddls = query.mock.calls.map((c) => String(c[0]));
+    const ddls = query.mock.calls.map((c) => String((c as any[])[0]));
     ddls.forEach((d) => expect(d).toContain('DROP TABLE IF EXISTS'));
 
     expect(ddls[0]).toContain('crypto_news_publisher_slot_state');

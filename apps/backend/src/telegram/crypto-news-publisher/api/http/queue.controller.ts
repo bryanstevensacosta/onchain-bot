@@ -206,7 +206,7 @@ export class QueueController {
 
     // Telegram link to the PUBLISHED post (output channel)
     const outputChannelForLink = this.outputChannel.replace(/^-100/, '');
-    const publishedTelegramUrl =
+    const _publishedTelegramUrl =
       entry.telegramMessageId && outputChannelForLink
         ? `https://t.me/c/${outputChannelForLink}/${entry.telegramMessageId}`
         : null;

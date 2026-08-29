@@ -95,7 +95,7 @@ describe('TokenApprovedPublishHandler - Ticker Null Bug Exploration', () => {
   it('Property 1: Bug Condition - newly listed Solana token with no DB metadata returns null ticker', async () => {
     // Arrange: Track what ticker value is passed to VipCallsPublishUseCase
     let capturedTicker: string | null | undefined = undefined;
-    const executeSpy = jest.fn().mockImplementation(async (input) => {
+    const executeSpy = jest.fn().mockImplementation(async (input: any) => {
       capturedTicker = input.ticker;
       return { id: 'test-call-id' };
     });
@@ -154,7 +154,7 @@ describe('TokenApprovedPublishHandler - Ticker Null Bug Exploration', () => {
     } as unknown as CanonicalTokenCallRepository;
 
     let capturedTicker: string | null | undefined = undefined;
-    const executeSpy = jest.fn().mockImplementation(async (input) => {
+    const executeSpy = jest.fn().mockImplementation(async (input: any) => {
       capturedTicker = input.ticker;
       return { id: 'test-call-id' };
     });
@@ -208,7 +208,7 @@ describe('TokenApprovedPublishHandler - Ticker Null Bug Exploration', () => {
     } as unknown as CanonicalTokenCallRepository;
 
     let capturedTicker: string | null | undefined = undefined;
-    const executeSpy = jest.fn().mockImplementation(async (input) => {
+    const executeSpy = jest.fn().mockImplementation(async (input: any) => {
       capturedTicker = input.ticker;
       return { id: 'test-call-id' };
     });
@@ -259,7 +259,7 @@ describe('TokenApprovedPublishHandler - Ticker Null Bug Exploration', () => {
     } as unknown as TokenSnapshotRepository;
 
     let capturedTicker: string | null | undefined = undefined;
-    const executeSpy = jest.fn().mockImplementation(async (input) => {
+    const executeSpy = jest.fn().mockImplementation(async (input: any) => {
       capturedTicker = input.ticker;
       return { id: 'test-call-id' };
     });

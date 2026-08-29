@@ -136,7 +136,7 @@ function trimTrailingPunctuation(url: string): {
 function wrapRawUrls(text: string): string {
   // `text` is already HTML-escaped (escapeHtml ran first), and the URL
   // regex excludes `"`/`'`/`<>`, so the URL is safe to embed as-is.
-  return text.replace(URL_REGEX, (match, prefix) => {
+  return text.replace(URL_REGEX, (match, prefix: string) => {
     const url = match.slice(prefix.length);
     const { url: trimmedUrl, trailing } = trimTrailingPunctuation(url);
     return `${prefix}<a href="${trimmedUrl}">${trimmedUrl}</a>${trailing}`;
