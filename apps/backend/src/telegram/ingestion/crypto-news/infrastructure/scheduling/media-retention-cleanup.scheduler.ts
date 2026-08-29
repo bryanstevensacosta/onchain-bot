@@ -265,6 +265,15 @@ export class MediaRetentionCleanupScheduler {
     const uploadsRoot =
       appCfg?.uploadsRoot ?? path.join(process.cwd(), 'uploads');
     const mediaRoot = path.join(uploadsRoot, 'crypto-news', 'media');
+    let dbPaths: Set<string> = new Set<string>();
+    try {
+      const rows: Array<{ file_path: string }> = await this.dataSource.query(
+        'SELECT file_path FROM crypto_news_message_media',
+      );
+      dbPaths = new Set<string>(rows.map((r) => path.basename(r.file_path)));
+    } catch {
+      return 0;
+    }
     let deleted = 0;
     const walk = async (dir: string): Promise<void> => {
       let entries: import('fs').Dirent[] = [];
@@ -281,7 +290,7 @@ export class MediaRetentionCleanupScheduler {
         else if (
           e.isFile() &&
           !e.name.endsWith('.tmp') &&
-          !dbPaths.has(e.name) // eslint-disable-line @typescript-eslint/no-unsafe-call
+          !dbPaths.has(e.name)
         ) {
           try {
             const st = await stat(full);
