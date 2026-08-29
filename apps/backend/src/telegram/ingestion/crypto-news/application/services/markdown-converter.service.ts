@@ -105,7 +105,9 @@ export class MarkdownConverter {
     const plainText = original.replace(/<[^>]+>/g, '');
 
     // Build mapping from plain text indices to converted markdown indices
-    const mapping: number[] = new Array(plainText.length + 1).fill(0);
+    const mapping: number[] = new Array(plainText.length + 1).fill(
+      0,
+    ) as number[];
     let plainIdx = 0;
     let convIdx = 0;
 
@@ -157,7 +159,7 @@ export class MarkdownConverter {
     loggerContext: string,
   ): ReadonlyArray<TelegramEntity> {
     try {
-      const parsed = JSON.parse(json);
+      const parsed: unknown = JSON.parse(json);
       if (!Array.isArray(parsed)) {
         this.logger.warn(
           `formattingEntities is not an array, ignoring: ${json}`,
@@ -311,8 +313,6 @@ export class MarkdownConverter {
       let start = Math.max(0, Math.min(offset, len));
       let end = Math.min(len, start + length);
       if (start >= end) continue;
-
-      const originalLength = end - start;
 
       // Trim leading whitespace from entity content
       // Preserve intended length by extending end accordingly

@@ -54,7 +54,7 @@ describe('TokenApprovedPublishHandler - Bug Condition Exploration', () => {
     };
   }
 
-  function createPublishedCall(chain: string, address: string): PublishedCall {
+  function _createPublishedCall(chain: string, address: string): PublishedCall {
     const chainId = ChainId.fromString(chain);
     return PublishedCall.create(
       {
@@ -84,7 +84,7 @@ describe('TokenApprovedPublishHandler - Bug Condition Exploration', () => {
 
     // Track how many times execute is called (simulates multiple Telegram messages)
     let executeCallCount = 0;
-    const executeSpy = jest.fn().mockImplementation(async (input) => {
+    const executeSpy = jest.fn().mockImplementation(async (input: any) => {
       executeCallCount++;
       // Simulate what the real use case does: save to repository
       const chainId = ChainId.fromString(input.chain);
@@ -162,7 +162,7 @@ describe('TokenApprovedPublishHandler - Bug Condition Exploration', () => {
     const publishedCallRepo = new InMemoryPublishedCallRepository();
 
     let executeCallCount = 0;
-    const executeSpy = jest.fn().mockImplementation(async (input) => {
+    const executeSpy = jest.fn().mockImplementation(async (input: any) => {
       executeCallCount++;
       const chainId = ChainId.fromString(input.chain);
       const call = PublishedCall.create(

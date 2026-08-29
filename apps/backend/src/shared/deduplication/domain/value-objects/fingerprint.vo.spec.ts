@@ -1,4 +1,4 @@
-import { Fingerprint, FingerprintType } from './fingerprint.vo';
+import { Fingerprint } from './fingerprint.vo';
 
 describe('Fingerprint', () => {
   describe('exact', () => {

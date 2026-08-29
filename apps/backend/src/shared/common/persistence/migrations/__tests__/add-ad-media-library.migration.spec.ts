@@ -18,7 +18,7 @@ describe('AddAdMediaLibrary1830000000000 migration', () => {
     await migration.up(runner);
 
     expect(query).toHaveBeenCalledTimes(1);
-    const ddl = String(query.mock.calls[0][0]);
+    const ddl = String((query.mock.calls[0] as any[])[0]);
     expect(ddl).toContain('crypto_news_ad_media_library');
     expect(ddl).toContain('content_hash');
     expect(ddl).toContain('file_path');
@@ -35,7 +35,7 @@ describe('AddAdMediaLibrary1830000000000 migration', () => {
     await migration.down(runner);
 
     expect(query).toHaveBeenCalledTimes(1);
-    const ddl = String(query.mock.calls[0][0]);
+    const ddl = String((query.mock.calls[0] as any[])[0]);
     expect(ddl).toContain('crypto_news_ad_media_library');
     expect(ddl).toContain('DROP TABLE IF EXISTS');
   });

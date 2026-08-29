@@ -69,7 +69,6 @@ import { AppService } from './app.service';
           logCfg.dir,
           logCfg.fileName,
         );
-        const isDev = logCfg.prettyInDev;
         return {
           pinoHttp: {
             level: logCfg.level,
