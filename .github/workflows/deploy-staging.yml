@@ -4,6 +4,10 @@ on:
   push:
     branches: [dev]
   workflow_dispatch:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+    branches: [dev]
 
 concurrency:
   group: deploy-staging
@@ -14,7 +18,27 @@ permissions:
   packages: write
 
 jobs:
+  # Gate: Only proceed if CI workflow passed (or manual dispatch)
+  check-ci-status:
+    name: Check CI Status
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    steps:
+      - name: CI Status Check
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "✅ Manual deploy - skipping CI check"
+          elif [ "${{ github.event.workflow_run.conclusion }}" == "success" ]; then
+            echo "✅ CI passed - proceeding with deploy"
+          else
+            echo "❌ CI failed or not completed - blocking deploy"
+            exit 1
+          fi
+
   build-and-push-staging:
+    needs: [check-ci-status]
     name: Build and push staging to GHCR
     runs-on: ubuntu-latest
     steps:
