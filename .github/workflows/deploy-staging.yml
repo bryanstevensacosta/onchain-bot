@@ -1,5 +1,6 @@
 name: Deploy to staging
 
+# Triggered only after CI completes successfully on dev branch
 on:
   workflow_dispatch:
   workflow_run:
