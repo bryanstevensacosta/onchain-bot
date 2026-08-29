@@ -43,7 +43,7 @@ export class CreateAdDto {
 
   @IsString()
   @IsNotEmpty()
-  @ValidateIf((o) => o.format === undefined || o.format === 'text')
+  @ValidateIf((o: CreateAdDto) => o.format === undefined || o.format === 'text')
   @MaxLength(4096)
   public body!: string;
 
@@ -69,7 +69,9 @@ export class CreateAdDto {
   public buttons?: AdButtonDto[];
 
   @IsOptional()
-  @ValidateIf((o) => o.expiresAt !== undefined && o.expiresAt !== null)
+  @ValidateIf(
+    (o: CreateAdDto) => o.expiresAt !== undefined && o.expiresAt !== null,
+  )
   @IsISO8601()
   public expiresAt?: string | null;
 
@@ -88,7 +90,7 @@ export class UpdateAdDto {
   @IsOptional()
   @IsString()
   @IsNotEmpty()
-  @ValidateIf((o) => o.format === undefined || o.format === 'text')
+  @ValidateIf((o: UpdateAdDto) => o.format === undefined || o.format === 'text')
   @MaxLength(4096)
   public body?: string;
 
@@ -123,7 +125,9 @@ export class UpdateAdDto {
   public order?: number;
 
   @IsOptional()
-  @ValidateIf((o) => o.expiresAt !== undefined && o.expiresAt !== null)
+  @ValidateIf(
+    (o: UpdateAdDto) => o.expiresAt !== undefined && o.expiresAt !== null,
+  )
   @IsISO8601()
   public expiresAt?: string | null;
 

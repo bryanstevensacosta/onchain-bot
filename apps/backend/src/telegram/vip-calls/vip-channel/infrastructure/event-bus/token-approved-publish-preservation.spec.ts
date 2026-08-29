@@ -120,10 +120,12 @@ describe('TokenApprovedPublishHandler - Preservation Properties', () => {
 
             // Arrange: Track what ticker value is passed to VipCallsPublishUseCase
             let capturedTicker: string | null | undefined = undefined;
-            const executeSpy = jest.fn().mockImplementation(async (input) => {
-              capturedTicker = input.ticker;
-              return { id: 'test-call-id' };
-            });
+            const executeSpy = jest
+              .fn()
+              .mockImplementation(async (input: { ticker?: string | null }) => {
+                capturedTicker = input.ticker;
+                return { id: 'test-call-id' };
+              });
 
             const publishUseCase = {
               execute: executeSpy,

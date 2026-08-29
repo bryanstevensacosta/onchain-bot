@@ -62,6 +62,13 @@ export default tseslint.config(
     files: ['**/*.spec.ts', '**/*.spec.ts.bak'],
     rules: {
       '@typescript-eslint/unbound-method': 'off',
+      // Test files frequently work with mocks and test doubles that are
+      // inherently untyped. Suppress unsafe-any warnings in test files
+      // while maintaining them in production code.
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
     },
   },
 );

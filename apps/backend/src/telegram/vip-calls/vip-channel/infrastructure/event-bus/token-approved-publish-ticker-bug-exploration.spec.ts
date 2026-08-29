@@ -95,10 +95,12 @@ describe('TokenApprovedPublishHandler - Ticker Bug Condition Exploration', () =>
 
     // Track what ticker value is passed to the use case
     let capturedTicker: string | null = null;
-    const execute = jest.fn().mockImplementation(async (input) => {
-      capturedTicker = input.ticker;
-      return { id: 'call-1' };
-    });
+    const execute = jest
+      .fn()
+      .mockImplementation(async (input: { ticker?: string | null }) => {
+        capturedTicker = input.ticker ?? null;
+        return { id: 'call-1' };
+      });
 
     const publishUseCase = {
       execute,

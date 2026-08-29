@@ -13,7 +13,6 @@ import {
   DedupScorer,
   hasSharedDistinctiveNumber,
   type ScoreInput,
-  type ScoreConfig,
   DEFAULT_CONFIG,
 } from './dedup-scorer.service';
 

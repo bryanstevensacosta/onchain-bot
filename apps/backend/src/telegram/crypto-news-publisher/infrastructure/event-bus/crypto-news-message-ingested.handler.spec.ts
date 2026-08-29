@@ -1,5 +1,4 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { Logger } from '@nestjs/common';
 import { CryptoNewsMessageIngestedHandler } from './crypto-news-message-ingested.handler';
 import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
 import { KeywordRepository } from 'telegram/crypto-news-publisher/application/ports/keyword.repository';
@@ -14,7 +13,8 @@ import { DeduplicationService } from 'shared/deduplication/application/services/
 
 let dedupModule: jest.Mocked<DeduplicationService>;
 
-function mockDedup(overrides: Record<string, any>) {
+// Helper function to reset dedup mocks
+function _mockDedup(overrides: Record<string, any>) {
   if (dedupModule.checkExact) {
     dedupModule.checkExact.mockReset();
   }
