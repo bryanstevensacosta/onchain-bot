@@ -20,15 +20,54 @@ jobs:
     name: Wait for CI to pass
     runs-on: ubuntu-latest
     steps:
-      - name: Wait for CI workflow to complete
-        uses: lewagon/wait-on-check-action@v1.3.4
-        with:
-          ref: ${{ github.sha }}
-          check-name: 'Build'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 10
-          allowed-conclusions: success
+      - name: Checkout (for gh CLI context)
+        uses: actions/checkout@v4
         if: github.event_name == 'push'
+
+      - name: Wait for CI workflow to complete
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "⏳ Waiting for CI workflow to complete on commit ${{ github.sha }}..."
+
+          # Wait up to 10 minutes (600 seconds)
+          MAX_WAIT=600
+          ELAPSED=0
+          INTERVAL=10
+
+          while [ $ELAPSED -lt $MAX_WAIT ]; do
+            # Get the status of the CI workflow for this commit
+            STATUS=$(gh run list \
+              --commit ${{ github.sha }} \
+              --workflow ci.yml \
+              --json conclusion,status \
+              --jq '.[0] | {status: .status, conclusion: .conclusion}')
+            
+            echo "Current CI status: $STATUS"
+            
+            # Extract status and conclusion
+            RUN_STATUS=$(echo "$STATUS" | jq -r '.status')
+            RUN_CONCLUSION=$(echo "$STATUS" | jq -r '.conclusion')
+            
+            # Check if completed
+            if [ "$RUN_STATUS" = "completed" ]; then
+              if [ "$RUN_CONCLUSION" = "success" ]; then
+                echo "✅ CI workflow passed!"
+                exit 0
+              else
+                echo "❌ CI workflow failed with conclusion: $RUN_CONCLUSION"
+                exit 1
+              fi
+            fi
+            
+            echo "CI still running... waiting ${INTERVAL}s (${ELAPSED}s/${MAX_WAIT}s elapsed)"
+            sleep $INTERVAL
+            ELAPSED=$((ELAPSED + INTERVAL))
+          done
+
+          echo "❌ Timeout waiting for CI workflow to complete after ${MAX_WAIT}s"
+          exit 1
 
       - name: CI check bypassed (manual trigger)
         if: github.event_name == 'workflow_dispatch'
