@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import { TelegramMtprotoListenerAdapter } from 'telegram/ingestion/shared/api/mtproto/telegram-mtproto-listener.adapter';
 import { TelegramSseListenerAdapter } from 'telegram/ingestion/shared/api/sse/telegram-sse-listener.adapter';
+import { TelegramMockAdapter } from 'telegram/ingestion/shared/infrastructure/adapters/telegram-mock.adapter';
 import { IngestionSafetyConfig } from 'telegram/ingestion/shared/infrastructure/config/ingestion-safety.config';
 import { SleepWindowService } from 'telegram/ingestion/shared/infrastructure/services/sleep-window.service';
 import { FloodWaitCounterService } from 'telegram/ingestion/shared/infrastructure/services/flood-wait-counter.service';
@@ -22,15 +23,19 @@ import { Logger } from '@nestjs/common';
  *
  * Per Requirement 7.1: Feature flag for safe rollback
  * Per Requirement 3.1: SSE client adapter integration
- * 
- * Environment Variable: USE_SSE_INGESTION
- * - "true" → TelegramSseListenerAdapter (connects to Ingestion Service)
- * - "false" or unset → TelegramMtprotoListenerAdapter (local MTProto)
+ *
+ * Environment Variables:
+ * - USE_SSE_INGESTION → TelegramSseListenerAdapter (connects to Ingestion Service)
+ * - USE_MOCK_INGESTION → TelegramMockAdapter (CLI/testing mode, no Telegram connection)
+ * - Default (both false) → TelegramMtprotoListenerAdapter (local MTProto)
+ *
+ * Priority: Mock > SSE > MTProto (if both flags true, mock wins)
  *
  * Provides globally:
  * - TelegramListenerPort (dynamically selects adapter based on env)
  * - TelegramMtprotoListenerAdapter (always available for rollback)
  * - TelegramSseListenerAdapter (always available)
+ * - TelegramMockAdapter (always available for dev/testing)
  * - IngestionSafetyConfig
  * - Sleep/Flood services
  *
@@ -48,9 +53,6 @@ const logger = new Logger('SharedIngestionModule');
   imports: [
     ConfigModule,
     IdentityModule,
-    // `CryptoNewsIngestionModule` provides `CryptoNewsMediaDownloader`,
-    // which the listener below injects. Both sides use `forwardRef`
-    // to break the circular DI dependency.
     forwardRef(() => CryptoNewsIngestionModule),
   ],
   controllers: [IngestionConfigController, IngestionHealthController],
@@ -63,35 +65,54 @@ const logger = new Logger('SharedIngestionModule');
     LastSeenManager,
     TelegramMediaDownloadService,
     TelegramPeerResolver,
-    
-    // Always provide both adapters (for rollback capability)
+
+    // Always provide all three adapters (for mode switching)
     TelegramMtprotoListenerAdapter,
     TelegramSseListenerAdapter,
-    
-    // Dynamic adapter selection based on feature flag
+    TelegramMockAdapter,
+
+    // Dynamic adapter selection based on feature flags
+    // Priority: Mock > SSE > MTProto
     {
       provide: TelegramListenerPort,
       useFactory: (
         config: ConfigService,
         mtprotoAdapter: TelegramMtprotoListenerAdapter,
         sseAdapter: TelegramSseListenerAdapter,
+        mockAdapter: TelegramMockAdapter,
       ) => {
         const appConfig = config.get('app');
-        const useSseIngestion = appConfig?.ingestion?.useSse ?? false;
-        
-        if (useSseIngestion) {
-          logger.log('🔄 INGESTION MODE: SSE (remote Ingestion Service)');
-          logger.log(`   └─ Service URL: ${appConfig?.ingestion?.serviceUrl || 'http://localhost:3031'}`);
-          return sseAdapter;
-        } else {
-          logger.log('📡 INGESTION MODE: MTProto (local)');
-          logger.log('   └─ Direct Telegram API connection');
-          return mtprotoAdapter;
+        const useMock = appConfig?.ingestion?.useMock ?? false;
+        const useSse = appConfig?.ingestion?.useSse ?? false;
+
+        if (useMock) {
+          logger.log(
+            '🧪 INGESTION MODE: Mock (CLI/testing, no Telegram connection)',
+          );
+          logger.log('   └─ Use CLI tools: npm run cli:inject');
+          return mockAdapter;
         }
+
+        if (useSse) {
+          logger.log('🔄 INGESTION MODE: SSE (remote Ingestion Service)');
+          logger.log(
+            `   └─ Service URL: ${appConfig?.ingestion?.serviceUrl || 'http://localhost:3031'}`,
+          );
+          return sseAdapter;
+        }
+
+        logger.log('📡 INGESTION MODE: MTProto (local)');
+        logger.log('   └─ Direct Telegram API connection');
+        return mtprotoAdapter;
       },
-      inject: [ConfigService, TelegramMtprotoListenerAdapter, TelegramSseListenerAdapter],
+      inject: [
+        ConfigService,
+        TelegramMtprotoListenerAdapter,
+        TelegramSseListenerAdapter,
+        TelegramMockAdapter,
+      ],
     },
-    
+
     // Token alias for backward compatibility
     {
       provide: TELEGRAM_LISTENER_PORT_TOKEN,
@@ -103,12 +124,12 @@ const logger = new Logger('SharedIngestionModule');
     TELEGRAM_LISTENER_PORT_TOKEN,
     TelegramMtprotoListenerAdapter,
     TelegramSseListenerAdapter,
+    TelegramMockAdapter,
     IngestionSafetyConfig,
     TelegramClientManager,
     LastSeenManager,
     TelegramMediaDownloadService,
     TelegramPeerResolver,
-    // Required by sub-BC adapters (e.g. MtprotoMediaDownloader).
     SleepWindowService,
     FloodWaitCounterService,
     FloodWaitHandlerService,
