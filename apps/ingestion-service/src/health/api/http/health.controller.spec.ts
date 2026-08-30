@@ -1,12 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HttpStatus } from '@nestjs/common';
-import { HealthController, HealthResponse, ChannelMetadata } from './health.controller';
+import {
+  HealthController,
+  HealthResponse,
+  ChannelMetadata,
+} from './health.controller';
 import { StreamService } from 'stream/application/services/stream.service';
 import { DisconnectionTracker } from 'stream/application/services/disconnection-tracker.service';
 
 /**
  * Mock TelegramClientManager interface
- * 
+ *
  * Simulates the TelegramClientManager that will be injected when MTProto layer is wired.
  * Allows testing different connection states (connected/disconnected).
  */
@@ -23,7 +27,7 @@ interface MockTelegramClientManager {
 
 /**
  * Mock FloodWaitCounter interface
- * 
+ *
  * Simulates flood wait tracking for health metrics.
  */
 interface MockFloodWaitCounter {
@@ -34,9 +38,9 @@ interface MockFloodWaitCounter {
 
 /**
  * Integration tests for HealthController
- * 
+ *
  * **Validates: Requirements 5.1, 5.4, 5.5**
- * 
+ *
  * Tests health endpoint behavior with different TelegramClientManager states:
  * - Connected state returns HTTP 200
  * - Disconnected state returns HTTP 503
@@ -54,7 +58,9 @@ describe('HealthController', () => {
     mockClientManager = {
       isConnected: jest.fn().mockResolvedValue(true),
       isAuthorized: jest.fn().mockResolvedValue(true),
-      getLastPollTimestamp: jest.fn().mockReturnValue(new Date('2026-08-30T00:00:00Z')),
+      getLastPollTimestamp: jest
+        .fn()
+        .mockReturnValue(new Date('2026-08-30T00:00:00Z')),
       getChannelCount: jest.fn().mockReturnValue(15),
       getActiveChannelCount: jest.fn().mockReturnValue(15),
       getKolChannelCount: jest.fn().mockReturnValue(10),
@@ -94,7 +100,8 @@ describe('HealthController', () => {
 
     controller = module.get<HealthController>(HealthController);
     streamService = module.get<StreamService>(StreamService);
-    disconnectionTracker = module.get<DisconnectionTracker>(DisconnectionTracker);
+    disconnectionTracker =
+      module.get<DisconnectionTracker>(DisconnectionTracker);
   });
 
   describe('getHealth', () => {
@@ -106,8 +113,10 @@ describe('HealthController', () => {
       mockClientManager.getActiveChannelCount.mockReturnValue(15);
       mockClientManager.getKolChannelCount.mockReturnValue(10);
       mockClientManager.getNewsChannelCount.mockReturnValue(5);
-      mockClientManager.getLastPollTimestamp.mockReturnValue(new Date('2026-08-30T00:00:00Z'));
-      
+      mockClientManager.getLastPollTimestamp.mockReturnValue(
+        new Date('2026-08-30T00:00:00Z'),
+      );
+
       jest.spyOn(streamService, 'getClientCount').mockReturnValue(3);
 
       // Create mock response
@@ -149,7 +158,9 @@ describe('HealthController', () => {
       mockClientManager.getActiveChannelCount.mockReturnValue(0); // No active channels when disconnected
       mockClientManager.getKolChannelCount.mockReturnValue(10);
       mockClientManager.getNewsChannelCount.mockReturnValue(5);
-      mockClientManager.getLastPollTimestamp.mockReturnValue(new Date('2026-08-30T00:00:00Z'));
+      mockClientManager.getLastPollTimestamp.mockReturnValue(
+        new Date('2026-08-30T00:00:00Z'),
+      );
 
       const mockResponse = {
         status: jest.fn().mockReturnThis(),
@@ -160,7 +171,9 @@ describe('HealthController', () => {
       await controller.getHealth(mockResponse);
 
       // Assert
-      expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.SERVICE_UNAVAILABLE);
+      expect(mockResponse.status).toHaveBeenCalledWith(
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           status: 'degraded',
@@ -186,7 +199,9 @@ describe('HealthController', () => {
       await controller.getHealth(mockResponse);
 
       // Assert
-      expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.SERVICE_UNAVAILABLE);
+      expect(mockResponse.status).toHaveBeenCalledWith(
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           status: 'degraded',
@@ -212,7 +227,9 @@ describe('HealthController', () => {
       await controller.getHealth(mockResponse);
 
       // Assert
-      expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.SERVICE_UNAVAILABLE);
+      expect(mockResponse.status).toHaveBeenCalledWith(
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           status: 'degraded',
@@ -233,21 +250,21 @@ describe('HealthController', () => {
 
       // Act
       await controller.getHealth(mockResponse);
-      
+
       // Wait a bit
       await new Promise((resolve) => setTimeout(resolve, 10));
-      
+
       const mockResponse2 = {
         status: jest.fn().mockReturnThis(),
         json: jest.fn(),
       } as any;
-      
+
       await controller.getHealth(mockResponse2);
 
       // Assert
       const firstCall = mockResponse.json.mock.calls[0][0];
       const secondCall = mockResponse2.json.mock.calls[0][0];
-      
+
       expect(secondCall.uptime).toBeGreaterThan(firstCall.uptime);
       expect(typeof secondCall.uptime).toBe('number');
     });
@@ -255,18 +272,18 @@ describe('HealthController', () => {
     it('should reflect connected SSE clients count', async () => {
       // Arrange - Simulate varying client counts
       const clientCounts = [0, 1, 5, 10];
-      
+
       for (const count of clientCounts) {
         jest.spyOn(streamService, 'getClientCount').mockReturnValue(count);
-        
+
         const mockResponse = {
           status: jest.fn().mockReturnThis(),
           json: jest.fn(),
         } as any;
-        
+
         // Act
         await controller.getHealth(mockResponse);
-        
+
         // Assert
         const response = mockResponse.json.mock.calls[0][0];
         expect(response.clients.connected).toBe(count);
@@ -289,7 +306,7 @@ describe('HealthController', () => {
       // Assert
       const response = mockResponse.json.mock.calls[0][0];
       expect(response.mtproto.lastPollAt).toBe('2026-08-30T12:34:56.000Z');
-      
+
       // Should be parseable as Date
       const lastPollDate = new Date(response.mtproto.lastPollAt);
       expect(lastPollDate).toBeInstanceOf(Date);
@@ -375,7 +392,7 @@ describe('HealthController', () => {
 
       // Assert - Verify complete HealthResponse interface
       const response = mockResponse.json.mock.calls[0][0];
-      
+
       const requiredFields = [
         'status',
         'mtproto',
@@ -383,22 +400,22 @@ describe('HealthController', () => {
         'clients',
         'uptime',
       ];
-      
+
       for (const field of requiredFields) {
         expect(response).toHaveProperty(field);
       }
-      
+
       // MTProto nested fields
       expect(response.mtproto).toHaveProperty('connected');
       expect(response.mtproto).toHaveProperty('authorized');
       expect(response.mtproto).toHaveProperty('lastPollAt');
-      
+
       // Channels nested fields
       expect(response.channels).toHaveProperty('total');
       expect(response.channels).toHaveProperty('active');
       expect(response.channels).toHaveProperty('kol');
       expect(response.channels).toHaveProperty('news');
-      
+
       // Clients nested fields
       expect(response.clients).toHaveProperty('connected');
     });
@@ -440,7 +457,7 @@ describe('HealthController', () => {
       expect(result.status).toBe('ready');
       expect(result.timestamp).toBeDefined();
       expect(result.connectedClients).toBe(5);
-      
+
       // Verify timestamp is valid ISO string
       const timestamp = new Date(result.timestamp);
       expect(timestamp).toBeInstanceOf(Date);
@@ -470,7 +487,7 @@ describe('HealthController', () => {
       expect(result.timestamp).toBeDefined();
       expect(result.uptime).toBeDefined();
       expect(result.uptime).toBeGreaterThanOrEqual(0);
-      
+
       // Verify timestamp is valid ISO string
       const timestamp = new Date(result.timestamp);
       expect(timestamp).toBeInstanceOf(Date);
@@ -480,10 +497,10 @@ describe('HealthController', () => {
     it('should increment uptime over time', async () => {
       // Act
       const result1 = await controller.getLiveness();
-      
+
       // Wait a bit
       await new Promise((resolve) => setTimeout(resolve, 10));
-      
+
       const result2 = await controller.getLiveness();
 
       // Assert
@@ -625,11 +642,14 @@ describe('HealthController', () => {
 
     it('should handle large number of channels', async () => {
       // Arrange
-      const mockChannels: ChannelMetadata[] = Array.from({ length: 100 }, (_, i) => ({
-        id: `-100${i}`,
-        title: `Channel ${i}`,
-        type: i % 2 === 0 ? ('kol' as const) : ('crypto-news' as const),
-      }));
+      const mockChannels: ChannelMetadata[] = Array.from(
+        { length: 100 },
+        (_, i) => ({
+          id: `-100${i}`,
+          title: `Channel ${i}`,
+          type: i % 2 === 0 ? ('kol' as const) : ('crypto-news' as const),
+        }),
+      );
 
       mockClientManager.getChannelMetadata.mockReturnValue(mockChannels);
 
@@ -682,7 +702,9 @@ describe('HealthController', () => {
 
     it('should handle TelegramClientManager async errors gracefully', async () => {
       // Arrange
-      mockClientManager.isConnected.mockRejectedValue(new Error('Connection check failed'));
+      mockClientManager.isConnected.mockRejectedValue(
+        new Error('Connection check failed'),
+      );
 
       const mockResponse = {
         status: jest.fn().mockReturnThis(),
@@ -690,7 +712,9 @@ describe('HealthController', () => {
       } as any;
 
       // Act & Assert
-      await expect(controller.getHealth(mockResponse)).rejects.toThrow('Connection check failed');
+      await expect(controller.getHealth(mockResponse)).rejects.toThrow(
+        'Connection check failed',
+      );
     });
   });
 
@@ -759,10 +783,12 @@ describe('HealthController', () => {
       // Assert
       const response = mockResponse.json.mock.calls[0][0];
       expect(response.mtproto.lastPollAt).toBeDefined();
-      
+
       // Should match ISO 8601 format
-      expect(response.mtproto.lastPollAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
-      
+      expect(response.mtproto.lastPollAt).toMatch(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
+      );
+
       // Should be a valid date
       const date = new Date(response.mtproto.lastPollAt);
       expect(isNaN(date.getTime())).toBe(false);
@@ -830,7 +856,9 @@ describe('HealthController', () => {
       const response = mockResponse.json.mock.calls[0][0];
       expect(response.warnings).toBeDefined();
       expect(Array.isArray(response.warnings)).toBe(true);
-      expect(response.warnings).toContain('Client disconnection window >60s detected');
+      expect(response.warnings).toContain(
+        'Client disconnection window >60s detected',
+      );
     });
 
     it('should NOT add WARNING flag when all windows are under 60s', async () => {
@@ -871,10 +899,14 @@ describe('HealthController', () => {
       const response = mockResponse.json.mock.calls[0][0];
       const windows = response.clients.disconnectionWindows;
       expect(windows.length).toBe(3);
-      
+
       // Check we have both completed and active windows
-      const completedWindows = windows.filter((w: any) => w.reconnectedAt !== null);
-      const activeWindows = windows.filter((w: any) => w.reconnectedAt === null);
+      const completedWindows = windows.filter(
+        (w: any) => w.reconnectedAt !== null,
+      );
+      const activeWindows = windows.filter(
+        (w: any) => w.reconnectedAt === null,
+      );
       expect(completedWindows.length).toBe(2);
       expect(activeWindows.length).toBe(1);
     });

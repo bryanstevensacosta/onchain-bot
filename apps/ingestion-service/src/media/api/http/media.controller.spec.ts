@@ -17,9 +17,9 @@ jest.mock('fs', () => ({
 
 /**
  * Unit tests for MediaController
- * 
+ *
  * **Validates: Requirements 4.2, 4.3, 4.5**
- * 
+ *
  * Tests media serving functionality:
  * - File serving with correct headers (Content-Type, Content-Length, ETag, Cache-Control)
  * - 404 for missing files
@@ -40,9 +40,9 @@ describe('MediaController', () => {
   beforeEach(async () => {
     // Reset mocks
     jest.clearAllMocks();
-    
+
     // Set default mock implementations
-    mockReaddir.mockResolvedValue([] as any);
+    mockReaddir.mockResolvedValue([]);
     mockStat.mockResolvedValue({
       size: 1024,
       mtime: new Date('2026-08-30T00:00:00Z'),
@@ -101,8 +101,14 @@ describe('MediaController', () => {
       await controller.serveMedia(channelId, messageId, index, mockResponse);
 
       // Assert - Verify headers
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Type', 'image/jpeg');
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Length', 2048);
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'Content-Type',
+        'image/jpeg',
+      );
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'Content-Length',
+        2048,
+      );
       expect(mockResponse.setHeader).toHaveBeenCalledWith(
         'ETag',
         expect.stringMatching(/^".*"$/),
@@ -111,7 +117,10 @@ describe('MediaController', () => {
         'Cache-Control',
         'public, max-age=31536000',
       );
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('Accept-Ranges', 'bytes');
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'Accept-Ranges',
+        'bytes',
+      );
 
       // Verify stream was created and piped
       expect(mockCreateReadStream).toHaveBeenCalledWith(
@@ -126,7 +135,9 @@ describe('MediaController', () => {
       const messageId = '12345';
       const index = '0';
 
-      mockReaddir.mockRejectedValue(new Error('ENOENT: no such file or directory'));
+      mockReaddir.mockRejectedValue(
+        new Error('ENOENT: no such file or directory'),
+      );
 
       const mockResponse = {
         status: jest.fn().mockReturnThis(),
@@ -212,7 +223,10 @@ describe('MediaController', () => {
         await controller.serveMedia(channelId, messageId, index, mockResponse);
 
         // Assert
-        expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Type', expectedMime);
+        expect(mockResponse.setHeader).toHaveBeenCalledWith(
+          'Content-Type',
+          expectedMime,
+        );
       }
     });
 
@@ -408,7 +422,9 @@ describe('MediaController', () => {
       const index = '0';
 
       mockReaddir.mockResolvedValue(['12345_0.jpg'] as any);
-      mockStat.mockRejectedValue(new Error('ENOENT: no such file or directory'));
+      mockStat.mockRejectedValue(
+        new Error('ENOENT: no such file or directory'),
+      );
 
       const mockResponse = {
         status: jest.fn().mockReturnThis(),
@@ -654,8 +670,14 @@ describe('MediaController', () => {
       await controller.serveMedia(channelId, messageId, index, mockResponse);
 
       // Assert
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('Accept-Ranges', 'bytes');
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Type', 'video/mp4');
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'Accept-Ranges',
+        'bytes',
+      );
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'Content-Type',
+        'video/mp4',
+      );
     });
 
     it('should construct correct media directory path', async () => {
@@ -727,7 +749,12 @@ describe('MediaController', () => {
       mockCreateReadStream.mockReturnValue(mockStream as any);
 
       // Act
-      await customController.serveMedia(channelId, messageId, index, mockResponse);
+      await customController.serveMedia(
+        channelId,
+        messageId,
+        index,
+        mockResponse,
+      );
 
       // Assert
       expect(mockCreateReadStream).toHaveBeenCalledWith(
@@ -776,7 +803,12 @@ describe('MediaController', () => {
       mockCreateReadStream.mockReturnValue(mockStream as any);
 
       // Act
-      await customController.serveMedia(channelId, messageId, index, mockResponse);
+      await customController.serveMedia(
+        channelId,
+        messageId,
+        index,
+        mockResponse,
+      );
 
       // Assert
       // Should use process.cwd() + 'uploads' as default
@@ -793,7 +825,7 @@ describe('MediaController', () => {
       const messageId = '12345';
       const index = '0';
 
-      mockReaddir.mockResolvedValue([] as any);
+      mockReaddir.mockResolvedValue([]);
 
       const mockResponse = {
         status: jest.fn().mockReturnThis(),
@@ -836,7 +868,10 @@ describe('MediaController', () => {
       await controller.serveMedia(channelId, messageId, index, mockResponse);
 
       // Assert
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Length', 1073741824);
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'Content-Length',
+        1073741824,
+      );
     });
 
     it('should handle zero-size files', async () => {
@@ -970,7 +1005,10 @@ describe('MediaController', () => {
 
       // Assert
       mockResponses.forEach((mockResponse) => {
-        expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Type', 'image/jpeg');
+        expect(mockResponse.setHeader).toHaveBeenCalledWith(
+          'Content-Type',
+          'image/jpeg',
+        );
         expect(mockResponse.setHeader).toHaveBeenCalledWith(
           'Cache-Control',
           'public, max-age=31536000',

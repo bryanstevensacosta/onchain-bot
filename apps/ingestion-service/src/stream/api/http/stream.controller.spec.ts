@@ -32,9 +32,9 @@ interface MockMessage {
 
 /**
  * Integration tests for StreamController backfill endpoint
- * 
+ *
  * **Validates: Requirements GAP 1**
- * 
+ *
  * Tests backfill endpoint behavior:
  * - SSE stream format compliance
  * - backfill:message events for each message
@@ -61,7 +61,7 @@ describe('StreamController - Backfill Endpoint', () => {
    */
   const createMockResponse = () => {
     const chunks: string[] = [];
-    
+
     return {
       writeHead: jest.fn(),
       write: jest.fn((chunk: string) => {
@@ -94,13 +94,15 @@ describe('StreamController - Backfill Endpoint', () => {
   /**
    * Helper to parse SSE chunks into events
    */
-  const parseSSEChunks = (chunks: string[]): Array<{ event: string; data: any }> => {
+  const parseSSEChunks = (
+    chunks: string[],
+  ): Array<{ event: string; data: any }> => {
     const events: Array<{ event: string; data: any }> = [];
-    
+
     for (const chunk of chunks) {
       const eventMatch = chunk.match(/^event: (.+)$/m);
       const dataMatch = chunk.match(/^data: (.+)$/m);
-      
+
       if (eventMatch && dataMatch) {
         events.push({
           event: eventMatch[1],
@@ -108,7 +110,7 @@ describe('StreamController - Backfill Endpoint', () => {
         });
       }
     }
-    
+
     return events;
   };
 
@@ -146,17 +148,22 @@ describe('StreamController - Backfill Endpoint', () => {
       // Arrange
       const mockRequest = createMockRequest() as Request;
       const mockResponse = createMockResponse();
-      
+
       mockTelegramListener.backfill.mockResolvedValue([]);
 
       // Act
-      await controller.backfill('-1001234567890', undefined, mockRequest, mockResponse);
+      await controller.backfill(
+        '-1001234567890',
+        undefined,
+        mockRequest,
+        mockResponse,
+      );
 
       // Assert
       expect(mockResponse.writeHead).toHaveBeenCalledWith(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache, no-transform',
-        'Connection': 'keep-alive',
+        Connection: 'keep-alive',
         'X-Accel-Buffering': 'no',
       });
     });
@@ -169,9 +176,9 @@ describe('StreamController - Backfill Endpoint', () => {
         createTestMessage(channelId, 101),
         createTestMessage(channelId, 102),
       ];
-      
+
       mockTelegramListener.backfill.mockResolvedValue(testMessages);
-      
+
       const mockRequest = createMockRequest() as Request;
       const mockResponse = createMockResponse();
 
@@ -180,15 +187,15 @@ describe('StreamController - Backfill Endpoint', () => {
 
       // Assert
       const events = parseSSEChunks(mockResponse.chunks);
-      
+
       // Should have 3 message events + 1 complete event
       expect(events.length).toBe(4);
-      
+
       // First 3 should be backfill:message events
       expect(events[0].event).toBe('backfill:message');
       expect(events[1].event).toBe('backfill:message');
       expect(events[2].event).toBe('backfill:message');
-      
+
       // Verify message data structure
       expect(events[0].data).toMatchObject({
         peerId: channelId,
@@ -205,9 +212,9 @@ describe('StreamController - Backfill Endpoint', () => {
         createTestMessage(channelId, 100),
         createTestMessage(channelId, 101),
       ];
-      
+
       mockTelegramListener.backfill.mockResolvedValue(testMessages);
-      
+
       const mockRequest = createMockRequest() as Request;
       const mockResponse = createMockResponse();
 
@@ -216,7 +223,7 @@ describe('StreamController - Backfill Endpoint', () => {
 
       // Assert
       const events = parseSSEChunks(mockResponse.chunks);
-      
+
       // Last event should be backfill:complete
       const completeEvent = events[events.length - 1];
       expect(completeEvent.event).toBe('backfill:complete');
@@ -230,12 +237,17 @@ describe('StreamController - Backfill Endpoint', () => {
     it('should end the response stream after completion', async () => {
       // Arrange
       mockTelegramListener.backfill.mockResolvedValue([]);
-      
+
       const mockRequest = createMockRequest() as Request;
       const mockResponse = createMockResponse();
 
       // Act
-      await controller.backfill('-1001234567890', undefined, mockRequest, mockResponse);
+      await controller.backfill(
+        '-1001234567890',
+        undefined,
+        mockRequest,
+        mockResponse,
+      );
 
       // Assert
       expect(mockResponse.end).toHaveBeenCalled();
@@ -247,16 +259,21 @@ describe('StreamController - Backfill Endpoint', () => {
       // Arrange
       const unknownChannelId = '-1009999999999';
       mockTelegramListener.backfill.mockResolvedValue([]);
-      
+
       const mockRequest = createMockRequest() as Request;
       const mockResponse = createMockResponse();
 
       // Act
-      await controller.backfill(unknownChannelId, undefined, mockRequest, mockResponse);
+      await controller.backfill(
+        unknownChannelId,
+        undefined,
+        mockRequest,
+        mockResponse,
+      );
 
       // Assert
       const events = parseSSEChunks(mockResponse.chunks);
-      
+
       // Should only have backfill:complete event with count 0
       expect(events.length).toBe(1);
       expect(events[0].event).toBe('backfill:complete');
@@ -267,17 +284,22 @@ describe('StreamController - Backfill Endpoint', () => {
     it('should handle empty result from TelegramListener', async () => {
       // Arrange
       mockTelegramListener.backfill.mockResolvedValue([]);
-      
+
       const mockRequest = createMockRequest() as Request;
       const mockResponse = createMockResponse();
 
       // Act
-      await controller.backfill('-1001234567890', '10', mockRequest, mockResponse);
+      await controller.backfill(
+        '-1001234567890',
+        '10',
+        mockRequest,
+        mockResponse,
+      );
 
       // Assert
       expect(mockResponse.writeHead).toHaveBeenCalled();
       expect(mockResponse.end).toHaveBeenCalled();
-      
+
       const events = parseSSEChunks(mockResponse.chunks);
       expect(events[0].event).toBe('backfill:complete');
       expect(events[0].data.count).toBe(0);
@@ -292,35 +314,53 @@ describe('StreamController - Backfill Endpoint', () => {
       const testMessages = Array.from({ length: limit }, (_, i) =>
         createTestMessage(channelId, 100 + i),
       );
-      
+
       mockTelegramListener.backfill.mockResolvedValue(testMessages);
-      
+
       const mockRequest = createMockRequest() as Request;
       const mockResponse = createMockResponse();
 
       // Act
-      await controller.backfill(channelId, String(limit), mockRequest, mockResponse);
+      await controller.backfill(
+        channelId,
+        String(limit),
+        mockRequest,
+        mockResponse,
+      );
 
       // Assert
-      expect(mockTelegramListener.backfill).toHaveBeenCalledWith(channelId, limit);
-      
+      expect(mockTelegramListener.backfill).toHaveBeenCalledWith(
+        channelId,
+        limit,
+      );
+
       const events = parseSSEChunks(mockResponse.chunks);
       // Should have 5 message events + 1 complete event
-      expect(events.filter((e) => e.event === 'backfill:message').length).toBe(5);
+      expect(events.filter((e) => e.event === 'backfill:message').length).toBe(
+        5,
+      );
     });
 
     it('should use default limit of 100 when not specified', async () => {
       // Arrange
       mockTelegramListener.backfill.mockResolvedValue([]);
-      
+
       const mockRequest = createMockRequest() as Request;
       const mockResponse = createMockResponse();
 
       // Act
-      await controller.backfill('-1001234567890', undefined, mockRequest, mockResponse);
+      await controller.backfill(
+        '-1001234567890',
+        undefined,
+        mockRequest,
+        mockResponse,
+      );
 
       // Assert
-      expect(mockTelegramListener.backfill).toHaveBeenCalledWith('-1001234567890', 100);
+      expect(mockTelegramListener.backfill).toHaveBeenCalledWith(
+        '-1001234567890',
+        100,
+      );
     });
 
     it('should reject limit below minimum (1)', async () => {
@@ -332,7 +372,7 @@ describe('StreamController - Backfill Endpoint', () => {
       await expect(
         controller.backfill('-1001234567890', '0', mockRequest, mockResponse),
       ).rejects.toThrow(BadRequestException);
-      
+
       await expect(
         controller.backfill('-1001234567890', '-5', mockRequest, mockResponse),
       ).rejects.toThrow(BadRequestException);
@@ -347,7 +387,7 @@ describe('StreamController - Backfill Endpoint', () => {
       await expect(
         controller.backfill('-1001234567890', '101', mockRequest, mockResponse),
       ).rejects.toThrow(BadRequestException);
-      
+
       await expect(
         controller.backfill('-1001234567890', '500', mockRequest, mockResponse),
       ).rejects.toThrow(BadRequestException);
@@ -360,9 +400,14 @@ describe('StreamController - Backfill Endpoint', () => {
 
       // Act & Assert
       await expect(
-        controller.backfill('-1001234567890', 'invalid', mockRequest, mockResponse),
+        controller.backfill(
+          '-1001234567890',
+          'invalid',
+          mockRequest,
+          mockResponse,
+        ),
       ).rejects.toThrow(BadRequestException);
-      
+
       await expect(
         controller.backfill('-1001234567890', 'abc', mockRequest, mockResponse),
       ).rejects.toThrow(BadRequestException);
@@ -375,37 +420,60 @@ describe('StreamController - Backfill Endpoint', () => {
 
       // Act & Assert - Min boundary (1)
       const mockResponse1 = createMockResponse();
-      await controller.backfill('-1001234567890', '1', mockRequest, mockResponse1);
-      expect(mockTelegramListener.backfill).toHaveBeenCalledWith('-1001234567890', 1);
+      await controller.backfill(
+        '-1001234567890',
+        '1',
+        mockRequest,
+        mockResponse1,
+      );
+      expect(mockTelegramListener.backfill).toHaveBeenCalledWith(
+        '-1001234567890',
+        1,
+      );
 
       // Act & Assert - Max boundary (100)
       const mockResponse2 = createMockResponse();
-      await controller.backfill('-1001234567890', '100', mockRequest, mockResponse2);
-      expect(mockTelegramListener.backfill).toHaveBeenCalledWith('-1001234567890', 100);
+      await controller.backfill(
+        '-1001234567890',
+        '100',
+        mockRequest,
+        mockResponse2,
+      );
+      expect(mockTelegramListener.backfill).toHaveBeenCalledWith(
+        '-1001234567890',
+        100,
+      );
     });
   });
 
   describe('backfill - Error Handling', () => {
     it('should return 503 when TelegramListener is not available', async () => {
       // Arrange
-      const moduleWithoutListener: TestingModule = await Test.createTestingModule({
-        controllers: [StreamController],
-        providers: [
-          {
-            provide: StreamService,
-            useValue: streamService,
-          },
-          // No TelegramListenerPort provider
-        ],
-      }).compile();
+      const moduleWithoutListener: TestingModule =
+        await Test.createTestingModule({
+          controllers: [StreamController],
+          providers: [
+            {
+              provide: StreamService,
+              useValue: streamService,
+            },
+            // No TelegramListenerPort provider
+          ],
+        }).compile();
 
-      const controllerWithoutListener = moduleWithoutListener.get<StreamController>(StreamController);
-      
+      const controllerWithoutListener =
+        moduleWithoutListener.get<StreamController>(StreamController);
+
       const mockRequest = createMockRequest() as Request;
       const mockResponse = createMockResponse();
 
       // Act
-      await controllerWithoutListener.backfill('-1001234567890', undefined, mockRequest, mockResponse);
+      await controllerWithoutListener.backfill(
+        '-1001234567890',
+        undefined,
+        mockRequest,
+        mockResponse,
+      );
 
       // Assert
       expect(mockResponse.status).toHaveBeenCalledWith(503);
@@ -420,16 +488,21 @@ describe('StreamController - Backfill Endpoint', () => {
       const channelId = '-1001234567890';
       const errorMessage = 'MTProto connection lost';
       mockTelegramListener.backfill.mockRejectedValue(new Error(errorMessage));
-      
+
       const mockRequest = createMockRequest() as Request;
       const mockResponse = createMockResponse();
 
       // Act
-      await controller.backfill(channelId, undefined, mockRequest, mockResponse);
+      await controller.backfill(
+        channelId,
+        undefined,
+        mockRequest,
+        mockResponse,
+      );
 
       // Assert
       const events = parseSSEChunks(mockResponse.chunks);
-      
+
       // Should have error event
       expect(events.length).toBeGreaterThanOrEqual(1);
       const errorEvent = events.find((e) => e.event === 'backfill:error');
@@ -438,23 +511,29 @@ describe('StreamController - Backfill Endpoint', () => {
         error: errorMessage,
         channelId,
       });
-      
+
       expect(mockResponse.end).toHaveBeenCalled();
     });
 
     it('should handle TelegramListener timeout gracefully', async () => {
       // Arrange
       mockTelegramListener.backfill.mockImplementation(
-        () => new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Request timeout')), 100);
-        }),
+        () =>
+          new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Request timeout')), 100);
+          }),
       );
-      
+
       const mockRequest = createMockRequest() as Request;
       const mockResponse = createMockResponse();
 
       // Act
-      await controller.backfill('-1001234567890', undefined, mockRequest, mockResponse);
+      await controller.backfill(
+        '-1001234567890',
+        undefined,
+        mockRequest,
+        mockResponse,
+      );
 
       // Assert
       const events = parseSSEChunks(mockResponse.chunks);
@@ -492,9 +571,9 @@ describe('StreamController - Backfill Endpoint', () => {
         ],
         groupedId: '987654321',
       };
-      
+
       mockTelegramListener.backfill.mockResolvedValue([testMessage]);
-      
+
       const mockRequest = createMockRequest() as Request;
       const mockResponse = createMockResponse();
 
@@ -504,7 +583,7 @@ describe('StreamController - Backfill Endpoint', () => {
       // Assert
       const events = parseSSEChunks(mockResponse.chunks);
       const messageEvent = events.find((e) => e.event === 'backfill:message');
-      
+
       expect(messageEvent).toBeDefined();
       expect(messageEvent!.data).toMatchObject({
         peerId: channelId,
@@ -543,9 +622,9 @@ describe('StreamController - Backfill Endpoint', () => {
         media: [],
         entities: [],
       };
-      
+
       mockTelegramListener.backfill.mockResolvedValue([testMessage]);
-      
+
       const mockRequest = createMockRequest() as Request;
       const mockResponse = createMockResponse();
 
@@ -555,7 +634,7 @@ describe('StreamController - Backfill Endpoint', () => {
       // Assert
       const events = parseSSEChunks(mockResponse.chunks);
       const messageEvent = events.find((e) => e.event === 'backfill:message');
-      
+
       expect(messageEvent!.data.media).toEqual([]);
       expect(messageEvent!.data.text).toBe('Text only message');
     });
@@ -570,9 +649,9 @@ describe('StreamController - Backfill Endpoint', () => {
         createTestMessage(channelId, 103),
         createTestMessage(channelId, 104),
       ];
-      
+
       mockTelegramListener.backfill.mockResolvedValue(testMessages);
-      
+
       const mockRequest = createMockRequest() as Request;
       const mockResponse = createMockResponse();
 
@@ -581,8 +660,10 @@ describe('StreamController - Backfill Endpoint', () => {
 
       // Assert
       const events = parseSSEChunks(mockResponse.chunks);
-      const messageEvents = events.filter((e) => e.event === 'backfill:message');
-      
+      const messageEvents = events.filter(
+        (e) => e.event === 'backfill:message',
+      );
+
       expect(messageEvents.length).toBe(5);
       expect(messageEvents[0].data.messageId).toBe(100);
       expect(messageEvents[1].data.messageId).toBe(101);
@@ -599,9 +680,9 @@ describe('StreamController - Backfill Endpoint', () => {
       const testMessages = Array.from({ length: 100 }, (_, i) =>
         createTestMessage(channelId, 1000 + i),
       );
-      
+
       mockTelegramListener.backfill.mockResolvedValue(testMessages);
-      
+
       const mockRequest = createMockRequest() as Request;
       const mockResponse = createMockResponse();
 
@@ -612,8 +693,10 @@ describe('StreamController - Backfill Endpoint', () => {
 
       // Assert
       const events = parseSSEChunks(mockResponse.chunks);
-      const messageEvents = events.filter((e) => e.event === 'backfill:message');
-      
+      const messageEvents = events.filter(
+        (e) => e.event === 'backfill:message',
+      );
+
       expect(messageEvents.length).toBe(100);
       expect(duration).toBeLessThan(1000); // Should complete in < 1s
     });
@@ -624,14 +707,14 @@ describe('StreamController - Backfill Endpoint', () => {
       // Arrange
       const channelId1 = '-1001111111111';
       const channelId2 = '-1002222222222';
-      
+
       mockTelegramListener.backfill
         .mockResolvedValueOnce([createTestMessage(channelId1, 100)])
         .mockResolvedValueOnce([createTestMessage(channelId2, 200)]);
-      
+
       const mockRequest1 = createMockRequest() as Request;
       const mockResponse1 = createMockResponse();
-      
+
       const mockRequest2 = createMockRequest() as Request;
       const mockResponse2 = createMockResponse();
 
@@ -644,10 +727,10 @@ describe('StreamController - Backfill Endpoint', () => {
       // Assert
       const events1 = parseSSEChunks(mockResponse1.chunks);
       const events2 = parseSSEChunks(mockResponse2.chunks);
-      
+
       const message1 = events1.find((e) => e.event === 'backfill:message');
       const message2 = events2.find((e) => e.event === 'backfill:message');
-      
+
       expect(message1!.data.peerId).toBe(channelId1);
       expect(message2!.data.peerId).toBe(channelId2);
     });
@@ -683,9 +766,9 @@ describe('StreamController - Backfill Endpoint', () => {
           groupedId: '123456',
         },
       ];
-      
+
       mockTelegramListener.backfill.mockResolvedValue(testMessages);
-      
+
       const mockRequest = createMockRequest() as Request;
       const mockResponse = createMockResponse();
 
@@ -694,14 +777,16 @@ describe('StreamController - Backfill Endpoint', () => {
 
       // Assert
       const events = parseSSEChunks(mockResponse.chunks);
-      const messageEvents = events.filter((e) => e.event === 'backfill:message');
-      
+      const messageEvents = events.filter(
+        (e) => e.event === 'backfill:message',
+      );
+
       expect(messageEvents.length).toBe(3);
       expect(messageEvents[0].data.media.length).toBe(1);
       expect(messageEvents[1].data.media.length).toBe(0);
       expect(messageEvents[2].data.media.length).toBe(1);
       expect(messageEvents[2].data.groupedId).toBe('123456');
-      
+
       const completeEvent = events.find((e) => e.event === 'backfill:complete');
       expect(completeEvent!.data.count).toBe(3);
     });

@@ -46,10 +46,7 @@ describe('StreamService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        StreamService,
-        DisconnectionTracker,
-      ],
+      providers: [StreamService, DisconnectionTracker],
     }).compile();
 
     service = module.get<StreamService>(StreamService);
@@ -74,7 +71,7 @@ describe('StreamService', () => {
       expect((mockResponse as unknown as MockResponse).headers).toEqual({
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache, no-transform',
-        'Connection': 'keep-alive',
+        Connection: 'keep-alive',
         'X-Accel-Buffering': 'no',
       });
     });
@@ -92,7 +89,9 @@ describe('StreamService', () => {
       expect(writes).toHaveLength(1);
       expect(writes[0]).toContain('event: connection:established');
       expect(writes[0]).toContain(`"clientId":"${clientId}"`);
-      expect(writes[0]).toContain('"message":"Connected to Ingestion Service SSE stream"');
+      expect(writes[0]).toContain(
+        '"message":"Connected to Ingestion Service SSE stream"',
+      );
     });
 
     it('should increment client count when adding clients', () => {
@@ -111,7 +110,9 @@ describe('StreamService', () => {
     it('should handle multiple clients with unique IDs', () => {
       // Arrange
       const clients = ['client-a', 'client-b', 'client-c'];
-      const mockResponses = clients.map(() => new MockResponse() as unknown as ServerResponse);
+      const mockResponses = clients.map(
+        () => new MockResponse() as unknown as ServerResponse,
+      );
 
       // Act
       clients.forEach((clientId, index) => {
@@ -140,7 +141,9 @@ describe('StreamService', () => {
 
       // Assert
       expect(service.getClientCount()).toBe(0);
-      expect((mockResponse as unknown as MockResponse).writableEnded).toBe(true);
+      expect((mockResponse as unknown as MockResponse).writableEnded).toBe(
+        true,
+      );
     });
 
     it('should handle removing non-existent client gracefully', () => {
@@ -202,7 +205,7 @@ describe('StreamService', () => {
         const writes = (response as unknown as MockResponse).getWrittenData();
         // Should have 2 writes: 1 connection:established, 1 broadcast
         expect(writes.length).toBeGreaterThanOrEqual(2);
-        
+
         const lastWrite = writes[writes.length - 1];
         expect(lastWrite).toContain('event: test:event');
         expect(lastWrite).toContain('"message":"Hello, World!"');
@@ -446,7 +449,10 @@ describe('StreamService', () => {
     it('should handle rapid client additions and removals', () => {
       // Arrange
       const clientCount = 20;
-      const mockResponses = Array.from({ length: clientCount }, () => new MockResponse() as unknown as ServerResponse);
+      const mockResponses = Array.from(
+        { length: clientCount },
+        () => new MockResponse() as unknown as ServerResponse,
+      );
 
       // Act - Add all clients
       for (let i = 0; i < clientCount; i++) {
@@ -468,7 +474,10 @@ describe('StreamService', () => {
     it('should broadcast to many clients without data loss', () => {
       // Arrange
       const clientCount = 50;
-      const mockResponses = Array.from({ length: clientCount }, () => new MockResponse() as unknown as ServerResponse);
+      const mockResponses = Array.from(
+        { length: clientCount },
+        () => new MockResponse() as unknown as ServerResponse,
+      );
 
       for (let i = 0; i < clientCount; i++) {
         service.addClient(`client-${i}`, mockResponses[i]);
@@ -516,19 +525,25 @@ describe('StreamService', () => {
       expect(service.getClientCount()).toBe(2);
 
       // client-1 should have events 1 and 2 (removed before event 3)
-      const writes1 = (mockResponse1 as unknown as MockResponse).getWrittenData();
+      const writes1 = (
+        mockResponse1 as unknown as MockResponse
+      ).getWrittenData();
       expect(writes1.some((w) => w.includes('test:1'))).toBe(true);
       expect(writes1.some((w) => w.includes('test:2'))).toBe(true);
       expect(writes1.some((w) => w.includes('test:3'))).toBe(false);
 
       // client-2 should have events 2 and 3 (added before event 2)
-      const writes2 = (mockResponse2 as unknown as MockResponse).getWrittenData();
+      const writes2 = (
+        mockResponse2 as unknown as MockResponse
+      ).getWrittenData();
       expect(writes2.some((w) => w.includes('test:1'))).toBe(false);
       expect(writes2.some((w) => w.includes('test:2'))).toBe(true);
       expect(writes2.some((w) => w.includes('test:3'))).toBe(true);
 
       // client-3 should only have event 3 (added before event 3)
-      const writes3 = (mockResponse3 as unknown as MockResponse).getWrittenData();
+      const writes3 = (
+        mockResponse3 as unknown as MockResponse
+      ).getWrittenData();
       expect(writes3.some((w) => w.includes('test:1'))).toBe(false);
       expect(writes3.some((w) => w.includes('test:2'))).toBe(false);
       expect(writes3.some((w) => w.includes('test:3'))).toBe(true);
@@ -566,7 +581,7 @@ describe('StreamService', () => {
       // Assert
       const writes = (mockResponse as unknown as MockResponse).getWrittenData();
       const eventWrite = writes[writes.length - 1];
-      
+
       expect(eventWrite).toContain('event: message:ingested');
       expect(eventWrite).toContain('"channelId":"123456789"');
       expect(eventWrite).toContain('"media":[');
@@ -612,7 +627,7 @@ describe('StreamService', () => {
       // Assert
       const writes = (mockResponse as unknown as MockResponse).getWrittenData();
       const eventWrite = writes[writes.length - 1];
-      
+
       // JSON.stringify should escape special characters properly
       expect(eventWrite).toContain('event: test:special');
       expect(eventWrite).toContain('\\n'); // Newline escaped

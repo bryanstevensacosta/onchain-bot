@@ -3,11 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { StreamService } from 'stream/application/services/stream.service';
 import { DeduplicationService } from 'telegram/shared/application/services/deduplication.service';
 import { LastSeenManager } from 'telegram/shared/infrastructure/services/last-seen-manager.service';
-import type { MessagePayload, MediaPayload } from 'telegram/shared/domain/types/message-payload';
+import type {
+  MessagePayload,
+  MediaPayload,
+} from 'telegram/shared/domain/types/message-payload';
 
 /**
  * TelegramRawMessage interface (from backend TelegramListenerPort)
- * 
+ *
  * This is the shape returned by TelegramMtprotoListenerAdapter.
  * We import the minimal interface here to avoid coupling to backend code.
  */
@@ -34,17 +37,17 @@ interface TelegramRawMessage {
 
 /**
  * IngestionCoordinator - Routes Telegram messages to SSE broadcast
- * 
+ *
  * Per Requirement 2.1: Broadcasts messages to all connected backend clients via SSE
  * Per Invariant 1 (fix-1): Raw text content EXCLUDED from SSE payload (ToS compliance)
  * Per Invariant 2: Sequential broadcast per channel (no parallel sends)
  * Per Invariant 3: Deduplication at source before broadcast
  * Per Invariant 5: Media URLs path-based (/api/media/:channelId/:messageId/:index)
- * 
+ *
  * Modified from backend IngestionCoordinator:
  * - OLD: Called use cases directly (StoreNewsMessageUseCase, KolIngestionOrchestratorUseCase)
  * - NEW: Broadcasts to StreamService, backends decide what to do with messages
- * 
+ *
  * @injectable NestJS service
  */
 @Injectable()
@@ -65,15 +68,18 @@ export class IngestionCoordinator {
 
   /**
    * Route a raw Telegram message to SSE broadcast
-   * 
+   *
    * Per Invariant 2: Sequential broadcast (async method, caller awaits before next message)
    * Per Invariant 3: Deduplication check before broadcast
    * Per Requirement 9.1: Structured logging for incoming messages
-   * 
+   *
    * @param raw - Raw Telegram message from MTProto listener
    * @param messageType - Discriminator for backend routing ('kol' or 'crypto-news')
    */
-  async route(raw: TelegramRawMessage, messageType: 'kol' | 'crypto-news'): Promise<void> {
+  async route(
+    raw: TelegramRawMessage,
+    messageType: 'kol' | 'crypto-news',
+  ): Promise<void> {
     try {
       // Per Invariant 3: Deduplication check
       const highestSeen = this.lastSeenManager.get(raw.peerId);
@@ -127,10 +133,10 @@ export class IngestionCoordinator {
 
   /**
    * Transform TelegramRawMessage to MessagePayload
-   * 
+   *
    * Per Invariant 1: Excludes text/content field (ToS compliance)
    * Per Invariant 5: Builds path-based media URLs
-   * 
+   *
    * @param raw - Raw message from MTProto listener
    * @param messageType - Message type discriminator
    * @returns SSE-safe payload WITHOUT text field
@@ -143,7 +149,9 @@ export class IngestionCoordinator {
       peerId: raw.peerId,
       messageId: raw.messageId,
       occurredAt: raw.occurredAt.toISOString(),
-      media: (raw.media || []).map((m) => this.buildMediaPayload(raw.peerId, raw.messageId, m)),
+      media: (raw.media || []).map((m) =>
+        this.buildMediaPayload(raw.peerId, raw.messageId, m),
+      ),
       entities: raw.entities,
       groupedId: raw.groupedId,
       messageType,
@@ -152,10 +160,10 @@ export class IngestionCoordinator {
 
   /**
    * Build media payload with HTTP URL
-   * 
+   *
    * Per Invariant 5: Path-based URLs for debuggability
    * Format: /api/media/:channelId/:messageId/:index
-   * 
+   *
    * @param channelId - Telegram channel ID
    * @param messageId - Telegram message ID
    * @param media - Media attachment from raw message
@@ -183,7 +191,7 @@ export class IngestionCoordinator {
 
   /**
    * Get routing statistics for monitoring
-   * 
+   *
    * @returns Deduplication cache stats
    */
   getStats() {

@@ -5,10 +5,10 @@ import { Logger } from 'nestjs-pino';
 
 /**
  * Bootstrap function for the Ingestion Service
- * 
+ *
  * This service provides centralized Telegram MTProto ingestion
  * and distributes messages to multiple backend environments via SSE.
- * 
+ *
  * Per Requirement 6.3: Default port 3031
  * Per Requirement 2.5: CORS enabled for backend environments
  */
@@ -35,8 +35,8 @@ async function bootstrap() {
   // Enable CORS for backend environments
   app.enableCors({
     origin: [
-      'http://localhost:3030',    // Backend DEV
-      'http://127.0.0.1:3030',    // Backend DEV (alternate)
+      'http://localhost:3030', // Backend DEV
+      'http://127.0.0.1:3030', // Backend DEV (alternate)
       process.env.BACKEND_STAGING_URL || 'http://staging-backend:3030',
       process.env.BACKEND_PROD_URL || 'http://prod-backend:3030',
     ],
@@ -48,8 +48,12 @@ async function bootstrap() {
 
   const logger = app.get(Logger);
   logger.log(`🚀 Ingestion Service listening on port ${port}`);
-  logger.log(`📡 SSE streaming endpoint: http://localhost:${port}/api/ingestion/stream`);
-  logger.log(`🖼️  Media endpoint: http://localhost:${port}/api/media/:channelId/:messageId/:index`);
+  logger.log(
+    `📡 SSE streaming endpoint: http://localhost:${port}/api/ingestion/stream`,
+  );
+  logger.log(
+    `🖼️  Media endpoint: http://localhost:${port}/api/media/:channelId/:messageId/:index`,
+  );
   logger.log(`💚 Health endpoint: http://localhost:${port}/api/health`);
 }
 

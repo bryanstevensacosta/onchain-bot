@@ -1,4 +1,15 @@
-import { Controller, Get, Req, Res, Logger, Param, Query, BadRequestException, Inject, Optional } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Req,
+  Res,
+  Logger,
+  Param,
+  Query,
+  BadRequestException,
+  Inject,
+  Optional,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { StreamService } from '../../application/services/stream.service';
@@ -13,30 +24,30 @@ interface TelegramListenerPort {
 
 /**
  * StreamController exposes SSE streaming endpoint for backend clients
- * 
+ *
  * Per Requirement 2.1: Provides HTTP SSE endpoint at GET /api/ingestion/stream
  * Per Requirement 2.4: Handles client connection lifecycle and cleanup
  * Per GAP 1 (Architectural Decision 1): Backfill endpoint with SSE streaming
- * 
+ *
  * Endpoints:
  * - GET /api/ingestion/stream - Real-time SSE stream
  * - GET /api/ingestion/stream/status - Connection metrics
  * - GET /api/ingestion/backfill/:channelId - Historical messages via SSE
- * 
+ *
  * Event Format:
  * ```
  * event: <event-type>
  * data: <json-payload>
- * 
+ *
  * ```
- * 
+ *
  * Event Types:
  * - connection:established - Initial handshake confirmation
  * - message:telegram - New Telegram message ingested (real-time)
  * - backfill:message - Historical message (backfill)
  * - backfill:complete - Backfill stream finished
  * - health:ping - Heartbeat (every 30s)
- * 
+ *
  * @controller Handles /api/ingestion routes
  */
 @Controller('api/ingestion')
@@ -45,27 +56,29 @@ export class StreamController {
 
   constructor(
     private readonly streamService: StreamService,
-    @Optional() @Inject('TelegramListenerPort') private readonly telegramListener?: TelegramListenerPort,
+    @Optional()
+    @Inject('TelegramListenerPort')
+    private readonly telegramListener?: TelegramListenerPort,
   ) {}
 
   /**
    * SSE streaming endpoint for real-time messages
-   * 
+   *
    * Per Requirement 2.1: Accept SSE connections from backend clients
    * Per Requirement 2.4: Clean up on client disconnect
-   * 
+   *
    * The connection remains open indefinitely until:
    * - Client closes the connection
    * - Network error occurs
    * - Server shuts down
-   * 
+   *
    * @param request - Express request object
    * @param response - Express response object (raw ServerResponse)
    */
   @Get('stream')
   stream(@Req() request: Request, @Res() response: Response): void {
     const clientId = randomUUID();
-    
+
     this.logger.log(
       `New SSE connection request from ${request.ip} (client: ${clientId})`,
     );
@@ -93,19 +106,19 @@ export class StreamController {
 
   /**
    * Backfill endpoint - Stream historical messages via SSE
-   * 
+   *
    * Per GAP 1 (Architectural Decision 1): HTTP backfill with SSE streaming
    * Per Requirement 2.1: SSE-based delivery (consistent with real-time stream)
-   * 
+   *
    * Usage:
    * ```
    * GET /api/ingestion/backfill/:channelId?limit=50
    * ```
-   * 
+   *
    * Response: SSE stream with events:
    * - backfill:message (for each historical message)
    * - backfill:complete (stream finished)
-   * 
+   *
    * @param channelId - Telegram channel ID to backfill
    * @param limit - Number of recent messages to fetch (default: 100, max: 100)
    * @param request - Express request
@@ -120,7 +133,7 @@ export class StreamController {
   ): Promise<void> {
     // Parse and validate limit
     const limit = this.parseLimit(limitQuery);
-    
+
     this.logger.log(
       `Backfill request: channelId=${channelId}, limit=${limit} from ${request.ip}`,
     );
@@ -138,7 +151,7 @@ export class StreamController {
     response.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
       'X-Accel-Buffering': 'no',
     });
 
@@ -157,11 +170,13 @@ export class StreamController {
       }
 
       // Send completion event
-      const completePayload = `event: backfill:complete\ndata: ${JSON.stringify({
-        channelId,
-        count: messages.length,
-        timestamp: new Date().toISOString(),
-      })}\n\n`;
+      const completePayload = `event: backfill:complete\ndata: ${JSON.stringify(
+        {
+          channelId,
+          count: messages.length,
+          timestamp: new Date().toISOString(),
+        },
+      )}\n\n`;
       response.write(completePayload);
 
       // Close the stream
@@ -188,7 +203,7 @@ export class StreamController {
 
   /**
    * Parse and validate limit query parameter
-   * 
+   *
    * @param limitQuery - Query string value
    * @returns Validated limit (1-100)
    */
@@ -220,13 +235,13 @@ export class StreamController {
 
   /**
    * Health check endpoint for SSE stream status
-   * 
+   *
    * Per Requirement 8.1: Expose metrics for monitoring
-   * 
+   *
    * Returns:
    * - connectedClients: Number of active SSE connections
    * - clients: Array of client metadata
-   * 
+   *
    * @returns JSON response with stream status
    */
   @Get('stream/status')

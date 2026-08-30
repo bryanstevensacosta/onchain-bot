@@ -1,18 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectMetric } from '@willsoto/nestjs-prometheus';
-import {
-  Counter,
-  Gauge,
-  Histogram,
-  Registry,
-} from 'prom-client';
+import { Counter, Gauge, Histogram, Registry } from 'prom-client';
 
 /**
  * MetricsService provides Prometheus metrics for the Ingestion Service
- * 
+ *
  * Per Requirement 9.5: Expose metrics for monitoring
  * Per Requirement 11.7: Track FLOOD_WAIT occurrences
- * 
+ *
  * Metrics exposed:
  * - ingestion_mtproto_connected: MTProto connection status (0|1)
  * - ingestion_messages_received_total: Total messages received (labels: channelId, type)
@@ -22,7 +17,7 @@ import {
  * - ingestion_flood_wait_count_24h: FLOOD_WAIT errors in 24h window
  * - ingestion_media_downloads_total: Total media downloads (labels: type)
  * - ingestion_api_request_duration_seconds: API request latency (labels: endpoint, method, status)
- * 
+ *
  * @service MetricsService
  */
 @Injectable()
