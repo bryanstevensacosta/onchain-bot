@@ -17,7 +17,7 @@ describe('CreateCryptoNewsPublisherTables1840000000000 migration', () => {
 
     await migration.up(runner);
 
-    const ddls = query.mock.calls.map((c) => String(c[0]));
+    const ddls = query.mock.calls.map((c) => String((c as any[])[0]));
 
     // 6 CREATE TABLE statements
     const createTableDdls = ddls.filter((d) =>

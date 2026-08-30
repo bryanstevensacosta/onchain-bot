@@ -1,0 +1,62 @@
+# Ingestion Service compartido para Production + Staging
+# Deploy: docker compose -f docker-compose.ingestion.yml up -d
+name: onchain-bot-ingestion
+
+services:
+  ingestion-service:
+    build:
+      context: ../..
+      dockerfile: apps/ingestion-service/Dockerfile
+    image: ghcr.io/bryanstevensacosta/onchain-bot-ingestion:latest
+    container_name: onchain-bot-ingestion
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+    env_file:
+      - ../../apps/ingestion-service/.env.production
+    ports:
+      # Puerto 3032 para evitar conflicto con staging backend (3031)
+      - '127.0.0.1:3032:3031'
+    volumes:
+      # Media compartida con production (mismo volumen bind)
+      - ../backend/uploads:/app/uploads
+      - ../backend/config:/app/config:ro
+    environment:
+      INGESTION_PORT: 3031 # Puerto interno del container
+      REDIS_HOST: onchain-bot-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    # Conectar a AMBAS redes: prod y staging
+    networks:
+      - onchain-bot-net # Red de production
+      - onchain-bot-staging-net # Red de staging
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '--spider',
+          'http://localhost:3031/api/health',
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+networks:
+  # Redes existentes (external: true = no las crea, solo las usa)
+  onchain-bot-net:
+    external: true
+    name: onchain-bot-net
+  onchain-bot-staging-net:
+    external: true
+    name: onchain-bot-staging-net

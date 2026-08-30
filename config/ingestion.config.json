@@ -1,0 +1,17 @@
+{
+  "maxChannels": 50,
+  "pollIntervalBaseMs": 90000,
+  "jitterPercent": 30,
+  "sleepWindow": {
+    "start": "04:00",
+    "end": "08:00",
+    "timezone": "UTC"
+  },
+  "floodProtection": {
+    "initialBackoffMs": 5000,
+    "backoffMultiplier": 2,
+    "maxBackoffMs": 3600000,
+    "maxAttempts": 5,
+    "threshold24h": 10
+  }
+}

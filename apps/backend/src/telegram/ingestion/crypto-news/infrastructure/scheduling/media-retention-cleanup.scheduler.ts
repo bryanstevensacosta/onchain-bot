@@ -261,10 +261,20 @@ export class MediaRetentionCleanupScheduler {
   private async cleanupOrphanFiles(): Promise<number> {
     const { readdir, stat, unlink } = await import('fs/promises');
     const path = await import('path');
-    const appCfg = this.config.get<AppConfig>('app', { infer: true });
-    const uploadsRoot =
-      appCfg?.uploadsRoot ?? path.join(process.cwd(), 'uploads');
-    const mediaRoot = path.join(uploadsRoot, 'crypto-news', 'media');
+
+    interface AppConfigType {
+      uploadsRoot?: string;
+    }
+
+    const appCfg: AppConfigType = (this.config.get<AppConfigType>('app', {
+      infer: true,
+    }) ?? {
+      uploadsRoot: undefined,
+    }) as AppConfigType;
+    const uploadsRoot: string =
+      appCfg.uploadsRoot ?? path.join(process.cwd(), 'uploads');
+    const mediaRoot: string = path.join(uploadsRoot, 'crypto-news', 'media');
+
     let dbPaths: Set<string> = new Set<string>();
     try {
       const rows: Array<{ file_path: string }> = await this.dataSource.query(
@@ -274,6 +284,7 @@ export class MediaRetentionCleanupScheduler {
     } catch {
       return 0;
     }
+
     let deleted = 0;
     const walk = async (dir: string): Promise<void> => {
       let entries: import('fs').Dirent[] = [];
@@ -283,9 +294,7 @@ export class MediaRetentionCleanupScheduler {
         return;
       }
       for (const e of entries) {
-        const full = (
-          path as unknown as { join: (...a: string[]) => string }
-        ).join(dir, e.name);
+        const full = path.join(dir, e.name);
         if (e.isDirectory()) await walk(full);
         else if (
           e.isFile() &&

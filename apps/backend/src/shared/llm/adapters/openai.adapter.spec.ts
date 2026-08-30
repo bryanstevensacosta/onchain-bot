@@ -1,4 +1,3 @@
-import OpenAI from 'openai';
 import { OpenAiAdapter } from './openai.adapter';
 
 interface MockChatCompletions {

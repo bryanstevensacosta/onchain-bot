@@ -25,7 +25,8 @@
  *     INGESTION_TELEGRAM_SEED_NEWS (news seed)
  *     INGESTION_TELEGRAM_METADATA_CACHE_FILE
  *     INGESTION_TELEGRAM_BACKFILL_ENABLED
- *     PUBLISHING_TELEGRAM_USE_REAL_MTPROTO/OUTPUT_CHANNEL,
+ USE_SSE_INGESTION, INGESTION_SERVICE_URL
+ *     *     PUBLISHING_TELEGRAM_USE_REAL_MTPROTO/OUTPUT_CHANNEL,
  *     VIP_CALLS_BOT_TOKEN/OUTPUT_CHANNEL,
  *     CRYPTO_NEWS_BOT_TOKEN/OUTPUT_CHANNEL,
  *     CHAIN_DEXTER_BOT_TOKEN/WEBHOOK_SECRET/INGEST_MODE/POLLING_INTERVAL_MS/DEFAULT_TRADE_BUTTONS,
@@ -172,6 +173,9 @@ export interface AppConfig extends LlmConfigShape {
         enabled: boolean;
       };
     };
+    useSse: boolean;
+    useMock: boolean;
+    serviceUrl: string;
   };
 
   publishing: {
@@ -450,6 +454,11 @@ export const appConfig = registerAs(
             ).toLowerCase() === 'true',
         },
       },
+      useSse:
+        (process.env.USE_SSE_INGESTION ?? 'false').toLowerCase() === 'true',
+      useMock:
+        (process.env.USE_MOCK_INGESTION ?? 'false').toLowerCase() === 'true',
+      serviceUrl: process.env.INGESTION_SERVICE_URL ?? 'http://localhost:3031',
     },
 
     publishing: {

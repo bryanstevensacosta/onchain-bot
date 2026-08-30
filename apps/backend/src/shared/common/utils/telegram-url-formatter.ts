@@ -62,7 +62,7 @@ export function formatUrlsAsMarkdown(text: string): string {
 
   const existingLinks = findMarkdownLinks(text);
 
-  const result = text.replace(URL_REGEX, (match, prefix, offset) => {
+  const result = text.replace(URL_REGEX, (match, prefix: string, _offset) => {
     const url = match.slice(prefix.length);
 
     if (isUrlInMarkdownLink(url, existingLinks)) {

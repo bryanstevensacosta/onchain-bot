@@ -166,7 +166,11 @@ describe('DeduplicationService', () => {
   describe('checkSemantic', () => {
     beforeEach(() => {
       // Inject embedding service
-      (service as any).embeddingService = mockEmbeddingService;
+      (
+        service as DeduplicationService & {
+          embeddingService: typeof mockEmbeddingService;
+        }
+      ).embeddingService = mockEmbeddingService;
     });
 
     it('should return duplicate when semantic similarity is high', async () => {
@@ -217,7 +221,11 @@ describe('DeduplicationService', () => {
     });
 
     it('should return different when embedding service unavailable', async () => {
-      (service as any).embeddingService = undefined;
+      (
+        service as DeduplicationService & {
+          embeddingService?: typeof mockEmbeddingService;
+        }
+      ).embeddingService = undefined;
 
       const result = await service.checkSemantic(
         'telegram',
@@ -255,7 +263,11 @@ describe('DeduplicationService', () => {
         confidence: 0.9,
       });
 
-      (service as any).arbiterService = mockArbiterService;
+      (
+        service as DeduplicationService & {
+          arbiterService: typeof mockArbiterService;
+        }
+      ).arbiterService = mockArbiterService;
 
       const result = await service.checkSemantic(
         'telegram',
@@ -270,7 +282,11 @@ describe('DeduplicationService', () => {
       // normalized stored content, similarity=the real bestScore (not
       // the hardcoded 0.85 from the buggy prior wiring).
       expect(mockArbiterService.classifyRelation).toHaveBeenCalledTimes(1);
-      const callArgs = mockArbiterService.classifyRelation.mock.calls[0];
+      const callArgs = mockArbiterService.classifyRelation.mock.calls[0] as [
+        string,
+        string,
+        number,
+      ];
       expect(callArgs[0]).toBe(ContentNormalizerService.normalize(content));
       expect(callArgs[1]).toBe(
         ContentNormalizerService.normalize(
@@ -301,7 +317,11 @@ describe('DeduplicationService', () => {
         { record: existingRecord, similarity: 0.8 },
       ]);
 
-      (service as any).arbiterService = mockArbiterService;
+      (
+        service as DeduplicationService & {
+          arbiterService: typeof mockArbiterService;
+        }
+      ).arbiterService = mockArbiterService;
 
       const result = await service.checkSemantic(
         'telegram',
@@ -336,7 +356,11 @@ describe('DeduplicationService', () => {
         { record: existingRecord, similarity: 0.8 },
       ]);
 
-      (service as any).arbiterService = mockArbiterService;
+      (
+        service as DeduplicationService & {
+          arbiterService: typeof mockArbiterService;
+        }
+      ).arbiterService = mockArbiterService;
 
       const result = await service.checkSemantic(
         'telegram',
@@ -370,7 +394,11 @@ describe('DeduplicationService', () => {
       ]);
 
       // No LLM arbiter
-      (service as any).arbiterService = undefined;
+      (
+        service as DeduplicationService & {
+          arbiterService?: typeof mockArbiterService;
+        }
+      ).arbiterService = undefined;
 
       const result = await service.checkSemantic(
         'telegram',
@@ -424,7 +452,11 @@ describe('DeduplicationService', () => {
         relation: 'duplicate',
         confidence: 0.9,
       });
-      (service as any).arbiterService = mockArbiterService;
+      (
+        service as DeduplicationService & {
+          arbiterService: typeof mockArbiterService;
+        }
+      ).arbiterService = mockArbiterService;
 
       const result = await service.checkSemantic(
         'telegram',
@@ -470,7 +502,11 @@ describe('DeduplicationService', () => {
       mockStore.findSimilarEmbeddings.mockResolvedValue([
         { record: existingRecord, similarity: COS },
       ]);
-      (service as any).arbiterService = mockArbiterService;
+      (
+        service as DeduplicationService & {
+          arbiterService: typeof mockArbiterService;
+        }
+      ).arbiterService = mockArbiterService;
 
       const result = await service.checkSemantic(
         'telegram',
@@ -553,7 +589,11 @@ describe('DeduplicationService', () => {
 
   describe('classifyEvent', () => {
     it('should return null when LLM arbiter not available', async () => {
-      (service as any).arbiterService = undefined;
+      (
+        service as DeduplicationService & {
+          arbiterService?: typeof mockArbiterService;
+        }
+      ).arbiterService = undefined;
 
       const record = DedupRecord.create({
         fingerprint: Fingerprint.exact('channel1', 123),
@@ -574,7 +614,11 @@ describe('DeduplicationService', () => {
         confidence: 0.8,
       });
 
-      (service as any).arbiterService = mockArbiterService;
+      (
+        service as DeduplicationService & {
+          arbiterService: typeof mockArbiterService;
+        }
+      ).arbiterService = mockArbiterService;
 
       const storedContent =
         'Ethereum continues to break resistance levels today with strong volume and bullish momentum building across major exchanges';
@@ -604,7 +648,11 @@ describe('DeduplicationService', () => {
     });
 
     it('should fail-open classifyEvent to null when candidate has NULL content', async () => {
-      (service as any).arbiterService = mockArbiterService;
+      (
+        service as DeduplicationService & {
+          arbiterService: typeof mockArbiterService;
+        }
+      ).arbiterService = mockArbiterService;
 
       const record = DedupRecord.create({
         fingerprint: Fingerprint.exact('channel1', 123),
@@ -621,7 +669,11 @@ describe('DeduplicationService', () => {
     });
 
     it('should fail-open classifyEvent to null when candidate has short content', async () => {
-      (service as any).arbiterService = mockArbiterService;
+      (
+        service as DeduplicationService & {
+          arbiterService: typeof mockArbiterService;
+        }
+      ).arbiterService = mockArbiterService;
 
       const record = DedupRecord.create({
         fingerprint: Fingerprint.exact('channel1', 123),

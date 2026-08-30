@@ -8,7 +8,6 @@ import { Keyword } from '../../domain/entities/keyword.entity';
 describe('EnqueueMatchingMessageUseCase', () => {
   let useCase: EnqueueMatchingMessageUseCase;
   let queueRepo: jest.Mocked<PublisherQueueRepository>;
-  let messageRepo: jest.Mocked<CryptoNewsMessageRepository>;
 
   const mockMessage: CryptoNewsMessage = {
     id: 'msg-123',
@@ -53,7 +52,6 @@ describe('EnqueueMatchingMessageUseCase', () => {
       EnqueueMatchingMessageUseCase,
     );
     queueRepo = module.get(PublisherQueueRepository);
-    messageRepo = module.get(CryptoNewsMessageRepository);
   });
 
   it('should be defined', () => {

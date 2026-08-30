@@ -43,6 +43,7 @@ import { LlmModule } from 'shared/llm';
 import { DeduplicationModule } from 'shared/deduplication/deduplication.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { DevModule } from './dev/dev.module';
 
 @Module({
   imports: [
@@ -69,7 +70,6 @@ import { AppService } from './app.service';
           logCfg.dir,
           logCfg.fileName,
         );
-        const isDev = logCfg.prettyInDev;
         return {
           pinoHttp: {
             level: logCfg.level,
@@ -104,6 +104,8 @@ import { AppService } from './app.service';
     }),
     RedisModule,
     HealthModule,
+    // DevModule (conditional: only when USE_MOCK_INGESTION=true)
+    ...(process.env.USE_MOCK_INGESTION === 'true' ? [DevModule] : []),
     TelegramIngestionModule,
     IdentityModule,
     SourceModule,

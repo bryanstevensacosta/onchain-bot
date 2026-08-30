@@ -60,8 +60,8 @@ describe('KeywordsController', () => {
       const result = await controller.list();
 
       expect(result).toHaveLength(2);
-      expect(result[0].phrase).toBe('btc');
-      expect(result[1].phrase).toBe('eth');
+      expect((result as Array<Record<string, any>>)[0].phrase).toBe('btc');
+      expect((result as Array<Record<string, any>>)[1].phrase).toBe('eth');
     });
   });
 
@@ -150,7 +150,7 @@ describe('KeywordsController', () => {
     });
 
     it('allows same phrase in different groups', async () => {
-      const andGroupId = crypto.randomUUID();
+      const _andGroupId = crypto.randomUUID();
       keywordRepo.save.mockResolvedValue();
 
       const result = await controller.create({
@@ -442,8 +442,12 @@ describe('KeywordsController', () => {
       });
 
       expect(result).toHaveLength(2);
-      expect(result[0].andGroupId).toBe(result[1].andGroupId);
-      expect(result[0].andGroupId).not.toBeNull();
+      expect((result as Array<Record<string, any>>)[0].andGroupId).toBe(
+        (result as Array<Record<string, any>>)[1].andGroupId,
+      );
+      expect(
+        (result as Array<Record<string, any>>)[0].andGroupId,
+      ).not.toBeNull();
       expect(keywordRepo.save).toHaveBeenCalledTimes(2);
     });
 
