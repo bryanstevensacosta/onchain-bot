@@ -1,0 +1,106 @@
+{
+  "name": "@alpha-meta-token-scanner/ingestion-service",
+  "version": "1.0.0",
+  "description": "Centralized Telegram ingestion service that streams messages to multiple backend environments via SSE",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "lint": "eslint \"{src,test}/**/*.ts\" --fix",
+    "test": "jest --forceExit --testTimeout=30s",
+    "test:watch": "jest --watch --forceExit",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.1",
+    "@nestjs/config": "^4.0.4",
+    "@nestjs/core": "^11.0.1",
+    "@nestjs/event-emitter": "^3.1.0",
+    "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/schedule": "^6.1.3",
+    "@nestjs/typeorm": "^11.0.2",
+    "@willsoto/nestjs-prometheus": "^6.1.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "dotenv": "^17.4.2",
+    "ioredis": "^5.4.1",
+    "nestjs-pino": "^4.6.1",
+    "pg": "^8.22.0",
+    "pino": "^10.3.1",
+    "prom-client": "^15.1.3",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "telegram": "^2.26.22",
+    "typeorm": "^0.3.30"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.1",
+    "@types/eventsource": "^1.1.15",
+    "@types/express": "^5.0.0",
+    "@types/jest": "^30.0.0",
+    "@types/mime-types": "^3.0.1",
+    "@types/node": "^22.10.7",
+    "@types/pg": "^8.11.14",
+    "@types/supertest": "^6.0.2",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-prettier": "^5.2.2",
+    "eventsource": "^5.1.1",
+    "fast-check": "^4.8.0",
+    "jest": "^30.0.0",
+    "pino-pretty": "^13.1.3",
+    "prettier": "^3.8.4",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.5",
+    "ts-loader": "^9.5.2",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": ".",
+    "testRegex": ".*\\.spec\\.ts$",
+    "setupFiles": [
+      "<rootDir>/jest.setup.ts"
+    ],
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "src/**/*.(t|j)s"
+    ],
+    "coverageDirectory": "./coverage",
+    "testEnvironment": "node",
+    "globals": {
+      "ts-jest": {
+        "useESM": true
+      }
+    },
+    "moduleNameMapper": {
+      "^telegram/events$": "<rootDir>/../../node_modules/telegram/events/index",
+      "^telegram/sessions$": "<rootDir>/../../node_modules/telegram/sessions/index",
+      "^telegram/(.*)$": "<rootDir>/src/telegram/$1",
+      "^shared/(.*)$": "<rootDir>/src/shared/$1",
+      "^stream/(.*)$": "<rootDir>/src/stream/$1",
+      "^media/(.*)$": "<rootDir>/src/media/$1",
+      "^health/(.*)$": "<rootDir>/src/health/$1",
+      "^src/(.*)$": "<rootDir>/src/$1"
+    }
+  }
+}
