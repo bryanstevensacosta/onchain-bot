@@ -22,10 +22,10 @@ import { plainToClass, Type } from 'class-transformer';
 
 /**
  * Application configuration for Ingestion Service
- * 
+ *
  * Validates and provides typed access to environment variables.
  * Loads config/ingestion.config.json for safety defaults (Per Requirement 11.6).
- * 
+ *
  * Per Requirement 6.2: All configuration via environment variables
  * Per Requirement 11: Anti-ban protection configuration
  * Per Requirement 11.6: Load config file with safe defaults
@@ -74,11 +74,17 @@ export interface IngestionSafetyConfigFile {
 class TelegramConfig {
   @IsInt()
   @IsPositive()
-  @IsNotEmpty({ message: 'INGESTION_TELEGRAM_MTPROTO_API_ID is required and must be a valid integer' })
+  @IsNotEmpty({
+    message:
+      'INGESTION_TELEGRAM_MTPROTO_API_ID is required and must be a valid integer',
+  })
   apiId!: number;
 
   @IsString()
-  @MinLength(32, { message: 'INGESTION_TELEGRAM_MTPROTO_API_HASH must be at least 32 characters' })
+  @MinLength(32, {
+    message:
+      'INGESTION_TELEGRAM_MTPROTO_API_HASH must be at least 32 characters',
+  })
   @IsNotEmpty({ message: 'INGESTION_TELEGRAM_MTPROTO_API_HASH is required' })
   apiHash!: string;
 
@@ -97,7 +103,10 @@ class ApiConfig {
   @IsNotEmpty({ message: 'INGESTION_API_HOST is required' })
   host!: string;
 
-  @IsUrl({ require_tld: false }, { message: 'INGESTION_API_BASE_URL must be a valid URL' })
+  @IsUrl(
+    { require_tld: false },
+    { message: 'INGESTION_API_BASE_URL must be a valid URL' },
+  )
   @IsNotEmpty({ message: 'INGESTION_API_BASE_URL is required' })
   baseUrl!: string;
 }
@@ -156,12 +165,18 @@ class FloodProtectionConfig {
 class IngestionSafetyConfig {
   @IsInt()
   @IsPositive()
-  @Max(100, { message: 'INGESTION_SAFETY_MAX_CHANNELS should not exceed 100 for anti-ban safety' })
+  @Max(100, {
+    message:
+      'INGESTION_SAFETY_MAX_CHANNELS should not exceed 100 for anti-ban safety',
+  })
   maxChannels!: number;
 
   @IsInt()
   @IsPositive()
-  @Min(30000, { message: 'INGESTION_SAFETY_POLL_INTERVAL_MS should be at least 30s for anti-ban safety' })
+  @Min(30000, {
+    message:
+      'INGESTION_SAFETY_POLL_INTERVAL_MS should be at least 30s for anti-ban safety',
+  })
   pollIntervalBaseMs!: number;
 
   @IsInt()
@@ -278,7 +293,7 @@ function validateConfig(config: Record<string, any>): void {
 
     throw new Error(
       `[Config] Configuration validation failed:\n${errorMessages}\n\n` +
-        'Please check your environment variables and ensure all required values are set correctly.'
+        'Please check your environment variables and ensure all required values are set correctly.',
     );
   }
 }
@@ -289,7 +304,7 @@ function validateConfig(config: Record<string, any>): void {
  */
 function loadSafetyConfig(): IngestionSafetyConfigFile {
   const configPath = join(process.cwd(), 'config', 'ingestion.config.json');
-  
+
   // Default configuration (used if file is missing or invalid)
   const defaults: IngestionSafetyConfigFile = {
     maxChannels: 50,
@@ -318,12 +333,15 @@ function loadSafetyConfig(): IngestionSafetyConfigFile {
 
   try {
     const fileContent = readFileSync(configPath, 'utf-8');
-    const parsed = JSON.parse(fileContent) as Partial<IngestionSafetyConfigFile>;
-    
+    const parsed = JSON.parse(
+      fileContent,
+    ) as Partial<IngestionSafetyConfigFile>;
+
     // Merge with defaults (file values override defaults)
     return {
       maxChannels: parsed.maxChannels ?? defaults.maxChannels,
-      pollIntervalBaseMs: parsed.pollIntervalBaseMs ?? defaults.pollIntervalBaseMs,
+      pollIntervalBaseMs:
+        parsed.pollIntervalBaseMs ?? defaults.pollIntervalBaseMs,
       jitterPercent: parsed.jitterPercent ?? defaults.jitterPercent,
       sleepWindow: {
         start: parsed.sleepWindow?.start ?? defaults.sleepWindow.start,
@@ -332,12 +350,20 @@ function loadSafetyConfig(): IngestionSafetyConfigFile {
       },
       floodProtection: {
         initialBackoffMs:
-          parsed.floodProtection?.initialBackoffMs ?? defaults.floodProtection.initialBackoffMs,
+          parsed.floodProtection?.initialBackoffMs ??
+          defaults.floodProtection.initialBackoffMs,
         backoffMultiplier:
-          parsed.floodProtection?.backoffMultiplier ?? defaults.floodProtection.backoffMultiplier,
-        maxBackoffMs: parsed.floodProtection?.maxBackoffMs ?? defaults.floodProtection.maxBackoffMs,
-        maxAttempts: parsed.floodProtection?.maxAttempts ?? defaults.floodProtection.maxAttempts,
-        threshold24h: parsed.floodProtection?.threshold24h ?? defaults.floodProtection.threshold24h,
+          parsed.floodProtection?.backoffMultiplier ??
+          defaults.floodProtection.backoffMultiplier,
+        maxBackoffMs:
+          parsed.floodProtection?.maxBackoffMs ??
+          defaults.floodProtection.maxBackoffMs,
+        maxAttempts:
+          parsed.floodProtection?.maxAttempts ??
+          defaults.floodProtection.maxAttempts,
+        threshold24h:
+          parsed.floodProtection?.threshold24h ??
+          defaults.floodProtection.threshold24h,
       },
     };
   } catch (error) {
@@ -354,14 +380,16 @@ function loadSafetyConfig(): IngestionSafetyConfigFile {
 function parseSeedKols(): SeedKolEntry[] {
   const raw = process.env.INGESTION_TELEGRAM_SEED_KOLS;
   if (!raw) return [];
-  
+
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) {
-      console.warn('[Config] INGESTION_TELEGRAM_SEED_KOLS is not an array, ignoring');
+      console.warn(
+        '[Config] INGESTION_TELEGRAM_SEED_KOLS is not an array, ignoring',
+      );
       return [];
     }
-    return parsed;
+    return parsed as SeedKolEntry[];
   } catch (error) {
     console.warn(
       `[Config] Failed to parse INGESTION_TELEGRAM_SEED_KOLS: ${error instanceof Error ? error.message : String(error)}`,
@@ -373,14 +401,16 @@ function parseSeedKols(): SeedKolEntry[] {
 function parseSeedNews(): SeedNewsChannelEntry[] {
   const raw = process.env.INGESTION_TELEGRAM_SEED_NEWS;
   if (!raw) return [];
-  
+
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) {
-      console.warn('[Config] INGESTION_TELEGRAM_SEED_NEWS is not an array, ignoring');
+      console.warn(
+        '[Config] INGESTION_TELEGRAM_SEED_NEWS is not an array, ignoring',
+      );
       return [];
     }
-    return parsed;
+    return parsed as SeedNewsChannelEntry[];
   } catch (error) {
     console.warn(
       `[Config] Failed to parse INGESTION_TELEGRAM_SEED_NEWS: ${error instanceof Error ? error.message : String(error)}`,
@@ -412,7 +442,9 @@ export const appConfig = registerAs('app', () => {
   const api = {
     port: parseInt(process.env.INGESTION_API_PORT || '3031', 10),
     host: (process.env.INGESTION_API_HOST || '').trim() || '0.0.0.0',
-    baseUrl: (process.env.INGESTION_API_BASE_URL || '').trim() || 'http://localhost:3031',
+    baseUrl:
+      (process.env.INGESTION_API_BASE_URL || '').trim() ||
+      'http://localhost:3031',
   };
 
   // Redis configuration (Requirement 6.2)
