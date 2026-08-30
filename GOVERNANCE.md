@@ -280,3 +280,68 @@ Este job **falla el CI** si detecta violaciones (Capa 3 - Audit):
 ---
 
 > **Recordatorio:** Este documento es la única fuente de verdad para gobernanza de ramas. Cualquier cambio requiere PR a `dev` → `master` con 2 approvals.
+
+---
+
+## 12. Sincronización Automática master → dev
+
+**Problema:** Commits en `master` que no están en `dev` causan conflictos en PRs `dev` → `master`.
+
+**Solución:** Workflow automático que sincroniza `master` → `dev` después de cada push a `master`.
+
+### 12.1 Workflow: sync-master-to-dev.yml
+
+**Trigger:** `push` a `master` (también manual vía `workflow_dispatch`)
+
+**Comportamiento:**
+
+1. Intenta rebase de `dev` sobre `master` (`git rebase origin/master`)
+2. Si el rebase es exitoso → `git push --force-with-lease origin dev`
+3. Si el rebase falla (conflictos):
+   - Aborta el rebase
+   - Crea una rama `sync/master-to-dev-<timestamp>`
+   - Crea un PR automático hacia `dev` con título `"chore: sync master → dev (auto, conflicts detected)"`
+   - El PR requiere resolución manual de conflictos
+
+**Ventajas:**
+
+- **Prevención automática:** `dev` siempre contiene los commits de `master`
+- **Cero divergencia:** Elimina conflictos en PRs `dev` → `master`
+- **Fallback manual:** Si hay conflictos, crea PR para resolución humana
+- **No invasivo:** Solo fuerza rebase si es fast-forward
+
+### 12.2 Flujo Completo con Sync Automático
+
+```
+master (PR merged) ──► workflow: sync-master-to-dev ──┬──► rebase exitoso
+                                                       │     └──► force-push a dev
+                                                       │
+                                                       └──► conflictos detectados
+                                                             └──► crea PR sync/* → dev
+                                                                  └──► resolución manual
+```
+
+### 12.3 Manejo de Conflictos
+
+**Si el workflow falla con conflictos:**
+
+1. GitHub Actions crea automáticamente un PR de `sync/master-to-dev-<timestamp>` → `dev`
+2. Un maintainer debe:
+   - Revisar el PR
+   - Resolver conflictos localmente:
+     ```bash
+     git fetch origin
+     git checkout sync/master-to-dev-<timestamp>
+     git rebase origin/dev
+     # Resolver conflictos manualmente
+     git push --force-with-lease origin sync/master-to-dev-<timestamp>
+     ```
+   - Aprobar y mergear el PR
+
+**Importante:** Este flujo garantiza que `dev` nunca diverge de `master` por más de un ciclo de PR.
+
+### 12.4 Excepciones y Consideraciones
+
+- **Protección de `dev`:** El workflow tiene permisos para force-push a `dev` (necesario para rebase)
+- **Rate limit:** El workflow solo corre en push a `master` (máx. ~10-20 veces/día en proyectos activos)
+- **Audit:** Todos los syncs automáticos quedan registrados en el historial de `dev`
