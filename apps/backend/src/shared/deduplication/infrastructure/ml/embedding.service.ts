@@ -80,16 +80,21 @@ export class EmbeddingService implements OnModuleInit {
     }
 
     try {
+      interface TransformersResult {
+        data: ArrayLike<number>;
+      }
+
       // @xenova/transformers - external library returns untyped pipeline
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      const result = await this.model(text, {
+      const result = (await this.model(text, {
         pooling: 'mean',
         normalize: true,
-      });
+      })) as TransformersResult;
 
       const embedding: number[] = [];
       const data = result.data;
-      for (let i = 0; i < data.length; i++) {
+      const length = data.length;
+      for (let i = 0; i < length; i++) {
         embedding.push(data[i]);
       }
 

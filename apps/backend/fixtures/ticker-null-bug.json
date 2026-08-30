@@ -1,0 +1,22 @@
+{
+  "name": "Ticker Null Bug",
+  "description": "Test case for when extraction returns null ticker",
+  "messages": [
+    {
+      "peerId": "-1001234567890",
+      "messageId": 99999,
+      "text": "$SOLANA is pumping! CA: 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+      "occurredAt": "2026-08-30T00:00:00.000Z",
+      "media": [],
+      "entities": [
+        {
+          "type": "url",
+          "offset": 30,
+          "length": 44,
+          "url": ""
+        }
+      ],
+      "groupedId": null
+    }
+  ]
+}

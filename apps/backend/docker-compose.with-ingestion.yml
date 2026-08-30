@@ -1,0 +1,151 @@
+# Docker Compose with Centralized Ingestion Service
+# This file extends docker-compose.prod.yml with the ingestion-service
+
+name: onchain-bot-with-ingestion
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: onchain-bot-postgres
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-alpha_meta_token_scanner}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-alpha_meta_token_scanner}
+    volumes:
+      - onchain-bot-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    ports:
+      - '127.0.0.1:5432:5432'
+    networks:
+      - onchain-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: onchain-bot-redis
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    volumes:
+      - onchain-bot-redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    ports:
+      - '127.0.0.1:6379:6379'
+    networks:
+      - onchain-net
+
+  # NEW: Centralized Ingestion Service
+  ingestion-service:
+    build:
+      context: ../..
+      dockerfile: apps/ingestion-service/Dockerfile
+    image: ghcr.io/bryanstevensacosta/onchain-bot-ingestion:latest
+    container_name: onchain-bot-ingestion
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+    env_file:
+      - ../ingestion-service/.env.production
+    environment:
+      # Server
+      PORT: 3031
+      HOST: 0.0.0.0
+      NODE_ENV: production
+      # Redis connection (shared with backend)
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    volumes:
+      # Shared uploads volume for media files
+      - onchain-bot-uploads:/app/uploads
+      # Config volume
+      - ../../config:/app/config:ro
+    ports:
+      - '3031:3031'
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'node', '-e', "require('http').get('http://localhost:3031/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      start_period: 40s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+    networks:
+      - onchain-net
+
+  backend:
+    build:
+      context: ../..
+      dockerfile: apps/backend/Dockerfile
+    image: ghcr.io/bryanstevensacosta/onchain-bot-backend:latest
+    container_name: onchain-bot-backend
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+    env_file:
+      - .env.production
+    environment:
+      # Ingestion mode configuration
+      USE_SSE_INGESTION: ${USE_SSE_INGESTION:-false}
+      INGESTION_SERVICE_URL: http://ingestion-service:3031
+    volumes:
+      # Media access (read-only - ingestion-service owns writes)
+      - onchain-bot-uploads:/app/uploads:ro
+    ports:
+      - '3030:3030'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ingestion-service:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3030/api/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    networks:
+      - onchain-net
+
+networks:
+  onchain-net:
+    name: onchain-net
+    driver: bridge
+
+volumes:
+  onchain-bot-pg-data:
+    name: onchain-bot-pg-data
+  onchain-bot-redis-data:
+    name: onchain-bot-redis-data
+  onchain-bot-uploads:
+    name: onchain-bot-uploads
+    driver: local

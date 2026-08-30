@@ -1,0 +1,1010 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Create ingestion-service project structure": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058041767
+      },
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058054572
+      },
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058835493
+      }
+    ],
+    "1.2 Extract and port MTProto layer components": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058041848
+      },
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058845433
+      },
+      {
+        "executionId": "e62b4b5f-3178-463b-b0d5-b9416b7022a9",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788062454116
+      },
+      {
+        "executionId": "7b3e54ea-a663-4e96-a07f-2fb4541dd560",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788063139922
+      }
+    ],
+    "1.3 Extract and port seeder components": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058041935
+      },
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058846182
+      },
+      {
+        "executionId": "e62b4b5f-3178-463b-b0d5-b9416b7022a9",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788062454831
+      },
+      {
+        "executionId": "e25e77e6-32f7-4dc9-9675-c64b07b4b420",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788063044169
+      }
+    ],
+    "1.4 Set up ingestion-service configuration": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058041998
+      },
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058846960
+      },
+      {
+        "executionId": "e62b4b5f-3178-463b-b0d5-b9416b7022a9",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788062455697
+      },
+      {
+        "executionId": "7b3e54ea-a663-4e96-a07f-2fb4541dd560",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788063140852
+      }
+    ],
+    "1.5 Implement StreamService for SSE connection management": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058042054
+      },
+      {
+        "executionId": "7b3e54ea-a663-4e96-a07f-2fb4541dd560",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788063514622
+      },
+      {
+        "executionId": "7b3e54ea-a663-4e96-a07f-2fb4541dd560",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788063903643
+      }
+    ],
+    "2.1 Modify IngestionCoordinator for broadcast mode": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058042114
+      },
+      {
+        "executionId": "ddee9ff7-60ec-483c-9632-0ebd05ee693b",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788064260487
+      },
+      {
+        "executionId": "ddee9ff7-60ec-483c-9632-0ebd05ee693b",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788064324115
+      }
+    ],
+    "2.2 Implement MessagePayload transformation logic": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058042172
+      },
+      {
+        "executionId": "ddee9ff7-60ec-483c-9632-0ebd05ee693b",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788064325104
+      },
+      {
+        "executionId": "ddee9ff7-60ec-483c-9632-0ebd05ee693b",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788064325995
+      }
+    ],
+    "2.4 Implement deduplication in broadcast pipeline": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058042223
+      },
+      {
+        "executionId": "7b3e54ea-a663-4e96-a07f-2fb4541dd560",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788063904702
+      },
+      {
+        "executionId": "7b3e54ea-a663-4e96-a07f-2fb4541dd560",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788063940519
+      }
+    ],
+    "3.1 Implement StreamController for SSE endpoint": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058042280
+      },
+      {
+        "executionId": "663dbe6a-480a-4708-9de0-291d6ff9e84f",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788064499781
+      }
+    ],
+    "3.2 Implement MediaController for file serving": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058042331
+      },
+      {
+        "executionId": "663dbe6a-480a-4708-9de0-291d6ff9e84f",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788064509003
+      },
+      {
+        "executionId": "663dbe6a-480a-4708-9de0-291d6ff9e84f",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788064627529
+      }
+    ],
+    "3.4 Implement HealthController": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058042422
+      }
+    ],
+    "3.5 Implement Channels metadata endpoint": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058042472
+      }
+    ],
+    "3.7 Implement Backfill endpoint with SSE streaming": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058042529
+      },
+      {
+        "executionId": "31fe8b41-ce98-4e9e-b7d1-e97f902de67e",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788065285830
+      },
+      {
+        "executionId": "31fe8b41-ce98-4e9e-b7d1-e97f902de67e",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788065336203
+      }
+    ],
+    "4.1 Implement structured logging": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058042573
+      },
+      {
+        "executionId": "acc4076e-5416-4f27-abaa-178dad1df9b7",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788073797882
+      },
+      {
+        "executionId": "d28e4206-f656-4e5b-9ac4-ba452e738af5",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788075620159
+      },
+      {
+        "executionId": "d28e4206-f656-4e5b-9ac4-ba452e738af5",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788077461976
+      }
+    ],
+    "4.2 Implement Prometheus metrics": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058042629
+      },
+      {
+        "executionId": "acc4076e-5416-4f27-abaa-178dad1df9b7",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788073798582
+      },
+      {
+        "executionId": "d28e4206-f656-4e5b-9ac4-ba452e738af5",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788075621017
+      },
+      {
+        "executionId": "d28e4206-f656-4e5b-9ac4-ba452e738af5",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788077462746
+      }
+    ],
+    "4.3 Implement disconnection window tracking": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058042680
+      },
+      {
+        "executionId": "acc4076e-5416-4f27-abaa-178dad1df9b7",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788073799339
+      },
+      {
+        "executionId": "f477a90b-c618-497b-b6f4-f4898cec9d64",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788075153572
+      }
+    ],
+    "5.1 Create Dockerfile for ingestion-service": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058042738
+      }
+    ],
+    "5.2 Update docker-compose.prod.yml with ingestion-service": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058042800
+      }
+    ],
+    "5.3 Create ingestion-service environment template": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058042887
+      },
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058055438
+      },
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058836152
+      }
+    ],
+    "5.4 Create ingestion.config.json with safe defaults": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058042940
+      },
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058056220
+      },
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058837059
+      }
+    ],
+    "6.1 Implement SseIngestionClientAdapter": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058042989
+      }
+    ],
+    "6.2 Implement backfill method in SSE client": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058043045
+      }
+    ],
+    "6.3 Implement no-op methods for interface compatibility": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058043097
+      }
+    ],
+    "6.5 Create IngestionClientModule with feature flag": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058043145
+      },
+      {
+        "executionId": "808eee7c-bdb1-4f37-b9de-9c7e561d7b08",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788067369427
+      }
+    ],
+    "7.1 Create session validation script": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058043204
+      },
+      {
+        "executionId": "d28e4206-f656-4e5b-9ac4-ba452e738af5",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788079469752
+      },
+      {
+        "executionId": "7beebcd0-2abb-4c70-9e10-c31d96473b93",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788079653821
+      },
+      {
+        "executionId": "9a6d4cb5-65a6-4260-856e-38fcb8e110a6",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788080589030
+      }
+    ],
+    "7.2 Create pre-deploy checklist document": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058043270
+      },
+      {
+        "executionId": "d28e4206-f656-4e5b-9ac4-ba452e738af5",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788079470550
+      },
+      {
+        "executionId": "7beebcd0-2abb-4c70-9e10-c31d96473b93",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788079654568
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082689271
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082703000
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082703831
+      }
+    ],
+    "7.3 Create deployment runbook": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058043329
+      },
+      {
+        "executionId": "d28e4206-f656-4e5b-9ac4-ba452e738af5",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788079471267
+      },
+      {
+        "executionId": "7beebcd0-2abb-4c70-9e10-c31d96473b93",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788079655292
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082689363
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082704558
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082705290
+      }
+    ],
+    "7.4 Create monitoring playbook": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058043386
+      },
+      {
+        "executionId": "d28e4206-f656-4e5b-9ac4-ba452e738af5",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788079472064
+      },
+      {
+        "executionId": "7beebcd0-2abb-4c70-9e10-c31d96473b93",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788079656000
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082689419
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082705998
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082706926
+      }
+    ],
+    "8.1 Create E2E test for full message flow": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058043461
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082689474
+      }
+    ],
+    "9.1 Phase 1: Deploy ingestion-service standalone": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058043520
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082689731
+      }
+    ],
+    "9.2 Phase 2: Migrate staging backend to SSE": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058043570
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082689783
+      }
+    ],
+    "9.3 Phase 3: Side-by-side validation (48h)": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058043623
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082689832
+      }
+    ],
+    "9.4 Phase 4: Migrate production backend to SSE": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058043680
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082689882
+      }
+    ],
+    "9.5 Phase 5: Document rollback procedure": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058043736
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082689934
+      }
+    ],
+    "9.6 Final checkpoint - Production stable for 7 days": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058043796
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082689981
+      }
+    ],
+    "10.1 Port MediaRetentionCleanupScheduler to ingestion-service": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058043848
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082690031
+      }
+    ],
+    "10.2 Configure media retention policy in ingestion-service": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058043905
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082690080
+      }
+    ],
+    "10.3 Implement orphan file cleanup (disk vs DB reconciliation)": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058043961
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082690125
+      }
+    ],
+    "11.1 Create telegram_raw_messages table in ingestion-service": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058044014
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082690262
+      }
+    ],
+    "11.2 Store raw text in ingestion-service during broadcast": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058044064
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082690308
+      }
+    ],
+    "11.3 Implement raw text retrieval endpoint": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058044127
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082690357
+      }
+    ],
+    "11.4 Update backend KolIngestionOrchestrator to fetch text": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058044179
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082690416
+      }
+    ],
+    "12.1 Verify DashboardGateway remains unchanged": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058044230
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082690516
+      }
+    ],
+    "12.2 Measure end-to-end KPI latency": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058044278
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082690571
+      }
+    ],
+    "13.1 Configure shared uploads volume in docker-compose": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058044337
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082690674
+      }
+    ],
+    "13.2 Update nginx configuration for media serving (if applicable)": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058044387
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082690726
+      }
+    ],
+    "13.3 Document volume backup strategy": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058044446
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082690782
+      }
+    ],
+    "14.1 Add ingestion-service to GitHub Actions workflow": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058044504
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082690838
+      }
+    ],
+    "14.2 Add session validation to CI/CD": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058044562
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082690884
+      }
+    ],
+    "14.3 Add ingestion-service smoke tests to deploy workflow": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058044607
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082690933
+      }
+    ],
+    "15.1 Create Prometheus alert rules for ingestion-service": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058044671
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082690988
+      }
+    ],
+    "15.2 Integrate alerts with existing alerting system": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058044729
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082691038
+      }
+    ],
+    "15.3 Create Grafana dashboard for ingestion-service": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058044781
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082691091
+      }
+    ],
+    "16.1 Implement SSE compression": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058044873
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082691140
+      }
+    ],
+    "16.2 Optimize media serving with sendfile": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058044922
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082691197
+      }
+    ],
+    "16.3 Implement connection pooling for Redis": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058044980
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082691248
+      }
+    ],
+    "16.4 Benchmark and document resource usage": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058045031
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082691298
+      }
+    ],
+    "17.1 Implement rate limiting for public endpoints": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058045082
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082691363
+      }
+    ],
+    "17.2 Add authentication for SSE and backfill endpoints (optional)": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058045145
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082691430
+      }
+    ],
+    "17.3 Implement media path sanitization": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058045197
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082691480
+      }
+    ],
+    "17.4 Add security headers to all HTTP responses": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058045257
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082691531
+      }
+    ],
+    "18.1 Create architecture decision record (ADR)": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058045313
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082691582
+      }
+    ],
+    "18.2 Update project README with ingestion-service": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058045364
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082691630
+      }
+    ],
+    "18.3 Create troubleshooting guide": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058045421
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082691680
+      }
+    ],
+    "18.4 Record demo video of migration process": [
+      {
+        "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788058045473
+      },
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082691732
+      }
+    ],
+    "1.6 Write unit tests for StreamService": [
+      {
+        "executionId": "808eee7c-bdb1-4f37-b9de-9c7e561d7b08",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788067375570
+      }
+    ],
+    "2.5 Write integration tests for deduplication": [
+      {
+        "executionId": "808eee7c-bdb1-4f37-b9de-9c7e561d7b08",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788067376309
+      },
+      {
+        "executionId": "acc4076e-5416-4f27-abaa-178dad1df9b7",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788073401764
+      },
+      {
+        "executionId": "acc4076e-5416-4f27-abaa-178dad1df9b7",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788073793155
+      }
+    ],
+    "4.4 Write unit tests for DisconnectionTracker": [
+      {
+        "executionId": "acc4076e-5416-4f27-abaa-178dad1df9b7",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788073800116
+      },
+      {
+        "executionId": "f477a90b-c618-497b-b6f4-f4898cec9d64",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788075154475
+      }
+    ],
+    "6.6 Write integration tests for mode switching": [
+      {
+        "executionId": "d28e4206-f656-4e5b-9ac4-ba452e738af5",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788077471902
+      },
+      {
+        "executionId": "d28e4206-f656-4e5b-9ac4-ba452e738af5",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788079448509
+      }
+    ],
+    "8.2 Create E2E test for reconnection handling": [
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082689533
+      }
+    ],
+    "8.3 Create load test for concurrent clients": [
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082689592
+      }
+    ],
+    "8.4 Create side-by-side validation test": [
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082689647
+      }
+    ],
+    "10.4 Write unit tests for media retention": [
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082690201
+      }
+    ],
+    "11.5 Write integration tests for text isolation": [
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082690466
+      }
+    ],
+    "12.3 Create E2E test for dashboard real-time updates": [
+      {
+        "executionId": "eb70eb45-0a32-41e1-a05e-2c44024d8b19",
+        "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
+        "timestamp": 1788082690617
+      }
+    ]
+  }
+}

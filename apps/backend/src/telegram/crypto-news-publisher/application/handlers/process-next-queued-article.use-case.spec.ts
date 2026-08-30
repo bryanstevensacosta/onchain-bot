@@ -9,9 +9,6 @@ import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entit
 import { LlmConfig } from 'telegram/crypto-news-publisher/domain/entities/llm-config.entity';
 import { SlotArbitratorPort } from 'telegram/shared/domain/ports/slot-arbitrator.port';
 import { AdRotationStateRepository } from 'telegram/crypto-news-ads/application/ports/ad-rotation-state.repository';
-import { MediaCleanupService } from 'telegram/crypto-news-publisher/infrastructure/services/media-cleanup.service';
-import { CryptoNewsPublisherConfigService } from 'telegram/crypto-news-publisher/infrastructure/config/crypto-news-publisher.config';
-import { MarkdownConverter } from 'telegram/ingestion/crypto-news/application/services/markdown-converter.service';
 
 const TEST_TARGET_CHANNEL = '@crypto-news-test';
 
