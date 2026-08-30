@@ -1,0 +1,22 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "transformIgnorePatterns": [
+    "node_modules/(?!(eventsource)/)"
+  ],
+  "moduleNameMapper": {
+    "^telegram/events$": "<rootDir>/../../node_modules/telegram/events/index",
+    "^telegram/sessions$": "<rootDir>/../../node_modules/telegram/sessions/index",
+    "^telegram/(.*)$": "<rootDir>/../src/telegram/$1",
+    "^shared/(.*)$": "<rootDir>/../src/shared/$1",
+    "^stream/(.*)$": "<rootDir>/../src/stream/$1",
+    "^media/(.*)$": "<rootDir>/../src/media/$1",
+    "^health/(.*)$": "<rootDir>/../src/health/$1",
+    "^src/(.*)$": "<rootDir>/../src/$1"
+  }
+}
