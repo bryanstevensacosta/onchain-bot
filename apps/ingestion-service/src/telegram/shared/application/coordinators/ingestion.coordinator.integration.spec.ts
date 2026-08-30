@@ -1,10 +1,10 @@
 /**
  * Integration tests for broadcast pipeline deduplication
- * 
+ *
  * Per Task 2.5: Integration tests for deduplication
  * Per Invariant 3: Deduplication at source before broadcast
  * Per Invariant 6: Cursor persistence survives service restarts
- * 
+ *
  * Tests verify:
  * 1. Duplicate messageId - second message is skipped
  * 2. Cursor persistence - after restart, no re-broadcast
@@ -62,7 +62,9 @@ describe('IngestionCoordinator - Broadcast Pipeline Deduplication (Integration)'
   // Mock RedisService
   const mockRedisService = {
     isEnabled: jest.fn().mockReturnValue(true),
-    get: jest.fn((key: string) => Promise.resolve(mockRedisStore.get(key) || null)),
+    get: jest.fn((key: string) =>
+      Promise.resolve(mockRedisStore.get(key) || null),
+    ),
     set: jest.fn((key: string, value: string) => {
       mockRedisStore.set(key, value);
       return Promise.resolve('OK');
@@ -114,7 +116,8 @@ describe('IngestionCoordinator - Broadcast Pipeline Deduplication (Integration)'
 
     coordinator = module.get<IngestionCoordinator>(IngestionCoordinator);
     streamService = module.get<StreamService>(StreamService);
-    deduplicationService = module.get<DeduplicationService>(DeduplicationService);
+    deduplicationService =
+      module.get<DeduplicationService>(DeduplicationService);
     lastSeenManager = module.get<LastSeenManager>(LastSeenManager);
     redisService = module.get<RedisService>(RedisService);
 
@@ -256,25 +259,16 @@ describe('IngestionCoordinator - Broadcast Pipeline Deduplication (Integration)'
       for (let i = 1; i <= 3; i++) {
         const message = createMessage(channelId, i);
         await coordinator.route(message, 'kol');
-        
+
         // Persist cursor after each message
         await lastSeenManager.persist(channelId, i);
       }
 
       // Verify Redis was called with correct keys
       const expectedKey = `ingestion:lastSeen:${channelId}`;
-      expect(mockRedisService.set).toHaveBeenCalledWith(
-        expectedKey,
-        '1',
-      );
-      expect(mockRedisService.set).toHaveBeenCalledWith(
-        expectedKey,
-        '2',
-      );
-      expect(mockRedisService.set).toHaveBeenCalledWith(
-        expectedKey,
-        '3',
-      );
+      expect(mockRedisService.set).toHaveBeenCalledWith(expectedKey, '1');
+      expect(mockRedisService.set).toHaveBeenCalledWith(expectedKey, '2');
+      expect(mockRedisService.set).toHaveBeenCalledWith(expectedKey, '3');
 
       // Verify final cursor in Redis
       expect(mockRedisStore.get(expectedKey)).toBe('3');
@@ -313,7 +307,7 @@ describe('IngestionCoordinator - Broadcast Pipeline Deduplication (Integration)'
       for (let i = 1; i <= 10; i++) {
         const message = createMessage(channelId, i);
         await coordinator.route(message, 'kol');
-        
+
         // Persist cursor to Redis
         lastSeenManager.set(channelId, i);
         await lastSeenManager.persist(channelId, i);
@@ -436,7 +430,9 @@ describe('IngestionCoordinator - Broadcast Pipeline Deduplication (Integration)'
       const message = createMessage(channelId, 200);
 
       // Mock Redis set to throw error
-      mockRedisService.set.mockRejectedValueOnce(new Error('Redis connection timeout'));
+      mockRedisService.set.mockRejectedValueOnce(
+        new Error('Redis connection timeout'),
+      );
 
       // Should not throw - logs warning instead
       await coordinator.route(message, 'kol');
@@ -452,7 +448,9 @@ describe('IngestionCoordinator - Broadcast Pipeline Deduplication (Integration)'
       const channelId = 'channel_load_error';
 
       // Mock Redis get to throw error
-      mockRedisService.get.mockRejectedValueOnce(new Error('Redis unavailable'));
+      mockRedisService.get.mockRejectedValueOnce(
+        new Error('Redis unavailable'),
+      );
 
       // Should not throw - logs warning and uses default
       await expect(lastSeenManager.load([channelId])).resolves.not.toThrow();
@@ -483,7 +481,7 @@ describe('IngestionCoordinator - Broadcast Pipeline Deduplication (Integration)'
 
     it('should handle negative messageIds gracefully', async () => {
       const channelId = 'channel_negative';
-      
+
       // First positive message to set cursor
       await coordinator.route(createMessage(channelId, 1), 'kol');
       expect(broadcastedMessages).toHaveLength(1);
@@ -506,11 +504,11 @@ describe('IngestionCoordinator - Broadcast Pipeline Deduplication (Integration)'
       // Message 5 arrives first
       await coordinator.route(createMessage(channelId, 5), 'kol');
       expect(broadcastedMessages).toHaveLength(1);
-      
+
       // Message 3 arrives (older message, should be skipped by cursor)
       await coordinator.route(createMessage(channelId, 3), 'kol');
       expect(broadcastedMessages).toHaveLength(1); // Skipped, 3 < 5
-      
+
       // Message 7 arrives (newer message, should be broadcasted)
       await coordinator.route(createMessage(channelId, 7), 'kol');
       expect(broadcastedMessages).toHaveLength(2);
@@ -615,9 +613,11 @@ describe('IngestionCoordinator - Broadcast Pipeline Deduplication (Integration)'
       const channelId = 'channel_dedup_error';
 
       // Mock isDuplicate to throw error once
-      jest.spyOn(deduplicationService, 'isDuplicate').mockImplementationOnce(() => {
-        throw new Error('Dedup cache corrupted');
-      });
+      jest
+        .spyOn(deduplicationService, 'isDuplicate')
+        .mockImplementationOnce(() => {
+          throw new Error('Dedup cache corrupted');
+        });
 
       const message1 = createMessage(channelId, 111);
       const message2 = createMessage(channelId, 222);

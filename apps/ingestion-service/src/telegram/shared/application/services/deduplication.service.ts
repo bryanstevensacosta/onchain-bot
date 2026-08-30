@@ -2,25 +2,25 @@ import { Injectable, Logger } from '@nestjs/common';
 
 /**
  * Message deduplication service
- * 
+ *
  * Per Invariant 3: Prevents duplicate messages (same channelId + messageId) from being broadcast
  * Per Invariant 6: Uses LastSeenManager for cursor tracking
- * 
+ *
  * Deduplication strategy:
  * - Track highest messageId per channel via LastSeenManager
  * - Skip messages with messageId <= last seen
  * - Simple, deterministic, zero false positives
- * 
+ *
  * @injectable NestJS service
  */
 @Injectable()
 export class DeduplicationService {
   private readonly logger = new Logger(DeduplicationService.name);
-  
+
   /**
    * In-memory seen messages cache for fast lookup within session
    * Structure: Map<channelId, Set<messageId>>
-   * 
+   *
    * This provides O(1) duplicate detection for messages arriving
    * out-of-order or during initial backfill operations.
    */
@@ -34,15 +34,19 @@ export class DeduplicationService {
 
   /**
    * Check if a message is a duplicate
-   * 
+   *
    * Per Invariant 3: Deduplication at source before broadcast
-   * 
+   *
    * @param channelId - Telegram channel identifier
    * @param messageId - Telegram message identifier
    * @param highestSeen - Highest messageId already seen for this channel (from LastSeenManager)
    * @returns true if message is a duplicate and should be skipped
    */
-  isDuplicate(channelId: string, messageId: number, highestSeen: number): boolean {
+  isDuplicate(
+    channelId: string,
+    messageId: number,
+    highestSeen: number,
+  ): boolean {
     // Strategy 1: Check against highest seen cursor (most common case)
     if (messageId <= highestSeen) {
       this.logger.debug(
@@ -67,13 +71,13 @@ export class DeduplicationService {
 
   /**
    * Mark a message as seen in the in-memory cache
-   * 
+   *
    * @param channelId - Telegram channel identifier
    * @param messageId - Telegram message identifier
    */
   private markAsSeen(channelId: string, messageId: number): void {
     let channelCache = this.seenMessages.get(channelId);
-    
+
     if (!channelCache) {
       channelCache = new Set<number>();
       this.seenMessages.set(channelId, channelCache);
@@ -89,9 +93,9 @@ export class DeduplicationService {
 
   /**
    * Prune oldest entries from channel cache to prevent unbounded growth
-   * 
+   *
    * Keeps the 50% newest entries (by messageId, which is monotonically increasing)
-   * 
+   *
    * @param channelId - Channel to prune
    * @param cache - Set of messageIds to prune
    */
@@ -99,7 +103,7 @@ export class DeduplicationService {
     const sorted = Array.from(cache).sort((a, b) => a - b);
     const keepCount = Math.floor(this.MAX_CACHE_PER_CHANNEL * 0.5);
     const toKeep = sorted.slice(-keepCount);
-    
+
     cache.clear();
     toKeep.forEach((id) => cache.add(id));
 
@@ -110,9 +114,9 @@ export class DeduplicationService {
 
   /**
    * Clear all cached seen messages for a channel
-   * 
+   *
    * Useful when a channel is unsubscribed or on service restart
-   * 
+   *
    * @param channelId - Channel to clear
    */
   clearChannel(channelId: string): void {
@@ -124,7 +128,7 @@ export class DeduplicationService {
 
   /**
    * Get cache statistics for monitoring
-   * 
+   *
    * @returns Object with cache size per channel and total memory usage estimate
    */
   getStats(): {

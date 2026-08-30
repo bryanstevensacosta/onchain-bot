@@ -15,7 +15,9 @@ describe('DeduplicationService - Integration Tests', () => {
   // Mock RedisService
   const mockRedisService = {
     isEnabled: jest.fn().mockReturnValue(true),
-    get: jest.fn((key: string) => Promise.resolve(mockRedisStore.get(key) || null)),
+    get: jest.fn((key: string) =>
+      Promise.resolve(mockRedisStore.get(key) || null),
+    ),
     set: jest.fn((key: string, value: string) => {
       mockRedisStore.set(key, value);
       return Promise.resolve('OK');
@@ -91,7 +93,7 @@ describe('DeduplicationService - Integration Tests', () => {
 
       // Channel 1: seen up to 100
       service.isDuplicate(channel1, 100, -1);
-      
+
       // Channel 2: seen up to 50
       service.isDuplicate(channel2, 50, -1);
 
@@ -129,7 +131,7 @@ describe('DeduplicationService - Integration Tests', () => {
       expect(service.isDuplicate(channelId, 105, highestSeen)).toBe(false);
       expect(service.isDuplicate(channelId, 103, highestSeen)).toBe(false);
       expect(service.isDuplicate(channelId, 107, highestSeen)).toBe(false);
-      
+
       // 103 arrives again - cache should detect it
       expect(service.isDuplicate(channelId, 103, highestSeen)).toBe(true);
     });
@@ -144,7 +146,7 @@ describe('DeduplicationService - Integration Tests', () => {
       }
 
       const stats = service.getStats();
-      
+
       // After pruning, should keep ~50% = 5000 entries
       expect(stats.cachesByChannel[channelId]).toBeLessThanOrEqual(5000);
       expect(stats.cachesByChannel[channelId]).toBeGreaterThan(4900);
@@ -212,7 +214,7 @@ describe('DeduplicationService - Integration Tests', () => {
 
     it('should survive service restart - no re-broadcast of old messages', async () => {
       const channelId = 'channel_restart';
-      
+
       // === Phase 1: Initial run ===
       // Process messages 1-100
       for (let i = 1; i <= 100; i++) {
@@ -374,7 +376,9 @@ describe('DeduplicationService - Integration Tests', () => {
       const messageId = 456;
 
       // Mock Redis set to throw error
-      mockRedisService.set.mockRejectedValueOnce(new Error('Redis unavailable'));
+      mockRedisService.set.mockRejectedValueOnce(
+        new Error('Redis unavailable'),
+      );
 
       // Should not throw - logs warning instead
       await expect(
@@ -386,7 +390,9 @@ describe('DeduplicationService - Integration Tests', () => {
       const channelId = 'channel_load_error';
 
       // Mock Redis get to throw error
-      mockRedisService.get.mockRejectedValueOnce(new Error('Redis unavailable'));
+      mockRedisService.get.mockRejectedValueOnce(
+        new Error('Redis unavailable'),
+      );
 
       // Should not throw - logs warning and uses default
       await expect(lastSeenManager.load([channelId])).resolves.not.toThrow();
@@ -411,7 +417,7 @@ describe('DeduplicationService - Integration Tests', () => {
   describe('Two-Tier Deduplication Strategy', () => {
     it('should use cursor for most common case (sequential messages)', () => {
       const channelId = 'channel_sequential';
-      
+
       // Simulate normal sequential processing
       for (let i = 1; i <= 100; i++) {
         const isDupe = service.isDuplicate(channelId, i, i - 1);

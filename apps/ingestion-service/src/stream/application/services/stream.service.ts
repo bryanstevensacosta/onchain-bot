@@ -6,7 +6,7 @@ import { DisconnectionTracker } from './disconnection-tracker.service';
 
 /**
  * SSE event payload structure
- * 
+ *
  * Per Requirement 2.1: Events streamed to clients must follow this structure
  */
 export interface SSEEvent {
@@ -25,17 +25,17 @@ interface SSEClient {
 
 /**
  * StreamService manages Server-Sent Events (SSE) connections to backend clients.
- * 
+ *
  * Per Requirement 2.1: Provides SSE streaming for real-time message distribution
  * Per Requirement 2.3: Maintains low-latency (<500ms) push-based delivery
  * Per Requirement 2.4: Handles client reconnection gracefully
- * 
+ *
  * Features:
  * - Client registration and lifecycle management
  * - Broadcast messaging to all connected clients
  * - Automatic heartbeat to prevent proxy timeouts (Per Requirement 2.5)
  * - Graceful error handling and client cleanup
- * 
+ *
  * @injectable NestJS service
  */
 @Injectable()
@@ -47,11 +47,11 @@ export class StreamService {
 
   /**
    * Register a new SSE client connection
-   * 
+   *
    * Per Requirement 2.1: Accept incoming SSE connections from backend clients
    * Per GAP 3: Track reconnection via DisconnectionTracker
    * Per Requirement 9.2: Structured logging for client connection events
-   * 
+   *
    * @param clientId - Unique identifier for this client
    * @param response - HTTP ServerResponse for writing SSE events
    */
@@ -60,7 +60,7 @@ export class StreamService {
     response.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
       'X-Accel-Buffering': 'no', // Disable nginx buffering
     });
 
@@ -94,11 +94,11 @@ export class StreamService {
 
   /**
    * Remove a client connection
-   * 
+   *
    * Per Requirement 2.4: Clean up disconnected clients to prevent memory leaks
    * Per GAP 3: Track disconnection via DisconnectionTracker
    * Per Requirement 9.2: Structured logging for client disconnection events
-   * 
+   *
    * @param clientId - Unique identifier of the client to remove
    */
   removeClient(clientId: string): void {
@@ -130,10 +130,10 @@ export class StreamService {
 
   /**
    * Broadcast an event to all connected clients
-   * 
+   *
    * Per Requirement 2.1: Distribute messages to all backend environments
    * Per Requirement 2.3: Push-based delivery with low latency
-   * 
+   *
    * @param event - Event payload containing type and data
    */
   broadcast(event: SSEEvent): void {
@@ -164,7 +164,7 @@ export class StreamService {
 
   /**
    * Send an event to a specific client
-   * 
+   *
    * @param clientId - Target client identifier
    * @param event - Event payload
    */
@@ -189,12 +189,12 @@ export class StreamService {
 
   /**
    * Format and write an SSE event to the response stream
-   * 
+   *
    * Per EventSource specification:
    * - Events are formatted as: event: <type>\ndata: <json>\n\n
    * - Multiple lines must be separated by \n
    * - Each message ends with double newline
-   * 
+   *
    * @param response - HTTP response stream
    * @param event - Event type name
    * @param data - Event payload (will be JSON stringified)
@@ -210,10 +210,10 @@ export class StreamService {
 
   /**
    * Send periodic heartbeat to all clients
-   * 
+   *
    * Per Requirement 2.5: Prevent proxy/CDN timeouts on idle connections
    * Per Requirement 2.4: Detect dead connections early
-   * 
+   *
    * Runs every 30 seconds via NestJS scheduler
    */
   @Cron('*/30 * * * * *')
@@ -231,7 +231,7 @@ export class StreamService {
 
   /**
    * Get count of currently connected clients
-   * 
+   *
    * @returns Number of active SSE connections
    */
   getClientCount(): number {
@@ -240,7 +240,7 @@ export class StreamService {
 
   /**
    * Get metadata about all connected clients
-   * 
+   *
    * @returns Array of client metadata (without response objects)
    */
   getConnectedClients(): Array<{ id: string; connectedAt: Date }> {
@@ -252,12 +252,14 @@ export class StreamService {
 
   /**
    * Shutdown all client connections gracefully
-   * 
+   *
    * Called on module destroy to clean up resources
    */
   shutdown(): void {
-    this.logger.log(`Shutting down StreamService (${this.clients.size} clients)`);
-    
+    this.logger.log(
+      `Shutting down StreamService (${this.clients.size} clients)`,
+    );
+
     for (const [clientId] of this.clients) {
       this.removeClient(clientId);
     }

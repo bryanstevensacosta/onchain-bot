@@ -2,18 +2,18 @@ import { Injectable, Logger } from '@nestjs/common';
 
 /**
  * StructuredLoggerService
- * 
+ *
  * Centralized structured logging service for the Ingestion Service.
  * Uses Pino logger (NOT Winston) with JSON format for observability.
- * 
+ *
  * Per Requirement 9: Structured logging for monitoring and debugging
  * Per Task 4.1: Structured logging implementation with Pino
- * 
+ *
  * All log events follow structured JSON format with:
  * - event: string (e.g., 'message:received', 'sse:client:connected')
  * - contextual fields specific to the event
  * - timestamp: ISO 8601 format
- * 
+ *
  * @injectable NestJS service
  */
 @Injectable()
@@ -22,9 +22,9 @@ export class StructuredLoggerService {
 
   /**
    * Log message received from Telegram
-   * 
+   *
    * Per Requirement 9.1: Log all incoming messages with structured format
-   * 
+   *
    * @param channelId - Telegram channel identifier
    * @param messageId - Telegram message ID
    * @param hasMedia - Whether message contains media attachments
@@ -54,9 +54,9 @@ export class StructuredLoggerService {
 
   /**
    * Log SSE client connection
-   * 
+   *
    * Per Requirement 9.2: Log client connection events
-   * 
+   *
    * @param clientId - Unique client identifier
    * @param totalClients - Total number of connected clients after this connection
    */
@@ -71,9 +71,9 @@ export class StructuredLoggerService {
 
   /**
    * Log SSE client disconnection
-   * 
+   *
    * Per Requirement 9.2: Log client disconnection events
-   * 
+   *
    * @param clientId - Unique client identifier
    * @param totalClients - Total number of connected clients after this disconnection
    */
@@ -88,10 +88,10 @@ export class StructuredLoggerService {
 
   /**
    * Log flood wait detection from Telegram API
-   * 
+   *
    * Per Requirement 9.3: Log FLOOD_WAIT errors with retry context
    * Per Requirement 11.2: Track flood wait occurrences for ban risk monitoring
-   * 
+   *
    * @param waitSeconds - Number of seconds Telegram requires us to wait
    * @param count24h - Total FLOOD_WAIT count in 24-hour sliding window
    * @param backoffMs - Actual backoff duration in milliseconds (includes exponential backoff)
@@ -121,9 +121,9 @@ export class StructuredLoggerService {
 
   /**
    * Log media download failure
-   * 
+   *
    * Per Requirement 9.4: Log media download errors with context
-   * 
+   *
    * @param channelId - Telegram channel identifier
    * @param messageId - Telegram message ID
    * @param index - Media attachment index (0-based)
@@ -156,9 +156,9 @@ export class StructuredLoggerService {
 
   /**
    * Log media download success
-   * 
+   *
    * Optional: Track successful downloads for metrics
-   * 
+   *
    * @param channelId - Telegram channel identifier
    * @param messageId - Telegram message ID
    * @param index - Media attachment index (0-based)
@@ -188,9 +188,9 @@ export class StructuredLoggerService {
 
   /**
    * Log MTProto connection state change
-   * 
+   *
    * Per Requirement 5: Health monitoring
-   * 
+   *
    * @param connected - Whether MTProto client is connected
    * @param authorized - Whether MTProto client is authorized
    */
@@ -205,7 +205,7 @@ export class StructuredLoggerService {
 
   /**
    * Log service startup
-   * 
+   *
    * @param port - HTTP server port
    * @param channelCount - Number of channels configured
    */
@@ -220,7 +220,7 @@ export class StructuredLoggerService {
 
   /**
    * Log service shutdown
-   * 
+   *
    * @param reason - Reason for shutdown
    */
   logServiceShutdown(reason: string): void {

@@ -1,4 +1,11 @@
-import { Controller, Get, Logger, HttpStatus, Inject, Res } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Logger,
+  HttpStatus,
+  Inject,
+  Res,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import { StreamService } from 'stream/application/services/stream.service';
 import type { DisconnectionWindow } from 'stream/application/services/disconnection-tracker.service';
@@ -6,7 +13,7 @@ import { DisconnectionTracker } from 'stream/application/services/disconnection-
 
 /**
  * Health check response interface
- * 
+ *
  * Per Requirement 5.1, 5.2: Health endpoint structure
  * Per GAP 3: Include disconnectionWindows and WARNING flag
  */
@@ -38,7 +45,7 @@ export interface HealthResponse {
 
 /**
  * Channel metadata response interface
- * 
+ *
  * Per Requirement 5.3: Channel metadata endpoint
  */
 export interface ChannelMetadata {
@@ -52,22 +59,22 @@ export interface ChannelMetadata {
 
 /**
  * HealthController provides health check and metrics endpoints
- * 
+ *
  * Per Requirement 5.1, 5.2: Health endpoint for monitoring
  * Per Requirement 5.3: Channel metadata endpoint
  * Per Requirement 5.4, 5.5: HTTP status codes (200 = ok, 503 = degraded)
- * 
+ *
  * Endpoints:
  * - GET /api/health - Overall service health
  * - GET /api/health/ready - Kubernetes readiness probe
  * - GET /api/health/live - Kubernetes liveness probe
  * - GET /api/health/channels - Channel metadata list
- * 
+ *
  * @controller Handles /api/health routes
  */
 /**
  * TelegramClientManager interface stub
- * 
+ *
  * This interface will be satisfied by the actual TelegramClientManager
  * when the MTProto layer is wired into the ingestion service.
  */
@@ -84,7 +91,7 @@ export interface TelegramClientManager {
 
 /**
  * FloodWaitCounter interface stub
- * 
+ *
  * This interface will be satisfied by the actual FloodWaitCounter
  * when anti-ban protection is wired.
  */
@@ -102,38 +109,42 @@ export class HealthController {
   constructor(
     private readonly streamService: StreamService,
     private readonly disconnectionTracker: DisconnectionTracker,
-    @Inject('TelegramClientManager') private readonly clientManager?: TelegramClientManager,
-    @Inject('FloodWaitCounter') private readonly floodWaitCounter?: FloodWaitCounter,
+    @Inject('TelegramClientManager')
+    private readonly clientManager?: TelegramClientManager,
+    @Inject('FloodWaitCounter')
+    private readonly floodWaitCounter?: FloodWaitCounter,
   ) {
     this.startTime = Date.now();
   }
 
   /**
    * Main health check endpoint
-   * 
+   *
    * Per Requirement 5.1, 5.2: Returns service health status
    * Per Requirement 5.4: Returns 200 (ok) when MTProto connected
    * Per Requirement 5.5: Returns 503 (degraded) when MTProto disconnected
    * Per GAP 3: Include disconnectionWindows and WARNING flag
-   * 
+   *
    * @returns Health response with detailed metrics
    */
   @Get()
   async getHealth(@Res() res: Response): Promise<void> {
     // Per Requirement 5.4, 5.5: Check MTProto connection status
-    const mtprotoConnected = this.clientManager 
-      ? await this.clientManager.isConnected() 
+    const mtprotoConnected = this.clientManager
+      ? await this.clientManager.isConnected()
       : true; // Fallback for when not wired yet
-    const mtprotoAuthorized = this.clientManager 
-      ? await this.clientManager.isAuthorized() 
+    const mtprotoAuthorized = this.clientManager
+      ? await this.clientManager.isAuthorized()
       : true; // Fallback for when not wired yet
 
     const status = mtprotoConnected && mtprotoAuthorized ? 'ok' : 'degraded';
 
     // Per GAP 3: Get disconnection windows and check for warnings
-    const disconnectionWindows = this.disconnectionTracker.getDisconnectionWindows();
-    const hasLongDisconnection = this.disconnectionTracker.hasLongDisconnectionWindow();
-    
+    const disconnectionWindows =
+      this.disconnectionTracker.getDisconnectionWindows();
+    const hasLongDisconnection =
+      this.disconnectionTracker.hasLongDisconnectionWindow();
+
     const warnings: string[] = [];
     if (hasLongDisconnection) {
       warnings.push('Client disconnection window >60s detected');
@@ -144,7 +155,9 @@ export class HealthController {
       mtproto: {
         connected: mtprotoConnected,
         authorized: mtprotoAuthorized,
-        lastPollAt: this.clientManager?.getLastPollTimestamp()?.toISOString() || new Date().toISOString(),
+        lastPollAt:
+          this.clientManager?.getLastPollTimestamp()?.toISOString() ||
+          new Date().toISOString(),
       },
       channels: {
         total: this.clientManager?.getChannelCount() || 0,
@@ -174,23 +187,24 @@ export class HealthController {
     }
 
     // Per Requirement 5.4, 5.5: Set HTTP status code based on service health
-    const httpStatus = status === 'ok' ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
+    const httpStatus =
+      status === 'ok' ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
     res.status(httpStatus).json(response);
   }
 
   /**
    * Kubernetes readiness probe
-   * 
+   *
    * Returns 200 when service is ready to accept traffic
    * Returns 503 when service is starting up or degraded
-   * 
+   *
    * @returns Simple ready status
    */
   @Get('ready')
   async getReadiness() {
     // Service is ready if it can accept SSE connections
     const connectedClients = this.streamService.getClientCount();
-    
+
     return {
       status: 'ready',
       timestamp: new Date().toISOString(),
@@ -200,10 +214,10 @@ export class HealthController {
 
   /**
    * Kubernetes liveness probe
-   * 
+   *
    * Returns 200 when service is alive
    * Returns 503 when service should be restarted
-   * 
+   *
    * @returns Simple alive status
    */
   @Get('live')
@@ -218,18 +232,20 @@ export class HealthController {
 
   /**
    * Channel metadata endpoint
-   * 
+   *
    * Per Requirement 5.3: Returns list of subscribed channels with metadata
-   * 
+   *
    * @returns Array of channel metadata
    */
   @Get('channels')
   async getChannels(): Promise<ChannelMetadata[]> {
     if (!this.clientManager) {
-      this.logger.debug('TelegramClientManager not wired - returning empty array');
+      this.logger.debug(
+        'TelegramClientManager not wired - returning empty array',
+      );
       return [];
     }
-    
+
     return this.clientManager.getChannelMetadata();
   }
 }

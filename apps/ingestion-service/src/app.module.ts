@@ -11,7 +11,7 @@ import { MetricsModule } from './metrics/metrics.module';
 
 /**
  * AppModule - Root module for Ingestion Service
- * 
+ *
  * Wires together:
  * - Configuration management (env vars)
  * - Event emitter (internal events)
@@ -21,7 +21,7 @@ import { MetricsModule } from './metrics/metrics.module';
  * - MediaModule (media file serving)
  * - HealthModule (health checks + metrics)
  * - Bounded contexts (to be added in subsequent tasks)
- * 
+ *
  * Per Requirement 6.2: Environment variable configuration
  * Per Requirement 2.1: SSE streaming via StreamModule
  * Per Requirement 4.1: Media serving via MediaModule
@@ -65,9 +65,9 @@ import { MetricsModule } from './metrics/metrics.module';
     }),
 
     // HTTP API
-    StreamModule,  // SSE streaming
-    MediaModule,   // Media file serving
-    HealthModule,  // Health checks
+    StreamModule, // SSE streaming
+    MediaModule, // Media file serving
+    HealthModule, // Health checks
     MetricsModule, // Prometheus metrics
 
     // TODO: Add bounded context modules in subsequent tasks:

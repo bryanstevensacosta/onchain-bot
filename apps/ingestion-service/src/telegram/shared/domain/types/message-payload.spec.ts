@@ -1,9 +1,9 @@
 /**
  * Unit tests for MessagePayload transformation
- * 
+ *
  * Tests the transformToPayload logic in IngestionCoordinator
  * to verify compliance with architectural invariants:
- * 
+ *
  * - Invariant 1: Text field EXCLUDED (ToS compliance - fix-1)
  * - Invariant 5: Media URLs follow path format /api/media/:channelId/:messageId/:index
  * - Requirements: Entities preservation, groupedId handling
@@ -97,7 +97,8 @@ describe('MessagePayload Transformation', () => {
 
     coordinator = module.get<IngestionCoordinator>(IngestionCoordinator);
     streamService = module.get<StreamService>(StreamService);
-    deduplicationService = module.get<DeduplicationService>(DeduplicationService);
+    deduplicationService =
+      module.get<DeduplicationService>(DeduplicationService);
     lastSeenManager = module.get<LastSeenManager>(LastSeenManager);
   });
 
@@ -197,7 +198,9 @@ describe('MessagePayload Transformation', () => {
       const payload = broadcastedPayloads[0];
 
       expect(payload.media).toHaveLength(1);
-      expect(payload.media[0].url).toBe('http://localhost:3031/api/media/-1001234567890/12345/0');
+      expect(payload.media[0].url).toBe(
+        'http://localhost:3031/api/media/-1001234567890/12345/0',
+      );
       expect(payload.media[0].type).toBe('photo');
       expect(payload.media[0].mimeType).toBe('image/jpeg');
       expect(payload.media[0].fileSize).toBe(245678);
@@ -241,9 +244,15 @@ describe('MessagePayload Transformation', () => {
       const payload = broadcastedPayloads[0];
 
       expect(payload.media).toHaveLength(3);
-      expect(payload.media[0].url).toBe('http://localhost:3031/api/media/-1009876543210/99999/0');
-      expect(payload.media[1].url).toBe('http://localhost:3031/api/media/-1009876543210/99999/1');
-      expect(payload.media[2].url).toBe('http://localhost:3031/api/media/-1009876543210/99999/2');
+      expect(payload.media[0].url).toBe(
+        'http://localhost:3031/api/media/-1009876543210/99999/0',
+      );
+      expect(payload.media[1].url).toBe(
+        'http://localhost:3031/api/media/-1009876543210/99999/1',
+      );
+      expect(payload.media[2].url).toBe(
+        'http://localhost:3031/api/media/-1009876543210/99999/2',
+      );
     });
 
     it('should not include local filePath in payload (only HTTP URLs)', async () => {
@@ -270,7 +279,9 @@ describe('MessagePayload Transformation', () => {
       const payload = broadcastedPayloads[0];
 
       expect(payload.media[0]).not.toHaveProperty('filePath');
-      expect(payload.media[0].url).toMatch(/^http:\/\/localhost:3031\/api\/media\//);
+      expect(payload.media[0].url).toMatch(
+        /^http:\/\/localhost:3031\/api\/media\//,
+      );
     });
 
     it('should handle messages with no media', async () => {
@@ -447,7 +458,9 @@ describe('MessagePayload Transformation', () => {
       // Assert
       const payload = broadcastedPayloads[0];
 
-      expect(payload.entities![0].url).toBe('https://dexscreener.com/solana/token123');
+      expect(payload.entities![0].url).toBe(
+        'https://dexscreener.com/solana/token123',
+      );
     });
   });
 
@@ -560,7 +573,9 @@ describe('MessagePayload Transformation', () => {
       const payload = broadcastedPayloads[0];
 
       expect(payload.occurredAt).toBe('2026-08-30T12:34:56.789Z');
-      expect(payload.occurredAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+      expect(payload.occurredAt).toMatch(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
+      );
     });
 
     it('should set messageType discriminator correctly for KOL messages', async () => {
@@ -655,12 +670,18 @@ describe('MessagePayload Transformation', () => {
 
       // Verify media (Invariant 5)
       expect(payload.media).toHaveLength(2);
-      expect(payload.media[0].url).toBe('http://localhost:3031/api/media/-1001234567890/99999/0');
-      expect(payload.media[1].url).toBe('http://localhost:3031/api/media/-1001234567890/99999/1');
+      expect(payload.media[0].url).toBe(
+        'http://localhost:3031/api/media/-1001234567890/99999/0',
+      );
+      expect(payload.media[1].url).toBe(
+        'http://localhost:3031/api/media/-1001234567890/99999/1',
+      );
 
       // Verify entities
       expect(payload.entities).toHaveLength(2);
-      expect(payload.entities![0].url).toBe('https://dexscreener.com/solana/token');
+      expect(payload.entities![0].url).toBe(
+        'https://dexscreener.com/solana/token',
+      );
 
       // Verify groupedId
       expect(payload.groupedId).toBe('987654321098765432');

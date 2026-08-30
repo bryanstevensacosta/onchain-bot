@@ -3,12 +3,12 @@ import { MetricsService } from '../../metrics.service';
 
 /**
  * MetricsController exposes Prometheus metrics endpoint
- * 
+ *
  * Per Requirement 9.5: Expose metrics at /metrics endpoint
- * 
+ *
  * Endpoint:
  * - GET /metrics - Returns Prometheus format metrics
- * 
+ *
  * @controller Handles /metrics route
  */
 @Controller('metrics')
@@ -17,9 +17,9 @@ export class MetricsController {
 
   /**
    * Prometheus metrics endpoint
-   * 
+   *
    * Per Requirement 9.5: Returns all collected metrics in Prometheus format
-   * 
+   *
    * @returns Prometheus format metrics string
    */
   @Get()
