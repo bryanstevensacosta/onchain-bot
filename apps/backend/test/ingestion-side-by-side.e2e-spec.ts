@@ -1,6 +1,9 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import {
+  Test as _Test,
+  TestingModule as _TestingModule,
+} from '@nestjs/testing';
+import { INestApplication as _INestApplication } from '@nestjs/common';
+import { ConfigService as _ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { Logger } from '@nestjs/common';
 
@@ -62,7 +65,7 @@ interface CryptoNewsReport {
   }>;
 }
 
-interface ValidationReport {
+interface _ValidationReport {
   testStartedAt: Date;
   testCompletedAt: Date;
   validationWindowHours: number;
@@ -123,9 +126,7 @@ describe('Ingestion Side-by-Side Validation (e2e)', () => {
       logging: false,
     });
     await stagingDataSource.initialize();
-    logger.log(
-      `Connected to staging database: ${STAGING_DB_CONFIG.database}`,
-    );
+    logger.log(`Connected to staging database: ${STAGING_DB_CONFIG.database}`);
   });
 
   afterAll(async () => {
@@ -177,25 +178,23 @@ describe('Ingestion Side-by-Side Validation (e2e)', () => {
 
       // Build message sets for comparison
       const prodSet = new Set(
-        prodMessages.map(
-          (m: any) => `${m.channel_id}:${m.message_id}`,
-        ),
+        prodMessages.map((m: any) => `${m.channel_id}:${m.message_id}`),
       );
       const stagingSet = new Set(
-        stagingMessages.map(
-          (m: any) => `${m.channel_id}:${m.message_id}`,
-        ),
+        stagingMessages.map((m: any) => `${m.channel_id}:${m.message_id}`),
       );
 
       // Calculate differences
       const missingInStaging = [...prodSet].filter((id) => !stagingSet.has(id));
       const missingInProd = [...stagingSet].filter((id) => !prodSet.has(id));
 
-      const totalMessages = Math.max(prodMessages.length, stagingMessages.length);
+      const totalMessages = Math.max(
+        prodMessages.length,
+        stagingMessages.length,
+      );
       const matchingMessages = totalMessages - missingInStaging.length;
-      const parityPercentage = totalMessages > 0
-        ? (matchingMessages / totalMessages) * 100
-        : 100;
+      const parityPercentage =
+        totalMessages > 0 ? (matchingMessages / totalMessages) * 100 : 100;
 
       const report: MessageParityReport = {
         prodMessageCount: prodMessages.length,
@@ -213,7 +212,9 @@ describe('Ingestion Side-by-Side Validation (e2e)', () => {
       logger.log(`Parity: ${report.parityPercentage.toFixed(3)}%`);
       logger.log(`Missing in staging: ${report.missingInStaging}`);
       logger.log(`Missing in prod: ${report.missingInProd}`);
-      logger.log(`Threshold met (≥99.9%): ${report.passesThreshold ? 'YES' : 'NO'}`);
+      logger.log(
+        `Threshold met (≥99.9%): ${report.passesThreshold ? 'YES' : 'NO'}`,
+      );
 
       if (missingInStaging.length > 0) {
         logger.warn(
@@ -291,10 +292,7 @@ describe('Ingestion Side-by-Side Validation (e2e)', () => {
 
       // Build lookup maps
       const prodMap = new Map(
-        prodExtractions.map((e: any) => [
-          `${e.channel_id}:${e.message_id}`,
-          e,
-        ]),
+        prodExtractions.map((e: any) => [`${e.channel_id}:${e.message_id}`, e]),
       );
       const stagingMap = new Map(
         stagingExtractions.map((e: any) => [
@@ -309,17 +307,18 @@ describe('Ingestion Side-by-Side Validation (e2e)', () => {
       const sampledDifferences: any[] = [];
 
       for (const [key, prodExtraction] of prodMap.entries()) {
-        const stagingExtraction = stagingMap.get(key);
+        const extraction = prodExtraction as any;
+        const stagingExtraction = stagingMap.get(key) as any;
 
         if (!stagingExtraction) {
           differingCount++;
           if (sampledDifferences.length < 10) {
             sampledDifferences.push({
-              messageId: prodExtraction.message_id,
-              channelId: prodExtraction.channel_id,
-              prodCandidates: prodExtraction.candidate_count,
+              messageId: extraction.message_id,
+              channelId: extraction.channel_id,
+              prodCandidates: extraction.candidate_count,
               stagingCandidates: 0,
-              prodTickers: prodExtraction.tickers || [],
+              prodTickers: extraction.tickers || [],
               stagingTickers: [],
             });
           }
@@ -327,7 +326,7 @@ describe('Ingestion Side-by-Side Validation (e2e)', () => {
         }
 
         // Compare tickers (normalized)
-        const prodTickers = (prodExtraction.tickers || [])
+        const prodTickers = (extraction.tickers || [])
           .filter((t: string) => t)
           .sort();
         const stagingTickers = (stagingExtraction.tickers || [])
@@ -340,9 +339,9 @@ describe('Ingestion Side-by-Side Validation (e2e)', () => {
           differingCount++;
           if (sampledDifferences.length < 10) {
             sampledDifferences.push({
-              messageId: prodExtraction.message_id,
-              channelId: prodExtraction.channel_id,
-              prodCandidates: prodExtraction.candidate_count,
+              messageId: extraction.message_id,
+              channelId: extraction.channel_id,
+              prodCandidates: extraction.candidate_count,
               stagingCandidates: stagingExtraction.candidate_count,
               prodTickers,
               stagingTickers,
@@ -352,9 +351,8 @@ describe('Ingestion Side-by-Side Validation (e2e)', () => {
       }
 
       const totalMessages = prodMap.size;
-      const parityPercentage = totalMessages > 0
-        ? (identicalCount / totalMessages) * 100
-        : 100;
+      const parityPercentage =
+        totalMessages > 0 ? (identicalCount / totalMessages) * 100 : 100;
 
       const report: KolExtractionReport = {
         totalMessages,
@@ -378,7 +376,9 @@ describe('Ingestion Side-by-Side Validation (e2e)', () => {
             `  ${idx + 1}. Channel: ${diff.channelId}, Message: ${diff.messageId}`,
           );
           logger.warn(`     Prod tickers: [${diff.prodTickers.join(', ')}]`);
-          logger.warn(`     Staging tickers: [${diff.stagingTickers.join(', ')}]`);
+          logger.warn(
+            `     Staging tickers: [${diff.stagingTickers.join(', ')}]`,
+          );
         });
       }
 
@@ -447,16 +447,10 @@ describe('Ingestion Side-by-Side Validation (e2e)', () => {
 
       // Build lookup maps
       const prodMap = new Map(
-        prodNews.map((e: any) => [
-          `${e.channel_id}:${e.message_id}`,
-          e,
-        ]),
+        prodNews.map((e: any) => [`${e.channel_id}:${e.message_id}`, e]),
       );
       const stagingMap = new Map(
-        stagingNews.map((e: any) => [
-          `${e.channel_id}:${e.message_id}`,
-          e,
-        ]),
+        stagingNews.map((e: any) => [`${e.channel_id}:${e.message_id}`, e]),
       );
 
       // Compare keyword matches
@@ -465,15 +459,16 @@ describe('Ingestion Side-by-Side Validation (e2e)', () => {
       const sampledDifferences: any[] = [];
 
       for (const [key, prodNews] of prodMap.entries()) {
-        const stagingNews = stagingMap.get(key);
+        const news = prodNews as any;
+        const stagingNews = stagingMap.get(key) as any;
 
         if (!stagingNews) {
           differingCount++;
           if (sampledDifferences.length < 10) {
             sampledDifferences.push({
-              messageId: prodNews.message_id,
-              channelId: prodNews.channel_id,
-              prodKeywords: prodNews.matched_keywords || [],
+              messageId: news.message_id,
+              channelId: news.channel_id,
+              prodKeywords: news.matched_keywords || [],
               stagingKeywords: [],
             });
           }
@@ -481,7 +476,7 @@ describe('Ingestion Side-by-Side Validation (e2e)', () => {
         }
 
         // Compare keywords (normalized)
-        const prodKeywords = (prodNews.matched_keywords || [])
+        const prodKeywords = (news.matched_keywords || [])
           .filter((k: string) => k)
           .sort();
         const stagingKeywords = (stagingNews.matched_keywords || [])
@@ -494,8 +489,8 @@ describe('Ingestion Side-by-Side Validation (e2e)', () => {
           differingCount++;
           if (sampledDifferences.length < 10) {
             sampledDifferences.push({
-              messageId: prodNews.message_id,
-              channelId: prodNews.channel_id,
+              messageId: news.message_id,
+              channelId: news.channel_id,
               prodKeywords,
               stagingKeywords,
             });
@@ -504,9 +499,8 @@ describe('Ingestion Side-by-Side Validation (e2e)', () => {
       }
 
       const totalMessages = prodMap.size;
-      const parityPercentage = totalMessages > 0
-        ? (identicalCount / totalMessages) * 100
-        : 100;
+      const parityPercentage =
+        totalMessages > 0 ? (identicalCount / totalMessages) * 100 : 100;
 
       const report: CryptoNewsReport = {
         totalNewsMessages: totalMessages,
@@ -519,8 +513,12 @@ describe('Ingestion Side-by-Side Validation (e2e)', () => {
       // Log report
       logger.log('=== CRYPTO NEWS KEYWORD REPORT ===');
       logger.log(`Total messages: ${report.totalNewsMessages}`);
-      logger.log(`Identical keyword matches: ${report.identicalKeywordMatches}`);
-      logger.log(`Differing keyword matches: ${report.differingKeywordMatches}`);
+      logger.log(
+        `Identical keyword matches: ${report.identicalKeywordMatches}`,
+      );
+      logger.log(
+        `Differing keyword matches: ${report.differingKeywordMatches}`,
+      );
       logger.log(`Parity: ${report.parityPercentage.toFixed(3)}%`);
 
       if (sampledDifferences.length > 0) {
@@ -530,7 +528,9 @@ describe('Ingestion Side-by-Side Validation (e2e)', () => {
             `  ${idx + 1}. Channel: ${diff.channelId}, Message: ${diff.messageId}`,
           );
           logger.warn(`     Prod keywords: [${diff.prodKeywords.join(', ')}]`);
-          logger.warn(`     Staging keywords: [${diff.stagingKeywords.join(', ')}]`);
+          logger.warn(
+            `     Staging keywords: [${diff.stagingKeywords.join(', ')}]`,
+          );
         });
       }
 
