@@ -76,7 +76,9 @@ describe('appConfig', () => {
       process.env.REDIS_HOST = '';
       process.env.REDIS_PORT = '6379';
 
-      expect(() => appConfig()).toThrow('Redis configuration validation failed');
+      expect(() => appConfig()).toThrow(
+        'Redis configuration validation failed',
+      );
     });
 
     it('should throw when REDIS_PORT is invalid', () => {
@@ -85,7 +87,9 @@ describe('appConfig', () => {
       process.env.REDIS_HOST = 'localhost';
       process.env.REDIS_PORT = '0';
 
-      expect(() => appConfig()).toThrow('Redis configuration validation failed');
+      expect(() => appConfig()).toThrow(
+        'Redis configuration validation failed',
+      );
     });
 
     it('should pass validation with valid Redis config', () => {
@@ -188,7 +192,9 @@ describe('appConfig', () => {
       setValidMtprotoEnv();
       setValidRedisEnv();
       setValidApiEnv();
-      process.env.INGESTION_TELEGRAM_SEED_KOLS = JSON.stringify({ not: 'array' });
+      process.env.INGESTION_TELEGRAM_SEED_KOLS = JSON.stringify({
+        not: 'array',
+      });
 
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
       const config = appConfig();
@@ -254,7 +260,9 @@ describe('appConfig', () => {
       expect(config.ingestionSafety.jitterPercent).toBe(40);
       expect(config.ingestionSafety.sleepWindowStart).toBe('02:00');
       expect(config.ingestionSafety.sleepWindowEnd).toBe('06:00');
-      expect(config.ingestionSafety.floodProtection.initialBackoffMs).toBe(10000);
+      expect(config.ingestionSafety.floodProtection.initialBackoffMs).toBe(
+        10000,
+      );
       expect(config.ingestionSafety.floodProtection.threshold24h).toBe(20);
     });
 

@@ -20,8 +20,6 @@ describe('AppController (e2e)', () => {
   });
 
   it('/ (GET) - should return 404 for root path', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(404);
+    return request(app.getHttpServer()).get('/').expect(404);
   });
 });

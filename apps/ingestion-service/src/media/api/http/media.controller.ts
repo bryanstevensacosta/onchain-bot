@@ -1,4 +1,11 @@
-import { Controller, Get, Param, Res, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Res,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 import { promises as fs, createReadStream } from 'fs';
@@ -7,23 +14,23 @@ import * as mime from 'mime-types';
 
 /**
  * MediaController serves Telegram media files (photos/videos) via HTTP
- * 
+ *
  * Per Requirement 4.1, 4.2: Serves media downloaded by MTProto layer
  * Per Requirement 4.3: Returns 404 for missing files
  * Per Requirement 4.5: Implements aggressive caching (1 year max-age)
  * Per Invariant 5: Path-based URLs for debuggability
- * 
+ *
  * Endpoint: GET /api/media/:channelId/:messageId/:index
- * 
+ *
  * Media Storage Convention:
  * - Location: {UPLOADS_ROOT}/crypto-news/media/{channelId}/
  * - Pattern: {messageId}_{index}.{ext}
  * - Extensions: .jpg, .png, .webp, .gif, .mp4, .webm
- * 
+ *
  * Security:
  * - Channel ID sanitized by MTProto layer (path traversal safe)
  * - messageId/index validated as numeric
- * 
+ *
  * @controller Handles /api/media routes
  */
 @Controller('api/media')
@@ -34,17 +41,20 @@ export class MediaController {
   constructor(private readonly config: ConfigService) {
     // Load uploads root from config
     const appConfig = this.config.get('app');
-    this.uploadsRoot = appConfig?.uploads?.root || path.join(process.cwd(), 'uploads');
-    this.logger.log(`MediaController initialized with uploads root: ${this.uploadsRoot}`);
+    this.uploadsRoot =
+      appConfig?.uploads?.root || path.join(process.cwd(), 'uploads');
+    this.logger.log(
+      `MediaController initialized with uploads root: ${this.uploadsRoot}`,
+    );
   }
 
   /**
    * Serve media file via HTTP
-   * 
+   *
    * Per Requirement 4.1, 4.2: HTTP serving of downloaded media
    * Per Requirement 4.3: 404 for missing files
    * Per Requirement 4.5: Caching headers (1 year max-age)
-   * 
+   *
    * @param channelId - Telegram channel identifier (sanitized)
    * @param messageId - Telegram message ID
    * @param index - Media attachment index (0-based)
@@ -61,7 +71,7 @@ export class MediaController {
       // Validate numeric params
       const msgId = parseInt(messageId, 10);
       const idx = parseInt(index, 10);
-      
+
       if (isNaN(msgId) || isNaN(idx)) {
         response.status(400).json({
           error: 'Invalid parameters',
@@ -82,7 +92,7 @@ export class MediaController {
       // Find file matching pattern: {messageId}_{index}.*
       const filePattern = `${msgId}_${idx}.`;
       let files: string[];
-      
+
       try {
         files = await fs.readdir(mediaDir);
       } catch (error) {
@@ -99,7 +109,7 @@ export class MediaController {
 
       // Find matching file
       const matchedFile = files.find((f) => f.startsWith(filePattern));
-      
+
       if (!matchedFile) {
         this.logger.warn(
           `Media file not found: ${channelId}:${msgId}:${idx} (pattern: ${filePattern})`,
@@ -113,7 +123,7 @@ export class MediaController {
 
       // Build full file path
       const filePath = path.join(mediaDir, matchedFile);
-      
+
       // Get file stats
       let stat;
       try {
@@ -143,11 +153,9 @@ export class MediaController {
 
       // Stream file to response
       const readStream = createReadStream(filePath);
-      
+
       readStream.on('error', (error) => {
-        this.logger.error(
-          `Stream error for ${filePath}: ${error.message}`,
-        );
+        this.logger.error(`Stream error for ${filePath}: ${error.message}`);
         if (!response.headersSent) {
           response.status(500).json({
             error: 'Internal server error',
@@ -157,7 +165,7 @@ export class MediaController {
       });
 
       readStream.pipe(response);
-      
+
       this.logger.debug(
         `Served media: ${channelId}:${msgId}:${idx} (${matchedFile}, ${stat.size} bytes, ${mimeType})`,
       );
@@ -166,7 +174,7 @@ export class MediaController {
         `Unexpected error serving media ${channelId}:${messageId}:${index}: ${(error as Error).message}`,
         (error as Error).stack,
       );
-      
+
       if (!response.headersSent) {
         response.status(500).json({
           error: 'Internal server error',

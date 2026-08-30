@@ -8,7 +8,7 @@ describe('MetricsService', () => {
 
   beforeEach(async () => {
     registry = new Registry();
-    
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         {
@@ -42,10 +42,13 @@ describe('MetricsService', () => {
     it('should increment with labels', async () => {
       service.messagesReceivedTotal.inc({ channelId: 'channel1', type: 'kol' });
       service.messagesReceivedTotal.inc({ channelId: 'channel1', type: 'kol' });
-      service.messagesReceivedTotal.inc({ channelId: 'channel2', type: 'news' });
+      service.messagesReceivedTotal.inc({
+        channelId: 'channel2',
+        type: 'news',
+      });
 
       const metrics = await service.getMetrics();
-      
+
       expect(metrics).toContain('ingestion_messages_received_total');
       expect(metrics).toContain('channelId="channel1"');
       expect(metrics).toContain('type="kol"');
@@ -72,7 +75,9 @@ describe('MetricsService', () => {
       service.messagesBroadcastDuration.observe(0.25);
 
       const metrics = await service.getMetrics();
-      expect(metrics).toContain('ingestion_messages_broadcast_duration_seconds');
+      expect(metrics).toContain(
+        'ingestion_messages_broadcast_duration_seconds',
+      );
       expect(metrics).toContain('_bucket');
       expect(metrics).toContain('_sum');
       expect(metrics).toContain('_count');
@@ -156,7 +161,7 @@ describe('MetricsService', () => {
   describe('getMetrics', () => {
     it('should return Prometheus format string', async () => {
       const result = await service.getMetrics();
-      
+
       expect(typeof result).toBe('string');
       expect(result.length).toBeGreaterThan(0);
       expect(result).toContain('# HELP');
@@ -165,7 +170,7 @@ describe('MetricsService', () => {
 
     it('should include all registered metrics', async () => {
       const result = await service.getMetrics();
-      
+
       expect(result).toContain('ingestion_mtproto_connected');
       expect(result).toContain('ingestion_messages_received_total');
       expect(result).toContain('ingestion_messages_broadcast_total');

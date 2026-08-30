@@ -46,7 +46,7 @@ describe('MetricsController', () => {
 
     it('should return metrics in text/plain format', async () => {
       const result = await controller.getMetrics();
-      
+
       // Should be plain text with newlines
       expect(typeof result).toBe('string');
       expect(result.includes('\n')).toBe(true);
@@ -64,7 +64,10 @@ describe('MetricsController', () => {
       // Update a metric
       metricsService.mtprotoConnected.set(1);
       metricsService.sseClientsConnected.set(5);
-      metricsService.messagesReceivedTotal.inc({ channelId: 'test', type: 'kol' });
+      metricsService.messagesReceivedTotal.inc({
+        channelId: 'test',
+        type: 'kol',
+      });
 
       const result = await controller.getMetrics();
 

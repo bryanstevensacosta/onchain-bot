@@ -122,7 +122,9 @@ export class KolSeeder {
   }
 
   private parseEnvChannels(): SeedKol[] {
-    const envValue = this.config.get<string>('INGESTION_TELEGRAM_SEED_CHANNELS');
+    const envValue = this.config.get<string>(
+      'INGESTION_TELEGRAM_SEED_CHANNELS',
+    );
     if (!envValue || envValue.trim().length === 0) {
       return [];
     }

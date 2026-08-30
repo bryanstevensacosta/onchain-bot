@@ -5,7 +5,7 @@ import { AppModule } from '../src/app.module';
 
 /**
  * E2E tests for Prometheus metrics endpoint
- * 
+ *
  * Per Requirement 9.5: Verify /metrics endpoint exposure
  */
 describe('MetricsController (e2e)', () => {
@@ -26,9 +26,7 @@ describe('MetricsController (e2e)', () => {
 
   describe('/metrics (GET)', () => {
     it('should return 200 OK', () => {
-      return request(app.getHttpServer())
-        .get('/metrics')
-        .expect(200);
+      return request(app.getHttpServer()).get('/metrics').expect(200);
     });
 
     it('should return text/plain content type', () => {
