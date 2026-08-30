@@ -174,6 +174,7 @@ export interface AppConfig extends LlmConfigShape {
       };
     };
     useSse: boolean;
+    useMock: boolean;
     serviceUrl: string;
   };
 
@@ -455,8 +456,9 @@ export const appConfig = registerAs(
       },
       useSse:
         (process.env.USE_SSE_INGESTION ?? 'false').toLowerCase() === 'true',
-      serviceUrl:
-        process.env.INGESTION_SERVICE_URL ?? 'http://localhost:3031',
+      useMock:
+        (process.env.USE_MOCK_INGESTION ?? 'false').toLowerCase() === 'true',
+      serviceUrl: process.env.INGESTION_SERVICE_URL ?? 'http://localhost:3031',
     },
 
     publishing: {
