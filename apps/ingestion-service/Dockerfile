@@ -21,6 +21,9 @@ RUN npm ci --workspace=@alpha-meta-token-scanner/ingestion-service --ignore-scri
 COPY apps/ingestion-service/ ./apps/ingestion-service/
 COPY tsconfig.base.json ./
 
+# Copy config files (needed at build time)
+COPY config/ ./config/
+
 # Build application
 RUN npm run build --workspace=@alpha-meta-token-scanner/ingestion-service
 
