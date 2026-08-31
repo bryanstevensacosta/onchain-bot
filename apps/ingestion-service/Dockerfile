@@ -14,7 +14,8 @@ COPY package*.json ./
 COPY apps/ingestion-service/package*.json ./apps/ingestion-service/
 
 # Install dependencies (including devDependencies for build)
-RUN npm ci --workspace=@alpha-meta-token-scanner/ingestion-service
+# Use --ignore-scripts to prevent prepare hook failures (no husky in Docker)
+RUN npm ci --workspace=@alpha-meta-token-scanner/ingestion-service --ignore-scripts
 
 # Copy source code
 COPY apps/ingestion-service/ ./apps/ingestion-service/
@@ -43,7 +44,8 @@ COPY --from=builder /app/apps/ingestion-service/package*.json ./apps/ingestion-s
 ENV HUSKY=0
 
 # Install production dependencies only
-RUN npm ci --workspace=@alpha-meta-token-scanner/ingestion-service --omit=dev
+# Use --ignore-scripts to prevent prepare hook failures
+RUN npm ci --workspace=@alpha-meta-token-scanner/ingestion-service --omit=dev --ignore-scripts
 
 # Copy built application
 COPY --from=builder /app/apps/ingestion-service/dist ./apps/ingestion-service/dist
@@ -72,4 +74,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
 ENTRYPOINT ["dumb-init", "--"]
 
 # Start application
-CMD ["node", "apps/ingestion-service/dist/main.js"]
+CMD ["node", "apps/ingestion-service/dist/src/main.js"]
