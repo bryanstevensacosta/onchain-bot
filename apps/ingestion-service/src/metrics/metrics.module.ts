@@ -34,9 +34,9 @@ import { MetricsController } from './api/http/metrics.controller';
     {
       provide: Registry,
       useFactory: (): Registry => {
-        // Use the default registry from PrometheusModule
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-        return Registry.globalRegistry as Registry;
+        // Create and return a new Registry instance
+        // PrometheusModule will use this registry
+        return new Registry();
       },
     },
     MetricsService,
