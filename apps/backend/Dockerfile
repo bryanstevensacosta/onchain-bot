@@ -33,7 +33,7 @@ COPY --from=build /repo/apps/backend/package.json ./package.json
 COPY --from=build /repo/apps/backend/scripts ./scripts
 COPY apps/backend/docker-entrypoint.sh /usr/local/bin/
 
-RUN npm prune --omit=dev && npm cache clean --force
+RUN npm prune --omit=dev --ignore-scripts && npm cache clean --force
 
 RUN chown -R node:node /app && chmod +x /usr/local/bin/docker-entrypoint.sh
 
