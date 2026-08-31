@@ -8,6 +8,7 @@ import { StreamModule } from './stream/stream.module';
 import { MediaModule } from './media/media.module';
 import { HealthModule } from './health/health.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { TelegramModule } from './telegram/telegram.module';
 
 /**
  * AppModule - Root module for Ingestion Service
@@ -20,12 +21,13 @@ import { MetricsModule } from './metrics/metrics.module';
  * - StreamModule (SSE streaming infrastructure)
  * - MediaModule (media file serving)
  * - HealthModule (health checks + metrics)
- * - Bounded contexts (to be added in subsequent tasks)
+ * - TelegramModule (MTProto layer + coordinators)
  *
  * Per Requirement 6.2: Environment variable configuration
  * Per Requirement 2.1: SSE streaming via StreamModule
  * Per Requirement 4.1: Media serving via MediaModule
  * Per Requirement 5.1: Health checks via HealthModule
+ * Per design.md § 2.1: MTProto layer via TelegramModule
  */
 @Module({
   imports: [
@@ -70,8 +72,8 @@ import { MetricsModule } from './metrics/metrics.module';
     HealthModule, // Health checks
     MetricsModule, // Prometheus metrics
 
-    // TODO: Add bounded context modules in subsequent tasks:
-    // - TelegramModule (MTProto layer + coordinators)
+    // Telegram ingestion (MTProto + seeders + coordinator)
+    TelegramModule,
   ],
 })
 export class AppModule {}

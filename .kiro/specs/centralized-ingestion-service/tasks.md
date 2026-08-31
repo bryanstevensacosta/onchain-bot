@@ -292,7 +292,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
 
 ### Phase 7: Migration Preparation and Validation
 
-- [ ] 7.1 Create session validation script
+- [x] 7.1 Create session validation script
   - Create `scripts/validate-session-migration.sh`
   - Check backend .env has NO TELEGRAM_MTPROTO_SESSION
   - Check backend .env has NO MTPROTO_API_ID/API_HASH
@@ -321,7 +321,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
   - Include metric query examples
   - _Requirements: 12.5, 7.2, 7.4, 7.5_
 
-- [ ] 7.4 Create monitoring playbook
+- [x] 7.4 Create monitoring playbook
   - Create `docs/monitoring/ingestion-service-playbook.md`
   - Document alert conditions and responses
   - Document Prometheus alert rules
@@ -341,7 +341,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
   - Verify latency <500ms
   - _Requirements: 8.1, 10.5, 12.2_
 
-- [ ] 8.2 Create E2E test for reconnection handling
+- [x] 8.2 Create E2E test for reconnection handling
   - Connect SSE client
   - Disconnect client mid-stream
   - Verify exponential backoff
@@ -358,7 +358,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
   - Verify zero disconnections
   - _Requirements: 8.1, 8.2, 8.5_
 
-- [ ] 8.4 Create side-by-side validation test
+- [x] 8.4 Create side-by-side validation test
   - Run prod backend (MTProto mode)
   - Run staging backend (SSE mode)
   - Compare message counts in database
@@ -369,7 +369,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
 
 ### Phase 9: Production Deployment (Phased Rollout)
 
-- [ ] 9.1 Phase 1: Deploy ingestion-service standalone
+- [x] 9.1 Phase 1: Deploy ingestion-service standalone
   - Run session validation script
   - Deploy ingestion-service to droplet (docker-compose up ingestion-service)
   - Verify health endpoint: curl http://localhost:3031/api/health → 200
@@ -676,8 +676,8 @@ This plan implements a standalone Telegram ingestion service that eliminates res
 
 - [ ] 17.1 Implement rate limiting for public endpoints
   - Add rate limiting middleware to MediaController
-  - Limit: 100 requests/min per IP for /api/media/*
-  - Limit: 10 requests/min per IP for /api/backfill/*
+  - Limit: 100 requests/min per IP for /api/media/\*
+  - Limit: 10 requests/min per IP for /api/backfill/\*
   - Return 429 Too Many Requests when exceeded
   - _Requirements: Design § 13 Security_
 
@@ -757,8 +757,35 @@ This plan implements a standalone Telegram ingestion service that eliminates res
     { "id": 8, "tasks": ["6.1", "6.2", "6.3", "6.4"] },
     { "id": 9, "tasks": ["6.5", "6.6"] },
     { "id": 10, "tasks": ["7.1", "7.2", "7.3", "7.4", "14.1", "14.2"] },
-    { "id": 11, "tasks": ["10.1", "10.2", "10.3", "10.4", "11.1", "11.2", "11.3", "11.4", "11.5"] },
-    { "id": 12, "tasks": ["12.1", "12.2", "12.3", "16.1", "16.2", "16.3", "17.1", "17.2", "17.3", "17.4"] },
+    {
+      "id": 11,
+      "tasks": [
+        "10.1",
+        "10.2",
+        "10.3",
+        "10.4",
+        "11.1",
+        "11.2",
+        "11.3",
+        "11.4",
+        "11.5"
+      ]
+    },
+    {
+      "id": 12,
+      "tasks": [
+        "12.1",
+        "12.2",
+        "12.3",
+        "16.1",
+        "16.2",
+        "16.3",
+        "17.1",
+        "17.2",
+        "17.3",
+        "17.4"
+      ]
+    },
     { "id": 13, "tasks": ["8.1", "8.2", "8.3", "8.4", "14.3", "16.4"] },
     { "id": 14, "tasks": ["15.1", "15.2", "15.3", "18.1", "18.2", "18.3"] },
     { "id": 15, "tasks": ["9.1"] },
@@ -794,6 +821,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
 **Total additional tasks: 33** (including 8 optional test tasks marked with `*`)
 
 **Key improvements addressed:**
+
 - ✅ Media lifecycle management (GAP 4)
 - ✅ Raw text isolation with retrieval endpoint (Invariant 1)
 - ✅ Dashboard WebSocket compatibility verification (GAP 5)
@@ -803,4 +831,3 @@ This plan implements a standalone Telegram ingestion service that eliminates res
 - ✅ Performance optimization
 - ✅ Security hardening
 - ✅ Complete documentation
-

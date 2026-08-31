@@ -1,0 +1,64 @@
+name: Auto PR to Master
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  create-pr-if-needed:
+    runs-on: ubuntu-latest
+    if: github.repository == 'bryanstevensacosta/onchain-bot'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if PR is needed
+        run: |
+          git fetch origin master dev
+          
+          # Check if dev is ahead of master
+          if git merge-base --is-ancestor origin/dev origin/master; then
+            echo "dev is behind or equal to master, no PR needed"
+            exit 0
+          fi
+          
+          # Check if there's already an open PR from dev to master
+          EXISTING_PR=$(gh pr list --base master --head dev --state open --json number --jq '.[0].number')
+          if [ -n "$EXISTING_PR" ]; then
+            echo "PR #$EXISTING_PR already exists, updating it..."
+            gh pr update-branch "$EXISTING_PR" || echo "PR already up-to-date"
+            exit 0
+          fi
+          
+          # Create new PR
+          echo "dev is ahead of master and no PR exists, creating one..."
+          COMMITS_AHEAD=$(git rev-list --count origin/master..origin/dev)
+          LATEST_COMMIT=$(git log origin/dev ^origin/master --oneline --no-merges -1 --pretty=format:"%s")
+          
+          gh pr create \
+            --base master \
+            --head dev \
+            --title "chore(sync): dev → master ($COMMITS_AHEAD commits)" \
+            --body "## Auto-sync PR from dev to master
+
+This PR was automatically created because dev is $COMMITS_AHEAD commits ahead of master.
+
+**Latest change:** $LATEST_COMMIT
+
+**What to do:**
+1. Review the changes
+2. Merge when ready - this will trigger:
+   - Release-please to analyze conventional commits
+   - Automatic release PR creation if there are releasable changes
+   - CI/CD workflows
+
+**Note:** After merging, master will automatically sync back to dev via the sync-dev workflow." \
+            --label "auto-sync"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

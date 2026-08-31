@@ -23,18 +23,21 @@
 The Centralized Ingestion Service is the single point of ingestion for Telegram messages across all backend environments (dev, staging, production). It maintains a single MTProto connection to Telegram and distributes messages to backend clients via Server-Sent Events (SSE).
 
 **Critical Dependencies:**
+
 - Telegram API (MTProto) - External, uncontrolled
 - Redis - Last-seen message cursor persistence
 - Network connectivity to backend environments
 - Media storage volume (`uploads/crypto-news/media/`)
 
 **Service Boundaries:**
+
 - **Port:** 3031 (HTTP API)
 - **Deployment:** Single instance (DO NOT scale horizontally - one MTProto session only)
 - **Uptime Target:** 99.9% (43.2 minutes downtime/month max)
 - **Latency Target:** <500ms p95 for message delivery
 
 **Reference Documents:**
+
 - Requirements: `.kiro/specs/centralized-ingestion-service/requirements.md`
 - Design: `.kiro/specs/centralized-ingestion-service/design.md`
 - Deployment Guide: `docs/deployment/ingestion-service-deployment.md`
@@ -51,16 +54,16 @@ Prometheus scrape target exposing all metrics in Prometheus text format.
 
 ### Critical Metrics
 
-| Metric | Type | Description | Normal Range | Alert Threshold |
-|--------|------|-------------|--------------|-----------------|
-| `ingestion_mtproto_connected` | Gauge | MTProto connection status (0=disconnected, 1=connected) | 1 | <1 for >5min |
-| `ingestion_sse_clients_connected` | Gauge | Number of connected SSE clients | 1-10 | 0 for >10min |
-| `ingestion_messages_received_total` | Counter | Total messages received from Telegram | Increasing | Flatline for >15min |
-| `ingestion_messages_broadcast_total` | Counter | Total messages broadcast to clients | Increasing | Flatline when receiving |
-| `ingestion_messages_broadcast_duration_seconds` | Histogram | Message broadcast latency | p95 <0.5s | p95 >1s |
-| `ingestion_flood_wait_count_24h` | Gauge | FLOOD_WAIT errors in 24h window | 0-3 | >10 |
-| `ingestion_media_downloads_total` | Counter | Total media files downloaded | Increasing | N/A (informational) |
-| `ingestion_api_request_duration_seconds` | Histogram | API request latency | p95 <0.2s | p95 >1s |
+| Metric                                          | Type      | Description                                             | Normal Range | Alert Threshold         |
+| ----------------------------------------------- | --------- | ------------------------------------------------------- | ------------ | ----------------------- |
+| `ingestion_mtproto_connected`                   | Gauge     | MTProto connection status (0=disconnected, 1=connected) | 1            | <1 for >5min            |
+| `ingestion_sse_clients_connected`               | Gauge     | Number of connected SSE clients                         | 1-10         | 0 for >10min            |
+| `ingestion_messages_received_total`             | Counter   | Total messages received from Telegram                   | Increasing   | Flatline for >15min     |
+| `ingestion_messages_broadcast_total`            | Counter   | Total messages broadcast to clients                     | Increasing   | Flatline when receiving |
+| `ingestion_messages_broadcast_duration_seconds` | Histogram | Message broadcast latency                               | p95 <0.5s    | p95 >1s                 |
+| `ingestion_flood_wait_count_24h`                | Gauge     | FLOOD_WAIT errors in 24h window                         | 0-3          | >10                     |
+| `ingestion_media_downloads_total`               | Counter   | Total media files downloaded                            | Increasing   | N/A (informational)     |
+| `ingestion_api_request_duration_seconds`        | Histogram | API request latency                                     | p95 <0.2s    | p95 >1s                 |
 
 ### Default System Metrics
 
@@ -85,6 +88,7 @@ The service also exposes Node.js process metrics via `@willsoto/nestjs-prometheu
 **Condition:** `ingestion_mtproto_connected == 0` for >5 minutes
 
 **Symptoms:**
+
 - Health endpoint returns HTTP 503
 - `mtproto.connected: false` in health response
 - No new messages received from Telegram
@@ -92,6 +96,7 @@ The service also exposes Node.js process metrics via `@willsoto/nestjs-prometheu
 **Impact:** No messages are being ingested. All backend environments are starved of data.
 
 **Response:**
+
 1. **Check service logs** for `mtproto:connection:changed` events:
    ```bash
    docker logs ingestion-service --tail 100 | grep "mtproto:connection"
@@ -128,6 +133,7 @@ The service also exposes Node.js process metrics via `@willsoto/nestjs-prometheu
 **Condition:** `ingestion_sse_clients_connected == 0` for >10 minutes
 
 **Symptoms:**
+
 - Health endpoint shows `clients.connected: 0`
 - Messages are being received but not consumed
 - Backend environments report ingestion failures
@@ -135,6 +141,7 @@ The service also exposes Node.js process metrics via `@willsoto/nestjs-prometheu
 **Impact:** Messages are not reaching backend environments. Data pipeline is stalled.
 
 **Response:**
+
 1. **Check backend client connection status** in backend logs:
    ```bash
    # On backend host
@@ -173,6 +180,7 @@ The service also exposes Node.js process metrics via `@willsoto/nestjs-prometheu
 **Condition:** `histogram_quantile(0.95, ingestion_messages_broadcast_duration_seconds) > 1` for >5 minutes
 
 **Symptoms:**
+
 - Slow message delivery to backend clients
 - Health endpoint may show warnings
 - Real-time trading alerts delayed
@@ -180,6 +188,7 @@ The service also exposes Node.js process metrics via `@willsoto/nestjs-prometheu
 **Impact:** Trading signals delayed >1 second. May impact trade execution timing.
 
 **Response:**
+
 1. **Check CPU and memory usage:**
    ```bash
    docker stats ingestion-service --no-stream
@@ -214,6 +223,7 @@ The service also exposes Node.js process metrics via `@willsoto/nestjs-prometheu
 **Condition:** `ingestion_flood_wait_count_24h > 10`
 
 **Symptoms:**
+
 - Health endpoint shows `floodWait.count24h > 10`
 - Logs show multiple `flood_wait:detected` events
 - Message ingestion may be delayed
@@ -221,6 +231,7 @@ The service also exposes Node.js process metrics via `@willsoto/nestjs-prometheu
 **Impact:** Telegram is rate limiting the service. Risk of account ban if behavior continues.
 
 **Response:**
+
 1. **Check FLOOD_WAIT metrics:**
    ```bash
    curl http://localhost:3031/api/health | jq '.floodWait'
@@ -253,6 +264,7 @@ The service also exposes Node.js process metrics via `@willsoto/nestjs-prometheu
 **Condition:** Health endpoint returns `warnings: ["Client disconnection window >60s detected"]`
 
 **Symptoms:**
+
 - Health response includes `warnings` array
 - `clients.disconnectionWindows` shows long disconnection periods
 - Clients are reconnecting frequently
@@ -260,6 +272,7 @@ The service also exposes Node.js process metrics via `@willsoto/nestjs-prometheu
 **Impact:** Intermittent message delivery failures. Messages may be missed during disconnection windows.
 
 **Response:**
+
 1. **Check disconnection windows:**
    ```bash
    curl http://localhost:3031/api/health | jq '.clients.disconnectionWindows'
@@ -301,6 +314,7 @@ The service also exposes Node.js process metrics via `@willsoto/nestjs-prometheu
 **Condition:** `rate(ingestion_messages_received_total[15m]) == 0`
 
 **Symptoms:**
+
 - Message counter flatlined
 - MTProto shows connected
 - Clients are connected but idle
@@ -308,6 +322,7 @@ The service also exposes Node.js process metrics via `@willsoto/nestjs-prometheu
 **Impact:** Possible upstream issue (Telegram channels inactive) or polling issue.
 
 **Response:**
+
 1. **Verify MTProto connection status:**
    ```bash
    curl http://localhost:3031/api/health | jq '.mtproto'
@@ -352,9 +367,9 @@ groups:
           service: ingestion-service
           alert_id: ALERT-001
         annotations:
-          summary: "Ingestion service MTProto disconnected"
-          description: "MTProto connection to Telegram has been down for >5 minutes. No messages are being ingested."
-          runbook_url: "https://docs.example.com/runbooks/ingestion-service-playbook.md#alert-001-mtproto-disconnected"
+          summary: 'Ingestion service MTProto disconnected'
+          description: 'MTProto connection to Telegram has been down for >5 minutes. No messages are being ingested.'
+          runbook_url: 'https://docs.example.com/runbooks/ingestion-service-playbook.md#alert-001-mtproto-disconnected'
 
       # ALERT-002: Zero SSE Clients Connected
       - alert: IngestionZeroClientsConnected
@@ -365,9 +380,9 @@ groups:
           service: ingestion-service
           alert_id: ALERT-002
         annotations:
-          summary: "No SSE clients connected to ingestion service"
-          description: "Zero backend clients connected for >10 minutes. Messages are not being consumed."
-          runbook_url: "https://docs.example.com/runbooks/ingestion-service-playbook.md#alert-002-zero-sse-clients-connected"
+          summary: 'No SSE clients connected to ingestion service'
+          description: 'Zero backend clients connected for >10 minutes. Messages are not being consumed.'
+          runbook_url: 'https://docs.example.com/runbooks/ingestion-service-playbook.md#alert-002-zero-sse-clients-connected'
 
       # ALERT-003: High Broadcast Latency
       - alert: IngestionHighBroadcastLatency
@@ -378,9 +393,9 @@ groups:
           service: ingestion-service
           alert_id: ALERT-003
         annotations:
-          summary: "High message broadcast latency"
-          description: "p95 broadcast latency is >1s for >5 minutes. Trading signals delayed."
-          runbook_url: "https://docs.example.com/runbooks/ingestion-service-playbook.md#alert-003-high-broadcast-latency"
+          summary: 'High message broadcast latency'
+          description: 'p95 broadcast latency is >1s for >5 minutes. Trading signals delayed.'
+          runbook_url: 'https://docs.example.com/runbooks/ingestion-service-playbook.md#alert-003-high-broadcast-latency'
 
   - name: ingestion_service_warning
     interval: 1m
@@ -394,9 +409,9 @@ groups:
           service: ingestion-service
           alert_id: ALERT-004
         annotations:
-          summary: "Elevated FLOOD_WAIT count"
-          description: "More than 10 FLOOD_WAIT errors in 24h window. Risk of Telegram account ban."
-          runbook_url: "https://docs.example.com/runbooks/ingestion-service-playbook.md#alert-004-elevated-flood_wait-count"
+          summary: 'Elevated FLOOD_WAIT count'
+          description: 'More than 10 FLOOD_WAIT errors in 24h window. Risk of Telegram account ban.'
+          runbook_url: 'https://docs.example.com/runbooks/ingestion-service-playbook.md#alert-004-elevated-flood_wait-count'
 
       # ALERT-006: No Messages Received
       - alert: IngestionNoMessagesReceived
@@ -407,9 +422,9 @@ groups:
           service: ingestion-service
           alert_id: ALERT-006
         annotations:
-          summary: "No messages received for >15 minutes"
-          description: "Message ingestion has flatlined. Possible upstream issue or polling stuck."
-          runbook_url: "https://docs.example.com/runbooks/ingestion-service-playbook.md#alert-006-no-messages-received-for-15-minutes"
+          summary: 'No messages received for >15 minutes'
+          description: 'Message ingestion has flatlined. Possible upstream issue or polling stuck.'
+          runbook_url: 'https://docs.example.com/runbooks/ingestion-service-playbook.md#alert-006-no-messages-received-for-15-minutes'
 
       # High Memory Usage
       - alert: IngestionHighMemoryUsage
@@ -420,9 +435,22 @@ groups:
           service: ingestion-service
           alert_id: ALERT-007
         annotations:
-          summary: "High memory usage (>90%)"
-          description: "Heap usage is >90% for >5 minutes. Risk of OOM crash."
-          runbook_url: "https://docs.example.com/runbooks/ingestion-service-playbook.md#alert-007-high-memory-usage"
+          summary: 'High memory usage (>90%)'
+          description: 'Heap usage is >90% for >5 minutes. Risk of OOM crash.'
+          runbook_url: 'https://docs.example.com/runbooks/ingestion-service-playbook.md#alert-007-high-memory-usage'
+
+      # Media Storage High
+      - alert: IngestionMediaStorageHigh
+        expr: (node_filesystem_avail_bytes{mountpoint="/app/uploads"} / node_filesystem_size_bytes{mountpoint="/app/uploads"}) < 0.2
+        for: 10m
+        labels:
+          severity: warning
+          service: ingestion-service
+          alert_id: ALERT-008
+        annotations:
+          summary: 'Media storage >80% full'
+          description: 'Media storage volume is >80% full. Old media files may need cleanup.'
+          runbook_url: 'https://docs.example.com/runbooks/ingestion-service-playbook.md#alert-008-media-storage-high'
 
   - name: ingestion_service_info
     interval: 5m
@@ -435,8 +463,8 @@ groups:
           severity: info
           service: ingestion-service
         annotations:
-          summary: "Broadcast latency degraded (p95 >500ms)"
-          description: "Broadcast latency is above target (500ms) but below critical threshold (1s)."
+          summary: 'Broadcast latency degraded (p95 >500ms)'
+          description: 'Broadcast latency is above target (500ms) but below critical threshold (1s).'
 ```
 
 ---
@@ -484,6 +512,7 @@ docker logs ingestion-service --tail 1000 | grep '"event":"mtproto:connection:ch
 ```
 
 **Expected Output:**
+
 ```json
 {
   "event": "mtproto:connection:changed",
@@ -515,6 +544,7 @@ docker logs ingestion-service --tail 5000 | grep '"event":"flood_wait:detected"'
 ```
 
 **Expected Output:**
+
 ```json
 {
   "event": "flood_wait:detected",
@@ -552,6 +582,7 @@ docker logs ingestion-service --since 1h | grep -E '"event":"sse:client:(connect
 ```
 
 **Expected Output:**
+
 ```json
 {
   "event": "sse:client:connected",
@@ -588,6 +619,7 @@ docker logs ingestion-service --tail 2000 | grep '"event":"message:received"' | 
 ```
 
 **Expected Output:**
+
 ```json
 {
   "event": "message:received",
@@ -623,6 +655,7 @@ docker logs ingestion-service --tail 1000 | grep '"event":"media:download:failed
 ```
 
 **Expected Output:**
+
 ```json
 {
   "event": "media:download:failed",
@@ -659,6 +692,7 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 ```
 
 **Expected Output:**
+
 ```json
 {
   "event": "service:started",
@@ -672,12 +706,12 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 
 ### Log Retention Recommendations
 
-| Log Type | Retention Period | Storage | Reason |
-|----------|------------------|---------|--------|
-| All logs (JSON) | 30 days | Elasticsearch/Loki | Debugging and forensics |
-| `flood_wait:detected` | 90 days | Separate index | Ban risk trend analysis |
-| `message:received` | 7 days | Hot storage | High volume, short-term debugging |
-| `media:download:failed` | 30 days | Standard retention | Identify chronic issues |
+| Log Type                | Retention Period | Storage            | Reason                            |
+| ----------------------- | ---------------- | ------------------ | --------------------------------- |
+| All logs (JSON)         | 30 days          | Elasticsearch/Loki | Debugging and forensics           |
+| `flood_wait:detected`   | 90 days          | Separate index     | Ban risk trend analysis           |
+| `message:received`      | 7 days           | Hot storage        | High volume, short-term debugging |
+| `media:download:failed` | 30 days          | Standard retention | Identify chronic issues           |
 
 ---
 
@@ -726,55 +760,64 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 
 #### Status Interpretations
 
-| Status | HTTP Code | Meaning | Action Required |
-|--------|-----------|---------|-----------------|
-| `ok` | 200 | All systems operational | No action |
-| `degraded` | 503 | MTProto disconnected OR zero clients | Investigate immediately |
-| `unhealthy` | 503 | Critical failure (reserved for future use) | Escalate to Engineering |
+| Status      | HTTP Code | Meaning                                    | Action Required         |
+| ----------- | --------- | ------------------------------------------ | ----------------------- |
+| `ok`        | 200       | All systems operational                    | No action               |
+| `degraded`  | 503       | MTProto disconnected OR zero clients       | Investigate immediately |
+| `unhealthy` | 503       | Critical failure (reserved for future use) | Escalate to Engineering |
 
 #### Key Fields
 
 **mtproto.connected**
+
 - `true` - MTProto client connected to Telegram
 - `false` - Disconnected. Messages are NOT being ingested.
 
 **mtproto.authorized**
+
 - `true` - Session is valid
 - `false` - Session expired or revoked. Regenerate session string.
 
 **mtproto.lastPollAt**
+
 - Timestamp of last successful Telegram API poll
 - If stale (>5 minutes old), polling is stuck.
 
 **clients.connected**
+
 - Number of active SSE connections from backend environments
 - Expected: 1-10 (dev + staging + prod + any test instances)
 - Alert if 0 for >10 minutes.
 
 **clients.disconnectionWindows**
+
 - Recent client disconnections >60 seconds
 - Empty array = no recent long disconnections
 - If present, clients are experiencing network instability.
 
 **floodWait.count24h**
+
 - Total FLOOD_WAIT errors in 24-hour sliding window
 - Normal: 0-3
 - Warning: 4-10
 - Critical: >10 (ban risk)
 
 **floodWait.maxSeconds24h**
+
 - Longest FLOOD_WAIT duration encountered in 24 hours
 - Normal: 0-30 seconds
 - Warning: 31-120 seconds
 - Critical: >120 seconds (severe rate limiting)
 
 **floodWait.consecutiveFailures**
+
 - Consecutive FLOOD_WAIT errors without success
 - Normal: 0
 - Warning: 1-2
 - Critical: >3 (ban risk)
 
 **warnings**
+
 - Array of non-critical issues
 - Example: `["Client disconnection window >60s detected"]`
 - Investigate but service remains operational.
@@ -788,6 +831,7 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 **URL:** `http://<ingestion-service-host>:3031/api/health/ready`
 
 **Response:**
+
 ```json
 {
   "status": "ready",
@@ -807,6 +851,7 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 **URL:** `http://<ingestion-service-host>:3031/api/health/live`
 
 **Response:**
+
 ```json
 {
   "status": "alive",
@@ -826,6 +871,7 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 **When:** Session expired, revoked, or AUTH_KEY_DUPLICATED error detected.
 
 **Steps:**
+
 1. Stop all running ingestion service instances:
    ```bash
    docker stop ingestion-service
@@ -858,6 +904,7 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 ### Q: Why is `clients.connected` showing 0 but backends are running?
 
 **Possible Causes:**
+
 1. **Network connectivity issue** - Backends cannot reach ingestion service port 3031
 2. **Backend configuration error** - `INGESTION_REMOTE_URL` environment variable incorrect
 3. **Backend in MTProto mode** - `INGESTION_MODE=local` (should be `remote`)
@@ -865,6 +912,7 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 5. **Ingestion service crashed** - SSE endpoint not responding
 
 **Debugging:**
+
 1. Check backend logs for SSE connection errors:
    ```bash
    docker logs backend-app --tail 100 | grep "SSE"
@@ -889,16 +937,19 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 ### Q: Messages are being received but not broadcast. Why?
 
 **Symptoms:**
+
 - `ingestion_messages_received_total` is increasing
 - `ingestion_messages_broadcast_total` is NOT increasing
 - Logs show `message:received` but no broadcast events
 
 **Possible Causes:**
+
 1. **No SSE clients connected** - Messages have nowhere to go
 2. **Broadcast error** - Exception thrown during SSE write (check logs)
 3. **Deduplication filtering** - Messages are duplicates (by design)
 
 **Debugging:**
+
 1. Check client count:
    ```bash
    curl http://localhost:3031/api/health | jq '.clients.connected'
@@ -917,16 +968,19 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 ### Q: Media files are returning 404. Why?
 
 **Symptoms:**
+
 - SSE payload includes media URLs
 - `GET /api/media/:channelId/:messageId/:index` returns HTTP 404
 
 **Possible Causes:**
+
 1. **Media download failed** - File was not downloaded to disk (check logs)
 2. **Incorrect media URL** - Path construction error
 3. **Media file deleted** - Retention policy cleaned up file
 4. **Uploads volume not mounted** - Docker volume misconfigured
 
 **Debugging:**
+
 1. Check if media file exists on disk:
    ```bash
    docker exec ingestion-service ls -lh /app/uploads/crypto-news/media/<channelId>/
@@ -946,16 +1000,19 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 ### Q: Why is the service restarting frequently?
 
 **Symptoms:**
+
 - Container restarts every few minutes
 - `docker ps` shows high restart count
 - `docker logs` shows startup messages repeatedly
 
 **Possible Causes:**
+
 1. **OOM (Out of Memory) kill** - Service exceeding memory limit
 2. **Crash loop** - Unhandled exception causing process exit
 3. **Liveness probe failure** - Kubernetes restarting unhealthy pod
 
 **Debugging:**
+
 1. Check container exit code:
    ```bash
    docker inspect ingestion-service | jq '.[0].State'
@@ -976,6 +1033,7 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
    ```
 
 **Mitigation:**
+
 - If OOM: Increase memory limit in `docker-compose.yml` (minimum 512MB recommended)
 - If crash: Review exception stack traces and escalate to Engineering
 
@@ -984,6 +1042,7 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 ### Q: FLOOD_WAIT count is high (>10). What should I do?
 
 **Symptoms:**
+
 - `floodWait.count24h > 10` in health endpoint
 - Logs show multiple `flood_wait:detected` events
 - `floodWait.consecutiveFailures` increasing
@@ -991,6 +1050,7 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 **Impact:** Service is rate limited by Telegram. Risk of account ban if behavior continues.
 
 **Immediate Actions:**
+
 1. **Reduce polling frequency:**
    ```bash
    docker exec ingestion-service vi /app/config/ingestion.config.json
@@ -1017,6 +1077,7 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
    ```
 
 **Long-Term Actions:**
+
 - Review channel count (reduce if >50 channels)
 - Implement channel prioritization (poll critical channels more frequently)
 - Escalate to Engineering if FLOOD_WAIT persists after config changes
@@ -1028,6 +1089,7 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 **When:** After service deployment, network changes, or troubleshooting SSE issues.
 
 **Steps:**
+
 1. **Restart ingestion service:**
    ```bash
    docker restart ingestion-service
@@ -1041,6 +1103,7 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
    - Wait for client count to return to normal (1-10)
 
 **Alternative (restart backends without restarting ingestion service):**
+
 ```bash
 # Restart all backend environments
 docker restart backend-dev
@@ -1053,6 +1116,7 @@ docker restart backend-prod
 ### Q: How do I check if duplicate messages are being filtered correctly?
 
 **Validation:**
+
 1. **Check Redis last-seen cursors:**
    ```bash
    docker exec ingestion-service redis-cli KEYS "ingestion:lastSeen:*"
@@ -1069,6 +1133,7 @@ docker restart backend-prod
    ```
 
 **Expected Behavior:**
+
 - Each message is broadcast exactly once
 - Restarting the service does NOT re-broadcast old messages
 - Cursor is updated after each successful broadcast
@@ -1078,12 +1143,14 @@ docker restart backend-prod
 ### Q: Service health shows "ok" but backends report errors. Why?
 
 **Symptoms:**
+
 - Health endpoint returns HTTP 200 + `status: "ok"`
 - Backend logs show ingestion errors or message processing failures
 
 **Explanation:** Health endpoint only checks ingestion service health (MTProto connected, clients connected). It does NOT validate downstream backend processing.
 
 **Debugging:**
+
 1. **Check backend logs** for specific error messages:
    ```bash
    docker logs backend-app --tail 200 | grep -i "error"
@@ -1103,12 +1170,12 @@ docker restart backend-prod
 
 ### Severity Levels
 
-| Severity | Response Time | Escalation Path |
-|----------|---------------|-----------------|
-| **CRITICAL** (P0) | 15 minutes | On-Call Engineer → Engineering Lead → CTO |
-| **HIGH** (P1) | 1 hour | On-Call Engineer → Engineering Lead |
-| **MEDIUM** (P2) | 4 hours | On-Call Engineer → Engineering Team |
-| **LOW** (P3) | 24 hours | Ticket to Engineering Team |
+| Severity          | Response Time | Escalation Path                           |
+| ----------------- | ------------- | ----------------------------------------- |
+| **CRITICAL** (P0) | 15 minutes    | On-Call Engineer → Engineering Lead → CTO |
+| **HIGH** (P1)     | 1 hour        | On-Call Engineer → Engineering Lead       |
+| **MEDIUM** (P2)   | 4 hours       | On-Call Engineer → Engineering Team       |
+| **LOW** (P3)      | 24 hours      | Ticket to Engineering Team                |
 
 ### Critical Issues (P0 - Escalate Immediately)
 
@@ -1149,6 +1216,7 @@ docker restart backend-prod
 ## Appendix: Quick Reference Commands
 
 ### Health Checks
+
 ```bash
 # Full health status
 curl http://localhost:3031/api/health | jq '.'
@@ -1164,6 +1232,7 @@ curl http://localhost:3031/api/health | jq '.floodWait'
 ```
 
 ### Metrics
+
 ```bash
 # All Prometheus metrics
 curl http://localhost:3031/metrics
@@ -1179,6 +1248,7 @@ curl http://localhost:3031/metrics | grep ingestion_flood_wait_count_24h
 ```
 
 ### Logs
+
 ```bash
 # Tail logs in real-time
 docker logs ingestion-service --tail 100 --follow
@@ -1197,6 +1267,7 @@ docker logs ingestion-service --since 1h | grep -E '"event":"sse:client:(connect
 ```
 
 ### Service Control
+
 ```bash
 # Restart service
 docker restart ingestion-service
@@ -1215,6 +1286,7 @@ docker stats ingestion-service --no-stream
 ```
 
 ### Redis Operations
+
 ```bash
 # Connect to Redis
 docker exec -it ingestion-service redis-cli
@@ -1232,6 +1304,7 @@ docker exec ingestion-service redis-cli DEL "ingestion:lastSeen:-1001234567890"
 ---
 
 **Document Maintenance:**
+
 - Review quarterly for accuracy
 - Update after major incidents (postmortem findings)
 - Update after service upgrades (new metrics, log events, or alert conditions)
