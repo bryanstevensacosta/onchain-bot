@@ -22,7 +22,7 @@
     "db:migrate:dry-run": "node scripts/backfills/migrate.js --dry-run",
     "db:migrate:status": "node scripts/backfills/migrate.js --status",
     "typeorm": "typeorm-ts-node-commonjs --dataSource src/shared/common/persistence/data-source.ts",
-    "migration:run": "npm run typeorm -- migration:run",
+    "migration:run": "bash scripts/run-migrations.sh",
     "migration:revert": "npm run typeorm -- migration:revert",
     "migration:show": "npm run typeorm -- migration:show",
     "migration:generate": "npm run typeorm -- migration:generate",
