@@ -1,0 +1,129 @@
+name: PR Sync Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [master]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync-check:
+    if: github.head_ref == 'dev' || startsWith(github.head_ref, 'feat/') || startsWith(github.head_ref, 'fix/') || startsWith(github.head_ref, 'chore/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Check if branch is behind master
+        id: check
+        run: |
+          git fetch origin master
+          BEHIND=$(git rev-list --count HEAD..origin/master)
+          AHEAD=$(git rev-list --count origin/master..HEAD)
+          echo "behind=$BEHIND" >> $GITHUB_OUTPUT
+          echo "ahead=$AHEAD" >> $GITHUB_OUTPUT
+
+          if [ "$BEHIND" -gt 0 ]; then
+            echo "⚠️ Branch is $BEHIND commits behind master (and $AHEAD commits ahead)"
+            echo "needs_sync=true" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Branch is up to date with master"
+            echo "needs_sync=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Attempt automatic rebase
+        if: steps.check.outputs.needs_sync == 'true'
+        id: rebase
+        run: |
+          echo "Attempting to rebase ${{ github.head_ref }} on origin/master..."
+
+          if git rebase origin/master; then
+            echo "✅ Rebase successful"
+            git push --force-with-lease origin ${{ github.head_ref }}
+            echo "success=true" >> $GITHUB_OUTPUT
+            echo "🎉 Branch automatically synced with master"
+          else
+            echo "❌ Rebase failed - conflicts detected"
+            git rebase --abort
+            echo "success=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment on PR if auto-sync succeeded
+        if: steps.check.outputs.needs_sync == 'true' && steps.rebase.outputs.success == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ✅ Auto-sync successful
+
+              This branch was ${{ steps.check.outputs.behind }} commits behind \`master\` and has been automatically rebased.
+
+              **Changes applied:**
+              - Rebased on latest \`master\`
+              - Force-pushed with lease to preserve safety
+
+              CI checks will run again automatically.`
+            })
+
+      - name: Comment on PR if manual intervention needed
+        if: steps.check.outputs.needs_sync == 'true' && steps.rebase.outputs.success == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ⚠️ Manual sync required
+
+              This branch is ${{ steps.check.outputs.behind }} commits behind \`master\` and has conflicts that cannot be automatically resolved.
+
+              **Please resolve manually:**
+              \`\`\`bash
+              git checkout ${{ github.head_ref }}
+              git fetch origin master
+              git rebase origin/master
+              # Resolve conflicts in your editor
+              git rebase --continue
+              git push --force-with-lease
+              \`\`\`
+
+              **Alternative (merge strategy):**
+              \`\`\`bash
+              git checkout ${{ github.head_ref }}
+              git fetch origin master
+              git merge origin/master
+              # Resolve conflicts
+              git push
+              \`\`\`
+
+              Once resolved, this check will run again automatically.`
+            })
+
+            // Add label to PR
+            github.rest.issues.addLabels({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ['needs-manual-sync']
+            })
+
+      - name: Fail check if manual intervention needed
+        if: steps.check.outputs.needs_sync == 'true' && steps.rebase.outputs.success == 'false'
+        run: |
+          echo "::error::Branch has conflicts with master that require manual resolution"
+          exit 1

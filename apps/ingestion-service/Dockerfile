@@ -1,4 +1,4 @@
-# Dockerfile for Centralized Ingestion Service
+# Dockerfile for Centralized Ingestion Service - cache bust v1
 # Multi-stage build for optimized production image
 
 # Stage 1: Build
@@ -9,6 +9,9 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 COPY apps/ingestion-service/package*.json ./apps/ingestion-service/
+
+# Disable husky in CI/Docker
+ENV HUSKY=0
 
 # Install dependencies (including devDependencies for build)
 RUN npm ci --workspace=@alpha-meta-token-scanner/ingestion-service
@@ -35,6 +38,9 @@ RUN addgroup -g 1001 -S nodejs && \
 # Copy package files
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/apps/ingestion-service/package*.json ./apps/ingestion-service/
+
+# Disable husky in production
+ENV HUSKY=0
 
 # Install production dependencies only
 RUN npm ci --workspace=@alpha-meta-token-scanner/ingestion-service --omit=dev
