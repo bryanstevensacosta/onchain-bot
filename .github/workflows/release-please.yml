@@ -3,16 +3,56 @@ on:
   push:
     branches: [master]
   workflow_dispatch:
+
 permissions:
   contents: write
   pull-requests: write
+
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+      paths_released: ${{ steps.release.outputs.paths_released }}
     steps:
       - uses: googleapis/release-please-action@v4
+        id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           target-branch: master
           config-file: .github/release-please-config.json
           manifest-file: .github/release-please-manifest.json
+
+      # Outputs disponibles después del merge:
+      # - releases_created: true cuando se crea un release
+      # - paths_released: JSON array de paths que tuvieron release
+      # - <path>--tag_name: el tag creado para ese path
+      # - <path>--release_created: true si ese path tuvo release
+
+      - name: Show release outputs
+        if: steps.release.outputs.releases_created == 'true'
+        run: |
+          echo "✅ Releases created!"
+          echo "Paths released: ${{ steps.release.outputs.paths_released }}"
+          echo "Backend tag: ${{ steps.release.outputs['apps/backend--tag_name'] }}"
+          echo "Frontend tag: ${{ steps.release.outputs['apps/frontend--tag_name'] }}"
+
+  # Este job se ejecuta solo cuando release-please detecta que el PR fue merged
+  post-release:
+    needs: release-please
+    runs-on: ubuntu-latest
+    if: needs.release-please.outputs.releases_created == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Notify release created
+        run: |
+          echo "🎉 Release workflow completed successfully!"
+          echo "Released paths: ${{ needs.release-please.outputs.paths_released }}"
+
+      # Aquí puedes agregar pasos adicionales post-release:
+      # - Notificaciones a Slack/Discord
+      # - Deploy automático
+      # - Actualizar documentación
+      # - etc.
