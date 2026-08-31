@@ -1,0 +1,2 @@
+# Workflows with heredoc syntax that prettier can't parse
+.github/workflows/auto-pr-to-master.yml
