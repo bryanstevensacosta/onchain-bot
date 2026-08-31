@@ -32,6 +32,7 @@ curl -s http://localhost:3032/api/health | jq '.'
 ### 4. Copy MTProto Session
 
 On LOCAL machine:
+
 ```bash
 grep TELEGRAM_MTPROTO_SESSION apps/backend/.env
 ```
@@ -44,6 +45,7 @@ nano .env
 ```
 
 Add:
+
 ```bash
 TELEGRAM_MTPROTO_SESSION="<your_session>"
 TELEGRAM_MTPROTO_API_ID=<your_id>
@@ -66,12 +68,14 @@ nano .env
 ```
 
 Add:
+
 ```bash
 USE_SSE_INGESTION=true
 INGESTION_SERVICE_URL=http://localhost:3032
 ```
 
 Restart:
+
 ```bash
 docker compose -f docker-compose.staging.yml restart backend
 ```
@@ -84,12 +88,14 @@ nano .env.production
 ```
 
 Add:
+
 ```bash
 USE_SSE_INGESTION=true
 INGESTION_SERVICE_URL=http://localhost:3032
 ```
 
 Restart:
+
 ```bash
 docker compose -f docker-compose.prod.yml restart backend
 ```

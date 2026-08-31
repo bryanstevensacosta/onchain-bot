@@ -38,7 +38,8 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}-ingestion:${{ github.sha }}
             ghcr.io/${{ github.repository }}-ingestion:latest
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-ingestion:cache
+          # TEMPORARY: Disable cache to force clean rebuild with ENV HUSKY=0
+          # cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-ingestion:cache
           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-ingestion:cache,mode=max
           platforms: linux/amd64
 
