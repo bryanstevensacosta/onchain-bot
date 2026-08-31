@@ -67,6 +67,22 @@ try {
   throw err;
 }
 
+// Startup timeout: force exit if bootstrap hangs (DATABASE_SYNCHRONIZE=true can cause this)
+// Timeout: 2 minutes (120s) to allow for schema sync on large databases
+const STARTUP_TIMEOUT_MS = 120_000;
+const startupTimeout = setTimeout(() => {
+  bootLogger.fatal(
+    `❌ Bootstrap timeout after ${STARTUP_TIMEOUT_MS / 1000}s - process will exit`,
+  );
+  bootLogger.fatal(
+    'Common causes: DATABASE_SYNCHRONIZE=true hanging, database connection timeout, or circular dependency',
+  );
+  bootLogger.fatal(
+    'Check DATABASE_SYNCHRONIZE setting and database connectivity',
+  );
+  process.exit(1);
+}, STARTUP_TIMEOUT_MS);
+
 async function bootstrap(): Promise<void> {
   // bufferLogs: true defers all logger output until app.useLogger() is called,
   // so the FilteredBootstrapLogger can drop boot-machinery lines without us
@@ -102,6 +118,9 @@ async function bootstrap(): Promise<void> {
   app.useGlobalFilters(new DomainErrorFilter());
 
   await app.listen(port);
+
+  // Clear startup timeout - app successfully started
+  clearTimeout(startupTimeout);
 
   bootLogger.log(`Running in ${env} mode on port ${port}`);
 }

@@ -138,6 +138,17 @@ export class DatabaseModule {
               logging: cfg?.logging ? 'all' : false,
               retryAttempts: 5,
               retryDelay: 2000,
+              // Connection timeout: 10s per attempt (total 50s with 5 retries)
+              // Prevents indefinite hangs when DB is unreachable or blocking
+              connectTimeoutMS: 10_000,
+              // Extra postgres config to prevent synchronize hangs
+              extra: {
+                // Statement timeout: 30s max per query during sync
+                // This catches cases where synchronize introspection queries hang
+                statement_timeout: 30_000,
+                // Idle in transaction timeout: 60s max
+                idle_in_transaction_session_timeout: 60_000,
+              },
             };
           },
         }),
