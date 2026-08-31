@@ -1,4 +1,4 @@
-# Dockerfile for Centralized Ingestion Service
+# Dockerfile for Centralized Ingestion Service - cache bust v1
 # Multi-stage build for optimized production image
 
 # Stage 1: Build
