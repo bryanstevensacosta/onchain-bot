@@ -219,8 +219,14 @@ npm run start:debug               # with --inspect-brk
 npm run db:migrate                # idempotent backfill migrations
 npm run db:migrate:dry-run
 npm run db:backup                 # calls scripts/backup-db.sh
-npm run migration:run             # typeorm migration:run
 npm run telegram:gen-session      # generate MTProto session string
+
+# TypeORM Migrations (cd apps/backend)
+# Note: Staging/production use migrations; dev/test use synchronize:true
+npm run migration:generate -- -n MigrationName  # generate new migration from entity changes
+npm run migration:run             # apply pending migrations
+npm run migration:revert          # rollback last migration
+npm run migration:show            # list applied and pending migrations
 
 # Docker
 npm run docker:up                 # postgres only (apps/backend/docker-compose.yml)
