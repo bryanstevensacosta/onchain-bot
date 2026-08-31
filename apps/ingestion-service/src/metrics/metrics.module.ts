@@ -1,10 +1,6 @@
 import { Module } from '@nestjs/common';
-import {
-  PrometheusModule,
-  makeCounterProvider,
-  makeGaugeProvider,
-  makeHistogramProvider,
-} from '@willsoto/nestjs-prometheus';
+import { PrometheusModule } from '@willsoto/nestjs-prometheus';
+import { Registry } from 'prom-client';
 import { MetricsService } from './metrics.service';
 import { MetricsController } from './api/http/metrics.controller';
 
@@ -34,7 +30,17 @@ import { MetricsController } from './api/http/metrics.controller';
       },
     }),
   ],
-  providers: [MetricsService],
+  providers: [
+    {
+      provide: Registry,
+      useFactory: (): Registry => {
+        // Use the default registry from PrometheusModule
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        return Registry.globalRegistry as Registry;
+      },
+    },
+    MetricsService,
+  ],
   controllers: [MetricsController],
   exports: [MetricsService],
 })
