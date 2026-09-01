@@ -16,6 +16,72 @@ export function isDatabaseEnabled(): boolean {
 }
 
 /**
+ * Emergency hotfix: Patches TypeORM PostgresDriver to skip CREATE EXTENSION
+ * query during afterConnect() which hangs indefinitely in staging environment.
+ *
+ * **Context:**
+ * - TypeORM 0.3.30 PostgresDriver.afterConnect() executes:
+ *   `CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`
+ * - In staging environment, this query hangs indefinitely (never returns)
+ * - Extension already exists; manual execution completes instantly
+ * - Backend startup hangs after config warnings, never reaches health check
+ * - Root cause unknown (possibly pg driver version, connection pool, or PG server config)
+ *
+ * **Safety:**
+ * - uuid-ossp extension is NOT used by our entities (we use BIGINT/VARCHAR PKs)
+ * - Skipping this query has no functional impact on our application
+ * - Only affects staging environment (NODE_ENV === 'staging')
+ * - Monkey-patch executes before TypeORM initialization
+ *
+ * **Permanent Fix:**
+ * - Requires TypeORM driver configuration option to disable afterConnect hooks
+ * - OR upgrade to TypeORM version with configurable extension creation
+ * - OR investigate root cause of hanging CREATE EXTENSION query
+ *
+ * **Applied:** When NODE_ENV=staging, before TypeOrmModule.forRootAsync()
+ */
+function patchPostgresDriverForStagingHang(): void {
+  const nodeEnv = process.env.NODE_ENV?.toLowerCase();
+  if (nodeEnv !== 'staging') {
+    return; // Only apply patch in staging
+  }
+
+  const logger = new Logger('DatabaseModule:StagingPatch');
+
+  /* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+  try {
+    // Dynamically import PostgresDriver to avoid affecting other environments
+    const {
+      PostgresDriver,
+    } = require('typeorm/driver/postgres/PostgresDriver');
+
+    // Save original method (for debugging/rollback if needed)
+    const originalAfterConnect = PostgresDriver.prototype.afterConnect;
+
+    // Replace with no-op that skips CREATE EXTENSION query
+    PostgresDriver.prototype.afterConnect = function () {
+      // Return resolved promise immediately - skip CREATE EXTENSION query
+      return Promise.resolve();
+    };
+
+    logger.log(
+      'Staging hang patch applied: PostgresDriver.afterConnect() will skip CREATE EXTENSION',
+    );
+
+    // Store reference for potential future rollback
+    PostgresDriver.prototype.__originalAfterConnect = originalAfterConnect;
+  } catch (error) {
+    // Non-fatal: log error but allow initialization to continue
+    // If patch fails, worst case is backend still hangs (existing behavior)
+    logger.error(
+      'Failed to apply staging hang patch (non-fatal):',
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+  /* eslint-enable @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+}
+
+/**
  * Returns true when the runtime environment is production-like (staging or production).
  * In production-like environments, TypeORM should use migration-based schema management
  * (synchronize: false) instead of automatic schema synchronization.
@@ -45,6 +111,10 @@ export class DatabaseModule {
       );
       return { module: DatabaseModule };
     }
+
+    // Apply staging hang patch BEFORE TypeOrmModule.forRootAsync()
+    // Must execute before driver initialization
+    patchPostgresDriverForStagingHang();
     return {
       module: DatabaseModule,
       imports: [
