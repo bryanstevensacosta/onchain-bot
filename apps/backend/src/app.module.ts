@@ -64,6 +64,36 @@ import { DevModule } from './dev/dev.module';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         const logCfg = config.get<AppConfig>('app')?.logging;
+        const nodeEnv = process.env.NODE_ENV;
+
+        // In staging, use simple stdout logging to avoid pino-roll I/O hangs
+        if (nodeEnv === 'staging') {
+          console.log('[AppModule] Using simple stdout logging (staging mode)');
+          return {
+            pinoHttp: {
+              level: logCfg?.level ?? 'debug',
+              // No transport — logs go directly to stdout (Docker captures them)
+              autoLogging: {
+                ignore: (req: { url?: string }) =>
+                  req.url === '/api/health' ||
+                  (req.url?.startsWith('/crypto-news/') ?? false) ||
+                  (req.url?.startsWith('/crypto-news-publisher/') ?? false) ||
+                  (req.url?.startsWith('/crypto-news-ads/') ?? false),
+              },
+              serializers: {
+                req(req: { method: string; url?: string; id: unknown }) {
+                  return { method: req.method, url: req.url, id: req.id };
+                },
+                res(res: { statusCode: number }) {
+                  return { statusCode: res.statusCode };
+                },
+                err: pino.stdSerializers.err,
+              },
+            },
+          };
+        }
+
+        // Production/dev: use pino-roll for file-based logging
         if (!logCfg) return {};
         const filePath = path.resolve(
           process.cwd(),
