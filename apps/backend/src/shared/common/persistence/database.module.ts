@@ -76,7 +76,8 @@ export class DatabaseModule {
               retryAttempts: 5,
               retryDelay: 2000,
               // Migrations control: never auto-run migrations (we run them manually in deploy script)
-              migrationsRun: false, // Connection timeout: 10s per attempt (total 50s with 5 retries)
+              migrationsRun: false,
+              // Connection timeout: 10s per attempt (total 50s with 5 retries)
               // Prevents indefinite hangs when DB is unreachable or blocking
               connectTimeoutMS: 10_000,
               // Extra postgres config to prevent synchronize hangs
@@ -86,6 +87,13 @@ export class DatabaseModule {
                 statement_timeout: 30_000,
                 // Idle in transaction timeout: 60s max
                 idle_in_transaction_session_timeout: 60_000,
+                // Connection pool config to prevent hanging on CREATE EXTENSION
+                // Single connection in staging to minimize pool initialization overhead
+                max: nodeEnv === 'staging' ? 1 : 10,
+                // Query timeout at driver level (catches hung queries before they reach PostgreSQL)
+                query_timeout: 5000,
+                // Application name for easier debugging in pg_stat_activity
+                application_name: `onchain-bot-${nodeEnv}`,
               },
             };
           },
