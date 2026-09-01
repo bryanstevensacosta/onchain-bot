@@ -239,6 +239,15 @@ jobs:
 
           echo "=== Migrations applied successfully ==="
 
+      - name: Stop old backend container (if hung)
+        run: |
+          echo "=== Forcefully stopping old backend container ==="
+          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml stop backend --time 5 || true
+          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml rm -f backend || true
+          echo "=== Old container removed ==="
+          docker ps -a | grep -i backend || true
+          sleep 2
+
       - name: Deploy backend (GHCR, no build)
         run: |
           docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d --no-deps backend
