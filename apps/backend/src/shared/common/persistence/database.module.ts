@@ -75,7 +75,8 @@ export class DatabaseModule {
               logging: cfg?.logging ? 'all' : false,
               retryAttempts: 5,
               retryDelay: 2000,
-              // Connection timeout: 10s per attempt (total 50s with 5 retries)
+              // Migrations control: never auto-run migrations (we run them manually in deploy script)
+              migrationsRun: false, // Connection timeout: 10s per attempt (total 50s with 5 retries)
               // Prevents indefinite hangs when DB is unreachable or blocking
               connectTimeoutMS: 10_000,
               // Extra postgres config to prevent synchronize hangs
