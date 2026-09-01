@@ -34,6 +34,36 @@ import { transformMessage } from './telegram-message-transformer';
 import { TelegramPeerResolver } from 'telegram/ingestion/shared/infrastructure/services/telegram-peer-resolver';
 import { TelegramMediaDownloadService } from 'telegram/ingestion/shared/infrastructure/services/telegram-media-download.service';
 
+/**
+ * @deprecated This adapter is deprecated and will be removed in a future version.
+ *
+ * **Reason for deprecation:**
+ * This MTProto client has been extracted into a centralized ingestion service to eliminate
+ * resource duplication across multiple backend environments (dev, staging, production).
+ * Running 3 separate MTProto clients results in 3x duplication of media downloads and message
+ * processing, which is inefficient and violates Telegram's single-session constraint
+ * (AUTH_KEY_DUPLICATED error per 406 documentation).
+ *
+ * **Migration path:**
+ * - **New location:** `apps/ingestion-service/src/telegram/shared/api/mtproto/telegram-mtproto-listener.adapter.ts`
+ * - **Replacement:** Backend clients should use `SseIngestionClientAdapter` which implements
+ *   the same `TelegramListenerPort` interface and receives messages via Server-Sent Events (SSE)
+ *   from the centralized ingestion service.
+ * - **Configuration:** Set `INGESTION_MODE=remote` to use the SSE client adapter instead of
+ *   this MTProto adapter (feature flag for phased migration).
+ *
+ * **Benefits of migration:**
+ * - Single MTProto connection eliminates 3x resource duplication
+ * - Media files downloaded once and served via HTTP endpoints
+ * - No more AUTH_KEY_DUPLICATED errors
+ * - Simplified session management (single session string)
+ * - All anti-ban protection logic (FLOOD_WAIT, staggered polling, sleep windows) centralized
+ *
+ * **Specification:** See `.kiro/specs/centralized-ingestion-service/` for complete design and requirements.
+ *
+ * @see {@link apps/ingestion-service} Centralized ingestion service
+ * @see SseIngestionClientAdapter Drop-in replacement for backend clients
+ */
 @Injectable()
 export class TelegramMtprotoListenerAdapter
   implements TelegramListenerPort, OnModuleInit, OnModuleDestroy
@@ -71,6 +101,12 @@ export class TelegramMtprotoListenerAdapter
   }
 
   async onModuleInit(): Promise<void> {
+    // Skip MTProto initialization in staging to avoid connection hangs
+    if (process.env.NODE_ENV === 'staging') {
+      this.logger.log('Skipping MTProto client initialization in staging');
+      return;
+    }
+
     const cfg = this.config.get<AppConfig>('app');
     if (!cfg?.telegram?.mtprotoApiId || !cfg?.telegram?.mtprotoApiHash) return;
     await this.clientManager.markAuthorizedIfTrue();
