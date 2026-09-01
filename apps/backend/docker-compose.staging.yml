@@ -64,6 +64,9 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_ENABLED: true
+      # Ingestion mode - use mock to prevent MTProto client initialization
+      # MTProto requires TypeORM during bootstrap, causing CREATE EXTENSION hang
+      USE_MOCK_INGESTION: true
     ports:
       - '3031:3030'
     volumes:
