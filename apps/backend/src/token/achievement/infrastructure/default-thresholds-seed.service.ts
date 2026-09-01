@@ -12,6 +12,12 @@ export class DefaultThresholdsSeedService implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
+    // Skip seeding in staging to avoid database access during bootstrap
+    if (process.env.NODE_ENV === 'staging') {
+      this.logger.log('Skipping default thresholds seed in staging');
+      return;
+    }
+
     const existing = await this.repo.count();
     if (existing > 0) return;
     const defaults = this.settings.getDefaultThresholds();

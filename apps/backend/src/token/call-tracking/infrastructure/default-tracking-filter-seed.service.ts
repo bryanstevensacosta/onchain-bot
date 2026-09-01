@@ -13,6 +13,12 @@ export class DefaultTrackingFilterSeedService implements OnModuleInit {
   constructor(private readonly settings: SettingsService) {}
 
   async onModuleInit(): Promise<void> {
+    // Skip seeding in staging to avoid database access during bootstrap
+    if (process.env.NODE_ENV === 'staging') {
+      this.logger.log('Skipping default tracking filter seed in staging');
+      return;
+    }
+
     const seeded = await this.settings.seedDefaultsIfEmpty(
       PUBLISHED_CALL_TRACKING_FILTER_TYPE,
       [

@@ -225,12 +225,19 @@ jobs:
             rm -f /opt/onchain-bot-staging/apps/backend/.env
           fi
 
-      - name: Run migrations (inside Docker to avoid host OOM)
+      - name: Run migrations (staging environment)
         run: |
           set -euo pipefail
-          echo "=== Running staging migrations inside Docker ==="
-          cd /opt/onchain-bot-staging/apps/backend && \
-          docker compose -f docker-compose.staging.yml run --rm backend npx typeorm --dataSource dist/src/shared/common/persistence/data-source.js migration:run
+          echo "=== Running TypeORM migrations in staging ==="
+          cd /opt/onchain-bot-staging/apps/backend
+
+          # Run migrations inside a temporary Docker container
+          # This ensures migrations run BEFORE the backend container starts
+          docker compose -f docker-compose.staging.yml run --rm \
+            -e NODE_ENV=staging \
+            backend npm run migration:run
+
+          echo "=== Migrations applied successfully ==="
 
       - name: Deploy backend (GHCR, no build)
         run: |
@@ -239,23 +246,25 @@ jobs:
       - name: Wait for backend healthcheck
         run: |
           echo "=== Waiting for backend to become healthy ==="
-          for i in $(seq 1 60); do
+          for i in $(seq 1 5); do
             if curl -v -sf http://localhost:3031/api/health > /tmp/health-backend.log 2>&1; then
               echo "✓ Backend is healthy (attempt $i)"
               cat /tmp/health-backend.log
               break
             fi
-            echo "  Waiting... attempt $i/60"
-            if [ "$i" -eq 5 ] || [ "$i" -eq 15 ] || [ "$i" -eq 30 ] || [ "$i" -eq 45 ]; then
+            echo "  Waiting... attempt $i/5"
+            if [ "$i" -eq 3 ] || [ "$i" -eq 5 ]; then
               echo "  --- curl -v output (attempt $i) ---"
               curl -v http://localhost:3031/api/health 2>&1 | head -30 || true
               echo "  --- end curl output ---"
             fi
             sleep 2
-            if [ "$i" -eq 60 ]; then
-              echo "❌ Backend healthcheck failed after 60 attempts"
+            if [ "$i" -eq 5 ]; then
+              echo "❌ Backend healthcheck failed after 5 attempts (10 seconds total)"
               echo "=== Final curl -v output ==="
               curl -v http://localhost:3031/api/health 2>&1 || true
+              echo "=== Backend container logs (last 50 lines) ==="
+              docker logs --tail 50 $(docker ps -q -f name=backend) 2>&1 || true
               exit 1
             fi
           done

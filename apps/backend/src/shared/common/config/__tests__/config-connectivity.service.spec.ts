@@ -114,7 +114,7 @@ describe('ConfigConnectivityService', () => {
         query: jest.fn().mockResolvedValue({ rows: [] }),
         end: jest.fn().mockResolvedValue(undefined),
       };
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+
       mockedClient.mockImplementation(() => mockClientInstance as any);
 
       const config = createMockConfigService({
@@ -157,7 +157,7 @@ describe('ConfigConnectivityService', () => {
         query: jest.fn(),
         end: jest.fn().mockResolvedValue(undefined),
       };
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+
       mockedClient.mockImplementation(() => mockClientInstance as any);
 
       const config = createMockConfigService({
@@ -235,7 +235,7 @@ describe('ConfigConnectivityService', () => {
         ping: jest.fn().mockResolvedValue('PONG'),
         disconnect: jest.fn(),
       };
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+
       mockedRedis.mockImplementation(() => mockRedisInstance as any);
 
       const config = createMockConfigService({
@@ -284,7 +284,7 @@ describe('ConfigConnectivityService', () => {
         ping: jest.fn(),
         disconnect: jest.fn(),
       };
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+
       mockedRedis.mockImplementation(() => mockRedisInstance as any);
 
       const config = createMockConfigService({
