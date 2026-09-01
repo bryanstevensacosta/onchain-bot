@@ -12,6 +12,12 @@ export class EmbeddingService implements OnModuleInit {
     process.env.DEDUP_EMBEDDING_MODEL || 'Xenova/all-MiniLM-L6-v2';
 
   async onModuleInit(): Promise<void> {
+    // Skip model loading in staging to avoid hanging during bootstrap
+    if (process.env.NODE_ENV === 'staging') {
+      this.logger.log('Skipping embedding model load in staging');
+      return;
+    }
+
     try {
       await this.ensureModel();
     } catch (error) {

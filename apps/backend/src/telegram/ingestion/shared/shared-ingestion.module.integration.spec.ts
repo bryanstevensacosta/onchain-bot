@@ -17,15 +17,15 @@ import { TELEGRAM_LISTENER_PORT_TOKEN } from './shared-injection-tokens';
 
 /**
  * Integration tests for SharedIngestionModule mode switching
- * 
+ *
  * Per Requirement 7.1: Feature flag for MTProto/SSE mode toggle
  * Per Task 6.6: Integration tests for mode switching
- * 
+ *
  * Tests verify:
  * - Remote mode (useSse: true) instantiates TelegramSseListenerAdapter
  * - Local mode (useSse: false) instantiates TelegramMtprotoListenerAdapter
  * - Mode selection controlled by app.ingestion.useSse config
- * 
+ *
  * NOTE: These are isolated integration tests that mock module dependencies
  * to focus solely on the mode switching logic without full module initialization.
  */
@@ -84,19 +84,37 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
           // Provide both adapters
           TelegramMtprotoListenerAdapter,
           TelegramSseListenerAdapter,
-          
+
           // Mock dependencies
           { provide: Logger, useValue: mockLogger },
-          { provide: IngestionSafetyConfig, useValue: mockIngestionSafetyConfig },
+          {
+            provide: IngestionSafetyConfig,
+            useValue: mockIngestionSafetyConfig,
+          },
           { provide: SleepWindowService, useValue: mockSleepWindowService },
-          { provide: FloodWaitCounterService, useValue: mockFloodWaitCounterService },
-          { provide: FloodWaitHandlerService, useValue: mockFloodWaitHandlerService },
-          { provide: TelegramClientManager, useValue: mockTelegramClientManager },
+          {
+            provide: FloodWaitCounterService,
+            useValue: mockFloodWaitCounterService,
+          },
+          {
+            provide: FloodWaitHandlerService,
+            useValue: mockFloodWaitHandlerService,
+          },
+          {
+            provide: TelegramClientManager,
+            useValue: mockTelegramClientManager,
+          },
           { provide: LastSeenManager, useValue: mockLastSeenManager },
-          { provide: TelegramMediaDownloadService, useValue: mockTelegramMediaDownloadService },
+          {
+            provide: TelegramMediaDownloadService,
+            useValue: mockTelegramMediaDownloadService,
+          },
           { provide: TelegramPeerResolver, useValue: mockTelegramPeerResolver },
-          { provide: CryptoNewsMediaDownloader, useValue: mockCryptoNewsMediaDownloader },
-          
+          {
+            provide: CryptoNewsMediaDownloader,
+            useValue: mockCryptoNewsMediaDownloader,
+          },
+
           // Dynamic adapter selection (replicates module logic)
           {
             provide: TelegramListenerPort,
@@ -109,9 +127,13 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
               const useSseIngestion = appConfig?.ingestion?.useSse ?? false;
               return useSseIngestion ? sseAdapter : mtprotoAdapter;
             },
-            inject: [ConfigService, TelegramMtprotoListenerAdapter, TelegramSseListenerAdapter],
+            inject: [
+              ConfigService,
+              TelegramMtprotoListenerAdapter,
+              TelegramSseListenerAdapter,
+            ],
           },
-          
+
           // Token alias
           {
             provide: TELEGRAM_LISTENER_PORT_TOKEN,
@@ -120,14 +142,17 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
         ],
       }).compile();
 
-      telegramListener = moduleRef.get<TelegramListenerPort>(TelegramListenerPort);
+      telegramListener =
+        moduleRef.get<TelegramListenerPort>(TelegramListenerPort);
       configService = moduleRef.get<ConfigService>(ConfigService);
     });
 
     it('should instantiate TelegramSseListenerAdapter when useSse is true', () => {
       // Verify the adapter is SSE type
       expect(telegramListener).toBeInstanceOf(TelegramSseListenerAdapter);
-      expect(telegramListener).not.toBeInstanceOf(TelegramMtprotoListenerAdapter);
+      expect(telegramListener).not.toBeInstanceOf(
+        TelegramMtprotoListenerAdapter,
+      );
     });
 
     it('should read useSse config from environment', () => {
@@ -191,19 +216,37 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
           // Provide both adapters
           TelegramMtprotoListenerAdapter,
           TelegramSseListenerAdapter,
-          
+
           // Mock dependencies
           { provide: Logger, useValue: mockLogger },
-          { provide: IngestionSafetyConfig, useValue: mockIngestionSafetyConfig },
+          {
+            provide: IngestionSafetyConfig,
+            useValue: mockIngestionSafetyConfig,
+          },
           { provide: SleepWindowService, useValue: mockSleepWindowService },
-          { provide: FloodWaitCounterService, useValue: mockFloodWaitCounterService },
-          { provide: FloodWaitHandlerService, useValue: mockFloodWaitHandlerService },
-          { provide: TelegramClientManager, useValue: mockTelegramClientManager },
+          {
+            provide: FloodWaitCounterService,
+            useValue: mockFloodWaitCounterService,
+          },
+          {
+            provide: FloodWaitHandlerService,
+            useValue: mockFloodWaitHandlerService,
+          },
+          {
+            provide: TelegramClientManager,
+            useValue: mockTelegramClientManager,
+          },
           { provide: LastSeenManager, useValue: mockLastSeenManager },
-          { provide: TelegramMediaDownloadService, useValue: mockTelegramMediaDownloadService },
+          {
+            provide: TelegramMediaDownloadService,
+            useValue: mockTelegramMediaDownloadService,
+          },
           { provide: TelegramPeerResolver, useValue: mockTelegramPeerResolver },
-          { provide: CryptoNewsMediaDownloader, useValue: mockCryptoNewsMediaDownloader },
-          
+          {
+            provide: CryptoNewsMediaDownloader,
+            useValue: mockCryptoNewsMediaDownloader,
+          },
+
           // Dynamic adapter selection (replicates module logic)
           {
             provide: TelegramListenerPort,
@@ -216,9 +259,13 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
               const useSseIngestion = appConfig?.ingestion?.useSse ?? false;
               return useSseIngestion ? sseAdapter : mtprotoAdapter;
             },
-            inject: [ConfigService, TelegramMtprotoListenerAdapter, TelegramSseListenerAdapter],
+            inject: [
+              ConfigService,
+              TelegramMtprotoListenerAdapter,
+              TelegramSseListenerAdapter,
+            ],
           },
-          
+
           // Token alias
           {
             provide: TELEGRAM_LISTENER_PORT_TOKEN,
@@ -227,7 +274,8 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
         ],
       }).compile();
 
-      telegramListener = moduleRef.get<TelegramListenerPort>(TelegramListenerPort);
+      telegramListener =
+        moduleRef.get<TelegramListenerPort>(TelegramListenerPort);
       configService = moduleRef.get<ConfigService>(ConfigService);
     });
 
@@ -293,19 +341,37 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
           // Provide both adapters
           TelegramMtprotoListenerAdapter,
           TelegramSseListenerAdapter,
-          
+
           // Mock dependencies
           { provide: Logger, useValue: mockLogger },
-          { provide: IngestionSafetyConfig, useValue: mockIngestionSafetyConfig },
+          {
+            provide: IngestionSafetyConfig,
+            useValue: mockIngestionSafetyConfig,
+          },
           { provide: SleepWindowService, useValue: mockSleepWindowService },
-          { provide: FloodWaitCounterService, useValue: mockFloodWaitCounterService },
-          { provide: FloodWaitHandlerService, useValue: mockFloodWaitHandlerService },
-          { provide: TelegramClientManager, useValue: mockTelegramClientManager },
+          {
+            provide: FloodWaitCounterService,
+            useValue: mockFloodWaitCounterService,
+          },
+          {
+            provide: FloodWaitHandlerService,
+            useValue: mockFloodWaitHandlerService,
+          },
+          {
+            provide: TelegramClientManager,
+            useValue: mockTelegramClientManager,
+          },
           { provide: LastSeenManager, useValue: mockLastSeenManager },
-          { provide: TelegramMediaDownloadService, useValue: mockTelegramMediaDownloadService },
+          {
+            provide: TelegramMediaDownloadService,
+            useValue: mockTelegramMediaDownloadService,
+          },
           { provide: TelegramPeerResolver, useValue: mockTelegramPeerResolver },
-          { provide: CryptoNewsMediaDownloader, useValue: mockCryptoNewsMediaDownloader },
-          
+          {
+            provide: CryptoNewsMediaDownloader,
+            useValue: mockCryptoNewsMediaDownloader,
+          },
+
           // Dynamic adapter selection (replicates module logic)
           {
             provide: TelegramListenerPort,
@@ -318,9 +384,13 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
               const useSseIngestion = appConfig?.ingestion?.useSse ?? false;
               return useSseIngestion ? sseAdapter : mtprotoAdapter;
             },
-            inject: [ConfigService, TelegramMtprotoListenerAdapter, TelegramSseListenerAdapter],
+            inject: [
+              ConfigService,
+              TelegramMtprotoListenerAdapter,
+              TelegramSseListenerAdapter,
+            ],
           },
-          
+
           // Token alias
           {
             provide: TELEGRAM_LISTENER_PORT_TOKEN,
@@ -329,7 +399,8 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
         ],
       }).compile();
 
-      telegramListener = moduleRef.get<TelegramListenerPort>(TelegramListenerPort);
+      telegramListener =
+        moduleRef.get<TelegramListenerPort>(TelegramListenerPort);
       configService = moduleRef.get<ConfigService>(ConfigService);
     });
 
@@ -381,19 +452,37 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
           // Provide both adapters
           TelegramMtprotoListenerAdapter,
           TelegramSseListenerAdapter,
-          
+
           // Mock dependencies
           { provide: Logger, useValue: mockLogger },
-          { provide: IngestionSafetyConfig, useValue: mockIngestionSafetyConfig },
+          {
+            provide: IngestionSafetyConfig,
+            useValue: mockIngestionSafetyConfig,
+          },
           { provide: SleepWindowService, useValue: mockSleepWindowService },
-          { provide: FloodWaitCounterService, useValue: mockFloodWaitCounterService },
-          { provide: FloodWaitHandlerService, useValue: mockFloodWaitHandlerService },
-          { provide: TelegramClientManager, useValue: mockTelegramClientManager },
+          {
+            provide: FloodWaitCounterService,
+            useValue: mockFloodWaitCounterService,
+          },
+          {
+            provide: FloodWaitHandlerService,
+            useValue: mockFloodWaitHandlerService,
+          },
+          {
+            provide: TelegramClientManager,
+            useValue: mockTelegramClientManager,
+          },
           { provide: LastSeenManager, useValue: mockLastSeenManager },
-          { provide: TelegramMediaDownloadService, useValue: mockTelegramMediaDownloadService },
+          {
+            provide: TelegramMediaDownloadService,
+            useValue: mockTelegramMediaDownloadService,
+          },
           { provide: TelegramPeerResolver, useValue: mockTelegramPeerResolver },
-          { provide: CryptoNewsMediaDownloader, useValue: mockCryptoNewsMediaDownloader },
-          
+          {
+            provide: CryptoNewsMediaDownloader,
+            useValue: mockCryptoNewsMediaDownloader,
+          },
+
           // Dynamic adapter selection (replicates module logic)
           {
             provide: TelegramListenerPort,
@@ -406,9 +495,13 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
               const useSseIngestion = appConfig?.ingestion?.useSse ?? false;
               return useSseIngestion ? sseAdapter : mtprotoAdapter;
             },
-            inject: [ConfigService, TelegramMtprotoListenerAdapter, TelegramSseListenerAdapter],
+            inject: [
+              ConfigService,
+              TelegramMtprotoListenerAdapter,
+              TelegramSseListenerAdapter,
+            ],
           },
-          
+
           // Token alias
           {
             provide: TELEGRAM_LISTENER_PORT_TOKEN,
@@ -433,7 +526,8 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
 
     it('should allow switching adapters at runtime by changing config', async () => {
       // In SSE mode initially
-      const initialListener = moduleRef.get<TelegramListenerPort>(TelegramListenerPort);
+      const initialListener =
+        moduleRef.get<TelegramListenerPort>(TelegramListenerPort);
       expect(initialListener).toBeInstanceOf(TelegramSseListenerAdapter);
 
       // To simulate a runtime switch, we would need to:
@@ -449,7 +543,7 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
 
       expect(mtprotoAdapter).toBeDefined();
       expect(sseAdapter).toBeDefined();
-      
+
       // Verify they're different instances
       expect(mtprotoAdapter).not.toBe(sseAdapter);
     });
@@ -487,19 +581,37 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
           // Provide both adapters
           TelegramMtprotoListenerAdapter,
           TelegramSseListenerAdapter,
-          
+
           // Mock dependencies
           { provide: Logger, useValue: mockLogger },
-          { provide: IngestionSafetyConfig, useValue: mockIngestionSafetyConfig },
+          {
+            provide: IngestionSafetyConfig,
+            useValue: mockIngestionSafetyConfig,
+          },
           { provide: SleepWindowService, useValue: mockSleepWindowService },
-          { provide: FloodWaitCounterService, useValue: mockFloodWaitCounterService },
-          { provide: FloodWaitHandlerService, useValue: mockFloodWaitHandlerService },
-          { provide: TelegramClientManager, useValue: mockTelegramClientManager },
+          {
+            provide: FloodWaitCounterService,
+            useValue: mockFloodWaitCounterService,
+          },
+          {
+            provide: FloodWaitHandlerService,
+            useValue: mockFloodWaitHandlerService,
+          },
+          {
+            provide: TelegramClientManager,
+            useValue: mockTelegramClientManager,
+          },
           { provide: LastSeenManager, useValue: mockLastSeenManager },
-          { provide: TelegramMediaDownloadService, useValue: mockTelegramMediaDownloadService },
+          {
+            provide: TelegramMediaDownloadService,
+            useValue: mockTelegramMediaDownloadService,
+          },
           { provide: TelegramPeerResolver, useValue: mockTelegramPeerResolver },
-          { provide: CryptoNewsMediaDownloader, useValue: mockCryptoNewsMediaDownloader },
-          
+          {
+            provide: CryptoNewsMediaDownloader,
+            useValue: mockCryptoNewsMediaDownloader,
+          },
+
           // Dynamic adapter selection (replicates module logic)
           {
             provide: TelegramListenerPort,
@@ -512,9 +624,13 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
               const useSseIngestion = appConfig?.ingestion?.useSse ?? false;
               return useSseIngestion ? sseAdapter : mtprotoAdapter;
             },
-            inject: [ConfigService, TelegramMtprotoListenerAdapter, TelegramSseListenerAdapter],
+            inject: [
+              ConfigService,
+              TelegramMtprotoListenerAdapter,
+              TelegramSseListenerAdapter,
+            ],
           },
-          
+
           // Token alias
           {
             provide: TELEGRAM_LISTENER_PORT_TOKEN,
@@ -525,7 +641,8 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
     });
 
     it('should export TelegramListenerPort for use by other modules', () => {
-      const listener = moduleRef.get<TelegramListenerPort>(TelegramListenerPort);
+      const listener =
+        moduleRef.get<TelegramListenerPort>(TelegramListenerPort);
       expect(listener).toBeDefined();
     });
 

@@ -59,7 +59,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-alpha_meta_token_scanner}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alpha_meta_token_scanner}
       POSTGRES_DB: ${POSTGRES_DB:-alpha_meta_token_scanner_staging}
-      DATABASE_ENABLED: true
+      DATABASE_ENABLED: false # TEMPORARY: TypeORM hangs on CREATE EXTENSION uuid-ossp in staging
       # Redis connection
       REDIS_HOST: redis
       REDIS_PORT: 6379
