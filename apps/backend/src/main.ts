@@ -1,10 +1,23 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { config as dotenvConfig } from 'dotenv';
+
+console.log('[DEBUG] 1. Starting bootstrap - loading .env files');
+for (const name of ['.env.dev', '.env']) {
+  const p = path.resolve(process.cwd(), name);
+  if (fs.existsSync(p)) {
+    console.log(`[DEBUG] 1a. Loading ${name}`);
+    dotenvConfig({ path: p, override: false });
+  }
+}
+
+console.log('[DEBUG] 2. Importing modules');
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { IoAdapter } from '@nestjs/platform-socket.io';
+
+console.log('[DEBUG] 3. Importing AppModule');
 import { AppModule } from './app.module';
 import { AppService } from './app.service';
 import { DomainErrorFilter } from './shared/filters/domain-error.filter';
@@ -16,19 +29,7 @@ import {
   ConfigValidationError,
 } from 'shared/common/config/config-validator';
 
-// Load .env.dev then .env before any module import. Required so decorator-time
-// helpers (isDatabaseEnabled) see DATABASE_ENABLED before SettingsModule /
-// IdentityModule evaluate their @Module imports.
-for (const name of ['.env.dev', '.env']) {
-  const p = path.resolve(process.cwd(), name);
-  if (fs.existsSync(p)) {
-    dotenvConfig({ path: p, override: false });
-  }
-}
-
-// Safety net: log unhandled rejections instead of crashing.
-// Background event handlers / queue consumers may produce async errors
-// that aren't awaited (fire-and-forget) — they shouldn't bring down the app.
+console.log('[DEBUG] 4. Setting up error handlers');
 const bootLogger = new Logger('Bootstrap');
 process.on('unhandledRejection', (reason) => {
   bootLogger.error(
@@ -40,19 +41,9 @@ process.on('uncaughtException', (err) => {
   bootLogger.error(`Uncaught exception: ${err.message}`, err.stack);
 });
 
-// Suppress the pg@8 "client.query() while already executing" deprecation.
-// Triggered by TypeORM's `synchronize: true` schema sync, which fires many
-// introspection+DDL queries on the same underlying Client. The behaviour is
-// supported by pg today and only slated for removal in pg@9.0; silencing
-// keeps boot output clean until the project migrates to migrations-based
-// schema management, at which point the warning disappears naturally.
-//
-// Note: `process.on('warning')` does NOT suppress Node's default stderr
-// print of deprecation warnings in Node 22+ — they print first, then the
-// listener fires. The reliable way to mute them is the noDeprecation flag.
 process.noDeprecation = true;
 
-// Pre-boot config validation: fail fast on missing critical env vars
+console.log('[DEBUG] 5. Validating config');
 const cfg = appConfig();
 try {
   const { warnings } = validateAppConfig(cfg);
@@ -67,8 +58,7 @@ try {
   throw err;
 }
 
-// Startup timeout: force exit if bootstrap hangs (DATABASE_SYNCHRONIZE=true can cause this)
-// Timeout: 2 minutes (120s) to allow for schema sync on large databases
+console.log('[DEBUG] 6. Setting up startup timeout');
 const STARTUP_TIMEOUT_MS = 120_000;
 const startupTimeout = setTimeout(() => {
   bootLogger.fatal(
@@ -84,12 +74,12 @@ const startupTimeout = setTimeout(() => {
 }, STARTUP_TIMEOUT_MS);
 
 async function bootstrap(): Promise<void> {
-  // bufferLogs: true defers all logger output until app.useLogger() is called,
-  // so the FilteredBootstrapLogger can drop boot-machinery lines without us
-  // missing any application log that fires during module instantiation.
+  console.log('[DEBUG] 7. Creating NestJS app');
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,
   });
+  console.log('[DEBUG] 8. App created, configuring');
+
   app.useLogger(app.get(FilteredBootstrapLogger));
 
   const appService = app.get(AppService);
@@ -117,12 +107,14 @@ async function bootstrap(): Promise<void> {
   app.useWebSocketAdapter(new IoAdapter(app));
   app.useGlobalFilters(new DomainErrorFilter());
 
+  console.log('[DEBUG] 9. Starting server on port', port);
   await app.listen(port);
 
-  // Clear startup timeout - app successfully started
   clearTimeout(startupTimeout);
 
   bootLogger.log(`Running in ${env} mode on port ${port}`);
+  console.log('[DEBUG] 10. Bootstrap complete');
 }
 
+console.log('[DEBUG] 6.5. Calling bootstrap()');
 void bootstrap();
