@@ -78,18 +78,21 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,
   });
-  console.log('[DEBUG] 8. App created, configuring');
+  console.log('[DEBUG] 8. App created, configuring logger');
 
   app.useLogger(app.get(FilteredBootstrapLogger));
 
+  console.log('[DEBUG] 8.1. Setting AppService');
   const appService = app.get(AppService);
   appService.setNestApp(app);
 
+  console.log('[DEBUG] 8.2. Enabling CORS');
   app.enableCors({
     origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
     credentials: true,
   });
 
+  console.log('[DEBUG] 8.3. Setting up global pipes');
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -99,17 +102,36 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
+  console.log('[DEBUG] 8.4. Reading config');
   const config = app.get(ConfigService);
   const appCfg = config.get<AppConfig>('app');
   const port = appCfg?.port ?? 3000;
   const env = appCfg?.nodeEnv ?? 'development';
 
+  console.log('[DEBUG] 8.5. Setting up WebSocket adapter');
   app.useWebSocketAdapter(new IoAdapter(app));
+
+  console.log('[DEBUG] 8.6. Setting up global filters');
   app.useGlobalFilters(new DomainErrorFilter());
 
-  console.log('[DEBUG] 9. Starting server on port', port);
-  await app.listen(port);
+  console.log(`[DEBUG] 9. About to call app.listen(${port})`);
+  console.log(
+    '[DEBUG] 9a. This will trigger OnModuleInit/OnApplicationBootstrap hooks',
+  );
 
+  // Wrap app.listen with timeout to see if it hangs
+  const listenPromise = app.listen(port);
+  const listenTimeout = setTimeout(() => {
+    console.log('[DEBUG] 9b. ⚠️ app.listen() is taking more than 5 seconds');
+    console.log(
+      '[DEBUG] 9b. Likely a lifecycle hook (OnModuleInit/OnApplicationBootstrap) is hanging',
+    );
+  }, 5000);
+
+  await listenPromise;
+  clearTimeout(listenTimeout);
+
+  console.log('[DEBUG] 9c. ✓ app.listen() completed successfully');
   clearTimeout(startupTimeout);
 
   bootLogger.log(`Running in ${env} mode on port ${port}`);
