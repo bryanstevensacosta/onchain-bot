@@ -211,34 +211,51 @@ export class ProcessNextQueuedArticleUseCase {
     refinedText: string,
     cfg: LlmConfig,
   ) {
-    const paths = entry.imagePaths;
-    if (paths.length > 1) {
-      const videoIdx = paths.findIndex((p) => this.isVideoPath(p));
+    // Ensure all media files exist locally before sending to Telegram
+    const localPaths = await this.ensureLocalFiles(entry.imagePaths);
+
+    const options = { parseMode: 'HTML' as const };
+
+    if (localPaths.length > 1) {
+      const videoIdx = localPaths.findIndex((p) => this.isVideoPath(p));
       if (videoIdx >= 0) {
         // Send the video individually (no mixed album support)
         return this.publisher.sendVideo(
           cfg.targetChannel,
           refinedText,
-          paths[videoIdx],
+          localPaths[videoIdx],
+          options,
         );
       }
       return this.publisher.sendMediaGroup(
         cfg.targetChannel,
         refinedText,
-        paths,
+        localPaths,
+        options,
       );
     }
-    if (paths.length === 1) {
-      if (this.isVideoPath(paths[0])) {
+    if (localPaths.length === 1) {
+      if (this.isVideoPath(localPaths[0])) {
         return this.publisher.sendVideo(
           cfg.targetChannel,
           refinedText,
-          paths[0],
+          localPaths[0],
+          options,
         );
       }
-      return this.publisher.sendPhoto(cfg.targetChannel, refinedText, paths[0]);
+      return this.publisher.sendPhoto(
+        cfg.targetChannel,
+        refinedText,
+        localPaths[0],
+        options,
+      );
     }
-    return this.publisher.sendMessage(cfg.targetChannel, refinedText);
+    return this.publisher.sendMessage(
+      cfg.targetChannel,
+      refinedText,
+      undefined,
+      options,
+    );
   }
 
   /**
@@ -294,5 +311,171 @@ export class ProcessNextQueuedArticleUseCase {
       cfg.dailyResetUtcHour,
     );
     return published < cfg.dailyCap;
+  }
+
+  /**
+   * Ensure all media files exist locally. If a file doesn't exist,
+   * download it from ingestion-service.
+   *
+   * In dev local, ingestion-service and backend have separate uploads/
+   * directories. In production, they share a Docker volume.
+   *
+   * @param paths - Array of file paths (local or HTTP URLs)
+   * @returns Array of local file paths
+   */
+  private async ensureLocalFiles(
+    paths: ReadonlyArray<string>,
+  ): Promise<string[]> {
+    const fs = await import('fs/promises');
+    const path = await import('path');
+
+    const localPaths: string[] = [];
+
+    for (const filePath of paths) {
+      // If it's a URL, download it
+      if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+        this.logger.debug(
+          `Queue entry has HTTP URL: ${filePath}, downloading...`,
+        );
+        const localPath = await this.downloadFromIngestionService(filePath);
+        localPaths.push(localPath);
+        continue;
+      }
+
+      // Check if file exists locally
+      try {
+        await fs.access(filePath);
+        localPaths.push(filePath);
+      } catch (err) {
+        // File doesn't exist locally, try downloading from ingestion-service
+        this.logger.debug(
+          `File not found locally: ${filePath}, attempting download from ingestion-service`,
+        );
+
+        try {
+          const localPath = await this.downloadFileFromIngestion(filePath);
+          localPaths.push(localPath);
+        } catch (downloadErr) {
+          throw new Error(`file not found: ${filePath}`);
+        }
+      }
+    }
+
+    return localPaths;
+  }
+
+  /**
+   * Download a file from ingestion-service given an HTTP URL.
+   */
+  private async downloadFromIngestionService(url: string): Promise<string> {
+    const fs = await import('fs/promises');
+    const path = await import('path');
+
+    try {
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+
+      // Parse URL to extract channelId, messageId, index
+      // URL: http://localhost:3031/api/media/-1004466661332/200/0
+      const urlObj = new URL(url);
+      const parts = urlObj.pathname.split('/').filter(Boolean);
+
+      if (parts.length < 5) {
+        throw new Error(`Unexpected URL format: ${url}`);
+      }
+
+      const channelId = parts[2];
+      const messageId = parts[3];
+      const index = parts[4];
+
+      // Determine extension from content-type
+      const contentType =
+        response.headers.get('content-type') || 'application/octet-stream';
+      const ext = this.getExtensionFromMimeType(contentType);
+
+      // Save to backend uploads directory
+      const localDir = path.join('uploads', 'crypto-news', 'media', channelId);
+      const localFileName = `${messageId}_${index}.${ext}`;
+      const localPath = path.join(localDir, localFileName);
+
+      await fs.mkdir(localDir, { recursive: true });
+      await fs.writeFile(localPath, buffer);
+
+      this.logger.log(`Downloaded ${url} → ${localPath}`);
+      return localPath;
+    } catch (err) {
+      this.logger.error(`Failed to download from ${url}: ${err}`);
+      throw err;
+    }
+  }
+
+  /**
+   * Download a file from ingestion-service given a local path that doesn't exist locally.
+   * Converts the path to an ingestion-service URL and downloads it.
+   */
+  private async downloadFileFromIngestion(localPath: string): Promise<string> {
+    const fs = await import('fs/promises');
+    const path = await import('path');
+
+    // Convert local path to ingestion-service URL
+    // Path: uploads/crypto-news/media/-1004466661332/200_0.jpg
+    // URL:  http://localhost:3031/api/media/-1004466661332/200/0
+    const match = localPath.match(
+      /crypto-news\/media\/([^/]+)\/(\d+)_(\d+)\.\w+$/,
+    );
+
+    if (!match) {
+      throw new Error(`Cannot parse local path: ${localPath}`);
+    }
+
+    const channelId = match[1];
+    const messageId = match[2];
+    const index = match[3];
+
+    const ingestionPort = process.env.INGESTION_PORT || '3031';
+    const ingestionUrl = `http://localhost:${ingestionPort}/api/media/${channelId}/${messageId}/${index}`;
+
+    try {
+      const response = await fetch(ingestionUrl);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+
+      // Ensure directory exists
+      const dir = path.dirname(localPath);
+      await fs.mkdir(dir, { recursive: true });
+
+      // Save file
+      await fs.writeFile(localPath, buffer);
+
+      this.logger.log(`Downloaded ${ingestionUrl} → ${localPath}`);
+      return localPath;
+    } catch (err) {
+      this.logger.error(`Failed to download ${ingestionUrl}: ${err}`);
+      throw err;
+    }
+  }
+
+  /**
+   * Get file extension from MIME type.
+   */
+  private getExtensionFromMimeType(mimeType: string): string {
+    const map: Record<string, string> = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/gif': 'gif',
+      'image/webp': 'webp',
+      'video/mp4': 'mp4',
+      'video/quicktime': 'mov',
+    };
+    return map[mimeType] || 'bin';
   }
 }
