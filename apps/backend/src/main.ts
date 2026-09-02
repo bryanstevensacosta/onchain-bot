@@ -3,13 +3,22 @@ import * as path from 'node:path';
 import { config as dotenvConfig } from 'dotenv';
 
 console.log('[DEBUG] 1. Starting bootstrap - loading .env files');
-for (const name of ['.env.dev', '.env']) {
-  const p = path.resolve(process.cwd(), name);
-  if (fs.existsSync(p)) {
-    console.log(`[DEBUG] 1a. Loading ${name}`);
-    dotenvConfig({ path: p, override: false });
-  }
+// Load .env.dev first with override=true to ensure dev settings take precedence
+const devEnvPath = path.resolve(process.cwd(), '.env.dev');
+if (fs.existsSync(devEnvPath)) {
+  console.log('[DEBUG] 1a. Loading .env.dev (with override)');
+  dotenvConfig({ path: devEnvPath, override: true });
 }
+// Load .env second with override=false to fill in missing variables
+const envPath = path.resolve(process.cwd(), '.env');
+if (fs.existsSync(envPath)) {
+  console.log('[DEBUG] 1a. Loading .env (without override)');
+  dotenvConfig({ path: envPath, override: false });
+}
+console.log('[DEBUG] 1b. After loading env files:', {
+  USE_MOCK_INGESTION: process.env.USE_MOCK_INGESTION,
+  USE_SSE_INGESTION: process.env.USE_SSE_INGESTION,
+});
 
 console.log('[DEBUG] 2. Importing modules');
 import { NestFactory } from '@nestjs/core';
