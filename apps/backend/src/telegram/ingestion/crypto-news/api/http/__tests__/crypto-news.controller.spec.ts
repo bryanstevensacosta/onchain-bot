@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { ConflictException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import * as fs from 'node:fs';
 import { Repository } from 'typeorm';
@@ -352,12 +353,16 @@ describe('CryptoNewsController.addSource (POST /crypto-news/sources)', () => {
       },
     });
 
+    // Controller transforms DomainError(CONFLICT) into ConflictException with enhanced message
     await expect(
       controller.addSource({ channelId: '999', title: 'Dup' }),
-    ).rejects.toBeInstanceOf(DomainError);
+    ).rejects.toBeInstanceOf(ConflictException);
+
     await expect(
       controller.addSource({ channelId: '999', title: 'Dup' }),
-    ).rejects.toMatchObject({ code: ErrorCode.CONFLICT });
+    ).rejects.toMatchObject({
+      message: expect.stringContaining('already exists in the database'),
+    });
 
     // The controller must NOT swallow the error AND must NOT save a
     // partial source (no activate() in this path because execute

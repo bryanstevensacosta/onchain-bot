@@ -141,21 +141,23 @@ describe('Preservation Property Tests: Development/Test Auto-Sync Unchanged', ()
   /**
    * Property 2.3: Entity Count Preservation
    *
-   * **Requirement 3.3**: PERSISTED_ENTITIES must contain exactly 40 entity classes
+   * **Requirement 3.3**: PERSISTED_ENTITIES must contain exactly 41 entity classes
    *
    * This verifies that the entity registration is not broken by the fix.
    * The fix involves extracting PERSISTED_ENTITIES to a separate file,
-   * so we need to ensure all 40 entities are still registered.
+   * so we need to ensure all 41 entities are still registered.
+   *
+   * Updated from 40 to 41 after adding CryptoNewsMessageMediaEntity.
    */
-  it('should preserve entity count at 40 entities', () => {
-    // Verify the array contains exactly 40 entities
+  it('should preserve entity count at 41 entities', () => {
+    // Verify the array contains exactly 41 entities
     const entityCount = PERSISTED_ENTITIES.length;
 
-    // Requirement 3.3: Must have exactly 40 entities
-    expect(entityCount).toBe(40);
+    // Requirement 3.3: Must have exactly 41 entities
+    expect(entityCount).toBe(41);
 
     // Also verify the EXPECTED_ENTITY_COUNT constant matches
-    expect(EXPECTED_ENTITY_COUNT).toBe(40);
+    expect(EXPECTED_ENTITY_COUNT).toBe(41);
     expect(entityCount).toBe(EXPECTED_ENTITY_COUNT);
   });
 
