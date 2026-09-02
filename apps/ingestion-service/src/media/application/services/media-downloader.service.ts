@@ -129,7 +129,7 @@ export class MediaDownloaderService {
    */
   private sanitizeChannelId(channelId: string): string {
     // Remove any path separators and keep only alphanumeric + dash
-    return channelId.replace(/[^a-zA-Z0-9\-]/g, '');
+    return channelId.replace(/[^a-zA-Z0-9-]/g, '');
   }
 
   /**

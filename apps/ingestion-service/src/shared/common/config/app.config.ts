@@ -19,6 +19,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { plainToClass, Type } from 'class-transformer';
+import { CRYPTO_NEWS_SEED } from '../../../telegram/crypto-news/seeds/crypto-news.seed';
 
 /**
  * Application configuration for Ingestion Service
@@ -404,12 +405,11 @@ function parseSeedKols(): SeedKolEntry[] {
 
 function parseSeedNews(): SeedNewsChannelEntry[] {
   const raw = process.env.INGESTION_TELEGRAM_SEED_NEWS;
-  
+
   // If env var is not set or empty, use hardcoded seed file
   if (!raw || raw.trim() === '') {
     // Import from seed file
     // NOTE: Requires the seed file to be in the dist/ folder after build
-    const { CRYPTO_NEWS_SEED } = require('../../../telegram/crypto-news/seeds/crypto-news.seed');
     return CRYPTO_NEWS_SEED as SeedNewsChannelEntry[];
   }
 
