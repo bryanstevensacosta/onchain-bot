@@ -1,0 +1,203 @@
+# Implementation Plan
+
+- [x] 1. Write bug condition exploration test
+  - **Property 1: Bug Condition** - Staging/Production with Synchronize True Hangs
+  - **CRITICAL**: This test MUST FAIL on unfixed code - failure confirms the bug exists
+  - **DO NOT attempt to fix the test or the code when it fails**
+  - **NOTE**: This test encodes the expected behavior - it will validate the fix when it passes after implementation
+  - **GOAL**: Surface counterexamples that demonstrate the bug exists
+  - **Scoped PBT Approach**: Scope the property to concrete failing case(s) - staging environment with synchronize:true configuration
+  - Create property-based test in `apps/backend/src/shared/common/persistence/__tests__/database-startup.bug-exploration.spec.ts`
+  - Test that when `NODE_ENV=staging` AND `DATABASE_SYNCHRONIZE=true`, the startup time exceeds 30 seconds OR synchronize is incorrectly enabled
+  - Mock the environment configuration using fast-check generators: `fc.constantFrom('staging', 'production')` for NODE_ENV
+  - Test assertions should match the Expected Behavior from design: `synchronize: false`, migrations applied, startup < 30 seconds
+  - Use Jest mocks to simulate TypeORM initialization without actual database connection
+  - Use `jest.useFakeTimers()` to simulate time-based behavior without waiting 120 seconds
+  - Run test on UNFIXED code
+  - **EXPECTED OUTCOME**: Test FAILS (this is correct - it proves the bug exists)
+  - Document counterexamples found: "When NODE_ENV=staging, DatabaseModule.forRootFromEnv() returns synchronize:true instead of false"
+  - Mark task complete when test is written, run, and failure is documented
+  - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6_
+
+- [x] 2. Write preservation property tests (BEFORE implementing fix)
+  - **Property 2: Preservation** - Development/Test Auto-Sync Unchanged
+  - **IMPORTANT**: Follow observation-first methodology
+  - Create property-based test in `apps/backend/src/shared/common/persistence/__tests__/database-startup.preservation.spec.ts`
+  - Observe behavior on UNFIXED code: when `NODE_ENV` is "development", "test", or unset, `synchronize` is set to `true`
+  - Write property-based tests capturing observed behavior patterns from Preservation Requirements
+  - Use fast-check to generate random NODE_ENV values: `fc.constantFrom('development', 'test', undefined, null, '')`
+  - For each generated environment, verify that `synchronize` is set to `true` (current behavior)
+  - Test entity registration: verify PERSISTED_ENTITIES array contains exactly 48 entity classes
+  - Test database connection parameters: verify values match those from `app.config.ts`
+  - Test repository operations: verify findOne and save operations work correctly with synchronize:true
+  - Property-based testing generates many test cases for stronger guarantees
+  - Run tests on UNFIXED code
+  - **EXPECTED OUTCOME**: Tests PASS (this confirms baseline behavior to preserve)
+  - Mark task complete when tests are written, run, and passing on unfixed code
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9_
+
+- [x] 3. Fix for staging backend startup hang
+  - [x] 3.1 Extract PERSISTED_ENTITIES to shared entities.ts file
+    - Create `apps/backend/src/shared/common/persistence/entities.ts`
+    - Move all 48 entity imports from `database.module.ts` to `entities.ts`
+    - Export `PERSISTED_ENTITIES` array: `export const PERSISTED_ENTITIES = [...]`
+    - Export `EXPECTED_ENTITY_COUNT` constant: `export const EXPECTED_ENTITY_COUNT = 48`
+    - Update `database.module.ts` to import from `entities.ts`: `import { PERSISTED_ENTITIES } from './entities'`
+    - Verify backend still starts successfully in local dev after extraction
+    - _Requirements: 3.3_
+
+  - [x] 3.2 Update data-source.ts to include entities
+    - Import `PERSISTED_ENTITIES` from `./entities.ts`
+    - Change `entities: []` to `entities: PERSISTED_ENTITIES`
+    - Verify TypeORM CLI can load entities: `npm run typeorm -- query "SELECT 1"`
+    - Ensure environment variables are loaded correctly from `.env` file
+    - _Requirements: 2.3, 2.4_
+
+  - [x] 3.3 Add environment detection logic to database.module.ts
+    - Create helper function `isProductionLikeEnvironment(): boolean`
+    - Function should return `true` when `process.env.NODE_ENV?.toLowerCase()` is "staging" or "production"
+    - Function should return `false` for "development", "test", undefined, or any other value
+    - Add unit tests for this helper function with all possible NODE_ENV values
+    - _Bug_Condition: isBugCondition(env) where (env.NODE_ENV = "staging" OR "production") AND env.DATABASE_SYNCHRONIZE = true_
+    - _Expected_Behavior: isProductionLikeEnvironment() returns true for staging/production, false otherwise_
+    - _Requirements: 2.8, 2.9, 3.1, 3.2_
+
+  - [x] 3.4 Modify forRootFromEnv() to use environment-based synchronize setting
+    - In `DatabaseModule.forRootFromEnv()` useFactory function, call `isProductionLikeEnvironment()`
+    - If production-like (staging/production), set `synchronize: false` regardless of config value
+    - If development/test, use existing logic: `synchronize: cfg?.synchronize ?? true`
+    - Update log statement to include environment and mode: `"Postgres enabled (host=... synchronize=..., env=${NODE_ENV}, mode=${useMigrations ? 'migrations' : 'auto-sync'})"`
+    - Preserve existing connection timeouts: `connectTimeoutMS: 10_000` and `extra.statement_timeout: 30_000`
+    - _Bug_Condition: Fixed by using NODE_ENV detection instead of unconditional synchronize:true_
+    - _Expected_Behavior: Staging/production use synchronize:false, dev/test use synchronize:true_
+    - _Preservation: Development/test environments continue using synchronize:true_
+    - _Requirements: 2.1, 2.8, 2.9, 3.1, 3.2, 3.8, 3.9_
+
+  - [x] 3.5 Create migrations directory and generate initial migration
+    - Create directory: `mkdir -p apps/backend/src/shared/common/persistence/migrations`
+    - Ensure directory is tracked in git (add .gitkeep if empty)
+    - Start with empty database (or drop existing schema): `npm run db:reset` OR manually drop schema
+    - Generate baseline migration: `cd apps/backend && npm run migration:generate -- -n InitialSchema`
+    - Review generated migration to ensure all 48 entities are included (check CREATE TABLE statements)
+    - Verify migration file is created in `migrations/` directory with timestamp prefix
+    - _Requirements: 2.3_
+
+  - [x] 3.6 Test initial migration locally
+    - Drop local database schema: `psql -U alpha_meta_token_scanner -d alpha_meta_token_scanner -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"`
+    - Apply migration: `cd apps/backend && npm run migration:run`
+    - Verify all tables exist: `npm run migration:show` (should show InitialSchema as applied)
+    - Start backend with `DATABASE_SYNCHRONIZE=false` or `NODE_ENV=staging` to ensure no schema changes are needed
+    - Verify backend logs show "Using migrations (synchronize: false)" or similar
+    - Verify health check endpoint responds: `curl http://localhost:3030/api/health`
+    - _Requirements: 2.1, 2.3, 2.5_
+
+  - [x] 3.7 Verify migration idempotency
+    - Run migration again: `npm run migration:run` (should log "No migrations are pending")
+    - Revert migration: `npm run migration:revert`
+    - Verify schema is rolled back (tables should be dropped)
+    - Apply migration again: `npm run migration:run`
+    - Start backend and run test suite: `npm run test:backend`
+    - Ensure all tests pass with migrated schema
+    - _Requirements: 2.3, 2.4_
+
+  - [x] 3.8 Update deploy-staging.yml workflow to run migrations
+    - Open `.github/workflows/deploy-staging.yml`
+    - Find step "Deploy backend (GHCR, no build)" (after "Pull images from GHCR (staging)")
+    - Insert new step BEFORE "Deploy backend": "Run migrations (staging environment)"
+    - Step command: `docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml run --rm -e NODE_ENV=staging backend npm run migration:run`
+    - Include error handling: use `set -euo pipefail` to fail deployment if migrations fail
+    - Log migration output for debugging
+    - Update healthcheck timing: reduce attempts from 60 to 5 (10 seconds total)
+    - Health check should succeed quickly since migrations handle schema updates
+    - _Requirements: 2.3, 2.4, 2.6, 2.7_
+
+  - [x] 3.9 Verify bug condition exploration test now passes
+    - **Property 1: Expected Behavior** - Staging Uses Migrations Not Synchronize
+    - **IMPORTANT**: Re-run the SAME test from task 1 - do NOT write a new test
+    - The test from task 1 encodes the expected behavior
+    - When this test passes, it confirms the expected behavior is satisfied
+    - Run bug condition exploration test: `npm run test:backend -- database-startup.bug-exploration.spec.ts`
+    - **EXPECTED OUTCOME**: Test PASSES (confirms bug is fixed)
+    - Verify test assertions: synchronize is false for staging/production, startup completes within 30 seconds (simulated)
+    - If test fails, investigate why the fix didn't work as expected
+    - Document any adjustments needed to make test pass
+    - _Requirements: 2.1, 2.2, 2.3, 2.8_
+
+  - [x] 3.10 Verify preservation tests still pass
+    - **Property 2: Preservation** - Development/Test Auto-Sync Unchanged
+    - **IMPORTANT**: Re-run the SAME tests from task 2 - do NOT write new tests
+    - Run preservation property tests: `npm run test:backend -- database-startup.preservation.spec.ts`
+    - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions)
+    - Verify that development/test environments still use synchronize:true
+    - Verify entity registration still loads exactly 48 entities
+    - Verify database connection parameters still match config
+    - Verify repository operations still work correctly
+    - If any test fails, investigate what behavior was unintentionally changed
+    - Document any preservation issues found
+    - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9_
+
+- [x] 4. Integration testing and deployment verification
+  - [x] 4.1 Test staging deployment simulation locally
+    - Use `docker compose` to simulate staging environment
+    - Set environment variables: `NODE_ENV=staging`, `DATABASE_SYNCHRONIZE=false` (or unset)
+    - Run migration step: `docker compose run --rm backend npm run migration:run`
+    - Verify migrations applied successfully (check logs for "Migration execution completed")
+    - Start backend container: `docker compose up -d backend`
+    - Check backend logs: `docker compose logs backend --tail 50`
+    - Verify log contains "Using migrations (synchronize: false, env=staging)"
+    - Verify log contains "Nest application successfully started"
+    - Test health check: `curl -f http://localhost:3030/api/health` (should return HTTP 200 within 2 seconds)
+    - Stop and restart: `docker compose restart backend`
+    - Verify second startup also completes quickly (migrations should skip with "No migrations are pending")
+    - _Requirements: 2.1, 2.3, 2.5, 2.6_
+
+  - [x] 4.2 Verify development workflow preservation
+    - Start backend locally with `NODE_ENV` unset or `NODE_ENV=development`
+    - Verify log shows "Using auto-sync (synchronize: true, env=development)"
+    - Modify an entity: add a test column to any entity class (e.g., add `testColumn: string` to `kol.entity.ts`)
+    - Restart backend
+    - Verify schema is automatically updated (check database that new column exists)
+    - Remove test column from entity
+    - Restart backend
+    - Verify column is removed from database automatically
+    - This confirms developer workflow is unchanged by the fix
+    - _Requirements: 3.1, 3.8, 3.9_
+
+  - [x] 4.3 Document migration workflow in AGENTS.md
+    - Update `apps/backend/AGENTS.md` with migration workflow section
+    - Document when to generate migrations: "After modifying entity classes for staging/production deployment"
+    - Document how to generate migration: `npm run migration:generate -- -n DescriptiveName`
+    - Document how to apply migrations locally: `npm run migration:run`
+    - Document how to rollback migration: `npm run migration:revert`
+    - Document deployment process: migrations run automatically in staging/production via GitHub Actions
+    - Document troubleshooting: if startup hangs, check NODE_ENV and synchronize setting in logs
+    - Add note about development mode: "Local dev continues using synchronize:true, no migrations needed"
+    - _Requirements: Documentation requirement from design_
+
+  - [x] 4.4 Update root AGENTS.md with migration commands
+    - Add migration commands to "COMMANDS" section in root `AGENTS.md`
+    - Add to backend-specific commands: `npm run migration:generate -- -n MigrationName`
+    - Add to backend-specific commands: `npm run migration:run`
+    - Add to backend-specific commands: `npm run migration:revert`
+    - Add to backend-specific commands: `npm run migration:show`
+    - Add note about when migrations are used: "Staging/production use migrations; dev/test use synchronize:true"
+    - _Requirements: Documentation requirement from design_
+
+- [x] 5. Checkpoint - Ensure all tests pass and staging deployment succeeds
+  - Run full backend test suite: `npm run test:backend`
+  - Verify all unit tests pass (including new bug exploration and preservation tests)
+  - Verify all integration tests pass
+  - Run linter: `npm run lint:backend`
+  - Fix any linting issues
+  - Commit changes with descriptive message: `fix: migrate staging to TypeORM migrations instead of synchronize`
+  - Push to dev branch
+  - Monitor GitHub Actions for deploy-staging workflow
+  - Verify migration step runs successfully in workflow logs
+  - Verify backend starts within 10 seconds (new healthcheck timeout)
+  - Verify health check returns HTTP 200
+  - SSH to staging droplet and check logs: `docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml logs backend --tail 100`
+  - Verify log contains "Using migrations (synchronize: false, env=staging)"
+  - Verify log contains "Nest application successfully started"
+  - Test a few API endpoints to ensure backend is functional
+  - If deployment fails, investigate logs and fix issues before marking complete
+  - _Requirements: All requirements validated_
