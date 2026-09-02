@@ -101,12 +101,23 @@ describe('AddCryptoNewsSourceModal', () => {
     expect(submit).toBeDisabled();
   });
 
-  it('enables the submit button when channelId is numeric', () => {
+  it('disables the submit button when channelId does not have -100 prefix', () => {
     renderWithClient(
       <AddCryptoNewsSourceModal isOpen={true} onClose={() => {}} />,
     );
     fireEvent.change(screen.getByLabelText('Telegram Channel ID'), {
       target: { value: '1234567890' },
+    });
+    const submit = screen.getByRole('button', { name: /add source/i });
+    expect(submit).toBeDisabled();
+  });
+
+  it('enables the submit button when channelId has -100 prefix', () => {
+    renderWithClient(
+      <AddCryptoNewsSourceModal isOpen={true} onClose={() => {}} />,
+    );
+    fireEvent.change(screen.getByLabelText('Telegram Channel ID'), {
+      target: { value: '-1001234567890' },
     });
     const submit = screen.getByRole('button', { name: /add source/i });
     expect(submit).not.toBeDisabled();

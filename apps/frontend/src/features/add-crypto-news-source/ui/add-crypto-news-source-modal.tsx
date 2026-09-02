@@ -15,7 +15,8 @@ export function AddCryptoNewsSourceModal({
   const mutation = useAddCryptoNewsSource();
 
   const trimmed = channelId.trim();
-  const isValidChannelId = /^\d+$/.test(trimmed);
+  // Channel ID must start with -100 (Telegram supergroup/channel prefix)
+  const isValidChannelId = /^-100\d+$/.test(trimmed);
   const canSubmit = isValidChannelId && !mutation.isPending;
 
   function handleClose() {
@@ -52,13 +53,14 @@ export function AddCryptoNewsSourceModal({
             type="text"
             value={channelId}
             onChange={(e) => setChannelId(e.target.value)}
-            placeholder="e.g. 1234567890"
+            placeholder="e.g. -1001234567890"
             autoFocus
             disabled={mutation.isPending}
             className="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded px-3 py-2 focus:outline-none focus:border-blue-500 disabled:opacity-50"
           />
           <p className="mt-1 text-[10px] text-slate-500">
-            Display title and handle are resolved automatically from Telegram.
+            Channel ID must start with -100 prefix (Telegram channel format).
+            Display title and handle are resolved automatically.
           </p>
         </div>
 
