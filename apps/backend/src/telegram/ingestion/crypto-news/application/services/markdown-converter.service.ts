@@ -167,7 +167,32 @@ export class MarkdownConverter {
         );
         return [];
       }
-      return parsed as TelegramEntity[];
+
+      // Map Telegram MTProto entities (className) to TelegramEntity (type)
+      const entities: TelegramEntity[] = [];
+
+      for (const entity of parsed) {
+        // Extract type from className (e.g., "MessageEntityBold" → "bold")
+        const type =
+          entity.type || this.extractTypeFromClassName(entity.className);
+
+        if (!type) {
+          this.logger.warn(
+            `Entity missing both type and className, skipping: ${JSON.stringify(entity)}`,
+            loggerContext,
+          );
+          continue;
+        }
+
+        entities.push({
+          type,
+          offset: entity.offset ?? 0,
+          length: entity.length ?? 0,
+          ...(entity.url && { url: entity.url }),
+        });
+      }
+
+      return entities;
     } catch (err) {
       this.logger.warn(
         `Failed to parse formattingEntities JSON: ${(err as Error).message}. Falling back to empty array.`,
@@ -175,6 +200,29 @@ export class MarkdownConverter {
       );
       return [];
     }
+  }
+
+  /**
+   * Extract entity type from Telegram MTProto className.
+   * Examples:
+   * - "MessageEntityBold" → "bold"
+   * - "MessageEntityItalic" → "italic"
+   * - "MessageEntityCode" → "code"
+   * - "MessageEntityCustomEmoji" → "custom_emoji" (unsupported, will be ignored)
+   */
+  private extractTypeFromClassName(
+    className: string | undefined,
+  ): string | null {
+    if (!className) return null;
+
+    // Remove "MessageEntity" prefix
+    const type = className.replace(/^MessageEntity/, '');
+
+    // Convert PascalCase to snake_case
+    return type
+      .replace(/([A-Z])/g, '_$1')
+      .toLowerCase()
+      .replace(/^_/, '');
   }
 
   /**
