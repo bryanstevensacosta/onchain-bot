@@ -12,7 +12,8 @@ import { SlotArbitratorPort } from 'telegram/shared/domain/ports/slot-arbitrator
 import { AdRotationStateRepository } from 'telegram/crypto-news-ads/application/ports/ad-rotation-state.repository';
 import { MediaCleanupService } from 'telegram/crypto-news-publisher/infrastructure/services/media-cleanup.service';
 import { CryptoNewsPublisherConfigService } from 'telegram/crypto-news-publisher/infrastructure/config/crypto-news-publisher.config';
-import { MarkdownConverter } from 'telegram/ingestion/crypto-news/application/services/markdown-converter.service';
+import { promises as fs } from 'fs';
+import * as path from 'path';
 
 /**
  * Orchestrator use case: drain one PENDING entry from the publisher
@@ -62,7 +63,6 @@ export class ProcessNextQueuedArticleUseCase {
     private readonly rotationStateRepo: AdRotationStateRepository,
     private readonly mediaCleanup: MediaCleanupService,
     private readonly publisherConfig: CryptoNewsPublisherConfigService,
-    private readonly markdownConverter: MarkdownConverter,
   ) {}
 
   /**
@@ -116,13 +116,12 @@ export class ProcessNextQueuedArticleUseCase {
           return;
         }
       }
-      // Convert generated content to Markdown using Telegram formatting entities
-      const markdownContent = this.markdownConverter.convertToMarkdown(
+      // Use HTML content directly (LLM generates HTML, Telegram parses with parseMode: 'HTML')
+      const result = await this.dispatchToTelegram(
+        entry,
         generated.content,
-        undefined,
-        entry.formattingEntities,
+        cfg,
       );
-      const result = await this.dispatchToTelegram(entry, markdownContent, cfg);
       if (!result.ok || result.messageId === null) {
         throw new Error(result.error ?? 'telegram publish returned no id');
       }
@@ -326,9 +325,6 @@ export class ProcessNextQueuedArticleUseCase {
   private async ensureLocalFiles(
     paths: ReadonlyArray<string>,
   ): Promise<string[]> {
-    const fs = await import('fs/promises');
-    const path = await import('path');
-
     const localPaths: string[] = [];
 
     for (const filePath of paths) {
@@ -368,9 +364,6 @@ export class ProcessNextQueuedArticleUseCase {
    * Download a file from ingestion-service given an HTTP URL.
    */
   private async downloadFromIngestionService(url: string): Promise<string> {
-    const fs = await import('fs/promises');
-    const path = await import('path');
-
     try {
       const response = await fetch(url);
 
@@ -419,9 +412,6 @@ export class ProcessNextQueuedArticleUseCase {
    * Converts the path to an ingestion-service URL and downloads it.
    */
   private async downloadFileFromIngestion(localPath: string): Promise<string> {
-    const fs = await import('fs/promises');
-    const path = await import('path');
-
     // Convert local path to ingestion-service URL
     // Path: uploads/crypto-news/media/-1004466661332/200_0.jpg
     // URL:  http://localhost:3031/api/media/-1004466661332/200/0
@@ -459,7 +449,9 @@ export class ProcessNextQueuedArticleUseCase {
       this.logger.log(`Downloaded ${ingestionUrl} → ${localPath}`);
       return localPath;
     } catch (err) {
-      this.logger.error(`Failed to download ${ingestionUrl}: ${err}`);
+      this.logger.error(
+        `Failed to download from ingestion: ${ingestionUrl}: ${err}`,
+      );
       throw err;
     }
   }
