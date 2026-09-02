@@ -49,25 +49,27 @@ jobs:
           COMMITS_AHEAD=$(git rev-list --count origin/master..origin/dev)
           LATEST_COMMIT=$(git log origin/dev ^origin/master --oneline --no-merges -1 --pretty=format:"%s" || echo "Multiple commits")
           
+          PR_BODY="## 🔄 Auto-sync PR from dev to master
+
+          This PR was automatically created because dev is $COMMITS_AHEAD commits ahead of master.
+
+          **Latest change:** $LATEST_COMMIT
+
+          **What to do:**
+          1. Review the changes
+          2. Merge when ready - this will trigger:
+             - Release-please to analyze conventional commits
+             - Automatic release PR creation if there are releasable changes
+             - CI/CD workflows
+
+          **Note:** After merging, master will automatically sync back to dev via the sync-dev workflow."
+          
           gh pr create \
             --repo ${{ github.repository }} \
             --base master \
             --head dev \
             --title "chore(sync): dev → master ($COMMITS_AHEAD commits)" \
-            --body "## 🔄 Auto-sync PR from dev to master
-
-This PR was automatically created because dev is $COMMITS_AHEAD commits ahead of master.
-
-**Latest change:** $LATEST_COMMIT
-
-**What to do:**
-1. Review the changes
-2. Merge when ready - this will trigger:
-   - Release-please to analyze conventional commits
-   - Automatic release PR creation if there are releasable changes
-   - CI/CD workflows
-
-**Note:** After merging, master will automatically sync back to dev via the sync-dev workflow." \
+            --body "$PR_BODY" \
             --label "auto-sync"
           
           echo "✅ PR created successfully"
