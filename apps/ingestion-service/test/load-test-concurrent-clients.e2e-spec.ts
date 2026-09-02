@@ -51,7 +51,9 @@ describe('Load Test: Concurrent SSE Clients (e2e)', () => {
     private events: Array<{ event: string; data: any; timestamp: number }> = [];
     private disconnectCount = 0;
     private onConnectCallbacks: Array<() => void> = [];
-    private onMessageCallbacks: Array<(event: string, data: any, timestamp: number) => void> = [];
+    private onMessageCallbacks: Array<
+      (event: string, data: any, timestamp: number) => void
+    > = [];
     private onDisconnectCallbacks: Array<() => void> = [];
 
     constructor(
@@ -96,7 +98,9 @@ describe('Load Test: Concurrent SSE Clients (e2e)', () => {
               const timestamp = Date.now();
 
               this.events.push({ event, data, timestamp });
-              this.onMessageCallbacks.forEach((cb) => cb(event, data, timestamp));
+              this.onMessageCallbacks.forEach((cb) =>
+                cb(event, data, timestamp),
+              );
             }
           }
         });
@@ -127,7 +131,9 @@ describe('Load Test: Concurrent SSE Clients (e2e)', () => {
       this.onConnectCallbacks.push(callback);
     }
 
-    onMessage(callback: (event: string, data: any, timestamp: number) => void): void {
+    onMessage(
+      callback: (event: string, data: any, timestamp: number) => void,
+    ): void {
       this.onMessageCallbacks.push(callback);
     }
 
@@ -163,7 +169,10 @@ describe('Load Test: Concurrent SSE Clients (e2e)', () => {
   /**
    * Calculate percentile from sorted array
    */
-  function calculatePercentile(sortedArray: number[], percentile: number): number {
+  function calculatePercentile(
+    sortedArray: number[],
+    percentile: number,
+  ): number {
     if (sortedArray.length === 0) return 0;
     const index = Math.ceil((percentile / 100) * sortedArray.length) - 1;
     return sortedArray[Math.max(0, index)];
@@ -277,7 +286,11 @@ describe('Load Test: Concurrent SSE Clients (e2e)', () => {
     // Step 2: Inject messages at 100/min rate
     console.log(`\nStarting message injection (${totalMessages} messages)...`);
     const startTime = Date.now();
-    const memoryMeasurements: Array<{ timestamp: number; heapUsed: number; heapTotal: number }> = [];
+    const memoryMeasurements: Array<{
+      timestamp: number;
+      heapUsed: number;
+      heapTotal: number;
+    }> = [];
 
     // Measure initial memory
     const initialMemory = process.memoryUsage();
@@ -317,7 +330,9 @@ describe('Load Test: Concurrent SSE Clients (e2e)', () => {
       // Log progress every 100 messages
       if (messagesSent % 100 === 0) {
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        console.log(`  Sent ${messagesSent}/${totalMessages} messages (${elapsed}s elapsed)`);
+        console.log(
+          `  Sent ${messagesSent}/${totalMessages} messages (${elapsed}s elapsed)`,
+        );
 
         // Measure memory every 100 messages
         const currentMemory = process.memoryUsage();
@@ -337,7 +352,9 @@ describe('Load Test: Concurrent SSE Clients (e2e)', () => {
     const endTime = Date.now();
     const testDurationSeconds = (endTime - startTime) / 1000;
 
-    console.log(`\nMessage injection complete (${testDurationSeconds.toFixed(1)}s total)`);
+    console.log(
+      `\nMessage injection complete (${testDurationSeconds.toFixed(1)}s total)`,
+    );
 
     // Step 3: Calculate aggregate latency statistics
     console.log('\n=== Latency Analysis ===');
@@ -365,7 +382,9 @@ describe('Load Test: Concurrent SSE Clients (e2e)', () => {
 
     // Step 4: Verify p95 latency <500ms (Requirement 8.1)
     expect(aggregateStats.p95).toBeLessThan(500);
-    console.log(`\n✓ p95 latency ${aggregateStats.p95.toFixed(2)}ms < 500ms requirement`);
+    console.log(
+      `\n✓ p95 latency ${aggregateStats.p95.toFixed(2)}ms < 500ms requirement`,
+    );
 
     // Step 5: Verify zero disconnections (Requirement 8.4)
     console.log('\n=== Connection Stability ===');
@@ -373,7 +392,9 @@ describe('Load Test: Concurrent SSE Clients (e2e)', () => {
     for (const client of clients) {
       const disconnects = client.getDisconnectCount();
       totalDisconnections += disconnects;
-      console.log(`Client ${client.getClientId()}: ${disconnects} disconnections`);
+      console.log(
+        `Client ${client.getClientId()}: ${disconnects} disconnections`,
+      );
     }
 
     expect(totalDisconnections).toBe(0);
@@ -390,20 +411,30 @@ describe('Load Test: Concurrent SSE Clients (e2e)', () => {
       const receivedCount = measurements.length;
       const expectedCount = totalMessages;
       const deliveryRate = ((receivedCount / expectedCount) * 100).toFixed(2);
-      console.log(`Client ${clientId}: ${receivedCount}/${expectedCount} (${deliveryRate}%)`);
+      console.log(
+        `Client ${clientId}: ${receivedCount}/${expectedCount} (${deliveryRate}%)`,
+      );
       expect(receivedCount).toBe(expectedCount);
     }
-    console.log(`✓ All ${totalMessages} messages delivered to all ${clientCount} clients`);
+    console.log(
+      `✓ All ${totalMessages} messages delivered to all ${clientCount} clients`,
+    );
 
     // Step 8: Memory usage analysis
     console.log('\n=== Memory Usage ===');
-    const initialHeapMB = (memoryMeasurements[0].heapUsed / 1024 / 1024).toFixed(2);
+    const initialHeapMB = (
+      memoryMeasurements[0].heapUsed /
+      1024 /
+      1024
+    ).toFixed(2);
     const finalHeapMB = (
       memoryMeasurements[memoryMeasurements.length - 1].heapUsed /
       1024 /
       1024
     ).toFixed(2);
-    const heapGrowthMB = (parseFloat(finalHeapMB) - parseFloat(initialHeapMB)).toFixed(2);
+    const heapGrowthMB = (
+      parseFloat(finalHeapMB) - parseFloat(initialHeapMB)
+    ).toFixed(2);
 
     console.log(`Initial heap usage: ${initialHeapMB} MB`);
     console.log(`Final heap usage: ${finalHeapMB} MB`);
@@ -426,8 +457,12 @@ describe('Load Test: Concurrent SSE Clients (e2e)', () => {
 
     console.log('\n=== Load Test Summary ===');
     console.log(`✓ Handled ${clientCount} concurrent clients`);
-    console.log(`✓ Processed ${totalMessages} messages at ${messagesPerMinute}/min rate`);
-    console.log(`✓ p95 latency: ${aggregateStats.p95.toFixed(2)}ms (< 500ms requirement)`);
+    console.log(
+      `✓ Processed ${totalMessages} messages at ${messagesPerMinute}/min rate`,
+    );
+    console.log(
+      `✓ p95 latency: ${aggregateStats.p95.toFixed(2)}ms (< 500ms requirement)`,
+    );
     console.log(`✓ Zero disconnections`);
     console.log(`✓ 100% message delivery rate`);
     console.log(`✓ Memory growth: ${heapGrowthMB} MB`);
@@ -457,7 +492,10 @@ describe('Load Test: Concurrent SSE Clients (e2e)', () => {
 
       // Spawn clients
       for (let i = 0; i < testCase.clients; i++) {
-        const client = new LoadTestSSEClient(streamUrl, `scale-test-client-${i}`);
+        const client = new LoadTestSSEClient(
+          streamUrl,
+          `scale-test-client-${i}`,
+        );
 
         client.onMessage((event, data, receiveTime) => {
           if (event === 'message:telegram' && data.broadcastTime) {
@@ -508,7 +546,9 @@ describe('Load Test: Concurrent SSE Clients (e2e)', () => {
       const stats = calculateLatencyStats(latencies);
       results.push({ clientCount: testCase.clients, p95Latency: stats.p95 });
 
-      console.log(`${testCase.clients} clients: p95 latency ${stats.p95.toFixed(2)}ms`);
+      console.log(
+        `${testCase.clients} clients: p95 latency ${stats.p95.toFixed(2)}ms`,
+      );
 
       // Cleanup
       for (const client of clients) {
@@ -528,7 +568,9 @@ describe('Load Test: Concurrent SSE Clients (e2e)', () => {
     const latency10Clients = results[2].p95Latency;
     const degradationFactor = latency10Clients / latency1Client;
 
-    console.log(`\nDegradation factor (10 clients / 1 client): ${degradationFactor.toFixed(2)}x`);
+    console.log(
+      `\nDegradation factor (10 clients / 1 client): ${degradationFactor.toFixed(2)}x`,
+    );
     expect(degradationFactor).toBeLessThan(2.0);
 
     console.log('✓ No performance degradation with scaling');
@@ -608,7 +650,9 @@ describe('Load Test: Concurrent SSE Clients (e2e)', () => {
       expect(receivedCount).toBe(burstSize);
     }
 
-    console.log(`✓ All ${clientCount} clients received all ${burstSize} messages`);
+    console.log(
+      `✓ All ${clientCount} clients received all ${burstSize} messages`,
+    );
 
     // Cleanup
     for (const client of clients) {

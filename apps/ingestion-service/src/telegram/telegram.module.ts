@@ -87,25 +87,29 @@ export class TelegramModule implements OnModuleInit {
 
   private async startListening(): Promise<void> {
     this.logger.log('🔄 MTProto listener running (background task)');
-    
+
     // Get registered channel IDs from both seeders
     const kolChannels = this.kolSeeder.getRegisteredChannels();
     const newsChannels = this.cryptoNewsSeeder.getRegisteredChannels();
     const allChannelIds = [...kolChannels, ...newsChannels];
-    
+
     if (allChannelIds.length === 0) {
       this.logger.warn('No channels to listen to');
       return;
     }
-    
-    this.logger.log(`📻 Subscribing to ${allChannelIds.length} channels (${kolChannels.length} KOL, ${newsChannels.length} crypto-news)...`);
-    
+
+    this.logger.log(
+      `📻 Subscribing to ${allChannelIds.length} channels (${kolChannels.length} KOL, ${newsChannels.length} crypto-news)...`,
+    );
+
     try {
       // Subscribe to listener's async generator
       for await (const message of this.listener.subscribe(allChannelIds)) {
         // Determine message type based on channel
-        const messageType = newsChannels.includes(message.peerId) ? 'crypto-news' : 'kol';
-        
+        const messageType = newsChannels.includes(message.peerId)
+          ? 'crypto-news'
+          : 'kol';
+
         // Route message to SSE broadcast via coordinator
         await this.coordinator.route(message, messageType);
       }

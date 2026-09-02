@@ -74,7 +74,7 @@ export class TelegramMtprotoListenerAdapter
     let authorized = false;
 
     this.logger.log('Checking MTProto authorization...');
-    
+
     try {
       await client.connect();
       authorized = await client.isUserAuthorized();
@@ -244,19 +244,25 @@ export class TelegramMtprotoListenerAdapter
     this.logger.log(
       `[MSG-TRANSFORM-DEBUG] ${peerId}:${msg.id} - message field: "${msg.message}" (type: ${typeof msg.message}, length: ${msg.message?.length ?? 0})`,
     );
-    
+
     // DETAILED DEBUG for message 167
     if (msg.id === 167) {
       this.logger.log(
-        `[MSG-167-FULL-DEBUG] Full message object: ${JSON.stringify({
-          id: msg.id,
-          message: msg.message,
-          text: (msg as any).text,
-          date: msg.date,
-          media: msg.media ? { className: (msg.media as any).className } : null,
-          entities: msg.entities,
-          groupedId: msg.groupedId,
-        }, null, 2)}`,
+        `[MSG-167-FULL-DEBUG] Full message object: ${JSON.stringify(
+          {
+            id: msg.id,
+            message: msg.message,
+            text: (msg as any).text,
+            date: msg.date,
+            media: msg.media
+              ? { className: (msg.media as any).className }
+              : null,
+            entities: msg.entities,
+            groupedId: msg.groupedId,
+          },
+          null,
+          2,
+        )}`,
       );
     }
 
@@ -285,14 +291,14 @@ export class TelegramMtprotoListenerAdapter
     }
 
     const extractedText = this.extractAllText(peerId, msg);
-    
+
     // DEBUG: Log final text assignment
     if (this.isCryptoNewsChannel(peerId)) {
       this.logger.log(
         `[RAW-MESSAGE-DEBUG] ${peerId}:${msg.id} - Assigning text to RawMessage: "${extractedText}" (length: ${extractedText.length})`,
       );
     }
-    
+
     return {
       peerId,
       messageId: msg.id,
@@ -300,9 +306,7 @@ export class TelegramMtprotoListenerAdapter
       occurredAt: new Date(msg.date * 1000),
       entities: msg.entities as TelegramRawMessage['entities'],
       media,
-      groupedId: msg.groupedId
-        ? (msg.groupedId as bigint | string)
-        : undefined,
+      groupedId: msg.groupedId ? (msg.groupedId as bigint | string) : undefined,
     };
   }
 
@@ -312,21 +316,23 @@ export class TelegramMtprotoListenerAdapter
    */
   private extractAllText(peerId: string, msg: any): string {
     const isCryptoNews = this.isCryptoNewsChannel(peerId);
-    
+
     // DEBUG: Log all text fields for crypto-news messages
     if (isCryptoNews) {
       this.logger.log(
-        `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - Available text fields: ${JSON.stringify({
-          message: msg.message,
-          text: msg.text,
-          mediaCaption: msg.media ? (msg.media as any).caption : null,
-          _text: (msg as any)._text,
-          fwdFrom: msg.fwdFrom ? 'present' : 'absent',
-          fwdFromMessage: msg.fwdFrom ? (msg.fwdFrom as any).message : null,
-        })}`,
+        `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - Available text fields: ${JSON.stringify(
+          {
+            message: msg.message,
+            text: msg.text,
+            mediaCaption: msg.media ? msg.media.caption : null,
+            _text: msg._text,
+            fwdFrom: msg.fwdFrom ? 'present' : 'absent',
+            fwdFromMessage: msg.fwdFrom ? msg.fwdFrom.message : null,
+          },
+        )}`,
       );
     }
-    
+
     // Priority order: message field, text property, media caption, forwarded message
     if (msg.message && msg.message.trim()) {
       const extracted = msg.message;
@@ -335,9 +341,10 @@ export class TelegramMtprotoListenerAdapter
           `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - Extracted from msg.message: "${extracted}" (length: ${extracted.length})`,
         );
       }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return extracted;
     }
-    
+
     if (msg.text && typeof msg.text === 'string' && msg.text.trim()) {
       const extracted = msg.text;
       if (isCryptoNews) {
@@ -345,12 +352,13 @@ export class TelegramMtprotoListenerAdapter
           `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - Extracted from msg.text: "${extracted}" (length: ${extracted.length})`,
         );
       }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return extracted;
     }
-    
+
     // Check media caption
     if (msg.media) {
-      const caption = (msg.media as any).caption;
+      const caption = msg.media.caption;
       if (caption && typeof caption === 'string' && caption.trim()) {
         if (isCryptoNews) {
           this.logger.log(
@@ -360,10 +368,10 @@ export class TelegramMtprotoListenerAdapter
         return caption;
       }
     }
-    
+
     // Check forwarded message
     if (msg.fwdFrom) {
-      const fwdMessage = (msg.fwdFrom as any).message;
+      const fwdMessage = msg.fwdFrom.message;
       if (fwdMessage && typeof fwdMessage === 'string' && fwdMessage.trim()) {
         if (isCryptoNews) {
           this.logger.log(
@@ -373,13 +381,13 @@ export class TelegramMtprotoListenerAdapter
         return fwdMessage;
       }
     }
-    
+
     if (isCryptoNews) {
       this.logger.log(
         `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - No text found, returning empty string`,
       );
     }
-    
+
     return '';
   }
 
@@ -390,7 +398,7 @@ export class TelegramMtprotoListenerAdapter
   private isCryptoNewsChannel(peerId: string): boolean {
     const cfg = this.config.get('app');
     const cryptoNewsChannels = cfg?.seedNews || [];
-    
+
     // DEBUG: Log config once per service instance
     if (!this.loggedCryptoNewsChannels) {
       this.logger.log(
@@ -398,17 +406,19 @@ export class TelegramMtprotoListenerAdapter
       );
       this.loggedCryptoNewsChannels = true;
     }
-    
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     const isMatch = cryptoNewsChannels.some(
       (ch: { channelId: string }) => ch.channelId === peerId,
     );
-    
+
     if (!isMatch && peerId.startsWith('-100')) {
       this.logger.warn(
         `[CRYPTO-NEWS-DEBUG] Channel ${peerId} not found in cryptoNewsChannels config`,
       );
     }
-    
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return isMatch;
   }
 

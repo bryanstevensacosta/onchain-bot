@@ -49,7 +49,7 @@ export interface MessagePayload {
   /** ISO 8601 timestamp of message creation */
   occurredAt: string;
 
-  /** 
+  /**
    * Raw message text content (ONLY for crypto-news, undefined for KOL)
    * - KOL: omitted (extraction pipeline fetches from Telegram)
    * - Crypto-news: included (content stored as-is, no extraction)

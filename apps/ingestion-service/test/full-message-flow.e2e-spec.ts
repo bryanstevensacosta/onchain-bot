@@ -141,7 +141,7 @@ describe('Full Message Flow (e2e)', () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
-    
+
     // Apply same configuration as production
     app.useGlobalPipes(
       new ValidationPipe({
@@ -154,7 +154,7 @@ describe('Full Message Flow (e2e)', () => {
     await app.init();
 
     streamService = app.get<StreamService>(StreamService);
-    
+
     // Get the server URL
     const server = app.getHttpServer();
     const address = server.address();
@@ -298,7 +298,7 @@ describe('Full Message Flow (e2e)', () => {
         clients.forEach((client, index) => {
           client.addEventListener('message:telegram', () => {
             receivedByClients[index] = true;
-            
+
             // Check if all clients received
             if (receivedByClients.every((r) => r === true)) {
               clearTimeout(timeout);
@@ -369,7 +369,7 @@ describe('Full Message Flow (e2e)', () => {
 
       // Broadcast 3 messages in order
       const channelId = '-1001111111111';
-      
+
       streamService.broadcast({
         type: 'message:telegram',
         data: {
@@ -480,12 +480,8 @@ describe('Full Message Flow (e2e)', () => {
 
       // Per Invariant 5: Verify media URL format
       expect(message.media).toHaveLength(2);
-      expect(message.media[0].url).toMatch(
-        /^\/api\/media\/-\d+\/\d+\/\d+$/,
-      );
-      expect(message.media[1].url).toMatch(
-        /^\/api\/media\/-\d+\/\d+\/\d+$/,
-      );
+      expect(message.media[0].url).toMatch(/^\/api\/media\/-\d+\/\d+\/\d+$/);
+      expect(message.media[1].url).toMatch(/^\/api\/media\/-\d+\/\d+\/\d+$/);
 
       // Verify URL components
       expect(message.media[0].url).toContain('-1002222222222');
