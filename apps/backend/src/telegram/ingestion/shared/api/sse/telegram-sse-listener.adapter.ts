@@ -16,13 +16,14 @@ import {
 /**
  * MessagePayload from Ingestion Service SSE stream
  *
- * Per Invariant 1: text field is EXCLUDED (ToS compliance)
- * Backend must fetch full text via backfill if needed
+ * Per Invariant 1 (modified): text excluded for KOL (extraction handles it), included for crypto-news (opaque content)
+ * Backend must fetch full text via backfill for KOL messages; crypto-news includes text directly
  */
 interface MessagePayload {
   peerId: string;
   messageId: number;
   occurredAt: string;
+  text?: string; // Present for crypto-news, omitted for KOL
   media: Array<{
     type: 'photo' | 'video';
     index: number;
@@ -80,7 +81,13 @@ export class TelegramSseListenerAdapter
   }
 
   async onModuleInit(): Promise<void> {
+    console.log(
+      '[LIFECYCLE-DEBUG] TelegramSseListenerAdapter.onModuleInit() START',
+    );
     this.logger.log('TelegramSseListenerAdapter module initialized');
+    console.log(
+      '[LIFECYCLE-DEBUG] TelegramSseListenerAdapter.onModuleInit() END',
+    );
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -102,6 +109,7 @@ export class TelegramSseListenerAdapter
     this.logger.log(
       `Subscribing to SSE stream for ${channelIds.length} channels: ${streamUrl}`,
     );
+    this.logger.log(`[SSE-DEBUG] ChannelIds: ${channelIds.join(', ')}`);
 
     while (true) {
       try {
@@ -178,9 +186,27 @@ export class TelegramSseListenerAdapter
           if (message?.event === 'message:telegram') {
             const payload = message.data as MessagePayload;
 
+            this.logger.debug(
+              `[SSE-DEBUG] Received message from ${payload.peerId}:${payload.messageId}`,
+            );
+
             // Filter by subscribed channels
             if (channelIds.includes(payload.peerId)) {
-              yield this.payloadToRawMessage(payload);
+              this.logger.log(
+                `[SSE-DEBUG] Message ${payload.peerId}:${payload.messageId} passed filter, about to yield...`,
+              );
+              const rawMessage = this.payloadToRawMessage(payload);
+              this.logger.log(
+                `[SSE-DEBUG] Message ${payload.peerId}:${payload.messageId} transformed to RawMessage, yielding now...`,
+              );
+              yield rawMessage;
+              this.logger.log(
+                `[SSE-DEBUG] Message ${payload.peerId}:${payload.messageId} yielded successfully`,
+              );
+            } else {
+              this.logger.debug(
+                `[SSE-DEBUG] Message ${payload.peerId}:${payload.messageId} NOT in subscribed channels, skipping`,
+              );
             }
           } else if (message?.event === 'health:ping') {
             // Heartbeat received - connection is alive
@@ -240,10 +266,10 @@ export class TelegramSseListenerAdapter
    * @returns TelegramRawMessage compatible with backend use cases
    */
   private payloadToRawMessage(payload: MessagePayload): TelegramRawMessage {
-    return {
+    const rawMessage = {
       peerId: payload.peerId,
       messageId: payload.messageId,
-      text: '', // Per Invariant 1: text not in SSE payload
+      text: payload.text ?? '', // Use text from payload if present (crypto-news), empty for KOL (extraction handles it)
       occurredAt: new Date(payload.occurredAt),
       media: payload.media.map((m) => ({
         type: m.type,
@@ -258,6 +284,13 @@ export class TelegramSseListenerAdapter
       entities: payload.entities,
       groupedId: payload.groupedId ? BigInt(payload.groupedId) : undefined,
     };
+
+    // DEBUG: Log text transformation
+    this.logger.log(
+      `[PAYLOAD-TRANSFORM-DEBUG] ${payload.peerId}:${payload.messageId} - payload.text: "${payload.text}" (type: ${typeof payload.text}, length: ${payload.text?.length ?? 0}) → rawMessage.text: "${rawMessage.text}" (length: ${rawMessage.text.length})`,
+    );
+
+    return rawMessage;
   }
 
   /**

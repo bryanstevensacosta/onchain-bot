@@ -24,6 +24,33 @@ const sleep = (ms: number): Promise<void> =>
 
 const DEFAULT_CONNECT_TIMEOUT_MS = 20_000;
 
+/**
+ * @deprecated This service is deprecated and will be removed in a future version.
+ *
+ * **Reason for deprecation:**
+ * MTProto session management has been centralized into the ingestion service to prevent
+ * AUTH_KEY_DUPLICATED errors and eliminate resource duplication. Running multiple MTProto
+ * clients across different backend environments violates Telegram's single-session constraint
+ * for non-media data centers.
+ *
+ * **Migration path:**
+ * - **New location:** `apps/ingestion-service/src/telegram/shared/infrastructure/services/telegram-client-manager.service.ts`
+ * - **Backend replacement:** Backends no longer manage MTProto clients directly. The centralized
+ *   ingestion service manages the single MTProto session and distributes messages via SSE.
+ * - **Configuration:** When `INGESTION_MODE=remote`, this service should not be instantiated.
+ *   The `SseIngestionClientAdapter` does not require MTProto client management.
+ *
+ * **What moved to ingestion service:**
+ * - MTProto session initialization and lifecycle management
+ * - Connection retry logic with exponential backoff
+ * - Authorization state tracking
+ * - Client connection health checks
+ *
+ * **Specification:** See `.kiro/specs/centralized-ingestion-service/design.md` section 2.1.1
+ * for MTProto layer architecture in the centralized service.
+ *
+ * @see {@link apps/ingestion-service} Centralized ingestion service with MTProto management
+ */
 @Injectable()
 export class TelegramClientManager {
   private client: TelegramClient | null = null;

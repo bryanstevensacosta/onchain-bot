@@ -1,6 +1,34 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { RedisService } from 'shared/common/cache/redis.service';
 
+/**
+ * @deprecated This service is deprecated and will be removed in a future version.
+ *
+ * **Reason for deprecation:**
+ * Message cursor tracking (last-seen message IDs) has been centralized into the ingestion
+ * service to ensure consistent deduplication across all backend environments. With distributed
+ * MTProto clients, each environment maintained separate cursors, potentially causing duplicate
+ * processing or message loss during restarts.
+ *
+ * **Migration path:**
+ * - **New location:** `apps/ingestion-service/src/telegram/shared/infrastructure/services/last-seen-manager.service.ts`
+ * - **Backend impact:** Backend clients consuming SSE streams no longer need cursor management.
+ *   The ingestion service handles deduplication at source, ensuring each message is broadcast
+ *   exactly once to all connected clients.
+ * - **Redis keys:** The centralized service continues using the same Redis key format
+ *   `ingestion:lastSeen:{channelId}` for state persistence across restarts.
+ *
+ * **What moved to ingestion service:**
+ * - Per-channel message ID cursor tracking
+ * - Redis-backed persistence to survive service restarts (Architectural Invariant 6)
+ * - Deduplication logic (same channelId + messageId filtering per Architectural Invariant 3)
+ *
+ * **Specification:** See `.kiro/specs/centralized-ingestion-service/requirements.md`
+ * Architectural Invariant 6 for state persistence requirements and section 3.4 for
+ * deduplication flow design.
+ *
+ * @see {@link apps/ingestion-service} Centralized cursor management eliminates duplicate processing
+ */
 @Injectable()
 export class LastSeenManager {
   private lastSeenMessageId = new Map<string, number>();

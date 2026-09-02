@@ -101,15 +101,73 @@ export class TelegramMtprotoListenerAdapter
   }
 
   async onModuleInit(): Promise<void> {
+    console.log(
+      '[LIFECYCLE-DEBUG] TelegramMtprotoListenerAdapter.onModuleInit() START',
+    );
+    this.logger.log(
+      '🔄 [TelegramMtprotoListenerAdapter] Starting onModuleInit...',
+    );
+
+    // Skip initialization when mock or SSE ingestion is enabled
+    if (process.env.USE_MOCK_INGESTION === 'true') {
+      this.logger.log(
+        'Skipping MTProto client initialization (mock ingestion enabled)',
+      );
+      console.log(
+        '[LIFECYCLE-DEBUG] TelegramMtprotoListenerAdapter.onModuleInit() END (mock skip)',
+      );
+      return;
+    }
+
+    if (process.env.USE_SSE_INGESTION === 'true') {
+      this.logger.log(
+        'Skipping MTProto client initialization (SSE ingestion enabled)',
+      );
+      console.log(
+        '[LIFECYCLE-DEBUG] TelegramMtprotoListenerAdapter.onModuleInit() END (SSE skip)',
+      );
+      return;
+    }
+
     // Skip MTProto initialization in staging to avoid connection hangs
     if (process.env.NODE_ENV === 'staging') {
       this.logger.log('Skipping MTProto client initialization in staging');
+      this.logger.log(
+        '✅ [TelegramMtprotoListenerAdapter] onModuleInit completed (staging skip)',
+      );
+      console.log(
+        '[LIFECYCLE-DEBUG] TelegramMtprotoListenerAdapter.onModuleInit() END (staging skip)',
+      );
       return;
     }
 
     const cfg = this.config.get<AppConfig>('app');
-    if (!cfg?.telegram?.mtprotoApiId || !cfg?.telegram?.mtprotoApiHash) return;
+    if (!cfg?.telegram?.mtprotoApiId || !cfg?.telegram?.mtprotoApiHash) {
+      this.logger.log(
+        '✅ [TelegramMtprotoListenerAdapter] onModuleInit completed (no config)',
+      );
+      console.log(
+        '[LIFECYCLE-DEBUG] TelegramMtprotoListenerAdapter.onModuleInit() END (no config)',
+      );
+      return;
+    }
+
+    console.log(
+      '[LIFECYCLE-DEBUG] ABOUT TO CALL clientManager.markAuthorizedIfTrue()',
+    );
+    this.logger.log(
+      '[TelegramMtprotoListenerAdapter] Calling clientManager.markAuthorizedIfTrue()...',
+    );
     await this.clientManager.markAuthorizedIfTrue();
+    console.log(
+      '[LIFECYCLE-DEBUG] clientManager.markAuthorizedIfTrue() RETURNED',
+    );
+    this.logger.log(
+      '✅ [TelegramMtprotoListenerAdapter] onModuleInit completed',
+    );
+    console.log(
+      '[LIFECYCLE-DEBUG] TelegramMtprotoListenerAdapter.onModuleInit() END',
+    );
   }
 
   async onModuleDestroy(): Promise<void> {

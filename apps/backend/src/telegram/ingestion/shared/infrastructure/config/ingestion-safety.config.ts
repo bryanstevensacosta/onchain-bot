@@ -28,6 +28,40 @@ function loadConfigFromFile(): IngestionConfigJson | null {
   }
 }
 
+/**
+ * @deprecated This configuration class is deprecated and will be removed in a future version.
+ *
+ * **Reason for deprecation:**
+ * All anti-ban and safety configuration has been centralized into the ingestion service.
+ * With distributed MTProto clients, each environment loading separate configs provides no
+ * coordinated protection and creates confusion about which settings are actually active.
+ *
+ * **Migration path:**
+ * - **New location:** `apps/ingestion-service/src/telegram/shared/infrastructure/config/ingestion-safety.config.ts`
+ * - **Configuration file:** The centralized service loads settings from
+ *   `apps/ingestion-service/config/ingestion.config.json`
+ * - **Backend impact:** Backend clients do not need safety configuration when consuming via SSE.
+ *   All anti-ban settings (polling intervals, jitter, sleep windows, FLOOD_WAIT protection)
+ *   are managed centrally by the ingestion service.
+ *
+ * **What moved to ingestion service:**
+ * - `maxChannels`: Maximum monitored channels (default 50) - Requirement 11.1
+ * - `pollIntervalBaseMs`: Base polling interval per channel (default 90s) - Requirement 11.1
+ * - `jitterPercent`: Random jitter percentage for staggered polling (default 30%) - Requirement 11.1
+ * - `sleepWindow.{startUtc,endUtc}`: Sleep hours in UTC (default 04:00-08:00) - Requirement 11.3
+ * - `floodProtection.*`: FLOOD_WAIT retry settings (initial delay, multiplier, max delay, max attempts) - Requirement 11.2
+ *
+ * **Configuration centralization benefits:**
+ * - Single source of truth for all anti-ban settings across environments
+ * - Consistent behavior prevents conflicting strategies that increase ban risk
+ * - Easier tuning and monitoring of safety parameters
+ * - Health endpoint exposes active configuration for transparency
+ *
+ * **Specification:** See `.kiro/specs/centralized-ingestion-service/requirements.md`
+ * Requirement 11.6 for configuration file format and section 6.1 for environment variables.
+ *
+ * @see {@link apps/ingestion-service} Centralized safety configuration
+ */
 @Injectable()
 export class IngestionSafetyConfig {
   public readonly maxChannels: number;
