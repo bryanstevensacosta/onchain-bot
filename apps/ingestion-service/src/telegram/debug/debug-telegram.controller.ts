@@ -11,11 +11,11 @@ export class DebugTelegramController {
     @Param('messageId') messageId: string,
   ) {
     const client = await this.clientManager.getClient();
-    
+
     if (!client) {
       return { error: 'Telegram client not available' };
     }
-    
+
     const entity = await client.getEntity(channelId);
     const messages = await client.getMessages(entity, {
       ids: [parseInt(messageId, 10)],
@@ -29,7 +29,7 @@ export class DebugTelegramController {
 
     // Try to extract text using different methods
     let extractedText = message.message;
-    
+
     // Try getText() method if available
     if (typeof (message as any).getText === 'function') {
       extractedText = await (message as any).getText();
