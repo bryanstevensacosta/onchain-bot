@@ -73,7 +73,13 @@ export class KolIngestionOrchestratorUseCase {
     readonly text: string;
     readonly occurredAt: Date;
   }): Promise<void> {
+    this.logger.log(
+      `[KOL-ORCH-DEBUG] onMessageReceived called for ${raw.peerId}:${raw.messageId}`,
+    );
     await this.processMessage(raw);
+    this.logger.log(
+      `[KOL-ORCH-DEBUG] processMessage completed for ${raw.peerId}:${raw.messageId}`,
+    );
   }
 
   /**

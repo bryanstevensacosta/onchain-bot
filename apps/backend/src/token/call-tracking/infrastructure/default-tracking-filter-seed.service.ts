@@ -13,12 +13,22 @@ export class DefaultTrackingFilterSeedService implements OnModuleInit {
   constructor(private readonly settings: SettingsService) {}
 
   async onModuleInit(): Promise<void> {
+    this.logger.log(
+      '🔄 [DefaultTrackingFilterSeedService] Starting onModuleInit...',
+    );
+
     // Skip seeding in staging to avoid database access during bootstrap
     if (process.env.NODE_ENV === 'staging') {
       this.logger.log('Skipping default tracking filter seed in staging');
+      this.logger.log(
+        '✅ [DefaultTrackingFilterSeedService] onModuleInit completed (staging skip)',
+      );
       return;
     }
 
+    this.logger.log(
+      '[DefaultTrackingFilterSeedService] Calling settings.seedDefaultsIfEmpty...',
+    );
     const seeded = await this.settings.seedDefaultsIfEmpty(
       PUBLISHED_CALL_TRACKING_FILTER_TYPE,
       [
@@ -46,10 +56,16 @@ export class DefaultTrackingFilterSeedService implements OnModuleInit {
         },
       ],
     );
+    this.logger.log(
+      `[DefaultTrackingFilterSeedService] seedDefaultsIfEmpty completed with ${seeded} results`,
+    );
     if (seeded > 0) {
       this.logger.log(
         `Seeded ${seeded} default ${PUBLISHED_CALL_TRACKING_FILTER_TYPE} filters`,
       );
     }
+    this.logger.log(
+      '✅ [DefaultTrackingFilterSeedService] onModuleInit completed',
+    );
   }
 }

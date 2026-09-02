@@ -46,6 +46,10 @@ export class BackgroundEvaluationScheduler
   ) {}
 
   public onModuleInit(): void {
+    this.logger.log(
+      '🔄 [BackgroundEvaluationScheduler] Starting onModuleInit...',
+    );
+
     const cfg = this.configService.get<AnalyticsConfig>('app')?.analytics;
     const enabled = cfg?.schedulerEnabled ?? true;
     const cronExpr = cfg?.schedulerCron ?? '*/5 * * * *';
@@ -55,9 +59,13 @@ export class BackgroundEvaluationScheduler
       this.logger.log(
         'Scheduler disabled via ANALYTICS_SCHEDULER_ENABLED=false',
       );
+      this.logger.log(
+        '✅ [BackgroundEvaluationScheduler] onModuleInit completed (disabled)',
+      );
       return;
     }
 
+    this.logger.log('[BackgroundEvaluationScheduler] Creating CronJob...');
     const job = new CronJob(cronExpr, () => {
       this.tick().catch((err) => {
         this.logger.error(
@@ -67,11 +75,15 @@ export class BackgroundEvaluationScheduler
       });
     });
 
+    this.logger.log('[BackgroundEvaluationScheduler] Registering CronJob...');
     this.schedulerRegistry.addCronJob(this.jobName, job);
     job.start();
 
     this.logger.log(
       `Background evaluation scheduler started (cron="${cronExpr}", batchSize=${this.batchSize})`,
+    );
+    this.logger.log(
+      '✅ [BackgroundEvaluationScheduler] onModuleInit completed',
     );
   }
 

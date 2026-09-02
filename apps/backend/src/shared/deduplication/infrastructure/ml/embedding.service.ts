@@ -13,6 +13,7 @@ export class EmbeddingService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     // Load model with timeout to prevent indefinite hangs
+    this.logger.log('🔄 [EmbeddingService] Starting onModuleInit...');
     this.logger.log('Loading embedding model during module initialization...');
 
     try {
@@ -27,10 +28,14 @@ export class EmbeddingService implements OnModuleInit {
         ),
       ]);
       this.logger.log('✓ Embedding model loaded successfully');
+      this.logger.log('✅ [EmbeddingService] onModuleInit completed');
     } catch (error) {
       this.logger.warn(
         `Embedding model failed to load: ${error instanceof Error ? error.message : String(error)}. ` +
           'Semantic deduplication will be skipped gracefully.',
+      );
+      this.logger.log(
+        '⚠️ [EmbeddingService] onModuleInit completed with error (graceful fallback)',
       );
       this.loadError =
         error instanceof Error ? error : new Error(String(error));
