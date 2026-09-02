@@ -125,7 +125,7 @@ describe('AddCryptoNewsSourceModal', () => {
 
   it('submits the trimmed channelId via mutateAsync and closes on success', async () => {
     const mutateAsync = vi.fn().mockResolvedValue({
-      channelId: '1234567890',
+      channelId: '-1001234567890',
       handle: 'WatcherGuru',
       title: 'WatcherGuru',
       isActive: true,
@@ -138,11 +138,11 @@ describe('AddCryptoNewsSourceModal', () => {
       <AddCryptoNewsSourceModal isOpen={true} onClose={onClose} />,
     );
     fireEvent.change(screen.getByLabelText('Telegram Channel ID'), {
-      target: { value: '  1234567890  ' },
+      target: { value: '  -1001234567890  ' },
     });
     fireEvent.click(screen.getByRole('button', { name: /add source/i }));
     await waitFor(() => {
-      expect(mutateAsync).toHaveBeenCalledWith({ channelId: '1234567890' });
+      expect(mutateAsync).toHaveBeenCalledWith({ channelId: '-1001234567890' });
     });
     await waitFor(() => {
       expect(onClose).toHaveBeenCalled();
@@ -165,7 +165,7 @@ describe('AddCryptoNewsSourceModal', () => {
       <AddCryptoNewsSourceModal isOpen={true} onClose={onClose} />,
     );
     fireEvent.change(screen.getByLabelText('Telegram Channel ID'), {
-      target: { value: '1234567890' },
+      target: { value: '-1001234567890' },
     });
     fireEvent.click(screen.getByRole('button', { name: /add source/i }));
     await waitFor(() => {
@@ -201,8 +201,8 @@ describe('AddCryptoNewsSourceModal', () => {
     const input = screen.getByLabelText(
       'Telegram Channel ID',
     ) as HTMLInputElement;
-    fireEvent.change(input, { target: { value: '1234567890' } });
-    expect(input.value).toBe('1234567890');
+    fireEvent.change(input, { target: { value: '-1001234567890' } });
+    expect(input.value).toBe('-1001234567890');
     fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
     expect(input.value).toBe('');
   });
