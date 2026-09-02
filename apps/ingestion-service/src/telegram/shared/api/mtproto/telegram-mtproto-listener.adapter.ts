@@ -166,10 +166,24 @@ export class TelegramMtprotoListenerAdapter
 
   /**
    * Polling loop for catching up on missed messages
+   * Only polls channels — user/bot messages are received via real-time events only
    */
   private async startPollingLoop(): Promise<void> {
     const peers = [...this.subscribedChannelIds];
     if (peers.length === 0) return;
+
+    // Filter out users/bots — only poll channels
+    const channelPeers = this.filterChannels(peers);
+    if (channelPeers.length === 0) {
+      this.logger.log(
+        'No channels to poll (all peers are users/bots — real-time events only)',
+      );
+      return;
+    }
+
+    this.logger.log(
+      `Starting polling loop for ${channelPeers.length}/${peers.length} channel(s) (${peers.length - channelPeers.length} user/bot peer(s) will use real-time events only)`,
+    );
 
     // Simple polling every 30 seconds
     while (this.running) {
@@ -177,7 +191,7 @@ export class TelegramMtprotoListenerAdapter
 
       if (!this.running) break;
 
-      for (const peerId of peers) {
+      for (const peerId of channelPeers) {
         if (!this.running) break;
 
         try {
@@ -223,6 +237,33 @@ export class TelegramMtprotoListenerAdapter
         }
       }
     }
+  }
+
+  /**
+   * Filter peer IDs to only include channels (exclude users/bots)
+   * Users/bots will receive messages via real-time events only
+   * 
+   * Channels in Telegram always have IDs prefixed with -100
+   * User/bot IDs are positive integers without prefix
+   */
+  private filterChannels(peerIds: string[]): string[] {
+    const channels: string[] = [];
+
+    for (const peerId of peerIds) {
+      // Channels always start with -100 (supergroup/channel format)
+      // Users/bots are plain positive integers or negative but NOT -100 prefix
+      const isChannel = peerId.startsWith('-100');
+
+      if (isChannel) {
+        channels.push(peerId);
+      } else {
+        this.logger.log(
+          `Skipping polling for ${peerId} (detected as user/bot by ID format) — will use real-time events only`,
+        );
+      }
+    }
+
+    return channels;
   }
 
   /**

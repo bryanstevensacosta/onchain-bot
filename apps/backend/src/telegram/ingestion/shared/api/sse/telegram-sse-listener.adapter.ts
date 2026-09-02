@@ -307,6 +307,15 @@ export class TelegramSseListenerAdapter
     channelId: string,
     limit: number,
   ): Promise<TelegramRawMessage[]> {
+    // Skip backfill for users/bots — only channels support backfill
+    // Channels always start with -100 prefix
+    if (!channelId.startsWith('-100')) {
+      this.logger.log(
+        `Skipping backfill for ${channelId} (user/bot detected by ID format) — backfill only works for channels`,
+      );
+      return [];
+    }
+
     const backfillUrl = `${this.ingestionServiceUrl}/api/ingestion/backfill/${channelId}?limit=${Math.min(limit, 100)}`;
 
     this.logger.log(`Backfilling ${limit} messages from ${channelId}`);

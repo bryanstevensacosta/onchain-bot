@@ -67,3 +67,4 @@ infra/terraform/.terraform/
 
 # Agent workspace state (auto-generated)
 .omo/boulder.json
+apps/ingestion-service/.env.backup-before-regen
