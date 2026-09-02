@@ -112,6 +112,10 @@ class ApiConfig {
 }
 
 class RedisConfig {
+  @IsBoolean()
+  @IsOptional()
+  enabled?: boolean;
+
   @IsString()
   @IsNotEmpty({ message: 'REDIS_HOST is required' })
   host!: string;
@@ -400,7 +404,14 @@ function parseSeedKols(): SeedKolEntry[] {
 
 function parseSeedNews(): SeedNewsChannelEntry[] {
   const raw = process.env.INGESTION_TELEGRAM_SEED_NEWS;
-  if (!raw) return [];
+  
+  // If env var is not set or empty, use hardcoded seed file
+  if (!raw || raw.trim() === '') {
+    // Import from seed file
+    // NOTE: Requires the seed file to be in the dist/ folder after build
+    const { CRYPTO_NEWS_SEED } = require('../../../telegram/crypto-news/seeds/crypto-news.seed');
+    return CRYPTO_NEWS_SEED as SeedNewsChannelEntry[];
+  }
 
   try {
     const parsed = JSON.parse(raw);
@@ -449,10 +460,11 @@ export const appConfig = registerAs('app', () => {
 
   // Redis configuration (Requirement 6.2)
   const redis = {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379', 10),
-    password: process.env.REDIS_PASSWORD || undefined,
-    db: parseInt(process.env.REDIS_DB || '0', 10),
+    enabled: process.env.INGESTION_REDIS_ENABLED !== 'false', // enabled by default unless explicitly set to 'false'
+    host: process.env.INGESTION_REDIS_HOST || 'localhost',
+    port: parseInt(process.env.INGESTION_REDIS_PORT || '6379', 10),
+    password: process.env.INGESTION_REDIS_PASSWORD || undefined,
+    db: parseInt(process.env.INGESTION_REDIS_DB || '0', 10),
   };
 
   // Storage configuration (Requirement 6.2)

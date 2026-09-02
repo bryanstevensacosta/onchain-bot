@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { NewMessage } from 'telegram/events';
 import type {
   TelegramRawMessage,
+  TelegramMediaAttachment,
   ResolvedChannelMetadata,
   TelegramListenerPort,
   JoinChannelResult,
@@ -17,6 +18,8 @@ import { LastSeenManager } from '../../infrastructure/services/last-seen-manager
 import { MessageQueue } from '../../infrastructure/services/message-queue';
 import { TelegramPeerResolver } from '../../infrastructure/services/telegram-peer-resolver';
 import { FloodWaitHandlerService } from '../../infrastructure/services/flood-wait-handler.service';
+import { MediaDownloaderService } from 'media/application/services/media-downloader.service';
+import { Api } from 'telegram';
 
 /**
  * TelegramMtprotoListenerAdapter - MTProto adapter for ingestion-service
@@ -42,12 +45,14 @@ export class TelegramMtprotoListenerAdapter
   private readonly messageQueue = new MessageQueue<TelegramRawMessage>();
   private readonly peerResolver = new TelegramPeerResolver();
   private running = false;
+  private loggedCryptoNewsChannels = false;
 
   constructor(
     private readonly config: ConfigService,
     private readonly clientManager: TelegramClientManager,
     private readonly lastSeenManager: LastSeenManager,
     private readonly floodWaitHandler: FloodWaitHandlerService,
+    private readonly mediaDownloader: MediaDownloaderService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -68,10 +73,17 @@ export class TelegramMtprotoListenerAdapter
     const client = this.clientManager.ensureClient();
     let authorized = false;
 
+    this.logger.log('Checking MTProto authorization...');
+    
     try {
+      await client.connect();
       authorized = await client.isUserAuthorized();
-    } catch {
-      /* not connected yet */
+      this.logger.log(`MTProto authorization check: ${authorized}`);
+    } catch (err) {
+      this.logger.error(
+        `MTProto connection/auth check failed: ${(err as Error).message}`,
+        (err as Error).stack,
+      );
     }
 
     if (!authorized) {
@@ -140,8 +152,8 @@ export class TelegramMtprotoListenerAdapter
       // Update last seen
       this.lastSeenManager.set(channelId, msg.id);
 
-      // Transform and enqueue message
-      const transformed = this.transformMessage(channelId, msg);
+      // Transform and enqueue message (now async for media download)
+      const transformed = await this.transformMessage(channelId, msg);
       this.messageQueue.push(transformed);
 
       this.logger.debug(
@@ -194,7 +206,7 @@ export class TelegramMtprotoListenerAdapter
               if (rawMsg.id <= lastSeen) continue;
 
               this.lastSeenManager.set(peerId, rawMsg.id);
-              const transformed = this.transformMessage(peerId, rawMsg);
+              const transformed = await this.transformMessage(peerId, rawMsg);
               this.messageQueue.push(transformed);
             }
 
@@ -215,8 +227,9 @@ export class TelegramMtprotoListenerAdapter
 
   /**
    * Transform raw Telegram message to TelegramRawMessage format
+   * Downloads media only for crypto-news channels
    */
-  private transformMessage(
+  private async transformMessage(
     peerId: string,
     msg: {
       id: number;
@@ -226,18 +239,242 @@ export class TelegramMtprotoListenerAdapter
       entities?: unknown[];
       groupedId?: unknown;
     },
-  ): TelegramRawMessage {
+  ): Promise<TelegramRawMessage> {
+    // DEBUG: Log raw message properties
+    this.logger.log(
+      `[MSG-TRANSFORM-DEBUG] ${peerId}:${msg.id} - message field: "${msg.message}" (type: ${typeof msg.message}, length: ${msg.message?.length ?? 0})`,
+    );
+    
+    // DETAILED DEBUG for message 167
+    if (msg.id === 167) {
+      this.logger.log(
+        `[MSG-167-FULL-DEBUG] Full message object: ${JSON.stringify({
+          id: msg.id,
+          message: msg.message,
+          text: (msg as any).text,
+          date: msg.date,
+          media: msg.media ? { className: (msg.media as any).className } : null,
+          entities: msg.entities,
+          groupedId: msg.groupedId,
+        }, null, 2)}`,
+      );
+    }
+
+    let media: TelegramRawMessage['media'] = undefined;
+
+    // Download media only for crypto-news channels (not KOL)
+    if (msg.media && this.isCryptoNewsChannel(peerId)) {
+      this.logger.log(
+        `[MEDIA-DEBUG] ${peerId}:${msg.id} - Attempting to download media...`,
+      );
+      try {
+        media = await this.extractAndDownloadMedia(peerId, msg.id, msg.media);
+        this.logger.log(
+          `[MEDIA-DEBUG] ${peerId}:${msg.id} - Media downloaded successfully: ${JSON.stringify(media)}`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `[MEDIA-DEBUG] Failed to download media for ${peerId}:${msg.id}: ${(error as Error).message}`,
+        );
+        // Continue without media rather than failing the whole message
+      }
+    } else {
+      this.logger.log(
+        `[MEDIA-DEBUG] ${peerId}:${msg.id} - Skipping media download (hasMedia: ${!!msg.media}, isCryptoNews: ${this.isCryptoNewsChannel(peerId)})`,
+      );
+    }
+
+    const extractedText = this.extractAllText(peerId, msg);
+    
+    // DEBUG: Log final text assignment
+    if (this.isCryptoNewsChannel(peerId)) {
+      this.logger.log(
+        `[RAW-MESSAGE-DEBUG] ${peerId}:${msg.id} - Assigning text to RawMessage: "${extractedText}" (length: ${extractedText.length})`,
+      );
+    }
+    
     return {
       peerId,
       messageId: msg.id,
-      text: msg.message || '',
+      text: extractedText,
       occurredAt: new Date(msg.date * 1000),
       entities: msg.entities as TelegramRawMessage['entities'],
-      media: undefined, // Ingestion service doesn't handle media
+      media,
       groupedId: msg.groupedId
         ? (msg.groupedId as bigint | string)
         : undefined,
     };
+  }
+
+  /**
+   * Extract all possible text from a message
+   * Checks: message, text property, media caption, forwarded message
+   */
+  private extractAllText(peerId: string, msg: any): string {
+    const isCryptoNews = this.isCryptoNewsChannel(peerId);
+    
+    // DEBUG: Log all text fields for crypto-news messages
+    if (isCryptoNews) {
+      this.logger.log(
+        `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - Available text fields: ${JSON.stringify({
+          message: msg.message,
+          text: msg.text,
+          mediaCaption: msg.media ? (msg.media as any).caption : null,
+          _text: (msg as any)._text,
+          fwdFrom: msg.fwdFrom ? 'present' : 'absent',
+          fwdFromMessage: msg.fwdFrom ? (msg.fwdFrom as any).message : null,
+        })}`,
+      );
+    }
+    
+    // Priority order: message field, text property, media caption, forwarded message
+    if (msg.message && msg.message.trim()) {
+      const extracted = msg.message;
+      if (isCryptoNews) {
+        this.logger.log(
+          `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - Extracted from msg.message: "${extracted}" (length: ${extracted.length})`,
+        );
+      }
+      return extracted;
+    }
+    
+    if (msg.text && typeof msg.text === 'string' && msg.text.trim()) {
+      const extracted = msg.text;
+      if (isCryptoNews) {
+        this.logger.log(
+          `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - Extracted from msg.text: "${extracted}" (length: ${extracted.length})`,
+        );
+      }
+      return extracted;
+    }
+    
+    // Check media caption
+    if (msg.media) {
+      const caption = (msg.media as any).caption;
+      if (caption && typeof caption === 'string' && caption.trim()) {
+        if (isCryptoNews) {
+          this.logger.log(
+            `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - Extracted from media.caption: "${caption}" (length: ${caption.length})`,
+          );
+        }
+        return caption;
+      }
+    }
+    
+    // Check forwarded message
+    if (msg.fwdFrom) {
+      const fwdMessage = (msg.fwdFrom as any).message;
+      if (fwdMessage && typeof fwdMessage === 'string' && fwdMessage.trim()) {
+        if (isCryptoNews) {
+          this.logger.log(
+            `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - Extracted from fwdFrom.message: "${fwdMessage}" (length: ${fwdMessage.length})`,
+          );
+        }
+        return fwdMessage;
+      }
+    }
+    
+    if (isCryptoNews) {
+      this.logger.log(
+        `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - No text found, returning empty string`,
+      );
+    }
+    
+    return '';
+  }
+
+  /**
+   * Check if a channel is a crypto-news channel
+   * Crypto-news channels are seeded separately from KOL channels
+   */
+  private isCryptoNewsChannel(peerId: string): boolean {
+    const cfg = this.config.get('app');
+    const cryptoNewsChannels = cfg?.seedNews || [];
+    
+    // DEBUG: Log config once per service instance
+    if (!this.loggedCryptoNewsChannels) {
+      this.logger.log(
+        `[CRYPTO-NEWS-DEBUG] cryptoNewsChannels: ${JSON.stringify(cryptoNewsChannels.map((ch: any) => ch.channelId))}`,
+      );
+      this.loggedCryptoNewsChannels = true;
+    }
+    
+    const isMatch = cryptoNewsChannels.some(
+      (ch: { channelId: string }) => ch.channelId === peerId,
+    );
+    
+    if (!isMatch && peerId.startsWith('-100')) {
+      this.logger.warn(
+        `[CRYPTO-NEWS-DEBUG] Channel ${peerId} not found in cryptoNewsChannels config`,
+      );
+    }
+    
+    return isMatch;
+  }
+
+  /**
+   * Extract and download media attachments from Telegram message
+   */
+  private async extractAndDownloadMedia(
+    peerId: string,
+    messageId: number,
+    media: unknown,
+  ): Promise<TelegramRawMessage['media']> {
+    const result: TelegramMediaAttachment[] = [];
+
+    // Handle single photo
+    if (media instanceof Api.MessageMediaPhoto && media.photo) {
+      const photo = media.photo as Api.Photo;
+      const downloaded = await this.mediaDownloader.download(
+        this.clientManager.ensureClient(),
+        peerId,
+        messageId,
+        0,
+        media,
+      );
+      result.push({
+        type: 'photo',
+        index: 0,
+        fileId: photo.id.toString(),
+        accessHash: photo.accessHash.toString(),
+        fileReference: Buffer.from(photo.fileReference).toString('base64'),
+        mimeType: downloaded.mimeType,
+        dcId: photo.dcId,
+        date: photo.date,
+        filePath: downloaded.filePath,
+        fileSize: downloaded.fileSize,
+      });
+    }
+
+    // Handle document (video, file, etc.)
+    if (media instanceof Api.MessageMediaDocument && media.document) {
+      const doc = media.document as Api.Document;
+      const isVideo = doc.mimeType?.startsWith('video/') ?? false;
+
+      if (isVideo) {
+        const downloaded = await this.mediaDownloader.download(
+          this.clientManager.ensureClient(),
+          peerId,
+          messageId,
+          0,
+          media,
+        );
+        result.push({
+          type: 'video',
+          index: 0,
+          fileId: doc.id.toString(),
+          accessHash: doc.accessHash.toString(),
+          fileReference: Buffer.from(doc.fileReference).toString('base64'),
+          mimeType: downloaded.mimeType,
+          dcId: doc.dcId,
+          date: doc.date,
+          filePath: downloaded.filePath,
+          fileSize: downloaded.fileSize,
+        });
+      }
+    }
+
+    return result.length > 0 ? result : undefined;
   }
 
   async backfill(

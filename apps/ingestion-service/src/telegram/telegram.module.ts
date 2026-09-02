@@ -5,6 +5,8 @@ import { CryptoNewsModule } from './crypto-news/crypto-news.module';
 import { KolSeeder } from './kol/seeders/kol.seeder';
 import { CryptoNewsSeeder } from './crypto-news/seeders/crypto-news.seeder';
 import { TelegramListenerPort } from './shared/ports/telegram-listener.port';
+import { IngestionCoordinator } from './shared/application/coordinators/ingestion.coordinator';
+import { DebugTelegramController } from './debug/debug-telegram.controller';
 
 /**
  * TelegramModule - Root Telegram ingestion module
@@ -27,6 +29,7 @@ import { TelegramListenerPort } from './shared/ports/telegram-listener.port';
     KolModule, // KOL seeders
     CryptoNewsModule, // Crypto news seeders
   ],
+  controllers: [DebugTelegramController],
   exports: [SharedModule, KolModule, CryptoNewsModule],
 })
 export class TelegramModule implements OnModuleInit {
@@ -36,6 +39,7 @@ export class TelegramModule implements OnModuleInit {
     private readonly kolSeeder: KolSeeder,
     private readonly cryptoNewsSeeder: CryptoNewsSeeder,
     private readonly listener: TelegramListenerPort,
+    private readonly coordinator: IngestionCoordinator,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -82,20 +86,35 @@ export class TelegramModule implements OnModuleInit {
   }
 
   private async startListening(): Promise<void> {
-    // Get all seeded channel IDs (this would require tracking in seeders)
-    // For now, we'll rely on the listener's internal channel list
-    
-    // The listener will poll all registered channels and yield messages
-    // to the IngestionCoordinator, which broadcasts via StreamService
-    
-    // Note: This is a simplified version. In production, we'd:
-    // 1. Get channel IDs from seeders
-    // 2. Pass them to listener.subscribe(channelIds)
-    // 3. Handle the async generator in a loop
-    
     this.logger.log('🔄 MTProto listener running (background task)');
     
-    // The actual listening happens in TelegramMtprotoListenerAdapter
-    // which is injected into IngestionCoordinator and starts automatically
+    // Get registered channel IDs from both seeders
+    const kolChannels = this.kolSeeder.getRegisteredChannels();
+    const newsChannels = this.cryptoNewsSeeder.getRegisteredChannels();
+    const allChannelIds = [...kolChannels, ...newsChannels];
+    
+    if (allChannelIds.length === 0) {
+      this.logger.warn('No channels to listen to');
+      return;
+    }
+    
+    this.logger.log(`📻 Subscribing to ${allChannelIds.length} channels (${kolChannels.length} KOL, ${newsChannels.length} crypto-news)...`);
+    
+    try {
+      // Subscribe to listener's async generator
+      for await (const message of this.listener.subscribe(allChannelIds)) {
+        // Determine message type based on channel
+        const messageType = newsChannels.includes(message.peerId) ? 'crypto-news' : 'kol';
+        
+        // Route message to SSE broadcast via coordinator
+        await this.coordinator.route(message, messageType);
+      }
+    } catch (error) {
+      this.logger.error(
+        '❌ MTProto listener error:',
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw error;
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, Global } from '@nestjs/common';
 import { TelegramMtprotoListenerAdapter } from './api/mtproto/telegram-mtproto-listener.adapter';
 import { DeduplicationService } from './application/services/deduplication.service';
 import { IngestionCoordinator } from './application/coordinators/ingestion.coordinator';
@@ -11,6 +11,9 @@ import { TelegramPeerResolver } from './infrastructure/services/telegram-peer-re
 import { MessageQueue } from './infrastructure/services/message-queue';
 import { TelegramListenerPort } from './ports/telegram-listener.port';
 import { StreamModule } from 'stream/stream.module';
+import { MediaDownloaderService } from 'media/application/services/media-downloader.service';
+import { RedisService } from 'shared/common/cache/redis.service';
+import { IngestionSafetyConfig } from './infrastructure/config/ingestion-safety.config';
 
 /**
  * SharedModule - Telegram infrastructure shared across KOL and crypto-news ingestion
@@ -23,10 +26,18 @@ import { StreamModule } from 'stream/stream.module';
  * - Flood wait handling
  * - Last seen tracking
  * - Message queue
+ * - Media downloader service
+ *
+ * @Global to avoid circular dependency issues with KolModule and CryptoNewsModule
  */
+@Global()
 @Module({
-  imports: [StreamModule], // For SSE broadcast
+  imports: [StreamModule], // For SSE broadcast only
   providers: [
+    // Config & Infrastructure
+    RedisService,
+    IngestionSafetyConfig,
+
     // MTProto layer
     TelegramClientManager,
     {
@@ -45,8 +56,11 @@ import { StreamModule } from 'stream/stream.module';
     SleepWindowService,
     TelegramPeerResolver,
     MessageQueue,
+    MediaDownloaderService, // Media download service
   ],
   exports: [
+    RedisService,
+    IngestionSafetyConfig,
     TelegramClientManager,
     TelegramListenerPort,
     DeduplicationService,
@@ -57,6 +71,7 @@ import { StreamModule } from 'stream/stream.module';
     SleepWindowService,
     TelegramPeerResolver,
     MessageQueue,
+    MediaDownloaderService, // Export for MediaController
   ],
 })
 export class SharedModule {}

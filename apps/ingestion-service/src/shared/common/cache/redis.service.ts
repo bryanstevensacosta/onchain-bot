@@ -18,15 +18,16 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   constructor(@Inject(ConfigService) private readonly config: ConfigService) {}
 
   onModuleInit(): void {
-    const enabled = this.config.get<boolean>('redis.enabled');
+    const enabled = this.config.get<boolean>('app.redis.enabled');
     if (!enabled) {
+      this.logger.warn('Redis is disabled - skipping connection');
       return;
     }
 
-    const host = this.config.get<string>('redis.host', 'localhost');
-    const port = this.config.get<number>('redis.port', 6379);
-    const password = this.config.get<string>('redis.password');
-    const db = this.config.get<number>('redis.db', 0);
+    const host = this.config.get<string>('app.redis.host', 'localhost');
+    const port = this.config.get<number>('app.redis.port', 6379);
+    const password = this.config.get<string>('app.redis.password');
+    const db = this.config.get<number>('app.redis.db', 0);
 
     this.client = new Redis({
       host,

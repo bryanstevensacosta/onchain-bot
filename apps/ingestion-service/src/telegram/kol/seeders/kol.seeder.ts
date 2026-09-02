@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { TelegramListenerPort } from '../../shared/ports/telegram-listener.port';
+import { TelegramListenerPort } from '../../shared/ports/telegram-listener.port';
 import { KOL_SEED, type SeedKol } from '../seeds/kol.seed';
 
 /**
@@ -23,6 +23,7 @@ export class KolSeeder {
 
   constructor(
     private readonly config: ConfigService,
+    @Inject(TelegramListenerPort)
     private readonly listener: TelegramListenerPort,
   ) {}
 

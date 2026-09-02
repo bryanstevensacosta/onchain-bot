@@ -36,7 +36,7 @@ export const CRYPTO_NEWS_SEED: ReadonlyArray<SeedCryptoNewsChannel> = [
     title: 'unfolded. DeFi',
   },
   {
-    channelId: '4466661332',
+    channelId: '-1004466661332',
     handle: undefined,
     title: 'Test Ingestion',
   },

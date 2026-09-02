@@ -4,6 +4,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import { appConfig } from './shared/common/config/app.config';
+import { SharedModule } from './telegram/shared/shared.module';
 import { StreamModule } from './stream/stream.module';
 import { MediaModule } from './media/media.module';
 import { HealthModule } from './health/health.module';
@@ -67,6 +68,7 @@ import { TelegramModule } from './telegram/telegram.module';
     }),
 
     // HTTP API
+    SharedModule, // Redis, LastSeenManager, TelegramClientManager
     StreamModule, // SSE streaming
     MediaModule, // Media file serving
     HealthModule, // Health checks

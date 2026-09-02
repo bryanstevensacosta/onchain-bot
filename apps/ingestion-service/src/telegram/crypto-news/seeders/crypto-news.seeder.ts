@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { TelegramListenerPort } from '../../shared/ports/telegram-listener.port';
+import { TelegramListenerPort } from '../../shared/ports/telegram-listener.port';
 import {
   CRYPTO_NEWS_SEED,
   type SeedCryptoNewsChannel,
@@ -27,6 +27,7 @@ export class CryptoNewsSeeder {
 
   constructor(
     private readonly config: ConfigService,
+    @Inject(TelegramListenerPort)
     private readonly listener: TelegramListenerPort,
   ) {}
 

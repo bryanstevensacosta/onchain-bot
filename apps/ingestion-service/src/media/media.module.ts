@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MediaController } from './api/http/media.controller';
+import { SharedModule } from 'telegram/shared/shared.module';
 
 /**
  * MediaModule provides HTTP serving for Telegram media files
@@ -10,9 +11,12 @@ import { MediaController } from './api/http/media.controller';
  * Controllers:
  * - MediaController: GET /api/media/:channelId/:messageId/:index
  *
+ * MediaDownloaderService is provided by SharedModule to avoid circular deps
+ *
  * @module MediaModule
  */
 @Module({
+  imports: [SharedModule],
   controllers: [MediaController],
 })
 export class MediaModule {}
