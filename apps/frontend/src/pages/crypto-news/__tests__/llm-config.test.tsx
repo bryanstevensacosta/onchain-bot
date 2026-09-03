@@ -49,6 +49,7 @@ vi.mock('@/features/crypto-news-publisher/model/use-llm-config', () => ({
   useUpdateTemplate: vi.fn(),
   useDeleteTemplate: vi.fn(),
   useUpdateLlmConfig: vi.fn(),
+  useToggleMatching: vi.fn(),
 }));
 
 import {
@@ -71,6 +72,7 @@ import {
   useLlmConfig,
   useLlmModels,
   useTemplates,
+  useToggleMatching,
   useUpdateLlmConfig,
   useUpdateTemplate,
 } from '@/features/crypto-news-publisher/model/use-llm-config';
