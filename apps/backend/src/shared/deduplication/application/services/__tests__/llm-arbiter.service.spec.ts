@@ -1,10 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { LlmArbiterService } from '../llm-arbiter.service';
+import { LlmModelProviderService } from '../llm-model-provider.service';
 import { LlmPort } from 'shared/llm/llm.port';
 
 describe('LlmArbiterService', () => {
   let service: LlmArbiterService;
   let mockLlm: jest.Mocked<LlmPort>;
+  let mockModelProvider: jest.Mocked<LlmModelProviderService>;
 
   beforeEach(async () => {
     mockLlm = {
@@ -12,8 +14,16 @@ describe('LlmArbiterService', () => {
       isAvailable: jest.fn(),
     };
 
+    mockModelProvider = {
+      getModel: jest.fn().mockResolvedValue(undefined), // Default: fallback to env
+    } as any;
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [LlmArbiterService, { provide: LlmPort, useValue: mockLlm }],
+      providers: [
+        LlmArbiterService,
+        { provide: LlmPort, useValue: mockLlm },
+        { provide: LlmModelProviderService, useValue: mockModelProvider },
+      ],
     }).compile();
 
     service = module.get<LlmArbiterService>(LlmArbiterService);
