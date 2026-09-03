@@ -152,8 +152,9 @@ export class TelegramModule implements OnModuleInit {
 
     try {
       // Subscribe to listener's async generator
+      // Convert readonly array to mutable array for compatibility with TelegramListenerPort
       for await (const message of this.listener.subscribe(
-        this.currentChannelIds,
+        [...this.currentChannelIds],
       )) {
         // Determine message type based on channel
         const messageType = this.newsChannelIds.includes(message.peerId)
