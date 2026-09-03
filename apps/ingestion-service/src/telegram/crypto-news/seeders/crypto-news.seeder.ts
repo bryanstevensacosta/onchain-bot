@@ -52,6 +52,16 @@ export class CryptoNewsSeeder {
     skipped: number;
     failed: number;
   }> {
+    this.logger.warn(
+      '⚠️  CryptoNewsSeeder is DEPRECATED and will be removed in a future version.',
+    );
+    this.logger.warn(
+      '⚠️  Please register crypto-news sources via backend API: POST /api/crypto-news/sources',
+    );
+    this.logger.warn(
+      '⚠️  The ingestion-service now loads active sources from the database automatically.',
+    );
+
     const enabled = this.config.get<boolean>(
       'INGESTION_TELEGRAM_NEWS_SEED_ENABLED',
       false,

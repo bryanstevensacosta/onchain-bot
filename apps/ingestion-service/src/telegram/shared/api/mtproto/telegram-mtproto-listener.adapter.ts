@@ -19,6 +19,7 @@ import { MessageQueue } from '../../infrastructure/services/message-queue';
 import { TelegramPeerResolver } from '../../infrastructure/services/telegram-peer-resolver';
 import { FloodWaitHandlerService } from '../../infrastructure/services/flood-wait-handler.service';
 import { MediaDownloaderService } from 'media/application/services/media-downloader.service';
+import { CryptoNewsSourceRepository } from 'telegram/crypto-news/infrastructure/persistence/typeorm/repositories/crypto-news-source.repository';
 import { Api } from 'telegram';
 
 /**
@@ -46,6 +47,8 @@ export class TelegramMtprotoListenerAdapter
   private readonly peerResolver = new TelegramPeerResolver();
   private running = false;
   private loggedCryptoNewsChannels = false;
+  private cryptoNewsChannelCache = new Set<string>();
+  private cacheRefreshInterval: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly config: ConfigService,
@@ -53,15 +56,28 @@ export class TelegramMtprotoListenerAdapter
     private readonly lastSeenManager: LastSeenManager,
     private readonly floodWaitHandler: FloodWaitHandlerService,
     private readonly mediaDownloader: MediaDownloaderService,
+    private readonly cryptoNewsSourceRepo: CryptoNewsSourceRepository,
   ) {}
 
   async onModuleInit(): Promise<void> {
     const cfg = this.config.get('app');
     if (!cfg?.telegram?.mtprotoApiId || !cfg?.telegram?.mtprotoApiHash) return;
     await this.clientManager.markAuthorizedIfTrue();
+    
+    // Load active crypto-news channels from DB on startup
+    await this.refreshCryptoNewsChannelCache();
+    
+    // Refresh cache every 5 minutes
+    this.cacheRefreshInterval = setInterval(
+      () => this.refreshCryptoNewsChannelCache(),
+      5 * 60 * 1000,
+    );
   }
 
   async onModuleDestroy(): Promise<void> {
+    if (this.cacheRefreshInterval) {
+      clearInterval(this.cacheRefreshInterval);
+    }
     await this.clientManager.disconnect();
   }
 
@@ -424,33 +440,42 @@ export class TelegramMtprotoListenerAdapter
   }
 
   /**
-   * Check if a channel is a crypto-news channel
-   * Crypto-news channels are seeded separately from KOL channels
+   * Refresh the in-memory cache of active crypto-news channels from DB.
+   * Called on startup and every 5 minutes.
+   *
+   * Replaces the deprecated seed-based approach.
+   */
+  private async refreshCryptoNewsChannelCache(): Promise<void> {
+    try {
+      const sources = await this.cryptoNewsSourceRepo.findAllActive();
+      this.cryptoNewsChannelCache = new Set(sources.map((s) => s.channelId));
+      
+      this.logger.log(
+        `[DB-CACHE] Loaded ${this.cryptoNewsChannelCache.size} active crypto-news channels from DB: ${Array.from(this.cryptoNewsChannelCache).join(', ')}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `[DB-CACHE] Failed to refresh crypto-news channel cache: ${(error as Error).message}`,
+      );
+    }
+  }
+
+  /**
+   * Check if a channel is a crypto-news channel (uses DB cache).
+   *
+   * @deprecated The seed-based approach (CRYPTO_NEWS_SEED + env var) is deprecated.
+   * This method now queries the database to determine active crypto-news sources.
+   * Sources are created/updated via backend API (`POST /crypto-news/sources`).
    */
   private isCryptoNewsChannel(peerId: string): boolean {
-    const cfg = this.config.get('app');
-    const cryptoNewsChannels = cfg?.seedNews || [];
-
-    // DEBUG: Log config once per service instance
-    if (!this.loggedCryptoNewsChannels) {
-      this.logger.log(
-        `[CRYPTO-NEWS-DEBUG] cryptoNewsChannels: ${JSON.stringify(cryptoNewsChannels.map((ch: any) => ch.channelId))}`,
-      );
-      this.loggedCryptoNewsChannels = true;
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    const isMatch = cryptoNewsChannels.some(
-      (ch: { channelId: string }) => ch.channelId === peerId,
-    );
+    const isMatch = this.cryptoNewsChannelCache.has(peerId);
 
     if (!isMatch && peerId.startsWith('-100')) {
-      this.logger.warn(
-        `[CRYPTO-NEWS-DEBUG] Channel ${peerId} not found in cryptoNewsChannels config`,
+      this.logger.debug(
+        `[DB-CACHE] Channel ${peerId} not found in active crypto-news sources`,
       );
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return isMatch;
   }
 

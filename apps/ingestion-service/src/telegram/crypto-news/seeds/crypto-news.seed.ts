@@ -40,4 +40,9 @@ export const CRYPTO_NEWS_SEED: ReadonlyArray<SeedCryptoNewsChannel> = [
     handle: undefined,
     title: 'Test Ingestion',
   },
+  {
+    channelId: '-1001350475252',
+    handle: 'crypto_insider',
+    title: 'Crypto Insider',
+  },
 ];
