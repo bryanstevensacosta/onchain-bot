@@ -64,7 +64,7 @@ export class TelegramModule implements OnModuleInit {
           '⚠️ No active channels found in backend DB. Ingestion service will not receive messages.',
         );
         this.logger.warn(
-          '💡 Add channels via backend API: POST /api/telegram-kol/identity/kols or POST /api/crypto-news/sources',
+          '💡 Add channels via backend API: POST /telegram-kol/identity/kols or POST /crypto-news/sources',
         );
         return;
       }

@@ -8,8 +8,8 @@ import { ConfigService } from '@nestjs/config';
  * Calls backend endpoints to get active KOL IDs and crypto-news source IDs.
  * 
  * Endpoints:
- * - GET /api/telegram-kol/identity/kols/active/ids → string[] (KOL IDs)
- * - GET /api/crypto-news/sources/active/ids → string[] (crypto-news source IDs)
+ * - GET /telegram-kol/identity/kols/active/ids → string[] (KOL IDs)
+ * - GET /crypto-news/sources/active/ids → string[] (crypto-news source IDs)
  */
 @Injectable()
 export class BackendChannelProviderService {
@@ -27,7 +27,7 @@ export class BackendChannelProviderService {
    */
   public async fetchActiveKolIds(): Promise<ReadonlyArray<string>> {
     try {
-      const url = `${this.backendUrl}/api/telegram-kol/identity/kols/active/ids`;
+      const url = `${this.backendUrl}/telegram-kol/identity/kols/active/ids`;
       this.logger.debug(`Fetching active KOL IDs from ${url}`);
 
       const response = await fetch(url);
@@ -58,7 +58,7 @@ export class BackendChannelProviderService {
     ReadonlyArray<string>
   > {
     try {
-      const url = `${this.backendUrl}/api/crypto-news/sources/active/ids`;
+      const url = `${this.backendUrl}/crypto-news/sources/active/ids`;
       this.logger.debug(`Fetching active crypto-news source IDs from ${url}`);
 
       const response = await fetch(url);
