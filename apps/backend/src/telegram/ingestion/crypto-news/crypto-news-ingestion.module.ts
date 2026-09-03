@@ -19,6 +19,13 @@ import { MediaRetentionCleanupScheduler } from 'telegram/ingestion/crypto-news/i
 import { CryptoNewsSeeder } from 'telegram/ingestion/crypto-news/infrastructure/seeders/crypto-news.seeder';
 import { CryptoNewsController } from 'telegram/ingestion/crypto-news/api/http/crypto-news.controller';
 import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
+import {
+  CreateFilterUseCase,
+  ListFiltersUseCase,
+  UpdateFilterUseCase,
+  DeleteFilterUseCase,
+  ToggleFilterUseCase,
+} from 'telegram/ingestion/crypto-news/application/handlers/filters';
 
 /**
  * Crypto-news ingestion sub-module.
@@ -106,6 +113,12 @@ import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-proces
     // `dataSource.options.type !== 'postgres'` (in-memory repos).
     MediaRetentionCleanupScheduler,
     ContentFilterService,
+    // Filter management use cases
+    CreateFilterUseCase,
+    ListFiltersUseCase,
+    UpdateFilterUseCase,
+    DeleteFilterUseCase,
+    ToggleFilterUseCase,
   ],
   exports: [
     CryptoNewsSourceRepository,

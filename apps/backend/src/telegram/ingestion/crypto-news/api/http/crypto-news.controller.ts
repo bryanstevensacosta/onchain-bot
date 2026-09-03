@@ -3,12 +3,16 @@ import {
   Body,
   ConflictException,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
   Logger,
+  NotFoundException,
   Param,
+  Patch,
   Post,
+  Put,
   Query,
   Req,
   Res,
@@ -36,6 +40,13 @@ import {
   serveMediaFile,
 } from 'shared/common/http/media-serving';
 import type { AppConfig } from 'shared/common/config/app.config';
+import {
+  CreateFilterUseCase,
+  ListFiltersUseCase,
+  UpdateFilterUseCase,
+  DeleteFilterUseCase,
+  ToggleFilterUseCase,
+} from 'telegram/ingestion/crypto-news/application/handlers/filters';
 
 export interface CryptoNewsMediaView {
   readonly id: string;
@@ -91,6 +102,11 @@ export class CryptoNewsController {
     private readonly metadataResolver: CryptoNewsMetadataResolver,
     private readonly storeNewsMessage: StoreNewsMessageUseCase,
     private readonly config: ConfigService,
+    private readonly createFilter: CreateFilterUseCase,
+    private readonly listFilters: ListFiltersUseCase,
+    private readonly updateFilter: UpdateFilterUseCase,
+    private readonly deleteFilter: DeleteFilterUseCase,
+    private readonly toggleFilter: ToggleFilterUseCase,
   ) {}
 
   @Get('messages')
@@ -565,6 +581,122 @@ export class CryptoNewsController {
         `Failed to convert local path to ingestion URL: ${localPath} error=${err}`,
       );
       return null;
+    }
+  }
+
+  // ====================================================================
+  // CONTENT FILTER ENDPOINTS
+  // ====================================================================
+
+  /**
+   * POST /crypto-news/sources/:channelId/filters
+   * Create a new content filter for a specific channel.
+   */
+  @Post('sources/:channelId/filters')
+  @HttpCode(HttpStatus.CREATED)
+  public async createFilter(
+    @Param('channelId') channelId: string,
+    @Body()
+    body: {
+      pattern: string;
+      replacement: string;
+      flags: string;
+      priority: number;
+      isActive: boolean;
+    },
+  ) {
+    try {
+      return await this.createFilter.execute({
+        channelId,
+        pattern: body.pattern,
+        replacement: body.replacement,
+        flags: body.flags,
+        priority: body.priority,
+        isActive: body.isActive,
+      });
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (msg.includes('not found')) {
+        throw new NotFoundException(msg);
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * GET /crypto-news/sources/:channelId/filters
+   * List all content filters for a specific channel.
+   */
+  @Get('sources/:channelId/filters')
+  public async getFilters(@Param('channelId') channelId: string) {
+    try {
+      return await this.listFilters.execute(channelId);
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (msg.includes('not found')) {
+        throw new NotFoundException(msg);
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * PUT /crypto-news/filters/:id
+   * Update an existing content filter.
+   */
+  @Put('filters/:id')
+  public async updateFilter(
+    @Param('id') id: string,
+    @Body()
+    body: {
+      pattern?: string;
+      replacement?: string;
+      flags?: string;
+      priority?: number;
+      isActive?: boolean;
+    },
+  ) {
+    try {
+      return await this.updateFilter.execute({
+        id,
+        ...body,
+      });
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (msg.includes('not found')) {
+        throw new NotFoundException(msg);
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * DELETE /crypto-news/filters/:id
+   * Delete a content filter by ID.
+   */
+  @Delete('filters/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  public async deleteFilterEndpoint(@Param('id') id: string): Promise<void> {
+    const deleted = await this.deleteFilter.execute(id);
+    if (!deleted) {
+      throw new NotFoundException(`Filter ${id} not found`);
+    }
+  }
+
+  /**
+   * PATCH /crypto-news/filters/:id/toggle
+   * Toggle the isActive state of a content filter.
+   */
+  @Patch('filters/:id/toggle')
+  public async toggleFilterEndpoint(@Param('id') id: string) {
+    try {
+      return await this.toggleFilter.execute(id);
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (msg.includes('not found')) {
+        throw new NotFoundException(msg);
+      }
+      throw err;
     }
   }
 }
