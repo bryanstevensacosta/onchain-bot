@@ -63,10 +63,12 @@ export class TelegramMtprotoListenerAdapter
     // Load active crypto-news channels from DB on startup
     // This runs regardless of MTProto credentials
     await this.refreshCryptoNewsChannelCache();
-    
+
     // Refresh cache every 5 minutes
     this.cacheRefreshInterval = setInterval(
-      () => this.refreshCryptoNewsChannelCache(),
+      () => {
+        void this.refreshCryptoNewsChannelCache();
+      },
       5 * 60 * 1000,
     );
 
@@ -450,7 +452,7 @@ export class TelegramMtprotoListenerAdapter
     try {
       const sources = await this.cryptoNewsSourceRepo.findAllActive();
       this.cryptoNewsChannelCache = new Set(sources.map((s) => s.channelId));
-      
+
       this.logger.log(
         `[DB-CACHE] Loaded ${this.cryptoNewsChannelCache.size} active crypto-news channels from DB: ${Array.from(this.cryptoNewsChannelCache).join(', ')}`,
       );

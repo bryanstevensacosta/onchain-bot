@@ -528,11 +528,28 @@ export const appConfig = registerAs('app', () => {
   // Database configuration (optional, for raw message storage)
   const database = {
     enabled: process.env.DATABASE_ENABLED === 'true',
-    host: process.env.INGESTION_DATABASE_HOST || process.env.DATABASE_HOST || 'localhost',
-    port: parseInt(process.env.INGESTION_DATABASE_PORT || process.env.DATABASE_PORT || '5432', 10),
-    username: process.env.INGESTION_DATABASE_USER || process.env.DATABASE_USERNAME || 'postgres',
-    password: process.env.INGESTION_DATABASE_PASSWORD || process.env.DATABASE_PASSWORD || 'postgres',
-    database: process.env.INGESTION_DATABASE_NAME || process.env.DATABASE_NAME || 'onchain_bot',
+    host:
+      process.env.INGESTION_DATABASE_HOST ||
+      process.env.DATABASE_HOST ||
+      'localhost',
+    port: parseInt(
+      process.env.INGESTION_DATABASE_PORT ||
+        process.env.DATABASE_PORT ||
+        '5432',
+      10,
+    ),
+    username:
+      process.env.INGESTION_DATABASE_USER ||
+      process.env.DATABASE_USERNAME ||
+      'postgres',
+    password:
+      process.env.INGESTION_DATABASE_PASSWORD ||
+      process.env.DATABASE_PASSWORD ||
+      'postgres',
+    database:
+      process.env.INGESTION_DATABASE_NAME ||
+      process.env.DATABASE_NAME ||
+      'onchain_bot',
     synchronize: process.env.INGESTION_DATABASE_SYNCHRONIZE === 'true',
     logging: process.env.INGESTION_DATABASE_LOGGING === 'true',
   };
