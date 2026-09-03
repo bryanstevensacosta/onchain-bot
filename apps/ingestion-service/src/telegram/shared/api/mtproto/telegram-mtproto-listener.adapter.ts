@@ -233,7 +233,7 @@ export class TelegramMtprotoListenerAdapter
   /**
    * Filter peer IDs to only include channels (exclude users/bots)
    * Users/bots will receive messages via real-time events only
-   * 
+   *
    * Channels in Telegram always have IDs prefixed with -100
    * User/bot IDs are positive integers without prefix
    */

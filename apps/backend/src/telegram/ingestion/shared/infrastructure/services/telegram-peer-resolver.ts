@@ -26,7 +26,7 @@ export class TelegramPeerResolver {
     // It's a channel ID with -100 prefix - try it directly
     try {
       return await client.getEntity(channelId);
-    } catch (err) {
+    } catch (_err) {
       // Last resort: try without -100 prefix (for legacy IDs)
       const withoutPrefix = channelId.replace(/^-100/, '-');
       return await client.getEntity(withoutPrefix);

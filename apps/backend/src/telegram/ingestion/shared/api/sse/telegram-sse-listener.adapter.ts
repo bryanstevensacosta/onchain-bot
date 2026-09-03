@@ -10,7 +10,7 @@ import {
   TelegramRawMessage,
   ResolvedChannelMetadata,
   JoinChannelResult,
-  TelegramMediaAttachment,
+  // TelegramMediaAttachment, // Unused - MessagePayload uses different media structure
 } from '../../domain/ports/telegram-listener.port';
 
 /**
@@ -71,8 +71,10 @@ export class TelegramSseListenerAdapter
   private readonly baseReconnectDelay = 1_000; // 1s
 
   constructor(private readonly config: ConfigService) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const appConfig = this.config.get('app');
     this.ingestionServiceUrl =
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       appConfig?.ingestion?.serviceUrl || 'http://localhost:3031';
 
     this.logger.log(
@@ -367,6 +369,7 @@ export class TelegramSseListenerAdapter
             return messages;
           } else if (message?.event === 'backfill:error') {
             throw new Error(
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
               `Backfill error: ${message.data.error || 'Unknown error'}`,
             );
           }

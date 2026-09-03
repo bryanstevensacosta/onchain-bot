@@ -3,10 +3,10 @@ import { ConfigService } from '@nestjs/config';
 
 /**
  * BackendChannelProviderService - Fetches active channel/user IDs from backend DB
- * 
+ *
  * Replaces the old seed-based subscription system with DB-driven channel lists.
  * Calls backend endpoints to get active KOL IDs and crypto-news source IDs.
- * 
+ *
  * Endpoints:
  * - GET /telegram-kol/identity/kols/active/ids → string[] (KOL IDs)
  * - GET /crypto-news/sources/active/ids → string[] (crypto-news source IDs)
@@ -31,7 +31,7 @@ export class BackendChannelProviderService {
       this.logger.debug(`Fetching active KOL IDs from ${url}`);
 
       const response = await fetch(url);
-      
+
       if (!response.ok) {
         this.logger.error(
           `Failed to fetch active KOL IDs: ${response.status} ${response.statusText}`,

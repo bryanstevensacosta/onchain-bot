@@ -14,7 +14,7 @@ export class TelegramPeerResolver {
     if (!/^-?\d+$/.test(channelId)) {
       return await client.getEntity(channelId);
     }
-    
+
     // Numeric ID - channels MUST have -100 prefix
     // Users/bots have plain numeric IDs without -100
     if (!channelId.startsWith('-100')) {
@@ -22,7 +22,7 @@ export class TelegramPeerResolver {
       // Try to resolve as-is (will likely fail, but that's expected)
       return await client.getEntity(channelId);
     }
-    
+
     // It's a channel ID with -100 prefix - try it directly
     try {
       return await client.getEntity(channelId);

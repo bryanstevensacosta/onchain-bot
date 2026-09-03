@@ -342,7 +342,7 @@ export class ProcessNextQueuedArticleUseCase {
       try {
         await fs.access(filePath);
         localPaths.push(filePath);
-      } catch (err) {
+      } catch (_err) {
         // File doesn't exist locally, try downloading from ingestion-service
         this.logger.debug(
           `File not found locally: ${filePath}, attempting download from ingestion-service`,
@@ -351,7 +351,7 @@ export class ProcessNextQueuedArticleUseCase {
         try {
           const localPath = await this.downloadFileFromIngestion(filePath);
           localPaths.push(localPath);
-        } catch (downloadErr) {
+        } catch (_downloadErr) {
           throw new Error(`file not found: ${filePath}`);
         }
       }

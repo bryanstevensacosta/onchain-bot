@@ -17,7 +17,7 @@ import { TelegramRawMessage } from '../../domain/ports/telegram-listener.port';
  */
 describe('TelegramSseListenerAdapter', () => {
   let adapter: TelegramSseListenerAdapter;
-  let configService: jest.Mocked<ConfigService>;
+  let _configService: jest.Mocked<ConfigService>;
   let logger: jest.Mocked<Logger>;
 
   const mockFetch = jest.fn();
@@ -681,8 +681,8 @@ data: {"error":"Channel not found"}
       // This test is skipped because testing real setTimeout behavior with fetch AbortController
       // is difficult to mock properly. The timeout mechanism is verified via manual testing and
       // the implementation is straightforward (setTimeout + abortController.abort).
-      const channelId = '-1001234567890';
-      const limit = 5;
+      const _channelId = '-1001234567890';
+      const _limit = 5;
 
       // Test logic would go here but is skipped for now
     });
