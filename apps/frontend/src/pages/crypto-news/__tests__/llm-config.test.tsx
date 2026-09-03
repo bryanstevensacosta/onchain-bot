@@ -41,16 +41,27 @@ vi.mock('@/features/crypto-news-publisher/model/use-queue', () => ({
   useQueueCounts: vi.fn(),
 }));
 
-vi.mock('@/features/crypto-news-publisher/model/use-llm-config', () => ({
-  useLlmConfig: vi.fn(),
-  useLlmModels: vi.fn(),
-  useTemplates: vi.fn(),
-  useCreateTemplate: vi.fn(),
-  useUpdateTemplate: vi.fn(),
-  useDeleteTemplate: vi.fn(),
-  useUpdateLlmConfig: vi.fn(),
-  useToggleMatching: vi.fn(),
-}));
+vi.mock('@/features/crypto-news-publisher/model/use-llm-config', () => {
+  const mutStub = {
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+    isPending: false,
+    isError: false,
+    isSuccess: false,
+    error: null,
+    reset: vi.fn(),
+  };
+  return {
+    useLlmConfig: vi.fn(),
+    useLlmModels: vi.fn(),
+    useTemplates: vi.fn(),
+    useCreateTemplate: vi.fn(),
+    useUpdateTemplate: vi.fn(),
+    useDeleteTemplate: vi.fn(),
+    useUpdateLlmConfig: vi.fn(),
+    useToggleMatching: vi.fn(() => ({ ...mutStub })),
+  };
+});
 
 import {
   useCryptoNewsMessages,
