@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LlmPort } from 'shared/llm';
 import { LlmGatewayAdapter } from 'shared/llm/adapters/llm-gateway.adapter';
@@ -86,7 +86,7 @@ import { CryptoNewsMessageIngestedHandler } from 'telegram/crypto-news-publisher
     ]),
     CryptoNewsIngestionModule,
     CryptoNewsAdsModule,
-    DeduplicationModule,
+    forwardRef(() => DeduplicationModule),
   ],
   controllers: [
     BlacklistController,
