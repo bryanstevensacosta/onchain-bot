@@ -7,6 +7,22 @@ import {
 } from '../seeds/crypto-news.seed';
 
 /**
+ * @deprecated DEPRECATED: Use BackendChannelProviderService instead
+ * 
+ * This seeder is kept for backward compatibility only and will be removed in a future version.
+ * The new DB-driven approach fetches active crypto-news sources from the backend via HTTP:
+ * - GET /api/crypto-news/sources/active/ids
+ * 
+ * Migration path:
+ * 1. Add sources via backend API: POST /api/crypto-news/sources
+ * 2. Verify sources appear in backend DB with isActive=true and lifecycleStatus='ACTIVE'
+ * 3. ingestion-service automatically picks them up via BackendChannelProviderService
+ * 4. This seeder is no longer invoked by TelegramModule
+ * 
+ * ---
+ * 
+ * OLD BEHAVIOR (deprecated):
+ * 
  * Idempotently registers the static seed list of Telegram crypto-news
  * channels on application bootstrap.
  *

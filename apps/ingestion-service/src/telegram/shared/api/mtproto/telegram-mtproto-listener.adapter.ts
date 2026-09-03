@@ -166,23 +166,14 @@ export class TelegramMtprotoListenerAdapter
 
   /**
    * Polling loop for catching up on missed messages
-   * Only polls channels — user/bot messages are received via real-time events only
+   * Polls all subscribed channels/bots - crypto-news sources may be bots without -100 prefix
    */
   private async startPollingLoop(): Promise<void> {
     const peers = [...this.subscribedChannelIds];
     if (peers.length === 0) return;
 
-    // Filter out users/bots — only poll channels
-    const channelPeers = this.filterChannels(peers);
-    if (channelPeers.length === 0) {
-      this.logger.log(
-        'No channels to poll (all peers are users/bots — real-time events only)',
-      );
-      return;
-    }
-
     this.logger.log(
-      `Starting polling loop for ${channelPeers.length}/${peers.length} channel(s) (${peers.length - channelPeers.length} user/bot peer(s) will use real-time events only)`,
+      `Starting polling loop for ${peers.length} peer(s) (channels and crypto-news bots)`,
     );
 
     // Simple polling every 30 seconds
@@ -191,7 +182,7 @@ export class TelegramMtprotoListenerAdapter
 
       if (!this.running) break;
 
-      for (const peerId of channelPeers) {
+      for (const peerId of peers) {
         if (!this.running) break;
 
         try {

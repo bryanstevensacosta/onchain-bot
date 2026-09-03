@@ -10,6 +10,26 @@ import { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/tel
 import { KOL_SEED } from 'telegram/ingestion/kol/seeds/kol.seed';
 
 /**
+ * @deprecated DEPRECATED: Seed-based KOL registration is being phased out
+ *
+ * This seeder is kept for backward compatibility but should not be used for new deployments.
+ *
+ * NEW APPROACH (DB-driven):
+ * - ingestion-service fetches active KOL IDs directly from backend DB via HTTP
+ * - GET /api/telegram-kol/identity/kols/active/ids returns KOLs with isActive=true
+ * - No seed files needed in ingestion-service
+ * - Channel list refreshes automatically every 5 minutes
+ *
+ * Migration path:
+ * 1. Add KOLs via backend API: POST /api/telegram-kol/identity/kols
+ * 2. Verify in DB: SELECT * FROM kols WHERE is_active = true
+ * 3. ingestion-service picks them up automatically
+ * 4. This seeder can be disabled by setting INGESTION_TELEGRAM_SEED_ENABLED=false
+ *
+ * ---
+ *
+ * OLD BEHAVIOR (deprecated):
+ *
  * Idempotently registers the static seed list of Telegram KOLs.
  *
  * - Disabled when `app.ingestion.telegram.seed.enabled` is false.

@@ -1,5 +1,6 @@
 import { Module, Global } from '@nestjs/common';
 import { TelegramMtprotoListenerAdapter } from './api/mtproto/telegram-mtproto-listener.adapter';
+import { BackendChannelProviderService } from './services/backend-channel-provider.service';
 import { DeduplicationService } from './application/services/deduplication.service';
 import { IngestionCoordinator } from './application/coordinators/ingestion.coordinator';
 import { TelegramClientManager } from './infrastructure/services/telegram-client-manager.service';
@@ -20,6 +21,7 @@ import { IngestionSafetyConfig } from './infrastructure/config/ingestion-safety.
  *
  * Provides:
  * - TelegramListenerPort implementation (TelegramMtprotoListenerAdapter)
+ * - BackendChannelProviderService (fetches active channels from backend DB)
  * - TelegramClientManager (MTProto client lifecycle)
  * - Deduplication service
  * - Ingestion coordinator (routes messages to SSE broadcast)
@@ -37,6 +39,9 @@ import { IngestionSafetyConfig } from './infrastructure/config/ingestion-safety.
     // Config & Infrastructure
     RedisService,
     IngestionSafetyConfig,
+
+    // Backend integration
+    BackendChannelProviderService,
 
     // MTProto layer
     TelegramClientManager,
@@ -61,6 +66,7 @@ import { IngestionSafetyConfig } from './infrastructure/config/ingestion-safety.
   exports: [
     RedisService,
     IngestionSafetyConfig,
+    BackendChannelProviderService,
     TelegramClientManager,
     TelegramListenerPort,
     DeduplicationService,

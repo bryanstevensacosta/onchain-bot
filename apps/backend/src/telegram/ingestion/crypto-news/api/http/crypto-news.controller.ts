@@ -23,6 +23,7 @@ import {
   RegisterNewsSourceInput,
   RegisterNewsSourceUseCase,
 } from 'telegram/ingestion/crypto-news/application/handlers/register-news-source.use-case';
+import { ListActiveSourceIdsUseCase } from 'telegram/ingestion/crypto-news/application/handlers/list-active-source-ids.use-case';
 import { CryptoNewsMetadataResolver } from 'telegram/ingestion/crypto-news/application/services/crypto-news-metadata-resolver.service';
 import { TelegramMtprotoListenerAdapter } from 'telegram/ingestion/shared/api/mtproto/telegram-mtproto-listener.adapter';
 import { TelegramMediaAttachment } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
@@ -86,6 +87,7 @@ export class CryptoNewsController {
     @InjectRepository(CryptoNewsMessageMediaEntity)
     private readonly mediaEntityRepo: Repository<CryptoNewsMessageMediaEntity>,
     private readonly registerSource: RegisterNewsSourceUseCase,
+    private readonly listActiveSourceIdsUseCase: ListActiveSourceIdsUseCase,
     private readonly metadataResolver: CryptoNewsMetadataResolver,
     private readonly storeNewsMessage: StoreNewsMessageUseCase,
     private readonly config: ConfigService,
@@ -229,6 +231,15 @@ export class CryptoNewsController {
       lifecycleStatus: s.lifecycleStatus,
       addedAt: s.addedAt.toISOString(),
     }));
+  }
+
+  /**
+   * Get active crypto-news source IDs (for ingestion-service subscription)
+   * Returns only the channelId strings of sources with isActive=true and lifecycleStatus=ACTIVE
+   */
+  @Get('sources/active/ids')
+  public async listActiveSourceIds(): Promise<ReadonlyArray<string>> {
+    return this.listActiveSourceIdsUseCase.execute();
   }
 
   /**

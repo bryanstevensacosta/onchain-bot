@@ -10,6 +10,7 @@ export abstract class KolRepository {
   public abstract save(kol: Kol): Promise<void>;
   public abstract findById(id: KolId): Promise<Kol | null>;
   public abstract findAll(): Promise<ReadonlyArray<Kol>>;
+  public abstract findActive(): Promise<ReadonlyArray<Kol>>;
   public abstract delete(id: KolId): Promise<void>;
 
   /**

@@ -9,6 +9,26 @@ import { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/tel
 import { CRYPTO_NEWS_SEED } from 'telegram/ingestion/crypto-news/infrastructure/seeds/crypto-news.seed';
 
 /**
+ * @deprecated DEPRECATED: Seed-based crypto-news registration is being phased out
+ *
+ * This seeder is kept for backward compatibility but should not be used for new deployments.
+ *
+ * NEW APPROACH (DB-driven):
+ * - ingestion-service fetches active source IDs directly from backend DB via HTTP
+ * - GET /api/crypto-news/sources/active/ids returns sources with isActive=true
+ * - No seed files needed in ingestion-service
+ * - Channel list refreshes automatically every 5 minutes
+ *
+ * Migration path:
+ * 1. Add sources via backend API: POST /api/crypto-news/sources
+ * 2. Verify in DB: SELECT * FROM crypto_news_sources WHERE is_active = true
+ * 3. ingestion-service picks them up automatically
+ * 4. This seeder can be disabled by setting INGESTION_TELEGRAM_NEWS_SEED_ENABLED=false
+ *
+ * ---
+ *
+ * OLD BEHAVIOR (deprecated):
+ *
  * Idempotently registers the static seed list of Telegram crypto-news
  * channels on application bootstrap.
  *
