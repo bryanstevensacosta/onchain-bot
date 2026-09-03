@@ -102,11 +102,11 @@ export class CryptoNewsController {
     private readonly metadataResolver: CryptoNewsMetadataResolver,
     private readonly storeNewsMessage: StoreNewsMessageUseCase,
     private readonly config: ConfigService,
-    private readonly createFilter: CreateFilterUseCase,
-    private readonly listFilters: ListFiltersUseCase,
-    private readonly updateFilter: UpdateFilterUseCase,
-    private readonly deleteFilter: DeleteFilterUseCase,
-    private readonly toggleFilter: ToggleFilterUseCase,
+    private readonly createFilterUseCase: CreateFilterUseCase,
+    private readonly listFiltersUseCase: ListFiltersUseCase,
+    private readonly updateFilterUseCase: UpdateFilterUseCase,
+    private readonly deleteFilterUseCase: DeleteFilterUseCase,
+    private readonly toggleFilterUseCase: ToggleFilterUseCase,
   ) {}
 
   @Get('messages')
@@ -606,7 +606,7 @@ export class CryptoNewsController {
     },
   ) {
     try {
-      return await this.createFilter.execute({
+      return await this.createFilterUseCase.execute({
         channelId,
         pattern: body.pattern,
         replacement: body.replacement,
@@ -630,7 +630,7 @@ export class CryptoNewsController {
   @Get('sources/:channelId/filters')
   public async getFilters(@Param('channelId') channelId: string) {
     try {
-      return await this.listFilters.execute(channelId);
+      return await this.listFiltersUseCase.execute(channelId);
     } catch (err) {
       const msg = (err as Error).message;
       if (msg.includes('not found')) {
@@ -657,7 +657,7 @@ export class CryptoNewsController {
     },
   ) {
     try {
-      return await this.updateFilter.execute({
+      return await this.updateFilterUseCase.execute({
         id,
         ...body,
       });
@@ -677,7 +677,7 @@ export class CryptoNewsController {
   @Delete('filters/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   public async deleteFilterEndpoint(@Param('id') id: string): Promise<void> {
-    const deleted = await this.deleteFilter.execute(id);
+    const deleted = await this.deleteFilterUseCase.execute(id);
     if (!deleted) {
       throw new NotFoundException(`Filter ${id} not found`);
     }
@@ -690,7 +690,7 @@ export class CryptoNewsController {
   @Patch('filters/:id/toggle')
   public async toggleFilterEndpoint(@Param('id') id: string) {
     try {
-      return await this.toggleFilter.execute(id);
+      return await this.toggleFilterUseCase.execute(id);
     } catch (err) {
       const msg = (err as Error).message;
       if (msg.includes('not found')) {
