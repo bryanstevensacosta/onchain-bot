@@ -56,7 +56,4 @@ export class CryptoNewsSourceEntity {
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   public updatedAt!: Date;
-
-  @Column({ name: 'filter_config', type: 'jsonb', nullable: true })
-  public filterConfig!: ChannelContentFilterConfigJson | null;
 }
