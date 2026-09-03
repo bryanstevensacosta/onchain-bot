@@ -1,4 +1,5 @@
 import { Module, Global } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { TelegramMtprotoListenerAdapter } from './api/mtproto/telegram-mtproto-listener.adapter';
 import { BackendChannelProviderService } from './services/backend-channel-provider.service';
 import { DeduplicationService } from './application/services/deduplication.service';
@@ -15,6 +16,8 @@ import { StreamModule } from 'stream/stream.module';
 import { MediaDownloaderService } from 'media/application/services/media-downloader.service';
 import { RedisService } from 'shared/common/cache/redis.service';
 import { IngestionSafetyConfig } from './infrastructure/config/ingestion-safety.config';
+import { CryptoNewsSourceEntity } from '../crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
+import { CryptoNewsSourceRepository } from '../crypto-news/infrastructure/persistence/typeorm/repositories/crypto-news-source.repository';
 
 /**
  * SharedModule - Telegram infrastructure shared across KOL and crypto-news ingestion
@@ -34,7 +37,10 @@ import { IngestionSafetyConfig } from './infrastructure/config/ingestion-safety.
  */
 @Global()
 @Module({
-  imports: [StreamModule], // For SSE broadcast only
+  imports: [
+    StreamModule, // For SSE broadcast only
+    TypeOrmModule.forFeature([CryptoNewsSourceEntity]), // For crypto-news channel cache
+  ],
   providers: [
     // Config & Infrastructure
     RedisService,
@@ -42,6 +48,9 @@ import { IngestionSafetyConfig } from './infrastructure/config/ingestion-safety.
 
     // Backend integration
     BackendChannelProviderService,
+
+    // Crypto-news DB repository
+    CryptoNewsSourceRepository,
 
     // MTProto layer
     TelegramClientManager,
@@ -67,6 +76,7 @@ import { IngestionSafetyConfig } from './infrastructure/config/ingestion-safety.
     RedisService,
     IngestionSafetyConfig,
     BackendChannelProviderService,
+    CryptoNewsSourceRepository, // Export for CryptoNewsModule
     TelegramClientManager,
     TelegramListenerPort,
     DeduplicationService,

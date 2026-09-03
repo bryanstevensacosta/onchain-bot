@@ -60,11 +60,8 @@ export class TelegramMtprotoListenerAdapter
   ) {}
 
   async onModuleInit(): Promise<void> {
-    const cfg = this.config.get('app');
-    if (!cfg?.telegram?.mtprotoApiId || !cfg?.telegram?.mtprotoApiHash) return;
-    await this.clientManager.markAuthorizedIfTrue();
-    
     // Load active crypto-news channels from DB on startup
+    // This runs regardless of MTProto credentials
     await this.refreshCryptoNewsChannelCache();
     
     // Refresh cache every 5 minutes
@@ -72,6 +69,10 @@ export class TelegramMtprotoListenerAdapter
       () => this.refreshCryptoNewsChannelCache(),
       5 * 60 * 1000,
     );
+
+    const cfg = this.config.get('app');
+    if (!cfg?.telegram?.mtprotoApiId || !cfg?.telegram?.mtprotoApiHash) return;
+    await this.clientManager.markAuthorizedIfTrue();
   }
 
   async onModuleDestroy(): Promise<void> {
