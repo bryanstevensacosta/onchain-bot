@@ -4,6 +4,7 @@ export { QueueView } from './ui/queue-view';
 export { BlockedPostsList } from './ui/blocked-posts-list';
 export { LlmConfigForm } from './ui/llm-config';
 export { PromptTemplates } from './ui/prompt-templates';
+export { MatchingToggleButton } from './ui/matching-toggle-button';
 export { useKeywords } from './model/use-keywords';
 export {
   useBlacklist,
@@ -19,6 +20,7 @@ export {
   useLlmModels,
   useTemplate,
   useTemplates,
+  useToggleMatching,
   useUpdateLlmConfig,
   useUpdateTemplate,
 } from './model/use-llm-config';

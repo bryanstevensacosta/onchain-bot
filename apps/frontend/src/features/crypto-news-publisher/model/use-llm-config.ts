@@ -7,6 +7,7 @@ import {
   fetchTemplate,
   fetchTemplates,
   llmConfigKeys,
+  toggleMatchingEnabled,
   updateLlmConfig,
   updateTemplate,
   type CreatePromptTemplateBody,
@@ -47,6 +48,37 @@ export function useUpdateLlmConfig() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (patch: UpdateLlmConfigBody) => updateLlmConfig(patch),
+    onSuccess: (saved) => {
+      qc.setQueryData(llmConfigKeys.config(), saved);
+      qc.invalidateQueries({ queryKey: llmConfigKeys.config() });
+    },
+  });
+}
+
+/**
+ * Toggle keyword matching enabled/disabled. Optimistically updates the
+ * UI and reverts on error.
+ */
+export function useToggleMatching() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (enabled: boolean) => toggleMatchingEnabled(enabled),
+    onMutate: async (enabled) => {
+      await qc.cancelQueries({ queryKey: llmConfigKeys.config() });
+      const prev = qc.getQueryData<LlmConfig>(llmConfigKeys.config());
+      if (prev) {
+        qc.setQueryData<LlmConfig>(llmConfigKeys.config(), {
+          ...prev,
+          enabled,
+        });
+      }
+      return { prev };
+    },
+    onError: (_err, _enabled, ctx) => {
+      if (ctx?.prev) {
+        qc.setQueryData(llmConfigKeys.config(), ctx.prev);
+      }
+    },
     onSuccess: (saved) => {
       qc.setQueryData(llmConfigKeys.config(), saved);
       qc.invalidateQueries({ queryKey: llmConfigKeys.config() });

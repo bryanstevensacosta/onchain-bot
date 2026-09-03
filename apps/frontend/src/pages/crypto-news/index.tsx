@@ -12,6 +12,7 @@ import {
   BlockedPostsList,
   KeywordsManager,
   LlmConfigForm,
+  MatchingToggleButton,
   PromptTemplates,
   QueueView,
 } from '@/features/crypto-news-publisher';
@@ -499,7 +500,8 @@ export function CryptoNewsPage() {
             <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 select-none">
               Queue
             </summary>
-            <div className="pt-2">
+            <div className="space-y-3 pt-2">
+              <MatchingToggleButton />
               <QueueView />
             </div>
           </details>
