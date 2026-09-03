@@ -52,86 +52,12 @@ export class CryptoNewsSeeder {
     skipped: number;
     failed: number;
   }> {
-    this.logger.warn(
-      '⚠️  CryptoNewsSeeder is DEPRECATED and will be removed in a future version.',
+    throw new Error(
+      '❌ CryptoNewsSeeder has been REMOVED and replaced by DB-driven architecture.\n' +
+        '   All crypto-news sources are now loaded from the backend database.\n' +
+        '   Add sources via backend API: POST /api/crypto-news/sources\n' +
+        '   This seeder should never be invoked. If you see this error, check TelegramModule initialization.',
     );
-    this.logger.warn(
-      '⚠️  Please register crypto-news sources via backend API: POST /api/crypto-news/sources',
-    );
-    this.logger.warn(
-      '⚠️  The ingestion-service now loads active sources from the database automatically.',
-    );
-
-    const enabled = this.config.get<boolean>(
-      'INGESTION_TELEGRAM_NEWS_SEED_ENABLED',
-      false,
-    );
-    if (!enabled) {
-      this.logger.debug('News seed disabled; skipping registration.');
-      return { added: 0, skipped: 0, failed: 0 };
-    }
-
-    // Parse env-supplied channels if present
-    const envChannels = this.parseEnvChannels();
-    const channels = envChannels.length > 0 ? envChannels : CRYPTO_NEWS_SEED;
-
-    if (channels.length === 0) {
-      this.logger.debug('News seed list is empty; nothing to register.');
-      return { added: 0, skipped: 0, failed: 0 };
-    }
-
-    let added = 0;
-    let skipped = 0;
-    let failed = 0;
-
-    for (const seed of channels) {
-      try {
-        // Validate channelId format
-        if (!seed.channelId || !/^-?\d+$/.test(seed.channelId)) {
-          failed += 1;
-          this.logger.error(
-            `Skipping invalid seed channelId: ${seed.channelId}`,
-          );
-          continue;
-        }
-
-        // Skip if already registered
-        if (this.registeredChannels.has(seed.channelId)) {
-          skipped += 1;
-          continue;
-        }
-
-        const { title, handle } = await this.resolveTitleAndHandle(
-          seed.channelId,
-          seed.title,
-          seed.handle,
-        );
-
-        // Mark as registered for this session
-        this.registeredChannels.add(seed.channelId);
-        added += 1;
-        this.logger.debug(
-          `Registered crypto-news channel ${seed.channelId} (${handle || 'no handle'}, "${title}")`,
-        );
-      } catch (err) {
-        failed += 1;
-        this.logger.error(
-          `Skipping invalid crypto-news seed ${seed.channelId}: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
-      }
-    }
-
-    const summary = `Telegram crypto-news seed complete: added=${added} skipped=${skipped} failed=${failed} total=${channels.length}`;
-    this.logger.log(summary);
-    if (this.needsManualJoin > 0) {
-      this.logger.log(
-        `${this.needsManualJoin} crypto-news channel(s) need manual join.`,
-      );
-    }
-
-    return { added, skipped, failed };
   }
 
   /**

@@ -1,25 +1,21 @@
 import { Module } from '@nestjs/common';
-import { CryptoNewsSeeder } from './seeders/crypto-news.seeder';
 import { SharedModule } from '../shared/shared.module';
 
 /**
  * CryptoNewsModule - Crypto news channel management
  *
- * **NEW (DB-driven):**
- * - CryptoNewsSourceRepository now provided by SharedModule
+ * **DB-driven architecture:**
+ * - CryptoNewsSourceRepository provided by SharedModule
  * - Used by TelegramMtprotoListenerAdapter for channel cache
+ * - All sources loaded from backend DB via BackendChannelProviderService
  *
- * **DEPRECATED:**
- * - CryptoNewsSeeder (static seed list) is deprecated in favor of DB query
- * - Kept for backward compatibility only
+ * **REMOVED:**
+ * - CryptoNewsSeeder (static seed list) completely removed
+ * - Add sources via backend API: POST /api/crypto-news/sources
  */
 @Module({
   imports: [SharedModule],
-  providers: [
-    CryptoNewsSeeder, // Deprecated but kept for backward compatibility
-  ],
-  exports: [
-    CryptoNewsSeeder, // Deprecated export
-  ],
+  providers: [],
+  exports: [],
 })
 export class CryptoNewsModule {}
