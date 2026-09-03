@@ -6,6 +6,7 @@ import * as fs from 'node:fs';
 import { Repository } from 'typeorm';
 import { CryptoNewsController } from 'telegram/ingestion/crypto-news/api/http/crypto-news.controller';
 import { RegisterNewsSourceUseCase } from 'telegram/ingestion/crypto-news/application/handlers/register-news-source.use-case';
+import { ListActiveSourceIdsUseCase } from 'telegram/ingestion/crypto-news/application/handlers/list-active-source-ids.use-case';
 import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
 import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
 import { CryptoNewsMetadataResolver } from 'telegram/ingestion/crypto-news/application/services/crypto-news-metadata-resolver.service';
@@ -217,6 +218,10 @@ async function buildController(
     controllers: [CryptoNewsController],
     providers: [
       { provide: RegisterNewsSourceUseCase, useValue: registerUseCase },
+      {
+        provide: ListActiveSourceIdsUseCase,
+        useValue: { execute: jest.fn().mockResolvedValue([]) },
+      },
       { provide: CryptoNewsSourceRepository, useValue: sourceRepo },
       { provide: CryptoNewsMessageRepository, useValue: messageRepo },
       { provide: TelegramMtprotoListenerAdapter, useValue: {} },
