@@ -67,6 +67,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Fix ownership before sync (chown -R runner:runner)
+        run: |
+          echo "=== chown -R runner:runner /opt/onchain-bot ==="
+          sudo chown -R runner:runner /opt/onchain-bot || chown -R runner:runner /opt/onchain-bot || echo 'chown warning (non-fatal)'
+          echo "=== ownership fixed ==="
+
       - name: Sync live source tree with master
         run: |
           set -euo pipefail
@@ -96,12 +102,6 @@ jobs:
           POSTGRES_DB=alpha_meta_token_scanner \
           POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
           bash /opt/onchain-bot/scripts/backup-db.sh
-
-      - name: Fix ownership before deploy (chown -R runner:runner)
-        run: |
-          echo "=== chown -R runner:runner /opt/onchain-bot ==="
-          sudo chown -R runner:runner /opt/onchain-bot || chown -R runner:runner /opt/onchain-bot || echo 'chown warning (non-fatal)'
-          echo "=== ownership fixed ==="
 
       - name: Disk cleanup (pre-pull, filtered)
         run: |
