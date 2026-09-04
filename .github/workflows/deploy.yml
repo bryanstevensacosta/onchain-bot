@@ -69,14 +69,15 @@ jobs:
 
       - name: Fix ownership before sync (chown -R runner:runner)
         run: |
-          echo "=== chown -R runner:runner /opt/onchain-bot ==="
-          sudo chown -R runner:runner /opt/onchain-bot || chown -R runner:runner /opt/onchain-bot || echo 'chown warning (non-fatal)'
-          echo "=== ownership fixed ==="
+          echo "=== Fixing ownership: /opt/onchain-bot → runner:runner ==="
+          sudo chown -R runner:runner /opt/onchain-bot 2>&1 || echo "chown warning (non-fatal)"
+          echo "=== Ownership fixed ==="
 
       - name: Sync live source tree with master
         run: |
           set -euo pipefail
-          rsync -a --delete \
+          echo "=== Starting rsync with sudo ==="
+          sudo rsync -a --delete \
             --exclude='.git' \
             --exclude='uploads' \
             --exclude='.git/**' \
@@ -91,6 +92,8 @@ jobs:
             --exclude='.env*' \
             /opt/actions-runner/_work/onchain-bot/onchain-bot/ \
             /opt/onchain-bot/
+          echo "=== Fixing ownership after rsync ==="
+          sudo chown -R runner:runner /opt/onchain-bot 2>&1 || echo "post-sync chown warning (non-fatal)"
           echo "=== Post-sync HEAD ==="
           git -C /opt/onchain-bot rev-parse HEAD
 
