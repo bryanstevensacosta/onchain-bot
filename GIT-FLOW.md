@@ -242,16 +242,50 @@ git add . && git commit -m "..."
 git push origin dev
 ```
 
+### PR has conflicts or CI failures
+
+**IMPORTANT: Never create a new PR. Fix in the existing branch.**
+
+```bash
+# Fix conflicts or errors locally on dev
+git checkout dev
+git pull origin dev
+
+# Option 1: Sync with master to resolve conflicts
+git merge master
+# Resolve conflicts if any, then:
+git add .
+git commit -m "chore: resolve merge conflicts"
+
+# Option 2: Fix CI failures
+# ... fix the code ...
+git add .
+git commit -m "fix: resolve CI failures"
+
+# Push to dev
+git push origin dev
+# ✅ PR automatically updates
+# ✅ CI checks re-run
+# ✅ Conflicts disappear
+```
+
+**Why this works**:
+
+- PRs are linked to branches, not commits
+- Any push to `dev` updates the PR automatically
+- GitHub re-runs checks on new commits
+- Creating a new PR is unnecessary and creates duplicate work
+
 ## Troubleshooting
 
-| Issue                       | Solution                             |
-| --------------------------- | ------------------------------------ |
-| "Cannot merge: conflicts"   | Sync dev with master first           |
-| "CI failing on PR"          | Check logs, fix, push to same branch |
-| "Squash button disabled"    | Wait for required checks to pass     |
-| "Push rejected (protected)" | Never push to master, use PRs        |
-| "Commit message rejected"   | Use conventional commits format      |
-| "Pre-commit hook failed"    | Fix lint/TS errors before commit     |
+| Issue                       | Solution                              |
+| --------------------------- | ------------------------------------- |
+| "Cannot merge: conflicts"   | See "PR has conflicts or CI failures" |
+| "CI failing on PR"          | See "PR has conflicts or CI failures" |
+| "Squash button disabled"    | Wait for required checks to pass      |
+| "Push rejected (protected)" | Never push to master, use PRs         |
+| "Commit message rejected"   | Use conventional commits format       |
+| "Pre-commit hook failed"    | Fix lint/TS errors before commit      |
 
 ## Why Always Pull?
 
