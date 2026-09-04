@@ -1,347 +1,347 @@
-# Governance de Ramas Git — Alpha Meta Token Scanner
+# Git Branch Governance — Alpha Meta Token Scanner
 
-**Versión:** 2.0  
-**Fecha:** 2026-08-29  
-**Estado:** ACTIVO
+**Version:** 2.0  
+**Date:** 2026-08-29  
+**Status:** ACTIVE
 
 ---
 
-## 1. Arquitectura de Branch Governance (3 Capas)
+## 1. Branch Governance Architecture (3 Layers)
 
-**Estrategia de defensa en profundidad** contra branches no conformes:
+**Defense in depth** against non-conforming branches:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Capa 1: Pre-push Hook (.husky/pre-push)                    │
-│ ├─ Validación local ANTES del push                         │
-│ ├─ Feedback inmediato al desarrollador                     │
-│ └─ Bypass: git push --no-verify                            │
+│ Layer 1: Pre-push Hook (.husky/pre-push)                    │
+│ ├─ Local validation BEFORE the push                         │
+│ ├─ Immediate feedback to the developer                       │
+│ └─ Bypass: git push --no-verify                             │
 ├─────────────────────────────────────────────────────────────┤
-│ Capa 2: GitHub Ruleset (Server-Side)                       │
-│ ├─ Enforcement en GitHub (no bypasseable sin permisos)     │
-│ ├─ Bloquea creación/actualización/eliminación              │
-│ └─ Admin bypass: temporal para operaciones documentadas    │
+│ Layer 2: GitHub Ruleset (Server-Side)                       │
+│ ├─ Enforcement on GitHub (not bypassable without permission)│
+│ ├─ Blocks creation/update/deletion                          │
+│ └─ Admin bypass: temporary, for documented operations       │
 ├─────────────────────────────────────────────────────────────┤
-│ Capa 3: Branch Governance Workflow (Audit)                 │
-│ ├─ Validación continua post-push                           │
-│ ├─ Detecta anomalías y drift                               │
-│ └─ Falla CI en violaciones                                 │
+│ Layer 3: Branch Governance Workflow (Audit)                 │
+│ ├─ Continuous post-push validation                          │
+│ ├─ Detects anomalies and drift                              │
+│ └─ Fails CI on violations                                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ### Branch Naming Convention
 
-**Permitido:**
+**Allowed:**
 
 - `dev`, `master` (main branches)
 - `feat/*`, `fix/*`, `chore/*` (conventional commits)
 - `ci/*`, `docs/*`, `refactor/*`, `perf/*`, `test/*`
 - `build/*`, `style/*`, `hotfix/*`, `release/*`, `revert/*`
 
-**Bloqueado:**
+**Blocked:**
 
-- `random-name`, `test`, `tmp`, `my-branch` (sin convención)
-- Cualquier branch que no siga el patrón
+- `random-name`, `test`, `tmp`, `my-branch` (no convention)
+- Any branch not following the pattern
 
 **Enforcement:**
 
-- **Pre-push hook:** Valida branch actual antes del push
-- **GitHub Ruleset:** Bloquea creación en servidor si no cumple patrón
-- **Branch Governance:** Audita branches remotas y reporta extras
+- **Pre-push hook:** Validates the current branch before pushing
+- **GitHub Ruleset:** Blocks non-conforming creation server-side
+- **Branch Governance:** Audits remote branches and reports extras
 
 ---
 
-## 2. Flujo Oficial de Ramas
+## 2. Official Branch Flow
 
 ```
-dev ──────────────────────────────────────► (integración continua)
+dev ──────────────────────────────────────► (continuous integration)
   │
-  ├── feature/* (rama corta, < 2 semanas)
-  │    └── PR → dev (requiere: 1 approval, CI pass, conversation resolved)
+  ├── feature/* (short-lived branch, < 2 weeks)
+  │    └── PR → dev (requires: 1 approval, CI pass, conversation resolved)
   │
   └── PR: dev → master (squash merge)
-       └── master (producción)
-            └── deploy automático en push
+       └── master (production)
+            └── automatic deploy on push
 ```
 
-**Reglas:**
+**Rules:**
 
-- Solo `master` y `dev` son ramas _long-lived_ (permanentes)
-- `feature/*`, `hotfix/*`, `backport/*`, `sync/*` son _short-lived_ (se borran tras merge)
-- `release/*` **NO se usa** — deploy es continuo en push a master
+- Only `master` and `dev` are _long-lived_ (permanent) branches
+- `feature/*`, `hotfix/*`, `backport/*`, `sync/*` are _short-lived_ (deleted after merge)
+- `release/*` is **NOT used** — deploys are continuous on push to master
 
 ---
 
-## 3. Reglas de Ramas (Branch Protection + Rulesets)
+## 3. Branch Rules (Branch Protection + Rulesets)
 
-| Rama       | PR requerido | Approvals | Status checks   | Force push | Delete | Conversation resolved |
-| ---------- | ------------ | --------- | --------------- | ---------- | ------ | --------------------- |
-| **master** | ✅           | 1         | test, lint, tsc | ❌         | ❌     | ✅                    |
-| **dev**    | ✅           | 1         | test, lint, tsc | ❌\*       | ❌     | ✅                    |
+| Branch     | PR required | Approvals | Status checks   | Force push | Delete | Conversation resolved |
+| ---------- | ----------- | --------- | --------------- | ---------- | ------ | --------------------- |
+| **master** | ✅          | 1         | test, lint, tsc | ❌         | ❌     | ✅                    |
+| **dev**    | ✅          | 1         | test, lint, tsc | ❌\*       | ❌     | ✅                    |
 
-_\*Excepción dev: maintainers pueden habilitar force-push temporalmente para **backport sync** (requiere 2 aprobaciones en issue/PR). Ver §6._
+_\*dev exception: maintainers may temporarily enable force-push for **backport sync** (requires 2 approvals on an issue/PR). See §6._
 
 ### GitHub Rulesets
 
 **Ruleset: "Branch Strategy Enforcement"** (ID: 21297389)
 
-- **Target:** Todas las branches excepto las permitidas
-- **Rules:** Bloquea `creation`, `update`, `deletion`
-- **Permitido:** `dev`, `master`, `feat/*`, `fix/*`, `chore/*`, `ci/*`, `docs/*`, `refactor/*`, `perf/*`, `test/*`, `build/*`, `style/*`, `hotfix/*`, `release/*`, `revert/*`, `release-please--*`
+- **Target:** All branches except allowed ones
+- **Rules:** Blocks `creation`, `update`, `deletion`
+- **Allowed:** `dev`, `master`, `feat/*`, `fix/*`, `chore/*`, `ci/*`, `docs/*`, `refactor/*`, `perf/*`, `test/*`, `build/*`, `style/*`, `hotfix/*`, `release/*`, `revert/*`, `release-please--*`
 - **Enforcement:** Active (server-side)
-- **Bypass:** Admin role (temporal, documentado)
+- **Bypass:** Admin role (temporary, documented)
 
 **Ruleset: "Master"** (ID: 21130799)
 
 - **Target:** `master` branch
-- **Rules:** Requiere PR, bloquea deletion, bloquea non-fast-forward, solo squash merge
+- **Rules:** Requires PR, blocks deletion, blocks non-fast-forward, squash merge only
 - **Enforcement:** Active
 
 ---
 
-## 4. Flujo de Trabajo Diario
+## 4. Daily Workflow
 
-### 4.1 Desarrollo en feature branch
+### 4.1 Development on a feature branch
 
 ```bash
-# Desde dev actualizado
+# From updated dev
 git checkout dev && git pull origin dev
-git checkout -b feature/mi-cambio
+git checkout -b feature/my-change
 
-# Desarrollo + tests locales
+# Development + local tests
 npm run test && npm run lint && npm run tsc
 
-# Push + PR a dev
-git push origin feature/mi-cambio
-gh pr create --base dev --head feature/mi-cambio --title "feat: mi cambio"
+# Push + PR to dev
+git push origin feature/my-change
+gh pr create --base dev --head feature/my-change --title "feat: my change"
 ```
 
-### 4.2 Merge a dev (integración)
+### 4.2 Merge to dev (integration)
 
-- PR a `dev` con base `dev`
-- Requisitos: 1 approval + CI pass (test, lint, tsc) + conversation resolved
-- **Merge squash** → mantiene historial limpio en dev
-- Rama feature se auto-borra (auto-delete habilitado)
+- PR to `dev` with base `dev`
+- Requirements: 1 approval + CI pass (test, lint, tsc) + conversation resolved
+- **Squash merge** → keeps history clean on dev
+- Feature branch auto-deleted (auto-delete enabled)
 
-### 4.3 Promoción a master (release)
+### 4.3 Promotion to master (release)
 
 ```bash
-# Cuando dev está listo para producción
+# When dev is ready for production
 gh pr create --base master --head dev --title "release: vX.Y.Z" --body "Changelog..."
-# Revisión + merge squash en GitHub UI
-# Deploy automático en push a master
+# Review + squash merge in GitHub UI
+# Automatic deploy on push to master
 ```
 
 ---
 
-## 5. Hotfix Policy (Producción)
+## 5. Hotfix Policy (Production)
 
-**Cuando:** Bug crítico en producción que no puede esperar al siguiente release.
+**When:** Critical production bug that cannot wait for the next release.
 
 ```bash
-# 1. Rama desde master (producción actual)
+# 1. Branch from master (current production)
 git checkout master && git pull origin master
-git checkout -b hotfix/descripcion-corta
+git checkout -b hotfix/short-description
 
-# 2. Fix + test local + staging deploy manual
+# 2. Fix + local test + manual staging deploy
 npm run test && npm run lint
-# deploy manual a staging si aplica
+# manual deploy to staging if applicable
 
-# 3. PR a master
-gh pr create --base master --head hotfix/... --title "hotfix: ..." --body "Fix para #ISSUE"
+# 3. PR to master
+gh pr create --base master --head hotfix/... --title "hotfix: ..." --body "Fix for #ISSUE"
 
-# 4. Merge squash a master → deploy automático a producción
+# 4. Squash merge to master → automatic production deploy
 
-# 5. Backport a dev (para que el fix persista en próxima release)
+# 5. Backport to dev (so the fix persists into the next release)
 git checkout dev && git pull origin dev
 git checkout -b backport/hotfix-<issue> dev
-git cherry-pick <squash-commit-hash-del-hotfix>
+git cherry-pick <squash-commit-hash-of-hotfix>
 gh pr create --base dev --head backport/hotfix-... --title "backport: hotfix #ISSUE"
-# Merge squash a dev
+# Squash merge to dev
 ```
 
 ---
 
-## 6. Excepciones Controladas
+## 6. Controlled Exceptions
 
-### 6.1 Force-push a dev (Backport Sync)
+### 6.1 Force-push to dev (Backport Sync)
 
-**Cuándo:** Sincronizar commits de master → dev (ej. backport CI fixes, hotfix backport)
-**Proceso:**
+**When:** Syncing commits from master → dev (e.g. backport CI fixes, hotfix backport)
+**Process:**
 
-1. Abrir issue/PR: "backport sync: traer X commits de master a dev"
-2. 2 aprobaciones de maintainers
-3. Maintainer habilita temporalmente "Allow force pushes" en dev (Settings → Branches)
-4. Ejecutar sync (cherry-pick + force-push a dev)
-5. Deshabilitar force-push inmediatamente
+1. Open issue/PR: "backport sync: bring X commits from master to dev"
+2. 2 maintainer approvals
+3. Maintainer temporarily enables "Allow force pushes" on dev (Settings → Branches)
+4. Run the sync (cherry-pick + force-push to dev)
+5. Disable force-push immediately
 
-### 6.2 Rollback Master (Emergencia)
+### 6.2 Master Rollback (Emergency)
 
-**Cuándo:** Merge a master rompe producción
+**When:** A merge to master breaks production
 
 ```bash
 git checkout master && git pull origin master
-git revert HEAD -m 1  # revert del squash commit
+git revert HEAD -m 1  # revert the squash commit
 git push origin master --force-with-lease
 ```
 
-**SOLO para revert.** Documentado en issue con 2 aprobaciones.
+**Revert ONLY.** Documented in an issue with 2 approvals.
 
-### 6.3 Rollback Dev (Emergencia)
+### 6.3 Dev Rollback (Emergency)
 
-Igual que master pero en dev. Requiere 2 aprobaciones.
+Same as master but on dev. Requires 2 approvals.
 
-### 6.4 Bypass Pre-push Hook (Local Development)
+### 6.4 Pre-push Hook Bypass (Local Development)
 
-**Cuándo:** Situación excepcional donde el hook bloquea push legítimo
+**When:** Exceptional situation where the hook blocks a legitimate push
 
 ```bash
-# Solo usar en emergencias documentadas
+# Emergency use only, documented
 git push --no-verify
 ```
 
-**Nota:** El GitHub Ruleset seguirá validando en servidor.
+**Note:** The GitHub Ruleset still validates server-side.
 
-### 6.5 Bypass GitHub Ruleset (Admin)
+### 6.5 GitHub Ruleset Bypass (Admin)
 
-**Cuándo:** Operaciones documentadas que requieren branches temporales
+**When:** Documented operations requiring temporary branches
 
-**Proceso:**
+**Process:**
 
-1. Abrir issue: "ruleset bypass: crear branch temporal X para Y"
-2. 1 aprobación de maintainer
-3. Admin crea branch con override
-4. Documentar en issue los pasos realizados
-
----
-
-## 7. Limpieza Automática
-
-- **Auto-delete head branches:** ✅ Habilitado (Settings → General)
-- **Efecto:** Ramas de PR se borran automáticamente al merge en **master**
-- **Dev:** NO se auto-borra (protection "no deletions") — mantener limpio manualmente
+1. Open issue: "ruleset bypass: create temporary branch X for Y"
+2. 1 maintainer approval
+3. Admin creates the branch with override
+4. Document the steps taken in the issue
 
 ---
 
-## 8. Comandos Permitidos / Prohibidos
+## 7. Automatic Cleanup
 
-| Comando                       | master       | dev          | feature/\*       |
-| ----------------------------- | ------------ | ------------ | ---------------- |
-| `git push` (sin force)        | ❌ (solo PR) | ❌ (solo PR) | ✅               |
-| `git push --force`            | ❌\*         | ❌\*         | ✅ (propia rama) |
-| `git push --force-with-lease` | ❌\*         | ❌\*         | ✅               |
-| `git rebase -i` (público)     | ❌           | ❌           | ✅               |
-| `git cherry-pick` + push      | ✅ (vía PR)  | ✅ (vía PR)  | ✅               |
-| `git tag`                     | ✅ (release) | ❌           | ❌               |
+- **Auto-delete head branches:** ✅ Enabled (Settings → General)
+- **Effect:** PR branches are auto-deleted on merge into **master**
+- **Dev:** NOT auto-deleted ("no deletions" protection) — keep clean manually
 
-_\* Ver excepciones §6_
+---
 
-**Bypass pre-push hook:** `git push --no-verify` (GitHub Ruleset seguirá validando)
+## 8. Allowed / Forbidden Commands
+
+| Command                       | master       | dev          | feature/\*      |
+| ----------------------------- | ------------ | ------------ | --------------- |
+| `git push` (no force)         | ❌ (PR only) | ❌ (PR only) | ✅              |
+| `git push --force`            | ❌\*         | ❌\*         | ✅ (own branch) |
+| `git push --force-with-lease` | ❌\*         | ❌\*         | ✅              |
+| `git rebase -i` (public)      | ❌           | ❌           | ✅              |
+| `git cherry-pick` + push      | ✅ (via PR)  | ✅ (via PR)  | ✅              |
+| `git tag`                     | ✅ (release) | ❌           | ❌              |
+
+_\* See exceptions §6_
+
+**Pre-push hook bypass:** `git push --no-verify` (GitHub Ruleset still validates)
 
 ---
 
 ## 9. CI Governance Job (`.github/workflows/branch-governance.yml`)
 
-Este job **falla el CI** si detecta violaciones (Capa 3 - Audit):
+This job **fails CI** when it detects violations (Layer 3 - Audit):
 
-1. **Ramas extra:** Detecta branches remotas que no cumplan convención
-2. **Ancestor policy:** `master` debe ser ancestor de `dev` (`git merge-base --is-ancestor master dev`)
-3. **Commits huérfanos en master:** `git log --oneline dev..master --grep -v "sync|chore|backport" | wc -l` > 0
-4. **Force-push detectado (24h):** `git reflog --since="24 hours ago" | grep -E "force-push|push --force" | wc -l` > 0 (en master/dev)
+1. **Extra branches:** Detects remote branches outside the convention
+2. **Ancestor policy:** `master` must be an ancestor of `dev` (`git merge-base --is-ancestor master dev`)
+3. **Orphan commits on master:** `git log --oneline dev..master --grep -v "sync|chore|backport" | wc -l` > 0
+4. **Force-push detected (24h):** `git reflog --since="24 hours ago" | grep -E "force-push|push --force" | wc -l` > 0 (on master/dev)
 
-**Nota:** Este workflow es informativo y de auditoría. La prevención real ocurre en Capas 1 y 2.
+**Note:** This workflow is informational and audit-only. Real prevention happens in Layers 1 and 2.
 
 ---
 
-## 10. Referencias Rápidas
+## 10. Quick References
 
-| Acción                   | Comando                                                                    |
+| Action                   | Command                                                                    |
 | ------------------------ | -------------------------------------------------------------------------- |
-| Ver protección actual    | `gh api repos/OWNER/REPO/branches/BRANCH/protection`                       |
-| Ver rulesets             | `gh api repos/OWNER/REPO/rulesets`                                         |
-| Ver ruleset específico   | `gh api repos/OWNER/REPO/rulesets/ID`                                      |
-| Ver ramas remotas        | `git ls-remote --heads origin`                                             |
-| Ver ancestry             | `git merge-base --is-ancestor master dev && echo "master ancestor of dev"` |
-| Ver commits únicos       | `git log --oneline master..dev` / `git log --oneline dev..master`          |
-| Crear PR                 | `gh pr create --base BASE --head HEAD --title "..." --body "..."`          |
-| Merge squash             | `gh pr merge --squash --delete-branch`                                     |
-| Test pre-push hook local | `git push --dry-run` (ejecuta hook sin push)                               |
-| Bypass pre-push hook     | `git push --no-verify` (emergencias documentadas)                          |
+| View current protection  | `gh api repos/OWNER/REPO/branches/BRANCH/protection`                       |
+| View rulesets            | `gh api repos/OWNER/REPO/rulesets`                                         |
+| View specific ruleset    | `gh api repos/OWNER/REPO/rulesets/ID`                                      |
+| View remote branches     | `git ls-remote --heads origin`                                             |
+| View ancestry            | `git merge-base --is-ancestor master dev && echo "master ancestor of dev"` |
+| View unique commits      | `git log --oneline master..dev` / `git log --oneline dev..master`          |
+| Create PR                | `gh pr create --base BASE --head HEAD --title "..." --body "..."`          |
+| Squash merge             | `gh pr merge --squash --delete-branch`                                     |
+| Test pre-push hook local | `git push --dry-run` (runs hook without pushing)                           |
+| Bypass pre-push hook     | `git push --no-verify` (documented emergencies)                            |
 
 ---
 
-## 11. Changelog de Este Documento
+## 11. Changelog of This Document
 
-| Versión | Fecha      | Cambios                                                                                                                                          | Autor         |
-| ------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
-| 2.0     | 2026-08-29 | Arquitectura de 3 capas (pre-push hook + GitHub Ruleset + Branch Governance). Eliminado workflow Branch Naming. Actualizado enforcement strategy | Bryan Stevens |
-| 1.0     | 2026-08-22 | Creación inicial (Plan sync-repos-governance)                                                                                                    | Bryan Stevens |
-
----
-
-> **Recordatorio:** Este documento es la única fuente de verdad para gobernanza de ramas. Cualquier cambio requiere PR a `dev` → `master` con 2 approvals.
+| Version | Date       | Changes                                                                                                                                 | Author        |
+| ------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| 2.0     | 2026-08-29 | 3-layer architecture (pre-push hook + GitHub Ruleset + Branch Governance). Removed Branch Naming workflow. Updated enforcement strategy | Bryan Stevens |
+| 1.0     | 2026-08-22 | Initial creation (Plan sync-repos-governance)                                                                                           | Bryan Stevens |
 
 ---
 
-## 12. Sincronización Automática master → dev
+> **Reminder:** This document is the single source of truth for branch governance. Any change requires a PR to `dev` → `master` with 2 approvals.
 
-**Problema:** Commits en `master` que no están en `dev` causan conflictos en PRs `dev` → `master`.
+---
 
-**Solución:** Workflow automático que sincroniza `master` → `dev` después de cada push a `master`.
+## 12. Automatic master → dev Sync
+
+**Problem:** Commits on `master` missing from `dev` cause conflicts in `dev` → `master` PRs.
+
+**Solution:** Automatic workflow syncing `master` → `dev` after every push to `master`.
 
 ### 12.1 Workflow: sync-master-to-dev.yml
 
-**Trigger:** `push` a `master` (también manual vía `workflow_dispatch`)
+**Trigger:** `push` to `master` (also manual via `workflow_dispatch`)
 
-**Comportamiento:**
+**Behavior:**
 
-1. Intenta rebase de `dev` sobre `master` (`git rebase origin/master`)
-2. Si el rebase es exitoso → `git push --force-with-lease origin dev`
-3. Si el rebase falla (conflictos):
-   - Aborta el rebase
-   - Crea una rama `sync/master-to-dev-<timestamp>`
-   - Crea un PR automático hacia `dev` con título `"chore: sync master → dev (auto, conflicts detected)"`
-   - El PR requiere resolución manual de conflictos
+1. Attempts to rebase `dev` onto `master` (`git rebase origin/master`)
+2. If the rebase succeeds → `git push --force-with-lease origin dev`
+3. If the rebase fails (conflicts):
+   - Aborts the rebase
+   - Creates a `sync/master-to-dev-<timestamp>` branch
+   - Opens an automatic PR to `dev` titled `"chore: sync master → dev (auto, conflicts detected)"`
+   - The PR requires manual conflict resolution
 
-**Ventajas:**
+**Benefits:**
 
-- **Prevención automática:** `dev` siempre contiene los commits de `master`
-- **Cero divergencia:** Elimina conflictos en PRs `dev` → `master`
-- **Fallback manual:** Si hay conflictos, crea PR para resolución humana
-- **No invasivo:** Solo fuerza rebase si es fast-forward
+- **Automatic prevention:** `dev` always contains `master` commits
+- **Zero divergence:** Eliminates conflicts in `dev` → `master` PRs
+- **Manual fallback:** On conflicts, creates a PR for human resolution
+- **Non-invasive:** Only force-rebases when fast-forward
 
-### 12.2 Flujo Completo con Sync Automático
+### 12.2 Full Flow with Automatic Sync
 
 ```
-master (PR merged) ──► workflow: sync-master-to-dev ──┬──► rebase exitoso
-                                                       │     └──► force-push a dev
-                                                       │
-                                                       └──► conflictos detectados
-                                                             └──► crea PR sync/* → dev
-                                                                  └──► resolución manual
+master (PR merged) ──► workflow: sync-master-to-dev ──┬──► rebase succeeded
+                                                        │     └──► force-push to dev
+                                                        │
+                                                        └──► conflicts detected
+                                                              └──► creates PR sync/* → dev
+                                                                   └──► manual resolution
 ```
 
-### 12.3 Manejo de Conflictos
+### 12.3 Conflict Handling
 
-**Si el workflow falla con conflictos:**
+**If the workflow fails with conflicts:**
 
-1. GitHub Actions crea automáticamente un PR de `sync/master-to-dev-<timestamp>` → `dev`
-2. Un maintainer debe:
-   - Revisar el PR
-   - Resolver conflictos localmente:
+1. GitHub Actions automatically opens a PR from `sync/master-to-dev-<timestamp>` → `dev`
+2. A maintainer must:
+   - Review the PR
+   - Resolve conflicts locally:
      ```bash
      git fetch origin
      git checkout sync/master-to-dev-<timestamp>
      git rebase origin/dev
-     # Resolver conflictos manualmente
+     # Resolve conflicts manually
      git push --force-with-lease origin sync/master-to-dev-<timestamp>
      ```
-   - Aprobar y mergear el PR
+   - Approve and merge the PR
 
-**Importante:** Este flujo garantiza que `dev` nunca diverge de `master` por más de un ciclo de PR.
+**Important:** This flow guarantees `dev` never diverges from `master` for more than one PR cycle.
 
-### 12.4 Excepciones y Consideraciones
+### 12.4 Exceptions and Considerations
 
-- **Protección de `dev`:** El workflow tiene permisos para force-push a `dev` (necesario para rebase)
-- **Rate limit:** El workflow solo corre en push a `master` (máx. ~10-20 veces/día en proyectos activos)
-- **Audit:** Todos los syncs automáticos quedan registrados en el historial de `dev`
+- **`dev` protection:** The workflow has permission to force-push to `dev` (required for rebase)
+- **Rate limit:** The workflow only runs on push to `master` (max ~10-20 times/day on active projects)
+- **Audit:** All automatic syncs are recorded in `dev` history
