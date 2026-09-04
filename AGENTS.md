@@ -31,6 +31,19 @@ Per-app docs (verified, authoritative over this file for details): `apps/backend
 ├── .omo/ .sisyphus/ .kiro/ .playwright-mcp/  # agent/tool state — do NOT source
 ```
 
+## GIT FLOW & BRANCH STRATEGY
+
+See **[GIT-FLOW.md](./GIT-FLOW.md)** for complete Git workflow documentation, including:
+
+- Branch strategy (`dev` → staging, `master` → production)
+- Squash vs Rebase merge strategies
+- Daily development workflows (solo and team)
+- Hotfix procedures
+- Sync requirements after merges
+- Common scenarios and troubleshooting
+
+**Critical**: Always sync `dev` with `master` after merging to avoid conflicts on next PR.
+
 ## WHERE TO LOOK
 
 | Task                 | Location                                                                                     |
@@ -233,13 +246,6 @@ npm run migration:show
 npm run start:dev                 # watch, :3031
 npm run telegram:gen-session      # generate INGESTION_TELEGRAM_MTPROTO_SESSION
 npm test | test:e2e | test:cov
-
-# TypeORM Migrations (cd apps/backend)
-# Note: Staging/production use migrations; dev/test use synchronize:true
-npm run migration:generate -- -n MigrationName  # generate new migration from entity changes
-npm run migration:run             # apply pending migrations
-npm run migration:revert          # rollback last migration
-npm run migration:show            # list applied and pending migrations
 
 # Docker
 npm run docker:up                 # postgres:16 + redis:7 + pgAdmin (:5050) per apps/backend/docker-compose.yml

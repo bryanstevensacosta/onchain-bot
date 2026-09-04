@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import {
   RegisterBackendDto,
-  type RegisterBackendResponse,
+  RegisterBackendResponse,
 } from './dto/register-backend.dto';
 import { BackendChannelProviderService } from '../../../telegram/shared/services/backend-channel-provider.service';
 
