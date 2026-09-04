@@ -7,10 +7,8 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import {
-  RegisterBackendDto,
-  RegisterBackendResponse,
-} from './dto/register-backend.dto';
+import { RegisterBackendDto } from './dto/register-backend.dto';
+import type { RegisterBackendResponse } from './dto/register-backend.dto';
 import { BackendChannelProviderService } from '../../../telegram/shared/services/backend-channel-provider.service';
 
 /**
