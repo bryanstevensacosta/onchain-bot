@@ -2,9 +2,12 @@ import { Module, OnModuleInit, Logger } from '@nestjs/common';
 import { SharedModule } from './shared/shared.module';
 import { KolModule } from './kol/kol.module';
 import { CryptoNewsModule } from './crypto-news/crypto-news.module';
+import { StreamModule } from '../stream/stream.module';
 import { BackendChannelProviderService } from './shared/services/backend-channel-provider.service';
 import { TelegramListenerPort } from './shared/ports/telegram-listener.port';
 import { IngestionCoordinator } from './shared/application/coordinators/ingestion.coordinator';
+import { SSEBroadcastService } from '../stream/application/services/sse-broadcast.service';
+import { BroadcastEvent } from '../stream/domain/broadcast-event.vo';
 import { DebugTelegramController } from './debug/debug-telegram.controller';
 
 /**
@@ -17,11 +20,14 @@ import { DebugTelegramController } from './debug/debug-telegram.controller';
  * 4. Periodic refresh of channel subscriptions
  *
  * Per design.md § 2.1: Extracts MTProto layer from backend and broadcasts via SSE.
+ * Per Requirement 4.1: Broadcasts ingested messages to all backends via SSEBroadcastService
+ * Per Requirement 4.3: Ingestion continues if broadcast fails (log error, don't throw)
  *
  * Lifecycle:
  * - onModuleInit(): Fetches active channels from backend DB, starts MTProto listener
  * - Listener yields messages to IngestionCoordinator
- * - Coordinator broadcasts to StreamService (SSE)
+ * - Coordinator broadcasts to StreamService (legacy SSE)
+ * - TelegramModule broadcasts to SSEBroadcastService (multi-backend SSE)
  * - Scheduler refreshes channel list every 5 minutes
  *
  * Migration from seed-based system:
@@ -33,6 +39,7 @@ import { DebugTelegramController } from './debug/debug-telegram.controller';
     SharedModule, // MTProto infrastructure + BackendChannelProviderService
     KolModule, // KOL seeders (DEPRECATED - kept for backward compat)
     CryptoNewsModule, // Crypto news seeders (DEPRECATED - kept for backward compat)
+    StreamModule, // SSE infrastructure + SSEBroadcastService
   ],
   controllers: [DebugTelegramController],
   exports: [SharedModule, KolModule, CryptoNewsModule],
@@ -48,6 +55,7 @@ export class TelegramModule implements OnModuleInit {
     private readonly channelProvider: BackendChannelProviderService,
     private readonly listener: TelegramListenerPort,
     private readonly coordinator: IngestionCoordinator,
+    private readonly sseBroadcast: SSEBroadcastService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -180,8 +188,40 @@ export class TelegramModule implements OnModuleInit {
           ? 'crypto-news'
           : 'kol';
 
-        // Route message to SSE broadcast via coordinator
+        // Route message to legacy SSE broadcast via coordinator
         await this.coordinator.route(message, messageType);
+
+        // Per Requirement 4.1: Broadcast to all backends via SSEBroadcastService
+        // Per Requirement 4.3: Ingestion continues if broadcast fails
+        try {
+          // Extract media path from message (first media item if available)
+          const mediaPath = message.media?.[0]?.filePath;
+
+          // Create BroadcastEvent from raw Telegram message
+          const event = BroadcastEvent.fromTelegramMessage(
+            message.peerId,
+            {
+              id: message.messageId,
+              message: message.text,
+              date: Math.floor(message.occurredAt.getTime() / 1000), // Convert ms to seconds
+            },
+            mediaPath,
+          );
+
+          // Broadcast to all connected backends
+          await this.sseBroadcast.broadcast(event);
+
+          this.logger.debug(
+            `Broadcasted to multi-backend SSE: ${message.peerId}:${message.messageId}`,
+          );
+        } catch (broadcastError) {
+          // Per Requirement 4.3: Log error but don't throw - ingestion must continue
+          this.logger.error(
+            `Failed to broadcast message ${message.peerId}:${message.messageId} to multi-backend SSE: ${(broadcastError as Error).message}`,
+            (broadcastError as Error).stack,
+          );
+          // Continue processing - broadcast failure should not stop ingestion
+        }
       }
     } catch (error) {
       this.logger.error(

@@ -7,6 +7,7 @@ import { Counter, Gauge, Histogram, Registry } from 'prom-client';
  *
  * Per Requirement 9.5: Expose metrics for monitoring
  * Per Requirement 11.7: Track FLOOD_WAIT occurrences
+ * Per Requirement 8.1, 8.3, 8.5: Multi-backend broadcast metrics
  *
  * Metrics exposed:
  * - ingestion_mtproto_connected: MTProto connection status (0|1)
@@ -17,6 +18,12 @@ import { Counter, Gauge, Histogram, Registry } from 'prom-client';
  * - ingestion_flood_wait_count_24h: FLOOD_WAIT errors in 24h window
  * - ingestion_media_downloads_total: Total media downloads (labels: type)
  * - ingestion_api_request_duration_seconds: API request latency (labels: endpoint, method, status)
+ * - ingestion_active_backends: Number of active backend connections
+ * - ingestion_broadcast_total: Broadcast events per backend (labels: backend_id)
+ * - ingestion_broadcast_failures: Broadcast failures per backend (labels: backend_id, reason)
+ * - ingestion_channel_union_size: Size of channel union across all backends
+ * - ingestion_backfill_buffer_size: Number of messages in backfill buffer
+ * - ingestion_backfill_requests_total: Backfill requests per backend (labels: backend_id, status)
  *
  * @service MetricsService
  */
@@ -41,6 +48,14 @@ export class MetricsService {
 
   // API latency
   public readonly apiRequestDuration: Histogram<string>;
+
+  // Multi-backend broadcast metrics (Requirement 8.1, 8.3, 8.5)
+  public readonly activeBackends: Gauge<string>;
+  public readonly broadcastTotal: Counter<string>;
+  public readonly broadcastFailures: Counter<string>;
+  public readonly channelUnionSize: Gauge<string>;
+  public readonly backfillBufferSize: Gauge<string>;
+  public readonly backfillRequestsTotal: Counter<string>;
 
   constructor(private readonly registry: Registry) {
     // MTProto connection status
@@ -102,10 +117,53 @@ export class MetricsService {
       registers: [this.registry],
     });
 
+    // Multi-backend broadcast metrics
+    this.activeBackends = new Gauge({
+      name: 'ingestion_active_backends',
+      help: 'Number of currently active backend connections',
+      registers: [this.registry],
+    });
+
+    this.broadcastTotal = new Counter({
+      name: 'ingestion_broadcast_total',
+      help: 'Total number of broadcast events sent per backend',
+      labelNames: ['backend_id'],
+      registers: [this.registry],
+    });
+
+    this.broadcastFailures = new Counter({
+      name: 'ingestion_broadcast_failures',
+      help: 'Total number of broadcast failures per backend',
+      labelNames: ['backend_id', 'reason'],
+      registers: [this.registry],
+    });
+
+    this.channelUnionSize = new Gauge({
+      name: 'ingestion_channel_union_size',
+      help: 'Current size of the channel union (unique channels across all backends)',
+      registers: [this.registry],
+    });
+
+    this.backfillBufferSize = new Gauge({
+      name: 'ingestion_backfill_buffer_size',
+      help: 'Number of messages currently in the backfill buffer',
+      registers: [this.registry],
+    });
+
+    this.backfillRequestsTotal = new Counter({
+      name: 'ingestion_backfill_requests_total',
+      help: 'Total number of backfill requests per backend',
+      labelNames: ['backend_id', 'status'],
+      registers: [this.registry],
+    });
+
     // Initialize gauges to 0
     this.mtprotoConnected.set(0);
     this.sseClientsConnected.set(0);
     this.floodWaitCount24h.set(0);
+    this.activeBackends.set(0);
+    this.channelUnionSize.set(0);
+    this.backfillBufferSize.set(0);
   }
 
   /**

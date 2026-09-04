@@ -96,6 +96,7 @@
     "moduleNameMapper": {
       "^telegram/events$": "<rootDir>/../../node_modules/telegram/events/index",
       "^telegram/sessions$": "<rootDir>/../../node_modules/telegram/sessions/index",
+      "^telegram/extensions/Logger$": "<rootDir>/../../node_modules/telegram/extensions/Logger",
       "^telegram/(.*)$": "<rootDir>/src/telegram/$1",
       "^shared/(.*)$": "<rootDir>/src/shared/$1",
       "^stream/(.*)$": "<rootDir>/src/stream/$1",

@@ -13,6 +13,9 @@ import {
 import type { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { StreamService } from '../../application/services/stream.service';
+import { SSEBroadcastService } from '../../application/services/sse-broadcast.service';
+import { BackfillBufferService } from '../../infrastructure/backfill-buffer.service';
+import { BackendChannelProviderService } from '../../../telegram/shared/services/backend-channel-provider.service';
 
 /**
  * Minimal TelegramListenerPort interface for backfill
@@ -20,6 +23,21 @@ import { StreamService } from '../../application/services/stream.service';
  */
 interface TelegramListenerPort {
   backfill(channelId: string, limit: number): Promise<any[]>;
+}
+
+/**
+ * StreamStatusResponse - Response structure for stream status endpoint
+ *
+ * Per Requirement 8.1: Expose operational status of multi-backend broadcast system
+ * Per Requirement 8.2: Provide real-time metrics for monitoring
+ */
+interface StreamStatusResponse {
+  activeBackends: number;
+  channelUnionSize: number;
+  backfillBufferSize: number;
+  backfillBufferOldestTimestamp: number | null;
+  mtprotoConnected: boolean;
+  registeredBackends: string[];
 }
 
 /**
@@ -56,6 +74,9 @@ export class StreamController {
 
   constructor(
     private readonly streamService: StreamService,
+    private readonly sseBroadcastService: SSEBroadcastService,
+    private readonly backfillBufferService: BackfillBufferService,
+    private readonly backendChannelProvider: BackendChannelProviderService,
     @Optional()
     @Inject('TelegramListenerPort')
     private readonly telegramListener?: TelegramListenerPort,
@@ -234,29 +255,53 @@ export class StreamController {
   }
 
   /**
-   * Health check endpoint for SSE stream status
+   * Operational status endpoint for multi-backend broadcast system
    *
-   * Per Requirement 8.1: Expose metrics for monitoring
+   * Per Requirement 8.1: Expose metrics for active backends and channel union
+   * Per Requirement 8.2: Real-time state for monitoring and alerting
+   * Per Requirement 10.1: Status endpoint for observability
    *
    * Returns:
-   * - connectedClients: Number of active SSE connections
-   * - clients: Array of client metadata
+   * - activeBackends: Count from SSEBroadcastService
+   * - channelUnionSize: From BackendChannelProviderService
+   * - backfillBufferSize: From BackfillBufferService
+   * - backfillBufferOldestTimestamp: From BackfillBufferService
+   * - mtprotoConnected: Placeholder (true) - TelegramModule doesn't expose this yet
+   * - registeredBackends: Array of backend IDs from BackendChannelProviderService
    *
-   * @returns JSON response with stream status
+   * @returns StreamStatusResponse with operational metrics
    */
   @Get('stream/status')
-  getStreamStatus() {
-    const clients = this.streamService.getConnectedClients();
+  getStreamStatus(): StreamStatusResponse {
+    const activeBackends = this.sseBroadcastService.getActiveBackendCount();
+    const channelUnionSize = this.backendChannelProvider.getChannelUnionSize();
+    const backfillBufferSize = this.backfillBufferService.getSize();
+    const backfillBufferOldestTimestamp =
+      this.backfillBufferService.getOldestTimestamp();
+    const registeredBackends =
+      this.backendChannelProvider.getRegisteredBackendIds();
+
+    // Note: mtprotoConnected is a placeholder (true) since TelegramModule
+    // doesn't yet expose connection status. This will be implemented when
+    // TelegramModule provides a getConnectionStatus() method.
+    const mtprotoConnected = true;
+
+    this.logger.debug({
+      event: 'stream:status:requested',
+      activeBackends,
+      channelUnionSize,
+      backfillBufferSize,
+      registeredBackends: registeredBackends.length,
+      timestamp: new Date().toISOString(),
+    });
+
     return {
-      status: 'ok',
-      connectedClients: this.streamService.getClientCount(),
-      clients: clients.map((c) => ({
-        id: c.id,
-        connectedAt: c.connectedAt.toISOString(),
-        uptimeSeconds: Math.floor(
-          (Date.now() - c.connectedAt.getTime()) / 1000,
-        ),
-      })),
+      activeBackends,
+      channelUnionSize,
+      backfillBufferSize,
+      backfillBufferOldestTimestamp,
+      mtprotoConnected,
+      registeredBackends,
     };
   }
 }
