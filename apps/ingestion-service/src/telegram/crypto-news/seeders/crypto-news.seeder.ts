@@ -1,12 +1,28 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { TelegramListenerPort } from '../../shared/ports/telegram-listener.port';
+import { TelegramListenerPort } from '../../shared/ports/telegram-listener.port';
 import {
   CRYPTO_NEWS_SEED,
   type SeedCryptoNewsChannel,
 } from '../seeds/crypto-news.seed';
 
 /**
+ * @deprecated DEPRECATED: Use BackendChannelProviderService instead
+ *
+ * This seeder is kept for backward compatibility only and will be removed in a future version.
+ * The new DB-driven approach fetches active crypto-news sources from the backend via HTTP:
+ * - GET /api/crypto-news/sources/active/ids
+ *
+ * Migration path:
+ * 1. Add sources via backend API: POST /api/crypto-news/sources
+ * 2. Verify sources appear in backend DB with isActive=true and lifecycleStatus='ACTIVE'
+ * 3. ingestion-service automatically picks them up via BackendChannelProviderService
+ * 4. This seeder is no longer invoked by TelegramModule
+ *
+ * ---
+ *
+ * OLD BEHAVIOR (deprecated):
+ *
  * Idempotently registers the static seed list of Telegram crypto-news
  * channels on application bootstrap.
  *
@@ -27,6 +43,7 @@ export class CryptoNewsSeeder {
 
   constructor(
     private readonly config: ConfigService,
+    @Inject(TelegramListenerPort)
     private readonly listener: TelegramListenerPort,
   ) {}
 
@@ -35,76 +52,12 @@ export class CryptoNewsSeeder {
     skipped: number;
     failed: number;
   }> {
-    const enabled = this.config.get<boolean>(
-      'INGESTION_TELEGRAM_NEWS_SEED_ENABLED',
-      false,
+    throw new Error(
+      '❌ CryptoNewsSeeder has been REMOVED and replaced by DB-driven architecture.\n' +
+        '   All crypto-news sources are now loaded from the backend database.\n' +
+        '   Add sources via backend API: POST /api/crypto-news/sources\n' +
+        '   This seeder should never be invoked. If you see this error, check TelegramModule initialization.',
     );
-    if (!enabled) {
-      this.logger.debug('News seed disabled; skipping registration.');
-      return { added: 0, skipped: 0, failed: 0 };
-    }
-
-    // Parse env-supplied channels if present
-    const envChannels = this.parseEnvChannels();
-    const channels = envChannels.length > 0 ? envChannels : CRYPTO_NEWS_SEED;
-
-    if (channels.length === 0) {
-      this.logger.debug('News seed list is empty; nothing to register.');
-      return { added: 0, skipped: 0, failed: 0 };
-    }
-
-    let added = 0;
-    let skipped = 0;
-    let failed = 0;
-
-    for (const seed of channels) {
-      try {
-        // Validate channelId format
-        if (!seed.channelId || !/^-?\d+$/.test(seed.channelId)) {
-          failed += 1;
-          this.logger.error(
-            `Skipping invalid seed channelId: ${seed.channelId}`,
-          );
-          continue;
-        }
-
-        // Skip if already registered
-        if (this.registeredChannels.has(seed.channelId)) {
-          skipped += 1;
-          continue;
-        }
-
-        const { title, handle } = await this.resolveTitleAndHandle(
-          seed.channelId,
-          seed.title,
-          seed.handle,
-        );
-
-        // Mark as registered for this session
-        this.registeredChannels.add(seed.channelId);
-        added += 1;
-        this.logger.debug(
-          `Registered crypto-news channel ${seed.channelId} (${handle || 'no handle'}, "${title}")`,
-        );
-      } catch (err) {
-        failed += 1;
-        this.logger.error(
-          `Skipping invalid crypto-news seed ${seed.channelId}: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
-      }
-    }
-
-    const summary = `Telegram crypto-news seed complete: added=${added} skipped=${skipped} failed=${failed} total=${channels.length}`;
-    this.logger.log(summary);
-    if (this.needsManualJoin > 0) {
-      this.logger.log(
-        `${this.needsManualJoin} crypto-news channel(s) need manual join.`,
-      );
-    }
-
-    return { added, skipped, failed };
   }
 
   /**

@@ -6,12 +6,12 @@
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
-  "transformIgnorePatterns": [
-    "node_modules/(?!(eventsource)/)"
-  ],
+  "transformIgnorePatterns": ["node_modules/(?!(eventsource)/)"],
   "moduleNameMapper": {
-    "^telegram/events$": "<rootDir>/../../node_modules/telegram/events/index",
-    "^telegram/sessions$": "<rootDir>/../../node_modules/telegram/sessions/index",
+    "^telegram/events$": "<rootDir>/../../../node_modules/telegram/events/index.js",
+    "^telegram/sessions$": "<rootDir>/../../../node_modules/telegram/sessions/index.js",
+    "^telegram/extensions/Logger$": "<rootDir>/../../../node_modules/telegram/extensions/Logger.js",
+    "^telegram/client$": "<rootDir>/../../../node_modules/telegram/client/index.js",
     "^telegram/(.*)$": "<rootDir>/../src/telegram/$1",
     "^shared/(.*)$": "<rootDir>/../src/shared/$1",
     "^stream/(.*)$": "<rootDir>/../src/stream/$1",

@@ -36,8 +36,8 @@ export interface EntityPayload {
 /**
  * Complete message payload for SSE broadcast
  *
- * Per Invariant 1: text/content field is EXCLUDED
- * Backend clients receive metadata only and can fetch full content separately
+ * Per Invariant 1 (modified): text field EXCLUDED for KOL (extraction pipeline), INCLUDED for crypto-news (opaque content)
+ * Backend clients receive metadata only for KOL and can fetch full content separately via extraction pipeline
  */
 export interface MessagePayload {
   /** Telegram channel identifier (e.g., "-1001234567890" or "@channelname") */
@@ -49,10 +49,17 @@ export interface MessagePayload {
   /** ISO 8601 timestamp of message creation */
   occurredAt: string;
 
+  /**
+   * Raw message text content (ONLY for crypto-news, undefined for KOL)
+   * - KOL: omitted (extraction pipeline fetches from Telegram)
+   * - Crypto-news: included (content stored as-is, no extraction)
+   */
+  text?: string;
+
   /** Media attachments (photos/videos) with HTTP URLs */
   media: MediaPayload[];
 
-  /** Text entities (links, mentions, hashtags) WITHOUT the actual text */
+  /** Text entities (links, mentions, hashtags) */
   entities?: EntityPayload[];
 
   /** Grouped media album ID (multiple messages share same groupedId) */

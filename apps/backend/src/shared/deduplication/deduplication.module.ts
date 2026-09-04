@@ -1,10 +1,11 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { isDatabaseEnabled } from 'shared/common/persistence/database.module';
 
 // Domain services
 import { DeduplicationService } from './application/services/deduplication.service';
 import { LlmArbiterService } from './application/services/llm-arbiter.service';
+import { LlmModelProviderService } from './application/services/llm-model-provider.service';
 import { ContentNormalizerService } from './domain/services/content-normalizer.service';
 import { ContentHashService } from './domain/services/content-hash.service';
 import { UrlNormalizerService } from './domain/services/url-normalizer.service';
@@ -20,16 +21,21 @@ import { InMemoryDeduplicationStore } from './infrastructure/repositories/in-mem
 import { TypeOrmDeduplicationStore } from './infrastructure/persistence/typeorm/repositories/typeorm-deduplication-store';
 import { DedupRecordEntity } from './infrastructure/persistence/typeorm/entities/dedup-record.entity';
 
+// Import CryptoNewsPublisherModule for LLM model access
+import { CryptoNewsPublisherModule } from 'telegram/crypto-news-publisher/crypto-news-publisher.module';
+
 @Module({
   imports: [
     ...(isDatabaseEnabled()
       ? [TypeOrmModule.forFeature([DedupRecordEntity])]
       : []),
+    forwardRef(() => CryptoNewsPublisherModule),
   ],
   providers: [
     // Domain services (always provided)
     DeduplicationService,
     LlmArbiterService,
+    LlmModelProviderService,
     ContentNormalizerService,
     ContentHashService,
     UrlNormalizerService,

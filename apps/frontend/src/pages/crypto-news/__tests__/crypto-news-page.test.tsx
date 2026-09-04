@@ -15,6 +15,23 @@ import type { ReactNode } from 'react';
 vi.mock('@/entities/crypto-news/model/use-crypto-news', () => ({
   useCryptoNewsMessages: vi.fn(),
   useCryptoNewsSources: vi.fn(),
+  useFilters: vi.fn(() => ({ data: [], isLoading: false })),
+  useCreateFilter: vi.fn(() => ({
+    mutate: vi.fn(),
+    isPending: false,
+  })),
+  useUpdateFilter: vi.fn(() => ({
+    mutate: vi.fn(),
+    isPending: false,
+  })),
+  useDeleteFilter: vi.fn(() => ({
+    mutate: vi.fn(),
+    isPending: false,
+  })),
+  useToggleFilter: vi.fn(() => ({
+    mutate: vi.fn(),
+    isPending: false,
+  })),
 }));
 
 vi.mock('@/features/crypto-news-publisher/model/use-keywords', () => {

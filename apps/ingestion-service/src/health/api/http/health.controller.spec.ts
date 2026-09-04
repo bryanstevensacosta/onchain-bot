@@ -7,6 +7,7 @@ import {
 } from './health.controller';
 import { StreamService } from 'stream/application/services/stream.service';
 import { DisconnectionTracker } from 'stream/application/services/disconnection-tracker.service';
+import { SSEBroadcastService } from 'stream/application/services/sse-broadcast.service';
 
 /**
  * Mock TelegramClientManager interface
@@ -39,17 +40,19 @@ interface MockFloodWaitCounter {
 /**
  * Integration tests for HealthController
  *
- * **Validates: Requirements 5.1, 5.4, 5.5**
+ * **Validates: Requirements 5.1, 5.4, 5.5, 8.2**
  *
  * Tests health endpoint behavior with different TelegramClientManager states:
  * - Connected state returns HTTP 200
  * - Disconnected state returns HTTP 503
  * - Channels endpoint returns correct metadata structure
+ * - Broadcast status returns activeBackends and ready flag
  */
 describe('HealthController', () => {
   let controller: HealthController;
   let streamService: StreamService;
   let disconnectionTracker: DisconnectionTracker;
+  let sseBroadcastService: SSEBroadcastService;
   let mockClientManager: MockTelegramClientManager;
   let mockFloodWaitCounter: MockFloodWaitCounter;
 
@@ -88,6 +91,12 @@ describe('HealthController', () => {
           useClass: DisconnectionTracker,
         },
         {
+          provide: SSEBroadcastService,
+          useValue: {
+            getActiveBackendCount: jest.fn().mockReturnValue(0),
+          },
+        },
+        {
           provide: 'TelegramClientManager',
           useValue: mockClientManager,
         },
@@ -102,6 +111,7 @@ describe('HealthController', () => {
     streamService = module.get<StreamService>(StreamService);
     disconnectionTracker =
       module.get<DisconnectionTracker>(DisconnectionTracker);
+    sseBroadcastService = module.get<SSEBroadcastService>(SSEBroadcastService);
   });
 
   describe('getHealth', () => {
@@ -398,6 +408,7 @@ describe('HealthController', () => {
         'mtproto',
         'channels',
         'clients',
+        'broadcast',
         'uptime',
       ];
 
@@ -418,6 +429,10 @@ describe('HealthController', () => {
 
       // Clients nested fields
       expect(response.clients).toHaveProperty('connected');
+
+      // Broadcast nested fields (Requirement 8.2)
+      expect(response.broadcast).toHaveProperty('activeBackends');
+      expect(response.broadcast).toHaveProperty('ready');
     });
 
     it('should handle multiple concurrent health checks', async () => {
@@ -659,6 +674,115 @@ describe('HealthController', () => {
       // Assert
       expect(result.length).toBe(100);
       expect(result).toEqual(mockChannels);
+    });
+  });
+
+  describe('broadcast status (Requirement 8.2)', () => {
+    it('should return broadcast.ready=true when at least 1 backend connected', async () => {
+      // Arrange
+      jest
+        .spyOn(sseBroadcastService, 'getActiveBackendCount')
+        .mockReturnValue(1);
+
+      const mockResponse = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      } as any;
+
+      // Act
+      await controller.getHealth(mockResponse);
+
+      // Assert
+      const response = mockResponse.json.mock.calls[0][0];
+      expect(response.broadcast.activeBackends).toBe(1);
+      expect(response.broadcast.ready).toBe(true);
+    });
+
+    it('should return broadcast.ready=false when no backends connected', async () => {
+      // Arrange
+      jest
+        .spyOn(sseBroadcastService, 'getActiveBackendCount')
+        .mockReturnValue(0);
+
+      const mockResponse = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      } as any;
+
+      // Act
+      await controller.getHealth(mockResponse);
+
+      // Assert
+      const response = mockResponse.json.mock.calls[0][0];
+      expect(response.broadcast.activeBackends).toBe(0);
+      expect(response.broadcast.ready).toBe(false);
+    });
+
+    it('should return broadcast.ready=true when multiple backends connected', async () => {
+      // Arrange
+      jest
+        .spyOn(sseBroadcastService, 'getActiveBackendCount')
+        .mockReturnValue(3);
+
+      const mockResponse = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      } as any;
+
+      // Act
+      await controller.getHealth(mockResponse);
+
+      // Assert
+      const response = mockResponse.json.mock.calls[0][0];
+      expect(response.broadcast.activeBackends).toBe(3);
+      expect(response.broadcast.ready).toBe(true);
+    });
+
+    it('should include broadcast status in health response', async () => {
+      // Arrange
+      jest
+        .spyOn(sseBroadcastService, 'getActiveBackendCount')
+        .mockReturnValue(2);
+
+      const mockResponse = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      } as any;
+
+      // Act
+      await controller.getHealth(mockResponse);
+
+      // Assert
+      const response = mockResponse.json.mock.calls[0][0];
+      expect(response).toHaveProperty('broadcast');
+      expect(response.broadcast).toEqual({
+        activeBackends: 2,
+        ready: true,
+      });
+    });
+
+    it('should reflect dynamic changes in backend count', async () => {
+      // Arrange - Simulate varying backend counts
+      const backendCounts = [0, 1, 2, 5, 0];
+
+      for (const count of backendCounts) {
+        jest
+          .spyOn(sseBroadcastService, 'getActiveBackendCount')
+          .mockReturnValue(count);
+
+        const mockResponse = {
+          status: jest.fn().mockReturnThis(),
+          json: jest.fn(),
+        } as any;
+
+        // Act
+        await controller.getHealth(mockResponse);
+
+        // Assert
+        const response = mockResponse.json.mock.calls[0][0];
+        expect(response.broadcast.activeBackends).toBe(count);
+        expect(response.broadcast.ready).toBe(count > 0);
+      }
     });
   });
 

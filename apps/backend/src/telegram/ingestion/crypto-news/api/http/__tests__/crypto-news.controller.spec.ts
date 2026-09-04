@@ -1,10 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { ConflictException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import * as fs from 'node:fs';
 import { Repository } from 'typeorm';
 import { CryptoNewsController } from 'telegram/ingestion/crypto-news/api/http/crypto-news.controller';
 import { RegisterNewsSourceUseCase } from 'telegram/ingestion/crypto-news/application/handlers/register-news-source.use-case';
+import { ListActiveSourceIdsUseCase } from 'telegram/ingestion/crypto-news/application/handlers/list-active-source-ids.use-case';
 import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
 import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
 import { CryptoNewsMetadataResolver } from 'telegram/ingestion/crypto-news/application/services/crypto-news-metadata-resolver.service';
@@ -13,6 +15,13 @@ import { CryptoNewsMessageMediaEntity } from 'telegram/ingestion/crypto-news/inf
 import { CryptoNewsSource } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-source.entity';
 import { CryptoNewsEventPublisher } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-event.publisher';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
+import {
+  CreateFilterUseCase,
+  ListFiltersUseCase,
+  UpdateFilterUseCase,
+  DeleteFilterUseCase,
+  ToggleFilterUseCase,
+} from 'telegram/ingestion/crypto-news/application/handlers/filters';
 
 // The real `TelegramMtprotoListenerAdapter` transitively imports
 // `telegram/extensions/Logger`, a CJS subpath that Jest's
@@ -216,6 +225,10 @@ async function buildController(
     controllers: [CryptoNewsController],
     providers: [
       { provide: RegisterNewsSourceUseCase, useValue: registerUseCase },
+      {
+        provide: ListActiveSourceIdsUseCase,
+        useValue: { execute: jest.fn().mockResolvedValue([]) },
+      },
       { provide: CryptoNewsSourceRepository, useValue: sourceRepo },
       { provide: CryptoNewsMessageRepository, useValue: messageRepo },
       { provide: TelegramMtprotoListenerAdapter, useValue: {} },
@@ -233,6 +246,26 @@ async function buildController(
         useValue: {
           get: () => ({ cryptoNewsMediaRetentionHours: 24 }),
         },
+      },
+      {
+        provide: CreateFilterUseCase,
+        useValue: { execute: jest.fn().mockResolvedValue({}) },
+      },
+      {
+        provide: ListFiltersUseCase,
+        useValue: { execute: jest.fn().mockResolvedValue([]) },
+      },
+      {
+        provide: UpdateFilterUseCase,
+        useValue: { execute: jest.fn().mockResolvedValue({}) },
+      },
+      {
+        provide: DeleteFilterUseCase,
+        useValue: { execute: jest.fn().mockResolvedValue(undefined) },
+      },
+      {
+        provide: ToggleFilterUseCase,
+        useValue: { execute: jest.fn().mockResolvedValue({}) },
       },
     ],
   }).compile();
@@ -352,12 +385,16 @@ describe('CryptoNewsController.addSource (POST /crypto-news/sources)', () => {
       },
     });
 
+    // Controller transforms DomainError(CONFLICT) into ConflictException with enhanced message
     await expect(
       controller.addSource({ channelId: '999', title: 'Dup' }),
-    ).rejects.toBeInstanceOf(DomainError);
+    ).rejects.toBeInstanceOf(ConflictException);
+
     await expect(
       controller.addSource({ channelId: '999', title: 'Dup' }),
-    ).rejects.toMatchObject({ code: ErrorCode.CONFLICT });
+    ).rejects.toMatchObject({
+      message: expect.stringContaining('already exists in the database'),
+    });
 
     // The controller must NOT swallow the error AND must NOT save a
     // partial source (no activate() in this path because execute

@@ -1,13 +1,18 @@
 import * as fs from 'node:fs';
 import {
   Body,
+  ConflictException,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
   Logger,
+  NotFoundException,
   Param,
+  Patch,
   Post,
+  Put,
   Query,
   Req,
   Res,
@@ -22,17 +27,26 @@ import {
   RegisterNewsSourceInput,
   RegisterNewsSourceUseCase,
 } from 'telegram/ingestion/crypto-news/application/handlers/register-news-source.use-case';
+import { ListActiveSourceIdsUseCase } from 'telegram/ingestion/crypto-news/application/handlers/list-active-source-ids.use-case';
 import { CryptoNewsMetadataResolver } from 'telegram/ingestion/crypto-news/application/services/crypto-news-metadata-resolver.service';
 import { TelegramMtprotoListenerAdapter } from 'telegram/ingestion/shared/api/mtproto/telegram-mtproto-listener.adapter';
 import { TelegramMediaAttachment } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import { CryptoNewsMedia } from 'telegram/ingestion/crypto-news/domain/value-objects/crypto-news-media.vo';
 import { StoreNewsMessageUseCase } from 'telegram/ingestion/crypto-news/application/handlers/store-news-message.use-case';
 import { CryptoNewsMessageMediaEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
+import { DomainError } from 'shared/kernel/domain-error';
 import {
   detectMediaMimeType,
   serveMediaFile,
 } from 'shared/common/http/media-serving';
 import type { AppConfig } from 'shared/common/config/app.config';
+import {
+  CreateFilterUseCase,
+  ListFiltersUseCase,
+  UpdateFilterUseCase,
+  DeleteFilterUseCase,
+  ToggleFilterUseCase,
+} from 'telegram/ingestion/crypto-news/application/handlers/filters';
 
 export interface CryptoNewsMediaView {
   readonly id: string;
@@ -84,9 +98,15 @@ export class CryptoNewsController {
     @InjectRepository(CryptoNewsMessageMediaEntity)
     private readonly mediaEntityRepo: Repository<CryptoNewsMessageMediaEntity>,
     private readonly registerSource: RegisterNewsSourceUseCase,
+    private readonly listActiveSourceIdsUseCase: ListActiveSourceIdsUseCase,
     private readonly metadataResolver: CryptoNewsMetadataResolver,
     private readonly storeNewsMessage: StoreNewsMessageUseCase,
     private readonly config: ConfigService,
+    private readonly createFilterUseCase: CreateFilterUseCase,
+    private readonly listFiltersUseCase: ListFiltersUseCase,
+    private readonly updateFilterUseCase: UpdateFilterUseCase,
+    private readonly deleteFilterUseCase: DeleteFilterUseCase,
+    private readonly toggleFilterUseCase: ToggleFilterUseCase,
   ) {}
 
   @Get('messages')
@@ -211,7 +231,7 @@ export class CryptoNewsController {
       id: mediaEntity.id,
       index: mediaEntity.index,
       type: mediaEntity.type,
-      url: `/crypto-news/media/${mediaEntity.id}`,
+      url: `/crypto-news/media/${mediaEntity.id}`, // Always use backend proxy URL
       mimeType: mediaEntity.mimeType,
     };
   }
@@ -227,6 +247,15 @@ export class CryptoNewsController {
       lifecycleStatus: s.lifecycleStatus,
       addedAt: s.addedAt.toISOString(),
     }));
+  }
+
+  /**
+   * Get active crypto-news source IDs (for ingestion-service subscription)
+   * Returns only the channelId strings of sources with isActive=true and lifecycleStatus=ACTIVE
+   */
+  @Get('sources/active/ids')
+  public async listActiveSourceIds(): Promise<ReadonlyArray<string>> {
+    return this.listActiveSourceIdsUseCase.execute();
   }
 
   /**
@@ -264,24 +293,45 @@ export class CryptoNewsController {
       resolvedHandle = input.handle ?? resolved.handle;
     }
 
-    const source = await this.registerSource.execute({
-      channelId,
-      handle: resolvedHandle,
-      title: resolvedTitle,
-    } satisfies RegisterNewsSourceInput);
+    try {
+      const source = await this.registerSource.execute({
+        channelId,
+        handle: resolvedHandle,
+        title: resolvedTitle,
+      } satisfies RegisterNewsSourceInput);
 
-    // Mirror CryptoNewsSeeder: activate + persist so findActive() picks it up.
-    source.activate();
-    await this.sourceRepo.save(source);
+      // Mirror CryptoNewsSeeder: activate + persist so findActive() picks it up.
+      source.activate();
+      await this.sourceRepo.save(source);
 
-    return {
-      channelId: source.channelId,
-      handle: source.handle,
-      title: source.title,
-      isActive: source.isActive,
-      lifecycleStatus: source.lifecycleStatus,
-      addedAt: source.addedAt.toISOString(),
-    };
+      return {
+        channelId: source.channelId,
+        handle: source.handle,
+        title: source.title,
+        isActive: source.isActive,
+        lifecycleStatus: source.lifecycleStatus,
+        addedAt: source.addedAt.toISOString(),
+      };
+    } catch (err) {
+      // Enhance CONFLICT error message for better UX
+      if (err instanceof DomainError && err.code === 'CONFLICT') {
+        // Fetch existing source to show current details
+        const existing = await this.sourceRepo.findByChannelId(channelId);
+        if (existing) {
+          const handleInfo = existing.handle
+            ? `@${existing.handle}`
+            : 'no handle';
+          throw new ConflictException(
+            `Crypto-news source "${existing.title}" (${handleInfo}) with channel ID "${channelId}" already exists in the database.`,
+          );
+        }
+        // Fallback if source not found (shouldn't happen)
+        throw new ConflictException(
+          `Crypto-news source with channel ID "${channelId}" already exists in the database.`,
+        );
+      }
+      throw err;
+    }
   }
 
   /**
@@ -367,33 +417,286 @@ export class CryptoNewsController {
       return;
     }
 
-    let fileBuffer: Buffer;
-    try {
-      fileBuffer = await fs.promises.readFile(media.filePath);
-    } catch (err) {
-      const code = (err as NodeJS.ErrnoException).code;
-      if (code === 'ENOENT') {
+    // Check if filePath is a URL (new ingestion-service pattern)
+    const isUrl =
+      media.filePath.startsWith('http://') ||
+      media.filePath.startsWith('https://');
+
+    if (isUrl) {
+      // Proxy to ingestion-service
+      try {
+        const response = await fetch(media.filePath);
+
+        if (!response.ok) {
+          this.logger.warn(
+            `Media not found on ingestion-service: id=${mediaId} url=${media.filePath} status=${response.status}`,
+          );
+          res
+            .status(response.status)
+            .json({ error: 'Media not found on ingestion-service' });
+          return;
+        }
+
+        const contentType =
+          response.headers.get('content-type') || 'application/octet-stream';
+        const buffer = Buffer.from(await response.arrayBuffer());
+
+        serveMediaFile(
+          res,
+          req,
+          buffer,
+          contentType,
+          'public, max-age=86400, immutable',
+        );
+      } catch (err) {
+        this.logger.error(
+          `Failed to proxy media from ingestion-service: id=${mediaId} url=${media.filePath} error=${err}`,
+        );
+        res
+          .status(502)
+          .json({ error: 'Failed to fetch media from ingestion-service' });
+      }
+    } else {
+      // Legacy: serve from local disk
+      let fileBuffer: Buffer;
+      try {
+        fileBuffer = await fs.promises.readFile(media.filePath);
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code;
+
+        // If file not found locally, try proxying to ingestion-service
+        if (code === 'ENOENT') {
+          this.logger.debug(
+            `Media file not found locally: id=${mediaId} path=${media.filePath}, attempting proxy to ingestion-service`,
+          );
+
+          // Convert local path to ingestion-service URL
+          // Path: uploads/crypto-news/media/1072723547/71898_0.jpg
+          // URL:  http://localhost:3031/api/media/1072723547/71898/0
+          const ingestionUrl = this.convertLocalPathToIngestionUrl(
+            media.filePath,
+            media.index,
+          );
+
+          if (ingestionUrl) {
+            try {
+              const response = await fetch(ingestionUrl);
+
+              if (!response.ok) {
+                this.logger.warn(
+                  `Media not found on ingestion-service (fallback): id=${mediaId} url=${ingestionUrl} status=${response.status}`,
+                );
+                res.status(404).json({
+                  error: 'Media file missing on disk and ingestion-service',
+                });
+                return;
+              }
+
+              const contentType =
+                response.headers.get('content-type') ||
+                'application/octet-stream';
+              const buffer = Buffer.from(await response.arrayBuffer());
+
+              serveMediaFile(
+                res,
+                req,
+                buffer,
+                contentType,
+                'public, max-age=86400, immutable',
+              );
+              return;
+            } catch (proxyErr) {
+              this.logger.error(
+                `Failed to proxy media from ingestion-service (fallback): id=${mediaId} url=${ingestionUrl} error=${proxyErr}`,
+              );
+              res.status(502).json({
+                error: 'Failed to fetch media from ingestion-service',
+              });
+              return;
+            }
+          }
+        }
+
         this.logger.warn(
           `Media file missing on disk: id=${mediaId} path=${media.filePath}`,
         );
         res.status(404).json({ error: 'Media file missing on disk' });
         return;
       }
+
+      const mimeType = detectMediaMimeType(
+        media.filePath,
+        media.mimeType,
+        fileBuffer,
+      );
+
+      serveMediaFile(
+        res,
+        req,
+        fileBuffer,
+        mimeType,
+        'public, max-age=86400, immutable',
+      );
+    }
+  }
+
+  /**
+   * Convert local file path to ingestion-service URL for fallback proxy.
+   *
+   * Example:
+   *   Input:  uploads/crypto-news/media/1072723547/71898_0.jpg
+   *   Output: http://localhost:3031/api/media/1072723547/71898/0
+   *
+   * @param localPath - Local file path from DB
+   * @param index - Media index from DB
+   * @returns Ingestion-service URL or null if path format is unexpected
+   */
+  private convertLocalPathToIngestionUrl(
+    localPath: string,
+    index: number,
+  ): string | null {
+    try {
+      // Expected format: uploads/crypto-news/media/{channelId}/{messageId}_{index}.ext
+      const match = localPath.match(
+        /crypto-news\/media\/([^/]+)\/(\d+)_\d+\.\w+$/,
+      );
+
+      if (!match) {
+        this.logger.warn(
+          `Unexpected local path format for ingestion URL conversion: ${localPath}`,
+        );
+        return null;
+      }
+
+      const channelId = match[1];
+      const messageId = match[2];
+
+      // Use ingestion-service port from config or default to 3031
+      const ingestionPort = process.env.INGESTION_PORT || '3031';
+      const ingestionUrl = `http://localhost:${ingestionPort}/api/media/${channelId}/${messageId}/${index}`;
+
+      return ingestionUrl;
+    } catch (err) {
+      this.logger.error(
+        `Failed to convert local path to ingestion URL: ${localPath} error=${err}`,
+      );
+      return null;
+    }
+  }
+
+  // ====================================================================
+  // CONTENT FILTER ENDPOINTS
+  // ====================================================================
+
+  /**
+   * POST /crypto-news/sources/:channelId/filters
+   * Create a new content filter for a specific channel.
+   */
+  @Post('sources/:channelId/filters')
+  @HttpCode(HttpStatus.CREATED)
+  public async createFilter(
+    @Param('channelId') channelId: string,
+    @Body()
+    body: {
+      pattern: string;
+      replacement: string;
+      flags: string;
+      priority: number;
+      isActive: boolean;
+    },
+  ) {
+    try {
+      return await this.createFilterUseCase.execute({
+        channelId,
+        pattern: body.pattern,
+        replacement: body.replacement,
+        flags: body.flags,
+        priority: body.priority,
+        isActive: body.isActive,
+      });
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (msg.includes('not found')) {
+        throw new NotFoundException(msg);
+      }
       throw err;
     }
+  }
 
-    const mimeType = detectMediaMimeType(
-      media.filePath,
-      media.mimeType,
-      fileBuffer,
-    );
+  /**
+   * GET /crypto-news/sources/:channelId/filters
+   * List all content filters for a specific channel.
+   */
+  @Get('sources/:channelId/filters')
+  public async getFilters(@Param('channelId') channelId: string) {
+    try {
+      return await this.listFiltersUseCase.execute(channelId);
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (msg.includes('not found')) {
+        throw new NotFoundException(msg);
+      }
+      throw err;
+    }
+  }
 
-    serveMediaFile(
-      res,
-      req,
-      fileBuffer,
-      mimeType,
-      'public, max-age=86400, immutable',
-    );
+  /**
+   * PUT /crypto-news/filters/:id
+   * Update an existing content filter.
+   */
+  @Put('filters/:id')
+  public async updateFilter(
+    @Param('id') id: string,
+    @Body()
+    body: {
+      pattern?: string;
+      replacement?: string;
+      flags?: string;
+      priority?: number;
+      isActive?: boolean;
+    },
+  ) {
+    try {
+      return await this.updateFilterUseCase.execute({
+        id,
+        ...body,
+      });
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (msg.includes('not found')) {
+        throw new NotFoundException(msg);
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * DELETE /crypto-news/filters/:id
+   * Delete a content filter by ID.
+   */
+  @Delete('filters/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  public async deleteFilterEndpoint(@Param('id') id: string): Promise<void> {
+    const deleted = await this.deleteFilterUseCase.execute(id);
+    if (!deleted) {
+      throw new NotFoundException(`Filter ${id} not found`);
+    }
+  }
+
+  /**
+   * PATCH /crypto-news/filters/:id/toggle
+   * Toggle the isActive state of a content filter.
+   */
+  @Patch('filters/:id/toggle')
+  public async toggleFilterEndpoint(@Param('id') id: string) {
+    try {
+      return await this.toggleFilterUseCase.execute(id);
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (msg.includes('not found')) {
+        throw new NotFoundException(msg);
+      }
+      throw err;
+    }
   }
 }

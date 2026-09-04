@@ -25,6 +25,12 @@ export class InMemoryKolRepository extends KolRepository {
     return Array.from(this.store.values());
   }
 
+  public async findActive(): Promise<ReadonlyArray<Kol>> {
+    return Array.from(this.store.values()).filter(
+      (kol) => kol.isActive && kol.lifecycleStatus === 'ACTIVE',
+    );
+  }
+
   public async delete(id: KolId): Promise<void> {
     this.store.delete(id.value);
   }

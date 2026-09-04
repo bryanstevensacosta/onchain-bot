@@ -12,18 +12,30 @@ export class EmbeddingService implements OnModuleInit {
     process.env.DEDUP_EMBEDDING_MODEL || 'Xenova/all-MiniLM-L6-v2';
 
   async onModuleInit(): Promise<void> {
-    // Skip model loading in staging to avoid hanging during bootstrap
-    if (process.env.NODE_ENV === 'staging') {
-      this.logger.log('Skipping embedding model load in staging');
-      return;
-    }
+    // Load model with timeout to prevent indefinite hangs
+    this.logger.log('🔄 [EmbeddingService] Starting onModuleInit...');
+    this.logger.log('Loading embedding model during module initialization...');
 
     try {
-      await this.ensureModel();
+      // Wrap ensureModel with a 30s timeout (increased for staging low memory)
+      await Promise.race([
+        this.ensureModel(),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Model loading timeout (30s)')),
+            30000,
+          ),
+        ),
+      ]);
+      this.logger.log('✓ Embedding model loaded successfully');
+      this.logger.log('✅ [EmbeddingService] onModuleInit completed');
     } catch (error) {
       this.logger.warn(
         `Embedding model failed to load: ${error instanceof Error ? error.message : String(error)}. ` +
           'Semantic deduplication will be skipped gracefully.',
+      );
+      this.logger.log(
+        '⚠️ [EmbeddingService] onModuleInit completed with error (graceful fallback)',
       );
       this.loadError =
         error instanceof Error ? error : new Error(String(error));

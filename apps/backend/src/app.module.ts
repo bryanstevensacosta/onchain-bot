@@ -12,7 +12,7 @@ import { DatabaseModule } from 'shared/common/persistence/database.module';
 import { RedisModule } from 'shared/common/cache/redis.module';
 import { FilteredBootstrapLogger } from 'shared/common/filtered-bootstrap-logger';
 import { ConfigConnectivityService } from 'shared/common/config/config-connectivity.service';
-import { DashboardModule } from 'dashboard/dashboard.module';
+// import { DashboardModule } from 'dashboard/dashboard.module';
 import { ExtractionModule } from 'token/intake/extraction/extraction.module';
 import { ParsingModule } from 'token/intake/parsing/parsing.module';
 import { NormalizationModule } from 'token/normalization/normalization.module';
@@ -31,7 +31,7 @@ import { CallTrackingModule } from 'token/call-tracking/call-tracking.module';
 import { AchievementModule } from 'token/achievement/achievement.module';
 import { ReputationModule } from 'kol/reputation/reputation.module';
 import { HoneypotModule } from 'token/honeypot/honeypot.module';
-import { IdentityModule } from 'kol/identity/identity.module';
+// import { IdentityModule } from 'kol/identity/identity.module';
 import { TelegramIngestionModule } from 'telegram/ingestion/telegram-ingestion.module';
 import { SourceModule } from 'kol/source/source.module';
 import { StatsModule } from 'kol/stats/stats.module';
@@ -64,6 +64,36 @@ import { DevModule } from './dev/dev.module';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         const logCfg = config.get<AppConfig>('app')?.logging;
+        const nodeEnv = process.env.NODE_ENV;
+
+        // In staging, use simple stdout logging to avoid pino-roll I/O hangs
+        if (nodeEnv === 'staging') {
+          console.log('[AppModule] Using simple stdout logging (staging mode)');
+          return {
+            pinoHttp: {
+              level: logCfg?.level ?? 'debug',
+              // No transport — logs go directly to stdout (Docker captures them)
+              autoLogging: {
+                ignore: (req: { url?: string }) =>
+                  req.url === '/api/health' ||
+                  (req.url?.startsWith('/crypto-news/') ?? false) ||
+                  (req.url?.startsWith('/crypto-news-publisher/') ?? false) ||
+                  (req.url?.startsWith('/crypto-news-ads/') ?? false),
+              },
+              serializers: {
+                req(req: { method: string; url?: string; id: unknown }) {
+                  return { method: req.method, url: req.url, id: req.id };
+                },
+                res(res: { statusCode: number }) {
+                  return { statusCode: res.statusCode };
+                },
+                err: pino.stdSerializers.err,
+              },
+            },
+          };
+        }
+
+        // Production/dev: use pino-roll for file-based logging
         if (!logCfg) return {};
         const filePath = path.resolve(
           process.cwd(),
@@ -104,10 +134,8 @@ import { DevModule } from './dev/dev.module';
     }),
     RedisModule,
     HealthModule,
-    // DevModule (conditional: only when USE_MOCK_INGESTION=true)
-    ...(process.env.USE_MOCK_INGESTION === 'true' ? [DevModule] : []),
+    DataProviderModule,
     TelegramIngestionModule,
-    IdentityModule,
     SourceModule,
     StatsModule,
     ExtractionModule,
@@ -119,6 +147,7 @@ import { DevModule } from './dev/dev.module';
     ClassificationModule,
     ScoringModule,
     VipCallApprovalModule,
+    HoneypotModule,
     TelegramPublishingModule,
     VipDecisionsModule,
     ChainDexterBotModule,
@@ -127,13 +156,11 @@ import { DevModule } from './dev/dev.module';
     CallTrackingModule,
     AchievementModule,
     ReputationModule,
-    HoneypotModule,
-    DashboardModule,
     WsModule,
     SettingsModule,
-    DataProviderModule,
     LlmModule,
     DeduplicationModule,
+    DevModule,
   ],
   controllers: [AppController],
   providers: [

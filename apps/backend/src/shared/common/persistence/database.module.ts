@@ -45,6 +45,7 @@ export class DatabaseModule {
       );
       return { module: DatabaseModule };
     }
+
     return {
       module: DatabaseModule,
       imports: [
@@ -53,7 +54,11 @@ export class DatabaseModule {
           inject: [ConfigService],
           useFactory: (config: ConfigService) => {
             const cfg = config.get<AppConfig>('app')?.database;
-            const useMigrations = isProductionLikeEnvironment();
+            // TEMPORARY: Use synchronize mode while investigating lifecycle hook deadlock
+            // migrations mode requires running migrations first, but db:migrate script
+            // reads .env (not .env.dev) and skips when DATABASE_ENABLED is undefined there
+            const useMigrations = false;
+            // const useMigrations = true;
             const synchronize = useMigrations
               ? false
               : (cfg?.synchronize ?? true);
@@ -76,9 +81,37 @@ export class DatabaseModule {
               retryAttempts: 5,
               retryDelay: 2000,
               // Migrations control: never auto-run migrations (we run them manually in deploy script)
-              migrationsRun: false, // Connection timeout: 10s per attempt (total 50s with 5 retries)
+              migrationsRun: false,
+              // Connection timeout: 10s per attempt (total 50s with 5 retries)
               // Prevents indefinite hangs when DB is unreachable or blocking
               connectTimeoutMS: 10_000,
+              /**
+               * **FIX: Disable automatic extension installation in all environments**
+               *
+               * TypeORM's PostgresDriver.afterConnect() automatically executes:
+               * - CREATE EXTENSION IF NOT EXISTS "uuid-ossp" (for UUID columns)
+               * - CREATE EXTENSION IF NOT EXISTS "citext" (for case-insensitive text)
+               * - etc.
+               *
+               * This causes indefinite hangs in all environments due to:
+               * 1. Connection pool race conditions during initialization
+               * 2. PostgreSQL permission model (non-superuser may lack CREATE EXTENSION)
+               * 3. Lock contention on pg_extension catalog table
+               *
+               * **Solution:**
+               * Set installExtensions: false to skip automatic extension creation.
+               * Extensions are pre-installed manually in all environments.
+               *
+               * **Safety:**
+               * Our entities do NOT use uuid, citext, hstore, cube, ltree, or vector columns.
+               * All PKs use BIGINT or VARCHAR. Disabling has no functional impact.
+               *
+               * **References:**
+               * - TypeORM option: PostgresConnectionOptions.installExtensions (defaults to true)
+               * - GitHub issue: typeorm/typeorm#7691
+               * - Local reproduction: Backend hangs on app.listen() with synchronize:true
+               */
+              installExtensions: false, // Disabled in ALL environments to prevent hangs
               // Extra postgres config to prevent synchronize hangs
               extra: {
                 // Statement timeout: 30s max per query during sync
@@ -86,6 +119,13 @@ export class DatabaseModule {
                 statement_timeout: 30_000,
                 // Idle in transaction timeout: 60s max
                 idle_in_transaction_session_timeout: 60_000,
+                // Connection pool config to prevent hanging on CREATE EXTENSION
+                // Single connection in staging to minimize pool initialization overhead
+                max: nodeEnv === 'staging' ? 1 : 10,
+                // Query timeout at driver level (catches hung queries before they reach PostgreSQL)
+                query_timeout: 5000,
+                // Application name for easier debugging in pg_stat_activity
+                application_name: `onchain-bot-${nodeEnv}`,
               },
             };
           },

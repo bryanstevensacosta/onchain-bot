@@ -18,15 +18,16 @@ export default defineConfig({
         target: 'http://localhost:3030',
         changeOrigin: false,
       },
-      '/crypto-news/media': {
-        target: 'http://localhost:3030',
-        changeOrigin: false,
-      },
       '/crypto-news-publisher': {
         target: 'http://localhost:3030',
         changeOrigin: false,
       },
       '/crypto-news-ads': {
+        target: 'http://localhost:3030',
+        changeOrigin: false,
+      },
+      // Only proxy API calls to crypto-news, not HTML navigation
+      '^/crypto-news/(messages|sources|backfill|media)': {
         target: 'http://localhost:3030',
         changeOrigin: false,
       },

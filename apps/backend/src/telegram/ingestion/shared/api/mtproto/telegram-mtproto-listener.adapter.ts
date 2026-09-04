@@ -34,6 +34,36 @@ import { transformMessage } from './telegram-message-transformer';
 import { TelegramPeerResolver } from 'telegram/ingestion/shared/infrastructure/services/telegram-peer-resolver';
 import { TelegramMediaDownloadService } from 'telegram/ingestion/shared/infrastructure/services/telegram-media-download.service';
 
+/**
+ * @deprecated This adapter is deprecated and will be removed in a future version.
+ *
+ * **Reason for deprecation:**
+ * This MTProto client has been extracted into a centralized ingestion service to eliminate
+ * resource duplication across multiple backend environments (dev, staging, production).
+ * Running 3 separate MTProto clients results in 3x duplication of media downloads and message
+ * processing, which is inefficient and violates Telegram's single-session constraint
+ * (AUTH_KEY_DUPLICATED error per 406 documentation).
+ *
+ * **Migration path:**
+ * - **New location:** `apps/ingestion-service/src/telegram/shared/api/mtproto/telegram-mtproto-listener.adapter.ts`
+ * - **Replacement:** Backend clients should use `SseIngestionClientAdapter` which implements
+ *   the same `TelegramListenerPort` interface and receives messages via Server-Sent Events (SSE)
+ *   from the centralized ingestion service.
+ * - **Configuration:** Set `INGESTION_MODE=remote` to use the SSE client adapter instead of
+ *   this MTProto adapter (feature flag for phased migration).
+ *
+ * **Benefits of migration:**
+ * - Single MTProto connection eliminates 3x resource duplication
+ * - Media files downloaded once and served via HTTP endpoints
+ * - No more AUTH_KEY_DUPLICATED errors
+ * - Simplified session management (single session string)
+ * - All anti-ban protection logic (FLOOD_WAIT, staggered polling, sleep windows) centralized
+ *
+ * **Specification:** See `.kiro/specs/centralized-ingestion-service/` for complete design and requirements.
+ *
+ * @see {@link apps/ingestion-service} Centralized ingestion service
+ * @see SseIngestionClientAdapter Drop-in replacement for backend clients
+ */
 @Injectable()
 export class TelegramMtprotoListenerAdapter
   implements TelegramListenerPort, OnModuleInit, OnModuleDestroy
@@ -71,9 +101,73 @@ export class TelegramMtprotoListenerAdapter
   }
 
   async onModuleInit(): Promise<void> {
+    console.log(
+      '[LIFECYCLE-DEBUG] TelegramMtprotoListenerAdapter.onModuleInit() START',
+    );
+    this.logger.log(
+      '🔄 [TelegramMtprotoListenerAdapter] Starting onModuleInit...',
+    );
+
+    // Skip initialization when mock or SSE ingestion is enabled
+    if (process.env.USE_MOCK_INGESTION === 'true') {
+      this.logger.log(
+        'Skipping MTProto client initialization (mock ingestion enabled)',
+      );
+      console.log(
+        '[LIFECYCLE-DEBUG] TelegramMtprotoListenerAdapter.onModuleInit() END (mock skip)',
+      );
+      return;
+    }
+
+    if (process.env.USE_SSE_INGESTION === 'true') {
+      this.logger.log(
+        'Skipping MTProto client initialization (SSE ingestion enabled)',
+      );
+      console.log(
+        '[LIFECYCLE-DEBUG] TelegramMtprotoListenerAdapter.onModuleInit() END (SSE skip)',
+      );
+      return;
+    }
+
+    // Skip MTProto initialization in staging to avoid connection hangs
+    if (process.env.NODE_ENV === 'staging') {
+      this.logger.log('Skipping MTProto client initialization in staging');
+      this.logger.log(
+        '✅ [TelegramMtprotoListenerAdapter] onModuleInit completed (staging skip)',
+      );
+      console.log(
+        '[LIFECYCLE-DEBUG] TelegramMtprotoListenerAdapter.onModuleInit() END (staging skip)',
+      );
+      return;
+    }
+
     const cfg = this.config.get<AppConfig>('app');
-    if (!cfg?.telegram?.mtprotoApiId || !cfg?.telegram?.mtprotoApiHash) return;
+    if (!cfg?.telegram?.mtprotoApiId || !cfg?.telegram?.mtprotoApiHash) {
+      this.logger.log(
+        '✅ [TelegramMtprotoListenerAdapter] onModuleInit completed (no config)',
+      );
+      console.log(
+        '[LIFECYCLE-DEBUG] TelegramMtprotoListenerAdapter.onModuleInit() END (no config)',
+      );
+      return;
+    }
+
+    console.log(
+      '[LIFECYCLE-DEBUG] ABOUT TO CALL clientManager.markAuthorizedIfTrue()',
+    );
+    this.logger.log(
+      '[TelegramMtprotoListenerAdapter] Calling clientManager.markAuthorizedIfTrue()...',
+    );
     await this.clientManager.markAuthorizedIfTrue();
+    console.log(
+      '[LIFECYCLE-DEBUG] clientManager.markAuthorizedIfTrue() RETURNED',
+    );
+    this.logger.log(
+      '✅ [TelegramMtprotoListenerAdapter] onModuleInit completed',
+    );
+    console.log(
+      '[LIFECYCLE-DEBUG] TelegramMtprotoListenerAdapter.onModuleInit() END',
+    );
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -126,10 +220,26 @@ export class TelegramMtprotoListenerAdapter
   /**
    * Staggered polling loop: polls channels one at a time with jitter,
    * respects sleep window, and handles FLOOD_WAIT errors.
+   * Only polls channels — user/bot messages are received via real-time events only.
    */
   private async startPollingLoop(): Promise<void> {
-    const peers = [...this.subscribedChannelIds];
-    if (peers.length === 0) return;
+    const allPeers = [...this.subscribedChannelIds];
+    if (allPeers.length === 0) return;
+
+    // Filter out users/bots — only poll channels
+    const channelPeers = this.filterChannels(allPeers);
+    if (channelPeers.length === 0) {
+      this.logger.log(
+        'No channels to poll (all peers are users/bots — real-time events only)',
+      );
+      return;
+    }
+
+    this.logger.log(
+      `Starting polling loop for ${channelPeers.length}/${allPeers.length} channel(s) (${allPeers.length - channelPeers.length} user/bot peer(s) will use real-time events only)`,
+    );
+
+    const peers = channelPeers;
 
     while (this.running) {
       // Check sleep window and flood pause
@@ -199,6 +309,33 @@ export class TelegramMtprotoListenerAdapter
         }
       }
     }
+  }
+
+  /**
+   * Filter peer IDs to only include channels (exclude users/bots)
+   * Users/bots will receive messages via real-time events only
+   *
+   * Channels in Telegram always have IDs prefixed with -100
+   * User/bot IDs are positive integers without prefix
+   */
+  private filterChannels(peerIds: string[]): string[] {
+    const channels: string[] = [];
+
+    for (const peerId of peerIds) {
+      // Channels always start with -100 (supergroup/channel format)
+      // Users/bots are plain positive integers or negative but NOT -100 prefix
+      const isChannel = peerId.startsWith('-100');
+
+      if (isChannel) {
+        channels.push(peerId);
+      } else {
+        this.logger.log(
+          `Skipping polling for ${peerId} (detected as user/bot by ID format) — will use real-time events only`,
+        );
+      }
+    }
+
+    return channels;
   }
 
   private async handleEvent(event: unknown): Promise<void> {

@@ -83,8 +83,8 @@ export class TelegramMockAdapter implements TelegramListenerPort {
   }
 
   async backfill(
-    channelId: string,
-    limit: number,
+    _channelId: string,
+    _limit: number,
   ): Promise<TelegramRawMessage[]> {
     this.logger.warn('backfill() not supported in mock mode');
     return [];

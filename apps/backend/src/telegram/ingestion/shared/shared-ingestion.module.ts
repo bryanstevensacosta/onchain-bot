@@ -1,4 +1,4 @@
-import { forwardRef, Global, Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import { TelegramMtprotoListenerAdapter } from 'telegram/ingestion/shared/api/mtproto/telegram-mtproto-listener.adapter';
@@ -15,7 +15,8 @@ import { TelegramPeerResolver } from 'telegram/ingestion/shared/infrastructure/s
 import { IngestionConfigController } from 'telegram/ingestion/shared/api/http/ingestion-config.controller';
 import { IngestionHealthController } from 'telegram/ingestion/shared/api/http/ingestion-health.controller';
 import { IdentityModule } from 'kol/identity/identity.module';
-import { CryptoNewsIngestionModule } from 'telegram/ingestion/crypto-news/crypto-news-ingestion.module';
+import { CryptoNewsMediaDownloader } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-media-downloader.port';
+import { MtprotoMediaDownloader } from 'telegram/ingestion/crypto-news/infrastructure/api/mtproto/mtproto-media-downloader';
 import { Logger } from '@nestjs/common';
 
 /**
@@ -43,6 +44,48 @@ import { Logger } from '@nestjs/common';
  * - Set USE_SSE_INGESTION=false
  * - Restart backend container
  * - MTProto connection re-established automatically
+ *
+ * @deprecated The local MTProto mode and associated infrastructure is deprecated.
+ *
+ * **Migration Status:**
+ * This module currently supports three ingestion modes for phased migration to the centralized
+ * ingestion service. The MTProto mode (default when both flags are false) is deprecated and
+ * maintained only for emergency rollback during the transition period.
+ *
+ * **Ingestion Modes:**
+ * 1. **SSE Mode (recommended):** `USE_SSE_INGESTION=true` - Connects to centralized ingestion service
+ * 2. **Mock Mode:** `USE_MOCK_INGESTION=true` - For testing/development without Telegram
+ * 3. **MTProto Mode (DEPRECATED):** Default - Local MTProto client (emergency rollback only)
+ *
+ * **Deprecated Components (MTProto mode only):**
+ * The following providers are only used in deprecated MTProto mode and will be removed after
+ * full migration to SSE mode:
+ * - `TelegramMtprotoListenerAdapter` - Direct MTProto client (see adapter deprecation note)
+ * - `TelegramClientManager` - MTProto session management (see service deprecation note)
+ * - `LastSeenManager` - Cursor tracking (centralized in ingestion-service)
+ * - `IngestionSafetyConfig` - Anti-ban configuration (centralized in ingestion-service)
+ * - `SleepWindowService` - Sleep window logic (centralized in ingestion-service)
+ * - `FloodWaitCounterService` - FLOOD_WAIT metrics (centralized in ingestion-service)
+ * - `FloodWaitHandlerService` - FLOOD_WAIT retry logic (centralized in ingestion-service)
+ *
+ * **Migration Timeline:**
+ * - Phase 1 (current): SSE mode available via feature flag, MTProto mode retained for rollback
+ * - Phase 2 (after validation): SSE mode becomes default, MTProto mode requires opt-in flag
+ * - Phase 3 (after stabilization): MTProto mode removed, module simplified to SSE-only
+ *
+ * **Rollback Instructions (emergency only):**
+ * If SSE mode fails and you need to revert to local MTProto:
+ * 1. Set `USE_SSE_INGESTION=false` in environment
+ * 2. Ensure `TELEGRAM_MTPROTO_SESSION` is configured
+ * 3. Restart backend container
+ * 4. MTProto client reconnects within 20s (DEFAULT_CONNECT_TIMEOUT_MS)
+ * 5. Report SSE failure to ops team for investigation
+ *
+ * **Specification:** See `.kiro/specs/centralized-ingestion-service/requirements.md`
+ * Requirement 7 for migration strategy and rollback procedures.
+ *
+ * @see TelegramSseListenerAdapter Replacement adapter for SSE mode
+ * @see {@link apps/ingestion-service} Centralized ingestion service
  */
 import { TELEGRAM_LISTENER_PORT_TOKEN } from './shared-injection-tokens';
 
@@ -50,11 +93,7 @@ const logger = new Logger('SharedIngestionModule');
 
 @Global()
 @Module({
-  imports: [
-    ConfigModule,
-    IdentityModule,
-    forwardRef(() => CryptoNewsIngestionModule),
-  ],
+  imports: [ConfigModule, IdentityModule],
   controllers: [IngestionConfigController, IngestionHealthController],
   providers: [
     IngestionSafetyConfig,
@@ -66,6 +105,26 @@ const logger = new Logger('SharedIngestionModule');
     TelegramMediaDownloadService,
     TelegramPeerResolver,
 
+    // Crypto-news media downloader (moved from CryptoNewsIngestionModule to break forwardRef cycle)
+    {
+      provide: CryptoNewsMediaDownloader,
+      inject: [
+        TelegramMtprotoListenerAdapter,
+        FloodWaitHandlerService,
+        ConfigService,
+      ],
+      useFactory: (
+        listener: TelegramMtprotoListenerAdapter,
+        floodWaitHandler: FloodWaitHandlerService,
+        config: ConfigService,
+      ): CryptoNewsMediaDownloader =>
+        new MtprotoMediaDownloader(
+          () => listener.getClient(),
+          floodWaitHandler,
+          config,
+        ),
+    },
+
     // Always provide all three adapters (for mode switching)
     TelegramMtprotoListenerAdapter,
     TelegramSseListenerAdapter,
@@ -73,6 +132,9 @@ const logger = new Logger('SharedIngestionModule');
 
     // Dynamic adapter selection based on feature flags
     // Priority: Mock > SSE > MTProto
+    //
+    // @deprecated MTProto mode (default fallback) is deprecated. Use SSE mode instead.
+    // MTProto mode is retained only for emergency rollback during migration period.
     {
       provide: TelegramListenerPort,
       useFactory: (
@@ -81,9 +143,24 @@ const logger = new Logger('SharedIngestionModule');
         sseAdapter: TelegramSseListenerAdapter,
         mockAdapter: TelegramMockAdapter,
       ) => {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const appConfig = config.get('app');
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         const useMock = appConfig?.ingestion?.useMock ?? false;
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         const useSse = appConfig?.ingestion?.useSse ?? false;
+
+        console.log('[ADAPTER-SELECTION-DEBUG]', {
+          useMock,
+          useSse,
+          appConfigExists: !!appConfig,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          ingestionExists: !!appConfig?.ingestion,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+          rawUseMock: appConfig?.ingestion?.useMock,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+          rawUseSse: appConfig?.ingestion?.useSse,
+        });
 
         if (useMock) {
           logger.log(
@@ -96,13 +173,24 @@ const logger = new Logger('SharedIngestionModule');
         if (useSse) {
           logger.log('🔄 INGESTION MODE: SSE (remote Ingestion Service)');
           logger.log(
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             `   └─ Service URL: ${appConfig?.ingestion?.serviceUrl || 'http://localhost:3031'}`,
           );
           return sseAdapter;
         }
 
-        logger.log('📡 INGESTION MODE: MTProto (local)');
-        logger.log('   └─ Direct Telegram API connection');
+        // ⚠️ DEPRECATED: MTProto mode - for emergency rollback only
+        logger.warn('⚠️  INGESTION MODE: MTProto (local) - DEPRECATED');
+        logger.warn('   └─ Direct Telegram API connection');
+        logger.warn(
+          '   └─ This mode is deprecated and maintained only for emergency rollback',
+        );
+        logger.warn(
+          '   └─ Please migrate to SSE mode: SET USE_SSE_INGESTION=true',
+        );
+        logger.warn(
+          '   └─ See .kiro/specs/centralized-ingestion-service/ for migration guide',
+        );
         return mtprotoAdapter;
       },
       inject: [
@@ -133,6 +221,7 @@ const logger = new Logger('SharedIngestionModule');
     SleepWindowService,
     FloodWaitCounterService,
     FloodWaitHandlerService,
+    CryptoNewsMediaDownloader,
   ],
 })
 export class SharedIngestionModule {}

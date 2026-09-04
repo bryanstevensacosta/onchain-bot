@@ -13,26 +13,29 @@ import type {
  *
  * This is the shape returned by TelegramMtprotoListenerAdapter.
  * We import the minimal interface here to avoid coupling to backend code.
+ *
+ * Note: media.index, media.filePath, media.fileSize are optional because
+ * they're populated AFTER download completes.
  */
 interface TelegramRawMessage {
   peerId: string;
   messageId: number;
   text?: string;
   occurredAt: Date;
-  media?: Array<{
+  media?: ReadonlyArray<{
     type: 'photo' | 'video';
-    index: number;
-    filePath: string;
-    mimeType: string;
-    fileSize: number;
+    index?: number;
+    filePath?: string;
+    mimeType: string | null;
+    fileSize?: number | null;
   }>;
-  entities?: Array<{
+  entities?: ReadonlyArray<{
     type: string;
     offset: number;
     length: number;
     url?: string;
   }>;
-  groupedId?: string;
+  groupedId?: string | bigint;
 }
 
 /**
@@ -81,25 +84,10 @@ export class IngestionCoordinator {
     messageType: 'kol' | 'crypto-news',
   ): Promise<void> {
     try {
-      // Per Invariant 3: Deduplication check
-      const highestSeen = this.lastSeenManager.get(raw.peerId);
-      const isDuplicate = this.deduplicationService.isDuplicate(
-        raw.peerId,
-        raw.messageId,
-        highestSeen,
-      );
-
-      if (isDuplicate) {
-        this.logger.debug(
-          `Skipping duplicate message: ${raw.peerId}:${raw.messageId}`,
-        );
-        return;
-      }
-
-      // Update cursor tracking
+      // Update cursor tracking (for recovery/restart purposes only)
       this.lastSeenManager.set(raw.peerId, raw.messageId);
 
-      // Per Invariant 1: Transform to MessagePayload WITHOUT text field
+      // Per Invariant 1: Transform to MessagePayload WITHOUT text field (for KOL, includes text for crypto-news)
       const payload = this.transformToPayload(raw, messageType);
 
       // Per Requirement 9.1: Structured logging for incoming messages
@@ -134,28 +122,65 @@ export class IngestionCoordinator {
   /**
    * Transform TelegramRawMessage to MessagePayload
    *
-   * Per Invariant 1: Excludes text/content field (ToS compliance)
+   * Per Invariant 1 (modified): Excludes text for KOL (pipeline extracts it), includes text for crypto-news (opaque content)
    * Per Invariant 5: Builds path-based media URLs
    *
    * @param raw - Raw message from MTProto listener
    * @param messageType - Message type discriminator
-   * @returns SSE-safe payload WITHOUT text field
+   * @returns SSE-safe payload (text included ONLY for crypto-news)
    */
   private transformToPayload(
     raw: TelegramRawMessage,
     messageType: 'kol' | 'crypto-news',
   ): MessagePayload {
-    return {
+    // DEBUG: Log text transformation for crypto-news
+    if (messageType === 'crypto-news') {
+      this.logger.log(
+        `[PAYLOAD-TRANSFORM-DEBUG] ${raw.peerId}:${raw.messageId} - raw.text: "${raw.text}" (type: ${typeof raw.text}, length: ${raw.text?.length ?? 0})`,
+      );
+    }
+
+    const payload = {
       peerId: raw.peerId,
       messageId: raw.messageId,
       occurredAt: raw.occurredAt.toISOString(),
+      // Include text ONLY for crypto-news (no extraction pipeline, content stored as-is)
+      text: messageType === 'crypto-news' ? (raw.text ?? '') : undefined,
       media: (raw.media || []).map((m) =>
         this.buildMediaPayload(raw.peerId, raw.messageId, m),
       ),
-      entities: raw.entities,
-      groupedId: raw.groupedId,
+      entities: raw.entities ? [...raw.entities] : undefined,
+      groupedId: raw.groupedId?.toString(),
       messageType,
     };
+
+    // DEBUG: Log final payload text for crypto-news
+    if (messageType === 'crypto-news') {
+      this.logger.log(
+        `[PAYLOAD-TRANSFORM-DEBUG] ${raw.peerId}:${raw.messageId} - payload.text: "${payload.text}" (type: ${typeof payload.text}, length: ${payload.text?.length ?? 0})`,
+      );
+    }
+
+    // DEBUG: Log payload for message 167
+    if (raw.messageId === 167) {
+      this.logger.log(
+        `[PAYLOAD-167-DEBUG] Payload being sent via SSE: ${JSON.stringify(
+          {
+            messageId: payload.messageId,
+            messageType: payload.messageType,
+            textLength: payload.text?.length ?? 0,
+            textPreview: payload.text?.substring(0, 100),
+            rawTextLength: raw.text?.length ?? 0,
+            rawTextPreview: raw.text?.substring(0, 100),
+            hasMedia: payload.media?.length > 0,
+          },
+          null,
+          2,
+        )}`,
+      );
+    }
+
+    return payload;
   }
 
   /**
@@ -163,6 +188,9 @@ export class IngestionCoordinator {
    *
    * Per Invariant 5: Path-based URLs for debuggability
    * Format: /api/media/:channelId/:messageId/:index
+   *
+   * Note: If media has not been downloaded yet (filePath undefined),
+   * we still build the URL with index=0 as placeholder.
    *
    * @param channelId - Telegram channel ID
    * @param messageId - Telegram message ID
@@ -174,18 +202,22 @@ export class IngestionCoordinator {
     messageId: number,
     media: {
       type: 'photo' | 'video';
-      index: number;
-      filePath: string;
-      mimeType: string;
-      fileSize: number;
+      index?: number;
+      filePath?: string;
+      mimeType: string | null;
+      fileSize?: number | null;
     },
   ): MediaPayload {
+    const index = media.index ?? 0;
+    const mimeType = media.mimeType ?? 'application/octet-stream';
+    const fileSize = media.fileSize ?? 0;
+
     return {
       type: media.type,
-      index: media.index,
-      url: `${this.apiBaseUrl}/api/media/${channelId}/${messageId}/${media.index}`,
-      mimeType: media.mimeType,
-      fileSize: media.fileSize,
+      index,
+      url: `${this.apiBaseUrl}/api/media/${channelId}/${messageId}/${index}`,
+      mimeType,
+      fileSize,
     };
   }
 

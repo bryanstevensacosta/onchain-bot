@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { RegisterKolUseCase } from 'kol/identity/application/handlers/register-kol.use-case';
 import { GetKolUseCase } from 'kol/identity/application/handlers/get-kol.use-case';
 import { ListKolsUseCase } from 'kol/identity/application/handlers/list-kols.use-case';
+import { ListActiveKolIdsUseCase } from 'kol/identity/application/handlers/list-active-kol-ids.use-case';
 import { SetKolLifecycleUseCase } from 'kol/identity/application/handlers/set-kol-lifecycle.use-case';
 import { KolIngestionOrchestratorUseCase } from 'kol/identity/application/handlers/kol-ingestion-orchestrator.use-case';
 import type { RegisterKolInput } from 'kol/identity/api/input/register-kol.input';
@@ -27,6 +28,7 @@ export class KolController {
     private readonly registerKol: RegisterKolUseCase,
     private readonly getKol: GetKolUseCase,
     private readonly listKols: ListKolsUseCase,
+    private readonly listActiveKolIds: ListActiveKolIdsUseCase,
     private readonly setLifecycle: SetKolLifecycleUseCase,
     private readonly startListening: KolIngestionOrchestratorUseCase,
   ) {}
@@ -34,6 +36,15 @@ export class KolController {
   @Get('kols')
   public list(): Promise<ReadonlyArray<KolView>> {
     return this.listKols.execute();
+  }
+
+  /**
+   * Get active KOL IDs (for ingestion-service subscription)
+   * Returns only the kolId strings of KOLs with isActive=true and lifecycleStatus=ACTIVE
+   */
+  @Get('kols/active/ids')
+  public listActiveIds(): Promise<ReadonlyArray<string>> {
+    return this.listActiveKolIds.execute();
   }
 
   @Post('kols')

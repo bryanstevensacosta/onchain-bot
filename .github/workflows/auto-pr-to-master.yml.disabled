@@ -1,0 +1,77 @@
+name: Auto PR to Master
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  create-pr-if-needed:
+    runs-on: ubuntu-latest
+    if: github.repository == 'bryanstevensacosta/onchain-bot'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if PR is needed
+        run: |
+          set -e  # Exit on error
+          
+          git fetch origin master dev
+          
+          # Check if dev is ahead of master
+          if git merge-base --is-ancestor origin/dev origin/master; then
+            echo "✅ dev is behind or equal to master, no PR needed"
+            exit 0
+          fi
+          
+          echo "🔍 dev is ahead of master, checking for existing PRs..."
+          
+          # Check if there's already an open PR from dev to master
+          EXISTING_PR=$(gh pr list --repo ${{ github.repository }} --base master --head dev --state open --json number --jq '.[0].number // empty' || echo "")
+          
+          if [ -n "$EXISTING_PR" ]; then
+            echo "✅ PR #$EXISTING_PR already exists"
+            echo "Attempting to update branch..."
+            if gh pr view "$EXISTING_PR" --repo ${{ github.repository }} >/dev/null 2>&1; then
+              gh pr comment "$EXISTING_PR" --repo ${{ github.repository }} --body "🔄 Auto-sync check: dev branch updated with new commits" || true
+            fi
+            exit 0
+          fi
+          
+          # Create new PR
+          echo "📝 Creating new PR from dev to master..."
+          COMMITS_AHEAD=$(git rev-list --count origin/master..origin/dev)
+          LATEST_COMMIT=$(git log origin/dev ^origin/master --oneline --no-merges -1 --pretty=format:"%s" || echo "Multiple commits")
+          
+          PR_BODY="## 🔄 Auto-sync PR from dev to master
+
+          This PR was automatically created because dev is $COMMITS_AHEAD commits ahead of master.
+
+          **Latest change:** $LATEST_COMMIT
+
+          **What to do:**
+          1. Review the changes
+          2. Merge when ready - this will trigger:
+             - Release-please to analyze conventional commits
+             - Automatic release PR creation if there are releasable changes
+             - CI/CD workflows
+
+          **Note:** After merging, master will automatically sync back to dev via the sync-dev workflow."
+          
+          gh pr create \
+            --repo ${{ github.repository }} \
+            --base master \
+            --head dev \
+            --title "chore(sync): dev → master ($COMMITS_AHEAD commits)" \
+            --body "$PR_BODY" \
+            --label "auto-sync"
+          
+          echo "✅ PR created successfully"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

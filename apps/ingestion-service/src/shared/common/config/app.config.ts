@@ -19,6 +19,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { plainToClass, Type } from 'class-transformer';
+import { CRYPTO_NEWS_SEED } from '../../../telegram/crypto-news/seeds/crypto-news.seed';
 
 /**
  * Application configuration for Ingestion Service
@@ -112,6 +113,10 @@ class ApiConfig {
 }
 
 class RedisConfig {
+  @IsBoolean()
+  @IsOptional()
+  enabled?: boolean;
+
   @IsString()
   @IsNotEmpty({ message: 'REDIS_HOST is required' })
   host!: string;
@@ -400,7 +405,13 @@ function parseSeedKols(): SeedKolEntry[] {
 
 function parseSeedNews(): SeedNewsChannelEntry[] {
   const raw = process.env.INGESTION_TELEGRAM_SEED_NEWS;
-  if (!raw) return [];
+
+  // If env var is not set or empty, use hardcoded seed file
+  if (!raw || raw.trim() === '') {
+    // Import from seed file
+    // NOTE: Requires the seed file to be in the dist/ folder after build
+    return CRYPTO_NEWS_SEED as SeedNewsChannelEntry[];
+  }
 
   try {
     const parsed = JSON.parse(raw);
@@ -449,10 +460,11 @@ export const appConfig = registerAs('app', () => {
 
   // Redis configuration (Requirement 6.2)
   const redis = {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379', 10),
-    password: process.env.REDIS_PASSWORD || undefined,
-    db: parseInt(process.env.REDIS_DB || '0', 10),
+    enabled: process.env.INGESTION_REDIS_ENABLED !== 'false', // enabled by default unless explicitly set to 'false'
+    host: process.env.INGESTION_REDIS_HOST || 'localhost',
+    port: parseInt(process.env.INGESTION_REDIS_PORT || '6379', 10),
+    password: process.env.INGESTION_REDIS_PASSWORD || undefined,
+    db: parseInt(process.env.INGESTION_REDIS_DB || '0', 10),
   };
 
   // Storage configuration (Requirement 6.2)
@@ -516,11 +528,30 @@ export const appConfig = registerAs('app', () => {
   // Database configuration (optional, for raw message storage)
   const database = {
     enabled: process.env.DATABASE_ENABLED === 'true',
-    host: process.env.DATABASE_HOST || 'localhost',
-    port: parseInt(process.env.DATABASE_PORT || '5432', 10),
-    username: process.env.DATABASE_USERNAME || 'postgres',
-    password: process.env.DATABASE_PASSWORD || 'postgres',
-    database: process.env.DATABASE_NAME || 'onchain_bot',
+    host:
+      process.env.INGESTION_DATABASE_HOST ||
+      process.env.DATABASE_HOST ||
+      'localhost',
+    port: parseInt(
+      process.env.INGESTION_DATABASE_PORT ||
+        process.env.DATABASE_PORT ||
+        '5432',
+      10,
+    ),
+    username:
+      process.env.INGESTION_DATABASE_USER ||
+      process.env.DATABASE_USERNAME ||
+      'postgres',
+    password:
+      process.env.INGESTION_DATABASE_PASSWORD ||
+      process.env.DATABASE_PASSWORD ||
+      'postgres',
+    database:
+      process.env.INGESTION_DATABASE_NAME ||
+      process.env.DATABASE_NAME ||
+      'onchain_bot',
+    synchronize: process.env.INGESTION_DATABASE_SYNCHRONIZE === 'true',
+    logging: process.env.INGESTION_DATABASE_LOGGING === 'true',
   };
 
   // Logging configuration
@@ -539,6 +570,19 @@ export const appConfig = registerAs('app', () => {
   // TODO: Implement validation functions
   //   validateApiConfig(api);
 
+
+  // Multi-Backend configuration (Per Requirement 9.1, 9.2)
+  const multiBackend = {
+    enabled: process.env.INGESTION_MULTI_BACKEND_ENABLED === 'true',
+    backfillBufferSize: parseInt(
+      process.env.INGESTION_BACKFILL_BUFFER_SIZE || '5000',
+      10,
+    ),
+    backfillRetentionHours: parseInt(
+      process.env.INGESTION_BACKFILL_RETENTION_HOURS || '72',
+      10,
+    ),
+  };
   return {
     nodeEnv,
     telegram,
@@ -550,6 +594,7 @@ export const appConfig = registerAs('app', () => {
     ingestionSafety,
     database,
     logging,
+    multiBackend,
   };
 });
 

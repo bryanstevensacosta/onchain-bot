@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { LlmPort } from 'shared/llm/llm.port';
+import { LlmModelProviderService } from './llm-model-provider.service';
 
 export type ArbiterVerdict = 'DUPLICATE' | 'UPDATE' | 'DIFFERENT';
 
@@ -17,7 +18,10 @@ const TRUNCATION_MARKER = '\n… [truncated]\n';
 export class LlmArbiterService {
   private readonly logger = new Logger(LlmArbiterService.name);
 
-  constructor(private readonly llm: LlmPort) {}
+  constructor(
+    private readonly llm: LlmPort,
+    private readonly modelProvider: LlmModelProviderService,
+  ) {}
 
   /**
    * Ask the LLM to classify a gray-zone pair.
@@ -37,6 +41,10 @@ export class LlmArbiterService {
         return 'DIFFERENT';
       }
 
+      // Get model from DB (crypto-news publisher default template)
+      const model =
+        (await this.modelProvider.getModel()) ?? process.env.DEDUP_LLM_MODEL;
+
       const prompt = this.buildPrompt(existingText, incomingText, similarity);
       const result = await this.llm.generateText({
         prompt,
@@ -44,7 +52,7 @@ export class LlmArbiterService {
           'You are a crypto news deduplication system. Analyze two news items and output EXACTLY one word: DUPLICATE, UPDATE, or DIFFERENT.',
         maxTokens: Number(process.env.DEDUP_LLM_MAX_TOKENS ?? 300),
         temperature: 0.1, // low temperature for consistent classification
-        model: process.env.DEDUP_LLM_MODEL,
+        model,
       });
 
       return this.parseVerdict(result);

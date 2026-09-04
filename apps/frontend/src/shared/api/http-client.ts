@@ -31,7 +31,16 @@ export async function httpPost<TBody, TResp = unknown>(
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new HttpError(res.status, text, `POST ${path} → ${res.status}`);
+    let errorMessage = `POST ${path} → ${res.status}`;
+    try {
+      const json = JSON.parse(text);
+      if (json.message) {
+        errorMessage = json.message;
+      }
+    } catch {
+      // Not JSON or no message field, use default
+    }
+    throw new HttpError(res.status, text, errorMessage);
   }
   return (await res.json()) as TResp;
 }

@@ -1,9 +1,25 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { TelegramListenerPort } from '../../shared/ports/telegram-listener.port';
+import { TelegramListenerPort } from '../../shared/ports/telegram-listener.port';
 import { KOL_SEED, type SeedKol } from '../seeds/kol.seed';
 
 /**
+ * @deprecated DEPRECATED: Use BackendChannelProviderService instead
+ *
+ * This seeder is kept for backward compatibility only and will be removed in a future version.
+ * The new DB-driven approach fetches active KOL channels from the backend via HTTP:
+ * - GET /api/telegram-kol/identity/kols/active/ids
+ *
+ * Migration path:
+ * 1. Add KOLs via backend API: POST /api/telegram-kol/identity/kols
+ * 2. Verify KOLs appear in backend DB with isActive=true and lifecycleStatus='ACTIVE'
+ * 3. ingestion-service automatically picks them up via BackendChannelProviderService
+ * 4. This seeder is no longer invoked by TelegramModule
+ *
+ * ---
+ *
+ * OLD BEHAVIOR (deprecated):
+ *
  * Idempotently registers the static seed list of Telegram KOLs for ingestion.
  *
  * Adapted from backend's KolSeeder for the centralized ingestion service.
@@ -23,6 +39,7 @@ export class KolSeeder {
 
   constructor(
     private readonly config: ConfigService,
+    @Inject(TelegramListenerPort)
     private readonly listener: TelegramListenerPort,
   ) {}
 

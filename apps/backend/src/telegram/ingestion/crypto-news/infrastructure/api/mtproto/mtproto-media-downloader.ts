@@ -51,6 +51,45 @@ const SAFE_CHANNEL_ID_PATTERN = /[^a-zA-Z0-9_-]/g;
  * `TelegramClient` is created lazily by the listener at subscribe time
  * and is not itself a NestJS provider — there is no global client to
  * register as a provider.
+ *
+ * @deprecated This adapter is deprecated and will be removed in a future version.
+ *
+ * **Reason for deprecation:**
+ * Media download logic has been centralized into the ingestion service to eliminate 3x
+ * duplication of downloaded files across backend environments. With distributed MTProto
+ * clients, each environment downloads the same media files independently, wasting bandwidth,
+ * storage, and Telegram API quota.
+ *
+ * **Migration path:**
+ * - **New location:** `apps/ingestion-service/src/telegram/crypto-news/infrastructure/api/mtproto/mtproto-media-downloader.ts`
+ * - **Backend replacement:** Backend clients receive media URLs via SSE instead of local file
+ *   paths. Media is accessed via HTTP endpoints like `GET /api/media/:channelId/:messageId/:index`
+ *   served by the centralized ingestion service.
+ * - **Message payload change:** The `TelegramRawMessage.media[].filePath` field now contains
+ *   an HTTP URL (e.g., `http://ingestion-service:3031/api/media/-100.../12345/0`) instead of
+ *   a local filesystem path.
+ *
+ * **What moved to ingestion service:**
+ * - Synchronous media download at ingestion time (fileReference expires in ~1h)
+ * - FLOOD_WAIT retry logic for download operations (Requirement 11.2)
+ * - FILE_REFERENCE_EXPIRED detection and message re-fetch for fileReference refresh
+ * - Channel ID sanitization for filesystem path safety (defeats path traversal)
+ * - 50MB size limit enforcement and buffer validation
+ * - Photo compression for Bot API upload compatibility (10MB limit)
+ * - MIME type detection via magic bytes (not Telegram-declared type)
+ * - Storage in persistent volume at `uploads/crypto-news/media/{channelId}/`
+ *
+ * **Backend client behavior:**
+ * When `INGESTION_MODE=remote`, backends no longer download media. The `SseIngestionClientAdapter`
+ * constructs `TelegramRawMessage` objects with media URLs in the `filePath` field. Backends can:
+ * 1. Display URLs directly in the dashboard (images load via HTTP)
+ * 2. Download on-demand via HTTP GET if local processing is needed
+ * 3. Pass URLs to LLM providers that support image URLs
+ *
+ * **Specification:** See `.kiro/specs/centralized-ingestion-service/requirements.md`
+ * Requirement 1.2 (media downloaded once) and section 4.2 (media serving endpoint design).
+ *
+ * @see {@link apps/ingestion-service} Centralized media download eliminates 3x duplication
  */
 @Injectable()
 export class MtprotoMediaDownloader extends CryptoNewsMediaDownloader {

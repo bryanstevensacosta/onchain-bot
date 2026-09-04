@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   NotFoundException,
   Param,
   Query,
@@ -79,6 +80,7 @@ export class QueueController {
   /** UTC reset hour for the 24h window (4am UTC). */
   private static readonly RESET_HOUR_UTC = 4;
 
+  private readonly logger = new Logger(QueueController.name);
   private readonly outputChannel: string;
 
   public constructor(
@@ -166,20 +168,86 @@ export class QueueController {
       return;
     }
 
-    let fileBuffer: Buffer;
-    try {
-      fileBuffer = await fs.promises.readFile(imagePath);
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        res.status(404).json({ error: 'Media file missing on disk' });
-        return;
+    // Check if this is a URL (from ingestion-service) or a local file path
+    const isUrl =
+      imagePath.startsWith('http://') || imagePath.startsWith('https://');
+
+    if (isUrl) {
+      // Proxy to ingestion-service
+      try {
+        const response = await fetch(imagePath);
+
+        if (!response.ok) {
+          res
+            .status(response.status)
+            .json({ error: 'Media not found on ingestion-service' });
+          return;
+        }
+
+        const contentType =
+          response.headers.get('content-type') || 'application/octet-stream';
+        const buffer = Buffer.from(await response.arrayBuffer());
+
+        serveMediaFile(res, req, buffer, contentType, 'public, max-age=86400');
+      } catch (err) {
+        this.logger.error(
+          `Failed to proxy media from ingestion-service: ${err}`,
+        );
+        res
+          .status(502)
+          .json({ error: 'Failed to fetch media from ingestion-service' });
       }
-      throw err;
+    } else {
+      // Legacy: serve from local disk
+      let fileBuffer: Buffer;
+      try {
+        fileBuffer = await fs.promises.readFile(imagePath);
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          // File not found locally, try fallback proxy to ingestion-service
+          this.logger.debug(
+            `File not found locally: ${imagePath}, trying ingestion-service proxy`,
+          );
+
+          try {
+            const ingestionUrl = this.convertLocalPathToIngestionUrl(imagePath);
+            const response = await fetch(ingestionUrl);
+
+            if (!response.ok) {
+              res.status(404).json({
+                error: 'Media file missing on disk and ingestion-service',
+              });
+              return;
+            }
+
+            const contentType =
+              response.headers.get('content-type') ||
+              'application/octet-stream';
+            const buffer = Buffer.from(await response.arrayBuffer());
+
+            serveMediaFile(
+              res,
+              req,
+              buffer,
+              contentType,
+              'public, max-age=86400',
+            );
+            return;
+          } catch (proxyErr) {
+            this.logger.error(
+              `Failed to proxy from ingestion-service: ${proxyErr}`,
+            );
+            res.status(404).json({ error: 'Media file missing on disk' });
+            return;
+          }
+        }
+        throw err;
+      }
+
+      const mimeType = detectMediaMimeType(imagePath, null, fileBuffer);
+
+      serveMediaFile(res, req, fileBuffer, mimeType, 'public, max-age=86400');
     }
-
-    const mimeType = detectMediaMimeType(imagePath, null, fileBuffer);
-
-    serveMediaFile(res, req, fileBuffer, mimeType, 'public, max-age=86400');
   }
 
   private async countPending(): Promise<number> {
@@ -263,5 +331,29 @@ export class QueueController {
       displayName:
         sourceHandle?.replace(/^@/, '') ?? sourceTitle ?? entry.channelId,
     };
+  }
+
+  /**
+   * Convert a local file path to an ingestion-service URL.
+   *
+   * Example:
+   *   uploads/crypto-news/media/-1004466661332/200_0.jpg
+   *   → http://localhost:3031/api/media/-1004466661332/200/0
+   */
+  private convertLocalPathToIngestionUrl(localPath: string): string {
+    const match = localPath.match(
+      /crypto-news\/media\/([^/]+)\/(\d+)_(\d+)\.\w+$/,
+    );
+
+    if (!match) {
+      throw new Error(`Cannot parse local path: ${localPath}`);
+    }
+
+    const channelId = match[1];
+    const messageId = match[2];
+    const index = match[3];
+
+    const ingestionPort = process.env.INGESTION_PORT || '3031';
+    return `http://localhost:${ingestionPort}/api/media/${channelId}/${messageId}/${index}`;
   }
 }

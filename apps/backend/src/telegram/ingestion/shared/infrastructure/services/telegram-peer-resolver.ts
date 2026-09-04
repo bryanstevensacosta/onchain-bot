@@ -14,14 +14,22 @@ export class TelegramPeerResolver {
     if (!/^-?\d+$/.test(channelId)) {
       return await client.getEntity(channelId);
     }
-    // Numeric ID - try with -100 prefix first, then without
-    const withPrefix = channelId.startsWith('-100')
-      ? channelId
-      : `-100${channelId.replace(/^-/, '')}`;
-    try {
-      return await client.getEntity(withPrefix);
-    } catch {
+
+    // Numeric ID - channels MUST have -100 prefix
+    // Users/bots have plain numeric IDs without -100
+    if (!channelId.startsWith('-100')) {
+      // This is a user/bot ID, not a channel
+      // Try to resolve as-is (will likely fail, but that's expected)
       return await client.getEntity(channelId);
+    }
+
+    // It's a channel ID with -100 prefix - try it directly
+    try {
+      return await client.getEntity(channelId);
+    } catch (_err) {
+      // Last resort: try without -100 prefix (for legacy IDs)
+      const withoutPrefix = channelId.replace(/^-100/, '-');
+      return await client.getEntity(withoutPrefix);
     }
   }
 

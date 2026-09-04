@@ -1,10 +1,32 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { config as dotenvConfig } from 'dotenv';
+
+console.log('[DEBUG] 1. Starting bootstrap - loading .env files');
+// Load .env.dev first with override=true to ensure dev settings take precedence
+const devEnvPath = path.resolve(process.cwd(), '.env.dev');
+if (fs.existsSync(devEnvPath)) {
+  console.log('[DEBUG] 1a. Loading .env.dev (with override)');
+  dotenvConfig({ path: devEnvPath, override: true });
+}
+// Load .env second with override=false to fill in missing variables
+const envPath = path.resolve(process.cwd(), '.env');
+if (fs.existsSync(envPath)) {
+  console.log('[DEBUG] 1a. Loading .env (without override)');
+  dotenvConfig({ path: envPath, override: false });
+}
+console.log('[DEBUG] 1b. After loading env files:', {
+  USE_MOCK_INGESTION: process.env.USE_MOCK_INGESTION,
+  USE_SSE_INGESTION: process.env.USE_SSE_INGESTION,
+});
+
+console.log('[DEBUG] 2. Importing modules');
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { IoAdapter } from '@nestjs/platform-socket.io';
+
+console.log('[DEBUG] 3. Importing AppModule');
 import { AppModule } from './app.module';
 import { AppService } from './app.service';
 import { DomainErrorFilter } from './shared/filters/domain-error.filter';
@@ -16,19 +38,7 @@ import {
   ConfigValidationError,
 } from 'shared/common/config/config-validator';
 
-// Load .env.dev then .env before any module import. Required so decorator-time
-// helpers (isDatabaseEnabled) see DATABASE_ENABLED before SettingsModule /
-// IdentityModule evaluate their @Module imports.
-for (const name of ['.env.dev', '.env']) {
-  const p = path.resolve(process.cwd(), name);
-  if (fs.existsSync(p)) {
-    dotenvConfig({ path: p, override: false });
-  }
-}
-
-// Safety net: log unhandled rejections instead of crashing.
-// Background event handlers / queue consumers may produce async errors
-// that aren't awaited (fire-and-forget) — they shouldn't bring down the app.
+console.log('[DEBUG] 4. Setting up error handlers');
 const bootLogger = new Logger('Bootstrap');
 process.on('unhandledRejection', (reason) => {
   bootLogger.error(
@@ -40,19 +50,9 @@ process.on('uncaughtException', (err) => {
   bootLogger.error(`Uncaught exception: ${err.message}`, err.stack);
 });
 
-// Suppress the pg@8 "client.query() while already executing" deprecation.
-// Triggered by TypeORM's `synchronize: true` schema sync, which fires many
-// introspection+DDL queries on the same underlying Client. The behaviour is
-// supported by pg today and only slated for removal in pg@9.0; silencing
-// keeps boot output clean until the project migrates to migrations-based
-// schema management, at which point the warning disappears naturally.
-//
-// Note: `process.on('warning')` does NOT suppress Node's default stderr
-// print of deprecation warnings in Node 22+ — they print first, then the
-// listener fires. The reliable way to mute them is the noDeprecation flag.
 process.noDeprecation = true;
 
-// Pre-boot config validation: fail fast on missing critical env vars
+console.log('[DEBUG] 5. Validating config');
 const cfg = appConfig();
 try {
   const { warnings } = validateAppConfig(cfg);
@@ -67,8 +67,7 @@ try {
   throw err;
 }
 
-// Startup timeout: force exit if bootstrap hangs (DATABASE_SYNCHRONIZE=true can cause this)
-// Timeout: 2 minutes (120s) to allow for schema sync on large databases
+console.log('[DEBUG] 6. Setting up startup timeout');
 const STARTUP_TIMEOUT_MS = 120_000;
 const startupTimeout = setTimeout(() => {
   bootLogger.fatal(
@@ -84,22 +83,25 @@ const startupTimeout = setTimeout(() => {
 }, STARTUP_TIMEOUT_MS);
 
 async function bootstrap(): Promise<void> {
-  // bufferLogs: true defers all logger output until app.useLogger() is called,
-  // so the FilteredBootstrapLogger can drop boot-machinery lines without us
-  // missing any application log that fires during module instantiation.
+  console.log('[DEBUG] 7. Creating NestJS app');
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,
   });
+  console.log('[DEBUG] 8. App created, configuring logger');
+
   app.useLogger(app.get(FilteredBootstrapLogger));
 
+  console.log('[DEBUG] 8.1. Setting AppService');
   const appService = app.get(AppService);
   appService.setNestApp(app);
 
+  console.log('[DEBUG] 8.2. Enabling CORS');
   app.enableCors({
     origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
     credentials: true,
   });
 
+  console.log('[DEBUG] 8.3. Setting up global pipes');
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -109,20 +111,44 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
+  console.log('[DEBUG] 8.4. Reading config');
   const config = app.get(ConfigService);
   const appCfg = config.get<AppConfig>('app');
   const port = appCfg?.port ?? 3000;
   const env = appCfg?.nodeEnv ?? 'development';
 
+  console.log('[DEBUG] 8.5. Setting up WebSocket adapter');
   app.useWebSocketAdapter(new IoAdapter(app));
+
+  console.log('[DEBUG] 8.6. Setting up global filters');
   app.useGlobalFilters(new DomainErrorFilter());
 
-  await app.listen(port);
+  console.log(`[DEBUG] 9. About to call app.listen(${port})`);
+  console.log(
+    '[DEBUG] 9a. This will trigger OnModuleInit/OnApplicationBootstrap hooks',
+  );
+
+  // Wrap app.listen with timeout to see if it hangs
+  const listenPromise = app.listen(port);
+  const listenTimeout = setTimeout(() => {
+    console.log('[DEBUG] 9b. ⚠️ app.listen() is taking more than 5 seconds');
+    console.log(
+      '[DEBUG] 9b. Likely a lifecycle hook (OnModuleInit/OnApplicationBootstrap) is hanging',
+    );
+  }, 5000);
+
+  await listenPromise;
+  clearTimeout(listenTimeout);
+
+  console.log('[DEBUG] 9c. ✓ app.listen() completed successfully');
+  clearTimeout(startupTimeout);
 
   // Clear startup timeout - app successfully started
   clearTimeout(startupTimeout);
 
   bootLogger.log(`Running in ${env} mode on port ${port}`);
+  console.log('[DEBUG] 10. Bootstrap complete');
 }
 
+console.log('[DEBUG] 6.5. Calling bootstrap()');
 void bootstrap();

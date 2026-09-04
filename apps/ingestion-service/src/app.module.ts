@@ -1,14 +1,18 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { LoggerModule } from 'nestjs-pino';
 import { appConfig } from './shared/common/config/app.config';
+import { SharedModule } from './telegram/shared/shared.module';
 import { StreamModule } from './stream/stream.module';
 import { MediaModule } from './media/media.module';
 import { HealthModule } from './health/health.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { TelegramModule } from './telegram/telegram.module';
+import { CryptoNewsSourceEntity } from './telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
+import { BackfillMessageEntity } from './stream/infrastructure/persistence/typeorm/backfill-message.entity';
 
 /**
  * AppModule - Root module for Ingestion Service
@@ -48,6 +52,25 @@ import { TelegramModule } from './telegram/telegram.module';
     // Scheduler
     ScheduleModule.forRoot(),
 
+    // Database (TypeORM)
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const dbConfig = config.get('app.database');
+        return {
+          type: 'postgres',
+          host: dbConfig?.host || 'localhost',
+          port: dbConfig?.port || 5432,
+          username: dbConfig?.username || 'postgres',
+          password: dbConfig?.password || 'postgres',
+          database: dbConfig?.database || 'onchain_bot',
+          entities: [CryptoNewsSourceEntity, BackfillMessageEntity],
+          synchronize: dbConfig?.synchronize || false,
+          logging: dbConfig?.logging || false,
+        };
+      },
+    }),
+
     // Logging
     LoggerModule.forRoot({
       pinoHttp: {
@@ -67,6 +90,7 @@ import { TelegramModule } from './telegram/telegram.module';
     }),
 
     // HTTP API
+    SharedModule, // Redis, LastSeenManager, TelegramClientManager
     StreamModule, // SSE streaming
     MediaModule, // Media file serving
     HealthModule, // Health checks

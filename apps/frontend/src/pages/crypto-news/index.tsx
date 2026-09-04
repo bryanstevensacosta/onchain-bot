@@ -12,10 +12,12 @@ import {
   BlockedPostsList,
   KeywordsManager,
   LlmConfigForm,
+  MatchingToggleButton,
   PromptTemplates,
   QueueView,
 } from '@/features/crypto-news-publisher';
 import { AdsManager, AdsRotationConfigForm } from '@/features/crypto-news-ads';
+import { ContentFilterManager } from '@/features/crypto-news-filters';
 import { useSearchPhrases } from '@/features/crypto-news-publisher/model/use-phrases';
 
 interface LightboxMediaItem {
@@ -478,9 +480,28 @@ export function CryptoNewsPage() {
             className="space-y-3 rounded-lg border border-slate-700 bg-slate-800/30 p-4"
           >
             <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 select-none">
-              Queue
+              Content Filters
             </summary>
             <div className="pt-2">
+              {channelFilter ? (
+                <ContentFilterManager channelId={channelFilter} />
+              ) : (
+                <p className="text-sm text-slate-500 text-center py-4">
+                  Selecciona un canal arriba para gestionar sus filtros
+                </p>
+              )}
+            </div>
+          </details>
+
+          <details
+            open
+            className="space-y-3 rounded-lg border border-slate-700 bg-slate-800/30 p-4"
+          >
+            <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 select-none">
+              Queue
+            </summary>
+            <div className="space-y-3 pt-2">
+              <MatchingToggleButton />
               <QueueView />
             </div>
           </details>

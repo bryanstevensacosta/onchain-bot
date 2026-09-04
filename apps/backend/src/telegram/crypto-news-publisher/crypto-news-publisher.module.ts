@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LlmPort } from 'shared/llm';
 import { LlmGatewayAdapter } from 'shared/llm/adapters/llm-gateway.adapter';
@@ -41,7 +41,6 @@ import { BotApiCryptoNewsPublisherAdapter } from 'telegram/crypto-news-publisher
 import { CryptoNewsLlmAdapter } from 'telegram/crypto-news-publisher/infrastructure/llm/crypto-news-llm.adapter';
 import { CryptoNewsPublisherConfigService } from 'telegram/crypto-news-publisher/infrastructure/config/crypto-news-publisher.config';
 import { MediaCleanupService } from 'telegram/crypto-news-publisher/infrastructure/services/media-cleanup.service';
-import { MarkdownConverter } from 'telegram/ingestion/crypto-news/application/services/markdown-converter.service';
 import { LlmConfigMigrationService } from 'telegram/crypto-news-publisher/infrastructure/migration/llm-config-migration.service';
 import { PublisherCronScheduler } from 'telegram/crypto-news-publisher/application/scheduling/publisher-cron.scheduler';
 import { TelegramPublisherPort } from 'telegram/shared';
@@ -87,7 +86,7 @@ import { CryptoNewsMessageIngestedHandler } from 'telegram/crypto-news-publisher
     ]),
     CryptoNewsIngestionModule,
     CryptoNewsAdsModule,
-    DeduplicationModule,
+    forwardRef(() => DeduplicationModule),
   ],
   controllers: [
     BlacklistController,
@@ -154,7 +153,6 @@ import { CryptoNewsMessageIngestedHandler } from 'telegram/crypto-news-publisher
     CryptoNewsLlmAdapter,
     CryptoNewsPublisherConfigService,
     MediaCleanupService,
-    MarkdownConverter,
     LlmConfigMigrationService,
     SharedThrottleSchedulerService,
     PhraseRegistryService,

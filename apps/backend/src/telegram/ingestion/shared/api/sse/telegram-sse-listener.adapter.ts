@@ -10,19 +10,20 @@ import {
   TelegramRawMessage,
   ResolvedChannelMetadata,
   JoinChannelResult,
-  TelegramMediaAttachment,
+  // TelegramMediaAttachment, // Unused - MessagePayload uses different media structure
 } from '../../domain/ports/telegram-listener.port';
 
 /**
  * MessagePayload from Ingestion Service SSE stream
  *
- * Per Invariant 1: text field is EXCLUDED (ToS compliance)
- * Backend must fetch full text via backfill if needed
+ * Per Invariant 1 (modified): text excluded for KOL (extraction handles it), included for crypto-news (opaque content)
+ * Backend must fetch full text via backfill for KOL messages; crypto-news includes text directly
  */
 interface MessagePayload {
   peerId: string;
   messageId: number;
   occurredAt: string;
+  text?: string; // Present for crypto-news, omitted for KOL
   media: Array<{
     type: 'photo' | 'video';
     index: number;
@@ -70,8 +71,10 @@ export class TelegramSseListenerAdapter
   private readonly baseReconnectDelay = 1_000; // 1s
 
   constructor(private readonly config: ConfigService) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const appConfig = this.config.get('app');
     this.ingestionServiceUrl =
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       appConfig?.ingestion?.serviceUrl || 'http://localhost:3031';
 
     this.logger.log(
@@ -80,7 +83,13 @@ export class TelegramSseListenerAdapter
   }
 
   async onModuleInit(): Promise<void> {
+    console.log(
+      '[LIFECYCLE-DEBUG] TelegramSseListenerAdapter.onModuleInit() START',
+    );
     this.logger.log('TelegramSseListenerAdapter module initialized');
+    console.log(
+      '[LIFECYCLE-DEBUG] TelegramSseListenerAdapter.onModuleInit() END',
+    );
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -102,6 +111,7 @@ export class TelegramSseListenerAdapter
     this.logger.log(
       `Subscribing to SSE stream for ${channelIds.length} channels: ${streamUrl}`,
     );
+    this.logger.log(`[SSE-DEBUG] ChannelIds: ${channelIds.join(', ')}`);
 
     while (true) {
       try {
@@ -178,9 +188,27 @@ export class TelegramSseListenerAdapter
           if (message?.event === 'message:telegram') {
             const payload = message.data as MessagePayload;
 
+            this.logger.debug(
+              `[SSE-DEBUG] Received message from ${payload.peerId}:${payload.messageId}`,
+            );
+
             // Filter by subscribed channels
             if (channelIds.includes(payload.peerId)) {
-              yield this.payloadToRawMessage(payload);
+              this.logger.log(
+                `[SSE-DEBUG] Message ${payload.peerId}:${payload.messageId} passed filter, about to yield...`,
+              );
+              const rawMessage = this.payloadToRawMessage(payload);
+              this.logger.log(
+                `[SSE-DEBUG] Message ${payload.peerId}:${payload.messageId} transformed to RawMessage, yielding now...`,
+              );
+              yield rawMessage;
+              this.logger.log(
+                `[SSE-DEBUG] Message ${payload.peerId}:${payload.messageId} yielded successfully`,
+              );
+            } else {
+              this.logger.debug(
+                `[SSE-DEBUG] Message ${payload.peerId}:${payload.messageId} NOT in subscribed channels, skipping`,
+              );
             }
           } else if (message?.event === 'health:ping') {
             // Heartbeat received - connection is alive
@@ -240,10 +268,10 @@ export class TelegramSseListenerAdapter
    * @returns TelegramRawMessage compatible with backend use cases
    */
   private payloadToRawMessage(payload: MessagePayload): TelegramRawMessage {
-    return {
+    const rawMessage = {
       peerId: payload.peerId,
       messageId: payload.messageId,
-      text: '', // Per Invariant 1: text not in SSE payload
+      text: payload.text ?? '', // Use text from payload if present (crypto-news), empty for KOL (extraction handles it)
       occurredAt: new Date(payload.occurredAt),
       media: payload.media.map((m) => ({
         type: m.type,
@@ -258,6 +286,13 @@ export class TelegramSseListenerAdapter
       entities: payload.entities,
       groupedId: payload.groupedId ? BigInt(payload.groupedId) : undefined,
     };
+
+    // DEBUG: Log text transformation
+    this.logger.log(
+      `[PAYLOAD-TRANSFORM-DEBUG] ${payload.peerId}:${payload.messageId} - payload.text: "${payload.text}" (type: ${typeof payload.text}, length: ${payload.text?.length ?? 0}) → rawMessage.text: "${rawMessage.text}" (length: ${rawMessage.text.length})`,
+    );
+
+    return rawMessage;
   }
 
   /**
@@ -274,6 +309,15 @@ export class TelegramSseListenerAdapter
     channelId: string,
     limit: number,
   ): Promise<TelegramRawMessage[]> {
+    // Skip backfill for users/bots — only channels support backfill
+    // Channels always start with -100 prefix
+    if (!channelId.startsWith('-100')) {
+      this.logger.log(
+        `Skipping backfill for ${channelId} (user/bot detected by ID format) — backfill only works for channels`,
+      );
+      return [];
+    }
+
     const backfillUrl = `${this.ingestionServiceUrl}/api/ingestion/backfill/${channelId}?limit=${Math.min(limit, 100)}`;
 
     this.logger.log(`Backfilling ${limit} messages from ${channelId}`);
@@ -325,6 +369,7 @@ export class TelegramSseListenerAdapter
             return messages;
           } else if (message?.event === 'backfill:error') {
             throw new Error(
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
               `Backfill error: ${message.data.error || 'Unknown error'}`,
             );
           }

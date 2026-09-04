@@ -20,18 +20,11 @@
 
     // L1 - Apps
     { "path": "apps/backend", "doc": "apps/backend/AGENTS.md", "level": 1 },
-    { "path": "apps/frontend", "doc": "apps/frontend/AGENTS.md", "level": 1 },
+    { "path": "apps/frontend", "doc": "apps/frontend/AGENTS.md", "level": 1 }
 
-    // L2 - Bounded Contexts (backend)
-    { "path": "apps/backend/src/telegram", "doc": "apps/backend/src/telegram/AGENTS.md", "level": 2 },
-    { "path": "apps/backend/src/token", "doc": "apps/backend/src/token/AGENTS.md", "level": 2 },
-    { "path": "apps/backend/src/kol", "doc": "apps/backend/src/kol/AGENTS.md", "level": 2 },
-    { "path": "apps/backend/src/data-provider", "doc": "apps/backend/src/data-provider/AGENTS.md", "level": 2 },
-    { "path": "apps/backend/src/shared", "doc": "apps/backend/src/shared/AGENTS.md", "level": 2 },
+    // L2 - Bounded Contexts (backend): consolidated into apps/backend/AGENTS.md 2026-09-04
+  // (sub-BC AGENTS.md files migrated + deleted; per-BC READMEs remain as L3 detail)
 
-    // L3 - Sub-BC (backend)
-    { "path": "apps/backend/src/telegram/vip-calls", "doc": "apps/backend/src/telegram/vip-calls/AGENTS.md", "level": 3 },
-    { "path": "apps/backend/src/telegram/ingestion/crypto-news", "doc": "apps/backend/src/telegram/ingestion/crypto-news/AGENTS.md", "level": 3 }
     // NOTA: cuando se creen nuevos AGENTS.md en L3 o L4+, agregar entradas aquí
   ]
 }

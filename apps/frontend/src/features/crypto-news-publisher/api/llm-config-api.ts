@@ -58,31 +58,33 @@ export const llmConfigKeys = {
 };
 
 export async function fetchLlmModels(): Promise<ReadonlyArray<LlmModel>> {
-  return httpGet<ReadonlyArray<LlmModel>>('/crypto-news-publisher/llm/models');
+  return httpGet<ReadonlyArray<LlmModel>>(
+    '/api/crypto-news-publisher/llm/models',
+  );
 }
 
 export async function fetchLlmConfig(): Promise<LlmConfig> {
-  return httpGet<LlmConfig>('/crypto-news-publisher/llm/config');
+  return httpGet<LlmConfig>('/api/crypto-news-publisher/llm/config');
 }
 
 export async function updateLlmConfig(
   body: UpdateLlmConfigBody,
 ): Promise<LlmConfig> {
   return httpPatch<UpdateLlmConfigBody, LlmConfig>(
-    '/crypto-news-publisher/llm/config',
+    '/api/crypto-news-publisher/llm/config',
     body,
   );
 }
 
 export async function fetchTemplates(): Promise<ReadonlyArray<PromptTemplate>> {
   return httpGet<ReadonlyArray<PromptTemplate>>(
-    '/crypto-news-publisher/llm/templates',
+    '/api/crypto-news-publisher/llm/templates',
   );
 }
 
 export async function fetchTemplate(id: string): Promise<PromptTemplate> {
   return httpGet<PromptTemplate>(
-    `/crypto-news-publisher/llm/templates/${encodeURIComponent(id)}`,
+    `/api/crypto-news-publisher/llm/templates/${encodeURIComponent(id)}`,
   );
 }
 
@@ -90,7 +92,7 @@ export async function createTemplate(
   body: CreatePromptTemplateBody,
 ): Promise<PromptTemplate> {
   return httpPost<CreatePromptTemplateBody, PromptTemplate>(
-    '/crypto-news-publisher/llm/templates',
+    '/api/crypto-news-publisher/llm/templates',
     body,
   );
 }
@@ -100,13 +102,19 @@ export async function updateTemplate(
   body: UpdatePromptTemplateBody,
 ): Promise<PromptTemplate> {
   return httpPatch<UpdatePromptTemplateBody, PromptTemplate>(
-    `/crypto-news-publisher/llm/templates/${encodeURIComponent(id)}`,
+    `/api/crypto-news-publisher/llm/templates/${encodeURIComponent(id)}`,
     body,
   );
 }
 
 export async function deleteTemplate(id: string): Promise<void> {
   await httpDelete<void>(
-    `/crypto-news-publisher/llm/templates/${encodeURIComponent(id)}`,
+    `/api/crypto-news-publisher/llm/templates/${encodeURIComponent(id)}`,
   );
+}
+
+export async function toggleMatchingEnabled(
+  enabled: boolean,
+): Promise<LlmConfig> {
+  return updateLlmConfig({ enabled });
 }

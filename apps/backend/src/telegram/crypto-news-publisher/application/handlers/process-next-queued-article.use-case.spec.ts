@@ -10,6 +10,26 @@ import { LlmConfig } from 'telegram/crypto-news-publisher/domain/entities/llm-co
 import { SlotArbitratorPort } from 'telegram/shared/domain/ports/slot-arbitrator.port';
 import { AdRotationStateRepository } from 'telegram/crypto-news-ads/application/ports/ad-rotation-state.repository';
 
+// Mock fs to avoid filesystem access in tests
+jest.mock('fs', () => ({
+  promises: {
+    access: jest.fn().mockResolvedValue(undefined), // Pretend all files exist
+    mkdir: jest.fn().mockResolvedValue(undefined),
+    writeFile: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
+// Mock path module
+jest.mock('path', () => ({
+  join: jest.fn((...args) => args.join('/')),
+  basename: jest.fn((p) => p.split('/').pop()),
+  dirname: jest.fn((p) => p.split('/').slice(0, -1).join('/') || '/'),
+  extname: jest.fn((p) => {
+    const parts = p.split('.');
+    return parts.length > 1 ? `.${parts[parts.length - 1]}` : '';
+  }),
+}));
+
 const TEST_TARGET_CHANNEL = '@crypto-news-test';
 
 const buildLlmConfig = (overrides: {
@@ -46,7 +66,6 @@ describe('ProcessNextQueuedArticleUseCase', () => {
   let rotationStateRepo: jest.Mocked<AdRotationStateRepository>;
   let mediaCleanup: { cleanupPublishedMedia: jest.Mock };
   let publisherConfig: { config: { publishing: { mediaTtlDays: number } } };
-  let markdownConverter: { convertToMarkdown: jest.Mock };
 
   const buildEntry = (overrides: {
     id?: string;
@@ -99,10 +118,26 @@ describe('ProcessNextQueuedArticleUseCase', () => {
     };
 
     publisher = {
-      sendMessage: jest.fn(),
-      sendPhoto: jest.fn(),
-      sendVideo: jest.fn(),
-      sendMediaGroup: jest.fn(),
+      sendMessage: jest.fn(async () => ({
+        ok: true,
+        messageId: 999,
+        error: null,
+      })),
+      sendPhoto: jest.fn(async () => ({
+        ok: true,
+        messageId: 999,
+        error: null,
+      })),
+      sendVideo: jest.fn(async () => ({
+        ok: true,
+        messageId: 999,
+        error: null,
+      })),
+      sendMediaGroup: jest.fn(async () => ({
+        ok: true,
+        messageId: 999,
+        error: null,
+      })),
     };
 
     throttleStateRepo = {
@@ -150,12 +185,6 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       },
     };
 
-    markdownConverter = {
-      convertToMarkdown: jest
-        .fn()
-        .mockImplementation((content: string) => content),
-    };
-
     useCase = new ProcessNextQueuedArticleUseCase(
       queueRepo,
       throttleScheduler,
@@ -167,7 +196,6 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       rotationStateRepo,
       mediaCleanup,
       publisherConfig,
-      markdownConverter,
     );
   });
 
@@ -247,6 +275,7 @@ describe('ProcessNextQueuedArticleUseCase', () => {
         TEST_TARGET_CHANNEL,
         '✨ BTC rompe $100k',
         '/tmp/img.jpg',
+        { parseMode: 'HTML' },
       );
       expect(publisher.sendMessage).not.toHaveBeenCalled();
       expect(queueRepo.markPublished).toHaveBeenCalledWith(
@@ -292,6 +321,8 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       expect(publisher.sendMessage).toHaveBeenCalledWith(
         TEST_TARGET_CHANNEL,
         'texto',
+        undefined,
+        { parseMode: 'HTML' },
       );
       expect(publisher.sendPhoto).not.toHaveBeenCalled();
       expect(queueRepo.markPublished).toHaveBeenCalledWith(
@@ -527,6 +558,8 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       expect(publisher.sendMessage).toHaveBeenCalledWith(
         TEST_TARGET_CHANNEL,
         'BTC 中文',
+        undefined,
+        { parseMode: 'HTML' },
       );
       expect(queueRepo.markFailed).not.toHaveBeenCalled();
       expect(queueRepo.markPublished).toHaveBeenCalledWith(
@@ -565,6 +598,8 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       expect(publisher.sendMessage).toHaveBeenCalledWith(
         TEST_TARGET_CHANNEL,
         '¡Bitcoin rompe $100k 🚀!',
+        undefined,
+        { parseMode: 'HTML' },
       );
       expect(queueRepo.markPublished).toHaveBeenCalledWith(
         'entry-latin-accents',
@@ -620,6 +655,8 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       expect(publisher.sendMessage).toHaveBeenCalledWith(
         '@from-config-row',
         'texto',
+        undefined,
+        { parseMode: 'HTML' },
       );
     });
   });

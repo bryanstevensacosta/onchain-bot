@@ -46,6 +46,16 @@ export class TypeOrmKolRepository extends KolRepository {
     return rows.map((r) => KolMapper.toDomain(r));
   }
 
+  public async findActive(): Promise<ReadonlyArray<Kol>> {
+    const rows = await this.repo.find({
+      where: {
+        isActive: true,
+        lifecycleStatus: 'ACTIVE',
+      },
+    });
+    return rows.map((r) => KolMapper.toDomain(r));
+  }
+
   public async delete(id: KolId): Promise<void> {
     await this.repo.delete({ kolId: id.value });
   }

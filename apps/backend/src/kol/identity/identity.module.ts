@@ -12,6 +12,7 @@ import { ResolvedKolMetadataRepository } from 'kol/identity/application/ports/re
 import { RegisterKolUseCase } from 'kol/identity/application/handlers/register-kol.use-case';
 import { GetKolUseCase } from 'kol/identity/application/handlers/get-kol.use-case';
 import { ListKolsUseCase } from 'kol/identity/application/handlers/list-kols.use-case';
+import { ListActiveKolIdsUseCase } from 'kol/identity/application/handlers/list-active-kol-ids.use-case';
 import { SetKolLifecycleUseCase } from 'kol/identity/application/handlers/set-kol-lifecycle.use-case';
 import { InMemoryKolRepository } from 'kol/identity/infrastructure/repositories/in-memory-kol.repository';
 import { JsonResolvedKolMetadataRepository } from 'kol/identity/infrastructure/persistence/json-resolved-kol-metadata.repository';
@@ -39,6 +40,7 @@ import type { AppConfig } from 'shared/common/config/app.config';
     RegisterKolUseCase,
     GetKolUseCase,
     ListKolsUseCase,
+    ListActiveKolIdsUseCase,
     SetKolLifecycleUseCase,
     InMemoryKolRepository,
     ...(isDatabaseEnabled() ? [TypeOrmKolRepository] : []),

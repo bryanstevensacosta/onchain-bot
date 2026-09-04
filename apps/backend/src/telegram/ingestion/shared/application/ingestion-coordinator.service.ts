@@ -53,35 +53,59 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
   ) {}
 
   public async onApplicationBootstrap(): Promise<void> {
+    this.logger.log(
+      '⏳ [HOOK-DEBUG] IngestionCoordinator.onApplicationBootstrap() START',
+    );
+
+    this.logger.log('[HOOK-DEBUG] Step 1: Reading seed configs');
     const seedConfig =
       this.config.get<AppConfig>('app')?.ingestion?.telegram?.seed;
     const newsSeedConfig =
       this.config.get<AppConfig>('app')?.ingestion?.telegram?.newsSeed;
 
+    this.logger.log('[HOOK-DEBUG] Step 2: Checking KOL seed config');
     if (seedConfig?.enabled) {
+      this.logger.log('[HOOK-DEBUG] Step 2a: Calling kolSeeder.seed()');
       await this.kolSeeder.seed().catch((err: unknown) => {
         this.logger.error(
           `KOL seeding failed: ${err instanceof Error ? err.message : String(err)}`,
           err instanceof Error ? err.stack : undefined,
         );
       });
+      this.logger.log('[HOOK-DEBUG] Step 2b: kolSeeder.seed() completed');
     } else {
       this.logger.debug('KOL seed disabled; skipping.');
     }
 
+    this.logger.log('[HOOK-DEBUG] Step 3: Checking crypto-news seed config');
     if (newsSeedConfig?.enabled) {
+      this.logger.log('[HOOK-DEBUG] Step 3a: Calling cryptoNewsSeeder.seed()');
       await this.cryptoNewsSeeder.seed().catch((err: unknown) => {
         this.logger.error(
           `Crypto-news seeding failed: ${err instanceof Error ? err.message : String(err)}`,
           err instanceof Error ? err.stack : undefined,
         );
       });
+      this.logger.log(
+        '[HOOK-DEBUG] Step 3b: cryptoNewsSeeder.seed() completed',
+      );
     } else {
       this.logger.debug('Crypto-news seed disabled; skipping.');
     }
 
+    this.logger.log('[HOOK-DEBUG] Step 4: Finding active KOLs');
     const activeKols = (await this.kolRepo.findAll()).filter((k) => k.isActive);
+    this.logger.log(
+      `[HOOK-DEBUG] Step 4a: Found ${activeKols.length} active KOLs`,
+    );
+
+    this.logger.log('[HOOK-DEBUG] Step 5: Finding active news sources');
     const activeNews = await this.cryptoNewsSourceRepo.findActive();
+    this.logger.log(
+      `[HOOK-DEBUG] Step 5a: Found ${activeNews.length} active news sources`,
+    );
+
+    this.logger.log('[HOOK-DEBUG] Step 6: Building channel list');
     const allChannelIds = [
       ...activeKols.map((k) => k.kolId.value),
       ...activeNews.map((s) => s.channelId),
@@ -91,23 +115,44 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
       this.logger.warn(
         'No active channels to subscribe (KOL + news); coordinator idle.',
       );
+      this.logger.log(
+        '✅ [HOOK-DEBUG] IngestionCoordinator.onApplicationBootstrap() completed (no channels)',
+      );
       return;
     }
 
     this.logger.log(
-      `Subscribing to ${allChannelIds.length} channel(s) (${activeKols.length} KOL, ${activeNews.length} news).`,
+      `[HOOK-DEBUG] Step 7: Subscribing to ${allChannelIds.length} channel(s) (${activeKols.length} KOL, ${activeNews.length} news).`,
     );
-    void this.consumeAll(allChannelIds);
+    // Start subscription in background - don't await to avoid blocking bootstrap
+    setImmediate(() => {
+      this.logger.log('[HOOK-DEBUG] Step 7a: setImmediate callback executing');
+      void this.consumeAll(allChannelIds);
+    });
+    this.logger.log(
+      '✅ [HOOK-DEBUG] IngestionCoordinator.onApplicationBootstrap() END',
+    );
   }
 
   private async consumeAll(channelIds: string[]): Promise<void> {
     try {
+      this.logger.log(
+        `[CONSUME-DEBUG] Starting to consume messages from ${channelIds.length} channels...`,
+      );
+
       for await (const raw of this.listener.subscribe(channelIds)) {
+        this.logger.log(
+          `[CONSUME-DEBUG] Received message from ${raw.peerId}:${raw.messageId}`,
+        );
         await this.route(raw);
       }
+
+      this.logger.warn(
+        '[CONSUME-DEBUG] Listener subscription ended (should never happen)',
+      );
     } catch (err) {
       this.logger.error(
-        `Subscription error: ${err instanceof Error ? err.message : String(err)}`,
+        `[CONSUME-DEBUG] Subscription error: ${err instanceof Error ? err.message : String(err)}`,
         err instanceof Error ? err.stack : undefined,
       );
     }
@@ -115,23 +160,46 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
 
   private async route(raw: TelegramRawMessage): Promise<void> {
     try {
+      this.logger.log(
+        `[ROUTE-DEBUG] Starting to route message ${raw.peerId}:${raw.messageId}`,
+      );
+
       const newsSource = await this.cryptoNewsSourceRepo.findByChannelId(
         raw.peerId,
       );
+
+      this.logger.log(
+        `[ROUTE-DEBUG] newsSource lookup result: ${newsSource ? 'FOUND (crypto-news)' : 'NOT FOUND (will route to KOL)'}`,
+      );
+
       if (newsSource) {
+        this.logger.log(
+          `[ROUTE-DEBUG] Routing to crypto-news handler for ${raw.peerId}:${raw.messageId}`,
+        );
+        this.logger.log(
+          `[TEXT-DEBUG] raw.text value: "${raw.text}" (type: ${typeof raw.text}, length: ${raw.text?.length ?? 0})`,
+        );
+
         const media =
           raw.media !== undefined && raw.media.length > 0
             ? raw.media
                 .filter((m) => m.filePath !== undefined && m.filePath !== '')
-                .map((m) =>
-                  CryptoNewsMedia.create({
+                .map((m) => {
+                  // Convert HTTP URL to local file path if needed
+                  // SSE sends URLs like: http://localhost:3031/api/media/-1004466661332/200/0
+                  // We need local paths like: uploads/crypto-news/media/-1004466661332/200_0.jpg
+                  const localPath = this.convertMediaUrlToLocalPath(
+                    m.filePath as string,
+                  );
+
+                  return CryptoNewsMedia.create({
                     index: m.index ?? 0,
                     type: m.webpageUrl ? 'webpage' : m.type,
-                    filePath: m.filePath as string,
+                    filePath: localPath,
                     mimeType: m.mimeType,
                     fileSize: m.fileSize ?? null,
-                  }),
-                )
+                  });
+                })
             : undefined;
 
         await this.storeNewsMessage.execute({
@@ -146,17 +214,112 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
             ? { groupedId: String(raw.groupedId) }
             : {}),
         });
+
+        this.logger.log(
+          `[ROUTE-DEBUG] ✅ Crypto-news handler completed for ${raw.peerId}:${raw.messageId}`,
+        );
         return;
       }
+
       // Fall through to KOL pipeline
+      this.logger.log(
+        `[ROUTE-DEBUG] Routing to KOL orchestrator for ${raw.peerId}:${raw.messageId}`,
+      );
       await this.kolOrchestrator.onMessageReceived(raw);
+      this.logger.log(
+        `[ROUTE-DEBUG] ✅ KOL orchestrator completed for ${raw.peerId}:${raw.messageId}`,
+      );
     } catch (err) {
       this.logger.error(
-        `Failed to route message ${raw.peerId}:${raw.messageId}: ${
+        `[ROUTE-DEBUG] ❌ Failed to route message ${raw.peerId}:${raw.messageId}: ${
           err instanceof Error ? err.message : String(err)
         }`,
         err instanceof Error ? err.stack : undefined,
       );
     }
   }
+
+  /**
+   * Convert HTTP URL from ingestion-service to local file path.
+   *
+   * SSE sends URLs like:
+   *   http://localhost:3031/api/media/-1004466661332/200/0
+   *
+   * We need local paths like:
+   *   uploads/crypto-news/media/-1004466661332/200_0.jpg
+   *
+   * In production, both backend and ingestion-service share the same
+   * uploads volume, so the file is accessible at the same relative path.
+   *
+   * This method checks the filesystem to find the actual file with its
+   * correct extension (.jpg, .png, .webp, .gif, .mp4, etc.)
+   *
+   * @param urlOrPath - URL from SSE or already a local path
+   * @returns Local file path relative to backend root
+   */
+  private convertMediaUrlToLocalPath(urlOrPath: string): string {
+    // If already a local path (doesn't start with http), return as-is
+    if (!urlOrPath.startsWith('http://') && !urlOrPath.startsWith('https://')) {
+      return urlOrPath;
+    }
+
+    try {
+      // Parse URL: http://localhost:3031/api/media/-1004466661332/200/0
+      const url = new URL(urlOrPath);
+      const pathParts = url.pathname.split('/').filter(Boolean);
+
+      // Expected: ['api', 'media', channelId, messageId, index]
+      if (
+        pathParts.length < 5 ||
+        pathParts[0] !== 'api' ||
+        pathParts[1] !== 'media'
+      ) {
+        this.logger.warn(
+          `[MEDIA-URL-CONVERT] Unexpected URL format, using as-is: ${urlOrPath}`,
+        );
+        return urlOrPath;
+      }
+
+      const channelId = pathParts[2];
+      const messageId = pathParts[3];
+      const index = pathParts[4];
+
+      // Ingestion-service saves files as: uploads/crypto-news/media/channelId/messageId_index.ext
+      const baseLocalPath = `uploads/crypto-news/media/${channelId}/${messageId}_${index}`;
+      const baseDirPath = `uploads/crypto-news/media/${channelId}`;
+      const filePrefix = `${messageId}_${index}.`;
+
+      // Check if directory exists
+      if (!fs.existsSync(baseDirPath)) {
+        this.logger.warn(
+          `[MEDIA-URL-CONVERT] Directory not found: ${baseDirPath}, using default .jpg`,
+        );
+        return `${baseLocalPath}.jpg`;
+      }
+
+      // Find file with any extension
+      const files = fs.readdirSync(baseDirPath);
+      const matchingFile = files.find((f) => f.startsWith(filePrefix));
+
+      if (matchingFile) {
+        const localPath = path.join(baseDirPath, matchingFile);
+        this.logger.debug(`[MEDIA-URL-CONVERT] ${urlOrPath} → ${localPath}`);
+        return localPath;
+      }
+
+      // Fallback to .jpg if file not found
+      this.logger.warn(
+        `[MEDIA-URL-CONVERT] File not found with prefix ${filePrefix} in ${baseDirPath}, using default .jpg`,
+      );
+      return `${baseLocalPath}.jpg`;
+    } catch (err) {
+      this.logger.warn(
+        `[MEDIA-URL-CONVERT] Failed to convert media URL, using as-is: ${urlOrPath} (${(err as Error).message})`,
+      );
+      return urlOrPath;
+    }
+  }
 }
+
+import * as fs from 'fs';
+import * as path from 'path';

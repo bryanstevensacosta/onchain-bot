@@ -46,18 +46,18 @@ export class TelegramClientManager {
     if (this.client) return this.client;
 
     const cfg = this.config.get('app');
-    if (!cfg?.telegram?.mtprotoApiId || !cfg?.telegram?.mtprotoApiHash) {
+    if (!cfg?.telegram?.apiId || !cfg?.telegram?.apiHash) {
       throw new Error('Telegram MTProto not configured');
     }
 
-    const session = new StringSession(cfg.telegram.mtprotoSession || '');
+    const session = new StringSession(cfg.telegram.sessionString || '');
     const level = resolveGramjsLogLevel(cfg.telegram.mtprotoLogLevel);
     const baseLogger = new GramjsLogger(level as never);
 
     this.client = new TelegramClient(
       session,
-      cfg.telegram.mtprotoApiId,
-      cfg.telegram.mtprotoApiHash,
+      cfg.telegram.apiId,
+      cfg.telegram.apiHash,
       {
         connectionRetries: 5,
         baseLogger,
