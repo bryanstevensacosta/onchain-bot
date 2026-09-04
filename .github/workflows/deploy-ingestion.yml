@@ -58,6 +58,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Fix ownership before operations (chown -R runner:runner)
+        run: |
+          echo "=== chown -R runner:runner /opt/onchain-bot ==="
+          sudo chown -R runner:runner /opt/onchain-bot || chown -R runner:runner /opt/onchain-bot || echo 'chown warning (non-fatal)'
+          echo "=== ownership fixed ==="
+
       - name: Pull latest image
         run: |
           docker pull ghcr.io/${{ github.repository }}-ingestion:latest

@@ -129,6 +129,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Fix ownership before sync (chown -R runner:runner)
+        run: |
+          echo "=== chown -R runner:runner /opt/onchain-bot-staging ==="
+          sudo chown -R runner:runner /opt/onchain-bot-staging || chown -R runner:runner /opt/onchain-bot-staging || echo 'chown warning (non-fatal)'
+          echo "=== ownership fixed ==="
+
       - name: Sync live source tree with dev
         run: |
           set -euo pipefail
