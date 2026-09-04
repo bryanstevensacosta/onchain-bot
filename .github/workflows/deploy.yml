@@ -144,25 +144,36 @@ jobs:
           PCT=$(df / | tail -1 | awk '{print $5}' | tr -d '%'); if [ "$PCT" -gt 80 ]; then echo "::warning::disk ${PCT}% full after pull+prune"; fi
 
       - name: Deploy via compose (no build)
+      - name: Deploy via compose (no build)
         run: |
           set -euo pipefail
           set -a; source /opt/onchain-bot/apps/backend/.env.production; set +a
-          echo "=== Running migrations inside pulled backend ==="
-          docker run --rm --network onchain-bot-net --env-file /opt/onchain-bot/apps/backend/.env.production ghcr.io/${{ github.repository }}-backend:${{ github.sha }} npx typeorm --dataSource dist/src/shared/common/persistence/data-source.js migration:run || docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml run --rm backend npx typeorm --dataSource dist/src/shared/common/persistence/data-source.js migration:run
-          echo "=== Recreating services with pulled images ==="
-          docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml up -d --force-recreate backend frontend || docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml up -d --force-recreate
-          echo "=== Waiting for backend healthcheck ==="
-          sleep 180
-          echo "=== Healthcheck attempt (curl -v) ==="
-          curl -v http://localhost:3030/api/health && echo "HEALTHCHECK OK" || (
-            echo "HEALTHCHECK FAILED — rolling back"
-            docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml up -d --force-recreate backend
-            sleep 180
-            echo "=== Rollback healthcheck attempt (curl -v) ==="
-            curl -v http://localhost:3030/api/health && echo "Rollback successful" || {
-              echo "ROLLBACK ALSO FAILED — manual intervention required"
-              docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml logs backend --tail 50
+
+          echo "=== Running migrations ==="
+          docker run --rm --network onchain-bot-net \
+            --env-file /opt/onchain-bot/apps/backend/.env.production \
+            ghcr.io/${{ github.repository }}-backend:${{ github.sha }} \
+            npx typeorm --dataSource dist/src/shared/common/persistence/data-source.js migration:run \
+            || docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml run --rm backend \
+               npx typeorm --dataSource dist/src/shared/common/persistence/data-source.js migration:run
+
+          echo "=== Starting services with --wait (timeout 3min) ==="
+          docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml up -d --force-recreate --wait --wait-timeout 180 backend frontend \
+            || docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml up -d --force-recreate
+
+          echo "=== Verifying health ==="
+          for i in {1..10}; do
+            if curl -sf http://localhost:3030/api/health > /dev/null 2>&1; then
+              echo "✅ Backend healthy on attempt $i"
+              break
+            fi
+            echo "⏳ Health check $i/10 failed, retrying in 10s..."
+            sleep 10
+            if [ "$i" -eq 10 ]; then
+              echo "❌ Backend never became healthy after 100s"
+              docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml logs backend --tail 100
               exit 1
-            }
-          )
-          echo "=== Deploy complete (GHCR) ==="
+            fi
+          done
+
+          echo "=== Deploy complete ==="
