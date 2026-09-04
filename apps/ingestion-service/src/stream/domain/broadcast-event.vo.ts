@@ -19,6 +19,8 @@ export class BroadcastEvent {
   readonly title?: string;
   readonly mediaPath?: string;
   readonly publishedAt: number;
+  
+  [key: string]: unknown; // Allow additional fields for extensibility
 
   private constructor(props: {
     eventId: string;
