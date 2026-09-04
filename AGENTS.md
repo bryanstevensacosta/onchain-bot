@@ -31,6 +31,19 @@ Per-app docs (verified, authoritative over this file for details): `apps/backend
 ├── .omo/ .sisyphus/ .kiro/ .playwright-mcp/  # agent/tool state — do NOT source
 ```
 
+## GIT FLOW & BRANCH STRATEGY
+
+See **[GIT-FLOW.md](./GIT-FLOW.md)** for complete Git workflow documentation, including:
+
+- Branch strategy (`dev` → staging, `master` → production)
+- Squash vs Rebase merge strategies
+- Daily development workflows (solo and team)
+- Hotfix procedures
+- Sync requirements after merges
+- Common scenarios and troubleshooting
+
+**Critical**: Always sync `dev` with `master` after merging to avoid conflicts on next PR.
+
 ## WHERE TO LOOK
 
 | Task                 | Location                                                                                     |
