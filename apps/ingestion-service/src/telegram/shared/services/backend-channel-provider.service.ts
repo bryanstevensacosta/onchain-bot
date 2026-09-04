@@ -23,8 +23,19 @@ export class BackendChannelProviderService {
   private readonly registrations: Map<string, BackendRegistration> = new Map();
 
   constructor(private readonly config: ConfigService) {
-    const backendPort = this.config.get<string>('BACKEND_PORT') || '3030';
-    this.backendUrl = `http://localhost:${backendPort}`;
+    // Per GAP 25: Support Docker networking with BACKEND_URL env var
+    // Fallback to legacy BACKEND_PORT for backward compatibility
+    const backendUrl = this.config.get<string>('BACKEND_URL');
+    if (backendUrl) {
+      this.backendUrl = backendUrl;
+      this.logger.log(`Using BACKEND_URL from config: ${this.backendUrl}`);
+    } else {
+      const backendPort = this.config.get<string>('BACKEND_PORT') || '3030';
+      this.backendUrl = `http://localhost:${backendPort}`;
+      this.logger.warn(
+        `BACKEND_URL not set, using legacy localhost:${backendPort} (Docker networking may not work)`,
+      );
+    }
   }
 
   /**
