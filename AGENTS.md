@@ -234,6 +234,13 @@ npm run start:dev                 # watch, :3031
 npm run telegram:gen-session      # generate INGESTION_TELEGRAM_MTPROTO_SESSION
 npm test | test:e2e | test:cov
 
+# TypeORM Migrations (cd apps/backend)
+# Note: Staging/production use migrations; dev/test use synchronize:true
+npm run migration:generate -- -n MigrationName  # generate new migration from entity changes
+npm run migration:run             # apply pending migrations
+npm run migration:revert          # rollback last migration
+npm run migration:show            # list applied and pending migrations
+
 # Docker
 npm run docker:up                 # postgres:16 + redis:7 + pgAdmin (:5050) per apps/backend/docker-compose.yml
 npm run docker:down

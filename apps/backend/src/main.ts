@@ -143,6 +143,9 @@ async function bootstrap(): Promise<void> {
   console.log('[DEBUG] 9c. ✓ app.listen() completed successfully');
   clearTimeout(startupTimeout);
 
+  // Clear startup timeout - app successfully started
+  clearTimeout(startupTimeout);
+
   bootLogger.log(`Running in ${env} mode on port ${port}`);
   console.log('[DEBUG] 10. Bootstrap complete');
 }
