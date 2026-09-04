@@ -144,7 +144,6 @@ jobs:
           PCT=$(df / | tail -1 | awk '{print $5}' | tr -d '%'); if [ "$PCT" -gt 80 ]; then echo "::warning::disk ${PCT}% full after pull+prune"; fi
 
       - name: Deploy via compose (no build)
-      - name: Deploy via compose (no build)
         run: |
           set -euo pipefail
           set -a; source /opt/onchain-bot/apps/backend/.env.production; set +a
