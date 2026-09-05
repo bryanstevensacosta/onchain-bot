@@ -175,7 +175,6 @@ jobs:
       - name: Ensure .env.staging exists
         run: |
           mkdir -p /opt/onchain-bot-staging/apps/backend
-          mkdir -p /opt/onchain-bot-staging/apps/ingestion-service
 
           # Backend .env.staging
           if [ ! -f /opt/onchain-bot-staging/apps/backend/.env.staging ]; then
@@ -184,17 +183,7 @@ jobs:
             echo "⚠️  WARNING: backend .env.staging created empty — update manually"
           fi
 
-          # Ingestion-service .env.staging
-          if [ ! -f /opt/onchain-bot-staging/apps/ingestion-service/.env.staging ]; then
-            echo "=== First deploy: creating ingestion-service .env.staging from template ==="
-            cp /opt/actions-runner/_work/onchain-bot/onchain-bot/apps/ingestion-service/.env.staging.template \
-               /opt/onchain-bot-staging/apps/ingestion-service/.env.staging
-            echo "⚠️  WARNING: ingestion .env.staging created from template — update credentials manually via SSH"
-          else
-            echo "✅ Ingestion-service .env.staging already exists (preserving existing credentials)"
-          fi
-
-          echo "✅ .env.staging files ensured"
+          echo "✅ Backend .env.staging ensured"
 
       - name: Inject staging env vars from GitHub
         run: |
