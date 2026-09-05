@@ -16,6 +16,9 @@
     },
     "apps/frontend": {
       "release-type": "node"
+    },
+    "apps/ingestion-service": {
+      "release-type": "node"
     }
   }
 }
