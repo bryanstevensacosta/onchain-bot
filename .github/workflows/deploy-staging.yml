@@ -250,8 +250,8 @@ jobs:
       - name: Stop old containers (if hung)
         run: |
           echo "=== Forcefully stopping old containers ==="
-          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml stop ingestion-service backend --time 5 || true
-          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml rm -f ingestion-service backend || true
+          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml stop backend --time 5 || true
+          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml rm -f backend || true
           echo "=== Old containers removed ==="
           docker ps -a | grep -i "backend\|ingestion" || true
           sleep 2
@@ -278,7 +278,7 @@ jobs:
 
       - name: Deploy backend (GHCR, no build)
         run: |
-          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d --no-deps ingestion-service backend
+          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d --no-deps backend
 
       - name: Wait for backend healthcheck
         run: |
