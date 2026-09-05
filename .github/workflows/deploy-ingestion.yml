@@ -85,8 +85,8 @@ jobs:
       - name: Verify clients connected
         run: |
           CLIENTS=$(curl -s http://localhost:3032/api/health | jq -r '.clients.connected')
-          if [ "$CLIENTS" -lt 2 ]; then
-            echo "::error::Expected 2+ clients, got $CLIENTS"
+          if [ "$CLIENTS" -lt 1 ]; then
+            echo "::error::Expected at least 1 client, got $CLIENTS"
             exit 1
           fi
-          echo "✓ $CLIENTS clients connected"
+          echo "✓ $CLIENTS client(s) connected"

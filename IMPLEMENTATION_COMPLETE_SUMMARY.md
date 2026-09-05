@@ -321,3 +321,54 @@ INGESTION_MULTI_BACKEND_ENABLED=true
 - Reconexión Redis: <60s
 - Reconexión SSE: <30s
 - Latencia E2E mensaje: <10s
+
+---
+
+## ✅ DEPLOYMENT COMPLETED - 2026-09-05 03:01 AST
+
+### Post-Deploy Steps Completed
+
+All manual post-deployment steps were successfully completed:
+
+1. ✅ **Production Backend** - `BACKEND_ID=production` added to `.env.production`
+2. ✅ **Production Backend** - Restarted and verified registration
+3. ✅ **Staging Backend** - Disabled SSE ingestion to prevent cross-environment interference
+4. ✅ **Verification** - All health checks passing, messages flowing correctly
+
+### Final Status
+
+**Production:**
+
+- Backend healthy (uptime: 28+ minutes)
+- Receiving ~93 messages/minute from SSE stream
+- Registered as "production" with 65 channels (46 KOLs + 19 news)
+- Redis connected and stable (no circuit breaker activations)
+- Keep-alive running every 5 minutes
+
+**Staging:**
+
+- Using Mock adapter (intentional for testing)
+- Not interfering with production ingestion service
+- BACKEND_ID configured but not actively used
+
+**Ingestion Service:**
+
+- MTProto connected
+- 72 channels in union (production + staging)
+- 2 backends registered correctly
+
+### Verification Report
+
+See `POST_DEPLOY_VERIFICATION.md` for detailed verification report including:
+
+- Complete health check results
+- Backend registration logs
+- Message flow metrics
+- Multi-backend architecture diagram
+- Known issues and workarounds
+
+**Deployment Window:** ~30 minutes (CI/CD pipeline)  
+**Downtime:** <30 seconds (backend restart only)  
+**Tests:** 2008/2009 passing (173/173 suites)
+
+🎉 **Redis Robustness + Multi-Backend Registration: FULLY DEPLOYED AND OPERATIONAL**
