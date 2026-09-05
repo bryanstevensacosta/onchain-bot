@@ -469,6 +469,7 @@ describe('IngestionCoordinator', () => {
     await coord.onApplicationBootstrap();
 
     expect(seedMethod).toHaveBeenCalled();
-    expect(newsSeedMethod).toHaveBeenCalled();
+    // Crypto-news seeder is now disabled permanently (DB-only mode)
+    expect(newsSeedMethod).not.toHaveBeenCalled();
   });
 });

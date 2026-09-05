@@ -302,7 +302,7 @@ describe('CryptoNewsController.addSource (POST /crypto-news/sources)', () => {
     // free of `expect.X(...)` calls that trigger a known
     // `@typescript-eslint/no-unsafe-assignment` false-positive on
     // Jest's matcher return type).
-    expect(view.channelId).toBe('123');
+    expect(view.channelId).toBe('-100123'); // normalized with -100 prefix
     expect(view.title).toBe('MyChannel');
     expect(view.handle).toBeNull();
     expect(view.isActive).toBe(true);
@@ -320,7 +320,7 @@ describe('CryptoNewsController.addSource (POST /crypto-news/sources)', () => {
     // controller calls save() again after `activate()` so the listener
     // picks the source up on the next findActive() sweep.
     expect(sourceRepo.saved).toHaveLength(2);
-    expect(sourceRepo.saved[0].channelId).toBe('123');
+    expect(sourceRepo.saved[0].channelId).toBe('-100123'); // normalized
     // The controller's second save must reflect the post-activate state.
     const last = sourceRepo.saved[sourceRepo.saved.length - 1];
     expect(last.isActive).toBe(true);
@@ -330,7 +330,8 @@ describe('CryptoNewsController.addSource (POST /crypto-news/sources)', () => {
   it('resolves the title via the metadata resolver when the caller omits it', async () => {
     const { controller, resolver } = await buildController({
       resolverFixtures: {
-        '456': {
+        '-100456': {
+          // resolver is called AFTER normalization
           title: 'Resolved Title',
           handle: 'resolved_handle',
           needsManualJoin: false,
@@ -341,7 +342,7 @@ describe('CryptoNewsController.addSource (POST /crypto-news/sources)', () => {
     const view = await controller.addSource({ channelId: '456' });
 
     expect(resolver.resolve).toHaveBeenCalledTimes(1);
-    expect(resolver.resolve).toHaveBeenCalledWith('456');
+    expect(resolver.resolve).toHaveBeenCalledWith('-100456'); // normalized before resolution
     expect(view.title).toBe('Resolved Title');
     // handle falls back to the resolver's value when caller didn't supply one.
     expect(view.handle).toBe('resolved_handle');
@@ -357,7 +358,7 @@ describe('CryptoNewsController.addSource (POST /crypto-news/sources)', () => {
 
     expect(resolver.resolve).not.toHaveBeenCalled();
     expect(view.title).toBe('CustomTitle');
-    expect(view.channelId).toBe('789');
+    expect(view.channelId).toBe('-100789'); // normalized
   });
 
   it('preserves the caller-supplied handle in the response view', async () => {
@@ -371,7 +372,7 @@ describe('CryptoNewsController.addSource (POST /crypto-news/sources)', () => {
 
     expect(view.handle).toBe('XHandle');
     expect(view.title).toBe('X');
-    expect(view.channelId).toBe('111');
+    expect(view.channelId).toBe('-100111'); // normalized
   });
 
   it('propagates DomainError(CONFLICT) when the channelId is already registered', async () => {
