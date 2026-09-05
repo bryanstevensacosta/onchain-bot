@@ -134,6 +134,22 @@ export class StreamService {
    * Per Requirement 2.1: Distribute messages to all backend environments
    * Per Requirement 2.3: Push-based delivery with low latency
    *
+   * **No-Duplication Architecture:**
+   * This service follows a fan-out pattern where each message from Telegram is
+   * broadcast ONCE to each connected backend (dev/staging/production). There is
+   * NO message duplication at the ingestion layer.
+   *
+   * Example: If staging and production both listen to channel A:
+   * 1. Ingestion service receives message from channel A (once from Telegram MTProto)
+   * 2. Message is broadcast once to staging SSE connection
+   * 3. Message is broadcast once to production SSE connection
+   * 4. Each backend filters client-side based on its own channel subscription list
+   *
+   * The Channel_Union (computed from all backends' active channels) determines which
+   * channels the ingestion service subscribes to. When a message arrives from any
+   * subscribed channel, it's distributed to ALL connected backends. Each backend is
+   * responsible for filtering messages relevant to its own configuration.
+   *
    * @param event - Event payload containing type and data
    */
   broadcast(event: SSEEvent): void {

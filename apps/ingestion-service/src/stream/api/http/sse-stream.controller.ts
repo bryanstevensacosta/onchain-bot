@@ -11,6 +11,7 @@ import {
 import type { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { StreamService } from '../../application/services/stream.service';
+import { SSEBroadcastService } from '../../application/services/sse-broadcast.service';
 import { BackendChannelProviderService } from '../../../telegram/shared/services/backend-channel-provider.service';
 import { BackfillBufferService } from '../../infrastructure/backfill-buffer.service';
 
@@ -52,6 +53,7 @@ export class SSEStreamController {
 
   constructor(
     private readonly streamService: StreamService,
+    private readonly sseBroadcast: SSEBroadcastService,
     private readonly channelProvider: BackendChannelProviderService,
     private readonly backfillBuffer: BackfillBufferService,
   ) {}
@@ -236,6 +238,9 @@ export class SSEStreamController {
         clientId,
       );
 
+      // Register with SSEBroadcastService for activeBackends counter
+      this.sseBroadcast.addConnection(backendId, response);
+
       this.logger.log(
         `Backend ${backendId} connected after backfill (clientId: ${clientId})`,
       );
@@ -247,6 +252,9 @@ export class SSEStreamController {
       // - Sending connection:established event
       // - Starting heartbeat interval (via @Cron decorator, every 30 seconds)
       this.streamService.addClient(clientId, response);
+
+      // Register with SSEBroadcastService for activeBackends counter
+      this.sseBroadcast.addConnection(backendId, response);
     }
 
     // Handle client disconnect
@@ -255,6 +263,7 @@ export class SSEStreamController {
         `Backend ${backendId} connection closed (clientId: ${clientId})`,
       );
       this.streamService.removeClient(clientId);
+      this.sseBroadcast.removeConnection(backendId);
       this.channelProvider.recordDisconnect(backendId);
     });
 
@@ -264,6 +273,7 @@ export class SSEStreamController {
         `Backend ${backendId} connection error (clientId: ${clientId}): ${error.message}`,
       );
       this.streamService.removeClient(clientId);
+      this.sseBroadcast.removeConnection(backendId);
       this.channelProvider.recordDisconnect(backendId);
     });
 
