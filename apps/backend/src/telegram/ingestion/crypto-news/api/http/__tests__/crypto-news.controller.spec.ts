@@ -330,8 +330,8 @@ describe('CryptoNewsController.addSource (POST /crypto-news/sources)', () => {
   it('resolves the title via the metadata resolver when the caller omits it', async () => {
     const { controller, resolver } = await buildController({
       resolverFixtures: {
-        '-100456': {
-          // resolver is called AFTER normalization
+        '456': {
+          // resolver is called with ORIGINAL ID (before normalization)
           title: 'Resolved Title',
           handle: 'resolved_handle',
           needsManualJoin: false,
@@ -342,7 +342,7 @@ describe('CryptoNewsController.addSource (POST /crypto-news/sources)', () => {
     const view = await controller.addSource({ channelId: '456' });
 
     expect(resolver.resolve).toHaveBeenCalledTimes(1);
-    expect(resolver.resolve).toHaveBeenCalledWith('-100456'); // normalized before resolution
+    expect(resolver.resolve).toHaveBeenCalledWith('456'); // called BEFORE normalization in use-case
     expect(view.title).toBe('Resolved Title');
     // handle falls back to the resolver's value when caller didn't supply one.
     expect(view.handle).toBe('resolved_handle');
