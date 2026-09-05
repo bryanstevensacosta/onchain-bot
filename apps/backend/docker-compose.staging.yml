@@ -50,7 +50,7 @@ services:
     container_name: onchain-bot-staging-ingestion
     restart: unless-stopped
     env_file:
-      - ../ingestion-service/.env.staging
+      - ../ingestion-service/.env
     environment:
       NODE_ENV: staging
       PORT: 3031
