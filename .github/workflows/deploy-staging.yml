@@ -175,13 +175,35 @@ jobs:
       - name: Ensure .env.staging exists
         run: |
           mkdir -p /opt/onchain-bot-staging/apps/backend
+          mkdir -p /opt/onchain-bot-staging/apps/ingestion-service
+
+          # Backend .env.staging
           if [ ! -f /opt/onchain-bot-staging/apps/backend/.env.staging ]; then
-            echo "=== First deploy: creating .env.staging from template ==="
-            cp /opt/onchain-bot-staging/apps/backend/.env.staging.template \
-               /opt/onchain-bot-staging/apps/backend/.env.staging 2>/dev/null || \
+            echo "=== First deploy: creating backend .env.staging from repo ==="
+            if [ -f /opt/actions-runner/_work/onchain-bot/onchain-bot/apps/backend/.env.staging ]; then
+              cp /opt/actions-runner/_work/onchain-bot/onchain-bot/apps/backend/.env.staging \
+                 /opt/onchain-bot-staging/apps/backend/.env.staging
+              echo "✅ Backend .env.staging copied from repo"
+            else
               touch /opt/onchain-bot-staging/apps/backend/.env.staging
-            echo "⚠️  WARNING: .env.staging created from template — update secrets manually"
+              echo "⚠️  WARNING: backend .env.staging created empty — update manually"
+            fi
           fi
+
+          # Ingestion-service .env.staging - always update from template + secrets
+          echo "=== Creating/updating ingestion-service .env.staging from template ==="
+          cp /opt/actions-runner/_work/onchain-bot/onchain-bot/apps/ingestion-service/.env.staging.template \
+             /opt/onchain-bot-staging/apps/ingestion-service/.env.staging
+
+          # Replace placeholder values with actual secrets
+          sed -i 's/YOUR_API_ID_HERE/${{ secrets.INGESTION_TELEGRAM_MTPROTO_API_ID }}/g' \
+            /opt/onchain-bot-staging/apps/ingestion-service/.env.staging
+          sed -i 's/YOUR_API_HASH_HERE/${{ secrets.INGESTION_TELEGRAM_MTPROTO_API_HASH }}/g' \
+            /opt/onchain-bot-staging/apps/ingestion-service/.env.staging
+          sed -i 's|YOUR_SESSION_STRING_HERE|${{ secrets.INGESTION_TELEGRAM_MTPROTO_SESSION }}|g' \
+            /opt/onchain-bot-staging/apps/ingestion-service/.env.staging
+
+          echo "✅ Ingestion-service .env.staging created/updated"
 
       - name: Inject staging env vars from GitHub
         run: |
