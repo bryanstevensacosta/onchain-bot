@@ -134,7 +134,7 @@ export class CryptoNewsController {
     return {
       totalMessages,
       totalSources: sources.length,
-      activeSources: sources.filter((s) => s.isActive).length,
+      activeSources: sources.length, // findAllActive() already filters by isActive
     };
   }
 }

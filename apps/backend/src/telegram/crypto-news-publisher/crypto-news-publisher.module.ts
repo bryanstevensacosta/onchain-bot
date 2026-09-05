@@ -173,6 +173,7 @@ import { CryptoNewsMessageIngestedHandler } from 'telegram/crypto-news-publisher
     CryptoNewsLlmAdapter,
     CryptoNewsPublisherConfigService,
     SharedThrottleSchedulerService,
+    EnqueueMatchingMessageUseCase,
     ProcessNextQueuedArticleUseCase,
   ],
 })
