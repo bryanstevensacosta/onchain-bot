@@ -124,6 +124,7 @@ export interface AppConfig extends LlmConfigShape {
 
   port: number;
   nodeEnv: 'development' | 'production' | 'staging' | 'test';
+  backendId: string;
 
   alchemy: { apiKey: string };
   birdeye: { apiKey: string };
@@ -340,6 +341,7 @@ export const appConfig = registerAs(
   (): AppConfig => ({
     port: parseInt(process.env.PORT ?? '3000', 10),
     nodeEnv: (process.env.NODE_ENV ?? 'development') as AppConfig['nodeEnv'],
+    backendId: process.env.BACKEND_ID ?? 'production',
 
     alchemy: {
       apiKey: process.env.ALCHEMY_API_KEY ?? '',

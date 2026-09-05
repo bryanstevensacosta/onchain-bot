@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Logger } from '@nestjs/common';
 import { TelegramSseListenerAdapter } from './telegram-sse-listener.adapter';
 import { TelegramRawMessage } from '../../domain/ports/telegram-listener.port';
+import { BackendRegistrationClient } from '../../infrastructure/backend-registration-client.service';
 
 /**
  * Unit tests for TelegramSseListenerAdapter
@@ -53,9 +54,25 @@ describe('TelegramSseListenerAdapter', () => {
                   ingestion: {
                     serviceUrl: 'http://localhost:3031',
                   },
+                  backendId: 'test-backend',
                 };
               }
               return undefined;
+            }),
+          },
+        },
+        {
+          provide: BackendRegistrationClient,
+          useValue: {
+            getBackendId: jest.fn().mockReturnValue('test-backend'),
+            isRegistered: jest.fn().mockReturnValue(true),
+            forceReregistration: jest.fn().mockResolvedValue(undefined),
+            getStatus: jest.fn().mockReturnValue({
+              status: 'registered',
+              backendId: 'test-backend',
+              channelUnionSize: 0,
+              lastAttempt: null,
+              consecutiveFailures: 0,
             }),
           },
         },

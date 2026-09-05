@@ -13,6 +13,7 @@ import { LastSeenManager } from './infrastructure/services/last-seen-manager.ser
 import { TelegramMediaDownloadService } from './infrastructure/services/telegram-media-download.service';
 import { TelegramPeerResolver } from './infrastructure/services/telegram-peer-resolver';
 import { CryptoNewsMediaDownloader } from '../crypto-news/application/ports/crypto-news-media-downloader.port';
+import { BackendRegistrationClient } from './infrastructure/backend-registration-client.service';
 import { TELEGRAM_LISTENER_PORT_TOKEN } from './shared-injection-tokens';
 
 /**
@@ -53,6 +54,18 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
   const mockTelegramMediaDownloadService = {} as any;
   const mockTelegramPeerResolver = {} as any;
   const mockCryptoNewsMediaDownloader = {} as any;
+  const mockBackendRegistrationClient = {
+    getBackendId: jest.fn().mockReturnValue('test-backend'),
+    isRegistered: jest.fn().mockReturnValue(true),
+    forceReregistration: jest.fn().mockResolvedValue(undefined),
+    getStatus: jest.fn().mockReturnValue({
+      status: 'registered',
+      backendId: 'test-backend',
+      channelUnionSize: 0,
+      lastAttempt: null,
+      consecutiveFailures: 0,
+    }),
+  } as any;
 
   afterEach(async () => {
     if (moduleRef) {
@@ -113,6 +126,10 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
           {
             provide: CryptoNewsMediaDownloader,
             useValue: mockCryptoNewsMediaDownloader,
+          },
+          {
+            provide: BackendRegistrationClient,
+            useValue: mockBackendRegistrationClient,
           },
 
           // Dynamic adapter selection (replicates module logic)
@@ -246,6 +263,10 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
             provide: CryptoNewsMediaDownloader,
             useValue: mockCryptoNewsMediaDownloader,
           },
+          {
+            provide: BackendRegistrationClient,
+            useValue: mockBackendRegistrationClient,
+          },
 
           // Dynamic adapter selection (replicates module logic)
           {
@@ -371,6 +392,10 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
             provide: CryptoNewsMediaDownloader,
             useValue: mockCryptoNewsMediaDownloader,
           },
+          {
+            provide: BackendRegistrationClient,
+            useValue: mockBackendRegistrationClient,
+          },
 
           // Dynamic adapter selection (replicates module logic)
           {
@@ -481,6 +506,10 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
           {
             provide: CryptoNewsMediaDownloader,
             useValue: mockCryptoNewsMediaDownloader,
+          },
+          {
+            provide: BackendRegistrationClient,
+            useValue: mockBackendRegistrationClient,
           },
 
           // Dynamic adapter selection (replicates module logic)
@@ -610,6 +639,10 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
           {
             provide: CryptoNewsMediaDownloader,
             useValue: mockCryptoNewsMediaDownloader,
+          },
+          {
+            provide: BackendRegistrationClient,
+            useValue: mockBackendRegistrationClient,
           },
 
           // Dynamic adapter selection (replicates module logic)
