@@ -117,13 +117,82 @@ Provider endpoints consumed BY ingestion-service:
 - `source/`: attribution VO + `SourceAggregatorPort` (normalization hands raw seeds, gets deduped `Source[]`).
 - `stats/`: stub (4 endpoints return `{note:'Stub'}`); frontend uses reputation `/kols/top`.
 
-## CRYPTO-NEWS (opaque path)
+## CRYPTO-NEWS (Opción A: Filter on-Read Architecture)
 
-Ingestion (`telegram/ingestion/crypto-news/`): `StoreNewsMessageUseCase` (persists `content` as-is + media rows, emits metadata-only event), `RegisterNewsSourceUseCase`, `ListActiveSourceIdsUseCase` (← serves ingestion-service), `filters/` submodule (create/update/delete/toggle/list + `__tests__/`), `MediaRetentionCleanupScheduler` (hourly, advisory lock, shared 72 h var), `CryptoNewsMediaDownloader` pinned to MTProto adapter.
+**Architecture Overview (CRITICAL — Opción A chosen over Opción B)**:
 
-Publisher (`telegram/crypto-news-publisher/`): `EnqueueMatchingMessageUseCase` (keyword/phrase/blacklist match) → queue → `ProcessNextQueuedArticleUseCase` (LLM via gateway: `GetLlmModelsUseCase`, `USE_MOCK_AI` flag) → `BotApiCryptoNewsPublisherAdapter`; `publisher-cron` every minute; queue/throttle/slot tables. Ads (`crypto-news-ads/`): rotation + media library, `ads-cron` every minute.
+- **Ingestion-service** stores RAW content (NO filters, NO transformations)
+- **Backend** (staging/prod) polls ingestion-service HTTP API (every minute)
+- **Backend** applies ContentFilterService + keyword matching on-read (NO DB replication)
+- **Frontend** fetches RAW content directly from ingestion-service (display mode)
+- **Publisher queue** receives FILTERED content (AFTER transformations + keywords matched)
 
-Media tech (verified): `MAX_MEDIA_BYTES` 10 MB (larger logged + discarded, MTProto returns memory buffers); magic-byte sniffing (not Telegram-declared MIME), fallback `application/octet-stream` + `.bin`; serving re-sniffs via `media-serving.ts` (stored `.bin` MP4 served as `video/mp4`) with Range/206; scope `photo|video` (stickers/voice excluded); L3 table `crypto_news_message_media` with FK CASCADE on parent delete; seeder auto-`joinChannel` on miss → placeholder titles + `needsManualJoin`; env seed list takes precedence over in-code list; missing files serve 404 (not 500) — treat uploads as volatile across `build --no-cache`.
+**Modules**:
+
+1. `telegram/crypto-news-integration/` (NEW — Opción A orchestrator):
+   - `CryptoNewsIngestionClient` — HTTP client for ingestion-service API
+   - `FilteredCryptoNewsService` — fetch→filter→match orchestrator
+   - `EnqueueMatchingCronScheduler` — poll every minute, enqueue matches
+
+2. `telegram/ingestion/crypto-news/` (legacy — NO LONGER INGESTS):
+   - `RegisterNewsSourceUseCase` — CRUD sources (backend DB, ingestion-service polls)
+   - `ListActiveSourceIdsUseCase` — serves ingestion-service (GET /crypto-news/sources/active/ids)
+   - `filters/` submodule — ContentFilterService rules (per-channel regex transforms)
+   - Media ownership migrated to ingestion-service (backend reads via HTTP)
+
+3. `telegram/crypto-news-publisher/`:
+   - `EnqueueMatchingMessageUseCase` — enqueue matched messages (queue cap 36)
+   - `ProcessNextQueuedArticleUseCase` — drain queue → LLM → Bot API
+   - `PublisherCronScheduler` — every minute, advisory lock
+   - `GetLlmModelsUseCase` — LLM gateway integration (`USE_MOCK_AI` flag)
+
+4. `telegram/crypto-news-ads/` (parallel path):
+   - Ad rotation + media library
+   - `ads-cron` every minute
+
+**Data Flow (Opción A)**:
+
+```
+Telegram → Ingestion-service (persist RAW) → HTTP API (:3031/api/crypto-news/messages)
+                                                  ↓
+Backend EnqueueMatchingCronScheduler (every min):
+  1. Fetch RAW messages (CryptoNewsIngestionClient)
+  2. Filter + match (FilteredCryptoNewsService):
+     a. Load per-channel ContentFilterService rules
+     b. Apply regex transforms to title + content (on-read)
+     c. Evaluate keywords (simple + AND-groups)
+     d. Check blacklist phrases (block if match)
+  3. Enqueue matched messages (EnqueueMatchingMessageUseCase)
+                                                  ↓
+Backend PublisherCronScheduler (every min):
+  1. Drain queue (ProcessNextQueuedArticleUseCase)
+  2. LLM transformation (via gateway)
+  3. Bot API publish (BotApiCryptoNewsPublisherAdapter)
+
+Frontend:
+  - Fetch RAW messages: GET ingestion:3032/api/crypto-news/messages?limit=50
+  - Media: GET ingestion:3032/api/media/{channelId}/{messageId}/{index}
+```
+
+**Deprecated (NO LONGER USED)**:
+
+- `CryptoNewsMessageIngestedHandler` — event-driven enqueue (listened to `crypto-news.message.ingested`)
+- Backend NO LONGER ingests crypto-news via MTProto/SSE (ingestion-service owns this)
+- Backend NO LONGER stores crypto-news in DB (`crypto_news_*` tables live ONLY in ingestion-service)
+
+**ContentFilterService** (verified):
+
+- Per-channel regex rules (priority-ordered)
+- 100ms timeout per regex (ReDoS protection)
+- Invalid patterns logged + skipped
+- Applied on-read by FilteredCryptoNewsService (NO persist)
+
+**Media tech** (migrated to ingestion-service):
+
+- `MAX_MEDIA_BYTES` 10 MB (larger logged + discarded)
+- Magic-byte sniffing (not Telegram-declared MIME), fallback `application/octet-stream` + `.bin`
+- Backend reads via HTTP (`INGESTION_SERVICE_URL/api/media/*`)
+- Serving re-sniffs via `media-serving.ts` (stored `.bin` MP4 served as `video/mp4`) with Range/206
 
 ## TELEGRAM PUBLISHING (Bot API, NOT MTProto)
 

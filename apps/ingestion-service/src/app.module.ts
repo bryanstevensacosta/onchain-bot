@@ -12,6 +12,9 @@ import { HealthModule } from './health/health.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { CryptoNewsSourceEntity } from './telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
+import { CryptoNewsMessageEntity } from './telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
+import { CryptoNewsMessageMediaEntity } from './telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
+import { ChannelContentFilterConfigEntity } from './telegram/crypto-news/infrastructure/persistence/typeorm/entities/channel-content-filter-config.entity';
 import { BackfillMessageEntity } from './stream/infrastructure/persistence/typeorm/backfill-message.entity';
 
 /**
@@ -64,7 +67,13 @@ import { BackfillMessageEntity } from './stream/infrastructure/persistence/typeo
           username: dbConfig?.username || 'postgres',
           password: dbConfig?.password || 'postgres',
           database: dbConfig?.database || 'onchain_bot',
-          entities: [CryptoNewsSourceEntity, BackfillMessageEntity],
+          entities: [
+            CryptoNewsSourceEntity,
+            CryptoNewsMessageEntity,
+            CryptoNewsMessageMediaEntity,
+            ChannelContentFilterConfigEntity,
+            BackfillMessageEntity,
+          ],
           synchronize: dbConfig?.synchronize || false,
           logging: dbConfig?.logging || false,
         };

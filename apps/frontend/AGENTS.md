@@ -41,11 +41,25 @@ Modal convention (`AddKolModal`, `AddCryptoNewsSourceModal`): uncontrolled-close
 
 ## BACKEND CONTRACT (`shared/api/endpoints.ts` — source of truth)
 
+**PRIMARY BACKEND** (`localhost:3030` in dev, `backend:3030` in prod):
 Correctly scoped prefixes: `telegram-kol/identity`, `telegram-kol/reputation`, `token/intake/*`,
 `token/normalization`, `token/market-data`, `token/classification`, `token/scoring`,
 `token/vip-call-approval`, `token/honeypot`, `token/call-tracking`, `call-tracking`,
-`vip-calls`, `crypto-news`, `crypto-news-publisher/*`, `crypto-news-ads/*`, `settings/*`,
+`vip-calls`, `crypto-news-publisher/*`, `crypto-news-ads/*`, `settings/*`,
 `dashboard/kpis`, `ingestion/{config,health}`, `token/image/:chain/:address` (CDN fallback in `format.ts`).
+
+**INGESTION-SERVICE** (`localhost:3032` in dev, `onchain-bot-ingestion:3031` in prod):
+**Per centralized architecture: Ingestion-service is the SINGLE SOURCE OF TRUTH for crypto-news data.**
+
+- `GET /api/crypto-news/messages?limit=50` — recent crypto-news messages with media
+- `GET /api/crypto-news/messages/channel/:channelId?limit=50` — messages by channel
+- `GET /api/crypto-news/sources` — all active crypto-news sources
+- `GET /api/crypto-news/sources/active/ids` — channel IDs only (backend consumer)
+- `GET /api/crypto-news/stats` — statistics (totalMessages, totalSources, activeSources)
+- `GET /api/media/:channelId/:messageId/:index` — serve crypto-news media files
+
+**IMPORTANT:** Frontend queries ingestion-service DIRECTLY for crypto-news data (no backend proxy).
+Backend staging/prod also query ingestion-service via HTTP API — NO database replication.
 
 ⚠️ Frontend README §3 is stale (`/kols`, `/token/token-gating/*` — neither exists). Trust `endpoints.ts`.
 
@@ -56,7 +70,9 @@ Correctly scoped prefixes: `telegram-kol/identity`, `telegram-kol/reputation`, `
 3. `dashboard.kpis` → `/dashboard/kpis` — backend module commented out (backend gap: dashboard unwired). KpiCards degrades without crashing: KOLs card falls back to ingestion-health (`activeChannels`/`maxSafeChannels`), the rest render `0`/`0.0%`. Fix the backend wiring, not the widget.
 4. `filters.reprocessOne|reprocessBatch|decisionsRejectedVerify` — backend vip-call-approval controller has only 5 routes (apply + decisions ×4). The reprocess-rejected feature is client-complete (diagnostics table + per-row/btach mutations invalidating `rejected-diagnostics` + decisions) but server-missing. Its `useRejectedDiagnostics` key is a raw array, not a shared factory (style deviation).
 5. `llm-config-api.ts` uses `/api/crypto-news-publisher/*` prefix — vite dev proxies `/api`, but **nginx prod has no `/api` location** → LLM config broken in prod only.
-6. `/crypto-news/filters/*` unproxied in dev (vite regex covers only `messages|sources|backfill|media`) and in prod (nginx lacks `filters` and `backfill` locations) → falls through to `index.html`, JSON parse fails. ContentFilterManager + source backfill broken per environment above.
+6. ~~`/crypto-news/filters/*` unproxied — RESOLVED: filters moved to backend, messages/sources/media moved to ingestion-service `/ingestion-api` prefix.~~
+
+**NEW GAPS AFTER CENTRALIZED ARCHITECTURE:** 7. **Frontend crypto-news queries still point to backend** (`/crypto-news/messages`) — MUST update to `/ingestion-api/crypto-news/messages` with ingestion-service base URL. 8. **Content filters API stays in backend** (`/crypto-news/sources/:channelId/filters`, `/crypto-news/filters/:id/*`) — backend manages filter CRUD, ingestion-service applies them during persistence.
 
 ## POLLING (verified `refetchInterval`)
 
@@ -76,13 +92,30 @@ Tokens-explorer is decision-driven (all/approved/rejected tabs over `useDecision
 
 ## HTTP LAYER (fetch, NOT axios)
 
-`shared/api/http-client.ts`: native `fetch` + `HttpError{status, body}` — verbs GET/POST/PATCH/DELETE + `httpPostForm` (uploads); no PUT, no interceptors. `QueryClient` instance held in `useState` (stable). `SocketProvider` renders the WS ●/○ badge. Base from `shared/config/env.ts`:
-`VITE_API_BASE_URL` / `VITE_WS_URL` (default `http://localhost:3030`). Docker build sets both to `""` → same-origin in prod.
+`shared/api/http-client.ts`: native `fetch` + `HttpError{status, body}` — verbs GET/POST/PATCH/DELETE + `httpPostForm` (uploads); no PUT, no interceptors. `QueryClient` instance held in `useState` (stable). `SocketProvider` renders the WS ●/○ badge. Base URLs from `shared/config/env.ts`:
+
+- `VITE_API_BASE_URL` (backend) — default `http://localhost:3030`
+- `VITE_INGESTION_BASE_URL` (ingestion-service) — default `http://localhost:3032`
+- `VITE_WS_URL` (websocket) — default `http://localhost:3030`
+
+Docker build sets all to `""` → same-origin in prod (nginx routes by prefix).
 
 ## PROXY (dev vs prod differ — mind the gaps)
 
-- Dev (`vite.config.ts`): `/api`, `/crypto-news-publisher`, `/crypto-news-ads`, regex `^/crypto-news/(messages|sources|backfill|media)`, `/socket.io` (ws:true) → `localhost:3030`.
-- Prod (`nginx.conf`, 203 lines): per-prefix locations to `backend:3030` (dashboard, telegram-kol, vip-calls, token, ingestion, call-tracking, telegram, settings, kols, crypto-news/{messages,sources,media}, crypto-news-publisher, crypto-news-ads, socket.io) + SPA fallback + gzip + security headers (`nosniff`, `DENY`, strict referrer) + 502 `@maintenance` JSON + `client_max_body_size 12m`.
+**Dev (`vite.config.ts`):**
+
+- Backend proxy (`localhost:3030`): `/api`, `/crypto-news-publisher`, `/crypto-news-ads`, `/socket.io` (ws:true)
+- **Ingestion-service proxy (`localhost:3032`):** `/ingestion-api/crypto-news/*`, `/ingestion-api/media/*`
+- **REMOVED:** `/crypto-news/(messages|sources|backfill|media)` regex — now goes to ingestion-service via `/ingestion-api` prefix
+
+**Prod (`nginx.conf`, 203 lines):**
+
+- Backend locations (`backend:3030`): dashboard, telegram-kol, vip-calls, token, ingestion, call-tracking, telegram, settings, kols, crypto-news-publisher, crypto-news-ads, socket.io
+- **Ingestion-service locations (`onchain-bot-ingestion:3031`):** `/ingestion-api/crypto-news/*`, `/ingestion-api/media/*`
+- **REMOVED:** `/crypto-news/{messages,sources,media}` — now served by ingestion-service
+- SPA fallback + gzip + security headers (`nosniff`, `DENY`, strict referrer) + 502 `@maintenance` JSON + `client_max_body_size 12m`
+
+**Architecture note:** Crypto-news data flows: Telegram → ingestion-service DB → HTTP API → frontend (direct query, no backend middleman).
 
 ## WIDGETS & LIB
 

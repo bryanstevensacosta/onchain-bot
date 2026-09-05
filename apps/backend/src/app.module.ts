@@ -27,6 +27,7 @@ import { VipDecisionsModule } from 'telegram/vip-calls/vip-decisions/decisions.m
 import { ChainDexterBotModule } from 'telegram/chain-dexter-bot/chain-dexter-bot.module';
 import { CryptoNewsPublisherModule } from 'telegram/crypto-news-publisher/crypto-news-publisher.module';
 import { CryptoNewsAdsModule } from 'telegram/crypto-news-ads/crypto-news-ads.module';
+import { CryptoNewsIntegrationModule } from 'telegram/crypto-news-integration/crypto-news-integration.module';
 import { CallTrackingModule } from 'token/call-tracking/call-tracking.module';
 import { AchievementModule } from 'token/achievement/achievement.module';
 import { ReputationModule } from 'kol/reputation/reputation.module';
@@ -152,6 +153,7 @@ import { DevModule } from './dev/dev.module';
     VipDecisionsModule,
     ChainDexterBotModule,
     CryptoNewsPublisherModule,
+    CryptoNewsIntegrationModule,
     CryptoNewsAdsModule,
     CallTrackingModule,
     AchievementModule,
