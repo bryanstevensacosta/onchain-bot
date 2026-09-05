@@ -362,6 +362,12 @@ describe('TelegramClientManager.connect — mtprotoStartupDelayMs', () => {
 //   - On error: log + return (no throw). authorizedAtLeastOnce = false.
 
 describe('TelegramClientManager.markAuthorizedIfTrue — timeout race (Todo 3)', () => {
+  beforeEach(() => {
+    // Clear the mock instances arrays to avoid state leakage between tests
+    telegramClientInstances.length = 0;
+    loggerInstances.length = 0;
+  });
+
   function setupManager(): {
     mgr: InstanceType<typeof TelegramClientManager>;
     logger: { log: jest.Mock; error: jest.Mock };
