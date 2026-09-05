@@ -292,7 +292,7 @@ export class TelegramMtprotoListenerAdapter
     },
   ): Promise<TelegramRawMessage> {
     // DEBUG: Log raw message properties
-    this.logger.log(
+    this.logger.debug(
       `[MSG-TRANSFORM-DEBUG] ${peerId}:${msg.id} - message field: "${msg.message}" (type: ${typeof msg.message}, length: ${msg.message?.length ?? 0})`,
     );
 
@@ -321,12 +321,12 @@ export class TelegramMtprotoListenerAdapter
 
     // Download media only for crypto-news channels (not KOL)
     if (msg.media && this.isCryptoNewsChannel(peerId)) {
-      this.logger.log(
+      this.logger.debug(
         `[MEDIA-DEBUG] ${peerId}:${msg.id} - Attempting to download media...`,
       );
       try {
         media = await this.extractAndDownloadMedia(peerId, msg.id, msg.media);
-        this.logger.log(
+        this.logger.debug(
           `[MEDIA-DEBUG] ${peerId}:${msg.id} - Media downloaded successfully: ${JSON.stringify(media)}`,
         );
       } catch (error) {
@@ -336,7 +336,7 @@ export class TelegramMtprotoListenerAdapter
         // Continue without media rather than failing the whole message
       }
     } else {
-      this.logger.log(
+      this.logger.debug(
         `[MEDIA-DEBUG] ${peerId}:${msg.id} - Skipping media download (hasMedia: ${!!msg.media}, isCryptoNews: ${this.isCryptoNewsChannel(peerId)})`,
       );
     }
@@ -370,7 +370,7 @@ export class TelegramMtprotoListenerAdapter
 
     // DEBUG: Log all text fields for crypto-news messages
     if (isCryptoNews) {
-      this.logger.log(
+      this.logger.debug(
         `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - Available text fields: ${JSON.stringify(
           {
             message: msg.message,
@@ -388,7 +388,7 @@ export class TelegramMtprotoListenerAdapter
     if (msg.message && msg.message.trim()) {
       const extracted = msg.message;
       if (isCryptoNews) {
-        this.logger.log(
+        this.logger.debug(
           `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - Extracted from msg.message: "${extracted}" (length: ${extracted.length})`,
         );
       }
@@ -399,7 +399,7 @@ export class TelegramMtprotoListenerAdapter
     if (msg.text && typeof msg.text === 'string' && msg.text.trim()) {
       const extracted = msg.text;
       if (isCryptoNews) {
-        this.logger.log(
+        this.logger.debug(
           `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - Extracted from msg.text: "${extracted}" (length: ${extracted.length})`,
         );
       }
@@ -412,7 +412,7 @@ export class TelegramMtprotoListenerAdapter
       const caption = msg.media.caption;
       if (caption && typeof caption === 'string' && caption.trim()) {
         if (isCryptoNews) {
-          this.logger.log(
+          this.logger.debug(
             `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - Extracted from media.caption: "${caption}" (length: ${caption.length})`,
           );
         }
@@ -425,7 +425,7 @@ export class TelegramMtprotoListenerAdapter
       const fwdMessage = msg.fwdFrom.message;
       if (fwdMessage && typeof fwdMessage === 'string' && fwdMessage.trim()) {
         if (isCryptoNews) {
-          this.logger.log(
+          this.logger.debug(
             `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - Extracted from fwdFrom.message: "${fwdMessage}" (length: ${fwdMessage.length})`,
           );
         }
@@ -434,7 +434,7 @@ export class TelegramMtprotoListenerAdapter
     }
 
     if (isCryptoNews) {
-      this.logger.log(
+      this.logger.debug(
         `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - No text found, returning empty string`,
       );
     }

@@ -102,6 +102,13 @@ export class IngestionCoordinator {
       });
 
       // Per Invariant 2: Sequential broadcast via SSE
+      // **No-Duplication Guarantee:**
+      // Each message from Telegram MTProto is received ONCE by this service and
+      // broadcast ONCE to each connected backend. If multiple backends (staging,
+      // production) subscribe to the same channel, they each receive the message
+      // independently via their own SSE connections. This is correct fan-out
+      // architecture, NOT duplication. Each backend filters messages client-side
+      // based on its own channel subscription list.
       this.streamService.broadcast({
         type: 'message:telegram',
         data: payload,
@@ -135,7 +142,7 @@ export class IngestionCoordinator {
   ): MessagePayload {
     // DEBUG: Log text transformation for crypto-news
     if (messageType === 'crypto-news') {
-      this.logger.log(
+      this.logger.debug(
         `[PAYLOAD-TRANSFORM-DEBUG] ${raw.peerId}:${raw.messageId} - raw.text: "${raw.text}" (type: ${typeof raw.text}, length: ${raw.text?.length ?? 0})`,
       );
     }
@@ -156,7 +163,7 @@ export class IngestionCoordinator {
 
     // DEBUG: Log final payload text for crypto-news
     if (messageType === 'crypto-news') {
-      this.logger.log(
+      this.logger.debug(
         `[PAYLOAD-TRANSFORM-DEBUG] ${raw.peerId}:${raw.messageId} - payload.text: "${payload.text}" (type: ${typeof payload.text}, length: ${payload.text?.length ?? 0})`,
       );
     }
