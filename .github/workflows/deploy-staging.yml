@@ -278,7 +278,7 @@ jobs:
 
       - name: Deploy backend (GHCR, no build)
         run: |
-          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d --no-deps backend
+          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d --no-deps ingestion-service backend
 
       - name: Wait for backend healthcheck
         run: |
