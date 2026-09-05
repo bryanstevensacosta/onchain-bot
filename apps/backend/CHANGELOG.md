@@ -1,5 +1,33 @@
 # Changelog
 
+## [2.0.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v1.3.2...v2.0.0) (2026-09-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* **crypto-news:** MTProto credentials must now be in ingestion-service ONLY
+* **ci:** MTProto credentials must now be in ingestion-service ONLY
+* MTProto credentials must now be in ingestion-service ONLY
+* **ci:** MTProto credentials must now be in ingestion-service ONLY
+* MTProto credentials must now be in ingestion-service ONLY
+* MTProto credentials must now be in ingestion-service ONLY
+* MTProto credentials must now be in ingestion-service ONLY
+
+### Features
+
+* centralized ingestion service + multi-environment support ([#86](https://github.com/bryanstevensacosta/onchain-bot/issues/86)) ([e9ec7fc](https://github.com/bryanstevensacosta/onchain-bot/commit/e9ec7fcfc0d1a3ba4173532fbcb389f6393ffdc5))
+* Multi-backend SSE broadcast + ingestion improvements (clean merge) ([#119](https://github.com/bryanstevensacosta/onchain-bot/issues/119)) ([bbb774c](https://github.com/bryanstevensacosta/onchain-bot/commit/bbb774cf26c1942dfec5eedc1f37ee7ac2d2ee74))
+* Redis robustness + Backend registration for multi-backend ([#134](https://github.com/bryanstevensacosta/onchain-bot/issues/134)) ([a104fff](https://github.com/bryanstevensacosta/onchain-bot/commit/a104fff00a00f10943ccecfd072b25deb24a9166))
+
+
+### Bug Fixes
+
+* **ci:** deploy permission fixes for automated workflows ([#122](https://github.com/bryanstevensacosta/onchain-bot/issues/122)) ([547b42b](https://github.com/bryanstevensacosta/onchain-bot/commit/547b42bb984b3b0560e531fa69465274da22dddf))
+* **ci:** relax client connection check in deploy-ingestion from 2+ to 1+ ([#140](https://github.com/bryanstevensacosta/onchain-bot/issues/140)) ([cc1faa8](https://github.com/bryanstevensacosta/onchain-bot/commit/cc1faa86802033ed020c76fb16baa53ce475c137))
+* **crypto-news:** disable seeder and add channel ID normalization ([#142](https://github.com/bryanstevensacosta/onchain-bot/issues/142)) ([ab56941](https://github.com/bryanstevensacosta/onchain-bot/commit/ab5694187b5f5e9bf7be8cf0c6d3c8cb6826b2b2))
+* disable database in staging (TypeORM uuid-ossp hang) ([#112](https://github.com/bryanstevensacosta/onchain-bot/issues/112)) ([dfd8bac](https://github.com/bryanstevensacosta/onchain-bot/commit/dfd8bac68d69bca46a889626dba0923b33a2b813))
+* **media:** permanent orphan fix — dedup + transactional + retention orphan pass ([#75](https://github.com/bryanstevensacosta/onchain-bot/issues/75)) ([bd04533](https://github.com/bryanstevensacosta/onchain-bot/commit/bd0453341f97a11570a9b9cb35a00d5c9738d2d8))
+
 ## [1.3.2](https://github.com/bryanstevensacosta/onchain-bot/compare/v1.3.1...v1.3.2) (2026-08-27)
 
 
