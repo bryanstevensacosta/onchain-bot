@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.0.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v1.3.2...v2.0.0) (2026-09-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* **crypto-news:** MTProto credentials must now be in ingestion-service ONLY
+* MTProto credentials must now be in ingestion-service ONLY
+
+### Features
+
+* Multi-backend SSE broadcast + ingestion improvements (clean merge) ([#119](https://github.com/bryanstevensacosta/onchain-bot/issues/119)) ([bbb774c](https://github.com/bryanstevensacosta/onchain-bot/commit/bbb774cf26c1942dfec5eedc1f37ee7ac2d2ee74))
+
+
+### Bug Fixes
+
+* **crypto-news:** disable seeder and add channel ID normalization ([#142](https://github.com/bryanstevensacosta/onchain-bot/issues/142)) ([ab56941](https://github.com/bryanstevensacosta/onchain-bot/commit/ab5694187b5f5e9bf7be8cf0c6d3c8cb6826b2b2))
+
 ## [1.3.2](https://github.com/bryanstevensacosta/onchain-bot/compare/v1.3.1...v1.3.2) (2026-08-27)
 
 
