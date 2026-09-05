@@ -9,6 +9,37 @@
 
 Per-app docs (verified, authoritative over this file for details): `apps/backend/AGENTS.md`, `apps/ingestion-service/AGENTS.md`, `apps/frontend/AGENTS.md`. Sub-BC `AGENTS.md` files were consolidated into `apps/backend/AGENTS.md` on 2026-09-04 (7 files migrated + deleted).
 
+### Ingestion-Service Architecture (CRITICAL — One Source of Truth)
+
+**The ingestion-service is STANDALONE and CENTRALIZED** — there is ONE instance that feeds ALL backend environments:
+
+```
+                    ┌─────────────────────────────┐
+                    │  ingestion-service (ÚNICO)   │
+                    │  Puerto 3032 en droplet      │
+                    │  - Una sola sesión MTProto   │ ← CRÍTICO: no duplicar
+                    │  - Una sola DB de sources    │ ← Single source of truth
+                    └──────────────┬───────────────┘
+                                   │ SSE stream
+                  ┌────────────────┼────────────────┐
+                  │                │                │
+          ┌───────▼──────┐  ┌─────▼──────┐  ┌─────▼──────┐
+          │ Backend Dev   │  │ Backend     │  │ Backend    │
+          │ (local)       │  │ Staging     │  │ Production │
+          │ localhost     │  │ :3031       │  │ :3030      │
+          └───────────────┘  └─────────────┘  └────────────┘
+```
+
+**INVARIANTS (DO NOT VIOLATE)**:
+
+1. **Una sola instancia de ingestion-service** — NO crear `onchain-bot-staging-ingestion` ni instancias por environment
+2. **Una sola sesión MTProto** — credenciales viven SOLO en ingestion-service (`.env` ← `INGESTION_TELEGRAM_MTPROTO_*`); duplicarlas causa `AUTH_KEY_DUPLICATED`
+3. **Una sola DB de crypto-news sources** — ambos backends (staging/prod) consultan `GET /crypto-news/sources/active/ids` al mismo servicio
+4. **Backends consumen vía SSE** — `INGESTION_SERVICE_URL` en cada backend apunta al puerto 3032 del droplet (Tailscale o localhost según contexto)
+5. **NO definir ingestion-service en `docker-compose.staging.yml` ni `.prod.yml`** — solo existe en `docker-compose.ingestion.yml` (standalone)
+
+**Rationale**: Evita duplicación de sources (staging/prod tenían listas inconsistentes), conflictos de sesión, y desperdicio de recursos. El ingestion-service lee la DB de `crypto_news_sources` compartida (read-only) y publica mensajes vía SSE; cada backend filtra client-side los canales que necesita.
+
 ## STRUCTURE
 
 ```
@@ -186,6 +217,15 @@ Source: `apps/backend/docs/spydefi/arch/09-anti-patterns.md` — project-level r
 - **Ticker must NEVER be null** in published-call flow (enforced pre-publisher in `vip-calls/vip-channel`; tracking tolerates null by design).
 - **External providers are NEVER queried** in `token-approved-publish-ticker-bug-exploration.spec.ts` context. (Sanctioned exception: `TickerResolverService` 9-level cascade in vip-channel.)
 - **`bug-exploration.spec.ts` files encode future-fix invariants** — do not "fix" them; they document expected behavior post-fix.
+
+### Ingestion-Service (CRITICAL — Architecture Invariants)
+
+- **NEVER create multiple ingestion-service instances** — one standalone instance on port 3032 feeds ALL backends (dev/staging/prod)
+- **NEVER duplicate MTProto credentials** — session lives ONLY in `apps/ingestion-service/.env` (`INGESTION_TELEGRAM_MTPROTO_*`); duplication triggers `AUTH_KEY_DUPLICATED`
+- **NEVER define ingestion-service in `docker-compose.staging.yml` or `.prod.yml`** — only `docker-compose.ingestion.yml` (standalone)
+- **NEVER create separate crypto-news sources DBs per environment** — single `crypto_news_sources` table, both backends query the same ingestion-service
+- **Backend MUST consume via SSE** — `INGESTION_SERVICE_URL` points to the centralized instance (Tailscale `cryptoganster.tailf01c61.ts.net:3032` or `localhost:3032`)
+- **Staging/production backends filter client-side** — ingestion-service broadcasts ALL channels, backends subscribe to what they need
 
 ### Shared-kernel contracts (handle with care)
 
