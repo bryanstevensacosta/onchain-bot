@@ -12,6 +12,7 @@ import {
   JoinChannelResult,
   // TelegramMediaAttachment, // Unused - MessagePayload uses different media structure
 } from '../../domain/ports/telegram-listener.port';
+import { BackendRegistrationClient } from '../../infrastructure/backend-registration-client.service';
 
 /**
  * MessagePayload from Ingestion Service SSE stream
@@ -51,6 +52,11 @@ interface MessagePayload {
  * Connects to Ingestion Service SSE stream and transforms MessagePayload
  * back to TelegramRawMessage format expected by backend use cases.
  *
+ * UPDATED: Now integrates with BackendRegistrationClient to:
+ * - Register backend with ingestion-service on boot
+ * - Include backendId in SSE stream query params
+ * - Handle 401 Unauthorized by forcing re-registration
+ *
  * Key differences from MTProto adapter:
  * - No direct Telegram API access
  * - Text field empty (must fetch via backfill if needed)
@@ -70,7 +76,10 @@ export class TelegramSseListenerAdapter
   private readonly maxReconnectDelay = 30_000; // 30s
   private readonly baseReconnectDelay = 1_000; // 1s
 
-  constructor(private readonly config: ConfigService) {
+  constructor(
+    private readonly config: ConfigService,
+    private readonly registrationClient: BackendRegistrationClient,
+  ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const appConfig = this.config.get('app');
     this.ingestionServiceUrl =
@@ -83,12 +92,13 @@ export class TelegramSseListenerAdapter
   }
 
   async onModuleInit(): Promise<void> {
-    console.log(
-      '[LIFECYCLE-DEBUG] TelegramSseListenerAdapter.onModuleInit() START',
-    );
-    this.logger.log('TelegramSseListenerAdapter module initialized');
-    console.log(
-      '[LIFECYCLE-DEBUG] TelegramSseListenerAdapter.onModuleInit() END',
+    this.logger.log('[SSE-ADAPTER] Initializing with registration client');
+
+    // Registration happens in BackendRegistrationClient.onModuleInit()
+    // This is non-blocking - just log the current status
+    const status = this.registrationClient.getStatus();
+    this.logger.log(
+      `[SSE-ADAPTER] Registration status: ${status.status}, backendId: ${status.backendId}`,
     );
   }
 
@@ -101,16 +111,19 @@ export class TelegramSseListenerAdapter
    *
    * Per Requirement 3.2: EventSource-based SSE connection
    * Per Requirement 2.4: Auto-reconnect with exponential backoff
+   * UPDATED: Includes backendId query param for multi-backend support
    *
    * @param channelIds - Channels to filter (filtering done client-side)
    * @yields TelegramRawMessage for each message in subscribed channels
    */
   async *subscribe(channelIds: string[]): AsyncIterable<TelegramRawMessage> {
-    const streamUrl = `${this.ingestionServiceUrl}/api/ingestion/stream`;
+    const backendId = this.registrationClient.getBackendId();
+    const streamUrl = `${this.ingestionServiceUrl}/api/ingestion/stream?backendId=${backendId}`;
 
     this.logger.log(
       `Subscribing to SSE stream for ${channelIds.length} channels: ${streamUrl}`,
     );
+    this.logger.log(`[SSE-DEBUG] BackendId: ${backendId}`);
     this.logger.log(`[SSE-DEBUG] ChannelIds: ${channelIds.join(', ')}`);
 
     while (true) {
@@ -120,6 +133,18 @@ export class TelegramSseListenerAdapter
 
         yield* this.connectAndStream(streamUrl, channelIds);
       } catch (error) {
+        // Check if error is 401 Unauthorized
+        if (error instanceof Error && error.message.includes('HTTP 401')) {
+          this.logger.error(
+            '[SSE-ADAPTER] Received 401 Unauthorized - forcing re-registration',
+          );
+          await this.registrationClient.forceReregistration();
+
+          // Wait a bit before retrying
+          await this.sleep(5000);
+          continue;
+        }
+
         // Calculate exponential backoff delay
         const delay = this.calculateBackoff();
 
@@ -138,7 +163,7 @@ export class TelegramSseListenerAdapter
    *
    * Uses fetch API with ReadableStream for EventSource parsing
    *
-   * @param url - SSE stream URL
+   * @param url - SSE stream URL (includes backendId query param)
    * @param channelIds - Channels to filter
    * @yields TelegramRawMessage
    */

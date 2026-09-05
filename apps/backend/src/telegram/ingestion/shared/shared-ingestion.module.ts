@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import { TelegramMtprotoListenerAdapter } from 'telegram/ingestion/shared/api/mtproto/telegram-mtproto-listener.adapter';
 import { TelegramSseListenerAdapter } from 'telegram/ingestion/shared/api/sse/telegram-sse-listener.adapter';
@@ -17,6 +18,9 @@ import { IngestionHealthController } from 'telegram/ingestion/shared/api/http/in
 import { IdentityModule } from 'kol/identity/identity.module';
 import { CryptoNewsMediaDownloader } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-media-downloader.port';
 import { MtprotoMediaDownloader } from 'telegram/ingestion/crypto-news/infrastructure/api/mtproto/mtproto-media-downloader';
+import { BackendRegistrationClient } from 'telegram/ingestion/shared/infrastructure/backend-registration-client.service';
+import { KolEntity } from 'kol/identity/infrastructure/persistence/typeorm/entities/kol.entity';
+import { CryptoNewsSourceEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
 import { Logger } from '@nestjs/common';
 
 /**
@@ -34,6 +38,7 @@ import { Logger } from '@nestjs/common';
  *
  * Provides globally:
  * - TelegramListenerPort (dynamically selects adapter based on env)
+ * - BackendRegistrationClient (registers backend with ingestion-service in SSE mode)
  * - TelegramMtprotoListenerAdapter (always available for rollback)
  * - TelegramSseListenerAdapter (always available)
  * - TelegramMockAdapter (always available for dev/testing)
@@ -93,7 +98,11 @@ const logger = new Logger('SharedIngestionModule');
 
 @Global()
 @Module({
-  imports: [ConfigModule, IdentityModule],
+  imports: [
+    ConfigModule,
+    IdentityModule,
+    TypeOrmModule.forFeature([KolEntity, CryptoNewsSourceEntity]),
+  ],
   controllers: [IngestionConfigController, IngestionHealthController],
   providers: [
     IngestionSafetyConfig,
@@ -104,6 +113,9 @@ const logger = new Logger('SharedIngestionModule');
     LastSeenManager,
     TelegramMediaDownloadService,
     TelegramPeerResolver,
+
+    // Backend registration client (for SSE mode)
+    BackendRegistrationClient,
 
     // Crypto-news media downloader (moved from CryptoNewsIngestionModule to break forwardRef cycle)
     {
@@ -176,6 +188,7 @@ const logger = new Logger('SharedIngestionModule');
             // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             `   └─ Service URL: ${appConfig?.ingestion?.serviceUrl || 'http://localhost:3031'}`,
           );
+          logger.log('   └─ Backend registration: ENABLED');
           return sseAdapter;
         }
 
@@ -210,6 +223,7 @@ const logger = new Logger('SharedIngestionModule');
   exports: [
     TelegramListenerPort,
     TELEGRAM_LISTENER_PORT_TOKEN,
+    BackendRegistrationClient,
     TelegramMtprotoListenerAdapter,
     TelegramSseListenerAdapter,
     TelegramMockAdapter,
