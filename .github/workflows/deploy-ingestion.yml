@@ -16,6 +16,9 @@ jobs:
   build-and-push:
     name: Build and push ingestion service
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
