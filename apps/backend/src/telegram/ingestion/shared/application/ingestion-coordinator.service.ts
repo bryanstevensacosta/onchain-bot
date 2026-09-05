@@ -78,6 +78,16 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
     }
 
     this.logger.log('[HOOK-DEBUG] Step 3: Checking crypto-news seed config');
+    // ⚠️ CRYPTO-NEWS SEEDER PERMANENTLY DISABLED ⚠️
+    // All crypto-news sources MUST come from DB only.
+    // Add sources via: POST /api/crypto-news/sources or directly in DB.
+    //
+    // Root cause: The seeder was creating duplicates with/without -100 prefix,
+    // causing duplicate ingestion. Now all sources load from DB via
+    // GET /api/crypto-news/sources/active/ids (ingestion-service polls this).
+    //
+    // The code below is commented out to permanently disable seeding:
+    /*
     if (newsSeedConfig?.enabled) {
       this.logger.log('[HOOK-DEBUG] Step 3a: Calling cryptoNewsSeeder.seed()');
       await this.cryptoNewsSeeder.seed().catch((err: unknown) => {
@@ -90,8 +100,10 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
         '[HOOK-DEBUG] Step 3b: cryptoNewsSeeder.seed() completed',
       );
     } else {
-      this.logger.debug('Crypto-news seed disabled; skipping.');
+      this.logger.log('Crypto-news seed disabled (using DB-only); skipping.');
     }
+    */
+    this.logger.log('Crypto-news seed disabled (DB-only mode); skipping.');
 
     this.logger.log('[HOOK-DEBUG] Step 4: Finding active KOLs');
     const activeKols = (await this.kolRepo.findAll()).filter((k) => k.isActive);
