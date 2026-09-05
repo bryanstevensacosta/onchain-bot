@@ -124,6 +124,7 @@ import {
     CryptoNewsSourceRepository,
     CryptoNewsMessageRepository,
     CryptoNewsEventPublisher,
+    ContentFilterService, // ← Export for CryptoNewsIntegrationModule (Opción A architecture)
     // CryptoNewsMediaDownloader is now exported by SharedIngestionModule
     RegisterNewsSourceUseCase,
     StoreNewsMessageUseCase,
