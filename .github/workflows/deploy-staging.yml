@@ -114,17 +114,6 @@ jobs:
           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-frontend:cache,mode=max
           platforms: linux/amd64
 
-      - name: Build and push ingestion-service (staging)
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/ingestion-service/Dockerfile
-          push: true
-          tags: ghcr.io/${{ github.repository }}-ingestion:staging-${{ github.sha }},ghcr.io/${{ github.repository }}-ingestion:staging-latest
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-ingestion:cache
-          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-ingestion:cache,mode=max
-          platforms: linux/amd64
-
   deploy-staging:
     name: Deploy to staging
     runs-on: self-hosted
@@ -224,9 +213,6 @@ jobs:
           echo "=== Pulling frontend staging ${{ github.sha }} (try sha, fallback latest) ==="
           docker pull ghcr.io/${{ github.repository }}-frontend:staging-${{ github.sha }} || docker pull ghcr.io/${{ github.repository }}-frontend:staging-latest
           docker tag ghcr.io/${{ github.repository }}-frontend:staging-${{ github.sha }} ghcr.io/${{ github.repository }}-frontend:staging-latest 2>/dev/null || true
-          echo "=== Pulling ingestion-service staging ${{ github.sha }} (try sha, fallback latest) ==="
-          docker pull ghcr.io/${{ github.repository }}-ingestion:staging-${{ github.sha }} || docker pull ghcr.io/${{ github.repository }}-ingestion:staging-latest
-          docker tag ghcr.io/${{ github.repository }}-ingestion:staging-${{ github.sha }} ghcr.io/${{ github.repository }}-ingestion:staging-latest 2>/dev/null || true
           docker images | head -20
 
       - name: Post-pull cleanup (aggressive, keep only current)
@@ -278,7 +264,7 @@ jobs:
 
       - name: Deploy backend (GHCR, no build)
         run: |
-          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d --no-deps ingestion-service backend
+          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d backend
 
       - name: Wait for backend healthcheck
         run: |

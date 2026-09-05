@@ -1,3 +1,15 @@
+# Staging environment - uses centralized ingestion-service
+#
+# ARCHITECTURE DECISION:
+# - ingestion-service is STANDALONE and runs on port 3032 (onchain-bot-ingestion container)
+# - Both staging AND production backends consume from the SAME ingestion-service
+# - No separate staging ingestion-service to avoid:
+#   1. MTProto session conflict (AUTH_KEY_DUPLICATED)
+#   2. Duplicate crypto-news sources across environments
+#   3. Resource waste running multiple identical ingestion instances
+#
+# Backend connects via: INGESTION_SERVICE_URL=http://cryptoganster.tailf01c61.ts.net:3032
+#
 services:
   postgres:
     image: postgres:16-alpine
@@ -42,37 +54,6 @@ services:
       retries: 10
     command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass "$REDIS_PASSWORD"}
 
-  ingestion-service:
-    build:
-      context: ../..
-      dockerfile: apps/ingestion-service/Dockerfile
-    image: ghcr.io/bryanstevensacosta/onchain-bot-ingestion:staging-latest
-    container_name: onchain-bot-staging-ingestion
-    restart: unless-stopped
-    env_file:
-      - ../ingestion-service/.env.staging
-    environment:
-      NODE_ENV: staging
-      PORT: 3031
-    ports:
-      - '3032:3031'
-    volumes:
-      - onchain-bot-staging-ingestion-media:/app/uploads
-    healthcheck:
-      test:
-        [
-          'CMD',
-          'wget',
-          '--no-verbose',
-          '--tries=1',
-          '--spider',
-          'http://127.0.0.1:3031/api/health',
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-
   backend:
     build:
       context: ../..
@@ -95,21 +76,17 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_ENABLED: true
-      # Ingestion mode - use SSE from ingestion-service
+      # Ingestion mode - configured in .env.staging
       USE_SSE_INGESTION: true
       USE_MOCK_INGESTION: false
-      INGESTION_SERVICE_URL: http://ingestion-service:3031
     ports:
       - '3031:3030'
     volumes:
       - onchain-bot-staging-uploads:/app/uploads
-      - onchain-bot-staging-ingestion-media:/app/uploads/ingestion:ro
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      ingestion-service:
         condition: service_healthy
     healthcheck:
       test:
@@ -163,5 +140,3 @@ volumes:
     name: onchain-bot-staging-redis-data
   onchain-bot-staging-uploads:
     name: onchain-bot-staging-uploads
-  onchain-bot-staging-ingestion-media:
-    name: onchain-bot-staging-ingestion-media
