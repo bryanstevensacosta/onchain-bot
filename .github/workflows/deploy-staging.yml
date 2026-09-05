@@ -175,13 +175,15 @@ jobs:
       - name: Ensure .env.staging exists
         run: |
           mkdir -p /opt/onchain-bot-staging/apps/backend
+
+          # Backend .env.staging
           if [ ! -f /opt/onchain-bot-staging/apps/backend/.env.staging ]; then
-            echo "=== First deploy: creating .env.staging from template ==="
-            cp /opt/onchain-bot-staging/apps/backend/.env.staging.template \
-               /opt/onchain-bot-staging/apps/backend/.env.staging 2>/dev/null || \
-              touch /opt/onchain-bot-staging/apps/backend/.env.staging
-            echo "⚠️  WARNING: .env.staging created from template — update secrets manually"
+            echo "=== First deploy: creating backend .env.staging ==="
+            touch /opt/onchain-bot-staging/apps/backend/.env.staging
+            echo "⚠️  WARNING: backend .env.staging created empty — update manually"
           fi
+
+          echo "✅ Backend .env.staging ensured"
 
       - name: Inject staging env vars from GitHub
         run: |
@@ -245,6 +247,15 @@ jobs:
             rm -f /opt/onchain-bot-staging/apps/backend/.env
           fi
 
+      - name: Stop old containers (if hung)
+        run: |
+          echo "=== Forcefully stopping old containers ==="
+          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml stop backend --time 5 || true
+          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml rm -f backend || true
+          echo "=== Old containers removed ==="
+          docker ps -a | grep -i "backend\|ingestion" || true
+          sleep 2
+
       - name: Run migrations (staging environment)
         run: |
           set -euo pipefail
@@ -252,21 +263,18 @@ jobs:
           cd /opt/onchain-bot-staging/apps/backend
 
           # Run migrations inside a temporary Docker container
-          # This ensures migrations run BEFORE the backend container starts
-          docker compose -f docker-compose.staging.yml run --rm \
+          # Use --no-deps to avoid starting ingestion-service during migrations
+          # (ingestion-service port 3032 is still occupied from previous deploy)
+          docker compose -f docker-compose.staging.yml run --rm --no-deps \
             -e NODE_ENV=staging \
+            -e POSTGRES_HOST=postgres \
+            -e POSTGRES_PORT=5432 \
+            -e POSTGRES_USER=alpha_meta_token_scanner \
+            -e POSTGRES_PASSWORD=alpha_meta_token_scanner \
+            -e POSTGRES_DB=alpha_meta_token_scanner_staging \
             backend npm run migration:run
 
           echo "=== Migrations applied successfully ==="
-
-      - name: Stop old backend container (if hung)
-        run: |
-          echo "=== Forcefully stopping old backend container ==="
-          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml stop backend --time 5 || true
-          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml rm -f backend || true
-          echo "=== Old container removed ==="
-          docker ps -a | grep -i backend || true
-          sleep 2
 
       - name: Deploy backend (GHCR, no build)
         run: |

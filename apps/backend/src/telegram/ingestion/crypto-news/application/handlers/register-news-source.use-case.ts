@@ -26,17 +26,20 @@ export class RegisterNewsSourceUseCase {
   public async execute(
     input: RegisterNewsSourceInput,
   ): Promise<CryptoNewsSource> {
-    const existing = await this.sourceRepo.findByChannelId(input.channelId);
+    // Normalize channelId: ensure it has the -100 prefix for Telegram channels
+    const normalizedChannelId = this.normalizeChannelId(input.channelId);
+
+    const existing = await this.sourceRepo.findByChannelId(normalizedChannelId);
     if (existing) {
       throw new DomainError(
         ErrorCode.CONFLICT,
-        `CryptoNewsSource already registered: ${input.channelId}`,
-        { channelId: input.channelId },
+        `CryptoNewsSource already registered: ${normalizedChannelId}`,
+        { channelId: normalizedChannelId },
       );
     }
 
     const source = CryptoNewsSource.create({
-      channelId: input.channelId,
+      channelId: normalizedChannelId,
       handle: input.handle,
       title: input.title,
     });
@@ -44,5 +47,33 @@ export class RegisterNewsSourceUseCase {
     await this.sourceRepo.save(source);
     await this.eventPublisher.publishAll(source.commit());
     return source;
+  }
+
+  /**
+   * Normalize Telegram channel ID to always have the -100 prefix.
+   *
+   * Telegram supergroup/channel IDs are 13-digit numbers prefixed with -100.
+   * This ensures consistency across seeds, API inputs, and database entries.
+   *
+   * Examples:
+   * - '1234567890123' → '-1001234567890123'
+   * - '-1001234567890123' → '-1001234567890123' (already normalized)
+   *
+   * @param channelId - Raw channel ID (may or may not have -100 prefix)
+   * @returns Normalized channel ID with -100 prefix
+   */
+  private normalizeChannelId(channelId: string): string {
+    const trimmed = channelId.trim();
+
+    // Already has -100 prefix
+    if (trimmed.startsWith('-100')) {
+      return trimmed;
+    }
+
+    // Remove any leading - or +
+    const numeric = trimmed.replace(/^[+-]/, '');
+
+    // Add -100 prefix
+    return `-100${numeric}`;
   }
 }

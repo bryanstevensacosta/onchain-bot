@@ -132,7 +132,7 @@ describe('CryptoNewsSeeder', () => {
 
     const active = await repo.findActive();
     expect(active).toHaveLength(1);
-    expect(active[0].channelId).toBe('100');
+    expect(active[0].channelId).toBe('-100100'); // normalized with -100 prefix
     expect(active[0].isActive).toBe(true);
     expect(active[0].lifecycleStatus).toBe('ACTIVE');
   });

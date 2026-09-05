@@ -52,8 +52,8 @@ describe('RegisterNewsSourceUseCase', () => {
       handle: '@cryptosource',
       title: 'Crypto News Daily',
     });
-    expect(source.channelId).toBe('1234567890');
-    expect(await repo.findByChannelId('1234567890')).toBe(source);
+    expect(source.channelId).toBe('-1001234567890'); // normalized with -100 prefix
+    expect(await repo.findByChannelId('-1001234567890')).toBe(source);
   });
 
   it('emits a CryptoNewsSourceSeededEvent', async () => {
