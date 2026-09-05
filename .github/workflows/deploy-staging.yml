@@ -283,9 +283,15 @@ jobs:
           cd /opt/onchain-bot-staging/apps/backend
 
           # Run migrations inside a temporary Docker container
-          # This ensures migrations run BEFORE the backend container starts
-          docker compose -f docker-compose.staging.yml run --rm \
+          # Use --no-deps to avoid starting ingestion-service during migrations
+          # (ingestion-service port 3032 is still occupied from previous deploy)
+          docker compose -f docker-compose.staging.yml run --rm --no-deps \
             -e NODE_ENV=staging \
+            -e POSTGRES_HOST=postgres \
+            -e POSTGRES_PORT=5432 \
+            -e POSTGRES_USER=alpha_meta_token_scanner \
+            -e POSTGRES_PASSWORD=alpha_meta_token_scanner \
+            -e POSTGRES_DB=alpha_meta_token_scanner_staging \
             backend npm run migration:run
 
           echo "=== Migrations applied successfully ==="
