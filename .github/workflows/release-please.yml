@@ -14,6 +14,8 @@ jobs:
     outputs:
       releases_created: ${{ steps.release.outputs.releases_created }}
       paths_released: ${{ steps.release.outputs.paths_released }}
+      backend_tag: ${{ steps.release.outputs['apps/backend--tag_name'] }}
+      frontend_tag: ${{ steps.release.outputs['apps/frontend--tag_name'] }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
@@ -37,6 +39,20 @@ jobs:
           echo "Backend tag: ${{ steps.release.outputs['apps/backend--tag_name'] }}"
           echo "Frontend tag: ${{ steps.release.outputs['apps/frontend--tag_name'] }}"
 
+      # CRÍTICO: Si release-please está bloqueado, alertar
+      - name: Check for blocked release-please
+        if: steps.release.outputs.releases_created != 'true'
+        run: |
+          echo "⚠️ No releases were created in this run"
+          echo "This might indicate:"
+          echo "  1. No conventional commits since last release (normal)"
+          echo "  2. Release PR is open but not merged yet (normal)"
+          echo "  3. Release-please is BLOCKED by untagged merged PR (PROBLEM!)"
+          echo ""
+          echo "Check the logs above for: 'There are untagged, merged release PRs outstanding'"
+          echo "If you see that message, a release PR was merged but the tag wasn't created."
+          echo "This blocks all future releases until fixed manually."
+
   # Este job se ejecuta solo cuando release-please detecta que el PR fue merged
   post-release:
     needs: release-please
@@ -50,9 +66,32 @@ jobs:
         run: |
           echo "🎉 Release workflow completed successfully!"
           echo "Released paths: ${{ needs.release-please.outputs.paths_released }}"
+          echo "Backend tag: ${{ needs.release-please.outputs.backend_tag }}"
+          echo "Frontend tag: ${{ needs.release-please.outputs.frontend_tag }}"
 
       # Aquí puedes agregar pasos adicionales post-release:
       # - Notificaciones a Slack/Discord
       # - Deploy automático
       # - Actualizar documentación
       # - etc.
+
+  # NUEVO: Job que verifica si release-please está bloqueado
+  verify-release-please:
+    needs: release-please
+    runs-on: ubuntu-latest
+    if: needs.release-please.outputs.releases_created != 'true'
+    steps:
+      - name: Check for blocking issues
+        run: |
+          echo "ℹ️ No releases created in this workflow run."
+          echo ""
+          echo "This is NORMAL if:"
+          echo "  ✅ No conventional commits since last release"
+          echo "  ✅ Release PR is open but not merged yet"
+          echo ""
+          echo "⚠️ This is a PROBLEM if:"
+          echo "  ❌ You see 'There are untagged, merged release PRs outstanding' in logs"
+          echo "  ❌ A release PR was merged but the tag/release wasn't created"
+          echo ""
+          echo "If blocked, the tag needs to be created manually on the correct merge commit."
+          echo "See: https://github.com/bryanstevensacosta/onchain-bot/actions/workflows/release-please.yml"
