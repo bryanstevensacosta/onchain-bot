@@ -117,23 +117,35 @@ describe('Backfill Integration Tests', () => {
   });
 
   beforeEach(async () => {
-    // Wait for ALL fire-and-forget persistence from previous test to complete
-    // (persistAsync is fire-and-forget, so we need generous wait time)
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    // ROBUST cleanup strategy: Poll until DB is actually empty
+    // (fire-and-forget persistence makes timing unpredictable)
     
-    // AGGRESSIVE cleanup: Use TRUNCATE for immediate, complete deletion
-    try {
-      await repository.query('TRUNCATE TABLE backfill_messages CASCADE');
-    } catch (error) {
-      // Fallback to clear() if TRUNCATE fails
-      await repository.clear();
+    const maxAttempts = 10;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // Clear DB
+      try {
+        await repository.query('TRUNCATE TABLE backfill_messages CASCADE');
+      } catch (error) {
+        await repository.clear();
+      }
+      
+      // Wait a bit for any in-flight writes
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      
+      // Verify DB is empty
+      const count = await repository.count();
+      if (count === 0) {
+        break; // Success! DB is clean
+      }
+      
+      if (attempt === maxAttempts - 1) {
+        console.warn(`⚠️  DB still has ${count} records after ${maxAttempts} cleanup attempts`);
+      }
     }
 
     // Recreate BackfillBufferService with fresh in-memory buffer
-    // (BackfillBufferService is stateful with in-memory ring buffer that persists across tests)
-    // Creating new instance AFTER clearing DB ensures restoration from empty DB
     backfillBuffer = new BackfillBufferService(repository);
-    await backfillBuffer.onModuleInit(); // Trigger initialization (will restore from now-empty DB)
+    await backfillBuffer.onModuleInit(); // Restore from now-empty DB
   });
 
   /**
