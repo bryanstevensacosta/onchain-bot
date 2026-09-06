@@ -79,8 +79,8 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
 
     this.logger.log('[HOOK-DEBUG] Step 3: Checking crypto-news seed config');
     // ⚠️ CRYPTO-NEWS SEEDER PERMANENTLY DISABLED ⚠️
-    // All crypto-news sources MUST come from DB only.
-    // Add sources via: POST /api/crypto-news/sources or directly in DB.
+    // All crypto-news sources MUST come from ingestion-service DB only.
+    // Add sources via: POST {INGESTION_SERVICE_URL}/api/crypto-news/sources (ingestion-service endpoint).
     //
     // Root cause: The seeder was creating duplicates with/without -100 prefix,
     // causing duplicate ingestion. Now all sources load from DB via
