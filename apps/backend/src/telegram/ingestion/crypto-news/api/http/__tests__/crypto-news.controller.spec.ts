@@ -283,152 +283,23 @@ async function buildController(
 // Tests
 // ---------------------------------------------------------------------------
 
-// SKIPPED: Backend crypto-news controller tests deprecated after 2026-09-05 migration
-// POST /crypto-news/sources endpoint now returns 501 Not Implemented
-// Ingestion-service is the sole owner - use POST {INGESTION_SERVICE_URL}/api/crypto-news/sources
-describe.skip('CryptoNewsController.addSource (POST /crypto-news/sources)', () => {
-  it('registers a source with an explicit title and returns 201-shaped view', async () => {
-    const { controller, sourceRepo, resolver } = await buildController();
-
-    const view = await controller.addSource({
-      channelId: '123',
-      title: 'MyChannel',
-    });
-
-    // Resolver is bypassed when title is caller-supplied.
-    expect(resolver.resolve).not.toHaveBeenCalled();
-
-    // 201 status: the controller's @HttpCode(HttpStatus.CREATED) is a
-    // metadata-only assertion; we verify the controller's @Post mapping
-    // exists and returns the view synchronously below.
-    // View shape (addedAt is asserted separately to keep this matcher
-    // free of `expect.X(...)` calls that trigger a known
-    // `@typescript-eslint/no-unsafe-assignment` false-positive on
-    // Jest's matcher return type).
-    expect(view.channelId).toBe('-100123'); // normalized with -100 prefix
-    expect(view.title).toBe('MyChannel');
-    expect(view.handle).toBeNull();
-    expect(view.isActive).toBe(true);
-    expect(view.lifecycleStatus).toBe('ACTIVE');
-
-    // addedAt must be a valid ISO timestamp.
-    expect(typeof view.addedAt).toBe('string');
-    expect(() => new Date(view.addedAt).toISOString()).not.toThrow();
-    expect(view.addedAt).toMatch(
-      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
-    );
-
-    // The view was persisted via sourceRepo.save AFTER register returned.
-    // Two saves happen: the use case persists once on register, then the
-    // controller calls save() again after `activate()` so the listener
-    // picks the source up on the next findActive() sweep.
-    expect(sourceRepo.saved).toHaveLength(2);
-    expect(sourceRepo.saved[0].channelId).toBe('-100123'); // normalized
-    // The controller's second save must reflect the post-activate state.
-    const last = sourceRepo.saved[sourceRepo.saved.length - 1];
-    expect(last.isActive).toBe(true);
-    expect(last.lifecycleStatus).toBe('ACTIVE');
-  });
-
-  it('resolves the title via the metadata resolver when the caller omits it', async () => {
-    const { controller, resolver } = await buildController({
-      resolverFixtures: {
-        '456': {
-          // resolver is called with ORIGINAL ID (before normalization)
-          title: 'Resolved Title',
-          handle: 'resolved_handle',
-          needsManualJoin: false,
-        },
-      },
-    });
-
-    const view = await controller.addSource({ channelId: '456' });
-
-    expect(resolver.resolve).toHaveBeenCalledTimes(1);
-    expect(resolver.resolve).toHaveBeenCalledWith('456'); // called BEFORE normalization in use-case
-    expect(view.title).toBe('Resolved Title');
-    // handle falls back to the resolver's value when caller didn't supply one.
-    expect(view.handle).toBe('resolved_handle');
-  });
-
-  it('honours a caller-supplied title and does NOT invoke the resolver', async () => {
-    const { controller, resolver } = await buildController();
-
-    const view = await controller.addSource({
-      channelId: '789',
-      title: 'CustomTitle',
-    });
-
-    expect(resolver.resolve).not.toHaveBeenCalled();
-    expect(view.title).toBe('CustomTitle');
-    expect(view.channelId).toBe('-100789'); // normalized
-  });
-
-  it('preserves the caller-supplied handle in the response view', async () => {
+// Backend crypto-news sources ownership migrated to ingestion-service (2026-09-05)
+// This endpoint is permanently deprecated - verify it returns deprecation message
+describe('CryptoNewsController.addSource (POST /crypto-news/sources) - DEPRECATED', () => {
+  it('returns deprecation message for deprecated write endpoint', async () => {
     const { controller } = await buildController();
 
-    const view = await controller.addSource({
-      channelId: '111',
-      title: 'X',
-      handle: 'XHandle',
+    // The addSource method now returns a deprecation message instead of writing
+    const result = await controller.addSource({
+      channelId: '123',
+      title: 'Test',
     });
 
-    expect(view.handle).toBe('XHandle');
-    expect(view.title).toBe('X');
-    expect(view.channelId).toBe('-100111'); // normalized
-  });
-
-  it('propagates DomainError(CONFLICT) when the channelId is already registered', async () => {
-    const { controller, sourceRepo } = await buildController({
-      registerOverrides: {
-        throwOnExecute: new DomainError(
-          ErrorCode.CONFLICT,
-          'CryptoNewsSource already registered: 999',
-          { channelId: '999' },
-        ),
-      },
+    expect(result).toMatchObject({
+      error: expect.stringMatching(/deprecated/i),
+      migration: expect.stringMatching(/ingestion-service/i),
+      newEndpoint: expect.stringContaining('/api/crypto-news/sources'),
     });
-
-    // Controller transforms DomainError(CONFLICT) into ConflictException with enhanced message
-    await expect(
-      controller.addSource({ channelId: '999', title: 'Dup' }),
-    ).rejects.toBeInstanceOf(ConflictException);
-
-    await expect(
-      controller.addSource({ channelId: '999', title: 'Dup' }),
-    ).rejects.toMatchObject({
-      message: expect.stringContaining('already exists in the database'),
-    });
-
-    // The controller must NOT swallow the error AND must NOT save a
-    // partial source (no activate() in this path because execute
-    // threw before returning).
-    expect(sourceRepo.saved).toHaveLength(0);
-  });
-
-  it('propagates DomainError(VALIDATION) for an invalid (non-numeric) channelId', async () => {
-    const { controller, sourceRepo, resolver } = await buildController({
-      registerOverrides: {
-        throwOnExecute: new DomainError(
-          ErrorCode.VALIDATION,
-          'Invalid crypto-news channelId: abc',
-          { channelId: 'abc' },
-        ),
-      },
-    });
-
-    await expect(
-      controller.addSource({ channelId: 'abc', title: 'X' }),
-    ).rejects.toBeInstanceOf(DomainError);
-    await expect(
-      controller.addSource({ channelId: 'abc', title: 'X' }),
-    ).rejects.toMatchObject({ code: ErrorCode.VALIDATION });
-
-    // Resolver is bypassed when title is supplied.
-    expect(resolver.resolve).not.toHaveBeenCalled();
-    // No partial state — register threw before the controller could
-    // call activate() + save.
-    expect(sourceRepo.saved).toHaveLength(0);
   });
 });
 

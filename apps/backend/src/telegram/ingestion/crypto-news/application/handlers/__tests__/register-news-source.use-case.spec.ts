@@ -35,10 +35,9 @@ class RecordingPublisher extends CryptoNewsEventPublisher {
   }
 }
 
-// SKIPPED: Backend RegisterNewsSourceUseCase tests deprecated after 2026-09-05 migration
-// Use case now throws error on execute() - ingestion-service owns crypto-news sources
-// These tests verify deprecated write behavior that should no longer be used
-describe.skip('RegisterNewsSourceUseCase', () => {
+// Backend RegisterNewsSourceUseCase deprecated after 2026-09-05 migration
+// Use case now throws error on execute() - verify deprecated behavior
+describe('RegisterNewsSourceUseCase - DEPRECATED', () => {
   let repo: InMemorySourceRepo;
   let publisher: RecordingPublisher;
   let useCase: RegisterNewsSourceUseCase;
@@ -49,77 +48,13 @@ describe.skip('RegisterNewsSourceUseCase', () => {
     useCase = new RegisterNewsSourceUseCase(repo, publisher);
   });
 
-  it('registers a new source and persists it', async () => {
-    const source = await useCase.execute({
-      channelId: '1234567890',
-      handle: '@cryptosource',
-      title: 'Crypto News Daily',
-    });
-    expect(source.channelId).toBe('-1001234567890'); // normalized with -100 prefix
-    expect(await repo.findByChannelId('-1001234567890')).toBe(source);
-  });
-
-  it('emits a CryptoNewsSourceSeededEvent', async () => {
-    await useCase.execute({
-      channelId: '1234567890',
-      handle: null,
-      title: 'Test',
-    });
-    expect(publisher.published).toHaveLength(1);
-    expect(publisher.published[0]).toBeInstanceOf(CryptoNewsSourceSeededEvent);
-  });
-
-  it('throws CONFLICT when channelId is already registered', async () => {
-    await useCase.execute({
-      channelId: '1234567890',
-      handle: null,
-      title: 'First',
-    });
-    publisher.published.length = 0;
-
+  it('throws error indicating deprecated functionality', async () => {
     await expect(
       useCase.execute({
         channelId: '1234567890',
-        handle: null,
-        title: 'Duplicate',
+        handle: '@cryptosource',
+        title: 'Crypto News Daily',
       }),
-    ).rejects.toThrow(DomainError);
-    try {
-      await useCase.execute({
-        channelId: '1234567890',
-        handle: null,
-        title: 'Duplicate',
-      });
-    } catch (err) {
-      expect((err as DomainError).code).toBe(ErrorCode.CONFLICT);
-    }
-  });
-
-  it('does not emit events on CONFLICT', async () => {
-    await useCase.execute({
-      channelId: '1234567890',
-      handle: null,
-      title: 'First',
-    });
-    publisher.published.length = 0;
-
-    await expect(
-      useCase.execute({
-        channelId: '1234567890',
-        handle: null,
-        title: 'Dup',
-      }),
-    ).rejects.toThrow();
-    expect(publisher.published).toHaveLength(0);
-  });
-
-  it('propagates DomainError from invalid input', async () => {
-    await expect(
-      useCase.execute({
-        channelId: 'not-a-number',
-        handle: null,
-        title: 'Test',
-      }),
-    ).rejects.toThrow(DomainError);
+    ).rejects.toThrow(/deprecated|ingestion-service/i);
   });
 });
