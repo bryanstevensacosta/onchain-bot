@@ -7,7 +7,9 @@ import {
   fetchTemplate,
   fetchTemplates,
   llmConfigKeys,
+  toggleLlmEnabled,
   toggleMatchingEnabled,
+  togglePublishingEnabled,
   updateLlmConfig,
   updateTemplate,
   type CreatePromptTemplateBody,
@@ -69,7 +71,68 @@ export function useToggleMatching() {
       if (prev) {
         qc.setQueryData<LlmConfig>(llmConfigKeys.config(), {
           ...prev,
-          enabled,
+          matchingEnabled: enabled,
+        });
+      }
+      return { prev };
+    },
+    onError: (_err, _enabled, ctx) => {
+      if (ctx?.prev) {
+        qc.setQueryData(llmConfigKeys.config(), ctx.prev);
+      }
+    },
+    onSuccess: (saved) => {
+      qc.setQueryData(llmConfigKeys.config(), saved);
+      qc.invalidateQueries({ queryKey: llmConfigKeys.config() });
+    },
+  });
+}
+
+/**
+ * Toggle LLM generation enabled/disabled. When false, publishes raw content.
+ */
+export function useToggleLlm() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (enabled: boolean) => updateLlmConfig({ llmEnabled: enabled }),
+    onMutate: async (enabled) => {
+      await qc.cancelQueries({ queryKey: llmConfigKeys.config() });
+      const prev = qc.getQueryData<LlmConfig>(llmConfigKeys.config());
+      if (prev) {
+        qc.setQueryData<LlmConfig>(llmConfigKeys.config(), {
+          ...prev,
+          llmEnabled: enabled,
+        });
+      }
+      return { prev };
+    },
+    onError: (_err, _enabled, ctx) => {
+      if (ctx?.prev) {
+        qc.setQueryData(llmConfigKeys.config(), ctx.prev);
+      }
+    },
+    onSuccess: (saved) => {
+      qc.setQueryData(llmConfigKeys.config(), saved);
+      qc.invalidateQueries({ queryKey: llmConfigKeys.config() });
+    },
+  });
+}
+
+/**
+ * Toggle publishing enabled/disabled. When false, queue draining stops.
+ */
+export function useTogglePublishing() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (enabled: boolean) =>
+      updateLlmConfig({ publishingEnabled: enabled }),
+    onMutate: async (enabled) => {
+      await qc.cancelQueries({ queryKey: llmConfigKeys.config() });
+      const prev = qc.getQueryData<LlmConfig>(llmConfigKeys.config());
+      if (prev) {
+        qc.setQueryData<LlmConfig>(llmConfigKeys.config(), {
+          ...prev,
+          publishingEnabled: enabled,
         });
       }
       return { prev };

@@ -31,7 +31,10 @@ export interface LlmConfig {
   readonly id: number;
   readonly defaultTemplateId: string;
   readonly targetChannel: string;
-  readonly enabled: boolean;
+  readonly matchingEnabled: boolean;
+  readonly llmEnabled: boolean;
+  readonly publishingEnabled: boolean;
+  readonly rejectNonLatin: boolean;
   readonly dailyCap: number;
   readonly dailyResetUtcHour: number;
   readonly randomDelayMinMs: number;
@@ -114,5 +117,15 @@ export async function deleteTemplate(id: string): Promise<void> {
 export async function toggleMatchingEnabled(
   enabled: boolean,
 ): Promise<LlmConfig> {
-  return updateLlmConfig({ enabled });
+  return updateLlmConfig({ matchingEnabled: enabled });
+}
+
+export async function toggleLlmEnabled(enabled: boolean): Promise<LlmConfig> {
+  return updateLlmConfig({ llmEnabled: enabled });
+}
+
+export async function togglePublishingEnabled(
+  enabled: boolean,
+): Promise<LlmConfig> {
+  return updateLlmConfig({ publishingEnabled: enabled });
 }

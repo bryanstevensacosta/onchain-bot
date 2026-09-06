@@ -12,7 +12,9 @@ export interface LlmConfigProps {
   readonly id: number;
   defaultTemplateId: string;
   targetChannel: string;
-  enabled: boolean;
+  matchingEnabled: boolean;
+  llmEnabled: boolean;
+  publishingEnabled: boolean;
   rejectNonLatin: boolean;
   dailyCap: number;
   dailyResetUtcHour: number;
@@ -28,7 +30,10 @@ export interface LlmConfigProps {
  * Owns the GLOBAL publishing knobs:
  *   - which `PromptTemplate` is the default for unmatched keywords
  *   - which Telegram channel publishes to
- *   - whether the publisher is enabled at all
+ *   - three independent on/off switches:
+ *     • matchingEnabled: whether to enqueue messages matching keywords
+ *     • llmEnabled: whether to generate content with LLM (false = publish raw)
+ *     • publishingEnabled: whether to publish from the queue at all
  *   - daily cap and the UTC hour at which it resets
  *   - the random delay window between consecutive publishes
  *   - the LLM retry budget before a queue entry is marked FAILED
@@ -63,7 +68,9 @@ export class LlmConfig extends AggregateRoot<number> {
     id?: number;
     defaultTemplateId: string;
     targetChannel?: string;
-    enabled?: boolean;
+    matchingEnabled?: boolean;
+    llmEnabled?: boolean;
+    publishingEnabled?: boolean;
     rejectNonLatin?: boolean;
     dailyCap: number;
     dailyResetUtcHour: number;
@@ -89,7 +96,9 @@ export class LlmConfig extends AggregateRoot<number> {
       id: input.id ?? 1,
       defaultTemplateId,
       targetChannel: input.targetChannel ?? '',
-      enabled: input.enabled ?? false,
+      matchingEnabled: input.matchingEnabled ?? false,
+      llmEnabled: input.llmEnabled ?? false,
+      publishingEnabled: input.publishingEnabled ?? false,
       rejectNonLatin: input.rejectNonLatin ?? true,
       dailyCap,
       dailyResetUtcHour,
@@ -116,8 +125,16 @@ export class LlmConfig extends AggregateRoot<number> {
     return this.state.targetChannel;
   }
 
-  public get enabled(): boolean {
-    return this.state.enabled;
+  public get matchingEnabled(): boolean {
+    return this.state.matchingEnabled;
+  }
+
+  public get llmEnabled(): boolean {
+    return this.state.llmEnabled;
+  }
+
+  public get publishingEnabled(): boolean {
+    return this.state.publishingEnabled;
   }
 
   public get rejectNonLatin(): boolean {
@@ -157,7 +174,9 @@ export class LlmConfig extends AggregateRoot<number> {
    */
   public update(patch: {
     targetChannel?: string;
-    enabled?: boolean;
+    matchingEnabled?: boolean;
+    llmEnabled?: boolean;
+    publishingEnabled?: boolean;
     rejectNonLatin?: boolean;
     dailyCap?: number;
     dailyResetUtcHour?: number;
@@ -191,8 +210,16 @@ export class LlmConfig extends AggregateRoot<number> {
       patch.targetChannel !== undefined
         ? patch.targetChannel
         : this.state.targetChannel;
-    this.state.enabled =
-      patch.enabled !== undefined ? patch.enabled : this.state.enabled;
+    this.state.matchingEnabled =
+      patch.matchingEnabled !== undefined
+        ? patch.matchingEnabled
+        : this.state.matchingEnabled;
+    this.state.llmEnabled =
+      patch.llmEnabled !== undefined ? patch.llmEnabled : this.state.llmEnabled;
+    this.state.publishingEnabled =
+      patch.publishingEnabled !== undefined
+        ? patch.publishingEnabled
+        : this.state.publishingEnabled;
     this.state.rejectNonLatin =
       patch.rejectNonLatin !== undefined
         ? patch.rejectNonLatin

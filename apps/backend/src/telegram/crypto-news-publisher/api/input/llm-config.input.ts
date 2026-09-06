@@ -111,7 +111,15 @@ export class UpdateLlmConfigDto {
 
   @IsOptional()
   @IsBoolean()
-  public enabled?: boolean;
+  public matchingEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  public llmEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  public publishingEnabled?: boolean;
 
   @IsOptional()
   @IsBoolean()

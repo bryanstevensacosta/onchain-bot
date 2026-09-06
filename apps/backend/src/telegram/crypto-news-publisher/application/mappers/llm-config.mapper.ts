@@ -20,7 +20,9 @@ export interface LlmConfigView {
   readonly id: number;
   readonly defaultTemplateId: string;
   readonly targetChannel: string;
-  readonly enabled: boolean;
+  readonly matchingEnabled: boolean;
+  readonly llmEnabled: boolean;
+  readonly publishingEnabled: boolean;
   readonly rejectNonLatin: boolean;
   readonly dailyCap: number;
   readonly dailyResetUtcHour: number;
@@ -51,7 +53,9 @@ export const toConfigView = (config: LlmConfig): LlmConfigView => ({
   id: config.id,
   defaultTemplateId: config.defaultTemplateId,
   targetChannel: config.targetChannel,
-  enabled: config.enabled,
+  matchingEnabled: config.matchingEnabled,
+  llmEnabled: config.llmEnabled,
+  publishingEnabled: config.publishingEnabled,
   rejectNonLatin: config.rejectNonLatin,
   dailyCap: config.dailyCap,
   dailyResetUtcHour: config.dailyResetUtcHour,

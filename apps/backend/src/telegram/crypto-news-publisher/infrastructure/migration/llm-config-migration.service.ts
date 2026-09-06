@@ -214,8 +214,8 @@ export class LlmConfigMigrationService implements OnApplicationBootstrap {
     cfg: CryptoNewsPublisherConfigJson | null,
     defaultTemplateId: string,
   ): LlmConfig {
-    // The JSON file may still carry `enabled` from before it was removed
-    // from the typed config interfaces. Read it dynamically for migration.
+    // The JSON file may still carry `enabled` from before it was split into 3 flags.
+    // Read it dynamically for migration and apply it to all 3 flags.
     const enabled =
       ((cfg as Record<string, unknown> | null)?.enabled as
         | boolean
@@ -226,7 +226,9 @@ export class LlmConfigMigrationService implements OnApplicationBootstrap {
       id: LlmConfigMigrationService.CONFIG_ROW_ID,
       defaultTemplateId,
       targetChannel,
-      enabled,
+      matchingEnabled: enabled,
+      llmEnabled: enabled,
+      publishingEnabled: enabled,
       dailyCap: publishing.dailyCap ?? DEFAULT_CONFIG.publishing.dailyCap,
       dailyResetUtcHour:
         publishing.dailyResetUtcHour ??

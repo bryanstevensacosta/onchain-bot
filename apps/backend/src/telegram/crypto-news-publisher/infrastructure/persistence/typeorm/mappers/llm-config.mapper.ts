@@ -11,7 +11,9 @@ export class LlmConfigMapper {
     row.id = config.id;
     row.defaultTemplateId = config.defaultTemplateId;
     row.targetChannel = config.targetChannel;
-    row.enabled = config.enabled;
+    row.matchingEnabled = config.matchingEnabled;
+    row.llmEnabled = config.llmEnabled;
+    row.publishingEnabled = config.publishingEnabled;
     row.rejectNonLatin = config.rejectNonLatin ?? true;
     row.dailyCap = config.dailyCap;
     row.dailyResetUtcHour = config.dailyResetUtcHour;
@@ -27,7 +29,9 @@ export class LlmConfigMapper {
       id: row.id,
       defaultTemplateId: row.defaultTemplateId,
       targetChannel: row.targetChannel,
-      enabled: row.enabled,
+      matchingEnabled: row.matchingEnabled,
+      llmEnabled: row.llmEnabled,
+      publishingEnabled: row.publishingEnabled,
       rejectNonLatin: row.rejectNonLatin ?? true,
       dailyCap: row.dailyCap,
       dailyResetUtcHour: row.dailyResetUtcHour,
