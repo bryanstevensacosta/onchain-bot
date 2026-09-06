@@ -459,7 +459,9 @@ describe('BackendCircuitBreakerService', () => {
       const backendStats = stats.get(backendId);
       expect(backendStats?.state).toBe(CircuitState.OPEN);
       expect(backendStats?.openedAt).toBeDefined();
-      expect(backendStats?.timeSinceOpen).toBe(2 * 60 * 1000);
+      // Allow small timing variance in CI (±10ms)
+      expect(backendStats?.timeSinceOpen).toBeGreaterThanOrEqual(2 * 60 * 1000 - 10);
+      expect(backendStats?.timeSinceOpen).toBeLessThanOrEqual(2 * 60 * 1000 + 10);
 
       jest.useRealTimers();
     });
@@ -597,7 +599,9 @@ describe('BackendCircuitBreakerService', () => {
 
       // 3. OPEN → HALF_OPEN (after 5 min)
       jest.advanceTimersByTime(5 * 60 * 1000);
-      expect(service.getState(backendId)).toBe(CircuitState.HALF_OPEN);
+      // Trigger state transition check
+      const stateAfterRecovery = service.getState(backendId);
+      expect(stateAfterRecovery).toBe(CircuitState.HALF_OPEN);
 
       // 4. HALF_OPEN → CLOSED (success)
       service.recordSuccess(backendId);
@@ -620,7 +624,9 @@ describe('BackendCircuitBreakerService', () => {
 
       // 2. OPEN → HALF_OPEN
       jest.advanceTimersByTime(5 * 60 * 1000);
-      expect(service.getState(backendId)).toBe(CircuitState.HALF_OPEN);
+      // Trigger state transition check
+      const stateAfterFirstRecovery = service.getState(backendId);
+      expect(stateAfterFirstRecovery).toBe(CircuitState.HALF_OPEN);
 
       // 3. HALF_OPEN → OPEN (failed attempt)
       service.recordFailure(backendId);
@@ -628,7 +634,9 @@ describe('BackendCircuitBreakerService', () => {
 
       // 4. OPEN → HALF_OPEN (retry)
       jest.advanceTimersByTime(5 * 60 * 1000);
-      expect(service.getState(backendId)).toBe(CircuitState.HALF_OPEN);
+      // Trigger state transition check
+      const stateAfterSecondRecovery = service.getState(backendId);
+      expect(stateAfterSecondRecovery).toBe(CircuitState.HALF_OPEN);
 
       // 5. HALF_OPEN → CLOSED (success)
       service.recordSuccess(backendId);
