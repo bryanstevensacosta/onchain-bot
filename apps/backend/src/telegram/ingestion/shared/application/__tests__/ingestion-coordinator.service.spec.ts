@@ -4,8 +4,6 @@
 // `unknown` to break the import chain.
 import { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import type { TelegramRawMessage } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
-import { KolSeeder } from 'telegram/ingestion/kol/seeders/kol.seeder';
-import { CryptoNewsSeeder } from 'telegram/ingestion/crypto-news/infrastructure/seeders/crypto-news.seeder';
 import { KolRepository } from 'kol/identity/application/ports/kol.repository';
 import { Kol } from 'kol/identity/domain/entities/kol.entity';
 import { KolId } from 'kol/identity/domain/value-objects/kol-id.vo';
@@ -125,51 +123,9 @@ class CapturingStoreUseCase extends StoreNewsMessageUseCase {
   }
 }
 
-class FakeKolSeeder extends KolSeeder {
-  public async seed(): Promise<{
-    added: number;
-    skipped: number;
-    failed: number;
-    notAKol: number;
-  }> {
-    return { added: 0, skipped: 0, failed: 0, notAKol: 0 };
-  }
-}
-
-class FakeNewsSeeder extends CryptoNewsSeeder {
-  public async seed(): Promise<{
-    added: number;
-    skipped: number;
-    failed: number;
-  }> {
-    return { added: 0, skipped: 0, failed: 0 };
-  }
-}
-
-function buildConfig(overrides: {
-  seedEnabled?: boolean;
-  newsSeedEnabled?: boolean;
-}): ConfigService {
+function buildConfig(): ConfigService {
   return {
-    get: (key: string) => {
-      if (key === 'app') {
-        return {
-          ingestion: {
-            telegram: {
-              seed: {
-                enabled: overrides.seedEnabled ?? true,
-                channels: [],
-              },
-              newsSeed: {
-                enabled: overrides.newsSeedEnabled ?? true,
-                channels: [],
-              },
-            },
-          },
-        };
-      }
-      return undefined;
-    },
+    get: () => undefined,
   };
 }
 
@@ -179,8 +135,6 @@ describe('IngestionCoordinator', () => {
   let listener: FakeListener;
   let orchestrator: CapturingOrchestrator;
   let store: CapturingStoreUseCase;
-  let kolSeeder: FakeKolSeeder;
-  let newsSeeder: FakeNewsSeeder;
 
   beforeEach(() => {
     kolRepo = new InMemoryKolRepo();
@@ -194,19 +148,6 @@ describe('IngestionCoordinator', () => {
       {} as never,
     );
     store = new CapturingStoreUseCase({} as never, {} as never);
-    kolSeeder = new FakeKolSeeder(
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-    );
-    newsSeeder = new FakeNewsSeeder(
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-    );
   });
 
   it('subscribes once with all active channels (KOL + news)', async () => {
@@ -226,9 +167,7 @@ describe('IngestionCoordinator', () => {
     sourceRepo.seed(news);
 
     const coord = new IngestionCoordinator(
-      buildConfig({}),
-      kolSeeder,
-      newsSeeder,
+      buildConfig(),
       kolRepo,
       sourceRepo,
       orchestrator,
@@ -262,9 +201,7 @@ describe('IngestionCoordinator', () => {
     ];
 
     const coord = new IngestionCoordinator(
-      buildConfig({}),
-      kolSeeder,
-      newsSeeder,
+      buildConfig(),
       kolRepo,
       sourceRepo,
       orchestrator,
@@ -298,9 +235,7 @@ describe('IngestionCoordinator', () => {
     ];
 
     const coord = new IngestionCoordinator(
-      buildConfig({}),
-      kolSeeder,
-      newsSeeder,
+      buildConfig(),
       kolRepo,
       sourceRepo,
       orchestrator,
@@ -349,9 +284,7 @@ describe('IngestionCoordinator', () => {
     ];
 
     const coord = new IngestionCoordinator(
-      buildConfig({}),
-      kolSeeder,
-      newsSeeder,
+      buildConfig(),
       kolRepo,
       sourceRepo,
       orchestrator,
@@ -395,9 +328,7 @@ describe('IngestionCoordinator', () => {
     ];
 
     const coord = new IngestionCoordinator(
-      buildConfig({}),
-      kolSeeder,
-      newsSeeder,
+      buildConfig(),
       kolRepo,
       sourceRepo,
       orchestrator,
@@ -414,9 +345,7 @@ describe('IngestionCoordinator', () => {
 
   it('does not subscribe when no channels are active', async () => {
     const coord = new IngestionCoordinator(
-      buildConfig({}),
-      kolSeeder,
-      newsSeeder,
+      buildConfig(),
       kolRepo,
       sourceRepo,
       orchestrator,
@@ -427,49 +356,5 @@ describe('IngestionCoordinator', () => {
     await new Promise((r) => setImmediate(r));
 
     expect(listener.subscribeCalls).toHaveLength(0);
-  });
-
-  it('calls KolSeeder and CryptoNewsSeeder during bootstrap', async () => {
-    const kolSpy = { called: false };
-    const newsSpy = { called: false };
-    const ks = new FakeKolSeeder(
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-    );
-    const ns = new FakeNewsSeeder(
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-    );
-    const seedMethod = jest.spyOn(ks, 'seed').mockImplementation(async () => {
-      kolSpy.called = true;
-      return { added: 0, skipped: 0, failed: 0, notAKol: 0 };
-    });
-    const newsSeedMethod = jest
-      .spyOn(ns, 'seed')
-      .mockImplementation(async () => {
-        newsSpy.called = true;
-        return { added: 0, skipped: 0, failed: 0 };
-      });
-
-    const coord = new IngestionCoordinator(
-      buildConfig({}),
-      ks,
-      ns,
-      kolRepo,
-      sourceRepo,
-      orchestrator,
-      store,
-      listener,
-    );
-    await coord.onApplicationBootstrap();
-
-    expect(seedMethod).toHaveBeenCalled();
-    // Crypto-news seeder is now disabled permanently (DB-only mode)
-    expect(newsSeedMethod).not.toHaveBeenCalled();
   });
 });

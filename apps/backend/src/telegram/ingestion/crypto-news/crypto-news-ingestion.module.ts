@@ -16,7 +16,6 @@ import { StoreNewsMessageUseCase } from 'telegram/ingestion/crypto-news/applicat
 import { CryptoNewsMetadataResolver } from 'telegram/ingestion/crypto-news/application/services/crypto-news-metadata-resolver.service';
 import { ContentFilterService } from 'telegram/ingestion/crypto-news/application/services/content-filter.service';
 import { MediaRetentionCleanupScheduler } from 'telegram/ingestion/crypto-news/infrastructure/scheduling/media-retention-cleanup.scheduler';
-import { CryptoNewsSeeder } from 'telegram/ingestion/crypto-news/infrastructure/seeders/crypto-news.seeder';
 import { CryptoNewsController } from 'telegram/ingestion/crypto-news/api/http/crypto-news.controller';
 import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 import {
@@ -30,7 +29,7 @@ import {
 /**
  * Crypto-news ingestion sub-module.
  *
- * Provides: ports, use cases, repositories, event publisher, seeder,
+ * Provides: ports, use cases, repositories, event publisher,
  * and the MTProto media downloader (for photos attached to news
  * messages). Wires TypeORM (when DATABASE_ENABLED) or in-memory
  * (dev/tests) repos.
@@ -41,6 +40,10 @@ import {
  * No NestJS module imports from kol/ — dependencies on
  * RegisterKolUseCase, KolRepository, etc. are resolved via DI through
  * IdentityModule when IngestionCoordinator consumes them.
+ *
+ * Note: CryptoNewsSeeder removed (2026-09-06). Sources are now registered via:
+ * - Ingestion-service (primary): POST {INGESTION_SERVICE_URL}/api/crypto-news/sources
+ * - Backend (deprecated): POST /crypto-news/sources (returns 501)
  */
 @Module({
   imports: [
@@ -105,7 +108,6 @@ import {
     RegisterNewsSourceUseCase,
     ListActiveSourceIdsUseCase,
     StoreNewsMessageUseCase,
-    CryptoNewsSeeder,
     CryptoNewsMetadataResolver,
     // Hourly cleanup of media rows + files older than the retention
     // window (Todo 3). Injects DataSource (TypeORM global) +
@@ -128,7 +130,6 @@ import {
     // CryptoNewsMediaDownloader is now exported by SharedIngestionModule
     RegisterNewsSourceUseCase,
     StoreNewsMessageUseCase,
-    CryptoNewsSeeder,
     CryptoNewsMetadataResolver,
   ],
 })
