@@ -5,7 +5,7 @@
 ```
 ┌────────────────────────────────────────────────────────────┐
 │  DROPLET (Ingestion Service - Puerto 3032 público)         │
-│  - 1 SOLA cuenta Telegram (21903336)                       │
+│  - Cuenta Telegram dedicada (API_ID producción)            │
 │  - 1 SOLO entorno (producción)                             │
 │  - Deploy: solo master branch                              │
 └──────┬─────────────────┬───────────────┬──────────────────┘
@@ -13,6 +13,13 @@
        ▼                 ▼               ▼
    Dev Local        Staging          Production
    (consume)        (consume)        (consume)
+
+┌────────────────────────────────────────────────────────────┐
+│  DEV LOCAL (Ingestion Service - Puerto 3031 opcional)      │
+│  - Cuenta Telegram separada (API_ID dev)                   │
+│  - Para testing de ingestion-service solamente             │
+│  - NO corre simultáneamente con droplet                    │
+└────────────────────────────────────────────────────────────┘
 ```
 
 ## ❓ Preguntas y Respuestas
@@ -83,14 +90,29 @@ npm run start:dev
 
 - ⚠️ Downtime en staging/prod mientras pruebas
 
-#### Opción C: Cuenta Separada
+#### Opción C: Cuenta Separada ⭐ (IMPLEMENTADO)
 
-Usa tu cuenta personal (34691112) en dev, cuenta empresa (21903336) en droplet.
+**✅ Configuración actual:** Dev local usa credenciales separadas, droplet usa producción.
 
-**Desventajas:**
+```bash
+# Local: apps/ingestion-service/.env
+INGESTION_TELEGRAM_MTPROTO_API_ID=34691112  # Dev account
+INGESTION_TELEGRAM_MTPROTO_API_HASH=<dev_hash>
+INGESTION_TELEGRAM_MTPROTO_SESSION=<dev_session>
 
-- ⚠️ Necesitas 2 cuentas Telegram
-- ⚠️ Canales diferentes (no datos reales)
+# Droplet: /opt/onchain-bot/apps/ingestion-service/.env
+INGESTION_TELEGRAM_MTPROTO_API_ID=<prod_id>  # Production account
+INGESTION_TELEGRAM_MTPROTO_API_HASH=<prod_hash>
+INGESTION_TELEGRAM_MTPROTO_SESSION=<prod_session>
+```
+
+**Ventajas:**
+
+- ✅ Sin conflictos AUTH_KEY_DUPLICATED
+- ✅ Ambos pueden correr simultáneamente
+- ✅ Testing aislado
+
+**Nota:** Nunca corras dev local y droplet con las MISMAS credenciales simultáneamente.
 
 ---
 
