@@ -2,35 +2,31 @@
 
 ## [3.0.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v2.0.0...v3.0.0) (2026-09-06)
 
-
 ### ⚠ BREAKING CHANGES
 
-* MTProto credentials must now be in ingestion-service ONLY
+- MTProto credentials must now be in ingestion-service ONLY
 
 ### Features
 
-* migrate crypto-news sources ownership to ingestion-service ([#147](https://github.com/bryanstevensacosta/onchain-bot/issues/147)) ([4e07b1d](https://github.com/bryanstevensacosta/onchain-bot/commit/4e07b1d07fbc6db8e3ce4de8bea3725c9d53d98f))
-
+- centralized ingestion service + multi-environment support ([#86](https://github.com/bryanstevensacosta/onchain-bot/issues/86)) ([e9ec7fc](https://github.com/bryanstevensacosta/onchain-bot/commit/e9ec7fcfc0d1a3ba4173532fbcb389f6393ffdc5))
+- **ci:** bidirectional sync workflow + release-please fix + ingestion-service TelegramModule ([#109](https://github.com/bryanstevensacosta/onchain-bot/issues/109)) ([015a51b](https://github.com/bryanstevensacosta/onchain-bot/commit/015a51b12db5de3ae3ef1ce6c1d372fabac7ba6c))
+- migrate crypto-news sources ownership to ingestion-service ([#147](https://github.com/bryanstevensacosta/onchain-bot/issues/147)) ([4e07b1d](https://github.com/bryanstevensacosta/onchain-bot/commit/4e07b1d07fbc6db8e3ce4de8bea3725c9d53d98f))
+- Multi-backend SSE broadcast + ingestion improvements (clean merge) ([#119](https://github.com/bryanstevensacosta/onchain-bot/issues/119)) ([bbb774c](https://github.com/bryanstevensacosta/onchain-bot/commit/bbb774cf26c1942dfec5eedc1f37ee7ac2d2ee74))
+- Redis robustness + Backend registration for multi-backend ([#134](https://github.com/bryanstevensacosta/onchain-bot/issues/134)) ([a104fff](https://github.com/bryanstevensacosta/onchain-bot/commit/a104fff00a00f10943ccecfd072b25deb24a9166))
 
 ### Bug Fixes
 
-* **migration:** add queued_at column with proper NULL handling for production ([901a0a0](https://github.com/bryanstevensacosta/onchain-bot/commit/901a0a0010d67ce7dc05f8a0448fe99a13fd7759))
+- **migration:** add queued_at column with proper NULL handling for production ([901a0a0](https://github.com/bryanstevensacosta/onchain-bot/commit/901a0a0010d67ce7dc05f8a0448fe99a13fd7759))
 
 ## [2.0.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v1.0.0...v2.0.0) (2026-09-06)
 
 ### ⚠ BREAKING CHANGES
 
 - MTProto credentials must now be in ingestion-service ONLY
+- MTProto credentials must now be in ingestion-service ONLY
 - **crypto-news:** MTProto credentials must now be in ingestion-service ONLY
 - **ingestion:** MTProto credentials must now be in ingestion-service ONLY
-- MTProto credentials must now be in ingestion-service ONLY
-- **ingestion:** MTProto credentials must now be in ingestion-service ONLY
-- **ingestion:** MTProto credentials must now be in ingestion-service ONLY
 - **ci:** MTProto credentials must now be in ingestion-service ONLY
-- MTProto credentials must now be in ingestion-service ONLY
-- MTProto credentials must now be in ingestion-service ONLY
-- **ci:** MTProto credentials must now be in ingestion-service ONLY
-- MTProto credentials must now be in ingestion-service ONLY
 
 ### Features
 

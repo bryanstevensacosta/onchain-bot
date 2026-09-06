@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { SSEStreamController } from './sse-stream.controller';
 import { StreamService } from '../../application/services/stream.service';
+import { SSEBroadcastService } from '../../application/services/sse-broadcast.service';
+import { BackfillBufferService } from '../../infrastructure/backfill-buffer.service';
 import { BackendChannelProviderService } from '../../../telegram/shared/services/backend-channel-provider.service';
 import type { Request, Response } from 'express';
 import { EventEmitter } from 'events';
@@ -31,6 +33,11 @@ describe('SSEStreamController', () => {
       getClientCount: jest.fn().mockReturnValue(0),
       getConnectedClients: jest.fn().mockReturnValue([]),
       shutdown: jest.fn(),
+      // Internal properties accessed by controller
+      clients: new Map(),
+      disconnectionTracker: {
+        recordReconnection: jest.fn(),
+      },
     };
 
     // Create mock BackendChannelProviderService
@@ -50,8 +57,25 @@ describe('SSEStreamController', () => {
           useValue: mockStreamService,
         },
         {
+          provide: SSEBroadcastService,
+          useValue: {
+            getActiveBackendCount: jest.fn().mockReturnValue(0),
+            broadcast: jest.fn(),
+            addConnection: jest.fn(),
+            removeConnection: jest.fn(),
+          },
+        },
+        {
           provide: BackendChannelProviderService,
           useValue: mockChannelProvider,
+        },
+        {
+          provide: BackfillBufferService,
+          useValue: {
+            getSize: jest.fn().mockReturnValue(0),
+            getOldestTimestamp: jest.fn().mockReturnValue(null),
+            getEventsSince: jest.fn().mockReturnValue([]),
+          },
         },
       ],
     }).compile();
@@ -77,6 +101,7 @@ describe('SSEStreamController', () => {
       }) as Partial<Request>;
 
       mockResponse = {
+        set: jest.fn().mockReturnThis(),
         writeHead: jest.fn(),
         write: jest.fn(),
         end: jest.fn(),
@@ -180,8 +205,11 @@ describe('SSEStreamController', () => {
         mockResponse as Response,
       );
 
-      expect(streamService.addClient).toHaveBeenCalled();
-      // Note: Backfill not implemented in this task, just verify it doesn't break
+      // With timestamp, backfill path is taken - addClient NOT called directly
+      // Instead, client is added internally via clients.set()
+      expect(streamService.addClient).not.toHaveBeenCalled();
+      // Verify backfill buffer was queried
+      // Note: Backfill implementation is per GAP-1, just verify path doesn't break
     });
 
     it('should remove client and record disconnect on connection close', () => {
@@ -238,8 +266,14 @@ describe('SSEStreamController', () => {
         ip: '127.0.0.2',
       }) as Partial<Request>;
 
-      const mockResponse1 = { writeHead: jest.fn() } as Partial<Response>;
-      const mockResponse2 = { writeHead: jest.fn() } as Partial<Response>;
+      const mockResponse1 = { 
+        set: jest.fn().mockReturnThis(),
+        writeHead: jest.fn() 
+      } as Partial<Response>;
+      const mockResponse2 = { 
+        set: jest.fn().mockReturnThis(),
+        writeHead: jest.fn() 
+      } as Partial<Response>;
 
       controller.stream(
         'production',
@@ -321,7 +355,10 @@ describe('SSEStreamController', () => {
         ip: '127.0.0.1',
       }) as Partial<Request>;
 
-      const mockResponse = { writeHead: jest.fn() } as Partial<Response>;
+      const mockResponse = { 
+        set: jest.fn().mockReturnThis(),
+        writeHead: jest.fn() 
+      } as Partial<Response>;
 
       controller.stream(
         'production',

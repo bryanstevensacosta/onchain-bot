@@ -49,19 +49,21 @@ export class BroadcastEvent {
    * @param channelId - Source Telegram channel/user ID
    * @param msg - Telegram message object with id, text/message, date
    * @param mediaPath - Optional relative path to downloaded media file
+   * @param timestamp - Optional event timestamp (defaults to Date.now() for production use)
    * @returns BroadcastEvent instance
    */
   static fromTelegramMessage(
     channelId: string,
     msg: { id: number; message?: string; text?: string; date: number },
     mediaPath?: string,
+    timestamp?: number,
   ): BroadcastEvent {
     const content = msg.message || msg.text || '';
-    const now = Date.now();
+    const eventTimestamp = timestamp !== undefined ? timestamp : Date.now();
 
     return new BroadcastEvent({
       eventId: randomUUID(),
-      timestamp: now,
+      timestamp: eventTimestamp,
       channelId: String(channelId),
       messageId: msg.id,
       content,

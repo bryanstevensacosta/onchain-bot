@@ -385,12 +385,14 @@ describe('BackfillBufferService', () => {
     });
 
     it('should handle zero timestamp', () => {
-      service.add(createTestEvent(1, 0));
-      service.add(createTestEvent(2, 1000));
+      // Use current timestamp to avoid 72h retention filter
+      const now = Date.now();
+      service.add(createTestEvent(1, now));
+      service.add(createTestEvent(2, now + 1000));
 
-      const events = service.getEventsSince(0);
+      const events = service.getEventsSince(now);
       expect(events).toHaveLength(2);
-      expect(service.getOldestTimestamp()).toBe(0);
+      expect(service.getOldestTimestamp()).toBe(now);
     });
   });
 

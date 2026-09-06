@@ -1,11 +1,10 @@
 # Changelog
 
-## [3.0.1](https://github.com/bryanstevensacosta/onchain-bot/compare/v3.0.0...v3.0.1) (2026-09-06)
+## [3.0.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v2.0.0...v3.0.0) (2026-09-06)
 
+### Features
 
-### Bug Fixes
-
-* **migration:** add queued_at column with proper NULL handling for production ([901a0a0](https://github.com/bryanstevensacosta/onchain-bot/commit/901a0a0010d67ce7dc05f8a0448fe99a13fd7759))
+- migrate crypto-news sources ownership to ingestion-service ([#147](https://github.com/bryanstevensacosta/onchain-bot/issues/147)) ([4e07b1d](https://github.com/bryanstevensacosta/onchain-bot/commit/4e07b1d07fbc6db8e3ce4de8bea3725c9d53d98f))
 
 ## [2.0.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v1.3.2...v2.0.0) (2026-09-05)
 

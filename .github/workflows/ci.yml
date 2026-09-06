@@ -17,6 +17,29 @@ jobs:
     env:
       DATABASE_ENABLED: true
       DATABASE_SYNCHRONIZE: true
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: onchain_bot
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,9 +79,32 @@ jobs:
 
       - name: Run backend tests
         run: npm run test:backend
+        env:
+          DATABASE_HOST: localhost
+          DATABASE_PORT: 5432
+          DATABASE_USER: postgres
+          DATABASE_PASSWORD: postgres
+          DATABASE_NAME: onchain_bot
 
       - name: Run frontend tests
         run: npm run test:frontend
+
+      - name: Create ingestion-service test databases
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE onchain_bot_test;"
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE onchain_bot_test_entity;"
+
+      - name: Run ingestion-service tests
+        run: npm run test:ingestion
+        env:
+          INGESTION_DATABASE_HOST: localhost
+          INGESTION_DATABASE_PORT: 5432
+          INGESTION_DATABASE_USER: postgres
+          INGESTION_DATABASE_PASSWORD: postgres
+          INGESTION_DATABASE_NAME: onchain_bot_test
+          INGESTION_REDIS_HOST: localhost
+          INGESTION_REDIS_PORT: 6379
+          DATABASE_ENABLED: true
 
   lint:
     name: Lint
@@ -143,7 +189,7 @@ jobs:
           retry_wait_seconds: 30
           command: npm ci --no-audit --no-fund --prefer-offline
 
-      - name: Build (type-checks both apps)
+      - name: Build (type-checks all apps)
         run: npm run build
 
   build:
@@ -193,6 +239,9 @@ jobs:
       - name: Build frontend
         run: npm run build:frontend
 
+      - name: Build ingestion-service
+        run: npm run build -w @alpha-meta-token-scanner/ingestion-service
+
       - name: Upload backend dist
         if: success()
         uses: actions/upload-artifact@v4
@@ -207,4 +256,12 @@ jobs:
         with:
           name: frontend-dist
           path: apps/frontend/dist
+          retention-days: 7
+
+      - name: Upload ingestion-service dist
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ingestion-service-dist
+          path: apps/ingestion-service/dist
           retention-days: 7

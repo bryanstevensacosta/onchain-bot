@@ -19,6 +19,7 @@ import { DeduplicationService } from '../services/deduplication.service';
 import { LastSeenManager } from '../../infrastructure/services/last-seen-manager.service';
 import { RedisService } from '../../../../shared/common/cache/redis.service';
 import { DisconnectionTracker } from 'stream/application/services/disconnection-tracker.service';
+import { CryptoNewsMessageRepository } from '../../../crypto-news/infrastructure/persistence/typeorm/repositories/crypto-news-message.repository';
 import type { MessagePayload } from '../../domain/types/message-payload';
 
 /**
@@ -103,6 +104,14 @@ describe('IngestionCoordinator - Broadcast Pipeline Deduplication (Integration)'
         DeduplicationService,
         LastSeenManager,
         DisconnectionTracker,
+        {
+          provide: CryptoNewsMessageRepository,
+          useValue: {
+            findByChannelAndMessageId: jest.fn().mockResolvedValue(null),
+            save: jest.fn().mockResolvedValue({}),
+            find: jest.fn().mockResolvedValue([]),
+          },
+        },
         {
           provide: RedisService,
           useValue: mockRedisService,

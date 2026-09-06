@@ -82,4 +82,4 @@ fi
 # --- 3) Run full test suite (mirrors CI Tests job) ---
 echo ""
 echo "🧪 Running tests before push..."
-npm test
+npm run test:ci

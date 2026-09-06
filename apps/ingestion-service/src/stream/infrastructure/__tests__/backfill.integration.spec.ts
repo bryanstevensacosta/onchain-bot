@@ -86,7 +86,6 @@ describe('Backfill Integration Tests', () => {
           database: process.env.INGESTION_DATABASE_NAME || 'onchain_bot_test',
           entities: [BackfillMessageEntity],
           synchronize: true, // Auto-create tables in test environment
-          dropSchema: true, // Clean slate for each test run
         }),
         TypeOrmModule.forFeature([BackfillMessageEntity]),
       ],
@@ -117,8 +116,35 @@ describe('Backfill Integration Tests', () => {
   });
 
   beforeEach(async () => {
-    // Clear database before each test
-    await repository.clear();
+    // ROBUST cleanup strategy: Poll until DB is actually empty
+    // (fire-and-forget persistence makes timing unpredictable)
+    
+    const maxAttempts = 10;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // Clear DB
+      try {
+        await repository.query('TRUNCATE TABLE backfill_messages CASCADE');
+      } catch (error) {
+        await repository.clear();
+      }
+      
+      // Wait a bit for any in-flight writes
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      
+      // Verify DB is empty
+      const count = await repository.count();
+      if (count === 0) {
+        break; // Success! DB is clean
+      }
+      
+      if (attempt === maxAttempts - 1) {
+        console.warn(`⚠️  DB still has ${count} records after ${maxAttempts} cleanup attempts`);
+      }
+    }
+
+    // Recreate BackfillBufferService with fresh in-memory buffer
+    backfillBuffer = new BackfillBufferService(repository);
+    await backfillBuffer.onModuleInit(); // Restore from now-empty DB
   });
 
   /**
@@ -138,6 +164,7 @@ describe('Backfill Integration Tests', () => {
     const events: BroadcastEvent[] = [];
 
     for (let i = 0; i < 10; i++) {
+      const eventTimestamp = baseTime + i * 1000; // 1 second apart
       const event = BroadcastEvent.fromTelegramMessage(
         '-1001234567890',
         {
@@ -145,13 +172,12 @@ describe('Backfill Integration Tests', () => {
           text: `Message ${i + 1}`,
           date: Math.floor((baseTime + i * 1000) / 1000),
         },
+        undefined, // no mediaPath
+        eventTimestamp, // controlled timestamp
       );
       backfillBuffer.add(event);
       events.push(event);
     }
-
-    // Wait for async database persistence
-    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Simulate backend reconnecting - it last saw message at timestamp of 5th message
     const lastSeenTimestamp = events[4].timestamp;
@@ -196,11 +222,11 @@ describe('Backfill Integration Tests', () => {
           text: `Old message ${i + 1}`,
           date: Math.floor(oldTimestamp / 1000),
         },
+        undefined, // no mediaPath
+        oldTimestamp, // controlled old timestamp
       );
       backfillBuffer.add(event);
     }
-
-    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Backend reconnects with lastSeenTimestamp from 73 hours ago
     const lastSeenTimestamp = oldTimestamp;
@@ -226,6 +252,7 @@ describe('Backfill Integration Tests', () => {
     const baseTime = Date.now();
 
     for (let i = 0; i < MESSAGE_COUNT; i++) {
+      const eventTimestamp = baseTime + i * 100; // 100ms apart
       const event = BroadcastEvent.fromTelegramMessage(
         '-1001234567890',
         {
@@ -233,11 +260,11 @@ describe('Backfill Integration Tests', () => {
           text: `Message ${i + 1}`,
           date: Math.floor((baseTime + i * 100) / 1000),
         },
+        undefined, // no mediaPath
+        eventTimestamp, // controlled timestamp
       );
       backfillBuffer.add(event);
     }
-
-    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Buffer should be at capacity (5000)
     expect(backfillBuffer.getSize()).toBe(5000);
@@ -272,6 +299,7 @@ describe('Backfill Integration Tests', () => {
 
     // Add 1000 messages
     for (let i = 0; i < MESSAGE_COUNT; i++) {
+      const eventTimestamp = baseTime + i * 100; // 100ms apart
       const event = BroadcastEvent.fromTelegramMessage(
         '-1001234567890',
         {
@@ -279,11 +307,11 @@ describe('Backfill Integration Tests', () => {
           text: `Message ${i + 1}`,
           date: Math.floor((baseTime + i * 100) / 1000),
         },
+        undefined,
+        eventTimestamp,
       );
       backfillBuffer.add(event);
     }
-
-    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Measure backfill retrieval time
     const startTime = Date.now();
@@ -319,6 +347,7 @@ describe('Backfill Integration Tests', () => {
 
     // Add messages in random timestamp order
     for (const ts of timestamps) {
+      const eventTimestamp = baseTime + ts * 1000; // controlled timestamp
       const event = BroadcastEvent.fromTelegramMessage(
         '-1001234567890',
         {
@@ -326,11 +355,11 @@ describe('Backfill Integration Tests', () => {
           text: `Message ${ts}`,
           date: Math.floor((baseTime + ts * 1000) / 1000),
         },
+        undefined,
+        eventTimestamp,
       );
       backfillBuffer.add(event);
     }
-
-    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Retrieve all messages
     const messages = backfillBuffer.getEventsSince(0);
@@ -366,6 +395,7 @@ describe('Backfill Integration Tests', () => {
 
     // Add 5 historical messages
     for (let i = 1; i <= 5; i++) {
+      const eventTimestamp = baseTime - 10000 + i * 1000; // historical timestamps
       const event = BroadcastEvent.fromTelegramMessage(
         '-1001234567890',
         {
@@ -373,11 +403,11 @@ describe('Backfill Integration Tests', () => {
           text: `Historical ${i}`,
           date: Math.floor((baseTime - 10000 + i * 1000) / 1000),
         },
+        undefined,
+        eventTimestamp,
       );
       backfillBuffer.add(event);
     }
-
-    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Backend reconnects and retrieves backfill
     const lastSeenTimestamp = baseTime - 10000;
@@ -387,6 +417,7 @@ describe('Backfill Integration Tests', () => {
 
     // Add 3 new real-time messages
     for (let i = 6; i <= 8; i++) {
+      const eventTimestamp = baseTime + i * 1000; // realtime timestamps
       const event = BroadcastEvent.fromTelegramMessage(
         '-1001234567890',
         {
@@ -394,11 +425,11 @@ describe('Backfill Integration Tests', () => {
           text: `Realtime ${i}`,
           date: Math.floor((baseTime + i * 1000) / 1000),
         },
+        undefined,
+        eventTimestamp,
       );
       backfillBuffer.add(event);
     }
-
-    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Backend retrieves messages after the last backfill message
     const lastBackfillTimestamp =
@@ -429,6 +460,7 @@ describe('Backfill Integration Tests', () => {
 
     // Add 10 messages to buffer
     for (let i = 1; i <= 10; i++) {
+      const eventTimestamp = baseTime + i * 1000; // 1 second apart
       const event = BroadcastEvent.fromTelegramMessage(
         '-1001234567890',
         {
@@ -436,11 +468,13 @@ describe('Backfill Integration Tests', () => {
           text: `Persistent message ${i}`,
           date: Math.floor((baseTime + i * 1000) / 1000),
         },
+        undefined,
+        eventTimestamp,
       );
       backfillBuffer.add(event);
     }
 
-    // Wait for async database persistence
+    // Wait for async database persistence (fire-and-forget, need time to complete)
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Verify messages are in database
@@ -484,6 +518,7 @@ describe('Backfill Integration Tests', () => {
 
     // Add 20 messages
     for (let i = 1; i <= 20; i++) {
+      const eventTimestamp = baseTime + i * 1000; // 1 second apart
       const event = BroadcastEvent.fromTelegramMessage(
         '-1001234567890',
         {
@@ -491,12 +526,12 @@ describe('Backfill Integration Tests', () => {
           text: `Message ${i}`,
           date: Math.floor((baseTime + i * 1000) / 1000),
         },
+        undefined,
+        eventTimestamp,
       );
       backfillBuffer.add(event);
       events.push(event);
     }
-
-    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Backend last saw message 12
     const lastSeenTimestamp = events[11].timestamp; // index 11 = message 12
@@ -536,6 +571,7 @@ describe('Backfill Integration Tests', () => {
 
     // Add 5 messages
     for (let i = 1; i <= 5; i++) {
+      const eventTimestamp = baseTime + i * 1000; // 1 second apart
       const event = BroadcastEvent.fromTelegramMessage(
         '-1001234567890',
         {
@@ -543,11 +579,11 @@ describe('Backfill Integration Tests', () => {
           text: `Message ${i}`,
           date: Math.floor((baseTime + i * 1000) / 1000),
         },
+        undefined,
+        eventTimestamp,
       );
       backfillBuffer.add(event);
     }
-
-    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Verify size
     expect(backfillBuffer.getSize()).toBe(5);
@@ -573,33 +609,42 @@ describe('Backfill Integration Tests', () => {
     const SEVENTY_TWO_HOURS_MS = 72 * 60 * 60 * 1000;
     const now = Date.now();
 
-    // Add 5 old messages (74 hours old)
+    // Insert 5 old messages DIRECTLY to database with ancient timestamps
+    // (bypass backfillBuffer.add which uses Date.now())
     for (let i = 1; i <= 5; i++) {
-      const event = BroadcastEvent.fromTelegramMessage(
-        '-1001234567890',
-        {
-          id: i,
-          text: `Old message ${i}`,
-          date: Math.floor((now - SEVENTY_TWO_HOURS_MS - 7200000) / 1000),
-        },
-      );
-      backfillBuffer.add(event);
+      const entity = new BackfillMessageEntity();
+      entity.eventId = `old-event-${i}`;
+      entity.timestamp = now - SEVENTY_TWO_HOURS_MS - 7200000; // 74 hours ago
+      entity.channelId = '-1001234567890';
+      entity.messageId = i;
+      entity.payload = JSON.stringify({
+        eventId: `old-event-${i}`,
+        timestamp: now - SEVENTY_TWO_HOURS_MS - 7200000,
+        channelId: '-1001234567890',
+        messageId: i,
+        content: `Old message ${i}`,
+        publishedAt: now - SEVENTY_TWO_HOURS_MS - 7200000,
+      });
+      await repository.save(entity);
     }
 
-    // Add 5 recent messages (1 hour old)
+    // Insert 5 recent messages DIRECTLY to database
     for (let i = 6; i <= 10; i++) {
-      const event = BroadcastEvent.fromTelegramMessage(
-        '-1001234567890',
-        {
-          id: i,
-          text: `Recent message ${i}`,
-          date: Math.floor((now - 3600000) / 1000),
-        },
-      );
-      backfillBuffer.add(event);
+      const entity = new BackfillMessageEntity();
+      entity.eventId = `recent-event-${i}`;
+      entity.timestamp = now - 3600000; // 1 hour ago
+      entity.channelId = '-1001234567890';
+      entity.messageId = i;
+      entity.payload = JSON.stringify({
+        eventId: `recent-event-${i}`,
+        timestamp: now - 3600000,
+        channelId: '-1001234567890',
+        messageId: i,
+        content: `Recent message ${i}`,
+        publishedAt: now - 3600000,
+      });
+      await repository.save(entity);
     }
-
-    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Verify all 10 messages are in database
     let dbMessages = await repository.find();
@@ -641,6 +686,7 @@ describe('Backfill Integration Tests', () => {
     // Add 1500 messages
     const addStartTime = Date.now();
     for (let i = 1; i <= MESSAGE_COUNT; i++) {
+      const eventTimestamp = baseTime + i * 100; // 100ms apart
       const event = BroadcastEvent.fromTelegramMessage(
         '-1001234567890',
         {
@@ -648,6 +694,8 @@ describe('Backfill Integration Tests', () => {
           text: `Message ${i}`,
           date: Math.floor((baseTime + i * 100) / 1000),
         },
+        undefined,
+        eventTimestamp,
       );
       backfillBuffer.add(event);
     }

@@ -15,6 +15,8 @@ import { IngestionCoordinator } from 'telegram/shared/application/coordinators/i
 import { StreamService } from 'stream/application/services/stream.service';
 import { DeduplicationService } from 'telegram/shared/application/services/deduplication.service';
 import { LastSeenManager } from 'telegram/shared/infrastructure/services/last-seen-manager.service';
+import { DisconnectionTracker } from 'stream/application/services/disconnection-tracker.service';
+import { CryptoNewsMessageRepository } from 'telegram/crypto-news/infrastructure/persistence/typeorm/repositories/crypto-news-message.repository';
 import type { MessagePayload } from './message-payload';
 
 /**
@@ -88,10 +90,19 @@ describe('MessagePayload Transformation', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         IngestionCoordinator,
+        DisconnectionTracker,
         { provide: StreamService, useValue: mockStreamService },
         { provide: DeduplicationService, useValue: mockDeduplicationService },
         { provide: LastSeenManager, useValue: mockLastSeenManager },
         { provide: ConfigService, useValue: mockConfigService },
+        {
+          provide: CryptoNewsMessageRepository,
+          useValue: {
+            findByChannelAndMessageId: jest.fn().mockResolvedValue(null),
+            save: jest.fn().mockResolvedValue({}),
+            find: jest.fn().mockResolvedValue([]),
+          },
+        },
       ],
     }).compile();
 
@@ -147,7 +158,9 @@ describe('MessagePayload Transformation', () => {
       expect(broadcastedPayloads).toHaveLength(1);
       const payload = broadcastedPayloads[0];
 
-      expect(payload).not.toHaveProperty('text');
+      // For crypto-news, text field IS included (even if empty string)
+      expect(payload).toHaveProperty('text');
+      expect(payload.text).toBe(''); // Defaults to empty string when missing
       expect(payload.peerId).toBe('-1009876543210');
       expect(payload.messageId).toBe(54321);
     });

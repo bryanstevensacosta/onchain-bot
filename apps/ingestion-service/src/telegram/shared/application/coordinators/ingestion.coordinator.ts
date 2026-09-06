@@ -89,6 +89,29 @@ export class IngestionCoordinator {
     messageType: 'kol' | 'crypto-news',
   ): Promise<void> {
     try {
+      // Per Invariant 6 (Cursor Persistence): Skip messages already processed (idempotency via Redis cursor)
+      const lastSeenId = this.lastSeenManager.get(raw.peerId);
+      if (raw.messageId <= lastSeenId) {
+        this.logger.debug(
+          `Skipping already-processed message: ${raw.peerId}:${raw.messageId} (cursor at ${lastSeenId})`,
+        );
+        return; // Already processed in previous run
+      }
+
+      // Per Invariant 3 (Gap 3 fix): Check for duplicates at source before broadcast
+      const isDupe = await this.deduplicationService.isDuplicate(
+        raw.peerId,
+        raw.messageId,
+        lastSeenId,
+      );
+
+      if (isDupe) {
+        this.logger.debug(
+          `Skipping duplicate message: ${raw.peerId}:${raw.messageId}`,
+        );
+        return; // Skip broadcast for duplicates
+      }
+
       // Update cursor tracking (for recovery/restart purposes only)
       this.lastSeenManager.set(raw.peerId, raw.messageId);
 
@@ -240,12 +263,10 @@ export class IngestionCoordinator {
       );
     }
 
-    const payload = {
+    const payload: any = {
       peerId: raw.peerId,
       messageId: raw.messageId,
       occurredAt: raw.occurredAt.toISOString(),
-      // Include text ONLY for crypto-news (no extraction pipeline, content stored as-is)
-      text: messageType === 'crypto-news' ? (raw.text ?? '') : undefined,
       media: (raw.media || []).map((m) =>
         this.buildMediaPayload(raw.peerId, raw.messageId, m),
       ),
@@ -253,6 +274,12 @@ export class IngestionCoordinator {
       groupedId: raw.groupedId?.toString(),
       messageType,
     };
+
+    // Include text ONLY for crypto-news (no extraction pipeline, content stored as-is)
+    if (messageType === 'crypto-news') {
+      payload.text = raw.text ?? '';
+    }
+    // For KOL: text property is NOT included (ToS compliance - fix-1)
 
     // DEBUG: Log final payload text for crypto-news
     if (messageType === 'crypto-news') {

@@ -85,20 +85,29 @@ export class BackfillBufferService implements OnModuleInit {
    * Scans the ring buffer and returns events with timestamp >= sinceTimestamp,
    * sorted by timestamp ascending.
    *
+   * Applies 72-hour retention window: events older than 72 hours are filtered out.
+   *
    * Returns empty array if:
    * - No events in buffer
    * - All events are older than sinceTimestamp
+   * - All events are outside the 72-hour retention window
+   *
+   * Per Requirement 7.3: Messages returned in chronological order
+   * Per Requirement 7.5: 72-hour retention window enforcement
    *
    * @param sinceTimestamp - Unix timestamp in milliseconds
    * @returns Array of BroadcastEvents sorted by timestamp (oldest first)
    */
   getEventsSince(sinceTimestamp: number): BroadcastEvent[] {
+    const retentionMs = this.RETENTION_HOURS * 60 * 60 * 1000;
+    const cutoffTimestamp = Date.now() - retentionMs;
     const events: BroadcastEvent[] = [];
 
     for (let i = 0; i < this.MAX_SIZE; i++) {
       const event = this.ringBuffer[i];
       if (event !== null && event !== undefined) {
-        if (event.timestamp >= sinceTimestamp) {
+        // Apply both timestamp filter AND 72-hour retention window
+        if (event.timestamp >= sinceTimestamp && event.timestamp >= cutoffTimestamp) {
           events.push(event);
         }
       }

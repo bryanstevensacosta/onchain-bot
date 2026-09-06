@@ -2,6 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { StreamController } from './stream.controller';
 import { StreamService } from '../../application/services/stream.service';
+import { SSEBroadcastService } from '../../application/services/sse-broadcast.service';
+import { BackfillBufferService } from '../../infrastructure/backfill-buffer.service';
+import { BackendChannelProviderService } from '../../../telegram/shared/services/backend-channel-provider.service';
 import type { Request, Response } from 'express';
 
 /**
@@ -130,6 +133,28 @@ describe('StreamController - Backfill Endpoint', () => {
             removeClient: jest.fn(),
             getClientCount: jest.fn().mockReturnValue(0),
             getConnectedClients: jest.fn().mockReturnValue([]),
+          },
+        },
+        {
+          provide: SSEBroadcastService,
+          useValue: {
+            getActiveBackendCount: jest.fn().mockReturnValue(0),
+            broadcast: jest.fn(),
+          },
+        },
+        {
+          provide: BackfillBufferService,
+          useValue: {
+            getSize: jest.fn().mockReturnValue(0),
+            getOldestTimestamp: jest.fn().mockReturnValue(null),
+            getEventsSince: jest.fn().mockReturnValue([]),
+          },
+        },
+        {
+          provide: BackendChannelProviderService,
+          useValue: {
+            getChannelUnionSize: jest.fn().mockReturnValue(0),
+            getRegisteredBackendIds: jest.fn().mockReturnValue([]),
           },
         },
         {
@@ -456,6 +481,26 @@ describe('StreamController - Backfill Endpoint', () => {
             {
               provide: StreamService,
               useValue: streamService,
+            },
+            {
+              provide: SSEBroadcastService,
+              useValue: {
+                addConnection: jest.fn(),
+                removeConnection: jest.fn(),
+                broadcastToChannel: jest.fn(),
+              },
+            },
+            {
+              provide: BackfillBufferService,
+              useValue: {
+                getEventsSince: jest.fn().mockReturnValue([]),
+              },
+            },
+            {
+              provide: BackendChannelProviderService,
+              useValue: {
+                fetchAllActiveChannelIds: jest.fn().mockResolvedValue([]),
+              },
             },
             // No TelegramListenerPort provider
           ],
