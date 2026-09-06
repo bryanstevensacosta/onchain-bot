@@ -1,6 +1,6 @@
 {
   "name": "@alpha-meta-token-scanner/frontend",
-  "version": "1.3.2",
+  "version": "2.0.0",
   "description": "React + Vite dashboard for Alpha Meta Token Scanner",
   "private": true,
   "type": "module",
