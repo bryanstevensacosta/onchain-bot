@@ -22,16 +22,34 @@ export interface FilterRule {
 /**
  * Outbound port: persistence for crypto-news Telegram sources.
  *
+ * ⚠️ **WRITE METHODS DEPRECATED (2026-09-05)** ⚠️
+ *
+ * Backend NO LONGER owns crypto-news sources.
+ * Ingestion-service is the SOLE OWNER (reads/writes from its own DB).
+ *
+ * **Migration:**
+ * - Read methods (findAll, findActive, findByChannelId): still active for legacy consumers
+ * - Write methods (save, delete): deprecated, throw errors if called
+ * - New sources: POST {INGESTION_SERVICE_URL}/api/crypto-news/sources
+ *
  * Implemented in infrastructure/repositories with the chosen storage
  * (in-memory for dev, TypeORM for prod).
  */
 export abstract class CryptoNewsSourceRepository {
+  /**
+   * @deprecated Backend no longer creates/updates sources. Use ingestion-service.
+   */
   public abstract save(source: CryptoNewsSource): Promise<void>;
+
   public abstract findByChannelId(
     channelId: string,
   ): Promise<CryptoNewsSource | null>;
   public abstract findAll(): Promise<ReadonlyArray<CryptoNewsSource>>;
   public abstract findActive(): Promise<ReadonlyArray<CryptoNewsSource>>;
+
+  /**
+   * @deprecated Backend no longer deletes sources. Use ingestion-service.
+   */
   public abstract delete(channelId: string): Promise<void>;
 
   /**

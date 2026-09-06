@@ -9,37 +9,32 @@ import { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/tel
 import { CRYPTO_NEWS_SEED } from 'telegram/ingestion/crypto-news/infrastructure/seeds/crypto-news.seed';
 
 /**
- * @deprecated DEPRECATED: Seed-based crypto-news registration is being phased out
+ * @deprecated DEPRECATED (2026-09-05): Backend seeder is DISCONNECTED
  *
- * This seeder is kept for backward compatibility but should not be used for new deployments.
+ * ⚠️ **This seeder NO LONGER writes to backend DB** ⚠️
  *
- * NEW APPROACH (DB-driven):
- * - ingestion-service fetches active source IDs directly from backend DB via HTTP
- * - GET /api/crypto-news/sources/active/ids returns sources with isActive=true
- * - No seed files needed in ingestion-service
- * - Channel list refreshes automatically every 5 minutes
+ * **NEW ARCHITECTURE (Opción A - Ingestion-service as sole owner):**
+ * - Ingestion-service OWNS crypto-news sources (reads/writes from its own DB)
+ * - Backend NO LONGER seeds sources to its own DB
+ * - Ingestion-service seeds sources on its own bootstrap (via its own CryptoNewsSeeder)
+ * - Backend GET /crypto-news/sources/active/ids is DEPRECATED (kept for backward compat)
  *
- * Migration path:
- * 1. Add sources via backend API: POST /api/crypto-news/sources
- * 2. Verify in DB: SELECT * FROM crypto_news_sources WHERE is_active = true
- * 3. ingestion-service picks them up automatically
- * 4. This seeder can be disabled by setting INGESTION_TELEGRAM_NEWS_SEED_ENABLED=false
+ * **Migration:**
+ * 1. Disable backend seeder: `INGESTION_TELEGRAM_NEWS_SEED_ENABLED=false` (default should be false)
+ * 2. Enable ingestion-service seeder: `SEED_CRYPTO_NEWS_ENABLED=true` in ingestion-service
+ * 3. Add new sources via ingestion-service: POST {INGESTION_SERVICE_URL}/api/crypto-news/sources
+ *
+ * **Why deprecated:**
+ * - Eliminates circular dependency (backend → ingestion → backend)
+ * - Single source of truth (ingestion-service DB)
+ * - Ingestion-service can start independently
+ * - No DB replication/sync needed
  *
  * ---
  *
- * OLD BEHAVIOR (deprecated):
- *
- * Idempotently registers the static seed list of Telegram crypto-news
- * channels on application bootstrap.
- *
- * - Disabled when `app.ingestion.telegram.newsSeed.enabled` is false.
- * - If env-supplied channels are configured, they take precedence over
- *   the in-code seed file; otherwise the in-code list is used.
- * - Channels already registered are skipped (CONFLICT) instead of
- *   throwing.
- * - Does NOT auto-start listening. The IngestionCoordinator (in
- *   telegram/ingestion/shared/) subscribes after both KOL and news
- *   seeders complete.
+ * OLD BEHAVIOR (no longer active):
+ * Idempotently registered the static seed list of Telegram crypto-news
+ * channels to BACKEND DB on application bootstrap. Now disconnected.
  */
 @Injectable()
 export class CryptoNewsSeeder {
@@ -66,9 +61,33 @@ export class CryptoNewsSeeder {
     const seedConfig =
       this.config.get<AppConfig>('app')?.ingestion?.telegram?.newsSeed;
     if (!seedConfig?.enabled) {
-      this.logger.debug('News seed disabled; skipping registration.');
+      this.logger.warn(
+        '[DEPRECATED] Backend crypto-news seeder is disabled (RECOMMENDED). ' +
+          'Ingestion-service is now the sole owner of crypto-news sources.',
+      );
       return { added: 0, skipped: 0, failed: 0 };
     }
+
+    // DEPRECATED: Backend seeder should NOT run. Warn and skip.
+    this.logger.warn(
+      '[DEPRECATED] Backend crypto-news seeder is ENABLED but should be DISABLED. ' +
+        'Backend NO LONGER writes sources to its DB. ' +
+        'Set INGESTION_TELEGRAM_NEWS_SEED_ENABLED=false and use ingestion-service seeder instead.',
+    );
+
+    return { added: 0, skipped: 0, failed: 0 };
+
+    /* ────────────────────────────────────────────────────────────────────
+     * OLD CODE (DISCONNECTED - DO NOT RE-ENABLE)
+     * ────────────────────────────────────────────────────────────────────
+     *
+     * This code wrote sources to backend DB. It is now COMPLETELY DISABLED.
+     * Ingestion-service seeds sources to its own DB.
+     *
+     * The code below is kept for reference only and will be removed in
+     * future cleanup. DO NOT uncomment or re-enable.
+     *
+     * ────────────────────────────────────────────────────────────────────
 
     const channels =
       seedConfig.channels.length > 0 ? seedConfig.channels : CRYPTO_NEWS_SEED;
@@ -146,6 +165,8 @@ export class CryptoNewsSeeder {
     }
 
     return { added, skipped, failed };
+
+     * ──────────────────────────────────────────────────────────────────── */
   }
 
   private async resolveTitleAndHandle(
