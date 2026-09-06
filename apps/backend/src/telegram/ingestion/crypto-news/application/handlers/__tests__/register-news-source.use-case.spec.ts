@@ -35,7 +35,10 @@ class RecordingPublisher extends CryptoNewsEventPublisher {
   }
 }
 
-describe('RegisterNewsSourceUseCase', () => {
+// SKIPPED: Backend RegisterNewsSourceUseCase tests deprecated after 2026-09-05 migration
+// Use case now throws error on execute() - ingestion-service owns crypto-news sources
+// These tests verify deprecated write behavior that should no longer be used
+describe.skip('RegisterNewsSourceUseCase', () => {
   let repo: InMemorySourceRepo;
   let publisher: RecordingPublisher;
   let useCase: RegisterNewsSourceUseCase;

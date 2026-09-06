@@ -283,7 +283,10 @@ async function buildController(
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('CryptoNewsController.addSource (POST /crypto-news/sources)', () => {
+// SKIPPED: Backend crypto-news controller tests deprecated after 2026-09-05 migration
+// POST /crypto-news/sources endpoint now returns 501 Not Implemented
+// Ingestion-service is the sole owner - use POST {INGESTION_SERVICE_URL}/api/crypto-news/sources
+describe.skip('CryptoNewsController.addSource (POST /crypto-news/sources)', () => {
   it('registers a source with an explicit title and returns 201-shaped view', async () => {
     const { controller, sourceRepo, resolver } = await buildController();
 
