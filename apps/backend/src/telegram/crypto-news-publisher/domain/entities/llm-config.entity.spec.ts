@@ -3,7 +3,8 @@ import { LlmConfig } from 'telegram/crypto-news-publisher/domain/entities/llm-co
 const validBase = {
   defaultTemplateId: '00000000-0000-0000-0000-000000000001',
   targetChannel: '-100',
-  enabled: true,
+  llmEnabled: true,
+  publishingEnabled: true,
   dailyCap: 36,
   dailyResetUtcHour: 4,
   randomDelayMinMs: 180_000,
@@ -18,7 +19,8 @@ describe('LlmConfig', () => {
       expect(cfg.id).toBe(1);
       expect(cfg.defaultTemplateId).toBe(validBase.defaultTemplateId);
       expect(cfg.targetChannel).toBe('-100');
-      expect(cfg.enabled).toBe(true);
+      expect(cfg.llmEnabled).toBe(true);
+      expect(cfg.publishingEnabled).toBe(true);
       expect(cfg.dailyCap).toBe(36);
       expect(cfg.dailyResetUtcHour).toBe(4);
       expect(cfg.randomDelayMinMs).toBe(180_000);
@@ -119,9 +121,14 @@ describe('LlmConfig', () => {
       const cfg = build();
       const originalUpdatedAt = cfg.updatedAt;
       await new Promise((r) => setTimeout(r, 5));
-      cfg.update({ targetChannel: '-200', enabled: false });
+      cfg.update({
+        targetChannel: '-200',
+        llmEnabled: false,
+        publishingEnabled: false,
+      });
       expect(cfg.targetChannel).toBe('-200');
-      expect(cfg.enabled).toBe(false);
+      expect(cfg.llmEnabled).toBe(false);
+      expect(cfg.publishingEnabled).toBe(false);
       expect(cfg.updatedAt.getTime()).toBeGreaterThan(
         originalUpdatedAt.getTime(),
       );

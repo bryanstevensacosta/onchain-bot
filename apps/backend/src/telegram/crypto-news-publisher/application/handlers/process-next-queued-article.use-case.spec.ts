@@ -45,7 +45,8 @@ const buildLlmConfig = (overrides: {
   LlmConfig.load({
     defaultTemplateId: overrides.defaultTemplateId ?? 'tpl-default',
     targetChannel: overrides.targetChannel ?? TEST_TARGET_CHANNEL,
-    enabled: true,
+    llmEnabled: true,
+    publishingEnabled: true,
     rejectNonLatin: overrides.rejectNonLatin ?? true,
     dailyCap: overrides.dailyCap ?? 36,
     dailyResetUtcHour: overrides.dailyResetUtcHour ?? 4,
