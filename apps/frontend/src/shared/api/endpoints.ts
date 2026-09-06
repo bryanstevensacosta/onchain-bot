@@ -86,7 +86,12 @@ export const ENDPOINTS = {
     sources: {
       // MIGRATED 2026-09-05: Ingestion-service is sole owner of crypto-news sources
       // Backend POST /crypto-news/sources is deprecated (returns 501)
+      list: '/ingestion-api/crypto-news/sources',
       add: '/ingestion-api/crypto-news/sources',
+      update: (channelId: string) =>
+        `/ingestion-api/crypto-news/sources/${channelId}`,
+      delete: (channelId: string) =>
+        `/ingestion-api/crypto-news/sources/${channelId}`,
     },
   },
   trackedCalls: {
