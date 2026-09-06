@@ -464,21 +464,63 @@ crypto-news msg ──► ingestion-service (persist RAW) ──► backend poll
                                                     (keywords matched, NOT blacklisted)  (publisher-cron 1 min)
 ```
 
+**Crypto-News 3-Flag Control (CRITICAL)**:
+
+The pipeline uses **3 independent flags** controlling enqueue, LLM, and publishing:
+
+| Flag                | Owner            | Controls                          | Location                   |
+| ------------------- | ---------------- | --------------------------------- | -------------------------- |
+| `matchingEnabled`   | `MatchingConfig` | `EnqueueMatchingCronScheduler`    | `crypto-news-integration/` |
+| `llmEnabled`        | `LlmConfig`      | LLM vs raw content mode           | `crypto-news-publisher/`   |
+| `publishingEnabled` | `LlmConfig`      | `PublisherCronScheduler` (master) | `crypto-news-publisher/`   |
+
+**Critical Dependency**: `LLM generation = llmEnabled AND publishingEnabled`
+
+LLM generation **ONLY occurs when BOTH** `llmEnabled=true` AND `publishingEnabled=true`. If publishing is paused, LLM doesn't run (saves API costs, no point generating unpublished content).
+
+**Truth Table**:
+
+| Matching | LLM | Publishing | Result                                      |
+| :------: | :-: | :--------: | ------------------------------------------- |
+|    ❌    | ❌  |     ❌     | All paused                                  |
+|    ❌    | ❌  |     ✅     | Drain queue raw (no new enqueue)            |
+|    ❌    | ✅  |     ❌     | All paused (LLM inactive)                   |
+|    ❌    | ✅  |     ✅     | Drain queue with LLM (no new enqueue)       |
+|    ✅    | ❌  |     ❌     | Enqueue only (queue builds)                 |
+|    ✅    | ❌  |     ✅     | **Raw pipeline** (enqueue + publish raw)    |
+|    ✅    | ✅  |     ❌     | Enqueue only (LLM inactive)                 |
+|    ✅    | ✅  |     ✅     | **Full pipeline** (enqueue + LLM + publish) |
+
+**Use Cases**:
+
+- Pause publishing, keep enqueuing: `matching=true`, `publishing=false` → queue accumulates
+- Publish raw only (no LLM cost): `llm=false`, `publishing=true`
+- Drain existing queue: `matching=false`, `publishing=true`
+- Emergency stop: all flags `false`
+
+**Frontend**: 3 independent toggle buttons in `MatchingToggleButton` component (optimistic updates per flag).
+
+**Why decoupled**: Matching shouldn't depend on publisher config; separate configs prevent unnecessary coupling (see `apps/backend/AGENTS.md` §CRYPTO-NEWS for migration details).
+
+```
+
 Decision numbers: score v1 (base 50, tiers 80/60/40/20/10-risk-names), 8 fail-fast gates, honeypot analyzer port, rep multiplier 0.85–1.15. See `apps/backend/AGENTS.md` §SCORING & GATES.
 
 ## INGESTION-SERVICE INTERNALS
 
 ```
+
 MTProto (one session)
-   │ realtime NewMessage + 30 s polling (minId=cursor, limit 50)
-   ▼
+│ realtime NewMessage + 30 s polling (minId=cursor, limit 50)
+▼
 TelegramMtprotoListenerAdapter ──► MessageQueue ──► subscribe()
-   │ crypto-news only: MediaDownloaderService ──► uploads/crypto-news/media/{channel}/
-   ▼
+│ crypto-news only: MediaDownloaderService ──► uploads/crypto-news/media/{channel}/
+▼
 IngestionCoordinator.route(raw, kol|crypto-news)
-   │ KOL: strip text (ToS) │ news: keep text+media URLs
-   ▼
+│ KOL: strip text (ToS) │ news: keep text+media URLs
+▼
 StreamService.broadcast ──► N SSE clients (+30 s health:ping, DisconnectionTracker)
+
 ```
 
 Lossy by design: no replay, backfill unimplemented, dedup service present but unwired, sleep window unenforced. See `apps/ingestion-service/AGENTS.md` gaps.
@@ -501,3 +543,4 @@ Lossy by design: no replay, backfill unimplemented, dedup service present but un
 - **`@/*` alias is frontend-only.** Don't use it in backend imports.
 - **No CLAUDE.md exists** — conventions live in `apps/backend/docs/spydefi/arch/`, `GOVERNANCE.md` (branches), and per-app AGENTS.md files.
 - **AGENTS.md map**: this file (root) + `apps/{backend,ingestion-service,frontend}/AGENTS.md`. No sub-BC AGENTS.md remain (consolidated 2026-09-04).
+```

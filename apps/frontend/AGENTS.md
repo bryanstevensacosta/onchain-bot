@@ -97,8 +97,15 @@ Tokens-explorer is decision-driven (all/approved/rejected tabs over `useDecision
 - `VITE_API_BASE_URL` (backend) — default `http://localhost:3030`
 - `VITE_INGESTION_BASE_URL` (ingestion-service) — default `http://localhost:3032`
 - `VITE_WS_URL` (websocket) — default `http://localhost:3030`
+- `VITE_APP_ENV` (environment) — default `development`, values: `development|staging|production`
 
 Docker build sets all to `""` → same-origin in prod (nginx routes by prefix).
+
+**Environment-Specific Behavior:**
+
+- **Production (`VITE_APP_ENV=production`):** LLM toggle button HIDDEN in crypto-news publisher UI (LLM generation always enabled, enforced by backend safety guard)
+- **Staging/Dev (`VITE_APP_ENV=staging|development`):** All 3 toggle buttons visible (matching, LLM, publishing)
+- Backend safety guard: Rejects `PATCH /crypto-news-publisher/llm` with `llmEnabled` changes in production (400 error)
 
 ## PROXY (dev vs prod differ — mind the gaps)
 

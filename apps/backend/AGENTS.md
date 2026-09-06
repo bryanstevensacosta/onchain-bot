@@ -127,6 +127,16 @@ Provider endpoints consumed BY ingestion-service:
 - **Frontend** fetches RAW content directly from ingestion-service (display mode)
 - **Publisher queue** receives FILTERED content (AFTER transformations + keywords matched)
 
+**Production LLM Safety Guard (CRITICAL)**:
+
+Backend enforces LLM generation in production via controller guard:
+
+- `LlmConfigController.updateConfig()` REJECTS `PATCH /crypto-news-publisher/llm` requests with `llmEnabled` changes when `NODE_ENV=production`
+- Returns 400 error: `{"error": "llmEnabled cannot be changed in production (always enabled for quality)", "hint": "Use matchingEnabled or publishingEnabled to control pipeline"}`
+- Frontend hides LLM toggle button when `VITE_APP_ENV=production` (UI prevention layer)
+- Three-layer defense: backend guard (API security) + frontend hide (UX clarity) + config seed (DB consistency)
+- Rationale: In production, LLM-refined content is mandatory for quality; operators control pipeline via matching/publishing flags only
+
 **Modules**:
 
 1. `telegram/crypto-news-integration/` (NEW — Opción A orchestrator):
@@ -193,6 +203,146 @@ Frontend:
 - Magic-byte sniffing (not Telegram-declared MIME), fallback `application/octet-stream` + `.bin`
 - Backend reads via HTTP (`INGESTION_SERVICE_URL/api/media/*`)
 - Serving re-sniffs via `media-serving.ts` (stored `.bin` MP4 served as `video/mp4`) with Range/206
+
+**3-Flag Control System (CRITICAL DEPENDENCY)**:
+
+The crypto-news pipeline uses **3 independent flags** to control enqueue, LLM generation, and publishing:
+
+1. **`matchingEnabled`** (`MatchingConfig`, `crypto-news-integration` module)
+   - Controls: `EnqueueMatchingCronScheduler` (polls ingestion-service every minute)
+   - When `true`: fetches RAW messages → applies filters + keywords → enqueues matches
+   - When `false`: no new messages enter the queue (queue drains if publishing active)
+
+2. **`llmEnabled`** (`LlmConfig`, `crypto-news-publisher` module)
+   - Controls: `ProcessNextQueuedArticleUseCase` content transformation mode
+   - When `true` (AND `publishingEnabled=true`): generates LLM-refined content
+   - When `false`: publishes raw content (no LLM transformation)
+   - **DEPENDENT on `publishingEnabled`**: LLM generation ONLY occurs when BOTH flags are true
+
+3. **`publishingEnabled`** (`LlmConfig`, `crypto-news-publisher` module)
+   - Controls: `PublisherCronScheduler` (drains queue every minute)
+   - When `true`: processes queue (with LLM if `llmEnabled=true`, raw otherwise)
+   - When `false`: queue accumulates, NO publishing, NO LLM generation
+
+**Truth Table (8 combinations)**:
+
+| Matching | LLM | Publishing | Behavior                                                                |
+| :------: | :-: | :--------: | ----------------------------------------------------------------------- |
+|    ❌    | ❌  |     ❌     | **All paused** — No enqueue, no publish                                 |
+|    ❌    | ❌  |     ✅     | **Drain queue raw** — No new enqueue, publishes existing queue raw      |
+|    ❌    | ✅  |     ❌     | **All paused** — No enqueue, no publish (LLM inactive)                  |
+|    ❌    | ✅  |     ✅     | **Drain queue with LLM** — No new enqueue, LLM + publish existing queue |
+|    ✅    | ❌  |     ❌     | **Enqueue only** — Builds queue, no publish                             |
+|    ✅    | ❌  |     ✅     | **Raw pipeline** — Enqueue + publish raw (no LLM)                       |
+|    ✅    | ✅  |     ❌     | **Enqueue only** — Builds queue, no publish, LLM inactive               |
+|    ✅    | ✅  |     ✅     | **Full pipeline** — Enqueue + LLM + publish                             |
+
+**Critical Dependency Rule**:
+
+```
+LLM generation = llmEnabled AND publishingEnabled
+```
+
+**Why LLM depends on publishing**:
+
+- If `publishingEnabled=false`, content won't be published — no point generating LLM (saves API costs)
+- LLM generation occurs **at publish time**, not at enqueue time
+- Queue accumulates raw content; transformation happens only when draining
+
+**Use Cases**:
+
+- **Pause publishing, keep enqueuing**: `matching=true`, `publishing=false` → queue builds
+- **Publish raw only**: `llm=false`, `publishing=true` → no LLM transformation
+- **Drain queue without new enqueue**: `matching=false`, `publishing=true` → processes existing
+- **Emergency stop**: all flags `false` → pipeline frozen
+
+**Implementation**:
+
+- `MatchingConfig` entity lives in `crypto-news-integration/` (decoupled from publisher)
+- `LlmConfig` entity holds both `llmEnabled` + `publishingEnabled` in `crypto-news-publisher/`
+- Frontend: 3 independent toggle buttons (`MatchingToggleButton` component)
+- Migration: `1788659125192-SplitLlmConfigFlags.ts` (splits old single `enabled` flag)
+
+**NEVER**:
+
+- LLM generation when `publishingEnabled=false` (even if `llmEnabled=true`)
+- Assume matching depends on publisher config (they're decoupled by design)
+
+**Queue TTL & Expiration (24h automatic cleanup)**:
+
+To prevent unbounded queue growth when `publishingEnabled=false` for extended periods:
+
+- **Scheduler**: `ExpireStaleQueueEntriesScheduler` runs every 30 minutes
+- **TTL**: 24 hours (hardcoded, based on `queuedAt` timestamp)
+- **Query**: `findPendingOlderThan(24h)` uses indexed query `WHERE status='PENDING' AND queued_at < cutoff`
+- **Action**: Marks stale entries as `FAILED` with reason `"Expired: exceeded 24h in queue without publishing"`
+- **Index**: `idx_publisher_queue_status_queued_at` (partial index `WHERE status='PENDING'`) optimizes the query
+- **Migration**: `1860000000000-AddQueuedAtToPublisherQueue.ts`
+
+**Why 24h TTL**:
+
+- Crypto news loses relevance quickly (24h-old news is stale in fast-moving markets)
+- Prevents publishing outdated content when publishing resumes
+- Keeps queue size bounded during long pauses (e.g., maintenance, rate-limit issues)
+
+**Deduplication Rules (Hybrid Status-Based Logic)**:
+
+The deduplication system verifies `PublisherQueueEntry` status to decide whether to block re-enqueue:
+
+**Always block**:
+
+- `status=PENDING` → Already in queue waiting to be published
+- `status=PUBLISHED` → Already published successfully
+
+**Conditionally block** (`status=FAILED`):
+
+- **Block if failure reason is content-related** (problem with the content itself):
+  - `"non-Latin character"` (LLM output rejected by `rejectNonLatin` filter)
+  - `"policy"` / `"Content violates policy"` (ToS violation)
+  - `"blacklist"` (matched blacklist phrase)
+  - `"honeypot"` / `"scam"` / `"rug"` (security-related block)
+- **Allow if failure reason is transient/operational** (temporary issue, content is valid):
+  - `"Expired: exceeded 24h in queue"` (TTL expiration — content can be re-tried)
+  - `"Publisher not configured"` (missing bot token / channel config)
+  - `"Rate limit exceeded"` (Telegram API rate limit)
+  - `"LLM generation failed"` (temporary LLM service error)
+
+**Implementation**:
+
+- Constants: `BLOCKING_FAILURE_REASONS` array in `shared/deduplication/domain/constants/blocking-failure-reasons.ts`
+- Helper: `isBlockingFailureReason(reason: string | null): boolean` (case-insensitive substring match)
+- Location: Applied in `CryptoNewsMessageIngestedHandler` before calling `EnqueueMatchingMessageUseCase`
+
+**Why hybrid logic**:
+
+- Content-related failures should NEVER be re-enqueued (the content itself is problematic)
+- Transient failures SHOULD allow re-enqueue (the content is valid, just failed due to temporary issues)
+- Expired content can be re-matched if it appears again (user may want to publish fresh instance)
+
+**Example flows**:
+
+1. **Expired content re-appears**:
+   - Entry A enqueued → 24h passes → TTL marks FAILED ("Expired")
+   - Same content appears again → dedup checks status=FAILED + reason="Expired"
+   - `isBlockingFailureReason("Expired")` = `false` → **Allow re-enqueue**
+   - Entry B enqueued (fresh copy of same content)
+
+2. **Blacklisted content re-appears**:
+   - Entry A enqueued → matches blacklist → marked FAILED ("Blacklist match")
+   - Same content appears again → dedup checks status=FAILED + reason="Blacklist match"
+   - `isBlockingFailureReason("Blacklist match")` = `true` → **Block re-enqueue**
+   - No entry created (content is permanently blocked)
+
+3. **Content in PENDING status**:
+   - Entry A enqueued → status=PENDING
+   - Same content appears again → dedup checks status=PENDING
+   - **Block re-enqueue** (already waiting in queue)
+   - No duplicate entry created
+
+**Tables affected**:
+
+- `crypto_news_publisher_queue`: added `queued_at` column (timestamptz, DEFAULT NOW())
+- Index: `idx_publisher_queue_status_queued_at` (partial, optimized for TTL queries)
 
 ## TELEGRAM PUBLISHING (Bot API, NOT MTProto)
 
