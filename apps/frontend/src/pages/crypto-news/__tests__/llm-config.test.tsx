@@ -60,6 +60,8 @@ vi.mock('@/features/crypto-news-publisher/model/use-llm-config', () => {
     useDeleteTemplate: vi.fn(),
     useUpdateLlmConfig: vi.fn(),
     useToggleMatching: vi.fn(() => ({ ...mutStub })),
+    useToggleLlm: vi.fn(() => ({ ...mutStub })),
+    useTogglePublishing: vi.fn(() => ({ ...mutStub })),
   };
 });
 
