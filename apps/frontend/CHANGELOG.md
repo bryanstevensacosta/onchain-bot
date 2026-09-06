@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.1](https://github.com/bryanstevensacosta/onchain-bot/compare/v3.0.0...v3.0.1) (2026-09-06)
+
+
+### Bug Fixes
+
+* **migration:** add queued_at column with proper NULL handling for production ([901a0a0](https://github.com/bryanstevensacosta/onchain-bot/commit/901a0a0010d67ce7dc05f8a0448fe99a13fd7759))
+
 ## [2.0.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v1.3.2...v2.0.0) (2026-09-05)
 
 ### ⚠ BREAKING CHANGES
