@@ -25,8 +25,18 @@ export class BackfillMessageEntity {
    * Indexed for fast `WHERE timestamp > ?` queries during reconnection backfill.
    *
    * Per Requirement 7.3: Fast timestamp-based queries for backfill
+   *
+   * Note: TypeORM returns bigint as string in JavaScript (safe integer limit).
+   * We use a transformer to convert to number for application use.
    */
-  @Column({ name: 'timestamp', type: 'bigint' })
+  @Column({
+    name: 'timestamp',
+    type: 'bigint',
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string) => parseInt(value, 10),
+    },
+  })
   public timestamp!: number;
 
   /**

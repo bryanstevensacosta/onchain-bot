@@ -262,29 +262,22 @@ describe('BackendChannelProviderService', () => {
 
     it('should fall back to HTTP polling when no backends registered', async () => {
       const mockKolIds = ['kol1', 'kol2'];
-      const mockNewsIds = ['news1', 'news2', 'news3'];
 
-      (global.fetch as jest.Mock)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => mockKolIds,
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => mockNewsIds,
-        });
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockKolIds,
+      });
 
       const result = await service.fetchAllActiveChannelIds();
 
-      expect(global.fetch).toHaveBeenCalledTimes(2);
+      // Only 1 HTTP call (crypto-news endpoint deprecated, returns [] without HTTP)
+      expect(global.fetch).toHaveBeenCalledTimes(1);
       expect(global.fetch).toHaveBeenCalledWith(
         'http://localhost:3030/telegram-kol/identity/kols/active/ids',
       );
-      expect(global.fetch).toHaveBeenCalledWith(
-        'http://localhost:3030/crypto-news/sources/active/ids',
-      );
-      expect(result).toHaveLength(5);
-      expect(result).toEqual([...mockKolIds, ...mockNewsIds]);
+      // Only KOL IDs returned (crypto-news deprecated)
+      expect(result).toHaveLength(2);
+      expect(result).toEqual(mockKolIds);
     });
 
     it('should prefer registrations over HTTP even when HTTP would return data', async () => {
@@ -327,12 +320,13 @@ describe('BackendChannelProviderService', () => {
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => ['news1', 'news2'],
+          json: async () => [], // Deprecated endpoint returns []
         });
 
       const result = await service.fetchAllActiveChannelIds();
 
-      expect(result).toEqual(['kol1', 'news1', 'news2']);
+      // Only KOL ID returned (crypto-news endpoint deprecated)
+      expect(result).toEqual(['kol1']);
     });
 
     it('should handle empty registrations as no registrations (fall back to HTTP)', async () => {
@@ -349,13 +343,14 @@ describe('BackendChannelProviderService', () => {
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => ['http-news'],
+          json: async () => [], // Deprecated endpoint returns []
         });
 
       const result = await service.fetchAllActiveChannelIds();
 
       expect(global.fetch).toHaveBeenCalled();
-      expect(result).toEqual(['http-kol', 'http-news']);
+      // Only KOL ID returned (crypto-news endpoint deprecated)
+      expect(result).toEqual(['http-kol']);
     });
   });
 

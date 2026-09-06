@@ -26,9 +26,11 @@ describe('BackfillMessageEntity - Integration', () => {
           port: parseInt(process.env.INGESTION_DATABASE_PORT || '5432', 10),
           username: process.env.INGESTION_DATABASE_USER || 'postgres',
           password: process.env.INGESTION_DATABASE_PASSWORD || 'postgres',
-          database: process.env.INGESTION_DATABASE_NAME || 'onchain_bot',
+          database:
+            process.env.INGESTION_DATABASE_NAME || 'onchain_bot_test_entity',
           entities: [BackfillMessageEntity],
           synchronize: true, // Create schema in test DB
+          dropSchema: true, // Clean slate for test isolation
           logging: false,
         }),
         TypeOrmModule.forFeature([BackfillMessageEntity]),
@@ -39,7 +41,7 @@ describe('BackfillMessageEntity - Integration', () => {
       'BackfillMessageEntityRepository',
     );
 
-    // Clean up any existing test data
+    // Extra safety: ensure table is completely empty before starting
     await repository.clear();
   });
 
@@ -158,15 +160,16 @@ describe('BackfillMessageEntity - Integration', () => {
       entity2.messageId = 301;
       entity2.payload = JSON.stringify({ test: 'second' });
 
-      // Act & Assert
-      await expect(repository.save(entity2)).rejects.toThrow();
+      // Act & Assert - use insert() to enforce PK constraint (save() does upsert)
+      await expect(repository.insert(entity2)).rejects.toThrow();
     });
   });
 
   describe('Timestamp-Based Queries (Requirement 7.3)', () => {
+    const baseTime = 1700000000000; // Fixed timestamp for consistency
+
     beforeEach(async () => {
       // Seed test data with known timestamps
-      const baseTime = Date.now() - 3600000; // 1 hour ago
       const entities: BackfillMessageEntity[] = [];
 
       for (let i = 0; i < 10; i++) {
@@ -188,8 +191,7 @@ describe('BackfillMessageEntity - Integration', () => {
 
     it('should query messages after a given timestamp', async () => {
       // Arrange
-      const baseTime = Date.now() - 3600000;
-      const threshold = baseTime + 5 * 60000; // After 5th message
+      const threshold = baseTime + 5 * 60000; // After 5th message (messageId 1005)
 
       // Act
       const results = await repository
@@ -206,9 +208,8 @@ describe('BackfillMessageEntity - Integration', () => {
 
     it('should query messages within a time range', async () => {
       // Arrange
-      const baseTime = Date.now() - 3600000;
-      const startTime = baseTime + 3 * 60000; // After 3rd message
-      const endTime = baseTime + 7 * 60000; // Before 8th message
+      const startTime = baseTime + 3 * 60000; // After 3rd message (messageId 1003)
+      const endTime = baseTime + 7 * 60000; // Before 8th message (messageId 1007, inclusive)
 
       // Act
       const results = await repository
@@ -240,8 +241,7 @@ describe('BackfillMessageEntity - Integration', () => {
 
     it('should sort messages by timestamp ascending', async () => {
       // Arrange
-      const baseTime = Date.now() - 3600000;
-      const threshold = baseTime;
+      const threshold = baseTime - 1; // -1 to include first message (timestamp = baseTime)
 
       // Act
       const results = await repository
@@ -298,7 +298,7 @@ describe('BackfillMessageEntity - Integration', () => {
       await repository.save(entities);
 
       // Act - Use EXPLAIN to check index usage
-      const threshold = baseTime + 50000;
+      const threshold = baseTime + 50000 - 1; // -1 to include message 50 (timestamp = baseTime + 50000)
       const queryBuilder = repository
         .createQueryBuilder('backfill')
         .where('backfill.timestamp > :threshold', { threshold })
