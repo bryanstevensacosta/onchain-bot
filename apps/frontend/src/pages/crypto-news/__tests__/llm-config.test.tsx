@@ -402,14 +402,16 @@ describe('LlmConfigForm', () => {
     fireEvent.change(screen.getByLabelText('Daily cap (1-200)'), {
       target: { value: '12' },
     });
-    fireEvent.click(screen.getByLabelText('Publisher enabled'));
+    fireEvent.click(screen.getByLabelText('LLM generation enabled'));
+    fireEvent.click(screen.getByLabelText('Publishing enabled'));
     fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
 
     expect(mutateSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         defaultTemplateId: 'tpl-default',
         targetChannel: '@new-channel',
-        enabled: false,
+        llmEnabled: false,
+        publishingEnabled: false,
         dailyCap: 12,
         dailyResetUtcHour: 4,
         randomDelayMinMs: 30000,
