@@ -89,6 +89,11 @@ jobs:
       - name: Run frontend tests
         run: npm run test:frontend
 
+      - name: Create ingestion-service test databases
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE onchain_bot_test;"
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE onchain_bot_test_entity;"
+
       - name: Run ingestion-service tests
         run: npm run test:ingestion
         env:
