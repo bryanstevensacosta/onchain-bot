@@ -482,6 +482,26 @@ describe('StreamController - Backfill Endpoint', () => {
               provide: StreamService,
               useValue: streamService,
             },
+            {
+              provide: SSEBroadcastService,
+              useValue: {
+                addConnection: jest.fn(),
+                removeConnection: jest.fn(),
+                broadcastToChannel: jest.fn(),
+              },
+            },
+            {
+              provide: BackfillBufferService,
+              useValue: {
+                getEventsSince: jest.fn().mockReturnValue([]),
+              },
+            },
+            {
+              provide: BackendChannelProviderService,
+              useValue: {
+                fetchAllActiveChannelIds: jest.fn().mockResolvedValue([]),
+              },
+            },
             // No TelegramListenerPort provider
           ],
         }).compile();

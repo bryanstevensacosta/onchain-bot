@@ -86,7 +86,6 @@ describe('Backfill Integration Tests', () => {
           database: process.env.INGESTION_DATABASE_NAME || 'onchain_bot_test',
           entities: [BackfillMessageEntity],
           synchronize: true, // Auto-create tables in test environment
-          dropSchema: true, // Clean slate for each test run
         }),
         TypeOrmModule.forFeature([BackfillMessageEntity]),
       ],

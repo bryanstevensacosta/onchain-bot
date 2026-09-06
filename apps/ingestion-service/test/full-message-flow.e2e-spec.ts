@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { AppModule } from '../src/app.module';
 import { StreamService } from '../src/stream/application/services/stream.service';
-import * as request from 'supertest';
+import request from 'supertest';
 import * as http from 'http';
 import { Registry } from 'prom-client';
 

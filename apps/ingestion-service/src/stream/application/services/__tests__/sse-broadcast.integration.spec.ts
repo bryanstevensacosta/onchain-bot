@@ -41,7 +41,16 @@ describe('SSE Broadcast Integration', () => {
       sseClientsConnected: {
         set: jest.fn(),
       },
+      activeBackends: {
+        set: jest.fn(),
+      },
       messagesBroadcastTotal: {
+        inc: jest.fn(),
+      },
+      broadcastFailures: {
+        inc: jest.fn(),
+      },
+      broadcastTotal: {
         inc: jest.fn(),
       },
     } as unknown as jest.Mocked<MetricsService>;
@@ -1166,6 +1175,7 @@ async function broadcastToSingleBackend(
  */
 function createMockResponse(): jest.Mocked<ServerResponse> {
   return {
+    set: jest.fn().mockReturnThis(),
     write: jest.fn(),
     end: jest.fn(),
     writableEnded: false,
