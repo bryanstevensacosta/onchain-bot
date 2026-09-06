@@ -7,7 +7,7 @@ import { Button, Card } from '@/shared/ui';
 import { Lightbox } from '@/shared/ui/lightbox';
 import { formatRelativeTime } from '@/shared/lib';
 import { renderFormattedText } from '@/shared/lib/render-telegram-entities';
-import { AddCryptoNewsSourceModal } from '@/features/add-crypto-news-source';
+import { ManageCryptoNewsSourcesModal } from '@/features/manage-crypto-news-sources';
 import {
   BlockedPostsList,
   KeywordsManager,
@@ -140,11 +140,11 @@ export function CryptoNewsPage() {
           size="sm"
           onClick={() => setShowAddModal(true)}
         >
-          + Add Source
+          Manage Sources
         </Button>
       </header>
 
-      <AddCryptoNewsSourceModal
+      <ManageCryptoNewsSourcesModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
       />
