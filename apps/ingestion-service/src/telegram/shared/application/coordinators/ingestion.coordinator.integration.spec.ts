@@ -104,6 +104,14 @@ describe('IngestionCoordinator - Broadcast Pipeline Deduplication (Integration)'
         LastSeenManager,
         DisconnectionTracker,
         {
+          provide: 'CryptoNewsMessageRepository',
+          useValue: {
+            findByChannelAndMessageId: jest.fn().mockResolvedValue(null),
+            save: jest.fn().mockResolvedValue({}),
+            find: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
           provide: RedisService,
           useValue: mockRedisService,
         },
