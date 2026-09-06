@@ -107,6 +107,8 @@ services:
     build:
       context: ../..
       dockerfile: apps/frontend/Dockerfile
+      args:
+        VITE_APP_ENV: staging
     image: ghcr.io/bryanstevensacosta/onchain-bot-frontend:staging-latest
     container_name: onchain-bot-staging-frontend
     restart: unless-stopped
