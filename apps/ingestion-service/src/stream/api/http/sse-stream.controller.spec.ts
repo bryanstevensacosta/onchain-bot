@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { SSEStreamController } from './sse-stream.controller';
 import { StreamService } from '../../application/services/stream.service';
+import { SSEBroadcastService } from '../../application/services/sse-broadcast.service';
+import { BackfillBufferService } from '../../infrastructure/backfill-buffer.service';
 import { BackendChannelProviderService } from '../../../telegram/shared/services/backend-channel-provider.service';
 import type { Request, Response } from 'express';
 import { EventEmitter } from 'events';
@@ -50,8 +52,25 @@ describe('SSEStreamController', () => {
           useValue: mockStreamService,
         },
         {
+          provide: SSEBroadcastService,
+          useValue: {
+            getActiveBackendCount: jest.fn().mockReturnValue(0),
+            broadcast: jest.fn(),
+            addConnection: jest.fn(),
+            removeConnection: jest.fn(),
+          },
+        },
+        {
           provide: BackendChannelProviderService,
           useValue: mockChannelProvider,
+        },
+        {
+          provide: BackfillBufferService,
+          useValue: {
+            getSize: jest.fn().mockReturnValue(0),
+            getOldestTimestamp: jest.fn().mockReturnValue(null),
+            getEventsSince: jest.fn().mockReturnValue([]),
+          },
         },
       ],
     }).compile();
