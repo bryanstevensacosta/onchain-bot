@@ -4,7 +4,7 @@ import { FilteredCryptoNewsService } from 'telegram/crypto-news-integration/appl
 import { EnqueueMatchingMessageUseCase } from 'telegram/crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
 import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
 import { CryptoNewsMedia } from 'telegram/ingestion/crypto-news/domain/value-objects/crypto-news-media.vo';
-import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
+import { MatchingConfigRepository } from 'telegram/crypto-news-integration/application/ports/matching-config.repository';
 
 /**
  * EnqueueMatchingCronScheduler - Poll ingestion-service for matching crypto-news messages
@@ -28,8 +28,8 @@ import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/
  * - Multiple backend replicas CAN poll concurrently (queue handles duplicates)
  * - No advisory lock needed (unlike PublisherCronScheduler which drains queue)
  *
- * **Enabled/Disabled:** Reads LlmConfig.enabled (shared with PublisherCronScheduler).
- * When disabled, both matching AND publishing stop (no point enqueuing if not publishing).
+ * **Enabled/Disabled:** Reads MatchingConfig.enabled (independent of LLM/publishing).
+ * When disabled, no messages are enqueued (matching stops).
  *
  * @injectable NestJS scheduler
  */
@@ -56,18 +56,18 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
   constructor(
     private readonly filteredNewsService: FilteredCryptoNewsService,
     private readonly enqueueUseCase: EnqueueMatchingMessageUseCase,
-    private readonly llmConfigRepo: LlmConfigRepository,
+    private readonly matchingConfigRepo: MatchingConfigRepository,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
     try {
-      const cfg = await this.llmConfigRepo.load();
+      const cfg = await this.matchingConfigRepo.load();
       this.logger.log(
         `EnqueueMatchingCronScheduler ready (fetch limit: ${this.FETCH_LIMIT}, enabled: ${cfg.enabled})`,
       );
     } catch {
       this.logger.warn(
-        'EnqueueMatchingCronScheduler ready — could not load LlmConfig; scheduler will retry on each tick',
+        'EnqueueMatchingCronScheduler ready — could not load MatchingConfig; scheduler will retry on each tick',
       );
     }
   }
@@ -86,20 +86,20 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
       return;
     }
 
-    // Check if matching+publishing is enabled
+    // Check if matching is enabled
     let enabled = false;
     try {
-      const cfg = await this.llmConfigRepo.load();
+      const cfg = await this.matchingConfigRepo.load();
       enabled = cfg.enabled;
     } catch (err) {
       this.logger.error(
-        `Failed to load LlmConfig on tick: ${(err as Error).message} — skipping`,
+        `Failed to load MatchingConfig on tick: ${(err as Error).message} — skipping`,
       );
       return;
     }
 
     if (!enabled) {
-      // Silent skip when disabled (same behavior as PublisherCronScheduler)
+      // Silent skip when disabled
       return;
     }
 

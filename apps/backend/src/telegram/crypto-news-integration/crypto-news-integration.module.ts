@@ -1,7 +1,11 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { CryptoNewsIngestionClient } from 'telegram/crypto-news-integration/infrastructure/http/crypto-news-ingestion-client.service';
 import { FilteredCryptoNewsService } from 'telegram/crypto-news-integration/application/services/filtered-crypto-news.service';
 import { EnqueueMatchingCronScheduler } from 'telegram/crypto-news-integration/application/scheduling/enqueue-matching-cron.scheduler';
+import { MatchingConfigEntity } from 'telegram/crypto-news-integration/infrastructure/persistence/typeorm/entities/matching-config.entity';
+import { TypeOrmMatchingConfigRepository } from 'telegram/crypto-news-integration/infrastructure/persistence/typeorm/repositories/typeorm-matching-config.repository';
+import { MatchingConfigRepository } from 'telegram/crypto-news-integration/application/ports/matching-config.repository';
 
 // Import dependencies from other BCs (cross-BC imports — documented in gap 7)
 import { CryptoNewsIngestionModule } from 'telegram/ingestion/crypto-news/crypto-news-ingestion.module';
@@ -44,6 +48,9 @@ import { CryptoNewsPublisherModule } from 'telegram/crypto-news-publisher/crypto
  */
 @Module({
   imports: [
+    // TypeORM entity for matching config
+    TypeOrmModule.forFeature([MatchingConfigEntity]),
+
     // Import modules that provide required repositories + services
     CryptoNewsIngestionModule, // ContentFilterService, CryptoNewsSourceRepository
     CryptoNewsPublisherModule, // KeywordRepository, BlacklistPhraseRepository, EnqueueMatchingMessageUseCase
@@ -55,13 +62,18 @@ import { CryptoNewsPublisherModule } from 'telegram/crypto-news-publisher/crypto
     // Filter + match orchestrator
     FilteredCryptoNewsService,
 
+    // Matching config repository
+    {
+      provide: MatchingConfigRepository,
+      useClass: TypeOrmMatchingConfigRepository,
+    },
+
     // Cron scheduler (auto-registered by NestJS @Cron decorator)
     EnqueueMatchingCronScheduler,
   ],
   exports: [
-    // NO exports — internal orchestration only
-    // Frontend fetches RAW data directly from ingestion-service
-    // Publisher queue consumption happens in CryptoNewsPublisherModule
+    // Export MatchingConfigRepository so other modules can read/write the flag
+    MatchingConfigRepository,
   ],
 })
 export class CryptoNewsIntegrationModule {}
