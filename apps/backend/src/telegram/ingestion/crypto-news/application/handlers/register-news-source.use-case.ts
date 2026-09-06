@@ -13,6 +13,19 @@ export interface RegisterNewsSourceInput {
 /**
  * Use case: register a new Telegram channel as a crypto-news source.
  *
+ * ⚠️ **DEPRECATED (2026-09-05)** ⚠️
+ *
+ * This use case is NO LONGER USED.
+ * Ingestion-service is now the sole owner of crypto-news sources.
+ *
+ * **Migration:**
+ * Ingestion-service has its own RegisterNewsSourceUseCase.
+ * Backend POST /crypto-news/sources is disconnected and returns 501.
+ *
+ * **This code is kept for reference only and will be removed in future cleanup.**
+ *
+ * @deprecated Use ingestion-service RegisterNewsSourceUseCase instead
+ *
  * Throws CONFLICT if the channelId is already registered.
  * Publishes CryptoNewsSourceSeededEvent on success.
  */
@@ -23,9 +36,22 @@ export class RegisterNewsSourceUseCase {
     private readonly eventPublisher: CryptoNewsEventPublisher,
   ) {}
 
+  /**
+   * @deprecated This method is no longer called by any active code path.
+   */
   public async execute(
     input: RegisterNewsSourceInput,
   ): Promise<CryptoNewsSource> {
+    throw new Error(
+      '[DEPRECATED] RegisterNewsSourceUseCase.execute() is deprecated. ' +
+        'Backend no longer creates crypto-news sources. ' +
+        'Use ingestion-service POST /api/crypto-news/sources instead.',
+    );
+
+    /* ────────────────────────────────────────────────────────────────────
+     * OLD CODE (DISCONNECTED - DO NOT RE-ENABLE)
+     * ────────────────────────────────────────────────────────────────────
+     
     // Normalize channelId: ensure it has the -100 prefix for Telegram channels
     const normalizedChannelId = this.normalizeChannelId(input.channelId);
 
@@ -47,6 +73,8 @@ export class RegisterNewsSourceUseCase {
     await this.sourceRepo.save(source);
     await this.eventPublisher.publishAll(source.commit());
     return source;
+    
+     * ──────────────────────────────────────────────────────────────────── */
   }
 
   /**
