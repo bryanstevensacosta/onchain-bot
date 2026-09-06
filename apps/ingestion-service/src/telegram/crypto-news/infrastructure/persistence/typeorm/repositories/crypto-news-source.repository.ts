@@ -154,4 +154,21 @@ export class CryptoNewsSourceRepository {
     });
     return source;
   }
+
+  /**
+   * Delete a crypto-news source by channel ID.
+   *
+   * @param channelId - Telegram channel ID
+   */
+  async delete(channelId: string): Promise<void> {
+    try {
+      await this.repo.delete({ channelId });
+      this.logger.log(`Deleted crypto-news source: ${channelId}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to delete crypto-news source ${channelId}: ${(error as Error).message}`,
+      );
+      throw error;
+    }
+  }
 }

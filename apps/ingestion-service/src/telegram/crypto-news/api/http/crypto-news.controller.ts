@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Delete,
   Body,
   Query,
   Param,
@@ -194,5 +196,72 @@ export class CryptoNewsController {
       totalSources: sources.length,
       activeSources: sources.length, // findAllActive() already filters by isActive
     };
+  }
+
+  /**
+   * PATCH /api/crypto-news/sources/:channelId
+   *
+   * Update a crypto-news source (title and/or handle).
+   *
+   * Request Body: {
+   *   title?: string,
+   *   handle?: string
+   * }
+   *
+   * Response: Updated source object
+   *
+   * Error Codes:
+   * - 404 Not Found: Source not found
+   * - 400 Bad Request: No fields to update
+   */
+  @Patch('sources/:channelId')
+  async updateSource(
+    @Param('channelId') channelId: string,
+    @Body() updates: { title?: string; handle?: string },
+  ) {
+    const source = await this.sourceRepo.findByChannelId(channelId);
+    if (!source) {
+      throw new Error(`Source with channelId ${channelId} not found`);
+    }
+
+    if (updates.title !== undefined) {
+      source.title = updates.title.trim();
+    }
+    if (updates.handle !== undefined) {
+      source.handle = updates.handle?.trim() || null;
+    }
+
+    const updated = await this.sourceRepo.save(source);
+    return {
+      channelId: updated.channelId,
+      handle: updated.handle,
+      title: updated.title,
+      isActive: updated.isActive,
+      lifecycleStatus: updated.lifecycleStatus,
+      addedAt: updated.addedAt?.toISOString(),
+      updatedAt: updated.updatedAt?.toISOString(),
+    };
+  }
+
+  /**
+   * DELETE /api/crypto-news/sources/:channelId
+   *
+   * Delete a crypto-news source.
+   *
+   * Response: { success: true }
+   *
+   * Error Codes:
+   * - 404 Not Found: Source not found
+   */
+  @Delete('sources/:channelId')
+  @HttpCode(HttpStatus.OK)
+  async deleteSource(@Param('channelId') channelId: string) {
+    const source = await this.sourceRepo.findByChannelId(channelId);
+    if (!source) {
+      throw new Error(`Source with channelId ${channelId} not found`);
+    }
+
+    await this.sourceRepo.delete(source.channelId);
+    return { success: true };
   }
 }
