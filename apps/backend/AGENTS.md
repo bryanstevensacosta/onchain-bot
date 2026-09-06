@@ -100,15 +100,15 @@ selected by `useFactory` on flags (+ `TELEGRAM_LISTENER_PORT_TOKEN` alias). Quir
 `CryptoNewsMediaDownloader` is pinned to the **MTProto** adapter regardless of mode.
 `KolSeeder` (`telegram/ingestion/kol/seeders/`, `@deprecated` — use `POST telegram-kol/identity/kols`;
 disable via `INGESTION_TELEGRAM_SEED_ENABLED=false`) + news seeder feed the backend DB; the
-ingestion-service then pulls IDs over HTTP.
+ingestion-service then pulls KOL IDs over HTTP (crypto-news sources now read from ingestion-service own DB, no longer via HTTP).
 
 Backend `IngestionCoordinator` (`shared/application/ingestion-coordinator.service.ts`, `OnApplicationBootstrap`):
 subscribes once → routes by `messageType` → `KolIngestionOrchestratorUseCase` (**lives in `kol/identity/application/handlers/`**, fix-1 direct calls to extraction/parsing) for `kol`, `StoreNewsMessageUseCase` for `crypto-news` (opaque persist, metadata-only event).
 
 Provider endpoints consumed BY ingestion-service:
 
-- `GET telegram-kol/identity/kols/active/ids` (`KolController.listActiveIds` → `ListActiveKolIdsUseCase` → `findActive()`)
-- `GET crypto-news/sources/active/ids` (`CryptoNewsController`, `@Controller('crypto-news')`)
+- `GET telegram-kol/identity/kols/active/ids` (`KolController.listActiveIds` → `ListActiveKolIdsUseCase` → `findActive()`) **still active**
+- ~~`GET crypto-news/sources/active/ids`~~ (**DEPRECATED 2026-09-05** — ingestion-service NO LONGER calls this, uses own DB instead; endpoint kept for backward compatibility but returns stale data)
 
 ## KOL DOMAIN (`kol/`)
 
@@ -144,11 +144,32 @@ Backend enforces LLM generation in production via controller guard:
    - `FilteredCryptoNewsService` — fetch→filter→match orchestrator
    - `EnqueueMatchingCronScheduler` — poll every minute, enqueue matches
 
-2. `telegram/ingestion/crypto-news/` (legacy — NO LONGER INGESTS):
-   - `RegisterNewsSourceUseCase` — CRUD sources (backend DB, ingestion-service polls)
-   - `ListActiveSourceIdsUseCase` — serves ingestion-service (GET /crypto-news/sources/active/ids)
-   - `filters/` submodule — ContentFilterService rules (per-channel regex transforms)
+2. `telegram/ingestion/crypto-news/` (legacy — DISCONNECTED 2026-09-05):
+   - ~~`RegisterNewsSourceUseCase`~~ — **DEPRECATED & DISCONNECTED**: throws error if called, all write logic commented out
+   - ~~`ListActiveSourceIdsUseCase`~~ — **DEPRECATED**: serves `GET /crypto-news/sources/active/ids` (kept for backward compat, ingestion-service uses own DB)
+   - ~~`CryptoNewsSourceRepository.save()/delete()`~~ — **DEPRECATED**: both methods throw errors (TypeORM + in-memory impls)
+   - ~~`CryptoNewsSeeder`~~ — **DEPRECATED**: returns early with warning, no longer seeds backend DB
+   - ~~`POST /crypto-news/sources`~~ — **DEPRECATED**: returns 501 Not Implemented with migration instructions
+   - `filters/` submodule — ContentFilterService rules (per-channel regex transforms) **still active**
    - Media ownership migrated to ingestion-service (backend reads via HTTP)
+
+   **Ownership migration (2026-09-05 — COMPLETED)**:
+
+   **Crypto-news sources are NOW SOLELY OWNED by ingestion-service.**
+
+   - **Ingestion-service**: reads/writes from its OWN `crypto_news_sources` table
+   - **Backend**: DEPRECATED all write operations (returns 501 / throws errors)
+     - `POST /crypto-news/sources` → 501 Not Implemented (migration instructions)
+     - `RegisterNewsSourceUseCase.execute()` → throws error
+     - `CryptoNewsSourceRepository.save()/delete()` → throws error (both TypeORM + in-memory)
+     - `CryptoNewsSeeder.seed()` → returns early with warning if enabled
+   - **Backend read operations** (GET endpoints) still active for legacy consumers but deprecated
+   - **Eliminates**: circular dependency (backend ↔ ingestion), dual-DB sync issues
+   - **Enables**: ingestion-service can start independently, single source of truth
+
+   **Migration for consumers:**
+   - Create sources: `POST {INGESTION_SERVICE_URL}/api/crypto-news/sources`
+   - Backend no longer accepts write requests (501 error with migration instructions)
 
 3. `telegram/crypto-news-publisher/`:
    - `EnqueueMatchingMessageUseCase` — enqueue matched messages (queue cap 36)
@@ -438,7 +459,7 @@ Feature: `settings/*` (full CRUD: `GET /` + `POST /` + `PATCH :id` + `DELETE :id
 `dashboard` (`GET kpis`), `achievements` (`GET|POST thresholds`, `POST admin/tick` manual
 `LiveAchievementScheduler` trigger), `dev` (mock only), `api/health`.
 
-Key routes: `GET telegram-kol/identity/kols/active/ids`, `GET crypto-news/sources/active/ids`,
+Key routes: `GET telegram-kol/identity/kols/active/ids`, ~~`GET crypto-news/sources/active/ids`~~ (**DEPRECATED**, ingestion-service uses own DB),
 `POST crypto-news/sources`, `POST telegram-kol/identity/kols/:kolId/backfill?limit=1..100`,
 `GET crypto-news/backfill/:channelId`, `GET crypto-news/media/:mediaId`,
 `POST vip-calls/publish`, `POST token/call-tracking/scheduler/tick`,
