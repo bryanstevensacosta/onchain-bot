@@ -702,8 +702,8 @@ describe('Backfill Integration Tests', () => {
     const addEndTime = Date.now();
     console.log(`Add ${MESSAGE_COUNT} messages: ${addEndTime - addStartTime}ms`);
 
-    // Wait for database persistence
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    // Wait for database persistence (5s for CI with 1500 messages + fire-and-forget)
+    await new Promise((resolve) => setTimeout(resolve, 5000));
 
     // Verify database has all messages
     const dbCount = await repository.count();
