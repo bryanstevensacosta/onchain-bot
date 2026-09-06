@@ -201,6 +201,17 @@ export class LlmConfigController {
   public async updateConfig(
     @Body() dto: UpdateLlmConfigDto,
   ): Promise<LlmConfigView> {
+    // PRODUCTION SAFETY: Block llmEnabled changes in production
+    // In production, LLM generation must always be active to maintain
+    // content quality. Only matching and publishing can be toggled.
+    if (dto.llmEnabled !== undefined && process.env.NODE_ENV === 'production') {
+      throw new BadRequestException({
+        error:
+          'llmEnabled cannot be changed in production (always enabled for quality)',
+        hint: 'Use matchingEnabled or publishingEnabled to control pipeline',
+      });
+    }
+
     // Validate target channel via Bot API before persisting
     if (
       dto.targetChannel !== undefined &&
@@ -224,7 +235,9 @@ export class LlmConfigController {
     }
     cfg.update({
       targetChannel: dto.targetChannel,
-      enabled: dto.enabled,
+      matchingEnabled: dto.matchingEnabled,
+      llmEnabled: dto.llmEnabled,
+      publishingEnabled: dto.publishingEnabled,
       rejectNonLatin: dto.rejectNonLatin,
       dailyCap: dto.dailyCap,
       dailyResetUtcHour: dto.dailyResetUtcHour,

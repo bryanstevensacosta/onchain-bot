@@ -54,8 +54,8 @@ export class CryptoNewsSeeder {
   }> {
     throw new Error(
       '❌ CryptoNewsSeeder has been REMOVED and replaced by DB-driven architecture.\n' +
-        '   All crypto-news sources are now loaded from the backend database.\n' +
-        '   Add sources via backend API: POST /api/crypto-news/sources\n' +
+        '   All crypto-news sources are now loaded from the ingestion-service database.\n' +
+        '   Add sources via ingestion-service API: POST /api/crypto-news/sources\n' +
         '   This seeder should never be invoked. If you see this error, check TelegramModule initialization.',
     );
   }

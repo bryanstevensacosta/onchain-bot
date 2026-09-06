@@ -24,9 +24,24 @@ export class TypeOrmCryptoNewsSourceRepository extends CryptoNewsSourceRepositor
     super();
   }
 
+  /**
+   * @deprecated Backend no longer writes crypto-news sources. Use ingestion-service.
+   */
   public async save(source: CryptoNewsSource): Promise<void> {
+    throw new Error(
+      '[DEPRECATED] TypeOrmCryptoNewsSourceRepository.save() is deprecated. ' +
+        'Backend no longer writes crypto-news sources. ' +
+        'Use ingestion-service POST /api/crypto-news/sources instead.',
+    );
+
+    /* ────────────────────────────────────────────────────────────────────
+     * OLD CODE (DISCONNECTED - DO NOT RE-ENABLE)
+     * ────────────────────────────────────────────────────────────────────
+     
     const row = CryptoNewsSourceMapper.toEntity(source);
     await this.repo.save(row);
+    
+     * ──────────────────────────────────────────────────────────────────── */
   }
 
   public async findByChannelId(
@@ -46,8 +61,23 @@ export class TypeOrmCryptoNewsSourceRepository extends CryptoNewsSourceRepositor
     return rows.map((r) => CryptoNewsSourceMapper.toDomain(r));
   }
 
+  /**
+   * @deprecated Backend no longer deletes crypto-news sources. Use ingestion-service.
+   */
   public async delete(channelId: string): Promise<void> {
+    throw new Error(
+      '[DEPRECATED] TypeOrmCryptoNewsSourceRepository.delete() is deprecated. ' +
+        'Backend no longer deletes crypto-news sources. ' +
+        'Use ingestion-service DELETE /api/crypto-news/sources/{channelId} if such endpoint exists.',
+    );
+
+    /* ────────────────────────────────────────────────────────────────────
+     * OLD CODE (DISCONNECTED - DO NOT RE-ENABLE)
+     * ────────────────────────────────────────────────────────────────────
+     
     await this.repo.delete({ channelId });
+    
+     * ──────────────────────────────────────────────────────────────────── */
   }
 
   public async findFiltersByChannelId(

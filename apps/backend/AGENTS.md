@@ -100,15 +100,15 @@ selected by `useFactory` on flags (+ `TELEGRAM_LISTENER_PORT_TOKEN` alias). Quir
 `CryptoNewsMediaDownloader` is pinned to the **MTProto** adapter regardless of mode.
 `KolSeeder` (`telegram/ingestion/kol/seeders/`, `@deprecated` — use `POST telegram-kol/identity/kols`;
 disable via `INGESTION_TELEGRAM_SEED_ENABLED=false`) + news seeder feed the backend DB; the
-ingestion-service then pulls IDs over HTTP.
+ingestion-service then pulls KOL IDs over HTTP (crypto-news sources now read from ingestion-service own DB, no longer via HTTP).
 
 Backend `IngestionCoordinator` (`shared/application/ingestion-coordinator.service.ts`, `OnApplicationBootstrap`):
 subscribes once → routes by `messageType` → `KolIngestionOrchestratorUseCase` (**lives in `kol/identity/application/handlers/`**, fix-1 direct calls to extraction/parsing) for `kol`, `StoreNewsMessageUseCase` for `crypto-news` (opaque persist, metadata-only event).
 
 Provider endpoints consumed BY ingestion-service:
 
-- `GET telegram-kol/identity/kols/active/ids` (`KolController.listActiveIds` → `ListActiveKolIdsUseCase` → `findActive()`)
-- `GET crypto-news/sources/active/ids` (`CryptoNewsController`, `@Controller('crypto-news')`)
+- `GET telegram-kol/identity/kols/active/ids` (`KolController.listActiveIds` → `ListActiveKolIdsUseCase` → `findActive()`) **still active**
+- ~~`GET crypto-news/sources/active/ids`~~ (**DEPRECATED 2026-09-05** — ingestion-service NO LONGER calls this, uses own DB instead; endpoint kept for backward compatibility but returns stale data)
 
 ## KOL DOMAIN (`kol/`)
 
@@ -117,13 +117,253 @@ Provider endpoints consumed BY ingestion-service:
 - `source/`: attribution VO + `SourceAggregatorPort` (normalization hands raw seeds, gets deduped `Source[]`).
 - `stats/`: stub (4 endpoints return `{note:'Stub'}`); frontend uses reputation `/kols/top`.
 
-## CRYPTO-NEWS (opaque path)
+## CRYPTO-NEWS (Opción A: Filter on-Read Architecture)
 
-Ingestion (`telegram/ingestion/crypto-news/`): `StoreNewsMessageUseCase` (persists `content` as-is + media rows, emits metadata-only event), `RegisterNewsSourceUseCase`, `ListActiveSourceIdsUseCase` (← serves ingestion-service), `filters/` submodule (create/update/delete/toggle/list + `__tests__/`), `MediaRetentionCleanupScheduler` (hourly, advisory lock, shared 72 h var), `CryptoNewsMediaDownloader` pinned to MTProto adapter.
+**Architecture Overview (CRITICAL — Opción A chosen over Opción B)**:
 
-Publisher (`telegram/crypto-news-publisher/`): `EnqueueMatchingMessageUseCase` (keyword/phrase/blacklist match) → queue → `ProcessNextQueuedArticleUseCase` (LLM via gateway: `GetLlmModelsUseCase`, `USE_MOCK_AI` flag) → `BotApiCryptoNewsPublisherAdapter`; `publisher-cron` every minute; queue/throttle/slot tables. Ads (`crypto-news-ads/`): rotation + media library, `ads-cron` every minute.
+- **Ingestion-service** stores RAW content (NO filters, NO transformations)
+- **Backend** (staging/prod) polls ingestion-service HTTP API (every minute)
+- **Backend** applies ContentFilterService + keyword matching on-read (NO DB replication)
+- **Frontend** fetches RAW content directly from ingestion-service (display mode)
+- **Publisher queue** receives FILTERED content (AFTER transformations + keywords matched)
 
-Media tech (verified): `MAX_MEDIA_BYTES` 10 MB (larger logged + discarded, MTProto returns memory buffers); magic-byte sniffing (not Telegram-declared MIME), fallback `application/octet-stream` + `.bin`; serving re-sniffs via `media-serving.ts` (stored `.bin` MP4 served as `video/mp4`) with Range/206; scope `photo|video` (stickers/voice excluded); L3 table `crypto_news_message_media` with FK CASCADE on parent delete; seeder auto-`joinChannel` on miss → placeholder titles + `needsManualJoin`; env seed list takes precedence over in-code list; missing files serve 404 (not 500) — treat uploads as volatile across `build --no-cache`.
+**Production LLM Safety Guard (CRITICAL)**:
+
+Backend enforces LLM generation in production via controller guard:
+
+- `LlmConfigController.updateConfig()` REJECTS `PATCH /crypto-news-publisher/llm` requests with `llmEnabled` changes when `NODE_ENV=production`
+- Returns 400 error: `{"error": "llmEnabled cannot be changed in production (always enabled for quality)", "hint": "Use matchingEnabled or publishingEnabled to control pipeline"}`
+- Frontend hides LLM toggle button when `VITE_APP_ENV=production` (UI prevention layer)
+- Three-layer defense: backend guard (API security) + frontend hide (UX clarity) + config seed (DB consistency)
+- Rationale: In production, LLM-refined content is mandatory for quality; operators control pipeline via matching/publishing flags only
+
+**Modules**:
+
+1. `telegram/crypto-news-integration/` (NEW — Opción A orchestrator):
+   - `CryptoNewsIngestionClient` — HTTP client for ingestion-service API
+   - `FilteredCryptoNewsService` — fetch→filter→match orchestrator
+   - `EnqueueMatchingCronScheduler` — poll every minute, enqueue matches
+
+2. `telegram/ingestion/crypto-news/` (legacy — DISCONNECTED 2026-09-05):
+   - ~~`RegisterNewsSourceUseCase`~~ — **DEPRECATED & DISCONNECTED**: throws error if called, all write logic commented out
+   - ~~`ListActiveSourceIdsUseCase`~~ — **DEPRECATED**: serves `GET /crypto-news/sources/active/ids` (kept for backward compat, ingestion-service uses own DB)
+   - ~~`CryptoNewsSourceRepository.save()/delete()`~~ — **DEPRECATED**: both methods throw errors (TypeORM + in-memory impls)
+   - ~~`CryptoNewsSeeder`~~ — **DEPRECATED**: returns early with warning, no longer seeds backend DB
+   - ~~`POST /crypto-news/sources`~~ — **DEPRECATED**: returns 501 Not Implemented with migration instructions
+   - `filters/` submodule — ContentFilterService rules (per-channel regex transforms) **still active**
+   - Media ownership migrated to ingestion-service (backend reads via HTTP)
+
+   **Ownership migration (2026-09-05 — COMPLETED)**:
+
+   **Crypto-news sources are NOW SOLELY OWNED by ingestion-service.**
+
+   - **Ingestion-service**: reads/writes from its OWN `crypto_news_sources` table
+   - **Backend**: DEPRECATED all write operations (returns 501 / throws errors)
+     - `POST /crypto-news/sources` → 501 Not Implemented (migration instructions)
+     - `RegisterNewsSourceUseCase.execute()` → throws error
+     - `CryptoNewsSourceRepository.save()/delete()` → throws error (both TypeORM + in-memory)
+     - `CryptoNewsSeeder.seed()` → returns early with warning if enabled
+   - **Backend read operations** (GET endpoints) still active for legacy consumers but deprecated
+   - **Eliminates**: circular dependency (backend ↔ ingestion), dual-DB sync issues
+   - **Enables**: ingestion-service can start independently, single source of truth
+
+   **Migration for consumers:**
+   - Create sources: `POST {INGESTION_SERVICE_URL}/api/crypto-news/sources`
+   - Backend no longer accepts write requests (501 error with migration instructions)
+
+3. `telegram/crypto-news-publisher/`:
+   - `EnqueueMatchingMessageUseCase` — enqueue matched messages (queue cap 36)
+   - `ProcessNextQueuedArticleUseCase` — drain queue → LLM → Bot API
+   - `PublisherCronScheduler` — every minute, advisory lock
+   - `GetLlmModelsUseCase` — LLM gateway integration (`USE_MOCK_AI` flag)
+
+4. `telegram/crypto-news-ads/` (parallel path):
+   - Ad rotation + media library
+   - `ads-cron` every minute
+
+**Data Flow (Opción A)**:
+
+```
+Telegram → Ingestion-service (persist RAW) → HTTP API (:3031/api/crypto-news/messages)
+                                                  ↓
+Backend EnqueueMatchingCronScheduler (every min):
+  1. Fetch RAW messages (CryptoNewsIngestionClient)
+  2. Filter + match (FilteredCryptoNewsService):
+     a. Load per-channel ContentFilterService rules
+     b. Apply regex transforms to title + content (on-read)
+     c. Evaluate keywords (simple + AND-groups)
+     d. Check blacklist phrases (block if match)
+  3. Enqueue matched messages (EnqueueMatchingMessageUseCase)
+                                                  ↓
+Backend PublisherCronScheduler (every min):
+  1. Drain queue (ProcessNextQueuedArticleUseCase)
+  2. LLM transformation (via gateway)
+  3. Bot API publish (BotApiCryptoNewsPublisherAdapter)
+
+Frontend:
+  - Fetch RAW messages: GET ingestion:3032/api/crypto-news/messages?limit=50
+  - Media: GET ingestion:3032/api/media/{channelId}/{messageId}/{index}
+```
+
+**Deprecated (NO LONGER USED)**:
+
+- `CryptoNewsMessageIngestedHandler` — event-driven enqueue (listened to `crypto-news.message.ingested`)
+- Backend NO LONGER ingests crypto-news via MTProto/SSE (ingestion-service owns this)
+- Backend NO LONGER stores crypto-news in DB (`crypto_news_*` tables live ONLY in ingestion-service)
+
+**ContentFilterService** (verified):
+
+- Per-channel regex rules (priority-ordered)
+- 100ms timeout per regex (ReDoS protection)
+- Invalid patterns logged + skipped
+- Applied on-read by FilteredCryptoNewsService (NO persist)
+
+**Media tech** (migrated to ingestion-service):
+
+- `MAX_MEDIA_BYTES` 10 MB (larger logged + discarded)
+- Magic-byte sniffing (not Telegram-declared MIME), fallback `application/octet-stream` + `.bin`
+- Backend reads via HTTP (`INGESTION_SERVICE_URL/api/media/*`)
+- Serving re-sniffs via `media-serving.ts` (stored `.bin` MP4 served as `video/mp4`) with Range/206
+
+**3-Flag Control System (CRITICAL DEPENDENCY)**:
+
+The crypto-news pipeline uses **3 independent flags** to control enqueue, LLM generation, and publishing:
+
+1. **`matchingEnabled`** (`MatchingConfig`, `crypto-news-integration` module)
+   - Controls: `EnqueueMatchingCronScheduler` (polls ingestion-service every minute)
+   - When `true`: fetches RAW messages → applies filters + keywords → enqueues matches
+   - When `false`: no new messages enter the queue (queue drains if publishing active)
+
+2. **`llmEnabled`** (`LlmConfig`, `crypto-news-publisher` module)
+   - Controls: `ProcessNextQueuedArticleUseCase` content transformation mode
+   - When `true` (AND `publishingEnabled=true`): generates LLM-refined content
+   - When `false`: publishes raw content (no LLM transformation)
+   - **DEPENDENT on `publishingEnabled`**: LLM generation ONLY occurs when BOTH flags are true
+
+3. **`publishingEnabled`** (`LlmConfig`, `crypto-news-publisher` module)
+   - Controls: `PublisherCronScheduler` (drains queue every minute)
+   - When `true`: processes queue (with LLM if `llmEnabled=true`, raw otherwise)
+   - When `false`: queue accumulates, NO publishing, NO LLM generation
+
+**Truth Table (8 combinations)**:
+
+| Matching | LLM | Publishing | Behavior                                                                |
+| :------: | :-: | :--------: | ----------------------------------------------------------------------- |
+|    ❌    | ❌  |     ❌     | **All paused** — No enqueue, no publish                                 |
+|    ❌    | ❌  |     ✅     | **Drain queue raw** — No new enqueue, publishes existing queue raw      |
+|    ❌    | ✅  |     ❌     | **All paused** — No enqueue, no publish (LLM inactive)                  |
+|    ❌    | ✅  |     ✅     | **Drain queue with LLM** — No new enqueue, LLM + publish existing queue |
+|    ✅    | ❌  |     ❌     | **Enqueue only** — Builds queue, no publish                             |
+|    ✅    | ❌  |     ✅     | **Raw pipeline** — Enqueue + publish raw (no LLM)                       |
+|    ✅    | ✅  |     ❌     | **Enqueue only** — Builds queue, no publish, LLM inactive               |
+|    ✅    | ✅  |     ✅     | **Full pipeline** — Enqueue + LLM + publish                             |
+
+**Critical Dependency Rule**:
+
+```
+LLM generation = llmEnabled AND publishingEnabled
+```
+
+**Why LLM depends on publishing**:
+
+- If `publishingEnabled=false`, content won't be published — no point generating LLM (saves API costs)
+- LLM generation occurs **at publish time**, not at enqueue time
+- Queue accumulates raw content; transformation happens only when draining
+
+**Use Cases**:
+
+- **Pause publishing, keep enqueuing**: `matching=true`, `publishing=false` → queue builds
+- **Publish raw only**: `llm=false`, `publishing=true` → no LLM transformation
+- **Drain queue without new enqueue**: `matching=false`, `publishing=true` → processes existing
+- **Emergency stop**: all flags `false` → pipeline frozen
+
+**Implementation**:
+
+- `MatchingConfig` entity lives in `crypto-news-integration/` (decoupled from publisher)
+- `LlmConfig` entity holds both `llmEnabled` + `publishingEnabled` in `crypto-news-publisher/`
+- Frontend: 3 independent toggle buttons (`MatchingToggleButton` component)
+- Migration: `1788659125192-SplitLlmConfigFlags.ts` (splits old single `enabled` flag)
+
+**NEVER**:
+
+- LLM generation when `publishingEnabled=false` (even if `llmEnabled=true`)
+- Assume matching depends on publisher config (they're decoupled by design)
+
+**Queue TTL & Expiration (24h automatic cleanup)**:
+
+To prevent unbounded queue growth when `publishingEnabled=false` for extended periods:
+
+- **Scheduler**: `ExpireStaleQueueEntriesScheduler` runs every 30 minutes
+- **TTL**: 24 hours (hardcoded, based on `queuedAt` timestamp)
+- **Query**: `findPendingOlderThan(24h)` uses indexed query `WHERE status='PENDING' AND queued_at < cutoff`
+- **Action**: Marks stale entries as `FAILED` with reason `"Expired: exceeded 24h in queue without publishing"`
+- **Index**: `idx_publisher_queue_status_queued_at` (partial index `WHERE status='PENDING'`) optimizes the query
+- **Migration**: `1860000000000-AddQueuedAtToPublisherQueue.ts`
+
+**Why 24h TTL**:
+
+- Crypto news loses relevance quickly (24h-old news is stale in fast-moving markets)
+- Prevents publishing outdated content when publishing resumes
+- Keeps queue size bounded during long pauses (e.g., maintenance, rate-limit issues)
+
+**Deduplication Rules (Hybrid Status-Based Logic)**:
+
+The deduplication system verifies `PublisherQueueEntry` status to decide whether to block re-enqueue:
+
+**Always block**:
+
+- `status=PENDING` → Already in queue waiting to be published
+- `status=PUBLISHED` → Already published successfully
+
+**Conditionally block** (`status=FAILED`):
+
+- **Block if failure reason is content-related** (problem with the content itself):
+  - `"non-Latin character"` (LLM output rejected by `rejectNonLatin` filter)
+  - `"policy"` / `"Content violates policy"` (ToS violation)
+  - `"blacklist"` (matched blacklist phrase)
+  - `"honeypot"` / `"scam"` / `"rug"` (security-related block)
+- **Allow if failure reason is transient/operational** (temporary issue, content is valid):
+  - `"Expired: exceeded 24h in queue"` (TTL expiration — content can be re-tried)
+  - `"Publisher not configured"` (missing bot token / channel config)
+  - `"Rate limit exceeded"` (Telegram API rate limit)
+  - `"LLM generation failed"` (temporary LLM service error)
+
+**Implementation**:
+
+- Constants: `BLOCKING_FAILURE_REASONS` array in `shared/deduplication/domain/constants/blocking-failure-reasons.ts`
+- Helper: `isBlockingFailureReason(reason: string | null): boolean` (case-insensitive substring match)
+- Location: Applied in `CryptoNewsMessageIngestedHandler` before calling `EnqueueMatchingMessageUseCase`
+
+**Why hybrid logic**:
+
+- Content-related failures should NEVER be re-enqueued (the content itself is problematic)
+- Transient failures SHOULD allow re-enqueue (the content is valid, just failed due to temporary issues)
+- Expired content can be re-matched if it appears again (user may want to publish fresh instance)
+
+**Example flows**:
+
+1. **Expired content re-appears**:
+   - Entry A enqueued → 24h passes → TTL marks FAILED ("Expired")
+   - Same content appears again → dedup checks status=FAILED + reason="Expired"
+   - `isBlockingFailureReason("Expired")` = `false` → **Allow re-enqueue**
+   - Entry B enqueued (fresh copy of same content)
+
+2. **Blacklisted content re-appears**:
+   - Entry A enqueued → matches blacklist → marked FAILED ("Blacklist match")
+   - Same content appears again → dedup checks status=FAILED + reason="Blacklist match"
+   - `isBlockingFailureReason("Blacklist match")` = `true` → **Block re-enqueue**
+   - No entry created (content is permanently blocked)
+
+3. **Content in PENDING status**:
+   - Entry A enqueued → status=PENDING
+   - Same content appears again → dedup checks status=PENDING
+   - **Block re-enqueue** (already waiting in queue)
+   - No duplicate entry created
+
+**Tables affected**:
+
+- `crypto_news_publisher_queue`: added `queued_at` column (timestamptz, DEFAULT NOW())
+- Index: `idx_publisher_queue_status_queued_at` (partial, optimized for TTL queries)
 
 ## TELEGRAM PUBLISHING (Bot API, NOT MTProto)
 
@@ -219,7 +459,7 @@ Feature: `settings/*` (full CRUD: `GET /` + `POST /` + `PATCH :id` + `DELETE :id
 `dashboard` (`GET kpis`), `achievements` (`GET|POST thresholds`, `POST admin/tick` manual
 `LiveAchievementScheduler` trigger), `dev` (mock only), `api/health`.
 
-Key routes: `GET telegram-kol/identity/kols/active/ids`, `GET crypto-news/sources/active/ids`,
+Key routes: `GET telegram-kol/identity/kols/active/ids`, ~~`GET crypto-news/sources/active/ids`~~ (**DEPRECATED**, ingestion-service uses own DB),
 `POST crypto-news/sources`, `POST telegram-kol/identity/kols/:kolId/backfill?limit=1..100`,
 `GET crypto-news/backfill/:channelId`, `GET crypto-news/media/:mediaId`,
 `POST vip-calls/publish`, `POST token/call-tracking/scheduler/tick`,

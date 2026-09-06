@@ -251,6 +251,25 @@ export class CryptoNewsController {
 
   /**
    * Get active crypto-news source IDs (for ingestion-service subscription)
+   *
+   * @deprecated This endpoint is deprecated as of the ingestion-service migration.
+   * Ingestion-service now owns the crypto-news sources table in its own database
+   * and reads from CryptoNewsSourceRepository.findAllActive() directly.
+   *
+   * Rationale for deprecation:
+   * - Eliminates circular dependency (ingestion-service → backend → ingestion-service)
+   * - Improves reliability (ingestion-service can start without backend being available)
+   * - Reduces network overhead (no HTTP round-trip for every channel refresh)
+   * - Clear ownership: ingestion-service owns crypto-news sources, backend owns KOLs
+   *
+   * Backend still serves this endpoint for backward compatibility with older
+   * ingestion-service versions, but it should not be used by new code.
+   *
+   * Migration notes:
+   * - Crypto-news sources are created via POST /crypto-news/sources (this endpoint still active)
+   * - Backend polls ingestion-service for RAW messages (opción A architecture)
+   * - Ingestion-service reads its own DB for subscription list
+   *
    * Returns only the channelId strings of sources with isActive=true and lifecycleStatus=ACTIVE
    */
   @Get('sources/active/ids')
@@ -260,6 +279,26 @@ export class CryptoNewsController {
 
   /**
    * Register a Telegram channel as a crypto-news source.
+   *
+   * ⚠️ **DEPRECATED AND DISCONNECTED (2026-09-05)** ⚠️
+   *
+   * This endpoint NO LONGER writes to the database.
+   * Ingestion-service is now the SOLE OWNER of crypto-news sources.
+   *
+   * **Migration:**
+   * Call ingestion-service directly instead:
+   * - Endpoint: POST {INGESTION_SERVICE_URL}/api/crypto-news/sources
+   * - Body: { channelId: string, title: string, handle?: string }
+   *
+   * **Why deprecated:**
+   * - Eliminates dual-database architecture (backend DB vs ingestion DB)
+   * - Single source of truth: ingestion-service owns crypto_news_sources
+   * - No more synchronization issues between two DBs
+   * - Ingestion-service can start independently of backend
+   *
+   * **This endpoint kept for backward compatibility:**
+   * - Returns 501 Not Implemented with migration instructions
+   * - Frontend/backend consumers should update to call ingestion-service
    *
    * Body: `{ channelId: string; handle?: string; title?: string }`.
    * `title` is optional — when absent (or empty) the controller delegates
@@ -271,12 +310,38 @@ export class CryptoNewsController {
    * `findActive()` sweep. CONFLICT (duplicate channelId) and VALIDATION
    * (non-numeric channelId / empty title) errors propagate unchanged and
    * are translated to HTTP 409 / 400 by `DomainErrorFilter`.
+   *
+   * @deprecated Use POST {INGESTION_SERVICE_URL}/api/crypto-news/sources instead
    */
   @Post('sources')
-  @HttpCode(HttpStatus.CREATED)
+  @HttpCode(HttpStatus.NOT_IMPLEMENTED)
   public async addSource(
     @Body() input: { channelId: string; handle?: string; title?: string },
-  ): Promise<CryptoNewsSourceView> {
+  ): Promise<{ error: string; migration: string; newEndpoint: string }> {
+    this.logger.warn(
+      `[DEPRECATED] POST /crypto-news/sources called. This endpoint no longer writes to DB. ` +
+        `Ingestion-service is now the sole owner. Caller should use POST {INGESTION_SERVICE_URL}/api/crypto-news/sources`,
+    );
+
+    return {
+      error: 'This endpoint is deprecated and no longer writes to the database',
+      migration:
+        'Ingestion-service is now the sole owner of crypto-news sources',
+      newEndpoint: `POST ${this.config.get('app.ingestion.serviceUrl') || 'http://localhost:3031'}/api/crypto-news/sources`,
+    };
+
+    /* ────────────────────────────────────────────────────────────────────
+     * OLD CODE (DISCONNECTED - DO NOT RE-ENABLE)
+     * ────────────────────────────────────────────────────────────────────
+     * 
+     * This code wrote to backend DB. It is now COMPLETELY DISABLED.
+     * Ingestion-service is the SOLE owner of crypto_news_sources.
+     * 
+     * The code below is kept for reference only and will be removed in
+     * a future cleanup. DO NOT uncomment or re-enable.
+     * 
+     * ────────────────────────────────────────────────────────────────────
+
     const channelId = input.channelId;
     const trimmedTitle = input.title?.trim();
 
@@ -332,6 +397,8 @@ export class CryptoNewsController {
       }
       throw err;
     }
+
+     * ──────────────────────────────────────────────────────────────────── */
   }
 
   /**

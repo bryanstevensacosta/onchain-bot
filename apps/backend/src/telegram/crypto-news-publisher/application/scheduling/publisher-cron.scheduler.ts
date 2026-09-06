@@ -28,9 +28,8 @@ const PUBLISHER_ADVISORY_LOCK_ID = 7_421_371;
  *  3. `pg_advisory_unlock(<id>)` — release the lock in `finally` so a
  *     thrown error in the use case still releases the lock.
  *
- * The scheduler is disabled when the BC is disabled in config
- * (`crypto-news-publisher.config.json#enabled === false`). The lock
- * itself is still acquired and released so the cron loop stays
+ * The scheduler is disabled when publishingEnabled is false in LlmConfig.
+ * The lock itself is still acquired and released so the cron loop stays
  * observable in logs and so the lock semantics are consistent across
  * dev/prod.
  *
@@ -52,7 +51,9 @@ export class PublisherCronScheduler implements OnApplicationBootstrap {
   public async onApplicationBootstrap(): Promise<void> {
     try {
       const cfg = await this.llmConfigRepo.load();
-      this.logger.log(`PublisherCronScheduler ready (enabled=${cfg.enabled})`);
+      this.logger.log(
+        `PublisherCronScheduler ready (publishingEnabled=${cfg.publishingEnabled})`,
+      );
     } catch {
       this.logger.warn(
         'PublisherCronScheduler ready — could not load LlmConfig; scheduler will retry on each tick',
@@ -71,17 +72,17 @@ export class PublisherCronScheduler implements OnApplicationBootstrap {
       this.logger.warn('previous tick still running; skipping this tick');
       return;
     }
-    let enabled = false;
+    let publishingEnabled = false;
     try {
       const cfg = await this.llmConfigRepo.load();
-      enabled = cfg.enabled;
+      publishingEnabled = cfg.publishingEnabled;
     } catch (err) {
       this.logger.error(
         `failed to load LlmConfig on tick: ${(err as Error).message} — skipping`,
       );
       return;
     }
-    if (!enabled) {
+    if (!publishingEnabled) {
       return;
     }
     this.running = true;

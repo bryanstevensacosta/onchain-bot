@@ -13,8 +13,23 @@ import {
 export class InMemoryCryptoNewsSourceRepository extends CryptoNewsSourceRepository {
   private readonly store = new Map<string, CryptoNewsSource>();
 
+  /**
+   * @deprecated Backend no longer writes crypto-news sources. Use ingestion-service.
+   */
   public async save(source: CryptoNewsSource): Promise<void> {
+    throw new Error(
+      '[DEPRECATED] InMemoryCryptoNewsSourceRepository.save() is deprecated. ' +
+        'Backend no longer writes crypto-news sources. ' +
+        'Use ingestion-service POST /api/crypto-news/sources instead.',
+    );
+
+    /* ────────────────────────────────────────────────────────────────────
+     * OLD CODE (DISCONNECTED - DO NOT RE-ENABLE)
+     * ────────────────────────────────────────────────────────────────────
+     
     this.store.set(source.channelId, source);
+    
+     * ──────────────────────────────────────────────────────────────────── */
   }
 
   public async findByChannelId(
@@ -31,8 +46,23 @@ export class InMemoryCryptoNewsSourceRepository extends CryptoNewsSourceReposito
     return Array.from(this.store.values()).filter((s) => s.isActive);
   }
 
+  /**
+   * @deprecated Backend no longer deletes crypto-news sources. Use ingestion-service.
+   */
   public async delete(channelId: string): Promise<void> {
+    throw new Error(
+      '[DEPRECATED] InMemoryCryptoNewsSourceRepository.delete() is deprecated. ' +
+        'Backend no longer deletes crypto-news sources. ' +
+        'Use ingestion-service DELETE /api/crypto-news/sources/{channelId} if such endpoint exists.',
+    );
+
+    /* ────────────────────────────────────────────────────────────────────
+     * OLD CODE (DISCONNECTED - DO NOT RE-ENABLE)
+     * ────────────────────────────────────────────────────────────────────
+     
     this.store.delete(channelId);
+    
+     * ──────────────────────────────────────────────────────────────────── */
   }
 
   public async findFiltersByChannelId(

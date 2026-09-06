@@ -31,7 +31,10 @@ export interface LlmConfig {
   readonly id: number;
   readonly defaultTemplateId: string;
   readonly targetChannel: string;
-  readonly enabled: boolean;
+  readonly matchingEnabled: boolean;
+  readonly llmEnabled: boolean;
+  readonly publishingEnabled: boolean;
+  readonly rejectNonLatin: boolean;
   readonly dailyCap: number;
   readonly dailyResetUtcHour: number;
   readonly randomDelayMinMs: number;
@@ -58,33 +61,31 @@ export const llmConfigKeys = {
 };
 
 export async function fetchLlmModels(): Promise<ReadonlyArray<LlmModel>> {
-  return httpGet<ReadonlyArray<LlmModel>>(
-    '/api/crypto-news-publisher/llm/models',
-  );
+  return httpGet<ReadonlyArray<LlmModel>>('/crypto-news-publisher/llm/models');
 }
 
 export async function fetchLlmConfig(): Promise<LlmConfig> {
-  return httpGet<LlmConfig>('/api/crypto-news-publisher/llm/config');
+  return httpGet<LlmConfig>('/crypto-news-publisher/llm/config');
 }
 
 export async function updateLlmConfig(
   body: UpdateLlmConfigBody,
 ): Promise<LlmConfig> {
   return httpPatch<UpdateLlmConfigBody, LlmConfig>(
-    '/api/crypto-news-publisher/llm/config',
+    '/crypto-news-publisher/llm/config',
     body,
   );
 }
 
 export async function fetchTemplates(): Promise<ReadonlyArray<PromptTemplate>> {
   return httpGet<ReadonlyArray<PromptTemplate>>(
-    '/api/crypto-news-publisher/llm/templates',
+    '/crypto-news-publisher/llm/templates',
   );
 }
 
 export async function fetchTemplate(id: string): Promise<PromptTemplate> {
   return httpGet<PromptTemplate>(
-    `/api/crypto-news-publisher/llm/templates/${encodeURIComponent(id)}`,
+    `/crypto-news-publisher/llm/templates/${encodeURIComponent(id)}`,
   );
 }
 
@@ -92,7 +93,7 @@ export async function createTemplate(
   body: CreatePromptTemplateBody,
 ): Promise<PromptTemplate> {
   return httpPost<CreatePromptTemplateBody, PromptTemplate>(
-    '/api/crypto-news-publisher/llm/templates',
+    '/crypto-news-publisher/llm/templates',
     body,
   );
 }
@@ -102,19 +103,29 @@ export async function updateTemplate(
   body: UpdatePromptTemplateBody,
 ): Promise<PromptTemplate> {
   return httpPatch<UpdatePromptTemplateBody, PromptTemplate>(
-    `/api/crypto-news-publisher/llm/templates/${encodeURIComponent(id)}`,
+    `/crypto-news-publisher/llm/templates/${encodeURIComponent(id)}`,
     body,
   );
 }
 
 export async function deleteTemplate(id: string): Promise<void> {
   await httpDelete<void>(
-    `/api/crypto-news-publisher/llm/templates/${encodeURIComponent(id)}`,
+    `/crypto-news-publisher/llm/templates/${encodeURIComponent(id)}`,
   );
 }
 
 export async function toggleMatchingEnabled(
   enabled: boolean,
 ): Promise<LlmConfig> {
-  return updateLlmConfig({ enabled });
+  return updateLlmConfig({ matchingEnabled: enabled });
+}
+
+export async function toggleLlmEnabled(enabled: boolean): Promise<LlmConfig> {
+  return updateLlmConfig({ llmEnabled: enabled });
+}
+
+export async function togglePublishingEnabled(
+  enabled: boolean,
+): Promise<LlmConfig> {
+  return updateLlmConfig({ publishingEnabled: enabled });
 }

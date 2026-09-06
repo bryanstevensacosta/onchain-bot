@@ -9,6 +9,103 @@
 
 Per-app docs (verified, authoritative over this file for details): `apps/backend/AGENTS.md`, `apps/ingestion-service/AGENTS.md`, `apps/frontend/AGENTS.md`. Sub-BC `AGENTS.md` files were consolidated into `apps/backend/AGENTS.md` on 2026-09-04 (7 files migrated + deleted).
 
+### Ingestion-Service Architecture (CRITICAL — One Source of Truth)
+
+**The ingestion-service is STANDALONE and CENTRALIZED** — there is ONE instance that owns ALL Telegram ingestion data and serves ALL environments:
+
+```
+                    ┌──────────────────────────────────────────────┐
+                    │  ingestion-service (ÚNICO) - Puerto 3032      │
+                    │                                               │
+                    │  OWNERSHIP:                                   │
+                    │  ✓ Una sola sesión MTProto                    │
+                    │  ✓ DB: crypto_news_sources (sources)          │
+                    │  ✓ DB: kol_identities (KOL metadata)          │
+                    │  ✓ DB: crypto_news_messages (messages)        │
+                    │  ✓ DB: crypto_news_message_media (media refs) │
+                    │  ✓ uploads/: archivos de media descargados    │
+                    │                                               │
+                    │  API ENDPOINTS (read-only para backends):     │
+                    │  → GET /api/crypto-news/sources              │
+                    │  → GET /api/crypto-news/messages             │
+                    │  → GET /api/media/:channelId/:messageId/:idx │
+                    │  → GET /api/ingestion/stream (SSE)           │
+                    └──────────────┬───────────────────────────────┘
+                                   │ HTTP API (read-only)
+                  ┌────────────────┼────────────────┐
+                  │                │                │
+          ┌───────▼──────┐  ┌─────▼──────┐  ┌─────▼──────┐
+          │ Backend Dev   │  │ Backend     │  │ Backend    │
+          │ (local)       │  │ Staging     │  │ Production │
+          │               │  │ :3031       │  │ :3030      │
+          │ NO crypto-news│  │ NO crypto-  │  │ NO crypto- │
+          │ DB tables     │  │ news tables │  │ news tables│
+          └───────────────┘  └─────────────┘  └────────────┘
+                  │                │                │
+          ┌───────▼──────┐  ┌─────▼──────┐  ┌─────▼──────┐
+          │ Frontend Dev  │  │ Frontend    │  │ Frontend   │
+          │ localhost     │  │ Staging     │  │ Production │
+          │ :5173         │  │ :4173       │  │ :80        │
+          └───────────────┘  └─────────────┘  └────────────┘
+               ↑                  ↑                  ↑
+               └──────────────────┴──────────────────┘
+                        Todos consultan ingestion-service
+                        para crypto-news data (HTTP API)
+```
+
+**INVARIANTS (DO NOT VIOLATE)**:
+
+1. **Una sola instancia de ingestion-service** — NO crear `onchain-bot-staging-ingestion` ni instancias por environment
+2. **Una sola sesión MTProto** — credenciales viven SOLO en ingestion-service (`.env` ← `INGESTION_TELEGRAM_MTPROTO_*`); duplicarlas causa `AUTH_KEY_DUPLICATED`
+3. **Una sola DB para crypto-news** — tablas `crypto_news_sources`, `crypto_news_messages`, `crypto_news_message_media` viven SOLO en ingestion-service DB
+4. **Ingestion-service es el owner de media** — descarga archivos a `uploads/crypto-news/media/` y los sirve vía `GET /api/media/*`
+5. **Backends NO escriben crypto-news** — staging/prod solo LEEN vía HTTP API del ingestion-service (no réplican tablas ni datos)
+6. **Frontend consume directamente del ingestion-service** — `GET /api/crypto-news/messages` apunta al puerto 3032 (no proxy vía backend)
+7. **NO definir ingestion-service en `docker-compose.staging.yml` ni `.prod.yml`** — solo existe en `docker-compose.ingestion.yml` (standalone)
+
+**Rationale**:
+
+- ✅ **Sin duplicación de datos**: staging y production ven EXACTAMENTE los mismos mensajes/sources/media
+- ✅ **Sincronización automática**: un solo mensaje descargado → visible en todos los ambientes instantáneamente
+- ✅ **Escalabilidad**: agregar nuevos ambientes (QA, dev2) solo requiere apuntarlos al ingestion-service existente
+- ✅ **Separación de responsabilidades**: ingestion-service maneja MTProto + storage, backends manejan lógica de negocio (scoring, publishing, etc.)
+- ✅ **Evita conflictos**: sin DBs duplicadas, sin archivos duplicados, sin sesiones duplicadas
+
+**Data Flow (Crypto-News — Opción A: Filter on-Read)**:
+
+```
+Telegram Channel (MTProto)
+    ↓ (ingestion-service lee mensaje)
+ingestion-service:
+    1. Descarga media → uploads/crypto-news/media/
+    2. INSERT INTO crypto_news_messages (id, content, channel_id, ...) ← RAW content, NO filters
+    3. INSERT INTO crypto_news_message_media (message_id, url, type, ...)
+    4. Emite evento SSE (metadata-only, NO content)
+Backend (staging/prod) — OPCIÓN A (filter on-read):
+    1. EnqueueMatchingCronScheduler (cron every minute):
+       a. Fetch RAW messages: CryptoNewsIngestionClient → GET ingestion:3032/api/crypto-news/messages?limit=50
+       b. Filter + match: FilteredCryptoNewsService:
+          - Load per-channel ContentFilterService rules (regex transforms)
+          - Apply filters to title + content (on-read, NO persist)
+          - Evaluate keywords (simple + AND-groups)
+          - Check blacklist phrases (block if match)
+       c. Enqueue matched messages: EnqueueMatchingMessageUseCase → publisher queue (cap 36)
+    2. PublisherCronScheduler (every minute): drain queue → LLM → Bot API publish
+Frontend:
+    1. Consulta directo a ingestion:3032: GET /api/crypto-news/messages?limit=50 (RAW content)
+    2. Renderiza mensajes SIN filtros (display mode)
+    3. Media se carga de: http://ingestion:3032/api/media/{channelId}/{messageId}/{index}
+```
+
+**Arquitectura Opción A — Invariantes**:
+
+- Ingestion-service guarda contenido CRUDO (sin filtros, sin transformaciones)
+- Backend staging/production aplican SUS PROPIOS filtros on-read (NO replican DB)
+- Frontend muestra contenido RAW (sin transformaciones)
+- Publisher queue recibe contenido FILTRADO (AFTER ContentFilterService + keywords matched)
+
+**KOL Data** (nota: actualmente los KOL identities están en el backend, no en ingestion-service — considerar migración futura para consistencia).
+
 ## STRUCTURE
 
 ```
@@ -187,6 +284,15 @@ Source: `apps/backend/docs/spydefi/arch/09-anti-patterns.md` — project-level r
 - **External providers are NEVER queried** in `token-approved-publish-ticker-bug-exploration.spec.ts` context. (Sanctioned exception: `TickerResolverService` 9-level cascade in vip-channel.)
 - **`bug-exploration.spec.ts` files encode future-fix invariants** — do not "fix" them; they document expected behavior post-fix.
 
+### Ingestion-Service (CRITICAL — Architecture Invariants)
+
+- **NEVER create multiple ingestion-service instances** — one standalone instance on port 3032 feeds ALL backends (dev/staging/prod)
+- **NEVER duplicate MTProto credentials** — session lives ONLY in `apps/ingestion-service/.env` (`INGESTION_TELEGRAM_MTPROTO_*`); duplication triggers `AUTH_KEY_DUPLICATED`
+- **NEVER define ingestion-service in `docker-compose.staging.yml` or `.prod.yml`** — only `docker-compose.ingestion.yml` (standalone)
+- **NEVER create separate crypto-news sources DBs per environment** — single `crypto_news_sources` table, both backends query the same ingestion-service
+- **Backend MUST consume via SSE** — `INGESTION_SERVICE_URL` points to the centralized instance (Tailscale `cryptoganster.tailf01c61.ts.net:3032` or `localhost:3032`)
+- **Staging/production backends filter client-side** — ingestion-service broadcasts ALL channels, backends subscribe to what they need
+
 ### Shared-kernel contracts (handle with care)
 
 - `ChainId` VO (`apps/backend/src/shared/common/value-objects/chain-id.vo.ts`) — shared kernel contract.
@@ -351,8 +457,51 @@ kol msg ──► intake/extraction ──► intake/parsing ──► normaliza
                                                                                   ▼
                                                               call-tracking (evals) + achievements (milestones)
 
-crypto-news msg ──► StoreNewsMessage (opaque persist) ──► keyword/phrase/blacklist match ──► queue ──► LLM ──► Bot API
-                                                                     (filters submodule)              (publisher-cron 1 min)
+crypto-news msg ──► ingestion-service (persist RAW) ──► backend poll (every min) ──► FilteredCryptoNewsService
+                                                                                          (fetch + filter + match)
+                                                                ▼
+                                                    EnqueueMatchingCronScheduler ──► queue ──► LLM ──► Bot API
+                                                    (keywords matched, NOT blacklisted)  (publisher-cron 1 min)
+```
+
+**Crypto-News 3-Flag Control (CRITICAL)**:
+
+The pipeline uses **3 independent flags** controlling enqueue, LLM, and publishing:
+
+| Flag                | Owner            | Controls                          | Location                   |
+| ------------------- | ---------------- | --------------------------------- | -------------------------- |
+| `matchingEnabled`   | `MatchingConfig` | `EnqueueMatchingCronScheduler`    | `crypto-news-integration/` |
+| `llmEnabled`        | `LlmConfig`      | LLM vs raw content mode           | `crypto-news-publisher/`   |
+| `publishingEnabled` | `LlmConfig`      | `PublisherCronScheduler` (master) | `crypto-news-publisher/`   |
+
+**Critical Dependency**: `LLM generation = llmEnabled AND publishingEnabled`
+
+LLM generation **ONLY occurs when BOTH** `llmEnabled=true` AND `publishingEnabled=true`. If publishing is paused, LLM doesn't run (saves API costs, no point generating unpublished content).
+
+**Truth Table**:
+
+| Matching | LLM | Publishing | Result                                      |
+| :------: | :-: | :--------: | ------------------------------------------- |
+|    ❌    | ❌  |     ❌     | All paused                                  |
+|    ❌    | ❌  |     ✅     | Drain queue raw (no new enqueue)            |
+|    ❌    | ✅  |     ❌     | All paused (LLM inactive)                   |
+|    ❌    | ✅  |     ✅     | Drain queue with LLM (no new enqueue)       |
+|    ✅    | ❌  |     ❌     | Enqueue only (queue builds)                 |
+|    ✅    | ❌  |     ✅     | **Raw pipeline** (enqueue + publish raw)    |
+|    ✅    | ✅  |     ❌     | Enqueue only (LLM inactive)                 |
+|    ✅    | ✅  |     ✅     | **Full pipeline** (enqueue + LLM + publish) |
+
+**Use Cases**:
+
+- Pause publishing, keep enqueuing: `matching=true`, `publishing=false` → queue accumulates
+- Publish raw only (no LLM cost): `llm=false`, `publishing=true`
+- Drain existing queue: `matching=false`, `publishing=true`
+- Emergency stop: all flags `false`
+
+**Frontend**: 3 independent toggle buttons in `MatchingToggleButton` component (optimistic updates per flag).
+
+**Why decoupled**: Matching shouldn't depend on publisher config; separate configs prevent unnecessary coupling (see `apps/backend/AGENTS.md` §CRYPTO-NEWS for migration details).
+
 ```
 
 Decision numbers: score v1 (base 50, tiers 80/60/40/20/10-risk-names), 8 fail-fast gates, honeypot analyzer port, rep multiplier 0.85–1.15. See `apps/backend/AGENTS.md` §SCORING & GATES.
@@ -360,16 +509,18 @@ Decision numbers: score v1 (base 50, tiers 80/60/40/20/10-risk-names), 8 fail-fa
 ## INGESTION-SERVICE INTERNALS
 
 ```
+
 MTProto (one session)
-   │ realtime NewMessage + 30 s polling (minId=cursor, limit 50)
-   ▼
+│ realtime NewMessage + 30 s polling (minId=cursor, limit 50)
+▼
 TelegramMtprotoListenerAdapter ──► MessageQueue ──► subscribe()
-   │ crypto-news only: MediaDownloaderService ──► uploads/crypto-news/media/{channel}/
-   ▼
+│ crypto-news only: MediaDownloaderService ──► uploads/crypto-news/media/{channel}/
+▼
 IngestionCoordinator.route(raw, kol|crypto-news)
-   │ KOL: strip text (ToS) │ news: keep text+media URLs
-   ▼
+│ KOL: strip text (ToS) │ news: keep text+media URLs
+▼
 StreamService.broadcast ──► N SSE clients (+30 s health:ping, DisconnectionTracker)
+
 ```
 
 Lossy by design: no replay, backfill unimplemented, dedup service present but unwired, sleep window unenforced. See `apps/ingestion-service/AGENTS.md` gaps.
@@ -392,3 +543,4 @@ Lossy by design: no replay, backfill unimplemented, dedup service present but un
 - **`@/*` alias is frontend-only.** Don't use it in backend imports.
 - **No CLAUDE.md exists** — conventions live in `apps/backend/docs/spydefi/arch/`, `GOVERNANCE.md` (branches), and per-app AGENTS.md files.
 - **AGENTS.md map**: this file (root) + `apps/{backend,ingestion-service,frontend}/AGENTS.md`. No sub-BC AGENTS.md remain (consolidated 2026-09-04).
+```

@@ -17,7 +17,10 @@ import { MediaDownloaderService } from 'media/application/services/media-downloa
 import { RedisService } from 'shared/common/cache/redis.service';
 import { IngestionSafetyConfig } from './infrastructure/config/ingestion-safety.config';
 import { CryptoNewsSourceEntity } from '../crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
+import { CryptoNewsMessageEntity } from '../crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
+import { CryptoNewsMessageMediaEntity } from '../crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
 import { CryptoNewsSourceRepository } from '../crypto-news/infrastructure/persistence/typeorm/repositories/crypto-news-source.repository';
+import { CryptoNewsMessageRepository } from '../crypto-news/infrastructure/persistence/typeorm/repositories/crypto-news-message.repository';
 
 /**
  * SharedModule - Telegram infrastructure shared across KOL and crypto-news ingestion
@@ -39,7 +42,11 @@ import { CryptoNewsSourceRepository } from '../crypto-news/infrastructure/persis
 @Module({
   imports: [
     StreamModule, // For SSE broadcast only
-    TypeOrmModule.forFeature([CryptoNewsSourceEntity]), // For crypto-news channel cache
+    TypeOrmModule.forFeature([
+      CryptoNewsSourceEntity,
+      CryptoNewsMessageEntity,
+      CryptoNewsMessageMediaEntity,
+    ]), // For crypto-news persistence
   ],
   providers: [
     // Config & Infrastructure
@@ -49,8 +56,9 @@ import { CryptoNewsSourceRepository } from '../crypto-news/infrastructure/persis
     // Backend integration
     BackendChannelProviderService,
 
-    // Crypto-news DB repository
+    // Crypto-news DB repositories
     CryptoNewsSourceRepository,
+    CryptoNewsMessageRepository,
 
     // MTProto layer
     TelegramClientManager,
@@ -77,6 +85,7 @@ import { CryptoNewsSourceRepository } from '../crypto-news/infrastructure/persis
     IngestionSafetyConfig,
     BackendChannelProviderService,
     CryptoNewsSourceRepository, // Export for CryptoNewsModule
+    CryptoNewsMessageRepository, // Export for CryptoNewsModule
     TelegramClientManager,
     TelegramListenerPort,
     DeduplicationService,

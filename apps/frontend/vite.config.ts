@@ -26,6 +26,13 @@ export default defineConfig({
         target: 'http://localhost:3030',
         changeOrigin: false,
       },
+      // POST /crypto-news/sources now handled by ingestion-service (migrated 2026-09-05)
+      // Old endpoint /crypto-news/sources deprecated (backend returns 501)
+      '/ingestion-api': {
+        target: 'http://localhost:3032',
+        changeOrigin: false,
+        rewrite: (path) => path.replace(/^\/ingestion-api/, '/api'),
+      },
       // Only proxy API calls to crypto-news, not HTML navigation
       '^/crypto-news/(messages|sources|backfill|media)': {
         target: 'http://localhost:3030',

@@ -69,35 +69,34 @@ export class BackendChannelProviderService {
 
   /**
    * Fetch active crypto-news source IDs from backend
-   * @returns Array of crypto-news channel IDs that are active in the DB
+   *
+   * @deprecated This method is deprecated as of the ingestion-service migration.
+   * Crypto-news sources are now owned by ingestion-service and should be read from
+   * CryptoNewsSourceRepository.findAllActive() instead of HTTP polling.
+   *
+   * Rationale:
+   * - Ingestion-service owns the crypto-news sources table in its own DB
+   * - Backend no longer needs to serve this data over HTTP
+   * - Eliminates dependency on backend being available for ingestion-service to start
+   * - Reduces network round-trips and improves reliability
+   *
+   * Migration path:
+   * - TelegramModule now injects CryptoNewsSourceRepository directly
+   * - Backend endpoint GET /crypto-news/sources/active/ids marked as legacy
+   *
+   * This method returns an empty array and logs a deprecation warning.
+   *
+   * @returns Empty array (deprecated behavior)
    */
   public async fetchActiveCryptoNewsSourceIds(): Promise<
     ReadonlyArray<string>
   > {
-    try {
-      const url = `${this.backendUrl}/crypto-news/sources/active/ids`;
-      this.logger.debug(`Fetching active crypto-news source IDs from ${url}`);
-
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        this.logger.error(
-          `Failed to fetch active crypto-news source IDs: ${response.status} ${response.statusText}`,
-        );
-        return [];
-      }
-
-      const ids = (await response.json()) as string[];
-      this.logger.log(
-        `Fetched ${ids.length} active crypto-news source IDs from backend`,
-      );
-      return ids;
-    } catch (error) {
-      this.logger.error(
-        `Error fetching active crypto-news source IDs from backend: ${(error as Error).message}`,
-      );
-      return [];
-    }
+    this.logger.warn(
+      '[DEPRECATED] fetchActiveCryptoNewsSourceIds() is deprecated. ' +
+        'Use CryptoNewsSourceRepository.findAllActive() instead. ' +
+        'Returning empty array.',
+    );
+    return [];
   }
 
   /**
@@ -143,14 +142,16 @@ export class BackendChannelProviderService {
     }
 
     // Fallback to HTTP polling (backward compatibility)
+    // Note: fetchActiveCryptoNewsSourceIds() is now deprecated and returns []
+    // This fallback mode is kept for multi-backend registration scenarios only
     const [kolIds, newsIds] = await Promise.all([
       this.fetchActiveKolIds(),
-      this.fetchActiveCryptoNewsSourceIds(),
+      this.fetchActiveCryptoNewsSourceIds(), // Returns [] (deprecated)
     ]);
 
     const allIds = [...kolIds, ...newsIds];
     this.logger.log(
-      `[HTTP Polling] Total active channels: ${allIds.length} (${kolIds.length} KOLs + ${newsIds.length} crypto-news)`,
+      `[HTTP Polling] Total active channels: ${allIds.length} (${kolIds.length} KOLs + ${newsIds.length} crypto-news from deprecated endpoint)`,
     );
 
     return allIds;

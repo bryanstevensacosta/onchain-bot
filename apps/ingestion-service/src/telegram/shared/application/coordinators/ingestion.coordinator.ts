@@ -3,10 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { StreamService } from 'stream/application/services/stream.service';
 import { DeduplicationService } from 'telegram/shared/application/services/deduplication.service';
 import { LastSeenManager } from 'telegram/shared/infrastructure/services/last-seen-manager.service';
+import { CryptoNewsMessageRepository } from 'telegram/crypto-news/infrastructure/persistence/typeorm/repositories/crypto-news-message.repository';
+import { CryptoNewsMessageEntity } from 'telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
+import { CryptoNewsMessageMediaEntity } from 'telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
 import type {
   MessagePayload,
   MediaPayload,
 } from 'telegram/shared/domain/types/message-payload';
+import { randomUUID } from 'crypto';
 
 /**
  * TelegramRawMessage interface (from backend TelegramListenerPort)
@@ -62,6 +66,7 @@ export class IngestionCoordinator {
     private readonly streamService: StreamService,
     private readonly deduplicationService: DeduplicationService,
     private readonly lastSeenManager: LastSeenManager,
+    private readonly cryptoNewsMessageRepo: CryptoNewsMessageRepository,
     private readonly config: ConfigService,
   ) {
     // Load API base URL from config (e.g., "http://localhost:3031")
@@ -86,6 +91,12 @@ export class IngestionCoordinator {
     try {
       // Update cursor tracking (for recovery/restart purposes only)
       this.lastSeenManager.set(raw.peerId, raw.messageId);
+
+      // Per centralized architecture: Persist crypto-news messages to ingestion-service DB
+      // This is the SINGLE SOURCE OF TRUTH - backends query via HTTP API, they do NOT replicate
+      if (messageType === 'crypto-news') {
+        await this.persistCryptoNewsMessage(raw);
+      }
 
       // Per Invariant 1: Transform to MessagePayload WITHOUT text field (for KOL, includes text for crypto-news)
       const payload = this.transformToPayload(raw, messageType);
@@ -123,6 +134,88 @@ export class IngestionCoordinator {
         (error as Error).stack,
       );
       // Don't rethrow - we don't want one bad message to crash the listener
+    }
+  }
+
+  /**
+   * Persist crypto-news message to ingestion-service database
+   *
+   * **Per Opción A architecture (centralized RAW storage):**
+   * - Ingestion-service stores RAW content from Telegram (NO filters applied)
+   * - Each backend (staging/prod) fetches raw messages via HTTP API
+   * - Each backend applies ITS OWN content filters on-read (transform on-read pattern)
+   * - This allows staging and production to have DIFFERENT filter configurations
+   *
+   * Per centralized architecture: Ingestion-service OWNS crypto_news_messages table.
+   * This is the SINGLE SOURCE OF TRUTH - backends query via HTTP API, NO replication.
+   *
+   * Idempotency: Skip if message already exists (duplicate ingestion check).
+   *
+   * @param raw - Raw Telegram message from MTProto listener
+   */
+  private async persistCryptoNewsMessage(
+    raw: TelegramRawMessage,
+  ): Promise<void> {
+    try {
+      // Check for duplicate (idempotency)
+      const existing = await this.cryptoNewsMessageRepo.findByChannelAndMessageId(
+        raw.peerId,
+        raw.messageId,
+      );
+
+      if (existing) {
+        this.logger.debug(
+          `Skip duplicate crypto-news message: ${raw.peerId}:${raw.messageId}`,
+        );
+        return;
+      }
+
+      // Create message entity WITH RAW CONTENT (no filters applied)
+      // Per Opción A architecture: Ingestion stores RAW text from Telegram.
+      // Backends (staging/prod) apply THEIR OWN content filters on-read.
+      const messageEntity = new CryptoNewsMessageEntity();
+      messageEntity.id = randomUUID();
+      messageEntity.channelId = raw.peerId;
+      messageEntity.messageId = raw.messageId;
+      messageEntity.title = null; // TODO: extract title from text (future feature)
+      messageEntity.content = raw.text ?? ''; // ← RAW content, NO filters
+      messageEntity.publishedAt = raw.occurredAt;
+      messageEntity.ingestedAt = new Date();
+      messageEntity.linkPreviewUrl = null; // TODO: extract from entities (future feature)
+      messageEntity.linkPreviewTitle = null;
+      messageEntity.linkPreviewDescription = null;
+      messageEntity.linkPreviewSiteName = null;
+      messageEntity.messageEntities = raw.entities
+        ? JSON.stringify(raw.entities)
+        : null;
+      messageEntity.groupedId = raw.groupedId?.toString() ?? null;
+
+      // Create media entities (cascade save via relationship)
+      messageEntity.media = (raw.media || []).map((m, idx) => {
+        const mediaEntity = new CryptoNewsMessageMediaEntity();
+        mediaEntity.id = randomUUID();
+        mediaEntity.messageId = messageEntity.id;
+        mediaEntity.index = m.index ?? idx;
+        mediaEntity.type = m.type;
+        mediaEntity.filePath = m.filePath ?? '';
+        mediaEntity.mimeType = m.mimeType;
+        mediaEntity.fileSize = m.fileSize ?? null;
+        mediaEntity.createdAt = new Date();
+        return mediaEntity;
+      });
+
+      // Save to database (media rows saved automatically via cascade)
+      await this.cryptoNewsMessageRepo.save(messageEntity);
+
+      this.logger.log(
+        `Persisted crypto-news message: ${raw.peerId}:${raw.messageId} (${messageEntity.media.length} media)`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to persist crypto-news message ${raw.peerId}:${raw.messageId}: ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      // Don't rethrow - broadcast can still proceed even if persistence fails
     }
   }
 

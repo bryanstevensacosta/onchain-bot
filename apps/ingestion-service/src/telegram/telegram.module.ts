@@ -9,12 +9,13 @@ import { IngestionCoordinator } from './shared/application/coordinators/ingestio
 import { SSEBroadcastService } from '../stream/application/services/sse-broadcast.service';
 import { BroadcastEvent } from '../stream/domain/broadcast-event.vo';
 import { DebugTelegramController } from './debug/debug-telegram.controller';
+import { CryptoNewsSourceRepository } from './crypto-news/infrastructure/persistence/typeorm/repositories/crypto-news-source.repository';
 
 /**
  * TelegramModule - Root Telegram ingestion module
  *
  * Orchestrates:
- * 1. Channel fetching from backend DB (replaces seed-based system)
+ * 1. Channel fetching from local DB (crypto-news) and backend DB (KOLs)
  * 2. MTProto connection initialization
  * 3. Message ingestion pipeline startup
  * 4. Periodic refresh of channel subscriptions
@@ -24,15 +25,16 @@ import { DebugTelegramController } from './debug/debug-telegram.controller';
  * Per Requirement 4.3: Ingestion continues if broadcast fails (log error, don't throw)
  *
  * Lifecycle:
- * - onModuleInit(): Fetches active channels from backend DB, starts MTProto listener
+ * - onModuleInit(): Fetches active channels (KOLs from backend, crypto-news from local DB), starts MTProto listener
  * - Listener yields messages to IngestionCoordinator
  * - Coordinator broadcasts to StreamService (legacy SSE)
  * - TelegramModule broadcasts to SSEBroadcastService (multi-backend SSE)
  * - Scheduler refreshes channel list every 5 minutes
  *
- * Migration from seed-based system:
- * - OLD: KolSeeder/CryptoNewsSeeder read from seed files
- * - NEW: BackendChannelProviderService fetches from backend DB via HTTP
+ * Migration from backend HTTP polling:
+ * - OLD: BackendChannelProviderService.fetchActiveCryptoNewsSourceIds() via HTTP (DEPRECATED)
+ * - NEW: CryptoNewsSourceRepository.findAllActive() from local DB (ingestion-service owns crypto-news sources)
+ * - KOLs still fetched from backend DB (backend owns KOL identity)
  */
 @Module({
   imports: [
@@ -53,6 +55,7 @@ export class TelegramModule implements OnModuleInit {
 
   constructor(
     private readonly channelProvider: BackendChannelProviderService,
+    private readonly cryptoNewsSourceRepo: CryptoNewsSourceRepository,
     private readonly listener: TelegramListenerPort,
     private readonly coordinator: IngestionCoordinator,
     private readonly sseBroadcast: SSEBroadcastService,
@@ -62,23 +65,23 @@ export class TelegramModule implements OnModuleInit {
     this.logger.log('🚀 Initializing Telegram ingestion service...');
 
     try {
-      // Step 1: Fetch active channels from backend DB
-      this.logger.log('📡 Fetching active channels from backend DB...');
+      // Step 1: Fetch active channels (KOLs from backend, crypto-news from local DB)
+      this.logger.log('📡 Fetching active channels...');
       await this.refreshChannels();
 
       const totalChannels = this.currentChannelIds.length;
       if (totalChannels === 0) {
         this.logger.warn(
-          '⚠️ No active channels found in backend DB. Ingestion service will not receive messages.',
+          '⚠️ No active channels found. Ingestion service will not receive messages.',
         );
         this.logger.warn(
-          '💡 Add channels via backend API: POST /telegram-kol/identity/kols or POST /crypto-news/sources',
+          '💡 Add channels via: KOLs → backend API POST /telegram-kol/identity/kols, crypto-news → ingestion-service API POST /api/crypto-news/sources',
         );
         return;
       }
 
       this.logger.log(
-        `✅ Channel fetch complete: ${this.kolChannelIds.length} KOLs + ${this.newsChannelIds.length} crypto-news = ${totalChannels} total`,
+        `✅ Channel fetch complete: ${this.kolChannelIds.length} KOLs (from backend) + ${this.newsChannelIds.length} crypto-news (from local DB) = ${totalChannels} total`,
       );
 
       // Step 2: Start MTProto listener
@@ -103,14 +106,23 @@ export class TelegramModule implements OnModuleInit {
   }
 
   /**
-   * Fetch active channel IDs from backend and update local cache
+   * Fetch active channel IDs and update local cache
+   *
+   * Architecture (post-migration):
+   * - KOLs: Fetched from backend DB via HTTP (backend owns KOL identity)
+   * - Crypto-news: Read from local DB (ingestion-service owns crypto-news sources)
+   *
+   * This replaces the old system where both were fetched via HTTP from backend.
    */
   private async refreshChannels(): Promise<void> {
     try {
-      const [kolIds, newsIds] = await Promise.all([
-        this.channelProvider.fetchActiveKolIds(),
-        this.channelProvider.fetchActiveCryptoNewsSourceIds(),
-      ]);
+      // Fetch KOLs from backend (backend still owns KOL identity)
+      const kolIds = await this.channelProvider.fetchActiveKolIds();
+
+      // Fetch crypto-news sources from LOCAL DB (ingestion-service owns this now)
+      const cryptoNewsSources =
+        await this.cryptoNewsSourceRepo.findAllActive();
+      const newsIds = cryptoNewsSources.map((source) => source.channelId);
 
       const previousTotal = this.currentChannelIds.length;
       const previousKolCount = this.kolChannelIds.length;
@@ -127,7 +139,7 @@ export class TelegramModule implements OnModuleInit {
 
       if (newTotal !== previousTotal) {
         this.logger.log(
-          `📊 Channel list updated: ${previousTotal} → ${newTotal} (${kolIds.length} KOLs, ${newsIds.length} crypto-news)`,
+          `📊 Channel list updated: ${previousTotal} → ${newTotal} (${kolIds.length} KOLs from backend, ${newsIds.length} crypto-news from local DB)`,
         );
 
         // Restart listener with new channel list if already running
@@ -144,7 +156,7 @@ export class TelegramModule implements OnModuleInit {
       }
     } catch (error) {
       this.logger.error(
-        `Failed to refresh channel list from backend: ${(error as Error).message}`,
+        `Failed to refresh channel list: ${(error as Error).message}`,
       );
       // Keep existing channel list on error
     }

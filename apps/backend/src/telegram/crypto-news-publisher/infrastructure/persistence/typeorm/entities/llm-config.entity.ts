@@ -32,8 +32,14 @@ export class LlmConfigEntity {
   @Column({ name: 'target_channel', type: 'varchar', length: 64, default: '' })
   public targetChannel!: string;
 
-  @Column({ name: 'enabled', type: 'boolean', default: false })
-  public enabled!: boolean;
+  @Column({ name: 'matching_enabled', type: 'boolean', default: false })
+  public matchingEnabled!: boolean;
+
+  @Column({ name: 'llm_enabled', type: 'boolean', default: false })
+  public llmEnabled!: boolean;
+
+  @Column({ name: 'publishing_enabled', type: 'boolean', default: false })
+  public publishingEnabled!: boolean;
 
   @Column({ name: 'reject_non_latin', type: 'boolean', default: true })
   public rejectNonLatin!: boolean;

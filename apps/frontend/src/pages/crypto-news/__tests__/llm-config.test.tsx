@@ -60,6 +60,8 @@ vi.mock('@/features/crypto-news-publisher/model/use-llm-config', () => {
     useDeleteTemplate: vi.fn(),
     useUpdateLlmConfig: vi.fn(),
     useToggleMatching: vi.fn(() => ({ ...mutStub })),
+    useToggleLlm: vi.fn(() => ({ ...mutStub })),
+    useTogglePublishing: vi.fn(() => ({ ...mutStub })),
   };
 });
 
@@ -255,7 +257,10 @@ const baseConfig: LlmConfig = {
   id: 1,
   defaultTemplateId: 'tpl-default',
   targetChannel: '@vip-channel',
-  enabled: true,
+  matchingEnabled: true,
+  llmEnabled: true,
+  publishingEnabled: true,
+  rejectNonLatin: true,
   dailyCap: 36,
   dailyResetUtcHour: 4,
   randomDelayMinMs: 30_000,
@@ -343,7 +348,8 @@ describe('LlmConfigForm', () => {
     expect(screen.getByLabelText('Target Telegram channel')).toHaveValue(
       '@vip-channel',
     );
-    expect(screen.getByLabelText('Publisher enabled')).toBeChecked();
+    // Note: LLM/Publishing toggles are now separate controls (3-flag system)
+    // They don't appear in the form itself - they're in MatchingToggleButton component
     expect(screen.getByLabelText('Daily cap (1-200)')).toHaveValue(36);
     expect(screen.getByLabelText('Daily reset UTC hour (0-23)')).toHaveValue(4);
     expect(screen.getByLabelText('Random delay min (ms)')).toHaveValue(30000);
@@ -397,14 +403,12 @@ describe('LlmConfigForm', () => {
     fireEvent.change(screen.getByLabelText('Daily cap (1-200)'), {
       target: { value: '12' },
     });
-    fireEvent.click(screen.getByLabelText('Publisher enabled'));
     fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
 
     expect(mutateSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         defaultTemplateId: 'tpl-default',
         targetChannel: '@new-channel',
-        enabled: false,
         dailyCap: 12,
         dailyResetUtcHour: 4,
         randomDelayMinMs: 30000,

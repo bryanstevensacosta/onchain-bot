@@ -28,8 +28,13 @@ import * as path from 'path';
  *      cron ticked too soon after the previous publish, return.
  *   3. Queue dequeue — oldest PENDING entry. If none, return.
  *   4. LLM refinement — call the crypto-news adapter to rewrite the
- *      text. The adapter is the only place that touches the local
- *      image file (reads + base64-encodes for the LLM).
+ *      text (ONLY if llmEnabled=true; otherwise publish raw content).
+ *      IMPORTANT: This step only runs when publishingEnabled=true
+ *      (checked by PublisherCronScheduler before calling execute()).
+ *      LLM generation is DEPENDENT on publishing being active — there's
+ *      no point generating content that won't be published.
+ *      The adapter is the only place that touches the local image file
+ *      (reads + base64-encodes for the LLM).
  *   5. Publish — try `sendPhoto` first (entry has a local image);
  *      fall back to `sendMessage` when the entry has no image.
  *   6. On success: mark the entry PUBLISHED, persist the new
@@ -102,37 +107,59 @@ export class ProcessNextQueuedArticleUseCase {
     }
 
     try {
-      const generated = await this.llmAdapter.generateForEntry(entry);
-      if (cfg.rejectNonLatin) {
-        const bad = findNonLatinCharacter(generated.content);
-        if (bad) {
-          const code = bad.codePoint
-            .toString(16)
-            .toUpperCase()
-            .padStart(4, '0');
-          const reason = `LLM output rejected: non-Latin character '${bad.char}' (U+${code}) detected`;
-          this.logger.warn(`queue entry ${entry.id} rejected: ${reason}`);
-          await this.queueRepo.markFailed(entry.id, reason);
-          return;
+      // Step 4: LLM refinement (ONLY if both llmEnabled AND publishingEnabled are true)
+      // Note: publishingEnabled is already checked by PublisherCronScheduler, so if we're
+      // here, publishingEnabled=true. We only check llmEnabled to decide LLM vs raw.
+      let contentToPublish: string;
+      let generatedData:
+        | Awaited<ReturnType<typeof this.llmAdapter.generateForEntry>>
+        | undefined;
+
+      if (cfg.llmEnabled) {
+        generatedData = await this.llmAdapter.generateForEntry(entry);
+        contentToPublish = generatedData.content;
+
+        if (cfg.rejectNonLatin) {
+          const bad = findNonLatinCharacter(contentToPublish);
+          if (bad) {
+            const code = bad.codePoint
+              .toString(16)
+              .toUpperCase()
+              .padStart(4, '0');
+            const reason = `LLM output rejected: non-Latin character '${bad.char}' (U+${code}) detected`;
+            this.logger.warn(`queue entry ${entry.id} rejected: ${reason}`);
+            await this.queueRepo.markFailed(entry.id, reason);
+            return;
+          }
         }
+      } else {
+        // Publish raw content without LLM transformation
+        this.logger.log(
+          `llmEnabled=false — publishing raw content for entry ${entry.id}`,
+        );
+        contentToPublish = entry.rawContent;
       }
-      // Use HTML content directly (LLM generates HTML, Telegram parses with parseMode: 'HTML')
+
+      // Step 5: Publish to Telegram
       const result = await this.dispatchToTelegram(
         entry,
-        generated.content,
+        contentToPublish,
         cfg,
       );
       if (!result.ok || result.messageId === null) {
         throw new Error(result.error ?? 'telegram publish returned no id');
       }
+
+      // Step 6: Mark published
       await this.queueRepo.markPublished(
         entry.id,
         String(result.messageId),
-        generated,
+        generatedData, // null when llmEnabled=false
       );
       await this.throttleScheduler.setLastPublishAt(now);
       await this.slotArbitrator.recordPublish('news', now);
       await this.rotationStateRepo.incrementPostsSinceLastAd();
+
       try {
         await this.mediaCleanup.cleanupPublishedMedia(
           entry.imagePaths,
@@ -144,8 +171,10 @@ export class ProcessNextQueuedArticleUseCase {
             `${cleanupErr instanceof Error ? cleanupErr.message : 'unknown error'}`,
         );
       }
+
       this.logger.log(
-        `published queue entry ${entry.id} as telegram message ${result.messageId}`,
+        `published queue entry ${entry.id} as telegram message ${result.messageId}` +
+          (cfg.llmEnabled ? ' (LLM)' : ' (raw)'),
       );
     } catch (err) {
       // If the publisher isn't configured (bot token / output channel

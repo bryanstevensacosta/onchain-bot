@@ -28,6 +28,12 @@ export interface PublisherQueueEntryProps {
   readonly groupedId: string | null;
   readonly messageReceivedAt: Date;
   /**
+   * Timestamp when this entry was added to the queue. Used for TTL
+   * expiration: entries older than 24h in PENDING status are
+   * automatically marked FAILED by ExpireStaleQueueEntriesScheduler.
+   */
+  readonly queuedAt: Date;
+  /**
    * Captured at enqueue time: the `PromptTemplate.id` that the
    * matched keyword was bound to, or `null` when the keyword has no
    * override (the LLM adapter falls back to
@@ -152,6 +158,7 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
     const allPaths = input.imagePaths ?? [];
     const firstPath = input.imagePath ?? allPaths[0] ?? null;
     const id = input.id ?? crypto.randomUUID();
+    const now = new Date();
     return new PublisherQueueEntry(id, {
       id,
       traceId: crypto.randomUUID(),
@@ -163,6 +170,7 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
       imagePaths: allPaths,
       groupedId: input.groupedId,
       messageReceivedAt: input.messageReceivedAt,
+      queuedAt: now,
       matchedKeywordIds: input.matchedKeywordIds ?? [],
       keywordTemplateId: input.keywordTemplateId ?? null,
       formattingEntities: input.formattingEntities ?? null,
@@ -244,6 +252,10 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
 
   public get messageReceivedAt(): Date {
     return this.state.messageReceivedAt;
+  }
+
+  public get queuedAt(): Date {
+    return this.state.queuedAt;
   }
 
   public get status(): PublisherQueueStatus {

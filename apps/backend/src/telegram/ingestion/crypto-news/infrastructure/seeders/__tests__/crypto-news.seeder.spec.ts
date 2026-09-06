@@ -116,7 +116,11 @@ describe('CryptoNewsSeeder', () => {
     listener = new StubListener();
   });
 
-  it('activates newly registered sources so IngestionCoordinator.findActive() picks them up', async () => {
+  // All tests updated to reflect deprecated behavior (2026-09-05 migration)
+  // Backend seeder is DEPRECATED - ingestion-service owns crypto-news sources
+  // Seeder returns early with warning, no DB writes
+
+  it('returns early with deprecation warning (no longer activates sources)', async () => {
     const seeder = new CryptoNewsSeeder(
       buildConfig([{ channelId: '100', handle: '@a', title: 'A' }]),
       repo,
@@ -126,20 +130,18 @@ describe('CryptoNewsSeeder', () => {
 
     const result = await seeder.seed();
 
-    expect(result.added).toBe(1);
+    // Seeder is deprecated - returns 0 for all counts
+    expect(result.added).toBe(0);
     expect(result.skipped).toBe(0);
     expect(result.failed).toBe(0);
 
+    // No DB writes - repo remains empty
     const active = await repo.findActive();
-    expect(active).toHaveLength(1);
-    expect(active[0].channelId).toBe('-100100'); // normalized with -100 prefix
-    expect(active[0].isActive).toBe(true);
-    expect(active[0].lifecycleStatus).toBe('ACTIVE');
+    expect(active).toHaveLength(0);
   });
 
-  it('activates pre-existing sources left with isActive=false by an earlier deploy', async () => {
-    // Reproduce the production state that triggered this fix: a row
-    // registered by a previous seeder version with isActive=false.
+  it('returns early even with pre-existing sources (no longer activates)', async () => {
+    // Pre-populate repo with stale source
     const stale = CryptoNewsSource.create({
       channelId: '200',
       handle: '@b',
@@ -157,16 +159,17 @@ describe('CryptoNewsSeeder', () => {
 
     const result = await seeder.seed();
 
+    // Seeder is deprecated - returns 0 for all counts
     expect(result.added).toBe(0);
-    expect(result.skipped).toBe(1);
+    expect(result.skipped).toBe(0);
 
+    // Stale source remains inactive (seeder no longer touches it)
     const active = await repo.findActive();
-    expect(active).toHaveLength(1);
-    expect(active[0].channelId).toBe('200');
-    expect(active[0].isActive).toBe(true);
+    expect(active).toHaveLength(0);
+    expect(stale.isActive).toBe(false);
   });
 
-  it('activates every channel from CRYPTO_NEWS_SEED when no env list is supplied', async () => {
+  it('returns early even with CRYPTO_NEWS_SEED fallback (no longer activates)', async () => {
     const seeder = new CryptoNewsSeeder(
       buildConfig([], true),
       repo,
@@ -176,17 +179,16 @@ describe('CryptoNewsSeeder', () => {
 
     const result = await seeder.seed();
 
-    expect(result.added).toBe(CRYPTO_NEWS_SEED.length);
+    // Seeder is deprecated - returns 0 for all counts
+    expect(result.added).toBe(0);
     expect(result.failed).toBe(0);
 
+    // No DB writes - repo remains empty despite seed data
     const active = await repo.findActive();
-    expect(active).toHaveLength(CRYPTO_NEWS_SEED.length);
-    expect(active.map((s) => s.channelId).sort()).toEqual(
-      CRYPTO_NEWS_SEED.map((s) => s.channelId).sort(),
-    );
+    expect(active).toHaveLength(0);
   });
 
-  it('does not call registerSource when the source already exists (idempotent re-run)', async () => {
+  it('does not call registerSource in deprecated mode', async () => {
     const existing = CryptoNewsSource.create({
       channelId: '300',
       handle: '@c',
@@ -208,10 +210,14 @@ describe('CryptoNewsSeeder', () => {
 
     const result = await seeder.seed();
 
+    // Seeder is deprecated - returns 0 for all counts
     expect(result.added).toBe(0);
-    expect(result.skipped).toBe(1);
+    expect(result.skipped).toBe(0);
+
+    // registerSource never called (seeder returns early)
     expect(registerSpy).not.toHaveBeenCalled();
 
+    // Existing source unchanged
     const active = await repo.findActive();
     expect(active).toHaveLength(1);
     expect(active[0].isActive).toBe(true);

@@ -84,7 +84,9 @@ export const ENDPOINTS = {
   },
   cryptoNews: {
     sources: {
-      add: '/crypto-news/sources',
+      // MIGRATED 2026-09-05: Ingestion-service is sole owner of crypto-news sources
+      // Backend POST /crypto-news/sources is deprecated (returns 501)
+      add: '/ingestion-api/crypto-news/sources',
     },
   },
   trackedCalls: {

@@ -1,5 +1,7 @@
 FROM node:22-bookworm-slim AS build
 
+ARG VITE_APP_ENV=production
+
 WORKDIR /repo
 
 COPY package.json package-lock.json ./
@@ -12,7 +14,8 @@ RUN npm ci --no-audit --no-fund
 COPY apps/frontend ./apps/frontend
 
 ENV VITE_API_BASE_URL="" \
-    VITE_WS_URL=""
+    VITE_WS_URL="" \
+    VITE_APP_ENV="${VITE_APP_ENV}"
 
 RUN npm run build:frontend
 

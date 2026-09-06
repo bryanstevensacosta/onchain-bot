@@ -468,7 +468,7 @@ export class TelegramMtprotoListenerAdapter
    *
    * @deprecated The seed-based approach (CRYPTO_NEWS_SEED + env var) is deprecated.
    * This method now queries the database to determine active crypto-news sources.
-   * Sources are created/updated via backend API (`POST /crypto-news/sources`).
+   * Sources are created/updated via ingestion-service API (`POST /api/crypto-news/sources`).
    */
   private isCryptoNewsChannel(peerId: string): boolean {
     const isMatch = this.cryptoNewsChannelCache.has(peerId);

@@ -11,7 +11,7 @@ import type { LlmModel } from '@/features/crypto-news-publisher/api/llm-config-a
 interface DraftState {
   defaultTemplateId: string;
   targetChannel: string;
-  enabled: boolean;
+  rejectNonLatin: boolean;
   dailyCap: string;
   dailyResetUtcHour: string;
   randomDelayMinMs: string;
@@ -26,7 +26,7 @@ function draftFromConfig(
   cfg: {
     defaultTemplateId: string;
     targetChannel: string;
-    enabled: boolean;
+    rejectNonLatin: boolean;
     dailyCap: number;
     dailyResetUtcHour: number;
     randomDelayMinMs: number;
@@ -38,7 +38,7 @@ function draftFromConfig(
   return {
     defaultTemplateId: cfg.defaultTemplateId,
     targetChannel: cfg.targetChannel,
-    enabled: cfg.enabled,
+    rejectNonLatin: cfg.rejectNonLatin,
     dailyCap: String(cfg.dailyCap),
     dailyResetUtcHour: String(cfg.dailyResetUtcHour),
     randomDelayMinMs: String(cfg.randomDelayMinMs),
@@ -114,7 +114,7 @@ export function LlmConfigForm(): React.ReactElement {
         prev &&
         prev.defaultTemplateId === cfg.defaultTemplateId &&
         prev.targetChannel === cfg.targetChannel &&
-        prev.enabled === cfg.enabled &&
+        prev.rejectNonLatin === cfg.rejectNonLatin &&
         prev.dailyCap === String(cfg.dailyCap) &&
         prev.dailyResetUtcHour === String(cfg.dailyResetUtcHour) &&
         prev.randomDelayMinMs === String(cfg.randomDelayMinMs) &&
@@ -168,7 +168,7 @@ export function LlmConfigForm(): React.ReactElement {
     updateMut.mutate({
       defaultTemplateId: current.defaultTemplateId,
       targetChannel: current.targetChannel,
-      enabled: current.enabled,
+      rejectNonLatin: current.rejectNonLatin,
       dailyCap: Number(current.dailyCap),
       dailyResetUtcHour: Number(current.dailyResetUtcHour),
       randomDelayMinMs: Number(current.randomDelayMinMs),
@@ -259,15 +259,15 @@ export function LlmConfigForm(): React.ReactElement {
 
         <label className="flex items-center gap-2 text-sm text-slate-300">
           <input
-            id="llm-enabled"
+            id="llm-reject-non-latin"
             type="checkbox"
-            checked={current.enabled}
+            checked={current.rejectNonLatin}
             onChange={(e) =>
-              setDraft({ ...current, enabled: e.target.checked })
+              setDraft({ ...current, rejectNonLatin: e.target.checked })
             }
             disabled={updateMut.isPending}
           />
-          <span>Publisher enabled</span>
+          <span>Reject non-Latin characters</span>
         </label>
 
         <div className="grid grid-cols-2 gap-3">

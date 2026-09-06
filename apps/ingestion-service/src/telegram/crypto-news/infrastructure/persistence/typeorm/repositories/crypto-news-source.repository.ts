@@ -15,7 +15,7 @@ export interface ActiveCryptoNewsSource {
  * repository on startup and periodically to determine which channels require
  * media download (crypto-news channels vs KOL channels).
  *
- * Sources are created/updated via backend API (`POST /crypto-news/sources`).
+ * Sources are created/updated via ingestion-service API (`POST /api/crypto-news/sources`).
  */
 @Injectable()
 export class CryptoNewsSourceRepository {
@@ -87,5 +87,71 @@ export class CryptoNewsSourceRepository {
       // Return false on DB error to skip media download rather than crashing
       return false;
     }
+  }
+
+  /**
+   * Find a source by channel ID.
+   *
+   * @param channelId - Telegram channel ID
+   * @returns Source entity or null if not found
+   */
+  async findByChannelId(
+    channelId: string,
+  ): Promise<CryptoNewsSourceEntity | null> {
+    try {
+      const source = await this.repo.findOne({ where: { channelId } });
+      return source ?? null;
+    } catch (error) {
+      this.logger.error(
+        `Failed to find source by channelId ${channelId}: ${(error as Error).message}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Save (create or update) a crypto-news source.
+   *
+   * Used by RegisterNewsSourceUseCase when adding new sources via API.
+   *
+   * @param source - Source entity to save
+   * @returns Saved source entity
+   */
+  async save(source: CryptoNewsSourceEntity): Promise<CryptoNewsSourceEntity> {
+    try {
+      const saved = await this.repo.save(source);
+      this.logger.log(
+        `Saved crypto-news source: ${saved.channelId} (${saved.title})`,
+      );
+      return saved;
+    } catch (error) {
+      this.logger.error(
+        `Failed to save crypto-news source: ${(error as Error).message}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new crypto-news source entity (without saving).
+   *
+   * @param channelId - Telegram channel ID
+   * @param title - Channel title
+   * @param handle - Optional channel handle (without @)
+   * @returns New source entity (not persisted)
+   */
+  create(
+    channelId: string,
+    title: string,
+    handle?: string,
+  ): CryptoNewsSourceEntity {
+    const source = this.repo.create({
+      channelId,
+      title,
+      handle: handle ?? null,
+      isActive: true,
+      lifecycleStatus: 'ACTIVE',
+    });
+    return source;
   }
 }

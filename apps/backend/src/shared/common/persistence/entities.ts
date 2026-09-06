@@ -39,6 +39,7 @@ import { AdRotationStateEntity } from 'telegram/crypto-news-ads/infrastructure/p
 import { AdsThrottleStateEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ads-throttle-state.entity';
 import { AdMediaEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-media.entity';
 import { AdMediaLibraryEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-media-library.entity';
+import { MatchingConfigEntity } from 'telegram/crypto-news-integration/infrastructure/persistence/typeorm/entities/matching-config.entity';
 
 /**
  * All TypeORM entities persisted to Postgres. This array is consumed by
@@ -92,10 +93,11 @@ export const PERSISTED_ENTITIES = [
   AdsThrottleStateEntity,
   AdMediaLibraryEntity,
   DedupRecordEntity,
+  MatchingConfigEntity,
 ];
 
 /**
  * Expected entity count for validation. If this doesn't match
  * PERSISTED_ENTITIES.length, something is wrong.
  */
-export const EXPECTED_ENTITY_COUNT = 41;
+export const EXPECTED_ENTITY_COUNT = 42;

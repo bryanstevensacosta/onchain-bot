@@ -124,7 +124,8 @@ describe('LlmConfigMigrationService.seedIfEmpty', () => {
 
     expect(savedCfg.id).toBe(1);
     expect(savedCfg.targetChannel).toBe('-1004371535900');
-    expect(savedCfg.enabled).toBe(true);
+    expect(savedCfg.llmEnabled).toBe(true);
+    expect(savedCfg.publishingEnabled).toBe(true);
     expect(savedCfg.rejectNonLatin).toBe(true);
     expect(savedCfg.dailyCap).toBe(36);
     expect(savedCfg.randomDelayMinMs).toBe(180_000);
@@ -148,7 +149,8 @@ describe('LlmConfigMigrationService.seedIfEmpty', () => {
     existingRow.id = 1;
     existingRow.defaultTemplateId = '00000000-0000-0000-0000-000000000001';
     existingRow.targetChannel = 'preset';
-    existingRow.enabled = false;
+    existingRow.llmEnabled = false;
+    existingRow.publishingEnabled = false;
     existingRow.dailyCap = 12;
     existingRow.dailyResetUtcHour = 6;
     existingRow.randomDelayMinMs = 1_000;
@@ -205,7 +207,8 @@ describe('LlmConfigMigrationService.seedIfEmpty', () => {
     expect(savedTpl.promptText.length).toBeGreaterThan(0);
 
     expect(savedCfg.targetChannel).toBe('');
-    expect(savedCfg.enabled).toBe(false);
+    expect(savedCfg.llmEnabled).toBe(false);
+    expect(savedCfg.publishingEnabled).toBe(false);
     expect(savedCfg.rejectNonLatin).toBe(true);
     expect(savedCfg.dailyCap).toBe(36);
     expect(savedCfg.dailyResetUtcHour).toBe(4);

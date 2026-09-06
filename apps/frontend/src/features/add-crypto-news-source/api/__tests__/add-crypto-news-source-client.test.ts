@@ -11,7 +11,7 @@ vi.mock('@/shared/api/endpoints', () => ({
   ENDPOINTS: {
     cryptoNews: {
       sources: {
-        add: '/crypto-news/sources',
+        add: '/ingestion-api/crypto-news/sources',
       },
     },
   },
@@ -35,9 +35,12 @@ describe('addCryptoNewsSource', () => {
       addedAt: '2026-07-03T00:00:00.000Z',
     });
     await addCryptoNewsSource({ channelId: '1234567890' });
-    expect(httpPost).toHaveBeenCalledWith('/crypto-news/sources', {
-      channelId: '1234567890',
-    });
+    expect(httpPost).toHaveBeenCalledWith(
+      '/ingestion-api/crypto-news/sources',
+      {
+        channelId: '1234567890',
+      },
+    );
   });
 
   it('returns the CryptoNewsSource from the backend', async () => {

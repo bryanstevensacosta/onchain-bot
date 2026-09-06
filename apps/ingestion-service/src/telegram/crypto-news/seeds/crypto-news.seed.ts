@@ -1,19 +1,21 @@
 /**
- * @deprecated REMOVED - This file is kept for reference only
+ * @deprecated REMOVED - This file is kept for reference only (2026-09-05)
  *
  * Static seed list of Telegram crypto-news channel peer IDs.
  * This seeder has been COMPLETELY REPLACED by database-driven architecture.
  *
- * All crypto-news sources are now loaded from backend DB via:
- * - BackendChannelProviderService.fetchActiveCryptoNewsSourceIds()
- * - Fetches from: GET /api/crypto-news/sources/active/ids
+ * **NEW ARCHITECTURE (Opción A - Ingestion-service as sole owner):**
+ * - Ingestion-service OWNS crypto-news sources (reads/writes from its own DB)
+ * - Backend NO LONGER owns crypto-news sources (all write methods deprecated)
+ * - Crypto-news sources loaded via: `CryptoNewsSourceRepository.findAllActive()` (local DB)
  *
- * To add new sources:
- * - POST /api/crypto-news/sources with { channelId, handle, title }
+ * **To add new sources:**
+ * - POST {INGESTION_SERVICE_URL}/api/crypto-news/sources with { channelId, title?, handle? }
  * - Channel IDs MUST use Telegram's full format: -100XXXXXXXXX
  *
- * This file exists only as reference documentation.
- * DO NOT USE INGESTION_TELEGRAM_NEWS_SEED_ENABLED=true in any environment.
+ * **This file exists only as reference documentation.**
+ * DO NOT USE `INGESTION_TELEGRAM_NEWS_SEED_ENABLED=true` in any environment.
+ * DO NOT import `CRYPTO_NEWS_SEED` in new code.
  */
 export interface SeedCryptoNewsChannel {
   readonly channelId: string;
