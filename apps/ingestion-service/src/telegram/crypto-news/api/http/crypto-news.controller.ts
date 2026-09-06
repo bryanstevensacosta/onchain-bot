@@ -11,10 +11,8 @@ import {
 } from '@nestjs/common';
 import { CryptoNewsMessageRepository } from '../../infrastructure/persistence/typeorm/repositories/crypto-news-message.repository';
 import { CryptoNewsSourceRepository } from '../../infrastructure/persistence/typeorm/repositories/crypto-news-source.repository';
-import {
-  RegisterNewsSourceUseCase,
-  RegisterNewsSourceInput,
-} from '../../application/use-cases/register-news-source.use-case';
+import { RegisterNewsSourceUseCase } from '../../application/use-cases/register-news-source.use-case';
+import type { RegisterNewsSourceInput } from '../../application/use-cases/register-news-source.use-case';
 
 /**
  * HTTP API for crypto-news data.
