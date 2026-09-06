@@ -117,8 +117,17 @@ describe('Backfill Integration Tests', () => {
   });
 
   beforeEach(async () => {
-    // Clear ALL records from database (truncate)
-    await repository.clear();
+    // Wait for ALL fire-and-forget persistence from previous test to complete
+    // (persistAsync is fire-and-forget, so we need generous wait time)
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    
+    // AGGRESSIVE cleanup: Use TRUNCATE for immediate, complete deletion
+    try {
+      await repository.query('TRUNCATE TABLE backfill_messages CASCADE');
+    } catch (error) {
+      // Fallback to clear() if TRUNCATE fails
+      await repository.clear();
+    }
 
     // Recreate BackfillBufferService with fresh in-memory buffer
     // (BackfillBufferService is stateful with in-memory ring buffer that persists across tests)
@@ -455,7 +464,7 @@ describe('Backfill Integration Tests', () => {
     }
 
     // Wait for async database persistence (fire-and-forget, need time to complete)
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Verify messages are in database
     const dbMessages = await repository.find();
