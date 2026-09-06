@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.0.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v2.0.0...v3.0.0) (2026-09-06)
+
+### Features
+
+- migrate crypto-news sources ownership to ingestion-service ([#147](https://github.com/bryanstevensacosta/onchain-bot/issues/147)) ([4e07b1d](https://github.com/bryanstevensacosta/onchain-bot/commit/4e07b1d07fbc6db8e3ce4de8bea3725c9d53d98f))
+
 ## [2.0.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v1.3.2...v2.0.0) (2026-09-05)
 
 ### ⚠ BREAKING CHANGES

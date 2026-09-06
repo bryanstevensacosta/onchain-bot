@@ -1,24 +1,28 @@
 {
-  "release-type": "node",
-  "package-name": "alpha-meta-token-scanner",
-  "changelog-path": "CHANGELOG.md",
+  "bootstrap-sha": "a527fea6c8e1d4b3f9a2e7d6b8c4f1a3e5d7b9c2",
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": false,
   "draft": false,
   "prerelease": false,
-  "initial-version": "0.1.0",
   "release-search-depth": 50,
-  "include-component-in-tag": false,
-  "skip-github-release": false,
   "packages": {
     "apps/backend": {
-      "release-type": "node"
+      "release-type": "node",
+      "package-name": "backend",
+      "changelog-path": "CHANGELOG.md",
+      "include-component-in-tag": false
     },
     "apps/frontend": {
-      "release-type": "node"
+      "release-type": "node",
+      "package-name": "frontend",
+      "changelog-path": "CHANGELOG.md",
+      "include-component-in-tag": false
     },
     "apps/ingestion-service": {
-      "release-type": "node"
+      "release-type": "node",
+      "package-name": "ingestion-service",
+      "changelog-path": "CHANGELOG.md",
+      "include-component-in-tag": false
     }
   }
 }
