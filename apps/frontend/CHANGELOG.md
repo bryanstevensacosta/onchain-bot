@@ -1,5 +1,16 @@
 # Changelog
 
+## [4.0.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v3.0.1...v4.0.0) (2026-09-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* MTProto credentials must now be in ingestion-service ONLY
+
+### Bug Fixes
+
+* ingestion-service tests (127→0 failing) + implement Gap 3 dedup + Husky + CI ([#154](https://github.com/bryanstevensacosta/onchain-bot/issues/154)) ([b031f32](https://github.com/bryanstevensacosta/onchain-bot/commit/b031f32ea62b64180d7f50706f868130d2e1d01d))
+
 ## [3.0.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v2.0.0...v3.0.0) (2026-09-06)
 
 ### Features
