@@ -73,7 +73,7 @@ export class PublisherQueueEntity {
    * automatically marked FAILED by ExpireStaleQueueEntriesScheduler.
    * Default NOW() set by migration.
    */
-  @Column({ name: 'queued_at', type: 'timestamptz' })
+  @Column({ name: 'queued_at', type: 'timestamptz', default: () => 'NOW()' })
   public queuedAt!: Date;
 
   @Column({
