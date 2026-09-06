@@ -160,4 +160,25 @@ export class TypeOrmPublisherQueueRepository extends PublisherQueueRepository {
   public async delete(id: string): Promise<void> {
     await this.repo.delete(id);
   }
+
+  /**
+   * Find all PENDING entries whose queuedAt is older than the given
+   * threshold (milliseconds). Used by ExpireStaleQueueEntriesScheduler
+   * to expire stale entries (default 24h). Returns entries ordered by
+   * queuedAt ASC (oldest first).
+   */
+  public async findPendingOlderThan(
+    thresholdMs: number,
+  ): Promise<ReadonlyArray<PublisherQueueEntry>> {
+    const cutoff = new Date(Date.now() - thresholdMs);
+
+    const rows = await this.repo
+      .createQueryBuilder('q')
+      .where('q.status = :status', { status: 'PENDING' })
+      .andWhere('q.queuedAt < :cutoff', { cutoff })
+      .orderBy('q.queuedAt', 'ASC')
+      .getMany();
+
+    return rows.map((r) => PublisherQueueMapper.toDomain(r));
+  }
 }

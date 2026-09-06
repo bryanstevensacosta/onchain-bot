@@ -56,4 +56,13 @@ export abstract class PublisherQueueRepository {
     id: string,
   ): Promise<PublisherQueueEntry | null>;
   public abstract delete(id: string): Promise<void>;
+  /**
+   * Find all PENDING entries older than the given threshold (in
+   * milliseconds). Used by ExpireStaleQueueEntriesScheduler to expire
+   * stale entries (24h default). Returns entries ordered by queuedAt ASC
+   * (oldest first).
+   */
+  public abstract findPendingOlderThan(
+    thresholdMs: number,
+  ): Promise<ReadonlyArray<PublisherQueueEntry>>;
 }

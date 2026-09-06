@@ -43,6 +43,7 @@ import { CryptoNewsPublisherConfigService } from 'telegram/crypto-news-publisher
 import { MediaCleanupService } from 'telegram/crypto-news-publisher/infrastructure/services/media-cleanup.service';
 import { LlmConfigMigrationService } from 'telegram/crypto-news-publisher/infrastructure/migration/llm-config-migration.service';
 import { PublisherCronScheduler } from 'telegram/crypto-news-publisher/application/scheduling/publisher-cron.scheduler';
+import { ExpireStaleQueueEntriesScheduler } from 'telegram/crypto-news-publisher/application/scheduling/expire-stale-queue-entries.scheduler';
 import { TelegramPublisherPort } from 'telegram/shared';
 import { SlotArbitratorPort } from 'telegram/shared/domain/ports/slot-arbitrator.port';
 import { TypeOrmSlotArbitrator } from 'telegram/shared/infrastructure/persistence/typeorm/repositories/typeorm-slot-arbitrator';
@@ -161,6 +162,7 @@ import { CryptoNewsMessageIngestedHandler } from 'telegram/crypto-news-publisher
     GetLlmModelsUseCase,
     CryptoNewsMessageIngestedHandler,
     PublisherCronScheduler,
+    ExpireStaleQueueEntriesScheduler,
   ],
   exports: [
     BlacklistPhraseRepository,

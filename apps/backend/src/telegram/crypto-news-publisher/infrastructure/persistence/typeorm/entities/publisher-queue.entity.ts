@@ -67,6 +67,15 @@ export class PublisherQueueEntity {
   @Column({ name: 'message_received_at', type: 'timestamptz' })
   public messageReceivedAt!: Date;
 
+  /**
+   * Timestamp when this entry was added to the queue. Used for TTL
+   * expiration: entries older than 24h in PENDING status are
+   * automatically marked FAILED by ExpireStaleQueueEntriesScheduler.
+   * Default NOW() set by migration.
+   */
+  @Column({ name: 'queued_at', type: 'timestamptz' })
+  public queuedAt!: Date;
+
   @Column({
     name: 'matched_keyword_ids',
     type: 'text',
@@ -161,6 +170,7 @@ export class PublisherQueueEntity {
       imagePaths: this.imagePaths ?? [],
       groupedId: this.groupedId,
       messageReceivedAt: this.messageReceivedAt,
+      queuedAt: this.queuedAt,
       matchedKeywordIds: this.matchedKeywordIds ?? [],
       keywordTemplateId: this.keywordTemplateId,
       formattingEntities: this.formattingEntities,
