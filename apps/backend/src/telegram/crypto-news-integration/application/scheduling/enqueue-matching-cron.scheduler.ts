@@ -4,6 +4,7 @@ import { FilteredCryptoNewsService } from 'telegram/crypto-news-integration/appl
 import { EnqueueMatchingMessageUseCase } from 'telegram/crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
 import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
 import { CryptoNewsMedia } from 'telegram/ingestion/crypto-news/domain/value-objects/crypto-news-media.vo';
+import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 
 /**
  * EnqueueMatchingCronScheduler - Poll ingestion-service for matching crypto-news messages
@@ -27,8 +28,8 @@ import { CryptoNewsMedia } from 'telegram/ingestion/crypto-news/domain/value-obj
  * - Multiple backend replicas CAN poll concurrently (queue handles duplicates)
  * - No advisory lock needed (unlike PublisherCronScheduler which drains queue)
  *
- * **Disabled when:** crypto-news-publisher BC is disabled in config
- * (EnqueueMatchingMessageUseCase will throw if queueRepo is unavailable)
+ * **Enabled/Disabled:** Reads LlmConfig.enabled (shared with PublisherCronScheduler).
+ * When disabled, both matching AND publishing stop (no point enqueuing if not publishing).
  *
  * @injectable NestJS scheduler
  */
@@ -55,12 +56,20 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
   constructor(
     private readonly filteredNewsService: FilteredCryptoNewsService,
     private readonly enqueueUseCase: EnqueueMatchingMessageUseCase,
+    private readonly llmConfigRepo: LlmConfigRepository,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
-    this.logger.log(
-      `EnqueueMatchingCronScheduler ready (fetch limit: ${this.FETCH_LIMIT})`,
-    );
+    try {
+      const cfg = await this.llmConfigRepo.load();
+      this.logger.log(
+        `EnqueueMatchingCronScheduler ready (fetch limit: ${this.FETCH_LIMIT}, enabled: ${cfg.enabled})`,
+      );
+    } catch {
+      this.logger.warn(
+        'EnqueueMatchingCronScheduler ready — could not load LlmConfig; scheduler will retry on each tick',
+      );
+    }
   }
 
   /**
@@ -68,11 +77,29 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
    *
    * Runs every minute at the start of the minute.
    * Skips tick if previous tick still running (defensive guard).
+   * Skips tick if LlmConfig.enabled is false (no point enqueuing if publishing is disabled).
    */
   @Cron(CronExpression.EVERY_MINUTE)
   async tick(): Promise<void> {
     if (this.running) {
       this.logger.warn('Previous tick still running; skipping this tick');
+      return;
+    }
+
+    // Check if matching+publishing is enabled
+    let enabled = false;
+    try {
+      const cfg = await this.llmConfigRepo.load();
+      enabled = cfg.enabled;
+    } catch (err) {
+      this.logger.error(
+        `Failed to load LlmConfig on tick: ${(err as Error).message} — skipping`,
+      );
+      return;
+    }
+
+    if (!enabled) {
+      // Silent skip when disabled (same behavior as PublisherCronScheduler)
       return;
     }
 
