@@ -30,6 +30,7 @@ describe('BackfillMessageEntity - Integration', () => {
             process.env.INGESTION_DATABASE_NAME || 'onchain_bot_test_entity',
           entities: [BackfillMessageEntity],
           synchronize: true, // Create schema in test DB
+          dropSchema: true, // Clean slate for test isolation
           logging: false,
         }),
         TypeOrmModule.forFeature([BackfillMessageEntity]),
