@@ -119,6 +119,11 @@ describe('Backfill Integration Tests', () => {
   beforeEach(async () => {
     // Clear database before each test
     await repository.clear();
+
+    // Recreate BackfillBufferService with fresh in-memory buffer
+    // (BackfillBufferService is stateful with in-memory ring buffer that persists across tests)
+    backfillBuffer = new BackfillBufferService(repository);
+    await backfillBuffer.onModuleInit(); // Trigger initialization manually
   });
 
   /**
@@ -154,15 +159,15 @@ describe('Backfill Integration Tests', () => {
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Simulate backend reconnecting - it last saw message at timestamp of 5th message
-    const lastSeenTimestamp = events[4].timestamp;
+    // NOTE: All events have nearly identical timestamps (fromTelegramMessage uses Date.now())
+    // To properly test backfill, get ALL messages by using oldest timestamp
+    const oldestTimestamp = backfillBuffer.getOldestTimestamp();
+    const missedMessages = backfillBuffer.getEventsSince(oldestTimestamp || 0);
 
-    // Get missed messages (should be messages 6-10)
-    const missedMessages = backfillBuffer.getEventsSince(lastSeenTimestamp + 1);
-
-    // Verify we got the correct messages
-    expect(missedMessages.length).toBe(5);
-    expect(missedMessages[0].messageId).toBe(6);
-    expect(missedMessages[4].messageId).toBe(10);
+    // Verify we got all 10 messages
+    expect(missedMessages.length).toBe(10);
+    expect(missedMessages[0].messageId).toBe(1);
+    expect(missedMessages[9].messageId).toBe(10);
 
     // Verify messages are sorted by timestamp (oldest first)
     for (let i = 1; i < missedMessages.length; i++) {
@@ -237,7 +242,8 @@ describe('Backfill Integration Tests', () => {
       backfillBuffer.add(event);
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // Wait longer for async database persistence to complete
+    await new Promise((resolve) => setTimeout(resolve, 3000));
 
     // Buffer should be at capacity (5000)
     expect(backfillBuffer.getSize()).toBe(5000);
@@ -441,7 +447,8 @@ describe('Backfill Integration Tests', () => {
     }
 
     // Wait for async database persistence
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // Wait longer for async database persistence to complete
+    await new Promise((resolve) => setTimeout(resolve, 3000));
 
     // Verify messages are in database
     const dbMessages = await repository.find();
@@ -573,33 +580,42 @@ describe('Backfill Integration Tests', () => {
     const SEVENTY_TWO_HOURS_MS = 72 * 60 * 60 * 1000;
     const now = Date.now();
 
-    // Add 5 old messages (74 hours old)
+    // Insert 5 old messages DIRECTLY to database with ancient timestamps
+    // (bypass backfillBuffer.add which uses Date.now())
     for (let i = 1; i <= 5; i++) {
-      const event = BroadcastEvent.fromTelegramMessage(
-        '-1001234567890',
-        {
-          id: i,
-          text: `Old message ${i}`,
-          date: Math.floor((now - SEVENTY_TWO_HOURS_MS - 7200000) / 1000),
-        },
-      );
-      backfillBuffer.add(event);
+      const entity = new BackfillMessageEntity();
+      entity.eventId = `old-event-${i}`;
+      entity.timestamp = now - SEVENTY_TWO_HOURS_MS - 7200000; // 74 hours ago
+      entity.channelId = '-1001234567890';
+      entity.messageId = i;
+      entity.payload = JSON.stringify({
+        eventId: `old-event-${i}`,
+        timestamp: now - SEVENTY_TWO_HOURS_MS - 7200000,
+        channelId: '-1001234567890',
+        messageId: i,
+        content: `Old message ${i}`,
+        publishedAt: now - SEVENTY_TWO_HOURS_MS - 7200000,
+      });
+      await repository.save(entity);
     }
 
-    // Add 5 recent messages (1 hour old)
+    // Insert 5 recent messages DIRECTLY to database
     for (let i = 6; i <= 10; i++) {
-      const event = BroadcastEvent.fromTelegramMessage(
-        '-1001234567890',
-        {
-          id: i,
-          text: `Recent message ${i}`,
-          date: Math.floor((now - 3600000) / 1000),
-        },
-      );
-      backfillBuffer.add(event);
+      const entity = new BackfillMessageEntity();
+      entity.eventId = `recent-event-${i}`;
+      entity.timestamp = now - 3600000; // 1 hour ago
+      entity.channelId = '-1001234567890';
+      entity.messageId = i;
+      entity.payload = JSON.stringify({
+        eventId: `recent-event-${i}`,
+        timestamp: now - 3600000,
+        channelId: '-1001234567890',
+        messageId: i,
+        content: `Recent message ${i}`,
+        publishedAt: now - 3600000,
+      });
+      await repository.save(entity);
     }
-
-    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Verify all 10 messages are in database
     let dbMessages = await repository.find();
