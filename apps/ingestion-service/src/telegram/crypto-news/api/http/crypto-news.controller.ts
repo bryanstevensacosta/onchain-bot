@@ -11,6 +11,7 @@ import {
   HttpCode,
   HttpStatus,
   NotFoundException,
+  Header,
 } from '@nestjs/common';
 import { CryptoNewsMessageRepository } from '../../infrastructure/persistence/typeorm/repositories/crypto-news-message.repository';
 import { CryptoNewsSourceRepository } from '../../infrastructure/persistence/typeorm/repositories/crypto-news-source.repository';
@@ -115,6 +116,7 @@ export class CryptoNewsController {
    * }>
    */
   @Get('messages')
+  @Header('Cache-Control', 'no-cache, must-revalidate')
   async getRecentMessages(@Query('limit', ParseIntPipe) limit = 50) {
     const messages = await this.messageRepo.findRecent(Math.min(limit, 200));
     return messages.map((msg) => this.transformMessageForApi(msg));
@@ -126,6 +128,7 @@ export class CryptoNewsController {
    * Returns messages from a specific channel.
    */
   @Get('messages/channel/:channelId')
+  @Header('Cache-Control', 'no-cache, must-revalidate')
   async getMessagesByChannel(
     @Param('channelId') channelId: string,
     @Query('limit', ParseIntPipe) limit = 50,
