@@ -22,7 +22,6 @@ import { IngestionSafetyConfig } from 'telegram/ingestion/shared/infrastructure/
 import { SleepWindowService } from 'telegram/ingestion/shared/infrastructure/services/sleep-window.service';
 import { FloodWaitCounterService } from 'telegram/ingestion/shared/infrastructure/services/flood-wait-counter.service';
 import { FloodWaitHandlerService } from 'telegram/ingestion/shared/infrastructure/services/flood-wait-handler.service';
-import { CryptoNewsMediaDownloader } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-media-downloader.port';
 import { TelegramClientManager } from 'telegram/ingestion/shared/infrastructure/services/telegram-client-manager.service';
 import { LastSeenManager } from 'telegram/ingestion/shared/infrastructure/services/last-seen-manager.service';
 import { MessageQueue } from 'telegram/ingestion/shared/infrastructure/services/message-queue';
@@ -83,8 +82,7 @@ export class TelegramMtprotoListenerAdapter
     private readonly floodWaitHandler: FloodWaitHandlerService,
     private readonly clientManager: TelegramClientManager,
     private readonly lastSeenManager: LastSeenManager,
-    @Inject(forwardRef(() => CryptoNewsMediaDownloader))
-    private readonly mediaDownloader: CryptoNewsMediaDownloader,
+    // mediaDownloader removed (Phase 5) — was injected but never used
     private readonly mediaDownloadService: TelegramMediaDownloadService,
   ) {}
 

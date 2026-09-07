@@ -16,8 +16,6 @@ import { TelegramPeerResolver } from 'telegram/ingestion/shared/infrastructure/s
 import { IngestionConfigController } from 'telegram/ingestion/shared/api/http/ingestion-config.controller';
 import { IngestionHealthController } from 'telegram/ingestion/shared/api/http/ingestion-health.controller';
 import { IdentityModule } from 'kol/identity/identity.module';
-import { CryptoNewsMediaDownloader } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-media-downloader.port';
-import { MtprotoMediaDownloader } from 'telegram/ingestion/crypto-news/infrastructure/api/mtproto/mtproto-media-downloader';
 import { BackendRegistrationClient } from 'telegram/ingestion/shared/infrastructure/backend-registration-client.service';
 import { KolEntity } from 'kol/identity/infrastructure/persistence/typeorm/entities/kol.entity';
 import { CryptoNewsSourceEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
@@ -117,26 +115,6 @@ const logger = new Logger('SharedIngestionModule');
     // Backend registration client (for SSE mode)
     BackendRegistrationClient,
 
-    // Crypto-news media downloader (moved from CryptoNewsIngestionModule to break forwardRef cycle)
-    {
-      provide: CryptoNewsMediaDownloader,
-      inject: [
-        TelegramMtprotoListenerAdapter,
-        FloodWaitHandlerService,
-        ConfigService,
-      ],
-      useFactory: (
-        listener: TelegramMtprotoListenerAdapter,
-        floodWaitHandler: FloodWaitHandlerService,
-        config: ConfigService,
-      ): CryptoNewsMediaDownloader =>
-        new MtprotoMediaDownloader(
-          () => listener.getClient(),
-          floodWaitHandler,
-          config,
-        ),
-    },
-
     // Always provide all three adapters (for mode switching)
     TelegramMtprotoListenerAdapter,
     TelegramSseListenerAdapter,
@@ -235,7 +213,7 @@ const logger = new Logger('SharedIngestionModule');
     SleepWindowService,
     FloodWaitCounterService,
     FloodWaitHandlerService,
-    CryptoNewsMediaDownloader,
+    // CryptoNewsMediaDownloader removed (Phase 5) — media download migrated to ingestion-service
   ],
 })
 export class SharedIngestionModule {}
