@@ -195,7 +195,15 @@ Vars (ver `.env.example` / `.env.production.template` — prod usa hosts docker 
 
 ## Persistencia / Docker
 
-- **TypeORM**: solo `CryptoNewsSourceEntity` (tabla `crypto_news_sources`, **READ+WRITE aquí desde 2026-09-05** — ingestion-service is SOLE OWNER; filtro `lifecycleStatus='ACTIVE' AND isActive=true` en `CryptoNewsSourceRepository.findAllActive()`; altas vía `POST /api/crypto-news/sources` endpoint local, NO backend). Backend ya no escribe (deprecated). Resto del servicio es streaming sin escritura local. Migraciones del backend, no aquí.
+- **Database**: Uses **Docker Postgres** from `apps/backend/docker-compose.yml` (container `alpha-meta-token-scanner-postgres`, port mapping `0.0.0.0:5432→5432`). Connection from host: `localhost:5432`. **NO** separate local Postgres installation required.
+- **TypeORM**: 4 entities registered in `app.module.ts`:
+  - `CryptoNewsSourceEntity` — sources (**SOLE OWNER** since 2026-09-05, reads+writes)
+  - `CryptoNewsMessageEntity` — RAW message content (ingested from Telegram)
+  - `CryptoNewsMessageMediaEntity` — media metadata (URLs to served files)
+  - `ChannelContentFilterConfigEntity` — per-channel filter rules
+  - `BackfillMessageEntity` — backfill tracking (stream module)
+- **Schema sync**: `INGESTION_DATABASE_SYNCHRONIZE=true` in dev (auto-creates tables on boot). Production uses migrations (TBD — currently no migration files in this service).
+- **Startup**: Requires Docker Postgres running (`cd apps/backend && docker compose up -d postgres`). Service creates tables on first boot with `synchronize=true`.
 - **Dockerfile**: build `node:22-alpine` (`npm ci --workspace=... --ignore-scripts`, `HUSKY=0`) → runtime con `dumb-init`, usuario `nodejs`, `uploads/crypto-news/media`, `EXPOSE 3031`, `HEALTHCHECK /api/health` (ver gap 23: siempre 200 por stubs), `CMD node apps/ingestion-service/dist/src/main.js`.
 - **`.gitignore`**: `/dist`, `/coverage`, `.env`/`.env.dev`/`.env.*.local` (secretos fuera de git), `/uploads` (media efímera). Commiteados como plantilla: `.env.example`, `.env.production.template`.
 
