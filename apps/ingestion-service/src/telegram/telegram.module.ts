@@ -205,40 +205,53 @@ export class TelegramModule implements OnModuleInit {
           ? 'crypto-news'
           : 'kol';
 
-        // Route message to legacy SSE broadcast via coordinator
-        await this.coordinator.route(message, messageType);
+        // Fire-and-forget: Process message asynchronously without blocking the generator
+        // This prevents slow DB writes or SSE broadcasts from blocking the next message
+        Promise.resolve()
+          .then(async () => {
+            // Route message to legacy SSE broadcast via coordinator (includes DB persist)
+            await this.coordinator.route(message, messageType);
+          })
+          .catch((routeError) => {
+            this.logger.error(
+              `Failed to route message ${message.peerId}:${message.messageId}: ${(routeError as Error).message}`,
+              (routeError as Error).stack,
+            );
+          });
 
         // Per Requirement 4.1: Broadcast to all backends via SSEBroadcastService
         // Per Requirement 4.3: Ingestion continues if broadcast fails
-        try {
-          // Extract media path from message (first media item if available)
-          const mediaPath = message.media?.[0]?.filePath;
+        // Fire-and-forget: Don't block generator on broadcast
+        Promise.resolve()
+          .then(async () => {
+            // Extract media path from message (first media item if available)
+            const mediaPath = message.media?.[0]?.filePath;
 
-          // Create BroadcastEvent from raw Telegram message
-          const event = BroadcastEvent.fromTelegramMessage(
-            message.peerId,
-            {
-              id: message.messageId,
-              message: message.text,
-              date: Math.floor(message.occurredAt.getTime() / 1000), // Convert ms to seconds
-            },
-            mediaPath,
-          );
+            // Create BroadcastEvent from raw Telegram message
+            const event = BroadcastEvent.fromTelegramMessage(
+              message.peerId,
+              {
+                id: message.messageId,
+                message: message.text,
+                date: Math.floor(message.occurredAt.getTime() / 1000), // Convert ms to seconds
+              },
+              mediaPath,
+            );
 
-          // Broadcast to all connected backends
-          await this.sseBroadcast.broadcast(event);
+            // Broadcast to all connected backends
+            await this.sseBroadcast.broadcast(event);
 
-          this.logger.debug(
-            `Broadcasted to multi-backend SSE: ${message.peerId}:${message.messageId}`,
-          );
-        } catch (broadcastError) {
-          // Per Requirement 4.3: Log error but don't throw - ingestion must continue
-          this.logger.error(
-            `Failed to broadcast message ${message.peerId}:${message.messageId} to multi-backend SSE: ${(broadcastError as Error).message}`,
-            (broadcastError as Error).stack,
-          );
-          // Continue processing - broadcast failure should not stop ingestion
-        }
+            this.logger.debug(
+              `Broadcasted to multi-backend SSE: ${message.peerId}:${message.messageId}`,
+            );
+          })
+          .catch((broadcastError) => {
+            // Per Requirement 4.3: Log error but don't throw - ingestion must continue
+            this.logger.error(
+              `Failed to broadcast message ${message.peerId}:${message.messageId} to multi-backend SSE: ${(broadcastError as Error).message}`,
+              (broadcastError as Error).stack,
+            );
+          });
       }
     } catch (error) {
       this.logger.error(
