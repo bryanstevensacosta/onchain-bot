@@ -1,12 +1,12 @@
 /**
  * Static utility for MIME type detection and extension mapping.
- * 
+ *
  * Centralizes MIME type logic previously duplicated across:
  * - MediaDownloaderService (ingestion-service)
  * - MtprotoMediaDownloader (backend)
  * - MediaController (ingestion-service)
  * - AdsMediaController (backend)
- * 
+ *
  * @example
  * ```ts
  * const ext = MimeTypeResolver.getExtensionFromMimeType('image/jpeg'); // '.jpg'
@@ -27,7 +27,7 @@ export class MimeTypeResolver {
     'image/webp': '.webp',
     'image/svg+xml': '.svg',
     'image/bmp': '.bmp',
-    
+
     // Videos
     'video/mp4': '.mp4',
     'video/mpeg': '.mpeg',
@@ -35,7 +35,7 @@ export class MimeTypeResolver {
     'video/x-msvideo': '.avi',
     'video/x-matroska': '.mkv',
     'video/webm': '.webm',
-    
+
     // Documents
     'application/pdf': '.pdf',
     'application/zip': '.zip',
@@ -51,10 +51,10 @@ export class MimeTypeResolver {
 
   /**
    * Get file extension from MIME type.
-   * 
+   *
    * @param mimeType - MIME type (e.g., 'image/jpeg')
    * @returns File extension with leading dot (e.g., '.jpg'), or '.bin' if unknown
-   * 
+   *
    * @example
    * ```ts
    * MimeTypeResolver.getExtensionFromMimeType('image/png'); // '.png'
@@ -65,17 +65,17 @@ export class MimeTypeResolver {
     if (!mimeType) {
       return '.bin';
     }
-    
+
     const normalized = mimeType.toLowerCase().trim();
     return this.MIME_TO_EXTENSION[normalized] ?? '.bin';
   }
 
   /**
    * Get MIME type from file extension.
-   * 
+   *
    * @param extension - File extension with or without leading dot
    * @returns MIME type string, or 'application/octet-stream' if unknown
-   * 
+   *
    * @example
    * ```ts
    * MimeTypeResolver.getMimeTypeFromExtension('.jpg'); // 'image/jpeg'
@@ -97,8 +97,8 @@ export class MimeTypeResolver {
     }
 
     // Normalize: ensure leading dot, lowercase
-    const normalized = extension.startsWith('.') 
-      ? extension.toLowerCase() 
+    const normalized = extension.startsWith('.')
+      ? extension.toLowerCase()
       : `.${extension.toLowerCase()}`;
 
     return this.extensionToMime[normalized] ?? 'application/octet-stream';
@@ -106,10 +106,10 @@ export class MimeTypeResolver {
 
   /**
    * Detect MIME type from Telegram media metadata.
-   * 
+   *
    * For photos, always returns 'image/jpeg' (Telegram default).
    * For documents, uses the mimeType field if present.
-   * 
+   *
    * @param media - Telegram Api.MessageMedia object
    * @returns MIME type string, or null if cannot be determined
    */
@@ -124,7 +124,10 @@ export class MimeTypeResolver {
     }
 
     // Documents carry their own MIME type
-    if (media.className === 'MessageMediaDocument' && media.document?.mimeType) {
+    if (
+      media.className === 'MessageMediaDocument' &&
+      media.document?.mimeType
+    ) {
       return media.document.mimeType;
     }
 
@@ -133,7 +136,7 @@ export class MimeTypeResolver {
 
   /**
    * Detect if a MIME type represents a video.
-   * 
+   *
    * @param mimeType - MIME type string
    * @returns true if the MIME type is video/*
    */
@@ -143,7 +146,7 @@ export class MimeTypeResolver {
 
   /**
    * Detect if a MIME type represents an image.
-   * 
+   *
    * @param mimeType - MIME type string
    * @returns true if the MIME type is image/*
    */

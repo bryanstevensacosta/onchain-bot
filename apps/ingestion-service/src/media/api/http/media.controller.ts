@@ -9,7 +9,11 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 import * as path from 'path';
-import { BaseMediaHttpServer, BaseFileSystemAdapter, MimeTypeResolver } from 'shared/media';
+import {
+  BaseMediaHttpServer,
+  BaseFileSystemAdapter,
+  MimeTypeResolver,
+} from 'shared/media';
 import { CryptoNewsPathBuilder } from 'media/infrastructure/crypto-news-path-builder';
 
 /**
@@ -51,7 +55,8 @@ export class MediaController extends BaseMediaHttpServer {
 
     // Load uploads root from config
     const appConfig = this.config.get('app');
-    const uploadsRoot = appConfig?.uploads?.root || path.join(process.cwd(), 'uploads');
+    const uploadsRoot =
+      appConfig?.uploads?.root || path.join(process.cwd(), 'uploads');
     const mediaRoot = path.join(uploadsRoot, 'crypto-news', 'media');
 
     this.fileSystem = new LocalFileSystemAdapter();
@@ -60,7 +65,9 @@ export class MediaController extends BaseMediaHttpServer {
       recursive: true,
     });
 
-    this.logger.log(`MediaController initialized with uploads root: ${uploadsRoot}`);
+    this.logger.log(
+      `MediaController initialized with uploads root: ${uploadsRoot}`,
+    );
   }
 
   /**
@@ -89,14 +96,20 @@ export class MediaController extends BaseMediaHttpServer {
       // Validate parameters using base class helpers
       const msgId = this.validatePositiveInteger(messageId, 'messageId');
       const idx = this.validatePositiveInteger(index, 'index');
-      const cleanChannelId = this.validateNonEmptyString(channelId, 'channelId');
+      const cleanChannelId = this.validateNonEmptyString(
+        channelId,
+        'channelId',
+      );
 
       // Build media directory path
       const mediaDir = this.pathBuilder.getMediaDirectory(cleanChannelId);
 
       // Find file matching pattern: {messageId}_{index}.*
       const filePattern = new RegExp(`^${msgId}_${idx}\\.`);
-      const matchingFiles = await this.fileSystem.findByPattern(mediaDir, filePattern);
+      const matchingFiles = await this.fileSystem.findByPattern(
+        mediaDir,
+        filePattern,
+      );
 
       if (matchingFiles.length === 0) {
         this.logger.warn(

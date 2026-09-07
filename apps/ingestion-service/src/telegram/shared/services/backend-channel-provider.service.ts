@@ -119,7 +119,8 @@ export class BackendChannelProviderService {
    */
   public async fetchAllActiveChannelIds(): Promise<ReadonlyArray<string>> {
     // Per Requirement 9.1: Check if multi-backend mode is enabled
-    const multiBackendEnabled = this.config.get<boolean>('app.multiBackend.enabled') === true;
+    const multiBackendEnabled =
+      this.config.get<boolean>('app.multiBackend.enabled') === true;
 
     // Per Requirement 9.2: Use channel union if enabled AND registrations exist
     if (multiBackendEnabled && this.registrations.size > 0) {

@@ -186,11 +186,11 @@ export class TelegramMtprotoListenerAdapter
 
   /**
    * Polling loop for catching up on missed messages.
-   * 
+   *
    * SCALABLE DESIGN: Polls dynamically based on current subscribedChannelIds.
    * When channels are added/removed via DB, they automatically start/stop
    * being polled in the next iteration (no listener restart required).
-   * 
+   *
    * This prevents message loss during channel updates and allows true
    * zero-downtime scaling.
    */
@@ -572,11 +572,11 @@ export class TelegramMtprotoListenerAdapter
 
   /**
    * Update the list of subscribed channels without restarting the listener.
-   * 
+   *
    * SCALABLE DESIGN: New channels are automatically picked up by the polling
    * loop in the next iteration (every 30s). Removed channels stop being polled.
    * No listener restart required = zero message loss.
-   * 
+   *
    * @param channelIds - New list of channel IDs to subscribe to
    */
   updateSubscribedChannels(channelIds: string[]): void {

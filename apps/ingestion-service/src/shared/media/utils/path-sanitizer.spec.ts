@@ -17,8 +17,12 @@ describe('PathSanitizer', () => {
     });
 
     it('should remove slashes and dangerous characters', () => {
-      expect(PathSanitizer.sanitizeId('folder/subfolder')).toBe('foldersubfolder');
-      expect(PathSanitizer.sanitizeId('test\\windows\\path')).toBe('testwindowspath');
+      expect(PathSanitizer.sanitizeId('folder/subfolder')).toBe(
+        'foldersubfolder',
+      );
+      expect(PathSanitizer.sanitizeId('test\\windows\\path')).toBe(
+        'testwindowspath',
+      );
       // Spaces and semicolons removed, but hyphens preserved
       expect(PathSanitizer.sanitizeId('file;rm -rf /')).toBe('filerm-rf');
     });
@@ -29,43 +33,67 @@ describe('PathSanitizer', () => {
     });
 
     it('should throw for IDs with no valid characters', () => {
-      expect(() => PathSanitizer.sanitizeId('!!!')).toThrow('contains no valid characters');
-      expect(() => PathSanitizer.sanitizeId('###')).toThrow('contains no valid characters');
+      expect(() => PathSanitizer.sanitizeId('!!!')).toThrow(
+        'contains no valid characters',
+      );
+      expect(() => PathSanitizer.sanitizeId('###')).toThrow(
+        'contains no valid characters',
+      );
     });
   });
 
   describe('sanitizeFilename', () => {
     it('should preserve valid filenames', () => {
       expect(PathSanitizer.sanitizeFilename('photo.jpg')).toBe('photo.jpg');
-      expect(PathSanitizer.sanitizeFilename('video_123.mp4')).toBe('video_123.mp4');
-      expect(PathSanitizer.sanitizeFilename('document-final.pdf')).toBe('document-final.pdf');
+      expect(PathSanitizer.sanitizeFilename('video_123.mp4')).toBe(
+        'video_123.mp4',
+      );
+      expect(PathSanitizer.sanitizeFilename('document-final.pdf')).toBe(
+        'document-final.pdf',
+      );
     });
 
     it('should remove path separators', () => {
       // Dots are preserved in filenames (for extensions)
       expect(PathSanitizer.sanitizeFilename('../evil.sh')).toBe('..evil.sh');
-      expect(PathSanitizer.sanitizeFilename('folder/file.txt')).toBe('folderfile.txt');
+      expect(PathSanitizer.sanitizeFilename('folder/file.txt')).toBe(
+        'folderfile.txt',
+      );
       // Windows paths get slashes removed, preserving rest
-      expect(PathSanitizer.sanitizeFilename('c:\\windows\\system.dll')).toBe('cwindowssystem.dll');
+      expect(PathSanitizer.sanitizeFilename('c:\\windows\\system.dll')).toBe(
+        'cwindowssystem.dll',
+      );
     });
 
     it('should remove special characters except dot, hyphen, underscore', () => {
-      expect(PathSanitizer.sanitizeFilename('my photo (1).png')).toBe('myphoto1.png');
+      expect(PathSanitizer.sanitizeFilename('my photo (1).png')).toBe(
+        'myphoto1.png',
+      );
       expect(PathSanitizer.sanitizeFilename('file@#$%.txt')).toBe('file.txt');
-      expect(PathSanitizer.sanitizeFilename('test&file!.pdf')).toBe('testfile.pdf');
+      expect(PathSanitizer.sanitizeFilename('test&file!.pdf')).toBe(
+        'testfile.pdf',
+      );
     });
 
     it('should preserve multiple dots (extensions)', () => {
-      expect(PathSanitizer.sanitizeFilename('archive.tar.gz')).toBe('archive.tar.gz');
-      expect(PathSanitizer.sanitizeFilename('backup.2024.01.01.sql')).toBe('backup.2024.01.01.sql');
+      expect(PathSanitizer.sanitizeFilename('archive.tar.gz')).toBe(
+        'archive.tar.gz',
+      );
+      expect(PathSanitizer.sanitizeFilename('backup.2024.01.01.sql')).toBe(
+        'backup.2024.01.01.sql',
+      );
     });
 
     it('should throw for empty filenames', () => {
-      expect(() => PathSanitizer.sanitizeFilename('')).toThrow('Filename cannot be empty');
+      expect(() => PathSanitizer.sanitizeFilename('')).toThrow(
+        'Filename cannot be empty',
+      );
     });
 
     it('should throw for filenames with no valid characters', () => {
-      expect(() => PathSanitizer.sanitizeFilename('###')).toThrow('contains no valid characters');
+      expect(() => PathSanitizer.sanitizeFilename('###')).toThrow(
+        'contains no valid characters',
+      );
     });
   });
 
@@ -96,49 +124,81 @@ describe('PathSanitizer', () => {
 
   describe('buildSafePath', () => {
     it('should sanitize and return all components', () => {
-      const parts = PathSanitizer.buildSafePath('uploads', 'channel-123', 'msg_1.jpg');
+      const parts = PathSanitizer.buildSafePath(
+        'uploads',
+        'channel-123',
+        'msg_1.jpg',
+      );
       expect(parts).toEqual(['uploads', 'channel-123', 'msg_1.jpg']);
     });
 
     it('should sanitize directory components as IDs', () => {
-      const parts = PathSanitizer.buildSafePath('root', 'folder_with_underscore', 'sub');
+      const parts = PathSanitizer.buildSafePath(
+        'root',
+        'folder_with_underscore',
+        'sub',
+      );
       // Directory components (not last) are sanitized as IDs (remove underscores)
       expect(parts).toEqual(['root', 'folderwithunderscore', 'sub']);
     });
 
     it('should sanitize last component as filename (preserves underscores)', () => {
-      const parts = PathSanitizer.buildSafePath('uploads', 'media', 'photo_1.jpg');
+      const parts = PathSanitizer.buildSafePath(
+        'uploads',
+        'media',
+        'photo_1.jpg',
+      );
       expect(parts).toEqual(['uploads', 'media', 'photo_1.jpg']);
     });
 
     it('should throw for empty components', () => {
-      expect(() => PathSanitizer.buildSafePath('uploads', '', 'file.txt')).toThrow(
-        'Path component at index 1 is empty',
-      );
+      expect(() =>
+        PathSanitizer.buildSafePath('uploads', '', 'file.txt'),
+      ).toThrow('Path component at index 1 is empty');
     });
 
     it('should handle path traversal attempts in components', () => {
-      const parts = PathSanitizer.buildSafePath('../uploads', '../../etc', 'passwd');
+      const parts = PathSanitizer.buildSafePath(
+        '../uploads',
+        '../../etc',
+        'passwd',
+      );
       expect(parts).toEqual(['uploads', 'etc', 'passwd']);
     });
   });
 
   describe('isWithinBase', () => {
     it('should accept paths within base directory', () => {
-      expect(PathSanitizer.isWithinBase('/app/uploads', '/app/uploads/media/file.jpg')).toBe(true);
-      expect(PathSanitizer.isWithinBase('/app/uploads/', '/app/uploads/media/file.jpg')).toBe(
-        true,
-      );
+      expect(
+        PathSanitizer.isWithinBase(
+          '/app/uploads',
+          '/app/uploads/media/file.jpg',
+        ),
+      ).toBe(true);
+      expect(
+        PathSanitizer.isWithinBase(
+          '/app/uploads/',
+          '/app/uploads/media/file.jpg',
+        ),
+      ).toBe(true);
     });
 
     it('should reject paths outside base directory', () => {
-      expect(PathSanitizer.isWithinBase('/app/uploads', '/etc/passwd')).toBe(false);
-      expect(PathSanitizer.isWithinBase('/app/uploads', '/app/other/file.txt')).toBe(false);
+      expect(PathSanitizer.isWithinBase('/app/uploads', '/etc/passwd')).toBe(
+        false,
+      );
+      expect(
+        PathSanitizer.isWithinBase('/app/uploads', '/app/other/file.txt'),
+      ).toBe(false);
     });
 
     it('should handle trailing slashes in base path', () => {
-      expect(PathSanitizer.isWithinBase('/app/uploads', '/app/uploads/file.txt')).toBe(true);
-      expect(PathSanitizer.isWithinBase('/app/uploads/', '/app/uploads/file.txt')).toBe(true);
+      expect(
+        PathSanitizer.isWithinBase('/app/uploads', '/app/uploads/file.txt'),
+      ).toBe(true);
+      expect(
+        PathSanitizer.isWithinBase('/app/uploads/', '/app/uploads/file.txt'),
+      ).toBe(true);
     });
 
     it('should reject empty paths', () => {

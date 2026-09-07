@@ -1,22 +1,29 @@
 import { createReadStream, type ReadStream } from 'node:fs';
-import { readFile, writeFile, stat, unlink, mkdir, readdir } from 'node:fs/promises';
+import {
+  readFile,
+  writeFile,
+  stat,
+  unlink,
+  mkdir,
+  readdir,
+} from 'node:fs/promises';
 import type { Stats } from 'node:fs';
 import * as path from 'node:path';
 
 /**
  * Abstract base class for file system operations on media files.
- * 
+ *
  * Provides common I/O operations (read, write, stream, delete)
  * with consistent error handling and logging patterns.
- * 
+ *
  * **Cohesion Goal**: Eliminate duplicated file I/O logic across:
  * - MediaDownloaderService (ingestion-service)
  * - LocalAdMediaStorageAdapter (backend)
  * - MediaController (ingestion-service)
  * - AdsMediaController (backend)
- * 
+ *
  * Subclasses can override methods to add logging, metrics, or custom behavior.
- * 
+ *
  * @example
  * ```ts
  * class LocalMediaStorage extends BaseFileSystemAdapter {
@@ -30,10 +37,10 @@ import * as path from 'node:path';
 export abstract class BaseFileSystemAdapter {
   /**
    * Write a buffer to disk at the specified path.
-   * 
+   *
    * Creates parent directories if they don't exist.
    * Overwrites existing file.
-   * 
+   *
    * @param filePath - Absolute path where to write the file
    * @param buffer - File content as Buffer
    * @throws Error if write fails (permission, disk space, etc.)
@@ -45,7 +52,7 @@ export abstract class BaseFileSystemAdapter {
 
   /**
    * Read a file from disk into a Buffer.
-   * 
+   *
    * @param filePath - Absolute path to the file
    * @returns File content as Buffer
    * @throws Error if file doesn't exist or read fails
@@ -56,10 +63,10 @@ export abstract class BaseFileSystemAdapter {
 
   /**
    * Create a readable stream for a file.
-   * 
+   *
    * Useful for HTTP responses and large file operations.
    * Caller is responsible for handling stream events and cleanup.
-   * 
+   *
    * @param filePath - Absolute path to the file
    * @returns ReadStream for the file
    */
@@ -69,7 +76,7 @@ export abstract class BaseFileSystemAdapter {
 
   /**
    * Get file statistics (size, mtime, etc.).
-   * 
+   *
    * @param filePath - Absolute path to the file
    * @returns File stats object
    * @throws Error if file doesn't exist
@@ -80,7 +87,7 @@ export abstract class BaseFileSystemAdapter {
 
   /**
    * Check if a file exists.
-   * 
+   *
    * @param filePath - Absolute path to the file
    * @returns true if file exists and is accessible
    */
@@ -95,9 +102,9 @@ export abstract class BaseFileSystemAdapter {
 
   /**
    * Delete a file from disk.
-   * 
+   *
    * Does not throw if file doesn't exist (idempotent).
-   * 
+   *
    * @param filePath - Absolute path to the file
    */
   public async delete(filePath: string): Promise<void> {
@@ -113,14 +120,14 @@ export abstract class BaseFileSystemAdapter {
 
   /**
    * Find files in a directory matching a pattern.
-   * 
+   *
    * Returns full absolute paths, not just filenames.
    * Does not recurse into subdirectories.
-   * 
+   *
    * @param directory - Absolute path to search
    * @param pattern - Regex pattern to match filenames
    * @returns Array of absolute paths to matching files
-   * 
+   *
    * @example
    * ```ts
    * // Find all message_*.jpg files
@@ -149,9 +156,9 @@ export abstract class BaseFileSystemAdapter {
 
   /**
    * List all files in a directory.
-   * 
+   *
    * Returns absolute paths. Does not recurse.
-   * 
+   *
    * @param directory - Absolute path to list
    * @returns Array of absolute paths to files
    */
@@ -172,9 +179,9 @@ export abstract class BaseFileSystemAdapter {
 
   /**
    * Ensure a directory exists, creating it recursively if needed.
-   * 
+   *
    * Idempotent: does not fail if directory already exists.
-   * 
+   *
    * @param directory - Absolute path to create
    */
   protected async ensureDirectoryExists(directory: string): Promise<void> {
@@ -183,10 +190,10 @@ export abstract class BaseFileSystemAdapter {
 
   /**
    * Get file extension from a path.
-   * 
+   *
    * Returns extension with leading dot (e.g., '.jpg').
    * Returns empty string if no extension.
-   * 
+   *
    * @param filePath - File path or name
    * @returns Extension with dot, or empty string
    */
@@ -196,7 +203,7 @@ export abstract class BaseFileSystemAdapter {
 
   /**
    * Get filename without extension.
-   * 
+   *
    * @param filePath - File path or name
    * @returns Filename without extension
    */

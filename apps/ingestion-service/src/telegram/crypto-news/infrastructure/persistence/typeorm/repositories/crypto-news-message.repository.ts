@@ -67,7 +67,9 @@ export class CryptoNewsMessageRepository {
    * Save a crypto-news message (insert or update).
    * Media rows are saved automatically via cascade.
    */
-  async save(message: CryptoNewsMessageEntity): Promise<CryptoNewsMessageEntity> {
+  async save(
+    message: CryptoNewsMessageEntity,
+  ): Promise<CryptoNewsMessageEntity> {
     return this.repo.save(message);
   }
 

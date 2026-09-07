@@ -78,9 +78,10 @@ export class RegisterNewsSourceUseCase {
         this.logger.log(
           `Auto-resolving metadata for channel ${normalizedChannelId}...`,
         );
-        const metadata = await this.telegramListener.resolveChannelMetadata(
-          normalizedChannelId,
-        );
+        const metadata =
+          await this.telegramListener.resolveChannelMetadata(
+            normalizedChannelId,
+          );
         title = title || metadata.title;
         handle = handle || metadata.handle || undefined;
         this.logger.log(

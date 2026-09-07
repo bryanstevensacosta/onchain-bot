@@ -206,11 +206,11 @@ describe('SSEBroadcastService Metrics Integration', () => {
 
       // Act - First broadcast fails and removes connection
       await service.broadcast(event);
-      
+
       // Re-add connection (simulating reconnection) and broadcast again
       service.addConnection('production', productionResponse);
       await service.broadcast(event);
-      
+
       const metrics = await metricsService.getMetrics();
 
       // Assert

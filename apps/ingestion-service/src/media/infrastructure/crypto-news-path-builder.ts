@@ -3,17 +3,17 @@ import { BaseMediaPathBuilder, PathConfig } from 'shared/media';
 
 /**
  * Path builder for crypto-news media files.
- * 
+ *
  * Implements the convention:
  * `uploads/crypto-news/media/{channelId}/{messageId}_{index}.{ext}`
- * 
+ *
  * Example:
  * - channelId: `-1001234567890`
  * - messageId: `167`
  * - index: `0`
  * - extension: `.jpg`
  * → `uploads/crypto-news/media/-1001234567890/167_0.jpg`
- * 
+ *
  * **Phase 2 Migration**: Replaces duplicated path logic in MediaDownloaderService.
  */
 export class CryptoNewsPathBuilder extends BaseMediaPathBuilder {
@@ -23,13 +23,13 @@ export class CryptoNewsPathBuilder extends BaseMediaPathBuilder {
 
   /**
    * Build the full path for a crypto-news media file.
-   * 
+   *
    * @param channelId - Telegram channel ID
    * @param messageId - Message ID
    * @param index - Media index in grouped media (0-based)
    * @param extension - File extension with leading dot (e.g., '.jpg')
    * @returns Absolute path to the media file
-   * 
+   *
    * @example
    * ```ts
    * builder.buildMediaPath('-1001234567890', 167, 0, '.jpg');
@@ -49,7 +49,11 @@ export class CryptoNewsPathBuilder extends BaseMediaPathBuilder {
     const filename = `${messageId}_${index}${extension}`;
 
     // Join: root / channelId / filename
-    const filePath = this.joinPaths(this.config.root, sanitizedChannelId, filename);
+    const filePath = this.joinPaths(
+      this.config.root,
+      sanitizedChannelId,
+      filename,
+    );
 
     // Validate path is within root (security check)
     this.validatePathIsWithinRoot(filePath);
@@ -59,12 +63,12 @@ export class CryptoNewsPathBuilder extends BaseMediaPathBuilder {
 
   /**
    * Get the directory where media for a specific channel is stored.
-   * 
+   *
    * Used for listing, cleanup, and directory creation operations.
-   * 
+   *
    * @param channelId - Telegram channel ID
    * @returns Absolute path to the channel's media directory
-   * 
+   *
    * @example
    * ```ts
    * builder.getMediaDirectory('-1001234567890');
@@ -80,13 +84,13 @@ export class CryptoNewsPathBuilder extends BaseMediaPathBuilder {
 
   /**
    * Parse a file path to extract channel ID, message ID, and index.
-   * 
+   *
    * Useful for cleanup and reverse lookups.
    * Returns null if path doesn't match the expected pattern.
-   * 
+   *
    * @param filePath - Full or relative file path
    * @returns Parsed components or null
-   * 
+   *
    * @example
    * ```ts
    * builder.parseMediaPath('/uploads/crypto-news/media/123/167_0.jpg');

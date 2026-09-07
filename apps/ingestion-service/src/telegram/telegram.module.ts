@@ -120,8 +120,7 @@ export class TelegramModule implements OnModuleInit {
       const kolIds = await this.channelProvider.fetchActiveKolIds();
 
       // Fetch crypto-news sources from LOCAL DB (ingestion-service owns this now)
-      const cryptoNewsSources =
-        await this.cryptoNewsSourceRepo.findAllActive();
+      const cryptoNewsSources = await this.cryptoNewsSourceRepo.findAllActive();
       const newsIds = cryptoNewsSources.map((source) => source.channelId);
 
       const previousTotal = this.currentChannelIds.length;
@@ -148,14 +147,9 @@ export class TelegramModule implements OnModuleInit {
             '🔄 Updating listener channels dynamically (zero downtime)...',
           );
           try {
-            this.listener.updateSubscribedChannels([
-              ...this.currentChannelIds,
-            ]);
+            this.listener.updateSubscribedChannels([...this.currentChannelIds]);
           } catch (error) {
-            this.logger.error(
-              '❌ Failed to update listener channels:',
-              error,
-            );
+            this.logger.error('❌ Failed to update listener channels:', error);
           }
         }
       }

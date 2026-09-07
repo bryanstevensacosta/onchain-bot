@@ -18,7 +18,9 @@ describe('StreamStatusController', () => {
 
     mockChannelProvider = {
       getChannelUnionSize: jest.fn().mockReturnValue(15),
-      getRegisteredBackendIds: jest.fn().mockReturnValue(['staging', 'production']),
+      getRegisteredBackendIds: jest
+        .fn()
+        .mockReturnValue(['staging', 'production']),
     };
 
     mockBackfillBuffer = {
@@ -30,7 +32,10 @@ describe('StreamStatusController', () => {
       controllers: [StreamStatusController],
       providers: [
         { provide: SSEBroadcastService, useValue: mockSSEBroadcast },
-        { provide: BackendChannelProviderService, useValue: mockChannelProvider },
+        {
+          provide: BackendChannelProviderService,
+          useValue: mockChannelProvider,
+        },
         { provide: BackfillBufferService, useValue: mockBackfillBuffer },
       ],
     }).compile();
@@ -94,7 +99,9 @@ describe('StreamStatusController', () => {
 
     it('should return ISO timestamp', () => {
       const status = controller.getStatus();
-      expect(status.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+      expect(status.timestamp).toMatch(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
+      );
     });
 
     it('should handle null backfillBufferOldestTimestamp', () => {
@@ -110,7 +117,9 @@ describe('StreamStatusController', () => {
     });
 
     it('should handle empty registeredBackends', () => {
-      mockChannelProvider.getRegisteredBackendIds = jest.fn().mockReturnValue([]);
+      mockChannelProvider.getRegisteredBackendIds = jest
+        .fn()
+        .mockReturnValue([]);
       const status = controller.getStatus();
       expect(status.registeredBackends).toEqual([]);
     });

@@ -128,7 +128,7 @@ export class SSEBroadcastService {
         if (response.writableEnded) {
           deadBackends.push(backendId);
           failureCount++;
-          
+
           // Per Requirement 8.3: Track broadcast failures per backend
           this.metricsService.broadcastFailures.inc({
             backend_id: backendId,
@@ -140,7 +140,7 @@ export class SSEBroadcastService {
         // Send the event
         this.sendEvent(response, 'message:telegram', event);
         successCount++;
-        
+
         // Per Requirement 8.1: Track successful broadcasts per backend
         this.metricsService.broadcastTotal.inc({ backend_id: backendId });
       } catch (error) {
@@ -153,7 +153,7 @@ export class SSEBroadcastService {
         });
         deadBackends.push(backendId);
         failureCount++;
-        
+
         // Per Requirement 8.3: Track broadcast failures per backend
         this.metricsService.broadcastFailures.inc({
           backend_id: backendId,

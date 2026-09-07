@@ -76,7 +76,9 @@ export class CryptoNewsSourceRepository {
         },
       });
 
-      this.logger.log(`Found ${sources.length} total crypto-news sources in DB`);
+      this.logger.log(
+        `Found ${sources.length} total crypto-news sources in DB`,
+      );
 
       return sources;
     } catch (error) {

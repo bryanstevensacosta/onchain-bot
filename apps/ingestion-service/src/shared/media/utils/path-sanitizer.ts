@@ -1,9 +1,9 @@
 /**
  * Static utility for path sanitization and validation.
- * 
+ *
  * Prevents path traversal attacks and ensures consistent
  * path building across media components.
- * 
+ *
  * Previously duplicated in:
  * - MediaDownloaderService (ingestion-service)
  * - MtprotoMediaDownloader (backend)
@@ -27,13 +27,13 @@ export class PathSanitizer {
 
   /**
    * Sanitize a channel/ad/entity ID for use in file paths.
-   * 
+   *
    * Removes all characters except alphanumeric and hyphens.
    * Prevents path traversal attacks.
-   * 
+   *
    * @param id - Raw ID string (may contain Telegram prefixes, special chars)
    * @returns Sanitized ID safe for file paths
-   * 
+   *
    * @example
    * ```ts
    * PathSanitizer.sanitizeId('-1001234567890'); // '1001234567890'
@@ -47,7 +47,7 @@ export class PathSanitizer {
     }
 
     const sanitized = id.replace(this.ID_SANITIZE_PATTERN, '');
-    
+
     if (!sanitized) {
       throw new Error(`Invalid ID: "${id}" contains no valid characters`);
     }
@@ -57,13 +57,13 @@ export class PathSanitizer {
 
   /**
    * Sanitize a filename for safe storage.
-   * 
+   *
    * Removes path separators and special characters.
    * Preserves the extension if present.
-   * 
+   *
    * @param filename - Original filename
    * @returns Sanitized filename safe for storage
-   * 
+   *
    * @example
    * ```ts
    * PathSanitizer.sanitizeFilename('photo.jpg'); // 'photo.jpg'
@@ -78,12 +78,14 @@ export class PathSanitizer {
 
     // Remove path separators
     let sanitized = filename.replace(/[/\\]/g, '');
-    
+
     // Remove special characters except dot and hyphen
     sanitized = sanitized.replace(/[^a-zA-Z0-9._-]/g, '');
 
     if (!sanitized) {
-      throw new Error(`Invalid filename: "${filename}" contains no valid characters`);
+      throw new Error(
+        `Invalid filename: "${filename}" contains no valid characters`,
+      );
     }
 
     return sanitized;
@@ -91,10 +93,10 @@ export class PathSanitizer {
 
   /**
    * Validate that a path component is safe (no path traversal).
-   * 
+   *
    * @param component - Path component to validate
    * @returns true if safe, false if contains dangerous patterns
-   * 
+   *
    * @example
    * ```ts
    * PathSanitizer.isSafePathComponent('folder123'); // true
@@ -118,13 +120,13 @@ export class PathSanitizer {
 
   /**
    * Build a safe file path by joining sanitized components.
-   * 
+   *
    * Each component is validated and sanitized before joining.
    * Use Node's `path.join` for the final assembly.
-   * 
+   *
    * @param components - Path components to join
    * @returns Array of sanitized components ready for path.join()
-   * 
+   *
    * @example
    * ```ts
    * const parts = PathSanitizer.buildSafePath('uploads', 'channel-123', 'msg_1.jpg');
@@ -148,14 +150,14 @@ export class PathSanitizer {
 
   /**
    * Validate that a full path does not escape a base directory.
-   * 
+   *
    * Ensures the resolved path is still within the base directory.
    * Use after path.resolve() to validate the final path.
-   * 
+   *
    * @param basePath - Base directory (must be absolute)
    * @param fullPath - Full resolved path to validate
    * @returns true if path is within base directory
-   * 
+   *
    * @example
    * ```ts
    * const base = '/app/uploads';
@@ -170,7 +172,7 @@ export class PathSanitizer {
 
     // Normalize paths for comparison (resolve symlinks, etc)
     const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
-    
+
     return fullPath.startsWith(normalizedBase);
   }
 }

@@ -118,7 +118,7 @@ describe('Backfill Integration Tests', () => {
   beforeEach(async () => {
     // ROBUST cleanup strategy: Poll until DB is actually empty
     // (fire-and-forget persistence makes timing unpredictable)
-    
+
     const maxAttempts = 10;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       // Clear DB
@@ -127,18 +127,20 @@ describe('Backfill Integration Tests', () => {
       } catch (error) {
         await repository.clear();
       }
-      
+
       // Wait a bit for any in-flight writes
       await new Promise((resolve) => setTimeout(resolve, 200));
-      
+
       // Verify DB is empty
       const count = await repository.count();
       if (count === 0) {
         break; // Success! DB is clean
       }
-      
+
       if (attempt === maxAttempts - 1) {
-        console.warn(`⚠️  DB still has ${count} records after ${maxAttempts} cleanup attempts`);
+        console.warn(
+          `⚠️  DB still has ${count} records after ${maxAttempts} cleanup attempts`,
+        );
       }
     }
 
@@ -368,9 +370,7 @@ describe('Backfill Integration Tests', () => {
     expect(messages.length).toBe(10);
 
     for (let i = 1; i < messages.length; i++) {
-      expect(messages[i].timestamp).toBeGreaterThan(
-        messages[i - 1].timestamp,
-      );
+      expect(messages[i].timestamp).toBeGreaterThan(messages[i - 1].timestamp);
     }
 
     // Verify specific order: should be 1, 2, 3, ..., 10
@@ -700,7 +700,9 @@ describe('Backfill Integration Tests', () => {
       backfillBuffer.add(event);
     }
     const addEndTime = Date.now();
-    console.log(`Add ${MESSAGE_COUNT} messages: ${addEndTime - addStartTime}ms`);
+    console.log(
+      `Add ${MESSAGE_COUNT} messages: ${addEndTime - addStartTime}ms`,
+    );
 
     // Wait for database persistence (5s for CI with 1500 messages + fire-and-forget)
     await new Promise((resolve) => setTimeout(resolve, 5000));

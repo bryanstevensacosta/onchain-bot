@@ -78,10 +78,18 @@ export class MediaDownloaderService extends BaseTelegramMediaDownloader {
     media: Api.MessageMediaPhoto | Api.MessageMediaDocument,
   ): Promise<DownloadedMedia> {
     try {
-      this.logger.debug(`Downloading media: ${channelId}:${messageId}:${index}`);
+      this.logger.debug(
+        `Downloading media: ${channelId}:${messageId}:${index}`,
+      );
 
       // Delegate to base class (which calls our overridden downloadFromTelegram)
-      const result = await super.download(client, channelId, messageId, index, media);
+      const result = await super.download(
+        client,
+        channelId,
+        messageId,
+        index,
+        media,
+      );
 
       this.logger.log(
         `Downloaded media: ${channelId}:${messageId}:${index} (${result.fileSize} bytes) → ${result.filePath}`,

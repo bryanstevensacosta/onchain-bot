@@ -123,9 +123,11 @@ describe('MediaController (Phase 4 Updated)', () => {
 
       // Expect error response (404 or 500 depending on dir existence)
       expect(mockResponse.status).toHaveBeenCalled();
-      expect(mockResponse.json).toHaveBeenCalledWith(expect.objectContaining({
-        error: expect.any(String),
-      }));
+      expect(mockResponse.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.any(String),
+        }),
+      );
     });
 
     it('should return 404 when directory does not exist (ENOENT)', async () => {
@@ -142,18 +144,30 @@ describe('MediaController (Phase 4 Updated)', () => {
     it('should return 400 for invalid messageId (non-numeric)', async () => {
       const mockResponse = createMockResponse();
 
-      await controller.serveMedia('-1001234567890', 'invalid', '0', mockResponse);
+      await controller.serveMedia(
+        '-1001234567890',
+        'invalid',
+        '0',
+        mockResponse,
+      );
 
       expect(mockResponse.status).toHaveBeenCalledWith(400);
-      expect(mockResponse.json).toHaveBeenCalledWith(expect.objectContaining({
-        error: expect.stringContaining('Bad'),
-      }));
+      expect(mockResponse.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.stringContaining('Bad'),
+        }),
+      );
     });
 
     it('should return 400 for invalid index (negative)', async () => {
       const mockResponse = createMockResponse();
 
-      await controller.serveMedia('-1001234567890', '12345', '-1', mockResponse);
+      await controller.serveMedia(
+        '-1001234567890',
+        '12345',
+        '-1',
+        mockResponse,
+      );
 
       expect(mockResponse.status).toHaveBeenCalledWith(400);
     });
@@ -176,9 +190,11 @@ describe('MediaController (Phase 4 Updated)', () => {
       await controller.serveMedia('-1001234567890', '12345', '0', mockResponse);
 
       expect(mockResponse.status).toHaveBeenCalledWith(500);
-      expect(mockResponse.json).toHaveBeenCalledWith(expect.objectContaining({
-        error: expect.any(String),
-      }));
+      expect(mockResponse.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.any(String),
+        }),
+      );
 
       // Restore
       (controller as any)['fileSystem'] = originalAdapter;
@@ -189,7 +205,10 @@ describe('MediaController (Phase 4 Updated)', () => {
     it('should use CryptoNewsPathBuilder for directory resolution', async () => {
       const mockResponse = createMockResponse();
 
-      const getDirSpy = jest.spyOn(controller['pathBuilder'], 'getMediaDirectory');
+      const getDirSpy = jest.spyOn(
+        controller['pathBuilder'],
+        'getMediaDirectory',
+      );
 
       await controller.serveMedia('-1001234567890', '12345', '0', mockResponse);
 
@@ -212,7 +231,7 @@ describe('MediaController (Phase 4 Updated)', () => {
 
       // Should not throw regardless of file existence
       await expect(
-        controller.serveMedia('-1001234567890', '12345', '0', mockResponse)
+        controller.serveMedia('-1001234567890', '12345', '0', mockResponse),
       ).resolves.not.toThrow();
     });
   });

@@ -570,7 +570,6 @@ export const appConfig = registerAs('app', () => {
   // TODO: Implement validation functions
   //   validateApiConfig(api);
 
-
   // Multi-Backend configuration (Per Requirement 9.1, 9.2)
   const multiBackend = {
     enabled: process.env.INGESTION_MULTI_BACKEND_ENABLED === 'true',

@@ -4,16 +4,16 @@ import { PathSanitizer } from '../utils/path-sanitizer';
 
 /**
  * Abstract base class for media path building strategies.
- * 
+ *
  * Different contexts (crypto-news, ads) use different path conventions.
  * Subclasses implement specific patterns while inheriting common sanitization.
- * 
+ *
  * **Path Convention Examples**:
  * - Crypto-news: `uploads/crypto-news/media/{channelId}/{messageId}_{index}.{ext}`
  * - Ads: `uploads/crypto-news-ads/{adId}/{filename}`
- * 
+ *
  * **Cohesion Goal**: Centralize path sanitization, validation, and directory creation.
- * 
+ *
  * @example
  * ```ts
  * class CryptoNewsPathBuilder extends BaseMediaPathBuilder {
@@ -34,28 +34,28 @@ export abstract class BaseMediaPathBuilder {
 
   /**
    * Build a media file path for storage.
-   * 
+   *
    * Subclasses implement this to define their specific path pattern.
    * Must return an absolute path ready for file I/O.
-   * 
+   *
    * @returns Absolute path where the media file should be stored
    */
   public abstract buildMediaPath(...args: any[]): string;
 
   /**
    * Get the directory where media files for a given entity are stored.
-   * 
+   *
    * Used for listing, cleanup, and directory creation operations.
-   * 
+   *
    * @returns Absolute path to the entity's media directory
    */
   public abstract getMediaDirectory(...args: any[]): string;
 
   /**
    * Sanitize an ID (channelId, adId, etc.) for use in paths.
-   * 
+   *
    * Delegates to PathSanitizer for consistent sanitization.
-   * 
+   *
    * @param id - Raw ID string
    * @returns Sanitized ID safe for file paths
    */
@@ -65,7 +65,7 @@ export abstract class BaseMediaPathBuilder {
 
   /**
    * Sanitize a filename for safe storage.
-   * 
+   *
    * @param filename - Original filename
    * @returns Sanitized filename
    */
@@ -75,10 +75,10 @@ export abstract class BaseMediaPathBuilder {
 
   /**
    * Join path components safely.
-   * 
+   *
    * All components are sanitized before joining.
    * Returns an absolute path.
-   * 
+   *
    * @param components - Path components to join
    * @returns Absolute path
    */
@@ -89,7 +89,7 @@ export abstract class BaseMediaPathBuilder {
 
   /**
    * Get the configured root directory for uploads.
-   * 
+   *
    * @returns Absolute path to uploads root
    */
   public getRoot(): string {
@@ -98,9 +98,9 @@ export abstract class BaseMediaPathBuilder {
 
   /**
    * Validate that a path is within the configured root directory.
-   * 
+   *
    * Prevents path traversal attacks at validation time.
-   * 
+   *
    * @param fullPath - Resolved absolute path to validate
    * @returns true if path is safe
    * @throws Error if path escapes root directory

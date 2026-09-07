@@ -460,8 +460,12 @@ describe('BackendCircuitBreakerService', () => {
       expect(backendStats?.state).toBe(CircuitState.OPEN);
       expect(backendStats?.openedAt).toBeDefined();
       // Allow small timing variance in CI (±10ms)
-      expect(backendStats?.timeSinceOpen).toBeGreaterThanOrEqual(2 * 60 * 1000 - 10);
-      expect(backendStats?.timeSinceOpen).toBeLessThanOrEqual(2 * 60 * 1000 + 10);
+      expect(backendStats?.timeSinceOpen).toBeGreaterThanOrEqual(
+        2 * 60 * 1000 - 10,
+      );
+      expect(backendStats?.timeSinceOpen).toBeLessThanOrEqual(
+        2 * 60 * 1000 + 10,
+      );
 
       jest.useRealTimers();
     });

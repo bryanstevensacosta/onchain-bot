@@ -5,19 +5,19 @@ import { CacheConfig } from '../types/media-metadata';
 
 /**
  * Abstract base class for HTTP media serving operations.
- * 
+ *
  * Provides common logic for:
  * - Cache headers (Cache-Control, ETag)
  * - Content headers (Content-Type, Content-Length)
  * - Range request support (Accept-Ranges, partial content)
  * - Error responses (404, 500)
- * 
+ *
  * **Cohesion Goal**: Eliminate duplicated serving logic in:
  * - MediaController (ingestion-service)
  * - AdsMediaController (backend)
- * 
+ *
  * **Gap 20 Fix**: Properly implements range requests (Accept-Ranges + 206 responses).
- * 
+ *
  * @example
  * ```ts
  * class MediaServingController extends BaseMediaHttpServer {
@@ -26,7 +26,7 @@ import { CacheConfig } from '../types/media-metadata';
  *     const filePath = this.buildPath(params);
  *     const stat = await this.fileSystem.stat(filePath);
  *     const stream = this.fileSystem.stream(filePath);
- *     
+ *
  *     await this.streamFile(filePath, stat, stream, res, {
  *       mimeType: 'image/jpeg',
  *       cacheConfig: this.defaultCacheConfig,
@@ -47,10 +47,10 @@ export abstract class BaseMediaHttpServer {
 
   /**
    * Stream a file to the HTTP response with appropriate headers.
-   * 
+   *
    * Sets Content-Type, Content-Length, Cache-Control, ETag, and Accept-Ranges.
    * Handles errors by closing the stream and sending 500 response.
-   * 
+   *
    * @param filePath - Path to the file (for error logging)
    * @param stat - File stats object (for size, mtime)
    * @param stream - Readable stream of the file
@@ -70,7 +70,10 @@ export abstract class BaseMediaHttpServer {
     const config = options.cacheConfig ?? this.defaultCacheConfig;
 
     // Set content headers
-    response.setHeader('Content-Type', options.mimeType ?? 'application/octet-stream');
+    response.setHeader(
+      'Content-Type',
+      options.mimeType ?? 'application/octet-stream',
+    );
     response.setHeader('Content-Length', stat.size);
 
     // Set cache headers
@@ -98,10 +101,10 @@ export abstract class BaseMediaHttpServer {
 
   /**
    * Generate an ETag from file stats.
-   * 
+   *
    * Uses mtime and size to create a weak ETag.
    * Format: W/"<mtime-timestamp>-<size>"
-   * 
+   *
    * @param stat - File stats
    * @returns ETag string
    */
@@ -112,9 +115,9 @@ export abstract class BaseMediaHttpServer {
 
   /**
    * Handle stream errors during file serving.
-   * 
+   *
    * Logs the error and sends 500 response if headers not sent.
-   * 
+   *
    * @param filePath - Path to the file (for logging)
    * @param error - Stream error
    * @param response - Express Response object
@@ -136,7 +139,7 @@ export abstract class BaseMediaHttpServer {
 
   /**
    * Send a 404 Not Found response.
-   * 
+   *
    * @param response - Express Response object
    * @param message - Optional custom message
    */
@@ -149,7 +152,7 @@ export abstract class BaseMediaHttpServer {
 
   /**
    * Send a 400 Bad Request response.
-   * 
+   *
    * @param response - Express Response object
    * @param message - Error message describing the validation failure
    */
@@ -162,13 +165,13 @@ export abstract class BaseMediaHttpServer {
 
   /**
    * Send a 500 Internal Server Error response.
-   * 
+   *
    * @param response - Express Response object
    * @param error - Error object (message will be logged, not exposed)
    */
   protected sendServerError(response: Response, error: Error): void {
     console.error('Media serving error:', error);
-    
+
     response.status(500).json({
       error: 'Internal server error',
       message: 'Failed to serve media file',
@@ -177,9 +180,9 @@ export abstract class BaseMediaHttpServer {
 
   /**
    * Validate that a parameter is a positive integer.
-   * 
+   *
    * Used for messageId, index, etc.
-   * 
+   *
    * @param value - Parameter value to validate
    * @param paramName - Parameter name for error messages
    * @returns Parsed integer value
@@ -187,17 +190,17 @@ export abstract class BaseMediaHttpServer {
    */
   protected validatePositiveInteger(value: any, paramName: string): number {
     const parsed = parseInt(value, 10);
-    
+
     if (isNaN(parsed) || parsed < 0) {
       throw new Error(`${paramName} must be a positive integer, got: ${value}`);
     }
-    
+
     return parsed;
   }
 
   /**
    * Validate that a parameter is a non-empty string.
-   * 
+   *
    * @param value - Parameter value to validate
    * @param paramName - Parameter name for error messages
    * @returns Trimmed string value
@@ -207,7 +210,7 @@ export abstract class BaseMediaHttpServer {
     if (typeof value !== 'string' || !value.trim()) {
       throw new Error(`${paramName} must be a non-empty string, got: ${value}`);
     }
-    
+
     return value.trim();
   }
 }

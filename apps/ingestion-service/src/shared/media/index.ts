@@ -1,21 +1,21 @@
 /**
  * Shared media abstractions for ingestion-service and backend.
- * 
+ *
  * **Phase 1: Core Abstractions** (Low Risk)
- * 
+ *
  * This module provides base classes and utilities for media operations,
  * eliminating ~400+ lines of duplicated code across the codebase.
- * 
+ *
  * **Usage**:
  * - Ingestion-service: Use directly (owner of crypto-news media)
  * - Backend: Import from ingestion-service for ads media components
- * 
+ *
  * **Cohesion Benefits**:
  * - Single source of truth for MIME types, path sanitization
  * - Consistent cache headers, error handling
  * - Shared Telegram download logic
  * - Unified retention policies
- * 
+ *
  * @see .omo/drafts/media-cohesion-refactor.md for full refactor plan
  */
 

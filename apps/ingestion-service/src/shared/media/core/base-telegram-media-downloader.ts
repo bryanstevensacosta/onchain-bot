@@ -6,7 +6,7 @@ import { BaseMediaPathBuilder } from './base-media-path-builder';
 
 /**
  * Abstract base class for downloading media from Telegram MTProto.
- * 
+ *
  * Encapsulates the common pattern:
  * 1. Call `client.downloadMedia(media, {})`
  * 2. Handle result (Buffer or temp file path)
@@ -15,14 +15,14 @@ import { BaseMediaPathBuilder } from './base-media-path-builder';
  * 5. Build final storage path
  * 6. Write to permanent location
  * 7. Return metadata (path, MIME, size)
- * 
+ *
  * **Cohesion Goal**: Eliminate ~150 lines of EXACT duplication between:
  * - MediaDownloaderService (ingestion-service)
  * - MtprotoMediaDownloader (backend) ← LEGACY, to be removed
- * 
+ *
  * **Template Method Pattern**: Subclasses override path building
  * while inheriting download + retry + cleanup logic.
- * 
+ *
  * @example
  * ```ts
  * class CryptoNewsMediaDownloader extends BaseTelegramMediaDownloader {
@@ -45,7 +45,7 @@ export abstract class BaseTelegramMediaDownloader {
 
   /**
    * Download media from Telegram and save to disk.
-   * 
+   *
    * Handles:
    * - Buffer or file path results from GramJS
    * - MIME type detection
@@ -53,9 +53,9 @@ export abstract class BaseTelegramMediaDownloader {
    * - Path building
    * - File I/O
    * - Cleanup of temp files
-   * 
+   *
    * Subclasses must implement buildStoragePath() to define where to save.
-   * 
+   *
    * @param client - Telegram client (GramJS)
    * @param channelId - Channel/chat ID
    * @param messageId - Message ID
@@ -105,10 +105,10 @@ export abstract class BaseTelegramMediaDownloader {
 
   /**
    * Download media from Telegram using the client.
-   * 
+   *
    * Returns either a Buffer or a temp file path (GramJS behavior).
    * Subclasses can override to add retry logic (e.g., FloodWaitHandler).
-   * 
+   *
    * @param client - Telegram client
    * @param media - Media object to download
    * @returns Buffer or temp file path
@@ -122,10 +122,10 @@ export abstract class BaseTelegramMediaDownloader {
 
   /**
    * Convert download result to Buffer.
-   * 
+   *
    * GramJS may return a Buffer directly or write to a temp file.
    * If a file path is returned, read it and clean up.
-   * 
+   *
    * @param result - Result from downloadMedia()
    * @returns Buffer containing the media data
    */
@@ -137,7 +137,7 @@ export abstract class BaseTelegramMediaDownloader {
     if (typeof result === 'string') {
       // Result is a temp file path
       const buffer = await readFile(result);
-      
+
       // Clean up temp file
       try {
         await unlink(result);
@@ -155,10 +155,10 @@ export abstract class BaseTelegramMediaDownloader {
 
   /**
    * Get file extension for a media object.
-   * 
+   *
    * For photos, always returns '.jpg' (Telegram default).
    * For documents, derives from MIME type.
-   * 
+   *
    * @param media - Telegram media object
    * @param mimeType - Detected MIME type (may be null)
    * @returns File extension with leading dot
@@ -180,9 +180,9 @@ export abstract class BaseTelegramMediaDownloader {
 
   /**
    * Build the storage path for a downloaded media file.
-   * 
+   *
    * Subclasses implement this to define their path convention.
-   * 
+   *
    * @param channelId - Channel/chat ID
    * @param messageId - Message ID
    * @param index - Media index

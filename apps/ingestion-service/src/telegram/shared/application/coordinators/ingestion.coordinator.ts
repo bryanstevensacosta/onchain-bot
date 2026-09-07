@@ -181,10 +181,11 @@ export class IngestionCoordinator {
   ): Promise<void> {
     try {
       // Check for duplicate (idempotency)
-      const existing = await this.cryptoNewsMessageRepo.findByChannelAndMessageId(
-        raw.peerId,
-        raw.messageId,
-      );
+      const existing =
+        await this.cryptoNewsMessageRepo.findByChannelAndMessageId(
+          raw.peerId,
+          raw.messageId,
+        );
 
       if (existing) {
         this.logger.debug(

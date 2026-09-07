@@ -3,19 +3,19 @@ import { BaseFileSystemAdapter } from './base-file-system-adapter';
 
 /**
  * Abstract base class for media retention and cleanup policies.
- * 
+ *
  * Provides common logic for:
  * - Age-based file deletion
  * - Directory traversal
  * - Error collection
  * - Cleanup reporting
- * 
+ *
  * **Cohesion Goal**: Centralize cleanup logic from:
  * - MediaCleanupService (backend)
  * - MediaRetentionCleanupScheduler (backend)
- * 
+ *
  * Subclasses define the retention criteria (age, count, size, etc.).
- * 
+ *
  * @example
  * ```ts
  * class TimeBasedRetentionPolicy extends BaseMediaRetentionPolicy {
@@ -25,7 +25,7 @@ import { BaseFileSystemAdapter } from './base-file-system-adapter';
  *   ) {
  *     super(fileSystem);
  *   }
- * 
+ *
  *   protected async shouldDelete(filePath: string): Promise<boolean> {
  *     const stat = await this.fileSystem.stat(filePath);
  *     const age = Date.now() - stat.mtime.getTime();
@@ -39,10 +39,10 @@ export abstract class BaseMediaRetentionPolicy {
 
   /**
    * Execute cleanup on a directory based on retention policy.
-   * 
+   *
    * Recursively processes all files, evaluates retention policy,
    * and deletes files that should be removed.
-   * 
+   *
    * @param directory - Root directory to clean up
    * @param recursive - Whether to recurse into subdirectories (default: false)
    * @returns Cleanup result (deleted count, errors)
@@ -67,7 +67,7 @@ export abstract class BaseMediaRetentionPolicy {
 
   /**
    * Clean up files in a single directory.
-   * 
+   *
    * @param directory - Directory to process
    * @param recursive - Whether to recurse into subdirectories
    * @param result - Accumulated cleanup result
@@ -84,7 +84,7 @@ export abstract class BaseMediaRetentionPolicy {
     for (const filePath of files) {
       try {
         const shouldDelete = await this.shouldDelete(filePath);
-        
+
         if (shouldDelete) {
           await this.fileSystem.delete(filePath);
           result.deleted++;
@@ -103,12 +103,12 @@ export abstract class BaseMediaRetentionPolicy {
 
   /**
    * Determine if a file should be deleted based on retention policy.
-   * 
+   *
    * Subclasses implement this to define their specific criteria:
    * - Age-based: file older than N days
    * - Count-based: keep only last N files
    * - Size-based: delete if directory exceeds size limit
-   * 
+   *
    * @param filePath - Absolute path to the file
    * @returns true if file should be deleted
    */
@@ -116,9 +116,9 @@ export abstract class BaseMediaRetentionPolicy {
 
   /**
    * Calculate the age of a file in milliseconds.
-   * 
+   *
    * Helper for age-based retention policies.
-   * 
+   *
    * @param filePath - Path to the file
    * @returns Age in milliseconds
    */
@@ -129,9 +129,9 @@ export abstract class BaseMediaRetentionPolicy {
 
   /**
    * Convert hours to milliseconds.
-   * 
+   *
    * Helper for configuring retention periods.
-   * 
+   *
    * @param hours - Number of hours
    * @returns Milliseconds
    */
@@ -141,7 +141,7 @@ export abstract class BaseMediaRetentionPolicy {
 
   /**
    * Convert days to milliseconds.
-   * 
+   *
    * @param days - Number of days
    * @returns Milliseconds
    */

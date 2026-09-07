@@ -268,7 +268,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   async get(key: string): Promise<string | null> {
     if (!this.isAvailable()) return null;
-    return this.executeWithRetry(() => this.getClient().get(key), `get(${key})`);
+    return this.executeWithRetry(
+      () => this.getClient().get(key),
+      `get(${key})`,
+    );
   }
 
   async set(
