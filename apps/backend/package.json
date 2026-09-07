@@ -7,11 +7,11 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
+    "start": "node dist/backend/src/main.js",
     "start:dev": "nest start --watch",
     "start:dev:migrate": "npm run db:migrate && nest start --watch",
     "start:debug": "npm run db:migrate && nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/backend/src/main.js",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "test": "jest --forceExit --testTimeout=30s",
     "test:watch": "jest --watch --forceExit",

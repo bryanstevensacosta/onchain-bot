@@ -12,35 +12,17 @@ import {
 } from 'telegram/ingestion/shared/api/mtproto/telegram-mtproto.utils';
 
 /**
- * Stub implementation of CryptoNewsMediaDownloader for deprecated MTProto mode.
+ * TelegramMediaDownloadService
  *
  * **Phase 5 (media-cohesion-refactor):**
  * Media download responsibility fully migrated to ingestion-service. Backend no longer
  * downloads media in any mode (SSE reads via HTTP, MTProto deprecated).
  *
- * This stub exists only to satisfy DI in deprecated MTProto mode. Any attempt to use it
- * throws an error directing users to SSE mode + ingestion-service.
+ * This service receives a stub implementation of CryptoNewsMediaDownloader via DI.
+ * Any attempt to use media download methods throws errors directing users to SSE mode.
+ *
+ * @deprecated MTProto mode is deprecated. Use SSE mode (USE_SSE_INGESTION=true) instead.
  */
-class StubCryptoNewsMediaDownloader extends CryptoNewsMediaDownloader {
-  async download(): Promise<never> {
-    throw new Error(
-      'CryptoNewsMediaDownloader.download() is deprecated. ' +
-        'Media download migrated to ingestion-service (Phase 5). ' +
-        'Use SSE mode (USE_SSE_INGESTION=true) and fetch media via ' +
-        'INGESTION_SERVICE_URL/api/media/:channelId/:messageId/:index',
-    );
-  }
-
-  async saveToDisk(): Promise<never> {
-    throw new Error(
-      'CryptoNewsMediaDownloader.saveToDisk() is deprecated. ' +
-        'Media download migrated to ingestion-service (Phase 5). ' +
-        'Use SSE mode (USE_SSE_INGESTION=true) and fetch media via ' +
-        'INGESTION_SERVICE_URL/api/media/:channelId/:messageId/:index',
-    );
-  }
-}
-
 @Injectable()
 export class TelegramMediaDownloadService {
   private readonly logger = new Logger(TelegramMediaDownloadService.name);
@@ -49,7 +31,7 @@ export class TelegramMediaDownloadService {
     private readonly floodWaitHandler: FloodWaitHandlerService,
     // Stub injected (Phase 5) — mediaDownloader.saveToDisk() now throws error
     // directing users to SSE mode. MTProto mode deprecated.
-    private readonly mediaDownloader: CryptoNewsMediaDownloader = new StubCryptoNewsMediaDownloader(),
+    private readonly mediaDownloader: CryptoNewsMediaDownloader,
     private readonly peerResolver: TelegramPeerResolver,
     private readonly clientManager: TelegramClientManager,
   ) {}
