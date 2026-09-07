@@ -10,6 +10,7 @@ import {
   ParseIntPipe,
   HttpCode,
   HttpStatus,
+  NotFoundException,
 } from '@nestjs/common';
 import { CryptoNewsMessageRepository } from '../../infrastructure/persistence/typeorm/repositories/crypto-news-message.repository';
 import { CryptoNewsSourceRepository } from '../../infrastructure/persistence/typeorm/repositories/crypto-news-source.repository';
@@ -221,7 +222,9 @@ export class CryptoNewsController {
   ) {
     const source = await this.sourceRepo.findByChannelId(channelId);
     if (!source) {
-      throw new Error(`Source with channelId ${channelId} not found`);
+      throw new NotFoundException(
+        `Source with channelId ${channelId} not found`,
+      );
     }
 
     if (updates.title !== undefined) {
@@ -258,7 +261,9 @@ export class CryptoNewsController {
   async deleteSource(@Param('channelId') channelId: string) {
     const source = await this.sourceRepo.findByChannelId(channelId);
     if (!source) {
-      throw new Error(`Source with channelId ${channelId} not found`);
+      throw new NotFoundException(
+        `Source with channelId ${channelId} not found`,
+      );
     }
 
     await this.sourceRepo.delete(source.channelId);
