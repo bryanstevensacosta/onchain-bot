@@ -396,6 +396,11 @@ describe('TelegramClientManager.markAuthorizedIfTrue — basic authorization', (
     isUserAuthorized: () => Promise<boolean>;
   } {
     const entry = telegramClientInstances[telegramClientInstances.length - 1];
+    if (!entry || !entry.self) {
+      throw new Error(
+        `No TelegramClient instance found. telegramClientInstances.length=${telegramClientInstances.length}`,
+      );
+    }
     return Object.getPrototypeOf(entry.self) as {
       connect: () => Promise<void>;
       isUserAuthorized: () => Promise<boolean>;
