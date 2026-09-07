@@ -96,8 +96,10 @@ in SSE mode the backend can neither resolve titles nor auto-join (gap 24). Verbo
 `[SSE-DEBUG]`/`[PAYLOAD-TRANSFORM-DEBUG]` logs on the hot path (gap 25).
 
 Wiring (`SharedIngestionModule`, `@Global`): ALL THREE adapters always provided; `TelegramListenerPort`
-selected by `useFactory` on flags (+ `TELEGRAM_LISTENER_PORT_TOKEN` alias). Quirk:
-`CryptoNewsMediaDownloader` is pinned to the **MTProto** adapter regardless of mode.
+selected by `useFactory` on flags (+ `TELEGRAM_LISTENER_PORT_TOKEN` alias). **Phase 5 (2026-09)**:
+`CryptoNewsMediaDownloader` removed — media download fully migrated to ingestion-service.
+`TelegramMediaDownloadService` now uses `StubCryptoNewsMediaDownloader` that throws descriptive
+errors directing users to SSE mode.
 `KolSeeder` (`telegram/ingestion/kol/seeders/`, `@deprecated` — use `POST telegram-kol/identity/kols`;
 disable via `INGESTION_TELEGRAM_SEED_ENABLED=false`) + news seeder feed the backend DB; the
 ingestion-service then pulls KOL IDs over HTTP (crypto-news sources now read from ingestion-service own DB, no longer via HTTP).

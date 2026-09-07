@@ -47,7 +47,13 @@ src/
 ├── shared/
 │   ├── common/config/app.config.ts (+ .spec.ts)  # registerAs('app'), class-validator, safety defaults
 │   ├── common/cache/redis.service.ts              # cursor tracking / dedup
-│   └── common/logging/ (structured-logger.service.ts + .spec.ts, logging.module.ts, index.ts)
+│   ├── common/logging/ (structured-logger.service.ts + .spec.ts, logging.module.ts, index.ts)
+│   └── media/                       # **Phase 1-5 (2026-09)**: Shared media abstractions
+│       ├── core/ (base-telegram-media-downloader.ts, base-file-system-adapter.ts, base-media-http-server.ts, base-path-builder.ts)
+│       ├── builders/ (crypto-news-path-builder.ts + .spec.ts)
+│       ├── adapters/ (local-file-system-adapter.ts + .spec.ts)
+│       ├── utils/ (mime-type-resolver.ts + .spec.ts, path-sanitizer.ts + .spec.ts)
+│       └── index.ts                 # barrel export (45 unit tests, all passing)
 └── telegram/
     ├── telegram.module.ts           # OnModuleInit: fetch canales backend → listener → coordinator; refresh 5min
     ├── debug/debug-telegram.controller.ts
@@ -203,7 +209,7 @@ npm run test:e2e -- <archivo>   # una suite (stream-reconnection, metrics, ...)
 npm run test:cov    # → ./coverage
 ```
 
-Unit co-locados (`*.spec.ts`): `app.module`, `stream.service`, `disconnection-tracker`, `stream.controller`, `media.controller`, `health.controller`, `metrics.service`+`controller`, `app.config`, `structured-logger`, `deduplication`, `message-payload`, `ingestion.coordinator.integration`.
+Unit co-locados (`*.spec.ts`): `app.module`, `stream.service`, `disconnection-tracker`, `stream.controller`, `media.controller` **(14 tests, Phase 4 restored)**, `health.controller`, `metrics.service`+`controller`, `app.config`, `structured-logger`, `deduplication`, `message-payload`, `ingestion.coordinator.integration`, **`shared/media/*` (45 tests across 5 files, Phase 1)**.
 
 | E2E (`test/`)                        | Qué valida                                                                                                        |
 | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
