@@ -140,6 +140,7 @@ export class CryptoNewsController {
   /**
    * Transform a message entity to API response format.
    * Converts filePath to url for media items.
+   * Frontend expects /ingestion-api/media URLs (proxied to this service).
    */
   private transformMessageForApi(msg: any) {
     return {
@@ -148,7 +149,7 @@ export class CryptoNewsController {
         id: m.id,
         index: m.index,
         type: m.type,
-        url: `/api/media/${msg.channelId}/${msg.messageId}/${m.index}`,
+        url: `/ingestion-api/media/${msg.channelId}/${msg.messageId}/${m.index}`,
         mimeType: m.mimeType,
         fileSize: m.fileSize,
       })),
