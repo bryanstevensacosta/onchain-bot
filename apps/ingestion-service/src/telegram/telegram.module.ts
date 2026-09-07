@@ -142,16 +142,21 @@ export class TelegramModule implements OnModuleInit {
           `📊 Channel list updated: ${previousTotal} → ${newTotal} (${kolIds.length} KOLs from backend, ${newsIds.length} crypto-news from local DB)`,
         );
 
-        // Restart listener with new channel list if already running
+        // Update listener's subscribed channels dynamically (no restart required)
         if (previousTotal > 0 && channelsChanged) {
           this.logger.log(
-            '🔄 Channel list changed, restarting listener with updated channels...',
+            '🔄 Updating listener channels dynamically (zero downtime)...',
           );
-          // Note: We can't cancel the existing async iterator directly,
-          // but the listener adapter should handle re-subscription gracefully
-          this.startListening().catch((error) => {
-            this.logger.error('❌ Listener restart failed:', error);
-          });
+          try {
+            this.listener.updateSubscribedChannels([
+              ...this.currentChannelIds,
+            ]);
+          } catch (error) {
+            this.logger.error(
+              '❌ Failed to update listener channels:',
+              error,
+            );
+          }
         }
       }
     } catch (error) {

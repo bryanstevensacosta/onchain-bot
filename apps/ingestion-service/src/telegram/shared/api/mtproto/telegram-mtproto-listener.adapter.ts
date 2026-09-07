@@ -184,22 +184,32 @@ export class TelegramMtprotoListenerAdapter
   }
 
   /**
-   * Polling loop for catching up on missed messages
-   * Polls all subscribed channels/bots - crypto-news sources may be bots without -100 prefix
+   * Polling loop for catching up on missed messages.
+   * 
+   * SCALABLE DESIGN: Polls dynamically based on current subscribedChannelIds.
+   * When channels are added/removed via DB, they automatically start/stop
+   * being polled in the next iteration (no listener restart required).
+   * 
+   * This prevents message loss during channel updates and allows true
+   * zero-downtime scaling.
    */
   private async startPollingLoop(): Promise<void> {
-    const peers = [...this.subscribedChannelIds];
-    if (peers.length === 0) return;
-
-    this.logger.log(
-      `Starting polling loop for ${peers.length} peer(s) (channels and crypto-news bots)`,
-    );
+    this.logger.log('Starting polling loop (dynamic channel refresh)');
 
     // Simple polling every 30 seconds
     while (this.running) {
       await this.sleep(30_000);
 
       if (!this.running) break;
+
+      // DYNAMIC: Get current channel list on each iteration
+      // This picks up changes from DB without restarting the listener
+      const peers = [...this.subscribedChannelIds];
+
+      if (peers.length === 0) {
+        this.logger.debug('No channels to poll (skipping iteration)');
+        continue;
+      }
 
       for (const peerId of peers) {
         if (!this.running) break;
@@ -557,6 +567,43 @@ export class TelegramMtprotoListenerAdapter
   async disconnect(): Promise<void> {
     this.running = false;
     this.messageQueue.flush();
+  }
+
+  /**
+   * Update the list of subscribed channels without restarting the listener.
+   * 
+   * SCALABLE DESIGN: New channels are automatically picked up by the polling
+   * loop in the next iteration (every 30s). Removed channels stop being polled.
+   * No listener restart required = zero message loss.
+   * 
+   * @param channelIds - New list of channel IDs to subscribe to
+   */
+  updateSubscribedChannels(channelIds: string[]): void {
+    const added = channelIds.filter(
+      (id) => !this.subscribedChannelIds.includes(id),
+    );
+    const removed = this.subscribedChannelIds.filter(
+      (id) => !channelIds.includes(id),
+    );
+
+    if (added.length > 0 || removed.length > 0) {
+      this.logger.log(
+        `Channel list updated: ${this.subscribedChannelIds.length} → ${channelIds.length} ` +
+          `(+${added.length} added, -${removed.length} removed)`,
+      );
+
+      if (added.length > 0) {
+        this.logger.log(`New channels: ${added.join(', ')}`);
+      }
+      if (removed.length > 0) {
+        this.logger.log(`Removed channels: ${removed.join(', ')}`);
+      }
+
+      this.subscribedChannelIds = [...channelIds];
+      this.logger.log(
+        '✅ Channels updated — polling loop will pick up changes in next iteration (~30s)',
+      );
+    }
   }
 
   async resolveChannelMetadata(
