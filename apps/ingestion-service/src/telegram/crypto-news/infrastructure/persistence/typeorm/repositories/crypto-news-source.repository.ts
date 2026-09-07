@@ -64,6 +64,30 @@ export class CryptoNewsSourceRepository {
   }
 
   /**
+   * Find all crypto-news sources (including inactive ones).
+   *
+   * Used by the API to list all sources for management UI.
+   */
+  async findAll(): Promise<ReadonlyArray<CryptoNewsSourceEntity>> {
+    try {
+      const sources = await this.repo.find({
+        order: {
+          addedAt: 'DESC',
+        },
+      });
+
+      this.logger.log(`Found ${sources.length} total crypto-news sources in DB`);
+
+      return sources;
+    } catch (error) {
+      this.logger.error(
+        `Failed to query all crypto-news sources: ${(error as Error).message}`,
+      );
+      return [];
+    }
+  }
+
+  /**
    * Check if a specific channel is an active crypto-news source.
    *
    * Used by the listener adapter to determine if media should be downloaded

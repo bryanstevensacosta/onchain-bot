@@ -142,7 +142,7 @@ export class CryptoNewsController {
   /**
    * GET /api/crypto-news/sources
    *
-   * Returns all active crypto-news sources.
+   * Returns all crypto-news sources (including inactive ones).
    *
    * Response: Array<{
    *   channelId: string,
@@ -156,8 +156,16 @@ export class CryptoNewsController {
    */
   @Get('sources')
   async getSources() {
-    const sources = await this.sourceRepo.findAllActive();
-    return sources;
+    const sources = await this.sourceRepo.findAll();
+    return sources.map((s) => ({
+      channelId: s.channelId,
+      handle: s.handle,
+      title: s.title,
+      isActive: s.isActive,
+      lifecycleStatus: s.lifecycleStatus,
+      addedAt: s.addedAt?.toISOString(),
+      updatedAt: s.updatedAt?.toISOString(),
+    }));
   }
 
   /**
@@ -187,15 +195,16 @@ export class CryptoNewsController {
    */
   @Get('stats')
   async getStats() {
-    const [totalMessages, sources] = await Promise.all([
+    const [totalMessages, allSources, activeSources] = await Promise.all([
       this.messageRepo.count(),
+      this.sourceRepo.findAll(),
       this.sourceRepo.findAllActive(),
     ]);
 
     return {
       totalMessages,
-      totalSources: sources.length,
-      activeSources: sources.length, // findAllActive() already filters by isActive
+      totalSources: allSources.length,
+      activeSources: activeSources.length,
     };
   }
 
@@ -243,6 +252,37 @@ export class CryptoNewsController {
       lifecycleStatus: updated.lifecycleStatus,
       addedAt: updated.addedAt?.toISOString(),
       updatedAt: updated.updatedAt?.toISOString(),
+    };
+  }
+
+  /**
+   * PATCH /api/crypto-news/sources/:channelId/toggle
+   *
+   * Toggle the isActive state of a crypto-news source.
+   *
+   * Response: {
+   *   channelId: string,
+   *   isActive: boolean
+   * }
+   *
+   * Error Codes:
+   * - 404 Not Found: Source not found
+   */
+  @Patch('sources/:channelId/toggle')
+  async toggleSource(@Param('channelId') channelId: string) {
+    const source = await this.sourceRepo.findByChannelId(channelId);
+    if (!source) {
+      throw new NotFoundException(
+        `Source with channelId ${channelId} not found`,
+      );
+    }
+
+    source.isActive = !source.isActive;
+    const updated = await this.sourceRepo.save(source);
+
+    return {
+      channelId: updated.channelId,
+      isActive: updated.isActive,
     };
   }
 
