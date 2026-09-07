@@ -136,7 +136,8 @@
       "^settings/(.*)$": "<rootDir>/src/settings/$1",
       "^data-provider/(.*)$": "<rootDir>/src/data-provider/$1",
       "^health/(.*)$": "<rootDir>/src/health/$1",
-      "^src/(.*)$": "<rootDir>/src/$1"
+      "^src/(.*)$": "<rootDir>/src/$1",
+      "^@ingestion-service/media/(.*)$": "<rootDir>/../ingestion-service/src/shared/media/$1"
     }
   }
 }
