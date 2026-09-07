@@ -106,20 +106,18 @@ export class CryptoNewsController {
    *   groupedId: string | null,
    *   media: Array<{
    *     id: string (UUID),
-   *     messageId: string (UUID),
    *     index: number,
    *     type: 'photo' | 'video' | 'webpage',
-   *     filePath: string,
+   *     url: string,
    *     mimeType: string | null,
-   *     fileSize: number | null,
-   *     createdAt: ISO timestamp
+   *     fileSize: number | null
    *   }>
    * }>
    */
   @Get('messages')
   async getRecentMessages(@Query('limit', ParseIntPipe) limit = 50) {
     const messages = await this.messageRepo.findRecent(Math.min(limit, 200));
-    return messages;
+    return messages.map((msg) => this.transformMessageForApi(msg));
   }
 
   /**
@@ -136,7 +134,25 @@ export class CryptoNewsController {
       channelId,
       Math.min(limit, 200),
     );
-    return messages;
+    return messages.map((msg) => this.transformMessageForApi(msg));
+  }
+
+  /**
+   * Transform a message entity to API response format.
+   * Converts filePath to url for media items.
+   */
+  private transformMessageForApi(msg: any) {
+    return {
+      ...msg,
+      media: msg.media.map((m: any) => ({
+        id: m.id,
+        index: m.index,
+        type: m.type,
+        url: `/api/media/${msg.channelId}/${msg.messageId}/${m.index}`,
+        mimeType: m.mimeType,
+        fileSize: m.fileSize,
+      })),
+    };
   }
 
   /**
