@@ -78,7 +78,6 @@ export class IngestionCoordinator {
    * Route a raw Telegram message to SSE broadcast
    *
    * Per Invariant 2: Sequential broadcast (async method, caller awaits before next message)
-   * Per Invariant 3: Deduplication check before broadcast
    * Per Requirement 9.1: Structured logging for incoming messages
    *
    * @param raw - Raw Telegram message from MTProto listener
@@ -89,34 +88,11 @@ export class IngestionCoordinator {
     messageType: 'kol' | 'crypto-news',
   ): Promise<void> {
     try {
-      // Per Invariant 6 (Cursor Persistence): Skip messages already processed (idempotency via Redis cursor)
-      const lastSeenId = this.lastSeenManager.get(raw.peerId);
-      if (raw.messageId <= lastSeenId) {
-        this.logger.debug(
-          `Skipping already-processed message: ${raw.peerId}:${raw.messageId} (cursor at ${lastSeenId})`,
-        );
-        return; // Already processed in previous run
-      }
-
-      // Per Invariant 3 (Gap 3 fix): Check for duplicates at source before broadcast
-      const isDupe = await this.deduplicationService.isDuplicate(
-        raw.peerId,
-        raw.messageId,
-        lastSeenId,
-      );
-
-      if (isDupe) {
-        this.logger.debug(
-          `Skipping duplicate message: ${raw.peerId}:${raw.messageId}`,
-        );
-        return; // Skip broadcast for duplicates
-      }
-
-      // Update cursor tracking (for recovery/restart purposes only)
-      this.lastSeenManager.set(raw.peerId, raw.messageId);
-
       // Per centralized architecture: Persist crypto-news messages to ingestion-service DB
       // This is the SINGLE SOURCE OF TRUTH - backends query via HTTP API, they do NOT replicate
+      // NOTE: Deduplication is handled by backend (embedding-based semantic dedup before publisher queue)
+      // Ingestion stores ALL raw messages for audit/replay purposes
+      // NOTE: Cursor checks removed - polling layer already handles idempotency via minId
       if (messageType === 'crypto-news') {
         await this.persistCryptoNewsMessage(raw);
       }
