@@ -90,14 +90,16 @@ export async function fetchCryptoNewsMessages(
   qs.set('limit', String(limit));
   if (channelId) qs.set('channelId', channelId);
   return httpGet<ReadonlyArray<CryptoNewsMessage>>(
-    `/crypto-news/messages?${qs.toString()}`,
+    `/ingestion-api/crypto-news/messages?${qs.toString()}`,
   );
 }
 
 export async function fetchCryptoNewsSources(): Promise<
   ReadonlyArray<CryptoNewsSource>
 > {
-  return httpGet<ReadonlyArray<CryptoNewsSource>>('/crypto-news/sources');
+  return httpGet<ReadonlyArray<CryptoNewsSource>>(
+    '/ingestion-api/crypto-news/sources',
+  );
 }
 
 // ====================================================================

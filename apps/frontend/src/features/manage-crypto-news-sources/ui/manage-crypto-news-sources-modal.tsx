@@ -4,6 +4,7 @@ import { useCryptoNewsSources } from '../model/use-crypto-news-sources';
 import { useAddCryptoNewsSource } from '../model/use-add-crypto-news-source';
 import { useUpdateCryptoNewsSource } from '../model/use-update-crypto-news-source';
 import { useDeleteCryptoNewsSource } from '../model/use-delete-crypto-news-source';
+import { useToggleCryptoNewsSource } from '../model/use-toggle-crypto-news-source';
 
 interface ManageCryptoNewsSourcesModalProps {
   isOpen: boolean;
@@ -26,11 +27,13 @@ export function ManageCryptoNewsSourcesModal({
   const addMutation = useAddCryptoNewsSource();
   const updateMutation = useUpdateCryptoNewsSource();
   const deleteMutation = useDeleteCryptoNewsSource();
+  const toggleMutation = useToggleCryptoNewsSource();
 
   const isSubmitting =
     addMutation.isPending ||
     updateMutation.isPending ||
-    deleteMutation.isPending;
+    deleteMutation.isPending ||
+    toggleMutation.isPending;
 
   function handleClose() {
     if (isSubmitting) return;
@@ -47,6 +50,7 @@ export function ManageCryptoNewsSourcesModal({
     addMutation.reset();
     updateMutation.reset();
     deleteMutation.reset();
+    toggleMutation.reset();
   }
 
   function handleAddClick() {
@@ -107,6 +111,14 @@ export function ManageCryptoNewsSourcesModal({
     }
   }
 
+  async function handleToggle(channelId: string) {
+    try {
+      await toggleMutation.mutateAsync(channelId);
+    } catch {
+      // error surfaced via mutation.error
+    }
+  }
+
   async function handleDelete(channelId: string) {
     if (!confirm('¿Eliminar este source?')) return;
     try {
@@ -117,7 +129,10 @@ export function ManageCryptoNewsSourcesModal({
   }
 
   const error =
-    addMutation.error || updateMutation.error || deleteMutation.error;
+    addMutation.error ||
+    updateMutation.error ||
+    deleteMutation.error ||
+    toggleMutation.error;
 
   return (
     <Modal
@@ -137,15 +152,37 @@ export function ManageCryptoNewsSourcesModal({
                   key={source.channelId}
                   className="group flex items-center justify-between bg-slate-800 border border-slate-700 rounded px-3 py-2 hover:border-slate-600 transition"
                 >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-100 truncate">
-                      {source.title}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {source.handle ? `@${source.handle}` : source.channelId}
-                    </p>
+                  <div className="flex-1 min-w-0 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-100 truncate">
+                        {source.title}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {source.handle ? `@${source.handle}` : source.channelId}
+                      </p>
+                    </div>
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded ${
+                        source.isActive
+                          ? 'bg-green-900/30 text-green-400 border border-green-900/50'
+                          : 'bg-slate-700/30 text-slate-500 border border-slate-700'
+                      }`}
+                    >
+                      {source.isActive ? 'Active' : 'Inactive'}
+                    </span>
                   </div>
                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      type="button"
+                      onClick={() => handleToggle(source.channelId)}
+                      disabled={isSubmitting}
+                      className="text-xs text-amber-400 hover:text-amber-300 disabled:opacity-50"
+                      title={
+                        source.isActive ? 'Desactivar source' : 'Activar source'
+                      }
+                    >
+                      {source.isActive ? 'Deactivate' : 'Activate'}
+                    </button>
                     <button
                       type="button"
                       onClick={() => handleEditClick(source)}

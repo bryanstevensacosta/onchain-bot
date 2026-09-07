@@ -90,6 +90,8 @@ export const ENDPOINTS = {
       add: '/ingestion-api/crypto-news/sources',
       update: (channelId: string) =>
         `/ingestion-api/crypto-news/sources/${channelId}`,
+      toggle: (channelId: string) =>
+        `/ingestion-api/crypto-news/sources/${channelId}/toggle`,
       delete: (channelId: string) =>
         `/ingestion-api/crypto-news/sources/${channelId}`,
     },
