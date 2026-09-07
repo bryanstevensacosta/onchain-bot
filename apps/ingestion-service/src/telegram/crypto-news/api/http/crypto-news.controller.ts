@@ -119,7 +119,13 @@ export class CryptoNewsController {
   @Header('Cache-Control', 'no-cache, must-revalidate')
   async getRecentMessages(@Query('limit', ParseIntPipe) limit = 50) {
     const messages = await this.messageRepo.findRecent(Math.min(limit, 200));
-    return messages.map((msg) => this.transformMessageForApi(msg));
+    
+    // Return object with timestamp to bust ETags on each request
+    return {
+      timestamp: new Date().toISOString(),
+      count: messages.length,
+      data: messages.map((msg) => this.transformMessageForApi(msg)),
+    };
   }
 
   /**
@@ -143,7 +149,7 @@ export class CryptoNewsController {
   /**
    * Transform a message entity to API response format.
    * Converts filePath to url for media items.
-   * Frontend expects /ingestion-api/media URLs (proxied to this service).
+   * Frontend expects /ingestion-api/media URLs (proxied to this service at /api/media).
    */
   private transformMessageForApi(msg: any) {
     return {

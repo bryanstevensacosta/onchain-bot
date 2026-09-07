@@ -89,9 +89,16 @@ export async function fetchCryptoNewsMessages(
   const qs = new URLSearchParams();
   qs.set('limit', String(limit));
   if (channelId) qs.set('channelId', channelId);
-  return httpGet<ReadonlyArray<CryptoNewsMessage>>(
-    `/ingestion-api/crypto-news/messages?${qs.toString()}`,
-  );
+
+  // New format: { timestamp, count, data: CryptoNewsMessage[] }
+  // Extract the data array from the response wrapper
+  const response = await httpGet<{
+    timestamp: string;
+    count: number;
+    data: ReadonlyArray<CryptoNewsMessage>;
+  }>(`/ingestion-api/crypto-news/messages?${qs.toString()}`);
+
+  return response.data;
 }
 
 export async function fetchCryptoNewsSources(): Promise<
