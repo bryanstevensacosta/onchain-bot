@@ -49,11 +49,8 @@ export class CryptoNewsPathBuilder extends BaseMediaPathBuilder {
     const filename = `${messageId}_${index}${extension}`;
 
     // Join: root / channelId / filename
-    const filePath = this.joinPaths(
-      this.config.root,
-      sanitizedChannelId,
-      filename,
-    );
+    // NOTE: Use path.join directly instead of joinPaths to avoid over-sanitization
+    const filePath = path.join(this.config.root, sanitizedChannelId, filename);
 
     // Validate path is within root (security check)
     this.validatePathIsWithinRoot(filePath);
@@ -77,7 +74,8 @@ export class CryptoNewsPathBuilder extends BaseMediaPathBuilder {
    */
   public getMediaDirectory(channelId: string): string {
     const sanitizedChannelId = this.sanitizeId(channelId);
-    const directory = this.joinPaths(this.config.root, sanitizedChannelId);
+    // NOTE: Use path.join directly instead of joinPaths to avoid over-sanitization
+    const directory = path.join(this.config.root, sanitizedChannelId);
     this.validatePathIsWithinRoot(directory);
     return directory;
   }
