@@ -207,14 +207,23 @@ export class TelegramModule implements OnModuleInit {
 
         // Fire-and-forget: Process message asynchronously without blocking the generator
         // This prevents slow DB writes or SSE broadcasts from blocking the next message
+        this.logger.log(
+          `[FIRE-AND-FORGET] Yielded message ${message.peerId}:${message.messageId}, scheduling processing...`,
+        );
         Promise.resolve()
           .then(async () => {
+            this.logger.log(
+              `[FIRE-AND-FORGET] Starting route for ${message.peerId}:${message.messageId}`,
+            );
             // Route message to legacy SSE broadcast via coordinator (includes DB persist)
             await this.coordinator.route(message, messageType);
+            this.logger.log(
+              `[FIRE-AND-FORGET] Completed route for ${message.peerId}:${message.messageId}`,
+            );
           })
           .catch((routeError) => {
             this.logger.error(
-              `Failed to route message ${message.peerId}:${message.messageId}: ${(routeError as Error).message}`,
+              `[FIRE-AND-FORGET] Failed to route message ${message.peerId}:${message.messageId}: ${(routeError as Error).message}`,
               (routeError as Error).stack,
             );
           });

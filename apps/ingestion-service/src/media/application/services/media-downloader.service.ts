@@ -2,18 +2,24 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Api } from 'telegram';
 import { TelegramClient } from 'telegram';
-import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { FloodWaitHandlerService } from 'telegram/shared/infrastructure/services/flood-wait-handler.service';
-
-export interface DownloadedMedia {
-  readonly filePath: string;
-  readonly mimeType: string | null;
-  readonly fileSize: number;
-}
+import {
+  BaseTelegramMediaDownloader,
+  BaseFileSystemAdapter,
+  DownloadedMedia,
+} from 'shared/media';
+import { CryptoNewsPathBuilder } from 'media/infrastructure/crypto-news-path-builder';
 
 /**
  * MediaDownloaderService - Downloads Telegram media to disk
+ *
+ * **Phase 2 Migration**: Now extends BaseTelegramMediaDownloader to eliminate
+ * ~150 lines of duplicated download logic. Inherits:
+ * - MIME type detection
+ * - Buffer/file path handling
+ * - Temp file cleanup
+ * - Extension mapping
  *
  * Per Requirement 4.1: Synchronous media download at ingestion time
  * Per Requirement 4.2: MIME type detection from file extension
@@ -23,28 +29,42 @@ export interface DownloadedMedia {
  * - Download photos/videos from Telegram via MTProto
  * - Save to disk at uploads/crypto-news/media/:channelId/:messageId_:index.ext
  * - Return absolute file path + MIME type + file size
- * - Handle FloodWait errors with exponential backoff
+ * - Handle FloodWait errors with exponential backoff (via override)
  */
 @Injectable()
-export class MediaDownloaderService {
+export class MediaDownloaderService extends BaseTelegramMediaDownloader {
   private readonly logger = new Logger(MediaDownloaderService.name);
-  private readonly uploadsRoot: string;
-  private readonly mediaPath: string;
 
   constructor(
     private readonly config: ConfigService,
     private readonly floodWaitHandler: FloodWaitHandlerService,
   ) {
-    const appConfig = this.config.get('app');
-    this.uploadsRoot = appConfig?.uploads?.root || 'uploads';
-    this.mediaPath = path.join(this.uploadsRoot, 'crypto-news', 'media');
+    // Initialize base class with file system adapter and path builder
+    const appConfig = config.get('app');
+    const uploadsRoot = appConfig?.uploads?.root || 'uploads';
+    const mediaRoot = path.join(uploadsRoot, 'crypto-news', 'media');
+
+    const fileSystem = new LocalFileSystemAdapter();
+    const pathBuilder = new CryptoNewsPathBuilder({
+      root: mediaRoot,
+      recursive: true,
+    });
+
+    super(fileSystem, pathBuilder);
   }
 
   /**
    * Download a single media attachment from Telegram
    *
+   * **Phase 2**: Now delegates to base class download() which handles:
+   * - MIME detection
+   * - Extension mapping
+   * - Buffer/file path conversion
+   * - Path building
+   * - File writing
+   *
    * @param client - Telegram client instance
-   * @param channelId - Sanitized channel ID
+   * @param channelId - Channel ID (sanitized by base class)
    * @param messageId - Message ID
    * @param index - Media index within message
    * @param media - Telegram media object (MessageMediaPhoto or MessageMediaDocument)
@@ -58,61 +78,16 @@ export class MediaDownloaderService {
     media: Api.MessageMediaPhoto | Api.MessageMediaDocument,
   ): Promise<DownloadedMedia> {
     try {
-      // Sanitize channelId against path traversal
-      const sanitizedChannelId = this.sanitizeChannelId(channelId);
+      this.logger.debug(`Downloading media: ${channelId}:${messageId}:${index}`);
 
-      // Determine file extension from media type
-      const extension = this.getExtension(media);
-
-      // Build file path
-      const channelDir = path.join(this.mediaPath, sanitizedChannelId);
-      await fs.mkdir(channelDir, { recursive: true });
-
-      const filename = `${messageId}_${index}${extension}`;
-      const filePath = path.join(channelDir, filename);
-
-      // Download with FloodWait handling
-      const result = await this.floodWaitHandler.withRetry(
-        `media-download-${channelId}-${messageId}-${index}`,
-        async () => {
-          this.logger.debug(
-            `Downloading media: ${channelId}:${messageId}:${index}`,
-          );
-          return await client.downloadMedia(media, {});
-        },
-      );
-
-      // downloadMedia returns Buffer | string (path) depending on options
-      let buffer: Buffer;
-      if (typeof result === 'string') {
-        // If it returned a path, read the file
-        buffer = await fs.readFile(result);
-        await fs.unlink(result); // Clean up temp file
-      } else if (Buffer.isBuffer(result)) {
-        buffer = result;
-      } else {
-        throw new Error('Downloaded media is neither Buffer nor string path');
-      }
-
-      if (!buffer || buffer.length === 0) {
-        throw new Error('Downloaded buffer is empty');
-      }
-
-      // Write to disk
-      await fs.writeFile(filePath, buffer);
-
-      const mimeType = this.getMimeType(extension);
-      const fileSize = buffer.length;
+      // Delegate to base class (which calls our overridden downloadFromTelegram)
+      const result = await super.download(client, channelId, messageId, index, media);
 
       this.logger.log(
-        `Downloaded media: ${channelId}:${messageId}:${index} (${fileSize} bytes) → ${filePath}`,
+        `Downloaded media: ${channelId}:${messageId}:${index} (${result.fileSize} bytes) → ${result.filePath}`,
       );
 
-      return {
-        filePath: path.resolve(filePath), // Return absolute path
-        mimeType,
-        fileSize,
-      };
+      return result;
     } catch (error) {
       this.logger.error(
         `Failed to download media ${channelId}:${messageId}:${index}: ${
@@ -125,55 +100,53 @@ export class MediaDownloaderService {
   }
 
   /**
-   * Sanitize channel ID against path traversal attacks
+   * Override to add FloodWait retry logic.
+   *
+   * **Phase 2**: This is the only method we need to override to customize
+   * the base class behavior. Everything else (MIME detection, path building,
+   * file I/O) is handled by the base class.
+   *
+   * @param client - Telegram client
+   * @param media - Media object to download
+   * @returns Buffer or temp file path
    */
-  private sanitizeChannelId(channelId: string): string {
-    // Remove any path separators and keep only alphanumeric + dash
-    return channelId.replace(/[^a-zA-Z0-9-]/g, '');
+  protected async downloadFromTelegram(
+    client: any,
+    media: any,
+  ): Promise<Buffer | string> {
+    return await this.floodWaitHandler.withRetry(
+      `media-download-${Date.now()}`,
+      async () => await client.downloadMedia(media, {}),
+    );
   }
 
   /**
-   * Get file extension from media type
+   * Override to build crypto-news specific paths.
+   *
+   * @param channelId - Channel ID
+   * @param messageId - Message ID
+   * @param index - Media index
+   * @param extension - File extension
+   * @returns Absolute path
    */
-  private getExtension(
-    media: Api.MessageMediaPhoto | Api.MessageMediaDocument,
+  protected buildStoragePath(
+    channelId: string,
+    messageId: number,
+    index: number,
+    extension: string,
   ): string {
-    if (media instanceof Api.MessageMediaPhoto) {
-      return '.jpg'; // Telegram photos are typically JPEG
-    }
-
-    if (media instanceof Api.MessageMediaDocument && media.document) {
-      const doc = media.document as Api.Document;
-      // Try to get extension from MIME type or attributes
-      if (doc.mimeType) {
-        const mimeMap: Record<string, string> = {
-          'image/jpeg': '.jpg',
-          'image/png': '.png',
-          'image/gif': '.gif',
-          'image/webp': '.webp',
-          'video/mp4': '.mp4',
-          'video/webm': '.webm',
-        };
-        return mimeMap[doc.mimeType] || '.bin';
-      }
-    }
-
-    return '.bin';
+    // Type-safe access to our concrete path builder
+    const pathBuilder = this.pathBuilder as CryptoNewsPathBuilder;
+    return pathBuilder.buildMediaPath(channelId, messageId, index, extension);
   }
+}
 
-  /**
-   * Get MIME type from file extension
-   */
-  private getMimeType(extension: string): string | null {
-    const mimeMap: Record<string, string> = {
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.png': 'image/png',
-      '.gif': 'image/gif',
-      '.webp': 'image/webp',
-      '.mp4': 'video/mp4',
-      '.webm': 'video/webm',
-    };
-    return mimeMap[extension] || null;
-  }
+/**
+ * Local file system adapter for MediaDownloaderService.
+ *
+ * **Phase 2**: Simple wrapper around BaseFileSystemAdapter.
+ * No customization needed - inherits all file I/O operations.
+ */
+class LocalFileSystemAdapter extends BaseFileSystemAdapter {
+  // No customization needed - uses base class implementation
 }

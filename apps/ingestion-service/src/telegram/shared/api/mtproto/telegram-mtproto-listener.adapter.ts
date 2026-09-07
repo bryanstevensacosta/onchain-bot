@@ -133,10 +133,11 @@ export class TelegramMtprotoListenerAdapter
     void this.startPollingLoop();
 
     // Yield messages from queue
+    // FIX: Drain queue completely before waiting, messages may arrive while yielding
     while (this.running) {
-      if (this.messageQueue.length > 0) {
+      // Drain all pending messages before waiting for new ones
+      while (this.messageQueue.length > 0) {
         yield this.messageQueue.shift()!;
-        continue;
       }
       await this.messageQueue.waitForItem();
     }
