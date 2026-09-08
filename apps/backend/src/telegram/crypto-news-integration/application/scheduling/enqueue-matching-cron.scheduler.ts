@@ -179,12 +179,14 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
     // Parse messageEntities JSON string (Telegram formatting)
     const formattingEntities = dto.messageEntities ? dto.messageEntities : null;
 
-    // Map media array (DTO shape → CryptoNewsMedia value object)
+    // Map media array (DTO shape → CryptoNewsMedia value object).
+    // The HTTP API strips `filePath` and exposes only `url`, so resolve a
+    // publisher-consumable path per item (see resolveMediaFilePath).
     const media = dto.media.map((m) =>
       CryptoNewsMedia.create({
         index: m.index,
         type: m.type,
-        filePath: m.filePath,
+        filePath: this.resolveMediaFilePath(dto.channelId, dto.messageId, m),
         mimeType: m.mimeType,
         fileSize: m.fileSize,
       }),
@@ -206,5 +208,58 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
       media,
       formattingEntities,
     });
+  }
+
+  /**
+   * Resolve a publisher-consumable `filePath` for one DTO media item.
+   *
+   * Priority: (1) server-provided `filePath` when present (internal shapes);
+   * (2) absolute HTTP(S) `url` as-is — `ensureLocalFiles` in
+   * `ProcessNextQueuedArticleUseCase` downloads those directly; (3) otherwise
+   * reconstruct the ingestion-style local path
+   * `uploads/crypto-news/media/<channel>/<message>_<index>.<ext>` from the
+   * item coordinates. Case (3) is the live HTTP-API shape (`url` is a
+   * frontend-relative `/ingestion-api/media/...` path, unusable as-is): the
+   * publisher's `downloadFileFromIngestion` fallback parses exactly that
+   * local-path shape back into `GET /api/media/...` and downloads the bytes.
+   * Reconstructing it here needs no new config (the scheduler owns no
+   * ingestion baseUrl) and reuses the already-tested fallback chain.
+   */
+  private resolveMediaFilePath(
+    channelId: string,
+    messageId: number,
+    m: {
+      filePath?: string;
+      url?: string;
+      index: number;
+      mimeType: string | null;
+    },
+  ): string {
+    if (m.filePath && m.filePath.trim().length > 0) {
+      return m.filePath;
+    }
+    if (m.url && /^https?:\/\//.test(m.url)) {
+      return m.url;
+    }
+    return `uploads/crypto-news/media/${channelId}/${messageId}_${m.index}.${EnqueueMatchingCronScheduler.extensionFor(m.mimeType)}`;
+  }
+
+  private static extensionFor(mimeType: string | null): string {
+    switch ((mimeType ?? '').toLowerCase()) {
+      case 'image/jpeg':
+        return 'jpg';
+      case 'image/png':
+        return 'png';
+      case 'image/gif':
+        return 'gif';
+      case 'image/webp':
+        return 'webp';
+      case 'video/mp4':
+        return 'mp4';
+      case 'video/quicktime':
+        return 'mov';
+      default:
+        return 'bin';
+    }
   }
 }

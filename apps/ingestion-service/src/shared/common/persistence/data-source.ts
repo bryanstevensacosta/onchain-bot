@@ -51,9 +51,7 @@ export default new DataSource({
     process.env.DATABASE_HOST ||
     'localhost',
   port: parseInt(
-    process.env.INGESTION_DATABASE_PORT ||
-      process.env.DATABASE_PORT ||
-      '5432',
+    process.env.INGESTION_DATABASE_PORT || process.env.DATABASE_PORT || '5432',
     10,
   ),
   username:

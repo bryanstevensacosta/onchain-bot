@@ -24,7 +24,20 @@ export interface CryptoNewsMessageDto {
     readonly messageId: string; // UUID reference to parent
     readonly index: number;
     readonly type: 'photo' | 'video' | 'webpage';
-    readonly filePath: string;
+    /**
+     * Local file path on the ingestion-service host.
+     * ABSENT from HTTP responses: the server strips `filePath` and exposes
+     * a serving `url` instead (see `transformMessageForApi` in the
+     * ingestion-service crypto-news controller). Present only on internal
+     * shapes — always access defensively via `??` fallback.
+     */
+    readonly filePath?: string;
+    /**
+     * HTTP serving URL for the media item (e.g.
+     * `/ingestion-api/media/<channelId>/<messageId>/<index>`).
+     * This is the ONLY media locator the HTTP API exposes.
+     */
+    readonly url?: string;
     readonly mimeType: string | null;
     readonly fileSize: number | null;
     readonly createdAt: string; // ISO timestamp
@@ -80,6 +93,30 @@ export class CryptoNewsIngestionClient {
   }
 
   /**
+   * Defensively extract an array from an ingestion-service response body.
+   *
+   * Accepts either a bare array or a `{timestamp, count, data}` wrapper
+   * (the `/messages` endpoint wraps to bust ETags; siblings return bare
+   * arrays today). Anything else yields `[]` — callers degrade gracefully
+   * instead of throwing `not iterable` downstream.
+   */
+  private unwrapArray<T>(body: unknown): T[] {
+    if (Array.isArray(body)) {
+      return body as T[];
+    }
+    if (body !== null && typeof body === 'object' && 'data' in body) {
+      const data: unknown = body.data;
+      if (Array.isArray(data)) {
+        return data as T[];
+      }
+    }
+    this.logger.warn(
+      'Ingestion-service returned an unexpected body shape (neither array nor {data} wrapper) — treating as empty',
+    );
+    return [];
+  }
+
+  /**
    * Fetch recent crypto-news messages from ingestion-service
    *
    * Returns RAW content (no filters applied). Consumer must apply filters.
@@ -121,8 +158,12 @@ export class CryptoNewsIngestionClient {
         return [];
       }
 
-      const messages =
-        (await response.json()) as ReadonlyArray<CryptoNewsMessageDto>;
+      const body: unknown = await response.json();
+
+      // The ingestion-service wraps GET /api/crypto-news/messages as
+      // {timestamp, count, data} (ETag-busting, commit 97199b2) while sibling
+      // endpoints return bare arrays — unwrap defensively, never assume.
+      const messages = this.unwrapArray<CryptoNewsMessageDto>(body);
 
       this.logger.log(
         `Fetched ${messages.length} raw messages from ingestion-service`,
@@ -174,8 +215,11 @@ export class CryptoNewsIngestionClient {
         return [];
       }
 
-      const messages =
-        (await response.json()) as ReadonlyArray<CryptoNewsMessageDto>;
+      const body: unknown = await response.json();
+
+      // GET /messages/channel/:channelId returns a bare array today, but
+      // unwrap defensively so a future wrapper cannot silently break matching.
+      const messages = this.unwrapArray<CryptoNewsMessageDto>(body);
 
       this.logger.log(
         `Fetched ${messages.length} messages for channel ${channelId}`,
@@ -220,8 +264,10 @@ export class CryptoNewsIngestionClient {
         return [];
       }
 
-      const sources =
-        (await response.json()) as ReadonlyArray<CryptoNewsSourceDto>;
+      const body: unknown = await response.json();
+
+      // GET /sources returns a bare array today — same defensive unwrap.
+      const sources = this.unwrapArray<CryptoNewsSourceDto>(body);
 
       this.logger.log(
         `Fetched ${sources.length} sources from ingestion-service`,
