@@ -88,7 +88,7 @@ Raíz: package.json (@alpha-meta-token-scanner/ingestion-service), Dockerfile (m
 | `StreamModule`                                | StreamService, DisconnectionTracker, StreamController                                                                                                                                                                                                                                                                                                                                                | `ScheduleModule.forRoot()` para heartbeat                                                                                                                                                                                 |
 | `MediaModule`                                 | MediaController (downloader importado de SharedModule)                                                                                                                                                                                                                                                                                                                                               |                                                                                                                                                                                                                           |
 | `HealthModule` / `MetricsModule`              | HealthController / MetricsService+Controller                                                                                                                                                                                                                                                                                                                                                         | Prometheus vía `@willsoto/nestjs-prometheus` + `prom-client`                                                                                                                                                              |
-| Infra global                                  | `EventEmitterModule` (wildcard `.`, max 20), `ScheduleModule`, `LoggerModule` (pino-http + pino-pretty en no-prod), `TypeOrmModule` postgres solo `CryptoNewsSourceEntity`, `ValidationPipe{whitelist, forbidNonWhitelisted, transform}`                                                                                                                                                             | CORS: `:3030` + `BACKEND_STAGING_URL` + `BACKEND_PROD_URL`, credentials true                                                                                                                                              |
+| Infra global                                  | `EventEmitterModule` (wildcard `.`, max 20), `ScheduleModule`, `LoggerModule` (pino-http + pino-pretty en no-prod), `TypeOrmModule` postgres con las 5 entidades propias (ver Persistencia), `ValidationPipe{whitelist, forbidNonWhitelisted, transform}`                                                                                                                                            | CORS: `:3030` + `BACKEND_STAGING_URL` + `BACKEND_PROD_URL`, credentials true                                                                                                                                              |
 
 ## Endpoints HTTP (11)
 
@@ -184,7 +184,7 @@ Vars (ver `.env.example` / `.env.production.template` — prod usa hosts docker 
 15. **El refresh de canales cada 5 min es inefectivo**: `TelegramModule.refreshChannels()` llama `startListening()` de nuevo, pero `adapter.subscribe()` lanza `Error('Telegram listener already running')` (single-listener) → queda atrapado como "Listener restart failed". Canales nuevos requieren reinicio del proceso. El snapshot `peers` del polling loop tampoco se actualiza.
 16. **Config anti-ban decorativa**: `maxChannels`, `pollIntervalBaseMs`, `jitterPercent` se parsean/testean pero **ningún código runtime los consume** — el polling es 30 s fijos sin jitter y sin tope de canales. Solo `floodInitialMs/Multiplier/MaxMs/MaxAttempts` llegan a usarse (vía `FloodWaitHandler`).
 17. **`seedKols`/`seedNews` muertos**: `app.config` los produce (incluye import de `CRYPTO_NEWS_SEED` como fallback) pero nada fuera de `app.config.spec.ts` los lee. `validateConfig()` definida y jamás invocada → sin fail-fast (ej. `apiId=0`, hash vacío se detectan tarde, como listener en idle).
-18. **Retención de media sin janitor**: `INGESTION_CRYPTO_NEWS_MEDIA_RETENTION_HOURS` no la consume ningún cron/servicio → `uploads/` crece sin límite. `floodProtection.threshold24h` igual: nadie lo evalúa.
+18. ~~**Retención de media sin janitor**~~ **RESOLVED 2026-09-08**: `CryptoNewsRetentionCleanupScheduler` consume `INGESTION_CRYPTO_NEWS_MEDIA_RETENTION_HOURS` (default 72) para AMBAS pasadas (media + messages). `floodProtection.threshold24h` sigue sin evaluarse.
 19. **Sin auth en ningún endpoint**: SSE, media, health, metrics y `debug/telegram/message/:channelId/:messageId` (acceso MTProto arbitrario) expuestos sin guard/API key. `MediaController` no sanitiza `channelId` (el downloader sí) → `path.join` con `../` permite listar/servir fuera de `uploads/` (traversal de lectura).
 20. **`Accept-Ranges` ficticio**: se anuncia `Accept-Ranges: bytes` pero siempre se sirve 200 con el archivo completo — sin 206 ni `If-None-Match` (el ETag emitido nunca se evalúa). Seeking de video roto.
 21. **Inundación en arranque frío**: `LastSeenManager.get()` default `-1` → primer polling pide `{minId: -1, limit: 50}` y emite hasta 50 mensajes históricos como nuevos; realtime+polling pueden duplicar el mismo mensaje (sin dedup, gap 3). Si Redis cae, los cursores se pierden y el reflood se repite en cada reinicio.
@@ -196,14 +196,43 @@ Vars (ver `.env.example` / `.env.production.template` — prod usa hosts docker 
 ## Persistencia / Docker
 
 - **Database**: Uses **Docker Postgres** from `apps/backend/docker-compose.yml` (container `alpha-meta-token-scanner-postgres`, port mapping `0.0.0.0:5432→5432`). Connection from host: `localhost:5432`. **NO** separate local Postgres installation required.
-- **TypeORM**: 4 entities registered in `app.module.ts`:
+- **DB split 2026-09-08 — dedicated logical DB per Postgres server**: dev local `alpha_meta_token_scanner_ingestion`, droplet `alpha_meta_token_scanner_ingestion` (created + restored prod 13 sources / 2144 messages / 38 media with md5 parity — task-9 evidence). Staging has NO ingestion DB (consumes the single droplet ingestion over HTTP/SSE). Backend `PERSISTED_ENTITIES` = 39: the 3 crypto-news tables live ONLY here. pgAdmin: the second DB lives in the SAME server — no `servers.json` change, it just appears as another DB under the existing server entry.
+- **TypeORM**: 5 entities registered in `app.module.ts`:
   - `CryptoNewsSourceEntity` — sources (**SOLE OWNER** since 2026-09-05, reads+writes)
   - `CryptoNewsMessageEntity` — RAW message content (ingested from Telegram)
   - `CryptoNewsMessageMediaEntity` — media metadata (URLs to served files)
-  - `ChannelContentFilterConfigEntity` — per-channel filter rules
+  - `ChannelContentFilterConfigEntity` — local table (live filter rules stay in the BACKEND; backend CRUD + on-read matching are authoritative)
   - `BackfillMessageEntity` — backfill tracking (stream module)
-- **Schema sync**: `INGESTION_DATABASE_SYNCHRONIZE=true` in dev (auto-creates tables on boot). Production uses migrations (TBD — currently no migration files in this service).
+- **Migrations (infra added 2026-09-08, todo 2)**: `src/shared/common/persistence/data-source.ts` (mirrors backend structure) + `migration:generate/run/show/revert` scripts + `scripts/run-migrations.sh` + NODE_ENV gating in `app.module.ts` (staging/production → `synchronize:false, migrationsRun:false`; dev/test → `synchronize:true`). Baseline `1788844970659-BaselineIngestionSchema` creates exactly the 5 tables (generated against an empty scratch DB, never against populated dev). Deploys run migrations explicitly (`deploy-ingestion.yml` backup + one-off `migration:run` before recreate, abort-on-failure).
+- **Schema sync**: `INGESTION_DATABASE_SYNCHRONIZE=true` in dev (auto-creates tables on boot).
+- **Retention janitor (moved from backend 2026-09-08, todo 6)**: `CryptoNewsRetentionCleanupScheduler` (EVERY_HOUR, advisory lock `9_421_373` ≠ backend's old `7_421_372`) with TWO passes per tick — (a) media pass (expired by `INGESTION_CRYPTO_NEWS_MEDIA_RETENTION_HOURS`, unlink + row delete, already-gone→delete, EACCES→skip+keep, else abort) + (b) NEW messages pass (`DELETE ... WHERE ingested_at < now() - 72h` batched `LIMIT 1000` loop + orphan-media sweep). Clock is `ingested_at`, never `published_at`. Absolute-age deletion (no matching-state exception; publisher queue holds content snapshots in the backend DB, so no cross-DB guard needed — task-6 audit). Window 72h per invariant; prod effective value pending operator decision (task-10 §4 dossier: prod backend cleaned media with 24h — do NOT assert 72h as prod-effective).
 - **Startup**: Requires Docker Postgres running (`cd apps/backend && docker compose up -d postgres`). Service creates tables on first boot with `synchronize=true`.
+
+### Invariantes del split (inamovibles — del plan db-separation)
+
+1. **Un solo ingestion-service en el droplet** (`docker-compose.ingestion.yml` standalone, host `127.0.0.1:3032` → container `3031`); prohibido `ingestion-staging`, segundas redes o segundas DBs de ingestion en el droplet. Backends staging Y prod consumen ESE MISMO ingestion.
+2. **Una sola sesión MTProto** (`INGESTION_TELEGRAM_MTPROTO_*` solo en el `.env.production` de ingestion).
+3. **Un solo storage de media** (`uploads/crypto-news/media/`, dueño ingestion-service).
+4. **Una sola DB de ingestion por servidor** (`<base>_ingestion`); prohibido `*_staging_ingestion`.
+5. **Retención 72h messages + media** (janitor de arriba; ver caveat prod en el punto anterior).
+
+### Crear el `.env.production` real en el droplet (comandos, SIN valores)
+
+El repo solo lleva `.env.production.template` (con `INGESTION_DATABASE_NAME=alpha_meta_token_scanner_ingestion`). El archivo real vive SOLO en el droplet y nunca se commitea:
+
+```bash
+ssh CryptoGanster
+cp /opt/onchain-bot/apps/ingestion-service/.env.production.template \
+   /opt/onchain-bot/apps/ingestion-service/.env.production
+# Editar a mano: MTProto session, DB password, y (tras decisión del operador,
+# ver task-10 §4) INGESTION_CRYPTO_NEWS_MEDIA_RETENTION_HOURS. Sin valores aquí.
+```
+
+### PENDING Phase B (no afirmar como hecho hasta el cutover)
+
+- Conteos pre/post primer janitor tick en prod (se espera purga grande de historia >72h restaurada — evidenciar, no confundir con pérdida).
+- `GET :3032/api/crypto-news/sources` sirviendo las sources migradas.
+- Ciclo scheduler-level en staging contra el droplet (probe source → `Found N matching messages` en logs → borrar probe).
 - **Dockerfile**: build `node:22-alpine` (`npm ci --workspace=... --ignore-scripts`, `HUSKY=0`) → runtime con `dumb-init`, usuario `nodejs`, `uploads/crypto-news/media`, `EXPOSE 3031`, `HEALTHCHECK /api/health` (ver gap 23: siempre 200 por stubs), `CMD node apps/ingestion-service/dist/src/main.js`.
 - **`.gitignore`**: `/dist`, `/coverage`, `.env`/`.env.dev`/`.env.*.local` (secretos fuera de git), `/uploads` (media efímera). Commiteados como plantilla: `.env.example`, `.env.production.template`.
 
@@ -220,7 +249,7 @@ npm run test:e2e -- <archivo>   # una suite (stream-reconnection, metrics, ...)
 npm run test:cov    # → ./coverage
 ```
 
-Unit co-locados (`*.spec.ts`): `app.module`, `stream.service`, `disconnection-tracker`, `stream.controller`, `media.controller` **(14 tests, Phase 4 restored)**, `health.controller`, `metrics.service`+`controller`, `app.config`, `structured-logger`, `deduplication`, `message-payload`, `ingestion.coordinator.integration`, **`telegram-media-extractor.service` (7 tests, Phase 5.2)**, **`shared/media/*` (45 tests across 5 files, Phase 1)**. **Total: 808 tests across 42 suites** (verified 2026-09).
+Unit co-locados (`*.spec.ts`): `app.module`, `stream.service`, `disconnection-tracker`, `stream.controller`, `media.controller` **(14 tests, Phase 4 restored)**, `health.controller`, `metrics.service`+`controller`, `app.config`, `structured-logger`, `deduplication`, `message-payload`, `ingestion.coordinator.integration`, **`telegram-media-extractor.service` (7 tests, Phase 5.2)**, **`shared/media/*` (45 tests across 5 files, Phase 1)**, **`crypto-news-retention-cleanup.scheduler` (7 tests, split 2026-09-08)**. **Total: 815 tests across 43 suites** (task-10 evidence).
 
 | E2E (`test/`)                        | Qué valida                                                                                                        |
 | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
@@ -279,7 +308,9 @@ Imagen: `ghcr.io/bryanstevensacosta/onchain-bot-ingestion:latest`.
 | `docker-compose.ingestion.yml`      | standalone en droplet: host `127.0.0.1:3032` → container `3031` (3032 evita choque con staging en 3031); `INGESTION_PORT: 3031` interno; healthcheck a `:3031/api/health`                                       |
 | `docker-compose.with-ingestion.yml` | extiende prod: build local del Dockerfile, `PORT: 3031`, backend con `INGESTION_SERVICE_URL: http://ingestion-service:3031` + volumen de media en **read-only** (ingestion owns writes), `depends_on` ingestion |
 
-Notas: `with-ingestion` referencia `../ingestion-service/.env.production` — **no existe en el repo** (solo `.env.production.template`); crearlo desde la plantilla en el droplet, nunca commitear. Los e2e contra droplet usan el puerto host **3032**. En red Docker el provider HTTP a `localhost:3030` no resuelve al backend (gap 25).
+Notas: `with-ingestion` referencia `../ingestion-service/.env.production` — **no existe en el repo** (solo `.env.production.template`); crearlo desde la plantilla en el droplet, nunca commitear (ver comandos en Persistencia). Los e2e contra droplet usan el puerto host **3032**. En red Docker el provider HTTP a `localhost:3030` no resuelve al backend (gap 25).
+
+Pipeline (desde split 2026-09-08, todo 10): `deploy-ingestion.yml` corre backup de la DB de ingestion + `migration:run` en one-off container ANTES de recrear (abort-on-failure); `deploy.yml` (backend prod) lleva un ordering gate que exige `GET :3032/api/crypto-news/sources` healthy antes de migrar el backend. Ley code-before-schema: desplegar ingestion PRIMERO y verificar `:3032` sirviendo, y SOLO ENTONCES desplegar el backend con la drop migration (el orden inverso deja al backend sin tablas que su imagen vieja exige — probado en staging, task-7).
 
 ## Variables de entorno (`.env.example`, 102 líneas)
 
@@ -292,7 +323,7 @@ Notas: `with-ingestion` referencia `../ingestion-service/.env.production` — **
 | `INGESTION_DATABASE_HOST/PORT/NAME/USER/PASSWORD/SYNCHRONIZE/LOGGING` | `localhost/5432/onchain_bot/postgres/postgres/false/false` | `database.*` + `DATABASE_ENABLED`                                            | ⚠️ El ejemplo dice "REQUIRED for raw text storage" — stale: aquí no se guarda texto, la DB solo se lee (`crypto_news_sources`)                                                  |
 | `INGESTION_TELEGRAM_SEED_KOLS/NEWS`                                   | `[]`                                                       | ⚠️ **Nada runtime** (gap 17)                                                 | Formato `[{channelId, displayName}]` según ejemplo; el seeder real espera `kolId[,kolId]`/`kolId\|handle\|title` — formatos inconsistentes                                      |
 | `INGESTION_SAFETY_*` (12 vars)                                        | ver ejemplo                                                | `ingestionSafety.*` (mayoría decorativa, gap 16)                             | Solo flood backoff/attempts tienen efecto                                                                                                                                       |
-| `INGESTION_CRYPTO_NEWS_MEDIA_RETENTION_HOURS`                         | `72`                                                       | ⚠️ **Nada** (gap 18)                                                         | Sin janitor                                                                                                                                                                     |
+| `INGESTION_CRYPTO_NEWS_MEDIA_RETENTION_HOURS`                         | `72`                                                       | `CryptoNewsRetentionCleanupScheduler` (media + messages, gap 18 resolved)    | 72h por invariante; valor efectivo en prod pendiente de decisión (task-10 §4)                                                                                                   |
 | `INGESTION_LOG_LEVEL/FORMAT`                                          | `info/json`                                                | `logging.level` (⚠️ `FORMAT` no se consume: pretty se decide por `NODE_ENV`) |                                                                                                                                                                                 |
 | `NODE_ENV`                                                            | `production`                                               | `nodeEnv`, pretty vs JSON                                                    |                                                                                                                                                                                 |
 | `BACKEND_PORT` / `BACKEND_STAGING_URL` / `BACKEND_PROD_URL`           | —                                                          | provider (`localhost:{BACKEND_PORT}`), CORS                                  | ⚠️ Ausentes en `.env.example` aunque el código las lee — solo están en `.env.production.template`                                                                               |
