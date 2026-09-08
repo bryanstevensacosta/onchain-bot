@@ -25,6 +25,19 @@ describe('SettingsPresets (e2e)', () => {
   let dataSource: DataSource;
 
   beforeAll(async () => {
+    // SAFETY (task 3, db-separation): this spec builds its own TypeOrmModule
+    // and runs under the UNIT jest regex, so test/jest-e2e.setup.ts never
+    // applies. Pin to the dedicated e2e DB and refuse to boot against a
+    // non-test database (default would be the dev DB alpha_meta_token_scanner).
+    const testDatabase = 'alpha_meta_token_scanner_e2e';
+    const envDatabase = process.env.POSTGRES_DB;
+    if (envDatabase && !/(_test|_entity|_e2e)$/.test(envDatabase)) {
+      throw new Error(
+        `[e2e-guard] Refusing to run settings e2e spec against non-test database "${envDatabase}". ` +
+          `Unset POSTGRES_DB or point it at a *_test database (default: "${testDatabase}").`,
+      );
+    }
+    process.env.POSTGRES_DB = testDatabase;
     const moduleRef = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({

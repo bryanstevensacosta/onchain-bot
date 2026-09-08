@@ -75,6 +75,17 @@ describe('Backfill Integration Tests', () => {
   }
 
   beforeAll(async () => {
+    // SAFETY: this spec TRUNCATEs/clears tables — it must NEVER run against
+    // the dev database (jest.setup.ts loads .env, which points
+    // INGESTION_DATABASE_NAME at alpha_meta_token_scanner).
+    const testDatabase =
+      process.env.INGESTION_DATABASE_NAME || 'onchain_bot_test';
+    if (!/(_test|_test_entity)$/.test(testDatabase)) {
+      throw new Error(
+        `[SAFETY] Refusing to run integration spec against non-test database "${testDatabase}". ` +
+          `Unset INGESTION_DATABASE_NAME or point it at a *_test database.`,
+      );
+    }
     module = await Test.createTestingModule({
       imports: [
         TypeOrmModule.forRoot({
