@@ -60,6 +60,16 @@ import { BackfillMessageEntity } from './stream/infrastructure/persistence/typeo
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         const dbConfig = config.get('app.database');
+        // Schema management mirrors backend database.module.ts:
+        // staging/production use migration-based schema (baseline governs),
+        // dev/test keep synchronize (dev stays on auto-sync; baseline is NOT
+        // applied over the populated dev DB). Deploys run explicit
+        // migrations (scripts/run-migrations.sh) — never migrationsRun:true.
+        const nodeEnv = (process.env.NODE_ENV ?? 'development').toLowerCase();
+        const useMigrations = nodeEnv === 'staging' || nodeEnv === 'production';
+        const synchronize = useMigrations
+          ? false
+          : (dbConfig?.synchronize ?? true);
         return {
           type: 'postgres',
           host: dbConfig?.host || 'localhost',
@@ -74,8 +84,9 @@ import { BackfillMessageEntity } from './stream/infrastructure/persistence/typeo
             ChannelContentFilterConfigEntity,
             BackfillMessageEntity,
           ],
-          synchronize: dbConfig?.synchronize || false,
+          synchronize,
           logging: dbConfig?.logging || false,
+          migrationsRun: false,
         };
       },
     }),
