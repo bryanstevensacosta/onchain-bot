@@ -28,7 +28,7 @@ import { CryptoNewsPublisherModule } from 'telegram/crypto-news-publisher/crypto
  * **Cross-BC dependencies (documented in apps/backend/AGENTS.md gap 7):**
  * - CryptoNewsIngestionModule — provides:
  *   - ContentFilterService (regex transforms)
- *   - CryptoNewsSourceRepository (per-channel filters)
+ *   - ChannelFilterRepository (per-channel filters)
  * - CryptoNewsPublisherModule — provides:
  *   - KeywordRepository (keyword matching)
  *   - BlacklistPhraseRepository (blacklist matching)
@@ -52,7 +52,7 @@ import { CryptoNewsPublisherModule } from 'telegram/crypto-news-publisher/crypto
     TypeOrmModule.forFeature([MatchingConfigEntity]),
 
     // Import modules that provide required repositories + services
-    CryptoNewsIngestionModule, // ContentFilterService, CryptoNewsSourceRepository
+    CryptoNewsIngestionModule, // ContentFilterService, ChannelFilterRepository
     CryptoNewsPublisherModule, // KeywordRepository, BlacklistPhraseRepository, EnqueueMatchingMessageUseCase
   ],
   providers: [

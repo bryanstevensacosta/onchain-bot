@@ -9,7 +9,6 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { KolEntity } from 'kol/identity/infrastructure/persistence/typeorm/entities/kol.entity';
-import { CryptoNewsSourceEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
 
 /**
  * Registration result from ingestion-service
@@ -57,8 +56,6 @@ export class BackendRegistrationClient
     private readonly config: ConfigService,
     @InjectRepository(KolEntity)
     private readonly kolRepo: Repository<KolEntity>,
-    @InjectRepository(CryptoNewsSourceEntity)
-    private readonly newsRepo: Repository<CryptoNewsSourceEntity>,
   ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const appConfig = this.config.get('app');
@@ -85,8 +82,9 @@ export class BackendRegistrationClient
   }
 
   /**
-   * Get active channel IDs from local database
-   * Queries both KOL channels and crypto-news sources
+   * Get active channel IDs from local database.
+   * Post db-separation todo 4: KOL channels only — crypto-news sources
+   * live in ingestion-service's own DB (no local table anymore).
    */
   async getActiveChannels(): Promise<string[]> {
     try {
@@ -96,19 +94,10 @@ export class BackendRegistrationClient
         select: ['kolId'],
       });
 
-      // Query crypto-news sources with lifecycleStatus='ACTIVE' AND isActive=true
-      const newsSources = await this.newsRepo.find({
-        where: { lifecycleStatus: 'ACTIVE', isActive: true },
-        select: ['channelId'],
-      });
-
-      const channels = [
-        ...kols.map((k) => k.kolId),
-        ...newsSources.map((n) => n.channelId),
-      ];
+      const channels = [...kols.map((k) => k.kolId)];
 
       this.logger.log(
-        `[BACKEND-REGISTRATION] Found ${channels.length} active channels (${kols.length} KOLs + ${newsSources.length} news)`,
+        `[BACKEND-REGISTRATION] Found ${channels.length} active channels (${kols.length} KOLs; news owned by ingestion-service)`,
       );
 
       return channels;

@@ -1,18 +1,10 @@
-// The IngestionCoordinator imports TelegramMtprotoListenerAdapter which
-// transitively imports `telegram/extensions/Logger` (a CJS subpath not
-// mapped by Jest). We load the coordinator lazily and cast through
-// `unknown` to break the import chain.
+import type { ConfigService } from '@nestjs/config';
 import { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import type { TelegramRawMessage } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import { KolRepository } from 'kol/identity/application/ports/kol.repository';
 import { Kol } from 'kol/identity/domain/entities/kol.entity';
 import { KolId } from 'kol/identity/domain/value-objects/kol-id.vo';
-import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
-import { CryptoNewsSource } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-source.entity';
 import { KolIngestionOrchestratorUseCase } from 'kol/identity/application/handlers/kol-ingestion-orchestrator.use-case';
-import { StoreNewsMessageUseCase } from 'telegram/ingestion/crypto-news/application/handlers/store-news-message.use-case';
-import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
-import { CryptoNewsMedia } from 'telegram/ingestion/crypto-news/domain/value-objects/crypto-news-media.vo';
 
 const { IngestionCoordinator } =
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- the static import chain is broken by Jest's inability to map the CJS `telegram/extensions/Logger` subpath (see file header)
@@ -47,30 +39,6 @@ class InMemoryKolRepo extends KolRepository {
   }
 }
 
-class InMemorySourceRepo extends CryptoNewsSourceRepository {
-  private readonly store = new Map<string, CryptoNewsSource>();
-  public async save(source: CryptoNewsSource): Promise<void> {
-    this.store.set(source.channelId, source);
-  }
-  public async findByChannelId(
-    channelId: string,
-  ): Promise<CryptoNewsSource | null> {
-    return this.store.get(channelId) ?? null;
-  }
-  public async findAll(): Promise<ReadonlyArray<CryptoNewsSource>> {
-    return Array.from(this.store.values());
-  }
-  public async findActive(): Promise<ReadonlyArray<CryptoNewsSource>> {
-    return Array.from(this.store.values()).filter((s) => s.isActive);
-  }
-  public async delete(channelId: string): Promise<void> {
-    this.store.delete(channelId);
-  }
-  public seed(source: CryptoNewsSource): void {
-    this.store.set(source.channelId, source);
-  }
-}
-
 class FakeListener extends TelegramListenerPort {
   public subscribeCalls: string[][] = [];
   public messages: TelegramRawMessage[] = [];
@@ -101,44 +69,19 @@ class CapturingOrchestrator extends KolIngestionOrchestratorUseCase {
   }
 }
 
-class CapturingStoreUseCase extends StoreNewsMessageUseCase {
-  public stored: Array<{
-    channelId: string;
-    messageId: number;
-    title: string | null;
-    content: string;
-    occurredAt: Date;
-    media?: ReadonlyArray<CryptoNewsMedia>;
-  }> = [];
-  public async execute(input: {
-    channelId: string;
-    messageId: number;
-    title: string | null;
-    content: string;
-    occurredAt: Date;
-    media?: ReadonlyArray<CryptoNewsMedia>;
-  }): Promise<CryptoNewsMessage> {
-    this.stored.push(input);
-    return CryptoNewsMessage.create(input);
-  }
-}
-
 function buildConfig(): ConfigService {
   return {
     get: () => undefined,
-  };
+  } as unknown as ConfigService;
 }
 
-describe('IngestionCoordinator', () => {
+describe('IngestionCoordinator (post db-separation todo 4: KOL-only, crypto-news skipped)', () => {
   let kolRepo: InMemoryKolRepo;
-  let sourceRepo: InMemorySourceRepo;
   let listener: FakeListener;
   let orchestrator: CapturingOrchestrator;
-  let store: CapturingStoreUseCase;
 
   beforeEach(() => {
     kolRepo = new InMemoryKolRepo();
-    sourceRepo = new InMemorySourceRepo();
     listener = new FakeListener();
     orchestrator = new CapturingOrchestrator(
       {} as never,
@@ -147,10 +90,9 @@ describe('IngestionCoordinator', () => {
       {} as never,
       {} as never,
     );
-    store = new CapturingStoreUseCase({} as never, {} as never);
   });
 
-  it('subscribes once with all active channels (KOL + news)', async () => {
+  it('subscribes once with active KOL channels only', async () => {
     const kol = Kol.create({
       id: KolId.fromString('100'),
       handle: null,
@@ -158,20 +100,11 @@ describe('IngestionCoordinator', () => {
     });
     kol.activate();
     kolRepo.seed(kol);
-    const news = CryptoNewsSource.create({
-      channelId: '200',
-      handle: null,
-      title: 'News',
-    });
-    news.activate();
-    sourceRepo.seed(news);
 
     const coord = new IngestionCoordinator(
       buildConfig(),
       kolRepo,
-      sourceRepo,
       orchestrator,
-      store,
       listener,
     );
     await coord.onApplicationBootstrap();
@@ -179,7 +112,7 @@ describe('IngestionCoordinator', () => {
     await new Promise((r) => setImmediate(r));
 
     expect(listener.subscribeCalls).toHaveLength(1);
-    expect(listener.subscribeCalls[0].sort()).toEqual(['100', '200']);
+    expect(listener.subscribeCalls[0].sort()).toEqual(['100']);
   });
 
   it('routes a message to KOL orchestrator when peerId is a KOL', async () => {
@@ -203,9 +136,7 @@ describe('IngestionCoordinator', () => {
     const coord = new IngestionCoordinator(
       buildConfig(),
       kolRepo,
-      sourceRepo,
       orchestrator,
-      store,
       listener,
     );
     await coord.onApplicationBootstrap();
@@ -213,17 +144,16 @@ describe('IngestionCoordinator', () => {
 
     expect(orchestrator.received).toHaveLength(1);
     expect(orchestrator.received[0].peerId).toBe('100');
-    expect(store.stored).toHaveLength(0);
   });
 
-  it('routes a message to StoreNewsMessageUseCase when peerId is a news source', async () => {
-    const news = CryptoNewsSource.create({
-      channelId: '200',
+  it('routes unknown (crypto-news) peerIds to KOL orchestrator without persisting', async () => {
+    const kol = Kol.create({
+      id: KolId.fromString('100'),
       handle: null,
-      title: 'News',
+      title: 'KOL',
     });
-    news.activate();
-    sourceRepo.seed(news);
+    kol.activate();
+    kolRepo.seed(kol);
 
     listener.messages = [
       {
@@ -237,119 +167,23 @@ describe('IngestionCoordinator', () => {
     const coord = new IngestionCoordinator(
       buildConfig(),
       kolRepo,
-      sourceRepo,
       orchestrator,
-      store,
       listener,
     );
     await coord.onApplicationBootstrap();
     await new Promise((r) => setImmediate(r));
 
-    expect(store.stored).toHaveLength(1);
-    expect(store.stored[0].channelId).toBe('200');
-    expect(store.stored[0].content).toBe('breaking news');
-    expect(orchestrator.received).toHaveLength(0);
-  });
-
-  it('labels media carrying a webpageUrl as type "webpage"', async () => {
-    const news = CryptoNewsSource.create({
-      channelId: '200',
-      handle: null,
-      title: 'News',
-    });
-    news.activate();
-    sourceRepo.seed(news);
-
-    listener.messages = [
-      {
-        peerId: '200',
-        messageId: 1,
-        text: 'news with link preview',
-        occurredAt: new Date('2026-01-01T00:00:00Z'),
-        media: [
-          {
-            type: 'photo',
-            fileId: 'f1',
-            accessHash: 'h1',
-            fileReference: 'r1',
-            mimeType: 'image/jpeg',
-            filePath: '/tmp/preview.jpg',
-            webpageUrl: 'https://example.com/article',
-            webpageTitle: 'Article',
-            webpageDescription: 'desc',
-            webpageSiteName: 'example.com',
-          },
-        ],
-      },
-    ];
-
-    const coord = new IngestionCoordinator(
-      buildConfig(),
-      kolRepo,
-      sourceRepo,
-      orchestrator,
-      store,
-      listener,
-    );
-    await coord.onApplicationBootstrap();
-    await new Promise((r) => setImmediate(r));
-
-    expect(store.stored).toHaveLength(1);
-    expect(store.stored[0].media).toHaveLength(1);
-    expect(store.stored[0].media![0].type).toBe('webpage');
-  });
-
-  it('keeps type "photo" for media without a webpageUrl', async () => {
-    const news = CryptoNewsSource.create({
-      channelId: '200',
-      handle: null,
-      title: 'News',
-    });
-    news.activate();
-    sourceRepo.seed(news);
-
-    listener.messages = [
-      {
-        peerId: '200',
-        messageId: 1,
-        text: 'news with photo',
-        occurredAt: new Date('2026-01-01T00:00:00Z'),
-        media: [
-          {
-            type: 'photo',
-            fileId: 'f1',
-            accessHash: 'h1',
-            fileReference: 'r1',
-            mimeType: 'image/jpeg',
-            filePath: '/tmp/photo.jpg',
-          },
-        ],
-      },
-    ];
-
-    const coord = new IngestionCoordinator(
-      buildConfig(),
-      kolRepo,
-      sourceRepo,
-      orchestrator,
-      store,
-      listener,
-    );
-    await coord.onApplicationBootstrap();
-    await new Promise((r) => setImmediate(r));
-
-    expect(store.stored).toHaveLength(1);
-    expect(store.stored[0].media).toHaveLength(1);
-    expect(store.stored[0].media![0].type).toBe('photo');
+    // No store call exists anymore — ingestion-service owns persistence.
+    // The message just flows to the KOL orchestrator (no-op for unknown).
+    expect(orchestrator.received).toHaveLength(1);
+    expect(orchestrator.received[0].peerId).toBe('200');
   });
 
   it('does not subscribe when no channels are active', async () => {
     const coord = new IngestionCoordinator(
       buildConfig(),
       kolRepo,
-      sourceRepo,
       orchestrator,
-      store,
       listener,
     );
     await coord.onApplicationBootstrap();

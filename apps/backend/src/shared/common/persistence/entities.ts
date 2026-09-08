@@ -21,9 +21,6 @@ import { AchievementThresholdEntity } from 'token/achievement/domain/entities/ac
 import { MonitoredCallEntity } from 'token/achievement/domain/entities/monitored-call.entity';
 import { PublishedCallEntity } from 'telegram/vip-calls/vip-channel/infrastructure/persistence/typeorm/entities/published-call.entity';
 import { VipAchievementEntity } from 'telegram/vip-calls/vip-achievement/infrastructure/persistence/typeorm/entities/vip-achievement.entity';
-import { CryptoNewsSourceEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
-import { CryptoNewsMessageEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
-import { CryptoNewsMessageMediaEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
 import { ChannelContentFilterConfigEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/channel-content-filter-config.entity';
 import { BlacklistPhraseEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/blacklist-phrase.entity';
 import { KeywordEntity } from 'telegram/crypto-news-publisher/infrastructure/persistence/typeorm/entities/keyword.entity';
@@ -75,9 +72,6 @@ export const PERSISTED_ENTITIES = [
   MonitoredCallEntity,
   PublishedCallEntity,
   VipAchievementEntity,
-  CryptoNewsSourceEntity,
-  CryptoNewsMessageEntity,
-  CryptoNewsMessageMediaEntity,
   ChannelContentFilterConfigEntity,
   BlacklistPhraseEntity,
   KeywordEntity,
@@ -100,4 +94,4 @@ export const PERSISTED_ENTITIES = [
  * Expected entity count for validation. If this doesn't match
  * PERSISTED_ENTITIES.length, something is wrong.
  */
-export const EXPECTED_ENTITY_COUNT = 42;
+export const EXPECTED_ENTITY_COUNT = 39;

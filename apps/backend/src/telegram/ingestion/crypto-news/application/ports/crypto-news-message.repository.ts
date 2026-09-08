@@ -1,11 +1,13 @@
 import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
-import { CryptoNewsMessageMediaEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
 
 /**
  * Outbound port: persistence for ingested crypto-news messages.
  *
- * Implemented in infrastructure/repositories with the chosen storage
- * (in-memory for dev, TypeORM for prod).
+ * Post db-separation todo 4: the backend NO LONGER persists crypto-news
+ * (ingestion-service owns sources/messages/media in its own DB). The
+ * token is still provided (in-memory, empty) because
+ * `crypto-news-publisher` (`CryptoNewsMessageIngestedHandler`,
+ * `EnqueueMatchingMessageUseCase` path) injects it.
  */
 export abstract class CryptoNewsMessageRepository {
   public abstract save(message: CryptoNewsMessage): Promise<void>;
@@ -46,15 +48,6 @@ export abstract class CryptoNewsMessageRepository {
     channelId: string,
     messageId: number,
   ): Promise<CryptoNewsMessage | null>;
-  /**
-   * Look up a single media attachment by its primary key. Returns `null`
-   * when no row matches. Used by the binary-serve endpoint (T7) to
-   * resolve a `mediaId` to a `filePath` on disk.
-   */
-  public abstract findMediaById(
-    mediaId: string,
-  ): Promise<CryptoNewsMessageMediaEntity | null>;
-
   /**
    * Find all messages in the same Telegram album/media group. Returns all
    * messages that share the same `groupedId` AND the same `channelId`.

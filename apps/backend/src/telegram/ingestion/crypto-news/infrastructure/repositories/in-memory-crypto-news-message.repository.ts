@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
 import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
-import { CryptoNewsMessageMediaEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
 
 /**
  * In-memory implementation of CryptoNewsMessageRepository.
- * Used for tests and dev mode (when DATABASE_ENABLED=false).
+ * Post db-separation todo 4 this is the SOLE implementation: the backend
+ * no longer persists crypto-news (ingestion-service owns the tables), so
+ * the store stays empty and lookups return null/[].
  */
 @Injectable()
 export class InMemoryCryptoNewsMessageRepository extends CryptoNewsMessageRepository {
@@ -63,19 +64,5 @@ export class InMemoryCryptoNewsMessageRepository extends CryptoNewsMessageReposi
     return Array.from(this.store.values())
       .filter((m) => m.channelId === channelId && m.groupedId === groupedId)
       .sort((a, b) => a.messageId - b.messageId);
-  }
-
-  /**
-   * Intended O(n*m) lookup over `store.values()` × message.media, but
-   * `CryptoNewsMedia` VOs do NOT carry the UUID assigned by the DB row,
-   * so a `mediaId` (UUID) cannot be matched to any stored media item.
-   * Always returns `null` — the binary-serve endpoint (T7) will
-   * respond 404 when backed by the in-memory repo. The TypeORM adapter
-   * performs the real lookup. Acceptable for dev/testing only.
-   */
-  public async findMediaById(
-    _mediaId: string,
-  ): Promise<CryptoNewsMessageMediaEntity | null> {
-    return null;
   }
 }

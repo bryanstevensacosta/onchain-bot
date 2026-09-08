@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { CryptoNewsSourceRepository } from '../../ports/crypto-news-source.repository';
 import { DataSource } from 'typeorm';
 import { ChannelContentFilterConfigEntity } from '../../../infrastructure/persistence/typeorm/entities/channel-content-filter-config.entity';
 
@@ -28,27 +27,26 @@ export interface CreateFilterResult {
  * Use case: Create a new content filter for a crypto-news channel.
  *
  * Validates that:
- * - The channel exists in crypto_news_sources
  * - The regex pattern is valid (compiles without error)
  * - The flags string contains only valid regex flags (g, i, m, s, u, y)
  *
- * Returns the created filter with its generated ID.
+ * The channel is NOT validated against crypto-news sources (db-separation
+ * todo 4): sources live in ingestion-service's own DB, so the backend
+ * treats `channelId` as opaque and only warns when no filters existed
+ * before. Returns the created filter with its generated ID.
  */
 @Injectable()
 export class CreateFilterUseCase {
   private readonly logger = new Logger(CreateFilterUseCase.name);
 
-  constructor(
-    private readonly sourceRepository: CryptoNewsSourceRepository,
-    private readonly dataSource: DataSource,
-  ) {}
+  constructor(private readonly dataSource: DataSource) {}
 
   public async execute(dto: CreateFilterDto): Promise<CreateFilterResult> {
-    // 1. Validate channel exists
-    const source = await this.sourceRepository.findByChannelId(dto.channelId);
-    if (!source) {
-      throw new Error(`Channel ${dto.channelId} not found`);
-    }
+    // 1. Warn (no throw) when the channel has no known source. Sources are
+    // owned by ingestion-service; the backend keeps channel_id opaque.
+    this.logger.warn(
+      `Creating filter for channel ${dto.channelId} without source existence check (sources owned by ingestion-service)`,
+    );
 
     // 2. Validate regex pattern
     try {

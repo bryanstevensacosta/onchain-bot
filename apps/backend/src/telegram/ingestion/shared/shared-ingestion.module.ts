@@ -18,7 +18,6 @@ import { IngestionHealthController } from 'telegram/ingestion/shared/api/http/in
 import { IdentityModule } from 'kol/identity/identity.module';
 import { BackendRegistrationClient } from 'telegram/ingestion/shared/infrastructure/backend-registration-client.service';
 import { KolEntity } from 'kol/identity/infrastructure/persistence/typeorm/entities/kol.entity';
-import { CryptoNewsSourceEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
 import { Logger } from '@nestjs/common';
 import { CryptoNewsMediaDownloader } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-media-downloader.port';
 
@@ -130,7 +129,7 @@ const logger = new Logger('SharedIngestionModule');
   imports: [
     ConfigModule,
     IdentityModule,
-    TypeOrmModule.forFeature([KolEntity, CryptoNewsSourceEntity]),
+    TypeOrmModule.forFeature([KolEntity]),
   ],
   controllers: [IngestionConfigController, IngestionHealthController],
   providers: [

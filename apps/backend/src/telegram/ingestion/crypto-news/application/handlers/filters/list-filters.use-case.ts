@@ -1,6 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { CryptoNewsSourceRepository } from '../../ports/crypto-news-source.repository';
 import { ChannelContentFilterConfigEntity } from '../../../infrastructure/persistence/typeorm/entities/channel-content-filter-config.entity';
 
 export interface FilterView {
@@ -19,21 +18,16 @@ export interface FilterView {
  * Use case: List all content filters for a specific channel.
  *
  * Returns filters ordered by priority ASC, then createdAt ASC.
+ * The channel is NOT validated against crypto-news sources: sources live
+ * in ingestion-service's own DB, so an unknown channel simply yields [].
  */
 @Injectable()
 export class ListFiltersUseCase {
-  constructor(
-    private readonly sourceRepository: CryptoNewsSourceRepository,
-    private readonly dataSource: DataSource,
-  ) {}
+  private readonly logger = new Logger(ListFiltersUseCase.name);
+
+  constructor(private readonly dataSource: DataSource) {}
 
   public async execute(channelId: string): Promise<ReadonlyArray<FilterView>> {
-    // Validate channel exists
-    const source = await this.sourceRepository.findByChannelId(channelId);
-    if (!source) {
-      throw new Error(`Channel ${channelId} not found`);
-    }
-
     // Query filters directly from TypeORM to get full entity with id and updatedAt
     const filterRepo = this.dataSource.getRepository(
       ChannelContentFilterConfigEntity,
@@ -46,6 +40,12 @@ export class ListFiltersUseCase {
         createdAt: 'ASC',
       },
     });
+
+    if (filters.length === 0) {
+      this.logger.warn(
+        `No filters for channel ${channelId} (sources owned by ingestion-service; channel treated as opaque)`,
+      );
+    }
 
     return filters.map((f) => ({
       id: f.id,

@@ -1,20 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigService } from '@nestjs/config';
-import { ConflictException } from '@nestjs/common';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import * as fs from 'node:fs';
-import { Repository } from 'typeorm';
+import { NotFoundException } from '@nestjs/common';
 import { CryptoNewsController } from 'telegram/ingestion/crypto-news/api/http/crypto-news.controller';
-import { RegisterNewsSourceUseCase } from 'telegram/ingestion/crypto-news/application/handlers/register-news-source.use-case';
-import { ListActiveSourceIdsUseCase } from 'telegram/ingestion/crypto-news/application/handlers/list-active-source-ids.use-case';
-import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
-import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
-import { CryptoNewsMetadataResolver } from 'telegram/ingestion/crypto-news/application/services/crypto-news-metadata-resolver.service';
-import { StoreNewsMessageUseCase } from 'telegram/ingestion/crypto-news/application/handlers/store-news-message.use-case';
-import { CryptoNewsMessageMediaEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
-import { CryptoNewsSource } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-source.entity';
-import { CryptoNewsEventPublisher } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-event.publisher';
-import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import {
   CreateFilterUseCase,
   ListFiltersUseCase,
@@ -23,521 +9,150 @@ import {
   ToggleFilterUseCase,
 } from 'telegram/ingestion/crypto-news/application/handlers/filters';
 
-// The real `TelegramMtprotoListenerAdapter` transitively imports
-// `telegram/extensions/Logger`, a CJS subpath that Jest's
-// moduleNameMapper cannot resolve in this monorepo (the catchall rule
-// `^telegram/(.*)$` shadows it to a non-existent `src/telegram/...` path).
-// We only need the class as a DI token — the `addSource` handler never
-// touches the listener — so we replace the module with an empty class
-// stub. The controller's `import { TelegramMtprotoListenerAdapter }`
-// resolves to the stub; tests then provide a `useValue` for that token.
-jest.mock(
-  'telegram/ingestion/shared/api/mtproto/telegram-mtproto-listener.adapter',
-  () => ({
-    TelegramMtprotoListenerAdapter: class TelegramMtprotoListenerAdapterStub {},
-  }),
-);
-import { TelegramMtprotoListenerAdapter } from 'telegram/ingestion/shared/api/mtproto/telegram-mtproto-listener.adapter';
-
-// ---------------------------------------------------------------------------
-// Test doubles
-// ---------------------------------------------------------------------------
-
-class StubSourceRepo extends CryptoNewsSourceRepository {
-  public readonly saved: CryptoNewsSource[] = [];
-  private readonly store = new Map<string, CryptoNewsSource>();
-
-  public async save(source: CryptoNewsSource): Promise<void> {
-    this.saved.push(source);
-    this.store.set(source.channelId, source);
-  }
-
-  public async findByChannelId(
-    channelId: string,
-  ): Promise<CryptoNewsSource | null> {
-    return this.store.get(channelId) ?? null;
-  }
-
-  public async findAll(): Promise<ReadonlyArray<CryptoNewsSource>> {
-    return Array.from(this.store.values());
-  }
-
-  public async findActive(): Promise<ReadonlyArray<CryptoNewsSource>> {
-    return Array.from(this.store.values()).filter((s) => s.isActive);
-  }
-
-  public async delete(channelId: string): Promise<void> {
-    this.store.delete(channelId);
-  }
-}
-
-class StubMessageRepo extends CryptoNewsMessageRepository {
-  public mediaByFile: {
-    filePath: string;
-    mimeType: string | null;
-  } | null = null;
-
-  public readonly findRecentCalls: Array<{
-    limit: number;
-    since?: Date;
-  }> = [];
-  public readonly findByChannelIdCalls: Array<{
-    channelId: string;
-    limit: number;
-    since?: Date;
-  }> = [];
-
-  public async save(): Promise<void> {
-    return;
-  }
-  public async findById() {
-    return null;
-  }
-  public async findRecent(limit: number, since?: Date): Promise<never[]> {
-    this.findRecentCalls.push({ limit, since });
-    return [];
-  }
-  public async findByChannelId(
-    channelId: string,
-    limit: number,
-    since?: Date,
-  ): Promise<never[]> {
-    this.findByChannelIdCalls.push({ channelId, limit, since });
-    return [];
-  }
-  public async findByChannelAndMessageId() {
-    return null;
-  }
-  public async findMediaById(): Promise<CryptoNewsMessageMediaEntity | null> {
-    if (!this.mediaByFile) return null;
-    return {
-      id: 'media-1',
-      messageId: 'msg-1',
-      index: 0,
-      type: 'video',
-      filePath: this.mediaByFile.filePath,
-      mimeType: this.mediaByFile.mimeType,
-      fileSize: null,
-    } as CryptoNewsMessageMediaEntity;
-  }
-}
-
-class NoopEventPublisher extends CryptoNewsEventPublisher {
-  public async publish(): Promise<void> {
-    return;
-  }
-}
-
-class StubMetadataResolver {
-  public readonly resolve = jest.fn();
-
-  public constructor(
-    private readonly fixtures: Record<
-      string,
-      { title: string; handle: string | null; needsManualJoin: boolean }
-    > = {},
-  ) {}
-
-  public async resolveImpl(channelId: string) {
-    return (
-      this.fixtures[channelId] ?? {
-        title: `Telegram channel ${channelId}`,
-        handle: null,
-        needsManualJoin: false,
-      }
-    );
-  }
-}
-
-const stubMediaEntityRepo: Partial<Repository<CryptoNewsMessageMediaEntity>> = {
-  find: jest.fn().mockResolvedValue([]),
-};
-
-interface RegisterUseCaseOverrides {
-  executeImpl?: (
-    input: import('telegram/ingestion/crypto-news/application/handlers/register-news-source.use-case').RegisterNewsSourceInput,
-  ) => Promise<CryptoNewsSource>;
-  /**
-   * If set, `execute` will throw this value instead of calling the impl.
-   * Used by the CONFLICT and VALIDATION tests to inject real DomainErrors.
-   * Typed as `Error` to satisfy `@typescript-eslint/only-throw-error`
-   * (the rule rejects throwing `unknown`).
-   */
-  throwOnExecute?: Error;
-}
-
-function makeRegisterUseCase(
-  sourceRepo: StubSourceRepo,
-  overrides: RegisterUseCaseOverrides = {},
-): RegisterNewsSourceUseCase {
-  const useCase = new RegisterNewsSourceUseCase(
-    sourceRepo,
-    new NoopEventPublisher(),
-  );
-  const originalExecute = useCase.execute.bind(useCase);
-  jest
-    .spyOn(useCase, 'execute')
-    .mockImplementation(
-      async (input: Parameters<typeof originalExecute>[0]) => {
-        if (overrides.throwOnExecute !== undefined) {
-          throw overrides.throwOnExecute;
-        }
-        if (overrides.executeImpl) {
-          return overrides.executeImpl(input);
-        }
-        return originalExecute(input);
-      },
-    );
-  return useCase;
-}
-
 interface ControllerHarness {
   controller: CryptoNewsController;
-  sourceRepo: StubSourceRepo;
-  messageRepo: StubMessageRepo;
-  resolver: StubMetadataResolver;
-  registerUseCase: RegisterNewsSourceUseCase;
+  createFilter: { execute: jest.Mock };
+  listFilters: { execute: jest.Mock };
+  updateFilter: { execute: jest.Mock };
+  deleteFilter: { execute: jest.Mock };
+  toggleFilter: { execute: jest.Mock };
 }
 
-async function buildController(
-  options: {
-    resolverFixtures?: Record<
-      string,
-      { title: string; handle: string | null; needsManualJoin: boolean }
-    >;
-    registerOverrides?: RegisterUseCaseOverrides;
-  } = {},
-): Promise<ControllerHarness> {
-  const sourceRepo = new StubSourceRepo();
-  const messageRepo = new StubMessageRepo();
-  const resolver = new StubMetadataResolver(options.resolverFixtures ?? {});
-  // Wire the jest.fn to delegate to the impl so `resolve()` returns
-  // a real promise.
-  resolver.resolve.mockImplementation((channelId: string) =>
-    resolver.resolveImpl(channelId),
-  );
-  const registerUseCase = makeRegisterUseCase(
-    sourceRepo,
-    options.registerOverrides ?? {},
-  );
+async function buildController(): Promise<ControllerHarness> {
+  const createFilter = { execute: jest.fn() };
+  const listFilters = { execute: jest.fn() };
+  const updateFilter = { execute: jest.fn() };
+  const deleteFilter = { execute: jest.fn() };
+  const toggleFilter = { execute: jest.fn() };
 
   const moduleRef: TestingModule = await Test.createTestingModule({
     controllers: [CryptoNewsController],
     providers: [
-      { provide: RegisterNewsSourceUseCase, useValue: registerUseCase },
-      {
-        provide: ListActiveSourceIdsUseCase,
-        useValue: { execute: jest.fn().mockResolvedValue([]) },
-      },
-      { provide: CryptoNewsSourceRepository, useValue: sourceRepo },
-      { provide: CryptoNewsMessageRepository, useValue: messageRepo },
-      { provide: TelegramMtprotoListenerAdapter, useValue: {} },
-      { provide: CryptoNewsMetadataResolver, useValue: resolver },
-      {
-        provide: StoreNewsMessageUseCase,
-        useValue: { execute: jest.fn().mockResolvedValue(undefined) },
-      },
-      {
-        provide: getRepositoryToken(CryptoNewsMessageMediaEntity),
-        useValue: stubMediaEntityRepo,
-      },
-      {
-        provide: ConfigService,
-        useValue: {
-          get: () => ({ cryptoNewsMediaRetentionHours: 24 }),
-        },
-      },
-      {
-        provide: CreateFilterUseCase,
-        useValue: { execute: jest.fn().mockResolvedValue({}) },
-      },
-      {
-        provide: ListFiltersUseCase,
-        useValue: { execute: jest.fn().mockResolvedValue([]) },
-      },
-      {
-        provide: UpdateFilterUseCase,
-        useValue: { execute: jest.fn().mockResolvedValue({}) },
-      },
-      {
-        provide: DeleteFilterUseCase,
-        useValue: { execute: jest.fn().mockResolvedValue(undefined) },
-      },
-      {
-        provide: ToggleFilterUseCase,
-        useValue: { execute: jest.fn().mockResolvedValue({}) },
-      },
+      { provide: CreateFilterUseCase, useValue: createFilter },
+      { provide: ListFiltersUseCase, useValue: listFilters },
+      { provide: UpdateFilterUseCase, useValue: updateFilter },
+      { provide: DeleteFilterUseCase, useValue: deleteFilter },
+      { provide: ToggleFilterUseCase, useValue: toggleFilter },
     ],
   }).compile();
 
   return {
     controller: moduleRef.get(CryptoNewsController),
-    sourceRepo,
-    messageRepo,
-    resolver,
-    registerUseCase,
+    createFilter,
+    listFilters,
+    updateFilter,
+    deleteFilter,
+    toggleFilter,
   };
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
-// Backend crypto-news sources ownership migrated to ingestion-service (2026-09-05)
-// This endpoint is permanently deprecated - verify it returns deprecation message
-describe('CryptoNewsController.addSource (POST /crypto-news/sources) - DEPRECATED', () => {
-  it('returns deprecation message for deprecated write endpoint', async () => {
+describe('CryptoNewsController (post db-separation todo 4: filters CRUD only)', () => {
+  it('exposes no legacy ingestion-owned routes', async () => {
     const { controller } = await buildController();
+    const legacy = [
+      'listMessages',
+      'getMessage',
+      'listSources',
+      'listActiveSourceIds',
+      'addSource',
+      'backfill',
+      'getMedia',
+    ];
+    for (const method of legacy) {
+      expect(
+        (controller as unknown as Record<string, unknown>)[method],
+      ).toBeUndefined();
+    }
+  });
 
-    // The addSource method now returns a deprecation message instead of writing
-    const result = await controller.addSource({
+  it('POST sources/:channelId/filters delegates to CreateFilterUseCase', async () => {
+    const { controller, createFilter } = await buildController();
+    const created = { id: 'f1', channelId: '123', pattern: 'x' };
+    createFilter.execute.mockResolvedValue(created);
+
+    const result = await controller.createFilter('123', {
+      pattern: 'x',
+      replacement: '',
+      flags: 'gi',
+      priority: 0,
+      isActive: true,
+    });
+
+    expect(result).toBe(created);
+    expect(createFilter.execute).toHaveBeenCalledWith({
       channelId: '123',
-      title: 'Test',
-    });
-
-    expect(result).toMatchObject({
-      error: expect.stringMatching(/deprecated/i),
-      migration: expect.stringMatching(/ingestion-service/i),
-      newEndpoint: expect.stringContaining('/api/crypto-news/sources'),
+      pattern: 'x',
+      replacement: '',
+      flags: 'gi',
+      priority: 0,
+      isActive: true,
     });
   });
-});
 
-describe('CryptoNewsController.getMedia (GET /crypto-news/media/:mediaId)', () => {
-  let fsSpy: jest.SpyInstance;
-  const makeRes = (): {
-    res: import('express').Response;
-    status: jest.Mock;
-    setHeader: jest.Mock;
-    send: jest.Mock;
-    json: jest.Mock;
-  } => {
-    const status = jest.fn().mockReturnThis();
-    const setHeader = jest.fn();
-    const send = jest.fn();
-    const json = jest.fn();
-    const res = {
-      status,
-      setHeader,
-      send,
-      json,
-    } as unknown as import('express').Response;
-    return { res, status, setHeader, send, json };
-  };
+  it('GET sources/:channelId/filters delegates to ListFiltersUseCase', async () => {
+    const { controller, listFilters } = await buildController();
+    listFilters.execute.mockResolvedValue([{ id: 'f1' }]);
 
-  const makeReq = (range?: string): import('express').Request =>
-    ({
-      headers: range ? { range } : {},
-    }) as unknown as import('express').Request;
+    const result = await controller.getFilters('123');
 
-  beforeEach(() => {
-    fsSpy = jest
-      .spyOn(fs.promises, 'readFile')
-      .mockResolvedValue(Buffer.alloc(0));
+    expect(result).toEqual([{ id: 'f1' }]);
+    expect(listFilters.execute).toHaveBeenCalledWith('123');
   });
 
-  afterEach(() => {
-    fsSpy.mockRestore();
+  it('PUT filters/:id delegates to UpdateFilterUseCase', async () => {
+    const { controller, updateFilter } = await buildController();
+    updateFilter.execute.mockResolvedValue({ id: 'f1', priority: 5 });
+
+    const result = await controller.updateFilter('f1', { priority: 5 });
+
+    expect(result).toEqual({ id: 'f1', priority: 5 });
+    expect(updateFilter.execute).toHaveBeenCalledWith({
+      id: 'f1',
+      priority: 5,
+    });
   });
 
-  it('returns 404 when the media row is unknown', async () => {
-    const { controller, messageRepo } = await buildController();
-    messageRepo.mediaByFile = null;
-    const { res, json } = makeRes();
+  it('DELETE filters/:id throws 404 when use case reports false', async () => {
+    const { controller, deleteFilter } = await buildController();
+    deleteFilter.execute.mockResolvedValue(false);
 
-    await controller.getMedia('missing', makeReq(), res);
-
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(json).toHaveBeenCalledWith({ error: 'Media not found' });
-  });
-
-  it('returns 404 when the file is missing on disk', async () => {
-    const { controller, messageRepo } = await buildController();
-    messageRepo.mediaByFile = {
-      filePath: '/tmp/photo.jpg',
-      mimeType: 'image/jpeg',
-    };
-    (fs.promises.readFile as jest.Mock).mockRejectedValue(
-      Object.assign(new Error('nope'), { code: 'ENOENT' }),
+    await expect(controller.deleteFilterEndpoint('missing')).rejects.toThrow(
+      NotFoundException,
     );
-    const { res, json } = makeRes();
-
-    await controller.getMedia('media-1', makeReq(), res);
-
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(json).toHaveBeenCalledWith({ error: 'Media file missing on disk' });
   });
 
-  it('serves an image with 200 and the DB mime', async () => {
-    const { controller, messageRepo } = await buildController();
-    messageRepo.mediaByFile = {
-      filePath: '/tmp/photo.jpg',
-      mimeType: 'image/jpeg',
-    };
-    const fileBuffer = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
-    (fs.promises.readFile as jest.Mock).mockResolvedValue(fileBuffer);
-    const { res, status, setHeader, send } = makeRes();
+  it('DELETE filters/:id resolves void when use case reports true', async () => {
+    const { controller, deleteFilter } = await buildController();
+    deleteFilter.execute.mockResolvedValue(true);
 
-    await controller.getMedia('media-1', makeReq(), res);
-
-    expect(setHeader).toHaveBeenCalledWith('Content-Type', 'image/jpeg');
-    expect(setHeader).toHaveBeenCalledWith('Accept-Ranges', 'bytes');
-    expect(status).toHaveBeenCalledWith(200);
-    expect(send).toHaveBeenCalledWith(fileBuffer);
+    await expect(
+      controller.deleteFilterEndpoint('f1'),
+    ).resolves.toBeUndefined();
+    expect(deleteFilter.execute).toHaveBeenCalledWith('f1');
   });
 
-  it('sniffs a .bin MP4 with octet-stream DB mime as video/mp4', async () => {
-    const { controller, messageRepo } = await buildController();
-    messageRepo.mediaByFile = {
-      filePath: '/tmp/video.bin',
-      mimeType: 'application/octet-stream',
-    };
-    const mp4 = Buffer.alloc(16);
-    mp4.writeUInt32BE(16, 0);
-    mp4.write('ftyp', 4);
-    mp4.write('isom', 8);
-    (fs.promises.readFile as jest.Mock).mockResolvedValue(mp4);
-    const { res, setHeader, send } = makeRes();
+  it('PATCH filters/:id/toggle delegates to ToggleFilterUseCase', async () => {
+    const { controller, toggleFilter } = await buildController();
+    toggleFilter.execute.mockResolvedValue({ id: 'f1', isActive: false });
 
-    await controller.getMedia('media-1', makeReq(), res);
+    const result = await controller.toggleFilterEndpoint('f1');
 
-    expect(setHeader).toHaveBeenCalledWith('Content-Type', 'video/mp4');
-    expect(send).toHaveBeenCalledWith(mp4);
+    expect(result).toEqual({ id: 'f1', isActive: false });
+    expect(toggleFilter.execute).toHaveBeenCalledWith('f1');
   });
 
-  it('honours a Range request with 206 and a partial body', async () => {
-    const { controller, messageRepo } = await buildController();
-    messageRepo.mediaByFile = {
-      filePath: '/tmp/video.bin',
-      mimeType: 'application/octet-stream',
-    };
-    const fileBuffer = Buffer.from('0123456789'); // 10 bytes
-    (fs.promises.readFile as jest.Mock).mockResolvedValue(fileBuffer);
-    const { res, status, setHeader, send } = makeRes();
+  it('maps "not found" errors to 404 on create', async () => {
+    const { controller, createFilter } = await buildController();
+    createFilter.execute.mockRejectedValue(new Error('Filter x not found'));
 
-    await controller.getMedia('media-1', makeReq('bytes=2-5'), res);
-
-    expect(status).toHaveBeenCalledWith(206);
-    expect(setHeader).toHaveBeenCalledWith('Content-Range', 'bytes 2-5/10');
-    expect(send).toHaveBeenCalledWith(Buffer.from('2345'));
-  });
-
-  it('returns 416 for an unsatisfiable range', async () => {
-    const { controller, messageRepo } = await buildController();
-    messageRepo.mediaByFile = {
-      filePath: '/tmp/video.bin',
-      mimeType: 'application/octet-stream',
-    };
-    (fs.promises.readFile as jest.Mock).mockResolvedValue(
-      Buffer.from('0123456789'),
-    );
-    const { res, status, setHeader } = makeRes();
-
-    await controller.getMedia('media-1', makeReq('bytes=50-60'), res);
-
-    expect(status).toHaveBeenCalledWith(416);
-    expect(setHeader).toHaveBeenCalledWith('Content-Range', 'bytes */10');
-  });
-});
-
-describe('CryptoNewsController.listMessages (GET /crypto-news/messages) — retention window', () => {
-  it('when no `hours` query → findRecent called with (50, since) where since ≈ now-24h', async () => {
-    const { controller, messageRepo } = await buildController();
-    const before = Date.now();
-    await controller.listMessages(undefined, undefined);
-    const after = Date.now();
-    expect(messageRepo.findRecentCalls).toHaveLength(1);
-    const call = messageRepo.findRecentCalls[0];
-    expect(call.limit).toBe(50);
-    expect(call.since).toBeInstanceOf(Date);
-    const expected24h = before - 24 * 3600 * 1000;
-    const actual = (call.since as Date).getTime();
-    // Use a 2-second tolerance window; pick whichever of before/after
-    // gives the tighter bound to avoid wall-clock drift.
-    const lo = Math.min(before, after) - 24 * 3600 * 1000;
-    const hi = Math.max(before, after) - 24 * 3600 * 1000;
-    expect(actual).toBeGreaterThanOrEqual(lo - 2000);
-    expect(actual).toBeLessThanOrEqual(hi + 2000);
-    // Sanity: the expected calculation aligns with the actual range.
-    expect(Math.abs(actual - expected24h)).toBeLessThan(2000);
-  });
-
-  it('when hours=72 → findRecent called with since ≈ now-72h', async () => {
-    const { controller, messageRepo } = await buildController();
-    const before = Date.now();
-    await controller.listMessages(undefined, undefined, '72');
-    const after = Date.now();
-    expect(messageRepo.findRecentCalls).toHaveLength(1);
-    const call = messageRepo.findRecentCalls[0];
-    expect(call.since).toBeInstanceOf(Date);
-    const actual = (call.since as Date).getTime();
-    const lo = Math.min(before, after) - 72 * 3600 * 1000;
-    const hi = Math.max(before, after) - 72 * 3600 * 1000;
-    expect(actual).toBeGreaterThanOrEqual(lo - 2000);
-    expect(actual).toBeLessThanOrEqual(hi + 2000);
-  });
-
-  it('when channelId is present → findByChannelId called with (channelId, 50, since)', async () => {
-    const { controller, messageRepo } = await buildController();
-    const before = Date.now();
-    await controller.listMessages(undefined, 'chan-x');
-    const after = Date.now();
-    expect(messageRepo.findByChannelIdCalls).toHaveLength(1);
-    expect(messageRepo.findRecentCalls).toHaveLength(0);
-    const call = messageRepo.findByChannelIdCalls[0];
-    expect(call.channelId).toBe('chan-x');
-    expect(call.limit).toBe(50);
-    expect(call.since).toBeInstanceOf(Date);
-    const actual = (call.since as Date).getTime();
-    const lo = Math.min(before, after) - 24 * 3600 * 1000;
-    const hi = Math.max(before, after) - 24 * 3600 * 1000;
-    expect(actual).toBeGreaterThanOrEqual(lo - 2000);
-    expect(actual).toBeLessThanOrEqual(hi + 2000);
-  });
-
-  it('when hours=abc (malformed) → falls back to cfgHours (24h, no NaN)', async () => {
-    const { controller, messageRepo } = await buildController();
-    const before = Date.now();
-    await controller.listMessages(undefined, undefined, 'abc');
-    const after = Date.now();
-    expect(messageRepo.findRecentCalls).toHaveLength(1);
-    const call = messageRepo.findRecentCalls[0];
-    expect(call.since).toBeInstanceOf(Date);
-    const actual = (call.since as Date).getTime();
-    const lo = Math.min(before, after) - 24 * 3600 * 1000;
-    const hi = Math.max(before, after) - 24 * 3600 * 1000;
-    expect(actual).toBeGreaterThanOrEqual(lo - 2000);
-    expect(actual).toBeLessThanOrEqual(hi + 2000);
-  });
-
-  it('when hours=0 → parseInt(0) is falsy, falls back to cfgHours (24h)', async () => {
-    // Plan formula: `Math.max(1, Math.min(8760, parseInt(hours, 10) || cfgHours))`.
-    // `parseInt('0', 10) = 0`, then `0 || cfgHours` → cfgHours (24). So 0
-    // is treated as "absent/malformed" and falls back, not clamped to 1.
-    const { controller, messageRepo } = await buildController();
-    const before = Date.now();
-    await controller.listMessages(undefined, undefined, '0');
-    const after = Date.now();
-    expect(messageRepo.findRecentCalls).toHaveLength(1);
-    const call = messageRepo.findRecentCalls[0];
-    const actual = (call.since as Date).getTime();
-    const lo = Math.min(before, after) - 24 * 3600 * 1000;
-    const hi = Math.max(before, after) - 24 * 3600 * 1000;
-    expect(actual).toBeGreaterThanOrEqual(lo - 2000);
-    expect(actual).toBeLessThanOrEqual(hi + 2000);
-  });
-
-  it('when hours=99999 → clamped to 8760 (since ≈ now-8760h)', async () => {
-    const { controller, messageRepo } = await buildController();
-    const before = Date.now();
-    await controller.listMessages(undefined, undefined, '99999');
-    const after = Date.now();
-    expect(messageRepo.findRecentCalls).toHaveLength(1);
-    const call = messageRepo.findRecentCalls[0];
-    const actual = (call.since as Date).getTime();
-    const lo = Math.min(before, after) - 8760 * 3600 * 1000;
-    const hi = Math.max(before, after) - 8760 * 3600 * 1000;
-    expect(actual).toBeGreaterThanOrEqual(lo - 2000);
-    expect(actual).toBeLessThanOrEqual(hi + 2000);
+    await expect(
+      controller.createFilter('123', {
+        pattern: 'x',
+        replacement: '',
+        flags: 'gi',
+        priority: 0,
+        isActive: true,
+      }),
+    ).rejects.toThrow(NotFoundException);
   });
 });

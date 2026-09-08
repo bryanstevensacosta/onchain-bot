@@ -3,7 +3,7 @@ import { CryptoNewsIngestionClient } from 'telegram/crypto-news-integration/infr
 import type { CryptoNewsMessageDto } from 'telegram/crypto-news-integration/infrastructure/http/crypto-news-ingestion-client.service';
 import { ContentFilterService } from 'telegram/ingestion/crypto-news/application/services/content-filter.service';
 import type { FilterRule } from 'telegram/ingestion/crypto-news/application/services/content-filter.service';
-import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
+import { ChannelFilterRepository } from 'telegram/ingestion/crypto-news/application/ports/channel-filter.repository';
 import { KeywordRepository } from 'telegram/crypto-news-publisher/application/ports/keyword.repository';
 import { BlacklistPhraseRepository } from 'telegram/crypto-news-publisher/application/ports/blacklist-phrase.repository';
 import { Keyword } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
@@ -58,7 +58,7 @@ export class FilteredCryptoNewsService {
   constructor(
     private readonly ingestionClient: CryptoNewsIngestionClient,
     private readonly contentFilter: ContentFilterService,
-    private readonly sourceRepo: CryptoNewsSourceRepository,
+    private readonly channelFilters: ChannelFilterRepository,
     private readonly keywordRepo: KeywordRepository,
     private readonly blacklistRepo: BlacklistPhraseRepository,
   ) {}
@@ -153,7 +153,7 @@ export class FilteredCryptoNewsService {
   ): Promise<FilteredCryptoNewsMessage | null> {
     try {
       // Step 1: Load per-channel content filters
-      const filters = await this.sourceRepo.findFiltersByChannelId(
+      const filters = await this.channelFilters.findFiltersByChannelId(
         raw.channelId,
       );
 

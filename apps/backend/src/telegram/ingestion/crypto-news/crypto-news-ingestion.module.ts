@@ -1,21 +1,15 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { CryptoNewsPersistenceModule } from 'telegram/ingestion/crypto-news/crypto-news-persistence.module';
 import { SharedIngestionModule } from 'telegram/ingestion/shared/shared-ingestion.module';
-import type { AppConfig } from 'shared/common/config/app.config';
 import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
 import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
 import { CryptoNewsEventPublisher } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-event.publisher';
+import { ChannelFilterRepository } from 'telegram/ingestion/crypto-news/application/ports/channel-filter.repository';
 import { InMemoryCryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/infrastructure/repositories/in-memory-crypto-news-source.repository';
 import { InMemoryCryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/infrastructure/repositories/in-memory-crypto-news-message.repository';
-import { TypeOrmCryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/repositories/typeorm-crypto-news-source.repository';
-import { TypeOrmCryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/repositories/typeorm-crypto-news-message.repository';
-import { RegisterNewsSourceUseCase } from 'telegram/ingestion/crypto-news/application/handlers/register-news-source.use-case';
-import { ListActiveSourceIdsUseCase } from 'telegram/ingestion/crypto-news/application/handlers/list-active-source-ids.use-case';
-import { StoreNewsMessageUseCase } from 'telegram/ingestion/crypto-news/application/handlers/store-news-message.use-case';
-import { CryptoNewsMetadataResolver } from 'telegram/ingestion/crypto-news/application/services/crypto-news-metadata-resolver.service';
+import { TypeOrmChannelFilterRepository } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/repositories/typeorm-channel-filter.repository';
 import { ContentFilterService } from 'telegram/ingestion/crypto-news/application/services/content-filter.service';
-import { MediaRetentionCleanupScheduler } from 'telegram/ingestion/crypto-news/infrastructure/scheduling/media-retention-cleanup.scheduler';
 import { CryptoNewsController } from 'telegram/ingestion/crypto-news/api/http/crypto-news.controller';
 import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 import {
@@ -27,23 +21,23 @@ import {
 } from 'telegram/ingestion/crypto-news/application/handlers/filters';
 
 /**
- * Crypto-news ingestion sub-module.
+ * Crypto-news ingestion sub-module (post db-separation todo 4).
  *
- * Provides: ports, use cases, repositories, event publisher,
- * and the MTProto media downloader (for photos attached to news
- * messages). Wires TypeORM (when DATABASE_ENABLED) or in-memory
- * (dev/tests) repos.
+ * Backend keeps ONLY the content-filter slice:
+ * - `channel_content_filter_configs` (channel_id opaque, no FK)
+ * - Filter CRUD use cases + ContentFilterService (on-read transforms)
+ * - ChannelFilterRepository (filters-only read port for matching)
  *
- * The media downloader factory injects `TelegramMtprotoListenerAdapter`
- * to access the lazy-initialised `TelegramClient` via `getClient()`.
+ * Sources/messages/media are owned by ingestion-service (own DB).
+ * The legacy source/message repository tokens are still provided
+ * (in-memory) because `crypto-news-publisher` (QueueController,
+ * CryptoNewsMessageIngestedHandler) injects them — they resolve to
+ * empty stores since the backend no longer persists crypto-news.
  *
- * No NestJS module imports from kol/ — dependencies on
- * RegisterKolUseCase, KolRepository, etc. are resolved via DI through
- * IdentityModule when IngestionCoordinator consumes them.
- *
- * Note: CryptoNewsSeeder removed (2026-09-06). Sources are now registered via:
- * - Ingestion-service (primary): POST {INGESTION_SERVICE_URL}/api/crypto-news/sources
- * - Backend (deprecated): POST /crypto-news/sources (returns 501)
+ * Removed in todo 4: StoreNewsMessageUseCase, RegisterNewsSourceUseCase,
+ * ListActiveSourceIdsUseCase, TypeOrm source/message repos (+ mappers),
+ * CryptoNewsMetadataResolver, MediaRetentionCleanupScheduler (janitor
+ * moved to ingestion-service in todo 6).
  */
 @Module({
   imports: [
@@ -60,60 +54,23 @@ import {
   providers: [
     InMemoryCryptoNewsSourceRepository,
     InMemoryCryptoNewsMessageRepository,
-    // TypeORM repos are always registered so their `useFactory` branches
-    // can resolve them when DATABASE_ENABLED is true at runtime. Using
-    // `isDatabaseEnabled()` at top-level here would fail because dotenv
-    // has not yet loaded .env.dev when this module is imported.
-    TypeOrmCryptoNewsSourceRepository,
-    TypeOrmCryptoNewsMessageRepository,
+    TypeOrmChannelFilterRepository,
     {
       provide: CryptoNewsSourceRepository,
-      inject: [
-        ConfigService,
-        InMemoryCryptoNewsSourceRepository,
-        TypeOrmCryptoNewsSourceRepository,
-      ],
-      useFactory: (
-        config: ConfigService,
-        inMemory: InMemoryCryptoNewsSourceRepository,
-        typeorm: TypeOrmCryptoNewsSourceRepository,
-      ): CryptoNewsSourceRepository => {
-        const enabled =
-          config.get<AppConfig>('app')?.database?.enabled === true;
-        return enabled ? typeorm : inMemory;
-      },
+      useClass: InMemoryCryptoNewsSourceRepository,
     },
     {
       provide: CryptoNewsMessageRepository,
-      inject: [
-        ConfigService,
-        InMemoryCryptoNewsMessageRepository,
-        TypeOrmCryptoNewsMessageRepository,
-      ],
-      useFactory: (
-        config: ConfigService,
-        inMemory: InMemoryCryptoNewsMessageRepository,
-        typeorm: TypeOrmCryptoNewsMessageRepository,
-      ): CryptoNewsMessageRepository => {
-        const enabled =
-          config.get<AppConfig>('app')?.database?.enabled === true;
-        return enabled ? typeorm : inMemory;
-      },
+      useClass: InMemoryCryptoNewsMessageRepository,
+    },
+    {
+      provide: ChannelFilterRepository,
+      useClass: TypeOrmChannelFilterRepository,
     },
     {
       provide: CryptoNewsEventPublisher,
       useClass: InProcessDomainEventPublisher,
     },
-    // CryptoNewsMediaDownloader is now provided by SharedIngestionModule (moved to break circular dep)
-    RegisterNewsSourceUseCase,
-    ListActiveSourceIdsUseCase,
-    StoreNewsMessageUseCase,
-    CryptoNewsMetadataResolver,
-    // Hourly cleanup of media rows + files older than the retention
-    // window (Todo 3). Injects DataSource (TypeORM global) +
-    // ConfigService (ConfigModule global). The cron is a no-op when
-    // `dataSource.options.type !== 'postgres'` (in-memory repos).
-    MediaRetentionCleanupScheduler,
     ContentFilterService,
     // Filter management use cases
     CreateFilterUseCase,
@@ -125,12 +82,9 @@ import {
   exports: [
     CryptoNewsSourceRepository,
     CryptoNewsMessageRepository,
+    ChannelFilterRepository,
     CryptoNewsEventPublisher,
     ContentFilterService, // ← Export for CryptoNewsIntegrationModule (Opción A architecture)
-    // CryptoNewsMediaDownloader is now exported by SharedIngestionModule
-    RegisterNewsSourceUseCase,
-    StoreNewsMessageUseCase,
-    CryptoNewsMetadataResolver,
   ],
 })
 export class CryptoNewsIngestionModule {}
