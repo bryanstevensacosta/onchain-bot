@@ -7,6 +7,7 @@ import { ChannelContentFilterConfigEntity } from './infrastructure/persistence/t
 import { CryptoNewsMessageRepository } from './infrastructure/persistence/typeorm/repositories/crypto-news-message.repository';
 import { CryptoNewsController } from './api/http/crypto-news.controller';
 import { RegisterNewsSourceUseCase } from './application/use-cases/register-news-source.use-case';
+import { CryptoNewsRetentionCleanupScheduler } from './infrastructure/scheduling/crypto-news-retention-cleanup.scheduler';
 
 /**
  * CryptoNewsModule - Crypto news channel management
@@ -42,7 +43,11 @@ import { RegisterNewsSourceUseCase } from './application/use-cases/register-news
     ]),
   ],
   controllers: [CryptoNewsController],
-  providers: [CryptoNewsMessageRepository, RegisterNewsSourceUseCase],
+  providers: [
+    CryptoNewsMessageRepository,
+    RegisterNewsSourceUseCase,
+    CryptoNewsRetentionCleanupScheduler,
+  ],
   exports: [CryptoNewsMessageRepository],
 })
 export class CryptoNewsModule {}

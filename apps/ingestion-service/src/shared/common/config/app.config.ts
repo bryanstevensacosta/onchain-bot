@@ -582,6 +582,15 @@ export const appConfig = registerAs('app', () => {
       10,
     ),
   };
+
+  // Crypto-news retention janitor (db-separation todo 6): effective 72h,
+  // unified with the backend's CRYPTO_NEWS_MEDIA_RETENTION_HOURS default
+  // (72h). The scheduler clamps to >= 1h at the seam. Clock is
+  // crypto_news_messages.ingested_at (arrival), NEVER published_at.
+  const cryptoNewsMediaRetentionHours = parseInt(
+    process.env.INGESTION_CRYPTO_NEWS_MEDIA_RETENTION_HOURS ?? '72',
+    10,
+  );
   return {
     nodeEnv,
     telegram,
@@ -594,6 +603,7 @@ export const appConfig = registerAs('app', () => {
     database,
     logging,
     multiBackend,
+    cryptoNewsMediaRetentionHours,
   };
 });
 
