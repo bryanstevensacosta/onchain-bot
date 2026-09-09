@@ -14,6 +14,10 @@ RUN npm ci --no-audit --no-fund --ignore-scripts
 RUN npm rebuild sharp
 
 COPY apps/backend ./apps/backend
+# Shared media abstractions consumed via the @ingestion-service/media/* path alias
+# (backend tsconfig maps it to ../ingestion-service/src/shared/media/*).
+# Without this, nest build fails with TS2307 in Docker while local/CI tsc passes.
+COPY apps/ingestion-service/src/shared/media ./apps/ingestion-service/src/shared/media
 
 RUN npm run build:backend
 
