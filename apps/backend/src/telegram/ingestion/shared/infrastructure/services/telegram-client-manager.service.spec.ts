@@ -10,16 +10,21 @@
  *
  * Mocking notes
  * -------------
- * Jest's `moduleNameMapper` rewrites `telegram/...` to `<rootDir>/src/telegram/...`,
- * so we cannot `import { TelegramClient } from 'telegram'` (it resolves to nothing
- * local). Instead we load the service via `require()` AFTER installing a
- * `jest.mock('telegram', ...)` factory. The factory exposes a `TelegramClient`
+ * The service builds real gramJS clients, so we install `jest.mock`
+ * factories for `telegram` + `telegram/extensions/Logger` and load the
+ * service via `require()` AFTER them. The factories expose a `TelegramClient`
  * spy (records constructor args), a `Logger` fake (records constructed level),
  * and the `LogLevel` enum as string values — gramJS's actual shape
  * (`LogLevel.NONE = "none"` … `LogLevel.DEBUG = "debug"`, see
  * node_modules/telegram/extensions/Logger.d.ts). If gramJS changes its
  * `LogLevel` value shape to numeric in a future version, the assertions
  * here should be updated to match.
+ *
+ * Both mocks are NON-virtual on purpose: `{virtual: true}` flaked ~10% of
+ * full-suite runs (both spies silently missed, real gramJS took over, all
+ * 12 tests failed; green on rerun with identical code). Non-virtual mocks
+ * resolve through the exact paths below and held 20/20 full-suite runs
+ * in a Linux/Node24 container.
  *
  * Resolution notes
  * ----------------
@@ -61,85 +66,77 @@ const mockLogLevel = {
   DEBUG: 'debug',
 } as const;
 
-jest.mock(
-  'telegram',
-  () => {
-    class TelegramClient {
-      public connectCalls = 0;
+jest.mock('telegram', () => {
+  class TelegramClient {
+    public connectCalls = 0;
 
-      public constructor(
-        session: any,
-        apiId: number,
-        apiHash: string,
-        params: any,
-      ) {
-        telegramClientInstances.push({
-          self: this,
-          session,
-          apiId,
-          apiHash,
-          params,
-        });
-      }
-      public async connect(): Promise<void> {
-        this.connectCalls += 1;
-      }
-      public async disconnect(): Promise<void> {
-        /* noop */
-      }
-      public async isUserAuthorized(): Promise<boolean> {
-        return true;
-      }
+    public constructor(
+      session: any,
+      apiId: number,
+      apiHash: string,
+      params: any,
+    ) {
+      telegramClientInstances.push({
+        self: this,
+        session,
+        apiId,
+        apiHash,
+        params,
+      });
     }
-    class Logger {
-      public _logLevel: string;
+    public async connect(): Promise<void> {
+      this.connectCalls += 1;
+    }
+    public async disconnect(): Promise<void> {
+      /* noop */
+    }
+    public async isUserAuthorized(): Promise<boolean> {
+      return true;
+    }
+  }
+  class Logger {
+    public _logLevel: string;
 
-      public constructor(level?: any) {
-        const lvl = typeof level === 'string' ? level : mockLogLevel.ERROR;
-        loggerInstances.push({ level: lvl });
-        this._logLevel = lvl;
-      }
-      public setLevel(level: string): void {
-        this._logLevel = level;
-      }
-      public get logLevel(): string {
-        return this._logLevel;
-      }
+    public constructor(level?: any) {
+      const lvl = typeof level === 'string' ? level : mockLogLevel.ERROR;
+      loggerInstances.push({ level: lvl });
+      this._logLevel = lvl;
     }
-    return {
-      TelegramClient,
-      LogLevel: mockLogLevel,
-      Logger,
-    };
-  },
-  { virtual: true },
-);
+    public setLevel(level: string): void {
+      this._logLevel = level;
+    }
+    public get logLevel(): string {
+      return this._logLevel;
+    }
+  }
+  return {
+    TelegramClient,
+    LogLevel: mockLogLevel,
+    Logger,
+  };
+});
 
 // Mock the pinned `telegram/extensions/Logger` path directly with a
 // self-contained factory (no `require('telegram')` inside — each mock
 // stands alone so one resolution hiccup can't take down the other).
-jest.mock(
-  'telegram/extensions/Logger',
-  () => {
-    class Logger {
-      public _logLevel: string;
+jest.mock('telegram/extensions/Logger', () => {
+  class Logger {
+    public _logLevel: string;
 
-      public constructor(level?: any) {
-        const lvl = typeof level === 'string' ? level : mockLogLevel.ERROR;
-        loggerInstances.push({ level: lvl });
-        this._logLevel = lvl;
-      }
-      public setLevel(level: string): void {
-        this._logLevel = level;
-      }
-      public get logLevel(): string {
-        return this._logLevel;
-      }
+    public constructor(level?: any) {
+      const lvl = typeof level === 'string' ? level : mockLogLevel.ERROR;
+      loggerInstances.push({ level: lvl });
+      this._logLevel = lvl;
     }
-    return { Logger, LogLevel: mockLogLevel };
-  },
-  { virtual: true },
-);
+    public setLevel(level: string): void {
+      this._logLevel = level;
+    }
+    public get logLevel(): string {
+      return this._logLevel;
+    }
+  }
+  return { Logger, LogLevel: mockLogLevel };
+});
 
 // --- Load the service under test lazily (see comment block above). ---
 
