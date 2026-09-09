@@ -21,26 +21,27 @@
  * `LogLevel` value shape to numeric in a future version, the assertions
  * here should be updated to match.
  *
- * Why we mock the SHIM path (not the absolute `node_modules/...` path):
- *   The service file does `import ... from 'telegram/extensions/Logger'`,
- *   which Jest's `^telegram/(.*)$` moduleNameMapper rewrites to the local
- *   shim file `src/telegram/extensions/Logger.ts`. That shim re-exports from
- *   a hardcoded absolute `node_modules` path, which works in production but
- *   breaks portability across machines (the absolute path differs in CI vs
- *   local). Mocking the shim path directly via the SAME moduleNameMapper
- *   rewriting keeps the spec portable: any environment that resolves
- *   `telegram/extensions/Logger` will hit our spy.
+ * Resolution notes
+ * ----------------
+ *   The Jest `moduleNameMapper` pins `telegram/extensions/Logger` to the real
+ *   gramJS file (see apps/backend/package.json — same pin as ingestion-service),
+ *   so the service's import resolves identically on every host. Both mocks below
+ *   are keyed on the exact strings the service imports and are self-contained
+ *   (the Logger factory does NOT `require('telegram')`), so one resolution
+ *   hiccup can't silently disable the other.
  */
 import { ConfigService } from '@nestjs/config';
 
 // --- Mock the `telegram` npm package BEFORE the service module is loaded. ---
 // The service file does `import { TelegramClient } from 'telegram'` +
 // `import { Logger as GramjsLogger, LogLevel } from 'telegram/extensions/Logger`.
-// The Jest moduleNameMapper rewrites `telegram/extensions/Logger` to the local
-// shim at `<rootDir>/src/telegram/extensions/Logger`. We mock BOTH the parent
-// (`telegram`) AND the shim path (which is what the service actually loads via
-// the mapper) with one shared factory so that `new GramjsLogger(...)` always
-// uses our spy regardless of which resolution path Jest takes.
+// The Jest moduleNameMapper pins `telegram/extensions/Logger` to the real
+// gramJS file (see apps/backend/package.json, same pin as ingestion-service),
+// so BOTH imports below resolve deterministically on every host (local, CI).
+// Each mock is SELF-CONTAINED (no `require('telegram')` inside the Logger
+// factory): a mock-resolution hiccup in one must never take down the other
+// (CI 2026-09-09: both spies silently missed, all 12 tests failed, rerun
+// green with identical code).
 
 const telegramClientInstances: Array<{
   self: { connectCalls: number };
@@ -114,17 +115,28 @@ jest.mock(
   { virtual: true },
 );
 
-// Mock the shim resolution path that Jest's moduleNameMapper rewrites
-// `telegram/extensions/Logger` into. We deliberately use the SAME string the
-// mapper rewrites to (the shim file) so that any host resolving
-// `telegram/extensions/Logger` ends up in our factory — no hardcoded absolute
-// path that breaks when the repo is checked out elsewhere (CI vs local).
+// Mock the pinned `telegram/extensions/Logger` path directly with a
+// self-contained factory (no `require('telegram')` inside — each mock
+// stands alone so one resolution hiccup can't take down the other).
 jest.mock(
   'telegram/extensions/Logger',
   () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- resolves to the virtual mock above
-    const { Logger, LogLevel } = require('telegram');
-    return { Logger, LogLevel };
+    class Logger {
+      public _logLevel: string;
+
+      public constructor(level?: any) {
+        const lvl = typeof level === 'string' ? level : mockLogLevel.ERROR;
+        loggerInstances.push({ level: lvl });
+        this._logLevel = lvl;
+      }
+      public setLevel(level: string): void {
+        this._logLevel = level;
+      }
+      public get logLevel(): string {
+        return this._logLevel;
+      }
+    }
+    return { Logger, LogLevel: mockLogLevel };
   },
   { virtual: true },
 );
