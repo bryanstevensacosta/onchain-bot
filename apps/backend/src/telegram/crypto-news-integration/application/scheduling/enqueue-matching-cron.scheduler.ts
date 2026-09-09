@@ -1,5 +1,7 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { SchedulerRegistry } from '@nestjs/schedule';
+import { ConfigService } from '@nestjs/config';
+import { CronJob } from 'cron';
 import { FilteredCryptoNewsService } from '../services/filtered-crypto-news.service';
 import { EnqueueMatchingMessageUseCase } from '../../../crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
 import type { CryptoNewsMessageDto } from '../../domain/dtos/crypto-news-message.dto';
@@ -60,17 +62,42 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
     private readonly filteredNewsService: FilteredCryptoNewsService,
     private readonly enqueueUseCase: EnqueueMatchingMessageUseCase,
     private readonly matchingConfigRepo: MatchingConfigRepository,
+    private readonly schedulerRegistry: SchedulerRegistry,
+    private readonly configService: ConfigService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
+    // Read configuration for dynamic cron interval
+    const useSse = this.configService.get<boolean>(
+      'app.ingestion.useSseCryptoNews',
+      true,
+    );
+    const pollingInterval = this.configService.get<number>(
+      'app.cryptoNews.pollingIntervalMinutes',
+      5,
+    );
+
+    // Determine effective interval based on SSE mode
+    // - SSE enabled: use configured polling interval (fallback mode)
+    // - SSE disabled: use 1 minute (primary ingestion path)
+    const intervalMinutes = useSse ? pollingInterval : 1;
+    const cronExpression = `*/${intervalMinutes} * * * *`;
+
+    // Register dynamic cron job
+    const job = new CronJob(cronExpression, () => void this.tick());
+    this.schedulerRegistry.addCronJob('crypto-news-polling', job);
+    job.start();
+
+    // Log readiness with all configuration details
+    const sseMode = useSse ? 'enabled' : 'disabled';
     try {
       const cfg = await this.matchingConfigRepo.load();
       this.logger.log(
-        `EnqueueMatchingCronScheduler ready (fetch limit: ${this.FETCH_LIMIT}, enabled: ${cfg.enabled})`,
+        `EnqueueMatchingCronScheduler ready (fetch limit: ${this.FETCH_LIMIT}, enabled: ${cfg.enabled}, interval: ${intervalMinutes}min, SSE: ${sseMode})`,
       );
     } catch {
       this.logger.warn(
-        'EnqueueMatchingCronScheduler ready — could not load MatchingConfig; scheduler will retry on each tick',
+        `EnqueueMatchingCronScheduler ready (fetch limit: ${this.FETCH_LIMIT}, enabled: unknown, interval: ${intervalMinutes}min, SSE: ${sseMode}) — could not load MatchingConfig; scheduler will retry on each tick`,
       );
     }
   }
@@ -78,11 +105,14 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
   /**
    * Cron tick: fetch recent messages, filter, enqueue matches.
    *
-   * Runs every minute at the start of the minute.
+   * NOTE: Scheduling is now dynamic (registered in onApplicationBootstrap).
+   * Interval varies based on USE_SSE_CRYPTO_NEWS flag:
+   * - SSE enabled: runs every N minutes (CRYPTO_NEWS_POLLING_INTERVAL_MINUTES, default 5) as fallback
+   * - SSE disabled: runs every 1 minute as primary ingestion path
+   *
    * Skips tick if previous tick still running (defensive guard).
-   * Skips tick if LlmConfig.enabled is false (no point enqueuing if publishing is disabled).
+   * Skips tick if matchingEnabled is false.
    */
-  @Cron(CronExpression.EVERY_MINUTE)
   async tick(): Promise<void> {
     if (this.running) {
       this.logger.warn('Previous tick still running; skipping this tick');

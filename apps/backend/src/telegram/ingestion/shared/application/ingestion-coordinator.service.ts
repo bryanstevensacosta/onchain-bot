@@ -10,6 +10,7 @@ import type { TelegramRawMessage } from 'telegram/ingestion/shared/domain/ports/
 import { TELEGRAM_LISTENER_PORT_TOKEN } from 'telegram/ingestion/shared/shared-injection-tokens';
 import { KolRepository } from 'kol/identity/application/ports/kol.repository';
 import { KolIngestionOrchestratorUseCase } from 'kol/identity/application/handlers/kol-ingestion-orchestrator.use-case';
+import { ProcessCryptoNewsMessageHandler } from 'telegram/crypto-news-integration/application/handlers/process-crypto-news-message.handler';
 
 /**
  * Single subscription point for ALL Telegram channels (KOL + crypto-news).
@@ -17,13 +18,14 @@ import { KolIngestionOrchestratorUseCase } from 'kol/identity/application/handle
  * On application bootstrap:
  * 1. Collect every active KOL channel
  * 2. Subscribe ONCE to the TelegramListenerPort
- * 3. Route each incoming message to the KOL orchestrator
+ * 3. Route each incoming message by messageType:
+ *    - 'crypto-news' → ProcessCryptoNewsMessageHandler (filters + matching + enqueue)
+ *    - 'kol' → KolIngestionOrchestratorUseCase (extraction + parsing pipeline)
  *
- * Post db-separation todo 4 (Opción A): crypto-news messages are persisted
- * by ingestion-service in its own DB — the backend NEVER persists them.
- * SSE crypto-news traffic is therefore skipped with a log line (no store
- * call); the KOL orchestrator itself no-ops for unknown kolIds as defense
- * in depth.
+ * Per Opción A: crypto-news messages are persisted by ingestion-service in
+ * its own DB — the backend NEVER persists them. The backend receives
+ * metadata-only SSE events and processes matched messages via the
+ * crypto-news handler.
  *
  * Per fix-1 (Bot Dev ToS §4.3): raw message text is consumed by direct
  * use case calls here; it never crosses an event bus.
@@ -40,6 +42,7 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
     private readonly config: ConfigService,
     private readonly kolRepo: KolRepository,
     private readonly kolOrchestrator: KolIngestionOrchestratorUseCase,
+    private readonly cryptoNewsHandler: ProcessCryptoNewsMessageHandler,
     @Inject(TELEGRAM_LISTENER_PORT_TOKEN)
     private readonly listener: TelegramListenerPort,
   ) {}
@@ -53,12 +56,6 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
     const activeKols = (await this.kolRepo.findAll()).filter((k) => k.isActive);
     this.logger.log(
       `[HOOK-DEBUG] Step 1a: Found ${activeKols.length} active KOLs`,
-    );
-
-    this.logger.warn(
-      'Crypto-news SSE persistence skipped: ingestion-service owns ' +
-        'crypto-news messages/sources/media in its own DB (Opción A — ' +
-        'backend persists nothing, filters apply on-read).',
     );
 
     this.logger.log('[HOOK-DEBUG] Step 2: Building channel list');
@@ -75,7 +72,7 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
     }
 
     this.logger.log(
-      `[HOOK-DEBUG] Step 3: Subscribing to ${allChannelIds.length} channel(s) (${activeKols.length} KOL).`,
+      `[HOOK-DEBUG] Step 3: Subscribing to ${allChannelIds.length} channel(s) (${activeKols.length} KOL). Crypto-news channels are handled by ingestion-service and routed by messageType.`,
     );
     // Start subscription in background - don't await to avoid blocking bootstrap
     setImmediate(() => {
@@ -114,19 +111,28 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
   private async route(raw: TelegramRawMessage): Promise<void> {
     try {
       this.logger.log(
-        `[ROUTE-DEBUG] Starting to route message ${raw.peerId}:${raw.messageId}`,
+        `[ROUTE-DEBUG] Starting to route message ${raw.peerId}:${raw.messageId} (messageType: ${raw.messageType})`,
       );
 
-      // Crypto-news traffic (if any arrives over SSE) is intentionally NOT
-      // persisted here — ingestion-service already stored it. Route
-      // everything to the KOL orchestrator, which no-ops unknown channels.
-      this.logger.log(
-        `[ROUTE-DEBUG] Routing to KOL orchestrator for ${raw.peerId}:${raw.messageId} (crypto-news SSE writes skipped — owned by ingestion-service)`,
-      );
-      await this.kolOrchestrator.onMessageReceived(raw);
-      this.logger.log(
-        `[ROUTE-DEBUG] ✅ KOL orchestrator completed for ${raw.peerId}:${raw.messageId}`,
-      );
+      // Route by messageType from SSE payload
+      if (raw.messageType === 'crypto-news') {
+        this.logger.log(
+          `[ROUTE-DEBUG] Routing to crypto-news handler for ${raw.peerId}:${raw.messageId}`,
+        );
+        await this.cryptoNewsHandler.handle(raw);
+        this.logger.log(
+          `[ROUTE-DEBUG] ✅ Crypto-news handler completed for ${raw.peerId}:${raw.messageId}`,
+        );
+      } else {
+        // Default to KOL handler (messageType='kol' or undefined for backward compatibility)
+        this.logger.log(
+          `[ROUTE-DEBUG] Routing to KOL orchestrator for ${raw.peerId}:${raw.messageId}`,
+        );
+        await this.kolOrchestrator.onMessageReceived(raw);
+        this.logger.log(
+          `[ROUTE-DEBUG] ✅ KOL orchestrator completed for ${raw.peerId}:${raw.messageId}`,
+        );
+      }
     } catch (err) {
       this.logger.error(
         `[ROUTE-DEBUG] ❌ Failed to route message ${raw.peerId}:${raw.messageId}: ${
