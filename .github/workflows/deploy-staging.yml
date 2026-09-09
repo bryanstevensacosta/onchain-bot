@@ -287,7 +287,9 @@ jobs:
               echo "=== Final curl -v output ==="
               curl -v http://localhost:3031/api/health 2>&1 || true
               echo "=== Backend container logs (last 50 lines) ==="
-              docker logs --tail 50 $(docker ps -q -f name=backend) 2>&1 || true
+              docker logs --tail 50 onchain-bot-staging-backend 2>&1 || true
+              echo "=== Backend container status ==="
+              docker ps -a -f name=onchain-bot-staging-backend || true
               exit 1
             fi
           done
