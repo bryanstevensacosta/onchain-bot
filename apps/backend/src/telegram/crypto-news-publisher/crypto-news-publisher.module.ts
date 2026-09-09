@@ -47,7 +47,6 @@ import { ExpireStaleQueueEntriesScheduler } from 'telegram/crypto-news-publisher
 import { TelegramPublisherPort } from 'telegram/shared';
 import { SlotArbitratorPort } from 'telegram/shared/domain/ports/slot-arbitrator.port';
 import { TypeOrmSlotArbitrator } from 'telegram/shared/infrastructure/persistence/typeorm/repositories/typeorm-slot-arbitrator';
-import { CryptoNewsMessageIngestedHandler } from 'telegram/crypto-news-publisher/infrastructure/event-bus/crypto-news-message-ingested.handler';
 
 /**
  * Crypto-news publisher BC.
@@ -71,9 +70,10 @@ import { CryptoNewsMessageIngestedHandler } from 'telegram/crypto-news-publisher
  * adapter binds the same port to a different implementation in the
  * vip-calls module — Nest resolves the binding per-module.
  *
- * `CryptoNewsMessageRepository` is provided by `CryptoNewsIngestionModule`
- * (no duplicate provider here — Nest resolves the injection token from
- * the imported module's exports).
+ * **Post crypto-news-entity-cleanup (2026-09):**
+ * - `CryptoNewsMessageIngestedHandler` DELETED (event not emitted)
+ * - Backend uses cron-based matching (Opción A), not event-driven
+ * - `CryptoNewsMessageRepository` kept as @deprecated DI shim only
  */
 @Module({
   imports: [
@@ -160,7 +160,6 @@ import { CryptoNewsMessageIngestedHandler } from 'telegram/crypto-news-publisher
     EnqueueMatchingMessageUseCase,
     ProcessNextQueuedArticleUseCase,
     GetLlmModelsUseCase,
-    CryptoNewsMessageIngestedHandler,
     PublisherCronScheduler,
     ExpireStaleQueueEntriesScheduler,
   ],

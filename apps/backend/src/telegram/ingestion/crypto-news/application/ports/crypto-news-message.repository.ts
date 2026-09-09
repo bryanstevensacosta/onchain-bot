@@ -1,13 +1,18 @@
-import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
+import { CryptoNewsMessage } from '../../domain/crypto-news-message.stub';
 
 /**
- * Outbound port: persistence for ingested crypto-news messages.
+ * @deprecated DEAD CODE - Backend no longer persists crypto-news (ingestion-service owns tables)
  *
- * Post db-separation todo 4: the backend NO LONGER persists crypto-news
- * (ingestion-service owns sources/messages/media in its own DB). The
- * token is still provided (in-memory, empty) because
- * `crypto-news-publisher` (`CryptoNewsMessageIngestedHandler`,
- * `EnqueueMatchingMessageUseCase` path) injects it.
+ * Repository port for crypto-news messages.
+ *
+ * Post db-separation (2026-09-08) + event handler deletion (crypto-news-entity-cleanup spec):
+ * - Backend uses DTOs only (no entity dependencies)
+ * - `CryptoNewsMessageIngestedEvent` is NOT emitted (event handler deleted)
+ * - Kept ONLY as DI shim to prevent module wiring breakage
+ * - Sole implementation: `InMemoryCryptoNewsMessageRepository` (empty store, always returns null)
+ *
+ * DO NOT USE. Query ingestion-service HTTP API instead:
+ *   GET {INGESTION_SERVICE_URL}/api/crypto-news/messages
  */
 export abstract class CryptoNewsMessageRepository {
   public abstract save(message: CryptoNewsMessage): Promise<void>;

@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ChannelContentFilterConfigEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/channel-content-filter-config.entity';
+import { ChannelContentFilterConfigEntity } from './infrastructure/persistence/typeorm/entities/channel-content-filter-config.entity';
 
 /**
  * **CryptoNewsPersistenceModule**

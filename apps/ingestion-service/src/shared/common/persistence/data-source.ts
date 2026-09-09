@@ -28,7 +28,6 @@ dotenv.config();
 import { CryptoNewsSourceEntity } from 'telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
 import { CryptoNewsMessageEntity } from 'telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
 import { CryptoNewsMessageMediaEntity } from 'telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
-import { ChannelContentFilterConfigEntity } from 'telegram/crypto-news/infrastructure/persistence/typeorm/entities/channel-content-filter-config.entity';
 import { BackfillMessageEntity } from 'stream/infrastructure/persistence/typeorm/backfill-message.entity';
 
 /**
@@ -40,7 +39,6 @@ export const INGESTION_PERSISTED_ENTITIES = [
   CryptoNewsSourceEntity,
   CryptoNewsMessageEntity,
   CryptoNewsMessageMediaEntity,
-  ChannelContentFilterConfigEntity,
   BackfillMessageEntity,
 ];
 
