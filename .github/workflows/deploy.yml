@@ -175,9 +175,9 @@ jobs:
           docker run --rm --network onchain-bot-net \
             --env-file /opt/onchain-bot/apps/backend/.env.production \
             ghcr.io/${{ github.repository }}-backend:${{ github.sha }} \
-            npx typeorm --dataSource dist/src/shared/common/persistence/data-source.js migration:run \
+            npx typeorm --dataSource dist/backend/src/shared/common/persistence/data-source.js migration:run \
             || docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml run --rm backend \
-               npx typeorm --dataSource dist/src/shared/common/persistence/data-source.js migration:run
+               npx typeorm --dataSource dist/backend/src/shared/common/persistence/data-source.js migration:run
 
           echo "=== Starting services with --wait (timeout 3min) ==="
           docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml up -d --force-recreate --wait --wait-timeout 180 backend frontend \
