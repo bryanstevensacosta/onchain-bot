@@ -1,10 +1,13 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { FilteredCryptoNewsService } from 'telegram/crypto-news-integration/application/services/filtered-crypto-news.service';
-import { EnqueueMatchingMessageUseCase } from 'telegram/crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
-import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
-import { CryptoNewsMedia } from 'telegram/ingestion/crypto-news/domain/value-objects/crypto-news-media.vo';
-import { MatchingConfigRepository } from 'telegram/crypto-news-integration/application/ports/matching-config.repository';
+import { FilteredCryptoNewsService } from '../services/filtered-crypto-news.service';
+import { EnqueueMatchingMessageUseCase } from '../../../crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
+import type { CryptoNewsMessageDto } from '../../domain/dtos/crypto-news-message.dto';
+import { MatchingConfigRepository } from '../ports/matching-config.repository';
+import type {
+  EnqueueMessageDto,
+  EnqueueMessageMediaDto,
+} from '../../../crypto-news-publisher/domain/dtos';
 
 /**
  * EnqueueMatchingCronScheduler - Poll ingestion-service for matching crypto-news messages
@@ -127,14 +130,11 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
 
       for (const match of matches) {
         try {
-          // Map FilteredCryptoNewsMessage DTO to CryptoNewsMessage domain entity
-          // (EnqueueMatchingMessageUseCase expects domain entity)
-          const message = this.mapToEntity(match);
+          // Map FilteredCryptoNewsMessage DTO to EnqueueMessageDto
+          // (EnqueueMatchingMessageUseCase now expects EnqueueMessageDto)
+          const dto = this.mapToPublisherDto(match);
 
-          const entry = await this.enqueueUseCase.execute({
-            message,
-            matchedKeywords: match.matchedKeywords,
-          });
+          const entry = await this.enqueueUseCase.execute({ message: dto });
 
           if (entry) {
             enqueued++;
@@ -163,51 +163,59 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
   }
 
   /**
-   * Map FilteredCryptoNewsMessage DTO to CryptoNewsMessage domain entity.
+   * Map FilteredCryptoNewsMessage DTO to EnqueueMessageDto (Publisher DTO).
    *
-   * EnqueueMatchingMessageUseCase expects a domain entity with specific
-   * shape (content, media[], groupedId, formattingEntities).
+   * Strategy 1 (Pure DTO): Backend uses DTOs to decouple from ingestion-service
+   * domain entities. This mapper converts from HTTP DTO shape to Publisher DTO shape.
+   *
+   * Transformations:
+   * - ISO date strings → Date objects (publishedAt, ingestedAt)
+   * - Embed matchedKeywords from FilteredCryptoNewsMessage
+   * - Resolve media file paths for publisher consumption
+   * - Map media type: 'webpage' → 'document' (ingestion service uses 'webpage', publisher uses 'document')
    *
    * This is a lightweight adapter — NO validation, NO business logic.
-   * The DTO comes from ingestion-service (already validated).
+   * The DTO comes from FilteredCryptoNewsService (already filtered).
    */
-  private mapToEntity(
+  private mapToPublisherDto(
     dto: Awaited<
       ReturnType<typeof this.filteredNewsService.getMatchingMessages>
     >[number],
-  ): CryptoNewsMessage {
-    // Parse messageEntities JSON string (Telegram formatting)
-    const formattingEntities = dto.messageEntities ? dto.messageEntities : null;
+  ): EnqueueMessageDto {
+    // Map media array (HTTP DTO shape → Publisher DTO shape)
+    const media: EnqueueMessageMediaDto[] = dto.media.map((m) => ({
+      index: m.index,
+      type: this.mapMediaType(m.type),
+      filePath: this.resolveMediaFilePath(dto.channelId, dto.messageId, m),
+      mimeType: m.mimeType ?? undefined,
+      fileSize: m.fileSize ?? undefined,
+    }));
 
-    // Map media array (DTO shape → CryptoNewsMedia value object).
-    // The HTTP API strips `filePath` and exposes only `url`, so resolve a
-    // publisher-consumable path per item (see resolveMediaFilePath).
-    const media = dto.media.map((m) =>
-      CryptoNewsMedia.create({
-        index: m.index,
-        type: m.type,
-        filePath: this.resolveMediaFilePath(dto.channelId, dto.messageId, m),
-        mimeType: m.mimeType,
-        fileSize: m.fileSize,
-      }),
-    );
-
-    // Construct domain entity (CryptoNewsMessage.create expects input object)
-    return CryptoNewsMessage.create({
+    // Return Publisher DTO
+    return {
       channelId: dto.channelId,
       messageId: dto.messageId,
-      title: dto.title,
       content: dto.content, // ← FILTERED content (already transformed by FilteredCryptoNewsService)
-      publishedAt: new Date(dto.publishedAt),
-      ingestedAt: new Date(dto.ingestedAt),
-      linkPreviewUrl: dto.linkPreviewUrl,
-      linkPreviewTitle: dto.linkPreviewTitle,
-      linkPreviewDescription: dto.linkPreviewDescription,
-      linkPreviewSiteName: dto.linkPreviewSiteName,
-      groupedId: dto.groupedId,
+      publishedAt: new Date(dto.publishedAt), // ISO string → Date
+      ingestedAt: new Date(dto.ingestedAt), // ISO string → Date
       media,
-      formattingEntities,
-    });
+      matchedKeywords: dto.matchedKeywords, // Embed matched keywords
+    };
+  }
+
+  /**
+   * Map media type from ingestion-service shape to publisher shape.
+   *
+   * Ingestion service uses 'webpage' for link previews.
+   * Publisher expects 'document' for non-photo/video media.
+   */
+  private mapMediaType(
+    type: 'photo' | 'video' | 'webpage',
+  ): 'photo' | 'video' | 'document' {
+    if (type === 'webpage') {
+      return 'document';
+    }
+    return type;
   }
 
   /**
