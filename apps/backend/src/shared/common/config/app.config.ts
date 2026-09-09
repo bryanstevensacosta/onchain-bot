@@ -23,7 +23,8 @@
  *   Pipeline behaviour:
  *     INGESTION_TELEGRAM_METADATA_CACHE_FILE
  *     INGESTION_TELEGRAM_BACKFILL_ENABLED
- *     USE_SSE_INGESTION, USE_MOCK_INGESTION, INGESTION_SERVICE_URL
+ *     USE_SSE_INGESTION, USE_SSE_CRYPTO_NEWS, USE_MOCK_INGESTION, INGESTION_SERVICE_URL
+ *     CRYPTO_NEWS_POLLING_INTERVAL_MINUTES
  *     PUBLISHING_TELEGRAM_USE_REAL_MTPROTO/OUTPUT_CHANNEL,
  *     VIP_CALLS_BOT_TOKEN/OUTPUT_CHANNEL,
  *     CRYPTO_NEWS_BOT_TOKEN/OUTPUT_CHANNEL,
@@ -157,8 +158,13 @@ export interface AppConfig extends LlmConfigShape {
       };
     };
     useSse: boolean;
+    useSseCryptoNews: boolean;
     useMock: boolean;
     serviceUrl: string;
+  };
+
+  cryptoNews: {
+    pollingIntervalMinutes: number;
   };
 
   publishing: {
@@ -363,9 +369,23 @@ export const appConfig = registerAs(
       },
       useSse:
         (process.env.USE_SSE_INGESTION ?? 'false').toLowerCase() === 'true',
+      useSseCryptoNews:
+        (process.env.USE_SSE_CRYPTO_NEWS ?? 'true').toLowerCase() === 'true',
       useMock:
         (process.env.USE_MOCK_INGESTION ?? 'false').toLowerCase() === 'true',
       serviceUrl: process.env.INGESTION_SERVICE_URL ?? 'http://localhost:3031',
+    },
+
+    cryptoNews: {
+      pollingIntervalMinutes: (() => {
+        const raw = process.env.CRYPTO_NEWS_POLLING_INTERVAL_MINUTES;
+        const parsed = raw ? parseInt(raw, 10) : 5;
+        // Validate between 1 and 60 minutes
+        if (!Number.isFinite(parsed) || parsed < 1 || parsed > 60) {
+          return 5; // Default to 5 if invalid
+        }
+        return parsed;
+      })(),
     },
 
     publishing: {
