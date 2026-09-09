@@ -147,6 +147,7 @@ describe('IngestionCoordinator (post db-separation todo 4: KOL-only, crypto-news
       buildConfig(),
       kolRepo,
       orchestrator,
+      cryptoNewsHandler,
       listener,
     );
     await coord.onApplicationBootstrap();
@@ -178,6 +179,7 @@ describe('IngestionCoordinator (post db-separation todo 4: KOL-only, crypto-news
       buildConfig(),
       kolRepo,
       orchestrator,
+      cryptoNewsHandler,
       listener,
     );
     await coord.onApplicationBootstrap();
@@ -194,6 +196,7 @@ describe('IngestionCoordinator (post db-separation todo 4: KOL-only, crypto-news
       buildConfig(),
       kolRepo,
       orchestrator,
+      cryptoNewsHandler,
       listener,
     );
     await coord.onApplicationBootstrap();
