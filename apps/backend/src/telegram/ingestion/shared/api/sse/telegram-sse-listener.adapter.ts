@@ -298,6 +298,7 @@ export class TelegramSseListenerAdapter
       messageId: payload.messageId,
       text: payload.text ?? '', // Use text from payload if present (crypto-news), empty for KOL (extraction handles it)
       occurredAt: new Date(payload.occurredAt),
+      messageType: payload.messageType, // Preserve messageType for coordinator routing
       media: payload.media.map((m) => ({
         type: m.type,
         fileId: '', // Not available in SSE payload
@@ -314,7 +315,7 @@ export class TelegramSseListenerAdapter
 
     // DEBUG: Log text transformation
     this.logger.log(
-      `[PAYLOAD-TRANSFORM-DEBUG] ${payload.peerId}:${payload.messageId} - payload.text: "${payload.text}" (type: ${typeof payload.text}, length: ${payload.text?.length ?? 0}) → rawMessage.text: "${rawMessage.text}" (length: ${rawMessage.text.length})`,
+      `[PAYLOAD-TRANSFORM-DEBUG] ${payload.peerId}:${payload.messageId} - payload.text: "${payload.text}" (type: ${typeof payload.text}, length: ${payload.text?.length ?? 0}) → rawMessage.text: "${rawMessage.text}" (length: ${rawMessage.text.length}), messageType: ${rawMessage.messageType}`,
     );
 
     return rawMessage;

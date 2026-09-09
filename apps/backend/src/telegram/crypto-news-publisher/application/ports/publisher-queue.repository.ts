@@ -65,4 +65,13 @@ export abstract class PublisherQueueRepository {
   public abstract findPendingOlderThan(
     thresholdMs: number,
   ): Promise<ReadonlyArray<PublisherQueueEntry>>;
+  /**
+   * Find a queue entry by channelId and messageId.
+   * Used for deduplication checks before enqueueing.
+   * Returns null if no entry exists for the given channel/message pair.
+   */
+  public abstract findByChannelIdAndMessageId(
+    channelId: string,
+    messageId: number,
+  ): Promise<PublisherQueueEntry | null>;
 }

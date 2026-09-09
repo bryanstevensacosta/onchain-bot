@@ -69,6 +69,13 @@ class CapturingOrchestrator extends KolIngestionOrchestratorUseCase {
   }
 }
 
+class MockCryptoNewsHandler {
+  public received: TelegramRawMessage[] = [];
+  public async handle(raw: TelegramRawMessage): Promise<void> {
+    this.received.push(raw);
+  }
+}
+
 function buildConfig(): ConfigService {
   return {
     get: () => undefined,
@@ -79,6 +86,7 @@ describe('IngestionCoordinator (post db-separation todo 4: KOL-only, crypto-news
   let kolRepo: InMemoryKolRepo;
   let listener: FakeListener;
   let orchestrator: CapturingOrchestrator;
+  let cryptoNewsHandler: MockCryptoNewsHandler;
 
   beforeEach(() => {
     kolRepo = new InMemoryKolRepo();
@@ -90,6 +98,7 @@ describe('IngestionCoordinator (post db-separation todo 4: KOL-only, crypto-news
       {} as never,
       {} as never,
     );
+    cryptoNewsHandler = new MockCryptoNewsHandler();
   });
 
   it('subscribes once with active KOL channels only', async () => {
@@ -105,6 +114,7 @@ describe('IngestionCoordinator (post db-separation todo 4: KOL-only, crypto-news
       buildConfig(),
       kolRepo,
       orchestrator,
+      cryptoNewsHandler,
       listener,
     );
     await coord.onApplicationBootstrap();

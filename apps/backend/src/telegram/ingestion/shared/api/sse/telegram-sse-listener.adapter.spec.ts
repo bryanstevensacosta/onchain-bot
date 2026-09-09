@@ -4,6 +4,7 @@ import { Logger } from '@nestjs/common';
 import { TelegramSseListenerAdapter } from './telegram-sse-listener.adapter';
 import { TelegramRawMessage } from '../../domain/ports/telegram-listener.port';
 import { BackendRegistrationClient } from '../../infrastructure/backend-registration-client.service';
+import { ProcessCryptoNewsMessageHandler } from 'telegram/crypto-news-integration/application/handlers/process-crypto-news-message.handler';
 
 /**
  * Unit tests for TelegramSseListenerAdapter
@@ -74,6 +75,12 @@ describe('TelegramSseListenerAdapter', () => {
               lastAttempt: null,
               consecutiveFailures: 0,
             }),
+          },
+        },
+        {
+          provide: ProcessCryptoNewsMessageHandler,
+          useValue: {
+            handle: jest.fn().mockResolvedValue(undefined),
           },
         },
         {
