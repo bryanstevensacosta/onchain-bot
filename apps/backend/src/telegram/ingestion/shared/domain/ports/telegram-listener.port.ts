@@ -73,6 +73,7 @@ export interface TelegramRawMessage {
   readonly messageId: number;
   readonly text: string;
   readonly occurredAt: Date;
+  readonly messageType?: 'kol' | 'crypto-news';
   readonly entities?: ReadonlyArray<{
     readonly type: string;
     readonly offset: number;

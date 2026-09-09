@@ -8,12 +8,23 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
-import { promises as fs, createReadStream } from 'fs';
 import * as path from 'path';
-import * as mime from 'mime-types';
+import {
+  BaseMediaHttpServer,
+  BaseFileSystemAdapter,
+  MimeTypeResolver,
+} from 'shared/media';
+import { CryptoNewsPathBuilder } from 'media/infrastructure/crypto-news-path-builder';
 
 /**
  * MediaController serves Telegram media files (photos/videos) via HTTP
+ *
+ * **Phase 2 Migration**: Now extends BaseMediaHttpServer to eliminate duplicated
+ * HTTP serving logic. Inherits:
+ * - Cache headers (Cache-Control, ETag)
+ * - Content headers (Content-Type, Content-Length, Accept-Ranges)
+ * - Stream piping with error handling
+ * - Validation helpers
  *
  * Per Requirement 4.1, 4.2: Serves media downloaded by MTProto layer
  * Per Requirement 4.3: Returns 404 for missing files
@@ -28,34 +39,48 @@ import * as mime from 'mime-types';
  * - Extensions: .jpg, .png, .webp, .gif, .mp4, .webm
  *
  * Security:
- * - Channel ID sanitized by MTProto layer (path traversal safe)
- * - messageId/index validated as numeric
+ * - Channel ID sanitized by path builder (path traversal safe)
+ * - messageId/index validated via base class helpers
  *
  * @controller Handles /api/media routes
  */
 @Controller('api/media')
-export class MediaController {
+export class MediaController extends BaseMediaHttpServer {
   private readonly logger = new Logger(MediaController.name);
-  private readonly uploadsRoot: string;
+  private readonly fileSystem: LocalFileSystemAdapter;
+  private readonly pathBuilder: CryptoNewsPathBuilder;
 
   constructor(private readonly config: ConfigService) {
+    super(); // Initialize base class
+
     // Load uploads root from config
     const appConfig = this.config.get('app');
-    this.uploadsRoot =
+    const uploadsRoot =
       appConfig?.uploads?.root || path.join(process.cwd(), 'uploads');
+    const mediaRoot = path.join(uploadsRoot, 'crypto-news', 'media');
+
+    this.fileSystem = new LocalFileSystemAdapter();
+    this.pathBuilder = new CryptoNewsPathBuilder({
+      root: mediaRoot,
+      recursive: true,
+    });
+
     this.logger.log(
-      `MediaController initialized with uploads root: ${this.uploadsRoot}`,
+      `MediaController initialized with uploads root: ${uploadsRoot}`,
     );
   }
 
   /**
    * Serve media file via HTTP
    *
+   * **Phase 2**: Simplified to use base class helpers and path builder.
+   * Most logic delegated to BaseMediaHttpServer.
+   *
    * Per Requirement 4.1, 4.2: HTTP serving of downloaded media
    * Per Requirement 4.3: 404 for missing files
    * Per Requirement 4.5: Caching headers (1 year max-age)
    *
-   * @param channelId - Telegram channel identifier (sanitized)
+   * @param channelId - Telegram channel identifier
    * @param messageId - Telegram message ID
    * @param index - Media attachment index (0-based)
    * @param response - Express response object
@@ -68,119 +93,83 @@ export class MediaController {
     @Res() response: Response,
   ): Promise<void> {
     try {
-      // Validate numeric params
-      const msgId = parseInt(messageId, 10);
-      const idx = parseInt(index, 10);
-
-      if (isNaN(msgId) || isNaN(idx)) {
-        response.status(400).json({
-          error: 'Invalid parameters',
-          message: 'messageId and index must be numeric',
-        });
-        return;
-      }
+      // Validate parameters using base class helpers
+      const msgId = this.validatePositiveInteger(messageId, 'messageId');
+      const idx = this.validatePositiveInteger(index, 'index');
+      const cleanChannelId = this.validateNonEmptyString(
+        channelId,
+        'channelId',
+      );
 
       // Build media directory path
-      // Per backend convention: uploads/crypto-news/media/{channelId}/
-      const mediaDir = path.join(
-        this.uploadsRoot,
-        'crypto-news',
-        'media',
-        channelId,
-      );
+      const mediaDir = this.pathBuilder.getMediaDirectory(cleanChannelId);
 
       // Find file matching pattern: {messageId}_{index}.*
-      const filePattern = `${msgId}_${idx}.`;
-      let files: string[];
+      const filePattern = new RegExp(`^${msgId}_${idx}\\.`);
+      const matchingFiles = await this.fileSystem.findByPattern(
+        mediaDir,
+        filePattern,
+      );
 
-      try {
-        files = await fs.readdir(mediaDir);
-      } catch (error) {
-        // Directory doesn't exist = no media for this channel
+      if (matchingFiles.length === 0) {
         this.logger.warn(
-          `Media directory not found: ${mediaDir} (channelId: ${channelId})`,
+          `Media file not found: ${cleanChannelId}:${msgId}:${idx}`,
         );
-        response.status(404).json({
-          error: 'Media not found',
-          message: `No media found for channel ${channelId}`,
-        });
+        this.sendNotFound(
+          response,
+          `Media file not found for ${cleanChannelId}:${msgId}:${idx}`,
+        );
         return;
       }
 
-      // Find matching file
-      const matchedFile = files.find((f) => f.startsWith(filePattern));
+      const filePath = matchingFiles[0]; // Take first match
 
-      if (!matchedFile) {
-        this.logger.warn(
-          `Media file not found: ${channelId}:${msgId}:${idx} (pattern: ${filePattern})`,
-        );
-        response.status(404).json({
-          error: 'Media not found',
-          message: `Media file not found for ${channelId}:${msgId}:${idx}`,
-        });
-        return;
-      }
-
-      // Build full file path
-      const filePath = path.join(mediaDir, matchedFile);
-
-      // Get file stats
-      let stat;
-      try {
-        stat = await fs.stat(filePath);
-      } catch (error) {
-        // File disappeared between readdir and stat (rare race condition)
-        this.logger.error(
-          `File stat failed: ${filePath} - ${(error as Error).message}`,
-        );
-        response.status(404).json({
-          error: 'Media not found',
-          message: 'Media file missing on disk',
-        });
-        return;
-      }
+      // Get file stats and stream
+      const stat = await this.fileSystem.stat(filePath);
+      const stream = this.fileSystem.stream(filePath);
 
       // Detect MIME type
-      const mimeType = mime.lookup(filePath) || 'application/octet-stream';
+      const extension = path.extname(filePath);
+      const mimeType = MimeTypeResolver.getMimeTypeFromExtension(extension);
 
-      // Set response headers
-      // Per Requirement 4.5: Aggressive caching (1 year)
-      response.setHeader('Content-Type', mimeType);
-      response.setHeader('Content-Length', stat.size);
-      response.setHeader('ETag', `"${stat.mtime.getTime()}-${stat.size}"`);
-      response.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year
-      response.setHeader('Accept-Ranges', 'bytes'); // Enable HTTP range support for video seeking
-
-      // Stream file to response
-      const readStream = createReadStream(filePath);
-
-      readStream.on('error', (error) => {
-        this.logger.error(`Stream error for ${filePath}: ${error.message}`);
-        if (!response.headersSent) {
-          response.status(500).json({
-            error: 'Internal server error',
-            message: 'Failed to stream media file',
-          });
-        }
+      // Stream file with cache headers (delegated to base class)
+      await this.streamFile(filePath, stat, stream, response, {
+        mimeType,
+        cacheConfig: this.defaultCacheConfig, // 1 year cache
       });
 
-      readStream.pipe(response);
-
       this.logger.debug(
-        `Served media: ${channelId}:${msgId}:${idx} (${matchedFile}, ${stat.size} bytes, ${mimeType})`,
+        `Served media: ${cleanChannelId}:${msgId}:${idx} (${path.basename(filePath)}, ${stat.size} bytes, ${mimeType})`,
       );
     } catch (error) {
+      if ((error as Error).message.includes('must be')) {
+        // Validation error from base class helpers
+        this.sendBadRequest(response, (error as Error).message);
+        return;
+      }
+
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        // File or directory not found
+        this.sendNotFound(response);
+        return;
+      }
+
+      // Unexpected error
       this.logger.error(
         `Unexpected error serving media ${channelId}:${messageId}:${index}: ${(error as Error).message}`,
         (error as Error).stack,
       );
-
-      if (!response.headersSent) {
-        response.status(500).json({
-          error: 'Internal server error',
-          message: 'Failed to serve media',
-        });
-      }
+      this.sendServerError(response, error as Error);
     }
   }
+}
+
+/**
+ * Local file system adapter for MediaController.
+ *
+ * **Phase 2**: Simple wrapper around BaseFileSystemAdapter.
+ * No customization needed - inherits all file I/O operations.
+ */
+class LocalFileSystemAdapter extends BaseFileSystemAdapter {
+  // No customization needed - uses base class implementation
 }

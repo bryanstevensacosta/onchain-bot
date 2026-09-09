@@ -15,14 +15,18 @@ Per-app docs (verified, authoritative over this file for details): `apps/backend
 
 ```
                     ┌──────────────────────────────────────────────┐
-                    │  ingestion-service (ÚNICO) - Puerto 3032      │
+                    │  ingestion-service (ÚNICO) - Dev :3031,       │
+                    │  droplet host :3032 → container :3031         │
                     │                                               │
-                    │  OWNERSHIP:                                   │
+                    │  OWNERSHIP (split 2026-09-08):                │
                     │  ✓ Una sola sesión MTProto                    │
-                    │  ✓ DB: crypto_news_sources (sources)          │
-                    │  ✓ DB: kol_identities (KOL metadata)          │
-                    │  ✓ DB: crypto_news_messages (messages)        │
-                    │  ✓ DB: crypto_news_message_media (media refs) │
+                    │  ✓ DB lógica propia por servidor Postgres:    │
+                    │    <base>_ingestion (dev local una, droplet   │
+                    │    una; staging NO tiene ingestion ni su DB)  │
+                    │  ✓ Tablas propias: crypto_news_sources,       │
+                    │    crypto_news_messages, crypto_news_         │
+                    │    message_media (KOL identity sigue en el    │
+                    │    backend; los filtros vivos también)        │
                     │  ✓ uploads/: archivos de media descargados    │
                     │                                               │
                     │  API ENDPOINTS (read-only para backends):     │
@@ -57,11 +61,12 @@ Per-app docs (verified, authoritative over this file for details): `apps/backend
 
 1. **Una sola instancia de ingestion-service** — NO crear `onchain-bot-staging-ingestion` ni instancias por environment
 2. **Una sola sesión MTProto** — credenciales viven SOLO en ingestion-service (`.env` ← `INGESTION_TELEGRAM_MTPROTO_*`); duplicarlas causa `AUTH_KEY_DUPLICATED`
-3. **Una sola DB para crypto-news** — tablas `crypto_news_sources`, `crypto_news_messages`, `crypto_news_message_media` viven SOLO en ingestion-service DB
+3. **Una sola DB de ingestion por servidor Postgres (`<base>_ingestion`)** — dev local `alpha_meta_token_scanner_ingestion`, droplet `alpha_meta_token_scanner_ingestion`; staging NO tiene ingestion ni su DB (consume el droplet por HTTP/SSE). Tablas `crypto_news_sources`, `crypto_news_messages`, `crypto_news_message_media` viven SOLO ahí desde el split 2026-09-08 (antes existían también en el backend; migración `1860000000001-DropIngestionOwnedCryptoNewsTables`). Prohibido crear `*_staging_ingestion`
 4. **Ingestion-service es el owner de media** — descarga archivos a `uploads/crypto-news/media/` y los sirve vía `GET /api/media/*`
 5. **Backends NO escriben crypto-news** — staging/prod solo LEEN vía HTTP API del ingestion-service (no réplican tablas ni datos)
 6. **Frontend consume directamente del ingestion-service** — `GET /api/crypto-news/messages` apunta al puerto 3032 (no proxy vía backend)
 7. **NO definir ingestion-service en `docker-compose.staging.yml` ni `.prod.yml`** — solo existe en `docker-compose.ingestion.yml` (standalone)
+8. **Retención 72h de messages + media en ingestion** — janitor `CryptoNewsRetentionCleanupScheduler` (ingestion-service, lock `9_421_373`, reloj `ingested_at`); 72h por invariante del plan. Valor efectivo en prod pendiente de decisión del operador (el backend prod limpiaba media con 24h; ver dossier task-10 §4)
 
 **Rationale**:
 
@@ -112,7 +117,7 @@ Frontend:
 .
 ├── apps/
 │   ├── backend/             # NestJS 11 — DDD/Hexagonal, 22 wired modules (NOT 19)
-│   ├── ingestion-service/   # NestJS 11 — single MTProto session → SSE (:3031)
+│   ├── ingestion-service/   # NestJS 11 — single MTProto session → SSE (dev :3031, droplet host :3032)
 │   └── frontend/            # React 18 + Vite 5 — FSD dashboard (:5173)
 ├── scripts/                 # 28 files: sync-*, backup-db.sh, cleanup-ports.mjs, check-docs-staleness.mjs,
 │                            # audit-enrichment-apis.js, deploy.sh, diagnose-*, validate-session-migration.sh…
@@ -147,8 +152,8 @@ See **[GIT-FLOW.md](./GIT-FLOW.md)** for complete Git workflow documentation, in
 | -------------------- | -------------------------------------------------------------------------------------------- |
 | Run backend+frontend | `npm run dev` (root, port-cleanup → :3030 + :5173; ingestion-service NOT included)           |
 | Run ingestion        | `cd apps/ingestion-service && npm run start:dev` (:3031, no root script)                     |
-| Backend tests        | `npm run test:backend` (Jest, 173 `*.spec.ts` co-located)                                    |
-| Ingestion tests      | `cd apps/ingestion-service && npm test` (15 specs)                                           |
+| Backend tests        | `npm run test:backend` (Jest, 170 suites / 1969 tests post-split)                            |
+| Ingestion tests      | `cd apps/ingestion-service && npm test` (43 suites / 815 tests post-split)                   |
 | Frontend tests       | `npm run test:frontend` (Vitest, 23 `*.test.*` files)                                        |
 | Lint                 | `npm run lint` (all workspaces) / `:backend` / `:frontend` (flat configs, differ per app)    |
 | Format               | `npm run format` (Prettier, singleQuote + trailingComma all)                                 |
@@ -245,14 +250,16 @@ To bypass all hooks for a single commit: `git commit --no-verify -m "..."`.
 
 ### Database
 
-- TypeORM 0.3 with `synchronize: true` (dev/test). Staging/prod: migrations (`scripts/run-migrations.sh`, 12 files in backend; ingestion-service reads one table, no migrations of its own).
+- TypeORM 0.3 with `synchronize: true` (dev/test). Staging/prod: migrations (`scripts/run-migrations.sh`; backend 15 files incl. `1860000000001-DropIngestionOwnedCryptoNewsTables`; ingestion-service baseline `1788844970659-BaselineIngestionSchema` + `migration:*` scripts + `data-source.ts` since 2026-09-08, `synchronize:false, migrationsRun:false` outside dev/test).
+- DB split 2026-09-08: backend `PERSISTED_ENTITIES` = 39 (sin las 3 tablas crypto-news); ingestion DB `<base>_ingestion` con 5 tablas propias. pgAdmin: la segunda DB vive en el MISMO servidor — sin cambio en `apps/backend/pgadmin/servers.json`, aparece como otra DB bajo el mismo server entry.
 - Per-BC schema-per-context is v2 plan; v1 uses in-memory repos within modules (largest: normalization cap 5000).
 - Database toggle: `DATABASE_ENABLED=true` to enable; tests force it on in `jest.setup.ts` (both services).
 
 ### Tests
 
-- Backend: co-located `*.spec.ts` (`testRegex: .*.spec\.ts$`), **173 spec files** (NOT 74). E2E in `apps/backend/test/*.e2e-spec.ts` (separate `jest-e2e.json`; `--forceExit`, 30 s timeout).
+- Backend: co-located `*.spec.ts` (`testRegex: .*.spec\.ts$`), **170 spec files post-split** (was 173; 3 deleted in split). E2E in `apps/backend/test/*.e2e-spec.ts` (separate `jest-e2e.json`; `--forceExit`, 30 s timeout).
 - Ingestion-service: 15 specs + 5 e2e files.
+- Post-split suites (task-10 evidence): backend **170 suites / 1969 tests** green, ingestion **43 suites / 815 tests** green.
 - Frontend: Vitest, 23 `*.test.{ts,tsx}` files, co-located + `__tests__/`; `src/test/setup.ts` (jest-dom). jsdom in deps.
 - No coverage thresholds enforced in any app.
 
@@ -438,7 +445,8 @@ Telegram MTProto ──► ingestion-service :3031 ──SSE /api/ingestion/stre
 
 - Backend↔ingestion heartbeat: SSE `health:ping` 30 s; backend backoff 1 s→30 s; no replay (lossy by design).
 - Media: ingestion-service owns `uploads/`; backend reads via HTTP (`INGESTION_SERVICE_URL`) or read-only volume in compose.
-- Channels: backend DB (`telegram-kol/identity`, `crypto-news/sources`) is the source of truth; ingestion-service polls IDs.
+- Ports: ingestion-service listens `:3031` in dev and inside the droplet container; droplet host maps `127.0.0.1:3032` → `:3031` (avoids clash with staging backend on `:3031`).
+- Channels: KOL identity lives in backend DB (`telegram-kol/identity`, polled by ingestion-service); crypto-news sources/messages/media live in the ingestion DB (`<base>_ingestion`, owned by ingestion-service since split 2026-09-08).
 
 ## BACKEND PIPELINE (alpha-call path + opaque news path)
 

@@ -1,10 +1,15 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { FilteredCryptoNewsService } from 'telegram/crypto-news-integration/application/services/filtered-crypto-news.service';
-import { EnqueueMatchingMessageUseCase } from 'telegram/crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
-import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
-import { CryptoNewsMedia } from 'telegram/ingestion/crypto-news/domain/value-objects/crypto-news-media.vo';
-import { MatchingConfigRepository } from 'telegram/crypto-news-integration/application/ports/matching-config.repository';
+import { SchedulerRegistry } from '@nestjs/schedule';
+import { ConfigService } from '@nestjs/config';
+import { CronJob } from 'cron';
+import { FilteredCryptoNewsService } from '../services/filtered-crypto-news.service';
+import { EnqueueMatchingMessageUseCase } from '../../../crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
+import type { CryptoNewsMessageDto } from '../../domain/dtos/crypto-news-message.dto';
+import { MatchingConfigRepository } from '../ports/matching-config.repository';
+import type {
+  EnqueueMessageDto,
+  EnqueueMessageMediaDto,
+} from '../../../crypto-news-publisher/domain/dtos';
 
 /**
  * EnqueueMatchingCronScheduler - Poll ingestion-service for matching crypto-news messages
@@ -57,17 +62,42 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
     private readonly filteredNewsService: FilteredCryptoNewsService,
     private readonly enqueueUseCase: EnqueueMatchingMessageUseCase,
     private readonly matchingConfigRepo: MatchingConfigRepository,
+    private readonly schedulerRegistry: SchedulerRegistry,
+    private readonly configService: ConfigService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
+    // Read configuration for dynamic cron interval
+    const useSse = this.configService.get<boolean>(
+      'app.ingestion.useSseCryptoNews',
+      true,
+    );
+    const pollingInterval = this.configService.get<number>(
+      'app.cryptoNews.pollingIntervalMinutes',
+      5,
+    );
+
+    // Determine effective interval based on SSE mode
+    // - SSE enabled: use configured polling interval (fallback mode)
+    // - SSE disabled: use 1 minute (primary ingestion path)
+    const intervalMinutes = useSse ? pollingInterval : 1;
+    const cronExpression = `*/${intervalMinutes} * * * *`;
+
+    // Register dynamic cron job
+    const job = new CronJob(cronExpression, () => void this.tick());
+    this.schedulerRegistry.addCronJob('crypto-news-polling', job);
+    job.start();
+
+    // Log readiness with all configuration details
+    const sseMode = useSse ? 'enabled' : 'disabled';
     try {
       const cfg = await this.matchingConfigRepo.load();
       this.logger.log(
-        `EnqueueMatchingCronScheduler ready (fetch limit: ${this.FETCH_LIMIT}, enabled: ${cfg.enabled})`,
+        `EnqueueMatchingCronScheduler ready (fetch limit: ${this.FETCH_LIMIT}, enabled: ${cfg.enabled}, interval: ${intervalMinutes}min, SSE: ${sseMode})`,
       );
     } catch {
       this.logger.warn(
-        'EnqueueMatchingCronScheduler ready — could not load MatchingConfig; scheduler will retry on each tick',
+        `EnqueueMatchingCronScheduler ready (fetch limit: ${this.FETCH_LIMIT}, enabled: unknown, interval: ${intervalMinutes}min, SSE: ${sseMode}) — could not load MatchingConfig; scheduler will retry on each tick`,
       );
     }
   }
@@ -75,11 +105,14 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
   /**
    * Cron tick: fetch recent messages, filter, enqueue matches.
    *
-   * Runs every minute at the start of the minute.
+   * NOTE: Scheduling is now dynamic (registered in onApplicationBootstrap).
+   * Interval varies based on USE_SSE_CRYPTO_NEWS flag:
+   * - SSE enabled: runs every N minutes (CRYPTO_NEWS_POLLING_INTERVAL_MINUTES, default 5) as fallback
+   * - SSE disabled: runs every 1 minute as primary ingestion path
+   *
    * Skips tick if previous tick still running (defensive guard).
-   * Skips tick if LlmConfig.enabled is false (no point enqueuing if publishing is disabled).
+   * Skips tick if matchingEnabled is false.
    */
-  @Cron(CronExpression.EVERY_MINUTE)
   async tick(): Promise<void> {
     if (this.running) {
       this.logger.warn('Previous tick still running; skipping this tick');
@@ -127,14 +160,11 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
 
       for (const match of matches) {
         try {
-          // Map FilteredCryptoNewsMessage DTO to CryptoNewsMessage domain entity
-          // (EnqueueMatchingMessageUseCase expects domain entity)
-          const message = this.mapToEntity(match);
+          // Map FilteredCryptoNewsMessage DTO to EnqueueMessageDto
+          // (EnqueueMatchingMessageUseCase now expects EnqueueMessageDto)
+          const dto = this.mapToPublisherDto(match);
 
-          const entry = await this.enqueueUseCase.execute({
-            message,
-            matchedKeywords: match.matchedKeywords,
-          });
+          const entry = await this.enqueueUseCase.execute({ message: dto });
 
           if (entry) {
             enqueued++;
@@ -163,48 +193,111 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
   }
 
   /**
-   * Map FilteredCryptoNewsMessage DTO to CryptoNewsMessage domain entity.
+   * Map FilteredCryptoNewsMessage DTO to EnqueueMessageDto (Publisher DTO).
    *
-   * EnqueueMatchingMessageUseCase expects a domain entity with specific
-   * shape (content, media[], groupedId, formattingEntities).
+   * Strategy 1 (Pure DTO): Backend uses DTOs to decouple from ingestion-service
+   * domain entities. This mapper converts from HTTP DTO shape to Publisher DTO shape.
+   *
+   * Transformations:
+   * - ISO date strings → Date objects (publishedAt, ingestedAt)
+   * - Embed matchedKeywords from FilteredCryptoNewsMessage
+   * - Resolve media file paths for publisher consumption
+   * - Map media type: 'webpage' → 'document' (ingestion service uses 'webpage', publisher uses 'document')
    *
    * This is a lightweight adapter — NO validation, NO business logic.
-   * The DTO comes from ingestion-service (already validated).
+   * The DTO comes from FilteredCryptoNewsService (already filtered).
    */
-  private mapToEntity(
+  private mapToPublisherDto(
     dto: Awaited<
       ReturnType<typeof this.filteredNewsService.getMatchingMessages>
     >[number],
-  ): CryptoNewsMessage {
-    // Parse messageEntities JSON string (Telegram formatting)
-    const formattingEntities = dto.messageEntities ? dto.messageEntities : null;
+  ): EnqueueMessageDto {
+    // Map media array (HTTP DTO shape → Publisher DTO shape)
+    const media: EnqueueMessageMediaDto[] = dto.media.map((m) => ({
+      index: m.index,
+      type: this.mapMediaType(m.type),
+      filePath: this.resolveMediaFilePath(dto.channelId, dto.messageId, m),
+      mimeType: m.mimeType ?? undefined,
+      fileSize: m.fileSize ?? undefined,
+    }));
 
-    // Map media array (DTO shape → CryptoNewsMedia value object)
-    const media = dto.media.map((m) =>
-      CryptoNewsMedia.create({
-        index: m.index,
-        type: m.type,
-        filePath: m.filePath,
-        mimeType: m.mimeType,
-        fileSize: m.fileSize,
-      }),
-    );
-
-    // Construct domain entity (CryptoNewsMessage.create expects input object)
-    return CryptoNewsMessage.create({
+    // Return Publisher DTO
+    return {
       channelId: dto.channelId,
       messageId: dto.messageId,
-      title: dto.title,
       content: dto.content, // ← FILTERED content (already transformed by FilteredCryptoNewsService)
-      publishedAt: new Date(dto.publishedAt),
-      ingestedAt: new Date(dto.ingestedAt),
-      linkPreviewUrl: dto.linkPreviewUrl,
-      linkPreviewTitle: dto.linkPreviewTitle,
-      linkPreviewDescription: dto.linkPreviewDescription,
-      linkPreviewSiteName: dto.linkPreviewSiteName,
-      groupedId: dto.groupedId,
+      publishedAt: new Date(dto.publishedAt), // ISO string → Date
+      ingestedAt: new Date(dto.ingestedAt), // ISO string → Date
       media,
-      formattingEntities,
-    });
+      matchedKeywords: dto.matchedKeywords, // Embed matched keywords
+    };
+  }
+
+  /**
+   * Map media type from ingestion-service shape to publisher shape.
+   *
+   * Ingestion service uses 'webpage' for link previews.
+   * Publisher expects 'document' for non-photo/video media.
+   */
+  private mapMediaType(
+    type: 'photo' | 'video' | 'webpage',
+  ): 'photo' | 'video' | 'document' {
+    if (type === 'webpage') {
+      return 'document';
+    }
+    return type;
+  }
+
+  /**
+   * Resolve a publisher-consumable `filePath` for one DTO media item.
+   *
+   * Priority: (1) server-provided `filePath` when present (internal shapes);
+   * (2) absolute HTTP(S) `url` as-is — `ensureLocalFiles` in
+   * `ProcessNextQueuedArticleUseCase` downloads those directly; (3) otherwise
+   * reconstruct the ingestion-style local path
+   * `uploads/crypto-news/media/<channel>/<message>_<index>.<ext>` from the
+   * item coordinates. Case (3) is the live HTTP-API shape (`url` is a
+   * frontend-relative `/ingestion-api/media/...` path, unusable as-is): the
+   * publisher's `downloadFileFromIngestion` fallback parses exactly that
+   * local-path shape back into `GET /api/media/...` and downloads the bytes.
+   * Reconstructing it here needs no new config (the scheduler owns no
+   * ingestion baseUrl) and reuses the already-tested fallback chain.
+   */
+  private resolveMediaFilePath(
+    channelId: string,
+    messageId: number,
+    m: {
+      filePath?: string;
+      url?: string;
+      index: number;
+      mimeType: string | null;
+    },
+  ): string {
+    if (m.filePath && m.filePath.trim().length > 0) {
+      return m.filePath;
+    }
+    if (m.url && /^https?:\/\//.test(m.url)) {
+      return m.url;
+    }
+    return `uploads/crypto-news/media/${channelId}/${messageId}_${m.index}.${EnqueueMatchingCronScheduler.extensionFor(m.mimeType)}`;
+  }
+
+  private static extensionFor(mimeType: string | null): string {
+    switch ((mimeType ?? '').toLowerCase()) {
+      case 'image/jpeg':
+        return 'jpg';
+      case 'image/png':
+        return 'png';
+      case 'image/gif':
+        return 'gif';
+      case 'image/webp':
+        return 'webp';
+      case 'video/mp4':
+        return 'mp4';
+      case 'video/quicktime':
+        return 'mov';
+      default:
+        return 'bin';
+    }
   }
 }

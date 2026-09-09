@@ -11,13 +11,26 @@ import {
   isRefreshableDownloadError,
 } from 'telegram/ingestion/shared/api/mtproto/telegram-mtproto.utils';
 
+/**
+ * TelegramMediaDownloadService
+ *
+ * **Phase 5 (media-cohesion-refactor):**
+ * Media download responsibility fully migrated to ingestion-service. Backend no longer
+ * downloads media in any mode (SSE reads via HTTP, MTProto deprecated).
+ *
+ * This service receives a stub implementation of CryptoNewsMediaDownloader via DI.
+ * Any attempt to use media download methods throws errors directing users to SSE mode.
+ *
+ * @deprecated MTProto mode is deprecated. Use SSE mode (USE_SSE_INGESTION=true) instead.
+ */
 @Injectable()
 export class TelegramMediaDownloadService {
   private readonly logger = new Logger(TelegramMediaDownloadService.name);
 
   constructor(
     private readonly floodWaitHandler: FloodWaitHandlerService,
-    @Inject(forwardRef(() => CryptoNewsMediaDownloader))
+    // Stub injected (Phase 5) — mediaDownloader.saveToDisk() now throws error
+    // directing users to SSE mode. MTProto mode deprecated.
     private readonly mediaDownloader: CryptoNewsMediaDownloader,
     private readonly peerResolver: TelegramPeerResolver,
     private readonly clientManager: TelegramClientManager,

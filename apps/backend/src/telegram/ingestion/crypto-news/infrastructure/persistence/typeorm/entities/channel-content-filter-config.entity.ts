@@ -3,12 +3,9 @@ import {
   CreateDateColumn,
   Entity,
   Index,
-  JoinColumn,
-  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { CryptoNewsSourceEntity } from './crypto-news-source.entity';
 
 /**
  * TypeORM persistence shape for `ChannelContentFilterConfig`.
@@ -19,8 +16,10 @@ import { CryptoNewsSourceEntity } from './crypto-news-source.entity';
  * (default 'gi'). Filters are evaluated in `priority` order (ascending),
  * then by `created_at` for deterministic tie-breaking.
  *
- * FK to `crypto_news_sources.channel_id` with CASCADE delete ensures
- * filters are removed when their parent news source is deleted.
+ * `channel_id` is an OPAQUE varchar with NO FK (db-separation todo 4):
+ * crypto-news sources are owned by ingestion-service in its own DB, so the
+ * backend keeps no JOIN to `crypto_news_sources`. Orphan rules for unknown
+ * channels are kept (matching simply yields no filters for them).
  */
 @Entity({ name: 'channel_content_filter_configs' })
 @Index('idx_channel_content_filter_configs_ordering', [
@@ -34,10 +33,6 @@ export class ChannelContentFilterConfigEntity {
 
   @Column({ name: 'channel_id', type: 'varchar', length: 64 })
   public channelId!: string;
-
-  @ManyToOne(() => CryptoNewsSourceEntity, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'channel_id', referencedColumnName: 'channelId' })
-  public source!: CryptoNewsSourceEntity;
 
   @Column({ name: 'pattern', type: 'varchar', length: 512 })
   public pattern!: string;

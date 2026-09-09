@@ -199,12 +199,15 @@ export class SSEStreamController {
         }
 
         // Send backfill-complete event with count
-        const completePayload = `event: backfill-complete\ndata: ${JSON.stringify({
-          count: backfillEvents.length,
-          oldestTimestamp: backfillEvents[0].timestamp,
-          newestTimestamp: backfillEvents[backfillEvents.length - 1].timestamp,
-          message: `Backfill complete: ${backfillEvents.length} messages delivered`,
-        })}\n\n`;
+        const completePayload = `event: backfill-complete\ndata: ${JSON.stringify(
+          {
+            count: backfillEvents.length,
+            oldestTimestamp: backfillEvents[0].timestamp,
+            newestTimestamp:
+              backfillEvents[backfillEvents.length - 1].timestamp,
+            message: `Backfill complete: ${backfillEvents.length} messages delivered`,
+          },
+        )}\n\n`;
         response.write(completePayload);
 
         this.logger.log(
@@ -218,11 +221,13 @@ export class SSEStreamController {
       }
 
       // Send connection:established event after backfill
-      const establishedPayload = `event: connection:established\ndata: ${JSON.stringify({
-        clientId,
-        timestamp: new Date().toISOString(),
-        message: 'Connected to Ingestion Service SSE stream',
-      })}\n\n`;
+      const establishedPayload = `event: connection:established\ndata: ${JSON.stringify(
+        {
+          clientId,
+          timestamp: new Date().toISOString(),
+          message: 'Connected to Ingestion Service SSE stream',
+        },
+      )}\n\n`;
       response.write(establishedPayload);
 
       // Register client with StreamService for real-time events

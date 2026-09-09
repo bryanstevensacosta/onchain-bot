@@ -143,6 +143,29 @@ jobs:
           docker system df 2>&1 | head -20
           PCT=$(df / | tail -1 | awk '{print $5}' | tr -d '%'); if [ "$PCT" -gt 80 ]; then echo "::warning::disk ${PCT}% full after pull+prune"; fi
 
+      - name: Verify ingestion healthy before backend migrations (ordering gate)
+        run: |
+          # Code-before-schema law (db-separation todo 10): the backend drop
+          # migration (1860000000001) deletes the legacy crypto-news tables, so
+          # the ingestion-service MUST already serve them. The cutover order is
+          # enforced by SEQUENTIAL PRs (ingestion first, backend second), and
+          # this gate aborts the backend deploy if ingestion is not serving —
+          # even if the two workflows ever race on the same push to master.
+          echo "=== Ordering gate: ingestion must serve crypto-news sources ==="
+          for i in $(seq 1 12); do
+            if curl -sf http://localhost:3032/api/crypto-news/sources > /tmp/ingestion-gate.json 2>&1; then
+              echo "✅ Ingestion healthy on attempt $i (sources endpoint 200)"
+              head -c 300 /tmp/ingestion-gate.json; echo
+              break
+            fi
+            echo "⏳ Ingestion not serving (attempt $i/12), retrying in 10s..."
+            sleep 10
+            if [ "$i" -eq 12 ]; then
+              echo "::error::Ingestion-service is NOT serving :3032/api/crypto-news/sources after 120s. Aborting backend deploy: the drop migration must NOT run before the ingestion cutover (merge + deploy ingestion FIRST, then re-run this workflow)."
+              exit 1
+            fi
+          done
+
       - name: Deploy via compose (no build)
         run: |
           set -euo pipefail

@@ -7,6 +7,7 @@ export abstract class TelegramListenerPort {
     limit: number,
   ): Promise<TelegramRawMessage[]>;
   public abstract disconnect(): Promise<void>;
+  public abstract updateSubscribedChannels(channelIds: string[]): void;
   public abstract resolveChannelMetadata(
     channelId: string,
   ): Promise<ResolvedChannelMetadata>;

@@ -1,13 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { CryptoNewsIngestionClient } from 'telegram/crypto-news-integration/infrastructure/http/crypto-news-ingestion-client.service';
-import type { CryptoNewsMessageDto } from 'telegram/crypto-news-integration/infrastructure/http/crypto-news-ingestion-client.service';
-import { ContentFilterService } from 'telegram/ingestion/crypto-news/application/services/content-filter.service';
-import type { FilterRule } from 'telegram/ingestion/crypto-news/application/services/content-filter.service';
-import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
-import { KeywordRepository } from 'telegram/crypto-news-publisher/application/ports/keyword.repository';
-import { BlacklistPhraseRepository } from 'telegram/crypto-news-publisher/application/ports/blacklist-phrase.repository';
-import { Keyword } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
-import { BlacklistPhrase } from 'telegram/crypto-news-publisher/domain/entities/blacklist-phrase.entity';
+import { CryptoNewsIngestionClient } from '../../infrastructure/http/crypto-news-ingestion-client.service';
+import type { CryptoNewsMessageDto } from '../../infrastructure/http/crypto-news-ingestion-client.service';
+import { ContentFilterService } from '../../../ingestion/crypto-news/application/services/content-filter.service';
+import type { FilterRule } from '../../../ingestion/crypto-news/application/services/content-filter.service';
+import { ChannelFilterRepository } from '../../../ingestion/crypto-news/application/ports/channel-filter.repository';
+import { KeywordRepository } from '../../../crypto-news-publisher/application/ports/keyword.repository';
+import { BlacklistPhraseRepository } from '../../../crypto-news-publisher/application/ports/blacklist-phrase.repository';
+import { Keyword } from '../../../crypto-news-publisher/domain/entities/keyword.entity';
+import { BlacklistPhrase } from '../../../crypto-news-publisher/domain/entities/blacklist-phrase.entity';
 
 /**
  * Filtered crypto-news message with transformed content.
@@ -58,7 +58,7 @@ export class FilteredCryptoNewsService {
   constructor(
     private readonly ingestionClient: CryptoNewsIngestionClient,
     private readonly contentFilter: ContentFilterService,
-    private readonly sourceRepo: CryptoNewsSourceRepository,
+    private readonly channelFilters: ChannelFilterRepository,
     private readonly keywordRepo: KeywordRepository,
     private readonly blacklistRepo: BlacklistPhraseRepository,
   ) {}
@@ -153,7 +153,7 @@ export class FilteredCryptoNewsService {
   ): Promise<FilteredCryptoNewsMessage | null> {
     try {
       // Step 1: Load per-channel content filters
-      const filters = await this.sourceRepo.findFiltersByChannelId(
+      const filters = await this.channelFilters.findFiltersByChannelId(
         raw.channelId,
       );
 

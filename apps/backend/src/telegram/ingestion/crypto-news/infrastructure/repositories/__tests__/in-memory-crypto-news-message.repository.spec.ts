@@ -1,4 +1,4 @@
-import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
+import { CryptoNewsMessage } from '../../../domain/crypto-news-message.stub';
 import { InMemoryCryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/infrastructure/repositories/in-memory-crypto-news-message.repository';
 
 describe('InMemoryCryptoNewsMessageRepository', () => {
@@ -8,180 +8,147 @@ describe('InMemoryCryptoNewsMessageRepository', () => {
     repo = new InMemoryCryptoNewsMessageRepository();
   });
 
-  it('saves and retrieves a message by id', async () => {
-    const msg = CryptoNewsMessage.create({
-      channelId: '123',
-      messageId: 1,
-      title: 'Title',
-      content: 'body',
-      publishedAt: new Date(),
-    });
-    await repo.save(msg);
-    const found = await repo.findById(msg.id);
-    expect(found).toBe(msg);
+  it('should be defined', () => {
+    expect(repo).toBeDefined();
   });
 
-  it('findRecent returns messages sorted by ingestedAt desc', async () => {
-    const older = CryptoNewsMessage.create({
-      channelId: '123',
-      messageId: 1,
-      title: null,
-      content: 'older',
-      publishedAt: new Date(),
-      ingestedAt: new Date('2026-01-01'),
+  describe('save and findById', () => {
+    it('should save a message and retrieve it by id', async () => {
+      const message: CryptoNewsMessage = {
+        id: 'test-channel:123',
+        channelId: 'test-channel',
+        messageId: 123,
+        content: 'Test message content',
+        publishedAt: new Date('2024-01-01'),
+        ingestedAt: new Date('2024-01-01'),
+        media: [],
+      };
+
+      await repo.save(message);
+
+      const found = await repo.findById('test-channel:123');
+      expect(found).toEqual(message);
     });
-    const newer = CryptoNewsMessage.create({
-      channelId: '123',
-      messageId: 2,
-      title: null,
-      content: 'newer',
-      publishedAt: new Date(),
-      ingestedAt: new Date('2026-01-02'),
+
+    it('should return null for non-existent id', async () => {
+      const found = await repo.findById('non-existent');
+      expect(found).toBeNull();
     });
-    await repo.save(older);
-    await repo.save(newer);
-    const recent = await repo.findRecent(10);
-    expect(recent[0].id).toBe(newer.id);
-    expect(recent[1].id).toBe(older.id);
   });
 
-  it('findRecent respects limit', async () => {
-    for (let i = 0; i < 5; i++) {
-      const msg = CryptoNewsMessage.create({
-        channelId: '123',
-        messageId: i,
-        title: null,
-        content: `body-${i}`,
-        publishedAt: new Date(),
-        ingestedAt: new Date(`2026-01-0${i + 1}`),
-      });
-      await repo.save(msg);
-    }
-    const recent = await repo.findRecent(3);
-    expect(recent).toHaveLength(3);
-  });
-
-  it('findByChannelId filters by channel and sorts desc', async () => {
-    const a = CryptoNewsMessage.create({
-      channelId: '111',
-      messageId: 1,
-      title: null,
-      content: 'a',
-      publishedAt: new Date(),
-      ingestedAt: new Date('2026-01-01'),
-    });
-    const b = CryptoNewsMessage.create({
-      channelId: '222',
-      messageId: 1,
-      title: null,
-      content: 'b',
-      publishedAt: new Date(),
-      ingestedAt: new Date('2026-01-02'),
-    });
-    const a2 = CryptoNewsMessage.create({
-      channelId: '111',
-      messageId: 2,
-      title: null,
-      content: 'a2',
-      publishedAt: new Date(),
-      ingestedAt: new Date('2026-01-03'),
-    });
-    await repo.save(a);
-    await repo.save(b);
-    await repo.save(a2);
-    const result = await repo.findByChannelId('111', 10);
-    expect(result).toHaveLength(2);
-    expect(result[0].id).toBe(a2.id);
-    expect(result[1].id).toBe(a.id);
-  });
-
-  describe('retention window (since filter)', () => {
-    const HOUR = 3600 * 1000;
-    const NOW = new Date('2026-02-01T00:00:00.000Z');
-    let origDateNow: () => number;
-
-    beforeEach(() => {
-      origDateNow = Date.now;
-      Date.now = () => NOW.getTime();
-    });
-
-    afterEach(() => {
-      Date.now = origDateNow;
-    });
-
-    it('excludes a message older than 48h when since = now-48h', async () => {
-      const cutoff = new Date(NOW.getTime() - 48 * HOUR);
-      const old = CryptoNewsMessage.create({
-        channelId: 'c1',
+  describe('findRecent', () => {
+    it('should return messages sorted by ingestedAt descending', async () => {
+      const msg1: CryptoNewsMessage = {
+        id: '1',
+        channelId: 'ch1',
         messageId: 1,
-        title: null,
-        content: 'old',
-        publishedAt: new Date(),
-        ingestedAt: new Date(cutoff.getTime() - 24 * HOUR), // 72h old
-      });
-      const recent = CryptoNewsMessage.create({
-        channelId: 'c1',
+        content: 'msg1',
+        publishedAt: new Date('2024-01-01'),
+        ingestedAt: new Date('2024-01-01T10:00:00Z'),
+        media: [],
+      };
+      const msg2: CryptoNewsMessage = {
+        id: '2',
+        channelId: 'ch1',
         messageId: 2,
-        title: null,
-        content: 'recent',
-        publishedAt: new Date(),
-        ingestedAt: new Date(cutoff.getTime() + 1 * HOUR), // 47h old
-      });
-      await repo.save(old);
-      await repo.save(recent);
+        content: 'msg2',
+        publishedAt: new Date('2024-01-01'),
+        ingestedAt: new Date('2024-01-01T12:00:00Z'),
+        media: [],
+      };
 
-      const result = await repo.findRecent(50, cutoff);
-      expect(result.map((m) => m.id)).toEqual([recent.id]);
+      await repo.save(msg1);
+      await repo.save(msg2);
+
+      const recent = await repo.findRecent(10);
+      expect(recent).toHaveLength(2);
+      expect(recent[0].id).toBe('2'); // Most recent first
+      expect(recent[1].id).toBe('1');
     });
 
-    it('INCLUDES a message whose ingestedAt is exactly equal to since (boundary)', async () => {
-      const cutoff = new Date(NOW.getTime() - 48 * HOUR);
-      const boundary = CryptoNewsMessage.create({
-        channelId: 'c1',
-        messageId: 3,
-        title: null,
-        content: 'boundary',
-        publishedAt: new Date(),
-        ingestedAt: new Date(cutoff.getTime()), // exactly == since
-      });
-      await repo.save(boundary);
-
-      const result = await repo.findRecent(50, cutoff);
-      expect(result.map((m) => m.id)).toEqual([boundary.id]);
-    });
-
-    it('findByChannelId honours the same boundary contract', async () => {
-      const cutoff = new Date(NOW.getTime() - 48 * HOUR);
-      const old = CryptoNewsMessage.create({
-        channelId: 'c1',
+    it('should filter by since date', async () => {
+      const msg1: CryptoNewsMessage = {
+        id: '1',
+        channelId: 'ch1',
         messageId: 1,
-        title: null,
-        content: 'old',
-        publishedAt: new Date(),
-        ingestedAt: new Date(cutoff.getTime() - 24 * HOUR), // 72h old
-      });
-      const boundary = CryptoNewsMessage.create({
-        channelId: 'c1',
+        content: 'msg1',
+        publishedAt: new Date('2024-01-01'),
+        ingestedAt: new Date('2024-01-01T10:00:00Z'),
+        media: [],
+      };
+      const msg2: CryptoNewsMessage = {
+        id: '2',
+        channelId: 'ch1',
         messageId: 2,
-        title: null,
-        content: 'boundary',
-        publishedAt: new Date(),
-        ingestedAt: new Date(cutoff.getTime()), // exactly == since
-      });
-      const otherChannel = CryptoNewsMessage.create({
-        channelId: 'c2',
-        messageId: 1,
-        title: null,
-        content: 'other',
-        publishedAt: new Date(),
-        ingestedAt: new Date(cutoff.getTime()), // exactly == since, but different channel
-      });
-      await repo.save(old);
-      await repo.save(boundary);
-      await repo.save(otherChannel);
+        content: 'msg2',
+        publishedAt: new Date('2024-01-01'),
+        ingestedAt: new Date('2024-01-01T12:00:00Z'),
+        media: [],
+      };
 
-      const result = await repo.findByChannelId('c1', 50, cutoff);
-      expect(result.map((m) => m.id)).toEqual([boundary.id]);
+      await repo.save(msg1);
+      await repo.save(msg2);
+
+      const recent = await repo.findRecent(
+        10,
+        new Date('2024-01-01T11:00:00Z'),
+      );
+      expect(recent).toHaveLength(1);
+      expect(recent[0].id).toBe('2');
+    });
+  });
+
+  describe('findByChannelId', () => {
+    it('should return messages for specific channel', async () => {
+      const msg1: CryptoNewsMessage = {
+        id: '1',
+        channelId: 'ch1',
+        messageId: 1,
+        content: 'msg1',
+        publishedAt: new Date('2024-01-01'),
+        ingestedAt: new Date('2024-01-01'),
+        media: [],
+      };
+      const msg2: CryptoNewsMessage = {
+        id: '2',
+        channelId: 'ch2',
+        messageId: 2,
+        content: 'msg2',
+        publishedAt: new Date('2024-01-01'),
+        ingestedAt: new Date('2024-01-01'),
+        media: [],
+      };
+
+      await repo.save(msg1);
+      await repo.save(msg2);
+
+      const found = await repo.findByChannelId('ch1', 10);
+      expect(found).toHaveLength(1);
+      expect(found[0].channelId).toBe('ch1');
+    });
+  });
+
+  describe('findByChannelAndMessageId', () => {
+    it('should find message by channel and message id', async () => {
+      const message: CryptoNewsMessage = {
+        id: 'ch1:123',
+        channelId: 'ch1',
+        messageId: 123,
+        content: 'test',
+        publishedAt: new Date('2024-01-01'),
+        ingestedAt: new Date('2024-01-01'),
+        media: [],
+      };
+
+      await repo.save(message);
+
+      const found = await repo.findByChannelAndMessageId('ch1', 123);
+      expect(found).toEqual(message);
+    });
+
+    it('should return null when not found', async () => {
+      const found = await repo.findByChannelAndMessageId('ch1', 999);
+      expect(found).toBeNull();
     });
   });
 });

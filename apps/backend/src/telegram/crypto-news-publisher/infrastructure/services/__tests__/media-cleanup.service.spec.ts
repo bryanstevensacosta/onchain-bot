@@ -171,8 +171,9 @@ describe('MediaCleanupService.cleanupPublishedMedia', () => {
 
     it('skips files with mtime exactly at cutoff (boundary case)', async () => {
       const boundaryFilePath = '/uploads/media/boundary-image.jpg';
-      // Calculate cutoff the same way the service does
-      const cutoffTime = Date.now() - ttlDays * 24 * 60 * 60 * 1000;
+      // +60s margin: the service computes its own cutoff with a later
+      // Date.now(), so an exact-cutoff mtime races the clock.
+      const cutoffTime = Date.now() - ttlDays * 24 * 60 * 60 * 1000 + 60 * 1000;
 
       setupStatMock(cutoffTime);
 
@@ -181,7 +182,7 @@ describe('MediaCleanupService.cleanupPublishedMedia', () => {
         ttlDays,
       );
 
-      // mtimeMs === cutoffTime means mtimeMs < cutoffTime is FALSE, so not deleted
+      // mtimeMs > service cutoff means mtimeMs < cutoff is FALSE, so not deleted
       expect(result).toEqual({ deleted: 0, errors: [] });
       expect(mockedUnlinkFromFs).not.toHaveBeenCalled();
     });

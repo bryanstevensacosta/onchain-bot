@@ -21,12 +21,11 @@
  *     TELEGRAM_BOT_TOKEN, INGESTION_TELEGRAM_MTPROTO_API_ID/HASH/SESSION
  *
  *   Pipeline behaviour:
- *     INGESTION_TELEGRAM_SEED_* (KOL seed)
- *     INGESTION_TELEGRAM_SEED_NEWS (news seed)
  *     INGESTION_TELEGRAM_METADATA_CACHE_FILE
  *     INGESTION_TELEGRAM_BACKFILL_ENABLED
- USE_SSE_INGESTION, INGESTION_SERVICE_URL
- *     *     PUBLISHING_TELEGRAM_USE_REAL_MTPROTO/OUTPUT_CHANNEL,
+ *     USE_SSE_INGESTION, USE_SSE_CRYPTO_NEWS, USE_MOCK_INGESTION, INGESTION_SERVICE_URL
+ *     CRYPTO_NEWS_POLLING_INTERVAL_MINUTES
+ *     PUBLISHING_TELEGRAM_USE_REAL_MTPROTO/OUTPUT_CHANNEL,
  *     VIP_CALLS_BOT_TOKEN/OUTPUT_CHANNEL,
  *     CRYPTO_NEWS_BOT_TOKEN/OUTPUT_CHANNEL,
  *     CHAIN_DEXTER_BOT_TOKEN/WEBHOOK_SECRET/INGEST_MODE/POLLING_INTERVAL_MS/DEFAULT_TRADE_BUTTONS,
@@ -73,6 +72,10 @@
  *     Rotates daily at midnight (timezone = system local, America/Santo_Domingo).
  *     Only the current file + 1 previous rotation are kept.
  *     To override: set `LOG_DIR` and/or `LOG_FILE` env vars.
+ *
+ *   Note (2026-09-06): SEED-related env vars removed. Channels are now registered via:
+ *   - KOLs: POST /telegram-kol/identity/kols
+ *   - Crypto-news: POST {INGESTION_SERVICE_URL}/api/crypto-news/sources
  */
 import { registerAs } from '@nestjs/config';
 import { join } from 'path';
@@ -83,18 +86,6 @@ export interface HeliusNetworkConfig {
   parseTransaction: string;
   parseTransactionHistory: string;
   wsUrl: string;
-}
-
-export interface SeedKolEntry {
-  kolId: string;
-  handle?: string;
-  title?: string;
-}
-
-export interface SeedNewsChannelEntry {
-  channelId: string;
-  handle?: string;
-  title?: string;
 }
 
 export interface LlmConfigShape {
@@ -159,14 +150,6 @@ export interface AppConfig extends LlmConfigShape {
 
   ingestion: {
     telegram: {
-      seed: {
-        enabled: boolean;
-        channels: SeedKolEntry[];
-      };
-      newsSeed: {
-        enabled: boolean;
-        channels: SeedNewsChannelEntry[];
-      };
       metadataCache: {
         filePath: string;
       };
@@ -175,8 +158,13 @@ export interface AppConfig extends LlmConfigShape {
       };
     };
     useSse: boolean;
+    useSseCryptoNews: boolean;
     useMock: boolean;
     serviceUrl: string;
+  };
+
+  cryptoNews: {
+    pollingIntervalMinutes: number;
   };
 
   publishing: {
@@ -278,64 +266,6 @@ function parseHorizonList(raw: string): ReadonlyArray<number> {
   return nums.length > 0 ? nums : [24, 168, 720];
 }
 
-/**
- * Parse INGESTION_TELEGRAM_SEED_KOLS env var (format: "kolId|handle|title,...").
- *
- * Accepts the legacy INGESTION_TELEGRAM_SEED_CHANNELS env var as a
- * fallback for one release.
- */
-function parseSeedKols(raw: string | undefined): SeedKolEntry[] {
-  if (!raw) return [];
-  return raw
-    .split(',')
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0)
-    .map((entry) => {
-      const parts = entry.split('|').map((p) => p.trim());
-      const kolId = parts[0];
-      if (!kolId) {
-        throw new Error(
-          `Invalid INGESTION_TELEGRAM_SEED_KOLS entry: "${entry}". Expected at least a kolId.`,
-        );
-      }
-      const handle = parts[1] || undefined;
-      const title = parts[2] || undefined;
-      const out: SeedKolEntry = { kolId };
-      if (handle) out.handle = handle;
-      if (title) out.title = title;
-      return out;
-    });
-}
-
-/**
- * Parse INGESTION_TELEGRAM_SEED_NEWS env var (format: "channelId|handle|title,...").
- * Mirrors parseSeedKols but produces SeedNewsChannelEntry.
- */
-function parseSeedNewsChannels(
-  raw: string | undefined,
-): SeedNewsChannelEntry[] {
-  if (!raw) return [];
-  return raw
-    .split(',')
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0)
-    .map((entry) => {
-      const parts = entry.split('|').map((p) => p.trim());
-      const channelId = parts[0];
-      if (!channelId) {
-        throw new Error(
-          `Invalid INGESTION_TELEGRAM_SEED_NEWS entry: "${entry}". Expected at least a channelId.`,
-        );
-      }
-      const handle = parts[1] || undefined;
-      const title = parts[2] || undefined;
-      const out: SeedNewsChannelEntry = { channelId };
-      if (handle) out.handle = handle;
-      if (title) out.title = title;
-      return out;
-    });
-}
-
 export const appConfig = registerAs(
   'app',
   (): AppConfig => ({
@@ -421,25 +351,6 @@ export const appConfig = registerAs(
 
     ingestion: {
       telegram: {
-        seed: {
-          enabled:
-            (
-              process.env.INGESTION_TELEGRAM_SEED_ENABLED ?? 'true'
-            ).toLowerCase() === 'true',
-          channels: parseSeedKols(
-            process.env.INGESTION_TELEGRAM_SEED_KOLS ??
-              process.env.INGESTION_TELEGRAM_SEED_CHANNELS,
-          ),
-        },
-        newsSeed: {
-          enabled:
-            (
-              process.env.INGESTION_TELEGRAM_NEWS_SEED_ENABLED ?? 'true'
-            ).toLowerCase() === 'true',
-          channels: parseSeedNewsChannels(
-            process.env.INGESTION_TELEGRAM_SEED_NEWS,
-          ),
-        },
         metadataCache: (() => {
           const rawCacheFile =
             process.env.INGESTION_TELEGRAM_METADATA_CACHE_FILE;
@@ -458,9 +369,23 @@ export const appConfig = registerAs(
       },
       useSse:
         (process.env.USE_SSE_INGESTION ?? 'false').toLowerCase() === 'true',
+      useSseCryptoNews:
+        (process.env.USE_SSE_CRYPTO_NEWS ?? 'true').toLowerCase() === 'true',
       useMock:
         (process.env.USE_MOCK_INGESTION ?? 'false').toLowerCase() === 'true',
       serviceUrl: process.env.INGESTION_SERVICE_URL ?? 'http://localhost:3031',
+    },
+
+    cryptoNews: {
+      pollingIntervalMinutes: (() => {
+        const raw = process.env.CRYPTO_NEWS_POLLING_INTERVAL_MINUTES;
+        const parsed = raw ? parseInt(raw, 10) : 5;
+        // Validate between 1 and 60 minutes
+        if (!Number.isFinite(parsed) || parsed < 1 || parsed > 60) {
+          return 5; // Default to 5 if invalid
+        }
+        return parsed;
+      })(),
     },
 
     publishing: {

@@ -101,7 +101,7 @@ jobs:
           INGESTION_DATABASE_PORT: 5432
           INGESTION_DATABASE_USER: postgres
           INGESTION_DATABASE_PASSWORD: postgres
-          INGESTION_DATABASE_NAME: onchain_bot_test
+          INGESTION_DATABASE_NAME: onchain_bot_test_entity
           INGESTION_REDIS_HOST: localhost
           INGESTION_REDIS_PORT: 6379
           DATABASE_ENABLED: true

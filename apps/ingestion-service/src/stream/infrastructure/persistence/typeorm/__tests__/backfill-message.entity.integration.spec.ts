@@ -18,6 +18,18 @@ describe('BackfillMessageEntity - Integration', () => {
   let repository: Repository<BackfillMessageEntity>;
 
   beforeAll(async () => {
+    // SAFETY: this spec uses dropSchema:true — it must NEVER run against
+    // the dev database. Pin to the isolated test DB and refuse to boot
+    // if the env points at a non-test database (e.g. .env loaded by
+    // jest.setup.ts sets INGESTION_DATABASE_NAME=alpha_meta_token_scanner).
+    const testDatabase = 'onchain_bot_test_entity';
+    const envDatabase = process.env.INGESTION_DATABASE_NAME;
+    if (envDatabase && envDatabase !== testDatabase) {
+      throw new Error(
+        `[SAFETY] Refusing to run integration spec with dropSchema:true against database "${envDatabase}". ` +
+          `Expected "${testDatabase}". Unset INGESTION_DATABASE_NAME or point it at the test DB.`,
+      );
+    }
     module = await Test.createTestingModule({
       imports: [
         TypeOrmModule.forRoot({
@@ -26,8 +38,7 @@ describe('BackfillMessageEntity - Integration', () => {
           port: parseInt(process.env.INGESTION_DATABASE_PORT || '5432', 10),
           username: process.env.INGESTION_DATABASE_USER || 'postgres',
           password: process.env.INGESTION_DATABASE_PASSWORD || 'postgres',
-          database:
-            process.env.INGESTION_DATABASE_NAME || 'onchain_bot_test_entity',
+          database: testDatabase,
           entities: [BackfillMessageEntity],
           synchronize: true, // Create schema in test DB
           dropSchema: true, // Clean slate for test isolation

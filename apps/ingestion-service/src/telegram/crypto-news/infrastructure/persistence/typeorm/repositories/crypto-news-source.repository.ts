@@ -64,6 +64,32 @@ export class CryptoNewsSourceRepository {
   }
 
   /**
+   * Find all crypto-news sources (including inactive ones).
+   *
+   * Used by the API to list all sources for management UI.
+   */
+  async findAll(): Promise<ReadonlyArray<CryptoNewsSourceEntity>> {
+    try {
+      const sources = await this.repo.find({
+        order: {
+          addedAt: 'DESC',
+        },
+      });
+
+      this.logger.log(
+        `Found ${sources.length} total crypto-news sources in DB`,
+      );
+
+      return sources;
+    } catch (error) {
+      this.logger.error(
+        `Failed to query all crypto-news sources: ${(error as Error).message}`,
+      );
+      return [];
+    }
+  }
+
+  /**
    * Check if a specific channel is an active crypto-news source.
    *
    * Used by the listener adapter to determine if media should be downloaded
@@ -153,5 +179,22 @@ export class CryptoNewsSourceRepository {
       lifecycleStatus: 'ACTIVE',
     });
     return source;
+  }
+
+  /**
+   * Delete a crypto-news source by channel ID.
+   *
+   * @param channelId - Telegram channel ID
+   */
+  async delete(channelId: string): Promise<void> {
+    try {
+      await this.repo.delete({ channelId });
+      this.logger.log(`Deleted crypto-news source: ${channelId}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to delete crypto-news source ${channelId}: ${(error as Error).message}`,
+      );
+      throw error;
+    }
   }
 }

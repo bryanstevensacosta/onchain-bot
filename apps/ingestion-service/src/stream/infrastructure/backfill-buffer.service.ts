@@ -107,7 +107,10 @@ export class BackfillBufferService implements OnModuleInit {
       const event = this.ringBuffer[i];
       if (event !== null && event !== undefined) {
         // Apply both timestamp filter AND 72-hour retention window
-        if (event.timestamp >= sinceTimestamp && event.timestamp >= cutoffTimestamp) {
+        if (
+          event.timestamp >= sinceTimestamp &&
+          event.timestamp >= cutoffTimestamp
+        ) {
           events.push(event);
         }
       }

@@ -18,9 +18,10 @@ import { LastSeenManager } from '../../infrastructure/services/last-seen-manager
 import { MessageQueue } from '../../infrastructure/services/message-queue';
 import { TelegramPeerResolver } from '../../infrastructure/services/telegram-peer-resolver';
 import { FloodWaitHandlerService } from '../../infrastructure/services/flood-wait-handler.service';
-import { MediaDownloaderService } from 'media/application/services/media-downloader.service';
 import { CryptoNewsSourceRepository } from 'telegram/crypto-news/infrastructure/persistence/typeorm/repositories/crypto-news-source.repository';
 import { Api } from 'telegram';
+import { CryptoNewsMessageTransformer } from 'shared/telegram/transformation';
+import { TelegramMediaExtractorService } from '../../application/services/telegram-media-extractor.service';
 
 /**
  * TelegramMtprotoListenerAdapter - MTProto adapter for ingestion-service
@@ -55,8 +56,9 @@ export class TelegramMtprotoListenerAdapter
     private readonly clientManager: TelegramClientManager,
     private readonly lastSeenManager: LastSeenManager,
     private readonly floodWaitHandler: FloodWaitHandlerService,
-    private readonly mediaDownloader: MediaDownloaderService,
     private readonly cryptoNewsSourceRepo: CryptoNewsSourceRepository,
+    private readonly messageTransformer: CryptoNewsMessageTransformer, // Phase 5: Shared transformation
+    private readonly mediaExtractor: TelegramMediaExtractorService, // Phase 5.2: Extracted media download
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -133,10 +135,11 @@ export class TelegramMtprotoListenerAdapter
     void this.startPollingLoop();
 
     // Yield messages from queue
+    // FIX: Drain queue completely before waiting, messages may arrive while yielding
     while (this.running) {
-      if (this.messageQueue.length > 0) {
+      // Drain all pending messages before waiting for new ones
+      while (this.messageQueue.length > 0) {
         yield this.messageQueue.shift()!;
-        continue;
       }
       await this.messageQueue.waitForItem();
     }
@@ -184,22 +187,32 @@ export class TelegramMtprotoListenerAdapter
   }
 
   /**
-   * Polling loop for catching up on missed messages
-   * Polls all subscribed channels/bots - crypto-news sources may be bots without -100 prefix
+   * Polling loop for catching up on missed messages.
+   *
+   * SCALABLE DESIGN: Polls dynamically based on current subscribedChannelIds.
+   * When channels are added/removed via DB, they automatically start/stop
+   * being polled in the next iteration (no listener restart required).
+   *
+   * This prevents message loss during channel updates and allows true
+   * zero-downtime scaling.
    */
   private async startPollingLoop(): Promise<void> {
-    const peers = [...this.subscribedChannelIds];
-    if (peers.length === 0) return;
-
-    this.logger.log(
-      `Starting polling loop for ${peers.length} peer(s) (channels and crypto-news bots)`,
-    );
+    this.logger.log('Starting polling loop (dynamic channel refresh)');
 
     // Simple polling every 30 seconds
     while (this.running) {
       await this.sleep(30_000);
 
       if (!this.running) break;
+
+      // DYNAMIC: Get current channel list on each iteration
+      // This picks up changes from DB without restarting the listener
+      const peers = [...this.subscribedChannelIds];
+
+      if (peers.length === 0) {
+        this.logger.debug('No channels to poll (skipping iteration)');
+        continue;
+      }
 
       for (const peerId of peers) {
         if (!this.running) break;
@@ -278,7 +291,12 @@ export class TelegramMtprotoListenerAdapter
 
   /**
    * Transform raw Telegram message to TelegramRawMessage format
-   * Downloads media only for crypto-news channels
+   * 
+   * Phase 5.2 Refactor: Fully delegated transformation pipeline:
+   * - Text extraction → CryptoNewsMessageTransformer (4-source cascade)
+   * - Media metadata → CryptoNewsMessageTransformer
+   * - Media download → TelegramMediaExtractorService (crypto-news only)
+   * - Entity normalization → CryptoNewsMessageTransformer
    */
   private async transformMessage(
     peerId: string,
@@ -291,155 +309,51 @@ export class TelegramMtprotoListenerAdapter
       groupedId?: unknown;
     },
   ): Promise<TelegramRawMessage> {
-    // DEBUG: Log raw message properties
-    this.logger.debug(
-      `[MSG-TRANSFORM-DEBUG] ${peerId}:${msg.id} - message field: "${msg.message}" (type: ${typeof msg.message}, length: ${msg.message?.length ?? 0})`,
-    );
+    // Step 1: Transform text + metadata using shared transformer
+    const transformed = this.messageTransformer.transform({
+      ...msg,
+      peerId,
+    });
 
-    // DETAILED DEBUG for message 167
-    if (msg.id === 167) {
-      this.logger.log(
-        `[MSG-167-FULL-DEBUG] Full message object: ${JSON.stringify(
-          {
-            id: msg.id,
-            message: msg.message,
-            text: (msg as any).text,
-            date: msg.date,
-            media: msg.media
-              ? { className: (msg.media as any).className }
-              : null,
-            entities: msg.entities,
-            groupedId: msg.groupedId,
-          },
-          null,
-          2,
-        )}`,
-      );
+    if (!transformed) {
+      throw new Error(`Failed to transform message ${peerId}:${msg.id}`);
     }
 
-    let media: TelegramRawMessage['media'] = undefined;
+    // Step 2: Download media for crypto-news channels (if applicable)
+    let media = transformed.media.length > 0 
+      ? (transformed.media as unknown as TelegramMediaAttachment[]) 
+      : undefined;
 
-    // Download media only for crypto-news channels (not KOL)
-    if (msg.media && this.isCryptoNewsChannel(peerId)) {
-      this.logger.debug(
-        `[MEDIA-DEBUG] ${peerId}:${msg.id} - Attempting to download media...`,
-      );
+    if (msg.media && this.isCryptoNewsChannel(peerId) && transformed.media.length > 0) {
       try {
-        media = await this.extractAndDownloadMedia(peerId, msg.id, msg.media);
-        this.logger.debug(
-          `[MEDIA-DEBUG] ${peerId}:${msg.id} - Media downloaded successfully: ${JSON.stringify(media)}`,
+        const downloaded = await this.mediaExtractor.extractAndDownload(
+          this.clientManager.ensureClient(),
+          peerId,
+          msg.id,
+          msg.media,
         );
+        
+        if (downloaded && downloaded.length > 0) {
+          media = downloaded; // Replace metadata-only with downloaded (has filePath)
+        }
       } catch (error) {
         this.logger.error(
-          `[MEDIA-DEBUG] Failed to download media for ${peerId}:${msg.id}: ${(error as Error).message}`,
+          `Failed to download media for ${peerId}:${msg.id}: ${(error as Error).message}`,
         );
-        // Continue without media rather than failing the whole message
+        // Continue with metadata-only (no filePath)
       }
-    } else {
-      this.logger.debug(
-        `[MEDIA-DEBUG] ${peerId}:${msg.id} - Skipping media download (hasMedia: ${!!msg.media}, isCryptoNews: ${this.isCryptoNewsChannel(peerId)})`,
-      );
     }
 
-    const extractedText = this.extractAllText(peerId, msg);
-
-    // DEBUG: Log final text assignment
-    if (this.isCryptoNewsChannel(peerId)) {
-      this.logger.log(
-        `[RAW-MESSAGE-DEBUG] ${peerId}:${msg.id} - Assigning text to RawMessage: "${extractedText}" (length: ${extractedText.length})`,
-      );
-    }
-
+    // Step 3: Return unified result
     return {
-      peerId,
-      messageId: msg.id,
-      text: extractedText,
-      occurredAt: new Date(msg.date * 1000),
-      entities: msg.entities as TelegramRawMessage['entities'],
+      peerId: transformed.peerId,
+      messageId: transformed.id,
+      text: transformed.text,
+      occurredAt: transformed.occurredAt,
+      entities: transformed.entities,
       media,
-      groupedId: msg.groupedId ? (msg.groupedId as bigint | string) : undefined,
+      groupedId: transformed.groupedId ?? undefined,
     };
-  }
-
-  /**
-   * Extract all possible text from a message
-   * Checks: message, text property, media caption, forwarded message
-   */
-  private extractAllText(peerId: string, msg: any): string {
-    const isCryptoNews = this.isCryptoNewsChannel(peerId);
-
-    // DEBUG: Log all text fields for crypto-news messages
-    if (isCryptoNews) {
-      this.logger.debug(
-        `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - Available text fields: ${JSON.stringify(
-          {
-            message: msg.message,
-            text: msg.text,
-            mediaCaption: msg.media ? msg.media.caption : null,
-            _text: msg._text,
-            fwdFrom: msg.fwdFrom ? 'present' : 'absent',
-            fwdFromMessage: msg.fwdFrom ? msg.fwdFrom.message : null,
-          },
-        )}`,
-      );
-    }
-
-    // Priority order: message field, text property, media caption, forwarded message
-    if (msg.message && msg.message.trim()) {
-      const extracted = msg.message;
-      if (isCryptoNews) {
-        this.logger.debug(
-          `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - Extracted from msg.message: "${extracted}" (length: ${extracted.length})`,
-        );
-      }
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-      return extracted;
-    }
-
-    if (msg.text && typeof msg.text === 'string' && msg.text.trim()) {
-      const extracted = msg.text;
-      if (isCryptoNews) {
-        this.logger.debug(
-          `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - Extracted from msg.text: "${extracted}" (length: ${extracted.length})`,
-        );
-      }
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-      return extracted;
-    }
-
-    // Check media caption
-    if (msg.media) {
-      const caption = msg.media.caption;
-      if (caption && typeof caption === 'string' && caption.trim()) {
-        if (isCryptoNews) {
-          this.logger.debug(
-            `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - Extracted from media.caption: "${caption}" (length: ${caption.length})`,
-          );
-        }
-        return caption;
-      }
-    }
-
-    // Check forwarded message
-    if (msg.fwdFrom) {
-      const fwdMessage = msg.fwdFrom.message;
-      if (fwdMessage && typeof fwdMessage === 'string' && fwdMessage.trim()) {
-        if (isCryptoNews) {
-          this.logger.debug(
-            `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - Extracted from fwdFrom.message: "${fwdMessage}" (length: ${fwdMessage.length})`,
-          );
-        }
-        return fwdMessage;
-      }
-    }
-
-    if (isCryptoNews) {
-      this.logger.debug(
-        `[TEXT-EXTRACTION-DEBUG] ${peerId}:${msg.id} - No text found, returning empty string`,
-      );
-    }
-
-    return '';
   }
 
   /**
@@ -482,71 +396,6 @@ export class TelegramMtprotoListenerAdapter
     return isMatch;
   }
 
-  /**
-   * Extract and download media attachments from Telegram message
-   */
-  private async extractAndDownloadMedia(
-    peerId: string,
-    messageId: number,
-    media: unknown,
-  ): Promise<TelegramRawMessage['media']> {
-    const result: TelegramMediaAttachment[] = [];
-
-    // Handle single photo
-    if (media instanceof Api.MessageMediaPhoto && media.photo) {
-      const photo = media.photo as Api.Photo;
-      const downloaded = await this.mediaDownloader.download(
-        this.clientManager.ensureClient(),
-        peerId,
-        messageId,
-        0,
-        media,
-      );
-      result.push({
-        type: 'photo',
-        index: 0,
-        fileId: photo.id.toString(),
-        accessHash: photo.accessHash.toString(),
-        fileReference: Buffer.from(photo.fileReference).toString('base64'),
-        mimeType: downloaded.mimeType,
-        dcId: photo.dcId,
-        date: photo.date,
-        filePath: downloaded.filePath,
-        fileSize: downloaded.fileSize,
-      });
-    }
-
-    // Handle document (video, file, etc.)
-    if (media instanceof Api.MessageMediaDocument && media.document) {
-      const doc = media.document as Api.Document;
-      const isVideo = doc.mimeType?.startsWith('video/') ?? false;
-
-      if (isVideo) {
-        const downloaded = await this.mediaDownloader.download(
-          this.clientManager.ensureClient(),
-          peerId,
-          messageId,
-          0,
-          media,
-        );
-        result.push({
-          type: 'video',
-          index: 0,
-          fileId: doc.id.toString(),
-          accessHash: doc.accessHash.toString(),
-          fileReference: Buffer.from(doc.fileReference).toString('base64'),
-          mimeType: downloaded.mimeType,
-          dcId: doc.dcId,
-          date: doc.date,
-          filePath: downloaded.filePath,
-          fileSize: downloaded.fileSize,
-        });
-      }
-    }
-
-    return result.length > 0 ? result : undefined;
-  }
-
   async backfill(
     _channelId: string,
     _limit: number,
@@ -559,20 +408,65 @@ export class TelegramMtprotoListenerAdapter
     this.messageQueue.flush();
   }
 
+  /**
+   * Update the list of subscribed channels without restarting the listener.
+   *
+   * SCALABLE DESIGN: New channels are automatically picked up by the polling
+   * loop in the next iteration (every 30s). Removed channels stop being polled.
+   * No listener restart required = zero message loss.
+   *
+   * @param channelIds - New list of channel IDs to subscribe to
+   */
+  updateSubscribedChannels(channelIds: string[]): void {
+    const added = channelIds.filter(
+      (id) => !this.subscribedChannelIds.includes(id),
+    );
+    const removed = this.subscribedChannelIds.filter(
+      (id) => !channelIds.includes(id),
+    );
+
+    if (added.length > 0 || removed.length > 0) {
+      this.logger.log(
+        `Channel list updated: ${this.subscribedChannelIds.length} → ${channelIds.length} ` +
+          `(+${added.length} added, -${removed.length} removed)`,
+      );
+
+      if (added.length > 0) {
+        this.logger.log(`New channels: ${added.join(', ')}`);
+      }
+      if (removed.length > 0) {
+        this.logger.log(`Removed channels: ${removed.join(', ')}`);
+      }
+
+      this.subscribedChannelIds = [...channelIds];
+      this.logger.log(
+        '✅ Channels updated — polling loop will pick up changes in next iteration (~30s)',
+      );
+    }
+  }
+
   async resolveChannelMetadata(
     channelId: string,
   ): Promise<ResolvedChannelMetadata> {
-    return this.peerResolver.resolveChannelMetadata(
-      this.clientManager.ensureClient(),
-      channelId,
-    );
+    const client = this.clientManager.ensureClient();
+    
+    // Ensure client is connected before resolving metadata
+    if (!client.connected) {
+      await this.clientManager.connect();
+    }
+    
+    return this.peerResolver.resolveChannelMetadata(client, channelId);
   }
 
   async joinChannel(peerId: string): Promise<JoinChannelResult> {
-    return this.peerResolver.joinChannel(
-      this.clientManager.ensureClient(),
-      peerId,
-    );
+    const client = this.clientManager.ensureClient();
+    
+    // Ensure client is connected before joining channel
+    if (!client.connected) {
+      await this.clientManager.connect();
+    }
+    
+    return this.peerResolver.joinChannel(client, peerId);
   }
 
   private sleep(ms: number): Promise<void> {

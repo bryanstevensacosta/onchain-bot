@@ -75,6 +75,17 @@ describe('Backfill Integration Tests', () => {
   }
 
   beforeAll(async () => {
+    // SAFETY: this spec TRUNCATEs/clears tables — it must NEVER run against
+    // the dev database (jest.setup.ts loads .env, which points
+    // INGESTION_DATABASE_NAME at alpha_meta_token_scanner).
+    const testDatabase =
+      process.env.INGESTION_DATABASE_NAME || 'onchain_bot_test';
+    if (!/(_test|_test_entity)$/.test(testDatabase)) {
+      throw new Error(
+        `[SAFETY] Refusing to run integration spec against non-test database "${testDatabase}". ` +
+          `Unset INGESTION_DATABASE_NAME or point it at a *_test database.`,
+      );
+    }
     module = await Test.createTestingModule({
       imports: [
         TypeOrmModule.forRoot({
@@ -118,7 +129,7 @@ describe('Backfill Integration Tests', () => {
   beforeEach(async () => {
     // ROBUST cleanup strategy: Poll until DB is actually empty
     // (fire-and-forget persistence makes timing unpredictable)
-    
+
     const maxAttempts = 10;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       // Clear DB
@@ -127,18 +138,20 @@ describe('Backfill Integration Tests', () => {
       } catch (error) {
         await repository.clear();
       }
-      
+
       // Wait a bit for any in-flight writes
       await new Promise((resolve) => setTimeout(resolve, 200));
-      
+
       // Verify DB is empty
       const count = await repository.count();
       if (count === 0) {
         break; // Success! DB is clean
       }
-      
+
       if (attempt === maxAttempts - 1) {
-        console.warn(`⚠️  DB still has ${count} records after ${maxAttempts} cleanup attempts`);
+        console.warn(
+          `⚠️  DB still has ${count} records after ${maxAttempts} cleanup attempts`,
+        );
       }
     }
 
@@ -368,9 +381,7 @@ describe('Backfill Integration Tests', () => {
     expect(messages.length).toBe(10);
 
     for (let i = 1; i < messages.length; i++) {
-      expect(messages[i].timestamp).toBeGreaterThan(
-        messages[i - 1].timestamp,
-      );
+      expect(messages[i].timestamp).toBeGreaterThan(messages[i - 1].timestamp);
     }
 
     // Verify specific order: should be 1, 2, 3, ..., 10
@@ -700,10 +711,12 @@ describe('Backfill Integration Tests', () => {
       backfillBuffer.add(event);
     }
     const addEndTime = Date.now();
-    console.log(`Add ${MESSAGE_COUNT} messages: ${addEndTime - addStartTime}ms`);
+    console.log(
+      `Add ${MESSAGE_COUNT} messages: ${addEndTime - addStartTime}ms`,
+    );
 
-    // Wait for database persistence
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    // Wait for database persistence (5s for CI with 1500 messages + fire-and-forget)
+    await new Promise((resolve) => setTimeout(resolve, 5000));
 
     // Verify database has all messages
     const dbCount = await repository.count();

@@ -1,14 +1,1 @@
-{
-  "schema_version": 2,
-  "active_work_id": "url-divergence-penalty-signal",
-  "works": {
-    "url-divergence-penalty-signal": {
-      "work_id": "url-divergence-penalty-signal",
-      "active_plan": ".omo/plans/url-divergence-penalty-signal.md",
-      "plan_name": "url-divergence-penalty-signal",
-      "session_ids": ["codex:current"],
-      "status": "completed",
-      "worktree_path": null
-    }
-  }
-}
+{"active_work_id": "db-separation", "schema_version": 2, "works": {"db-separation": {"active_plan": ".omo/plans/db-separation.md", "plan_name": "db-separation", "session_ids": ["codex:opencode:ses_f8138e88cffeqUkUS3Vr875FiO"], "status": "active", "worktree_path": null}, "url-divergence-penalty-signal": {"active_plan": ".omo/plans/url-divergence-penalty-signal.md", "plan_name": "url-divergence-penalty-signal", "session_ids": ["codex:current"], "status": "completed", "worktree_path": null}}}

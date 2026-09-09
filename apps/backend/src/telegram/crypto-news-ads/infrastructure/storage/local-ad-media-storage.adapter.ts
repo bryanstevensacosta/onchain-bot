@@ -1,28 +1,12 @@
-import { promises as fs } from 'fs';
-import * as path from 'path';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as path from 'path';
 import type { AppConfig } from 'shared/common/config/app.config';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import { AdMediaStoragePort } from 'telegram/crypto-news-ads/application/ports/ad-media-storage.port';
-
-/**
- * Maps a sniffed media MIME type to its on-disk extension. Anything
- * outside the supported image/video formats falls back to `.bin` (the
- * upload use cases reject such MIMEs before ever reaching us).
- *
- * `video/mp4` is the ONLY video format accepted: Telegram plays inline
- * only MP4 (H.264) — QuickTime/MKV fall back to Document (finding #4).
- */
-const MIME_TO_EXT: Readonly<Record<string, string>> = {
-  'image/png': '.png',
-  'image/jpeg': '.jpg',
-  'image/webp': '.webp',
-  'image/gif': '.gif',
-  'video/mp4': '.mp4',
-};
-
-const DEFAULT_EXT = '.bin';
+import { BaseFileSystemAdapter } from '@ingestion-service/media/core/base-file-system-adapter';
+import { MimeTypeResolver } from '@ingestion-service/media/utils/mime-type-resolver';
+import { AdMediaPathBuilder } from '../ad-media-path-builder';
 
 /**
  * Hard cap on any single media write (bytes) — the Bot API local-upload
@@ -44,15 +28,23 @@ const MAX_MEDIA_BYTES = 50 * 1024 * 1024;
  * `remove` only ever resolves RELATIVE paths (the ones this adapter
  * returns): an absolute input or a `..`-escaping one throws VALIDATION
  * rather than touching anything outside the uploads root.
+ *
+ * Extends {@link BaseFileSystemAdapter} for shared file operations.
  */
 @Injectable()
 export class LocalAdMediaStorageAdapter extends AdMediaStoragePort {
-  private readonly root: string;
+  private readonly fsAdapter: BaseFileSystemAdapter;
+  private readonly pathBuilder: AdMediaPathBuilder;
+  private readonly uploadsRoot: string;
 
   public constructor(config: ConfigService) {
     super();
     const appCfg = config.getOrThrow<AppConfig>('app');
-    this.root = appCfg.uploadsRoot;
+    this.uploadsRoot = appCfg.uploadsRoot;
+
+    // Create concrete instance for file I/O
+    this.fsAdapter = new (class extends BaseFileSystemAdapter {})();
+    this.pathBuilder = new AdMediaPathBuilder(this.uploadsRoot);
   }
 
   public async store(
@@ -63,28 +55,28 @@ export class LocalAdMediaStorageAdapter extends AdMediaStoragePort {
     if (buffer.byteLength > MAX_MEDIA_BYTES) {
       throw new DomainError(ErrorCode.VALIDATION, 'file exceeds 50 MB');
     }
-    const id = crypto.randomUUID();
-    const ext = MIME_TO_EXT[mimeType] ?? DEFAULT_EXT;
-    const targetDir = path.join(this.root, 'crypto-news-ads', adId);
-    await fs.mkdir(targetDir, { recursive: true });
-    const fileName = `${id}${ext}`;
-    await fs.writeFile(path.join(targetDir, fileName), buffer);
+
+    const uuid = crypto.randomUUID();
+    const extension = MimeTypeResolver.getExtensionFromMimeType(mimeType);
+    const absolutePath = this.pathBuilder.buildAdMediaPath(
+      adId,
+      uuid,
+      extension,
+    );
+
+    await this.fsAdapter.write(absolutePath, buffer);
+
+    // Extract relative path (strip uploads root prefix)
+    const relativePath = this.extractRelativePath(absolutePath);
     return {
-      relativePath: `crypto-news-ads/${adId}/${fileName}`,
+      relativePath,
       size: buffer.byteLength,
     };
   }
 
   public async remove(relativePath: string): Promise<void> {
-    const resolvedRoot = path.resolve(this.root);
-    const target = path.resolve(this.root, relativePath);
-    if (!target.startsWith(resolvedRoot + path.sep)) {
-      throw new DomainError(
-        ErrorCode.VALIDATION,
-        `media path escapes the uploads root: ${relativePath}`,
-      );
-    }
-    await fs.rm(target, { force: true });
+    const absolutePath = this.resolveAndValidatePath(relativePath);
+    await this.fsAdapter.delete(absolutePath);
   }
 
   public async storeLibraryFile(
@@ -95,27 +87,74 @@ export class LocalAdMediaStorageAdapter extends AdMediaStoragePort {
     if (buffer.byteLength > MAX_MEDIA_BYTES) {
       throw new DomainError(ErrorCode.VALIDATION, 'file exceeds 50 MB');
     }
-    const id = contentHash;
-    const ext = MIME_TO_EXT[mimeType] ?? DEFAULT_EXT;
-    const targetDir = path.join(this.root, 'crypto-news-ads-library');
-    await fs.mkdir(targetDir, { recursive: true });
-    const fileName = `${id}${ext}`;
-    await fs.writeFile(path.join(targetDir, fileName), buffer);
+
+    const extension = MimeTypeResolver.getExtensionFromMimeType(mimeType);
+    const absolutePath = this.pathBuilder.buildLibraryMediaPathFromHash(
+      contentHash,
+      extension,
+    );
+
+    await this.fsAdapter.write(absolutePath, buffer);
+
+    // Extract relative path (strip uploads root prefix)
+    const relativePath = this.extractRelativePath(absolutePath);
     return {
-      relativePath: `crypto-news-ads-library/${fileName}`,
+      relativePath,
       size: buffer.byteLength,
     };
   }
 
   public async readFile(relativePath: string): Promise<Buffer> {
-    const resolvedRoot = path.resolve(this.root);
-    const target = path.resolve(this.root, relativePath);
-    if (!target.startsWith(resolvedRoot + path.sep)) {
+    const absolutePath = this.resolveAndValidatePath(relativePath);
+    return this.fsAdapter.read(absolutePath);
+  }
+
+  /**
+   * Extract relative path by removing uploads root prefix.
+   *
+   * @param absolutePath - Full path within uploads root
+   * @returns Relative path (e.g., 'crypto-news-ads/abc123/file.jpg')
+   */
+  private extractRelativePath(absolutePath: string): string {
+    const resolvedRoot = path.resolve(this.uploadsRoot);
+    const resolvedPath = path.resolve(absolutePath);
+
+    if (!resolvedPath.startsWith(resolvedRoot + path.sep)) {
+      throw new Error(`Path ${absolutePath} is not within uploads root`);
+    }
+
+    // Strip root prefix + separator
+    return resolvedPath.slice(resolvedRoot.length + path.sep.length);
+  }
+
+  /**
+   * Resolve relative path to absolute and validate it's within uploads root.
+   *
+   * Prevents path traversal attacks by validating the resolved path.
+   *
+   * @param relativePath - Relative path from database
+   * @returns Absolute path within uploads root
+   * @throws DomainError if path escapes uploads root
+   */
+  private resolveAndValidatePath(relativePath: string): string {
+    // Reject absolute paths immediately
+    if (path.isAbsolute(relativePath)) {
       throw new DomainError(
         ErrorCode.VALIDATION,
         `media path escapes the uploads root: ${relativePath}`,
       );
     }
-    return fs.readFile(target);
+
+    const resolvedRoot = path.resolve(this.uploadsRoot);
+    const resolvedPath = path.resolve(this.uploadsRoot, relativePath);
+
+    if (!resolvedPath.startsWith(resolvedRoot + path.sep)) {
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        `media path escapes the uploads root: ${relativePath}`,
+      );
+    }
+
+    return resolvedPath;
   }
 }

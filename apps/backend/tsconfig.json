@@ -25,7 +25,11 @@
       "settings/*": ["src/settings/*"],
       "data-provider/*": ["src/data-provider/*"],
       "health/*": ["src/health/*"],
-      "src/*": ["src/*"]
+      "src/*": ["src/*"],
+      "@ingestion-service/media/*": ["../ingestion-service/src/shared/media/*"],
+      "@ingestion-service/telegram/*": [
+        "../ingestion-service/src/shared/telegram/*"
+      ]
     }
   },
   "exclude": ["src/**/*.spec.ts", "src/**/*.spec.ts.bak"]

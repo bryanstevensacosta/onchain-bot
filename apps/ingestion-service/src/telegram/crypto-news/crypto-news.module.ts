@@ -3,10 +3,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { SharedModule } from '../shared/shared.module';
 import { CryptoNewsMessageEntity } from './infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
 import { CryptoNewsMessageMediaEntity } from './infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
-import { ChannelContentFilterConfigEntity } from './infrastructure/persistence/typeorm/entities/channel-content-filter-config.entity';
 import { CryptoNewsMessageRepository } from './infrastructure/persistence/typeorm/repositories/crypto-news-message.repository';
 import { CryptoNewsController } from './api/http/crypto-news.controller';
 import { RegisterNewsSourceUseCase } from './application/use-cases/register-news-source.use-case';
+import { CryptoNewsRetentionCleanupScheduler } from './infrastructure/scheduling/crypto-news-retention-cleanup.scheduler';
 
 /**
  * CryptoNewsModule - Crypto news channel management
@@ -38,11 +38,14 @@ import { RegisterNewsSourceUseCase } from './application/use-cases/register-news
     TypeOrmModule.forFeature([
       CryptoNewsMessageEntity,
       CryptoNewsMessageMediaEntity,
-      ChannelContentFilterConfigEntity,
     ]),
   ],
   controllers: [CryptoNewsController],
-  providers: [CryptoNewsMessageRepository, RegisterNewsSourceUseCase],
+  providers: [
+    CryptoNewsMessageRepository,
+    RegisterNewsSourceUseCase,
+    CryptoNewsRetentionCleanupScheduler,
+  ],
   exports: [CryptoNewsMessageRepository],
 })
 export class CryptoNewsModule {}

@@ -1,11 +1,18 @@
-import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
-import { CryptoNewsMessageMediaEntity } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
+import { CryptoNewsMessage } from '../../domain/crypto-news-message.stub';
 
 /**
- * Outbound port: persistence for ingested crypto-news messages.
+ * @deprecated DEAD CODE - Backend no longer persists crypto-news (ingestion-service owns tables)
  *
- * Implemented in infrastructure/repositories with the chosen storage
- * (in-memory for dev, TypeORM for prod).
+ * Repository port for crypto-news messages.
+ *
+ * Post db-separation (2026-09-08) + event handler deletion (crypto-news-entity-cleanup spec):
+ * - Backend uses DTOs only (no entity dependencies)
+ * - `CryptoNewsMessageIngestedEvent` is NOT emitted (event handler deleted)
+ * - Kept ONLY as DI shim to prevent module wiring breakage
+ * - Sole implementation: `InMemoryCryptoNewsMessageRepository` (empty store, always returns null)
+ *
+ * DO NOT USE. Query ingestion-service HTTP API instead:
+ *   GET {INGESTION_SERVICE_URL}/api/crypto-news/messages
  */
 export abstract class CryptoNewsMessageRepository {
   public abstract save(message: CryptoNewsMessage): Promise<void>;
@@ -46,15 +53,6 @@ export abstract class CryptoNewsMessageRepository {
     channelId: string,
     messageId: number,
   ): Promise<CryptoNewsMessage | null>;
-  /**
-   * Look up a single media attachment by its primary key. Returns `null`
-   * when no row matches. Used by the binary-serve endpoint (T7) to
-   * resolve a `mediaId` to a `filePath` on disk.
-   */
-  public abstract findMediaById(
-    mediaId: string,
-  ): Promise<CryptoNewsMessageMediaEntity | null>;
-
   /**
    * Find all messages in the same Telegram album/media group. Returns all
    * messages that share the same `groupedId` AND the same `channelId`.

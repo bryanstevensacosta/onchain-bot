@@ -120,8 +120,7 @@ export class TelegramModule implements OnModuleInit {
       const kolIds = await this.channelProvider.fetchActiveKolIds();
 
       // Fetch crypto-news sources from LOCAL DB (ingestion-service owns this now)
-      const cryptoNewsSources =
-        await this.cryptoNewsSourceRepo.findAllActive();
+      const cryptoNewsSources = await this.cryptoNewsSourceRepo.findAllActive();
       const newsIds = cryptoNewsSources.map((source) => source.channelId);
 
       const previousTotal = this.currentChannelIds.length;
@@ -142,16 +141,16 @@ export class TelegramModule implements OnModuleInit {
           `📊 Channel list updated: ${previousTotal} → ${newTotal} (${kolIds.length} KOLs from backend, ${newsIds.length} crypto-news from local DB)`,
         );
 
-        // Restart listener with new channel list if already running
+        // Update listener's subscribed channels dynamically (no restart required)
         if (previousTotal > 0 && channelsChanged) {
           this.logger.log(
-            '🔄 Channel list changed, restarting listener with updated channels...',
+            '🔄 Updating listener channels dynamically (zero downtime)...',
           );
-          // Note: We can't cancel the existing async iterator directly,
-          // but the listener adapter should handle re-subscription gracefully
-          this.startListening().catch((error) => {
-            this.logger.error('❌ Listener restart failed:', error);
-          });
+          try {
+            this.listener.updateSubscribedChannels([...this.currentChannelIds]);
+          } catch (error) {
+            this.logger.error('❌ Failed to update listener channels:', error);
+          }
         }
       }
     } catch (error) {
@@ -200,40 +199,62 @@ export class TelegramModule implements OnModuleInit {
           ? 'crypto-news'
           : 'kol';
 
-        // Route message to legacy SSE broadcast via coordinator
-        await this.coordinator.route(message, messageType);
+        // Fire-and-forget: Process message asynchronously without blocking the generator
+        // This prevents slow DB writes or SSE broadcasts from blocking the next message
+        this.logger.log(
+          `[FIRE-AND-FORGET] Yielded message ${message.peerId}:${message.messageId}, scheduling processing...`,
+        );
+        Promise.resolve()
+          .then(async () => {
+            this.logger.log(
+              `[FIRE-AND-FORGET] Starting route for ${message.peerId}:${message.messageId}`,
+            );
+            // Route message to legacy SSE broadcast via coordinator (includes DB persist)
+            await this.coordinator.route(message, messageType);
+            this.logger.log(
+              `[FIRE-AND-FORGET] Completed route for ${message.peerId}:${message.messageId}`,
+            );
+          })
+          .catch((routeError) => {
+            this.logger.error(
+              `[FIRE-AND-FORGET] Failed to route message ${message.peerId}:${message.messageId}: ${(routeError as Error).message}`,
+              (routeError as Error).stack,
+            );
+          });
 
         // Per Requirement 4.1: Broadcast to all backends via SSEBroadcastService
         // Per Requirement 4.3: Ingestion continues if broadcast fails
-        try {
-          // Extract media path from message (first media item if available)
-          const mediaPath = message.media?.[0]?.filePath;
+        // Fire-and-forget: Don't block generator on broadcast
+        Promise.resolve()
+          .then(async () => {
+            // Extract media path from message (first media item if available)
+            const mediaPath = message.media?.[0]?.filePath;
 
-          // Create BroadcastEvent from raw Telegram message
-          const event = BroadcastEvent.fromTelegramMessage(
-            message.peerId,
-            {
-              id: message.messageId,
-              message: message.text,
-              date: Math.floor(message.occurredAt.getTime() / 1000), // Convert ms to seconds
-            },
-            mediaPath,
-          );
+            // Create BroadcastEvent from raw Telegram message
+            const event = BroadcastEvent.fromTelegramMessage(
+              message.peerId,
+              {
+                id: message.messageId,
+                message: message.text,
+                date: Math.floor(message.occurredAt.getTime() / 1000), // Convert ms to seconds
+              },
+              mediaPath,
+            );
 
-          // Broadcast to all connected backends
-          await this.sseBroadcast.broadcast(event);
+            // Broadcast to all connected backends
+            await this.sseBroadcast.broadcast(event);
 
-          this.logger.debug(
-            `Broadcasted to multi-backend SSE: ${message.peerId}:${message.messageId}`,
-          );
-        } catch (broadcastError) {
-          // Per Requirement 4.3: Log error but don't throw - ingestion must continue
-          this.logger.error(
-            `Failed to broadcast message ${message.peerId}:${message.messageId} to multi-backend SSE: ${(broadcastError as Error).message}`,
-            (broadcastError as Error).stack,
-          );
-          // Continue processing - broadcast failure should not stop ingestion
-        }
+            this.logger.debug(
+              `Broadcasted to multi-backend SSE: ${message.peerId}:${message.messageId}`,
+            );
+          })
+          .catch((broadcastError) => {
+            // Per Requirement 4.3: Log error but don't throw - ingestion must continue
+            this.logger.error(
+              `Failed to broadcast message ${message.peerId}:${message.messageId} to multi-backend SSE: ${(broadcastError as Error).message}`,
+              (broadcastError as Error).stack,
+            );
+          });
       }
     } catch (error) {
       this.logger.error(

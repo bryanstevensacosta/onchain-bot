@@ -1,33 +1,33 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EnqueueMatchingMessageUseCase } from './enqueue-matching-message.use-case';
 import { PublisherQueueRepository } from '../ports/publisher-queue.repository';
-import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository';
-import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity';
+import {
+  EnqueueMessageDto,
+  EnqueueMessageMediaDto,
+} from '../../domain/dtos/enqueue-message.dto';
 import { Keyword } from '../../domain/entities/keyword.entity';
 
 describe('EnqueueMatchingMessageUseCase', () => {
   let useCase: EnqueueMatchingMessageUseCase;
   let queueRepo: jest.Mocked<PublisherQueueRepository>;
 
-  const mockMessage: CryptoNewsMessage = {
-    id: 'msg-123',
+  const mockMedia: EnqueueMessageMediaDto = {
+    index: 0,
+    type: 'photo',
+    filePath: '/uploads/crypto-news/media/btc.png',
+    mimeType: 'image/png',
+    fileSize: 102400,
+  };
+
+  const mockMessage: EnqueueMessageDto = {
     channelId: 'crypto-news',
     messageId: 456,
     content: 'Bitcoin just broke $100k!',
-    title: 'Bitcoin Hits $100K',
-    media: [
-      {
-        id: 'media-1',
-        messageId: 'msg-123',
-        filePath: '/uploads/crypto-news/media/btc.png',
-        mimeType: 'image/png',
-        width: 800,
-        height: 600,
-      },
-    ],
-    groupedId: null,
-    receivedAt: new Date(),
-  } as CryptoNewsMessage;
+    publishedAt: new Date('2024-01-01T12:00:00Z'),
+    ingestedAt: new Date('2024-01-01T12:01:00Z'),
+    media: [mockMedia],
+    matchedKeywords: [],
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -37,12 +37,6 @@ describe('EnqueueMatchingMessageUseCase', () => {
           provide: PublisherQueueRepository,
           useValue: {
             enqueue: jest.fn(),
-          },
-        },
-        {
-          provide: CryptoNewsMessageRepository,
-          useValue: {
-            findByChannelAndGroupedId: jest.fn().mockResolvedValue([]),
           },
         },
       ],
@@ -70,46 +64,51 @@ describe('EnqueueMatchingMessageUseCase', () => {
       expect(callArg.channelId).toBe('crypto-news');
       expect(callArg.messageId).toBe(456);
       expect(callArg.rawContent).toBe('Bitcoin just broke $100k!');
-      expect(callArg.rawTitle).toBe('Bitcoin Hits $100K');
+      expect(callArg.rawTitle).toBeNull();
       expect(callArg.imagePath).toBe('/uploads/crypto-news/media/btc.png');
+      expect(callArg.imagePaths).toEqual([
+        '/uploads/crypto-news/media/btc.png',
+      ]);
       expect(callArg.groupedId).toBeNull();
       expect(callArg.status).toBe('PENDING');
     });
 
-    it('should extract first imagePath from media array', async () => {
-      const multiMediaMessage = {
+    it('should extract all imagePaths from media array', async () => {
+      const multiMediaMessage: EnqueueMessageDto = {
         ...mockMessage,
         media: [
-          { id: 'm1', filePath: '/first.png' },
-          { id: 'm2', filePath: '/second.png' },
+          { index: 0, type: 'photo', filePath: '/first.png' },
+          { index: 1, type: 'photo', filePath: '/second.png' },
         ],
-      } as unknown as CryptoNewsMessage;
+      };
       queueRepo.enqueue.mockResolvedValue();
 
       await useCase.execute({ message: multiMediaMessage });
 
       const callArg = queueRepo.enqueue.mock.calls[0][0];
-      expect(callArg.imagePath).toBe('/first.png');
+      expect(callArg.imagePath).toBe('/first.png'); // First for backward compat
+      expect(callArg.imagePaths).toEqual(['/first.png', '/second.png']);
     });
 
-    it('should set imagePath to null when no media', async () => {
-      const noMediaMessage = {
+    it('should set imagePath and imagePaths to null/empty when no media', async () => {
+      const noMediaMessage: EnqueueMessageDto = {
         ...mockMessage,
         media: [],
-      } as unknown as CryptoNewsMessage;
+      };
       queueRepo.enqueue.mockResolvedValue();
 
       await useCase.execute({ message: noMediaMessage });
 
       const callArg = queueRepo.enqueue.mock.calls[0][0];
       expect(callArg.imagePath).toBeNull();
+      expect(callArg.imagePaths).toEqual([]);
     });
 
     it('should throw when channelId is empty', async () => {
-      const emptyChannelMessage = {
+      const emptyChannelMessage: EnqueueMessageDto = {
         ...mockMessage,
         channelId: '',
-      } as unknown as CryptoNewsMessage;
+      };
 
       await expect(
         useCase.execute({ message: emptyChannelMessage }),
@@ -118,10 +117,10 @@ describe('EnqueueMatchingMessageUseCase', () => {
     });
 
     it('should throw when channelId is whitespace only', async () => {
-      const whitespaceChannelMessage = {
+      const whitespaceChannelMessage: EnqueueMessageDto = {
         ...mockMessage,
         channelId: '   ',
-      } as unknown as CryptoNewsMessage;
+      };
 
       await expect(
         useCase.execute({ message: whitespaceChannelMessage }),
@@ -137,10 +136,12 @@ describe('EnqueueMatchingMessageUseCase', () => {
       });
       queueRepo.enqueue.mockResolvedValue();
 
-      await useCase.execute({
-        message: mockMessage,
+      const messageWithKeywords: EnqueueMessageDto = {
+        ...mockMessage,
         matchedKeywords: [matchedKeyword],
-      });
+      };
+
+      await useCase.execute({ message: messageWithKeywords });
 
       const callArg = queueRepo.enqueue.mock.calls[0][0];
       expect(callArg.keywordTemplateId).toBe(templateId);
@@ -150,16 +151,18 @@ describe('EnqueueMatchingMessageUseCase', () => {
       const matchedKeyword = Keyword.create({ phrase: 'btc' });
       queueRepo.enqueue.mockResolvedValue();
 
-      await useCase.execute({
-        message: mockMessage,
+      const messageWithKeywords: EnqueueMessageDto = {
+        ...mockMessage,
         matchedKeywords: [matchedKeyword],
-      });
+      };
+
+      await useCase.execute({ message: messageWithKeywords });
 
       const callArg = queueRepo.enqueue.mock.calls[0][0];
       expect(callArg.keywordTemplateId).toBeNull();
     });
 
-    it('should default keywordTemplateId to null when matchedKeyword is omitted', async () => {
+    it('should default keywordTemplateId to null when no matched keywords', async () => {
       queueRepo.enqueue.mockResolvedValue();
 
       await useCase.execute({ message: mockMessage });
@@ -178,36 +181,37 @@ describe('EnqueueMatchingMessageUseCase', () => {
       expect(result!.channelId).toBe('crypto-news');
     });
 
-    it('should skip enqueue when matched keyword requires media and message has no media', async () => {
-      const noMediaMessage = {
+    it('should skip enqueue when matched keyword requires media and message has no photo media', async () => {
+      const docMediaMessage: EnqueueMessageDto = {
         ...mockMessage,
-        media: [],
-      } as unknown as CryptoNewsMessage;
-      const matchedKeyword = Keyword.create({
-        phrase: 'btc',
-        requireMedia: true,
-      });
+        media: [{ index: 0, type: 'document', filePath: '/doc.pdf' }],
+        matchedKeywords: [
+          Keyword.create({
+            phrase: 'btc',
+            requireMedia: true,
+          }),
+        ],
+      };
 
-      const result = await useCase.execute({
-        message: noMediaMessage,
-        matchedKeywords: [matchedKeyword],
-      });
+      const result = await useCase.execute({ message: docMediaMessage });
 
       expect(result).toBeNull();
       expect(queueRepo.enqueue).not.toHaveBeenCalled();
     });
 
-    it('should enqueue when matched keyword requires media and message has media', async () => {
+    it('should enqueue when matched keyword requires media and message has photo media', async () => {
       queueRepo.enqueue.mockResolvedValue();
       const matchedKeyword = Keyword.create({
         phrase: 'btc',
         requireMedia: true,
       });
 
-      const result = await useCase.execute({
-        message: mockMessage,
+      const messageWithKeywords: EnqueueMessageDto = {
+        ...mockMessage,
         matchedKeywords: [matchedKeyword],
-      });
+      };
+
+      const result = await useCase.execute({ message: messageWithKeywords });
 
       expect(result).not.toBeNull();
       expect(queueRepo.enqueue).toHaveBeenCalledTimes(1);
@@ -216,10 +220,10 @@ describe('EnqueueMatchingMessageUseCase', () => {
     });
 
     it('should not apply the requireMedia filter when no matched keyword is supplied', async () => {
-      const noMediaMessage = {
+      const noMediaMessage: EnqueueMessageDto = {
         ...mockMessage,
         media: [],
-      } as unknown as CryptoNewsMessage;
+      };
       queueRepo.enqueue.mockResolvedValue();
 
       const result = await useCase.execute({ message: noMediaMessage });
@@ -228,40 +232,20 @@ describe('EnqueueMatchingMessageUseCase', () => {
       expect(queueRepo.enqueue).toHaveBeenCalledTimes(1);
     });
 
-    it('should skip enqueue when matched keyword requires media and message has only webpage previews', async () => {
-      const webpageOnlyMessage = {
-        ...mockMessage,
-        media: [{ id: 'm1', type: 'webpage', filePath: null }],
-      } as unknown as CryptoNewsMessage;
-      const matchedKeyword = Keyword.create({
-        phrase: 'btc',
-        requireMedia: true,
-      });
-
-      const result = await useCase.execute({
-        message: webpageOnlyMessage,
-        matchedKeywords: [matchedKeyword],
-      });
-
-      expect(result).toBeNull();
-      expect(queueRepo.enqueue).not.toHaveBeenCalled();
-    });
-
     it('should enqueue when matched keyword requires media and message has a photo', async () => {
       queueRepo.enqueue.mockResolvedValue();
-      const photoMessage = {
+      const photoMessage: EnqueueMessageDto = {
         ...mockMessage,
-        media: [{ id: 'm1', type: 'photo', filePath: '/uploads/photo.png' }],
-      } as unknown as CryptoNewsMessage;
-      const matchedKeyword = Keyword.create({
-        phrase: 'btc',
-        requireMedia: true,
-      });
+        media: [{ index: 0, type: 'photo', filePath: '/uploads/photo.png' }],
+        matchedKeywords: [
+          Keyword.create({
+            phrase: 'btc',
+            requireMedia: true,
+          }),
+        ],
+      };
 
-      const result = await useCase.execute({
-        message: photoMessage,
-        matchedKeywords: [matchedKeyword],
-      });
+      const result = await useCase.execute({ message: photoMessage });
 
       expect(result).not.toBeNull();
       expect(queueRepo.enqueue).toHaveBeenCalledTimes(1);
@@ -269,33 +253,44 @@ describe('EnqueueMatchingMessageUseCase', () => {
       expect(callArg.imagePaths).toEqual(['/uploads/photo.png']);
     });
 
-    it('should collect no imagePaths when message has only webpage previews', async () => {
-      const webpageOnlyMessage = {
-        ...mockMessage,
-        media: [{ id: 'm1', type: 'webpage', filePath: null }],
-      } as unknown as CryptoNewsMessage;
-      queueRepo.enqueue.mockResolvedValue();
-
-      await useCase.execute({ message: webpageOnlyMessage });
-
-      const callArg = queueRepo.enqueue.mock.calls[0][0];
-      expect(callArg.imagePaths).toEqual([]);
-    });
-
-    it('should collect only photo paths when message mixes photo and webpage preview', async () => {
-      const mixedMediaMessage = {
+    it('should collect all imagePaths when message has multiple photos', async () => {
+      const multiPhotoMessage: EnqueueMessageDto = {
         ...mockMessage,
         media: [
-          { id: 'm1', type: 'photo', filePath: '/uploads/photo.png' },
-          { id: 'm2', type: 'webpage', filePath: null },
+          { index: 0, type: 'photo', filePath: '/uploads/photo1.png' },
+          { index: 1, type: 'photo', filePath: '/uploads/photo2.png' },
         ],
-      } as unknown as CryptoNewsMessage;
+      };
+      queueRepo.enqueue.mockResolvedValue();
+
+      await useCase.execute({ message: multiPhotoMessage });
+
+      const callArg = queueRepo.enqueue.mock.calls[0][0];
+      expect(callArg.imagePaths).toEqual([
+        '/uploads/photo1.png',
+        '/uploads/photo2.png',
+      ]);
+    });
+
+    it('should collect all media paths regardless of type', async () => {
+      const mixedMediaMessage: EnqueueMessageDto = {
+        ...mockMessage,
+        media: [
+          { index: 0, type: 'photo', filePath: '/uploads/photo.png' },
+          { index: 1, type: 'video', filePath: '/uploads/video.mp4' },
+          { index: 2, type: 'document', filePath: '/uploads/doc.pdf' },
+        ],
+      };
       queueRepo.enqueue.mockResolvedValue();
 
       await useCase.execute({ message: mixedMediaMessage });
 
       const callArg = queueRepo.enqueue.mock.calls[0][0];
-      expect(callArg.imagePaths).toEqual(['/uploads/photo.png']);
+      expect(callArg.imagePaths).toEqual([
+        '/uploads/photo.png',
+        '/uploads/video.mp4',
+        '/uploads/doc.pdf',
+      ]);
     });
   });
 

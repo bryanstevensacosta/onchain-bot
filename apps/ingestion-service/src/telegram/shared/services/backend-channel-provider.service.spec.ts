@@ -244,9 +244,11 @@ describe('BackendChannelProviderService', () => {
 
     it('should use channel union when backends are registered', async () => {
       // Mock feature flag enabled
-      configService.get = jest.fn().mockImplementation((key: string) =>
-        key === 'app.multiBackend.enabled' ? true : undefined,
-      );
+      configService.get = jest
+        .fn()
+        .mockImplementation((key: string) =>
+          key === 'app.multiBackend.enabled' ? true : undefined,
+        );
       service.registerBackend('production', ['channel1', 'channel2']);
       service.registerBackend('staging', ['channel2', 'channel3']);
 
@@ -282,9 +284,11 @@ describe('BackendChannelProviderService', () => {
 
     it('should prefer registrations over HTTP even when HTTP would return data', async () => {
       // Mock feature flag enabled
-      configService.get = jest.fn().mockImplementation((key: string) =>
-        key === 'app.multiBackend.enabled' ? true : undefined,
-      );
+      configService.get = jest
+        .fn()
+        .mockImplementation((key: string) =>
+          key === 'app.multiBackend.enabled' ? true : undefined,
+        );
       service.registerBackend('production', ['reg-channel1', 'reg-channel2']);
 
       // Mock HTTP endpoints (should not be called)

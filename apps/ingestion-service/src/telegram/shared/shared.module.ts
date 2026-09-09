@@ -21,6 +21,8 @@ import { CryptoNewsMessageEntity } from '../crypto-news/infrastructure/persisten
 import { CryptoNewsMessageMediaEntity } from '../crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
 import { CryptoNewsSourceRepository } from '../crypto-news/infrastructure/persistence/typeorm/repositories/crypto-news-source.repository';
 import { CryptoNewsMessageRepository } from '../crypto-news/infrastructure/persistence/typeorm/repositories/crypto-news-message.repository';
+import { CryptoNewsMessageTransformer } from 'shared/telegram/transformation';
+import { TelegramMediaExtractorService } from './application/services/telegram-media-extractor.service';
 
 /**
  * SharedModule - Telegram infrastructure shared across KOL and crypto-news ingestion
@@ -35,6 +37,7 @@ import { CryptoNewsMessageRepository } from '../crypto-news/infrastructure/persi
  * - Last seen tracking
  * - Message queue
  * - Media downloader service
+ * - CryptoNewsMessageTransformer (shared transformation pipeline, Phase 5)
  *
  * @Global to avoid circular dependency issues with KolModule and CryptoNewsModule
  */
@@ -67,6 +70,19 @@ import { CryptoNewsMessageRepository } from '../crypto-news/infrastructure/persi
       useClass: TelegramMtprotoListenerAdapter,
     },
 
+    // Message transformation (Phase 5 - shared pipeline)
+    {
+      provide: CryptoNewsMessageTransformer,
+      useFactory: () => {
+        // CryptoNewsMessageTransformer only extracts metadata (no download)
+        // Media download is handled separately by TelegramMediaExtractorService
+        return new CryptoNewsMessageTransformer();
+      },
+    },
+
+    // Media extraction + download (Phase 5.2 - extracted from adapter)
+    TelegramMediaExtractorService,
+
     // Application layer
     DeduplicationService,
     IngestionCoordinator,
@@ -88,6 +104,7 @@ import { CryptoNewsMessageRepository } from '../crypto-news/infrastructure/persi
     CryptoNewsMessageRepository, // Export for CryptoNewsModule
     TelegramClientManager,
     TelegramListenerPort,
+    CryptoNewsMessageTransformer, // Export transformer (Phase 5)
     DeduplicationService,
     IngestionCoordinator,
     LastSeenManager,

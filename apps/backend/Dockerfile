@@ -14,6 +14,10 @@ RUN npm ci --no-audit --no-fund --ignore-scripts
 RUN npm rebuild sharp
 
 COPY apps/backend ./apps/backend
+# Shared media abstractions consumed via the @ingestion-service/media/* path alias
+# (backend tsconfig maps it to ../ingestion-service/src/shared/media/*).
+# Without this, nest build fails with TS2307 in Docker while local/CI tsc passes.
+COPY apps/ingestion-service/src/shared/media ./apps/ingestion-service/src/shared/media
 
 RUN npm run build:backend
 
@@ -44,4 +48,4 @@ HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=40s \
 
 # Entrypoint runs as root (default), fixes volume perms, then drops to node via gosu
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["node", "dist/src/main.js"]
+CMD ["node", "dist/backend/src/main.js"]

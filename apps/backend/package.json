@@ -5,12 +5,13 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "nest build",
+    "build": "nest build && node -e \"require('fs').writeFileSync('dist/main.js', '// Monorepo proxy\\nrequire(\\'./backend/src/main.js\\');\\n')\"",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "npm run db:migrate && nest start --watch",
-    "start:debug": "npm run db:migrate && nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start": "node dist/backend/src/main.js",
+    "start:dev": "concurrently \"tsc -p tsconfig.build.json --watch\" \"nodemon --watch dist/backend/src dist/backend/src/main.js\"",
+    "start:dev:migrate": "npm run db:migrate && npm run start:dev",
+    "start:debug": "npm run db:migrate && node --inspect-brk dist/backend/src/main.js",
+    "start:prod": "node dist/backend/src/main.js",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "test": "jest --forceExit --testTimeout=30s",
     "test:watch": "jest --watch --forceExit",
@@ -64,8 +65,8 @@
     "sharp": "^0.35.2",
     "socket.io": "^4.8.3",
     "telegram": "^2.26.22",
-    "typeorm": "^0.3.30",
-    "tsconfig-paths": "^4.2.0"
+    "tsconfig-paths": "^4.2.0",
+    "typeorm": "^0.3.30"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -81,6 +82,7 @@
     "@types/node": "^22.10.7",
     "@types/pg": "^8.11.14",
     "@types/supertest": "^6.0.2",
+    "concurrently": "^10.0.5",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",
@@ -88,6 +90,7 @@
     "globals": "^16.0.0",
     "inquirer": "^14.2.0",
     "jest": "^30.0.0",
+    "nodemon": "^3.1.14",
     "pino-pretty": "^13.1.3",
     "prettier": "^3.8.4",
     "source-map-support": "^0.5.21",
@@ -125,6 +128,7 @@
     "moduleNameMapper": {
       "^telegram/events$": "<rootDir>/../../node_modules/telegram/events/index",
       "^telegram/sessions$": "<rootDir>/../../node_modules/telegram/sessions/index",
+      "^telegram/extensions/Logger$": "<rootDir>/../../node_modules/telegram/extensions/Logger",
       "^telegram/(.*)$": "<rootDir>/src/telegram/$1",
       "^shared/(.*)$": "<rootDir>/src/shared/$1",
       "^discovery/(.*)$": "<rootDir>/src/discovery/$1",
@@ -135,7 +139,9 @@
       "^settings/(.*)$": "<rootDir>/src/settings/$1",
       "^data-provider/(.*)$": "<rootDir>/src/data-provider/$1",
       "^health/(.*)$": "<rootDir>/src/health/$1",
-      "^src/(.*)$": "<rootDir>/src/$1"
+      "^src/(.*)$": "<rootDir>/src/$1",
+      "^@ingestion-service/media/(.*)$": "<rootDir>/../ingestion-service/src/shared/media/$1",
+      "^@ingestion-service/telegram/(.*)$": "<rootDir>/../ingestion-service/src/shared/telegram/$1"
     }
   }
 }

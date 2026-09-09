@@ -2,12 +2,16 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Delete,
   Body,
   Query,
   Param,
   ParseIntPipe,
   HttpCode,
   HttpStatus,
+  NotFoundException,
+  Header,
 } from '@nestjs/common';
 import { CryptoNewsMessageRepository } from '../../infrastructure/persistence/typeorm/repositories/crypto-news-message.repository';
 import { CryptoNewsSourceRepository } from '../../infrastructure/persistence/typeorm/repositories/crypto-news-source.repository';
@@ -103,20 +107,25 @@ export class CryptoNewsController {
    *   groupedId: string | null,
    *   media: Array<{
    *     id: string (UUID),
-   *     messageId: string (UUID),
    *     index: number,
    *     type: 'photo' | 'video' | 'webpage',
-   *     filePath: string,
+   *     url: string,
    *     mimeType: string | null,
-   *     fileSize: number | null,
-   *     createdAt: ISO timestamp
+   *     fileSize: number | null
    *   }>
    * }>
    */
   @Get('messages')
+  @Header('Cache-Control', 'no-cache, must-revalidate')
   async getRecentMessages(@Query('limit', ParseIntPipe) limit = 50) {
     const messages = await this.messageRepo.findRecent(Math.min(limit, 200));
-    return messages;
+    
+    // Return object with timestamp to bust ETags on each request
+    return {
+      timestamp: new Date().toISOString(),
+      count: messages.length,
+      data: messages.map((msg) => this.transformMessageForApi(msg)),
+    };
   }
 
   /**
@@ -125,6 +134,7 @@ export class CryptoNewsController {
    * Returns messages from a specific channel.
    */
   @Get('messages/channel/:channelId')
+  @Header('Cache-Control', 'no-cache, must-revalidate')
   async getMessagesByChannel(
     @Param('channelId') channelId: string,
     @Query('limit', ParseIntPipe) limit = 50,
@@ -133,13 +143,32 @@ export class CryptoNewsController {
       channelId,
       Math.min(limit, 200),
     );
-    return messages;
+    return messages.map((msg) => this.transformMessageForApi(msg));
+  }
+
+  /**
+   * Transform a message entity to API response format.
+   * Converts filePath to url for media items.
+   * Frontend expects /ingestion-api/media URLs (proxied to this service at /api/media).
+   */
+  private transformMessageForApi(msg: any) {
+    return {
+      ...msg,
+      media: msg.media.map((m: any) => ({
+        id: m.id,
+        index: m.index,
+        type: m.type,
+        url: `/ingestion-api/media/${msg.channelId}/${msg.messageId}/${m.index}`,
+        mimeType: m.mimeType,
+        fileSize: m.fileSize,
+      })),
+    };
   }
 
   /**
    * GET /api/crypto-news/sources
    *
-   * Returns all active crypto-news sources.
+   * Returns all crypto-news sources (including inactive ones).
    *
    * Response: Array<{
    *   channelId: string,
@@ -153,8 +182,16 @@ export class CryptoNewsController {
    */
   @Get('sources')
   async getSources() {
-    const sources = await this.sourceRepo.findAllActive();
-    return sources;
+    const sources = await this.sourceRepo.findAll();
+    return sources.map((s) => ({
+      channelId: s.channelId,
+      handle: s.handle,
+      title: s.title,
+      isActive: s.isActive,
+      lifecycleStatus: s.lifecycleStatus,
+      addedAt: s.addedAt?.toISOString(),
+      updatedAt: s.updatedAt?.toISOString(),
+    }));
   }
 
   /**
@@ -184,15 +221,118 @@ export class CryptoNewsController {
    */
   @Get('stats')
   async getStats() {
-    const [totalMessages, sources] = await Promise.all([
+    const [totalMessages, allSources, activeSources] = await Promise.all([
       this.messageRepo.count(),
+      this.sourceRepo.findAll(),
       this.sourceRepo.findAllActive(),
     ]);
 
     return {
       totalMessages,
-      totalSources: sources.length,
-      activeSources: sources.length, // findAllActive() already filters by isActive
+      totalSources: allSources.length,
+      activeSources: activeSources.length,
     };
+  }
+
+  /**
+   * PATCH /api/crypto-news/sources/:channelId
+   *
+   * Update a crypto-news source (title and/or handle).
+   *
+   * Request Body: {
+   *   title?: string,
+   *   handle?: string
+   * }
+   *
+   * Response: Updated source object
+   *
+   * Error Codes:
+   * - 404 Not Found: Source not found
+   * - 400 Bad Request: No fields to update
+   */
+  @Patch('sources/:channelId')
+  async updateSource(
+    @Param('channelId') channelId: string,
+    @Body() updates: { title?: string; handle?: string },
+  ) {
+    const source = await this.sourceRepo.findByChannelId(channelId);
+    if (!source) {
+      throw new NotFoundException(
+        `Source with channelId ${channelId} not found`,
+      );
+    }
+
+    if (updates.title !== undefined) {
+      source.title = updates.title.trim();
+    }
+    if (updates.handle !== undefined) {
+      source.handle = updates.handle?.trim() || null;
+    }
+
+    const updated = await this.sourceRepo.save(source);
+    return {
+      channelId: updated.channelId,
+      handle: updated.handle,
+      title: updated.title,
+      isActive: updated.isActive,
+      lifecycleStatus: updated.lifecycleStatus,
+      addedAt: updated.addedAt?.toISOString(),
+      updatedAt: updated.updatedAt?.toISOString(),
+    };
+  }
+
+  /**
+   * PATCH /api/crypto-news/sources/:channelId/toggle
+   *
+   * Toggle the isActive state of a crypto-news source.
+   *
+   * Response: {
+   *   channelId: string,
+   *   isActive: boolean
+   * }
+   *
+   * Error Codes:
+   * - 404 Not Found: Source not found
+   */
+  @Patch('sources/:channelId/toggle')
+  async toggleSource(@Param('channelId') channelId: string) {
+    const source = await this.sourceRepo.findByChannelId(channelId);
+    if (!source) {
+      throw new NotFoundException(
+        `Source with channelId ${channelId} not found`,
+      );
+    }
+
+    source.isActive = !source.isActive;
+    const updated = await this.sourceRepo.save(source);
+
+    return {
+      channelId: updated.channelId,
+      isActive: updated.isActive,
+    };
+  }
+
+  /**
+   * DELETE /api/crypto-news/sources/:channelId
+   *
+   * Delete a crypto-news source.
+   *
+   * Response: { success: true }
+   *
+   * Error Codes:
+   * - 404 Not Found: Source not found
+   */
+  @Delete('sources/:channelId')
+  @HttpCode(HttpStatus.OK)
+  async deleteSource(@Param('channelId') channelId: string) {
+    const source = await this.sourceRepo.findByChannelId(channelId);
+    if (!source) {
+      throw new NotFoundException(
+        `Source with channelId ${channelId} not found`,
+      );
+    }
+
+    await this.sourceRepo.delete(source.channelId);
+    return { success: true };
   }
 }

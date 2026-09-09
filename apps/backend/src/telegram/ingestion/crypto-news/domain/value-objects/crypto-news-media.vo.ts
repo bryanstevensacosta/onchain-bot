@@ -1,4 +1,22 @@
 /**
+ * @deprecated DUPLICATE — Post db-separation (2026-09-08), this is a COPY of ingestion-service's value object.
+ *
+ * **PROBLEM:** Backend maintains its own copy of `CryptoNewsMedia` instead of importing from ingestion-service.
+ *
+ * **Architecture (Opción A):**
+ * - Ingestion-service: OWNS domain model (source of truth)
+ * - Backend: Should consume DTOs via HTTP (NOT maintain VO copies)
+ *
+ * **Why duplicate:**
+ * Pre-split, backend had its own crypto-news BC. Post-split, this VO copy remained for
+ * internal processing but violates DRY principle.
+ *
+ * **Migration path:**
+ * Option A (recommended): Replace with `CryptoNewsMediaDto` from DTOs
+ * Option B (alternative): Import VO FROM `@alpha-meta-token-scanner/ingestion-service`
+ *
+ * ---
+ *
  * Value object representing a single media attachment (photo or video)
  * downloaded from a Telegram crypto-news message.
  *

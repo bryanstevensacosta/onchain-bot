@@ -1,0 +1,189 @@
+{
+  "specId": "crypto-news-entity-cleanup",
+  "title": "Crypto-News Entity Cleanup & Migration",
+  "description": "Remove duplicate crypto-news domain entities from backend by migrating to DTOs or importing from ingestion-service",
+  "status": "in-progress",
+  "priority": "medium",
+  "createdDate": "2026-09-08",
+  "updatedDate": "2026-09-08",
+  "owner": "backend-team",
+  "estimatedEffort": {
+    "strategy1": "7-9 hours",
+    "strategy3": "1-2 hours"
+  },
+  "tags": ["technical-debt", "architecture", "DRY", "entities", "crypto-news"],
+  "relatedDocs": [
+    ".omo/completed/crypto-news-entity-deprecation.md",
+    ".omo/plans/crypto-news-domain-entity-migration.md",
+    ".omo/completed/crypto-news-architecture-clarification.md",
+    ".omo/analysis/ingestion-service-scope-audit.md",
+    ".omo/completed/CRYPTO-NEWS-ENTITY-WORK-SUMMARY.md"
+  ],
+  "phases": {
+    "phase1": {
+      "name": "Mark Entities as Deprecated",
+      "status": "complete",
+      "completedDate": "2026-09-08",
+      "effort": "2 hours",
+      "tasks": [
+        "Add @deprecated JSDoc to entities",
+        "Create DTOs for HTTP consumption",
+        "Fix path alias import issues"
+      ]
+    },
+    "phase2": {
+      "name": "Create Publisher DTOs",
+      "status": "not-started",
+      "estimatedEffort": "30 minutes",
+      "tasks": [
+        "Create EnqueueMessageDto",
+        "Export from barrel",
+        "Verify TypeScript compiles"
+      ]
+    },
+    "phase3": {
+      "name": "Refactor Use Case",
+      "status": "not-started",
+      "estimatedEffort": "1-2 hours",
+      "tasks": [
+        "Update EnqueueMatchingMessageInput interface",
+        "Remove entity imports",
+        "Update unit tests"
+      ]
+    },
+    "phase4": {
+      "name": "Update Scheduler",
+      "status": "not-started",
+      "estimatedEffort": "1 hour",
+      "tasks": [
+        "Remove mapToEntity() method",
+        "Create mapToPublisherDto() method",
+        "Update imports"
+      ]
+    },
+    "phase5": {
+      "name": "Remove Repositories",
+      "status": "not-started",
+      "estimatedEffort": "2-3 hours",
+      "tasks": [
+        "Investigate repository usage",
+        "Delete if unused",
+        "Update providers"
+      ]
+    },
+    "phase6": {
+      "name": "Delete TypeORM Code",
+      "status": "not-started",
+      "estimatedEffort": "30 minutes",
+      "tasks": [
+        "Delete mappers",
+        "Delete TypeORM repositories",
+        "Verify no DB writes exist"
+      ]
+    },
+    "phase7": {
+      "name": "Delete Entities",
+      "status": "not-started",
+      "estimatedEffort": "15 minutes",
+      "tasks": [
+        "Final usage check",
+        "Delete entity files",
+        "Clean up empty directories"
+      ]
+    },
+    "phase8": {
+      "name": "Clean Event Handler",
+      "status": "not-started",
+      "estimatedEffort": "1 hour",
+      "tasks": [
+        "Check if event is emitted",
+        "Delete or update handler",
+        "Remove from providers"
+      ]
+    },
+    "phase9": {
+      "name": "Update Documentation",
+      "status": "not-started",
+      "estimatedEffort": "1 hour",
+      "tasks": [
+        "Update root AGENTS.md",
+        "Update backend AGENTS.md",
+        "Update ingestion AGENTS.md",
+        "Mark migration plan complete"
+      ]
+    }
+  },
+  "strategies": {
+    "strategy1": {
+      "name": "Pure DTO",
+      "description": "Backend uses ONLY DTOs, no entity dependencies",
+      "effort": "7-9 hours",
+      "risk": "medium",
+      "phases": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      "recommended": true,
+      "rationale": "Clean architecture, service independence, future-proof"
+    },
+    "strategy2": {
+      "name": "Shared Package",
+      "description": "Extract entities to separate package",
+      "effort": "3-4 hours",
+      "risk": "low-medium",
+      "phases": ["custom"],
+      "recommended": false,
+      "rationale": "Couples services via shared domain, middle ground"
+    },
+    "strategy3": {
+      "name": "Direct Import",
+      "description": "Backend imports entities FROM ingestion-service",
+      "effort": "1-2 hours",
+      "risk": "low",
+      "phases": ["custom"],
+      "recommended": "alternative",
+      "rationale": "Fast, monorepo natural, can migrate to Strategy 1 later"
+    }
+  },
+  "acceptanceCriteria": [
+    "Backend has ZERO duplicate crypto-news entities",
+    "All tests pass (unit + integration + e2e)",
+    "npm run build succeeds with no TypeScript errors",
+    "Backend boots successfully on port 3030",
+    "Enqueue flow works (messages appear in queue)",
+    "Publish flow works (queue drains to Telegram)",
+    "No regressions in crypto-news pipeline",
+    "Documentation updated (AGENTS.md reflects architecture)"
+  ],
+  "risks": [
+    {
+      "name": "Breaking enqueue flow",
+      "probability": "medium",
+      "impact": "high",
+      "mitigation": "Extensive unit tests on Phase 3, integration tests"
+    },
+    {
+      "name": "TypeScript type errors",
+      "probability": "low",
+      "impact": "medium",
+      "mitigation": "Run tsc --noEmit after each phase"
+    },
+    {
+      "name": "DI graph breaks",
+      "probability": "medium",
+      "impact": "high",
+      "mitigation": "Check all @Inject() sites before removing repos"
+    }
+  ],
+  "metrics": {
+    "duplicateEntities": {
+      "before": 2,
+      "target": 0
+    },
+    "totalTests": {
+      "backend": 1969,
+      "ingestion": 815,
+      "target": "100% pass rate"
+    },
+    "LOCReduction": {
+      "estimated": "~500 lines"
+    }
+  }
+}

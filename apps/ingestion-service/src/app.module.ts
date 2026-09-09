@@ -14,7 +14,6 @@ import { TelegramModule } from './telegram/telegram.module';
 import { CryptoNewsSourceEntity } from './telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
 import { CryptoNewsMessageEntity } from './telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
 import { CryptoNewsMessageMediaEntity } from './telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
-import { ChannelContentFilterConfigEntity } from './telegram/crypto-news/infrastructure/persistence/typeorm/entities/channel-content-filter-config.entity';
 import { BackfillMessageEntity } from './stream/infrastructure/persistence/typeorm/backfill-message.entity';
 
 /**
@@ -60,6 +59,16 @@ import { BackfillMessageEntity } from './stream/infrastructure/persistence/typeo
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         const dbConfig = config.get('app.database');
+        // Schema management mirrors backend database.module.ts:
+        // staging/production use migration-based schema (baseline governs),
+        // dev/test keep synchronize (dev stays on auto-sync; baseline is NOT
+        // applied over the populated dev DB). Deploys run explicit
+        // migrations (scripts/run-migrations.sh) — never migrationsRun:true.
+        const nodeEnv = (process.env.NODE_ENV ?? 'development').toLowerCase();
+        const useMigrations = nodeEnv === 'staging' || nodeEnv === 'production';
+        const synchronize = useMigrations
+          ? false
+          : (dbConfig?.synchronize ?? true);
         return {
           type: 'postgres',
           host: dbConfig?.host || 'localhost',
@@ -71,11 +80,11 @@ import { BackfillMessageEntity } from './stream/infrastructure/persistence/typeo
             CryptoNewsSourceEntity,
             CryptoNewsMessageEntity,
             CryptoNewsMessageMediaEntity,
-            ChannelContentFilterConfigEntity,
             BackfillMessageEntity,
           ],
-          synchronize: dbConfig?.synchronize || false,
+          synchronize,
           logging: dbConfig?.logging || false,
+          migrationsRun: false,
         };
       },
     }),

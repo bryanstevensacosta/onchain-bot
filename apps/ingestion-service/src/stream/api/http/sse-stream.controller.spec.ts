@@ -266,13 +266,13 @@ describe('SSEStreamController', () => {
         ip: '127.0.0.2',
       }) as Partial<Request>;
 
-      const mockResponse1 = { 
+      const mockResponse1 = {
         set: jest.fn().mockReturnThis(),
-        writeHead: jest.fn() 
+        writeHead: jest.fn(),
       } as Partial<Response>;
-      const mockResponse2 = { 
+      const mockResponse2 = {
         set: jest.fn().mockReturnThis(),
-        writeHead: jest.fn() 
+        writeHead: jest.fn(),
       } as Partial<Response>;
 
       controller.stream(
@@ -355,9 +355,9 @@ describe('SSEStreamController', () => {
         ip: '127.0.0.1',
       }) as Partial<Request>;
 
-      const mockResponse = { 
+      const mockResponse = {
         set: jest.fn().mockReturnThis(),
-        writeHead: jest.fn() 
+        writeHead: jest.fn(),
       } as Partial<Response>;
 
       controller.stream(

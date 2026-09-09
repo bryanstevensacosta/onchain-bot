@@ -181,4 +181,20 @@ export class TypeOrmPublisherQueueRepository extends PublisherQueueRepository {
 
     return rows.map((r) => PublisherQueueMapper.toDomain(r));
   }
+
+  /**
+   * Find a queue entry by channelId and messageId.
+   * Used for deduplication checks before enqueueing.
+   * Returns the most recent entry if multiple exist (ordered by messageReceivedAt DESC).
+   */
+  public async findByChannelIdAndMessageId(
+    channelId: string,
+    messageId: number,
+  ): Promise<PublisherQueueEntry | null> {
+    const row = await this.repo.findOne({
+      where: { channelId, messageId },
+      order: { messageReceivedAt: 'DESC' },
+    });
+    return row ? PublisherQueueMapper.toDomain(row) : null;
+  }
 }
