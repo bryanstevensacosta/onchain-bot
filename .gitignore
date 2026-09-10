@@ -6,9 +6,16 @@
 .env.production
 .env.prod
 .env.staging
+.env.droplet.*
 !.env.example
 !.env.production.template
 !.env.staging.template
+
+# Secret-bearing files (untracked 2026-09-10: contained real tokens/passwords)
+scripts/.env.sync
+infra/terraform/terraform.tfvars
+*.backup-*
+*.bak
 
 # Cache & local state
 .cache/
