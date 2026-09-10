@@ -1,5 +1,28 @@
 # Changelog
 
+## [4.0.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v3.0.1...v4.0.0) (2026-09-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* **sync:** MTProto credentials must now be in ingestion-service ONLY
+* **sync:** MTProto credentials must now be in ingestion-service ONLY
+* **sync:** MTProto credentials must now be in ingestion-service ONLY
+* **sync:** MTProto credentials must now be in ingestion-service ONLY
+* MTProto credentials must now be in ingestion-service ONLY
+
+### Bug Fixes
+
+* ingestion-service tests (127→0 failing) + implement Gap 3 dedup + Husky + CI ([#154](https://github.com/bryanstevensacosta/onchain-bot/issues/154)) ([b031f32](https://github.com/bryanstevensacosta/onchain-bot/commit/b031f32ea62b64180d7f50706f868130d2e1d01d))
+
+
+### Miscellaneous Chores
+
+* **sync:** dev → master (281 commits) ([#159](https://github.com/bryanstevensacosta/onchain-bot/issues/159)) ([574a8de](https://github.com/bryanstevensacosta/onchain-bot/commit/574a8de3b75a10f999155e671321b593f9ad41fc))
+* **sync:** dev → master (prod migration idempotency) ([#171](https://github.com/bryanstevensacosta/onchain-bot/issues/171)) ([75b624d](https://github.com/bryanstevensacosta/onchain-bot/commit/75b624dc493c5751205442e46a3ad1456d905142))
+* **sync:** dev → master (staging migration runner + views fixes) ([#168](https://github.com/bryanstevensacosta/onchain-bot/issues/168)) ([f5c22e9](https://github.com/bryanstevensacosta/onchain-bot/commit/f5c22e9993fa7c6c03bff4e0d6f11e18cc7dfaff))
+* **sync:** dev → master (staging views fixes) ([#165](https://github.com/bryanstevensacosta/onchain-bot/issues/165)) ([7fb5b5c](https://github.com/bryanstevensacosta/onchain-bot/commit/7fb5b5c20c2b2178036f1ca0142b8d2421e4f00c))
+
 ## [3.0.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v2.0.0...v3.0.0) (2026-09-06)
 
 ### Features
