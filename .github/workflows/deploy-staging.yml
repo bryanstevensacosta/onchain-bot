@@ -370,10 +370,6 @@ jobs:
     runs-on: [self-hosted, oracle]
     needs: [deploy-staging]
     steps:
-      - name: Restart litellm-gateway
-        run: |
-          echo "=== Restarting litellm-gateway ==="
-          docker start litellm-gateway || true
       - name: Restart staging backend + frontend
         run: |
           echo "=== Restarting staging ==="
