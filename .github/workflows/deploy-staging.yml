@@ -373,4 +373,4 @@ jobs:
       - name: Restart staging backend + frontend
         run: |
           echo "=== Restarting staging ==="
-          onchainbot staging start
+          cd /opt/onchain-bot-staging/apps/backend && docker compose -f docker-compose.staging.yml up -d --force-recreate backend frontend
