@@ -4,9 +4,11 @@ export class AddQueuedAtToPublisherQueue1860000000000 implements MigrationInterf
   name = 'AddQueuedAtToPublisherQueue1860000000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // 1. Add queued_at column with DEFAULT NOW()
+    // 1. Add queued_at column with DEFAULT NOW() (IF NOT EXISTS: some
+    // environments already carry the column from synchronize episodes
+    // while the migration itself was never recorded)
     await queryRunner.query(
-      `ALTER TABLE "crypto_news_publisher_queue" ADD "queued_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()`,
+      `ALTER TABLE "crypto_news_publisher_queue" ADD COLUMN IF NOT EXISTS "queued_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()`,
     );
 
     // 2. Backfill existing rows: set queued_at = message_received_at (best approximation)
