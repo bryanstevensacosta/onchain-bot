@@ -1,5 +1,5 @@
 {
-  "apps/backend": "3.0.1",
-  "apps/frontend": "3.0.1",
-  "apps/ingestion-service": "3.0.0"
+  "apps/backend": "4.0.0",
+  "apps/frontend": "4.0.0",
+  "apps/ingestion-service": "4.0.0"
 }
