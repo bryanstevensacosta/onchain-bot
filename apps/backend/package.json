@@ -1,6 +1,6 @@
 {
   "name": "@alpha-meta-token-scanner/backend",
-  "version": "3.0.1",
+  "version": "4.0.0",
   "description": "NestJS pipeline for discovering, validating and republishing alpha-calls from Telegram channels",
   "private": true,
   "license": "UNLICENSED",
