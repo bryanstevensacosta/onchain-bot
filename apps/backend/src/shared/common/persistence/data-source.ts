@@ -37,10 +37,11 @@ export default new DataSource({
   password: process.env.POSTGRES_PASSWORD ?? 'alpha_meta_token_scanner',
   database: process.env.POSTGRES_DB ?? 'alpha_meta_token_scanner',
   entities: PERSISTED_ENTITIES,
-  migrations: [
-    'src/shared/common/persistence/migrations/*.ts',
-    'src/shared/common/persistence/migrations/*.js',
-  ],
+  // __dirname-based (NOT cwd-relative): the CLI runs from apps/backend
+  // locally (src/…/*.ts) and from /app inside Docker (dist/backend/…/*.js).
+  // The old cwd-relative 'src/…' glob matched nothing in Docker, so staging
+  // and prod migration runs silently reported "No migrations are pending".
+  migrations: [__dirname + '/migrations/*.ts', __dirname + '/migrations/*.js'],
   migrationsTableName: 'typeorm_migrations',
   synchronize: false,
   logging: false,
