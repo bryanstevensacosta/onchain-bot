@@ -357,12 +357,12 @@ jobs:
       - name: Healthcheck backend (Tailscale)
         run: |
           echo "=== Tailscale backend healthcheck (curl -v) ==="
-          curl -v -sf http://100.84.4.28:3031/api/health || { echo "BACKEND HEALTHCHECK FAILED"; exit 1; }
+          curl -v -sf http://100.110.169.120:3031/api/health || { echo "BACKEND HEALTHCHECK FAILED"; exit 1; }
 
       - name: Healthcheck frontend (Tailscale)
         run: |
           echo "=== Tailscale frontend healthcheck (curl -v) ==="
-          curl -v -sf -o /dev/null http://100.84.4.28:4173/ || { echo "FRONTEND HEALTHCHECK FAILED"; exit 1; }
+          curl -v -sf -o /dev/null http://100.110.169.120:4173/ || { echo "FRONTEND HEALTHCHECK FAILED"; exit 1; }
 
   restart-services:
     name: Restart services
