@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=root
-ExecStart=/usr/bin/socat TCP-LISTEN:{LOCAL_PORT},fork,reuseaddr,bind=127.0.0.1 TCP:{TAILSCALE_IP}:{TAILSCALE_PORT}
+ExecStart=/usr/bin/socat TCP-LISTEN:{TAILSCALE_PORT},fork,reuseaddr,bind={TAILSCALE_IP} TCP:127.0.0.1:{LOCAL_PORT}
 Restart=on-failure
 RestartSec=5s
 

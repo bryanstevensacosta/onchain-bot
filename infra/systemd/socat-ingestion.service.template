@@ -1,5 +1,5 @@
 [Unit]
-Description=Socat proxy for frontend (Tailscale {TAILSCALE_IP}:{TAILSCALE_PORT} → localhost:{LOCAL_PORT})
+Description=Socat proxy for ingestion (Tailscale {TAILSCALE_IP}:{TAILSCALE_PORT} → localhost:{LOCAL_PORT})
 After=network-online.target
 Wants=network-online.target
 
