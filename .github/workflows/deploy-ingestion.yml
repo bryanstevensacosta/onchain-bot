@@ -107,6 +107,8 @@ jobs:
 
       - name: Restart ingestion service
         run: |
+          set -a; source /opt/onchain-bot/apps/ingestion-service/.env.production; set +a
+          set -a; source /opt/onchain-bot/apps/backend/.env.production; set +a
           cd /opt/onchain-bot/apps/backend
           docker compose -f docker-compose.ingestion.yml pull
           docker compose -f docker-compose.ingestion.yml up -d --force-recreate
