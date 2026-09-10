@@ -76,8 +76,8 @@ npm run dev               # ambos en paralelo
 npm run migration:generate -- -n NombreMigracion
 npm run migration:run
 
-# Production
-ssh root@144.126.203.139
+# Production (Oracle)
+ssh OracleDroplet
 cd /opt/onchain-bot
 bash scripts/backup-db.sh   # backup manual
 docker compose -f apps/backend/docker-compose.prod.yml ps

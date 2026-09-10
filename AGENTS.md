@@ -297,7 +297,7 @@ Source: `apps/backend/docs/spydefi/arch/09-anti-patterns.md` — project-level r
 - **NEVER duplicate MTProto credentials** — session lives ONLY in `apps/ingestion-service/.env` (`INGESTION_TELEGRAM_MTPROTO_*`); duplication triggers `AUTH_KEY_DUPLICATED`
 - **NEVER define ingestion-service in `docker-compose.staging.yml` or `.prod.yml`** — only `docker-compose.ingestion.yml` (standalone)
 - **NEVER create separate crypto-news sources DBs per environment** — single `crypto_news_sources` table, both backends query the same ingestion-service
-- **Backend MUST consume via SSE** — `INGESTION_SERVICE_URL` points to the centralized instance (Tailscale `cryptoganster.tailf01c61.ts.net:3032` or `localhost:3032`)
+- **Backend MUST consume via SSE** — `INGESTION_SERVICE_URL` points to the centralized instance (Tailscale `cryptoganster.tailf01c61.ts.net:3032` — live on Oracle since 2026-09-10, ex-DO (suspended 2026-09-10) was `100.84.4.28` — or `localhost:3032`)
 - **Staging/production backends filter client-side** — ingestion-service broadcasts ALL channels, backends subscribe to what they need
 
 ### Shared-kernel contracts (handle with care)
@@ -381,22 +381,25 @@ npm run docker:down
 
 Prod `deploy.yml` flow:
 
-1. **build-and-push**: Buildx → GHCR (`-backend` + `-frontend` images, `:sha` + `:latest` tags, `linux/amd64`).
-2. **deploy** (self-hosted runner): rsync tree (excl. `.git/uploads/node_modules/dist/backups/logs/.env*`) → DB backup → chown → disk prune → pull → **migrations in one-off container** → `compose up -d --force-recreate` → sleep 180 s → healthcheck `:3030/api/health` with **automatic rollback** (recreate + re-check, fail loudly).
+1. **build-and-push**: Buildx → GHCR (`-backend` + `-frontend` images, `:sha` + `:latest` tags, `linux/amd64,linux/arm64` multi-arch since 2026-09-10).
+2. **deploy** (self-hosted runner, label `oracle`): rsync tree (excl. `.git/uploads/node_modules/dist/backups/logs/.env*`) → DB backup → chown → disk prune → pull → **migrations in one-off container** → `compose up -d --force-recreate` → sleep 180 s → healthcheck `:3030/api/health` with **automatic rollback** (recreate + re-check, fail loudly).
 
 Branch model (`GOVERNANCE.md` v2.0, Spanish, active): `dev` (integration) → PR squash → `master` (prod); 1 approval + CI pass + resolved threads; long-lived only `dev`/`master`; no `release/*` (continuous deploy on master push).
 
 ## PRODUCTION DROPLET
 
-| Name       | Host          | IP              | SSH Config                  |
-| ---------- | ------------- | --------------- | --------------------------- |
-| Production | CryptoGanster | 144.126.203.139 | SSH alias in VS Code Remote |
+> Oracle migration 2026-09-10: prod serves from Oracle (`OracleDroplet`); ex-DO node `digitalocean` suspended 2026-09-10. Staging on Oracle HELD (fresh-DB migration bug = separate product track); LiteLLM gateway deferred to a separate track.
+
+| Name                 | Host          | IP                                                              | SSH Config                  |
+| -------------------- | ------------- | --------------------------------------------------------------- | --------------------------- |
+| Production (Oracle)  | OracleDroplet | `ubuntu@150.136.155.23` (Tailscale `cryptoganster`=100.110.169.120) | SSH alias in VS Code Remote |
+| ex-DO (suspended 2026-09-10) | digitalocean | 144.126.203.139 (ex-DO (suspended 2026-09-10)) | retired alias `CryptoGanster` |
 
 ### Quick Access (from local)
 
 ```bash
-ssh CryptoGanster
-ssh root@144.126.203.139
+ssh OracleDroplet
+ssh ubuntu@150.136.155.23
 ```
 
 ### Production Commands
@@ -445,7 +448,7 @@ Telegram MTProto ──► ingestion-service :3031 ──SSE /api/ingestion/stre
 
 - Backend↔ingestion heartbeat: SSE `health:ping` 30 s; backend backoff 1 s→30 s; no replay (lossy by design).
 - Media: ingestion-service owns `uploads/`; backend reads via HTTP (`INGESTION_SERVICE_URL`) or read-only volume in compose.
-- Ports: ingestion-service listens `:3031` in dev and inside the droplet container; droplet host maps `127.0.0.1:3032` → `:3031` (avoids clash with staging backend on `:3031`).
+- Ports: ingestion-service listens `:3031` in dev and inside the container; Oracle host maps `127.0.0.1:3032` → `:3031` (avoids clash with staging backend on `:3031`).
 - Channels: KOL identity lives in backend DB (`telegram-kol/identity`, polled by ingestion-service); crypto-news sources/messages/media live in the ingestion DB (`<base>_ingestion`, owned by ingestion-service since split 2026-09-08).
 
 ## BACKEND PIPELINE (alpha-call path + opaque news path)

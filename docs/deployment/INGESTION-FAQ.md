@@ -31,7 +31,7 @@
 ```bash
 # apps/backend/.env.dev
 USE_SSE_INGESTION=true
-INGESTION_REMOTE_URL=http://144.126.203.139:3032
+INGESTION_REMOTE_URL=http://100.110.169.120:3032
 
 # ❌ NO incluir:
 # INGESTION_TELEGRAM_MTPROTO_*
@@ -74,8 +74,8 @@ INGESTION_MODE=mock
 #### Opción B: Kill Switch
 
 ```bash
-# 1. Detener droplet ingestion
-ssh root@144.126.203.139
+# 1. Detener ingestion Oracle
+ssh OracleDroplet
 docker compose -f /opt/onchain-bot/apps/backend/docker-compose.ingestion.yml stop
 
 # 2. Correr local con credenciales reales
@@ -322,7 +322,7 @@ fly deploy
 
 - [ ] Exponer puerto 3032 públicamente en droplet
 - [ ] Configurar firewall: `ufw allow 3032/tcp`
-- [ ] Backend dev local apunta a droplet: `http://144.126.203.139:3032`
+- [ ] Backend dev local apunta a Oracle: `http://100.110.169.120:3032`
 - [ ] NO correr ingestion-service en dev local
 - [ ] Verificar 3 clientes conectados
 

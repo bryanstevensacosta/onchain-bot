@@ -260,7 +260,7 @@ Unit co-locados (`*.spec.ts`): `app.module`, `stream.service`, `disconnection-tr
 | `metrics` (72)                       | `GET /metrics` 200 + `text/plain` + formato Prometheus                                                            |
 | `E2E-TESTING-GUIDE.md`               | estrategia + troubleshooting (`AUTH_KEY_DUPLICATED`, SSH túneles, validación side-by-side prod-vs-staging ≥99.9%) |
 
-⚠️ **Restricción MTProto en tests**: prohibido inicializar `TelegramClient` en tests locales mientras el droplet corre (sesión única → `406 AUTH_KEY_DUPLICATED`). Los e2e levantan `AppModule` completo en memoria e inyectan por `StreamService`; contra droplet usan `INGESTION_SERVICE_URL=http://144.126.203.139:3032` + `eventsource`.
+⚠️ **Restricción MTProto en tests**: prohibido inicializar `TelegramClient` en tests locales mientras el droplet corre (sesión única → `406 AUTH_KEY_DUPLICATED`). Los e2e levantan `AppModule` completo en memoria e inyectan por `StreamService`; contra Oracle usan `INGESTION_SERVICE_URL=http://100.110.169.120:3032` + `eventsource` (ex-DO (suspended 2026-09-10) was `http://144.126.203.139:3032`).
 ⚠️ **Landmine `moduleNameMapper`** (unit y e2e): `^telegram/(.*)$` → `src/telegram/$1`, con solo `telegram/events` y `telegram/sessions` pineados a `node_modules`. Cualquier spec que importe otro subpath gramjs (`telegram/client`, `telegram/extensions/Logger`, …) resuelve a un archivo inexistente y rompe. Si agregas specs al MTProto layer, pinnea el subpath primero.
 
 ## Logging

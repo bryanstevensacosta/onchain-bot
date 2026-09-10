@@ -61,7 +61,7 @@ flowchart LR
         MigrateStg[typeorm migration:run]
         UpStg[docker compose up -d<br/>backend + frontend]
         HcStg{healthcheck<br/>localhost:3031<br/>60×2s = 120s}
-        TailscaleStg[Tailscale probes<br/>100.84.4.28:3031 + :4173]
+        TailscaleStg[Tailscale probes<br/>100.110.169.120:3031 + :4173]
     end
 
     %% ===== CD prod =====
@@ -146,8 +146,11 @@ does its own `npm ci` against the rsynced source tree (because `rsync
 
 ### 2. CD — staging (`.github/workflows/deploy-staging.yml`)
 
-Triggered by `push` to `dev` or by `workflow_dispatch`. Runs on the droplet's
-self-hosted runner, with `environment: staging`.
+Triggered by `push` to `dev` or by `workflow_dispatch`. Runs on the Oracle
+self-hosted runner (`runs-on: [self-hosted, oracle]`), with `environment: staging`.
+
+> Oracle migration 2026-09-10: staging on Oracle HELD — fresh-DB migration bug
+> (`settings_filters` 42P01, separate product track), NOT a CI regression.
 
 Key steps:
 
@@ -172,7 +175,7 @@ Key steps:
     (60 × 2 s against `:4173`).
 14. `install-socat-services.sh staging` (idempotent — ensures `:3031` is
     socat-forwarded to backend, `:4173` to frontend).
-15. **Tailscale probes** against `100.84.4.28:3031` and `100.84.4.28:4173`.
+15. **Tailscale probes** against `100.110.169.120:3031` and `100.110.169.120:4173` (ex-DO (suspended 2026-09-10) was `100.84.4.28`).
 16. `if: always()` → `docker image prune --force --filter "until=24h"` +
     `docker system df` (so the deploy itself doesn't leak disk on staging).
 
@@ -229,7 +232,7 @@ tag and the GitHub Release and sets `isLatest: true`. See
 | Env        | Host / Port                                                         | Branch   | Deploy workflow             | DB port       | `USE_MOCK_AI`   |
 | ---------- | ------------------------------------------------------------------- | -------- | --------------------------- | ------------- | --------------- |
 | Local dev  | `localhost:3030` + `:5173`                                          | `dev`    | none (manual `npm run dev`) | 5432 (docker) | n/a             |
-| Staging    | `localhost:3031` + `:4173` (Tailscale `100.84.4.28:3031` + `:4173`) | `dev`    | `deploy-staging.yml`        | 5433          | `true`          |
+| Staging    | `localhost:3031` + `:4173` (Tailscale `100.110.169.120:3031` + `:4173`; ex-DO (suspended 2026-09-10) was `100.84.4.28`) | `dev`    | `deploy-staging.yml`        | 5433          | `true`          |
 | Production | `localhost:3030` + `:5173`                                          | `master` | `deploy.yml`                | 5432          | unset (real AI) |
 
 > **Why two ports on prod?** Production's `:3030` is the NestJS backend
