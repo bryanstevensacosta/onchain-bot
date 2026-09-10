@@ -57,7 +57,7 @@ jobs:
 
   deploy:
     name: Deploy to droplet
-    runs-on: self-hosted
+    runs-on: [self-hosted, oracle]
     needs: build-and-push
     environment: production
     steps:

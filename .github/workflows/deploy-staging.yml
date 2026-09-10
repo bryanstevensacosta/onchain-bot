@@ -119,7 +119,7 @@ jobs:
 
   deploy-staging:
     name: Deploy to staging
-    runs-on: self-hosted
+    runs-on: [self-hosted, oracle]
     needs: [build-and-push-staging]
     environment: staging
     steps:
