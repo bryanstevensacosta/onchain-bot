@@ -82,6 +82,7 @@ export class QueueController {
 
   private readonly logger = new Logger(QueueController.name);
   private readonly outputChannel: string;
+  private readonly ingestionBaseUrl: string;
 
   public constructor(
     private readonly queueRepo: PublisherQueueRepository,
@@ -91,6 +92,10 @@ export class QueueController {
   ) {
     const appCfg = config.get<AppConfig>('app');
     this.outputChannel = appCfg?.publishing?.cryptoNews?.outputChannel ?? '';
+    this.ingestionBaseUrl =
+      appCfg?.ingestion?.serviceUrl ??
+      process.env.INGESTION_SERVICE_URL ??
+      'http://localhost:3031';
   }
 
   @Get()
@@ -353,7 +358,6 @@ export class QueueController {
     const messageId = match[2];
     const index = match[3];
 
-    const ingestionPort = process.env.INGESTION_PORT || '3031';
-    return `http://localhost:${ingestionPort}/api/media/${channelId}/${messageId}/${index}`;
+    return `${this.ingestionBaseUrl}/api/media/${channelId}/${messageId}/${index}`;
   }
 }

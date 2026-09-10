@@ -1,4 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { AppConfig } from 'shared/common/config/app.config';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
 import { SharedThrottleStateRepository } from 'telegram/shared/application/ports/shared-throttle-state.repository';
 import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
@@ -68,6 +70,7 @@ export class ProcessNextQueuedArticleUseCase {
     private readonly rotationStateRepo: AdRotationStateRepository,
     private readonly mediaCleanup: MediaCleanupService,
     private readonly publisherConfig: CryptoNewsPublisherConfigService,
+    @Optional() private readonly config?: ConfigService,
   ) {}
 
   /**
@@ -443,7 +446,7 @@ export class ProcessNextQueuedArticleUseCase {
   private async downloadFileFromIngestion(localPath: string): Promise<string> {
     // Convert local path to ingestion-service URL
     // Path: uploads/crypto-news/media/-1004466661332/200_0.jpg
-    // URL:  http://localhost:3031/api/media/-1004466661332/200/0
+    // URL:  {ingestionServiceUrl}/api/media/-1004466661332/200/0
     const match = localPath.match(
       /crypto-news\/media\/([^/]+)\/(\d+)_(\d+)\.\w+$/,
     );
@@ -456,8 +459,14 @@ export class ProcessNextQueuedArticleUseCase {
     const messageId = match[2];
     const index = match[3];
 
-    const ingestionPort = process.env.INGESTION_PORT || '3031';
-    const ingestionUrl = `http://localhost:${ingestionPort}/api/media/${channelId}/${messageId}/${index}`;
+    // NOTE: never hardcode localhost here — inside Docker the ingestion
+    // container is a different host ( ingestion-service:3031 via
+    // INGESTION_SERVICE_URL); localhost would hit this container itself.
+    const ingestionBaseUrl =
+      this.config?.get<AppConfig>('app')?.ingestion?.serviceUrl ??
+      process.env.INGESTION_SERVICE_URL ??
+      'http://localhost:3031';
+    const ingestionUrl = `${ingestionBaseUrl}/api/media/${channelId}/${messageId}/${index}`;
 
     try {
       const response = await fetch(ingestionUrl);
