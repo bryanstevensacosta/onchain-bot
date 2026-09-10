@@ -80,6 +80,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -99,7 +102,7 @@ jobs:
           tags: ghcr.io/${{ github.repository }}-backend:staging-${{ github.sha }},ghcr.io/${{ github.repository }}-backend:staging-latest
           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-backend:cache
           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-backend:cache,mode=max
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           build-args: |
             NODE_ENV=staging
 
@@ -112,7 +115,7 @@ jobs:
           tags: ghcr.io/${{ github.repository }}-frontend:staging-${{ github.sha }},ghcr.io/${{ github.repository }}-frontend:staging-latest
           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-frontend:cache
           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-frontend:cache,mode=max
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
 
   deploy-staging:
     name: Deploy to staging
