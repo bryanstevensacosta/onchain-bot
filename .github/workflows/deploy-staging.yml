@@ -342,7 +342,7 @@ jobs:
   restart-services:
     name: Restart services
     if: ${{ success() }}
-    runs-on: self-hosted
+    runs-on: [self-hosted, oracle]
     needs: [deploy-staging]
     steps:
       - name: Restart litellm-gateway
