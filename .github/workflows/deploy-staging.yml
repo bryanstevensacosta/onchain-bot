@@ -80,6 +80,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -99,7 +102,7 @@ jobs:
           tags: ghcr.io/${{ github.repository }}-backend:staging-${{ github.sha }},ghcr.io/${{ github.repository }}-backend:staging-latest
           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-backend:cache
           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-backend:cache,mode=max
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           build-args: |
             NODE_ENV=staging
 
@@ -112,11 +115,11 @@ jobs:
           tags: ghcr.io/${{ github.repository }}-frontend:staging-${{ github.sha }},ghcr.io/${{ github.repository }}-frontend:staging-latest
           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-frontend:cache
           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-frontend:cache,mode=max
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
 
   deploy-staging:
     name: Deploy to staging
-    runs-on: self-hosted
+    runs-on: [self-hosted, oracle]
     needs: [build-and-push-staging]
     environment: staging
     steps:
@@ -242,6 +245,31 @@ jobs:
           docker ps -a | grep -i "backend\|ingestion" || true
           sleep 2
 
+      - name: Ensure staging databases running
+        run: |
+          set -euo pipefail
+          echo "=== Ensuring staging postgres+redis running ==="
+          docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d postgres redis
+          echo "=== Waiting for postgres+redis healthy (max 60s) ==="
+          for i in $(seq 1 12); do
+            PG=$(docker inspect --format '{{.State.Health.Status}}' onchain-bot-staging-postgres 2>/dev/null || echo "missing")
+            RD=$(docker inspect --format '{{.State.Health.Status}}' onchain-bot-staging-redis 2>/dev/null || echo "missing")
+            echo "  attempt $i/12: postgres=$PG redis=$RD"
+            if [ "$PG" = "healthy" ] && [ "$RD" = "healthy" ]; then
+              echo "✓ Staging databases healthy"
+              break
+            fi
+            if [ "$i" -eq 12 ]; then
+              echo "❌ Staging databases not healthy after 60s (postgres=$PG redis=$RD)"
+              echo "=== postgres logs (last 30) ==="
+              docker logs --tail 30 onchain-bot-staging-postgres 2>&1 || true
+              echo "=== redis logs (last 30) ==="
+              docker logs --tail 30 onchain-bot-staging-redis 2>&1 || true
+              exit 1
+            fi
+            sleep 5
+          done
+
       - name: Run migrations (staging environment)
         run: |
           set -euo pipefail
@@ -339,7 +367,7 @@ jobs:
   restart-services:
     name: Restart services
     if: ${{ success() }}
-    runs-on: self-hosted
+    runs-on: [self-hosted, oracle]
     needs: [deploy-staging]
     steps:
       - name: Restart litellm-gateway
