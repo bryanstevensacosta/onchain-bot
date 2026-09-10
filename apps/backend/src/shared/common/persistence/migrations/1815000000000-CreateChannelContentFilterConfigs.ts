@@ -4,9 +4,10 @@ export class CreateChannelContentFilterConfigs1815000000000 implements Migration
   public name = 'CreateChannelContentFilterConfigs1815000000000';
 
   public async up(qr: QueryRunner): Promise<void> {
-    // Create channel_content_filter_configs table
+    // Create channel_content_filter_configs table (IF NOT EXISTS: prod
+    // already carries it from a synchronize episode while unrecorded)
     await qr.query(
-      `CREATE TABLE channel_content_filter_configs (` +
+      `CREATE TABLE IF NOT EXISTS channel_content_filter_configs (` +
         `id uuid PRIMARY KEY DEFAULT gen_random_uuid(), ` +
         `channel_id varchar(64) NOT NULL, ` +
         `pattern varchar(512) NOT NULL, ` +
@@ -26,9 +27,9 @@ export class CreateChannelContentFilterConfigs1815000000000 implements Migration
         `FOREIGN KEY (channel_id) REFERENCES crypto_news_sources(channel_id) ON DELETE CASCADE`,
     );
 
-    // Add index for ordering
+    // Add index for ordering (IF NOT EXISTS: present on synchronize-era tables)
     await qr.query(
-      `CREATE INDEX idx_channel_content_filter_configs_ordering ` +
+      `CREATE INDEX IF NOT EXISTS idx_channel_content_filter_configs_ordering ` +
         `ON channel_content_filter_configs (channel_id, priority, created_at)`,
     );
 
