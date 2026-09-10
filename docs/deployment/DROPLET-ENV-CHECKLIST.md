@@ -5,7 +5,7 @@
 ### 1. Extract from Backend .env (on droplet)
 
 ```bash
-ssh root@144.126.203.139
+ssh OracleDroplet
 cd /opt/onchain-bot
 grep "TELEGRAM_MTPROTO\|TELEGRAM_SEED\|DATABASE_PASSWORD" apps/backend/.env
 ```

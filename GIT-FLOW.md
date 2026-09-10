@@ -6,7 +6,7 @@
 ## Branch Structure & Rules
 
 ```
-master (protected)     → Production (144.126.203.139)
+master (protected)     → Production (Oracle — OracleDroplet)
   ↑ PR only, squash/rebase merge
 dev (protected)        → Staging
   ↑ Direct commits allowed

@@ -2,7 +2,7 @@
 
 **Version:** 1.0  
 **Last Updated:** 2026-08-30  
-**Target Environment:** CryptoGanster Droplet (144.126.203.139)  
+**Target Environment:** CryptoGanster Droplet (144.126.203.139 — ex-DO (suspended 2026-09-10); live env is Oracle `OracleDroplet`)  
 **Related Requirements:** 12.5, 7.2, 7.4, 7.5
 
 ## Overview

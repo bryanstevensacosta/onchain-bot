@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide walks through migrating MTProto session credentials from backend to ingestion-service on the production droplet (CryptoGanster - 144.126.203.139).
+This guide walks through migrating MTProto session credentials from backend to ingestion-service on the production droplet (CryptoGanster - 144.126.203.139 — ex-DO (suspended 2026-09-10)).
 
 ⚠️ **CRITICAL**: This migration must be done carefully to avoid AUTH_KEY_DUPLICATED errors which can result in Telegram account suspension.
 
@@ -19,7 +19,7 @@ This guide walks through migrating MTProto session credentials from backend to i
 ### Step 1: Connect to Production Droplet
 
 ```bash
-ssh root@144.126.203.139
+ssh root@144.126.203.139  # ex-DO (suspended 2026-09-10); current: ssh OracleDroplet
 # or use VS Code Remote SSH: CryptoGanster
 ```
 

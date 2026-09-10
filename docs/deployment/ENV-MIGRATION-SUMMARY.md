@@ -46,7 +46,7 @@
 
 **On droplet, you need to:**
 
-1. SSH to droplet: `ssh root@144.126.203.139`
+1. SSH to droplet: `ssh root@144.126.203.139`  <!-- ex-DO (suspended 2026-09-10); current: ssh OracleDroplet -->
 2. Navigate: `cd /opt/onchain-bot-staging`
 3. Check current `.env.staging` for MTProto credentials
 4. Create `apps/ingestion-service/.env` with those credentials
@@ -60,7 +60,7 @@
 
 **On droplet, you need to:**
 
-1. SSH to droplet: `ssh root@144.126.203.139`
+1. SSH to droplet: `ssh root@144.126.203.139`  <!-- ex-DO (suspended 2026-09-10); current: ssh OracleDroplet -->
 2. Navigate: `cd /opt/onchain-bot`
 3. **BACKUP FIRST**: `cp apps/backend/.env apps/backend/.env.backup.$(date +%Y%m%d-%H%M%S)`
 4. Extract MTProto credentials: `grep TELEGRAM_MTPROTO apps/backend/.env`

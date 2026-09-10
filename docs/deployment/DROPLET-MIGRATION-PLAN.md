@@ -4,7 +4,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  DROPLET (144.126.203.139)                                  │
+│  DROPLET (144.126.203.139 — ex-DO (suspended 2026-09-10))          │
 │                                                              │
 │  ┌────────────────────────────────────────────────┐         │
 │  │  onchain-bot-ingestion (puerto 3032→3031)      │         │
@@ -53,7 +53,7 @@
 
 ```bash
 # 1. SSH al droplet
-ssh root@144.126.203.139
+ssh root@144.126.203.139  # ex-DO (suspended 2026-09-10); current: ssh OracleDroplet
 
 # 2. Navegar a directorio
 cd /opt/onchain-bot
@@ -74,10 +74,10 @@ mkdir -p apps/ingestion-service
 ```bash
 # 6. Subir docker-compose.ingestion.yml
 # (Desde tu máquina local)
-scp /tmp/docker-compose.ingestion.yml root@144.126.203.139:/opt/onchain-bot/apps/backend/
+scp /tmp/docker-compose.ingestion.yml root@144.126.203.139:/opt/onchain-bot/apps/backend/  # ex-DO (suspended 2026-09-10)
 
 # 7. Subir .env.production para ingestion-service
-scp /tmp/ingestion-service.env.production root@144.126.203.139:/opt/onchain-bot/apps/ingestion-service/.env.production
+scp /tmp/ingestion-service.env.production root@144.126.203.139:/opt/onchain-bot/apps/ingestion-service/.env.production  # ex-DO (suspended 2026-09-10)
 ```
 
 ### FASE 3: Modificar Backend Configurations

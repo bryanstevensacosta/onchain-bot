@@ -40,8 +40,10 @@ case "$ENV" in
   prod)
     LOCAL_PORT_BACKEND=3030
     LOCAL_PORT_FRONTEND=5173
+    LOCAL_PORT_INGESTION=3032
     TAILSCALE_PORT_BACKEND=3030
     TAILSCALE_PORT_FRONTEND=5173
+    TAILSCALE_PORT_INGESTION=3032
     COMPOSE_DIR="/opt/onchain-bot/apps/backend"
     SERVICE_PREFIX="onchain-bot"
     ;;
@@ -114,6 +116,19 @@ install_service \
   "$TAILSCALE_PORT_FRONTEND" \
   "$LOCAL_PORT_FRONTEND"
 
+# Ingestion forward (prod ONLY — backend SSE + crypto-news poll need TS :3032;
+# staging owned by todo 15, never install here)
+if [[ "$ENV" == "prod" ]]; then
+  echo ""
+  echo "Installing ingestion socat service..."
+  install_service \
+    "$TEMPLATE_DIR/socat-ingestion.service.template" \
+    "${SERVICE_PREFIX}-socat-ingestion.service" \
+    "$TAILSCALE_IP" \
+    "$TAILSCALE_PORT_INGESTION" \
+    "$LOCAL_PORT_INGESTION"
+fi
+
 echo ""
 echo -e "${GREEN}=== Installation complete ===${NC}"
 echo ""
@@ -123,3 +138,4 @@ echo ""
 echo "Status:"
 systemctl status "${SERVICE_PREFIX}-socat-backend.service" --no-pager || true
 systemctl status "${SERVICE_PREFIX}-socat-frontend.service" --no-pager || true
+if [[ "$ENV" == "prod" ]]; then systemctl status "${SERVICE_PREFIX}-socat-ingestion.service" --no-pager || true; fi

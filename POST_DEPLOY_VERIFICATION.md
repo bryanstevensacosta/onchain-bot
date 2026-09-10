@@ -21,7 +21,7 @@
 dev → PR #134 → master (squash merge) → GitHub Actions → Production Droplet
 ```
 
-## 🔍 Production Verification (144.126.203.139)
+## 🔍 Production Verification (144.126.203.139 — ex-DO (suspended 2026-09-10))
 
 ### Backend Service (Port 3030)
 

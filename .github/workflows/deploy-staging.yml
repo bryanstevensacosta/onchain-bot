@@ -357,12 +357,12 @@ jobs:
       - name: Healthcheck backend (Tailscale)
         run: |
           echo "=== Tailscale backend healthcheck (curl -v) ==="
-          curl -v -sf http://100.84.4.28:3031/api/health || { echo "BACKEND HEALTHCHECK FAILED"; exit 1; }
+          curl -v -sf http://100.110.169.120:3031/api/health || { echo "BACKEND HEALTHCHECK FAILED"; exit 1; }
 
       - name: Healthcheck frontend (Tailscale)
         run: |
           echo "=== Tailscale frontend healthcheck (curl -v) ==="
-          curl -v -sf -o /dev/null http://100.84.4.28:4173/ || { echo "FRONTEND HEALTHCHECK FAILED"; exit 1; }
+          curl -v -sf -o /dev/null http://100.110.169.120:4173/ || { echo "FRONTEND HEALTHCHECK FAILED"; exit 1; }
 
   restart-services:
     name: Restart services
@@ -370,11 +370,7 @@ jobs:
     runs-on: [self-hosted, oracle]
     needs: [deploy-staging]
     steps:
-      - name: Restart litellm-gateway
-        run: |
-          echo "=== Restarting litellm-gateway ==="
-          docker start litellm-gateway || true
       - name: Restart staging backend + frontend
         run: |
           echo "=== Restarting staging ==="
-          onchainbot staging start
+          cd /opt/onchain-bot-staging/apps/backend && docker compose -f docker-compose.staging.yml up -d --force-recreate backend frontend
