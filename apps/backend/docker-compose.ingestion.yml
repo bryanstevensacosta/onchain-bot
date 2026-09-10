@@ -50,7 +50,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 1g
 
 networks:
   # Redes existentes (external: true = no las crea, solo las usa)
