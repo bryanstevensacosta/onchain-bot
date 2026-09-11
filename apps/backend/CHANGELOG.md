@@ -6,6 +6,10 @@ No entry copies a squash body uncurated: re-emitted `BREAKING CHANGE:` footers
 in later merges count zero times. Pre-`v1.3.0` history lives in git history and
 `.omo/evidence/task-2-backup/` (todo 2 backup), not here.
 
+## [Unreleased]
+
+(none yet)
+
 ## [4.0.0] - 2026-09-11
 
 Judged major for backend: two genuine breaking changes with cited evidence

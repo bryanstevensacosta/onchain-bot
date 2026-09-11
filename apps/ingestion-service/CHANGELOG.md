@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+(none yet)
+
 ## [2.1.0] - 2026-09-10
 
 ### Features

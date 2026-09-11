@@ -1,7 +1,7 @@
 # RELEASE-FLOW.md — Manual releases (solo-dev)
 
 > Owner: solo maintainer. No automation. release-please was removed (see git history); this file is the whole process.
-> Scope: 3 apps versioned independently: `backend`, `frontend`, `ingestion`. One line on the future: rollback, hotfix, flags, and optional tag signing playbooks land in a later todo, coming soon.
+> Scope: 3 apps versioned independently: `backend`, `frontend`, `ingestion`. Enterprise playbooks live in sections 7-12 below (rollback, hotfix, flags freeze, optional tag signing, changelog strategy, Unreleased convention).
 
 ## 1. When to release
 
@@ -126,3 +126,121 @@ Examples:
   Body: `- Frees VIP slots stuck mid-post (30s cron). PR #165.`
 - `fix(ingestion): NULL-safe queued_at in publisher migration`
   Body: `- Additive NULL handling, explicitly not an incompatible schema change. PR #150.`
+
+## 7. Changelog strategy: the PR merge is the unit
+
+Owner decision 2026-09-11: the changelog unit is the PR merged to `master` (the squash commit), NEVER atomic commits. Atomic commits are intermediate noise (fixups, rebases, sync vehicles); the squash subject plus its curated body is the reviewed, CI-green fact. This matches `scripts/draft-changelog.sh`, which lists merges only.
+
+One bullet per PR, always ending with `(PR #NN)`. Draft-sync merges (`master` -> `dev` with empty net diff) get zero bullets; cite the original PR they carried, not the vehicle.
+
+Real example (from `.omo/evidence/task-3-manual-release-flow.tsv`, commit verified via `git cat-file -t`):
+
+- `Fix NULL-safe queued_at handling in publisher migration (additive change, explicitly not an incompatible schema change). (PR #150)`
+
+That bullet describes brought-in `901a0a0` (`fix(migration): add queued_at column with proper NULL handling for production`, `git cat-file -t 901a0a0` = commit), carried by merge `ba4a69f`. One PR, one bullet, one citation.
+
+Include (user-visible change only):
+
+- `feat` that adds or changes behavior the user can feel (endpoint, screen, command, optional config)
+- `fix` that repairs one (user-visible symptom stated, not internals)
+- Breaking changes and deprecations (with cited evidence per section 2)
+- `perf` with measurable user impact (latency, cost, throughput numbers quoted)
+- `security` fixes (what was closed, no exploit detail)
+
+Exclude (rides along silently, no bullet):
+
+- `chore`, `ci`, `docs`, `test`, `style`, `build` with no product effect
+- `refactor` with zero behavior change
+- Branch syncs and merge vehicles (`master` -> `dev`, conflict resolutions like `ba4a69f` itself)
+- Release chores (bumps, tag Recreations, notes edits)
+
+## 8. `## [Unreleased]` convention
+
+Each of the 3 changelogs carries a `## [Unreleased]` header at the top, below the title, above the newest version section. Accumulate bullets there as PRs land on `master`; at release time, rename that header to `## [X.Y.Z] - YYYY-MM-DD` and start a fresh empty `## [Unreleased]` above it. Never keep released bullets under Unreleased, never duplicate a bullet into both places.
+
+Empty state while nothing is queued:
+
+```markdown
+  ## [Unreleased]
+
+  (none yet)
+```
+
+## 9. Rollback playbook
+
+Declared RTO: 30 minutes from decision to verified healthy. Plausibility basis, all from `.github/workflows/deploy.yml`: compose restart allows `--wait-timeout 180` (3 min), the health loop retries 10 x 10 s (100 s max), the ingestion ordering gate retries 12 x 10 s (120 s max). A revert plus a normal deploy cycle therefore fits inside 30 min with margin; the remaining budget covers the DB backup and migration steps the workflow runs before recreate.
+
+Revert path A (release was a squash merge to `master`, preferred):
+
+```bash
+# 0. Be on dev, clean tree
+git status --porcelain
+git branch --show-current   # must print: dev
+# 1. Revert the master squash on dev, open PR dev -> master, squash-merge
+git revert <master-squash-sha> --no-edit
+git push origin dev
+# 2. Re-deploy: push to master runs deploy.yml (backup + migrations + recreate + healthcheck)
+# 3. Delete the bad tag and release so they cannot be re-cut by accident
+git push --delete origin <app>-v<X.Y.Z>
+git tag -d <app>-v<X.Y.Z>
+gh release delete <app>-v<X.Y.Z> --yes
+```
+
+Revert path B (release was a direct commit, e.g. a changelog correction): same steps with `git revert <sha>` on the branch that holds the commit, then follow the normal section 3 flow to re-tag the corrected version.
+
+Verification after re-deploy (same probes the workflow uses):
+
+```bash
+curl -sf http://localhost:3030/api/health
+curl -s http://localhost:3030/api/vip-calls/calls/recent?limit=1
+git ls-remote --tags origin | grep <app>-v
+gh release list --limit 10
+```
+
+Rollback is complete only when the health endpoint answers 200 AND the tag/release list no longer shows the bad version. Record all four outputs in evidence.
+
+## 10. Hotfix flow
+
+Branch `hotfix/<slug>` from `master` (not from `dev`; `dev` may hold unreleased work you must not ship early). Fix, PR `hotfix/<slug>` -> `master`, CI green, squash-merge, verify the deploy, write the changelog entry. Reduced checklist, but the smoke step is mandatory, never skipped:
+
+- [ ] Branched from `master` (`git rev-parse --verify master` recorded as base).
+- [ ] Fix is minimal: the bug plus its regression coverage, nothing else.
+- [ ] CI green on the hotfix PR.
+- [ ] Squash-merged to `master`; deploy workflow finished (healthcheck passed).
+- [ ] Smoke MANDATORY: `curl -sf http://localhost:3030/api/health` plus the endpoint or behavior the hotfix touched, exercised once against prod (read-only where possible).
+- [ ] Changelog entry added under `## [Unreleased]` (or a patch section if released immediately), citing the hotfix PR.
+- [ ] Forward-merge `master` into `dev` (`git checkout dev && git merge master`) so the fix is not lost on the next release.
+
+## 11. Flags freeze at release
+
+At release time the pipeline flags are part of the release state: record them, do not flip them mid-release. The three flags (backend AGENTS.md, crypto-news 3-flag control):
+
+- `matchingEnabled` (enqueue on/off)
+- `llmEnabled` (LLM transform on/off; effective only when publishing is also on)
+- `publishingEnabled` (queue drain on/off; master switch)
+
+How to record known-good state (names and values pattern, NO secret values):
+
+```bash
+# Read current state before tagging (values are booleans, safe to log)
+curl -s http://localhost:3030/crypto-news-publisher/llm/config
+# Expected shape: {"matchingEnabled": <bool>, "llmEnabled": <bool>, "publishingEnabled": <bool>}
+```
+
+Read path verified in `apps/frontend/src/features/crypto-news-publisher/api/llm-config-api.ts:68` (`GET /crypto-news-publisher/llm/config`); the same prefix accepts `PATCH` for updates. Save the three booleans next to the release evidence. Rule: no flag flips between tagging and the deploy healthcheck passing. If a flag must change, it is a separate deliberate action after the release verifies, recorded with its own timestamp.
+
+## 12. Tag signing (OPTIONAL, manual setup pending)
+
+Signed tags are nice-to-have, not required. No release is blocked for lack of a signature; unsigned annotated tags per section 3 remain the accepted default. The setup below is MANUAL-SETUP-PENDING: the owner runs it once on their machine, it is not part of any release checklist.
+
+```bash
+# 1. Generate a key (UNVERIFIED: never executed in this repo, standard GPG flow)
+gpg --full-generate-key
+# 2. Tell git which key to use (UNVERIFIED: key id depends on step 1 output)
+git config --global user.signingkey <key-id>
+# 3. Sign a tag instead of only annotating it
+git tag -s <app>-v<X.Y.Z> <sha> -m "<app> v<X.Y.Z>"
+git push origin <app>-v<X.Y.Z>
+```
+
+Verified locally: `gpg (GnuPG) 2.4.7` installed (`gpg --version`), and git supports `-s/--sign` on tags (`git tag --help`). What is UNVERIFIED is the end-to-end signing run: no key has been generated and no `-s` tag has been cut in this repo, so the first signed tag must be test-verified with `git tag -v <tag>` before relying on it.
