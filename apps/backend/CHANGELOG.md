@@ -3,12 +3,45 @@
 Manual changelog (see root `RELEASE-FLOW.md`). One entry per change, each citing
 its real commit or PR from `.omo/evidence/task-3-manual-release-flow.tsv`.
 No entry copies a squash body uncurated: re-emitted `BREAKING CHANGE:` footers
-in later merges count zero times. Pre-`v1.3.0` history lives in git history and
-`.omo/evidence/task-2-backup/` (todo 2 backup), not here.
+in later merges count zero times. Pre-`v1.0.0` history (formerly v4.0.0 and earlier)
+has been reset for version consistency across the monorepo.
 
 ## [Unreleased]
 
 (none yet)
+
+## [1.0.0] - 2026-09-11
+
+**Fresh start**: All apps reset to v1.0.0 for version consistency. This release
+consolidates all previous work (formerly tracked as v3.1.0 through v4.0.0) into
+a single baseline release.
+
+### Features
+
+- NestJS 11 alpha-call pipeline (extraction → normalization → enrichment → classification → scoring → approval → publishing)
+- Centralized SSE ingestion from standalone ingestion-service
+- Crypto-news publisher with LLM integration, keywords, blacklist, and content filters
+- Crypto-news ads system with rotation and media library
+- VIP calls publishing via Telegram Bot API with milestone achievements
+- Call tracking and performance evaluation system
+- KOL reputation scoring with configurable formulas
+- Chain-Dexter bot for Telegram-based token scanning
+- Multi-provider market data enrichment (13 providers)
+- Settings management with presets and audit logging
+- WebSocket real-time updates for pipeline events
+
+### Architecture
+
+- DDD/Hexagonal architecture with 22 active modules
+- Event-driven pipeline with domain events
+- TypeORM with migrations for staging/prod (synchronize for dev)
+- Redis caching and cursor tracking
+- Prometheus metrics endpoints
+- Comprehensive test coverage (170 spec files, 1969 tests)
+
+---
+
+**Previous version history (archived for reference)**:
 
 ## [4.0.0] - 2026-09-11
 
@@ -20,28 +53,28 @@ Tag `backend-v4.0.0` + GitHub release are cut from this section (todos 12-13).
 
 ### ⚠ BREAKING CHANGES
 
-* MTProto credentials must now be in ingestion-service ONLY. Backend MTProto
+- MTProto credentials must now be in ingestion-service ONLY. Backend MTProto
   mode is rollback-only; backend templates no longer carry a session
   (`351fe02`; first introduced on `dev` inside the range of merge `2b55629`).
-* Seed-based channel subscription deprecated in favor of DB-driven approach.
+- Seed-based channel subscription deprecated in favor of DB-driven approach.
   Backend serves channel lists over HTTP (`GET telegram-kol/identity/kols/active/ids`
   and crypto-news source ids) instead of static seeds (`352de6b`; via `2b55629`).
 
 ### Bug Fixes
 
-* Backend part of ingestion test/Gap-3-dedup/Husky/CI pass (`df79f68`, PR #154;
+- Backend part of ingestion test/Gap-3-dedup/Husky/CI pass (`df79f68`, PR #154;
   brought-in `b031f32`).
-* Deploy cutover fixes, 2 backend files (`37ce399`, PR #162;
+- Deploy cutover fixes, 2 backend files (`37ce399`, PR #162;
   brought-in `f801279`).
-* Staging views fixes, 3 backend migrations/specs (`c5684d2`, PR #165;
+- Staging views fixes, 3 backend migrations/specs (`c5684d2`, PR #165;
   brought-in `7fb5b5c`).
-* Staging migration runner + views fixes, 2 backend migration files
+- Staging migration runner + views fixes, 2 backend migration files
   (`652aecc`, PR #168; brought-in `f5c22e9`).
-* Prod migration idempotency + queue controller / process-next simplification,
+- Prod migration idempotency + queue controller / process-next simplification,
   2 backend files (`d7a39ac`, PR #171; brought-in `75b624d`).
-* Publisher ingestion URL fix, 2 backend files (`1376c08`, PRs #174+#175;
+- Publisher ingestion URL fix, 2 backend files (`1376c08`, PRs #174+#175;
   brought-in `d00ba3a`).
-* Orphan-tables baseline migration deletion, 1 backend file (`3a929dc`,
+- Orphan-tables baseline migration deletion, 1 backend file (`3a929dc`,
   PR #190; brought-in `de5641d`).
 
 ## [3.1.0] - 2026-09-06
@@ -54,14 +87,14 @@ in `[4.0.0]` above; counting it again would double-count one change).
 
 ### Features
 
-* Crypto-news sources ownership migrated to ingestion-service; backend reads
+- Crypto-news sources ownership migrated to ingestion-service; backend reads
   on-demand and filters on-read instead of owning tables (`e01b937`;
   brought-in `4e07b1d`, PR #147). The re-emitted MTProto footer in that merge
   body is stray re-emission, not a new breaking change.
 
 ### Bug Fixes
 
-* `queued_at` NULL-safe handling in publisher-queue migration, additive column,
+- `queued_at` NULL-safe handling in publisher-queue migration, additive column,
   no incompatible schema change (`ba4a69f`, PR #150; brought-in `901a0a0`).
 
 ## [2.1.0] - 2026-09-05
@@ -76,19 +109,19 @@ footers in this era are stray re-emission (carriers with HIT up to 96).
 
 ### Features
 
-* Centralized ingestion service + multi-environment support, backend side:
+- Centralized ingestion service + multi-environment support, backend side:
   SSE consumer, channel filtering, media over HTTP (`f70d598`, PR #92;
   brought-in `e9ec7fc`).
-* Multi-backend SSE broadcast support in backend (`f3c291c`;
+- Multi-backend SSE broadcast support in backend (`f3c291c`;
   brought-in `bbb774c`, PR #119).
-* Redis robustness + backend registration for multi-backend (`a9d4866`;
+- Redis robustness + backend registration for multi-backend (`a9d4866`;
   brought-in `a104fff`, PR #134).
 
 ### Bug Fixes
 
-* BACKEND_URL + TypeScript build-error fixes, 4 backend files (`79c04a8`,
+- BACKEND_URL + TypeScript build-error fixes, 4 backend files (`79c04a8`,
   PRs #130+#132).
-* Staging compose: relax deploy-ingestion client connection check
+- Staging compose: relax deploy-ingestion client connection check
   (`9a4abd1`, PR #140; brought-in `cc1faa8`).
-* Crypto-news seeder disabled + channel ID normalization (`1ed0d38`, PR #142;
+- Crypto-news seeder disabled + channel ID normalization (`1ed0d38`, PR #142;
   brought-in `ab56941`).

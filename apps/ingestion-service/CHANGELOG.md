@@ -1,8 +1,42 @@
-# Changelog
+# Changelog — ingestion-service
+
+Manual changelog (see root `RELEASE-FLOW.md`). Pre-`v1.0.0` history (formerly
+v2.0.0 through v2.1.0) has been reset for version consistency across the monorepo.
 
 ## [Unreleased]
 
 (none yet)
+
+## [1.0.0] - 2026-09-11
+
+**Fresh start**: All apps reset to v1.0.0 for version consistency. This release
+consolidates all previous work (formerly tracked as v2.0.0 through v2.1.0) into
+a single baseline release.
+
+### Features
+
+- Centralized Telegram MTProto ingestion service (single session feeds all backends)
+- SSE streaming API with 30-second heartbeat
+- HTTP API for crypto-news sources and messages
+- Media download and serving (`uploads/crypto-news/media/`)
+- 72-hour retention cleanup for messages and media
+- Redis cursor tracking for polling synchronization
+- Prometheus metrics endpoints
+- Health and readiness checks
+- Comprehensive test coverage (43 spec files, 821 tests)
+
+### Architecture
+
+- NestJS 11 with TypeScript 5.7
+- One MTProto session → N backend consumers (dev/staging/prod)
+- Standalone deployment (Docker port 3031, host 3032)
+- Separate logical database per Postgres server (`<base>_ingestion`)
+- TypeORM migrations (baseline + incremental)
+- Anti-ban protections (flood handling, sleep windows, jitter)
+
+---
+
+**Previous version history (archived for reference)**:
 
 ## [2.1.0] - 2026-09-10
 
