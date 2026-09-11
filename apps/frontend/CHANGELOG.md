@@ -1,5 +1,16 @@
 # Changelog
 
+## [5.0.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v4.0.0...v5.0.0) (2026-09-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* **sync:** Seed-based channel subscription deprecated in favor of DB-driven approach
+
+### Miscellaneous Chores
+
+* **sync:** dev → master (oracle batch 3: cache + fixes) ([#187](https://github.com/bryanstevensacosta/onchain-bot/issues/187)) ([8b12d55](https://github.com/bryanstevensacosta/onchain-bot/commit/8b12d55b3d02f751aa032703692ff002e96258a8))
+
 ## [4.0.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v3.0.1...v4.0.0) (2026-09-10)
 
 
