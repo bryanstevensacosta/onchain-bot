@@ -169,6 +169,39 @@ jobs:
             fi
           done
 
+      - name: Dry-run migrations (read-only, fail loudly)
+        run: |
+          set -euo pipefail
+          set -a; source /opt/onchain-bot/apps/backend/.env.production; set +a
+
+          echo "=== Dry-run: pending migrations (migration:show, read-only, no writes) ==="
+          if docker run --rm --network onchain-bot-net \
+            --env-file /opt/onchain-bot/apps/backend/.env.production \
+            ghcr.io/${{ github.repository }}-backend:${{ github.sha }} \
+            npx typeorm --dataSource dist/backend/src/shared/common/persistence/data-source.js migration:show \
+            || docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml run --rm backend \
+               npx typeorm --dataSource dist/backend/src/shared/common/persistence/data-source.js migration:show; then
+            echo "✅ migration:show OK"
+          else
+            echo "::error::Migration dry-run FAILED (migration:show). Aborting deploy before any write."
+            exit 1
+          fi
+
+          echo "=== Dry-run: precondition probe (read-only SELECT, no writes) ==="
+          if docker run --rm --network onchain-bot-net \
+            --env-file /opt/onchain-bot/apps/backend/.env.production \
+            ghcr.io/${{ github.repository }}-backend:${{ github.sha }} \
+            npx typeorm --dataSource dist/backend/src/shared/common/persistence/data-source.js query "SELECT 1 AS dry_run_ok" \
+            || docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml run --rm backend \
+               npx typeorm --dataSource dist/backend/src/shared/common/persistence/data-source.js query "SELECT 1 AS dry_run_ok"; then
+            echo "✅ precondition probe OK"
+          else
+            echo "::error::Migration precondition probe FAILED (read-only SELECT). Aborting deploy before any write."
+            exit 1
+          fi
+
+          echo "=== Dry-run OK: zero writes performed ==="
+
       - name: Deploy via compose (no build)
         run: |
           set -euo pipefail
