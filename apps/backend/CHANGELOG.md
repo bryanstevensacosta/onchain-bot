@@ -1,5 +1,28 @@
 # Changelog
 
+## [5.0.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v4.0.0...v5.0.0) (2026-09-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* **sync:** Seed-based channel subscription deprecated in favor of DB-driven approach
+* **db:** Seed-based channel subscription deprecated in favor of DB-driven approach
+* **sync:** Seed-based channel subscription deprecated in favor of DB-driven approach
+* **sync:** Seed-based channel subscription deprecated in favor of DB-driven approach
+* **sync:** Seed-based channel subscription deprecated in favor of DB-driven approach
+
+### Bug Fixes
+
+* **db:** baseline migration for synchronize-era tables ([#193](https://github.com/bryanstevensacosta/onchain-bot/issues/193)) ([4c8490a](https://github.com/bryanstevensacosta/onchain-bot/commit/4c8490af85de081d62c7d120f38318b812b359e5))
+
+
+### Miscellaneous Chores
+
+* **sync:** dev → master ([#178](https://github.com/bryanstevensacosta/onchain-bot/issues/178)) ([52ebbea](https://github.com/bryanstevensacosta/onchain-bot/commit/52ebbea2e66b6a03976a76a046b6901ba50b809e))
+* **sync:** dev → master (oracle batch 3: cache + fixes) ([#187](https://github.com/bryanstevensacosta/onchain-bot/issues/187)) ([8b12d55](https://github.com/bryanstevensacosta/onchain-bot/commit/8b12d55b3d02f751aa032703692ff002e96258a8))
+* **sync:** dev → master (oracle migration batch 2) ([#184](https://github.com/bryanstevensacosta/onchain-bot/issues/184)) ([0573b06](https://github.com/bryanstevensacosta/onchain-bot/commit/0573b06b683f6e5db71fd5e9720fc0d64915cdf5))
+* **sync:** dev → master (remove broken auto-pr workflow) ([#196](https://github.com/bryanstevensacosta/onchain-bot/issues/196)) ([4a60679](https://github.com/bryanstevensacosta/onchain-bot/commit/4a60679aea954a97180791b6aacd65121a00f331))
+
 ## [4.0.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v3.0.1...v4.0.0) (2026-09-10)
 
 
