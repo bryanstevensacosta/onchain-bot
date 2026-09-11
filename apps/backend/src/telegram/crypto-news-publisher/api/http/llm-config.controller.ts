@@ -201,6 +201,21 @@ export class LlmConfigController {
   public async updateConfig(
     @Body() dto: UpdateLlmConfigDto,
   ): Promise<LlmConfigView> {
+    // DEPRECATED: matchingEnabled moved to the single source of truth
+    // `crypto_news_matching_config` (id = 1), owned by MatchingConfigController
+    // (GET/PATCH /crypto-news/matching/config). The scheduler
+    // (EnqueueMatchingCronScheduler.tick) and the SSE handler
+    // (ProcessCryptoNewsMessageHandler.handle) read ONLY that row — writes
+    // here would silently diverge (prod showed llm=t vs matching=f with the
+    // UI lying ON). Reject with a hint so callers migrate.
+    if (dto.matchingEnabled !== undefined) {
+      throw new BadRequestException({
+        error:
+          'matchingEnabled is deprecated on this endpoint (single source of truth is crypto_news_matching_config)',
+        hint: 'Use PATCH /crypto-news/matching/config with { enabled } instead',
+      });
+    }
+
     // PRODUCTION SAFETY: Block llmEnabled changes in production
     // In production, LLM generation must always be active to maintain
     // content quality. Only matching and publishing can be toggled.
@@ -208,7 +223,7 @@ export class LlmConfigController {
       throw new BadRequestException({
         error:
           'llmEnabled cannot be changed in production (always enabled for quality)',
-        hint: 'Use matchingEnabled or publishingEnabled to control pipeline',
+        hint: 'Use publishingEnabled to control pipeline (matching is owned by PATCH /crypto-news/matching/config)',
       });
     }
 
@@ -235,7 +250,6 @@ export class LlmConfigController {
     }
     cfg.update({
       targetChannel: dto.targetChannel,
-      matchingEnabled: dto.matchingEnabled,
       llmEnabled: dto.llmEnabled,
       publishingEnabled: dto.publishingEnabled,
       rejectNonLatin: dto.rejectNonLatin,

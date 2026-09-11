@@ -12,6 +12,12 @@ export interface LlmConfigProps {
   readonly id: number;
   defaultTemplateId: string;
   targetChannel: string;
+  /**
+   * @deprecated Single source of truth for matching activation is
+   * crypto_news_matching_config (id=1). This field is kept for read
+   * compatibility only; writes via PATCH /crypto-news-publisher/llm/config
+   * are rejected with 400. Scheduler + SSE handler never read this field.
+   */
   matchingEnabled: boolean;
   llmEnabled: boolean;
   publishingEnabled: boolean;

@@ -270,6 +270,43 @@ jobs:
             sleep 5
           done
 
+      - name: Dry-run migrations (read-only, fail loudly)
+        run: |
+          set -euo pipefail
+          echo "=== Dry-run: pending migrations in staging (migration:show, read-only, no writes) ==="
+          cd /opt/onchain-bot-staging/apps/backend
+
+          if docker compose -f docker-compose.staging.yml run --rm --no-deps \
+            -e NODE_ENV=staging \
+            -e POSTGRES_HOST=postgres \
+            -e POSTGRES_PORT=5432 \
+            -e POSTGRES_USER=alpha_meta_token_scanner \
+            -e POSTGRES_PASSWORD=alpha_meta_token_scanner \
+            -e POSTGRES_DB=alpha_meta_token_scanner_staging \
+            backend npm run migration:show; then
+            echo "✅ migration:show OK"
+          else
+            echo "::error::Staging migration dry-run FAILED (migration:show). Aborting deploy before any write."
+            exit 1
+          fi
+
+          echo "=== Dry-run: precondition probe (read-only SELECT, no writes) ==="
+          if docker compose -f docker-compose.staging.yml run --rm --no-deps \
+            -e NODE_ENV=staging \
+            -e POSTGRES_HOST=postgres \
+            -e POSTGRES_PORT=5432 \
+            -e POSTGRES_USER=alpha_meta_token_scanner \
+            -e POSTGRES_PASSWORD=alpha_meta_token_scanner \
+            -e POSTGRES_DB=alpha_meta_token_scanner_staging \
+            backend npm run typeorm -- query "SELECT 1 AS dry_run_ok"; then
+            echo "✅ precondition probe OK"
+          else
+            echo "::error::Staging migration precondition probe FAILED (read-only SELECT). Aborting deploy before any write."
+            exit 1
+          fi
+
+          echo "=== Staging dry-run OK: zero writes performed ==="
+
       - name: Run migrations (staging environment)
         run: |
           set -euo pipefail
@@ -363,6 +400,17 @@ jobs:
         run: |
           echo "=== Tailscale frontend healthcheck (curl -v) ==="
           curl -v -sf -o /dev/null http://100.110.169.120:4173/ || { echo "FRONTEND HEALTHCHECK FAILED"; exit 1; }
+
+      - name: Post-deploy smoke checks (read-only)
+        env:
+          SMOKE_BACKEND_URL: http://localhost:3031
+          SMOKE_FRONTEND_URL: http://localhost:4173
+          SMOKE_INGESTION_URL: http://localhost:3032
+        run: |
+          set -euo pipefail
+          echo "=== Post-deploy smoke (staging ports, read-only probes) ==="
+          bash scripts/smoke-prod.sh
+          echo "=== Smoke complete ==="
 
   restart-services:
     name: Restart services

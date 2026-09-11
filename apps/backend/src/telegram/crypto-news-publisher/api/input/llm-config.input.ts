@@ -109,6 +109,11 @@ export class UpdateLlmConfigDto {
   @Length(1, 64)
   public targetChannel?: string;
 
+  /**
+   * @deprecated Single source of truth is crypto_news_matching_config (id=1)
+   * via PATCH /crypto-news/matching/config. Sending this field to
+   * PATCH /crypto-news-publisher/llm/config is rejected with 400 + hint.
+   */
   @IsOptional()
   @IsBoolean()
   public matchingEnabled?: boolean;

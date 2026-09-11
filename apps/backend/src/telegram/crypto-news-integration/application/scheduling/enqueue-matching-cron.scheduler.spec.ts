@@ -103,4 +103,53 @@ describe('EnqueueMatchingCronScheduler (media mapping regression)', () => {
 
     expect(enqueueUseCase.execute).toHaveBeenCalledTimes(1);
   });
+
+  it('reads the SOLE source crypto_news_matching_config id=1: skips silently when disabled', async () => {
+    const filteredNewsService = {
+      getMatchingMessages: jest.fn(),
+    } as unknown as FilteredCryptoNewsService;
+    const enqueueUseCase = {
+      execute: jest.fn(),
+    } as unknown as EnqueueMatchingMessageUseCase;
+    const matchingConfigRepo = {
+      load: jest.fn().mockResolvedValue({ enabled: false }),
+    } as unknown as MatchingConfigRepository;
+    const scheduler = new EnqueueMatchingCronScheduler(
+      filteredNewsService,
+      enqueueUseCase,
+      matchingConfigRepo,
+    );
+
+    await scheduler.tick();
+
+    expect(matchingConfigRepo.load).toHaveBeenCalled();
+    expect(
+      filteredNewsService.getMatchingMessages as jest.Mock,
+    ).not.toHaveBeenCalled();
+    expect(enqueueUseCase.execute).not.toHaveBeenCalled();
+  });
+
+  it('skips tick when MatchingConfig load throws (fail-closed)', async () => {
+    const filteredNewsService = {
+      getMatchingMessages: jest.fn(),
+    } as unknown as FilteredCryptoNewsService;
+    const enqueueUseCase = {
+      execute: jest.fn(),
+    } as unknown as EnqueueMatchingMessageUseCase;
+    const matchingConfigRepo = {
+      load: jest.fn().mockRejectedValue(new Error('db down')),
+    } as unknown as MatchingConfigRepository;
+    const scheduler = new EnqueueMatchingCronScheduler(
+      filteredNewsService,
+      enqueueUseCase,
+      matchingConfigRepo,
+    );
+
+    await scheduler.tick();
+
+    expect(
+      filteredNewsService.getMatchingMessages as jest.Mock,
+    ).not.toHaveBeenCalled();
+    expect(enqueueUseCase.execute).not.toHaveBeenCalled();
+  });
 });

@@ -529,7 +529,7 @@ curl -s http://localhost:3030/api/health
 ## Contributing
 
 1. Branch from `dev` (`feat/*`, `fix/*`, … — hooks enforce naming).
-2. Conventional commits (`feat:`, `fix:` …) — release-please versions from them.
+2. Conventional commits (`feat:`, `fix:` …) — manual releases version from them (see forthcoming `RELEASE-FLOW.md`).
 3. Pre-commit runs lint + `tsc`; pre-push runs the full suite. Never commit on `master` (hook blocks it).
 4. Open a PR to `dev` (1 approval + CI green), then squash to `master` for deploy.
 

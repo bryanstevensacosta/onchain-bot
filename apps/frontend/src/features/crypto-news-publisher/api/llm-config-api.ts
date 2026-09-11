@@ -52,6 +52,38 @@ export type UpdatePromptTemplateBody = Partial<CreatePromptTemplateBody>;
 
 export type UpdateLlmConfigBody = Partial<Omit<LlmConfig, 'id' | 'updatedAt'>>;
 
+/**
+ * Single source of truth for keyword-matching activation:
+ * crypto_news_matching_config (id=1), served by
+ * GET/PATCH /crypto-news/matching/config. The scheduler and SSE handler
+ * read this exact row; the frontend MatchingToggleButton is the only writer.
+ */
+export interface MatchingConfig {
+  readonly id: number;
+  readonly enabled: boolean;
+  readonly updatedAt: string;
+}
+
+export type UpdateMatchingConfigBody = Partial<Pick<MatchingConfig, 'enabled'>>;
+
+export const matchingConfigKeys = {
+  all: ['crypto-news', 'matching'] as const,
+  config: () => [...matchingConfigKeys.all, 'config'] as const,
+};
+
+export async function fetchMatchingConfig(): Promise<MatchingConfig> {
+  return httpGet<MatchingConfig>('/crypto-news/matching/config');
+}
+
+export async function updateMatchingConfig(
+  body: UpdateMatchingConfigBody,
+): Promise<MatchingConfig> {
+  return httpPatch<UpdateMatchingConfigBody, MatchingConfig>(
+    '/crypto-news/matching/config',
+    body,
+  );
+}
+
 export const llmConfigKeys = {
   all: ['crypto-news-publisher', 'llm'] as const,
   models: () => [...llmConfigKeys.all, 'models'] as const,
@@ -116,8 +148,8 @@ export async function deleteTemplate(id: string): Promise<void> {
 
 export async function toggleMatchingEnabled(
   enabled: boolean,
-): Promise<LlmConfig> {
-  return updateLlmConfig({ matchingEnabled: enabled });
+): Promise<MatchingConfig> {
+  return updateMatchingConfig({ enabled });
 }
 
 export async function toggleLlmEnabled(enabled: boolean): Promise<LlmConfig> {

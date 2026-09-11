@@ -32,6 +32,10 @@ export class LlmConfigEntity {
   @Column({ name: 'target_channel', type: 'varchar', length: 64, default: '' })
   public targetChannel!: string;
 
+  /**
+   * @deprecated Single source of truth is crypto_news_matching_config (id=1).
+   * Kept for read compatibility; writes rejected at the controller (400).
+   */
   @Column({ name: 'matching_enabled', type: 'boolean', default: false })
   public matchingEnabled!: boolean;
 

@@ -52,11 +52,11 @@ jobs:
       - name: Check remote branches (info only, Ruleset enforces)
         id: check-remote-branches
         run: |
-          EXTRA_BRANCHES=$(git ls-remote --heads origin | grep -vE "refs/heads/(master|dev|fix/.*|feat/.*|chore/.*|ci/.*|release-please--branches--.*)$" | wc -l)
+          EXTRA_BRANCHES=$(git ls-remote --heads origin | grep -vE "refs/heads/(master|dev|fix/.*|feat/.*|chore/.*|ci/.*)$" | wc -l)
           echo "extra_branches=$EXTRA_BRANCHES" >> $GITHUB_OUTPUT
           if [ "$EXTRA_BRANCHES" -gt 0 ]; then
             echo "::warning::Ramas remotas adicionales (Ruleset las gestiona):"
-            git ls-remote --heads origin | grep -vE "refs/heads/(master|dev|fix/.*|feat/.*|chore/.*|ci/.*|release-please--branches--.*)$" | sed 's/.*refs\/heads\//  - /'
+            git ls-remote --heads origin | grep -vE "refs/heads/(master|dev|fix/.*|feat/.*|chore/.*|ci/.*)$" | sed 's/.*refs\/heads\//  - /'
           fi
           echo "✅ Check remoto informativo — Ruleset es gate"
 

@@ -162,6 +162,12 @@ export class CryptoNewsController {
         mimeType: m.mimeType,
         fileSize: m.fileSize,
       })),
+      // Parse messageEntities from JSON string to array for frontend
+      formattingEntities: msg.messageEntities
+        ? JSON.parse(msg.messageEntities)
+        : undefined,
+      // Remove the raw messageEntities field (it's a JSON string, not useful for frontend)
+      messageEntities: undefined,
     };
   }
 

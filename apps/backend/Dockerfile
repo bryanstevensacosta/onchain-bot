@@ -35,6 +35,7 @@ COPY --from=build /repo/node_modules ./node_modules
 COPY --from=build /repo/apps/backend/dist ./dist
 COPY --from=build /repo/apps/backend/package.json ./package.json
 COPY --from=build /repo/apps/backend/scripts ./scripts
+COPY --from=build /repo/apps/backend/src/shared/common/persistence ./src/shared/common/persistence
 COPY apps/backend/docker-entrypoint.sh /usr/local/bin/
 
 RUN npm prune --omit=dev && npm cache clean --force

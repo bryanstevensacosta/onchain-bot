@@ -1,6 +1,6 @@
 # CI/CD Pipeline & Runbook
 
-> **Owner:** Solo maintainer. **Topology:** CI on GitHub-hosted runners, CD on self-hosted droplet. **Automation:** [release-please](https://github.com/googleapis/release-please) for SemVer + changelog.
+> **Owner:** Solo maintainer. **Topology:** CI on GitHub-hosted runners, CD on self-hosted droplet. **Automation:** none — releases are manual (see [Release Process](./release-process.md)).
 
 This document is the operational source of truth for how code travels from a
 local commit to production traffic on the CryptoGanster droplet, and what to
@@ -23,8 +23,7 @@ gh pr create (dev → master) → CI + Branch Governance
   → (review/merge is a one-click squash; 0 approvals required)
   → CI (re-runs against master)
   → Deploy to production on droplet (port 3030)
-  → release-please PR opens "chore(main): release X.Y.Z"
-  → squash-merge release-please PR → tag vX.Y.Z + GitHub Release
+  → maintainer cuts the release by hand: bump → changelog → tag + GitHub Release
 ```
 
 The pipeline separates **CI** (validation, GitHub-hosted) from **CD** (deploy,
@@ -75,11 +74,9 @@ flowchart LR
     end
 
     %% ===== Releases =====
-    subgraph Releases[" Release automation (master only) "]
+    subgraph Releases[" Manual release (master only) "]
         direction TB
-        RpTrigger[release-please.yml<br/>on push to master]
-        RpPR([chore(main): release X.Y.Z])
-        RpTag[tag vX.Y.Z<br/>+ GitHub Release]
+        RpManual([maintainer tags +<br/>GitHub Release by hand])
     end
 
     %% ===== Environments =====
@@ -100,9 +97,7 @@ flowchart LR
     HcProd -- fail --> Rollback2[docker compose up -d --force-recreate<br/>+ exit 1]
     FrontendProd -.live.-> ProdEnv[(Production<br/>localhost:3030<br/>public :3030)]
 
-    MasterPush --> RpTrigger
-    RpTrigger --> RpPR
-    RpPR -- squash --> RpTag
+    MasterPush -. manual .-> RpManual
 ```
 
 ### What this diagram does NOT show
@@ -118,8 +113,9 @@ flowchart LR
   GitHub Actions runner (`runs-on: self-hosted`); CI jobs run on ephemeral
   `ubuntu-latest`. This means the droplet's 20 GB disk only ever sees
   _built artifacts_ + `node_modules` for migrations, never the source build.
-- **release-please triggers on `push` to master**, _after_ CI has gone green
-  on the merge commit. It is not a gate on prod deploy.
+- **Releases are manual** and are not a gate on prod deploy. After CI goes
+  green on the merge commit, the maintainer tags + creates the GitHub Release
+  by hand (see [Release Process](./release-process.md)).
 
 ---
 
@@ -214,16 +210,13 @@ Key steps:
    yes, prod runs Vite dev with PM2/systemd; see
    `apps/backend/docker-compose.prod.yml`).
 
-### 4. Release (`.github/workflows/release-please.yml`)
+### 4. Release (manual)
 
-Triggers on `push` to `master` _in parallel_ with the prod deploy. The
-release-please bot reads `.github/release-please-manifest.json` (current
-version), scans conventional commits since that version, opens a PR
-`chore(main): release X.Y.Z` with the auto-generated `CHANGELOG.md` section
-and the bumped manifest. The maintainer reviews and squash-merges — that
-merge commit then triggers another `release-please` run which _creates_ the
-tag and the GitHub Release and sets `isLatest: true`. See
-[docs/release-process.md](./release-process.md) for full details.
+Releases are 100% manual — no workflow opens PRs, tags, or GitHub Releases.
+After the prod deploy goes green, the maintainer bumps versions, writes the
+changelog entry, tags, and creates the GitHub Release by hand. See
+[docs/release-process.md](./release-process.md) for the pointer to the full
+manual flow (`RELEASE-FLOW.md`, forthcoming).
 
 ---
 
@@ -505,8 +498,7 @@ left behind by `docker compose build` after a `up -d` that does not use
 | Staging deploy fails on `Wait for backend healthcheck` (120 s) | Container stuck on migrations, env misconfig          | `ssh CryptoGanster 'docker logs onchain-bot-staging-backend --tail 100'`                          |
 | Staging deploy fails on Tailscale probe                        | Tailscale daemon down, or socat service crashed       | `ssh CryptoGanster 'systemctl status tailscaled; systemctl status socat-backend-staging.service'` |
 | Prod healthcheck fails, retry also fails                       | Bad migration, OOM, broken image                      | `ssh CryptoGanster 'docker logs onchain-bot-backend --tail 50'` — see **Rollback** above          |
-| `release-please` does not open a PR                            | All commits since the last tag are `chore:` / `docs:` | Expected — no SemVer bump is warranted. Push a `feat:` or `fix:` to trigger the next cycle        |
-| `release-please` opens a PR with a wrong version               | Conventional-commit prefix mis-classification         | See [docs/release-process.md §Recovery](./release-process.md#recovery-procedures)                 |
+| Manual release mis-tags a version | Human error in tag or changelog entry | Fix the tag + changelog entry by hand; see [Release Process](./release-process.md) |
 | Disk > 80%                                                     | See **Disk full** above                               | `df -h` then triage                                                                               |
 | `Cannot connect to the Docker daemon` on droplet               | Docker daemon crashed                                 | `ssh CryptoGanster 'sudo systemctl restart docker'` (runner reconnects automatically)             |
 
@@ -567,7 +559,7 @@ For a solo developer:
   collaboration tool. They guard against accidents (pushing to the wrong
   ref) and against AI agents that try to commit straight to `master`.
 - **The PR `dev → master` is the only promotion step.** It is also where
-  `release-please` runs and where production deploys from.
+  production deploys from; the release is cut manually afterwards.
 
 ### Day-to-day workflow
 
@@ -587,7 +579,7 @@ git push origin --delete feat/some-isolated-change
 
 # 3. Promote dev to production
 gh pr create --base master --head dev --title "chore(release): promote dev to master"
-# merge (squash) — release-please + prod deploy fire automatically
+# merge (squash) — prod deploy fires automatically; the release is cut manually
 ```
 
 ### Why `master` exists locally (and why you must never push to it)
@@ -641,8 +633,8 @@ git ls-remote --heads origin
 - **Do not push to `origin/master` from anywhere.** Use the PR. Always.
 - **Do not keep `origin/feat/*`, `origin/fix/*`, `origin/ci/*`, etc.**
   They are governance failures. The workflow fails CI on them.
-- **Do not create `release/*` branches.** `release-please` opens a PR
-  onto `master` automatically; you just review and squash-merge it.
+- **Do not create `release/*` branches.** Releases are cut manually from
+  `master` (tag + GitHub Release by hand).
 
 ---
 
@@ -654,7 +646,6 @@ git ls-remote --heads origin
 - [`.github/workflows/deploy-staging.yml`](../.github/workflows/deploy-staging.yml) — staging CD
 - [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) — prod CD
 - [`.github/workflows/branch-governance.yml`](../.github/workflows/branch-governance.yml) — governance check
-- [`.github/workflows/release-please.yml`](../.github/workflows/release-please.yml) — release automation
 - [`scripts/backup-db.sh`](../scripts/backup-db.sh) — pre-prod backup
 - [`apps/backend/src/shared/common/config/app.config.ts`](../apps/backend/src/shared/common/config/app.config.ts) — env reference
 - [`GOVERNANCE.md`](../GOVERNANCE.md) — overall branching model

@@ -85,4 +85,12 @@ export interface TelegramRawMessage {
    *  an album share the same groupedId. Group consecutive messages by
    *  this field when rendering. */
   readonly groupedId?: bigint | string;
+  /** URL preview metadata (extracted from media.webpage, NOT downloaded).
+   *  Allows frontend to display link previews using original URLs. */
+  readonly webpagePreview?: {
+    readonly url: string | null;
+    readonly title: string | null;
+    readonly description: string | null;
+    readonly siteName: string | null;
+  } | null;
 }

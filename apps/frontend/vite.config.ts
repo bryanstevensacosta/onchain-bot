@@ -26,6 +26,13 @@ export default defineConfig({
         target: 'http://localhost:3030',
         changeOrigin: false,
       },
+      // Matching activation (SOLE source: crypto_news_matching_config id=1)
+      // GET/PATCH /crypto-news/matching/config on the backend
+      // IMPORTANT: Use specific path to avoid intercepting frontend /crypto-news route
+      '/crypto-news/matching': {
+        target: 'http://localhost:3030',
+        changeOrigin: false,
+      },
       // POST /crypto-news/sources now handled by ingestion-service (migrated 2026-09-05)
       // Old endpoint /crypto-news/sources deprecated (backend returns 501)
       '/ingestion-api': {

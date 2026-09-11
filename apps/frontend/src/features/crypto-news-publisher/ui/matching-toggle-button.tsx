@@ -1,21 +1,28 @@
 import { Button } from '@/shared/ui';
 import {
   useLlmConfig,
+  useMatchingConfig,
   useToggleMatching,
   useToggleLlm,
   useTogglePublishing,
 } from '@/features/crypto-news-publisher/model/use-llm-config';
 
 export function MatchingToggleButton(): React.ReactElement {
-  const { data: cfg, isLoading } = useLlmConfig();
+  const { data: cfg, isLoading: isLlmLoading } = useLlmConfig();
+  const { data: matchingCfg, isLoading: isMatchingLoading } =
+    useMatchingConfig();
   const matchingMut = useToggleMatching();
   const llmMut = useToggleLlm();
   const publishingMut = useTogglePublishing();
 
-  const isMatchingEnabled = cfg?.matchingEnabled ?? false;
+  // SOLE source of truth: crypto_news_matching_config id=1 via
+  // GET /crypto-news/matching/config (NOT LlmConfig.matchingEnabled,
+  // which is deprecated and 400-guarded on write).
+  const isMatchingEnabled = matchingCfg?.enabled ?? false;
   const isLlmEnabled = cfg?.llmEnabled ?? false;
   const isPublishingEnabled = cfg?.publishingEnabled ?? false;
 
+  const isLoading = isLlmLoading || isMatchingLoading;
   const isWorking =
     isLoading ||
     matchingMut.isPending ||

@@ -399,26 +399,38 @@ export function CryptoNewsPage() {
                           href={msg.linkPreviewUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="mt-2 block rounded border border-slate-700 bg-slate-800 p-3 hover:border-slate-500 transition-colors"
+                          className="mt-2 block rounded border border-slate-700 bg-slate-800 overflow-hidden hover:border-slate-500 transition-colors"
                         >
-                          {msg.linkPreviewTitle && (
-                            <h4 className="text-sm font-semibold text-slate-100">
-                              {msg.linkPreviewTitle}
-                            </h4>
-                          )}
-                          {msg.linkPreviewDescription && (
-                            <p className="mt-1 text-xs text-slate-400 line-clamp-2">
-                              {msg.linkPreviewDescription}
-                            </p>
-                          )}
-                          {msg.linkPreviewSiteName && (
-                            <p className="mt-1 text-xs text-slate-500">
-                              {msg.linkPreviewSiteName}
-                            </p>
-                          )}
-                          <span className="mt-1 block text-xs text-blue-400">
-                            {msg.linkPreviewUrl}
-                          </span>
+                          <img
+                            src={`https://v1.screenshot.11ty.dev/${encodeURIComponent(msg.linkPreviewUrl)}/opengraph/`}
+                            alt={msg.linkPreviewTitle || 'Preview'}
+                            className="w-full h-48 object-cover bg-slate-900"
+                            loading="lazy"
+                            onError={(e) => {
+                              // Hide image if it fails to load
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                          <div className="p-3">
+                            {msg.linkPreviewTitle && (
+                              <h4 className="text-sm font-semibold text-slate-100">
+                                {msg.linkPreviewTitle}
+                              </h4>
+                            )}
+                            {msg.linkPreviewDescription && (
+                              <p className="mt-1 text-xs text-slate-400 line-clamp-2">
+                                {msg.linkPreviewDescription}
+                              </p>
+                            )}
+                            {msg.linkPreviewSiteName && (
+                              <p className="mt-1 text-xs text-slate-500">
+                                {msg.linkPreviewSiteName}
+                              </p>
+                            )}
+                            <span className="mt-1 block text-xs text-blue-400 truncate">
+                              {msg.linkPreviewUrl}
+                            </span>
+                          </div>
                         </a>
                       )}
                     </article>

@@ -1,6 +1,6 @@
 {
   "name": "alpha-meta-token-scanner",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Alpha Meta Token Scanner — monorepo: NestJS alpha-call pipeline backend + React/Vite dashboard frontend",
   "private": true,
   "license": "UNLICENSED",

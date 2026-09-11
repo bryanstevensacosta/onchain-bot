@@ -1,0 +1,39 @@
+# .github/workflows/pr-title-lint.yml — Conventional-Commits check on PR titles (solo-dev hygiene)
+#
+# Why pull_request_target (not pull_request): this job only reads the PR title
+# via the GitHub API. pull_request_target runs in the base-repo context so a
+# forked PR cannot inject untrusted code into the runner — and this job needs
+# NO checkout at all (title-only check), so there is nothing to poison.
+name: PR Title Lint
+
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  lint:
+    name: Lint PR title
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Lint PR title (conventional commits)
+        uses: amannn/action-semantic-pull-request@e32d7e603df1aa1ba07e981f2a23455dee596825 # v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            chore
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            revert
+          requireScope: 'false'

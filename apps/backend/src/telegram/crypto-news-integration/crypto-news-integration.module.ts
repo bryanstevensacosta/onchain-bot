@@ -7,6 +7,7 @@ import { EnqueueMatchingCronScheduler } from 'telegram/crypto-news-integration/a
 import { MatchingConfigEntity } from 'telegram/crypto-news-integration/infrastructure/persistence/typeorm/entities/matching-config.entity';
 import { TypeOrmMatchingConfigRepository } from 'telegram/crypto-news-integration/infrastructure/persistence/typeorm/repositories/typeorm-matching-config.repository';
 import { MatchingConfigRepository } from 'telegram/crypto-news-integration/application/ports/matching-config.repository';
+import { MatchingConfigController } from 'telegram/crypto-news-integration/api/http/matching-config.controller';
 
 // Import dependencies from other BCs (cross-BC imports — documented in gap 7)
 import { CryptoNewsIngestionModule } from 'telegram/ingestion/crypto-news/crypto-news-ingestion.module';
@@ -56,6 +57,7 @@ import { CryptoNewsPublisherModule } from 'telegram/crypto-news-publisher/crypto
     CryptoNewsIngestionModule, // ContentFilterService, ChannelFilterRepository
     CryptoNewsPublisherModule, // KeywordRepository, BlacklistPhraseRepository, EnqueueMatchingMessageUseCase
   ],
+  controllers: [MatchingConfigController],
   providers: [
     // HTTP client for ingestion-service
     CryptoNewsIngestionClient,

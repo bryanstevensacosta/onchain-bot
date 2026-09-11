@@ -348,5 +348,22 @@ describe('LlmConfigController', () => {
       const view = await controller.getConfig();
       expect(view.rejectNonLatin).toBe(false);
     });
+
+    it('rejects matchingEnabled with 400 + hint (deprecated, use /crypto-news/matching/config)', async () => {
+      await expect(
+        controller.updateConfig({ matchingEnabled: true }),
+      ).rejects.toMatchObject({ status: 400 });
+      let hint = '';
+      try {
+        await controller.updateConfig({ matchingEnabled: false });
+      } catch (err) {
+        const body = (
+          err as { getResponse?: () => unknown }
+        ).getResponse?.() as { hint?: string } | undefined;
+        hint = String(JSON.stringify(body));
+      }
+      expect(hint).toContain('/crypto-news/matching/config');
+      expect(llmConfigRepo.save).not.toHaveBeenCalled();
+    });
   });
 });

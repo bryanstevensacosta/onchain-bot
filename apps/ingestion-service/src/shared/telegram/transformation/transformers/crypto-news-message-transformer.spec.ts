@@ -108,7 +108,7 @@ describe('CryptoNewsMessageTransformer', () => {
       expect(result!.media[0].dcId).toBe(2);
     });
 
-    it('should extract webpage preview media', () => {
+    it('should NOT extract webpage preview media (external URL preview images)', () => {
       const raw = {
         id: 123,
         peerId: '456',
@@ -130,12 +130,11 @@ describe('CryptoNewsMessageTransformer', () => {
 
       const result = transformer.transform(raw);
 
-      expect(result!.media).toHaveLength(1);
-      expect(result!.media[0].type).toBe('photo');
-      expect(result!.media[0].webpageUrl).toBe('https://example.com');
-      expect(result!.media[0].webpageTitle).toBe('Example Article');
-      expect(result!.media[0].webpageDescription).toBe('Article description');
-      expect(result!.media[0].webpageSiteName).toBe('Example Site');
+      // Webpage preview photos should NOT be extracted as they are:
+      // 1. External URL preview images, not actual message attachments
+      // 2. Would show as "broken image" icons in frontend
+      // 3. Should not waste storage on external preview images
+      expect(result!.media).toHaveLength(0);
     });
 
     it('should normalize entities', () => {
