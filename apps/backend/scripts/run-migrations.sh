@@ -3,13 +3,12 @@
 
 set -euo pipefail
 
-# Detect if we're in a compiled environment (Docker) or development
-if [ -f "dist/backend/src/shared/common/persistence/data-source.js" ]; then
-  # Production/Staging: use compiled JavaScript with absolute path
+# In Docker/production, always use compiled JavaScript
+# In development, use TypeScript
+if [ "${NODE_ENV:-}" = "production" ] || [ "${NODE_ENV:-}" = "staging" ]; then
   echo "Running migrations from compiled JavaScript (dist/)..."
   npx typeorm -d ./dist/backend/src/shared/common/persistence/data-source.js migration:run
 else
-  # Development: use TypeScript
   echo "Running migrations from TypeScript (src/)..."
   npx typeorm-ts-node-commonjs --dataSource src/shared/common/persistence/data-source.ts migration:run
 fi
