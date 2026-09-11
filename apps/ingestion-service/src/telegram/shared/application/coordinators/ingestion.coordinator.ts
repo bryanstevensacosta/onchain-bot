@@ -40,6 +40,12 @@ interface TelegramRawMessage {
     url?: string;
   }>;
   groupedId?: string | bigint;
+  webpagePreview?: {
+    url: string | null;
+    title: string | null;
+    description: string | null;
+    siteName: string | null;
+  } | null;
 }
 
 /**
@@ -181,10 +187,10 @@ export class IngestionCoordinator {
       messageEntity.content = raw.text ?? ''; // ← RAW content, NO filters
       messageEntity.publishedAt = raw.occurredAt;
       messageEntity.ingestedAt = new Date();
-      messageEntity.linkPreviewUrl = null; // TODO: extract from entities (future feature)
-      messageEntity.linkPreviewTitle = null;
-      messageEntity.linkPreviewDescription = null;
-      messageEntity.linkPreviewSiteName = null;
+      messageEntity.linkPreviewUrl = raw.webpagePreview?.url ?? null;
+      messageEntity.linkPreviewTitle = raw.webpagePreview?.title ?? null;
+      messageEntity.linkPreviewDescription = raw.webpagePreview?.description ?? null;
+      messageEntity.linkPreviewSiteName = raw.webpagePreview?.siteName ?? null;
       messageEntity.messageEntities = raw.entities
         ? JSON.stringify(raw.entities)
         : null;

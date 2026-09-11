@@ -28,7 +28,8 @@ export default defineConfig({
       },
       // Matching activation (SOLE source: crypto_news_matching_config id=1)
       // GET/PATCH /crypto-news/matching/config on the backend
-      '/crypto-news': {
+      // IMPORTANT: Use specific path to avoid intercepting frontend /crypto-news route
+      '/crypto-news/matching': {
         target: 'http://localhost:3030',
         changeOrigin: false,
       },

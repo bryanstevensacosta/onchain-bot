@@ -78,6 +78,10 @@ class TestMessageTransformer extends AbstractMessageTransformer {
   public testExtractGroupedId(raw: RawTelegramMessage) {
     return this.extractGroupedId(raw);
   }
+
+  public testExtractWebpagePreview(raw: RawTelegramMessage) {
+    return this.extractWebpagePreview(raw);
+  }
 }
 
 describe('AbstractMessageTransformer', () => {
@@ -300,6 +304,102 @@ describe('AbstractMessageTransformer', () => {
       const result = transformer.transform(raw);
 
       expect(result!.groupedId).toBeNull();
+    });
+  });
+
+  describe('extractWebpagePreview()', () => {
+    it('should extract webpage preview metadata', () => {
+      const raw: RawTelegramMessage = {
+        media: {
+          webpage: {
+            url: 'https://example.com',
+            title: 'Example Page',
+            description: 'Test description',
+            siteName: 'Example Site',
+          },
+        },
+      };
+
+      const result = transformer.testExtractWebpagePreview(raw);
+
+      expect(result).not.toBeNull();
+      expect(result!.url).toBe('https://example.com');
+      expect(result!.title).toBe('Example Page');
+      expect(result!.description).toBe('Test description');
+      expect(result!.siteName).toBe('Example Site');
+    });
+
+    it('should return null when no media', () => {
+      const raw: RawTelegramMessage = {};
+      expect(transformer.testExtractWebpagePreview(raw)).toBeNull();
+    });
+
+    it('should return null when no webpage in media', () => {
+      const raw: RawTelegramMessage = {
+        media: { photo: { id: 'test' } },
+      };
+      expect(transformer.testExtractWebpagePreview(raw)).toBeNull();
+    });
+
+    it('should handle partial webpage metadata', () => {
+      const raw: RawTelegramMessage = {
+        media: {
+          webpage: {
+            url: 'https://example.com',
+            // title, description, siteName are missing
+          },
+        },
+      };
+
+      const result = transformer.testExtractWebpagePreview(raw);
+
+      expect(result).not.toBeNull();
+      expect(result!.url).toBe('https://example.com');
+      expect(result!.title).toBeNull();
+      expect(result!.description).toBeNull();
+      expect(result!.siteName).toBeNull();
+    });
+  });
+
+  describe('transform() with webpage preview', () => {
+    it('should include webpage preview in transformed message', () => {
+      const raw: RawTelegramMessage = {
+        id: 123,
+        peerId: '-100456',
+        message: 'Check this out https://example.com',
+        date: 1609459200,
+        media: {
+          webpage: {
+            url: 'https://example.com',
+            title: 'Example Page',
+            description: 'An example webpage',
+            siteName: 'Example',
+          },
+        },
+      };
+
+      const result = transformer.transform(raw);
+
+      expect(result).not.toBeNull();
+      expect(result!.webpagePreview).not.toBeNull();
+      expect(result!.webpagePreview!.url).toBe('https://example.com');
+      expect(result!.webpagePreview!.title).toBe('Example Page');
+      expect(result!.webpagePreview!.description).toBe('An example webpage');
+      expect(result!.webpagePreview!.siteName).toBe('Example');
+    });
+
+    it('should have null webpage preview when no webpage in media', () => {
+      const raw: RawTelegramMessage = {
+        id: 123,
+        peerId: '-100456',
+        message: 'Just text',
+        date: 1609459200,
+      };
+
+      const result = transformer.transform(raw);
+
+      expect(result).not.toBeNull();
+      expect(result!.webpagePreview).toBeNull();
     });
   });
 });

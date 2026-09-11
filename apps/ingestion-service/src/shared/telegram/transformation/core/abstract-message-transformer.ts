@@ -29,6 +29,16 @@ export interface RawTelegramMessage {
 }
 
 /**
+ * Webpage preview metadata (extracted from media.webpage, NOT downloaded)
+ */
+export interface WebpagePreview {
+  url: string | null;
+  title: string | null;
+  description: string | null;
+  siteName: string | null;
+}
+
+/**
  * Transformed message output
  */
 export interface TransformedMessage {
@@ -51,6 +61,7 @@ export interface TransformedMessage {
   entities: NormalizedEntity[];
   groupedId: bigint | string | null;
   occurredAt: Date;
+  webpagePreview: WebpagePreview | null;
 }
 
 export abstract class AbstractMessageTransformer {
@@ -89,6 +100,9 @@ export abstract class AbstractMessageTransformer {
     // Extract groupedId (for media albums)
     const groupedId = this.extractGroupedId(raw);
 
+    // Extract webpage preview metadata (step 4)
+    const webpagePreview = this.extractWebpagePreview(raw);
+
     return {
       id,
       peerId,
@@ -97,6 +111,7 @@ export abstract class AbstractMessageTransformer {
       entities,
       groupedId,
       occurredAt,
+      webpagePreview,
     };
   }
 
@@ -167,5 +182,28 @@ export abstract class AbstractMessageTransformer {
     if (typeof groupedId === 'string') return groupedId;
     if (typeof groupedId === 'number') return String(groupedId);
     return (groupedId as { toString(): string }).toString();
+  }
+
+  /**
+   * Extract webpage preview metadata (step 4)
+   * 
+   * Extracts URL preview metadata from raw.media.webpage WITHOUT downloading the preview photo.
+   * This allows the frontend to display link previews using the original URL.
+   * 
+   * Returns null if no webpage preview is present.
+   */
+  protected extractWebpagePreview(raw: RawTelegramMessage): WebpagePreview | null {
+    if (!raw.media || typeof raw.media !== 'object') return null;
+
+    const webpage = (raw.media as { webpage?: Record<string, unknown> }).webpage;
+    if (!webpage || typeof webpage !== 'object') return null;
+
+    // Extract metadata (no photo download)
+    return {
+      url: (webpage.url as string) ?? null,
+      title: (webpage.title as string) ?? null,
+      description: (webpage.description as string) ?? null,
+      siteName: (webpage.siteName as string) ?? null,
+    };
   }
 }

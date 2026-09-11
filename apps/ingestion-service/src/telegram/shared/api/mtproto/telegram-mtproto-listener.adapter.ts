@@ -353,6 +353,7 @@ export class TelegramMtprotoListenerAdapter
       entities: transformed.entities,
       media,
       groupedId: transformed.groupedId ?? undefined,
+      webpagePreview: transformed.webpagePreview ?? null,
     };
   }
 
