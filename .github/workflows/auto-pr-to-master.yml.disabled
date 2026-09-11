@@ -58,8 +58,7 @@ jobs:
           **What to do:**
           1. Review the changes
           2. Merge when ready - this will trigger:
-             - Release-please to analyze conventional commits
-             - Automatic release PR creation if there are releasable changes
+             - Manual release steps (bump → changelog → tag + GitHub Release by hand)
              - CI/CD workflows
 
           **Note:** After merging, master will automatically sync back to dev via the sync-dev workflow."

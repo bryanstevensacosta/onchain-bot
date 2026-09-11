@@ -87,7 +87,7 @@ _\*dev exception: maintainers may temporarily enable force-push for **backport s
 
 - **Target:** All branches except allowed ones
 - **Rules:** Blocks `creation`, `update`, `deletion`
-- **Allowed:** `dev`, `master`, `feat/*`, `fix/*`, `chore/*`, `ci/*`, `docs/*`, `refactor/*`, `perf/*`, `test/*`, `build/*`, `style/*`, `hotfix/*`, `release/*`, `revert/*`, `release-please--*`
+- **Allowed:** `dev`, `master`, `feat/*`, `fix/*`, `chore/*`, `ci/*`, `docs/*`, `refactor/*`, `perf/*`, `test/*`, `build/*`, `style/*`, `hotfix/*`, `release/*`, `revert/*`
 - **Enforcement:** Active (server-side)
 - **Bypass:** Admin role (temporary, documented)
 
