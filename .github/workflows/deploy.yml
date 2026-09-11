@@ -235,3 +235,14 @@ jobs:
           done
 
           echo "=== Deploy complete ==="
+
+      - name: Post-deploy smoke checks (read-only)
+        env:
+          SMOKE_BACKEND_URL: http://localhost:3030
+          SMOKE_FRONTEND_URL: http://localhost:5173
+          SMOKE_INGESTION_URL: http://localhost:3032
+        run: |
+          set -euo pipefail
+          echo "=== Post-deploy smoke (prod ports, read-only probes) ==="
+          bash scripts/smoke-prod.sh
+          echo "=== Smoke complete ==="

@@ -401,6 +401,17 @@ jobs:
           echo "=== Tailscale frontend healthcheck (curl -v) ==="
           curl -v -sf -o /dev/null http://100.110.169.120:4173/ || { echo "FRONTEND HEALTHCHECK FAILED"; exit 1; }
 
+      - name: Post-deploy smoke checks (read-only)
+        env:
+          SMOKE_BACKEND_URL: http://localhost:3031
+          SMOKE_FRONTEND_URL: http://localhost:4173
+          SMOKE_INGESTION_URL: http://localhost:3032
+        run: |
+          set -euo pipefail
+          echo "=== Post-deploy smoke (staging ports, read-only probes) ==="
+          bash scripts/smoke-prod.sh
+          echo "=== Smoke complete ==="
+
   restart-services:
     name: Restart services
     if: ${{ success() }}
