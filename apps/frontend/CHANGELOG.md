@@ -1,48 +1,29 @@
 # Changelog
 
-## [4.0.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v3.0.1...v4.0.0) (2026-09-10)
+## [1.5.1] - 2026-09-10
 
+### Fixed
 
-### ⚠ BREAKING CHANGES
+- **nginx:** retarget /ingestion-api/ proxy from Tailscale host to Docker DNS (onchain-bot-ingestion:3031) ([#168](https://github.com/bryanstevensacosta/onchain-bot/issues/168)) ([f5c22e9](https://github.com/bryanstevensacosta/onchain-bot/commit/f5c22e9993fa7c6c03bff4e0d6f11e18cc7dfaff))
+- **nginx:** add /ingestion-api/ location proxying crypto-news and media to ingestion-service ([#165](https://github.com/bryanstevensacosta/onchain-bot/issues/165)) ([7fb5b5c](https://github.com/bryanstevensacosta/onchain-bot/commit/7fb5b5c20c2b2178036f1ca0142b8d2421e4f00c))
 
-* **sync:** MTProto credentials must now be in ingestion-service ONLY
-* **sync:** MTProto credentials must now be in ingestion-service ONLY
-* **sync:** MTProto credentials must now be in ingestion-service ONLY
-* MTProto credentials must now be in ingestion-service ONLY
-
-### Bug Fixes
-
-* ingestion-service tests (127→0 failing) + implement Gap 3 dedup + Husky + CI ([#154](https://github.com/bryanstevensacosta/onchain-bot/issues/154)) ([b031f32](https://github.com/bryanstevensacosta/onchain-bot/commit/b031f32ea62b64180d7f50706f868130d2e1d01d))
-
-
-### Miscellaneous Chores
-
-* **sync:** dev → master (281 commits) ([#159](https://github.com/bryanstevensacosta/onchain-bot/issues/159)) ([574a8de](https://github.com/bryanstevensacosta/onchain-bot/commit/574a8de3b75a10f999155e671321b593f9ad41fc))
-* **sync:** dev → master (staging migration runner + views fixes) ([#168](https://github.com/bryanstevensacosta/onchain-bot/issues/168)) ([f5c22e9](https://github.com/bryanstevensacosta/onchain-bot/commit/f5c22e9993fa7c6c03bff4e0d6f11e18cc7dfaff))
-* **sync:** dev → master (staging views fixes) ([#165](https://github.com/bryanstevensacosta/onchain-bot/issues/165)) ([7fb5b5c](https://github.com/bryanstevensacosta/onchain-bot/commit/7fb5b5c20c2b2178036f1ca0142b8d2421e4f00c))
-
-## [3.0.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v2.0.0...v3.0.0) (2026-09-06)
+## [1.5.0] - 2026-09-06
 
 ### Features
 
-- migrate crypto-news sources ownership to ingestion-service ([#147](https://github.com/bryanstevensacosta/onchain-bot/issues/147)) ([4e07b1d](https://github.com/bryanstevensacosta/onchain-bot/commit/4e07b1d07fbc6db8e3ce4de8bea3725c9d53d98f))
+- migrate crypto-news sources ownership to ingestion-service, frontend UI updates (12 files) ([#147](https://github.com/bryanstevensacosta/onchain-bot/issues/147)) ([4e07b1d](https://github.com/bryanstevensacosta/onchain-bot/commit/4e07b1d07fbc6db8e3ce4de8bea3725c9d53d98f))
 
-## [2.0.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v1.3.2...v2.0.0) (2026-09-05)
-
-### ⚠ BREAKING CHANGES
-
-- **crypto-news:** MTProto credentials must now be in ingestion-service ONLY
-- MTProto credentials must now be in ingestion-service ONLY
+## [1.4.0] - 2026-09-05
 
 ### Features
 
-- Multi-backend SSE broadcast + ingestion improvements (clean merge) ([#119](https://github.com/bryanstevensacosta/onchain-bot/issues/119)) ([bbb774c](https://github.com/bryanstevensacosta/onchain-bot/commit/bbb774cf26c1942dfec5eedc1f37ee7ac2d2ee74))
+- multi-backend SSE broadcast, frontend wiring (17 files) ([#119](https://github.com/bryanstevensacosta/onchain-bot/issues/119)) ([bbb774c](https://github.com/bryanstevensacosta/onchain-bot/commit/bbb774cf26c1942dfec5eedc1f37ee7ac2d2ee74))
 
-### Bug Fixes
+### Fixed
 
-- **crypto-news:** disable seeder and add channel ID normalization ([#142](https://github.com/bryanstevensacosta/onchain-bot/issues/142)) ([ab56941](https://github.com/bryanstevensacosta/onchain-bot/commit/ab5694187b5f5e9bf7be8cf0c6d3c8cb6826b2b2))
+- **nginx:** add /api/ strip-and-proxy location for same-origin prod builds ([#142](https://github.com/bryanstevensacosta/onchain-bot/issues/142)) ([ab56941](https://github.com/bryanstevensacosta/onchain-bot/commit/ab5694187b5f5e9bf7be8cf0c6d3c8cb6826b2b2))
 
-## [1.3.2](https://github.com/bryanstevensacosta/onchain-bot/compare/v1.3.1...v1.3.2) (2026-08-27)
+## [1.3.2] - 2026-08-27
 
 ### Bug Fixes
 
@@ -52,17 +33,7 @@
 
 - **media:** ingestion 24h-&gt;72h (cover queue backlog) + publisher TTL 0-&gt;7d ([#61](https://github.com/bryanstevensacosta/onchain-bot/issues/61)) ([f0996c4](https://github.com/bryanstevensacosta/onchain-bot/commit/f0996c40bf28fdd791c7f79697d198f8b954f10b))
 
-## [1.3.1](https://github.com/bryanstevensacosta/onchain-bot/compare/v1.3.0...v1.3.1) (2026-08-27)
-
-### Bug Fixes
-
-- **media:** complete 48h-&gt;24h frontend + HEVC ([#55](https://github.com/bryanstevensacosta/onchain-bot/issues/55)) ([70147d4](https://github.com/bryanstevensacosta/onchain-bot/commit/70147d4bcd7f889d2fdbe3a34534c22555b53969))
-
-### Performance Improvements
-
-- **media:** ingestion 24h-&gt;72h (cover queue backlog) + publisher TTL 0-&gt;7d ([#61](https://github.com/bryanstevensacosta/onchain-bot/issues/61)) ([f0996c4](https://github.com/bryanstevensacosta/onchain-bot/commit/f0996c40bf28fdd791c7f79697d198f8b954f10b))
-
-## [1.3.0](https://github.com/bryanstevensacosta/onchain-bot/compare/v1.2.0...v1.3.0) (2026-08-25)
+## [1.3.0] - 2026-08-25
 
 ### Features
 
@@ -113,10 +84,9 @@
 ### Bug Fixes
 
 - add seedDefaultsIfEmpty, await knownKol port calls, expose trackedCalls endpoint ([19ab517](https://github.com/bryanstevensacosta/onchain-bot/commit/19ab51770fe3e4c4abcef338ad70c9c6f4b17383))
-- **backend:** eliminate 3 KOL log warnings + defense-in-depth for invalid Solana addresses ([51711b0](https://github.com/bryanstevensacosta/onchain-bot/commit/51711b03e0eca9e8ad48ecf11ccaa68aef78ff08))
 - **crypto-news:** image download with dcId/date, flood wait fix, proxy config ([1b28fd3](https://github.com/bryanstevensacosta/onchain-bot/commit/1b28fd30f588793c7e75bf3b26348f1b42ec0f09))
 - **dashboard:** show correct KOL count instead of 0/50 ([7087116](https://github.com/bryanstevensacosta/onchain-bot/commit/70871163b724aa8f57e1b729af8385ade359c865))
-- **extraction:** skip invalid rows in findRecent (same pattern as normalization) ([cf734ed](https://github.com/bryanstevensacosta/onchain-bot/commit/cf734ed23fb386e53ee1d21a8b41948fa5e36de0))
+- **extraction:** skip invalid rows in findRecent (same pattern as normalization); **frontend:** remove name from /tokens rows — keep only $SYMBOL, address, chain, SCORE, verdict ([cf734ed](https://github.com/bryanstevensacosta/onchain-bot/commit/cf734ed23fb386e53ee1d21a8b41948fa5e36de0))
 - **frontend:** adaptive media grid - square images side by side, mixed/rectangular stacked ([2592819](https://github.com/bryanstevensacosta/onchain-bot/commit/2592819f25e37af4b954cd3c17d4f8241dbb6cd3))
 - **frontend:** add missing source dropdown in keyword create form ([e7c0d22](https://github.com/bryanstevensacosta/onchain-bot/commit/e7c0d22fef329c4abf5a3a72c04bf37d66083d27))
 - **frontend:** avoid duplicate link preview image in media grid ([ce99ddb](https://github.com/bryanstevensacosta/onchain-bot/commit/ce99ddbb5ff4a8e247cfdbc4f5fc49593cb53807))
@@ -128,7 +98,6 @@
 - **frontend:** narrower container (max-w-xl, left-aligned), smaller images (max-h-56) ([5ea9b35](https://github.com/bryanstevensacosta/onchain-bot/commit/5ea9b355a21e61efc14378aaab8e8ca73afdbd0c))
 - **frontend:** pagination on /kols + TopTokensTable Last seen ([f380a28](https://github.com/bryanstevensacosta/onchain-bot/commit/f380a28843db05b663218d3d7b443e00e4e90c29))
 - **frontend:** re-center container with mx-auto ([c70a3f6](https://github.com/bryanstevensacosta/onchain-bot/commit/c70a3f685772c13ab692cef2e937ac5f70635cb9))
-- **frontend:** remove name from /tokens rows — keep only $SYMBOL, address, chain, SCORE, verdict ([cf734ed](https://github.com/bryanstevensacosta/onchain-bot/commit/cf734ed23fb386e53ee1d21a8b41948fa5e36de0))
 - **frontend:** reorder crypto-news post layout - images above text ([ddebe09](https://github.com/bryanstevensacosta/onchain-bot/commit/ddebe09683b582f675bcd1e70aea29f4a71c608c))
 - **frontend:** restore REASON_TONE severity colors via centralized map ([b12365a](https://github.com/bryanstevensacosta/onchain-bot/commit/b12365a5720c2ddbfc390bfa0a8a5f2e13ac2a6d))
 - **frontend:** set VITE_API_BASE_URL='' (same-origin) and proxy all backend routes in nginx; fix CORS errors on /tokens page ([b85241f](https://github.com/bryanstevensacosta/onchain-bot/commit/b85241f951a2c271418d49961ac13c2fd301aff2))
