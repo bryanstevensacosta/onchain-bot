@@ -107,3 +107,22 @@ One change, one entry, in the right app. This rule exists because squash bodies 
 - Scopes are per app. Backend entries never list frontend-only work and vice versa. Shared or infra work (workflows, docs, scripts) goes to the app it served, or to no changelog if it served none (it rides along silently).
 - Footers do not propagate. A `BREAKING CHANGE:` line quoted inside a later merge body counts zero times unless the later merge itself introduces an incompatibility. Check the diff, not the body.
 - When in doubt, cite the smallest real unit: the brought-in commit or PR from the TSV, not the aggregate sync merge that carried it.
+
+## 6. Squash-message convention
+
+History is the changelog source now (no automation). The squash message on every `dev` -> `master` merge is what future you reads when judging versions and writing entries, so write it like a commit, not like a chat log.
+
+How to write it in the GitHub squash UI (default text is editable before merging):
+
+1. Subject line: `type(scope): subject` in lowercase imperative, max ~72 chars. Type is one of `feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert` (same list as `commitlint.config.js`; the `pr-title-lint` workflow enforces it on the PR title, which becomes the squash subject).
+2. Blank line, then body: one bullet per real change plus the PR number (`PR #<n>`). Never paste raw commit lists or re-emit old `BREAKING CHANGE:` footers (see section 5); add a footer only when THIS merge introduces the incompatibility, with cited evidence.
+3. Keep the default `(#<n>)` suffix GitHub appends; do not delete it. It is the trace back to review and CI.
+
+Why: `git log --format=%B` on the squashed range is the input to version judgment (section 2) and changelog bullets (section 3, step 2). A clean subject scopes the app and bump at a glance; a curated body with the PR number makes every bullet citable without digging.
+
+Examples:
+
+- `feat(vip-channel): add stuck-booking cleaner`
+  Body: `- Frees VIP slots stuck mid-post (30s cron). PR #165.`
+- `fix(ingestion): NULL-safe queued_at in publisher migration`
+  Body: `- Additive NULL handling, explicitly not an incompatible schema change. PR #150.`
