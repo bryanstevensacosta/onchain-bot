@@ -25,7 +25,7 @@
     "typeorm": "typeorm-ts-node-commonjs --dataSource src/shared/common/persistence/data-source.ts",
     "migration:run": "bash scripts/run-migrations.sh",
     "migration:revert": "npm run typeorm -- migration:revert",
-    "migration:show": "npm run typeorm -- migration:show",
+    "migration:show": "bash scripts/show-migrations.sh",
     "migration:generate": "npm run typeorm -- migration:generate",
     "db:backup": "bash ../../scripts/backup-db.sh",
     "dev": "npm run start:dev",

@@ -7,9 +7,9 @@ set -euo pipefail
 if [ -f "dist/backend/src/shared/common/persistence/data-source.js" ]; then
   # Production/Staging: use compiled JavaScript with absolute path
   echo "Running migrations from compiled JavaScript (dist/)..."
-  node node_modules/typeorm/cli.js -d ./dist/backend/src/shared/common/persistence/data-source.js migration:run
+  npx typeorm -d ./dist/backend/src/shared/common/persistence/data-source.js migration:run
 else
   # Development: use TypeScript
   echo "Running migrations from TypeScript (src/)..."
-  node_modules/.bin/typeorm-ts-node-commonjs --dataSource src/shared/common/persistence/data-source.ts migration:run
+  npx typeorm-ts-node-commonjs --dataSource src/shared/common/persistence/data-source.ts migration:run
 fi
