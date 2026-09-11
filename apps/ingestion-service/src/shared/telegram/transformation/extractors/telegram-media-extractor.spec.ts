@@ -60,7 +60,7 @@ describe('TelegramMediaExtractor', () => {
       expect(result?.fileId).toBe(BigInt(111));
     });
 
-    it('should extract photo from webpage preview (priority 4)', () => {
+    it('should NOT extract photo from webpage preview (external URL preview images)', () => {
       const media = {
         webpage: {
           url: 'https://example.com',
@@ -75,11 +75,11 @@ describe('TelegramMediaExtractor', () => {
 
       const result = extractor.extract(media);
 
-      expect(result).not.toBeNull();
-      expect(result?.type).toBe('photo');
-      expect(result?.fileId).toBe(BigInt(333));
-      expect(result?.webpageUrl).toBe('https://example.com');
-      expect(result?.webpageTitle).toBe('Example Page');
+      // Webpage preview photos should NOT be extracted as they are:
+      // 1. External URL preview images, not actual message attachments
+      // 2. Would show as "broken image" icons in frontend
+      // 3. Should not waste storage on external preview images
+      expect(result).toBeNull();
     });
   });
 

@@ -7,11 +7,17 @@
  * 
  * Physical download is the responsibility of MediaDownloaderService.
  * 
- * Slot priority:
+ * Slot priority (ONLY actual message attachments):
  * 1. video field (native video messages)
  * 2. document field with video/ MIME type (video files sent as documents)
  * 3. photo field (photo messages)
- * 4. webpage preview photo (link previews)
+ * 
+ * **DOES NOT extract webpage preview photos** - those are external URL preview
+ * images that Telegram generates automatically, not actual user attachments.
+ * Extracting them would:
+ * - Waste storage downloading external preview images
+ * - Show "broken image" icons in frontend for non-downloadable content  
+ * - Misrepresent URL previews as actual media attachments
  */
 
 import { AbstractMediaExtractor, type MediaSlot } from '../core/abstract-media-extractor';
@@ -37,7 +43,13 @@ export class TelegramMediaExtractor extends AbstractMediaExtractor {
   /**
    * Extract media metadata from Telegram media object
    * 
-   * Tries each slot in priority order, falls back to webpage preview if no slots match.
+   * Tries each slot in priority order.
+   * 
+   * **IMPORTANT**: Does NOT extract webpage preview photos - these are external URL
+   * preview images, not actual message attachments. Downloading them would:
+   * 1. Waste storage on external preview images
+   * 2. Show "broken image" icons in frontend for non-downloadable content
+   * 3. Misrepresent URL previews as actual media attachments
    * 
    * @param media - Raw Telegram media object
    * @returns Media attachment metadata or null if no valid media found
@@ -49,7 +61,8 @@ export class TelegramMediaExtractor extends AbstractMediaExtractor {
       if (result) return result;
     }
 
-    // Fall back to webpage preview photo
-    return this.extractWebpagePreview(media);
+    // Do NOT fall back to webpage preview - those are external preview images,
+    // not actual message attachments
+    return null;
   }
 }
