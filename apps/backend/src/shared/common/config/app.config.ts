@@ -377,6 +377,14 @@ export const appConfig = registerAs(
     },
 
     cryptoNews: {
+      // NOTE: keyword-matching activation is owned by the DB single-row
+      // crypto_news_matching_config (id=1), toggled ONLY via the frontend
+      // MatchingToggleButton -> PATCH /crypto-news/matching/config.
+      // NEVER add a MATCHING_ENABLED (or any MATCHING_*) env gate here:
+      // the scheduler (EnqueueMatchingCronScheduler.tick) and the SSE
+      // handler (ProcessCryptoNewsMessageHandler.handle) read the DB row
+      // on every tick/event. Transport env below (serviceUrl,
+      // useSseCryptoNews, pollingIntervalMinutes) is unrelated and stays.
       pollingIntervalMinutes: (() => {
         const raw = process.env.CRYPTO_NEWS_POLLING_INTERVAL_MINUTES;
         const parsed = raw ? parseInt(raw, 10) : 5;

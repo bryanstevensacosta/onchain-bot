@@ -4,9 +4,11 @@ import {
   deleteTemplate,
   fetchLlmConfig,
   fetchLlmModels,
+  fetchMatchingConfig,
   fetchTemplate,
   fetchTemplates,
   llmConfigKeys,
+  matchingConfigKeys,
   toggleLlmEnabled,
   toggleMatchingEnabled,
   togglePublishingEnabled,
@@ -15,6 +17,7 @@ import {
   type CreatePromptTemplateBody,
   type LlmConfig,
   type LlmModel,
+  type MatchingConfig,
   type PromptTemplate,
   type UpdateLlmConfigBody,
   type UpdatePromptTemplateBody,
@@ -58,32 +61,47 @@ export function useUpdateLlmConfig() {
 }
 
 /**
- * Toggle keyword matching enabled/disabled. Optimistically updates the
- * UI and reverts on error.
+ * Single-row matching activation (crypto_news_matching_config id=1).
+ * SOLE source of truth read by the scheduler + SSE handler; the
+ * MatchingToggleButton below is the only writer. 5s staleness keeps
+ * Start/Stop in lock-step across tabs.
+ */
+export function useMatchingConfig() {
+  return useQuery<MatchingConfig>({
+    queryKey: matchingConfigKeys.config(),
+    queryFn: fetchMatchingConfig,
+    staleTime: 5_000,
+  });
+}
+
+/**
+ * Toggle keyword matching enabled/disabled. Writes the SOLE source
+ * (PATCH /crypto-news/matching/config) with optimistic update;
+ * reverts on error. Publishing/LLM toggles stay on the old endpoint.
  */
 export function useToggleMatching() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (enabled: boolean) => toggleMatchingEnabled(enabled),
     onMutate: async (enabled) => {
-      await qc.cancelQueries({ queryKey: llmConfigKeys.config() });
-      const prev = qc.getQueryData<LlmConfig>(llmConfigKeys.config());
+      await qc.cancelQueries({ queryKey: matchingConfigKeys.config() });
+      const prev = qc.getQueryData<MatchingConfig>(matchingConfigKeys.config());
       if (prev) {
-        qc.setQueryData<LlmConfig>(llmConfigKeys.config(), {
+        qc.setQueryData<MatchingConfig>(matchingConfigKeys.config(), {
           ...prev,
-          matchingEnabled: enabled,
+          enabled,
         });
       }
       return { prev };
     },
     onError: (_err, _enabled, ctx) => {
       if (ctx?.prev) {
-        qc.setQueryData(llmConfigKeys.config(), ctx.prev);
+        qc.setQueryData(matchingConfigKeys.config(), ctx.prev);
       }
     },
     onSuccess: (saved) => {
-      qc.setQueryData(llmConfigKeys.config(), saved);
-      qc.invalidateQueries({ queryKey: llmConfigKeys.config() });
+      qc.setQueryData(matchingConfigKeys.config(), saved);
+      qc.invalidateQueries({ queryKey: matchingConfigKeys.config() });
     },
   });
 }

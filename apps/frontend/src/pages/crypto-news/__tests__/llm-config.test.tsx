@@ -53,6 +53,7 @@ vi.mock('@/features/crypto-news-publisher/model/use-llm-config', () => {
   };
   return {
     useLlmConfig: vi.fn(),
+    useMatchingConfig: vi.fn(),
     useLlmModels: vi.fn(),
     useTemplates: vi.fn(),
     useCreateTemplate: vi.fn(),
@@ -84,6 +85,7 @@ import {
   useDeleteTemplate,
   useLlmConfig,
   useLlmModels,
+  useMatchingConfig,
   useTemplates,
   useToggleMatching,
   useUpdateLlmConfig,
@@ -116,6 +118,7 @@ const mockedUseCreateKeyword = vi.mocked(useCreateKeyword);
 const mockedUseUpdateKeyword = vi.mocked(useUpdateKeyword);
 const mockedUseDeleteKeyword = vi.mocked(useDeleteKeyword);
 const mockedUseLlmConfig = vi.mocked(useLlmConfig);
+const mockedUseMatchingConfig = vi.mocked(useMatchingConfig);
 const mockedUseLlmModels = vi.mocked(useLlmModels);
 const mockedUseTemplates = vi.mocked(useTemplates);
 const mockedUseUpdateLlmConfig = vi.mocked(useUpdateLlmConfig);
@@ -211,6 +214,18 @@ function makeLlmConfigQuery(data: LlmConfig) {
     isLoading: false,
     error: null,
   } as unknown as ReturnType<typeof useLlmConfig>;
+}
+
+function makeMatchingConfigQuery(data: { enabled: boolean }) {
+  return {
+    data: {
+      id: 1,
+      enabled: data.enabled,
+      updatedAt: '2025-01-01T00:00:00.000Z',
+    },
+    isLoading: false,
+    error: null,
+  } as unknown as ReturnType<typeof useMatchingConfig>;
 }
 
 function makeLlmConfigLoading() {
@@ -323,6 +338,9 @@ beforeEach(() => {
     makeMutStub() as unknown as ReturnType<typeof useDeleteKeyword>,
   );
   mockedUseLlmConfig.mockReturnValue(makeLlmConfigQuery(baseConfig));
+  mockedUseMatchingConfig.mockReturnValue(
+    makeMatchingConfigQuery({ enabled: baseConfig.matchingEnabled }),
+  );
   mockedUseLlmModels.mockReturnValue(makeLlmModelsQuery(baseModels));
   mockedUseTemplates.mockReturnValue(makeTemplatesQuery(baseTemplates));
   mockedUseUpdateLlmConfig.mockReturnValue(
