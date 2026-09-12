@@ -179,7 +179,14 @@ describe('EnqueueMatchingCronScheduler (media mapping regression)', () => {
       expect(health.lastFetchOk).toBe(true);
       expect(health.consecutiveFetchFailures).toBe(0);
       expect(health.lastTickAt).not.toBeNull();
-      expect(health.lastEnqueuedAt).toBe(health.lastTickAt);
+      expect(health.lastEnqueuedAt).not.toBeNull();
+      // Two separate `new Date()` calls — tolerate a ms boundary under load.
+      expect(
+        Math.abs(
+          Date.parse(health.lastEnqueuedAt as string) -
+            Date.parse(health.lastTickAt as string),
+        ),
+      ).toBeLessThan(1000);
     });
 
     it('records success without enqueue timestamp when nothing matches', async () => {
