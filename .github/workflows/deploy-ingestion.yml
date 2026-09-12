@@ -79,6 +79,7 @@ jobs:
           set -a; source /opt/onchain-bot/apps/ingestion-service/.env.production; set +a
           # Same postgres container/user as the backend DB; password comes from
           # INGESTION_DATABASE_PASSWORD (falls back to POSTGRES_PASSWORD if set).
+          mkdir -p /data/backups/ingestion
           POSTGRES_CONTAINER=onchain-bot-postgres \
           POSTGRES_USER="${INGESTION_DATABASE_USER:-alpha_meta_token_scanner}" \
           POSTGRES_DB="${INGESTION_DATABASE_NAME:-alpha_meta_token_scanner_ingestion}" \
@@ -88,7 +89,9 @@ jobs:
             onchain-bot-postgres pg_dump -U "${INGESTION_DATABASE_USER:-alpha_meta_token_scanner}" \
             -d "${INGESTION_DATABASE_NAME:-alpha_meta_token_scanner_ingestion}" \
             --format=custom --no-owner --no-acl \
-            > /tmp/ingestion-backup-$(date +%Y%m%d-%H%M%S).dump
+            > /data/backups/ingestion/ingestion-backup-$(date +%Y%m%d-%H%M%S).dump
+          # Cleanup backups older than 7 days
+          find /data/backups/ingestion -maxdepth 1 -name 'ingestion-backup-*.dump' -mtime +7 -delete 2>/dev/null || true
 
       - name: Run ingestion migrations (abort deploy on failure)
         run: |
