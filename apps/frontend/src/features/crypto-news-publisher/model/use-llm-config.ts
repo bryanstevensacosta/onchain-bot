@@ -5,10 +5,12 @@ import {
   fetchLlmConfig,
   fetchLlmModels,
   fetchMatchingConfig,
+  fetchMatchingHealth,
   fetchTemplate,
   fetchTemplates,
   llmConfigKeys,
   matchingConfigKeys,
+  matchingHealthKeys,
   toggleLlmEnabled,
   toggleMatchingEnabled,
   togglePublishingEnabled,
@@ -18,6 +20,7 @@ import {
   type LlmConfig,
   type LlmModel,
   type MatchingConfig,
+  type MatchingHealth,
   type PromptTemplate,
   type UpdateLlmConfigBody,
   type UpdatePromptTemplateBody,
@@ -71,6 +74,22 @@ export function useMatchingConfig() {
     queryKey: matchingConfigKeys.config(),
     queryFn: fetchMatchingConfig,
     staleTime: 5_000,
+  });
+}
+
+/**
+ * Scheduler health tripwire (GET /crypto-news/matching/health).
+ * Never throws to the UI: consumers render UNKNOWN on error
+ * (old backend 404s this route — that silent gap hid the prod outage).
+ */
+export function useMatchingHealth() {
+  return useQuery<MatchingHealth>({
+    queryKey: matchingHealthKeys.health(),
+    queryFn: fetchMatchingHealth,
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
+    staleTime: 5_000,
+    retry: false,
   });
 }
 

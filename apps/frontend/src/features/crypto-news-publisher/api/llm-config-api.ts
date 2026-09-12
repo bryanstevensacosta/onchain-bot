@@ -31,7 +31,6 @@ export interface LlmConfig {
   readonly id: number;
   readonly defaultTemplateId: string;
   readonly targetChannel: string;
-  readonly matchingEnabled: boolean;
   readonly llmEnabled: boolean;
   readonly publishingEnabled: boolean;
   readonly rejectNonLatin: boolean;
@@ -65,6 +64,29 @@ export interface MatchingConfig {
 }
 
 export type UpdateMatchingConfigBody = Partial<Pick<MatchingConfig, 'enabled'>>;
+
+/**
+ * Frozen 6-field health contract for the keyword-matching scheduler,
+ * served by GET /crypto-news/matching/health. Mirrors the backend
+ * MatchingHealth DTO verbatim — do not extend without a backend change.
+ */
+export interface MatchingHealth {
+  readonly enabled: boolean;
+  readonly lastTickAt: string | null;
+  readonly lastFetchOk: boolean | null;
+  readonly consecutiveFetchFailures: number;
+  readonly lastEnqueuedAt: string | null;
+  readonly queuePending: number;
+}
+
+export const matchingHealthKeys = {
+  all: ['crypto-news', 'matching', 'health'] as const,
+  health: () => [...matchingHealthKeys.all] as const,
+};
+
+export async function fetchMatchingHealth(): Promise<MatchingHealth> {
+  return httpGet<MatchingHealth>('/crypto-news/matching/health');
+}
 
 export const matchingConfigKeys = {
   all: ['crypto-news', 'matching'] as const,
