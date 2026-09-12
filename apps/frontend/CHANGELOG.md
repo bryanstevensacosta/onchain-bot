@@ -6,6 +6,15 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 (none yet)
 
+## [1.0.1] - 2026-09-12
+
+### Added
+- Pipeline health status badge on crypto-news page showing real-time scheduler state (LOADING/UNKNOWN/ON-OFF) with 15-second polling. Never crashes on 404 (tolerates old backend). (PR #203)
+- `useMatchingHealth` hook for consuming pipeline health API (`GET /crypto-news/matching/health`). (PR #203)
+
+### Fixed
+- Deprecated `matchingEnabled` field removed from LLM config types (backend no longer returns it). (PR #203)
+
 ## [1.0.0] - 2026-09-11
 
 **Baseline release**: Version reset for consistency across monorepo. This is the first official release with all apps aligned at v1.0.0.
