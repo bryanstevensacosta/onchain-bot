@@ -6,6 +6,19 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 (none yet)
 
+## [1.0.1] - 2026-09-12
+
+### Fixed
+- Crypto-news pipeline outage caused by host firewall blocking ingestion fetch. Backends now use container DNS (`http://onchain-bot-ingestion:3031`) to bypass host network layer. (PR #203)
+- Silent scheduler failures now visible via `GET /crypto-news/matching/health` endpoint (6-field health state: enabled, lastTickAt, lastFetchOk, consecutiveFetchFailures, lastEnqueuedAt, queuePending). (PR #203)
+- Firewall rules now declarative in `bootstrap-droplet.sh` (idempotent DOCKER-USER ACCEPTs + socat systemd persistence). (PR #203)
+
+### Deprecated
+- `matchingEnabled` field removed from `GET /crypto-news-publisher/llm/config` read response (single source of truth is `crypto_news_matching_config` table). PATCH writes with this field now return HTTP 400 with migration hint. (PR #203)
+
+### Added
+- Smoke probes 6-7 for matching config and pipeline health (deploy gates now verify `/7` instead of `/5`). (PR #203)
+
 ## [1.0.0] - 2026-09-11
 
 **Baseline release**: Version reset for consistency across monorepo. This is the first official release with all apps aligned at v1.0.0.
