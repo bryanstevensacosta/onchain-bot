@@ -10,6 +10,11 @@
 #                                (NOT freshness — gateway-deferred; reachability only)
 #   5. SSE probe                 GET ${SMOKE_INGESTION_URL}/api/ingestion/stream
 #                                (headers-only success: HTTP 200 headers == alive stream)
+#   6. matching config           GET ${SMOKE_BACKEND_URL}/crypto-news/matching/config
+#                                (expect 200 + boolean `enabled`)
+#   7. matching health           GET ${SMOKE_BACKEND_URL}/crypto-news/matching/health
+#                                (expect 200 + all 6 keys: enabled,lastTickAt,lastFetchOk,
+#                                 consecutiveFetchFailures,lastEnqueuedAt,queuePending)
 #
 # URLs are env-parametrized with loopback defaults (NO hardcoded IPs — the
 # runner executes ON the host, so loopback is correct in every environment).
@@ -83,7 +88,37 @@ else
   fail "SSE stream headers (${SMOKE_INGESTION_URL}/api/ingestion/stream -> http=${SSE_CODE})"
 fi
 
-echo "=== smoke-prod: $((5 - FAILURES))/5 PASS ==="
+# 6. matching config (expect 200 + boolean `enabled`)
+MATCHING_CONFIG_BODY="$(mktemp)"
+MATCHING_CONFIG_CODE="$(curl -s -o "${MATCHING_CONFIG_BODY}" -w "%{http_code}" --max-time "${SMOKE_TIMEOUT}" "${SMOKE_BACKEND_URL}/crypto-news/matching/config" 2>/dev/null || echo "000")"
+if [ "${MATCHING_CONFIG_CODE}" = "200" ] && grep -q '"enabled"[[:space:]]*:[[:space:]]*\(true\|false\)' "${MATCHING_CONFIG_BODY}"; then
+  pass "matching config (${SMOKE_BACKEND_URL}/crypto-news/matching/config)"
+else
+  fail "matching config (${SMOKE_BACKEND_URL}/crypto-news/matching/config -> http=${MATCHING_CONFIG_CODE})"
+fi
+rm -f "${MATCHING_CONFIG_BODY}"
+
+# 7. matching health (expect 200 + all 6 keys)
+MATCHING_HEALTH_BODY="$(mktemp)"
+MATCHING_HEALTH_CODE="$(curl -s -o "${MATCHING_HEALTH_BODY}" -w "%{http_code}" --max-time "${SMOKE_TIMEOUT}" "${SMOKE_BACKEND_URL}/crypto-news/matching/health" 2>/dev/null || echo "000")"
+MATCHING_HEALTH_OK=0
+if [ "${MATCHING_HEALTH_CODE}" = "200" ]; then
+  MATCHING_HEALTH_OK=1
+  for _key in enabled lastTickAt lastFetchOk consecutiveFetchFailures lastEnqueuedAt queuePending; do
+    if ! grep -q "\"${_key}\"" "${MATCHING_HEALTH_BODY}"; then
+      MATCHING_HEALTH_OK=0
+      break
+    fi
+  done
+fi
+if [ "${MATCHING_HEALTH_OK}" = "1" ]; then
+  pass "matching health (${SMOKE_BACKEND_URL}/crypto-news/matching/health)"
+else
+  fail "matching health (${SMOKE_BACKEND_URL}/crypto-news/matching/health -> http=${MATCHING_HEALTH_CODE})"
+fi
+rm -f "${MATCHING_HEALTH_BODY}"
+
+echo "=== smoke-prod: $((7 - FAILURES))/7 PASS ==="
 if [ "${FAILURES}" -gt 0 ]; then
   echo "smoke-prod: ${FAILURES} check(s) FAILED"
   exit 1
