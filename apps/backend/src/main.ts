@@ -1,6 +1,39 @@
-import * as fs from 'node:fs';
+// Register tsconfig paths BEFORE any imports
+import { register } from 'tsconfig-paths';
 import * as path from 'node:path';
+import * as fs from 'node:fs';
 import { config as dotenvConfig } from 'dotenv';
+
+// Configure tsconfig-paths to work with compiled output in dist/backend/src/
+// __dirname is dist/backend/src/, paths resolve relative to it
+// IMPORTANT: We do NOT register 'telegram/*' to avoid conflicts with npm package 'telegram'
+const baseUrl = __dirname;
+register({
+  baseUrl,
+  paths: {
+    'shared/kernel/*': ['shared/kernel/*'],
+    'shared/common/*': ['shared/common/*'],
+    'shared/*': ['shared/*'],
+    'discovery/*': ['discovery/*'],
+    'chain/*': ['chain/*'],
+    'token/*': ['token/*'],
+    // 'telegram/*': ['telegram/*'],  // EXCLUDED - conflicts with npm package
+    'kol/*': ['kol/*'],
+    'settings/*': ['settings/*'],
+    'dashboard/*': ['dashboard/*'],
+    'data-provider/*': ['data-provider/*'],
+    'health/*': ['health/*'],
+    'src/*': ['*'],
+    // Cross-app imports from ingestion-service
+    // From dist/backend/src/ we need ../../../../../apps/ingestion-service/dist/src/
+    '@ingestion-service/media/*': [
+      '../../../../../apps/ingestion-service/dist/src/shared/media/*',
+    ],
+    '@ingestion-service/telegram/*': [
+      '../../../../../apps/ingestion-service/dist/src/shared/telegram/*',
+    ],
+  },
+});
 
 console.log('[DEBUG] 1. Starting bootstrap - loading .env files');
 // Load .env.dev first with override=true to ensure dev settings take precedence
