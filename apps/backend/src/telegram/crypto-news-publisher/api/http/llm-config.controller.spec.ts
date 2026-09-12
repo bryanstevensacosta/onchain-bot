@@ -309,6 +309,15 @@ describe('LlmConfigController', () => {
       expect(view.defaultTemplateId).toBe(DEFAULT_TEMPLATE_ID);
     });
 
+    it('omits deprecated matchingEnabled from the config view (read path)', async () => {
+      llmConfigRepo.load.mockResolvedValue(buildLlmConfig(DEFAULT_TEMPLATE_ID));
+      const view = await controller.getConfig();
+      expect(view).not.toHaveProperty('matchingEnabled');
+      expect('matchingEnabled' in (view as Record<string, unknown>)).toBe(
+        false,
+      );
+    });
+
     it('patches the config and persists', async () => {
       const cfg = buildLlmConfig(DEFAULT_TEMPLATE_ID);
       llmConfigRepo.load.mockResolvedValue(cfg);
