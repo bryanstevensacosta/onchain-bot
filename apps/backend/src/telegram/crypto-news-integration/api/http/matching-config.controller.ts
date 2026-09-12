@@ -1,5 +1,7 @@
 import { Body, Controller, Get, Patch } from '@nestjs/common';
 import { MatchingConfigRepository } from 'telegram/crypto-news-integration/application/ports/matching-config.repository';
+import { MatchingHealthState } from 'telegram/crypto-news-integration/application/state/matching-health.state';
+import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
 import { UpdateMatchingConfigDto } from 'telegram/crypto-news-integration/api/input/matching-config.input';
 import {
   toMatchingConfigView,
@@ -9,11 +11,26 @@ import {
 export type { MatchingConfigView } from 'telegram/crypto-news-integration/application/mappers/matching-config.mapper';
 
 /**
+ * Live view of the matching pipeline. Field names are frozen — the
+ * frontend MatchingToggleButton / health badge depends on this exact
+ * shape.
+ */
+export interface MatchingHealthView {
+  readonly enabled: boolean;
+  readonly lastTickAt: string | null;
+  readonly lastFetchOk: boolean | null;
+  readonly consecutiveFetchFailures: number;
+  readonly lastEnqueuedAt: string | null;
+  readonly queuePending: number;
+}
+
+/**
  * REST API for the crypto-news keyword-matching activation flag.
  *
  * Endpoints (under `/crypto-news/matching`):
  *  - GET    /config   Current MatchingConfig (single row, id = 1)
  *  - PATCH  /config   Partial update ({ enabled })
+ *  - GET    /health   Live pipeline health (6-field view)
  *
  * SOLE source of truth: `crypto_news_matching_config` id = 1.
  * Both read paths — EnqueueMatchingCronScheduler.tick() and
@@ -34,12 +51,30 @@ export type { MatchingConfigView } from 'telegram/crypto-news-integration/applic
 export class MatchingConfigController {
   public constructor(
     private readonly matchingConfigRepo: MatchingConfigRepository,
+    private readonly health: MatchingHealthState,
+    private readonly queueRepo: PublisherQueueRepository,
   ) {}
 
   @Get('config')
   public async getConfig(): Promise<MatchingConfigView> {
     const cfg = await this.matchingConfigRepo.load();
     return toMatchingConfigView(cfg);
+  }
+
+  @Get('health')
+  public async getHealth(): Promise<MatchingHealthView> {
+    const [cfg, queuePending] = await Promise.all([
+      this.matchingConfigRepo.load(),
+      this.queueRepo.countPending(),
+    ]);
+    return {
+      enabled: cfg.enabled,
+      lastTickAt: this.health.lastTickAt,
+      lastFetchOk: this.health.lastFetchOk,
+      consecutiveFetchFailures: this.health.consecutiveFetchFailures,
+      lastEnqueuedAt: this.health.lastEnqueuedAt,
+      queuePending,
+    };
   }
 
   @Patch('config')

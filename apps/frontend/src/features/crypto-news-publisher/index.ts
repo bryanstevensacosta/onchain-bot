@@ -5,6 +5,7 @@ export { BlockedPostsList } from './ui/blocked-posts-list';
 export { LlmConfigForm } from './ui/llm-config';
 export { PromptTemplates } from './ui/prompt-templates';
 export { MatchingToggleButton } from './ui/matching-toggle-button';
+export { MatchingHealthBadge } from './ui/matching-health-badge';
 export { useKeywords } from './model/use-keywords';
 export {
   useBlacklist,
@@ -18,6 +19,7 @@ export {
   useDeleteTemplate,
   useLlmConfig,
   useLlmModels,
+  useMatchingHealth,
   useTemplate,
   useTemplates,
   useToggleMatching,
@@ -39,6 +41,7 @@ export type {
   CreatePromptTemplateBody,
   LlmConfig,
   LlmModel,
+  MatchingHealth,
   PromptTemplate,
   ReasoningEffort,
   UpdateLlmConfigBody,

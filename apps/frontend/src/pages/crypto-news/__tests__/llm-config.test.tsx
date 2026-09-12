@@ -54,6 +54,7 @@ vi.mock('@/features/crypto-news-publisher/model/use-llm-config', () => {
   return {
     useLlmConfig: vi.fn(),
     useMatchingConfig: vi.fn(),
+    useMatchingHealth: vi.fn(),
     useLlmModels: vi.fn(),
     useTemplates: vi.fn(),
     useCreateTemplate: vi.fn(),
@@ -86,6 +87,7 @@ import {
   useLlmConfig,
   useLlmModels,
   useMatchingConfig,
+  useMatchingHealth,
   useTemplates,
   useToggleMatching,
   useUpdateLlmConfig,
@@ -119,6 +121,7 @@ const mockedUseUpdateKeyword = vi.mocked(useUpdateKeyword);
 const mockedUseDeleteKeyword = vi.mocked(useDeleteKeyword);
 const mockedUseLlmConfig = vi.mocked(useLlmConfig);
 const mockedUseMatchingConfig = vi.mocked(useMatchingConfig);
+const mockedUseMatchingHealth = vi.mocked(useMatchingHealth);
 const mockedUseLlmModels = vi.mocked(useLlmModels);
 const mockedUseTemplates = vi.mocked(useTemplates);
 const mockedUseUpdateLlmConfig = vi.mocked(useUpdateLlmConfig);
@@ -228,6 +231,14 @@ function makeMatchingConfigQuery(data: { enabled: boolean }) {
   } as unknown as ReturnType<typeof useMatchingConfig>;
 }
 
+function makeMatchingHealthLoading() {
+  return {
+    data: undefined,
+    isLoading: true,
+    isError: false,
+  } as unknown as ReturnType<typeof useMatchingHealth>;
+}
+
 function makeLlmConfigLoading() {
   return {
     data: undefined,
@@ -272,7 +283,6 @@ const baseConfig: LlmConfig = {
   id: 1,
   defaultTemplateId: 'tpl-default',
   targetChannel: '@vip-channel',
-  matchingEnabled: true,
   llmEnabled: true,
   publishingEnabled: true,
   rejectNonLatin: true,
@@ -339,8 +349,9 @@ beforeEach(() => {
   );
   mockedUseLlmConfig.mockReturnValue(makeLlmConfigQuery(baseConfig));
   mockedUseMatchingConfig.mockReturnValue(
-    makeMatchingConfigQuery({ enabled: baseConfig.matchingEnabled }),
+    makeMatchingConfigQuery({ enabled: true }),
   );
+  mockedUseMatchingHealth.mockReturnValue(makeMatchingHealthLoading());
   mockedUseLlmModels.mockReturnValue(makeLlmModelsQuery(baseModels));
   mockedUseTemplates.mockReturnValue(makeTemplatesQuery(baseTemplates));
   mockedUseUpdateLlmConfig.mockReturnValue(
@@ -434,6 +445,21 @@ describe('LlmConfigForm', () => {
         llmMaxAttempts: 3,
       }),
     );
+  });
+});
+
+describe('LlmConfig read-path contract (matchingEnabled removed)', () => {
+  it('config payload carries no matchingEnabled key', () => {
+    expect(baseConfig).not.toHaveProperty('matchingEnabled');
+    expect('matchingEnabled' in baseConfig).toBe(false);
+  });
+
+  it('old-bundle readers tolerate absence via ?? fallback without crashing', () => {
+    const legacy = baseConfig as unknown as Record<string, unknown>;
+    const matchingOn =
+      (legacy['matchingEnabled'] as boolean | undefined) ?? false;
+    expect(legacy['matchingEnabled']).toBeUndefined();
+    expect(matchingOn).toBe(false);
   });
 });
 

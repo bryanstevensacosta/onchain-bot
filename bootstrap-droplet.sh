@@ -61,3 +61,91 @@ echo "Con GHCR público + pull :sha || :latest + cache registry:"
 echo "  - pull sin GITHUB_TOKEN en droplet"
 echo "  - cache registry no expira (vs GHA 7d)"
 echo "  - Build en ubuntu-latest (14GB) → pull <500MB en droplet"
+
+# 4. Firewall permanente crypto-news + socat persistente (idempotente, re-ejecutable)
+echo "--- 4/4: Firewall crypto-news permanente (DOCKER-USER + socat) ---"
+# NOTA: Docker bypasses ufw (el trafico a contenedores entra por las cadenas
+# DOCKER-USER/FORWARD), y un REJECT manual en INPUT ensombrece (shadows) los allows
+# de ufw — por eso los ACCEPTs van en DOCKER-USER con alcance a subred.
+# NOTA: NUNCA filtrar por nombre de bridge (br-XXXX es efimero, cambia en cada
+# recreate de la red); las subredes backend se derivan en runtime via
+# `docker network inspect <net> --format ...` (nunca hardcodear subredes).
+ensure_docker_user_accept() {
+  local subnet="$1"
+  local port="$2"
+  if iptables -C DOCKER-USER -s "$subnet" -p tcp --dport "$port" -j ACCEPT 2>/dev/null; then
+    echo "  DOCKER-USER ACCEPT $subnet:$port ya existe"
+    return 0
+  fi
+  # Insertar ANTES de un REJECT manual si existe (un -A ciego quedaria sombreado
+  # tras el REJECT); si no hay REJECT, anexar al final. El guard iptables -C de
+  # arriba hace idempotente la re-ejecucion.
+  local reject_line
+  reject_line="$(iptables -nL DOCKER-USER --line-numbers 2>/dev/null | awk '/REJECT/ {print $1; exit}' || true)"
+  if [ -n "${reject_line:-}" ]; then
+    iptables -I DOCKER-USER "$reject_line" -s "$subnet" -p tcp --dport "$port" -j ACCEPT
+  else
+    iptables -A DOCKER-USER -s "$subnet" -p tcp --dport "$port" -j ACCEPT
+  fi
+  echo "  DOCKER-USER ACCEPT $subnet:$port anadido"
+}
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "  docker no instalado — omitiendo ACCEPTs DOCKER-USER"
+elif ! command -v iptables >/dev/null 2>&1; then
+  echo "  iptables no instalado — omitiendo ACCEPTs DOCKER-USER"
+elif ! iptables -nL DOCKER-USER >/dev/null 2>&1; then
+  echo "  cadena DOCKER-USER ausente (docker sin redes?) — omitiendo ACCEPTs"
+else
+  FW_PORTS="3031 3032"
+  FW_NETS="onchain-bot-net onchain-bot-staging-net"
+  for FW_NET in $FW_NETS; do
+    if ! docker network inspect "$FW_NET" >/dev/null 2>&1; then
+      echo "  red $FW_NET ausente — omitiendo"
+      continue
+    fi
+    FW_SUBNETS="$(docker network inspect "$FW_NET" --format '{{range .IPAM.Config}}{{.Subnet}} {{end}}' 2>/dev/null || true)"
+    if [ -z "${FW_SUBNETS:-}" ]; then
+      echo "  red $FW_NET sin subredes IPAM — omitiendo"
+      continue
+    fi
+    for FW_SUBNET in $FW_SUBNETS; do
+      for FW_PORT in $FW_PORTS; do
+        ensure_docker_user_accept "$FW_SUBNET" "$FW_PORT"
+      done
+    done
+  done
+fi
+
+# Listeners socat 3030/3031/3032 persistentes via systemd (idempotente).
+if ! command -v socat >/dev/null 2>&1; then
+  echo "  socat no instalado — omitiendo listeners persistentes (apt-get install socat)"
+else
+  SOCAT_UNIT="/etc/systemd/system/crypto-news-socat.service"
+  SOCAT_UNIT_NAME="crypto-news-socat.service"
+  TAILSCALE_IP="${TAILSCALE_IP:-100.110.169.120}"
+  SOCAT_WANT="[Unit]
+Description=Crypto-news socat listeners 3030/3031/3032 on $TAILSCALE_IP
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/bin/bash -c 'for P in 3030 3031 3032; do socat TCP-LISTEN:\$P,fork,reuseaddr,bind=$TAILSCALE_IP TCP:127.0.0.1:\$P & done; wait -n'
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+"
+  if [ -f "$SOCAT_UNIT" ] && [ "$(cat "$SOCAT_UNIT")" = "$SOCAT_WANT" ]; then
+    echo "  $SOCAT_UNIT_NAME ya existe con el contenido esperado"
+  else
+    printf '%s' "$SOCAT_WANT" > "$SOCAT_UNIT"
+    systemctl daemon-reload
+    echo "  $SOCAT_UNIT_NAME (re)generado"
+  fi
+  systemctl enable --now "$SOCAT_UNIT_NAME"
+  echo "  $SOCAT_UNIT_NAME enable --now aplicado"
+fi

@@ -20,7 +20,6 @@ export interface LlmConfigView {
   readonly id: number;
   readonly defaultTemplateId: string;
   readonly targetChannel: string;
-  readonly matchingEnabled: boolean;
   readonly llmEnabled: boolean;
   readonly publishingEnabled: boolean;
   readonly rejectNonLatin: boolean;
@@ -53,7 +52,6 @@ export const toConfigView = (config: LlmConfig): LlmConfigView => ({
   id: config.id,
   defaultTemplateId: config.defaultTemplateId,
   targetChannel: config.targetChannel,
-  matchingEnabled: config.matchingEnabled,
   llmEnabled: config.llmEnabled,
   publishingEnabled: config.publishingEnabled,
   rejectNonLatin: config.rejectNonLatin,

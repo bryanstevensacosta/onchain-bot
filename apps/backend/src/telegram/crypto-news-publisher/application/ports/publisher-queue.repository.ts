@@ -18,6 +18,8 @@ import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entit
  * - `countPublishedToday(resetHourUtc)` returns the number of
  *   PUBLISHED rows whose publishedAt falls in the current day window
  *   (window starts at `resetHourUtc` UTC, e.g. 04:00 UTC).
+ * - `countPending()` returns the number of PENDING rows (live queue
+ *   depth for the matching-health endpoint).
  *
  * Write paths:
  * - `enqueue(entry)` — INSERT + DELETE in one transaction.
@@ -51,6 +53,7 @@ export abstract class PublisherQueueRepository {
     limit: number,
   ): Promise<ReadonlyArray<PublisherQueueEntry>>;
   public abstract countPublishedToday(resetHourUtc: number): Promise<number>;
+  public abstract countPending(): Promise<number>;
   public abstract findById(id: string): Promise<PublisherQueueEntry | null>;
   public abstract findByIdForDisplay(
     id: string,

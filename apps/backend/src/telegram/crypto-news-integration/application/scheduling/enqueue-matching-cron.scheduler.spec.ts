@@ -1,7 +1,10 @@
+import { SchedulerRegistry } from '@nestjs/schedule';
+import { ConfigService } from '@nestjs/config';
 import { EnqueueMatchingCronScheduler } from './enqueue-matching-cron.scheduler';
 import { FilteredCryptoNewsService } from 'telegram/crypto-news-integration/application/services/filtered-crypto-news.service';
 import { EnqueueMatchingMessageUseCase } from 'telegram/crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
 import { MatchingConfigRepository } from 'telegram/crypto-news-integration/application/ports/matching-config.repository';
+import { MatchingHealthState } from 'telegram/crypto-news-integration/application/state/matching-health.state';
 
 /**
  * Regression tests for F3 blocking finding #2 (media `url` vs `filePath`).
@@ -66,12 +69,16 @@ describe('EnqueueMatchingCronScheduler (media mapping regression)', () => {
     const matchingConfigRepo = {
       load: jest.fn().mockResolvedValue({ enabled: true }),
     } as unknown as MatchingConfigRepository;
+    const health = new MatchingHealthState();
     const scheduler = new EnqueueMatchingCronScheduler(
       filteredNewsService,
       enqueueUseCase,
       matchingConfigRepo,
+      health,
+      {} as SchedulerRegistry,
+      {} as ConfigService,
     );
-    return { scheduler, enqueueUseCase };
+    return { scheduler, enqueueUseCase, health };
   }
 
   it('enqueues a media-bearing DTO (does not skip on missing filePath)', async () => {
@@ -114,10 +121,14 @@ describe('EnqueueMatchingCronScheduler (media mapping regression)', () => {
     const matchingConfigRepo = {
       load: jest.fn().mockResolvedValue({ enabled: false }),
     } as unknown as MatchingConfigRepository;
+    const health = new MatchingHealthState();
     const scheduler = new EnqueueMatchingCronScheduler(
       filteredNewsService,
       enqueueUseCase,
       matchingConfigRepo,
+      health,
+      {} as SchedulerRegistry,
+      {} as ConfigService,
     );
 
     await scheduler.tick();
@@ -127,6 +138,9 @@ describe('EnqueueMatchingCronScheduler (media mapping regression)', () => {
       filteredNewsService.getMatchingMessages as jest.Mock,
     ).not.toHaveBeenCalled();
     expect(enqueueUseCase.execute).not.toHaveBeenCalled();
+    // A disabled skip performs no fetch, so health stays untouched.
+    expect(health.lastTickAt).toBeNull();
+    expect(health.lastFetchOk).toBeNull();
   });
 
   it('skips tick when MatchingConfig load throws (fail-closed)', async () => {
@@ -143,6 +157,9 @@ describe('EnqueueMatchingCronScheduler (media mapping regression)', () => {
       filteredNewsService,
       enqueueUseCase,
       matchingConfigRepo,
+      new MatchingHealthState(),
+      {} as SchedulerRegistry,
+      {} as ConfigService,
     );
 
     await scheduler.tick();
@@ -151,5 +168,99 @@ describe('EnqueueMatchingCronScheduler (media mapping regression)', () => {
       filteredNewsService.getMatchingMessages as jest.Mock,
     ).not.toHaveBeenCalled();
     expect(enqueueUseCase.execute).not.toHaveBeenCalled();
+  });
+
+  describe('matching-health mutations', () => {
+    it('records success + enqueue timestamp when matches are enqueued', async () => {
+      const { scheduler, health } = buildScheduler([matchedDto]);
+
+      await scheduler.tick();
+
+      expect(health.lastFetchOk).toBe(true);
+      expect(health.consecutiveFetchFailures).toBe(0);
+      expect(health.lastTickAt).not.toBeNull();
+      expect(health.lastEnqueuedAt).not.toBeNull();
+      // Two separate `new Date()` calls — tolerate a ms boundary under load.
+      expect(
+        Math.abs(
+          Date.parse(health.lastEnqueuedAt as string) -
+            Date.parse(health.lastTickAt as string),
+        ),
+      ).toBeLessThan(1000);
+    });
+
+    it('records success without enqueue timestamp when nothing matches', async () => {
+      const { scheduler, health } = buildScheduler([]);
+
+      await scheduler.tick();
+
+      expect(health.lastFetchOk).toBe(true);
+      expect(health.consecutiveFetchFailures).toBe(0);
+      expect(health.lastTickAt).not.toBeNull();
+      expect(health.lastEnqueuedAt).toBeNull();
+    });
+
+    it('records failure and increments the counter when the fetch throws', async () => {
+      const filteredNewsService = {
+        getMatchingMessages: jest
+          .fn()
+          .mockRejectedValue(new Error('ingestion down')),
+      } as unknown as FilteredCryptoNewsService;
+      const enqueueUseCase = {
+        execute: jest.fn(),
+      } as unknown as EnqueueMatchingMessageUseCase;
+      const matchingConfigRepo = {
+        load: jest.fn().mockResolvedValue({ enabled: true }),
+      } as unknown as MatchingConfigRepository;
+      const health = new MatchingHealthState();
+      const scheduler = new EnqueueMatchingCronScheduler(
+        filteredNewsService,
+        enqueueUseCase,
+        matchingConfigRepo,
+        health,
+        {} as SchedulerRegistry,
+        {} as ConfigService,
+      );
+
+      await scheduler.tick();
+      await scheduler.tick();
+
+      expect(health.lastFetchOk).toBe(false);
+      expect(health.consecutiveFetchFailures).toBe(2);
+      expect(health.lastTickAt).not.toBeNull();
+      expect(health.lastEnqueuedAt).toBeNull();
+      expect(enqueueUseCase.execute).not.toHaveBeenCalled();
+    });
+
+    it('a success resets the failure counter', async () => {
+      const filteredNewsService = {
+        getMatchingMessages: jest
+          .fn()
+          .mockRejectedValueOnce(new Error('ingestion down'))
+          .mockResolvedValueOnce([]),
+      } as unknown as FilteredCryptoNewsService;
+      const enqueueUseCase = {
+        execute: jest.fn(),
+      } as unknown as EnqueueMatchingMessageUseCase;
+      const matchingConfigRepo = {
+        load: jest.fn().mockResolvedValue({ enabled: true }),
+      } as unknown as MatchingConfigRepository;
+      const health = new MatchingHealthState();
+      const scheduler = new EnqueueMatchingCronScheduler(
+        filteredNewsService,
+        enqueueUseCase,
+        matchingConfigRepo,
+        health,
+        {} as SchedulerRegistry,
+        {} as ConfigService,
+      );
+
+      await scheduler.tick();
+      expect(health.consecutiveFetchFailures).toBe(1);
+
+      await scheduler.tick();
+      expect(health.lastFetchOk).toBe(true);
+      expect(health.consecutiveFetchFailures).toBe(0);
+    });
   });
 });

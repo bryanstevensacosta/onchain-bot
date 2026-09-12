@@ -8,7 +8,11 @@
 #   2. Duplicate crypto-news sources across environments
 #   3. Resource waste running multiple identical ingestion instances
 #
-# Backend connects via: INGESTION_SERVICE_URL=http://cryptoganster.tailf01c61.ts.net:3032
+# Backend connects via: INGESTION_SERVICE_URL=http://onchain-bot-ingestion:3031
+# (pinned in backend `environment:` below; compose `environment:` wins over
+#  .env.staging; dev/localhost is untouched).
+# BOOT ORDER: start docker-compose.ingestion.yml FIRST — the ingestion compose
+# owns both external nets (onchain-bot-net + onchain-bot-staging-net).
 #
 services:
   postgres:
@@ -76,9 +80,12 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_ENABLED: true
-      # Ingestion mode - configured in .env.staging
+      # Ingestion mode - compose `environment:` wins over .env.staging
+      # (dev/localhost untouched). Boot ingestion compose first: it owns both
+      # external nets.
       USE_SSE_INGESTION: true
       USE_MOCK_INGESTION: false
+      INGESTION_SERVICE_URL: http://onchain-bot-ingestion:3031
     ports:
       - '3031:3030'
     volumes:

@@ -6,6 +6,7 @@ import { FilteredCryptoNewsService } from '../services/filtered-crypto-news.serv
 import { EnqueueMatchingMessageUseCase } from '../../../crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
 import type { CryptoNewsMessageDto } from '../../domain/dtos/crypto-news-message.dto';
 import { MatchingConfigRepository } from '../ports/matching-config.repository';
+import { MatchingHealthState } from '../state/matching-health.state';
 import type {
   EnqueueMessageDto,
   EnqueueMessageMediaDto,
@@ -62,6 +63,7 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
     private readonly filteredNewsService: FilteredCryptoNewsService,
     private readonly enqueueUseCase: EnqueueMatchingMessageUseCase,
     private readonly matchingConfigRepo: MatchingConfigRepository,
+    private readonly health: MatchingHealthState,
     private readonly schedulerRegistry: SchedulerRegistry,
     private readonly configService: ConfigService,
   ) {}
@@ -142,6 +144,7 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
       const matches = await this.filteredNewsService.getMatchingMessages(
         this.FETCH_LIMIT,
       );
+      this.health.recordFetchSuccess();
 
       if (matches.length === 0) {
         this.logger.debug(
@@ -182,7 +185,13 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
       this.logger.log(
         `Enqueue batch complete: ${enqueued} enqueued, ${skipped} skipped (out of ${matches.length} matches)`,
       );
+      if (enqueued > 0) {
+        this.health.recordEnqueued();
+      }
     } catch (error) {
+      // The per-message enqueue errors are caught inside the loop above,
+      // so reaching here means the fetch itself threw.
+      this.health.recordFetchFailure();
       this.logger.error(
         `Enqueue tick failed: ${(error as Error).message}`,
         (error as Error).stack,
