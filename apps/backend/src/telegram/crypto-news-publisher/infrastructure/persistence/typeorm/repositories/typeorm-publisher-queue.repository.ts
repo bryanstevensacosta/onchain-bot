@@ -146,6 +146,10 @@ export class TypeOrmPublisherQueueRepository extends PublisherQueueRepository {
       .getCount();
   }
 
+  public async countPending(): Promise<number> {
+    return this.repo.count({ where: { status: 'PENDING' } });
+  }
+
   public async findById(id: string): Promise<PublisherQueueEntry | null> {
     const row = await this.repo.findOne({ where: { id } });
     return row ? PublisherQueueMapper.toDomain(row) : null;
