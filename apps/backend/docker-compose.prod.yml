@@ -111,6 +111,10 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      # Ingestion - compose `environment:` wins over .env.production
+      # (dev/localhost untouched). Boot ingestion compose first: it owns both
+      # external nets.
+      INGESTION_SERVICE_URL: http://onchain-bot-ingestion:3031
     ports:
       - '127.0.0.1:3030:3030'
     depends_on:
