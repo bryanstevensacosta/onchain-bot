@@ -10,7 +10,7 @@ BACKUP_DIR="${BACKUP_DIR:-/opt/onchain-bot/backups}"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 DUMP_FILE="$BACKUP_DIR/pre-deploy-${TIMESTAMP}.dump.gz"
 
-CONTAINER_NAME="${POSTGRES_CONTAINER:-alpha-meta-token-scanner-postgres}"
+CONTAINER_NAME="${POSTGRES_CONTAINER:-onchain-bot-postgres-dev}"
 DB_NAME="${POSTGRES_DB:-alpha_meta_token_scanner}"
 DB_USER="${POSTGRES_USER:-alpha_meta_token_scanner}"
 

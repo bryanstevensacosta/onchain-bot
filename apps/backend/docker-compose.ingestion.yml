@@ -26,7 +26,7 @@ services:
       - ../backend/config:/app/config:ro
     environment:
       INGESTION_PORT: 3031 # Puerto interno del container
-      REDIS_HOST: onchain-bot-redis
+      REDIS_HOST: onchain-bot-redis-production
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     # Conectar a AMBAS redes: prod y staging

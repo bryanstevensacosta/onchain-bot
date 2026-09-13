@@ -15,7 +15,7 @@ echo ""
 
 # Export from production via SSH
 echo "📦 Exporting from production (you'll need SSH password)..."
-ssh root@144.126.203.139 "docker exec alpha-meta-token-scanner-postgres pg_dump -h localhost -U alpha_meta_token_scanner -d alpha_meta_token_scanner --data-only --no-owner --no-privileges \
+ssh root@144.126.203.139 "docker exec onchain-bot-postgres-production pg_dump -h localhost -U alpha_meta_token_scanner -d alpha_meta_token_scanner --data-only --no-owner --no-privileges \
   --table=crypto_news_sources \
   --table=channel_content_filter_configs \
   --table=crypto_news_blacklist_phrases \

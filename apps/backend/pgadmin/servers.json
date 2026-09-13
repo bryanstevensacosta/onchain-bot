@@ -3,7 +3,7 @@
     "1": {
       "Name": "alpha-meta-token-scanner",
       "Group": "Servers",
-      "Host": "alpha-meta-token-scanner-postgres",
+      "Host": "onchain-bot-postgres-dev",
       "Port": 5432,
       "MaintenanceDB": "alpha_meta_token_scanner",
       "Username": "alpha_meta_token_scanner",

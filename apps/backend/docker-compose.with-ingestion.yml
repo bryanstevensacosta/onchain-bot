@@ -6,7 +6,7 @@ name: onchain-bot-with-ingestion
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: onchain-bot-postgres
+    container_name: onchain-bot-postgres-production
     restart: unless-stopped
     env_file:
       - .env.production
@@ -28,7 +28,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: onchain-bot-redis
+    container_name: onchain-bot-redis-production
     restart: unless-stopped
     env_file:
       - .env.production
@@ -98,7 +98,7 @@ services:
       context: ../..
       dockerfile: apps/backend/Dockerfile
     image: ghcr.io/bryanstevensacosta/onchain-bot-backend:latest
-    container_name: onchain-bot-backend
+    container_name: onchain-bot-backend-production
     restart: unless-stopped
     logging:
       driver: json-file

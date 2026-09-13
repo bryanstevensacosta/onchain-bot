@@ -238,7 +238,7 @@ chmod -R 775 uploads
 
 ```bash
 # From backend container
-docker exec -it onchain-bot-backend curl http://ingestion-service:3031/api/health
+docker exec -it onchain-bot-backend-production curl http://onchain-bot-ingestion:3031/api/health
 # Expected: 200 OK with JSON health status
 ```
 

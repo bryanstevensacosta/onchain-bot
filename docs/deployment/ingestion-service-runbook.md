@@ -459,7 +459,7 @@ sleep 60
 
 **Check backend logs for SSE connection:**
 ```bash
-docker logs onchain-bot-staging-backend --tail 100 | grep -i "SSE"
+docker logs onchain-bot-backend-staging --tail 100 | grep -i "SSE"
 
 # Expected:
 # [INFO] Using SSE ingestion client (remote mode)
@@ -482,10 +482,10 @@ curl -s http://localhost:3031/api/health | jq '.clients.connected'
 docker logs -f onchain-bot-ingestion | grep "Broadcasting message"
 
 # Terminal 2: Watch staging backend receive
-docker logs -f onchain-bot-staging-backend | grep "Received message from SSE"
+docker logs -f onchain-bot-backend-staging | grep "Received message from SSE"
 
 # Terminal 3: Watch downstream processing
-docker logs -f onchain-bot-staging-backend | grep "KolIngestionOrchestrator"
+docker logs -f onchain-bot-backend-staging | grep "KolIngestionOrchestrator"
 
 # Expected: Messages flow through all 3 stages with <500ms latency
 ```
@@ -511,7 +511,7 @@ diff /tmp/staging-calls.json /tmp/prod-calls.json
 # Calculate diff:
 
 docker logs onchain-bot-ingestion | grep "message:ingested" | tail -1
-docker logs onchain-bot-staging-backend | grep "Received message" | tail -1
+docker logs onchain-bot-backend-staging | grep "Received message" | tail -1
 
 # Manual diff should be <500ms (Requirement 8.1)
 ```
@@ -519,7 +519,7 @@ docker logs onchain-bot-staging-backend | grep "Received message" | tail -1
 **Check resource usage:**
 ```bash
 # Staging backend should use LESS memory (no MTProto client)
-docker stats onchain-bot-staging-backend --no-stream
+docker stats onchain-bot-backend-staging --no-stream
 
 # Before migration: ~800MB
 # After migration: ~600MB (expect ~25% reduction)
@@ -636,7 +636,7 @@ curl -s http://localhost:3031/api/health | jq '.uptime / 3600 / 1000'
 /opt/onchain-bot/scripts/validate-ingestion-parity.sh
 
 # 3. Check staging backend uptime
-docker inspect onchain-bot-staging-backend | jq '.[0].State.StartedAt'
+docker inspect onchain-bot-backend-staging | jq '.[0].State.StartedAt'
 
 # 4. Baseline message counts
 curl -s http://localhost:3031/api/vip-calls/calls/recent?limit=1 | jq '.calls[0].id' > /tmp/day1-hour0-baseline.txt
@@ -652,7 +652,7 @@ curl -s http://localhost:3031/api/health | jq '.clients.connected'
 /opt/onchain-bot/scripts/validate-ingestion-parity.sh
 
 # 3. Check for errors in staging logs
-docker logs onchain-bot-staging-backend --since 6h | grep -i "error\|fatal\|exception" | wc -l
+docker logs onchain-bot-backend-staging --since 6h | grep -i "error\|fatal\|exception" | wc -l
 # Expected: 0
 ```
 
@@ -691,7 +691,7 @@ curl -s http://localhost:3031/api/health | jq '.floodWait.count24h'
 # Expected: <10 (per Requirement 11.2)
 
 # 4. Resource usage trends
-docker stats onchain-bot-staging-backend --no-stream
+docker stats onchain-bot-backend-staging --no-stream
 docker stats onchain-bot-ingestion --no-stream
 # Memory should be stable (no leaks)
 ```
@@ -718,7 +718,7 @@ Staging Messages (48h): $STAGING_24H_COUNT
 Production Messages (48h): $PROD_24H_COUNT
 Divergence: $((STAGING_24H_COUNT - PROD_24H_COUNT))
 
-Staging Backend Uptime: $(docker inspect onchain-bot-staging-backend | jq -r '.[0].State.StartedAt')
+Staging Backend Uptime: $(docker inspect onchain-bot-backend-staging | jq -r '.[0].State.StartedAt')
 Ingestion Service Uptime: $(docker inspect onchain-bot-ingestion | jq -r '.[0].State.StartedAt')
 
 Parity Check Results:
@@ -741,7 +741,7 @@ docker ps | grep onchain-bot-ingestion
 docker compose -f /opt/onchain-bot/apps/ingestion-service/docker-compose.yml up -d
 
 # 3. Verify staging backend reconnects automatically
-docker logs -f onchain-bot-staging-backend | grep "SSE"
+docker logs -f onchain-bot-backend-staging | grep "SSE"
 # Expected: "SSE connection failed, reconnecting in Xms"
 # Then: "SSE connection established"
 
@@ -754,7 +754,7 @@ docker compose -f docker-compose.staging.yml restart backend
 **If message divergence exceeds threshold:**
 ```bash
 # 1. Investigate staging backend logs
-docker logs onchain-bot-staging-backend --tail 200 | grep -i "error\|skip\|duplicate"
+docker logs onchain-bot-backend-staging --tail 200 | grep -i "error\|skip\|duplicate"
 
 # 2. Check ingestion service broadcast logs
 docker logs onchain-bot-ingestion --tail 200 | grep -i "broadcast"
@@ -885,12 +885,12 @@ curl -s http://localhost:3031/api/health | jq '.clients.connected'
 # Expected: 2 (staging + production)
 
 # 2. Check production backend logs
-docker logs onchain-bot-backend --tail 50 | grep -i "SSE"
+docker logs onchain-bot-backend-production --tail 50 | grep -i "SSE"
 # Expected: "Using SSE ingestion client (remote mode)"
 # Expected: "SSE connection established"
 
 # 3. Verify message flow
-docker logs -f onchain-bot-backend | grep "Received message from SSE"
+docker logs -f onchain-bot-backend-production | grep "Received message from SSE"
 # Should see messages within 2 minutes
 
 # 4. Test health endpoint
@@ -906,7 +906,7 @@ watch -n 10 'curl -s http://localhost:3030/api/vip-calls/calls/recent?limit=5 | 
 # New calls should appear every ~2-5 minutes
 
 # 2. Check for errors
-docker logs onchain-bot-backend --since 30m | grep -i "error\|fatal\|exception"
+docker logs onchain-bot-backend-production --since 30m | grep -i "error\|fatal\|exception"
 # Expected: No critical errors
 
 # 3. Verify media serving
@@ -941,7 +941,7 @@ curl -s http://localhost:3031/api/health | jq '.clients.connected'
 # Expected: 2
 
 # Check for reconnection attempts
-docker logs onchain-bot-backend --since 1h | grep -i "reconnect" | wc -l
+docker logs onchain-bot-backend-production --since 1h | grep -i "reconnect" | wc -l
 # Expected: 0
 
 # Verify message processing
@@ -961,7 +961,7 @@ curl -s http://localhost:3031/api/health | jq '.floodWait'
 # count24h should be <10
 
 # Resource usage
-docker stats onchain-bot-backend onchain-bot-ingestion --no-stream
+docker stats onchain-bot-backend-production onchain-bot-ingestion --no-stream
 ```
 
 ### 4.6 Phase 4 Rollback (If Needed)
@@ -986,7 +986,7 @@ curl http://localhost:3030/api/health
 # Expected: status="ok", mtproto.connected=true
 
 # 5. Monitor message flow
-docker logs -f onchain-bot-backend | grep "MTProto"
+docker logs -f onchain-bot-backend-production | grep "MTProto"
 # Expected: "Using MTProto ingestion client (local mode)"
 # Expected: "MTProto connection established"
 
@@ -999,7 +999,7 @@ watch -n 5 'curl -s http://localhost:3030/api/vip-calls/calls/recent?limit=1 | j
 
 ```bash
 # 1. Collect logs
-docker logs onchain-bot-backend --since 30m > /tmp/rollback-backend.log
+docker logs onchain-bot-backend-production --since 30m > /tmp/rollback-backend.log
 docker logs onchain-bot-ingestion --since 30m > /tmp/rollback-ingestion.log
 
 # 2. Analyze failure mode
@@ -1100,15 +1100,15 @@ for i in {1..10}; do
   sleep 1
   if [ "$i" -eq 10 ]; then
     echo "❌ Health check failed after 10s"
-    docker logs "onchain-bot-$ENV-$SERVICE_NAME" --tail 50
+    docker logs "onchain-bot-$SERVICE_NAME-$ENV" --tail 50
     exit 1
   fi
 done
 
 # Step 5: Verify MTProto mode (5s)
 echo "Step 5/5: Verifying MTProto connection..."
-docker logs "onchain-bot-$ENV-$SERVICE_NAME" --tail 20 | grep -i "mtproto"
-if docker logs "onchain-bot-$ENV-$SERVICE_NAME" --tail 20 | grep -qi "Using MTProto ingestion client"; then
+docker logs "onchain-bot-$SERVICE_NAME-$ENV" --tail 20 | grep -i "mtproto"
+if docker logs "onchain-bot-$SERVICE_NAME-$ENV" --tail 20 | grep -qi "Using MTProto ingestion client"; then
   echo "✓ MTProto mode confirmed"
 else
   echo "⚠️  Warning: Could not confirm MTProto mode from logs"
@@ -1116,7 +1116,7 @@ fi
 
 echo "=== Rollback complete ==="
 echo "Total time: ~120s"
-echo "Verify message flow: docker logs -f onchain-bot-$ENV-$SERVICE_NAME | grep 'message'"
+echo "Verify message flow: docker logs -f onchain-bot-$SERVICE_NAME-$ENV | grep 'message'"
 ```
 
 **Execute rollback:**
@@ -1135,7 +1135,7 @@ bash /opt/onchain-bot/scripts/rollback-to-mtproto.sh production
 
 ```bash
 # 1. Verify MTProto mode active
-docker logs onchain-bot-backend --tail 50 | grep "ingestion"
+docker logs onchain-bot-backend-production --tail 50 | grep "ingestion"
 # Expected: "Using MTProto ingestion client (local mode)"
 
 # 2. Check connection status
@@ -1143,7 +1143,7 @@ curl -s http://localhost:3030/api/health | jq '{status: .status, mtproto: .mtpro
 # Expected: {status: "ok", mtproto: true}
 
 # 3. Verify message flow
-docker logs -f onchain-bot-backend | grep "message"
+docker logs -f onchain-bot-backend-production | grep "message"
 # Should see new messages within 2 minutes
 
 # 4. Check recent calls incrementing
@@ -1265,32 +1265,32 @@ docker logs onchain-bot-ingestion | grep -i "mtproto\|telegram"
 
 ```bash
 # Real-time logs
-docker logs -f onchain-bot-backend
+docker logs -f onchain-bot-backend-production
 
 # SSE connection logs
-docker logs onchain-bot-backend | grep -i "SSE"
+docker logs onchain-bot-backend-production | grep -i "SSE"
 
 # Message processing
-docker logs onchain-bot-backend | grep "Received message"
+docker logs onchain-bot-backend-production | grep "Received message"
 
 # Recent errors
-docker logs onchain-bot-backend --since 1h | grep -i "error"
+docker logs onchain-bot-backend-production --since 1h | grep -i "error"
 
 # Ingestion mode confirmation
-docker logs onchain-bot-backend | grep "ingestion client"
+docker logs onchain-bot-backend-production | grep "ingestion client"
 ```
 
 **Backend (Staging):**
 
 ```bash
 # Real-time logs
-docker logs -f onchain-bot-staging-backend
+docker logs -f onchain-bot-backend-staging
 
 # SSE connection logs
-docker logs onchain-bot-staging-backend | grep -i "SSE"
+docker logs onchain-bot-backend-staging | grep -i "SSE"
 
 # Message processing
-docker logs onchain-bot-staging-backend | grep "Received message"
+docker logs onchain-bot-backend-staging | grep "Received message"
 ```
 
 ---
@@ -1304,7 +1304,7 @@ docker logs onchain-bot-staging-backend | grep "Received message"
 docker logs onchain-bot-ingestion --since 1h | grep "message:ingested" | wc -l
 
 # Messages processed by production in last hour
-docker logs onchain-bot-backend --since 1h | grep "Received message" | wc -l
+docker logs onchain-bot-backend-production --since 1h | grep "Received message" | wc -l
 
 # Expected: Similar counts (within ±1)
 ```
@@ -1317,7 +1317,7 @@ curl -s http://localhost:3031/api/health | jq '.uptime / 3600 / 1000'
 # Result in hours
 
 # Backend SSE connection uptime (from logs)
-docker logs onchain-bot-backend | grep "SSE connection established" | tail -1
+docker logs onchain-bot-backend-production | grep "SSE connection established" | tail -1
 # Compare timestamp with current time
 ```
 
@@ -1328,7 +1328,7 @@ docker logs onchain-bot-backend | grep "SSE connection established" | tail -1
 INGESTION_TS=$(docker logs onchain-bot-ingestion --tail 1 | grep "message:ingested" | grep -oP '\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z')
 
 # Received timestamp from backend
-BACKEND_TS=$(docker logs onchain-bot-backend --tail 1 | grep "Received message" | grep -oP '\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z')
+BACKEND_TS=$(docker logs onchain-bot-backend-production --tail 1 | grep "Received message" | grep -oP '\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z')
 
 # Manual diff (milliseconds)
 echo "Latency: $(date -d "$BACKEND_TS" +%s%3N) - $(date -d "$INGESTION_TS" +%s%3N) ms"
@@ -1339,7 +1339,7 @@ echo "Latency: $(date -d "$BACKEND_TS" +%s%3N) - $(date -d "$INGESTION_TS" +%s%3
 
 ```bash
 # Docker stats (real-time)
-docker stats onchain-bot-ingestion onchain-bot-backend onchain-bot-staging-backend
+docker stats onchain-bot-ingestion onchain-bot-backend-production onchain-bot-backend-staging
 
 # Memory usage
 docker stats --no-stream --format "table {{.Name}}\t{{.MemUsage}}" | grep "onchain-bot"
@@ -1369,7 +1369,7 @@ docker logs onchain-bot-ingestion --since 24h | grep -i "FLOOD_WAIT" | tail -10
 
 **Symptoms:**
 ```bash
-docker logs onchain-bot-backend | grep "SSE"
+docker logs onchain-bot-backend-production | grep "SSE"
 # Output: "SSE connection failed: 503"
 ```
 
@@ -1385,7 +1385,7 @@ docker logs onchain-bot-backend | grep "SSE"
 3. If ingestion service is healthy but backend can't connect:
    ```bash
    # Check network connectivity
-   docker exec onchain-bot-backend ping -c 3 cryptoganster
+   docker exec onchain-bot-backend-production ping -c 3 cryptoganster
    
    # If ping fails, check Docker network
    docker network inspect onchain-bot-net
@@ -1411,12 +1411,12 @@ curl -s http://localhost:3031/api/vip-calls/calls/recent?limit=100 | jq 'length'
 **Resolution:**
 1. Check if SSE connection dropped:
    ```bash
-   docker logs onchain-bot-backend --since 1h | grep -i "reconnect"
+   docker logs onchain-bot-backend-production --since 1h | grep -i "reconnect"
    ```
 2. If reconnection occurred, messages during disconnection are lost (expected per Requirement 3.3)
 3. If no reconnection occurred, check backend processing logs:
    ```bash
-   docker logs onchain-bot-backend --since 1h | grep -i "error\|skip"
+   docker logs onchain-bot-backend-production --since 1h | grep -i "error\|skip"
    ```
 4. If critical message loss (>10 messages), roll back:
    ```bash
@@ -1575,7 +1575,7 @@ EOF
 **On-Call Runbook Quick Links:**
 - Health Check: `curl http://localhost:3031/api/health | jq .`
 - Rollback: `bash /opt/onchain-bot/scripts/rollback-to-mtproto.sh production`
-- Logs: `docker logs onchain-bot-backend --tail 100`
+- Logs: `docker logs onchain-bot-backend-production --tail 100`
 - Emergency Stop: `docker compose -f /opt/onchain-bot/apps/ingestion-service/docker-compose.yml down`
 
 ---

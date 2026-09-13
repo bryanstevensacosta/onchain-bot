@@ -18,7 +18,7 @@ echo "=== Pulling latest code ==="
 git pull origin master
 
 echo "=== Backing up database ==="
-POSTGRES_CONTAINER=onchain-bot-postgres \
+POSTGRES_CONTAINER=onchain-bot-postgres-production \
 POSTGRES_USER=alpha_meta_token_scanner \
 POSTGRES_DB=alpha_meta_token_scanner \
 POSTGRES_PASSWORD=$(grep '^POSTGRES_PASSWORD=' .env.production | cut -d= -f2-) \

@@ -17,11 +17,11 @@ lsof -i:3030 || echo "Port 3030 is free"
 echo ""
 
 echo "3. Check PostgreSQL connectivity:"
-docker exec alpha-meta-token-scanner-postgres pg_isready 2>&1 || echo "PostgreSQL not accessible"
+docker exec onchain-bot-postgres-dev pg_isready 2>&1 || echo "PostgreSQL not accessible"
 echo ""
 
 echo "4. Check Redis connectivity:"
-docker exec alpha-meta-token-scanner-redis redis-cli ping 2>&1 || echo "Redis not accessible"
+docker exec onchain-bot-redis-dev redis-cli ping 2>&1 || echo "Redis not accessible"
 echo ""
 
 echo "5. Test backend startup with sync I/O tracing:"

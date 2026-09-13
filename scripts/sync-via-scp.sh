@@ -7,7 +7,7 @@ echo ""
 # Step 1: Create dump on production server
 echo "📦 Step 1: Creating dump on production server..."
 ssh root@144.126.203.139 <<'ENDSSH'
-docker exec onchain-bot-postgres pg_dump \
+docker exec onchain-bot-postgres-production pg_dump \
   -h localhost \
   -U alpha_meta_token_scanner \
   -d alpha_meta_token_scanner \

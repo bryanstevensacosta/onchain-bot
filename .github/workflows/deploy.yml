@@ -103,7 +103,7 @@ jobs:
       - name: Backup database
         run: |
           set -a; source /opt/onchain-bot/apps/backend/.env.production; set +a
-          POSTGRES_CONTAINER=onchain-bot-postgres \
+          POSTGRES_CONTAINER=onchain-bot-postgres-production \
           POSTGRES_USER=alpha_meta_token_scanner \
           POSTGRES_DB=alpha_meta_token_scanner \
           POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
