@@ -188,9 +188,10 @@ jobs:
 
       - name: Backup staging DB (if exists)
         run: |
-          if docker ps --format '{{.Names}}' | grep -q onchain-bot-postgres-staging; then
+          STAGING_PG="$(docker ps --format '{{.Names}}' | grep -E '^(onchain-bot-postgres-staging|onchain-bot-staging-postgres)$' | head -n 1 || true)"
+          if [ -n "$STAGING_PG" ]; then
             mkdir -p /data/backups/staging
-            docker exec onchain-bot-postgres-staging pg_dump -U alpha_meta_token_scanner \
+            docker exec "$STAGING_PG" pg_dump -U alpha_meta_token_scanner \
               alpha_meta_token_scanner_staging > /data/backups/staging/staging-backup-$(date +%Y%m%d-%H%M%S).sql || true
             # Cleanup backups older than 7 days
             find /data/backups/staging -maxdepth 1 -name 'staging-backup-*.sql' -mtime +7 -delete 2>/dev/null || true

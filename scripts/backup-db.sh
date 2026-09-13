@@ -11,12 +11,30 @@ TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 DUMP_FILE="$BACKUP_DIR/pre-deploy-${TIMESTAMP}.dump.gz"
 
 CONTAINER_NAME="${POSTGRES_CONTAINER:-onchain-bot-postgres-dev}"
+# Legacy names from the onchain-bot-<service>-<env> rename cutover.
+# During a rename deploy the running container still has the OLD name while
+# the workflow already passes the NEW one — probe candidates in order and
+# use the first running container. Post-cutover the fallbacks never match.
+# Override via POSTGRES_CONTAINER_FALLBACKS (space-separated) if needed.
+FALLBACKS="${POSTGRES_CONTAINER_FALLBACKS:-onchain-bot-postgres onchain-bot-staging-postgres alpha-meta-token-scanner-postgres}"
 DB_NAME="${POSTGRES_DB:-alpha_meta_token_scanner}"
 DB_USER="${POSTGRES_USER:-alpha_meta_token_scanner}"
 
 mkdir -p "$BACKUP_DIR"
 
-if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+RUNNING_NAMES="$(docker ps --format '{{.Names}}')"
+FOUND=""
+for candidate in $CONTAINER_NAME $FALLBACKS; do
+  if printf '%s\n' "$RUNNING_NAMES" | grep -q "^${candidate}$"; then
+    FOUND="$candidate"
+    break
+  fi
+done
+if [ -n "$FOUND" ]; then
+  if [ "$FOUND" != "$CONTAINER_NAME" ]; then
+    echo "==> Note: '$CONTAINER_NAME' not running, using legacy container '$FOUND'"
+  fi
+  CONTAINER_NAME="$FOUND"
   echo "==> Dumping from container $CONTAINER_NAME → $DUMP_FILE"
   docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" "$CONTAINER_NAME" \
     pg_dump -U "$DB_USER" -d "$DB_NAME" --format=custom --no-owner --no-acl \

@@ -85,8 +85,9 @@ jobs:
           POSTGRES_DB="${INGESTION_DATABASE_NAME:-alpha_meta_token_scanner_ingestion}" \
           POSTGRES_PASSWORD="${INGESTION_DATABASE_PASSWORD:-${POSTGRES_PASSWORD:-}}" \
           bash /opt/onchain-bot/scripts/backup-db.sh || \
+          PG_FB="$(docker ps --format '{{.Names}}' | grep -E '^(onchain-bot-postgres-production|onchain-bot-postgres)$' | head -n 1)" && \
           docker exec -e PGPASSWORD="${INGESTION_DATABASE_PASSWORD:-${POSTGRES_PASSWORD:-}}" \
-            onchain-bot-postgres-production pg_dump -U "${INGESTION_DATABASE_USER:-alpha_meta_token_scanner}" \
+            "$PG_FB" pg_dump -U "${INGESTION_DATABASE_USER:-alpha_meta_token_scanner}" \
             -d "${INGESTION_DATABASE_NAME:-alpha_meta_token_scanner_ingestion}" \
             --format=custom --no-owner --no-acl \
             > /data/backups/ingestion/ingestion-backup-$(date +%Y%m%d-%H%M%S).dump
