@@ -1,60 +1,80 @@
 // Type-resolution shim for `telegram/extensions/Logger`.
 //
-// At runtime, this file needs to load from node_modules/telegram, not from src/telegram.
-// We use a try-catch to gracefully handle cases where the telegram package isn't available.
+// `tsconfig.json` maps `telegram/*` → `src/telegram/*`, so `tsc` resolves the
+// backend's `import ... from 'telegram/extensions/Logger'` to this file. The
+// runtime `require()` below loads the real gramJS module from `node_modules/`
+// (a bare `telegram/...` import here would redirect back to itself, hence the
+// runtime require + the RELATIVE type-only import, which bypasses the alias).
+//
+// The exported bindings keep the REAL gramJS types (via `import type`) so
+// downstream consumers (e.g. `telegram-client-manager.service.ts`) don't
+// degrade to `any` — that trips `no-unsafe-return` / `no-unsafe-call`
+// (lint errors, CI failure). The try/catch only guards the RUNTIME load for
+// SSE/Mock modes where the MTProto package may be absent; fallbacks are
+// structurally compatible stubs cast to the real types.
 
-let Logger: any;
-let LogLevel: any;
+import type {
+  Logger as GramjsLoggerType,
+  LogLevel as GramjsLogLevelType,
+} from '../../../../../node_modules/telegram/extensions/Logger';
+
+let Logger: typeof GramjsLoggerType;
+let LogLevel: typeof GramjsLogLevelType;
+
+const fallbackLogger = class Logger {} as unknown as typeof GramjsLoggerType;
+const fallbackLogLevel = {
+  NONE: 'none',
+  ERROR: 'error',
+  WARN: 'warn',
+  INFO: 'info',
+  DEBUG: 'debug',
+} as unknown as typeof GramjsLogLevelType;
 
 try {
-  // Direct require - Node's module system will find node_modules/telegram
+  // Direct require - Node's module system will find node_modules/telegram.
+  // Typed as a partial view so member access stays type-safe.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const telegramLogger = require('telegram/extensions/Logger');
+  const telegramLogger = require('telegram/extensions/Logger') as {
+    Logger?: typeof GramjsLoggerType;
+    LogLevel?: typeof GramjsLogLevelType;
+    default?: {
+      Logger?: typeof GramjsLoggerType;
+      LogLevel?: typeof GramjsLogLevelType;
+    };
+  };
 
   // Access properties directly from the module object
-  Logger = telegramLogger['Logger'];
-  LogLevel = telegramLogger['LogLevel'];
+  Logger = telegramLogger['Logger'] ?? fallbackLogger;
+  LogLevel = telegramLogger['LogLevel'] ?? fallbackLogLevel;
 
   // Debug: verify we loaded correctly
-  if (!Logger || !LogLevel) {
+  if (Logger === fallbackLogger || LogLevel === fallbackLogLevel) {
     console.error(
       '[Logger shim] Properties undefined, trying alternative access...',
     );
     // Maybe it's a default export?
-    const alt = telegramLogger.default || telegramLogger;
-    Logger = alt.Logger || Logger;
-    LogLevel = alt.LogLevel || LogLevel;
+    const alt = telegramLogger.default ?? {};
+    Logger = alt.Logger ?? Logger;
+    LogLevel = alt.LogLevel ?? LogLevel;
   }
 
-  // Still undefined? Use fallback
-  if (!Logger || !LogLevel) {
+  // Still fallback? Log it
+  if (Logger === fallbackLogger || LogLevel === fallbackLogLevel) {
     console.warn(
       '[Logger shim] Could not access Logger/LogLevel, using fallback',
     );
-    Logger = class Logger {};
-    LogLevel = {
-      NONE: 'none',
-      ERROR: 'error',
-      WARN: 'warn',
-      INFO: 'info',
-      DEBUG: 'debug',
-    };
+    Logger = fallbackLogger;
+    LogLevel = fallbackLogLevel;
   }
 } catch (error) {
   // Fallback if telegram package is not available or cannot be loaded
   console.warn(
     '[Logger shim] Could not load telegram/extensions/Logger:',
-    error.message,
+    (error as Error)?.message ?? String(error),
   );
   // Provide minimal stubs so the module can at least be imported
-  Logger = class Logger {};
-  LogLevel = {
-    NONE: 'none',
-    ERROR: 'error',
-    WARN: 'warn',
-    INFO: 'info',
-    DEBUG: 'debug',
-  };
+  Logger = fallbackLogger;
+  LogLevel = fallbackLogLevel;
 }
 
 // Re-export
