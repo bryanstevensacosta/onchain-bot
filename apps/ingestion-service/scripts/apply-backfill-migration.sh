@@ -20,7 +20,7 @@ fi
 # Database connection details
 DB_USER="alpha_meta_token_scanner"
 DB_NAME="alpha_meta_token_scanner"
-CONTAINER_NAME="onchain-bot-postgres"
+CONTAINER_NAME="onchain-bot-postgres-production"
 
 echo "📊 Database: $DB_NAME"
 echo "👤 User: $DB_USER"

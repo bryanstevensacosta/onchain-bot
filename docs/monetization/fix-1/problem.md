@@ -811,7 +811,7 @@ grep -rn "rawText\|raw_text" apps/backend/src/ --include="*.ts" \
 | 5. Quitar text del evento upstream + refactor parser | 🔴 Pendiente | |
 | 6. Tests de compliance | 🔴 Pendiente | |
 
-**Verificación DB** (completada): `docker exec alpha-meta-token-scanner-postgres
+**Verificación DB** (completada): `docker exec onchain-bot-postgres-dev
 psql -U alpha_meta_token_scanner -d alpha_meta_token_scanner -c "\dt"` →
 "Did not find any relations." → DB vacía. El fix es preventivo: el problema se
 materializa el primer día que se active `DATABASE_ENABLED=true` con `synchronize=true`

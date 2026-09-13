@@ -89,7 +89,7 @@ $ curl http://localhost:3032/api/ingestion/stream/status
 ### Message Flow Verification
 
 ```bash
-$ docker logs onchain-bot-backend --since 1m | grep "yielded successfully" | wc -l
+$ docker logs onchain-bot-backend-production --since 1m | grep "yielded successfully" | wc -l
 93
 ```
 
@@ -216,16 +216,16 @@ curl http://localhost:3032/api/ingestion/stream/status | jq
 curl http://localhost:3030/api/health | jq
 
 # 3. Verify backend registration logs
-docker logs onchain-bot-backend --tail 50 | grep BACKEND-REGISTRATION
+docker logs onchain-bot-backend-production --tail 50 | grep BACKEND-REGISTRATION
 
 # 4. Verify message flow (should show ~50-100 per minute)
-docker logs onchain-bot-backend --since 1m | grep "yielded successfully" | wc -l
+docker logs onchain-bot-backend-production --since 1m | grep "yielded successfully" | wc -l
 
 # 5. Verify Redis connection
 docker logs onchain-bot-ingestion --tail 50 | grep REDIS
 
 # 6. Check recent backend keep-alives
-docker logs onchain-bot-backend --since 10m | grep KEEPALIVE
+docker logs onchain-bot-backend-production --since 10m | grep KEEPALIVE
 ```
 
 ## 🎉 Summary

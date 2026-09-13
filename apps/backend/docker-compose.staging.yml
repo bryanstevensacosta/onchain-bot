@@ -17,7 +17,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: onchain-bot-staging-postgres
+    container_name: onchain-bot-postgres-staging
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-alpha_meta_token_scanner}
@@ -39,7 +39,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: onchain-bot-staging-redis
+    container_name: onchain-bot-redis-staging
     restart: unless-stopped
     ports:
       - '6380:6379'
@@ -63,7 +63,7 @@ services:
       context: ../..
       dockerfile: apps/backend/Dockerfile
     image: ghcr.io/bryanstevensacosta/onchain-bot-backend:staging-latest
-    container_name: onchain-bot-staging-backend
+    container_name: onchain-bot-backend-staging
     restart: unless-stopped
     env_file:
       - .env.staging
@@ -117,7 +117,7 @@ services:
       args:
         VITE_APP_ENV: staging
     image: ghcr.io/bryanstevensacosta/onchain-bot-frontend:staging-latest
-    container_name: onchain-bot-staging-frontend
+    container_name: onchain-bot-frontend-staging
     restart: unless-stopped
     ports:
       - '4173:80'

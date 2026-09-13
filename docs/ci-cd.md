@@ -321,7 +321,7 @@ last known-good commit on the running branch.
 ```bash
 ssh CryptoGanster 'ls -lh /opt/onchain-bot/backups/ | tail -10'
 ssh CryptoGanster 'docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" \
-  alpha-meta-token-scanner-postgres pg_restore -U alpha_meta_token_scanner \
+  onchain-bot-postgres-production pg_restore -U alpha_meta_token_scanner \
   -d alpha_meta_token_scanner --clean --if-exists \
   --role=alpha_meta_token_scanner < /opt/onchain-bot/backups/pre-deploy-20260824_031500.dump'
 ```
@@ -495,9 +495,9 @@ left behind by `docker compose build` after a `up -d` that does not use
 | CI `Tests` job fails on `dev` push                             | Backend or frontend unit test regression              | `gh run view --log-failed` — fix on a feature branch, push, re-run                                |
 | CI `TypeScript Check` fails                                    | Type drift between BCs (often after a refactor)       | `npm run build` locally, fix, commit, push                                                        |
 | `Branch Governance Check` fails on PR                          | Force-push on PR branch, or non-linear history        | `gh pr view --json commits` — rebase or recreate the branch                                       |
-| Staging deploy fails on `Wait for backend healthcheck` (120 s) | Container stuck on migrations, env misconfig          | `ssh CryptoGanster 'docker logs onchain-bot-staging-backend --tail 100'`                          |
+| Staging deploy fails on `Wait for backend healthcheck` (5 min) | Container stuck on migrations, env misconfig          | `ssh CryptoGanster 'docker logs onchain-bot-backend-staging --tail 100'`                          |
 | Staging deploy fails on Tailscale probe                        | Tailscale daemon down, or socat service crashed       | `ssh CryptoGanster 'systemctl status tailscaled; systemctl status socat-backend-staging.service'` |
-| Prod healthcheck fails, retry also fails                       | Bad migration, OOM, broken image                      | `ssh CryptoGanster 'docker logs onchain-bot-backend --tail 50'` — see **Rollback** above          |
+| Prod healthcheck fails, retry also fails                       | Bad migration, OOM, broken image                      | `ssh CryptoGanster 'docker logs onchain-bot-backend-production --tail 50'` — see **Rollback** above          |
 | Manual release mis-tags a version | Human error in tag or changelog entry | Fix the tag + changelog entry by hand; see [Release Process](./release-process.md) |
 | Disk > 80%                                                     | See **Disk full** above                               | `df -h` then triage                                                                               |
 | `Cannot connect to the Docker daemon` on droplet               | Docker daemon crashed                                 | `ssh CryptoGanster 'sudo systemctl restart docker'` (runner reconnects automatically)             |

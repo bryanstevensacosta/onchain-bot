@@ -912,7 +912,7 @@ curl -X POST http://localhost:3030/ca/kol-ingestion/start \
   -H "Content-Type: application/json" \
   -d '{"kolIds":["test-kol-1"]}'
 # Esperar 10s, verificar DB:
-docker exec alpha-meta-token-scanner-postgres psql ... \
+docker exec onchain-bot-postgres-dev psql ... \
   -c "SELECT column_name FROM information_schema.columns WHERE table_name='token_calls'"
 # Confirmar: NO aparece 'raw_text'
 
@@ -927,7 +927,7 @@ watch -n 60 'curl http://localhost:3030/metrics | grep raw_text_leak'
 
 ```bash
 # 1. Schema check
-docker exec alpha-meta-token-scanner-postgres psql -U alpha_meta_token_scanner \
+docker exec onchain-bot-postgres-dev psql -U alpha_meta_token_scanner \
   -d alpha_meta_token_scanner -c "
     SELECT table_name, column_name
     FROM information_schema.columns

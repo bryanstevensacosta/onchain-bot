@@ -25,15 +25,15 @@ Esto aplica también al `postgres` y `pgadmin` del `docker-compose.yml`: si los 
 El `docker-compose.yml` define `postgres` (5432) y `pgadmin` (5050). Si ya están levantados de antes:
 
 ```bash
-docker ps --filter name=alpha-meta-token-scanner-postgres --format "{{.Names}}\t{{.Status}}"
-docker ps --filter name=alpha-meta-token-scanner-pgadmin --format "{{.Names}}\t{{.Status}}"
+docker ps --filter name=onchain-bot-postgres-dev --format "{{.Names}}\t{{.Status}}"
+docker ps --filter name=onchain-bot-pgadmin-dev --format "{{.Names}}\t{{.Status}}"
 ```
 
-Esperar `Up (healthy)` para `alpha-meta-token-scanner-postgres`. Si no existe y hay que crearlo:
+Esperar `Up (healthy)` para `onchain-bot-postgres-dev`. Si no existe y hay que crearlo:
 
 ```bash
 docker compose up -d postgres
-docker exec alpha-meta-token-scanner-postgres pg_isready -U alpha_meta_token_scanner -d alpha_meta_token_scanner
+docker exec onchain-bot-postgres-dev pg_isready -U alpha_meta_token_scanner -d alpha_meta_token_scanner
 ```
 
 No usar `docker compose down` a menos que se quiera borrar el volumen (y por tanto perder las tablas).

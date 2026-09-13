@@ -188,9 +188,12 @@ jobs:
 
       - name: Backup staging DB (if exists)
         run: |
-          if docker ps --format '{{.Names}}' | grep -q onchain-bot-staging-postgres; then
-            docker exec onchain-bot-staging-postgres pg_dump -U alpha_meta_token_scanner \
-              alpha_meta_token_scanner_staging > /tmp/staging-backup-$(date +%Y%m%d-%H%M%S).sql || true
+          if docker ps --format '{{.Names}}' | grep -q onchain-bot-postgres-staging; then
+            mkdir -p /data/backups/staging
+            docker exec onchain-bot-postgres-staging pg_dump -U alpha_meta_token_scanner \
+              alpha_meta_token_scanner_staging > /data/backups/staging/staging-backup-$(date +%Y%m%d-%H%M%S).sql || true
+            # Cleanup backups older than 7 days
+            find /data/backups/staging -maxdepth 1 -name 'staging-backup-*.sql' -mtime +7 -delete 2>/dev/null || true
           fi
 
       - name: Disk cleanup (pre-pull, filtered)
@@ -252,8 +255,8 @@ jobs:
           docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d postgres redis
           echo "=== Waiting for postgres+redis healthy (max 60s) ==="
           for i in $(seq 1 12); do
-            PG=$(docker inspect --format '{{.State.Health.Status}}' onchain-bot-staging-postgres 2>/dev/null || echo "missing")
-            RD=$(docker inspect --format '{{.State.Health.Status}}' onchain-bot-staging-redis 2>/dev/null || echo "missing")
+            PG=$(docker inspect --format '{{.State.Health.Status}}' onchain-bot-postgres-staging 2>/dev/null || echo "missing")
+            RD=$(docker inspect --format '{{.State.Health.Status}}' onchain-bot-redis-staging 2>/dev/null || echo "missing")
             echo "  attempt $i/12: postgres=$PG redis=$RD"
             if [ "$PG" = "healthy" ] && [ "$RD" = "healthy" ]; then
               echo "✓ Staging databases healthy"
@@ -262,9 +265,9 @@ jobs:
             if [ "$i" -eq 12 ]; then
               echo "❌ Staging databases not healthy after 60s (postgres=$PG redis=$RD)"
               echo "=== postgres logs (last 30) ==="
-              docker logs --tail 30 onchain-bot-staging-postgres 2>&1 || true
+              docker logs --tail 30 onchain-bot-postgres-staging 2>&1 || true
               echo "=== redis logs (last 30) ==="
-              docker logs --tail 30 onchain-bot-staging-redis 2>&1 || true
+              docker logs --tail 30 onchain-bot-redis-staging 2>&1 || true
               exit 1
             fi
             sleep 5
@@ -333,28 +336,28 @@ jobs:
 
       - name: Wait for backend healthcheck
         run: |
-          echo "=== Waiting for backend to become healthy ==="
-          for i in $(seq 1 5); do
+          echo "=== Waiting for backend to become healthy (max 5 min) ==="
+          for i in $(seq 1 30); do
             if curl -v -sf http://localhost:3031/api/health > /tmp/health-backend.log 2>&1; then
               echo "✓ Backend is healthy (attempt $i)"
               cat /tmp/health-backend.log
               break
             fi
-            echo "  Waiting... attempt $i/5"
-            if [ "$i" -eq 3 ] || [ "$i" -eq 5 ]; then
+            echo "  Waiting... attempt $i/30"
+            if [ "$i" -eq 10 ] || [ "$i" -eq 20 ] || [ "$i" -eq 30 ]; then
               echo "  --- curl -v output (attempt $i) ---"
               curl -v http://localhost:3031/api/health 2>&1 | head -30 || true
               echo "  --- end curl output ---"
             fi
-            sleep 2
-            if [ "$i" -eq 5 ]; then
-              echo "❌ Backend healthcheck failed after 5 attempts (10 seconds total)"
+            sleep 10
+            if [ "$i" -eq 30 ]; then
+              echo "❌ Backend healthcheck failed after 30 attempts (5 minutes total)"
               echo "=== Final curl -v output ==="
               curl -v http://localhost:3031/api/health 2>&1 || true
               echo "=== Backend container logs (last 50 lines) ==="
-              docker logs --tail 50 onchain-bot-staging-backend 2>&1 || true
+              docker logs --tail 50 onchain-bot-backend-staging 2>&1 || true
               echo "=== Backend container status ==="
-              docker ps -a -f name=onchain-bot-staging-backend || true
+              docker ps -a -f name=onchain-bot-backend-staging || true
               exit 1
             fi
           done

@@ -62,7 +62,7 @@ cd /opt/onchain-bot
 cp apps/backend/.env.production apps/backend/.env.production.backup-$(date +%Y%m%d-%H%M%S)
 
 # 4. Backup de base de datos
-docker exec onchain-bot-postgres pg_dump -U alpha_meta_token_scanner \
+docker exec onchain-bot-postgres-production pg_dump -U alpha_meta_token_scanner \
   alpha_meta_token_scanner > /tmp/prod-backup-$(date +%Y%m%d-%H%M%S).sql
 
 # 5. Crear directorio para ingestion-service

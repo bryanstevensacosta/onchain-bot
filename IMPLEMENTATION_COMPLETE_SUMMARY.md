@@ -128,7 +128,7 @@ INGESTION_MULTI_BACKEND_ENABLED=true
 
   ```bash
   # Forzar desconexión
-  docker restart onchain-bot-redis
+  docker restart onchain-bot-redis-production
 
   # Ver logs de ingestion (debe reconectar en <60s)
   docker compose -f docker-compose.ingestion.yml logs ingestion-service --tail 50 | grep REDIS
@@ -172,7 +172,7 @@ INGESTION_MULTI_BACKEND_ENABLED=true
 
   ```bash
   # Test 1: Redis restart
-  docker restart onchain-bot-redis
+  docker restart onchain-bot-redis-production
   # Esperar 60s, verificar reconexión en logs
 
   # Test 2: Ingestion-service restart
@@ -191,12 +191,12 @@ INGESTION_MULTI_BACKEND_ENABLED=true
 ### Ingestion-Service (Redis)
 
 ```
-[REDIS-CONNECTED] Connected to onchain-bot-redis:6379 db=0
+[REDIS-CONNECTED] Connected to onchain-bot-redis-production:6379 db=0
 [Redis] ← Si se desconecta:
 [REDIS-DISCONNECTED] Connection closed
 [REDIS-RECONNECT] Attempt 1, reconnecting in 1000ms
 [REDIS-RECONNECT] Attempt 2, reconnecting in 2000ms
-[REDIS-CONNECTED] Connected to onchain-bot-redis:6379 db=0
+[REDIS-CONNECTED] Connected to onchain-bot-redis-production:6379 db=0
 ```
 
 ### Backend (Registration)
@@ -236,7 +236,7 @@ INGESTION_MULTI_BACKEND_ENABLED=true
 1. Verificar `BACKEND_ID` en `.env.production`
 2. Verificar conectividad:
    ```bash
-   docker exec onchain-bot-backend curl http://onchain-bot-ingestion:3031/api/health
+   docker exec onchain-bot-backend-production curl http://onchain-bot-ingestion:3031/api/health
    ```
 3. Ver logs de backend:
    ```bash
@@ -255,7 +255,7 @@ INGESTION_MULTI_BACKEND_ENABLED=true
    ```
 2. Ver logs de Redis:
    ```bash
-   docker logs onchain-bot-redis --tail 100
+   docker logs onchain-bot-redis-production --tail 100
    ```
 3. Si Redis está OK pero circuit abierto, esperar 60s para recovery automático
 

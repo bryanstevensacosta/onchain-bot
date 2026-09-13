@@ -34,7 +34,7 @@ cat > /tmp/migration.sql << 'EOF'
 EOF
 
 # Apply migration
-docker exec -i onchain-bot-postgres psql \
+docker exec -i onchain-bot-postgres-production psql \
   -U alpha_meta_token_scanner \
   -d alpha_meta_token_scanner \
   < /tmp/migration.sql
@@ -44,10 +44,10 @@ docker exec -i onchain-bot-postgres psql \
 
 ```bash
 # Copy migration file into container
-docker cp 001-create-backfill-messages-table.sql onchain-bot-postgres:/tmp/
+docker cp 001-create-backfill-messages-table.sql onchain-bot-postgres-production:/tmp/
 
 # Execute inside container
-docker exec onchain-bot-postgres psql \
+docker exec onchain-bot-postgres-production psql \
   -U alpha_meta_token_scanner \
   -d alpha_meta_token_scanner \
   -f /tmp/001-create-backfill-messages-table.sql
@@ -58,7 +58,7 @@ docker exec onchain-bot-postgres psql \
 After applying a migration, verify the table structure:
 
 ```bash
-docker exec onchain-bot-postgres psql \
+docker exec onchain-bot-postgres-production psql \
   -U alpha_meta_token_scanner \
   -d alpha_meta_token_scanner \
   -c "\d backfill_messages"
@@ -83,7 +83,7 @@ BackfillBufferService initialized with N messages from database
 
 - **Database**: `alpha_meta_token_scanner`
 - **User**: `alpha_meta_token_scanner`
-- **Container**: `onchain-bot-postgres`
+- **Container**: `onchain-bot-postgres-production`
 - **Port**: 5432 (internal), mapped to host as needed
 
 ## Migration Naming Convention

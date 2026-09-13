@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: alpha-meta-token-scanner-postgres
+    container_name: onchain-bot-postgres-dev
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-alpha_meta_token_scanner}
@@ -23,7 +23,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: alpha-meta-token-scanner-redis
+    container_name: onchain-bot-redis-dev
     restart: unless-stopped
     ports:
       - '${REDIS_PORT:-6379}:6379'
@@ -47,7 +47,7 @@ services:
 
   pgadmin:
     image: dpage/pgadmin4
-    container_name: alpha-meta-token-scanner-pgadmin
+    container_name: onchain-bot-pgadmin-dev
     restart: unless-stopped
     depends_on:
       postgres:
