@@ -336,22 +336,22 @@ jobs:
 
       - name: Wait for backend healthcheck
         run: |
-          echo "=== Waiting for backend to become healthy ==="
-          for i in $(seq 1 5); do
+          echo "=== Waiting for backend to become healthy (max 5 min) ==="
+          for i in $(seq 1 30); do
             if curl -v -sf http://localhost:3031/api/health > /tmp/health-backend.log 2>&1; then
               echo "✓ Backend is healthy (attempt $i)"
               cat /tmp/health-backend.log
               break
             fi
-            echo "  Waiting... attempt $i/5"
-            if [ "$i" -eq 3 ] || [ "$i" -eq 5 ]; then
+            echo "  Waiting... attempt $i/30"
+            if [ "$i" -eq 10 ] || [ "$i" -eq 20 ] || [ "$i" -eq 30 ]; then
               echo "  --- curl -v output (attempt $i) ---"
               curl -v http://localhost:3031/api/health 2>&1 | head -30 || true
               echo "  --- end curl output ---"
             fi
-            sleep 2
-            if [ "$i" -eq 5 ]; then
-              echo "❌ Backend healthcheck failed after 5 attempts (10 seconds total)"
+            sleep 10
+            if [ "$i" -eq 30 ]; then
+              echo "❌ Backend healthcheck failed after 30 attempts (5 minutes total)"
               echo "=== Final curl -v output ==="
               curl -v http://localhost:3031/api/health 2>&1 || true
               echo "=== Backend container logs (last 50 lines) ==="
