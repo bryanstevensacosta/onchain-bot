@@ -410,6 +410,24 @@ One tmux session, view-only panes: `tmux new-session -d -s onchain-dev` +
 run via `nohup … &` + files (never inside tmux panes — pane surgery has killed
 the server before).
 
+### Dev infra recovery (it happened 2026-09-14)
+
+Symptom: backend 500s + `ECONNREFUSED 127.0.0.1:5434` in `/tmp/dev-backend.log`
+while `docker ps` shows NO `*-dev` containers (volumes survive — data is safe).
+
+Cause class: anything running `docker compose down` in `apps/backend/`
+removes the dev containers AND the `backend_default` network (volumes are kept).
+`docker system prune` (nightly Disk Cleanup workflow + every deploy) then makes
+the removal permanent for stopped containers. Never `down` the dev compose —
+use `stop` if you must pause it.
+
+Recovery (reattaches the surviving volumes, no data loss):
+
+```bash
+cd apps/backend
+POSTGRES_PORT=5434 REDIS_PORT=6381 sudo -E docker compose -f docker-compose.yml up -d postgres redis
+```
+
 ## DEPLOY (GitHub Actions — GHCR + self-hosted, NOT ssh-action)
 
 `.github/workflows/` has 13 workflows (not one):
