@@ -428,6 +428,20 @@ cd apps/backend
 POSTGRES_PORT=5434 REDIS_PORT=6381 sudo -E docker compose -f docker-compose.yml up -d postgres redis
 ```
 
+Since 2026-09-14 the recovery is automatic: systemd timer
+`onchain-dev-infra.timer` runs the equivalent `up -d` every 5 min
+(unit `onchain-dev-infra.service`). To pause dev infra intentionally,
+stop the timer first or it will resurrect the containers:
+`sudo systemctl stop onchain-dev-infra.timer`.
+
+Attribution trap (same date): `auditd` watches docker usage —
+`/etc/audit/rules.d/docker-{cli,sock}.rules`. If dev containers vanish
+again, the culprit is one query away (shows login user + full cmdline):
+
+```bash
+sudo ausearch -k docker-cli --start recent | grep -E "auid=|proctitle" | tail -20
+```
+
 ## DEPLOY (GitHub Actions — GHCR + self-hosted, NOT ssh-action)
 
 `.github/workflows/` has 13 workflows (not one):
