@@ -5,9 +5,21 @@ import * as fs from 'node:fs';
 import { config as dotenvConfig } from 'dotenv';
 
 // Configure tsconfig-paths to work with compiled output in dist/backend/src/
-// __dirname is dist/backend/src/, paths resolve relative to it
-// IMPORTANT: We do NOT register 'telegram/*' to avoid conflicts with npm package 'telegram'
+// __dirname is dist/backend/src/, paths resolve relative to it.
+// NOTE: tsconfig-paths falls back to baseUrl for unmatched specifiers, so a
+// bare 'telegram/extensions/Logger' would land on OUR shim source tree
+// (dist/backend/src/telegram/...) instead of the gramJS package. The exact
+// mapping below (longest-prefix wins, mirroring tsconfig.json) sends it to
+// the real package file. This is why there is NO src/telegram/extensions/
+// Logger.ts shim anymore — it self-recursed through this same fallback.
+//
+// NOTE 2: all values MUST be absolute. tsconfig-paths v4 does not resolve
+// wildcard patterns whose values climb with relative '..' segments —
+// matchPath returns undefined for them. path.resolve() keeps it robust
+// regardless of where node is launched from.
 const baseUrl = __dirname;
+// dist/backend/src/ → up5 = repo root
+const repoRoot = path.resolve(baseUrl, '..', '..', '..', '..', '..');
 register({
   baseUrl,
   paths: {
@@ -17,20 +29,30 @@ register({
     'discovery/*': ['discovery/*'],
     'chain/*': ['chain/*'],
     'token/*': ['token/*'],
-    // 'telegram/*': ['telegram/*'],  // EXCLUDED - conflicts with npm package
+    // Exact mapping wins over baseUrl fallback: gramJS Logger, not a local file.
+    'telegram/extensions/Logger': [
+      path.join(repoRoot, 'node_modules/telegram/extensions/Logger'),
+    ],
+    // NOTE: 'telegram/*' stays EXCLUDED — other gramJS subpaths
+    // (telegram/sessions, telegram/events, ...) must resolve to node_modules.
     'kol/*': ['kol/*'],
     'settings/*': ['settings/*'],
     'dashboard/*': ['dashboard/*'],
     'data-provider/*': ['data-provider/*'],
     'health/*': ['health/*'],
     'src/*': ['*'],
-    // Cross-app imports from ingestion-service
-    // From dist/backend/src/ we need ../../../../../apps/ingestion-service/dist/src/
+    // Cross-app imports from ingestion-service (BUILT output, not src).
     '@ingestion-service/media/*': [
-      '../../../../../apps/ingestion-service/dist/src/shared/media/*',
+      path.join(
+        repoRoot,
+        'apps/ingestion-service/dist/src/shared/media/*',
+      ),
     ],
     '@ingestion-service/telegram/*': [
-      '../../../../../apps/ingestion-service/dist/src/shared/telegram/*',
+      path.join(
+        repoRoot,
+        'apps/ingestion-service/dist/src/shared/telegram/*',
+      ),
     ],
   },
 });

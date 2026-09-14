@@ -18,6 +18,9 @@
       "discovery/*": ["src/discovery/*"],
       "chain/*": ["src/chain/*"],
       "token/*": ["src/token/*"],
+      "telegram/extensions/Logger": [
+        "../../node_modules/telegram/extensions/Logger"
+      ],
       "telegram/*": ["src/telegram/*"],
       "kol/*": ["src/kol/*"],
       "settings/*": ["src/settings/*"],
