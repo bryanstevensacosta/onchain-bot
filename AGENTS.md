@@ -365,6 +365,51 @@ npm run docker:up                 # postgres:16 + redis:7 + pgAdmin (:5050) per 
 npm run docker:down
 ```
 
+## DEV ON THE DROPLET (alt-port layout, Oracle host also runs prod/staging)
+
+Prod (`:3030/:5173/:5432/:6379`) and staging (`:3031/:4173/:5433/:6380`) occupy the
+standard ports, so dev runs fully shifted and NEVER shares DBs with them:
+
+| Service       | Binds to | Notes                                                              |
+| ------------- | -------- | ------------------------------------------------------------------ |
+| backend       | `:3040`  | `apps/backend/.env.dev` (gitignored), `PORT=3040`                  |
+| frontend      | `:5183`  | `apps/frontend/.env.development` (gitignored), vite `--port 5183`  |
+| postgres dev  | `:5434`  | `onchain-bot-postgres-dev` (`POSTGRES_PORT=5434 docker compose up`)| 
+| redis dev     | `:6381`  | `onchain-bot-redis-dev` (`REDIS_PORT=6381 …`)                      |
+| ingestion     | shared `:3032` | SINGLETON — dev consumes it via SSE/HTTP, never a 2nd MTProto session |
+
+`.env.dev` uses DUMMY keys/tokens/channels (validator Tier-1 requires non-empty;
+providers degrade to null, publishers fail 401 without posting anything real).
+`INGESTION_TELEGRAM_MTPROTO_ENABLED=false` (+ dummy `API_ID=1` for the format
+check). NEVER copy prod/staging secrets into dev env files.
+
+### Process discipline (CRITICAL on this host)
+
+Prod/staging containers run the SAME cmdline as dev
+(`node dist/backend/src/main.js`, shown on host as user `opc`, cwd `/app`).
+Therefore:
+
+- **Kill dev processes by explicit PID only — NEVER by pattern.**
+  `pkill -f` / `pgrep -f` match prod/staging container processes too (this already
+  killed a live prod backend once; `unless-stopped` revived it, no outage, but
+  do not repeat). Track dev PIDs in `/tmp/dev-pids.txt` at start time.
+- **Distinguish twins by cwd/user**: dev = `ubuntu`, cwd `/data/repos/onchain-bot/apps/backend`;
+  prod/staging = `opc`, cwd `/app` (container). Verify with
+  `readlink /proc/<pid>/cwd` before any kill. `$$`-exclusion loops are NOT
+  sufficient (they only protect your own shell).
+- **File watchers are unreliable here** (`tsc --watch`, `node --watch`, nodemon
+  all miss events): dev loop is explicit — `npx tsc -p tsconfig.build.json`
+  in `apps/backend`, then restart the backend PID. `.env` changes always need a
+  manual restart (watchers don't track env files).
+
+### Logs without multiple SSH sessions
+
+One tmux session, view-only panes: `tmux new-session -d -s onchain-dev` +
+`tail -F /tmp/dev-backend.log|/tmp/dev-frontend.log|/tmp/dev-tsc.log`
+(`tmux attach -t onchain-dev`, detach with `Ctrl-b d`). Dev processes themselves
+run via `nohup … &` + files (never inside tmux panes — pane surgery has killed
+the server before).
+
 ## DEPLOY (GitHub Actions — GHCR + self-hosted, NOT ssh-action)
 
 `.github/workflows/` has 13 workflows (not one):
