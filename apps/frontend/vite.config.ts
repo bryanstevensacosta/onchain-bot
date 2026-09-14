@@ -12,6 +12,14 @@ export default defineConfig(({ mode }) => {
     env.BACKEND_PROXY_TARGET ?? 'http://localhost:3030';
   const INGESTION_PROXY_TARGET =
     env.INGESTION_PROXY_TARGET ?? 'http://localhost:3031';
+  // Hosts permitidos (el acceso por Tailscale llega con otro Host header).
+  const ALLOWED_HOSTS = (
+    env.VITE_ALLOWED_HOSTS ??
+    'localhost,127.0.0.1,cryptoganster.tailf01c61.ts.net'
+  )
+    .split(',')
+    .map((h) => h.trim())
+    .filter(Boolean);
 
   return {
     plugins: [react()],
@@ -24,6 +32,7 @@ export default defineConfig(({ mode }) => {
       host: '127.0.0.1',
       port: 5173,
       strictPort: true,
+      allowedHosts: ALLOWED_HOSTS,
       proxy: {
         '/api': {
           target: BACKEND_PROXY_TARGET,
