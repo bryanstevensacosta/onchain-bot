@@ -473,5 +473,56 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
         await fs.rm(uploadsRoot, { recursive: true, force: true });
       }
     });
+
+    it('doubles single line breaks for readability', async () => {
+      mockSuccessResponse(42);
+      const adapter = new BotApiCryptoNewsPublisherAdapter(
+        makeConfigWith('TOKEN', '@channel'),
+      );
+      await adapter.sendMessage('ignored', 'hola\ncomo estas', undefined, {
+        parseMode: 'HTML',
+      });
+
+      expect(mockedRequest).toHaveBeenCalledTimes(1);
+      const payload = JSON.parse(lastRequestBody()) as { text: string };
+      expect(payload.text).toBe('hola\n\ncomo estas');
+    });
+
+    it('never splits a bullet mid-sentence, single-spaced input', async () => {
+      mockSuccessResponse(42);
+      const uploadsRoot = await fs.mkdtemp(
+        path.join(os.tmpdir(), 'ads-adapter-'),
+      );
+      const imagePath = path.join(uploadsRoot, 'hero.png');
+      await fs.writeFile(imagePath, Buffer.from('png-bytes'));
+      try {
+        const adapter = new BotApiCryptoNewsPublisherAdapter(
+          makeConfigWith('TOKEN', '@channel'),
+        );
+        // Single-spaced bullets like the LLM emits; total over 1024.
+        const text = `Title\n• ${'a'.repeat(600)}\n• ${'b'.repeat(600)}`;
+        const result = await adapter.sendPhoto('ignored', text, imagePath, {
+          parseMode: 'HTML',
+        });
+
+        expect(result.ok).toBe(true);
+        expect(mockedRequest).toHaveBeenCalledTimes(2);
+        const photoBody = requestBodyAt(0);
+        const captionMatch = photoBody.match(
+          /name="caption"\r\n\r\n([\s\S]*?)\r\n/,
+        );
+        const caption = captionMatch![1];
+        // Whole bullet 1 present (plus breathing room), bullet 2 untouched.
+        expect(caption).toContain('a'.repeat(600));
+        expect(caption).not.toContain('b');
+        expect(caption.endsWith('…')).toBe(true);
+        const followUp = JSON.parse(requestBodyAt(1)) as { text: string };
+        expect(followUp.text.startsWith('• ' + 'b')).toBe(true);
+        expect(followUp.text).toContain('b'.repeat(600));
+        expect(followUp.text).not.toContain('…');
+      } finally {
+        await fs.rm(uploadsRoot, { recursive: true, force: true });
+      }
+    });
   });
 });

@@ -107,19 +107,36 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
   }
 
   /**
-   * Split `text` at a safe boundary within `max` chars. Prefers paragraph
-   * breaks (`<br><br>`, blank lines) so Telegram HTML entities stay intact —
-   * a hard cut inside a tag makes the whole chunk fail with 400 — then a
-   * trailing space, then a hard cut as last resort. Returns [head, tail]
-   * with leading blank whitespace trimmed from the tail.
+   * Normalize line breaks for readability: the LLM emits single `\n`
+   * (cramped posts), Telegram renders blank lines from `\n\n`. Collapse
+   * runs of 3+ into exactly two, then double the remaining singles.
+   * Runs on the formatted text so it applies to caption + continuations.
+   */
+  private static normalizeBreaks(text: string): string {
+    return text
+      .replace(/\r\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/(?<!\n)\n(?!\n)/g, '\n\n');
+  }
+
+  /**
+   * Split `text` at a safe boundary within `max` chars. Picks the LAST
+   * block boundary (paragraph or bullet start) in budget so captions fill
+   * without ever cutting a bullet mid-sentence — filling is secondary to
+   * not breaking. Falls back to a trailing space, then a hard cut (only
+   * unavoidable when a single block exceeds the limit). Telegram HTML
+   * entities stay intact: a hard cut inside a tag would 400 the chunk.
+   * Returns [head, tail] with leading blank whitespace trimmed from tail.
    */
   private static splitAtBoundary(text: string, max: number): [string, string] {
     if (text.length <= max) return [text, ''];
-    for (const sep of ['<br><br>', '\n\n']) {
+    let best = -1;
+    for (const sep of ['<br><br>', '\n\n', '\n• ', '<br>• ']) {
       const idx = text.lastIndexOf(sep, max);
-      if (idx > 0) {
-        return [text.slice(0, idx), text.slice(idx).replace(/^\s+/, '')];
-      }
+      if (idx > best) best = idx;
+    }
+    if (best > 0) {
+      return [text.slice(0, best), text.slice(best).replace(/^\s+/, '')];
     }
     const space = text.lastIndexOf(' ', max);
     if (space > 0) {
@@ -238,7 +255,9 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
       return { ok: false, messageId: null, error: 'empty message' };
     }
     const parseMode = options?.parseMode ?? 'Markdown';
-    const formattedText = this.formatForParseMode(text, parseMode);
+    const formattedText = BotApiCryptoNewsPublisherAdapter.normalizeBreaks(
+      this.formatForParseMode(text, parseMode),
+    );
     const parts = BotApiCryptoNewsPublisherAdapter.splitOverflow(
       formattedText,
       BotApiCryptoNewsPublisherAdapter.TEXT_MAX_LENGTH,
@@ -298,7 +317,9 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     const fileBytes = fileResult.bytes;
 
     const parseMode = options?.parseMode ?? 'Markdown';
-    const formattedText = this.formatForParseMode(text, parseMode);
+    const formattedText = BotApiCryptoNewsPublisherAdapter.normalizeBreaks(
+      this.formatForParseMode(text, parseMode),
+    );
     // Caption hard limit is 1024; the remainder follows as continuation
     // message(s) instead of being silently dropped (used to truncate here).
     const parts = BotApiCryptoNewsPublisherAdapter.splitOverflow(
@@ -369,7 +390,9 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
 
     const parseMode = options?.parseMode ?? 'Markdown';
     const supportsStreaming = options?.supportsStreaming ?? true;
-    const formattedText = this.formatForParseMode(text, parseMode);
+    const formattedText = BotApiCryptoNewsPublisherAdapter.normalizeBreaks(
+      this.formatForParseMode(text, parseMode),
+    );
     // Same caption limit + continuation policy as sendPhoto.
     const parts = BotApiCryptoNewsPublisherAdapter.splitOverflow(
       formattedText,
@@ -448,7 +471,9 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     const fileBytesArray = filesResult.bytesArray;
 
     const parseMode = options?.parseMode ?? 'Markdown';
-    const formattedText = this.formatForParseMode(text, parseMode);
+    const formattedText = BotApiCryptoNewsPublisherAdapter.normalizeBreaks(
+      this.formatForParseMode(text, parseMode),
+    );
     // Album caption lives on the first item (same 1024 limit); overflow
     // follows as continuation message(s).
     const parts = BotApiCryptoNewsPublisherAdapter.splitOverflow(
