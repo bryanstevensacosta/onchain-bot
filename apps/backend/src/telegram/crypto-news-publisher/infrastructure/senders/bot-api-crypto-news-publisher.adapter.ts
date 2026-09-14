@@ -162,11 +162,13 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
 
   /**
    * Post one plain-text chunk (no reply markup — only the primary message
-   * carries buttons).
+   * carries buttons). When `replyToMessageId` is set, the chunk is sent as
+   * a reply so continuations thread under the original post.
    */
   private async postTextChunk(
     text: string,
     parseMode: 'Markdown' | 'HTML',
+    replyToMessageId?: number,
   ): Promise<SendResult> {
     const payload: Record<string, unknown> = {
       chat_id: this.outputChannel,
@@ -174,20 +176,26 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
       parse_mode: parseMode,
       disable_web_page_preview: false,
     };
+    if (replyToMessageId !== undefined) {
+      payload.reply_to_message_id = replyToMessageId;
+    }
     return this.httpClient.postJson('sendMessage', payload);
   }
 
   /**
-   * Send continuation chunks after a successful primary message. A failed
-   * follow-up only warns: the primary is already posted, and failing the
-   * whole publish would re-post it on retry (duplicate spam > truncated tail).
+   * Send continuation chunks as replies to the primary message, so the full
+   * post reads as one thread. A failed follow-up only warns: the primary is
+   * already posted, and failing the whole publish would re-post it on retry
+   * (duplicate spam > truncated tail).
    */
   private async sendContinuationChunks(
     chunks: string[],
     parseMode: 'Markdown' | 'HTML',
+    replyToMessageId: number | null,
   ): Promise<void> {
+    if (replyToMessageId === null) return;
     for (const chunk of chunks) {
-      const res = await this.postTextChunk(chunk, parseMode);
+      const res = await this.postTextChunk(chunk, parseMode, replyToMessageId);
       if (res.ok) {
         this.logger.log(`sent continuation message ${res.messageId}`);
       } else {
@@ -251,7 +259,11 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     const primary = await this.httpClient.postJson('sendMessage', payload);
     if (!primary.ok) return primary;
     if (parts.length > 1) {
-      await this.sendContinuationChunks(parts.slice(1), parseMode);
+      await this.sendContinuationChunks(
+        parts.slice(1),
+        parseMode,
+        primary.messageId,
+      );
     }
     return primary;
   }
@@ -326,7 +338,11 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     );
     if (!primary.ok) return primary;
     if (parts.length > 1) {
-      await this.sendContinuationChunks(parts.slice(1), parseMode);
+      await this.sendContinuationChunks(
+        parts.slice(1),
+        parseMode,
+        primary.messageId,
+      );
     }
     return primary;
   }
@@ -395,7 +411,11 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     );
     if (!primary.ok) return primary;
     if (parts.length > 1) {
-      await this.sendContinuationChunks(parts.slice(1), parseMode);
+      await this.sendContinuationChunks(
+        parts.slice(1),
+        parseMode,
+        primary.messageId,
+      );
     }
     return primary;
   }
@@ -484,7 +504,11 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     );
     if (!primary.ok) return primary;
     if (parts.length > 1) {
-      await this.sendContinuationChunks(parts.slice(1), parseMode);
+      await this.sendContinuationChunks(
+        parts.slice(1),
+        parseMode,
+        primary.messageId,
+      );
     }
     return primary;
   }

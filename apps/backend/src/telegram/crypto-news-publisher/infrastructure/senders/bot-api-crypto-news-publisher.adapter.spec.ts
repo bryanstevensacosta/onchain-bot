@@ -290,6 +290,26 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
       expect(followUp.text.endsWith('…')).toBe(false);
     });
 
+    it('threads the continuation as a reply to the primary message', async () => {
+      mockSuccessResponse(42);
+      const adapter = new BotApiCryptoNewsPublisherAdapter(
+        makeConfigWith('TOKEN', '@channel'),
+      );
+      await adapter.sendMessage('ignored', 'x'.repeat(5000), undefined, {
+        parseMode: 'HTML',
+      });
+
+      const followUp = JSON.parse(requestBodyAt(1)) as {
+        text: string;
+        reply_to_message_id?: number;
+      };
+      expect(followUp.reply_to_message_id).toBe(42);
+      const primary = JSON.parse(requestBodyAt(0)) as {
+        reply_to_message_id?: number;
+      };
+      expect(primary.reply_to_message_id).toBeUndefined();
+    });
+
     it('sends short text as a single request (no follow-up)', async () => {
       mockSuccessResponse(42);
       const adapter = new BotApiCryptoNewsPublisherAdapter(
@@ -343,9 +363,11 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
         const followUp = JSON.parse(requestBodyAt(1)) as {
           text: string;
           reply_markup?: unknown;
+          reply_to_message_id?: number;
         };
         expect(followUp.text).toBe('y'.repeat(2000 - 1023));
         expect(followUp.reply_markup).toBeUndefined();
+        expect(followUp.reply_to_message_id).toBe(42);
       } finally {
         await fs.rm(uploadsRoot, { recursive: true, force: true });
       }
