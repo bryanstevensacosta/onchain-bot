@@ -126,30 +126,35 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
    * not breaking. Falls back to a trailing space, then a hard cut (only
    * unavoidable when a single block exceeds the limit). Telegram HTML
    * entities stay intact: a hard cut inside a tag would 400 the chunk.
-   * Returns [head, tail] with leading blank whitespace trimmed from tail.
+   * Returns [head, tail, clean] where clean tells whether the split fell
+   * on a block boundary (no ellipsis needed) vs mid-block (ellipsis).
+   * Leading blank whitespace is trimmed from tail.
    */
-  private static splitAtBoundary(text: string, max: number): [string, string] {
-    if (text.length <= max) return [text, ''];
+  private static splitAtBoundary(
+    text: string,
+    max: number,
+  ): [string, string, boolean] {
+    if (text.length <= max) return [text, '', true];
     let best = -1;
     for (const sep of ['<br><br>', '\n\n', '\n• ', '<br>• ']) {
       const idx = text.lastIndexOf(sep, max);
       if (idx > best) best = idx;
     }
     if (best > 0) {
-      return [text.slice(0, best), text.slice(best).replace(/^\s+/, '')];
+      return [text.slice(0, best), text.slice(best).replace(/^\s+/, ''), true];
     }
     const space = text.lastIndexOf(' ', max);
     if (space > 0) {
-      return [text.slice(0, space), text.slice(space + 1)];
+      return [text.slice(0, space), text.slice(space + 1), false];
     }
-    return [text.slice(0, max), text.slice(max)];
+    return [text.slice(0, max), text.slice(max), false];
   }
 
   /**
    * Split `text` into a first chunk of at most `firstMax` chars plus
-   * continuation chunks of at most `restMax`. Only the first chunk carries
-   * a trailing '…' (and only when content follows), so short texts behave
-   * exactly as before (single part, no ellipsis added).
+   * continuation chunks of at most `restMax`. A trailing '…' is added to
+   * the first chunk ONLY when it was cut mid-block; clean block splits
+   * need no marker. Short texts behave exactly as before (single part).
    */
   private static splitOverflow(
     text: string,
@@ -160,11 +165,11 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     const parts: string[] = [];
     // Budget firstMax - 1 so head + '…' still fits firstMax. Trailing
     // blank lines are trimmed before the ellipsis (ugly '…\n…' otherwise).
-    const [head, firstTail] = BotApiCryptoNewsPublisherAdapter.splitAtBoundary(
-      text,
-      firstMax - 1,
+    const [head, firstTail, clean] =
+      BotApiCryptoNewsPublisherAdapter.splitAtBoundary(text, firstMax - 1);
+    parts.push(
+      clean ? head.replace(/\s+$/, '') : head.replace(/\s+$/, '') + '…',
     );
-    parts.push(head.replace(/\s+$/, '') + '…');
     let tail = firstTail;
     while (tail.length > restMax) {
       const [next, rest] = BotApiCryptoNewsPublisherAdapter.splitAtBoundary(

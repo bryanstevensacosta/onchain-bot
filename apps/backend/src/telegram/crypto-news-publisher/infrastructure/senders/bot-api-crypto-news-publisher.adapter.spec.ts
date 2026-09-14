@@ -393,7 +393,7 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
         const captionMatch = photoBody.match(
           /name="caption"\r\n\r\n([\s\S]*?)\r\n/,
         );
-        expect(captionMatch![1]).toBe('lead paragraph…');
+        expect(captionMatch![1]).toBe('lead paragraph');
         const followUp = JSON.parse(requestBodyAt(1)) as { text: string };
         expect(followUp.text).toBe('b'.repeat(1500));
       } finally {
@@ -512,11 +512,9 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
           /name="caption"\r\n\r\n([\s\S]*?)\r\n/,
         );
         const caption = captionMatch![1];
-        // Whole bullet 1 present (plus breathing room), bullet 2 untouched.
-        expect(caption).toContain('a'.repeat(600));
-        expect(caption).not.toContain('b');
-        expect(caption.endsWith('…')).toBe(true);
-        expect(caption).not.toMatch(/\n…$/);
+        // Whole bullet 1 present (plus breathing room), bullet 2 untouched,
+        // and NO ellipsis: nothing was cut mid-block.
+        expect(caption).toBe('Title\n\n• ' + 'a'.repeat(600));
         const followUp = JSON.parse(requestBodyAt(1)) as { text: string };
         expect(followUp.text.startsWith('• ' + 'b')).toBe(true);
         expect(followUp.text).toContain('b'.repeat(600));
