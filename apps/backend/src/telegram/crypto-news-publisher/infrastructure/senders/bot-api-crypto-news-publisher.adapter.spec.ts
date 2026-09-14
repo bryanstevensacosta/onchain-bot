@@ -516,6 +516,7 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
         expect(caption).toContain('a'.repeat(600));
         expect(caption).not.toContain('b');
         expect(caption.endsWith('…')).toBe(true);
+        expect(caption).not.toMatch(/\n…$/);
         const followUp = JSON.parse(requestBodyAt(1)) as { text: string };
         expect(followUp.text.startsWith('• ' + 'b')).toBe(true);
         expect(followUp.text).toContain('b'.repeat(600));

@@ -158,12 +158,13 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
   ): string[] {
     if (text.length <= firstMax) return [text];
     const parts: string[] = [];
-    // Budget firstMax - 1 so head + '…' still fits firstMax.
+    // Budget firstMax - 1 so head + '…' still fits firstMax. Trailing
+    // blank lines are trimmed before the ellipsis (ugly '…\n…' otherwise).
     const [head, firstTail] = BotApiCryptoNewsPublisherAdapter.splitAtBoundary(
       text,
       firstMax - 1,
     );
-    parts.push(head + '…');
+    parts.push(head.replace(/\s+$/, '') + '…');
     let tail = firstTail;
     while (tail.length > restMax) {
       const [next, rest] = BotApiCryptoNewsPublisherAdapter.splitAtBoundary(
