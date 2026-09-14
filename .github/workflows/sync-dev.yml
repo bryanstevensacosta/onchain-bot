@@ -1,4 +1,12 @@
-name: Sync dev with master
+# NOTE: this file intentionally does NOT auto-sync master -> dev.
+# History: two bot sync mechanisms existed (PR auto-merge + rebase force-push).
+# The force-push variant was dead code (branch protection denies it); the PR
+# variant never completed unattended (bot-PR checks never go green on their
+# own, so it either left red noise or stalled open). Verified 2026-09-14:
+# 15/15 bot syncs landed only via blind merge or manual merge.
+# Policy: sync master -> dev MANUALLY after each merge to master
+# (`git checkout dev && git merge origin/master`), ~1 min, zero noise.
+name: Update PRs on master push
 
 on:
   push:
@@ -6,15 +14,15 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: sync-dev
+  group: update-prs
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: write # required: gh pr update-branch pushes base into open PR branches
   pull-requests: write
 
 jobs:
-  sync-dev:
+  update-open-prs:
     runs-on: ubuntu-latest
     if: github.repository == 'bryanstevensacosta/onchain-bot'
     steps:
@@ -23,69 +31,7 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Sync dev via PR (no PAT, respects protected branch)
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin master dev
-          git checkout dev
-          git pull --ff-only origin dev || true
-          if git merge-base --is-ancestor origin/master HEAD; then
-            echo "✅ dev already contains master, nothing to do"
-            exit 0
-          fi
-          # Clean up any stale sync branches older than 1 day
-          echo "Cleaning stale sync branches..."
-          git branch -r --list 'origin/sync/master-to-dev-*' | while read b; do
-            b=${b#origin/}
-            echo "  Checking $b..."
-            if gh pr view "$b" --json state --jq .state 2>/dev/null | grep -q "MERGED\|CLOSED"; then
-              echo "  Deleting stale $b (PR merged/closed)"
-              git push origin --delete "$b" --no-verify 2>&1 | tail -1 || true
-            fi
-          done || true
-          BRANCH="sync/master-to-dev-$(date +%Y%m%d%H%M%S)"
-          echo "Creating branch $BRANCH and merging master..."
-          git checkout -b "$BRANCH"
-          git merge origin/master --no-edit --no-ff
-          # Delete existing remote branch if it somehow exists (from previous failed run)
-          git push origin --delete "$BRANCH" --no-verify 2>&1 | tail -1 || true
-          git push origin "$BRANCH"
-          echo "Creating PR $BRANCH -> dev..."
-          if gh pr view "$BRANCH" --json number 2>/dev/null | grep -q number; then
-            echo "PR for $BRANCH already exists, skipping create"
-            PR_NUM=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number')
-          else
-            gh pr create --base dev --head "$BRANCH" --title "chore(sync): master → dev" --body "Auto-sync master to dev (GH006 bypass via PR)" --fill
-            PR_NUM=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number')
-          fi
-          echo "Waiting up to 15 min for checks on PR #$PR_NUM..."
-          echo "(empty check list counts as green: sync content is already CI-validated on both sides)"
-          DEADLINE=$((SECONDS + 900))
-          while true; do
-            STATES=$(gh pr checks "$PR_NUM" --json state --jq '[.[].state]')
-            if echo "$STATES" | grep -qE '"FAILURE"|"CANCELLED"|"TIMED_OUT"|"ACTION_REQUIRED"'; then
-              echo "::error::Checks failed on sync PR #$PR_NUM - leaving it OPEN for manual review, NOT force-merging."
-              exit 1
-            fi
-            if echo "$STATES" | grep -qE '"QUEUED"|"IN_PROGRESS"|"PENDING"|"WAITING"|"REQUESTED"'; then
-              if [ "$SECONDS" -ge "$DEADLINE" ]; then
-                echo "::error::Timed out waiting for checks on sync PR #$PR_NUM - leaving it OPEN."
-                exit 1
-              fi
-              sleep 30
-            else
-              break
-            fi
-          done
-          echo "Checks green (or none registered), squash-merging PR #$PR_NUM..."
-          gh pr merge --squash --delete-branch "$PR_NUM"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Update open PRs (dev -> master)
-        if: success()
         run: |
           echo "Updating open PRs that target master..."
           gh pr list --base master --state open --json number --jq '.[].number' | xargs -I{} sh -c 'echo "Updating PR #{}..."; gh pr update-branch {} || echo "PR #{} already up-to-date"'
