@@ -1,3 +1,9 @@
+# Dev infra (localamento). Project name EXPLÍCITO: sin `name:`, compose usa
+# el basename del directorio (`backend`), que COLISIONA con el proyecto del
+# staging compose (mismo basename, mismos services postgres/redis) y cada
+# `up` de un lado recrea/destruye los contenedores del otro. Ver AGENTS.md.
+name: onchain-bot-dev
+
 services:
   postgres:
     image: postgres:16-alpine

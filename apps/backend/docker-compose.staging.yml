@@ -1,5 +1,11 @@
 # Staging environment - uses centralized ingestion-service
 #
+# Project name EXPLÍCITO: sin `name:`, compose usa el basename del
+# directorio (`backend`), que COLISIONA con el proyecto del dev compose
+# (mismo basename, mismos services postgres/redis) y cada `up` de un lado
+# recrea/destruye los contenedores del otro. Ver AGENTS.md.
+name: onchain-bot-staging
+#
 # ARCHITECTURE DECISION:
 # - ingestion-service is STANDALONE and runs on port 3032 (onchain-bot-ingestion container)
 # - Both staging AND production backends consume from the SAME ingestion-service
