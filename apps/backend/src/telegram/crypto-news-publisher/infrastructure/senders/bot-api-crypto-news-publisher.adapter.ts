@@ -106,9 +106,127 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     return null;
   }
 
-  private static truncate(text: string, maxLength: number): string {
-    if (text.length <= maxLength) return text;
-    return text.slice(0, maxLength - 1) + '…';
+  /**
+   * Normalize line breaks for readability: the LLM emits single `\n`
+   * (cramped posts), Telegram renders blank lines from `\n\n`. Collapse
+   * runs of 3+ into exactly two, then double the remaining singles.
+   * Runs on the formatted text so it applies to caption + continuations.
+   */
+  private static normalizeBreaks(text: string): string {
+    return text
+      .replace(/\r\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/(?<!\n)\n(?!\n)/g, '\n\n');
+  }
+
+  /**
+   * Split `text` at a safe boundary within `max` chars. Picks the LAST
+   * block boundary (paragraph or bullet start) in budget so captions fill
+   * without ever cutting a bullet mid-sentence — filling is secondary to
+   * not breaking. Falls back to a trailing space, then a hard cut (only
+   * unavoidable when a single block exceeds the limit). Telegram HTML
+   * entities stay intact: a hard cut inside a tag would 400 the chunk.
+   * Returns [head, tail, clean] where clean tells whether the split fell
+   * on a block boundary (no ellipsis needed) vs mid-block (ellipsis).
+   * Leading blank whitespace is trimmed from tail.
+   */
+  private static splitAtBoundary(
+    text: string,
+    max: number,
+  ): [string, string, boolean] {
+    if (text.length <= max) return [text, '', true];
+    let best = -1;
+    for (const sep of ['<br><br>', '\n\n', '\n• ', '<br>• ']) {
+      const idx = text.lastIndexOf(sep, max);
+      if (idx > best) best = idx;
+    }
+    if (best > 0) {
+      return [text.slice(0, best), text.slice(best).replace(/^\s+/, ''), true];
+    }
+    const space = text.lastIndexOf(' ', max);
+    if (space > 0) {
+      return [text.slice(0, space), text.slice(space + 1), false];
+    }
+    return [text.slice(0, max), text.slice(max), false];
+  }
+
+  /**
+   * Split `text` into a first chunk of at most `firstMax` chars plus
+   * continuation chunks of at most `restMax`. A trailing '…' is added to
+   * the first chunk ONLY when it was cut mid-block; clean block splits
+   * need no marker. Short texts behave exactly as before (single part).
+   */
+  private static splitOverflow(
+    text: string,
+    firstMax: number,
+    restMax: number,
+  ): string[] {
+    if (text.length <= firstMax) return [text];
+    const parts: string[] = [];
+    // Budget firstMax - 1 so head + '…' still fits firstMax. Trailing
+    // blank lines are trimmed before the ellipsis (ugly '…\n…' otherwise).
+    const [head, firstTail, clean] =
+      BotApiCryptoNewsPublisherAdapter.splitAtBoundary(text, firstMax - 1);
+    parts.push(
+      clean ? head.replace(/\s+$/, '') : head.replace(/\s+$/, '') + '…',
+    );
+    let tail = firstTail;
+    while (tail.length > restMax) {
+      const [next, rest] = BotApiCryptoNewsPublisherAdapter.splitAtBoundary(
+        tail,
+        restMax,
+      );
+      parts.push(next);
+      tail = rest;
+    }
+    if (tail.length > 0) parts.push(tail);
+    return parts;
+  }
+
+  /**
+   * Post one plain-text chunk (no reply markup — only the primary message
+   * carries buttons). When `replyToMessageId` is set, the chunk is sent as
+   * a reply so continuations thread under the original post.
+   */
+  private async postTextChunk(
+    text: string,
+    parseMode: 'Markdown' | 'HTML',
+    replyToMessageId?: number,
+  ): Promise<SendResult> {
+    const payload: Record<string, unknown> = {
+      chat_id: this.outputChannel,
+      text,
+      parse_mode: parseMode,
+      disable_web_page_preview: false,
+    };
+    if (replyToMessageId !== undefined) {
+      payload.reply_to_message_id = replyToMessageId;
+    }
+    return this.httpClient.postJson('sendMessage', payload);
+  }
+
+  /**
+   * Send continuation chunks as replies to the primary message, so the full
+   * post reads as one thread. A failed follow-up only warns: the primary is
+   * already posted, and failing the whole publish would re-post it on retry
+   * (duplicate spam > truncated tail).
+   */
+  private async sendContinuationChunks(
+    chunks: string[],
+    parseMode: 'Markdown' | 'HTML',
+    replyToMessageId: number | null,
+  ): Promise<void> {
+    if (replyToMessageId === null) return;
+    for (const chunk of chunks) {
+      const res = await this.postTextChunk(chunk, parseMode, replyToMessageId);
+      if (res.ok) {
+        this.logger.log(`sent continuation message ${res.messageId}`);
+      } else {
+        this.logger.warn(
+          `continuation message failed (primary already posted): ${res.error}`,
+        );
+      }
+    }
   }
 
   /**
@@ -128,6 +246,8 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
   /**
    * Send a plain text message (optionally with a remote image URL).
    * Delegates to the Telegram Bot API via Node's https module.
+   * Text beyond TEXT_MAX_LENGTH used to be silently dropped; now the
+   * remainder follows as continuation message(s).
    */
   public async sendMessage(
     _chatId: string,
@@ -141,14 +261,17 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
       return { ok: false, messageId: null, error: 'empty message' };
     }
     const parseMode = options?.parseMode ?? 'Markdown';
-    const formattedText = this.formatForParseMode(text, parseMode);
-    const truncatedText = BotApiCryptoNewsPublisherAdapter.truncate(
+    const formattedText = BotApiCryptoNewsPublisherAdapter.normalizeBreaks(
+      this.formatForParseMode(text, parseMode),
+    );
+    const parts = BotApiCryptoNewsPublisherAdapter.splitOverflow(
       formattedText,
+      BotApiCryptoNewsPublisherAdapter.TEXT_MAX_LENGTH,
       BotApiCryptoNewsPublisherAdapter.TEXT_MAX_LENGTH,
     );
     const payload: Record<string, unknown> = {
       chat_id: this.outputChannel,
-      text: truncatedText,
+      text: parts[0],
       parse_mode: parseMode,
       disable_web_page_preview: false,
     };
@@ -158,7 +281,16 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     if (options?.replyMarkup) {
       payload.reply_markup = { inline_keyboard: options.replyMarkup };
     }
-    return this.httpClient.postJson('sendMessage', payload);
+    const primary = await this.httpClient.postJson('sendMessage', payload);
+    if (!primary.ok) return primary;
+    if (parts.length > 1) {
+      await this.sendContinuationChunks(
+        parts.slice(1),
+        parseMode,
+        primary.messageId,
+      );
+    }
+    return primary;
   }
 
   /**
@@ -191,11 +323,17 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     const fileBytes = fileResult.bytes;
 
     const parseMode = options?.parseMode ?? 'Markdown';
-    const formattedText = this.formatForParseMode(text, parseMode);
-    const caption = BotApiCryptoNewsPublisherAdapter.truncate(
+    const formattedText = BotApiCryptoNewsPublisherAdapter.normalizeBreaks(
+      this.formatForParseMode(text, parseMode),
+    );
+    // Caption hard limit is 1024; the remainder follows as continuation
+    // message(s) instead of being silently dropped (used to truncate here).
+    const parts = BotApiCryptoNewsPublisherAdapter.splitOverflow(
       formattedText,
       BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH,
+      BotApiCryptoNewsPublisherAdapter.TEXT_MAX_LENGTH,
     );
+    const caption = parts[0];
 
     const boundary = `----cryptoNews${crypto.randomUUID().replace(/-/g, '')}`;
     const fileName = basename(imagePath);
@@ -220,7 +358,20 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
       bytes: fileBytes,
     });
 
-    return this.httpClient.postMultipart('sendPhoto', boundary, body);
+    const primary = await this.httpClient.postMultipart(
+      'sendPhoto',
+      boundary,
+      body,
+    );
+    if (!primary.ok) return primary;
+    if (parts.length > 1) {
+      await this.sendContinuationChunks(
+        parts.slice(1),
+        parseMode,
+        primary.messageId,
+      );
+    }
+    return primary;
   }
 
   public async sendVideo(
@@ -245,11 +396,16 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
 
     const parseMode = options?.parseMode ?? 'Markdown';
     const supportsStreaming = options?.supportsStreaming ?? true;
-    const formattedText = this.formatForParseMode(text, parseMode);
-    const caption = BotApiCryptoNewsPublisherAdapter.truncate(
+    const formattedText = BotApiCryptoNewsPublisherAdapter.normalizeBreaks(
+      this.formatForParseMode(text, parseMode),
+    );
+    // Same caption limit + continuation policy as sendPhoto.
+    const parts = BotApiCryptoNewsPublisherAdapter.splitOverflow(
       formattedText,
       BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH,
+      BotApiCryptoNewsPublisherAdapter.TEXT_MAX_LENGTH,
     );
+    const caption = parts[0];
 
     const boundary = `----cryptoNews${crypto.randomUUID().replace(/-/g, '')}`;
     const fileName = basename(videoPath);
@@ -277,7 +433,20 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
       bytes: fileBytes,
     });
 
-    return this.httpClient.postMultipart('sendVideo', boundary, body);
+    const primary = await this.httpClient.postMultipart(
+      'sendVideo',
+      boundary,
+      body,
+    );
+    if (!primary.ok) return primary;
+    if (parts.length > 1) {
+      await this.sendContinuationChunks(
+        parts.slice(1),
+        parseMode,
+        primary.messageId,
+      );
+    }
+    return primary;
   }
 
   public async sendMediaGroup(
@@ -308,11 +477,17 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     const fileBytesArray = filesResult.bytesArray;
 
     const parseMode = options?.parseMode ?? 'Markdown';
-    const formattedText = this.formatForParseMode(text, parseMode);
-    const caption = BotApiCryptoNewsPublisherAdapter.truncate(
+    const formattedText = BotApiCryptoNewsPublisherAdapter.normalizeBreaks(
+      this.formatForParseMode(text, parseMode),
+    );
+    // Album caption lives on the first item (same 1024 limit); overflow
+    // follows as continuation message(s).
+    const parts = BotApiCryptoNewsPublisherAdapter.splitOverflow(
       formattedText,
       BotApiCryptoNewsPublisherAdapter.CAPTION_MAX_LENGTH,
+      BotApiCryptoNewsPublisherAdapter.TEXT_MAX_LENGTH,
     );
+    const caption = parts[0];
 
     const boundary = `----cryptoNews${crypto.randomUUID().replace(/-/g, '')}`;
 
@@ -353,11 +528,20 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
 
     const body = buildMediaGroupMultipartBody(boundary, textFields, files);
 
-    return this.httpClient.postMultipartMediaGroup(
+    const primary = await this.httpClient.postMultipartMediaGroup(
       'sendMediaGroup',
       boundary,
       body,
     );
+    if (!primary.ok) return primary;
+    if (parts.length > 1) {
+      await this.sendContinuationChunks(
+        parts.slice(1),
+        parseMode,
+        primary.messageId,
+      );
+    }
+    return primary;
   }
 
   /**

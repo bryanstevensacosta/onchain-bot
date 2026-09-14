@@ -76,6 +76,17 @@ function lastRequestBody(): string {
   return writeCall ? String(writeCall[0]) : '';
 }
 
+function requestBodyAt(index: number): string {
+  const req = mockedRequest.mock.results[index]?.value as FakeReq;
+  const writeCall = req.write.mock.calls.at(-1);
+  return writeCall ? String(writeCall[0]) : '';
+}
+
+function requestUrlAt(index: number): string {
+  const call = mockedRequest.mock.calls[index];
+  return call ? String(call[0]) : '';
+}
+
 describe('BotApiCryptoNewsPublisherAdapter — graceful not-configured path', () => {
   it('does NOT throw at construction when both env vars are missing', () => {
     expect(
@@ -259,19 +270,176 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
   });
 
   describe('length limits', () => {
-    it('truncates sendMessage text over 4096 chars with a trailing ellipsis', async () => {
+    it('sends text over 4096 chars as primary + continuation (no content lost)', async () => {
       mockSuccessResponse(42);
       const adapter = new BotApiCryptoNewsPublisherAdapter(
         makeConfigWith('TOKEN', '@channel'),
       );
       const longText = 'x'.repeat(5000);
-      await adapter.sendMessage('ignored', longText, undefined, {
+      const result = await adapter.sendMessage('ignored', longText, undefined, {
         parseMode: 'HTML',
       });
 
+      expect(result.ok).toBe(true);
+      expect(mockedRequest).toHaveBeenCalledTimes(2);
+      const primary = JSON.parse(requestBodyAt(0)) as { text: string };
+      expect(primary.text.length).toBe(4096);
+      expect(primary.text.endsWith('…')).toBe(true);
+      const followUp = JSON.parse(requestBodyAt(1)) as { text: string };
+      expect(followUp.text).toBe('x'.repeat(905));
+      expect(followUp.text.endsWith('…')).toBe(false);
+    });
+
+    it('threads the continuation as a reply to the primary message', async () => {
+      mockSuccessResponse(42);
+      const adapter = new BotApiCryptoNewsPublisherAdapter(
+        makeConfigWith('TOKEN', '@channel'),
+      );
+      await adapter.sendMessage('ignored', 'x'.repeat(5000), undefined, {
+        parseMode: 'HTML',
+      });
+
+      const followUp = JSON.parse(requestBodyAt(1)) as {
+        text: string;
+        reply_to_message_id?: number;
+      };
+      expect(followUp.reply_to_message_id).toBe(42);
+      const primary = JSON.parse(requestBodyAt(0)) as {
+        reply_to_message_id?: number;
+      };
+      expect(primary.reply_to_message_id).toBeUndefined();
+    });
+
+    it('sends short text as a single request (no follow-up)', async () => {
+      mockSuccessResponse(42);
+      const adapter = new BotApiCryptoNewsPublisherAdapter(
+        makeConfigWith('TOKEN', '@channel'),
+      );
+      await adapter.sendMessage('ignored', 'hello', undefined, {
+        parseMode: 'HTML',
+      });
+
+      expect(mockedRequest).toHaveBeenCalledTimes(1);
       const payload = JSON.parse(lastRequestBody()) as { text: string };
-      expect(payload.text.length).toBe(4096);
-      expect(payload.text.endsWith('…')).toBe(true);
+      expect(payload.text).toBe('hello');
+    });
+
+    it('sends photo caption remainder as a follow-up without reply markup', async () => {
+      mockSuccessResponse(42);
+      const uploadsRoot = await fs.mkdtemp(
+        path.join(os.tmpdir(), 'ads-adapter-'),
+      );
+      const imagePath = path.join(uploadsRoot, 'hero.png');
+      await fs.writeFile(imagePath, Buffer.from('png-bytes'));
+      try {
+        const adapter = new BotApiCryptoNewsPublisherAdapter(
+          makeConfigWith('TOKEN', '@channel'),
+        );
+        const longCaption = 'y'.repeat(2000);
+        const result = await adapter.sendPhoto(
+          'ignored',
+          longCaption,
+          imagePath,
+          {
+            parseMode: 'HTML',
+            replyMarkup: [[{ text: 'Abrir', url: 'https://ourbit.com/ref' }]],
+          },
+        );
+
+        expect(result.ok).toBe(true);
+        expect(mockedRequest).toHaveBeenCalledTimes(2);
+        // Primary: multipart photo with truncated caption (+ markup kept).
+        const photoBody = requestBodyAt(0);
+        const captionMatch = photoBody.match(
+          /name="caption"\r\n\r\n([\s\S]*?)\r\n/,
+        );
+        expect(captionMatch).not.toBeNull();
+        const caption = captionMatch![1];
+        expect(caption.length).toBe(1024);
+        expect(caption.endsWith('…')).toBe(true);
+        expect(photoBody).toContain('reply_markup');
+        // Follow-up: plain JSON with the remainder, no buttons.
+        expect(requestUrlAt(1)).toContain('sendMessage');
+        const followUp = JSON.parse(requestBodyAt(1)) as {
+          text: string;
+          reply_markup?: unknown;
+          reply_to_message_id?: number;
+        };
+        expect(followUp.text).toBe('y'.repeat(2000 - 1023));
+        expect(followUp.reply_markup).toBeUndefined();
+        expect(followUp.reply_to_message_id).toBe(42);
+      } finally {
+        await fs.rm(uploadsRoot, { recursive: true, force: true });
+      }
+    });
+
+    it('splits long captions at paragraph boundaries when possible', async () => {
+      mockSuccessResponse(42);
+      const uploadsRoot = await fs.mkdtemp(
+        path.join(os.tmpdir(), 'ads-adapter-'),
+      );
+      const imagePath = path.join(uploadsRoot, 'hero.png');
+      await fs.writeFile(imagePath, Buffer.from('png-bytes'));
+      try {
+        const adapter = new BotApiCryptoNewsPublisherAdapter(
+          makeConfigWith('TOKEN', '@channel'),
+        );
+        const longCaption = `lead paragraph\n\n${'b'.repeat(1500)}`;
+        await adapter.sendPhoto('ignored', longCaption, imagePath, {
+          parseMode: 'HTML',
+        });
+
+        const photoBody = requestBodyAt(0);
+        const captionMatch = photoBody.match(
+          /name="caption"\r\n\r\n([\s\S]*?)\r\n/,
+        );
+        expect(captionMatch![1]).toBe('lead paragraph');
+        const followUp = JSON.parse(requestBodyAt(1)) as { text: string };
+        expect(followUp.text).toBe('b'.repeat(1500));
+      } finally {
+        await fs.rm(uploadsRoot, { recursive: true, force: true });
+      }
+    });
+
+    it('returns primary ok=true when the follow-up fails (no duplicate retry)', async () => {
+      const uploadsRoot = await fs.mkdtemp(
+        path.join(os.tmpdir(), 'ads-adapter-'),
+      );
+      const imagePath = path.join(uploadsRoot, 'hero.png');
+      await fs.writeFile(imagePath, Buffer.from('png-bytes'));
+      try {
+        let calls = 0;
+        mockedRequest.mockImplementation(
+          (
+            _url: string | URL,
+            _options: unknown,
+            cb: (res: EventEmitter) => void,
+          ) => {
+            calls += 1;
+            const body =
+              calls === 1
+                ? JSON.stringify({ ok: true, result: { message_id: 42 } })
+                : JSON.stringify({ ok: false, description: 'flood' });
+            cb(createFakeResponse(body));
+            return createFakeReq() as never;
+          },
+        );
+        const adapter = new BotApiCryptoNewsPublisherAdapter(
+          makeConfigWith('TOKEN', '@channel'),
+        );
+        const result = await adapter.sendPhoto(
+          'ignored',
+          'z'.repeat(2000),
+          imagePath,
+          { parseMode: 'HTML' },
+        );
+
+        expect(result.ok).toBe(true);
+        expect(result.messageId).toBe(42);
+        expect(mockedRequest).toHaveBeenCalledTimes(2);
+      } finally {
+        await fs.rm(uploadsRoot, { recursive: true, force: true });
+      }
     });
 
     it('truncates sendPhoto caption over 1024 chars with a trailing ellipsis', async () => {
@@ -294,13 +462,63 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
         );
 
         expect(result.ok).toBe(true);
-        const body = lastRequestBody();
+        const body = requestBodyAt(0);
         // multipart body contains the truncated caption
         const captionMatch = body.match(/name="caption"\r\n\r\n([\s\S]*?)\r\n/);
         expect(captionMatch).not.toBeNull();
         const caption = captionMatch![1];
         expect(caption.length).toBe(1024);
         expect(caption.endsWith('…')).toBe(true);
+      } finally {
+        await fs.rm(uploadsRoot, { recursive: true, force: true });
+      }
+    });
+
+    it('doubles single line breaks for readability', async () => {
+      mockSuccessResponse(42);
+      const adapter = new BotApiCryptoNewsPublisherAdapter(
+        makeConfigWith('TOKEN', '@channel'),
+      );
+      await adapter.sendMessage('ignored', 'hola\ncomo estas', undefined, {
+        parseMode: 'HTML',
+      });
+
+      expect(mockedRequest).toHaveBeenCalledTimes(1);
+      const payload = JSON.parse(lastRequestBody()) as { text: string };
+      expect(payload.text).toBe('hola\n\ncomo estas');
+    });
+
+    it('never splits a bullet mid-sentence, single-spaced input', async () => {
+      mockSuccessResponse(42);
+      const uploadsRoot = await fs.mkdtemp(
+        path.join(os.tmpdir(), 'ads-adapter-'),
+      );
+      const imagePath = path.join(uploadsRoot, 'hero.png');
+      await fs.writeFile(imagePath, Buffer.from('png-bytes'));
+      try {
+        const adapter = new BotApiCryptoNewsPublisherAdapter(
+          makeConfigWith('TOKEN', '@channel'),
+        );
+        // Single-spaced bullets like the LLM emits; total over 1024.
+        const text = `Title\n• ${'a'.repeat(600)}\n• ${'b'.repeat(600)}`;
+        const result = await adapter.sendPhoto('ignored', text, imagePath, {
+          parseMode: 'HTML',
+        });
+
+        expect(result.ok).toBe(true);
+        expect(mockedRequest).toHaveBeenCalledTimes(2);
+        const photoBody = requestBodyAt(0);
+        const captionMatch = photoBody.match(
+          /name="caption"\r\n\r\n([\s\S]*?)\r\n/,
+        );
+        const caption = captionMatch![1];
+        // Whole bullet 1 present (plus breathing room), bullet 2 untouched,
+        // and NO ellipsis: nothing was cut mid-block.
+        expect(caption).toBe('Title\n\n• ' + 'a'.repeat(600));
+        const followUp = JSON.parse(requestBodyAt(1)) as { text: string };
+        expect(followUp.text.startsWith('• ' + 'b')).toBe(true);
+        expect(followUp.text).toContain('b'.repeat(600));
+        expect(followUp.text).not.toContain('…');
       } finally {
         await fs.rm(uploadsRoot, { recursive: true, force: true });
       }

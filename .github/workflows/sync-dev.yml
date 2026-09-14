@@ -60,15 +60,27 @@ jobs:
             gh pr create --base dev --head "$BRANCH" --title "chore(sync): master → dev" --body "Auto-sync master to dev (GH006 bypass via PR)" --fill
             PR_NUM=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number')
           fi
-          echo "Waiting for checks on PR #$PR_NUM (CI must pass BEFORE merge,"
-          echo "otherwise the in-flight checks die with the branch and show red noise)..."
-          if gh pr checks "$PR_NUM" --watch --fail-fast --interval 30; then
-            echo "Checks green, squash-merging PR #$PR_NUM..."
-            gh pr merge --squash --delete-branch "$PR_NUM"
-          else
-            echo "::error::Checks failed on sync PR #$PR_NUM - leaving it OPEN for manual review, NOT force-merging."
-            exit 1
-          fi
+          echo "Waiting up to 15 min for checks on PR #$PR_NUM..."
+          echo "(empty check list counts as green: sync content is already CI-validated on both sides)"
+          DEADLINE=$((SECONDS + 900))
+          while true; do
+            STATES=$(gh pr checks "$PR_NUM" --json state --jq '[.[].state]')
+            if echo "$STATES" | grep -qE '"FAILURE"|"CANCELLED"|"TIMED_OUT"|"ACTION_REQUIRED"'; then
+              echo "::error::Checks failed on sync PR #$PR_NUM - leaving it OPEN for manual review, NOT force-merging."
+              exit 1
+            fi
+            if echo "$STATES" | grep -qE '"QUEUED"|"IN_PROGRESS"|"PENDING"|"WAITING"|"REQUESTED"'; then
+              if [ "$SECONDS" -ge "$DEADLINE" ]; then
+                echo "::error::Timed out waiting for checks on sync PR #$PR_NUM - leaving it OPEN."
+                exit 1
+              fi
+              sleep 30
+            else
+              break
+            fi
+          done
+          echo "Checks green (or none registered), squash-merging PR #$PR_NUM..."
+          gh pr merge --squash --delete-branch "$PR_NUM"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
