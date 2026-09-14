@@ -77,8 +77,9 @@ describe('DisconnectionTracker', () => {
       service.recordReconnection(clientId);
 
       const windows = service.getDisconnectionWindows();
-      // Allow ±1ms timing variance in CI
-      expect(windows[0].durationMs).toBeGreaterThanOrEqual(99);
+      // Real-timer sleep(100) jitters ±2ms on loaded CI runners (saw 98ms);
+      // assert the window is ~100ms, not exact.
+      expect(windows[0].durationMs).toBeGreaterThanOrEqual(90);
       expect(windows[0].durationMs).toBeLessThan(200);
     });
 

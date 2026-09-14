@@ -29,6 +29,13 @@ services:
       REDIS_HOST: onchain-bot-redis-production
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      # Topología fijada aquí (compose `environment:` gana a .env.production):
+      # los hostnames DNS deben seguir a los container_name del rename
+      # onchain-bot-<servicio>-<env>. Sin esto, un .env.production con
+      # nombres viejos deja a ingestion sin redis/DB/backend en silencio.
+      INGESTION_REDIS_HOST: onchain-bot-redis-production
+      INGESTION_DATABASE_HOST: onchain-bot-postgres-production
+      BACKEND_URL: http://onchain-bot-backend-production:3030
     # Conectar a AMBAS redes: prod y staging
     networks:
       - onchain-bot-net # Red de production

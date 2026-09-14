@@ -3,6 +3,7 @@
 .env.local
 .env.*.local
 .env.dev
+.env.development
 .env.production
 .env.prod
 .env.staging
