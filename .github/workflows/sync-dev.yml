@@ -60,8 +60,15 @@ jobs:
             gh pr create --base dev --head "$BRANCH" --title "chore(sync): master → dev" --body "Auto-sync master to dev (GH006 bypass via PR)" --fill
             PR_NUM=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number')
           fi
-          echo "Enabling auto-merge for PR #$PR_NUM..."
-          gh pr merge --auto --squash --delete-branch "$PR_NUM" || gh pr merge --squash --delete-branch "$PR_NUM" || echo "PR #$PR_NUM will auto-merge when CI passes"
+          echo "Waiting for checks on PR #$PR_NUM (CI must pass BEFORE merge,"
+          echo "otherwise the in-flight checks die with the branch and show red noise)..."
+          if gh pr checks "$PR_NUM" --watch --fail-fast --interval 30; then
+            echo "Checks green, squash-merging PR #$PR_NUM..."
+            gh pr merge --squash --delete-branch "$PR_NUM"
+          else
+            echo "::error::Checks failed on sync PR #$PR_NUM - leaving it OPEN for manual review, NOT force-merging."
+            exit 1
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
