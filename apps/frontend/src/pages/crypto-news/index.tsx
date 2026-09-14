@@ -12,7 +12,6 @@ import {
   BlockedPostsList,
   KeywordsManager,
   LlmConfigForm,
-  MatchingHealthBadge,
   MatchingToggleButton,
   PromptTemplates,
   QueueView,
@@ -514,7 +513,6 @@ export function CryptoNewsPage() {
               Queue
             </summary>
             <div className="space-y-3 pt-2">
-              <MatchingHealthBadge />
               <MatchingToggleButton />
               <QueueView />
             </div>

@@ -415,8 +415,15 @@ the server before).
 Symptom: backend 500s + `ECONNREFUSED 127.0.0.1:5434` in `/tmp/dev-backend.log`
 while `docker ps` shows NO `*-dev` containers (volumes survive — data is safe).
 
-Cause class: anything running `docker compose down` in `apps/backend/`
-removes the dev containers AND the `backend_default` network (volumes are kept).
+Root cause found same day: **duplicate compose project names.** Without an
+explicit `name:`, compose uses the directory basename — and both
+`apps/backend/docker-compose.yml` (dev, `/data`) and
+`apps/backend/docker-compose.staging.yml` (`/opt/...-staging`) computed
+project `backend` with identical service names (`postgres`, `redis`).
+Every `up` from either side recreated the other's DB containers (staging
+deploys ate dev; later a 5-min dev watchdog ate staging back).
+Rule: **every compose file on shared hosts MUST set a unique `name:`**
+(`onchain-bot-dev`, `onchain-bot-staging`, `onchain-bot-prod` …).
 `docker system prune` (nightly Disk Cleanup workflow + every deploy) then makes
 the removal permanent for stopped containers. Never `down` the dev compose —
 use `stop` if you must pause it.

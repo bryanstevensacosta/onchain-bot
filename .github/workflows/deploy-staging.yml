@@ -116,6 +116,8 @@ jobs:
           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-frontend:cache
           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-frontend:cache,mode=max
           platforms: linux/amd64,linux/arm64
+          build-args: |
+            VITE_APP_ENV=staging
 
   deploy-staging:
     name: Deploy to staging
