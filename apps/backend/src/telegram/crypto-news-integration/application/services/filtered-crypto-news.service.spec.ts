@@ -97,7 +97,8 @@ describe('FilteredCryptoNewsService — album merge', () => {
     expect(matched[0].messageId).toBe(101);
     expect(matched[0].groupedId).toBe('g1');
     expect(matched[0].media).toHaveLength(2);
-    expect(matched[0].media.map((m) => m.index)).toEqual([0, 1]);
+    // Original per-message indexes preserved (file resolution keys off them)
+    expect(matched[0].media.map((m) => m.index)).toEqual([0, 0]);
     expect(matched[0].media.map((m) => m.ownerMessageId)).toEqual([101, 102]);
   });
 

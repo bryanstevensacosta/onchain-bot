@@ -150,8 +150,10 @@ export class FilteredCryptoNewsService {
    * keywords, so without this step the publisher would post a single photo
    * instead of the album. For every matched message with a groupedId, media
    * is collected from ALL raw batch members with the same key (matched or
-   * not), ordered by (messageId, index) and reindexed 0..n, each item tagged
-   * with its owner's Telegram id for downstream file resolution.
+   * not), ordered by (messageId, index). Each item KEEPS its original
+   * per-message index (the ingestion serving URL and the local
+   * `{messageId}_{index}` file convention both key off it — reindexing
+   * breaks file resolution) and is tagged with its owner's Telegram id.
    * When several group members match, only the first is kept (same album =
    * one post); the rest are skipped as covered.
    *
@@ -194,11 +196,7 @@ export class FilteredCryptoNewsService {
           ) {
             continue;
           }
-          merged.push({
-            ...item,
-            index: merged.length,
-            ownerMessageId: sib.messageId,
-          });
+          merged.push({ ...item, ownerMessageId: sib.messageId });
         }
       }
       out.push({ ...m, media: merged });
