@@ -145,6 +145,9 @@ See **[GIT-FLOW.md](./GIT-FLOW.md)** for complete Git workflow documentation, in
 - Common scenarios and troubleshooting
 
 **Critical**: Always sync `dev` with `master` after merging to avoid conflicts on next PR.
+Do it MANUALLY (`git checkout dev && git merge origin/master`) — the bot sync
+was removed 2026-09-14 (its PR checks never completed unattended; see
+`sync-dev.yml` header). Takes ~1 min, zero noise.
 
 ## WHERE TO LOOK
 
@@ -460,7 +463,7 @@ sudo ausearch -k docker-cli --start recent | grep -E "auid=|proctitle" | tail -2
 | `deploy-staging.yml`                                                                       | push dev (waits for CI)                                      | staging deploy                                                                                                                                                   |
 | `deploy-ingestion.yml`                                                                     | push master touching `apps/ingestion-service/**` (no-cancel) | ingestion GHCR build+deploy                                                                                                                                      |
 | Manual release (no workflow) | — | maintainer bumps versions + hand-writes per-app `CHANGELOG.md` entries (see `RELEASE-FLOW.md`, forthcoming) |
-| `branch-governance.yml`, `pr-sync-check.yml`, `sync-dev/master-to-dev.yml`, `sync-dev.yml` | —                                                            | branch policy automation (see GOVERNANCE.md); both sync files auto-sync master→dev on push (possible overlap — verify before touching)                           |
+| `branch-governance.yml`, `pr-sync-check.yml`, `sync-dev.yml` | —                                                            | branch policy automation (see GOVERNANCE.md); `sync-dev.yml` only refreshes open PRs — master→dev sync is MANUAL since 2026-09-14 (bot never completed unattended) |
 | `cleanup.yml`, `full-prune.yml`, `ghcr-test-{build,pull}.yml`                              | —                                                            | hygiene + image checks: nightly disk cleanup (3 am cron), manual full prune, GHCR test builds on Dockerfile PRs                                                  |
 
 Prod `deploy.yml` flow:
