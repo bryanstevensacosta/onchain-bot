@@ -37,6 +37,14 @@ import { AdsThrottleStateEntity } from 'telegram/crypto-news-ads/infrastructure/
 import { AdMediaEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-media.entity';
 import { AdMediaLibraryEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-media-library.entity';
 import { MatchingConfigEntity } from 'telegram/crypto-news-integration/infrastructure/persistence/typeorm/entities/matching-config.entity';
+import { ThreadsQueueEntryEntity } from 'threads/publisher/infrastructure/persistence/typeorm/entities/threads-queue-entry.entity';
+import { ThreadsKeywordEntity } from 'threads/publisher/infrastructure/persistence/typeorm/entities/threads-keyword.entity';
+import { ThreadsBlacklistPhraseEntity } from 'threads/publisher/infrastructure/persistence/typeorm/entities/threads-blacklist-phrase.entity';
+import { ThreadsLlmConfigEntity } from 'threads/publisher/infrastructure/persistence/typeorm/entities/threads-llm-config.entity';
+import { ThreadsPromptTemplateEntity } from 'threads/publisher/infrastructure/persistence/typeorm/entities/threads-prompt-template.entity';
+import { ThreadsThrottleStateEntity } from 'threads/publisher/infrastructure/persistence/typeorm/entities/threads-throttle-state.entity';
+import { ThreadsOAuthTokenEntity } from 'threads/publisher/infrastructure/persistence/typeorm/entities/threads-oauth-token.entity';
+import { ThreadsMatchingConfigEntity } from 'threads/integration/infrastructure/persistence/typeorm/entities/threads-matching-config.entity';
 
 /**
  * All TypeORM entities persisted to Postgres. This array is consumed by
@@ -88,10 +96,18 @@ export const PERSISTED_ENTITIES = [
   AdMediaLibraryEntity,
   DedupRecordEntity,
   MatchingConfigEntity,
+  ThreadsQueueEntryEntity,
+  ThreadsKeywordEntity,
+  ThreadsBlacklistPhraseEntity,
+  ThreadsLlmConfigEntity,
+  ThreadsPromptTemplateEntity,
+  ThreadsThrottleStateEntity,
+  ThreadsOAuthTokenEntity,
+  ThreadsMatchingConfigEntity,
 ];
 
 /**
  * Expected entity count for validation. If this doesn't match
  * PERSISTED_ENTITIES.length, something is wrong.
  */
-export const EXPECTED_ENTITY_COUNT = 39;
+export const EXPECTED_ENTITY_COUNT = 47;

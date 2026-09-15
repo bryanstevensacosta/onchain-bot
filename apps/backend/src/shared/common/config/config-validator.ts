@@ -392,6 +392,32 @@ const CONFIG_MANIFEST: ConfigVarDef[] = [
     category: 'optional',
     description: 'Log file name',
   },
+  // Threads publisher (Graph API, TEXT-only) — all optional: empty until
+  // the operator provisions a long-lived token (see docs/threads-token-runbook.md)
+  {
+    envVar: 'THREADS_ACCESS_TOKEN',
+    configPath: 'threads.accessToken',
+    category: 'optional',
+    description: 'Threads Graph API long-lived user token (60-day; never commit)',
+  },
+  {
+    envVar: 'THREADS_USER_ID',
+    configPath: 'threads.userId',
+    category: 'optional',
+    description: 'Threads user id owning the token (defaults to me)',
+  },
+  {
+    envVar: 'THREADS_POLLING_INTERVAL_MINUTES',
+    configPath: 'threads.pollingIntervalMinutes',
+    category: 'optional',
+    description: 'Threads polling interval in minutes (1-60, default 5)',
+  },
+  {
+    envVar: 'THREADS_DAILY_CAP',
+    configPath: 'threads.dailyCap',
+    category: 'optional',
+    description: 'Threads max posts per day (1-250, default 60)',
+  },
 ];
 
 /**

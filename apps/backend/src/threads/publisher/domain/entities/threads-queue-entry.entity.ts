@@ -1,0 +1,418 @@
+import { AggregateRoot } from 'shared/kernel/aggregate-root';
+import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
+import type { DomainEvent } from 'shared/kernel/domain-event';
+import { ThreadsArticlePublishedEvent } from 'threads/publisher/domain/events/threads-article-published.event';
+
+export type ThreadsQueueStatus =
+  | 'PENDING'
+  | 'SCHEDULED'
+  | 'PUBLISHING'
+  | 'PUBLISHED'
+  | 'FAILED'
+  | 'BLOCKED';
+
+const VALID_PUBLISH_TRANSITIONS = new Set<ThreadsQueueStatus>([
+  'PENDING',
+  'SCHEDULED',
+]);
+
+export interface ThreadsQueueEntryProps {
+  readonly id: string;
+  readonly traceId: string;
+  readonly channelId: string;
+  readonly messageId: number;
+  readonly rawContent: string;
+  readonly rawTitle: string | null;
+  readonly imagePath: string | null;
+  readonly imagePaths: string[];
+  readonly groupedId: string | null;
+  readonly messageReceivedAt: Date;
+  /**
+   * Timestamp when this entry was added to the queue. Used for TTL
+   * expiration: entries older than 24h in PENDING status are
+   * automatically marked FAILED by the stale-entry janitor.
+   */
+  readonly queuedAt: Date;
+  /**
+   * IDs of the keywords matched at enqueue time. Empty array when no
+   * keyword matched (should not happen in normal flow, but the field
+   * is optional to handle edge cases).
+   */
+  readonly matchedKeywordIds: string[];
+  readonly keywordTemplateId: string | null;
+  /** Formatting entities captured at enqueue time as JSON string. */
+  readonly formattingEntities: string | null;
+  status: ThreadsQueueStatus;
+  publishedAt: Date | null;
+  /** Threads-side post id once published (mirror of telegramMessageId). */
+  telegramMessageId: string | null;
+  lastError: string | null;
+  attempts: number;
+  /** LLM-generated refined post content. Set when the entry is published. */
+  generatedContent: string | null;
+  /** System prompt used when generating the refined post. */
+  generatedSystemPrompt: string | null;
+  /** User prompt (template rendered with entry data) sent to the LLM. */
+  generatedUserPrompt: string | null;
+  /** Temperature used when generating. */
+  generatedTemperature: number | null;
+  /** Reasoning effort used (low/medium/high/max). */
+  generatedReasoningEffort: string | null;
+  /** Model used when generating the post. */
+  generatedModel: string | null;
+  blockedReason: string | null;
+  /** Channel ID of the message this entry is a duplicate of (only for BLOCKED status, dedup). */
+  duplicateOfChannelId: string | null;
+  /** Message ID of the message this entry is a duplicate of (only for BLOCKED status, dedup). */
+  duplicateOfMessageId: number | null;
+  /** Queue entry ID that this entry is a duplicate of (only for BLOCKED status, dedup). */
+  duplicateOfEntryId: string | null;
+}
+
+/**
+ * Aggregate root: a single message queued for publication to Threads.
+ *
+ * Persistence: @Entity({ name: 'threads_queue_entries' }) counterpart lives in
+ * `threads/publisher/infrastructure/persistence/typeorm/entities/` (this domain
+ * file owns invariants only, never the ORM decorator).
+ *
+ * Lifecycle:
+ *   PENDING → SCHEDULED → PUBLISHING → PUBLISHED
+ *                                    ↘ FAILED
+ *
+ * `markScheduled`, `markPublished` (and the failure path) only succeed
+ * from PENDING or SCHEDULED; once PUBLISHED, FAILED or BLOCKED the entry
+ * is terminal. `incrementAttempts` may be called any number of times on
+ * a PENDING/SCHEDULED entry to record LLM retries.
+ */
+export class ThreadsQueueEntry extends AggregateRoot<string> {
+  private state: ThreadsQueueEntryProps;
+
+  protected constructor(id: string, props: ThreadsQueueEntryProps) {
+    super(id);
+    this.state = props;
+  }
+
+  /**
+   * Factory: build a fresh PENDING queue entry from a matched message.
+   * The `id` is the unique queue identifier (not the source message
+   * id — those live on `messageId`/`channelId`).
+   */
+  public static create(input: {
+    id?: string;
+    channelId: string;
+    messageId: number;
+    rawContent: string;
+    rawTitle: string | null;
+    imagePath?: string | null;
+    imagePaths?: string[];
+    groupedId: string | null;
+    messageReceivedAt: Date;
+    matchedKeywordIds?: string[];
+    keywordTemplateId?: string | null;
+    formattingEntities?: string | null;
+  }): ThreadsQueueEntry {
+    if (!input.channelId?.trim()) {
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        'ThreadsQueueEntry channelId cannot be empty',
+      );
+    }
+    if (!Number.isFinite(input.messageId) || input.messageId < 0) {
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        'ThreadsQueueEntry messageId must be a non-negative number',
+        { messageId: input.messageId },
+      );
+    }
+    if (input.rawContent === null || input.rawContent === undefined) {
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        'ThreadsQueueEntry rawContent cannot be null/undefined',
+      );
+    }
+    if (
+      input.keywordTemplateId !== undefined &&
+      input.keywordTemplateId !== null &&
+      (typeof input.keywordTemplateId !== 'string' ||
+        input.keywordTemplateId.trim().length === 0)
+    ) {
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        'ThreadsQueueEntry keywordTemplateId, when provided, must be a non-empty string or null',
+      );
+    }
+    const allPaths = input.imagePaths ?? [];
+    const firstPath = input.imagePath ?? allPaths[0] ?? null;
+    const id = input.id ?? crypto.randomUUID();
+    const now = new Date();
+    return new ThreadsQueueEntry(id, {
+      id,
+      traceId: crypto.randomUUID(),
+      channelId: input.channelId,
+      messageId: input.messageId,
+      rawContent: input.rawContent,
+      rawTitle: input.rawTitle,
+      imagePath: firstPath,
+      imagePaths: allPaths,
+      groupedId: input.groupedId,
+      messageReceivedAt: input.messageReceivedAt,
+      queuedAt: now,
+      matchedKeywordIds: input.matchedKeywordIds ?? [],
+      keywordTemplateId: input.keywordTemplateId ?? null,
+      formattingEntities: input.formattingEntities ?? null,
+      status: 'PENDING',
+      publishedAt: null,
+      telegramMessageId: null,
+      lastError: null,
+      attempts: 0,
+      generatedContent: null,
+      generatedSystemPrompt: null,
+      generatedUserPrompt: null,
+      generatedTemperature: null,
+      generatedReasoningEffort: null,
+      generatedModel: null,
+      blockedReason: null,
+      duplicateOfChannelId: null,
+      duplicateOfMessageId: null,
+      duplicateOfEntryId: null,
+    });
+  }
+
+  /**
+   * Rehydrate from persistence without validation (use the persisted
+   * shape as-is).
+   */
+  public static reconstitute(
+    props: ThreadsQueueEntryProps,
+  ): ThreadsQueueEntry {
+    return new ThreadsQueueEntry(props.id, props);
+  }
+
+  public get id(): string {
+    return this.state.id;
+  }
+
+  public get traceId(): string {
+    return this.state.traceId;
+  }
+
+  public get channelId(): string {
+    return this.state.channelId;
+  }
+
+  public get messageId(): number {
+    return this.state.messageId;
+  }
+
+  public get rawContent(): string {
+    return this.state.rawContent;
+  }
+
+  public get rawTitle(): string | null {
+    return this.state.rawTitle;
+  }
+
+  public get imagePath(): string | null {
+    return this.state.imagePath;
+  }
+
+  public get imagePaths(): string[] {
+    return this.state.imagePaths ?? [];
+  }
+
+  public get groupedId(): string | null {
+    return this.state.groupedId;
+  }
+
+  public get matchedKeywordIds(): string[] {
+    return this.state.matchedKeywordIds;
+  }
+
+  public get keywordTemplateId(): string | null {
+    return this.state.keywordTemplateId;
+  }
+
+  public get formattingEntities(): string | null {
+    return this.state.formattingEntities;
+  }
+
+  public get messageReceivedAt(): Date {
+    return this.state.messageReceivedAt;
+  }
+
+  public get queuedAt(): Date {
+    return this.state.queuedAt;
+  }
+
+  public get status(): ThreadsQueueStatus {
+    return this.state.status;
+  }
+
+  public get publishedAt(): Date | null {
+    return this.state.publishedAt;
+  }
+
+  public get telegramMessageId(): string | null {
+    return this.state.telegramMessageId;
+  }
+
+  public get lastError(): string | null {
+    return this.state.lastError;
+  }
+
+  public get attempts(): number {
+    return this.state.attempts;
+  }
+
+  public get generatedContent(): string | null {
+    return this.state.generatedContent;
+  }
+
+  public get generatedSystemPrompt(): string | null {
+    return this.state.generatedSystemPrompt;
+  }
+
+  public get generatedUserPrompt(): string | null {
+    return this.state.generatedUserPrompt;
+  }
+
+  public get generatedTemperature(): number | null {
+    return this.state.generatedTemperature;
+  }
+
+  public get generatedReasoningEffort(): string | null {
+    return this.state.generatedReasoningEffort;
+  }
+
+  public get generatedModel(): string | null {
+    return this.state.generatedModel;
+  }
+
+  public get blockedReason(): string | null {
+    return this.state.blockedReason;
+  }
+
+  public get duplicateOfChannelId(): string | null {
+    return this.state.duplicateOfChannelId;
+  }
+
+  public get duplicateOfMessageId(): number | null {
+    return this.state.duplicateOfMessageId;
+  }
+
+  public get duplicateOfEntryId(): string | null {
+    return this.state.duplicateOfEntryId;
+  }
+
+  public get isTerminal(): boolean {
+    return (
+      this.state.status === 'PUBLISHED' ||
+      this.state.status === 'FAILED' ||
+      this.state.status === 'BLOCKED'
+    );
+  }
+
+  /**
+   * Transition PENDING/SCHEDULED → SCHEDULED with the planned publish
+   * time. The cron publisher uses this to record "I picked this entry
+   * and will publish at <at>".
+   */
+  public markScheduled(at: Date): void {
+    this.assertPublishTransition('markScheduled');
+    this.state.status = 'SCHEDULED';
+    void at;
+  }
+
+  /**
+   * Transition PENDING/SCHEDULED → PUBLISHED. Records the Threads-side
+   * post id, publishedAt, and emits a `ThreadsArticlePublishedEvent`.
+   */
+  public markPublished(
+    threadsPostId: string,
+    generated?: {
+      content: string;
+      systemPrompt: string | null;
+      userPrompt: string | null;
+      temperature: number | null;
+      reasoningEffort: string | null;
+      model?: string | null;
+    },
+  ): void {
+    this.assertPublishTransition('markPublished');
+    if (!threadsPostId?.trim()) {
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        'threadsPostId cannot be empty',
+        { id: this.state.id },
+      );
+    }
+    const now = new Date();
+    this.state.status = 'PUBLISHED';
+    this.state.telegramMessageId = threadsPostId;
+    this.state.publishedAt = now;
+    this.state.lastError = null;
+    this.state.generatedContent = generated?.content ?? null;
+    this.state.generatedSystemPrompt = generated?.systemPrompt ?? null;
+    this.state.generatedUserPrompt = generated?.userPrompt ?? null;
+    this.state.generatedTemperature = generated?.temperature ?? null;
+    this.state.generatedReasoningEffort = generated?.reasoningEffort ?? null;
+    this.state.generatedModel = generated?.model ?? null;
+    this.apply(
+      new ThreadsArticlePublishedEvent({
+        channelId: this.state.channelId,
+        messageId: this.state.messageId,
+        threadsPostId,
+        publishedAt: now,
+      }),
+    );
+  }
+
+  /**
+   * Transition PENDING/SCHEDULED → FAILED. Records the reason and
+   * timestamp; terminal — no further transitions allowed.
+   */
+  public markFailed(reason: string): void {
+    this.assertPublishTransition('markFailed');
+    if (!reason?.trim()) {
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        'failure reason cannot be empty',
+        { id: this.state.id },
+      );
+    }
+    this.state.status = 'FAILED';
+    this.state.lastError = reason;
+    this.state.publishedAt = new Date();
+  }
+
+  /**
+   * Increment the LLM/POST attempt counter. Allowed on PENDING and
+   * SCHEDULED entries. The caller is expected to enforce a max-attempts
+   * cap based on config.
+   */
+  public incrementAttempts(): void {
+    if (!VALID_PUBLISH_TRANSITIONS.has(this.state.status)) {
+      throw new DomainError(
+        ErrorCode.CONFLICT,
+        `Cannot increment attempts: aggregate is in ${this.state.status} state (expected PENDING or SCHEDULED)`,
+        { id: this.state.id, status: this.state.status },
+      );
+    }
+    this.state.attempts += 1;
+  }
+
+  private assertPublishTransition(method: string): void {
+    if (!VALID_PUBLISH_TRANSITIONS.has(this.state.status)) {
+      throw new DomainError(
+        ErrorCode.CONFLICT,
+        `Cannot ${method}: aggregate is in ${this.state.status} state (expected PENDING or SCHEDULED)`,
+        { id: this.state.id, status: this.state.status },
+      );
+    }
+  }
+
+  protected mutate(_event: DomainEvent): void {
+    void _event;
+  }
+}
