@@ -113,18 +113,25 @@ export class ProcessCryptoNewsMessageHandler {
         }
       }
 
-      // Step 3: Fetch + filter + match via FilteredCryptoNewsService
+      // Step 3: Fetch + filter + match via FilteredCryptoNewsService.
+      // Window of 10 (not 1): album siblings arrive together and the merge
+      // inside getMatchingMessages needs them co-present to attach all
+      // photos to one entry.
       const matchedMessages =
-        await this.filteredNewsService.getMatchingMessages(1, channelId);
+        await this.filteredNewsService.getMatchingMessages(10, channelId);
 
-      if (matchedMessages.length === 0) {
+      // Select THIS event's entry (never [0]-assumed: the window may hold
+      // other recent matches, and each event enqueues only its own).
+      const matched = matchedMessages.find(
+        (m) => m.channelId === channelId && m.messageId === messageId,
+      );
+
+      if (!matched) {
         this.logger.debug(
           `No keyword match for ${channelId}:${messageId}, skipping`,
         );
         return;
       }
-
-      const matched = matchedMessages[0];
 
       // Step 4: Enqueue if matched
       const enqueued = await this.enqueueUseCase.execute({
@@ -141,6 +148,7 @@ export class ProcessCryptoNewsMessageHandler {
             mimeType: m.mimeType || undefined,
             fileSize: m.fileSize || undefined,
           })),
+          groupedId: matched.groupedId ?? null,
           matchedKeywords: matched.matchedKeywords,
         },
       });
