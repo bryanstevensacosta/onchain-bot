@@ -2,6 +2,40 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 /**
+ * Single media attachment on an ingestion-service crypto-news message.
+ */
+export interface CryptoNewsMessageMedia {
+  readonly id: string;
+  readonly messageId: string; // UUID reference to parent
+  readonly index: number;
+  readonly type: 'photo' | 'video' | 'webpage';
+  /**
+   * Local file path on the ingestion-service host.
+   * ABSENT from HTTP responses: the server strips `filePath` and exposes
+   * a serving `url` instead (see `transformMessageForApi` in the
+   * ingestion-service crypto-news controller). Present only on internal
+   * shapes — always access defensively via `??` fallback.
+   */
+  readonly filePath?: string;
+  /**
+   * HTTP serving URL for the media item (e.g.
+   * `/ingestion-api/media/<channelId>/<messageId>/<index>`).
+   * This is the ONLY media locator the HTTP API exposes.
+   */
+  readonly url?: string;
+  readonly mimeType: string | null;
+  readonly fileSize: number | null;
+  readonly createdAt: string; // ISO timestamp
+  /**
+   * Telegram message id of the album sibling that owns this item.
+   * Set ONLY by backend album-merge (FilteredCryptoNewsService); absent on
+   * raw ingestion payloads (item belongs to its own message). Downstream
+   * file resolution uses this when present, else the entry's messageId.
+   */
+  readonly ownerMessageId?: number;
+}
+
+/**
  * DTO matching ingestion-service response shape
  * (apps/ingestion-service crypto-news entities)
  */
@@ -19,29 +53,7 @@ export interface CryptoNewsMessageDto {
   readonly linkPreviewSiteName: string | null;
   readonly messageEntities: string | null; // JSON string
   readonly groupedId: string | null;
-  readonly media: ReadonlyArray<{
-    readonly id: string;
-    readonly messageId: string; // UUID reference to parent
-    readonly index: number;
-    readonly type: 'photo' | 'video' | 'webpage';
-    /**
-     * Local file path on the ingestion-service host.
-     * ABSENT from HTTP responses: the server strips `filePath` and exposes
-     * a serving `url` instead (see `transformMessageForApi` in the
-     * ingestion-service crypto-news controller). Present only on internal
-     * shapes — always access defensively via `??` fallback.
-     */
-    readonly filePath?: string;
-    /**
-     * HTTP serving URL for the media item (e.g.
-     * `/ingestion-api/media/<channelId>/<messageId>/<index>`).
-     * This is the ONLY media locator the HTTP API exposes.
-     */
-    readonly url?: string;
-    readonly mimeType: string | null;
-    readonly fileSize: number | null;
-    readonly createdAt: string; // ISO timestamp
-  }>;
+  readonly media: ReadonlyArray<CryptoNewsMessageMedia>;
 }
 
 export interface CryptoNewsSourceDto {

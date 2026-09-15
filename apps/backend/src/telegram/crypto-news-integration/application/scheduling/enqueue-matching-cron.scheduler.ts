@@ -221,11 +221,17 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
       ReturnType<typeof this.filteredNewsService.getMatchingMessages>
     >[number],
   ): EnqueueMessageDto {
-    // Map media array (HTTP DTO shape → Publisher DTO shape)
+    // Map media array (HTTP DTO shape → Publisher DTO shape).
+    // ownerMessageId (set by album-merge) selects the sibling that owns
+    // each file for path resolution; defaults to this message.
     const media: EnqueueMessageMediaDto[] = dto.media.map((m) => ({
       index: m.index,
       type: this.mapMediaType(m.type),
-      filePath: this.resolveMediaFilePath(dto.channelId, dto.messageId, m),
+      filePath: this.resolveMediaFilePath(
+        dto.channelId,
+        m.ownerMessageId ?? dto.messageId,
+        m,
+      ),
       mimeType: m.mimeType ?? undefined,
       fileSize: m.fileSize ?? undefined,
     }));
@@ -238,6 +244,7 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
       publishedAt: new Date(dto.publishedAt), // ISO string → Date
       ingestedAt: new Date(dto.ingestedAt), // ISO string → Date
       media,
+      groupedId: dto.groupedId ?? null,
       matchedKeywords: dto.matchedKeywords, // Embed matched keywords
     };
   }

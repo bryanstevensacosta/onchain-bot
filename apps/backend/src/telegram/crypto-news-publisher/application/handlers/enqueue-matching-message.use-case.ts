@@ -99,7 +99,7 @@ export class EnqueueMatchingMessageUseCase {
       rawTitle: null, // DTO doesn't have title field
       imagePath: imagePaths.length > 0 ? imagePaths[0] : null, // First media for backward compatibility
       imagePaths,
-      groupedId: null, // DTO doesn't track groupedId
+      groupedId: message.groupedId ?? null,
       messageReceivedAt: new Date(),
       matchedKeywordIds: matchedKeywords.map((k) => k.id),
       keywordTemplateId: firstKeyword?.templateId ?? null,

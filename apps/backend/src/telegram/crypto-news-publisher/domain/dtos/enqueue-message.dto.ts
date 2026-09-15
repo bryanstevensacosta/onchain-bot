@@ -46,9 +46,17 @@ export interface EnqueueMessageDto {
 
   /**
    * Media attachments (photos, videos, documents)
-   * Empty array if no media.
+   * Empty array if no media. For albums, media of all grouped siblings
+   * merged in (messageId, index) order (see FilteredCryptoNewsService).
    */
   readonly media: EnqueueMessageMediaDto[];
+
+  /**
+   * Telegram album/media-group id shared with sibling messages, if any.
+   * Carried through so the queue entry records it (enables grouped
+   * deduplication); null for standalone messages.
+   */
+  readonly groupedId: string | null;
 
   /**
    * Keywords that matched this message (embedded at enqueue time)

@@ -26,6 +26,7 @@ describe('EnqueueMatchingMessageUseCase', () => {
     publishedAt: new Date('2024-01-01T12:00:00Z'),
     ingestedAt: new Date('2024-01-01T12:01:00Z'),
     media: [mockMedia],
+    groupedId: null,
     matchedKeywords: [],
   };
 
@@ -71,6 +72,18 @@ describe('EnqueueMatchingMessageUseCase', () => {
       ]);
       expect(callArg.groupedId).toBeNull();
       expect(callArg.status).toBe('PENDING');
+    });
+
+    it('should pass groupedId through to the queue entry (album tracking)', async () => {
+      queueRepo.enqueue.mockResolvedValue();
+
+      const result = await useCase.execute({
+        message: { ...mockMessage, groupedId: '99' },
+      });
+      void result;
+
+      const callArg = queueRepo.enqueue.mock.calls[0][0];
+      expect(callArg.groupedId).toBe('99');
     });
 
     it('should extract all imagePaths from media array', async () => {

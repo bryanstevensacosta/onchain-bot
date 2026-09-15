@@ -249,5 +249,26 @@ describe('ProcessCryptoNewsMessageHandler - Latency Measurement', () => {
         expect.stringContaining('Latency'),
       );
     });
+
+    it('should skip when the event message itself did not match (never enqueue [0]-assumed)', async () => {
+      // Arrange: window holds another recent match, but NOT this event (id 777)
+      filteredNewsService.getMatchingMessages.mockResolvedValue([
+        {
+          channelId: '-100123456789',
+          messageId: 42,
+          content: 'Other match',
+          publishedAt: Date.now(),
+          ingestedAt: new Date().toISOString(),
+          media: [],
+          matchedKeywords: ['test'],
+        },
+      ] as any);
+
+      // Act
+      await handler.handle({ ...mockRawMessage, messageId: 777 });
+
+      // Assert
+      expect(enqueueUseCase.execute).not.toHaveBeenCalled();
+    });
   });
 });

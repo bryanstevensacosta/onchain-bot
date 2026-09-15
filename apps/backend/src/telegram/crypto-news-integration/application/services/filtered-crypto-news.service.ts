@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CryptoNewsIngestionClient } from '../../infrastructure/http/crypto-news-ingestion-client.service';
-import type { CryptoNewsMessageDto } from '../../infrastructure/http/crypto-news-ingestion-client.service';
+import type {
+  CryptoNewsMessageDto,
+  CryptoNewsMessageMedia,
+} from '../../infrastructure/http/crypto-news-ingestion-client.service';
 import { ContentFilterService } from '../../../ingestion/crypto-news/application/services/content-filter.service';
 import type { FilterRule } from '../../../ingestion/crypto-news/application/services/content-filter.service';
 import { ChannelFilterRepository } from '../../../ingestion/crypto-news/application/ports/channel-filter.repository';
@@ -108,7 +111,7 @@ export class FilteredCryptoNewsService {
       ]);
 
       // Step 3: Filter and match each message
-      const filtered: FilteredCryptoNewsMessage[] = [];
+      const matched: FilteredCryptoNewsMessage[] = [];
 
       for (const raw of rawMessages) {
         const result = await this.filterAndMatch(
@@ -117,9 +120,13 @@ export class FilteredCryptoNewsService {
           blacklistPhrases,
         );
         if (result) {
-          filtered.push(result);
+          matched.push(result);
         }
       }
+
+      // Step 4: Merge album siblings + collapse multi-match groups so one
+      // Telegram album produces exactly one queue entry with all its photos.
+      const filtered = this.mergeAlbumGroups(matched, rawMessages);
 
       this.logger.log(
         `Filtered ${rawMessages.length} raw messages → ${filtered.length} matched (keywords + not blacklisted)`,
@@ -133,6 +140,70 @@ export class FilteredCryptoNewsService {
       );
       return [];
     }
+  }
+
+  /**
+   * Merge album siblings into matched entries and collapse groups.
+   *
+   * Telegram albums arrive as sibling messages sharing
+   * (channelId, groupedId); usually only the text-carrying sibling matches
+   * keywords, so without this step the publisher would post a single photo
+   * instead of the album. For every matched message with a groupedId, media
+   * is collected from ALL raw batch members with the same key (matched or
+   * not), ordered by (messageId, index) and reindexed 0..n, each item tagged
+   * with its owner's Telegram id for downstream file resolution.
+   * When several group members match, only the first is kept (same album =
+   * one post); the rest are skipped as covered.
+   *
+   * @param matched - Messages that passed filter + match
+   * @param rawBatch - Full raw batch they were matched from (siblings source)
+   * @returns Collapsed list, one entry per album group at most
+   */
+  public mergeAlbumGroups(
+    matched: readonly FilteredCryptoNewsMessage[],
+    rawBatch: readonly CryptoNewsMessageDto[],
+  ): FilteredCryptoNewsMessage[] {
+    const acceptedGroups = new Set<string>();
+    const out: FilteredCryptoNewsMessage[] = [];
+    for (const m of matched) {
+      const key = m.groupedId !== null ? `${m.channelId}:${m.groupedId}` : null;
+      if (key === null) {
+        out.push(m);
+        continue;
+      }
+      if (acceptedGroups.has(key)) {
+        this.logger.debug(
+          `Album ${key} already covered, skipping ${m.messageId}`,
+        );
+        continue;
+      }
+      acceptedGroups.add(key);
+      const siblings = rawBatch
+        .filter(
+          (r) => r.channelId === m.channelId && r.groupedId === m.groupedId,
+        )
+        .sort((a, b) => a.messageId - b.messageId);
+      const merged: CryptoNewsMessageMedia[] = [];
+      for (const sib of siblings) {
+        const items = [...sib.media].sort((a, b) => a.index - b.index);
+        for (const item of items) {
+          const locator = item.url ?? item.filePath;
+          if (
+            locator &&
+            merged.some((e) => (e.url ?? e.filePath) === locator)
+          ) {
+            continue;
+          }
+          merged.push({
+            ...item,
+            index: merged.length,
+            ownerMessageId: sib.messageId,
+          });
+        }
+      }
+      out.push({ ...m, media: merged });
+    }
+    return out;
   }
 
   /**
