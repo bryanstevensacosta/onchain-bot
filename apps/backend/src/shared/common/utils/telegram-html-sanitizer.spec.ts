@@ -91,8 +91,9 @@ describe('sanitizeTelegramHtml', () => {
       expect(sanitizeTelegramHtml('a < b')).toBe('a &lt; b');
     });
 
-    it('strips self-closing tags', () => {
-      expect(sanitizeTelegramHtml('<br/>')).toBe('');
+    it('strips self-closing tags that carry no break semantics', () => {
+      expect(sanitizeTelegramHtml('<hr/>')).toBe('');
+      expect(sanitizeTelegramHtml('<img src=x onerror=alert(1)/>')).toBe('');
     });
 
     it('strips nested pre inside another entity', () => {
@@ -160,6 +161,62 @@ describe('sanitizeTelegramHtml', () => {
 
     it('preserves emoji before entities', () => {
       expect(sanitizeTelegramHtml('🎉 <b>bold</b>')).toBe('🎉 <b>bold</b>');
+    });
+  });
+
+  describe('line breaks', () => {
+    it('converts br variants to a newline', () => {
+      expect(sanitizeTelegramHtml('a<br>b')).toBe('a\nb');
+      expect(sanitizeTelegramHtml('a<br/>b')).toBe('a\nb');
+      expect(sanitizeTelegramHtml('a<br />b')).toBe('a\nb');
+      expect(sanitizeTelegramHtml('a<BR>b')).toBe('a\nb');
+      expect(sanitizeTelegramHtml('a</br>b')).toBe('a\nb');
+    });
+
+    it('converts double br to a paragraph gap', () => {
+      expect(sanitizeTelegramHtml('a<br><br>b')).toBe('a\n\nb');
+    });
+
+    it('collapses stacked breaks into one paragraph gap', () => {
+      expect(sanitizeTelegramHtml('a<br><br><br>b')).toBe('a\n\nb');
+      expect(sanitizeTelegramHtml('a<br><br><br><br>b')).toBe('a\n\nb');
+    });
+
+    it('keeps existing newlines intact without doubling them', () => {
+      expect(sanitizeTelegramHtml('a\nb')).toBe('a\nb');
+      expect(sanitizeTelegramHtml('a\n\nb')).toBe('a\n\nb');
+      expect(sanitizeTelegramHtml('a\n\n\nb')).toBe('a\n\nb');
+    });
+
+    it('treats p blocks as paragraph separators without trailing gap', () => {
+      expect(sanitizeTelegramHtml('<p>hello</p>')).toBe('hello');
+      expect(sanitizeTelegramHtml('<p>a</p><p>b</p>')).toBe('a\n\nb');
+      expect(sanitizeTelegramHtml('a<p>b</p>')).toBe('a\n\nb');
+    });
+
+    it('preserves the Uniswap LLM response breaks with zero br left', () => {
+      const input =
+        '<b>⚠️ Solo el 19 % de los hooks de Uniswap V4 son seguros</b><br><br>' +
+        'Después de examinar más de <b>84 000</b> hooks, el panorama es preocupante.<br><br>' +
+        'Lo que esto implica:<br>' +
+        '• Los hooks con privilegios amplios concentran el riesgo.<br>' +
+        '• Estos pools necesitan auditorías continuas.<br>' +
+        '• Algunas operaciones quedan expuestas a reentradas.<br><br>' +
+        'La advertencia llega en plena expansión del ecosistema.<br><br>' +
+        '<a href="https://x.com/0xProject/status/2099578032960995502">Fuente</a>';
+      expect(input.match(/<br\s*\/?>/gi)?.length).toBe(11);
+      const output = sanitizeTelegramHtml(input);
+      expect(output).not.toContain('<br');
+      expect(output).toBe(
+        '<b>⚠️ Solo el 19 % de los hooks de Uniswap V4 son seguros</b>\n\n' +
+          'Después de examinar más de <b>84 000</b> hooks, el panorama es preocupante.\n\n' +
+          'Lo que esto implica:\n' +
+          '• Los hooks con privilegios amplios concentran el riesgo.\n' +
+          '• Estos pools necesitan auditorías continuas.\n' +
+          '• Algunas operaciones quedan expuestas a reentradas.\n\n' +
+          'La advertencia llega en plena expansión del ecosistema.\n\n' +
+          '<a href="https://x.com/0xProject/status/2099578032960995502">Fuente</a>',
+      );
     });
   });
 

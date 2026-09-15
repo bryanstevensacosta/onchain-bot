@@ -488,6 +488,55 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
       expect(payload.text).toBe('hola\n\ncomo estas');
     });
 
+    it('converts LLM <br> breaks into paragraph gaps (Uniswap case)', async () => {
+      mockSuccessResponse(42);
+      const adapter = new BotApiCryptoNewsPublisherAdapter(
+        makeConfigWith('TOKEN', '@channel'),
+      );
+      const input =
+        '<b>⚠️ Solo el 19 % de los hooks de Uniswap V4 son seguros</b><br><br>' +
+        'Después de examinar más de <b>84 000</b> hooks, el panorama es preocupante.<br><br>' +
+        'Lo que esto implica:<br>' +
+        '• Los hooks con privilegios amplios concentran el riesgo.<br>' +
+        '• Estos pools necesitan auditorías continuas.<br>' +
+        '• Algunas operaciones quedan expuestas a reentradas.<br><br>' +
+        'La advertencia llega en plena expansión del ecosistema.<br><br>' +
+        '<a href="https://x.com/0xProject/status/2099578032960995502">Fuente</a>';
+      await adapter.sendMessage('ignored', input, undefined, {
+        parseMode: 'HTML',
+      });
+
+      expect(mockedRequest).toHaveBeenCalledTimes(1);
+      const payload = JSON.parse(lastRequestBody()) as { text: string };
+      expect(payload.text).not.toContain('<br');
+      expect(payload.text).toBe(
+        '<b>⚠️ Solo el 19 % de los hooks de Uniswap V4 son seguros</b>\n\n' +
+          'Después de examinar más de <b>84 000</b> hooks, el panorama es preocupante.\n\n' +
+          'Lo que esto implica:\n\n' +
+          '• Los hooks con privilegios amplios concentran el riesgo.\n\n' +
+          '• Estos pools necesitan auditorías continuas.\n\n' +
+          '• Algunas operaciones quedan expuestas a reentradas.\n\n' +
+          'La advertencia llega en plena expansión del ecosistema.\n\n' +
+          '<a href="https://x.com/0xProject/status/2099578032960995502">Fuente</a>',
+      );
+    });
+
+    it('leaves input already carrying paragraph gaps untouched', async () => {
+      mockSuccessResponse(42);
+      const adapter = new BotApiCryptoNewsPublisherAdapter(
+        makeConfigWith('TOKEN', '@channel'),
+      );
+      await adapter.sendMessage(
+        'ignored',
+        '<b>title</b>\n\nbody paragraph',
+        undefined,
+        { parseMode: 'HTML' },
+      );
+
+      const payload = JSON.parse(lastRequestBody()) as { text: string };
+      expect(payload.text).toBe('<b>title</b>\n\nbody paragraph');
+    });
+
     it('never splits a bullet mid-sentence, single-spaced input', async () => {
       mockSuccessResponse(42);
       const uploadsRoot = await fs.mkdtemp(

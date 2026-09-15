@@ -22,6 +22,7 @@ export interface CryptoNewsPublisherConfigJson {
   prompt?: {
     model?: string;
     template?: string;
+    systemTemplate?: string;
   };
 }
 
@@ -38,6 +39,7 @@ export interface CryptoNewsPublisherConfig {
   readonly prompt: {
     readonly model: string;
     readonly template: string;
+    readonly systemTemplate: string;
   };
 }
 
@@ -46,6 +48,54 @@ const CONFIG_PATH = join(
   'config',
   'crypto-news-publisher.config.json',
 );
+
+/**
+ * Hardened seed prompts — single source of truth.
+ *
+ * Contexto operativo (SpendLogs 07d35fbb/chatcmpl-274): el system anterior
+ * pedía "line breaks" sin mencionar `\n` literal ni prohibir `<br>`; el
+ * modelo (gpt-oss:120b) razonó "use line breaks `<br>`", emitió 11×`<br>`
+ * con 0×`\n`, y el sanitizer los borró dejando el post pegado. Estos seeds
+ * son defensa en origen (la tarea hermana endurece el sanitizer a
+ * `<br>`→`\n` pre-sanitize): el modelo NO debe emitir `<br>` nunca.
+ *
+ * Exportados por separado para que `LlmConfigMigrationService` y el drift
+ * test los reutilicen sin duplicar texto (cero drift por construcción).
+ *
+ * Nota `renderPrompt` (`crypto-news-llm.adapter.ts`): soporta HOY los tres
+ * placeholders `{{title}}`, `{{original}}` y `{{hasImage}}` — por eso el
+ * user template los usa los tres (verificado, no inventado).
+ */
+export const DEFAULT_SYSTEM_TEMPLATE =
+  'Eres un editor de noticias crypto que escribe en español natural y profesional. ' +
+  'Responde SOLO con el cuerpo del post, sin explicaciones ni comillas envolventes.\n\n' +
+  'FORMATO DURO (obligatorio):\n\n' +
+  'Usa EXACTAMENTE `\\n\\n` (dos saltos de línea literales) entre bloques: título, párrafos, lista y cierre. ' +
+  'Cada `\\n\\n` debe ser un salto real, nunca texto escapado ni una etiqueta.\n\n' +
+  'PROHIBIDO `<br>`, `<p>`, `</p>`, Markdown (`**`, `#`, `-`, `[]()`), CSS o cualquier otra etiqueta HTML. ' +
+  'Si necesitas un salto, usa `\\n\\n`, jamás una etiqueta.\n\n' +
+  'Listas con `•` (un punto por línea); deja una línea en blanco entre cada bullet.\n\n' +
+  'Última línea: `Fuente: <url|nombre|omitir>` usando solo la fuente del original, sin inventar URLs ni medios.\n\n' +
+  'Máximo 500 caracteres sin contar los `\\n`.\n\n' +
+  'CONTENIDO:\n\n' +
+  'Usa SOLO información del contenido original; preserva números, nombres, tickers y fechas tal cual. ' +
+  'Sin hashtags. Emojis permitidos (uno relevante al inicio del título). ' +
+  'Solo HTML compatible con Telegram: `<b> <i> <u> <s> <code> <a>`.';
+
+export const DEFAULT_USER_TEMPLATE =
+  'Adapta la siguiente noticia crypto a un post original en español natural ' +
+  '(máx 500 chars sin contar saltos). Estructura OBLIGATORIA con línea en blanco entre bloques:\n\n' +
+  '<TÍTULO con emoji relevante al inicio>\n\n' +
+  '[bajada en 1-2 párrafos]\n\n' +
+  'Lo que esto implica:\n\n' +
+  '• [punto 1]\n\n' +
+  '• [punto 2]\n\n' +
+  '[cierre en 1 frase]\n\n' +
+  'Fuente: <url|nombre|omitir>\n\n' +
+  'PROHIBIDO publicar un solo párrafo. PROHIBIDO `<br>`.\n\n' +
+  'Título original: {{title}}\n\n' +
+  'El post incluye imagen adjunta: {{hasImage}}.\n\n' +
+  'Contenido original:\n{{original}}';
 
 /**
  * Hard-coded defaults. Exported so the bootstrap migration
@@ -66,11 +116,8 @@ export const DEFAULT_CONFIG: CryptoNewsPublisherConfig = Object.freeze({
   }),
   prompt: Object.freeze({
     model: 'opencode-zen/deepseek-v4-flash',
-    template:
-      'Reformula la siguiente noticia crypto en español profesional y conciso (<500 chars). El post incluye imagen adjunta: {{hasImage}}.\n\n' +
-      'Título: {{title}}\n\n' +
-      'Contenido original: {{original}}\n\n' +
-      'Genera un post atractivo con un emoji relevante al inicio.',
+    template: DEFAULT_USER_TEMPLATE,
+    systemTemplate: DEFAULT_SYSTEM_TEMPLATE,
   }),
 });
 
@@ -132,6 +179,9 @@ export function loadCryptoNewsPublisherConfig(): CryptoNewsPublisherConfig {
     prompt: {
       model: fileConfig.prompt?.model ?? DEFAULT_CONFIG.prompt.model,
       template: fileConfig.prompt?.template ?? DEFAULT_CONFIG.prompt.template,
+      systemTemplate:
+        fileConfig.prompt?.systemTemplate ??
+        DEFAULT_CONFIG.prompt.systemTemplate,
     },
   };
 }
