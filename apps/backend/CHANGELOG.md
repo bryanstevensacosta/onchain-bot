@@ -6,6 +6,17 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 (none yet)
 
+## [1.1.0] - 2026-09-15
+
+### Added
+- Continuation messages thread as replies to the primary post. (PR #219)
+- Whole-bullet splits with double line breaks for readability; ellipsis only on real mid-block cuts. (PR #219)
+- Telegram albums publish complete via `sendMediaGroup` with sibling-photo merge instead of a single photo. (PR #222)
+
+### Fixed
+- Long photo/video captions (>1024) and texts (>4096) no longer silently truncated: overflow follows as continuation message(s). (PR #219)
+- Album merge keeps original per-message media indexes so file resolution hits `{messageId}_{index}` files. (PR #223)
+
 ## [1.0.1] - 2026-09-12
 
 ### Fixed
