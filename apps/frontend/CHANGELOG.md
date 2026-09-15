@@ -6,6 +6,17 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 (none yet)
 
+## [1.0.2] - 2026-09-15
+
+### Added
+- Browser tab title per environment (Dev / Stage / Prod Onchain Bot). (PR #217)
+
+### Removed
+- Matching health badge from the Queue section (Start/Stop buttons already convey state). (PR #217)
+
+### Fixed
+- Staging bundle no longer identifies as prod (`VITE_APP_ENV` baked at build). (PR #217)
+
 ## [1.0.1] - 2026-09-12
 
 ### Added
