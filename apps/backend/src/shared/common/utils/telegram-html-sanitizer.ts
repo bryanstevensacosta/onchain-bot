@@ -13,6 +13,11 @@
  * because the crypto-news publisher adapter (a different BC from
  * crypto-news-ads) must be able to import it without crossing BC
  * boundaries.
+ *
+ * Line breaks: Telegram HTML has no `<br>` / `<p>` tags, but LLMs emit
+ * them. They are converted (`<br>` → `\n`, `<p>` block → `\n\n`
+ * separator) instead of stripped, so the publisher's `normalizeBreaks`
+ * can expand singles into paragraph gaps.
  */
 
 /** Telegram HTML allowlist (core.telegram.org/bots/api — HTML parse mode). */
@@ -205,7 +210,29 @@ export function sanitizeTelegramHtml(input: string): string {
 
     flushText();
 
-    if (parsed.closing) {
+    if (parsed.name === 'br') {
+      // Telegram HTML has no `<br>`, but LLMs emit it for line breaks.
+      // Convert to `\n` (instead of stripping) so the publisher's
+      // `normalizeBreaks` can expand singles into paragraph gaps.
+      // Covers `<br>`, `<br/>`, `<br />`, `<BR>` (parseTag lowercases
+      // the name; attributes are ignored). Opening, closing and
+      // self-closing forms all mean "break" — no stack tracking needed.
+      output += '\n';
+    } else if (parsed.name === 'p') {
+      // `<p>...</p>` paragraph block (also not a Telegram HTML tag).
+      // The OPENING tag is the separator: emit `\n\n` unless at the very
+      // start or already separated. The CLOSING tag is stripped so posts
+      // never end with a trailing gap. No stack push (`p` is not kept).
+      if (!parsed.closing) {
+        if (output.length > 0) {
+          if (!output.endsWith('\n')) {
+            output += '\n\n';
+          } else if (!output.endsWith('\n\n')) {
+            output += '\n';
+          }
+        }
+      }
+    } else if (parsed.closing) {
       if (stack[stack.length - 1] === STRIPPED_SENTINEL) {
         // The matching opening tag was stripped — strip this too.
         stack.pop();
@@ -242,5 +269,8 @@ export function sanitizeTelegramHtml(input: string): string {
   }
 
   flushText();
-  return output;
+  // Collapse stacked breaks (`<p><br><br>`, `<br><br><br>`) into one
+  // paragraph gap. Singles are kept: the publisher's `normalizeBreaks`
+  // expands them downstream.
+  return output.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n');
 }
