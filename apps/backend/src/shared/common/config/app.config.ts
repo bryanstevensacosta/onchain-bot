@@ -167,6 +167,13 @@ export interface AppConfig extends LlmConfigShape {
     pollingIntervalMinutes: number;
   };
 
+  threads: {
+    accessToken: string;
+    userId: string;
+    pollingIntervalMinutes: number;
+    dailyCap: number;
+  };
+
   publishing: {
     telegram: {
       useRealMtproto: boolean;
@@ -391,6 +398,29 @@ export const appConfig = registerAs(
         // Validate between 1 and 60 minutes
         if (!Number.isFinite(parsed) || parsed < 1 || parsed > 60) {
           return 5; // Default to 5 if invalid
+        }
+        return parsed;
+      })(),
+    },
+
+    threads: {
+      accessToken: process.env.THREADS_ACCESS_TOKEN ?? '',
+      userId: process.env.THREADS_USER_ID ?? '',
+      pollingIntervalMinutes: (() => {
+        const raw = process.env.THREADS_POLLING_INTERVAL_MINUTES;
+        const parsed = raw ? parseInt(raw, 10) : 5;
+        // Validate between 1 and 60 minutes
+        if (!Number.isFinite(parsed) || parsed < 1 || parsed > 60) {
+          return 5; // Default to 5 if invalid
+        }
+        return parsed;
+      })(),
+      dailyCap: (() => {
+        const raw = process.env.THREADS_DAILY_CAP;
+        const parsed = raw ? parseInt(raw, 10) : 60;
+        // Validate between 1 and 250 (Meta allows 250 posts/24h)
+        if (!Number.isFinite(parsed) || parsed < 1 || parsed > 250) {
+          return 60; // Default to 60 if invalid
         }
         return parsed;
       })(),

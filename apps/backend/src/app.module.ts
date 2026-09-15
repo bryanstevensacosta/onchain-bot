@@ -28,6 +28,8 @@ import { ChainDexterBotModule } from 'telegram/chain-dexter-bot/chain-dexter-bot
 import { CryptoNewsPublisherModule } from 'telegram/crypto-news-publisher/crypto-news-publisher.module';
 import { CryptoNewsAdsModule } from 'telegram/crypto-news-ads/crypto-news-ads.module';
 import { CryptoNewsIntegrationModule } from 'telegram/crypto-news-integration/crypto-news-integration.module';
+import { ThreadsPublisherModule } from 'threads/publisher/threads-publisher.module';
+import { ThreadsIntegrationModule } from 'threads/integration/threads-integration.module';
 import { CallTrackingModule } from 'token/call-tracking/call-tracking.module';
 import { AchievementModule } from 'token/achievement/achievement.module';
 import { ReputationModule } from 'kol/reputation/reputation.module';
@@ -154,6 +156,8 @@ import { DevModule } from './dev/dev.module';
     ChainDexterBotModule,
     CryptoNewsPublisherModule,
     CryptoNewsIntegrationModule,
+    ThreadsPublisherModule,
+    ThreadsIntegrationModule,
     CryptoNewsAdsModule,
     CallTrackingModule,
     AchievementModule,
