@@ -6,11 +6,13 @@ GO — only a human after the tester post is verified live.
 
 ## 1. Tester post (F4 human opt-in)
 
-- [ ] Tester post id: `________________________________`
-- [ ] Tester post url: `________________________________`
-- [ ] Post visible on the tester account timeline (human eyeball check)
+- [x] Tester post id: `18410673550086315` (container `17983433337099328`)
+- [x] Publish flow: `CREATED` → `FINISHED` on poll attempt 1/10 (~3s)
+- [x] Post visible on the tester account timeline (human eyeball check 2026-09-15;
+      note: text went out literally as `spike-verify <ts>` — placeholder pasted
+      verbatim, cosmetic only, flow unaffected)
 - [ ] Teardown done: tester post deleted + `apps/backend/.env.test` removed
-      + `git checkout -- <env file if touched>`
+      + `git checkout -- <env file if touched>` (PENDING operator)
 
 ## 2. Quota
 
@@ -42,10 +44,10 @@ GO — only a human after the tester post is verified live.
 - NO-GO reason (if blocked, record here and do NOT enable):
   `______________________________________________________________`
 
-Operator: `________________` Date: `____________` Decision: GO / NO-GO
+Operator: `bryan` Date: `2026-09-15` Decision: GO
 
 ## go-no-go record
 
 Keep every go-no-go assessment appended below (one line per round):
 
-- <date> <operator> go-no-go: <GO|NO-GO> — <one-line reason>
+- 2026-09-15 bryan go-no-go: GO — live TEXT post `18410673550086315` FINISHED on poll 1/10, visible on tester timeline (quota not re-read this round; teardown pending operator)
