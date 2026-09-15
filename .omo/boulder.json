@@ -1,1 +1,179 @@
-{"active_work_id": "db-separation", "schema_version": 2, "works": {"db-separation": {"active_plan": ".omo/plans/db-separation.md", "plan_name": "db-separation", "session_ids": ["codex:opencode:ses_f8138e88cffeqUkUS3Vr875FiO"], "status": "active", "worktree_path": null}, "url-divergence-penalty-signal": {"active_plan": ".omo/plans/url-divergence-penalty-signal.md", "plan_name": "url-divergence-penalty-signal", "session_ids": ["codex:current"], "status": "completed", "worktree_path": null}}}
+{
+  "active_work_id": "threads-publisher-a4eb96d4",
+  "schema_version": 2,
+  "works": {
+    "undefined": {
+      "active_plan": ".omo/plans/url-divergence-penalty-signal.md",
+      "plan_name": "url-divergence-penalty-signal",
+      "session_ids": [
+        "codex:current"
+      ],
+      "status": "completed",
+      "worktree_path": null,
+      "session_origins": {}
+    },
+    "threads-publisher-a4eb96d4": {
+      "work_id": "threads-publisher-a4eb96d4",
+      "active_plan": "/data/repos/onchain-bot/.omo/plans/threads-publisher.md",
+      "plan_name": "threads-publisher",
+      "status": "completed",
+      "started_at": "2026-09-15T10:43:55.195Z",
+      "updated_at": "2026-09-15T12:34:49.940Z",
+      "session_ids": [
+        "opencode:ses_f5b5575d3ffe2trJ622o0Pm5Py",
+        "opencode:ses_f5b4dbd9cffeIo1azAWe4rIXDt"
+      ],
+      "session_origins": {
+        "opencode:ses_f5b5575d3ffe2trJ622o0Pm5Py": "direct",
+        "opencode:ses_f5b4dbd9cffeIo1azAWe4rIXDt": "direct"
+      },
+      "agent": "atlas",
+      "task_sessions": {
+        "todo:1": {
+          "task_key": "todo:1",
+          "task_label": "1",
+          "task_title": "Scaffold src/threads + alias + 8 entidades + PERSISTED_ENTITIES(47) + migración",
+          "session_id": "opencode:ses_f5b4c4d56ffe6baEmCBxLE9IOQ",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "updated_at": "2026-09-15T11:17:01.824Z",
+          "started_at": "2026-09-15T11:15:22.377Z",
+          "status": "completed",
+          "ended_at": "2026-09-15T11:17:01.824Z",
+          "elapsed_ms": 99447
+        },
+        "todo:2": {
+          "task_key": "todo:2",
+          "task_label": "2",
+          "task_title": "Publisher application core (enqueue + process-next + schedulers + throttle)",
+          "session_id": "opencode:ses_f5b36acf9ffeoLYQrOwql4rKBq",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "updated_at": "2026-09-15T11:24:24.503Z",
+          "started_at": "2026-09-15T11:23:20.279Z",
+          "status": "completed",
+          "ended_at": "2026-09-15T11:24:24.503Z",
+          "elapsed_ms": 64224
+        },
+        "todo:4": {
+          "task_key": "todo:4",
+          "task_label": "4",
+          "task_title": "Publisher HTTP (5 controllers + guard prod + route-list test)",
+          "session_id": "opencode:ses_f5b2fea99ffeRxyIHu8qRHqQSB",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-09-15T11:36:15.935Z",
+          "status": "completed",
+          "updated_at": "2026-09-15T11:43:46.595Z",
+          "ended_at": "2026-09-15T11:43:46.595Z",
+          "elapsed_ms": 450660
+        },
+        "todo:7": {
+          "task_key": "todo:7",
+          "task_label": "7",
+          "task_title": "Frontend data (entities/threads + features/threads-publisher api/model)",
+          "session_id": "opencode:ses_f5b2fea99ffeRxyIHu8qRHqQSB",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-09-15T11:56:59.504Z",
+          "status": "completed",
+          "updated_at": "2026-09-15T12:09:11.949Z",
+          "ended_at": "2026-09-15T12:09:11.949Z",
+          "elapsed_ms": 732445
+        },
+        "final-wave:f1": {
+          "task_key": "final-wave:f1",
+          "task_label": "F1",
+          "task_title": "Plan compliance audit — 8/8 todos `- [x]`; `git status --porcelain | grep -Ev '^(M|A|\\?\\?) (apps/backend/src/threads/|apps/backend/src/shared/common/(persistence/entities|config/app.config|config/config-validator)\\.ts|apps/frontend/src/(entities|features)/threads[^/]*|apps/frontend/src/pages/threads/|docs/threads-|\\.env.*template|apps/frontend/(vite.config.ts|nginx.conf)|apps/backend/tsconfig.json)'` → vacío (fuera de esto: solo harness `.omo/`); `git diff --stat -- apps/backend/src/telegram apps/ingestion-service` → vacío; `cd apps/backend && npm run migration:show` sin pendientes threads; `cd apps/backend && grep -n 'EXPECTED_ENTITY_COUNT = 47' src/shared/common/persistence/entities.ts` exit 0.",
+          "session_id": "opencode:ses_f5b068ce1ffeOsWmpAjHjn215v",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-09-15T12:13:10.545Z",
+          "status": "completed",
+          "updated_at": "2026-09-15T12:33:27.651Z",
+          "ended_at": "2026-09-15T12:33:27.651Z",
+          "elapsed_ms": 1217106
+        }
+      },
+      "ended_at": "2026-09-15T12:34:49.940Z",
+      "elapsed_ms": 6654745
+    }
+  },
+  "session_ids": [
+    "opencode:ses_f5b5575d3ffe2trJ622o0Pm5Py",
+    "opencode:ses_f5b4dbd9cffeIo1azAWe4rIXDt"
+  ],
+  "session_origins": {
+    "opencode:ses_f5b5575d3ffe2trJ622o0Pm5Py": "direct",
+    "opencode:ses_f5b4dbd9cffeIo1azAWe4rIXDt": "direct"
+  },
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "Scaffold src/threads + alias + 8 entidades + PERSISTED_ENTITIES(47) + migración",
+      "session_id": "opencode:ses_f5b4c4d56ffe6baEmCBxLE9IOQ",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-09-15T11:17:01.824Z",
+      "started_at": "2026-09-15T11:15:22.377Z",
+      "status": "completed",
+      "ended_at": "2026-09-15T11:17:01.824Z",
+      "elapsed_ms": 99447
+    },
+    "todo:2": {
+      "task_key": "todo:2",
+      "task_label": "2",
+      "task_title": "Publisher application core (enqueue + process-next + schedulers + throttle)",
+      "session_id": "opencode:ses_f5b36acf9ffeoLYQrOwql4rKBq",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-09-15T11:24:24.503Z",
+      "started_at": "2026-09-15T11:23:20.279Z",
+      "status": "completed",
+      "ended_at": "2026-09-15T11:24:24.503Z",
+      "elapsed_ms": 64224
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "Publisher HTTP (5 controllers + guard prod + route-list test)",
+      "session_id": "opencode:ses_f5b2fea99ffeRxyIHu8qRHqQSB",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-09-15T11:36:15.935Z",
+      "status": "completed",
+      "updated_at": "2026-09-15T11:43:46.595Z",
+      "ended_at": "2026-09-15T11:43:46.595Z",
+      "elapsed_ms": 450660
+    },
+    "todo:7": {
+      "task_key": "todo:7",
+      "task_label": "7",
+      "task_title": "Frontend data (entities/threads + features/threads-publisher api/model)",
+      "session_id": "opencode:ses_f5b2fea99ffeRxyIHu8qRHqQSB",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-09-15T11:56:59.504Z",
+      "status": "completed",
+      "updated_at": "2026-09-15T12:09:11.949Z",
+      "ended_at": "2026-09-15T12:09:11.949Z",
+      "elapsed_ms": 732445
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "Plan compliance audit — 8/8 todos `- [x]`; `git status --porcelain | grep -Ev '^(M|A|\\?\\?) (apps/backend/src/threads/|apps/backend/src/shared/common/(persistence/entities|config/app.config|config/config-validator)\\.ts|apps/frontend/src/(entities|features)/threads[^/]*|apps/frontend/src/pages/threads/|docs/threads-|\\.env.*template|apps/frontend/(vite.config.ts|nginx.conf)|apps/backend/tsconfig.json)'` → vacío (fuera de esto: solo harness `.omo/`); `git diff --stat -- apps/backend/src/telegram apps/ingestion-service` → vacío; `cd apps/backend && npm run migration:show` sin pendientes threads; `cd apps/backend && grep -n 'EXPECTED_ENTITY_COUNT = 47' src/shared/common/persistence/entities.ts` exit 0.",
+      "session_id": "opencode:ses_f5b068ce1ffeOsWmpAjHjn215v",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-09-15T12:13:10.545Z",
+      "status": "completed",
+      "updated_at": "2026-09-15T12:33:27.651Z",
+      "ended_at": "2026-09-15T12:33:27.651Z",
+      "elapsed_ms": 1217106
+    }
+  },
+  "active_plan": "/data/repos/onchain-bot/.omo/plans/threads-publisher.md",
+  "plan_name": "threads-publisher",
+  "status": "completed",
+  "started_at": "2026-09-15T10:43:55.195Z",
+  "updated_at": "2026-09-15T12:34:49.940Z",
+  "agent": "atlas",
+  "ended_at": "2026-09-15T12:34:49.940Z",
+  "elapsed_ms": 6654745
+}
