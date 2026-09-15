@@ -130,6 +130,7 @@
       "^telegram/sessions$": "<rootDir>/../../node_modules/telegram/sessions/index",
       "^telegram/extensions/Logger$": "<rootDir>/../../node_modules/telegram/extensions/Logger",
       "^telegram/(.*)$": "<rootDir>/src/telegram/$1",
+      "^threads/(.*)$": "<rootDir>/src/threads/$1",
       "^shared/(.*)$": "<rootDir>/src/shared/$1",
       "^discovery/(.*)$": "<rootDir>/src/discovery/$1",
       "^chain/(.*)$": "<rootDir>/src/chain/$1",

@@ -15,6 +15,7 @@ register({
     'chain/*': ['src/chain/*'],
     'token/*': ['src/token/*'],
     'telegram/*': ['src/telegram/*'],
+    'threads/*': ['src/threads/*'],
     'kol/*': ['src/kol/*'],
     'settings/*': ['src/settings/*'],
     'dashboard/*': ['src/dashboard/*'],
