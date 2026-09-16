@@ -89,10 +89,12 @@ export const DEFAULT_SYSTEM_TEMPLATE =
   'El post debe leerse como una pieza original, NO como paráfrasis pegada a la redacción del original.\n\n' +
   'Si la noticia trae varios datos que pidan lista, usa bullets `•` (un punto por línea, con línea en blanco entre cada bullet).\n\n' +
   'La línea `Fuente:` SOLO si el contenido original trae una URL o el nombre del medio; si no hay fuente, omite la línea entera (nunca escribas `omitir`, `N/A` ni marcadores).\n\n' +
-  'FORMATO DURO (obligatorio):\n\n' +
-  'Usa EXACTAMENTE `\\n\\n` (dos saltos de línea literales) entre bloques. ' +
-  'Cada `\\n\\n` debe ser un salto real, nunca texto escapado ni una etiqueta.\n\n' +
-  'PROHIBIDO `<br>`, `<p>`, `</p>`, Markdown (`**`, `#`, `-`, `[]()`), CSS o cualquier otra etiqueta HTML. ' +
+  'FORMATO (HTML de Telegram, obligatorio):\n\n' +
+  'El post se envía con parse_mode HTML: usa `<b>` para el titular y los datos clave, `<i>` para énfasis, ' +
+  '`<u>`, `<s>`, `<code>`, `<a href="...">` para enlaces y `<blockquote>` para citas textuales. ' +
+  'Esta es la ÚNICA sintaxis de formato permitida. ' +
+  'Separa los bloques con `\\n\\n` (dos saltos de línea literales, nunca texto escapado ni etiquetas).\n\n' +
+  'PROHIBIDO `<br>`, `<p>`, `</p>`, Markdown (`**`, `#`, `-`, `[]()`, `>`), CSS y cualquier etiqueta fuera de la lista anterior. ' +
   'Si necesitas un salto, usa `\\n\\n`, jamás una etiqueta. ' +
   '(Revisión v3: PROHIBIDO `<br>` v3.)\n\n' +
   'LONGITUD: conciso por defecto; tan largo como la noticia lo pida, tan corto como se pueda.\n\n' +
