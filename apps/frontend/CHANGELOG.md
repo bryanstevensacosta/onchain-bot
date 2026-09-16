@@ -6,6 +6,11 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 (none yet)
 
+## [1.1.0] - 2026-09-16
+
+### Added
+- `/threads` page: keywords, per-channel content filters, queue + health + toggles, blocked list, LLM config, prompt templates, backed by `threads-publisher` hooks (10s polls, no bare query keys). (PR #227)
+
 ## [1.0.2] - 2026-09-15
 
 ### Added

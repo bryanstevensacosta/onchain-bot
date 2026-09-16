@@ -6,6 +6,14 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 (none yet)
 
+## [1.2.0] - 2026-09-16
+
+### Added
+- Threads publisher BC: 8 `threads_*` tables, enqueue/drain core (cap 100, dailyCap 60, drain every 10 min, 24h TTL), Threads Graph API adapter (2-step post + poll, 500-char guard, media skipped), 5 management controllers with prod LLM guard, integration matching over ingestion SSE with zero `telegram/` changes. (PR #227)
+
+### Fixed
+- Preserve line breaks from LLM `<br>` output and harden prompt. (PR #225)
+
 ## [1.1.0] - 2026-09-15
 
 ### Added
