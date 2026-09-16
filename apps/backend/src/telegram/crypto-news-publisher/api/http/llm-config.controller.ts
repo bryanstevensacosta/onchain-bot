@@ -19,9 +19,14 @@ import { PromptTemplateRepository } from 'telegram/crypto-news-publisher/applica
 import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 import { KeywordRepository } from 'telegram/crypto-news-publisher/application/ports/keyword.repository';
 import { GetLlmModelsUseCase } from 'telegram/crypto-news-publisher/application/handlers/get-llm-models.use-case';
+import {
+  PreviewPromptUseCase,
+  type PreviewPromptResult,
+} from 'telegram/crypto-news-publisher/application/handlers/preview-prompt.use-case';
 import { TelegramPublisherPort } from 'telegram/shared';
 import {
   CreatePromptTemplateDto,
+  PreviewPromptDto,
   UpdatePromptTemplateDto,
   UpdateLlmConfigDto,
 } from 'telegram/crypto-news-publisher/api/input/llm-config.input';
@@ -51,6 +56,7 @@ export type {
  *  - DELETE /templates/:id                         Remove (409 if in use)
  *  - GET    /config                                Current LlmConfig
  *  - PATCH  /config                                Partial update
+ *  - POST   /preview                               Dry-run prompt preview (render or one LLM call; never persists)
  *
  * All request bodies are validated by `class-validator` (see
  * `../input/llm-config.input.ts`); the global `ValidationPipe`
@@ -78,6 +84,7 @@ export class LlmConfigController {
     private readonly keywordRepo: KeywordRepository,
     private readonly getLlmModels: GetLlmModelsUseCase,
     private readonly publisher: TelegramPublisherPort,
+    private readonly previewPromptUseCase: PreviewPromptUseCase,
   ) {}
 
   @Get('models')
@@ -191,6 +198,20 @@ export class LlmConfigController {
     await this.templateRepo.delete(id);
   }
 
+  @Post('preview')
+  public async previewPrompt(
+    @Body() dto: PreviewPromptDto,
+  ): Promise<PreviewPromptResult> {
+    return this.previewPromptUseCase.execute({
+      templateId: dto.templateId,
+      draft: dto.draft,
+      rawTitle: dto.rawTitle ?? null,
+      rawContent: dto.rawContent,
+      hasImage: dto.hasImage,
+      generate: dto.generate,
+    });
+  }
+
   @Get('config')
   public async getConfig(): Promise<LlmConfigView> {
     const cfg = await this.llmConfigRepo.load();
@@ -227,21 +248,23 @@ export class LlmConfigController {
       });
     }
 
-    // Validate target channel via Bot API before persisting
+    // Validate target channel via Bot API before persisting. Outside
+    // production (dummy tokens/channels) any API failure only warns —
+    // enforcing it would make the config unsavable in dev/staging.
     if (
       dto.targetChannel !== undefined &&
       dto.targetChannel.trim().length > 0
     ) {
       const result = await this.publisher.getChat(dto.targetChannel);
-      if (!result.ok && result.error !== 'unreachable') {
+      const enforce = process.env.NODE_ENV === 'production';
+      if (!result.ok && (result.error === 'unreachable' || !enforce)) {
+        this.logger.warn(
+          `targetChannel validation: ${result.error} for ${dto.targetChannel}, saving anyway`,
+        );
+      } else if (!result.ok) {
         throw new BadRequestException({
           error: `targetChannel validation failed: ${result.error}`,
         });
-      }
-      if (!result.ok) {
-        this.logger.warn(
-          `targetChannel validation: Bot API unreachable for ${dto.targetChannel}, saving anyway`,
-        );
       }
     }
     const cfg = await this.llmConfigRepo.load();
