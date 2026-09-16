@@ -6,6 +6,7 @@ import { TokenDetailPage } from '@/pages/token-detail';
 import { KolsPage } from '@/pages/kols';
 import { OpsPage } from '@/pages/ops';
 import { CryptoNewsPage } from '@/pages/crypto-news';
+import { PlaygroundPage } from '@/pages/playground';
 import { ThreadsPage } from '@/pages/threads';
 
 export const router = createBrowserRouter([
@@ -18,6 +19,7 @@ export const router = createBrowserRouter([
       { path: 'tokens/:chain/:address', element: <TokenDetailPage /> },
       { path: 'kols', element: <KolsPage /> },
       { path: 'crypto-news', element: <CryptoNewsPage /> },
+      { path: 'playground', element: <PlaygroundPage /> },
       { path: 'threads', element: <ThreadsPage /> },
       { path: 'ops', element: <OpsPage /> },
     ],

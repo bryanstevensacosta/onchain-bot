@@ -143,4 +143,14 @@ export const ENDPOINTS = {
     config: '/ingestion/config',
     health: '/ingestion/health',
   },
+  cryptoNewsPublisher: {
+    llm: {
+      models: '/crypto-news-publisher/llm/models',
+      config: '/crypto-news-publisher/llm/config',
+      templates: '/crypto-news-publisher/llm/templates',
+      template: (id: string) =>
+        `/crypto-news-publisher/llm/templates/${encodeURIComponent(id)}`,
+      preview: '/crypto-news-publisher/llm/preview',
+    },
+  },
 } as const;
