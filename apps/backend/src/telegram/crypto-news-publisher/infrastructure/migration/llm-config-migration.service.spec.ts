@@ -321,7 +321,7 @@ describe('LlmConfigMigrationService.seedIfEmpty', () => {
       prompt: {
         model: 'custom-model',
         template: 'CUSTOM TEMPLATE {{original}}',
-        systemTemplate: 'CUSTOM SYSTEM PROHIBIDO `<br>` \\n\\n body',
+        systemTemplate: 'CUSTOM SYSTEM PROHIBIDO `<br>` v3 \\n\\n body',
       },
     });
 
@@ -329,12 +329,60 @@ describe('LlmConfigMigrationService.seedIfEmpty', () => {
     expect(result.templateCount).toBe(1);
     expect(stale.promptText).toBe('CUSTOM TEMPLATE {{original}}');
     expect(stale.systemPromptText).toBe(
-      'CUSTOM SYSTEM PROHIBIDO `<br>` \\n\\n body',
+      'CUSTOM SYSTEM PROHIBIDO `<br>` v3 \\n\\n body',
     );
     expect(stale.maxTokens).toBe(2000);
     expect(stale.model).toBe('operator-tuned-model');
     expect(stale.temperature).toBe(0.3);
     expect(stale.reasoningEffort).toBe('max');
+    expect(ctx.savedCfgs).toHaveLength(0);
+  });
+
+  it('refresh: v2-hardened row (old marker, no v3 suffix) is rewritten once', async () => {
+    const existingRow = new LlmConfigEntity();
+    existingRow.id = 1;
+    existingRow.defaultTemplateId = 'v2-template-id';
+    existingRow.targetChannel = 'preset';
+    existingRow.llmEnabled = true;
+    existingRow.publishingEnabled = true;
+    existingRow.dailyCap = 36;
+    existingRow.dailyResetUtcHour = 4;
+    existingRow.randomDelayMinMs = 180_000;
+    existingRow.randomDelayMaxMs = 900_000;
+    existingRow.llmMaxAttempts = 3;
+    existingRow.updatedAt = new Date('2026-09-15T00:00:00Z');
+
+    const v2 = new PromptTemplateEntity();
+    v2.id = 'v2-template-id';
+    v2.name = 'Default';
+    v2.promptText = 'v2 user template';
+    // v2 system carries the old marker WITHOUT the ` v3` suffix.
+    v2.systemPromptText =
+      'v2 system with PROHIBIDO `<br>`, `<p>`, `</p>` but no v3 suffix';
+    v2.model = 'operator-tuned-model';
+    v2.maxTokens = 2000;
+    v2.temperature = 0.3;
+    v2.reasoningEffort = 'max';
+
+    expect(v2.systemPromptText).not.toContain(
+      LlmConfigMigrationService.HARDENED_SYSTEM_MARKER,
+    );
+
+    const ctx = setupContext(existingRow, [v2]);
+    const svc = makeService(ctx);
+
+    const result = await svc.seedIfEmpty();
+
+    expect(result.seeded).toBe(false);
+    expect(result.templateCount).toBe(1);
+    expect(v2.promptText).toBe(DEFAULT_CONFIG.prompt.template);
+    expect(v2.systemPromptText).toBe(DEFAULT_CONFIG.prompt.systemTemplate);
+    expect(v2.systemPromptText).toContain(
+      LlmConfigMigrationService.HARDENED_SYSTEM_MARKER,
+    );
+    expect(v2.model).toBe('operator-tuned-model');
+    expect(v2.temperature).toBe(0.3);
+    expect(v2.reasoningEffort).toBe('max');
     expect(ctx.savedCfgs).toHaveLength(0);
   });
 
