@@ -309,6 +309,10 @@ describe('LlmConfigMigrationService.seedIfEmpty', () => {
     stale.name = 'Default';
     stale.promptText = 'old user template';
     stale.systemPromptText = '';
+    stale.model = 'operator-tuned-model';
+    stale.maxTokens = 1000;
+    stale.temperature = 0.3;
+    stale.reasoningEffort = 'max';
 
     const ctx = setupContext(existingRow, [stale]);
     const svc = makeService(ctx);
@@ -327,6 +331,10 @@ describe('LlmConfigMigrationService.seedIfEmpty', () => {
     expect(stale.systemPromptText).toBe(
       'CUSTOM SYSTEM PROHIBIDO `<br>` \\n\\n body',
     );
+    expect(stale.maxTokens).toBe(2000);
+    expect(stale.model).toBe('operator-tuned-model');
+    expect(stale.temperature).toBe(0.3);
+    expect(stale.reasoningEffort).toBe('max');
     expect(ctx.savedCfgs).toHaveLength(0);
   });
 
@@ -349,6 +357,10 @@ describe('LlmConfigMigrationService.seedIfEmpty', () => {
     hardened.name = 'Default';
     hardened.promptText = DEFAULT_CONFIG.prompt.template;
     hardened.systemPromptText = DEFAULT_CONFIG.prompt.systemTemplate;
+    hardened.model = 'operator-model';
+    hardened.maxTokens = 2000;
+    hardened.temperature = 0.3;
+    hardened.reasoningEffort = 'max';
 
     const ctx = setupContext(existingRow, [hardened]);
     const svc = makeService(ctx);
@@ -360,6 +372,134 @@ describe('LlmConfigMigrationService.seedIfEmpty', () => {
     expect(ctx.savedTpls).toHaveLength(0);
     expect(ctx.savedCfgs).toHaveLength(0);
     expect(hardened.promptText).toBe(DEFAULT_CONFIG.prompt.template);
+  });
+
+  it('refresh: hardened text but maxTokens 1000 still converges to 2000', async () => {
+    const existingRow = new LlmConfigEntity();
+    existingRow.id = 1;
+    existingRow.defaultTemplateId = 'converge-id';
+    existingRow.targetChannel = 'preset';
+    existingRow.llmEnabled = true;
+    existingRow.publishingEnabled = true;
+    existingRow.dailyCap = 36;
+    existingRow.dailyResetUtcHour = 4;
+    existingRow.randomDelayMinMs = 180_000;
+    existingRow.randomDelayMaxMs = 900_000;
+    existingRow.llmMaxAttempts = 3;
+    existingRow.updatedAt = new Date('2026-09-15T00:00:00Z');
+
+    const row = new PromptTemplateEntity();
+    row.id = 'converge-id';
+    row.name = 'Default';
+    row.promptText = DEFAULT_CONFIG.prompt.template;
+    row.systemPromptText = DEFAULT_CONFIG.prompt.systemTemplate;
+    row.model = 'operator-kept-model';
+    row.maxTokens = 1000;
+    row.temperature = 0.3;
+    row.reasoningEffort = 'max';
+
+    const ctx = setupContext(existingRow, [row]);
+    const svc = makeService(ctx);
+
+    const result = await svc.seedIfEmpty();
+
+    expect(result.seeded).toBe(false);
+    expect(result.templateCount).toBe(1);
+    expect(row.maxTokens).toBe(2000);
+    expect(row.promptText).toBe(DEFAULT_CONFIG.prompt.template);
+    expect(row.systemPromptText).toBe(DEFAULT_CONFIG.prompt.systemTemplate);
+    expect(row.model).toBe('operator-kept-model');
+    expect(row.temperature).toBe(0.3);
+    expect(row.reasoningEffort).toBe('max');
+    expect(ctx.savedTpls).toHaveLength(1);
+  });
+
+  it('refresh: leaves model/temperature/reasoningEffort untouched on text refresh', async () => {
+    const existingRow = new LlmConfigEntity();
+    existingRow.id = 1;
+    existingRow.defaultTemplateId = 'knobs-id';
+    existingRow.targetChannel = 'preset';
+    existingRow.llmEnabled = true;
+    existingRow.publishingEnabled = true;
+    existingRow.dailyCap = 36;
+    existingRow.dailyResetUtcHour = 4;
+    existingRow.randomDelayMinMs = 180_000;
+    existingRow.randomDelayMaxMs = 900_000;
+    existingRow.llmMaxAttempts = 3;
+    existingRow.updatedAt = new Date('2026-08-28T00:00:00Z');
+
+    const row = new PromptTemplateEntity();
+    row.id = 'knobs-id';
+    row.name = 'Default (imported)';
+    row.promptText = 'weak user text';
+    row.systemPromptText = 'weak system without marker';
+    row.model = 'gpt-custom';
+    row.maxTokens = 2000;
+    row.temperature = 0.1;
+    row.reasoningEffort = 'low';
+
+    const ctx = setupContext(existingRow, [row]);
+    const svc = makeService(ctx);
+
+    const result = await svc.seedIfEmpty();
+
+    expect(result.seeded).toBe(false);
+    expect(result.templateCount).toBe(1);
+    expect(row.promptText).toBe(DEFAULT_CONFIG.prompt.template);
+    expect(row.systemPromptText).toBe(DEFAULT_CONFIG.prompt.systemTemplate);
+    expect(row.model).toBe('gpt-custom');
+    expect(row.temperature).toBe(0.1);
+    expect(row.reasoningEffort).toBe('low');
+  });
+
+  it('refresh: never touches operator-created template names', async () => {
+    const existingRow = new LlmConfigEntity();
+    existingRow.id = 1;
+    existingRow.defaultTemplateId = 'op-id';
+    existingRow.targetChannel = 'preset';
+    existingRow.llmEnabled = true;
+    existingRow.publishingEnabled = true;
+    existingRow.dailyCap = 36;
+    existingRow.dailyResetUtcHour = 4;
+    existingRow.randomDelayMinMs = 180_000;
+    existingRow.randomDelayMaxMs = 900_000;
+    existingRow.llmMaxAttempts = 3;
+    existingRow.updatedAt = new Date('2026-09-15T00:00:00Z');
+
+    const operator = new PromptTemplateEntity();
+    operator.id = 'op-id';
+    operator.name = 'My Custom Template';
+    operator.promptText = 'operator text';
+    operator.systemPromptText = 'operator system without marker';
+    operator.model = 'operator-model';
+    operator.maxTokens = 1000;
+    operator.temperature = 0.9;
+    operator.reasoningEffort = 'high';
+
+    const ctx = setupContext(existingRow, [operator]);
+    const svc = makeService(ctx);
+
+    // The refresh query only returns seed-owned names, so the manager
+    // mock returning the operator row simulates a leaky query — the
+    // service must still filter by SEED_TEMPLATE_NAMES. Emulate the
+    // real query by returning [] for non-seed names.
+    ctx.manager.find.mockImplementation(async (entity: unknown) => {
+      if (entity === PromptTemplateEntity) {
+        return [];
+      }
+      return [];
+    });
+
+    const result = await svc.seedIfEmpty();
+
+    expect(result.seeded).toBe(false);
+    expect(result.templateCount).toBe(0);
+    expect(operator.promptText).toBe('operator text');
+    expect(operator.systemPromptText).toBe('operator system without marker');
+    expect(operator.maxTokens).toBe(1000);
+    expect(operator.model).toBe('operator-model');
+    expect(ctx.savedTpls).toHaveLength(0);
+    expect(ctx.savedCfgs).toHaveLength(0);
   });
 
   it('drift: on-disk JSON mirror equals the in-code seed defaults', () => {

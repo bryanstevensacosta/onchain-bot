@@ -262,8 +262,13 @@ export class LlmConfigMigrationService implements OnApplicationBootstrap {
    * named `Default` / `Default (imported)` whose `systemPromptText`
    * lacks `HARDENED_SYSTEM_MARKER`, setting both `promptText` and
    * `systemPromptText` to the current seeds (JSON when provided and
-   * non-empty, in-code defaults otherwise). Returns the number of
-   * rows rewritten. Operator-created templates are never touched.
+   * non-empty, in-code defaults otherwise). Additionally converges
+   * `maxTokens` to `MAX_TOKENS_DEFAULT` on seed-owned rows whose
+   * value is below the target (token-starvation fix: the hardened
+   * prompt is much longer, so 1000 truncates/empties completions).
+   * NEVER touches `model` / `temperature` / `reasoningEffort` — those
+   * are operator-tuned. Returns the number of rows rewritten.
+   * Operator-created templates are never touched.
    */
   public static async refreshOutdatedTemplates(
     manager: EntityManager,
@@ -276,14 +281,28 @@ export class LlmConfigMigrationService implements OnApplicationBootstrap {
     });
     const { promptText, systemPromptText } =
       LlmConfigMigrationService.resolveSeedTexts(cfg);
+    const targetMaxTokens = LlmConfigMigrationService.MAX_TOKENS_DEFAULT;
     let refreshed = 0;
     for (const row of candidates) {
       const system = row.systemPromptText ?? '';
-      if (system.includes(LlmConfigMigrationService.HARDENED_SYSTEM_MARKER)) {
+      const needsTextRefresh = !system.includes(
+        LlmConfigMigrationService.HARDENED_SYSTEM_MARKER,
+      );
+      const needsMaxTokensConverge = (row.maxTokens ?? 0) < targetMaxTokens;
+      if (!needsTextRefresh && !needsMaxTokensConverge) {
         continue;
       }
-      row.promptText = promptText;
-      row.systemPromptText = systemPromptText;
+      if (needsTextRefresh) {
+        row.promptText = promptText;
+        row.systemPromptText = systemPromptText;
+      }
+      if (needsMaxTokensConverge) {
+        const before = row.maxTokens ?? 0;
+        row.maxTokens = targetMaxTokens;
+        new Logger(LlmConfigMigrationService.name).log(
+          `[llm-config-migration] converged maxTokens for template "${row.name}" ${before} -> ${targetMaxTokens}`,
+        );
+      }
       await manager.save(row);
       refreshed += 1;
     }
