@@ -147,7 +147,21 @@ describe('validateAppConfig', () => {
     it('should pass when all required vars are present with non-empty values', () => {
       const cfg = createMutableConfig();
       const result = validateAppConfig(cfg);
-      expect(result.warnings).toEqual([]);
+      // T3 added 4 OPTIONAL THREADS_* entries (placeholders EMPTY by design),
+      // so a config without `threads` warns exactly those 4 — and nothing else.
+      expect(result.warnings).toHaveLength(4);
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining('THREADS_ACCESS_TOKEN'),
+      );
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining('THREADS_USER_ID'),
+      );
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining('THREADS_POLLING_INTERVAL_MINUTES'),
+      );
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining('THREADS_DAILY_CAP'),
+      );
     });
 
     it('should throw ConfigValidationError when ALCHEMY_API_KEY is empty', () => {
@@ -408,7 +422,21 @@ describe('validateAppConfig', () => {
     it('should return empty warnings when all valid (complete valid config)', () => {
       const cfg = createMutableConfig();
       const result = validateAppConfig(cfg);
-      expect(result.warnings).toHaveLength(0);
+      // T3 added 4 OPTIONAL THREADS_* entries (placeholders EMPTY by design):
+      // the fixture has no `threads` section, so exactly those 4 warn.
+      expect(result.warnings).toHaveLength(4);
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining('THREADS_ACCESS_TOKEN'),
+      );
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining('THREADS_USER_ID'),
+      );
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining('THREADS_POLLING_INTERVAL_MINUTES'),
+      );
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining('THREADS_DAILY_CAP'),
+      );
     });
   });
 });

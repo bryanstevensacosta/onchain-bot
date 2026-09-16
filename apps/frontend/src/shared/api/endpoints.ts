@@ -102,6 +102,43 @@ export const ENDPOINTS = {
       `/call-tracking/tracked/${chain}/${address}`,
     gateAllow: '/call-tracking/gate-allow',
   },
+  threads: {
+    keywords: {
+      list: '/threads-publisher/keywords',
+      add: '/threads-publisher/keywords',
+      batch: '/threads-publisher/keywords/batch',
+      update: (id: string) => `/threads-publisher/keywords/${id}`,
+      delete: (id: string) => `/threads-publisher/keywords/${id}`,
+    },
+    blacklist: {
+      list: '/threads-publisher/blacklist',
+      add: '/threads-publisher/blacklist',
+      batch: '/threads-publisher/blacklist/batch',
+      update: (id: string) => `/threads-publisher/blacklist/${id}`,
+      delete: (id: string) => `/threads-publisher/blacklist/${id}`,
+    },
+    phrases: {
+      list: '/threads-publisher/phrases',
+      search: (q: string) =>
+        `/threads-publisher/phrases/search?q=${encodeURIComponent(q)}`,
+      conflictCheck: '/threads-publisher/phrases/conflict-check',
+    },
+    queue: {
+      list: '/threads-publisher/queue',
+      counts: '/threads-publisher/queue/counts',
+      cancel: (id: string) => `/threads-publisher/queue/${id}`,
+    },
+    llm: {
+      config: '/threads-publisher/llm/config',
+      models: '/threads-publisher/llm/models',
+      templates: '/threads-publisher/llm/templates',
+      template: (id: string) => `/threads-publisher/llm/templates/${id}`,
+    },
+    matching: {
+      config: '/threads/matching/config',
+      health: '/threads/matching/health',
+    },
+  },
   ingestion: {
     config: '/ingestion/config',
     health: '/ingestion/health',
