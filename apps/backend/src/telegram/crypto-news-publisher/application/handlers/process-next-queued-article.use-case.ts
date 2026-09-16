@@ -120,7 +120,21 @@ export class ProcessNextQueuedArticleUseCase {
 
       if (cfg.llmEnabled) {
         generatedData = await this.llmAdapter.generateForEntry(entry);
-        contentToPublish = generatedData.content;
+        const llmContent: unknown = generatedData?.content;
+        if (typeof llmContent !== 'string' || llmContent.trim().length === 0) {
+          const model = generatedData?.model ?? 'unknown';
+          const promptChars = generatedData?.userPrompt?.length ?? 0;
+          const reason =
+            `LLM returned empty content ` +
+            `(model=${model}, promptChars=${promptChars})`;
+          this.logger.warn(
+            `queue entry ${entry.id} rejected: ${reason} ` +
+              `(template model=${model}, prompt length=${promptChars})`,
+          );
+          await this.queueRepo.markFailed(entry.id, reason);
+          return;
+        }
+        contentToPublish = llmContent;
 
         if (cfg.rejectNonLatin) {
           const bad = findNonLatinCharacter(contentToPublish);
