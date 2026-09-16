@@ -88,19 +88,29 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
   }
 
   /**
-   * Returns a not-configured error if the bot token / output channel
-   * are missing. Centralised so both `sendMessage` and `sendPhoto` use
-   * the same fallback path.
+   * Resolve the destination chat. An explicit `chatId` (the DB-backed
+   * `LlmConfig.targetChannel` the use cases pass) always wins; an empty
+   * one falls back to the env default (`CRYPTO_NEWS_OUTPUT_CHANNEL`,
+   * which is what the ads path relies on).
    */
-  private requireConfig(): { ok: false; reason: string } | null {
-    if (!this.botToken || !this.outputChannel) {
+  private resolveChatId(chatId: string): string {
+    return chatId?.trim() ? chatId : this.outputChannel;
+  }
+
+  /**
+   * Returns a not-configured error when the bot token is missing or
+   * neither an explicit chat id nor the env default resolves to one.
+   * Centralised so all send methods share the same fallback path.
+   */
+  private requireConfig(chatId = ''): { ok: false; reason: string } | null {
+    if (!this.botToken || !chatId) {
       return {
         ok: false,
         reason:
           `BotApiCryptoNewsPublisherAdapter: ` +
           `missing ${!this.botToken ? 'CRYPTO_NEWS_BOT_TOKEN' : ''}` +
-          `${!this.botToken && !this.outputChannel ? ' and ' : ''}` +
-          `${!this.outputChannel ? 'CRYPTO_NEWS_OUTPUT_CHANNEL' : ''}`,
+          `${!this.botToken && !chatId ? ' and ' : ''}` +
+          `${!chatId ? 'targetChannel/CRYPTO_NEWS_OUTPUT_CHANNEL' : ''}`,
       };
     }
     return null;
@@ -189,12 +199,13 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
    * a reply so continuations thread under the original post.
    */
   private async postTextChunk(
+    chatId: string,
     text: string,
     parseMode: 'Markdown' | 'HTML',
     replyToMessageId?: number,
   ): Promise<SendResult> {
     const payload: Record<string, unknown> = {
-      chat_id: this.outputChannel,
+      chat_id: chatId,
       text,
       parse_mode: parseMode,
       disable_web_page_preview: false,
@@ -212,13 +223,19 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
    * (duplicate spam > truncated tail).
    */
   private async sendContinuationChunks(
+    chatId: string,
     chunks: string[],
     parseMode: 'Markdown' | 'HTML',
     replyToMessageId: number | null,
   ): Promise<void> {
     if (replyToMessageId === null) return;
     for (const chunk of chunks) {
-      const res = await this.postTextChunk(chunk, parseMode, replyToMessageId);
+      const res = await this.postTextChunk(
+        chatId,
+        chunk,
+        parseMode,
+        replyToMessageId,
+      );
       if (res.ok) {
         this.logger.log(`sent continuation message ${res.messageId}`);
       } else {
@@ -250,12 +267,13 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
    * remainder follows as continuation message(s).
    */
   public async sendMessage(
-    _chatId: string,
+    chatId: string,
     text: string,
     imageUrl?: string,
     options?: TelegramPublishOptions,
   ): Promise<SendResult> {
-    const missing = this.requireConfig();
+    const resolvedChatId = this.resolveChatId(chatId);
+    const missing = this.requireConfig(resolvedChatId);
     if (missing) return { ok: false, messageId: null, error: missing.reason };
     if (!text || text.length === 0) {
       return { ok: false, messageId: null, error: 'empty message' };
@@ -270,7 +288,7 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
       BotApiCryptoNewsPublisherAdapter.TEXT_MAX_LENGTH,
     );
     const payload: Record<string, unknown> = {
-      chat_id: this.outputChannel,
+      chat_id: resolvedChatId,
       text: parts[0],
       parse_mode: parseMode,
       disable_web_page_preview: false,
@@ -285,6 +303,7 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     if (!primary.ok) return primary;
     if (parts.length > 1) {
       await this.sendContinuationChunks(
+        resolvedChatId,
         parts.slice(1),
         parseMode,
         primary.messageId,
@@ -303,12 +322,13 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
    * multipart cleanly without `form-data`).
    */
   public async sendPhoto(
-    _chatId: string,
+    chatId: string,
     text: string,
     imagePath: string,
     options?: TelegramPublishOptions,
   ): Promise<SendResult> {
-    const missing = this.requireConfig();
+    const resolvedChatId = this.resolveChatId(chatId);
+    const missing = this.requireConfig(resolvedChatId);
     if (missing) return { ok: false, messageId: null, error: missing.reason };
     if (!text || text.length === 0) {
       return { ok: false, messageId: null, error: 'empty message' };
@@ -340,7 +360,7 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     const mimeType = guessMimeType(extname(imagePath));
 
     const textFields: Array<[string, string]> = [
-      ['chat_id', this.outputChannel],
+      ['chat_id', resolvedChatId],
       ['caption', caption],
       ['parse_mode', parseMode],
     ];
@@ -366,6 +386,7 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     if (!primary.ok) return primary;
     if (parts.length > 1) {
       await this.sendContinuationChunks(
+        resolvedChatId,
         parts.slice(1),
         parseMode,
         primary.messageId,
@@ -375,12 +396,13 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
   }
 
   public async sendVideo(
-    _chatId: string,
+    chatId: string,
     text: string,
     videoPath: string,
     options?: TelegramPublishOptions,
   ): Promise<SendResult> {
-    const missing = this.requireConfig();
+    const resolvedChatId = this.resolveChatId(chatId);
+    const missing = this.requireConfig(resolvedChatId);
     if (missing) return { ok: false, messageId: null, error: missing.reason };
     if (!text || text.length === 0) {
       return { ok: false, messageId: null, error: 'empty message' };
@@ -412,7 +434,7 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     const mimeType = guessMimeType(extname(videoPath));
 
     const textFields: Array<[string, string]> = [
-      ['chat_id', this.outputChannel],
+      ['chat_id', resolvedChatId],
       ['caption', caption],
       ['parse_mode', parseMode],
     ];
@@ -441,6 +463,7 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     if (!primary.ok) return primary;
     if (parts.length > 1) {
       await this.sendContinuationChunks(
+        resolvedChatId,
         parts.slice(1),
         parseMode,
         primary.messageId,
@@ -450,12 +473,13 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
   }
 
   public async sendMediaGroup(
-    _chatId: string,
+    chatId: string,
     text: string,
     imagePaths: string[],
     options?: TelegramPublishOptions,
   ): Promise<SendResult> {
-    const missing = this.requireConfig();
+    const resolvedChatId = this.resolveChatId(chatId);
+    const missing = this.requireConfig(resolvedChatId);
     if (missing) return { ok: false, messageId: null, error: missing.reason };
 
     if (!text || text.length === 0) {
@@ -509,7 +533,7 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     });
 
     const textFields: Array<[string, string]> = [
-      ['chat_id', this.outputChannel],
+      ['chat_id', resolvedChatId],
       ['media', JSON.stringify(mediaArray)],
     ];
     if (options?.replyMarkup) {
@@ -536,6 +560,7 @@ export class BotApiCryptoNewsPublisherAdapter extends TelegramPublisherPort {
     if (!primary.ok) return primary;
     if (parts.length > 1) {
       await this.sendContinuationChunks(
+        resolvedChatId,
         parts.slice(1),
         parseMode,
         primary.messageId,

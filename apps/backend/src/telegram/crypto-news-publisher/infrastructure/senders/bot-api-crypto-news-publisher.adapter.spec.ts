@@ -118,10 +118,10 @@ describe('BotApiCryptoNewsPublisherAdapter — graceful not-configured path', ()
 
   it('reports only the missing channel in the error when token is set', async () => {
     const adapter = new BotApiCryptoNewsPublisherAdapter(
-      makeConfigWith('TEST_TOKEN', ''),
+      makeConfigWith('TOKEN', ''),
     );
-    const result = await adapter.sendMessage('anyChat', 'hello');
-    expect(result.error).toContain('CRYPTO_NEWS_OUTPUT_CHANNEL');
+    const result = await adapter.sendMessage('', 'hello');
+    expect(result.error).toContain('targetChannel/CRYPTO_NEWS_OUTPUT_CHANNEL');
     expect(result.error).not.toContain('CRYPTO_NEWS_BOT_TOKEN');
   });
 
@@ -129,9 +129,76 @@ describe('BotApiCryptoNewsPublisherAdapter — graceful not-configured path', ()
     const adapter = new BotApiCryptoNewsPublisherAdapter(
       makeConfigWith('', '@test'),
     );
-    const result = await adapter.sendMessage('anyChat', 'hello');
+    const result = await adapter.sendMessage('', 'hello');
     expect(result.error).toContain('CRYPTO_NEWS_BOT_TOKEN');
     expect(result.error).not.toContain('CRYPTO_NEWS_OUTPUT_CHANNEL');
+  });
+});
+
+describe('BotApiCryptoNewsPublisherAdapter — chat resolution', () => {
+  beforeEach(() => {
+    mockedRequest.mockReset();
+  });
+
+  it('prefers the explicit chat id over the env default on sendMessage', async () => {
+    mockSuccessResponse(7);
+    const adapter = new BotApiCryptoNewsPublisherAdapter(
+      makeConfigWith('TOKEN', '@env-default'),
+    );
+    await adapter.sendMessage('-1001276069117', 'hello');
+
+    const payload = JSON.parse(lastRequestBody()) as { chat_id: string };
+    expect(payload.chat_id).toBe('-1001276069117');
+  });
+
+  it('falls back to the env default on whitespace-only chat id', async () => {
+    mockSuccessResponse(7);
+    const adapter = new BotApiCryptoNewsPublisherAdapter(
+      makeConfigWith('TOKEN', '@env-default'),
+    );
+    await adapter.sendMessage('   ', 'hello');
+
+    const payload = JSON.parse(lastRequestBody()) as { chat_id: string };
+    expect(payload.chat_id).toBe('@env-default');
+  });
+
+  it('uses the explicit chat id in the sendPhoto multipart body', async () => {
+    mockSuccessResponse(7);
+    const uploadsRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'ads-adapter-chat-'),
+    );
+    const imagePath = path.join(uploadsRoot, 'hero.png');
+    await fs.writeFile(imagePath, Buffer.from('png-bytes'));
+    try {
+      const adapter = new BotApiCryptoNewsPublisherAdapter(
+        makeConfigWith('TOKEN', '@env-default'),
+      );
+      await adapter.sendPhoto('-1001276069117', 'caption', imagePath, {
+        parseMode: 'HTML',
+      });
+
+      const chatMatch = lastRequestBody().match(
+        /name="chat_id"\r\n\r\n([\s\S]*?)\r\n/,
+      );
+      expect(chatMatch).not.toBeNull();
+      expect(chatMatch![1]).toBe('-1001276069117');
+    } finally {
+      await fs.rm(uploadsRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('routes continuations to the resolved chat, not the env default', async () => {
+    mockSuccessResponse(42);
+    const adapter = new BotApiCryptoNewsPublisherAdapter(
+      makeConfigWith('TOKEN', '@env-default'),
+    );
+    await adapter.sendMessage('-1001276069117', 'x'.repeat(5000), undefined, {
+      parseMode: 'HTML',
+    });
+
+    expect(mockedRequest).toHaveBeenCalledTimes(2);
+    const followUp = JSON.parse(requestBodyAt(1)) as { chat_id: string };
+    expect(followUp.chat_id).toBe('-1001276069117');
   });
 });
 
@@ -146,7 +213,7 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
       const adapter = new BotApiCryptoNewsPublisherAdapter(
         makeConfigWith('TOKEN', '@channel'),
       );
-      const result = await adapter.sendMessage('ignored', 'See https://x.io');
+      const result = await adapter.sendMessage('', 'See https://x.io');
 
       expect(result.ok).toBe(true);
       expect(result.messageId).toBe(42);
@@ -165,7 +232,7 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
       const adapter = new BotApiCryptoNewsPublisherAdapter(
         makeConfigWith('TOKEN', '@channel'),
       );
-      await adapter.sendMessage('ignored', '[label](https://x.io)');
+      await adapter.sendMessage('', '[label](https://x.io)');
 
       const payload = JSON.parse(lastRequestBody()) as { text: string };
       expect(payload.text).toBe('[label](https://x.io)');
@@ -178,7 +245,7 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
       const adapter = new BotApiCryptoNewsPublisherAdapter(
         makeConfigWith('TOKEN', '@channel'),
       );
-      await adapter.sendMessage('ignored', 'See https://x.io', undefined, {
+      await adapter.sendMessage('', 'See https://x.io', undefined, {
         parseMode: 'HTML',
       });
 
@@ -195,7 +262,7 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
       const adapter = new BotApiCryptoNewsPublisherAdapter(
         makeConfigWith('TOKEN', '@channel'),
       );
-      await adapter.sendMessage('ignored', '[label](https://x.io)', undefined, {
+      await adapter.sendMessage('', '[label](https://x.io)', undefined, {
         parseMode: 'HTML',
       });
 
@@ -213,7 +280,7 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
       const adapter = new BotApiCryptoNewsPublisherAdapter(
         makeConfigWith('TOKEN', '@channel'),
       );
-      await adapter.sendMessage('ignored', 'Join us', undefined, {
+      await adapter.sendMessage('', 'Join us', undefined, {
         parseMode: 'HTML',
         replyMarkup: [[{ text: 'Abrir', url: 'https://ourbit.com/ref' }]],
       });
@@ -233,7 +300,7 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
       const adapter = new BotApiCryptoNewsPublisherAdapter(
         makeConfigWith('TOKEN', '@channel'),
       );
-      await adapter.sendMessage('ignored', 'Join us');
+      await adapter.sendMessage('', 'Join us');
 
       const payload = JSON.parse(lastRequestBody()) as Record<string, unknown>;
       expect(payload.reply_markup).toBeUndefined();
@@ -250,7 +317,7 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
         const adapter = new BotApiCryptoNewsPublisherAdapter(
           makeConfigWith('TOKEN', '@channel'),
         );
-        await adapter.sendPhoto('ignored', 'caption', imagePath, {
+        await adapter.sendPhoto('', 'caption', imagePath, {
           parseMode: 'HTML',
           replyMarkup: [[{ text: 'Abrir', url: 'https://ourbit.com/ref' }]],
         });
@@ -276,7 +343,7 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
         makeConfigWith('TOKEN', '@channel'),
       );
       const longText = 'x'.repeat(5000);
-      const result = await adapter.sendMessage('ignored', longText, undefined, {
+      const result = await adapter.sendMessage('', longText, undefined, {
         parseMode: 'HTML',
       });
 
@@ -295,7 +362,7 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
       const adapter = new BotApiCryptoNewsPublisherAdapter(
         makeConfigWith('TOKEN', '@channel'),
       );
-      await adapter.sendMessage('ignored', 'x'.repeat(5000), undefined, {
+      await adapter.sendMessage('', 'x'.repeat(5000), undefined, {
         parseMode: 'HTML',
       });
 
@@ -315,7 +382,7 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
       const adapter = new BotApiCryptoNewsPublisherAdapter(
         makeConfigWith('TOKEN', '@channel'),
       );
-      await adapter.sendMessage('ignored', 'hello', undefined, {
+      await adapter.sendMessage('', 'hello', undefined, {
         parseMode: 'HTML',
       });
 
@@ -336,15 +403,10 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
           makeConfigWith('TOKEN', '@channel'),
         );
         const longCaption = 'y'.repeat(2000);
-        const result = await adapter.sendPhoto(
-          'ignored',
-          longCaption,
-          imagePath,
-          {
-            parseMode: 'HTML',
-            replyMarkup: [[{ text: 'Abrir', url: 'https://ourbit.com/ref' }]],
-          },
-        );
+        const result = await adapter.sendPhoto('', longCaption, imagePath, {
+          parseMode: 'HTML',
+          replyMarkup: [[{ text: 'Abrir', url: 'https://ourbit.com/ref' }]],
+        });
 
         expect(result.ok).toBe(true);
         expect(mockedRequest).toHaveBeenCalledTimes(2);
@@ -385,7 +447,7 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
           makeConfigWith('TOKEN', '@channel'),
         );
         const longCaption = `lead paragraph\n\n${'b'.repeat(1500)}`;
-        await adapter.sendPhoto('ignored', longCaption, imagePath, {
+        await adapter.sendPhoto('', longCaption, imagePath, {
           parseMode: 'HTML',
         });
 
@@ -428,7 +490,7 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
           makeConfigWith('TOKEN', '@channel'),
         );
         const result = await adapter.sendPhoto(
-          'ignored',
+          '',
           'z'.repeat(2000),
           imagePath,
           { parseMode: 'HTML' },
@@ -454,12 +516,9 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
           makeConfigWith('TOKEN', '@channel'),
         );
         const longCaption = 'y'.repeat(2000);
-        const result = await adapter.sendPhoto(
-          'ignored',
-          longCaption,
-          imagePath,
-          { parseMode: 'HTML' },
-        );
+        const result = await adapter.sendPhoto('', longCaption, imagePath, {
+          parseMode: 'HTML',
+        });
 
         expect(result.ok).toBe(true);
         const body = requestBodyAt(0);
@@ -479,7 +538,7 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
       const adapter = new BotApiCryptoNewsPublisherAdapter(
         makeConfigWith('TOKEN', '@channel'),
       );
-      await adapter.sendMessage('ignored', 'hola\ncomo estas', undefined, {
+      await adapter.sendMessage('', 'hola\ncomo estas', undefined, {
         parseMode: 'HTML',
       });
 
@@ -502,7 +561,7 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
         '• Algunas operaciones quedan expuestas a reentradas.<br><br>' +
         'La advertencia llega en plena expansión del ecosistema.<br><br>' +
         '<a href="https://x.com/0xProject/status/2099578032960995502">Fuente</a>';
-      await adapter.sendMessage('ignored', input, undefined, {
+      await adapter.sendMessage('', input, undefined, {
         parseMode: 'HTML',
       });
 
@@ -527,7 +586,7 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
         makeConfigWith('TOKEN', '@channel'),
       );
       await adapter.sendMessage(
-        'ignored',
+        '',
         '<b>title</b>\n\nbody paragraph',
         undefined,
         { parseMode: 'HTML' },
@@ -550,7 +609,7 @@ describe('BotApiCryptoNewsPublisherAdapter — configured path (https mocked)', 
         );
         // Single-spaced bullets like the LLM emits; total over 1024.
         const text = `Title\n• ${'a'.repeat(600)}\n• ${'b'.repeat(600)}`;
-        const result = await adapter.sendPhoto('ignored', text, imagePath, {
+        const result = await adapter.sendPhoto('', text, imagePath, {
           parseMode: 'HTML',
         });
 
