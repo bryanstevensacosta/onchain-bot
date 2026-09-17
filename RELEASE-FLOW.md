@@ -1,7 +1,7 @@
 # RELEASE-FLOW.md — Manual releases (solo-dev)
 
 > Owner: solo maintainer. No automation. release-please was removed (see git history); this file is the whole process.
-> Scope: 3 apps versioned independently: `backend`, `frontend`, `ingestion`. Enterprise playbooks live in sections 7-12 below (rollback, hotfix, flags freeze, optional tag signing, changelog strategy, Unreleased convention).
+> Scope: 3 apps versioned independently: `backend`, `frontend`, `ingestion-telegram`. Enterprise playbooks live in sections 7-12 below (rollback, hotfix, flags freeze, optional tag signing, changelog strategy, Unreleased convention).
 
 ## 1. When to release
 
@@ -47,7 +47,7 @@ Bug fix, NULL safety, query correction, CI fix that ships product code, perf fix
 
 ## 3. Exact steps
 
-Do them in order, per app. `<app>` is one of `backend`, `frontend`, `ingestion`. Never use a bare `v*` tag.
+Do them in order, per app. `<app>` is one of `backend`, `frontend`, `ingestion-telegram`. Never use a bare `v*` tag.
 
 ```bash
 # 0. Be on dev, clean tree, know your base SHA (the master squash commit you ship)
@@ -84,6 +84,10 @@ git ls-remote --tags origin | grep <app>-v<X.Y.Z>
 ```
 
 Latest marking rule: do not juggle `--latest` by hand. Default is to accept whatever GitHub assigns (creation order wins) and record the outcome with `gh release list --json tagName,isLatest` in your evidence. If the wrong release shows as latest, fix it once with `gh release edit <app>-v<X.Y.Z> --latest` and note why. Never mark all three app releases latest in one session; at most one holds the flag, and "none touched" is an acceptable documented choice.
+
+### Deprecated tag name: `ingestion-service-v*`
+
+Future ingestion releases use the renamed scheme: tag `ingestion-telegram-v<X.Y.Z>` (e.g. `git tag -a ingestion-telegram-v1.0.1 <sha> -m "ingestion-telegram v1.0.1"`), `gh release create ingestion-telegram-v<X.Y.Z>`, version in `apps/ingestion-telegram/package.json`, changelog section in `apps/ingestion-telegram/CHANGELOG.md`. The old tag `ingestion-service-v1.0.0` (and its `ingestion-service v1.0.0` GitHub release) is deprecated: a mirrored `ingestion-telegram-v1.0.0` release replaces it, after which the old tag and release are deleted. Until then, do not cut new `ingestion-service-v*` tags. Warning: once the old tag is deleted, any saved link pointing at `.../releases/tag/ingestion-service-v1.0.0` breaks; update bookmarks to the `ingestion-telegram-v1.0.0` URL.
 
 ## 4. Pre-release checklist
 
@@ -124,7 +128,7 @@ Examples:
 
 - `feat(vip-channel): add stuck-booking cleaner`
   Body: `- Frees VIP slots stuck mid-post (30s cron). PR #165.`
-- `fix(ingestion): NULL-safe queued_at in publisher migration`
+- `fix(ingestion-telegram): NULL-safe queued_at in publisher migration`
   Body: `- Additive NULL handling, explicitly not an incompatible schema change. PR #150.`
 
 ## 7. Changelog strategy: the PR merge is the unit
