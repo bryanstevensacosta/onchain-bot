@@ -37,7 +37,7 @@ class StubCryptoNewsMediaDownloader extends CryptoNewsMediaDownloader {
       'CryptoNewsMediaDownloader.download() is deprecated. ' +
         'Media download migrated to ingestion-service (Phase 5). ' +
         'Use SSE mode (USE_SSE_INGESTION=true) and fetch media via ' +
-        'INGESTION_SERVICE_URL/api/media/:channelId/:messageId/:index',
+        'INGESTION_TELEGRAM_URL/api/media/:channelId/:messageId/:index',
     );
   }
 
@@ -46,7 +46,7 @@ class StubCryptoNewsMediaDownloader extends CryptoNewsMediaDownloader {
       'CryptoNewsMediaDownloader.saveToDisk() is deprecated. ' +
         'Media download migrated to ingestion-service (Phase 5). ' +
         'Use SSE mode (USE_SSE_INGESTION=true) and fetch media via ' +
-        'INGESTION_SERVICE_URL/api/media/:channelId/:messageId/:index',
+        'INGESTION_TELEGRAM_URL/api/media/:channelId/:messageId/:index',
     );
   }
 }

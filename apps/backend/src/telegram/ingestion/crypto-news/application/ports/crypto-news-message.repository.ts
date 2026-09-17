@@ -12,7 +12,7 @@ import { CryptoNewsMessage } from '../../domain/crypto-news-message.stub';
  * - Sole implementation: `InMemoryCryptoNewsMessageRepository` (empty store, always returns null)
  *
  * DO NOT USE. Query ingestion-service HTTP API instead:
- *   GET {INGESTION_SERVICE_URL}/api/crypto-news/messages
+ *   GET {INGESTION_TELEGRAM_URL}/api/crypto-news/messages
  */
 export abstract class CryptoNewsMessageRepository {
   public abstract save(message: CryptoNewsMessage): Promise<void>;

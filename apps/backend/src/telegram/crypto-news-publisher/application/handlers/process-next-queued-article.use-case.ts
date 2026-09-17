@@ -1,6 +1,7 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from 'shared/common/config/app.config';
+import { resolveIngestionServiceUrl } from 'shared/common/config/app.config';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
 import { SharedThrottleStateRepository } from 'telegram/shared/application/ports/shared-throttle-state.repository';
 import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
@@ -474,12 +475,12 @@ export class ProcessNextQueuedArticleUseCase {
     const index = match[3];
 
     // NOTE: never hardcode localhost here — inside Docker the ingestion
-    // container is a different host ( ingestion-service:3031 via
-    // INGESTION_SERVICE_URL); localhost would hit this container itself.
+    // container is a different host (ingestion-telegram:3031 via
+    // INGESTION_TELEGRAM_URL, fallback deprecated INGESTION_SERVICE_URL);
+    // localhost would hit this container itself.
     const ingestionBaseUrl =
       this.config?.get<AppConfig>('app')?.ingestion?.serviceUrl ??
-      process.env.INGESTION_SERVICE_URL ??
-      'http://localhost:3031';
+      resolveIngestionServiceUrl();
     const ingestionUrl = `${ingestionBaseUrl}/api/media/${channelId}/${messageId}/${index}`;
 
     try {

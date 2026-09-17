@@ -15,6 +15,7 @@ import { ConfigService } from '@nestjs/config';
 import * as fs from 'node:fs';
 import type { Request, Response } from 'express';
 import type { AppConfig } from 'shared/common/config/app.config';
+import { resolveIngestionServiceUrl } from 'shared/common/config/app.config';
 import {
   detectMediaMimeType,
   serveMediaFile,
@@ -93,9 +94,7 @@ export class QueueController {
     const appCfg = config.get<AppConfig>('app');
     this.outputChannel = appCfg?.publishing?.cryptoNews?.outputChannel ?? '';
     this.ingestionBaseUrl =
-      appCfg?.ingestion?.serviceUrl ??
-      process.env.INGESTION_SERVICE_URL ??
-      'http://localhost:3031';
+      appCfg?.ingestion?.serviceUrl ?? resolveIngestionServiceUrl();
   }
 
   @Get()

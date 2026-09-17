@@ -32,7 +32,7 @@ import { ProcessCryptoNewsMessageHandler } from 'telegram/crypto-news-integratio
  *
  * Note (2026-09-06): Seeders removed. Channels are now registered via:
  * - KOLs: POST /telegram-kol/identity/kols
- * - Crypto-news: POST {INGESTION_SERVICE_URL}/api/crypto-news/sources
+ * - Crypto-news: POST {INGESTION_TELEGRAM_URL}/api/crypto-news/sources
  */
 @Injectable()
 export class IngestionCoordinator implements OnApplicationBootstrap {

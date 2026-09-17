@@ -30,7 +30,7 @@ export interface FilterRule {
  * **Migration:**
  * - Read methods (findAll, findActive, findByChannelId): still active for legacy consumers
  * - Write methods (save, delete): deprecated, throw errors if called
- * - New sources: POST {INGESTION_SERVICE_URL}/api/crypto-news/sources
+ * - New sources: POST {INGESTION_TELEGRAM_URL}/api/crypto-news/sources
  *
  * Implemented in infrastructure/repositories with the chosen storage
  * (in-memory for dev, TypeORM for prod).
