@@ -48,7 +48,7 @@ Correctly scoped prefixes: `telegram-kol/identity`, `telegram-kol/reputation`, `
 `vip-calls`, `crypto-news-publisher/*`, `crypto-news-ads/*`, `settings/*`,
 `dashboard/kpis`, `ingestion/{config,health}`, `token/image/:chain/:address` (CDN fallback in `format.ts`).
 
-**INGESTION-SERVICE** (`localhost:3032` in dev, `onchain-bot-ingestion:3031` in prod):
+**INGESTION-SERVICE** (`localhost:3032` in dev, `onchain-bot-ingestion-telegram:3031` in prod):
 **Per centralized architecture: Ingestion-service is the SINGLE SOURCE OF TRUTH for crypto-news data.**
 
 - `GET /api/crypto-news/messages?limit=50` — recent crypto-news messages with media
@@ -118,7 +118,7 @@ Docker build sets all to `""` → same-origin in prod (nginx routes by prefix).
 **Prod (`nginx.conf`, 203 lines):**
 
 - Backend locations (`backend:3030`): dashboard, telegram-kol, vip-calls, token, ingestion, call-tracking, telegram, settings, kols, crypto-news-publisher, crypto-news-ads, socket.io
-- **Ingestion-service locations (`onchain-bot-ingestion:3031`):** `/ingestion-api/crypto-news/*`, `/ingestion-api/media/*`
+- **Ingestion-service locations (`onchain-bot-ingestion-telegram:3031`):** `/ingestion-api/crypto-news/*`, `/ingestion-api/media/*`
 - **REMOVED:** `/crypto-news/{messages,sources,media}` — now served by ingestion-service
 - SPA fallback + gzip + security headers (`nosniff`, `DENY`, strict referrer) + 502 `@maintenance` JSON + `client_max_body_size 12m`
 

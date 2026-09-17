@@ -8,6 +8,8 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   // Proxy targets are env-overridable for alt-port dev setups
   // (defaults preserve the standard localhost layout).
+  // INGESTION_PROXY_TARGET fronts onchain-bot-ingestion-telegram
+  // (renamed from onchain-bot-ingestion; dev default stays localhost:3031).
   const BACKEND_PROXY_TARGET =
     env.BACKEND_PROXY_TARGET ?? 'http://localhost:3030';
   const INGESTION_PROXY_TARGET =
@@ -66,7 +68,7 @@ export default defineConfig(({ mode }) => {
           target: BACKEND_PROXY_TARGET,
           changeOrigin: false,
         },
-        // POST /crypto-news/sources now handled by ingestion-service (migrated 2026-09-05)
+        // POST /crypto-news/sources now handled by ingestion-telegram (migrated 2026-09-05, renamed 2026-09-17)
         // Old endpoint /crypto-news/sources deprecated (backend returns 501)
         '/ingestion-api': {
           target: INGESTION_PROXY_TARGET,
