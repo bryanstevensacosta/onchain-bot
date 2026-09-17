@@ -1198,6 +1198,204 @@ echo "EMERGENCY ROLLBACK COMPLETE. All environments back to MTProto mode."
 
 ---
 
+## Cutover ingestion-telegram (rename, stop-the-world)
+
+**Objective:** One-time droplet cutover from the old `ingestion-service` identity to the
+renamed `ingestion-telegram` identity (compose service/container/DNS rename + dual-push
+workflow). After this cutover, routine deploys keep using the `deploy-ingestion.yml`
+workflow with zero manual steps.
+
+**Duration:** 15-30 minutes
+**Risk Level:** HIGH (single MTProto session; two live containers = `AUTH_KEY_DUPLICATED`)
+**Related:** `.github/workflows/deploy-ingestion.yml` (dual-push new + old images),
+`docker-compose.ingestion.yml` (service `ingestion-telegram`, container
+`onchain-bot-ingestion-telegram`)
+
+### Rules (read first, no exceptions)
+
+- **NEVER run the old and new containers at the same time.** There is exactly one MTProto
+  session (singleton invariant: credentials live ONLY in the ingestion env file under
+  `INGESTION_TELEGRAM_MTPROTO_*`; a second live session causes `AUTH_KEY_DUPLICATED`
+  and logs the session out). Before starting anything new, prove the old container is
+  stopped: `docker ps | grep -i ingestion` must print nothing.
+- **NEVER copy the session string for testing.** No second local container, no pasting
+  `INGESTION_TELEGRAM_MTPROTO_SESSION` into another env file, no `telegram:gen-session`
+  on the droplet. The session moves exactly once, via `mv` of the env file (step 3).
+- **Rollback never re-animates the stopped old container while the new one holds the
+  session.** Rollback = stop the new container first, verify zero ingestion containers,
+  then recreate from a previous image tag (previous `:sha` of the new image, or the old
+  `-ingestion:latest` rollback image). See "Rollback" below.
+
+### Step 1 — Backup the ingestion database
+
+Same command the workflow runs (`deploy-ingestion.yml`, "Backup ingestion database" step):
+
+```bash
+set -a; source /opt/onchain-bot/apps/ingestion-telegram/.env.production; set +a
+mkdir -p /data/backups/ingestion
+POSTGRES_CONTAINER=onchain-bot-postgres-production \
+POSTGRES_USER="${INGESTION_DATABASE_USER:-alpha_meta_token_scanner}" \
+POSTGRES_DB="${INGESTION_DATABASE_NAME:-alpha_meta_token_scanner_ingestion}" \
+POSTGRES_PASSWORD="${INGESTION_DATABASE_PASSWORD:-${POSTGRES_PASSWORD:-}}" \
+bash /opt/onchain-bot/scripts/backup-db.sh
+ls -lh /data/backups/ingestion/ | tail -3
+# Must show: a fresh ingestion-backup-<timestamp>.dump
+```
+
+> First-cutover note: if the droplet tree is still pre-rename, the env file is still at
+> the legacy path (step 3 moves it). Source whichever path exists; after step 3 it is
+> always `/opt/onchain-bot/apps/ingestion-telegram/.env.production`.
+
+### Step 2 — Stop the OLD container (stop-the-world starts here)
+
+```bash
+cd /opt/onchain-bot/apps/backend
+docker compose -f docker-compose.ingestion.yml stop ingestion-service
+# If the droplet tree was already pulled past the rename (service is now
+# `ingestion-telegram`), stop by container name instead:
+docker stop onchain-bot-ingestion 2>/dev/null || true
+
+# GATE: proceed ONLY when zero ingestion containers run
+docker ps | grep -i ingestion || echo "OK: no ingestion container running"
+```
+
+Expected: `docker ps | grep -i ingestion` prints nothing (the `|| echo` prints the OK
+line). Downtime starts here; SSE clients (backends) enter backoff 1 s to 30 s and
+reconnect automatically after step 5. There is no replay (lossy by design), so keep the
+window short.
+
+### Step 3 — Move the env file (session moves exactly once)
+
+```bash
+sudo mkdir -p /opt/onchain-bot/apps/ingestion-telegram
+sudo mv /opt/onchain-bot/apps/ingestion-service/.env.production \
+        /opt/onchain-bot/apps/ingestion-telegram/.env.production
+# Legacy symlink so any lingering old-path reference still resolves:
+sudo ln -s /opt/onchain-bot/apps/ingestion-telegram/.env.production \
+           /opt/onchain-bot/apps/ingestion-service/.env.production
+sudo chown -R runner:runner /opt/onchain-bot
+chmod 600 /opt/onchain-bot/apps/ingestion-telegram/.env.production
+ls -l /opt/onchain-bot/apps/ingestion-telegram/.env.production \
+      /opt/onchain-bot/apps/ingestion-service/.env.production
+grep -c "INGESTION_TELEGRAM_MTPROTO_SESSION" /opt/onchain-bot/apps/ingestion-telegram/.env.production
+# Must show: the real file at the new path, a symlink at the legacy path, count = 1
+```
+
+### Step 4 — Pull the NEW image (old image best-effort fallback)
+
+```bash
+docker pull ghcr.io/bryanstevensacosta/onchain-bot-ingestion-telegram:latest
+# Old image is rollback-only (1-2 releases); best-effort so a missing old tag cannot fail us:
+docker pull ghcr.io/bryanstevensacosta/onchain-bot-ingestion:latest || true
+```
+
+The first pull is required; the second must exit 0 even when the old tag is gone
+(same `|| true` pattern as the workflow "Pull latest image" step).
+
+### Step 5 — Migrations + recreate (exactly ONE container)
+
+```bash
+# Migrations run in a one-off container with the NEW image, same as the workflow:
+docker run --rm --network onchain-bot-net \
+  --env-file /opt/onchain-bot/apps/ingestion-telegram/.env.production \
+  ghcr.io/bryanstevensacosta/onchain-bot-ingestion-telegram:latest \
+  npx typeorm --dataSource apps/ingestion-telegram/dist/src/shared/common/persistence/data-source.js migration:run
+
+cd /opt/onchain-bot/apps/backend
+docker compose -f docker-compose.ingestion.yml pull
+docker compose -f docker-compose.ingestion.yml up -d --force-recreate
+docker ps --format '{{.Names}} {{.Image}} {{.Status}}' | grep -i ingestion
+# Expected: exactly ONE row: onchain-bot-ingestion-telegram ... Up ...
+```
+
+If `docker ps` shows two ingestion rows, STOP: run `docker stop onchain-bot-ingestion`
+(the old name) immediately, then re-verify. Never leave two running.
+
+### Step 6 — Health `http://localhost:3032/api/health` + `clients>=1`
+
+```bash
+sleep 10
+curl -s http://localhost:3032/api/health | jq '.'
+CLIENTS=$(curl -s http://localhost:3032/api/health | jq -r '.clients.connected')
+[ "$CLIENTS" -ge 1 ] && echo "OK: $CLIENTS client(s) connected" || { echo "FAIL: clients=$CLIENTS"; exit 1; }
+```
+
+Mirrors the workflow "Wait for health" + "Verify clients connected" steps. `clients>=1`
+means at least one backend SSE client reconnected; expect 2 once staging and production
+are both on the new URL (step 7).
+
+### Step 7 — Point backends (`INGESTION_TELEGRAM_URL`) + frontend proxy at the new identity
+
+**Backends** (staging + production; new var wins via the todo-5 fallback, old var kept
+1 release — set the new one, keep the old one untouched):
+
+```bash
+# In each backend env file (/opt/onchain-bot/apps/backend/.env.production
+# and the staging equivalent) — same value compose already pins
+# (docker-compose.prod.yml:120, docker-compose.staging.yml:99):
+INGESTION_TELEGRAM_URL=http://onchain-bot-ingestion-telegram:3031
+# Restart each backend, then:
+curl -s http://localhost:3032/api/health | jq '.clients.connected'
+# Expected: count goes up by 1 per restarted backend (target: 2)
+```
+
+**Frontend:** the nginx upstream is already `onchain-bot-ingestion-telegram:3031`
+(rename, no new client vars). Verify and reload:
+
+```bash
+grep -n "proxy_pass http://onchain-bot-ingestion-telegram:3031/api/" /opt/onchain-bot/apps/frontend/nginx.conf
+# Must show the upstream lines; then reload nginx per the frontend deploy flow
+```
+
+### Rollback (never restarts the old session)
+
+```bash
+cd /opt/onchain-bot/apps/backend
+# 1. Stop the NEW container FIRST and prove the world is empty:
+docker compose -f docker-compose.ingestion.yml stop ingestion-telegram
+docker ps | grep -i ingestion && { echo "REFUSE: ingestion still running"; exit 1; } || echo "OK: world empty"
+
+# 2a. Preferred: previous tag of the NEW image:
+docker pull ghcr.io/bryanstevensacosta/onchain-bot-ingestion-telegram:<previous-sha>
+docker tag ghcr.io/bryanstevensacosta/onchain-bot-ingestion-telegram:<previous-sha> \
+           ghcr.io/bryanstevensacosta/onchain-bot-ingestion-telegram:latest
+# 2b. Fallback: old rollback image (pulled best-effort in step 4):
+# docker pull ghcr.io/bryanstevensacosta/onchain-bot-ingestion:latest
+
+# 3. Recreate exactly ONE container. The env file STAYS at the new path (the step-3
+#    symlink keeps the legacy path resolving) — do NOT mv secrets back:
+docker compose -f docker-compose.ingestion.yml up -d --force-recreate
+
+# 4. Same gates as step 6 (health 200 + clients>=1).
+```
+
+FORBIDDEN in rollback: `docker start onchain-bot-ingestion` (the frozen old container)
+while any new container exists; copying the session string anywhere; moving the env
+file back to the legacy path.
+
+### Cutover success criteria
+
+- ✅ Ingestion DB backup exists in `/data/backups/ingestion/` from cutover time
+- ✅ Env file lives at `/opt/onchain-bot/apps/ingestion-telegram/.env.production`
+  (legacy path is a symlink, not a second file with a second session)
+- ✅ Exactly one ingestion container: `onchain-bot-ingestion-telegram`, image
+  `ghcr.io/bryanstevensacosta/onchain-bot-ingestion-telegram:latest`
+- ✅ `http://localhost:3032/api/health` returns 200 with `clients.connected >= 1`
+- ✅ Both backends resolve via `INGESTION_TELEGRAM_URL`; frontend proxy serves media
+- ✅ Zero `AUTH_KEY_DUPLICATED` in ingestion logs after cutover
+- ✅ Rollback path tested on paper (previous `:sha` recorded before step 5)
+
+### Path cross-check
+
+Every absolute path above exists in `.github/workflows/deploy-ingestion.yml` (the 4
+`.env.production` refs, the `data-source.js` dist path, the compose file path, the
+`:3032` health endpoint). Full grep output: `.omo/evidence/task-11-rename-ingestion-telegram.md`.
+The only intentional exception is the legacy `mv` source path
+(`/opt/onchain-bot/apps/ingestion-service/.env.production`): pre-rename droplet state,
+absent from the renamed workflow by design.
+
+---
+
 ## Health Check Commands
 
 **Quick Reference:**
@@ -1703,6 +1901,7 @@ echo "=== Parity check complete ==="
 | Version | Date       | Author | Changes                                    |
 |---------|------------|--------|--------------------------------------------|
 | 1.0     | 2026-08-30 | System | Initial deployment runbook                 |
+| 1.1     | 2026-09-17 | System | Cutover ingestion-telegram (rename, stop-the-world) |
 
 ---
 
