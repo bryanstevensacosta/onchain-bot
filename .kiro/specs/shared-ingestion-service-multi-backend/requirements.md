@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document specifies the requirements for enabling a single ingestion-service instance to ingest Telegram messages from one MTProto session and broadcast them to multiple backend instances (production and staging) via Server-Sent Events (SSE). The goal is to eliminate duplicate MTProto connections, media downloads, and ingestion processing while allowing each backend to maintain independent source whitelists and databases.
+This document specifies the requirements for enabling a single ingestion-telegram instance to ingest Telegram messages from one MTProto session and broadcast them to multiple backend instances (production and staging) via Server-Sent Events (SSE). The goal is to eliminate duplicate MTProto connections, media downloads, and ingestion processing while allowing each backend to maintain independent source whitelists and databases.
 
 ## Glossary
 

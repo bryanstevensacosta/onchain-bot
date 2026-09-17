@@ -46,7 +46,7 @@ This section documents NON-NEGOTIABLE constraints from the current system that M
 **Invariant 5: Media as URLs, Not Paths**
 - **Constraint:** Media references MUST be HTTP URLs pointing to the Ingestion_Service, NOT local file paths.
 - **Rationale:** Backends no longer have local access to media files after extraction.
-- **Impact:** THE Ingestion_Service SHALL construct media URLs in the format `http://<ingestion-service-host>/api/media/:channelId/:messageId/:index` and include them in the message payload.
+- **Impact:** THE Ingestion_Service SHALL construct media URLs in the format `http://<ingestion-telegram-host>/api/media/:channelId/:messageId/:index` and include them in the message payload.
 
 **Invariant 6: State Persistence Requirements**
 - **Constraint:** Last-seen message IDs MUST survive service restarts to avoid re-processing old messages.

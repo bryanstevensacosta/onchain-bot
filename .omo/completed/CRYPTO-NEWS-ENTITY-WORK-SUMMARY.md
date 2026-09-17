@@ -83,14 +83,14 @@ import { FilteredCryptoNewsService } from '../services/filtered-crypto-news.serv
 ```typescript
 /**
  * @deprecated DUPLICATE — Post db-separation (2026-09-08), this is a COPY
- * of ingestion-service's domain entity.
+ * of ingestion-telegram's domain entity.
  *
  * **PROBLEM:** Backend maintains its own copy instead of importing from
- * ingestion-service.
+ * ingestion-telegram.
  *
  * **Migration path:**
  * Option A (recommended): Replace with DTOs
- * Option B (alternative): Import FROM ingestion-service
+ * Option B (alternative): Import FROM ingestion-telegram
  */
 ```
 
@@ -104,7 +104,7 @@ import { FilteredCryptoNewsService } from '../services/filtered-crypto-news.serv
 
 **Purpose:** Clean HTTP consumption interface (no domain logic).
 
-**Result:** Backend has proper DTOs for ingestion-service API.
+**Result:** Backend has proper DTOs for ingestion-telegram API.
 
 #### 4. Architecture Clarification ✅
 
@@ -168,7 +168,7 @@ Backend Business Logic:
 
 ```
 Duplicate Domain Model:
-├── CryptoNewsMessage entity ← DUPLICATE of ingestion-service
+├── CryptoNewsMessage entity ← DUPLICATE of ingestion-telegram
 ├── CryptoNewsMedia value object ← DUPLICATE
 ├── TypeORM mappers ← Dead code (no DB writes)
 ├── TypeORM repos ← Dead code
@@ -211,7 +211,7 @@ Data Management:
 
 ### Strategy 3: Import from Ingestion (1-2 hours)
 
-**Goal:** Backend imports FROM ingestion-service package.
+**Goal:** Backend imports FROM ingestion-telegram package.
 
 **Pros:** Fastest, leverages monorepo  
 **Cons:** Tight coupling, backend depends on ingestion
@@ -309,7 +309,7 @@ $ npm run dev
 
 ```
 [IngestionCoordinator] Crypto-news SSE persistence skipped:
-ingestion-service owns crypto-news messages/sources/media in its own DB
+ingestion-telegram owns crypto-news messages/sources/media in its own DB
 (Opción A — backend persists nothing, filters apply on-read).
 ```
 
@@ -364,7 +364,7 @@ ingestion-service owns crypto-news messages/sources/media in its own DB
 **Option B: Quick fix (Strategy 3)** ⚡ FAST (1-2 hrs)
 
 - Remove duplication immediately
-- Import from ingestion-service
+- Import from ingestion-telegram
 - Low risk, low effort
 
 ### Short-term (Next Sprint)
@@ -390,7 +390,7 @@ ingestion-service owns crypto-news messages/sources/media in its own DB
 ### Technical
 
 1. **Path aliases break at runtime** — TypeScript compiles but Node can't resolve
-2. **Monorepo enables cross-package imports** — can import from ingestion-service
+2. **Monorepo enables cross-package imports** — can import from ingestion-telegram
 3. **DTOs !== entities** — different purposes (HTTP vs. domain)
 
 ### Architectural

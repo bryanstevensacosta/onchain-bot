@@ -585,7 +585,7 @@ When `INGESTION_MODE=remote`, MTProto client is NOT initialized, avoiding AUTH_K
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  1. SseIngestionClientAdapter.subscribe(channelIds)             │
-│     - fetch('http://ingestion-service:3031/api/ingestion/stream') │
+│     - fetch('http://ingestion-telegram:3031/api/ingestion/stream') │
 │     - Establishes SSE connection                                │
 └────────────────────────┬────────────────────────────────────────┘
                          │
@@ -624,7 +624,7 @@ Identical processing results in both MTProto and SSE modes (functional parity).
 ┌─────────────────────────────────────────────────────────────────┐
 │  1. Backend receives message with media URL                     │
 │     media: [{                                                   │
-│       url: 'http://ingestion-service:3031/api/media/-100.../0'  │
+│       url: 'http://ingestion-telegram:3031/api/media/-100.../0'  │
 │     }]                                                          │
 └────────────────────────┬────────────────────────────────────────┘
                          │
@@ -636,7 +636,7 @@ Identical processing results in both MTProto and SSE modes (functional parity).
                          │
                          ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  3. MediaController in ingestion-service                        │
+│  3. MediaController in ingestion-telegram                        │
 │     - Reads file from uploads/crypto-news/media/{channelId}/... │
 │     - Returns bytes with Content-Type header                    │
 │     - Supports ETag/Cache-Control (Requirement 4.5)             │
@@ -962,7 +962,7 @@ INGESTION_SAFETY_FLOOD_THRESHOLD_24H=10  # Alert if >10 in 24h (Requirement 11.2
 # Ingestion Mode Toggle
 # ─────────────────────────────────────────────────────────────
 INGESTION_MODE=remote  # 'local' or 'remote' (Requirement 7.1)
-INGESTION_REMOTE_URL=http://ingestion-service:3031  # When mode=remote
+INGESTION_REMOTE_URL=http://ingestion-telegram:3031  # When mode=remote
 
 # ─────────────────────────────────────────────────────────────
 # Disable MTProto in Backend When Remote (Requirement 7.3)
@@ -1016,11 +1016,11 @@ INGESTION_REMOTE_URL=http://ingestion-service:3031  # When mode=remote
 ```yaml
 version: '3.8'
 services:
-  ingestion-service:
+  ingestion-telegram:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: ingestion-service
+    container_name: ingestion-telegram
     ports:
       - "3031:3031"
     environment:
@@ -1130,7 +1130,7 @@ INGESTION_REMOTE_URL=http://localhost:3031
 **Objective:** Deploy standalone ingestion service without backend connections.
 
 **Steps:**
-1. Build and deploy ingestion-service container to droplet
+1. Build and deploy ingestion-telegram container to droplet
 2. Verify health endpoint: `curl http://localhost:3031/api/health` → 200 OK
 3. Verify MTProto connects: Check `mtproto.connected: true` in health response
 4. Verify channels seeded: Check `channels.total > 0` in health response
@@ -1359,7 +1359,7 @@ private calculateBackoff(): number {
 
 **Per Requirement 12.2, 12.3:**
 
-1. Deploy ingestion-service + backend in remote mode (staging)
+1. Deploy ingestion-telegram + backend in remote mode (staging)
 2. Trigger real Telegram message (test channel)
 3. Verify staging backend database has message within 500ms
 4. Verify KOL extraction runs (if KOL message)
@@ -1496,7 +1496,7 @@ ingestion_api_request_duration_seconds (histogram, labels: endpoint, method, sta
 
 ```yaml
 groups:
-  - name: ingestion-service
+  - name: ingestion-telegram
     interval: 30s
     rules:
       - alert: IngestionMtprotoDisconnected
@@ -1653,7 +1653,7 @@ ssh -L 3031:localhost:3031 root@144.126.203.139
 ### 15.3 Migration Checklist
 
 **Pre-Deployment:**
-- [ ] Build ingestion-service Docker image
+- [ ] Build ingestion-telegram Docker image
 - [ ] Configure environment variables (MTProto session, Redis, seeders)
 - [ ] Test health endpoint locally
 - [ ] Test SSE streaming locally

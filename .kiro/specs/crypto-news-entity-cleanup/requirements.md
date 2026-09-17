@@ -2,9 +2,9 @@
 
 ## Introduction
 
-Post db-separation (2026-09-08), the backend maintains **duplicate domain entities** of crypto-news data that is owned by ingestion-service. Backend has copies of `CryptoNewsMessage`, `CryptoNewsSource`, and `CryptoNewsMessageMedia` entities that duplicate the source of truth in ingestion-service.
+Post db-separation (2026-09-08), the backend maintains **duplicate domain entities** of crypto-news data that is owned by ingestion-telegram. Backend has copies of `CryptoNewsMessage`, `CryptoNewsSource`, and `CryptoNewsMessageMedia` entities that duplicate the source of truth in ingestion-telegram.
 
-This technical debt creates maintenance burden, violates DRY principles, and risks divergence over time. The goal is to remove duplication by migrating to one of three strategies: (A) pure DTOs, (B) shared package, or (C) direct imports from ingestion-service.
+This technical debt creates maintenance burden, violates DRY principles, and risks divergence over time. The goal is to remove duplication by migrating to one of three strategies: (A) pure DTOs, (B) shared package, or (C) direct imports from ingestion-telegram.
 
 **Context:**
 
@@ -17,7 +17,7 @@ This technical debt creates maintenance burden, violates DRY principles, and ris
 ## Glossary
 
 - **Backend**: NestJS service at `apps/backend` (:3030) — owns publisher/matching/filtering business logic
-- **Ingestion-Service**: NestJS service at `apps/ingestion-service` (:3031) — owns MTProto ingestion and RAW data persistence
+- **Ingestion-Service**: NestJS service at `apps/ingestion-telegram` (:3031) — owns MTProto ingestion and RAW data persistence
 - **Domain Entity**: Rich domain object with behavior and invariants (DDD pattern)
 - **DTO**: Data Transfer Object — plain data structure for cross-boundary communication
 - **Source of Truth**: The single authoritative definition of a concept
@@ -25,7 +25,7 @@ This technical debt creates maintenance burden, violates DRY principles, and ris
 - **TypeORM Entity**: Class decorated with `@Entity()` for database mapping
 - **In-Memory Repository**: Mock repository implementation used for testing or DI shim
 - **Monorepo**: Single repository containing multiple applications/packages
-- **Crypto-News Pipeline**: Flow where ingestion-service captures messages → backend filters/matches → publisher sends to Telegram
+- **Crypto-News Pipeline**: Flow where ingestion-telegram captures messages → backend filters/matches → publisher sends to Telegram
 
 ---
 
@@ -140,7 +140,7 @@ Must be able to revert changes if issues arise.
 
 ### Explicitly NOT Included
 
-1. ❌ Changing ingestion-service architecture
+1. ❌ Changing ingestion-telegram architecture
 2. ❌ Modifying HTTP API contracts (DTOs are stable)
 3. ❌ Altering publisher queue behavior
 4. ❌ Migrating KOL entities (separate concern)
@@ -196,7 +196,7 @@ Phase 1 complete — entities marked deprecated
 **D2:** `.omo/plans/crypto-news-domain-entity-migration.md`  
 Migration plan with 3 strategies documented
 
-**D3:** `.omo/analysis/ingestion-service-scope-audit.md`  
+**D3:** `.omo/analysis/ingestion-telegram-scope-audit.md`  
 Verified no misplaced business logic
 
 **D4:** `apps/backend/src/telegram/crypto-news-integration/domain/dtos/crypto-news-message.dto.ts`  
@@ -317,7 +317,7 @@ npm run start:dev
 1. `.omo/completed/crypto-news-entity-deprecation.md` — Phase 1 work
 2. `.omo/plans/crypto-news-domain-entity-migration.md` — Detailed migration plan
 3. `.omo/completed/crypto-news-architecture-clarification.md` — Corrected mental model
-4. `.omo/analysis/ingestion-service-scope-audit.md` — Scope verification
+4. `.omo/analysis/ingestion-telegram-scope-audit.md` — Scope verification
 5. `.omo/completed/CRYPTO-NEWS-ENTITY-WORK-SUMMARY.md` — Session summary
 
 ---
