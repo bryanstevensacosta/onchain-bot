@@ -1,4 +1,4 @@
-# Staging environment - uses centralized ingestion-service
+# Staging environment - uses centralized ingestion-telegram
 #
 # Project name EXPLÍCITO: sin `name:`, compose usa el basename del
 # directorio (`backend`), que COLISIONA con el proyecto del dev compose
@@ -7,15 +7,17 @@
 name: onchain-bot-staging
 #
 # ARCHITECTURE DECISION:
-# - ingestion-service is STANDALONE and runs on port 3032 (onchain-bot-ingestion container)
-# - Both staging AND production backends consume from the SAME ingestion-service
-# - No separate staging ingestion-service to avoid:
+# - ingestion-telegram is STANDALONE and runs on port 3032 (onchain-bot-ingestion-telegram container)
+# - Both staging AND production backends consume from the SAME ingestion-telegram service
+# - No separate staging ingestion service to avoid:
 #   1. MTProto session conflict (AUTH_KEY_DUPLICATED)
 #   2. Duplicate crypto-news sources across environments
 #   3. Resource waste running multiple identical ingestion instances
 #
-# Backend connects via: INGESTION_SERVICE_URL=http://onchain-bot-ingestion:3031
-# (pinned in backend `environment:` below; compose `environment:` wins over
+# Backend connects via: INGESTION_TELEGRAM_URL=http://onchain-bot-ingestion-telegram:3031
+# (new var, todo 5; INGESTION_SERVICE_URL stays this release — the code fallback
+#  resolves new > old > default, and both point at the NEW container name.
+#  Pinned in backend `environment:` below; compose `environment:` wins over
 #  .env.staging; dev/localhost is untouched).
 # BOOT ORDER: start docker-compose.ingestion.yml FIRST — the ingestion compose
 # owns both external nets (onchain-bot-net + onchain-bot-staging-net).
@@ -88,10 +90,14 @@ services:
       REDIS_ENABLED: true
       # Ingestion mode - compose `environment:` wins over .env.staging
       # (dev/localhost untouched). Boot ingestion compose first: it owns both
-      # external nets.
+      # external nets. DNS follows the rename: onchain-bot-ingestion-telegram.
+      # INGESTION_TELEGRAM_URL is the new var (todo 5); INGESTION_SERVICE_URL
+      # stays this release — the code fallback resolves new > old > default.
+      # Both point at the NEW container: the old container_name no longer exists.
       USE_SSE_INGESTION: true
       USE_MOCK_INGESTION: false
-      INGESTION_SERVICE_URL: http://onchain-bot-ingestion:3031
+      INGESTION_TELEGRAM_URL: http://onchain-bot-ingestion-telegram:3031
+      INGESTION_SERVICE_URL: http://onchain-bot-ingestion-telegram:3031
     ports:
       - '3031:3030'
     volumes:
