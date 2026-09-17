@@ -4,8 +4,8 @@
 --              to persist broadcast events for 72-hour backfill window during restarts.
 --
 -- Related files:
---   - apps/ingestion-service/src/stream/infrastructure/persistence/typeorm/backfill-message.entity.ts
---   - apps/ingestion-service/src/stream/infrastructure/backfill-buffer.service.ts
+--   - apps/ingestion-telegram/src/stream/infrastructure/persistence/typeorm/backfill-message.entity.ts
+--   - apps/ingestion-telegram/src/stream/infrastructure/backfill-buffer.service.ts
 --
 -- Run with: psql -U alpha_meta_token_scanner -d alpha_meta_token_scanner -f 001-create-backfill-messages-table.sql
 

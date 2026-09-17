@@ -4,7 +4,7 @@
 #
 # Usage: scripts/draft-changelog.sh <app> <since-tag> [/tmp/outfile]
 #
-#   <app>        one of: backend | frontend | ingestion-service
+#   <app>        one of: backend | frontend | ingestion-telegram
 #                (mapped to path apps/<app>, mirroring the merge→app
 #                mapping convention of .omo/evidence/task-3-manual-release-flow.tsv)
 #   <since-tag>  any rev resolvable by `git rev-parse --verify` (tag, SHA, …).
@@ -32,7 +32,7 @@ usage() {
   cat >&2 <<'EOF'
 Usage: scripts/draft-changelog.sh <app> <since-tag> [/tmp/outfile]
 
-  <app>         backend | frontend | ingestion-service
+  <app>         backend | frontend | ingestion-telegram
   <since-tag>   tag/SHA resolvable via `git rev-parse --verify` (draft = <since-tag>..HEAD)
   [/tmp/outfile] optional extra copy of the draft; MUST live under /tmp/
 
@@ -55,8 +55,8 @@ SINCE="$2"
 OUTFILE="${3:-}"
 
 case "${APP}" in
-  backend|frontend|ingestion-service) ;;
-  *) echo "error: unknown app '${APP}' (want: backend|frontend|ingestion-service)" >&2; die_usage ;;
+  backend|frontend|ingestion-telegram) ;;
+  *) echo "error: unknown app '${APP}' (want: backend|frontend|ingestion-telegram)" >&2; die_usage ;;
 esac
 
 APPPATH="apps/${APP}"

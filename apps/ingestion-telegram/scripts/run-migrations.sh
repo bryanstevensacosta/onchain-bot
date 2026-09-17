@@ -3,7 +3,7 @@
 # Dual-mode structure mirrors apps/backend/scripts/run-migrations.sh. One deliberate
 # deviation: the TypeORM CLI is resolved via `npm root` (workspace root node_modules)
 # instead of a relative `node_modules/` path, because npm workspaces hoist
-# dependencies to the repo root — apps/ingestion-service/node_modules does not exist,
+# dependencies to the repo root — apps/ingestion-telegram/node_modules does not exist,
 # so the backend's relative-path form fails here with MODULE_NOT_FOUND.
 
 set -euo pipefail

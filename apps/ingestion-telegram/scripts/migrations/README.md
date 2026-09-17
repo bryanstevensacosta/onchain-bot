@@ -17,7 +17,7 @@ The ingestion-service uses TypeORM with `synchronize: false` in production, so d
 ### Option 1: Using the Shell Script (Recommended)
 
 ```bash
-cd apps/ingestion-service
+cd apps/ingestion-telegram
 ./scripts/apply-backfill-migration.sh
 ```
 

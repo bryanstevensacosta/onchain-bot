@@ -41,7 +41,7 @@ async function main(): Promise<void> {
     console.log(saved);
     console.log('=========================================================\n');
     console.log('Next steps:');
-    console.log('  1. Paste the line above into apps/ingestion-service/.env as INGESTION_TELEGRAM_MTPROTO_SESSION');
+    console.log('  1. Paste the line above into apps/ingestion-telegram/.env as INGESTION_TELEGRAM_MTPROTO_SESSION');
     console.log('  2. Restart the app: npm run start:dev');
     console.log(
       '  3. Look for "MTProto client connected" in logs\n',

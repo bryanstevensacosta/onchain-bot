@@ -6,7 +6,7 @@ import { DataSource } from 'typeorm';
 
 // Register TypeScript path aliases for TypeORM CLI
 // (mirrors apps/backend/src/shared/common/persistence/data-source.ts;
-// alias set matches apps/ingestion-service/tsconfig.json — shared/*,
+// alias set matches apps/ingestion-telegram/tsconfig.json — shared/*,
 // telegram/*, stream/*, media/*, health/*, src/*)
 register({
   baseUrl: resolve(__dirname, '../../../'),

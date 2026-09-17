@@ -28,7 +28,7 @@ Per **Requirement GAP 6** (Centralized Ingestion Service), this script validates
 
 ### Step 1: File existence
 - `apps/backend/.env` exists
-- `apps/ingestion-service/.env` exists
+- `apps/ingestion-telegram/.env` exists
 
 ### Step 2: Backend has NO MTProto credentials
 Checks that these variables are **NOT set** in `apps/backend/.env`:
@@ -37,7 +37,7 @@ Checks that these variables are **NOT set** in `apps/backend/.env`:
 - `TELEGRAM_MTPROTO_API_HASH`
 
 ### Step 3: Ingestion-service has MTProto credentials
-Checks that these variables **ARE set** in `apps/ingestion-service/.env`:
+Checks that these variables **ARE set** in `apps/ingestion-telegram/.env`:
 - `INGESTION_TELEGRAM_MTPROTO_SESSION`
 - `INGESTION_TELEGRAM_MTPROTO_API_ID`
 - `INGESTION_TELEGRAM_MTPROTO_API_HASH`
@@ -62,16 +62,16 @@ MTProto session migration is complete. Safe to deploy ingestion-service.
 
 ```
 ✗ TELEGRAM_MTPROTO_SESSION is set in apps/backend/.env (should be removed)
-✗ INGESTION_TELEGRAM_MTPROTO_SESSION is NOT set in apps/ingestion-service/.env (required)
+✗ INGESTION_TELEGRAM_MTPROTO_SESSION is NOT set in apps/ingestion-telegram/.env (required)
 
 ✗ Validation failed with 2 error(s)
 
 MTProto session migration is INCOMPLETE. DO NOT deploy until fixed.
 
 Action items:
-  1. Move MTProto credentials from apps/backend/.env to apps/ingestion-service/.env
+  1. Move MTProto credentials from apps/backend/.env to apps/ingestion-telegram/.env
   2. Remove TELEGRAM_MTPROTO_* variables from apps/backend/.env
-  3. Ensure INGESTION_TELEGRAM_MTPROTO_* variables are set in apps/ingestion-service/.env
+  3. Ensure INGESTION_TELEGRAM_MTPROTO_* variables are set in apps/ingestion-telegram/.env
   4. Re-run this script to verify
 ```
 

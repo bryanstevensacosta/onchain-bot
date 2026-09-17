@@ -3,12 +3,12 @@
 # Session Migration Validation Script
 # =====================================================================
 # Validates that MTProto session has been properly migrated from backend
-# to ingestion-service. This is critical for deployment safety to prevent
+# to ingestion-telegram. This is critical for deployment safety to prevent
 # AUTH_KEY_DUPLICATED errors (Telegram ToS violation).
 #
 # Per Requirement GAP 6 (Centralized Ingestion Service):
 # - Backend .env must NOT contain MTProto session variables
-# - Ingestion-service .env must HAVE MTProto session variables
+# - Ingestion-telegram .env must HAVE MTProto session variables
 #
 # Usage:
 #   ./scripts/validate-session-migration.sh
@@ -28,7 +28,7 @@ NC='\033[0m' # No Color
 
 # Paths to .env files
 BACKEND_ENV="apps/backend/.env"
-INGESTION_ENV="apps/ingestion-service/.env"
+INGESTION_ENV="apps/ingestion-telegram/.env"
 
 # Track validation errors
 VALIDATION_ERRORS=0
@@ -107,7 +107,7 @@ check_var_is_set() {
 # =====================================================================
 
 print_header "MTProto Session Migration Validator"
-echo "Checking that MTProto credentials have been migrated from backend to ingestion-service..."
+echo "Checking that MTProto credentials have been migrated from backend to ingestion-telegram..."
 echo ""
 
 # Check if .env files exist
@@ -126,8 +126,8 @@ check_var_not_set "$BACKEND_ENV" "TELEGRAM_MTPROTO_API_ID" "TELEGRAM_MTPROTO_API
 check_var_not_set "$BACKEND_ENV" "TELEGRAM_MTPROTO_API_HASH" "TELEGRAM_MTPROTO_API_HASH"
 echo ""
 
-# Check ingestion-service .env HAS session variables
-print_header "Step 3: Verify ingestion-service .env HAS MTProto credentials"
+# Check ingestion-telegram .env HAS session variables
+print_header "Step 3: Verify ingestion-telegram .env HAS MTProto credentials"
 echo "Ingestion service requires all MTProto credentials to connect to Telegram"
 echo ""
 
@@ -151,7 +151,7 @@ print_header "Validation Result"
 if [ $VALIDATION_ERRORS -eq 0 ]; then
   echo -e "${GREEN}✓ All checks passed!${NC}"
   echo ""
-  echo "MTProto session migration is complete. Safe to deploy ingestion-service."
+  echo "MTProto session migration is complete. Safe to deploy ingestion-telegram."
   echo ""
   exit 0
 else

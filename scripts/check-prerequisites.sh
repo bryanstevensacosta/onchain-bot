@@ -76,7 +76,7 @@ fi
 log_info "Checking port availability..."
 
 if lsof -ti :3031 > /dev/null 2>&1; then
-    log_warning "Port 3031 in use (ingestion-service)"
+    log_warning "Port 3031 in use (ingestion-telegram)"
     PID=$(lsof -ti :3031)
     log_info "    PID: $PID - Use 'kill $PID' to free it"
 else
@@ -91,17 +91,17 @@ else
     log_success "Port 3030 available"
 fi
 
-# Check ingestion-service .env
-log_info "Checking ingestion-service configuration..."
-if [ -f "apps/ingestion-service/.env" ]; then
+# Check ingestion-telegram .env
+log_info "Checking ingestion-telegram configuration..."
+if [ -f "apps/ingestion-telegram/.env" ]; then
     log_success ".env file exists"
     
     # Check critical variables
-    if grep -q "INGESTION_TELEGRAM_MTPROTO_SESSION=" apps/ingestion-service/.env; then
-        SESSION=$(grep "INGESTION_TELEGRAM_MTPROTO_SESSION=" apps/ingestion-service/.env | cut -d'=' -f2)
+    if grep -q "INGESTION_TELEGRAM_MTPROTO_SESSION=" apps/ingestion-telegram/.env; then
+        SESSION=$(grep "INGESTION_TELEGRAM_MTPROTO_SESSION=" apps/ingestion-telegram/.env | cut -d'=' -f2)
         if [ -z "$SESSION" ] || [ "$SESSION" == "your_session_string_here" ]; then
             log_error "INGESTION_TELEGRAM_MTPROTO_SESSION not configured"
-            log_info "    Generate: cd apps/ingestion-service && npm run telegram:gen-session"
+            log_info "    Generate: cd apps/ingestion-telegram && npm run telegram:gen-session"
         else
             log_success "MTProto session configured"
         fi
@@ -109,14 +109,14 @@ if [ -f "apps/ingestion-service/.env" ]; then
         log_error "INGESTION_TELEGRAM_MTPROTO_SESSION not set"
     fi
     
-    if grep -q "INGESTION_TELEGRAM_MTPROTO_API_ID=" apps/ingestion-service/.env; then
+    if grep -q "INGESTION_TELEGRAM_MTPROTO_API_ID=" apps/ingestion-telegram/.env; then
         log_success "MTProto API ID configured"
     else
         log_warning "INGESTION_TELEGRAM_MTPROTO_API_ID not set"
     fi
 else
-    log_error ".env file not found in apps/ingestion-service/"
-    log_info "    Copy: cp apps/ingestion-service/.env.example apps/ingestion-service/.env"
+    log_error ".env file not found in apps/ingestion-telegram/"
+    log_info "    Copy: cp apps/ingestion-telegram/.env.example apps/ingestion-telegram/.env"
     exit 1
 fi
 
@@ -148,7 +148,7 @@ echo "════════════════════════�
 echo ""
 log_info "Ready to start testing? Follow these steps:"
 echo ""
-echo "  Terminal 1: cd apps/ingestion-service && npm run start:dev"
+echo "  Terminal 1: cd apps/ingestion-telegram && npm run start:dev"
 echo "  Terminal 2: cd apps/backend && export USE_SSE_INGESTION=true && npm run start:dev"
 echo "  Terminal 3: curl http://localhost:3031/api/health | jq"
 echo ""
