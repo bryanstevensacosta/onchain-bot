@@ -10,7 +10,7 @@
  * - Crypto-news sources loaded via: `CryptoNewsSourceRepository.findAllActive()` (local DB)
  *
  * **To add new sources:**
- * - POST {INGESTION_SERVICE_URL}/api/crypto-news/sources with { channelId, title?, handle? }
+ * - POST {INGESTION_TELEGRAM_URL}/api/crypto-news/sources with { channelId, title?, handle? }
  * - Channel IDs MUST use Telegram's full format: -100XXXXXXXXX
  *
  * **This file exists only as reference documentation.**
