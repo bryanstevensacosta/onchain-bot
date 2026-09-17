@@ -14,7 +14,7 @@ import { Registry } from 'prom-client';
  * Per Requirement 12.2: 100% message processing with identical results
  *
  * Test Strategy:
- * - Deploy ingestion-service in test mode (in-memory)
+ * - Deploy ingestion-telegram in test mode (in-memory)
  * - Connect backend SSE client
  * - Inject test message via StreamService.broadcast() (simulates MTProto)
  * - Verify SSE broadcast received

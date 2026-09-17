@@ -17,7 +17,7 @@ import { BaseMediaPathBuilder } from './base-media-path-builder';
  * 7. Return metadata (path, MIME, size)
  *
  * **Cohesion Goal**: Eliminate ~150 lines of EXACT duplication between:
- * - MediaDownloaderService (ingestion-service)
+ * - MediaDownloaderService (ingestion-telegram)
  * - MtprotoMediaDownloader (backend) ← LEGACY, to be removed
  *
  * **Template Method Pattern**: Subclasses override path building

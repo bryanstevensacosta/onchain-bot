@@ -150,7 +150,7 @@ jobs:
         run: |
           # Code-before-schema law (db-separation todo 10): the backend drop
           # migration (1860000000001) deletes the legacy crypto-news tables, so
-          # the ingestion-service MUST already serve them. The cutover order is
+          # the ingestion-telegram MUST already serve them. The cutover order is
           # enforced by SEQUENTIAL PRs (ingestion first, backend second), and
           # this gate aborts the backend deploy if ingestion is not serving —
           # even if the two workflows ever race on the same push to master.

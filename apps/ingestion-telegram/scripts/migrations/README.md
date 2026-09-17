@@ -1,10 +1,10 @@
 # Ingestion Service Database Migrations
 
-This directory contains SQL migrations for the ingestion-service database.
+This directory contains SQL migrations for the ingestion-telegram database.
 
 ## Overview
 
-The ingestion-service uses TypeORM with `synchronize: false` in production, so database schema changes must be applied manually via SQL migrations.
+The ingestion-telegram uses TypeORM with `synchronize: false` in production, so database schema changes must be applied manually via SQL migrations.
 
 ## Migration Files
 
@@ -64,10 +64,10 @@ docker exec onchain-bot-postgres-production psql \
   -c "\d backfill_messages"
 ```
 
-Check ingestion-service logs for successful initialization:
+Check ingestion-telegram logs for successful initialization:
 
 ```bash
-docker logs onchain-bot-ingestion --tail 50 | grep BackfillBuffer
+docker logs onchain-bot-ingestion-telegram --tail 50 | grep BackfillBuffer
 ```
 
 Expected output:

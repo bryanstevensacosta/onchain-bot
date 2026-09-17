@@ -37,7 +37,7 @@ export interface FilterRule {
  */
 export abstract class CryptoNewsSourceRepository {
   /**
-   * @deprecated Backend no longer creates/updates sources. Use ingestion-service.
+   * @deprecated Backend no longer creates/updates sources. Use ingestion-telegram.
    */
   public abstract save(source: CryptoNewsSource): Promise<void>;
 
@@ -48,7 +48,7 @@ export abstract class CryptoNewsSourceRepository {
   public abstract findActive(): Promise<ReadonlyArray<CryptoNewsSource>>;
 
   /**
-   * @deprecated Backend no longer deletes sources. Use ingestion-service.
+   * @deprecated Backend no longer deletes sources. Use ingestion-telegram.
    */
   public abstract delete(channelId: string): Promise<void>;
 

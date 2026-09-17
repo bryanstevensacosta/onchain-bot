@@ -65,7 +65,7 @@ This is **correct fan-out behavior**, NOT duplication.
 
 ### Fan-out Implementation
 
-**File:** `apps/ingestion-service/src/stream/application/services/stream.service.ts`
+**File:** `apps/ingestion-telegram/src/stream/application/services/stream.service.ts`
 
 ```typescript
 /**
@@ -85,7 +85,7 @@ broadcast(event: SSEEvent): void {
 
 ### Message Routing
 
-**File:** `apps/ingestion-service/src/telegram/shared/application/coordinators/ingestion.coordinator.ts`
+**File:** `apps/ingestion-telegram/src/telegram/shared/application/coordinators/ingestion.coordinator.ts`
 
 ```typescript
 async route(raw: TelegramRawMessage, messageType: 'kol' | 'crypto-news'): Promise<void> {
@@ -102,7 +102,7 @@ async route(raw: TelegramRawMessage, messageType: 'kol' | 'crypto-news'): Promis
 
 ### Channel Union Computation
 
-**File:** `apps/ingestion-service/src/telegram/shared/services/backend-channel-provider.service.ts`
+**File:** `apps/ingestion-telegram/src/telegram/shared/services/backend-channel-provider.service.ts`
 
 The service computes the union of all active channels from all backends:
 
@@ -124,7 +124,7 @@ No specific unit tests for no-duplication (architectural property, not a testabl
 
 ### E2E Tests
 
-**File:** `apps/ingestion-service/test/full-message-flow.e2e-spec.ts`
+**File:** `apps/ingestion-telegram/test/full-message-flow.e2e-spec.ts`
 
 Verifies that messages broadcast via SSE reach all connected clients:
 
@@ -160,7 +160,7 @@ Monitor logs for duplicate message IDs:
 
 ```bash
 # On ingestion droplet
-docker compose -f /opt/onchain-bot-ingestion/docker-compose.yml logs ingestion-service --tail 100 | grep "message:received"
+docker compose -f /opt/onchain-bot-ingestion/docker-compose.yml logs ingestion-telegram --tail 100 | grep "message:received"
 
 # Should see each messageId ONCE per channel
 ```

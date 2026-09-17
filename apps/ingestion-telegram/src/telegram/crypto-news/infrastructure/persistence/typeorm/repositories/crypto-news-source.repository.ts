@@ -15,7 +15,7 @@ export interface ActiveCryptoNewsSource {
  * repository on startup and periodically to determine which channels require
  * media download (crypto-news channels vs KOL channels).
  *
- * Sources are created/updated via ingestion-service API (`POST /api/crypto-news/sources`).
+ * Sources are created/updated via ingestion-telegram API (`POST /api/crypto-news/sources`).
  */
 @Injectable()
 export class CryptoNewsSourceRepository {

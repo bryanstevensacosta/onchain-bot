@@ -27,7 +27,7 @@ const DEFAULT_CONNECT_TIMEOUT_MS = 20_000;
  *
  * Simplified from backend version:
  * - No DomainError (uses standard Error)
- * - Reads config from ingestion-service app.config
+ * - Reads config from ingestion-telegram app.config
  * - Same connection logic and timeout handling
  */
 @Injectable()

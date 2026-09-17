@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Create test directory structure
-mkdir -p apps/backend apps/ingestion-service
+mkdir -p apps/backend apps/ingestion-telegram
 
 # Test 1: Both files missing (should fail)
 echo "=== Test 1: Missing .env files ==="
@@ -16,7 +16,7 @@ TELEGRAM_MTPROTO_API_ID=12345678
 TELEGRAM_MTPROTO_API_HASH=abcdef1234567890
 BACKEND_ENV
 
-cat > apps/ingestion-service/.env << 'INGESTION_ENV'
+cat > apps/ingestion-telegram/.env << 'INGESTION_ENV'
 INGESTION_TELEGRAM_MTPROTO_SESSION=test_session_string
 INGESTION_TELEGRAM_MTPROTO_API_ID=12345678
 INGESTION_TELEGRAM_MTPROTO_API_HASH=abcdef1234567890
@@ -31,7 +31,7 @@ cat > apps/backend/.env << 'BACKEND_ENV'
 NODE_ENV=development
 BACKEND_ENV
 
-cat > apps/ingestion-service/.env << 'INGESTION_ENV'
+cat > apps/ingestion-telegram/.env << 'INGESTION_ENV'
 INGESTION_TELEGRAM_MTPROTO_SESSION=test_session_string
 INGESTION_TELEGRAM_MTPROTO_API_ID=12345678
 INGESTION_TELEGRAM_MTPROTO_API_HASH=abcdef1234567890
@@ -41,4 +41,4 @@ bash scripts/validate-session-migration.sh 2>&1
 echo "Exit code: $?"
 
 # Cleanup
-rm -rf apps/backend/.env apps/ingestion-service/.env
+rm -rf apps/backend/.env apps/ingestion-telegram/.env

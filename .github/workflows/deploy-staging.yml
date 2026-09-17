@@ -320,8 +320,8 @@ jobs:
           cd /opt/onchain-bot-staging/apps/backend
 
           # Run migrations inside a temporary Docker container
-          # Use --no-deps to avoid starting ingestion-service during migrations
-          # (ingestion-service port 3032 is still occupied from previous deploy)
+          # Use --no-deps to avoid starting ingestion-telegram during migrations
+          # (ingestion-telegram port 3032 is still occupied from previous deploy)
           docker compose -f docker-compose.staging.yml run --rm --no-deps \
             -e NODE_ENV=staging \
             -e POSTGRES_HOST=postgres \

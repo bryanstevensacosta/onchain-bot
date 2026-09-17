@@ -11,7 +11,7 @@ import { RedisService } from 'shared/common/cache/redis.service';
  * processing or message loss during restarts.
  *
  * **Migration path:**
- * - **New location:** `apps/ingestion-service/src/telegram/shared/infrastructure/services/last-seen-manager.service.ts`
+ * - **New location:** `apps/ingestion-telegram/src/telegram/shared/infrastructure/services/last-seen-manager.service.ts`
  * - **Backend impact:** Backend clients consuming SSE streams no longer need cursor management.
  *   The ingestion service handles deduplication at source, ensuring each message is broadcast
  *   exactly once to all connected clients.
@@ -27,7 +27,7 @@ import { RedisService } from 'shared/common/cache/redis.service';
  * Architectural Invariant 6 for state persistence requirements and section 3.4 for
  * deduplication flow design.
  *
- * @see {@link apps/ingestion-service} Centralized cursor management eliminates duplicate processing
+ * @see {@link apps/ingestion-telegram} Centralized cursor management eliminates duplicate processing
  */
 @Injectable()
 export class LastSeenManager {

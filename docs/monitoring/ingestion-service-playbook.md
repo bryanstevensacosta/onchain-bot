@@ -48,7 +48,7 @@ The Centralized Ingestion Service is the single point of ingestion for Telegram 
 
 ### Metrics Endpoint
 
-**URL:** `GET http://<ingestion-service-host>:3031/metrics`
+**URL:** `GET http://<ingestion-telegram-host>:3031/metrics`
 
 Prometheus scrape target exposing all metrics in Prometheus text format.
 
@@ -99,25 +99,25 @@ The service also exposes Node.js process metrics via `@willsoto/nestjs-prometheu
 
 1. **Check service logs** for `mtproto:connection:changed` events:
    ```bash
-   docker logs ingestion-service --tail 100 | grep "mtproto:connection"
+   docker logs ingestion-telegram --tail 100 | grep "mtproto:connection"
    ```
 2. **Check for AUTH_KEY_DUPLICATED errors:**
    ```bash
-   docker logs ingestion-service --tail 200 | grep "AUTH_KEY_DUPLICATED"
+   docker logs ingestion-telegram --tail 200 | grep "AUTH_KEY_DUPLICATED"
    ```
    - If found: Another MTProto client is running (should NOT happen). Identify and stop duplicate client.
 3. **Check for SESSION_REVOKED or SESSION_EXPIRED:**
    ```bash
-   docker logs ingestion-service --tail 200 | grep -E "SESSION_REVOKED|SESSION_EXPIRED"
+   docker logs ingestion-telegram --tail 200 | grep -E "SESSION_REVOKED|SESSION_EXPIRED"
    ```
    - If found: Session is invalid. Regenerate MTProto session string (see [FAQ: Session Regeneration](#q-how-do-i-regenerate-the-mtproto-session-string)).
 4. **Check network connectivity to Telegram API:**
    ```bash
-   docker exec ingestion-service ping -c 3 149.154.167.51
+   docker exec ingestion-telegram ping -c 3 149.154.167.51
    ```
 5. **Restart service** if no obvious cause:
    ```bash
-   docker restart ingestion-service
+   docker restart ingestion-telegram
    ```
 6. **Verify reconnection** within 2 minutes:
    ```bash
@@ -150,11 +150,11 @@ The service also exposes Node.js process metrics via `@willsoto/nestjs-prometheu
 2. **Verify network connectivity** from backend to ingestion service:
    ```bash
    # On backend host
-   curl -I http://<ingestion-service-host>:3031/api/health
+   curl -I http://<ingestion-telegram-host>:3031/api/health
    ```
 3. **Check ingestion service for client disconnection events:**
    ```bash
-   docker logs ingestion-service --tail 200 | grep "sse:client:disconnected"
+   docker logs ingestion-telegram --tail 200 | grep "sse:client:disconnected"
    ```
 4. **Check for disconnection windows** in health endpoint:
    ```bash
@@ -191,7 +191,7 @@ The service also exposes Node.js process metrics via `@willsoto/nestjs-prometheu
 
 1. **Check CPU and memory usage:**
    ```bash
-   docker stats ingestion-service --no-stream
+   docker stats ingestion-telegram --no-stream
    ```
    - If CPU >80% or Memory >90%, service is under resource pressure.
 2. **Check number of connected clients:**
@@ -201,15 +201,15 @@ The service also exposes Node.js process metrics via `@willsoto/nestjs-prometheu
    - If >10 clients: Service may be overloaded (design target is 10 clients).
 3. **Check for media download backlog** (slow Telegram API):
    ```bash
-   docker logs ingestion-service --tail 100 | grep "media:download"
+   docker logs ingestion-telegram --tail 100 | grep "media:download"
    ```
 4. **Check for flood wait events:**
    ```bash
-   docker logs ingestion-service --tail 100 | grep "flood_wait:detected"
+   docker logs ingestion-telegram --tail 100 | grep "flood_wait:detected"
    ```
 5. **Restart service** if resource pressure is detected:
    ```bash
-   docker restart ingestion-service
+   docker restart ingestion-telegram
    ```
 
 **Escalation:** If latency remains >1s after restart, escalate to Engineering for capacity planning.
@@ -238,7 +238,7 @@ The service also exposes Node.js process metrics via `@willsoto/nestjs-prometheu
    ```
 2. **Review flood wait events** in logs:
    ```bash
-   docker logs ingestion-service --tail 500 | grep "flood_wait:detected"
+   docker logs ingestion-telegram --tail 500 | grep "flood_wait:detected"
    ```
 3. **Check consecutive failures:**
    ```bash
@@ -247,7 +247,7 @@ The service also exposes Node.js process metrics via `@willsoto/nestjs-prometheu
    - If >3: High ban risk. Service is being aggressively rate limited.
 4. **Verify staggered polling configuration** (should have jitter):
    ```bash
-   docker exec ingestion-service cat /app/config/ingestion.config.json | jq '.staggeredPolling'
+   docker exec ingestion-telegram cat /app/config/ingestion.config.json | jq '.staggeredPolling'
    ```
 5. **Temporarily increase poll interval** if count is rising:
    - Edit `config/ingestion.config.json`
@@ -297,7 +297,7 @@ The service also exposes Node.js process metrics via `@willsoto/nestjs-prometheu
 4. **Verify network stability** between backend and ingestion service:
    ```bash
    # On backend host
-   ping -c 100 <ingestion-service-host>
+   ping -c 100 <ingestion-telegram-host>
    ```
 5. **Check for proxy/load balancer timeouts** (SSE connections must be long-lived).
 6. **If issue persists**, restart affected backend environment:
@@ -335,14 +335,14 @@ The service also exposes Node.js process metrics via `@willsoto/nestjs-prometheu
    - If timestamp is stale (>5 minutes old), polling is stuck.
 3. **Check for sleep window** (service pauses polling during configured sleep hours):
    ```bash
-   docker logs ingestion-service --tail 50 | grep "sleep window"
+   docker logs ingestion-telegram --tail 50 | grep "sleep window"
    ```
 4. **Verify channels are active** (check Telegram web/app):
    - Open monitored channels in Telegram web
    - Confirm recent message activity
 5. **If channels ARE active but no messages received**, restart service:
    ```bash
-   docker restart ingestion-service
+   docker restart ingestion-telegram
    ```
 
 **Escalation:** If issue persists after restart with confirmed channel activity, escalate to Engineering.
@@ -351,11 +351,11 @@ The service also exposes Node.js process metrics via `@willsoto/nestjs-prometheu
 
 ## Prometheus Alert Rules
 
-### Alert Rules File: `ingestion-service-alerts.yml`
+### Alert Rules File: `ingestion-telegram-alerts.yml`
 
 ```yaml
 groups:
-  - name: ingestion_service_critical
+  - name: ingestion_telegram_critical
     interval: 30s
     rules:
       # ALERT-001: MTProto Disconnected
@@ -364,12 +364,12 @@ groups:
         for: 5m
         labels:
           severity: critical
-          service: ingestion-service
+          service: ingestion-telegram
           alert_id: ALERT-001
         annotations:
           summary: 'Ingestion service MTProto disconnected'
           description: 'MTProto connection to Telegram has been down for >5 minutes. No messages are being ingested.'
-          runbook_url: 'https://docs.example.com/runbooks/ingestion-service-playbook.md#alert-001-mtproto-disconnected'
+          runbook_url: 'https://docs.example.com/runbooks/ingestion-telegram-playbook.md#alert-001-mtproto-disconnected'
 
       # ALERT-002: Zero SSE Clients Connected
       - alert: IngestionZeroClientsConnected
@@ -377,12 +377,12 @@ groups:
         for: 10m
         labels:
           severity: critical
-          service: ingestion-service
+          service: ingestion-telegram
           alert_id: ALERT-002
         annotations:
           summary: 'No SSE clients connected to ingestion service'
           description: 'Zero backend clients connected for >10 minutes. Messages are not being consumed.'
-          runbook_url: 'https://docs.example.com/runbooks/ingestion-service-playbook.md#alert-002-zero-sse-clients-connected'
+          runbook_url: 'https://docs.example.com/runbooks/ingestion-telegram-playbook.md#alert-002-zero-sse-clients-connected'
 
       # ALERT-003: High Broadcast Latency
       - alert: IngestionHighBroadcastLatency
@@ -390,14 +390,14 @@ groups:
         for: 5m
         labels:
           severity: critical
-          service: ingestion-service
+          service: ingestion-telegram
           alert_id: ALERT-003
         annotations:
           summary: 'High message broadcast latency'
           description: 'p95 broadcast latency is >1s for >5 minutes. Trading signals delayed.'
-          runbook_url: 'https://docs.example.com/runbooks/ingestion-service-playbook.md#alert-003-high-broadcast-latency'
+          runbook_url: 'https://docs.example.com/runbooks/ingestion-telegram-playbook.md#alert-003-high-broadcast-latency'
 
-  - name: ingestion_service_warning
+  - name: ingestion_telegram_warning
     interval: 1m
     rules:
       # ALERT-004: Elevated FLOOD_WAIT Count
@@ -406,12 +406,12 @@ groups:
         for: 5m
         labels:
           severity: warning
-          service: ingestion-service
+          service: ingestion-telegram
           alert_id: ALERT-004
         annotations:
           summary: 'Elevated FLOOD_WAIT count'
           description: 'More than 10 FLOOD_WAIT errors in 24h window. Risk of Telegram account ban.'
-          runbook_url: 'https://docs.example.com/runbooks/ingestion-service-playbook.md#alert-004-elevated-flood_wait-count'
+          runbook_url: 'https://docs.example.com/runbooks/ingestion-telegram-playbook.md#alert-004-elevated-flood_wait-count'
 
       # ALERT-006: No Messages Received
       - alert: IngestionNoMessagesReceived
@@ -419,12 +419,12 @@ groups:
         for: 15m
         labels:
           severity: warning
-          service: ingestion-service
+          service: ingestion-telegram
           alert_id: ALERT-006
         annotations:
           summary: 'No messages received for >15 minutes'
           description: 'Message ingestion has flatlined. Possible upstream issue or polling stuck.'
-          runbook_url: 'https://docs.example.com/runbooks/ingestion-service-playbook.md#alert-006-no-messages-received-for-15-minutes'
+          runbook_url: 'https://docs.example.com/runbooks/ingestion-telegram-playbook.md#alert-006-no-messages-received-for-15-minutes'
 
       # High Memory Usage
       - alert: IngestionHighMemoryUsage
@@ -432,12 +432,12 @@ groups:
         for: 5m
         labels:
           severity: warning
-          service: ingestion-service
+          service: ingestion-telegram
           alert_id: ALERT-007
         annotations:
           summary: 'High memory usage (>90%)'
           description: 'Heap usage is >90% for >5 minutes. Risk of OOM crash.'
-          runbook_url: 'https://docs.example.com/runbooks/ingestion-service-playbook.md#alert-007-high-memory-usage'
+          runbook_url: 'https://docs.example.com/runbooks/ingestion-telegram-playbook.md#alert-007-high-memory-usage'
 
       # Media Storage High
       - alert: IngestionMediaStorageHigh
@@ -445,14 +445,14 @@ groups:
         for: 10m
         labels:
           severity: warning
-          service: ingestion-service
+          service: ingestion-telegram
           alert_id: ALERT-008
         annotations:
           summary: 'Media storage >80% full'
           description: 'Media storage volume is >80% full. Old media files may need cleanup.'
-          runbook_url: 'https://docs.example.com/runbooks/ingestion-service-playbook.md#alert-008-media-storage-high'
+          runbook_url: 'https://docs.example.com/runbooks/ingestion-telegram-playbook.md#alert-008-media-storage-high'
 
-  - name: ingestion_service_info
+  - name: ingestion_telegram_info
     interval: 5m
     rules:
       # Broadcast Duration p95 Degraded (but not critical)
@@ -461,7 +461,7 @@ groups:
         for: 10m
         labels:
           severity: info
-          service: ingestion-service
+          service: ingestion-telegram
         annotations:
           summary: 'Broadcast latency degraded (p95 >500ms)'
           description: 'Broadcast latency is above target (500ms) but below critical threshold (1s).'
@@ -481,10 +481,10 @@ The Ingestion Service uses **structured JSON logging** via NestJS Logger (Pino f
 
 ```bash
 # View logs with Docker
-docker logs ingestion-service --tail 500 --follow
+docker logs ingestion-telegram --tail 500 --follow
 
 # Export logs to file for analysis
-docker logs ingestion-service --since 1h > ingestion-$(date +%Y%m%d-%H%M).log
+docker logs ingestion-telegram --since 1h > ingestion-$(date +%Y%m%d-%H%M).log
 ```
 
 ### Common Log Queries
@@ -495,7 +495,7 @@ docker logs ingestion-service --since 1h > ingestion-$(date +%Y%m%d-%H%M).log
 
 ```bash
 # Grep Docker logs
-docker logs ingestion-service --tail 1000 | grep '"event":"mtproto:connection:changed"'
+docker logs ingestion-telegram --tail 1000 | grep '"event":"mtproto:connection:changed"'
 
 # Elasticsearch query
 {
@@ -508,7 +508,7 @@ docker logs ingestion-service --tail 1000 | grep '"event":"mtproto:connection:ch
 }
 
 # Loki LogQL
-{service="ingestion-service"} | json | event="mtproto:connection:changed"
+{service="ingestion-telegram"} | json | event="mtproto:connection:changed"
 ```
 
 **Expected Output:**
@@ -530,7 +530,7 @@ docker logs ingestion-service --tail 1000 | grep '"event":"mtproto:connection:ch
 
 ```bash
 # Grep Docker logs
-docker logs ingestion-service --tail 5000 | grep '"event":"flood_wait:detected"'
+docker logs ingestion-telegram --tail 5000 | grep '"event":"flood_wait:detected"'
 
 # Elasticsearch query
 {
@@ -568,7 +568,7 @@ docker logs ingestion-service --tail 5000 | grep '"event":"flood_wait:detected"'
 
 ```bash
 # Grep Docker logs for last hour
-docker logs ingestion-service --since 1h | grep -E '"event":"sse:client:(connected|disconnected)"'
+docker logs ingestion-telegram --since 1h | grep -E '"event":"sse:client:(connected|disconnected)"'
 
 # Elasticsearch query for connection events
 {
@@ -602,7 +602,7 @@ docker logs ingestion-service --since 1h | grep -E '"event":"sse:client:(connect
 
 ```bash
 # Grep Docker logs for specific channel
-docker logs ingestion-service --tail 2000 | grep '"event":"message:received"' | grep '"channelId":"-1001234567890"'
+docker logs ingestion-telegram --tail 2000 | grep '"event":"message:received"' | grep '"channelId":"-1001234567890"'
 
 # Elasticsearch query
 {
@@ -641,7 +641,7 @@ docker logs ingestion-service --tail 2000 | grep '"event":"message:received"' | 
 
 ```bash
 # Grep Docker logs
-docker logs ingestion-service --tail 1000 | grep '"event":"media:download:failed"'
+docker logs ingestion-telegram --tail 1000 | grep '"event":"media:download:failed"'
 
 # Elasticsearch query
 {
@@ -688,7 +688,7 @@ docker logs ingestion-service --tail 1000 | grep '"event":"media:download:failed
 
 ```bash
 # Grep Docker logs
-docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|shutdown)"'
+docker logs ingestion-telegram --tail 1000 | grep -E '"event":"service:(started|shutdown)"'
 ```
 
 **Expected Output:**
@@ -719,7 +719,7 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 
 ### Health Endpoint: `GET /api/health`
 
-**URL:** `http://<ingestion-service-host>:3031/api/health`
+**URL:** `http://<ingestion-telegram-host>:3031/api/health`
 
 #### Response Structure
 
@@ -828,7 +828,7 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 
 **Purpose:** Kubernetes readiness probe (determines if pod should receive traffic)
 
-**URL:** `http://<ingestion-service-host>:3031/api/health/ready`
+**URL:** `http://<ingestion-telegram-host>:3031/api/health/ready`
 
 **Response:**
 
@@ -848,7 +848,7 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 
 **Purpose:** Kubernetes liveness probe (determines if pod should be restarted)
 
-**URL:** `http://<ingestion-service-host>:3031/api/health/live`
+**URL:** `http://<ingestion-telegram-host>:3031/api/health/live`
 
 **Response:**
 
@@ -874,7 +874,7 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 
 1. Stop all running ingestion service instances:
    ```bash
-   docker stop ingestion-service
+   docker stop ingestion-telegram
    ```
 2. On a development machine, generate a new session:
    ```bash
@@ -890,7 +890,7 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
    ```
 4. Restart ingestion service:
    ```bash
-   docker restart ingestion-service
+   docker restart ingestion-telegram
    ```
 5. Verify authorization:
    ```bash
@@ -919,17 +919,17 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
    ```
 2. Test connectivity from backend host:
    ```bash
-   curl -I http://<ingestion-service-host>:3031/api/health
+   curl -I http://<ingestion-telegram-host>:3031/api/health
    ```
 3. Verify backend configuration:
    ```bash
    docker exec backend-app env | grep INGESTION
    ```
    - Expected: `INGESTION_MODE=remote`
-   - Expected: `INGESTION_REMOTE_URL=http://<ingestion-service-host>:3031`
+   - Expected: `INGESTION_REMOTE_URL=http://<ingestion-telegram-host>:3031`
 4. Check ingestion service logs for incoming connection attempts:
    ```bash
-   docker logs ingestion-service --tail 100 | grep "sse:client:connected"
+   docker logs ingestion-telegram --tail 100 | grep "sse:client:connected"
    ```
 
 ---
@@ -956,11 +956,11 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
    ```
 2. Check for broadcast errors in logs:
    ```bash
-   docker logs ingestion-service --tail 200 | grep -i "broadcast"
+   docker logs ingestion-telegram --tail 200 | grep -i "broadcast"
    ```
 3. Check if messages are duplicates (compare messageId with last-seen cursor):
    ```bash
-   docker exec ingestion-service redis-cli GET "ingestion:lastSeen:-1001234567890"
+   docker exec ingestion-telegram redis-cli GET "ingestion:lastSeen:-1001234567890"
    ```
 
 ---
@@ -983,15 +983,15 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 
 1. Check if media file exists on disk:
    ```bash
-   docker exec ingestion-service ls -lh /app/uploads/crypto-news/media/<channelId>/
+   docker exec ingestion-telegram ls -lh /app/uploads/crypto-news/media/<channelId>/
    ```
 2. Check for media download errors in logs:
    ```bash
-   docker logs ingestion-service --tail 500 | grep '"event":"media:download:failed"'
+   docker logs ingestion-telegram --tail 500 | grep '"event":"media:download:failed"'
    ```
 3. Verify uploads volume mount:
    ```bash
-   docker inspect ingestion-service | jq '.[0].Mounts'
+   docker inspect ingestion-telegram | jq '.[0].Mounts'
    ```
    - Expected: `/app/uploads` mounted to host path or named volume
 
@@ -1015,21 +1015,21 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 
 1. Check container exit code:
    ```bash
-   docker inspect ingestion-service | jq '.[0].State'
+   docker inspect ingestion-telegram | jq '.[0].State'
    ```
    - Exit code 137 = OOM killed
    - Exit code 1 = Crash
 2. Check memory usage before crash:
    ```bash
-   docker stats ingestion-service --no-stream
+   docker stats ingestion-telegram --no-stream
    ```
 3. Check logs for unhandled exceptions:
    ```bash
-   docker logs ingestion-service --tail 500 | grep -i "error"
+   docker logs ingestion-telegram --tail 500 | grep -i "error"
    ```
 4. Check Docker resource limits:
    ```bash
-   docker inspect ingestion-service | jq '.[0].HostConfig.Memory'
+   docker inspect ingestion-telegram | jq '.[0].HostConfig.Memory'
    ```
 
 **Mitigation:**
@@ -1053,13 +1053,13 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 
 1. **Reduce polling frequency:**
    ```bash
-   docker exec ingestion-service vi /app/config/ingestion.config.json
+   docker exec ingestion-telegram vi /app/config/ingestion.config.json
    ```
    - Increase `pollIntervalBaseMs` from 90000 to 120000 (2 minutes)
    - Increase `jitterPercent` from 30 to 50 (more randomness)
 2. **Restart service** to apply config changes:
    ```bash
-   docker restart ingestion-service
+   docker restart ingestion-telegram
    ```
 3. **Enable sleep window** (pause polling during low-activity hours):
    ```json
@@ -1092,7 +1092,7 @@ docker logs ingestion-service --tail 1000 | grep -E '"event":"service:(started|s
 
 1. **Restart ingestion service:**
    ```bash
-   docker restart ingestion-service
+   docker restart ingestion-telegram
    ```
    - This will drop all existing SSE connections
 2. **Clients will auto-reconnect** within 1-30 seconds (exponential backoff)
@@ -1119,17 +1119,17 @@ docker restart backend-prod
 
 1. **Check Redis last-seen cursors:**
    ```bash
-   docker exec ingestion-service redis-cli KEYS "ingestion:lastSeen:*"
+   docker exec ingestion-telegram redis-cli KEYS "ingestion:lastSeen:*"
    ```
    - One key per channel
 2. **Get current cursor for a channel:**
    ```bash
-   docker exec ingestion-service redis-cli GET "ingestion:lastSeen:-1001234567890"
+   docker exec ingestion-telegram redis-cli GET "ingestion:lastSeen:-1001234567890"
    ```
    - Returns last processed messageId
 3. **Check for dedup cache hits** in logs (if implemented):
    ```bash
-   docker logs ingestion-service --tail 1000 | grep "duplicate"
+   docker logs ingestion-telegram --tail 1000 | grep "duplicate"
    ```
 
 **Expected Behavior:**
@@ -1159,7 +1159,7 @@ docker restart backend-prod
 3. **Check for media URL accessibility** from backend:
    ```bash
    # On backend host
-   curl -I http://<ingestion-service-host>:3031/api/media/-1001234567890/12345/0
+   curl -I http://<ingestion-telegram-host>:3031/api/media/-1001234567890/12345/0
    ```
 
 **Note:** Ingestion service delivers messages successfully. Backend processing errors are NOT ingestion service issues (escalate to backend team).
@@ -1251,54 +1251,54 @@ curl http://localhost:3031/metrics | grep ingestion_flood_wait_count_24h
 
 ```bash
 # Tail logs in real-time
-docker logs ingestion-service --tail 100 --follow
+docker logs ingestion-telegram --tail 100 --follow
 
 # Export last hour of logs
-docker logs ingestion-service --since 1h > ingestion-$(date +%Y%m%d-%H%M).log
+docker logs ingestion-telegram --since 1h > ingestion-$(date +%Y%m%d-%H%M).log
 
 # Find MTProto connection events
-docker logs ingestion-service --tail 1000 | grep '"event":"mtproto:connection:changed"'
+docker logs ingestion-telegram --tail 1000 | grep '"event":"mtproto:connection:changed"'
 
 # Find FLOOD_WAIT events
-docker logs ingestion-service --tail 5000 | grep '"event":"flood_wait:detected"'
+docker logs ingestion-telegram --tail 5000 | grep '"event":"flood_wait:detected"'
 
 # Find SSE client events
-docker logs ingestion-service --since 1h | grep -E '"event":"sse:client:(connected|disconnected)"'
+docker logs ingestion-telegram --since 1h | grep -E '"event":"sse:client:(connected|disconnected)"'
 ```
 
 ### Service Control
 
 ```bash
 # Restart service
-docker restart ingestion-service
+docker restart ingestion-telegram
 
 # Stop service
-docker stop ingestion-service
+docker stop ingestion-telegram
 
 # Start service
-docker start ingestion-service
+docker start ingestion-telegram
 
 # View service status
-docker ps | grep ingestion-service
+docker ps | grep ingestion-telegram
 
 # Check resource usage
-docker stats ingestion-service --no-stream
+docker stats ingestion-telegram --no-stream
 ```
 
 ### Redis Operations
 
 ```bash
 # Connect to Redis
-docker exec -it ingestion-service redis-cli
+docker exec -it ingestion-telegram redis-cli
 
 # Check last-seen cursors
-docker exec ingestion-service redis-cli KEYS "ingestion:lastSeen:*"
+docker exec ingestion-telegram redis-cli KEYS "ingestion:lastSeen:*"
 
 # Get cursor for specific channel
-docker exec ingestion-service redis-cli GET "ingestion:lastSeen:-1001234567890"
+docker exec ingestion-telegram redis-cli GET "ingestion:lastSeen:-1001234567890"
 
 # Clear cursor (force re-processing from latest)
-docker exec ingestion-service redis-cli DEL "ingestion:lastSeen:-1001234567890"
+docker exec ingestion-telegram redis-cli DEL "ingestion:lastSeen:-1001234567890"
 ```
 
 ---

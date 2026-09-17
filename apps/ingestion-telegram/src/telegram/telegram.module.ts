@@ -33,7 +33,7 @@ import { CryptoNewsSourceRepository } from './crypto-news/infrastructure/persist
  *
  * Migration from backend HTTP polling:
  * - OLD: BackendChannelProviderService.fetchActiveCryptoNewsSourceIds() via HTTP (DEPRECATED)
- * - NEW: CryptoNewsSourceRepository.findAllActive() from local DB (ingestion-service owns crypto-news sources)
+ * - NEW: CryptoNewsSourceRepository.findAllActive() from local DB (ingestion-telegram owns crypto-news sources)
  * - KOLs still fetched from backend DB (backend owns KOL identity)
  */
 @Module({
@@ -110,7 +110,7 @@ export class TelegramModule implements OnModuleInit {
    *
    * Architecture (post-migration):
    * - KOLs: Fetched from backend DB via HTTP (backend owns KOL identity)
-   * - Crypto-news: Read from local DB (ingestion-service owns crypto-news sources)
+   * - Crypto-news: Read from local DB (ingestion-telegram owns crypto-news sources)
    *
    * This replaces the old system where both were fetched via HTTP from backend.
    */
@@ -119,7 +119,7 @@ export class TelegramModule implements OnModuleInit {
       // Fetch KOLs from backend (backend still owns KOL identity)
       const kolIds = await this.channelProvider.fetchActiveKolIds();
 
-      // Fetch crypto-news sources from LOCAL DB (ingestion-service owns this now)
+      // Fetch crypto-news sources from LOCAL DB (ingestion-telegram owns this now)
       const cryptoNewsSources = await this.cryptoNewsSourceRepo.findAllActive();
       const newsIds = cryptoNewsSources.map((source) => source.channelId);
 

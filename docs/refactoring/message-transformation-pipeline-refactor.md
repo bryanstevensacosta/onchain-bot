@@ -31,9 +31,9 @@
 
 ### Ubicación: Ingestion-Service como Source of Truth
 
-**Rationale**: Seguir patrón existente `@ingestion-service/media/*`
+**Rationale**: Seguir patrón existente `@ingestion-telegram/media/*`
 
-- ✅ Ingestion-service CREA los `TelegramRawMessage` originales
+- ✅ Ingestion-telegram CREA los `TelegramRawMessage` originales
 - ✅ Backend CONSUME (vía SSE) lo que ingestion produce
 - ✅ Usa patrón ya configurado en el proyecto
 - ✅ Zero complejidad (no symlinks, no nuevo workspace)
@@ -41,7 +41,7 @@
 ### Jerarquía de Clases
 
 ```
-apps/ingestion-service/src/shared/telegram/transformation/
+apps/ingestion-telegram/src/shared/telegram/transformation/
 ├── core/
 │   ├── abstract-text-extractor.ts           # Base para extracción de texto
 │   ├── abstract-media-extractor.ts          # Base para extracción de media
@@ -73,8 +73,8 @@ apps/backend/src/telegram/ingestion/shared/transformers/
 // apps/backend/tsconfig.json
 {
   "paths": {
-    "@ingestion-service/media/*": ["../ingestion-service/src/shared/media/*"],
-    "@ingestion-service/telegram/*": ["../ingestion-service/src/shared/telegram/*"]  // ← NUEVO
+    "@ingestion-telegram/media/*": ["../ingestion-telegram/src/shared/media/*"],
+    "@ingestion-telegram/telegram/*": ["../ingestion-telegram/src/shared/telegram/*"]  // ← NUEVO
   }
 }
 
@@ -84,7 +84,7 @@ import {
   KolTextExtractor,
   TelegramMediaExtractor,
   TelegramEntityNormalizer
-} from '@ingestion-service/telegram/transformation';
+} from '@ingestion-telegram/telegram/transformation';
 ```
 
 **Ingestion importa local**:
@@ -116,10 +116,10 @@ import { CryptoNewsMessageTransformer } from 'shared/telegram/transformation';
 
 ### Task 1.1: Crear estructura de directorios 🟢 COMPLETADO
 
-**Descripción**: Crear la estructura en `apps/ingestion-service/src/shared/telegram/transformation/`
+**Descripción**: Crear la estructura en `apps/ingestion-telegram/src/shared/telegram/transformation/`
 
 ```bash
-cd apps/ingestion-service/src/shared
+cd apps/ingestion-telegram/src/shared
 mkdir -p telegram/transformation/{core,extractors,transformers,ports,utils}
 touch telegram/transformation/{core,extractors,transformers,ports,utils}/index.ts
 touch telegram/transformation/index.ts
@@ -127,12 +127,12 @@ touch telegram/transformation/index.ts
 
 **Archivos creados**:
 
-- [x] `apps/ingestion-service/src/shared/telegram/transformation/core/index.ts`
-- [x] `apps/ingestion-service/src/shared/telegram/transformation/extractors/index.ts`
-- [x] `apps/ingestion-service/src/shared/telegram/transformation/transformers/index.ts`
-- [x] `apps/ingestion-service/src/shared/telegram/transformation/ports/index.ts`
-- [x] `apps/ingestion-service/src/shared/telegram/transformation/utils/index.ts`
-- [x] `apps/ingestion-service/src/shared/telegram/transformation/index.ts` (barrel export principal)
+- [x] `apps/ingestion-telegram/src/shared/telegram/transformation/core/index.ts`
+- [x] `apps/ingestion-telegram/src/shared/telegram/transformation/extractors/index.ts`
+- [x] `apps/ingestion-telegram/src/shared/telegram/transformation/transformers/index.ts`
+- [x] `apps/ingestion-telegram/src/shared/telegram/transformation/ports/index.ts`
+- [x] `apps/ingestion-telegram/src/shared/telegram/transformation/utils/index.ts`
+- [x] `apps/ingestion-telegram/src/shared/telegram/transformation/index.ts` (barrel export principal)
 
 **Criterio de éxito**:
 
@@ -148,7 +148,7 @@ touch telegram/transformation/index.ts
 
 **Descripción**: Crear clase abstracta base para extracción de texto
 
-**Archivo**: `apps/ingestion-service/src/shared/telegram/transformation/core/abstract-text-extractor.ts`
+**Archivo**: `apps/ingestion-telegram/src/shared/telegram/transformation/core/abstract-text-extractor.ts`
 
 **Interfaz implementada**:
 
@@ -223,7 +223,7 @@ export abstract class AbstractTextExtractor {
 
 **Descripción**: Crear clase abstracta base para extracción de media metadata
 
-**Archivo**: `apps/ingestion-service/src/shared/telegram/transformation/core/abstract-media-extractor.ts`
+**Archivo**: `apps/ingestion-telegram/src/shared/telegram/transformation/core/abstract-media-extractor.ts`
 
 **Interfaz implementada**:
 
@@ -339,7 +339,7 @@ export abstract class AbstractMediaExtractor {
 
 **Descripción**: Crear clase abstracta para normalización de entities
 
-**Archivo**: `apps/ingestion-service/src/shared/telegram/transformation/core/abstract-entity-normalizer.ts`
+**Archivo**: `apps/ingestion-telegram/src/shared/telegram/transformation/core/abstract-entity-normalizer.ts`
 
 **Interfaz**:
 
@@ -394,7 +394,7 @@ export abstract class AbstractEntityNormalizer {
 
 **Descripción**: Crear template method principal que orquesta la transformación
 
-**Archivo**: `apps/ingestion-service/src/shared/telegram/transformation/core/abstract-message-transformer.ts`
+**Archivo**: `apps/ingestion-telegram/src/shared/telegram/transformation/core/abstract-message-transformer.ts`
 
 **Interfaz**:
 
@@ -493,10 +493,10 @@ export abstract class AbstractMessageTransformer {
 
 **Archivos creados**:
 
-- [x] `apps/ingestion-service/src/shared/telegram/transformation/utils/type-coercion.ts`
-- [x] `apps/ingestion-service/src/shared/telegram/transformation/utils/media-validation.ts`
-- [x] `apps/ingestion-service/src/shared/telegram/transformation/utils/type-coercion.spec.ts`
-- [x] `apps/ingestion-service/src/shared/telegram/transformation/utils/media-validation.spec.ts`
+- [x] `apps/ingestion-telegram/src/shared/telegram/transformation/utils/type-coercion.ts`
+- [x] `apps/ingestion-telegram/src/shared/telegram/transformation/utils/media-validation.ts`
+- [x] `apps/ingestion-telegram/src/shared/telegram/transformation/utils/type-coercion.spec.ts`
+- [x] `apps/ingestion-telegram/src/shared/telegram/transformation/utils/media-validation.spec.ts`
 
 **Funciones migradas desde** `apps/backend/src/telegram/ingestion/shared/api/mtproto/telegram-mtproto.utils.ts`:
 
@@ -525,7 +525,7 @@ export function isRefreshableDownloadError(err: unknown): boolean;
 
 **Criterio de éxito**:
 
-- [x] Código migrado a ingestion-service
+- [x] Código migrado a ingestion-telegram
 - [x] Tests verifican comportamiento correcto
 - [x] Barrel export actualizado (`utils/index.ts`)
 - [ ] Backend aún puede importar (pendiente Task 4.1 — cross-app imports)
@@ -548,7 +548,7 @@ export function isRefreshableDownloadError(err: unknown): boolean;
 **Resumen de archivos creados (Fase 1)**:
 
 ```
-apps/ingestion-service/src/shared/telegram/transformation/
+apps/ingestion-telegram/src/shared/telegram/transformation/
 ├── index.ts                                          # barrel export raíz
 ├── core/
 │   ├── index.ts                                      # barrel export core
@@ -578,7 +578,7 @@ Total: 20 archivos creados, 115 tests pasando
 
 **Métricas de reducción (proyectadas)**:
 
-- **Antes**: 937 LOC duplicadas (backend + ingestion-service)
+- **Antes**: 937 LOC duplicadas (backend + ingestion-telegram)
 - **Después** (al completar todo el plan): ~600 LOC (36% reducción)
 - **Fase 1**: 115 tests garantizan comportamiento correcto de abstracciones base
 
@@ -596,7 +596,7 @@ Total: 20 archivos creados, 115 tests pasando
 
 **Descripción**: Implementación que retorna vacío (invariante ToS)
 
-**Archivo**: `apps/ingestion-service/src/shared/telegram/transformation/extractors/kol-text-extractor.ts`
+**Archivo**: `apps/ingestion-telegram/src/shared/telegram/transformation/extractors/kol-text-extractor.ts`
 
 ```typescript
 export class KolTextExtractor extends AbstractTextExtractor {
@@ -625,7 +625,7 @@ export class KolTextExtractor extends AbstractTextExtractor {
 
 **Descripción**: Implementación con cascade 4-source
 
-**Archivo**: `apps/ingestion-service/src/shared/telegram/transformation/extractors/crypto-news-text-extractor.ts`
+**Archivo**: `apps/ingestion-telegram/src/shared/telegram/transformation/extractors/crypto-news-text-extractor.ts`
 
 ```typescript
 export class CryptoNewsTextExtractor extends AbstractTextExtractor {
@@ -666,7 +666,7 @@ export class CryptoNewsTextExtractor extends AbstractTextExtractor {
 
 **Descripción**: Implementación base que extrae metadata (sin download)
 
-**Archivo**: `apps/ingestion-service/src/shared/telegram/transformation/extractors/telegram-media-extractor.ts`
+**Archivo**: `apps/ingestion-telegram/src/shared/telegram/transformation/extractors/telegram-media-extractor.ts`
 
 ```typescript
 export class TelegramMediaExtractor extends AbstractMediaExtractor {
@@ -710,7 +710,7 @@ export class TelegramMediaExtractor extends AbstractMediaExtractor {
 
 **Descripción**: Implementación que normaliza entities de GramJS
 
-**Archivo**: `apps/ingestion-service/src/shared/telegram/transformation/extractors/telegram-entity-normalizer.ts`
+**Archivo**: `apps/ingestion-telegram/src/shared/telegram/transformation/extractors/telegram-entity-normalizer.ts`
 
 ```typescript
 export class TelegramEntityNormalizer extends AbstractEntityNormalizer {
@@ -765,9 +765,9 @@ export class TelegramEntityNormalizer extends AbstractEntityNormalizer {
 
 **Descripción**: Transformer para mensajes KOL (metadata-only media)
 
-**Archivo**: `apps/ingestion-service/src/shared/telegram/transformation/transformers/kol-message-transformer.ts`
+**Archivo**: `apps/ingestion-telegram/src/shared/telegram/transformation/transformers/kol-message-transformer.ts`
 
-**NOTA**: Implementado en ingestion-service (no en backend como decía el plan original)
+**NOTA**: Implementado en ingestion-telegram (no en backend como decía el plan original)
 
 ```typescript
 import {
@@ -775,7 +775,7 @@ import {
   KolTextExtractor,
   TelegramMediaExtractor,
   TelegramEntityNormalizer,
-} from '@ingestion-service/telegram/transformation';
+} from '@ingestion-telegram/telegram/transformation';
 
 export class KolMessageTransformer extends AbstractMessageTransformer {
   constructor() {
@@ -824,7 +824,7 @@ export class KolMessageTransformer extends AbstractMessageTransformer {
 
 **Descripción**: Transformer para crypto-news (con download)
 
-**Archivo**: `apps/ingestion-service/src/shared/telegram/transformation/transformers/crypto-news-message-transformer.ts`
+**Archivo**: `apps/ingestion-telegram/src/shared/telegram/transformation/transformers/crypto-news-message-transformer.ts`
 
 ```typescript
 export class CryptoNewsMessageTransformer extends AbstractMessageTransformer {
@@ -887,7 +887,7 @@ export class CryptoNewsMessageTransformer extends AbstractMessageTransformer {
 - [x] groupedId preserved
 - [x] Handles messages without media
 
-**Criterio de éxito**: Output idéntico a ingestion-service `transformMessage()`
+**Criterio de éxito**: Output idéntico a ingestion-telegram `transformMessage()`
 
 **Completado**: 2026-09-07
 
@@ -905,7 +905,7 @@ export class CryptoNewsMessageTransformer extends AbstractMessageTransformer {
 
 ## FASE 4: Integrar en Backend ✅ COMPLETADA
 
-**Objetivo**: Reemplazar código backend con shared abstractions desde ingestion-service  
+**Objetivo**: Reemplazar código backend con shared abstractions desde ingestion-telegram  
 **Riesgo**: 🔴 ALTO (modifica producción)  
 **Estado**: ✅ COMPLETADA (7 tests pasando)  
 **Completado**: 2026-09-07  
@@ -913,7 +913,7 @@ export class CryptoNewsMessageTransformer extends AbstractMessageTransformer {
 
 ### Task 4.1: Configurar alias cross-app en backend ✅ COMPLETADO
 
-**Descripción**: Agregar alias para importar desde ingestion-service (patrón existente)
+**Descripción**: Agregar alias para importar desde ingestion-telegram (patrón existente)
 
 **Archivo**: `apps/backend/tsconfig.json`
 
@@ -927,9 +927,9 @@ export class CryptoNewsMessageTransformer extends AbstractMessageTransformer {
       "shared/common/*": ["src/shared/common/*"],
       "shared/*": ["src/shared/*"],
       // ... otros paths existentes ...
-      "@ingestion-service/media/*": ["../ingestion-service/src/shared/media/*"],
-      "@ingestion-service/telegram/*": [
-        "../ingestion-service/src/shared/telegram/*"
+      "@ingestion-telegram/media/*": ["../ingestion-telegram/src/shared/media/*"],
+      "@ingestion-telegram/telegram/*": [
+        "../ingestion-telegram/src/shared/telegram/*"
       ] // ← AGREGAR
     }
   }
@@ -939,7 +939,7 @@ export class CryptoNewsMessageTransformer extends AbstractMessageTransformer {
 **Criterio de éxito**:
 
 - [x] Backend compila sin errores
-- [x] Puede importar: `import {} from '@ingestion-service/telegram/transformation'`
+- [x] Puede importar: `import {} from '@ingestion-telegram/telegram/transformation'`
 
 **Completado**: 2026-09-07
 
@@ -953,11 +953,11 @@ export class CryptoNewsMessageTransformer extends AbstractMessageTransformer {
 
 **Tests creados** (7 tests):
 
-- [x] Can import AbstractMessageTransformer from ingestion-service
-- [x] Can import KolTextExtractor from ingestion-service
-- [x] Can import CryptoNewsTextExtractor from ingestion-service
-- [x] Can import TelegramMediaExtractor from ingestion-service
-- [x] Can import TelegramEntityNormalizer from ingestion-service
+- [x] Can import AbstractMessageTransformer from ingestion-telegram
+- [x] Can import KolTextExtractor from ingestion-telegram
+- [x] Can import CryptoNewsTextExtractor from ingestion-telegram
+- [x] Can import TelegramMediaExtractor from ingestion-telegram
+- [x] Can import TelegramEntityNormalizer from ingestion-telegram
 - [x] Can instantiate KolMessageTransformer with extractors
 - [x] Can instantiate CryptoNewsMessageTransformer with extractors
 
@@ -1118,7 +1118,7 @@ import { MediaExtractor, coerceToString } from './telegram-mtproto.utils';
 import {
   TelegramMediaExtractor as MediaExtractor,
   coerceToString,
-} from '@ingestion-service/telegram/transformation';
+} from '@ingestion-telegram/telegram/transformation';
 ```
 
 **Criterio de éxito**:
@@ -1131,7 +1131,7 @@ import {
 
 ### FASE 4 - Checklist de Completitud
 
-- [ ] Alias `@ingestion-service/telegram/*` configurado
+- [ ] Alias `@ingestion-telegram/telegram/*` configurado
 - [ ] KolMessageTransformer creado en backend
 - [ ] telegram-message-transformer.ts actualizado
 - [ ] Adapter actualizado (async)
@@ -1151,14 +1151,14 @@ import {
 **Completado**: 2026-09-07  
 **Dependencias**: ✅ Fase 4 completada
 
-### Task 5.1: Actualizar adapter ingestion-service ✅ COMPLETADO
+### Task 5.1: Actualizar adapter ingestion-telegram ✅ COMPLETADO
 
 **Descripción**: Migrar `TelegramMtprotoListenerAdapter` para usar `CryptoNewsMessageTransformer`
 
 **Archivos modificados**:
 
-- ✅ `apps/ingestion-service/src/telegram/shared/shared.module.ts`
-- ✅ `apps/ingestion-service/src/telegram/shared/api/mtproto/telegram-mtproto-listener.adapter.ts`
+- ✅ `apps/ingestion-telegram/src/telegram/shared/shared.module.ts`
+- ✅ `apps/ingestion-telegram/src/telegram/shared/api/mtproto/telegram-mtproto-listener.adapter.ts`
 
 **Cambios realizados**:
 
@@ -1214,13 +1214,13 @@ import {
 
 **Archivos creados**:
 
-- ✅ `apps/ingestion-service/src/telegram/shared/application/services/telegram-media-extractor.service.ts`
-- ✅ `apps/ingestion-service/src/telegram/shared/application/services/telegram-media-extractor.service.spec.ts` (7 tests)
+- ✅ `apps/ingestion-telegram/src/telegram/shared/application/services/telegram-media-extractor.service.ts`
+- ✅ `apps/ingestion-telegram/src/telegram/shared/application/services/telegram-media-extractor.service.spec.ts` (7 tests)
 
 **Archivos modificados**:
 
-- ✅ `apps/ingestion-service/src/telegram/shared/shared.module.ts` — agregado `TelegramMediaExtractorService` provider
-- ✅ `apps/ingestion-service/src/telegram/shared/api/mtproto/telegram-mtproto-listener.adapter.ts` — integrado nuevo servicio
+- ✅ `apps/ingestion-telegram/src/telegram/shared/shared.module.ts` — agregado `TelegramMediaExtractorService` provider
+- ✅ `apps/ingestion-telegram/src/telegram/shared/api/mtproto/telegram-mtproto-listener.adapter.ts` — integrado nuevo servicio
 
 **Arquitectura del servicio**:
 
@@ -1302,7 +1302,7 @@ private async transformMessage(peerId: string, msg: {...}): Promise<TelegramRawM
 **Tests**:
 
 - ✅ 7 tests nuevos en `telegram-media-extractor.service.spec.ts`
-- ✅ Total ingestion-service: **808 tests pasando** (42 suites)
+- ✅ Total ingestion-telegram: **808 tests pasando** (42 suites)
 - ✅ Build exitoso, sin regresiones
 
 **Criterio de éxito**:
@@ -1318,9 +1318,9 @@ private async transformMessage(peerId: string, msg: {...}): Promise<TelegramRawM
 
 ---
 
-### Task 5.3: Actualizar módulo ingestion-service 🔴
+### Task 5.3: Actualizar módulo ingestion-telegram 🔴
 
-**Archivo**: `apps/ingestion-service/src/telegram/shared/shared.module.ts`
+**Archivo**: `apps/ingestion-telegram/src/telegram/shared/shared.module.ts`
 
 **Cambios**:
 
@@ -1365,7 +1365,7 @@ export class SharedModule {}
 
 ### Task 5.3: Comparación side-by-side ingestion 🔴
 
-**Script**: `apps/ingestion-service/scripts/compare-transformers.ts`
+**Script**: `apps/ingestion-telegram/scripts/compare-transformers.ts`
 
 ```typescript
 import { oldTransformMessage } from './old-adapter-backup';
@@ -1443,7 +1443,7 @@ async function compare() {
 **Archivos a actualizar**:
 
 - [ ] `apps/backend/AGENTS.md` → documentar uso de shared/telegram/transformation
-- [ ] `apps/ingestion-service/AGENTS.md` → mismo
+- [ ] `apps/ingestion-telegram/AGENTS.md` → mismo
 - [ ] Root `AGENTS.md` → mencionar refactor completado
 
 **Secciones a agregar**:
@@ -1549,7 +1549,7 @@ npm run start:prod
 
 ```bash
 git revert <commit-sha-fase-5>
-cd apps/ingestion-service && npm run build
+cd apps/ingestion-telegram && npm run build
 npm run start:prod
 ```
 
@@ -1651,12 +1651,12 @@ Al completar el refactoring, verificar:
 
 ### ✅ Estrategia Final: Ingestion-Service como Source of Truth
 
-**Patrón**: Replica `@ingestion-service/media/*` (ya existente en el proyecto)
+**Patrón**: Replica `@ingestion-telegram/media/*` (ya existente en el proyecto)
 
 ### Código Compartido (Ingestion-Service)
 
 ```
-apps/ingestion-service/src/shared/telegram/transformation/
+apps/ingestion-telegram/src/shared/telegram/transformation/
 ├── core/                                # Abstracciones (reutilizables por backend)
 │   ├── abstract-text-extractor.ts
 │   ├── abstract-media-extractor.ts
@@ -1690,8 +1690,8 @@ apps/backend/src/telegram/ingestion/shared/transformers/
 ```json
 {
   "paths": {
-    "@ingestion-service/telegram/*": [
-      "../ingestion-service/src/shared/telegram/*"
+    "@ingestion-telegram/telegram/*": [
+      "../ingestion-telegram/src/shared/telegram/*"
     ]
   }
 }
@@ -1700,7 +1700,7 @@ apps/backend/src/telegram/ingestion/shared/transformers/
 **Backend code**:
 
 ```typescript
-import { AbstractMessageTransformer, ... } from '@ingestion-service/telegram/transformation';
+import { AbstractMessageTransformer, ... } from '@ingestion-telegram/telegram/transformation';
 ```
 
 **Ingestion code** (sin cambios, alias local ya existe):
@@ -1713,9 +1713,9 @@ import { CryptoNewsMessageTransformer } from 'shared/telegram/transformation';
 
 ## 🎯 Beneficios de Esta Estrategia
 
-1. **✅ Simplicidad**: Usa patrón existente (`@ingestion-service/media/*`)
+1. **✅ Simplicidad**: Usa patrón existente (`@ingestion-telegram/media/*`)
 2. **✅ Zero complejidad**: No symlinks, no nuevo workspace
-3. **✅ DRY**: Código vive en un solo lugar (ingestion-service)
+3. **✅ DRY**: Código vive en un solo lugar (ingestion-telegram)
 4. **✅ Single source of truth**: Ingestion CREA, backend CONSUME
 5. **✅ Build simple**: TypeScript resuelve paths automáticamente
 6. **✅ Tests funcionan**: Ambos apps pueden testear el código compartido

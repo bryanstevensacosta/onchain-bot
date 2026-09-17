@@ -2,9 +2,9 @@
  * Static utility for MIME type detection and extension mapping.
  *
  * Centralizes MIME type logic previously duplicated across:
- * - MediaDownloaderService (ingestion-service)
+ * - MediaDownloaderService (ingestion-telegram)
  * - MtprotoMediaDownloader (backend)
- * - MediaController (ingestion-service)
+ * - MediaController (ingestion-telegram)
  * - AdsMediaController (backend)
  *
  * @example

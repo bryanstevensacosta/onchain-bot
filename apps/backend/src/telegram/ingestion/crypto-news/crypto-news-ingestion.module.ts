@@ -28,7 +28,7 @@ import {
  * - Filter CRUD use cases + ContentFilterService (on-read transforms)
  * - ChannelFilterRepository (filters-only read port for matching)
  *
- * Sources/messages/media are owned by ingestion-service (own DB).
+ * Sources/messages/media are owned by ingestion-telegram (own DB).
  * The legacy source/message repository tokens are still provided
  * (in-memory) because `crypto-news-publisher` (QueueController,
  * CryptoNewsMessageIngestedHandler) injects them — they resolve to
@@ -37,7 +37,7 @@ import {
  * Removed in todo 4: StoreNewsMessageUseCase, RegisterNewsSourceUseCase,
  * ListActiveSourceIdsUseCase, TypeOrm source/message repos (+ mappers),
  * CryptoNewsMetadataResolver, MediaRetentionCleanupScheduler (janitor
- * moved to ingestion-service in todo 6).
+ * moved to ingestion-telegram in todo 6).
  */
 @Module({
   imports: [

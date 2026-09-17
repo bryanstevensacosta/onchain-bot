@@ -1,5 +1,5 @@
 /**
- * Shared media abstractions for ingestion-service and backend.
+ * Shared media abstractions for ingestion-telegram and backend.
  *
  * **Phase 1: Core Abstractions** (Low Risk)
  *
@@ -8,7 +8,7 @@
  *
  * **Usage**:
  * - Ingestion-service: Use directly (owner of crypto-news media)
- * - Backend: Import from ingestion-service for ads media components
+ * - Backend: Import from ingestion-telegram for ads media components
  *
  * **Cohesion Benefits**:
  * - Single source of truth for MIME types, path sanitization

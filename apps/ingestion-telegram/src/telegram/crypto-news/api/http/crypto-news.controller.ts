@@ -89,7 +89,7 @@ export class CryptoNewsController {
    * GET /api/crypto-news/messages?limit=50
    *
    * Returns recent crypto-news messages ordered by publishedAt DESC.
-   * Media URLs are relative to ingestion-service base URL.
+   * Media URLs are relative to ingestion-telegram base URL.
    *
    * Response: Array<{
    *   id: string (UUID),
@@ -204,7 +204,7 @@ export class CryptoNewsController {
    * GET /api/crypto-news/sources/active/ids
    *
    * Returns only the channel IDs of active sources (backend consumer).
-   * Used by ingestion-service's BackendChannelProviderService.
+   * Used by ingestion-telegram's BackendChannelProviderService.
    *
    * Response: Array<string> — e.g. ["-1001234567890", "-1009876543210"]
    */

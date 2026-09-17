@@ -6,7 +6,7 @@ import { CryptoNewsMessageEntity } from '../entities/crypto-news-message.entity'
 /**
  * TypeORM repository for crypto-news messages.
  *
- * Provides query methods for the ingestion-service to:
+ * Provides query methods for the ingestion-telegram to:
  * - Store incoming crypto-news messages from Telegram
  * - Serve recent messages to frontend/backend via HTTP API
  * - Check for duplicates before ingestion

@@ -6,7 +6,7 @@
  * **Purpose**: Transform raw Telegram messages into normalized TelegramRawMessage format
  * with different strategies for KOL (ToS-compliant, no text) vs crypto-news (4-source cascade + media download).
  * 
- * **Location**: Ingestion-service is the source of truth (backend imports via @ingestion-service/telegram/*)
+ * **Location**: Ingestion-service is the source of truth (backend imports via @ingestion-telegram/telegram/*)
  * 
  * **Key Components**:
  * - core/: Abstract base classes (framework)
@@ -17,12 +17,12 @@
  * 
  * **Usage**:
  * ```typescript
- * // Backend (imports from ingestion-service)
+ * // Backend (imports from ingestion-telegram)
  * import { 
  *   AbstractMessageTransformer,
  *   KolTextExtractor,
  *   TelegramMediaExtractor 
- * } from '@ingestion-service/telegram/transformation';
+ * } from '@ingestion-telegram/telegram/transformation';
  * 
  * // Ingestion (local import)
  * import { CryptoNewsMessageTransformer } from 'shared/telegram/transformation';

@@ -19,7 +19,7 @@ export interface FilterView {
  *
  * Returns filters ordered by priority ASC, then createdAt ASC.
  * The channel is NOT validated against crypto-news sources: sources live
- * in ingestion-service's own DB, so an unknown channel simply yields [].
+ * in ingestion-telegram's own DB, so an unknown channel simply yields [].
  */
 @Injectable()
 export class ListFiltersUseCase {

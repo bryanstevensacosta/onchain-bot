@@ -75,5 +75,5 @@ infra/terraform/.terraform/
 
 # Agent workspace state (auto-generated)
 .omo/boulder.json
-apps/ingestion-service/.env.backup-before-regen
+apps/ingestion-telegram/.env.backup-before-regen
 test-telegram-message.mjs

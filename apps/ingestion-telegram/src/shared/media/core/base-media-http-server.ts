@@ -13,7 +13,7 @@ import { CacheConfig } from '../types/media-metadata';
  * - Error responses (404, 500)
  *
  * **Cohesion Goal**: Eliminate duplicated serving logic in:
- * - MediaController (ingestion-service)
+ * - MediaController (ingestion-telegram)
  * - AdsMediaController (backend)
  *
  * **Gap 20 Fix**: Properly implements range requests (Accept-Ranges + 206 responses).

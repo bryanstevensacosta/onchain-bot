@@ -1,5 +1,5 @@
 /**
- * Shared media types across ingestion-service and backend.
+ * Shared media types across ingestion-telegram and backend.
  *
  * These interfaces define the contract for media download, storage,
  * and serving operations. Both crypto-news (ingestion) and ads (backend)

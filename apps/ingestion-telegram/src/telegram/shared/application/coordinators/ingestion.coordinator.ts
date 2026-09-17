@@ -94,7 +94,7 @@ export class IngestionCoordinator {
     messageType: 'kol' | 'crypto-news',
   ): Promise<void> {
     try {
-      // Per centralized architecture: Persist crypto-news messages to ingestion-service DB
+      // Per centralized architecture: Persist crypto-news messages to ingestion-telegram DB
       // This is the SINGLE SOURCE OF TRUTH - backends query via HTTP API, they do NOT replicate
       // NOTE: Deduplication is handled by backend (embedding-based semantic dedup before publisher queue)
       // Ingestion stores ALL raw messages for audit/replay purposes
@@ -143,7 +143,7 @@ export class IngestionCoordinator {
   }
 
   /**
-   * Persist crypto-news message to ingestion-service database
+   * Persist crypto-news message to ingestion-telegram database
    *
    * **Per Opción A architecture (centralized RAW storage):**
    * - Ingestion-service stores RAW content from Telegram (NO filters applied)

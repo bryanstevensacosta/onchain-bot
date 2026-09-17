@@ -14,7 +14,7 @@ export class InMemoryCryptoNewsSourceRepository extends CryptoNewsSourceReposito
   private readonly store = new Map<string, CryptoNewsSource>();
 
   /**
-   * @deprecated Backend no longer writes crypto-news sources. Use ingestion-service.
+   * @deprecated Backend no longer writes crypto-news sources. Use ingestion-telegram.
    */
   public async save(source: CryptoNewsSource): Promise<void> {
     throw new Error(
@@ -47,7 +47,7 @@ export class InMemoryCryptoNewsSourceRepository extends CryptoNewsSourceReposito
   }
 
   /**
-   * @deprecated Backend no longer deletes crypto-news sources. Use ingestion-service.
+   * @deprecated Backend no longer deletes crypto-news sources. Use ingestion-telegram.
    */
   public async delete(channelId: string): Promise<void> {
     throw new Error(

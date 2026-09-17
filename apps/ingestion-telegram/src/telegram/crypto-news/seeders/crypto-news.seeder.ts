@@ -16,7 +16,7 @@ import {
  * Migration path:
  * 1. Add sources via backend API: POST /api/crypto-news/sources
  * 2. Verify sources appear in backend DB with isActive=true and lifecycleStatus='ACTIVE'
- * 3. ingestion-service automatically picks them up via BackendChannelProviderService
+ * 3. ingestion-telegram automatically picks them up via BackendChannelProviderService
  * 4. This seeder is no longer invoked by TelegramModule
  *
  * ---

@@ -1,7 +1,7 @@
 /**
  * CryptoNewsMessageDto - Data Transfer Object for crypto-news messages
  *
- * Consumed from ingestion-service HTTP API (GET /api/crypto-news/messages).
+ * Consumed from ingestion-telegram HTTP API (GET /api/crypto-news/messages).
  * Replaces legacy domain entity CryptoNewsMessage from telegram/ingestion/crypto-news/domain.
  *
  * **Architecture (Opción A):**

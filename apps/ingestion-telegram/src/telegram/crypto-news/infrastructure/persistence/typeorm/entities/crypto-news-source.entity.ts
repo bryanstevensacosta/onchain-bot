@@ -10,7 +10,7 @@ import {
 /**
  * TypeORM entity for `crypto_news_sources` table.
  *
- * Read-only in ingestion-service — sources are created/updated via backend API.
+ * Read-only in ingestion-telegram — sources are created/updated via backend API.
  * Ingestion-service queries this table to determine which channels to monitor
  * and which ones require media download (crypto-news vs KOL).
  *

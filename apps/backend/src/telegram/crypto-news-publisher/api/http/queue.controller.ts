@@ -172,12 +172,12 @@ export class QueueController {
       return;
     }
 
-    // Check if this is a URL (from ingestion-service) or a local file path
+    // Check if this is a URL (from ingestion-telegram) or a local file path
     const isUrl =
       imagePath.startsWith('http://') || imagePath.startsWith('https://');
 
     if (isUrl) {
-      // Proxy to ingestion-service
+      // Proxy to ingestion-telegram
       try {
         const response = await fetch(imagePath);
 
@@ -208,7 +208,7 @@ export class QueueController {
         fileBuffer = await fs.promises.readFile(imagePath);
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          // File not found locally, try fallback proxy to ingestion-service
+          // File not found locally, try fallback proxy to ingestion-telegram
           this.logger.debug(
             `File not found locally: ${imagePath}, trying ingestion-service proxy`,
           );
@@ -338,7 +338,7 @@ export class QueueController {
   }
 
   /**
-   * Convert a local file path to an ingestion-service URL.
+   * Convert a local file path to an ingestion-telegram URL.
    *
    * Example:
    *   uploads/crypto-news/media/-1004466661332/200_0.jpg

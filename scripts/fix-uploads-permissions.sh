@@ -1,6 +1,6 @@
 #!/bin/bash
-# Fix uploads directory permissions for ingestion-service
-# The ingestion-service container runs as user nodejs (uid 1001, gid 1001)
+# Fix uploads directory permissions for ingestion-telegram
+# The ingestion-telegram container runs as user nodejs (uid 1001, gid 1001)
 # but the uploads volume is mounted from backend/uploads which may have root ownership
 
 set -e

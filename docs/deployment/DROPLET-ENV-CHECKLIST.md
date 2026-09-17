@@ -10,9 +10,9 @@ cd /opt/onchain-bot
 grep "TELEGRAM_MTPROTO\|TELEGRAM_SEED\|DATABASE_PASSWORD" apps/backend/.env
 ```
 
-Copy these values - you'll need them for ingestion-service.
+Copy these values - you'll need them for ingestion-telegram.
 
-### 2. Create apps/ingestion-service/.env
+### 2. Create apps/ingestion-telegram/.env
 
 **Minimal Required Configuration:**
 
@@ -24,7 +24,7 @@ INGESTION_TELEGRAM_MTPROTO_SESSION=<from backend>
 
 # API Config
 INGESTION_PORT=3031
-INGESTION_API_BASE_URL=http://ingestion-service:3031
+INGESTION_API_BASE_URL=http://ingestion-telegram:3031
 
 # Redis
 INGESTION_REDIS_HOST=redis
@@ -65,7 +65,7 @@ TELEGRAM_MTPROTO_SESSION=...
 ```bash
 # ADD THESE:
 USE_SSE_INGESTION=true
-INGESTION_REMOTE_URL=http://ingestion-service:3031
+INGESTION_REMOTE_URL=http://ingestion-telegram:3031
 ```
 
 ### 4. Validate Before Deploy
@@ -79,8 +79,8 @@ Should output: ✓ All checks passed!
 ## 🚀 Deploy Commands
 
 ```bash
-# 1. Deploy ingestion-service
-docker compose -f apps/backend/docker-compose.prod.yml up -d --build ingestion-service
+# 1. Deploy ingestion-telegram
+docker compose -f apps/backend/docker-compose.prod.yml up -d --build ingestion-telegram
 
 # 2. Verify health
 curl -s http://localhost:3031/api/health | jq '.status, .mtproto'
@@ -89,12 +89,12 @@ curl -s http://localhost:3031/api/health | jq '.status, .mtproto'
 docker compose -f apps/backend/docker-compose.prod.yml restart backend
 
 # 4. Watch logs
-docker compose -f apps/backend/docker-compose.prod.yml logs -f backend ingestion-service
+docker compose -f apps/backend/docker-compose.prod.yml logs -f backend ingestion-telegram
 ```
 
 ## ⚠️ Critical Warnings
 
-1. **NEVER have MTProto credentials in BOTH backend and ingestion-service** - causes AUTH_KEY_DUPLICATED
+1. **NEVER have MTProto credentials in BOTH backend and ingestion-telegram** - causes AUTH_KEY_DUPLICATED
 2. **Backup .env before making changes** - `cp apps/backend/.env apps/backend/.env.backup`
 3. **Deploy during low traffic** - recommended: 02:00-06:00 UTC
 4. **Have rollback plan ready** - see MIGRATION-GUIDE-DROPLET.md
@@ -104,7 +104,7 @@ docker compose -f apps/backend/docker-compose.prod.yml logs -f backend ingestion
 After deployment, check:
 
 ```bash
-# Ingestion-service health
+# Ingestion-telegram health
 curl -s http://localhost:3031/api/health | jq '.'
 # Should show: status: "ok", mtproto.connected: true
 

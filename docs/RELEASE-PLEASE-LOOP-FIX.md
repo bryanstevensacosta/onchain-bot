@@ -18,7 +18,7 @@ The project has 4 CHANGELOG files:
 1. `/CHANGELOG.md` (root) - stopped at v1.2.0
 2. `/apps/backend/CHANGELOG.md` - stopped at v2.0.0 (missing 3.0.0 entry)
 3. `/apps/frontend/CHANGELOG.md` - needs verification
-4. `/apps/ingestion-service/CHANGELOG.md` - needs verification
+4. `/apps/ingestion-telegram/CHANGELOG.md` - needs verification
 
 **The bug:** Release-please sees each merged release PR's CHANGELOG updates as "new changes" and creates another release PR, causing an infinite loop.
 
@@ -65,7 +65,7 @@ The project has 4 CHANGELOG files:
   "packages": {
     "apps/backend": { "release-type": "node" }, // Has own CHANGELOG
     "apps/frontend": { "release-type": "node" }, // Has own CHANGELOG
-    "apps/ingestion-service": { "release-type": "node" } // Has own CHANGELOG
+    "apps/ingestion-telegram": { "release-type": "node" } // Has own CHANGELOG
   }
 }
 ```
@@ -108,9 +108,9 @@ This creates confusion:
       "changelog-path": "CHANGELOG.md",
       "include-component-in-tag": false
     },
-    "apps/ingestion-service": {
+    "apps/ingestion-telegram": {
       "release-type": "node",
-      "package-name": "ingestion-service",
+      "package-name": "ingestion-telegram",
       "changelog-path": "CHANGELOG.md",
       "include-component-in-tag": false
     }
@@ -137,7 +137,7 @@ This creates confusion:
 1. **Sync the CHANGELOGs manually:**
    - Add missing v3.0.0 entry to backend CHANGELOG
    - Update root CHANGELOG to v3.0.1
-   - Verify frontend and ingestion-service CHANGELOGs
+   - Verify frontend and ingestion-telegram CHANGELOGs
 
 2. **Prevent future loops:**
    - Choose Option A or Option B above

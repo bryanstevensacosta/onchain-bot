@@ -9,7 +9,7 @@ import { Injectable } from '@nestjs/common';
  * independently, making it impossible to assess the true ban risk to the Telegram account.
  *
  * **Migration path:**
- * - **New location:** `apps/ingestion-service/src/telegram/shared/infrastructure/services/flood-wait-counter.service.ts`
+ * - **New location:** `apps/ingestion-telegram/src/telegram/shared/infrastructure/services/flood-wait-counter.service.ts`
  * - **Backend impact:** Backend clients do not need FLOOD_WAIT tracking. The centralized
  *   ingestion service exposes FLOOD_WAIT metrics via its health endpoint.
  *
@@ -29,7 +29,7 @@ import { Injectable } from '@nestjs/common';
  * **Specification:** See `.kiro/specs/centralized-ingestion-service/requirements.md`
  * Requirement 11.7 for metrics exposure and alerting thresholds.
  *
- * @see {@link apps/ingestion-service} Centralized FLOOD_WAIT metrics for unified monitoring
+ * @see {@link apps/ingestion-telegram} Centralized FLOOD_WAIT metrics for unified monitoring
  */
 @Injectable()
 export class FloodWaitCounterService {

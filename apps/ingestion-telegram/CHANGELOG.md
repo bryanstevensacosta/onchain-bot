@@ -1,4 +1,4 @@
-# Changelog — ingestion-service
+# Changelog — ingestion-telegram
 
 Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.0.
 

@@ -5,10 +5,10 @@
  * path building across media components.
  *
  * Previously duplicated in:
- * - MediaDownloaderService (ingestion-service)
+ * - MediaDownloaderService (ingestion-telegram)
  * - MtprotoMediaDownloader (backend)
  * - LocalAdMediaStorageAdapter (backend)
- * - MediaController (ingestion-service)
+ * - MediaController (ingestion-telegram)
  * - AdsMediaController (backend)
  */
 export class PathSanitizer {

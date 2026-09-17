@@ -70,14 +70,14 @@ export class BackendChannelProviderService {
   /**
    * Fetch active crypto-news source IDs from backend
    *
-   * @deprecated This method is deprecated as of the ingestion-service migration.
-   * Crypto-news sources are now owned by ingestion-service and should be read from
+   * @deprecated This method is deprecated as of the ingestion-telegram migration.
+   * Crypto-news sources are now owned by ingestion-telegram and should be read from
    * CryptoNewsSourceRepository.findAllActive() instead of HTTP polling.
    *
    * Rationale:
    * - Ingestion-service owns the crypto-news sources table in its own DB
    * - Backend no longer needs to serve this data over HTTP
-   * - Eliminates dependency on backend being available for ingestion-service to start
+   * - Eliminates dependency on backend being available for ingestion-telegram to start
    * - Reduces network round-trips and improves reliability
    *
    * Migration path:

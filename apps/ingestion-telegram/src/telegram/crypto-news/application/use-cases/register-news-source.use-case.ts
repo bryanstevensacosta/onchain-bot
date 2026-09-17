@@ -32,7 +32,7 @@ export interface RegisterNewsSourceOutput {
  *
  * Migration notes:
  * - Ported from backend RegisterNewsSourceUseCase
- * - Simplified: no DomainEvents, no AggregateRoot (ingestion-service uses TypeORM entities directly)
+ * - Simplified: no DomainEvents, no AggregateRoot (ingestion-telegram uses TypeORM entities directly)
  * - Backend POST /crypto-news/sources now deprecated (writes nothing)
  *
  * Architecture:

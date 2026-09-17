@@ -11,7 +11,7 @@ This guide covers the migration from legacy HTTP polling to the new multi-backen
 - [ ] PostgreSQL 13+ with `backfill_messages` table support
 - [ ] Redis 6+ for cursor tracking
 - [ ] Backend applications updated to support backend registration
-- [ ] Network connectivity verified between ingestion-service:3031 and backends
+- [ ] Network connectivity verified between ingestion-telegram:3031 and backends
 
 ### Code Changes
 
@@ -34,7 +34,7 @@ This guide covers the migration from legacy HTTP polling to the new multi-backen
 // Example: Register backend on startup
 async function registerBackend() {
   const response = await fetch(
-    'http://ingestion-service:3031/api/ingestion/backends/register',
+    'http://ingestion-telegram:3031/api/ingestion/backends/register',
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -65,8 +65,8 @@ async function connectToIngestionStream() {
   const lastSeenTimestamp = await getLastSeenTimestamp();
 
   const url = lastSeenTimestamp
-    ? `http://ingestion-service:3031/api/ingestion/stream?backendId=production&lastSeenTimestamp=${lastSeenTimestamp}`
-    : `http://ingestion-service:3031/api/ingestion/stream?backendId=production`;
+    ? `http://ingestion-telegram:3031/api/ingestion/stream?backendId=production&lastSeenTimestamp=${lastSeenTimestamp}`
+    : `http://ingestion-telegram:3031/api/ingestion/stream?backendId=production`;
 
   const eventSource = new EventSource(url);
 
@@ -136,7 +136,7 @@ function resetBackoff() {
 
 ### Step 1: Deploy Ingestion Service (Week 1)
 
-1. Deploy ingestion-service with `INGESTION_MULTI_BACKEND_ENABLED=false`
+1. Deploy ingestion-telegram with `INGESTION_MULTI_BACKEND_ENABLED=false`
 2. Verify `/api/health` endpoint returns healthy status
 3. Verify legacy HTTP polling still works
 4. Monitor logs for any startup errors
@@ -151,7 +151,7 @@ function resetBackoff() {
 ### Step 3: Enable Feature Flag in Staging (Week 2)
 
 1. Set `INGESTION_MULTI_BACKEND_ENABLED=true` in staging `.env`
-2. Restart ingestion-service
+2. Restart ingestion-telegram
 3. Verify backend registration succeeds
 4. Verify SSE connection established
 5. Verify messages flow through SSE
@@ -161,7 +161,7 @@ function resetBackoff() {
 ### Step 4: Enable Feature Flag in Production (Week 3)
 
 1. Set `INGESTION_MULTI_BACKEND_ENABLED=true` in production `.env`
-2. Rolling restart of ingestion-service (zero downtime)
+2. Rolling restart of ingestion-telegram (zero downtime)
 3. Verify all backends register successfully
 4. Monitor metrics:
    - `GET /api/ingestion/stream/status` → activeBackends count
@@ -205,7 +205,7 @@ function resetBackoff() {
 ### Immediate Rollback (< 5 minutes)
 
 1. Set `INGESTION_MULTI_BACKEND_ENABLED=false` in `.env`
-2. Restart ingestion-service
+2. Restart ingestion-telegram
 3. Verify legacy HTTP polling resumes
 4. Verify backends receive messages via legacy path
 5. Investigate issue in staging
@@ -214,7 +214,7 @@ function resetBackoff() {
 
 1. Deploy previous backend version without registration/SSE code
 2. Ingestion service falls back to HTTP polling automatically
-3. No ingestion-service changes needed
+3. No ingestion-telegram changes needed
 
 ## Common Issues
 
@@ -238,12 +238,12 @@ See [multi-backend-runbook.md](./multi-backend-runbook.md) for troubleshooting.
 
 ## Migration Timeline
 
-| Week | Activity                                           | Status         |
-| ---- | -------------------------------------------------- | -------------- |
-| 1    | Deploy ingestion-service + backend code (flag OFF) | ⏸️ Not started |
-| 2    | Enable flag in staging, validate                   | ⏸️ Not started |
-| 3    | Enable flag in production, monitor                 | ⏸️ Not started |
-| 4    | Remove legacy code                                 | ⏸️ Not started |
+| Week | Activity                                            | Status         |
+| ---- | --------------------------------------------------- | -------------- |
+| 1    | Deploy ingestion-telegram + backend code (flag OFF) | ⏸️ Not started |
+| 2    | Enable flag in staging, validate                    | ⏸️ Not started |
+| 3    | Enable flag in production, monitor                  | ⏸️ Not started |
+| 4    | Remove legacy code                                  | ⏸️ Not started |
 
 ## Success Criteria
 
@@ -259,5 +259,5 @@ See [multi-backend-runbook.md](./multi-backend-runbook.md) for troubleshooting.
 For questions or issues during migration:
 
 - **Team:** Backend Infrastructure
-- **Slack:** #ingestion-service
+- **Slack:** #ingestion-telegram
 - **On-call:** PagerDuty rotation

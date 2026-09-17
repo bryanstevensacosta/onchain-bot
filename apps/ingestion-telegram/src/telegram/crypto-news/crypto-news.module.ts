@@ -21,16 +21,16 @@ import { CryptoNewsRetentionCleanupScheduler } from './infrastructure/scheduling
  * - CryptoNewsMessageRepository OWNS crypto_news_messages table (single source of truth)
  * - HTTP API serves messages/sources to backend staging/prod + frontend
  * - Used by TelegramMtprotoListenerAdapter for channel cache
- * - All sources managed via ingestion-service API (no backend DB writes)
+ * - All sources managed via ingestion-telegram API (no backend DB writes)
  *
  * **Per AGENTS.md Ingestion-Service Architecture:**
  * - This service OWNS: crypto_news_sources, crypto_news_messages, crypto_news_message_media, media files
  * - Backends/frontends READ via HTTP API (no DB replication)
- * - One ingestion-service instance feeds ALL environments (dev/staging/prod)
+ * - One ingestion-telegram instance feeds ALL environments (dev/staging/prod)
  *
  * **REMOVED:**
  * - CryptoNewsSeeder (static seed list) completely removed
- * - Add sources via: POST /api/crypto-news/sources (ingestion-service endpoint)
+ * - Add sources via: POST /api/crypto-news/sources (ingestion-telegram endpoint)
  */
 @Module({
   imports: [

@@ -361,9 +361,9 @@ export class ProcessNextQueuedArticleUseCase {
 
   /**
    * Ensure all media files exist locally. If a file doesn't exist,
-   * download it from ingestion-service.
+   * download it from ingestion-telegram.
    *
-   * In dev local, ingestion-service and backend have separate uploads/
+   * In dev local, ingestion-telegram and backend have separate uploads/
    * directories. In production, they share a Docker volume.
    *
    * @param paths - Array of file paths (local or HTTP URLs)
@@ -390,7 +390,7 @@ export class ProcessNextQueuedArticleUseCase {
         await fs.access(filePath);
         localPaths.push(filePath);
       } catch (_err) {
-        // File doesn't exist locally, try downloading from ingestion-service
+        // File doesn't exist locally, try downloading from ingestion-telegram
         this.logger.debug(
           `File not found locally: ${filePath}, attempting download from ingestion-service`,
         );
@@ -408,7 +408,7 @@ export class ProcessNextQueuedArticleUseCase {
   }
 
   /**
-   * Download a file from ingestion-service given an HTTP URL.
+   * Download a file from ingestion-telegram given an HTTP URL.
    */
   private async downloadFromIngestionService(url: string): Promise<string> {
     try {
@@ -455,11 +455,11 @@ export class ProcessNextQueuedArticleUseCase {
   }
 
   /**
-   * Download a file from ingestion-service given a local path that doesn't exist locally.
-   * Converts the path to an ingestion-service URL and downloads it.
+   * Download a file from ingestion-telegram given a local path that doesn't exist locally.
+   * Converts the path to an ingestion-telegram URL and downloads it.
    */
   private async downloadFileFromIngestion(localPath: string): Promise<string> {
-    // Convert local path to ingestion-service URL
+    // Convert local path to ingestion-telegram URL
     // Path: uploads/crypto-news/media/-1004466661332/200_0.jpg
     // URL:  {ingestionServiceUrl}/api/media/-1004466661332/200/0
     const match = localPath.match(

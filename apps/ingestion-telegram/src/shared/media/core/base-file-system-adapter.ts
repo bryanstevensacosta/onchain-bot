@@ -17,9 +17,9 @@ import * as path from 'node:path';
  * with consistent error handling and logging patterns.
  *
  * **Cohesion Goal**: Eliminate duplicated file I/O logic across:
- * - MediaDownloaderService (ingestion-service)
+ * - MediaDownloaderService (ingestion-telegram)
  * - LocalAdMediaStorageAdapter (backend)
- * - MediaController (ingestion-service)
+ * - MediaController (ingestion-telegram)
  * - AdsMediaController (backend)
  *
  * Subclasses can override methods to add logging, metrics, or custom behavior.

@@ -12,7 +12,7 @@ import { FloodWaitCounterService } from 'telegram/ingestion/shared/infrastructur
  * Telegram's automated monitoring systems (per ToS) require unified anti-spam behavior.
  *
  * **Migration path:**
- * - **New location:** `apps/ingestion-service/src/telegram/shared/infrastructure/services/flood-wait-handler.service.ts`
+ * - **New location:** `apps/ingestion-telegram/src/telegram/shared/infrastructure/services/flood-wait-handler.service.ts`
  * - **Backend impact:** Backend clients consuming SSE streams do not need FLOOD_WAIT handling.
  *   The centralized ingestion service absorbs all rate limit errors and implements exponential
  *   backoff, protecting the single MTProto session from bans.
@@ -34,7 +34,7 @@ import { FloodWaitCounterService } from 'telegram/ingestion/shared/infrastructur
  * Requirement 11.2 for FLOOD_WAIT handling design and section "External Constraints and
  * Regulatory Compliance" for Telegram ToS details.
  *
- * @see {@link apps/ingestion-service} Centralized anti-ban protection prevents account suspension
+ * @see {@link apps/ingestion-telegram} Centralized anti-ban protection prevents account suspension
  * @see FloodWaitCounterService Also deprecated, tracks FLOOD_WAIT occurrences in 24h window
  */
 @Injectable()

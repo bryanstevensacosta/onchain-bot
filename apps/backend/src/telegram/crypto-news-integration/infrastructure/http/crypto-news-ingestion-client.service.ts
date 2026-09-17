@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 /**
- * Single media attachment on an ingestion-service crypto-news message.
+ * Single media attachment on an ingestion-telegram crypto-news message.
  */
 export interface CryptoNewsMessageMedia {
   readonly id: string;
@@ -10,10 +10,10 @@ export interface CryptoNewsMessageMedia {
   readonly index: number;
   readonly type: 'photo' | 'video' | 'webpage';
   /**
-   * Local file path on the ingestion-service host.
+   * Local file path on the ingestion-telegram host.
    * ABSENT from HTTP responses: the server strips `filePath` and exposes
    * a serving `url` instead (see `transformMessageForApi` in the
-   * ingestion-service crypto-news controller). Present only on internal
+   * ingestion-telegram crypto-news controller). Present only on internal
    * shapes — always access defensively via `??` fallback.
    */
   readonly filePath?: string;
@@ -36,8 +36,8 @@ export interface CryptoNewsMessageMedia {
 }
 
 /**
- * DTO matching ingestion-service response shape
- * (apps/ingestion-service crypto-news entities)
+ * DTO matching ingestion-telegram response shape
+ * (apps/ingestion-telegram crypto-news entities)
  */
 export interface CryptoNewsMessageDto {
   readonly id: string;
@@ -67,7 +67,7 @@ export interface CryptoNewsSourceDto {
 }
 
 /**
- * CryptoNewsIngestionClient - HTTP client for ingestion-service API
+ * CryptoNewsIngestionClient - HTTP client for ingestion-telegram API
  *
  * **Per Opción A architecture:**
  * - Ingestion-service is the SINGLE SOURCE OF TRUTH for crypto-news data
@@ -105,7 +105,7 @@ export class CryptoNewsIngestionClient {
   }
 
   /**
-   * Defensively extract an array from an ingestion-service response body.
+   * Defensively extract an array from an ingestion-telegram response body.
    *
    * Accepts either a bare array or a `{timestamp, count, data}` wrapper
    * (the `/messages` endpoint wraps to bust ETags; siblings return bare
@@ -129,7 +129,7 @@ export class CryptoNewsIngestionClient {
   }
 
   /**
-   * Fetch recent crypto-news messages from ingestion-service
+   * Fetch recent crypto-news messages from ingestion-telegram
    *
    * Returns RAW content (no filters applied). Consumer must apply filters.
    *
@@ -172,7 +172,7 @@ export class CryptoNewsIngestionClient {
 
       const body: unknown = await response.json();
 
-      // The ingestion-service wraps GET /api/crypto-news/messages as
+      // The ingestion-telegram wraps GET /api/crypto-news/messages as
       // {timestamp, count, data} (ETag-busting, commit 97199b2) while sibling
       // endpoints return bare arrays — unwrap defensively, never assume.
       const messages = this.unwrapArray<CryptoNewsMessageDto>(body);

@@ -24,10 +24,10 @@ import { CryptoNewsMessageTransformer } from 'shared/telegram/transformation';
 import { TelegramMediaExtractorService } from '../../application/services/telegram-media-extractor.service';
 
 /**
- * TelegramMtprotoListenerAdapter - MTProto adapter for ingestion-service
+ * TelegramMtprotoListenerAdapter - MTProto adapter for ingestion-telegram
  *
  * Simplified from backend version:
- * - No media download logic (ingestion-service doesn't handle media)
+ * - No media download logic (ingestion-telegram doesn't handle media)
  * - No backfill support (streaming only)
  * - Minimal flood wait handling
  * - No external provider dependencies
@@ -383,7 +383,7 @@ export class TelegramMtprotoListenerAdapter
    *
    * @deprecated The seed-based approach (CRYPTO_NEWS_SEED + env var) is deprecated.
    * This method now queries the database to determine active crypto-news sources.
-   * Sources are created/updated via ingestion-service API (`POST /api/crypto-news/sources`).
+   * Sources are created/updated via ingestion-telegram API (`POST /api/crypto-news/sources`).
    */
   private isCryptoNewsChannel(peerId: string): boolean {
     const isMatch = this.cryptoNewsChannelCache.has(peerId);
@@ -401,7 +401,7 @@ export class TelegramMtprotoListenerAdapter
     _channelId: string,
     _limit: number,
   ): Promise<TelegramRawMessage[]> {
-    throw new Error('Backfill not supported in ingestion-service');
+    throw new Error('Backfill not supported in ingestion-telegram');
   }
 
   async disconnect(): Promise<void> {

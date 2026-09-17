@@ -17,7 +17,7 @@
 ┌────────────────────────────────────────────────────────────┐
 │  DEV LOCAL (Ingestion Service - Puerto 3031 opcional)      │
 │  - Cuenta Telegram separada (API_ID dev)                   │
-│  - Para testing de ingestion-service solamente             │
+│  - Para testing de ingestion-telegram solamente             │
 │  - NO corre simultáneamente con droplet                    │
 └────────────────────────────────────────────────────────────┘
 ```
@@ -41,7 +41,7 @@ INGESTION_REMOTE_URL=http://100.110.169.120:3032
 
 ---
 
-### 2. ¿Cómo pruebo cambios en ingestion-service localmente?
+### 2. ¿Cómo pruebo cambios en ingestion-telegram localmente?
 
 Tienes 3 opciones:
 
@@ -95,12 +95,12 @@ npm run start:dev
 **✅ Configuración actual:** Dev local usa credenciales separadas, droplet usa producción.
 
 ```bash
-# Local: apps/ingestion-service/.env
+# Local: apps/ingestion-telegram/.env
 INGESTION_TELEGRAM_MTPROTO_API_ID=34691112  # Dev account
 INGESTION_TELEGRAM_MTPROTO_API_HASH=<dev_hash>
 INGESTION_TELEGRAM_MTPROTO_SESSION=<dev_session>
 
-# Droplet: /opt/onchain-bot/apps/ingestion-service/.env
+# Droplet: /opt/onchain-bot/apps/ingestion-telegram/.env
 INGESTION_TELEGRAM_MTPROTO_API_ID=<prod_id>  # Production account
 INGESTION_TELEGRAM_MTPROTO_API_HASH=<prod_hash>
 INGESTION_TELEGRAM_MTPROTO_SESSION=<prod_session>
@@ -116,7 +116,7 @@ INGESTION_TELEGRAM_MTPROTO_SESSION=<prod_session>
 
 ---
 
-### 3. ¿Necesito un repositorio separado para ingestion-service?
+### 3. ¿Necesito un repositorio separado para ingestion-telegram?
 
 **❌ NO.** Usa el monorepo actual con workflow independiente.
 
@@ -127,7 +127,7 @@ onchain-bot/ (mismo repo)
 ├── apps/
 │   ├── backend/          # Deploy: dev → staging, master → prod
 │   ├── frontend/         # Deploy: dev → staging, master → prod
-│   └── ingestion-service/ # Deploy: master → prod (solo 1 entorno)
+│   └── ingestion-telegram/ # Deploy: master → prod (solo 1 entorno)
 └── .github/workflows/
     ├── deploy.yml         # Backend + Frontend prod
     ├── deploy-staging.yml # Backend + Frontend staging
@@ -141,7 +141,7 @@ onchain-bot/ (mismo repo)
 
 **Deploy ingestion SOLO cuando:**
 
-- Cambios en `apps/ingestion-service/**`
+- Cambios en `apps/ingestion-telegram/**`
 - Push a `master`
 
 ---
@@ -225,7 +225,7 @@ if (INGESTION_CHANNEL_FILTER) {
 **Costo:**
 
 - 2 cuentas Telegram
-- 2 ingestion-services
+- 2 ingestion-telegrams
 - Mayor complejidad
 
 ---
@@ -248,14 +248,14 @@ if (INGESTION_CHANNEL_FILTER) {
 
 ```bash
 # ✅ SÍ existe (droplet)
-apps/ingestion-service/.env.production
+apps/ingestion-telegram/.env.production
 
 # ❌ NO existen
-apps/ingestion-service/.env.dev        # No necesario
-apps/ingestion-service/.env.staging    # No necesario
+apps/ingestion-telegram/.env.dev        # No necesario
+apps/ingestion-telegram/.env.staging    # No necesario
 
 # 🧪 Opcional (solo para pruebas locales)
-apps/ingestion-service/.env.dev.local  # Mocks o cuenta dev
+apps/ingestion-telegram/.env.dev.local  # Mocks o cuenta dev
 ```
 
 **Razón:** Ingestion es un servicio compartido, no tiene entornos.
@@ -291,13 +291,13 @@ Si en el futuro necesitas **alta disponibilidad**:
 
 ---
 
-### 8. ¿Puedo deployar ingestion-service a otro proveedor (Fly.io, Railway)?
+### 8. ¿Puedo deployar ingestion-telegram a otro proveedor (Fly.io, Railway)?
 
 **✅ SÍ.** Es una aplicación standalone.
 
 ```bash
 # Deploy a Fly.io ejemplo
-fly launch --dockerfile apps/ingestion-service/Dockerfile
+fly launch --dockerfile apps/ingestion-telegram/Dockerfile
 fly secrets set INGESTION_TELEGRAM_MTPROTO_SESSION=...
 fly deploy
 ```
@@ -323,7 +323,7 @@ fly deploy
 - [ ] Exponer puerto 3032 públicamente en droplet
 - [ ] Configurar firewall: `ufw allow 3032/tcp`
 - [ ] Backend dev local apunta a Oracle: `http://100.110.169.120:3032`
-- [ ] NO correr ingestion-service en dev local
+- [ ] NO correr ingestion-telegram en dev local
 - [ ] Verificar 3 clientes conectados
 
 ### Fase 2: Development Workflow

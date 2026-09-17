@@ -2,11 +2,11 @@
 
 **Status**: Phase 1 Complete ✅  
 **Created**: 2026-09-02  
-**Owner**: ingestion-service (backend imports from here)
+**Owner**: ingestion-telegram (backend imports from here)
 
 ## Overview
 
-This package provides base classes and utilities for media operations across ingestion-service (crypto-news) and backend (ads). It eliminates ~400+ lines of duplicated code and establishes consistent patterns for:
+This package provides base classes and utilities for media operations across ingestion-telegram (crypto-news) and backend (ads). It eliminates ~400+ lines of duplicated code and establishes consistent patterns for:
 
 - Path building and sanitization
 - MIME type detection
@@ -397,7 +397,7 @@ PathSanitizer.isWithinBase(root, safePath); // Ensures no escape
 ## References
 
 - Full refactor plan: `.omo/drafts/media-cohesion-refactor.md`
-- Ingestion service docs: `apps/ingestion-service/AGENTS.md`
+- Ingestion service docs: `apps/ingestion-telegram/AGENTS.md`
 - Backend anti-patterns: `apps/backend/docs/spydefi/arch/09-anti-patterns.md`
 - Gap 19: Media endpoints security (to be addressed in Phase 2+)
 - Gap 20: Accept-Ranges implementation (BaseMediaHttpServer foundation ready)

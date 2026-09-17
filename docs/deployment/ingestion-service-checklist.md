@@ -31,7 +31,7 @@ This checklist ensures safe deployment of the centralized ingestion service by v
 **Expected Output:**
 ```
 ✓ SUCCESS: VALIDATION PASSED
-✓ SUCCESS: MTProto session correctly migrated to ingestion-service
+✓ SUCCESS: MTProto session correctly migrated to ingestion-telegram
 ✓ SUCCESS: Backend has no conflicting session variables
 ✓ SUCCESS: Safe to deploy - no AUTH_KEY_DUPLICATED risk
 ```
@@ -44,12 +44,12 @@ This checklist ensures safe deployment of the centralized ingestion service by v
   - `INGESTION_TELEGRAM_MTPROTO_SESSION`
   - `INGESTION_TELEGRAM_MTPROTO_API_ID`
   - `INGESTION_TELEGRAM_MTPROTO_API_HASH`
-- [ ] Verify all MTProto variables are present in `apps/ingestion-service/.env`
+- [ ] Verify all MTProto variables are present in `apps/ingestion-telegram/.env`
 - [ ] Re-run validation script until it passes
 
 #### 1.2 Verify Ingestion Service Environment Variables
 
-**File:** `apps/ingestion-service/.env`
+**File:** `apps/ingestion-telegram/.env`
 
 **Required Variables:**
 
@@ -118,7 +118,7 @@ CRYPTO_NEWS_MEDIA_RETENTION_HOURS=72
 ```bash
 # Ingestion Client Configuration
 INGESTION_MODE=remote
-INGESTION_REMOTE_URL=http://ingestion-service:3031
+INGESTION_REMOTE_URL=http://ingestion-telegram:3031
 
 # Database Configuration (unchanged)
 DATABASE_HOST=localhost
@@ -141,7 +141,7 @@ TELEGRAM_VIP_CHANNEL_ID=<channel_id>
 
 **Validation Checklist:**
 - [ ] `INGESTION_MODE=remote` is set
-- [ ] `INGESTION_REMOTE_URL` points to the ingestion service (use Docker service name `ingestion-service` for production)
+- [ ] `INGESTION_REMOTE_URL` points to the ingestion service (use Docker service name `ingestion-telegram` for production)
 - [ ] All backend MTProto variables are removed or commented out
 
 ---
@@ -158,11 +158,11 @@ TELEGRAM_VIP_CHANNEL_ID=<channel_id>
 
 ```yaml
 services:
-  ingestion-service:
+  ingestion-telegram:
     build:
       context: ../..
-      dockerfile: apps/ingestion-service/Dockerfile
-    container_name: onchain-bot-ingestion-service
+      dockerfile: apps/ingestion-telegram/Dockerfile
+    container_name: onchain-bot-ingestion-telegram
     restart: unless-stopped
     networks:
       - onchain-net
@@ -172,7 +172,7 @@ services:
       - ./uploads:/app/uploads
       - ./config:/app/config
     env_file:
-      - ../ingestion-service/.env
+      - ../ingestion-telegram/.env
     depends_on:
       - postgres
       - redis
@@ -188,7 +188,7 @@ services:
     depends_on:
       - postgres
       - redis
-      - ingestion-service  # ADDED: backend depends on ingestion-service
+      - ingestion-telegram  # ADDED: backend depends on ingestion-telegram
     env_file:
       - .env.dev  # or .env
     networks:
@@ -196,14 +196,14 @@ services:
 ```
 
 **Validation Checklist:**
-- [ ] `ingestion-service` service is defined
-- [ ] `ingestion-service` uses shared network `onchain-net`
-- [ ] `ingestion-service` port 3031 is mapped
-- [ ] `ingestion-service` has `uploads` volume mounted to `/app/uploads`
-- [ ] `ingestion-service` has `config` volume mounted to `/app/config`
-- [ ] `ingestion-service` has `depends_on: [postgres, redis]`
-- [ ] `ingestion-service` has health check configured
-- [ ] `backend` service has `depends_on: [ingestion-service]` (prevents backend starting before ingestion)
+- [ ] `ingestion-telegram` service is defined
+- [ ] `ingestion-telegram` uses shared network `onchain-net`
+- [ ] `ingestion-telegram` port 3031 is mapped
+- [ ] `ingestion-telegram` has `uploads` volume mounted to `/app/uploads`
+- [ ] `ingestion-telegram` has `config` volume mounted to `/app/config`
+- [ ] `ingestion-telegram` has `depends_on: [postgres, redis]`
+- [ ] `ingestion-telegram` has health check configured
+- [ ] `backend` service has `depends_on: [ingestion-telegram]` (prevents backend starting before ingestion)
 
 #### 2.2 Verify Shared Volumes
 
@@ -231,14 +231,14 @@ chmod -R 775 uploads
 
 **Validation:**
 - [ ] Network is defined in docker-compose.prod.yml (should already exist)
-- [ ] All services (ingestion-service, backend, postgres, redis) use the same network
-- [ ] Service DNS resolution works: backend can reach `http://ingestion-service:3031`
+- [ ] All services (ingestion-telegram, backend, postgres, redis) use the same network
+- [ ] Service DNS resolution works: backend can reach `http://ingestion-telegram:3031`
 
 **Test DNS resolution (after deployment):**
 
 ```bash
 # From backend container
-docker exec -it onchain-bot-backend-production curl http://onchain-bot-ingestion:3031/api/health
+docker exec -it onchain-bot-backend-production curl http://onchain-bot-ingestion-telegram:3031/api/health
 # Expected: 200 OK with JSON health status
 ```
 
@@ -326,12 +326,12 @@ EOF
 
 ```bash
 cd apps/backend  # Location of docker-compose.prod.yml
-docker compose build ingestion-service
+docker compose build ingestion-telegram
 ```
 
 **Expected Output:**
 - No build errors
-- Image tagged as `onchain-bot-ingestion-service:latest`
+- Image tagged as `onchain-bot-ingestion-telegram:latest`
 
 **Validation:**
 - [ ] Build completed successfully
@@ -339,7 +339,7 @@ docker compose build ingestion-service
 - [ ] No missing dependencies errors
 
 **If build fails:**
-- Check Dockerfile exists at `apps/ingestion-service/Dockerfile`
+- Check Dockerfile exists at `apps/ingestion-telegram/Dockerfile`
 - Check package.json has all required dependencies
 - Check tsconfig.json paths are correct
 
@@ -348,19 +348,19 @@ docker compose build ingestion-service
 **Before starting:**
 - [ ] Postgres is running and accessible
 - [ ] Redis is running and accessible
-- [ ] Environment variables are set in `apps/ingestion-service/.env`
+- [ ] Environment variables are set in `apps/ingestion-telegram/.env`
 
 **Start service:**
 
 ```bash
 cd apps/backend
-docker compose up ingestion-service -d
+docker compose up ingestion-telegram -d
 ```
 
 **Monitor startup logs:**
 
 ```bash
-docker logs -f onchain-bot-ingestion-service
+docker logs -f onchain-bot-ingestion-telegram
 ```
 
 **Expected log output:**
@@ -580,7 +580,7 @@ Indexes:
 - [ ] Index on ingested_at (for TTL cleanup)
 
 **If table missing:**
-- Run migrations: `cd apps/ingestion-service && npm run migration:run`
+- Run migrations: `cd apps/ingestion-telegram && npm run migration:run`
 
 #### 5.2 Verify Redis Cursor Tracking
 
@@ -633,9 +633,9 @@ EXIT
 
 ```bash
 cd apps/backend
-cp .env .env.backup.pre-ingestion-service
+cp .env .env.backup.pre-ingestion-telegram
 # or
-cp .env.dev .env.dev.backup.pre-ingestion-service
+cp .env.dev .env.dev.backup.pre-ingestion-telegram
 ```
 
 **Document current INGESTION_MODE:**
@@ -650,7 +650,7 @@ grep INGESTION_MODE .env || echo "INGESTION_MODE not set (defaults to 'local')"
 
 #### 6.2 Prepare Rollback Script
 
-**Create:** `scripts/rollback-ingestion-service.sh`
+**Create:** `scripts/rollback-ingestion-telegram.sh`
 
 ```bash
 #!/usr/bin/env bash
@@ -668,9 +668,9 @@ sed -i.bak 's/^INGESTION_MODE=remote/INGESTION_MODE=local/' .env || \
     echo "INGESTION_MODE=local" >> .env
 
 # Restore MTProto variables from backup (if backup exists)
-if [[ -f .env.backup.pre-ingestion-service ]]; then
+if [[ -f .env.backup.pre-ingestion-telegram ]]; then
     echo "✓ Restoring MTProto variables from backup..."
-    grep "TELEGRAM_MTPROTO" .env.backup.pre-ingestion-service >> .env || true
+    grep "TELEGRAM_MTPROTO" .env.backup.pre-ingestion-telegram >> .env || true
 fi
 
 # Restart backend
@@ -688,13 +688,13 @@ curl -f http://localhost:3030/api/health || {
 }
 
 echo "✅ Rollback complete. Backend running in MTProto mode."
-echo "⚠️  Remember to investigate ingestion-service issues before re-attempting migration."
+echo "⚠️  Remember to investigate ingestion-telegram issues before re-attempting migration."
 ```
 
 **Make executable:**
 
 ```bash
-chmod +x scripts/rollback-ingestion-service.sh
+chmod +x scripts/rollback-ingestion-telegram.sh
 ```
 
 **Validation:**
@@ -710,7 +710,7 @@ chmod +x scripts/rollback-ingestion-service.sh
 1. [ ] Deploy ingestion service to staging
 2. [ ] Migrate staging backend to SSE mode (INGESTION_MODE=remote)
 3. [ ] Verify staging backend receives messages via SSE
-4. [ ] Execute rollback script: `./scripts/rollback-ingestion-service.sh`
+4. [ ] Execute rollback script: `./scripts/rollback-ingestion-telegram.sh`
 5. [ ] Verify staging backend reverts to MTProto mode
 6. [ ] Verify staging backend receives messages via MTProto
 7. [ ] Measure rollback time (should be <5 minutes)
@@ -772,7 +772,7 @@ ingestion_flood_wait_count_24h 0
 **Check logs for required log entries:**
 
 ```bash
-docker logs onchain-bot-ingestion-service | grep -E "(message:received|sse:client|flood_wait)" | head -10
+docker logs onchain-bot-ingestion-telegram | grep -E "(message:received|sse:client|flood_wait)" | head -10
 ```
 
 **Expected Log Format (JSON):**
@@ -897,7 +897,7 @@ docker logs onchain-bot-ingestion-service | grep -E "(message:received|sse:clien
 - **Session Validation Script:** `scripts/validate-session-migration.sh`
 - **Deployment Runbook:** `docs/deployment/ingestion-service-runbook.md` (Task 7.3)
 - **Monitoring Playbook:** `docs/monitoring/ingestion-service-playbook.md` (Task 7.4)
-- **Rollback Script:** `scripts/rollback-ingestion-service.sh`
+- **Rollback Script:** `scripts/rollback-ingestion-telegram.sh`
 - **Requirements Document:** `.kiro/specs/centralized-ingestion-service/requirements.md`
 - **Design Document:** `.kiro/specs/centralized-ingestion-service/design.md`
 - **Tasks Document:** `.kiro/specs/centralized-ingestion-service/tasks.md`

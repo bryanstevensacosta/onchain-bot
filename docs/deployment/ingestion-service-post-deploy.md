@@ -40,7 +40,7 @@ grep TELEGRAM_MTPROTO_SESSION apps/backend/.env
 ### 5. Configure Ingestion Service
 
 ```bash
-cd /opt/onchain-bot/apps/ingestion-service
+cd /opt/onchain-bot/apps/ingestion-telegram
 nano .env
 ```
 
@@ -71,7 +71,7 @@ Add:
 
 ```bash
 USE_SSE_INGESTION=true
-INGESTION_SERVICE_URL=http://localhost:3032
+INGESTION_TELEGRAM_URL=http://localhost:3032
 ```
 
 Restart:
@@ -91,7 +91,7 @@ Add:
 
 ```bash
 USE_SSE_INGESTION=true
-INGESTION_SERVICE_URL=http://localhost:3032
+INGESTION_TELEGRAM_URL=http://localhost:3032
 ```
 
 Restart:

@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 /**
- * Single media attachment on an ingestion-service crypto-news message,
+ * Single media attachment on an ingestion-telegram crypto-news message,
  * as seen by the threads pipeline (shared media, zero new tables).
  */
 export interface ThreadsMessageMedia {
@@ -11,7 +11,7 @@ export interface ThreadsMessageMedia {
   readonly index: number;
   readonly type: 'photo' | 'video' | 'webpage';
   /**
-   * Local file path on the ingestion-service host.
+   * Local file path on the ingestion-telegram host.
    * ABSENT from HTTP responses: the server strips `filePath` and exposes
    * a serving `url` instead. Present only on internal shapes — always
    * access defensively via `??` fallback.
@@ -36,8 +36,8 @@ export interface ThreadsMessageMedia {
 }
 
 /**
- * DTO matching ingestion-service response shape
- * (apps/ingestion-service crypto-news entities).
+ * DTO matching ingestion-telegram response shape
+ * (apps/ingestion-telegram crypto-news entities).
  */
 export interface ThreadsMessageDto {
   readonly id: string;
@@ -57,12 +57,12 @@ export interface ThreadsMessageDto {
 }
 
 /**
- * ThreadsIngestionClient - HTTP client for ingestion-service API.
+ * ThreadsIngestionClient - HTTP client for ingestion-telegram API.
  *
  * Threads-typed mirror of crypto `CryptoNewsIngestionClient`
  * (`telegram/crypto-news-integration/infrastructure/http/crypto-news-ingestion-client.service.ts`):
- * the SAME ingestion-service endpoints serve both pipelines (zero
- * ingestion-service changes — threads reuses the crypto-news feed).
+ * the SAME ingestion-telegram endpoints serve both pipelines (zero
+ * ingestion-telegram changes — threads reuses the crypto-news feed).
  *
  * **Endpoints consumed:**
  * - GET /api/crypto-news/messages?limit=N&channelId=X — recent messages (RAW content)
@@ -92,7 +92,7 @@ export class ThreadsIngestionClient {
   }
 
   /**
-   * Defensively extract an array from an ingestion-service response body.
+   * Defensively extract an array from an ingestion-telegram response body.
    *
    * Accepts either a bare array or a `{timestamp, count, data}` wrapper
    * (the `/messages` endpoint wraps to bust ETags; siblings return bare
@@ -116,7 +116,7 @@ export class ThreadsIngestionClient {
   }
 
   /**
-   * Fetch recent crypto-news messages from ingestion-service.
+   * Fetch recent crypto-news messages from ingestion-telegram.
    *
    * Returns RAW content (no filters applied). Consumer must apply filters.
    *
@@ -159,7 +159,7 @@ export class ThreadsIngestionClient {
 
       const body: unknown = await response.json();
 
-      // The ingestion-service wraps GET /api/crypto-news/messages as
+      // The ingestion-telegram wraps GET /api/crypto-news/messages as
       // {timestamp, count, data} (ETag-busting) while sibling endpoints
       // return bare arrays — unwrap defensively, never assume.
       const messages = this.unwrapArray<ThreadsMessageDto>(body);

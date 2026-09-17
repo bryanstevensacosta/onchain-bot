@@ -24,11 +24,11 @@ import {
  *
  * The backend keeps ONLY filter-rule CRUD over
  * `channel_content_filter_configs` (channel_id opaque, no FK — sources
- * live in ingestion-service's own DB).
+ * live in ingestion-telegram's own DB).
  *
  * Removed in todo 4: GET messages, GET messages/:id, GET sources,
  * GET sources/active/ids, POST sources (501), GET backfill/:channelId,
- * GET media/:mediaId. Consumers must use ingestion-service:
+ * GET media/:mediaId. Consumers must use ingestion-telegram:
  * `GET {INGESTION_TELEGRAM_URL}/api/crypto-news/...`.
  */
 @Controller('crypto-news')
