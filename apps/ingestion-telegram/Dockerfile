@@ -11,21 +11,21 @@ ENV HUSKY=0
 
 # Copy package files
 COPY package*.json ./
-COPY apps/ingestion-service/package*.json ./apps/ingestion-service/
+COPY apps/ingestion-telegram/package*.json ./apps/ingestion-telegram/
 
 # Install dependencies (including devDependencies for build)
 # Use --ignore-scripts to prevent prepare hook failures (no husky in Docker)
-RUN npm ci --workspace=@alpha-meta-token-scanner/ingestion-service --ignore-scripts
+RUN npm ci --workspace=@alpha-meta-token-scanner/ingestion-telegram --ignore-scripts
 
 # Copy source code
-COPY apps/ingestion-service/ ./apps/ingestion-service/
+COPY apps/ingestion-telegram/ ./apps/ingestion-telegram/
 COPY tsconfig.base.json ./
 
 # Copy config files (needed at build time)
 COPY config/ ./config/
 
 # Build application
-RUN npm run build --workspace=@alpha-meta-token-scanner/ingestion-service
+RUN npm run build --workspace=@alpha-meta-token-scanner/ingestion-telegram
 
 # Stage 2: Production
 FROM node:22-alpine
@@ -41,17 +41,17 @@ RUN addgroup -g 1001 -S nodejs && \
 
 # Copy package files
 COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/apps/ingestion-service/package*.json ./apps/ingestion-service/
+COPY --from=builder /app/apps/ingestion-telegram/package*.json ./apps/ingestion-telegram/
 
 # Disable husky in production
 ENV HUSKY=0
 
 # Install production dependencies only
 # Use --ignore-scripts to prevent prepare hook failures
-RUN npm ci --workspace=@alpha-meta-token-scanner/ingestion-service --omit=dev --ignore-scripts
+RUN npm ci --workspace=@alpha-meta-token-scanner/ingestion-telegram --omit=dev --ignore-scripts
 
 # Copy built application
-COPY --from=builder /app/apps/ingestion-service/dist ./apps/ingestion-service/dist
+COPY --from=builder /app/apps/ingestion-telegram/dist ./apps/ingestion-telegram/dist
 
 # Copy config files
 COPY --from=builder /app/config ./config
@@ -77,4 +77,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
 ENTRYPOINT ["dumb-init", "--"]
 
 # Start application
-CMD ["node", "apps/ingestion-service/dist/src/main.js"]
+CMD ["node", "apps/ingestion-telegram/dist/src/main.js"]
