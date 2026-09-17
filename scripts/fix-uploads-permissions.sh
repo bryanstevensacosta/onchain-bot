@@ -36,6 +36,6 @@ echo "✅ Permissions fixed:"
 ls -la "$UPLOADS_DIR"
 
 echo ""
-echo "🎯 Ingestion-service should now be able to write media files"
+echo "🎯 Ingestion-telegram should now be able to write media files"
 echo "   Restart the container if it's already running:"
-echo "   docker restart onchain-bot-ingestion"
+echo "   docker restart onchain-bot-ingestion-telegram"

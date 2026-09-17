@@ -95,7 +95,7 @@ export class FilteredCryptoNewsService {
 
       if (rawMessages.length === 0) {
         this.logger.debug(
-          `No raw messages fetched from ingestion-service (limit: ${limit}, channelId: ${channelId ?? 'all'})`,
+          `No raw messages fetched from ingestion-telegram (limit: ${limit}, channelId: ${channelId ?? 'all'})`,
         );
         return [];
       }

@@ -75,7 +75,7 @@ export class TelegramModule implements OnModuleInit {
           '⚠️ No active channels found. Ingestion service will not receive messages.',
         );
         this.logger.warn(
-          '💡 Add channels via: KOLs → backend API POST /telegram-kol/identity/kols, crypto-news → ingestion-service API POST /api/crypto-news/sources',
+          '💡 Add channels via: KOLs → backend API POST /telegram-kol/identity/kols, crypto-news → ingestion-telegram API POST /api/crypto-news/sources',
         );
         return;
       }

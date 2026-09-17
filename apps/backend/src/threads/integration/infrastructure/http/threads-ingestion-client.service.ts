@@ -110,7 +110,7 @@ export class ThreadsIngestionClient {
       }
     }
     this.logger.warn(
-      'Ingestion-service returned an unexpected body shape (neither array nor {data} wrapper) — treating as empty',
+      'Ingestion-telegram returned an unexpected body shape (neither array nor {data} wrapper) — treating as empty',
     );
     return [];
   }
@@ -136,7 +136,7 @@ export class ThreadsIngestionClient {
       const url = `${this.baseUrl}/api/crypto-news/messages?${params.toString()}`;
 
       this.logger.debug(
-        `Fetching messages from ingestion-service: ${url} (limit: ${limit}, channelId: ${channelId ?? 'all'})`,
+        `Fetching messages from ingestion-telegram: ${url} (limit: ${limit}, channelId: ${channelId ?? 'all'})`,
       );
 
       const controller = new AbortController();
@@ -152,7 +152,7 @@ export class ThreadsIngestionClient {
 
       if (!response.ok) {
         this.logger.warn(
-          `Ingestion-service returned ${response.status} for /api/crypto-news/messages`,
+          `Ingestion-telegram returned ${response.status} for /api/crypto-news/messages`,
         );
         return [];
       }
@@ -165,13 +165,13 @@ export class ThreadsIngestionClient {
       const messages = this.unwrapArray<ThreadsMessageDto>(body);
 
       this.logger.log(
-        `Fetched ${messages.length} raw messages from ingestion-service`,
+        `Fetched ${messages.length} raw messages from ingestion-telegram`,
       );
 
       return messages;
     } catch (error) {
       this.logger.error(
-        `Failed to fetch messages from ingestion-service: ${(error as Error).message}`,
+        `Failed to fetch messages from ingestion-telegram: ${(error as Error).message}`,
         (error as Error).stack,
       );
       return [];
@@ -193,7 +193,7 @@ export class ThreadsIngestionClient {
       const url = `${this.baseUrl}/api/crypto-news/messages/channel/${encodeURIComponent(channelId)}?limit=${Math.min(limit, 200)}`;
 
       this.logger.debug(
-        `Fetching messages by channel from ingestion-service: ${channelId} (limit: ${limit})`,
+        `Fetching messages by channel from ingestion-telegram: ${channelId} (limit: ${limit})`,
       );
 
       const controller = new AbortController();
@@ -209,7 +209,7 @@ export class ThreadsIngestionClient {
 
       if (!response.ok) {
         this.logger.warn(
-          `Ingestion-service returned ${response.status} for channel ${channelId}`,
+          `Ingestion-telegram returned ${response.status} for channel ${channelId}`,
         );
         return [];
       }

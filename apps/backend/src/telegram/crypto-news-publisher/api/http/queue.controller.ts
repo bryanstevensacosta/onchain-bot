@@ -184,7 +184,7 @@ export class QueueController {
         if (!response.ok) {
           res
             .status(response.status)
-            .json({ error: 'Media not found on ingestion-service' });
+            .json({ error: 'Media not found on ingestion-telegram' });
           return;
         }
 
@@ -195,11 +195,11 @@ export class QueueController {
         serveMediaFile(res, req, buffer, contentType, 'public, max-age=86400');
       } catch (err) {
         this.logger.error(
-          `Failed to proxy media from ingestion-service: ${err}`,
+          `Failed to proxy media from ingestion-telegram: ${err}`,
         );
         res
           .status(502)
-          .json({ error: 'Failed to fetch media from ingestion-service' });
+          .json({ error: 'Failed to fetch media from ingestion-telegram' });
       }
     } else {
       // Legacy: serve from local disk
@@ -210,7 +210,7 @@ export class QueueController {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
           // File not found locally, try fallback proxy to ingestion-telegram
           this.logger.debug(
-            `File not found locally: ${imagePath}, trying ingestion-service proxy`,
+            `File not found locally: ${imagePath}, trying ingestion-telegram proxy`,
           );
 
           try {
@@ -219,7 +219,7 @@ export class QueueController {
 
             if (!response.ok) {
               res.status(404).json({
-                error: 'Media file missing on disk and ingestion-service',
+                error: 'Media file missing on disk and ingestion-telegram',
               });
               return;
             }
@@ -239,7 +239,7 @@ export class QueueController {
             return;
           } catch (proxyErr) {
             this.logger.error(
-              `Failed to proxy from ingestion-service: ${proxyErr}`,
+              `Failed to proxy from ingestion-telegram: ${proxyErr}`,
             );
             res.status(404).json({ error: 'Media file missing on disk' });
             return;

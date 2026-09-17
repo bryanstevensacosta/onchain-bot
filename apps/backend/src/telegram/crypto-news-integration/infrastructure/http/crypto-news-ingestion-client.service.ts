@@ -70,7 +70,7 @@ export interface CryptoNewsSourceDto {
  * CryptoNewsIngestionClient - HTTP client for ingestion-telegram API
  *
  * **Per Opción A architecture:**
- * - Ingestion-service is the SINGLE SOURCE OF TRUTH for crypto-news data
+ * - Ingestion-telegram is the SINGLE SOURCE OF TRUTH for crypto-news data
  * - Backend fetches RAW messages via HTTP API (no DB replication)
  * - Backend applies ITS OWN content filters on-read (FilteredCryptoNewsService)
  * - This client provides low-level HTTP fetch; filtering is done by consumers
@@ -123,7 +123,7 @@ export class CryptoNewsIngestionClient {
       }
     }
     this.logger.warn(
-      'Ingestion-service returned an unexpected body shape (neither array nor {data} wrapper) — treating as empty',
+      'Ingestion-telegram returned an unexpected body shape (neither array nor {data} wrapper) — treating as empty',
     );
     return [];
   }
@@ -149,7 +149,7 @@ export class CryptoNewsIngestionClient {
       const url = `${this.baseUrl}/api/crypto-news/messages?${params.toString()}`;
 
       this.logger.debug(
-        `Fetching messages from ingestion-service: ${url} (limit: ${limit}, channelId: ${channelId ?? 'all'})`,
+        `Fetching messages from ingestion-telegram: ${url} (limit: ${limit}, channelId: ${channelId ?? 'all'})`,
       );
 
       const controller = new AbortController();
@@ -165,7 +165,7 @@ export class CryptoNewsIngestionClient {
 
       if (!response.ok) {
         this.logger.warn(
-          `Ingestion-service returned ${response.status} for /api/crypto-news/messages`,
+          `Ingestion-telegram returned ${response.status} for /api/crypto-news/messages`,
         );
         return [];
       }
@@ -178,13 +178,13 @@ export class CryptoNewsIngestionClient {
       const messages = this.unwrapArray<CryptoNewsMessageDto>(body);
 
       this.logger.log(
-        `Fetched ${messages.length} raw messages from ingestion-service`,
+        `Fetched ${messages.length} raw messages from ingestion-telegram`,
       );
 
       return messages;
     } catch (error) {
       this.logger.error(
-        `Failed to fetch messages from ingestion-service: ${(error as Error).message}`,
+        `Failed to fetch messages from ingestion-telegram: ${(error as Error).message}`,
         (error as Error).stack,
       );
       return [];
@@ -206,7 +206,7 @@ export class CryptoNewsIngestionClient {
       const url = `${this.baseUrl}/api/crypto-news/messages/channel/${encodeURIComponent(channelId)}?limit=${Math.min(limit, 200)}`;
 
       this.logger.debug(
-        `Fetching messages by channel from ingestion-service: ${channelId} (limit: ${limit})`,
+        `Fetching messages by channel from ingestion-telegram: ${channelId} (limit: ${limit})`,
       );
 
       const controller = new AbortController();
@@ -222,7 +222,7 @@ export class CryptoNewsIngestionClient {
 
       if (!response.ok) {
         this.logger.warn(
-          `Ingestion-service returned ${response.status} for channel ${channelId}`,
+          `Ingestion-telegram returned ${response.status} for channel ${channelId}`,
         );
         return [];
       }
@@ -256,7 +256,7 @@ export class CryptoNewsIngestionClient {
     try {
       const url = `${this.baseUrl}/api/crypto-news/sources`;
 
-      this.logger.debug(`Fetching sources from ingestion-service: ${url}`);
+      this.logger.debug(`Fetching sources from ingestion-telegram: ${url}`);
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
@@ -271,7 +271,7 @@ export class CryptoNewsIngestionClient {
 
       if (!response.ok) {
         this.logger.warn(
-          `Ingestion-service returned ${response.status} for /api/crypto-news/sources`,
+          `Ingestion-telegram returned ${response.status} for /api/crypto-news/sources`,
         );
         return [];
       }
@@ -282,13 +282,13 @@ export class CryptoNewsIngestionClient {
       const sources = this.unwrapArray<CryptoNewsSourceDto>(body);
 
       this.logger.log(
-        `Fetched ${sources.length} sources from ingestion-service`,
+        `Fetched ${sources.length} sources from ingestion-telegram`,
       );
 
       return sources;
     } catch (error) {
       this.logger.error(
-        `Failed to fetch sources from ingestion-service: ${(error as Error).message}`,
+        `Failed to fetch sources from ingestion-telegram: ${(error as Error).message}`,
         (error as Error).stack,
       );
       return [];
@@ -321,7 +321,7 @@ export class CryptoNewsIngestionClient {
 
       if (!response.ok) {
         this.logger.warn(
-          `Ingestion-service returned ${response.status} for /api/crypto-news/stats`,
+          `Ingestion-telegram returned ${response.status} for /api/crypto-news/stats`,
         );
         return { totalMessages: 0, totalSources: 0, activeSources: 0 };
       }
@@ -335,7 +335,7 @@ export class CryptoNewsIngestionClient {
       return stats;
     } catch (error) {
       this.logger.error(
-        `Failed to fetch stats from ingestion-service: ${(error as Error).message}`,
+        `Failed to fetch stats from ingestion-telegram: ${(error as Error).message}`,
       );
       return { totalMessages: 0, totalSources: 0, activeSources: 0 };
     }

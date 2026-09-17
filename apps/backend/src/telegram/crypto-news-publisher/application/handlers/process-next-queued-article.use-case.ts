@@ -392,7 +392,7 @@ export class ProcessNextQueuedArticleUseCase {
       } catch (_err) {
         // File doesn't exist locally, try downloading from ingestion-telegram
         this.logger.debug(
-          `File not found locally: ${filePath}, attempting download from ingestion-service`,
+          `File not found locally: ${filePath}, attempting download from ingestion-telegram`,
         );
 
         try {
