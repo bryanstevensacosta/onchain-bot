@@ -89,12 +89,12 @@ jobs:
       - name: Run frontend tests
         run: npm run test:frontend
 
-      - name: Create ingestion-service test databases
+      - name: Create ingestion-telegram test databases
         run: |
           PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE onchain_bot_test;"
           PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE onchain_bot_test_entity;"
 
-      - name: Run ingestion-service tests
+      - name: Run ingestion-telegram tests
         run: npm run test:ingestion
         env:
           INGESTION_DATABASE_HOST: localhost
@@ -239,8 +239,8 @@ jobs:
       - name: Build frontend
         run: npm run build:frontend
 
-      - name: Build ingestion-service
-        run: npm run build -w @alpha-meta-token-scanner/ingestion-service
+      - name: Build ingestion-telegram
+        run: npm run build -w @alpha-meta-token-scanner/ingestion-telegram
 
       - name: Upload backend dist
         if: success()
@@ -258,10 +258,10 @@ jobs:
           path: apps/frontend/dist
           retention-days: 7
 
-      - name: Upload ingestion-service dist
+      - name: Upload ingestion-telegram dist
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: ingestion-service-dist
-          path: apps/ingestion-service/dist
+          name: ingestion-telegram-dist
+          path: apps/ingestion-telegram/dist
           retention-days: 7
