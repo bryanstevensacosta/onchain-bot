@@ -84,7 +84,7 @@ jobs:
 
       - name: Backup ingestion database
         run: |
-          set -a; source /opt/onchain-bot/apps/ingestion-telegram/.env.production; set +a
+          ENVF=/opt/onchain-bot/apps/ingestion-telegram/.env.production; [ -f "$ENVF" ] || ENVF=/opt/onchain-bot/apps/ingestion-service/.env.production; set -a; source "$ENVF"; set +a
           # Same postgres container/user as the backend DB; password comes from
           # INGESTION_DATABASE_PASSWORD (falls back to POSTGRES_PASSWORD if set).
           mkdir -p /data/backups/ingestion
@@ -106,11 +106,11 @@ jobs:
       - name: Run ingestion migrations (abort deploy on failure)
         run: |
           set -euo pipefail
-          set -a; source /opt/onchain-bot/apps/ingestion-telegram/.env.production; set +a
+          ENVF=/opt/onchain-bot/apps/ingestion-telegram/.env.production; [ -f "$ENVF" ] || ENVF=/opt/onchain-bot/apps/ingestion-service/.env.production; set -a; source "$ENVF"; set +a
 
           echo "=== Running ingestion TypeORM migrations ==="
           docker run --rm --network onchain-bot-net \
-            --env-file /opt/onchain-bot/apps/ingestion-telegram/.env.production \
+            --env-file "$ENVF" \
             ghcr.io/${{ github.repository }}-ingestion-telegram:${{ github.sha }} \
             npx typeorm --dataSource apps/ingestion-telegram/dist/src/shared/common/persistence/data-source.js migration:run \
             || docker compose -f /opt/onchain-bot/apps/backend/docker-compose.ingestion.yml run --rm ingestion-telegram \
@@ -120,7 +120,7 @@ jobs:
 
       - name: Restart ingestion service
         run: |
-          set -a; source /opt/onchain-bot/apps/ingestion-telegram/.env.production; set +a
+          ENVF=/opt/onchain-bot/apps/ingestion-telegram/.env.production; [ -f "$ENVF" ] || ENVF=/opt/onchain-bot/apps/ingestion-service/.env.production; set -a; source "$ENVF"; set +a
           set -a; source /opt/onchain-bot/apps/backend/.env.production; set +a
           cd /opt/onchain-bot/apps/backend
           docker compose -f docker-compose.ingestion.yml pull
