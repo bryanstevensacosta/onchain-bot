@@ -6,6 +6,23 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 (none yet)
 
+## [1.1.0] - 2026-09-18
+
+Rename GA: `ingestion-service` is now `ingestion-telegram` (MINOR: new optional config, no breaking change — old var still honored).
+
+### Changed
+
+- Rename GA `ingestion-service` → `ingestion-telegram` (workspace, GHCR image, container, compose, env). Consumers can now point at the service via the new optional `INGESTION_TELEGRAM_URL`; the deprecated `INGESTION_SERVICE_URL` is still honored as fallback. (PR #231)
+
+### Fixed
+
+- Post-cutover proxy: nginx upstream flipped to the new `onchain-bot-ingestion-telegram` DNS with lazy resolver, `/ingestion-api/` → `/api/` rewrite-strip fix, and new/old env fallback in `deploy-ingestion.yml` backup/migrations/restart steps. (PR #234)
+
+### Notes
+
+- Release housekeeping (no code): the old `ingestion-service-v1.0.0` tag and release were mirrored to `ingestion-telegram-v1.0.0` and retired on 2026-09-18 (announced in PR #231, verified post-merge).
+- Post-rename cleanup tracked in #235.
+
 ## [1.0.0] - 2026-09-11
 
 **Baseline release**: Version reset for consistency across monorepo. This is the first official release with all apps aligned at v1.0.0.
