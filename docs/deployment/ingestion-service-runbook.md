@@ -1347,6 +1347,14 @@ grep -n "proxy_pass http://onchain-bot-ingestion-telegram:3031/api/" /opt/onchai
 # Must show the upstream lines; then reload nginx per the frontend deploy flow
 ```
 
+> Frontend DNS flips AT cutover time, not before: until this cutover executes, the
+> frontend `nginx.conf` `/ingestion-api/` upstream stays on the OLD
+> `onchain-bot-ingestion:3031` name (with lazy `resolver 127.0.0.11` so nginx boots
+> even when DNS is unresolvable). The staging crash-loop of 2026-09-18 (`[emerg]
+> host not found in upstream "onchain-bot-ingestion-telegram"`) was caused by
+> shipping the new DNS before the singleton was renamed — deploy the frontend flip
+> (task-18) only together with step 5 above.
+
 ### Rollback (never restarts the old session)
 
 ```bash
