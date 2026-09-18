@@ -39,7 +39,7 @@ export class KolController {
   }
 
   /**
-   * Get active KOL IDs (for ingestion-service subscription)
+   * Get active KOL IDs (for ingestion-telegram subscription)
    * Returns only the kolId strings of KOLs with isActive=true and lifecycleStatus=ACTIVE
    */
   @Get('kols/active/ids')

@@ -14,10 +14,10 @@ Added comprehensive `@deprecated` JSDoc to:
 
 ```typescript
 /**
- * @deprecated LEGACY — Post db-separation (2026-09-08), crypto-news data is OWNED by ingestion-service.
+ * @deprecated LEGACY — Post db-separation (2026-09-08), crypto-news data is OWNED by ingestion-telegram.
  *
  * **DO NOT USE.** Backend should consume CryptoNewsMessageDto from crypto-news-integration/domain/dtos
- * (fetched via HTTP from ingestion-service API).
+ * (fetched via HTTP from ingestion-telegram API).
  *
  * **Architecture (Opción A):**
  * - Ingestion-service: OWNS data (TypeORM entities + DB)
@@ -36,10 +36,10 @@ Added comprehensive `@deprecated` JSDoc to:
 
 ```typescript
 /**
- * @deprecated LEGACY — Post db-separation (2026-09-08), crypto-news media is OWNED by ingestion-service.
+ * @deprecated LEGACY — Post db-separation (2026-09-08), crypto-news media is OWNED by ingestion-telegram.
  *
  * **DO NOT USE.** Backend should consume CryptoNewsMediaDto from crypto-news-integration/domain/dtos
- * (nested in CryptoNewsMessageDto, fetched via HTTP from ingestion-service API).
+ * (nested in CryptoNewsMessageDto, fetched via HTTP from ingestion-telegram API).
  *
  * **Architecture (Opción A):**
  * - Ingestion-service: OWNS media (downloads, stores, serves via HTTP)
@@ -148,7 +148,7 @@ Comprehensive 9-phase plan covering:
 **Key log lines:**
 
 ```
-[IngestionCoordinator] Crypto-news SSE persistence skipped: ingestion-service owns crypto-news messages/sources/media in its own DB (Opción A — backend persists nothing, filters apply on-read).
+[IngestionCoordinator] Crypto-news SSE persistence skipped: ingestion-telegram owns crypto-news messages/sources/media in its own DB (Opción A — backend persists nothing, filters apply on-read).
 [EnqueueMatchingCronScheduler] EnqueueMatchingCronScheduler ready (fetch limit: 50, enabled: false)
 [PublisherCronScheduler] PublisherCronScheduler ready (publishingEnabled=true)
 ```
@@ -264,7 +264,7 @@ Execute Phase 2 of migration plan:
 
 - ✅ **db-separation split** (2026-09-08) — backend tables dropped, migration `1860000000001` executed
 - ✅ **ContentFilterService migration** — filters stay in backend (FK-less)
-- ✅ **`ChannelContentFilterConfigEntity` duplication removed** — ingestion-service copy deleted
+- ✅ **`ChannelContentFilterConfigEntity` duplication removed** — ingestion-telegram copy deleted
 - 🔄 **Publisher DTO migration** — Phases 2-9 (planned, not started)
 
 ## Notes
@@ -282,7 +282,7 @@ Execute Phase 2 of migration plan:
 
 - Backend should NOT maintain shadow domain entities for data it doesn't own
 - DTOs are the correct abstraction for HTTP consumption
-- Single-ownership principle: ingestion-service owns crypto-news domain
+- Single-ownership principle: ingestion-telegram owns crypto-news domain
 
 **Future maintainability:**
 

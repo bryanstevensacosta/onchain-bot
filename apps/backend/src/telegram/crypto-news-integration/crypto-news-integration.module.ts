@@ -19,12 +19,12 @@ import { CryptoNewsPublisherModule } from 'telegram/crypto-news-publisher/crypto
  *
  * **Per Opción A architecture:**
  * - Ingestion-service stores RAW crypto-news messages (no filters)
- * - Backend polls ingestion-service HTTP API (CryptoNewsIngestionClient)
+ * - Backend polls ingestion-telegram HTTP API (CryptoNewsIngestionClient)
  * - Backend applies ContentFilterService + keyword matching on-read (FilteredCryptoNewsService)
  * - Matched messages are enqueued for LLM processing (EnqueueMatchingCronScheduler)
  *
  * **Module responsibilities:**
- * 1. Provide CryptoNewsIngestionClient (HTTP fetch from ingestion-service)
+ * 1. Provide CryptoNewsIngestionClient (HTTP fetch from ingestion-telegram)
  * 2. Provide FilteredCryptoNewsService (filter + match orchestrator)
  * 3. Register EnqueueMatchingCronScheduler (cron every minute)
  *
@@ -45,7 +45,7 @@ import { CryptoNewsPublisherModule } from 'telegram/crypto-news-publisher/crypto
  * **Replaces:**
  * - CryptoNewsMessageIngestedHandler (event-driven, local ingestion)
  * - Backend no longer ingests crypto-news via MTProto/SSE
- * - Backend only polls ingestion-service HTTP API
+ * - Backend only polls ingestion-telegram HTTP API
  *
  * @module CryptoNewsIntegrationModule
  */
@@ -60,7 +60,7 @@ import { CryptoNewsPublisherModule } from 'telegram/crypto-news-publisher/crypto
   ],
   controllers: [MatchingConfigController],
   providers: [
-    // HTTP client for ingestion-service
+    // HTTP client for ingestion-telegram
     CryptoNewsIngestionClient,
 
     // Filter + match orchestrator

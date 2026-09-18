@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 // READ-ONLY type import from the SSE transport: the `kol | crypto-news`
 // union is consumed as-is (no new 'threads' member, no coordinator branch,
 // no EVENT_MAP entry — threads reuses `messageType='crypto-news'` events
-// with zero ingestion-service / telegram changes).
+// with zero ingestion-telegram / telegram changes).
 import type { TelegramRawMessage } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import { FilteredThreadsService } from '../services/filtered-threads.service';
 import { EnqueueThreadsMessageUseCase } from 'threads/publisher/application/handlers/enqueue-threads-message.use-case';
@@ -21,7 +21,7 @@ import { isBlockingFailureReason } from 'shared/deduplication/domain/constants/b
  * 1. Ignore non-crypto-news SSE events (`messageType='kol'` → skip)
  * 2. Check matchingEnabled flag (skip if disabled)
  * 3. Check ThreadsQueueEntry deduplication (skip if already queued/published)
- * 4. Fetch RAW message from ingestion-service (via FilteredThreadsService)
+ * 4. Fetch RAW message from ingestion-telegram (via FilteredThreadsService)
  * 5. Apply ContentFilterService + threads keyword matching
  * 6. Enqueue if matched (via EnqueueThreadsMessageUseCase from T2)
  * 7. Log latency (Date.now() - ingestedAt)
@@ -57,7 +57,7 @@ export class ProcessThreadsMessageHandler {
    * Process a single SSE message for the threads pipeline.
    *
    * Only `messageType='crypto-news'` events are processed (reused as-is —
-   * zero ingestion-service changes); `messageType='kol'` (and anything
+   * zero ingestion-telegram changes); `messageType='kol'` (and anything
    * else) is ignored.
    *
    * @param raw - TelegramRawMessage from SSE stream
@@ -177,7 +177,7 @@ export class ProcessThreadsMessageHandler {
   /**
    * Calculate and log ingestion latency.
    *
-   * Latency = Date.now() - ingestedAt (time from ingestion-service storage to backend enqueue)
+   * Latency = Date.now() - ingestedAt (time from ingestion-telegram storage to backend enqueue)
    *
    * Logs INFO if <10s (target met)
    * Logs WARN if ≥10s (target missed)

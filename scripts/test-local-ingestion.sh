@@ -94,7 +94,7 @@ test_prerequisites() {
     
     # Check if ports are available
     if check_port 3031; then
-        log_warning "Port 3031 is in use (ingestion-service)"
+        log_warning "Port 3031 is in use (ingestion-telegram)"
         read -p "Kill process on port 3031? (y/n) " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
@@ -119,17 +119,17 @@ test_prerequisites() {
     fi
 }
 
-# Test 2: Build ingestion-service
+# Test 2: Build ingestion-telegram
 test_build() {
-    log_info "Test 2: Building ingestion-service..."
+    log_info "Test 2: Building ingestion-telegram..."
     
-    cd "$PROJECT_ROOT/apps/ingestion-service"
+    cd "$PROJECT_ROOT/apps/ingestion-telegram"
     
     if npm run build; then
-        log_success "Ingestion-service build successful"
+        log_success "Ingestion-telegram build successful"
         return 0
     else
-        log_error "Ingestion-service build failed"
+        log_error "Ingestion-telegram build failed"
         return 1
     fi
 }
@@ -138,10 +138,10 @@ test_build() {
 test_env() {
     log_info "Test 3: Checking environment variables..."
     
-    cd "$PROJECT_ROOT/apps/ingestion-service"
+    cd "$PROJECT_ROOT/apps/ingestion-telegram"
     
     if [ ! -f ".env" ]; then
-        log_error ".env file not found in apps/ingestion-service/"
+        log_error ".env file not found in apps/ingestion-telegram/"
         log_info "Copy .env.example to .env and configure"
         return 1
     fi
@@ -195,7 +195,7 @@ test_health() {
         
         retry=$((retry + 1))
         if [ $retry -lt $max_retries ]; then
-            log_warning "Waiting for ingestion-service to start... ($retry/$max_retries)"
+            log_warning "Waiting for ingestion-telegram to start... ($retry/$max_retries)"
             sleep 2
         fi
     done
@@ -251,7 +251,7 @@ test_integration() {
     log_info "Test 7: Running quick integration test..."
     
     log_warning "This test requires:"
-    log_info "  1. Ingestion-service running (Terminal 1)"
+    log_info "  1. Ingestion-telegram running (Terminal 1)"
     log_info "  2. Backend running in SSE mode (Terminal 2)"
     log_info ""
     
@@ -268,10 +268,10 @@ test_integration() {
     CLIENTS=$(curl -s http://localhost:3031/api/ingestion/stream/status 2>/dev/null | jq '.connectedClients' 2>/dev/null || echo "0")
     
     if [ "$CLIENTS" -gt "0" ]; then
-        log_success "Backend connected to ingestion-service ($CLIENTS clients)"
+        log_success "Backend connected to ingestion-telegram ($CLIENTS clients)"
         return 0
     else
-        log_error "Backend not connected to ingestion-service"
+        log_error "Backend not connected to ingestion-telegram"
         log_info "Check backend logs for connection errors"
         return 1
     fi
@@ -286,7 +286,7 @@ show_menu() {
     echo ""
     echo "  1. Run all tests"
     echo "  2. Test prerequisites only"
-    echo "  3. Build ingestion-service"
+    echo "  3. Build ingestion-telegram"
     echo "  4. Check environment variables"
     echo "  5. Test health endpoint"
     echo "  6. Test SSE stream"

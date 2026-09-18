@@ -8,7 +8,7 @@ Operational runbook for troubleshooting and maintaining the multi-backend SSE br
 
 ```bash
 # 1. Check system status
-curl http://ingestion-service:3031/api/ingestion/stream/status
+curl http://ingestion-telegram:3031/api/ingestion/stream/status
 
 # Expected response:
 # {
@@ -22,12 +22,12 @@ curl http://ingestion-service:3031/api/ingestion/stream/status
 # }
 
 # 2. Check health endpoint
-curl http://ingestion-service:3031/api/health
+curl http://ingestion-telegram:3031/api/health
 
 # Expected: status "ok", broadcast.ready true
 
 # 3. Check backend logs for connection errors
-docker logs ingestion-service --tail 100 | grep "SSE connection"
+docker logs ingestion-telegram --tail 100 | grep "SSE connection"
 ```
 
 ## Common Issues
@@ -43,14 +43,14 @@ docker logs ingestion-service --tail 100 | grep "SSE connection"
 **Diagnosis:**
 
 ```bash
-# Check if ingestion-service is running
-curl http://ingestion-service:3031/api/health
+# Check if ingestion-telegram is running
+curl http://ingestion-telegram:3031/api/health
 
 # Check if backend is registered
-curl http://ingestion-service:3031/api/ingestion/stream/status | jq '.registeredBackends'
+curl http://ingestion-telegram:3031/api/ingestion/stream/status | jq '.registeredBackends'
 
-# Check ingestion-service logs
-docker logs ingestion-service --tail 200 | grep "SSE connection rejected"
+# Check ingestion-telegram logs
+docker logs ingestion-telegram --tail 200 | grep "SSE connection rejected"
 ```
 
 **Solutions:**
@@ -59,16 +59,16 @@ docker logs ingestion-service --tail 200 | grep "SSE connection rejected"
 
    ```bash
    # Manual registration for testing
-   curl -X POST http://ingestion-service:3031/api/ingestion/backends/register \
+   curl -X POST http://ingestion-telegram:3031/api/ingestion/backends/register \
      -H "Content-Type: application/json" \
      -d '{"backendId":"production","sourceWhitelist":["ch1","ch2"]}'
    ```
 
-2. **Network connectivity**: Verify ingestion-service:3031 is reachable from backend
+2. **Network connectivity**: Verify ingestion-telegram:3031 is reachable from backend
 
    ```bash
    # From backend container
-   nc -zv ingestion-service 3031
+   nc -zv ingestion-telegram 3031
    ```
 
 3. **Wrong backendId**: Check backend code uses correct identifier
@@ -80,19 +80,19 @@ docker logs ingestion-service --tail 200 | grep "SSE connection rejected"
 **Symptoms:**
 
 - Backend connected but no `message:telegram` events
-- Ingestion-service logs show messages ingested but not broadcast
+- Ingestion-telegram logs show messages ingested but not broadcast
 
 **Diagnosis:**
 
 ```bash
 # Check if messages are being ingested
-docker logs ingestion-service | grep "Message ingested"
+docker logs ingestion-telegram | grep "Message ingested"
 
 # Check if broadcast is working
-docker logs ingestion-service | grep "Broadcasting to"
+docker logs ingestion-telegram | grep "Broadcasting to"
 
 # Check circuit breaker state
-curl http://ingestion-service:3031/api/ingestion/stream/status
+curl http://ingestion-telegram:3031/api/ingestion/stream/status
 ```
 
 **Solutions:**
@@ -104,11 +104,11 @@ curl http://ingestion-service:3031/api/ingestion/stream/status
 
 2. **Empty channel union**: No channels in backend's whitelist
    - Verify `sourceWhitelist` in registration includes active channels
-   - Check ingestion-service logs for "Channel union size: 0"
+   - Check ingestion-telegram logs for "Channel union size: 0"
 
 3. **MTProto disconnected**: Ingestion service lost Telegram connection
    - Check `/api/health` → `mtproto.connected` should be `true`
-   - Restart ingestion-service if MTProto is stuck
+   - Restart ingestion-telegram if MTProto is stuck
 
 ### Issue 3: Backfill Not Working
 
@@ -121,7 +121,7 @@ curl http://ingestion-service:3031/api/ingestion/stream/status
 
 ```bash
 # Check backfill buffer status
-curl http://ingestion-service:3031/api/ingestion/stream/status | jq '{backfillBufferSize, backfillBufferOldestTimestamp}'
+curl http://ingestion-telegram:3031/api/ingestion/stream/status | jq '{backfillBufferSize, backfillBufferOldestTimestamp}'
 
 # Check if disconnection was > 72 hours
 # If oldestTimestamp is newer than lastSeenTimestamp, window expired
@@ -157,10 +157,10 @@ docker exec -it postgres psql -U postgres -d onchain_bot -c "SELECT COUNT(*), MI
 
 ```bash
 # Check circuit breaker state (not exposed via API yet)
-docker logs ingestion-service | grep "Circuit.*for backend" | tail -20
+docker logs ingestion-telegram | grep "Circuit.*for backend" | tail -20
 
 # Check for repeated failures
-docker logs ingestion-service | grep "Broadcast failed.*backend" | tail -50
+docker logs ingestion-telegram | grep "Broadcast failed.*backend" | tail -50
 ```
 
 **Solutions:**
@@ -184,17 +184,17 @@ docker logs ingestion-service | grep "Broadcast failed.*backend" | tail -50
 
 **Symptoms:**
 
-- Ingestion-service using > 500MB memory
+- Ingestion-telegram using > 500MB memory
 - `backfillBufferSize` at or near 5000
 
 **Diagnosis:**
 
 ```bash
 # Check buffer size
-curl http://ingestion-service:3031/api/ingestion/stream/status | jq '.backfillBufferSize'
+curl http://ingestion-telegram:3031/api/ingestion/stream/status | jq '.backfillBufferSize'
 
 # Check process memory
-docker stats ingestion-service --no-stream
+docker stats ingestion-telegram --no-stream
 
 # Check PostgreSQL table size
 docker exec -it postgres psql -U postgres -d onchain_bot -c "SELECT pg_size_pretty(pg_total_relation_size('backfill_messages'));"
@@ -224,11 +224,11 @@ docker exec -it postgres psql -U postgres -d onchain_bot -c "SELECT pg_size_pret
 Circuit breaker state is in-memory only. To reset:
 
 ```bash
-# Restart ingestion-service (resets all circuits)
-docker restart ingestion-service
+# Restart ingestion-telegram (resets all circuits)
+docker restart ingestion-telegram
 
 # Wait for service to be healthy
-curl http://ingestion-service:3031/api/health
+curl http://ingestion-telegram:3031/api/health
 ```
 
 ### Manually Cleanup Old Messages
@@ -252,7 +252,7 @@ SELECT COUNT(*) FROM backfill_messages;
 
 ```bash
 # Register staging backend
-curl -X POST http://ingestion-service:3031/api/ingestion/backends/register \
+curl -X POST http://ingestion-telegram:3031/api/ingestion/backends/register \
   -H "Content-Type: application/json" \
   -d '{
     "backendId": "staging",
@@ -260,17 +260,17 @@ curl -X POST http://ingestion-service:3031/api/ingestion/backends/register \
   }'
 
 # Verify registration
-curl http://ingestion-service:3031/api/ingestion/stream/status | jq '.registeredBackends'
+curl http://ingestion-telegram:3031/api/ingestion/stream/status | jq '.registeredBackends'
 ```
 
 ### Test SSE Connection
 
 ```bash
 # Connect to SSE stream (will block, showing events)
-curl -N "http://ingestion-service:3031/api/ingestion/stream?backendId=staging"
+curl -N "http://ingestion-telegram:3031/api/ingestion/stream?backendId=staging"
 
 # With backfill (replace timestamp with recent ISO date)
-curl -N "http://ingestion-service:3031/api/ingestion/stream?backendId=staging&lastSeenTimestamp=2026-09-03T10:00:00.000Z"
+curl -N "http://ingestion-telegram:3031/api/ingestion/stream?backendId=staging&lastSeenTimestamp=2026-09-03T10:00:00.000Z"
 
 # Expected output:
 # event: connection:established
@@ -291,17 +291,17 @@ curl -N "http://ingestion-service:3031/api/ingestion/stream?backendId=staging&la
 1. Check if any backends are connected:
 
    ```bash
-   curl http://ingestion-service:3031/api/ingestion/stream/status | jq '.activeBackends'
+   curl http://ingestion-telegram:3031/api/ingestion/stream/status | jq '.activeBackends'
    ```
 
 2. If `activeBackends == 0`:
    - Check backend applications are running
-   - Check backends can reach ingestion-service:3031
+   - Check backends can reach ingestion-telegram:3031
    - Verify backends are registered
    - Check backend logs for connection errors
 
 3. If backends are registered but not connecting:
-   - Restart ingestion-service
+   - Restart ingestion-telegram
    - Check for port conflicts (3031)
 
 ### Alert: Circuit breaker open for > 10 minutes
@@ -313,7 +313,7 @@ curl -N "http://ingestion-service:3031/api/ingestion/stream?backendId=staging&la
 1. Identify affected backend:
 
    ```bash
-   docker logs ingestion-service | grep "Circuit OPEN" | tail -10
+   docker logs ingestion-telegram | grep "Circuit OPEN" | tail -10
    ```
 
 2. Check backend health:
@@ -339,7 +339,7 @@ curl -N "http://ingestion-service:3031/api/ingestion/stream?backendId=staging&la
 1. Check if all backends are connected:
 
    ```bash
-   curl http://ingestion-service:3031/api/ingestion/stream/status
+   curl http://ingestion-telegram:3031/api/ingestion/stream/status
    ```
 
 2. If backends are disconnected:
@@ -348,7 +348,7 @@ curl -N "http://ingestion-service:3031/api/ingestion/stream?backendId=staging&la
 
 3. If this is normal (high message volume):
    - Increase `INGESTION_BACKFILL_BUFFER_SIZE` (e.g., to 10000)
-   - Restart ingestion-service with new config
+   - Restart ingestion-telegram with new config
 
 ## Monitoring Dashboard
 
@@ -364,19 +364,19 @@ curl -N "http://ingestion-service:3031/api/ingestion/stream?backendId=staging&la
 
 ```bash
 # Connection events
-docker logs ingestion-service | grep "SSE connection"
+docker logs ingestion-telegram | grep "SSE connection"
 
 # Broadcast activity
-docker logs ingestion-service | grep "Broadcasting"
+docker logs ingestion-telegram | grep "Broadcasting"
 
 # Circuit breaker state changes
-docker logs ingestion-service | grep "Circuit.*OPEN\|CLOSED\|HALF_OPEN"
+docker logs ingestion-telegram | grep "Circuit.*OPEN\|CLOSED\|HALF_OPEN"
 
 # Backfill activity
-docker logs ingestion-service | grep "Backfill"
+docker logs ingestion-telegram | grep "Backfill"
 
 # Errors
-docker logs ingestion-service | grep "ERROR"
+docker logs ingestion-telegram | grep "ERROR"
 ```
 
 ## Escalation
@@ -397,7 +397,7 @@ docker logs ingestion-service | grep "ERROR"
 
 ## Known Limitations
 
-1. **Single ingestion-service instance**: No horizontal scaling yet
+1. **Single ingestion-telegram instance**: No horizontal scaling yet
 2. **In-memory circuit breaker state**: Resets on restart
 3. **No authentication**: SSE endpoint requires registration but no auth token
 4. **72-hour backfill window**: Hard limit, cannot be extended
@@ -408,6 +408,6 @@ docker logs ingestion-service | grep "ERROR"
 - [ ] Add Prometheus metrics endpoint
 - [ ] Implement circuit breaker state API
 - [ ] Add authentication to SSE endpoint
-- [ ] Support horizontal scaling of ingestion-service
+- [ ] Support horizontal scaling of ingestion-telegram
 - [ ] Add admin API to manually reset circuit breakers
 - [ ] Implement backfill from S3/archival storage for > 72h gaps

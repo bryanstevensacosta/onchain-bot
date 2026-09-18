@@ -77,14 +77,14 @@ INGESTION_REMOTE_URL=http://cryptoganster:3031
 
 ### Docker Compose Files
 
-**`apps/ingestion-service/docker-compose.yml`** (new file):
+**`apps/ingestion-telegram/docker-compose.yml`** (new file):
 ```yaml
 version: '3.8'
 
 services:
-  ingestion-service:
-    image: ghcr.io/bryanstevenss/onchain-bot-ingestion:latest
-    container_name: onchain-bot-ingestion
+  ingestion-telegram:
+    image: ghcr.io/bryanstevenss/onchain-bot-ingestion-telegram:latest
+    container_name: onchain-bot-ingestion-telegram
     restart: unless-stopped
     env_file:
       - .env.ingestion
@@ -94,7 +94,7 @@ services:
       - onchain-bot-net
     volumes:
       - /opt/onchain-bot/uploads:/opt/onchain-bot/uploads
-      - /opt/onchain-bot/apps/ingestion-service/logs:/app/logs
+      - /opt/onchain-bot/apps/ingestion-telegram/logs:/app/logs
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3031/api/health"]
       interval: 30s
@@ -155,7 +155,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: apps/ingestion-service/Dockerfile
+          file: apps/ingestion-telegram/Dockerfile
           push: true
           tags: |
             ghcr.io/${{ github.repository }}-ingestion:${{ github.sha }}
@@ -185,8 +185,8 @@ jobs:
 
       - name: Deploy ingestion service
         run: |
-          cd /opt/onchain-bot/apps/ingestion-service
-          docker compose up -d --force-recreate ingestion-service
+          cd /opt/onchain-bot/apps/ingestion-telegram
+          docker compose up -d --force-recreate ingestion-telegram
 
       - name: Wait for health check
         run: |
@@ -199,7 +199,7 @@ jobs:
             sleep 5
           done
           echo "❌ Health check failed"
-          docker logs onchain-bot-ingestion --tail 50
+          docker logs onchain-bot-ingestion-telegram --tail 50
           exit 1
 ```
 
@@ -237,7 +237,7 @@ sudo lsof -i :3031
 ### 1.2 Create Ingestion Service Environment File
 
 ```bash
-cd /opt/onchain-bot/apps/ingestion-service
+cd /opt/onchain-bot/apps/ingestion-telegram
 
 # Create .env.ingestion from template
 cat > .env.ingestion << 'EOF'
@@ -283,8 +283,8 @@ gh workflow run deploy-ingestion.yml \
 gh run watch
 
 # Or deploy manually on droplet
-cd /opt/onchain-bot/apps/ingestion-service
-docker compose up -d ingestion-service
+cd /opt/onchain-bot/apps/ingestion-telegram
+docker compose up -d ingestion-telegram
 ```
 
 ### 1.4 Validate Standalone Operation
@@ -344,13 +344,13 @@ curl -N http://localhost:3031/api/ingestion/stream
 **Log Inspection:**
 ```bash
 # Check for errors
-docker logs onchain-bot-ingestion --tail 100 | grep -i error
+docker logs onchain-bot-ingestion-telegram --tail 100 | grep -i error
 
 # Check for FLOOD_WAIT warnings (should be 0)
-docker logs onchain-bot-ingestion | grep -i flood
+docker logs onchain-bot-ingestion-telegram | grep -i flood
 
 # Verify message ingestion rate
-docker logs onchain-bot-ingestion | grep "message:ingested" | wc -l
+docker logs onchain-bot-ingestion-telegram | grep "message:ingested" | wc -l
 ```
 
 **Media Serving:**
@@ -371,7 +371,7 @@ curl -I http://localhost:3031/api/media/-1001234567890/12345/0
 
 ```bash
 # Stop ingestion service
-docker compose -f /opt/onchain-bot/apps/ingestion-service/docker-compose.yml down
+docker compose -f /opt/onchain-bot/apps/ingestion-telegram/docker-compose.yml down
 
 # No impact on existing backends (still using MTProto)
 # Verify production backend still healthy:
@@ -479,7 +479,7 @@ curl -s http://localhost:3031/api/health | jq '.clients.connected'
 
 ```bash
 # Terminal 1: Watch ingestion service broadcast
-docker logs -f onchain-bot-ingestion | grep "Broadcasting message"
+docker logs -f onchain-bot-ingestion-telegram | grep "Broadcasting message"
 
 # Terminal 2: Watch staging backend receive
 docker logs -f onchain-bot-backend-staging | grep "Received message from SSE"
@@ -510,7 +510,7 @@ diff /tmp/staging-calls.json /tmp/prod-calls.json
 # Staging backend logs message received timestamp
 # Calculate diff:
 
-docker logs onchain-bot-ingestion | grep "message:ingested" | tail -1
+docker logs onchain-bot-ingestion-telegram | grep "message:ingested" | tail -1
 docker logs onchain-bot-backend-staging | grep "Received message" | tail -1
 
 # Manual diff should be <500ms (Requirement 8.1)
@@ -692,7 +692,7 @@ curl -s http://localhost:3031/api/health | jq '.floodWait.count24h'
 
 # 4. Resource usage trends
 docker stats onchain-bot-backend-staging --no-stream
-docker stats onchain-bot-ingestion --no-stream
+docker stats onchain-bot-ingestion-telegram --no-stream
 # Memory should be stable (no leaks)
 ```
 
@@ -719,7 +719,7 @@ Production Messages (48h): $PROD_24H_COUNT
 Divergence: $((STAGING_24H_COUNT - PROD_24H_COUNT))
 
 Staging Backend Uptime: $(docker inspect onchain-bot-backend-staging | jq -r '.[0].State.StartedAt')
-Ingestion Service Uptime: $(docker inspect onchain-bot-ingestion | jq -r '.[0].State.StartedAt')
+Ingestion Service Uptime: $(docker inspect onchain-bot-ingestion-telegram | jq -r '.[0].State.StartedAt')
 
 Parity Check Results:
 $(tail -20 /var/log/ingestion-parity.log)
@@ -735,10 +735,10 @@ cat /tmp/phase3-validation-report.txt
 **If SSE connection drops:**
 ```bash
 # 1. Check ingestion service status
-docker ps | grep onchain-bot-ingestion
+docker ps | grep onchain-bot-ingestion-telegram
 
 # 2. If service is down, restart
-docker compose -f /opt/onchain-bot/apps/ingestion-service/docker-compose.yml up -d
+docker compose -f /opt/onchain-bot/apps/ingestion-telegram/docker-compose.yml up -d
 
 # 3. Verify staging backend reconnects automatically
 docker logs -f onchain-bot-backend-staging | grep "SSE"
@@ -757,7 +757,7 @@ docker compose -f docker-compose.staging.yml restart backend
 docker logs onchain-bot-backend-staging --tail 200 | grep -i "error\|skip\|duplicate"
 
 # 2. Check ingestion service broadcast logs
-docker logs onchain-bot-ingestion --tail 200 | grep -i "broadcast"
+docker logs onchain-bot-ingestion-telegram --tail 200 | grep -i "broadcast"
 
 # 3. If critical divergence (>10 messages in 1h), roll back
 # See Phase 2 Rollback section
@@ -852,7 +852,7 @@ tail -5 .env.production
 
 ```bash
 # Terminal 1: Monitor ingestion service
-docker logs -f onchain-bot-ingestion
+docker logs -f onchain-bot-ingestion-telegram
 
 # Terminal 2: Restart production backend
 cd /opt/onchain-bot/apps/backend
@@ -961,7 +961,7 @@ curl -s http://localhost:3031/api/health | jq '.floodWait'
 # count24h should be <10
 
 # Resource usage
-docker stats onchain-bot-backend-production onchain-bot-ingestion --no-stream
+docker stats onchain-bot-backend-production onchain-bot-ingestion-telegram --no-stream
 ```
 
 ### 4.6 Phase 4 Rollback (If Needed)
@@ -1000,7 +1000,7 @@ watch -n 5 'curl -s http://localhost:3030/api/vip-calls/calls/recent?limit=1 | j
 ```bash
 # 1. Collect logs
 docker logs onchain-bot-backend-production --since 30m > /tmp/rollback-backend.log
-docker logs onchain-bot-ingestion --since 30m > /tmp/rollback-ingestion.log
+docker logs onchain-bot-ingestion-telegram --since 30m > /tmp/rollback-ingestion.log
 
 # 2. Analyze failure mode
 # - SSE connection issues?
@@ -1171,7 +1171,7 @@ time bash /opt/onchain-bot/scripts/rollback-to-mtproto.sh staging
 
 ```bash
 # 1. Stop ingestion service (prevent connection attempts)
-docker compose -f /opt/onchain-bot/apps/ingestion-service/docker-compose.yml down
+docker compose -f /opt/onchain-bot/apps/ingestion-telegram/docker-compose.yml down
 
 # 2. Rollback production (priority)
 bash /opt/onchain-bot/scripts/rollback-to-mtproto.sh production
@@ -1195,6 +1195,212 @@ echo "EMERGENCY ROLLBACK COMPLETE. All environments back to MTProto mode."
 - ✅ MTProto mode restores within 2 minutes after restart
 - ✅ Emergency rollback procedure documented
 - ✅ All team members trained on rollback process
+
+---
+
+## Cutover ingestion-telegram (rename, stop-the-world)
+
+**Objective:** One-time droplet cutover from the old `ingestion-service` identity to the
+renamed `ingestion-telegram` identity (compose service/container/DNS rename + dual-push
+workflow). After this cutover, routine deploys keep using the `deploy-ingestion.yml`
+workflow with zero manual steps.
+
+**Duration:** 15-30 minutes
+**Risk Level:** HIGH (single MTProto session; two live containers = `AUTH_KEY_DUPLICATED`)
+**Related:** `.github/workflows/deploy-ingestion.yml` (dual-push new + old images),
+`docker-compose.ingestion.yml` (service `ingestion-telegram`, container
+`onchain-bot-ingestion-telegram`)
+
+### Rules (read first, no exceptions)
+
+- **NEVER run the old and new containers at the same time.** There is exactly one MTProto
+  session (singleton invariant: credentials live ONLY in the ingestion env file under
+  `INGESTION_TELEGRAM_MTPROTO_*`; a second live session causes `AUTH_KEY_DUPLICATED`
+  and logs the session out). Before starting anything new, prove the old container is
+  stopped: `docker ps | grep -i ingestion` must print nothing.
+- **NEVER copy the session string for testing.** No second local container, no pasting
+  `INGESTION_TELEGRAM_MTPROTO_SESSION` into another env file, no `telegram:gen-session`
+  on the droplet. The session moves exactly once, via `mv` of the env file (step 3).
+- **Rollback never re-animates the stopped old container while the new one holds the
+  session.** Rollback = stop the new container first, verify zero ingestion containers,
+  then recreate from a previous image tag (previous `:sha` of the new image, or the old
+  `-ingestion:latest` rollback image). See "Rollback" below.
+
+### Step 1 — Backup the ingestion database
+
+Same command the workflow runs (`deploy-ingestion.yml`, "Backup ingestion database" step):
+
+```bash
+set -a; source /opt/onchain-bot/apps/ingestion-telegram/.env.production; set +a
+mkdir -p /data/backups/ingestion
+POSTGRES_CONTAINER=onchain-bot-postgres-production \
+POSTGRES_USER="${INGESTION_DATABASE_USER:-alpha_meta_token_scanner}" \
+POSTGRES_DB="${INGESTION_DATABASE_NAME:-alpha_meta_token_scanner_ingestion}" \
+POSTGRES_PASSWORD="${INGESTION_DATABASE_PASSWORD:-${POSTGRES_PASSWORD:-}}" \
+bash /opt/onchain-bot/scripts/backup-db.sh
+ls -lh /data/backups/ingestion/ | tail -3
+# Must show: a fresh ingestion-backup-<timestamp>.dump
+```
+
+> First-cutover note: if the droplet tree is still pre-rename, the env file is still at
+> the legacy path (step 3 moves it). Source whichever path exists; after step 3 it is
+> always `/opt/onchain-bot/apps/ingestion-telegram/.env.production`.
+
+### Step 2 — Stop the OLD container (stop-the-world starts here)
+
+```bash
+cd /opt/onchain-bot/apps/backend
+docker compose -f docker-compose.ingestion.yml stop ingestion-service
+# If the droplet tree was already pulled past the rename (service is now
+# `ingestion-telegram`), stop by container name instead:
+docker stop onchain-bot-ingestion 2>/dev/null || true
+
+# GATE: proceed ONLY when zero ingestion containers run
+docker ps | grep -i ingestion || echo "OK: no ingestion container running"
+```
+
+Expected: `docker ps | grep -i ingestion` prints nothing (the `|| echo` prints the OK
+line). Downtime starts here; SSE clients (backends) enter backoff 1 s to 30 s and
+reconnect automatically after step 5. There is no replay (lossy by design), so keep the
+window short.
+
+### Step 3 — Move the env file (session moves exactly once)
+
+```bash
+sudo mkdir -p /opt/onchain-bot/apps/ingestion-telegram
+sudo mv /opt/onchain-bot/apps/ingestion-service/.env.production \
+        /opt/onchain-bot/apps/ingestion-telegram/.env.production
+# Legacy symlink so any lingering old-path reference still resolves:
+sudo ln -s /opt/onchain-bot/apps/ingestion-telegram/.env.production \
+           /opt/onchain-bot/apps/ingestion-service/.env.production
+sudo chown -R runner:runner /opt/onchain-bot
+chmod 600 /opt/onchain-bot/apps/ingestion-telegram/.env.production
+ls -l /opt/onchain-bot/apps/ingestion-telegram/.env.production \
+      /opt/onchain-bot/apps/ingestion-service/.env.production
+grep -c "INGESTION_TELEGRAM_MTPROTO_SESSION" /opt/onchain-bot/apps/ingestion-telegram/.env.production
+# Must show: the real file at the new path, a symlink at the legacy path, count = 1
+```
+
+### Step 4 — Pull the NEW image (old image best-effort fallback)
+
+```bash
+docker pull ghcr.io/bryanstevensacosta/onchain-bot-ingestion-telegram:latest
+# Old image is rollback-only (1-2 releases); best-effort so a missing old tag cannot fail us:
+docker pull ghcr.io/bryanstevensacosta/onchain-bot-ingestion:latest || true
+```
+
+The first pull is required; the second must exit 0 even when the old tag is gone
+(same `|| true` pattern as the workflow "Pull latest image" step).
+
+### Step 5 — Migrations + recreate (exactly ONE container)
+
+```bash
+# Migrations run in a one-off container with the NEW image, same as the workflow:
+docker run --rm --network onchain-bot-net \
+  --env-file /opt/onchain-bot/apps/ingestion-telegram/.env.production \
+  ghcr.io/bryanstevensacosta/onchain-bot-ingestion-telegram:latest \
+  npx typeorm --dataSource apps/ingestion-telegram/dist/src/shared/common/persistence/data-source.js migration:run
+
+cd /opt/onchain-bot/apps/backend
+docker compose -f docker-compose.ingestion.yml pull
+docker compose -f docker-compose.ingestion.yml up -d --force-recreate
+docker ps --format '{{.Names}} {{.Image}} {{.Status}}' | grep -i ingestion
+# Expected: exactly ONE row: onchain-bot-ingestion-telegram ... Up ...
+```
+
+If `docker ps` shows two ingestion rows, STOP: run `docker stop onchain-bot-ingestion`
+(the old name) immediately, then re-verify. Never leave two running.
+
+### Step 6 — Health `http://localhost:3032/api/health` + `clients>=1`
+
+```bash
+sleep 10
+curl -s http://localhost:3032/api/health | jq '.'
+CLIENTS=$(curl -s http://localhost:3032/api/health | jq -r '.clients.connected')
+[ "$CLIENTS" -ge 1 ] && echo "OK: $CLIENTS client(s) connected" || { echo "FAIL: clients=$CLIENTS"; exit 1; }
+```
+
+Mirrors the workflow "Wait for health" + "Verify clients connected" steps. `clients>=1`
+means at least one backend SSE client reconnected; expect 2 once staging and production
+are both on the new URL (step 7).
+
+### Step 7 — Point backends (`INGESTION_TELEGRAM_URL`) + frontend proxy at the new identity
+
+**Backends** (staging + production; new var wins via the todo-5 fallback, old var kept
+1 release — set the new one, keep the old one untouched):
+
+```bash
+# In each backend env file (/opt/onchain-bot/apps/backend/.env.production
+# and the staging equivalent) — same value compose already pins
+# (docker-compose.prod.yml:120, docker-compose.staging.yml:99):
+INGESTION_TELEGRAM_URL=http://onchain-bot-ingestion-telegram:3031
+# Restart each backend, then:
+curl -s http://localhost:3032/api/health | jq '.clients.connected'
+# Expected: count goes up by 1 per restarted backend (target: 2)
+```
+
+**Frontend:** the nginx upstream is already `onchain-bot-ingestion-telegram:3031`
+(rename, no new client vars). Verify and reload:
+
+```bash
+grep -n "proxy_pass http://onchain-bot-ingestion-telegram:3031/api/" /opt/onchain-bot/apps/frontend/nginx.conf
+# Must show the upstream lines; then reload nginx per the frontend deploy flow
+```
+
+> Frontend DNS flips AT cutover time, not before: until this cutover executes, the
+> frontend `nginx.conf` `/ingestion-api/` upstream stays on the OLD
+> `onchain-bot-ingestion:3031` name (with lazy `resolver 127.0.0.11` so nginx boots
+> even when DNS is unresolvable). The staging crash-loop of 2026-09-18 (`[emerg]
+> host not found in upstream "onchain-bot-ingestion-telegram"`) was caused by
+> shipping the new DNS before the singleton was renamed — deploy the frontend flip
+> (task-18) only together with step 5 above.
+
+### Rollback (never restarts the old session)
+
+```bash
+cd /opt/onchain-bot/apps/backend
+# 1. Stop the NEW container FIRST and prove the world is empty:
+docker compose -f docker-compose.ingestion.yml stop ingestion-telegram
+docker ps | grep -i ingestion && { echo "REFUSE: ingestion still running"; exit 1; } || echo "OK: world empty"
+
+# 2a. Preferred: previous tag of the NEW image:
+docker pull ghcr.io/bryanstevensacosta/onchain-bot-ingestion-telegram:<previous-sha>
+docker tag ghcr.io/bryanstevensacosta/onchain-bot-ingestion-telegram:<previous-sha> \
+           ghcr.io/bryanstevensacosta/onchain-bot-ingestion-telegram:latest
+# 2b. Fallback: old rollback image (pulled best-effort in step 4):
+# docker pull ghcr.io/bryanstevensacosta/onchain-bot-ingestion:latest
+
+# 3. Recreate exactly ONE container. The env file STAYS at the new path (the step-3
+#    symlink keeps the legacy path resolving) — do NOT mv secrets back:
+docker compose -f docker-compose.ingestion.yml up -d --force-recreate
+
+# 4. Same gates as step 6 (health 200 + clients>=1).
+```
+
+FORBIDDEN in rollback: `docker start onchain-bot-ingestion` (the frozen old container)
+while any new container exists; copying the session string anywhere; moving the env
+file back to the legacy path.
+
+### Cutover success criteria
+
+- ✅ Ingestion DB backup exists in `/data/backups/ingestion/` from cutover time
+- ✅ Env file lives at `/opt/onchain-bot/apps/ingestion-telegram/.env.production`
+  (legacy path is a symlink, not a second file with a second session)
+- ✅ Exactly one ingestion container: `onchain-bot-ingestion-telegram`, image
+  `ghcr.io/bryanstevensacosta/onchain-bot-ingestion-telegram:latest`
+- ✅ `http://localhost:3032/api/health` returns 200 with `clients.connected >= 1`
+- ✅ Both backends resolve via `INGESTION_TELEGRAM_URL`; frontend proxy serves media
+- ✅ Zero `AUTH_KEY_DUPLICATED` in ingestion logs after cutover
+- ✅ Rollback path tested on paper (previous `:sha` recorded before step 5)
+
+### Path cross-check
+
+Every absolute path above exists in `.github/workflows/deploy-ingestion.yml` (the 4
+`.env.production` refs, the `data-source.js` dist path, the compose file path, the
+`:3032` health endpoint). Full grep output: `.omo/evidence/task-11-rename-ingestion-telegram.md`.
+The only intentional exception is the legacy `mv` source path
+(`/opt/onchain-bot/apps/ingestion-service/.env.production`): pre-rename droplet state,
+absent from the renamed workflow by design.
 
 ---
 
@@ -1240,25 +1446,25 @@ curl -s http://localhost:3031/api/channels | jq 'length'
 
 ```bash
 # Real-time logs
-docker logs -f onchain-bot-ingestion
+docker logs -f onchain-bot-ingestion-telegram
 
 # Last 100 lines
-docker logs onchain-bot-ingestion --tail 100
+docker logs onchain-bot-ingestion-telegram --tail 100
 
 # Errors only
-docker logs onchain-bot-ingestion | grep -i "error\|fatal\|exception"
+docker logs onchain-bot-ingestion-telegram | grep -i "error\|fatal\|exception"
 
 # Message broadcast events
-docker logs onchain-bot-ingestion | grep "message:ingested"
+docker logs onchain-bot-ingestion-telegram | grep "message:ingested"
 
 # SSE client connections
-docker logs onchain-bot-ingestion | grep "SSE client"
+docker logs onchain-bot-ingestion-telegram | grep "SSE client"
 
 # FLOOD_WAIT events
-docker logs onchain-bot-ingestion | grep -i "flood"
+docker logs onchain-bot-ingestion-telegram | grep -i "flood"
 
 # MTProto connection events
-docker logs onchain-bot-ingestion | grep -i "mtproto\|telegram"
+docker logs onchain-bot-ingestion-telegram | grep -i "mtproto\|telegram"
 ```
 
 **Backend (Production):**
@@ -1301,7 +1507,7 @@ docker logs onchain-bot-backend-staging | grep "Received message"
 
 ```bash
 # Messages ingested in last hour
-docker logs onchain-bot-ingestion --since 1h | grep "message:ingested" | wc -l
+docker logs onchain-bot-ingestion-telegram --since 1h | grep "message:ingested" | wc -l
 
 # Messages processed by production in last hour
 docker logs onchain-bot-backend-production --since 1h | grep "Received message" | wc -l
@@ -1325,7 +1531,7 @@ docker logs onchain-bot-backend-production | grep "SSE connection established" |
 
 ```bash
 # Broadcast timestamp from ingestion service
-INGESTION_TS=$(docker logs onchain-bot-ingestion --tail 1 | grep "message:ingested" | grep -oP '\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z')
+INGESTION_TS=$(docker logs onchain-bot-ingestion-telegram --tail 1 | grep "message:ingested" | grep -oP '\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z')
 
 # Received timestamp from backend
 BACKEND_TS=$(docker logs onchain-bot-backend-production --tail 1 | grep "Received message" | grep -oP '\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z')
@@ -1339,7 +1545,7 @@ echo "Latency: $(date -d "$BACKEND_TS" +%s%3N) - $(date -d "$INGESTION_TS" +%s%3
 
 ```bash
 # Docker stats (real-time)
-docker stats onchain-bot-ingestion onchain-bot-backend-production onchain-bot-backend-staging
+docker stats onchain-bot-ingestion-telegram onchain-bot-backend-production onchain-bot-backend-staging
 
 # Memory usage
 docker stats --no-stream --format "table {{.Name}}\t{{.MemUsage}}" | grep "onchain-bot"
@@ -1352,13 +1558,13 @@ du -sh /opt/onchain-bot/uploads/crypto-news/media/
 
 ```bash
 # Total FLOOD_WAIT events in last 24h
-docker logs onchain-bot-ingestion --since 24h | grep -i "FLOOD_WAIT" | wc -l
+docker logs onchain-bot-ingestion-telegram --since 24h | grep -i "FLOOD_WAIT" | wc -l
 
 # Max wait duration in last 24h
-docker logs onchain-bot-ingestion --since 24h | grep -i "FLOOD_WAIT" | grep -oP 'wait \d+s' | sort -rn | head -1
+docker logs onchain-bot-ingestion-telegram --since 24h | grep -i "FLOOD_WAIT" | grep -oP 'wait \d+s' | sort -rn | head -1
 
 # Recent FLOOD_WAIT pattern
-docker logs onchain-bot-ingestion --since 24h | grep -i "FLOOD_WAIT" | tail -10
+docker logs onchain-bot-ingestion-telegram --since 24h | grep -i "FLOOD_WAIT" | tail -10
 ```
 
 ---
@@ -1380,7 +1586,7 @@ docker logs onchain-bot-backend-production | grep "SSE"
    ```
 2. If ingestion service is down:
    ```bash
-   docker compose -f /opt/onchain-bot/apps/ingestion-service/docker-compose.yml up -d
+   docker compose -f /opt/onchain-bot/apps/ingestion-telegram/docker-compose.yml up -d
    ```
 3. If ingestion service is healthy but backend can't connect:
    ```bash
@@ -1434,23 +1640,23 @@ curl -s http://localhost:3031/api/health | jq '.floodWait.count24h'
 **Resolution:**
 1. Check if sleep window is configured:
    ```bash
-   grep "SLEEP_WINDOW" /opt/onchain-bot/apps/ingestion-service/.env.ingestion
+   grep "SLEEP_WINDOW" /opt/onchain-bot/apps/ingestion-telegram/.env.ingestion
    ```
 2. If not, add sleep window:
    ```bash
-   cat >> /opt/onchain-bot/apps/ingestion-service/.env.ingestion << 'EOF'
+   cat >> /opt/onchain-bot/apps/ingestion-telegram/.env.ingestion << 'EOF'
    INGESTION_SLEEP_WINDOW_START_UTC=04
    INGESTION_SLEEP_WINDOW_END_UTC=08
    EOF
    
-   docker compose -f /opt/onchain-bot/apps/ingestion-service/docker-compose.yml restart
+   docker compose -f /opt/onchain-bot/apps/ingestion-telegram/docker-compose.yml restart
    ```
 3. If FLOOD_WAIT persists, increase poll interval:
    ```bash
    # Change from 90s to 120s
-   sed -i 's/POLL_INTERVAL_BASE_MS=90000/POLL_INTERVAL_BASE_MS=120000/' /opt/onchain-bot/apps/ingestion-service/.env.ingestion
+   sed -i 's/POLL_INTERVAL_BASE_MS=90000/POLL_INTERVAL_BASE_MS=120000/' /opt/onchain-bot/apps/ingestion-telegram/.env.ingestion
    
-   docker compose -f /opt/onchain-bot/apps/ingestion-service/docker-compose.yml restart
+   docker compose -f /opt/onchain-bot/apps/ingestion-telegram/docker-compose.yml restart
    ```
 
 ### Problem: MTProto Unauthorized After Migration
@@ -1464,7 +1670,7 @@ curl -s http://localhost:3031/api/health | jq '.mtproto'
 **Resolution:**
 1. Verify session string is valid:
    ```bash
-   grep "MTPROTO_SESSION" /opt/onchain-bot/apps/ingestion-service/.env.ingestion
+   grep "MTPROTO_SESSION" /opt/onchain-bot/apps/ingestion-telegram/.env.ingestion
    ```
 2. If session is missing or corrupted, regenerate:
    ```bash
@@ -1474,11 +1680,11 @@ curl -s http://localhost:3031/api/health | jq '.mtproto'
    
    # Copy output session string to production
    ssh CryptoGanster
-   nano /opt/onchain-bot/apps/ingestion-service/.env.ingestion
+   nano /opt/onchain-bot/apps/ingestion-telegram/.env.ingestion
    # Paste new session string
    
    # Restart ingestion service
-   docker compose -f /opt/onchain-bot/apps/ingestion-service/docker-compose.yml restart
+   docker compose -f /opt/onchain-bot/apps/ingestion-telegram/docker-compose.yml restart
    ```
 
 ### Problem: Media Files Not Accessible
@@ -1496,16 +1702,16 @@ curl -I http://localhost:3031/api/media/-1001234567890/12345/0
    ```
 2. If file doesn't exist, check download logs:
    ```bash
-   docker logs onchain-bot-ingestion | grep "12345"
+   docker logs onchain-bot-ingestion-telegram | grep "12345"
    ```
 3. If download failed, check media downloader:
    ```bash
-   docker logs onchain-bot-ingestion | grep -i "media\|download"
+   docker logs onchain-bot-ingestion-telegram | grep -i "media\|download"
    ```
 4. If directory permissions issue:
    ```bash
    sudo chown -R runner:runner /opt/onchain-bot/uploads/
-   docker compose -f /opt/onchain-bot/apps/ingestion-service/docker-compose.yml restart
+   docker compose -f /opt/onchain-bot/apps/ingestion-telegram/docker-compose.yml restart
    ```
 
 ---
@@ -1576,7 +1782,7 @@ EOF
 - Health Check: `curl http://localhost:3031/api/health | jq .`
 - Rollback: `bash /opt/onchain-bot/scripts/rollback-to-mtproto.sh production`
 - Logs: `docker logs onchain-bot-backend-production --tail 100`
-- Emergency Stop: `docker compose -f /opt/onchain-bot/apps/ingestion-service/docker-compose.yml down`
+- Emergency Stop: `docker compose -f /opt/onchain-bot/apps/ingestion-telegram/docker-compose.yml down`
 
 ---
 
@@ -1703,6 +1909,7 @@ echo "=== Parity check complete ==="
 | Version | Date       | Author | Changes                                    |
 |---------|------------|--------|--------------------------------------------|
 | 1.0     | 2026-08-30 | System | Initial deployment runbook                 |
+| 1.1     | 2026-09-17 | System | Cutover ingestion-telegram (rename, stop-the-world) |
 
 ---
 

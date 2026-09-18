@@ -44,7 +44,7 @@ approach: validación trivial en 3 niveles (curl manual → spike aislado en thr
 - Runbook + troubleshooting (token expirado, perfil privado 90d, LINK_EXCEEDED, espera 30s container) + plantilla decisión go/no-go.
 
 ## Scope OUT (Must NOT have)
-- NO tocar apps/backend, apps/frontend, apps/ingestion-service, package.json workspaces, ni crear BC/modulo NestJS.
+- NO tocar apps/backend, apps/frontend, apps/ingestion-telegram, package.json workspaces, ni crear BC/modulo NestJS.
 - NO commitear tokens/secretos (.env real); NO App Review; NO media/imagen/carrusel; NO auto-refresh cron; NO publicar en cuenta productiva sin confirmación.
 - NO dependencias npm nuevas.
 

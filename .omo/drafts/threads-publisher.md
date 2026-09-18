@@ -52,7 +52,7 @@ approach: clonar crypto-news-publisher+integration+filters-slice a src/threads/{
 
 ## Scope OUT (Must NOT have)
 - NO `apps/threads-publisher/`, NO DB propia, NO Dockerfile/compose/workflow/proxy nuevos de app, NO SSE propio.
-- NO tocar `telegram/crypto-news-*`, `telegram/ingestion/*` (solo importar), `apps/ingestion-service`, `apps/frontend` fuera de lo listado.
+- NO tocar `telegram/crypto-news-*`, `telegram/ingestion/*` (solo importar), `apps/ingestion-telegram`, `apps/frontend` fuera de lo listado.
 - NO ads, NO media/carrusel, NO App Review, NO multi-cuenta, NO `npm install` de deps nuevas (fetch nativo).
 - NO compartir entidades entre BCs (tablas threads_* propias salvo filters reusado por puerto).
 - NO publicar en cuenta productiva sin confirmación; NO commitear tokens.

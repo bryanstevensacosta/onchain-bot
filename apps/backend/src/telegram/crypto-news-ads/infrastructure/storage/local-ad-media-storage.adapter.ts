@@ -4,8 +4,8 @@ import * as path from 'path';
 import type { AppConfig } from 'shared/common/config/app.config';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import { AdMediaStoragePort } from 'telegram/crypto-news-ads/application/ports/ad-media-storage.port';
-import { BaseFileSystemAdapter } from '@ingestion-service/media/core/base-file-system-adapter';
-import { MimeTypeResolver } from '@ingestion-service/media/utils/mime-type-resolver';
+import { BaseFileSystemAdapter } from '@ingestion-telegram/media/core/base-file-system-adapter';
+import { MimeTypeResolver } from '@ingestion-telegram/media/utils/mime-type-resolver';
 import { AdMediaPathBuilder } from '../ad-media-path-builder';
 
 /**

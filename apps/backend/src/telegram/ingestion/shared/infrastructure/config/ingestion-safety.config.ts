@@ -37,9 +37,9 @@ function loadConfigFromFile(): IngestionConfigJson | null {
  * coordinated protection and creates confusion about which settings are actually active.
  *
  * **Migration path:**
- * - **New location:** `apps/ingestion-service/src/telegram/shared/infrastructure/config/ingestion-safety.config.ts`
+ * - **New location:** `apps/ingestion-telegram/src/telegram/shared/infrastructure/config/ingestion-safety.config.ts`
  * - **Configuration file:** The centralized service loads settings from
- *   `apps/ingestion-service/config/ingestion.config.json`
+ *   `apps/ingestion-telegram/config/ingestion.config.json`
  * - **Backend impact:** Backend clients do not need safety configuration when consuming via SSE.
  *   All anti-ban settings (polling intervals, jitter, sleep windows, FLOOD_WAIT protection)
  *   are managed centrally by the ingestion service.
@@ -60,7 +60,7 @@ function loadConfigFromFile(): IngestionConfigJson | null {
  * **Specification:** See `.kiro/specs/centralized-ingestion-service/requirements.md`
  * Requirement 11.6 for configuration file format and section 6.1 for environment variables.
  *
- * @see {@link apps/ingestion-service} Centralized safety configuration
+ * @see {@link apps/ingestion-telegram} Centralized safety configuration
  */
 @Injectable()
 export class IngestionSafetyConfig {

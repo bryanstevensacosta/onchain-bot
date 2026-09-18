@@ -1,4 +1,5 @@
 export { AdsManager } from './ui/ads-manager';
+export { AdHtmlPreview } from './ui/ad-html-preview';
 export { AdsRotationConfigForm } from './ui/ads-rotation-config-form';
 export {
   useAds,

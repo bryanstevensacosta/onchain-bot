@@ -9,6 +9,8 @@ import {
   Length,
   Max,
   Min,
+  ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 
 const REASONING_EFFORTS = ['low', 'medium', 'high', 'max'] as const;
@@ -97,6 +99,87 @@ export class UpdatePromptTemplateDto {
   @IsOptional()
   @IsString()
   public systemPromptText?: string;
+}
+
+/**
+ * Inline draft template for the playground preview endpoint
+ * (`POST /crypto-news-publisher/llm/preview`). Field constraints mirror
+ * `CreatePromptTemplateDto` (same model/maxTokens/temperature/
+ * reasoningEffort ranges) so drafts behave like real templates; every
+ * knob is optional here and falls back to the active gateway defaults
+ * at generation time.
+ */
+export class PreviewPromptDraftDto {
+  @IsString()
+  @Length(1)
+  public promptText!: string;
+
+  @IsOptional()
+  @IsString()
+  public systemPromptText?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 200)
+  public model?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(8000)
+  public maxTokens?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(2)
+  public temperature?: number;
+
+  @IsOptional()
+  @IsIn(REASONING_EFFORTS)
+  public reasoningEffort?: ReasoningEffortDto | null;
+
+  @IsOptional()
+  @IsBoolean()
+  // Accepted so playground drafts validate; preview samples carry no image
+  // bytes, so this flag is informational only on the dry-run path.
+  public supportsVision?: boolean;
+}
+
+/**
+ * Dry-run preview request. Exactly one of `templateId` / `draft` must be
+ * present (XOR enforced in the use case with a 400). `rawContent` is the
+ * article body to render; nothing is ever enqueued, published, or
+ * persisted from this path.
+ */
+export class PreviewPromptDto {
+  @IsOptional()
+  @IsString()
+  public templateId?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PreviewPromptDraftDto)
+  public draft?: PreviewPromptDraftDto;
+
+  @IsOptional()
+  @ValidateIf(
+    (o: PreviewPromptDto) => o.rawTitle !== null && o.rawTitle !== undefined,
+  )
+  @IsString()
+  public rawTitle?: string | null;
+
+  @IsString()
+  @Length(1)
+  public rawContent!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  public hasImage?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  public generate?: boolean;
 }
 
 export class UpdateLlmConfigDto {

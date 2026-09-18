@@ -34,7 +34,7 @@ const DEFAULT_CONNECT_TIMEOUT_MS = 20_000;
  * for non-media data centers.
  *
  * **Migration path:**
- * - **New location:** `apps/ingestion-service/src/telegram/shared/infrastructure/services/telegram-client-manager.service.ts`
+ * - **New location:** `apps/ingestion-telegram/src/telegram/shared/infrastructure/services/telegram-client-manager.service.ts`
  * - **Backend replacement:** Backends no longer manage MTProto clients directly. The centralized
  *   ingestion service manages the single MTProto session and distributes messages via SSE.
  * - **Configuration:** When `INGESTION_MODE=remote`, this service should not be instantiated.
@@ -49,7 +49,7 @@ const DEFAULT_CONNECT_TIMEOUT_MS = 20_000;
  * **Specification:** See `.kiro/specs/centralized-ingestion-service/design.md` section 2.1.1
  * for MTProto layer architecture in the centralized service.
  *
- * @see {@link apps/ingestion-service} Centralized ingestion service with MTProto management
+ * @see {@link apps/ingestion-telegram} Centralized ingestion service with MTProto management
  */
 @Injectable()
 export class TelegramClientManager {

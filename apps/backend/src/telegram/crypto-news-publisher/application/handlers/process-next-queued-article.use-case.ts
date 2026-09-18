@@ -1,6 +1,7 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from 'shared/common/config/app.config';
+import { resolveIngestionServiceUrl } from 'shared/common/config/app.config';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
 import { SharedThrottleStateRepository } from 'telegram/shared/application/ports/shared-throttle-state.repository';
 import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
@@ -120,7 +121,21 @@ export class ProcessNextQueuedArticleUseCase {
 
       if (cfg.llmEnabled) {
         generatedData = await this.llmAdapter.generateForEntry(entry);
-        contentToPublish = generatedData.content;
+        const llmContent: unknown = generatedData?.content;
+        if (typeof llmContent !== 'string' || llmContent.trim().length === 0) {
+          const model = generatedData?.model ?? 'unknown';
+          const promptChars = generatedData?.userPrompt?.length ?? 0;
+          const reason =
+            `LLM returned empty content ` +
+            `(model=${model}, promptChars=${promptChars})`;
+          this.logger.warn(
+            `queue entry ${entry.id} rejected: ${reason} ` +
+              `(template model=${model}, prompt length=${promptChars})`,
+          );
+          await this.queueRepo.markFailed(entry.id, reason);
+          return;
+        }
+        contentToPublish = llmContent;
 
         if (cfg.rejectNonLatin) {
           const bad = findNonLatinCharacter(contentToPublish);
@@ -346,9 +361,9 @@ export class ProcessNextQueuedArticleUseCase {
 
   /**
    * Ensure all media files exist locally. If a file doesn't exist,
-   * download it from ingestion-service.
+   * download it from ingestion-telegram.
    *
-   * In dev local, ingestion-service and backend have separate uploads/
+   * In dev local, ingestion-telegram and backend have separate uploads/
    * directories. In production, they share a Docker volume.
    *
    * @param paths - Array of file paths (local or HTTP URLs)
@@ -375,9 +390,9 @@ export class ProcessNextQueuedArticleUseCase {
         await fs.access(filePath);
         localPaths.push(filePath);
       } catch (_err) {
-        // File doesn't exist locally, try downloading from ingestion-service
+        // File doesn't exist locally, try downloading from ingestion-telegram
         this.logger.debug(
-          `File not found locally: ${filePath}, attempting download from ingestion-service`,
+          `File not found locally: ${filePath}, attempting download from ingestion-telegram`,
         );
 
         try {
@@ -393,7 +408,7 @@ export class ProcessNextQueuedArticleUseCase {
   }
 
   /**
-   * Download a file from ingestion-service given an HTTP URL.
+   * Download a file from ingestion-telegram given an HTTP URL.
    */
   private async downloadFromIngestionService(url: string): Promise<string> {
     try {
@@ -440,11 +455,11 @@ export class ProcessNextQueuedArticleUseCase {
   }
 
   /**
-   * Download a file from ingestion-service given a local path that doesn't exist locally.
-   * Converts the path to an ingestion-service URL and downloads it.
+   * Download a file from ingestion-telegram given a local path that doesn't exist locally.
+   * Converts the path to an ingestion-telegram URL and downloads it.
    */
   private async downloadFileFromIngestion(localPath: string): Promise<string> {
-    // Convert local path to ingestion-service URL
+    // Convert local path to ingestion-telegram URL
     // Path: uploads/crypto-news/media/-1004466661332/200_0.jpg
     // URL:  {ingestionServiceUrl}/api/media/-1004466661332/200/0
     const match = localPath.match(
@@ -460,12 +475,12 @@ export class ProcessNextQueuedArticleUseCase {
     const index = match[3];
 
     // NOTE: never hardcode localhost here — inside Docker the ingestion
-    // container is a different host ( ingestion-service:3031 via
-    // INGESTION_SERVICE_URL); localhost would hit this container itself.
+    // container is a different host (ingestion-telegram:3031 via
+    // INGESTION_TELEGRAM_URL, fallback deprecated INGESTION_SERVICE_URL);
+    // localhost would hit this container itself.
     const ingestionBaseUrl =
       this.config?.get<AppConfig>('app')?.ingestion?.serviceUrl ??
-      process.env.INGESTION_SERVICE_URL ??
-      'http://localhost:3031';
+      resolveIngestionServiceUrl();
     const ingestionUrl = `${ingestionBaseUrl}/api/media/${channelId}/${messageId}/${index}`;
 
     try {

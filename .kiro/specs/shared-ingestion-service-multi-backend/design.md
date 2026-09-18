@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document details the technical design for enabling a single ingestion-service instance to broadcast Telegram messages to multiple backend instances (production and staging) via Server-Sent Events (SSE). The design eliminates duplicate MTProto connections, media downloads, and ingestion processing while maintaining backend independence.
+This document details the technical design for enabling a single ingestion-telegram instance to broadcast Telegram messages to multiple backend instances (production and staging) via Server-Sent Events (SSE). The design eliminates duplicate MTProto connections, media downloads, and ingestion processing while maintaining backend independence.
 
 ## High-Level Architecture
 
@@ -161,7 +161,7 @@ sequenceDiagram
 
 ```typescript
 // POST /api/ingestion/backends/register
-// Location: apps/ingestion-service/src/stream/api/http/backend-registration.controller.ts
+// Location: apps/ingestion-telegram/src/stream/api/http/backend-registration.controller.ts
 
 interface RegisterBackendRequest {
   backendId: string; // Unique identifier (e.g., "production", "staging")
@@ -180,7 +180,7 @@ interface RegisterBackendResponse {
 
 ```typescript
 // GET /api/ingestion/stream?backendId={id}&lastSeenTimestamp={ts}
-// Location: apps/ingestion-service/src/stream/api/http/sse-stream.controller.ts
+// Location: apps/ingestion-telegram/src/stream/api/http/sse-stream.controller.ts
 
 // Event Types:
 // 1. broadcast - Real-time message
@@ -195,7 +195,7 @@ interface RegisterBackendResponse {
 ### BroadcastEvent Schema
 
 ```typescript
-// Location: apps/ingestion-service/src/stream/domain/broadcast-event.vo.ts
+// Location: apps/ingestion-telegram/src/stream/domain/broadcast-event.vo.ts
 
 export class BroadcastEvent {
   readonly eventId: string; // UUID v4

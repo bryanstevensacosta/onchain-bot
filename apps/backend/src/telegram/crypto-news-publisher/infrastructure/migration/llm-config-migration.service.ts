@@ -57,15 +57,21 @@ import {
  * migration's `readJsonConfigOrNull()` reads it; once T2 deletes
  * it, the migration permanently takes Branch B for that deployment.
  *
- * **Hardened-template refresh (v2, 2026-09-15).** `seedIfEmpty` alone
+ * **Hardened-template refresh (v3, 2026-09-16; v2 fue 2026-09-15).** `seedIfEmpty` alone
  * never touches existing rows, so the prod `Default` template (edited
  * 2026-08-28, system pide "line breaks" sin exigir `\n` literal ni
  * prohibir `<br>` → SpendLogs 07d35fbb: el modelo emitió 11×`<br>`
  * con 0×`\n`) would keep the weak prompt forever. On every boot AFTER
  * the seed check, `refreshOutdatedTemplates()` rewrites any seed-owned
  * row (`Default` / `Default (imported)`) whose `systemPromptText`
- * lacks the hardened marker (`PROHIBIDO \`<br>\``) with the current
- * seeds. DECISIÓN DOCUMENTADA: UPDATE por marcador de contenido
+ * lacks the hardened marker (`PROHIBIDO \`<br>\` v3`) with the current
+ * seeds. v3 = revisión de adaptación libre (cero estructura
+ * obligatoria): el prompt v2 con estructura obligatoria provocó
+ * alucinaciones para rellenar
+ * (canal -1001375055530 msg 19618: cierre inventado sin mención
+ * crypto en el input + `Fuente: <omitir|omitir|omitir>` eco literal).
+ * Las filas v2 (marcador sin sufijo ` v3`) se reescriben UNA vez;
+ * las v3 se omiten. DECISIÓN DOCUMENTADA: UPDATE por marcador de contenido
  * (content-hash ligero), NO por columna de versión — `PromptTemplate`
  * no tiene columna `version` y añadir una migración TypeORM solo para
  * esto rompería el invariante "cero writes fuera de código" de esta
@@ -88,13 +94,18 @@ export class LlmConfigMigrationService implements OnApplicationBootstrap {
   private static readonly MAX_TOKENS_DEFAULT = 2000;
   private static readonly TEMPERATURE_DEFAULT = 0.7;
   /**
-   * Content marker identifying the hardened (v2) prompt format.
+   * Content marker identifying the hardened (v3) prompt format.
    * Exported so specs can assert seed/refresh consistency without
    * duplicating the literal. A seed-owned row lacking this marker in
    * its `systemPromptText` is considered outdated and gets rewritten
    * by `refreshOutdatedTemplates()`.
+   *
+   * v3 = revisión de adaptación libre (cero estructura obligatoria):
+   * las filas v2 contienen `PROHIBIDO \`<br>\`` pero NO el sufijo ` v3`, así que se
+   * reescriben UNA vez en el próximo boot; las filas que ya traen el
+   * marcador v3 se omiten (idempotencia preservada).
    */
-  public static readonly HARDENED_SYSTEM_MARKER = 'PROHIBIDO `<br>`';
+  public static readonly HARDENED_SYSTEM_MARKER = 'PROHIBIDO `<br>` v3';
   /**
    * Names owned by this seed. Only these rows are ever rewritten by
    * the refresh — operator-created templates are never touched.
@@ -152,8 +163,8 @@ export class LlmConfigMigrationService implements OnApplicationBootstrap {
    * or `{ seeded: true, templateCount }` if it inserted rows.
    *
    * When the row already exists, still runs the hardened-template
-   * refresh so pre-v2 seed rows (e.g. prod `Default` with an empty
-   * or weak `systemPromptText`) converge to the current seeds;
+   * refresh so pre-v3 seed rows (e.g. prod `Default` with a v2 or weak
+   * `systemPromptText`) converge to the current seeds;
    * `templateCount` then carries the number of refreshed rows.
    *
    * The optional `jsonConfig` parameter lets the spec bypass the
@@ -262,8 +273,13 @@ export class LlmConfigMigrationService implements OnApplicationBootstrap {
    * named `Default` / `Default (imported)` whose `systemPromptText`
    * lacks `HARDENED_SYSTEM_MARKER`, setting both `promptText` and
    * `systemPromptText` to the current seeds (JSON when provided and
-   * non-empty, in-code defaults otherwise). Returns the number of
-   * rows rewritten. Operator-created templates are never touched.
+   * non-empty, in-code defaults otherwise). Additionally converges
+   * `maxTokens` to `MAX_TOKENS_DEFAULT` on seed-owned rows whose
+   * value is below the target (token-starvation fix: the hardened
+   * prompt is much longer, so 1000 truncates/empties completions).
+   * NEVER touches `model` / `temperature` / `reasoningEffort` — those
+   * are operator-tuned. Returns the number of rows rewritten.
+   * Operator-created templates are never touched.
    */
   public static async refreshOutdatedTemplates(
     manager: EntityManager,
@@ -276,14 +292,28 @@ export class LlmConfigMigrationService implements OnApplicationBootstrap {
     });
     const { promptText, systemPromptText } =
       LlmConfigMigrationService.resolveSeedTexts(cfg);
+    const targetMaxTokens = LlmConfigMigrationService.MAX_TOKENS_DEFAULT;
     let refreshed = 0;
     for (const row of candidates) {
       const system = row.systemPromptText ?? '';
-      if (system.includes(LlmConfigMigrationService.HARDENED_SYSTEM_MARKER)) {
+      const needsTextRefresh = !system.includes(
+        LlmConfigMigrationService.HARDENED_SYSTEM_MARKER,
+      );
+      const needsMaxTokensConverge = (row.maxTokens ?? 0) < targetMaxTokens;
+      if (!needsTextRefresh && !needsMaxTokensConverge) {
         continue;
       }
-      row.promptText = promptText;
-      row.systemPromptText = systemPromptText;
+      if (needsTextRefresh) {
+        row.promptText = promptText;
+        row.systemPromptText = systemPromptText;
+      }
+      if (needsMaxTokensConverge) {
+        const before = row.maxTokens ?? 0;
+        row.maxTokens = targetMaxTokens;
+        new Logger(LlmConfigMigrationService.name).log(
+          `[llm-config-migration] converged maxTokens for template "${row.name}" ${before} -> ${targetMaxTokens}`,
+        );
+      }
       await manager.save(row);
       refreshed += 1;
     }

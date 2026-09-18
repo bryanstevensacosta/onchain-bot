@@ -4,7 +4,7 @@ import { KolRepository } from 'kol/identity/application/ports/kol.repository';
 /**
  * ListActiveKolIdsUseCase - Returns only the kolId values of active KOLs
  *
- * Used by ingestion-service to fetch the list of KOL channels to subscribe to.
+ * Used by ingestion-telegram to fetch the list of KOL channels to subscribe to.
  * Returns only the IDs (not full aggregates) for lightweight transport.
  */
 @Injectable()

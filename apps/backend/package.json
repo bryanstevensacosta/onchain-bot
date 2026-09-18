@@ -141,8 +141,8 @@
       "^data-provider/(.*)$": "<rootDir>/src/data-provider/$1",
       "^health/(.*)$": "<rootDir>/src/health/$1",
       "^src/(.*)$": "<rootDir>/src/$1",
-      "^@ingestion-service/media/(.*)$": "<rootDir>/../ingestion-service/src/shared/media/$1",
-      "^@ingestion-service/telegram/(.*)$": "<rootDir>/../ingestion-service/src/shared/telegram/$1"
+      "^@ingestion-telegram/media/(.*)$": "<rootDir>/../ingestion-telegram/src/shared/media/$1",
+      "^@ingestion-telegram/telegram/(.*)$": "<rootDir>/../ingestion-telegram/src/shared/telegram/$1"
     }
   }
 }

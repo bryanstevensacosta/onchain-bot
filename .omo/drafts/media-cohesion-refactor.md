@@ -14,7 +14,7 @@ El sistema tiene múltiples componentes manejando media con responsabilidades du
 
 #### Ingestion Service
 
-1. **MediaDownloaderService** (`apps/ingestion-service/src/media/application/services/`)
+1. **MediaDownloaderService** (`apps/ingestion-telegram/src/media/application/services/`)
    - Descarga media desde Telegram MTProto
    - Sanitiza channelId contra path traversal
    - Detecta MIME type desde extensión
@@ -22,7 +22,7 @@ El sistema tiene múltiples componentes manejando media con responsabilidades du
    - Maneja FloodWait con retry
    - Retorna `{filePath, mimeType, fileSize}`
 
-2. **MediaController** (`apps/ingestion-service/src/media/api/http/`)
+2. **MediaController** (`apps/ingestion-telegram/src/media/api/http/`)
    - Sirve archivos vía HTTP GET
    - Lee desde `uploads/crypto-news/media/{channelId}/`
    - Busca patrón `{messageId}_{index}.*`
@@ -30,7 +30,7 @@ El sistema tiene múltiples componentes manejando media con responsabilidades du
    - Emite headers: Cache-Control, ETag, Accept-Ranges
    - Stream con `createReadStream`
 
-3. **CryptoNewsMessageMediaEntity** (`apps/ingestion-service/src/telegram/crypto-news/infrastructure/persistence/typeorm/entities/`)
+3. **CryptoNewsMessageMediaEntity** (`apps/ingestion-telegram/src/telegram/crypto-news/infrastructure/persistence/typeorm/entities/`)
    - Persiste metadata: filePath, mimeType, fileSize, type, index
    - Relación con mensaje (messageId)
 
@@ -48,7 +48,7 @@ El sistema tiene múltiples componentes manejando media con responsabilidades du
    - Detecta MIME type
    - Guarda a disco con mismo patrón
    - Maneja FloodWait
-   - **DUPLICA EXACTAMENTE** MediaDownloaderService del ingestion-service
+   - **DUPLICA EXACTAMENTE** MediaDownloaderService del ingestion-telegram
 
 2. **LocalAdMediaStorageAdapter** (`apps/backend/src/telegram/crypto-news-ads/infrastructure/storage/`)
    - Extiende `AdMediaStoragePort`
@@ -62,7 +62,7 @@ El sistema tiene múltiples componentes manejando media con responsabilidades du
    - Lee desde `uploads/crypto-news-ads/`
    - MIME detection
    - Cache headers
-   - **DUPLICA** funcionalidad de MediaController (ingestion-service)
+   - **DUPLICA** funcionalidad de MediaController (ingestion-telegram)
 
 4. **MediaCleanupService** (`apps/backend/src/telegram/crypto-news-publisher/infrastructure/services/`)
    - Limpia archivos media antiguos basado en retención
@@ -76,7 +76,7 @@ El sistema tiene múltiples componentes manejando media con responsabilidades du
    - Orquesta cleanup
 
 6. **CryptoNewsMessageMediaEntity** (`apps/backend/src/telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/`)
-   - **DUPLICA EXACTAMENTE** la entity del ingestion-service
+   - **DUPLICA EXACTAMENTE** la entity del ingestion-telegram
    - Misma estructura, mismos campos
 
 ---
@@ -178,7 +178,7 @@ const stream = createReadStream(filePath);
 
 ### 4. **HTTP Media Serving**
 
-**Who**: MediaController (ingestion-service), AdsMediaController (backend)
+**Who**: MediaController (ingestion-telegram), AdsMediaController (backend)
 
 **Operations**:
 
@@ -209,7 +209,7 @@ stream.pipe(response);
 
 ### 5. **Media Download from Telegram**
 
-**Who**: MediaDownloaderService (ingestion-service), MtprotoMediaDownloader (backend)
+**Who**: MediaDownloaderService (ingestion-telegram), MtprotoMediaDownloader (backend)
 
 **Operations**:
 
@@ -245,7 +245,7 @@ if (typeof result === 'string') {
 
 ### 6. **Media Metadata Persistence**
 
-**Who**: CryptoNewsMessageMediaEntity (ingestion-service), CryptoNewsMessageMediaEntity (backend), AdMediaEntity, AdMediaLibraryEntity
+**Who**: CryptoNewsMessageMediaEntity (ingestion-telegram), CryptoNewsMessageMediaEntity (backend), AdMediaEntity, AdMediaLibraryEntity
 
 **Operations**:
 
@@ -256,7 +256,7 @@ if (typeof result === 'string') {
 **Pattern Observed**:
 
 ```typescript
-// Entity duplicada entre ingestion-service y backend
+// Entity duplicada entre ingestion-telegram y backend
 @Entity({ name: 'crypto_news_message_media' })
 export class CryptoNewsMessageMediaEntity {
   @Column({ name: 'file_path' }) filePath: string;
@@ -326,7 +326,7 @@ shared/media/
 #### Ingestion Service
 
 ```
-apps/ingestion-service/src/media/
+apps/ingestion-telegram/src/media/
 ├── infrastructure/
 │   ├── crypto-news-path-builder.ts        # extends BaseMediaPathBuilder
 │   ├── local-file-system.adapter.ts       # extends BaseFileSystemAdapter
@@ -417,7 +417,7 @@ apps/backend/src/telegram/
 **Files Created**:
 
 ```
-apps/ingestion-service/src/shared/media/
+apps/ingestion-telegram/src/shared/media/
 ├── core/
 │   ├── base-media-path-builder.ts          (104 lines)
 │   ├── base-file-system-adapter.ts         (189 lines)
@@ -439,7 +439,7 @@ Total: 1,930 lines of new code (production + tests + docs)
 
 **Impact**: Foundation laid for ~400+ lines of deduplication in Phases 2-3.
 
-**Next**: Phase 2 - Migrate ingestion-service concrete implementations.
+**Next**: Phase 2 - Migrate ingestion-telegram concrete implementations.
 
 ### Phase 2: Migrate Ingestion Service ✅ COMPLETE (2026-09-02)
 
@@ -450,13 +450,13 @@ Total: 1,930 lines of new code (production + tests + docs)
 - ✅ CryptoNewsPathBuilder extending BaseMediaPathBuilder
 - ✅ MediaDownloaderService refactored to extend BaseTelegramMediaDownloader
 - ✅ MediaController refactored to extend BaseMediaHttpServer
-- ✅ Imports updated throughout ingestion-service
+- ✅ Imports updated throughout ingestion-telegram
 - ✅ All non-media tests passing (608/608)
 
 **Code Changes**:
 
 ```
-apps/ingestion-service/src/media/
+apps/ingestion-telegram/src/media/
 ├── infrastructure/
 │   └── crypto-news-path-builder.ts        (115 lines NEW)
 ├── application/services/
@@ -541,15 +541,15 @@ Total: ~200 lines eliminated, ~115 lines added (net: -85 lines)
 
 **Conclusion**:
 
-- Crypto-news media = ingestion-service responsibility ONLY
+- Crypto-news media = ingestion-telegram responsibility ONLY
 - Ads media = backend responsibility ONLY
-- Shared abstractions live in `apps/ingestion-service/src/shared/media/` (not `packages/`)
-- Backend ads components inherit from ingestion-service abstractions
+- Shared abstractions live in `apps/ingestion-telegram/src/shared/media/` (not `packages/`)
+- Backend ads components inherit from ingestion-telegram abstractions
 
 ## Open Questions
 
-1. **Shared Abstractions Location**: Mantener en `apps/ingestion-service/src/shared/media/` y backend importa desde ahí
-2. **Migration Timing**: Phase 4 (entities) debe esperar porque entity está en ingestion-service
+1. **Shared Abstractions Location**: Mantener en `apps/ingestion-telegram/src/shared/media/` y backend importa desde ahí
+2. **Migration Timing**: Phase 4 (entities) debe esperar porque entity está en ingestion-telegram
 3. **Backend MtprotoMediaDownloader**: ¿Eliminar completamente o mantener deprecated con warning?
 4. **S3 Future**: YAGNI por ahora, FileSystemAdapter puede extenderse después
 
@@ -600,8 +600,8 @@ Total: ~200 lines eliminated, ~115 lines added (net: -85 lines)
 
 ✅ **Configuration Updates**
 
-- `apps/backend/tsconfig.json`: Added `"@ingestion-service/media/*": ["../ingestion-service/src/shared/media/*"]` path alias
-- `apps/backend/package.json`: Added Jest `moduleNameMapper` for `@ingestion-service/media/*`
+- `apps/backend/tsconfig.json`: Added `"@ingestion-telegram/media/*": ["../ingestion-telegram/src/shared/media/*"]` path alias
+- `apps/backend/package.json`: Added Jest `moduleNameMapper` for `@ingestion-telegram/media/*`
 
 ✅ **Tests**
 
@@ -621,17 +621,17 @@ Total: ~200 lines eliminated, ~115 lines added (net: -85 lines)
 - **Location**: `apps/backend/src/telegram/ingestion/crypto-news/infrastructure/api/mtproto/mtproto-media-downloader.ts`
 - **Reason for deferral**: Requires larger refactoring of backend crypto-news ingestion infrastructure
 - **Context**: Wired as `CryptoNewsMediaDownloader` provider in `SharedIngestionModule`, injected by `TelegramMtprotoListenerAdapter` and `TelegramMediaDownloadService`
-- **Status**: Marked `@deprecated`, ownership already migrated to ingestion-service
+- **Status**: Marked `@deprecated`, ownership already migrated to ingestion-telegram
 - **Priority**: Low (backend runs SSE mode in prod/staging; MTProto is emergency fallback only)
-- **Removal plan**: Delete when backend fully delegates crypto-news ingestion to ingestion-service
+- **Removal plan**: Delete when backend fully delegates crypto-news ingestion to ingestion-telegram
 
 ❌ **AdsMediaController refactor to BaseMediaHttpServer**
 
 - **Reason**: Uses backend-specific `detectMediaMimeType` + `serveMediaFile` utilities from `shared/common/http/media-serving.ts`
-- **Context**: Different serving patterns between backend and ingestion-service (backend re-sniffs MIME types, has custom Range/206 logic)
+- **Context**: Different serving patterns between backend and ingestion-telegram (backend re-sniffs MIME types, has custom Range/206 logic)
 - **Status**: Out of scope for Phase 3 (focused on path/storage cohesion, not serving patterns)
 - **Priority**: Low (ads controller serving logic is stable and well-tested)
-- **Future**: Consider if ads media moves to ingestion-service or if serving patterns converge
+- **Future**: Consider if ads media moves to ingestion-telegram or if serving patterns converge
 
 ### Impact Summary
 
@@ -639,7 +639,7 @@ Total: ~200 lines eliminated, ~115 lines added (net: -85 lines)
 
 - ✅ Single source of truth for MIME resolution across apps
 - ✅ Unified path sanitization patterns (no custom regex validation)
-- ✅ Type-safe cross-app imports via `@ingestion-service/media/*`
+- ✅ Type-safe cross-app imports via `@ingestion-telegram/media/*`
 - ✅ Reduced surface area for path traversal bugs
 
 **Maintainability**:
@@ -656,7 +656,7 @@ Total: ~200 lines eliminated, ~115 lines added (net: -85 lines)
 
 **Architecture**:
 
-- Clear ownership: ingestion-service owns crypto-news media, backend owns ads media
+- Clear ownership: ingestion-telegram owns crypto-news media, backend owns ads media
 - Shared abstractions enable cross-app consistency without coupling
 - Path builders encapsulate storage conventions (easier to change patterns)
 
@@ -676,7 +676,7 @@ Changes:
   - Eliminates custom path validation (now uses AdMediaPathBuilder)
   - Composes BaseFileSystemAdapter for file I/O operations
   - Enhanced path traversal protection with absolute path detection
-- Updated tsconfig.json with @ingestion-service/media/* alias
+- Updated tsconfig.json with @ingestion-telegram/media/* alias
 - Updated Jest config with moduleNameMapper for shared imports
 
 Impact:
@@ -689,7 +689,7 @@ Technical Debt:
 - MtprotoMediaDownloader deletion deferred (~150 lines, requires larger refactor)
 - AdsMediaController serving logic not migrated (different patterns from ingestion)
 
-Refs: Phase 1 (abstractions), Phase 2 (ingestion-service migration)
+Refs: Phase 1 (abstractions), Phase 2 (ingestion-telegram migration)
 ```
 
 ---
@@ -705,7 +705,7 @@ Refs: Phase 1 (abstractions), Phase 2 (ingestion-service migration)
 | Config files updated            | 2 (tsconfig.json + package.json)                |
 | Tests passing                   | 1988/1988 (100%)                                |
 | Storage adapter tests           | 7/7 (path traversal, size limits, MIME)         |
-| Cross-app imports enabled       | ✅ @ingestion-service/media/\*                  |
+| Cross-app imports enabled       | ✅ @ingestion-telegram/media/\*                  |
 | Technical debt items documented | 2 (MtprotoMediaDownloader + AdsMediaController) |
 
 **Conclusion**: Phase 3 completed successfully with core storage refactoring. Technical debt documented and deferred to appropriate future milestones. All tests passing, no regressions.
@@ -725,7 +725,7 @@ After Phase 2 migration (MediaController now extends BaseMediaHttpServer), the o
 
 ✅ **media.controller.spec.ts Rewritten**
 
-- **Location**: `apps/ingestion-service/src/media/api/http/media.controller.spec.ts`
+- **Location**: `apps/ingestion-telegram/src/media/api/http/media.controller.spec.ts`
 - **Status**: Renamed from `.spec.ts.skip` → `.spec.ts` (reactivated)
 - **Tests**: 14 total (previously 26, consolidated for inheritance-based testing)
 - **Strategy**: Black-box testing focused on observable behavior (HTTP status codes, error messages) rather than spying on internal base class methods
@@ -831,9 +831,9 @@ Per media-cohesion-refactor Phase 4 completion
 
 ### Context
 
-From Phase 3 technical debt: `MtprotoMediaDownloader` was marked deprecated because media download responsibility fully migrated to ingestion-service. Backend no longer downloads media in any mode:
+From Phase 3 technical debt: `MtprotoMediaDownloader` was marked deprecated because media download responsibility fully migrated to ingestion-telegram. Backend no longer downloads media in any mode:
 
-- **SSE mode (recommended)**: Reads media via HTTP from ingestion-service
+- **SSE mode (recommended)**: Reads media via HTTP from ingestion-telegram
 - **MTProto mode (deprecated)**: Emergency rollback only, no longer functional for media
 
 ### Delivered
@@ -842,7 +842,7 @@ From Phase 3 technical debt: `MtprotoMediaDownloader` was marked deprecated beca
 
 - **Location**: `apps/backend/src/telegram/ingestion/crypto-news/infrastructure/api/mtproto/mtproto-media-downloader.ts`
 - **Size**: ~150 lines
-- **Functionality**: Telegram MTProto media download (now handled by ingestion-service)
+- **Functionality**: Telegram MTProto media download (now handled by ingestion-telegram)
 
 ✅ **SharedIngestionModule Updated**
 
@@ -879,18 +879,18 @@ class StubCryptoNewsMediaDownloader extends CryptoNewsMediaDownloader {
   async download(): Promise<never> {
     throw new Error(
       'CryptoNewsMediaDownloader.download() is deprecated. ' +
-        'Media download migrated to ingestion-service (Phase 5). ' +
+        'Media download migrated to ingestion-telegram (Phase 5). ' +
         'Use SSE mode (USE_SSE_INGESTION=true) and fetch media via ' +
-        'INGESTION_SERVICE_URL/api/media/:channelId/:messageId/:index',
+        'INGESTION_TELEGRAM_URL/api/media/:channelId/:messageId/:index',
     );
   }
 
   async saveToDisk(): Promise<never> {
     throw new Error(
       'CryptoNewsMediaDownloader.saveToDisk() is deprecated. ' +
-        'Media download migrated to ingestion-service (Phase 5). ' +
+        'Media download migrated to ingestion-telegram (Phase 5). ' +
         'Use SSE mode (USE_SSE_INGESTION=true) and fetch media via ' +
-        'INGESTION_SERVICE_URL/api/media/:channelId/:messageId/:index',
+        'INGESTION_TELEGRAM_URL/api/media/:channelId/:messageId/:index',
     );
   }
 }
@@ -917,9 +917,9 @@ Tests:       1988 passed, 1988 total
 ```
 refactor(backend): delete deprecated MtprotoMediaDownloader (Phase 5)
 
-Media download responsibility fully migrated to ingestion-service.
+Media download responsibility fully migrated to ingestion-telegram.
 Backend no longer downloads media in any mode:
-- SSE mode: reads media via HTTP from ingestion-service
+- SSE mode: reads media via HTTP from ingestion-telegram
 - MTProto mode: deprecated (emergency rollback only)
 
 Changes:
@@ -956,11 +956,11 @@ Per media-cohesion-refactor Phase 5 completion
 
 - ✅ Phase 3 deferred item completed
 - ✅ Duplicate download logic fully removed
-- ✅ Single source of truth: ingestion-service
+- ✅ Single source of truth: ingestion-telegram
 
 **Architecture**:
 
-- ✅ Backend fully delegates media download to ingestion-service
+- ✅ Backend fully delegates media download to ingestion-telegram
 - ✅ MTProto mode remains compilable for emergency rollback (but non-functional for media)
 - ✅ Error messages guide users to correct architecture
 
@@ -969,7 +969,7 @@ Per media-cohesion-refactor Phase 5 completion
 ## Final Summary: Media Cohesion Refactor (Phases 1-5) ✅ COMPLETE
 
 **Date Range**: 2026-09-02  
-**Status**: All phases completed successfully. Media responsibility fully centralized in ingestion-service with shared abstractions.
+**Status**: All phases completed successfully. Media responsibility fully centralized in ingestion-telegram with shared abstractions.
 
 ### Phases Overview
 
@@ -992,7 +992,7 @@ Per media-cohesion-refactor Phase 5 completion
 
 ### Shared Abstractions Created (Phase 1)
 
-**Location**: `apps/ingestion-service/src/shared/media/`
+**Location**: `apps/ingestion-telegram/src/shared/media/`
 
 1. **Core Base Classes** (`core/`):
    - `BaseTelegramMediaDownloader` — Template method for MTProto downloads
@@ -1021,8 +1021,8 @@ Per media-cohesion-refactor Phase 5 completion
 
 **Architecture**:
 
-- ✅ Media responsibility centralized in ingestion-service
-- ✅ Backend delegates to ingestion-service (SSE mode)
+- ✅ Media responsibility centralized in ingestion-telegram
+- ✅ Backend delegates to ingestion-telegram (SSE mode)
 - ✅ Inheritance hierarchies for extensibility
 - ✅ Port-adapter pattern preserved
 
@@ -1035,7 +1035,7 @@ Per media-cohesion-refactor Phase 5 completion
 
 **Documentation**:
 
-- ✅ AGENTS.md updated (ingestion-service + backend)
+- ✅ AGENTS.md updated (ingestion-telegram + backend)
 - ✅ Commit messages follow conventional format
 - ✅ Technical decisions documented in this file
 - ✅ Migration path clear for future maintainers
@@ -1070,7 +1070,7 @@ Per media-cohesion-refactor Phase 5 completion
 
 ### Lessons Learned
 
-1. **Shared Abstractions Location**: Keeping in `apps/ingestion-service/src/shared/media/` worked well. Backend imports via TypeScript path alias (`@ingestion-service/media/*`). No need for separate `packages/` workspace.
+1. **Shared Abstractions Location**: Keeping in `apps/ingestion-telegram/src/shared/media/` worked well. Backend imports via TypeScript path alias (`@ingestion-telegram/media/*`). No need for separate `packages/` workspace.
 
 2. **Test Strategy Evolution**: Moving from spy-based tests (brittle) to observable behavior tests (resilient) improved test maintainability significantly (Phase 4 learning).
 
@@ -1093,18 +1093,18 @@ Per media-cohesion-refactor Phase 5 completion
 | Tests created           | 45 (Phase 1 shared media)                          |
 | Tests rewritten         | 14 (Phase 4 MediaController)                       |
 | Tests passing           | 4638/4638 (100%)                                   |
-| Apps impacted           | 2 (ingestion-service + backend)                    |
-| Cross-app imports       | 1 (`@ingestion-service/media/*`)                   |
+| Apps impacted           | 2 (ingestion-telegram + backend)                    |
+| Cross-app imports       | 1 (`@ingestion-telegram/media/*`)                   |
 | Technical debt resolved | 2 (MtprotoMediaDownloader + MediaController tests) |
 
 ### Conclusion
 
 Media cohesion refactor **successfully completed** across all 5 phases. The system now has:
 
-1. **Centralized media handling** in ingestion-service
+1. **Centralized media handling** in ingestion-telegram
 2. **Shared abstractions** eliminating ~370 lines of duplication
 3. **100% test coverage** with 4638/4638 tests passing
-4. **Clear architecture** with backend delegating to ingestion-service
+4. **Clear architecture** with backend delegating to ingestion-telegram
 5. **Zero technical debt** related to media components
 
 The refactor achieved its goal of **increasing cohesion and reducing coupling** while maintaining full backward compatibility and zero regressions.

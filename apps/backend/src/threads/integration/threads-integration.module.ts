@@ -25,8 +25,8 @@ import { ThreadsPublisherModule } from 'threads/publisher/threads-publisher.modu
  * Threads-typed mirror of crypto `CryptoNewsIntegrationModule`
  * (`telegram/crypto-news-integration/crypto-news-integration.module.ts:91`):
  * - Ingestion-service stores RAW crypto-news messages (no filters)
- * - Backend polls ingestion-service HTTP API (ThreadsIngestionClient —
- *   SAME `/api/crypto-news/messages` feed, zero ingestion-service changes)
+ * - Backend polls ingestion-telegram HTTP API (ThreadsIngestionClient —
+ *   SAME `/api/crypto-news/messages` feed, zero ingestion-telegram changes)
  * - Backend applies ContentFilterService + threads keyword matching
  *   on-read (FilteredThreadsService)
  * - Matched messages are enqueued for threads LLM processing
@@ -34,7 +34,7 @@ import { ThreadsPublisherModule } from 'threads/publisher/threads-publisher.modu
  *   every-1-min primary — no AppConfig read, zero T3 dependency)
  *
  * **Module responsibilities:**
- * 1. Provide ThreadsIngestionClient (HTTP fetch from ingestion-service)
+ * 1. Provide ThreadsIngestionClient (HTTP fetch from ingestion-telegram)
  * 2. Provide FilteredThreadsService (filter + match orchestrator)
  * 3. Register EnqueueThreadsCronScheduler (dual literal @Cron)
  * 4. Serve GET|PATCH threads/matching/config + GET threads/matching/health
@@ -69,7 +69,7 @@ import { ThreadsPublisherModule } from 'threads/publisher/threads-publisher.modu
   ],
   controllers: [ThreadsMatchingConfigController],
   providers: [
-    // HTTP client for ingestion-service
+    // HTTP client for ingestion-telegram
     ThreadsIngestionClient,
 
     // Filter + match orchestrator

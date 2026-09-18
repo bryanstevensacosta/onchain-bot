@@ -41,17 +41,17 @@ register({
     'data-provider/*': ['data-provider/*'],
     'health/*': ['health/*'],
     'src/*': ['*'],
-    // Cross-app imports from ingestion-service (BUILT output, not src).
-    '@ingestion-service/media/*': [
+    // Cross-app imports from ingestion-telegram (BUILT output, not src).
+    '@ingestion-telegram/media/*': [
       path.join(
         repoRoot,
-        'apps/ingestion-service/dist/src/shared/media/*',
+        'apps/ingestion-telegram/dist/src/shared/media/*',
       ),
     ],
-    '@ingestion-service/telegram/*': [
+    '@ingestion-telegram/telegram/*': [
       path.join(
         repoRoot,
-        'apps/ingestion-service/dist/src/shared/telegram/*',
+        'apps/ingestion-telegram/dist/src/shared/telegram/*',
       ),
     ],
   },

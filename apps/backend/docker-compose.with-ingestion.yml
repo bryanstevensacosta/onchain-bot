@@ -1,5 +1,6 @@
-# Docker Compose with Centralized Ingestion Service
-# This file extends docker-compose.prod.yml with the ingestion-service
+# Docker Compose with Centralized Ingestion-Telegram Service
+# This file extends docker-compose.prod.yml with the ingestion-telegram service
+# (renamed from ingestion-service → ingestion-telegram; local legacy variant, kept in place)
 
 name: onchain-bot-with-ingestion
 
@@ -45,13 +46,13 @@ services:
     networks:
       - onchain-net
 
-  # NEW: Centralized Ingestion Service
-  ingestion-service:
+  # Renamed: ingestion-service → ingestion-telegram (local legacy variant)
+  ingestion-telegram:
     build:
       context: ../..
-      dockerfile: apps/ingestion-service/Dockerfile
-    image: ghcr.io/bryanstevensacosta/onchain-bot-ingestion:latest
-    container_name: onchain-bot-ingestion
+      dockerfile: apps/ingestion-telegram/Dockerfile
+    image: ghcr.io/bryanstevensacosta/onchain-bot-ingestion-telegram:latest
+    container_name: onchain-bot-ingestion-telegram
     restart: unless-stopped
     logging:
       driver: json-file
@@ -59,7 +60,12 @@ services:
         max-size: '10m'
         max-file: '3'
     env_file:
-      - ../ingestion-service/.env.production
+      # NOTE: this path already diverges from repo reality — neither
+      # apps/ingestion-service/.env.production nor the renamed
+      # apps/ingestion-telegram/.env.production exists in the repo
+      # (gitignored droplet file). Renamed for consistency; do NOT
+      # invent the file here (documented, todo 7).
+      - ../ingestion-telegram/.env.production
     environment:
       # Server
       PORT: 3031
@@ -108,11 +114,13 @@ services:
     env_file:
       - .env.production
     environment:
-      # Ingestion mode configuration
+      # Ingestion mode configuration (DNS follows the rename)
       USE_SSE_INGESTION: ${USE_SSE_INGESTION:-false}
-      INGESTION_SERVICE_URL: http://ingestion-service:3031
+      # New var (effective); old INGESTION_SERVICE_URL stays one release per the fallback decision.
+      INGESTION_TELEGRAM_URL: http://ingestion-telegram:3031
+      INGESTION_SERVICE_URL: http://ingestion-telegram:3031
     volumes:
-      # Media access (read-only - ingestion-service owns writes)
+      # Media access (read-only - ingestion-telegram owns writes)
       - onchain-bot-uploads:/app/uploads:ro
     ports:
       - '3030:3030'
@@ -121,7 +129,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      ingestion-service:
+      ingestion-telegram:
         condition: service_healthy
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3030/api/health']

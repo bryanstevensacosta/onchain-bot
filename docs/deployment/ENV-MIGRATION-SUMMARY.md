@@ -6,19 +6,19 @@
 
 1. **`apps/backend/.env.dev`** (Local development)
    - ✅ Added migration warning before MTProto variables
-   - ⚠️ Variables remain TEMPORARILY until ingestion-service is deployed locally
+   - ⚠️ Variables remain TEMPORARILY until ingestion-telegram is deployed locally
    - Contains instructions for migration when ready
 
 2. **`apps/backend/.env.staging.template`** (Staging on droplet)
    - ✅ Removed all MTProto credentials
    - ✅ Added `USE_SSE_INGESTION=true`
-   - ✅ Added `INGESTION_REMOTE_URL=http://ingestion-service:3031`
+   - ✅ Added `INGESTION_REMOTE_URL=http://ingestion-telegram:3031`
    - ✅ Added clear warnings about NOT adding MTProto credentials
 
 3. **`apps/backend/.env.production.template`** (Production on droplet)
    - ✅ Removed all MTProto credentials
    - ⚠️ `USE_SSE_INGESTION=false` by default (must be enabled during migration)
-   - ✅ Added `INGESTION_REMOTE_URL=http://ingestion-service:3031`
+   - ✅ Added `INGESTION_REMOTE_URL=http://ingestion-telegram:3031`
    - ✅ Added migration instructions in comments
 
 ## 📋 Current State by Environment:
@@ -34,8 +34,8 @@
 
 **Action needed:**
 
-1. When you're ready to test ingestion-service locally:
-2. Create `apps/ingestion-service/.env` with credentials
+1. When you're ready to test ingestion-telegram locally:
+2. Create `apps/ingestion-telegram/.env` with credentials
 3. Remove MTProto vars from `apps/backend/.env.dev`
 4. Add to backend: `USE_SSE_INGESTION=true`
 5. Run: `./scripts/validate-session-migration.sh`
@@ -49,7 +49,7 @@
 1. SSH to droplet: `ssh root@144.126.203.139`  <!-- ex-DO (suspended 2026-09-10); current: ssh OracleDroplet -->
 2. Navigate: `cd /opt/onchain-bot-staging`
 3. Check current `.env.staging` for MTProto credentials
-4. Create `apps/ingestion-service/.env` with those credentials
+4. Create `apps/ingestion-telegram/.env` with those credentials
 5. Remove MTProto from `apps/backend/.env.staging`
 6. Ensure `USE_SSE_INGESTION=true` in backend
 7. Run: `./scripts/validate-session-migration.sh`
@@ -64,7 +64,7 @@
 2. Navigate: `cd /opt/onchain-bot`
 3. **BACKUP FIRST**: `cp apps/backend/.env apps/backend/.env.backup.$(date +%Y%m%d-%H%M%S)`
 4. Extract MTProto credentials: `grep TELEGRAM_MTPROTO apps/backend/.env`
-5. Create `apps/ingestion-service/.env` with those credentials
+5. Create `apps/ingestion-telegram/.env` with those credentials
 6. Remove MTProto from `apps/backend/.env`
 7. Change `USE_SSE_INGESTION=false` to `USE_SSE_INGESTION=true`
 8. Run: `./scripts/validate-session-migration.sh`
@@ -79,7 +79,7 @@
 # apps/backend/.env
 TELEGRAM_MTPROTO_SESSION=xxx
 
-# apps/ingestion-service/.env
+# apps/ingestion-telegram/.env
 INGESTION_TELEGRAM_MTPROTO_SESSION=xxx  # ← This causes AUTH_KEY_DUPLICATED!
 ```
 
@@ -88,14 +88,14 @@ INGESTION_TELEGRAM_MTPROTO_SESSION=xxx  # ← This causes AUTH_KEY_DUPLICATED!
 ```bash
 # MTProto credentials in ONLY ONE place:
 
-# apps/ingestion-service/.env (ONLY)
+# apps/ingestion-telegram/.env (ONLY)
 INGESTION_TELEGRAM_MTPROTO_API_ID=12345
 INGESTION_TELEGRAM_MTPROTO_API_HASH=abc123
 INGESTION_TELEGRAM_MTPROTO_SESSION=1AxYoUr...
 
 # apps/backend/.env (NO MTProto, only SSE config)
 USE_SSE_INGESTION=true
-INGESTION_REMOTE_URL=http://ingestion-service:3031
+INGESTION_REMOTE_URL=http://ingestion-telegram:3031
 ```
 
 ## 🔍 Validation Commands:
@@ -116,7 +116,7 @@ grep "TELEGRAM_MTPROTO" apps/backend/.env
 
 # Expected output:
 # ✓ All checks passed!
-# MTProto session migration is complete. Safe to deploy ingestion-service.
+# MTProto session migration is complete. Safe to deploy ingestion-telegram.
 ```
 
 ### If Validation Fails:
@@ -124,7 +124,7 @@ grep "TELEGRAM_MTPROTO" apps/backend/.env
 ```bash
 # Check what's wrong
 cat apps/backend/.env | grep TELEGRAM_MTPROTO
-cat apps/ingestion-service/.env | grep INGESTION_TELEGRAM_MTPROTO
+cat apps/ingestion-telegram/.env | grep INGESTION_TELEGRAM_MTPROTO
 
 # Fix issues, then re-validate
 ./scripts/validate-session-migration.sh
@@ -134,7 +134,7 @@ cat apps/ingestion-service/.env | grep INGESTION_TELEGRAM_MTPROTO
 
 - **Step-by-step migration**: `docs/deployment/MIGRATION-GUIDE-DROPLET.md`
 - **Quick checklist**: `docs/deployment/DROPLET-ENV-CHECKLIST.md`
-- **Ingestion-service .env template**: `apps/ingestion-service/.env.example`
+- **Ingestion-telegram .env template**: `apps/ingestion-telegram/.env.example`
 - **Validation script**: `scripts/validate-session-migration.sh`
 - **Validation script docs**: `scripts/README-validate-session-migration.md`
 
@@ -149,8 +149,8 @@ cat apps/ingestion-service/.env | grep INGESTION_TELEGRAM_MTPROTO
 
 If you encounter `AUTH_KEY_DUPLICATED` errors:
 
-1. **STOP** both backend and ingestion-service immediately
+1. **STOP** both backend and ingestion-telegram immediately
 2. Wait 60 seconds for Telegram to clear session
 3. Verify credentials are ONLY in one place
 4. Run validation script
-5. Start ingestion-service first, then backend
+5. Start ingestion-telegram first, then backend

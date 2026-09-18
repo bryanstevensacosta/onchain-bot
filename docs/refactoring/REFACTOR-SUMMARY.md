@@ -1,14 +1,14 @@
 # Message Transformation Pipeline Refactor - SUMMARY
 
 **Status**: ✅ FASES 1-5.2 COMPLETADAS  
-**Tests**: 808 tests pasando (42 suites en ingestion-service)  
+**Tests**: 808 tests pasando (42 suites en ingestion-telegram)  
 **Last Updated**: 2026-09-07 16:50 AST
 
 ---
 
 ## 🎯 Objetivo
 
-Desacoplar y consolidar las responsabilidades de transformación de mensajes Telegram usando herencia y composición, eliminando duplicación de código entre backend e ingestion-service.
+Desacoplar y consolidar las responsabilidades de transformación de mensajes Telegram usando herencia y composición, eliminando duplicación de código entre backend e ingestion-telegram.
 
 ---
 
@@ -19,7 +19,7 @@ Desacoplar y consolidar las responsabilidades de transformación de mensajes Tel
 - AbstractTextExtractor, AbstractMediaExtractor, AbstractEntityNormalizer
 - AbstractMessageTransformer (template method pattern)
 - Utils: type-coercion, media-validation
-- 20 archivos creados en `apps/ingestion-service/src/shared/telegram/transformation/`
+- 20 archivos creados en `apps/ingestion-telegram/src/shared/telegram/transformation/`
 
 ### FASE 2: Implementaciones Concretas (44 tests) ✅
 
@@ -30,14 +30,14 @@ Desacoplar y consolidar las responsabilidades de transformación de mensajes Tel
 
 ### FASE 3: Transformers (20 tests) ✅
 
-- CryptoNewsMessageTransformer (ingestion-service)
+- CryptoNewsMessageTransformer (ingestion-telegram)
 - KolMessageTransformer (backend)
 - Integration tests end-to-end
 
 ### FASE 4: Backend Integration (7 tests) ✅
 
 - Backend tsconfig.json path alias configurado
-- Backend importa desde `@ingestion-service/telegram/*`
+- Backend importa desde `@ingestion-telegram/telegram/*`
 - KolMessageTransformer migrado a shared pipeline
 - 186 tests pasando (backend)
 
@@ -77,7 +77,7 @@ Desacoplar y consolidar las responsabilidades de transformación de mensajes Tel
 ### Ubicación: Ingestion-Service como Source of Truth
 
 ```
-apps/ingestion-service/src/shared/telegram/transformation/
+apps/ingestion-telegram/src/shared/telegram/transformation/
 ├── core/
 │   ├── abstract-text-extractor.ts
 │   ├── abstract-media-extractor.ts
@@ -98,19 +98,19 @@ apps/ingestion-service/src/shared/telegram/transformation/
 apps/backend/src/telegram/ingestion/shared/transformers/
 └── kol-message-transformer.ts (backend-only, imports shared)
 
-apps/ingestion-service/src/telegram/shared/application/services/
+apps/ingestion-telegram/src/telegram/shared/application/services/
 └── telegram-media-extractor.service.ts (Phase 5.2 - media download)
 ```
 
 ### Cross-App Imports
 
-**Backend** importa desde ingestion-service:
+**Backend** importa desde ingestion-telegram:
 
 ```typescript
 // apps/backend/tsconfig.json
 {
   "paths": {
-    "@ingestion-service/telegram/*": ["../ingestion-service/src/shared/telegram/*"]
+    "@ingestion-telegram/telegram/*": ["../ingestion-telegram/src/shared/telegram/*"]
   }
 }
 
@@ -120,7 +120,7 @@ import {
   KolTextExtractor,
   TelegramMediaExtractor,
   TelegramEntityNormalizer
-} from '@ingestion-service/telegram/transformation';
+} from '@ingestion-telegram/telegram/transformation';
 ```
 
 **Ingestion** importa local:
@@ -136,7 +136,7 @@ import { TelegramMediaExtractorService } from 'telegram/shared/application/servi
 
 ### 1. Ingestion-Service como Source of Truth
 
-**Rationale**: Sigue patrón existente `@ingestion-service/media/*`, cero complejidad (no symlinks, no nuevo workspace)
+**Rationale**: Sigue patrón existente `@ingestion-telegram/media/*`, cero complejidad (no symlinks, no nuevo workspace)
 
 ### 2. Template Method Pattern
 
@@ -161,7 +161,7 @@ import { TelegramMediaExtractorService } from 'telegram/shared/application/servi
 
 ### Task 6.1: Documentación ✅ COMPLETADA
 
-- [x] AGENTS.md actualizado (ingestion-service)
+- [x] AGENTS.md actualizado (ingestion-telegram)
   - SharedModule updated: TelegramMediaExtractorService documented
   - Pipeline section updated: Phase 5.2 refactor noted
   - Services section: TelegramMediaExtractorService added
@@ -189,7 +189,7 @@ import { TelegramMediaExtractorService } from 'telegram/shared/application/servi
 ## ✨ Beneficios Logrados
 
 1. **Reducción de Duplicación**: 36% menos código (~337 LOC eliminadas)
-2. **Shared Pipeline**: 20 archivos compartidos entre backend e ingestion-service
+2. **Shared Pipeline**: 20 archivos compartidos entre backend e ingestion-telegram
 3. **Mejor Separación de Responsabilidades**: Media extraction ahora en servicio dedicado
 4. **Testabilidad**: 808 + 186 = 994 tests totales
 5. **Mantenibilidad**: Cambios en transformación solo en un lugar
@@ -203,7 +203,7 @@ import { TelegramMediaExtractorService } from 'telegram/shared/application/servi
 1. **Start Small**: FASE 1 (abstracciones) sin impacto en producción fue clave
 2. **Test First**: 808 tests dan confianza para refactorizar código crítico
 3. **Incremental Migration**: Fases pequeñas y verificables reducen riesgo
-4. **Follow Existing Patterns**: Usar `@ingestion-service/*` path alias existente simplificó adopción
+4. **Follow Existing Patterns**: Usar `@ingestion-telegram/*` path alias existente simplificó adopción
 5. **Listen to Code**: Docstrings como "Consider extracting to MediaDownloadService" son hints valiosos
 6. **Measure Everything**: Contar LOC eliminadas da visibilidad del progreso
 

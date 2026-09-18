@@ -31,7 +31,7 @@ export interface CreateFilterResult {
  * - The flags string contains only valid regex flags (g, i, m, s, u, y)
  *
  * The channel is NOT validated against crypto-news sources (db-separation
- * todo 4): sources live in ingestion-service's own DB, so the backend
+ * todo 4): sources live in ingestion-telegram's own DB, so the backend
  * treats `channelId` as opaque and only warns when no filters existed
  * before. Returns the created filter with its generated ID.
  */
@@ -43,7 +43,7 @@ export class CreateFilterUseCase {
 
   public async execute(dto: CreateFilterDto): Promise<CreateFilterResult> {
     // 1. Warn (no throw) when the channel has no known source. Sources are
-    // owned by ingestion-service; the backend keeps channel_id opaque.
+    // owned by ingestion-telegram; the backend keeps channel_id opaque.
     this.logger.warn(
       `Creating filter for channel ${dto.channelId} without source existence check (sources owned by ingestion-service)`,
     );

@@ -15,6 +15,7 @@ import { ConfigService } from '@nestjs/config';
 import * as fs from 'node:fs';
 import type { Request, Response } from 'express';
 import type { AppConfig } from 'shared/common/config/app.config';
+import { resolveIngestionServiceUrl } from 'shared/common/config/app.config';
 import {
   detectMediaMimeType,
   serveMediaFile,
@@ -93,9 +94,7 @@ export class QueueController {
     const appCfg = config.get<AppConfig>('app');
     this.outputChannel = appCfg?.publishing?.cryptoNews?.outputChannel ?? '';
     this.ingestionBaseUrl =
-      appCfg?.ingestion?.serviceUrl ??
-      process.env.INGESTION_SERVICE_URL ??
-      'http://localhost:3031';
+      appCfg?.ingestion?.serviceUrl ?? resolveIngestionServiceUrl();
   }
 
   @Get()
@@ -173,19 +172,19 @@ export class QueueController {
       return;
     }
 
-    // Check if this is a URL (from ingestion-service) or a local file path
+    // Check if this is a URL (from ingestion-telegram) or a local file path
     const isUrl =
       imagePath.startsWith('http://') || imagePath.startsWith('https://');
 
     if (isUrl) {
-      // Proxy to ingestion-service
+      // Proxy to ingestion-telegram
       try {
         const response = await fetch(imagePath);
 
         if (!response.ok) {
           res
             .status(response.status)
-            .json({ error: 'Media not found on ingestion-service' });
+            .json({ error: 'Media not found on ingestion-telegram' });
           return;
         }
 
@@ -196,11 +195,11 @@ export class QueueController {
         serveMediaFile(res, req, buffer, contentType, 'public, max-age=86400');
       } catch (err) {
         this.logger.error(
-          `Failed to proxy media from ingestion-service: ${err}`,
+          `Failed to proxy media from ingestion-telegram: ${err}`,
         );
         res
           .status(502)
-          .json({ error: 'Failed to fetch media from ingestion-service' });
+          .json({ error: 'Failed to fetch media from ingestion-telegram' });
       }
     } else {
       // Legacy: serve from local disk
@@ -209,9 +208,9 @@ export class QueueController {
         fileBuffer = await fs.promises.readFile(imagePath);
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          // File not found locally, try fallback proxy to ingestion-service
+          // File not found locally, try fallback proxy to ingestion-telegram
           this.logger.debug(
-            `File not found locally: ${imagePath}, trying ingestion-service proxy`,
+            `File not found locally: ${imagePath}, trying ingestion-telegram proxy`,
           );
 
           try {
@@ -220,7 +219,7 @@ export class QueueController {
 
             if (!response.ok) {
               res.status(404).json({
-                error: 'Media file missing on disk and ingestion-service',
+                error: 'Media file missing on disk and ingestion-telegram',
               });
               return;
             }
@@ -240,7 +239,7 @@ export class QueueController {
             return;
           } catch (proxyErr) {
             this.logger.error(
-              `Failed to proxy from ingestion-service: ${proxyErr}`,
+              `Failed to proxy from ingestion-telegram: ${proxyErr}`,
             );
             res.status(404).json({ error: 'Media file missing on disk' });
             return;
@@ -339,7 +338,7 @@ export class QueueController {
   }
 
   /**
-   * Convert a local file path to an ingestion-service URL.
+   * Convert a local file path to an ingestion-telegram URL.
    *
    * Example:
    *   uploads/crypto-news/media/-1004466661332/200_0.jpg

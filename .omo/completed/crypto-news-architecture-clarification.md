@@ -7,11 +7,11 @@
 
 **Initial (incorrect) interpretation:**
 
-> "Backend shouldn't have ANY crypto-news entities because ingestion-service owns the data"
+> "Backend shouldn't have ANY crypto-news entities because ingestion-telegram owns the data"
 
 **Reality (correct):**
 
-> "Backend can use crypto-news entities, but shouldn't DUPLICATE them — should import from ingestion-service OR use DTOs"
+> "Backend can use crypto-news entities, but shouldn't DUPLICATE them — should import from ingestion-telegram OR use DTOs"
 
 ## Correct Architecture (Opción A)
 
@@ -55,7 +55,7 @@
 **Current state (post-split):**
 
 ```
-apps/ingestion-service/src/telegram/crypto-news/domain/entities/
+apps/ingestion-telegram/src/telegram/crypto-news/domain/entities/
   └── crypto-news-message.entity.ts ← SOURCE OF TRUTH
 
 apps/backend/src/telegram/ingestion/crypto-news/domain/entities/
@@ -87,7 +87,7 @@ import { EnqueueMessageDto } from 'crypto-news-publisher/domain/dtos/';
 **Pros:**
 
 - Clean separation of concerns
-- No dependency on ingestion-service internals
+- No dependency on ingestion-telegram internals
 - DTOs are stable HTTP contracts
 - Backend logic doesn't need full domain entities
 
@@ -98,11 +98,11 @@ import { EnqueueMessageDto } from 'crypto-news-publisher/domain/dtos/';
 
 ### Option B: Import from Ingestion-Service (Monorepo Alternative)
 
-Backend imports entities FROM ingestion-service package:
+Backend imports entities FROM ingestion-telegram package:
 
 ```typescript
-// Backend imports from ingestion-service
-import { CryptoNewsMessage } from '@alpha-meta-token-scanner/ingestion-service';
+// Backend imports from ingestion-telegram
+import { CryptoNewsMessage } from '@alpha-meta-token-scanner/ingestion-telegram';
 
 // Backend does NOT duplicate
 // ❌ Local copy in apps/backend/src/telegram/ingestion/crypto-news/domain/
@@ -116,7 +116,7 @@ import { CryptoNewsMessage } from '@alpha-meta-token-scanner/ingestion-service';
 
 **Cons:**
 
-- Tight coupling to ingestion-service internals
+- Tight coupling to ingestion-telegram internals
 - Backend depends on ingestion domain model
 - Changes to entities affect both services
 
@@ -194,13 +194,13 @@ Backend owns the **publisher pipeline** — this is CORRECT and should stay:
 
 ### Strategy 3: Import from Ingestion (Monorepo Quick Fix)
 
-**Goal:** Backend imports directly from ingestion-service.
+**Goal:** Backend imports directly from ingestion-telegram.
 
 **Steps:**
 
 1. Delete duplicate entities from backend
-2. Update imports to `@alpha-meta-token-scanner/ingestion-service`
-3. Ensure ingestion-service exports entities
+2. Update imports to `@alpha-meta-token-scanner/ingestion-telegram`
+3. Ensure ingestion-telegram exports entities
 
 **Timeline:** 1-2 hours
 
@@ -242,7 +242,7 @@ If Strategy 3 chosen initially, migrate to Strategy 1 later when time permits.
 1. **Backend CAN have crypto-news logic** — publisher/matching/filtering belong there
 2. **Backend should NOT duplicate entities** — either import or use DTOs
 3. **Data ownership ≠ business logic ownership** — ingestion owns data, backend owns publishing
-4. **Monorepo allows imports** — can import from ingestion-service package if desired
+4. **Monorepo allows imports** — can import from ingestion-telegram package if desired
 
 ### Corrected Mental Model
 
@@ -254,7 +254,7 @@ Ingestion-Service = Data Management Service
 
 Backend = Business Logic Service
 ├── Owns: filtering, matching, publishing, LLM
-├── Consumes: DTOs from ingestion-service
+├── Consumes: DTOs from ingestion-telegram
 └── Provides: publisher pipeline
 
 Relationship: Backend is a CONSUMER of ingestion, not a COPY of it
@@ -292,7 +292,7 @@ Relationship: Backend is a CONSUMER of ingestion, not a COPY of it
 
 **The Real Issue:** Backend has DUPLICATE entities, not that it has entities at all.
 
-**The Solution:** Either use DTOs (clean) OR import from ingestion-service (fast).
+**The Solution:** Either use DTOs (clean) OR import from ingestion-telegram (fast).
 
 **Current Status:** Entities marked as `@deprecated` with correct explanation. Migration strategy TBD based on team priorities (clean architecture vs. speed).
 

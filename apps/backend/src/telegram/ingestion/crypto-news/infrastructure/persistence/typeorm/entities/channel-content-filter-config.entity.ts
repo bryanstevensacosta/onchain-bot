@@ -17,7 +17,7 @@ import {
  * then by `created_at` for deterministic tie-breaking.
  *
  * `channel_id` is an OPAQUE varchar with NO FK (db-separation todo 4):
- * crypto-news sources are owned by ingestion-service in its own DB, so the
+ * crypto-news sources are owned by ingestion-telegram in its own DB, so the
  * backend keeps no JOIN to `crypto_news_sources`. Orphan rules for unknown
  * channels are kept (matching simply yields no filters for them).
  */

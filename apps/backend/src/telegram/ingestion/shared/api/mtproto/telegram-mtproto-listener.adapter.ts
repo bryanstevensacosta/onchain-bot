@@ -44,7 +44,7 @@ import { TelegramMediaDownloadService } from 'telegram/ingestion/shared/infrastr
  * (AUTH_KEY_DUPLICATED error per 406 documentation).
  *
  * **Migration path:**
- * - **New location:** `apps/ingestion-service/src/telegram/shared/api/mtproto/telegram-mtproto-listener.adapter.ts`
+ * - **New location:** `apps/ingestion-telegram/src/telegram/shared/api/mtproto/telegram-mtproto-listener.adapter.ts`
  * - **Replacement:** Backend clients should use `SseIngestionClientAdapter` which implements
  *   the same `TelegramListenerPort` interface and receives messages via Server-Sent Events (SSE)
  *   from the centralized ingestion service.
@@ -60,7 +60,7 @@ import { TelegramMediaDownloadService } from 'telegram/ingestion/shared/infrastr
  *
  * **Specification:** See `.kiro/specs/centralized-ingestion-service/` for complete design and requirements.
  *
- * @see {@link apps/ingestion-service} Centralized ingestion service
+ * @see {@link apps/ingestion-telegram} Centralized ingestion service
  * @see SseIngestionClientAdapter Drop-in replacement for backend clients
  */
 @Injectable()

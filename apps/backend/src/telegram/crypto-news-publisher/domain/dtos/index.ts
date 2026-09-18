@@ -1,7 +1,7 @@
 /**
  * Publisher DTOs barrel export
  *
- * Strategy 1 (Pure DTO): Backend uses DTOs to decouple from ingestion-service
+ * Strategy 1 (Pure DTO): Backend uses DTOs to decouple from ingestion-telegram
  * domain entities. These DTOs are internal to the publisher module.
  */
 export type {

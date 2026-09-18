@@ -29,6 +29,7 @@ import { TypeOrmPublisherQueueRepository } from 'telegram/crypto-news-publisher/
 import { EnqueueMatchingMessageUseCase } from 'telegram/crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
 import { ProcessNextQueuedArticleUseCase } from 'telegram/crypto-news-publisher/application/handlers/process-next-queued-article.use-case';
 import { GetLlmModelsUseCase } from 'telegram/crypto-news-publisher/application/handlers/get-llm-models.use-case';
+import { PreviewPromptUseCase } from 'telegram/crypto-news-publisher/application/handlers/preview-prompt.use-case';
 import { PhraseRegistryService } from 'telegram/crypto-news-publisher/application/services/phrase-registry.service';
 import { CryptoNewsIngestionModule } from 'telegram/ingestion/crypto-news/crypto-news-ingestion.module';
 import { CryptoNewsAdsModule } from 'telegram/crypto-news-ads/crypto-news-ads.module';
@@ -160,6 +161,7 @@ import { TypeOrmSlotArbitrator } from 'telegram/shared/infrastructure/persistenc
     EnqueueMatchingMessageUseCase,
     ProcessNextQueuedArticleUseCase,
     GetLlmModelsUseCase,
+    PreviewPromptUseCase,
     PublisherCronScheduler,
     ExpireStaleQueueEntriesScheduler,
   ],

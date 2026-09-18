@@ -12,7 +12,7 @@ import { isBlockingFailureReason } from 'shared/deduplication/domain/constants/b
  * **Responsibilities:**
  * 1. Check matchingEnabled flag (skip if disabled)
  * 2. Check PublisherQueueEntry deduplication (skip if already queued/published)
- * 3. Fetch RAW message from ingestion-service (via FilteredCryptoNewsService)
+ * 3. Fetch RAW message from ingestion-telegram (via FilteredCryptoNewsService)
  * 4. Apply ContentFilterService + keyword matching
  * 5. Enqueue if matched (via EnqueueMatchingMessageUseCase)
  * 6. Log latency (Date.now() - ingestedAt)
@@ -59,7 +59,7 @@ export class ProcessCryptoNewsMessageHandler {
    * Pipeline:
    * 1. Check matchingEnabled flag (skip if disabled)
    * 2. Check PublisherQueueEntry deduplication (skip if already queued/published)
-   * 3. Fetch RAW message from ingestion-service (via FilteredCryptoNewsService)
+   * 3. Fetch RAW message from ingestion-telegram (via FilteredCryptoNewsService)
    * 4. Apply ContentFilterService + keyword matching
    * 5. Enqueue if matched (via EnqueueMatchingMessageUseCase)
    * 6. Log latency (Date.now() - ingestedAt)
@@ -175,12 +175,12 @@ export class ProcessCryptoNewsMessageHandler {
   /**
    * Calculate and log ingestion latency.
    *
-   * Latency = Date.now() - ingestedAt (time from ingestion-service storage to backend enqueue)
+   * Latency = Date.now() - ingestedAt (time from ingestion-telegram storage to backend enqueue)
    *
    * Logs INFO if <10s (target met)
    * Logs WARN if ≥10s (target missed)
    *
-   * @param ingestedAt - Timestamp from ingestion-service (when message was stored)
+   * @param ingestedAt - Timestamp from ingestion-telegram (when message was stored)
    * @param channelId - For log correlation
    * @param messageId - For log correlation
    * @returns void (logs INFO or WARN)

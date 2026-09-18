@@ -7,7 +7,7 @@
 │  DROPLET (144.126.203.139 — ex-DO (suspended 2026-09-10))          │
 │                                                              │
 │  ┌────────────────────────────────────────────────┐         │
-│  │  onchain-bot-ingestion (puerto 3032→3031)      │         │
+│  │  onchain-bot-ingestion-telegram (puerto 3032→3031)      │         │
 │  │  - MTProto session de production               │         │
 │  │  - Broadcast vía SSE a ambos backends          │         │
 │  │  - Conectado a 2 redes Docker                  │         │
@@ -27,7 +27,7 @@
 
 ### Nuevo Servicio
 
-- **Ingestion Service** (onchain-bot-ingestion)
+- **Ingestion Service** (onchain-bot-ingestion-telegram)
   - Puerto HOST: `127.0.0.1:3032`
   - Puerto INTERNO: `3031`
   - Redes: `onchain-bot-net` + `onchain-bot-staging-net`
@@ -39,13 +39,13 @@
 
 - ❌ ELIMINAR: Variables `INGESTION_TELEGRAM_MTPROTO_*`
 - ✅ AGREGAR: `USE_SSE_INGESTION=true`
-- ✅ AGREGAR: `INGESTION_REMOTE_URL=http://onchain-bot-ingestion:3031`
+- ✅ AGREGAR: `INGESTION_REMOTE_URL=http://onchain-bot-ingestion-telegram:3031`
 
 **Staging Backend:**
 
 - Ya está configurado (MTProto disabled)
 - ✅ AGREGAR: `USE_SSE_INGESTION=true`
-- ✅ AGREGAR: `INGESTION_REMOTE_URL=http://onchain-bot-ingestion:3031`
+- ✅ AGREGAR: `INGESTION_REMOTE_URL=http://onchain-bot-ingestion-telegram:3031`
 
 ## 🚀 Pasos de Migración
 
@@ -65,8 +65,8 @@ cp apps/backend/.env.production apps/backend/.env.production.backup-$(date +%Y%m
 docker exec onchain-bot-postgres-production pg_dump -U alpha_meta_token_scanner \
   alpha_meta_token_scanner > /tmp/prod-backup-$(date +%Y%m%d-%H%M%S).sql
 
-# 5. Crear directorio para ingestion-service
-mkdir -p apps/ingestion-service
+# 5. Crear directorio para ingestion-telegram
+mkdir -p apps/ingestion-telegram
 ```
 
 ### FASE 2: Copiar Archivos de Configuración
@@ -76,8 +76,8 @@ mkdir -p apps/ingestion-service
 # (Desde tu máquina local)
 scp /tmp/docker-compose.ingestion.yml root@144.126.203.139:/opt/onchain-bot/apps/backend/  # ex-DO (suspended 2026-09-10)
 
-# 7. Subir .env.production para ingestion-service
-scp /tmp/ingestion-service.env.production root@144.126.203.139:/opt/onchain-bot/apps/ingestion-service/.env.production  # ex-DO (suspended 2026-09-10)
+# 7. Subir .env.production para ingestion-telegram
+scp /tmp/ingestion-telegram.env.production root@144.126.203.139:/opt/onchain-bot/apps/ingestion-telegram/.env.production  # ex-DO (suspended 2026-09-10)
 ```
 
 ### FASE 3: Modificar Backend Configurations
@@ -94,7 +94,7 @@ nano apps/backend/.env.production
 
 # AGREGAR estas líneas:
 USE_SSE_INGESTION=true
-INGESTION_REMOTE_URL=http://onchain-bot-ingestion:3031
+INGESTION_REMOTE_URL=http://onchain-bot-ingestion-telegram:3031
 
 # Guardar: Ctrl+X, Y, Enter
 
@@ -104,7 +104,7 @@ nano apps/backend/.env.staging
 
 # AGREGAR (si no existen):
 USE_SSE_INGESTION=true
-INGESTION_REMOTE_URL=http://onchain-bot-ingestion:3031
+INGESTION_REMOTE_URL=http://onchain-bot-ingestion-telegram:3031
 
 # Guardar: Ctrl+X, Y, Enter
 ```
@@ -112,14 +112,14 @@ INGESTION_REMOTE_URL=http://onchain-bot-ingestion:3031
 ### FASE 4: Deploy Ingestion Service (⚠️ DOWNTIME: ~2 minutos)
 
 ```bash
-# 10. Desde /opt/onchain-bot, levantar ingestion-service
+# 10. Desde /opt/onchain-bot, levantar ingestion-telegram
 cd /opt/onchain-bot/apps/backend
 docker compose -f docker-compose.ingestion.yml up -d --build
 
 # 11. Esperar a que inicie (15-20 segundos)
 sleep 20
 
-# 12. Verificar health del ingestion-service
+# 12. Verificar health del ingestion-telegram
 curl -s http://localhost:3032/api/health | jq '.'
 
 # Debe mostrar:
@@ -135,7 +135,7 @@ curl -s http://localhost:3032/api/health | jq '.'
 # }
 
 # Si el health check falla, revisar logs:
-docker compose -f docker-compose.ingestion.yml logs ingestion-service --tail 100
+docker compose -f docker-compose.ingestion.yml logs ingestion-telegram --tail 100
 ```
 
 ### FASE 5: Restart Production Backend
@@ -177,7 +177,7 @@ docker compose -f docker-compose.staging.yml logs backend --tail 50 | grep -i "s
 # 18. Verificar mensajes llegando a production
 curl -s http://localhost:3030/api/vip-calls/calls/recent?limit=5 | jq '.'
 
-# 19. Verificar clientes conectados al ingestion-service
+# 19. Verificar clientes conectados al ingestion-telegram
 curl -s http://localhost:3032/api/health | jq '.clients'
 
 # Debe mostrar:
@@ -186,7 +186,7 @@ curl -s http://localhost:3032/api/health | jq '.clients'
 # }
 
 # 20. Monitorear logs por 5 minutos
-docker compose -f /opt/onchain-bot/apps/backend/docker-compose.ingestion.yml logs -f ingestion-service
+docker compose -f /opt/onchain-bot/apps/backend/docker-compose.ingestion.yml logs -f ingestion-telegram
 
 # Buscar:
 # ✓ "message:received" events
@@ -215,7 +215,7 @@ rm /tmp/prod-backup-*.sql  # Después de confirmar que todo funciona
 ```bash
 # Rollback rápido (<2 minutos):
 
-# 1. Detener ingestion-service
+# 1. Detener ingestion-telegram
 cd /opt/onchain-bot/apps/backend
 docker compose -f docker-compose.ingestion.yml down
 
@@ -254,7 +254,7 @@ docker compose -f docker-compose.prod.yml logs backend --tail 50 | grep "MTProto
 watch -n 30 'curl -s http://localhost:3032/api/health | jq ".mtproto, .clients, .floodWait"'
 
 # Logs en tiempo real
-docker compose -f /opt/onchain-bot/apps/backend/docker-compose.ingestion.yml logs -f ingestion-service
+docker compose -f /opt/onchain-bot/apps/backend/docker-compose.ingestion.yml logs -f ingestion-telegram
 
 # Verificar mensajes procesados
 curl -s http://localhost:3030/api/dashboard/stats | jq '.messages'
@@ -283,8 +283,8 @@ grep "INGESTION_TELEGRAM_MTPROTO" /opt/onchain-bot/apps/backend/.env.production
 **Solución:**
 
 ```bash
-# Verificar redes del ingestion-service
-docker inspect onchain-bot-ingestion | jq '.[0].NetworkSettings.Networks'
+# Verificar redes del ingestion-telegram
+docker inspect onchain-bot-ingestion-telegram | jq '.[0].NetworkSettings.Networks'
 
 # Debe mostrar: onchain-bot-net Y onchain-bot-staging-net
 ```
@@ -301,7 +301,7 @@ curl -s http://localhost:3032/api/channels | jq '. | length'
 
 # Debe mostrar: 45
 # Si es 0, revisar logs de seeding
-docker compose -f /opt/onchain-bot/apps/backend/docker-compose.ingestion.yml logs ingestion-service | grep "seed"
+docker compose -f /opt/onchain-bot/apps/backend/docker-compose.ingestion.yml logs ingestion-telegram | grep "seed"
 ```
 
 ## 📞 Referencias

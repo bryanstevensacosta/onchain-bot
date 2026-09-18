@@ -1,6 +1,6 @@
 #!/bin/bash
-# Fix uploads directory permissions for ingestion-service
-# The ingestion-service container runs as user nodejs (uid 1001, gid 1001)
+# Fix uploads directory permissions for ingestion-telegram
+# The ingestion-telegram container runs as user nodejs (uid 1001, gid 1001)
 # but the uploads volume is mounted from backend/uploads which may have root ownership
 
 set -e
@@ -36,6 +36,6 @@ echo "✅ Permissions fixed:"
 ls -la "$UPLOADS_DIR"
 
 echo ""
-echo "🎯 Ingestion-service should now be able to write media files"
+echo "🎯 Ingestion-telegram should now be able to write media files"
 echo "   Restart the container if it's already running:"
-echo "   docker restart onchain-bot-ingestion"
+echo "   docker restart onchain-bot-ingestion-telegram"

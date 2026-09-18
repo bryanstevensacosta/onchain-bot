@@ -16,7 +16,7 @@
 ![Docker](https://img.shields.io/badge/docker-GHCR-2496ED?logo=docker&logoColor=white)
 ![License](https://img.shields.io/badge/license-UNLICENSED-private-red)
 ![Backend](https://img.shields.io/badge/backend-1.3.2-E0234E)
-![Ingestion](https://img.shields.io/badge/ingestion--service-1.0.0-26A5E4)
+![Ingestion](https://img.shields.io/badge/ingestion--telegram-1.0.0-26A5E4)
 ![Frontend](https://img.shields.io/badge/frontend-1.3.2-61DAFB)
 
 One MTProto session ingests Telegram → SSE fan-out → NestJS pipeline (extract → enrich → score → gate → publish to a VIP channel) → React dashboard over REST + WebSocket.
@@ -45,11 +45,11 @@ One MTProto session ingests Telegram → SSE fan-out → NestJS pipeline (extrac
 
 ## Apps
 
-| App                   | Stack                                                                                                                  | Port    | Version | Tests                  |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------- | ------- | ---------------------- |
-| **backend**           | NestJS 11 · TypeORM · Postgres · EventEmitter · Socket.IO — 22 modules, 41 entities, 35 controllers, 13 data providers | `:3030` | 1.3.2   | 173 Jest specs + 2 e2e |
-| **ingestion-service** | NestJS 11 · MTProto (GramJS) → SSE fan-out — one session serves N backends                                             | `:3031` | 1.0.0   | 15 specs + 5 e2e       |
-| **frontend**          | React 18 · Vite 5 · TanStack Query · Socket.IO · Tailwind — 6 routes, 12 features, 11 entities                         | `:5173` | 1.3.2   | 23 Vitest files        |
+| App                    | Stack                                                                                                                  | Port    | Version | Tests                  |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------- | ------- | ---------------------- |
+| **backend**            | NestJS 11 · TypeORM · Postgres · EventEmitter · Socket.IO — 22 modules, 41 entities, 35 controllers, 13 data providers | `:3030` | 1.3.2   | 173 Jest specs + 2 e2e |
+| **ingestion-telegram** | NestJS 11 · MTProto (GramJS) → SSE fan-out — one session serves N backends                                             | `:3031` | 1.0.0   | 15 specs + 5 e2e       |
+| **frontend**           | React 18 · Vite 5 · TanStack Query · Socket.IO · Tailwind — 6 routes, 12 features, 11 entities                         | `:5173` | 1.3.2   | 23 Vitest files        |
 
 ---
 
@@ -62,10 +62,10 @@ npm run docker:up            # postgres :5432 + redis :6379 + pgAdmin :5050
 npm run dev                  # backend :3030 + frontend :5173 (port-cleanup first)
 
 # Ingestion runs separately (own terminal — single MTProto session):
-cd apps/ingestion-service && npm run start:dev   # :3031
+cd apps/ingestion-telegram && npm run start:dev   # :3031
 ```
 
-> First run needs env files: `apps/backend/.env` (or `.env.dev`) and `apps/ingestion-service/.env` with Telegram API credentials (`my.telegram.org`). Never commit them.
+> First run needs env files: `apps/backend/.env` (or `.env.dev`) and `apps/ingestion-telegram/.env` with Telegram API credentials (`my.telegram.org`). Never commit them.
 > No Telegram credentials yet? Run the backend in mock mode instead: `npm run dev:mock -w @alpha-meta-token-scanner/backend` — CLI fixtures in, no MTProto needed.
 
 ---
@@ -93,7 +93,7 @@ flowchart TB
         BOT["Telegram bots<br/>deliver messages + photos"]
     end
 
-    subgraph ING["ingestion-service :3031 — a single ear on Telegram"]
+    subgraph ING["ingestion-telegram :3031 — a single ear on Telegram"]
         CHPROV["Channel list updater<br/>asks backend every 5 min<br/>which KOLs + news are active"]
         LIS["Telegram listener<br/>instant alerts<br/>plus full sweep every 30s<br/>last 50 per channel"]
         SAFE["Anti-ban guard<br/>backs off on flood limits"]
@@ -154,7 +154,7 @@ The backend front door opens in 3 ways (picked by flag):
 | Fake feed (CLI/tests)                                          | `USE_MOCK_INGESTION=true` | Pretend feed + test endpoints (`POST /dev/inject-message`, `GET /dev/queue-status`) + `scripts/cli/*` inject/record/replay                             |
 | Old direct line (rollback-only, default when both flags false) | both false                | Backend listens to Telegram itself — risks kicking out the main session (`AUTH_KEY_DUPLICATED`)                                                        |
 
-### Ingestion-service deep dive
+### Ingestion-telegram deep dive
 
 ```mermaid
 flowchart LR
@@ -411,7 +411,7 @@ Telegram ──► single ear :3031 ──live stream──► factory :3030 ─
 # Dev
 npm run dev                  # backend + frontend
 npm run dev:backend-only | dev:frontend-only
-cd apps/ingestion-service && npm run start:dev   # :3031 (not in root scripts)
+cd apps/ingestion-telegram && npm run start:dev   # :3031 (not in root scripts)
 
 # Quality
 npm run build | test | test:backend | test:frontend | lint | format
@@ -424,7 +424,7 @@ npm run db:migrate | :migrate:dry-run | :status # idempotent backfill runner
 npm run migration:generate -- -n X | :run | :revert | :show   # TypeORM (staging/prod)
 npm run db:backup            # via scripts/backup-db.sh
 
-# Ingestion (cd apps/ingestion-service)
+# Ingestion (cd apps/ingestion-telegram)
 npm run telegram:gen-session # generate MTProto session string
 npm test | test:e2e | test:cov
 ```
@@ -433,23 +433,23 @@ npm test | test:e2e | test:cov
 
 ## Configuration
 
-| App               | Env files (gitignored)                                      | Key vars                                                                                                     |
-| ----------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| backend           | `.env` (`.env.dev` wins), `.env.staging`, `.env.production` | `PORT`, `DATABASE_*`, `USE_SSE_INGESTION`, `INGESTION_SERVICE_URL`, `VIP_CALLS_BOT_TOKEN`, provider API keys |
-| ingestion-service | `.env` (`.env.dev` wins)                                    | `INGESTION_TELEGRAM_MTPROTO_{API_ID,API_HASH,SESSION}`, `INGESTION_PORT`, `INGESTION_REDIS_*`                |
-| frontend          | `.env`                                                      | `VITE_API_BASE_URL`, `VITE_WS_URL` (empty in Docker → same-origin)                                           |
+| App                | Env files (gitignored)                                      | Key vars                                                                                                      |
+| ------------------ | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| backend            | `.env` (`.env.dev` wins), `.env.staging`, `.env.production` | `PORT`, `DATABASE_*`, `USE_SSE_INGESTION`, `INGESTION_TELEGRAM_URL`, `VIP_CALLS_BOT_TOKEN`, provider API keys |
+| ingestion-telegram | `.env` (`.env.dev` wins)                                    | `INGESTION_TELEGRAM_MTPROTO_{API_ID,API_HASH,SESSION}`, `INGESTION_PORT`, `INGESTION_REDIS_*`                 |
+| frontend           | `.env`                                                      | `VITE_API_BASE_URL`, `VITE_WS_URL` (empty in Docker → same-origin)                                            |
 
-Templates live next to the apps (`.env.example`, `.env.production.template`). MTProto credentials exist **only** in ingestion-service — a second session anywhere else triggers `AUTH_KEY_DUPLICATED`.
+Templates live next to the apps (`.env.example`, `.env.production.template`). MTProto credentials exist **only** in ingestion-telegram — a second session anywhere else triggers `AUTH_KEY_DUPLICATED`.
 
 ---
 
 ## Testing
 
-| App               | Runner                     | What                                                                                 |
-| ----------------- | -------------------------- | ------------------------------------------------------------------------------------ |
-| backend           | Jest (`--forceExit`, 30 s) | 173 co-located `*.spec.ts` + `test/` e2e (incl. prod-vs-staging side-by-side parity) |
-| ingestion-service | Jest                       | 15 specs + 5 e2e (stream reconnect, concurrent clients, metrics)                     |
-| frontend          | Vitest                     | 23 `*.test.{ts,tsx}` (heaviest: crypto-news ads/page)                                |
+| App                | Runner                     | What                                                                                 |
+| ------------------ | -------------------------- | ------------------------------------------------------------------------------------ |
+| backend            | Jest (`--forceExit`, 30 s) | 173 co-located `*.spec.ts` + `test/` e2e (incl. prod-vs-staging side-by-side parity) |
+| ingestion-telegram | Jest                       | 15 specs + 5 e2e (stream reconnect, concurrent clients, metrics)                     |
+| frontend           | Vitest                     | 23 `*.test.{ts,tsx}` (heaviest: crypto-news ads/page)                                |
 
 ```bash
 npm test                      # backend + frontend workspaces
@@ -462,7 +462,7 @@ No coverage thresholds enforced. Conventions: conventional commits (commitlint),
 
 ## Deploy
 
-Push to `master` → CI (Node 24) → GHCR images (`-backend`, `-frontend`) → self-hosted droplet: DB backup → migrations in a one-off container → recreate → healthcheck with **automatic rollback**. Staging deploys from `dev`; ingestion-service ships via its own path-triggered workflow (`deploy-ingestion.yml`, never cancelled mid-run).
+Push to `master` → CI (Node 24) → GHCR images (`-backend`, `-frontend`) → self-hosted droplet: DB backup → migrations in a one-off container → recreate → healthcheck with **automatic rollback**. Staging deploys from `dev`; ingestion-telegram ships via its own path-triggered workflow (`deploy-ingestion.yml`, never cancelled mid-run).
 
 Branch model: `dev` (integration) → PR squash → `master` (prod). See [GOVERNANCE.md](GOVERNANCE.md).
 
@@ -487,14 +487,14 @@ curl -s http://localhost:3030/api/health
 
 ## Troubleshooting
 
-| Symptom                                    | Cause → fix                                                                                                      |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| `AUTH_KEY_DUPLICATED` / session logged out | Two MTProto sessions alive → keep the single session in ingestion-service; backend MTProto mode is rollback-only |
-| `npm run dev` exits immediately            | Strict Vite port — kill stale `:5173` holder (`npm run cleanup`)                                                 |
-| Backend hangs at boot, no logs             | `DATABASE_SYNCHRONIZE=true` against a big schema → check `NODE_ENV`, run `migration:show`                        |
-| Dashboard shows `0` KPIs / no live feed    | SSE disconnected (backend backoff 1 s→30 s) or dashboard module unwired; check `:3031/api/health`                |
-| SSE `backfill:error`                       | Backfill is unimplemented end-to-end (ingestion-service gap) — use MTProto-legacy or re-seed                     |
-| Stale types after pulling                  | `tsc --noEmit` per app (pre-commit runs it); ingestion-service isn't covered by root `tsc`                       |
+| Symptom                                    | Cause → fix                                                                                                       |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `AUTH_KEY_DUPLICATED` / session logged out | Two MTProto sessions alive → keep the single session in ingestion-telegram; backend MTProto mode is rollback-only |
+| `npm run dev` exits immediately            | Strict Vite port — kill stale `:5173` holder (`npm run cleanup`)                                                  |
+| Backend hangs at boot, no logs             | `DATABASE_SYNCHRONIZE=true` against a big schema → check `NODE_ENV`, run `migration:show`                         |
+| Dashboard shows `0` KPIs / no live feed    | SSE disconnected (backend backoff 1 s→30 s) or dashboard module unwired; check `:3031/api/health`                 |
+| SSE `backfill:error`                       | Backfill is unimplemented end-to-end (ingestion-telegram gap) — use MTProto-legacy or re-seed                     |
+| Stale types after pulling                  | `tsc --noEmit` per app (pre-commit runs it); ingestion-telegram isn't covered by root `tsc`                       |
 
 ---
 
@@ -517,7 +517,7 @@ curl -s http://localhost:3030/api/health
 
 - **[AGENTS.md](AGENTS.md)** — contributor knowledge base (root; ports, commands, conventions, drift)
 - **[apps/backend/AGENTS.md](apps/backend/AGENTS.md)** — pipeline, scoring & gates, 35 controllers, 41 entities, env inventory, 32 verified gaps
-- **[apps/ingestion-service/AGENTS.md](apps/ingestion-service/AGENTS.md)** — SSE protocol, media, safety config, 25 verified gaps
+- **[apps/ingestion-telegram/AGENTS.md](apps/ingestion-telegram/AGENTS.md)** — SSE protocol, media, safety config, 25 verified gaps
 - **[apps/frontend/AGENTS.md](apps/frontend/AGENTS.md)** — FSD slices, contract, polling, proxy, 11 verified gaps
 - **[apps/backend/README.md](apps/backend/README.md)** · **[apps/frontend/README.md](apps/frontend/README.md)** — architecture overviews
 - **[docs/deployment/](docs/deployment/)** — droplet checklists, ingestion runbook + FAQ + post-deploy
@@ -537,7 +537,7 @@ curl -s http://localhost:3030/api/health
 
 ## Requirements
 
-Node 22+ (CI runs 24) · Postgres 16 · Redis 7 · Telegram API credentials (`my.telegram.org`, ingestion-service only) · Telegram bot tokens (publishing)
+Node 22+ (CI runs 24) · Postgres 16 · Redis 7 · Telegram API credentials (`my.telegram.org`, ingestion-telegram only) · Telegram bot tokens (publishing)
 
 ## License
 

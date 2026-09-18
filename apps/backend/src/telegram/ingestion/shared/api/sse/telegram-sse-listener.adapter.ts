@@ -53,7 +53,7 @@ interface MessagePayload {
  * back to TelegramRawMessage format expected by backend use cases.
  *
  * UPDATED: Now integrates with BackendRegistrationClient to:
- * - Register backend with ingestion-service on boot
+ * - Register backend with ingestion-telegram on boot
  * - Include backendId in SSE stream query params
  * - Handle 401 Unauthorized by forcing re-registration
  *

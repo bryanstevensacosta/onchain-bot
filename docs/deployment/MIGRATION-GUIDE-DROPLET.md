@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide walks through migrating MTProto session credentials from backend to ingestion-service on the production droplet (CryptoGanster - 144.126.203.139 — ex-DO (suspended 2026-09-10)).
+This guide walks through migrating MTProto session credentials from backend to ingestion-telegram on the production droplet (CryptoGanster - 144.126.203.139 — ex-DO (suspended 2026-09-10)).
 
 ⚠️ **CRITICAL**: This migration must be done carefully to avoid AUTH_KEY_DUPLICATED errors which can result in Telegram account suspension.
 
@@ -10,7 +10,7 @@ This guide walks through migrating MTProto session credentials from backend to i
 
 - [ ] Backup current backend `.env` file
 - [ ] Backup current database
-- [ ] Confirm ingestion-service is built and ready to deploy
+- [ ] Confirm ingestion-telegram is built and ready to deploy
 - [ ] Schedule migration during low-traffic window (recommended: 02:00-06:00 UTC)
 - [ ] Have rollback plan ready
 
@@ -56,8 +56,8 @@ grep "TELEGRAM_MTPROTO" apps/backend/.env
 ### Step 5: Create Ingestion Service .env File
 
 ```bash
-# Create .env file for ingestion-service
-nano apps/ingestion-service/.env
+# Create .env file for ingestion-telegram
+nano apps/ingestion-telegram/.env
 ```
 
 Paste the following content, **replacing placeholders with actual values from Step 4**:
@@ -78,7 +78,7 @@ INGESTION_TELEGRAM_MTPROTO_SESSION=<COPY_FROM_BACKEND_ENV>
 # 2. API SERVER CONFIGURATION
 # ─────────────────────────────────────────────────────────────────────
 INGESTION_PORT=3031
-INGESTION_API_BASE_URL=http://ingestion-service:3031
+INGESTION_API_BASE_URL=http://ingestion-telegram:3031
 
 # ─────────────────────────────────────────────────────────────────────
 # 3. REDIS CONFIGURATION
@@ -151,7 +151,7 @@ Save and exit (Ctrl+X, Y, Enter).
 ```
 ✓ All checks passed!
 
-MTProto session migration is complete. Safe to deploy ingestion-service.
+MTProto session migration is complete. Safe to deploy ingestion-telegram.
 ```
 
 **If validation fails:**
@@ -176,7 +176,7 @@ nano apps/backend/.env
 
 # Add backend SSE configuration:
 USE_SSE_INGESTION=true
-INGESTION_REMOTE_URL=http://ingestion-service:3031
+INGESTION_REMOTE_URL=http://ingestion-telegram:3031
 ```
 
 Save and exit.
@@ -191,8 +191,8 @@ Save and exit.
 ### Step 9: Deploy Ingestion Service
 
 ```bash
-# Build and start ingestion-service
-docker compose -f apps/backend/docker-compose.prod.yml up -d --build ingestion-service
+# Build and start ingestion-telegram
+docker compose -f apps/backend/docker-compose.prod.yml up -d --build ingestion-telegram
 
 # Wait for service to start (10-20 seconds)
 sleep 15
@@ -242,7 +242,7 @@ curl -s http://localhost:3031/api/health | jq '.'
 
 **❌ If health check fails:**
 
-- Check logs: `docker compose -f apps/backend/docker-compose.prod.yml logs ingestion-service --tail 100`
+- Check logs: `docker compose -f apps/backend/docker-compose.prod.yml logs ingestion-telegram --tail 100`
 - Verify credentials in `.env` file
 - Check network connectivity to Telegram servers
 - See troubleshooting section below
@@ -250,8 +250,8 @@ curl -s http://localhost:3031/api/health | jq '.'
 ### Step 11: Monitor Logs for 5 Minutes
 
 ```bash
-# Watch ingestion-service logs
-docker compose -f apps/backend/docker-compose.prod.yml logs -f ingestion-service
+# Watch ingestion-telegram logs
+docker compose -f apps/backend/docker-compose.prod.yml logs -f ingestion-telegram
 
 # Look for:
 # ✓ "MTProto client connected"
@@ -300,7 +300,7 @@ Monitor both services for stability:
 
 ```bash
 # Watch both services
-docker compose -f apps/backend/docker-compose.prod.yml logs -f backend ingestion-service
+docker compose -f apps/backend/docker-compose.prod.yml logs -f backend ingestion-telegram
 
 # Check health periodically
 watch -n 30 'curl -s http://localhost:3031/api/health | jq ".mtproto, .clients"'
@@ -318,8 +318,8 @@ watch -n 30 'curl -s http://localhost:3031/api/health | jq ".mtproto, .clients"'
 If you encounter problems, rollback immediately:
 
 ```bash
-# 1. Stop ingestion-service
-docker compose -f apps/backend/docker-compose.prod.yml stop ingestion-service
+# 1. Stop ingestion-telegram
+docker compose -f apps/backend/docker-compose.prod.yml stop ingestion-telegram
 
 # 2. Restore backend .env
 cp apps/backend/.env.backup.$(ls -t apps/backend/.env.backup.* | head -1) apps/backend/.env
@@ -344,7 +344,7 @@ After 24 hours of stable operation:
 - [ ] Verify message counts match expected volume
 - [ ] Check for any FLOOD_WAIT events: `curl -s http://localhost:3031/api/health | jq '.floodWait'`
 - [ ] Compare backend memory usage (should be ~300MB lower)
-- [ ] Verify media storage size (should stop growing in backend, now only in ingestion-service)
+- [ ] Verify media storage size (should stop growing in backend, now only in ingestion-telegram)
 - [ ] Check dashboard functionality
 - [ ] Review any alerts or warnings
 
@@ -354,14 +354,14 @@ After 24 hours of stable operation:
 
 **Symptom:** Logs show "AUTH_KEY_DUPLICATED" error.
 
-**Cause:** Both backend and ingestion-service have MTProto session active.
+**Cause:** Both backend and ingestion-telegram have MTProto session active.
 
 **Fix:**
 
 1. Immediately stop both services
 2. Verify backend `.env` has NO `TELEGRAM_MTPROTO_*` variables
 3. Wait 60 seconds for Telegram to clear session state
-4. Start ingestion-service first, wait for connection
+4. Start ingestion-telegram first, wait for connection
 5. Start backend in SSE mode
 
 ### MTProto Connection Failed
@@ -388,15 +388,15 @@ After 24 hours of stable operation:
 
 **Possible causes:**
 
-- Ingestion-service not running
+- Ingestion-telegram not running
 - Wrong `INGESTION_REMOTE_URL` in backend .env
 - Network routing issue
 
 **Fix:**
 
-1. Verify ingestion-service is running: `docker ps | grep ingestion`
-2. Check ingestion-service health: `curl http://ingestion-service:3031/api/health`
-3. Verify backend can reach ingestion-service: `docker exec backend ping ingestion-service`
+1. Verify ingestion-telegram is running: `docker ps | grep ingestion`
+2. Check ingestion-telegram health: `curl http://ingestion-telegram:3031/api/health`
+3. Verify backend can reach ingestion-telegram: `docker exec backend ping ingestion-telegram`
 
 ### No Messages Flowing
 
@@ -416,7 +416,7 @@ After 24 hours of stable operation:
 
 ## Support Contacts
 
-- **Deployment issues**: Check `docs/troubleshooting/ingestion-service.md`
+- **Deployment issues**: Check `docs/troubleshooting/ingestion-telegram.md`
 - **Telegram API issues**: https://core.telegram.org/api/errors
 - **Emergency rollback**: Follow rollback procedure above
 
@@ -424,5 +424,5 @@ After 24 hours of stable operation:
 
 - Spec: `.kiro/specs/centralized-ingestion-service/`
 - Validation script: `scripts/validate-session-migration.sh`
-- Health endpoint docs: `apps/ingestion-service/README.md`
+- Health endpoint docs: `apps/ingestion-telegram/README.md`
 - Architecture decision: `docs/adr/001-centralized-ingestion-service.md`

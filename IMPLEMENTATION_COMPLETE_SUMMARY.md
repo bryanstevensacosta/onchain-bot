@@ -4,7 +4,7 @@
 
 ### ✅ COMPLETADO (Todos los Archivos Implementados)
 
-1. **RedisService Robusto** (`apps/ingestion-service/src/shared/common/cache/redis.service.ts`)
+1. **RedisService Robusto** (`apps/ingestion-telegram/src/shared/common/cache/redis.service.ts`)
    - ✅ Circuit breaker (5 fallos → OPEN)
    - ✅ Reconexión exponencial ilimitada (1s → 30s cap)
    - ✅ Retry de operaciones (3 intentos, 200ms delay)
@@ -58,7 +58,7 @@ BACKEND_ID=production
 
 # Verificar que estas existan:
 USE_SSE_INGESTION=true
-INGESTION_SERVICE_URL=http://onchain-bot-ingestion:3031
+INGESTION_TELEGRAM_URL=http://onchain-bot-ingestion-telegram:3031
 ```
 
 **Ingestion-Service** (ya configurado, verificar):
@@ -110,7 +110,7 @@ INGESTION_MULTI_BACKEND_ENABLED=true
 - [ ] 9. Rebuild ambos servicios:
 
   ```bash
-  # Ingestion-service
+  # Ingestion-telegram
   cd /opt/onchain-bot/apps/backend
   docker compose -f docker-compose.ingestion.yml build --no-cache
   docker compose -f docker-compose.ingestion.yml down
@@ -131,7 +131,7 @@ INGESTION_MULTI_BACKEND_ENABLED=true
   docker restart onchain-bot-redis-production
 
   # Ver logs de ingestion (debe reconectar en <60s)
-  docker compose -f docker-compose.ingestion.yml logs ingestion-service --tail 50 | grep REDIS
+  docker compose -f docker-compose.ingestion.yml logs ingestion-telegram --tail 50 | grep REDIS
 
   # Buscar: [REDIS-RECONNECT] o [REDIS-CONNECTED]
   ```
@@ -175,7 +175,7 @@ INGESTION_MULTI_BACKEND_ENABLED=true
   docker restart onchain-bot-redis-production
   # Esperar 60s, verificar reconexión en logs
 
-  # Test 2: Ingestion-service restart
+  # Test 2: Ingestion-telegram restart
   docker compose -f docker-compose.ingestion.yml restart
   # Verificar backend re-registra automáticamente
 
@@ -236,7 +236,7 @@ INGESTION_MULTI_BACKEND_ENABLED=true
 1. Verificar `BACKEND_ID` en `.env.production`
 2. Verificar conectividad:
    ```bash
-   docker exec onchain-bot-backend-production curl http://onchain-bot-ingestion:3031/api/health
+   docker exec onchain-bot-backend-production curl http://onchain-bot-ingestion-telegram:3031/api/health
    ```
 3. Ver logs de backend:
    ```bash
@@ -289,7 +289,7 @@ INGESTION_MULTI_BACKEND_ENABLED=true
 └──────────────────────────────────────────────────┘
                       ▼
 ┌──────────────────────────────────────────────────┐
-│ INGESTION-SERVICE (puerto 3031)                  │
+│ INGESTION-TELEGRAM (puerto 3031)                  │
 │  ├─ BackendRegistrationController                │
 │  │   └─ POST /backends/register                  │
 │  ├─ SSEStreamController                          │

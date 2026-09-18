@@ -368,7 +368,14 @@ describe('ProcessNextQueuedArticleUseCase', () => {
         nextDelayMs: 0,
       });
       queueRepo.findNextPending.mockResolvedValue(entry);
-      llmAdapter.generateForEntry.mockResolvedValue('texto');
+      llmAdapter.generateForEntry.mockResolvedValue({
+        content: 'texto',
+        systemPrompt: null,
+        userPrompt: 'test',
+        temperature: null,
+        reasoningEffort: null,
+        model: 'test',
+      });
       publisher.sendMessage.mockResolvedValue(sendFail('rate limited'));
       queueRepo.markFailed.mockResolvedValue(entry);
 
@@ -391,7 +398,14 @@ describe('ProcessNextQueuedArticleUseCase', () => {
         nextDelayMs: 0,
       });
       queueRepo.findNextPending.mockResolvedValue(entry);
-      llmAdapter.generateForEntry.mockResolvedValue('texto');
+      llmAdapter.generateForEntry.mockResolvedValue({
+        content: 'texto',
+        systemPrompt: null,
+        userPrompt: 'test',
+        temperature: null,
+        reasoningEffort: null,
+        model: 'test',
+      });
       publisher.sendMessage.mockRejectedValue(new Error('network down'));
       queueRepo.markFailed.mockResolvedValue(entry);
 
@@ -411,7 +425,14 @@ describe('ProcessNextQueuedArticleUseCase', () => {
         nextDelayMs: 0,
       });
       queueRepo.findNextPending.mockResolvedValue(entry);
-      llmAdapter.generateForEntry.mockResolvedValue('texto');
+      llmAdapter.generateForEntry.mockResolvedValue({
+        content: 'texto',
+        systemPrompt: null,
+        userPrompt: 'test',
+        temperature: null,
+        reasoningEffort: null,
+        model: 'test',
+      });
       publisher.sendMessage.mockResolvedValue(sendFail('temporary'));
       queueRepo.incrementAttempts.mockResolvedValue(entry);
 
@@ -430,7 +451,14 @@ describe('ProcessNextQueuedArticleUseCase', () => {
         nextDelayMs: 0,
       });
       queueRepo.findNextPending.mockResolvedValue(entry);
-      llmAdapter.generateForEntry.mockResolvedValue('texto');
+      llmAdapter.generateForEntry.mockResolvedValue({
+        content: 'texto',
+        systemPrompt: null,
+        userPrompt: 'test',
+        temperature: null,
+        reasoningEffort: null,
+        model: 'test',
+      });
       publisher.sendMessage.mockResolvedValue(sendFail('permanent'));
       queueRepo.markFailed.mockResolvedValue(entry);
 
@@ -456,7 +484,14 @@ describe('ProcessNextQueuedArticleUseCase', () => {
         nextDelayMs: 0,
       });
       queueRepo.findNextPending.mockResolvedValue(entry);
-      llmAdapter.generateForEntry.mockResolvedValue('texto');
+      llmAdapter.generateForEntry.mockResolvedValue({
+        content: 'texto',
+        systemPrompt: null,
+        userPrompt: 'test',
+        temperature: null,
+        reasoningEffort: null,
+        model: 'test',
+      });
       publisher.sendMessage.mockResolvedValue(sendFail('permanent'));
       queueRepo.markFailed.mockResolvedValue(entry);
 
@@ -477,7 +512,14 @@ describe('ProcessNextQueuedArticleUseCase', () => {
         nextDelayMs: 0,
       });
       queueRepo.findNextPending.mockResolvedValue(entry);
-      llmAdapter.generateForEntry.mockResolvedValue('texto');
+      llmAdapter.generateForEntry.mockResolvedValue({
+        content: 'texto',
+        systemPrompt: null,
+        userPrompt: 'test',
+        temperature: null,
+        reasoningEffort: null,
+        model: 'test',
+      });
       publisher.sendMessage.mockResolvedValue(
         sendFail('CRYPTO_NEWS_BOT_TOKEN is not set'),
       );
@@ -611,6 +653,121 @@ describe('ProcessNextQueuedArticleUseCase', () => {
     });
   });
 
+  describe('LLM empty-content guard', () => {
+    const setupPendingEntry = async (id: string) => {
+      const entry = buildEntry({ id, imagePath: null, imagePaths: [] });
+      queueRepo.countPublishedToday.mockResolvedValue(0);
+      throttleScheduler.shouldPublish.mockResolvedValue({
+        canPublish: true,
+        nextDelayMs: 0,
+      });
+      queueRepo.findNextPending.mockResolvedValue(entry);
+      queueRepo.markFailed.mockResolvedValue(entry);
+      return entry;
+    };
+
+    const expectNeverPublished = () => {
+      expect(publisher.sendMessage).not.toHaveBeenCalled();
+      expect(publisher.sendPhoto).not.toHaveBeenCalled();
+      expect(publisher.sendVideo).not.toHaveBeenCalled();
+      expect(publisher.sendMediaGroup).not.toHaveBeenCalled();
+      expect(queueRepo.markPublished).not.toHaveBeenCalled();
+      expect(queueRepo.incrementAttempts).not.toHaveBeenCalled();
+      expect(throttleScheduler.setLastPublishAt).not.toHaveBeenCalled();
+    };
+
+    it('marks FAILED and never publishes when LLM returns empty string', async () => {
+      await setupPendingEntry('entry-empty');
+      llmAdapter.generateForEntry.mockResolvedValue({
+        content: '',
+        systemPrompt: null,
+        userPrompt: 'prompt-chars',
+        temperature: null,
+        reasoningEffort: null,
+        model: 'test-model',
+      });
+
+      await useCase.execute();
+
+      expect(queueRepo.markFailed).toHaveBeenCalledWith(
+        'entry-empty',
+        'LLM returned empty content (model=test-model, promptChars=12)',
+      );
+      expectNeverPublished();
+    });
+
+    it('marks FAILED and never publishes when LLM returns whitespace-only content', async () => {
+      await setupPendingEntry('entry-ws');
+      llmAdapter.generateForEntry.mockResolvedValue({
+        content: '   \n  ',
+        systemPrompt: null,
+        userPrompt: 'prompt-chars',
+        temperature: null,
+        reasoningEffort: null,
+        model: 'test-model',
+      });
+
+      await useCase.execute();
+
+      expect(queueRepo.markFailed).toHaveBeenCalledWith(
+        'entry-ws',
+        'LLM returned empty content (model=test-model, promptChars=12)',
+      );
+      expectNeverPublished();
+    });
+
+    it('marks FAILED and never publishes when LLM returns null content', async () => {
+      await setupPendingEntry('entry-null');
+      llmAdapter.generateForEntry.mockResolvedValue({
+        content: null as unknown as string,
+        systemPrompt: null,
+        userPrompt: 'prompt-chars',
+        temperature: null,
+        reasoningEffort: null,
+        model: 'test-model',
+      });
+
+      await useCase.execute();
+
+      expect(queueRepo.markFailed).toHaveBeenCalledWith(
+        'entry-null',
+        'LLM returned empty content (model=test-model, promptChars=12)',
+      );
+      expectNeverPublished();
+    });
+
+    it('publishes once when LLM returns non-empty content (control)', async () => {
+      const entry = await setupPendingEntry('entry-control');
+      llmAdapter.generateForEntry.mockResolvedValue({
+        content: 'BTC rompe $100k',
+        systemPrompt: null,
+        userPrompt: 'prompt-chars',
+        temperature: null,
+        reasoningEffort: null,
+        model: 'test-model',
+      });
+      publisher.sendMessage.mockResolvedValue(sendOk(99_800));
+      queueRepo.markPublished.mockResolvedValue(entry);
+      throttleScheduler.setLastPublishAt.mockResolvedValue();
+
+      await useCase.execute();
+
+      expect(publisher.sendMessage).toHaveBeenCalledTimes(1);
+      expect(publisher.sendMessage).toHaveBeenCalledWith(
+        TEST_TARGET_CHANNEL,
+        'BTC rompe $100k',
+        undefined,
+        { parseMode: 'HTML' },
+      );
+      expect(queueRepo.markFailed).not.toHaveBeenCalled();
+      expect(queueRepo.markPublished).toHaveBeenCalledWith(
+        'entry-control',
+        '99800',
+        expect.objectContaining({ content: 'BTC rompe $100k' }),
+      );
+    });
+  });
+
   describe('orchestration invariants', () => {
     it('always calls countPublishedToday exactly once', async () => {
       queueRepo.countPublishedToday.mockResolvedValue(36);
@@ -732,7 +889,14 @@ describe('ProcessNextQueuedArticleUseCase', () => {
         nextDelayMs: 0,
       });
       queueRepo.findNextPending.mockResolvedValue(entry);
-      llmAdapter.generateForEntry.mockResolvedValue('texto');
+      llmAdapter.generateForEntry.mockResolvedValue({
+        content: 'texto',
+        systemPrompt: null,
+        userPrompt: 'test',
+        temperature: null,
+        reasoningEffort: null,
+        model: 'test',
+      });
       publisher.sendMessage.mockResolvedValue(sendFail('rate limited'));
       queueRepo.markFailed.mockResolvedValue(entry);
 

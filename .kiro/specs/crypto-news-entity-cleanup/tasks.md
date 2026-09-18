@@ -213,7 +213,7 @@ Choose based on priorities (clean separation vs. speed).
   - **Dependencies:** Task 7
   - **Validates:** FR1 (Single Source of Truth)
   - [ ] 8.1 Check if event is emitted
-    - Search: `grep -r "crypto-news\.message\.ingested" apps/ingestion-service/src/`
+    - Search: `grep -r "crypto-news\.message\.ingested" apps/ingestion-telegram/src/`
     - Search: `grep -r "CryptoNewsMessageIngestedEvent" apps/backend/src/`
   - [ ] 8.2 Make deletion decision
   - [ ] 8.3 If NOT emitted: Delete handler (dead code)
@@ -260,13 +260,13 @@ Choose based on priorities (clean separation vs. speed).
   - **Effort:** 15 minutes
   - **Risk:** Low
   - **Validates:** FR1 (Single Source of Truth)
-  - [ ] 101.1 Create barrel export in ingestion-service
-    - File: `apps/ingestion-service/src/index.ts`
+  - [ ] 101.1 Create barrel export in ingestion-telegram
+    - File: `apps/ingestion-telegram/src/index.ts`
     - Export: `CryptoNewsMessage`, `CryptoNewsMedia`
   - [ ] 101.2 Verify TypeScript compiles
     - Command: `cd apps/backend && npx tsc --noEmit`
   - **Acceptance:** Entities exported from ingestion, TypeScript compiles
-  - **Verification:** `cat apps/ingestion-service/src/index.ts && cd apps/backend && npx tsc --noEmit`
+  - **Verification:** `cat apps/ingestion-telegram/src/index.ts && cd apps/backend && npx tsc --noEmit`
   - _Requirements: FR1_
 
 - [ ] 102. Update backend imports
@@ -276,7 +276,7 @@ Choose based on priorities (clean separation vs. speed).
   - **Validates:** FR3 (Type Safety)
   - [ ] 102.1 Update use case imports
     - Before: `import { CryptoNewsMessage } from 'telegram/ingestion/...'`
-    - After: `import { CryptoNewsMessage } from '@alpha-meta-token-scanner/ingestion-service'`
+    - After: `import { CryptoNewsMessage } from '@alpha-meta-token-scanner/ingestion-telegram'`
   - [ ] 102.2 Update scheduler imports
   - [ ] 102.3 Update any other imports
   - [ ] 102.4 Verify TypeScript compiles
@@ -315,11 +315,11 @@ Choose based on priorities (clean separation vs. speed).
     - Command: `npm run start:dev`
   - [ ] 104.3 Update AGENTS.md files
     - Document Strategy 3 (Direct Import) chosen
-    - Backend imports entities from ingestion-service
+    - Backend imports entities from ingestion-telegram
     - Note duplication resolved
     - Can migrate to Strategy 1 later if desired
   - [ ] 104.4 Document strategy choice
-  - **Files:** `AGENTS.md`, `apps/backend/AGENTS.md`, `apps/ingestion-service/AGENTS.md`
+  - **Files:** `AGENTS.md`, `apps/backend/AGENTS.md`, `apps/ingestion-telegram/AGENTS.md`
   - **Acceptance:** All tests pass, backend boots successfully, documentation updated, strategy choice documented
   - **Verification:** `npm run build && npm test && npm run test:e2e && npm run start:dev`
   - _Requirements: FR2, FR4, FR5_
@@ -328,12 +328,12 @@ Choose based on priorities (clean separation vs. speed).
 
 ### Common Issues
 
-**Issue:** "Cannot find module '@alpha-meta-token-scanner/ingestion-service'"  
+**Issue:** "Cannot find module '@alpha-meta-token-scanner/ingestion-telegram'"  
 **Fix:**
 
 ```bash
 npm install  # Reinstall workspaces
-npm run build  # Build ingestion-service
+npm run build  # Build ingestion-telegram
 ```
 
 **Issue:** "Circular dependency detected"  
