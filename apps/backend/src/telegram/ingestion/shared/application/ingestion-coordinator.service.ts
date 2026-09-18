@@ -22,7 +22,7 @@ import { ProcessCryptoNewsMessageHandler } from 'telegram/crypto-news-integratio
  *    - 'crypto-news' → ProcessCryptoNewsMessageHandler (filters + matching + enqueue)
  *    - 'kol' → KolIngestionOrchestratorUseCase (extraction + parsing pipeline)
  *
- * Per Opción A: crypto-news messages are persisted by ingestion-service in
+ * Per Opción A: crypto-news messages are persisted by ingestion-telegram in
  * its own DB — the backend NEVER persists them. The backend receives
  * metadata-only SSE events and processes matched messages via the
  * crypto-news handler.
@@ -32,7 +32,7 @@ import { ProcessCryptoNewsMessageHandler } from 'telegram/crypto-news-integratio
  *
  * Note (2026-09-06): Seeders removed. Channels are now registered via:
  * - KOLs: POST /telegram-kol/identity/kols
- * - Crypto-news: POST {INGESTION_SERVICE_URL}/api/crypto-news/sources
+ * - Crypto-news: POST {INGESTION_TELEGRAM_URL}/api/crypto-news/sources
  */
 @Injectable()
 export class IngestionCoordinator implements OnApplicationBootstrap {

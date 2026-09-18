@@ -44,7 +44,7 @@ export interface MatchingHealthView {
  * operator toggles ON.
  *
  * No MATCHING_* env var exists or may be added — matching is owned by
- * the DB. Transport env (INGESTION_SERVICE_URL, USE_SSE_CRYPTO_NEWS,
+ * the DB. Transport env (INGESTION_TELEGRAM_URL, USE_SSE_CRYPTO_NEWS,
  * CRYPTO_NEWS_POLLING_INTERVAL_MINUTES) is unrelated and unchanged.
  */
 @Controller('crypto-news/matching')

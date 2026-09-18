@@ -222,7 +222,7 @@ docker logs onchain-bot-backend-production --tail 50 | grep BACKEND-REGISTRATION
 docker logs onchain-bot-backend-production --since 1m | grep "yielded successfully" | wc -l
 
 # 5. Verify Redis connection
-docker logs onchain-bot-ingestion --tail 50 | grep REDIS
+docker logs onchain-bot-ingestion-telegram --tail 50 | grep REDIS
 
 # 6. Check recent backend keep-alives
 docker logs onchain-bot-backend-production --since 10m | grep KEEPALIVE

@@ -13,16 +13,16 @@ import type {
 } from '../../../crypto-news-publisher/domain/dtos';
 
 /**
- * EnqueueMatchingCronScheduler - Poll ingestion-service for matching crypto-news messages
+ * EnqueueMatchingCronScheduler - Poll ingestion-telegram for matching crypto-news messages
  *
  * **Per Opción A architecture:**
  * - Ingestion-service stores RAW messages (no filters)
- * - Backend polls ingestion-service HTTP API every minute
+ * - Backend polls ingestion-telegram HTTP API every minute
  * - FilteredCryptoNewsService applies filters + keyword matching on-read
  * - Matched messages are enqueued for LLM processing + publication
  *
  * **Responsibilities:**
- * 1. Fetch recent messages from ingestion-service (last 50, configurable)
+ * 1. Fetch recent messages from ingestion-telegram (last 50, configurable)
  * 2. Filter + match via FilteredCryptoNewsService (regex transforms + keywords)
  * 3. Enqueue matched messages via EnqueueMatchingMessageUseCase
  * 4. Log stats (fetched / filtered / enqueued counts)
@@ -204,7 +204,7 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
   /**
    * Map FilteredCryptoNewsMessage DTO to EnqueueMessageDto (Publisher DTO).
    *
-   * Strategy 1 (Pure DTO): Backend uses DTOs to decouple from ingestion-service
+   * Strategy 1 (Pure DTO): Backend uses DTOs to decouple from ingestion-telegram
    * domain entities. This mapper converts from HTTP DTO shape to Publisher DTO shape.
    *
    * Transformations:
@@ -250,7 +250,7 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
   }
 
   /**
-   * Map media type from ingestion-service shape to publisher shape.
+   * Map media type from ingestion-telegram shape to publisher shape.
    *
    * Ingestion service uses 'webpage' for link previews.
    * Publisher expects 'document' for non-photo/video media.

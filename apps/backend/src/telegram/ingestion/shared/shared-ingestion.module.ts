@@ -25,11 +25,11 @@ import { CryptoNewsMediaDownloader } from 'telegram/ingestion/crypto-news/applic
  * Stub implementation of CryptoNewsMediaDownloader for deprecated MTProto mode.
  *
  * **Phase 5 (media-cohesion-refactor):**
- * Media download responsibility fully migrated to ingestion-service. Backend no longer
+ * Media download responsibility fully migrated to ingestion-telegram. Backend no longer
  * downloads media in any mode (SSE reads via HTTP, MTProto deprecated).
  *
  * This stub exists only to satisfy DI in deprecated MTProto mode. Any attempt to use it
- * throws an error directing users to SSE mode + ingestion-service.
+ * throws an error directing users to SSE mode + ingestion-telegram.
  */
 class StubCryptoNewsMediaDownloader extends CryptoNewsMediaDownloader {
   async download(): Promise<never> {
@@ -37,7 +37,7 @@ class StubCryptoNewsMediaDownloader extends CryptoNewsMediaDownloader {
       'CryptoNewsMediaDownloader.download() is deprecated. ' +
         'Media download migrated to ingestion-service (Phase 5). ' +
         'Use SSE mode (USE_SSE_INGESTION=true) and fetch media via ' +
-        'INGESTION_SERVICE_URL/api/media/:channelId/:messageId/:index',
+        'INGESTION_TELEGRAM_URL/api/media/:channelId/:messageId/:index',
     );
   }
 
@@ -46,7 +46,7 @@ class StubCryptoNewsMediaDownloader extends CryptoNewsMediaDownloader {
       'CryptoNewsMediaDownloader.saveToDisk() is deprecated. ' +
         'Media download migrated to ingestion-service (Phase 5). ' +
         'Use SSE mode (USE_SSE_INGESTION=true) and fetch media via ' +
-        'INGESTION_SERVICE_URL/api/media/:channelId/:messageId/:index',
+        'INGESTION_TELEGRAM_URL/api/media/:channelId/:messageId/:index',
     );
   }
 }
@@ -66,7 +66,7 @@ class StubCryptoNewsMediaDownloader extends CryptoNewsMediaDownloader {
  *
  * Provides globally:
  * - TelegramListenerPort (dynamically selects adapter based on env)
- * - BackendRegistrationClient (registers backend with ingestion-service in SSE mode)
+ * - BackendRegistrationClient (registers backend with ingestion-telegram in SSE mode)
  * - TelegramMtprotoListenerAdapter (always available for rollback)
  * - TelegramSseListenerAdapter (always available)
  * - TelegramMockAdapter (always available for dev/testing)
@@ -95,11 +95,11 @@ class StubCryptoNewsMediaDownloader extends CryptoNewsMediaDownloader {
  * full migration to SSE mode:
  * - `TelegramMtprotoListenerAdapter` - Direct MTProto client (see adapter deprecation note)
  * - `TelegramClientManager` - MTProto session management (see service deprecation note)
- * - `LastSeenManager` - Cursor tracking (centralized in ingestion-service)
- * - `IngestionSafetyConfig` - Anti-ban configuration (centralized in ingestion-service)
- * - `SleepWindowService` - Sleep window logic (centralized in ingestion-service)
- * - `FloodWaitCounterService` - FLOOD_WAIT metrics (centralized in ingestion-service)
- * - `FloodWaitHandlerService` - FLOOD_WAIT retry logic (centralized in ingestion-service)
+ * - `LastSeenManager` - Cursor tracking (centralized in ingestion-telegram)
+ * - `IngestionSafetyConfig` - Anti-ban configuration (centralized in ingestion-telegram)
+ * - `SleepWindowService` - Sleep window logic (centralized in ingestion-telegram)
+ * - `FloodWaitCounterService` - FLOOD_WAIT metrics (centralized in ingestion-telegram)
+ * - `FloodWaitHandlerService` - FLOOD_WAIT retry logic (centralized in ingestion-telegram)
  *
  * **Migration Timeline:**
  * - Phase 1 (current): SSE mode available via feature flag, MTProto mode retained for rollback
@@ -118,7 +118,7 @@ class StubCryptoNewsMediaDownloader extends CryptoNewsMediaDownloader {
  * Requirement 7 for migration strategy and rollback procedures.
  *
  * @see TelegramSseListenerAdapter Replacement adapter for SSE mode
- * @see {@link apps/ingestion-service} Centralized ingestion service
+ * @see {@link apps/ingestion-telegram} Centralized ingestion service
  */
 import { TELEGRAM_LISTENER_PORT_TOKEN } from './shared-injection-tokens';
 
@@ -143,7 +143,7 @@ const logger = new Logger('SharedIngestionModule');
     TelegramPeerResolver,
 
     // Stub provider for deprecated CryptoNewsMediaDownloader (Phase 5)
-    // Media download fully migrated to ingestion-service. This stub satisfies DI
+    // Media download fully migrated to ingestion-telegram. This stub satisfies DI
     // in deprecated MTProto mode but throws errors on use.
     {
       provide: CryptoNewsMediaDownloader,
@@ -251,7 +251,7 @@ const logger = new Logger('SharedIngestionModule');
     SleepWindowService,
     FloodWaitCounterService,
     FloodWaitHandlerService,
-    // CryptoNewsMediaDownloader removed (Phase 5) — media download migrated to ingestion-service
+    // CryptoNewsMediaDownloader removed (Phase 5) — media download migrated to ingestion-telegram
   ],
 })
 export class SharedIngestionModule {}

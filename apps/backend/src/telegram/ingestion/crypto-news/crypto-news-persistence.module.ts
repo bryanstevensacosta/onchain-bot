@@ -18,7 +18,7 @@ import { ChannelContentFilterConfigEntity } from './infrastructure/persistence/t
  * import it BEFORE the module with forwardRef in the parent module chain.
  *
  * Post db-separation todo 4: only the filter-config entity stays in the
- * backend. Sources/messages/media moved to ingestion-service's own DB.
+ * backend. Sources/messages/media moved to ingestion-telegram's own DB.
  */
 @Module({
   imports: [TypeOrmModule.forFeature([ChannelContentFilterConfigEntity])],

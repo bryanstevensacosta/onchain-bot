@@ -19,14 +19,14 @@ Phased rollout plan for deploying the multi-backend SSE broadcast system to prod
 
 ### Objectives
 
-- Deploy ingestion-service to staging
+- Deploy ingestion-telegram to staging
 - Validate multi-backend mode in staging environment
 - Confirm zero message loss and acceptable performance
 
 ### Prerequisites
 
 - [ ] Code merged to `master` branch
-- [ ] Docker image built: `ghcr.io/bryanstevensacosta/onchain-bot-ingestion:latest`
+- [ ] Docker image built: `ghcr.io/bryanstevensacosta/onchain-bot-ingestion-telegram:latest`
 - [ ] Staging backend updated with registration + SSE client code
 - [ ] PostgreSQL schema includes `backfill_messages` table
 - [ ] Redis available for cursor tracking
@@ -44,11 +44,11 @@ cd /opt/onchain-bot
 git pull origin master
 
 # 3. Update .env with feature flag OFF
-echo "INGESTION_MULTI_BACKEND_ENABLED=false" >> apps/ingestion-service/.env
+echo "INGESTION_MULTI_BACKEND_ENABLED=false" >> apps/ingestion-telegram/.env
 
 # 4. Build and deploy
-docker-compose -f apps/backend/docker-compose.with-ingestion.yml build ingestion-service
-docker-compose -f apps/backend/docker-compose.with-ingestion.yml up -d ingestion-service
+docker-compose -f apps/backend/docker-compose.with-ingestion.yml build ingestion-telegram
+docker-compose -f apps/backend/docker-compose.with-ingestion.yml up -d ingestion-telegram
 
 # 5. Verify health
 curl http://localhost:3032/api/health
@@ -68,10 +68,10 @@ curl http://localhost:3032/api/health
 
 ```bash
 # Update .env
-sed -i 's/INGESTION_MULTI_BACKEND_ENABLED=false/INGESTION_MULTI_BACKEND_ENABLED=true/' apps/ingestion-service/.env
+sed -i 's/INGESTION_MULTI_BACKEND_ENABLED=false/INGESTION_MULTI_BACKEND_ENABLED=true/' apps/ingestion-telegram/.env
 
 # Restart service
-docker-compose -f apps/backend/docker-compose.with-ingestion.yml restart ingestion-service
+docker-compose -f apps/backend/docker-compose.with-ingestion.yml restart ingestion-telegram
 
 # Wait 30 seconds for startup
 sleep 30
@@ -115,7 +115,7 @@ curl http://localhost:3032/api/ingestion/stream/status
 watch -n 5 'curl -s http://localhost:3032/api/ingestion/stream/status'
 
 # Monitor memory usage
-docker stats ingestion-service --no-stream
+docker stats ingestion-telegram --no-stream
 
 # Monitor latency
 # p50 < 100ms, p95 < 500ms, p99 < 1000ms
@@ -149,7 +149,7 @@ docker restart staging-backend
 
 ### Objectives
 
-- Deploy ingestion-service to production with flag OFF
+- Deploy ingestion-telegram to production with flag OFF
 - Run in parallel mode (legacy HTTP polling)
 - Confirm no regressions in production
 
@@ -178,22 +178,22 @@ cd /opt/onchain-bot
 git pull origin master
 
 # 4. Set feature flag OFF
-echo "INGESTION_MULTI_BACKEND_ENABLED=false" >> apps/ingestion-service/.env.production
+echo "INGESTION_MULTI_BACKEND_ENABLED=false" >> apps/ingestion-telegram/.env.production
 
 # 5. Run database migration
-cd apps/ingestion-service
+cd apps/ingestion-telegram
 npm run migration:run
 
 # 6. Build and deploy
 cd ../..
-docker-compose -f apps/backend/docker-compose.with-ingestion.yml build ingestion-service
-docker-compose -f apps/backend/docker-compose.with-ingestion.yml up -d ingestion-service
+docker-compose -f apps/backend/docker-compose.with-ingestion.yml build ingestion-telegram
+docker-compose -f apps/backend/docker-compose.with-ingestion.yml up -d ingestion-telegram
 
 # 7. Verify health
 curl http://localhost:3032/api/health
 
 # 8. Verify legacy mode
-docker logs ingestion-service | grep "Legacy Mode"
+docker logs ingestion-telegram | grep "Legacy Mode"
 ```
 
 **Validation:**
@@ -216,10 +216,10 @@ curl http://localhost:3032/api/health
 # Compare with pre-deployment baseline
 
 # Check error rate
-docker logs ingestion-service | grep ERROR | wc -l
+docker logs ingestion-telegram | grep ERROR | wc -l
 
 # Check memory usage
-docker stats ingestion-service --no-stream
+docker stats ingestion-telegram --no-stream
 ```
 
 **Success Criteria:**
@@ -256,10 +256,10 @@ docker stats ingestion-service --no-stream
 
 ```bash
 # 1. Update .env
-sed -i 's/INGESTION_MULTI_BACKEND_ENABLED=false/INGESTION_MULTI_BACKEND_ENABLED=true/' apps/ingestion-service/.env.production
+sed -i 's/INGESTION_MULTI_BACKEND_ENABLED=false/INGESTION_MULTI_BACKEND_ENABLED=true/' apps/ingestion-telegram/.env.production
 
-# 2. Restart ingestion-service
-docker-compose -f apps/backend/docker-compose.with-ingestion.yml restart ingestion-service
+# 2. Restart ingestion-telegram
+docker-compose -f apps/backend/docker-compose.with-ingestion.yml restart ingestion-telegram
 
 # 3. Wait for startup
 sleep 30
@@ -271,7 +271,7 @@ curl http://localhost:3032/api/ingestion/stream/status | jq '.registeredBackends
 curl http://localhost:3032/api/ingestion/stream/status | jq '.activeBackends'
 
 # 6. Monitor logs
-docker logs ingestion-service --tail 100 | grep "Multi-Backend Mode"
+docker logs ingestion-telegram --tail 100 | grep "Multi-Backend Mode"
 ```
 
 **Real-Time Monitoring:**
@@ -281,7 +281,7 @@ docker logs ingestion-service --tail 100 | grep "Multi-Backend Mode"
 watch -n 5 'curl -s http://localhost:3032/api/ingestion/stream/status | jq "{activeBackends, channelUnionSize, backfillBufferSize}"'
 
 # Terminal 2: Watch logs
-docker logs ingestion-service --follow | grep -E "ERROR|Broadcasting|Backfill"
+docker logs ingestion-telegram --follow | grep -E "ERROR|Broadcasting|Backfill"
 
 # Terminal 3: Monitor backend
 # Check backend application logs for message reception
@@ -294,7 +294,7 @@ docker logs ingestion-service --follow | grep -E "ERROR|Broadcasting|Backfill"
 1. **Message Counts:**
 
    ```bash
-   # Compare message counts between ingestion-service and backend
+   # Compare message counts between ingestion-telegram and backend
    # Should be 100% match (0% loss)
    ```
 
@@ -308,7 +308,7 @@ docker logs ingestion-service --follow | grep -E "ERROR|Broadcasting|Backfill"
 3. **Error Rate:**
 
    ```bash
-   docker logs ingestion-service | grep ERROR | tail -50
+   docker logs ingestion-telegram | grep ERROR | tail -50
    # Target: 0 errors related to multi-backend system
    ```
 
@@ -327,7 +327,7 @@ docker logs ingestion-service --follow | grep -E "ERROR|Broadcasting|Backfill"
 5. **Circuit Breaker:**
    ```bash
    # Monitor for circuit breaker events
-   docker logs ingestion-service | grep "Circuit.*OPEN\|HALF_OPEN\|CLOSED"
+   docker logs ingestion-telegram | grep "Circuit.*OPEN\|HALF_OPEN\|CLOSED"
    ```
 
 **Success Criteria:**
@@ -350,13 +350,13 @@ docker logs ingestion-service --follow | grep -E "ERROR|Broadcasting|Backfill"
 
 ```bash
 # Set flag to false
-sed -i 's/INGESTION_MULTI_BACKEND_ENABLED=true/INGESTION_MULTI_BACKEND_ENABLED=false/' apps/ingestion-service/.env.production
+sed -i 's/INGESTION_MULTI_BACKEND_ENABLED=true/INGESTION_MULTI_BACKEND_ENABLED=false/' apps/ingestion-telegram/.env.production
 
 # Restart service
-docker-compose -f apps/backend/docker-compose.with-ingestion.yml restart ingestion-service
+docker-compose -f apps/backend/docker-compose.with-ingestion.yml restart ingestion-telegram
 
 # Verify legacy mode active
-docker logs ingestion-service | grep "Legacy Mode"
+docker logs ingestion-telegram | grep "Legacy Mode"
 ```
 
 ---
@@ -384,8 +384,8 @@ docker logs ingestion-service | grep "Legacy Mode"
 ```bash
 # Deploy updated code with legacy code removed
 git pull origin master
-docker-compose -f apps/backend/docker-compose.with-ingestion.yml build ingestion-service
-docker-compose -f apps/backend/docker-compose.with-ingestion.yml up -d ingestion-service
+docker-compose -f apps/backend/docker-compose.with-ingestion.yml build ingestion-telegram
+docker-compose -f apps/backend/docker-compose.with-ingestion.yml up -d ingestion-telegram
 ```
 
 ### Day 3-5: Documentation Finalization
@@ -456,6 +456,6 @@ docker-compose -f apps/backend/docker-compose.with-ingestion.yml up -d ingestion
 
 - **Project Lead:** Backend Infrastructure Team
 - **On-Call:** PagerDuty rotation
-- **Slack Channel:** #ingestion-service
+- **Slack Channel:** #ingestion-telegram
 - **Runbook:** [multi-backend-runbook.md](./multi-backend-runbook.md)
 - **Migration Guide:** [multi-backend-migration.md](./multi-backend-migration.md)

@@ -84,7 +84,7 @@ Schedule, Database (`forRootFromEnv`), Redis, Logger (pino — pino-roll files e
 | ----------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | SSE (recommended)                   | `USE_SSE_INGESTION=true`     | `TelegramSseListenerAdapter` → `GET {serviceUrl}/api/ingestion/stream`, backoff 1 s→30 s cap, client-side channel filter             |
 | Mock (CLI/tests)                    | `USE_MOCK_INGESTION=true`    | `TelegramMockAdapter` + `DevModule` (`POST /dev/inject-message`, `GET /dev/queue-status`, `POST /dev/clear-queue`) + `scripts/cli/*` |
-| MTProto (deprecated, rollback-only) | both false (CURRENT DEFAULT) | `TelegramMtprotoListenerAdapter` — same session conflict risk as ingestion-service                                                   |
+| MTProto (deprecated, rollback-only) | both false (CURRENT DEFAULT) | `TelegramMtprotoListenerAdapter` — same session conflict risk as ingestion-telegram                                                  |
 
 Adapter internals (`telegram-sse-listener.adapter.ts`, 459 lines): plain `fetch` + `ReadableStream`
 manual frame parsing (`event: …\ndata: {json}\n\n`), channel filter client-side, `health:ping`
@@ -97,12 +97,12 @@ in SSE mode the backend can neither resolve titles nor auto-join (gap 24). Verbo
 
 Wiring (`SharedIngestionModule`, `@Global`): ALL THREE adapters always provided; `TelegramListenerPort`
 selected by `useFactory` on flags (+ `TELEGRAM_LISTENER_PORT_TOKEN` alias). **Phase 5 (2026-09)**:
-`CryptoNewsMediaDownloader` removed — media download fully migrated to ingestion-service.
+`CryptoNewsMediaDownloader` removed — media download fully migrated to ingestion-telegram.
 `TelegramMediaDownloadService` now uses `StubCryptoNewsMediaDownloader` that throws descriptive
 errors directing users to SSE mode.
 `KolSeeder` (`telegram/ingestion/kol/seeders/`, `@deprecated` — use `POST telegram-kol/identity/kols`;
 disable via `INGESTION_TELEGRAM_SEED_ENABLED=false`) + news seeder feed the backend DB; the
-ingestion-service then pulls KOL IDs over HTTP (crypto-news sources now read from ingestion-service own DB, no longer via HTTP).
+ingestion-telegram then pulls KOL IDs over HTTP (crypto-news sources now read from ingestion-telegram own DB, no longer via HTTP).
 
 Backend `IngestionCoordinator` (`shared/application/ingestion-coordinator.service.ts`, `OnApplicationBootstrap`):
 subscribes once → routes by `messageType`:
@@ -116,14 +116,14 @@ Crypto-news routing includes:
 - Debug logs: `[ROUTE-DEBUG] Routing to crypto-news handler` / `✅ Crypto-news handler completed`
 - Defensive: errors logged, NOT thrown (protects SSE stream from single bad message)
 
-Provider endpoints consumed BY ingestion-service:
+Provider endpoints consumed BY ingestion-telegram:
 
 - `GET telegram-kol/identity/kols/active/ids` (`KolController.listActiveIds` → `ListActiveKolIdsUseCase` → `findActive()`) **still active**
-- ~~`GET crypto-news/sources/active/ids`~~ (**DEPRECATED 2026-09-05** — ingestion-service NO LONGER calls this, uses own DB instead; endpoint kept for backward compatibility but returns stale data)
+- ~~`GET crypto-news/sources/active/ids`~~ (**DEPRECATED 2026-09-05** — ingestion-telegram NO LONGER calls this, uses own DB instead; endpoint kept for backward compatibility but returns stale data)
 
 ## KOL DOMAIN (`kol/`)
 
-- `identity/`: `Kol` aggregate + 6 handlers (`RegisterKol`, `GetKol`, `ListKols`, `SetKolLifecycle`, `ListActiveKolIds` ← serves ingestion-service, `KolIngestionOrchestratorUseCase` with `execute` + per-message `onMessageReceived`). Lifecycle transitions on the aggregate (`activate/dormant/blacklist`); handle resolution seed > MTProto > null; `ResolvedKolMetadataRepository` JSON cache. Seed format: `kolId|handle|title` comma-separated (`INGESTION_TELEGRAM_SEED_CHANNELS`; `SEED_KOLS` JSON in ingestion-service). Same `[KOL-ORCH-DEBUG]` log-noise class as SSE adapter (gap 25).
+- `identity/`: `Kol` aggregate + 6 handlers (`RegisterKol`, `GetKol`, `ListKols`, `SetKolLifecycle`, `ListActiveKolIds` ← serves ingestion-telegram, `KolIngestionOrchestratorUseCase` with `execute` + per-message `onMessageReceived`). Lifecycle transitions on the aggregate (`activate/dormant/blacklist`); handle resolution seed > MTProto > null; `ResolvedKolMetadataRepository` JSON cache. Seed format: `kolId|handle|title` comma-separated (`INGESTION_TELEGRAM_SEED_CHANNELS`; `SEED_KOLS` JSON in ingestion-telegram). Same `[KOL-ORCH-DEBUG]` log-noise class as SSE adapter (gap 25).
 - `reputation/`: pure `KolMetricsCalculator` → mention/quality/drawdown scores → `blendScore` with configurable `KolScoreFormula` weights (presets via `KolScorePresetRepository`) → whitelist ×1.2 / blacklist ×0.5 → clamp 0..1 → confidence from `totalMentions` (<5 LOW … 50+ VERY_HIGH). `RecomputeKolReputationUseCase` reads `findRecent(5000)`; scheduler every 15 min (config cron + disable flag); `KnownKolPort` (default static registry, DB-backed variant exists). Scoring consumes it via `KolReputationPort` multiplier. Outcome buckets (`strong/good/neutral/poor/failed`) all land in neutral until `call/lifecycle` ships.
 - `source/`: attribution VO + `SourceAggregatorPort` (normalization hands raw seeds, gets deduped `Source[]`).
 - `stats/`: stub (4 endpoints return `{note:'Stub'}`); frontend uses reputation `/kols/top`.
@@ -132,10 +132,10 @@ Provider endpoints consumed BY ingestion-service:
 
 **Architecture Overview (CRITICAL — Opción A chosen over Opción B)**:
 
-- **Ingestion-service** stores RAW content (NO filters, NO transformations)
-- **Backend** (staging/prod) polls ingestion-service HTTP API (every minute)
+- **Ingestion-telegram** stores RAW content (NO filters, NO transformations)
+- **Backend** (staging/prod) polls ingestion-telegram HTTP API (every minute)
 - **Backend** applies ContentFilterService + keyword matching on-read (NO DB replication)
-- **Frontend** fetches RAW content directly from ingestion-service (display mode)
+- **Frontend** fetches RAW content directly from ingestion-telegram (display mode)
 - **Publisher queue** receives FILTERED content (AFTER transformations + keywords matched)
 
 **Production LLM Safety Guard (CRITICAL)**:
@@ -151,33 +151,33 @@ Backend enforces LLM generation in production via controller guard:
 **Modules**:
 
 1. `telegram/crypto-news-integration/` (NEW — Opción A orchestrator):
-   - `CryptoNewsIngestionClient` — HTTP client for ingestion-service API
+   - `CryptoNewsIngestionClient` — HTTP client for ingestion-telegram API
    - `FilteredCryptoNewsService` — fetch→filter→match orchestrator
    - `EnqueueMatchingCronScheduler` — dynamic polling scheduler (5min SSE mode / 1min polling-only mode)
    - **`ProcessCryptoNewsMessageHandler` (NEW, 2026-09-09)** — real-time SSE event processor with <10s latency target
 
 2. `telegram/ingestion/crypto-news/` (split final 2026-09-08 — DB-SEPARATION):
    - **Backend owns ZERO crypto-news tables.** `PERSISTED_ENTITIES` = 39 (`EXPECTED_ENTITY_COUNT` 39): `CryptoNewsSourceEntity`, `CryptoNewsMessageEntity`, `CryptoNewsMessageMediaEntity` removed; migration `1860000000001-DropIngestionOwnedCryptoNewsTables` drops BOTH historical filter-FK names (`FK_f4d53649fee70f18bbc88502673` synchronize-era + `fk_channel_content_filter_configs_channel_id` from `1815000000000`) + the 3 tables media→messages→sources (staging/prod; dev uses synchronize).
-   - ~~`StoreNewsMessageUseCase`~~ — **DELETED** (file + providers + spec). SSE crypto-news messages route to skip-with-log in `IngestionCoordinator` (ingestion-service already persists; backend NO persiste — Opción A).
+   - ~~`StoreNewsMessageUseCase`~~ — **DELETED** (file + providers + spec). SSE crypto-news messages route to skip-with-log in `IngestionCoordinator` (ingestion-telegram already persists; backend NO persiste — Opción A).
    - ~~`RegisterNewsSourceUseCase`, `ListActiveSourceIdsUseCase`, `CryptoNewsMetadataResolver`, `TypeOrmCryptoNews{Source,Message}Repository`~~ — **DELETED** (files + specs where they existed).
    - ~~Legacy GETs~~ — **DELETED → 404**: `GET messages`, `GET messages/:id`, `GET sources`, `GET sources/active/ids`, `GET backfill/:channelId`, `GET media/:mediaId`, `POST sources`. Ingestion serves them: `GET :3031/api/crypto-news/sources` → 200.
    - `filters/` submodule — **STAYS, FK-less**: `ChannelContentFilterConfigEntity` keeps opaque `channel_id` varchar (JOIN to sources removed); filter use-cases validate source existence as warn (no throw); reads go through the new filters-only `TypeOrmChannelFilterRepository`.
    - Ports `CryptoNewsSourceRepository` / `CryptoNewsMessageRepository` — **KEPT as `useClass: InMemory`** (publisher `QueueController` + deprecated handler inject them; deleting the ports breaks DI). Side effect: queue views carry null `sourceTitle/sourceHandle`.
-   - Media + retention ownership moved to ingestion-service (backend reads via HTTP; janitor moved — see SCHEDULERS).
+   - Media + retention ownership moved to ingestion-telegram (backend reads via HTTP; janitor moved — see SCHEDULERS).
 
    **Ownership final (2026-09-05 deprecated → 2026-09-08 split)**:
 
-   **Crypto-news sources/messages/media are SOLELY OWNED by ingestion-service in its own `<base>_ingestion` DB.**
+   **Crypto-news sources/messages/media are SOLELY OWNED by ingestion-telegram in its own `<base>_ingestion` DB.**
 
-   - **Ingestion-service**: reads/writes its 3 tables + runs the 72h retention janitor
+   - **Ingestion-telegram**: reads/writes its 3 tables + runs the 72h retention janitor
    - **Backend**: no tables, no write path, no legacy reads — only filters CRUD + on-read matching
      (`FilteredCryptoNewsService` over HTTP-fetched RAW content)
    - **Eliminates**: circular dependency (backend ↔ ingestion), dual-DB sync issues
-   - **Enables**: ingestion-service starts independently, single source of truth
+   - **Enables**: ingestion-telegram starts independently, single source of truth
 
    **Migration for consumers:**
-   - Create sources: `POST {INGESTION_SERVICE_URL}/api/crypto-news/sources`
-   - Read sources/messages: `GET {INGESTION_SERVICE_URL}/api/crypto-news/...` (backend routes return 404)
+   - Create sources: `POST {INGESTION_TELEGRAM_URL}/api/crypto-news/sources`
+   - Read sources/messages: `GET {INGESTION_TELEGRAM_URL}/api/crypto-news/...` (backend routes return 404)
 
 3. `telegram/crypto-news-publisher/`:
    - `EnqueueMatchingMessageUseCase` — enqueue matched messages (queue cap 36)
@@ -194,7 +194,7 @@ Backend enforces LLM generation in production via controller guard:
 ```
 PRIMARY PATH (SSE, <10s latency target):
 ════════════════════════════════════════
-Telegram → Ingestion-service (persist RAW) → SSE stream (:3031/api/ingestion/stream)
+Telegram → Ingestion-telegram (persist RAW) → SSE stream (:3031/api/ingestion/stream)
                                                     ↓ messageType='crypto-news'
 Backend IngestionCoordinator.route()
                                                     ↓
@@ -260,7 +260,7 @@ Real-time SSE event processor for `messageType='crypto-news'` messages. Implemen
    - Conditionally skip: `FAILED` + blocking reason (uses `isBlockingFailureReason()` helper)
    - Allow retry: `FAILED` + non-blocking reason (e.g., "Expired: exceeded 24h", "Rate limit exceeded")
 3. **Filter + match**: Calls `FilteredCryptoNewsService.getMatchingMessages(1, channelId)`
-   - Fetches RAW content from ingestion-service
+   - Fetches RAW content from ingestion-telegram
    - Applies ContentFilterService regex transforms
    - Evaluates keyword matching
    - Checks blacklist phrases
@@ -281,8 +281,8 @@ Real-time SSE event processor for `messageType='crypto-news'` messages. Implemen
 
 - `CryptoNewsMessageIngestedHandler` — event-driven enqueue (listened to `crypto-news.message.ingested`)
   - **Replaced by**: `ProcessCryptoNewsMessageHandler` (direct handler invocation from IngestionCoordinator)
-- Backend NO LONGER ingests crypto-news via local MTProto (ingestion-service owns this)
-- Backend NO LONGER stores crypto-news in DB (`crypto_news_*` tables live ONLY in ingestion-service)
+- Backend NO LONGER ingests crypto-news via local MTProto (ingestion-telegram owns this)
+- Backend NO LONGER stores crypto-news in DB (`crypto_news_*` tables live ONLY in ingestion-telegram)
 - **Polling was NOT replaced** — it's now a fallback path that coexists with SSE
 
 **ContentFilterService** (verified):
@@ -292,11 +292,11 @@ Real-time SSE event processor for `messageType='crypto-news'` messages. Implemen
 - Invalid patterns logged + skipped
 - Applied on-read by FilteredCryptoNewsService (NO persist)
 
-**Media tech** (migrated to ingestion-service):
+**Media tech** (migrated to ingestion-telegram):
 
 - `MAX_MEDIA_BYTES` 10 MB (larger logged + discarded)
 - Magic-byte sniffing (not Telegram-declared MIME), fallback `application/octet-stream` + `.bin`
-- Backend reads via HTTP (`INGESTION_SERVICE_URL/api/media/*`)
+- Backend reads via HTTP (`INGESTION_TELEGRAM_URL/api/media/*`)
 - Serving re-sniffs via `media-serving.ts` (stored `.bin` MP4 served as `video/mp4`) with Range/206
 
 **3-Flag Control System (CRITICAL DEPENDENCY)**:
@@ -304,7 +304,7 @@ Real-time SSE event processor for `messageType='crypto-news'` messages. Implemen
 The crypto-news pipeline uses **3 independent flags** to control enqueue, LLM generation, and publishing:
 
 1. **`matchingEnabled`** (`MatchingConfig`, `crypto-news-integration` module)
-   - Controls: `EnqueueMatchingCronScheduler` (polls ingestion-service every minute)
+   - Controls: `EnqueueMatchingCronScheduler` (polls ingestion-telegram every minute)
    - When `true`: fetches RAW messages → applies filters + keywords → enqueues matches
    - When `false`: no new messages enter the queue (queue drains if publishing active)
 
@@ -504,13 +504,13 @@ WS fan-out (`WsGateway.EVENT_MAP`, 12 entries): `telegram.message.ingested`,
 `vip-call.approval.approved|rejected` → `vip-call-approval.decision.applied`,
 `publishing.telegram.published|failed`, `dashboard.kpis.updated`. Unmapped events are
 silently dropped (no honeypot/filters/crypto-news on the socket). `hello` handshake reports
-`missedSince` + `bufferedCount: 0` — no replay buffer, same lossy design as SSE (cf. ingestion-service gap 22).
+`missedSince` + `bufferedCount: 0` — no replay buffer, same lossy design as SSE (cf. ingestion-telegram gap 22).
 
 ## SCHEDULERS (two mechanisms)
 
 `@Cron` decorators: vip `reconcile-stuck-reservations` EVERY_30_SECONDS; crypto-news-publisher
 tick EVERY_MINUTE; ads tick EVERY_MINUTE. ~~`MediaRetentionCleanupScheduler`~~ — **MOVED to
-ingestion-service 2026-09-08** (deleted here: provider + scheduler + spec): the new
+ingestion-telegram 2026-09-08** (deleted here: provider + scheduler + spec): the new
 `CryptoNewsRetentionCleanupScheduler` runs EVERY_HOUR over there (advisory lock `9_421_373`,
 media pass + NEW messages pass, clock `ingested_at`, 72h per invariant; prod effective value
 pending operator decision — see task-10 §4 dossier: prod backend cleaned media with 24h).
@@ -524,7 +524,7 @@ pending operator decision — see task-10 §4 dossier: prod backend cleaned medi
 
 **EnqueueMatchingCronScheduler** (`crypto-news-integration/application/scheduling/`):
 
-Dynamic-interval polling scheduler that fetches crypto-news messages from ingestion-service HTTP API and enqueues matches.
+Dynamic-interval polling scheduler that fetches crypto-news messages from ingestion-telegram HTTP API and enqueues matches.
 
 **Interval behavior** (configured in `onApplicationBootstrap`):
 
@@ -603,7 +603,7 @@ Trust this section over README §4.
   crypto-news-publisher keyword/LLM config), `deduplication/` (`DeduplicationService`:
   Fingerprint VO, ContentNormalizer/Hash, UrlNormalizer, DedupScorer + semantic-arbiter,
   TypeORM/in-memory stores — consumed by `crypto-news-message-ingested.handler`; unlike
-  ingestion-service's unused one, this one is wired), `identicon/` (`sharp`), `filters/`
+  ingestion-telegram's unused one, this one is wired), `identicon/` (`sharp`), `filters/`
   (`DomainErrorFilter`), `kernel/` (AggregateRoot/Entity/ValueObject/DomainEvent/DomainError).
 - Root providers: `DevBackfillHook`, `FilteredBootstrapLogger`, `ConfigConnectivityService`.
 - Env files: `.env`, `.env.dev` (+ `.dev.backup-20260901-052702`), `.env.staging`,
@@ -633,7 +633,7 @@ Publisher{Queue,ThrottleState,SlotState}, Ad{,Media,RotationConfig,RotationState
 
 ## TESTS
 
-- Unit: `testRegex .*\.spec\.ts$`, `jest.setup.ts`, `--forceExit`, 30 s timeout. **Same `telegram/*` moduleNameMapper landmine as ingestion-service** (`^telegram/(.*)$` → `src/telegram/$1`, only `events`/`sessions` pinned) + dead `^discovery/` mapping (no `src/discovery/`).
+- Unit: `testRegex .*\.spec\.ts$`, `jest.setup.ts`, `--forceExit`, 30 s timeout. **Same `telegram/*` moduleNameMapper landmine as ingestion-telegram** (`^telegram/(.*)$` → `src/telegram/$1`, only `events`/`sessions` pinned) + dead `^discovery/` mapping (no `src/discovery/`).
 - E2E (`test/`): `app.e2e-spec.ts` + `ingestion-side-by-side.e2e-spec.ts` (prod-MTProto vs staging-SSE parity ≥99.9%; ⚠️ header references `INGESTION_MODE=local/remote` env that doesn't exist — real flags are `USE_SSE_INGESTION`).
 - `src/settings/settings.e2e-spec.ts` co-located INSIDE src (runs under unit `*.spec.ts` regex — not via jest-e2e).
 
@@ -650,7 +650,7 @@ Providers (all `''` default): `ALCHEMY/BIRDEYE/MOBULA/MORALIS/COINMARKETCAP_API_
 `PUMPDEV_{API_KEY,WALLET_PUBLIC,WALLET_PRIVATE}`, `TELEGRAM_BOT_TOKEN` (deprecated).
 Bots: `VIP_CALLS_{BOT_TOKEN,OUTPUT_CHANNEL}`, `CRYPTO_NEWS_{BOT_TOKEN,OUTPUT_CHANNEL}`,
 `CHAIN_DEXTER_{BOT_TOKEN,WEBHOOK_SECRET,WEBHOOK_URL,INGEST_MODE=webhook,POLLING_INTERVAL_MS=1000}`.
-Ingestion: `USE_SSE_INGESTION`/`USE_MOCK_INGESTION` (false), `INGESTION_SERVICE_URL`
+Ingestion: `USE_SSE_INGESTION`/`USE_MOCK_INGESTION` (false), `INGESTION_TELEGRAM_URL`
 (`http://localhost:3031`); seeds `INGESTION_TELEGRAM_{SEED_ENABLED=true,SEED_KOLS|SEED_CHANNELS(legacy fallback),NEWS_SEED_ENABLED=true,SEED_NEWS,METADATA_CACHE_FILE,BACKFILL_ENABLED=true}`;
 MTProto `INGESTION_TELEGRAM_MTPROTO_{ENABLED=true,API_ID=0,API_HASH,SESSION,LOG_LEVEL=error,STARTUP_DELAY_MS=60000,USE_WSS=false}`.
 **Crypto-News SSE** (NEW, 2026-09-09): `USE_SSE_CRYPTO_NEWS` (boolean, default `true`) — enables real-time SSE ingestion with <10s latency target; when `false`, falls back to 1-minute polling; `CRYPTO_NEWS_POLLING_INTERVAL_MINUTES` (number, min 1, max 60, default `5`) — polling frequency when SSE enabled (fallback mode only); ignored when SSE disabled (fixed 1-minute interval).
@@ -665,9 +665,9 @@ Infra: `PORT=3000`, `DATABASE_{ENABLED=false,POSTGRES_*,SYNCHRONIZE=true,LOGGING
 `LOG_{LEVEL,DIR=.,FILE=backend.log,ROTATION_SIZE=10m,ROTATION_LIMIT=5}`.
 
 ⚠️ `.env.production.template` sets `USE_SSE_INGESTION=false` (prod on legacy MTProto until migration)
-and documents `INGESTION_REMOTE_URL=http://ingestion-service:3031` — **a var the code never reads**
-(real: `INGESTION_SERVICE_URL`, gap 21). Migration banner + `validate-session-migration.sh` referenced
-in-template; MTProto creds must live ONLY in ingestion-service (AUTH_KEY_DUPLICATED otherwise).
+and documents `INGESTION_REMOTE_URL=http://ingestion-telegram:3031` — **a var the code never reads**
+(real: `INGESTION_TELEGRAM_URL`, gap 21). Migration banner + `validate-session-migration.sh` referenced
+in-template; MTProto creds must live ONLY in ingestion-telegram (AUTH_KEY_DUPLICATED otherwise).
 
 ## LOGGING
 
@@ -685,22 +685,22 @@ pino-roll daily files (`logging.dir/fileName`, `limit count:1`) in dev/prod; pla
 7. **`IdentityModule`/cross-BC imports in 7+ places** (reputation, kol-ingestion, shared-ingestion, telegram-ingestion, dashboard import IdentityModule; chain-dexter imports chain/detection + token/enrichment use cases; call-tracking imports `SettingsService`) — the no-BC-import rule is dead letter. Either legitimize shared-kernel imports or cut them.
 8. **Two controllers share `@Controller('chain-dexter')`** (`webhook.controller`: `POST webhook|health`; `chain-dexter.controller`: `GET token`) — paths don't collide today, but split ownership of one prefix confuses routing audits. Merge or re-prefix.
 9. **`vip-decisions/` and `vip-achievement/` have no controllers** (module + event-bus handlers only) — event-side sub-BCs; decisions handlers are log-only, achievements posts milestones. Don't document HTTP routes for them; wire via events.
-10. **README §4 route tables use wrong prefixes** (see HTTP ROUTES) — anyone wiring the frontend or ingestion-service from README will 404. Fix README or delete §4 and link here.
+10. **README §4 route tables use wrong prefixes** (see HTTP ROUTES) — anyone wiring the frontend or ingestion-telegram from README will 404. Fix README or delete §4 and link here.
 11. **`DevModule` wired unconditionally** (docstring says "only when USE_MOCK_INGESTION=true") — `/dev/inject-message|queue-status|clear-queue` live in prod with no auth. Worse: `POST dev/seed` sits on the root `AppController` (outside any dev module), firing synthetic pipeline events into the real event bus. Gate both or delete.
 12. **(Consolidated 2026-09-04)** sub-BC `AGENTS.md` files (`token/`, `telegram/`, `vip-calls/`, `crypto-news/`, `shared/`, `kol/`, `data-provider/`) deleted after migrating verified content here. Remaining staleness lives in `shared/README.md` (`ca/*` paths, "19 BCs", `:178`) and per-BC READMEs (gap 22).
 13. **Ticker-null nuance**: publish flow rejects null ticker, but `TrackedPublishedCall.ticker` is `varchar NULL` by design (tracking tolerates unresolved tickers) — don't "fix" the column; enforce at the publisher boundary only.
 14. **CryptoNewsController is 702 lines** (imports `fs`, `Req/Res`, `InjectRepository` — TypeORM leaking into api layer).
-15. **Health is static** (`status:'ok'` always) — same stub problem as ingestion-service gap 2, backend side.
+15. **Health is static** (`status:'ok'` always) — same stub problem as ingestion-telegram gap 2, backend side.
 16. **Ghost event `filters.token.approved|rejected`**: named in `token/AGENTS.md`, `telegram/AGENTS.md`, `vip-calls/AGENTS.md`, vip-call-approval README and one spec — but NO event file defines it and NO use case emits it. The real wire events are `vip-call.approval.approved|rejected`. The ghost survives because `scripts/seed-pipeline-events.ts` EMITS it (step 4) — seeded approvals vanish into the void since `TokenApprovedPublishHandler` listens to the real name. Purge the ghost name or the next reader will subscribe to silence.
-17. **Dead var `INGESTION_REMOTE_URL`** in `.env.production.template` (code reads `INGESTION_SERVICE_URL`) — same class of bug as ingestion-service gap 12. Fix the template.
+17. **Dead var `INGESTION_REMOTE_URL`** in `.env.production.template` (code reads `INGESTION_TELEGRAM_URL`) — same class of bug as ingestion-telegram gap 12. Fix the template.
 18. **Stale BC READMEs**: vip-call-approval README cites `apply-filters.use-case.ts` + `token-filtered/token-rejected.event.ts` (none exist; real: `apply-vip-call-approval.*`, `vip-call-{approved,rejected}.event.ts`); `token/AGENTS.md` cites `token-gating` + `ApplyFiltersUseCase` (renamed long ago); chain/detection + extraction READMEs cite `src/discovery/` + `/ca/*` routes (pre-rename). Per-BC READMEs need the same verification pass as gap 15.
 19. **SSE mode can't resolve or join channels**: backend `resolveChannelMetadata` returns `Channel {id}` placeholders and `joinChannel` always fails — auto-join/seeder `needsManualJoin` paths are dead in the recommended mode. New channels need manual join + `POST kols`.
-20. **Backend SSE hot path is as noisy as ingestion-service gap 10**: `[SSE-DEBUG]` ×3 per message (log level, not debug) plus `[PAYLOAD-TRANSFORM-DEBUG]` with full text. Demote to `debug`.
+20. **Backend SSE hot path is as noisy as ingestion-telegram gap 10**: `[SSE-DEBUG]` ×3 per message (log level, not debug) plus `[PAYLOAD-TRANSFORM-DEBUG]` with full text. Demote to `debug`.
 21. **`data-provider/README.md` stale**: "11 providers" (13 exist), adapter map points at deleted `chain/explorer/`, references `.omo/plans/data-provider-refactor.md` (agent state, not source).
-22. **Backfill dead end-to-end in SSE mode**: backend `backfill()` → ingestion-service `/api/ingestion/backfill/*` → always `backfill:error` (ingestion-service gap 1). Both `POST kols/:kolId/backfill` and `GET crypto-news/backfill/:channelId` fail in the recommended mode — only MTProto-legacy backfills.
-23. **`telegram:gen-session` script is legacy** — sessions now belong to ingestion-service (`INGESTION_TELEGRAM_MTPROTO_*`); backend MTProto mode would still `AUTH_KEY_DUPLICATED` against it.
+22. **Backfill dead end-to-end in SSE mode**: backend `backfill()` → ingestion-telegram `/api/ingestion/backfill/*` → always `backfill:error` (ingestion-telegram gap 1). Both `POST kols/:kolId/backfill` and `GET crypto-news/backfill/:channelId` fail in the recommended mode — only MTProto-legacy backfills.
+23. **`telegram:gen-session` script is legacy** — sessions now belong to ingestion-telegram (`INGESTION_TELEGRAM_MTPROTO_*`); backend MTProto mode would still `AUTH_KEY_DUPLICATED` against it.
 24. **Event-driven scoring runs degraded**: `TokenClassifiedHandler` nulls market metrics, forces counts=1 and reputation 0.5 before calling `ScoreTokenUseCase` — bus-path scores differ systematically from admin `POST score` results. Either enrich the event or document the skew.
-25. **`.env.staging` predates the SSE migration**: 67 keys but NO `USE_SSE_INGESTION`, `INGESTION_SERVICE_URL`, `INGESTION_TELEGRAM_SEED_KOLS/NEWS`, `CHAIN_DEXTER_WEBHOOK_*`, `CRYPTO_NEWS_MEDIA_RETENTION_HOURS`, `DEDUP_*`, `LOG_*` — and it still carries legacy `INGESTION_TELEGRAM_SEED_CHANNELS`. Staging boots MTProto-legacy by default (cf. gap 2).
+25. **`.env.staging` predates the SSE migration**: 67 keys but NO `USE_SSE_INGESTION`, `INGESTION_TELEGRAM_URL`, `INGESTION_TELEGRAM_SEED_KOLS/NEWS`, `CHAIN_DEXTER_WEBHOOK_*`, `CRYPTO_NEWS_MEDIA_RETENTION_HOURS`, `DEDUP_*`, `LOG_*` — and it still carries legacy `INGESTION_TELEGRAM_SEED_CHANNELS`. Staging boots MTProto-legacy by default (cf. gap 2).
 26. **Seed script emits invalid classifications**: `seed-pipeline-events.ts` uses `LEGITIMATE/RISKY/SAFE` — outside the `Classification` VO (`TOKEN/POOL/ROUTER/NFT/SCAM/UNKNOWN`). Any consumer validating via `Classification.fromString` throws `VALIDATION` on seeded traffic.
 27. **`token/identity/` VOs** (`ContractAddress`+spec, `NormalizedAddress`, `TokenLocator`) duplicate chain-validation logic across `token/identity`, `token/normalization` (`NormalizedAddress` again), and `chain/*` (`ChainId`/`Chain`/`ChainFamily`) — three address-validation homes. Consolidate or document the split.
 
@@ -743,7 +743,7 @@ Hang at boot → check `NODE_ENV`, "Using migrations (synchronize: false)" in lo
 - `scripts/seed-pipeline-events.ts` (181 lines): emits 4 events × N tokens (12 real addresses: USDC/SOL/BOME/WBTC/AAVE/CAKE/USDT/CBBTC/MATIC/GME…). ⚠️ Step 4 emits the GHOST `filters.token.*` names (gap 20) with classifications (`LEGITIMATE/RISKY/SAFE`) outside the `Classification` VO set (gap 31) — seeded approvals never reach `TokenApprovedPublishHandler`.
 - `scripts/run-migrations.sh` (15 lines): dual-mode — compiled `dist/.../data-source.js` in Docker, `typeorm-ts-node-commonjs` + `src/...` locally. `set -euo pipefail`.
 - `scripts/cli/`: interactive readline tools (inject reads `scripts/fixtures/*.json`).
-- Compose: `docker-compose.yml` (dev), `.prod.yml` (backend `:3030` + postgres/redis health-gated), `.with-ingestion.yml` (builds ingestion Dockerfile, `PORT: 3031`, backend gets `INGESTION_SERVICE_URL: http://ingestion-service:3031` + read-only media volume, `depends_on` healthy), `.ingestion.yml` (standalone droplet). Healthchecks hit `/api/health` (stub-200 caveat, gap 18 backend / gap 23 ingestion-service).
+- Compose: `docker-compose.yml` (dev), `.prod.yml` (backend `:3030` + postgres/redis health-gated), `.with-ingestion.yml` (builds ingestion Dockerfile, `PORT: 3031`, backend gets `INGESTION_TELEGRAM_URL: http://ingestion-telegram:3031` + read-only media volume, `depends_on` healthy), `.ingestion.yml` (standalone droplet). Healthchecks hit `/api/health` (stub-200 caveat, gap 18 backend / gap 23 ingestion-telegram).
 
 ## NOTES
 

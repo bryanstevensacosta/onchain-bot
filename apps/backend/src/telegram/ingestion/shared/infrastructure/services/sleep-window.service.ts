@@ -10,7 +10,7 @@ import { IngestionSafetyConfig } from 'telegram/ingestion/shared/infrastructure/
  * effectively, and each environment sleeping independently provides no anti-ban benefit.
  *
  * **Migration path:**
- * - **New location:** `apps/ingestion-service/src/telegram/shared/infrastructure/services/sleep-window.service.ts`
+ * - **New location:** `apps/ingestion-telegram/src/telegram/shared/infrastructure/services/sleep-window.service.ts`
  * - **Backend impact:** Backend clients do not need sleep window logic. The centralized
  *   ingestion service pauses all polling operations during configured sleep hours, and backends
  *   simply receive no messages during those periods (SSE streams remain connected but idle).
@@ -29,7 +29,7 @@ import { IngestionSafetyConfig } from 'telegram/ingestion/shared/infrastructure/
  * **Specification:** See `.kiro/specs/centralized-ingestion-service/requirements.md`
  * Requirement 11.3 for sleep window design and configuration options.
  *
- * @see {@link apps/ingestion-service} Centralized sleep windows coordinate anti-ban behavior
+ * @see {@link apps/ingestion-telegram} Centralized sleep windows coordinate anti-ban behavior
  */
 @Injectable()
 export class SleepWindowService {

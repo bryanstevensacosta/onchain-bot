@@ -23,7 +23,8 @@
  *   Pipeline behaviour:
  *     INGESTION_TELEGRAM_METADATA_CACHE_FILE
  *     INGESTION_TELEGRAM_BACKFILL_ENABLED
- *     USE_SSE_INGESTION, USE_SSE_CRYPTO_NEWS, USE_MOCK_INGESTION, INGESTION_SERVICE_URL
+  *     USE_SSE_INGESTION, USE_SSE_CRYPTO_NEWS, USE_MOCK_INGESTION,
+  *     INGESTION_TELEGRAM_URL (fallback: deprecated INGESTION_SERVICE_URL)
  *     CRYPTO_NEWS_POLLING_INTERVAL_MINUTES
  *     PUBLISHING_TELEGRAM_USE_REAL_MTPROTO/OUTPUT_CHANNEL,
  *     VIP_CALLS_BOT_TOKEN/OUTPUT_CHANNEL,
@@ -75,10 +76,37 @@
  *
  *   Note (2026-09-06): SEED-related env vars removed. Channels are now registered via:
  *   - KOLs: POST /telegram-kol/identity/kols
- *   - Crypto-news: POST {INGESTION_SERVICE_URL}/api/crypto-news/sources
- */
+  *   - Crypto-news: POST {INGESTION_TELEGRAM_URL}/api/crypto-news/sources
+  */
 import { registerAs } from '@nestjs/config';
 import { join } from 'path';
+
+/** Default ingestion-telegram base URL when no env var is set. */
+export const DEFAULT_INGESTION_TELEGRAM_URL = 'http://localhost:3031';
+
+/**
+ * Resolve the ingestion-telegram base URL with one-release fallback.
+ *
+ * Order: `INGESTION_TELEGRAM_URL` > deprecated `INGESTION_SERVICE_URL` >
+ * default. Empty strings are treated as missing. A `console.warn` fires
+ * exactly when the deprecated var supplies the value.
+ */
+export function resolveIngestionServiceUrl(
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  const next = env.INGESTION_TELEGRAM_URL;
+  if (next !== undefined && next.trim().length > 0) {
+    return next;
+  }
+  const legacy = env.INGESTION_SERVICE_URL;
+  if (legacy !== undefined && legacy.trim().length > 0) {
+    console.warn(
+      '[deprecation] INGESTION_SERVICE_URL is deprecated, migrate to INGESTION_TELEGRAM_URL',
+    );
+    return legacy;
+  }
+  return DEFAULT_INGESTION_TELEGRAM_URL;
+}
 
 export interface HeliusNetworkConfig {
   rpcUrl: string;
@@ -380,7 +408,7 @@ export const appConfig = registerAs(
         (process.env.USE_SSE_CRYPTO_NEWS ?? 'true').toLowerCase() === 'true',
       useMock:
         (process.env.USE_MOCK_INGESTION ?? 'false').toLowerCase() === 'true',
-      serviceUrl: process.env.INGESTION_SERVICE_URL ?? 'http://localhost:3031',
+      serviceUrl: resolveIngestionServiceUrl(),
     },
 
     cryptoNews: {

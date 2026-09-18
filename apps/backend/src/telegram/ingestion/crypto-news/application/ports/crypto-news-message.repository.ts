@@ -1,7 +1,7 @@
 import { CryptoNewsMessage } from '../../domain/crypto-news-message.stub';
 
 /**
- * @deprecated DEAD CODE - Backend no longer persists crypto-news (ingestion-service owns tables)
+ * @deprecated DEAD CODE - Backend no longer persists crypto-news (ingestion-telegram owns tables)
  *
  * Repository port for crypto-news messages.
  *
@@ -11,8 +11,8 @@ import { CryptoNewsMessage } from '../../domain/crypto-news-message.stub';
  * - Kept ONLY as DI shim to prevent module wiring breakage
  * - Sole implementation: `InMemoryCryptoNewsMessageRepository` (empty store, always returns null)
  *
- * DO NOT USE. Query ingestion-service HTTP API instead:
- *   GET {INGESTION_SERVICE_URL}/api/crypto-news/messages
+ * DO NOT USE. Query ingestion-telegram HTTP API instead:
+ *   GET {INGESTION_TELEGRAM_URL}/api/crypto-news/messages
  */
 export abstract class CryptoNewsMessageRepository {
   public abstract save(message: CryptoNewsMessage): Promise<void>;

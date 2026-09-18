@@ -1,4 +1,4 @@
-import { BaseMediaPathBuilder } from '@ingestion-service/media/core/base-media-path-builder';
+import { BaseMediaPathBuilder } from '@ingestion-telegram/media/core/base-media-path-builder';
 import { createHash } from 'crypto';
 import * as path from 'path';
 

@@ -1,7 +1,7 @@
 {
   "specId": "crypto-news-entity-cleanup",
   "title": "Crypto-News Entity Cleanup & Migration",
-  "description": "Remove duplicate crypto-news domain entities from backend by migrating to DTOs or importing from ingestion-service",
+  "description": "Remove duplicate crypto-news domain entities from backend by migrating to DTOs or importing from ingestion-telegram",
   "status": "in-progress",
   "priority": "medium",
   "createdDate": "2026-09-08",
@@ -16,7 +16,7 @@
     ".omo/completed/crypto-news-entity-deprecation.md",
     ".omo/plans/crypto-news-domain-entity-migration.md",
     ".omo/completed/crypto-news-architecture-clarification.md",
-    ".omo/analysis/ingestion-service-scope-audit.md",
+    ".omo/analysis/ingestion-telegram-scope-audit.md",
     ".omo/completed/CRYPTO-NEWS-ENTITY-WORK-SUMMARY.md"
   ],
   "phases": {
@@ -134,7 +134,7 @@
     },
     "strategy3": {
       "name": "Direct Import",
-      "description": "Backend imports entities FROM ingestion-service",
+      "description": "Backend imports entities FROM ingestion-telegram",
       "effort": "1-2 hours",
       "risk": "low",
       "phases": ["custom"],

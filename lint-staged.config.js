@@ -10,5 +10,9 @@ module.exports = {
     `eslint --fix --config apps/backend/eslint.config.mjs ${files.join(' ')}`,
   'apps/frontend/src/**/*.{ts,tsx}': (files) =>
     `eslint --fix --config apps/frontend/eslint.config.js ${files.join(' ')}`,
+  'apps/ingestion-telegram/src/**/*.ts': (files) =>
+    `eslint --fix --config apps/ingestion-telegram/eslint.config.mjs ${files.join(' ')}`,
+  'apps/ingestion-telegram/test/**/*.ts': (files) =>
+    `eslint --fix --config apps/ingestion-telegram/eslint.config.mjs ${files.join(' ')}`,
   '*.{json,md,yaml,yml}': ['prettier --write'],
 };

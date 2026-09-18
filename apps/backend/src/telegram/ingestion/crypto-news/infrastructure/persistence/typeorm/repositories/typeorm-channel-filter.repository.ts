@@ -12,7 +12,7 @@ import { ChannelContentFilterConfigEntity } from 'telegram/ingestion/crypto-news
  *
  * Filters-only slice kept in the backend after db-separation todo 4:
  * reads active rules from `channel_content_filter_configs` by opaque
- * `channel_id` (no JOIN — sources live in ingestion-service's DB).
+ * `channel_id` (no JOIN — sources live in ingestion-telegram's DB).
  */
 @Injectable()
 export class TypeOrmChannelFilterRepository extends ChannelFilterRepository {

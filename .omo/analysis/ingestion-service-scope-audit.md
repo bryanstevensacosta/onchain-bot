@@ -388,7 +388,7 @@ publishToTelegram(content, media) {
 
 ## Refactor Document (`message-transformation-pipeline-refactor.md`)
 
-**Context:** That refactor document is about **consolidating DUPLICATED transformation logic** between backend and ingestion-service.
+**Context:** That refactor document is about **consolidating DUPLICATED transformation logic** between backend and ingestion-telegram.
 
 **What it moves:**
 

@@ -108,25 +108,25 @@ The **multi-backend SSE broadcast system is fully operational**:
 
 ### Domain Layer
 
-- `apps/ingestion-service/src/stream/domain/backend-registration.entity.ts`
-- `apps/ingestion-service/src/stream/domain/broadcast-event.vo.ts`
+- `apps/ingestion-telegram/src/stream/domain/backend-registration.entity.ts`
+- `apps/ingestion-telegram/src/stream/domain/broadcast-event.vo.ts`
 
 ### Application Layer
 
-- `apps/ingestion-service/src/stream/application/services/sse-broadcast.service.ts`
-- `apps/ingestion-service/src/stream/application/services/backend-circuit-breaker.service.ts`
+- `apps/ingestion-telegram/src/stream/application/services/sse-broadcast.service.ts`
+- `apps/ingestion-telegram/src/stream/application/services/backend-circuit-breaker.service.ts`
 
 ### Infrastructure Layer
 
-- `apps/ingestion-service/src/stream/infrastructure/backfill-buffer.service.ts`
-- `apps/ingestion-service/src/stream/infrastructure/persistence/typeorm/backfill-message.entity.ts`
+- `apps/ingestion-telegram/src/stream/infrastructure/backfill-buffer.service.ts`
+- `apps/ingestion-telegram/src/stream/infrastructure/persistence/typeorm/backfill-message.entity.ts`
 
 ### API Layer
 
-- `apps/ingestion-service/src/stream/api/http/backend-registration.controller.ts`
-- `apps/ingestion-service/src/stream/api/http/dto/register-backend.dto.ts`
-- `apps/ingestion-service/src/stream/api/http/sse-stream.controller.ts`
-- `apps/ingestion-service/src/stream/api/http/stream-status.controller.ts`
+- `apps/ingestion-telegram/src/stream/api/http/backend-registration.controller.ts`
+- `apps/ingestion-telegram/src/stream/api/http/dto/register-backend.dto.ts`
+- `apps/ingestion-telegram/src/stream/api/http/sse-stream.controller.ts`
+- `apps/ingestion-telegram/src/stream/api/http/stream-status.controller.ts`
 
 ### Tests
 

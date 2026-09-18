@@ -37,8 +37,8 @@ export interface FilteredThreadsMessage extends ThreadsMessageDto {
  *
  * Threads-typed mirror of crypto `FilteredCryptoNewsService`
  * (`telegram/crypto-news-integration/application/services/filtered-crypto-news.service.ts`):
- * 1. Fetch RAW messages from ingestion-service (ThreadsIngestionClient —
- *    same `/api/crypto-news/messages` feed, zero ingestion-service changes)
+ * 1. Fetch RAW messages from ingestion-telegram (ThreadsIngestionClient —
+ *    same `/api/crypto-news/messages` feed, zero ingestion-telegram changes)
  * 2. Apply ContentFilterService per-channel regex rules (transform on-read,
  *    IMPORTED as-is from `telegram/ingestion/crypto-news`)
  * 3. Evaluate threads keywords AND-groups + blacklist phrases
@@ -49,7 +49,7 @@ export interface FilteredThreadsMessage extends ThreadsMessageDto {
  * - SSE handler (real-time `messageType='crypto-news'` events)
  *
  * **Not used by:**
- * - Frontend display (frontend reads RAW from ingestion-service directly)
+ * - Frontend display (frontend reads RAW from ingestion-telegram directly)
  * - Ingestion flow (ingestion stores RAW, doesn't transform)
  */
 @Injectable()
@@ -69,7 +69,7 @@ export class FilteredThreadsService {
    * (not blacklisted).
    *
    * Pipeline:
-   * 1. Fetch raw messages from ingestion-service
+   * 1. Fetch raw messages from ingestion-telegram
    * 2. For each message:
    *    a. Load per-channel content filters
    *    b. Apply filters to title + content
@@ -77,7 +77,7 @@ export class FilteredThreadsService {
    *    d. Evaluate blacklist phrases
    *    e. Include if keyword match AND NOT blacklisted
    *
-   * @param limit - Max messages to fetch from ingestion-service (default 50)
+   * @param limit - Max messages to fetch from ingestion-telegram (default 50)
    * @param channelId - Optional channel filter (fetches from all channels if omitted)
    * @returns Array of filtered messages with matched keywords (empty if none match)
    */
@@ -86,7 +86,7 @@ export class FilteredThreadsService {
     channelId?: string,
   ): Promise<ReadonlyArray<FilteredThreadsMessage>> {
     try {
-      // Step 1: Fetch raw messages from ingestion-service
+      // Step 1: Fetch raw messages from ingestion-telegram
       const rawMessages = await this.ingestionClient.fetchRecentMessages(
         limit,
         channelId,

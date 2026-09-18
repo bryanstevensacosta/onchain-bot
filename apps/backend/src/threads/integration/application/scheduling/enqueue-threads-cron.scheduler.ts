@@ -17,7 +17,7 @@ function isSseEnabled(): boolean {
 }
 
 /**
- * EnqueueThreadsCronScheduler - Poll ingestion-service for matching
+ * EnqueueThreadsCronScheduler - Poll ingestion-telegram for matching
  * threads messages.
  *
  * Threads-typed mirror of crypto `EnqueueMatchingCronScheduler`
@@ -223,7 +223,7 @@ export class EnqueueThreadsCronScheduler {
    * Resolve a publisher-consumable `filePath` for one DTO media item.
    *
    * Mirror of the crypto scheduler's resolver (media is owned by the SAME
-   * ingestion-service, so the local-path shape is identical):
+   * ingestion-telegram, so the local-path shape is identical):
    * (1) server-provided `filePath` when present; (2) absolute HTTP(S) `url`
    * as-is; (3) otherwise reconstruct the ingestion-style local path
    * `uploads/crypto-news/media/<channel>/<message>_<index>.<ext>`.

@@ -31,13 +31,13 @@ export interface FilteredCryptoNewsMessage extends CryptoNewsMessageDto {
  * FilteredCryptoNewsService - Orchestrates fetch→filter→match pipeline
  *
  * **Per Opción A architecture:**
- * 1. Fetch RAW messages from ingestion-service (CryptoNewsIngestionClient)
+ * 1. Fetch RAW messages from ingestion-telegram (CryptoNewsIngestionClient)
  * 2. Apply ContentFilterService per-channel regex rules (transform on-read)
  * 3. Evaluate keywords AND-groups + blacklist phrases
  * 4. Return filtered messages with matched keywords for enqueue
  *
  * **Responsibilities:**
- * - Fetch raw messages from ingestion-service HTTP API
+ * - Fetch raw messages from ingestion-telegram HTTP API
  * - Load per-channel content filters from backend DB
  * - Apply regex transformations to content (title + body)
  * - Evaluate keyword matching (simple + AND-groups)
@@ -49,7 +49,7 @@ export interface FilteredCryptoNewsMessage extends CryptoNewsMessageDto {
  * - Manual enqueue triggers (admin tools)
  *
  * **Not used by:**
- * - Frontend display (frontend reads RAW from ingestion-service directly)
+ * - Frontend display (frontend reads RAW from ingestion-telegram directly)
  * - Ingestion flow (ingestion stores RAW, doesn't transform)
  *
  * @injectable NestJS service
@@ -70,7 +70,7 @@ export class FilteredCryptoNewsService {
    * Fetch recent messages and return ONLY those matching keywords (not blacklisted).
    *
    * Pipeline:
-   * 1. Fetch raw messages from ingestion-service
+   * 1. Fetch raw messages from ingestion-telegram
    * 2. For each message:
    *    a. Load per-channel content filters
    *    b. Apply filters to title + content
@@ -78,7 +78,7 @@ export class FilteredCryptoNewsService {
    *    d. Evaluate blacklist phrases
    *    e. Include if keyword match AND NOT blacklisted
    *
-   * @param limit - Max messages to fetch from ingestion-service (default 50)
+   * @param limit - Max messages to fetch from ingestion-telegram (default 50)
    * @param channelId - Optional channel filter (fetches from all channels if omitted)
    * @returns Array of filtered messages with matched keywords (empty if none match)
    */
@@ -87,7 +87,7 @@ export class FilteredCryptoNewsService {
     channelId?: string,
   ): Promise<ReadonlyArray<FilteredCryptoNewsMessage>> {
     try {
-      // Step 1: Fetch raw messages from ingestion-service
+      // Step 1: Fetch raw messages from ingestion-telegram
       const rawMessages = await this.ingestionClient.fetchRecentMessages(
         limit,
         channelId,
@@ -95,7 +95,7 @@ export class FilteredCryptoNewsService {
 
       if (rawMessages.length === 0) {
         this.logger.debug(
-          `No raw messages fetched from ingestion-service (limit: ${limit}, channelId: ${channelId ?? 'all'})`,
+          `No raw messages fetched from ingestion-telegram (limit: ${limit}, channelId: ${channelId ?? 'all'})`,
         );
         return [];
       }
@@ -210,7 +210,7 @@ export class FilteredCryptoNewsService {
    * Returns the filtered message if it matches keywords AND NOT blacklisted.
    * Returns null if no keyword match or blacklisted.
    *
-   * @param raw - Raw message from ingestion-service
+   * @param raw - Raw message from ingestion-telegram
    * @param keywords - All active keywords
    * @param blacklistPhrases - All active blacklist phrases
    * @returns Filtered message with matched keywords, or null
@@ -287,8 +287,8 @@ export class FilteredCryptoNewsService {
    *
    * Uses ContentFilterService with per-channel FilterRule array.
    *
-   * @param title - Raw title from ingestion-service
-   * @param content - Raw content from ingestion-service
+   * @param title - Raw title from ingestion-telegram
+   * @param content - Raw content from ingestion-telegram
    * @param filters - Per-channel filter rules
    * @returns Object with filtered title and content
    */

@@ -123,17 +123,17 @@
 
 1. `src/stream/api/http/stream-status.controller.ts` - Operational status endpoint
 2. `src/stream/api/http/stream-status.controller.spec.ts` - 13 unit tests
-3. `docs/ingestion-service/multi-backend-migration.md` - 450+ lines migration guide
-4. `docs/ingestion-service/multi-backend-runbook.md` - 600+ lines operations runbook
-5. `docs/ingestion-service/production-rollout-plan.md` - 4-week phased rollout plan
-6. `.kiro/specs/shared-ingestion-service-multi-backend/IMPLEMENTATION_SUMMARY.md`
-7. `.kiro/specs/shared-ingestion-service-multi-backend/FINAL_SUMMARY.md` (this file)
+3. `docs/ingestion-telegram/multi-backend-migration.md` - 450+ lines migration guide
+4. `docs/ingestion-telegram/multi-backend-runbook.md` - 600+ lines operations runbook
+5. `docs/ingestion-telegram/production-rollout-plan.md` - 4-week phased rollout plan
+6. `.kiro/specs/shared-ingestion-telegram-multi-backend/IMPLEMENTATION_SUMMARY.md`
+7. `.kiro/specs/shared-ingestion-telegram-multi-backend/FINAL_SUMMARY.md` (this file)
 
 ### Files Modified
 
 1. `src/stream/api/http/sse-stream.controller.ts` - Implemented backfill query logic
 2. `src/shared/common/config/app.config.ts` - Added multiBackend configuration
-3. `apps/ingestion-service/.env.production.template` - Added feature flag env vars
+3. `apps/ingestion-telegram/.env.production.template` - Added feature flag env vars
 4. `src/stream/stream.module.ts` - Added StreamStatusController
 5. `src/telegram/shared/services/backend-channel-provider.service.ts` - Feature flag check
 6. `src/telegram/shared/services/backend-channel-provider.service.spec.ts` - Fixed tests
@@ -179,7 +179,7 @@ INGESTION_BACKFILL_RETENTION_HOURS=72  # Default: 72 hours
 
 ### 1. Migration Guide (450+ lines)
 
-**Location:** `docs/ingestion-service/multi-backend-migration.md`
+**Location:** `docs/ingestion-telegram/multi-backend-migration.md`
 
 **Contents:**
 
@@ -191,7 +191,7 @@ INGESTION_BACKFILL_RETENTION_HOURS=72  # Default: 72 hours
 
 ### 2. Operations Runbook (600+ lines)
 
-**Location:** `docs/ingestion-service/multi-backend-runbook.md`
+**Location:** `docs/ingestion-telegram/multi-backend-runbook.md`
 
 **Contents:**
 
@@ -204,7 +204,7 @@ INGESTION_BACKFILL_RETENTION_HOURS=72  # Default: 72 hours
 
 ### 3. Production Rollout Plan (550+ lines)
 
-**Location:** `docs/ingestion-service/production-rollout-plan.md`
+**Location:** `docs/ingestion-telegram/production-rollout-plan.md`
 
 **Contents:**
 
@@ -297,7 +297,7 @@ INGESTION_BACKFILL_RETENTION_HOURS=72  # Default: 72 hours
 ### 1. Register Backend
 
 ```bash
-curl -X POST http://ingestion-service:3031/api/ingestion/backends/register \
+curl -X POST http://ingestion-telegram:3031/api/ingestion/backends/register \
   -H "Content-Type: application/json" \
   -d '{
     "backendId": "production",
@@ -310,20 +310,20 @@ curl -X POST http://ingestion-service:3031/api/ingestion/backends/register \
 
 ```bash
 # Initial connection
-curl -N "http://ingestion-service:3031/api/ingestion/stream?backendId=production"
+curl -N "http://ingestion-telegram:3031/api/ingestion/stream?backendId=production"
 
 # Reconnect with backfill
-curl -N "http://ingestion-service:3031/api/ingestion/stream?backendId=production&lastSeenTimestamp=2026-09-03T12:00:00.000Z"
+curl -N "http://ingestion-telegram:3031/api/ingestion/stream?backendId=production&lastSeenTimestamp=2026-09-03T12:00:00.000Z"
 ```
 
 ### 3. Check System Status
 
 ```bash
 # Operational status
-curl http://ingestion-service:3031/api/ingestion/stream/status | jq
+curl http://ingestion-telegram:3031/api/ingestion/stream/status | jq
 
 # Health check
-curl http://ingestion-service:3031/api/health | jq .broadcast
+curl http://ingestion-telegram:3031/api/health | jq .broadcast
 ```
 
 ---
@@ -408,11 +408,11 @@ curl http://ingestion-service:3031/api/health | jq .broadcast
 
 ## 📞 Support
 
-- **Documentation:** `docs/ingestion-service/`
+- **Documentation:** `docs/ingestion-telegram/`
 - **Runbook:** `multi-backend-runbook.md`
 - **Migration Guide:** `multi-backend-migration.md`
 - **Rollout Plan:** `production-rollout-plan.md`
-- **Slack:** #ingestion-service
+- **Slack:** #ingestion-telegram
 - **On-Call:** PagerDuty rotation
 
 ---

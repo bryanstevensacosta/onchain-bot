@@ -17,7 +17,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
 ### Phase 1: Backend Registration & Channel Union
 
 - [x] 1.1 Create BackendRegistration entity and value objects
-  - Create `apps/ingestion-service/src/stream/domain/backend-registration.entity.ts`
+  - Create `apps/ingestion-telegram/src/stream/domain/backend-registration.entity.ts`
   - Implement BackendRegistration class with:
     - `backendId: string` (unique identifier)
     - `sourceWhitelist: ReadonlySet<string>` (O(1) lookup)
@@ -34,8 +34,8 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
   - _Estimate: 1h_
 
 - [x] 1.2 Create BackendRegistrationController and DTOs
-  - Create `apps/ingestion-service/src/stream/api/http/backend-registration.controller.ts`
-  - Create `apps/ingestion-service/src/stream/api/http/dto/register-backend.dto.ts`
+  - Create `apps/ingestion-telegram/src/stream/api/http/backend-registration.controller.ts`
+  - Create `apps/ingestion-telegram/src/stream/api/http/dto/register-backend.dto.ts`
   - Implement `@Post('ingestion/backends/register')` endpoint
   - RegisterBackendDto with validation:
     - `@IsString() backendId`
@@ -49,7 +49,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
   - _Estimate: 1.5h_
 
 - [x] 1.3 Modify BackendChannelProviderService for multi-backend support
-  - Modify `apps/ingestion-service/src/telegram/shared/services/backend-channel-provider.service.ts`
+  - Modify `apps/ingestion-telegram/src/telegram/shared/services/backend-channel-provider.service.ts`
   - Add `private readonly registrations: Map<string, BackendRegistration>`
   - Implement methods:
     - `registerBackend(backendId: string, sourceWhitelist: string[]): void`
@@ -66,7 +66,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
   - _Estimate: 2h_
 
 - [x] 1.4 Implement channel union computation logic
-  - Add to `apps/ingestion-service/src/telegram/shared/services/backend-channel-provider.service.ts`
+  - Add to `apps/ingestion-telegram/src/telegram/shared/services/backend-channel-provider.service.ts`
   - Implement `computeChannelDiff(oldUnion: Set<string>, newUnion: Set<string>)` returning `{ added: string[], removed: string[] }`
   - Correctly identify added channels (in newUnion, not in oldUnion)
   - Correctly identify removed channels (in oldUnion, not in newUnion)
@@ -76,8 +76,8 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
   - _Estimate: 1h_
 
 - [x] 1.5 Unit tests for registration and channel union
-  - Create `apps/ingestion-service/src/stream/domain/backend-registration.entity.spec.ts`
-  - Create `apps/ingestion-service/src/telegram/shared/services/backend-channel-provider.service.spec.ts`
+  - Create `apps/ingestion-telegram/src/stream/domain/backend-registration.entity.spec.ts`
+  - Create `apps/ingestion-telegram/src/telegram/shared/services/backend-channel-provider.service.spec.ts`
   - Test registration entity: constructor, updateWhitelist, hasChannel
   - Test channel provider: registerBackend, computeUnion, computeDiff
   - Cover edge cases: empty whitelist, duplicate registrations, large unions
@@ -89,7 +89,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
 ### Phase 2: SSE Broadcast Infrastructure
 
 - [x] 2.1 Create BroadcastEvent value object
-  - Create `apps/ingestion-service/src/stream/domain/broadcast-event.vo.ts`
+  - Create `apps/ingestion-telegram/src/stream/domain/broadcast-event.vo.ts`
   - Implement BroadcastEvent class with:
     - `eventId: string` (UUID)
     - `timestamp: number` (Unix ms)
@@ -104,7 +104,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
   - _Estimate: 1h_
 
 - [x] 2.2 Create SSEBroadcastService
-  - Create `apps/ingestion-service/src/stream/application/services/sse-broadcast.service.ts`
+  - Create `apps/ingestion-telegram/src/stream/application/services/sse-broadcast.service.ts`
   - Implement `@Injectable() SSEBroadcastService` with:
     - `private readonly connections: Map<string, Response> = new Map()`
     - `addConnection(backendId: string, response: Response): void`
@@ -120,7 +120,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
   - _Estimate: 2h_
 
 - [x] 2.3 Create BackendCircuitBreakerService
-  - Create `apps/ingestion-service/src/stream/application/services/backend-circuit-breaker.service.ts`
+  - Create `apps/ingestion-telegram/src/stream/application/services/backend-circuit-breaker.service.ts`
   - Define `enum CircuitState { CLOSED, OPEN, HALF_OPEN }`
   - Implement `@Injectable() BackendCircuitBreakerService` with:
     - `private readonly circuits: Map<string, Circuit> = new Map()`
@@ -138,7 +138,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
   - _Estimate: 2h_
 
 - [x] 2.4 Create SSEStreamController with heartbeat
-  - Create `apps/ingestion-service/src/stream/api/http/sse-stream.controller.ts`
+  - Create `apps/ingestion-telegram/src/stream/api/http/sse-stream.controller.ts`
   - Implement `@Get('ingestion/stream')` endpoint with `@Sse()` decorator
   - Accept query params: `backendId: string`, `lastSeenTimestamp?: string`
   - Validate backendId is registered (returns 401 if not)
@@ -151,7 +151,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
   - _Estimate: 1.5h_
 
 - [x] 2.5 Wire SSEBroadcastService into TelegramModule
-  - Modify `apps/ingestion-service/src/telegram/telegram.module.ts`
+  - Modify `apps/ingestion-telegram/src/telegram/telegram.module.ts`
   - Inject SSEBroadcastService into TelegramModule
   - In `startListening()` loop, after `coordinator.route(message, messageType)`:
     - Create BroadcastEvent: `const event = BroadcastEvent.fromTelegramMessage(message.peerId, message, message.mediaPath)`
@@ -162,7 +162,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
   - _Estimate: 1h_
 
 - [x] 2.6 Integration tests for broadcast and circuit breaker
-  - Create `apps/ingestion-service/src/stream/application/services/__tests__/sse-broadcast.integration.spec.ts`
+  - Create `apps/ingestion-telegram/src/stream/application/services/__tests__/sse-broadcast.integration.spec.ts`
   - Test scenarios:
     - Broadcast event to 2 connected backends (both receive)
     - Backend disconnects, other continues receiving
@@ -179,7 +179,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
 ### Phase 3: Backfill Buffer Implementation
 
 - [ ] 3.1 Create BackfillMessageEntity (TypeORM)
-  - Create `apps/ingestion-service/src/stream/infrastructure/persistence/typeorm/backfill-message.entity.ts`
+  - Create `apps/ingestion-telegram/src/stream/infrastructure/persistence/typeorm/backfill-message.entity.ts`
   - Define `@Entity('backfill_messages')` with columns:
     - `@PrimaryColumn() eventId: string` (UUID)
     - `@Column({ type: 'bigint' }) timestamp: number`
@@ -192,7 +192,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
   - _Estimate: 0.5h_
 
 - [ ] 3.2 Create BackfillBufferService with ring buffer
-  - Create `apps/ingestion-service/src/stream/infrastructure/backfill-buffer.service.ts`
+  - Create `apps/ingestion-telegram/src/stream/infrastructure/backfill-buffer.service.ts`
   - Implement `@Injectable() BackfillBufferService implements OnModuleInit` with:
     - `private readonly ringBuffer: BroadcastEvent[] = []`
     - `private readonly MAX_SIZE = 5000`
@@ -209,7 +209,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
   - _Estimate: 2h_
 
 - [ ] 3.3 Implement persist/restore logic
-  - Add to `apps/ingestion-service/src/stream/infrastructure/backfill-buffer.service.ts`:
+  - Add to `apps/ingestion-telegram/src/stream/infrastructure/backfill-buffer.service.ts`:
     - `private async persistAsync(event: BroadcastEvent): Promise<void>` (fire-and-forget)
     - `private async restoreFromDatabase(): Promise<void>` (called in onModuleInit)
     - `async cleanupOldMessages(): Promise<number>` (deletes entries older than 72h)
@@ -221,7 +221,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
   - _Estimate: 1.5h_
 
 - [ ] 3.4 Add backfill query support to SSEStreamController
-  - Modify `apps/ingestion-service/src/stream/api/http/sse-stream.controller.ts`
+  - Modify `apps/ingestion-telegram/src/stream/api/http/sse-stream.controller.ts`
   - In stream() method, parse `lastSeenTimestamp` query param
   - Query backfill buffer: `const backfillEvents = await this.backfillBuffer.getEventsSince(timestamp)`
   - If backfillEvents.length > 0:
@@ -235,7 +235,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
   - _Estimate: 1h_
 
 - [ ] 3.5 Implement cleanup cron job
-  - Add to `apps/ingestion-service/src/stream/infrastructure/backfill-buffer.service.ts`:
+  - Add to `apps/ingestion-telegram/src/stream/infrastructure/backfill-buffer.service.ts`:
     - `@Cron('0 3 * * *') async scheduledCleanup(): Promise<void>`
   - Cron job runs daily at 3 AM
   - Calls cleanupOldMessages() and logs deleted count
@@ -245,7 +245,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
   - _Estimate: 0.5h_
 
 - [ ] 3.6 Integration tests for backfill
-  - Create `apps/ingestion-service/src/stream/infrastructure/__tests__/backfill.integration.spec.ts`
+  - Create `apps/ingestion-telegram/src/stream/infrastructure/__tests__/backfill.integration.spec.ts`
   - Test scenarios:
     - Backend reconnects, receives missed messages
     - Backfill-unavailable when disconnected > 72h
@@ -260,7 +260,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
 ### Phase 4: Integration & Observability
 
 - [ ] 4.1 Create StreamStatusController
-  - Create `apps/ingestion-service/src/stream/api/http/stream-status.controller.ts`
+  - Create `apps/ingestion-telegram/src/stream/api/http/stream-status.controller.ts`
   - Implement `@Get('ingestion/stream/status')` endpoint
   - Return StreamStatusResponse with:
     - `activeBackends: number` (from SSEBroadcastService)
@@ -275,7 +275,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
   - _Estimate: 0.5h_
 
 - [ ] 4.2 Add Prometheus metrics
-  - Modify `apps/ingestion-service/src/stream/application/services/sse-broadcast.service.ts`
+  - Modify `apps/ingestion-telegram/src/stream/application/services/sse-broadcast.service.ts`
   - Register metrics with prom-client:
     - `ingestion_active_backends` (gauge)
     - `ingestion_broadcast_total` (counter, labels: backend_id)
@@ -290,7 +290,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
   - _Estimate: 1h_
 
 - [ ] 4.3 Update HealthModule for broadcast readiness
-  - Modify `apps/ingestion-service/src/health/health.controller.ts`
+  - Modify `apps/ingestion-telegram/src/health/health.controller.ts`
   - Add to health check response:
     - `broadcast.activeBackends: number`
     - `broadcast.ready: boolean` (true when activeBackends > 0)
@@ -302,7 +302,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
   - _Estimate: 0.5h_
 
 - [ ] 4.4 E2E tests for full flows
-  - Create `apps/ingestion-service/test/multi-backend-broadcast.e2e-spec.ts`
+  - Create `apps/ingestion-telegram/test/multi-backend-broadcast.e2e-spec.ts`
   - Test scenarios:
     1. Full flow: Register 2 backends → Ingest message → Both receive event
     2. Backfill flow: Register → Connect → Disconnect → Ingest 100 msgs → Reconnect → Receive backfill
@@ -316,7 +316,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
   - _Estimate: 2h_
 
 - [ ] 4.5 Create Grafana dashboard (optional)
-  - Create `monitoring/grafana/dashboards/ingestion-service.json`
+  - Create `monitoring/grafana/dashboards/ingestion-telegram.json`
   - Panels:
     - Active Backends (gauge)
     - Broadcast Rate (graph)
@@ -333,19 +333,19 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
 ### Phase 5: Backward Compatibility & Migration
 
 - [ ] 5.1 Add feature flag and configuration
-  - Modify `apps/ingestion-service/src/shared/common/config/app.config.ts`
+  - Modify `apps/ingestion-telegram/src/shared/common/config/app.config.ts`
   - Add to config:
     - `multiBackend.enabled: boolean` (from INGESTION_MULTI_BACKEND_ENABLED, default: false)
     - `multiBackend.backfillBufferSize: number` (from INGESTION_BACKFILL_BUFFER_SIZE, default: 5000)
     - `multiBackend.backfillRetentionHours: number` (from INGESTION_BACKFILL_RETENTION_HOURS, default: 72)
-  - Update `apps/ingestion-service/.env.production.template` with new vars
+  - Update `apps/ingestion-telegram/.env.production.template` with new vars
   - Default value is false (disabled)
   - Unit test: config parses correctly
   - _Requirements: 9.1, 9.2_
   - _Estimate: 0.5h_
 
 - [ ] 5.2 Implement legacy fallback in BackendChannelProviderService
-  - Modify `apps/ingestion-service/src/telegram/shared/services/backend-channel-provider.service.ts`
+  - Modify `apps/ingestion-telegram/src/telegram/shared/services/backend-channel-provider.service.ts`
   - In `fetchAllActiveChannelIds()`:
     - Check `this.config.get('app.multiBackend.enabled')`
     - If enabled AND registrations.size > 0: use computeChannelUnionFromRegistrations()
@@ -359,13 +359,13 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
   - _Estimate: 1h_
 
 - [ ] 5.3 Create migration guide and runbook
-  - Create `docs/ingestion-service/multi-backend-migration.md` with:
+  - Create `docs/ingestion-telegram/multi-backend-migration.md` with:
     - Pre-migration checklist
     - Backend code changes (registration client implementation)
     - Feature flag rollout procedure
     - Validation steps per environment
     - Rollback procedure
-  - Create `docs/ingestion-service/multi-backend-runbook.md` with:
+  - Create `docs/ingestion-telegram/multi-backend-runbook.md` with:
     - Common issues and troubleshooting
     - How to check broadcast health
     - How to manually reset circuit breaker
@@ -377,7 +377,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
   - _Estimate: 1.5h_
 
 - [ ] 5.4 Staging deployment and validation
-  - Deploy ingestion-service to staging with feature flag OFF
+  - Deploy ingestion-telegram to staging with feature flag OFF
   - Enable feature flag in staging (.env: INGESTION_MULTI_BACKEND_ENABLED=true)
   - Deploy staging backend with registration client
   - Validate metrics and logs
@@ -395,7 +395,7 @@ This plan implements multi-backend broadcast functionality in the ingestion serv
   - _Estimate: 2h_
 
 - [ ] 5.5 Production rollout preparation
-  - Create `docs/ingestion-service/production-rollout-plan.md` with:
+  - Create `docs/ingestion-telegram/production-rollout-plan.md` with:
     - **Week 1:** Staging only (complete)
     - **Week 2:** Production parallel mode (registration + legacy)
     - **Week 3:** Production new mode only

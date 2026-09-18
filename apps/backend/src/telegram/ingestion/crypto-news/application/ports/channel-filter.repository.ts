@@ -22,7 +22,7 @@ export interface ChannelFilterRule {
  *
  * Filters-only slice of the legacy `CryptoNewsSourceRepository`
  * (db-separation todo 4): crypto-news sources/messages/media moved to
- * ingestion-service's own DB, while `channel_content_filter_configs`
+ * ingestion-telegram's own DB, while `channel_content_filter_configs`
  * STAYS in the backend with `channel_id` as an opaque varchar (no FK).
  * Consumers needing filter rules (e.g. `FilteredCryptoNewsService`)
  * depend on this port instead of the source repository.
@@ -32,7 +32,7 @@ export abstract class ChannelFilterRepository {
    * Fetch all active filter rules for a channel, ordered by
    * priority ASC then createdAt ASC for deterministic execution.
    * Returns [] when the channel has no rules (unknown channels are
-   * NOT an error — sources live in ingestion-service).
+   * NOT an error — sources live in ingestion-telegram).
    */
   public abstract findFiltersByChannelId(
     channelId: string,

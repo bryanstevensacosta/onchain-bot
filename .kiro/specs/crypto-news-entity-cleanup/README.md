@@ -19,11 +19,11 @@
 
 ### The Problem
 
-Backend maintains **duplicate domain entities** of crypto-news data owned by ingestion-service:
+Backend maintains **duplicate domain entities** of crypto-news data owned by ingestion-telegram:
 
 ```
 ❌ DUPLICATE:
-   apps/ingestion-service/.../crypto-news-message.entity.ts  ← Source
+   apps/ingestion-telegram/.../crypto-news-message.entity.ts  ← Source
    apps/backend/.../crypto-news-message.entity.ts  ← Copy (deprecated)
 ```
 
@@ -111,7 +111,7 @@ Backend maintains **duplicate domain entities** of crypto-news data owned by ing
 5. **`.omo/completed/crypto-news-entity-deprecation.md`** — Phase 1 summary
 6. **`.omo/plans/crypto-news-domain-entity-migration.md`** — Original migration plan
 7. **`.omo/completed/crypto-news-architecture-clarification.md`** — Corrected mental model
-8. **`.omo/analysis/ingestion-service-scope-audit.md`** — Scope verification
+8. **`.omo/analysis/ingestion-telegram-scope-audit.md`** — Scope verification
 9. **`.omo/completed/CRYPTO-NEWS-ENTITY-WORK-SUMMARY.md`** — Session summary
 
 ---

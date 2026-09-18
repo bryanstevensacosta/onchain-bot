@@ -1,7 +1,7 @@
 {
   "pbtResults": {},
   "executionHistory": {
-    "1.1 Create ingestion-service project structure": [
+    "1.1 Create ingestion-telegram project structure": [
       {
         "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
         "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
@@ -62,7 +62,7 @@
         "timestamp": 1788063044169
       }
     ],
-    "1.4 Set up ingestion-service configuration": [
+    "1.4 Set up ingestion-telegram configuration": [
       {
         "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
         "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
@@ -273,21 +273,21 @@
         "timestamp": 1788075153572
       }
     ],
-    "5.1 Create Dockerfile for ingestion-service": [
+    "5.1 Create Dockerfile for ingestion-telegram": [
       {
         "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
         "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
         "timestamp": 1788058042738
       }
     ],
-    "5.2 Update docker-compose.prod.yml with ingestion-service": [
+    "5.2 Update docker-compose.prod.yml with ingestion-telegram": [
       {
         "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
         "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
         "timestamp": 1788058042800
       }
     ],
-    "5.3 Create ingestion-service environment template": [
+    "5.3 Create ingestion-telegram environment template": [
       {
         "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
         "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
@@ -519,7 +519,7 @@
         "timestamp": 1788251613130
       }
     ],
-    "9.1 Phase 1: Deploy ingestion-service standalone": [
+    "9.1 Phase 1: Deploy ingestion-telegram standalone": [
       {
         "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
         "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
@@ -646,7 +646,7 @@
         "timestamp": 1788251593339
       }
     ],
-    "10.1 Port MediaRetentionCleanupScheduler to ingestion-service": [
+    "10.1 Port MediaRetentionCleanupScheduler to ingestion-telegram": [
       {
         "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
         "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
@@ -668,7 +668,7 @@
         "timestamp": 1788251593387
       }
     ],
-    "10.2 Configure media retention policy in ingestion-service": [
+    "10.2 Configure media retention policy in ingestion-telegram": [
       {
         "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
         "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
@@ -712,7 +712,7 @@
         "timestamp": 1788251593488
       }
     ],
-    "11.1 Create telegram_raw_messages table in ingestion-service": [
+    "11.1 Create telegram_raw_messages table in ingestion-telegram": [
       {
         "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
         "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
@@ -734,7 +734,7 @@
         "timestamp": 1788251593576
       }
     ],
-    "11.2 Store raw text in ingestion-service during broadcast": [
+    "11.2 Store raw text in ingestion-telegram during broadcast": [
       {
         "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
         "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
@@ -910,7 +910,7 @@
         "timestamp": 1788251594170
       }
     ],
-    "14.1 Add ingestion-service to GitHub Actions workflow": [
+    "14.1 Add ingestion-telegram to GitHub Actions workflow": [
       {
         "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
         "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
@@ -954,7 +954,7 @@
         "timestamp": 1788251594260
       }
     ],
-    "14.3 Add ingestion-service smoke tests to deploy workflow": [
+    "14.3 Add ingestion-telegram smoke tests to deploy workflow": [
       {
         "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
         "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
@@ -976,7 +976,7 @@
         "timestamp": 1788251594391
       }
     ],
-    "15.1 Create Prometheus alert rules for ingestion-service": [
+    "15.1 Create Prometheus alert rules for ingestion-telegram": [
       {
         "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
         "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
@@ -1020,7 +1020,7 @@
         "timestamp": 1788251594487
       }
     ],
-    "15.3 Create Grafana dashboard for ingestion-service": [
+    "15.3 Create Grafana dashboard for ingestion-telegram": [
       {
         "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
         "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",
@@ -1240,7 +1240,7 @@
         "timestamp": 1788251595036
       }
     ],
-    "18.2 Update project README with ingestion-service": [
+    "18.2 Update project README with ingestion-telegram": [
       {
         "executionId": "d2ab5db4-6bf4-40f9-a5df-ee563535e093",
         "chatSessionId": "sess_7a791466-adc7-47cc-9962-6ca50e22dfa6",

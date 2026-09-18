@@ -8,10 +8,10 @@
 
 ### Problem Statement
 
-Post db-separation (2026-09-08), the backend maintains **duplicate domain entities** for crypto-news data owned by ingestion-service. This creates:
+Post db-separation (2026-09-08), the backend maintains **duplicate domain entities** for crypto-news data owned by ingestion-telegram. This creates:
 
 - **Maintenance burden** — Changes must be synced manually across 2 locations
-- **DRY violation** — Same entities defined in backend + ingestion-service
+- **DRY violation** — Same entities defined in backend + ingestion-telegram
 - **Risk of divergence** — Duplicate code can drift over time
 - **Confusion** — Unclear which definition is source of truth
 
@@ -21,7 +21,7 @@ Remove duplication by choosing one of three architectural strategies:
 
 1. **Strategy 1 (Pure DTO)** — Backend uses DTOs only, no entity dependencies
 2. **Strategy 2 (Shared Package)** — Extract domain to separate package
-3. **Strategy 3 (Direct Import)** — Backend imports entities from ingestion-service
+3. **Strategy 3 (Direct Import)** — Backend imports entities from ingestion-telegram
 
 **Recommended:** Strategy 1 for clean architecture, Strategy 3 for speed.
 
@@ -62,7 +62,7 @@ graph TB
 **File Structure (Current):**
 
 ```
-apps/ingestion-service/src/telegram/crypto-news/domain/
+apps/ingestion-telegram/src/telegram/crypto-news/domain/
 ├── entities/crypto-news-message.entity.ts ← SOURCE OF TRUTH
 └── value-objects/crypto-news-media.vo.ts ← SOURCE OF TRUTH
 
@@ -126,7 +126,7 @@ graph TB
     style BE fill:#9cf,stroke:#333
 
     subgraph "Monorepo workspace imports"
-        IS -.->|@alpha-meta-token-scanner/ingestion-service| BE
+        IS -.->|@alpha-meta-token-scanner/ingestion-telegram| BE
     end
 ```
 
@@ -139,7 +139,7 @@ graph TB
    - Serves HTTP API with DTOs
 
 2. Backend:
-   - Imports entities: import { CryptoNewsMessage } from '@alpha-meta-token-scanner/ingestion-service'
+   - Imports entities: import { CryptoNewsMessage } from '@alpha-meta-token-scanner/ingestion-telegram'
    - Maps DTO → Ingestion entity
    - Use case accepts ingestion entity
    - No duplicate files
@@ -175,7 +175,7 @@ export interface CryptoNewsMessageMediaDto {
 }
 ```
 
-**Purpose:** HTTP contract between ingestion-service and backend.
+**Purpose:** HTTP contract between ingestion-telegram and backend.
 
 #### 2. Publisher DTO (new)
 
@@ -275,7 +275,7 @@ export class EnqueueMatchingCronScheduler {
 
 #### 1. Ingestion Exports (new)
 
-**Location:** `apps/ingestion-service/src/index.ts`
+**Location:** `apps/ingestion-telegram/src/index.ts`
 
 ```typescript
 export { CryptoNewsMessage } from './telegram/crypto-news/domain/entities/crypto-news-message.entity';
@@ -291,7 +291,7 @@ export { CryptoNewsMedia } from './telegram/crypto-news/domain/value-objects/cry
 import { CryptoNewsMessage } from 'telegram/ingestion/crypto-news/domain/entities/...';
 
 // After
-import { CryptoNewsMessage } from '@alpha-meta-token-scanner/ingestion-service';
+import { CryptoNewsMessage } from '@alpha-meta-token-scanner/ingestion-telegram';
 ```
 
 ---
@@ -301,7 +301,7 @@ import { CryptoNewsMessage } from '@alpha-meta-token-scanner/ingestion-service';
 ### Domain Entity (Ingestion-Service ONLY)
 
 ```typescript
-// apps/ingestion-service/src/telegram/crypto-news/domain/entities/crypto-news-message.entity.ts
+// apps/ingestion-telegram/src/telegram/crypto-news/domain/entities/crypto-news-message.entity.ts
 
 export class CryptoNewsMessage extends AggregateRoot<string> {
   private readonly _channelId: string;
@@ -350,7 +350,7 @@ export class CryptoNewsMessage extends AggregateRoot<string> {
 ### TypeORM Entity (Ingestion-Service ONLY)
 
 ```typescript
-// apps/ingestion-service/src/telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity.ts
+// apps/ingestion-telegram/src/telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity.ts
 
 @Entity('crypto_news_messages')
 export class CryptoNewsMessageEntity {
@@ -420,7 +420,7 @@ export interface EnqueueMessageMediaDto {
 ```bash
 # MUST return exactly 1 result
 grep -r "class CryptoNewsMessage" apps/*/src/
-# Expected: apps/ingestion-service/src/telegram/crypto-news/domain/entities/crypto-news-message.entity.ts
+# Expected: apps/ingestion-telegram/src/telegram/crypto-news/domain/entities/crypto-news-message.entity.ts
 ```
 
 **Test:** N/A (structural property)
@@ -500,7 +500,7 @@ async tick(): Promise<void> {
 
 - Cron runs every minute (retry automatically)
 - Backend logs error
-- No data loss (ingestion-service has data)
+- No data loss (ingestion-telegram has data)
 
 ### Scenario 2: DTO Mapping Fails
 
@@ -849,9 +849,9 @@ npm run build && npm test
 - `.kiro/specs/crypto-news-entity-cleanup/requirements.md` — Requirements
 - `.kiro/specs/crypto-news-entity-cleanup/tasks.md` — Implementation phases
 - `.omo/completed/crypto-news-architecture-clarification.md` — Corrected model
-- `.omo/analysis/ingestion-service-scope-audit.md` — Scope verification
+- `.omo/analysis/ingestion-telegram-scope-audit.md` — Scope verification
 - `apps/backend/AGENTS.md` — Backend architecture
-- `apps/ingestion-service/AGENTS.md` — Ingestion architecture
+- `apps/ingestion-telegram/AGENTS.md` — Ingestion architecture
 
 ---
 

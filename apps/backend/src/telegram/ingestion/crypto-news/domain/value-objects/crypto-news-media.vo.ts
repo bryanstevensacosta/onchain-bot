@@ -1,7 +1,7 @@
 /**
- * @deprecated DUPLICATE — Post db-separation (2026-09-08), this is a COPY of ingestion-service's value object.
+ * @deprecated DUPLICATE — Post db-separation (2026-09-08), this is a COPY of ingestion-telegram's value object.
  *
- * **PROBLEM:** Backend maintains its own copy of `CryptoNewsMedia` instead of importing from ingestion-service.
+ * **PROBLEM:** Backend maintains its own copy of `CryptoNewsMedia` instead of importing from ingestion-telegram.
  *
  * **Architecture (Opción A):**
  * - Ingestion-service: OWNS domain model (source of truth)
@@ -13,7 +13,7 @@
  *
  * **Migration path:**
  * Option A (recommended): Replace with `CryptoNewsMediaDto` from DTOs
- * Option B (alternative): Import VO FROM `@alpha-meta-token-scanner/ingestion-service`
+ * Option B (alternative): Import VO FROM `@alpha-meta-token-scanner/ingestion-telegram`
  *
  * ---
  *

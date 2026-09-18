@@ -5,7 +5,7 @@ import { CryptoNewsMessageRepository } from 'telegram/ingestion/crypto-news/appl
 /**
  * In-memory implementation of CryptoNewsMessageRepository.
  * Post db-separation todo 4 this is the SOLE implementation: the backend
- * no longer persists crypto-news (ingestion-service owns the tables), so
+ * no longer persists crypto-news (ingestion-telegram owns the tables), so
  * there's no TypeORM variant — this in-memory shim always returns `null`
  * and exists only for DI compatibility (some legacy consumers inject the
  * port but never call its methods). Will be removed once all consumers

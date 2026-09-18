@@ -15,7 +15,7 @@ import {
  * TelegramMediaDownloadService
  *
  * **Phase 5 (media-cohesion-refactor):**
- * Media download responsibility fully migrated to ingestion-service. Backend no longer
+ * Media download responsibility fully migrated to ingestion-telegram. Backend no longer
  * downloads media in any mode (SSE reads via HTTP, MTProto deprecated).
  *
  * This service receives a stub implementation of CryptoNewsMediaDownloader via DI.

@@ -8,7 +8,7 @@
 
 ## Summary
 
-Created shared media abstractions in `apps/ingestion-service/src/shared/media/` that will eliminate ~400+ lines of duplicated code across ingestion-service and backend. Phase 1 establishes the foundation with base classes, utilities, and comprehensive tests.
+Created shared media abstractions in `apps/ingestion-telegram/src/shared/media/` that will eliminate ~400+ lines of duplicated code across ingestion-telegram and backend. Phase 1 establishes the foundation with base classes, utilities, and comprehensive tests.
 
 ## Deliverables ✅
 
@@ -140,13 +140,13 @@ Created shared media abstractions in `apps/ingestion-service/src/shared/media/` 
 
 ## Architecture Decisions
 
-### 1. Location: `apps/ingestion-service/src/shared/media/`
+### 1. Location: `apps/ingestion-telegram/src/shared/media/`
 
 **Rationale**:
 
 - Ingestion-service is the **owner** of crypto-news media
 - Backend only owns ads media (separate concern)
-- Backend imports from ingestion-service (not a separate package)
+- Backend imports from ingestion-telegram (not a separate package)
 - Avoids monorepo complexity for single-consumer abstractions
 
 ### 2. Abstract Base Classes > Interfaces
@@ -180,7 +180,7 @@ Created shared media abstractions in `apps/ingestion-service/src/shared/media/` 
 ## Files Created
 
 ```
-apps/ingestion-service/src/shared/media/
+apps/ingestion-telegram/src/shared/media/
 ├── core/
 │   ├── base-media-path-builder.ts          104 lines
 │   ├── base-file-system-adapter.ts         189 lines
@@ -205,7 +205,7 @@ Total: 1,930 lines (production: 1,167; tests: 278; docs: 485)
 ## Testing Results
 
 ```bash
-cd apps/ingestion-service
+cd apps/ingestion-telegram
 
 # All media tests
 npm test -- "shared/media" --no-coverage
@@ -264,8 +264,8 @@ npx tsc --noEmit
 ## References
 
 - **Refactor Plan**: `.omo/drafts/media-cohesion-refactor.md`
-- **Usage Documentation**: `apps/ingestion-service/src/shared/media/README.md`
-- **Ingestion Service Docs**: `apps/ingestion-service/AGENTS.md`
+- **Usage Documentation**: `apps/ingestion-telegram/src/shared/media/README.md`
+- **Ingestion Service Docs**: `apps/ingestion-telegram/AGENTS.md`
 - **Gap 19**: Media endpoint security (address in Phase 2+)
 - **Gap 20**: Range requests (foundation ready in BaseMediaHttpServer)
 
@@ -301,6 +301,6 @@ npx tsc --noEmit
 
 Phase 1 successfully established a solid foundation for media cohesion refactoring. All abstractions are tested, documented, and ready for consumption. The architecture decisions (location, base classes, static utilities) balance simplicity with extensibility.
 
-**Ready to proceed with Phase 2**: Migrating ingestion-service concrete implementations.
+**Ready to proceed with Phase 2**: Migrating ingestion-telegram concrete implementations.
 
 🎯 **Goal Achieved**: Increased cohesion through shared abstractions, laying groundwork to reduce coupling in Phases 2-3.

@@ -1,17 +1,17 @@
 /**
  * Smoke test: verify cross-app imports work
  *
- * This test validates that backend can import from ingestion-service
- * via the @ingestion-service/telegram/* path alias.
+ * This test validates that backend can import from ingestion-telegram
+ * via the @ingestion-telegram/telegram/* path alias.
  */
 
 import {
   AbstractMessageTransformer,
   KolMessageTransformer,
   CryptoNewsMessageTransformer,
-} from '@ingestion-service/telegram/transformation';
+} from '@ingestion-telegram/telegram/transformation';
 
-describe('Cross-app imports (backend → ingestion-service)', () => {
+describe('Cross-app imports (backend → ingestion-telegram)', () => {
   it('should import AbstractMessageTransformer', () => {
     expect(AbstractMessageTransformer).toBeDefined();
     expect(typeof AbstractMessageTransformer).toBe('function');

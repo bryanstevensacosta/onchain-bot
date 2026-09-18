@@ -8,32 +8,32 @@ This plan implements a standalone Telegram ingestion service that eliminates res
 
 ### Phase 1: Ingestion Service Core Infrastructure
 
-- [x] 1.1 Create ingestion-service project structure
-  - Create new NestJS application at `apps/ingestion-service/`
+- [x] 1.1 Create ingestion-telegram project structure
+  - Create new NestJS application at `apps/ingestion-telegram/`
   - Set up tsconfig.json with backend-compatible path aliases
   - Configure nest-cli.json with `deleteOutDir: true`
   - Add package.json with dependencies (NestJS 11, gramjs, ioredis, TypeORM)
   - _Requirements: 6.1, 6.2_
 
 - [x] 1.2 Extract and port MTProto layer components
-  - Copy `TelegramMtprotoListenerAdapter` from backend to ingestion-service
+  - Copy `TelegramMtprotoListenerAdapter` from backend to ingestion-telegram
   - Copy `TelegramClientManager` with session initialization logic
   - Copy `LastSeenManager` with Redis cursor tracking
   - Copy `FloodWaitHandler`, `FloodWaitCounter`, `FloodWaitSleepWindow`
   - Copy `IngestionSafetyConfig` configuration loader
   - Copy `MtprotoMediaDownloader` with download logic
-  - Update imports to use ingestion-service paths
+  - Update imports to use ingestion-telegram paths
   - _Requirements: 1.1, 11.1, 11.2, Invariant 6_
 
 - [x] 1.3 Extract and port seeder components
-  - Copy `KolSeeder` from backend to ingestion-service
-  - Copy `CryptoNewsSeeder` from backend to ingestion-service
-  - Update seeders to use ingestion-service repositories
+  - Copy `KolSeeder` from backend to ingestion-telegram
+  - Copy `CryptoNewsSeeder` from backend to ingestion-telegram
+  - Update seeders to use ingestion-telegram repositories
   - Preserve idempotent seeding logic
   - _Requirements: 1.1_
 
-- [x] 1.4 Set up ingestion-service configuration
-  - Create `AppConfig` interface for ingestion-service
+- [x] 1.4 Set up ingestion-telegram configuration
+  - Create `AppConfig` interface for ingestion-telegram
   - Implement environment variable validation (Joi schemas)
   - Add MTProto credentials config (API_ID, API_HASH, SESSION)
   - Add channel seeder config (SEED_KOLS, SEED_NEWS)
@@ -63,7 +63,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
 ### Phase 2: Message Broadcasting Pipeline
 
 - [x] 2.1 Modify IngestionCoordinator for broadcast mode
-  - Copy `IngestionCoordinator` from backend to ingestion-service
+  - Copy `IngestionCoordinator` from backend to ingestion-telegram
   - Remove direct use case calls (KolOrchestrator, StoreNewsMessage)
   - Implement `route(raw)` to construct MessagePayload (text excluded per Invariant 1)
   - Call `StreamService.broadcast(payload)` instead of use cases
@@ -206,7 +206,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
 
 ### Phase 5: Deployment and Docker Configuration
 
-- [x] 5.1 Create Dockerfile for ingestion-service
+- [x] 5.1 Create Dockerfile for ingestion-telegram
   - Use Node 22 Alpine base image
   - Copy package.json and install dependencies
   - Copy source code
@@ -214,8 +214,8 @@ This plan implements a standalone Telegram ingestion service that eliminates res
   - Set CMD to run built dist/main.js
   - _Requirements: 6.1_
 
-- [x] 5.2 Update docker-compose.prod.yml with ingestion-service
-  - Add ingestion-service to existing docker-compose.prod.yml
+- [x] 5.2 Update docker-compose.prod.yml with ingestion-telegram
+  - Add ingestion-telegram to existing docker-compose.prod.yml
   - Use shared network: onchain-net (GAP 2)
   - Map port 3031:3031
   - Mount uploads volume: ./uploads:/app/uploads
@@ -224,7 +224,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
   - Set restart: unless-stopped
   - _Requirements: 6.3, 6.6, GAP 2_
 
-- [x] 5.3 Create ingestion-service environment template
+- [x] 5.3 Create ingestion-telegram environment template
   - Create `.env.ingestion.example` with all required vars
   - Document MTProto credentials (API_ID, API_HASH, SESSION)
   - Document channel seeder config (SEED_KOLS, SEED_NEWS)
@@ -296,12 +296,12 @@ This plan implements a standalone Telegram ingestion service that eliminates res
   - Create `scripts/validate-session-migration.sh`
   - Check backend .env has NO TELEGRAM_MTPROTO_SESSION
   - Check backend .env has NO MTPROTO_API_ID/API_HASH
-  - Check ingestion-service .env HAS session vars
+  - Check ingestion-telegram .env HAS session vars
   - Exit 1 if validation fails
   - _Requirements: GAP 6_
 
 - [x] 7.2 Create pre-deploy checklist document
-  - Create `docs/deployment/ingestion-service-checklist.md`
+  - Create `docs/deployment/ingestion-telegram-checklist.md`
   - List all pre-deploy validation steps
   - Include session migration validation
   - Include docker-compose verification
@@ -310,8 +310,8 @@ This plan implements a standalone Telegram ingestion service that eliminates res
   - _Requirements: 12.5, GAP 6_
 
 - [x] 7.3 Create deployment runbook
-  - Create `docs/deployment/ingestion-service-runbook.md`
-  - Document Phase 1: Deploy ingestion-service standalone
+  - Create `docs/deployment/ingestion-telegram-runbook.md`
+  - Document Phase 1: Deploy ingestion-telegram standalone
   - Document Phase 2: Migrate staging backend to SSE
   - Document Phase 3: Side-by-side validation (48h)
   - Document Phase 4: Migrate production backend to SSE
@@ -322,7 +322,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
   - _Requirements: 12.5, 7.2, 7.4, 7.5_
 
 - [x] 7.4 Create monitoring playbook
-  - Create `docs/monitoring/ingestion-service-playbook.md`
+  - Create `docs/monitoring/ingestion-telegram-playbook.md`
   - Document alert conditions and responses
   - Document Prometheus alert rules
   - Document log query patterns
@@ -332,7 +332,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
 ### Phase 8: End-to-End Testing
 
 - [ ] 8.1 Create E2E test for full message flow
-  - Deploy ingestion-service in test mode
+  - Deploy ingestion-telegram in test mode
   - Connect backend SSE client
   - Inject test message via mocked MTProto
   - Verify SSE broadcast received
@@ -369,9 +369,9 @@ This plan implements a standalone Telegram ingestion service that eliminates res
 
 ### Phase 9: Production Deployment (Phased Rollout)
 
-- [x] 9.1 Phase 1: Deploy ingestion-service standalone
+- [x] 9.1 Phase 1: Deploy ingestion-telegram standalone
   - Run session validation script
-  - Deploy ingestion-service to droplet (docker-compose up ingestion-service)
+  - Deploy ingestion-telegram to droplet (docker-compose up ingestion-telegram)
   - Verify health endpoint: curl http://localhost:3031/api/health → 200
   - Verify MTProto connected: mtproto.connected: true
   - Verify channels seeded: channels.total > 0
@@ -380,7 +380,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
 
 - [ ] 9.2 Phase 2: Migrate staging backend to SSE
   - Update staging .env: INGESTION_MODE=remote
-  - Set staging .env: INGESTION_REMOTE_URL=http://ingestion-service:3031
+  - Set staging .env: INGESTION_REMOTE_URL=http://ingestion-telegram:3031
   - Remove MTProto vars from staging .env
   - Restart staging backend container
   - Verify "SSE connection established" log
@@ -406,7 +406,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
 - [ ] 9.4 Phase 4: Migrate production backend to SSE
   - Schedule cutover during low-traffic window (02:00 UTC Sunday)
   - Update prod .env: INGESTION_MODE=remote
-  - Set prod .env: INGESTION_REMOTE_URL=http://ingestion-service:3031
+  - Set prod .env: INGESTION_REMOTE_URL=http://ingestion-telegram:3031
   - Remove MTProto vars from prod .env
   - Restart prod backend container
   - Monitor for 1 hour:
@@ -426,7 +426,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
   - Verify MTProto connection established
   - Verify message processing resumes
   - Time to restore: <5min
-  - Investigate ingestion-service issue
+  - Investigate ingestion-telegram issue
   - _Requirements: 7.4, 7.5, 12.4_
 
 - [ ] 9.6 Final checkpoint - Production stable for 7 days
@@ -479,16 +479,16 @@ This plan implements a standalone Telegram ingestion service that eliminates res
 
 ### Phase 10: Media Retention and Cleanup (Additional)
 
-- [ ] 10.1 Port MediaRetentionCleanupScheduler to ingestion-service
-  - Copy `MediaRetentionCleanupScheduler` from backend to ingestion-service
-  - Migrate cron job to run hourly in ingestion-service
-  - Update to query media table via ingestion-service database connection
+- [ ] 10.1 Port MediaRetentionCleanupScheduler to ingestion-telegram
+  - Copy `MediaRetentionCleanupScheduler` from backend to ingestion-telegram
+  - Migrate cron job to run hourly in ingestion-telegram
+  - Update to query media table via ingestion-telegram database connection
   - Preserve advisory lock mechanism (MEDIA_RETENTION_ADVISORY_LOCK_ID=7_421_372)
   - Preserve batch cleanup logic (CLEANUP_BATCH_SIZE=1000)
   - _Requirements: GAP 4 (Media lifecycle), Design § 2.1.1_
-  - _Note: Cleanup runs in ingestion-service, not backends_
+  - _Note: Cleanup runs in ingestion-telegram, not backends_
 
-- [ ] 10.2 Configure media retention policy in ingestion-service
+- [ ] 10.2 Configure media retention policy in ingestion-telegram
   - Add `CRYPTO_NEWS_MEDIA_RETENTION_HOURS` to AppConfig (default 72h)
   - Clamp minimum to 1 hour at config seam
   - Document retention policy in deployment docs
@@ -512,7 +512,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
 
 ### Phase 11: Raw Text Storage and Backend Retrieval (Additional)
 
-- [ ] 11.1 Create telegram_raw_messages table in ingestion-service
+- [ ] 11.1 Create telegram_raw_messages table in ingestion-telegram
   - Create migration for `telegram_raw_messages` table
   - Schema: id (UUID PK), channel_id (string), message_id (integer), text (text), ingested_at (timestamp)
   - Add unique constraint on (channel_id, message_id)
@@ -520,7 +520,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
   - _Requirements: Invariant 1 (Raw text isolation)_
   - _Note: Separate from crypto_news_messages - this is for KOL messages_
 
-- [ ] 11.2 Store raw text in ingestion-service during broadcast
+- [ ] 11.2 Store raw text in ingestion-telegram during broadcast
   - Modify IngestionCoordinator.route() to insert into telegram_raw_messages
   - Store channelId, messageId, text, occurredAt
   - Handle INSERT conflicts (ON CONFLICT DO NOTHING)
@@ -536,7 +536,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
 
 - [ ] 11.4 Update backend KolIngestionOrchestrator to fetch text
   - Modify `onMessageReceived(raw)` to accept raw WITHOUT text field
-  - Add HTTP client to fetch text from ingestion-service when needed
+  - Add HTTP client to fetch text from ingestion-telegram when needed
   - Cache text in memory for the current message processing
   - Update ExtractFromMessageUseCase call to include fetched text
   - Update ParseFromCandidatesUseCase call to include fetched text
@@ -558,14 +558,14 @@ This plan implements a standalone Telegram ingestion service that eliminates res
   - _Requirements: GAP 5 (Dashboard WebSocket)_
 
 - [ ] 12.2 Measure end-to-end KPI latency
-  - Inject test message in ingestion-service
+  - Inject test message in ingestion-telegram
   - Measure time until dashboard WebSocket receives event
   - Target: <1000ms end-to-end (includes SSE hop ~50ms)
   - Document measured latency in deployment docs
   - _Requirements: GAP 5, Design § 4.6_
 
 - [ ] 12.3 Create E2E test for dashboard real-time updates
-  - Deploy ingestion-service + backend + dashboard
+  - Deploy ingestion-telegram + backend + dashboard
   - Connect dashboard WebSocket client
   - Inject test message via MTProto mock
   - Verify dashboard receives KPI update within 1s
@@ -575,13 +575,13 @@ This plan implements a standalone Telegram ingestion service that eliminates res
 
 - [ ] 13.1 Configure shared uploads volume in docker-compose
   - Define named volume `onchain-bot-uploads` in docker-compose.prod.yml
-  - Mount to ingestion-service at `/app/uploads`
+  - Mount to ingestion-telegram at `/app/uploads`
   - Mount to backend at `/app/uploads` (read-only for media access if needed)
   - Ensure volume persists across `docker compose build --no-cache`
   - _Requirements: GAP 2 (Docker networking), Design § 7.1_
 
 - [ ] 13.2 Update nginx configuration for media serving (if applicable)
-  - Add location block for `/api/media/*` proxying to ingestion-service:3031
+  - Add location block for `/api/media/*` proxying to ingestion-telegram:3031
   - Enable proxy caching for media files
   - Set proxy_cache_valid for 200 responses (1 year)
   - Document nginx config changes in deployment docs
@@ -596,11 +596,11 @@ This plan implements a standalone Telegram ingestion service that eliminates res
 
 ### Phase 14: CI/CD Integration (Additional)
 
-- [ ] 14.1 Add ingestion-service to GitHub Actions workflow
-  - Update `.github/workflows/deploy.yml` to include ingestion-service
-  - Add ingestion-service build step to test job
-  - Add ingestion-service docker build to deploy job
-  - Add ingestion-service health check after deploy
+- [ ] 14.1 Add ingestion-telegram to GitHub Actions workflow
+  - Update `.github/workflows/deploy.yml` to include ingestion-telegram
+  - Add ingestion-telegram build step to test job
+  - Add ingestion-telegram docker build to deploy job
+  - Add ingestion-telegram health check after deploy
   - _Requirements: Design § 7.1 Deployment, GAP 2_
 
 - [ ] 14.2 Add session validation to CI/CD
@@ -609,7 +609,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
   - Log validation results
   - _Requirements: GAP 6 (Session migration)_
 
-- [ ] 14.3 Add ingestion-service smoke tests to deploy workflow
+- [ ] 14.3 Add ingestion-telegram smoke tests to deploy workflow
   - Test health endpoint returns 200
   - Test MTProto connection status
   - Test channels endpoint returns data
@@ -619,8 +619,8 @@ This plan implements a standalone Telegram ingestion service that eliminates res
 
 ### Phase 15: Production Monitoring Alerts (Additional)
 
-- [ ] 15.1 Create Prometheus alert rules for ingestion-service
-  - Create `alerts/ingestion-service.yml` with alert definitions
+- [ ] 15.1 Create Prometheus alert rules for ingestion-telegram
+  - Create `alerts/ingestion-telegram.yml` with alert definitions
   - Add IngestionMtprotoDisconnected (>5min) → CRITICAL
   - Add IngestionHighFloodWaitRisk (>3 consecutive) → CRITICAL
   - Add IngestionZeroClients (>10min) → WARNING
@@ -629,12 +629,12 @@ This plan implements a standalone Telegram ingestion service that eliminates res
   - _Requirements: 9.6, 11.7, Design § 11.3_
 
 - [ ] 15.2 Integrate alerts with existing alerting system
-  - Add ingestion-service alerts to Prometheus config
+  - Add ingestion-telegram alerts to Prometheus config
   - Configure alert routing to Slack/PagerDuty
   - Document alert response procedures in monitoring playbook
   - _Requirements: 9.6, Design § 11.3_
 
-- [ ] 15.3 Create Grafana dashboard for ingestion-service
+- [ ] 15.3 Create Grafana dashboard for ingestion-telegram
   - Create dashboard with panels for:
     - MTProto connection status
     - Message throughput (messages/min)
@@ -642,7 +642,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
     - Broadcast latency (p50, p95, p99)
     - FLOOD_WAIT events count
     - Media download rate
-  - Export dashboard JSON to `monitoring/dashboards/ingestion-service.json`
+  - Export dashboard JSON to `monitoring/dashboards/ingestion-telegram.json`
   - _Requirements: 9.5, Design § 11_
 
 ### Phase 16: Performance Optimization and Tuning (Additional)
@@ -666,7 +666,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
   - _Requirements: Invariant 6 (LastSeenManager Redis)_
 
 - [ ] 16.4 Benchmark and document resource usage
-  - Run ingestion-service for 24h under production load
+  - Run ingestion-telegram for 24h under production load
   - Measure: CPU usage, memory usage, disk I/O, network bandwidth
   - Document baseline metrics in deployment docs
   - Compare with backend MTProto mode (expect -66% media storage, -40% memory)
@@ -687,7 +687,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
   - Reject unauthorized requests with 401
   - Document token rotation procedure
   - _Requirements: Design § 13.1 Network Security_
-  - _Note: Optional for MVP if ingestion-service is internal-only_
+  - _Note: Optional for MVP if ingestion-telegram is internal-only_
 
 - [ ] 17.3 Implement media path sanitization
   - Validate channelId, messageId, index params in MediaController
@@ -710,11 +710,11 @@ This plan implements a standalone Telegram ingestion service that eliminates res
   - Document decision to use path-based media URLs
   - Document decision to accept message loss during reconnection
   - Document decision to keep DashboardGateway in backend
-  - Place in `docs/adr/001-centralized-ingestion-service.md`
+  - Place in `docs/adr/001-centralized-ingestion-telegram.md`
   - _Requirements: Design § 14 Open Questions_
 
-- [ ] 18.2 Update project README with ingestion-service
-  - Add ingestion-service to architecture diagram
+- [ ] 18.2 Update project README with ingestion-telegram
+  - Add ingestion-telegram to architecture diagram
   - Document new ports (3031)
   - Update environment setup instructions
   - Update deployment instructions
@@ -729,7 +729,7 @@ This plan implements a standalone Telegram ingestion service that eliminates res
     - Session expiration
   - Include diagnostic commands
   - Include log inspection patterns
-  - Place in `docs/troubleshooting/ingestion-service.md`
+  - Place in `docs/troubleshooting/ingestion-telegram.md`
   - _Requirements: 12.5, Design § 14_
 
 - [ ] 18.4 Record demo video of migration process

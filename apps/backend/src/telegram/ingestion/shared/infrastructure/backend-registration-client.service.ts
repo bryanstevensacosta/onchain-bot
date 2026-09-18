@@ -11,7 +11,7 @@ import { Repository } from 'typeorm';
 import { KolEntity } from 'kol/identity/infrastructure/persistence/typeorm/entities/kol.entity';
 
 /**
- * Registration result from ingestion-service
+ * Registration result from ingestion-telegram
  */
 export interface RegistrationResult {
   registered: boolean;
@@ -30,7 +30,7 @@ export enum RegistrationStatus {
 }
 
 /**
- * BackendRegistrationClient - Registers backend with ingestion-service
+ * BackendRegistrationClient - Registers backend with ingestion-telegram
  *
  * Responsibilities:
  * - Register on boot with POST /api/ingestion/backends/register
@@ -84,7 +84,7 @@ export class BackendRegistrationClient
   /**
    * Get active channel IDs from local database.
    * Post db-separation todo 4: KOL channels only — crypto-news sources
-   * live in ingestion-service's own DB (no local table anymore).
+   * live in ingestion-telegram's own DB (no local table anymore).
    */
   async getActiveChannels(): Promise<string[]> {
     try {
@@ -111,7 +111,7 @@ export class BackendRegistrationClient
   }
 
   /**
-   * Register with ingestion-service with retry logic
+   * Register with ingestion-telegram with retry logic
    */
   private async registerWithRetry(maxAttempts = 5): Promise<void> {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -154,7 +154,7 @@ export class BackendRegistrationClient
   }
 
   /**
-   * Register with ingestion-service
+   * Register with ingestion-telegram
    */
   async registerWithIngestionService(): Promise<RegistrationResult> {
     const sourceWhitelist = await this.getActiveChannels();
