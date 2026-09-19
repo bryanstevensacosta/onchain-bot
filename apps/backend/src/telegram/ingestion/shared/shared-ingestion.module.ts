@@ -35,7 +35,7 @@ class StubCryptoNewsMediaDownloader extends CryptoNewsMediaDownloader {
   async download(): Promise<never> {
     throw new Error(
       'CryptoNewsMediaDownloader.download() is deprecated. ' +
-        'Media download migrated to ingestion-service (Phase 5). ' +
+        'Media download migrated to ingestion-telegram (Phase 5). ' +
         'Use SSE mode (USE_SSE_INGESTION=true) and fetch media via ' +
         'INGESTION_TELEGRAM_URL/api/media/:channelId/:messageId/:index',
     );
@@ -44,7 +44,7 @@ class StubCryptoNewsMediaDownloader extends CryptoNewsMediaDownloader {
   async saveToDisk(): Promise<never> {
     throw new Error(
       'CryptoNewsMediaDownloader.saveToDisk() is deprecated. ' +
-        'Media download migrated to ingestion-service (Phase 5). ' +
+        'Media download migrated to ingestion-telegram (Phase 5). ' +
         'Use SSE mode (USE_SSE_INGESTION=true) and fetch media via ' +
         'INGESTION_TELEGRAM_URL/api/media/:channelId/:messageId/:index',
     );

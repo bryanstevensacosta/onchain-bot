@@ -912,4 +912,259 @@ describe('ProcessNextQueuedArticleUseCase', () => {
       );
     });
   });
+
+  describe('tmp-download-and-delete media cache', () => {
+    const realFs = jest.requireActual('fs')
+      .promises as typeof import('fs').promises;
+    const realOs = jest.requireActual('node:os');
+    const realPath = jest.requireActual('path');
+    const originalFetch = global.fetch;
+
+    const fsMock = jest.requireMock('fs').promises;
+
+    const delegateTmpFsToReal = (): void => {
+      fsMock.mkdir?.mockReset();
+      fsMock.mkdir?.mockImplementation(async (...args: unknown[]) => {
+        await realFs.mkdir(
+          args[0] as Parameters<typeof realFs.mkdir>[0],
+          args[1] as Parameters<typeof realFs.mkdir>[1],
+        );
+      });
+      fsMock.access?.mockReset();
+      fsMock.access?.mockImplementation(async (...args: unknown[]) => {
+        await realFs.access(args[0] as Parameters<typeof realFs.access>[0]);
+      });
+      fsMock.writeFile?.mockReset();
+      fsMock.writeFile?.mockImplementation(async (...args: unknown[]) => {
+        await realFs.writeFile(
+          args[0] as Parameters<typeof realFs.writeFile>[0],
+          args[1] as Parameters<typeof realFs.writeFile>[1],
+          args[2] as Parameters<typeof realFs.writeFile>[2],
+        );
+      });
+      if (!fsMock.rm) {
+        fsMock.rm = jest.fn();
+      }
+      fsMock.rm?.mockReset();
+      fsMock.rm?.mockImplementation(async (...args: unknown[]) => {
+        await realFs.rm(
+          args[0] as Parameters<typeof realFs.rm>[0],
+          args[1] as Parameters<typeof realFs.rm>[1],
+        );
+      });
+    };
+
+    afterEach(() => {
+      fsMock.access?.mockReset();
+      fsMock.access?.mockResolvedValue(undefined);
+      fsMock.mkdir?.mockReset();
+      fsMock.mkdir?.mockResolvedValue(undefined);
+      fsMock.writeFile?.mockReset();
+      fsMock.writeFile?.mockResolvedValue(undefined);
+      fsMock.rm?.mockReset();
+      fsMock.rm?.mockResolvedValue(undefined);
+      global.fetch = originalFetch;
+    });
+
+    const openGate = (): void => {
+      queueRepo.countPublishedToday.mockResolvedValue(0);
+      throttleScheduler.shouldPublish.mockResolvedValue({
+        canPublish: true,
+        nextDelayMs: 0,
+      });
+      slotArbitrator.canPublishNow.mockResolvedValue({
+        canPublish: true,
+        nextSlotAvailableAt: null,
+        remainingSeconds: 0,
+        lastScope: null,
+        reason: 'ok',
+      });
+      throttleScheduler.setLastPublishAt.mockResolvedValue(undefined);
+      slotArbitrator.recordPublish.mockResolvedValue(undefined);
+      rotationStateRepo.incrementPostsSinceLastAd.mockResolvedValue(undefined);
+    };
+
+    const mockLlmContent = (content: string): void => {
+      llmAdapter.generateForEntry.mockResolvedValue({
+        content,
+        systemPrompt: null,
+        userPrompt: 'test',
+        temperature: null,
+        reasoningEffort: null,
+        model: 'test',
+      });
+    };
+
+    const listUploadsMedia = async (): Promise<string[]> => {
+      const dir = realPath.join(
+        process.cwd(),
+        'uploads',
+        'crypto-news',
+        'media',
+      );
+      try {
+        const entries = await realFs.readdir(dir, { recursive: true });
+        return [...entries].sort();
+      } catch {
+        return [];
+      }
+    };
+
+    const listTmpBackendMedia = async (): Promise<string[]> => {
+      const entries = await realFs.readdir(realOs.tmpdir());
+      return entries.filter((name) => name.startsWith('backend-media-')).sort();
+    };
+
+    const mockFetchOkJpeg = (): jest.Mock => {
+      const stub: jest.Mock = jest.fn(async () => ({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        headers: {
+          get: (name: string): string | null =>
+            name.toLowerCase() === 'content-type' ? 'image/jpeg' : null,
+        },
+        arrayBuffer: async (): Promise<ArrayBuffer> =>
+          new Uint8Array([0xff, 0xd8, 0xff]).buffer,
+      }));
+      global.fetch = stub;
+      return stub;
+    };
+
+    const mockFetchNotFound = (): jest.Mock => {
+      const stub: jest.Mock = jest.fn(async () => ({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        headers: {
+          get: (): null => null,
+        },
+        arrayBuffer: async (): Promise<ArrayBuffer> => new ArrayBuffer(0),
+      }));
+      global.fetch = stub;
+      return stub;
+    };
+
+    it('zero-growth: publish with media leaves no files in uploads/ nor tmp', async () => {
+      delegateTmpFsToReal();
+      const uploadsBefore = await listUploadsMedia();
+      const tmpBefore = await listTmpBackendMedia();
+      const fetchMock = mockFetchOkJpeg();
+
+      const entry = buildEntry({
+        id: 'entry-zero-growth',
+        imagePaths: ['http://localhost:3031/api/media/-1004466661332/200/0'],
+      });
+      openGate();
+      mockLlmContent('texto zero-growth');
+      publisher.sendPhoto.mockResolvedValue(sendOk(61_001));
+      queueRepo.findNextPending.mockResolvedValue(entry);
+      queueRepo.markPublished.mockResolvedValue(entry);
+
+      await useCase.execute();
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(publisher.sendPhoto).toHaveBeenCalledTimes(1);
+      const sentPath = publisher.sendPhoto.mock.calls[0][2];
+      expect(sentPath.startsWith(realOs.tmpdir())).toBe(true);
+      expect(sentPath.endsWith('.jpg')).toBe(true);
+      await expect(realFs.access(sentPath)).rejects.toThrow();
+      expect(await listTmpBackendMedia()).toEqual(tmpBefore);
+      expect(await listUploadsMedia()).toEqual(uploadsBefore);
+      expect(queueRepo.markPublished).toHaveBeenCalledWith(
+        'entry-zero-growth',
+        '61001',
+        expect.objectContaining({ content: 'texto zero-growth' }),
+      );
+    });
+
+    it('re-download retry: second tick re-downloads from ingestion and publishes OK', async () => {
+      delegateTmpFsToReal();
+      const tmpBefore = await listTmpBackendMedia();
+      const fetchMock = mockFetchOkJpeg();
+      const localPath = 'uploads/crypto-news/media/-1001111111111/201_0.jpg';
+
+      openGate();
+      mockLlmContent('texto re-download');
+      const first = buildEntry({
+        id: 'entry-re-download',
+        attempts: 0,
+        imagePaths: [localPath],
+      });
+      const second = buildEntry({
+        id: 'entry-re-download',
+        attempts: 0,
+        imagePaths: [localPath],
+      });
+      queueRepo.findNextPending
+        .mockResolvedValueOnce(first)
+        .mockResolvedValueOnce(second);
+      publisher.sendPhoto
+        .mockResolvedValueOnce(sendFail('temporary'))
+        .mockResolvedValueOnce(sendOk(61_002));
+      queueRepo.incrementAttempts.mockResolvedValue(first);
+      queueRepo.markPublished.mockResolvedValue(second);
+
+      await useCase.execute();
+      await useCase.execute();
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(publisher.sendPhoto).toHaveBeenCalledTimes(2);
+      expect(queueRepo.incrementAttempts).toHaveBeenCalledWith(
+        'entry-re-download',
+      );
+      expect(queueRepo.markPublished).toHaveBeenCalledWith(
+        'entry-re-download',
+        '61002',
+        expect.objectContaining({ content: 'texto re-download' }),
+      );
+      const firstSentPath = publisher.sendPhoto.mock.calls[0][2];
+      const secondSentPath = publisher.sendPhoto.mock.calls[1][2];
+      expect(firstSentPath.startsWith(realOs.tmpdir())).toBe(true);
+      expect(secondSentPath.startsWith(realOs.tmpdir())).toBe(true);
+      await expect(realFs.access(firstSentPath)).rejects.toThrow();
+      await expect(realFs.access(secondSentPath)).rejects.toThrow();
+      expect(await listTmpBackendMedia()).toEqual(tmpBefore);
+    });
+
+    it('orphan-404: ingestion 404 on both downloads marks FAILED without crash nor tmp residue', async () => {
+      delegateTmpFsToReal();
+      const tmpBefore = await listTmpBackendMedia();
+      const fetchMock = mockFetchNotFound();
+      llmConfigRepo.load.mockResolvedValue(
+        buildLlmConfig({ llmMaxAttempts: 2 }),
+      );
+
+      openGate();
+      mockLlmContent('texto orphan-404');
+      const localPath = 'uploads/crypto-news/media/-1002222222222/202_0.jpg';
+      const first = buildEntry({
+        id: 'entry-orphan-404',
+        attempts: 0,
+        imagePaths: [localPath],
+      });
+      const retry = buildEntry({
+        id: 'entry-orphan-404',
+        attempts: 1,
+        imagePaths: [localPath],
+      });
+      queueRepo.findNextPending
+        .mockResolvedValueOnce(first)
+        .mockResolvedValueOnce(retry);
+      queueRepo.incrementAttempts.mockResolvedValue(first);
+      queueRepo.markFailed.mockResolvedValue(retry);
+
+      await expect(useCase.execute()).resolves.toBeUndefined();
+      await expect(useCase.execute()).resolves.toBeUndefined();
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(publisher.sendPhoto).not.toHaveBeenCalled();
+      expect(queueRepo.markFailed).toHaveBeenCalledWith(
+        'entry-orphan-404',
+        expect.stringContaining('file not found'),
+      );
+      expect(queueRepo.markPublished).not.toHaveBeenCalled();
+      expect(await listTmpBackendMedia()).toEqual(tmpBefore);
+    });
+  });
 });
