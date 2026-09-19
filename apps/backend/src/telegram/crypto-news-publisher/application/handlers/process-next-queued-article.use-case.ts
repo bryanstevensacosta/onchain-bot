@@ -16,6 +16,7 @@ import { AdRotationStateRepository } from 'telegram/crypto-news-ads/application/
 import { MediaCleanupService } from 'telegram/crypto-news-publisher/infrastructure/services/media-cleanup.service';
 import { CryptoNewsPublisherConfigService } from 'telegram/crypto-news-publisher/infrastructure/config/crypto-news-publisher.config';
 import { promises as fs } from 'fs';
+import * as os from 'node:os';
 import * as path from 'path';
 
 /**
@@ -257,51 +258,59 @@ export class ProcessNextQueuedArticleUseCase {
     refinedText: string,
     cfg: LlmConfig,
   ) {
-    // Ensure all media files exist locally before sending to Telegram
-    const localPaths = await this.ensureLocalFiles(entry.imagePaths);
+    // Strategy B (tmp-download-and-delete): media bytes are staged in
+    // an OS-tmp dir that is removed best-effort after the publish —
+    // on success AND on failure. Zero growth in uploads/.
+    const { localPaths, tmpDir } = await this.ensureLocalFiles(
+      entry.imagePaths,
+    );
 
-    const options = { parseMode: 'HTML' as const };
+    try {
+      const options = { parseMode: 'HTML' as const };
 
-    if (localPaths.length > 1) {
-      const videoIdx = localPaths.findIndex((p) => this.isVideoPath(p));
-      if (videoIdx >= 0) {
-        // Send the video individually (no mixed album support)
-        return this.publisher.sendVideo(
+      if (localPaths.length > 1) {
+        const videoIdx = localPaths.findIndex((p) => this.isVideoPath(p));
+        if (videoIdx >= 0) {
+          // Send the video individually (no mixed album support)
+          return this.publisher.sendVideo(
+            cfg.targetChannel,
+            refinedText,
+            localPaths[videoIdx],
+            options,
+          );
+        }
+        return this.publisher.sendMediaGroup(
           cfg.targetChannel,
           refinedText,
-          localPaths[videoIdx],
+          localPaths,
           options,
         );
       }
-      return this.publisher.sendMediaGroup(
-        cfg.targetChannel,
-        refinedText,
-        localPaths,
-        options,
-      );
-    }
-    if (localPaths.length === 1) {
-      if (this.isVideoPath(localPaths[0])) {
-        return this.publisher.sendVideo(
+      if (localPaths.length === 1) {
+        if (this.isVideoPath(localPaths[0])) {
+          return this.publisher.sendVideo(
+            cfg.targetChannel,
+            refinedText,
+            localPaths[0],
+            options,
+          );
+        }
+        return this.publisher.sendPhoto(
           cfg.targetChannel,
           refinedText,
           localPaths[0],
           options,
         );
       }
-      return this.publisher.sendPhoto(
+      return this.publisher.sendMessage(
         cfg.targetChannel,
         refinedText,
-        localPaths[0],
+        undefined,
         options,
       );
+    } finally {
+      await this.cleanupTmpDir(tmpDir, `entry ${entry.id}`);
     }
-    return this.publisher.sendMessage(
-      cfg.targetChannel,
-      refinedText,
-      undefined,
-      options,
-    );
   }
 
   /**
@@ -360,57 +369,107 @@ export class ProcessNextQueuedArticleUseCase {
   }
 
   /**
-   * Ensure all media files exist locally. If a file doesn't exist,
-   * download it from ingestion-telegram.
-   *
-   * In dev local, ingestion-telegram and backend have separate uploads/
-   * directories. In production, they share a Docker volume.
+   * Stage all media files in an OS-tmp dir
+   * (`os.tmpdir()/backend-media-<uuid>/`). HTTP(S) entries and
+   * missing local paths are downloaded from ingestion-telegram into
+   * that dir; paths that already exist locally are passed through
+   * untouched. The caller removes `tmpDir` in a `finally` after the
+   * publish — on success AND on failure.
    *
    * @param paths - Array of file paths (local or HTTP URLs)
-   * @returns Array of local file paths
+   * @returns Tmp-staged paths plus the staging dir (`null` when empty)
    */
   private async ensureLocalFiles(
     paths: ReadonlyArray<string>,
-  ): Promise<string[]> {
-    const localPaths: string[] = [];
-
-    for (const filePath of paths) {
-      // If it's a URL, download it
-      if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
-        this.logger.debug(
-          `Queue entry has HTTP URL: ${filePath}, downloading...`,
-        );
-        const localPath = await this.downloadFromIngestionService(filePath);
-        localPaths.push(localPath);
-        continue;
-      }
-
-      // Check if file exists locally
-      try {
-        await fs.access(filePath);
-        localPaths.push(filePath);
-      } catch (_err) {
-        // File doesn't exist locally, try downloading from ingestion-telegram
-        this.logger.debug(
-          `File not found locally: ${filePath}, attempting download from ingestion-telegram`,
-        );
-
-        try {
-          const localPath = await this.downloadFileFromIngestion(filePath);
-          localPaths.push(localPath);
-        } catch (_downloadErr) {
-          throw new Error(`file not found: ${filePath}`);
-        }
-      }
+  ): Promise<{ localPaths: string[]; tmpDir: string | null }> {
+    if (paths.length === 0) {
+      return { localPaths: [], tmpDir: null };
     }
 
-    return localPaths;
+    const tmpDir = path.join(
+      os.tmpdir(),
+      `backend-media-${crypto.randomUUID()}`,
+    );
+    await fs.mkdir(tmpDir, { recursive: true });
+
+    try {
+      const localPaths: string[] = [];
+
+      for (const filePath of paths) {
+        // If it's a URL, download it
+        if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+          this.logger.debug(
+            `Queue entry has HTTP URL: ${filePath}, downloading...`,
+          );
+          const localPath = await this.downloadFromIngestionService(
+            filePath,
+            tmpDir,
+          );
+          localPaths.push(localPath);
+          continue;
+        }
+
+        // Check if file exists locally
+        try {
+          await fs.access(filePath);
+          localPaths.push(filePath);
+        } catch (_err) {
+          // File doesn't exist locally, try downloading from ingestion-telegram
+          this.logger.debug(
+            `File not found locally: ${filePath}, attempting download from ingestion-telegram`,
+          );
+
+          try {
+            const localPath = await this.downloadFileFromIngestion(
+              filePath,
+              tmpDir,
+            );
+            localPaths.push(localPath);
+          } catch (_downloadErr) {
+            throw new Error(`file not found: ${filePath}`);
+          }
+        }
+      }
+
+      return { localPaths, tmpDir };
+    } catch (err) {
+      // Staging failed before the publish: the caller never received
+      // tmpDir, so clean it up here to leave no residue.
+      await this.cleanupTmpDir(tmpDir, 'ensureLocalFiles');
+      throw err;
+    }
   }
 
   /**
-   * Download a file from ingestion-telegram given an HTTP URL.
+   * Best-effort removal of the tmp staging dir. Never throws — a
+   * cleanup failure is logged as a warning and must not mask the
+   * publish result (success or the original error).
    */
-  private async downloadFromIngestionService(url: string): Promise<string> {
+  private async cleanupTmpDir(
+    tmpDir: string | null,
+    context: string,
+  ): Promise<void> {
+    if (tmpDir === null) {
+      return;
+    }
+    try {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    } catch (err) {
+      this.logger.warn(
+        `tmp media cleanup failed for ${context} (dir=${tmpDir}): ` +
+          `${err instanceof Error ? err.message : 'unknown error'}`,
+      );
+    }
+  }
+
+  /**
+   * Download a file from ingestion-telegram given an HTTP URL,
+   * staging the bytes in the caller's tmp dir (never in uploads/).
+   */
+  private async downloadFromIngestionService(
+    url: string,
+    tmpDir: string,
+  ): Promise<string> {
     try {
       const response = await fetch(url);
 
@@ -438,12 +497,13 @@ export class ProcessNextQueuedArticleUseCase {
         response.headers.get('content-type') || 'application/octet-stream';
       const ext = this.getExtensionFromMimeType(contentType);
 
-      // Save to backend uploads directory
-      const localDir = path.join('uploads', 'crypto-news', 'media', channelId);
-      const localFileName = `${messageId}_${index}.${ext}`;
-      const localPath = path.join(localDir, localFileName);
+      // Stage in OS tmp (flat name includes channelId to avoid
+      // cross-channel collisions); caller deletes the whole dir.
+      const localPath = path.join(
+        tmpDir,
+        `${channelId}_${messageId}_${index}.${ext}`,
+      );
 
-      await fs.mkdir(localDir, { recursive: true });
       await fs.writeFile(localPath, buffer);
 
       this.logger.log(`Downloaded ${url} → ${localPath}`);
@@ -456,9 +516,13 @@ export class ProcessNextQueuedArticleUseCase {
 
   /**
    * Download a file from ingestion-telegram given a local path that doesn't exist locally.
-   * Converts the path to an ingestion-telegram URL and downloads it.
+   * Converts the path to an ingestion-telegram URL and stages the
+   * bytes in the caller's tmp dir (never in uploads/).
    */
-  private async downloadFileFromIngestion(localPath: string): Promise<string> {
+  private async downloadFileFromIngestion(
+    localPath: string,
+    tmpDir: string,
+  ): Promise<string> {
     // Convert local path to ingestion-telegram URL
     // Path: uploads/crypto-news/media/-1004466661332/200_0.jpg
     // URL:  {ingestionServiceUrl}/api/media/-1004466661332/200/0
@@ -473,6 +537,8 @@ export class ProcessNextQueuedArticleUseCase {
     const channelId = match[1];
     const messageId = match[2];
     const index = match[3];
+    // Preserve the original extension from the path parse.
+    const ext = path.extname(localPath) || '.bin';
 
     // NOTE: never hardcode localhost here — inside Docker the ingestion
     // container is a different host (ingestion-telegram:3031 via
@@ -492,15 +558,15 @@ export class ProcessNextQueuedArticleUseCase {
 
       const buffer = Buffer.from(await response.arrayBuffer());
 
-      // Ensure directory exists
-      const dir = path.dirname(localPath);
-      await fs.mkdir(dir, { recursive: true });
+      // Stage in OS tmp; caller deletes the whole dir.
+      const tmpPath = path.join(
+        tmpDir,
+        `${channelId}_${messageId}_${index}${ext}`,
+      );
+      await fs.writeFile(tmpPath, buffer);
 
-      // Save file
-      await fs.writeFile(localPath, buffer);
-
-      this.logger.log(`Downloaded ${ingestionUrl} → ${localPath}`);
-      return localPath;
+      this.logger.log(`Downloaded ${ingestionUrl} → ${tmpPath}`);
+      return tmpPath;
     } catch (err) {
       this.logger.error(
         `Failed to download from ingestion: ${ingestionUrl}: ${err}`,

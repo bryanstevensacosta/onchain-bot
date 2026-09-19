@@ -3,6 +3,17 @@
 
 set -euo pipefail
 
+# DRY_RUN: report resolved mode + data-source without executing npx (shift so --dry-run never reaches typeorm)
+if [ "${1:-}" = "--dry-run" ]; then
+  shift
+  if [ "${NODE_ENV:-}" = "production" ] || [ "${NODE_ENV:-}" = "staging" ]; then
+    echo "[DRYRUN] mode=javascript data-source=./dist/backend/src/shared/common/persistence/data-source.js args=${*:-}"
+  else
+    echo "[DRYRUN] mode=typescript data-source=src/shared/common/persistence/data-source.ts args=${*:-}"
+  fi
+  exit 0
+fi
+
 # Debug: Surface environment variable state at decision point
 echo "[TYPEORM-DEBUG] NODE_ENV='${NODE_ENV:-<unset>}'"
 echo "[TYPEORM-DEBUG] Compiled artifacts check: ./dist/backend/src/shared/common/persistence/data-source.js"

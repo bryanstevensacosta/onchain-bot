@@ -298,6 +298,9 @@ Real-time SSE event processor for `messageType='crypto-news'` messages. Implemen
 - Magic-byte sniffing (not Telegram-declared MIME), fallback `application/octet-stream` + `.bin`
 - Backend reads via HTTP (`INGESTION_TELEGRAM_URL/api/media/*`)
 - Serving re-sniffs via `media-serving.ts` (stored `.bin` MP4 served as `video/mp4`) with Range/206
+- **Backend cache is growth-zero (2026-09-19, backend-media-ownership)**: `ProcessNextQueuedArticleUseCase.ensureLocalFiles` stages to `os.tmpdir()/backend-media-<uuid>/` and deletes in `finally` (success AND failure); retry re-downloads from ingestion. Queue holds paths/URLs, never bytes. Specs: `zero-growth|re-download|orphan-404` in `process-next-queued-article.use-case.spec.ts`.
+- **Frontend display never breaks**: backend `queue.controller.ts:getQueueMedia` serves local-first with ingestion-proxy fallback (`convertLocalPathToIngestionUrl`), so deleted backend copies resolve via `GET /api/media/...` while ingestion holds them (72h).
+- **Ownership**: news cache → ingestion-telegram; ingestion `uploads/` → ingestion-telegram (source of truth + 72h janitor); `crypto-news-ads-library/` → backend (untouched, was empty). Full table: `docs/deployment/media-ownership.md`; cleanup tool: `scripts/crypto-news-media-cleanup.mjs` (always dry-run by default).
 
 **3-Flag Control System (CRITICAL DEPENDENCY)**:
 
@@ -737,6 +740,16 @@ npm run migration:show       # applied vs pending
 
 Files: `src/shared/common/persistence/migrations/{timestamp}-*.ts` (`MigrationInterface` up/down).
 Hang at boot → check `NODE_ENV`, "Using migrations (synchronize: false)" in logs, `migration:show`.
+
+**NODE_ENV→mode contract (2026-09-19, verified `scripts/show-migrations.sh:16-24`):**
+
+| `NODE_ENV`                | Mode                                               | Data-source                                                 |
+| ------------------------- | -------------------------------------------------- | ----------------------------------------------------------- |
+| `staging` \| `production` | JavaScript (`dist/`)                               | `dist/backend/src/shared/common/persistence/data-source.js` |
+| else (unset/dev/test)     | TypeScript (`src/`) via `typeorm-ts-node-commonjs` | `src/shared/common/persistence/data-source.ts`              |
+
+Staging-local caveat (NODE_ENV=staging hits dist mode): CLI `data-source.ts:28` loads only `.env` (never `.env.staging`); `.env.staging:97-105` is Docker-only, so local `NODE_ENV=staging` hits dev DB `alpha_meta_token_scanner` on `localhost:5432` by default.
+`--dry-run` (all 3 scripts): prints `[DRYRUN] mode=<javascript|typescript> data-source=<path>`, exit 0 without DB. See `.omo/drafts/staging-migration-test-fix.md`.
 
 ## OPS (scripts + compose)
 

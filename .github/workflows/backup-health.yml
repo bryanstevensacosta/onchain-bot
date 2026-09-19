@@ -1,0 +1,202 @@
+# =====================================================================
+# Backup health watchdog — prod-backend rolling backups (T5).
+# Daily schedule + manual dispatch. Read-only: SSH to droplet (probe
+# local backups + disk) + `rclone lsl` to the offsite bucket (size +
+# newest object). Applies the ESCALA UNICA (identical in T1/T2/T5):
+#
+#   backup newest  fail if age > 26h (missing counts as fail)
+#   disk           warn >= 80% / fail >= 90% or < 2 GB free
+#   bucket         warn >= 6.4 GiB (80% of 8 GiB) / fail if > 8 GiB
+#   count          warn if prod-backend-*.dump.gz != 7
+#                  (6 or 8 = transient 03:00-03:20 window, NEVER fail)
+#   offsite lag    warn if newest bucket object > 26h behind local
+#                  (NEVER fail)
+#
+# Publishes a table to $GITHUB_STEP_SUMMARY and fails the workflow
+# ONLY on fail cases. Restores nothing, deletes nothing.
+#
+# Required GitHub Secrets (created out-of-band, never in repo):
+#   gh secret set DROPLET_HOST      # e.g. 150.136.155.23
+#   gh secret set DROPLET_USER      # e.g. runner
+#   gh secret set DROPLET_SSH_KEY   # private key with read access
+# Offsite credentials are NOT needed here: `rclone lsl` runs ON the
+# droplet, which reads /opt/onchain-bot/.rclone-offsite.env (T4).
+# =====================================================================
+name: Backup health (prod-backend watchdog)
+
+on:
+  schedule:
+    # Daily 04:00 UTC — after the 03:00 backup timer (T3) and the
+    # 03:20 offsite sync (T4), so count/lag are settled.
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: backup-health
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    name: prod-backend backup health
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH to droplet
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s' '${{ secrets.DROPLET_SSH_KEY }}' > ~/.ssh/droplet_key
+          chmod 600 ~/.ssh/droplet_key
+          printf 'Host droplet-health\n  HostName %s\n  User %s\n  IdentityFile ~/.ssh/droplet_key\n  StrictHostKeyChecking accept-new\n' \
+            '${{ secrets.DROPLET_HOST }}' '${{ secrets.DROPLET_USER }}' > ~/.ssh/config
+          chmod 600 ~/.ssh/config
+          echo "=== SSH configured (key from Secrets, host from Secrets) ==="
+
+      - name: Check backup health (ESCALA UNICA)
+        env:
+          DROPLET_SSH: droplet-health
+        run: |
+          set -euo pipefail
+          # --- inputs: STUB_INPUT (QA matrix only) or live SSH probe ---
+          if [ -n "${STUB_INPUT:-}" ]; then
+            PROBE="$STUB_INPUT"
+            echo "=== using STUB_INPUT (QA) ==="
+          else
+            PROBE="$(ssh "$DROPLET_SSH" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          BACKUP_DIR="/opt/onchain-bot/backups"
+          RCLONE_ENV_FILE="/opt/onchain-bot/.rclone-offsite.env"
+          NOW="$(date +%s)"
+          # newest local backup + age
+          LATEST="$(ls -t "$BACKUP_DIR"/prod-backend-*.dump.gz 2>/dev/null | head -1 || true)"
+          if [ -n "$LATEST" ]; then
+            MT="$(stat -c %Y "$LATEST" 2>/dev/null || echo 0)"
+            BACKUP_AGE_S=$((NOW - MT)); [ "$BACKUP_AGE_S" -lt 0 ] && BACKUP_AGE_S=0
+            LOCAL_NEWEST="$MT"
+            BACKUP_NAME="$(basename "$LATEST")"
+          else
+            BACKUP_AGE_S=-1; LOCAL_NEWEST=0; BACKUP_NAME="(missing)"
+          fi
+          # count of rolling dumps
+          BACKUP_COUNT="$(ls "$BACKUP_DIR"/prod-backend-*.dump.gz 2>/dev/null | wc -l | tr -d ' ')"
+          # disk (unified scale source, same as deploy.yml backup step)
+          DF_LINE="$(df -P "$BACKUP_DIR" 2>/dev/null | awk 'NR==2 {print $5, $4}')"
+          [ -z "$DF_LINE" ] && DF_LINE="$(df -P / 2>/dev/null | awk 'NR==2 {print $5, $4}')"
+          DISK_PCT="$(printf '%s' "$DF_LINE" | awk '{print $1}' | tr -d '%')"
+          DISK_AVAIL_KB="$(printf '%s' "$DF_LINE" | awk '{print $2}')"
+          case "$DISK_PCT" in ''|*[!0-9]*) DISK_PCT=0 ;; esac
+          case "$DISK_AVAIL_KB" in ''|*[!0-9]*) DISK_AVAIL_KB=0 ;; esac
+          # bucket size + newest object (read-only lsl; creds stay on-host)
+          BUCKET_BYTES=-1; BUCKET_NEWEST=0
+          if [ -s "$RCLONE_ENV_FILE" ]; then
+            # shellcheck disable=SC1090
+            set -a; . "$RCLONE_ENV_FILE"; set +a
+            if [ -n "${R2_REMOTE:-}" ] && [ -n "${R2_BUCKET:-}" ]; then
+              LSL="$(rclone lsl "$R2_REMOTE:$R2_BUCKET"/ --include 'prod-backend-*' --log-level ERROR 2>/dev/null || true)"
+              if [ -n "$LSL" ]; then
+                BUCKET_BYTES="$(printf '%s\n' "$LSL" | awk '{s+=$1} END {print s+0}')"
+                while IFS= read -r line; do
+                  d="$(printf '%s' "$line" | awk '{print $2}')"
+                  t="$(printf '%s' "$line" | awk '{print $3}' | cut -d. -f1)"
+                  e="$(date -d "$d $t" +%s 2>/dev/null || echo 0)"
+                  [ "$e" -gt "$BUCKET_NEWEST" ] && BUCKET_NEWEST="$e"
+                done <<< "$LSL"
+              else
+                BUCKET_BYTES=0
+              fi
+            fi
+          fi
+          printf 'BACKUP_NAME=%s\nBACKUP_AGE_S=%s\nLOCAL_NEWEST=%s\nBACKUP_COUNT=%s\nDISK_PCT=%s\nDISK_AVAIL_KB=%s\nBUCKET_BYTES=%s\nBUCKET_NEWEST=%s\n' \
+            "$BACKUP_NAME" "$BACKUP_AGE_S" "$LOCAL_NEWEST" "$BACKUP_COUNT" "$DISK_PCT" "$DISK_AVAIL_KB" "$BUCKET_BYTES" "$BUCKET_NEWEST"
+          REMOTE
+            )"
+          fi
+          # --- parse probe (numeric fields validated; names never executed) ---
+          pick() { printf '%s\n' "$PROBE" | grep "^$1=" | head -1 | cut -d= -f2- || true; }
+          BACKUP_NAME="$(pick BACKUP_NAME)"; [ -z "$BACKUP_NAME" ] && BACKUP_NAME="(missing)"
+          BACKUP_AGE_S="$(pick BACKUP_AGE_S)"; case "$BACKUP_AGE_S" in ''|-|*[!0-9-]*) BACKUP_AGE_S=-1 ;; esac
+          LOCAL_NEWEST="$(pick LOCAL_NEWEST)"; case "$LOCAL_NEWEST" in ''|*[!0-9]*) LOCAL_NEWEST=0 ;; esac
+          BACKUP_COUNT="$(pick BACKUP_COUNT)"; case "$BACKUP_COUNT" in ''|*[!0-9]*) BACKUP_COUNT=0 ;; esac
+          DISK_PCT="$(pick DISK_PCT)"; case "$DISK_PCT" in ''|*[!0-9]*) DISK_PCT=0 ;; esac
+          DISK_AVAIL_KB="$(pick DISK_AVAIL_KB)"; case "$DISK_AVAIL_KB" in ''|*[!0-9]*) DISK_AVAIL_KB=0 ;; esac
+          BUCKET_BYTES="$(pick BUCKET_BYTES)"; case "$BUCKET_BYTES" in ''|-|*[!0-9-]*) BUCKET_BYTES=-1 ;; esac
+          BUCKET_NEWEST="$(pick BUCKET_NEWEST)"; case "$BUCKET_NEWEST" in ''|*[!0-9]*) BUCKET_NEWEST=0 ;; esac
+          # --- ESCALA UNICA thresholds (do NOT change without T1/T2/T5) ---
+          MAX_AGE_S=93600        # 26h
+          DISK_WARN=80; DISK_FAIL=90; DISK_MIN_FREE_KB=2097152  # 2 GiB
+          BUCKET_WARN_BYTES=6871947674  # 6.4 GiB (80% of 8 GiB)
+          BUCKET_FAIL_BYTES=8589934592  # 8 GiB
+          EXPECTED_COUNT=7
+          FAIL=0
+          V_BACKUP=ok; V_DISK=ok; V_BUCKET=ok; V_COUNT=ok; V_OFFSITE=ok
+          # backup: fail if >26h or missing
+          if [ "$BACKUP_AGE_S" -lt 0 ]; then
+            V_BACKUP=fail; FAIL=1
+            echo "::error::[ESCALA UNICA] no prod-backend-*.dump.gz found on droplet."
+            AGE_H="(missing)"
+          elif [ "$BACKUP_AGE_S" -gt "$MAX_AGE_S" ]; then
+            V_BACKUP=fail; FAIL=1
+            echo "::error::[ESCALA UNICA] newest backup $BACKUP_NAME is $((BACKUP_AGE_S / 3600))h old (>26h)."
+            AGE_H="$((BACKUP_AGE_S / 3600))h"
+          elif [ "$BACKUP_AGE_S" -lt 3600 ]; then AGE_H="$((BACKUP_AGE_S / 60))min";
+          elif [ "$BACKUP_AGE_S" -lt 86400 ]; then AGE_H="$((BACKUP_AGE_S / 3600))h $(((BACKUP_AGE_S % 3600) / 60))min";
+          else AGE_H="$((BACKUP_AGE_S / 86400))d $(((BACKUP_AGE_S % 86400) / 3600))h"; fi
+          # disk: warn >=80% / fail >=90% or <2GB free
+          if [ "$DISK_PCT" -ge "$DISK_FAIL" ] || [ "$DISK_AVAIL_KB" -lt "$DISK_MIN_FREE_KB" ]; then
+            V_DISK=fail; FAIL=1
+            echo "::error::[ESCALA UNICA] disk at ${DISK_PCT}% (${DISK_AVAIL_KB}KB free): fail >=90% or <2GB free."
+          elif [ "$DISK_PCT" -ge "$DISK_WARN" ]; then
+            V_DISK=warn
+            echo "::warning::[ESCALA UNICA] disk at ${DISK_PCT}% >= 80% (free ${DISK_AVAIL_KB}KB)."
+          fi
+          # bucket: warn >=6.4GiB / fail >8GiB (unknown = warn-skip, never fail)
+          if [ "$BUCKET_BYTES" -lt 0 ]; then
+            echo "::warning::[ESCALA UNICA] could not measure bucket size; skipping budget check."
+            BUCKET_H="(unknown)"
+          else
+            BUCKET_H="$(awk "BEGIN {printf \"%.2f\", $BUCKET_BYTES/1073741824}")GiB"
+            if [ "$BUCKET_BYTES" -gt "$BUCKET_FAIL_BYTES" ]; then
+              V_BUCKET=fail; FAIL=1
+              echo "::error::[ESCALA UNICA] bucket ${BUCKET_H} exceeds 8GiB budget."
+            elif [ "$BUCKET_BYTES" -ge "$BUCKET_WARN_BYTES" ]; then
+              V_BUCKET=warn
+              echo "::warning::[ESCALA UNICA] bucket ${BUCKET_H} >= 6.4GiB (80% of 8GiB budget)."
+            fi
+          fi
+          # count: warn if !=7, NEVER fail (6/8 = transient 03:00-03:20 window)
+          if [ "$BACKUP_COUNT" -ne "$EXPECTED_COUNT" ]; then
+            V_COUNT=warn
+            echo "::warning::[ESCALA UNICA] found ${BACKUP_COUNT} prod-backend dumps, expected 7 (transient 03:00-03:20 window possible; never fail on count)."
+          fi
+          # offsite lag: warn if bucket newest >26h behind local, NEVER fail
+          if [ "$LOCAL_NEWEST" -gt 0 ] && [ "$BUCKET_NEWEST" -gt 0 ]; then
+            LAG_S=$((LOCAL_NEWEST - BUCKET_NEWEST)); [ "$LAG_S" -lt 0 ] && LAG_S=0
+            LAG_H="$((LAG_S / 3600))h"
+            if [ "$LAG_S" -gt "$MAX_AGE_S" ]; then
+              V_OFFSITE=warn
+              echo "::warning::[ESCALA UNICA] offsite newest object ${LAG_H} behind local (>26h)."
+            fi
+          else
+            LAG_H="(unknown)"
+            echo "::warning::[ESCALA UNICA] could not measure offsite lag; skipping."
+          fi
+          # --- summary table (no secrets: names/sizes/ages/verdicts only) ---
+          {
+            echo "### Backup health (prod-backend, ESCALA UNICA)"
+            echo ""
+            echo "| check | value | verdict |"
+            echo "|---|---|---|"
+            echo "| newest backup | $BACKUP_NAME ($AGE_H) | $V_BACKUP |"
+            echo "| local dumps | $BACKUP_COUNT (expected 7) | $V_COUNT |"
+            echo "| disk | ${DISK_PCT}% used, ${DISK_AVAIL_KB}KB free | $V_DISK |"
+            echo "| bucket | $BUCKET_H | $V_BUCKET |"
+            echo "| offsite lag | $LAG_H | $V_OFFSITE |"
+          } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+          echo "=== verdicts: backup=$V_BACKUP count=$V_COUNT disk=$V_DISK bucket=$V_BUCKET offsite=$V_OFFSITE ==="
+          if [ "$FAIL" -ne 0 ]; then
+            echo "=== Backup health FAIL (fail-case present) ==="
+            exit 1
+          fi
+          echo "=== Backup health OK (warnings at most) ==="

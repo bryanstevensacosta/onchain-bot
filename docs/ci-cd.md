@@ -191,9 +191,11 @@ Key steps:
 1. `actions/checkout@v4` + `actions/setup-node@v4` (Node 24).
 2. **rsync** to `/opt/onchain-bot` (excludes `uploads` in addition to the
    staging excludes — uploads persist across deploys).
-3. `scripts/backup-db.sh` (uses `POSTGRES_PASSWORD` from
-   `apps/backend/.env.production`, keeps 7 days of dumps in
-   `/opt/onchain-bot/backups/`).
+3. `scripts/backup-db.sh` in daily mode (`BACKUP_MODE=daily
+BACKUP_BASENAME=prod-backend BACKUP_ORIGIN=pre-deploy` — overwrites the
+   day-file `prod-backend-YYYYMMDD.dump.gz`, exactly 7 on disk in
+   `/opt/onchain-bot/backups/`; failure aborts the deploy before
+   migrations). Full scheme + thresholds: [BACKUPS.md](./deployment/BACKUPS.md).
 4. `chown -R runner:runner /opt/onchain-bot` (host-side `npm ci`).
 5. `docker compose ... build backend` + `npm run migration:run` (host-side
    against prod DB).
@@ -222,11 +224,11 @@ manual flow (`RELEASE-FLOW.md`, forthcoming).
 
 ## Environment matrix
 
-| Env        | Host / Port                                                         | Branch   | Deploy workflow             | DB port       | `USE_MOCK_AI`   |
-| ---------- | ------------------------------------------------------------------- | -------- | --------------------------- | ------------- | --------------- |
-| Local dev  | `localhost:3030` + `:5173`                                          | `dev`    | none (manual `npm run dev`) | 5432 (docker) | n/a             |
+| Env        | Host / Port                                                                                                             | Branch   | Deploy workflow             | DB port       | `USE_MOCK_AI`   |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------- | ------------- | --------------- |
+| Local dev  | `localhost:3030` + `:5173`                                                                                              | `dev`    | none (manual `npm run dev`) | 5432 (docker) | n/a             |
 | Staging    | `localhost:3031` + `:4173` (Tailscale `100.110.169.120:3031` + `:4173`; ex-DO (suspended 2026-09-10) was `100.84.4.28`) | `dev`    | `deploy-staging.yml`        | 5433          | `true`          |
-| Production | `localhost:3030` + `:5173`                                          | `master` | `deploy.yml`                | 5432          | unset (real AI) |
+| Production | `localhost:3030` + `:5173`                                                                                              | `master` | `deploy.yml`                | 5432          | unset (real AI) |
 
 > **Why two ports on prod?** Production's `:3030` is the NestJS backend
 > container; `:5173` is the Vite dev server the frontend container serves.
@@ -314,16 +316,17 @@ This re-runs the same `rsync + build + recreate` against the current `master`
 HEAD. It is not a "rollback" in the strict sense — it is a redeploy of the
 last known-good commit on the running branch.
 
-**For data-loss incidents**, the source of truth is
-`/opt/onchain-bot/backups/pre-deploy-*.dump` (7-day retention,
-`scripts/backup-db.sh`):
+**For data-loss incidents**, the source of truth is the daily rolling
+scheme (`/opt/onchain-bot/backups/prod-backend-YYYYMMDD.dump.gz`, 7 files,
+canonical `.dump.gz`). Full runbook (both DBs, thresholds, media exclusion):
+[BACKUPS.md](./deployment/BACKUPS.md). Quick shape — verify FIRST, then
+decompress on the pipe (a restore line without `gunzip -c` is wrong):
 
 ```bash
-ssh CryptoGanster 'ls -lh /opt/onchain-bot/backups/ | tail -10'
-ssh CryptoGanster 'docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" \
-  onchain-bot-postgres-production pg_restore -U alpha_meta_token_scanner \
-  -d alpha_meta_token_scanner --clean --if-exists \
-  --role=alpha_meta_token_scanner < /opt/onchain-bot/backups/pre-deploy-20260824_031500.dump'
+ssh CryptoGanster 'ls -lh /opt/onchain-bot/backups/prod-backend-*.dump.gz | tail -10'
+ssh CryptoGanster 'cd /opt/onchain-bot/backups && sha256sum -c prod-backend-YYYYMMDD.meta.txt'
+gunzip -c /opt/onchain-bot/backups/prod-backend-YYYYMMDD.dump.gz | pg_restore --clean --if-exists \
+  -U alpha_meta_token_scanner -d alpha_meta_token_scanner --role=alpha_meta_token_scanner
 ```
 
 ### 💾 Disk full
@@ -426,13 +429,15 @@ sudo du -sh /opt/onchain-bot/backups/* 2>/dev/null | sort -hr | head -10
    `CRYPTO_NEWS_MEDIA_RETENTION_HOURS` and just deletes anything older
    than 24 h. It is intended for emergencies only.
 
-5. **Prune old DB backups (low risk).** The deploy script already prunes
-
-   > 7 days, but if you have an out-of-band backup, you can prune more
-   > aggressively:
+5. **Prune old DB backups (low risk).** The daily scheme already prunes
+   itself to exactly 7 `prod-backend-*.dump.gz` (`-mtime +6`), and the
+   offsite mirror prunes the bucket the same way — see
+   [BACKUPS.md](./deployment/BACKUPS.md) §§1,10 (legacy `pre-deploy-*`
+   cleanup is procedure-only, gated on 7 new objects + 1 restore drill).
+   Emergency-only manual prune of the legacy series:
 
    ```bash
-   ssh CryptoGanster 'find /opt/onchain-bot/backups -maxdepth 1 -name "pre-deploy-*.dump" -mtime +3 -delete'
+   ssh CryptoGanster 'find /opt/onchain-bot/backups -maxdepth 1 -name "pre-deploy-*.dump*" -mtime +3 -delete'
    ```
 
 **Automated mitigation: cron job for `docker system prune`.** See the next
@@ -490,17 +495,17 @@ left behind by `docker compose build` after a `up -d` that does not use
 
 ## Failure modes & first-responder steps
 
-| Symptom                                                        | Cause                                                 | First action                                                                                      |
-| -------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| CI `Tests` job fails on `dev` push                             | Backend or frontend unit test regression              | `gh run view --log-failed` — fix on a feature branch, push, re-run                                |
-| CI `TypeScript Check` fails                                    | Type drift between BCs (often after a refactor)       | `npm run build` locally, fix, commit, push                                                        |
-| `Branch Governance Check` fails on PR                          | Force-push on PR branch, or non-linear history        | `gh pr view --json commits` — rebase or recreate the branch                                       |
-| Staging deploy fails on `Wait for backend healthcheck` (5 min) | Container stuck on migrations, env misconfig          | `ssh CryptoGanster 'docker logs onchain-bot-backend-staging --tail 100'`                          |
-| Staging deploy fails on Tailscale probe                        | Tailscale daemon down, or socat service crashed       | `ssh CryptoGanster 'systemctl status tailscaled; systemctl status socat-backend-staging.service'` |
-| Prod healthcheck fails, retry also fails                       | Bad migration, OOM, broken image                      | `ssh CryptoGanster 'docker logs onchain-bot-backend-production --tail 50'` — see **Rollback** above          |
-| Manual release mis-tags a version | Human error in tag or changelog entry | Fix the tag + changelog entry by hand; see [Release Process](./release-process.md) |
-| Disk > 80%                                                     | See **Disk full** above                               | `df -h` then triage                                                                               |
-| `Cannot connect to the Docker daemon` on droplet               | Docker daemon crashed                                 | `ssh CryptoGanster 'sudo systemctl restart docker'` (runner reconnects automatically)             |
+| Symptom                                                        | Cause                                                                                                             | First action                                                                                        |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| CI `Tests` job fails on `dev` push                             | Backend or frontend unit test regression                                                                          | `gh run view --log-failed` — fix on a feature branch, push, re-run                                  |
+| CI `TypeScript Check` fails                                    | Type drift between BCs (often after a refactor)                                                                   | `npm run build` locally, fix, commit, push                                                          |
+| `Branch Governance Check` fails on PR                          | Force-push on PR branch, or non-linear history                                                                    | `gh pr view --json commits` — rebase or recreate the branch                                         |
+| Staging deploy fails on `Wait for backend healthcheck` (5 min) | Container stuck on migrations, env misconfig                                                                      | `ssh CryptoGanster 'docker logs onchain-bot-backend-staging --tail 100'`                            |
+| Staging deploy fails on Tailscale probe                        | Tailscale daemon down, or socat service crashed                                                                   | `ssh CryptoGanster 'systemctl status tailscaled; systemctl status socat-backend-staging.service'`   |
+| Prod healthcheck fails, retry also fails                       | Bad migration, OOM, broken image                                                                                  | `ssh CryptoGanster 'docker logs onchain-bot-backend-production --tail 50'` — see **Rollback** above |
+| Manual release mis-tags a version                              | Human error in tag or changelog entry                                                                             | Fix the tag + changelog entry by hand; see [Release Process](./release-process.md)                  |
+| Disk > 80%                                                     | See **Disk full** above (ESCALA ÚNICA: warn ≥80% / fail ≥90% or <2 GB — [BACKUPS.md](./deployment/BACKUPS.md) §5) | `df -h` then triage                                                                                 |
+| `Cannot connect to the Docker daemon` on droplet               | Docker daemon crashed                                                                                             | `ssh CryptoGanster 'sudo systemctl restart docker'` (runner reconnects automatically)               |
 
 ---
 
@@ -512,7 +517,9 @@ left behind by `docker compose build` after a `up -d` that does not use
   in place via `docker compose up -d --force-recreate`.
 - **No autoscaling self-hosted runner.** The runner is the droplet itself.
 - **No external observability (Datadog, Sentry, etc.).** The only signal
-  sources are GH Actions logs + `docker logs` + `df -h`.
+  sources are GH Actions logs + `docker logs` + `df -h` — plus the daily
+  `backup-health.yml` watchdog, which publishes the ESCALA ÚNICA table to
+  `$GITHUB_STEP_SUMMARY` (see [BACKUPS.md](./deployment/BACKUPS.md) §5).
 - **No migration rollback automation.** Migrations are forward-only
   (TypeORM `synchronize: true` is dev-only). To revert a schema change,
   write a new migration that undoes it.
@@ -647,5 +654,6 @@ git ls-remote --heads origin
 - [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) — prod CD
 - [`.github/workflows/branch-governance.yml`](../.github/workflows/branch-governance.yml) — governance check
 - [`scripts/backup-db.sh`](../scripts/backup-db.sh) — pre-prod backup
+- [`docs/deployment/BACKUPS.md`](./deployment/BACKUPS.md) — daily rolling backup scheme + restore runbook
 - [`apps/backend/src/shared/common/config/app.config.ts`](../apps/backend/src/shared/common/config/app.config.ts) — env reference
 - [`GOVERNANCE.md`](../GOVERNANCE.md) — overall branching model
