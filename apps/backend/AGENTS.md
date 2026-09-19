@@ -741,6 +741,16 @@ npm run migration:show       # applied vs pending
 Files: `src/shared/common/persistence/migrations/{timestamp}-*.ts` (`MigrationInterface` up/down).
 Hang at boot → check `NODE_ENV`, "Using migrations (synchronize: false)" in logs, `migration:show`.
 
+**NODE_ENV→mode contract (2026-09-19, verified `scripts/show-migrations.sh:16-24`):**
+
+| `NODE_ENV`                | Mode                                               | Data-source                                                 |
+| ------------------------- | -------------------------------------------------- | ----------------------------------------------------------- |
+| `staging` \| `production` | JavaScript (`dist/`)                               | `dist/backend/src/shared/common/persistence/data-source.js` |
+| else (unset/dev/test)     | TypeScript (`src/`) via `typeorm-ts-node-commonjs` | `src/shared/common/persistence/data-source.ts`              |
+
+Staging-local caveat (NODE_ENV=staging hits dist mode): CLI `data-source.ts:28` loads only `.env` (never `.env.staging`); `.env.staging:97-105` is Docker-only, so local `NODE_ENV=staging` hits dev DB `alpha_meta_token_scanner` on `localhost:5432` by default.
+`--dry-run` (all 3 scripts): prints `[DRYRUN] mode=<javascript|typescript> data-source=<path>`, exit 0 without DB. See `.omo/drafts/staging-migration-test-fix.md`.
+
 ## OPS (scripts + compose)
 
 - `scripts/seed-pipeline-events.ts` (181 lines): emits 4 events × N tokens (12 real addresses: USDC/SOL/BOME/WBTC/AAVE/CAKE/USDT/CBBTC/MATIC/GME…). ⚠️ Step 4 emits the GHOST `filters.token.*` names (gap 20) with classifications (`LEGITIMATE/RISKY/SAFE`) outside the `Classification` VO set (gap 31) — seeded approvals never reach `TokenApprovedPublishHandler`.
