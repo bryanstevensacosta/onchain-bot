@@ -1,0 +1,30 @@
+# =====================================================================
+# onchain-backend-backup.timer — daily trigger for the prod-backend backup
+# Plan: .omo/plans/prod-backend-rolling-backup.md T3
+#
+# Fires 03:00 UTC daily — AFTER the 02:00 UTC `docker system prune`
+# (docs/ci-cd.md:443-452) on purpose. TZ always explicit UTC.
+# The offsite sync (T4, scripts/sync-backups-offsite.sh) runs at 03:20 UTC,
+# after this timer, so the pair of the day (.dump.gz + .meta.txt) exists.
+#
+# INSTALL (droplet, as root — see .service header for full procedure):
+#   sudo install -m 644 infra/systemd/onchain-backend-backup.timer \
+#     /etc/systemd/system/onchain-backend-backup.timer
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now onchain-backend-backup.timer
+#   systemctl list-timers --all | grep onchain-backend-backup
+#
+# MUST NOT touch onchain-dev-infra.timer (5-min dev pattern) or prune timers.
+# =====================================================================
+
+[Unit]
+Description=Daily 03:00 UTC trigger for prod-backend DB backup
+Documentation=file:///opt/onchain-bot/.omo/plans/prod-backend-rolling-backup.md
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 UTC
+Persistent=true
+Unit=onchain-backend-backup.service
+
+[Install]
+WantedBy=timers.target
