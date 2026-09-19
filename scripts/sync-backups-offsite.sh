@@ -116,7 +116,7 @@ export RCLONE_CONFIG_"$(printf '%s' "$R2_REMOTE" | tr '[:lower:]' '[:upper:]')"_
 export RCLONE_CONFIG_"$(printf '%s' "$R2_REMOTE" | tr '[:lower:]' '[:upper:]')"_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
 
 echo "==> Syncing offsite (remote=$R2_REMOTE bucket=$R2_BUCKET date=$DATE_PART dry-run=$DRY_RUN)..."
-rclone copy "$BACKUP_DIR"/prod-backend-$(date +%Y%m%d).dump.gz "$BACKUP_DIR"/prod-backend-$(date +%Y%m%d).meta.txt "$R2_REMOTE:$R2_BUCKET"/ "${RCLONE_ARGS[@]}"
+rclone copy "$DUMP_FILE" "$META_FILE" "$R2_REMOTE:$R2_BUCKET"/ "${RCLONE_ARGS[@]}"
 
 echo "==> Pruning remote objects older than 7 days (sole owner of remote deletion; no bucket lifecycle)..."
 rclone delete --min-age 7d --include 'prod-backend-*' "$R2_REMOTE:$R2_BUCKET"/ "${RCLONE_ARGS[@]}"
@@ -124,7 +124,7 @@ rclone delete --min-age 7d --include 'prod-backend-*' "$R2_REMOTE:$R2_BUCKET"/ "
 # --- bucket budget check (warn >=6.4GB / fail >8GB; never fail on dry-run plumbing) ---
 BUCKET_BYTES="${BUCKET_BYTES:-}"
 if [ -z "$BUCKET_BYTES" ]; then
-  if BUCKET_BYTES="$("$RCLONE_BIN" lsl "$R2_REMOTE:$R2_BUCKET"/ --include 'prod-backend-*' 2>/dev/null | awk '{s+=$5} END {print s+0}')"; then
+  if BUCKET_BYTES="$("$RCLONE_BIN" lsl "$R2_REMOTE:$R2_BUCKET"/ --include 'prod-backend-*' 2>/dev/null | awk '{s+=$1} END {print s+0}')"; then
     :
   else
     echo "::warning:: could not measure bucket size; skipping budget check"
