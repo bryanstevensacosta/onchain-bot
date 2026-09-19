@@ -8,10 +8,9 @@
  * When run on UNFIXED code, this test MUST FAIL - proving the bug exists.
  * When run on FIXED code, this test MUST PASS - validating the fix works.
  *
- * **Bug Condition**:
+ * **Bug Condition (original hypothesis, see F-a below)**:
  * When `docker compose run -e NODE_ENV=staging backend npm run migration:show` executes:
- * - CURRENT (DEFECT): Bash script receives empty NODE_ENV despite docker -e flag
- * - Script outputs: "Showing migrations from TypeScript (src/)..."
+ * - Script outputs: "Showing migrations from TypeScript (src/)..." on broken mode detection
  * - TypeORM fails: "Cannot find module '/app/src/shared/common/persistence/entities'"
  *
  * **Expected Behavior (encoded in this test)**:
@@ -20,14 +19,55 @@
  * - TypeORM SHALL execute against data-source.js (compiled)
  * - Command SHALL exit successfully without module errors
  *
- * **Test Strategy**:
- * Execute the exact failing command from staging deployment and assert expected behavior.
- * This is NOT a property-based test - it's a focused exploration of the concrete bug case.
+ * **FINDING F-a (2026-09-19) - "npm barrier" hypothesis REFUTED, do NOT re-adopt**:
+ * The original spec assumed `bashScriptReceives(execution, "NODE_ENV") = null`
+ * through an "npm script barrier". Live evidence refutes this:
+ * `NODE_ENV=staging npm run migration:show` prints `[MIGRATION-DEBUG]
+ * NODE_ENV='staging'` + `Showing migrations from compiled JavaScript (dist/)...`,
+ * byte-identical to the direct `NODE_ENV=staging bash scripts/show-migrations.sh`
+ * invocation. `package.json` propagates via `NODE_ENV=${NODE_ENV:-development}`.
+ * The real failure was exit 1 from the compiled data-source against a read-only
+ * local PG volume (`FATAL could not open file "base/16384/2601"`, code 42501),
+ * with the mode selection CORRECT. See `.omo/drafts/staging-migration-test-fix.md`
+ * (Failure contract F-a) and `.omo/evidence/task-1-staging-migration-test-fix.log`.
+ *
+ * **Test Strategy (deterministic rewrite)**:
+ * - Test 1 (mode selection): `--dry-run` on both invocation paths (direct bash +
+ *   npm propagation). Prints `[DRYRUN] mode=<javascript|typescript>
+ *   data-source=<path>`, exit 0 WITHOUT touching the DB. Deterministic.
+ * - Test 2 (live-DB integration): `SELECT 1` probe with a short timeout BEFORE
+ *   connecting; SKIP with an explicit `console.warn` when no live DB answers.
+ *   Only when the probe succeeds does the real `migration:show` run (exit 0).
+ *
+ * **QA FAILURE CONTROL**: removing `--dry-run` from the test-1 asserts re-fails
+ * with the FATAL 42501 read-only-volume error whenever the local PG volume is
+ * broken (verbatim in `.omo/evidence/task-1-staging-migration-test-fix.log`,
+ * QA-1 exit 1). Test 1 MUST stay DB-free; never weaken its asserts to pass
+ * against a broken DB (false-green).
  */
 
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+
+interface ExecFailure {
+  status?: number | null;
+  stdout?: string | Buffer;
+  stderr?: string | Buffer;
+  message?: string;
+}
+
+interface CommandResult {
+  output: string;
+  exitCode: number;
+}
+
+function toText(value: string | Buffer | undefined): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+  return value?.toString() ?? '';
+}
 
 describe('Staging Migration Environment Propagation - Bug Condition', () => {
   const backendDir = path.resolve(__dirname, '..');
@@ -54,212 +94,144 @@ describe('Staging Migration Environment Propagation - Bug Condition', () => {
       console.warn(
         '   Tests will be SKIPPED. Run `npm run build` in apps/backend to enable.',
       );
-    } else {
-      console.log(`✓ Compiled artifacts found at ${dataSourcePath}`);
-      console.log('  Bug exploration tests will run.');
     }
   });
 
-  /**
-   * Property 1: Bug Condition - NODE_ENV=staging Detection Failure in npm Context
-   *
-   * **CRITICAL**: This test MUST FAIL on unfixed code
-   * **Goal**: Surface counterexamples proving NODE_ENV doesn't reach bash through npm barrier
-   *
-   * Simplified test: Invoke npm script with NODE_ENV=staging to verify propagation
-   * (Avoids Docker complexity while still testing the core npm barrier issue)
-   */
-  it('should detect NODE_ENV=staging and use JavaScript mode when running migrations via npm script', () => {
-    if (!hasCompiledArtifacts) {
-      console.warn(
-        '⚠️  Skipping test: compiled artifacts not found. Run `npm run build` to enable.',
-      );
-      return; // Skip test gracefully
-    }
-    // ARRANGE - Set up NODE_ENV=staging (simulating docker -e flag behavior)
-    const command = 'npm run migration:show';
+  function stagingEnv(): NodeJS.ProcessEnv {
+    // Caveat: `migration:*` scripts force `NODE_ENV=${NODE_ENV:-development}`
+    // when unset, so NODE_ENV=staging MUST be set on the child env explicitly.
+    return { ...process.env, NODE_ENV: 'staging' };
+  }
 
-    console.log(
-      '\n[BUG-EXPLORATION] Executing npm migration command with NODE_ENV=staging',
-    );
-    console.log('[BUG-EXPLORATION] Command:', command);
-
-    // ACT - Execute npm script with NODE_ENV=staging (same as docker -e would do)
-    let output: string;
-    let exitCode: number;
+  function runCommand(command: string): CommandResult {
     try {
-      output = execSync(command, {
+      const output = execSync(command, {
         cwd: backendDir,
         encoding: 'utf-8',
         stdio: 'pipe',
-        env: {
-          ...process.env,
-          NODE_ENV: 'staging', // Set NODE_ENV in process environment
-        },
+        env: stagingEnv(),
       });
-      exitCode = 0;
-      console.log('[BUG-EXPLORATION] Command succeeded. Output:', output);
-    } catch (error: any) {
-      exitCode = error.status || 1;
-      output = error.stdout?.toString() || error.stderr?.toString() || '';
-      console.error(
-        '[BUG-EXPLORATION] Command failed with exit code:',
-        exitCode,
-      );
-      console.error('[BUG-EXPLORATION] Output:', output);
-      console.error('[BUG-EXPLORATION] Error:', error.message);
+      return { output, exitCode: 0 };
+    } catch (error: unknown) {
+      const failure = error as ExecFailure;
+      const output =
+        toText(failure.stdout) ||
+        toText(failure.stderr) ||
+        failure.message ||
+        '';
+      return {
+        output,
+        exitCode:
+          typeof failure.status === 'number' && failure.status !== null
+            ? failure.status
+            : 1,
+      };
     }
+  }
 
-    // ASSERT - Expected behavior (will fail on unfixed code, confirming bug)
-
-    // Expected: Script detects NODE_ENV=staging and uses JavaScript mode
-    expect(output).toContain('Showing migrations from compiled JavaScript');
-    // Or the shorter version from the script:
-    expect(output).toMatch(
-      /Showing migrations from (?:compiled )?JavaScript.*\(dist/i,
-    );
-
-    // Expected: Script executes TypeORM against compiled data-source.js
+  function assertDryRunSelectsJavaScriptMode(output: string): void {
+    // Format contract: `[DRYRUN] mode=<javascript|typescript> data-source=<path> args=<resto>`
+    expect(output).toContain('[DRYRUN]');
+    expect(output).toContain('mode=javascript');
     expect(output).toContain('data-source.js');
-    expect(output).not.toContain('data-source.ts'); // Should NOT use TypeScript
-
-    // Expected: Command succeeds without module resolution errors
-    expect(exitCode).toBe(0);
-    expect(output).not.toMatch(
-      /Cannot find module.*\/src\/shared\/common\/persistence\/entities/i,
-    );
-
-    // COUNTEREXAMPLE DOCUMENTATION (will be visible when test fails on unfixed code)
-    if (
-      output.includes('TypeScript') ||
-      output.includes('data-source.ts') ||
-      exitCode !== 0
-    ) {
-      console.error('\n❌ COUNTEREXAMPLE FOUND - Bug confirmed:');
-      console.error('═══════════════════════════════════════════════\n');
-
-      console.error('Expected behavior:');
-      console.error(
-        '  ✓ Output: "Showing migrations from compiled JavaScript (dist/)..."',
-      );
-      console.error(
-        '  ✓ Command: npx typeorm -d ./dist/.../data-source.js migration:show',
-      );
-      console.error('  ✓ Exit code: 0');
-      console.error('  ✓ No module errors\n');
-
-      console.error('Actual behavior (DEFECT):');
-      if (output.includes('TypeScript (src/)')) {
-        console.error(
-          '  ✗ Output: "Showing migrations from TypeScript (src/)..."',
-        );
-      }
-      if (output.includes('data-source.ts')) {
-        console.error(
-          '  ✗ Command: npx typeorm-ts-node-commonjs --dataSource src/.../data-source.ts',
-        );
-      }
-      if (exitCode !== 0) {
-        console.error(`  ✗ Exit code: ${exitCode} (non-zero)`);
-      }
-      if (output.match(/Cannot find module/i)) {
-        console.error("  ✗ Module error: Cannot find module '.../entities'");
-      }
-
-      console.error('\nRoot cause analysis:');
-      console.error(
-        '  • NODE_ENV=staging was set in parent process environment',
-      );
-      console.error('  • npm run migration:show was invoked');
-      console.error(
-        '  • Bash script did NOT receive NODE_ENV (npm script barrier)',
-      );
-      console.error(
-        '  • Script fell back to TypeScript mode (development default)',
-      );
-
-      console.error('\nThis confirms isBugCondition holds:');
-      console.error('  execution.environment = "staging" ✓');
-      console.error('  execution.executionContext = "npm-run" ✓');
-      console.error('  bashScriptReceives(execution, "NODE_ENV") = null ✓');
-      console.error('  scriptFallsBackTo(execution) = "typescript-mode" ✓');
-
-      console.error('\n═══════════════════════════════════════════════\n');
-    }
-  });
+    expect(output).not.toContain('data-source.ts');
+  }
 
   /**
-   * Additional context verification - Check if script receives NODE_ENV at all
+   * Test 1: Mode selection is deterministic via DRY_RUN (no DB touched).
    *
-   * This helper test runs the script directly (bypassing npm) to verify
-   * that the script ITSELF works correctly when NODE_ENV is properly set.
-   * If this passes but the main test fails, it confirms npm is the barrier.
+   * Covers BOTH invocation paths with NODE_ENV=staging:
+   * (a) direct: `NODE_ENV=staging bash scripts/show-migrations.sh --dry-run`
+   * (b) npm propagation: `npm run migration:show -- --dry-run` (args after `--`
+   *     MUST reach the script; `package.json` runs
+   *     `NODE_ENV=${NODE_ENV:-development} bash scripts/show-migrations.sh`).
+   * F-a note: (b) passing alongside (a) is the standing refutation of the
+   * "npm barrier" hypothesis — npm propagates NODE_ENV intact.
    */
-  it('should detect NODE_ENV=staging when bash script is invoked directly (bypass npm barrier)', () => {
+  it('should select JavaScript mode via --dry-run on both direct and npm paths', () => {
     if (!hasCompiledArtifacts) {
       console.warn(
         '⚠️  Skipping test: compiled artifacts not found. Run `npm run build` to enable.',
-      );
-      return; // Skip test gracefully
-    }
-    const showMigrationsScript = path.join(
-      backendDir,
-      'scripts/show-migrations.sh',
-    );
-
-    if (!fs.existsSync(showMigrationsScript)) {
-      console.warn(
-        `⚠️  Script not found: ${showMigrationsScript}. Skipping direct bash test.`,
       );
       return;
     }
 
-    // Execute bash script directly with NODE_ENV=staging (bypass npm)
-    const command = `NODE_ENV=staging bash ${showMigrationsScript}`;
-
-    console.log(
-      '\n[BYPASS-NPM-TEST] Executing direct bash invocation:',
-      command,
+    const direct = runCommand(
+      'NODE_ENV=staging bash scripts/show-migrations.sh --dry-run',
     );
+    expect(direct.exitCode).toBe(0);
+    assertDryRunSelectsJavaScriptMode(direct.output);
 
-    let output: string;
-    let exitCode: number;
+    const viaNpm = runCommand('npm run migration:show -- --dry-run');
+    expect(viaNpm.exitCode).toBe(0);
+    assertDryRunSelectsJavaScriptMode(viaNpm.output);
+  });
+
+  /**
+   * Test 2: Live-DB integration with a pre-flight probe and explicit skip.
+   *
+   * Probe: `SELECT 1` via psql with a short timeout (<=10s) against the same
+   * defaults the compiled data-source falls back to in local
+   * (`localhost:5432` / `alpha_meta_token_scanner`, see `data-source.ts:35-39`;
+   * the CLI only reads `.env`, never `.env.staging`).
+   * NOTE: `pg_isready` alone is NOT a sufficient probe — it reports "accepting
+   * connections" even when the datadir is read-only; the query-level `SELECT 1`
+   * fails with the same FATAL 42501 the real command would hit, so the skip
+   * triggers exactly when the DB cannot serve migrations. No live DB (or a
+   * broken one) => SKIP with warning. Live DB => real `migration:show`, exit 0.
+   */
+  it('should show migrations against a live DB, or skip when no live DB answers', () => {
+    if (!hasCompiledArtifacts) {
+      console.warn(
+        '⚠️  Skipping test: compiled artifacts not found. Run `npm run build` to enable.',
+      );
+      return;
+    }
+
+    // ARRANGE - pre-flight probe (query-level, short timeout, no migration run)
+    const probeHost = process.env.POSTGRES_HOST ?? 'localhost';
+    const probePort = process.env.POSTGRES_PORT ?? '5432';
+    const probeUser = process.env.POSTGRES_USER ?? 'alpha_meta_token_scanner';
+    const probeDb = process.env.POSTGRES_DB ?? 'alpha_meta_token_scanner';
+    let databaseLive = false;
     try {
-      output = execSync(command, {
-        cwd: backendDir,
-        encoding: 'utf-8',
-        stdio: 'pipe',
-        env: {
-          ...process.env,
-          NODE_ENV: 'staging',
+      execSync(
+        `psql -h ${probeHost} -p ${probePort} -U ${probeUser} -d ${probeDb} -c "SELECT 1"`,
+        {
+          cwd: backendDir,
+          encoding: 'utf-8',
+          stdio: 'pipe',
+          timeout: 8000,
+          env: {
+            ...stagingEnv(),
+            PGPASSWORD:
+              process.env.POSTGRES_PASSWORD ?? 'alpha_meta_token_scanner',
+          },
         },
-      });
-      exitCode = 0;
-      console.log('[BYPASS-NPM-TEST] Output:', output);
-    } catch (error: any) {
-      exitCode = error.status || 1;
-      output = error.stdout?.toString() || error.stderr?.toString() || '';
-      console.error('[BYPASS-NPM-TEST] Exit code:', exitCode);
-      console.error('[BYPASS-NPM-TEST] Output:', output);
+      );
+      databaseLive = true;
+    } catch {
+      databaseLive = false;
     }
 
-    // When bypassing npm, script SHOULD receive NODE_ENV correctly
-    // (Even on unfixed code - the bug is specifically in npm barrier)
-    expect(output).toContain('JavaScript');
-    expect(output).toContain('dist');
-
-    if (output.includes('TypeScript') && output.includes('src/')) {
-      console.error(
-        '\n⚠️  WARNING: Direct bash invocation also failed to detect NODE_ENV=staging',
+    if (!databaseLive) {
+      console.warn(
+        `⚠️  Skipping integration test: no live DB at ${probeHost}:${probePort}/${probeDb} ` +
+          '(probe `SELECT 1` failed or timed out; FATAL 42501 read-only volumes also land here).',
       );
-      console.error(
-        '   This suggests the bug may NOT be npm-specific - investigate shell condition logic.',
-      );
-    } else {
-      console.log(
-        '\n✓ Direct bash invocation correctly detected NODE_ENV=staging',
-      );
-      console.log('  This confirms npm script invocation is the barrier.');
+      return;
     }
+
+    // ACT - real migration:show against the live DB (no --dry-run by design)
+    const result = runCommand('npm run migration:show');
+
+    // ASSERT - full expected behavior including exit 0
+    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain('compiled JavaScript');
+    expect(result.output).toContain('data-source.js');
+    expect(result.output).not.toContain('data-source.ts');
+    expect(result.output).not.toMatch(
+      /Cannot find module.*\/src\/shared\/common\/persistence\/entities/i,
+    );
   });
 });
