@@ -1,0 +1,85 @@
+# =====================================================================
+# onchain-backend-backup.service — daily rolling prod-backend DB backup
+# Plan: .omo/plans/prod-backend-rolling-backup.md T3
+#
+# What it does:
+#   Invokes scripts/backup-db.sh in daily mode:
+#     BACKUP_MODE=daily BACKUP_BASENAME=prod-backend BACKUP_ORIGIN=cron
+#   producing /opt/onchain-bot/backups/prod-backend-YYYYMMDD.dump.gz + .meta.txt
+#   (atomic .tmp + mv, validation, anti-empty guard, disk pre-flight,
+#   prune -mtime +6 = exactly 7 files — all inside the script, T1 contract).
+#
+# Scheduling context (docs/ci-cd.md:443-452):
+#   Nightly `docker system prune` runs 02:00 UTC via runner's crontab.
+#   This timer fires 03:00 UTC — AFTER the prune on purpose, so the dump
+#   never races the prune and disk headroom is already reclaimed.
+#
+# Secrets (NEVER in repo, NEVER via GitHub Secrets from systemd):
+#   POSTGRES_PASSWORD lives ONLY in the on-host file
+#     /opt/onchain-bot/.backup-env  (chmod 600, owner runner)
+#   created OUT-OF-BAND on the droplet (one time, as root):
+#     install -m 600 -o runner /dev/null /opt/onchain-bot/.backup-env
+#     # then edit the file and set: POSTGRES_PASSWORD=<prod-backend-db-pw>
+#   The unit validates it at start (ExecStartPre test -s): missing/empty
+#   file => loud failure BEFORE any dump, no half-dump artifact.
+#
+# Locking:
+#   The exclusive lock lives INSIDE scripts/backup-db.sh (T1):
+#     /run/lock/onchain-backend-backup.lock via `flock -n`
+#   loser exits 3 with a `locked` line. This unit adds NO second lock.
+#
+# Logging: StandardOutput/StandardError=journal (journald).
+#   View with: journalctl -u onchain-backend-backup.service
+#
+# OnFailure (alerter is T5 — backup-health.yml / future failure unit):
+#   No active OnFailure= target ships in T3 on purpose: the alerter unit
+#   (e.g. onchain-backend-backup-failure.service → notify path) is defined
+#   in T5. When it exists, uncomment the line below:
+#     # OnFailure=onchain-backend-backup-failure.service
+#   Until then, failures are loud in the journal + visible via the T5
+#   watchdog (backup >26h = fail). Do NOT point OnFailure at a
+#   nonexistent unit in production.
+#
+# Timezone: always explicit UTC (see OnCalendar in the .timer).
+#
+# INSTALL (droplet, as root — do NOT run on dev laptop, do NOT enable
+# anything on prod from here):
+#   sudo install -m 644 infra/systemd/onchain-backend-backup.service \
+#     /etc/systemd/system/onchain-backend-backup.service
+#   sudo install -m 644 infra/systemd/onchain-backend-backup.timer \
+#     /etc/systemd/system/onchain-backend-backup.timer
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now onchain-backend-backup.timer
+#   systemctl list-timers --all | grep onchain-backend-backup
+#   # expected: NEXT = next 03:00 UTC, LEFT shows countdown
+#   # manual dry-run (does NOT touch the timer):
+#   #   sudo systemctl start onchain-backend-backup.service
+#   #   journalctl -u onchain-backend-backup.service --since '5 min ago'
+#
+# MUST NOT touch: onchain-dev-infra.timer, prune timers, deploy.yml,
+#   deploy-ingestion.yml, scripts/backup-db.sh, rclone, GitHub Secrets.
+# =====================================================================
+
+[Unit]
+Description=Daily rolling prod-backend DB backup (03:00 UTC, daily mode)
+Documentation=file:///opt/onchain-bot/.omo/plans/prod-backend-rolling-backup.md
+After=network-online.target docker.service
+Wants=network-online.target
+# OnFailure=onchain-backend-backup-failure.service  # T5 alerter — see header
+
+[Service]
+Type=oneshot
+User=runner
+EnvironmentFile=/opt/onchain-bot/.backup-env
+Environment=BACKUP_MODE=daily
+Environment=BACKUP_BASENAME=prod-backend
+Environment=BACKUP_ORIGIN=cron
+WorkingDirectory=/opt/onchain-bot
+# Fail loud BEFORE any dump when the secret file is missing/empty.
+ExecStartPre=/usr/bin/test -s /opt/onchain-bot/.backup-env
+# Single lock-path lives inside the script — no flock wrapper here.
+ExecStart=/bin/bash /opt/onchain-bot/scripts/backup-db.sh
+StandardOutput=journal
+StandardError=journal
+# oneshot: no Restart= (timer re-fires daily; a failed run stays failed
+# until T5 watchdog pages on backup age >26h).

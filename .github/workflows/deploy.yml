@@ -102,12 +102,84 @@ jobs:
 
       - name: Backup database
         run: |
+          set -euo pipefail
           set -a; source /opt/onchain-bot/apps/backend/.env.production; set +a
+          echo "::add-mask::$POSTGRES_PASSWORD"
+          BACKUP_DIR="${BACKUP_DIR:-/opt/onchain-bot/backups}"
+          echo "=== Pre-deploy daily backup (rolling prod-backend, 7-day) ==="
+          set +e
+          BACKUP_MODE=daily BACKUP_BASENAME=prod-backend BACKUP_ORIGIN=pre-deploy \
           POSTGRES_CONTAINER=onchain-bot-postgres-production \
           POSTGRES_USER=alpha_meta_token_scanner \
           POSTGRES_DB=alpha_meta_token_scanner \
           POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
           bash /opt/onchain-bot/scripts/backup-db.sh
+          BACKUP_RC=$?
+          set -e
+          echo "backup exit code: $BACKUP_RC"
+          # --- Unified disk scale (ESCALA UNICA): warn >=80% / fail >=90% o <2GB libres ---
+          DF_LINE="$(df -P "$BACKUP_DIR" 2>/dev/null | awk 'NR==2 {print $5, $4}')"
+          if [ -z "$DF_LINE" ]; then
+            DF_LINE="$(df -P / 2>/dev/null | awk 'NR==2 {print $5, $4}')"
+          fi
+          DISK_PCT="$(printf '%s' "$DF_LINE" | awk '{print $1}' | tr -d '%')"
+          DISK_AVAIL_KB="$(printf '%s' "$DF_LINE" | awk '{print $2}')"
+          case "$DISK_PCT" in ''|*[!0-9]*) DISK_PCT=0 ;; esac
+          case "$DISK_AVAIL_KB" in ''|*[!0-9]*) DISK_AVAIL_KB=0 ;; esac
+          DISK_H="$(df -h "$BACKUP_DIR" 2>/dev/null | awk 'NR==2 {print $5 " used, " $4 " avail"}')"
+          [ -z "$DISK_H" ] && DISK_H="${DISK_PCT}% used"
+          # --- Resolve latest daily artifact (never secrets) ---
+          LATEST="$(ls -t "$BACKUP_DIR"/prod-backend-*.dump.gz 2>/dev/null | head -1 || true)"
+          if [ -n "$LATEST" ]; then
+            FNAME="$(basename "$LATEST")"
+            SIZE_H="$(du -h "$LATEST" 2>/dev/null | cut -f1)"
+            META_FILE="${LATEST%.dump.gz}.meta.txt"
+            if [ -f "$META_FILE" ]; then
+              SHA_VAL="$(grep -E '^sha256=' "$META_FILE" 2>/dev/null | cut -d= -f2 || true)"
+            else
+              SHA_VAL=""
+            fi
+            if [ -z "${SHA_VAL:-}" ]; then
+              SHA_VAL="$(sha256sum "$LATEST" 2>/dev/null | awk '{print $1}')"
+            fi
+            MTIME="$(stat -c %Y "$LATEST" 2>/dev/null || stat -f %m "$LATEST" 2>/dev/null || echo 0)"
+            NOW="$(date +%s)"
+            AGE_S=$((NOW - MTIME)); [ "$AGE_S" -lt 0 ] && AGE_S=0
+            if [ "$AGE_S" -lt 3600 ]; then AGE_H="$((AGE_S / 60))min";
+            elif [ "$AGE_S" -lt 86400 ]; then AGE_H="$((AGE_S / 3600))h $(((AGE_S % 3600) / 60))min";
+            else AGE_H="$((AGE_S / 86400))d $(((AGE_S % 86400) / 3600))h"; fi
+          else
+            FNAME="(missing)"; SIZE_H="(missing)"; SHA_VAL="(missing)"; AGE_H="(missing)"
+          fi
+          # --- Step summary table (no secrets: only file/size/sha/age/disk/offsite) ---
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            {
+              echo "### Backup database (daily prod-backend, pre-deploy)"
+              echo ""
+              echo "| campo | valor |"
+              echo "|---|---|"
+              echo "| archivo | $FNAME |"
+              echo "| tamaño | $SIZE_H |"
+              echo "| sha | $SHA_VAL |"
+              echo "| edad | $AGE_H |"
+              echo "| uso disco | $DISK_H (${DISK_PCT}% / ${DISK_AVAIL_KB}KB libres) |"
+              echo "| offsite pendiente | pendiente (sync T4 rclone aun no programado) |"
+              echo "| exit code | $BACKUP_RC |"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          # --- Failure / disk signaling (ESCALA UNICA) + abort before migrations ---
+          if [ "$BACKUP_RC" -ne 0 ]; then
+            echo "::error::[ESCALA UNICA] backup diario prod-backend fallo (exit $BACKUP_RC). Aborto deploy antes de migraciones."
+            exit "$BACKUP_RC"
+          fi
+          if [ "$DISK_PCT" -ge 90 ] || [ "$DISK_AVAIL_KB" -lt 2097152 ]; then
+            echo "::error::[ESCALA UNICA] disco al ${DISK_PCT}% (${DISK_AVAIL_KB}KB libres): fail >=90% o <2GB libres. Aborto deploy antes de migraciones."
+            exit 1
+          fi
+          if [ "$DISK_PCT" -ge 80 ]; then
+            echo "::warning::[ESCALA UNICA] disco al ${DISK_PCT}% >= 80% (libres ${DISK_AVAIL_KB}KB)."
+          fi
+          echo "=== Backup step OK ==="
 
       - name: Disk cleanup (pre-pull, filtered)
         run: |
