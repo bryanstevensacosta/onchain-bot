@@ -156,66 +156,6 @@ describe('appConfig', () => {
     });
   });
 
-  describe('Channel seeder configuration', () => {
-    it('should parse SEED_KOLS from valid JSON', () => {
-      setValidMtprotoEnv();
-      setValidRedisEnv();
-      setValidApiEnv();
-      process.env.INGESTION_TELEGRAM_SEED_KOLS = JSON.stringify([
-        { channelId: '-1001234567890', displayName: 'Test KOL' },
-      ]);
-
-      const config = appConfig();
-      expect(config.seedKols).toHaveLength(1);
-      expect(config.seedKols[0].channelId).toBe('-1001234567890');
-    });
-
-    it('should parse SEED_NEWS from valid JSON', () => {
-      setValidMtprotoEnv();
-      setValidRedisEnv();
-      setValidApiEnv();
-      process.env.INGESTION_TELEGRAM_SEED_NEWS = JSON.stringify([
-        { channelId: '-1001234567891', displayName: 'Test News' },
-      ]);
-
-      const config = appConfig();
-      expect(config.seedNews).toHaveLength(1);
-      expect(config.seedNews[0].channelId).toBe('-1001234567891');
-    });
-
-    it('should return empty array for invalid SEED_KOLS JSON', () => {
-      setValidMtprotoEnv();
-      setValidRedisEnv();
-      setValidApiEnv();
-      process.env.INGESTION_TELEGRAM_SEED_KOLS = 'invalid-json';
-
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      const config = appConfig();
-      expect(config.seedKols).toEqual([]);
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to parse INGESTION_TELEGRAM_SEED_KOLS'),
-      );
-      consoleSpy.mockRestore();
-    });
-
-    it('should return empty array when SEED_KOLS is not an array', () => {
-      setValidMtprotoEnv();
-      setValidRedisEnv();
-      setValidApiEnv();
-      process.env.INGESTION_TELEGRAM_SEED_KOLS = JSON.stringify({
-        not: 'array',
-      });
-
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      const config = appConfig();
-      expect(config.seedKols).toEqual([]);
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('INGESTION_TELEGRAM_SEED_KOLS is not an array'),
-      );
-      consoleSpy.mockRestore();
-    });
-  });
-
   describe('Safety configuration file loading', () => {
     it('should use defaults when config file is missing', () => {
       setValidMtprotoEnv();

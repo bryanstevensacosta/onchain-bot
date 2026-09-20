@@ -1,6 +1,5 @@
 import { Module, OnModuleInit, Logger } from '@nestjs/common';
 import { SharedModule } from './shared/shared.module';
-import { KolModule } from './kol/kol.module';
 import { CryptoNewsModule } from './crypto-news/crypto-news.module';
 import { StreamModule } from '../stream/stream.module';
 import { BackendChannelProviderService } from './shared/services/backend-channel-provider.service';
@@ -39,12 +38,11 @@ import { CryptoNewsSourceRepository } from './crypto-news/infrastructure/persist
 @Module({
   imports: [
     SharedModule, // MTProto infrastructure + BackendChannelProviderService
-    KolModule, // KOL seeders (DEPRECATED - kept for backward compat)
-    CryptoNewsModule, // Crypto news seeders (DEPRECATED - kept for backward compat)
+    CryptoNewsModule, // Crypto-news sources/messages/media (DB-driven)
     StreamModule, // SSE infrastructure + SSEBroadcastService
   ],
   controllers: [DebugTelegramController],
-  exports: [SharedModule, KolModule, CryptoNewsModule],
+  exports: [SharedModule, CryptoNewsModule],
 })
 export class TelegramModule implements OnModuleInit {
   private readonly logger = new Logger(TelegramModule.name);

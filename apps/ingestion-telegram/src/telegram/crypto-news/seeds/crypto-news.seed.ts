@@ -2,7 +2,7 @@
  * @deprecated REMOVED - This file is kept for reference only (2026-09-05)
  *
  * Static seed list of Telegram crypto-news channel peer IDs.
- * This seeder has been COMPLETELY REPLACED by database-driven architecture.
+ * This static list has been COMPLETELY REPLACED by database-driven architecture.
  *
  * **NEW ARCHITECTURE (Opción A - Ingestion-service as sole owner):**
  * - Ingestion-service OWNS crypto-news sources (reads/writes from its own DB)

@@ -114,7 +114,7 @@ import { BackfillMessageEntity } from './stream/infrastructure/persistence/typeo
     HealthModule, // Health checks
     MetricsModule, // Prometheus metrics
 
-    // Telegram ingestion (MTProto + seeders + coordinator)
+    // Telegram ingestion (MTProto + coordinator)
     TelegramModule,
   ],
 })

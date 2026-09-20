@@ -17,7 +17,7 @@ export interface SeedKol {
   readonly title?: string;
   /**
    * Telegram @username for direct channel join without requiring membership.
-   * When provided, KolSeeder uses this to join the channel BEFORE attempting
+   * When provided, this was used to join the channel BEFORE attempting
    * numeric ID resolution. Use this for public channels where you know the
    * username but not the numeric ID (or the account isn't a member).
    *
