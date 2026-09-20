@@ -1,0 +1,75 @@
+# =====================================================================
+# onchain-backup-drill.service — weekly restore drill (ephemeral proof)
+# Plan: .omo/plans/prod-backend-rolling-backup.md T10
+#
+# What it does:
+#   Invokes scripts/backup-drill.sh, which restores the latest
+#   prod-backend-*.dump.gz into an EPHEMERAL postgres:16-alpine container
+#   (--rm, isolated, shifted host port 55433 — never prod/staging/dev)
+#   and writes /opt/onchain-bot/backups/.rolling-status.json
+#   (atomic .tmp + mv; keys stable for the T13 widget + T11 cleanup gate).
+#   Failures exit != 0 and stay loud in the journal; a held backup lock
+#   exits 0 with a `drill-skipped-locked` notice (no competition).
+#
+# Scheduling context:
+#   The drill timer fires Sun 05:00 UTC — AFTER the 04:00 UTC daily health
+#   watchdog (backup-health.yml) and clear of the 03:00 daily backup timer
+#   / 03:20 offsite sync. No overlap by design.
+#
+# Secrets: NONE. The ephemeral postgres password is random per run
+#   (DRILL_POSTGRES_PASSWORD default in the script); no EnvironmentFile.
+#   Prod dumps are only READ, never modified.
+#
+# Locking:
+#   Lock-awareness lives INSIDE scripts/backup-drill.sh (T10):
+#     `flock -n /run/lock/onchain-backend-backup.lock true` probe —
+#     held => `drill-skipped-locked`, exit 0. This unit adds NO lock.
+#
+# Logging: StandardOutput/StandardError=journal (journald).
+#   View with: journalctl -u onchain-backup-drill.service
+#
+# OnFailure: none ships here (same posture as the backup unit: the
+#   watchdog pages on backup age >26h; drill failures are loud in the
+#   journal + visible via last_drill.result=fail in .rolling-status.json).
+#   Do NOT point OnFailure at a nonexistent unit in production.
+#
+# Timezone: always explicit UTC (see OnCalendar in the .timer).
+#
+# INSTALL (droplet, as root — do NOT run on dev laptop, do NOT enable
+# anything on prod from here):
+#   sudo install -m 644 infra/systemd/onchain-backup-drill.service \
+#     /etc/systemd/system/onchain-backup-drill.service
+#   sudo install -m 644 infra/systemd/onchain-backup-drill.timer \
+#     /etc/systemd/system/onchain-backup-drill.timer
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now onchain-backup-drill.timer
+#   systemctl list-timers --all | grep onchain-backup-drill
+#   # expected: NEXT = next Sunday 05:00 UTC, LEFT shows countdown
+#   # manual dry-run (does NOT touch the timer):
+#   #   sudo systemctl start onchain-backup-drill.service
+#   #   journalctl -u onchain-backup-drill.service --since '10 min ago'
+#
+# MUST NOT touch: onchain-backend-backup.service/.timer,
+#   onchain-dev-infra.timer, prune timers, deploy.yml, backup-health.yml,
+#   scripts/backup-db.sh, rclone, GitHub Secrets.
+# =====================================================================
+
+[Unit]
+Description=Weekly prod-backend restore drill (Sun 05:00 UTC, ephemeral postgres)
+Documentation=file:///opt/onchain-bot/.omo/plans/prod-backend-rolling-backup.md
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=runner
+Environment=BACKUP_BASENAME=prod-backend
+Environment=DRILL_PORT=55433
+Environment=DRILL_IMAGE=postgres:16-alpine
+WorkingDirectory=/opt/onchain-bot
+# No flock wrapper here: lock-awareness lives inside the script.
+ExecStart=/bin/bash /opt/onchain-bot/scripts/backup-drill.sh
+StandardOutput=journal
+StandardError=journal
+# oneshot: no Restart= (timer re-fires weekly; a failed run stays failed
+# and visible via last_drill.result=fail until the next run).
