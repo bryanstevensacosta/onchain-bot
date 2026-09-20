@@ -1,30 +1,31 @@
 import { useQuery } from '@tanstack/react-query';
-import { useDashboardKpis } from '@/entities/dashboard';
 import { Card } from '@/shared/ui';
 import { fetchIngestionHealth } from '@/widgets/ingestion-health/api/ingestion-health-queries';
 
+/**
+ * KPI cards.
+ *
+ * NOTE (T18 deprecados-deuda-tecnica): the `GET /dashboard/kpis`
+ * endpoint is dead — DashboardModule is commented out in the backend
+ * AppModule, so the route 404s. The widget previously degraded to the
+ * same zeros via the error path; it now reads KOL counts straight from
+ * ingestion-health and renders 0 for the unwired aggregates. Rewire to
+ * /dashboard/kpis only after the backend module is restored.
+ */
 export function KpiCards() {
-  const kpis = useDashboardKpis();
   const healthQuery = useQuery({
     queryKey: ['ingestion-health'],
     queryFn: fetchIngestionHealth,
     refetchInterval: 10_000,
   });
 
-  const activeKols = kpis.isSuccess
-    ? kpis.data.activeKols
-    : (healthQuery.data?.activeChannels ?? 0);
-  const totalKols = kpis.isSuccess
-    ? kpis.data.totalKols
-    : (healthQuery.data?.maxSafeChannels ?? 0);
-  const totalCalls = kpis.data?.totalCanonicalCalls ?? 0;
-  const approvedCount = kpis.data?.approvedDecisions ?? 0;
-  const rejectedCount = kpis.data?.rejectedDecisions ?? 0;
-  const approvalRate =
-    approvedCount + rejectedCount > 0
-      ? approvedCount / (approvedCount + rejectedCount)
-      : 0;
-  const publishedCount = kpis.data?.publishedCalls ?? 0;
+  const activeKols = healthQuery.data?.activeChannels ?? 0;
+  const totalKols = healthQuery.data?.maxSafeChannels ?? 0;
+  const totalCalls = 0;
+  const approvedCount = 0;
+  const rejectedCount = 0;
+  const approvalRate = 0;
+  const publishedCount = 0;
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

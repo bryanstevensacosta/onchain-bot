@@ -205,21 +205,21 @@ Your next move: aprueba para $start-work, o pide high-accuracy review (dual Momu
       Acceptance criteria: grep CRYPTO_NEWS_SEED/fetchActiveCryptoNewsSourceIds/BACKEND_PORT legacy = 0 salvo nota histórica en docs; tests provider actualizados y verdes
       QA scenarios: happy=tests verdes evidencia .omo/evidence/task-15-deprecados-deuda-tecnica.log; failure=caller restante del endpoint legacy → grep lo detecta evidencia mismo log
       Commit: Y | feat(ingestion): retira seeds y endpoint crypto-news legacy
-- [x] 16. Verificar ingestion :3032 como única fuente crypto-news — BLOQUEADO 2026-09-20: :3032 refused (igual que T1), invariantes 1-7 OK por código, T17 abortada hasta 200. Evidencia .omo/evidence/task-16-deprecados-deuda-tecnica.log. Reintento: arrancar ingestion sin-Telegram para curls.
+- [x] 16. Verificar ingestion :3032 como única fuente crypto-news — GREEN 2026-09-20 VPS: sources 200 (13), messages 200, health/ready/live 200. Nota: :3032=ingestion, :3031=staging backend (ready/live 404 por diseño). Evidencia .omo/evidence/task-16-deprecados-deuda-tecnica.log
       What to do: curl GET /api/crypto-news/sources y /messages?limit=2 contra :3032 + backend staging apuntando a ingestion; documentar invariantes 1-7 singleton. Must NOT do: no crear DBs \*\_staging_ingestion, no añadir compose staging/prod.
       Parallelization: Wave 3 | Blocked by: T15 | Blocks: T17
       References: apps/ingestion-telegram/src/telegram/crypto-news/crypto-news.module.ts:17; AGENTS.md invariantes ingestion
       Acceptance criteria: curl :3032 sources+messages 200 con shape esperado; backend lee vía INGESTION_TELEGRAM_URL sin tablas locales
       QA scenarios: happy=curls 200 evidencia .omo/evidence/task-16-deprecados-deuda-tecnica.log; failure=:3032 caído → curl no-200 y se aborta T17 evidencia mismo log
       Commit: N | —
-- [ ] 17. Frontend: quitar refs legacy matchingEnabled/endpoints
+- [x] 17. Frontend: quitar refs legacy matchingEnabled/endpoints — DONE 2026-09-20 VPS (commit 164ba59, 3 files): grep 0 en src no-test, vitest 30/336 PASS = baseline. Evidencia .omo/evidence/task-17-deprecados-deuda-tecnica.log
       What to do: Limpiar endpoints.ts:88 nota deprecated, matching-toggle-button.tsx:20, llm-config-api threads:39, tests legacy matchingEnabled:458-461 y payload:349-360. Must NOT do: no cambiar lógica 3 flags (matching/llm/publishing truth table intacta).
       Parallelization: Wave 3 | Blocked by: T16 | Blocks: T18-T19
       References: apps/frontend/src/shared/api/endpoints.ts:88; .../features/crypto-news-publisher/ui/matching-toggle-button.tsx:20; .../features/threads-publisher/api/llm-config-api.ts:39; .../pages/crypto-news/**tests**/llm-config.test.tsx:458-461; .../crypto-news-page.test.tsx:349-360,1210
       Acceptance criteria: grep matchingEnabled/legacy en frontend src = solo tests negativos que asertan ausencia; vitest verde
       QA scenarios: happy=vitest PASS evidencia .omo/evidence/task-17-deprecados-deuda-tecnica.log; failure=toggle con campo legacy → test lo detecta evidencia mismo log
       Commit: Y | fix(frontend): retira refs legacy matchingEnabled
-- [ ] 18. Frontend dead URLs + evidencia depcheck/knip (sin prune ciego)
+- [x] 18. Frontend dead URLs + evidencia depcheck/knip (sin prune ciego) — DONE 2026-09-20 VPS: fix backfill→identity, 5 dead defs fuera, feature reprocess + entity dashboard borradas, KpiCards→ingestion-health, nginx /kols fuera; vitest 29/330, build OK. Deps: msw KEEP, recharts/zustand/zod/lucide PRUNE-candidatas (sin desinstalar). Evidencia .omo/evidence/task-18-deprecados-deuda-tecnica.log
       What to do: Eliminar callers muertos (kols.backfill segmento ingestion vs identity, publishing.byToken, reprocess\* 5 rutas, llm-config /api prod, dashboard.kpis comentado, /kols nginx legacy) y correr npx depcheck + npx knip para decidir keep/prune recharts/zustand/lucide-react/zod/msw. Must NOT do: no desinstalar dep con imports (lucide tiene iconos) ni tocar ScoreTier/error-boundaries.
       Parallelization: Wave 3 | Blocked by: T17 | Blocks: T19
       References: apps/frontend/AGENTS.md DEAD URLS 1-6 + UNUSED DEPS + GAPS G7-G11; apps/frontend/package.json; apps/frontend/nginx.conf; apps/frontend/vite.config.ts
