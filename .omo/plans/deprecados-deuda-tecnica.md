@@ -261,7 +261,7 @@ Your next move: aprueba para $start-work, o pide high-accuracy review (dual Momu
       Acceptance criteria: README counts = T1 canónicos; links rotos = 0 (grep); docs:check PASS
       QA scenarios: happy=docs:check PASS evidencia .omo/evidence/task-23-deprecados-deuda-tecnica.log; failure=link roto restante → check lo lista evidencia mismo log
       Commit: Y | docs(readme): corrige badges, counts y links rotos
-- [ ] 24. Root tooling: dev:ingestion + tsc/lint hooks
+- [x] 24. Root tooling: dev:ingestion + tsc/lint hooks — DONE 2026-09-20: solo faltaba `dev:ingestion` (build/test/lint:ingestion ya existían; pre-commit tsc 3 apps + lint-staged ingestion src+test ya cubiertos, verificados sin cambios); docs stale corregidos (README + AGENTS root + AGENTS ingestion gap 13); `npm run dev` sin ingestion documentado como sordo a Telegram; docs:check PASS; sin tocar CI/workflows. Evidencia .omo/evidence/task-24-deprecados-deuda-tecnica.log
       What to do: Añadir scripts root dev:ingestion/build:ingestion/test:ingestion faltantes, incluir ingestion en pre-commit tsc + lint-staged, documentar que npm run dev sin ingestion no escucha Telegram. Must NOT do: no cambiar CI Node 24 ni workflows deploy.
       Parallelization: Wave 4 | Blocked by: T23 | Blocks: T25
       References: package.json scripts; .husky/pre-commit; lint-staged.config.js; AGENTS.md KNOWN DRIFT partial root tooling

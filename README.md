@@ -62,7 +62,7 @@ npm run docker:up            # postgres :5432 + redis :6379 + pgAdmin :5050
 npm run dev                  # backend :3030 + frontend :5173 (port-cleanup first)
 
 # Ingestion runs separately (own terminal — single MTProto session):
-cd apps/ingestion-telegram && npm run start:dev   # :3031
+npm run dev:ingestion   # :3031 (root script; without it `npm run dev` can't hear Telegram)
 ```
 
 > First run needs env files: `apps/backend/.env` (or `.env.dev`) and `apps/ingestion-telegram/.env` with Telegram API credentials (`my.telegram.org`). Never commit them.
@@ -408,10 +408,12 @@ Telegram ──► single ear :3031 ──live stream──► factory :3030 ─
 ## Commands
 
 ```bash
-# Dev
+# Dev (backend + frontend — WITHOUT ingestion this stack can't hear Telegram:
+# the backend only retries the SSE stream; run dev:ingestion in a second terminal,
+# or backend mock mode, to get Telegram messages)
 npm run dev                  # backend + frontend
 npm run dev:backend-only | dev:frontend-only
-cd apps/ingestion-telegram && npm run start:dev   # :3031 (not in root scripts)
+npm run dev:ingestion        # ingestion-telegram :3031 (single MTProto session)
 
 # Quality
 npm run build | test | test:backend | test:frontend | lint | format
@@ -494,7 +496,7 @@ curl -s http://localhost:3030/api/health
 | Backend hangs at boot, no logs             | `DATABASE_SYNCHRONIZE=true` against a big schema → check `NODE_ENV`, run `migration:show`                         |
 | Dashboard shows `0` KPIs / no live feed    | SSE disconnected (backend backoff 1 s→30 s) or dashboard module unwired; check `:3031/api/health`                 |
 | SSE `backfill:error`                       | Backfill is unimplemented end-to-end (ingestion-telegram gap) — use MTProto-legacy or re-seed                     |
-| Stale types after pulling                  | `tsc --noEmit` per app (pre-commit runs it); ingestion-telegram isn't covered by root `tsc`                       |
+| Stale types after pulling                  | `tsc --noEmit` per app (pre-commit runs it for all 3 apps)                                    |
 
 ---
 

@@ -154,7 +154,7 @@ was removed 2026-09-14 (its PR checks never completed unattended; see
 | Task                 | Location                                                                                     |
 | -------------------- | -------------------------------------------------------------------------------------------- |
 | Run backend+frontend | `npm run dev` (root, port-cleanup → :3030 + :5173; ingestion-telegram NOT included)           |
-| Run ingestion        | `cd apps/ingestion-telegram && npm run start:dev` (:3031, no root script)                     |
+| Run ingestion        | `npm run dev:ingestion` (root → :3031, port-cleanup + `start:dev -w ingestion-telegram`)      |
 | Backend tests        | `npm run test:backend` (Jest, 170 suites / 1969 tests post-split)                            |
 | Ingestion tests      | `cd apps/ingestion-telegram && npm test` (43 suites / 815 tests post-split)                   |
 | Frontend tests       | `npm run test:frontend` (Vitest, 23 `*.test.*` files)                                        |
@@ -358,7 +358,7 @@ npm run migration:run
 npm run migration:revert
 npm run migration:show
 
-# Ingestion-telegram (cd apps/ingestion-telegram — no root dev script; lint/build/test via `lint:ingestion`/`build:ingestion`/`test:ingestion`)
+# Ingestion-telegram (`npm run dev:ingestion` from root, or cd apps/ingestion-telegram; lint/build/test via `lint:ingestion`/`build:ingestion`/`test:ingestion`)
 npm run start:dev                 # watch, :3031
 npm run telegram:gen-session      # generate INGESTION_TELEGRAM_MTPROTO_SESSION
 npm test | test:e2e | test:cov
@@ -625,7 +625,7 @@ Lossy by design: no replay, backfill unimplemented, dedup service present but un
 
 ## KNOWN DRIFT (root level)
 
-- **Ingestion-telegram partial root tooling**: `lint:ingestion`/`build:ingestion`/`test:ingestion` root entries + lint-staged glob exist (drift closed); still no root `dev` entry and pre-commit `tsc` covers backend+frontend only. `npm run dev` gives you a system that can't hear Telegram.
+- **Ingestion-telegram root tooling (resolved 2026-09-20, T24):** root tiene `dev:ingestion` + `lint/build/test:ingestion`, lint-staged cubre `src/`+`test/` de ingestion, y pre-commit `tsc` cubre las 3 apps. `npm run dev` (solo backend+frontend) es un sistema que no escucha Telegram: sin ingestion en `:3031` el backend solo reintenta el SSE (backoff 1 s→30 s) o usa mock — arranca `npm run dev:ingestion` en otra terminal para oír Telegram.
 - **Version skew (resolved 2026-09-20, T22): single-source = per-app `package.json` (+ hand-written per-app `CHANGELOG.md`, manual release flow).** Root `package.json` is `1.0.0` (monorepo placeholder, no CHANGELOG — never bump it as a release); apps are backend `1.2.0` / frontend `1.1.0` / ingestion-telegram `1.1.0`. The old `v1.3.2` in AGENTS headers never existed — headers now state their app version explicitly.
 - **gitignore highlights**: `.env*` (except `.example`/`.staging.template`/`.production.template`), `dist/`, `uploads/`, backend `logs/`, `*.tfstate`, `.playwright-mcp/`, `.omo` evidence dirs (plans/drafts tracked).
 - **`infra/terraform/terraform.tfvars` is git-tracked** (tfstate correctly ignored). Audit it for secrets; `.terraform/` provider binaries are also tracked (repo bloat — darwin-only binary committed).
