@@ -137,9 +137,9 @@ export async function seedPipelineEvents(
 
     await new Promise((resolve) => setTimeout(resolve, delayMs / 3));
 
-    // 4. Emit filters.token.approved or filters.token.rejected
+    // 4. Emit vip-call.approval.approved or vip-call.approval.rejected
     const isApproved = score >= 50;
-    const filterEvent = isApproved ? 'filters.token.approved' : 'filters.token.rejected';
+    const filterEvent = isApproved ? 'vip-call.approval.approved' : 'vip-call.approval.rejected';
     const filterPayload = {
       chain: token.chain,
       address: token.address,

@@ -24,7 +24,7 @@
  *     INGESTION_TELEGRAM_METADATA_CACHE_FILE
  *     INGESTION_TELEGRAM_BACKFILL_ENABLED
  *     USE_SSE_INGESTION, USE_SSE_CRYPTO_NEWS, USE_MOCK_INGESTION,
- *     INGESTION_TELEGRAM_URL (fallback: deprecated INGESTION_SERVICE_URL)
+ *     INGESTION_TELEGRAM_URL (canonical, default http://localhost:3031)
  *     CRYPTO_NEWS_POLLING_INTERVAL_MINUTES
  *     PUBLISHING_TELEGRAM_USE_REAL_MTPROTO/OUTPUT_CHANNEL,
  *     VIP_CALLS_BOT_TOKEN/OUTPUT_CHANNEL,
@@ -85,11 +85,11 @@ import { join } from 'path';
 export const DEFAULT_INGESTION_TELEGRAM_URL = 'http://localhost:3031';
 
 /**
- * Resolve the ingestion-telegram base URL with one-release fallback.
+ * Resolve the ingestion-telegram base URL (canonical only, T10 deprecados).
  *
- * Order: `INGESTION_TELEGRAM_URL` > deprecated `INGESTION_SERVICE_URL` >
- * default. Empty strings are treated as missing. A `console.warn` fires
- * exactly when the deprecated var supplies the value.
+ * Order: `INGESTION_TELEGRAM_URL` > default. Empty strings are treated
+ * as missing. The deprecated `INGESTION_SERVICE_URL` fallback was removed —
+ * setting it has no effect.
  */
 export function resolveIngestionServiceUrl(
   env: NodeJS.ProcessEnv = process.env,
@@ -97,13 +97,6 @@ export function resolveIngestionServiceUrl(
   const next = env.INGESTION_TELEGRAM_URL;
   if (next !== undefined && next.trim().length > 0) {
     return next;
-  }
-  const legacy = env.INGESTION_SERVICE_URL;
-  if (legacy !== undefined && legacy.trim().length > 0) {
-    console.warn(
-      '[deprecation] INGESTION_SERVICE_URL is deprecated, migrate to INGESTION_TELEGRAM_URL',
-    );
-    return legacy;
   }
   return DEFAULT_INGESTION_TELEGRAM_URL;
 }

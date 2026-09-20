@@ -15,8 +15,7 @@ name: onchain-bot-staging
 #   3. Resource waste running multiple identical ingestion instances
 #
 # Backend connects via: INGESTION_TELEGRAM_URL=http://onchain-bot-ingestion-telegram:3031
-# (new var, todo 5; INGESTION_SERVICE_URL stays this release — the code fallback
-#  resolves new > old > default, and both point at the NEW container name.
+# (canonical var, T10: legacy INGESTION_SERVICE_URL fallback removed.
 #  Pinned in backend `environment:` below; compose `environment:` wins over
 #  .env.staging; dev/localhost is untouched).
 # BOOT ORDER: start docker-compose.ingestion.yml FIRST — the ingestion compose
@@ -91,13 +90,10 @@ services:
       # Ingestion mode - compose `environment:` wins over .env.staging
       # (dev/localhost untouched). Boot ingestion compose first: it owns both
       # external nets. DNS follows the rename: onchain-bot-ingestion-telegram.
-      # INGESTION_TELEGRAM_URL is the new var (todo 5); INGESTION_SERVICE_URL
-      # stays this release — the code fallback resolves new > old > default.
-      # Both point at the NEW container: the old container_name no longer exists.
+      # INGESTION_TELEGRAM_URL is the canonical var (T10: legacy fallback removed).
       USE_SSE_INGESTION: true
       USE_MOCK_INGESTION: false
       INGESTION_TELEGRAM_URL: http://onchain-bot-ingestion-telegram:3031
-      INGESTION_SERVICE_URL: http://onchain-bot-ingestion-telegram:3031
     ports:
       - '3031:3030'
     volumes:
