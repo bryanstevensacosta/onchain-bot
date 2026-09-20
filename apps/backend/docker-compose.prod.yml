@@ -103,6 +103,7 @@ services:
     # with the correct ownership.
     volumes:
       - ./uploads:/app/uploads # crypto-news media persistence (MountPoint)
+      - /opt/onchain-bot/backups:/opt/onchain-bot/backups:ro # drill .rolling-status.json for GET /ops/backups/status (prod-only; staging has no backups by design)
       - ./config:/app/config:ro
     environment:
       POSTGRES_HOST: postgres

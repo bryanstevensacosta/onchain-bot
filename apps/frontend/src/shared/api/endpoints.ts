@@ -143,6 +143,9 @@ export const ENDPOINTS = {
     config: '/ingestion/config',
     health: '/ingestion/health',
   },
+  ops: {
+    backupStatus: '/ops/backups/status',
+  },
   cryptoNewsPublisher: {
     llm: {
       models: '/crypto-news-publisher/llm/models',
