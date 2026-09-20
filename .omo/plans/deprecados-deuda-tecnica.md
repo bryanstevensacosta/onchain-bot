@@ -268,7 +268,7 @@ Your next move: aprueba para $start-work, o pide high-accuracy review (dual Momu
       Acceptance criteria: npm run dev:ingestion arranca :3031; pre-commit tsc cubre 3 apps; npm run docs:check PASS
       QA scenarios: happy=scripts + hook verificados (bash --dry-run) evidencia .omo/evidence/task-24-deprecados-deuda-tecnica.log; failure=hook sin ingestion → tsc no lo cubre y se detecta evidencia mismo log
       Commit: Y | chore(tooling): añade dev:ingestion y tsc en hooks
-- [ ] 25. tsconfig alias muertos (discovery/_ + settings duplicado)
+- [x] 25. tsconfig alias muertos (discovery/* + settings duplicado) — DONE 2026-09-20: 2 líneas fuera en apps/backend/tsconfig.json, tsc backend verde, grep discovery/* 0 en código, settings/* 1 entrada, frontend @/* intacto. Evidencia .omo/evidence/task-25-deprecados-deuda-tecnica.log
       What to do: Quitar alias discovery/_ (sin src/discovery) + duplicado settings/_ en apps/backend/tsconfig.json, verificar imports. Must NOT do: no tocar @/_ frontend.
       Parallelization: Wave 4 | Blocked by: T24 | Blocks: F1-F4
       References: apps/backend/tsconfig.json; AGENTS.md CONVENTIONS path aliases
