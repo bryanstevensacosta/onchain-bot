@@ -26,7 +26,8 @@ const buildEntry = (overrides: {
     channelId: '-100123',
     messageId: 7,
     rawContent: overrides.rawContent ?? 'Bitcoin hits $100k today',
-    rawTitle: overrides.rawTitle === undefined ? 'BTC $100k' : overrides.rawTitle,
+    rawTitle:
+      overrides.rawTitle === undefined ? 'BTC $100k' : overrides.rawTitle,
     imagePath: overrides.imagePath === undefined ? null : overrides.imagePath,
     groupedId: null,
     messageReceivedAt: new Date('2026-09-15T12:00:00Z'),
@@ -98,7 +99,6 @@ describe('ThreadsLlmAdapter llm', () => {
     );
     llmConfigRepo = {
       load: jest.fn(),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
     llmConfigRepo.load.mockResolvedValue(buildConfig({}));
     adapter = new ThreadsLlmAdapter(llmPort, templateRepo, llmConfigRepo);
@@ -165,9 +165,7 @@ describe('ThreadsLlmAdapter llm', () => {
   });
 
   it('llm TEXT-only: media present logs media_skipped and never sends vision payload', async () => {
-    await adapter.generateForEntry(
-      buildEntry({ imagePath: '/tmp/photo.jpg' }),
-    );
+    await adapter.generateForEntry(buildEntry({ imagePath: '/tmp/photo.jpg' }));
     const call = llmPort.generateText.mock.calls[0]?.[0] as
       | { imageBase64?: string; prompt?: string }
       | undefined;
@@ -236,7 +234,9 @@ describe('threads-default llm seed', () => {
     const seed = await repo.findById(THREADS_DEFAULT_TEMPLATE_ID);
     expect(seed?.promptText).toContain('<500');
     expect(seed?.promptText).toMatch(/plain text/i);
-    expect(seed?.promptText).toMatch(/NO.*Telegram formatting|no .*Telegram formatting/i);
+    expect(seed?.promptText).toMatch(
+      /NO.*Telegram formatting|no .*Telegram formatting/i,
+    );
   });
 
   it('llm seed renders a prompt demanding <500 chars', async () => {

@@ -47,7 +47,8 @@ const EXPECTED_THREADS_TABLES = [
   'threads_oauth_tokens',
 ];
 
-const runDevDbProof = process.env.F3_DEV_DB_PROOF === 'true' ? describe : describe.skip;
+const runDevDbProof =
+  process.env.F3_DEV_DB_PROOF === 'true' ? describe : describe.skip;
 
 runDevDbProof('F3 Part A — dev-DB proof (migration + seed rows)', () => {
   const createdKeywordIds: string[] = [];
@@ -75,18 +76,18 @@ runDevDbProof('F3 Part A — dev-DB proof (migration + seed rows)', () => {
   });
 
   it('migration 1875000000001 is recorded as executed', async () => {
-    const rows = (await dataSource.query(
+    const rows = await dataSource.query(
       "SELECT name FROM typeorm_migrations WHERE name LIKE '%1875000000001%'",
-    )) as { name: string }[];
+    );
     expect(rows.length).toBe(1);
     expect(rows[0].name).toContain('CreateThreadsPublisherTables');
   });
 
   it('all 8 threads_* tables exist', async () => {
-    const rows = (await dataSource.query(
+    const rows = await dataSource.query(
       'SELECT table_name FROM information_schema.tables WHERE table_name = ANY($1)',
       [EXPECTED_THREADS_TABLES],
-    )) as { table_name: string }[];
+    );
     expect(rows.map((r) => r.table_name).sort()).toEqual(
       [...EXPECTED_THREADS_TABLES].sort(),
     );
@@ -108,22 +109,22 @@ runDevDbProof('F3 Part A — dev-DB proof (migration + seed rows)', () => {
       [crypto.randomUUID()],
     );
 
-    const kw = (await dataSource.query(
+    const kw = await dataSource.query(
       'SELECT phrase, enabled FROM threads_keywords WHERE id = $1',
       [keywordId],
-    )) as { phrase: string; enabled: boolean }[];
+    );
     expect(kw).toHaveLength(1);
     expect(kw[0].phrase).toBe('bitcoin');
     expect(kw[0].enabled).toBe(true);
 
-    const mc = (await dataSource.query(
+    const mc = await dataSource.query(
       'SELECT enabled FROM threads_matching_configs WHERE id = 999999',
-    )) as { enabled: boolean }[];
+    );
     expect(mc[0].enabled).toBe(true);
 
-    const lc = (await dataSource.query(
+    const lc = await dataSource.query(
       'SELECT publishing_enabled, daily_cap FROM threads_llm_configs WHERE id = 999',
-    )) as { publishing_enabled: boolean; daily_cap: number }[];
+    );
     expect(lc[0].publishing_enabled).toBe(true);
     expect(lc[0].daily_cap).toBe(60);
   });
@@ -179,7 +180,10 @@ describe('F3 Part B — mock-only drain (zero Meta network, zero DB)', () => {
     }
   }
 
-  const fixture = (messageId: number, content: string): EnqueueThreadsMessageDto => ({
+  const fixture = (
+    messageId: number,
+    content: string,
+  ): EnqueueThreadsMessageDto => ({
     channelId: '-100123',
     messageId,
     content,
@@ -190,7 +194,10 @@ describe('F3 Part B — mock-only drain (zero Meta network, zero DB)', () => {
     matchedKeywords: [],
   });
 
-  const staleProps = (queuedAt: Date, messageId: number): ThreadsQueueEntryProps => ({
+  const staleProps = (
+    queuedAt: Date,
+    messageId: number,
+  ): ThreadsQueueEntryProps => ({
     id: crypto.randomUUID(),
     traceId: crypto.randomUUID(),
     channelId: '-100123',
@@ -224,7 +231,7 @@ describe('F3 Part B — mock-only drain (zero Meta network, zero DB)', () => {
 
   beforeEach(() => {
     fetchMock = jest.fn();
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    globalThis.fetch = fetchMock;
   });
 
   afterEach(() => {
@@ -236,10 +243,13 @@ describe('F3 Part B — mock-only drain (zero Meta network, zero DB)', () => {
     const queueRepo = new InMemoryThreadsQueueRepository();
     const configRepo = new InMemoryThreadsLlmConfigRepository();
     configRepo.seed({ publishingEnabled: true, dailyCap: 60 });
-    const throttle = new SharedThrottleSchedulerService(new FakeThrottleStateRepo(), {
-      minDelayMs: 0,
-      maxDelayMs: 0,
-    });
+    const throttle = new SharedThrottleSchedulerService(
+      new FakeThrottleStateRepo(),
+      {
+        minDelayMs: 0,
+        maxDelayMs: 0,
+      },
+    );
     const llm = new FakeLlm();
     const adapter = makeAdapter('E2E_TEST_TOKEN');
     mockCreateFinishedPublish('media-f3-1');
@@ -261,7 +271,10 @@ describe('F3 Part B — mock-only drain (zero Meta network, zero DB)', () => {
 
     // Real adapter hit the (mocked) fetch exactly 3 times: CREATE + poll + publish.
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    const published = await queueRepo.findByChannelIdAndMessageId('-100123', 701);
+    const published = await queueRepo.findByChannelIdAndMessageId(
+      '-100123',
+      701,
+    );
     expect(published).not.toBeNull();
     expect(published!.status).toBe('PUBLISHED');
     // 600-char fixture truncated to <=500 pre-publish by the adapter.
@@ -283,10 +296,13 @@ describe('F3 Part B — mock-only drain (zero Meta network, zero DB)', () => {
     const queueRepo = new InMemoryThreadsQueueRepository();
     const configRepo = new InMemoryThreadsLlmConfigRepository();
     configRepo.seed({ publishingEnabled: true, dailyCap: 1 });
-    const throttle = new SharedThrottleSchedulerService(new FakeThrottleStateRepo(), {
-      minDelayMs: 0,
-      maxDelayMs: 0,
-    });
+    const throttle = new SharedThrottleSchedulerService(
+      new FakeThrottleStateRepo(),
+      {
+        minDelayMs: 0,
+        maxDelayMs: 0,
+      },
+    );
 
     const enqueue = new EnqueueThreadsMessageUseCase(queueRepo);
     await enqueue.execute({ message: fixture(702, 'first') });
@@ -330,7 +346,9 @@ describe('F3 Part B — mock-only drain (zero Meta network, zero DB)', () => {
 
   it('FAKE token refuse-path performs zero fetch calls (red-ban proof)', async () => {
     const adapter = makeAdapter('FAKE');
-    const result = await adapter.publish({ text: 'must not leave the process' });
+    const result = await adapter.publish({
+      text: 'must not leave the process',
+    });
     expect(result.ok).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
   });
