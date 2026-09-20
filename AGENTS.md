@@ -626,7 +626,7 @@ Lossy by design: no replay, backfill unimplemented, dedup service present but un
 ## KNOWN DRIFT (root level)
 
 - **Ingestion-telegram partial root tooling**: `lint:ingestion`/`build:ingestion`/`test:ingestion` root entries + lint-staged glob exist (drift closed); still no root `dev` entry and pre-commit `tsc` covers backend+frontend only. `npm run dev` gives you a system that can't hear Telegram.
-- **Version skew**: root `package.json` is `0.0.1`, apps are `1.3.2`. Don't trust the root version.
+- **Version skew (resolved 2026-09-20, T22): single-source = per-app `package.json` (+ hand-written per-app `CHANGELOG.md`, manual release flow).** Root `package.json` is `1.0.0` (monorepo placeholder, no CHANGELOG — never bump it as a release); apps are backend `1.2.0` / frontend `1.1.0` / ingestion-telegram `1.1.0`. The old `v1.3.2` in AGENTS headers never existed — headers now state their app version explicitly.
 - **gitignore highlights**: `.env*` (except `.example`/`.staging.template`/`.production.template`), `dist/`, `uploads/`, backend `logs/`, `*.tfstate`, `.playwright-mcp/`, `.omo` evidence dirs (plans/drafts tracked).
 - **`infra/terraform/terraform.tfvars` is git-tracked** (tfstate correctly ignored). Audit it for secrets; `.terraform/` provider binaries are also tracked (repo bloat — darwin-only binary committed).
 

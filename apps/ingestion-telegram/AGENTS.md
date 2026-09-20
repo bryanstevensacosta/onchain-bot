@@ -4,6 +4,8 @@
 
 > Credenciales MTProto viven **SOLO aquí** (`INGESTION_TELEGRAM_*`). Nunca en `apps/backend/.env` → evita `AUTH_KEY_DUPLICATED`.
 
+> Versión v1.1.0 (source of truth: `package.json` + `CHANGELOG.md`; verificado 2026-09-20).
+
 ## Comandos
 
 ```bash

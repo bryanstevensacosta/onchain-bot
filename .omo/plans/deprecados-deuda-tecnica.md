@@ -226,28 +226,28 @@ Your next move: aprueba para $start-work, o pide high-accuracy review (dual Momu
       Acceptance criteria: depcheck/knip outputs guardados; 0 fetch a rutas muertas (grep); decisión keep/prune documentada por dep con evidencia
       QA scenarios: happy=depcheck/knip + grep 0 rutas muertas evidencia .omo/evidence/task-18-deprecados-deuda-tecnica.log; failure=dep marcada unused pero con import dinámico → knip/depcheck lo revela y se hace keep evidencia mismo log
       Commit: Y | chore(frontend): elimina dead URLs y documenta deps
-- [ ] 19. Frontend build + smoke /crypto-news sin 404 muertos
+- [x] 19. Frontend build + smoke /crypto-news sin 404 muertos — DONE 2026-09-20: N commit (verificación), build 11.72s PASS, Playwright smoke 50 requests / 0 dead-hits / 0 404 / 0 pageerrors en 2 corridas (servidor /tmp PID explícito, solo lectura dev :3040 + :3032). Evidencia .omo/evidence/task-19-deprecados-deuda-tecnica.log
       What to do: vite build + Playwright smoke /crypto-news (konsola sin 404 a backfill/byToken/reprocess/llm-config rota). Must NOT do: no verificación manual con clicks humanos.
       Parallelization: Wave 3 | Blocked by: T18 | Blocks: T20
       References: apps/frontend/src/pages/crypto-news/**tests**/crypto-news-page.test.tsx; apps/frontend/nginx.conf; apps/frontend/vite.config.ts
       Acceptance criteria: vite build PASS; smoke PASS sin requests a endpoints muertos
       QA scenarios: happy=build+smoke PASS evidencia .omo/evidence/task-19-deprecados-deuda-tecnica.log; failure=smoke detecta 404 a ruta muerta → falla evidencia mismo log
       Commit: N | —
-- [ ] 20. Migrar console.log hot path a Logger
+- [x] 20. Migrar console.log hot path a Logger — DONE 2026-09-20: commit ec142c9, grep console.* en src/*.ts = 0, backend 197 suites/2133 tests (2130 pass+3 skip), tsc+lint limpios, spec nuevo console-logger.spec.ts (4 tests ruteo error→error nunca debug). Evidencia .omo/evidence/task-20-deprecados-deuda-tecnica.log
       What to do: Sustituir console.log en backend main.ts:60-205, app.module.ts:75, shared-ingestion.module.ts:181, mtproto adapter:102-166 (ya borrado parcial), console-logger.ts:91, embedding.service.spec:42 por Nest Logger con niveles. Must NOT do: no silenciar errores a debug.
       Parallelization: Wave 4 | Blocked by: T19 | Blocks: T21
       References: apps/backend/src/main.ts:60-205; apps/backend/src/app.module.ts:75; apps/backend/src/shared/common/console-logger.ts:91; apps/backend/src/shared/common/persistence/database.module.ts:69
       Acceptance criteria: grep console.log en apps/backend/src = 0 salvo READMEs; test:backend + lint verdes
       QA scenarios: happy=grep 0 + tests verdes evidencia .omo/evidence/task-20-deprecados-deuda-tecnica.log; failure=log de error degradado a debug → test de nivel lo detecta evidencia mismo log
       Commit: Y | refactor(logging): console.log a Nest Logger
-- [ ] 21. Ruido debug a nivel debug o borrado ([SSE-DEBUG], MSG-TRANSFORM, ADAPTER-SELECTION)
+- [x] 21. Ruido debug a nivel debug o borrado ([SSE-DEBUG], MSG-TRANSFORM, ADAPTER-SELECTION) — DONE 2026-09-20: commit 03122e4, grep marcadores 0 en src, strays main-debug.ts+test-new.ts git rm (main.backup.ts inexistente), backend 197/2133 = baseline, tsc+lint limpios, specs 30/30+24/24. Ingestion full 39/43 (4 fallos pre-existentes DB/flaky verificados sin cambio vía stash). Evidencia .omo/evidence/task-21-deprecados-deuda-tecnica.log
       What to do: Bajar a logger.debug o borrar [SSE-DEBUG], [MSG-TRANSFORM-DEBUG], ADAPTER-SELECTION-DEBUG, main-debug.ts + test-new.ts + main.backup.ts stray (G5). Must NOT do: no borrar logs de error reales.
       Parallelization: Wave 4 | Blocked by: T20 | Blocks: T22
       References: apps/backend/src/main-debug.ts:5-119; apps/backend/AGENTS.md G5,G20; apps/ingestion-telegram/src/telegram/shared/api/mtproto/telegram-mtproto-listener.adapter.ts:364,384 (nota seed deprecated ya cubierta)
       Acceptance criteria: grep SSE-DEBUG/MSG-TRANSFORM/ADAPTER-SELECTION = 0 en src; stray files borrados; tests verdes
       QA scenarios: happy=grep 0 evidencia .omo/evidence/task-21-deprecados-deuda-tecnica.log; failure=hot path aún loguea en info → grep lo detecta evidencia mismo log
       Commit: Y | chore(logging): elimina ruido debug hot path
-- [ ] 22. Unificar versiones single-source + corregir AGENTS
+- [x] 22. Unificar versiones single-source + corregir AGENTS — DONE 2026-09-20: source of truth = per-app package.json (backend 1.2.0 / frontend 1.1.0 / ingestion 1.1.0, matchean CHANGELOGs); root 1.0.0 placeholder intacto; headers AGENTS corregidos (v1.3.2 nunca existió); docs:check PASS sin warnings. README badges aún divergen → T23. Evidencia .omo/evidence/task-22-deprecados-deuda-tecnica.log
       What to do: Decidir source of truth (package.json raíz vs apps) y alinear root 1.0.0 / backend 1.2.0 / frontend 1.1.0 / ingestion 1.1.0 vs AGENTS 1.3.2; actualizar AGENTS raíz/frontend/backend/ingestion headers. Must NOT do: no cambiar estrategia release manual ni CHANGELOGs en este todo (solo versiones).
       Parallelization: Wave 4 | Blocked by: T20-T21 | Blocks: T23
       References: package.json; apps/backend/package.json; apps/frontend/package.json; apps/ingestion-telegram/package.json; AGENTS.md KNOWN DRIFT version skew; apps/\*/AGENTS.md
