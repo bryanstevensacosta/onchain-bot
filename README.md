@@ -47,7 +47,7 @@ One MTProto session ingests Telegram → SSE fan-out → NestJS pipeline (extrac
 
 | App                    | Stack                                                                                                                  | Port    | Version | Tests                       |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------- | ------- | --------------------------- |
-| **backend**            | NestJS 11 · TypeORM · Postgres · EventEmitter · Socket.IO — 22 modules, 41 entities, 35 controllers, 13 data providers | `:3030` | 1.2.0   | 197 Jest specs + 2 e2e      |
+| **backend**            | NestJS 11 · TypeORM · Postgres · EventEmitter · Socket.IO — 22 modules, 47 entities, 35 controllers, 13 data providers | `:3030` | 1.2.0   | 197 Jest specs + 2 e2e      |
 | **ingestion-telegram** | NestJS 11 · MTProto (GramJS) → SSE fan-out — one session serves N backends                                             | `:3031` | 1.1.0   | 43 Jest specs + 7 e2e       |
 | **frontend**           | React 18 · Vite 5 · TanStack Query · Socket.IO · Tailwind — 6 routes, 12 features, 11 entities                         | `:5173` | 1.1.0   | 29 Vitest files (330 tests) |
 
@@ -118,7 +118,7 @@ flowchart TB
         API["HTTP API<br/>35 endpoints"]
     end
 
-    DB[(Database<br/>41 tables)]
+    DB[(Database<br/>47 tables)]
     REDIS[(Fast memory<br/>bookmarks + cache)]
     UPL[(Uploads folder<br/>news photos)]
     FE["Dashboard :5173<br/>live screen"]
@@ -361,7 +361,7 @@ Theme rooms you can join: Solana only, EVM only, accepted only, rejected only, e
 
 ### Data, health, deploy
 
-The database (auto-created in dev/test, versioned scripts in staging/prod) holds 41 tables: KOLs, coin cards, report cards, scores, labels, results, review jobs, followed calls, verdicts, market snapshots, found candidates, parsed tips, detective reports, chain answers, word lists, limits, presets, audit trail, trophy thresholds, watched calls, posted calls (+ who was notified), trophies, news (outlets, messages, photos), content rules, banned phrases, keywords, AI settings, prompt templates, publishing line state, ads (+ photos, wheel settings, wheel state). Every coin is keyed `${chain}:${address}` lowercased. Fast memory holds: last-message bookmarks, market snapshots, coin icons.
+The database (auto-created in dev/test, versioned scripts in staging/prod) holds 47 tables: KOLs, coin cards, report cards, scores, labels, results, review jobs, followed calls, verdicts, market snapshots, found candidates, parsed tips, detective reports, chain answers, word lists, limits, presets, audit trail, trophy thresholds, watched calls, posted calls (+ who was notified), trophies, content rules, banned phrases, keywords, AI settings, prompt templates, publishing line state, threads (queue, keywords, phrases, LLM, throttle, OAuth, matching), ads (+ photos, wheel settings, wheel state). Every coin is keyed `${chain}:${address}` lowercased. Fast memory holds: last-message bookmarks, market snapshots, coin icons. (Crypto-news outlets/messages/photos live in the ingestion-telegram `<base>_ingestion` DB, not here — split 2026-09-08.)
 
 | What to ping          | Address                                                                                      |
 | --------------------- | -------------------------------------------------------------------------------------------- |
@@ -516,7 +516,7 @@ curl -s http://localhost:3030/api/health
 ## Docs
 
 - **[AGENTS.md](AGENTS.md)** — contributor knowledge base (root; ports, commands, conventions, drift)
-- **[apps/backend/AGENTS.md](apps/backend/AGENTS.md)** — pipeline, scoring & gates, 35 controllers, 41 entities, env inventory, 32 verified gaps
+- **[apps/backend/AGENTS.md](apps/backend/AGENTS.md)** — pipeline, scoring & gates, 35 controllers, 47 entities, env inventory, 32 verified gaps
 - **[apps/ingestion-telegram/AGENTS.md](apps/ingestion-telegram/AGENTS.md)** — SSE protocol, media, safety config, 25 verified gaps
 - **[apps/frontend/AGENTS.md](apps/frontend/AGENTS.md)** — FSD slices, contract, polling, proxy, 11 verified gaps
 - **[apps/backend/README.md](apps/backend/README.md)** · **[apps/frontend/README.md](apps/frontend/README.md)** — architecture overviews
