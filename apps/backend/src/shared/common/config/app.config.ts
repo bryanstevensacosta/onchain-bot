@@ -23,8 +23,8 @@
  *   Pipeline behaviour:
  *     INGESTION_TELEGRAM_METADATA_CACHE_FILE
  *     INGESTION_TELEGRAM_BACKFILL_ENABLED
-  *     USE_SSE_INGESTION, USE_SSE_CRYPTO_NEWS, USE_MOCK_INGESTION,
-  *     INGESTION_TELEGRAM_URL (fallback: deprecated INGESTION_SERVICE_URL)
+ *     USE_SSE_INGESTION, USE_SSE_CRYPTO_NEWS, USE_MOCK_INGESTION,
+ *     INGESTION_TELEGRAM_URL (fallback: deprecated INGESTION_SERVICE_URL)
  *     CRYPTO_NEWS_POLLING_INTERVAL_MINUTES
  *     PUBLISHING_TELEGRAM_USE_REAL_MTPROTO/OUTPUT_CHANNEL,
  *     VIP_CALLS_BOT_TOKEN/OUTPUT_CHANNEL,
@@ -76,8 +76,8 @@
  *
  *   Note (2026-09-06): SEED-related env vars removed. Channels are now registered via:
  *   - KOLs: POST /telegram-kol/identity/kols
-  *   - Crypto-news: POST {INGESTION_TELEGRAM_URL}/api/crypto-news/sources
-  */
+ *   - Crypto-news: POST {INGESTION_TELEGRAM_URL}/api/crypto-news/sources
+ */
 import { registerAs } from '@nestjs/config';
 import { join } from 'path';
 
@@ -402,8 +402,12 @@ export const appConfig = registerAs(
             ).toLowerCase() === 'true',
         },
       },
+      // T4 (deprecados-deuda-tecnica): SSE es el default. Riesgo T3: los
+      // templates legados fijaban USE_SSE_INGESTION=false — un env explícito
+      // en false ya NO reactiva MTProto (rama eliminada → 410 en
+      // SharedIngestionModule), solo rompe la ingesta hasta corregirlo.
       useSse:
-        (process.env.USE_SSE_INGESTION ?? 'false').toLowerCase() === 'true',
+        (process.env.USE_SSE_INGESTION ?? 'true').toLowerCase() === 'true',
       useSseCryptoNews:
         (process.env.USE_SSE_CRYPTO_NEWS ?? 'true').toLowerCase() === 'true',
       useMock:

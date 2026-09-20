@@ -104,7 +104,7 @@ flowchart TB
     end
 
     subgraph BE["backend :3030 — the factory (22 pieces)"]
-        MODE["Three doors in<br/>live stream - fake for tests<br/>old direct line"]
+        MODE["Two doors in<br/>live stream (default) - fake for tests<br/>old direct line REMOVED (410 Gone)"]
         ICOORD["Front door<br/>tips to reception<br/>news to filing"]
         PIPE["Alpha-call assembly line<br/>spot - read - merge<br/>identify - enrich - label<br/>score - approve - publish"]
         NEWSP["News assembly line<br/>file - match<br/>queue - AI rewrite - post"]
@@ -146,13 +146,13 @@ flowchart TB
     FE -- "screens poll every 5-30s plus live push" --> API
 ```
 
-The backend front door opens in 3 ways (picked by flag):
+The backend front door opens in 2 ways (picked by flag; SSE is the default since T4):
 
-| Door                                                           | Flag                      | How it works                                                                                                                                           |
-| -------------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Live stream (recommended)                                      | `USE_SSE_INGESTION=true`  | Connects to `GET {serviceUrl}/api/ingestion/stream`, retries 1 s→30 s, filters channels locally, 60 s history timeout (broken end-to-end, see caveats) |
-| Fake feed (CLI/tests)                                          | `USE_MOCK_INGESTION=true` | Pretend feed + test endpoints (`POST /dev/inject-message`, `GET /dev/queue-status`) + `scripts/cli/*` inject/record/replay                             |
-| Old direct line (rollback-only, default when both flags false) | both false                | Backend listens to Telegram itself — risks kicking out the main session (`AUTH_KEY_DUPLICATED`)                                                        |
+| Door                                    | Flag                      | How it works                                                                                                                                                |
+| --------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Live stream (recommended, default)      | `USE_SSE_INGESTION=true`  | Connects to `GET {serviceUrl}/api/ingestion/stream`, retries 1 s→30 s, filters channels locally, 60 s history timeout (broken end-to-end, see caveats)      |
+| Fake feed (CLI/tests)                   | `USE_MOCK_INGESTION=true` | Pretend feed + test endpoints (`POST /dev/inject-message`, `GET /dev/queue-status`) + `scripts/cli/*` inject/record/replay                                  |
+| Old direct line (REMOVED T4 → 410 Gone) | both false                | Backend MTProto removed: forcing it throws `410 Gone "MTProto backend removido, usar INGESTION_TELEGRAM_URL"` — no session opens (no `AUTH_KEY_DUPLICATED`) |
 
 ### Ingestion-telegram deep dive
 

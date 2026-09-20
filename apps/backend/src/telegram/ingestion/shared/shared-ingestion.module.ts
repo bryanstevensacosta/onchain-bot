@@ -1,4 +1,4 @@
-import { Global, Module } from '@nestjs/common';
+import { Global, GoneException, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
@@ -60,9 +60,9 @@ class StubCryptoNewsMediaDownloader extends CryptoNewsMediaDownloader {
  * Environment Variables:
  * - USE_SSE_INGESTION → TelegramSseListenerAdapter (connects to Ingestion Service)
  * - USE_MOCK_INGESTION → TelegramMockAdapter (CLI/testing mode, no Telegram connection)
- * - Default (both false) → TelegramMtprotoListenerAdapter (local MTProto)
+ * - Default (both unset/false) → SSE (default desde T4); forzar MTProto lanza 410 Gone
  *
- * Priority: Mock > SSE > MTProto (if both flags true, mock wins)
+ * Priority: Mock > SSE > MTProto (410 Gone — rama eliminada en T4)
  *
  * Provides globally:
  * - TelegramListenerPort (dynamically selects adapter based on env)
@@ -124,6 +124,44 @@ import { TELEGRAM_LISTENER_PORT_TOKEN } from './shared-injection-tokens';
 
 const logger = new Logger('SharedIngestionModule');
 
+/**
+ * Seleccion del adapter de ingesta por flags (T4 deprecados-deuda-tecnica).
+ *
+ * Prioridad: Mock > SSE > MTProto-eliminado.
+ * La rama MTProto del backend fue removida (experimento A1 caido en T3:
+ * sin sesion ni trafico vivo en ningun ambiente): forzarla lanza 410 Gone
+ * con mensaje exacto, SIN abrir sesion MTProto (sin riesgo
+ * AUTH_KEY_DUPLICATED). El borrado fisico de servicios/adapter es T5.
+ */
+export function selectIngestionAdapter<
+  TMock = unknown,
+  TSse = unknown,
+  TMtproto = unknown,
+>(
+  flags: { useMock: boolean; useSse: boolean },
+  adapters: { mockAdapter: TMock; sseAdapter: TSse; mtprotoAdapter: TMtproto },
+  serviceUrl?: string,
+): TMock | TSse {
+  if (flags.useMock) {
+    logger.log('🧪 INGESTION MODE: Mock (CLI/testing, no Telegram connection)');
+    logger.log('   └─ Use CLI tools: npm run cli:inject');
+    return adapters.mockAdapter;
+  }
+
+  if (flags.useSse) {
+    logger.log('🔄 INGESTION MODE: SSE (remote Ingestion Service)');
+    logger.log(`   └─ Service URL: ${serviceUrl || 'http://localhost:3031'}`);
+    logger.log('   └─ Backend registration: ENABLED');
+    return adapters.sseAdapter;
+  }
+
+  // REMOVIDO (T4): modo MTProto backend eliminado — usar ingestion-telegram
+  // via INGESTION_TELEGRAM_URL. No se abre ninguna sesion MTProto aqui.
+  throw new GoneException(
+    'MTProto backend removido, usar INGESTION_TELEGRAM_URL',
+  );
+}
+
 @Global()
 @Module({
   imports: [
@@ -159,10 +197,7 @@ const logger = new Logger('SharedIngestionModule');
     TelegramMockAdapter,
 
     // Dynamic adapter selection based on feature flags
-    // Priority: Mock > SSE > MTProto
-    //
-    // @deprecated MTProto mode (default fallback) is deprecated. Use SSE mode instead.
-    // MTProto mode is retained only for emergency rollback during migration period.
+    // Priority: Mock > SSE > MTProto-eliminado (410 Gone, T4)
     {
       provide: TelegramListenerPort,
       useFactory: (
@@ -173,10 +208,10 @@ const logger = new Logger('SharedIngestionModule');
       ) => {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const appConfig = config.get('app');
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        const useMock = appConfig?.ingestion?.useMock ?? false;
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        const useSse = appConfig?.ingestion?.useSse ?? false;
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        const useMock = (appConfig?.ingestion?.useMock ?? false) as boolean;
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        const useSse = (appConfig?.ingestion?.useSse ?? true) as boolean;
 
         console.log('[ADAPTER-SELECTION-DEBUG]', {
           useMock,
@@ -190,37 +225,12 @@ const logger = new Logger('SharedIngestionModule');
           rawUseSse: appConfig?.ingestion?.useSse,
         });
 
-        if (useMock) {
-          logger.log(
-            '🧪 INGESTION MODE: Mock (CLI/testing, no Telegram connection)',
-          );
-          logger.log('   └─ Use CLI tools: npm run cli:inject');
-          return mockAdapter;
-        }
-
-        if (useSse) {
-          logger.log('🔄 INGESTION MODE: SSE (remote Ingestion Service)');
-          logger.log(
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-            `   └─ Service URL: ${appConfig?.ingestion?.serviceUrl || 'http://localhost:3031'}`,
-          );
-          logger.log('   └─ Backend registration: ENABLED');
-          return sseAdapter;
-        }
-
-        // ⚠️ DEPRECATED: MTProto mode - for emergency rollback only
-        logger.warn('⚠️  INGESTION MODE: MTProto (local) - DEPRECATED');
-        logger.warn('   └─ Direct Telegram API connection');
-        logger.warn(
-          '   └─ This mode is deprecated and maintained only for emergency rollback',
+        return selectIngestionAdapter(
+          { useMock, useSse },
+          { mockAdapter, sseAdapter, mtprotoAdapter },
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
+          appConfig?.ingestion?.serviceUrl,
         );
-        logger.warn(
-          '   └─ Please migrate to SSE mode: SET USE_SSE_INGESTION=true',
-        );
-        logger.warn(
-          '   └─ See .kiro/specs/centralized-ingestion-service/ for migration guide',
-        );
-        return mtprotoAdapter;
       },
       inject: [
         ConfigService,

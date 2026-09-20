@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { Logger } from '@nestjs/common';
+import { GoneException, Logger } from '@nestjs/common';
 import { TelegramListenerPort } from './domain/ports/telegram-listener.port';
 import { TelegramMtprotoListenerAdapter } from './api/mtproto/telegram-mtproto-listener.adapter';
 import { TelegramSseListenerAdapter } from './api/sse/telegram-sse-listener.adapter';
@@ -24,7 +24,8 @@ import { TELEGRAM_LISTENER_PORT_TOKEN } from './shared-injection-tokens';
  *
  * Tests verify:
  * - Remote mode (useSse: true) instantiates TelegramSseListenerAdapter
- * - Local mode (useSse: false) instantiates TelegramMtprotoListenerAdapter
+ * - Forced MTProto (useSse: false) throws 410 Gone (T4, backend removido)
+ * - Default (useSse undefined) instantiates TelegramSseListenerAdapter (T4)
  * - Mode selection controlled by app.ingestion.useSse config
  *
  * NOTE: These are isolated integration tests that mock module dependencies
@@ -141,8 +142,13 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
               sseAdapter: TelegramSseListenerAdapter,
             ) => {
               const appConfig = config.get('app');
-              const useSseIngestion = appConfig?.ingestion?.useSse ?? false;
-              return useSseIngestion ? sseAdapter : mtprotoAdapter;
+              const useSseIngestion = appConfig?.ingestion?.useSse ?? true;
+              if (!useSseIngestion) {
+                throw new GoneException(
+                  'MTProto backend removido, usar INGESTION_TELEGRAM_URL',
+                );
+              }
+              return sseAdapter;
             },
             inject: [
               ConfigService,
@@ -199,10 +205,11 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
     });
   });
 
-  describe('Local mode (MTProto)', () => {
-    beforeEach(async () => {
-      // Configure for local/MTProto mode
-      moduleRef = await Test.createTestingModule({
+  describe('MTProto removido (410 Gone, T4)', () => {
+    // Nest instancia providers en compile(): con useSse:false el compile
+    // mismo rechaza con 410 — nunca existe un adapter MTProto conectado.
+    const buildMtprotoForcedModule = () =>
+      Test.createTestingModule({
         imports: [
           ConfigModule.forRoot({
             isGlobal: true,
@@ -277,8 +284,13 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
               sseAdapter: TelegramSseListenerAdapter,
             ) => {
               const appConfig = config.get('app');
-              const useSseIngestion = appConfig?.ingestion?.useSse ?? false;
-              return useSseIngestion ? sseAdapter : mtprotoAdapter;
+              const useSseIngestion = appConfig?.ingestion?.useSse ?? true;
+              if (!useSseIngestion) {
+                throw new GoneException(
+                  'MTProto backend removido, usar INGESTION_TELEGRAM_URL',
+                );
+              }
+              return sseAdapter;
             },
             inject: [
               ConfigService,
@@ -295,42 +307,27 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
         ],
       }).compile();
 
-      telegramListener =
-        moduleRef.get<TelegramListenerPort>(TelegramListenerPort);
-      configService = moduleRef.get<ConfigService>(ConfigService);
+    it('should throw 410 Gone with exact message when MTProto forced', async () => {
+      await expect(buildMtprotoForcedModule()).rejects.toThrow(
+        'MTProto backend removido, usar INGESTION_TELEGRAM_URL',
+      );
     });
 
-    it('should instantiate TelegramMtprotoListenerAdapter when useSse is false', () => {
-      // Verify the adapter is MTProto type
-      expect(telegramListener).toBeInstanceOf(TelegramMtprotoListenerAdapter);
-      expect(telegramListener).not.toBeInstanceOf(TelegramSseListenerAdapter);
-    });
-
-    it('should read useSse config from environment', () => {
-      const appConfig = configService.get('app');
-      expect(appConfig.ingestion.useSse).toBe(false);
-    });
-
-    it('should export TelegramListenerPort', () => {
-      expect(telegramListener).toBeDefined();
-      expect(typeof telegramListener.subscribe).toBe('function');
-      expect(typeof telegramListener.backfill).toBe('function');
-      expect(typeof telegramListener.disconnect).toBe('function');
-    });
-
-    it('should implement all TelegramListenerPort methods', () => {
-      // Verify MTProto adapter implements the full interface
-      expect(telegramListener.subscribe).toBeDefined();
-      expect(telegramListener.backfill).toBeDefined();
-      expect(telegramListener.disconnect).toBeDefined();
-      expect(telegramListener.resolveChannelMetadata).toBeDefined();
-      expect(telegramListener.joinChannel).toBeDefined();
+    it('should throw GoneException (status 410)', async () => {
+      const err = await buildMtprotoForcedModule().then(
+        () => {
+          throw new Error('expected GoneException');
+        },
+        (e: unknown) => e,
+      );
+      expect(err).toBeInstanceOf(GoneException);
+      expect((err as GoneException).getStatus()).toBe(410);
     });
   });
 
   describe('Default mode (when useSse is undefined)', () => {
     beforeEach(async () => {
-      // Configure without explicit useSse setting (should default to false)
+      // Configure without explicit useSse setting (should default to SSE, T4)
       moduleRef = await Test.createTestingModule({
         imports: [
           ConfigModule.forRoot({
@@ -339,7 +336,7 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
               () => ({
                 app: {
                   ingestion: {
-                    // useSse not set - should default to false
+                    // useSse not set - should default to SSE (T4)
                     serviceUrl: 'http://localhost:3031',
                   },
                   telegram: {
@@ -406,8 +403,13 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
               sseAdapter: TelegramSseListenerAdapter,
             ) => {
               const appConfig = config.get('app');
-              const useSseIngestion = appConfig?.ingestion?.useSse ?? false;
-              return useSseIngestion ? sseAdapter : mtprotoAdapter;
+              const useSseIngestion = appConfig?.ingestion?.useSse ?? true;
+              if (!useSseIngestion) {
+                throw new GoneException(
+                  'MTProto backend removido, usar INGESTION_TELEGRAM_URL',
+                );
+              }
+              return sseAdapter;
             },
             inject: [
               ConfigService,
@@ -429,17 +431,19 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
       configService = moduleRef.get<ConfigService>(ConfigService);
     });
 
-    it('should default to MTProto adapter when useSse is undefined', () => {
-      // Verify default is MTProto (safe rollback behavior)
-      expect(telegramListener).toBeInstanceOf(TelegramMtprotoListenerAdapter);
-      expect(telegramListener).not.toBeInstanceOf(TelegramSseListenerAdapter);
+    it('should default to SSE adapter when useSse is undefined (T4)', () => {
+      // Verify default is SSE (MTProto backend removido en T4)
+      expect(telegramListener).toBeInstanceOf(TelegramSseListenerAdapter);
+      expect(telegramListener).not.toBeInstanceOf(
+        TelegramMtprotoListenerAdapter,
+      );
     });
 
-    it('should treat undefined useSse as false', () => {
+    it('should treat undefined useSse as true', () => {
       const appConfig = configService.get('app');
-      // The ?? operator in the module should default to false
-      const useSse = appConfig?.ingestion?.useSse ?? false;
-      expect(useSse).toBe(false);
+      // The ?? operator in the module should default to true (T4)
+      const useSse = appConfig?.ingestion?.useSse ?? true;
+      expect(useSse).toBe(true);
     });
   });
 
@@ -521,8 +525,13 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
               sseAdapter: TelegramSseListenerAdapter,
             ) => {
               const appConfig = config.get('app');
-              const useSseIngestion = appConfig?.ingestion?.useSse ?? false;
-              return useSseIngestion ? sseAdapter : mtprotoAdapter;
+              const useSseIngestion = appConfig?.ingestion?.useSse ?? true;
+              if (!useSseIngestion) {
+                throw new GoneException(
+                  'MTProto backend removido, usar INGESTION_TELEGRAM_URL',
+                );
+              }
+              return sseAdapter;
             },
             inject: [
               ConfigService,
@@ -588,7 +597,7 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
               () => ({
                 app: {
                   ingestion: {
-                    useSse: false,
+                    useSse: true,
                   },
                   telegram: {
                     apiId: 12345,
@@ -654,8 +663,13 @@ describe('SharedIngestionModule - Mode Switching Integration', () => {
               sseAdapter: TelegramSseListenerAdapter,
             ) => {
               const appConfig = config.get('app');
-              const useSseIngestion = appConfig?.ingestion?.useSse ?? false;
-              return useSseIngestion ? sseAdapter : mtprotoAdapter;
+              const useSseIngestion = appConfig?.ingestion?.useSse ?? true;
+              if (!useSseIngestion) {
+                throw new GoneException(
+                  'MTProto backend removido, usar INGESTION_TELEGRAM_URL',
+                );
+              }
+              return sseAdapter;
             },
             inject: [
               ConfigService,
