@@ -74,6 +74,14 @@ EnvironmentFile=/opt/onchain-bot/.backup-env
 Environment=BACKUP_MODE=daily
 Environment=BACKUP_BASENAME=prod-backend
 Environment=BACKUP_ORIGIN=cron
+# Prod DB wiring (mirrors .github/workflows/deploy.yml Backup step):
+# the droplet ALSO runs onchain-bot-postgres-dev/-staging, and the
+# script default (dev name, checked first) would match the DEV database
+# (16KB) instead of prod (8MB) — the anti-empty guard caught this live
+# (exit 4, existing file preserved). Pin the prod container explicitly.
+Environment=POSTGRES_CONTAINER=onchain-bot-postgres-production
+Environment=POSTGRES_USER=alpha_meta_token_scanner
+Environment=POSTGRES_DB=alpha_meta_token_scanner
 WorkingDirectory=/opt/onchain-bot
 # Fail loud BEFORE any dump when the secret file is missing/empty.
 ExecStartPre=/usr/bin/test -s /opt/onchain-bot/.backup-env
