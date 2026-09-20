@@ -6,7 +6,8 @@ import { BackendRegistration } from '../../../stream/domain/backend-registration
  * BackendChannelProviderService - Fetches active channel/user IDs from backend DB
  *
  * Replaces the old seed-based subscription system with DB-driven channel lists.
- * Calls backend endpoints to get active KOL IDs and crypto-news source IDs.
+ * Calls backend endpoints to get active KOL IDs. Crypto-news sources are read
+ * from the local ingestion DB (CryptoNewsSourceRepository.findAllActive()).
  *
  * Extended with multi-backend registration support:
  * Per Requirement 1.2: Store Backend registrations in memory
@@ -14,7 +15,6 @@ import { BackendRegistration } from '../../../stream/domain/backend-registration
  *
  * Endpoints:
  * - GET /telegram-kol/identity/kols/active/ids → string[] (KOL IDs)
- * - GET /crypto-news/sources/active/ids → string[] (crypto-news source IDs)
  */
 @Injectable()
 export class BackendChannelProviderService {
@@ -23,19 +23,9 @@ export class BackendChannelProviderService {
   private readonly registrations: Map<string, BackendRegistration> = new Map();
 
   constructor(private readonly config: ConfigService) {
-    // Per GAP 25: Support Docker networking with BACKEND_URL env var
-    // Fallback to legacy BACKEND_PORT for backward compatibility
-    const backendUrl = this.config.get<string>('BACKEND_URL');
-    if (backendUrl) {
-      this.backendUrl = backendUrl;
-      this.logger.log(`Using BACKEND_URL from config: ${this.backendUrl}`);
-    } else {
-      const backendPort = this.config.get<string>('BACKEND_PORT') || '3030';
-      this.backendUrl = `http://localhost:${backendPort}`;
-      this.logger.warn(
-        `BACKEND_URL not set, using legacy localhost:${backendPort} (Docker networking may not work)`,
-      );
-    }
+    this.backendUrl =
+      this.config.get<string>('BACKEND_URL') || 'http://localhost:3030';
+    this.logger.log(`Backend base URL: ${this.backendUrl}`);
   }
 
   /**
@@ -68,52 +58,15 @@ export class BackendChannelProviderService {
   }
 
   /**
-   * Fetch active crypto-news source IDs from backend
+   * Fetch all active channel IDs (KOLs from backend HTTP).
    *
-   * @deprecated This method is deprecated as of the ingestion-telegram migration.
-   * Crypto-news sources are now owned by ingestion-telegram and should be read from
-   * CryptoNewsSourceRepository.findAllActive() instead of HTTP polling.
-   *
-   * Rationale:
-   * - Ingestion-service owns the crypto-news sources table in its own DB
-   * - Backend no longer needs to serve this data over HTTP
-   * - Eliminates dependency on backend being available for ingestion-telegram to start
-   * - Reduces network round-trips and improves reliability
-   *
-   * Migration path:
-   * - TelegramModule now injects CryptoNewsSourceRepository directly
-   * - Backend endpoint GET /crypto-news/sources/active/ids marked as legacy
-   *
-   * This method returns an empty array and logs a deprecation warning.
-   *
-   * @returns Empty array (deprecated behavior)
-   */
-  public async fetchActiveCryptoNewsSourceIds(): Promise<
-    ReadonlyArray<string>
-  > {
-    this.logger.warn(
-      '[DEPRECATED] fetchActiveCryptoNewsSourceIds() is deprecated. ' +
-        'Use CryptoNewsSourceRepository.findAllActive() instead. ' +
-        'Returning empty array.',
-    );
-    return [];
-  }
-
-  /**
-   * Fetch all active channel IDs (KOLs + crypto-news sources combined)
-   *
-   * Per Requirement 1.3: Check registrations first, fallback to HTTP polling
-   * Per Requirement 11.4: Union channels from both sources when both active
-   *
-   * @returns Combined array of all active channel IDs
-   */
-  /**
-   * Fetch all active channel IDs (KOLs + crypto-news sources combined)
+   * Crypto-news sources are NOT fetched here: ingestion-telegram owns them
+   * and reads them from its local DB (CryptoNewsSourceRepository).
+   * See TelegramModule.refreshChannels() for the combined list.
    *
    * Per Requirement 9.1: Check feature flag INGESTION_MULTI_BACKEND_ENABLED
    * Per Requirement 9.2: Use channel union when flag is true AND registrations exist
    * Per Requirement 1.3: Fallback to HTTP polling when flag is false OR no registrations
-   * Per Requirement 11.4: Union channels from both sources when both active
    *
    * @returns Combined array of all active channel IDs
    */
@@ -143,19 +96,13 @@ export class BackendChannelProviderService {
     }
 
     // Fallback to HTTP polling (backward compatibility)
-    // Note: fetchActiveCryptoNewsSourceIds() is now deprecated and returns []
-    // This fallback mode is kept for multi-backend registration scenarios only
-    const [kolIds, newsIds] = await Promise.all([
-      this.fetchActiveKolIds(),
-      this.fetchActiveCryptoNewsSourceIds(), // Returns [] (deprecated)
-    ]);
+    const kolIds = await this.fetchActiveKolIds();
 
-    const allIds = [...kolIds, ...newsIds];
     this.logger.log(
-      `[HTTP Polling] Total active channels: ${allIds.length} (${kolIds.length} KOLs + ${newsIds.length} crypto-news from deprecated endpoint)`,
+      `[HTTP Polling] Total active channels: ${kolIds.length} KOLs`,
     );
 
-    return allIds;
+    return kolIds;
   }
 
   /**

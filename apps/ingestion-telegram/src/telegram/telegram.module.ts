@@ -30,10 +30,10 @@ import { CryptoNewsSourceRepository } from './crypto-news/infrastructure/persist
  * - TelegramModule broadcasts to SSEBroadcastService (multi-backend SSE)
  * - Scheduler refreshes channel list every 5 minutes
  *
- * Migration from backend HTTP polling:
- * - OLD: BackendChannelProviderService.fetchActiveCryptoNewsSourceIds() via HTTP (DEPRECATED)
- * - NEW: CryptoNewsSourceRepository.findAllActive() from local DB (ingestion-telegram owns crypto-news sources)
- * - KOLs still fetched from backend DB (backend owns KOL identity)
+ * Channel ownership (post-migration):
+ * - KOLs: fetched from backend DB via HTTP (backend owns KOL identity)
+ * - Crypto-news: read from local DB via CryptoNewsSourceRepository
+ *   (ingestion-telegram is sole owner; legacy backend HTTP polling removed T15)
  */
 @Module({
   imports: [
