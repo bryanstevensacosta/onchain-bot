@@ -432,9 +432,10 @@ sudo du -sh /opt/onchain-bot/backups/* 2>/dev/null | sort -hr | head -10
 5. **Prune old DB backups (low risk).** The daily scheme already prunes
    itself to exactly 7 `prod-backend-*.dump.gz` (`-mtime +6`), and the
    offsite mirror prunes the bucket the same way — see
-   [BACKUPS.md](./deployment/BACKUPS.md) §§1,10 (legacy `pre-deploy-*`
-   cleanup is procedure-only, gated on 7 new objects + 1 restore drill).
-   Emergency-only manual prune of the legacy series:
+   [BACKUPS.md](./deployment/BACKUPS.md) §§1,10 (legacy cleanup is AUTOMATIC
+   weekly Sun 05:30 UTC with 3 gates: >= 7 valid rolling, drill pass < 10 d,
+   explicit allowlist; `pre-deploy-*.dump.gz` only with `-mtime +7`).
+   Emergency-only manual prune of the legacy series (the timer normally owns this):
 
    ```bash
    ssh CryptoGanster 'find /opt/onchain-bot/backups -maxdepth 1 -name "pre-deploy-*.dump*" -mtime +3 -delete'
