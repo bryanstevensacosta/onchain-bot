@@ -21,6 +21,12 @@
 #   gh secret set DROPLET_SSH_KEY   # private key with read access
 # Offsite credentials are NOT needed here: `rclone lsl` runs ON the
 # droplet, which reads /opt/onchain-bot/.rclone-offsite.env (T4).
+#
+# LOCAL-ONLY MODE (no offsite yet): if any DROPLET_* secret is missing
+# the whole job skips green with a ::notice:: (first step below) —
+# nothing fails. Once SSH is configured but R2 is not, the remote
+# probe degrades bucket/lag to warn-skip (never fail); local backup,
+# count and disk checks still enforce the ESCALA UNICA.
 # =====================================================================
 name: Backup health (prod-backend watchdog)
 
@@ -43,7 +49,19 @@ jobs:
     name: prod-backend backup health
     runs-on: ubuntu-latest
     steps:
+      - name: Check watchdog configuration
+        id: cfg
+        run: |
+          set -euo pipefail
+          if [ -n "${{ secrets.DROPLET_HOST }}" ] && [ -n "${{ secrets.DROPLET_USER }}" ] && [ -n "${{ secrets.DROPLET_SSH_KEY }}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Backup-health watchdog not configured (DROPLET_* secrets missing). Skipping green until provisioning completes. See docs/deployment/BACKUPS.md."
+          fi
+
       - name: Setup SSH to droplet
+        if: steps.cfg.outputs.configured == 'true'
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
@@ -55,6 +73,7 @@ jobs:
           echo "=== SSH configured (key from Secrets, host from Secrets) ==="
 
       - name: Check backup health (ESCALA UNICA)
+        if: steps.cfg.outputs.configured == 'true'
         env:
           DROPLET_SSH: droplet-health
         run: |
