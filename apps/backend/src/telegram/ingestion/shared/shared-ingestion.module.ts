@@ -45,7 +45,6 @@ import { Logger } from '@nestjs/common';
  * @see TelegramSseListenerAdapter Replacement adapter for SSE mode
  * @see {@link apps/ingestion-telegram} Centralized ingestion service
  */
-import { TELEGRAM_LISTENER_PORT_TOKEN } from './shared-injection-tokens';
 
 const logger = new Logger('SharedIngestionModule');
 
@@ -147,16 +146,9 @@ export function selectIngestionAdapter<
       },
       inject: [ConfigService, TelegramSseListenerAdapter, TelegramMockAdapter],
     },
-
-    // Token alias for backward compatibility
-    {
-      provide: TELEGRAM_LISTENER_PORT_TOKEN,
-      useExisting: TelegramListenerPort,
-    },
   ],
   exports: [
     TelegramListenerPort,
-    TELEGRAM_LISTENER_PORT_TOKEN,
     BackendRegistrationClient,
     TelegramSseListenerAdapter,
     TelegramMockAdapter,

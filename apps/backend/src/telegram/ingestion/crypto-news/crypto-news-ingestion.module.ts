@@ -2,10 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { CryptoNewsPersistenceModule } from 'telegram/ingestion/crypto-news/crypto-news-persistence.module';
 import { SharedIngestionModule } from 'telegram/ingestion/shared/shared-ingestion.module';
-import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
 import { CryptoNewsEventPublisher } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-event.publisher';
 import { ChannelFilterRepository } from 'telegram/ingestion/crypto-news/application/ports/channel-filter.repository';
-import { InMemoryCryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/infrastructure/repositories/in-memory-crypto-news-source.repository';
 import { TypeOrmChannelFilterRepository } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/repositories/typeorm-channel-filter.repository';
 import { ContentFilterService } from 'telegram/ingestion/crypto-news/application/services/content-filter.service';
 import { CryptoNewsController } from 'telegram/ingestion/crypto-news/api/http/crypto-news.controller';
@@ -27,11 +25,9 @@ import {
  * - ChannelFilterRepository (filters-only read port for matching)
  *
  * Sources/messages/media are owned by ingestion-telegram (own DB).
- * The legacy source repository token is still provided
- * (in-memory) because deprecated consumers may inject it — it resolves to
- * an empty store since the backend no longer persists crypto-news.
- * (T8 removed the message port + stub + VO; source save/delete removed;
- *  full shim removal is T9.)
+ * (T8 removed the message port + stub + VO and the source save/delete
+ *  methods; T9 removed the source repository DI shim + in-memory impl —
+ *  consumers use CryptoNewsSourceDto via ingestion-telegram HTTP.)
  *
  * Removed in todo 4: StoreNewsMessageUseCase, RegisterNewsSourceUseCase,
  * ListActiveSourceIdsUseCase, TypeOrm source/message repos (+ mappers),
@@ -51,12 +47,7 @@ import {
   ],
   controllers: [CryptoNewsController],
   providers: [
-    InMemoryCryptoNewsSourceRepository,
     TypeOrmChannelFilterRepository,
-    {
-      provide: CryptoNewsSourceRepository,
-      useClass: InMemoryCryptoNewsSourceRepository,
-    },
     {
       provide: ChannelFilterRepository,
       useClass: TypeOrmChannelFilterRepository,
@@ -74,7 +65,6 @@ import {
     ToggleFilterUseCase,
   ],
   exports: [
-    CryptoNewsSourceRepository,
     ChannelFilterRepository,
     CryptoNewsEventPublisher,
     ContentFilterService, // ← Export for CryptoNewsIntegrationModule (Opción A architecture)

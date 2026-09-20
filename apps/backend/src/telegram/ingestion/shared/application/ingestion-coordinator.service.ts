@@ -1,13 +1,7 @@
-import {
-  Injectable,
-  Logger,
-  OnApplicationBootstrap,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import type { TelegramRawMessage } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
-import { TELEGRAM_LISTENER_PORT_TOKEN } from 'telegram/ingestion/shared/shared-injection-tokens';
 import { KolRepository } from 'kol/identity/application/ports/kol.repository';
 import { KolIngestionOrchestratorUseCase } from 'kol/identity/application/handlers/kol-ingestion-orchestrator.use-case';
 import { ProcessCryptoNewsMessageHandler } from 'telegram/crypto-news-integration/application/handlers/process-crypto-news-message.handler';
@@ -43,7 +37,6 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
     private readonly kolRepo: KolRepository,
     private readonly kolOrchestrator: KolIngestionOrchestratorUseCase,
     private readonly cryptoNewsHandler: ProcessCryptoNewsMessageHandler,
-    @Inject(TELEGRAM_LISTENER_PORT_TOKEN)
     private readonly listener: TelegramListenerPort,
   ) {}
 
