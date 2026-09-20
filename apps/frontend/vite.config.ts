@@ -44,6 +44,12 @@ export default defineConfig(({ mode }) => {
           target: BACKEND_PROXY_TARGET,
           changeOrigin: false,
         },
+        // Ops backups status (GET /ops/backups/status on the backend).
+        // IMPORTANT: Use specific path to avoid intercepting frontend /ops route
+        '/ops/backups': {
+          target: BACKEND_PROXY_TARGET,
+          changeOrigin: false,
+        },
         '/crypto-news-ads': {
           target: BACKEND_PROXY_TARGET,
           changeOrigin: false,

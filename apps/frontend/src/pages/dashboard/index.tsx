@@ -3,6 +3,7 @@ import { LiveFeed } from '@/widgets/live-feed';
 import { TopTokensTable } from '@/widgets/top-tokens-table';
 import { TrackedCallsWidget } from '@/widgets/tracked-calls';
 import { IngestionHealthWidget } from '@/widgets/ingestion-health';
+import { BackupHealthWidget } from '@/widgets/backup-health';
 
 export function DashboardPage() {
   return (
@@ -10,6 +11,7 @@ export function DashboardPage() {
       <h1 className="text-2xl font-bold">Dashboard</h1>
       <KpiCards />
       <IngestionHealthWidget />
+      <BackupHealthWidget />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <LiveFeed />
         <TopTokensTable />

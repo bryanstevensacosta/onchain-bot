@@ -44,6 +44,7 @@ import { DataProviderModule } from 'data-provider/core/data-provider.module';
 import { HealthModule } from 'health/health.module';
 import { LlmModule } from 'shared/llm';
 import { DeduplicationModule } from 'shared/deduplication/deduplication.module';
+import { OpsBackupsModule } from './ops/backups/ops-backups.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DevModule } from './dev/dev.module';
@@ -166,6 +167,7 @@ import { DevModule } from './dev/dev.module';
     SettingsModule,
     LlmModule,
     DeduplicationModule,
+    OpsBackupsModule,
     DevModule,
   ],
   controllers: [AppController],
