@@ -15,9 +15,8 @@ export function MatchingToggleButton(): React.ReactElement {
   const llmMut = useToggleLlm();
   const publishingMut = useTogglePublishing();
 
-  // SOLE source of truth: crypto_news_matching_config id=1 via
-  // GET /crypto-news/matching/config (NOT LlmConfig.matchingEnabled,
-  // which is deprecated and 400-guarded on write).
+  // Source of truth for keyword matching: crypto_news_matching_config id=1
+  // via GET /crypto-news/matching/config.
   const isMatchingEnabled = matchingCfg?.enabled ?? false;
   const isLlmEnabled = cfg?.llmEnabled ?? false;
   const isPublishingEnabled = cfg?.publishingEnabled ?? false;
