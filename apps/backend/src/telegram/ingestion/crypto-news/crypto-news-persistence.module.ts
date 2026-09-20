@@ -8,8 +8,8 @@ import { ChannelContentFilterConfigEntity } from './infrastructure/persistence/t
  * Separate module for TypeORM entity registration to avoid deadlock.
  *
  * **Problem:** `CryptoNewsIngestionModule` uses `forwardRef(() => SharedIngestionModule)`
- * to resolve circular dependency (SharedIngestionModule → TelegramMtprotoListenerAdapter
- * → CryptoNewsMediaDownloader ← CryptoNewsIngestionModule).
+ * to resolve circular dependency (SharedIngestionModule → media downloader port
+ * ← CryptoNewsIngestionModule).
  *
  * When `TypeOrmModule.forFeature([...])` is in the same module as `forwardRef(...)`,
  * NestJS module graph resolution deadlocks indefinitely during `app.listen()`.

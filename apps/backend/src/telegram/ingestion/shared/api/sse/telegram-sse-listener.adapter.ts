@@ -45,9 +45,9 @@ interface MessagePayload {
 /**
  * TelegramSseListenerAdapter - SSE-based TelegramListenerPort implementation
  *
- * Per Requirement 3.1, 3.2, 3.3: Drop-in replacement for TelegramMtprotoListenerAdapter
+ * Per Requirement 3.1, 3.2, 3.3: Drop-in replacement for the removed direct Telegram listener (T5)
  * Per Requirement 2.4: Automatic reconnection with exponential backoff
- * Per Requirement 3.4: Implements same interface contract as MTProto adapter
+ * Per Requirement 3.4: Implements same interface contract as the former direct adapter
  *
  * Connects to Ingestion Service SSE stream and transforms MessagePayload
  * back to TelegramRawMessage format expected by backend use cases.
@@ -57,7 +57,7 @@ interface MessagePayload {
  * - Include backendId in SSE stream query params
  * - Handle 401 Unauthorized by forcing re-registration
  *
- * Key differences from MTProto adapter:
+ * Key differences from the former direct adapter:
  * - No direct Telegram API access
  * - Text field empty (must fetch via backfill if needed)
  * - Media URLs instead of local file paths
@@ -286,7 +286,7 @@ export class TelegramSseListenerAdapter
   /**
    * Transform MessagePayload to TelegramRawMessage
    *
-   * Per Requirement 3.3: Same format as MTProto adapter
+   * Per Requirement 3.3: Same TelegramRawMessage format as before (T5)
    * Per Invariant 1: text field empty (ToS compliance)
    *
    * @param payload - SSE payload from Ingestion Service

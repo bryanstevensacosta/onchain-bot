@@ -1,7 +1,4 @@
 import { Controller, Get } from '@nestjs/common';
-import { IngestionSafetyConfig } from 'telegram/ingestion/shared/infrastructure/config/ingestion-safety.config';
-import { SleepWindowService } from 'telegram/ingestion/shared/infrastructure/services/sleep-window.service';
-import { FloodWaitCounterService } from 'telegram/ingestion/shared/infrastructure/services/flood-wait-counter.service';
 import { KolRepository } from 'kol/identity/application/ports/kol.repository';
 
 export interface IngestionHealthDto {
@@ -17,16 +14,25 @@ export interface IngestionHealthDto {
   readonly lastPollAt: string | null;
 }
 
+// Safety defaults previously owned by the deleted backend IngestionSafetyConfig.
+// Anti-ban tuning now lives in ingestion-telegram; these static values keep the
+// DTO shape stable for existing consumers (desvinculacion T6, anticipada en T5
+// para borrar el bloque MTProto sin romper el build).
+const LEGACY_SAFETY_DEFAULTS = {
+  maxSafeChannels: 50,
+  floodWaitCount24h: 0,
+  floodWaitMaxSeconds24h: 0,
+  isSleeping: false,
+  sleepWindowStart: 4,
+  sleepWindowEnd: 8,
+  pollIntervalMs: 90000,
+} as const;
+
 @Controller('ingestion')
 export class IngestionHealthController {
   private lastPollAt: Date | null = null;
 
-  constructor(
-    private readonly safetyConfig: IngestionSafetyConfig,
-    private readonly sleepWindow: SleepWindowService,
-    private readonly floodWait: FloodWaitCounterService,
-    private readonly kolRepo: KolRepository,
-  ) {}
+  constructor(private readonly kolRepo: KolRepository) {}
 
   @Get('health')
   public async getHealth(): Promise<IngestionHealthDto> {
@@ -37,13 +43,7 @@ export class IngestionHealthController {
     return {
       activeChannels,
       totalSeededChannels,
-      maxSafeChannels: this.safetyConfig.maxChannels,
-      floodWaitCount24h: this.floodWait.count24h,
-      floodWaitMaxSeconds24h: this.floodWait.maxSeconds24h,
-      isSleeping: this.sleepWindow.isAsleep(),
-      sleepWindowStart: this.safetyConfig.sleepStartUtc,
-      sleepWindowEnd: this.safetyConfig.sleepEndUtc,
-      pollIntervalMs: this.safetyConfig.pollIntervalBaseMs,
+      ...LEGACY_SAFETY_DEFAULTS,
       lastPollAt: this.lastPollAt?.toISOString() ?? null,
     };
   }
