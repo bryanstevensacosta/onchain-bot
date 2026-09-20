@@ -29,28 +29,18 @@ export interface FilterRule {
  *
  * **Migration:**
  * - Read methods (findAll, findActive, findByChannelId): still active for legacy consumers
- * - Write methods (save, delete): deprecated, throw errors if called
+ * - Write methods (save, delete): REMOVED in T8 (were deprecated, threw errors)
  * - New sources: POST {INGESTION_TELEGRAM_URL}/api/crypto-news/sources
  *
  * Implemented in infrastructure/repositories with the chosen storage
  * (in-memory for dev, TypeORM for prod).
  */
 export abstract class CryptoNewsSourceRepository {
-  /**
-   * @deprecated Backend no longer creates/updates sources. Use ingestion-telegram.
-   */
-  public abstract save(source: CryptoNewsSource): Promise<void>;
-
   public abstract findByChannelId(
     channelId: string,
   ): Promise<CryptoNewsSource | null>;
   public abstract findAll(): Promise<ReadonlyArray<CryptoNewsSource>>;
   public abstract findActive(): Promise<ReadonlyArray<CryptoNewsSource>>;
-
-  /**
-   * @deprecated Backend no longer deletes sources. Use ingestion-telegram.
-   */
-  public abstract delete(channelId: string): Promise<void>;
 
   /**
    * Fetch all active filter rules for a channel, ordered by

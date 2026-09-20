@@ -26,8 +26,8 @@ import { CryptoNewsMessageEntity } from 'telegram/ingestion/crypto-news/infrastr
  * TypeORM-level `cascade: true` only handles INSERT/UPDATE propagation,
  * not FK-level DELETEs (the gap Momus flagged in G-7).
  *
- * NOTE: this is NOT a domain object. The domain `CryptoNewsMedia` lives
- * at `telegram/ingestion/crypto-news/domain/value-objects/crypto-news-media.vo.ts`.
+ * NOTE: this is NOT a domain object. The backend domain `CryptoNewsMedia` VO
+ * was REMOVED in T8 (ingestion-telegram owns the media domain model).
  */
 @Entity({ name: 'crypto_news_message_media' })
 @Index('idx_crypto_news_message_media_message_id', ['messageId'])
