@@ -1,0 +1,49 @@
+F3 QA REAL EN VPS (agent-executed, prohibido QA humana) — deprecados/deuda técnica
+Fecha UTC: 2026-09-20T12:54Z aprox
+Executor: agente (Sisyphus-Junior), solo lectura contra servicios VIVOS
+Disciplina VPS: NO se arrancó/paró nada; NUNCA pkill -f; sin commits; solo curl GET/PATCH-negativo esperado
+Scope: backend dev :3040, backend prod :3030, ingestion :3032, backend staging :3031
+
+[1] GET http://localhost:3040/api/health → 200
+  {"status":"ok","service":"alpha-meta-token-scanner"} (uptime ~395200s)
+
+[2] GET http://localhost:3030/api/health → 200 (prod vivo, no tocado)
+  {"status":"ok","service":"alpha-meta-token-scanner"} (uptime ~35033s)
+
+[3] Ingestion :3032
+  GET /api/health → 200 (mtproto connected:true authorized:true, clients.connected:1)
+  GET /api/ready → 404 Cannot GET /api/ready (ruta no existe, esperado)
+  GET /api/live → 404 Cannot GET /api/live (ruta no existe, esperado)
+  GET /ready → 404 / GET /live → 404 (tampoco existen a raíz, esperado)
+  GET /api/health/ready → 200 {"status":"ready","connectedClients":1}
+  GET /api/health/live → 200 {"status":"alive"}
+  NOTA: ready/live viven bajo /api/health/*, no bajo /api/* directo.
+  GET /api/crypto-news/messages?limit=2 → 200 count:2
+    - msg 19761 ch -1001375055530 content:"" + photo media[0] image/jpeg 100770B
+    - msg 19760 mismo channel, content BREAKING Iran/Hormuz + photo 68795B + formattingEntities
+
+[4] Staging backend :3031
+  GET /api/health → 200 {"status":"ok","service":"alpha-meta-token-scanner"} (uptime ~24779s)
+  GET /api/ready → 404 Cannot GET /api/ready (por diseño, esperado)
+  GET /api/live → 404 Cannot GET /api/live (por diseño, esperado)
+
+[5] Deprecado matchingEnabled en llm-config (contra dev :3040, ruta SIN prefijo /api)
+  NOTA RUTA: /api/crypto-news-publisher/llm/config → 404 (sin prefijo /api por diseño;
+    el frontend usa '/crypto-news-publisher/llm/config' vía proxy Vite). Ruta correcta:
+    /crypto-news-publisher/llm/config
+  GET http://localhost:3040/crypto-news-publisher/llm/config → 200
+    keys: dailyCap, dailyResetUtcHour, defaultTemplateId, id, llmEnabled,
+      llmMaxAttempts, publishingEnabled, randomDelayMaxMs, randomDelayMinMs,
+      rejectNonLatin, targetChannel, updatedAt
+    has_matchingEnabled: False → OMITE CAMPO ✔ (deprecado fuera de la vista read)
+    valores: llmEnabled:false publishingEnabled:true dailyCap:36
+  PATCH /crypto-news-publisher/llm/config {"matchingEnabled":true} → 400 ✔
+    {"error":"matchingEnabled is deprecated on this endpoint (single source of truth is crypto_news_matching_config)","hint":"Use PATCH /crypto-news/matching/config with { enabled } instead"}
+  PATCH {"matchingEnabled":false} → 400 idéntico (ambos booleanos rechazados) ✔
+    hint contiene '/crypto-news/matching/config' ✔
+
+VEREDICTO: GREEN (todos los servicios vivos respondieron; ningún NO-GREEN parcial necesario)
+- Healths 200 en :3040, :3030, :3032, :3031; ready/live 404 en :3031 por diseño confirmado.
+- Ingestion ready/live reales en /api/health/ready y /api/health/live → 200.
+- Deprecado verificado en vivo: GET omite matchingEnabled, PATCH 400 + hint canónica.
+- Sin mutaciones reales (el único PATCH fue el negativo esperado 400, sin escritura).

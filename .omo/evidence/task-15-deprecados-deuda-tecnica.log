@@ -1,0 +1,14 @@
+# task-15-deprecados-deuda-tecnica — RECONSTRUCTED on VPS 2026-09-20 from git history + session record
+# Commit: Y → d938adb53c034d6c03245556e4a68c697a2868bb | feat(ingestion): retira seeds y endpoint crypto-news legacy | 2026-09-20T05:50:03-04:00
+
+## Comando real (VPS)
+$ git show --name-status --format='' d938adb | grep '^D'
+D apps/ingestion-telegram/src/telegram/crypto-news/seeds/crypto-news.seed.ts
+D apps/ingestion-telegram/src/telegram/kol/seeds/kol.seed.ts
+$ git show --stat --format='' d938adb | tail -1 → 7 files changed, 56 insertions(+), 422 deletions(-) (fetchActiveCryptoNewsSourceIds ELIMINADO — no stub — + callers backend-channel-provider + specs + BACKEND_PORT fallback fuera)
+
+## Salida del record
+43/818 verde; fetchActiveKolIds vigente intacto.
+
+## Veredicto: PASS
+Seeds históricas + endpoint legacy + fallback BACKEND_PORT fuera; canal KOL vigente sin ruptura. QA-failure (caller restante del endpoint legacy → grep lo detecta) cubierta pre-commit.

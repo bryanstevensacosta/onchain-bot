@@ -1,0 +1,14 @@
+# task-7-deprecados-deuda-tecnica — RECONSTRUCTED on VPS 2026-09-20 from git history + session record
+# Commit: Y → 84b410a52ce835d5314969b2558444aabafaad0b | refactor(crypto-news): consumidores a DTO HTTP ingestion | 2026-09-20T04:16:46-04:00
+
+## Comando real (VPS)
+$ git show --stat --format='' 84b410a
+ .../api/http/queue.controller.spec.ts              | 67 +++++++++++++---------
+ .../api/http/queue.controller.ts                   | 58 +++++++++++++++++--
+ 2 files changed, 93 insertions(+), 32 deletions(-)
+
+## Salida del record
+QueueController migrado a GET ingestion:3032 tipado (DTO crypto-news-integration); spec actualizado; backend 197/2137; lsp_find_references post-migración = 0 importadores no-spec fuera de shims (shims retirados en T9).
+
+## Veredicto: PASS
+Consumidores C2 (QueueController + handlers) migrados a DTO HTTP antes de borrar ports (T8). QA-failure (consumidor sin migrar bloquea T8) no se materializó.

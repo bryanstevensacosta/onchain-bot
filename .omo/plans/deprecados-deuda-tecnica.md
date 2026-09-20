@@ -141,7 +141,7 @@ Your next move: aprueba para $start-work, o pide high-accuracy review (dual Momu
      References: apps/backend/src/telegram/ingestion/shared/api/http/ingestion-health.controller.ts:2-4,25-27; .../ingestion-config.controller.ts:2,6
      Acceptance criteria: tsc + test:backend verdes; curl :3030/api/health 200
      QA scenarios: happy=curl health 200 evidencia .omo/evidence/task-6-deprecados-deuda-tecnica.log; failure=controller con import borrado → tsc falla antes del merge evidencia mismo log
-     Commit: Y | fix(ingestion): desvincula health/config de servicios MTProto
+     Commit: N | — (T5 f3f86f7 ya completo; verificación sin cambios — corregido 2026-09-20 VPS, working tree sin commitear)
 - [x] 7. Migrar consumidores C2 a DTO HTTP (QueueController + handlers) — DONE 2026-09-20: commit 84b410a5, QueueController a GET :3032 tipado, 197/2137. Evidencia .omo/evidence/task-7-deprecados-deuda-tecnica.log
      What to do: Con lsp_find_references, migrar cada importador de CryptoNewsMessageRepository/SourceRepository save-delete/stub/VO a crypto-news-integration DTO + GET ingestion:3032. Must NOT do: no borrar ports aún.
      Parallelization: Wave 2 | Blocked by: T6 | Blocks: T8-T9

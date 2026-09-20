@@ -1,0 +1,21 @@
+# task-6-deprecados-deuda-tecnica — RECONSTRUCTED on VPS 2026-09-20 from git history + session record
+# Commit: N (T5 ya completo — la desvinculación ocurrió dentro de f3f86f7, que tocó ambos controllers).
+# Original log on local PC (gitignored). Justificación N-commit verificada en VPS (ver abajo).
+
+## Comando real (VPS)
+$ grep -rin -i 'mtproto\|safety\|sleep-window\|flood-wait\|last-seen\|client-manager\|media-download' apps/backend/src/telegram/ingestion/shared/api/http/
+ingestion-config.controller.ts:3:// Static snapshot of the deleted backend IngestionSafetyConfig defaults.
+ingestion-config.controller.ts:6:// borrar el bloque MTProto sin romper el build).
+ingestion-config.controller.ts:7:const LEGACY_SAFETY_DEFAULTS: Record<string, number> = {
+ingestion-health.controller.ts:17:// Safety defaults previously owned by the deleted backend IngestionSafetyConfig.
+ingestion-health.controller.ts:20:// para borrar el bloque MTProto sin romper el build).
+ingestion-health.controller.ts:21:const LEGACY_SAFETY_DEFAULTS = {
+→ 0 imports a servicios borrados; solo LEGACY_SAFETY_DEFAULTS (snapshot estático) + comentarios históricos.
+
+$ git log --oneline 28c259a7..HEAD -- <controllers> → solo f3f86f7 (T5). Ningún commit propio de T6: N-commit CONFIRMADO.
+
+## Salida del record
+tsc 0; 197/2137; curl :3030/api/health 200.
+
+## Veredicto: PASS (N commit justificado)
+Corrección pendiente en el plan: línea T6 "Commit: Y | fix(ingestion)..." → "Commit: N" (ver F1 OBS-3).

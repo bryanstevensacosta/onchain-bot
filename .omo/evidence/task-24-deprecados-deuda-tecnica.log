@@ -1,0 +1,51 @@
+# T24 — Root tooling: dev:ingestion + tsc/lint hooks (DONE 2026-09-20)
+
+## Hallazgo
+- `build:ingestion` / `test:ingestion` / `lint:ingestion` ya existían en root.
+- Pre-commit `tsc` ya cubría las 3 apps (.husky/pre-commit:22-24) y lint-staged
+  ya cubría `apps/ingestion-telegram/src|**` + `test|**` — verificado, sin cambios.
+- Faltante real: solo `dev:ingestion`. Stale docs: README troubleshooting decía
+  "ingestion-telegram isn't covered by root tsc", AGENTS.md drift decía
+  "no root dev entry and tsc covers backend+frontend only", ingestion AGENTS.md
+  gap 13 + comandos decían "el root NO tiene script dev:*".
+
+## Cambio (4 ficheros, solo config root + docs; sin CI/workflows, sin servicios)
+- package.json: `dev:ingestion: node scripts/cleanup-ports.mjs --force 3031 &&
+  npm run start:dev -w @alpha-meta-token-scanner/ingestion-telegram`
+  (`dev`, `build`, CI, workflows deploy intactos).
+- README.md: Commands + Quickstart usan `npm run dev:ingestion` y documentan que
+  `npm run dev` sin ingestion no escucha Telegram; troubleshooting stale corregido.
+- AGENTS.md: WHERE TO LOOK + COMMANDS + KNOWN DRIFT actualizados (T24 resolved).
+- apps/ingestion-telegram/AGENTS.md: Comandos + gap 13 → RESOLVED T24.
+
+## Verificación (happy)
+$ npm pkg get scripts.dev:ingestion scripts.build:ingestion scripts.test:ingestion scripts.lint:ingestion
+{
+  "scripts.dev:ingestion": "node scripts/cleanup-ports.mjs --force 3031 && npm run start:dev -w @alpha-meta-token-scanner/ingestion-telegram",
+  "scripts.build:ingestion": "npm run build -w @alpha-meta-token-scanner/ingestion-telegram",
+  "scripts.test:ingestion": "npm test -w @alpha-meta-token-scanner/ingestion-telegram",
+  "scripts.lint:ingestion": "npm run lint -w @alpha-meta-token-scanner/ingestion-telegram"
+}
+$ bash -n .husky/pre-commit && echo HOOK_SYNTAX_OK
+HOOK_SYNTAX_OK
+$ grep -n "tsc --noEmit" .husky/pre-commit
+22: backend/tsconfig.json && \
+23: frontend/tsconfig.json && \
+24: ingestion-telegram/tsconfig.json || exit 1        → 3 apps OK
+$ node -e load lint-staged.config.js
+keys: backend/src | backend/test | frontend/src | ingestion-telegram/src |
+      ingestion-telegram/test | json,md,yaml  → ingestion src+test OK
+$ npm run docs:check → PASS (sin warnings)
+$ git diff --stat → 4 files (AGENTS.md, README.md, ingestion AGENTS.md, package.json);
+  .github/workflows + ci.yml intactos (Must NOT respetado).
+NOTA: dev:ingestion NO se ejecuta de verdad (VPS staging+prod vivos; :3031 es
+staging backend; NUNCA pkill -f ni --force contra puertos vivos). Script
+verificado por resolución (`npm pkg get`), no por arranque.
+
+## Verificación (failure: hook sin ingestion se detectaría)
+$ grep -c ingestion-telegram .husky/pre-commit → 1 (línea tsc ingestion);
+  si fuera 0, el hook no cubriría ingestion y este todo fallaría.
+$ grep -c ingestion-telegram lint-staged.config.js → 4 (2 globs + 2 configs).
+
+## Commit
+chore(tooling): añade dev:ingestion y tsc en hooks (rama feat/cleanup-deprecados)

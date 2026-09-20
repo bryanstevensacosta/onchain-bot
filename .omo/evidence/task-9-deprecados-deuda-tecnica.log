@@ -1,0 +1,18 @@
+# task-9-deprecados-deuda-tecnica — RECONSTRUCTED on VPS 2026-09-20 from git history + session record
+# Commit: Y → 9b1aff90bcee1b5a66c05a50afbfe63037f3b053 | fix(di): retira shims crypto-news deprecated | 2026-09-20T04:27:03-04:00
+
+## Comando real (VPS)
+$ git show --name-only --format='' 9b1aff9  (7 files)
+apps/backend/src/telegram/crypto-news-publisher/crypto-news-publisher.module.ts
+apps/backend/src/telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository.ts
+apps/backend/src/telegram/ingestion/crypto-news/crypto-news-ingestion.module.ts
+apps/backend/src/telegram/ingestion/crypto-news/infrastructure/repositories/in-memory-crypto-news-source.repository.ts
+apps/backend/src/telegram/ingestion/shared/application/ingestion-coordinator.service.ts
+apps/backend/src/telegram/ingestion/shared/shared-ingestion.module.ts
+apps/backend/src/telegram/ingestion/shared/shared-injection-tokens.ts
+
+## Salida del record
+195/2126 delta 0; 0 code refs a tokens legacy; boot AppModule sin warnings DI.
+
+## Veredicto: PASS
+Shims DI retirados (ingestion.module:59-64, publisher.module:74-77, shared-ingestion.module:149-150) manteniendo providers vigentes. QA-failure (token faltante → Nest DI error al boot) no se materializó.

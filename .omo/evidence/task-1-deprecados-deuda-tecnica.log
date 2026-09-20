@@ -1,0 +1,20 @@
+# task-1-deprecados-deuda-tecnica — RECONSTRUCTED on VPS 2026-09-20 from git history + session record
+# Original log generated on local PC; .omo/evidence/ is gitignored → absent on this host.
+# T1 = read-only (Commit: N). No hay commit asociado en feat/cleanup-deprecados — verificado:
+#   $ git log --format='%s' 28c259a7..HEAD | grep -ci 'baseline'  → 0
+# Conteos canónicos = los medidos entonces (pineados en el plan l.103, DONE 2026-09-20).
+# NO re-ejecutados en VPS (costo: 3 suites completas); la red de seguridad se re-verifica en F2/F3.
+
+## Comandos (referencia del record, no re-corridos en VPS)
+- `npm run test:backend` → PASS backend 198 suites / 2159 tests
+- `cd apps/ingestion-telegram && npm test` → PASS 43 suites / 821 tests
+- `npm run test:frontend` → PASS 30 files / 336 tests
+- `npx tsc --noEmit -p apps/backend/tsconfig.json` + ingestion + frontend → limpios
+- `curl -s localhost:3030/api/health` → 200; `curl :3031/api/health` → refused (ingestion no corría local)
+
+## Salida (del record, pineada en plan l.103)
+backend=198/2159 · ingestion=43/821 · frontend=30/336 · tsc 3 apps limpio · :3030 200 · :3031/:3032 refused
+
+## Veredicto: PASS (del record)
+Baseline fijada; resuelve la divergencia AGENTS (170/1969) vs README (173): vale lo medido.
+QA-failure del plan (matar proceso con puerto ocupado sin pkill -f, vía readlink /proc/<pid>/cwd) documentada en sesión.
