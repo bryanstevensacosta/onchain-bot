@@ -123,8 +123,8 @@ export class TelegramSseListenerAdapter
     this.logger.log(
       `Subscribing to SSE stream for ${channelIds.length} channels: ${streamUrl}`,
     );
-    this.logger.log(`[SSE-DEBUG] BackendId: ${backendId}`);
-    this.logger.log(`[SSE-DEBUG] ChannelIds: ${channelIds.join(', ')}`);
+    this.logger.debug(`SSE subscribe backendId: ${backendId}`);
+    this.logger.debug(`SSE subscribe channels: ${channelIds.join(', ')}`);
 
     while (true) {
       try {
@@ -214,25 +214,25 @@ export class TelegramSseListenerAdapter
             const payload = message.data as MessagePayload;
 
             this.logger.debug(
-              `[SSE-DEBUG] Received message from ${payload.peerId}:${payload.messageId}`,
+              `SSE received message from ${payload.peerId}:${payload.messageId}`,
             );
 
             // Filter by subscribed channels
             if (channelIds.includes(payload.peerId)) {
-              this.logger.log(
-                `[SSE-DEBUG] Message ${payload.peerId}:${payload.messageId} passed filter, about to yield...`,
+              this.logger.debug(
+                `SSE message ${payload.peerId}:${payload.messageId} passed filter, about to yield...`,
               );
               const rawMessage = this.payloadToRawMessage(payload);
-              this.logger.log(
-                `[SSE-DEBUG] Message ${payload.peerId}:${payload.messageId} transformed to RawMessage, yielding now...`,
+              this.logger.debug(
+                `SSE message ${payload.peerId}:${payload.messageId} transformed to RawMessage, yielding now...`,
               );
               yield rawMessage;
-              this.logger.log(
-                `[SSE-DEBUG] Message ${payload.peerId}:${payload.messageId} yielded successfully`,
+              this.logger.debug(
+                `SSE message ${payload.peerId}:${payload.messageId} yielded successfully`,
               );
             } else {
               this.logger.debug(
-                `[SSE-DEBUG] Message ${payload.peerId}:${payload.messageId} NOT in subscribed channels, skipping`,
+                `SSE message ${payload.peerId}:${payload.messageId} NOT in subscribed channels, skipping`,
               );
             }
           } else if (message?.event === 'health:ping') {
@@ -314,8 +314,8 @@ export class TelegramSseListenerAdapter
     };
 
     // DEBUG: Log text transformation
-    this.logger.log(
-      `[PAYLOAD-TRANSFORM-DEBUG] ${payload.peerId}:${payload.messageId} - payload.text: "${payload.text}" (type: ${typeof payload.text}, length: ${payload.text?.length ?? 0}) → rawMessage.text: "${rawMessage.text}" (length: ${rawMessage.text.length}), messageType: ${rawMessage.messageType}`,
+    this.logger.debug(
+      `SSE payload transform ${payload.peerId}:${payload.messageId} - payload.text: "${payload.text}" (type: ${typeof payload.text}, length: ${payload.text?.length ?? 0}) → rawMessage.text: "${rawMessage.text}" (length: ${rawMessage.text.length}), messageType: ${rawMessage.messageType}`,
     );
 
     return rawMessage;

@@ -189,7 +189,8 @@ export class IngestionCoordinator {
       messageEntity.ingestedAt = new Date();
       messageEntity.linkPreviewUrl = raw.webpagePreview?.url ?? null;
       messageEntity.linkPreviewTitle = raw.webpagePreview?.title ?? null;
-      messageEntity.linkPreviewDescription = raw.webpagePreview?.description ?? null;
+      messageEntity.linkPreviewDescription =
+        raw.webpagePreview?.description ?? null;
       messageEntity.linkPreviewSiteName = raw.webpagePreview?.siteName ?? null;
       messageEntity.messageEntities = raw.entities
         ? JSON.stringify(raw.entities)
@@ -242,7 +243,7 @@ export class IngestionCoordinator {
     // DEBUG: Log text transformation for crypto-news
     if (messageType === 'crypto-news') {
       this.logger.debug(
-        `[PAYLOAD-TRANSFORM-DEBUG] ${raw.peerId}:${raw.messageId} - raw.text: "${raw.text}" (type: ${typeof raw.text}, length: ${raw.text?.length ?? 0})`,
+        `Payload transform ${raw.peerId}:${raw.messageId} - raw.text: "${raw.text}" (type: ${typeof raw.text}, length: ${raw.text?.length ?? 0})`,
       );
     }
 
@@ -267,26 +268,7 @@ export class IngestionCoordinator {
     // DEBUG: Log final payload text for crypto-news
     if (messageType === 'crypto-news') {
       this.logger.debug(
-        `[PAYLOAD-TRANSFORM-DEBUG] ${raw.peerId}:${raw.messageId} - payload.text: "${payload.text}" (type: ${typeof payload.text}, length: ${payload.text?.length ?? 0})`,
-      );
-    }
-
-    // DEBUG: Log payload for message 167
-    if (raw.messageId === 167) {
-      this.logger.log(
-        `[PAYLOAD-167-DEBUG] Payload being sent via SSE: ${JSON.stringify(
-          {
-            messageId: payload.messageId,
-            messageType: payload.messageType,
-            textLength: payload.text?.length ?? 0,
-            textPreview: payload.text?.substring(0, 100),
-            rawTextLength: raw.text?.length ?? 0,
-            rawTextPreview: raw.text?.substring(0, 100),
-            hasMedia: payload.media?.length > 0,
-          },
-          null,
-          2,
-        )}`,
+        `Payload transform ${raw.peerId}:${raw.messageId} - payload.text: "${payload.text}" (type: ${typeof payload.text}, length: ${payload.text?.length ?? 0})`,
       );
     }
 
