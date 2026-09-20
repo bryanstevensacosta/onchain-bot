@@ -23,8 +23,21 @@ import {
 import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
-import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
-import { CryptoNewsSource } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-source.entity';
+import type { CryptoNewsSourceDto } from 'telegram/crypto-news-integration/infrastructure/http/crypto-news-ingestion-client.service';
+
+/**
+ * Minimal source view needed to render queue entries.
+ *
+ * Satisfied by `CryptoNewsSourceDto` (HTTP, ingestion-telegram owner) — the
+ * deprecated `CryptoNewsSourceRepository` in-memory shim returned an empty
+ * store, so this controller now fetches sources live via
+ * GET `{ingestionBaseUrl}/api/crypto-news/sources` (Opción A, T7).
+ */
+interface QueueSourceView {
+  readonly channelId: string;
+  readonly handle: string | null;
+  readonly title: string;
+}
 
 export interface QueueEntryView {
   readonly id: string;
@@ -88,7 +101,6 @@ export class QueueController {
   public constructor(
     private readonly queueRepo: PublisherQueueRepository,
     private readonly llmConfigRepo: LlmConfigRepository,
-    private readonly sourceRepo: CryptoNewsSourceRepository,
     config: ConfigService,
   ) {
     const appCfg = config.get<AppConfig>('app');
@@ -105,7 +117,7 @@ export class QueueController {
     const parsed = parseInt(limit ?? '', 10);
     const n = Math.max(1, Math.min(500, Number.isFinite(parsed) ? parsed : 50));
     const entries = await this.queueRepo.findAllForDisplay(n);
-    const allSources = await this.sourceRepo.findAll();
+    const allSources = await this.fetchSourcesFromIngestion();
     const sourceByChannelId = new Map(allSources.map((s) => [s.channelId, s]));
     const views = await Promise.all(
       entries.map((e) => this.toView(e, sourceByChannelId)),
@@ -259,9 +271,45 @@ export class QueueController {
     return entries.filter((e) => e.status === 'PENDING').length;
   }
 
+  private async fetchSourcesFromIngestion(): Promise<
+    ReadonlyArray<QueueSourceView>
+  > {
+    try {
+      const response = await fetch(
+        `${this.ingestionBaseUrl}/api/crypto-news/sources`,
+        { method: 'GET', headers: { 'Content-Type': 'application/json' } },
+      );
+      if (!response.ok) {
+        this.logger.warn(
+          `Ingestion-telegram returned ${response.status} for /api/crypto-news/sources`,
+        );
+        return [];
+      }
+      const body: unknown = await response.json();
+      const sources = Array.isArray(body)
+        ? (body as ReadonlyArray<CryptoNewsSourceDto>)
+        : body !== null &&
+            typeof body === 'object' &&
+            'data' in body &&
+            Array.isArray(body.data)
+          ? (body as { data: ReadonlyArray<CryptoNewsSourceDto> }).data
+          : [];
+      return sources.map((s) => ({
+        channelId: s.channelId,
+        handle: s.handle,
+        title: s.title,
+      }));
+    } catch (err) {
+      this.logger.warn(
+        `Failed to fetch sources from ingestion-telegram: ${(err as Error).message}`,
+      );
+      return [];
+    }
+  }
+
   private async toView(
     entry: PublisherQueueEntry,
-    sourceByChannelId: Map<string, CryptoNewsSource>,
+    sourceByChannelId: Map<string, QueueSourceView>,
   ): Promise<QueueEntryView> {
     const source = sourceByChannelId.get(entry.channelId) ?? null;
     const sourceHandle = source?.handle ?? null;
