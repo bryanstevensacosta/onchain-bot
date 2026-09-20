@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import { Module } from '@nestjs/common';
+import { Module, Logger } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { DevBackfillHook } from 'shared/common/dev-backfill.hook';
@@ -72,7 +72,9 @@ import { DevModule } from './dev/dev.module';
 
         // In staging, use simple stdout logging to avoid pino-roll I/O hangs
         if (nodeEnv === 'staging') {
-          console.log('[AppModule] Using simple stdout logging (staging mode)');
+          new Logger('AppModule').debug(
+            '[AppModule] Using simple stdout logging (staging mode)',
+          );
           return {
             pinoHttp: {
               level: logCfg?.level ?? 'debug',

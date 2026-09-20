@@ -2,22 +2,24 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { config as dotenvConfig } from 'dotenv';
 
-console.log('[DEBUG] 1. Starting bootstrap - loading .env files');
+const bootLogger = new Logger('Bootstrap');
+
+bootLogger.debug('[DEBUG] 1. Starting bootstrap - loading .env files');
 for (const name of ['.env.dev', '.env']) {
   const p = path.resolve(process.cwd(), name);
   if (fs.existsSync(p)) {
-    console.log(`[DEBUG] 1a. Loading ${name}`);
+    bootLogger.debug(`[DEBUG] 1a. Loading ${name}`);
     dotenvConfig({ path: p, override: false });
   }
 }
 
-console.log('[DEBUG] 2. Importing modules');
+bootLogger.debug('[DEBUG] 2. Importing modules');
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 
-console.log('[DEBUG] 3. Importing AppModule');
+bootLogger.debug('[DEBUG] 3. Importing AppModule');
 import { AppModule } from './app.module';
 import { AppService } from './app.service';
 import { DomainErrorFilter } from './shared/filters/domain-error.filter';
@@ -29,8 +31,7 @@ import {
   ConfigValidationError,
 } from 'shared/common/config/config-validator';
 
-console.log('[DEBUG] 4. Setting up error handlers');
-const bootLogger = new Logger('Bootstrap');
+bootLogger.debug('[DEBUG] 4. Setting up error handlers');
 process.on('unhandledRejection', (reason) => {
   bootLogger.error(
     `Unhandled rejection: ${reason instanceof Error ? reason.message : String(reason)}`,
@@ -43,7 +44,7 @@ process.on('uncaughtException', (err) => {
 
 process.noDeprecation = true;
 
-console.log('[DEBUG] 5. Validating config');
+bootLogger.debug('[DEBUG] 5. Validating config');
 const cfg = appConfig();
 try {
   const { warnings } = validateAppConfig(cfg);
@@ -58,7 +59,7 @@ try {
   throw err;
 }
 
-console.log('[DEBUG] 6. Setting up startup timeout');
+bootLogger.debug('[DEBUG] 6. Setting up startup timeout');
 const STARTUP_TIMEOUT_MS = 120_000;
 const startupTimeout = setTimeout(() => {
   bootLogger.fatal(
@@ -74,11 +75,11 @@ const startupTimeout = setTimeout(() => {
 }, STARTUP_TIMEOUT_MS);
 
 async function bootstrap(): Promise<void> {
-  console.log('[DEBUG] 7. Creating NestJS app');
+  bootLogger.debug('[DEBUG] 7. Creating NestJS app');
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,
   });
-  console.log('[DEBUG] 8. App created, configuring');
+  bootLogger.debug('[DEBUG] 8. App created, configuring');
 
   app.useLogger(app.get(FilteredBootstrapLogger));
 
@@ -107,14 +108,14 @@ async function bootstrap(): Promise<void> {
   app.useWebSocketAdapter(new IoAdapter(app));
   app.useGlobalFilters(new DomainErrorFilter());
 
-  console.log('[DEBUG] 9. Starting server on port', port);
+  bootLogger.debug('[DEBUG] 9. Starting server on port', port);
   await app.listen(port);
 
   clearTimeout(startupTimeout);
 
   bootLogger.log(`Running in ${env} mode on port ${port}`);
-  console.log('[DEBUG] 10. Bootstrap complete');
+  bootLogger.debug('[DEBUG] 10. Bootstrap complete');
 }
 
-console.log('[DEBUG] 6.5. Calling bootstrap()');
+bootLogger.debug('[DEBUG] 6.5. Calling bootstrap()');
 void bootstrap();

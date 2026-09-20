@@ -121,7 +121,7 @@ export function selectIngestionAdapter<
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         const useSse = (appConfig?.ingestion?.useSse ?? true) as boolean;
 
-        console.log('[ADAPTER-SELECTION-DEBUG]', {
+        logger.debug('Selecting ingestion adapter', {
           useMock,
           useSse,
           appConfigExists: !!appConfig,

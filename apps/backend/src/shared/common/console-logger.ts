@@ -1,10 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { Logger } from '@nestjs/common';
 
 export class ConsoleLogger {
   private logFilePath: string;
   private maxFileSize: number;
   private rotationCount = 0;
+  private readonly logger = new Logger('ConsoleLogger');
 
   constructor(logFileName: string = 'e2e-test.log', maxFileSizeMB: number = 2) {
     const logsDir = path.join(process.cwd(), 'logs');
@@ -88,28 +90,28 @@ export class ConsoleLogger {
     this.rotateLog();
     const entry = this.formatMessage('info', message, data);
     fs.appendFileSync(this.logFilePath, entry + '\n');
-    console.log(entry);
+    this.logger.log(entry);
   }
 
   warn(message: string, data?: unknown): void {
     this.rotateLog();
     const entry = this.formatMessage('warn', message, data);
     fs.appendFileSync(this.logFilePath, entry + '\n');
-    console.warn(entry);
+    this.logger.warn(entry);
   }
 
   error(message: string, data?: unknown): void {
     this.rotateLog();
     const entry = this.formatMessage('error', message, data);
     fs.appendFileSync(this.logFilePath, entry + '\n');
-    console.error(entry);
+    this.logger.error(entry);
   }
 
   debug(message: string, data?: unknown): void {
     this.rotateLog();
     const entry = this.formatMessage('debug', message, data);
     fs.appendFileSync(this.logFilePath, entry + '\n');
-    console.debug(entry);
+    this.logger.debug(entry);
   }
 
   getLogFilePath(): string {
