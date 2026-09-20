@@ -163,11 +163,11 @@ Your next move: aprueba para $start-work, o pide high-accuracy review (dual Momu
      Acceptance criteria: nest build verde; test arranque AppModule sin warnings DI
      QA scenarios: happy=boot + health 200 evidencia .omo/evidence/task-9-deprecados-deuda-tecnica.log; failure=token faltante → Nest DI error al boot evidencia mismo log
      Commit: Y | fix(di): retira shims crypto-news deprecated
-- [x] 10. Quitar fallbacks INGESTION_SERVICE_URL/REMOTE_URL + ghost seed — DONE 2026-09-20: commit 9df73165, 12 files, greps funcionales 0, 195/2126. Evidencia .omo/evidence/task-10-deprecados-deuda-tecnica.log
-      What to do: Eliminar var legacy + warn en app.config.ts:85,94-109, actualizar process-next-queued-article fallback:545, borrar INGESTION_REMOTE_URL muerto, ghost filters.token._ en apps/backend/scripts/seed-pipeline-events.ts:140-142 + vip-call-approval README. Must NOT do: no cambiar INGESTION_TELEGRAM_URL default :3031.
+- [x] 10. Quitar fallbacks INGESTION*SERVICE_URL/REMOTE_URL + ghost seed — DONE 2026-09-20: commit 9df73165, 12 files, greps funcionales 0, 195/2126. Evidencia .omo/evidence/task-10-deprecados-deuda-tecnica.log
+      What to do: Eliminar var legacy + warn en app.config.ts:85,94-109, actualizar process-next-queued-article fallback:545, borrar INGESTION_REMOTE_URL muerto, ghost filters.token.* en apps/backend/scripts/seed-pipeline-events.ts:140-142 + vip-call-approval README. Must NOT do: no cambiar INGESTION*TELEGRAM_URL default :3031.
       Parallelization: Wave 2 | Blocked by: T9 | Blocks: T11-T13
       References: apps/backend/src/shared/common/config/app.config.ts:85,94-109; apps/backend/src/telegram/crypto-news-publisher/application/handlers/process-next-queued-article.use-case.ts:545; apps/backend/src/shared/common/config/app.config.ingestion-url.spec.ts:6,68; apps/backend/scripts/seed-pipeline-events.ts:140-142
-      Acceptance criteria: grep INGESTION_SERVICE_URL/INGESTION_REMOTE_URL/filters.token._ = 0 en src+scripts; spec ingestion-url actualizado a solo URL canónica; test:backend verde
+      Acceptance criteria: grep INGESTION_SERVICE_URL/INGESTION_REMOTE_URL/filters.token.* = 0 en src+scripts; spec ingestion-url actualizado a solo URL canónica; test:backend verde
       QA scenarios: happy=grep vacío + spec verde evidencia .omo/evidence/task-10-deprecados-deuda-tecnica.log; failure=env con var legacy → arranca con URL canónica sin warn evidencia mismo log
       Commit: Y | feat(config): retira fallbacks ingestion deprecated
 - [x] 11. Backup + verificación backfill 1875 (gate owner A2) — DONE 2026-09-20: N commit, columna EXISTE en dev (divergencia t vs f), backup /tmp/pre-deploy-20260920_044744.dump.gz 239 entradas, 19 pendientes (synchronize-era). T12 BLOQUEADO hasta OK owner. Evidencia .omo/evidence/task-11-deprecados-deuda-tecnica.log
@@ -233,7 +233,7 @@ Your next move: aprueba para $start-work, o pide high-accuracy review (dual Momu
       Acceptance criteria: vite build PASS; smoke PASS sin requests a endpoints muertos
       QA scenarios: happy=build+smoke PASS evidencia .omo/evidence/task-19-deprecados-deuda-tecnica.log; failure=smoke detecta 404 a ruta muerta → falla evidencia mismo log
       Commit: N | —
-- [x] 20. Migrar console.log hot path a Logger — DONE 2026-09-20: commit ec142c9, grep console.* en src/*.ts = 0, backend 197 suites/2133 tests (2130 pass+3 skip), tsc+lint limpios, spec nuevo console-logger.spec.ts (4 tests ruteo error→error nunca debug). Evidencia .omo/evidence/task-20-deprecados-deuda-tecnica.log
+- [x] 20. Migrar console.log hot path a Logger — DONE 2026-09-20: commit ec142c9, grep console._ en src/_.ts = 0, backend 197 suites/2133 tests (2130 pass+3 skip), tsc+lint limpios, spec nuevo console-logger.spec.ts (4 tests ruteo error→error nunca debug). Evidencia .omo/evidence/task-20-deprecados-deuda-tecnica.log
       What to do: Sustituir console.log en backend main.ts:60-205, app.module.ts:75, shared-ingestion.module.ts:181, mtproto adapter:102-166 (ya borrado parcial), console-logger.ts:91, embedding.service.spec:42 por Nest Logger con niveles. Must NOT do: no silenciar errores a debug.
       Parallelization: Wave 4 | Blocked by: T19 | Blocks: T21
       References: apps/backend/src/main.ts:60-205; apps/backend/src/app.module.ts:75; apps/backend/src/shared/common/console-logger.ts:91; apps/backend/src/shared/common/persistence/database.module.ts:69
@@ -254,7 +254,7 @@ Your next move: aprueba para $start-work, o pide high-accuracy review (dual Momu
       Acceptance criteria: tabla versiones coherente en 4 package.json + 4 AGENTS; docs:check sin warning de versiones
       QA scenarios: happy=tabla coherente evidencia .omo/evidence/task-22-deprecados-deuda-tecnica.log; failure=badge README distinto → T23 lo captura evidencia mismo log
       Commit: Y | docs(versions): unifica versiones single-source
-- [ ] 23. README + docs stale (badges/tabla/counts/links)
+- [x] 23. README + docs stale (badges/tabla/counts/links) — DONE 2026-09-20: commit docs(readme), badges 1.2.0/1.1.0/1.1.0, Apps+Testing counts medidos (backend 197+2e2e, ingestion 43+7e2e, frontend 29 files/330 tests re-medido hoy), 3-app table ya OK, links rotos 0, docs:check PASS. Evidencia .omo/evidence/task-23-deprecados-deuda-tecnica.log
       What to do: Corregir README badges (backend 1.3.2/ingestion 1.0.0/frontend 1.3.2) + tabla Apps (41 entities/35 controllers/173 specs) vs AGENTS post-split (39 entidades backend, 170/1969, 43/815), 2-app table sin ingestion, links frontend.md/kol-refactor.md/optimize.md inexistentes, counts drift G4. Must NOT do: no reescribir arquitectura, solo datos.
       Parallelization: Wave 4 | Blocked by: T22 | Blocks: T24
       References: README.md badges + tabla Apps + counts; AGENTS.md DOCS MAP; apps/backend/AGENTS.md G4; docs/arch/INDEX.md; docs/deployment/BACKUPS.md

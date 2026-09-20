@@ -15,9 +15,9 @@
 ![Tailwind](https://img.shields.io/badge/tailwind-3.4-06B6D4?logo=tailwindcss&logoColor=white)
 ![Docker](https://img.shields.io/badge/docker-GHCR-2496ED?logo=docker&logoColor=white)
 ![License](https://img.shields.io/badge/license-UNLICENSED-private-red)
-![Backend](https://img.shields.io/badge/backend-1.3.2-E0234E)
-![Ingestion](https://img.shields.io/badge/ingestion--telegram-1.0.0-26A5E4)
-![Frontend](https://img.shields.io/badge/frontend-1.3.2-61DAFB)
+![Backend](https://img.shields.io/badge/backend-1.2.0-E0234E)
+![Ingestion](https://img.shields.io/badge/ingestion--telegram-1.1.0-26A5E4)
+![Frontend](https://img.shields.io/badge/frontend-1.1.0-61DAFB)
 
 One MTProto session ingests Telegram → SSE fan-out → NestJS pipeline (extract → enrich → score → gate → publish to a VIP channel) → React dashboard over REST + WebSocket.
 
@@ -45,11 +45,11 @@ One MTProto session ingests Telegram → SSE fan-out → NestJS pipeline (extrac
 
 ## Apps
 
-| App                    | Stack                                                                                                                  | Port    | Version | Tests                  |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------- | ------- | ---------------------- |
-| **backend**            | NestJS 11 · TypeORM · Postgres · EventEmitter · Socket.IO — 22 modules, 41 entities, 35 controllers, 13 data providers | `:3030` | 1.3.2   | 173 Jest specs + 2 e2e |
-| **ingestion-telegram** | NestJS 11 · MTProto (GramJS) → SSE fan-out — one session serves N backends                                             | `:3031` | 1.0.0   | 15 specs + 5 e2e       |
-| **frontend**           | React 18 · Vite 5 · TanStack Query · Socket.IO · Tailwind — 6 routes, 12 features, 11 entities                         | `:5173` | 1.3.2   | 23 Vitest files        |
+| App                    | Stack                                                                                                                  | Port    | Version | Tests                       |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------- | ------- | --------------------------- |
+| **backend**            | NestJS 11 · TypeORM · Postgres · EventEmitter · Socket.IO — 22 modules, 41 entities, 35 controllers, 13 data providers | `:3030` | 1.2.0   | 197 Jest specs + 2 e2e      |
+| **ingestion-telegram** | NestJS 11 · MTProto (GramJS) → SSE fan-out — one session serves N backends                                             | `:3031` | 1.1.0   | 43 Jest specs + 7 e2e       |
+| **frontend**           | React 18 · Vite 5 · TanStack Query · Socket.IO · Tailwind — 6 routes, 12 features, 11 entities                         | `:5173` | 1.1.0   | 29 Vitest files (330 tests) |
 
 ---
 
@@ -447,9 +447,9 @@ Templates live next to the apps (`.env.example`, `.env.production.template`). MT
 
 | App                | Runner                     | What                                                                                 |
 | ------------------ | -------------------------- | ------------------------------------------------------------------------------------ |
-| backend            | Jest (`--forceExit`, 30 s) | 173 co-located `*.spec.ts` + `test/` e2e (incl. prod-vs-staging side-by-side parity) |
-| ingestion-telegram | Jest                       | 15 specs + 5 e2e (stream reconnect, concurrent clients, metrics)                     |
-| frontend           | Vitest                     | 23 `*.test.{ts,tsx}` (heaviest: crypto-news ads/page)                                |
+| backend            | Jest (`--forceExit`, 30 s) | 197 co-located `*.spec.ts` + `test/` e2e (incl. prod-vs-staging side-by-side parity) |
+| ingestion-telegram | Jest                       | 43 specs + 7 e2e (stream reconnect, concurrent clients, metrics)                     |
+| frontend           | Vitest                     | 29 `*.test.{ts,tsx}` (330 tests; heaviest: crypto-news ads/page)                     |
 
 ```bash
 npm test                      # backend + frontend workspaces
