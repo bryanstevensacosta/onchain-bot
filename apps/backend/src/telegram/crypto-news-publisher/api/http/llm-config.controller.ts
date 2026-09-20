@@ -220,19 +220,20 @@ export class LlmConfigController {
 
   @Patch('config')
   public async updateConfig(
-    @Body() dto: UpdateLlmConfigDto,
+    @Body() dto: UpdateLlmConfigDto & { matchingEnabled?: unknown },
   ): Promise<LlmConfigView> {
-    // DEPRECATED: matchingEnabled moved to the single source of truth
-    // `crypto_news_matching_config` (id = 1), owned by MatchingConfigController
-    // (GET/PATCH /crypto-news/matching/config). The scheduler
-    // (EnqueueMatchingCronScheduler.tick) and the SSE handler
-    // (ProcessCryptoNewsMessageHandler.handle) read ONLY that row — writes
-    // here would silently diverge (prod showed llm=t vs matching=f with the
-    // UI lying ON). Reject with a hint so callers migrate.
+    // matchingEnabled is not owned by this endpoint: the single source of
+    // truth is `crypto_news_matching_config` (id = 1), owned by
+    // MatchingConfigController (GET/PATCH /crypto-news/matching/config).
+    // The scheduler (EnqueueMatchingCronScheduler.tick) and the SSE handler
+    // (ProcessCryptoNewsMessageHandler.handle) read ONLY that row — accepting
+    // the field here would silently diverge (prod once showed llm=t vs
+    // matching=f with the UI lying ON). Unknown values are rejected with a
+    // hint pointing at the owning endpoint (mirrors the threads guard).
     if (dto.matchingEnabled !== undefined) {
       throw new BadRequestException({
         error:
-          'matchingEnabled is deprecated on this endpoint (single source of truth is crypto_news_matching_config)',
+          'matchingEnabled is not owned by this endpoint (single source of truth is crypto_news_matching_config)',
         hint: 'Use PATCH /crypto-news/matching/config with { enabled } instead',
       });
     }

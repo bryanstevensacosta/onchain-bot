@@ -6,7 +6,8 @@ import { Entity, PrimaryColumn, Column } from 'typeorm';
  * Table: `threads_matching_configs` — single-row config for threads
  * keyword matching (`id = 1`). This is the ONLY source of truth for
  * matching activation (no legacy flag on the LLM config — unlike the
- * crypto-news mirror, which carries a deprecated `matching_enabled`).
+ * crypto-news mirror, whose legacy `matching_enabled` was dropped in
+ * migration 1875000000002).
  *
  * NOTE: this is NOT the domain aggregate. The domain entity lives at
  * `threads/integration/domain/entities/threads-matching-config.entity.ts`.
