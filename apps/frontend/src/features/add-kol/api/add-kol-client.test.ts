@@ -12,7 +12,7 @@ vi.mock('@/shared/api/endpoints', () => ({
     kols: {
       list: '/telegram-kol/identity/kols',
       get: (id: string) => `/telegram-kol/identity/kols/${id}`,
-      backfill: (id: string) => `/telegram-kol/ingestion/kols/${id}/backfill`,
+      backfill: (id: string) => `/telegram-kol/identity/kols/${id}/backfill`,
       add: '/telegram-kol/identity/kols',
       setLifecycle: (id: string) =>
         `/telegram-kol/identity/kols/${id}/lifecycle`,

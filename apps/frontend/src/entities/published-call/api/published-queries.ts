@@ -6,8 +6,6 @@ export const publishedKeys = {
   all: ['published'] as const,
   published: (limit = 30) => [...publishedKeys.all, 'list', limit] as const,
   failed: (limit = 30) => [...publishedKeys.all, 'failed', limit] as const,
-  byToken: (chain: string, address: string) =>
-    [...publishedKeys.all, chain, address] as const,
 };
 
 export async function fetchPublished(

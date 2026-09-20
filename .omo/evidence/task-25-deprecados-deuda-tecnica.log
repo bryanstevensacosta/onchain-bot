@@ -1,0 +1,18 @@
+T25 tsconfig alias muertos (discovery/* + settings duplicado) — DONE 2026-09-20
+Branch: feat/cleanup-deprecados (baseline 2492b45)
+Scope: apps/backend/tsconfig.json ONLY. No servicios tocados, no pkill, frontend @/* intacto.
+
+Cambio:
+- Quitado "discovery/*": ["src/discovery/*"] (sin src/discovery/ — ls confirma inexistente)
+- Quitado duplicado "settings/*": ["src/settings/*"] (quedan 1 entrada; settings/* sigue usado: 10+ imports en src)
+
+Verificacion:
+- npx tsc --noEmit -p apps/backend/tsconfig.json → EXIT 0 (verde, sin errores)
+- grep -c discovery apps/backend/tsconfig.json → 0
+- grep -c '"settings/\*"' apps/backend/tsconfig.json → 1
+- grep -rn "from ['\"]discovery/" apps/backend/src apps/backend/test → 0 (solo menciones en READMEs .md historicos, no codigo)
+- apps/frontend/tsconfig.json paths @/* intacto (no tocado)
+- git diff: solo apps/backend/tsconfig.json (2 lineas menos)
+
+QA failure-case: import con alias muerto → tsc fallaria; verificado 0 imports discovery/* en codigo, tsc PASS.
+Commit: chore(tsconfig): retira alias muertos

@@ -1,6 +1,6 @@
 # apps/frontend/ — React/Vite Dashboard (Feature-Sliced Design)
 
-> Verified 2026-09-04 against code. v1.3.2.
+> Verified 2026-09-04 against code. v1.1.0 (source of truth: apps/frontend/package.json + CHANGELOG; verified 2026-09-20).
 
 ## OVERVIEW
 
@@ -165,7 +165,7 @@ FSD downward-only (`app → pages → widgets → features → entities → shar
 
 ## DEPLOY
 
-Multi-stage Dockerfile (node:22-bookworm build with `tsc -b && vite build` via root `build:frontend` → nginx:1.27-alpine static, `EXPOSE 80`, wget healthcheck). `.dockerignore` present. `CHANGELOG.md` at app root (conventional-changelog, v1.3.2 latest — matches `package.json`).
+Multi-stage Dockerfile (node:22-bookworm build with `tsc -b && vite build` via root `build:frontend` → nginx:1.27-alpine static, `EXPOSE 80`, wget healthcheck). `.dockerignore` present. `CHANGELOG.md` at app root (hand-written, v1.1.0 latest — matches `package.json`, the version source of truth).
 
 ## COMMANDS
 

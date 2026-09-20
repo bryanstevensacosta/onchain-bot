@@ -14,7 +14,7 @@ describe('BackendChannelProviderService', () => {
           provide: ConfigService,
           useValue: {
             get: jest.fn((key: string) => {
-              if (key === 'BACKEND_PORT') return '3030';
+              if (key === 'BACKEND_URL') return 'http://localhost:3030';
               return undefined;
             }),
           },
@@ -30,6 +30,13 @@ describe('BackendChannelProviderService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('should not expose the removed crypto-news legacy endpoint', () => {
+    expect(
+      (service as unknown as Record<string, unknown>)
+        .fetchActiveCryptoNewsSourceIds,
+    ).toBeUndefined();
   });
 
   describe('registerBackend', () => {
@@ -272,12 +279,11 @@ describe('BackendChannelProviderService', () => {
 
       const result = await service.fetchAllActiveChannelIds();
 
-      // Only 1 HTTP call (crypto-news endpoint deprecated, returns [] without HTTP)
+      // Single HTTP call: KOL IDs only (crypto-news lives in local DB)
       expect(global.fetch).toHaveBeenCalledTimes(1);
       expect(global.fetch).toHaveBeenCalledWith(
         'http://localhost:3030/telegram-kol/identity/kols/active/ids',
       );
-      // Only KOL IDs returned (crypto-news deprecated)
       expect(result).toHaveLength(2);
       expect(result).toEqual(mockKolIds);
     });
@@ -316,20 +322,18 @@ describe('BackendChannelProviderService', () => {
       expect(result).toEqual([]);
     });
 
-    it('should combine KOL and news IDs from HTTP fallback', async () => {
-      (global.fetch as jest.Mock)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ['kol1'],
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => [], // Deprecated endpoint returns []
-        });
+    it('should fetch only KOL IDs from HTTP fallback (no crypto-news endpoint)', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ['kol1'],
+      });
 
       const result = await service.fetchAllActiveChannelIds();
 
-      // Only KOL ID returned (crypto-news endpoint deprecated)
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:3030/telegram-kol/identity/kols/active/ids',
+      );
       expect(result).toEqual(['kol1']);
     });
 
@@ -340,20 +344,14 @@ describe('BackendChannelProviderService', () => {
 
       (service as any).registrations.clear();
 
-      (global.fetch as jest.Mock)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ['http-kol'],
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => [], // Deprecated endpoint returns []
-        });
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ['http-kol'],
+      });
 
       const result = await service.fetchAllActiveChannelIds();
 
-      expect(global.fetch).toHaveBeenCalled();
-      // Only KOL ID returned (crypto-news endpoint deprecated)
+      expect(global.fetch).toHaveBeenCalledTimes(1);
       expect(result).toEqual(['http-kol']);
     });
   });

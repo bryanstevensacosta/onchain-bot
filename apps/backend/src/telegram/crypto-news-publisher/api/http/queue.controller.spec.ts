@@ -6,13 +6,34 @@ import { QueueController } from './queue.controller';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
 import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
-import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
-import { CryptoNewsSource } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-source.entity';
+import type { CryptoNewsSourceDto } from 'telegram/crypto-news-integration/infrastructure/http/crypto-news-ingestion-client.service';
 
 describe('QueueController', () => {
   let controller: QueueController;
   let queueRepo: jest.Mocked<PublisherQueueRepository>;
-  let sourceRepo: jest.Mocked<CryptoNewsSourceRepository>;
+
+  const makeSourceDto = (
+    channelId: string,
+    handle: string | null,
+    title: string,
+  ): CryptoNewsSourceDto => ({
+    channelId,
+    handle,
+    title,
+    isActive: true,
+    lifecycleStatus: 'ACTIVE',
+    addedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+
+  const mockFetchSources = (
+    sources: ReadonlyArray<CryptoNewsSourceDto>,
+  ): void => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => sources,
+    } as Response);
+  };
 
   const makeEntry = (
     status: 'PENDING' | 'PUBLISHED' = 'PENDING',
@@ -54,6 +75,9 @@ describe('QueueController', () => {
     ({ headers: range ? { range } : {} }) as unknown as Request;
 
   beforeEach(async () => {
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue({ ok: true, json: async () => [] } as Response);
     const module: TestingModule = await Test.createTestingModule({
       controllers: [QueueController],
       providers: [
@@ -98,18 +122,15 @@ describe('QueueController', () => {
             save: jest.fn(),
           },
         },
-        {
-          provide: CryptoNewsSourceRepository,
-          useValue: {
-            findAll: jest.fn().mockResolvedValue([]),
-          },
-        },
       ],
     }).compile();
 
     controller = module.get<QueueController>(QueueController);
     queueRepo = module.get(PublisherQueueRepository);
-    sourceRepo = module.get(CryptoNewsSourceRepository);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('should be defined', () => {
@@ -193,13 +214,12 @@ describe('QueueController', () => {
       channelId: string,
       handle: string | null,
       title: string,
-    ): CryptoNewsSource =>
-      CryptoNewsSource.create({ channelId, handle, title });
+    ): CryptoNewsSourceDto => makeSourceDto(channelId, handle, title);
 
     it('strips leading @ from handle', async () => {
       const entry = makeEntryWithChannelId('4466661332');
       queueRepo.findAllForDisplay.mockResolvedValue([entry]);
-      sourceRepo.findAll.mockResolvedValue([
+      mockFetchSources([
         makeSource('4466661332', '@coinmarket', 'Crypto Insider'),
       ]);
 
@@ -211,7 +231,7 @@ describe('QueueController', () => {
     it('uses bare handle as-is when no leading @', async () => {
       const entry = makeEntryWithChannelId('4466661332');
       queueRepo.findAllForDisplay.mockResolvedValue([entry]);
-      sourceRepo.findAll.mockResolvedValue([
+      mockFetchSources([
         makeSource('4466661332', 'coinmarket', 'Crypto Insider'),
       ]);
 
@@ -223,9 +243,7 @@ describe('QueueController', () => {
     it('falls back to title when handle is null', async () => {
       const entry = makeEntryWithChannelId('4466661332');
       queueRepo.findAllForDisplay.mockResolvedValue([entry]);
-      sourceRepo.findAll.mockResolvedValue([
-        makeSource('4466661332', null, 'Crypto Insider'),
-      ]);
+      mockFetchSources([makeSource('4466661332', null, 'Crypto Insider')]);
 
       const result = await controller.list();
 
@@ -235,7 +253,7 @@ describe('QueueController', () => {
     it('falls back to channelId when both handle and title are unavailable', async () => {
       const entry = makeEntryWithChannelId('4466661332');
       queueRepo.findAllForDisplay.mockResolvedValue([entry]);
-      sourceRepo.findAll.mockResolvedValue([]);
+      mockFetchSources([]);
 
       const result = await controller.list();
 
@@ -284,15 +302,12 @@ describe('QueueController', () => {
       channelId: string,
       handle: string | null,
       title: string,
-    ): CryptoNewsSource =>
-      CryptoNewsSource.create({ channelId, handle, title });
+    ): CryptoNewsSourceDto => makeSourceDto(channelId, handle, title);
 
     it('uses handle to build public URL when source has handle', async () => {
       const entry = makeBlockedEntry('1350475252', 10201, '1375055530', 17843);
       queueRepo.findAllForDisplay.mockResolvedValue([entry]);
-      sourceRepo.findAll.mockResolvedValue([
-        makeSource('1375055530', 'CoinBureau', 'Coin Bureau'),
-      ]);
+      mockFetchSources([makeSource('1375055530', 'CoinBureau', 'Coin Bureau')]);
 
       const result = await controller.list();
 
@@ -305,9 +320,7 @@ describe('QueueController', () => {
     it('falls back to t.me/c/${id} when source has no handle', async () => {
       const entry = makeBlockedEntry('1350475252', 10201, '1375055530', 17843);
       queueRepo.findAllForDisplay.mockResolvedValue([entry]);
-      sourceRepo.findAll.mockResolvedValue([
-        makeSource('1375055530', null, 'Test Channel'),
-      ]);
+      mockFetchSources([makeSource('1375055530', null, 'Test Channel')]);
 
       const result = await controller.list();
 
@@ -320,7 +333,7 @@ describe('QueueController', () => {
     it('returns null URL when duplicateOfChannelId is null', async () => {
       const entry = makeBlockedEntry('1350475252', 10201, null, 17843);
       queueRepo.findAllForDisplay.mockResolvedValue([entry]);
-      sourceRepo.findAll.mockResolvedValue([]);
+      mockFetchSources([]);
 
       const result = await controller.list();
 

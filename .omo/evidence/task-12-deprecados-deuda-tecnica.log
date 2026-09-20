@@ -1,0 +1,17 @@
+# task-12-deprecados-deuda-tecnica — RECONSTRUCTED on VPS 2026-09-20 from git history + session record
+# Commit: Y → b606b7694ca3fccc4357aabe0e2ee69fe1496bbe | feat(db)!: dropea llm_config.matching_enabled | 2026-09-20T05:30:37-04:00 (owner OK "Si vamos", gate T11 cumplido)
+
+## Comandos reales (VPS)
+$ git show --stat --format='' b606b76 | tail -3 → 11 files changed, 108 insertions(+), 55 deletions(-) (migración 1875000000002 + entidad + DTO + controller 400-guard + mapper + specs)
+$ ls migrations | grep 1875000000002 → 1875000000002-DropLlmConfigMatchingEnabled.ts (en disco)
+$ grep -n 'matchingEnabled' llm-config.controller.ts | head -3 → l.223 dto + l.233 `if (dto.matchingEnabled !== undefined)` → BadRequestException (guard 400 PRESENTE en disco)
+
+$ curl -s -m 8 http://localhost:3040/api/health → 200 (dev responde)
+$ curl -s -m 8 -X PATCH http://localhost:3040/api/crypto-news-publisher/llm/config -H 'Content-Type: application/json' -d '{"matchingEnabled":true}' -w 'HTTP:%{http_code}'
+→ {"message":"Cannot PATCH ...","statusCode":404} HTTP:404 (igual GET config y /models: dev :3040 corre build DESACTUALIZADO sin esas rutas)
+
+## Salida del record
+PATCH→400 con hint a /crypto-news/matching/config; GET omite campo; 196/2129; migration:show limpio.
+
+## Veredicto: PASS por código+commit; re-verificación runtime en dev PENDIENTE (observación no bloqueante)
+El 404 de dev :3040 es stale-build del dev-tmux, no regresión del commit (guard verificado en fuente + spec l.319/368 actualizados en el commit). No se toca dev (solo lectura). Re-validar contra staging en F3 si hay acceso.

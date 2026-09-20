@@ -1,0 +1,41 @@
+T16 verificar ingestion :3032 como única fuente crypto-news — GREEN 2026-09-20T11:35Z (VPS Oracle)
+Branch: feat/cleanup-deprecados | Reintento post-bloqueo (T1: :3032 refused → ahora 200)
+
+NOTA PUERTOS (host Oracle): :3032 = ingestion-telegram singleton (host 127.0.0.1:3032 → container :3031);
+:3031 = backend staging (solo tiene GET /api/health; /ready+/live NO existen en backend → 404 por diseño,
+ver apps/backend/src/health/health.controller.ts @Controller('api') @Get('health')). Los probes
+ready/live del enunciado aplican al ingestion → rutas correctas :3032/api/health/ready + /live.
+
+CMD: curl -s -w "HTTP %{http_code}\n" http://localhost:3032/api/crypto-news/sources
+HTTP 200 | 13 sources (shape: channelId, handle, title, isActive, lifecycleStatus, addedAt, updatedAt)
+HEAD: [{"channelId":"-1001283043045","handle":"CryptoRankNews","title":"CryptoRank Analytics","isActive":true,...},
+{"channelId":"-1001108179394","handle":"icodrops",...},{"channelId":"-1001343715577","handle":"cryptoquant_official",...},
+{"channelId":"-1001375055530","handle":"CoinBureau",...},{"channelId":"-1001350475252","handle":"coinmarket",...},
+{"channelId":"-1001358788312","handle":"unfolded",...},{"channelId":"-1001370726192","handle":"glassnode",...},...]
+
+CMD: curl -s "http://localhost:3032/api/crypto-news/messages?limit=2"
+HTTP 200 | {"timestamp":"2026-09-20T11:35:20.076Z","count":2,"data":[2 msgs]}
+msg1: channelId -1001350475252 msgId 10399 video/mp4 3074884B + formattingEntities
+msg2: channelId -1001375055530 msgId 19759 photo jpeg 63233B groupedId 14319205046044845
+
+CMD: curl -s http://localhost:3032/api/health → HTTP 200
+{"status":"ok","mtproto":{"connected":true,"authorized":true,...},"channels":{"total":0,...},
+"clients":{"connected":1,...},"broadcast":{...}}
+
+CMD: curl -s http://localhost:3032/api/health/ready → HTTP 200
+{"status":"ready","timestamp":"2026-09-20T11:35:41.699Z","connectedClients":1}
+
+CMD: curl -s http://localhost:3032/api/health/live → HTTP 200
+{"status":"alive","timestamp":"2026-09-20T11:35:41.731Z","uptime":83292956}
+
+CMD: curl -s http://localhost:3031/api/health → HTTP 200 (staging backend, shape backend)
+{"status":"ok","uptime":...,"service":"alpha-meta-token-scanner","version":"0.0.0"}
+CMD: curl -s http://localhost:3031/api/ready|live|health/ready... → 404 (inexistentes por diseño backend)
+
+INVARIANTES 1-7 (código, sin cambios infra): singleton ingestion OK (una sola sesión MTProto,
+creds solo en apps/ingestion-telegram/.env); sin compose staging/prod para ingestion; sin DBs
+*_staging_ingestion; backend lee vía INGESTION_TELEGRAM_URL (T7 DTO HTTP); media owner ingestion.
+No se creó/duplicó nada. No se arrancó/paró ningún servicio (solo curls read-only).
+
+VEREDICTO T16: GREEN — :3032 sources+messages 200 con shape esperado; health/ready/live 200.
+Desbloquea T17.

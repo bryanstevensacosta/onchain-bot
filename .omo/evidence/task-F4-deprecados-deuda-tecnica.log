@@ -1,0 +1,52 @@
+# F4 Scope fidelity — feat/cleanup-deprecados vs .omo/plans/deprecados-deuda-tecnica.md Must NOT have
+Date: 2026-09-20 (UTC). Scope: READ-ONLY. No commits. No VPS writes. No pkill.
+Branch: feat/cleanup-deprecados. Merge-base with dev: 28c259a7 (matches plan "desde dev@28c259a7").
+Diff basis: `git diff dev...HEAD` == `git diff 28c259a7...HEAD` → 139 files, +7357/-5572. dev has NOT moved since branch point (no drift).
+
+## Verdict: APPROVE — Must NOT have respected in all 10 gates (2 with in-scope notes)
+
+### Gate results
+1. [PASS] Sin instancias ingestion nuevas. `docker-compose.ingestion.yml` untouched (absent from diff name list).
+   Only compose files touched: `docker-compose.{prod,staging,with-ingestion}.yml`, and only to REMOVE the
+   legacy `INGESTION_SERVICE_URL` line + update comments to "canonical var (T10)". No new `services:` entry,
+   no `container_name`/`image: *ingestion` added (`grep ^+ ... container_name|image:.*ingestion|ingestion-telegram:` = empty).
+   Singleton preserved.
+2. [PASS] Sin creds MTProto duplicadas. `git diff -- apps/backend/src | grep -c "^+.*MTPROTO_SESSION|^\+.*API_HASH"` = 0.
+   Tracked `.env` hits are templates only (`.env.production.template`, `.env.staging.template`, `.env.example` — no secret values).
+   `MTPROTO_SESSION|API_HASH|AUTH_KEY` hits in full diff are docs-only (plan/draft text + README rollback notes).
+   `git ls-files apps/ingestion-telegram | grep .env` = `.env.example` + `.env.production.template` only. Session stays in ingestion-telegram.
+3. [PASS] Sin compose staging/prod tocando ingestion (beyond in-scope T10 cleanup). Staging/prod diff = deletion of
+   `INGESTION_SERVICE_URL` fallback + comment refresh. No ingestion service defined there (see gate 1).
+4. [PASS] Sin ScoreTier/error-boundaries. `git diff --name-only | grep -iE "score-tier|scoretier|error-boundar|ErrorBoundary"` = empty.
+   `ScoreTier|ErrorBoundary` content hits exist ONLY in `.omo/*` plan/draft Must-NOT text (the guardrail itself + T18/F4 references). Zero code changes.
+5. [PASS] Sin terraform tracked-nuevo ni synchronize→migrations prod. Name-only `grep -i terraform` = empty; `git status | grep -i terraform` = empty.
+   Only migration added is T12 `1875000000002-DropLlmConfigMatchingEnabled` (in-scope destructive wave, owner-gated, backup in T11).
+   `^+.*synchronize` hits are plan/draft docs + one code comment about "synchronize-era DBs" (idempotency note). No `database.module`/`data-source` flip.
+6. [PASS with note] Sin backfill/replay/auth-media. `+MediaController|+UseGuards|+AuthGuard|+replay|+Replay` in src diffs = empty.
+   "backfill" `+` hits = (a) T12 migration comment referencing PRE-EXISTING `1875000000000-BackfillMatchingConfigFromLlm` (T11 gate, in-scope);
+   (b) T18 one-line fix `kols.backfill`: `/telegram-kol/ingestion/...` → `/telegram-kol/identity/...` (dead-URL fix, in-scope C5) + dead-URL deletions
+   (`byToken`, `reprocess*`, `dashboard.kpis`). No SSE-replay implementation, no media auth. G4 SSE-adapter diff = logger.debug downgrade only.
+7. [PASS] Rama feat/* + conventional commits. Branch = `feat/cleanup-deprecados`. All 20 commits `28c259a7..HEAD` match
+   `^(feat|fix|refactor|docs|chore|style|test|perf|build|ci|revert)(\(.+\))?(!)?: ` (non-matching grep = empty). T12 correctly uses `feat(db)!:`.
+8. [PASS] Sin reset --hard. `git reflog | grep -iE "reset.*--hard"` = empty.
+9. [PASS] Untracked .kiro/docs-opencode intactos; 43d5a65 docs-only. `git show --stat 43d5a65` = 33 files, ALL under
+   `.kiro/specs/*`, `.omo/drafts/*`, `.omo/plans/*`, `docs/opencode-session-transfer.md` (docs-only, no src).
+   `docs/opencode-session-transfer.md` changed ONLY in 43d5a65 (`git log 28c259a7..HEAD -- <file>` = single entry).
+   Current untracked = `.omo/migration-backup-*/`, `.omo/omo.jsonc(+.bak)`, `.opencode/` — no `.kiro/` untracked mods. (Pre-existing worktree dirt, out of scope, untouched.)
+10. [PASS] VPS solo lectura, NUNCA pkill -f, sin commits. This task ran ONLY: `git branch/status/log/show/diff/merge-base/reflog/ls-files` + `grep/ls/history`.
+    No `pkill`/`kill`/ssh/VPS writes (shell history check = empty). HEAD unchanged: still `5f268bd chore(tsconfig): retira alias muertos`.
+
+### Commands executed (all read-only)
+- git branch --show-current; git status --short; git log --oneline dev..HEAD
+- git diff dev...HEAD --stat; git diff dev...HEAD --name-only (+ wc -l)
+- git merge-base dev HEAD (= 28c259a7); git diff 28c259a7...HEAD --stat/--name-only
+- git show --stat 43d5a65; git log 28c259a7..HEAD --format='%h %s' (+ conventional-commit negative grep)
+- Targeted: compose diffs (staging/prod/with-ingestion); MTPROTO_SESSION|API_HASH grep excl. ingestion-telegram;
+  ScoreTier|ErrorBoundary name+content grep; terraform name+status grep; synchronize `^+` grep;
+  backfill/replay/MediaController/AuthGuard `^+` grep in src; endpoints.ts/dashboard-queries/add-kol-client.test.ts context diff;
+  SSE-adapter diff; reflog reset--hard grep; untracked status; docs/opencode-session-transfer.md log; HEAD re-check.
+
+### Notes (non-blocking)
+- N1: Two `docs(readme)` commits (`e1fd875` + `bb58551` entity count 41→47 post-threads) — both docs scope, T23. OK.
+- N2: `dev...HEAD` == merge-base diff → zero base drift; no rebase needed at F4 time.
+- N3: `docker-compose.with-ingestion.yml` healthcheck reformat (quote style) is cosmetic, same probe. OK.

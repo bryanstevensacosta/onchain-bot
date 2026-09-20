@@ -1,0 +1,47 @@
+# T20 deprecados-deuda-tecnica — Migrar console.log hot path a Nest Logger
+# Fecha: 2026-09-20 | Rama: feat/cleanup-deprecados | Host: VPS (staging+prod corriendo, sin tocar)
+
+## 1. Inventario inicial (*.ts en apps/backend/src)
+$ grep -rn 'console\.(log|error|warn|debug|info)' apps/backend/src --include='*.ts'
+- apps/backend/src/app.module.ts:75 → console.log staging-mode
+- apps/backend/src/main.ts:60-205 → 20× console.log [DEBUG] bootstrap trace
+- apps/backend/src/main-debug.ts → 12× console.log (stray, T21 lo borra; migrado aquí para grep=0)
+- apps/backend/src/telegram/ingestion/shared/shared-ingestion.module.ts:124 → console.log [ADAPTER-SELECTION-DEBUG]
+- apps/backend/src/shared/common/console-logger.ts:91,98,105,112 → console.log/warn/error/debug
+- apps/backend/src/shared/deduplication/infrastructure/ml/__tests__/embedding.service.spec.ts:42 → console.log skip-notice
+- READMEs con console.* (geckoterminal, alchemy, rugcheck, coinmarketcap, helius): EXCLUIDOS por criterio (salvo READMEs)
+
+## 2. Migración aplicada (niveles: errores NUNCA a debug)
+- main.ts: `const bootLogger = new Logger('Bootstrap')` elevado antes del primer trace; 20× console.log → bootLogger.debug; error handlers ya usaban error/fatal (intactos); dump 1b serializado a string con solo 2 flags
+- main-debug.ts: mismo patrón (bootLogger.debug); borrado queda para T21
+- app.module.ts:75 → new Logger('AppModule').debug (rama staging stdout)
+- shared-ingestion.module.ts:124 → logger.debug('Selecting ingestion adapter', {...}) SIN marcador [ADAPTER-SELECTION-DEBUG] para que el grep de T21 (SSE-DEBUG/MSG-TRANSFORM/ADAPTER-SELECTION=0) pase
+- console-logger.ts: console.* → this.logger.log/warn/error/debug (mapeo 1:1, error→error)
+- embedding.service.spec.ts:42 → specLogger.warn (aviso de skip, visible, no silenciado)
+- NUEVO src/shared/common/console-logger.spec.ts: 4 tests de ruteo de nivel (error→error y nunca debug, warn/log/debug 1:1) — cubre QA-failure del plan
+
+## 3. Verificación
+$ grep -rn 'console\.(log|error|warn|debug|info)' apps/backend/src --include='*.ts'
+No matches found  → grep = 0 ✅
+
+$ cd apps/backend && npx tsc --noEmit -p tsconfig.json
+TSC_EXIT=0 ✅
+
+$ npx jest src/shared/common/console-logger.spec.ts src/telegram/ingestion/shared
+Test Suites: 5 passed, 5 total | Tests: 51 passed, 51 total ✅
+
+$ npx jest src/shared/deduplication/infrastructure/ml/__tests__/embedding.service.spec.ts
+Tests: 6 passed, 6 total ✅
+
+$ npm run test:backend (full)
+Test Suites: 197 passed, 197 total
+Tests: 3 skipped, 2130 passed, 2133 total (baseline T12: 196/2129; delta +1 suite/+4 tests = console-logger.spec) ✅
+
+$ npx eslint <7 ficheros cambiados> && echo LINT_CLEAN
+LINT_CLEAN ✅ (main.ts requirió --fix: 1 línea propia + 2 prettier pre-existentes 46/52, solo formato)
+
+## 4. Notas
+- No se tocó ningún servicio ajeno: sin pkill, sin reboot dev, sin staging/prod. Solo edición de ficheros + jest/tsc/eslint.
+- `.omo/plans/deprecados-deuda-tecnica.md` muestra diff de T19 (checkbox marcado por sesión previa) — NO incluido en el commit T20.
+- Evidencia (este fichero) en .omo/evidence/ (gitignored, no se commitea).
+- Commit: refactor(logging): console.log a Nest Logger

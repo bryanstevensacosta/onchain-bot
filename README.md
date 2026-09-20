@@ -15,9 +15,9 @@
 ![Tailwind](https://img.shields.io/badge/tailwind-3.4-06B6D4?logo=tailwindcss&logoColor=white)
 ![Docker](https://img.shields.io/badge/docker-GHCR-2496ED?logo=docker&logoColor=white)
 ![License](https://img.shields.io/badge/license-UNLICENSED-private-red)
-![Backend](https://img.shields.io/badge/backend-1.3.2-E0234E)
-![Ingestion](https://img.shields.io/badge/ingestion--telegram-1.0.0-26A5E4)
-![Frontend](https://img.shields.io/badge/frontend-1.3.2-61DAFB)
+![Backend](https://img.shields.io/badge/backend-1.2.0-E0234E)
+![Ingestion](https://img.shields.io/badge/ingestion--telegram-1.1.0-26A5E4)
+![Frontend](https://img.shields.io/badge/frontend-1.1.0-61DAFB)
 
 One MTProto session ingests Telegram → SSE fan-out → NestJS pipeline (extract → enrich → score → gate → publish to a VIP channel) → React dashboard over REST + WebSocket.
 
@@ -45,11 +45,11 @@ One MTProto session ingests Telegram → SSE fan-out → NestJS pipeline (extrac
 
 ## Apps
 
-| App                    | Stack                                                                                                                  | Port    | Version | Tests                  |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------- | ------- | ---------------------- |
-| **backend**            | NestJS 11 · TypeORM · Postgres · EventEmitter · Socket.IO — 22 modules, 41 entities, 35 controllers, 13 data providers | `:3030` | 1.3.2   | 173 Jest specs + 2 e2e |
-| **ingestion-telegram** | NestJS 11 · MTProto (GramJS) → SSE fan-out — one session serves N backends                                             | `:3031` | 1.0.0   | 15 specs + 5 e2e       |
-| **frontend**           | React 18 · Vite 5 · TanStack Query · Socket.IO · Tailwind — 6 routes, 12 features, 11 entities                         | `:5173` | 1.3.2   | 23 Vitest files        |
+| App                    | Stack                                                                                                                  | Port    | Version | Tests                       |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------- | ------- | --------------------------- |
+| **backend**            | NestJS 11 · TypeORM · Postgres · EventEmitter · Socket.IO — 22 modules, 47 entities, 35 controllers, 13 data providers | `:3030` | 1.2.0   | 197 Jest specs + 2 e2e      |
+| **ingestion-telegram** | NestJS 11 · MTProto (GramJS) → SSE fan-out — one session serves N backends                                             | `:3031` | 1.1.0   | 43 Jest specs + 7 e2e       |
+| **frontend**           | React 18 · Vite 5 · TanStack Query · Socket.IO · Tailwind — 6 routes, 12 features, 11 entities                         | `:5173` | 1.1.0   | 29 Vitest files (330 tests) |
 
 ---
 
@@ -62,7 +62,7 @@ npm run docker:up            # postgres :5432 + redis :6379 + pgAdmin :5050
 npm run dev                  # backend :3030 + frontend :5173 (port-cleanup first)
 
 # Ingestion runs separately (own terminal — single MTProto session):
-cd apps/ingestion-telegram && npm run start:dev   # :3031
+npm run dev:ingestion   # :3031 (root script; without it `npm run dev` can't hear Telegram)
 ```
 
 > First run needs env files: `apps/backend/.env` (or `.env.dev`) and `apps/ingestion-telegram/.env` with Telegram API credentials (`my.telegram.org`). Never commit them.
@@ -104,7 +104,7 @@ flowchart TB
     end
 
     subgraph BE["backend :3030 — the factory (22 pieces)"]
-        MODE["Three doors in<br/>live stream - fake for tests<br/>old direct line"]
+        MODE["Two doors in<br/>live stream (default) - fake for tests<br/>old direct line REMOVED (410 Gone)"]
         ICOORD["Front door<br/>tips to reception<br/>news to filing"]
         PIPE["Alpha-call assembly line<br/>spot - read - merge<br/>identify - enrich - label<br/>score - approve - publish"]
         NEWSP["News assembly line<br/>file - match<br/>queue - AI rewrite - post"]
@@ -118,7 +118,7 @@ flowchart TB
         API["HTTP API<br/>35 endpoints"]
     end
 
-    DB[(Database<br/>41 tables)]
+    DB[(Database<br/>47 tables)]
     REDIS[(Fast memory<br/>bookmarks + cache)]
     UPL[(Uploads folder<br/>news photos)]
     FE["Dashboard :5173<br/>live screen"]
@@ -146,13 +146,13 @@ flowchart TB
     FE -- "screens poll every 5-30s plus live push" --> API
 ```
 
-The backend front door opens in 3 ways (picked by flag):
+The backend front door opens in 2 ways (picked by flag; SSE is the default since T4):
 
-| Door                                                           | Flag                      | How it works                                                                                                                                           |
-| -------------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Live stream (recommended)                                      | `USE_SSE_INGESTION=true`  | Connects to `GET {serviceUrl}/api/ingestion/stream`, retries 1 s→30 s, filters channels locally, 60 s history timeout (broken end-to-end, see caveats) |
-| Fake feed (CLI/tests)                                          | `USE_MOCK_INGESTION=true` | Pretend feed + test endpoints (`POST /dev/inject-message`, `GET /dev/queue-status`) + `scripts/cli/*` inject/record/replay                             |
-| Old direct line (rollback-only, default when both flags false) | both false                | Backend listens to Telegram itself — risks kicking out the main session (`AUTH_KEY_DUPLICATED`)                                                        |
+| Door                                    | Flag                      | How it works                                                                                                                                                |
+| --------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Live stream (recommended, default)      | `USE_SSE_INGESTION=true`  | Connects to `GET {serviceUrl}/api/ingestion/stream`, retries 1 s→30 s, filters channels locally, 60 s history timeout (broken end-to-end, see caveats)      |
+| Fake feed (CLI/tests)                   | `USE_MOCK_INGESTION=true` | Pretend feed + test endpoints (`POST /dev/inject-message`, `GET /dev/queue-status`) + `scripts/cli/*` inject/record/replay                                  |
+| Old direct line (REMOVED T4 → 410 Gone) | both false                | Backend MTProto removed: forcing it throws `410 Gone "MTProto backend removido, usar INGESTION_TELEGRAM_URL"` — no session opens (no `AUTH_KEY_DUPLICATED`) |
 
 ### Ingestion-telegram deep dive
 
@@ -361,7 +361,7 @@ Theme rooms you can join: Solana only, EVM only, accepted only, rejected only, e
 
 ### Data, health, deploy
 
-The database (auto-created in dev/test, versioned scripts in staging/prod) holds 41 tables: KOLs, coin cards, report cards, scores, labels, results, review jobs, followed calls, verdicts, market snapshots, found candidates, parsed tips, detective reports, chain answers, word lists, limits, presets, audit trail, trophy thresholds, watched calls, posted calls (+ who was notified), trophies, news (outlets, messages, photos), content rules, banned phrases, keywords, AI settings, prompt templates, publishing line state, ads (+ photos, wheel settings, wheel state). Every coin is keyed `${chain}:${address}` lowercased. Fast memory holds: last-message bookmarks, market snapshots, coin icons.
+The database (auto-created in dev/test, versioned scripts in staging/prod) holds 47 tables: KOLs, coin cards, report cards, scores, labels, results, review jobs, followed calls, verdicts, market snapshots, found candidates, parsed tips, detective reports, chain answers, word lists, limits, presets, audit trail, trophy thresholds, watched calls, posted calls (+ who was notified), trophies, content rules, banned phrases, keywords, AI settings, prompt templates, publishing line state, threads (queue, keywords, phrases, LLM, throttle, OAuth, matching), ads (+ photos, wheel settings, wheel state). Every coin is keyed `${chain}:${address}` lowercased. Fast memory holds: last-message bookmarks, market snapshots, coin icons. (Crypto-news outlets/messages/photos live in the ingestion-telegram `<base>_ingestion` DB, not here — split 2026-09-08.)
 
 | What to ping          | Address                                                                                      |
 | --------------------- | -------------------------------------------------------------------------------------------- |
@@ -408,10 +408,12 @@ Telegram ──► single ear :3031 ──live stream──► factory :3030 ─
 ## Commands
 
 ```bash
-# Dev
+# Dev (backend + frontend — WITHOUT ingestion this stack can't hear Telegram:
+# the backend only retries the SSE stream; run dev:ingestion in a second terminal,
+# or backend mock mode, to get Telegram messages)
 npm run dev                  # backend + frontend
 npm run dev:backend-only | dev:frontend-only
-cd apps/ingestion-telegram && npm run start:dev   # :3031 (not in root scripts)
+npm run dev:ingestion        # ingestion-telegram :3031 (single MTProto session)
 
 # Quality
 npm run build | test | test:backend | test:frontend | lint | format
@@ -447,9 +449,9 @@ Templates live next to the apps (`.env.example`, `.env.production.template`). MT
 
 | App                | Runner                     | What                                                                                 |
 | ------------------ | -------------------------- | ------------------------------------------------------------------------------------ |
-| backend            | Jest (`--forceExit`, 30 s) | 173 co-located `*.spec.ts` + `test/` e2e (incl. prod-vs-staging side-by-side parity) |
-| ingestion-telegram | Jest                       | 15 specs + 5 e2e (stream reconnect, concurrent clients, metrics)                     |
-| frontend           | Vitest                     | 23 `*.test.{ts,tsx}` (heaviest: crypto-news ads/page)                                |
+| backend            | Jest (`--forceExit`, 30 s) | 197 co-located `*.spec.ts` + `test/` e2e (incl. prod-vs-staging side-by-side parity) |
+| ingestion-telegram | Jest                       | 43 specs + 7 e2e (stream reconnect, concurrent clients, metrics)                     |
+| frontend           | Vitest                     | 29 `*.test.{ts,tsx}` (330 tests; heaviest: crypto-news ads/page)                     |
 
 ```bash
 npm test                      # backend + frontend workspaces
@@ -494,7 +496,7 @@ curl -s http://localhost:3030/api/health
 | Backend hangs at boot, no logs             | `DATABASE_SYNCHRONIZE=true` against a big schema → check `NODE_ENV`, run `migration:show`                         |
 | Dashboard shows `0` KPIs / no live feed    | SSE disconnected (backend backoff 1 s→30 s) or dashboard module unwired; check `:3031/api/health`                 |
 | SSE `backfill:error`                       | Backfill is unimplemented end-to-end (ingestion-telegram gap) — use MTProto-legacy or re-seed                     |
-| Stale types after pulling                  | `tsc --noEmit` per app (pre-commit runs it); ingestion-telegram isn't covered by root `tsc`                       |
+| Stale types after pulling                  | `tsc --noEmit` per app (pre-commit runs it for all 3 apps)                                    |
 
 ---
 
@@ -516,7 +518,7 @@ curl -s http://localhost:3030/api/health
 ## Docs
 
 - **[AGENTS.md](AGENTS.md)** — contributor knowledge base (root; ports, commands, conventions, drift)
-- **[apps/backend/AGENTS.md](apps/backend/AGENTS.md)** — pipeline, scoring & gates, 35 controllers, 41 entities, env inventory, 32 verified gaps
+- **[apps/backend/AGENTS.md](apps/backend/AGENTS.md)** — pipeline, scoring & gates, 35 controllers, 47 entities, env inventory, 32 verified gaps
 - **[apps/ingestion-telegram/AGENTS.md](apps/ingestion-telegram/AGENTS.md)** — SSE protocol, media, safety config, 25 verified gaps
 - **[apps/frontend/AGENTS.md](apps/frontend/AGENTS.md)** — FSD slices, contract, polling, proxy, 11 verified gaps
 - **[apps/backend/README.md](apps/backend/README.md)** · **[apps/frontend/README.md](apps/frontend/README.md)** — architecture overviews

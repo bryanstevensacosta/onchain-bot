@@ -1,0 +1,42 @@
+# T21 evidencia — Ruido debug a nivel debug o borrado
+Fecha: 2026-09-20 | Rama: feat/cleanup-deprecados | Base: ec142c9 (T20)
+
+## Alcance ejecutado
+- [SSE-DEBUG] x8 backend telegram-sse-listener.adapter.ts → logger.debug sin marcador
+  (subscribe BackendId/ChannelIds, received/passed-filter/transformed/yielded/skipped)
+- [PAYLOAD-TRANSFORM-DEBUG] backend adapter payloadToRawMessage (logger.log→debug, sin marcador)
+- [PAYLOAD-TRANSFORM-DEBUG] x2 ingestion coordinator transformToPayload (ya debug → sin marcador)
+- [PAYLOAD-167-DEBUG] bloque especial messageId===167 (logger.log) → BORRADO entero
+- Ruido hermano mismo hot path → debug sin marcador (grep 0 total):
+  [HOOK-DEBUG] x7, [CONSUME-DEBUG] x4, [ROUTE-DEBUG] x6 (ingestion-coordinator.service.ts),
+  [KOL-ORCH-DEBUG] x2 (kol-ingestion-orchestrator.use-case.ts)
+- Strays: git rm apps/backend/src/main-debug.ts + apps/backend/src/test-new.ts
+  (tracked, 0 referencias en src/test; main.backup.ts inexistente — nada que borrar)
+- ADAPTER-SELECTION-DEBUG / MSG-TRANSFORM-DEBUG / TEXT-EXTRACTION / MEDIA-DEBUG: 0 hits en src (ya limpios)
+- Error/warn reales intactos: 401 re-registration, backoff warn, parse error, route error,
+  subscription error, no-channels warn, subscription-ended warn (solo se quitó el marcador)
+
+## Comandos + salidas
+$ grep -rn "SSE-DEBUG|MSG-TRANSFORM|ADAPTER-SELECTION" apps/backend/src apps/ingestion-telegram/src → 0 (exit 1)
+$ grep -rn "ROUTE-DEBUG|KOL-ORCH-DEBUG|HOOK-DEBUG|CONSUME-DEBUG|PAYLOAD-167-DEBUG|PAYLOAD-TRANSFORM-DEBUG|TEXT-EXTRACTION-DEBUG|MEDIA-DEBUG" apps/*/src → 0 (exit 1)
+$ ls main-debug.ts test-new.ts main.backup.ts → los 3 inexistentes (2 borrados + 1 nunca existió)
+$ grep -rn "console.log" en los 4 archivos tocados → 0
+$ npx tsc --noEmit -p apps/backend/tsconfig.json → exit 0
+$ npx tsc --noEmit -p apps/ingestion-telegram/tsconfig.json → exit 0
+$ eslint (app-local) 4 archivos → 0 errors (solo warnings pre-existentes no-unsafe-any);
+  2 prettier errors propios corregidos con --fix
+$ jest telegram-sse-listener.adapter.spec.ts → 1 suite, 30/30 PASS
+$ jest ingestion.coordinator.integration.spec.ts → 1 suite, 24/24 PASS
+$ npm run test:backend → 197 suites PASS, 2133 tests (2130 pass + 3 skip) = baseline T20 exacto
+$ ingestion full suite → 39/43 suites (4 fallan PRE-EXISTENTE, verificado sin mi cambio vía stash:
+  app.module.spec DB auth postgres, backfill.integration x2 DB, backfill-buffer perf flaky 253ms>100ms;
+  ningún failing suite importa ingestion.coordinator)
+
+## QA failure (requerido por plan)
+- hot path aún loguea en info → grep lo detectaría: VERIFICADO 0 marcadores + niveles debug
+  (solo lifecycle una-vez: subscribing/established/closed/backfill-complete siguen en log, sin marcador)
+- log de error degradado a debug → NO: todos los logger.error/warn conservan nivel
+
+## Commit
+03122e4 chore(logging): elimina ruido debug hot path (6 archivos: 4 edit + 2 git rm)
+Plan checkbox T21 → [x] (cambio en working tree, no commiteado — convención T19/T20)

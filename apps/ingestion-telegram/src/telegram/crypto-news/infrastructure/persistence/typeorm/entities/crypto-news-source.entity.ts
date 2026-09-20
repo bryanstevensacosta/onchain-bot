@@ -13,8 +13,6 @@ import {
  * Read-only in ingestion-telegram — sources are created/updated via backend API.
  * Ingestion-service queries this table to determine which channels to monitor
  * and which ones require media download (crypto-news vs KOL).
- *
- * Replaces the deprecated seed-based approach (CRYPTO_NEWS_SEED + env var).
  */
 @Entity({ name: 'crypto_news_sources' })
 @Index('idx_crypto_news_sources_lifecycle_status', ['lifecycleStatus'])

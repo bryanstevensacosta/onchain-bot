@@ -18,13 +18,14 @@
  *     HELIUS_API_KEY + HELIUS_*_{MAINNET,DEVNET},
  *     MOBULA_API_KEY, MORALIS_API_KEY,
  *     PUMPDEV_API_KEY/WALLET_PUBLIC/WALLET_PRIVATE,
- *     TELEGRAM_BOT_TOKEN, INGESTION_TELEGRAM_MTPROTO_API_ID/HASH/SESSION
+ *     TELEGRAM_BOT_TOKEN (deprecated — use per-bot VIP_CALLS/CRYPTO_NEWS/CHAIN_DEXTER_BOT_TOKEN),
+ *     INGESTION_TELEGRAM_MTPROTO_API_ID/HASH/SESSION
  *
  *   Pipeline behaviour:
  *     INGESTION_TELEGRAM_METADATA_CACHE_FILE
  *     INGESTION_TELEGRAM_BACKFILL_ENABLED
-  *     USE_SSE_INGESTION, USE_SSE_CRYPTO_NEWS, USE_MOCK_INGESTION,
-  *     INGESTION_TELEGRAM_URL (fallback: deprecated INGESTION_SERVICE_URL)
+ *     USE_SSE_INGESTION, USE_SSE_CRYPTO_NEWS, USE_MOCK_INGESTION,
+ *     INGESTION_TELEGRAM_URL (canonical, default http://localhost:3031)
  *     CRYPTO_NEWS_POLLING_INTERVAL_MINUTES
  *     PUBLISHING_TELEGRAM_USE_REAL_MTPROTO/OUTPUT_CHANNEL,
  *     VIP_CALLS_BOT_TOKEN/OUTPUT_CHANNEL,
@@ -76,8 +77,8 @@
  *
  *   Note (2026-09-06): SEED-related env vars removed. Channels are now registered via:
  *   - KOLs: POST /telegram-kol/identity/kols
-  *   - Crypto-news: POST {INGESTION_TELEGRAM_URL}/api/crypto-news/sources
-  */
+ *   - Crypto-news: POST {INGESTION_TELEGRAM_URL}/api/crypto-news/sources
+ */
 import { registerAs } from '@nestjs/config';
 import { join } from 'path';
 
@@ -85,11 +86,11 @@ import { join } from 'path';
 export const DEFAULT_INGESTION_TELEGRAM_URL = 'http://localhost:3031';
 
 /**
- * Resolve the ingestion-telegram base URL with one-release fallback.
+ * Resolve the ingestion-telegram base URL (canonical only, T10 deprecados).
  *
- * Order: `INGESTION_TELEGRAM_URL` > deprecated `INGESTION_SERVICE_URL` >
- * default. Empty strings are treated as missing. A `console.warn` fires
- * exactly when the deprecated var supplies the value.
+ * Order: `INGESTION_TELEGRAM_URL` > default. Empty strings are treated
+ * as missing. The deprecated `INGESTION_SERVICE_URL` fallback was removed —
+ * setting it has no effect.
  */
 export function resolveIngestionServiceUrl(
   env: NodeJS.ProcessEnv = process.env,
@@ -97,13 +98,6 @@ export function resolveIngestionServiceUrl(
   const next = env.INGESTION_TELEGRAM_URL;
   if (next !== undefined && next.trim().length > 0) {
     return next;
-  }
-  const legacy = env.INGESTION_SERVICE_URL;
-  if (legacy !== undefined && legacy.trim().length > 0) {
-    console.warn(
-      '[deprecation] INGESTION_SERVICE_URL is deprecated, migrate to INGESTION_TELEGRAM_URL',
-    );
-    return legacy;
   }
   return DEFAULT_INGESTION_TELEGRAM_URL;
 }
@@ -166,6 +160,11 @@ export interface AppConfig extends LlmConfigShape {
   };
 
   telegram: {
+    /**
+     * @deprecated Generic token — use per-bot tokens instead:
+     * `VIP_CALLS_BOT_TOKEN`, `CRYPTO_NEWS_BOT_TOKEN`, `CHAIN_DEXTER_BOT_TOKEN`.
+     * Kept for backward compatibility only; config-validator does NOT require it.
+     */
     botToken: string;
     mtprotoEnabled: boolean;
     mtprotoApiId: number;
@@ -358,6 +357,8 @@ export const appConfig = registerAs(
     },
 
     telegram: {
+      // @deprecated T13 (deprecados-deuda-tecnica): generic TELEGRAM_BOT_TOKEN.
+      // Use per-bot VIP_CALLS_BOT_TOKEN / CRYPTO_NEWS_BOT_TOKEN / CHAIN_DEXTER_BOT_TOKEN.
       botToken: process.env.TELEGRAM_BOT_TOKEN ?? '',
       mtprotoEnabled:
         (
@@ -402,8 +403,12 @@ export const appConfig = registerAs(
             ).toLowerCase() === 'true',
         },
       },
+      // T4 (deprecados-deuda-tecnica): SSE es el default. Riesgo T3: los
+      // templates legados fijaban USE_SSE_INGESTION=false — un env explícito
+      // en false ya NO reactiva MTProto (rama eliminada → 410 en
+      // SharedIngestionModule), solo rompe la ingesta hasta corregirlo.
       useSse:
-        (process.env.USE_SSE_INGESTION ?? 'false').toLowerCase() === 'true',
+        (process.env.USE_SSE_INGESTION ?? 'true').toLowerCase() === 'true',
       useSseCryptoNews:
         (process.env.USE_SSE_CRYPTO_NEWS ?? 'true').toLowerCase() === 'true',
       useMock:

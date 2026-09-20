@@ -1,0 +1,424 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Extend app.config.ts with new environment variables": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924007634
+      },
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924021526
+      },
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924940648
+      }
+    ],
+    "1.2 Update environment variable templates": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924007723
+      },
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924953944
+      },
+      {
+        "executionId": "d982a1f1-a6b2-477f-8191-294313646653",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788930452424
+      }
+    ],
+    "2.1 Implement core handler class": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924007774
+      },
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924022375
+      },
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924941764
+      }
+    ],
+    "2.2 Add deduplication logic": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924007891
+      },
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924954749
+      },
+      {
+        "executionId": "d982a1f1-a6b2-477f-8191-294313646653",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788930454520
+      }
+    ],
+    "2.3 Integrate filtering and matching pipeline": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924007955
+      },
+      {
+        "executionId": "62decf25-f804-4303-8850-0265688ea868",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788929712685
+      },
+      {
+        "executionId": "d982a1f1-a6b2-477f-8191-294313646653",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788931234423
+      }
+    ],
+    "2.4 Add latency measurement": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924008006
+      },
+      {
+        "executionId": "62decf25-f804-4303-8850-0265688ea868",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788929713565
+      },
+      {
+        "executionId": "d982a1f1-a6b2-477f-8191-294313646653",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788931235116
+      }
+    ],
+    "2.5 Ensure defensive error handling": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924008051
+      }
+    ],
+    "3.1 Inject ProcessCryptoNewsMessageHandler": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924008132
+      },
+      {
+        "executionId": "62decf25-f804-4303-8850-0265688ea868",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788929714266
+      },
+      {
+        "executionId": "d982a1f1-a6b2-477f-8191-294313646653",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788931236944
+      }
+    ],
+    "3.2 Replace skip-with-log behavior": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924008182
+      }
+    ],
+    "3.3 Add error boundary for handler": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924008226
+      }
+    ],
+    "4.1 Remove static @Cron decorator": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924008275
+      },
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924955612
+      },
+      {
+        "executionId": "d982a1f1-a6b2-477f-8191-294313646653",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788930454794
+      }
+    ],
+    "4.2 Add dynamic cron registration": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924008326
+      },
+      {
+        "executionId": "62decf25-f804-4303-8850-0265688ea868",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788929715376
+      },
+      {
+        "executionId": "d982a1f1-a6b2-477f-8191-294313646653",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788931237131
+      }
+    ],
+    "4.3 Add bootstrap logging": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924008376
+      }
+    ],
+    "4.4 Verify deduplication reuse": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924008419
+      }
+    ],
+    "5.1 Add handler to module providers": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924008468
+      }
+    ],
+    "5.2 Export handler for IngestionCoordinator": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924008508
+      }
+    ],
+    "6. Checkpoint - Verify SSE path compiles and wires correctly": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924008549
+      }
+    ],
+    "7.1 Create test file and setup": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924008604
+      }
+    ],
+    "7.2 Test happy path (message matched and enqueued)": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924008644
+      }
+    ],
+    "7.3 Test no keyword match scenario": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924008692
+      }
+    ],
+    "7.4 Test matchingEnabled flag disabled": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924008742
+      }
+    ],
+    "7.5 Test deduplication scenarios": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924008783
+      }
+    ],
+    "7.6 Test error handling": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924008833
+      }
+    ],
+    "7.7 Test latency measurement": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924008875
+      }
+    ],
+    "8.1 Test dynamic cron registration with SSE enabled": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924008930
+      }
+    ],
+    "8.2 Test dynamic cron registration with SSE disabled": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924008977
+      }
+    ],
+    "8.3 Test tick() skips when matchingEnabled=false": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924009020
+      }
+    ],
+    "9.1 Test crypto-news message routing": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924009068
+      }
+    ],
+    "9.2 Test handler error boundary": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924009150
+      }
+    ],
+    "9.3 Test KOL routing unchanged (regression)": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924009193
+      }
+    ],
+    "10.1 Create integration test file": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924009243
+      }
+    ],
+    "10.2 Test SSE event to queue entry flow": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924009286
+      }
+    ],
+    "10.3 Add teardown": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924009335
+      }
+    ],
+    "11.1 Create deduplication integration test file": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924009390
+      }
+    ],
+    "11.2 Test SSE + polling both process same message": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924009435
+      }
+    ],
+    "11.3 Test deduplication with all status combinations": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924009482
+      }
+    ],
+    "12.1 Create SSE gap recovery test file": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924009528
+      }
+    ],
+    "12.2 Simulate SSE gap and polling recovery": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924009600
+      }
+    ],
+    "13.1 Create config flags integration test file": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924009650
+      }
+    ],
+    "13.2 Test all 4 flag combinations": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924009700
+      }
+    ],
+    "14.1 Update CRYPTO-NEWS section": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924009745
+      }
+    ],
+    "14.2 Update SCHEDULERS section": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924009794
+      }
+    ],
+    "14.3 Update ENV INVENTORY section": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924009850
+      }
+    ],
+    "15.1 Update .env.example": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924009901
+      }
+    ],
+    "15.2 Update .env.staging.template and .env.production.template": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924009944
+      }
+    ],
+    "16. Final checkpoint - End-to-end verification": [
+      {
+        "executionId": "7bce551f-de81-46e1-a92e-369e0997f6f4",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788924009998
+      }
+    ],
+    "1. Add configuration for crypto-news SSE and polling behavior": [
+      {
+        "executionId": "d982a1f1-a6b2-477f-8191-294313646653",
+        "chatSessionId": "sess_300ac34a-f06e-4dd7-9a30-8f1bc32b9a48",
+        "timestamp": 1788930452531
+      }
+    ]
+  }
+}

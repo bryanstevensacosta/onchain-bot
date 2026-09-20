@@ -1,0 +1,21 @@
+# task-4-deprecados-deuda-tecnica — RECONSTRUCTED on VPS 2026-09-20 from git history + session record
+# Commit: Y → 1bf8fbe9e875295207e2cbc69a9f0ab5a343d332 | feat(ingestion): default SSE y MTProto a 410 Gone | 2026-09-20T03:59:32-04:00
+
+## Comando real (VPS)
+$ git show --stat --format='' 1bf8fbe
+ .../backend/src/shared/common/config/app.config.ts |  14 ++-
+ .../shared/shared-ingestion-t4-default-sse.spec.ts |  74 ++++++++++++
+ .../shared-ingestion.module.integration.spec.ts    | 124 ++++++++++++---------
+ .../ingestion/shared/shared-ingestion.module.ts    |  92 ++++++++-------
+ 6 files changed, 214 insertions(+), 111 deletions(-)
+
+$ git show 1bf8fbe -- shared-ingestion.module.ts | grep 410 (extracto)
+- * - Default (both false) → TelegramMtprotoListenerAdapter (local MTProto)
++ * - Default (both unset/false) → SSE (default desde T4); forzar MTProto lanza 410 Gone
++ * Priority: Mock > SSE > MTProto (410 Gone — rama eliminada en T4)
+
+## Salida del record
+selectIngestionAdapter Mock>SSE>410; specs 27/27; build OK; template prod false→true.
+
+## Veredicto: PASS
+Default SSE + rama MTProto a 410 Gone con mensaje exacto; spec de selección creado. QA-failure (forzar MTProto → 410, no AUTH_KEY) cubierta por el spec T4.

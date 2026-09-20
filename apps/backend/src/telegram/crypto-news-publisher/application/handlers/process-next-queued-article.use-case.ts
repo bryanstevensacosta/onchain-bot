@@ -542,7 +542,7 @@ export class ProcessNextQueuedArticleUseCase {
 
     // NOTE: never hardcode localhost here — inside Docker the ingestion
     // container is a different host (ingestion-telegram:3031 via
-    // INGESTION_TELEGRAM_URL, fallback deprecated INGESTION_SERVICE_URL);
+    // INGESTION_TELEGRAM_URL, canonical only);
     // localhost would hit this container itself.
     const ingestionBaseUrl =
       this.config?.get<AppConfig>('app')?.ingestion?.serviceUrl ??

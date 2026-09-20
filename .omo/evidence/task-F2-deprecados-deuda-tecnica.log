@@ -1,0 +1,61 @@
+F2 — CODE QUALITY REVIEW: feat/cleanup-deprecados
+Fecha (UTC): 2026-09-20 · Rama: feat/cleanup-deprecados @ 5f268bd
+Alcance: read-only + test runs. Sin commits, sin reinicios, sin pkill.
+===============================================================
+
+1. TYPESCRIPT (tsc --noEmit)
+  backend (apps/backend/tsconfig.json):              EXIT 0 — limpio
+  ingestion-telegram (apps/ingestion-telegram/...):  EXIT 0 — limpio
+  frontend (apps/frontend/tsconfig.json):            EXIT 0 — limpio
+  Resultado: 3/3 PASS
+
+2. LINT (eslint, 0 errors en las 3 apps)
+  lint:backend:    EXIT 0 — 0 errors, 22 warnings (unused-vars en specs threads + unsafe-any en threads-ingestion-client)
+  lint:ingestion:  EXIT 0 — 0 errors, 227 warnings (pre-existentes, mayormente no-unsafe-*/unused en specs/e2e)
+  lint:frontend:   EXIT 0 — 0 errors, 3 warnings (unused vars en tests llm-config)
+  Resultado: 3/3 PASS (warnings pre-existentes, ninguno introducido por el branch como error)
+
+3. TESTS CANONICOS (reales, esta corrida)
+  backend:    197 suites PASS / 197 — 2130 passed, 3 skipped, 2133 total — PASS (canonico 197/2133 exacto)
+  frontend:   29 files PASS / 29 — 330 passed, 330 total — PASS (canonico 29/330 exacto)
+  ingestion:  43 suites (39 pass, 4 fail) — 789 passed, 29 failed, 818 total
+              Canonico 43/~818 en conteo; 29 fallos en 4 suites, TODOS pre-existentes/ambientales:
+    - src/app.module.spec.ts (2): `password authentication failed for user "postgres"` — credencial PG local no coincide (jest.setup fuerza DATABASE_ENABLED=true). Ambiental.
+    - src/stream/infrastructure/__tests__/backfill.integration.spec.ts (11): falla en bloque, misma familia DB/backfill no implementado end-to-end (gap 1 ingestion).
+    - src/stream/.../backfill-message.entity.integration.spec.ts (15): `repository` undefined en afterAll — modulo no inicializa repo (fallo de init contra DB). Ambiental.
+    - src/stream/infrastructure/backfill-buffer.service.spec.ts (1): flake de timing — `Expected <100ms, Received 165ms` en assertion de performance post-wrap-around. Ambiental.
+  Evidencia de no-causalidad del branch: `git diff dev...HEAD --stat` sobre los 4 archivos fallidos = vacio (ultimo cambio: abc5f3f rename #229). El branch toca 15 archivos en ingestion/src (config, seeders, coordinator, provider, adapter) — ninguno de los fallidos.
+  Recomendacion: verificar estos 29 en `dev` antes del merge para confirmar pre-existencia formal; trackear el flake de timing por separado.
+
+4. SWEEP @deprecated EN apps/*/src (esperado 0 funcional)
+  backend/src: 3 lineas en 2 archivos, SOLO comentarios doc:
+    - app.config.ts:164 (JSDoc "@deprecated Generic token…") + :360 (comentario T13)
+    - crypto-news-publisher.module.ts:78 (nota "REMOVED (were @deprecated…)")
+  ingestion-telegram/src: 0 — frontend/src: 0
+  Funcional (@deprecated activo / decorador / codigo vivo): 0 — PASS
+
+5. SWEEP SIMBOLOS REMOVIDOS (esperado 0 funcional)
+  Patron: INGESTION_SERVICE_URL | REMOTE_URL | fetchActiveCryptoNewsSourceIds | CRYPTO_NEWS_SEED | SSE-DEBUG
+  backend/src: 2 hits, ambos guards de la remocion (no funcionales):
+    - app.config.ts:92 comentario "The deprecated INGESTION_SERVICE_URL fallback was removed"
+    - app.config.ingestion-url.spec.ts:7,19 spec que ASSERT la remocion (OLD_KEY solo como string de test)
+  ingestion/src: 1 hit — backend-channel-provider.service.spec.ts:38 ASSERT `fetchActiveCryptoNewsSourceIds === undefined` (guard de remocion)
+  frontend/src: 0
+  REMOTE_URL / CRYPTO_NEWS_SEED / SSE-DEBUG funcional en src: 0 (SSE-DEBUG eliminado por el branch: commit 03122e4 "elimina ruido debug hot path")
+  Funcional (fallback vivo / lectura de var removida / metodo removido invocado): 0 — PASS
+
+6. INFRA VIVA (solo lectura: docker ps + curl + tmux ls — cero reinicios, cero pkill)
+  onchain-bot-backend-production    Up 10h (healthy)  :3030 -> 200
+  onchain-bot-frontend-production   Up 10h (healthy)
+  onchain-bot-backend-staging       Up 7h (healthy)   :3031 -> 200
+  onchain-bot-frontend-staging      Up 7h (healthy)
+  onchain-bot-ingestion-telegram    Up 25h (healthy)  :3032 -> 200
+  postgres/redis prod+staging+dev   Up 4-5d (healthy)
+  dev backend :3040 -> 200 · tmux `opencode` attached (1 window)
+  Uptimes intactos antes/despues de la revision — PASS, ningun proceso tocado.
+
+VEREDICTO: APROBADO CON NOTAS
+- El trabajo feat/cleanup-deprecados cumple su objetivo: 0 @deprecated funcionales, 0 referencias funcionales a simbolos removidos (solo quedan comentarios + specs-guard que documentan la remocion, que es lo correcto), tsc 3/3, lint 3/3 sin errores, backend 197/2133 y frontend 29/330 exactos al canonico.
+- NOTA 1 (no bloqueante): ingestion 29/818 fallan por causas ambientales/pre-existentes (auth PG local, backfill no implementado, flake de timing) en archivos que el branch no toca. Confirmar en `dev` pre-merge.
+- NOTA 2 (no bloqueante): warnings de lint (22/227/3) pre-existentes; considerar pasada de limpieza futura fuera de este branch.
+- Sin commits realizados. Rama lista para PR contra `dev` con estas notas adjuntas.

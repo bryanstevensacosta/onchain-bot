@@ -29,7 +29,7 @@ import { CryptoNewsRetentionCleanupScheduler } from './infrastructure/scheduling
  * - One ingestion-telegram instance feeds ALL environments (dev/staging/prod)
  *
  * **REMOVED:**
- * - CryptoNewsSeeder (static seed list) completely removed
+ * - Static channel seed list completely removed (DB-driven only)
  * - Add sources via: POST /api/crypto-news/sources (ingestion-telegram endpoint)
  */
 @Module({

@@ -1,0 +1,12 @@
+# task-14-deprecados-deuda-tecnica — RECONSTRUCTED on VPS 2026-09-20 from git history + session record
+# Commit: Y → 9a29b8e19d032ff51ae64301c4648601a91390b9 | feat(ingestion): elimina seeders deprecated | 2026-09-20T05:38:10-04:00
+
+## Comandos reales (VPS)
+$ git show --stat --format='' 9a29b8e | tail -2 → 10 files changed, 6 insertions(+), 548 deletions(-) (kol.seeder.ts 233 líneas + crypto-news.seeder.ts fuera, registros telegram.module.ts)
+$ grep -rn 'seedKols\|seedNews\|kol\.seeder\|crypto-news\.seeder' apps/ingestion-telegram/src → (vacío, EXIT 0) — 0 referencias en disco.
+
+## Salida del record
+ingestion 43/817 verde; BackendChannelProvider vigente intacto; StreamService intacto.
+
+## Veredicto: PASS
+Seeders + registros borrados; refresh huérfano scheduleChannelRefresh:167-171 tratado en el commit. QA-failure (módulo que importa seeder → tsc falla) no se materializó.

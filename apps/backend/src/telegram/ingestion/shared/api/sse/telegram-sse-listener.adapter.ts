@@ -45,9 +45,9 @@ interface MessagePayload {
 /**
  * TelegramSseListenerAdapter - SSE-based TelegramListenerPort implementation
  *
- * Per Requirement 3.1, 3.2, 3.3: Drop-in replacement for TelegramMtprotoListenerAdapter
+ * Per Requirement 3.1, 3.2, 3.3: Drop-in replacement for the removed direct Telegram listener (T5)
  * Per Requirement 2.4: Automatic reconnection with exponential backoff
- * Per Requirement 3.4: Implements same interface contract as MTProto adapter
+ * Per Requirement 3.4: Implements same interface contract as the former direct adapter
  *
  * Connects to Ingestion Service SSE stream and transforms MessagePayload
  * back to TelegramRawMessage format expected by backend use cases.
@@ -57,7 +57,7 @@ interface MessagePayload {
  * - Include backendId in SSE stream query params
  * - Handle 401 Unauthorized by forcing re-registration
  *
- * Key differences from MTProto adapter:
+ * Key differences from the former direct adapter:
  * - No direct Telegram API access
  * - Text field empty (must fetch via backfill if needed)
  * - Media URLs instead of local file paths
@@ -123,8 +123,8 @@ export class TelegramSseListenerAdapter
     this.logger.log(
       `Subscribing to SSE stream for ${channelIds.length} channels: ${streamUrl}`,
     );
-    this.logger.log(`[SSE-DEBUG] BackendId: ${backendId}`);
-    this.logger.log(`[SSE-DEBUG] ChannelIds: ${channelIds.join(', ')}`);
+    this.logger.debug(`SSE subscribe backendId: ${backendId}`);
+    this.logger.debug(`SSE subscribe channels: ${channelIds.join(', ')}`);
 
     while (true) {
       try {
@@ -214,25 +214,25 @@ export class TelegramSseListenerAdapter
             const payload = message.data as MessagePayload;
 
             this.logger.debug(
-              `[SSE-DEBUG] Received message from ${payload.peerId}:${payload.messageId}`,
+              `SSE received message from ${payload.peerId}:${payload.messageId}`,
             );
 
             // Filter by subscribed channels
             if (channelIds.includes(payload.peerId)) {
-              this.logger.log(
-                `[SSE-DEBUG] Message ${payload.peerId}:${payload.messageId} passed filter, about to yield...`,
+              this.logger.debug(
+                `SSE message ${payload.peerId}:${payload.messageId} passed filter, about to yield...`,
               );
               const rawMessage = this.payloadToRawMessage(payload);
-              this.logger.log(
-                `[SSE-DEBUG] Message ${payload.peerId}:${payload.messageId} transformed to RawMessage, yielding now...`,
+              this.logger.debug(
+                `SSE message ${payload.peerId}:${payload.messageId} transformed to RawMessage, yielding now...`,
               );
               yield rawMessage;
-              this.logger.log(
-                `[SSE-DEBUG] Message ${payload.peerId}:${payload.messageId} yielded successfully`,
+              this.logger.debug(
+                `SSE message ${payload.peerId}:${payload.messageId} yielded successfully`,
               );
             } else {
               this.logger.debug(
-                `[SSE-DEBUG] Message ${payload.peerId}:${payload.messageId} NOT in subscribed channels, skipping`,
+                `SSE message ${payload.peerId}:${payload.messageId} NOT in subscribed channels, skipping`,
               );
             }
           } else if (message?.event === 'health:ping') {
@@ -286,7 +286,7 @@ export class TelegramSseListenerAdapter
   /**
    * Transform MessagePayload to TelegramRawMessage
    *
-   * Per Requirement 3.3: Same format as MTProto adapter
+   * Per Requirement 3.3: Same TelegramRawMessage format as before (T5)
    * Per Invariant 1: text field empty (ToS compliance)
    *
    * @param payload - SSE payload from Ingestion Service
@@ -314,8 +314,8 @@ export class TelegramSseListenerAdapter
     };
 
     // DEBUG: Log text transformation
-    this.logger.log(
-      `[PAYLOAD-TRANSFORM-DEBUG] ${payload.peerId}:${payload.messageId} - payload.text: "${payload.text}" (type: ${typeof payload.text}, length: ${payload.text?.length ?? 0}) → rawMessage.text: "${rawMessage.text}" (length: ${rawMessage.text.length}), messageType: ${rawMessage.messageType}`,
+    this.logger.debug(
+      `SSE payload transform ${payload.peerId}:${payload.messageId} - payload.text: "${payload.text}" (type: ${typeof payload.text}, length: ${payload.text?.length ?? 0}) → rawMessage.text: "${rawMessage.text}" (length: ${rawMessage.text.length}), messageType: ${rawMessage.messageType}`,
     );
 
     return rawMessage;

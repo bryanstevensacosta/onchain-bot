@@ -1,11 +1,8 @@
 export const ENDPOINTS = {
-  dashboard: {
-    kpis: '/dashboard/kpis',
-  },
   kols: {
     list: '/telegram-kol/identity/kols',
     get: (id: string) => `/telegram-kol/identity/kols/${id}`,
-    backfill: (id: string) => `/telegram-kol/ingestion/kols/${id}/backfill`,
+    backfill: (id: string) => `/telegram-kol/identity/kols/${id}/backfill`,
     add: '/telegram-kol/identity/kols',
     setLifecycle: (id: string) => `/telegram-kol/identity/kols/${id}/lifecycle`,
   },
@@ -13,8 +10,6 @@ export const ENDPOINTS = {
     published: '/vip-calls/calls/published',
     failed: '/vip-calls/calls/failed',
     recent: '/vip-calls/calls/recent',
-    byToken: (chain: string, address: string) =>
-      `/vip-calls/calls/${chain}/${address}`,
     publish: '/vip-calls/publish',
   },
   extraction: {
@@ -54,13 +49,6 @@ export const ENDPOINTS = {
     approved: '/token/vip-call-approval/decisions/approved',
     rejected: '/token/vip-call-approval/decisions/rejected',
     recent: '/token/vip-call-approval/decisions/recent',
-    byToken: (chain: string, address: string) =>
-      `/token/vip-call-approval/decisions/${chain}/${address}`,
-    decisionsRejectedVerify:
-      '/token/vip-call-approval/decisions/rejected/verify',
-    reprocessBatch: '/token/vip-call-approval/reprocess/rejected',
-    reprocessOne: (chain: string, address: string) =>
-      `/token/vip-call-approval/reprocess/${chain}/${address}`,
   },
   honeypot: {
     analyze: '/token/honeypot/analyze',
@@ -84,8 +72,8 @@ export const ENDPOINTS = {
   },
   cryptoNews: {
     sources: {
-      // MIGRATED 2026-09-05: Ingestion-service is sole owner of crypto-news sources
-      // Backend POST /crypto-news/sources is deprecated (returns 501)
+      // Crypto-news sources are owned by the ingestion-service;
+      // all source writes go through the ingestion API below.
       list: '/ingestion-api/crypto-news/sources',
       add: '/ingestion-api/crypto-news/sources',
       update: (channelId: string) =>

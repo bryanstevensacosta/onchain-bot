@@ -291,7 +291,7 @@ export class TelegramMtprotoListenerAdapter
 
   /**
    * Transform raw Telegram message to TelegramRawMessage format
-   * 
+   *
    * Phase 5.2 Refactor: Fully delegated transformation pipeline:
    * - Text extraction → CryptoNewsMessageTransformer (4-source cascade)
    * - Media metadata → CryptoNewsMessageTransformer
@@ -320,11 +320,16 @@ export class TelegramMtprotoListenerAdapter
     }
 
     // Step 2: Download media for crypto-news channels (if applicable)
-    let media = transformed.media.length > 0 
-      ? (transformed.media as unknown as TelegramMediaAttachment[]) 
-      : undefined;
+    let media =
+      transformed.media.length > 0
+        ? (transformed.media as unknown as TelegramMediaAttachment[])
+        : undefined;
 
-    if (msg.media && this.isCryptoNewsChannel(peerId) && transformed.media.length > 0) {
+    if (
+      msg.media &&
+      this.isCryptoNewsChannel(peerId) &&
+      transformed.media.length > 0
+    ) {
       try {
         const downloaded = await this.mediaExtractor.extractAndDownload(
           this.clientManager.ensureClient(),
@@ -332,7 +337,7 @@ export class TelegramMtprotoListenerAdapter
           msg.id,
           msg.media,
         );
-        
+
         if (downloaded && downloaded.length > 0) {
           media = downloaded; // Replace metadata-only with downloaded (has filePath)
         }
@@ -381,8 +386,7 @@ export class TelegramMtprotoListenerAdapter
   /**
    * Check if a channel is a crypto-news channel (uses DB cache).
    *
-   * @deprecated The seed-based approach (CRYPTO_NEWS_SEED + env var) is deprecated.
-   * This method now queries the database to determine active crypto-news sources.
+   * This method queries the database to determine active crypto-news sources.
    * Sources are created/updated via ingestion-telegram API (`POST /api/crypto-news/sources`).
    */
   private isCryptoNewsChannel(peerId: string): boolean {
@@ -450,23 +454,23 @@ export class TelegramMtprotoListenerAdapter
     channelId: string,
   ): Promise<ResolvedChannelMetadata> {
     const client = this.clientManager.ensureClient();
-    
+
     // Ensure client is connected before resolving metadata
     if (!client.connected) {
       await this.clientManager.connect();
     }
-    
+
     return this.peerResolver.resolveChannelMetadata(client, channelId);
   }
 
   async joinChannel(peerId: string): Promise<JoinChannelResult> {
     const client = this.clientManager.ensureClient();
-    
+
     // Ensure client is connected before joining channel
     if (!client.connected) {
       await this.clientManager.connect();
     }
-    
+
     return this.peerResolver.joinChannel(client, peerId);
   }
 

@@ -1,0 +1,16 @@
+# task-10-deprecados-deuda-tecnica — RECONSTRUCTED on VPS 2026-09-20 from git history + session record
+# Commit: Y → 9df73165bd6db33ebec4b61c5fb851ddfb7bd8e1 | feat(config): retira fallbacks ingestion deprecated | 2026-09-20T04:44:47-04:00
+
+## Comandos reales (VPS)
+$ git show --stat --format='' 9df7316 | tail -1 → 12 files changed, 129 insertions(+), 149 deletions(-)
+$ grep -rn 'INGESTION_SERVICE_URL\|INGESTION_REMOTE_URL\|filters\.token' apps/backend/src apps/backend/scripts
+apps/backend/src/shared/common/config/app.config.ingestion-url.spec.ts:7: * The deprecated `INGESTION_SERVICE_URL` fallback was removed in T10 —
+apps/backend/src/shared/common/config/app.config.ingestion-url.spec.ts:19:  const OLD_KEY = 'INGESTION_SERVICE_URL';
+apps/backend/src/shared/common/config/app.config.ts:92: * as missing. The deprecated `INGESTION_SERVICE_URL` fallback was removed —
+→ 0 funcionales; solo comentarios históricos que documentan la propia remoción. Ghost filters.token.* eliminado de seed-pipeline-events + README vip-call-approval.
+
+## Salida del record
+greps funcionales 0; spec ingestion-url actualizado a URL canónica; 195/2126.
+
+## Veredicto: PASS
+Fallbacks INGESTION_SERVICE_URL/REMOTE_URL + ghost seed fuera; INGESTION_TELEGRAM_URL canónica intacta. QA-failure (env con var legacy → arranca con canónica sin warn) cubierta por spec.

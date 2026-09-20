@@ -35,9 +35,8 @@ export interface ThreadsPromptTemplateView {
 
 /**
  * Threads LLM config view — frontend mirror of the backend
- * `ThreadsLlmConfigView`. Deliberately WITHOUT `targetChannel` and
- * WITHOUT legacy `matchingEnabled` (matching truth lives only in
- * `threads_matching_configs`, served under `/threads/matching/*`).
+ * `ThreadsLlmConfigView`. Carries only Threads LLM fields; keyword-matching
+ * state lives in `threads_matching_configs`, served under `/threads/matching/*`.
  */
 export interface ThreadsLlmConfigView {
   readonly id: number;

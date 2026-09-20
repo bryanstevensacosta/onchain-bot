@@ -115,11 +115,8 @@ services:
       # Ingestion - compose `environment:` wins over .env.production
       # (dev/localhost untouched). Boot ingestion compose first: it owns both
       # external nets. DNS follows the rename: onchain-bot-ingestion-telegram.
-      # INGESTION_TELEGRAM_URL is the new var (todo 5); INGESTION_SERVICE_URL
-      # stays this release — the code fallback resolves new > old > default.
-      # Both point at the NEW container: the old container_name no longer exists.
+      # INGESTION_TELEGRAM_URL is the canonical var (T10: legacy fallback removed).
       INGESTION_TELEGRAM_URL: http://onchain-bot-ingestion-telegram:3031
-      INGESTION_SERVICE_URL: http://onchain-bot-ingestion-telegram:3031
     ports:
       - '127.0.0.1:3030:3030'
     depends_on:

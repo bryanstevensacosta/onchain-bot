@@ -4,11 +4,14 @@
 
 > Credenciales MTProto viven **SOLO aquí** (`INGESTION_TELEGRAM_*`). Nunca en `apps/backend/.env` → evita `AUTH_KEY_DUPLICATED`.
 
+> Versión v1.1.0 (source of truth: `package.json` + `CHANGELOG.md`; verificado 2026-09-20).
+
 ## Comandos
 
 ```bash
-# Desde apps/ingestion-telegram/ (o root con -w @alpha-meta-token-scanner/ingestion-telegram;
-# el root NO tiene script dev:* para este servicio — sí `lint/build/test:ingestion`)
+# Desde la raíz: `npm run dev:ingestion` (:3031, con port-cleanup). Desde aquí
+# (o root con -w @alpha-meta-token-scanner/ingestion-telegram; también hay
+# `lint/build/test:ingestion` en el root)
 npm run start:dev   # watch, puerto 3031
 npm run build && npm run start:prod  # prod: node dist/main
 npm test            # jest unit (*.spec.ts, timeout 30s, --forceExit)
@@ -176,7 +179,7 @@ Vars (ver `.env.example` / `.env.production.template` — prod usa hosts docker 
 10. **Logs debug verbosos en path caliente** (`[MSG-TRANSFORM-DEBUG]`, `[TEXT-EXTRACTION-DEBUG]`, `[MEDIA-DEBUG]`, `[PAYLOAD-TRANSFORM-DEBUG]`, branch mensaje 167): bajar a `debug` o eliminar.
 11. **`scripts/check-telegram-message.ts` desactualizado**: lee `TELEGRAM_MTPROTO_*` (sin prefijo `INGESTION_`) y trae canal/mensaje hardcodeados (`-1004466661332:167`).
 12. **Triple var de puerto** (`INGESTION_PORT` vs `INGESTION_API_PORT` vs `PORT`): unificar.
-13. **Sin script root**: el root `package.json` no tiene `dev:ingestion`; se corre con `npm run start:dev -w @alpha-meta-token-scanner/ingestion-telegram` o `cd apps/ingestion-telegram`.
+13. ~~**Sin script root**~~ **RESOLVED 2026-09-20 (T24)**: el root `package.json` ya tiene `dev:ingestion` (`port-cleanup :3031` + `start:dev -w .../ingestion-telegram`).
 14. **Fail-open silencioso**: si la DB falla, `findAllActive()` retorna `[]` → cero canales news (todo se etiqueta `kol`, sin descarga de media) y el provider HTTP retorna `[]` → el servicio queda sin escucha con solo un warn. Considerar `degraded` explícito en `/api/health/live`.
 
 ## Gaps nuevos (segunda pasada — verificados con grep contra `src/`)
