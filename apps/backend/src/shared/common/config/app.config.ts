@@ -18,7 +18,8 @@
  *     HELIUS_API_KEY + HELIUS_*_{MAINNET,DEVNET},
  *     MOBULA_API_KEY, MORALIS_API_KEY,
  *     PUMPDEV_API_KEY/WALLET_PUBLIC/WALLET_PRIVATE,
- *     TELEGRAM_BOT_TOKEN, INGESTION_TELEGRAM_MTPROTO_API_ID/HASH/SESSION
+ *     TELEGRAM_BOT_TOKEN (deprecated — use per-bot VIP_CALLS/CRYPTO_NEWS/CHAIN_DEXTER_BOT_TOKEN),
+ *     INGESTION_TELEGRAM_MTPROTO_API_ID/HASH/SESSION
  *
  *   Pipeline behaviour:
  *     INGESTION_TELEGRAM_METADATA_CACHE_FILE
@@ -159,6 +160,11 @@ export interface AppConfig extends LlmConfigShape {
   };
 
   telegram: {
+    /**
+     * @deprecated Generic token — use per-bot tokens instead:
+     * `VIP_CALLS_BOT_TOKEN`, `CRYPTO_NEWS_BOT_TOKEN`, `CHAIN_DEXTER_BOT_TOKEN`.
+     * Kept for backward compatibility only; config-validator does NOT require it.
+     */
     botToken: string;
     mtprotoEnabled: boolean;
     mtprotoApiId: number;
@@ -351,6 +357,8 @@ export const appConfig = registerAs(
     },
 
     telegram: {
+      // @deprecated T13 (deprecados-deuda-tecnica): generic TELEGRAM_BOT_TOKEN.
+      // Use per-bot VIP_CALLS_BOT_TOKEN / CRYPTO_NEWS_BOT_TOKEN / CHAIN_DEXTER_BOT_TOKEN.
       botToken: process.env.TELEGRAM_BOT_TOKEN ?? '',
       mtprotoEnabled:
         (
