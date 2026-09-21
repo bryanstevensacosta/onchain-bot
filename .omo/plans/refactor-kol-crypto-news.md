@@ -157,7 +157,7 @@ Your next move: aprueba y arrancamos con la Wave 1, o pide high-accuracy review.
      QA scenarios: happy — disco 85% → limpieza + warn; failure — `statfs` truena → logueado y scheduler sobrevive (spec). Evidence .omo/evidence/task-8-refactor-kol-crypto-news.txt
      Commit: Y | feat(ingestion): disk-aware intelligent media cleanup
 
-- [ ] 9. OpenAPI/Swagger en backend e ingestion (alcance crypto-news)
+- [x] 9. OpenAPI/Swagger en backend e ingestion
      What to do: Añadir `@nestjs/swagger` (versión compatible Nest 11) en ambas apps; `DocumentBuilder` en cada `main.ts` sirviendo en `/api/docs` (verificar que no colisiona con `/api/health`); decoradores en controllers/DTOs de crypto-news, ingestion, stream y media (matching config, llm config, queue, filters, keywords/blacklist, sources, stream status, media). Smoke spec/e2e: `GET /api/docs` → 200 en ambas.
      Must NOT do: cambiar rutas, añadir auth, documentar fuera del alcance (alpha-call, vip-calls, dashboard fuera).
      Parallelization: Wave 4 | Blocked by: — | Blocks: —
@@ -175,7 +175,7 @@ Your next move: aprueba y arrancamos con la Wave 1, o pide high-accuracy review.
       QA scenarios: happy — `tsc --noEmit` limpio + specs de filtros/queue verdes; failure — n/a (docs). Evidence .omo/evidence/task-10-refactor-kol-crypto-news.txt
       Commit: Y | docs(i18n): opaque FK rationale plus English code comments
 
-- [ ] 11. Migración `message_entities` TEXT→JSONB + GIN (ingestion DB)
+- [x] 11. Migración `message_entities` TEXT→JSONB + GIN (ingestion DB)
       What to do: Migración TypeORM `XXXX-ConvertMessageEntitiesToJsonb`: `ALTER ... USING CASE WHEN NULL/'' THEN '[]'::jsonb ELSE message_entities::jsonb END` + índice GIN + `down()` completo (revert a TEXT + drop index). Actualizar `CryptoNewsMessageEntity.message_entities` a `jsonb` + adaptar lectores (`IngestionCoordinator` transform: string→`JSON.parse` fallback para compatibilidad durante el rollout). Probar up/down en DB dev de ingestion + query `@>` funcional.
       Must NOT do: cambiar shape del payload, rellenar filas inválidas con datos inventados (van a `'[]'`), tocar backend (no tiene esa tabla).
       Parallelization: Wave 4 | Blocked by: — | Blocks: —
@@ -188,10 +188,10 @@ Your next move: aprueba y arrancamos con la Wave 1, o pide high-accuracy review.
 
 > Runs in parallel after ALL todos. ALL must APPROVE. Surface results and wait for the user's explicit okay before declaring complete.
 
-- [ ] F1. Plan compliance audit
-- [ ] F2. Code quality review
-- [ ] F3. Real manual QA
-- [ ] F4. Scope fidelity
+- [x] F1. Plan compliance audit
+- [x] F2. Code quality review
+- [x] F3. Real manual QA
+- [x] F4. Scope fidelity
 
 ## Commit strategy
 
