@@ -56,8 +56,19 @@ export class CryptoNewsMessageEntity {
   })
   public linkPreviewSiteName!: string | null;
 
-  @Column({ name: 'message_entities', type: 'text', nullable: true })
-  public messageEntities!: string | null;
+  /**
+   * Telegram text entities (links, mentions, hashtags) as a JSON array.
+   *
+   * Stored as `jsonb` (see `ConvertMessageEntitiesToJsonb` migration + GIN
+   * index `idx_crypto_news_messages_entities_gin`). The `string` union
+   * member covers pre-migration TEXT rows during rollout: node-pg returns
+   * `jsonb` parsed but TEXT as a raw string — readers must accept both.
+   */
+  @Column({ name: 'message_entities', type: 'jsonb', nullable: true })
+  public messageEntities!:
+    | Array<{ type: string; offset: number; length: number; url?: string }>
+    | string
+    | null;
 
   @Column({ name: 'grouped_id', type: 'varchar', length: 64, nullable: true })
   public groupedId!: string | null;

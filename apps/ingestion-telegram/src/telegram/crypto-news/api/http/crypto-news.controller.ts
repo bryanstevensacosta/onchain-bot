@@ -17,6 +17,45 @@ import { CryptoNewsMessageRepository } from '../../infrastructure/persistence/ty
 import { CryptoNewsSourceRepository } from '../../infrastructure/persistence/typeorm/repositories/crypto-news-source.repository';
 import { RegisterNewsSourceUseCase } from '../../application/use-cases/register-news-source.use-case';
 import type { RegisterNewsSourceInput } from '../../application/use-cases/register-news-source.use-case';
+import {
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+
+/**
+ * Normalize the `message_entities` column to an entity array.
+ *
+ * Post-migration the column is `jsonb` (already parsed by the driver);
+ * pre-migration TEXT rows arrive as JSON strings. `''`/unparseable
+ * strings fall back to `[]` so mixed-version rows never break the API.
+ */
+function parseMessageEntities(
+  value: unknown,
+): Array<{ type: string; offset: number; length: number; url?: string }> | undefined {
+  if (value == null) return undefined;
+  if (typeof value === 'string') {
+    if (value === '') return [];
+    try {
+      return JSON.parse(value) as Array<{
+        type: string;
+        offset: number;
+        length: number;
+        url?: string;
+      }>;
+    } catch {
+      return [];
+    }
+  }
+  return value as Array<{
+    type: string;
+    offset: number;
+    length: number;
+    url?: string;
+  }>;
+}
 
 /**
  * HTTP API for crypto-news data.
@@ -38,6 +77,7 @@ import type { RegisterNewsSourceInput } from '../../application/use-cases/regist
  * - GET /api/crypto-news/sources — all active sources
  * - GET /api/crypto-news/sources/active/ids — IDs only (backend consumer)
  */
+@ApiTags('crypto-news')
 @Controller('api/crypto-news')
 export class CryptoNewsController {
   constructor(
@@ -81,6 +121,10 @@ export class CryptoNewsController {
    */
   @Post('sources')
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Register a Telegram channel as a crypto-news source (sole owner endpoint)' })
+  @ApiResponse({ status: 201, description: 'Source registered' })
+  @ApiResponse({ status: 400, description: 'Invalid channelId format' })
+  @ApiResponse({ status: 409, description: 'Channel already registered' })
   async addSource(@Body() input: RegisterNewsSourceInput) {
     return this.registerSourceUseCase.execute(input);
   }
@@ -103,7 +147,7 @@ export class CryptoNewsController {
    *   linkPreviewTitle: string | null,
    *   linkPreviewDescription: string | null,
    *   linkPreviewSiteName: string | null,
-   *   messageEntities: string | null (JSON),
+   *   messageEntities: omitted (raw jsonb column, exposed as formattingEntities),
    *   groupedId: string | null,
    *   media: Array<{
    *     id: string (UUID),
@@ -117,6 +161,9 @@ export class CryptoNewsController {
    */
   @Get('messages')
   @Header('Cache-Control', 'no-cache, must-revalidate')
+  @ApiOperation({ summary: 'Recent crypto-news messages with media (RAW content, no filters)' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Max messages (default 50, capped at 200)' })
+  @ApiResponse({ status: 200, description: 'Recent messages with timestamp/count/data' })
   async getRecentMessages(@Query('limit', ParseIntPipe) limit = 50) {
     const messages = await this.messageRepo.findRecent(Math.min(limit, 200));
     
@@ -135,6 +182,10 @@ export class CryptoNewsController {
    */
   @Get('messages/channel/:channelId')
   @Header('Cache-Control', 'no-cache, must-revalidate')
+  @ApiOperation({ summary: 'Messages from one channel' })
+  @ApiParam({ name: 'channelId', description: 'Telegram channel id' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Max messages (default 50, capped at 200)' })
+  @ApiResponse({ status: 200, description: 'Channel messages' })
   async getMessagesByChannel(
     @Param('channelId') channelId: string,
     @Query('limit', ParseIntPipe) limit = 50,
@@ -162,11 +213,11 @@ export class CryptoNewsController {
         mimeType: m.mimeType,
         fileSize: m.fileSize,
       })),
-      // Parse messageEntities from JSON string to array for frontend
-      formattingEntities: msg.messageEntities
-        ? JSON.parse(msg.messageEntities)
-        : undefined,
-      // Remove the raw messageEntities field (it's a JSON string, not useful for frontend)
+      // Parse messageEntities to an array for frontend. Post-migration the
+      // column is jsonb (node-pg returns a parsed array); pre-migration TEXT
+      // rows come back as JSON strings — accept both during rollout.
+      formattingEntities: parseMessageEntities(msg.messageEntities),
+      // Remove the raw messageEntities field (either shape is internal)
       messageEntities: undefined,
     };
   }
@@ -187,6 +238,8 @@ export class CryptoNewsController {
    * }>
    */
   @Get('sources')
+  @ApiOperation({ summary: 'All crypto-news sources (including inactive)' })
+  @ApiResponse({ status: 200, description: 'All sources' })
   async getSources() {
     const sources = await this.sourceRepo.findAll();
     return sources.map((s) => ({
@@ -209,6 +262,8 @@ export class CryptoNewsController {
    * Response: Array<string> — e.g. ["-1001234567890", "-1009876543210"]
    */
   @Get('sources/active/ids')
+  @ApiOperation({ summary: 'Active source channel ids (backend consumer)' })
+  @ApiResponse({ status: 200, description: 'Array of channel ids' })
   async getActiveSourceIds() {
     const sources = await this.sourceRepo.findAllActive();
     return sources.map((s) => s.channelId);
@@ -226,6 +281,8 @@ export class CryptoNewsController {
    * }
    */
   @Get('stats')
+  @ApiOperation({ summary: 'Stored crypto-news statistics' })
+  @ApiResponse({ status: 200, description: 'Message/source counts' })
   async getStats() {
     const [totalMessages, allSources, activeSources] = await Promise.all([
       this.messageRepo.count(),
@@ -257,6 +314,11 @@ export class CryptoNewsController {
    * - 400 Bad Request: No fields to update
    */
   @Patch('sources/:channelId')
+  @ApiOperation({ summary: 'Update a crypto-news source title/handle' })
+  @ApiParam({ name: 'channelId', description: 'Telegram channel id' })
+  @ApiResponse({ status: 200, description: 'Source updated' })
+  @ApiResponse({ status: 400, description: 'No fields to update' })
+  @ApiResponse({ status: 404, description: 'Unknown channel id' })
   async updateSource(
     @Param('channelId') channelId: string,
     @Body() updates: { title?: string; handle?: string },
@@ -301,6 +363,10 @@ export class CryptoNewsController {
    * - 404 Not Found: Source not found
    */
   @Patch('sources/:channelId/toggle')
+  @ApiOperation({ summary: 'Toggle a crypto-news source active/inactive' })
+  @ApiParam({ name: 'channelId', description: 'Telegram channel id' })
+  @ApiResponse({ status: 200, description: 'Source toggled' })
+  @ApiResponse({ status: 404, description: 'Unknown channel id' })
   async toggleSource(@Param('channelId') channelId: string) {
     const source = await this.sourceRepo.findByChannelId(channelId);
     if (!source) {
@@ -330,6 +396,10 @@ export class CryptoNewsController {
    */
   @Delete('sources/:channelId')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete a crypto-news source' })
+  @ApiParam({ name: 'channelId', description: 'Telegram channel id' })
+  @ApiResponse({ status: 200, description: 'Source deleted' })
+  @ApiResponse({ status: 404, description: 'Unknown channel id' })
   async deleteSource(@Param('channelId') channelId: string) {
     const source = await this.sourceRepo.findByChannelId(channelId);
     if (!source) {
