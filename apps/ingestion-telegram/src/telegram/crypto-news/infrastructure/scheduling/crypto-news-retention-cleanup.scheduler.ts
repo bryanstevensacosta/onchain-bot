@@ -1,12 +1,20 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { promises as fs } from 'fs';
 import { DataSource } from 'typeorm';
 import type { AppConfig } from 'shared/common/config/app.config';
+import {
+  DISK_CRITICAL_THRESHOLD_PERCENT,
+  DISK_WARN_THRESHOLD_PERCENT,
+  DiskMonitorService,
+} from './disk-monitor.service';
 
 export const INGESTION_RETENTION_ADVISORY_LOCK_ID = 9_421_373;
+
+/** Cutoff override (hours) used by aggressiveCleanup() under disk pressure. */
+export const AGGRESSIVE_CLEANUP_RETENTION_HOURS = 48;
 
 const RETENTION_BATCH_SIZE = 1000;
 
@@ -16,14 +24,77 @@ export class CryptoNewsRetentionCleanupScheduler {
     CryptoNewsRetentionCleanupScheduler.name,
   );
   private running = false;
+  private readonly diskMonitor: DiskMonitorService;
 
   public constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly config: ConfigService,
-  ) {}
+    @Optional() diskMonitor?: DiskMonitorService,
+  ) {
+    this.diskMonitor = diskMonitor ?? new DiskMonitorService(config);
+  }
 
-  @Cron(CronExpression.EVERY_HOUR)
+  /**
+   * Scheduled expiry cleanup — daily at 3AM.
+   *
+   * Two-pass semantics (media pass + messages pass, advisory lock
+   * 9_421_373, clock ingested_at, 72h default from
+   * INGESTION_CRYPTO_NEWS_MEDIA_RETENTION_HOURS) are unchanged from the
+   * former hourly tick; only the schedule changed.
+   */
+  @Cron('0 3 * * *')
+  public async cleanupExpiredContent(hoursOverride?: number): Promise<void> {
+    await this.runCleanup(hoursOverride);
+  }
+
+  /**
+   * Legacy entrypoint kept for backward compatibility (existing specs and
+   * any manual callers). Delegates to cleanupExpiredContent().
+   */
   public async tick(): Promise<void> {
+    await this.cleanupExpiredContent();
+  }
+
+  /**
+   * Hourly disk-pressure check: >90% runs aggressiveCleanup() (48h
+   * cutoff), >80% runs the normal cleanup early, else logs at debug.
+   * A failed disk probe is logged and the tick survives.
+   */
+  @Cron(CronExpression.EVERY_HOUR)
+  public async checkDiskAndCleanup(): Promise<void> {
+    let usage: number;
+    try {
+      usage = await this.diskMonitor.getDiskUsage();
+    } catch (err) {
+      this.logger.warn(
+        `disk usage probe failed: ${(err as Error).message} — skipping disk-triggered cleanup`,
+      );
+      return;
+    }
+    if (usage > DISK_CRITICAL_THRESHOLD_PERCENT) {
+      this.logger.error(
+        `disk usage critical at ${usage.toFixed(1)}% — running aggressive cleanup (48h cutoff)`,
+      );
+      await this.aggressiveCleanup();
+    } else if (usage > DISK_WARN_THRESHOLD_PERCENT) {
+      this.logger.warn(
+        `disk usage high at ${usage.toFixed(1)}% — running cleanup early`,
+      );
+      await this.cleanupExpiredContent();
+    } else {
+      this.logger.debug(`disk usage nominal at ${usage.toFixed(1)}%`);
+    }
+  }
+
+  /**
+   * Aggressive cleanup under critical disk pressure: same two passes
+   * with the cutoff overridden from 72h to 48h.
+   */
+  public async aggressiveCleanup(): Promise<void> {
+    await this.cleanupExpiredContent(AGGRESSIVE_CLEANUP_RETENTION_HOURS);
+  }
+
+  private async runCleanup(hoursOverride?: number): Promise<void> {
     if (this.running) {
       this.logger.warn('previous tick still running; skipping this tick');
       return;
@@ -49,10 +120,13 @@ export class CryptoNewsRetentionCleanupScheduler {
         return;
       }
 
-      const hours = Math.max(
-        1,
-        this.config.get<AppConfig>('app')?.cryptoNewsMediaRetentionHours ?? 72,
-      );
+      const hours =
+        hoursOverride ??
+        Math.max(
+          1,
+          this.config.get<AppConfig>('app')?.cryptoNewsMediaRetentionHours ??
+            72,
+        );
 
       for (;;) {
         const result = await this.processMediaBatch(hours);
