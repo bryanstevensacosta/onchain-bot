@@ -9,6 +9,10 @@ import { isBlockingFailureReason } from 'shared/deduplication/domain/constants/b
 /**
  * ProcessCryptoNewsMessageHandler - Handle real-time SSE crypto-news events
  *
+ * PRIMARY PATH: real-time SSE ingestion for crypto-news messages (<10s latency target).
+ * This handler processes one SSE event at a time; the polling scheduler is the
+ * FALLBACK PATH that catches gaps. See: docs/architecture/crypto-news-dual-path.md
+ *
  * **Responsibilities:**
  * 1. Check matchingEnabled flag (skip if disabled)
  * 2. Check PublisherQueueEntry deduplication (skip if already queued/published)

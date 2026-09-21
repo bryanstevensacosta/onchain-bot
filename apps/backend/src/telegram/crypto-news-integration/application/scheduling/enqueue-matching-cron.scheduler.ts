@@ -15,6 +15,12 @@ import type {
 /**
  * EnqueueMatchingCronScheduler - Poll ingestion-telegram for matching crypto-news messages
  *
+ * FALLBACK PATH: polling scheduler for crypto-news messages (catches SSE gaps).
+ * The SSE handler is the PRIMARY PATH (<10s latency target); this poller runs
+ * every 1 min when SSE is disabled (primary mode) or every N min
+ * (CRYPTO_NEWS_POLLING_INTERVAL_MINUTES, default 5) when SSE is enabled.
+ * See: docs/architecture/crypto-news-dual-path.md
+ *
  * **Per Opción A architecture:**
  * - Ingestion-service stores RAW messages (no filters)
  * - Backend polls ingestion-telegram HTTP API every minute
