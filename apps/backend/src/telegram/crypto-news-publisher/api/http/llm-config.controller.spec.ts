@@ -382,4 +382,64 @@ describe('LlmConfigController', () => {
       expect(llmConfigRepo.save).not.toHaveBeenCalled();
     });
   });
+
+  describe('updateConfig 2-flag validation (llmEnabled requires publishingEnabled)', () => {
+    const buildFlaggedConfig = (flags: {
+      llmEnabled: boolean;
+      publishingEnabled: boolean;
+    }): LlmConfig =>
+      LlmConfig.load({
+        defaultTemplateId: DEFAULT_TEMPLATE_ID,
+        targetChannel: '@ch',
+        llmEnabled: flags.llmEnabled,
+        publishingEnabled: flags.publishingEnabled,
+        dailyCap: 12,
+        dailyResetUtcHour: 4,
+        randomDelayMinMs: 60_000,
+        randomDelayMaxMs: 600_000,
+        llmMaxAttempts: 3,
+      });
+
+    it('rejects llmEnabled:true with 400 when stored publishingEnabled is false', async () => {
+      llmConfigRepo.load.mockResolvedValue(
+        buildFlaggedConfig({ llmEnabled: false, publishingEnabled: false }),
+      );
+      await expect(
+        controller.updateConfig({ llmEnabled: true }),
+      ).rejects.toMatchObject({ status: 400 });
+      let body = '';
+      try {
+        await controller.updateConfig({ llmEnabled: true });
+      } catch (err) {
+        body = String(
+          JSON.stringify(
+            (err as { getResponse?: () => unknown }).getResponse?.(),
+          ),
+        );
+      }
+      expect(body).toContain('publishingEnabled');
+      expect(body).toContain('Enable publishing first');
+      expect(llmConfigRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('accepts llmEnabled:true when stored publishingEnabled is true', async () => {
+      llmConfigRepo.load.mockResolvedValue(
+        buildFlaggedConfig({ llmEnabled: false, publishingEnabled: true }),
+      );
+      llmConfigRepo.save.mockImplementation(async (c) => c);
+      const view = await controller.updateConfig({ llmEnabled: true });
+      expect(view.llmEnabled).toBe(true);
+      expect(llmConfigRepo.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('accepts llmEnabled:false when stored publishingEnabled is false (no false positive)', async () => {
+      llmConfigRepo.load.mockResolvedValue(
+        buildFlaggedConfig({ llmEnabled: false, publishingEnabled: false }),
+      );
+      llmConfigRepo.save.mockImplementation(async (c) => c);
+      const view = await controller.updateConfig({ llmEnabled: false });
+      expect(view.llmEnabled).toBe(false);
+      expect(llmConfigRepo.save).toHaveBeenCalledTimes(1);
+    });
+  });
 });

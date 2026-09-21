@@ -249,6 +249,26 @@ export class LlmConfigController {
       });
     }
 
+    // 2-FLAG INVARIANT: LLM generation only runs when publishing is
+    // active (`llmEnabled AND publishingEnabled`). Enabling the LLM
+    // while publishing is off burns API calls on content that is never
+    // published, so the combination is rejected with a hint pointing at
+    // the publishing flag (mirrors the matchingEnabled guard above).
+    if (dto.llmEnabled === true) {
+      const current = await this.llmConfigRepo.load();
+      const publishing =
+        dto.publishingEnabled !== undefined
+          ? dto.publishingEnabled
+          : current.publishingEnabled;
+      if (!publishing) {
+        throw new BadRequestException({
+          error:
+            'llmEnabled requires publishingEnabled (LLM only runs when publishing is active)',
+          hint: 'Enable publishing first via { publishingEnabled: true }',
+        });
+      }
+    }
+
     // Validate target channel via Bot API before persisting. Outside
     // production (dummy tokens/channels) any API failure only warns —
     // enforcing it would make the config unsavable in dev/staging.
