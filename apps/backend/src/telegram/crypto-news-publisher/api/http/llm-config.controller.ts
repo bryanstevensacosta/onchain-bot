@@ -37,6 +37,12 @@ import {
   type LlmConfigView,
   type PromptTemplateView,
 } from 'telegram/crypto-news-publisher/application/mappers/llm-config.mapper';
+import {
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
 export type {
   LlmConfigView,
@@ -213,12 +219,20 @@ export class LlmConfigController {
   }
 
   @Get('config')
+  @ApiOperation({ summary: 'Get the current LLM/publisher config' })
+  @ApiResponse({ status: 200, description: 'Current LlmConfig' })
   public async getConfig(): Promise<LlmConfigView> {
     const cfg = await this.llmConfigRepo.load();
     return toConfigView(cfg);
   }
 
   @Patch('config')
+  @ApiOperation({
+    summary:
+      'Partially update the LLM/publisher config (controller-direct pattern; llmEnabled locked in production)',
+  })
+  @ApiResponse({ status: 200, description: 'LlmConfig updated' })
+  @ApiResponse({ status: 400, description: 'Validation error or guarded flag combination' })
   public async updateConfig(
     @Body() dto: UpdateLlmConfigDto & { matchingEnabled?: unknown },
   ): Promise<LlmConfigView> {

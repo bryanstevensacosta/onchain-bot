@@ -74,9 +74,10 @@ bootLogger.debug(
 
 bootLogger.debug('[DEBUG] 2. Importing modules');
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { IoAdapter } from '@nestjs/platform-socket.io';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 bootLogger.debug('[DEBUG] 3. Importing AppModule');
 import { AppModule } from './app.module';
@@ -133,6 +134,38 @@ const startupTimeout = setTimeout(() => {
   process.exit(1);
 }, STARTUP_TIMEOUT_MS);
 
+function resolveAppVersion(): string {
+  try {
+    const raw = fs.readFileSync(
+      path.resolve(process.cwd(), 'package.json'),
+      'utf8',
+    );
+    const pkg = JSON.parse(raw) as { version?: string };
+    return pkg.version ?? '1.2.0';
+  } catch {
+    return '1.2.0';
+  }
+}
+
+function setupCryptoNewsDocs(app: INestApplication): void {
+  const config = new DocumentBuilder()
+    .setTitle('Crypto-news ingestion API')
+    .setDescription(
+      'Swagger/OpenAPI for the crypto-news scope only: ' +
+        'crypto-news-publisher (keywords, blacklist, phrases, queue, llm), ' +
+        'crypto-news/matching, crypto-news filters, crypto-news/dead-letter. ' +
+        'Out of scope: alpha-call pipeline, vip-calls, dashboard, threads.',
+    )
+    .setVersion(resolveAppVersion())
+    .addTag('crypto-news-publisher')
+    .addTag('crypto-news-matching')
+    .addTag('crypto-news-filters')
+    .addTag('crypto-news-dead-letter')
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
+}
+
 async function bootstrap(): Promise<void> {
   bootLogger.debug('[DEBUG] 7. Creating NestJS app');
   const app = await NestFactory.create(AppModule, {
@@ -173,6 +206,13 @@ async function bootstrap(): Promise<void> {
 
   bootLogger.debug('[DEBUG] 8.6. Setting up global filters');
   app.useGlobalFilters(new DomainErrorFilter());
+
+  bootLogger.debug('[DEBUG] 8.6b. Setting up Swagger/OpenAPI docs at /api/docs');
+  // Crypto-news scope only: publisher (keywords/blacklist/queue/llm/phrases),
+  // matching, filters, dead-letter. No global prefix is set in this app, so
+  // 'api/docs' cannot collide with '/api/health' or any controller route.
+  // ValidationPipe above is untouched — docs are read-only metadata.
+  setupCryptoNewsDocs(app);
 
   bootLogger.debug(`[DEBUG] 9. About to call app.listen(${port})`);
   bootLogger.debug(

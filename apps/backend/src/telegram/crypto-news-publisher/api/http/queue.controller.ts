@@ -22,6 +22,13 @@ import {
 } from 'shared/common/http/media-serving';
 import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
+import {
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
 import type { CryptoNewsSourceDto } from 'telegram/crypto-news-integration/infrastructure/http/crypto-news-ingestion-client.service';
 
@@ -89,6 +96,7 @@ export interface QueueCountsView {
  *  - GET /counts     Return pending count + today's publish count + remaining cap
  *  - GET /:id/media  Serve the downloaded image attached to a queue entry
  */
+@ApiTags('crypto-news-publisher')
 @Controller('crypto-news-publisher/queue')
 export class QueueController {
   /** UTC reset hour for the 24h window (4am UTC). */
@@ -110,6 +118,10 @@ export class QueueController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'List the most-recent publisher queue entries' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Max entries (1-500, default 50)' })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter by entry status' })
+  @ApiResponse({ status: 200, description: 'Queue entries (newest first)' })
   public async list(
     @Query('limit') limit?: string,
     @Query('status') status?: string,
@@ -129,6 +141,8 @@ export class QueueController {
   }
 
   @Get('counts')
+  @ApiOperation({ summary: 'Pending count plus daily publish cap usage' })
+  @ApiResponse({ status: 200, description: 'Queue counters' })
   public async counts(): Promise<QueueCountsView> {
     const [pending, publishedToday, cfg] = await Promise.all([
       this.countPending(),
@@ -149,6 +163,10 @@ export class QueueController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a publisher queue entry' })
+  @ApiParam({ name: 'id', description: 'Queue entry id (uuid)' })
+  @ApiResponse({ status: 204, description: 'Queue entry deleted' })
+  @ApiResponse({ status: 404, description: 'Unknown queue entry id' })
   public async remove(@Param('id') id: string): Promise<void> {
     const entry = await this.queueRepo.findByIdForDisplay(id);
     if (!entry) {
@@ -158,6 +176,11 @@ export class QueueController {
   }
 
   @Get(':id/media')
+  @ApiOperation({ summary: 'Serve the image attached to a queue entry' })
+  @ApiParam({ name: 'id', description: 'Queue entry id (uuid)' })
+  @ApiQuery({ name: 'index', required: false, description: 'Image index within imagePaths' })
+  @ApiResponse({ status: 200, description: 'Image bytes' })
+  @ApiResponse({ status: 404, description: 'Unknown entry id or missing media' })
   public async getQueueMedia(
     @Param('id') id: string,
     @Req() req: Request,

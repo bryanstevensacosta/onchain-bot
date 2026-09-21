@@ -10,6 +10,12 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
+import {
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { StreamService } from '../../application/services/stream.service';
 import { SSEBroadcastService } from '../../application/services/sse-broadcast.service';
 import { BackendChannelProviderService } from '../../../telegram/shared/services/backend-channel-provider.service';
@@ -47,6 +53,7 @@ import { BackfillBufferService } from '../../infrastructure/backfill-buffer.serv
  *
  * @controller Handles /api/ingestion routes
  */
+@ApiTags('stream')
 @Controller('api/ingestion')
 export class SSEStreamController {
   private readonly logger = new Logger(SSEStreamController.name);
@@ -87,6 +94,12 @@ export class SSEStreamController {
    * @param response - Express response object (raw ServerResponse)
    */
   @Get('stream')
+  @ApiOperation({ summary: 'Authenticated SSE stream for registered backends (stays open)' })
+  @ApiQuery({ name: 'backendId', required: true, description: 'Registered backend identifier' })
+  @ApiQuery({ name: 'lastSeenTimestamp', required: false, description: 'ISO timestamp for backfill replay' })
+  @ApiResponse({ status: 200, description: 'SSE event stream (text/event-stream)' })
+  @ApiResponse({ status: 400, description: 'Missing/invalid backendId or lastSeenTimestamp' })
+  @ApiResponse({ status: 401, description: 'Unregistered backendId' })
   stream(
     @Query('backendId') backendId: string | undefined,
     @Query('lastSeenTimestamp') lastSeenTimestamp: string | undefined,

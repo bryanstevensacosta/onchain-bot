@@ -7,6 +7,11 @@ import {
   toMatchingConfigView,
   type MatchingConfigView,
 } from 'telegram/crypto-news-integration/application/mappers/matching-config.mapper';
+import {
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
 export type { MatchingConfigView } from 'telegram/crypto-news-integration/application/mappers/matching-config.mapper';
 
@@ -49,6 +54,7 @@ export interface MatchingHealthView {
  * the DB. Transport env (INGESTION_TELEGRAM_URL, USE_SSE_CRYPTO_NEWS,
  * CRYPTO_NEWS_POLLING_INTERVAL_MINUTES) is unrelated and unchanged.
  */
+@ApiTags('crypto-news-matching')
 @Controller('crypto-news/matching')
 export class MatchingConfigController {
   public constructor(
@@ -58,12 +64,16 @@ export class MatchingConfigController {
   ) {}
 
   @Get('config')
+  @ApiOperation({ summary: 'Get the current keyword-matching activation flag' })
+  @ApiResponse({ status: 200, description: 'Current MatchingConfig' })
   public async getConfig(): Promise<MatchingConfigView> {
     const cfg = await this.matchingConfigRepo.load();
     return toMatchingConfigView(cfg);
   }
 
   @Get('health')
+  @ApiOperation({ summary: 'Live matching pipeline health (flag, ticks, queue depth)' })
+  @ApiResponse({ status: 200, description: 'Matching pipeline health' })
   public async getHealth(): Promise<MatchingHealthView> {
     const [cfg, queuePending] = await Promise.all([
       this.matchingConfigRepo.load(),
@@ -80,6 +90,9 @@ export class MatchingConfigController {
   }
 
   @Patch('config')
+  @ApiOperation({ summary: 'Toggle keyword-matching (sole writer of the matching flag)' })
+  @ApiResponse({ status: 200, description: 'MatchingConfig updated' })
+  @ApiResponse({ status: 400, description: 'Validation error' })
   public async updateConfig(
     @Body() dto: UpdateMatchingConfigDto,
   ): Promise<MatchingConfigView> {

@@ -14,6 +14,12 @@ import {
   BaseFileSystemAdapter,
   MimeTypeResolver,
 } from 'shared/media';
+import {
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CryptoNewsPathBuilder } from 'media/infrastructure/crypto-news-path-builder';
 
 /**
@@ -44,6 +50,7 @@ import { CryptoNewsPathBuilder } from 'media/infrastructure/crypto-news-path-bui
  *
  * @controller Handles /api/media routes
  */
+@ApiTags('media')
 @Controller('api/media')
 export class MediaController extends BaseMediaHttpServer {
   private readonly logger = new Logger(MediaController.name);
@@ -86,6 +93,13 @@ export class MediaController extends BaseMediaHttpServer {
    * @param response - Express response object
    */
   @Get(':channelId/:messageId/:index')
+  @ApiOperation({ summary: 'Serve a downloaded crypto-news media file' })
+  @ApiParam({ name: 'channelId', description: 'Telegram channel id' })
+  @ApiParam({ name: 'messageId', description: 'Telegram message id' })
+  @ApiParam({ name: 'index', description: 'Media attachment index (0-based)' })
+  @ApiResponse({ status: 200, description: 'Media bytes' })
+  @ApiResponse({ status: 400, description: 'Invalid channelId/messageId/index' })
+  @ApiResponse({ status: 404, description: 'Media file not found' })
   async serveMedia(
     @Param('channelId') channelId: string,
     @Param('messageId') messageId: string,

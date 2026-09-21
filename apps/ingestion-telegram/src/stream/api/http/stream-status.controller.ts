@@ -1,4 +1,5 @@
 import { Controller, Get, Logger } from '@nestjs/common';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SSEBroadcastService } from '../../application/services/sse-broadcast.service';
 import { BackendChannelProviderService } from '../../../telegram/shared/services/backend-channel-provider.service';
 import { BackfillBufferService } from '../../infrastructure/backfill-buffer.service';
@@ -14,6 +15,7 @@ import { BackfillBufferService } from '../../infrastructure/backfill-buffer.serv
  *
  * @controller Handles /api/ingestion/stream routes
  */
+@ApiTags('stream')
 @Controller('api/ingestion/stream')
 export class StreamStatusController {
   private readonly logger = new Logger(StreamStatusController.name);
@@ -40,6 +42,8 @@ export class StreamStatusController {
    * @returns StreamStatusResponse with system metrics
    */
   @Get('status')
+  @ApiOperation({ summary: 'Operational status of the multi-backend broadcast system' })
+  @ApiResponse({ status: 200, description: 'Stream system metrics' })
   getStatus() {
     const activeBackends = this.sseBroadcast.getActiveBackendCount();
     const channelUnionSize = this.channelProvider.getChannelUnionSize();
