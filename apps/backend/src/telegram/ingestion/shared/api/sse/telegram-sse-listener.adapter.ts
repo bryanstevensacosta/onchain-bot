@@ -73,8 +73,8 @@ export class TelegramSseListenerAdapter
   private readonly ingestionServiceUrl: string;
   private abortController: AbortController | null = null;
   private reconnectAttempts = 0;
-  private readonly maxReconnectDelay = 30_000; // 30s
-  private readonly baseReconnectDelay = 1_000; // 1s
+  private readonly maxReconnectDelay: number;
+  private readonly baseReconnectDelay: number;
 
   constructor(
     private readonly config: ConfigService,
@@ -85,6 +85,28 @@ export class TelegramSseListenerAdapter
     this.ingestionServiceUrl =
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       appConfig?.ingestion?.serviceUrl || 'http://localhost:3031';
+
+    // SSE reconnect backoff knobs (fail-soft to 1000/30000 when unconfigured,
+    // mirroring app.cryptoNews.pollingIntervalMinutes validation).
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const sse = appConfig?.ingestion?.sse as
+      | {
+          reconnectInitialDelayMs?: unknown;
+          reconnectMaxDelayMs?: unknown;
+        }
+      | undefined;
+    const initial =
+      typeof sse?.reconnectInitialDelayMs === 'number' &&
+      Number.isFinite(sse.reconnectInitialDelayMs)
+        ? sse.reconnectInitialDelayMs
+        : 1_000;
+    const max =
+      typeof sse?.reconnectMaxDelayMs === 'number' &&
+      Number.isFinite(sse.reconnectMaxDelayMs)
+        ? sse.reconnectMaxDelayMs
+        : 30_000;
+    this.baseReconnectDelay = initial;
+    this.maxReconnectDelay = Math.max(max, initial);
 
     this.logger.log(
       `Initialized SSE listener adapter (ingestion service: ${this.ingestionServiceUrl})`,
@@ -463,7 +485,9 @@ export class TelegramSseListenerAdapter
   /**
    * Calculate exponential backoff delay
    *
-   * Per Requirement 2.4: Exponential backoff with 30s cap
+   * Per Requirement 2.4: Exponential backoff, capped at the configured max.
+   * Bounds come from `app.ingestion.sse` (`SSE_RECONNECT_INITIAL_DELAY_MS`,
+   * default 1000; `SSE_RECONNECT_MAX_DELAY_MS`, default 30000).
    *
    * @returns Delay in milliseconds
    */

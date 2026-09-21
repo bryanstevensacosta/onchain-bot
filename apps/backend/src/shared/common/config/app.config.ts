@@ -26,6 +26,7 @@
  *     INGESTION_TELEGRAM_BACKFILL_ENABLED
  *     USE_SSE_INGESTION, USE_SSE_CRYPTO_NEWS, USE_MOCK_INGESTION,
  *     INGESTION_TELEGRAM_URL (canonical, default http://localhost:3031)
+ *     SSE_RECONNECT_INITIAL_DELAY_MS, SSE_RECONNECT_MAX_DELAY_MS,
  *     CRYPTO_NEWS_POLLING_INTERVAL_MINUTES
  *     PUBLISHING_TELEGRAM_USE_REAL_MTPROTO/OUTPUT_CHANNEL,
  *     VIP_CALLS_BOT_TOKEN/OUTPUT_CHANNEL,
@@ -188,6 +189,10 @@ export interface AppConfig extends LlmConfigShape {
     useSseCryptoNews: boolean;
     useMock: boolean;
     serviceUrl: string;
+    sse: {
+      reconnectInitialDelayMs: number;
+      reconnectMaxDelayMs: number;
+    };
   };
 
   cryptoNews: {
@@ -414,6 +419,26 @@ export const appConfig = registerAs(
       useMock:
         (process.env.USE_MOCK_INGESTION ?? 'false').toLowerCase() === 'true',
       serviceUrl: resolveIngestionServiceUrl(),
+      // SSE reconnect backoff (TelegramSseListenerAdapter.calculateBackoff).
+      // Fail-soft like CRYPTO_NEWS_POLLING_INTERVAL_MINUTES below: missing
+      // or out-of-range values fall back to 1000/30000. Max is clamped to
+      // be at least the initial delay.
+      sse: (() => {
+        const initialRaw = process.env.SSE_RECONNECT_INITIAL_DELAY_MS;
+        const initialParsed = initialRaw ? parseInt(initialRaw, 10) : 1000;
+        const reconnectInitialDelayMs =
+          Number.isFinite(initialParsed) &&
+          initialParsed >= 100 &&
+          initialParsed <= 30000
+            ? initialParsed
+            : 1000;
+        const maxRaw = process.env.SSE_RECONNECT_MAX_DELAY_MS;
+        const maxParsed = maxRaw ? parseInt(maxRaw, 10) : 30000;
+        const reconnectMaxDelayMs = Number.isFinite(maxParsed)
+          ? Math.max(maxParsed, reconnectInitialDelayMs)
+          : 30000;
+        return { reconnectInitialDelayMs, reconnectMaxDelayMs };
+      })(),
     },
 
     cryptoNews: {

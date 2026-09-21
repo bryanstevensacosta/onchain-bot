@@ -1,8 +1,20 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleInit,
+  Optional,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { SchedulerRegistry } from '@nestjs/schedule';
 import { ServerResponse } from 'http';
 import { randomUUID } from 'crypto';
+import { CronJob } from 'cron';
 import { DisconnectionTracker } from './disconnection-tracker.service';
+import {
+  DEFAULT_SSE_HEARTBEAT_INTERVAL_MS,
+  type StreamConfig,
+} from '../../stream.config';
 
 /**
  * SSE event payload structure
@@ -39,11 +51,71 @@ interface SSEClient {
  * @injectable NestJS service
  */
 @Injectable()
-export class StreamService {
+export class StreamService implements OnModuleInit {
   private readonly logger = new Logger(StreamService.name);
   private readonly clients = new Map<string, SSEClient>();
+  private static readonly HEARTBEAT_JOB_NAME = 'sse-heartbeat';
 
-  constructor(private readonly disconnectionTracker: DisconnectionTracker) {}
+  constructor(
+    private readonly disconnectionTracker: DisconnectionTracker,
+    @Optional()
+    @Inject(ConfigService)
+    private readonly configService?: ConfigService,
+    @Optional()
+    @Inject(SchedulerRegistry)
+    private readonly schedulerRegistry?: SchedulerRegistry,
+  ) {}
+
+  /**
+   * Register the heartbeat job with the configured interval.
+   *
+   * The interval comes from `stream.heartbeatIntervalMs`
+   * (`SSE_HEARTBEAT_INTERVAL_MS`, default 30000). The default schedule is
+   * identical to the previous hardcoded every-30-seconds cron job.
+   */
+  onModuleInit(): void {
+    if (!this.schedulerRegistry) {
+      return;
+    }
+    const intervalMs = this.getHeartbeatIntervalMs();
+    const job = new CronJob(StreamService.toCronExpression(intervalMs), () =>
+      this.sendHeartbeat(),
+    );
+    try {
+      this.schedulerRegistry.addCronJob(StreamService.HEARTBEAT_JOB_NAME, job);
+    } catch {
+      // Job already registered (e.g. module re-init in tests) — reuse it.
+      return;
+    }
+    job.start();
+  }
+
+  /**
+   * Effective heartbeat interval in milliseconds (configured or default).
+   */
+  getHeartbeatIntervalMs(): number {
+    const cfg = this.configService?.get<StreamConfig>('stream');
+    const intervalMs = cfg?.heartbeatIntervalMs;
+    return typeof intervalMs === 'number' && Number.isFinite(intervalMs)
+      ? intervalMs
+      : DEFAULT_SSE_HEARTBEAT_INTERVAL_MS;
+  }
+
+  /**
+   * Derive a cron expression from a millisecond interval.
+   *
+   * Sub-minute intervals use per-second steps; minute-scale and above use
+   * per-minute steps. The 30000ms default maps to the historical
+   * every-30-seconds schedule.
+   */
+  static toCronExpression(intervalMs: number): string {
+    const seconds = Math.max(1, Math.round(intervalMs / 1000));
+    if (seconds < 60) {
+      return `*/${seconds} * * * * *`;
+    }
+    const minutes = Math.max(1, Math.round(seconds / 60));
+    return `*/${minutes} * * * *`;
+  }
 
   /**
    * Register a new SSE client connection
@@ -230,9 +302,10 @@ export class StreamService {
    * Per Requirement 2.5: Prevent proxy/CDN timeouts on idle connections
    * Per Requirement 2.4: Detect dead connections early
    *
-   * Runs every 30 seconds via NestJS scheduler
+   * Cadence is driven by `stream.heartbeatIntervalMs`
+   * (`SSE_HEARTBEAT_INTERVAL_MS`, default 30000) via the job registered in
+   * onModuleInit — historically every 30 seconds.
    */
-  @Cron('*/30 * * * * *')
   sendHeartbeat(): void {
     const now = new Date();
     this.broadcast({
@@ -275,6 +348,12 @@ export class StreamService {
     this.logger.log(
       `Shutting down StreamService (${this.clients.size} clients)`,
     );
+
+    try {
+      this.schedulerRegistry?.deleteCronJob(StreamService.HEARTBEAT_JOB_NAME);
+    } catch {
+      // Job was never registered (e.g. constructed without a registry).
+    }
 
     for (const [clientId] of this.clients) {
       this.removeClient(clientId);

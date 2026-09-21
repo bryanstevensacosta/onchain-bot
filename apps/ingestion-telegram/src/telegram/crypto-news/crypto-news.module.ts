@@ -7,6 +7,7 @@ import { CryptoNewsMessageRepository } from './infrastructure/persistence/typeor
 import { CryptoNewsController } from './api/http/crypto-news.controller';
 import { RegisterNewsSourceUseCase } from './application/use-cases/register-news-source.use-case';
 import { CryptoNewsRetentionCleanupScheduler } from './infrastructure/scheduling/crypto-news-retention-cleanup.scheduler';
+import { DiskMonitorService } from './infrastructure/scheduling/disk-monitor.service';
 
 /**
  * CryptoNewsModule - Crypto news channel management
@@ -44,6 +45,7 @@ import { CryptoNewsRetentionCleanupScheduler } from './infrastructure/scheduling
   providers: [
     CryptoNewsMessageRepository,
     RegisterNewsSourceUseCase,
+    DiskMonitorService,
     CryptoNewsRetentionCleanupScheduler,
   ],
   exports: [CryptoNewsMessageRepository],

@@ -507,6 +507,44 @@ data: {"peerId":"-1001234567890","messageId":12345,"occurredAt":"2026-08-30T00:0
       (adapter as any).calculateBackoff();
       expect((adapter as any).reconnectAttempts).toBe(2);
     });
+
+    it('should fall back to 1000/30000 when app.ingestion.sse is absent', () => {
+      expect((adapter as any).baseReconnectDelay).toBe(1000);
+      expect((adapter as any).maxReconnectDelay).toBe(30000);
+    });
+
+    it('should honor env-driven bounds from app.ingestion.sse', () => {
+      const customConfig = {
+        get: jest.fn((key: string) => {
+          if (key === 'app') {
+            return {
+              ingestion: {
+                serviceUrl: 'http://localhost:3031',
+                sse: {
+                  reconnectInitialDelayMs: 500,
+                  reconnectMaxDelayMs: 4000,
+                },
+              },
+            };
+          }
+          return undefined;
+        }),
+      };
+      const customAdapter = new TelegramSseListenerAdapter(
+        customConfig as unknown as ConfigService,
+        {
+          getBackendId: () => 'test-backend',
+        } as unknown as BackendRegistrationClient,
+      );
+
+      const delays = [0, 1, 2, 3, 4].map(() =>
+        (
+          customAdapter as unknown as { calculateBackoff(): number }
+        ).calculateBackoff(),
+      );
+
+      expect(delays).toEqual([500, 1000, 2000, 4000, 4000]);
+    });
   });
 
   describe('parseSSE()', () => {

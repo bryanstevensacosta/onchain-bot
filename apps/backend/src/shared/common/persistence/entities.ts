@@ -37,6 +37,7 @@ import { AdsThrottleStateEntity } from 'telegram/crypto-news-ads/infrastructure/
 import { AdMediaEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-media.entity';
 import { AdMediaLibraryEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-media-library.entity';
 import { MatchingConfigEntity } from 'telegram/crypto-news-integration/infrastructure/persistence/typeorm/entities/matching-config.entity';
+import { DeadLetterQueueEntity } from 'telegram/crypto-news-integration/infrastructure/persistence/typeorm/entities/dead-letter-queue.entity';
 import { ThreadsQueueEntryEntity } from 'threads/publisher/infrastructure/persistence/typeorm/entities/threads-queue-entry.entity';
 import { ThreadsKeywordEntity } from 'threads/publisher/infrastructure/persistence/typeorm/entities/threads-keyword.entity';
 import { ThreadsBlacklistPhraseEntity } from 'threads/publisher/infrastructure/persistence/typeorm/entities/threads-blacklist-phrase.entity';
@@ -96,6 +97,7 @@ export const PERSISTED_ENTITIES = [
   AdMediaLibraryEntity,
   DedupRecordEntity,
   MatchingConfigEntity,
+  DeadLetterQueueEntity,
   ThreadsQueueEntryEntity,
   ThreadsKeywordEntity,
   ThreadsBlacklistPhraseEntity,
@@ -110,4 +112,4 @@ export const PERSISTED_ENTITIES = [
  * Expected entity count for validation. If this doesn't match
  * PERSISTED_ENTITIES.length, something is wrong.
  */
-export const EXPECTED_ENTITY_COUNT = 47;
+export const EXPECTED_ENTITY_COUNT = 48;

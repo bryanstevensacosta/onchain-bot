@@ -30,20 +30,22 @@ Env precedence in both NestJS services: `.env.dev` wins over `.env`
 | -------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CRYPTO_NEWS_POLLING_INTERVAL_MINUTES` | `5`     | `app.cryptoNews.pollingIntervalMinutes` (`app.config.ts:428`); consumed by `EnqueueMatchingCronScheduler` | Integer 1 to 60. Out-of-range or unparsable values silently fall back to `5`. Only used when `USE_SSE_CRYPTO_NEWS=true` (fallback cadence); when SSE is disabled the scheduler runs every 1 minute fixed |
 
-### SSE timing (PROPOSED, not implemented)
+Adaptive catch-up (no env knob): after 3 consecutive full batches
+(`matches.length >= FETCH_LIMIT=50`) the scheduler fires one extra tick 10 s
+later, then resets the streak. Any non-full batch or fetch failure resets the
+streak to 0. Overlap guard (`isPolling`) skips a tick when the previous one
+is still running.
 
-The following three variables appear in
-`.kiro/specs/refactor-kol-crypto-news/refactor-recommendations.md` section
-"Configurable SSE Heartbeat" as a proposal. Grep over `apps/backend/src` and
-`apps/ingestion-telegram/src` confirms **no reader exists** for any of them.
-Setting them has zero effect today. They are listed here so nobody documents
-fiction elsewhere:
+### SSE timing (REAL, configurable)
 
-| Variable                         | Proposed default | Verified reality (hardcoded)                                                                                                                            |
-| -------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SSE_HEARTBEAT_INTERVAL_MS`      | `30000`          | Ingestion heartbeat is a hardcoded `@Cron` every 30 s in `stream.service.ts` (`sendHeartbeat`), `sse-stream.controller.ts` documents "every 30 seconds" |
-| `SSE_RECONNECT_INITIAL_DELAY_MS` | `1000`           | Backend SSE reconnect backoff starts at a hardcoded 1 s                                                                                                 |
-| `SSE_RECONNECT_MAX_DELAY_MS`     | `30000`          | Backend SSE reconnect backoff caps at a hardcoded 30 s                                                                                                  |
+The following three variables are live readers (wired in Task 7).
+Defaults are unchanged from the previously hardcoded behavior:
+
+| Variable                         | Default | Reader                                                                                                                                                                                                          | Valid range                                                                                                         |
+| -------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `SSE_HEARTBEAT_INTERVAL_MS`      | `30000` | `stream.heartbeatIntervalMs` (`apps/ingestion-telegram/src/stream/stream.config.ts`); consumed by `StreamService.onModuleInit` (dynamic `SchedulerRegistry` job `sse-heartbeat`, default cron `*/30 * * * * *`) | Integer ms, 5000 to 300000. Missing or out-of-range values silently fall back to `30000`                            |
+| `SSE_RECONNECT_INITIAL_DELAY_MS` | `1000`  | Backend `app.ingestion.sse.reconnectInitialDelayMs` (`apps/backend/src/shared/common/config/app.config.ts`); consumed by `TelegramSseListenerAdapter.calculateBackoff()`                                        | Integer ms, 100 to 30000. Missing or out-of-range values silently fall back to `1000`                               |
+| `SSE_RECONNECT_MAX_DELAY_MS`     | `30000` | Backend `app.ingestion.sse.reconnectMaxDelayMs` (same files); mirrored as `stream.reconnectMaxDelayMs` in ingestion for future use                                                                              | Integer ms, clamped up to be at least the initial delay. Missing or unparsable values silently fall back to `30000` |
 
 ### Publishing (Bot API)
 

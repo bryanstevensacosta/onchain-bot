@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { StreamService } from './application/services/stream.service';
@@ -11,6 +12,7 @@ import { BackendRegistrationController } from './api/http/backend-registration.c
 import { StreamStatusController } from './api/http/stream-status.controller';
 import { BackfillMessageEntity } from './infrastructure/persistence/typeorm/backfill-message.entity';
 import { MetricsModule } from '../metrics/metrics.module';
+import { streamConfig } from './stream.config';
 
 /**
  * StreamModule provides Server-Sent Events (SSE) infrastructure
@@ -42,7 +44,9 @@ import { MetricsModule } from '../metrics/metrics.module';
  */
 @Module({
   imports: [
-    // ScheduleModule required for @Cron heartbeat decorator
+    // Stream timing knobs (SSE_HEARTBEAT_INTERVAL_MS + reconnect delays)
+    ConfigModule.forFeature(streamConfig),
+    // ScheduleModule required for the heartbeat job registration
     ScheduleModule.forRoot(),
     // TypeORM for backfill message persistence
     TypeOrmModule.forFeature([BackfillMessageEntity]),

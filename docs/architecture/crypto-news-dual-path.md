@@ -63,16 +63,17 @@ ingestion-telegram (persists RAW, stores media, emits SSE metadata)
     |                                                                  |
     +--- FALLBACK PATH (polling, batch, catches gaps) ----------------+
     |                                                                  |
-    |  EnqueueMatchingCronScheduler.tick()                             |
-    |    interval: 1 min when SSE disabled (primary mode)               |
-    |              N min when SSE enabled (fallback mode,                |
-    |              CRYPTO_NEWS_POLLING_INTERVAL_MINUTES, default 5)     |
-    |    1. matchingEnabled? (silent skip if false;                    |
-    |       error skip if MatchingConfig fails to load)                |
-    |    2. getMatchingMessages(FETCH_LIMIT=50)                        |
-    |    3. mapToPublisherDto() per match -> enqueueUseCase.execute()  |
-    |    4. log "Enqueue batch complete: X enqueued, Y skipped"        |
-    |    guard: skip tick if previous tick still running               |
+ |  EnqueueMatchingCronScheduler.tick()                             |
+ |    interval: 1 min when SSE disabled (primary mode)               |
+ |              N min when SSE enabled (fallback mode,                |
+ |              CRYPTO_NEWS_POLLING_INTERVAL_MINUTES, default 5)     |
+ |    1. matchingEnabled? (silent skip if false;                    |
+ |       error skip if MatchingConfig fails to load)                |
+ |    2. getMatchingMessages(FETCH_LIMIT=50)                        |
+ |    3. mapToPublisherDto() per match -> enqueueUseCase.execute()  |
+ |    4. log "Enqueue batch complete: X enqueued, Y skipped"        |
+ |    guard: skip tick if previous tick still running (isPolling)   |
+ |    adaptive: 3 consecutive full batches -> one re-poll in 10s    |
     |                                                                  |
     +--- SHARED TAIL --------------------------------------------------+
                                                                        |
@@ -186,10 +187,12 @@ scheduler inherits it via `EnqueueMatchingMessageUseCase`). Blocking test is
 <peerId>:<messageId>: <msg>` with stack, and returns. A single bad
   message can never crash the SSE stream; the fallback poller retries
   transient failures on its next tick.
-- `EnqueueMatchingCronScheduler.tick()` guards overlap (`running` flag),
+- `EnqueueMatchingCronScheduler.tick()` guards overlap (`isPolling` flag),
   skips silently when matching is disabled, logs-and-returns when
   `MatchingConfig` fails to load, catches per-message enqueue errors
-  inside the loop, and records fetch failures to `MatchingHealthState`
+  inside the loop, tracks consecutive full batches (3 x FETCH_LIMIT=50
+  schedules one catch-up re-poll in 10s; any non-full batch or fetch
+  failure resets the streak), and records fetch failures to `MatchingHealthState`
   (`recordFetchSuccess` / `recordFetchFailure` / `recordEnqueued`).
 
 ## Source Map
