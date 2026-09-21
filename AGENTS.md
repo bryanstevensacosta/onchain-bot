@@ -153,17 +153,17 @@ was removed 2026-09-14 (its PR checks never completed unattended; see
 
 | Task                 | Location                                                                                     |
 | -------------------- | -------------------------------------------------------------------------------------------- |
-| Run backend+frontend | `npm run dev` (root, port-cleanup → :3030 + :5173; ingestion-telegram NOT included)           |
-| Run ingestion        | `npm run dev:ingestion` (root → :3031, port-cleanup + `start:dev -w ingestion-telegram`)      |
+| Run backend+frontend | `npm run dev` (root, port-cleanup → :3030 + :5173; ingestion-telegram NOT included)          |
+| Run ingestion        | `npm run dev:ingestion` (root → :3031, port-cleanup + `start:dev -w ingestion-telegram`)     |
 | Backend tests        | `npm run test:backend` (Jest, 170 suites / 1969 tests post-split)                            |
-| Ingestion tests      | `cd apps/ingestion-telegram && npm test` (43 suites / 815 tests post-split)                   |
+| Ingestion tests      | `cd apps/ingestion-telegram && npm test` (43 suites / 815 tests post-split)                  |
 | Frontend tests       | `npm run test:frontend` (Vitest, 23 `*.test.*` files)                                        |
 | Lint                 | `npm run lint` (all workspaces) / `:backend` / `:frontend` (flat configs, differ per app)    |
 | Format               | `npm run format` (Prettier, singleQuote + trailingComma all)                                 |
 | Build                | `npm run build` (backend `nest build` + frontend `tsc -b && vite build`; no ingestion job)   |
 | DB migrations        | `cd apps/backend && npm run migration:run` (`scripts/run-migrations.sh` + TypeORM)           |
 | Backfill scripts     | `apps/backend/scripts/backfills/` (19 date-prefixed, idempotent) + `migrate.js/ts`           |
-| MTProto session      | `apps/ingestion-telegram`: `npm run telegram:gen-session` (sessions live ONLY there)          |
+| MTProto session      | `apps/ingestion-telegram`: `npm run telegram:gen-session` (sessions live ONLY there)         |
 | Seed KOLs/sources    | `POST telegram-kol/identity/kols` / `POST crypto-news/sources` on backend (DB-driven)        |
 | Architecture docs    | `apps/backend/docs/spydefi/arch/` (14 files: DDD, anti-patterns, ADRs)                       |
 | Safety config        | `config/ingestion.config.json` (used only in Docker; dev falls back to defaults)             |
@@ -172,20 +172,20 @@ was removed 2026-09-14 (its PR checks never completed unattended; see
 
 ## CODE MAP (high-centrality symbols, line numbers verified)
 
-| Symbol                       | Type           | Location                                                                                                           | Role                                                                |
-| ---------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
-| `bootstrap()`                | function       | `apps/backend/src/main.ts:85`                                                                                      | Entry; dotenv, DEBUG trace, 120 s timeout, ValidationPipe, WS       |
-| `AppModule`                  | class          | `apps/backend/src/app.module.ts`                                                                                   | 22 modules + infra (Dashboard/Identity imports commented)           |
-| `appConfig`                  | const          | `apps/backend/src/shared/common/config/app.config.ts:338`                                                          | `registerAs('app', …)` — all backend env validation                 |
-| `DataProviderPort`           | abstract class | `apps/backend/src/data-provider/core/data-provider.port.ts`                                                        | Base for 13 external API adapters                                   |
-| `AggregateRoot<TId>`         | class          | `apps/backend/src/shared/kernel/aggregate-root.ts:17`                                                              | DDD aggregate base — Entity + DomainEvent collection                |
-| `DomainErrorFilter`          | class          | `apps/backend/src/shared/filters/domain-error.filter.ts:12`                                                        | `DomainError` → HTTP status                                         |
-| `WsGateway`                  | class          | `apps/backend/src/shared/ws/gateway/ws.gateway.ts:32`                                                              | Socket.IO fan-out (`EVENT_MAP`, 12 events)                          |
-| `TelegramSseListenerAdapter` | class          | `apps/backend/src/telegram/ingestion/shared/api/sse/…` (459 lines)                                                 | Backend SSE client (fetch+ReadableStream, backoff 1 s→30 s)         |
-| `StreamService`              | class          | `apps/ingestion-telegram/src/stream/application/services/stream.service.ts`                                         | SSE fan-out server (:3031) + 30 s heartbeat                         |
-| `IngestionCoordinator` ×2    | class          | ingestion-telegram `telegram/shared/application/coordinators/…` + backend `telegram/ingestion/shared/application/…` | Route raw messages → typed payloads (service) / use cases (backend) |
-| `App`                        | component      | `apps/frontend/src/app/index.tsx`                                                                                  | QueryProvider → SocketProvider → AppRouter                          |
-| `RootLayout`                 | component      | `apps/frontend/src/app/layouts/root-layout.tsx:11`                                                                 | Header nav (5 links) + `<Outlet/>`                                  |
+| Symbol                                                    | Type           | Location                                                                                                                                                                      | Role                                                                |
+| --------------------------------------------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `bootstrap()`                                             | function       | `apps/backend/src/main.ts:85`                                                                                                                                                 | Entry; dotenv, DEBUG trace, 120 s timeout, ValidationPipe, WS       |
+| `AppModule`                                               | class          | `apps/backend/src/app.module.ts`                                                                                                                                              | 22 modules + infra (Dashboard/Identity imports commented)           |
+| `appConfig`                                               | const          | `apps/backend/src/shared/common/config/app.config.ts:338`                                                                                                                     | `registerAs('app', …)` — all backend env validation                 |
+| `DataProviderPort`                                        | abstract class | `apps/backend/src/data-provider/core/data-provider.port.ts`                                                                                                                   | Base for 13 external API adapters                                   |
+| `AggregateRoot<TId>`                                      | class          | `apps/backend/src/shared/kernel/aggregate-root.ts:17`                                                                                                                         | DDD aggregate base — Entity + DomainEvent collection                |
+| `DomainErrorFilter`                                       | class          | `apps/backend/src/shared/filters/domain-error.filter.ts:12`                                                                                                                   | `DomainError` → HTTP status                                         |
+| `WsGateway`                                               | class          | `apps/backend/src/shared/ws/gateway/ws.gateway.ts:32`                                                                                                                         | Socket.IO fan-out (`EVENT_MAP`, 12 events)                          |
+| `TelegramSseListenerAdapter`                              | class          | `apps/backend/src/telegram/ingestion/shared/api/sse/…` (459 lines)                                                                                                            | Backend SSE client (fetch+ReadableStream, backoff 1 s→30 s)         |
+| `StreamService`                                           | class          | `apps/ingestion-telegram/src/stream/application/services/stream.service.ts`                                                                                                   | SSE fan-out server (:3031) + 30 s heartbeat                         |
+| `MessagePersistenceCoordinator` + `MessageRoutingService` | class          | ingestion-telegram `telegram/shared/application/coordinators/message-persistence.coordinator.ts` + backend `telegram/ingestion/shared/application/message-routing.service.ts` | Route raw messages → typed payloads (service) / use cases (backend) |
+| `App`                                                     | component      | `apps/frontend/src/app/index.tsx`                                                                                                                                             | QueryProvider → SocketProvider → AppRouter                          |
+| `RootLayout`                                              | component      | `apps/frontend/src/app/layouts/root-layout.tsx:11`                                                                                                                            | Header nav (5 links) + `<Outlet/>`                                  |
 
 ## CONVENTIONS
 
@@ -373,13 +373,13 @@ npm run docker:down
 Prod (`:3030/:5173/:5432/:6379`) and staging (`:3031/:4173/:5433/:6380`) occupy the
 standard ports, so dev runs fully shifted and NEVER shares DBs with them:
 
-| Service       | Binds to | Notes                                                              |
-| ------------- | -------- | ------------------------------------------------------------------ |
-| backend       | `:3040`  | `apps/backend/.env.dev` (gitignored), `PORT=3040`                  |
-| frontend      | `:5183`  | `apps/frontend/.env.development` (gitignored), vite `--port 5183`  |
-| postgres dev  | `:5434`  | `onchain-bot-postgres-dev` (`POSTGRES_PORT=5434 docker compose up`)| 
-| redis dev     | `:6381`  | `onchain-bot-redis-dev` (`REDIS_PORT=6381 …`)                      |
-| ingestion     | shared `:3032` | SINGLETON — dev consumes it via SSE/HTTP, never a 2nd MTProto session |
+| Service      | Binds to       | Notes                                                                 |
+| ------------ | -------------- | --------------------------------------------------------------------- |
+| backend      | `:3040`        | `apps/backend/.env.dev` (gitignored), `PORT=3040`                     |
+| frontend     | `:5183`        | `apps/frontend/.env.development` (gitignored), vite `--port 5183`     |
+| postgres dev | `:5434`        | `onchain-bot-postgres-dev` (`POSTGRES_PORT=5434 docker compose up`)   |
+| redis dev    | `:6381`        | `onchain-bot-redis-dev` (`REDIS_PORT=6381 …`)                         |
+| ingestion    | shared `:3032` | SINGLETON — dev consumes it via SSE/HTTP, never a 2nd MTProto session |
 
 `.env.dev` uses DUMMY keys/tokens/channels (validator Tier-1 requires non-empty;
 providers degrade to null, publishers fail 401 without posting anything real).
@@ -456,15 +456,15 @@ sudo ausearch -k docker-cli --start recent | grep -E "auid=|proctitle" | tail -2
 
 `.github/workflows/` has 13 workflows (not one):
 
-| Workflow                                                                                   | Trigger                                                      | Does                                                                                                                                                             |
-| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ci.yml`                                                                                   | push dev/master, PRs                                         | Node 24, tests with `DATABASE_ENABLED=true` + `DATABASE_SYNCHRONIZE=true`, onnxruntime cache — backend + frontend ONLY (no ingestion-telegram job)                |
-| `deploy.yml` (165 lines)                                                                   | push master                                                  | below                                                                                                                                                            |
-| `deploy-staging.yml`                                                                       | push dev (waits for CI)                                      | staging deploy                                                                                                                                                   |
-| `deploy-ingestion.yml`                                                                     | push master touching `apps/ingestion-telegram/**` (no-cancel) | ingestion GHCR build+deploy                                                                                                                                      |
-| Manual release (no workflow) | — | maintainer bumps versions + hand-writes per-app `CHANGELOG.md` entries (see `RELEASE-FLOW.md`, forthcoming) |
-| `branch-governance.yml`, `pr-sync-check.yml`, `sync-dev.yml` | —                                                            | branch policy automation (see GOVERNANCE.md); `sync-dev.yml` only refreshes open PRs — master→dev sync is MANUAL since 2026-09-14 (bot never completed unattended) |
-| `cleanup.yml`, `full-prune.yml`, `ghcr-test-{build,pull}.yml`                              | —                                                            | hygiene + image checks: nightly disk cleanup (3 am cron), manual full prune, GHCR test builds on Dockerfile PRs                                                  |
+| Workflow                                                      | Trigger                                                       | Does                                                                                                                                                               |
+| ------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ci.yml`                                                      | push dev/master, PRs                                          | Node 24, tests with `DATABASE_ENABLED=true` + `DATABASE_SYNCHRONIZE=true`, onnxruntime cache — backend + frontend ONLY (no ingestion-telegram job)                 |
+| `deploy.yml` (165 lines)                                      | push master                                                   | below                                                                                                                                                              |
+| `deploy-staging.yml`                                          | push dev (waits for CI)                                       | staging deploy                                                                                                                                                     |
+| `deploy-ingestion.yml`                                        | push master touching `apps/ingestion-telegram/**` (no-cancel) | ingestion GHCR build+deploy                                                                                                                                        |
+| Manual release (no workflow)                                  | —                                                             | maintainer bumps versions + hand-writes per-app `CHANGELOG.md` entries (see `RELEASE-FLOW.md`, forthcoming)                                                        |
+| `branch-governance.yml`, `pr-sync-check.yml`, `sync-dev.yml`  | —                                                             | branch policy automation (see GOVERNANCE.md); `sync-dev.yml` only refreshes open PRs — master→dev sync is MANUAL since 2026-09-14 (bot never completed unattended) |
+| `cleanup.yml`, `full-prune.yml`, `ghcr-test-{build,pull}.yml` | —                                                             | hygiene + image checks: nightly disk cleanup (3 am cron), manual full prune, GHCR test builds on Dockerfile PRs                                                    |
 
 Prod `deploy.yml` flow:
 
@@ -477,10 +477,10 @@ Branch model (`GOVERNANCE.md` v2.0, Spanish, active): `dev` (integration) → PR
 
 > Oracle migration 2026-09-10: prod serves from Oracle (`OracleDroplet`); ex-DO node `digitalocean` suspended 2026-09-10. Staging on Oracle HELD (fresh-DB migration bug = separate product track); LiteLLM gateway deferred to a separate track.
 
-| Name                 | Host          | IP                                                              | SSH Config                  |
-| -------------------- | ------------- | --------------------------------------------------------------- | --------------------------- |
-| Production (Oracle)  | OracleDroplet | `ubuntu@150.136.155.23` (Tailscale `cryptoganster`=100.110.169.120) | SSH alias in VS Code Remote |
-| ex-DO (suspended 2026-09-10) | digitalocean | 144.126.203.139 (ex-DO (suspended 2026-09-10)) | retired alias `CryptoGanster` |
+| Name                         | Host          | IP                                                                  | SSH Config                    |
+| ---------------------------- | ------------- | ------------------------------------------------------------------- | ----------------------------- |
+| Production (Oracle)          | OracleDroplet | `ubuntu@150.136.155.23` (Tailscale `cryptoganster`=100.110.169.120) | SSH alias in VS Code Remote   |
+| ex-DO (suspended 2026-09-10) | digitalocean  | 144.126.203.139 (ex-DO (suspended 2026-09-10))                      | retired alias `CryptoGanster` |
 
 ### Quick Access (from local)
 
@@ -614,7 +614,7 @@ MTProto (one session)
 TelegramMtprotoListenerAdapter ──► MessageQueue ──► subscribe()
 │ crypto-news only: MediaDownloaderService ──► uploads/crypto-news/media/{channel}/
 ▼
-IngestionCoordinator.route(raw, kol|crypto-news)
+MessagePersistenceCoordinator.route(raw, kol|crypto-news)
 │ KOL: strip text (ToS) │ news: keep text+media URLs
 ▼
 StreamService.broadcast ──► N SSE clients (+30 s health:ping, DisconnectionTracker)

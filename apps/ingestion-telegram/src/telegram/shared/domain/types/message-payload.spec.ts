@@ -1,7 +1,7 @@
 /**
  * Unit tests for MessagePayload transformation
  *
- * Tests the transformToPayload logic in IngestionCoordinator
+ * Tests the transformToPayload logic in MessagePersistenceCoordinator
  * to verify compliance with architectural invariants:
  *
  * - Invariant 1: Text field EXCLUDED (ToS compliance - fix-1)
@@ -11,7 +11,7 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { IngestionCoordinator } from 'telegram/shared/application/coordinators/ingestion.coordinator';
+import { MessagePersistenceCoordinator } from 'telegram/shared/application/coordinators/message-persistence.coordinator';
 import { StreamService } from 'stream/application/services/stream.service';
 import { DeduplicationService } from 'telegram/shared/application/services/deduplication.service';
 import { LastSeenManager } from 'telegram/shared/infrastructure/services/last-seen-manager.service';
@@ -44,7 +44,7 @@ interface TelegramRawMessage {
 }
 
 describe('MessagePayload Transformation', () => {
-  let coordinator: IngestionCoordinator;
+  let coordinator: MessagePersistenceCoordinator;
   let streamService: StreamService;
   let deduplicationService: DeduplicationService;
   let lastSeenManager: LastSeenManager;
@@ -89,7 +89,7 @@ describe('MessagePayload Transformation', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        IngestionCoordinator,
+        MessagePersistenceCoordinator,
         DisconnectionTracker,
         { provide: StreamService, useValue: mockStreamService },
         { provide: DeduplicationService, useValue: mockDeduplicationService },
@@ -106,7 +106,9 @@ describe('MessagePayload Transformation', () => {
       ],
     }).compile();
 
-    coordinator = module.get<IngestionCoordinator>(IngestionCoordinator);
+    coordinator = module.get<MessagePersistenceCoordinator>(
+      MessagePersistenceCoordinator,
+    );
     streamService = module.get<StreamService>(StreamService);
     deduplicationService =
       module.get<DeduplicationService>(DeduplicationService);

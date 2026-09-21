@@ -13,7 +13,7 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { IngestionCoordinator } from './ingestion.coordinator';
+import { MessagePersistenceCoordinator } from './message-persistence.coordinator';
 import { StreamService } from 'stream/application/services/stream.service';
 import { DeduplicationService } from '../services/deduplication.service';
 import { LastSeenManager } from '../../infrastructure/services/last-seen-manager.service';
@@ -46,8 +46,8 @@ interface TelegramRawMessage {
   groupedId?: string;
 }
 
-describe('IngestionCoordinator - Broadcast Pipeline Deduplication (Integration)', () => {
-  let coordinator: IngestionCoordinator;
+describe('MessagePersistenceCoordinator - Broadcast Pipeline Deduplication (Integration)', () => {
+  let coordinator: MessagePersistenceCoordinator;
   let streamService: StreamService;
   let deduplicationService: DeduplicationService;
   let lastSeenManager: LastSeenManager;
@@ -99,7 +99,7 @@ describe('IngestionCoordinator - Broadcast Pipeline Deduplication (Integration)'
 
     module = await Test.createTestingModule({
       providers: [
-        IngestionCoordinator,
+        MessagePersistenceCoordinator,
         StreamService,
         DeduplicationService,
         LastSeenManager,
@@ -123,7 +123,9 @@ describe('IngestionCoordinator - Broadcast Pipeline Deduplication (Integration)'
       ],
     }).compile();
 
-    coordinator = module.get<IngestionCoordinator>(IngestionCoordinator);
+    coordinator = module.get<MessagePersistenceCoordinator>(
+      MessagePersistenceCoordinator,
+    );
     streamService = module.get<StreamService>(StreamService);
     deduplicationService =
       module.get<DeduplicationService>(DeduplicationService);

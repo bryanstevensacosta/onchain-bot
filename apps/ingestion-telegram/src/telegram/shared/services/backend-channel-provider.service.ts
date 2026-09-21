@@ -148,7 +148,7 @@ export class BackendChannelProviderService {
 
     // For backward compatibility, we don't distinguish KOL vs crypto-news
     // at registration level. Return empty arrays for kolIds/newsIds.
-    // The actual classification happens in IngestionCoordinator based on
+    // The actual classification happens in MessagePersistenceCoordinator based on
     // the crypto_news_sources DB cache.
     return {
       kolIds: [],

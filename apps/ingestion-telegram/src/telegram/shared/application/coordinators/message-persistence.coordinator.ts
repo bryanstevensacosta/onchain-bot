@@ -49,7 +49,7 @@ interface TelegramRawMessage {
 }
 
 /**
- * IngestionCoordinator - Routes Telegram messages to SSE broadcast
+ * MessagePersistenceCoordinator - Routes Telegram messages to SSE broadcast
  *
  * Per Requirement 2.1: Broadcasts messages to all connected backend clients via SSE
  * Per Invariant 1 (fix-1): Raw text content EXCLUDED from SSE payload (ToS compliance)
@@ -57,15 +57,15 @@ interface TelegramRawMessage {
  * Per Invariant 3: Deduplication at source before broadcast
  * Per Invariant 5: Media URLs path-based (/api/media/:channelId/:messageId/:index)
  *
- * Modified from backend IngestionCoordinator:
+ * Modified from backend MessageRoutingService:
  * - OLD: Called use cases directly (StoreNewsMessageUseCase, KolIngestionOrchestratorUseCase)
  * - NEW: Broadcasts to StreamService, backends decide what to do with messages
  *
  * @injectable NestJS service
  */
 @Injectable()
-export class IngestionCoordinator {
-  private readonly logger = new Logger(IngestionCoordinator.name);
+export class MessagePersistenceCoordinator {
+  private readonly logger = new Logger(MessagePersistenceCoordinator.name);
   private readonly apiBaseUrl: string;
 
   constructor(

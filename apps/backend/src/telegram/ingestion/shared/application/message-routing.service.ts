@@ -29,8 +29,8 @@ import { ProcessCryptoNewsMessageHandler } from 'telegram/crypto-news-integratio
  * - Crypto-news: POST {INGESTION_TELEGRAM_URL}/api/crypto-news/sources
  */
 @Injectable()
-export class IngestionCoordinator implements OnApplicationBootstrap {
-  private readonly logger = new Logger(IngestionCoordinator.name);
+export class MessageRoutingService implements OnApplicationBootstrap {
+  private readonly logger = new Logger(MessageRoutingService.name);
 
   constructor(
     private readonly config: ConfigService,
@@ -41,7 +41,7 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
   ) {}
 
   public async onApplicationBootstrap(): Promise<void> {
-    this.logger.debug('IngestionCoordinator.onApplicationBootstrap() START');
+    this.logger.debug('MessageRoutingService.onApplicationBootstrap() START');
 
     this.logger.debug('Step 1: Finding active KOLs');
     const activeKols = (await this.kolRepo.findAll()).filter((k) => k.isActive);
@@ -55,7 +55,7 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
         'No active channels to subscribe (KOL); coordinator idle.',
       );
       this.logger.debug(
-        'IngestionCoordinator.onApplicationBootstrap() completed (no channels)',
+        'MessageRoutingService.onApplicationBootstrap() completed (no channels)',
       );
       return;
     }
@@ -68,7 +68,7 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
       this.logger.debug('Step 3a: setImmediate callback executing');
       void this.consumeAll(allChannelIds);
     });
-    this.logger.debug('IngestionCoordinator.onApplicationBootstrap() END');
+    this.logger.debug('MessageRoutingService.onApplicationBootstrap() END');
   }
 
   private async consumeAll(channelIds: string[]): Promise<void> {

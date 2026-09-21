@@ -3,17 +3,17 @@ import { SharedIngestionModule } from './shared/shared-ingestion.module';
 import { KolIngestionModule } from './kol/kol-ingestion.module';
 import { CryptoNewsIngestionModule } from './crypto-news/crypto-news-ingestion.module';
 import { IdentityModule } from 'kol/identity/identity.module';
-import { IngestionCoordinator } from './shared/application/ingestion-coordinator.service';
+import { MessageRoutingService } from './shared/application/message-routing.service';
 import { CryptoNewsIntegrationModule } from 'telegram/crypto-news-integration/crypto-news-integration.module';
 
 /**
  * Root ingestion module.
  *
  * Wires the shared infrastructure, the KOL and crypto-news sub-modules,
- * and the IdentityModule so the IngestionCoordinator can resolve all
+ * and the IdentityModule so the MessageRoutingService can resolve all
  * cross-BC dependencies (KolRepository, ProcessCryptoNewsMessageHandler, etc.).
  *
- * Provides IngestionCoordinator (single subscription + routing for all
+ * Provides MessageRoutingService (single subscription + routing for all
  * Telegram channels).
  *
  * Module dependency graph (no cycles):
@@ -39,7 +39,7 @@ import { CryptoNewsIntegrationModule } from 'telegram/crypto-news-integration/cr
     CryptoNewsIntegrationModule,
     IdentityModule,
   ],
-  providers: [IngestionCoordinator],
-  exports: [IngestionCoordinator, SharedIngestionModule],
+  providers: [MessageRoutingService],
+  exports: [MessageRoutingService, SharedIngestionModule],
 })
 export class TelegramIngestionModule {}

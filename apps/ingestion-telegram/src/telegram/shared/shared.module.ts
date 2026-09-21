@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { TelegramMtprotoListenerAdapter } from './api/mtproto/telegram-mtproto-listener.adapter';
 import { BackendChannelProviderService } from './services/backend-channel-provider.service';
 import { DeduplicationService } from './application/services/deduplication.service';
-import { IngestionCoordinator } from './application/coordinators/ingestion.coordinator';
+import { MessagePersistenceCoordinator } from './application/coordinators/message-persistence.coordinator';
 import { TelegramClientManager } from './infrastructure/services/telegram-client-manager.service';
 import { LastSeenManager } from './infrastructure/services/last-seen-manager.service';
 import { FloodWaitHandlerService } from './infrastructure/services/flood-wait-handler.service';
@@ -85,7 +85,7 @@ import { TelegramMediaExtractorService } from './application/services/telegram-m
 
     // Application layer
     DeduplicationService,
-    IngestionCoordinator,
+    MessagePersistenceCoordinator,
 
     // Infrastructure services
     LastSeenManager,
@@ -106,7 +106,7 @@ import { TelegramMediaExtractorService } from './application/services/telegram-m
     TelegramListenerPort,
     CryptoNewsMessageTransformer, // Export transformer (Phase 5)
     DeduplicationService,
-    IngestionCoordinator,
+    MessagePersistenceCoordinator,
     LastSeenManager,
     FloodWaitHandlerService,
     FloodWaitCounterService,

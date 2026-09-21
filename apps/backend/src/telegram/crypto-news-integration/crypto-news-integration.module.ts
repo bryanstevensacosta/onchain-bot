@@ -84,7 +84,7 @@ import { CryptoNewsPublisherModule } from 'telegram/crypto-news-publisher/crypto
   exports: [
     // Export MatchingConfigRepository so other modules can read/write the flag
     MatchingConfigRepository,
-    // Export ProcessCryptoNewsMessageHandler so IngestionCoordinator can route SSE events
+    // Export ProcessCryptoNewsMessageHandler so MessageRoutingService can route SSE events
     ProcessCryptoNewsMessageHandler,
   ],
 })

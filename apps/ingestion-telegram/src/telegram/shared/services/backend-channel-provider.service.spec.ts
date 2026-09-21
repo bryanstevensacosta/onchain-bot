@@ -230,7 +230,7 @@ describe('BackendChannelProviderService', () => {
 
       const result = service.computeChannelUnionFromRegistrations();
 
-      // Per design: classification happens in IngestionCoordinator, not here
+      // Per design: classification happens in MessagePersistenceCoordinator, not here
       expect(result.kolIds).toEqual([]);
       expect(result.newsIds).toEqual([]);
       expect(result.channelUnion.length).toBeGreaterThan(0);

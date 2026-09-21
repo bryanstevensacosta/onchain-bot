@@ -104,7 +104,7 @@ errors directing users to SSE mode.
 disable via `INGESTION_TELEGRAM_SEED_ENABLED=false`) + news seeder feed the backend DB; the
 ingestion-telegram then pulls KOL IDs over HTTP (crypto-news sources now read from ingestion-telegram own DB, no longer via HTTP).
 
-Backend `IngestionCoordinator` (`shared/application/ingestion-coordinator.service.ts`, `OnApplicationBootstrap`):
+Backend `MessageRoutingService` (`shared/application/message-routing.service.ts`, `OnApplicationBootstrap`):
 subscribes once → routes by `messageType`:
 
 - `messageType='kol'` → `KolIngestionOrchestratorUseCase` (**lives in `kol/identity/application/handlers/`**, fix-1 direct calls to extraction/parsing)
@@ -158,7 +158,7 @@ Backend enforces LLM generation in production via controller guard:
 
 2. `telegram/ingestion/crypto-news/` (split final 2026-09-08 — DB-SEPARATION):
    - **Backend owns ZERO crypto-news tables.** `PERSISTED_ENTITIES` = 39 (`EXPECTED_ENTITY_COUNT` 39): `CryptoNewsSourceEntity`, `CryptoNewsMessageEntity`, `CryptoNewsMessageMediaEntity` removed; migration `1860000000001-DropIngestionOwnedCryptoNewsTables` drops BOTH historical filter-FK names (`FK_f4d53649fee70f18bbc88502673` synchronize-era + `fk_channel_content_filter_configs_channel_id` from `1815000000000`) + the 3 tables media→messages→sources (staging/prod; dev uses synchronize).
-   - ~~`StoreNewsMessageUseCase`~~ — **DELETED** (file + providers + spec). SSE crypto-news messages route to skip-with-log in `IngestionCoordinator` (ingestion-telegram already persists; backend NO persiste — Opción A).
+   - ~~`StoreNewsMessageUseCase`~~ — **DELETED** (file + providers + spec). SSE crypto-news messages route to skip-with-log in `MessageRoutingService` (ingestion-telegram already persists; backend NO persiste — Opción A).
    - ~~`RegisterNewsSourceUseCase`, `ListActiveSourceIdsUseCase`, `CryptoNewsMetadataResolver`, `TypeOrmCryptoNews{Source,Message}Repository`~~ — **DELETED** (files + specs where they existed).
    - ~~Legacy GETs~~ — **DELETED → 404**: `GET messages`, `GET messages/:id`, `GET sources`, `GET sources/active/ids`, `GET backfill/:channelId`, `GET media/:mediaId`, `POST sources`. Ingestion serves them: `GET :3031/api/crypto-news/sources` → 200.
    - `filters/` submodule — **STAYS, FK-less**: `ChannelContentFilterConfigEntity` keeps opaque `channel_id` varchar (JOIN to sources removed); filter use-cases validate source existence as warn (no throw); reads go through the new filters-only `TypeOrmChannelFilterRepository`.
@@ -196,7 +196,7 @@ PRIMARY PATH (SSE, <10s latency target):
 ════════════════════════════════════════
 Telegram → Ingestion-telegram (persist RAW) → SSE stream (:3031/api/ingestion/stream)
                                                     ↓ messageType='crypto-news'
-Backend IngestionCoordinator.route()
+Backend MessageRoutingService.route()
                                                     ↓
 ProcessCryptoNewsMessageHandler:
   1. Check matchingEnabled flag (skip if disabled)
@@ -275,12 +275,12 @@ Real-time SSE event processor for `messageType='crypto-news'` messages. Implemen
 
 **File**: `apps/backend/src/telegram/crypto-news-integration/application/handlers/process-crypto-news-message.handler.ts` (194 lines)
 
-**Wiring**: Provided by `CryptoNewsIntegrationModule`, exported for `IngestionCoordinator` injection.
+**Wiring**: Provided by `CryptoNewsIntegrationModule`, exported for `MessageRoutingService` injection.
 
 **Deprecated (NO LONGER USED)**:
 
 - `CryptoNewsMessageIngestedHandler` — event-driven enqueue (listened to `crypto-news.message.ingested`)
-  - **Replaced by**: `ProcessCryptoNewsMessageHandler` (direct handler invocation from IngestionCoordinator)
+  - **Replaced by**: `ProcessCryptoNewsMessageHandler` (direct handler invocation from MessageRoutingService)
 - Backend NO LONGER ingests crypto-news via local MTProto (ingestion-telegram owns this)
 - Backend NO LONGER stores crypto-news in DB (`crypto_news_*` tables live ONLY in ingestion-telegram)
 - **Polling was NOT replaced** — it's now a fallback path that coexists with SSE

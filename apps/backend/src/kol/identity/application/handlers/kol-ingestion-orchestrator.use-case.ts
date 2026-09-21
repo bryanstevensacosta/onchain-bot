@@ -61,7 +61,7 @@ export class KolIngestionOrchestratorUseCase {
   /**
    * Process a single raw message from the Telegram listener subscription.
    *
-   * Called by IngestionCoordinator (telegram/ingestion/shared/) per
+   * Called by MessageRoutingService (telegram/ingestion/shared/) per
    * incoming message. Routes through extraction → parsing pipeline.
    *
    * Per fix-1 (Bot Dev ToS §4.3): raw text flows ONLY through direct

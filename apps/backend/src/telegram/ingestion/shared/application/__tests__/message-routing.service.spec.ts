@@ -6,10 +6,10 @@ import { Kol } from 'kol/identity/domain/entities/kol.entity';
 import { KolId } from 'kol/identity/domain/value-objects/kol-id.vo';
 import { KolIngestionOrchestratorUseCase } from 'kol/identity/application/handlers/kol-ingestion-orchestrator.use-case';
 
-const { IngestionCoordinator } =
+const { MessageRoutingService } =
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- the static import chain is broken by Jest's inability to map the CJS `telegram/extensions/Logger` subpath (see file header)
-  require('telegram/ingestion/shared/application/ingestion-coordinator.service') as {
-    IngestionCoordinator: new (...args: unknown[]) => {
+  require('telegram/ingestion/shared/application/message-routing.service') as {
+    MessageRoutingService: new (...args: unknown[]) => {
       onApplicationBootstrap(): Promise<void>;
     };
   };
@@ -82,7 +82,7 @@ function buildConfig(): ConfigService {
   } as unknown as ConfigService;
 }
 
-describe('IngestionCoordinator (post db-separation todo 4: KOL-only, crypto-news skipped)', () => {
+describe('MessageRoutingService (post db-separation todo 4: KOL-only, crypto-news skipped)', () => {
   let kolRepo: InMemoryKolRepo;
   let listener: FakeListener;
   let orchestrator: CapturingOrchestrator;
@@ -110,7 +110,7 @@ describe('IngestionCoordinator (post db-separation todo 4: KOL-only, crypto-news
     kol.activate();
     kolRepo.seed(kol);
 
-    const coord = new IngestionCoordinator(
+    const coord = new MessageRoutingService(
       buildConfig(),
       kolRepo,
       orchestrator,
@@ -143,7 +143,7 @@ describe('IngestionCoordinator (post db-separation todo 4: KOL-only, crypto-news
       },
     ];
 
-    const coord = new IngestionCoordinator(
+    const coord = new MessageRoutingService(
       buildConfig(),
       kolRepo,
       orchestrator,
@@ -175,7 +175,7 @@ describe('IngestionCoordinator (post db-separation todo 4: KOL-only, crypto-news
       },
     ];
 
-    const coord = new IngestionCoordinator(
+    const coord = new MessageRoutingService(
       buildConfig(),
       kolRepo,
       orchestrator,
@@ -192,7 +192,7 @@ describe('IngestionCoordinator (post db-separation todo 4: KOL-only, crypto-news
   });
 
   it('does not subscribe when no channels are active', async () => {
-    const coord = new IngestionCoordinator(
+    const coord = new MessageRoutingService(
       buildConfig(),
       kolRepo,
       orchestrator,

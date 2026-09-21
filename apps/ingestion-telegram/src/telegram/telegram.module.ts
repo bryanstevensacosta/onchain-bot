@@ -4,7 +4,7 @@ import { CryptoNewsModule } from './crypto-news/crypto-news.module';
 import { StreamModule } from '../stream/stream.module';
 import { BackendChannelProviderService } from './shared/services/backend-channel-provider.service';
 import { TelegramListenerPort } from './shared/ports/telegram-listener.port';
-import { IngestionCoordinator } from './shared/application/coordinators/ingestion.coordinator';
+import { MessagePersistenceCoordinator } from './shared/application/coordinators/message-persistence.coordinator';
 import { SSEBroadcastService } from '../stream/application/services/sse-broadcast.service';
 import { BroadcastEvent } from '../stream/domain/broadcast-event.vo';
 import { DebugTelegramController } from './debug/debug-telegram.controller';
@@ -25,7 +25,7 @@ import { CryptoNewsSourceRepository } from './crypto-news/infrastructure/persist
  *
  * Lifecycle:
  * - onModuleInit(): Fetches active channels (KOLs from backend, crypto-news from local DB), starts MTProto listener
- * - Listener yields messages to IngestionCoordinator
+ * - Listener yields messages to MessagePersistenceCoordinator
  * - Coordinator broadcasts to StreamService (legacy SSE)
  * - TelegramModule broadcasts to SSEBroadcastService (multi-backend SSE)
  * - Scheduler refreshes channel list every 5 minutes
@@ -55,7 +55,7 @@ export class TelegramModule implements OnModuleInit {
     private readonly channelProvider: BackendChannelProviderService,
     private readonly cryptoNewsSourceRepo: CryptoNewsSourceRepository,
     private readonly listener: TelegramListenerPort,
-    private readonly coordinator: IngestionCoordinator,
+    private readonly coordinator: MessagePersistenceCoordinator,
     private readonly sseBroadcast: SSEBroadcastService,
   ) {}
 
