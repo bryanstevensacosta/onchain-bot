@@ -21,7 +21,6 @@ import { Counter, Gauge, Histogram, Registry } from 'prom-client';
  * - ingestion_active_backends: Number of active backend connections
  * - ingestion_broadcast_total: Broadcast events per backend (labels: backend_id)
  * - ingestion_broadcast_failures: Broadcast failures per backend (labels: backend_id, reason)
- * - ingestion_channel_union_size: Size of channel union across all backends
  * - ingestion_backfill_buffer_size: Number of messages in backfill buffer
  * - ingestion_backfill_requests_total: Backfill requests per backend (labels: backend_id, status)
  *
@@ -53,7 +52,6 @@ export class MetricsService {
   public readonly activeBackends: Gauge<string>;
   public readonly broadcastTotal: Counter<string>;
   public readonly broadcastFailures: Counter<string>;
-  public readonly channelUnionSize: Gauge<string>;
   public readonly backfillBufferSize: Gauge<string>;
   public readonly backfillRequestsTotal: Counter<string>;
 
@@ -138,12 +136,6 @@ export class MetricsService {
       registers: [this.registry],
     });
 
-    this.channelUnionSize = new Gauge({
-      name: 'ingestion_channel_union_size',
-      help: 'Current size of the channel union (unique channels across all backends)',
-      registers: [this.registry],
-    });
-
     this.backfillBufferSize = new Gauge({
       name: 'ingestion_backfill_buffer_size',
       help: 'Number of messages currently in the backfill buffer',
@@ -162,7 +154,6 @@ export class MetricsService {
     this.sseClientsConnected.set(0);
     this.floodWaitCount24h.set(0);
     this.activeBackends.set(0);
-    this.channelUnionSize.set(0);
     this.backfillBufferSize.set(0);
   }
 
