@@ -141,7 +141,7 @@ describe('Preservation Property Tests: Development/Test Auto-Sync Unchanged', ()
   /**
    * Property 2.3: Entity Count Preservation
    *
-   * **Requirement 3.3**: PERSISTED_ENTITIES must contain exactly 48 entity classes
+   * **Requirement 3.3**: PERSISTED_ENTITIES must contain exactly 47 entity classes
    *
    * This verifies that the entity registration is not broken by the fix.
    * The fix involves extracting PERSISTED_ENTITIES to a separate file,
@@ -156,16 +156,18 @@ describe('Preservation Property Tests: Development/Test Auto-Sync Unchanged', ()
    * threads_* entities: queue, keywords, blacklist, llm-config,
    * prompt-templates, throttle-state, oauth-tokens, matching-config).
    * Updated from 47 to 48 after T6 dead-letter queue (dead_letter_queue).
+   * Updated from 48 to 47 after telegram-feed-unification item 8 (KolEntity
+   * out: KOL identity moved to ingestion-telegram `telegram_feed_sources`).
    */
-  it('should preserve entity count at 48 entities', () => {
-    // Verify the array contains exactly 48 entities
+  it('should preserve entity count at 47 entities', () => {
+    // Verify the array contains exactly 47 entities
     const entityCount = PERSISTED_ENTITIES.length;
 
-    // Requirement 3.3: Must have exactly 48 entities
-    expect(entityCount).toBe(48);
+    // Requirement 3.3: Must have exactly 47 entities
+    expect(entityCount).toBe(47);
 
     // Also verify the EXPECTED_ENTITY_COUNT constant matches
-    expect(EXPECTED_ENTITY_COUNT).toBe(48);
+    expect(EXPECTED_ENTITY_COUNT).toBe(47);
     expect(entityCount).toBe(EXPECTED_ENTITY_COUNT);
   });
 

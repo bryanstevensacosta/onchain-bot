@@ -8,19 +8,20 @@ import { KolIngestionOrchestratorUseCase } from 'kol/identity/application/handle
 import type { RegisterKolInput } from 'kol/identity/api/input/register-kol.input';
 import type { KolView } from 'kol/identity/application/mappers/kol.mapper';
 import type { KolLifecycleTransition } from 'kol/identity/application/handlers/set-kol-lifecycle.use-case';
+import { kolIdentityGone } from 'kol/identity/application/errors/kol-identity-gone.error';
 
 /**
- * HTTP adapter for Telegram KOL ingestion management.
- * Inbound port (REST API) — exposes KOL CRUD + lifecycle use cases over HTTP.
+ * DEPRECATED (item 8, telegram-feed-unification): every route answers 501
+ * with a hint to the feed replacement.
  *
- * The ingestion orchestrator is provided by `TelegramIngestionModule` (global).
+ * KOL identity moved to ingestion-telegram (`telegram_feed_sources`,
+ * `type='kol'`). Backend pipeline reads go through `FeedIdentityHttpClient`
+ * (`GET {INGESTION_TELEGRAM_URL}/api/feed/sources?type=kol`); the local
+ * `kols` table is dropped. SINGLE deprecation code 501 everywhere (never 410).
  *
- * Routes (Fase 1 of the kol-refactor plan):
- *   GET    /kol/identity/kols
- *   POST   /kol/identity/kols
- *   GET    /kol/identity/kols/:kolId
- *   PATCH  /kol/identity/kols/:kolId/lifecycle
- *   POST   /kol/identity/kols/:kolId/backfill
+ * Constructor keeps the use-case injections (DI untouched for consumers);
+ * the use cases themselves are 501 shims too, so direct DI callers fail
+ * loud with the same hint instead of 500/404.
  */
 @Controller('telegram-kol/identity')
 export class KolController {
@@ -31,11 +32,18 @@ export class KolController {
     private readonly listActiveKolIds: ListActiveKolIdsUseCase,
     private readonly setLifecycle: SetKolLifecycleUseCase,
     private readonly startListening: KolIngestionOrchestratorUseCase,
-  ) {}
+  ) {
+    void this.registerKol;
+    void this.getKol;
+    void this.listKols;
+    void this.listActiveKolIds;
+    void this.setLifecycle;
+    void this.startListening;
+  }
 
   @Get('kols')
   public list(): Promise<ReadonlyArray<KolView>> {
-    return this.listKols.execute();
+    throw kolIdentityGone('GET /telegram-kol/identity/kols');
   }
 
   /**
@@ -44,25 +52,25 @@ export class KolController {
    */
   @Get('kols/active/ids')
   public listActiveIds(): Promise<ReadonlyArray<string>> {
-    return this.listActiveKolIds.execute();
+    throw kolIdentityGone('GET /telegram-kol/identity/kols/active/ids');
   }
 
   @Post('kols')
-  public add(@Body() input: RegisterKolInput): Promise<KolView> {
-    return this.registerKol.execute(input);
+  public add(@Body() _input: RegisterKolInput): Promise<KolView> {
+    throw kolIdentityGone('POST /telegram-kol/identity/kols');
   }
 
   @Get('kols/:kolId')
-  public get(@Param('kolId') kolId: string): Promise<KolView> {
-    return this.getKol.execute(kolId);
+  public get(@Param('kolId') _kolId: string): Promise<KolView> {
+    throw kolIdentityGone('GET /telegram-kol/identity/kols/:kolId');
   }
 
   @Post('kols/:kolId/lifecycle')
   public setKolLifecycle(
-    @Param('kolId') kolId: string,
-    @Body() body: { status: KolLifecycleTransition },
+    @Param('kolId') _kolId: string,
+    @Body() _body: { status: KolLifecycleTransition },
   ): Promise<KolView> {
-    return this.setLifecycle.execute({ kolId, status: body.status });
+    throw kolIdentityGone('POST /telegram-kol/identity/kols/:kolId/lifecycle');
   }
 
   /**
@@ -70,11 +78,10 @@ export class KolController {
    * from one KOL channel and ingest them through the normal pipeline.
    */
   @Post('kols/:kolId/backfill')
-  public async backfill(
-    @Param('kolId') kolId: string,
-    @Query('limit') limit?: string,
+  public backfill(
+    @Param('kolId') _kolId: string,
+    @Query('limit') _limit?: string,
   ): Promise<{ ingested: number; total: number }> {
-    const n = Math.max(1, Math.min(100, parseInt(limit ?? '10', 10) || 10));
-    return this.startListening.backfillKol(kolId, n);
+    throw kolIdentityGone('POST /telegram-kol/identity/kols/:kolId/backfill');
   }
 }

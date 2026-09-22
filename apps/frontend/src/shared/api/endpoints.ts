@@ -1,10 +1,18 @@
 export const ENDPOINTS = {
   kols: {
-    list: '/telegram-kol/identity/kols',
-    get: (id: string) => `/telegram-kol/identity/kols/${id}`,
+    // KOL identity moved to ingestion-telegram (telegram-feed-unification
+    // item 8): reads/writes go through the feed API (same /ingestion-api
+    // prefix the newsroom uses — vite dev proxies it to :3031, prod nginx
+    // rewrites /ingestion-api/* → /api/* on the ingestion host).
+    // No single-get route exists in the feed API: detail = list + find.
+    // No BLACKLISTED equivalent exists (toggle flips isActive only).
+    // Backfill has no feed equivalent: still hits the backend, which now
+    // answers 501 with the feed hint (surfaced inline by BackfillButton).
+    list: '/ingestion-api/feed/sources?type=kol',
+    add: '/ingestion-api/feed/sources',
+    toggle: (id: string) =>
+      `/ingestion-api/feed/sources/${encodeURIComponent(id)}/toggle`,
     backfill: (id: string) => `/telegram-kol/identity/kols/${id}/backfill`,
-    add: '/telegram-kol/identity/kols',
-    setLifecycle: (id: string) => `/telegram-kol/identity/kols/${id}/lifecycle`,
   },
   publishing: {
     published: '/vip-calls/calls/published',
@@ -76,12 +84,10 @@ export const ENDPOINTS = {
       // all source writes go through the ingestion API below.
       list: '/ingestion-api/feed/sources',
       add: '/ingestion-api/feed/sources',
-      update: (channelId: string) =>
-        `/ingestion-api/feed/sources/${channelId}`,
+      update: (channelId: string) => `/ingestion-api/feed/sources/${channelId}`,
       toggle: (channelId: string) =>
         `/ingestion-api/feed/sources/${channelId}/toggle`,
-      delete: (channelId: string) =>
-        `/ingestion-api/feed/sources/${channelId}`,
+      delete: (channelId: string) => `/ingestion-api/feed/sources/${channelId}`,
     },
   },
   trackedCalls: {

@@ -24,9 +24,11 @@ import { ProcessCryptoNewsMessageHandler } from 'telegram/crypto-news-integratio
  * Per fix-1 (Bot Dev ToS §4.3): raw message text is consumed by direct
  * use case calls here; it never crosses an event bus.
  *
- * Note (2026-09-06): Seeders removed. Channels are now registered via:
- * - KOLs: POST /telegram-kol/identity/kols
- * - Crypto-news: POST {INGESTION_TELEGRAM_URL}/api/feed/sources
+ * Note (2026-09-06, updated item 8): Seeders removed. Channels are now registered via:
+ * - KOLs: POST {INGESTION_TELEGRAM_URL}/api/feed/sources (type='kol')
+ * - Crypto-news: POST {INGESTION_TELEGRAM_URL}/api/feed/sources (type='crypto-news')
+ * Bootstrap reads KOLs through the `KolRepository` port (`FeedIdentityHttpClient`
+ * over the feed API) — fail-open `[]` keeps this idle, never crashing boot.
  */
 @Injectable()
 export class MessageRoutingService implements OnApplicationBootstrap {

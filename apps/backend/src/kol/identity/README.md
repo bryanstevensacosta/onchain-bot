@@ -17,10 +17,10 @@ Key Opinion Leader that the bot monitors for alpha signals.
 
 The `Kol` aggregate owns three transitions:
 
-| Method | Effect |
-|---|---|
-| `kol.activate()` | `lifecycleStatus = ACTIVE` (ingestion allowed) |
-| `kol.dormant()` | `lifecycleStatus = DORMANT`, `isActive = false` (paused) |
+| Method            | Effect                                                             |
+| ----------------- | ------------------------------------------------------------------ |
+| `kol.activate()`  | `lifecycleStatus = ACTIVE` (ingestion allowed)                     |
+| `kol.dormant()`   | `lifecycleStatus = DORMANT`, `isActive = false` (paused)           |
 | `kol.blacklist()` | `lifecycleStatus = BLACKLISTED`, `isActive = false` (hard-skipped) |
 
 Use `SetKolLifecycleUseCase` from the API; never mutate the aggregate
@@ -33,22 +33,23 @@ directly from callers.
 - `ListKolsUseCase` — list all KOLs
 - `SetKolLifecycleUseCase` — change lifecycle status
 
-## Persistence
+## Persistence (item 8, telegram-feed-unification)
 
-- `KolEntity` (TypeORM, table `kols`, PK `kol_id`)
-- `TypeOrmKolRepository` (Postgres)
-- `InMemoryKolRepository` (FIFO-less, dev only)
-- `JsonResolvedKolMetadataRepository` (file cache of resolved titles)
+- Identity lives in ingestion-telegram (`telegram_feed_sources`, `type='kol'`).
+- Backend keeps NO `kols` table (dropped by migration `1877000000000-DropKolsTable`).
+- `KolRepository` port reads via `FeedIdentityHttpClient`
+  (`GET {INGESTION_TELEGRAM_URL}/api/feed/sources?type=kol`, fail-open;
+  writes throw 501). Domain aggregate + VOs + mapper views stay.
+- CRUD/lifecycle use cases are 501 shims; `KolController` answers 501 on all routes.
 
-## Routes (HTTP)
+## Routes (HTTP) — all 501 deprecated, use the feed API
 
-| Verb | Path |
-|---|---|
-| GET    | `/telegram-kol/identity/kols` |
-| POST   | `/telegram-kol/identity/kols` |
-| GET    | `/telegram-kol/identity/kols/:kolId` |
-| POST   | `/telegram-kol/identity/kols/:kolId/lifecycle` |
-| POST   | `/telegram-kol/identity/kols/:kolId/backfill` |
+| Verb     | Path                                           | Replacement                                      |
+| -------- | ---------------------------------------------- | ------------------------------------------------ |
+| GET/POST | `/telegram-kol/identity/kols`                  | `GET/POST {INGESTION}/api/feed/sources?type=kol` |
+| GET      | `/telegram-kol/identity/kols/:kolId`           | feed list + find                                 |
+| POST     | `/telegram-kol/identity/kols/:kolId/lifecycle` | `PATCH {INGESTION}/api/feed/sources/:id/toggle`  |
+| POST     | `/telegram-kol/identity/kols/:kolId/backfill`  | none (501 with hint)                             |
 
 ## See also
 

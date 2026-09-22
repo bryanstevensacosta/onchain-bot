@@ -1,18 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { KolRepository } from 'kol/identity/application/ports/kol.repository';
+import { kolIdentityGone } from 'kol/identity/application/errors/kol-identity-gone.error';
 
 /**
- * ListActiveKolIdsUseCase - Returns only the kolId values of active KOLs
- *
- * Used by ingestion-telegram to fetch the list of KOL channels to subscribe to.
- * Returns only the IDs (not full aggregates) for lightweight transport.
+ * 501 shim (item 8, telegram-feed-unification): active-ID listing moved to
+ * ingestion-telegram (`GET {INGESTION_TELEGRAM_URL}/api/feed/sources/active/ids?type=kol`).
+ * Backend pipeline reads go through `FeedIdentityHttpClient` (the
+ * `KolRepository` port) instead. Kept as a named shim — never silently deleted.
  */
 @Injectable()
 export class ListActiveKolIdsUseCase {
-  constructor(private readonly kolRepo: KolRepository) {}
-
   public async execute(): Promise<ReadonlyArray<string>> {
-    const activeKols = await this.kolRepo.findActive();
-    return activeKols.map((kol) => kol.kolId.value);
+    throw kolIdentityGone('ListActiveKolIdsUseCase.execute');
   }
 }

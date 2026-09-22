@@ -5,6 +5,8 @@ import {
   OnModuleDestroy,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { KolRepository } from 'kol/identity/application/ports/kol.repository';
 import {
   TelegramListenerPort,
   TelegramRawMessage,
@@ -12,7 +14,6 @@ import {
   JoinChannelResult,
   // TelegramMediaAttachment, // Unused - MessagePayload uses different media structure
 } from '../../domain/ports/telegram-listener.port';
-import { BackendRegistrationClient } from '../../infrastructure/backend-registration-client.service';
 
 /**
  * MessagePayload from Ingestion Service SSE stream
@@ -43,6 +44,25 @@ interface MessagePayload {
 }
 
 /**
+ * Registration result from ingestion-telegram
+ */
+export interface RegistrationResult {
+  registered: boolean;
+  channelUnionSize: number;
+  message: string;
+}
+
+/**
+ * Registration status for health checks
+ */
+export enum RegistrationStatus {
+  UNREGISTERED = 'unregistered',
+  REGISTERED = 'registered',
+  RETRYING = 'retrying',
+  FAILED = 'failed',
+}
+
+/**
  * TelegramSseListenerAdapter - SSE-based TelegramListenerPort implementation
  *
  * Per Requirement 3.1, 3.2, 3.3: Drop-in replacement for the removed direct Telegram listener (T5)
@@ -52,10 +72,13 @@ interface MessagePayload {
  * Connects to Ingestion Service SSE stream and transforms MessagePayload
  * back to TelegramRawMessage format expected by backend use cases.
  *
- * UPDATED: Now integrates with BackendRegistrationClient to:
- * - Register backend with ingestion-telegram on boot
- * - Include backendId in SSE stream query params
- * - Handle 401 Unauthorized by forcing re-registration
+ * Item 8 (telegram-feed-unification): owns backend registration with
+ * ingestion-telegram (the deleted `BackendRegistrationClient` lived here as
+ * a dependency — register-on-boot + 5-min keep-alive + 401 re-register are
+ * preserved inline so the enforced `backendId` gate on
+ * `GET /api/ingestion/stream` keeps passing). The registration whitelist is
+ * derived from `KolRepository.findActive()` (feed HTTP reads now, never the
+ * dropped local `kols` table).
  *
  * Key differences from the former direct adapter:
  * - No direct Telegram API access
@@ -71,20 +94,28 @@ export class TelegramSseListenerAdapter
 {
   private readonly logger = new Logger(TelegramSseListenerAdapter.name);
   private readonly ingestionServiceUrl: string;
+  private readonly backendId: string;
   private abortController: AbortController | null = null;
   private reconnectAttempts = 0;
   private readonly maxReconnectDelay: number;
   private readonly baseReconnectDelay: number;
+  private registrationStatus = RegistrationStatus.UNREGISTERED;
+  private lastRegistrationAttempt: Date | null = null;
+  private consecutiveFailures = 0;
+  private channelUnionSize = 0;
 
   constructor(
     private readonly config: ConfigService,
-    private readonly registrationClient: BackendRegistrationClient,
+    private readonly kolRepo: KolRepository,
   ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const appConfig = this.config.get('app');
     this.ingestionServiceUrl =
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       appConfig?.ingestion?.serviceUrl || 'http://localhost:3031';
+    this.backendId =
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      appConfig?.backendId || process.env.BACKEND_ID || 'production';
 
     // SSE reconnect backoff knobs (fail-soft to 1000/30000 when unconfigured,
     // mirroring app.cryptoNews.pollingIntervalMinutes validation).
@@ -114,14 +145,13 @@ export class TelegramSseListenerAdapter
   }
 
   async onModuleInit(): Promise<void> {
-    this.logger.log('[SSE-ADAPTER] Initializing with registration client');
-
-    // Registration happens in BackendRegistrationClient.onModuleInit()
-    // This is non-blocking - just log the current status
-    const status = this.registrationClient.getStatus();
     this.logger.log(
-      `[SSE-ADAPTER] Registration status: ${status.status}, backendId: ${status.backendId}`,
+      `[SSE-ADAPTER] Initializing with ID: ${this.backendId} (registration non-blocking)`,
     );
+
+    // Registration happens async — never block boot (fail-open: the
+    // subscribe loop retries with backoff until 200).
+    void this.registerWithRetry();
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -139,13 +169,12 @@ export class TelegramSseListenerAdapter
    * @yields TelegramRawMessage for each message in subscribed channels
    */
   async *subscribe(channelIds: string[]): AsyncIterable<TelegramRawMessage> {
-    const backendId = this.registrationClient.getBackendId();
-    const streamUrl = `${this.ingestionServiceUrl}/api/ingestion/stream?backendId=${backendId}`;
+    const streamUrl = `${this.ingestionServiceUrl}/api/ingestion/stream?backendId=${this.backendId}`;
 
     this.logger.log(
       `Subscribing to SSE stream for ${channelIds.length} channels: ${streamUrl}`,
     );
-    this.logger.debug(`SSE subscribe backendId: ${backendId}`);
+    this.logger.debug(`SSE subscribe backendId: ${this.backendId}`);
     this.logger.debug(`SSE subscribe channels: ${channelIds.join(', ')}`);
 
     while (true) {
@@ -160,7 +189,7 @@ export class TelegramSseListenerAdapter
           this.logger.error(
             '[SSE-ADAPTER] Received 401 Unauthorized - forcing re-registration',
           );
-          await this.registrationClient.forceReregistration();
+          await this.registerWithRetry(1);
 
           // Wait a bit before retrying
           await this.sleep(5000);
@@ -507,5 +536,195 @@ export class TelegramSseListenerAdapter
    */
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Active KOL channel IDs for the registration whitelist.
+   *
+   * Item 8: derived from `KolRepository.findActive()` (feed HTTP reads via
+   * `FeedIdentityHttpClient`) — never from the dropped local `kols` table.
+   * Fail-open `[]` on feed outage (registration still succeeds; the union
+   * is informational — the stream broadcasts everything and the backend
+   * filters client-side).
+   */
+  private async getActiveChannels(): Promise<string[]> {
+    try {
+      const active = await this.kolRepo.findActive();
+      return active.map((k) => k.kolId.value);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to query active KOL channels for registration (fail-open []): ${(error as Error).message}`,
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Register with ingestion-telegram (retry, exponential backoff).
+   *
+   * Preserved from the deleted `BackendRegistrationClient` (item 8): the
+   * stream endpoint enforces the `backendId` gate (401 when unregistered),
+   * so boot-time + keep-alive registration stays. Non-blocking callers use
+   * `void`.
+   */
+  private async registerWithRetry(maxAttempts = 5): Promise<void> {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        this.registrationStatus = RegistrationStatus.RETRYING;
+        this.lastRegistrationAttempt = new Date();
+
+        const result = await this.registerWithIngestionService();
+
+        if (result.registered) {
+          this.registrationStatus = RegistrationStatus.REGISTERED;
+          this.consecutiveFailures = 0;
+          this.channelUnionSize = result.channelUnionSize;
+
+          this.logger.log(
+            `[SSE-REGISTRATION-SUCCESS] Registered as "${this.backendId}" with ${result.channelUnionSize} channels in union`,
+          );
+          return;
+        }
+      } catch (error) {
+        this.consecutiveFailures++;
+        const isLastAttempt = attempt === maxAttempts;
+
+        if (isLastAttempt) {
+          this.registrationStatus = RegistrationStatus.FAILED;
+          this.logger.error(
+            `[SSE-REGISTRATION-FAILED] Failed after ${maxAttempts} attempts: ${(error as Error).message}`,
+          );
+          return;
+        }
+
+        const delay = Math.min(Math.pow(2, attempt - 1) * 1000, 30_000);
+        this.logger.warn(
+          `[SSE-REGISTRATION-RETRY] Attempt ${attempt} failed, retrying in ${delay}ms`,
+        );
+        await this.sleep(delay);
+      }
+    }
+  }
+
+  /**
+   * Single registration POST against ingestion-telegram.
+   */
+  private async registerWithIngestionService(): Promise<RegistrationResult> {
+    const sourceWhitelist = await this.getActiveChannels();
+    const url = `${this.ingestionServiceUrl}/api/ingestion/backends/register`;
+
+    const payload = {
+      backendId: this.backendId,
+      sourceWhitelist,
+      apiVersion: 'v1',
+    };
+
+    this.logger.log(
+      `[SSE-REGISTRATION-REQUEST] POST ${url} with ${sourceWhitelist.length} channels`,
+    );
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Registration failed with status ${response.status}: ${errorText}`,
+        );
+      }
+
+      const result = (await response.json()) as RegistrationResult;
+      return result;
+    } catch (error) {
+      clearTimeout(timeoutId);
+
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Registration request timed out after 10s');
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Keep-alive: re-register every 5 minutes.
+   *
+   * Preserved from the deleted `BackendRegistrationClient` (item 8): the
+   * ingestion registry is in-memory, so an ingestion restart wipes our
+   * registration — without this cron the stream would 401 forever.
+   */
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async handleKeepAlive(): Promise<void> {
+    if (this.registrationStatus === RegistrationStatus.UNREGISTERED) {
+      return;
+    }
+
+    this.logger.log(
+      '[SSE-REGISTRATION-KEEPALIVE] Running keep-alive registration',
+    );
+
+    try {
+      const result = await this.registerWithIngestionService();
+
+      if (result.registered) {
+        this.registrationStatus = RegistrationStatus.REGISTERED;
+        this.consecutiveFailures = 0;
+        this.channelUnionSize = result.channelUnionSize;
+        this.logger.log(
+          `[SSE-REGISTRATION-KEEPALIVE-SUCCESS] Channel union size: ${result.channelUnionSize}`,
+        );
+      }
+    } catch (error) {
+      this.consecutiveFailures++;
+      this.logger.warn(
+        `[SSE-REGISTRATION-KEEPALIVE-FAILED] ${(error as Error).message}`,
+      );
+
+      if (this.consecutiveFailures >= 3) {
+        this.logger.error(
+          '[SSE-REGISTRATION-KEEPALIVE-FAILED] Too many keep-alive failures, triggering full re-registration',
+        );
+        this.registrationStatus = RegistrationStatus.UNREGISTERED;
+        void this.registerWithRetry();
+      }
+    }
+  }
+
+  /**
+   * Registration status for health checks.
+   */
+  getStatus(): {
+    status: RegistrationStatus;
+    backendId: string;
+    channelUnionSize: number;
+    lastAttempt: Date | null;
+    consecutiveFailures: number;
+  } {
+    return {
+      status: this.registrationStatus,
+      backendId: this.backendId,
+      channelUnionSize: this.channelUnionSize,
+      lastAttempt: this.lastRegistrationAttempt,
+      consecutiveFailures: this.consecutiveFailures,
+    };
+  }
+
+  /**
+   * Backend ID used in the stream `backendId` query param.
+   */
+  getBackendId(): string {
+    return this.backendId;
   }
 }

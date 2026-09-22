@@ -1,6 +1,5 @@
 import { Global, GoneException, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { TelegramListenerPort } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import { TelegramSseListenerAdapter } from 'telegram/ingestion/shared/api/sse/telegram-sse-listener.adapter';
 import { TelegramMockAdapter } from 'telegram/ingestion/shared/infrastructure/adapters/telegram-mock.adapter';
@@ -8,8 +7,6 @@ import { TelegramPeerResolver } from 'telegram/ingestion/shared/infrastructure/s
 import { IngestionConfigController } from 'telegram/ingestion/shared/api/http/ingestion-config.controller';
 import { IngestionHealthController } from 'telegram/ingestion/shared/api/http/ingestion-health.controller';
 import { IdentityModule } from 'kol/identity/identity.module';
-import { BackendRegistrationClient } from 'telegram/ingestion/shared/infrastructure/backend-registration-client.service';
-import { KolEntity } from 'kol/identity/infrastructure/persistence/typeorm/entities/kol.entity';
 import { Logger } from '@nestjs/common';
 
 /**
@@ -27,8 +24,8 @@ import { Logger } from '@nestjs/common';
  *
  * Provides globally:
  * - TelegramListenerPort (dynamically selects adapter based on env)
- * - BackendRegistrationClient (registers backend with ingestion-telegram in SSE mode)
- * - TelegramSseListenerAdapter (always available)
+ * - TelegramSseListenerAdapter (always available; owns backend registration
+ *   with ingestion-telegram: register-on-boot + 5-min keep-alive + 401 re-register)
  * - TelegramMockAdapter (always available for dev/testing)
  *
  * Ingestion Modes:
@@ -89,17 +86,10 @@ export function selectIngestionAdapter<
 
 @Global()
 @Module({
-  imports: [
-    ConfigModule,
-    IdentityModule,
-    TypeOrmModule.forFeature([KolEntity]),
-  ],
+  imports: [ConfigModule, IdentityModule],
   controllers: [IngestionConfigController, IngestionHealthController],
   providers: [
     TelegramPeerResolver,
-
-    // Backend registration client (for SSE mode)
-    BackendRegistrationClient,
 
     // Always provide both adapters (for mode switching)
     TelegramSseListenerAdapter,
@@ -149,7 +139,6 @@ export function selectIngestionAdapter<
   ],
   exports: [
     TelegramListenerPort,
-    BackendRegistrationClient,
     TelegramSseListenerAdapter,
     TelegramMockAdapter,
     TelegramPeerResolver,

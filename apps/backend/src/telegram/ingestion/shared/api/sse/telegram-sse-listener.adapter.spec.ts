@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Logger } from '@nestjs/common';
 import { TelegramSseListenerAdapter } from './telegram-sse-listener.adapter';
 import { TelegramRawMessage } from '../../domain/ports/telegram-listener.port';
-import { BackendRegistrationClient } from '../../infrastructure/backend-registration-client.service';
+import { KolRepository } from 'kol/identity/application/ports/kol.repository';
 import { ProcessCryptoNewsMessageHandler } from 'telegram/crypto-news-integration/application/handlers/process-crypto-news-message.handler';
 
 /**
@@ -63,18 +63,11 @@ describe('TelegramSseListenerAdapter', () => {
           },
         },
         {
-          provide: BackendRegistrationClient,
+          provide: KolRepository,
           useValue: {
-            getBackendId: jest.fn().mockReturnValue('test-backend'),
-            isRegistered: jest.fn().mockReturnValue(true),
-            forceReregistration: jest.fn().mockResolvedValue(undefined),
-            getStatus: jest.fn().mockReturnValue({
-              status: 'registered',
-              backendId: 'test-backend',
-              channelUnionSize: 0,
-              lastAttempt: null,
-              consecutiveFailures: 0,
-            }),
+            findActive: jest.fn().mockResolvedValue([]),
+            findAll: jest.fn().mockResolvedValue([]),
+            findById: jest.fn().mockResolvedValue(null),
           },
         },
         {
@@ -534,8 +527,8 @@ data: {"peerId":"-1001234567890","messageId":12345,"occurredAt":"2026-08-30T00:0
       const customAdapter = new TelegramSseListenerAdapter(
         customConfig as unknown as ConfigService,
         {
-          getBackendId: () => 'test-backend',
-        } as unknown as BackendRegistrationClient,
+          findActive: async () => [],
+        } as unknown as KolRepository,
       );
 
       const delays = [0, 1, 2, 3, 4].map(() =>

@@ -10,12 +10,11 @@ vi.mock('@/shared/api', () => ({
 vi.mock('@/shared/api/endpoints', () => ({
   ENDPOINTS: {
     kols: {
-      list: '/telegram-kol/identity/kols',
-      get: (id: string) => `/telegram-kol/identity/kols/${id}`,
+      list: '/ingestion-api/feed/sources?type=kol',
+      add: '/ingestion-api/feed/sources',
+      toggle: (id: string) =>
+        `/ingestion-api/feed/sources/${encodeURIComponent(id)}/toggle`,
       backfill: (id: string) => `/telegram-kol/identity/kols/${id}/backfill`,
-      add: '/telegram-kol/identity/kols',
-      setLifecycle: (id: string) =>
-        `/telegram-kol/identity/kols/${id}/lifecycle`,
     },
   },
 }));
@@ -28,39 +27,59 @@ describe('addKol', () => {
     vi.clearAllMocks();
   });
 
-  it('POSTs the kolId to the add endpoint', async () => {
+  it('POSTs channelId + type=kol to the feed sources endpoint', async () => {
     (httpPost as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: '123',
+      channelId: '-100123',
       handle: null,
-      title: '123',
+      title: '-100123',
+      type: 'kol',
       isActive: false,
       lifecycleStatus: 'ACTIVE',
-      lastIngestedAt: null,
     });
-    await addKol('123');
-    expect(httpPost).toHaveBeenCalledWith('/telegram-kol/identity/kols', {
-      kolId: '123',
+    await addKol('-100123');
+    expect(httpPost).toHaveBeenCalledWith('/ingestion-api/feed/sources', {
+      channelId: '-100123',
+      type: 'kol',
     });
   });
 
-  it('returns the KolView from the backend', async () => {
-    const kol = {
-      id: '123',
+  it('maps the feed source to a KolView', async () => {
+    (httpPost as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      channelId: '-100123',
+      handle: 'spydefi',
+      title: 'SpyDefi',
+      type: 'kol',
+      isActive: false,
+      lifecycleStatus: 'ACTIVE',
+    });
+    const result = await addKol('-100123');
+    expect(result).toEqual({
+      id: '-100123',
       handle: 'spydefi',
       title: 'SpyDefi',
       isActive: false,
       lifecycleStatus: 'ACTIVE',
       lastIngestedAt: null,
-    };
-    (httpPost as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(kol);
-    const result = await addKol('123');
-    expect(result).toEqual(kol);
+    });
+  });
+
+  it('maps INACTIVE feed lifecycle to DORMANT', async () => {
+    (httpPost as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      channelId: '-100123',
+      handle: null,
+      title: '-100123',
+      type: 'kol',
+      isActive: false,
+      lifecycleStatus: 'INACTIVE',
+    });
+    const result = await addKol('-100123');
+    expect(result.lifecycleStatus).toBe('DORMANT');
   });
 
   it('propagates errors from httpPost', async () => {
     (httpPost as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error('CONFLICT'),
     );
-    await expect(addKol('123')).rejects.toThrow('CONFLICT');
+    await expect(addKol('-100123')).rejects.toThrow('CONFLICT');
   });
 });

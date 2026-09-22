@@ -1,4 +1,3 @@
-import { KolEntity } from 'kol/identity/infrastructure/persistence/typeorm/entities/kol.entity';
 import { CanonicalTokenCallEntity } from 'token/normalization/infrastructure/persistence/typeorm/entities/canonical-token-call.entity';
 import { KolReputationEntity } from 'kol/reputation/infrastructure/persistence/typeorm/entities/kol-reputation.entity';
 import { TokenScoreEntity } from 'token/scoring/infrastructure/persistence/typeorm/entities/token-score.entity';
@@ -58,7 +57,6 @@ import { ThreadsMatchingConfigEntity } from 'threads/integration/infrastructure/
  * 4. Generate a migration: `npm run migration:generate -- -n AddYourEntity`
  */
 export const PERSISTED_ENTITIES = [
-  KolEntity,
   CanonicalTokenCallEntity,
   KolReputationEntity,
   TokenScoreEntity,
@@ -112,4 +110,4 @@ export const PERSISTED_ENTITIES = [
  * Expected entity count for validation. If this doesn't match
  * PERSISTED_ENTITIES.length, something is wrong.
  */
-export const EXPECTED_ENTITY_COUNT = 48;
+export const EXPECTED_ENTITY_COUNT = 47;
