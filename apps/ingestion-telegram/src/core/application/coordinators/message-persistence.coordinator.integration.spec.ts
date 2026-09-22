@@ -18,7 +18,6 @@ import { StreamService } from 'stream/application/services/stream.service';
 import { DeduplicationService } from '../services/deduplication.service';
 import { LastSeenManager } from '../../infrastructure/services/last-seen-manager.service';
 import { RedisService } from 'shared/common/cache/redis.service';
-import { DisconnectionTracker } from 'stream/application/services/disconnection-tracker.service';
 import { TelegramFeedMessageRepository } from 'feed/infrastructure/persistence/typeorm/repositories/telegram-feed-message.repository';
 import type { MessagePayload } from '../../domain/types/message-payload';
 
@@ -103,7 +102,6 @@ describe('MessagePersistenceCoordinator - Broadcast Pipeline Deduplication (Inte
         StreamService,
         DeduplicationService,
         LastSeenManager,
-        DisconnectionTracker,
         {
           provide: TelegramFeedMessageRepository,
           useValue: {

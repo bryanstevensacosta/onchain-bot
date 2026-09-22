@@ -14,7 +14,6 @@ import { CoreModule } from './core/core.module';
 import { TelegramFeedSourceEntity } from './registry/infrastructure/persistence/typeorm/entities/telegram-feed-source.entity';
 import { TelegramFeedMessageEntity } from './feed/infrastructure/persistence/typeorm/entities/telegram-feed-message.entity';
 import { TelegramFeedMessageMediaEntity } from './feed/infrastructure/persistence/typeorm/entities/telegram-feed-message-media.entity';
-import { BackfillMessageEntity } from './stream/infrastructure/persistence/typeorm/backfill-message.entity';
 
 /**
  * AppModule - Root module for Ingestion Service
@@ -80,7 +79,6 @@ import { BackfillMessageEntity } from './stream/infrastructure/persistence/typeo
             TelegramFeedSourceEntity,
             TelegramFeedMessageEntity,
             TelegramFeedMessageMediaEntity,
-            BackfillMessageEntity,
           ],
           synchronize,
           logging: dbConfig?.logging || false,

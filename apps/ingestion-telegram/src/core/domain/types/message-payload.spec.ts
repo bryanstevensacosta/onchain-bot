@@ -17,7 +17,6 @@ import { MessagePersistenceCoordinator } from 'core/application/coordinators/mes
 import { StreamService } from 'stream/application/services/stream.service';
 import { DeduplicationService } from 'core/application/services/deduplication.service';
 import { LastSeenManager } from 'core/infrastructure/services/last-seen-manager.service';
-import { DisconnectionTracker } from 'stream/application/services/disconnection-tracker.service';
 import { TelegramFeedMessageRepository } from 'feed/infrastructure/persistence/typeorm/repositories/telegram-feed-message.repository';
 import type { MessagePayload } from './message-payload';
 
@@ -92,7 +91,6 @@ describe('MessagePayload Transformation', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MessagePersistenceCoordinator,
-        DisconnectionTracker,
         { provide: StreamService, useValue: mockStreamService },
         { provide: DeduplicationService, useValue: mockDeduplicationService },
         { provide: LastSeenManager, useValue: mockLastSeenManager },

@@ -10,7 +10,6 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 import { ServerResponse } from 'http';
 import { randomUUID } from 'crypto';
 import { CronJob } from 'cron';
-import { DisconnectionTracker } from './disconnection-tracker.service';
 import {
   DEFAULT_SSE_HEARTBEAT_INTERVAL_MS,
   type StreamConfig,
@@ -57,7 +56,6 @@ export class StreamService implements OnModuleInit {
   private static readonly HEARTBEAT_JOB_NAME = 'sse-heartbeat';
 
   constructor(
-    private readonly disconnectionTracker: DisconnectionTracker,
     @Optional()
     @Inject(ConfigService)
     private readonly configService?: ConfigService,
@@ -121,7 +119,6 @@ export class StreamService implements OnModuleInit {
    * Register a new SSE client connection
    *
    * Per Requirement 2.1: Accept incoming SSE connections from backend clients
-   * Per GAP 3: Track reconnection via DisconnectionTracker
    * Per Requirement 9.2: Structured logging for client connection events
    *
    * @param clientId - Unique identifier for this client
@@ -141,9 +138,6 @@ export class StreamService implements OnModuleInit {
       response,
       connectedAt: new Date(),
     });
-
-    // Per GAP 3: Record reconnection (or initial connection)
-    this.disconnectionTracker.recordReconnection(clientId);
 
     // Per Requirement 9.2: Structured logging for client connections
     this.logger.log({
@@ -168,7 +162,6 @@ export class StreamService implements OnModuleInit {
    * Remove a client connection
    *
    * Per Requirement 2.4: Clean up disconnected clients to prevent memory leaks
-   * Per GAP 3: Track disconnection via DisconnectionTracker
    * Per Requirement 9.2: Structured logging for client disconnection events
    *
    * @param clientId - Unique identifier of the client to remove
@@ -187,9 +180,6 @@ export class StreamService implements OnModuleInit {
     }
 
     this.clients.delete(clientId);
-
-    // Per GAP 3: Record disconnection
-    this.disconnectionTracker.recordDisconnection(clientId);
 
     // Per Requirement 9.2: Structured logging for client disconnections
     this.logger.log({

@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { Logger } from '@nestjs/common';
 import { TelegramSseListenerAdapter } from './telegram-sse-listener.adapter';
 import { TelegramRawMessage } from '../../domain/ports/telegram-listener.port';
-import { KolRepository } from 'kol/identity/application/ports/kol.repository';
 import { ProcessCryptoNewsMessageHandler } from 'telegram/crypto-news-integration/application/handlers/process-crypto-news-message.handler';
 
 /**
@@ -55,19 +54,10 @@ describe('TelegramSseListenerAdapter', () => {
                   ingestion: {
                     serviceUrl: 'http://localhost:3031',
                   },
-                  backendId: 'test-backend',
                 };
               }
               return undefined;
             }),
-          },
-        },
-        {
-          provide: KolRepository,
-          useValue: {
-            findActive: jest.fn().mockResolvedValue([]),
-            findAll: jest.fn().mockResolvedValue([]),
-            findById: jest.fn().mockResolvedValue(null),
           },
         },
         {
@@ -86,7 +76,7 @@ describe('TelegramSseListenerAdapter', () => {
     adapter = module.get<TelegramSseListenerAdapter>(
       TelegramSseListenerAdapter,
     );
-    configService = module.get(ConfigService);
+    _configService = module.get(ConfigService);
     logger = module.get(Logger);
 
     // Override the adapter's logger instance with our mock
@@ -526,9 +516,6 @@ data: {"peerId":"-1001234567890","messageId":12345,"occurredAt":"2026-08-30T00:0
       };
       const customAdapter = new TelegramSseListenerAdapter(
         customConfig as unknown as ConfigService,
-        {
-          findActive: async () => [],
-        } as unknown as KolRepository,
       );
 
       const delays = [0, 1, 2, 3, 4].map(() =>

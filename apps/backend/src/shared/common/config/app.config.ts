@@ -19,7 +19,6 @@
  *     MOBULA_API_KEY, MORALIS_API_KEY,
  *     PUMPDEV_API_KEY/WALLET_PUBLIC/WALLET_PRIVATE,
  *     TELEGRAM_BOT_TOKEN (deprecated — use per-bot VIP_CALLS/CRYPTO_NEWS/CHAIN_DEXTER_BOT_TOKEN),
- *     INGESTION_TELEGRAM_MTPROTO_API_ID/HASH/SESSION
  *
  *   Pipeline behaviour:
  *     INGESTION_TELEGRAM_METADATA_CACHE_FILE
@@ -138,7 +137,6 @@ export interface AppConfig extends LlmConfigShape {
 
   port: number;
   nodeEnv: 'development' | 'production' | 'staging' | 'test';
-  backendId: string;
 
   alchemy: { apiKey: string };
   birdeye: { apiKey: string };
@@ -167,13 +165,6 @@ export interface AppConfig extends LlmConfigShape {
      * Kept for backward compatibility only; config-validator does NOT require it.
      */
     botToken: string;
-    mtprotoEnabled: boolean;
-    mtprotoApiId: number;
-    mtprotoApiHash: string;
-    mtprotoSession: string;
-    mtprotoLogLevel: string;
-    mtprotoStartupDelayMs: number;
-    mtprotoUseWss: boolean;
   };
 
   ingestion: {
@@ -310,7 +301,6 @@ export const appConfig = registerAs(
   (): AppConfig => ({
     port: parseInt(process.env.PORT ?? '3000', 10),
     nodeEnv: (process.env.NODE_ENV ?? 'development') as AppConfig['nodeEnv'],
-    backendId: process.env.BACKEND_ID ?? 'production',
 
     alchemy: {
       apiKey: process.env.ALCHEMY_API_KEY ?? '',
@@ -364,30 +354,9 @@ export const appConfig = registerAs(
     telegram: {
       // @deprecated T13 (deprecados-deuda-tecnica): generic TELEGRAM_BOT_TOKEN.
       // Use per-bot VIP_CALLS_BOT_TOKEN / CRYPTO_NEWS_BOT_TOKEN / CHAIN_DEXTER_BOT_TOKEN.
+      // MTProto credentials live ONLY in ingestion-telegram (duplicating them
+      // here causes AUTH_KEY_DUPLICATED).
       botToken: process.env.TELEGRAM_BOT_TOKEN ?? '',
-      mtprotoEnabled:
-        (
-          process.env.INGESTION_TELEGRAM_MTPROTO_ENABLED ?? 'true'
-        ).toLowerCase() === 'true',
-      mtprotoApiId: parseInt(
-        process.env.INGESTION_TELEGRAM_MTPROTO_API_ID ?? '0',
-        10,
-      ),
-      mtprotoApiHash: process.env.INGESTION_TELEGRAM_MTPROTO_API_HASH ?? '',
-      mtprotoSession: process.env.INGESTION_TELEGRAM_MTPROTO_SESSION ?? '',
-      mtprotoLogLevel: (() => {
-        const raw = process.env.INGESTION_TELEGRAM_MTPROTO_LOG_LEVEL;
-        return raw && raw.trim().length > 0 ? raw : 'error';
-      })(),
-      mtprotoStartupDelayMs: (() => {
-        const raw = process.env.INGESTION_TELEGRAM_MTPROTO_STARTUP_DELAY_MS;
-        const parsed = raw && raw.trim().length > 0 ? parseInt(raw, 10) : NaN;
-        return Number.isFinite(parsed) ? parsed : 60000;
-      })(),
-      mtprotoUseWss:
-        (
-          process.env.INGESTION_TELEGRAM_MTPROTO_USE_WSS ?? 'false'
-        ).toLowerCase() === 'true',
     },
 
     ingestion: {

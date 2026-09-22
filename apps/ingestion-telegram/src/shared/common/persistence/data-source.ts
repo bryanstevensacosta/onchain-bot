@@ -33,11 +33,11 @@ dotenv.config();
 import { TelegramFeedSourceEntity } from 'registry/infrastructure/persistence/typeorm/entities/telegram-feed-source.entity';
 import { TelegramFeedMessageEntity } from 'feed/infrastructure/persistence/typeorm/entities/telegram-feed-message.entity';
 import { TelegramFeedMessageMediaEntity } from 'feed/infrastructure/persistence/typeorm/entities/telegram-feed-message-media.entity';
-import { BackfillMessageEntity } from 'stream/infrastructure/persistence/typeorm/backfill-message.entity';
 
 /**
- * The 4 ingestion-owned tables (sole owner since 2026-09-05;
- * legacy crypto-news tables cut in feed-unification item 5).
+ * The 3 ingestion-owned tables (sole owner since 2026-09-05;
+ * legacy crypto-news tables cut in feed-unification item 5;
+ * BackfillMessageEntity removed in per-env-ingestion item 4).
  * Must stay in sync with the `entities` array in `src/app.module.ts`.
  * Backend entities are NEVER listed here (split-brain ownership).
  */
@@ -45,7 +45,6 @@ export const INGESTION_PERSISTED_ENTITIES = [
   TelegramFeedSourceEntity,
   TelegramFeedMessageEntity,
   TelegramFeedMessageMediaEntity,
-  BackfillMessageEntity,
 ];
 
 export default new DataSource({

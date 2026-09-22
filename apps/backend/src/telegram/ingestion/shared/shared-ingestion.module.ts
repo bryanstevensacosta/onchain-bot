@@ -24,8 +24,8 @@ import { Logger } from '@nestjs/common';
  *
  * Provides globally:
  * - TelegramListenerPort (dynamically selects adapter based on env)
- * - TelegramSseListenerAdapter (always available; owns backend registration
- *   with ingestion-telegram: register-on-boot + 5-min keep-alive + 401 re-register)
+ * - TelegramSseListenerAdapter (always available; connects to the open
+ *   per-env SSE stream — no registration, no backendId, per-env-ingestion item 4)
  * - TelegramMockAdapter (always available for dev/testing)
  *
  * Ingestion Modes:
@@ -73,7 +73,9 @@ export function selectIngestionAdapter<
   if (flags.useSse) {
     logger.log('🔄 INGESTION MODE: SSE (remote Ingestion Service)');
     logger.log(`   └─ Service URL: ${serviceUrl || 'http://localhost:3031'}`);
-    logger.log('   └─ Backend registration: ENABLED');
+    logger.log(
+      '   └─ Stream: open (no registration, per-env-ingestion item 4)',
+    );
     return adapters.sseAdapter;
   }
 

@@ -76,9 +76,6 @@ interface MockAppConfig extends AppConfig {
   };
   telegram: {
     botToken: string;
-    mtprotoApiId: number;
-    mtprotoApiHash: string;
-    mtprotoSession: string;
   };
   publishing: {
     vipCalls: { botToken: string };
@@ -127,12 +124,6 @@ describe('ConfigConnectivityService', () => {
           database: 'testdb',
         },
         redis: { enabled: false, host: '', port: 0, password: '', db: 0 },
-        telegram: {
-          botToken: '',
-          mtprotoApiId: 0,
-          mtprotoApiHash: '',
-          mtprotoSession: '',
-        },
         publishing: {
           vipCalls: { botToken: '' },
           cryptoNews: { botToken: '' },
@@ -170,12 +161,6 @@ describe('ConfigConnectivityService', () => {
           database: 'testdb',
         },
         redis: { enabled: false, host: '', port: 0, password: '', db: 0 },
-        telegram: {
-          botToken: '',
-          mtprotoApiId: 0,
-          mtprotoApiHash: '',
-          mtprotoSession: '',
-        },
         publishing: {
           vipCalls: { botToken: '' },
           cryptoNews: { botToken: '' },
@@ -203,12 +188,6 @@ describe('ConfigConnectivityService', () => {
           database: 'testdb',
         },
         redis: { enabled: false, host: '', port: 0, password: '', db: 0 },
-        telegram: {
-          botToken: '',
-          mtprotoApiId: 0,
-          mtprotoApiHash: '',
-          mtprotoSession: '',
-        },
         publishing: {
           vipCalls: { botToken: '' },
           cryptoNews: { botToken: '' },
@@ -254,12 +233,6 @@ describe('ConfigConnectivityService', () => {
           password: 'secret',
           db: 0,
         },
-        telegram: {
-          botToken: '',
-          mtprotoApiId: 0,
-          mtprotoApiHash: '',
-          mtprotoSession: '',
-        },
         publishing: {
           vipCalls: { botToken: '' },
           cryptoNews: { botToken: '' },
@@ -303,12 +276,6 @@ describe('ConfigConnectivityService', () => {
           password: 'secret',
           db: 0,
         },
-        telegram: {
-          botToken: '',
-          mtprotoApiId: 0,
-          mtprotoApiHash: '',
-          mtprotoSession: '',
-        },
         publishing: {
           vipCalls: { botToken: '' },
           cryptoNews: { botToken: '' },
@@ -341,12 +308,6 @@ describe('ConfigConnectivityService', () => {
           port: 6379,
           password: 'secret',
           db: 0,
-        },
-        telegram: {
-          botToken: '',
-          mtprotoApiId: 0,
-          mtprotoApiHash: '',
-          mtprotoSession: '',
         },
         publishing: {
           vipCalls: { botToken: '' },
@@ -387,12 +348,6 @@ describe('ConfigConnectivityService', () => {
           database: '',
         },
         redis: { enabled: false, host: '', port: 0, password: '', db: 0 },
-        telegram: {
-          botToken: '',
-          mtprotoApiId: 0,
-          mtprotoApiHash: '',
-          mtprotoSession: '',
-        },
         publishing: {
           vipCalls: { botToken: '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11' },
           cryptoNews: { botToken: '' },
@@ -424,12 +379,6 @@ describe('ConfigConnectivityService', () => {
           database: '',
         },
         redis: { enabled: false, host: '', port: 0, password: '', db: 0 },
-        telegram: {
-          botToken: '',
-          mtprotoApiId: 0,
-          mtprotoApiHash: '',
-          mtprotoSession: '',
-        },
         publishing: {
           vipCalls: { botToken: '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11' },
           cryptoNews: { botToken: '' },
@@ -469,12 +418,6 @@ describe('ConfigConnectivityService', () => {
           database: '',
         },
         redis: { enabled: false, host: '', port: 0, password: '', db: 0 },
-        telegram: {
-          botToken: '',
-          mtprotoApiId: 0,
-          mtprotoApiHash: '',
-          mtprotoSession: '',
-        },
         publishing: {
           vipCalls: { botToken: '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11' },
           cryptoNews: { botToken: '' },
@@ -508,12 +451,6 @@ describe('ConfigConnectivityService', () => {
           database: '',
         },
         redis: { enabled: false, host: '', port: 0, password: '', db: 0 },
-        telegram: {
-          botToken: '',
-          mtprotoApiId: 0,
-          mtprotoApiHash: '',
-          mtprotoSession: '',
-        },
         publishing: {
           vipCalls: { botToken: '' },
           cryptoNews: { botToken: '' },

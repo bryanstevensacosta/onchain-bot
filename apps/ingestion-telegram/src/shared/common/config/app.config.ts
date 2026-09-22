@@ -492,19 +492,6 @@ export const appConfig = registerAs('app', () => {
   // TODO: Implement validation functions
   //   validateApiConfig(api);
 
-  // Multi-Backend configuration (Per Requirement 9.1, 9.2)
-  const multiBackend = {
-    enabled: process.env.INGESTION_MULTI_BACKEND_ENABLED === 'true',
-    backfillBufferSize: parseInt(
-      process.env.INGESTION_BACKFILL_BUFFER_SIZE || '5000',
-      10,
-    ),
-    backfillRetentionHours: parseInt(
-      process.env.INGESTION_BACKFILL_RETENTION_HOURS || '72',
-      10,
-    ),
-  };
-
   // Crypto-news retention janitor (db-separation todo 6): effective 72h,
   // unified with the backend's CRYPTO_NEWS_MEDIA_RETENTION_HOURS default
   // (72h). The scheduler clamps to >= 1h at the seam. Clock is
@@ -522,7 +509,6 @@ export const appConfig = registerAs('app', () => {
     ingestionSafety,
     database,
     logging,
-    multiBackend,
     cryptoNewsMediaRetentionHours,
   };
 });

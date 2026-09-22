@@ -4,8 +4,6 @@ import { RetentionModule } from '../retention/retention.module';
 import { StreamModule } from '../stream/stream.module';
 import { TelegramListenerPort } from './ports/telegram-listener.port';
 import { MessagePersistenceCoordinator } from './application/coordinators/message-persistence.coordinator';
-import { SSEBroadcastService } from '../stream/application/services/sse-broadcast.service';
-import { BroadcastEvent } from '../stream/domain/broadcast-event.vo';
 import { DebugTelegramController } from '../debug/debug-telegram.controller';
 import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
 
@@ -19,7 +17,6 @@ import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistenc
  * 4. Periodic refresh of channel subscriptions
  *
  * Per design.md § 2.1: Extracts MTProto layer from backend and broadcasts via SSE.
- * Per Requirement 4.1: Broadcasts ingested messages to all backends via SSEBroadcastService
  * Per Requirement 4.3: Ingestion continues if broadcast fails (log error, don't throw)
  * Per item 7: channel registry is LOCAL (feedSourceRepo.findAllActiveWithTypes);
  * the old backend-HTTP channel provider is deleted — no HTTP channel fetch anywhere.
@@ -30,7 +27,8 @@ import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistenc
  *   zero listeners and picks channels up on the next refresh, no restart).
  * - Listener yields messages to MessagePersistenceCoordinator
  * - Coordinator persists to telegram_feed_messages + broadcasts to StreamService
- * - CoreModule broadcasts to SSEBroadcastService (multi-backend SSE)
+ *   (única vía — per-env-ingestion item 4 deleted the SSEBroadcastService dual
+ *   broadcast; coordinator.route is the single broadcast call site)
  * - Scheduler refreshes channel list every 5 minutes via
  *   listener.updateSubscribedChannels() — subscribe() is called EXACTLY ONCE
  *   (gap 15: re-subscribing throws "already running"; refresh only swaps the
@@ -48,7 +46,7 @@ import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistenc
   imports: [
     SharedModule, // MTProto infrastructure (no channel provider since item 7)
     RetentionModule, // Crypto-news sources/messages/media (DB-driven)
-    StreamModule, // SSE infrastructure + SSEBroadcastService
+    StreamModule, // SSE infrastructure
   ],
   controllers: [DebugTelegramController],
   exports: [SharedModule, RetentionModule],
@@ -66,7 +64,6 @@ export class CoreModule implements OnModuleInit {
     private readonly feedSourceRepo: TelegramFeedSourceRepository,
     private readonly listener: TelegramListenerPort,
     private readonly coordinator: MessagePersistenceCoordinator,
-    private readonly sseBroadcast: SSEBroadcastService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -165,9 +162,7 @@ export class CoreModule implements OnModuleInit {
       this.channelTypeMap = new Map(
         sources.map((s) => [
           s.channelId,
-          (s.type === 'crypto-news' ? 'crypto-news' : 'kol') as
-            | 'kol'
-            | 'crypto-news',
+          s.type === 'crypto-news' ? 'crypto-news' : 'kol',
         ]),
       );
 
@@ -250,10 +245,10 @@ export class CoreModule implements OnModuleInit {
       ])) {
         // Classify by registry row type; unknown channels default to 'kol'
         // (previous newsIds-membership default — see ADR).
-        const messageType = this.channelTypeMap.get(message.peerId) ===
-          'crypto-news'
-          ? 'crypto-news'
-          : 'kol';
+        const messageType =
+          this.channelTypeMap.get(message.peerId) === 'crypto-news'
+            ? 'crypto-news'
+            : 'kol';
 
         // Fire-and-forget: Process message asynchronously without blocking the generator
         // This prevents slow DB writes or SSE broadcasts from blocking the next message
@@ -275,40 +270,6 @@ export class CoreModule implements OnModuleInit {
             this.logger.error(
               `[FIRE-AND-FORGET] Failed to route message ${message.peerId}:${message.messageId}: ${(routeError as Error).message}`,
               (routeError as Error).stack,
-            );
-          });
-
-        // Per Requirement 4.1: Broadcast to all backends via SSEBroadcastService
-        // Per Requirement 4.3: Ingestion continues if broadcast fails
-        // Fire-and-forget: Don't block generator on broadcast
-        Promise.resolve()
-          .then(async () => {
-            // Extract media path from message (first media item if available)
-            const mediaPath = message.media?.[0]?.filePath;
-
-            // Create BroadcastEvent from raw Telegram message
-            const event = BroadcastEvent.fromTelegramMessage(
-              message.peerId,
-              {
-                id: message.messageId,
-                message: message.text,
-                date: Math.floor(message.occurredAt.getTime() / 1000), // Convert ms to seconds
-              },
-              mediaPath,
-            );
-
-            // Broadcast to all connected backends
-            await this.sseBroadcast.broadcast(event);
-
-            this.logger.debug(
-              `Broadcasted to multi-backend SSE: ${message.peerId}:${message.messageId}`,
-            );
-          })
-          .catch((broadcastError) => {
-            // Per Requirement 4.3: Log error but don't throw - ingestion must continue
-            this.logger.error(
-              `Failed to broadcast message ${message.peerId}:${message.messageId} to multi-backend SSE: ${(broadcastError as Error).message}`,
-              (broadcastError as Error).stack,
             );
           });
       }
