@@ -187,6 +187,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Sync staging checkout to dispatched ref (fail loudly if dirty)
+        run: |
+          set -euo pipefail
+          STAGING_PATH=/opt/onchain-bot-staging
+          [ -d "$STAGING_PATH/.git" ] || { echo "::error::staging checkout missing: $STAGING_PATH/.git"; exit 1; }
+          if [ -n "$(git -C "$STAGING_PATH" status --porcelain)" ]; then
+            echo "::error::staging checkout dirty — refusing to checkout ${{ github.sha }} (operator: clean it first)"
+            git -C "$STAGING_PATH" status --short
+            exit 1
+          fi
+          git -C "$STAGING_PATH" fetch origin
+          git -C "$STAGING_PATH" checkout ${{ github.sha }}
+          git -C "$STAGING_PATH" rev-parse HEAD
+
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
