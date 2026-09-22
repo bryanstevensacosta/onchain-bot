@@ -50,8 +50,10 @@ case "$ENV" in
   staging)
     LOCAL_PORT_BACKEND=3031
     LOCAL_PORT_FRONTEND=80
+    LOCAL_PORT_INGESTION_STAGING=3033
     TAILSCALE_PORT_BACKEND=3031
     TAILSCALE_PORT_FRONTEND=4173
+    TAILSCALE_PORT_INGESTION_STAGING=3033
     COMPOSE_DIR="/opt/onchain-bot-staging/apps/backend"
     SERVICE_PREFIX="onchain-bot-staging"
     ;;
@@ -116,8 +118,9 @@ install_service \
   "$TAILSCALE_PORT_FRONTEND" \
   "$LOCAL_PORT_FRONTEND"
 
-# Ingestion forward (prod ONLY — backend SSE + crypto-news poll need TS :3032;
-# staging owned by todo 15, never install here)
+# Ingestion forward: prod maps host :3032; staging twin maps host :3033
+# (per-env-ingestion item 2 — staging twin needs Tailscale ingress BEFORE its
+# first :3033 healthcheck; deploy workflow ensures firewall, this covers socat)
 if [[ "$ENV" == "prod" ]]; then
   echo ""
   echo "Installing ingestion socat service..."
@@ -127,6 +130,15 @@ if [[ "$ENV" == "prod" ]]; then
     "$TAILSCALE_IP" \
     "$TAILSCALE_PORT_INGESTION" \
     "$LOCAL_PORT_INGESTION"
+elif [[ "$ENV" == "staging" ]]; then
+  echo ""
+  echo "Installing staging-twin ingestion socat service (:3033)..."
+  install_service \
+    "$TEMPLATE_DIR/socat-ingestion-staging.service.template" \
+    "${SERVICE_PREFIX}-socat-ingestion-staging.service" \
+    "$TAILSCALE_IP" \
+    "$TAILSCALE_PORT_INGESTION_STAGING" \
+    "$LOCAL_PORT_INGESTION_STAGING"
 fi
 
 echo ""
@@ -139,3 +151,4 @@ echo "Status:"
 systemctl status "${SERVICE_PREFIX}-socat-backend.service" --no-pager || true
 systemctl status "${SERVICE_PREFIX}-socat-frontend.service" --no-pager || true
 if [[ "$ENV" == "prod" ]]; then systemctl status "${SERVICE_PREFIX}-socat-ingestion.service" --no-pager || true; fi
+if [[ "$ENV" == "staging" ]]; then systemctl status "${SERVICE_PREFIX}-socat-ingestion-staging.service" --no-pager || true; fi

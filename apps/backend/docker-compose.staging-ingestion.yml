@@ -1,0 +1,81 @@
+# Ingestion-Telegram STAGING twin (per-env-ingestion item 1)
+# Gemelo de docker-compose.ingestion.yml (prod) para el backend staging.
+# Una triple MTProto por env — este gemelo usa la VIEJA cuenta de dev
+# (pendiente de operador; ver .env.staging.template). JAMÁS compartir
+# sesión con prod (AUTH_KEY_DUPLICATED).
+# Deploy: docker compose -f docker-compose.staging-ingestion.yml up -d
+# (el operador crea antes ../../apps/ingestion-telegram/.env.staging
+#  desde apps/ingestion-telegram/.env.staging.template — arranca VACÍO,
+#  sin seed ni mirror de prod por diseño).
+name: onchain-bot-staging-ingestion
+
+services:
+  ingestion-telegram-staging:
+    build:
+      context: ../..
+      dockerfile: apps/ingestion-telegram/Dockerfile
+    image: ghcr.io/bryanstevensacosta/onchain-bot-ingestion-telegram:latest
+    container_name: onchain-bot-ingestion-telegram-staging
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+    env_file:
+      - ../../apps/ingestion-telegram/.env.staging
+    ports:
+      # Puerto 3033 para evitar conflicto con staging backend (3031)
+      # e ingestion prod. El puerto INTERNO se queda en 3031
+      # (Dockerfile EXPOSE + HEALTHCHECK — no mover).
+      - '127.0.0.1:3033:3031'
+    volumes:
+      # Media PROPIA del gemelo (named volume — jamás el bind
+      # de uploads del compose prod).
+      - onchain-bot-staging-ingestion-uploads:/app/uploads
+      - ../backend/config:/app/config:ro
+    environment:
+      INGESTION_PORT: 3031 # Puerto interno del container
+      REDIS_HOST: onchain-bot-redis-staging
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      # Topología fijada aquí (compose `environment:` gana a .env.staging):
+      # los hostnames DNS deben seguir a los container_name del staging
+      # compose (docker-compose.staging.yml). Sin esto, un .env.staging con
+      # nombres viejos deja al gemelo sin redis/DB/backend en silencio.
+      # Cero DNS de prod aquí (ni hosts *-production ni puerto prod).
+      INGESTION_REDIS_HOST: onchain-bot-redis-staging
+      INGESTION_DATABASE_HOST: onchain-bot-postgres-staging
+      BACKEND_URL: http://onchain-bot-backend-staging:3030
+    # Solo red staging: el gemelo solo habla con el backend staging
+    # (el compose prod une ambas redes; el twin no necesita onchain-bot-net).
+    networks:
+      - onchain-bot-staging-net
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '--spider',
+          'http://localhost:3031/api/health',
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+networks:
+  # Red existente (external: true = no la crea, solo la usa)
+  onchain-bot-staging-net:
+    external: true
+    name: onchain-bot-staging-net
+
+volumes:
+  onchain-bot-staging-ingestion-uploads:
+    name: onchain-bot-staging-ingestion-uploads

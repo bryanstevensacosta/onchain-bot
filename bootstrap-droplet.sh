@@ -97,7 +97,7 @@ elif ! command -v iptables >/dev/null 2>&1; then
 elif ! iptables -nL DOCKER-USER >/dev/null 2>&1; then
   echo "  cadena DOCKER-USER ausente (docker sin redes?) — omitiendo ACCEPTs"
 else
-  FW_PORTS="3031 3032"
+  FW_PORTS="3031 3032 3033"
   FW_NETS="onchain-bot-net onchain-bot-staging-net"
   for FW_NET in $FW_NETS; do
     if ! docker network inspect "$FW_NET" >/dev/null 2>&1; then
@@ -117,7 +117,8 @@ else
   done
 fi
 
-# Listeners socat 3030/3031/3032 persistentes via systemd (idempotente).
+# Listeners socat 3030/3031/3032/3033 persistentes via systemd (idempotente).
+# :3033 = gemelo staging ingestion (per-env-ingestion item 1).
 if ! command -v socat >/dev/null 2>&1; then
   echo "  socat no instalado — omitiendo listeners persistentes (apt-get install socat)"
 else
@@ -125,14 +126,14 @@ else
   SOCAT_UNIT_NAME="crypto-news-socat.service"
   TAILSCALE_IP="${TAILSCALE_IP:-100.110.169.120}"
   SOCAT_WANT="[Unit]
-Description=Crypto-news socat listeners 3030/3031/3032 on $TAILSCALE_IP
+Description=Crypto-news socat listeners 3030/3031/3032/3033 on $TAILSCALE_IP
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
 User=root
-ExecStart=/bin/bash -c 'for P in 3030 3031 3032; do socat TCP-LISTEN:\$P,fork,reuseaddr,bind=$TAILSCALE_IP TCP:127.0.0.1:\$P & done; wait -n'
+ExecStart=/bin/bash -c 'for P in 3030 3031 3032 3033; do socat TCP-LISTEN:\$P,fork,reuseaddr,bind=$TAILSCALE_IP TCP:127.0.0.1:\$P & done; wait -n'
 Restart=on-failure
 RestartSec=5s
 

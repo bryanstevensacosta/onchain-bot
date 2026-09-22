@@ -1,0 +1,14 @@
+[Unit]
+Description=Socat proxy for staging ingestion twin (Tailscale {TAILSCALE_IP}:3033 → localhost:3033)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/socat TCP-LISTEN:3033,fork,reuseaddr,bind={TAILSCALE_IP} TCP:127.0.0.1:3033
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
