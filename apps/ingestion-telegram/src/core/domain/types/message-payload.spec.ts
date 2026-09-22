@@ -4,7 +4,9 @@
  * Tests the transformToPayload logic in MessagePersistenceCoordinator
  * to verify compliance with architectural invariants:
  *
- * - Invariant 1: Text field EXCLUDED (ToS compliance - fix-1)
+ * - Q1-B (adr-kol-raw-text.md): Text field CARRIED for BOTH types
+ *   (kol + crypto-news). Backend-internal ToS boundary unchanged:
+ *   `KolMessageIngestedEvent` still carries NO text (fix-1 holds).
  * - Invariant 5: Media URLs follow path format /api/media/:channelId/:messageId/:index
  * - Requirements: Entities preservation, groupedId handling
  */
