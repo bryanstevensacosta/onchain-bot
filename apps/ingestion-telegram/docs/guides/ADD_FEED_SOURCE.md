@@ -1,7 +1,10 @@
 # Add a feed source (KOL or crypto-news)
 
-> Base URL below is the ingestion singleton: dev `http://localhost:3031`,
-> droplet host `:3032` (maps to container `:3031`). Every route here was
+> Base URL below is the env's OWN ingestion: dev `http://localhost:3031`,
+> prod droplet host `:3032`, staging twin host `:3033` (each maps to
+> container `:3031`). For the twin substitute `:3033` and follow
+> `docs/deployment/staging-twin-channels.md` (twin starts EMPTY — never run
+> twin seeding against `:3032` prod). Every route here was
 > verified by decorator in `src/registry/api/http/sources.controller.ts`
 > and `src/feed/api/http/feed.controller.ts`. Design background:
 > `../architecture/telegram-feed.md`.

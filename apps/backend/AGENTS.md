@@ -31,7 +31,7 @@ npm run db:migrate:dry-run | :status
 npm run migration:run      # bash scripts/run-migrations.sh (TypeORM, staging/prod)
 npm run migration:generate -- -n Name | :revert | :show
 npm run db:backup          # bash ../../scripts/backup-db.sh
-npm run telegram:gen-session  # legacy MTProto session generator (scripts/telegram-gen-session.ts)
+npm run telegram:gen-session  # session-string generator ONLY (scripts/telegram-gen-session.ts) — the backend never opens MTProto (branch deleted → 410 Gone); sessions live in ingestion-telegram
 npm test                   # jest --forceExit --testTimeout=30s (co-located *.spec.ts)
 npm run test:e2e           # jest --config ./test/jest-e2e.json
 npm run lint               # eslint "{src,test}/**/*.ts" --fix
@@ -80,11 +80,11 @@ Schedule, Database (`forRootFromEnv`), Redis, Logger (pino — pino-roll files e
 `SharedIngestionModule` (`@Global`) selects `TelegramListenerPort` by flag
 (`app.ingestion`: `useSse`/`useMock` default **false**, `serviceUrl` default `http://localhost:3031`):
 
-| Mode                                | Flag                         | Adapter                                                                                                                              |
-| ----------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| SSE (recommended)                   | `USE_SSE_INGESTION=true`     | `TelegramSseListenerAdapter` → `GET {serviceUrl}/api/ingestion/stream`, backoff 1 s→30 s cap, client-side channel filter             |
-| Mock (CLI/tests)                    | `USE_MOCK_INGESTION=true`    | `TelegramMockAdapter` + `DevModule` (`POST /dev/inject-message`, `GET /dev/queue-status`, `POST /dev/clear-queue`) + `scripts/cli/*` |
-| MTProto (deprecated, rollback-only) | both false (CURRENT DEFAULT) | `TelegramMtprotoListenerAdapter` — same session conflict risk as ingestion-telegram                                                  |
+| Mode                                  | Flag                      | Adapter                                                                                                                                                                                          |
+| ------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| SSE (recommended)                     | `USE_SSE_INGESTION=true`  | `TelegramSseListenerAdapter` → `GET {serviceUrl}/api/ingestion/stream`, backoff 1 s→30 s cap, client-side channel filter                                                                         |
+| Mock (CLI/tests)                      | `USE_MOCK_INGESTION=true` | `TelegramMockAdapter` + `DevModule` (`POST /dev/inject-message`, `GET /dev/queue-status`, `POST /dev/clear-queue`) + `scripts/cli/*`                                                             |
+| MTProto (DELETED — was rollback-only) | both false                | `SharedIngestionModule` throws `410 Gone "MTProto backend removido, usar INGESTION_TELEGRAM_URL"` — no session opens (no `AUTH_KEY_DUPLICATED`); SSE is the default (`useSse` defaults **true**) |
 
 Adapter internals (`telegram-sse-listener.adapter.ts`, 459 lines): plain `fetch` + `ReadableStream`
 manual frame parsing (`event: …\ndata: {json}\n\n`), channel filter client-side, `health:ping`
@@ -654,8 +654,8 @@ Providers (all `''` default): `ALCHEMY/BIRDEYE/MOBULA/MORALIS/COINMARKETCAP_API_
 Bots: `VIP_CALLS_{BOT_TOKEN,OUTPUT_CHANNEL}`, `CRYPTO_NEWS_{BOT_TOKEN,OUTPUT_CHANNEL}`,
 `CHAIN_DEXTER_{BOT_TOKEN,WEBHOOK_SECRET,WEBHOOK_URL,INGEST_MODE=webhook,POLLING_INTERVAL_MS=1000}`.
 Ingestion: `USE_SSE_INGESTION`/`USE_MOCK_INGESTION` (false), `INGESTION_TELEGRAM_URL`
-(`http://localhost:3031`); seeds `INGESTION_TELEGRAM_{SEED_ENABLED=true,SEED_KOLS|SEED_CHANNELS(legacy fallback),NEWS_SEED_ENABLED=true,SEED_NEWS,METADATA_CACHE_FILE,BACKFILL_ENABLED=true}`;
-MTProto `INGESTION_TELEGRAM_MTPROTO_{ENABLED=true,API_ID=0,API_HASH,SESSION,LOG_LEVEL=error,STARTUP_DELAY_MS=60000,USE_WSS=false}`.
+(`http://localhost:3031`); seeds `INGESTION_TELEGRAM_{SEED_ENABLED=true,SEED_KOLS|SEED_CHANNELS(legacy fallback),NEWS_SEED_ENABLED=true,SEED_NEWS,METADATA_CACHE_FILE,BACKFILL_ENABLED=true}`.
+~~MTProto `INGESTION_TELEGRAM_MTPROTO_{ENABLED,API_ID,API_HASH,SESSION,LOG_LEVEL,STARTUP_DELAY_MS,USE_WSS}`~~ — **DELETED from backend `src`** (no reader; verified by grep): the backend MTProto branch is gone (forcing it → `410 Gone`). Those vars live ONLY in each ingestion-telegram instance's own `.env` (per-env: prod cuenta actual, staging vieja-dev, local nueva — never shared, else `AUTH_KEY_DUPLICATED`).
 **Crypto-News SSE** (NEW, 2026-09-09): `USE_SSE_CRYPTO_NEWS` (boolean, default `true`) — enables real-time SSE ingestion with <10s latency target; when `false`, falls back to 1-minute polling; `CRYPTO_NEWS_POLLING_INTERVAL_MINUTES` (number, min 1, max 60, default `5`) — polling frequency when SSE enabled (fallback mode only); ignored when SSE disabled (fixed 1-minute interval).
 Pipeline: `PUBLISHING_{TELEGRAM_USE_REAL_MTPROTO=false,OUTPUT_CHANNEL,RECONCILIATION_ENABLED=true}`;
 `ANALYTICS_{EVALUATION_HORIZONS_HOURS=24,168,720,SCHEDULER_CRON=*/5 * * * *,ENABLED=true,BATCH_SIZE=50}`;
@@ -667,10 +667,9 @@ Infra: `PORT=3000`, `DATABASE_{ENABLED=false,POSTGRES_*,SYNCHRONIZE=true,LOGGING
 `DEDUP_SEMANTIC_ARBITER_THRESHOLD=0.7` (0 disables), `LLM_GATEWAY_{BASE_URL=localhost:4845,API_KEY,MODEL=opencode-zen/deepseek-v4-flash}`,
 `LOG_{LEVEL,DIR=.,FILE=backend.log,ROTATION_SIZE=10m,ROTATION_LIMIT=5}`.
 
-⚠️ `.env.production.template` sets `USE_SSE_INGESTION=false` (prod on legacy MTProto until migration)
-and documents `INGESTION_REMOTE_URL=http://ingestion-telegram:3031` — **a var the code never reads**
-(real: `INGESTION_TELEGRAM_URL`, gap 21). Migration banner + `validate-session-migration.sh` referenced
-in-template; MTProto creds must live ONLY in ingestion-telegram (AUTH_KEY_DUPLICATED otherwise).
+⚠️ `.env.production.template` sets `USE_SSE_INGESTION=true` with `INGESTION_TELEGRAM_URL=http://onchain-bot-ingestion-telegram:3031` (prod DNS); staging twin uses `http://onchain-bot-ingestion-telegram-staging:3031` in `docker-compose.staging.yml:98` + `.env.staging.template:76`.
+The retired `INGESTION_REMOTE_URL` is already gone from the template (only `INGESTION_TELEGRAM_URL` is read, gap 21); the migration banner + `validate-session-migration.sh` reference (`:67`) are stale leftovers.
+Backend MTProto creds were removed from `src` entirely (see above); MTProto sessions must live ONLY in ingestion-telegram (AUTH_KEY_DUPLICATED otherwise).
 
 ## LOGGING
 
@@ -680,7 +679,7 @@ pino-roll daily files (`logging.dir/fileName`, `limit count:1`) in dev/prod; pla
 ## GAPS (verified — fix, don't re-encode)
 
 1. **IdentityModule commented in AppModule but imported by Kol/TelegramIngestion/SharedIngestion modules** — loads transitively; DI graph lies. Uncomment or cut the submodule imports.
-2. **MTProto adapter is still the DEFAULT** (`useSse` defaults false) while labeled "deprecated" — SSE migration incomplete; prod/staging run SSE only via env.
+2. **MTProto branch deleted from backend `src`** (no `INGESTION_TELEGRAM_MTPROTO_*` reader, no adapter file — verified by grep): `useSse` defaults **true**, and an explicit `USE_SSE_INGESTION=false` no longer revives MTProto (`SharedIngestionModule` throws `410 Gone`), it just breaks ingestion until fixed. Staging/prod run SSE via env + compose `environment:`.
 3. **(Consolidated 2026-09-04)** `src/telegram/AGENTS.md` deleted after migration; its stale paths (`vip-calls-channel/`, MTProto-as-current) died with it. Per-BC READMEs still carry the same rot (gap 22).
 4. **Counts drift**: backend README says "16 BCs" (actually 22 wired), "306 tests", "46 KOLs seed", publishing "via MTProto" (it's Bot API) — README needs the same pass.
 5. **Stray files**: `src/main-debug.ts`, `main.backup.ts`, `test-new.ts` — delete or document.
@@ -695,15 +694,15 @@ pino-roll daily files (`logging.dir/fileName`, `limit count:1`) in dev/prod; pla
 14. **CryptoNewsController is 702 lines** (imports `fs`, `Req/Res`, `InjectRepository` — TypeORM leaking into api layer).
 15. **Health is static** (`status:'ok'` always) — same stub problem as ingestion-telegram gap 2, backend side.
 16. **Ghost event `filters.token.approved|rejected`**: named in `token/AGENTS.md`, `telegram/AGENTS.md`, `vip-calls/AGENTS.md`, vip-call-approval README and one spec — but NO event file defines it and NO use case emits it. The real wire events are `vip-call.approval.approved|rejected`. The ghost survives because `scripts/seed-pipeline-events.ts` EMITS it (step 4) — seeded approvals vanish into the void since `TokenApprovedPublishHandler` listens to the real name. Purge the ghost name or the next reader will subscribe to silence.
-17. **Dead var `INGESTION_REMOTE_URL`** in `.env.production.template` (code reads `INGESTION_TELEGRAM_URL`) — same class of bug as ingestion-telegram gap 12. Fix the template.
+17. ~~**Dead var `INGESTION_REMOTE_URL`** in `.env.production.template`~~ **RESOLVED**: the template no longer mentions it (only `INGESTION_TELEGRAM_URL` is read) — but it keeps a stale migration banner + `validate-session-migration.sh` reference (`:67`), and the gitignored repo `.env.staging` still carries dead `INGESTION_SERVICE_URL` + dummy `INGESTION_TELEGRAM_MTPROTO_*` (harmless: compose `environment:` wins at runtime; the droplet real file is operator-owned).
 18. **Stale BC READMEs**: vip-call-approval README cites `apply-filters.use-case.ts` + `token-filtered/token-rejected.event.ts` (none exist; real: `apply-vip-call-approval.*`, `vip-call-{approved,rejected}.event.ts`); `token/AGENTS.md` cites `token-gating` + `ApplyFiltersUseCase` (renamed long ago); chain/detection + extraction READMEs cite `src/discovery/` + `/ca/*` routes (pre-rename). Per-BC READMEs need the same verification pass as gap 15.
 19. **SSE mode can't resolve or join channels**: backend `resolveChannelMetadata` returns `Channel {id}` placeholders and `joinChannel` always fails — auto-join/seeder `needsManualJoin` paths are dead in the recommended mode. New channels need manual join + `POST kols`.
 20. **Backend SSE hot path is as noisy as ingestion-telegram gap 10**: `[SSE-DEBUG]` ×3 per message (log level, not debug) plus `[PAYLOAD-TRANSFORM-DEBUG]` with full text. Demote to `debug`.
 21. **`data-provider/README.md` stale**: "11 providers" (13 exist), adapter map points at deleted `chain/explorer/`, references `.omo/plans/data-provider-refactor.md` (agent state, not source).
-22. **Backfill dead end-to-end in SSE mode**: backend `backfill()` → ingestion-telegram `/api/ingestion/backfill/*` → always `backfill:error` (ingestion-telegram gap 1). Both `POST kols/:kolId/backfill` and `GET crypto-news/backfill/:channelId` fail in the recommended mode — only MTProto-legacy backfills.
-23. **`telegram:gen-session` script is legacy** — sessions now belong to ingestion-telegram (`INGESTION_TELEGRAM_MTPROTO_*`); backend MTProto mode would still `AUTH_KEY_DUPLICATED` against it.
+22. **Backfill dead end-to-end (both sides)**: backend `backfill()` still calls ingestion-telegram `/api/ingestion/backfill/*`, but that endpoint was **deleted** with the multi-backend layer (per-env T4) — the call now 404s instead of the old `backfill:error`. `POST kols/:kolId/backfill` is 501 with a feed hint; legacy `GET crypto-news/backfill/:channelId` is 404 (split). No backfill path works in any mode — re-seed via `POST /api/feed/sources` on the owning ingestion.
+23. **`telegram:gen-session` generates session strings only** — sessions live in ingestion-telegram (`INGESTION_TELEGRAM_MTPROTO_*`, one triple per env, never shared); the backend never opens MTProto (branch deleted → `410 Gone`), so generating a session for backend `.env` would only risk `AUTH_KEY_DUPLICATED`.
 24. **Event-driven scoring runs degraded**: `TokenClassifiedHandler` nulls market metrics, forces counts=1 and reputation 0.5 before calling `ScoreTokenUseCase` — bus-path scores differ systematically from admin `POST score` results. Either enrich the event or document the skew.
-25. **`.env.staging` predates the SSE migration**: 67 keys but NO `USE_SSE_INGESTION`, `INGESTION_TELEGRAM_URL`, `INGESTION_TELEGRAM_SEED_KOLS/NEWS`, `CHAIN_DEXTER_WEBHOOK_*`, `CRYPTO_NEWS_MEDIA_RETENTION_HOURS`, `DEDUP_*`, `LOG_*` — and it still carries legacy `INGESTION_TELEGRAM_SEED_CHANNELS`. Staging boots MTProto-legacy by default (cf. gap 2).
+25. **Repo `.env.staging` (gitignored, local-only) still carries dead weight**: 127 keys with `USE_SSE_INGESTION=true` (`:63`) — good — but also dead `INGESTION_SERVICE_URL=http://ingestion-service:3031` (`:65`, no reader since the T10 fallback removal) + dummy `INGESTION_TELEGRAM_MTPROTO_*` (`:70-73`, no backend reader). Harmless locally (compose `environment:` pins the twin URL at runtime; the droplet real file is operator-owned) — clean it when touching the file, don't chase it.
 26. **Seed script emits invalid classifications**: `seed-pipeline-events.ts` uses `LEGITIMATE/RISKY/SAFE` — outside the `Classification` VO (`TOKEN/POOL/ROUTER/NFT/SCAM/UNKNOWN`). Any consumer validating via `Classification.fromString` throws `VALIDATION` on seeded traffic.
 27. **`token/identity/` VOs** (`ContractAddress`+spec, `NormalizedAddress`, `TokenLocator`) duplicate chain-validation logic across `token/identity`, `token/normalization` (`NormalizedAddress` again), and `chain/*` (`ChainId`/`Chain`/`ChainFamily`) — three address-validation homes. Consolidate or document the split.
 
@@ -756,7 +755,7 @@ Staging-local caveat (NODE_ENV=staging hits dist mode): CLI `data-source.ts:28` 
 - `scripts/seed-pipeline-events.ts` (181 lines): emits 4 events × N tokens (12 real addresses: USDC/SOL/BOME/WBTC/AAVE/CAKE/USDT/CBBTC/MATIC/GME…). ⚠️ Step 4 emits the GHOST `filters.token.*` names (gap 20) with classifications (`LEGITIMATE/RISKY/SAFE`) outside the `Classification` VO set (gap 31) — seeded approvals never reach `TokenApprovedPublishHandler`.
 - `scripts/run-migrations.sh` (15 lines): dual-mode — compiled `dist/.../data-source.js` in Docker, `typeorm-ts-node-commonjs` + `src/...` locally. `set -euo pipefail`.
 - `scripts/cli/`: interactive readline tools (inject reads `scripts/fixtures/*.json`).
-- Compose: `docker-compose.yml` (dev), `.prod.yml` (backend `:3030` + postgres/redis health-gated), `.with-ingestion.yml` (builds ingestion Dockerfile, `PORT: 3031`, backend gets `INGESTION_TELEGRAM_URL: http://ingestion-telegram:3031` + read-only media volume, `depends_on` healthy), `.ingestion.yml` (standalone droplet). Healthchecks hit `/api/health` (stub-200 caveat, gap 18 backend / gap 23 ingestion-telegram).
+- Compose: `docker-compose.yml` (dev), `.prod.yml` (backend `:3030` + postgres/redis health-gated), `.staging.yml` (staging backend, `INGESTION_TELEGRAM_URL` pinned to the twin at `:98`), `.with-ingestion.yml` (builds ingestion Dockerfile, `PORT: 3031`, backend gets `INGESTION_TELEGRAM_URL: http://ingestion-telegram:3031` + read-only media volume, `depends_on` healthy), `.ingestion.yml` (prod ingestion standalone, host `:3032`→container `:3031`), `.staging-ingestion.yml` (staging TWIN, per-env 2026-09-22: project `onchain-bot-staging-ingestion`, host `:3033`→container `:3031`, own `.env.staging` triple + `alpha_meta_token_scanner_staging_ingestion` DB + own uploads volume). Healthchecks hit `/api/health` (stub-200 caveat, gap 18 backend / gap 23 ingestion-telegram).
 
 ## NOTES
 
