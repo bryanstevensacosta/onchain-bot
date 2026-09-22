@@ -226,9 +226,9 @@ jobs:
           # enforced by SEQUENTIAL PRs (ingestion first, backend second), and
           # this gate aborts the backend deploy if ingestion is not serving —
           # even if the two workflows ever race on the same push to master.
-          echo "=== Ordering gate: ingestion must serve crypto-news sources ==="
+          echo "=== Ordering gate: ingestion must serve feed sources ==="
           for i in $(seq 1 12); do
-            if curl -sf http://localhost:3032/api/crypto-news/sources > /tmp/ingestion-gate.json 2>&1; then
+            if curl -sf http://localhost:3032/api/feed/sources > /tmp/ingestion-gate.json 2>&1; then
               echo "✅ Ingestion healthy on attempt $i (sources endpoint 200)"
               head -c 300 /tmp/ingestion-gate.json; echo
               break
@@ -236,7 +236,7 @@ jobs:
             echo "⏳ Ingestion not serving (attempt $i/12), retrying in 10s..."
             sleep 10
             if [ "$i" -eq 12 ]; then
-              echo "::error::Ingestion-service is NOT serving :3032/api/crypto-news/sources after 120s. Aborting backend deploy: the drop migration must NOT run before the ingestion cutover (merge + deploy ingestion FIRST, then re-run this workflow)."
+              echo "::error::Ingestion-service is NOT serving :3032/api/feed/sources after 120s. Aborting backend deploy: the drop migration must NOT run before the ingestion cutover (merge + deploy ingestion FIRST, then re-run this workflow)."
               exit 1
             fi
           done

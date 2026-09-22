@@ -74,14 +74,14 @@ export const ENDPOINTS = {
     sources: {
       // Crypto-news sources are owned by the ingestion-service;
       // all source writes go through the ingestion API below.
-      list: '/ingestion-api/crypto-news/sources',
-      add: '/ingestion-api/crypto-news/sources',
+      list: '/ingestion-api/feed/sources',
+      add: '/ingestion-api/feed/sources',
       update: (channelId: string) =>
-        `/ingestion-api/crypto-news/sources/${channelId}`,
+        `/ingestion-api/feed/sources/${channelId}`,
       toggle: (channelId: string) =>
-        `/ingestion-api/crypto-news/sources/${channelId}/toggle`,
+        `/ingestion-api/feed/sources/${channelId}/toggle`,
       delete: (channelId: string) =>
-        `/ingestion-api/crypto-news/sources/${channelId}`,
+        `/ingestion-api/feed/sources/${channelId}`,
     },
   },
   trackedCalls: {

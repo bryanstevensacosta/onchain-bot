@@ -29,7 +29,7 @@ import { CryptoNewsIntegrationModule } from 'telegram/crypto-news-integration/cr
  *
  * Note (2026-09-06): Seeders removed. Channels are now registered via:
  * - KOLs: POST /telegram-kol/identity/kols
- * - Crypto-news: POST {INGESTION_TELEGRAM_URL}/api/crypto-news/sources
+ * - Crypto-news: POST {INGESTION_TELEGRAM_URL}/api/feed/sources
  */
 @Module({
   imports: [

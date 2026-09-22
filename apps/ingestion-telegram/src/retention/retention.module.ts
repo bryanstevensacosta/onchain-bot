@@ -1,57 +1,57 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SharedModule } from '../core/shared.module';
-import { CryptoNewsMessageEntity } from 'feed/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
 import { TelegramFeedMessageEntity } from 'feed/infrastructure/persistence/typeorm/entities/telegram-feed-message.entity';
 import { TelegramFeedMessageMediaEntity } from 'feed/infrastructure/persistence/typeorm/entities/telegram-feed-message-media.entity';
-import { CryptoNewsMessageRepository } from 'feed/infrastructure/persistence/typeorm/repositories/crypto-news-message.repository';
 import { TelegramFeedMessageRepository } from 'feed/infrastructure/persistence/typeorm/repositories/telegram-feed-message.repository';
-import { CryptoNewsController } from 'feed/api/http/crypto-news.controller';
+import { SourcesController } from 'registry/api/http/sources.controller';
+import { FeedController } from 'feed/api/http/feed.controller';
 import { RegisterNewsSourceUseCase } from 'registry/application/use-cases/register-news-source.use-case';
 import { CryptoNewsRetentionCleanupScheduler } from './infrastructure/scheduling/crypto-news-retention-cleanup.scheduler';
 import { DiskMonitorService } from './infrastructure/scheduling/disk-monitor.service';
 
 /**
- * CryptoNewsModule - Crypto news channel management
+ * RetentionModule - Unified feed channel management + retention.
  *
- * **ARCHITECTURE CHANGE (2026-09-05):**
- * Ingestion-service is now the SOLE OWNER of crypto-news sources.
- * - RegisterNewsSourceUseCase enables POST /api/crypto-news/sources (NEW)
+ * Ingestion-service is the SOLE OWNER of the feed catalog and hot data:
+ * - RegisterNewsSourceUseCase enables POST /api/feed/sources (backed by
+ *   `telegram_feed_sources` via TelegramFeedSourceRepository from SharedModule)
+ * - SourcesController (registry/) serves feed source CRUD at /api/feed/sources*
+ * - FeedController (feed/) serves message reads + stats at /api/feed/messages*
  * - Backend no longer writes sources (deprecated)
  *
- * **DB-driven architecture (CENTRALIZED):**
- * - CryptoNewsSourceRepository provided by SharedModule (read/write from own DB)
- * - CryptoNewsMessageRepository OWNS crypto_news_messages table (single source of truth)
+ * DB-driven architecture (CENTRALIZED):
+ * - TelegramFeedSourceRepository provided by SharedModule (read/write from own DB)
+ * - TelegramFeedMessageRepository OWNS telegram_feed_messages table (single source of truth)
  * - HTTP API serves messages/sources to backend staging/prod + frontend
  * - Used by TelegramMtprotoListenerAdapter for channel cache
  * - All sources managed via ingestion-telegram API (no backend DB writes)
  *
- * **Per AGENTS.md Ingestion-Service Architecture:**
- * - This service OWNS: crypto_news_sources, crypto_news_messages, crypto_news_message_media, media files
+ * Per AGENTS.md Ingestion-Service Architecture:
+ * - This service OWNS: telegram_feed_sources, telegram_feed_messages, telegram_feed_message_media, media files
  * - Backends/frontends READ via HTTP API (no DB replication)
  * - One ingestion-telegram instance feeds ALL environments (dev/staging/prod)
  *
- * **REMOVED:**
+ * REMOVED:
  * - Static channel seed list completely removed (DB-driven only)
- * - Add sources via: POST /api/crypto-news/sources (ingestion-telegram endpoint)
+ * - Add sources via: POST /api/feed/sources (ingestion-telegram endpoint)
+ * - Legacy crypto-news controller/entities/repos cut in feed-unification item 5
  */
 @Module({
   imports: [
     SharedModule,
     TypeOrmModule.forFeature([
-      CryptoNewsMessageEntity,
       TelegramFeedMessageEntity,
       TelegramFeedMessageMediaEntity,
     ]),
   ],
-  controllers: [CryptoNewsController],
+  controllers: [SourcesController, FeedController],
   providers: [
-    CryptoNewsMessageRepository,
     TelegramFeedMessageRepository,
     RegisterNewsSourceUseCase,
     DiskMonitorService,
     CryptoNewsRetentionCleanupScheduler,
   ],
-  exports: [CryptoNewsMessageRepository, TelegramFeedMessageRepository],
+  exports: [TelegramFeedMessageRepository],
 })
 export class RetentionModule {}

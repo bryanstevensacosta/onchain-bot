@@ -7,7 +7,7 @@ import { BackendRegistration } from '../../stream/domain/backend-registration.en
  *
  * Replaces the old seed-based subscription system with DB-driven channel lists.
  * Calls backend endpoints to get active KOL IDs. Crypto-news sources are read
- * from the local ingestion DB (CryptoNewsSourceRepository.findAllActive()).
+ * from the local ingestion DB (TelegramFeedSourceRepository.findAllActive()).
  *
  * Extended with multi-backend registration support:
  * Per Requirement 1.2: Store Backend registrations in memory
@@ -61,7 +61,7 @@ export class BackendChannelProviderService {
    * Fetch all active channel IDs (KOLs from backend HTTP).
    *
    * Crypto-news sources are NOT fetched here: ingestion-telegram owns them
-   * and reads them from its local DB (CryptoNewsSourceRepository).
+   * and reads them from its local DB (TelegramFeedSourceRepository).
    * See TelegramModule.refreshChannels() for the combined list.
    *
    * Per Requirement 9.1: Check feature flag INGESTION_MULTI_BACKEND_ENABLED

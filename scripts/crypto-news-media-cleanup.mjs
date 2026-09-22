@@ -133,7 +133,7 @@ async function headMedia(channel, msg, idx) {
 }
 
 async function pingMessagesEndpoint() {
-  const url = `${INGESTION_URL.replace(/\/$/, '')}/api/crypto-news/messages?limit=50`;
+  const url = `${INGESTION_URL.replace(/\/$/, '')}/api/feed/messages?limit=50`;
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {

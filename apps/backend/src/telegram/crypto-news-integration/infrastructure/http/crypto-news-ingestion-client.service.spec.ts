@@ -4,7 +4,7 @@ import { CryptoNewsIngestionClient } from './crypto-news-ingestion-client.servic
 /**
  * Regression tests for F3 blocking finding #1 (fetch-wrapper mismatch).
  *
- * Ingestion `GET /api/crypto-news/messages` returns a WRAPPED payload
+ * Ingestion `GET /api/feed/messages` returns a WRAPPED payload
  * `{timestamp, count, data}` (ETag-busting wrapper, commit 97199b2) while
  * `GET /messages/channel/:channelId` and `GET /sources` return BARE arrays.
  * The client must unwrap defensively: array `data` → use it; bare array →

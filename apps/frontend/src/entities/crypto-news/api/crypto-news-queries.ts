@@ -39,6 +39,7 @@ export interface CryptoNewsSource {
   channelId: string;
   handle: string | null;
   title: string;
+  type?: string;
   isActive: boolean;
   lifecycleStatus: string;
   addedAt: string;
@@ -96,7 +97,7 @@ export async function fetchCryptoNewsMessages(
     timestamp: string;
     count: number;
     data: ReadonlyArray<CryptoNewsMessage>;
-  }>(`/ingestion-api/crypto-news/messages?${qs.toString()}`);
+  }>(`/ingestion-api/feed/messages?${qs.toString()}`);
 
   return response.data;
 }
@@ -105,7 +106,7 @@ export async function fetchCryptoNewsSources(): Promise<
   ReadonlyArray<CryptoNewsSource>
 > {
   return httpGet<ReadonlyArray<CryptoNewsSource>>(
-    '/ingestion-api/crypto-news/sources',
+    '/ingestion-api/feed/sources',
   );
 }
 

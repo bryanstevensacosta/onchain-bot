@@ -38,7 +38,7 @@ export interface FilteredThreadsMessage extends ThreadsMessageDto {
  * Threads-typed mirror of crypto `FilteredCryptoNewsService`
  * (`telegram/crypto-news-integration/application/services/filtered-crypto-news.service.ts`):
  * 1. Fetch RAW messages from ingestion-telegram (ThreadsIngestionClient —
- *    same `/api/crypto-news/messages` feed, zero ingestion-telegram changes)
+ *    same `/api/feed/messages` feed, zero ingestion-telegram changes)
  * 2. Apply ContentFilterService per-channel regex rules (transform on-read,
  *    IMPORTED as-is from `telegram/ingestion/crypto-news`)
  * 3. Evaluate threads keywords AND-groups + blacklist phrases

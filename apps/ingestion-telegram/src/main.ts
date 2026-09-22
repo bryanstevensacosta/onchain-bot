@@ -19,16 +19,16 @@ function resolveAppVersion(): string {
   }
 }
 
-function setupCryptoNewsDocs(app: INestApplication): void {
+function setupFeedDocs(app: INestApplication): void {
   const config = new DocumentBuilder()
-    .setTitle('Crypto-news ingestion-telegram API')
+    .setTitle('Telegram feed ingestion-telegram API')
     .setDescription(
-      'Swagger/OpenAPI for the crypto-news ingestion scope only: ' +
-        'api/crypto-news sources/messages/stats, stream status, SSE stream, media. ' +
+      'Swagger/OpenAPI for the unified feed scope only: ' +
+        'api/feed sources/messages/stats, stream status, SSE stream, media. ' +
         'Out of scope: debug, metrics internals.',
     )
     .setVersion(resolveAppVersion())
-    .addTag('crypto-news')
+    .addTag('feed')
     .addTag('stream')
     .addTag('media')
     .build();
@@ -77,7 +77,7 @@ async function bootstrap() {
   });
 
   const port = process.env.PORT || 3031;
-  setupCryptoNewsDocs(app);
+  setupFeedDocs(app);
   await app.listen(port);
 
   const logger = app.get(Logger);

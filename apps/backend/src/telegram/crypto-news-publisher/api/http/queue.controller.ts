@@ -38,7 +38,7 @@ import type { CryptoNewsSourceDto } from 'telegram/crypto-news-integration/infra
  * Satisfied by `CryptoNewsSourceDto` (HTTP, ingestion-telegram owner) — the
  * deprecated `CryptoNewsSourceRepository` in-memory shim returned an empty
  * store, so this controller now fetches sources live via
- * GET `{ingestionBaseUrl}/api/crypto-news/sources` (Opción A, T7).
+ * GET `{ingestionBaseUrl}/api/feed/sources` (Opción A, T7).
  */
 interface QueueSourceView {
   readonly channelId: string;
@@ -299,12 +299,12 @@ export class QueueController {
   > {
     try {
       const response = await fetch(
-        `${this.ingestionBaseUrl}/api/crypto-news/sources`,
+        `${this.ingestionBaseUrl}/api/feed/sources`,
         { method: 'GET', headers: { 'Content-Type': 'application/json' } },
       );
       if (!response.ok) {
         this.logger.warn(
-          `Ingestion-telegram returned ${response.status} for /api/crypto-news/sources`,
+          `Ingestion-telegram returned ${response.status} for /api/feed/sources`,
         );
         return [];
       }

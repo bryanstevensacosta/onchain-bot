@@ -18,7 +18,7 @@ import { LastSeenManager } from '../../infrastructure/services/last-seen-manager
 import { MessageQueue } from '../../infrastructure/services/message-queue';
 import { TelegramPeerResolver } from '../../infrastructure/services/telegram-peer-resolver';
 import { FloodWaitHandlerService } from '../../infrastructure/services/flood-wait-handler.service';
-import { CryptoNewsSourceRepository } from 'registry/infrastructure/persistence/typeorm/repositories/crypto-news-source.repository';
+import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
 import { Api } from 'telegram';
 import { CryptoNewsMessageTransformer } from 'shared/telegram/transformation';
 import { TelegramMediaExtractorService } from '../../application/services/telegram-media-extractor.service';
@@ -56,7 +56,7 @@ export class TelegramMtprotoListenerAdapter
     private readonly clientManager: TelegramClientManager,
     private readonly lastSeenManager: LastSeenManager,
     private readonly floodWaitHandler: FloodWaitHandlerService,
-    private readonly cryptoNewsSourceRepo: CryptoNewsSourceRepository,
+    private readonly feedSourceRepo: TelegramFeedSourceRepository,
     private readonly messageTransformer: CryptoNewsMessageTransformer, // Phase 5: Shared transformation
     private readonly mediaExtractor: TelegramMediaExtractorService, // Phase 5.2: Extracted media download
   ) {}
@@ -370,7 +370,7 @@ export class TelegramMtprotoListenerAdapter
    */
   private async refreshCryptoNewsChannelCache(): Promise<void> {
     try {
-      const sources = await this.cryptoNewsSourceRepo.findAllActive();
+      const sources = await this.feedSourceRepo.findAllActive('crypto-news');
       this.cryptoNewsChannelCache = new Set(sources.map((s) => s.channelId));
 
       this.logger.log(
@@ -387,7 +387,7 @@ export class TelegramMtprotoListenerAdapter
    * Check if a channel is a crypto-news channel (uses DB cache).
    *
    * This method queries the database to determine active crypto-news sources.
-   * Sources are created/updated via ingestion-telegram API (`POST /api/crypto-news/sources`).
+   * Sources are created/updated via ingestion-telegram API (`POST /api/feed/sources`).
    */
   private isCryptoNewsChannel(peerId: string): boolean {
     const isMatch = this.cryptoNewsChannelCache.has(peerId);

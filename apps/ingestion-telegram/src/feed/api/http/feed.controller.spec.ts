@@ -1,16 +1,4 @@
-/**
- * Specs for the feed message API reader (`CryptoNewsController`, item 3).
- *
- * Covers (item 3 acceptance):
- * - `''` entities → `'[]'` (legacy TEXT rows never abort the API)
- * - string-vs-array `message_entities` reader fallback matrix
- * - `type` discriminator passthrough (`crypto-news` union member)
- *
- * Reader semantics are UNCHANGED from the pre-rename controller (rename +
- * `type` only); these specs lock that contract.
- */
-import { CryptoNewsController } from './crypto-news.controller';
-import { parseMessageEntities } from './crypto-news.controller';
+import { FeedController, parseMessageEntities } from './feed.controller';
 
 describe('parseMessageEntities (string-vs-array reader fallback)', () => {
   it('returns undefined for null/undefined (column NULL)', () => {
@@ -40,19 +28,14 @@ describe('parseMessageEntities (string-vs-array reader fallback)', () => {
   });
 });
 
-describe('CryptoNewsController (feed message transform)', () => {
+describe('FeedController (feed message reads + stats)', () => {
   const messageRepo: any = {
     findRecent: jest.fn(),
     findByChannelId: jest.fn(),
     count: jest.fn(),
   };
   const sourceRepo: any = { findAll: jest.fn(), findAllActive: jest.fn() };
-  const registerSourceUseCase: any = { execute: jest.fn() };
-  const controller = new CryptoNewsController(
-    messageRepo,
-    sourceRepo,
-    registerSourceUseCase,
-  );
+  const controller = new FeedController(messageRepo, sourceRepo);
 
   beforeEach(() => jest.clearAllMocks());
 
@@ -103,5 +86,27 @@ describe('CryptoNewsController (feed message transform)', () => {
 
     expect(res).toHaveLength(1);
     expect(res[0].formattingEntities).toBeUndefined();
+  });
+
+  it('getMessagesByChannel caps limit at 200', async () => {
+    messageRepo.findByChannelId.mockResolvedValue([]);
+
+    await controller.getMessagesByChannel('-1001', 9999);
+
+    expect(messageRepo.findByChannelId).toHaveBeenCalledWith('-1001', 200);
+  });
+
+  it('getStats returns message/source counts', async () => {
+    messageRepo.count.mockResolvedValue(7);
+    sourceRepo.findAll.mockResolvedValue([{}, {}, {}]);
+    sourceRepo.findAllActive.mockResolvedValue([{}, {}]);
+
+    const res = await controller.getStats();
+
+    expect(res).toEqual({
+      totalMessages: 7,
+      totalSources: 3,
+      activeSources: 2,
+    });
   });
 });

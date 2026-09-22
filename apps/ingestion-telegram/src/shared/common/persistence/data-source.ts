@@ -30,22 +30,19 @@ register({
 dotenv.config();
 
 // Import entities after tsconfig-paths registration
-import { CryptoNewsSourceEntity } from 'registry/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
 import { TelegramFeedSourceEntity } from 'registry/infrastructure/persistence/typeorm/entities/telegram-feed-source.entity';
-import { CryptoNewsMessageEntity } from 'feed/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
 import { TelegramFeedMessageEntity } from 'feed/infrastructure/persistence/typeorm/entities/telegram-feed-message.entity';
 import { TelegramFeedMessageMediaEntity } from 'feed/infrastructure/persistence/typeorm/entities/telegram-feed-message-media.entity';
 import { BackfillMessageEntity } from 'stream/infrastructure/persistence/typeorm/backfill-message.entity';
 
 /**
- * The 5 ingestion-owned tables (sole owner since 2026-09-05).
+ * The 4 ingestion-owned tables (sole owner since 2026-09-05;
+ * legacy crypto-news tables cut in feed-unification item 5).
  * Must stay in sync with the `entities` array in `src/app.module.ts`.
  * Backend entities are NEVER listed here (split-brain ownership).
  */
 export const INGESTION_PERSISTED_ENTITIES = [
-  CryptoNewsSourceEntity,
   TelegramFeedSourceEntity,
-  CryptoNewsMessageEntity,
   TelegramFeedMessageEntity,
   TelegramFeedMessageMediaEntity,
   BackfillMessageEntity,

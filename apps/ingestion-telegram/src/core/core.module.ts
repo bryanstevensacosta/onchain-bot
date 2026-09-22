@@ -8,7 +8,7 @@ import { MessagePersistenceCoordinator } from './application/coordinators/messag
 import { SSEBroadcastService } from '../stream/application/services/sse-broadcast.service';
 import { BroadcastEvent } from '../stream/domain/broadcast-event.vo';
 import { DebugTelegramController } from '../debug/debug-telegram.controller';
-import { CryptoNewsSourceRepository } from 'registry/infrastructure/persistence/typeorm/repositories/crypto-news-source.repository';
+import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
 
 /**
  * TelegramModule - Root Telegram ingestion module
@@ -32,7 +32,7 @@ import { CryptoNewsSourceRepository } from 'registry/infrastructure/persistence/
  *
  * Channel ownership (post-migration):
  * - KOLs: fetched from backend DB via HTTP (backend owns KOL identity)
- * - Crypto-news: read from local DB via CryptoNewsSourceRepository
+ * - Crypto-news: read from local DB via TelegramFeedSourceRepository
  *   (ingestion-telegram is sole owner; legacy backend HTTP polling removed T15)
  */
 @Module({
@@ -53,7 +53,7 @@ export class CoreModule implements OnModuleInit {
 
   constructor(
     private readonly channelProvider: BackendChannelProviderService,
-    private readonly cryptoNewsSourceRepo: CryptoNewsSourceRepository,
+    private readonly feedSourceRepo: TelegramFeedSourceRepository,
     private readonly listener: TelegramListenerPort,
     private readonly coordinator: MessagePersistenceCoordinator,
     private readonly sseBroadcast: SSEBroadcastService,
@@ -73,7 +73,7 @@ export class CoreModule implements OnModuleInit {
           '⚠️ No active channels found. Ingestion service will not receive messages.',
         );
         this.logger.warn(
-          '💡 Add channels via: KOLs → backend API POST /telegram-kol/identity/kols, crypto-news → ingestion-telegram API POST /api/crypto-news/sources',
+          '💡 Add channels via: KOLs → backend API POST /telegram-kol/identity/kols, crypto-news → ingestion-telegram API POST /api/feed/sources',
         );
         return;
       }
@@ -118,7 +118,7 @@ export class CoreModule implements OnModuleInit {
       const kolIds = await this.channelProvider.fetchActiveKolIds();
 
       // Fetch crypto-news sources from LOCAL DB (ingestion-telegram owns this now)
-      const cryptoNewsSources = await this.cryptoNewsSourceRepo.findAllActive();
+      const cryptoNewsSources = await this.feedSourceRepo.findAllActive('crypto-news');
       const newsIds = cryptoNewsSources.map((source) => source.channelId);
 
       const previousTotal = this.currentChannelIds.length;

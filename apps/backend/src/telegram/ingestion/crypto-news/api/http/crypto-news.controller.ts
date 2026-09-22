@@ -35,7 +35,7 @@ import {
  * Removed in todo 4: GET messages, GET messages/:id, GET sources,
  * GET sources/active/ids, POST sources (501), GET backfill/:channelId,
  * GET media/:mediaId. Consumers must use ingestion-telegram:
- * `GET {INGESTION_TELEGRAM_URL}/api/crypto-news/...`.
+ * `GET {INGESTION_TELEGRAM_URL}/api/feed/...`.
  */
 @ApiTags('crypto-news-filters')
 @Controller('crypto-news')

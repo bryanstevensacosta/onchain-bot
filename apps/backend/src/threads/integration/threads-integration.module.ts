@@ -26,7 +26,7 @@ import { ThreadsPublisherModule } from 'threads/publisher/threads-publisher.modu
  * (`telegram/crypto-news-integration/crypto-news-integration.module.ts:91`):
  * - Ingestion-service stores RAW crypto-news messages (no filters)
  * - Backend polls ingestion-telegram HTTP API (ThreadsIngestionClient —
- *   SAME `/api/crypto-news/messages` feed, zero ingestion-telegram changes)
+ *   SAME `/api/feed/messages` feed, zero ingestion-telegram changes)
  * - Backend applies ContentFilterService + threads keyword matching
  *   on-read (FilteredThreadsService)
  * - Matched messages are enqueued for threads LLM processing
