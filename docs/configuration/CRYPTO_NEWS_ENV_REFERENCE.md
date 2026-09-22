@@ -13,6 +13,30 @@
 Env precedence in both NestJS services: `.env.dev` wins over `.env`
 (`ConfigModule.envFilePath: ['.env.dev', '.env']`).
 
+## 0. Feed-unification rename note (2026-09-22, no new env vars)
+
+Items 1-10 of `.omo/plans/telegram-feed-unification.md` introduced **zero**
+new environment variables (verified by grepping `process.env.*` in
+`apps/ingestion-telegram/src/shared/common/config/app.config.ts`: the full
+`INGESTION_*` set predates the plan, and `SSE_*` came from the prior
+refactor plan and is already documented in section 1). What changed are
+table names, HTTP paths, and the on-disk media segment. Old → new:
+
+| Old                                                                                 | New                                                                                                                                            |
+| ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| tables `crypto_news_sources` / `crypto_news_messages` / `crypto_news_message_media` | `telegram_feed_sources` / `telegram_feed_messages` / `telegram_feed_message_media` (all in the `<base>_ingestion` DB)                          |
+| `GET/POST /api/crypto-news/*` (ingestion)                                           | `/api/feed/*` — sources CRUD in `SourcesController`, reads/stats in `FeedController`; old routes return 404                                    |
+| `GET telegram-kol/identity/kols*` (backend)                                         | 501 with feed hints; reads via `GET {INGESTION_TELEGRAM_URL}/api/feed/sources?type=kol`                                                        |
+| `<UPLOADS_ROOT>/crypto-news/media/`                                                 | `<UPLOADS_ROOT>/feed/media/` (`INGESTION_UPLOADS_ROOT` itself unchanged); HTTP serving `GET /api/media/:channelId/:messageId/:index` unchanged |
+| retention clock `crypto_news_messages.ingested_at`                                  | `telegram_feed_messages.ingested_at` (same 72 h window, same lock `9_421_373`)                                                                 |
+
+Stale rows below (kept verbatim, corrected by the table above): section 2
+`INGESTION_UPLOADS_ROOT` still shows the old `crypto-news/media` segment;
+section 3 troubleshooting still probes `GET {url}/api/crypto-news/sources`
+(use `/api/feed/sources`). Full design:
+`apps/ingestion-telegram/docs/architecture/telegram-feed.md`; operator
+guide: `apps/ingestion-telegram/docs/guides/ADD_FEED_SOURCE.md`.
+
 ## 1. Backend (`apps/backend`)
 
 ### Connection to ingestion-telegram

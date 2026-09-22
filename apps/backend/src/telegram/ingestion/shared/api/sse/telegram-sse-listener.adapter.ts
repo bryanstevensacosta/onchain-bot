@@ -18,14 +18,16 @@ import {
 /**
  * MessagePayload from Ingestion Service SSE stream
  *
- * Per Invariant 1 (modified): text excluded for KOL (extraction handles it), included for crypto-news (opaque content)
- * Backend must fetch full text via backfill for KOL messages; crypto-news includes text directly
+ * Per Q1-B (docs/architecture/adr-kol-raw-text.md in ingestion-telegram):
+ * text passes through for BOTH types (kol + crypto-news).
+ * Backend-internal ToS boundary UNCHANGED: raw text never crosses the
+ * backend event bus (fix-1) — see KolMessageIngestedEvent (no text field).
  */
 interface MessagePayload {
   peerId: string;
   messageId: number;
   occurredAt: string;
-  text?: string; // Present for crypto-news, omitted for KOL
+  text?: string; // Present for BOTH types (Q1-B); absent only on legacy frames
   media: Array<{
     type: 'photo' | 'video';
     index: number;
@@ -349,7 +351,7 @@ export class TelegramSseListenerAdapter
     const rawMessage = {
       peerId: payload.peerId,
       messageId: payload.messageId,
-      text: payload.text ?? '', // Use text from payload if present (crypto-news), empty for KOL (extraction handles it)
+      text: payload.text ?? '', // Q1-B: text passes through for BOTH types (kol + crypto-news); '' only when the frame omits it
       occurredAt: new Date(payload.occurredAt),
       messageType: payload.messageType, // Preserve messageType for coordinator routing
       media: payload.media.map((m) => ({
