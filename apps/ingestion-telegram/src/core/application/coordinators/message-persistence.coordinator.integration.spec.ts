@@ -673,7 +673,10 @@ describe('MessagePersistenceCoordinator - Broadcast Pipeline Deduplication (Inte
         TelegramFeedMessageRepository,
       );
 
-      await coordinator.route(createMessage('channel_feed_type', 1), 'crypto-news');
+      await coordinator.route(
+        createMessage('channel_feed_type', 1),
+        'crypto-news',
+      );
 
       expect(feedRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'crypto-news' }),
@@ -725,6 +728,73 @@ describe('MessagePersistenceCoordinator - Broadcast Pipeline Deduplication (Inte
 
       await coordinator.route(realtime, 'kol');
       await coordinator.route(polling, 'kol');
+
+      expect(saveMock).toHaveBeenCalledTimes(1);
+      expect(broadcastedMessages).toHaveLength(1);
+    });
+
+    it('duplicate crypto-news realtime+polling delivery persists exactly 1 row (isDuplicate wired, item 9)', async () => {
+      const feedRepo = module.get<TelegramFeedMessageRepository>(
+        TelegramFeedMessageRepository,
+      );
+      const saveMock = feedRepo.save as jest.Mock;
+      saveMock.mockClear();
+
+      // Same crypto-news message arrives twice (realtime event + 30s polling sweep)
+      const realtime = createMessage('channel_news_dup', 77, {
+        text: 'Same news twice',
+      });
+      const polling = createMessage('channel_news_dup', 77, {
+        text: 'Same news twice',
+      });
+
+      await coordinator.route(realtime, 'crypto-news');
+      await coordinator.route(polling, 'crypto-news');
+
+      expect(saveMock).toHaveBeenCalledTimes(1);
+      expect(saveMock.mock.calls[0][0].type).toBe('crypto-news');
+      expect(broadcastedMessages).toHaveLength(1);
+    });
+
+    it('window semantics: message below cursor short-circuits BEFORE the DB read (item 9)', async () => {
+      const feedRepo = module.get<TelegramFeedMessageRepository>(
+        TelegramFeedMessageRepository,
+      );
+      const saveMock = feedRepo.save as jest.Mock;
+      const findMock = feedRepo.findByChannelAndMessageId as jest.Mock;
+      saveMock.mockClear();
+      findMock.mockClear();
+
+      await coordinator.route(createMessage('channel_window', 50), 'kol');
+      expect(saveMock).toHaveBeenCalledTimes(1);
+      expect(findMock).toHaveBeenCalledTimes(1);
+
+      // id 49 <= cursor 50 → isDuplicate gate returns before persistFeedMessage
+      await coordinator.route(createMessage('channel_window', 49), 'kol');
+
+      expect(saveMock).toHaveBeenCalledTimes(1);
+      expect(findMock).toHaveBeenCalledTimes(1);
+      expect(broadcastedMessages).toHaveLength(1);
+    });
+
+    it('cache-full prune: coordinator routes fine with a pruned dedup cache, no crash (item 9)', async () => {
+      const feedRepo = module.get<TelegramFeedMessageRepository>(
+        TelegramFeedMessageRepository,
+      );
+      const saveMock = feedRepo.save as jest.Mock;
+      saveMock.mockClear();
+
+      // Overflow the in-memory seen-cache past MAX_CACHE_PER_CHANNEL (10000)
+      // via the REAL injected service — forces pruneCache mid-fill.
+      const channelId = 'channel_prune';
+      for (let i = 1; i <= 10001; i++) {
+        deduplicationService.isDuplicate(channelId, i, -1);
+      }
+      const stats = deduplicationService.getStats();
+      expect(stats.cachesByChannel[channelId]).toBeLessThanOrEqual(10000);
+
+      // Fresh message above every seen id still routes exactly once.
+      await coordinator.route(createMessage(channelId, 20000), 'kol');
 
       expect(saveMock).toHaveBeenCalledTimes(1);
       expect(broadcastedMessages).toHaveLength(1);

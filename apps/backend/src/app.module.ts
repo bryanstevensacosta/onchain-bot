@@ -36,7 +36,6 @@ import { ReputationModule } from 'kol/reputation/reputation.module';
 import { HoneypotModule } from 'token/honeypot/honeypot.module';
 // import { IdentityModule } from 'kol/identity/identity.module';
 import { TelegramIngestionModule } from 'telegram/ingestion/telegram-ingestion.module';
-import { SourceModule } from 'kol/source/source.module';
 import { StatsModule } from 'kol/stats/stats.module';
 import { WsModule } from 'shared/ws/ws.module';
 import { SettingsModule } from 'settings/settings.module';
@@ -142,7 +141,6 @@ import { DevModule } from './dev/dev.module';
     HealthModule,
     DataProviderModule,
     TelegramIngestionModule,
-    SourceModule,
     StatsModule,
     ExtractionModule,
     ParsingModule,
