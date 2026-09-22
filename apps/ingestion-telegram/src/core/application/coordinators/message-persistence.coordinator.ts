@@ -3,9 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { StreamService } from 'stream/application/services/stream.service';
 import { DeduplicationService } from 'core/application/services/deduplication.service';
 import { LastSeenManager } from 'core/infrastructure/services/last-seen-manager.service';
-import { CryptoNewsMessageRepository } from 'feed/infrastructure/persistence/typeorm/repositories/crypto-news-message.repository';
-import { CryptoNewsMessageEntity } from 'feed/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
-import { CryptoNewsMessageMediaEntity } from 'feed/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
+import { TelegramFeedMessageRepository } from 'feed/infrastructure/persistence/typeorm/repositories/telegram-feed-message.repository';
+import { TelegramFeedMessageEntity } from 'feed/infrastructure/persistence/typeorm/entities/telegram-feed-message.entity';
+import { TelegramFeedMessageMediaEntity } from 'feed/infrastructure/persistence/typeorm/entities/telegram-feed-message-media.entity';
 import type {
   MessagePayload,
   MediaPayload,
@@ -72,7 +72,7 @@ export class MessagePersistenceCoordinator {
     private readonly streamService: StreamService,
     private readonly deduplicationService: DeduplicationService,
     private readonly lastSeenManager: LastSeenManager,
-    private readonly cryptoNewsMessageRepo: CryptoNewsMessageRepository,
+    private readonly cryptoNewsMessageRepo: TelegramFeedMessageRepository,
     private readonly config: ConfigService,
   ) {
     // Load API base URL from config (e.g., "http://localhost:3031")
@@ -151,7 +151,7 @@ export class MessagePersistenceCoordinator {
    * - Each backend applies ITS OWN content filters on-read (transform on-read pattern)
    * - This allows staging and production to have DIFFERENT filter configurations
    *
-   * Per centralized architecture: Ingestion-service OWNS crypto_news_messages table.
+   * Per centralized architecture: Ingestion-service OWNS telegram_feed_messages table.
    * This is the SINGLE SOURCE OF TRUTH - backends query via HTTP API, NO replication.
    *
    * Idempotency: Skip if message already exists (duplicate ingestion check).
@@ -179,10 +179,11 @@ export class MessagePersistenceCoordinator {
       // Create message entity WITH RAW CONTENT (no filters applied)
       // Per Opción A architecture: Ingestion stores RAW text from Telegram.
       // Backends (staging/prod) apply THEIR OWN content filters on-read.
-      const messageEntity = new CryptoNewsMessageEntity();
+      const messageEntity = new TelegramFeedMessageEntity();
       messageEntity.id = randomUUID();
       messageEntity.channelId = raw.peerId;
       messageEntity.messageId = raw.messageId;
+      messageEntity.type = 'crypto-news';
       messageEntity.title = null; // TODO: extract title from text (future feature)
       messageEntity.content = raw.text ?? ''; // ← RAW content, NO filters
       messageEntity.publishedAt = raw.occurredAt;
@@ -199,7 +200,7 @@ export class MessagePersistenceCoordinator {
 
       // Create media entities (cascade save via relationship)
       messageEntity.media = (raw.media || []).map((m, idx) => {
-        const mediaEntity = new CryptoNewsMessageMediaEntity();
+        const mediaEntity = new TelegramFeedMessageMediaEntity();
         mediaEntity.id = randomUUID();
         mediaEntity.messageId = messageEntity.id;
         mediaEntity.index = m.index ?? idx;

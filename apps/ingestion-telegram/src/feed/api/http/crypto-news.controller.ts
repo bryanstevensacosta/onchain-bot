@@ -13,7 +13,7 @@ import {
   NotFoundException,
   Header,
 } from '@nestjs/common';
-import { CryptoNewsMessageRepository } from '../../infrastructure/persistence/typeorm/repositories/crypto-news-message.repository';
+import { TelegramFeedMessageRepository } from '../../infrastructure/persistence/typeorm/repositories/telegram-feed-message.repository';
 import { CryptoNewsSourceRepository } from 'registry/infrastructure/persistence/typeorm/repositories/crypto-news-source.repository';
 import { RegisterNewsSourceUseCase } from 'registry/application/use-cases/register-news-source.use-case';
 import type { RegisterNewsSourceInput } from 'registry/application/use-cases/register-news-source.use-case';
@@ -32,7 +32,7 @@ import {
  * pre-migration TEXT rows arrive as JSON strings. `''`/unparseable
  * strings fall back to `[]` so mixed-version rows never break the API.
  */
-function parseMessageEntities(
+export function parseMessageEntities(
   value: unknown,
 ): Array<{ type: string; offset: number; length: number; url?: string }> | undefined {
   if (value == null) return undefined;
@@ -81,7 +81,7 @@ function parseMessageEntities(
 @Controller('api/crypto-news')
 export class CryptoNewsController {
   constructor(
-    private readonly messageRepo: CryptoNewsMessageRepository,
+    private readonly messageRepo: TelegramFeedMessageRepository,
     private readonly sourceRepo: CryptoNewsSourceRepository,
     private readonly registerSourceUseCase: RegisterNewsSourceUseCase,
   ) {}

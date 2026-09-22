@@ -19,7 +19,7 @@ import { DeduplicationService } from '../services/deduplication.service';
 import { LastSeenManager } from '../../infrastructure/services/last-seen-manager.service';
 import { RedisService } from 'shared/common/cache/redis.service';
 import { DisconnectionTracker } from 'stream/application/services/disconnection-tracker.service';
-import { CryptoNewsMessageRepository } from 'feed/infrastructure/persistence/typeorm/repositories/crypto-news-message.repository';
+import { TelegramFeedMessageRepository } from 'feed/infrastructure/persistence/typeorm/repositories/telegram-feed-message.repository';
 import type { MessagePayload } from '../../domain/types/message-payload';
 
 /**
@@ -105,7 +105,7 @@ describe('MessagePersistenceCoordinator - Broadcast Pipeline Deduplication (Inte
         LastSeenManager,
         DisconnectionTracker,
         {
-          provide: CryptoNewsMessageRepository,
+          provide: TelegramFeedMessageRepository,
           useValue: {
             findByChannelAndMessageId: jest.fn().mockResolvedValue(null),
             save: jest.fn().mockResolvedValue({}),
@@ -669,6 +669,20 @@ describe('MessagePersistenceCoordinator - Broadcast Pipeline Deduplication (Inte
 
       expect(channel1Messages).toHaveLength(5);
       expect(channel2Messages).toHaveLength(3);
+    });
+  });
+
+  describe('Feed type discriminator (item 3: rename + type)', () => {
+    it("persists crypto-news messages with type='crypto-news'", async () => {
+      const feedRepo = module.get<TelegramFeedMessageRepository>(
+        TelegramFeedMessageRepository,
+      );
+
+      await coordinator.route(createMessage('channel_feed_type', 1), 'crypto-news');
+
+      expect(feedRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'crypto-news' }),
+      );
     });
   });
 });
