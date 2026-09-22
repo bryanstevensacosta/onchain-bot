@@ -7,14 +7,19 @@ import { DataSource } from 'typeorm';
 // Register TypeScript path aliases for TypeORM CLI
 // (mirrors apps/backend/src/shared/common/persistence/data-source.ts;
 // alias set matches apps/ingestion-telegram/tsconfig.json — shared/*,
-// telegram/*, stream/*, media/*, health/*, src/*)
+// registry/*, feed/*, retention/*, core/*, debug/*, stream/*, media/*,
+// health/*, src/*)
 register({
   baseUrl: resolve(__dirname, '../../../'),
   paths: {
     'shared/kernel/*': ['src/shared/kernel/*'],
     'shared/common/*': ['src/shared/common/*'],
     'shared/*': ['src/shared/*'],
-    'telegram/*': ['src/telegram/*'],
+    'registry/*': ['src/registry/*'],
+    'feed/*': ['src/feed/*'],
+    'retention/*': ['src/retention/*'],
+    'core/*': ['src/core/*'],
+    'debug/*': ['src/debug/*'],
     'stream/*': ['src/stream/*'],
     'media/*': ['src/media/*'],
     'health/*': ['src/health/*'],
@@ -25,9 +30,9 @@ register({
 dotenv.config();
 
 // Import entities after tsconfig-paths registration
-import { CryptoNewsSourceEntity } from 'telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
-import { CryptoNewsMessageEntity } from 'telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
-import { CryptoNewsMessageMediaEntity } from 'telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
+import { CryptoNewsSourceEntity } from 'registry/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
+import { CryptoNewsMessageEntity } from 'feed/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
+import { CryptoNewsMessageMediaEntity } from 'feed/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
 import { BackfillMessageEntity } from 'stream/infrastructure/persistence/typeorm/backfill-message.entity';
 
 /**

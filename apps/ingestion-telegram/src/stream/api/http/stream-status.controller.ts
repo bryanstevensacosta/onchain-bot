@@ -1,7 +1,7 @@
 import { Controller, Get, Logger } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SSEBroadcastService } from '../../application/services/sse-broadcast.service';
-import { BackendChannelProviderService } from '../../../telegram/shared/services/backend-channel-provider.service';
+import { BackendChannelProviderService } from '../../../core/services/backend-channel-provider.service';
 import { BackfillBufferService } from '../../infrastructure/backfill-buffer.service';
 
 /**

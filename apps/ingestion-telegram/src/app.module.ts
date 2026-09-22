@@ -5,15 +5,15 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LoggerModule } from 'nestjs-pino';
 import { appConfig } from './shared/common/config/app.config';
-import { SharedModule } from './telegram/shared/shared.module';
+import { SharedModule } from './core/shared.module';
 import { StreamModule } from './stream/stream.module';
 import { MediaModule } from './media/media.module';
 import { HealthModule } from './health/health.module';
 import { MetricsModule } from './metrics/metrics.module';
-import { TelegramModule } from './telegram/telegram.module';
-import { CryptoNewsSourceEntity } from './telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
-import { CryptoNewsMessageEntity } from './telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
-import { CryptoNewsMessageMediaEntity } from './telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
+import { CoreModule } from './core/core.module';
+import { CryptoNewsSourceEntity } from './registry/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
+import { CryptoNewsMessageEntity } from './feed/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
+import { CryptoNewsMessageMediaEntity } from './feed/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
 import { BackfillMessageEntity } from './stream/infrastructure/persistence/typeorm/backfill-message.entity';
 
 /**
@@ -115,7 +115,7 @@ import { BackfillMessageEntity } from './stream/infrastructure/persistence/typeo
     MetricsModule, // Prometheus metrics
 
     // Telegram ingestion (MTProto + coordinator)
-    TelegramModule,
+    CoreModule,
   ],
 })
 export class AppModule {}

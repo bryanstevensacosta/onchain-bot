@@ -14,7 +14,7 @@
  * @abstract
  */
 
-import type { TelegramMediaAttachment } from 'telegram/shared/ports/telegram-listener.port';
+import type { TelegramMediaAttachment } from 'core/ports/telegram-listener.port';
 
 /**
  * Media slot definition for extraction priority

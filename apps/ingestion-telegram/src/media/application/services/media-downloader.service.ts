@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Api } from 'telegram';
 import { TelegramClient } from 'telegram';
 import * as path from 'node:path';
-import { FloodWaitHandlerService } from 'telegram/shared/infrastructure/services/flood-wait-handler.service';
+import { FloodWaitHandlerService } from 'core/infrastructure/services/flood-wait-handler.service';
 import {
   BaseTelegramMediaDownloader,
   BaseFileSystemAdapter,

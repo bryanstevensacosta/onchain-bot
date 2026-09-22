@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { StreamStatusController } from './stream-status.controller';
 import { SSEBroadcastService } from '../../application/services/sse-broadcast.service';
-import { BackendChannelProviderService } from '../../../telegram/shared/services/backend-channel-provider.service';
+import { BackendChannelProviderService } from '../../../core/services/backend-channel-provider.service';
 import { BackfillBufferService } from '../../infrastructure/backfill-buffer.service';
 
 describe('StreamStatusController', () => {

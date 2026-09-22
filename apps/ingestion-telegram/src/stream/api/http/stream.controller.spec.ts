@@ -4,7 +4,7 @@ import { StreamController } from './stream.controller';
 import { StreamService } from '../../application/services/stream.service';
 import { SSEBroadcastService } from '../../application/services/sse-broadcast.service';
 import { BackfillBufferService } from '../../infrastructure/backfill-buffer.service';
-import { BackendChannelProviderService } from '../../../telegram/shared/services/backend-channel-provider.service';
+import { BackendChannelProviderService } from '../../../core/services/backend-channel-provider.service';
 import type { Request, Response } from 'express';
 
 /**

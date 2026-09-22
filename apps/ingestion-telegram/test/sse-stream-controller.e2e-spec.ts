@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { BackendChannelProviderService } from '../src/telegram/shared/services/backend-channel-provider.service';
+import { BackendChannelProviderService } from '../src/core/services/backend-channel-provider.service';
 import { StreamService } from '../src/stream/application/services/stream.service';
 import * as http from 'http';
 

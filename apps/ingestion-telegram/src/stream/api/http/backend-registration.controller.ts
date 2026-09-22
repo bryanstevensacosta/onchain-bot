@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { RegisterBackendDto } from './dto/register-backend.dto';
 import type { RegisterBackendResponse } from './dto/register-backend.dto';
-import { BackendChannelProviderService } from '../../../telegram/shared/services/backend-channel-provider.service';
+import { BackendChannelProviderService } from '../../../core/services/backend-channel-provider.service';
 
 /**
  * BackendRegistrationController - Handles backend registration with source whitelists

@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { BackendRegistrationController } from './backend-registration.controller';
-import { BackendChannelProviderService } from '../../../telegram/shared/services/backend-channel-provider.service';
+import { BackendChannelProviderService } from '../../../core/services/backend-channel-provider.service';
 import { ConfigService } from '@nestjs/config';
 
 describe('BackendRegistrationController', () => {
