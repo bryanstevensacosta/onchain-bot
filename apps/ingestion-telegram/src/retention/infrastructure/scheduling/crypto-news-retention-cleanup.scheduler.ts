@@ -189,8 +189,8 @@ export class CryptoNewsRetentionCleanupScheduler {
     const rows: ReadonlyArray<{ id: string; file_path: string }> =
       await this.dataSource.query(
         'SELECT m.id, m.file_path ' +
-          'FROM crypto_news_message_media m ' +
-          'INNER JOIN crypto_news_messages p ON p.id = m.message_id ' +
+          'FROM telegram_feed_message_media m ' +
+          'INNER JOIN telegram_feed_messages p ON p.id = m.message_id ' +
           `WHERE p.ingested_at < now() - ($1 * interval '1 hour') ` +
           `LIMIT ${RETENTION_BATCH_SIZE}`,
         [hours],
@@ -209,7 +209,7 @@ export class CryptoNewsRetentionCleanupScheduler {
       if (unlinkOutcome === 'ok' || unlinkOutcome === 'already-gone') {
         unlinkedFiles += 1;
         await this.dataSource.query(
-          'DELETE FROM crypto_news_message_media WHERE id = $1',
+          'DELETE FROM telegram_feed_message_media WHERE id = $1',
           [row.id],
         );
         deletedMedia += 1;
@@ -225,8 +225,8 @@ export class CryptoNewsRetentionCleanupScheduler {
 
   private async processMessageBatch(hours: number): Promise<number> {
     const result: ReadonlyArray<{ id: string }> = await this.dataSource.query(
-      'DELETE FROM crypto_news_messages WHERE id IN (' +
-        'SELECT id FROM crypto_news_messages ' +
+      'DELETE FROM telegram_feed_messages WHERE id IN (' +
+        'SELECT id FROM telegram_feed_messages ' +
         `WHERE ingested_at < now() - ($1 * interval '1 hour') ` +
         `LIMIT ${RETENTION_BATCH_SIZE}` +
         ') RETURNING id',
@@ -237,8 +237,8 @@ export class CryptoNewsRetentionCleanupScheduler {
 
   private async sweepOrphanMediaRows(): Promise<number> {
     const result: ReadonlyArray<{ id: string }> = await this.dataSource.query(
-      'DELETE FROM crypto_news_message_media WHERE message_id NOT IN ' +
-        '(SELECT id FROM crypto_news_messages) RETURNING id',
+      'DELETE FROM telegram_feed_message_media WHERE message_id NOT IN ' +
+        '(SELECT id FROM telegram_feed_messages) RETURNING id',
     );
     return result.length;
   }
@@ -281,7 +281,7 @@ export class CryptoNewsRetentionCleanupScheduler {
       this.config.get('app.uploadsRoot') ??
       'uploads';
     const mediaSub: string =
-      this.config.get('app.uploads.mediaPath') ?? 'crypto-news/media';
+      this.config.get('app.uploads.mediaPath') ?? 'feed/media';
     const mediaRoot: string = path.isAbsolute(uploadsRoot)
       ? path.join(uploadsRoot, mediaSub)
       : path.join(process.cwd(), uploadsRoot, mediaSub);
@@ -289,7 +289,7 @@ export class CryptoNewsRetentionCleanupScheduler {
     let dbPaths: Set<string> = new Set<string>();
     try {
       const rows: Array<{ file_path: string }> = await this.dataSource.query(
-        'SELECT file_path FROM crypto_news_message_media',
+        'SELECT file_path FROM telegram_feed_message_media',
       );
       dbPaths = new Set<string>(rows.map((r) => path.basename(r.file_path)));
     } catch {

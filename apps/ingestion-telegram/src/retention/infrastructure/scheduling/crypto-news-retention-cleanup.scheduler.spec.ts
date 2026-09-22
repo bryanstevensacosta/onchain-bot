@@ -52,15 +52,15 @@ function lockResponder(query: QueryFn): void {
     if (sql === 'SELECT pg_advisory_unlock($1)') {
       return Promise.resolve([{ pg_advisory_unlock: null }]);
     }
-    if (sql === 'SELECT file_path FROM crypto_news_message_media') {
+    if (sql === 'SELECT file_path FROM telegram_feed_message_media') {
       return Promise.resolve([]);
     }
-    if (sql.startsWith('DELETE FROM crypto_news_messages WHERE id IN')) {
+    if (sql.startsWith('DELETE FROM telegram_feed_messages WHERE id IN')) {
       return Promise.resolve([]);
     }
     if (
       sql.startsWith(
-        'DELETE FROM crypto_news_message_media WHERE message_id NOT IN',
+        'DELETE FROM telegram_feed_message_media WHERE message_id NOT IN',
       )
     ) {
       return Promise.resolve([]);
@@ -97,17 +97,17 @@ describe('CryptoNewsRetentionCleanupScheduler', () => {
         ).length;
         if (calls === 1) {
           return Promise.resolve([
-            { id: 'media-1', file_path: '/uploads/crypto-news/media/old.jpg' },
+            { id: 'media-1', file_path: '/uploads/feed/media/old.jpg' },
           ]);
         }
         return Promise.resolve([]);
       }
-      if (sql === 'DELETE FROM crypto_news_message_media WHERE id = $1') {
+      if (sql === 'DELETE FROM telegram_feed_message_media WHERE id = $1') {
         return Promise.resolve([]);
       }
-      if (sql.startsWith('DELETE FROM crypto_news_messages WHERE id IN')) {
+      if (sql.startsWith('DELETE FROM telegram_feed_messages WHERE id IN')) {
         const calls = query.mock.calls.filter((c) =>
-          c[0].startsWith('DELETE FROM crypto_news_messages'),
+          c[0].startsWith('DELETE FROM telegram_feed_messages'),
         ).length;
         if (calls === 1) {
           return Promise.resolve([{ id: 'msg-old' }]);
@@ -116,12 +116,12 @@ describe('CryptoNewsRetentionCleanupScheduler', () => {
       }
       if (
         sql.startsWith(
-          'DELETE FROM crypto_news_message_media WHERE message_id NOT IN',
+          'DELETE FROM telegram_feed_message_media WHERE message_id NOT IN',
         )
       ) {
         return Promise.resolve([]);
       }
-      if (sql === 'SELECT file_path FROM crypto_news_message_media') {
+      if (sql === 'SELECT file_path FROM telegram_feed_message_media') {
         return Promise.resolve([]);
       }
       return Promise.resolve([]);
@@ -133,15 +133,13 @@ describe('CryptoNewsRetentionCleanupScheduler', () => {
     );
     await scheduler.tick();
 
-    expect(mockedUnlink).toHaveBeenCalledWith(
-      '/uploads/crypto-news/media/old.jpg',
-    );
+    expect(mockedUnlink).toHaveBeenCalledWith('/uploads/feed/media/old.jpg');
     expect(query).toHaveBeenCalledWith(
-      'DELETE FROM crypto_news_message_media WHERE id = $1',
+      'DELETE FROM telegram_feed_message_media WHERE id = $1',
       ['media-1'],
     );
     const messageDeletes = query.mock.calls.filter((c) =>
-      c[0].startsWith('DELETE FROM crypto_news_messages'),
+      c[0].startsWith('DELETE FROM telegram_feed_messages'),
     );
     expect(messageDeletes.length).toBeGreaterThanOrEqual(1);
   });
@@ -158,9 +156,9 @@ describe('CryptoNewsRetentionCleanupScheduler', () => {
       if (sql.startsWith('SELECT m.id, m.file_path')) {
         return Promise.resolve([]);
       }
-      if (sql.startsWith('DELETE FROM crypto_news_messages WHERE id IN')) {
+      if (sql.startsWith('DELETE FROM telegram_feed_messages WHERE id IN')) {
         const calls = query.mock.calls.filter((c) =>
-          c[0].startsWith('DELETE FROM crypto_news_messages'),
+          c[0].startsWith('DELETE FROM telegram_feed_messages'),
         ).length;
         if (calls === 1) {
           return Promise.resolve([{ id: 'msg-expired' }]);
@@ -169,12 +167,12 @@ describe('CryptoNewsRetentionCleanupScheduler', () => {
       }
       if (
         sql.startsWith(
-          'DELETE FROM crypto_news_message_media WHERE message_id NOT IN',
+          'DELETE FROM telegram_feed_message_media WHERE message_id NOT IN',
         )
       ) {
         return Promise.resolve([{ id: 'orphan-1' }, { id: 'orphan-2' }]);
       }
-      if (sql === 'SELECT file_path FROM crypto_news_message_media') {
+      if (sql === 'SELECT file_path FROM telegram_feed_message_media') {
         return Promise.resolve([]);
       }
       return Promise.resolve([]);
@@ -187,8 +185,8 @@ describe('CryptoNewsRetentionCleanupScheduler', () => {
     await scheduler.tick();
 
     expect(query).toHaveBeenCalledWith(
-      'DELETE FROM crypto_news_message_media WHERE message_id NOT IN ' +
-        '(SELECT id FROM crypto_news_messages) RETURNING id',
+      'DELETE FROM telegram_feed_message_media WHERE message_id NOT IN ' +
+        '(SELECT id FROM telegram_feed_messages) RETURNING id',
     );
   });
 
@@ -203,7 +201,7 @@ describe('CryptoNewsRetentionCleanupScheduler', () => {
     await scheduler.tick();
 
     const deletes = query.mock.calls.filter((c) =>
-      c[0].startsWith('DELETE FROM crypto_news_message_media WHERE id = $1'),
+      c[0].startsWith('DELETE FROM telegram_feed_message_media WHERE id = $1'),
     );
     expect(deletes).toHaveLength(0);
     expect(mockedUnlink).not.toHaveBeenCalled();
@@ -221,9 +219,9 @@ describe('CryptoNewsRetentionCleanupScheduler', () => {
       if (sql.startsWith('SELECT m.id, m.file_path')) {
         return Promise.resolve([]);
       }
-      if (sql.startsWith('DELETE FROM crypto_news_messages WHERE id IN')) {
+      if (sql.startsWith('DELETE FROM telegram_feed_messages WHERE id IN')) {
         const calls = query.mock.calls.filter((c) =>
-          c[0].startsWith('DELETE FROM crypto_news_messages'),
+          c[0].startsWith('DELETE FROM telegram_feed_messages'),
         ).length;
         if (calls === 1) {
           return Promise.resolve([{ id: 'msg-never-matched' }]);
@@ -232,12 +230,12 @@ describe('CryptoNewsRetentionCleanupScheduler', () => {
       }
       if (
         sql.startsWith(
-          'DELETE FROM crypto_news_message_media WHERE message_id NOT IN',
+          'DELETE FROM telegram_feed_message_media WHERE message_id NOT IN',
         )
       ) {
         return Promise.resolve([]);
       }
-      if (sql === 'SELECT file_path FROM crypto_news_message_media') {
+      if (sql === 'SELECT file_path FROM telegram_feed_message_media') {
         return Promise.resolve([]);
       }
       return Promise.resolve([]);
@@ -252,7 +250,7 @@ describe('CryptoNewsRetentionCleanupScheduler', () => {
     const statements = query.mock.calls.map((c) => c[0]);
     expect(
       statements.some((s) =>
-        s.startsWith('DELETE FROM crypto_news_messages WHERE id IN'),
+        s.startsWith('DELETE FROM telegram_feed_messages WHERE id IN'),
       ),
     ).toBe(true);
     expect(
@@ -264,7 +262,7 @@ describe('CryptoNewsRetentionCleanupScheduler', () => {
       ) && statements.some((s) => s.includes('publisher_queue')),
     ).toBe(false);
     const windowed = query.mock.calls.find((c) =>
-      c[0].startsWith('DELETE FROM crypto_news_messages'),
+      c[0].startsWith('DELETE FROM telegram_feed_messages'),
     );
     expect(windowed?.[1]).toEqual([72]);
   });
@@ -292,20 +290,20 @@ describe('CryptoNewsRetentionCleanupScheduler', () => {
         }
         return Promise.resolve([]);
       }
-      if (sql === 'DELETE FROM crypto_news_message_media WHERE id = $1') {
+      if (sql === 'DELETE FROM telegram_feed_message_media WHERE id = $1') {
         return Promise.resolve([]);
       }
-      if (sql.startsWith('DELETE FROM crypto_news_messages WHERE id IN')) {
+      if (sql.startsWith('DELETE FROM telegram_feed_messages WHERE id IN')) {
         return Promise.resolve([]);
       }
       if (
         sql.startsWith(
-          'DELETE FROM crypto_news_message_media WHERE message_id NOT IN',
+          'DELETE FROM telegram_feed_message_media WHERE message_id NOT IN',
         )
       ) {
         return Promise.resolve([]);
       }
-      if (sql === 'SELECT file_path FROM crypto_news_message_media') {
+      if (sql === 'SELECT file_path FROM telegram_feed_message_media') {
         return Promise.resolve([]);
       }
       return Promise.resolve([]);
@@ -318,11 +316,11 @@ describe('CryptoNewsRetentionCleanupScheduler', () => {
     await scheduler.tick();
 
     expect(query).toHaveBeenCalledWith(
-      'DELETE FROM crypto_news_message_media WHERE id = $1',
+      'DELETE FROM telegram_feed_message_media WHERE id = $1',
       ['media-gone'],
     );
     expect(query).toHaveBeenCalledWith(
-      'DELETE FROM crypto_news_message_media WHERE id = $1',
+      'DELETE FROM telegram_feed_message_media WHERE id = $1',
       ['media-ok'],
     );
   });
@@ -350,20 +348,20 @@ describe('CryptoNewsRetentionCleanupScheduler', () => {
         }
         return Promise.resolve([]);
       }
-      if (sql === 'DELETE FROM crypto_news_message_media WHERE id = $1') {
+      if (sql === 'DELETE FROM telegram_feed_message_media WHERE id = $1') {
         return Promise.resolve([]);
       }
-      if (sql.startsWith('DELETE FROM crypto_news_messages WHERE id IN')) {
+      if (sql.startsWith('DELETE FROM telegram_feed_messages WHERE id IN')) {
         return Promise.resolve([]);
       }
       if (
         sql.startsWith(
-          'DELETE FROM crypto_news_message_media WHERE message_id NOT IN',
+          'DELETE FROM telegram_feed_message_media WHERE message_id NOT IN',
         )
       ) {
         return Promise.resolve([]);
       }
-      if (sql === 'SELECT file_path FROM crypto_news_message_media') {
+      if (sql === 'SELECT file_path FROM telegram_feed_message_media') {
         return Promise.resolve([]);
       }
       return Promise.resolve([]);
@@ -376,12 +374,32 @@ describe('CryptoNewsRetentionCleanupScheduler', () => {
     await scheduler.tick();
 
     expect(query).not.toHaveBeenCalledWith(
-      'DELETE FROM crypto_news_message_media WHERE id = $1',
+      'DELETE FROM telegram_feed_message_media WHERE id = $1',
       ['media-denied'],
     );
     expect(query).toHaveBeenCalledWith(
-      'DELETE FROM crypto_news_message_media WHERE id = $1',
+      'DELETE FROM telegram_feed_message_media WHERE id = $1',
       ['media-ok'],
+    );
+  });
+
+  it('sources catalog is never touched: no statement references any sources table', async () => {
+    const query: QueryFn = jest.fn();
+    lockResponder(query);
+
+    const scheduler = new CryptoNewsRetentionCleanupScheduler(
+      makeDataSource('postgres', query),
+      makeConfig(72),
+    );
+    await scheduler.tick();
+
+    const statements = query.mock.calls.map((c) => String(c[0]));
+    expect(statements.length).toBeGreaterThan(0);
+    expect(statements.some((s) => s.includes('telegram_feed_sources'))).toBe(
+      false,
+    );
+    expect(statements.some((s) => s.includes('crypto_news_sources'))).toBe(
+      false,
     );
   });
 });
