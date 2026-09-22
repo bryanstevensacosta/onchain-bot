@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { BackendChannelProviderService } from '../src/core/services/backend-channel-provider.service';
+import { BackendRegistryService } from '../src/stream/application/services/backend-registry.service';
 import { StreamService } from '../src/stream/application/services/stream.service';
 import * as http from 'http';
 
@@ -18,7 +18,7 @@ import * as http from 'http';
  */
 describe('SSEStreamController (e2e)', () => {
   let app: INestApplication;
-  let channelProvider: BackendChannelProviderService;
+  let channelProvider: BackendRegistryService;
   let streamService: StreamService;
   let baseUrl: string;
 
@@ -31,7 +31,7 @@ describe('SSEStreamController (e2e)', () => {
     await app.init();
 
     // Get services
-    channelProvider = app.get(BackendChannelProviderService);
+    channelProvider = app.get(BackendRegistryService);
     streamService = app.get(StreamService);
 
     // Get the actual port the app is listening on

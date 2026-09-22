@@ -4,7 +4,7 @@ import { SSEStreamController } from './sse-stream.controller';
 import { StreamService } from '../../application/services/stream.service';
 import { SSEBroadcastService } from '../../application/services/sse-broadcast.service';
 import { BackfillBufferService } from '../../infrastructure/backfill-buffer.service';
-import { BackendChannelProviderService } from '../../../core/services/backend-channel-provider.service';
+import { BackendRegistryService } from '../../application/services/backend-registry.service';
 import type { Request, Response } from 'express';
 import { EventEmitter } from 'events';
 
@@ -21,7 +21,7 @@ import { EventEmitter } from 'events';
 describe('SSEStreamController', () => {
   let controller: SSEStreamController;
   let streamService: jest.Mocked<StreamService>;
-  let channelProvider: jest.Mocked<BackendChannelProviderService>;
+  let channelProvider: jest.Mocked<BackendRegistryService>;
 
   beforeEach(async () => {
     // Create mock StreamService
@@ -40,7 +40,7 @@ describe('SSEStreamController', () => {
       },
     };
 
-    // Create mock BackendChannelProviderService
+    // Create mock BackendRegistryService
     const mockChannelProvider = {
       getRegisteredBackendIds: jest.fn(),
       registerBackend: jest.fn(),
@@ -66,7 +66,7 @@ describe('SSEStreamController', () => {
           },
         },
         {
-          provide: BackendChannelProviderService,
+          provide: BackendRegistryService,
           useValue: mockChannelProvider,
         },
         {
@@ -82,7 +82,7 @@ describe('SSEStreamController', () => {
 
     controller = module.get<SSEStreamController>(SSEStreamController);
     streamService = module.get(StreamService);
-    channelProvider = module.get(BackendChannelProviderService);
+    channelProvider = module.get(BackendRegistryService);
   });
 
   afterEach(() => {

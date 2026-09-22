@@ -1,7 +1,7 @@
 import { Controller, Get, Logger } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SSEBroadcastService } from '../../application/services/sse-broadcast.service';
-import { BackendChannelProviderService } from '../../../core/services/backend-channel-provider.service';
+import { BackendRegistryService } from '../../application/services/backend-registry.service';
 import { BackfillBufferService } from '../../infrastructure/backfill-buffer.service';
 
 /**
@@ -22,7 +22,7 @@ export class StreamStatusController {
 
   constructor(
     private readonly sseBroadcast: SSEBroadcastService,
-    private readonly channelProvider: BackendChannelProviderService,
+    private readonly channelProvider: BackendRegistryService,
     private readonly backfillBuffer: BackfillBufferService,
   ) {}
 

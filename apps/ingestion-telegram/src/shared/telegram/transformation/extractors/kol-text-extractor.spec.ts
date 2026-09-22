@@ -7,42 +7,38 @@ describe('KolTextExtractor', () => {
     extractor = new KolTextExtractor();
   });
 
-  describe('ToS Invariant Compliance', () => {
-    it('should always return empty string regardless of message content', () => {
-      const messages = [
-        { message: 'BUY $SOL NOW!' },
-        { text: 'Check out this token' },
-        { message: 'Test', text: 'Another test' },
-        { media: { caption: 'Photo caption' } },
-        { fwdFrom: { message: 'Forwarded message' } },
-        {},
-        null,
-        undefined,
-      ];
-
-      messages.forEach((msg) => {
-        expect(extractor.extract(msg)).toBe('');
-      });
+  describe('Q1-B cascade extraction (adr-kol-raw-text.md)', () => {
+    it('should extract text from message field (primary)', () => {
+      expect(extractor.extract({ message: 'BUY $SOL NOW!' })).toBe(
+        'BUY $SOL NOW!',
+      );
     });
 
-    it('should enforce ToS invariant (no text leakage)', () => {
-      const sensitiveMessage = {
-        message: 'PRIVATE KOL ALPHA CALL: $TOKEN at 0x123...',
-        text: 'Backup text',
-        media: { caption: 'Chart showing gains' },
-      };
-
-      // Per fix-1: Raw text MUST NOT cross event bus
-      // Backend extracts text directly via KolIngestionOrchestratorUseCase
-      const result = extractor.extract(sensitiveMessage);
-
-      expect(result).toBe('');
-      expect(result).not.toContain('PRIVATE');
-      expect(result).not.toContain('ALPHA');
-      expect(result).not.toContain('$TOKEN');
+    it('should extract text from text field (secondary)', () => {
+      expect(extractor.extract({ text: 'Check out this token' })).toBe(
+        'Check out this token',
+      );
     });
 
-    it('should return empty for message with all text fields', () => {
+    it('should prefer message over text', () => {
+      expect(
+        extractor.extract({ message: 'Primary text', text: 'Secondary text' }),
+      ).toBe('Primary text');
+    });
+
+    it('should extract text from media caption (tertiary)', () => {
+      expect(
+        extractor.extract({ media: { caption: 'Photo caption' } }),
+      ).toBe('Photo caption');
+    });
+
+    it('should extract text from forwarded message (fallback)', () => {
+      expect(
+        extractor.extract({ fwdFrom: { message: 'Forwarded message' } }),
+      ).toBe('Forwarded message');
+    });
+
+    it('should extract from message with all text fields', () => {
       const msg = {
         message: 'Primary text',
         text: 'Secondary text',
@@ -50,7 +46,19 @@ describe('KolTextExtractor', () => {
         fwdFrom: { message: 'Forwarded text' },
       };
 
-      expect(extractor.extract(msg)).toBe('');
+      expect(extractor.extract(msg)).toBe('Primary text');
+    });
+
+    it('should return empty string when no text source exists', () => {
+      const messages = [{}, null, undefined];
+
+      messages.forEach((msg) => {
+        expect(extractor.extract(msg)).toBe('');
+      });
+    });
+
+    it('should return empty string for blank-only fields', () => {
+      expect(extractor.extract({ message: '   ', text: '' })).toBe('');
     });
   });
 });

@@ -11,6 +11,10 @@ export interface ActiveFeedSource {
   readonly title: string;
 }
 
+export interface ActiveFeedSourceWithType extends ActiveFeedSource {
+  readonly type: TelegramFeedSourceType;
+}
+
 /**
  * Repository for querying the unified `telegram_feed_sources` catalog.
  *
@@ -66,6 +70,43 @@ export class TelegramFeedSourceRepository {
     } catch (error) {
       this.logger.error(
         `Failed to query active feed sources: ${(error as Error).message}`,
+      );
+      // Return empty array on DB error rather than crashing the service
+      return [];
+    }
+  }
+
+  /**
+   * Find all active feed sources WITH their type discriminator.
+   *
+   * Used by CoreModule to classify messages locally by registry row type
+   * (item 7: replaces the old backend-HTTP channel provider + newsIds-membership).
+   * Same fail-open semantics as findAllActive: [] on DB error.
+   */
+  async findAllActiveWithTypes(): Promise<
+    ReadonlyArray<ActiveFeedSourceWithType>
+  > {
+    try {
+      const sources = await this.repo.find({
+        where: {
+          lifecycleStatus: 'ACTIVE',
+          isActive: true,
+        },
+        select: ['channelId', 'title', 'type'],
+      });
+
+      this.logger.log(
+        `Found ${sources.length} active feed sources in DB (with types)`,
+      );
+
+      return sources.map((s) => ({
+        channelId: s.channelId,
+        title: s.title,
+        type: s.type,
+      }));
+    } catch (error) {
+      this.logger.error(
+        `Failed to query active feed sources with types: ${(error as Error).message}`,
       );
       // Return empty array on DB error rather than crashing the service
       return [];

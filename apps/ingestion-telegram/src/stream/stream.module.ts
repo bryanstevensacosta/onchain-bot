@@ -4,6 +4,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { StreamService } from './application/services/stream.service';
 import { DisconnectionTracker } from './application/services/disconnection-tracker.service';
+import { BackendRegistryService } from './application/services/backend-registry.service';
 import { SSEBroadcastService } from './application/services/sse-broadcast.service';
 import { BackfillBufferService } from './infrastructure/backfill-buffer.service';
 import { StreamController } from './api/http/stream.controller';
@@ -38,7 +39,9 @@ import { streamConfig } from './stream.config';
  * - StreamStatusController: GET /api/ingestion/stream/status (operational status)
  * - BackendRegistrationController: POST /api/ingestion/backends/register
  *
- * Note: BackendChannelProviderService is injected from SharedModule (@Global)
+ * Note: BackendRegistryService (backend registration store) is provided here.
+ * The old backend-HTTP channel-fetch half was deleted in item 7
+ * (CoreModule reads telegram_feed_sources locally).
  *
  * @module StreamModule
  */
@@ -56,6 +59,7 @@ import { streamConfig } from './stream.config';
   providers: [
     StreamService,
     DisconnectionTracker,
+    BackendRegistryService,
     SSEBroadcastService,
     BackfillBufferService,
   ],
@@ -68,6 +72,7 @@ import { streamConfig } from './stream.config';
   exports: [
     StreamService,
     DisconnectionTracker,
+    BackendRegistryService,
     SSEBroadcastService,
     BackfillBufferService,
   ],

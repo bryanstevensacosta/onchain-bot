@@ -50,7 +50,7 @@ describe('Cross-app imports (backend → ingestion-telegram)', () => {
 
     expect(result).not.toBeNull();
     expect(result!.id).toBe(123);
-    expect(result!.text).toBe(''); // ToS invariant
+    expect(result!.text).toBe('Test message'); // Q1-B (adr-kol-raw-text.md): KOL text extracted
   });
 
   it('should transform a crypto-news message (integration)', () => {

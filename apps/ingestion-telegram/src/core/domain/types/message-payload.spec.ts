@@ -115,13 +115,13 @@ describe('MessagePayload Transformation', () => {
     lastSeenManager = module.get<LastSeenManager>(LastSeenManager);
   });
 
-  describe('Invariant 1: Text Exclusion (ToS Compliance)', () => {
-    it('should exclude text field from payload even when present in raw message', async () => {
+  describe('Q1-B: Text carried for BOTH types (adr-kol-raw-text.md)', () => {
+    it('should include text field in KOL payload (Q1-B amendment)', async () => {
       // Arrange
       const rawMessage: TelegramRawMessage = {
         peerId: '-1001234567890',
         messageId: 12345,
-        text: 'SENSITIVE TEXT CONTENT - MUST NOT BE BROADCASTED',
+        text: 'KOL ALPHA CALL: $SOL breaking out',
         occurredAt: new Date('2026-08-30T12:00:00Z'),
         media: [],
         entities: [],
@@ -134,9 +134,9 @@ describe('MessagePayload Transformation', () => {
       expect(broadcastedPayloads).toHaveLength(1);
       const payload = broadcastedPayloads[0];
 
-      // Critical: text field MUST NOT exist in the payload
-      expect(payload).not.toHaveProperty('text');
-      expect(payload).not.toHaveProperty('content');
+      // Q1-B: text field IS present for KOL (persisted RAW + carried in SSE)
+      expect(payload).toHaveProperty('text');
+      expect(payload.text).toBe('KOL ALPHA CALL: $SOL breaking out');
 
       // Verify other fields are present
       expect(payload.peerId).toBe('-1001234567890');
@@ -167,7 +167,7 @@ describe('MessagePayload Transformation', () => {
       expect(payload.messageId).toBe(54321);
     });
 
-    it('should handle empty text field', async () => {
+    it('should default KOL text to empty string when missing', async () => {
       // Arrange
       const rawMessage: TelegramRawMessage = {
         peerId: '-1001111111111',
@@ -183,7 +183,9 @@ describe('MessagePayload Transformation', () => {
       expect(broadcastedPayloads).toHaveLength(1);
       const payload = broadcastedPayloads[0];
 
-      expect(payload).not.toHaveProperty('text');
+      // Q1-B: text key present (empty), never undefined-shaped
+      expect(payload).toHaveProperty('text');
+      expect(payload.text).toBe('');
     });
   });
 
@@ -634,7 +636,7 @@ describe('MessagePayload Transformation', () => {
       const rawMessage: TelegramRawMessage = {
         peerId: '-1001234567890',
         messageId: 99999,
-        text: 'This text should NOT be in payload',
+        text: 'This text IS in the payload (Q1-B)',
         occurredAt: new Date('2026-08-30T15:30:00Z'),
         media: [
           {
@@ -674,8 +676,8 @@ describe('MessagePayload Transformation', () => {
       // Assert
       const payload = broadcastedPayloads[0];
 
-      // Verify Invariant 1: no text
-      expect(payload).not.toHaveProperty('text');
+      // Verify Q1-B: text carried for KOL
+      expect(payload.text).toBe('This text IS in the payload (Q1-B)');
 
       // Verify structure
       expect(payload.peerId).toBe('-1001234567890');

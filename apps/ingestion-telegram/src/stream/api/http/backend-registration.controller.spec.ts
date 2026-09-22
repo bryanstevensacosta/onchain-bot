@@ -1,32 +1,23 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { BackendRegistrationController } from './backend-registration.controller';
-import { BackendChannelProviderService } from '../../../core/services/backend-channel-provider.service';
-import { ConfigService } from '@nestjs/config';
+import { BackendRegistryService } from '../../application/services/backend-registry.service';
 
 describe('BackendRegistrationController', () => {
   let controller: BackendRegistrationController;
-  let channelProvider: BackendChannelProviderService;
+  let channelProvider: BackendRegistryService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [BackendRegistrationController],
-      providers: [
-        BackendChannelProviderService,
-        {
-          provide: ConfigService,
-          useValue: {
-            get: jest.fn().mockReturnValue('3030'),
-          },
-        },
-      ],
+      providers: [BackendRegistryService],
     }).compile();
 
     controller = module.get<BackendRegistrationController>(
       BackendRegistrationController,
     );
-    channelProvider = module.get<BackendChannelProviderService>(
-      BackendChannelProviderService,
+    channelProvider = module.get<BackendRegistryService>(
+      BackendRegistryService,
     );
   });
 

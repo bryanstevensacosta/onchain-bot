@@ -1,7 +1,6 @@
 import { Module, Global } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TelegramMtprotoListenerAdapter } from './api/mtproto/telegram-mtproto-listener.adapter';
-import { BackendChannelProviderService } from './services/backend-channel-provider.service';
 import { DeduplicationService } from './application/services/deduplication.service';
 import { MessagePersistenceCoordinator } from './application/coordinators/message-persistence.coordinator';
 import { TelegramClientManager } from './infrastructure/services/telegram-client-manager.service';
@@ -29,7 +28,6 @@ import { TelegramMediaExtractorService } from './application/services/telegram-m
  *
  * Provides:
  * - TelegramListenerPort implementation (TelegramMtprotoListenerAdapter)
- * - BackendChannelProviderService (fetches active channels from backend DB)
  * - TelegramClientManager (MTProto client lifecycle)
  * - Deduplication service
  * - Ingestion coordinator (routes messages to SSE broadcast)
@@ -55,9 +53,6 @@ import { TelegramMediaExtractorService } from './application/services/telegram-m
     // Config & Infrastructure
     RedisService,
     IngestionSafetyConfig,
-
-    // Backend integration
-    BackendChannelProviderService,
 
     // Feed DB repositories
     TelegramFeedSourceRepository,
@@ -99,7 +94,6 @@ import { TelegramMediaExtractorService } from './application/services/telegram-m
   exports: [
     RedisService,
     IngestionSafetyConfig,
-    BackendChannelProviderService,
     TelegramFeedSourceRepository, // Export for feed modules
     TelegramFeedMessageRepository, // Export for feed readers (item 3)
     TelegramClientManager,

@@ -15,7 +15,7 @@ import { randomUUID } from 'crypto';
 import { StreamService } from '../../application/services/stream.service';
 import { SSEBroadcastService } from '../../application/services/sse-broadcast.service';
 import { BackfillBufferService } from '../../infrastructure/backfill-buffer.service';
-import { BackendChannelProviderService } from '../../../core/services/backend-channel-provider.service';
+import { BackendRegistryService } from '../../application/services/backend-registry.service';
 
 /**
  * Minimal TelegramListenerPort interface for backfill
@@ -76,7 +76,7 @@ export class StreamController {
     private readonly streamService: StreamService,
     private readonly sseBroadcastService: SSEBroadcastService,
     private readonly backfillBufferService: BackfillBufferService,
-    private readonly backendChannelProvider: BackendChannelProviderService,
+    private readonly backendChannelProvider: BackendRegistryService,
     @Optional()
     @Inject('TelegramListenerPort')
     private readonly telegramListener?: TelegramListenerPort,
@@ -263,11 +263,11 @@ export class StreamController {
    *
    * Returns:
    * - activeBackends: Count from SSEBroadcastService
-   * - channelUnionSize: From BackendChannelProviderService
+   * - channelUnionSize: From BackendRegistryService
    * - backfillBufferSize: From BackfillBufferService
    * - backfillBufferOldestTimestamp: From BackfillBufferService
    * - mtprotoConnected: Placeholder (true) - TelegramModule doesn't expose this yet
-   * - registeredBackends: Array of backend IDs from BackendChannelProviderService
+   * - registeredBackends: Array of backend IDs from BackendRegistryService
    *
    * @returns StreamStatusResponse with operational metrics
    */

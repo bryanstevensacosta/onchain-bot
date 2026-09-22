@@ -309,7 +309,9 @@ export class TelegramSseListenerAdapter
    * Transform MessagePayload to TelegramRawMessage
    *
    * Per Requirement 3.3: Same TelegramRawMessage format as before (T5)
-   * Per Invariant 1: text field empty (ToS compliance)
+   * Per Q1-B (adr-kol-raw-text.md): text passes through for BOTH types.
+   * Backend-internal ToS boundary UNCHANGED: raw text never crosses the
+   * backend event bus (fix-1) — see KolMessageIngestedEvent (no text field).
    *
    * @param payload - SSE payload from Ingestion Service
    * @returns TelegramRawMessage compatible with backend use cases
@@ -335,9 +337,9 @@ export class TelegramSseListenerAdapter
       groupedId: payload.groupedId ? BigInt(payload.groupedId) : undefined,
     };
 
-    // DEBUG: Log text transformation
+    // REDACTED (Q1-B, adr-kol-raw-text.md): log shape only — raw text NEVER hits disk logs.
     this.logger.debug(
-      `SSE payload transform ${payload.peerId}:${payload.messageId} - payload.text: "${payload.text}" (type: ${typeof payload.text}, length: ${payload.text?.length ?? 0}) → rawMessage.text: "${rawMessage.text}" (length: ${rawMessage.text.length}), messageType: ${rawMessage.messageType}`,
+      `SSE payload transform ${payload.peerId}:${payload.messageId} - payload.text length: ${payload.text?.length ?? 0} → rawMessage.text length: ${rawMessage.text.length}, messageType: ${rawMessage.messageType}`,
     );
 
     return rawMessage;

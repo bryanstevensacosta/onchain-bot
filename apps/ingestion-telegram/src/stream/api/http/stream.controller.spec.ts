@@ -4,7 +4,7 @@ import { StreamController } from './stream.controller';
 import { StreamService } from '../../application/services/stream.service';
 import { SSEBroadcastService } from '../../application/services/sse-broadcast.service';
 import { BackfillBufferService } from '../../infrastructure/backfill-buffer.service';
-import { BackendChannelProviderService } from '../../../core/services/backend-channel-provider.service';
+import { BackendRegistryService } from '../../application/services/backend-registry.service';
 import type { Request, Response } from 'express';
 
 /**
@@ -151,7 +151,7 @@ describe('StreamController - Backfill Endpoint', () => {
           },
         },
         {
-          provide: BackendChannelProviderService,
+          provide: BackendRegistryService,
           useValue: {
             getChannelUnionSize: jest.fn().mockReturnValue(0),
             getRegisteredBackendIds: jest.fn().mockReturnValue([]),
@@ -497,9 +497,10 @@ describe('StreamController - Backfill Endpoint', () => {
               },
             },
             {
-              provide: BackendChannelProviderService,
+              provide: BackendRegistryService,
               useValue: {
-                fetchAllActiveChannelIds: jest.fn().mockResolvedValue([]),
+                getChannelUnionSize: jest.fn().mockReturnValue(0),
+                getRegisteredBackendIds: jest.fn().mockReturnValue([]),
               },
             },
             // No TelegramListenerPort provider

@@ -2,7 +2,6 @@ import { Module, OnModuleInit, Logger } from '@nestjs/common';
 import { SharedModule } from './shared.module';
 import { RetentionModule } from '../retention/retention.module';
 import { StreamModule } from '../stream/stream.module';
-import { BackendChannelProviderService } from './services/backend-channel-provider.service';
 import { TelegramListenerPort } from './ports/telegram-listener.port';
 import { MessagePersistenceCoordinator } from './application/coordinators/message-persistence.coordinator';
 import { SSEBroadcastService } from '../stream/application/services/sse-broadcast.service';
@@ -14,7 +13,7 @@ import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistenc
  * TelegramModule - Root Telegram ingestion module
  *
  * Orchestrates:
- * 1. Channel fetching from local DB (crypto-news) and backend DB (KOLs)
+ * 1. Channel fetching from the LOCAL feed registry (telegram_feed_sources)
  * 2. MTProto connection initialization
  * 3. Message ingestion pipeline startup
  * 4. Periodic refresh of channel subscriptions
@@ -22,22 +21,32 @@ import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistenc
  * Per design.md § 2.1: Extracts MTProto layer from backend and broadcasts via SSE.
  * Per Requirement 4.1: Broadcasts ingested messages to all backends via SSEBroadcastService
  * Per Requirement 4.3: Ingestion continues if broadcast fails (log error, don't throw)
+ * Per item 7: channel registry is LOCAL (feedSourceRepo.findAllActiveWithTypes);
+ * the old backend-HTTP channel provider is deleted — no HTTP channel fetch anywhere.
  *
  * Lifecycle:
- * - onModuleInit(): Fetches active channels (KOLs from backend, crypto-news from local DB), starts MTProto listener
+ * - onModuleInit(): Reads active channels from local DB, starts MTProto listener,
+ *   ALWAYS schedules the 5-min refresh (cold-start safe: an empty DB starts
+ *   zero listeners and picks channels up on the next refresh, no restart).
  * - Listener yields messages to MessagePersistenceCoordinator
- * - Coordinator broadcasts to StreamService (legacy SSE)
- * - TelegramModule broadcasts to SSEBroadcastService (multi-backend SSE)
- * - Scheduler refreshes channel list every 5 minutes
+ * - Coordinator persists to telegram_feed_messages + broadcasts to StreamService
+ * - CoreModule broadcasts to SSEBroadcastService (multi-backend SSE)
+ * - Scheduler refreshes channel list every 5 minutes via
+ *   listener.updateSubscribedChannels() — subscribe() is called EXACTLY ONCE
+ *   (gap 15: re-subscribing throws "already running"; refresh only swaps the
+ *   peer snapshot, the polling loop picks it up in the next iteration).
  *
- * Channel ownership (post-migration):
- * - KOLs: fetched from backend DB via HTTP (backend owns KOL identity)
- * - Crypto-news: read from local DB via TelegramFeedSourceRepository
- *   (ingestion-telegram is sole owner; legacy backend HTTP polling removed T15)
+ * Channel ownership (item 7):
+ * - KOLs + crypto-news: read from local DB via TelegramFeedSourceRepository
+ *   (ingestion-telegram is sole owner of telegram_feed_sources since the
+ *   item-6 backfill; backend reads identity via /api/feed/sources?type=kol)
+ * - Classification: registry row type (channelId → 'kol' | 'crypto-news').
+ *   Unknown channels (no registry row) default to 'kol' — the previous
+ *   newsIds-membership default — recorded in adr-kol-raw-text.md.
  */
 @Module({
   imports: [
-    SharedModule, // MTProto infrastructure + BackendChannelProviderService
+    SharedModule, // MTProto infrastructure (no channel provider since item 7)
     RetentionModule, // Crypto-news sources/messages/media (DB-driven)
     StreamModule, // SSE infrastructure + SSEBroadcastService
   ],
@@ -49,10 +58,11 @@ export class CoreModule implements OnModuleInit {
   private currentChannelIds: ReadonlyArray<string> = [];
   private kolChannelIds: ReadonlyArray<string> = [];
   private newsChannelIds: ReadonlyArray<string> = [];
+  private channelTypeMap = new Map<string, 'kol' | 'crypto-news'>();
+  private listening = false;
   private refreshIntervalId?: NodeJS.Timeout;
 
   constructor(
-    private readonly channelProvider: BackendChannelProviderService,
     private readonly feedSourceRepo: TelegramFeedSourceRepository,
     private readonly listener: TelegramListenerPort,
     private readonly coordinator: MessagePersistenceCoordinator,
@@ -63,38 +73,35 @@ export class CoreModule implements OnModuleInit {
     this.logger.log('🚀 Initializing Telegram ingestion service...');
 
     try {
-      // Step 1: Fetch active channels (KOLs from backend, crypto-news from local DB)
-      this.logger.log('📡 Fetching active channels...');
+      // Step 1: Fetch active channels from the LOCAL feed registry
+      this.logger.log('📡 Fetching active channels from local registry...');
       await this.refreshChannels();
 
       const totalChannels = this.currentChannelIds.length;
+
+      // Step 2: ALWAYS schedule refresh (cold-start safe — an empty DB
+      // recovers on the next tick without a process restart).
+      this.scheduleChannelRefresh();
+
       if (totalChannels === 0) {
         this.logger.warn(
-          '⚠️ No active channels found. Ingestion service will not receive messages.',
+          '⚠️ No active channels found. Listener not started — channels will be picked up automatically on refresh.',
         );
         this.logger.warn(
-          '💡 Add channels via: KOLs → backend API POST /telegram-kol/identity/kols, crypto-news → ingestion-telegram API POST /api/feed/sources',
+          '💡 Add channels via ingestion-telegram API POST /api/feed/sources',
         );
         return;
       }
 
       this.logger.log(
-        `✅ Channel fetch complete: ${this.kolChannelIds.length} KOLs (from backend) + ${this.newsChannelIds.length} crypto-news (from local DB) = ${totalChannels} total`,
+        `✅ Channel fetch complete: ${this.kolChannelIds.length} KOLs + ${this.newsChannelIds.length} crypto-news (from local DB) = ${totalChannels} total`,
       );
 
-      // Step 2: Start MTProto listener
+      // Step 3: Start MTProto listener (exactly once — see gap 15 note above)
       this.logger.log(
         `🎧 Starting MTProto listener for ${totalChannels} channels...`,
       );
-
-      // Start listening in background (non-blocking)
-      this.startListening().catch((error) => {
-        this.logger.error('❌ MTProto listener crashed:', error);
-        // TODO: Implement restart logic or alert
-      });
-
-      // Step 3: Schedule periodic channel list refresh (every 5 minutes)
-      this.scheduleChannelRefresh();
+      await this.ensureListening();
 
       this.logger.log('✅ Telegram ingestion service initialized');
     } catch (error) {
@@ -104,22 +111,49 @@ export class CoreModule implements OnModuleInit {
   }
 
   /**
-   * Fetch active channel IDs and update local cache
+   * Start the MTProto listener exactly once.
    *
-   * Architecture (post-migration):
-   * - KOLs: Fetched from backend DB via HTTP (backend owns KOL identity)
-   * - Crypto-news: Read from local DB (ingestion-telegram owns crypto-news sources)
+   * Gap 15: adapter.subscribe() throws "already running" on re-entry, so the
+   * listener is NEVER restarted — refreshes only swap the peer snapshot via
+   * updateSubscribedChannels(). A crashed listener resets the flag so the
+   * next refresh can retry the start.
+   */
+  private async ensureListening(): Promise<void> {
+    if (this.listening) {
+      return;
+    }
+    this.listening = true;
+
+    // Start listening in background (non-blocking)
+    this.startListening().catch((error) => {
+      this.logger.error('❌ MTProto listener crashed:', error);
+      this.listening = false;
+    });
+  }
+
+  /**
+   * Fetch active channel IDs from the LOCAL feed registry and update caches.
    *
-   * This replaces the old system where both were fetched via HTTP from backend.
+   * Item 7: replaces the old backend-HTTP channel-provider fetch +
+   * newsIds-membership classification with a single local read that carries
+   * the type discriminator per row.
+   *
+   * Cold-start: an empty registry yields [] and still pushes the (empty)
+   * snapshot to the listener — no crash, no skipped update.
    */
   private async refreshChannels(): Promise<void> {
     try {
-      // Fetch KOLs from backend (backend still owns KOL identity)
-      const kolIds = await this.channelProvider.fetchActiveKolIds();
+      // Single local read (fail-open [] on DB error — see repository).
+      const sources = await this.feedSourceRepo.findAllActiveWithTypes();
 
-      // Fetch crypto-news sources from LOCAL DB (ingestion-telegram owns this now)
-      const cryptoNewsSources = await this.feedSourceRepo.findAllActive('crypto-news');
-      const newsIds = cryptoNewsSources.map((source) => source.channelId);
+      // Unknown/future row types default to 'kol' (= previous
+      // newsIds-membership default: not-news → kol). Recorded in ADR.
+      const kolIds = sources
+        .filter((s) => s.type !== 'crypto-news')
+        .map((s) => s.channelId);
+      const newsIds = sources
+        .filter((s) => s.type === 'crypto-news')
+        .map((s) => s.channelId);
 
       const previousTotal = this.currentChannelIds.length;
       const previousKolCount = this.kolChannelIds.length;
@@ -128,6 +162,14 @@ export class CoreModule implements OnModuleInit {
       this.kolChannelIds = kolIds;
       this.newsChannelIds = newsIds;
       this.currentChannelIds = [...kolIds, ...newsIds];
+      this.channelTypeMap = new Map(
+        sources.map((s) => [
+          s.channelId,
+          (s.type === 'crypto-news' ? 'crypto-news' : 'kol') as
+            | 'kol'
+            | 'crypto-news',
+        ]),
+      );
 
       const newTotal = this.currentChannelIds.length;
       const kolCountChanged = kolIds.length !== previousKolCount;
@@ -136,19 +178,33 @@ export class CoreModule implements OnModuleInit {
 
       if (newTotal !== previousTotal) {
         this.logger.log(
-          `📊 Channel list updated: ${previousTotal} → ${newTotal} (${kolIds.length} KOLs from backend, ${newsIds.length} crypto-news from local DB)`,
+          `📊 Channel list updated: ${previousTotal} → ${newTotal} (${kolIds.length} KOLs, ${newsIds.length} crypto-news, from local DB)`,
         );
+      }
 
-        // Update listener's subscribed channels dynamically (no restart required)
-        if (previousTotal > 0 && channelsChanged) {
+      // Cold-start transition 0 → N: start the listener now (onModuleInit
+      // returned early without listening when the DB was empty).
+      if (!this.listening && newTotal > 0) {
+        this.logger.log(
+          '🔄 Channels appeared after cold start — starting listener...',
+        );
+        await this.ensureListening();
+        return;
+      }
+
+      // Steady state: swap the peer snapshot, never re-subscribe (gap 15).
+      // Called unconditionally — including the cold-start empty case — so a
+      // [] registry still pushes its snapshot instead of being gated.
+      if (this.listening || newTotal === 0) {
+        if (channelsChanged || newTotal === 0) {
           this.logger.log(
             '🔄 Updating listener channels dynamically (zero downtime)...',
           );
-          try {
-            this.listener.updateSubscribedChannels([...this.currentChannelIds]);
-          } catch (error) {
-            this.logger.error('❌ Failed to update listener channels:', error);
-          }
+        }
+        try {
+          this.listener.updateSubscribedChannels([...this.currentChannelIds]);
+        } catch (error) {
+          this.logger.error('❌ Failed to update listener channels:', error);
         }
       }
     } catch (error) {
@@ -187,13 +243,15 @@ export class CoreModule implements OnModuleInit {
     );
 
     try {
-      // Subscribe to listener's async generator
-      // Convert readonly array to mutable array for compatibility with TelegramListenerPort
+      // Subscribe to listener's async generator (called EXACTLY ONCE per
+      // process — gap 15. Convert readonly array to mutable for port compat.)
       for await (const message of this.listener.subscribe([
         ...this.currentChannelIds,
       ])) {
-        // Determine message type based on channel
-        const messageType = this.newsChannelIds.includes(message.peerId)
+        // Classify by registry row type; unknown channels default to 'kol'
+        // (previous newsIds-membership default — see ADR).
+        const messageType = this.channelTypeMap.get(message.peerId) ===
+          'crypto-news'
           ? 'crypto-news'
           : 'kol';
 

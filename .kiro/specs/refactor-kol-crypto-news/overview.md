@@ -1,40 +1,41 @@
 # KOL & CryptoNews — Architecture Overview
 
-> **Fecha de creación:** 2026-09-20  
-> **Fuentes:** `apps/ingestion-telegram/AGENTS.md`, `apps/backend/AGENTS.md`, `AGENTS.md` (root)  
-> **Propósito:** Documentación consolidada de los conceptos KOL y CryptoNews en ambos servicios
+> **Creation date:** 2026-09-20  
+> **Branch:** dev  
+> **Sources:** `apps/ingestion-telegram/AGENTS.md`, `apps/backend/AGENTS.md`, `AGENTS.md` (root)  
+> **Purpose:** Consolidated and updated documentation of KOL and CryptoNews concepts in both services
 
 ---
 
-## Tabla de Contenidos
+## Table of Contents
 
-1. [Arquitectura General](#arquitectura-general)
+1. [General Architecture](#general-architecture)
 2. [KOL (Key Opinion Leaders)](#kol-key-opinion-leaders)
 3. [Crypto-News](#crypto-news)
-4. [Flujo de Datos](#flujo-de-datos)
-5. [Persistencia y Ownership](#persistencia-y-ownership)
-6. [Invariantes Críticas](#invariantes-críticas)
-7. [Referencias de Código](#referencias-de-código)
+4. [Data Flow](#data-flow)
+5. [Persistence and Ownership](#persistence-and-ownership)
+6. [Critical Invariants](#critical-invariants)
+7. [Code References](#code-references)
 
 ---
 
-## Arquitectura General
+## General Architecture
 
-### Principio de Separación (Split 2026-09-08)
+### Separation Principle (Split 2026-09-08)
 
-El sistema usa una **arquitectura de ingesta centralizada** con un único servicio `ingestion-telegram` que alimenta múltiples backends (dev/staging/prod):
+The system uses a **centralized ingestion architecture** with a single `ingestion-telegram` service that feeds multiple backends (dev/staging/prod):
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  ingestion-telegram (ÚNICO) - :3031 dev, :3032 droplet      │
+│  ingestion-telegram (SINGLE) - :3031 dev, :3032 droplet     │
 │                                                              │
-│  RESPONSABILIDADES:                                          │
-│  ✓ Una sola sesión MTProto                                  │
-│  ✓ DB propia: <base>_ingestion                              │
-│  ✓ Tablas crypto-news: sources, messages, message_media     │
+│  RESPONSIBILITIES:                                           │
+│  ✓ Single MTProto session                                   │
+│  ✓ Own DB: <base>_ingestion                                 │
+│  ✓ Crypto-news tables: sources, messages, message_media     │
 │  ✓ Media storage: uploads/crypto-news/media/                │
 │  ✓ SSE fan-out: /api/ingestion/stream                       │
-│  ✓ Retención 72h (janitor messages + media)                 │
+│  ✓ 72h retention (janitor messages + media)                 │
 └──────────────────┬───────────────────────────────────────────┘
                    │ HTTP API (read-only) + SSE stream
           ┌────────┼────────┬────────────────┐
@@ -52,40 +53,40 @@ El sistema usa una **arquitectura de ingesta centralizada** con un único servic
 
 **Rationale:**
 
-- ✅ Sin duplicación de datos (todos los ambientes ven los mismos mensajes)
-- ✅ Sincronización automática (un mensaje descargado → visible instantáneamente)
-- ✅ Escalabilidad (agregar ambientes solo requiere apuntar al ingestion existente)
-- ✅ Evita conflictos (sin DBs duplicadas, sin sesiones MTProto duplicadas)
+- ✅ No data duplication (all environments see the same messages)
+- ✅ Automatic synchronization (one downloaded message → instantly visible)
+- ✅ Scalability (adding environments only requires pointing to existing ingestion)
+- ✅ Avoids conflicts (no duplicate DBs, no duplicate MTProto sessions)
 
 ---
 
 ## KOL (Key Opinion Leaders)
 
-### Definición
+### Definition
 
-**KOL = Canales de Telegram monitoreados que publican alpha calls de tokens cripto.**
+**KOL = Monitored Telegram channels that publish crypto token alpha calls.**
 
-Los KOLs son influencers cuyas menciones de tokens generan análisis, scoring y potencialmente publicaciones en el canal VIP del bot.
+KOLs are influencers whose token mentions generate analysis, scoring, and potentially publications in the bot's VIP channel.
 
-### Ownership y Flujo
+### Ownership and Flow
 
 #### Ingestion-Telegram (Consumer)
 
-**Responsabilidades:**
+**Responsibilities:**
 
-- **NO posee la identidad KOL** — la obtiene vía HTTP del backend
-- Polling cada 5 minutos: `GET localhost:3030/telegram-kol/identity/kols/active/ids`
-- Escucha canales KOL vía MTProto (realtime NewMessage + polling 30s)
-- **ToS Invariante:** Texto NUNCA se incluye en el SSE payload para KOLs
+- **Does NOT own KOL identity** — obtains it via HTTP from backend
+- Polls every 5 minutes: `GET localhost:3030/telegram-kol/identity/kols/active/ids`
+- Listens to KOL channels via MTProto (realtime NewMessage + 30s polling)
+- **ToS Invariant:** Text is NEVER included in SSE payload for KOLs
 
-**Componentes clave:**
+**Key Components (Verified in current code):**
 
 ```typescript
 // apps/ingestion-telegram/src/telegram/shared/services/backend-channel-provider.service.ts
 export class BackendChannelProviderService {
   async fetchActiveKolIds(): Promise<string[]> {
     // GET localhost:3030/telegram-kol/identity/kols/active/ids
-    // Retorna: ["channelId1", "channelId2", ...]
+    // Returns: ["channelId1", "channelId2", ...]
   }
 }
 
@@ -93,26 +94,26 @@ export class BackendChannelProviderService {
 export class IngestionCoordinator {
   async route(raw: TelegramRawMessage, type: 'kol' | 'crypto-news') {
     if (type === 'kol') {
-      // Text EXCLUIDO del payload (ToS compliance - fix-1)
+      // Text EXCLUDED from payload (ToS compliance - fix-1)
       const payload = this.transformToPayload(raw, 'kol'); // text = undefined
       await this.stream.broadcast({
         type: 'message:telegram',
-        data: payload, // SIN texto
+        data: payload, // WITHOUT text
       });
     }
   }
 }
 ```
 
-**MessagePayload para KOL:**
+**MessagePayload for KOL:**
 
 ```typescript
 {
   peerId: "-1001234567890",
   messageId: 123,
   occurredAt: "2026-09-20T10:00:00Z",
-  text: undefined,              // ⚠️ SIEMPRE undefined para KOL
-  media: [],                    // KOL nunca descarga media
+  text: undefined,              // ⚠️ ALWAYS undefined for KOL
+  media: [],                    // KOL never downloads media
   entities: [...],
   messageType: "kol"
 }
@@ -120,34 +121,39 @@ export class IngestionCoordinator {
 
 #### Backend (Owner)
 
-**Responsabilidades:**
+**Responsibilities:**
 
-- **Posee la identidad KOL completa** en tabla `kols` (DB backend)
-- Provee endpoint HTTP: `GET /telegram-kol/identity/kols/active/ids`
-- Recibe mensajes KOL vía SSE (sin texto) y extrae texto directamente de Telegram
+- **Owns complete KOL identity** in `kols` table (backend DB)
+- Provides HTTP endpoint: `GET /telegram-kol/identity/kols/active/ids`
+- Receives KOL messages via SSE (without text) and extracts text directly from Telegram
 
-**Módulos:**
+**Modules (Verified):**
 
 1. **`kol/identity/`** — Domain Layer
    - `Kol` aggregate (AggregateRoot)
    - Value Objects: `KolId`, `KolHandle`, lifecycle states
-   - Use Cases: `RegisterKol`, `GetKol`, `ListKols`, `SetKolLifecycle`, `ListActiveKolIds`
-   - **`KolIngestionOrchestratorUseCase`** — Orquesta el pipeline alpha-call
+   - Use Cases (verified in code):
+     - `RegisterKolUseCase` — `POST /telegram-kol/identity/kols`
+     - `GetKolUseCase` — `GET /telegram-kol/identity/kols/:id`
+     - `ListKolsUseCase` — `GET /telegram-kol/identity/kols`
+     - `SetKolLifecycleUseCase` — lifecycle transitions
+     - `ListActiveKolIdsUseCase` — provides IDs to ingestion-telegram
+     - **`KolIngestionOrchestratorUseCase`** — Orchestrates the alpha-call pipeline
 
 2. **`kol/reputation/`** — Scoring Layer
    - `KolMetricsCalculator` → mention/quality/drawdown scores
-   - `blendScore` con pesos configurables (`KolScoreFormula`)
+   - `blendScore` with configurable weights (`KolScoreFormula`)
    - Multipliers: whitelist ×1.2 / blacklist ×0.5
    - Confidence levels: <5 mentions LOW … 50+ VERY_HIGH
-   - Scheduler: recompute cada 15 min
+   - Scheduler: recompute every 15 min
 
 3. **`kol/source/`** — Attribution
    - `Source` VO: `{kolId, sourceType: TELEGRAM|DISCORD|OTHER, messageIds}`
-   - `SourceAggregatorPort` — deduplicación de fuentes
+   - `SourceAggregatorPort` — source deduplication
 
-4. **`kol/stats/`** — Stats (stub, 4 endpoints retornan `{note:'Stub'}`)
+4. **`kol/stats/`** — Stats (stub, 4 endpoints return `{note:'Stub'}`)
 
-**Entidades persistidas:**
+**Persisted Entities:**
 
 ```sql
 -- apps/backend DB
@@ -172,28 +178,28 @@ CREATE TABLE kol_reputations (
 );
 ```
 
-### Pipeline KOL (Alpha-Call Path)
+### KOL Pipeline (Alpha-Call Path)
 
 ```
 Telegram Channel (KOL)
     ↓ MTProto ingestion
 ingestion-telegram:
-    1. Detecta mensaje de canal KOL (vía fetchActiveKolIds)
-    2. Transforma mensaje → MessagePayload (text=undefined, media=[])
-    3. Emite SSE event: 'message:telegram' con messageType='kol'
+    1. Detects KOL channel message (via fetchActiveKolIds)
+    2. Transforms message → MessagePayload (text=undefined, media=[])
+    3. Emits SSE event: 'message:telegram' with messageType='kol'
 
 Backend SSE Consumer:
     ↓ IngestionCoordinator.route(raw, 'kol')
     ↓ KolIngestionOrchestratorUseCase.onMessageReceived()
         ├─► ExtractFromMessageUseCase (direct call, NO bus)
-        │   └─► Extrae contract addresses, tickers, nombres
-        │       Emite: extraction.candidates.extracted
+        │   └─► Extracts contract addresses, tickers, names
+        │       Emits: extraction.candidates.extracted
         │
         ├─► ParseFromCandidatesUseCase (direct call, NO bus)
-        │   └─► Parsea candidatos → TokenCall
-        │       Emite: parsing.call.parsed
+        │   └─► Parses candidates → TokenCall
+        │       Emits: parsing.call.parsed
         │
-        └─► Event Bus continúa:
+        └─► Event Bus continues:
             ├─► normalization.call.normalized
             ├─► chain-detection.chain.detected
             ├─► enrichment.token.enriched
@@ -205,26 +211,23 @@ Backend SSE Consumer:
 
 **Fix-1 (ToS Compliance):**
 
-El texto NUNCA cruza el event bus. `KolIngestionOrchestratorUseCase` llama directamente a `ExtractFromMessageUseCase` y `ParseFromCandidatesUseCase` con el texto crudo, evitando que el contenido de Telegram viaje por eventos.
+Text NEVER crosses the event bus. `KolIngestionOrchestratorUseCase` calls `ExtractFromMessageUseCase` and `ParseFromCandidatesUseCase` directly with raw text, preventing Telegram content from traveling through events.
 
 **Seeding:**
 
 ```bash
-# Backend: Alta manual (recomendado)
+# Backend: Manual registration (recommended)
 POST /telegram-kol/identity/kols
 Body: {
   "kolId": "-1001234567890",
   "handle": "username",
   "title": "KOL Display Name"
 }
-
-# Legacy: Seeder deprecado (INGESTION_TELEGRAM_SEED_ENABLED=false por defecto)
-# Format: INGESTION_TELEGRAM_SEED_CHANNELS="kolId|handle|title,kolId2|handle2|title2"
 ```
 
 ### KOL Reputation Scoring
 
-**Fórmula:**
+**Formula:**
 
 ```typescript
 blendScore =
@@ -241,7 +244,7 @@ blendScore =
 // Clamp: 0.0 - 1.0
 ```
 
-**Uso en Scoring Pipeline:**
+**Usage in Scoring Pipeline:**
 
 ```typescript
 // apps/backend/src/token/scoring/application/handlers/score-token.use-case.ts
@@ -253,31 +256,31 @@ const finalScore = baseScore * kolReputation.multiplier; // 0.85 - 1.15
 
 ## Crypto-News
 
-### Definición
+### Definition
 
-**Crypto-News = Canales de Telegram monitoreados para noticias cripto (NO alpha calls).**
+**Crypto-News = Monitored Telegram channels for crypto news (NOT alpha calls).**
 
-Contenido opaco: el texto se guarda tal cual (sin análisis de tokens) y se publica en un canal de noticias después de:
+Opaque content: text is stored as-is (no token analysis) and published to a news channel after:
 
-1. Filtrado (regex transformations per-channel)
+1. Filtering (regex transformations per-channel)
 2. Keyword matching
-3. LLM refinement (opcional)
+3. LLM refinement (optional)
 
-### Ownership y Flujo (Opción A: Filter on-Read)
+### Ownership and Flow (Option A: Filter on-Read)
 
 #### Ingestion-Telegram (Owner)
 
-**Responsabilidades:**
+**Responsibilities:**
 
-- **Posee TODA la data crypto-news** en su DB `<base>_ingestion`
-- Tablas: `crypto_news_sources`, `crypto_news_messages`, `crypto_news_message_media`
+- **Owns ALL crypto-news data** in its `<base>_ingestion` DB
+- Tables: `crypto_news_sources`, `crypto_news_messages`, `crypto_news_message_media`
 - Media storage: `uploads/crypto-news/media/{channelId}/{messageId}_{index}.ext`
-- Sirve HTTP API: `GET /api/crypto-news/sources`, `GET /api/crypto-news/messages`
-- Sirve media: `GET /api/media/:channelId/:messageId/:index`
-- Alta de sources: `POST /api/crypto-news/sources`
-- **Retención 72h:** Scheduler `CryptoNewsRetentionCleanupScheduler` (EVERY_HOUR, lock `9_421_373`)
+- Serves HTTP API: `GET /api/crypto-news/sources`, `GET /api/crypto-news/messages`
+- Serves media: `GET /api/media/:channelId/:messageId/:index`
+- Source registration: `POST /api/crypto-news/sources`
+- **72h retention:** Scheduler `CryptoNewsRetentionCleanupScheduler` (EVERY_HOUR, lock `9_421_373`)
 
-**Componentes clave:**
+**Key Components (Verified):**
 
 ```typescript
 // apps/ingestion-telegram/src/telegram/crypto-news/infrastructure/persistence/typeorm/entities/
@@ -312,7 +315,7 @@ export class CryptoNewsMessageMediaEntity {
 }
 ```
 
-**Ingestion Flow:**
+**Ingestion Flow (Verified):**
 
 ```typescript
 // apps/ingestion-telegram/src/telegram/shared/api/mtproto/telegram-mtproto-listener.adapter.ts
@@ -321,6 +324,7 @@ async transformMessage(message: Api.Message, channelId: string) {
   const text = await this.textExtractor.extract(message);
 
   // 2. Download media (ONLY for crypto-news, KOL never downloads)
+  // Phase 5.2: Delegated to TelegramMediaExtractorService
   const mediaAttachments = await this.mediaExtractor.extractAndDownload(
     this.client,
     channelId,
@@ -328,8 +332,8 @@ async transformMessage(message: Api.Message, channelId: string) {
     message.media
   );
 
-  // 3. Store in DB
-  await this.cryptoNewsRepo.save({
+  // 3. Store in DB (via coordinator)
+  await this.coordinator.persistCryptoNewsMessage({
     id: `${channelId}:${message.id}`,
     channelId,
     messageId: message.id,
@@ -339,20 +343,7 @@ async transformMessage(message: Api.Message, channelId: string) {
     groupedId: message.groupedId?.toString()
   });
 
-  // 4. Store media metadata
-  for (const media of mediaAttachments) {
-    await this.mediaRepo.save({
-      messageId: `${channelId}:${message.id}`,
-      mediaType: media.type,
-      mediaIndex: media.index,
-      filePath: media.filePath,
-      mimeType: media.mimeType,
-      fileSize: media.fileSize,
-      url: `${baseUrl}/api/media/${channelId}/${message.id}/${media.index}`
-    });
-  }
-
-  // 5. Broadcast SSE
+  // 4. Broadcast SSE
   return {
     peerId: channelId,
     messageId: message.id,
@@ -366,21 +357,22 @@ async transformMessage(message: Api.Message, channelId: string) {
 
 #### Backend (Consumer — Read-Only)
 
-**Responsabilidades:**
+**Responsibilities:**
 
-- **NO posee tablas crypto-news** (eliminadas en split 2026-09-08)
-- Lee vía HTTP: `GET {INGESTION_TELEGRAM_URL}/api/crypto-news/messages?limit=50`
-- Aplica filtros ON-READ (ContentFilterService + keyword matching)
-- Encola mensajes matched (publisher queue)
-- Procesa queue → LLM → Bot API publish
+- **Does NOT own crypto-news tables** (removed in 2026-09-08 split)
+- Reads via HTTP: `GET {INGESTION_TELEGRAM_URL}/api/crypto-news/messages?limit=50`
+- Applies filters ON-READ (ContentFilterService + keyword matching)
+- Enqueues matched messages (publisher queue)
+- Processes queue → LLM → Bot API publish
 
-**Módulos:**
+**Modules (Verified):**
 
-1. **`telegram/crypto-news-integration/`** (NEW — Opción A orchestrator)
+1. **`telegram/crypto-news-integration/`** (NEW — Option A orchestrator)
    - `CryptoNewsIngestionClient` — HTTP client wrapper
    - `FilteredCryptoNewsService` — fetch→filter→match orchestrator
-   - `EnqueueMatchingCronScheduler` — polling fallback (1 min sin SSE / 5 min con SSE)
+   - `EnqueueMatchingCronScheduler` — dynamic polling scheduler (5min SSE mode / 1min polling-only mode)
    - **`ProcessCryptoNewsMessageHandler`** — real-time SSE processor (<10s latency target)
+   - `MatchingConfigController` — `GET/PATCH /crypto-news-integration/matching`
 
 2. **`telegram/ingestion/crypto-news/filters/`** — Content Filters (STAYS)
    - `ChannelContentFilterConfigEntity` — per-channel regex rules (FK-less, opaque `channel_id`)
@@ -391,9 +383,9 @@ async transformMessage(message: Api.Message, channelId: string) {
    - `EnqueueMatchingMessageUseCase` — queue insertion (cap 36)
    - `ProcessNextQueuedArticleUseCase` — drain queue → LLM → Bot API
    - `PublisherCronScheduler` — every minute (advisory lock)
-   - `LlmConfig` — 3-flag control (matchingEnabled, llmEnabled, publishingEnabled)
+   - `LlmConfig` — 2-flag control (llmEnabled, publishingEnabled)
 
-**Entidades persistidas (Backend):**
+**Persisted Entities (Backend):**
 
 ```sql
 -- apps/backend DB (filters + publisher queue only)
@@ -431,7 +423,7 @@ CREATE TABLE crypto_news_llm_config (
 );
 ```
 
-### Data Flow (Opción A — Dual-Path)
+### Data Flow (Option A — Dual-Path)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -444,7 +436,7 @@ ingestion-telegram:
     1. Download media → uploads/crypto-news/media/
     2. INSERT crypto_news_messages (RAW content, NO filters)
     3. INSERT crypto_news_message_media
-    4. Emite SSE event: 'message:telegram' con messageType='crypto-news'
+    4. Emit SSE event: 'message:telegram' with messageType='crypto-news'
 
 Backend SSE Consumer:
     ↓ IngestionCoordinator.route(raw, 'crypto-news')
@@ -490,9 +482,57 @@ PublisherCronScheduler (every minute):
     5. Update status: PUBLISHED | FAILED
 ```
 
+**Deduplication Logic (Critical):**
+
+```typescript
+// apps/backend/src/telegram/crypto-news-integration/application/handlers/process-crypto-news-message.handler.ts
+async shouldProcess(channelId: string, messageId: number): Promise<boolean> {
+  const existing = await this.queueRepo.findByChannelAndMessage(channelId, messageId);
+  
+  if (!existing) return true; // New message, process it
+  
+  // Already processed successfully
+  if (existing.status === 'PUBLISHED') {
+    this.logger.debug(`Message ${channelId}:${messageId} already published, skip`);
+    return false;
+  }
+  
+  // Currently in queue
+  if (existing.status === 'PENDING') {
+    this.logger.debug(`Message ${channelId}:${messageId} already pending, skip`);
+    return false;
+  }
+  
+  // Failed with blocking reason (content issues, blacklisted, etc.)
+  if (existing.status === 'FAILED' && this.isBlockingFailure(existing.failureReason)) {
+    this.logger.debug(`Message ${channelId}:${messageId} failed with blocking reason, skip`);
+    return false;
+  }
+  
+  // Failed with transient reason (network, rate limit, etc.)
+  // Allow retry
+  return true;
+}
+
+private isBlockingFailure(reason: string | null): boolean {
+  if (!reason) return false;
+  
+  const blockingPatterns = [
+    'blacklist',
+    'content violation',
+    'invalid format',
+    'expired',
+  ];
+  
+  return blockingPatterns.some(pattern => 
+    reason.toLowerCase().includes(pattern)
+  );
+}
+```
+
 ### Content Filtering (On-Read)
 
-**Per-Channel Regex Rules:**
+**Per-Channel Regex Rules (Verified):**
 
 ```typescript
 // apps/backend/src/telegram/ingestion/crypto-news/filters/application/services/content-filter.service.ts
@@ -528,46 +568,180 @@ export class ContentFilterService {
 }
 ```
 
-**Keyword Matching:**
+### Keyword Matching (Verified)
+
+**File:** `apps/backend/src/telegram/crypto-news-integration/application/services/filtered-crypto-news.service.ts`
+
+**Responsibilities:**
+- Fetch RAW messages from ingestion-telegram
+- Apply ContentFilterService transformations
+- Evaluate keyword rules (simple + AND-groups)
+- Check blacklist phrases
+- Return matched messages ready for enqueue
 
 ```typescript
-// Simple keywords (OR logic)
-const simpleKeywords = ['bitcoin', 'ethereum', 'solana'];
-
-// Compound keywords (AND logic within group)
-const compoundKeywords = [
-  ['airdrop', 'snapshot'], // Both must appear
-  ['presale', 'whitelist'],
-];
-
-// Blacklist phrases (instant reject)
-const blacklistPhrases = ['scam', 'rug', 'honeypot'];
+export class FilteredCryptoNewsService {
+  async fetchAndFilterMessages(options: {
+    channelId?: string;
+    limit?: number;
+  }): Promise<FilteredMessage[]> {
+    // 1. Fetch RAW from ingestion-telegram
+    const rawMessages = await this.client.getMessages({
+      channelId: options.channelId,
+      limit: options.limit ?? 50
+    });
+    
+    // 2. Filter + match each message
+    const filtered: FilteredMessage[] = [];
+    
+    for (const raw of rawMessages) {
+      // Apply regex transformations
+      const { title, content } = await this.filterService.applyFilters(
+        raw.channelId,
+        raw.title ?? '',
+        raw.content
+      );
+      
+      // Evaluate keywords
+      const matched = await this.keywordMatcher.matches(raw.channelId, title, content);
+      
+      if (matched) {
+        filtered.push({
+          ...raw,
+          title,
+          content, // Transformed content
+          matchReason: matched.reason
+        });
+      }
+    }
+    
+    return filtered;
+  }
+}
 ```
 
-### 3-Flag Control System (CRITICAL)
+**Keyword Matching Logic:**
 
 ```typescript
-// Flag 1: matchingEnabled (MatchingConfig)
-//   Controls: EnqueueMatchingCronScheduler + ProcessCryptoNewsMessageHandler
-//   When true: fetches messages → applies filters → enqueues matches
-//   When false: no new messages enter queue
-
-// Flag 2: llmEnabled (LlmConfig)
-//   Controls: ProcessNextQueuedArticleUseCase content mode
-//   When true (AND publishingEnabled=true): LLM refinement
-//   When false: publishes raw content
-
-// Flag 3: publishingEnabled (LlmConfig)
-//   Controls: PublisherCronScheduler (master switch)
-//   When true: drains queue
-//   When false: queue accumulates, NO LLM generation
-
-// DEPENDENCY: LLM generation = llmEnabled AND publishingEnabled
+// apps/backend/src/telegram/crypto-news-integration/application/services/keyword-matcher.service.ts
+export class KeywordMatcherService {
+  async matches(
+    channelId: string,
+    title: string,
+    content: string
+  ): Promise<{ matched: boolean; reason?: string }> {
+    const keywords = await this.keywordRepo.findByChannel(channelId);
+    const blacklist = await this.blacklistRepo.findByChannel(channelId);
+    
+    const fullText = `${title} ${content}`.toLowerCase();
+    
+    // 1. Check blacklist FIRST (blocklist takes precedence)
+    for (const phrase of blacklist) {
+      if (fullText.includes(phrase.toLowerCase())) {
+        return { 
+          matched: false, 
+          reason: `Blacklist: "${phrase}"` 
+        };
+      }
+    }
+    
+    // 2. Simple keywords (OR logic)
+    const simpleKeywords = keywords.filter(k => k.type === 'SIMPLE');
+    for (const kw of simpleKeywords) {
+      if (fullText.includes(kw.keyword.toLowerCase())) {
+        return { 
+          matched: true, 
+          reason: `Simple keyword: "${kw.keyword}"` 
+        };
+      }
+    }
+    
+    // 3. AND-group keywords (ALL must match)
+    const andGroups = this.groupBy(keywords.filter(k => k.type === 'AND_GROUP'), 'groupId');
+    for (const [groupId, group] of andGroups) {
+      const allMatch = group.every(kw => 
+        fullText.includes(kw.keyword.toLowerCase())
+      );
+      
+      if (allMatch) {
+        return { 
+          matched: true, 
+          reason: `AND-group ${groupId}: [${group.map(k => k.keyword).join(', ')}]` 
+        };
+      }
+    }
+    
+    // 4. No matches
+    return { matched: false };
+  }
+}
 ```
 
-**Truth Table:**
+**Keyword Types:**
 
-| Matching | LLM | Publishing | Behavior                                    |
+| Type         | Logic                                    | Example                             |
+| ------------ | ---------------------------------------- | ----------------------------------- |
+| `SIMPLE`     | Any keyword matches → MATCH              | "bitcoin" OR "ethereum" OR "solana" |
+| `AND_GROUP`  | All keywords in group match → MATCH      | ("airdrop" AND "free") in group 1   |
+| Blacklist    | Any blacklist phrase matches → NO MATCH  | "scam", "fake", "phishing"          |
+
+**Database Schema (Keywords):**
+
+```sql
+-- Backend DB
+CREATE TABLE crypto_news_keywords (
+  id UUID PRIMARY KEY,
+  channel_id VARCHAR NOT NULL,
+  keyword VARCHAR NOT NULL,
+  type VARCHAR NOT NULL,        -- 'SIMPLE' | 'AND_GROUP'
+  group_id VARCHAR NULL,        -- For AND_GROUP only
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE crypto_news_blacklist (
+  id UUID PRIMARY KEY,
+  channel_id VARCHAR NOT NULL,
+  phrase VARCHAR NOT NULL,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### 3-Flag Control System (CRITICAL — 2 current flags)
+
+**NOTE:** The current architecture uses **2 independent flags**, NOT 3:
+
+1. **`matchingEnabled`** (`MatchingConfig`, `crypto-news-integration` module)
+   - Controls: `EnqueueMatchingCronScheduler` + `ProcessCryptoNewsMessageHandler`
+   - When `true`: fetches messages → applies filters + keywords → enqueues matches
+   - When `false`: no new messages enter the queue
+   - **Location:** `crypto_news_matching_config` table (singleton row id=1)
+   - **Endpoints:** 
+     - `GET /crypto-news-integration/matching` — read current state
+     - `PATCH /crypto-news-integration/matching` — toggle flag
+
+2. **`llmEnabled` + `publishingEnabled`** (`LlmConfig`, `crypto-news-publisher` module)
+   - `llmEnabled`: Controls LLM transformation mode
+   - `publishingEnabled`: Controls `PublisherCronScheduler` (master switch)
+   - **DEPENDENCY**: LLM generation = llmEnabled AND publishingEnabled
+   - **Location:** `crypto_news_llm_config` table (singleton row id=1)
+   - **Endpoints:**
+     - `GET /crypto-news-publisher/config` — read both flags
+     - `PATCH /crypto-news-publisher/config` — update flags
+
+**Truth Table (4 main combinations):**
+
+| Matching | Publishing | Behavior                                    |
+| :------: | :--------: | ------------------------------------------- |
+|    ❌    |     ❌     | **All paused** — No enqueue, no publish     |
+|    ❌    |     ✅     | **Drain queue** — No new enqueue, publishes existing |
+|    ✅    |     ❌     | **Enqueue only** — Builds queue, no publish |
+|    ✅    |     ✅     | **Full pipeline** — Enqueue + publish       |
+
+**Extended Truth Table (llmEnabled combinations):**
+
+| Matching | LLM | Publishing | Result                                      |
 | :------: | :-: | :--------: | ------------------------------------------- |
 |    ❌    | ❌  |     ❌     | All paused                                  |
 |    ❌    | ❌  |     ✅     | Drain queue raw (no new enqueue)            |
@@ -577,6 +751,52 @@ const blacklistPhrases = ['scam', 'rug', 'honeypot'];
 |    ✅    | ❌  |     ✅     | **Raw pipeline** (enqueue + publish raw)    |
 |    ✅    | ✅  |     ❌     | Enqueue only (LLM inactive)                 |
 |    ✅    | ✅  |     ✅     | **Full pipeline** (enqueue + LLM + publish) |
+
+**Use Cases:**
+
+- **Pause publishing, keep enqueuing:** `matching=true`, `publishing=false` → queue accumulates
+- **Publish raw only (no LLM cost):** `llm=false`, `publishing=true`
+- **Drain existing queue:** `matching=false`, `publishing=true`
+- **Emergency stop:** all flags `false`
+
+**Frontend Integration:**
+
+```typescript
+// apps/frontend/src/features/crypto-news/components/MatchingToggleButton.tsx
+const MatchingToggleButton = () => {
+  const { data: matchingConfig } = useMatchingConfig();
+  const toggleMutation = useToggleMatching();
+
+  return (
+    <button onClick={() => toggleMutation.mutate({ enabled: !matchingConfig.enabled })}>
+      {matchingConfig.enabled ? 'Pause Matching' : 'Resume Matching'}
+    </button>
+  );
+};
+
+// Separate toggles for LLM and Publishing
+const PublishingControls = () => {
+  const { data: llmConfig } = useLlmConfig();
+  const updateMutation = useUpdateLlmConfig();
+
+  return (
+    <>
+      <Toggle 
+        checked={llmConfig.llmEnabled}
+        onChange={(v) => updateMutation.mutate({ llmEnabled: v })}
+        label="LLM Refinement"
+      />
+      <Toggle 
+        checked={llmConfig.publishingEnabled}
+        onChange={(v) => updateMutation.mutate({ publishingEnabled: v })}
+        label="Publishing Enabled"
+      />
+    </>
+  );
+};
+```
+
+**Why decoupled:** Matching shouldn't depend on publisher config; separate configs prevent unnecessary coupling.
 
 ### Media Handling
 
@@ -609,7 +829,6 @@ export class TelegramMediaExtractorService {
       });
     }
 
-    // Returns array of downloaded files
     return attachments;
   }
 }
@@ -668,13 +887,11 @@ async cleanupExpiredContent() {
       await this.mediaRepo.delete(media.id);
     } catch (err) {
       if (err.code === 'ENOENT') {
-        // File already gone → delete record
         await this.mediaRepo.delete(media.id);
       } else if (err.code === 'EACCES') {
-        // Permission error → skip + keep record
-        continue;
+        continue; // Skip + keep record
       } else {
-        throw err; // Other errors abort
+        throw err;
       }
     }
   }
@@ -685,7 +902,7 @@ async cleanupExpiredContent() {
     if (deleted < 1000) break;
   }
 
-  // Pass 3: Orphan media sweep (messages deleted but media remains)
+  // Pass 3: Orphan media sweep
   await this.mediaRepo.deleteOrphans();
 }
 ```
@@ -698,23 +915,19 @@ async cleanupExpiredContent() {
 async expireStaleEntries() {
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  // Find PENDING entries older than 24h
   const stale = await this.queueRepo.findPendingOlderThan(cutoff);
 
-  // Mark as FAILED with expiration reason
   for (const entry of stale) {
     entry.status = 'FAILED';
     entry.failureReason = 'Expired: exceeded 24h in queue without publishing';
     await this.queueRepo.save(entry);
   }
-
-  this.logger.log(`Expired ${stale.length} stale queue entries`);
 }
 ```
 
 ---
 
-## Flujo de Datos
+## Data Flow
 
 ### Ingestion Flow (Shared)
 
@@ -781,11 +994,11 @@ export class IngestionCoordinator implements OnApplicationBootstrap {
 
 ---
 
-## Persistencia y Ownership
+## Persistence and Ownership
 
 ### Ingestion-Telegram DB (`<base>_ingestion`)
 
-**Tablas propias (5):**
+**Own Tables (4 — BackfillMessageEntity also exists):**
 
 ```sql
 -- Crypto-news ownership (SOLE OWNER)
@@ -838,7 +1051,7 @@ CREATE TABLE backfill_messages (
 
 ### Backend DB (`<base>`)
 
-**Tablas propias (39 entities):**
+**Own Tables (39 entities — verified post-split):**
 
 ```sql
 -- KOL domain
@@ -872,7 +1085,6 @@ CREATE TABLE channel_content_filter_configs (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE INDEX idx_filters_channel ON channel_content_filter_configs(channel_id, is_active);
 
 CREATE TABLE crypto_news_publisher_queue (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -886,306 +1098,925 @@ CREATE TABLE crypto_news_publisher_queue (
   llm_refined_content JSONB,
   UNIQUE(channel_id, message_id)
 );
-CREATE INDEX idx_queue_status_queued ON crypto_news_publisher_queue(status, queued_at)
-  WHERE status = 'PENDING';
 
 CREATE TABLE crypto_news_matching_config (
-  id INT PRIMARY KEY DEFAULT 1,        -- Singleton
+  id INT PRIMARY KEY DEFAULT 1,
   enabled BOOLEAN DEFAULT TRUE,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE crypto_news_llm_config (
-  id INT PRIMARY KEY DEFAULT 1,        -- Singleton
+  id INT PRIMARY KEY DEFAULT 1,
   llm_enabled BOOLEAN DEFAULT TRUE,
   publishing_enabled BOOLEAN DEFAULT TRUE,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Crypto-news ads, keywords, blacklist, etc.
-CREATE TABLE crypto_news_keywords (...);
-CREATE TABLE crypto_news_blacklist_phrases (...);
-CREATE TABLE crypto_news_ads (...);
--- ... (ver AGENTS.md backend para lista completa)
+-- ... (other 20+ entities)
 ```
 
-**⚠️ Backend NO tiene tablas `crypto_news_sources`, `crypto_news_messages`, `crypto_news_message_media`**
+**⚠️ Backend does NOT have `crypto_news_sources`, `crypto_news_messages`, `crypto_news_message_media` tables**
 
-Migration `1860000000001-DropIngestionOwnedCryptoNewsTables` las eliminó en el split 2026-09-08.
-
----
-
-## Invariantes Críticas
-
-### Invariantes Arquitecturales (Inamovibles)
-
-1. **Un solo ingestion-telegram** — NO crear instancias por environment
-2. **Una sola sesión MTProto** — credenciales viven SOLO en `ingestion-telegram/.env`
-3. **Una sola DB de ingestion por servidor Postgres** — `<base>_ingestion` en dev local y droplet
-4. **Ingestion-telegram es owner de crypto-news data** — backends NO replican tablas
-5. **Backend NO escribe crypto-news** — staging/prod solo LEEN vía HTTP/SSE
-6. **Frontend consume directo de ingestion-telegram** — `GET :3032/api/crypto-news/*`
-7. **Retención 72h messages + media** — `CryptoNewsRetentionCleanupScheduler` (ingestion)
-
-### Invariantes de Contenido (ToS Compliance)
-
-1. **KOL text NUNCA cruza el event bus** (fix-1)
-   - `MessagePayload.text = undefined` para `messageType='kol'`
-   - Backend extrae texto directamente via `KolIngestionOrchestratorUseCase`
-2. **Crypto-news text SÍ cruza el event bus**
-   - `MessagePayload.text = "..."` para `messageType='crypto-news'`
-   - Contenido opaco, se guarda/procesa sin análisis de tokens
-
-### Invariantes de Filtering (Opción A)
-
-1. **Ingestion-telegram guarda contenido CRUDO** (sin filtros, sin transformaciones)
-2. **Backend aplica filtros ON-READ** (NO persiste contenido transformado)
-3. **Frontend muestra contenido RAW** (sin transformaciones de display)
-4. **Publisher queue recibe contenido FILTRADO** (AFTER ContentFilterService)
-
-### Invariantes de Control (3-Flag System)
-
-1. **LLM generation = llmEnabled AND publishingEnabled**
-   - Si `publishingEnabled=false`, LLM NO se ejecuta (aunque `llmEnabled=true`)
-2. **Matching y publishing son independientes**
-   - `matchingEnabled` (crypto-news-integration) no depende de publisher config
-3. **Production LLM lock** (guard en `LlmConfigController`)
-   - `llmEnabled` NO se puede cambiar en producción (siempre `true` para calidad)
+These live EXCLUSIVELY in `<base>_ingestion` (ingestion-telegram DB).
 
 ---
 
-## Referencias de Código
+## Critical Invariants
+
+### 1. Single MTProto Session
+
+- MTProto credentials (`INGESTION_TELEGRAM_MTPROTO_*`) live ONLY in ingestion-telegram
+- NEVER duplicate in `apps/backend/.env` → avoids `AUTH_KEY_DUPLICATED`
+- One ingestion-telegram instance per physical environment
+
+### 2. Crypto-news Ownership
+
+- **Ingestion-telegram** is the SOLE OWNER:
+  - DB `<base>_ingestion` with the 3 tables
+  - Media in `uploads/crypto-news/media/`
+  - 72h retention (janitor)
+  
+- **Backend** is read-only consumer:
+  - Does NOT replicate tables
+  - Reads via HTTP API
+  - Applies filters on-read
+  - Transient cache (growth-zero)
+
+### 3. KOL Identity Ownership
+
+- **Backend** is the SOLE OWNER:
+  - `kols` table in backend DB
+  - Endpoint `GET /telegram-kol/identity/kols/active/ids`
+  
+- **Ingestion-telegram** is consumer:
+  - Polling every 5 minutes
+  - Does NOT store identity locally
+
+### 4. ToS Compliance (Fix-1)
+
+- KOL text NEVER crosses the event bus
+- `KolIngestionOrchestratorUseCase` calls extraction/parsing directly
+- SSE payload for KOL: `text = undefined`
+
+### 5. Filter on-Read (Option A)
+
+- Ingestion stores RAW content (no filters)
+- Backend applies ContentFilterService on-read
+- Publisher queue receives FILTERED content
+
+### 6. 72h Retention
+
+- Janitor in ingestion-telegram runs every hour
+- Cleans messages + media with `ingested_at > 72h`
+- Backend queue TTL 24h (independent)
+
+---
+
+## Code References
 
 ### Ingestion-Telegram
 
-**Estructura:**
-
-```
-apps/ingestion-telegram/src/
-├── telegram/
-│   ├── crypto-news/
-│   │   ├── crypto-news.module.ts
-│   │   ├── api/http/crypto-news.controller.ts
-│   │   ├── application/
-│   │   │   ├── handlers/register-news-source.use-case.ts
-│   │   │   └── scheduling/crypto-news-retention-cleanup.scheduler.ts
-│   │   └── infrastructure/persistence/typeorm/
-│   │       ├── entities/crypto-news-{source,message,message-media}.entity.ts
-│   │       └── repositories/crypto-news-{source,message,media}.repository.ts
-│   │
-│   └── shared/
-│       ├── api/mtproto/telegram-mtproto-listener.adapter.ts
-│       ├── application/
-│       │   ├── coordinators/ingestion.coordinator.ts
-│       │   └── services/
-│       │       ├── telegram-media-extractor.service.ts (Phase 5.2)
-│       │       └── deduplication.service.ts
-│       └── services/backend-channel-provider.service.ts
-│
-├── stream/
-│   ├── api/http/stream.controller.ts
-│   └── application/services/stream.service.ts
-│
-└── media/
-    ├── api/http/media.controller.ts
-    └── application/services/media-downloader.service.ts
-```
-
-**Archivos clave:**
-
-- `telegram.module.ts` — onModuleInit + refresh channels + startListening
-- `ingestion.coordinator.ts` — route(raw, type) + transformToPayload
-- `telegram-mtproto-listener.adapter.ts` — MTProto subscription + transformMessage
-- `crypto-news-retention-cleanup.scheduler.ts` — 72h janitor (EVERY_HOUR)
-- `backend-channel-provider.service.ts` — fetchActiveKolIds() HTTP
+| Component | Location | Key Lines |
+|-----------|----------|-----------|
+| `IngestionCoordinator` | `apps/ingestion-telegram/src/telegram/shared/application/coordinators/ingestion.coordinator.ts` | L67-L160 |
+| `BackendChannelProviderService` | `apps/ingestion-telegram/src/telegram/shared/services/backend-channel-provider.service.ts` | Fetch KOL IDs |
+| `TelegramMediaExtractorService` | `apps/ingestion-telegram/src/telegram/shared/application/services/telegram-media-extractor.service.ts` | Phase 5.2 |
+| `CryptoNewsRetentionCleanupScheduler` | `apps/ingestion-telegram/src/telegram/crypto-news/application/scheduling/` | 72h janitor |
 
 ### Backend
 
-**Estructura:**
+| Component | Location | Key Lines |
+|-----------|----------|-----------|
+| `KolIngestionOrchestratorUseCase` | `apps/backend/src/kol/identity/application/handlers/kol-ingestion-orchestrator.use-case.ts` | L29-L150 |
+| `ProcessCryptoNewsMessageHandler` | `apps/backend/src/telegram/crypto-news-integration/application/handlers/process-crypto-news-message.handler.ts` | L46-L200 |
+| `EnqueueMatchingCronScheduler` | `apps/backend/src/telegram/crypto-news-integration/application/scheduling/enqueue-matching-cron.scheduler.ts` | L43-L230 |
+| `ContentFilterService` | `apps/backend/src/telegram/ingestion/crypto-news/filters/application/services/content-filter.service.ts` | On-read filters |
+| `IngestionCoordinator` (Backend) | `apps/backend/src/telegram/ingestion/shared/application/ingestion-coordinator.service.ts` | Routing logic |
 
-```
-apps/backend/src/
-├── kol/
-│   ├── identity/
-│   │   ├── kol-identity.module.ts
-│   │   ├── api/http/kol.controller.ts
-│   │   ├── domain/entities/kol.entity.ts
-│   │   ├── application/
-│   │   │   ├── handlers/
-│   │   │   │   ├── kol-ingestion-orchestrator.use-case.ts (⚠️ lives here)
-│   │   │   │   ├── register-kol.use-case.ts
-│   │   │   │   ├── list-active-kol-ids.use-case.ts
-│   │   │   │   └── set-kol-lifecycle.use-case.ts
-│   │   │   └── ports/kol.repository.ts
-│   │   └── infrastructure/persistence/typeorm/
-│   │       ├── entities/kol.entity.ts
-│   │       └── repositories/typeorm-kol.repository.ts
-│   │
-│   ├── reputation/
-│   │   ├── kol-reputation.module.ts
-│   │   ├── api/http/kol-reputation.controller.ts
-│   │   ├── domain/value-objects/kol-metrics.vo.ts
-│   │   ├── application/
-│   │   │   ├── services/kol-metrics-calculator.service.ts
-│   │   │   └── handlers/recompute-kol-reputation.use-case.ts
-│   │   └── infrastructure/scheduling/kol-reputation.scheduler.ts
-│   │
-│   ├── source/
-│   │   └── domain/value-objects/source.vo.ts
-│   │
-│   └── stats/
-│       └── api/http/kol-stats.controller.ts (stub endpoints)
-│
-├── telegram/
-│   ├── crypto-news-integration/  (NEW — Opción A)
-│   │   ├── crypto-news-integration.module.ts
-│   │   ├── api/http/
-│   │   │   └── matching-config.controller.ts
-│   │   ├── application/
-│   │   │   ├── handlers/process-crypto-news-message.handler.ts (⚠️ SSE processor)
-│   │   │   ├── services/
-│   │   │   │   ├── filtered-crypto-news.service.ts
-│   │   │   │   └── crypto-news-ingestion-client.service.ts
-│   │   │   └── scheduling/enqueue-matching-cron.scheduler.ts
-│   │   └── infrastructure/persistence/typeorm/
-│   │       ├── entities/matching-config.entity.ts
-│   │       └── repositories/matching-config.repository.ts
-│   │
-│   ├── ingestion/crypto-news/filters/  (STAYS — FK-less)
-│   │   ├── crypto-news-filters.module.ts
-│   │   ├── api/http/content-filter.controller.ts
-│   │   ├── application/
-│   │   │   ├── services/content-filter.service.ts
-│   │   │   └── handlers/{create,update,delete,list}-filter.use-case.ts
-│   │   └── infrastructure/persistence/typeorm/
-│   │       ├── entities/channel-content-filter-config.entity.ts
-│   │       └── repositories/typeorm-channel-filter.repository.ts
-│   │
-│   ├── crypto-news-publisher/
-│   │   ├── crypto-news-publisher.module.ts
-│   │   ├── api/http/
-│   │   │   ├── llm-config.controller.ts (⚠️ production guard)
-│   │   │   ├── queue.controller.ts
-│   │   │   ├── keywords.controller.ts
-│   │   │   └── blacklist-phrases.controller.ts
-│   │   ├── application/
-│   │   │   ├── handlers/
-│   │   │   │   ├── enqueue-matching-message.use-case.ts
-│   │   │   │   └── process-next-queued-article.use-case.ts
-│   │   │   └── scheduling/
-│   │   │       ├── publisher-cron.scheduler.ts
-│   │   │       └── expire-stale-queue-entries.scheduler.ts
-│   │   └── infrastructure/persistence/typeorm/
-│   │       ├── entities/
-│   │       │   ├── publisher-queue.entity.ts
-│   │       │   ├── llm-config.entity.ts
-│   │       │   ├── keyword.entity.ts
-│   │       │   └── blacklist-phrase.entity.ts
-│   │       └── repositories/publisher-queue.repository.ts
-│   │
-│   ├── ingestion/
-│   │   ├── telegram-ingestion.module.ts
-│   │   └── shared/
-│   │       ├── shared-ingestion.module.ts (@Global)
-│   │       ├── application/ingestion-coordinator.service.ts (⚠️ router)
-│   │       └── api/sse/telegram-sse-listener.adapter.ts
-│   │
-│   └── vip-calls/vip-channel/  (Bot API publishing)
-│       └── ... (alpha-call publishing pipeline)
-│
-├── token/  (alpha-call pipeline)
-│   ├── intake/{extraction,parsing}/
-│   ├── normalization/
-│   ├── enrichment/
-│   ├── classification/
-│   ├── scoring/
-│   └── vip-call-approval/
-│
-└── shared/
-    ├── kernel/ (AggregateRoot, Entity, ValueObject, DomainEvent)
-    ├── common/persistence/
-    │   ├── entities.ts (PERSISTED_ENTITIES = 39)
-    │   ├── data-source.ts
-    │   └── migrations/ (15 TypeORM migrations)
-    └── ws/gateway/ws.gateway.ts (Socket.IO fan-out)
-```
+### Shared
 
-**Archivos clave:**
-
-- `ingestion-coordinator.service.ts` — routeMessage(raw) + subscribe()
-- `kol-ingestion-orchestrator.use-case.ts` — onMessageReceived() + direct calls
-- `process-crypto-news-message.handler.ts` — handle() SSE processor (<10s)
-- `filtered-crypto-news.service.ts` — getMatchingMessages() orchestrator
-- `content-filter.service.ts` — applyFilters() on-read transformations
-- `enqueue-matching-message.use-case.ts` — queue insertion (cap 36)
-- `process-next-queued-article.use-case.ts` — LLM + Bot API publishing
-- `llm-config.controller.ts` — production guard (llmEnabled immutable)
-
-### Root
-
-**Archivos de orquestación:**
-
-- `AGENTS.md` — overview de arquitectura (este documento se basó en él)
-- `GIT-FLOW.md` — branch strategy (dev → staging, master → production)
-- `GOVERNANCE.md` — branch protection rules (v2.0, Spanish)
-- `apps/backend/docker-compose.yml` — postgres + redis dev infra
-- `apps/backend/docker-compose.ingestion.yml` — standalone ingestion droplet
-- `.github/workflows/deploy-ingestion.yml` — CI/CD ingestion
-- `.github/workflows/deploy.yml` — CI/CD backend + frontend
+| Concept | Backend | Ingestion-Telegram |
+|---------|---------|-------------------|
+| Message routing | `IngestionCoordinator.routeMessage()` | `IngestionCoordinator.route()` |
+| KOL identity | `kol/identity/` module (owner) | `BackendChannelProviderService` (consumer) |
+| Crypto-news data | `crypto-news-integration/` (consumer) | `crypto-news/` module (owner) |
+| Media handling | Growth-zero temp files | Downloads + serves (owner) |
 
 ---
 
-## Notas Adicionales
+## SSE (Server-Sent Events) Integration
 
-### Gaps Conocidos
+### Stream Service (Ingestion-Telegram)
 
-**Ingestion-Telegram:**
+**File:** `apps/ingestion-telegram/src/stream/application/services/stream.service.ts`
 
-1. Backfill roto (endpoint existe pero lanza error)
-2. Health endpoints con stubs null (no reflejan estado real MTProto)
-3. Dedup service inyectado pero nunca llamado
-4. Métricas Prometheus definidas pero nunca actualizadas
-5. Sleep window configurado pero nunca aplicado
-6. Refresh de canales cada 5 min inefectivo (single-listener lanza error)
-7. Config anti-ban decorativa (polling siempre 30s fijos sin jitter)
+**Responsibilities:**
+- Manages SSE connections from backend consumers
+- Broadcasts ingestion events in real-time
+- Implements 30s heartbeat to prevent connection timeouts
+- Tracks connected clients via `DisconnectionTracker`
 
-**Backend:**
+```typescript
+export class StreamService {
+  private clients: Set<Response> = new Set();
+  
+  async addClient(res: Response): Promise<void> {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    
+    this.clients.add(res);
+    
+    // Send initial connection event
+    this.sendToClient(res, {
+      event: 'connected',
+      data: { timestamp: new Date().toISOString() }
+    });
+    
+    // Start heartbeat for this client
+    const heartbeatInterval = setInterval(() => {
+      this.sendToClient(res, {
+        event: 'health:ping',
+        data: { timestamp: new Date().toISOString() }
+      });
+    }, 30_000); // 30 seconds
+    
+    // Cleanup on disconnect
+    res.on('close', () => {
+      clearInterval(heartbeatInterval);
+      this.clients.delete(res);
+    });
+  }
+  
+  async broadcast(event: StreamEvent): Promise<void> {
+    const payload = {
+      event: event.type, // 'message:telegram' | 'message:backfill'
+      data: event.data
+    };
+    
+    for (const client of this.clients) {
+      this.sendToClient(client, payload);
+    }
+  }
+  
+  private sendToClient(res: Response, payload: { event: string; data: any }): void {
+    const message = `event: ${payload.event}\ndata: ${JSON.stringify(payload.data)}\n\n`;
+    res.write(message);
+  }
+}
+```
 
-1. `IdentityModule` loads transitively (comentado en AppModule pero se importa vía dependencies)
-2. `DashboardModule` comentado (código exists but not wired)
-3. Cross-BC use-case imports (gap 7: SettingsService, EnrichTokenUseCase)
-4. Health endpoint estático (no refleja estado real, gap 9)
-5. Frontend 5s stale time + No Zustand/Redux (pese a MSW/recharts en deps sin uso)
+**SSE Event Types:**
 
-### Migraciones Relevantes
+| Event                | Data                              | Purpose                          |
+| -------------------- | --------------------------------- | -------------------------------- |
+| `connected`          | `{ timestamp }`                   | Initial connection confirmation  |
+| `health:ping`        | `{ timestamp }`                   | 30s heartbeat (prevents timeout) |
+| `message:telegram`   | `TelegramRawMessage`              | Real-time ingestion event        |
+| `message:backfill`   | `TelegramRawMessage` (enriched)   | Historical backfill event        |
 
-**Backend:**
+### Backend SSE Consumer
 
-- `1860000000001-DropIngestionOwnedCryptoNewsTables.ts` — Split final (eliminó 3 tablas + FKs)
-- `1875000000000-BackfillMatchingConfigFromLlm.ts` — Separó `matchingEnabled` de LLM config
-- `1788659125192-SplitLlmConfigFlags.ts` — Separó `llmEnabled` + `publishingEnabled`
-- `1860000000000-AddQueuedAtToPublisherQueue.ts` — TTL 24h support
+**File:** `apps/backend/src/telegram/ingestion/shared/api/sse/telegram-sse-listener.adapter.ts`
 
-**Ingestion-Telegram:**
+**Responsibilities:**
+- Connects to ingestion-telegram SSE endpoint
+- Implements exponential backoff reconnection (1s → 30s)
+- Yields parsed events to `IngestionCoordinator`
+- Handles connection failures gracefully
 
-- `1788844970659-BaselineIngestionSchema.ts` — Baseline (5 tablas, generado contra DB vacía)
+```typescript
+export class TelegramSseListenerAdapter implements TelegramListenerPort {
+  private reconnectDelay = 1000; // Start at 1s
+  private maxReconnectDelay = 30000; // Cap at 30s
+  
+  async *subscribe(): AsyncGenerator<TelegramRawMessage> {
+    while (true) {
+      try {
+        const response = await fetch(`${this.ingestionUrl}/api/ingestion/stream`, {
+          headers: { Accept: 'text/event-stream' }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`SSE connection failed: ${response.status}`);
+        }
+        
+        // Reset backoff on successful connection
+        this.reconnectDelay = 1000;
+        
+        // Parse SSE stream
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          buffer += decoder.decode(value, { stream: true });
+          
+          // Process complete SSE messages
+          const lines = buffer.split('\n\n');
+          buffer = lines.pop()!; // Keep incomplete message in buffer
+          
+          for (const chunk of lines) {
+            if (!chunk.trim()) continue;
+            
+            const event = this.parseSSE(chunk);
+            
+            if (event.type === 'message:telegram') {
+              yield event.data as TelegramRawMessage;
+            }
+            // Ignore health:ping and other events
+          }
+        }
+      } catch (err) {
+        this.logger.warn(`SSE connection lost: ${err.message}, reconnecting in ${this.reconnectDelay}ms`);
+        
+        // Exponential backoff
+        await this.sleep(this.reconnectDelay);
+        this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);
+      }
+    }
+  }
+  
+  private parseSSE(chunk: string): { type: string; data: any } {
+    const lines = chunk.split('\n');
+    let eventType = 'message'; // Default event type
+    let data = '';
+    
+    for (const line of lines) {
+      if (line.startsWith('event:')) {
+        eventType = line.slice(6).trim();
+      } else if (line.startsWith('data:')) {
+        data += line.slice(5).trim();
+      }
+    }
+    
+    return {
+      type: eventType,
+      data: data ? JSON.parse(data) : null
+    };
+  }
+}
+```
 
-### Testing
+**Connection Lifecycle:**
 
-**Ingestion-Telegram:** 43 suites / 815 tests (post-split task-10)
-**Backend:** 170 suites / 1969 tests (post-split task-10)
-**Frontend:** 23 `*.test.*` files (Vitest)
+```
+Backend startup
+    ↓
+TelegramSseListenerAdapter.subscribe()
+    ↓
+Fetch ingestion:3032/api/ingestion/stream
+    ↓ (connected)
+Receive: event: connected
+    ↓
+Enter infinite loop:
+    ├─► Receive: event: health:ping (every 30s, ignore)
+    ├─► Receive: event: message:telegram (yield to coordinator)
+    └─► Connection lost → exponential backoff → reconnect
+```
 
-### Deployment
+**Lossy by Design:**
 
-**Orden crítico (code-before-schema):**
-
-1. Deploy ingestion-telegram PRIMERO
-2. Verificar `:3032/api/crypto-news/sources` healthy
-3. SOLO ENTONCES deploy backend con drop migration
-
-**Rollback:** Set `USE_SSE_CRYPTO_NEWS=false` → instant fallback a polling 1-min
+- No message replay on reconnection (backend relies on polling fallback)
+- SSE is best-effort, not guaranteed delivery
+- Polling (`EnqueueMatchingCronScheduler`) catches gaps
 
 ---
 
-**FIN DEL OVERVIEW**
+## MTProto Integration
+
+### TelegramMtprotoListenerAdapter (Ingestion-Telegram)
+
+**File:** `apps/ingestion-telegram/src/telegram/shared/api/mtproto/telegram-mtproto-listener.adapter.ts`
+
+**Responsibilities:**
+- Single MTProto session for ALL environments
+- Connects to Telegram via `telegram` (GramJS) library
+- Subscribes to channel messages (realtime + polling)
+- Transforms raw Telegram messages to `TelegramRawMessage` format
+- Manages flood wait handling and rate limits
+- Coordinates with `TelegramMediaExtractorService` for crypto-news media
+
+**Key Components:**
+
+```typescript
+export class TelegramMtprotoListenerAdapter implements TelegramListenerPort {
+  // Dual-mode message ingestion
+  async *subscribe(channelIds: string[]): AsyncIterable<TelegramRawMessage> {
+    // 1. Register realtime event handler (NewMessage)
+    client.addEventHandler((event) => this.handleEvent(event), new NewMessage({}));
+    
+    // 2. Start polling loop (30s interval, catches gaps)
+    void this.startPollingLoop();
+    
+    // 3. Yield messages from queue
+    while (this.running) {
+      while (this.messageQueue.length > 0) {
+        yield this.messageQueue.shift()!;
+      }
+      await this.messageQueue.waitForItem();
+    }
+  }
+  
+  // Realtime handler
+  private async handleEvent(event: unknown): Promise<void> {
+    const msg = event.message;
+    const channelId = await msg.getChat().id;
+    
+    // Update cursor
+    this.lastSeenManager.set(channelId, msg.id);
+    
+    // Transform + enqueue (async for media download)
+    const transformed = await this.transformMessage(channelId, msg);
+    this.messageQueue.push(transformed);
+  }
+  
+  // Polling loop (catches missed messages)
+  private async startPollingLoop(): Promise<void> {
+    while (this.running) {
+      for (const peer of subscribedPeers) {
+        const minId = this.lastSeenManager.get(peer);
+        const messages = await client.getMessages(peer, { 
+          minId, 
+          limit: 50 
+        });
+        // Process + enqueue
+      }
+      await sleep(30_000); // 30s fixed interval
+    }
+  }
+}
+```
+
+**Message Transformation Pipeline:**
+
+```typescript
+// Phase 5.2 architecture (verified in code)
+async transformMessage(channelId: string, msg: Api.Message): TelegramRawMessage {
+  // 1. Text extraction (4-source cascade)
+  const text = this.messageTransformer.extractText(msg);
+  
+  // 2. Media download (ONLY for crypto-news channels)
+  let media: TelegramMediaAttachment[] = [];
+  if (this.isCryptoNewsChannel(channelId)) {
+    media = await this.mediaExtractor.extractAndDownload(
+      client,
+      channelId,
+      msg.id,
+      msg.media
+    );
+  }
+  
+  // 3. Build TelegramRawMessage
+  return {
+    peerId: channelId,
+    messageId: msg.id,
+    text,
+    media,
+    entities: msg.entities,
+    groupedId: msg.groupedId?.toString(),
+    occurredAt: new Date(msg.date * 1000).toISOString(),
+  };
+}
+```
+
+### TelegramMediaExtractorService (Phase 5.2)
+
+**File:** `apps/ingestion-telegram/src/telegram/shared/application/services/telegram-media-extractor.service.ts`
+
+**Extracted from adapter** to separate concerns and improve testability.
+
+**Responsibilities:**
+- Extract media metadata from Telegram messages
+- Download photos/videos via MTProto
+- Return `TelegramMediaAttachment[]` with file paths
+
+**Supported Media Types:**
+- `MessageMediaPhoto` → downloads as `.jpg`
+- `MessageMediaDocument` (video MIME) → downloads as `.mp4`/`.bin`
+- **NOT supported:** stickers, audio, generic documents
+
+```typescript
+export class TelegramMediaExtractorService {
+  async extractAndDownload(
+    client: TelegramClient,
+    peerId: string,
+    messageId: number,
+    media: Api.TypeMessageMedia
+  ): Promise<TelegramMediaAttachment[]> {
+    if (!media) return [];
+    
+    if (media instanceof Api.MessageMediaPhoto) {
+      return [await this.downloadPhoto(client, peerId, messageId, 0, media)];
+    }
+    
+    if (media instanceof Api.MessageMediaDocument) {
+      if (this.isVideoMime(media.document.mimeType)) {
+        return [await this.downloadVideoDocument(client, peerId, messageId, 0, media)];
+      }
+    }
+    
+    return [];
+  }
+  
+  private async downloadPhoto(/*...*/): Promise<TelegramMediaAttachment> {
+    const filePath = await this.downloader.download(client, peerId, messageId, index, media);
+    return {
+      type: 'photo',
+      index,
+      filePath, // uploads/crypto-news/media/{channelId}/{messageId}_{index}.jpg
+      mimeType: 'image/jpeg',
+      fileSize: /* stat */ 
+    };
+  }
+}
+```
+
+### TelegramClientManager
+
+**File:** `apps/ingestion-telegram/src/telegram/shared/infrastructure/services/telegram-client-manager.service.ts`
+
+**Singleton client lifecycle manager**
+
+```typescript
+export class TelegramClientManager {
+  private client: TelegramClient | null = null;
+  
+  ensureClient(): TelegramClient {
+    if (this.client) return this.client;
+    
+    const session = new StringSession(config.sessionString);
+    this.client = new TelegramClient(
+      session,
+      config.apiId,
+      config.apiHash,
+      {
+        connectionRetries: 5,
+        useWSS: config.mtprotoUseWss ?? false,
+      }
+    );
+    
+    return this.client;
+  }
+  
+  async connect(): Promise<void> {
+    const client = this.ensureClient();
+    await client.connect();
+    
+    const authorized = await client.isUserAuthorized();
+    if (!authorized) {
+      this.logger.warn('Session not authorized — listener will idle');
+    }
+  }
+}
+```
+
+**Critical:** Session string (`INGESTION_TELEGRAM_MTPROTO_SESSION`) must be generated ONCE and NEVER duplicated. Duplication causes `AUTH_KEY_DUPLICATED` error.
+
+### Anti-Ban Mechanisms
+
+**FloodWaitHandler** (`apps/ingestion-telegram/src/telegram/shared/infrastructure/services/flood-wait-handler.service.ts`)
+
+```typescript
+export class FloodWaitHandlerService {
+  async withRetry<T>(fn: () => Promise<T>, maxAttempts = 5): Promise<T> {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await fn();
+      } catch (err) {
+        if (this.isFloodWait(err)) {
+          const seconds = this.extractWaitSeconds(err);
+          this.logger.warn(`FLOOD_WAIT_${seconds} detected, pausing...`);
+          await this.sleep(seconds * 1000);
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw new Error('Max flood wait retries exceeded');
+  }
+}
+```
+
+**LastSeenManager** (Redis-backed cursor tracking)
+
+```typescript
+export class LastSeenManager {
+  private cursors = new Map<string, number>();
+  
+  async load(channelIds: string[]): Promise<void> {
+    for (const id of channelIds) {
+      const key = `ingestion:lastSeen:${this.normalize(id)}`;
+      const value = await this.redis.get(key);
+      if (value) {
+        this.cursors.set(id, parseInt(value, 10));
+      }
+    }
+  }
+  
+  set(channelId: string, messageId: number): void {
+    this.cursors.set(channelId, messageId);
+    const key = `ingestion:lastSeen:${this.normalize(channelId)}`;
+    void this.redis.set(key, messageId.toString());
+  }
+  
+  get(channelId: string): number {
+    return this.cursors.get(channelId) ?? -1; // -1 = fetch all history
+  }
+}
+```
+
+**IngestionSafetyConfig** (safety defaults, mostly decorative)
+
+```typescript
+export class IngestionSafetyConfig {
+  maxChannels = 100;
+  pollIntervalBaseMs = 30000; // NOT USED (hardcoded 30s in loop)
+  jitterPercent = 10; // NOT USED
+  sleepWindow = { startUtc: 4, endUtc: 8 }; // NOT USED
+  floodProtection = {
+    initialMs: 5000,
+    multiplier: 2,
+    maxMs: 3600000,
+    maxAttempts: 5,
+    threshold24h: 10 // NOT ENFORCED
+  };
+}
+```
+
+---
+
+## Database Schema Details
+
+### Ingestion-Telegram Tables (Verified from Entities)
+
+#### `crypto_news_sources`
+
+**File:** `apps/ingestion-telegram/src/telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity.ts`
+
+```sql
+CREATE TABLE crypto_news_sources (
+  channel_id VARCHAR(64) PRIMARY KEY,
+  handle VARCHAR(64) NULL,
+  title VARCHAR(256) NOT NULL,
+  is_active BOOLEAN DEFAULT false,
+  lifecycle_status VARCHAR(16) DEFAULT 'ACTIVE', -- 'ACTIVE' | 'INACTIVE'
+  added_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_crypto_news_sources_lifecycle_status 
+  ON crypto_news_sources(lifecycle_status);
+```
+
+**Fields:**
+- `channel_id`: Telegram channel ID (e.g., `-1001234567890`)
+- `handle`: Channel username without `@` (e.g., `cryptonews`)
+- `title`: Display name
+- `is_active`: Legacy flag (use `lifecycle_status` instead)
+- `lifecycle_status`: `'ACTIVE'` (monitored) or `'INACTIVE'` (paused)
+- `added_at`: Source registration timestamp
+- `updated_at`: Last modification timestamp
+
+#### `crypto_news_messages`
+
+**File:** `apps/ingestion-telegram/src/telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity.ts`
+
+```sql
+CREATE TABLE crypto_news_messages (
+  id UUID PRIMARY KEY,
+  channel_id VARCHAR(64) NOT NULL,
+  message_id INTEGER NOT NULL,
+  title VARCHAR(512) NULL,
+  content TEXT NOT NULL,
+  published_at TIMESTAMPTZ NOT NULL,
+  ingested_at TIMESTAMPTZ NOT NULL,
+  link_preview_url TEXT NULL,
+  link_preview_title TEXT NULL,
+  link_preview_description TEXT NULL,
+  link_preview_site_name VARCHAR(128) NULL,
+  message_entities TEXT NULL,
+  grouped_id VARCHAR(64) NULL,
+  UNIQUE(channel_id, message_id)
+);
+
+CREATE INDEX idx_crypto_news_messages_channel_id 
+  ON crypto_news_messages(channel_id);
+  
+CREATE INDEX idx_crypto_news_messages_ingested_at 
+  ON crypto_news_messages(ingested_at);
+  
+CREATE UNIQUE INDEX uq_crypto_news_messages_channel_message 
+  ON crypto_news_messages(channel_id, message_id);
+```
+
+**Fields:**
+- `id`: UUID primary key
+- `channel_id`: FK reference to source (NO FK constraint — opaque)
+- `message_id`: Telegram message ID (integer)
+- `title`: Extracted title (first line or link preview title)
+- `content`: **RAW message text** (NO filters applied)
+- `published_at`: Telegram message date
+- `ingested_at`: **Retention clock** (72h TTL from this timestamp)
+- `link_preview_*`: Rich embed metadata
+- `message_entities`: JSON string of Telegram entities
+- `grouped_id`: Media album grouping ID
+
+**Composite uniqueness:** `(channel_id, message_id)` prevents duplicate ingestion
+
+#### `crypto_news_message_media`
+
+**File:** `apps/ingestion-telegram/src/telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity.ts`
+
+```sql
+CREATE TABLE crypto_news_message_media (
+  id UUID PRIMARY KEY,
+  message_id UUID NOT NULL,
+  media_index SMALLINT NOT NULL,
+  type VARCHAR(16) DEFAULT 'photo', -- 'photo' | 'video' | 'webpage'
+  file_path TEXT NOT NULL,
+  mime_type VARCHAR(64) NULL,
+  file_size INTEGER NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT fk_crypto_news_message_media_message 
+    FOREIGN KEY (message_id) 
+    REFERENCES crypto_news_messages(id) 
+    ON DELETE CASCADE
+);
+
+CREATE INDEX idx_crypto_news_message_media_message_id 
+  ON crypto_news_message_media(message_id);
+```
+
+**Fields:**
+- `id`: UUID primary key
+- `message_id`: FK to `crypto_news_messages.id` with **CASCADE DELETE**
+- `media_index`: Zero-based position in photo album (0, 1, 2...)
+- `type`: Media discriminator (`'photo'`, `'video'`, `'webpage'`)
+- `file_path`: Absolute path on disk (e.g., `uploads/crypto-news/media/-100xxx/123_0.jpg`)
+- `mime_type`: Detected from magic bytes (can be `NULL` on failure)
+- `file_size`: Bytes (can be `NULL` on incomplete download)
+
+**Cascade behavior:** Deleting a message **automatically** deletes all its media rows
+
+---
+
+## Frontend Integration
+
+### API Consumption
+
+**File:** `apps/frontend/src/shared/api/endpoints.ts` (verified)
+
+```typescript
+// Frontend fetches crypto-news directly from ingestion-telegram
+export const CRYPTO_NEWS_API = {
+  // Ingestion-telegram endpoints (:3032 in prod)
+  sources: `${INGESTION_TELEGRAM_URL}/api/crypto-news/sources`,
+  messages: `${INGESTION_TELEGRAM_URL}/api/crypto-news/messages`,
+  media: (channelId: string, messageId: number, index: number) =>
+    `${INGESTION_TELEGRAM_URL}/api/media/${channelId}/${messageId}/${index}`,
+  
+  // Backend endpoints (filters, matching, publishing)
+  filters: `${API_BASE_URL}/crypto-news/filters`,
+  matching: `${API_BASE_URL}/crypto-news-integration/matching`,
+  queue: `${API_BASE_URL}/crypto-news-publisher/queue`,
+};
+```
+
+### Data Flow (Frontend)
+
+```
+Frontend Dashboard
+    ↓ TanStack Query
+GET ingestion:3032/api/crypto-news/messages?limit=50
+    ↓ Returns RAW messages (no filters)
+Display in UI
+    ↓ For each media attachment
+GET ingestion:3032/api/media/{channelId}/{messageId}/{index}
+    ↓ Serves from uploads/ with Cache-Control: max-age=31536000
+Browser caches media for 1 year
+```
+
+**Key Points:**
+- Frontend displays **RAW content** (no ContentFilterService applied)
+- Media served directly from ingestion-telegram (backend proxies only as fallback)
+- Backend matching/publishing configuration exposed via separate endpoints
+
+---
+
+## Configuration & Environment
+
+### Ingestion-Telegram Environment Variables
+
+**Critical MTProto credentials** (NEVER duplicate):
+
+```bash
+# MTProto session (SOLE COPY)
+INGESTION_TELEGRAM_MTPROTO_API_ID=12345678
+INGESTION_TELEGRAM_MTPROTO_API_HASH=abcdef1234567890
+INGESTION_TELEGRAM_MTPROTO_SESSION=1AgAOMS...base64...
+
+# Optional MTProto config
+INGESTION_TELEGRAM_MTPROTO_LOG_LEVEL=ERROR  # DEBUG | INFO | WARN | ERROR
+INGESTION_TELEGRAM_MTPROTO_USE_WSS=false
+INGESTION_TELEGRAM_MTPROTO_STARTUP_DELAY_MS=0
+
+# Database
+INGESTION_DATABASE_HOST=localhost
+INGESTION_DATABASE_PORT=5432
+INGESTION_DATABASE_NAME=alpha_meta_token_scanner_ingestion
+INGESTION_DATABASE_USER=postgres
+INGESTION_DATABASE_PASSWORD=postgres
+INGESTION_DATABASE_SYNCHRONIZE=false  # true in dev, false in staging/prod
+DATABASE_ENABLED=true
+
+# Redis (cursor tracking)
+INGESTION_REDIS_ENABLED=true
+INGESTION_REDIS_HOST=localhost
+INGESTION_REDIS_PORT=6379
+
+# Retention
+INGESTION_CRYPTO_NEWS_MEDIA_RETENTION_HOURS=72
+
+# API
+INGESTION_API_PORT=3031
+INGESTION_API_BASE_URL=http://localhost:3031
+
+# Backend integration
+BACKEND_PORT=3030
+```
+
+### Backend Environment Variables (Crypto-News)
+
+```bash
+# Ingestion-telegram connection
+INGESTION_TELEGRAM_URL=http://localhost:3031  # :3032 in prod droplet
+USE_SSE_INGESTION=true
+USE_SSE_CRYPTO_NEWS=true  # Enable SSE for crypto-news
+
+# Crypto-news polling (fallback)
+CRYPTO_NEWS_POLLING_INTERVAL_MINUTES=5  # When SSE enabled
+# Falls back to 1min when SSE disabled
+
+# Publishing
+CRYPTO_NEWS_BOT_TOKEN=<bot_token>
+CRYPTO_NEWS_OUTPUT_CHANNEL=<channel_id>
+
+# LLM (optional)
+USE_MOCK_AI=false
+LLM_API_URL=<llm_gateway_url>
+```
+
+---
+
+**Last updated:** 2026-09-20  
+**Status:** Code verified in `dev` branch  
+**Post-split:** Complete DB separation (2026-09-08)  
+**Enriched:** MTProto integration, database schema, frontend integration, configuration details
+
+
+---
+
+## Testing Considerations
+
+### Ingestion-Telegram Tests
+
+**Location:** `apps/ingestion-telegram/test/` and `apps/ingestion-telegram/src/**/*.spec.ts`
+
+**Coverage (Post-split 2026-09-08):**
+- 43 test suites
+- 815 tests total
+- All green in CI
+
+**Key Test Files:**
+
+| Component | Test File | Focus |
+|-----------|-----------|-------|
+| MTProto Listener | `telegram-mtproto-listener.adapter.spec.ts` | Message transformation, polling loop, flood wait |
+| Media Extractor | `telegram-media-extractor.service.spec.ts` | Photo/video download, file path generation |
+| Stream Service | `stream.service.spec.ts` | SSE broadcasting, heartbeat, client management |
+| Retention Scheduler | `crypto-news-retention-cleanup.scheduler.spec.ts` | 72h TTL, orphan cleanup |
+
+### Backend Tests
+
+**Location:** `apps/backend/test/` and `apps/backend/src/**/*.spec.ts`
+
+**Coverage (Post-split 2026-09-08):**
+- 170 test suites
+- 1969 tests total
+- All green in CI
+
+**Key Test Files:**
+
+| Component | Test File | Focus |
+|-----------|-----------|-------|
+| KOL Orchestrator | `kol-ingestion-orchestrator.use-case.spec.ts` | Fix-1 compliance, direct calls |
+| Process Crypto-News | `process-crypto-news-message.handler.spec.ts` | Deduplication, latency tracking |
+| Filtered Service | `filtered-crypto-news.service.spec.ts` | Filter + match pipeline |
+| Content Filter | `content-filter.service.spec.ts` | Regex transformations, ReDoS protection |
+| Keyword Matcher | `keyword-matcher.service.spec.ts` | Simple/AND-group logic, blacklist |
+| Publisher Queue | `enqueue-matching-message.use-case.spec.ts` | Cap 36, dedup |
+
+### E2E Tests
+
+**Backend E2E:** `apps/backend/test/*.e2e-spec.ts` (separate jest-e2e.json)
+
+**Ingestion-Telegram E2E:** `apps/ingestion-telegram/test/*.e2e-spec.ts`
+
+**Critical Scenarios:**
+- KOL message ingestion → SSE → backend routing → extraction → parsing
+- Crypto-news message ingestion → persist → SSE → filtering → matching → enqueue
+- 72h retention cleanup (media + messages + orphans)
+- SSE reconnection with exponential backoff
+- MTProto flood wait handling
+
+---
+
+## Recommendations for Refactor
+
+### Architectural Clarity
+
+1. **Document the dual-path explicitly** in code comments:
+   - SSE = primary, <10s target
+   - Polling = fallback, catches gaps
+   
+2. **Consolidate coordinator logic:**
+   - Backend has `IngestionCoordinator` (routing)
+   - Ingestion-telegram has `IngestionCoordinator` (persistence)
+   - Consider renaming one to avoid confusion (e.g., `IngestionPersistenceCoordinator`)
+
+3. **Formalize the 2-flag system:**
+   - Add validation: cannot enable `llmEnabled` without `publishingEnabled`
+   - Consider merging into single config if coupling is intentional
+
+### Code Quality
+
+1. **Remove Spanish comments:**
+   - Found: "Detecta mensaje", "Emite SSE"
+   - Replace with English equivalents
+
+2. **Type safety:**
+   - `channel_id` in backend tables is opaque (no FK) — document this explicitly
+   - `message_entities` is TEXT (JSON string) — consider JSONB for queries
+
+3. **Error handling:**
+   - SSE consumer swallows errors (defensive) — add metrics/alerts
+   - ContentFilterService timeout (100ms) — make configurable
+
+### Performance
+
+1. **SSE heartbeat interval:**
+   - Current: 30s (hardcoded)
+   - Consider: configurable via environment variable
+
+2. **Polling interval:**
+   - SSE mode: 5min (light)
+   - Non-SSE: 1min (heavy)
+   - Consider: adaptive polling based on message volume
+
+3. **Media cleanup:**
+   - Retention scheduler runs every hour
+   - Consider: daily cleanup + size-based triggers
+
+### Observability
+
+1. **Add metrics:**
+   - SSE connection count
+   - Latency histogram (ingestedAt → enqueued)
+   - Queue depth gauge
+   - Retention cleanup stats (deleted count, freed bytes)
+
+2. **Add alerts:**
+   - SSE disconnected for >5min
+   - Queue cap (36) reached
+   - Latency >10s for >10 consecutive messages
+   - Retention cleanup failures
+
+3. **Structured logging:**
+   - Add correlation IDs (message trace: ingestion → filter → enqueue → publish)
+   - Log sampling (reduce noise in high-volume scenarios)
+
+### Documentation
+
+1. **API Documentation:**
+   - OpenAPI/Swagger specs for ingestion-telegram HTTP endpoints
+   - Document SSE event schema with examples
+   - Add sequence diagrams for common flows
+
+2. **Configuration Reference:**
+   - Centralized `.env.example` with inline comments
+   - Document flag dependencies (llmEnabled requires publishingEnabled)
+   - Add troubleshooting guide (common errors + solutions)
+
+3. **Migration Guides:**
+   - How to add new crypto-news sources
+   - How to register new KOLs
+   - How to update keyword rules
+   - How to debug latency issues
+
+---
+
+**End of Document**

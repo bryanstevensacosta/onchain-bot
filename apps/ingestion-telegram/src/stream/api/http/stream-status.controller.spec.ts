@@ -1,13 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { StreamStatusController } from './stream-status.controller';
 import { SSEBroadcastService } from '../../application/services/sse-broadcast.service';
-import { BackendChannelProviderService } from '../../../core/services/backend-channel-provider.service';
+import { BackendRegistryService } from '../../application/services/backend-registry.service';
 import { BackfillBufferService } from '../../infrastructure/backfill-buffer.service';
 
 describe('StreamStatusController', () => {
   let controller: StreamStatusController;
   let mockSSEBroadcast: Partial<SSEBroadcastService>;
-  let mockChannelProvider: Partial<BackendChannelProviderService>;
+  let mockChannelProvider: Partial<BackendRegistryService>;
   let mockBackfillBuffer: Partial<BackfillBufferService>;
 
   beforeEach(async () => {
@@ -33,7 +33,7 @@ describe('StreamStatusController', () => {
       providers: [
         { provide: SSEBroadcastService, useValue: mockSSEBroadcast },
         {
-          provide: BackendChannelProviderService,
+          provide: BackendRegistryService,
           useValue: mockChannelProvider,
         },
         { provide: BackfillBufferService, useValue: mockBackfillBuffer },
@@ -65,7 +65,7 @@ describe('StreamStatusController', () => {
       expect(mockSSEBroadcast.getActiveBackendCount).toHaveBeenCalled();
     });
 
-    it('should call BackendChannelProviderService methods', () => {
+    it('should call BackendRegistryService methods', () => {
       controller.getStatus();
       expect(mockChannelProvider.getChannelUnionSize).toHaveBeenCalled();
       expect(mockChannelProvider.getRegisteredBackendIds).toHaveBeenCalled();

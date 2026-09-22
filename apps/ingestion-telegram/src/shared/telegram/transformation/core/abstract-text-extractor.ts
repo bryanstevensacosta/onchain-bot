@@ -3,7 +3,7 @@
  * 
  * Defines the contract for extracting text from raw Telegram messages.
  * Subclasses implement different strategies:
- * - KolTextExtractor: Returns empty string (ToS compliance)
+ * - KolTextExtractor: 4-source cascade (Q1-B amended — see adr-kol-raw-text.md)
  * - CryptoNewsTextExtractor: 4-source cascade (message → text → caption → fwdFrom)
  * 
  * @abstract

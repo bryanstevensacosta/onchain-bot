@@ -18,7 +18,7 @@ import {
 } from '@nestjs/swagger';
 import { StreamService } from '../../application/services/stream.service';
 import { SSEBroadcastService } from '../../application/services/sse-broadcast.service';
-import { BackendChannelProviderService } from '../../../core/services/backend-channel-provider.service';
+import { BackendRegistryService } from '../../application/services/backend-registry.service';
 import { BackfillBufferService } from '../../infrastructure/backfill-buffer.service';
 
 /**
@@ -61,7 +61,7 @@ export class SSEStreamController {
   constructor(
     private readonly streamService: StreamService,
     private readonly sseBroadcast: SSEBroadcastService,
-    private readonly channelProvider: BackendChannelProviderService,
+    private readonly channelProvider: BackendRegistryService,
     private readonly backfillBuffer: BackfillBufferService,
   ) {}
 

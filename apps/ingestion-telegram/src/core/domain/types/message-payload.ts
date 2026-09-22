@@ -1,9 +1,10 @@
 /**
  * MessagePayload - SSE event payload for Telegram messages
  *
- * Per Invariant 1 (fix-1, ToS compliance):
- * - Raw Telegram text content is EXCLUDED from this payload
- * - Backend clients must fetch full message via backfill API if needed
+ * Per ADR docs/architecture/adr-kol-raw-text.md (Q1-B amendment):
+ * - Raw Telegram text IS carried in `text` for BOTH types (kol + crypto-news)
+ * - Backend-internal ToS boundary UNCHANGED: `KolMessageIngestedEvent`
+ *   (`telegram.message.ingested`) still carries NO text (fix-1 holds)
  *
  * Per Invariant 5:
  * - Media URLs are path-based for debuggability: /api/media/:channelId/:messageId/:index
@@ -36,8 +37,9 @@ export interface EntityPayload {
 /**
  * Complete message payload for SSE broadcast
  *
- * Per Invariant 1 (modified): text field EXCLUDED for KOL (extraction pipeline), INCLUDED for crypto-news (opaque content)
- * Backend clients receive metadata only for KOL and can fetch full content separately via extraction pipeline
+ * Per ADR adr-kol-raw-text.md (Q1-B): text carried for BOTH types.
+ * Backend clients receive full text + metadata; the backend-internal event
+ * bus still excludes raw text (fix-1).
  */
 export interface MessagePayload {
   /** Telegram channel identifier (e.g., "-1001234567890" or "@channelname") */
@@ -50,9 +52,9 @@ export interface MessagePayload {
   occurredAt: string;
 
   /**
-   * Raw message text content (ONLY for crypto-news, undefined for KOL)
-   * - KOL: omitted (extraction pipeline fetches from Telegram)
-   * - Crypto-news: included (content stored as-is, no extraction)
+   * Raw message text content (BOTH types, Q1-B — missing → '').
+   * - KOL: alpha-call text, persisted RAW (type='kol') + carried here
+   * - Crypto-news: opaque content, stored as-is
    */
   text?: string;
 

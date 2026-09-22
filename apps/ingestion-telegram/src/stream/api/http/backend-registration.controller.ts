@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { RegisterBackendDto } from './dto/register-backend.dto';
 import type { RegisterBackendResponse } from './dto/register-backend.dto';
-import { BackendChannelProviderService } from '../../../core/services/backend-channel-provider.service';
+import { BackendRegistryService } from '../../application/services/backend-registry.service';
 
 /**
  * BackendRegistrationController - Handles backend registration with source whitelists
@@ -28,14 +28,14 @@ export class BackendRegistrationController {
   private readonly logger = new Logger(BackendRegistrationController.name);
 
   constructor(
-    private readonly channelProvider: BackendChannelProviderService,
+    private readonly channelProvider: BackendRegistryService,
   ) {}
 
   /**
    * Register a backend with its source whitelist
    *
    * Per Requirement 1.1: Accept backendId and sourceWhitelist via HTTP POST
-   * Per Requirement 1.2: Store registration in BackendChannelProviderService
+   * Per Requirement 1.2: Store registration in BackendRegistryService
    * Per Requirement 1.3: Return computed Channel_Union size
    *
    * Validates:

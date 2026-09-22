@@ -112,9 +112,9 @@ describe('TelegramSseListenerAdapter', () => {
     it('should yield TelegramRawMessage objects from SSE stream', async () => {
       const channelIds = ['-1001234567890'];
 
-      // Mock SSE response body
+      // Mock SSE response body (Q1-B shape: KOL frames carry text)
       const ssePayload = `event: message:telegram
-data: {"peerId":"-1001234567890","messageId":12345,"occurredAt":"2026-08-30T00:01:00Z","media":[{"type":"photo","index":0,"url":"http://localhost:3031/api/media/-1001234567890/12345/0","mimeType":"image/jpeg","fileSize":245678}],"entities":[],"messageType":"kol"}
+data: {"peerId":"-1001234567890","messageId":12345,"occurredAt":"2026-08-30T00:01:00Z","text":"KOL alpha call $SOL breaking out","media":[{"type":"photo","index":0,"url":"http://localhost:3031/api/media/-1001234567890/12345/0","mimeType":"image/jpeg","fileSize":245678}],"entities":[],"messageType":"kol"}
 
 `;
 
@@ -142,7 +142,7 @@ data: {"peerId":"-1001234567890","messageId":12345,"occurredAt":"2026-08-30T00:0
       expect(messages[0]).toMatchObject({
         peerId: '-1001234567890',
         messageId: 12345,
-        text: '', // Per Invariant 1: text not in SSE payload
+        text: 'KOL alpha call $SOL breaking out', // Q1-B: KOL text carried in SSE
         media: [
           {
             type: 'photo',
@@ -361,6 +361,7 @@ data: {"peerId":"-1001234567890","messageId":12345,"occurredAt":"2026-08-30T00:0
         peerId: '-1001234567890',
         messageId: 12345,
         occurredAt: '2026-08-30T00:01:00Z',
+        text: 'KOL alpha call $SOL breaking out', // Q1-B: KOL frames carry text
         media: [
           {
             type: 'photo' as const,
@@ -395,7 +396,7 @@ data: {"peerId":"-1001234567890","messageId":12345,"occurredAt":"2026-08-30T00:0
       expect(result).toMatchObject({
         peerId: '-1001234567890',
         messageId: 12345,
-        text: '', // Per Invariant 1: text excluded
+        text: 'KOL alpha call $SOL breaking out', // Q1-B: text passes through
         entities: [
           {
             type: 'url',

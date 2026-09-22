@@ -206,11 +206,12 @@ describe('Full Message Flow (e2e)', () => {
       // Wait for connection:established event
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Inject test message (simulates MTProto ingestion)
+      // Inject test message (simulates MTProto ingestion, Q1-B shape with text)
       const testMessage = {
         peerId: '-1001234567890',
         messageId: 12345,
         occurredAt: new Date().toISOString(),
+        text: 'KOL alpha call $SOL breaking out',
         media: [
           {
             type: 'photo' as const,
@@ -265,8 +266,9 @@ describe('Full Message Flow (e2e)', () => {
       expect(messageEvent).toBeDefined();
       expect(messageEvent?.data).toEqual(testMessage);
 
-      // Per Invariant 1: Verify text field is NOT present
-      expect(messageEvent?.data).not.toHaveProperty('text');
+      // Per Q1-B (adr-kol-raw-text.md): text IS present on KOL frames
+      expect(messageEvent?.data).toHaveProperty('text');
+      expect(messageEvent?.data.text).toBe('KOL alpha call $SOL breaking out');
 
       // Per Invariant 5: Verify media URLs are path-based
       expect(messageEvent?.data.media[0].url).toContain('/api/media/');
@@ -515,13 +517,14 @@ describe('Full Message Flow (e2e)', () => {
       // Wait for connection
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Broadcast comprehensive message
+      // Broadcast comprehensive message (Q1-B shape: KOL frames carry text)
       streamService.broadcast({
         type: 'message:telegram',
         data: {
           peerId: '-1003333333333',
           messageId: 11111,
           occurredAt: new Date().toISOString(),
+          text: 'KOL alpha call with chart link https://solscan.io/token/abc',
           media: [
             {
               type: 'photo',
@@ -563,8 +566,10 @@ describe('Full Message Flow (e2e)', () => {
       expect(message).toHaveProperty('entities');
       expect(message).toHaveProperty('groupedId');
 
-      // Per Invariant 1: Verify text field absent
-      expect(message).not.toHaveProperty('text');
+      // Per Q1-B (adr-kol-raw-text.md): text present on KOL frames;
+      // backend-internal bus/WS still excludes it (fix-1, separate invariant).
+      expect(message).toHaveProperty('text');
+      expect(typeof message.text).toBe('string');
       expect(message).not.toHaveProperty('content');
       expect(message).not.toHaveProperty('rawText');
 

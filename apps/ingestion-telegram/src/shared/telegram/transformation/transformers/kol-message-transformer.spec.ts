@@ -33,7 +33,7 @@ describe('KolMessageTransformer', () => {
       expect(result).not.toBeNull();
       expect(result!.id).toBe(123);
       expect(result!.peerId).toBe('-1001234567890');
-      expect(result!.text).toBe(''); // ToS invariant
+      expect(result!.text).toBe('BUY $SOL NOW!'); // Q1-B: cascade extraction
       expect(result!.media).toHaveLength(1);
       expect(result!.media[0].type).toBe('photo');
       expect(result!.entities).toHaveLength(1);
@@ -42,16 +42,33 @@ describe('KolMessageTransformer', () => {
       expect(result!.occurredAt).toBeInstanceOf(Date);
     });
 
-    it('should enforce ToS invariant (text always empty)', () => {
-      const messages = [
-        { id: 1, peerId: '123', message: 'ALPHA CALL: $TOKEN' },
-        { id: 2, peerId: '123', text: 'Check this out' },
-        { id: 3, peerId: '123', message: 'BUY NOW', text: 'BACKUP' },
+    it('should extract text via 4-source cascade (Q1-B)', () => {
+      const cases: Array<{ raw: Record<string, unknown>; expected: string }> = [
+        {
+          raw: { id: 1, peerId: '123', message: 'ALPHA CALL: $TOKEN' },
+          expected: 'ALPHA CALL: $TOKEN',
+        },
+        {
+          raw: { id: 2, peerId: '123', text: 'Check this out' },
+          expected: 'Check this out',
+        },
+        {
+          raw: { id: 3, peerId: '123', message: 'BUY NOW', text: 'BACKUP' },
+          expected: 'BUY NOW',
+        },
+        {
+          raw: {
+            id: 4,
+            peerId: '123',
+            media: { caption: 'Caption text' },
+          },
+          expected: 'Caption text',
+        },
       ];
 
-      messages.forEach((raw) => {
+      cases.forEach(({ raw, expected }) => {
         const result = transformer.transform(raw);
-        expect(result?.text).toBe('');
+        expect(result?.text).toBe(expected);
       });
     });
 
@@ -145,7 +162,7 @@ describe('KolMessageTransformer', () => {
 
       const result = transformer.transform(raw);
 
-      expect(result!.text).toBe(''); // Still empty (ToS)
+      expect(result!.text).toBe('Text only'); // Q1-B: cascade extraction
       expect(result!.media).toEqual([]);
     });
 
