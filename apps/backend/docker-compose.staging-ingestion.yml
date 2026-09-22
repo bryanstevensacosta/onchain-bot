@@ -38,7 +38,7 @@ services:
       INGESTION_PORT: 3031 # Puerto interno del container
       REDIS_HOST: onchain-bot-redis-staging
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       # Topología fijada aquí (compose `environment:` gana a .env.staging):
       # los hostnames DNS deben seguir a los container_name del staging
       # compose (docker-compose.staging.yml). Sin esto, un .env.staging con
