@@ -13,7 +13,9 @@ on:
         required: false
         default: 'production'
         type: choice
-        options: [production, staging]
+        # Rollback targets (item 6): re-raise the last GOOD pinned tag
+        # (:prev prod / :staging-prev staging). Dispatch-only, never on push.
+        options: [production, staging, rollback-production, rollback-staging]
 
 concurrency:
   group: deploy-ingestion
@@ -344,3 +346,165 @@ jobs:
             docker push "$IMG:staging-prev"
             echo "pinned $IMG:staging-prev"
           done
+
+  # Item 6 — rollback lanes (per-env-ingestion). Manual dispatch ONLY, never on
+  # push. Single-flight: prod rollback shares the top-level `deploy-ingestion`
+  # group (serializes against prod deploys); staging rollback shares
+  # `deploy-ingestion-staging` (serializes against twin deploys). Same MTProto
+  # triple NEVER runs twice at once — two live containers with one session
+  # cause AUTH_KEY_DUPLICATED and log the session out. Discipline in every
+  # step: stop → verify stopped (gate) → start. `docker compose pull` is
+  # FORBIDDEN inside rollback (it would re-fetch the broken :latest).
+  rollback-production:
+    name: Rollback prod ingestion to :prev (:3032)
+    runs-on: [self-hosted, oracle]
+    if: github.event_name == 'workflow_dispatch' && inputs.target == 'rollback-production'
+    environment: production
+    concurrency:
+      group: deploy-ingestion
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fix ownership before operations (chown -R runner:runner)
+        run: |
+          echo "=== chown -R runner:runner /opt/onchain-bot ==="
+          sudo chown -R runner:runner /opt/onchain-bot || chown -R runner:runner /opt/onchain-bot || echo 'chown warning (non-fatal)'
+          echo "=== ownership fixed ==="
+
+      - name: Pull rollback target :prev (read-only, no retag yet)
+        run: |
+          set -euo pipefail
+          echo "ROLLBACK_T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/ingestion-rollback-t0
+          for IMG in \
+            ghcr.io/${{ github.repository }}-ingestion-telegram \
+            ghcr.io/${{ github.repository }}-ingestion; do
+            docker pull "$IMG:prev" || { echo "::error::no $IMG:prev pinned (item 2 pins on GOOD deploys only) — rollback inexecutable, deploy instead"; exit 1; }
+          done
+
+      - name: Stop prod ingestion (single-flight, --timeout 30)
+        run: |
+          set -euo pipefail
+          cd /opt/onchain-bot/apps/backend
+          docker compose -f docker-compose.ingestion.yml stop --timeout 30 ingestion-telegram
+          if docker ps --format '{{.Names}}' | grep -i ingestion; then
+            echo "::error::REFUSE: ingestion container still running — starting a second one would AUTH_KEY_DUPLICATED the session"
+            exit 1
+          fi
+          echo "OK: world empty — safe to start exactly one container"
+
+      - name: Recreate from :prev (no pull — local retag wins)
+        run: |
+          set -euo pipefail
+          IMG_BASE=ghcr.io/${{ github.repository }}-ingestion-telegram
+          docker tag "$IMG_BASE:prev" "$IMG_BASE:latest"
+          cd /opt/onchain-bot/apps/backend
+          docker compose -f docker-compose.ingestion.yml up -d --force-recreate
+
+      - name: Healthcheck gate (:3032) + downtime measured
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 12); do
+            if curl -sf --max-time 8 http://localhost:3032/api/health >/dev/null 2>&1; then
+              echo "healthy after ~$((i * 5))s"
+              break
+            fi
+            [ "$i" -eq 12 ] && { echo "::error::healthcheck failed after rollback — see runbook docs/deployment/ingestion-rollback.md (retry + escalate, never blind re-run)"; exit 1; }
+            sleep 5
+          done
+          curl -s http://localhost:3032/api/health | jq '.'
+          SSE_CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 \
+            -H 'Accept: text/event-stream' http://localhost:3032/api/ingestion/stream || true)"
+          [ "$SSE_CODE" = "200" ] || { echo "::error::SSE probe http=$SSE_CODE (want 200 post-T4 open stream)"; exit 1; }
+          echo "PASS: SSE stream headers 200"
+          if docker logs onchain-bot-ingestion-telegram --since 10m 2>/dev/null | grep -qi 'AUTH_KEY_DUPLICATED'; then
+            echo "::error::AUTH_KEY_DUPLICATED in logs — a second session is/was alive; recovery is interactive-only (runbook §AUTH_KEY_DUPLICATED)"
+            exit 1
+          fi
+          echo "ROLLBACK_T1=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/ingestion-rollback-t1
+          echo "downtime window: $(cat /tmp/ingestion-rollback-t0) → $(cat /tmp/ingestion-rollback-t1) (SSE clients reconnect 1s→30s backoff, expected seconds)"
+
+  rollback-staging:
+    name: Rollback staging twin to :staging-prev (:3033)
+    runs-on: [self-hosted, oracle]
+    if: github.event_name == 'workflow_dispatch' && inputs.target == 'rollback-staging'
+    environment: staging
+    concurrency:
+      group: deploy-ingestion-staging
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fix ownership before operations (chown -R runner:runner)
+        run: |
+          echo "=== chown -R runner:runner /opt/onchain-bot-staging ==="
+          sudo chown -R runner:runner /opt/onchain-bot-staging || chown -R runner:runner /opt/onchain-bot-staging || echo 'chown warning (non-fatal)'
+          echo "=== ownership fixed ==="
+
+      - name: Pull rollback target :staging-prev (read-only, no retag yet)
+        run: |
+          set -euo pipefail
+          echo "ROLLBACK_T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/ingestion-rollback-staging-t0
+          ENVF=/opt/onchain-bot-staging/apps/ingestion-telegram/.env.staging
+          [ -f "$ENVF" ] || { echo "::error::staging ENVF missing: $ENVF"; exit 1; }
+          for IMG in \
+            ghcr.io/${{ github.repository }}-ingestion-telegram \
+            ghcr.io/${{ github.repository }}-ingestion; do
+            docker pull "$IMG:staging-prev" || { echo "::error::no $IMG:staging-prev pinned — rollback inexecutable, deploy staging instead"; exit 1; }
+          done
+
+      - name: Stop staging twin (single-flight, --timeout 30)
+        run: |
+          set -euo pipefail
+          cd /opt/onchain-bot-staging/apps/backend
+          docker compose -f docker-compose.staging-ingestion.yml stop --timeout 30 ingestion-telegram-staging
+          if docker ps --format '{{.Names}}' | grep -i ingestion-telegram-staging; then
+            echo "::error::REFUSE: twin still running — starting a second one would AUTH_KEY_DUPLICATED the staging triple"
+            exit 1
+          fi
+          echo "OK: twin stopped — safe to start exactly one container"
+
+      - name: Recreate twin from :staging-prev (no pull — local retag wins)
+        run: |
+          set -euo pipefail
+          IMG_BASE=ghcr.io/${{ github.repository }}-ingestion-telegram
+          docker tag "$IMG_BASE:staging-prev" "$IMG_BASE:latest"
+          cd /opt/onchain-bot-staging/apps/backend
+          docker compose -f docker-compose.staging-ingestion.yml up -d --force-recreate
+
+      - name: Healthcheck gate (:3033) + downtime measured
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 12); do
+            if curl -sf --max-time 8 http://localhost:3033/api/health >/dev/null 2>&1; then
+              echo "twin healthy after ~$((i * 5))s"
+              break
+            fi
+            [ "$i" -eq 12 ] && { echo "::error::twin healthcheck failed after rollback — see runbook docs/deployment/ingestion-rollback.md (retry + escalate, never blind re-run)"; exit 1; }
+            sleep 5
+          done
+          curl -s http://localhost:3033/api/health | jq '.'
+          SSE_CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 \
+            -H 'Accept: text/event-stream' http://localhost:3033/api/ingestion/stream || true)"
+          [ "$SSE_CODE" = "200" ] || { echo "::error::twin SSE probe http=$SSE_CODE (want 200 post-T4 open stream)"; exit 1; }
+          echo "PASS: twin SSE stream headers 200"
+          if docker logs onchain-bot-ingestion-telegram-staging --since 10m 2>/dev/null | grep -qi 'AUTH_KEY_DUPLICATED'; then
+            echo "::error::AUTH_KEY_DUPLICATED in twin logs — recovery is interactive-only (runbook §AUTH_KEY_DUPLICATED)"
+            exit 1
+          fi
+          echo "ROLLBACK_T1=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/ingestion-rollback-staging-t1
+          echo "downtime window: $(cat /tmp/ingestion-rollback-staging-t0) → $(cat /tmp/ingestion-rollback-staging-t1) (SSE clients reconnect 1s→30s backoff, expected seconds)"
