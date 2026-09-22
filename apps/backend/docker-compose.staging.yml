@@ -1,4 +1,4 @@
-# Staging environment - uses centralized ingestion-telegram
+# Staging environment - per-env ingestion twin (plan per-env-ingestion, T3)
 #
 # Project name EXPLÍCITO: sin `name:`, compose usa el basename del
 # directorio (`backend`), que COLISIONA con el proyecto del dev compose
@@ -6,20 +6,20 @@
 # recrea/destruye los contenedores del otro. Ver AGENTS.md.
 name: onchain-bot-staging
 #
-# ARCHITECTURE DECISION:
-# - ingestion-telegram is STANDALONE and runs on port 3032 (onchain-bot-ingestion-telegram container)
-# - Both staging AND production backends consume from the SAME ingestion-telegram service
-# - No separate staging ingestion service to avoid:
-#   1. MTProto session conflict (AUTH_KEY_DUPLICATED)
-#   2. Duplicate crypto-news sources across environments
-#   3. Resource waste running multiple identical ingestion instances
+# ARCHITECTURE (per-env-ingestion T1+T3 — T7 owns the full invariant rewrite):
+# - staging backend consumes the STAGING TWIN
+#   (docker-compose.staging-ingestion.yml, project onchain-bot-staging-ingestion,
+#   host 127.0.0.1:3033 → container :3031, DNS onchain-bot-ingestion-telegram-staging)
+# - production backend keeps the SINGLETON (docker-compose.ingestion.yml holds its DNS)
+# - Twin MUST join onchain-bot-staging-net (this file's default net) or the
+#   backend/frontend containers cannot resolve the twin DNS name.
 #
-# Backend connects via: INGESTION_TELEGRAM_URL=http://onchain-bot-ingestion-telegram:3031
+# Backend connects via: INGESTION_TELEGRAM_URL=http://onchain-bot-ingestion-telegram-staging:3031
 # (canonical var, T10: legacy INGESTION_SERVICE_URL fallback removed.
 #  Pinned in backend `environment:` below; compose `environment:` wins over
 #  .env.staging; dev/localhost is untouched).
-# BOOT ORDER: start docker-compose.ingestion.yml FIRST — the ingestion compose
-# owns both external nets (onchain-bot-net + onchain-bot-staging-net).
+# BOOT ORDER: start docker-compose.staging-ingestion.yml FIRST — the twin compose
+# owns the staging twin on onchain-bot-staging-net.
 #
 services:
   postgres:
@@ -88,12 +88,14 @@ services:
       REDIS_PORT: 6379
       REDIS_ENABLED: true
       # Ingestion mode - compose `environment:` wins over .env.staging
-      # (dev/localhost untouched). Boot ingestion compose first: it owns both
-      # external nets. DNS follows the rename: onchain-bot-ingestion-telegram.
+      # (dev/localhost untouched). Boot staging-ingestion compose first: the twin
+      # must join onchain-bot-staging-net for this DNS to resolve.
       # INGESTION_TELEGRAM_URL is the canonical var (T10: legacy fallback removed).
+      # STAGING TWIN (T3 per-env-ingestion): staging reads the twin, NOT the singleton.
+      # Prod keeps the singleton URL (see docker-compose.ingestion.yml).
       USE_SSE_INGESTION: true
       USE_MOCK_INGESTION: false
-      INGESTION_TELEGRAM_URL: http://onchain-bot-ingestion-telegram:3031
+      INGESTION_TELEGRAM_URL: http://onchain-bot-ingestion-telegram-staging:3031
     ports:
       - '3031:3030'
     volumes:

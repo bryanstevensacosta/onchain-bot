@@ -22,8 +22,17 @@ RUN npm run build:frontend
 
 FROM nginx:1.27-alpine AS runtime
 
+# Re-declared: ARG lives in the build stage only; without this the runtime
+# stage sees an empty string and silently ships the PROD nginx.conf to staging.
+ARG VITE_APP_ENV=production
+
 COPY --from=build /repo/apps/frontend/dist /usr/share/nginx/html
 COPY apps/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY apps/frontend/nginx.staging.conf /etc/nginx/conf.d/nginx.staging.conf
+
+# Bare COPY cannot expand ARG in source — conditional via RUN-if + cp.
+# Prod default path unchanged (default.conf stays the singleton nginx.conf).
+RUN if [ "$VITE_APP_ENV" = "staging" ]; then cp /etc/nginx/conf.d/nginx.staging.conf /etc/nginx/conf.d/default.conf; fi
 
 EXPOSE 80
 

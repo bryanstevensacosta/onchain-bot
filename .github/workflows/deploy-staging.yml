@@ -411,7 +411,10 @@ jobs:
         env:
           SMOKE_BACKEND_URL: http://localhost:3031
           SMOKE_FRONTEND_URL: http://localhost:4173
-          SMOKE_INGESTION_URL: http://localhost:3032
+          # STAGING TWIN (per-env-ingestion T3): smoke probes the twin on :3033,
+          # NOT the singleton on :3032. Twin serves 200 with [] when empty
+          # (explicit-empty-OK); 0 messages after seeding + one poll window = FAIL.
+          SMOKE_INGESTION_URL: http://localhost:3033
         run: |
           set -euo pipefail
           echo "=== Post-deploy smoke (staging ports, read-only probes) ==="
