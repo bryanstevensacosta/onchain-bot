@@ -35,8 +35,11 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
-// Same regex as the publisher path reconstruction — do not diverge.
-const MEDIA_PATH_RE = /crypto-news\/media\/([^/]+)\/(\d+)_(\d+)/;
+// Dual-match regex (transition): classifies BOTH the legacy
+// `crypto-news/media/...` layout and the new `feed/media/...` layout so
+// old + new files both verify during the move window. Same shape as the
+// publisher path reconstruction — do not diverge.
+const MEDIA_PATH_RE = /(?:crypto-news|feed)\/media\/([^/]+)\/(\d+)_(\d+)/;
 
 const args = process.argv.slice(2);
 function argValue(name) {

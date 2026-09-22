@@ -2,8 +2,10 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SharedModule } from '../core/shared.module';
 import { CryptoNewsMessageEntity } from 'feed/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
-import { CryptoNewsMessageMediaEntity } from 'feed/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
+import { TelegramFeedMessageEntity } from 'feed/infrastructure/persistence/typeorm/entities/telegram-feed-message.entity';
+import { TelegramFeedMessageMediaEntity } from 'feed/infrastructure/persistence/typeorm/entities/telegram-feed-message-media.entity';
 import { CryptoNewsMessageRepository } from 'feed/infrastructure/persistence/typeorm/repositories/crypto-news-message.repository';
+import { TelegramFeedMessageRepository } from 'feed/infrastructure/persistence/typeorm/repositories/telegram-feed-message.repository';
 import { CryptoNewsController } from 'feed/api/http/crypto-news.controller';
 import { RegisterNewsSourceUseCase } from 'registry/application/use-cases/register-news-source.use-case';
 import { CryptoNewsRetentionCleanupScheduler } from './infrastructure/scheduling/crypto-news-retention-cleanup.scheduler';
@@ -38,16 +40,18 @@ import { DiskMonitorService } from './infrastructure/scheduling/disk-monitor.ser
     SharedModule,
     TypeOrmModule.forFeature([
       CryptoNewsMessageEntity,
-      CryptoNewsMessageMediaEntity,
+      TelegramFeedMessageEntity,
+      TelegramFeedMessageMediaEntity,
     ]),
   ],
   controllers: [CryptoNewsController],
   providers: [
     CryptoNewsMessageRepository,
+    TelegramFeedMessageRepository,
     RegisterNewsSourceUseCase,
     DiskMonitorService,
     CryptoNewsRetentionCleanupScheduler,
   ],
-  exports: [CryptoNewsMessageRepository],
+  exports: [CryptoNewsMessageRepository, TelegramFeedMessageRepository],
 })
 export class RetentionModule {}

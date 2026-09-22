@@ -234,7 +234,7 @@ describe('StructuredLoggerService', () => {
       const channelId = '-1001234567890';
       const messageId = 12345;
       const index = 0;
-      const filePath = '/uploads/crypto-news/media/-1001234567890/12345_0.jpg';
+      const filePath = '/uploads/feed/media/-1001234567890/12345_0.jpg';
       const fileSize = 245678;
       const downloadDurationMs = 1500;
 

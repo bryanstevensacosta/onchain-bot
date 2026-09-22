@@ -7,31 +7,38 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { CryptoNewsMessageEntity } from './crypto-news-message.entity';
+import { TelegramFeedMessageEntity } from './telegram-feed-message.entity';
 
 /**
  * TypeORM persistence shape for the media attachments of an ingested
- * `CryptoNewsMessage`. One row per downloaded photo (typically 0..3 per
+ * feed message. One row per downloaded photo (typically 0..3 per
  * message). The on-disk file at `filePath` is the same path the API
- * endpoint will serve back to the dashboard in T7.
+ * endpoint serves back to consumers.
  *
- * Table: `crypto_news_message_media` — join table from
- * `crypto_news_messages.id` (UUID) with FK-level `ON DELETE CASCADE`
- * so deleting a message atomically removes its media rows in the DB.
+ * Table: `telegram_feed_message_media` — RENAMED from
+ * `crypto_news_message_media` (migration `FeedMessageMediaRename`,
+ * telegram-feed-unification item 4). Join table from the parent
+ * messages PK (UUID) with FK-level `ON DELETE CASCADE` so deleting a
+ * message atomically removes its media rows in the DB.
  *
  * Why `onDelete` lives on `@ManyToOne` (not `@JoinColumn`): TypeORM
  * 0.3.30's `JoinColumnOptions` type rejects `onDelete`; only the
  * relation decorator accepts it. `@ManyToOne`'s `onDelete` is what
  * produces `FOREIGN KEY ... ON DELETE CASCADE` in the synchronize DDL —
  * TypeORM-level `cascade: true` only handles INSERT/UPDATE propagation,
- * not FK-level DELETEs (the gap Momus flagged in G-7).
+ * not FK-level DELETEs.
  *
- * NOTE: this is NOT a domain object. The domain `CryptoNewsMedia` lives
- * at `telegram/ingestion/crypto-news/domain/value-objects/crypto-news-media.vo.ts`.
+ * On-disk layout (post item 4): `{UPLOADS_ROOT}/feed/media/{channelId}/`
+ * Pattern: `{messageId}_{index}.{ext}`. Serving resolves by
+ * `{messageId}_{index}.*` glob, NOT by the stored `file_path` — the
+ * janitor is the only reader of `file_path` (hence the prefix rewrite
+ * in the rename migration).
+ *
+ * NOTE: this is NOT a domain object.
  */
-@Entity({ name: 'crypto_news_message_media' })
-@Index('idx_crypto_news_message_media_message_id', ['messageId'])
-export class CryptoNewsMessageMediaEntity {
+@Entity({ name: 'telegram_feed_message_media' })
+@Index('idx_telegram_feed_message_media_message_id', ['messageId'])
+export class TelegramFeedMessageMediaEntity {
   @PrimaryGeneratedColumn('uuid', { name: 'id' })
   public id!: string;
 
@@ -42,16 +49,16 @@ export class CryptoNewsMessageMediaEntity {
    * `nullable: false` this yields `FOREIGN KEY ... REFERENCES ... ON
    * DELETE CASCADE` in the DDL.
    */
-  @ManyToOne(() => CryptoNewsMessageEntity, (m) => m.media, {
+  @ManyToOne(() => TelegramFeedMessageEntity, (m) => m.media, {
     onDelete: 'CASCADE',
     nullable: false,
   })
   @JoinColumn({
     name: 'message_id',
     referencedColumnName: 'id',
-    foreignKeyConstraintName: 'fk_crypto_news_message_media_message',
+    foreignKeyConstraintName: 'fk_telegram_feed_message_media_message',
   })
-  public message!: CryptoNewsMessageEntity;
+  public message!: TelegramFeedMessageEntity;
 
   /** Exposed as a property for query convenience (typed against the parent UUID PK). */
   @Column({ name: 'message_id', type: 'uuid' })
@@ -65,7 +72,7 @@ export class CryptoNewsMessageMediaEntity {
   @Column({ name: 'type', type: 'varchar', length: 16, default: 'photo' })
   public type!: 'photo' | 'video' | 'webpage';
 
-  /** Absolute or workspace-relative path on disk; served by the API in T7. */
+  /** Absolute or workspace-relative path on disk; served by the API. */
   @Column({ name: 'file_path', type: 'text' })
   public filePath!: string;
 

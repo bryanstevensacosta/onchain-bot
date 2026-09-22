@@ -40,7 +40,7 @@ import { CryptoNewsPathBuilder } from 'media/infrastructure/crypto-news-path-bui
  * Endpoint: GET /api/media/:channelId/:messageId/:index
  *
  * Media Storage Convention:
- * - Location: {UPLOADS_ROOT}/crypto-news/media/{channelId}/
+ * - Location: {UPLOADS_ROOT}/feed/media/{channelId}/
  * - Pattern: {messageId}_{index}.{ext}
  * - Extensions: .jpg, .png, .webp, .gif, .mp4, .webm
  *
@@ -64,7 +64,7 @@ export class MediaController extends BaseMediaHttpServer {
     const appConfig = this.config.get('app');
     const uploadsRoot =
       appConfig?.uploads?.root || path.join(process.cwd(), 'uploads');
-    const mediaRoot = path.join(uploadsRoot, 'crypto-news', 'media');
+    const mediaRoot = path.join(uploadsRoot, 'feed', 'media');
 
     this.fileSystem = new LocalFileSystemAdapter();
     this.pathBuilder = new CryptoNewsPathBuilder({
@@ -93,7 +93,7 @@ export class MediaController extends BaseMediaHttpServer {
    * @param response - Express response object
    */
   @Get(':channelId/:messageId/:index')
-  @ApiOperation({ summary: 'Serve a downloaded crypto-news media file' })
+  @ApiOperation({ summary: 'Serve a downloaded feed media file' })
   @ApiParam({ name: 'channelId', description: 'Telegram channel id' })
   @ApiParam({ name: 'messageId', description: 'Telegram message id' })
   @ApiParam({ name: 'index', description: 'Media attachment index (0-based)' })

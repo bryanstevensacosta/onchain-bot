@@ -12,8 +12,10 @@ import { HealthModule } from './health/health.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { CoreModule } from './core/core.module';
 import { CryptoNewsSourceEntity } from './registry/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
+import { TelegramFeedSourceEntity } from './registry/infrastructure/persistence/typeorm/entities/telegram-feed-source.entity';
 import { CryptoNewsMessageEntity } from './feed/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
-import { CryptoNewsMessageMediaEntity } from './feed/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
+import { TelegramFeedMessageEntity } from './feed/infrastructure/persistence/typeorm/entities/telegram-feed-message.entity';
+import { TelegramFeedMessageMediaEntity } from './feed/infrastructure/persistence/typeorm/entities/telegram-feed-message-media.entity';
 import { BackfillMessageEntity } from './stream/infrastructure/persistence/typeorm/backfill-message.entity';
 
 /**
@@ -78,8 +80,10 @@ import { BackfillMessageEntity } from './stream/infrastructure/persistence/typeo
           database: dbConfig?.database || 'onchain_bot',
           entities: [
             CryptoNewsSourceEntity,
+            TelegramFeedSourceEntity,
             CryptoNewsMessageEntity,
-            CryptoNewsMessageMediaEntity,
+            TelegramFeedMessageEntity,
+            TelegramFeedMessageMediaEntity,
             BackfillMessageEntity,
           ],
           synchronize,

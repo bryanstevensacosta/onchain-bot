@@ -59,7 +59,7 @@ describe('TelegramMediaExtractorService', () => {
       Object.setPrototypeOf(photoMedia, Api.MessageMediaPhoto.prototype);
 
       mockDownloader.download.mockResolvedValue({
-        filePath: '/uploads/crypto-news/media/channel/1_0.jpg',
+        filePath: '/uploads/feed/media/channel/1_0.jpg',
         mimeType: 'image/jpeg',
         fileSize: 12345,
       });
@@ -77,7 +77,7 @@ describe('TelegramMediaExtractorService', () => {
         index: 0,
         fileId: '123',
         accessHash: '456',
-        filePath: '/uploads/crypto-news/media/channel/1_0.jpg',
+        filePath: '/uploads/feed/media/channel/1_0.jpg',
         mimeType: 'image/jpeg',
         fileSize: 12345,
         dcId: 2,
@@ -107,7 +107,7 @@ describe('TelegramMediaExtractorService', () => {
       Object.setPrototypeOf(docMedia, Api.MessageMediaDocument.prototype);
 
       mockDownloader.download.mockResolvedValue({
-        filePath: '/uploads/crypto-news/media/channel/2_0.mp4',
+        filePath: '/uploads/feed/media/channel/2_0.mp4',
         mimeType: 'video/mp4',
         fileSize: 54321,
       });
@@ -125,7 +125,7 @@ describe('TelegramMediaExtractorService', () => {
         index: 0,
         fileId: '789',
         accessHash: '101112',
-        filePath: '/uploads/crypto-news/media/channel/2_0.mp4',
+        filePath: '/uploads/feed/media/channel/2_0.mp4',
         mimeType: 'video/mp4',
         fileSize: 54321,
         dcId: 4,

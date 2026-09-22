@@ -18,9 +18,13 @@ import { RedisService } from 'shared/common/cache/redis.service';
 import { IngestionSafetyConfig } from './infrastructure/config/ingestion-safety.config';
 import { CryptoNewsSourceEntity } from 'registry/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
 import { CryptoNewsMessageEntity } from 'feed/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
-import { CryptoNewsMessageMediaEntity } from 'feed/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
+import { TelegramFeedMessageEntity } from 'feed/infrastructure/persistence/typeorm/entities/telegram-feed-message.entity';
+import { TelegramFeedMessageMediaEntity } from 'feed/infrastructure/persistence/typeorm/entities/telegram-feed-message-media.entity';
 import { CryptoNewsSourceRepository } from 'registry/infrastructure/persistence/typeorm/repositories/crypto-news-source.repository';
+import { TelegramFeedSourceEntity } from 'registry/infrastructure/persistence/typeorm/entities/telegram-feed-source.entity';
+import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
 import { CryptoNewsMessageRepository } from 'feed/infrastructure/persistence/typeorm/repositories/crypto-news-message.repository';
+import { TelegramFeedMessageRepository } from 'feed/infrastructure/persistence/typeorm/repositories/telegram-feed-message.repository';
 import { CryptoNewsMessageTransformer } from 'shared/telegram/transformation';
 import { TelegramMediaExtractorService } from './application/services/telegram-media-extractor.service';
 
@@ -47,8 +51,10 @@ import { TelegramMediaExtractorService } from './application/services/telegram-m
     StreamModule, // For SSE broadcast only
     TypeOrmModule.forFeature([
       CryptoNewsSourceEntity,
+      TelegramFeedSourceEntity,
       CryptoNewsMessageEntity,
-      CryptoNewsMessageMediaEntity,
+      TelegramFeedMessageEntity,
+      TelegramFeedMessageMediaEntity,
     ]), // For crypto-news persistence
   ],
   providers: [
@@ -61,7 +67,9 @@ import { TelegramMediaExtractorService } from './application/services/telegram-m
 
     // Crypto-news DB repositories
     CryptoNewsSourceRepository,
+    TelegramFeedSourceRepository,
     CryptoNewsMessageRepository,
+    TelegramFeedMessageRepository,
 
     // MTProto layer
     TelegramClientManager,
@@ -101,7 +109,9 @@ import { TelegramMediaExtractorService } from './application/services/telegram-m
     IngestionSafetyConfig,
     BackendChannelProviderService,
     CryptoNewsSourceRepository, // Export for CryptoNewsModule
+    TelegramFeedSourceRepository, // Export for future feed modules
     CryptoNewsMessageRepository, // Export for CryptoNewsModule
+    TelegramFeedMessageRepository, // Export for feed readers (item 3)
     TelegramClientManager,
     TelegramListenerPort,
     CryptoNewsMessageTransformer, // Export transformer (Phase 5)

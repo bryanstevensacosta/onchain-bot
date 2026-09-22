@@ -16,7 +16,7 @@ import { StreamService } from 'stream/application/services/stream.service';
 import { DeduplicationService } from 'core/application/services/deduplication.service';
 import { LastSeenManager } from 'core/infrastructure/services/last-seen-manager.service';
 import { DisconnectionTracker } from 'stream/application/services/disconnection-tracker.service';
-import { CryptoNewsMessageRepository } from 'feed/infrastructure/persistence/typeorm/repositories/crypto-news-message.repository';
+import { TelegramFeedMessageRepository } from 'feed/infrastructure/persistence/typeorm/repositories/telegram-feed-message.repository';
 import type { MessagePayload } from './message-payload';
 
 /**
@@ -96,7 +96,7 @@ describe('MessagePayload Transformation', () => {
         { provide: LastSeenManager, useValue: mockLastSeenManager },
         { provide: ConfigService, useValue: mockConfigService },
         {
-          provide: CryptoNewsMessageRepository,
+          provide: TelegramFeedMessageRepository,
           useValue: {
             findByChannelAndMessageId: jest.fn().mockResolvedValue(null),
             save: jest.fn().mockResolvedValue({}),
@@ -280,7 +280,7 @@ describe('MessagePayload Transformation', () => {
           {
             type: 'photo',
             index: 0,
-            filePath: '/uploads/crypto-news/media/-1001234567890/12345-0.jpg',
+            filePath: '/uploads/feed/media/-1001234567890/12345-0.jpg',
             mimeType: 'image/jpeg',
             fileSize: 245678,
           },

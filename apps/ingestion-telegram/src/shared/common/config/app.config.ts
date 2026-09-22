@@ -392,7 +392,7 @@ export const appConfig = registerAs('app', () => {
   // Storage configuration (Requirement 6.2)
   const uploads = {
     root: process.env.INGESTION_UPLOADS_ROOT || './uploads',
-    mediaPath: 'crypto-news/media',
+    mediaPath: 'feed/media',
   };
 
   // Safety configuration (Requirement 11)

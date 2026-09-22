@@ -23,7 +23,7 @@ describe('TelegramModule - SSEBroadcast Wiring (Unit)', () => {
         message: 'Test message content',
         date: 1704067200, // Unix timestamp in seconds
       };
-      const mediaPath = '/uploads/crypto-news/media/-1001234567890/42_0.jpg';
+      const mediaPath = '/uploads/feed/media/-1001234567890/42_0.jpg';
 
       // Act
       const event = BroadcastEvent.fromTelegramMessage(
@@ -167,7 +167,7 @@ describe('TelegramModule - SSEBroadcast Wiring (Unit)', () => {
           {
             type: 'photo' as const,
             index: 0,
-            filePath: '/uploads/crypto-news/media/-1001234567890/100_0.jpg',
+            filePath: '/uploads/feed/media/-1001234567890/100_0.jpg',
             mimeType: 'image/jpeg',
             fileSize: 12345,
           },
@@ -196,7 +196,7 @@ describe('TelegramModule - SSEBroadcast Wiring (Unit)', () => {
           channelId: '-1001234567890',
           messageId: 100,
           content: 'Test message',
-          mediaPath: '/uploads/crypto-news/media/-1001234567890/100_0.jpg',
+          mediaPath: '/uploads/feed/media/-1001234567890/100_0.jpg',
         }),
       );
     });
@@ -270,7 +270,7 @@ describe('TelegramModule - SSEBroadcast Wiring (Unit)', () => {
           {
             type: 'photo' as const,
             index: 0,
-            filePath: '/uploads/crypto-news/media/channel/42_0.jpg',
+            filePath: '/uploads/feed/media/channel/42_0.jpg',
             mimeType: 'image/jpeg',
             fileSize: 12345,
           },
@@ -291,7 +291,7 @@ describe('TelegramModule - SSEBroadcast Wiring (Unit)', () => {
       const mediaPath3 = messageWithEmptyMedia.media?.[0]?.filePath;
 
       // Assert
-      expect(mediaPath1).toBe('/uploads/crypto-news/media/channel/42_0.jpg');
+      expect(mediaPath1).toBe('/uploads/feed/media/channel/42_0.jpg');
       expect(mediaPath2).toBeUndefined();
       expect(mediaPath3).toBeUndefined();
     });

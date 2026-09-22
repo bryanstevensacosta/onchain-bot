@@ -27,7 +27,7 @@ import { CryptoNewsPathBuilder } from 'media/infrastructure/crypto-news-path-bui
  *
  * Responsibilities:
  * - Download photos/videos from Telegram via MTProto
- * - Save to disk at uploads/crypto-news/media/:channelId/:messageId_:index.ext
+ * - Save to disk at uploads/feed/media/:channelId/:messageId_:index.ext
  * - Return absolute file path + MIME type + file size
  * - Handle FloodWait errors with exponential backoff (via override)
  */
@@ -42,7 +42,7 @@ export class MediaDownloaderService extends BaseTelegramMediaDownloader {
     // Initialize base class with file system adapter and path builder
     const appConfig = config.get('app');
     const uploadsRoot = appConfig?.uploads?.root || 'uploads';
-    const mediaRoot = path.join(uploadsRoot, 'crypto-news', 'media');
+    const mediaRoot = path.join(uploadsRoot, 'feed', 'media');
 
     const fileSystem = new LocalFileSystemAdapter();
     const pathBuilder = new CryptoNewsPathBuilder({
@@ -129,7 +129,7 @@ export class MediaDownloaderService extends BaseTelegramMediaDownloader {
   }
 
   /**
-   * Override to build crypto-news specific paths.
+   * Override to build feed specific paths.
    *
    * @param channelId - Channel ID
    * @param messageId - Message ID
