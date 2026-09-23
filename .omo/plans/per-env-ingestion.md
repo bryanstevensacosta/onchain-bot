@@ -171,10 +171,10 @@ Round 1 (momus APPROVE WITH CHANGES + metis pre-mortem TOP-3: triple-duplication
 
 > Runs in parallel after ALL todos. ALL must APPROVE. Surface results and wait for the user's explicit okay before declaring complete. NOTA: tras el item 9 la Final Wave se RE-EJECUTA (F1–F4 ya pasaron una vez pre-item-9; el re-run es obligatorio porque el 9 toca workflows).
 
-- [ ] F1. Plan compliance audit (re-run tras item 10)
-- [ ] F2. Code quality review (re-run tras item 10)
-- [ ] F3. Real manual QA (re-run tras item 10)
-- [ ] F4. Scope fidelity (re-run tras item 10)
+- [x] F1. Plan compliance audit (re-run tras item 10)
+- [x] F2. Code quality review (re-run tras item 10)
+- [x] F3. Real manual QA (re-run tras item 10)
+- [x] F4. Scope fidelity (re-run tras item 10)
 
 ## Wave 5 (bloqueante PR dev→master)
 
