@@ -442,6 +442,13 @@ The deduplication system verifies `PublisherQueueEntry` status to decide whether
 - `crypto_news_publisher_queue`: added `queued_at` column (timestamptz, DEFAULT NOW())
 - Index: `idx_publisher_queue_status_queued_at` (partial, optimized for TTL queries)
 
+**Semantic dedup at enqueue (2026-09-23, `telegram/crypto-news-publisher/`)**:
+
+- `EnqueueMatchingMessageUseCase` probes `DeduplicationService` (source `crypto-news-publisher`) in exact→content→semantic(+URL-overlap) cascade; `DEDUP_SEMANTIC_ARBITER_THRESHOLD` (default 0.7) untouched.
+- Hits persist BLOCKED with `duplicate_of_*` refs (reason + channel/message/entry); same-coords guard skips when `UNIQUE(channel_id, message_id)` already tracked. `@Optional()` injection — no-dedup wiring enqueues normally.
+- `ProcessNextQueuedArticleUseCase` stores the fingerprint via `markAsSeen()` on the publish path (raw + LLM modes converge there); store failure only warns, publish still succeeds.
+- Fail-open everywhere: store/model errors enqueue normally; model-down degrades to exact-match-only. Threads explicitly out of scope.
+
 ## TELEGRAM PUBLISHING (Bot API, NOT MTProto)
 
 - `telegram/vip-calls/`: `vip-channel` (publish flow: `tryReserve` RESERVED→`sendMessage`→`finalize`
