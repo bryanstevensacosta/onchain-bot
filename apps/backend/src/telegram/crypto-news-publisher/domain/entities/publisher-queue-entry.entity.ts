@@ -413,6 +413,35 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
   }
 
   /**
+   * Transition PENDING/SCHEDULED → BLOCKED. Records why this entry was
+   * blocked (dedup) plus the coordinates of the message/entry it
+   * duplicates; terminal — no further transitions allowed (see
+   * `isTerminal`).
+   */
+  public markBlocked(
+    reason: string,
+    refs?: {
+      channelId?: string | null;
+      messageId?: number | null;
+      entryId?: string | null;
+    },
+  ): void {
+    this.assertPublishTransition('markBlocked');
+    if (!reason?.trim()) {
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        'blocked reason cannot be empty',
+        { id: this.state.id },
+      );
+    }
+    this.state.status = 'BLOCKED';
+    this.state.blockedReason = reason;
+    this.state.duplicateOfChannelId = refs?.channelId ?? null;
+    this.state.duplicateOfMessageId = refs?.messageId ?? null;
+    this.state.duplicateOfEntryId = refs?.entryId ?? null;
+  }
+
+  /**
    * Increment the LLM/POST attempt counter. Allowed on PENDING and
    * SCHEDULED entries. The caller is expected to enforce a max-attempts
    * cap based on config.

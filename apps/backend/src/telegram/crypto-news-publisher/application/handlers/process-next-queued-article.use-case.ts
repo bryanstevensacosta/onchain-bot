@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from 'shared/common/config/app.config';
 import { resolveIngestionServiceUrl } from 'shared/common/config/app.config';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
+import { CRYPTO_NEWS_DEDUP_SOURCE } from 'telegram/crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
+import { DeduplicationService } from 'shared/deduplication/application/services/deduplication.service';
 import { SharedThrottleStateRepository } from 'telegram/shared/application/ports/shared-throttle-state.repository';
 import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 import { LlmConfig } from 'telegram/crypto-news-publisher/domain/entities/llm-config.entity';
@@ -73,6 +75,7 @@ export class ProcessNextQueuedArticleUseCase {
     private readonly mediaCleanup: MediaCleanupService,
     private readonly publisherConfig: CryptoNewsPublisherConfigService,
     @Optional() private readonly config?: ConfigService,
+    @Optional() private readonly dedupService?: DeduplicationService,
   ) {}
 
   /**
@@ -175,6 +178,7 @@ export class ProcessNextQueuedArticleUseCase {
         String(result.messageId),
         generatedData, // null when llmEnabled=false
       );
+      await this.storeFingerprint(entry);
       await this.throttleScheduler.setLastPublishAt(now);
       await this.slotArbitrator.recordPublish('news', now);
       await this.rotationStateRepo.incrementPostsSinceLastAd();
@@ -209,6 +213,32 @@ export class ProcessNextQueuedArticleUseCase {
         return;
       }
       await this.handlePublishFailure(entry, err, cfg);
+    }
+  }
+
+  /**
+   * Accumulate a fingerprint for future enqueue-time dedup checks.
+   * Runs on the publish path (raw AND llm modes — both converge here),
+   * best-effort: a store failure only warns, never breaks the publish.
+   */
+  private async storeFingerprint(entry: PublisherQueueEntry): Promise<void> {
+    if (!this.dedupService) {
+      return;
+    }
+    try {
+      await this.dedupService.markAsSeen(
+        CRYPTO_NEWS_DEDUP_SOURCE,
+        entry.channelId,
+        entry.messageId,
+        entry.rawContent,
+        undefined,
+        entry.id,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `dedup fingerprint store failed for entry ${entry.id} (publish succeeded): ` +
+          `${err instanceof Error ? err.message : 'unknown error'}`,
+      );
     }
   }
 
