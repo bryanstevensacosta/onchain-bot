@@ -190,7 +190,7 @@ describe('MessagePersistenceCoordinator - Broadcast Pipeline Deduplication (Inte
       expect(broadcastedMessages[0].messageId).toBe(200);
     });
 
-    it('should skip old messageIds below the cursor', async () => {
+    it('should skip exact re-delivery of already-routed messageIds (seen-cache)', async () => {
       const channelId = 'channel_003';
 
       // Process messages 1-5
@@ -283,7 +283,7 @@ describe('MessagePersistenceCoordinator - Broadcast Pipeline Deduplication (Inte
       expect(mockRedisStore.get(expectedKey)).toBe('3');
     });
 
-    it('should load cursor from Redis on initialization', async () => {
+    it('should load cursor from Redis on initialization (cursor no longer gates routing)', async () => {
       const channelId = 'channel_persist_2';
 
       // Simulate Redis having a persisted cursor
@@ -297,19 +297,72 @@ describe('MessagePersistenceCoordinator - Broadcast Pipeline Deduplication (Inte
       const loaded = lastSeenManager.get(channelId);
       expect(loaded).toBe(50);
 
-      // Old messages at/below cursor are skipped (dedup enforced in route)
+      // Cursor is informational only: first arrivals at/below it are routed
+      // (durable row-idempotency is the DB findByChannelAndMessageId gate)
       await coordinator.route(createMessage(channelId, 45), 'kol');
       await coordinator.route(createMessage(channelId, 50), 'kol');
-      expect(broadcastedMessages).toHaveLength(0);
+      expect(broadcastedMessages).toHaveLength(2);
 
       // New message should be broadcasted
       await coordinator.route(createMessage(channelId, 51), 'kol');
-      expect(broadcastedMessages).toHaveLength(1);
-      expect(broadcastedMessages[0].messageId).toBe(51);
+      expect(broadcastedMessages).toHaveLength(3);
+      expect(broadcastedMessages[2].messageId).toBe(51);
     });
 
-    it('should survive service restart - old messages skipped via cursor', async () => {
+    it('should route album pair photo-first: BOTH parts persist with correct content split', async () => {
+      const feedRepo = module.get<TelegramFeedMessageRepository>(
+        TelegramFeedMessageRepository,
+      );
+      const saveMock = feedRepo.save as jest.Mock;
+      saveMock.mockClear();
+
+      const channelId = 'channel_album_pair';
+
+      // Album: caption part id N (text, no media) + photo part id N+1 (media).
+      // Photo arrives first and advances the cursor; the caption must NOT be
+      // dropped as a "duplicate".
+      const photo = createMessage(channelId, 19827, {
+        text: '',
+        media: [
+          {
+            type: 'photo',
+            index: 0,
+            filePath: '/uploads/crypto-news/media/photo.jpg',
+            mimeType: 'image/jpeg',
+            fileSize: 12345,
+          },
+        ],
+      });
+      const caption = createMessage(channelId, 19826, {
+        text: 'Album caption text',
+        media: [],
+      });
+
+      await coordinator.route(photo, 'crypto-news');
+      await coordinator.route(caption, 'crypto-news');
+
+      expect(broadcastedMessages).toHaveLength(2);
+      expect(saveMock).toHaveBeenCalledTimes(2);
+
+      const savedPhoto = saveMock.mock.calls[0][0];
+      const savedCaption = saveMock.mock.calls[1][0];
+      expect(savedPhoto.messageId).toBe(19827);
+      expect(savedPhoto.media).toHaveLength(1);
+      expect(savedCaption.messageId).toBe(19826);
+      expect(savedCaption.content).toBe('Album caption text');
+      expect(savedCaption.media).toEqual([]);
+
+      // Cursor stays at the max (monotonic set) despite the late lower ID
+      expect(lastSeenManager.get(channelId)).toBe(19827);
+    });
+
+    it('should survive service restart - duplicate rows prevented by the DB gate, not the cursor', async () => {
       const channelId = 'channel_restart';
+      const feedRepo = module.get<TelegramFeedMessageRepository>(
+        TelegramFeedMessageRepository,
+      );
+      const saveMock = feedRepo.save as jest.Mock;
+      const findMock = feedRepo.findByChannelAndMessageId as jest.Mock;
 
       // === Phase 1: Initial service run ===
       // Process messages 1-10
@@ -328,6 +381,8 @@ describe('MessagePersistenceCoordinator - Broadcast Pipeline Deduplication (Inte
       // Clear in-memory state (simulate restart)
       deduplicationService.clearAll();
       broadcastedMessages.length = 0;
+      saveMock.mockClear();
+      findMock.mockClear();
 
       // === Phase 2: After service restart ===
       // Reload cursor from Redis
@@ -336,19 +391,29 @@ describe('MessagePersistenceCoordinator - Broadcast Pipeline Deduplication (Inte
 
       expect(highestSeen).toBe(10);
 
-      // Try to re-broadcast old messages 1-10 (all skipped - cursor is 10)
+      // The DB now holds rows 1-10: the durable findByChannelAndMessageId gate
+      // skips the second write for each re-delivered message.
+      findMock.mockImplementation((peerId: string, messageId: number) =>
+        Promise.resolve(
+          messageId >= 1 && messageId <= 10 ? { messageId } : null,
+        ),
+      );
+
       for (let i = 1; i <= 10; i++) {
         const message = createMessage(channelId, i);
         await coordinator.route(message, 'kol');
       }
 
-      // Should be 0 - all old messages skipped via cursor filtering
-      expect(broadcastedMessages).toHaveLength(0);
+      // No duplicate rows written despite the cursor no longer gating
+      expect(saveMock).not.toHaveBeenCalled();
 
-      // New message 11 should be broadcasted
+      // A genuinely new message still persists exactly once
+      findMock.mockResolvedValue(null);
       await coordinator.route(createMessage(channelId, 11), 'kol');
-      expect(broadcastedMessages).toHaveLength(1);
-      expect(broadcastedMessages[0].messageId).toBe(11);
+      expect(saveMock).toHaveBeenCalledTimes(1);
+      expect(
+        broadcastedMessages[broadcastedMessages.length - 1].messageId,
+      ).toBe(11);
     });
 
     it('should handle multiple channels after restart', async () => {
@@ -380,18 +445,19 @@ describe('MessagePersistenceCoordinator - Broadcast Pipeline Deduplication (Inte
       expect(lastSeenManager.get(channel1)).toBe(5);
       expect(lastSeenManager.get(channel2)).toBe(3);
 
-      // === Phase 3: Old messages are skipped (cursor enforced in route)
+      // === Phase 3: Old messages reach the DB gate (cursor no longer skips);
+      // with a warm cache only exact re-deliveries are skipped
       await coordinator.route(createMessage(channel1, 3), 'kol');
       await coordinator.route(createMessage(channel2, 2), 'crypto-news');
-      expect(broadcastedMessages).toHaveLength(0);
+      expect(broadcastedMessages).toHaveLength(2);
 
       // New messages should work
       await coordinator.route(createMessage(channel1, 6), 'kol');
       await coordinator.route(createMessage(channel2, 4), 'crypto-news');
-      expect(broadcastedMessages).toHaveLength(2);
+      expect(broadcastedMessages).toHaveLength(4);
     });
 
-    it('should update cursor tracking in route (cursor enforced)', async () => {
+    it('should update cursor tracking in route (monotonic: late lower IDs accepted, cursor stays at max)', async () => {
       const channelId = 'channel_cursor_update';
 
       // Process messages sequentially - route() sets the cursor itself
@@ -404,9 +470,11 @@ describe('MessagePersistenceCoordinator - Broadcast Pipeline Deduplication (Inte
       await coordinator.route(createMessage(channelId, 5), 'kol');
       expect(lastSeenManager.get(channelId)).toBe(5);
 
-      // Old message below cursor is skipped (dedup enforced in route)
+      // Late arrival below cursor is routed (cursor never rejects) but must
+      // NOT move the cursor backward
       await coordinator.route(createMessage(channelId, 3), 'kol');
-      expect(broadcastedMessages).toHaveLength(3); // Only the 3 new ones
+      expect(broadcastedMessages).toHaveLength(4);
+      expect(lastSeenManager.get(channelId)).toBe(5);
     });
   });
 
@@ -495,18 +563,21 @@ describe('MessagePersistenceCoordinator - Broadcast Pipeline Deduplication (Inte
       await coordinator.route(createMessage(channelId, 1), 'kol');
       expect(broadcastedMessages).toHaveLength(1);
 
-      // Negative messageId is below cursor → skipped
+      // Negative messageId was never seen: accepted on first arrival
+      // (cursor never rejects), exact re-delivery caught by cache
       await coordinator.route(createMessage(channelId, -1), 'kol');
-      expect(broadcastedMessages).toHaveLength(1);
+      expect(broadcastedMessages).toHaveLength(2);
+      await coordinator.route(createMessage(channelId, -1), 'kol');
+      expect(broadcastedMessages).toHaveLength(2);
 
       // Duplicate positive message is skipped via cache
       await coordinator.route(createMessage(channelId, 1), 'kol');
-      expect(broadcastedMessages).toHaveLength(1);
+      expect(broadcastedMessages).toHaveLength(2);
     });
   });
 
   describe('Message Ordering and Out-of-Order Arrivals', () => {
-    it('should skip stale out-of-order arrivals below the cursor', async () => {
+    it('should route late out-of-order arrivals below the cursor (album parts are not stale)', async () => {
       const channelId = 'channel_out_of_order';
 
       // Messages arrive out of order: 5, 3, 7
@@ -514,20 +585,21 @@ describe('MessagePersistenceCoordinator - Broadcast Pipeline Deduplication (Inte
       await coordinator.route(createMessage(channelId, 5), 'kol');
       expect(broadcastedMessages).toHaveLength(1);
 
-      // Message 3 arrives (older message, skipped — below cursor 5)
+      // Message 3 arrives late (below cursor 5) — routed, cursor stays at max
       await coordinator.route(createMessage(channelId, 3), 'kol');
-      expect(broadcastedMessages).toHaveLength(1);
+      expect(broadcastedMessages).toHaveLength(2);
+      expect(lastSeenManager.get(channelId)).toBe(5);
 
       // Message 7 arrives (newer message, should be broadcasted)
       await coordinator.route(createMessage(channelId, 7), 'kol');
-      expect(broadcastedMessages).toHaveLength(2);
+      expect(broadcastedMessages).toHaveLength(3);
 
       // Second 7 is skipped (cache hit)
       await coordinator.route(createMessage(channelId, 7), 'kol');
-      expect(broadcastedMessages).toHaveLength(2);
+      expect(broadcastedMessages).toHaveLength(3);
     });
 
-    it('should skip late arrivals below the cursor', async () => {
+    it('should skip exact re-delivery of a routed message via cache (warm-cache late arrival)', async () => {
       const channelId = 'channel_late_arrival';
 
       // Process messages 1-10
@@ -543,7 +615,7 @@ describe('MessagePersistenceCoordinator - Broadcast Pipeline Deduplication (Inte
       expect(broadcastedMessages).toHaveLength(10);
     });
 
-    it('should broadcast gap fills above the cursor, skip replays', async () => {
+    it('should broadcast gap fills below the cursor, skip exact replays via cache', async () => {
       const channelId = 'channel_gaps';
 
       // Messages arrive with gaps: 1, 5, 10
@@ -553,11 +625,17 @@ describe('MessagePersistenceCoordinator - Broadcast Pipeline Deduplication (Inte
 
       expect(broadcastedMessages).toHaveLength(3);
 
-      // Gap fills below cursor are skipped (cursor = 10)
+      // Gap fills below cursor are routed on first arrival (cursor never rejects)
       await coordinator.route(createMessage(channelId, 3), 'kol');
       await coordinator.route(createMessage(channelId, 7), 'kol');
 
-      expect(broadcastedMessages).toHaveLength(3);
+      expect(broadcastedMessages).toHaveLength(5);
+
+      // Exact replays of the gap fills are skipped via cache
+      await coordinator.route(createMessage(channelId, 3), 'kol');
+      await coordinator.route(createMessage(channelId, 7), 'kol');
+
+      expect(broadcastedMessages).toHaveLength(5);
     });
   });
 
@@ -754,7 +832,7 @@ describe('MessagePersistenceCoordinator - Broadcast Pipeline Deduplication (Inte
       expect(broadcastedMessages).toHaveLength(1);
     });
 
-    it('window semantics: message below cursor short-circuits BEFORE the DB read (item 9)', async () => {
+    it('below-cursor arrival reaches the DB read; only exact re-delivery short-circuits before it (item 9)', async () => {
       const feedRepo = module.get<TelegramFeedMessageRepository>(
         TelegramFeedMessageRepository,
       );
@@ -767,12 +845,21 @@ describe('MessagePersistenceCoordinator - Broadcast Pipeline Deduplication (Inte
       expect(saveMock).toHaveBeenCalledTimes(1);
       expect(findMock).toHaveBeenCalledTimes(1);
 
-      // id 49 <= cursor 50 → isDuplicate gate returns before persistFeedMessage
+      // id 49 <= cursor 50 → cursor no longer gates: first arrival reaches
+      // persistFeedMessage (DB read + write)
       await coordinator.route(createMessage('channel_window', 49), 'kol');
 
-      expect(saveMock).toHaveBeenCalledTimes(1);
-      expect(findMock).toHaveBeenCalledTimes(1);
-      expect(broadcastedMessages).toHaveLength(1);
+      expect(saveMock).toHaveBeenCalledTimes(2);
+      expect(findMock).toHaveBeenCalledTimes(2);
+      expect(broadcastedMessages).toHaveLength(2);
+
+      // Exact re-delivery of 49 → isDuplicate cache hit, short-circuits
+      // BEFORE persistFeedMessage (no extra DB read)
+      await coordinator.route(createMessage('channel_window', 49), 'kol');
+
+      expect(saveMock).toHaveBeenCalledTimes(2);
+      expect(findMock).toHaveBeenCalledTimes(2);
+      expect(broadcastedMessages).toHaveLength(2);
     });
 
     it('cache-full prune: coordinator routes fine with a pruned dedup cache, no crash (item 9)', async () => {

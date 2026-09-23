@@ -12,8 +12,15 @@ export class LastSeenManager {
     return this.lastSeenMessageId.get(peerId) ?? -1;
   }
 
+  // Monotonic: never move the cursor backward. Out-of-order album parts
+  // (lower IDs routed after a higher-ID sibling) must not rewind the
+  // polling minId — that rewind re-fetched old windows and, combined with
+  // cursor-reject dedup, silently dropped caption parts (data loss).
   set(peerId: string, id: number): void {
-    this.lastSeenMessageId.set(peerId, id);
+    const existing = this.lastSeenMessageId.get(peerId);
+    if (existing === undefined || id > existing) {
+      this.lastSeenMessageId.set(peerId, id);
+    }
   }
 
   size(): number {

@@ -54,7 +54,7 @@ describe('DeduplicationService - Integration Tests', () => {
     await module.close();
   });
 
-  describe('Duplicate Detection - Cursor Based (Invariant 3)', () => {
+  describe('Cursor Never Rejects (data-loss fix: cursor is informational only)', () => {
     it('should mark first message as not duplicate', () => {
       const channelId = 'channel_001';
       const messageId = 100;
@@ -65,17 +65,17 @@ describe('DeduplicationService - Integration Tests', () => {
       expect(isDupe).toBe(false);
     });
 
-    it('should detect duplicate when messageId <= highestSeen', () => {
+    it('should NOT reject when messageId <= highestSeen (cursor never rejects)', () => {
       const channelId = 'channel_001';
       const highestSeen = 100;
 
-      // Test messageId < highestSeen
+      // messageId < highestSeen — late out-of-order arrival, must be accepted
       const isDupe1 = service.isDuplicate(channelId, 50, highestSeen);
-      expect(isDupe1).toBe(true);
+      expect(isDupe1).toBe(false);
 
-      // Test messageId = highestSeen
+      // messageId = highestSeen — still accepted on first arrival (cache decides)
       const isDupe2 = service.isDuplicate(channelId, 100, highestSeen);
-      expect(isDupe2).toBe(true);
+      expect(isDupe2).toBe(false);
     });
 
     it('should NOT detect duplicate when messageId > highestSeen', () => {
@@ -86,6 +86,26 @@ describe('DeduplicationService - Integration Tests', () => {
 
       expect(isDupe).toBe(false);
     });
+
+    it('should accept late album first-part after a higher-ID sibling (caption 19826 after photo 19827)', () => {
+      const channelId = 'channel_album';
+      const highestSeen = 19827; // photo part already routed, cursor advanced
+
+      // Caption part arrives late — NOT a duplicate, must route + persist
+      expect(service.isDuplicate(channelId, 19826, highestSeen)).toBe(false);
+
+      // Exact re-delivery of the caption IS a duplicate (seen-cache hit)
+      expect(service.isDuplicate(channelId, 19826, highestSeen)).toBe(true);
+    });
+
+    it.each([-1, 0, 50, 100, 19827, Number.MAX_SAFE_INTEGER])(
+      'should never reject a fresh messageId regardless of cursor value (cursor=%p)',
+      (highestSeen) => {
+        const channelId = `channel_cursor_${highestSeen}`;
+
+        expect(service.isDuplicate(channelId, 19826, highestSeen)).toBe(false);
+      },
+    );
 
     it('should handle multiple channels independently', () => {
       const channel1 = 'channel_001';
@@ -103,7 +123,9 @@ describe('DeduplicationService - Integration Tests', () => {
       // New message 51 in channel 2 should not be duplicate
       expect(service.isDuplicate(channel2, 51, 50)).toBe(false);
 
-      // Old message 99 in channel 1 should be duplicate
+      // Old message 99 in channel 1: accepted on first arrival (cursor never
+      // rejects), duplicate only on exact re-delivery via cache
+      expect(service.isDuplicate(channel1, 99, 100)).toBe(false);
       expect(service.isDuplicate(channel1, 99, 100)).toBe(true);
     });
   });
@@ -183,9 +205,11 @@ describe('DeduplicationService - Integration Tests', () => {
       const loaded = lastSeenManager.get(channelId);
       expect(loaded).toBe(lastSeenId);
 
-      // Messages <= 500 should be duplicates
+      // Messages <= 500 are accepted on first arrival (cursor never rejects);
+      // exact re-delivery is caught by the seen-cache instead
+      expect(service.isDuplicate(channelId, 499, loaded)).toBe(false);
       expect(service.isDuplicate(channelId, 499, loaded)).toBe(true);
-      expect(service.isDuplicate(channelId, 500, loaded)).toBe(true);
+      expect(service.isDuplicate(channelId, 500, loaded)).toBe(false);
 
       // Messages > 500 should not be duplicates
       expect(service.isDuplicate(channelId, 501, loaded)).toBe(false);
@@ -212,7 +236,7 @@ describe('DeduplicationService - Integration Tests', () => {
       expect(mockRedisStore.get(expectedKey)).toBe(messageId.toString());
     });
 
-    it('should survive service restart - no re-broadcast of old messages', async () => {
+    it('should survive service restart - durable idempotency via DB gate, cache catches re-delivery', async () => {
       const channelId = 'channel_restart';
 
       // === Phase 1: Initial run ===
@@ -233,7 +257,14 @@ describe('DeduplicationService - Integration Tests', () => {
 
       expect(highestSeen).toBe(100);
 
-      // Old messages 1-100 should be detected as duplicates
+      // Cursor never rejects: old messages are accepted on first arrival
+      // (durable row-idempotency lives in the DB findByChannelAndMessageId
+      // gate in persistFeedMessage, not here)
+      for (let i = 1; i <= 100; i++) {
+        expect(service.isDuplicate(channelId, i, highestSeen)).toBe(false);
+      }
+
+      // Exact re-delivery of each is now caught by the seen-cache
       for (let i = 1; i <= 100; i++) {
         expect(service.isDuplicate(channelId, i, highestSeen)).toBe(true);
       }
@@ -342,7 +373,8 @@ describe('DeduplicationService - Integration Tests', () => {
       // messageId 0 with highestSeen -1 should not be duplicate
       expect(service.isDuplicate(channelId, 0, -1)).toBe(false);
 
-      // messageId 0 with highestSeen 0 should be duplicate
+      // messageId 0 with highestSeen 0: cursor never rejects — accepted on
+      // first arrival, duplicate only on exact re-delivery via cache
       expect(service.isDuplicate(channelId, 0, 0)).toBe(true);
     });
 
@@ -351,6 +383,7 @@ describe('DeduplicationService - Integration Tests', () => {
       const largeId = Number.MAX_SAFE_INTEGER;
 
       expect(service.isDuplicate(channelId, largeId, largeId - 1)).toBe(false);
+      // Cursor never rejects even when messageId equals the cursor
       expect(service.isDuplicate(channelId, largeId, largeId)).toBe(true);
     });
 
@@ -414,8 +447,8 @@ describe('DeduplicationService - Integration Tests', () => {
     });
   });
 
-  describe('Two-Tier Deduplication Strategy', () => {
-    it('should use cursor for most common case (sequential messages)', () => {
+  describe('Seen-Cache Deduplication Strategy (cursor is informational only)', () => {
+    it('should accept sequential messages and catch exact re-delivery via cache', () => {
       const channelId = 'channel_sequential';
 
       // Simulate normal sequential processing
@@ -424,7 +457,7 @@ describe('DeduplicationService - Integration Tests', () => {
         expect(isDupe).toBe(false);
       }
 
-      // All messages below 100 should be caught by cursor
+      // Re-delivery of 1-100 is caught by the seen-cache (cursor plays no role)
       for (let i = 1; i <= 100; i++) {
         const isDupe = service.isDuplicate(channelId, i, 100);
         expect(isDupe).toBe(true);
@@ -444,13 +477,16 @@ describe('DeduplicationService - Integration Tests', () => {
       expect(service.isDuplicate(channelId, 103, highestSeen)).toBe(true);
     });
 
-    it('should combine cursor + cache correctly', () => {
+    it('should combine first-arrival accept + cache re-delivery correctly', () => {
       const channelId = 'channel_combined';
 
       // Initial state: cursor at 50, cache empty
-      let highestSeen = 50;
+      const highestSeen = 50;
 
-      // Message 30 - caught by cursor
+      // Message 30 — below cursor but never seen: accepted (cursor never rejects)
+      expect(service.isDuplicate(channelId, 30, highestSeen)).toBe(false);
+
+      // Message 30 again — caught by cache
       expect(service.isDuplicate(channelId, 30, highestSeen)).toBe(true);
 
       // Message 51 - new, added to cache
@@ -459,11 +495,23 @@ describe('DeduplicationService - Integration Tests', () => {
       // Message 51 again - caught by cache
       expect(service.isDuplicate(channelId, 51, highestSeen)).toBe(true);
 
-      // Update cursor
-      highestSeen = 51;
+      // Message 51 with advanced cursor — still caught by cache
+      expect(service.isDuplicate(channelId, 51, 51)).toBe(true);
+    });
 
-      // Message 51 - now caught by cursor instead
-      expect(service.isDuplicate(channelId, 51, highestSeen)).toBe(true);
+    it('should keep the cursor monotonic in LastSeenManager (never moves backward)', () => {
+      const peerId = 'channel_monotonic';
+
+      lastSeenManager.set(peerId, 19827);
+      expect(lastSeenManager.get(peerId)).toBe(19827);
+
+      // Out-of-order album part processed after the cursor advanced
+      lastSeenManager.set(peerId, 19826);
+      expect(lastSeenManager.get(peerId)).toBe(19827);
+
+      // A genuinely newer message still advances the cursor
+      lastSeenManager.set(peerId, 19828);
+      expect(lastSeenManager.get(peerId)).toBe(19828);
     });
   });
 });
