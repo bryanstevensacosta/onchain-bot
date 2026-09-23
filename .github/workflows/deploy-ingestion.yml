@@ -2,7 +2,7 @@ name: Deploy Ingestion Service
 
 on:
   push:
-    branches: [master]
+    branches: [master, dev]
     paths:
       - 'apps/ingestion-telegram/**'
       - '.github/workflows/deploy-ingestion.yml'
@@ -68,9 +68,11 @@ jobs:
     name: Deploy to droplet
     runs-on: [self-hosted, oracle]
     needs: build-and-push
-    # Guard only: preserves prod behavior on master push; skips prod when a
-    # staging dispatch runs (item 2). Prod steps below are otherwise untouched.
-    if: github.event_name == 'push' || inputs.target == 'production'
+    # Guard only: prod fires on master push or production dispatch ONLY.
+    # Master-only ref guard is REQUIRED now that push.branches includes dev:
+    # without it the bare `push` leg would deploy prod on dev pushes.
+    # Staging dispatch runs skip prod (item 2). Prod steps otherwise untouched.
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && inputs.target == 'production')
     environment: production # Solo un entorno
     steps:
       - uses: actions/checkout@v4
@@ -173,14 +175,16 @@ jobs:
   # Item 2 — staging twin lane (per-env-ingestion). Mirror of prod above with:
   # env staging, staging net, host :3033, staging DB, :staging-prev pinning.
   # Runs on manual dispatch with target=staging OR auto-follows master push
-  # after prod lane succeeds (twin tracks prod code; skips when prod skipped/failed).
+  # after prod lane succeeds (twin tracks prod code; skips when prod skipped/failed)
+  # OR auto-follows dev push touching ingestion paths (twin tracks dev code like
+  # staging backend does; no prod gate — prod lane never runs on dev).
   # Requires (operator, item 1): docker-compose.staging-ingestion.yml +
   # /opt/onchain-bot-staging ENVF + GitHub environment 'staging'.
   deploy-staging:
     name: Deploy staging twin to droplet (:3033)
     runs-on: [self-hosted, oracle]
     needs: [build-and-push, deploy]
-    if: (github.event_name == 'workflow_dispatch' && inputs.target == 'staging') || (github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.deploy.result == 'success')
+    if: (github.event_name == 'workflow_dispatch' && inputs.target == 'staging') || (github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.deploy.result == 'success') || (github.event_name == 'push' && github.ref == 'refs/heads/dev')
     environment: staging # staging lane — pinned below, NEVER resolves prod env
     concurrency:
       group: deploy-ingestion-staging
