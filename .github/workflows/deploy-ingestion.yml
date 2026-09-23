@@ -108,6 +108,9 @@ jobs:
     runs-on: [self-hosted, oracle]
     timeout-minutes: 30
     needs: build-and-push
+    permissions:
+      contents: read
+      packages: write
     # Guard only: prod fires on master push or production dispatch ONLY.
     # Master-only ref guard is REQUIRED now that push.branches includes dev:
     # without it the bare `push` leg would deploy prod on dev pushes.
@@ -149,6 +152,9 @@ jobs:
               docker tag "$IMG:prev" "$IMG:prev-1"
               docker push "$IMG:prev-1"
             } || echo "no prior :prev for $IMG (first run) — skipping :prev-1 rotation"
+            # Build runs on the github-hosted daemon, deploy on self-hosted:
+            # the :sha image is never local — pull it (fallback :latest) first.
+            docker pull "$IMG:${{ github.sha }}" || docker pull "$IMG:latest"
             docker tag "$IMG:${{ github.sha }}" "$IMG:prev" || docker tag "$IMG:latest" "$IMG:prev"
             docker push "$IMG:prev"
             echo "pinned $IMG:prev"
