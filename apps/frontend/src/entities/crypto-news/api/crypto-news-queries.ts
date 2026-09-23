@@ -74,10 +74,12 @@ export interface UpdateFilterDto {
   isActive?: boolean;
 }
 
+export type FeedMessageType = 'kol' | 'crypto-news';
+
 export const cryptoNewsKeys = {
   all: ['crypto-news'] as const,
-  messages: (limit: number, channelId?: string) =>
-    [...cryptoNewsKeys.all, 'messages', { limit, channelId }] as const,
+  messages: (limit: number, channelId?: string, type?: FeedMessageType) =>
+    [...cryptoNewsKeys.all, 'messages', { limit, channelId, type }] as const,
   sources: () => [...cryptoNewsKeys.all, 'sources'] as const,
   filters: (channelId: string) =>
     [...cryptoNewsKeys.all, 'filters', channelId] as const,
@@ -86,10 +88,12 @@ export const cryptoNewsKeys = {
 export async function fetchCryptoNewsMessages(
   limit = 50,
   channelId?: string,
+  type?: FeedMessageType,
 ): Promise<ReadonlyArray<CryptoNewsMessage>> {
   const qs = new URLSearchParams();
   qs.set('limit', String(limit));
   if (channelId) qs.set('channelId', channelId);
+  if (type) qs.set('type', type);
 
   // New format: { timestamp, count, data: CryptoNewsMessage[] }
   // Extract the data array from the response wrapper

@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { TelegramFeedMessageEntity } from '../entities/telegram-feed-message.entity';
+import {
+  TelegramFeedMessageEntity,
+  type TelegramFeedMessageType,
+} from '../entities/telegram-feed-message.entity';
 
 /**
  * TypeORM repository for unified feed messages (`telegram_feed_messages`).
@@ -26,9 +29,17 @@ export class TelegramFeedMessageRepository {
   /**
    * Find recent feed messages, ordered by publishedAt DESC.
    * Used by the HTTP API endpoint for frontend display.
+   *
+   * The optional `type` discriminator filters at SQL level (WHERE clause),
+   * so the 200-cap (`take`) applies AFTER type filtering — a `kol`-heavy
+   * feed can no longer starve `crypto-news` reads. Omit for mixed (legacy).
    */
-  async findRecent(limit = 50): Promise<TelegramFeedMessageEntity[]> {
+  async findRecent(
+    limit = 50,
+    type?: TelegramFeedMessageType,
+  ): Promise<TelegramFeedMessageEntity[]> {
     return this.repo.find({
+      where: type ? { type } : undefined,
       order: { publishedAt: 'DESC' },
       take: limit,
       relations: ['media'],

@@ -13,6 +13,7 @@ export type {
   CryptoNewsSource,
   ContentFilter,
   CreateFilterDto,
+  FeedMessageType,
   UpdateFilterDto,
 } from './api/crypto-news-queries';
 export {

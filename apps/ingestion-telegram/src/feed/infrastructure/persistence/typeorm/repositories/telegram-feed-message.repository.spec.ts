@@ -129,17 +129,61 @@ describe('TelegramFeedMessageRepository (telegram_feed_messages roundtrip)', () 
 
   it('findRecent orders by publishedAt DESC with limit', async () => {
     await repo.save(
-      makeMessage('-1001', 1, { publishedAt: new Date('2026-09-21T09:00:00Z') }),
+      makeMessage('-1001', 1, {
+        publishedAt: new Date('2026-09-21T09:00:00Z'),
+      }),
     );
     await repo.save(
-      makeMessage('-1001', 2, { publishedAt: new Date('2026-09-21T11:00:00Z') }),
+      makeMessage('-1001', 2, {
+        publishedAt: new Date('2026-09-21T11:00:00Z'),
+      }),
     );
     await repo.save(
-      makeMessage('-1002', 3, { publishedAt: new Date('2026-09-21T10:00:00Z') }),
+      makeMessage('-1002', 3, {
+        publishedAt: new Date('2026-09-21T10:00:00Z'),
+      }),
     );
 
     const recent = await repo.findRecent(2);
     expect(recent.map((m) => m.messageId)).toEqual([2, 3]);
+  });
+
+  it('findRecent with type=kol returns only kol rows (SQL-level filter)', async () => {
+    await repo.save(makeMessage('-1001', 1, { type: 'kol' }));
+    await repo.save(makeMessage('-1001', 2, { type: 'crypto-news' }));
+    await repo.save(makeMessage('-1002', 3, { type: 'kol' }));
+
+    const rows = await repo.findRecent(10, 'kol');
+    expect(rows).toHaveLength(2);
+    expect(rows.every((m) => m.type === 'kol')).toBe(true);
+  });
+
+  it('findRecent with type=crypto-news returns only news rows', async () => {
+    await repo.save(makeMessage('-1001', 1, { type: 'kol' }));
+    await repo.save(makeMessage('-1001', 2, { type: 'crypto-news' }));
+    await repo.save(makeMessage('-1002', 3, { type: 'crypto-news' }));
+
+    const rows = await repo.findRecent(10, 'crypto-news');
+    expect(rows).toHaveLength(2);
+    expect(rows.every((m) => m.type === 'crypto-news')).toBe(true);
+  });
+
+  it('findRecent without type returns mixed (legacy behavior unchanged)', async () => {
+    await repo.save(makeMessage('-1001', 1, { type: 'kol' }));
+    await repo.save(makeMessage('-1001', 2, { type: 'crypto-news' }));
+
+    const rows = await repo.findRecent(10);
+    expect(rows).toHaveLength(2);
+  });
+
+  it('findRecent cap applies AFTER type filtering', async () => {
+    await repo.save(makeMessage('-1001', 1, { type: 'kol' }));
+    await repo.save(makeMessage('-1001', 2, { type: 'crypto-news' }));
+    await repo.save(makeMessage('-1002', 3, { type: 'crypto-news' }));
+
+    const rows = await repo.findRecent(1, 'crypto-news');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.type).toBe('crypto-news');
   });
 
   it('findByChannelId scopes to one channel ordered DESC', async () => {
@@ -193,8 +237,6 @@ describe('TelegramFeedMessageRepository (telegram_feed_messages roundtrip)', () 
 
     const found = await repo.findByChannelAndMessageId('-1001', 42);
     expect(found?.media).toHaveLength(1);
-    expect(found?.media[0]?.filePath).toBe(
-      'uploads/feed/media/-1001/42_0.jpg',
-    );
+    expect(found?.media[0]?.filePath).toBe('uploads/feed/media/-1001/42_0.jpg');
   });
 });

@@ -158,7 +158,7 @@ const labelCls = 'block text-xs uppercase text-slate-500 mb-1';
 export function PlaygroundForm(): React.ReactElement {
   const { data: templates, isLoading: templatesLoading } = useTemplates();
   const { data: models } = useLlmModels();
-  const samples = useCryptoNewsMessages(50);
+  const samples = useCryptoNewsMessages(50, undefined, 'crypto-news');
   const previewMut = usePreviewMutation();
   const createMut = useCreateTemplate();
   const updateMut = useUpdateTemplate();
