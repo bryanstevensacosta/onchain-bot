@@ -172,14 +172,15 @@ jobs:
 
   # Item 2 — staging twin lane (per-env-ingestion). Mirror of prod above with:
   # env staging, staging net, host :3033, staging DB, :staging-prev pinning.
-  # Runs ONLY on manual dispatch with target=staging; never on master push.
+  # Runs on manual dispatch with target=staging OR auto-follows master push
+  # after prod lane succeeds (twin tracks prod code; skips when prod skipped/failed).
   # Requires (operator, item 1): docker-compose.staging-ingestion.yml +
   # /opt/onchain-bot-staging ENVF + GitHub environment 'staging'.
   deploy-staging:
     name: Deploy staging twin to droplet (:3033)
     runs-on: [self-hosted, oracle]
-    needs: build-and-push
-    if: github.event_name == 'workflow_dispatch' && inputs.target == 'staging'
+    needs: [build-and-push, deploy]
+    if: (github.event_name == 'workflow_dispatch' && inputs.target == 'staging') || (github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.deploy.result == 'success')
     environment: staging # staging lane — pinned below, NEVER resolves prod env
     concurrency:
       group: deploy-ingestion-staging
