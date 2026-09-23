@@ -224,7 +224,15 @@ jobs:
     name: Deploy staging twin to Oracle (:3033)
     runs-on: [self-hosted, oracle]
     needs: [build-and-push, deploy]
-    if: (github.event_name == 'workflow_dispatch' && inputs.target == 'staging') || (github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.deploy.result == 'success') || (github.event_name == 'push' && github.ref == 'refs/heads/dev')
+    # SKIP-TOLERANT GATE (item 9b drill finding, run 35827181430): a skipped
+    # need auto-skips dependents UNLESS the if forces evaluation with a status
+    # check fn. On staging-dispatch AND on dev push the prod `deploy` need is
+    # SKIPPED by design — without always() this lane silently skipped (green
+    # run, twin untouched). always() forces evaluation; the build-success
+    # conjunct keeps the broken-build-does-not-deploy invariant (a failed
+    # build never reaches pull/migrate), and the master leg keeps its
+    # prod-green gate via needs.deploy.result.
+    if: always() && needs.build-and-push.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.target == 'staging') || (github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.deploy.result == 'success') || (github.event_name == 'push' && github.ref == 'refs/heads/dev'))
     environment: staging # staging lane — pinned below, NEVER resolves prod env
     timeout-minutes: 30
     concurrency:

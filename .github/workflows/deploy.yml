@@ -59,8 +59,9 @@ jobs:
   # PREFLIGHT (item 9a/9b/9f): resolves the effective SHA + whether this run
   # owns the deploy. Chain legs never re-trigger their upstream (no push, no
   # dispatch here — exit via outputs only), and bot-actor upstreams are
-  # excluded (anti-loop). Dispatch logs an explicit bypass-with-reason when it
-  # skips a gate instead of staying silent.
+  # excluded (anti-loop). Contract literal: conclusion==success (bash
+  # string-compare in Decide ownership below). Dispatch logs an explicit
+  # bypass-with-reason when it skips a gate instead of staying silent.
   preflight:
     name: Preflight (chain guard + context)
     runs-on: ubuntu-latest
@@ -109,7 +110,16 @@ jobs:
             # push: skip-when-chain-ran — if this push touched ingestion paths,
             # the ingestion workflow fired too and its chain leg redeploys us
             # after ingestion is green. Deploying on push as well = double.
-            if git diff --name-only HEAD~1 HEAD 2>/dev/null | grep -qE '^(apps/ingestion-telegram/|\.github/workflows/deploy-ingestion\.yml$)'; then
+            # Range is event.before..HEAD (not HEAD~1: multi-commit pushes
+            # would miss ingestion paths touched below the tip).
+            BASE="${{ github.event.before }}"
+            if [ -n "$BASE" ] && [ "$BASE" != "0000000000000000000000000000000000000000" ]; then
+              git fetch origin "$BASE" --depth=1 2>/dev/null || true
+              CHANGED="$(git diff --name-only "$BASE" HEAD 2>/dev/null || git diff --name-only HEAD~1 HEAD 2>/dev/null || true)"
+            else
+              CHANGED="$(git diff --name-only HEAD~1 HEAD 2>/dev/null || true)"
+            fi
+            if printf '%s' "$CHANGED" | grep -qE '^(apps/ingestion-telegram/|\.github/workflows/deploy-ingestion\.yml$)'; then
               NOTE="push SKIP: ingestion paths touched — chain owns this deploy (skip-when-chain-ran)"
             else
               RUN="true"
@@ -142,6 +152,11 @@ jobs:
     if: needs.preflight.outputs.run_deploy == 'true'
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Build the effective SHA (pinned upstream commit on chain runs),
+          # not default-branch HEAD — the image tag carries effective_sha,
+          # so the source must match the tag.
+          ref: ${{ needs.preflight.outputs.effective_sha }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -187,6 +202,10 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Same pin as the build job: compose files + scripts rsynced below
+          # must come from the deployed commit, not default-branch HEAD.
+          ref: ${{ needs.preflight.outputs.effective_sha }}
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -367,6 +386,9 @@ jobs:
           # enforced by SEQUENTIAL PRs (ingestion first, backend second), and
           # this gate aborts the backend deploy if ingestion is not serving —
           # even if the two workflows ever race on the same push to master.
+          # INTERPLAY with the item-9 chain (preflight above): chain ownership
+          # is the proof of order; this gate stays as a BACKSTOP (liveness,
+          # not version-match — it cannot tell WHICH ingestion sha serves).
           echo "=== Ordering gate: ingestion must serve feed sources ==="
           for i in $(seq 1 12); do
             if curl -sf http://localhost:3032/api/feed/sources > /tmp/ingestion-gate.json 2>&1; then
