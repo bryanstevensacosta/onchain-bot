@@ -51,7 +51,8 @@ Correctly scoped prefixes: `telegram-kol/identity`, `telegram-kol/reputation`, `
 **INGESTION-TELEGRAM — una instancia por env (per-env 2026-09-22)** (`/ingestion-api` same-origin → upstream por env):
 **Cada frontend consulta SU ingestion (nunca el de otro env).** Rutas feed-unification (las viejas `/api/crypto-news/*` dan 404):
 
-- `GET /ingestion-api/feed/messages?limit=50` — recent feed messages with media
+- `GET /ingestion-api/feed/messages?limit=50&type=kol|crypto-news` — recent feed messages with media (SQL-level `type` filter; 400 invalid; omitted = mixed legacy default)
+- Newsroom (`/crypto-news`) + prompt-playground pin `type=crypto-news`; threads wrapper untouched/mixed.
 - `GET /ingestion-api/feed/messages/channel/:channelId?limit=50` — messages by channel
 - `GET /ingestion-api/feed/sources` — all active feed sources
 - `GET /ingestion-api/feed/sources/active/ids?type=kol` — channel IDs only (kols page)
