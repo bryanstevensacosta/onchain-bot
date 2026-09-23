@@ -1,13 +1,18 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { TelegramRawMessage } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import { FilteredCryptoNewsService } from '../services/filtered-crypto-news.service';
 import { EnqueueMatchingMessageUseCase } from '../../../crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
 import { MatchingConfigRepository } from '../ports/matching-config.repository';
 import { PublisherQueueRepository } from '../../../crypto-news-publisher/application/ports/publisher-queue.repository';
+import { DeadLetterService } from '../services/dead-letter.service';
 import { isBlockingFailureReason } from 'shared/deduplication/domain/constants/blocking-failure-reasons';
 
 /**
  * ProcessCryptoNewsMessageHandler - Handle real-time SSE crypto-news events
+ *
+ * PRIMARY PATH: real-time SSE ingestion for crypto-news messages (<10s latency target).
+ * This handler processes one SSE event at a time; the polling scheduler is the
+ * FALLBACK PATH that catches gaps. See: docs/architecture/crypto-news-dual-path.md
  *
  * **Responsibilities:**
  * 1. Check matchingEnabled flag (skip if disabled)
@@ -51,6 +56,7 @@ export class ProcessCryptoNewsMessageHandler {
     private readonly enqueueUseCase: EnqueueMatchingMessageUseCase,
     private readonly matchingConfigRepo: MatchingConfigRepository,
     private readonly queueRepo: PublisherQueueRepository,
+    @Optional() private readonly deadLetters?: DeadLetterService,
   ) {}
 
   /**
@@ -169,6 +175,25 @@ export class ProcessCryptoNewsMessageHandler {
         error instanceof Error ? error.stack : undefined,
       );
       // Do NOT throw — prevents single bad message from crashing SSE stream
+      try {
+        await this.deadLetters?.capture({
+          channelId: raw.peerId,
+          messageId: raw.messageId,
+          failureReason: error instanceof Error ? error.message : String(error),
+          failedPayload: {
+            peerId: raw.peerId,
+            messageId: raw.messageId,
+            text: raw.text ?? null,
+            messageType: raw.messageType ?? null,
+            occurredAt:
+              raw.occurredAt instanceof Date
+                ? raw.occurredAt.toISOString()
+                : String(raw.occurredAt ?? ''),
+          },
+        });
+      } catch {
+        // Swallowed by design — a DLQ outage must never break the SSE stream.
+      }
     }
   }
 

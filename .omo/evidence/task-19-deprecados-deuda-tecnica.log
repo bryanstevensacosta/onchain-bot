@@ -1,0 +1,55 @@
+T19 deprecados-deuda-tecnica — Frontend build + smoke /crypto-news sin 404 muertos
+Fecha: 2026-09-20 | Rama: feat/cleanup-deprecados (3685f84, T18: vitest 29/330) | VPS: staging+prod corriendo, dev :3040 en tmux — sin arrancar/parar servicios, sin pkill -f
+Commit: N (verificación) | Sin tocar master
+
+=== 1. VITE BUILD PASS ===
+$ npm run build -w @alpha-meta-token-scanner/frontend
+  vite v5.4.21 building for production... 277 modules transformed
+  dist/index.html 0.45 kB | dist/assets/index-D7UQCZUl.css 30.59 kB | dist/assets/index-gtqvk9Av.js 531.43 kB
+  ✓ built in 11.72s (chunk-size warning preexistente >500kB, no error)
+  => BUILD: PASS
+
+=== 2. SMOKE PLAYWRIGHT /crypto-news (build de producción servido, binario observable) ===
+Método (solo Playwright/curl, cero clicks humanos):
+  - Servidor estático+proxy en /tmp/opencode/t19/server.mjs (fuera del repo), puerto 127.0.0.1:5199, PID explícito 1997534, kill por PID al final
+  - Sirve apps/frontend/dist (el build del paso 1, SPA fallback); proxy solo-lectura:
+    /api/*, /crypto-news-publisher, /crypto-news-ads, /threads-publisher, /threads/matching,
+    /crypto-news/matching, /ops/backups -> dev :3040 (health 200 verificado antes)
+    /ingestion-api/* -> :3032 con rewrite ^/ingestion-api -> /api
+  - Script /tmp/opencode/t19/smoke.mjs: playwright-core + chromium headless shell (instalado en
+    ~/.cache/ms-playwright, fuera del repo; sin añadir deps al package.json), goto /crypto-news
+    waitUntil networkidle + 20s extra (cubre polling TanStack 5-30s), captura requests/responses/pageerrors
+  - Criterio PASS binario: 0 requests a patrones muertos Y 0 responses 404 (no-socket.io) => exit 0, si no exit 1
+
+$ node smoke.mjs (corrida 1)
+  REQUESTS: 50 | DEAD-HITS: 0 | 404 (non-socket): 0 | PAGEERRORS: 0 => SMOKE: PASS
+$ node smoke.mjs (corrida 2, con lista de requests para evidencia)
+  REQUESTS: 50 | DEAD-HITS: 0 | 404 (non-socket): 0 | PAGEERRORS: 0 => SMOKE: PASS
+
+Patrones muertos asertados (0 hits en ambas corridas):
+  - kols.backfill viejo: /telegram-kol\/ingestion/ (T18 lo migró a identity)
+  - publishing.byToken: /vip-calls\/calls\/<chain>\/<address>/ (dos segmentos; published|failed|recent de un segmento siguen vivos)
+  - reprocess* : /reprocess/ + /decisions\/rejected\/verify/
+  - llm-config /api rota: /\/api\/crypto-news-publisher/
+  - dashboard.kpis: /dashboard\/kpis/
+  - filters.byToken legacy: /vip-call-approval\/decisions\/<x>\/<y>/
+
+Rutas VIVAS ejercidas por la página (prueba de render no vacío, todas 200, muestra única):
+  GET /crypto-news-publisher/queue?limit=50 (+counts, +status=BLOCKED), /keywords, /blacklist,
+      /llm/config, /llm/models, /llm/templates
+  GET /crypto-news/matching/config
+  GET /crypto-news-ads/ads, /media-library, /rotation-config
+  GET /ingestion-api/crypto-news/messages?limit=500, /sources, /media/<channel>/<msg>/0 (x12)
+Resultado completo: /tmp/opencode/t19/smoke-result.json (pass:true)
+
+=== 3. DEFENSA EN PROFUNDIDAD: grep del bundle construido ===
+$ grep -c <patrón> apps/frontend/dist/assets/*.js
+  telegram-kol/ingestion: 0 | reprocess: 0 | dashboard/kpis: 0 | /api/crypto-news-publisher: 0
+  (byToken restantes en src son legítimos: scoring/normalization/enrichment/honeypot — el muerto
+   publishing.byToken ya se eliminó en T18; el smoke confirma que la página no los pide)
+
+=== 4. MUST-NOT RESPETADOS ===
+  Sin verificación manual/clicks humanos (solo Playwright + curl) | Sin pkill -f (kill por PID 1997534,
+  servidor detenido verificado) | Sin arrancar/parar servicios (dev :3040, staging, prod, ingestion
+  intactos; solo GETs de lectura contra dev :3040 e ingestion :3032) | Sin commit | Sin tocar master
+  git status post-T19 limpio (solo untracked preexistentes .omo/.opencode; dist/ gitignored, build no ensucia)

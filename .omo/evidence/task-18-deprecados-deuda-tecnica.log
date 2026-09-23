@@ -1,0 +1,64 @@
+T18 deprecados-deuda-tecnica — Frontend dead URLs + depcheck/knip
+Fecha: 2026-09-20 | Rama: feat/cleanup-deprecados | VPS: staging+prod corriendo, sin pkill, sin tocar servicios
+Baseline T17: vitest 30 files/336 tests | Resultado T18: 29 files/330 tests (delta -1/-6 = spec del feature muerto)
+
+=== 1. VERIFICACION BACKEND (rutas vivas vs muertas) ===
+$ grep -n "@Get|@Post" vip-call-approval.controller.ts
+  @Post('apply'), @Get('decisions/approved|rejected|recent'), @Get('decisions/:chain/:address')
+  => NO existen: reprocess/*, decisions/rejected/verify (404 server)
+$ vip-calls.controller.ts: publish, calls/published, calls/failed, calls/recent
+  => NO existe calls/:chain/:address (publishing.byToken = 404 server)
+$ kol.controller.ts:73 => POST /telegram-kol/identity/kols/:kolId/backfill VIVO
+  => frontend usaba /telegram-kol/ingestion/... (segmento muerto) => FIX, no delete
+$ app.module.ts:15 => // import { DashboardModule } COMENTADO => GET /dashboard/kpis 404
+$ nginx.conf tenia location /api/ (lineas 19-30) => gap #5 "sin /api en prod" YA RESUELTO, sin cambio
+
+=== 2. CAMBIOS endpoints.ts ===
+  kols.backfill: ingestion -> identity (FIX, ruta viva verificada)
+  DEL publishing.byToken (404 + 0 callers)
+  DEL filters.byToken (0 callers; ruta server queda intacta) + decisionsRejectedVerify + reprocessBatch + reprocessOne (404)
+  DEL dashboard.kpis (modulo comentado en backend)
+
+=== 3. CALLERS MUERTOS ELIMINADOS (git rm) ===
+  D features/reprocess-rejected/{api/reprocess-client.ts, model/use-reprocess.ts, ui/rejected-table.tsx, ui/reprocess-batch-button.tsx, ui/rejected-table.test.tsx, index.ts}
+    - Sin callers fuera del feature (grep reprocess-rejected fuera del dir = 0)
+    - UI client-complete pero server-missing (404 en las 3 rutas)
+  D entities/dashboard/{api/dashboard-queries.ts, model/use-dashboard-kpis.ts, model/types.ts, index.ts}
+    - Unico caller era KpiCards; modulo backend comentado
+  M widgets/kpi-cards/ui/kpi-cards.tsx: rewire a ingestion-health (activeChannels/maxSafeChannels); resto 0 (igual que el degradado previo por 404)
+  M shared/realtime/events.ts: DEL WS_EVENTS.DashboardKpisUpdated (wire muerto, backend nunca emite)
+  DEL decisionKeys.byToken + fetchDecisionByToken (0 callers) en filter-decision/api/decision-queries.ts
+  DEL publishedKeys.byToken (0 callers) en published-call/api/published-queries.ts
+  M nginx.conf: DEL location /kols (legacy README-era; backend no tiene ruta bare /kols; bloqueaba fallback SPA en prod)
+  M add-kol-client.test.ts: mock backfill ingestion -> identity (consistencia)
+
+=== 4. GREP 0 RUTAS MUERTAS ===
+$ grep -rn "reprocessOne|reprocessBatch|decisionsRejectedVerify|publishing.byToken|filters.byToken|fetchDecisionByToken|useDashboardKpis|fetchDashboardKpis|dashboardKeys|DashboardKpis|ENDPOINTS.dashboard|telegram-kol/ingestion" apps/frontend/src => 0 hits (exit 1)
+$ grep -rn "location /kols" apps/frontend/nginx.conf => 0 hits (exit 1)
+
+=== 5. DEPCHECK ===
+$ npx --yes depcheck
+  Unused dependencies: lucide-react, recharts, zod, zustand
+  Unused devDependencies: @eslint/eslintrc, autoprefixer, postcss, tailwindcss (= falsos positivos: tailwind/postcss via config, eslintrc via flat-config)
+  msw NO listado => usado (confirmado: 2 test files threads-hooks-msw/failure)
+
+=== 6. KNIP (sin config, con ruido conocido: 10 unused files / 156 unused exports = barrels sin entry resolution) ===
+  Unused dependencies (4): lucide-react, recharts, zod, zustand — coincide con depcheck
+  msw no flagged => KEEP
+
+=== 7. DECISION KEEP/PRUNE POR DEP (documentada, SIN desinstalar — "sin prune a ciegas") ===
+  msw            KEEP   — imports en 2 tests (threads-hooks-msw, threads-hooks-failure)
+  recharts       PRUNE-candidata — 0 imports en src (grep lucide|recharts|zustand|zod = 0)
+  zustand        PRUNE-candidata — 0 imports en src (estado = TanStack Query)
+  zod            PRUNE-candidata — 0 imports en src (sin validacion de esquemas)
+  lucide-react   PRUNE-candidata — 0 imports en src (CORRECCION al task: "lucide tiene iconos" es falso; iconos = emojis textuales)
+  Prune real (npm uninstall + build prueba) queda para un todo posterior con build verde como gate; T18 solo documenta.
+
+=== 8. VERIFICACION ===
+$ npx tsc --noEmit -p apps/frontend/tsconfig.json => EXIT 0
+$ npx eslint <6 ficheros cambiados> => EXIT 0
+$ npm run test:frontend => Test Files 29 passed (29), Tests 330 passed (330)
+$ npm run build -w @alpha-meta-token-scanner/frontend => built in 10.56s (chunk-size warning preexistente, no error)
+
+=== 9. MUST-NOT RESPETADOS ===
+  Sin desinstalar deps | Sin tocar ScoreTier mismatch ni error-boundaries | Sin pkill | Solo frontend tests/build

@@ -117,6 +117,19 @@ describe('LlmConfig', () => {
   describe('update', () => {
     const build = (): LlmConfig => LlmConfig.load(validBase);
 
+    it('no longer carries matchingEnabled (column dropped in 1875000000002)', () => {
+      const cfg = build();
+      expect(
+        'matchingEnabled' in (cfg as unknown as Record<string, unknown>),
+      ).toBe(false);
+      cfg.update({ matchingEnabled: true } as unknown as Parameters<
+        LlmConfig['update']
+      >[0]);
+      expect(
+        'matchingEnabled' in (cfg as unknown as Record<string, unknown>),
+      ).toBe(false);
+    });
+
     it('updates the provided fields and bumps updatedAt', async () => {
       const cfg = build();
       const originalUpdatedAt = cfg.updatedAt;

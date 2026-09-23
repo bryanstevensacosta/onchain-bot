@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  OnModuleInit,
-  OnModuleDestroy,
-} from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   TelegramListenerPort,
@@ -12,19 +7,20 @@ import {
   JoinChannelResult,
   // TelegramMediaAttachment, // Unused - MessagePayload uses different media structure
 } from '../../domain/ports/telegram-listener.port';
-import { BackendRegistrationClient } from '../../infrastructure/backend-registration-client.service';
 
 /**
  * MessagePayload from Ingestion Service SSE stream
  *
- * Per Invariant 1 (modified): text excluded for KOL (extraction handles it), included for crypto-news (opaque content)
- * Backend must fetch full text via backfill for KOL messages; crypto-news includes text directly
+ * Per Q1-B (docs/architecture/adr-kol-raw-text.md in ingestion-telegram):
+ * text passes through for BOTH types (kol + crypto-news).
+ * Backend-internal ToS boundary UNCHANGED: raw text never crosses the
+ * backend event bus (fix-1) — see KolMessageIngestedEvent (no text field).
  */
 interface MessagePayload {
   peerId: string;
   messageId: number;
   occurredAt: string;
-  text?: string; // Present for crypto-news, omitted for KOL
+  text?: string; // Present for BOTH types (Q1-B); absent only on legacy frames
   media: Array<{
     type: 'photo' | 'video';
     index: number;
@@ -45,19 +41,19 @@ interface MessagePayload {
 /**
  * TelegramSseListenerAdapter - SSE-based TelegramListenerPort implementation
  *
- * Per Requirement 3.1, 3.2, 3.3: Drop-in replacement for TelegramMtprotoListenerAdapter
+ * Per Requirement 3.1, 3.2, 3.3: Drop-in replacement for the removed direct Telegram listener (T5)
  * Per Requirement 2.4: Automatic reconnection with exponential backoff
- * Per Requirement 3.4: Implements same interface contract as MTProto adapter
+ * Per Requirement 3.4: Implements same interface contract as the former direct adapter
  *
  * Connects to Ingestion Service SSE stream and transforms MessagePayload
  * back to TelegramRawMessage format expected by backend use cases.
  *
- * UPDATED: Now integrates with BackendRegistrationClient to:
- * - Register backend with ingestion-telegram on boot
- * - Include backendId in SSE stream query params
- * - Handle 401 Unauthorized by forcing re-registration
+ * Per-env-ingestion item 4: per-env model — ONE ingestion per env, so the
+ * inline backend registration (boot/retry/keep-alive/status + backendId query
+ * param) is deleted. The stream is open: subscribe() connects with NO prior
+ * register step and NO backendId.
  *
- * Key differences from MTProto adapter:
+ * Key differences from the former direct adapter:
  * - No direct Telegram API access
  * - Text field empty (must fetch via backfill if needed)
  * - Media URLs instead of local file paths
@@ -67,38 +63,46 @@ interface MessagePayload {
  */
 @Injectable()
 export class TelegramSseListenerAdapter
-  implements TelegramListenerPort, OnModuleInit, OnModuleDestroy
+  implements TelegramListenerPort, OnModuleDestroy
 {
   private readonly logger = new Logger(TelegramSseListenerAdapter.name);
   private readonly ingestionServiceUrl: string;
   private abortController: AbortController | null = null;
   private reconnectAttempts = 0;
-  private readonly maxReconnectDelay = 30_000; // 30s
-  private readonly baseReconnectDelay = 1_000; // 1s
+  private readonly maxReconnectDelay: number;
+  private readonly baseReconnectDelay: number;
 
-  constructor(
-    private readonly config: ConfigService,
-    private readonly registrationClient: BackendRegistrationClient,
-  ) {
+  constructor(private readonly config: ConfigService) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const appConfig = this.config.get('app');
     this.ingestionServiceUrl =
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       appConfig?.ingestion?.serviceUrl || 'http://localhost:3031';
 
+    // SSE reconnect backoff knobs (fail-soft to 1000/30000 when unconfigured,
+    // mirroring app.cryptoNews.pollingIntervalMinutes validation).
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const sse = appConfig?.ingestion?.sse as
+      | {
+          reconnectInitialDelayMs?: unknown;
+          reconnectMaxDelayMs?: unknown;
+        }
+      | undefined;
+    const initial =
+      typeof sse?.reconnectInitialDelayMs === 'number' &&
+      Number.isFinite(sse.reconnectInitialDelayMs)
+        ? sse.reconnectInitialDelayMs
+        : 1_000;
+    const max =
+      typeof sse?.reconnectMaxDelayMs === 'number' &&
+      Number.isFinite(sse.reconnectMaxDelayMs)
+        ? sse.reconnectMaxDelayMs
+        : 30_000;
+    this.baseReconnectDelay = initial;
+    this.maxReconnectDelay = Math.max(max, initial);
+
     this.logger.log(
       `Initialized SSE listener adapter (ingestion service: ${this.ingestionServiceUrl})`,
-    );
-  }
-
-  async onModuleInit(): Promise<void> {
-    this.logger.log('[SSE-ADAPTER] Initializing with registration client');
-
-    // Registration happens in BackendRegistrationClient.onModuleInit()
-    // This is non-blocking - just log the current status
-    const status = this.registrationClient.getStatus();
-    this.logger.log(
-      `[SSE-ADAPTER] Registration status: ${status.status}, backendId: ${status.backendId}`,
     );
   }
 
@@ -111,20 +115,20 @@ export class TelegramSseListenerAdapter
    *
    * Per Requirement 3.2: EventSource-based SSE connection
    * Per Requirement 2.4: Auto-reconnect with exponential backoff
-   * UPDATED: Includes backendId query param for multi-backend support
+   *
+   * Per-env-ingestion item 4: open stream — no backendId query param, no
+   * registration gate. The loop (connect + backoff) is preserved.
    *
    * @param channelIds - Channels to filter (filtering done client-side)
    * @yields TelegramRawMessage for each message in subscribed channels
    */
   async *subscribe(channelIds: string[]): AsyncIterable<TelegramRawMessage> {
-    const backendId = this.registrationClient.getBackendId();
-    const streamUrl = `${this.ingestionServiceUrl}/api/ingestion/stream?backendId=${backendId}`;
+    const streamUrl = `${this.ingestionServiceUrl}/api/ingestion/stream`;
 
     this.logger.log(
       `Subscribing to SSE stream for ${channelIds.length} channels: ${streamUrl}`,
     );
-    this.logger.log(`[SSE-DEBUG] BackendId: ${backendId}`);
-    this.logger.log(`[SSE-DEBUG] ChannelIds: ${channelIds.join(', ')}`);
+    this.logger.debug(`SSE subscribe channels: ${channelIds.join(', ')}`);
 
     while (true) {
       try {
@@ -133,18 +137,6 @@ export class TelegramSseListenerAdapter
 
         yield* this.connectAndStream(streamUrl, channelIds);
       } catch (error) {
-        // Check if error is 401 Unauthorized
-        if (error instanceof Error && error.message.includes('HTTP 401')) {
-          this.logger.error(
-            '[SSE-ADAPTER] Received 401 Unauthorized - forcing re-registration',
-          );
-          await this.registrationClient.forceReregistration();
-
-          // Wait a bit before retrying
-          await this.sleep(5000);
-          continue;
-        }
-
         // Calculate exponential backoff delay
         const delay = this.calculateBackoff();
 
@@ -163,7 +155,7 @@ export class TelegramSseListenerAdapter
    *
    * Uses fetch API with ReadableStream for EventSource parsing
    *
-   * @param url - SSE stream URL (includes backendId query param)
+   * @param url - SSE stream URL
    * @param channelIds - Channels to filter
    * @yields TelegramRawMessage
    */
@@ -214,25 +206,25 @@ export class TelegramSseListenerAdapter
             const payload = message.data as MessagePayload;
 
             this.logger.debug(
-              `[SSE-DEBUG] Received message from ${payload.peerId}:${payload.messageId}`,
+              `SSE received message from ${payload.peerId}:${payload.messageId}`,
             );
 
             // Filter by subscribed channels
             if (channelIds.includes(payload.peerId)) {
-              this.logger.log(
-                `[SSE-DEBUG] Message ${payload.peerId}:${payload.messageId} passed filter, about to yield...`,
+              this.logger.debug(
+                `SSE message ${payload.peerId}:${payload.messageId} passed filter, about to yield...`,
               );
               const rawMessage = this.payloadToRawMessage(payload);
-              this.logger.log(
-                `[SSE-DEBUG] Message ${payload.peerId}:${payload.messageId} transformed to RawMessage, yielding now...`,
+              this.logger.debug(
+                `SSE message ${payload.peerId}:${payload.messageId} transformed to RawMessage, yielding now...`,
               );
               yield rawMessage;
-              this.logger.log(
-                `[SSE-DEBUG] Message ${payload.peerId}:${payload.messageId} yielded successfully`,
+              this.logger.debug(
+                `SSE message ${payload.peerId}:${payload.messageId} yielded successfully`,
               );
             } else {
               this.logger.debug(
-                `[SSE-DEBUG] Message ${payload.peerId}:${payload.messageId} NOT in subscribed channels, skipping`,
+                `SSE message ${payload.peerId}:${payload.messageId} NOT in subscribed channels, skipping`,
               );
             }
           } else if (message?.event === 'health:ping') {
@@ -286,8 +278,10 @@ export class TelegramSseListenerAdapter
   /**
    * Transform MessagePayload to TelegramRawMessage
    *
-   * Per Requirement 3.3: Same format as MTProto adapter
-   * Per Invariant 1: text field empty (ToS compliance)
+   * Per Requirement 3.3: Same TelegramRawMessage format as before (T5)
+   * Per Q1-B (adr-kol-raw-text.md): text passes through for BOTH types.
+   * Backend-internal ToS boundary UNCHANGED: raw text never crosses the
+   * backend event bus (fix-1) — see KolMessageIngestedEvent (no text field).
    *
    * @param payload - SSE payload from Ingestion Service
    * @returns TelegramRawMessage compatible with backend use cases
@@ -296,7 +290,7 @@ export class TelegramSseListenerAdapter
     const rawMessage = {
       peerId: payload.peerId,
       messageId: payload.messageId,
-      text: payload.text ?? '', // Use text from payload if present (crypto-news), empty for KOL (extraction handles it)
+      text: payload.text ?? '', // Q1-B: text passes through for BOTH types (kol + crypto-news); '' only when the frame omits it
       occurredAt: new Date(payload.occurredAt),
       messageType: payload.messageType, // Preserve messageType for coordinator routing
       media: payload.media.map((m) => ({
@@ -313,9 +307,9 @@ export class TelegramSseListenerAdapter
       groupedId: payload.groupedId ? BigInt(payload.groupedId) : undefined,
     };
 
-    // DEBUG: Log text transformation
-    this.logger.log(
-      `[PAYLOAD-TRANSFORM-DEBUG] ${payload.peerId}:${payload.messageId} - payload.text: "${payload.text}" (type: ${typeof payload.text}, length: ${payload.text?.length ?? 0}) → rawMessage.text: "${rawMessage.text}" (length: ${rawMessage.text.length}), messageType: ${rawMessage.messageType}`,
+    // REDACTED (Q1-B, adr-kol-raw-text.md): log shape only — raw text NEVER hits disk logs.
+    this.logger.debug(
+      `SSE payload transform ${payload.peerId}:${payload.messageId} - payload.text length: ${payload.text?.length ?? 0} → rawMessage.text length: ${rawMessage.text.length}, messageType: ${rawMessage.messageType}`,
     );
 
     return rawMessage;
@@ -463,7 +457,9 @@ export class TelegramSseListenerAdapter
   /**
    * Calculate exponential backoff delay
    *
-   * Per Requirement 2.4: Exponential backoff with 30s cap
+   * Per Requirement 2.4: Exponential backoff, capped at the configured max.
+   * Bounds come from `app.ingestion.sse` (`SSE_RECONNECT_INITIAL_DELAY_MS`,
+   * default 1000; `SSE_RECONNECT_MAX_DELAY_MS`, default 30000).
    *
    * @returns Delay in milliseconds
    */

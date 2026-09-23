@@ -1,0 +1,30 @@
+# =====================================================================
+# onchain-backup-drill.timer — weekly trigger for the restore drill
+# Plan: .omo/plans/prod-backend-rolling-backup.md T10
+#
+# Fires Sunday 05:00:00 UTC — AFTER the 04:00 UTC daily health watchdog
+# (.github/workflows/backup-health.yml) and clear of the 03:00 daily
+# backup timer + 03:20 offsite sync. TZ always explicit UTC.
+#
+# INSTALL (Oracle server, as root — see .service header for full procedure):
+#   sudo install -m 644 infra/systemd/onchain-backup-drill.timer \
+#     /etc/systemd/system/onchain-backup-drill.timer
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now onchain-backup-drill.timer
+#   systemctl list-timers --all | grep onchain-backup-drill
+#
+# MUST NOT touch onchain-backend-backup.timer (daily 03:00),
+# onchain-dev-infra.timer (5-min dev pattern) or prune timers.
+# =====================================================================
+
+[Unit]
+Description=Weekly Sunday 05:00 UTC trigger for prod-backend restore drill
+Documentation=file:///opt/onchain-bot/.omo/plans/prod-backend-rolling-backup.md
+
+[Timer]
+OnCalendar=Sun *-*-* 05:00:00 UTC
+Persistent=true
+Unit=onchain-backup-drill.service
+
+[Install]
+WantedBy=timers.target

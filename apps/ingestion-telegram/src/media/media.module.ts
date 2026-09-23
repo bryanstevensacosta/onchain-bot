@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MediaController } from './api/http/media.controller';
-import { SharedModule } from 'telegram/shared/shared.module';
+import { SharedModule } from 'core/shared.module';
 
 /**
  * MediaModule provides HTTP serving for Telegram media files

@@ -1,0 +1,27 @@
+T17 Frontend: quitar refs legacy matchingEnabled/endpoints — PASS 2026-09-20T11:38Z (VPS Oracle)
+Branch: feat/cleanup-deprecados | Commit verificado: 164ba599f011bee98ee9bf47530423186888bee0
+"fix(frontend): retira refs legacy matchingEnabled" (2026-09-20) — ya en rama, sin commits nuevos.
+
+COMMIT STAT (3 files, 6+/8-):
+- apps/frontend/src/features/crypto-news-publisher/ui/matching-toggle-button.tsx
+- apps/frontend/src/features/threads-publisher/api/llm-config-api.ts
+- apps/frontend/src/shared/api/endpoints.ts
+
+CMD: grep -rn "matchingEnabled\|legacy" apps/frontend/src
+→ 11 hits, 100% en __tests__/ (0 en src no-test):
+- pages/crypto-news/__tests__/crypto-news-page.test.tsx:349,357,360 → contrato legacy payload
+  (legacyMsg sin campo media, líneas 349-360 según plan) + :1210 label KPI legacy (string test)
+- pages/crypto-news/__tests__/llm-config.test.tsx:451-461 → tests NEGATIVOS que asertan ausencia:
+  'config payload carries no matchingEnabled key' (not.toHaveProperty + 'in' false + Undefined)
+CMD: grep -rln matchingEnabled (excl. __tests__) → 0
+
+CMD: npm run test:frontend (vitest)
+→ Test Files 30 passed (30) | Tests 336 passed (336) | Duration 69.53s
+→ Idéntico al baseline T1 (30 files/336 tests). Sin regresiones.
+
+3-FLAG TRUTH TABLE INTACTA (matching/llm/publishing): matching-toggle-button.tsx usa
+useToggleMatching/useToggleLlm/useTogglePublishing + flags enabled/llmEnabled/publishingEnabled.
+Sin cambios funcionales.
+
+VEREDICTO T17: PASS — grep solo tests negativos+contrato, vitest verde baseline exacto.
+Scope respetado: read-only + test run; sin arrancar/parar servicios; sin commits.

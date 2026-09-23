@@ -27,7 +27,7 @@ describe('ThreadsApiPublisherAdapter', () => {
 
   beforeEach(() => {
     fetchMock = jest.fn();
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    globalThis.fetch = fetchMock;
   });
 
   afterEach(() => {

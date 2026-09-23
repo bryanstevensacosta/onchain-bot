@@ -18,13 +18,14 @@
  *     HELIUS_API_KEY + HELIUS_*_{MAINNET,DEVNET},
  *     MOBULA_API_KEY, MORALIS_API_KEY,
  *     PUMPDEV_API_KEY/WALLET_PUBLIC/WALLET_PRIVATE,
- *     TELEGRAM_BOT_TOKEN, INGESTION_TELEGRAM_MTPROTO_API_ID/HASH/SESSION
+ *     TELEGRAM_BOT_TOKEN (deprecated — use per-bot VIP_CALLS/CRYPTO_NEWS/CHAIN_DEXTER_BOT_TOKEN),
  *
  *   Pipeline behaviour:
  *     INGESTION_TELEGRAM_METADATA_CACHE_FILE
  *     INGESTION_TELEGRAM_BACKFILL_ENABLED
-  *     USE_SSE_INGESTION, USE_SSE_CRYPTO_NEWS, USE_MOCK_INGESTION,
-  *     INGESTION_TELEGRAM_URL (fallback: deprecated INGESTION_SERVICE_URL)
+ *     USE_SSE_INGESTION, USE_SSE_CRYPTO_NEWS, USE_MOCK_INGESTION,
+ *     INGESTION_TELEGRAM_URL (canonical, default http://localhost:3031)
+ *     SSE_RECONNECT_INITIAL_DELAY_MS, SSE_RECONNECT_MAX_DELAY_MS,
  *     CRYPTO_NEWS_POLLING_INTERVAL_MINUTES
  *     PUBLISHING_TELEGRAM_USE_REAL_MTPROTO/OUTPUT_CHANNEL,
  *     VIP_CALLS_BOT_TOKEN/OUTPUT_CHANNEL,
@@ -76,8 +77,8 @@
  *
  *   Note (2026-09-06): SEED-related env vars removed. Channels are now registered via:
  *   - KOLs: POST /telegram-kol/identity/kols
-  *   - Crypto-news: POST {INGESTION_TELEGRAM_URL}/api/crypto-news/sources
-  */
+ *   - Crypto-news: POST {INGESTION_TELEGRAM_URL}/api/feed/sources
+ */
 import { registerAs } from '@nestjs/config';
 import { join } from 'path';
 
@@ -85,11 +86,11 @@ import { join } from 'path';
 export const DEFAULT_INGESTION_TELEGRAM_URL = 'http://localhost:3031';
 
 /**
- * Resolve the ingestion-telegram base URL with one-release fallback.
+ * Resolve the ingestion-telegram base URL (canonical only, T10 deprecados).
  *
- * Order: `INGESTION_TELEGRAM_URL` > deprecated `INGESTION_SERVICE_URL` >
- * default. Empty strings are treated as missing. A `console.warn` fires
- * exactly when the deprecated var supplies the value.
+ * Order: `INGESTION_TELEGRAM_URL` > default. Empty strings are treated
+ * as missing. The deprecated `INGESTION_SERVICE_URL` fallback was removed —
+ * setting it has no effect.
  */
 export function resolveIngestionServiceUrl(
   env: NodeJS.ProcessEnv = process.env,
@@ -97,13 +98,6 @@ export function resolveIngestionServiceUrl(
   const next = env.INGESTION_TELEGRAM_URL;
   if (next !== undefined && next.trim().length > 0) {
     return next;
-  }
-  const legacy = env.INGESTION_SERVICE_URL;
-  if (legacy !== undefined && legacy.trim().length > 0) {
-    console.warn(
-      '[deprecation] INGESTION_SERVICE_URL is deprecated, migrate to INGESTION_TELEGRAM_URL',
-    );
-    return legacy;
   }
   return DEFAULT_INGESTION_TELEGRAM_URL;
 }
@@ -143,7 +137,6 @@ export interface AppConfig extends LlmConfigShape {
 
   port: number;
   nodeEnv: 'development' | 'production' | 'staging' | 'test';
-  backendId: string;
 
   alchemy: { apiKey: string };
   birdeye: { apiKey: string };
@@ -166,14 +159,12 @@ export interface AppConfig extends LlmConfigShape {
   };
 
   telegram: {
+    /**
+     * @deprecated Generic token — use per-bot tokens instead:
+     * `VIP_CALLS_BOT_TOKEN`, `CRYPTO_NEWS_BOT_TOKEN`, `CHAIN_DEXTER_BOT_TOKEN`.
+     * Kept for backward compatibility only; config-validator does NOT require it.
+     */
     botToken: string;
-    mtprotoEnabled: boolean;
-    mtprotoApiId: number;
-    mtprotoApiHash: string;
-    mtprotoSession: string;
-    mtprotoLogLevel: string;
-    mtprotoStartupDelayMs: number;
-    mtprotoUseWss: boolean;
   };
 
   ingestion: {
@@ -189,6 +180,10 @@ export interface AppConfig extends LlmConfigShape {
     useSseCryptoNews: boolean;
     useMock: boolean;
     serviceUrl: string;
+    sse: {
+      reconnectInitialDelayMs: number;
+      reconnectMaxDelayMs: number;
+    };
   };
 
   cryptoNews: {
@@ -306,7 +301,6 @@ export const appConfig = registerAs(
   (): AppConfig => ({
     port: parseInt(process.env.PORT ?? '3000', 10),
     nodeEnv: (process.env.NODE_ENV ?? 'development') as AppConfig['nodeEnv'],
-    backendId: process.env.BACKEND_ID ?? 'production',
 
     alchemy: {
       apiKey: process.env.ALCHEMY_API_KEY ?? '',
@@ -358,30 +352,11 @@ export const appConfig = registerAs(
     },
 
     telegram: {
+      // @deprecated T13 (deprecados-deuda-tecnica): generic TELEGRAM_BOT_TOKEN.
+      // Use per-bot VIP_CALLS_BOT_TOKEN / CRYPTO_NEWS_BOT_TOKEN / CHAIN_DEXTER_BOT_TOKEN.
+      // MTProto credentials live ONLY in ingestion-telegram (duplicating them
+      // here causes AUTH_KEY_DUPLICATED).
       botToken: process.env.TELEGRAM_BOT_TOKEN ?? '',
-      mtprotoEnabled:
-        (
-          process.env.INGESTION_TELEGRAM_MTPROTO_ENABLED ?? 'true'
-        ).toLowerCase() === 'true',
-      mtprotoApiId: parseInt(
-        process.env.INGESTION_TELEGRAM_MTPROTO_API_ID ?? '0',
-        10,
-      ),
-      mtprotoApiHash: process.env.INGESTION_TELEGRAM_MTPROTO_API_HASH ?? '',
-      mtprotoSession: process.env.INGESTION_TELEGRAM_MTPROTO_SESSION ?? '',
-      mtprotoLogLevel: (() => {
-        const raw = process.env.INGESTION_TELEGRAM_MTPROTO_LOG_LEVEL;
-        return raw && raw.trim().length > 0 ? raw : 'error';
-      })(),
-      mtprotoStartupDelayMs: (() => {
-        const raw = process.env.INGESTION_TELEGRAM_MTPROTO_STARTUP_DELAY_MS;
-        const parsed = raw && raw.trim().length > 0 ? parseInt(raw, 10) : NaN;
-        return Number.isFinite(parsed) ? parsed : 60000;
-      })(),
-      mtprotoUseWss:
-        (
-          process.env.INGESTION_TELEGRAM_MTPROTO_USE_WSS ?? 'false'
-        ).toLowerCase() === 'true',
     },
 
     ingestion: {
@@ -402,13 +377,37 @@ export const appConfig = registerAs(
             ).toLowerCase() === 'true',
         },
       },
+      // T4 (deprecados-deuda-tecnica): SSE es el default. Riesgo T3: los
+      // templates legados fijaban USE_SSE_INGESTION=false — un env explícito
+      // en false ya NO reactiva MTProto (rama eliminada → 410 en
+      // SharedIngestionModule), solo rompe la ingesta hasta corregirlo.
       useSse:
-        (process.env.USE_SSE_INGESTION ?? 'false').toLowerCase() === 'true',
+        (process.env.USE_SSE_INGESTION ?? 'true').toLowerCase() === 'true',
       useSseCryptoNews:
         (process.env.USE_SSE_CRYPTO_NEWS ?? 'true').toLowerCase() === 'true',
       useMock:
         (process.env.USE_MOCK_INGESTION ?? 'false').toLowerCase() === 'true',
       serviceUrl: resolveIngestionServiceUrl(),
+      // SSE reconnect backoff (TelegramSseListenerAdapter.calculateBackoff).
+      // Fail-soft like CRYPTO_NEWS_POLLING_INTERVAL_MINUTES below: missing
+      // or out-of-range values fall back to 1000/30000. Max is clamped to
+      // be at least the initial delay.
+      sse: (() => {
+        const initialRaw = process.env.SSE_RECONNECT_INITIAL_DELAY_MS;
+        const initialParsed = initialRaw ? parseInt(initialRaw, 10) : 1000;
+        const reconnectInitialDelayMs =
+          Number.isFinite(initialParsed) &&
+          initialParsed >= 100 &&
+          initialParsed <= 30000
+            ? initialParsed
+            : 1000;
+        const maxRaw = process.env.SSE_RECONNECT_MAX_DELAY_MS;
+        const maxParsed = maxRaw ? parseInt(maxRaw, 10) : 30000;
+        const reconnectMaxDelayMs = Number.isFinite(maxParsed)
+          ? Math.max(maxParsed, reconnectInitialDelayMs)
+          : 30000;
+        return { reconnectInitialDelayMs, reconnectMaxDelayMs };
+      })(),
     },
 
     cryptoNews: {

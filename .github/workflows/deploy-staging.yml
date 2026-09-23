@@ -4,32 +4,167 @@ name: Deploy to staging
 on:
   push:
     branches: [dev]
+    # ANTI-DOUBLE-FIRE (item 9b): the staging push leg owns backend/frontend/
+    # shared paths ONLY. Ingestion paths are owned by the twin chain
+    # (workflow_run leg below): an ingestion-only dev push fires the twin lane
+    # in Deploy Ingestion Service, whose completion redeploys staging via the
+    # chain — building here too would deploy staging twice (deterministic
+    # double-fire). Mixed pushes skip here via preflight (skip-when-chain-ran).
+    paths:
+      - 'apps/backend/**'
+      - 'apps/frontend/**'
+      - 'scripts/**'
+      - 'config/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/deploy-staging.yml'
+      # NOT apps/ingestion-telegram/** nor deploy-ingestion.yml (chain-owned)
   workflow_dispatch:
+    inputs:
+      lane:
+        description: 'Lane: full deploy (default) or dispatch-only rollback lane (never auto)'
+        required: false
+        default: 'full'
+        type: choice
+        # Rollback lanes (item 9c): re-raise the last GOOD namespaced pin.
+        # Dispatch-only, never on push/chain.
+        options: [full, rollback-backend-staging, rollback-frontend-staging]
+  # CHAIN (item 9a): gemelo OK ⇒ backend staging ⇒ frontend staging (both in
+  # the deploy-staging job, backend steps before frontend steps).
+  # NOTE default-branch semantics: workflow_run ALWAYS evaluates THIS file's
+  # definition from the DEFAULT branch (master) — the upstream SHA is pinned
+  # explicitly via github.event.workflow_run.head_sha (preflight job), never
+  # assumed from github.sha, or the chain drifts off the tested commit.
+  workflow_run:
+    workflows: ['Deploy Ingestion Service']
+    types: [completed]
+    branches: [dev]
 
+# CONCURRENCY (item 9d): ONE shared group per physical target across all 3
+# deploy workflows. Staging target = /opt/onchain-bot-staging (this workflow +
+# the twin lane + staging rollback of deploy-ingestion.yml share it — this
+# closes the twin-vs-deploy-staging race).
+# cancel-in-progress:false — lanes run migrations; killing one mid-migration
+# corrupts schema state. Tradeoff accepted and documented: a broken commit
+# blocks the queue behind it (operator cancels queued-not-running runs by
+# hand). Policy: supersede-queued-not-running ONLY, never kill a running lane.
 concurrency:
-  group: deploy-staging
-  cancel-in-progress: true
+  group: ingestion-staging-target
+  cancel-in-progress: false
 
 permissions:
   contents: read
   packages: write
 
 jobs:
+  # PREFLIGHT (item 9a/9b/9f): resolves the effective SHA + whether this run
+  # owns the deploy. Chain legs never re-trigger their upstream (no push, no
+  # dispatch here — exit via outputs only), and bot-actor upstreams are
+  # excluded (anti-loop). Contract literal: conclusion==success (bash
+  # string-compare in Decide ownership below). Dispatch logs an explicit
+  # bypass-with-reason when it skips a gate instead of staying silent.
+  preflight:
+    name: Preflight (chain guard + context)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run_deploy: ${{ steps.decide.outputs.run_deploy }}
+      effective_sha: ${{ steps.decide.outputs.effective_sha }}
+      trigger_note: ${{ steps.decide.outputs.trigger_note }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Pin the upstream SHA on chain runs (default-branch definition
+          # would otherwise build github.sha = master HEAD, not the tested
+          # twin commit).
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 2
+
+      - name: Decide ownership
+        id: decide
+        run: |
+          set -euo pipefail
+          EVENT="${{ github.event_name }}"
+          NOTE=""
+          SHA="${{ github.sha }}"
+          RUN="false"
+          if [ "$EVENT" = "workflow_run" ]; then
+            CONCLUSION="${{ github.event.workflow_run.conclusion }}"
+            ACTOR="${{ github.event.workflow_run.actor.login }}"
+            SHA="${{ github.event.workflow_run.head_sha }}"
+            if [ "$ACTOR" = "github-actions[bot]" ]; then
+              NOTE="chain SKIP: upstream actor is github-actions[bot] (anti-loop)"
+            elif [ "$CONCLUSION" != "success" ]; then
+              NOTE="chain SKIP: upstream conclusion=$CONCLUSION (broken twin link does not propagate)"
+            else
+              RUN="true"
+              NOTE="chain OWN: twin success @ $SHA (pinned ref; CI gate re-runs below, same as push)"
+            fi
+          elif [ "$EVENT" = "workflow_dispatch" ]; then
+            if [ "${{ inputs.lane }}" = "full" ]; then
+              RUN="true"
+              NOTE="dispatch OWN lane=full (explicit; CI gate bypass logged below with reason — never silent)"
+            else
+              NOTE="dispatch OWN lane=${{ inputs.lane }} (rollback job owns it, not the deploy legs)"
+            fi
+          else
+            # push: skip-when-chain-ran — if this dev push touched ingestion
+            # paths, the twin lane fired too and its chain leg redeploys
+            # staging after the twin is green. Deploying on push as well =
+            # the deterministic double-fire.
+            # Range is event.before..HEAD (not HEAD~1: multi-commit pushes
+            # would miss ingestion paths touched below the tip).
+            BASE="${{ github.event.before }}"
+            if [ -n "$BASE" ] && [ "$BASE" != "0000000000000000000000000000000000000000" ]; then
+              git fetch origin "$BASE" --depth=1 2>/dev/null || true
+              CHANGED="$(git diff --name-only "$BASE" HEAD 2>/dev/null || git diff --name-only HEAD~1 HEAD 2>/dev/null || true)"
+            else
+              CHANGED="$(git diff --name-only HEAD~1 HEAD 2>/dev/null || true)"
+            fi
+            if printf '%s' "$CHANGED" | grep -qE '^(apps/ingestion-telegram/|\.github/workflows/deploy-ingestion\.yml$)'; then
+              NOTE="push SKIP: ingestion paths touched — twin chain owns this deploy (skip-when-chain-ran)"
+            else
+              RUN="true"
+              NOTE="push OWN: no ingestion paths touched"
+            fi
+          fi
+          echo "run_deploy=$RUN" >> "$GITHUB_OUTPUT"
+          echo "effective_sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "trigger_note=$NOTE" >> "$GITHUB_OUTPUT"
+          echo "$NOTE"
+
+      - name: Context summary
+        run: |
+          {
+            echo "### Preflight (staging chain guard)"
+            echo ""
+            echo "| campo | valor |"
+            echo "|---|---|"
+            echo "| event | ${{ github.event_name }} |"
+            echo "| decision | ${{ steps.decide.outputs.trigger_note }} |"
+            echo "| effective_sha | ${{ steps.decide.outputs.effective_sha }} |"
+            echo "| run_deploy | ${{ steps.decide.outputs.run_deploy }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   # Gate: Wait for CI to complete successfully before proceeding
   wait-for-ci:
     name: Wait for CI to pass
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout (for gh CLI context)
         uses: actions/checkout@v4
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'workflow_run'
 
       - name: Wait for CI workflow to complete
-        if: github.event_name == 'push'
+        # Chain runs execute the SAME gate as push (item 9f: dispatch is the
+        # only leg that bypasses, and it logs the reason). The polled commit
+        # is the effective SHA (upstream head on chain runs), not master HEAD.
+        if: github.event_name == 'push' || github.event_name == 'workflow_run'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "⏳ Waiting for CI workflow to complete on commit ${{ github.sha }}..."
+          echo "⏳ Waiting for CI workflow to complete on commit ${{ github.event.workflow_run.head_sha || github.sha }}..."
 
           # Wait up to 10 minutes (600 seconds)
           MAX_WAIT=600
@@ -39,7 +174,7 @@ jobs:
           while [ $ELAPSED -lt $MAX_WAIT ]; do
             # Get the status of the CI workflow for this commit
             STATUS=$(gh run list \
-              --commit ${{ github.sha }} \
+              --commit ${{ github.event.workflow_run.head_sha || github.sha }} \
               --workflow ci.yml \
               --json conclusion,status \
               --jq '.[0] | {status: .status, conclusion: .conclusion}')
@@ -71,14 +206,29 @@ jobs:
 
       - name: CI check bypassed (manual trigger)
         if: github.event_name == 'workflow_dispatch'
-        run: echo "✅ Manual deploy - CI check skipped"
+        run: |
+          echo "✅ Manual deploy - CI check skipped"
+          # EXPLICIT BYPASS (item 9f): dispatch skips the CI gate — logged
+          # with reason in the summary, never silent.
+          {
+            echo "### CI gate bypass (dispatch)"
+            echo ""
+            echo "lane=${{ inputs.lane }} — operator-triggered, CI gate skipped explicitly."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   build-and-push-staging:
-    needs: [wait-for-ci]
+    needs: [wait-for-ci, preflight]
+    if: needs.preflight.outputs.run_deploy == 'true'
+    timeout-minutes: 30
     name: Build and push staging to GHCR
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Build the effective SHA (pinned twin commit on chain runs),
+          # not default-branch HEAD — the image tag carries effective_sha,
+          # so the source must match the tag.
+          ref: ${{ needs.preflight.outputs.effective_sha }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -99,7 +249,7 @@ jobs:
           context: .
           file: apps/backend/Dockerfile
           push: true
-          tags: ghcr.io/${{ github.repository }}-backend:staging-${{ github.sha }},ghcr.io/${{ github.repository }}-backend:staging-latest
+          tags: ghcr.io/${{ github.repository }}-backend:staging-${{ needs.preflight.outputs.effective_sha }},ghcr.io/${{ github.repository }}-backend:staging-latest
           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-backend:cache
           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-backend:cache,mode=max
           platforms: linux/amd64,linux/arm64
@@ -112,7 +262,7 @@ jobs:
           context: .
           file: apps/frontend/Dockerfile
           push: true
-          tags: ghcr.io/${{ github.repository }}-frontend:staging-${{ github.sha }},ghcr.io/${{ github.repository }}-frontend:staging-latest
+          tags: ghcr.io/${{ github.repository }}-frontend:staging-${{ needs.preflight.outputs.effective_sha }},ghcr.io/${{ github.repository }}-frontend:staging-latest
           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-frontend:cache
           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-frontend:cache,mode=max
           platforms: linux/amd64,linux/arm64
@@ -122,10 +272,16 @@ jobs:
   deploy-staging:
     name: Deploy to staging
     runs-on: [self-hosted, oracle]
-    needs: [build-and-push-staging]
+    needs: [preflight, build-and-push-staging]
+    if: needs.preflight.outputs.run_deploy == 'true'
+    timeout-minutes: 40
     environment: staging
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Same pin as the build job: the rsynced tree below must come from
+          # the deployed commit, not default-branch HEAD.
+          ref: ${{ needs.preflight.outputs.effective_sha }}
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -216,18 +372,34 @@ jobs:
 
       - name: Pull images from GHCR (staging)
         run: |
-          echo "=== Pulling backend staging ${{ github.sha }} (try sha, fallback latest) ==="
-          docker pull ghcr.io/${{ github.repository }}-backend:staging-${{ github.sha }} || docker pull ghcr.io/${{ github.repository }}-backend:staging-latest
-          docker tag ghcr.io/${{ github.repository }}-backend:staging-${{ github.sha }} ghcr.io/${{ github.repository }}-backend:staging-latest 2>/dev/null || true
-          echo "=== Pulling frontend staging ${{ github.sha }} (try sha, fallback latest) ==="
-          docker pull ghcr.io/${{ github.repository }}-frontend:staging-${{ github.sha }} || docker pull ghcr.io/${{ github.repository }}-frontend:staging-latest
-          docker tag ghcr.io/${{ github.repository }}-frontend:staging-${{ github.sha }} ghcr.io/${{ github.repository }}-frontend:staging-latest 2>/dev/null || true
+          echo "=== Pulling backend staging ${{ needs.preflight.outputs.effective_sha }} (try sha, fallback latest) ==="
+          docker pull ghcr.io/${{ github.repository }}-backend:staging-${{ needs.preflight.outputs.effective_sha }} || docker pull ghcr.io/${{ github.repository }}-backend:staging-latest
+          docker tag ghcr.io/${{ github.repository }}-backend:staging-${{ needs.preflight.outputs.effective_sha }} ghcr.io/${{ github.repository }}-backend:staging-latest 2>/dev/null || true
+          echo "=== Pulling frontend staging ${{ needs.preflight.outputs.effective_sha }} (try sha, fallback latest) ==="
+          docker pull ghcr.io/${{ github.repository }}-frontend:staging-${{ needs.preflight.outputs.effective_sha }} || docker pull ghcr.io/${{ github.repository }}-frontend:staging-latest
+          docker tag ghcr.io/${{ github.repository }}-frontend:staging-${{ needs.preflight.outputs.effective_sha }} ghcr.io/${{ github.repository }}-frontend:staging-latest 2>/dev/null || true
           docker images | head -20
 
       - name: Post-pull cleanup (aggressive, keep only current)
         run: |
           echo "=== Post-pull prune (remove old SHA tags, keep latest) ==="
+          # ROLLBACK-PIN EXEMPTION (item 9c): docker image prune -af would GC
+          # the rollback targets. Snapshot namespaced pins first, prune, then
+          # re-pull them from GHCR (source of truth — pins are pushed there on
+          # every good deploy). Covers backend/frontend pins of BOTH envs plus
+          # the ingestion pins (same host, sibling workflow).
+          KEEP_PINS="$(docker images --format '{{.Repository}}:{{.Tag}}' | grep -E ':(prev-backend|prev-frontend|staging-prev-backend|staging-prev-frontend|prev|staging-prev|prev-1|staging-prev-1)$' || true)"
           docker image prune -af 2>&1 | tail -20 || true
+          if [ -n "$KEEP_PINS" ]; then
+            echo "=== Restoring rollback pins from GHCR ==="
+            echo "$KEEP_PINS" | while read -r PIN; do
+              docker pull "$PIN" 2>&1 | tail -1 || echo "::warning::could not restore $PIN"
+            done
+            echo "=== Pins present locally ==="
+            docker images | grep -E 'prev' || echo "::warning::no prev tags local after restore"
+          else
+            echo "(no rollback pins local — first run, nothing to exempt)"
+          fi
           docker builder prune -af 2>&1 | tail -10 || true
           echo "=== Disk after pull + prune ==="
           df -h | head -20
@@ -411,16 +583,58 @@ jobs:
         env:
           SMOKE_BACKEND_URL: http://localhost:3031
           SMOKE_FRONTEND_URL: http://localhost:4173
-          SMOKE_INGESTION_URL: http://localhost:3032
+          # STAGING TWIN (per-env-ingestion T3): smoke probes the twin on :3033,
+          # NOT the singleton on :3032. Twin serves 200 with [] when empty
+          # (explicit-empty-OK); 0 messages after seeding + one poll window = FAIL.
+          SMOKE_INGESTION_URL: http://localhost:3033
+          SMOKE_TIMEOUT: 10
+          SMOKE_SSE_TIMEOUT: 8
         run: |
           set -euo pipefail
           echo "=== Post-deploy smoke (staging ports, read-only probes) ==="
           bash scripts/smoke-prod.sh
           echo "=== Smoke complete ==="
 
+      - name: Pin :staging-prev-backend / :staging-prev-frontend on GOOD deploy (rollback contract)
+        # Contract (item 9c consumes it): namespaced pins, NEVER bare
+        # :staging-prev (one tag per lane — the twin's :staging-prev pins the
+        # INGESTION image in the same repo and must never collide). Runs only
+        # after smoke passed = GOOD deploy by def.
+        run: |
+          set -euo pipefail
+          SHA="${{ needs.preflight.outputs.effective_sha || github.sha }}"
+          docker tag ghcr.io/${{ github.repository }}-backend:staging-"$SHA" ghcr.io/${{ github.repository }}-backend:staging-prev-backend \
+            || docker tag ghcr.io/${{ github.repository }}-backend:staging-latest ghcr.io/${{ github.repository }}-backend:staging-prev-backend
+          docker push ghcr.io/${{ github.repository }}-backend:staging-prev-backend
+          echo "pinned backend:staging-prev-backend @ $SHA"
+          docker tag ghcr.io/${{ github.repository }}-frontend:staging-"$SHA" ghcr.io/${{ github.repository }}-frontend:staging-prev-frontend \
+            || docker tag ghcr.io/${{ github.repository }}-frontend:staging-latest ghcr.io/${{ github.repository }}-frontend:staging-prev-frontend
+          docker push ghcr.io/${{ github.repository }}-frontend:staging-prev-frontend
+          echo "pinned frontend:staging-prev-frontend @ $SHA"
+
+      - name: Smoke summary (versions + health links per link)
+        # SMOKE FORMAT (item 9e): one row per link — version deployed, health
+        # URL, probe result. Mirrors scripts/smoke-prod.sh probe order.
+        run: |
+          SHA="${{ needs.preflight.outputs.effective_sha || github.sha }}"
+          {
+            echo "### Smoke staging (deploy ${SHA})"
+            echo ""
+            echo "| eslabón | versión | health | resultado |"
+            echo "|---|---|---|---|"
+            echo "| backend | backend:staging-${SHA} | http://localhost:3031/api/health | smoke-prod.sh §1,4,6,7 |"
+            echo "| frontend | frontend:staging-${SHA} | http://localhost:4173/ | smoke-prod.sh §2 |"
+            echo "| twin | ingestion @ twin lane | http://localhost:3033/api/feed/sources | smoke-prod.sh §3,5 |"
+            echo "| trigger | ${{ needs.preflight.outputs.trigger_note }} | | |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   restart-services:
     name: Restart services
-    if: ${{ success() }}
+    # result=='success' (not success()): with skip-when-chain-ran the deploy
+    # job can SKIP, and success() is true on skipped upstreams — restarting on
+    # a skip would recreate services for no reason.
+    if: needs.deploy-staging.result == 'success'
+    timeout-minutes: 10
     runs-on: [self-hosted, oracle]
     needs: [deploy-staging]
     steps:
@@ -428,3 +642,153 @@ jobs:
         run: |
           echo "=== Restarting staging ==="
           cd /opt/onchain-bot-staging/apps/backend && docker compose -f docker-compose.staging.yml up -d --force-recreate backend frontend
+
+  # ROLLBACK LANES (item 9c) — dispatch-only, never auto. Discipline mirrors
+  # docs/deployment/ingestion-rollback.md §§2-5: stop → verify-stopped (gate)
+  # → start exactly one service from the pinned tag; `docker compose pull` is
+  # FORBIDDEN inside rollback (it would re-fetch the broken :staging-latest).
+  # Single-flight via the shared ingestion-staging-target group (serializes
+  # against staging deploys and the twin lane; a second dispatch queues).
+  # DATA DOCTRINE (closed): rollback = code-only; migrations NEVER revert
+  # (roll-forward); data = restore from the pg_dump pre-deploy artifact
+  # (see runbook docs/deployment/backend-frontend-rollback.md for paths).
+  rollback-backend-staging:
+    name: Rollback backend staging to :staging-prev-backend (:3031)
+    runs-on: [self-hosted, oracle]
+    timeout-minutes: 15
+    if: github.event_name == 'workflow_dispatch' && inputs.lane == 'rollback-backend-staging'
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull rollback target :staging-prev-backend (read-only, no retag yet)
+        run: |
+          set -euo pipefail
+          echo "ROLLBACK_T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/backend-staging-rollback-t0
+          docker pull ghcr.io/${{ github.repository }}-backend:staging-prev-backend || { echo "::error::no backend:staging-prev-backend pinned (pins on GOOD deploys only) — rollback inexecutable, deploy instead"; exit 1; }
+
+      - name: Stop backend staging (bounded grace, --timeout 30)
+        run: |
+          set -euo pipefail
+          cd /opt/onchain-bot-staging/apps/backend
+          docker compose -f docker-compose.staging.yml stop --timeout 30 backend
+          if docker ps --format '{{.Names}}' | grep -qx 'onchain-bot-backend-staging'; then
+            echo "::error::REFUSE: backend container still running — investigate instead of starting a second one"
+            exit 1
+          fi
+          echo "OK: backend stopped — safe to start exactly one"
+
+      - name: Recreate backend from :staging-prev-backend (no pull — local retag wins)
+        run: |
+          set -euo pipefail
+          docker tag ghcr.io/${{ github.repository }}-backend:staging-prev-backend ghcr.io/${{ github.repository }}-backend:staging-latest
+          cd /opt/onchain-bot-staging/apps/backend
+          docker compose -f docker-compose.staging.yml up -d --force-recreate backend
+
+      - name: Healthcheck gate (:3031) + post-rollback asserts + downtime measured
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if curl -sf --max-time 8 http://localhost:3031/api/health >/dev/null 2>&1; then
+              echo "backend healthy after ~$((i * 10))s"
+              break
+            fi
+            [ "$i" -eq 30 ] && { echo "::error::staging backend healthcheck failed after rollback — see runbook docs/deployment/backend-frontend-rollback.md (retry + escalate, never blind re-run)"; exit 1; }
+            sleep 10
+          done
+          curl -s http://localhost:3031/api/health | jq '.'
+          echo "=== migration:show (schema state assert, read-only) ==="
+          cd /opt/onchain-bot-staging/apps/backend
+          docker compose -f docker-compose.staging.yml run --rm --no-deps \
+            -e NODE_ENV=staging \
+            -e POSTGRES_HOST=postgres \
+            -e POSTGRES_PORT=5432 \
+            -e POSTGRES_USER=alpha_meta_token_scanner \
+            -e POSTGRES_PASSWORD=alpha_meta_token_scanner \
+            -e POSTGRES_DB=alpha_meta_token_scanner_staging \
+            backend npm run migration:show
+          echo "=== rollback pins present ==="
+          docker images | grep -E 'staging-prev-backend' || echo "::warning::staging-prev-backend not local (restored from GHCR on next prune cycle)"
+          echo "ROLLBACK_T1=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/backend-staging-rollback-t1
+          echo "downtime window: $(cat /tmp/backend-staging-rollback-t0) → $(cat /tmp/backend-staging-rollback-t1)"
+          {
+            echo "### Rollback backend staging (:staging-prev-backend)"
+            echo ""
+            echo "| campo | valor |"
+            echo "|---|---|"
+            echo "| target | backend:staging-prev-backend → :3031 |"
+            echo "| ventana | $(cat /tmp/backend-staging-rollback-t0) → $(cat /tmp/backend-staging-rollback-t1) |"
+            echo "| asserts | health + migration:show + pins |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  rollback-frontend-staging:
+    name: Rollback frontend staging to :staging-prev-frontend (:4173)
+    runs-on: [self-hosted, oracle]
+    timeout-minutes: 15
+    if: github.event_name == 'workflow_dispatch' && inputs.lane == 'rollback-frontend-staging'
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull rollback target :staging-prev-frontend (read-only, no retag yet)
+        run: |
+          set -euo pipefail
+          echo "ROLLBACK_T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/frontend-staging-rollback-t0
+          docker pull ghcr.io/${{ github.repository }}-frontend:staging-prev-frontend || { echo "::error::no frontend:staging-prev-frontend pinned (pins on GOOD deploys only) — rollback inexecutable, deploy instead"; exit 1; }
+
+      - name: Stop frontend staging (bounded grace, --timeout 30)
+        run: |
+          set -euo pipefail
+          cd /opt/onchain-bot-staging/apps/backend
+          docker compose -f docker-compose.staging.yml stop --timeout 30 frontend
+          if docker ps --format '{{.Names}}' | grep -qx 'onchain-bot-frontend-staging'; then
+            echo "::error::REFUSE: frontend container still running — investigate instead of starting a second one"
+            exit 1
+          fi
+          echo "OK: frontend stopped — safe to start exactly one"
+
+      - name: Recreate frontend from :staging-prev-frontend (no pull — local retag wins)
+        run: |
+          set -euo pipefail
+          docker tag ghcr.io/${{ github.repository }}-frontend:staging-prev-frontend ghcr.io/${{ github.repository }}-frontend:staging-latest
+          cd /opt/onchain-bot-staging/apps/backend
+          docker compose -f docker-compose.staging.yml up -d --force-recreate frontend
+
+      - name: Healthcheck gate (:4173) + downtime measured
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 60); do
+            if curl -sf --max-time 8 http://localhost:4173/ >/dev/null 2>&1; then
+              echo "frontend healthy after ~$((i * 2))s"
+              break
+            fi
+            [ "$i" -eq 60 ] && { echo "::error::staging frontend healthcheck failed after rollback — see runbook docs/deployment/backend-frontend-rollback.md"; exit 1; }
+            sleep 2
+          done
+          echo "=== rollback pins present ==="
+          docker images | grep -E 'staging-prev-frontend' || echo "::warning::staging-prev-frontend not local (restored from GHCR on next prune cycle)"
+          echo "ROLLBACK_T1=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/frontend-staging-rollback-t1
+          echo "downtime window: $(cat /tmp/frontend-staging-rollback-t0) → $(cat /tmp/frontend-staging-rollback-t1)"
+          {
+            echo "### Rollback frontend staging (:staging-prev-frontend)"
+            echo ""
+            echo "| campo | valor |"
+            echo "|---|---|"
+            echo "| target | frontend:staging-prev-frontend → :4173 |"
+            echo "| ventana | $(cat /tmp/frontend-staging-rollback-t0) → $(cat /tmp/frontend-staging-rollback-t1) |"
+            echo "| asserts | http 200 + pins |"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -2,20 +2,68 @@ name: Deploy Ingestion Service
 
 on:
   push:
-    branches: [master]
+    branches: [master, dev]
     paths:
       - 'apps/ingestion-telegram/**'
       - '.github/workflows/deploy-ingestion.yml'
   workflow_dispatch:
+    inputs:
+      target:
+        description: 'Which ingestion lane to deploy (staging twin needs item-1 compose + staging env on Oracle server)'
+        required: false
+        default: 'production'
+        type: choice
+        # Rollback targets (item 6): re-raise the last GOOD pinned tag
+        # (:prev prod / :staging-prev staging). Dispatch-only, never on push.
+        options: [production, staging, rollback-production, rollback-staging]
 
+# CONCURRENCY (item 9d): ONE shared group per physical target across all 3
+# deploy workflows. Prod target = /opt/onchain-bot (this workflow's prod lane
+# + prod rollback + the backend/frontend prod lanes of deploy.yml share it).
+# The twin lane + staging rollback override with ingestion-staging-target
+# below (staging target = /opt/onchain-bot-staging — shared with
+# deploy-staging.yml; this closes the twin-vs-deploy-staging race).
+# cancel-in-progress:false — lanes run migrations; killing one mid-migration
+# corrupts schema state. Tradeoff accepted and documented: a broken commit
+# blocks the queue behind it (operator cancels queued-not-running runs by
+# hand). Policy: supersede-queued-not-running ONLY, never kill a running lane.
 concurrency:
-  group: deploy-ingestion
+  group: ingestion-production-target
   cancel-in-progress: false # No cancelar, es crítico
 
 jobs:
+  # Dispatch-target guard: fails the run LOUDLY on empty/unknown target.
+  # Rationale: run 35825487913 dispatched with empty target silently skipped
+  # all 4 lanes (only build ran) — green-looking run, nothing deployed.
+  # Dispatch-only (`if` below): push events skip this job entirely.
+  # No `needs:` wiring on purpose: the 4 lanes already carry exact
+  # `inputs.target == '<lane>'` job-level `if`s, so an unknown target keeps
+  # them skipped while THIS job fails red. Adding `needs: validate-target`
+  # would couple push paths (where this job is skipped) to dispatch logic
+  # for zero extra safety — minimal correct shape is fail-loud here.
+  validate-target:
+    name: Validate dispatch target
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Validate target input
+        run: |
+          TARGET="${{ inputs.target }}"
+          case "$TARGET" in
+            production|staging|rollback-production|rollback-staging)
+              echo "dispatch target OK: $TARGET"
+              ;;
+            *)
+              echo "::error::unknown target, expected production|staging|rollback-production|rollback-staging (got '$TARGET')"
+              exit 1
+              ;;
+          esac
+
   build-and-push:
     name: Build and push ingestion service
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -56,9 +104,15 @@ jobs:
           platforms: linux/amd64,linux/arm64
 
   deploy:
-    name: Deploy to droplet
+    name: Deploy to Oracle
     runs-on: [self-hosted, oracle]
+    timeout-minutes: 30
     needs: build-and-push
+    # Guard only: prod fires on master push or production dispatch ONLY.
+    # Master-only ref guard is REQUIRED now that push.branches includes dev:
+    # without it the bare `push` leg would deploy prod on dev pushes.
+    # Staging dispatch runs skip prod (item 2). Prod steps otherwise untouched.
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && inputs.target == 'production')
     environment: production # Solo un entorno
     steps:
       - uses: actions/checkout@v4
@@ -81,6 +135,24 @@ jobs:
           docker pull ghcr.io/${{ github.repository }}-ingestion-telegram:latest
           # Old image is rollback-only (1-2 releases); best-effort so first-run without old tags cannot fail
           docker pull ghcr.io/${{ github.repository }}-ingestion:latest || true
+
+      - name: Pin :prev on GOOD deploy (rollback contract for item 6)
+        # Contract (item 6 consumes it): :prev == last GOOD prod image,
+        # :prev-1 == 2nd-previous. Retention = 2 releases. Best-effort pulls
+        # so a first-run without prior tags cannot fail the deploy.
+        run: |
+          set -euo pipefail
+          for IMG in \
+            ghcr.io/${{ github.repository }}-ingestion-telegram \
+            ghcr.io/${{ github.repository }}-ingestion; do
+            docker pull "$IMG:prev" 2>/dev/null && {
+              docker tag "$IMG:prev" "$IMG:prev-1"
+              docker push "$IMG:prev-1"
+            } || echo "no prior :prev for $IMG (first run) — skipping :prev-1 rotation"
+            docker tag "$IMG:${{ github.sha }}" "$IMG:prev" || docker tag "$IMG:latest" "$IMG:prev"
+            docker push "$IMG:prev"
+            echo "pinned $IMG:prev"
+          done
 
       - name: Backup ingestion database
         run: |
@@ -139,3 +211,371 @@ jobs:
             exit 1
           fi
           echo "✓ $CLIENTS client(s) connected"
+
+  # Item 2 — staging twin lane (per-env-ingestion). Mirror of prod above with:
+  # env staging, staging net, host :3033, staging DB, :staging-prev pinning.
+  # Runs on manual dispatch with target=staging OR auto-follows master push
+  # after prod lane succeeds (twin tracks prod code; skips when prod skipped/failed)
+  # OR auto-follows dev push touching ingestion paths (twin tracks dev code like
+  # staging backend does; no prod gate — prod lane never runs on dev).
+  # Requires (operator, item 1): docker-compose.staging-ingestion.yml +
+  # /opt/onchain-bot-staging ENVF + GitHub environment 'staging'.
+  deploy-staging:
+    name: Deploy staging twin to Oracle (:3033)
+    runs-on: [self-hosted, oracle]
+    needs: [build-and-push, deploy]
+    # SKIP-TOLERANT GATE (item 9b drill finding, run 35827181430): a skipped
+    # need auto-skips dependents UNLESS the if forces evaluation with a status
+    # check fn. On staging-dispatch AND on dev push the prod `deploy` need is
+    # SKIPPED by design — without always() this lane silently skipped (green
+    # run, twin untouched). always() forces evaluation; the build-success
+    # conjunct keeps the broken-build-does-not-deploy invariant (a failed
+    # build never reaches pull/migrate), and the master leg keeps its
+    # prod-green gate via needs.deploy.result.
+    if: always() && needs.build-and-push.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.target == 'staging') || (github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.deploy.result == 'success') || (github.event_name == 'push' && github.ref == 'refs/heads/dev'))
+    environment: staging # staging lane — pinned below, NEVER resolves prod env
+    timeout-minutes: 30
+    concurrency:
+      group: ingestion-staging-target
+      cancel-in-progress: false # single-flight: same triple never runs twice (AUTH_KEY_DUPLICATED)
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy staging compose from checkout (staging path is rsync-managed, no .git)
+        run: |
+          set -euo pipefail
+          SRC="$GITHUB_WORKSPACE/apps/backend/docker-compose.staging-ingestion.yml"
+          DST=/opt/onchain-bot-staging/apps/backend/docker-compose.staging-ingestion.yml
+          [ -f "$SRC" ] || { echo "::error::compose source missing: $SRC (checkout at ${{ github.sha }})"; exit 1; }
+          sudo install -o runner -g runner -m 644 "$SRC" "$DST"
+          sudo chown runner:runner "$DST"
+          test -f "$DST" || { echo "::error::compose copy failed: $DST absent after install"; exit 1; }
+          grep -c 3033 "$DST"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fix ownership before operations (chown -R runner:runner)
+        run: |
+          echo "=== chown -R runner:runner /opt/onchain-bot-staging ==="
+          sudo chown -R runner:runner /opt/onchain-bot-staging || chown -R runner:runner /opt/onchain-bot-staging || echo 'chown warning (non-fatal)'
+          echo "=== ownership fixed ==="
+
+      - name: Ensure staging firewall + socat :3033 (BEFORE first healthcheck)
+        # Order inside the lane: firewall/socat → deploy → smoke. This step
+        # MUST stay before any :3033 healthcheck (item 2 checklist).
+        run: |
+          set -euo pipefail
+          FW_PORT=3033
+          FW_NET=onchain-bot-staging-net
+          if docker network inspect "$FW_NET" >/dev/null 2>&1; then
+            FW_SUBNETS="$(docker network inspect "$FW_NET" --format '{{range .IPAM.Config}}{{.Subnet}} {{end}}')"
+            for FW_SUBNET in $FW_SUBNETS; do
+              if iptables -C DOCKER-USER -s "$FW_SUBNET" -p tcp --dport "$FW_PORT" -j ACCEPT 2>/dev/null; then
+                echo "DOCKER-USER ACCEPT $FW_SUBNET:$FW_PORT already exists"
+              else
+                REJECT_LINE="$(iptables -nL DOCKER-USER --line-numbers 2>/dev/null | awk '/REJECT/ {print $1; exit}' || true)"
+                if [ -n "${REJECT_LINE:-}" ]; then
+                  sudo iptables -I DOCKER-USER "$REJECT_LINE" -s "$FW_SUBNET" -p tcp --dport "$FW_PORT" -j ACCEPT
+                else
+                  sudo iptables -A DOCKER-USER -s "$FW_SUBNET" -p tcp --dport "$FW_PORT" -j ACCEPT
+                fi
+                echo "DOCKER-USER ACCEPT $FW_SUBNET:$FW_PORT added"
+              fi
+            done
+          else
+            echo "::warning::staging net $FW_NET absent (item 1 creates it) — firewall step skipped, healthcheck will fail fast"
+          fi
+          if (ss -ltn 2>/dev/null || netstat -ltn 2>/dev/null) | grep -q ':3033 '; then
+            echo "listener :3033 present (socat unit or twin container)"
+          else
+            echo "::warning::nothing listening on :3033 yet — expected pre-first-deploy; socat unit from install-socat-services.sh staging covers Tailscale ingress"
+          fi
+
+      - name: Pull latest image
+        run: |
+          docker pull ghcr.io/${{ github.repository }}-ingestion-telegram:latest
+          docker pull ghcr.io/${{ github.repository }}-ingestion:latest || true
+
+      - name: Backup staging ingestion database (BEFORE migrate)
+        # Checklist order: backup BEFORE migrate. DB is created by the first
+        # migrate (documented); pg_dump against a missing DB fails the job fast.
+        run: |
+          set -euo pipefail
+          # ENVF pinned per job — no legacy fallback: this lane must NEVER
+          # resolve prod env (item 2 acceptance).
+          ENVF=/opt/onchain-bot-staging/apps/ingestion-telegram/.env.staging
+          [ -f "$ENVF" ] || { echo "::error::staging ENVF missing: $ENVF (operator: create from .env.staging.template, item 1)"; exit 1; }
+          set -a; source "$ENVF"; set +a
+          mkdir -p /data/backups/ingestion-staging
+          POSTGRES_CONTAINER=onchain-bot-postgres-staging \
+          POSTGRES_USER="${INGESTION_DATABASE_USER:-alpha_meta_token_scanner}" \
+          POSTGRES_DB="${INGESTION_DATABASE_NAME:-alpha_meta_token_scanner_staging_ingestion}" \
+          POSTGRES_PASSWORD="${INGESTION_DATABASE_PASSWORD:-${POSTGRES_PASSWORD:-}}" \
+          bash /opt/onchain-bot/scripts/backup-db.sh || {
+            PG_FB="$(docker ps --format '{{.Names}}' | grep -E '^(onchain-bot-postgres-staging|onchain-bot-staging-postgres)$' | head -n 1)"
+            docker exec -e PGPASSWORD="${INGESTION_DATABASE_PASSWORD:-${POSTGRES_PASSWORD:-}}" \
+              "$PG_FB" pg_dump -U "${INGESTION_DATABASE_USER:-alpha_meta_token_scanner}" \
+              -d "${INGESTION_DATABASE_NAME:-alpha_meta_token_scanner_staging_ingestion}" \
+              --format=custom --no-owner --no-acl \
+              > /data/backups/ingestion-staging/ingestion-staging-backup-$(date +%Y%m%d-%H%M%S).dump
+          }
+          find /data/backups/ingestion-staging -maxdepth 1 -name 'ingestion-staging-backup-*.dump' -mtime +7 -delete 2>/dev/null || true
+
+      - name: Run staging ingestion migrations (abort deploy on failure)
+        run: |
+          set -euo pipefail
+          ENVF=/opt/onchain-bot-staging/apps/ingestion-telegram/.env.staging
+          [ -f "$ENVF" ] || { echo "::error::staging ENVF missing: $ENVF"; exit 1; }
+          set -a; source "$ENVF"; set +a
+          echo "=== Running staging ingestion TypeORM migrations ==="
+          docker run --rm --network onchain-bot-staging-net \
+            --env-file "$ENVF" \
+            ghcr.io/${{ github.repository }}-ingestion-telegram:${{ github.sha }} \
+            npx typeorm --dataSource apps/ingestion-telegram/dist/src/shared/common/persistence/data-source.js migration:run \
+            || docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging-ingestion.yml run --rm ingestion-telegram-staging \
+                npx typeorm --dataSource apps/ingestion-telegram/dist/src/shared/common/persistence/data-source.js migration:run
+          echo "=== Staging ingestion migrations applied successfully ==="
+
+      - name: Restart staging ingestion twin
+        run: |
+          set -euo pipefail
+          ENVF=/opt/onchain-bot-staging/apps/ingestion-telegram/.env.staging
+          [ -f "$ENVF" ] || { echo "::error::staging ENVF missing: $ENVF"; exit 1; }
+          set -a; source "$ENVF"; set +a
+          cd /opt/onchain-bot-staging/apps/backend
+          docker compose -f docker-compose.staging-ingestion.yml pull
+          docker compose -f docker-compose.staging-ingestion.yml up -d --force-recreate
+
+      - name: Wait for health (:3033)
+        run: |
+          sleep 10
+          curl -s http://localhost:3033/api/health | jq '.'
+
+      - name: Smoke staging twin (sources-count explicit-empty-OK + versioned SSE probe)
+        run: |
+          set -euo pipefail
+          # Sources-count: twin starts EMPTY by design — [] is explicit-empty-OK,
+          # N>0 is populated-OK. A non-array/5xx is FAIL (no false-green).
+          SOURCES_BODY="$(curl -sf --max-time 10 http://localhost:3033/api/feed/sources)"
+          if echo "$SOURCES_BODY" | jq -e 'type == "array"' >/dev/null; then
+            COUNT="$(echo "$SOURCES_BODY" | jq 'length')"
+            if [ "$COUNT" -eq 0 ]; then
+              echo "PASS: sources explicit-empty-OK (twin starts EMPTY by design, no seed)"
+            else
+              echo "PASS: sources N=$COUNT"
+            fi
+          else
+            echo "::error::sources endpoint did not return an array"
+            exit 1
+          fi
+          # SSE probe, versioned per gate (item 4 deletes gate+backendId):
+          # pre-T4 world → 400/401 without backendId means the gate is alive;
+          # post-T4 world → 200 headers means open stream. Both PASS, each only
+          # under its gate condition; anything else FAILs.
+          SSE_CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 \
+            -H 'Accept: text/event-stream' http://localhost:3033/api/ingestion/stream || true)"
+          if [ "$SSE_CODE" = "200" ]; then
+            echo "PASS: SSE stream headers 200 (post-T4 open stream)"
+          elif [ "$SSE_CODE" = "400" ] || [ "$SSE_CODE" = "401" ]; then
+            echo "PASS: SSE gate present ($SSE_CODE without backendId — pre-T4 world, remove after item 4)"
+          else
+            echo "::error::SSE probe unexpected http=$SSE_CODE (want 200 post-T4 or 400/401 pre-T4)"
+            exit 1
+          fi
+
+      - name: Verify staging twin serving (clients informational)
+        run: |
+          CLIENTS=$(curl -s http://localhost:3033/api/health | jq -r '.clients.connected // 0')
+          echo "staging twin clients.connected=$CLIENTS (informational — twin may idle at 0, no traffic required)"
+
+      - name: Pin :staging-prev on GOOD deploy (staging rollback pin)
+        # Staging pins lane-scoped tags (:staging-prev/:staging-prev-1), NOT
+        # shared :prev — same image repo serves prod, and a staging-only-tested
+        # sha must never become prod's rollback target. Item 6 drills against
+        # the twin with :staging-prev; prod rollback consumes :prev.
+        run: |
+          set -euo pipefail
+          for IMG in \
+            ghcr.io/${{ github.repository }}-ingestion-telegram \
+            ghcr.io/${{ github.repository }}-ingestion; do
+            docker pull "$IMG:staging-prev" 2>/dev/null && {
+              docker tag "$IMG:staging-prev" "$IMG:staging-prev-1"
+              docker push "$IMG:staging-prev-1"
+            } || echo "no prior :staging-prev for $IMG (first run) — skipping rotation"
+            docker tag "$IMG:${{ github.sha }}" "$IMG:staging-prev" || docker tag "$IMG:latest" "$IMG:staging-prev"
+            docker push "$IMG:staging-prev"
+            echo "pinned $IMG:staging-prev"
+          done
+
+  # Item 6 — rollback lanes (per-env-ingestion). Manual dispatch ONLY, never on
+  # push. Single-flight: prod rollback shares the top-level
+  # `ingestion-production-target` group (serializes against prod deploys);
+  # staging rollback shares `ingestion-staging-target` (serializes against
+  # twin deploys). Same MTProto
+  # triple NEVER runs twice at once — two live containers with one session
+  # cause AUTH_KEY_DUPLICATED and log the session out. Discipline in every
+  # step: stop → verify stopped (gate) → start. `docker compose pull` is
+  # FORBIDDEN inside rollback (it would re-fetch the broken :latest).
+  rollback-production:
+    name: Rollback prod ingestion to :prev (:3032)
+    runs-on: [self-hosted, oracle]
+    if: github.event_name == 'workflow_dispatch' && inputs.target == 'rollback-production'
+    environment: production
+    timeout-minutes: 15
+    concurrency:
+      group: ingestion-production-target
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fix ownership before operations (chown -R runner:runner)
+        run: |
+          echo "=== chown -R runner:runner /opt/onchain-bot ==="
+          sudo chown -R runner:runner /opt/onchain-bot || chown -R runner:runner /opt/onchain-bot || echo 'chown warning (non-fatal)'
+          echo "=== ownership fixed ==="
+
+      - name: Pull rollback target :prev (read-only, no retag yet)
+        run: |
+          set -euo pipefail
+          echo "ROLLBACK_T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/ingestion-rollback-t0
+          for IMG in \
+            ghcr.io/${{ github.repository }}-ingestion-telegram \
+            ghcr.io/${{ github.repository }}-ingestion; do
+            docker pull "$IMG:prev" || { echo "::error::no $IMG:prev pinned (item 2 pins on GOOD deploys only) — rollback inexecutable, deploy instead"; exit 1; }
+          done
+
+      - name: Stop prod ingestion (single-flight, --timeout 30)
+        run: |
+          set -euo pipefail
+          cd /opt/onchain-bot/apps/backend
+          docker compose -f docker-compose.ingestion.yml stop --timeout 30 ingestion-telegram
+          if docker ps --format '{{.Names}}' | grep -i ingestion; then
+            echo "::error::REFUSE: ingestion container still running — starting a second one would AUTH_KEY_DUPLICATED the session"
+            exit 1
+          fi
+          echo "OK: world empty — safe to start exactly one container"
+
+      - name: Recreate from :prev (no pull — local retag wins)
+        run: |
+          set -euo pipefail
+          IMG_BASE=ghcr.io/${{ github.repository }}-ingestion-telegram
+          docker tag "$IMG_BASE:prev" "$IMG_BASE:latest"
+          cd /opt/onchain-bot/apps/backend
+          docker compose -f docker-compose.ingestion.yml up -d --force-recreate
+
+      - name: Healthcheck gate (:3032) + downtime measured
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 12); do
+            if curl -sf --max-time 8 http://localhost:3032/api/health >/dev/null 2>&1; then
+              echo "healthy after ~$((i * 5))s"
+              break
+            fi
+            [ "$i" -eq 12 ] && { echo "::error::healthcheck failed after rollback — see runbook docs/deployment/ingestion-rollback.md (retry + escalate, never blind re-run)"; exit 1; }
+            sleep 5
+          done
+          curl -s http://localhost:3032/api/health | jq '.'
+          SSE_CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 \
+            -H 'Accept: text/event-stream' http://localhost:3032/api/ingestion/stream || true)"
+          [ "$SSE_CODE" = "200" ] || { echo "::error::SSE probe http=$SSE_CODE (want 200 post-T4 open stream)"; exit 1; }
+          echo "PASS: SSE stream headers 200"
+          if docker logs onchain-bot-ingestion-telegram --since 10m 2>/dev/null | grep -qi 'AUTH_KEY_DUPLICATED'; then
+            echo "::error::AUTH_KEY_DUPLICATED in logs — a second session is/was alive; recovery is interactive-only (runbook §AUTH_KEY_DUPLICATED)"
+            exit 1
+          fi
+          echo "ROLLBACK_T1=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/ingestion-rollback-t1
+          echo "downtime window: $(cat /tmp/ingestion-rollback-t0) → $(cat /tmp/ingestion-rollback-t1) (SSE clients reconnect 1s→30s backoff, expected seconds)"
+
+  rollback-staging:
+    name: Rollback staging twin to :staging-prev (:3033)
+    runs-on: [self-hosted, oracle]
+    if: github.event_name == 'workflow_dispatch' && inputs.target == 'rollback-staging'
+    environment: staging
+    timeout-minutes: 15
+    concurrency:
+      group: ingestion-staging-target
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fix ownership before operations (chown -R runner:runner)
+        run: |
+          echo "=== chown -R runner:runner /opt/onchain-bot-staging ==="
+          sudo chown -R runner:runner /opt/onchain-bot-staging || chown -R runner:runner /opt/onchain-bot-staging || echo 'chown warning (non-fatal)'
+          echo "=== ownership fixed ==="
+
+      - name: Pull rollback target :staging-prev (read-only, no retag yet)
+        run: |
+          set -euo pipefail
+          echo "ROLLBACK_T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/ingestion-rollback-staging-t0
+          ENVF=/opt/onchain-bot-staging/apps/ingestion-telegram/.env.staging
+          [ -f "$ENVF" ] || { echo "::error::staging ENVF missing: $ENVF"; exit 1; }
+          for IMG in \
+            ghcr.io/${{ github.repository }}-ingestion-telegram \
+            ghcr.io/${{ github.repository }}-ingestion; do
+            docker pull "$IMG:staging-prev" || { echo "::error::no $IMG:staging-prev pinned — rollback inexecutable, deploy staging instead"; exit 1; }
+          done
+
+      - name: Stop staging twin (single-flight, --timeout 30)
+        run: |
+          set -euo pipefail
+          cd /opt/onchain-bot-staging/apps/backend
+          docker compose -f docker-compose.staging-ingestion.yml stop --timeout 30 ingestion-telegram-staging
+          if docker ps --format '{{.Names}}' | grep -i ingestion-telegram-staging; then
+            echo "::error::REFUSE: twin still running — starting a second one would AUTH_KEY_DUPLICATED the staging triple"
+            exit 1
+          fi
+          echo "OK: twin stopped — safe to start exactly one container"
+
+      - name: Recreate twin from :staging-prev (no pull — local retag wins)
+        run: |
+          set -euo pipefail
+          IMG_BASE=ghcr.io/${{ github.repository }}-ingestion-telegram
+          docker tag "$IMG_BASE:staging-prev" "$IMG_BASE:latest"
+          cd /opt/onchain-bot-staging/apps/backend
+          docker compose -f docker-compose.staging-ingestion.yml up -d --force-recreate
+
+      - name: Healthcheck gate (:3033) + downtime measured
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 12); do
+            if curl -sf --max-time 8 http://localhost:3033/api/health >/dev/null 2>&1; then
+              echo "twin healthy after ~$((i * 5))s"
+              break
+            fi
+            [ "$i" -eq 12 ] && { echo "::error::twin healthcheck failed after rollback — see runbook docs/deployment/ingestion-rollback.md (retry + escalate, never blind re-run)"; exit 1; }
+            sleep 5
+          done
+          curl -s http://localhost:3033/api/health | jq '.'
+          SSE_CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 \
+            -H 'Accept: text/event-stream' http://localhost:3033/api/ingestion/stream || true)"
+          [ "$SSE_CODE" = "200" ] || { echo "::error::twin SSE probe http=$SSE_CODE (want 200 post-T4 open stream)"; exit 1; }
+          echo "PASS: twin SSE stream headers 200"
+          if docker logs onchain-bot-ingestion-telegram-staging --since 10m 2>/dev/null | grep -qi 'AUTH_KEY_DUPLICATED'; then
+            echo "::error::AUTH_KEY_DUPLICATED in twin logs — recovery is interactive-only (runbook §AUTH_KEY_DUPLICATED)"
+            exit 1
+          fi
+          echo "ROLLBACK_T1=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/ingestion-rollback-staging-t1
+          echo "downtime window: $(cat /tmp/ingestion-rollback-staging-t0) → $(cat /tmp/ingestion-rollback-staging-t1) (SSE clients reconnect 1s→30s backoff, expected seconds)"

@@ -22,9 +22,29 @@ import {
 } from 'shared/common/http/media-serving';
 import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
+import {
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
-import { CryptoNewsSourceRepository } from 'telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository';
-import { CryptoNewsSource } from 'telegram/ingestion/crypto-news/domain/entities/crypto-news-source.entity';
+import type { CryptoNewsSourceDto } from 'telegram/crypto-news-integration/infrastructure/http/crypto-news-ingestion-client.service';
+
+/**
+ * Minimal source view needed to render queue entries.
+ *
+ * Satisfied by `CryptoNewsSourceDto` (HTTP, ingestion-telegram owner) — the
+ * deprecated `CryptoNewsSourceRepository` in-memory shim returned an empty
+ * store, so this controller now fetches sources live via
+ * GET `{ingestionBaseUrl}/api/feed/sources` (Opción A, T7).
+ */
+interface QueueSourceView {
+  readonly channelId: string;
+  readonly handle: string | null;
+  readonly title: string;
+}
 
 export interface QueueEntryView {
   readonly id: string;
@@ -76,6 +96,7 @@ export interface QueueCountsView {
  *  - GET /counts     Return pending count + today's publish count + remaining cap
  *  - GET /:id/media  Serve the downloaded image attached to a queue entry
  */
+@ApiTags('crypto-news-publisher')
 @Controller('crypto-news-publisher/queue')
 export class QueueController {
   /** UTC reset hour for the 24h window (4am UTC). */
@@ -88,7 +109,6 @@ export class QueueController {
   public constructor(
     private readonly queueRepo: PublisherQueueRepository,
     private readonly llmConfigRepo: LlmConfigRepository,
-    private readonly sourceRepo: CryptoNewsSourceRepository,
     config: ConfigService,
   ) {
     const appCfg = config.get<AppConfig>('app');
@@ -98,6 +118,10 @@ export class QueueController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'List the most-recent publisher queue entries' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Max entries (1-500, default 50)' })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter by entry status' })
+  @ApiResponse({ status: 200, description: 'Queue entries (newest first)' })
   public async list(
     @Query('limit') limit?: string,
     @Query('status') status?: string,
@@ -105,7 +129,7 @@ export class QueueController {
     const parsed = parseInt(limit ?? '', 10);
     const n = Math.max(1, Math.min(500, Number.isFinite(parsed) ? parsed : 50));
     const entries = await this.queueRepo.findAllForDisplay(n);
-    const allSources = await this.sourceRepo.findAll();
+    const allSources = await this.fetchSourcesFromIngestion();
     const sourceByChannelId = new Map(allSources.map((s) => [s.channelId, s]));
     const views = await Promise.all(
       entries.map((e) => this.toView(e, sourceByChannelId)),
@@ -117,6 +141,8 @@ export class QueueController {
   }
 
   @Get('counts')
+  @ApiOperation({ summary: 'Pending count plus daily publish cap usage' })
+  @ApiResponse({ status: 200, description: 'Queue counters' })
   public async counts(): Promise<QueueCountsView> {
     const [pending, publishedToday, cfg] = await Promise.all([
       this.countPending(),
@@ -137,6 +163,10 @@ export class QueueController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a publisher queue entry' })
+  @ApiParam({ name: 'id', description: 'Queue entry id (uuid)' })
+  @ApiResponse({ status: 204, description: 'Queue entry deleted' })
+  @ApiResponse({ status: 404, description: 'Unknown queue entry id' })
   public async remove(@Param('id') id: string): Promise<void> {
     const entry = await this.queueRepo.findByIdForDisplay(id);
     if (!entry) {
@@ -146,6 +176,11 @@ export class QueueController {
   }
 
   @Get(':id/media')
+  @ApiOperation({ summary: 'Serve the image attached to a queue entry' })
+  @ApiParam({ name: 'id', description: 'Queue entry id (uuid)' })
+  @ApiQuery({ name: 'index', required: false, description: 'Image index within imagePaths' })
+  @ApiResponse({ status: 200, description: 'Image bytes' })
+  @ApiResponse({ status: 404, description: 'Unknown entry id or missing media' })
   public async getQueueMedia(
     @Param('id') id: string,
     @Req() req: Request,
@@ -259,9 +294,45 @@ export class QueueController {
     return entries.filter((e) => e.status === 'PENDING').length;
   }
 
+  private async fetchSourcesFromIngestion(): Promise<
+    ReadonlyArray<QueueSourceView>
+  > {
+    try {
+      const response = await fetch(
+        `${this.ingestionBaseUrl}/api/feed/sources`,
+        { method: 'GET', headers: { 'Content-Type': 'application/json' } },
+      );
+      if (!response.ok) {
+        this.logger.warn(
+          `Ingestion-telegram returned ${response.status} for /api/feed/sources`,
+        );
+        return [];
+      }
+      const body: unknown = await response.json();
+      const sources = Array.isArray(body)
+        ? (body as ReadonlyArray<CryptoNewsSourceDto>)
+        : body !== null &&
+            typeof body === 'object' &&
+            'data' in body &&
+            Array.isArray(body.data)
+          ? (body as { data: ReadonlyArray<CryptoNewsSourceDto> }).data
+          : [];
+      return sources.map((s) => ({
+        channelId: s.channelId,
+        handle: s.handle,
+        title: s.title,
+      }));
+    } catch (err) {
+      this.logger.warn(
+        `Failed to fetch sources from ingestion-telegram: ${(err as Error).message}`,
+      );
+      return [];
+    }
+  }
+
   private async toView(
     entry: PublisherQueueEntry,
-    sourceByChannelId: Map<string, CryptoNewsSource>,
+    sourceByChannelId: Map<string, QueueSourceView>,
   ): Promise<QueueEntryView> {
     const source = sourceByChannelId.get(entry.channelId) ?? null;
     const sourceHandle = source?.handle ?? null;

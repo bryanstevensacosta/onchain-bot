@@ -35,7 +35,7 @@ token/scoring                 ← score 0-100 (clasificación + reputación KOL)
    │  emite: scoring.token.scored
    ▼
 ┌─ token/token-gating (filters) ← gates: score threshold, blacklist, honeypot, etc.
-│  │  emite: filters.token.approved | filters.token.rejected
+│  │  emite: vip-call.approval.approved | vip-call.approval.rejected
 │  ▼
 │  telegram/vip-calls-channel  ← formatea y envía a canales de output via MTProto
 │  │  emite: publishing.telegram.published | publishing.telegram.failed
@@ -71,10 +71,10 @@ token/scoring                 ← score 0-100 (clasificación + reputación KOL)
 | `token/market-data`          | `EnrichmentModule`      | Enriquecimiento con market data (merge first-non-null)                   | `normalization.call.normalized`   | `enrichment.token.enriched` / `.failed`     |
 | `token/classification`       | `ClassificationModule`  | Clasificación heurística (riesgo, seguridad)                             | `enrichment.token.enriched`       | `classification.token.classified`           |
 | `token/scoring`              | `ScoringModule`         | Score 0-100 (clasificación + KOL reputation)                             | `classification.token.classified` | `scoring.token.scored`                      |
-| `token/token-gating`         | `FiltersModule`         | Gates: score threshold, blacklist, honeypot, risk, completeness, chain   | `scoring.token.scored`            | `filters.token.approved` / `.rejected`      |
+| `token/token-gating`         | `FiltersModule`         | Gates: score threshold, blacklist, honeypot, risk, completeness, chain   | `scoring.token.scored`            | `vip-call.approval.approved` / `.rejected`  |
 | `token/honeypot`             | `HoneypotModule`        | Análisis heurístico de honeypot (v1 sin simulación)                      | `scoring.token.scored`            | `honeypot.analysis.completed`               |
 | `token/call-tracking`        | `CallTrackingModule`    | Evaluación post-publicación (STRONG/GOOD/NEUTRAL/POOR/FAILED)            | `scoring.token.scored`            | —                                           |
-| `telegram/vip-calls-channel` | `VipCallsChannelModule` | Formatea y publica a canales output via MTProto                          | `filters.token.approved`          | `publishing.telegram.published` / `.failed` |
+| `telegram/vip-calls-channel` | `VipCallsChannelModule` | Formatea y publica a canales output via MTProto                          | `vip-call.approval.approved`      | `publishing.telegram.published` / `.failed` |
 | `dashboard`                  | `DashboardModule`       | Agregador read-only de KPIs cross-BC                                     | —                                 | —                                           |
 
 > Mapa detallado en [`docs/proyect/BC.md`](docs/proyect/BC.md).

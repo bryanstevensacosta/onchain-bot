@@ -1,4 +1,3 @@
-import { KolEntity } from 'kol/identity/infrastructure/persistence/typeorm/entities/kol.entity';
 import { CanonicalTokenCallEntity } from 'token/normalization/infrastructure/persistence/typeorm/entities/canonical-token-call.entity';
 import { KolReputationEntity } from 'kol/reputation/infrastructure/persistence/typeorm/entities/kol-reputation.entity';
 import { TokenScoreEntity } from 'token/scoring/infrastructure/persistence/typeorm/entities/token-score.entity';
@@ -37,6 +36,7 @@ import { AdsThrottleStateEntity } from 'telegram/crypto-news-ads/infrastructure/
 import { AdMediaEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-media.entity';
 import { AdMediaLibraryEntity } from 'telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-media-library.entity';
 import { MatchingConfigEntity } from 'telegram/crypto-news-integration/infrastructure/persistence/typeorm/entities/matching-config.entity';
+import { DeadLetterQueueEntity } from 'telegram/crypto-news-integration/infrastructure/persistence/typeorm/entities/dead-letter-queue.entity';
 import { ThreadsQueueEntryEntity } from 'threads/publisher/infrastructure/persistence/typeorm/entities/threads-queue-entry.entity';
 import { ThreadsKeywordEntity } from 'threads/publisher/infrastructure/persistence/typeorm/entities/threads-keyword.entity';
 import { ThreadsBlacklistPhraseEntity } from 'threads/publisher/infrastructure/persistence/typeorm/entities/threads-blacklist-phrase.entity';
@@ -57,7 +57,6 @@ import { ThreadsMatchingConfigEntity } from 'threads/integration/infrastructure/
  * 4. Generate a migration: `npm run migration:generate -- -n AddYourEntity`
  */
 export const PERSISTED_ENTITIES = [
-  KolEntity,
   CanonicalTokenCallEntity,
   KolReputationEntity,
   TokenScoreEntity,
@@ -96,6 +95,7 @@ export const PERSISTED_ENTITIES = [
   AdMediaLibraryEntity,
   DedupRecordEntity,
   MatchingConfigEntity,
+  DeadLetterQueueEntity,
   ThreadsQueueEntryEntity,
   ThreadsKeywordEntity,
   ThreadsBlacklistPhraseEntity,

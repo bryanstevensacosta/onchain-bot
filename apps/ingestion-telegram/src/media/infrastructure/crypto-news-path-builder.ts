@@ -2,17 +2,55 @@ import * as path from 'node:path';
 import { BaseMediaPathBuilder, PathConfig } from 'shared/media';
 
 /**
- * Path builder for crypto-news media files.
+ * Old on-disk segment (pre item 4) and new on-disk segment (post item 4).
+ * Serving resolves by `{messageId}_{index}.*` glob under the channel dir,
+ * so it is immune to the move; the janitor reads `file_path` and is not —
+ * hence the prefix rewrite (migration + {@link rewriteMediaFilePathPrefix}).
+ */
+export const LEGACY_MEDIA_PATH_SEGMENT = 'crypto-news/media';
+export const FEED_MEDIA_PATH_SEGMENT = 'feed/media';
+
+/**
+ * Rewrite a stored `file_path` from the legacy on-disk prefix to the feed
+ * prefix. Mirrors the rename migration's `UPDATE` semantics exactly:
+ *
+ * - backslashes are normalized to `/` first (Windows-authored rows);
+ * - ONLY paths containing the legacy segment are rewritten;
+ * - everything else (empty string, already-new paths, foreign layouts) is
+ *   returned byte-identical so no-match rows stay visible for remediation
+ *   (re-move or manual rewrite + orphan scan in both directions).
+ *
+ * @param filePath - Stored `file_path` value (absolute or relative)
+ * @returns Rewritten path, or the input unchanged when it does not match
+ */
+export function rewriteMediaFilePathPrefix(filePath: string): string {
+  if (!filePath.includes('crypto-news')) {
+    return filePath;
+  }
+  const normalized = filePath.replace(/\\/g, '/');
+  if (!normalized.includes(`${LEGACY_MEDIA_PATH_SEGMENT}/`)) {
+    return filePath;
+  }
+  return normalized.replaceAll(
+    LEGACY_MEDIA_PATH_SEGMENT,
+    FEED_MEDIA_PATH_SEGMENT,
+  );
+}
+
+/**
+ * Path builder for feed media files.
  *
  * Implements the convention:
- * `uploads/crypto-news/media/{channelId}/{messageId}_{index}.{ext}`
+ * `uploads/feed/media/{channelId}/{messageId}_{index}.{ext}`
+ * (pre item 4: `uploads/crypto-news/media/...` — see
+ * {@link LEGACY_MEDIA_PATH_SEGMENT}).
  *
  * Example:
  * - channelId: `-1001234567890`
  * - messageId: `167`
  * - index: `0`
  * - extension: `.jpg`
- * → `uploads/crypto-news/media/-1001234567890/167_0.jpg`
+ * → `uploads/feed/media/-1001234567890/167_0.jpg`
  *
  * **Phase 2 Migration**: Replaces duplicated path logic in MediaDownloaderService.
  */

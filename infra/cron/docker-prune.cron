@@ -1,9 +1,9 @@
 # =====================================================================
-# infra/cron/docker-prune.cron — canonical cron fragment for the droplet
+# infra/cron/docker-prune.cron — canonical cron fragment for the Oracle server
 # =====================================================================
 #
 # This file is the single source of truth for cron jobs that should run
-# on the self-hosted runner host (droplet CryptoGanster).
+# on the self-hosted runner host (Oracle CryptoGanster).
 #
 # Install (idempotent — re-running it is a no-op if already installed):
 #
@@ -23,7 +23,7 @@
 #     | sudo crontab -u runner -
 #
 # ---------------------------------------------------------------------
-# Timezone: droplet runs UTC. The 02:00 UTC window is between deploy
+# Timezone: Oracle runs UTC. The 02:00 UTC window is between deploy
 # windows and is the lowest-traffic hour for the ingest pipeline.
 # ---------------------------------------------------------------------
 

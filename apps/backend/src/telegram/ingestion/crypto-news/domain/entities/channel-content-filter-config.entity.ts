@@ -20,7 +20,11 @@ interface ChannelContentFilterConfigProps {
  * before persistence. Filters are ordered by (priority ASC, createdAt ASC)
  * for deterministic execution order.
  *
- * Aggregate root with channelId as the identity (FK to CryptoNewsSource).
+ * Aggregate root with channelId as the identity. `channelId` is an OPAQUE
+ * varchar with NO FK by design: crypto-news sources live in
+ * ingestion-telegram's own `<base>_ingestion` DB (ownership split
+ * 2026-09-08), so no JOIN to `crypto_news_sources` is possible or wanted.
+ * Filter use-cases treat unknown channels as warn-only (no throw).
  */
 export class ChannelContentFilterConfig extends AggregateRoot<string> {
   private state: ChannelContentFilterConfigProps;

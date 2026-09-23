@@ -7,7 +7,7 @@
 # The offsite sync (T4, scripts/sync-backups-offsite.sh) runs at 03:20 UTC,
 # after this timer, so the pair of the day (.dump.gz + .meta.txt) exists.
 #
-# INSTALL (droplet, as root — see .service header for full procedure):
+# INSTALL (Oracle server, as root — see .service header for full procedure):
 #   sudo install -m 644 infra/systemd/onchain-backend-backup.timer \
 #     /etc/systemd/system/onchain-backend-backup.timer
 #   sudo systemctl daemon-reload

@@ -2,23 +2,19 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { BackendChannelProviderService } from '../src/telegram/shared/services/backend-channel-provider.service';
 import { StreamService } from '../src/stream/application/services/stream.service';
 import * as http from 'http';
 
 /**
- * SSEStreamController E2E Tests
+ * SSEStreamController E2E Tests (per-env-ingestion item 4 shape)
  *
- * Integration tests:
- * - Connect with valid/invalid backendId
+ * Per-env model — ONE ingestion per env, open stream:
+ * - Connect with NO prior register step and NO backendId param
  * - Heartbeat received within 30s
  * - Disconnect cleanup
- *
- * Per Requirements 2.1, 2.2, 2.3, 4.3, 6.4
  */
 describe('SSEStreamController (e2e)', () => {
   let app: INestApplication;
-  let channelProvider: BackendChannelProviderService;
   let streamService: StreamService;
   let baseUrl: string;
 
@@ -31,7 +27,6 @@ describe('SSEStreamController (e2e)', () => {
     await app.init();
 
     // Get services
-    channelProvider = app.get(BackendChannelProviderService);
     streamService = app.get(StreamService);
 
     // Get the actual port the app is listening on
@@ -45,41 +40,13 @@ describe('SSEStreamController (e2e)', () => {
     await app.close();
   });
 
-  describe('Connection validation', () => {
-    it('should reject connection without backendId', (done) => {
-      // Per Requirement 4.3: backendId is required
-      request(app.getHttpServer())
-        .get('/api/ingestion/stream')
-        .expect(400)
-        .end((err, res) => {
-          if (err) return done(err);
-          expect(res.body.message).toContain('backendId');
-          done();
-        });
-    });
-
-    it('should reject connection with unregistered backendId', (done) => {
-      // Per Requirement 2.3: Reject with 401 if not registered
-      request(app.getHttpServer())
-        .get('/api/ingestion/stream?backendId=unregistered-backend')
-        .expect(401)
-        .end((err, res) => {
-          if (err) return done(err);
-          expect(res.body.message).toContain('not registered');
-          done();
-        });
-    });
-
-    it('should accept connection with registered backendId', (done) => {
-      // Per Requirement 2.2: Validate and accept registered backends
-      // Register a backend first
-      channelProvider.registerBackend('test-backend', ['channel1', 'channel2']);
-
-      // Make raw HTTP request to SSE endpoint
+  describe('Open connection (no registration gate)', () => {
+    it('should accept connection with NO query params at all', (done) => {
+      // Per-env-ingestion item 4: the gate is gone — plain connect streams
       const options = {
         hostname: '127.0.0.1',
         port: app.getHttpServer().address().port,
-        path: '/api/ingestion/stream?backendId=test-backend',
+        path: '/api/ingestion/stream',
         method: 'GET',
         headers: {
           Accept: 'text/event-stream',
@@ -119,17 +86,26 @@ describe('SSEStreamController (e2e)', () => {
         done.fail('Connection timeout');
       }, 5000);
     });
+
+    it('should accept connection with legacy backendId param ignored', (done) => {
+      // Stale ?backendId= query strings must not break the open stream
+      request(app.getHttpServer())
+        .get('/api/ingestion/stream?backendId=legacy-backend')
+        .expect(200)
+        .end((err) => {
+          if (err) return done(err);
+          done();
+        });
+    });
   });
 
   describe('Heartbeat functionality', () => {
     it('should receive heartbeat within 30 seconds', (done) => {
       // Per Requirement 6.4: Heartbeat every 30 seconds
-      channelProvider.registerBackend('heartbeat-test', ['channel1']);
-
       const options = {
         hostname: '127.0.0.1',
         port: app.getHttpServer().address().port,
-        path: '/api/ingestion/stream?backendId=heartbeat-test',
+        path: '/api/ingestion/stream',
         method: 'GET',
         headers: {
           Accept: 'text/event-stream',
@@ -183,14 +159,12 @@ describe('SSEStreamController (e2e)', () => {
 
   describe('Disconnect cleanup', () => {
     it('should clean up connection on client disconnect', (done) => {
-      channelProvider.registerBackend('disconnect-test', ['channel1']);
-
       const initialClientCount = streamService.getClientCount();
 
       const options = {
         hostname: '127.0.0.1',
         port: app.getHttpServer().address().port,
-        path: '/api/ingestion/stream?backendId=disconnect-test',
+        path: '/api/ingestion/stream',
         method: 'GET',
         headers: {
           Accept: 'text/event-stream',
@@ -236,15 +210,9 @@ describe('SSEStreamController (e2e)', () => {
   });
 
   describe('Multiple connections', () => {
-    it('should handle multiple connections from same backend', (done) => {
-      channelProvider.registerBackend('multi-conn-test', ['channel1']);
-
-      const eventSource1 = new EventSource(
-        `${baseUrl}/api/ingestion/stream?backendId=multi-conn-test`,
-      );
-      const eventSource2 = new EventSource(
-        `${baseUrl}/api/ingestion/stream?backendId=multi-conn-test`,
-      );
+    it('should handle multiple concurrent connections', (done) => {
+      const eventSource1 = new EventSource(`${baseUrl}/api/ingestion/stream`);
+      const eventSource2 = new EventSource(`${baseUrl}/api/ingestion/stream`);
 
       let conn1Established = false;
       let conn2Established = false;
@@ -282,57 +250,6 @@ describe('SSEStreamController (e2e)', () => {
         eventSource2.close();
         done.fail(
           `Test timeout. conn1: ${conn1Established}, conn2: ${conn2Established}`,
-        );
-      }, 5000);
-    });
-
-    it('should handle connections from multiple different backends', (done) => {
-      channelProvider.registerBackend('backend-a', ['channel1']);
-      channelProvider.registerBackend('backend-b', ['channel2']);
-
-      const eventSourceA = new EventSource(
-        `${baseUrl}/api/ingestion/stream?backendId=backend-a`,
-      );
-      const eventSourceB = new EventSource(
-        `${baseUrl}/api/ingestion/stream?backendId=backend-b`,
-      );
-
-      let connAEstablished = false;
-      let connBEstablished = false;
-
-      eventSourceA.addEventListener('connection:established', () => {
-        connAEstablished = true;
-        checkBothConnected();
-      });
-
-      eventSourceB.addEventListener('connection:established', () => {
-        connBEstablished = true;
-        checkBothConnected();
-      });
-
-      function checkBothConnected() {
-        if (connAEstablished && connBEstablished) {
-          const clientCount = streamService.getClientCount();
-          expect(clientCount).toBeGreaterThanOrEqual(2);
-
-          eventSourceA.close();
-          eventSourceB.close();
-          done();
-        }
-      }
-
-      eventSourceA.onerror = eventSourceB.onerror = (error: any) => {
-        eventSourceA.close();
-        eventSourceB.close();
-        done.fail(`Connection error: ${error}`);
-      };
-
-      // Timeout
-      setTimeout(() => {
-        eventSourceA.close();
-        eventSourceB.close();
-        done.fail(
-          `Test timeout. A: ${connAEstablished}, B: ${connBEstablished}`,
         );
       }, 5000);
     });

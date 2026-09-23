@@ -1,0 +1,18 @@
+# task-5-deprecados-deuda-tecnica — RECONSTRUCTED on VPS 2026-09-20 from git history + session record
+# Commit: Y → f3f86f7659e32626d1592336fcc842553cf4d42e | feat(ingestion): elimina bloque MTProto backend | 2026-09-20T04:08:10-04:00
+
+## Comandos reales (VPS)
+$ git show --stat --format='' f3f86f7 | tail -4
+ .../services/telegram-client-manager.service.ts    | 156 -----
+ .../services/telegram-media-download.service.ts    | 165 -----
+ .../shared-ingestion.module.integration.spec.ts    | 714 ---------------------
+ .../ingestion/shared/shared-ingestion.module.ts    | 137 +---
+ 17 files changed, 57 insertions(+), 2782 deletions(-)
+
+$ git show --name-status --format='' f3f86f7 | grep -c '^D'  → 12 (12 ficheros git rm: adapter mtproto, transformer, utils, 5 services, safety-config, client-manager spec, integration spec)
+
+## Salida del record
+build OK; backend 197 suites / 2137 tests (2134+3skip); grep -ri mtproto en src solo docs/rollback-note.
+
+## Veredicto: PASS
+Bloque MTProto backend eliminado por completo (8 servicios + adapter + safety + stub + specs). QA-failure (importar símbolo borrado → tsc falla) validada por build verde post-delete.

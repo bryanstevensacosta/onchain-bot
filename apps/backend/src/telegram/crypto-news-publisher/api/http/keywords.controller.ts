@@ -13,6 +13,12 @@ import {
 import { KeywordRepository } from 'telegram/crypto-news-publisher/application/ports/keyword.repository';
 import { Keyword } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
 import { PhraseRegistryService } from 'telegram/crypto-news-publisher/application/services/phrase-registry.service';
+import {
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
 export interface KeywordView {
   readonly id: string;
@@ -111,6 +117,7 @@ interface CreateKeywordBatchDto {
  * `PromptTemplate` rows referenced by any keyword (or the global
  * default) cannot be deleted.
  */
+@ApiTags('crypto-news-publisher')
 @Controller('crypto-news-publisher/keywords')
 export class KeywordsController {
   public constructor(
@@ -119,12 +126,18 @@ export class KeywordsController {
   ) {}
 
   @Get()
+  @ApiOperation({ summary: 'List all crypto-news keywords' })
+  @ApiResponse({ status: 200, description: 'All keywords' })
   public async list(): Promise<ReadonlyArray<KeywordView>> {
     const all = await this.keywordRepo.findAll();
     return all.map(KeywordsController.toView);
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Get one crypto-news keyword by id' })
+  @ApiParam({ name: 'id', description: 'Keyword id (uuid)' })
+  @ApiResponse({ status: 200, description: 'The keyword' })
+  @ApiResponse({ status: 404, description: 'Unknown keyword id' })
   public async getOne(@Param('id') id: string): Promise<KeywordView> {
     const all = await this.keywordRepo.findAll();
     const kw = all.find((k) => k.id === id);
@@ -136,6 +149,9 @@ export class KeywordsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a new crypto-news keyword' })
+  @ApiResponse({ status: 201, description: 'Keyword created' })
+  @ApiResponse({ status: 400, description: 'Validation error' })
   public async create(@Body() dto: CreateKeywordDto): Promise<KeywordView> {
     await this.phraseRegistry.throwIfDuplicate(
       'keyword',
@@ -161,6 +177,9 @@ export class KeywordsController {
 
   @Post('batch')
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create an AND-group of keywords in one call' })
+  @ApiResponse({ status: 201, description: 'Keywords created' })
+  @ApiResponse({ status: 400, description: 'Validation error' })
   public async createBatch(
     @Body() dto: CreateKeywordBatchDto,
   ): Promise<ReadonlyArray<KeywordView>> {
@@ -194,6 +213,11 @@ export class KeywordsController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Partially update a crypto-news keyword' })
+  @ApiParam({ name: 'id', description: 'Keyword id (uuid)' })
+  @ApiResponse({ status: 200, description: 'Keyword updated' })
+  @ApiResponse({ status: 400, description: 'Validation error' })
+  @ApiResponse({ status: 404, description: 'Unknown keyword id' })
   public async update(
     @Param('id') id: string,
     @Body() dto: UpdateKeywordDto,
@@ -259,6 +283,9 @@ export class KeywordsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remove a crypto-news keyword' })
+  @ApiParam({ name: 'id', description: 'Keyword id (uuid)' })
+  @ApiResponse({ status: 204, description: 'Keyword removed' })
   public async remove(@Param('id') id: string): Promise<void> {
     await this.keywordRepo.delete(id);
   }

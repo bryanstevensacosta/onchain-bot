@@ -22,6 +22,15 @@ import type {
  *
  * NOTE: this is NOT the domain aggregate. The domain entity lives at
  * `telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity.ts`.
+ *
+ * FK-LESS BY DESIGN: `channel_id`/`message_id` are opaque content-snapshot
+ * coordinates with no FK to any crypto-news table — those tables
+ * (`crypto_news_sources`, `crypto_news_messages`, `crypto_news_message_media`)
+ * live ONLY in ingestion-telegram's `<base>_ingestion` DB since the
+ * ownership split of 2026-09-08 (backend migration
+ * `1860000000001-DropIngestionOwnedCryptoNewsTables`; the backend owns zero
+ * crypto-news tables). The queue stores text + media path strings, never
+ * bytes. See `docs/architecture/crypto-news-schema-ownership.md`.
  */
 @Entity({ name: 'crypto_news_publisher_queue' })
 @Index('idx_publisher_queue_message_received_at', ['messageReceivedAt'])

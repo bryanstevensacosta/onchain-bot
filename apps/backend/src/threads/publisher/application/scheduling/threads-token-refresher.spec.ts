@@ -22,7 +22,7 @@ describe('ThreadsTokenRefresher', () => {
 
   beforeEach(() => {
     fetchMock = jest.fn();
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    globalThis.fetch = fetchMock;
   });
 
   afterEach(() => {
@@ -60,7 +60,7 @@ describe('ThreadsTokenRefresher', () => {
       ok: true,
       status: 200,
       json: () => Promise.resolve({ data: { expires_at: farFutureS } }),
-    } as unknown as Response);
+    });
     const store: ThreadsOAuthTokenStorePort = { upsert: jest.fn() };
     const refresher = makeRefresher('REAL_TOKEN', store);
 
@@ -79,13 +79,13 @@ describe('ThreadsTokenRefresher', () => {
         ok: true,
         status: 200,
         json: () => Promise.resolve({ data: { expires_at: soonS } }),
-      } as unknown as Response)
+      })
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () =>
           Promise.resolve({ access_token: 'NEW_TOKEN', expires_in: 5184000 }),
-      } as unknown as Response);
+      });
     const store: ThreadsOAuthTokenStorePort = { upsert: jest.fn() };
     const refresher = makeRefresher('REAL_TOKEN', store);
 
@@ -112,7 +112,7 @@ describe('ThreadsTokenRefresher', () => {
       ok: false,
       status: 400,
       json: () => Promise.resolve({ error: 'bad' }),
-    } as unknown as Response);
+    });
     const refresher = makeRefresher('SECRET_TOKEN_XYZ');
 
     await refresher.refreshOnce();

@@ -1,0 +1,23 @@
+T22 Unificar versiones single-source + AGENTS — evidencia 2026-09-20 (rama feat/cleanup-deprecados)
+
+DECISIÓN source of truth: per-app package.json (coincide con per-app CHANGELOG.md hand-written + release manual).
+Root package.json 1.0.0 = placeholder monorepo sin CHANGELOG, NO se bumpea. No se tocaron CHANGELOGs ni estrategia release.
+
+$ node -e versions:
+package.json 1.0.0
+apps/backend/package.json 1.2.0   (= CHANGELOG [1.2.0] 2026-09-16)
+apps/frontend/package.json 1.1.0  (= CHANGELOG [1.1.0] 2026-09-16)
+apps/ingestion-telegram/package.json 1.1.0 (= CHANGELOG [1.1.0] 2026-09-18)
+
+$ npm run docs:check → PASS sin warnings (salida vacía, exit 0).
+
+CAMBIOS (solo docs/config version, sin servicios):
+- apps/backend/AGENTS.md L3: v1.3.2 → v1.2.0 (+ nota source of truth)
+- apps/frontend/AGENTS.md L3: v1.3.2 → v1.1.0; L168: conventional-changelog v1.3.2 → hand-written v1.1.0
+- apps/ingestion-telegram/AGENTS.md L7 (nuevo): Versión v1.1.0
+- AGENTS.md L629: skew "root 0.0.1 / apps 1.3.2" → resuelto T22 con tabla real
+- El "v1.3.2" de headers AGENTS nunca existió (ningún package.json/CHANGELOG lo tuvo).
+
+QA failure-case (badge README distinto → T23): README badges/tabla aún dicen backend 1.3.2 / ingestion 1.0.0 / frontend 1.3.2 — fuera de alcance T22, lo captura T23.
+
+Commit: docs(versions): unifica versiones single-source

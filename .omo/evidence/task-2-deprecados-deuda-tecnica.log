@@ -1,0 +1,20 @@
+# task-2-deprecados-deuda-tecnica — RECONSTRUCTED on VPS 2026-09-20 from git history + session record
+# Original log on local PC (gitignored evidence). T2 = read-only (Commit: N), sin commit en rama (grep baseline/inventario = 0).
+
+## Inventario del record (DONE 2026-09-20, pineado plan l.110)
+26 matches @deprecated / 23 archivos. Importadores no-spec:
+- CryptoNewsMessageRepository ← 3 no-spec
+- QueueController:26,91 (drift: plan decía :205)
+- TelegramMtprotoListenerAdapter ← 1
+- fetchActiveCryptoNewsSourceIds ← 1 interno
+- StubCryptoNewsMediaDownloader ← 0
+
+## Re-verificación VPS 2026-09-20 (comando real)
+$ grep -rn '@deprecated' apps/backend/src apps/ingestion-telegram/src apps/frontend/src
+apps/backend/src/telegram/crypto-news-publisher/crypto-news-publisher.module.ts:78: *   REMOVED (were @deprecated, zero non-spec importers; consumers use
+apps/backend/src/shared/common/config/app.config.ts:164:     * @deprecated Generic token — use per-bot tokens instead:
+apps/backend/src/shared/common/config/app.config.ts:360:      // @deprecated T13 (deprecados-deuda-tecnica): generic TELEGRAM_BOT_TOKEN.
+COUNT: 2 files (notas históricas intencionales T9/T13, no símbolos vivos)
+
+## Veredicto: PASS
+Inventario 26/23 consumido por T4-T15; residuo actual = solo notas históricas en docs/comentarios. QA-failure (consumidor sin migrar bloquea delete) cubierta por T7/T8.

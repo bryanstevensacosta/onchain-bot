@@ -349,8 +349,11 @@ export class LlmConfigMigrationService implements OnApplicationBootstrap {
     cfg: CryptoNewsPublisherConfigJson | null,
     defaultTemplateId: string,
   ): LlmConfig {
-    // The JSON file may still carry `enabled` from before it was split into 3 flags.
-    // Read it dynamically for migration and apply it to all 3 flags.
+    // The JSON file may still carry `enabled` from before it was split into flags.
+    // Read it dynamically for migration and apply it to both remaining flags
+    // (llm/publishing). Matching activation lives in crypto_news_matching_config
+    // (backfilled by migration 1875000000000); the legacy llm_config
+    // matching_enabled column was dropped in 1875000000002.
     const enabled =
       ((cfg as Record<string, unknown> | null)?.enabled as
         | boolean
@@ -361,7 +364,6 @@ export class LlmConfigMigrationService implements OnApplicationBootstrap {
       id: LlmConfigMigrationService.CONFIG_ROW_ID,
       defaultTemplateId,
       targetChannel,
-      matchingEnabled: enabled,
       llmEnabled: enabled,
       publishingEnabled: enabled,
       dailyCap: publishing.dailyCap ?? DEFAULT_CONFIG.publishing.dailyCap,

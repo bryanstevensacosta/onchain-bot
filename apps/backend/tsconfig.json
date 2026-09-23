@@ -15,7 +15,6 @@
       "shared/kernel/*": ["src/shared/kernel/*"],
       "shared/common/*": ["src/shared/common/*"],
       "shared/*": ["src/shared/*"],
-      "discovery/*": ["src/discovery/*"],
       "chain/*": ["src/chain/*"],
       "token/*": ["src/token/*"],
       "telegram/extensions/Logger": [
@@ -26,7 +25,6 @@
       "kol/*": ["src/kol/*"],
       "settings/*": ["src/settings/*"],
       "dashboard/*": ["src/dashboard/*"],
-      "settings/*": ["src/settings/*"],
       "data-provider/*": ["src/data-provider/*"],
       "health/*": ["src/health/*"],
       "src/*": ["src/*"],

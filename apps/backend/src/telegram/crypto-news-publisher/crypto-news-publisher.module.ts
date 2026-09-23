@@ -71,10 +71,12 @@ import { TypeOrmSlotArbitrator } from 'telegram/shared/infrastructure/persistenc
  * adapter binds the same port to a different implementation in the
  * vip-calls module — Nest resolves the binding per-module.
  *
- * **Post crypto-news-entity-cleanup (2026-09):**
+ * **Post crypto-news-entity-cleanup (2026-09, T9 deprecados-deuda-tecnica):**
  * - `CryptoNewsMessageIngestedHandler` DELETED (event not emitted)
  * - Backend uses cron-based matching (Opción A), not event-driven
- * - `CryptoNewsMessageRepository` kept as @deprecated DI shim only
+ * - `CryptoNewsMessageRepository` / `CryptoNewsSourceRepository` DI shims
+ *   REMOVED (were @deprecated, zero non-spec importers; consumers use
+ *   `CryptoNewsSourceDto` via ingestion-telegram HTTP)
  */
 @Module({
   imports: [

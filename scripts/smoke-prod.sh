@@ -5,7 +5,7 @@
 # Probes (each with an explicit timeout, PASS/FAIL echo, non-zero exit on fail):
 #   1. backend health            GET ${SMOKE_BACKEND_URL}/api/health
 #   2. frontend 200 + html       GET ${SMOKE_FRONTEND_URL}/
-#   3. ingestion sources         GET ${SMOKE_INGESTION_URL}/api/crypto-news/sources
+#   3. ingestion sources         GET ${SMOKE_INGESTION_URL}/api/feed/sources
 #   4. recent reachable          GET ${SMOKE_BACKEND_URL}/vip-calls/calls/recent?limit=1
 #                                (NOT freshness — gateway-deferred; reachability only)
 #   5. SSE probe                 GET ${SMOKE_INGESTION_URL}/api/ingestion/stream
@@ -59,10 +59,10 @@ fi
 rm -f "${FRONT_BODY}"
 
 # 3. ingestion sources
-if curl -sf --max-time "${SMOKE_TIMEOUT}" "${SMOKE_INGESTION_URL}/api/crypto-news/sources" > /dev/null 2>&1; then
-  pass "ingestion sources (${SMOKE_INGESTION_URL}/api/crypto-news/sources)"
+if curl -sf --max-time "${SMOKE_TIMEOUT}" "${SMOKE_INGESTION_URL}/api/feed/sources" > /dev/null 2>&1; then
+  pass "ingestion sources (${SMOKE_INGESTION_URL}/api/feed/sources)"
 else
-  fail "ingestion sources (${SMOKE_INGESTION_URL}/api/crypto-news/sources)"
+  fail "ingestion sources (${SMOKE_INGESTION_URL}/api/feed/sources)"
 fi
 
 # 4. recent reachable (reachability only — NOT freshness, gateway-deferred)

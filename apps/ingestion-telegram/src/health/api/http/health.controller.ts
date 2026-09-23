@@ -8,20 +8,15 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { StreamService } from 'stream/application/services/stream.service';
-import type { DisconnectionWindow } from 'stream/application/services/disconnection-tracker.service';
-import { DisconnectionTracker } from 'stream/application/services/disconnection-tracker.service';
-import { SSEBroadcastService } from 'stream/application/services/sse-broadcast.service';
 
 /**
  * Health check response interface
  *
  * Per Requirement 5.1, 5.2: Health endpoint structure
- * Per GAP 3: Include disconnectionWindows and WARNING flag
- * Per Requirement 8.2: Include broadcast system readiness
  */
 export interface HealthResponse {
   status: 'ok' | 'degraded' | 'unhealthy';
-  warnings?: string[]; // Per GAP 3: Add WARNING flag
+  warnings?: string[];
   mtproto: {
     connected: boolean;
     authorized: boolean;
@@ -35,11 +30,6 @@ export interface HealthResponse {
   };
   clients: {
     connected: number;
-    disconnectionWindows?: DisconnectionWindow[]; // Per GAP 3
-  };
-  broadcast: {
-    activeBackends: number; // Per Requirement 8.2
-    ready: boolean; // Per Requirement 8.2: true when activeBackends > 0
   };
   floodWait?: {
     count24h: number;
@@ -114,8 +104,6 @@ export class HealthController {
 
   constructor(
     private readonly streamService: StreamService,
-    private readonly disconnectionTracker: DisconnectionTracker,
-    private readonly sseBroadcastService: SSEBroadcastService,
     @Inject('TelegramClientManager')
     private readonly clientManager?: TelegramClientManager,
     @Inject('FloodWaitCounter')
@@ -130,8 +118,6 @@ export class HealthController {
    * Per Requirement 5.1, 5.2: Returns service health status
    * Per Requirement 5.4: Returns 200 (ok) when MTProto connected
    * Per Requirement 5.5: Returns 503 (degraded) when MTProto disconnected
-   * Per GAP 3: Include disconnectionWindows and WARNING flag
-   * Per Requirement 8.2: Include broadcast system status
    *
    * @returns Health response with detailed metrics
    */
@@ -147,20 +133,7 @@ export class HealthController {
 
     const status = mtprotoConnected && mtprotoAuthorized ? 'ok' : 'degraded';
 
-    // Per GAP 3: Get disconnection windows and check for warnings
-    const disconnectionWindows =
-      this.disconnectionTracker.getDisconnectionWindows();
-    const hasLongDisconnection =
-      this.disconnectionTracker.hasLongDisconnectionWindow();
-
     const warnings: string[] = [];
-    if (hasLongDisconnection) {
-      warnings.push('Client disconnection window >60s detected');
-    }
-
-    // Per Requirement 8.2: Get broadcast system status
-    const activeBackends = this.sseBroadcastService.getActiveBackendCount();
-    const broadcastReady = activeBackends > 0;
 
     const response: HealthResponse = {
       status,
@@ -179,16 +152,11 @@ export class HealthController {
       },
       clients: {
         connected: this.streamService.getClientCount(),
-        disconnectionWindows, // Per GAP 3
-      },
-      broadcast: {
-        activeBackends, // Per Requirement 8.2
-        ready: broadcastReady, // Per Requirement 8.2
       },
       uptime: Date.now() - this.startTime,
     };
 
-    // Per GAP 3: Add warnings array if any warnings exist
+    // Add warnings array if any warnings exist
     if (warnings.length > 0) {
       response.warnings = warnings;
     }

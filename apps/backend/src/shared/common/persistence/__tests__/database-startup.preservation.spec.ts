@@ -9,7 +9,7 @@
  * Preservation Goal: Development and test environments should be completely unchanged:
  * - synchronize:true for dev/test/unset NODE_ENV
  * - Auto-sync applies schema changes without migrations
- * - All 47 entities load correctly
+ * - All 48 entities load correctly
  * - Database connection parameters work as configured
  * - Repository operations function correctly
  *
@@ -145,7 +145,7 @@ describe('Preservation Property Tests: Development/Test Auto-Sync Unchanged', ()
    *
    * This verifies that the entity registration is not broken by the fix.
    * The fix involves extracting PERSISTED_ENTITIES to a separate file,
-   * so we need to ensure all 47 entities are still registered.
+   * so we need to ensure all 48 entities are still registered.
    *
    * Updated from 40 to 41 after adding CryptoNewsMessageMediaEntity.
    * Updated from 41 to 42 after adding MatchingConfigEntity.
@@ -155,6 +155,9 @@ describe('Preservation Property Tests: Development/Test Auto-Sync Unchanged', ()
    * Updated from 39 to 47 after T1 threads-publisher scaffold (8 new
    * threads_* entities: queue, keywords, blacklist, llm-config,
    * prompt-templates, throttle-state, oauth-tokens, matching-config).
+   * Updated from 47 to 48 after T6 dead-letter queue (dead_letter_queue).
+   * Updated from 48 to 47 after telegram-feed-unification item 8 (KolEntity
+   * out: KOL identity moved to ingestion-telegram `telegram_feed_sources`).
    */
   it('should preserve entity count at 47 entities', () => {
     // Verify the array contains exactly 47 entities
@@ -343,19 +346,19 @@ describe('Preservation Property Tests: Development/Test Auto-Sync Unchanged', ()
    */
   it('should preserve entity registration and counting', () => {
     // Mock entity array (simplified representation of PERSISTED_ENTITIES)
-    const mockEntities = Array.from({ length: 47 }, (_, i) => ({
+    const mockEntities = Array.from({ length: 48 }, (_, i) => ({
       name: `Entity${i}`,
     }));
 
     // Simulate entity count logging
     const entityCount = mockEntities.length;
 
-    // Requirement 3.3: Must have exactly 47 entities
-    expect(entityCount).toBe(47);
+    // Requirement 3.3: Must have exactly 48 entities
+    expect(entityCount).toBe(48);
 
     // Requirement 3.4: System should be able to log this count
     const logMessage = `Registered ${entityCount} entities`;
-    expect(logMessage).toContain('47');
+    expect(logMessage).toContain('48');
   });
 
   /**
@@ -398,9 +401,9 @@ describe('Preservation Property Tests: Development/Test Auto-Sync Unchanged', ()
             expect(true).toBe(true); // Preserved behavior
           }
 
-          // 4. Entity count remains at 47 (Requirement 3.3)
-          const expectedEntityCount = 47;
-          expect(expectedEntityCount).toBe(47);
+          // 4. Entity count remains at 48 (Requirement 3.3)
+          const expectedEntityCount = 48;
+          expect(expectedEntityCount).toBe(48);
 
           // 5. Connection parameters use defaults for dev (Requirement 3.5)
           const defaultDbConfig = {

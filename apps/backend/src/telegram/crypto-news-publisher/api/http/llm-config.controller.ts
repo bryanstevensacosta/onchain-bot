@@ -37,6 +37,12 @@ import {
   type LlmConfigView,
   type PromptTemplateView,
 } from 'telegram/crypto-news-publisher/application/mappers/llm-config.mapper';
+import {
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
 export type {
   LlmConfigView,
@@ -213,26 +219,35 @@ export class LlmConfigController {
   }
 
   @Get('config')
+  @ApiOperation({ summary: 'Get the current LLM/publisher config' })
+  @ApiResponse({ status: 200, description: 'Current LlmConfig' })
   public async getConfig(): Promise<LlmConfigView> {
     const cfg = await this.llmConfigRepo.load();
     return toConfigView(cfg);
   }
 
   @Patch('config')
+  @ApiOperation({
+    summary:
+      'Partially update the LLM/publisher config (controller-direct pattern; llmEnabled locked in production)',
+  })
+  @ApiResponse({ status: 200, description: 'LlmConfig updated' })
+  @ApiResponse({ status: 400, description: 'Validation error or guarded flag combination' })
   public async updateConfig(
-    @Body() dto: UpdateLlmConfigDto,
+    @Body() dto: UpdateLlmConfigDto & { matchingEnabled?: unknown },
   ): Promise<LlmConfigView> {
-    // DEPRECATED: matchingEnabled moved to the single source of truth
-    // `crypto_news_matching_config` (id = 1), owned by MatchingConfigController
-    // (GET/PATCH /crypto-news/matching/config). The scheduler
-    // (EnqueueMatchingCronScheduler.tick) and the SSE handler
-    // (ProcessCryptoNewsMessageHandler.handle) read ONLY that row — writes
-    // here would silently diverge (prod showed llm=t vs matching=f with the
-    // UI lying ON). Reject with a hint so callers migrate.
+    // matchingEnabled is not owned by this endpoint: the single source of
+    // truth is `crypto_news_matching_config` (id = 1), owned by
+    // MatchingConfigController (GET/PATCH /crypto-news/matching/config).
+    // The scheduler (EnqueueMatchingCronScheduler.tick) and the SSE handler
+    // (ProcessCryptoNewsMessageHandler.handle) read ONLY that row — accepting
+    // the field here would silently diverge (prod once showed llm=t vs
+    // matching=f with the UI lying ON). Unknown values are rejected with a
+    // hint pointing at the owning endpoint (mirrors the threads guard).
     if (dto.matchingEnabled !== undefined) {
       throw new BadRequestException({
         error:
-          'matchingEnabled is deprecated on this endpoint (single source of truth is crypto_news_matching_config)',
+          'matchingEnabled is not owned by this endpoint (single source of truth is crypto_news_matching_config)',
         hint: 'Use PATCH /crypto-news/matching/config with { enabled } instead',
       });
     }
@@ -246,6 +261,26 @@ export class LlmConfigController {
           'llmEnabled cannot be changed in production (always enabled for quality)',
         hint: 'Use publishingEnabled to control pipeline (matching is owned by PATCH /crypto-news/matching/config)',
       });
+    }
+
+    // 2-FLAG INVARIANT: LLM generation only runs when publishing is
+    // active (`llmEnabled AND publishingEnabled`). Enabling the LLM
+    // while publishing is off burns API calls on content that is never
+    // published, so the combination is rejected with a hint pointing at
+    // the publishing flag (mirrors the matchingEnabled guard above).
+    if (dto.llmEnabled === true) {
+      const current = await this.llmConfigRepo.load();
+      const publishing =
+        dto.publishingEnabled !== undefined
+          ? dto.publishingEnabled
+          : current.publishingEnabled;
+      if (!publishing) {
+        throw new BadRequestException({
+          error:
+            'llmEnabled requires publishingEnabled (LLM only runs when publishing is active)',
+          hint: 'Enable publishing first via { publishingEnabled: true }',
+        });
+      }
     }
 
     // Validate target channel via Bot API before persisting. Outside

@@ -1,7 +1,40 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, type INestApplication } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { AppModule } from './app.module';
 import { Logger } from 'nestjs-pino';
+
+function resolveAppVersion(): string {
+  try {
+    const raw = fs.readFileSync(
+      path.resolve(process.cwd(), 'package.json'),
+      'utf8',
+    );
+    const pkg = JSON.parse(raw) as { version?: string };
+    return pkg.version ?? '1.1.0';
+  } catch {
+    return '1.1.0';
+  }
+}
+
+function setupFeedDocs(app: INestApplication): void {
+  const config = new DocumentBuilder()
+    .setTitle('Telegram feed ingestion-telegram API')
+    .setDescription(
+      'Swagger/OpenAPI for the unified feed scope only: ' +
+        'api/feed sources/messages/stats, stream status, SSE stream, media. ' +
+        'Out of scope: debug, metrics internals.',
+    )
+    .setVersion(resolveAppVersion())
+    .addTag('feed')
+    .addTag('stream')
+    .addTag('media')
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
+}
 
 /**
  * Bootstrap function for the Ingestion Service
@@ -44,6 +77,7 @@ async function bootstrap() {
   });
 
   const port = process.env.PORT || 3031;
+  setupFeedDocs(app);
   await app.listen(port);
 
   const logger = app.get(Logger);

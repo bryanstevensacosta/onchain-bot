@@ -14,6 +14,12 @@ import { BlacklistPhraseRepository } from 'telegram/crypto-news-publisher/applic
 import { BlacklistPhrase } from 'telegram/crypto-news-publisher/domain/entities/blacklist-phrase.entity';
 import type { MatchMode } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
 import { PhraseRegistryService } from 'telegram/crypto-news-publisher/application/services/phrase-registry.service';
+import {
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
 export interface BlacklistPhraseView {
   readonly id: string;
@@ -68,6 +74,7 @@ interface CreateBlacklistBatchDto {
  *  - PATCH  /:id       Update a blacklist phrase (partial)
  *  - DELETE /:id       Remove a blacklist phrase
  */
+@ApiTags('crypto-news-publisher')
 @Controller('crypto-news-publisher/blacklist')
 export class BlacklistController {
   public constructor(
@@ -76,12 +83,18 @@ export class BlacklistController {
   ) {}
 
   @Get()
+  @ApiOperation({ summary: 'List all crypto-news blacklist phrases' })
+  @ApiResponse({ status: 200, description: 'All blacklist phrases' })
   public async list(): Promise<ReadonlyArray<BlacklistPhraseView>> {
     const all = await this.blacklistRepo.findAll();
     return all.map(BlacklistController.toView);
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Get one blacklist phrase by id' })
+  @ApiParam({ name: 'id', description: 'Blacklist phrase id (uuid)' })
+  @ApiResponse({ status: 200, description: 'The blacklist phrase' })
+  @ApiResponse({ status: 404, description: 'Unknown blacklist phrase id' })
   public async getOne(@Param('id') id: string): Promise<BlacklistPhraseView> {
     const all = await this.blacklistRepo.findAll();
     const phrase = all.find((p) => p.id === id);
@@ -93,6 +106,9 @@ export class BlacklistController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a new blacklist phrase' })
+  @ApiResponse({ status: 201, description: 'Blacklist phrase created' })
+  @ApiResponse({ status: 400, description: 'Validation error' })
   public async create(
     @Body() dto: CreateBlacklistDto,
   ): Promise<BlacklistPhraseView> {
@@ -119,6 +135,9 @@ export class BlacklistController {
 
   @Post('batch')
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create an AND-group of blacklist phrases in one call' })
+  @ApiResponse({ status: 201, description: 'Blacklist phrases created' })
+  @ApiResponse({ status: 400, description: 'Validation error' })
   public async createBatch(
     @Body() dto: CreateBlacklistBatchDto,
   ): Promise<ReadonlyArray<BlacklistPhraseView>> {
@@ -151,6 +170,11 @@ export class BlacklistController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Partially update a blacklist phrase' })
+  @ApiParam({ name: 'id', description: 'Blacklist phrase id (uuid)' })
+  @ApiResponse({ status: 200, description: 'Blacklist phrase updated' })
+  @ApiResponse({ status: 400, description: 'Validation error' })
+  @ApiResponse({ status: 404, description: 'Unknown blacklist phrase id' })
   public async update(
     @Param('id') id: string,
     @Body() dto: UpdateBlacklistDto,
@@ -214,6 +238,9 @@ export class BlacklistController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remove a blacklist phrase' })
+  @ApiParam({ name: 'id', description: 'Blacklist phrase id (uuid)' })
+  @ApiResponse({ status: 204, description: 'Blacklist phrase removed' })
   public async remove(@Param('id') id: string): Promise<void> {
     await this.blacklistRepo.delete(id);
   }

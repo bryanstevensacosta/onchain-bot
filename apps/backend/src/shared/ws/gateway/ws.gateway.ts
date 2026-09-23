@@ -16,10 +16,10 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DomainEvent } from 'shared/kernel/domain-event';
 
 /**
- * WebSocket Gateway para broadcasting de eventos del pipeline al frontend.
+ * WebSocket gateway for broadcasting pipeline events to the frontend.
  *
- * Escucha TODOS los eventos del EventEmitter2 y los reenvía a clientes WS conectados.
- * Mapea nombres de eventos del backend a los nombres que el frontend espera.
+ * Listens to ALL EventEmitter2 events and forwards them to connected WS clients.
+ * Maps backend event names to the names the frontend expects.
  */
 @WebSocketGateway({
   cors: {
@@ -41,7 +41,7 @@ export class WsGateway
 
   private readonly logger = new Logger(WsGateway.name);
 
-  // Mapeo de eventName (backend) → wsEventName (frontend)
+  // Maps backend eventName to frontend wsEventName
   private readonly EVENT_MAP: Record<string, string> = {
     'telegram.message.ingested': 'telegram.message.ingested',
     'extraction.candidates.extracted': 'extraction.candidates.extracted',
@@ -63,7 +63,7 @@ export class WsGateway
   public constructor(private readonly eventEmitter: EventEmitter2) {}
 
   public onModuleInit(): void {
-    // Escuchar TODOS los eventos del EventEmitter2 y reenviar a WS
+    // Listen to ALL EventEmitter2 events and forward them to WS
     this.eventEmitter.onAny((eventName: string, event: DomainEvent) => {
       this.handlePipelineEvent(eventName, event);
     });
@@ -104,15 +104,15 @@ export class WsGateway
   private handlePipelineEvent(eventName: string, event: DomainEvent): void {
     const wsEvent = this.EVENT_MAP[eventName];
     if (!wsEvent) {
-      // Evento no mapeado, ignorar
+      // Unmapped event, ignore
       return;
     }
 
-    // Obtener payload del evento
+    // Get the event payload
     const payload =
       event.toPayload?.() ?? (event as unknown as Record<string, unknown>);
 
-    // Broadcast a todos los clientes conectados
+    // Broadcast to all connected clients
     this.server.emit(wsEvent, payload);
     this.lastEventAt = new Date().toISOString();
   }

@@ -9,13 +9,20 @@
 # Validates:
 #   1) Branch naming convention (dev, master, feat/*, fix/*, chore/*, etc.)
 #   2) Blocks direct pushes to master (PR required)
-#   3) Runs full test suite before push
+#   3) AGENTS.md knowledge-base gate (app code without its AGENTS.md update)
+#   4) Runs full test suite before push
 #
 # Allowed branch patterns:
 #   - dev, master (main branches)
 #   - feat/*, fix/*, chore/*, ci/*, docs/*, refactor/*, perf/*, test/*, build/*, style/*, hotfix/*, release/*, revert/*
 #
 # Bypass: `git push --no-verify` (see docs/branch-protection.md).
+
+# stdin (one line per pushed ref: local_ref local_sha remote_ref remote_sha) is a
+# one-shot stream — slurp it once so every section below can re-read it.
+push_refs_file=$(mktemp)
+cat > "$push_refs_file"
+trap 'rm -f "$push_refs_file"' EXIT
 
 # --- 1) Validate current branch naming convention ---
 current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
@@ -59,7 +66,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   if [ "$remote_ref" = "refs/heads/master" ]; then
     blocked_master=1
   fi
-done
+done < "$push_refs_file"
 
 # Also block if current branch is master
 if [ "$current_branch" = "master" ]; then
@@ -79,7 +86,58 @@ if [ "$blocked_master" -eq 1 ]; then
   exit 1
 fi
 
-# --- 3) Run full test suite (mirrors CI Tests job) ---
+# --- 3) AGENTS.md knowledge-base gate (fail fast, before tests) ---
+# Blocks the push when apps/<app>/** changed without its apps/<app>/AGENTS.md
+# in the pushed range (backend, ingestion-telegram, frontend independently).
+# Root docs, infra, scripts and workflows never trigger (out of scope).
+agents_missing=""
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -z "$local_ref" ] && continue
+  case "$local_sha" in
+    0000000000000000000000000000000000000000|"") continue ;; # branch deletion: nothing to check
+  esac
+  case "$remote_sha" in
+    0000000000000000000000000000000000000000|"")
+      # New remote branch: no upstream range — fall back to merge-base.
+      agents_base=""
+      for agents_up in origin/dev origin/master; do
+        agents_base=$(git merge-base "$local_sha" "$agents_up" 2>/dev/null || true)
+        [ -n "$agents_base" ] && break
+      done
+      if [ -z "$agents_base" ]; then
+        echo "⚠️  AGENTS gate: cannot resolve base for $local_ref (no origin/dev nor origin/master) — skipping range check for this ref."
+        continue
+      fi
+      agents_range_base="$agents_base"
+      ;;
+    *)
+      agents_range_base="$remote_sha"
+      ;;
+  esac
+  agents_files=$(git diff --name-only "$agents_range_base" "$local_sha" -- 2>/dev/null || true)
+  for agents_app in backend ingestion-telegram frontend; do
+    agents_touched=$(printf '%s\n' "$agents_files" | grep "^apps/$agents_app/" | grep -v "^apps/$agents_app/AGENTS.md$" || true)
+    if [ -n "$agents_touched" ] && ! printf '%s\n' "$agents_files" | grep -qx "apps/$agents_app/AGENTS.md"; then
+      agents_missing="${agents_missing}  - apps/$agents_app/AGENTS.md (triggered by: $(printf '%s' "$agents_touched" | tr '\n' ' ' | cut -c1-300))
+"
+    fi
+  done
+done < "$push_refs_file"
+
+if [ -n "$agents_missing" ]; then
+  echo ""
+  echo "❌ Push blocked: app code changed without its AGENTS.md knowledge-base update."
+  echo ""
+  printf '%s' "$agents_missing"
+  echo ""
+  echo "   Update the AGENTS.md file(s) above to describe the change, commit, and push again."
+  echo "   Do NOT use --no-verify to skip this: it exists for emergencies only —"
+  echo "   bypassing it rots the knowledge base the whole team (and every agent) relies on."
+  echo ""
+  exit 1
+fi
+
+# --- 4) Run full test suite (mirrors CI Tests job) ---
 echo ""
 echo "🧪 Running tests before push..."
 npm run test:ci

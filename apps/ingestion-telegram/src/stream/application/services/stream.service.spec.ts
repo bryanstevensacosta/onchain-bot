@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { StreamService, SSEEvent } from './stream.service';
-import { DisconnectionTracker } from './disconnection-tracker.service';
 import { ServerResponse } from 'http';
 
 /**
@@ -46,7 +45,7 @@ describe('StreamService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [StreamService, DisconnectionTracker],
+      providers: [StreamService],
     }).compile();
 
     service = module.get<StreamService>(StreamService);

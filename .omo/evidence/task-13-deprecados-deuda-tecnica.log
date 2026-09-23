@@ -1,0 +1,15 @@
+# task-13-deprecados-deuda-tecnica — RECONSTRUCTED on VPS 2026-09-20 from git history + session record
+# Commit: Y → 20d34f1116bd113f53416d210ee5790fc8bcb85d | docs(config): alinea tokens por bot y depreca genérico | 2026-09-20T05:33:22-04:00
+
+## Comando real (VPS)
+$ git show --name-only --format='' 20d34f1  (4 files)
+.env.example
+apps/backend/.env.production.template
+apps/backend/.env.staging.template
+apps/backend/src/shared/common/config/app.config.ts
+
+## Salida del record
+TELEGRAM_BOT_TOKEN genérico marcado @deprecated (app.config.ts:361 + README shared:268); templates alineados por bot (sin secretos añadidos); validator 19/19.
+
+## Veredicto: PASS
+Tokens por bot alineados; genérico deprecado sin rotar secretos (VIP_CALLS/CRYPTO_NEWS/CHAIN_DEXTER intactos). QA-failure (token genérico → warn deprecated) cubierta por validator spec.

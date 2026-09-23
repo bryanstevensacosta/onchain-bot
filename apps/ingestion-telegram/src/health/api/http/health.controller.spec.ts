@@ -6,8 +6,6 @@ import {
   ChannelMetadata,
 } from './health.controller';
 import { StreamService } from 'stream/application/services/stream.service';
-import { DisconnectionTracker } from 'stream/application/services/disconnection-tracker.service';
-import { SSEBroadcastService } from 'stream/application/services/sse-broadcast.service';
 
 /**
  * Mock TelegramClientManager interface
@@ -40,19 +38,16 @@ interface MockFloodWaitCounter {
 /**
  * Integration tests for HealthController
  *
- * **Validates: Requirements 5.1, 5.4, 5.5, 8.2**
+ * **Validates: Requirements 5.1, 5.4, 5.5**
  *
  * Tests health endpoint behavior with different TelegramClientManager states:
  * - Connected state returns HTTP 200
  * - Disconnected state returns HTTP 503
  * - Channels endpoint returns correct metadata structure
- * - Broadcast status returns activeBackends and ready flag
  */
 describe('HealthController', () => {
   let controller: HealthController;
   let streamService: StreamService;
-  let disconnectionTracker: DisconnectionTracker;
-  let sseBroadcastService: SSEBroadcastService;
   let mockClientManager: MockTelegramClientManager;
   let mockFloodWaitCounter: MockFloodWaitCounter;
 
@@ -87,16 +82,6 @@ describe('HealthController', () => {
           },
         },
         {
-          provide: DisconnectionTracker,
-          useClass: DisconnectionTracker,
-        },
-        {
-          provide: SSEBroadcastService,
-          useValue: {
-            getActiveBackendCount: jest.fn().mockReturnValue(0),
-          },
-        },
-        {
           provide: 'TelegramClientManager',
           useValue: mockClientManager,
         },
@@ -109,9 +94,6 @@ describe('HealthController', () => {
 
     controller = module.get<HealthController>(HealthController);
     streamService = module.get<StreamService>(StreamService);
-    disconnectionTracker =
-      module.get<DisconnectionTracker>(DisconnectionTracker);
-    sseBroadcastService = module.get<SSEBroadcastService>(SSEBroadcastService);
   });
 
   describe('getHealth', () => {
@@ -408,7 +390,6 @@ describe('HealthController', () => {
         'mtproto',
         'channels',
         'clients',
-        'broadcast',
         'uptime',
       ];
 
@@ -429,10 +410,6 @@ describe('HealthController', () => {
 
       // Clients nested fields
       expect(response.clients).toHaveProperty('connected');
-
-      // Broadcast nested fields (Requirement 8.2)
-      expect(response.broadcast).toHaveProperty('activeBackends');
-      expect(response.broadcast).toHaveProperty('ready');
     });
 
     it('should handle multiple concurrent health checks', async () => {
@@ -677,115 +654,6 @@ describe('HealthController', () => {
     });
   });
 
-  describe('broadcast status (Requirement 8.2)', () => {
-    it('should return broadcast.ready=true when at least 1 backend connected', async () => {
-      // Arrange
-      jest
-        .spyOn(sseBroadcastService, 'getActiveBackendCount')
-        .mockReturnValue(1);
-
-      const mockResponse = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      } as any;
-
-      // Act
-      await controller.getHealth(mockResponse);
-
-      // Assert
-      const response = mockResponse.json.mock.calls[0][0];
-      expect(response.broadcast.activeBackends).toBe(1);
-      expect(response.broadcast.ready).toBe(true);
-    });
-
-    it('should return broadcast.ready=false when no backends connected', async () => {
-      // Arrange
-      jest
-        .spyOn(sseBroadcastService, 'getActiveBackendCount')
-        .mockReturnValue(0);
-
-      const mockResponse = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      } as any;
-
-      // Act
-      await controller.getHealth(mockResponse);
-
-      // Assert
-      const response = mockResponse.json.mock.calls[0][0];
-      expect(response.broadcast.activeBackends).toBe(0);
-      expect(response.broadcast.ready).toBe(false);
-    });
-
-    it('should return broadcast.ready=true when multiple backends connected', async () => {
-      // Arrange
-      jest
-        .spyOn(sseBroadcastService, 'getActiveBackendCount')
-        .mockReturnValue(3);
-
-      const mockResponse = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      } as any;
-
-      // Act
-      await controller.getHealth(mockResponse);
-
-      // Assert
-      const response = mockResponse.json.mock.calls[0][0];
-      expect(response.broadcast.activeBackends).toBe(3);
-      expect(response.broadcast.ready).toBe(true);
-    });
-
-    it('should include broadcast status in health response', async () => {
-      // Arrange
-      jest
-        .spyOn(sseBroadcastService, 'getActiveBackendCount')
-        .mockReturnValue(2);
-
-      const mockResponse = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      } as any;
-
-      // Act
-      await controller.getHealth(mockResponse);
-
-      // Assert
-      const response = mockResponse.json.mock.calls[0][0];
-      expect(response).toHaveProperty('broadcast');
-      expect(response.broadcast).toEqual({
-        activeBackends: 2,
-        ready: true,
-      });
-    });
-
-    it('should reflect dynamic changes in backend count', async () => {
-      // Arrange - Simulate varying backend counts
-      const backendCounts = [0, 1, 2, 5, 0];
-
-      for (const count of backendCounts) {
-        jest
-          .spyOn(sseBroadcastService, 'getActiveBackendCount')
-          .mockReturnValue(count);
-
-        const mockResponse = {
-          status: jest.fn().mockReturnThis(),
-          json: jest.fn(),
-        } as any;
-
-        // Act
-        await controller.getHealth(mockResponse);
-
-        // Assert
-        const response = mockResponse.json.mock.calls[0][0];
-        expect(response.broadcast.activeBackends).toBe(count);
-        expect(response.broadcast.ready).toBe(count > 0);
-      }
-    });
-  });
-
   describe('edge cases', () => {
     it('should handle StreamService returning negative client count gracefully', async () => {
       // Arrange - This should never happen, but test defensive behavior
@@ -916,140 +784,6 @@ describe('HealthController', () => {
       // Should be a valid date
       const date = new Date(response.mtproto.lastPollAt);
       expect(isNaN(date.getTime())).toBe(false);
-    });
-  });
-
-  describe('disconnection window tracking (GAP 3)', () => {
-    it('should include disconnectionWindows in health response', async () => {
-      // Arrange
-      disconnectionTracker.recordDisconnection('client-1');
-      disconnectionTracker.recordReconnection('client-1');
-
-      const mockResponse = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      } as any;
-
-      // Act
-      await controller.getHealth(mockResponse);
-
-      // Assert
-      const response = mockResponse.json.mock.calls[0][0];
-      expect(response.clients.disconnectionWindows).toBeDefined();
-      expect(Array.isArray(response.clients.disconnectionWindows)).toBe(true);
-    });
-
-    it('should include disconnection window details', async () => {
-      // Arrange
-      disconnectionTracker.recordDisconnection('client-1');
-      disconnectionTracker.recordReconnection('client-1');
-
-      const mockResponse = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      } as any;
-
-      // Act
-      await controller.getHealth(mockResponse);
-
-      // Assert
-      const response = mockResponse.json.mock.calls[0][0];
-      const windows = response.clients.disconnectionWindows;
-      expect(windows.length).toBe(1);
-      expect(windows[0]).toHaveProperty('clientId');
-      expect(windows[0]).toHaveProperty('disconnectedAt');
-      expect(windows[0]).toHaveProperty('reconnectedAt');
-      expect(windows[0]).toHaveProperty('durationMs');
-    });
-
-    it('should add WARNING flag when disconnection window exceeds 60s', async () => {
-      // Arrange - Mock a long disconnection (>60s)
-      const clientId = 'client-1';
-      const longAgo = new Date(Date.now() - 61_000);
-      disconnectionTracker['activeDisconnections'].set(clientId, longAgo);
-
-      const mockResponse = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      } as any;
-
-      // Act
-      await controller.getHealth(mockResponse);
-
-      // Assert
-      const response = mockResponse.json.mock.calls[0][0];
-      expect(response.warnings).toBeDefined();
-      expect(Array.isArray(response.warnings)).toBe(true);
-      expect(response.warnings).toContain(
-        'Client disconnection window >60s detected',
-      );
-    });
-
-    it('should NOT add WARNING flag when all windows are under 60s', async () => {
-      // Arrange - Mock a short disconnection (<60s)
-      disconnectionTracker.recordDisconnection('client-1');
-      disconnectionTracker.recordReconnection('client-1');
-
-      const mockResponse = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      } as any;
-
-      // Act
-      await controller.getHealth(mockResponse);
-
-      // Assert
-      const response = mockResponse.json.mock.calls[0][0];
-      expect(response.warnings).toBeUndefined();
-    });
-
-    it('should handle multiple disconnection windows', async () => {
-      // Arrange
-      disconnectionTracker.recordDisconnection('client-1');
-      disconnectionTracker.recordReconnection('client-1');
-      disconnectionTracker.recordDisconnection('client-2');
-      disconnectionTracker.recordReconnection('client-2');
-      disconnectionTracker.recordDisconnection('client-3'); // Still disconnected
-
-      const mockResponse = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      } as any;
-
-      // Act
-      await controller.getHealth(mockResponse);
-
-      // Assert
-      const response = mockResponse.json.mock.calls[0][0];
-      const windows = response.clients.disconnectionWindows;
-      expect(windows.length).toBe(3);
-
-      // Check we have both completed and active windows
-      const completedWindows = windows.filter(
-        (w: any) => w.reconnectedAt !== null,
-      );
-      const activeWindows = windows.filter(
-        (w: any) => w.reconnectedAt === null,
-      );
-      expect(completedWindows.length).toBe(2);
-      expect(activeWindows.length).toBe(1);
-    });
-
-    it('should return empty disconnectionWindows array when no disconnections', async () => {
-      // Arrange
-      disconnectionTracker.clear();
-
-      const mockResponse = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      } as any;
-
-      // Act
-      await controller.getHealth(mockResponse);
-
-      // Assert
-      const response = mockResponse.json.mock.calls[0][0];
-      expect(response.clients.disconnectionWindows).toEqual([]);
     });
   });
 });

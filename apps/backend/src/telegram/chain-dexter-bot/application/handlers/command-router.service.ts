@@ -117,7 +117,7 @@ export class CommandRouterService {
     if (cb.data.startsWith('refresh:')) {
       await this.bot.answerCallbackQuery(
         cb.id,
-        'Refresh no implementado en MVP — re-envía el comando',
+        'Refresh not implemented in MVP — resend the command',
       );
       return;
     }

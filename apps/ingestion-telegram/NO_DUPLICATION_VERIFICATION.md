@@ -31,7 +31,7 @@ When a message arrives from Channel A:
 ```
 Telegram MTProto → Ingestion Service (receives message ONCE from channel A)
                 ↓
-                IngestionCoordinator.route()
+                 MessagePersistenceCoordinator.route()
                 ↓
                 StreamService.broadcast() (broadcasts ONCE to all connected backends)
                 ├─→ Staging SSE connection (receives message once)

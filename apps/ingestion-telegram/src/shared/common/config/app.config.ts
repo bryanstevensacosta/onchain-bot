@@ -12,14 +12,12 @@ import {
   IsBoolean,
   validateSync,
   ValidatorOptions,
-  IsArray,
   ValidateNested,
   IsEnum,
   IsPositive,
   MinLength,
 } from 'class-validator';
 import { plainToClass, Type } from 'class-transformer';
-import { CRYPTO_NEWS_SEED } from '../../../telegram/crypto-news/seeds/crypto-news.seed';
 
 /**
  * Application configuration for Ingestion Service
@@ -31,21 +29,6 @@ import { CRYPTO_NEWS_SEED } from '../../../telegram/crypto-news/seeds/crypto-new
  * Per Requirement 11: Anti-ban protection configuration
  * Per Requirement 11.6: Load config file with safe defaults
  */
-
-/**
- * Interface for channel seed entries
- */
-export interface SeedKolEntry {
-  channelId: string;
-  displayName?: string;
-  handle?: string;
-}
-
-export interface SeedNewsChannelEntry {
-  channelId: string;
-  displayName?: string;
-  handle?: string;
-}
 
 /**
  * Interface for safety configuration from JSON file
@@ -241,12 +224,6 @@ class AppConfigValidation {
   @Type(() => TelegramConfig)
   telegram!: TelegramConfig;
 
-  @IsArray()
-  seedKols!: SeedKolEntry[];
-
-  @IsArray()
-  seedNews!: SeedNewsChannelEntry[];
-
   @ValidateNested()
   @Type(() => ApiConfig)
   api!: ApiConfig;
@@ -380,57 +357,6 @@ function loadSafetyConfig(): IngestionSafetyConfigFile {
 }
 
 /**
- * Parse JSON seed configuration from environment variables
- */
-function parseSeedKols(): SeedKolEntry[] {
-  const raw = process.env.INGESTION_TELEGRAM_SEED_KOLS;
-  if (!raw) return [];
-
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      console.warn(
-        '[Config] INGESTION_TELEGRAM_SEED_KOLS is not an array, ignoring',
-      );
-      return [];
-    }
-    return parsed as SeedKolEntry[];
-  } catch (error) {
-    console.warn(
-      `[Config] Failed to parse INGESTION_TELEGRAM_SEED_KOLS: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    return [];
-  }
-}
-
-function parseSeedNews(): SeedNewsChannelEntry[] {
-  const raw = process.env.INGESTION_TELEGRAM_SEED_NEWS;
-
-  // If env var is not set or empty, use hardcoded seed file
-  if (!raw || raw.trim() === '') {
-    // Import from seed file
-    // NOTE: Requires the seed file to be in the dist/ folder after build
-    return CRYPTO_NEWS_SEED as SeedNewsChannelEntry[];
-  }
-
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      console.warn(
-        '[Config] INGESTION_TELEGRAM_SEED_NEWS is not an array, ignoring',
-      );
-      return [];
-    }
-    return parsed as SeedNewsChannelEntry[];
-  } catch (error) {
-    console.warn(
-      `[Config] Failed to parse INGESTION_TELEGRAM_SEED_NEWS: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    return [];
-  }
-}
-
-/**
  * Main application configuration factory
  * Per Requirement 6.2: Environment variable validation with class-validator
  */
@@ -444,10 +370,6 @@ export const appConfig = registerAs('app', () => {
     apiHash: process.env.INGESTION_TELEGRAM_MTPROTO_API_HASH || '',
     sessionString: process.env.INGESTION_TELEGRAM_MTPROTO_SESSION || '',
   };
-
-  // Parse channel seeders (Requirement 6.2)
-  const seedKols = parseSeedKols();
-  const seedNews = parseSeedNews();
 
   // API server configuration (Requirement 6.2)
   const api = {
@@ -470,7 +392,7 @@ export const appConfig = registerAs('app', () => {
   // Storage configuration (Requirement 6.2)
   const uploads = {
     root: process.env.INGESTION_UPLOADS_ROOT || './uploads',
-    mediaPath: 'crypto-news/media',
+    mediaPath: 'feed/media',
   };
 
   // Safety configuration (Requirement 11)
@@ -570,19 +492,6 @@ export const appConfig = registerAs('app', () => {
   // TODO: Implement validation functions
   //   validateApiConfig(api);
 
-  // Multi-Backend configuration (Per Requirement 9.1, 9.2)
-  const multiBackend = {
-    enabled: process.env.INGESTION_MULTI_BACKEND_ENABLED === 'true',
-    backfillBufferSize: parseInt(
-      process.env.INGESTION_BACKFILL_BUFFER_SIZE || '5000',
-      10,
-    ),
-    backfillRetentionHours: parseInt(
-      process.env.INGESTION_BACKFILL_RETENTION_HOURS || '72',
-      10,
-    ),
-  };
-
   // Crypto-news retention janitor (db-separation todo 6): effective 72h,
   // unified with the backend's CRYPTO_NEWS_MEDIA_RETENTION_HOURS default
   // (72h). The scheduler clamps to >= 1h at the seam. Clock is
@@ -594,15 +503,12 @@ export const appConfig = registerAs('app', () => {
   return {
     nodeEnv,
     telegram,
-    seedKols,
-    seedNews,
     api,
     redis,
     uploads,
     ingestionSafety,
     database,
     logging,
-    multiBackend,
     cryptoNewsMediaRetentionHours,
   };
 });

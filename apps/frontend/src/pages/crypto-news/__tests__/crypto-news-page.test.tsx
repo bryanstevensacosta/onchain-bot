@@ -234,14 +234,14 @@ describe('CryptoNewsPage — media rendering', () => {
           id: 'media-1',
           index: 0,
           type: 'photo',
-          url: '/api/crypto-news/media/media-1',
+          url: '/ingestion-api/media/media-1',
           mimeType: 'image/jpeg',
         },
         {
           id: 'media-2',
           index: 1,
           type: 'photo',
-          url: '/api/crypto-news/media/media-2',
+          url: '/ingestion-api/media/media-2',
           mimeType: 'image/png',
         },
       ],
@@ -261,11 +261,11 @@ describe('CryptoNewsPage — media rendering', () => {
 
     expect(imgs).toHaveLength(2);
 
-    expect(imgs[0]).toHaveAttribute('src', '/api/crypto-news/media/media-1');
+    expect(imgs[0]).toHaveAttribute('src', '/ingestion-api/media/media-1');
     expect(imgs[0]).toHaveAttribute('alt', 'BTC pump incoming 1');
     expect(imgs[0]).toHaveAttribute('loading', 'lazy');
 
-    expect(imgs[1]).toHaveAttribute('src', '/api/crypto-news/media/media-2');
+    expect(imgs[1]).toHaveAttribute('src', '/ingestion-api/media/media-2');
     expect(imgs[1]).toHaveAttribute('alt', 'BTC pump incoming 2');
   });
 
@@ -283,14 +283,14 @@ describe('CryptoNewsPage — media rendering', () => {
           id: 'media-video',
           index: 0,
           type: 'video',
-          url: '/crypto-news/media/media-video',
+          url: '/ingestion-api/media/media-video',
           mimeType: 'application/octet-stream',
         },
         {
           id: 'media-photo',
           index: 1,
           type: 'photo',
-          url: '/crypto-news/media/media-photo',
+          url: '/ingestion-api/media/media-photo',
           mimeType: 'image/jpeg',
         },
       ],
@@ -310,12 +310,12 @@ describe('CryptoNewsPage — media rendering', () => {
 
     expect(video).not.toBeNull();
     const sourceEl = video!.querySelector('source');
-    expect(sourceEl).toHaveAttribute('src', '/crypto-news/media/media-video');
+    expect(sourceEl).toHaveAttribute('src', '/ingestion-api/media/media-video');
     expect(sourceEl).toHaveAttribute('type', 'video/mp4');
 
     const imgs = within(article).getAllByRole('img');
     expect(imgs).toHaveLength(1);
-    expect(imgs[0]).toHaveAttribute('src', '/crypto-news/media/media-photo');
+    expect(imgs[0]).toHaveAttribute('src', '/ingestion-api/media/media-photo');
   });
 
   it('renders no <img> when media array is empty', () => {

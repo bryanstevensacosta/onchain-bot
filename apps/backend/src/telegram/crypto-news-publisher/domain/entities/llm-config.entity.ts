@@ -12,13 +12,6 @@ export interface LlmConfigProps {
   readonly id: number;
   defaultTemplateId: string;
   targetChannel: string;
-  /**
-   * @deprecated Single source of truth for matching activation is
-   * crypto_news_matching_config (id=1). This field is kept for read
-   * compatibility only; writes via PATCH /crypto-news-publisher/llm/config
-   * are rejected with 400. Scheduler + SSE handler never read this field.
-   */
-  matchingEnabled: boolean;
   llmEnabled: boolean;
   publishingEnabled: boolean;
   rejectNonLatin: boolean;
@@ -36,10 +29,12 @@ export interface LlmConfigProps {
  * Owns the GLOBAL publishing knobs:
  *   - which `PromptTemplate` is the default for unmatched keywords
  *   - which Telegram channel publishes to
- *   - three independent on/off switches:
- *     • matchingEnabled: whether to enqueue messages matching keywords
+ *   - two independent on/off switches:
  *     • llmEnabled: whether to generate content with LLM (false = publish raw)
  *     • publishingEnabled: whether to publish from the queue at all
+ *   (matching activation lives in crypto_news_matching_config, owned by
+ *   MatchingConfigController — the legacy llm_config.matching_enabled
+ *   column was dropped in migration 1875000000002)
  *   - daily cap and the UTC hour at which it resets
  *   - the random delay window between consecutive publishes
  *   - the LLM retry budget before a queue entry is marked FAILED
@@ -74,7 +69,6 @@ export class LlmConfig extends AggregateRoot<number> {
     id?: number;
     defaultTemplateId: string;
     targetChannel?: string;
-    matchingEnabled?: boolean;
     llmEnabled?: boolean;
     publishingEnabled?: boolean;
     rejectNonLatin?: boolean;
@@ -102,7 +96,6 @@ export class LlmConfig extends AggregateRoot<number> {
       id: input.id ?? 1,
       defaultTemplateId,
       targetChannel: input.targetChannel ?? '',
-      matchingEnabled: input.matchingEnabled ?? false,
       llmEnabled: input.llmEnabled ?? false,
       publishingEnabled: input.publishingEnabled ?? false,
       rejectNonLatin: input.rejectNonLatin ?? true,
@@ -129,10 +122,6 @@ export class LlmConfig extends AggregateRoot<number> {
 
   public get targetChannel(): string {
     return this.state.targetChannel;
-  }
-
-  public get matchingEnabled(): boolean {
-    return this.state.matchingEnabled;
   }
 
   public get llmEnabled(): boolean {
@@ -180,7 +169,6 @@ export class LlmConfig extends AggregateRoot<number> {
    */
   public update(patch: {
     targetChannel?: string;
-    matchingEnabled?: boolean;
     llmEnabled?: boolean;
     publishingEnabled?: boolean;
     rejectNonLatin?: boolean;
@@ -216,10 +204,6 @@ export class LlmConfig extends AggregateRoot<number> {
       patch.targetChannel !== undefined
         ? patch.targetChannel
         : this.state.targetChannel;
-    this.state.matchingEnabled =
-      patch.matchingEnabled !== undefined
-        ? patch.matchingEnabled
-        : this.state.matchingEnabled;
     this.state.llmEnabled =
       patch.llmEnabled !== undefined ? patch.llmEnabled : this.state.llmEnabled;
     this.state.publishingEnabled =

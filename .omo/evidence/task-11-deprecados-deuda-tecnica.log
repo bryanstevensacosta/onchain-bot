@@ -1,0 +1,19 @@
+# task-11-deprecados-deuda-tecnica — RECONSTRUCTED on VPS 2026-09-20 from git history + session record
+# Commit: N (backup + gate owner A2, sin cambios de código). Original log on local PC (gitignored).
+
+## Comandos reales (VPS)
+$ ls apps/backend/src/shared/common/persistence/migrations/ | grep 1875
+1875000000000-BackfillMatchingConfigFromLlm.ts
+1875000000001-CreateThreadsPublisherTables.ts
+1875000000002-DropLlmConfigMatchingEnabled.ts
+→ migración backfill 1875 EXISTE en disco (gate A2 trazable).
+
+$ ls -la /tmp/pre-deploy-20260920_044744.dump.gz → No such file or directory
+$ ls /tmp/*.dump.gz → No such file or directory
+→ backup path AUSENTE en este host: origen PC local (el dump se generó en el PC de ejecución, /tmp no se versiona). Se anota sin inventar salida.
+
+## Salida del record
+Columna EXISTE en dev (divergencia t vs f documentada); backup 239 entradas; 19 pendientes (synchronize-era); T12 BLOQUEADO hasta OK owner.
+
+## Veredicto: PASS (gate cumplido, del record)
+Owner autorizó T12 ("Si vamos", ver T12). QA-failure (columna ya ausente → skip documentado vía spec :39) no aplicó.

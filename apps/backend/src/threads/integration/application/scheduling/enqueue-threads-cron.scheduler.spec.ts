@@ -60,8 +60,8 @@ describe('EnqueueThreadsCronScheduler', () => {
       client,
       new ContentFilterService(),
       channelFilters,
-      keywordRepo as unknown as ThreadsKeywordRepository,
-      blacklistRepo as unknown as ThreadsBlacklistPhraseRepository,
+      keywordRepo,
+      blacklistRepo,
     );
     matchingRepo = new InMemoryThreadsMatchingConfigRepository();
     queueRepo = new InMemoryThreadsQueueRepository();

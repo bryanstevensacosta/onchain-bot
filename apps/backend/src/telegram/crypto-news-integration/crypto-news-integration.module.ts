@@ -5,8 +5,13 @@ import { FilteredCryptoNewsService } from 'telegram/crypto-news-integration/appl
 import { ProcessCryptoNewsMessageHandler } from 'telegram/crypto-news-integration/application/handlers/process-crypto-news-message.handler';
 import { EnqueueMatchingCronScheduler } from 'telegram/crypto-news-integration/application/scheduling/enqueue-matching-cron.scheduler';
 import { MatchingConfigEntity } from 'telegram/crypto-news-integration/infrastructure/persistence/typeorm/entities/matching-config.entity';
+import { DeadLetterQueueEntity } from 'telegram/crypto-news-integration/infrastructure/persistence/typeorm/entities/dead-letter-queue.entity';
 import { TypeOrmMatchingConfigRepository } from 'telegram/crypto-news-integration/infrastructure/persistence/typeorm/repositories/typeorm-matching-config.repository';
 import { MatchingConfigRepository } from 'telegram/crypto-news-integration/application/ports/matching-config.repository';
+import { DeadLetterQueueRepository } from 'telegram/crypto-news-integration/application/ports/dead-letter-queue.repository';
+import { TypeOrmDeadLetterQueueRepository } from 'telegram/crypto-news-integration/infrastructure/persistence/typeorm/repositories/typeorm-dead-letter-queue.repository';
+import { DeadLetterService } from 'telegram/crypto-news-integration/application/services/dead-letter.service';
+import { DeadLetterController } from 'telegram/crypto-news-integration/api/http/dead-letter.controller';
 import { MatchingHealthState } from 'telegram/crypto-news-integration/application/state/matching-health.state';
 import { MatchingConfigController } from 'telegram/crypto-news-integration/api/http/matching-config.controller';
 
@@ -51,14 +56,14 @@ import { CryptoNewsPublisherModule } from 'telegram/crypto-news-publisher/crypto
  */
 @Module({
   imports: [
-    // TypeORM entity for matching config
-    TypeOrmModule.forFeature([MatchingConfigEntity]),
+    // TypeORM entity for matching config + dead-letter queue
+    TypeOrmModule.forFeature([MatchingConfigEntity, DeadLetterQueueEntity]),
 
     // Import modules that provide required repositories + services
     CryptoNewsIngestionModule, // ContentFilterService, ChannelFilterRepository
     CryptoNewsPublisherModule, // KeywordRepository, BlacklistPhraseRepository, EnqueueMatchingMessageUseCase
   ],
-  controllers: [MatchingConfigController],
+  controllers: [MatchingConfigController, DeadLetterController],
   providers: [
     // HTTP client for ingestion-telegram
     CryptoNewsIngestionClient,
@@ -72,6 +77,13 @@ import { CryptoNewsPublisherModule } from 'telegram/crypto-news-publisher/crypto
       useClass: TypeOrmMatchingConfigRepository,
     },
 
+    // Dead-letter queue repository + service (manual on-demand retry)
+    {
+      provide: DeadLetterQueueRepository,
+      useClass: TypeOrmDeadLetterQueueRepository,
+    },
+    DeadLetterService,
+
     // In-memory matching health (mutated by the cron tick, read by GET health)
     MatchingHealthState,
 
@@ -84,7 +96,7 @@ import { CryptoNewsPublisherModule } from 'telegram/crypto-news-publisher/crypto
   exports: [
     // Export MatchingConfigRepository so other modules can read/write the flag
     MatchingConfigRepository,
-    // Export ProcessCryptoNewsMessageHandler so IngestionCoordinator can route SSE events
+    // Export ProcessCryptoNewsMessageHandler so MessageRoutingService can route SSE events
     ProcessCryptoNewsMessageHandler,
   ],
 })

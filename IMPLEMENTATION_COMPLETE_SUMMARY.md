@@ -78,7 +78,7 @@ INGESTION_MULTI_BACKEND_ENABLED=true
 - [x] 3. Agregar TypeORM forFeature a SharedIngestionModule ✅
 - [x] 4. Corregir imports de entidades (KolEntity, CryptoNewsSourceEntity) ✅
 - [x] 5. Compilar sin errores backend ✅
-- [ ] 6. Agregar `BACKEND_ID=production` a `.env.production` (hacer en droplet)
+- [ ] 6. Agregar `BACKEND_ID=production` a `.env.production` (hacer en el servidor Oracle)
 - [ ] 7. Commit y push:
   ```bash
   git add .
@@ -86,9 +86,9 @@ INGESTION_MULTI_BACKEND_ENABLED=true
   git push
   ```
 
-### Deployment Droplet
+### Deployment Oracle
 
-- [ ] 6. SSH al droplet:
+- [ ] 6. SSH al servidor Oracle:
 
   ```bash
   ssh CryptoGanster

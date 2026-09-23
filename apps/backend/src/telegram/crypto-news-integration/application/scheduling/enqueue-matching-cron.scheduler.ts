@@ -15,6 +15,12 @@ import type {
 /**
  * EnqueueMatchingCronScheduler - Poll ingestion-telegram for matching crypto-news messages
  *
+ * FALLBACK PATH: polling scheduler for crypto-news messages (catches SSE gaps).
+ * The SSE handler is the PRIMARY PATH (<10s latency target); this poller runs
+ * every 1 min when SSE is disabled (primary mode) or every N min
+ * (CRYPTO_NEWS_POLLING_INTERVAL_MINUTES, default 5) when SSE is enabled.
+ * See: docs/architecture/crypto-news-dual-path.md
+ *
  * **Per Opción A architecture:**
  * - Ingestion-service stores RAW messages (no filters)
  * - Backend polls ingestion-telegram HTTP API every minute
@@ -56,8 +62,31 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
 
   /**
    * Guard against concurrent ticks (same pattern as PublisherCronScheduler).
+   *
+   * When true, a new tick is skipped with a warn log (see tick()).
    */
-  private running = false;
+  private isPolling = false;
+
+  /**
+   * Consecutive full-batch counter for adaptive re-polling.
+   *
+   * A "full batch" is a tick where the fetch returns at least FETCH_LIMIT
+   * matches (i.e. the backlog may exceed one window). After
+   * ADAPTIVE_REPOLL_THRESHOLD consecutive full batches, one extra tick is
+   * scheduled ADAPTIVE_REPOLL_DELAY_MS later to catch up faster; any
+   * non-full batch (or fetch failure) resets the counter to 0.
+   */
+  private consecutiveFullBatches = 0;
+
+  /**
+   * Full batches in a row required before scheduling one adaptive re-poll.
+   */
+  private readonly ADAPTIVE_REPOLL_THRESHOLD = 3;
+
+  /**
+   * Delay for the single adaptive re-poll tick once the threshold is hit.
+   */
+  private readonly ADAPTIVE_REPOLL_DELAY_MS = 10_000;
 
   constructor(
     private readonly filteredNewsService: FilteredCryptoNewsService,
@@ -116,7 +145,7 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
    * Skips tick if matchingEnabled is false.
    */
   async tick(): Promise<void> {
-    if (this.running) {
+    if (this.isPolling) {
       this.logger.warn('Previous tick still running; skipping this tick');
       return;
     }
@@ -138,13 +167,20 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
       return;
     }
 
-    this.running = true;
+    this.isPolling = true;
     try {
       // Step 1: Fetch + filter + match via FilteredCryptoNewsService
       const matches = await this.filteredNewsService.getMatchingMessages(
         this.FETCH_LIMIT,
       );
       this.health.recordFetchSuccess();
+
+      // Adaptive polling accounting: a full window suggests backlog remains.
+      if (matches.length >= this.FETCH_LIMIT) {
+        this.consecutiveFullBatches += 1;
+      } else {
+        this.consecutiveFullBatches = 0;
+      }
 
       if (matches.length === 0) {
         this.logger.debug(
@@ -188,16 +224,34 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
       if (enqueued > 0) {
         this.health.recordEnqueued();
       }
+
+      // Sustained full batches: schedule one catch-up re-poll shortly after.
+      if (this.consecutiveFullBatches >= this.ADAPTIVE_REPOLL_THRESHOLD) {
+        this.consecutiveFullBatches = 0;
+        this.logger.log(
+          `Sustained full batches detected; scheduling catch-up re-poll in ${this.ADAPTIVE_REPOLL_DELAY_MS}ms`,
+        );
+        const timer = setTimeout(
+          () => void this.tick(),
+          this.ADAPTIVE_REPOLL_DELAY_MS,
+        );
+        // Don't hold the process open for a catch-up tick.
+        const withUnref = timer as unknown as { unref?: () => void };
+        if (typeof withUnref.unref === 'function') {
+          withUnref.unref();
+        }
+      }
     } catch (error) {
       // The per-message enqueue errors are caught inside the loop above,
       // so reaching here means the fetch itself threw.
+      this.consecutiveFullBatches = 0;
       this.health.recordFetchFailure();
       this.logger.error(
         `Enqueue tick failed: ${(error as Error).message}`,
         (error as Error).stack,
       );
     } finally {
-      this.running = false;
+      this.isPolling = false;
     }
   }
 

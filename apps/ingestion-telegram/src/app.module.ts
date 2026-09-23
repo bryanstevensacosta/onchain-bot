@@ -5,16 +5,15 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LoggerModule } from 'nestjs-pino';
 import { appConfig } from './shared/common/config/app.config';
-import { SharedModule } from './telegram/shared/shared.module';
+import { SharedModule } from './core/shared.module';
 import { StreamModule } from './stream/stream.module';
 import { MediaModule } from './media/media.module';
 import { HealthModule } from './health/health.module';
 import { MetricsModule } from './metrics/metrics.module';
-import { TelegramModule } from './telegram/telegram.module';
-import { CryptoNewsSourceEntity } from './telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity';
-import { CryptoNewsMessageEntity } from './telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity';
-import { CryptoNewsMessageMediaEntity } from './telegram/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message-media.entity';
-import { BackfillMessageEntity } from './stream/infrastructure/persistence/typeorm/backfill-message.entity';
+import { CoreModule } from './core/core.module';
+import { TelegramFeedSourceEntity } from './registry/infrastructure/persistence/typeorm/entities/telegram-feed-source.entity';
+import { TelegramFeedMessageEntity } from './feed/infrastructure/persistence/typeorm/entities/telegram-feed-message.entity';
+import { TelegramFeedMessageMediaEntity } from './feed/infrastructure/persistence/typeorm/entities/telegram-feed-message-media.entity';
 
 /**
  * AppModule - Root module for Ingestion Service
@@ -77,10 +76,9 @@ import { BackfillMessageEntity } from './stream/infrastructure/persistence/typeo
           password: dbConfig?.password || 'postgres',
           database: dbConfig?.database || 'onchain_bot',
           entities: [
-            CryptoNewsSourceEntity,
-            CryptoNewsMessageEntity,
-            CryptoNewsMessageMediaEntity,
-            BackfillMessageEntity,
+            TelegramFeedSourceEntity,
+            TelegramFeedMessageEntity,
+            TelegramFeedMessageMediaEntity,
           ],
           synchronize,
           logging: dbConfig?.logging || false,
@@ -114,8 +112,8 @@ import { BackfillMessageEntity } from './stream/infrastructure/persistence/typeo
     HealthModule, // Health checks
     MetricsModule, // Prometheus metrics
 
-    // Telegram ingestion (MTProto + seeders + coordinator)
-    TelegramModule,
+    // Telegram ingestion (MTProto + coordinator)
+    CoreModule,
   ],
 })
 export class AppModule {}

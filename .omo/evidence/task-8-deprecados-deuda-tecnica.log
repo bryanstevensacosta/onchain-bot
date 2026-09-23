@@ -1,0 +1,18 @@
+# task-8-deprecados-deuda-tecnica — RECONSTRUCTED on VPS 2026-09-20 from git history + session record
+# Commit: Y → 4e746f7e1463b5a40245664dbf01f1ada448dfda | feat(crypto-news): elimina ports y stubs ingestion-owned | 2026-09-20T04:22:04-04:00
+
+## Comando real (VPS)
+$ git show --name-status --format='' 4e746f7 | grep '^D'  (6 git rm)
+D apps/backend/src/telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository.ts
+D apps/backend/src/telegram/ingestion/crypto-news/domain/crypto-news-message.stub.ts
+D apps/backend/src/telegram/ingestion/crypto-news/domain/value-objects/crypto-news-media.vo.ts
+D apps/backend/src/telegram/ingestion/crypto-news/infrastructure/repositories/__tests__/in-memory-crypto-news-message.repository.spec.ts
+D apps/backend/src/telegram/ingestion/crypto-news/infrastructure/repositories/__tests__/in-memory-crypto-news-source.repository.spec.ts
+D apps/backend/src/telegram/ingestion/crypto-news/infrastructure/repositories/in-memory-crypto-news-message.repository.ts
+$ git show --stat --format='' 4e746f7 | tail -1 → 10 files changed, 8 insertions(+), 525 deletions(-)
+
+## Salida del record
+195 suites / 2126 tests (delta exacto documentado); channel-filter.repository.ts:23 (slice vigente) intacto.
+
+## Veredicto: PASS
+Ports/stubs/VO C2 borrados; archivos inexistentes + build verde. QA-failure (spec huérfano → tsc lo detecta) cubierta: specs asociados borrados en el mismo commit.

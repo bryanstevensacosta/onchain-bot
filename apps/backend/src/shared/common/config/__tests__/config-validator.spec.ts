@@ -42,9 +42,6 @@ function createMutableConfig(): Omit<AppConfig, 'llm'> & {
 
     telegram: {
       botToken: 'telegram-bot-token',
-      mtprotoApiId: 12345678,
-      mtprotoApiHash: 'mtproto-api-hash',
-      mtprotoSession: 'mtproto-session-string',
     },
 
     ingestion: {
@@ -358,24 +355,6 @@ describe('validateAppConfig', () => {
         expect(error.details[0].message).toContain(
           'development, production, staging, test',
         );
-      }
-    });
-
-    it('should throw format error when MTPROTO_API_ID is 0', () => {
-      const cfg = createMutableConfig();
-      cfg.telegram.mtprotoApiId = 0;
-
-      expect(() => validateAppConfig(cfg)).toThrow(ConfigValidationError);
-      try {
-        validateAppConfig(cfg);
-      } catch (e) {
-        const error = e as ConfigValidationError;
-        expect(error.details).toContainEqual(
-          expect.objectContaining({
-            envVar: 'INGESTION_TELEGRAM_MTPROTO_API_ID',
-          }),
-        );
-        expect(error.details[0].message).toContain('positive');
       }
     });
 

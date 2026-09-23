@@ -1,6 +1,6 @@
 # Prod Backend Rolling Backups — Scheme + Restore Runbook
 
-> **Scope:** prod backend DB (`alpha_meta_token_scanner`) on the Oracle droplet.
+> **Scope:** prod backend DB (`alpha_meta_token_scanner`) on the Oracle server.
 > **Canonical format from this scheme on:** `prod-backend-YYYYMMDD.dump.gz` (+ `.meta.txt`).
 > **Out of scope:** ingestion DB + staging DB (untouched by this scheme — see §9);
 > automatic restore (restore is manual-only, documented below); `uploads/` media
@@ -24,7 +24,7 @@ BACKUP_MODE=daily BACKUP_BASENAME=prod-backend BACKUP_ORIGIN=cron|pre-deploy \
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | File name                     | `prod-backend-YYYYMMDD.dump.gz` (date via `date +%Y%m%d`; QA override `FAKE_DATE`)                                                                                                                                 |
 | Sidecar                       | `prod-backend-YYYYMMDD.meta.txt` (date / sha256 / size / `BACKUP_ORIGIN`)                                                                                                                                          |
-| Directory (droplet)           | `/opt/onchain-bot/backups/` (daily mode refuses any other `BACKUP_DIR` except `/data/backups/*` QA paths)                                                                                                          |
+| Directory (Oracle server)     | `/opt/onchain-bot/backups/` (daily mode refuses any other `BACKUP_DIR` except `/data/backups/*` QA paths)                                                                                                          |
 | Write path                    | dump to `$FILE.tmp` in the same filesystem → validate → atomic `mv`                                                                                                                                                |
 | Validation (before overwrite) | `gzip -t` + size > 0 + `pg_restore --list` when available; `pg_dump` non-zero → delete `.tmp`, never overwrite                                                                                                     |
 | Anti-empty guard              | if a current `prod-backend-*.dump.gz` exists and the new valid dump weighs **< 50%** of it → delete `.tmp`, do NOT overwrite, exit 4 with a `suspicious-size` line (real case: 55 KB dump vs 7.9 MB of 2026-09-14) |
@@ -57,7 +57,7 @@ before migrations (`::error::` + non-zero step). Disk ≥ 80% emits `::warning::
   `EnvironmentFile=/opt/onchain-bot/.backup-env` (holds `POSTGRES_PASSWORD`;
   the service validates `test -s` at start), logs to journald.
   The lock lives INSIDE the script (§1) — the unit adds no second lock.
-- Install (on droplet, idempotent):
+- Install (on Oracle server, idempotent):
 
 ```bash
 sudo cp infra/systemd/onchain-backend-backup.service infra/systemd/onchain-backend-backup.timer /etc/systemd/system/
@@ -117,7 +117,7 @@ One scale governs the script, the deploy step, and the daily health watchdog
   (`fix(crypto-news-publisher): tmp-download-and-delete media cache`, 2026-09-19)
   moved the cache to `os.tmpdir()/backend-media-<uuid>/` with `finally` cleanup —
   **not yet deployed at dossier time**.
-- **No physical duplication on droplet:** backend-prod and ingestion-telegram mount
+- **No physical duplication on Oracle server:** backend-prod and ingestion-telegram mount
   the SAME host dir (`/opt/onchain-bot/apps/backend/uploads` → `/app/uploads` in
   both containers); 20/20 sampled backend files answer `200` on ingestion's
   `GET /api/media/...` (`127.0.0.1:3032`).
@@ -153,16 +153,16 @@ One scale governs the script, the deploy step, and the daily health watchdog
 
 ```bash
 # 1. List + pick the day
-ssh <droplet> 'ls -lh /opt/onchain-bot/backups/prod-backend-*.dump.gz'
+ssh <Oracle> 'ls -lh /opt/onchain-bot/backups/prod-backend-*.dump.gz'
 # 2. Verify integrity against the sidecar (date/sha256/size/origin)
-ssh <droplet> 'cd /opt/onchain-bot/backups && sha256sum -c prod-backend-YYYYMMDD.meta.txt'
+ssh <Oracle> 'cd /opt/onchain-bot/backups && sha256sum -c prod-backend-YYYYMMDD.meta.txt'
 # 3. Restore (decompress on the pipe — NEVER redirect the .gz straight into pg_restore)
 gunzip -c /opt/onchain-bot/backups/prod-backend-YYYYMMDD.dump.gz | pg_restore --clean --if-exists -U alpha_meta_token_scanner -d alpha_meta_token_scanner --role=alpha_meta_token_scanner
 # 4. Sanity
 psql -U alpha_meta_token_scanner -d alpha_meta_token_scanner -c 'SELECT count(*) FROM typeorm_migrations;'
 ```
 
-On the droplet the canonical invocation runs `pg_restore` inside the postgres
+On the Oracle server the canonical invocation runs `pg_restore` inside the postgres
 container (`docker exec -e PGPASSWORD=... onchain-bot-postgres-production ...`)
 with the same `gunzip -c … | pg_restore --clean --if-exists` shape; for a data-loss
 incident prefer the newest verified `.dump.gz` (≤ 26 h old per ESCALA ÚNICA §5).
@@ -174,14 +174,14 @@ Covered by its own path (NOT this scheme): `deploy-ingestion.yml` step
 (`ingestion-backup-*.dump`, 7-day prune). Same pipe shape applies:
 
 ```bash
-ssh <droplet> 'ls -lh /data/backups/ingestion/ | tail -10'
+ssh <Oracle> 'ls -lh /data/backups/ingestion/ | tail -10'
 gunzip -c /data/backups/ingestion/<file-if-gzipped> | pg_restore --clean --if-exists -U alpha_meta_token_scanner -d alpha_meta_token_scanner_ingestion --role=alpha_meta_token_scanner
 # Uncompressed legacy dumps: pg_restore --clean --if-exists -d <db> < file.dump  (no gunzip)
 ```
 
 ## 8. Secrets provisioning + key rotation
 
-Out-of-band on the droplet (never in repo, never in logs/summaries):
+Out-of-band on the Oracle server (never in repo, never in logs/summaries):
 
 ```bash
 # On-host env files (owner runner, mode 600)
@@ -215,7 +215,18 @@ fail loudly instead of silently writing a second-format file. The backend daily
 scheme is isolated from it by `BACKUP_BASENAME=prod-backend` + its own `BACKUP_DIR`.
 (No staging/backup consumer depends on the fallback shape.)
 
-## 10. Legacy cleanup procedure (PROCEDURE ONLY — nothing deleted in this change)
+## 10. Legacy cleanup — AUTOMATIC with gates (T11, live since 2026-09-20)
+
+`scripts/cleanup-backups-legacy.sh`, weekly via
+`infra/systemd/onchain-backup-legacy-cleanup.timer`
+(**Sun 05:30 UTC**, after the drill so gate (b) reads a fresh result).
+Exit code is ALWAYS 0: gates fail safe to no-op with a logged
+`cleanup-skipped-<reason>` line. `DRY_RUN=1` prints the plan without
+deleting or compressing. Per-file lines (`deleted/compressed/kept/skipped`)
+plus a final summary with bytes reclaimed go to stdout/stderr (journald).
+Lock-aware: when `/run/lock/onchain-backend-backup.lock` is HELD by a running
+dump, the run skips everything (`cleanup-skipped-lock-held`); the script never
+takes the lock itself.
 
 Inventory (`ls -lh /opt/onchain-bot/backups/` at plan time):
 
@@ -223,19 +234,34 @@ Inventory (`ls -lh /opt/onchain-bot/backups/` at plan time):
 | -------------------------------------------- | ------------------------- | -------------------------------------------------- |
 | `pre-deploy-*.dump*`                         | timestamped, mixed        | old default-mode series, superseded by daily files |
 | `prod-backend-*-*.dump` (2026-09-10 manuals) | **UNCOMPRESSED**, ~7.5 MB | manual dumps, other naming scheme, no `.gz`        |
-| `prod-ingestion-*`                           | other basename            | NOT this scheme — do not touch here                |
-| `staging-*` + subdir `staging/`              | other scope               | NOT this scheme — do not touch here                |
+| `prod-ingestion-*`                           | other basename            | top-level files only, in allowlist                 |
+| `staging-*` (top-level files only)           | other scope               | in allowlist; subdir `staging/` NEVER touched      |
 
-Rules:
+Exact allowlist (anything else on disk is untouched; rolling
+`prod-backend-YYYYMMDD.dump.gz` / `.meta.txt` are NEVER matched even if a
+glob could reach them; `find "$BACKUP_DIR" -maxdepth 1`, top-level regular
+files only — subdirectories such as `ingestion/` and `staging/` are never
+touched):
 
-1. **Canonical format from now: `.dump.gz`.** Uncompressed `.dump` files get
-   `gzip -9` (keep) or delete — a **documented choice per file**, made only AFTER:
-   **7 new daily objects on disk + 1 successful restore drill** (§7a against an
-   ephemeral postgres, `SELECT count(*) > 0`).
-2. Only `prod-backend-*` + `pre-deploy-*` are in scope for this cleanup;
-   `prod-ingestion-*`, `staging-*`, `staging/` are explicitly out.
-3. Record the choice (kept-as-`.gz` vs deleted + drill reference) in the
-   follow-up change — this doc only defines the gate, it executes nothing.
+- `pre-deploy-*.dump.gz` older than 7 days (`-mtime +7`; keeps the week's
+  deploy backups as extra net)
+- `prod-backend-*-*.dump` UNCOMPRESSED legacy: `gzip -9` to a new `.gz` +
+  `gzip -t` verify + sha BEFORE deleting the original (reversible first,
+  the `.gz` stays on disk; never a bare delete)
+- `prod-ingestion-*` top-level files only, any age
+- `staging*` top-level files only, any age
+
+All 3 gates (machine-verified every run, ALL must pass or nothing happens):
+
+- (a) **>= 7 valid** `prod-backend-*.dump.gz` present (`gzip -t` each) AND the
+  latest one's `.meta.txt` passes `sha256sum -c`.
+- (b) **Drill fresh**: `$BACKUP_DIR/.rolling-status.json` exists with
+  `last_drill.result=pass` AND drill age **< 10 days** (§12).
+- (c) **Allowlist only** (§10 list above).
+
+Live evidence 2026-09-20: cleanup ran against 2 valid rolling dumps —
+gate (a) failed (`2 < 7`), zero deletions, `cleanup-skipped` logged. Correct
+behavior: the gate held until the 7-day rolling window fills.
 
 ## 11. Review checklist (for this doc + future edits)
 
@@ -243,7 +269,103 @@ Rules:
 - [ ] Every restore line carries `--clean --if-exists`.
 - [ ] Integrity (`sha256sum -c` + `.meta.txt`) precedes restore.
 - [ ] Thresholds table matches ESCALA ÚNICA (§5) exactly — one scale everywhere.
-- [ ] No `pre-deploy-*` file deleted in a docs change (procedure only, §10 gate).
+- [ ] No `pre-deploy-*` file deleted outside the §10 allowlist + gates
+      (automatic cleanup only; uncompressed legacy is compressed first, never bare-deleted).
 - [ ] No workflow/script/systemd file edited in a docs change (`deploy-ingestion.yml`, `deploy-staging.yml`, `scripts/deploy.sh`, `scripts/backup-db.sh`, `deploy.yml`, systemd units, rclone script).
 - [ ] No secret value in repo, logs, or summaries (names only; `::add-mask::` in CI).
 - [ ] Media exclusion (§6) still declares ingestion ownership + deletes nothing.
+
+## 12. Weekly restore drill (T10, live since 2026-09-20)
+
+`scripts/backup-drill.sh`, weekly via
+`infra/systemd/onchain-backup-drill.timer` (**Sun 05:00 UTC** — after the
+04:00 daily health watchdog and clear of the 03:00 daily backup / 03:20
+offsite sync; no overlap by design).
+
+What it does:
+
+1. Picks the latest `prod-backend-*.dump.gz` in `BACKUP_DIR`.
+2. Verifies integrity: `gzip -t` + sha256 against the `.meta.txt` sidecar
+   (meta line 1 is `<sha>  <basename>`, same contract `backup-db.sh` writes).
+3. Restores it (`gunzip -c` on the pipe, NEVER straight `.gz` into
+   `pg_restore`) into an EPHEMERAL `postgres:16-alpine` container (`--rm`,
+   isolated, shifted host port 55433 — never 5432/5433/5434, never
+   prod/staging/dev).
+4. Asserts `pg_restore` exit 0 AND user-table count > 0 AND a row spot-check
+   (largest public table returns >= 1 row).
+5. Writes `$BACKUP_DIR/.rolling-status.json` (atomic `.tmp` + `mv`) for the
+   dashboard widget (§13) and the cleanup gate (§10, gate b). Keys are STABLE:
+
+```json
+{
+  "updated_at": "<ISO-8601>",
+  "latest_file": "prod-backend-YYYYMMDD.dump.gz",
+  "latest_age_h": 2.3,
+  "count": 7,
+  "disk_pct": 42,
+  "last_drill": {
+    "at": "<ISO-8601>",
+    "result": "pass",
+    "restored_tables": 52,
+    "restored_rows": 174777
+  }
+}
+```
+
+Lock-aware: if `/run/lock/onchain-backend-backup.lock` is held by a running
+dump, the drill exits 0 with a `drill-skipped-locked` notice instead of
+competing (no second lock is taken). Any failure is loud in journal
+(exit 1) and writes `result=fail` so the gate/widget never see a stale
+green. Age/disk are reported with the ESCALA UNICA thresholds (§5) but the
+proof itself runs regardless of age (staleness is the watchdog's job).
+
+Live evidence 2026-09-20: **pass, 52 tables / 174777 rows** restored into the
+ephemeral container.
+
+## 13. Local-only mode + dashboard widget (T13)
+
+**Offsite is pluggable, not required.** Until R2/B2 credentials are
+provisioned (§4, §8), the scheme runs fully local: daily timer (§3) +
+watchdog + drill (§12) + auto-cleanup (§10) need no bucket. The watchdog
+(`backup-health.yml`) skips green with a `::notice::` when the `DROPLET_*`
+secrets are missing, and degrades bucket/lag to warn-skip (never fail) once
+SSH works but R2 does not; local backup age, count, and disk still enforce
+the ESCALA UNICA (§5). Adding an offsite provider later is config-only
+(env file + Secrets, §8) — zero code changes, and the "never configure
+bucket lifecycle" rule (§3) still applies.
+
+The `BackupHealthWidget` (dashboard, 30 s polling) renders the status JSON
+(§12): verdict badge (GREEN/AMBER/RED), disk bar (`disk_pct`) + dump count,
+newest file + age, bucket + offsite lag (`—` when unknown/local-only), last
+drill time + result, and a stale-data notice when no recent backup exists.
+Offline (fetch error) renders `Offline`, never a fake green.
+
+## 14. Responsibilities — zero recurring
+
+Recurring human responsibilities: **none**. The loop is closed:
+
+- Daily backup 03:00 + offsite mirror 03:20 (§3), health watchdog 04:00 daily
+  (§5), drill Sun 05:00 (§12), auto-cleanup Sun 05:30 (§10) — all scheduled,
+  all fail-safe (cleanup no-ops, drill fails loud, watchdog fails the
+  workflow only on fail cases).
+- One-time human gates already passed: scheme design + drill live-pass
+  (52 tables / 174777 rows, 2026-09-20) + cleanup live-skip verified
+  (2 < 7, zero deletions) + timers enabled.
+
+Operator decisions remaining (not recurring chores):
+
+1. Offsite provider choice (R2 default vs B2, §4) + credential provisioning
+   (§8) — local-only until then, by design.
+2. PR approvals for future backup-scheme changes (thresholds, schedules,
+   and contracts change only by reviewed PR — this doc documents, never
+   redefines).
+
+## 15. Portability note — GNU-first `stat`
+
+Oracle scripts must try GNU `stat -c` FIRST and BSD `stat -f` second.
+Reason (seen live 2026-09-20): on Linux `stat -f %m <file>` succeeds but
+prints multi-line filesystem info (first line `File: "..."`), which breaks
+`$(( ))` arithmetic under `set -u` (`File: unbound variable`) and aborts the
+drill before any restore. `scripts/backup-drill.sh`, `cleanup-backups-legacy.sh`,
+and `backup-db.sh` all follow the GNU-first order (`stat -c… || stat -f…`);
+keep it that way in any new backup script.

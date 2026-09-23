@@ -7,7 +7,7 @@
 
 - [ ] PR #91 merged to master
 - [ ] Deploy Ingestion Service workflow succeeded
-- [ ] Ingestion service running on droplet (port 3032)
+- [ ] Ingestion service running on Oracle server (port 3032)
 
 ## Steps
 
@@ -17,7 +17,7 @@
 gh run list --workflow="deploy-ingestion.yml" --limit 1
 ```
 
-### 2. SSH to Droplet
+### 2. SSH to Oracle
 
 ```bash
 ssh CryptoGanster

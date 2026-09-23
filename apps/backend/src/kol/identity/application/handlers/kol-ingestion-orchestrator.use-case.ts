@@ -17,13 +17,23 @@ import { ContractAddress } from 'token/identity/contract-address.vo';
  *
  * This is the glue between telegram/ingestion (pure engine) and kol/identity
  * (KOL aggregate). It:
- * 1. Marks KOLs as ACTIVE and persists them
+ * 1. Reads KOLs through the `KolRepository` port (now `FeedIdentityHttpClient`
+ *    over `GET {INGESTION_TELEGRAM_URL}/api/feed/sources?type=kol` — item 8)
  * 2. Subscribes to their Telegram channels via TelegramListenerPort
  * 3. Routes each message through the token pipeline (extraction → parsing)
  *
  * Per fix-1 (Bot Dev ToS §4.3): raw text flows ONLY through direct method
  * calls to ExtractFromMessageUseCase + ParseFromCandidatesUseCase.
  * Events emitted are pure observability signals (no text).
+ *
+ * Item-8 `last_ingested_at` decision (DOCUMENTED NO-OP, evidenced in
+ * `.omo/evidence/task-8-telegram-feed-unification.txt`): the former
+ * `kolRepo.save(kol)` writes after `startListening()` / `recordMessageIngested()`
+ * are gone. Identity writes are owned by ingestion-telegram now and the feed
+ * API exposes NO `last_ingested_at` write (`PATCH /api/feed/sources/:channelId`
+ * accepts title/handle only), so there is no feed PATCH to forward to.
+ * In-memory mutation + observability events are preserved; extraction/parsing
+ * logic is untouched.
  */
 @Injectable()
 export class KolIngestionOrchestratorUseCase {
@@ -48,7 +58,8 @@ export class KolIngestionOrchestratorUseCase {
     for (const kol of kols) {
       if (!kol) continue;
       kol.startListening();
-      await this.kolRepo.save(kol);
+      // Item 8: no save — identity writes live in ingestion-telegram now
+      // (FeedIdentityHttpClient.save throws 501). In-memory state + event below.
       await this.eventPublisher.publishAll(kol.commit());
     }
 
@@ -61,7 +72,7 @@ export class KolIngestionOrchestratorUseCase {
   /**
    * Process a single raw message from the Telegram listener subscription.
    *
-   * Called by IngestionCoordinator (telegram/ingestion/shared/) per
+   * Called by MessageRoutingService (telegram/ingestion/shared/) per
    * incoming message. Routes through extraction → parsing pipeline.
    *
    * Per fix-1 (Bot Dev ToS §4.3): raw text flows ONLY through direct
@@ -73,12 +84,12 @@ export class KolIngestionOrchestratorUseCase {
     readonly text: string;
     readonly occurredAt: Date;
   }): Promise<void> {
-    this.logger.log(
-      `[KOL-ORCH-DEBUG] onMessageReceived called for ${raw.peerId}:${raw.messageId}`,
+    this.logger.debug(
+      `KOL orchestrator onMessageReceived for ${raw.peerId}:${raw.messageId}`,
     );
     await this.processMessage(raw);
-    this.logger.log(
-      `[KOL-ORCH-DEBUG] processMessage completed for ${raw.peerId}:${raw.messageId}`,
+    this.logger.debug(
+      `KOL orchestrator processMessage completed for ${raw.peerId}:${raw.messageId}`,
     );
   }
 
@@ -98,7 +109,9 @@ export class KolIngestionOrchestratorUseCase {
     if (!kol) return;
 
     kol.recordMessageIngested(raw.messageId, raw.occurredAt);
-    await this.kolRepo.save(kol);
+    // Item 8: no save — `last_ingested_at` is owned by ingestion-telegram now
+    // (its coordinator persists it on every routed message; the feed API has
+    // no write endpoint for it). In-memory mutation + observability event below.
     await this.eventPublisher.publishAll(kol.commit());
 
     const username = kol.handle?.value ?? null;

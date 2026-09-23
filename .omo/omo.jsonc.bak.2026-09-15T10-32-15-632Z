@@ -1,0 +1,149 @@
+// OMO configuration
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/omo.schema.json",
+  "[opencode]": {
+    "agents": {
+      "OpenCode-Builder": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "atlas": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "build": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "explore": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "hephaestus": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "librarian": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "metis": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "momus": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "multimodal-looker": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "oracle": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "plan": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "prometheus": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "sisyphus": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "sisyphus-junior": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      }
+    },
+    "categories": {
+      "artistry": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "atlas": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "deep": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "explore": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "hephaestus": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "librarian": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "metis": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "momus": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "multimodal-looker": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "oracle": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "policy": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "prometheus": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "quick": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "sisyphus": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "sisyphus-junior": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "ultrabrain": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "unspecified-high": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "unspecified-low": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "visual-engineering": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      },
+      "writing": {
+        "model": "opencode/muse-spark-1.3-contributor-free",
+        "fallback_models": []
+      }
+    }
+  },
+  "_migrations": [
+    "2026-07-opencode-config-unification"
+  ]
+}

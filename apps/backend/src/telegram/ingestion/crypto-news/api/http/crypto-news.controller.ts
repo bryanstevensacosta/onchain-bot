@@ -18,6 +18,12 @@ import {
   DeleteFilterUseCase,
   ToggleFilterUseCase,
 } from 'telegram/ingestion/crypto-news/application/handlers/filters';
+import {
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
 /**
  * Crypto-news content-filter endpoints (post db-separation todo 4).
@@ -29,8 +35,9 @@ import {
  * Removed in todo 4: GET messages, GET messages/:id, GET sources,
  * GET sources/active/ids, POST sources (501), GET backfill/:channelId,
  * GET media/:mediaId. Consumers must use ingestion-telegram:
- * `GET {INGESTION_TELEGRAM_URL}/api/crypto-news/...`.
+ * `GET {INGESTION_TELEGRAM_URL}/api/feed/...`.
  */
+@ApiTags('crypto-news-filters')
 @Controller('crypto-news')
 export class CryptoNewsController {
   constructor(
@@ -47,6 +54,11 @@ export class CryptoNewsController {
    */
   @Post('sources/:channelId/filters')
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a content filter for a channel' })
+  @ApiParam({ name: 'channelId', description: 'Telegram channel id (opaque, FK-less)' })
+  @ApiResponse({ status: 201, description: 'Filter created' })
+  @ApiResponse({ status: 400, description: 'Validation error' })
+  @ApiResponse({ status: 404, description: 'Unknown channel id' })
   public async createFilter(
     @Param('channelId') channelId: string,
     @Body()
@@ -81,6 +93,10 @@ export class CryptoNewsController {
    * List all content filters for a specific channel.
    */
   @Get('sources/:channelId/filters')
+  @ApiOperation({ summary: 'List content filters for a channel' })
+  @ApiParam({ name: 'channelId', description: 'Telegram channel id (opaque, FK-less)' })
+  @ApiResponse({ status: 200, description: 'Channel filters' })
+  @ApiResponse({ status: 404, description: 'Unknown channel id' })
   public async getFilters(@Param('channelId') channelId: string) {
     try {
       return await this.listFiltersUseCase.execute(channelId);
@@ -98,6 +114,11 @@ export class CryptoNewsController {
    * Update an existing content filter.
    */
   @Put('filters/:id')
+  @ApiOperation({ summary: 'Update a content filter' })
+  @ApiParam({ name: 'id', description: 'Filter id (uuid)' })
+  @ApiResponse({ status: 200, description: 'Filter updated' })
+  @ApiResponse({ status: 400, description: 'Validation error' })
+  @ApiResponse({ status: 404, description: 'Unknown filter id' })
   public async updateFilter(
     @Param('id') id: string,
     @Body()
@@ -129,6 +150,10 @@ export class CryptoNewsController {
    */
   @Delete('filters/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a content filter' })
+  @ApiParam({ name: 'id', description: 'Filter id (uuid)' })
+  @ApiResponse({ status: 204, description: 'Filter deleted' })
+  @ApiResponse({ status: 404, description: 'Unknown filter id' })
   public async deleteFilterEndpoint(@Param('id') id: string): Promise<void> {
     const deleted = await this.deleteFilterUseCase.execute(id);
     if (!deleted) {
@@ -141,6 +166,10 @@ export class CryptoNewsController {
    * Toggle the isActive state of a content filter.
    */
   @Patch('filters/:id/toggle')
+  @ApiOperation({ summary: 'Toggle a content filter on/off' })
+  @ApiParam({ name: 'id', description: 'Filter id (uuid)' })
+  @ApiResponse({ status: 200, description: 'Filter toggled' })
+  @ApiResponse({ status: 404, description: 'Unknown filter id' })
   public async toggleFilterEndpoint(@Param('id') id: string) {
     try {
       return await this.toggleFilterUseCase.execute(id);

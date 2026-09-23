@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { Logger } from '@nestjs/common';
 import { TelegramSseListenerAdapter } from './telegram-sse-listener.adapter';
 import { TelegramRawMessage } from '../../domain/ports/telegram-listener.port';
-import { BackendRegistrationClient } from '../../infrastructure/backend-registration-client.service';
 import { ProcessCryptoNewsMessageHandler } from 'telegram/crypto-news-integration/application/handlers/process-crypto-news-message.handler';
 
 /**
@@ -55,25 +54,9 @@ describe('TelegramSseListenerAdapter', () => {
                   ingestion: {
                     serviceUrl: 'http://localhost:3031',
                   },
-                  backendId: 'test-backend',
                 };
               }
               return undefined;
-            }),
-          },
-        },
-        {
-          provide: BackendRegistrationClient,
-          useValue: {
-            getBackendId: jest.fn().mockReturnValue('test-backend'),
-            isRegistered: jest.fn().mockReturnValue(true),
-            forceReregistration: jest.fn().mockResolvedValue(undefined),
-            getStatus: jest.fn().mockReturnValue({
-              status: 'registered',
-              backendId: 'test-backend',
-              channelUnionSize: 0,
-              lastAttempt: null,
-              consecutiveFailures: 0,
             }),
           },
         },
@@ -93,7 +76,7 @@ describe('TelegramSseListenerAdapter', () => {
     adapter = module.get<TelegramSseListenerAdapter>(
       TelegramSseListenerAdapter,
     );
-    configService = module.get(ConfigService);
+    _configService = module.get(ConfigService);
     logger = module.get(Logger);
 
     // Override the adapter's logger instance with our mock
@@ -112,9 +95,9 @@ describe('TelegramSseListenerAdapter', () => {
     it('should yield TelegramRawMessage objects from SSE stream', async () => {
       const channelIds = ['-1001234567890'];
 
-      // Mock SSE response body
+      // Mock SSE response body (Q1-B shape: KOL frames carry text)
       const ssePayload = `event: message:telegram
-data: {"peerId":"-1001234567890","messageId":12345,"occurredAt":"2026-08-30T00:01:00Z","media":[{"type":"photo","index":0,"url":"http://localhost:3031/api/media/-1001234567890/12345/0","mimeType":"image/jpeg","fileSize":245678}],"entities":[],"messageType":"kol"}
+data: {"peerId":"-1001234567890","messageId":12345,"occurredAt":"2026-08-30T00:01:00Z","text":"KOL alpha call $SOL breaking out","media":[{"type":"photo","index":0,"url":"http://localhost:3031/api/media/-1001234567890/12345/0","mimeType":"image/jpeg","fileSize":245678}],"entities":[],"messageType":"kol"}
 
 `;
 
@@ -142,7 +125,7 @@ data: {"peerId":"-1001234567890","messageId":12345,"occurredAt":"2026-08-30T00:0
       expect(messages[0]).toMatchObject({
         peerId: '-1001234567890',
         messageId: 12345,
-        text: '', // Per Invariant 1: text not in SSE payload
+        text: 'KOL alpha call $SOL breaking out', // Q1-B: KOL text carried in SSE
         media: [
           {
             type: 'photo',
@@ -361,6 +344,7 @@ data: {"peerId":"-1001234567890","messageId":12345,"occurredAt":"2026-08-30T00:0
         peerId: '-1001234567890',
         messageId: 12345,
         occurredAt: '2026-08-30T00:01:00Z',
+        text: 'KOL alpha call $SOL breaking out', // Q1-B: KOL frames carry text
         media: [
           {
             type: 'photo' as const,
@@ -395,7 +379,7 @@ data: {"peerId":"-1001234567890","messageId":12345,"occurredAt":"2026-08-30T00:0
       expect(result).toMatchObject({
         peerId: '-1001234567890',
         messageId: 12345,
-        text: '', // Per Invariant 1: text excluded
+        text: 'KOL alpha call $SOL breaking out', // Q1-B: text passes through
         entities: [
           {
             type: 'url',
@@ -506,6 +490,41 @@ data: {"peerId":"-1001234567890","messageId":12345,"occurredAt":"2026-08-30T00:0
 
       (adapter as any).calculateBackoff();
       expect((adapter as any).reconnectAttempts).toBe(2);
+    });
+
+    it('should fall back to 1000/30000 when app.ingestion.sse is absent', () => {
+      expect((adapter as any).baseReconnectDelay).toBe(1000);
+      expect((adapter as any).maxReconnectDelay).toBe(30000);
+    });
+
+    it('should honor env-driven bounds from app.ingestion.sse', () => {
+      const customConfig = {
+        get: jest.fn((key: string) => {
+          if (key === 'app') {
+            return {
+              ingestion: {
+                serviceUrl: 'http://localhost:3031',
+                sse: {
+                  reconnectInitialDelayMs: 500,
+                  reconnectMaxDelayMs: 4000,
+                },
+              },
+            };
+          }
+          return undefined;
+        }),
+      };
+      const customAdapter = new TelegramSseListenerAdapter(
+        customConfig as unknown as ConfigService,
+      );
+
+      const delays = [0, 1, 2, 3, 4].map(() =>
+        (
+          customAdapter as unknown as { calculateBackoff(): number }
+        ).calculateBackoff(),
+      );
+
+      expect(delays).toEqual([500, 1000, 2000, 4000, 4000]);
     });
   });
 

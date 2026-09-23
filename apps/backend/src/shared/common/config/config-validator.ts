@@ -169,28 +169,6 @@ const CONFIG_MANIFEST: ConfigVarDef[] = [
     condition: () => true,
     description: 'Redis port',
   },
-  {
-    envVar: 'INGESTION_TELEGRAM_MTPROTO_API_HASH',
-    configPath: 'telegram.mtprotoApiHash',
-    category: 'required-if',
-    condition: () => true,
-    description: 'MTProto API hash for Telegram',
-  },
-  {
-    envVar: 'INGESTION_TELEGRAM_MTPROTO_SESSION',
-    configPath: 'telegram.mtprotoSession',
-    category: 'required-if',
-    condition: () => true,
-    description: 'MTProto session string for Telegram',
-  },
-  {
-    envVar: 'INGESTION_TELEGRAM_MTPROTO_API_ID',
-    configPath: 'telegram.mtprotoApiId',
-    category: 'required-if',
-    condition: () => true,
-    description: 'MTProto API ID (required when enabled)',
-  },
-
   // ========== Tier 3: Format Validation ==========
   {
     envVar: 'PORT',
@@ -220,19 +198,6 @@ const CONFIG_MANIFEST: ConfigVarDef[] = [
       return null;
     },
     description: 'Node environment',
-  },
-  {
-    envVar: 'INGESTION_TELEGRAM_MTPROTO_API_ID',
-    configPath: 'telegram.mtprotoApiId',
-    category: 'format',
-    format: (value: unknown): string | null => {
-      const id = value as number;
-      if (!Number.isInteger(id) || id <= 0) {
-        return 'must be a positive integer greater than 0';
-      }
-      return null;
-    },
-    description: 'MTProto API ID (format validation)',
   },
   {
     envVar: 'CHAIN_DEXTER_INGEST_MODE',
@@ -398,7 +363,8 @@ const CONFIG_MANIFEST: ConfigVarDef[] = [
     envVar: 'THREADS_ACCESS_TOKEN',
     configPath: 'threads.accessToken',
     category: 'optional',
-    description: 'Threads Graph API long-lived user token (60-day; never commit)',
+    description:
+      'Threads Graph API long-lived user token (60-day; never commit)',
   },
   {
     envVar: 'THREADS_USER_ID',
@@ -484,12 +450,6 @@ export function validateAppConfig(appCfg: unknown): {
           isRequired = appConfig.database.enabled;
         } else if (def.configPath.startsWith('redis.')) {
           isRequired = appConfig.redis.enabled;
-        } else if (
-          def.configPath === 'telegram.mtprotoApiHash' ||
-          def.configPath === 'telegram.mtprotoSession' ||
-          def.configPath === 'telegram.mtprotoApiId'
-        ) {
-          isRequired = appConfig.telegram.mtprotoEnabled;
         }
 
         if (isRequired) {

@@ -3,7 +3,7 @@ import {
   type MediaSlot,
   type RawMediaObject,
 } from './abstract-media-extractor';
-import type { TelegramMediaAttachment } from 'telegram/shared/ports/telegram-listener.port';
+import type { TelegramMediaAttachment } from 'core/ports/telegram-listener.port';
 
 /**
  * Concrete implementation for testing

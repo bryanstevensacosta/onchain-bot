@@ -21,7 +21,7 @@
  */
 
 import { AbstractMediaExtractor, type MediaSlot } from '../core/abstract-media-extractor';
-import type { TelegramMediaAttachment } from 'telegram/shared/ports/telegram-listener.port';
+import type { TelegramMediaAttachment } from 'core/ports/telegram-listener.port';
 
 export class TelegramMediaExtractor extends AbstractMediaExtractor {
   protected readonly slots: MediaSlot[] = [

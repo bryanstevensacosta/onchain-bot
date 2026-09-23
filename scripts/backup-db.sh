@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =====================================================================
 # Database backup script — runs before each deploy.
-# Produces a timestamped pg_dump in /opt/onchain-bot/backups/ on the droplet.
+# Produces a timestamped pg_dump in /opt/onchain-bot/backups/ on the Oracle server.
 # Keeps the last 7 backups; older ones are pruned.
 #
 # Daily rolling mode (opt-in, T1 prod-backend-rolling-backup):
@@ -104,7 +104,7 @@ if [ "$BACKUP_MODE" = "daily" ]; then
       ;;
   esac
 
-  # --- droplet guard (FAKE_DATE set = QA override, skips the guard) ---
+  # --- Oracle guard (FAKE_DATE set = QA override, skips the guard) ---
   if [ -z "${FAKE_DATE:-}" ]; then
     case "$BACKUP_DIR" in
       /opt/onchain-bot/backups|/data/backups/*) ;;

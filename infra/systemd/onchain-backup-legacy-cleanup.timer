@@ -1,0 +1,31 @@
+# =====================================================================
+# onchain-backup-legacy-cleanup.timer — weekly trigger for legacy cleanup
+# Plan: .omo/plans/prod-backend-rolling-backup.md T11
+#
+# Fires Sunday 05:30:00 UTC weekly — AFTER the T10 restore drill on purpose,
+# so gate (b) (.rolling-status.json: last_drill.result=pass, age <10 days)
+# reads a fresh drill result. TZ always explicit UTC.
+# The 03:00 UTC daily backup never races this unit: the script probes the
+# shared dump lock and skips (`cleanup-skipped-lock-held`) when held.
+#
+# INSTALL (Oracle server, as root — see .service header for full procedure):
+#   sudo install -m 644 infra/systemd/onchain-backup-legacy-cleanup.timer \
+#     /etc/systemd/system/onchain-backup-legacy-cleanup.timer
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now onchain-backup-legacy-cleanup.timer
+#   systemctl list-timers --all | grep onchain-backup-legacy-cleanup
+#
+# MUST NOT touch onchain-dev-infra.timer (5-min dev pattern) or prune timers.
+# =====================================================================
+
+[Unit]
+Description=Weekly Sunday 05:30 UTC trigger for legacy backup cleanup (after T10 drill)
+Documentation=file:///opt/onchain-bot/.omo/plans/prod-backend-rolling-backup.md
+
+[Timer]
+OnCalendar=Sun *-*-* 05:30:00 UTC
+Persistent=true
+Unit=onchain-backup-legacy-cleanup.service
+
+[Install]
+WantedBy=timers.target

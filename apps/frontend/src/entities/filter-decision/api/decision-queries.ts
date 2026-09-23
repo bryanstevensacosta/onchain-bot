@@ -7,8 +7,6 @@ export const decisionKeys = {
   recent: (limit = 30) => [...decisionKeys.all, 'recent', limit] as const,
   approved: (limit = 30) => [...decisionKeys.all, 'approved', limit] as const,
   rejected: (limit = 30) => [...decisionKeys.all, 'rejected', limit] as const,
-  byToken: (chain: string, address: string) =>
-    [...decisionKeys.all, chain, address] as const,
 };
 
 export async function fetchRecentDecisions(
@@ -33,11 +31,4 @@ export async function fetchRejected(
   return httpGet<ReadonlyArray<FilterDecisionView>>(
     `${ENDPOINTS.filters.rejected}?limit=${limit}`,
   );
-}
-
-export async function fetchDecisionByToken(
-  chain: string,
-  address: string,
-): Promise<FilterDecisionView> {
-  return httpGet<FilterDecisionView>(ENDPOINTS.filters.byToken(chain, address));
 }

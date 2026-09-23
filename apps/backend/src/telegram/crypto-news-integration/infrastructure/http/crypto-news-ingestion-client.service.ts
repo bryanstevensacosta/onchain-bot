@@ -76,11 +76,11 @@ export interface CryptoNewsSourceDto {
  * - This client provides low-level HTTP fetch; filtering is done by consumers
  *
  * **Endpoints consumed:**
- * - GET /api/crypto-news/messages?limit=N&channelId=X — recent messages (RAW content)
- * - GET /api/crypto-news/messages/channel/:channelId?limit=N — messages by channel
- * - GET /api/crypto-news/sources — all active sources
- * - GET /api/crypto-news/sources/active/ids — channel IDs only
- * - GET /api/crypto-news/stats — message/source counts
+ * - GET /api/feed/messages?limit=N&channelId=X — recent messages (RAW content)
+ * - GET /api/feed/messages/channel/:channelId?limit=N — messages by channel
+ * - GET /api/feed/sources — all active sources
+ * - GET /api/feed/sources/active/ids — channel IDs only
+ * - GET /api/feed/stats — message/source counts
  *
  * **Error handling:**
  * - Network errors → log + return empty array (graceful degradation)
@@ -146,7 +146,7 @@ export class CryptoNewsIngestionClient {
       params.set('limit', String(Math.min(limit, 200)));
       if (channelId) params.set('channelId', channelId);
 
-      const url = `${this.baseUrl}/api/crypto-news/messages?${params.toString()}`;
+      const url = `${this.baseUrl}/api/feed/messages?${params.toString()}`;
 
       this.logger.debug(
         `Fetching messages from ingestion-telegram: ${url} (limit: ${limit}, channelId: ${channelId ?? 'all'})`,
@@ -165,14 +165,14 @@ export class CryptoNewsIngestionClient {
 
       if (!response.ok) {
         this.logger.warn(
-          `Ingestion-telegram returned ${response.status} for /api/crypto-news/messages`,
+          `Ingestion-telegram returned ${response.status} for /api/feed/messages`,
         );
         return [];
       }
 
       const body: unknown = await response.json();
 
-      // The ingestion-telegram wraps GET /api/crypto-news/messages as
+      // The ingestion-telegram wraps GET /api/feed/messages as
       // {timestamp, count, data} (ETag-busting, commit 97199b2) while sibling
       // endpoints return bare arrays — unwrap defensively, never assume.
       const messages = this.unwrapArray<CryptoNewsMessageDto>(body);
@@ -203,7 +203,7 @@ export class CryptoNewsIngestionClient {
     limit = 50,
   ): Promise<ReadonlyArray<CryptoNewsMessageDto>> {
     try {
-      const url = `${this.baseUrl}/api/crypto-news/messages/channel/${encodeURIComponent(channelId)}?limit=${Math.min(limit, 200)}`;
+      const url = `${this.baseUrl}/api/feed/messages/channel/${encodeURIComponent(channelId)}?limit=${Math.min(limit, 200)}`;
 
       this.logger.debug(
         `Fetching messages by channel from ingestion-telegram: ${channelId} (limit: ${limit})`,
@@ -254,7 +254,7 @@ export class CryptoNewsIngestionClient {
    */
   async fetchSources(): Promise<ReadonlyArray<CryptoNewsSourceDto>> {
     try {
-      const url = `${this.baseUrl}/api/crypto-news/sources`;
+      const url = `${this.baseUrl}/api/feed/sources`;
 
       this.logger.debug(`Fetching sources from ingestion-telegram: ${url}`);
 
@@ -271,7 +271,7 @@ export class CryptoNewsIngestionClient {
 
       if (!response.ok) {
         this.logger.warn(
-          `Ingestion-telegram returned ${response.status} for /api/crypto-news/sources`,
+          `Ingestion-telegram returned ${response.status} for /api/feed/sources`,
         );
         return [];
       }
@@ -306,7 +306,7 @@ export class CryptoNewsIngestionClient {
     activeSources: number;
   }> {
     try {
-      const url = `${this.baseUrl}/api/crypto-news/stats`;
+      const url = `${this.baseUrl}/api/feed/stats`;
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
@@ -321,7 +321,7 @@ export class CryptoNewsIngestionClient {
 
       if (!response.ok) {
         this.logger.warn(
-          `Ingestion-telegram returned ${response.status} for /api/crypto-news/stats`,
+          `Ingestion-telegram returned ${response.status} for /api/feed/stats`,
         );
         return { totalMessages: 0, totalSources: 0, activeSources: 0 };
       }

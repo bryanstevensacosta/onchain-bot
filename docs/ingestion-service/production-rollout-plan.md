@@ -36,7 +36,7 @@ Phased rollout plan for deploying the multi-backend SSE broadcast system to prod
 **Deployment Steps:**
 
 ```bash
-# 1. SSH to staging droplet
+# 1. SSH to staging Oracle
 ssh staging-server
 
 # 2. Pull latest code
@@ -167,7 +167,7 @@ docker restart staging-backend
 **Deployment Steps:**
 
 ```bash
-# 1. SSH to production droplet
+# 1. SSH to production Oracle server
 ssh production-server
 
 # 2. Backup database

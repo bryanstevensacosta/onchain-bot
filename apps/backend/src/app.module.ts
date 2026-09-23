@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import { Module } from '@nestjs/common';
+import { Module, Logger } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { DevBackfillHook } from 'shared/common/dev-backfill.hook';
@@ -36,7 +36,6 @@ import { ReputationModule } from 'kol/reputation/reputation.module';
 import { HoneypotModule } from 'token/honeypot/honeypot.module';
 // import { IdentityModule } from 'kol/identity/identity.module';
 import { TelegramIngestionModule } from 'telegram/ingestion/telegram-ingestion.module';
-import { SourceModule } from 'kol/source/source.module';
 import { StatsModule } from 'kol/stats/stats.module';
 import { WsModule } from 'shared/ws/ws.module';
 import { SettingsModule } from 'settings/settings.module';
@@ -44,6 +43,7 @@ import { DataProviderModule } from 'data-provider/core/data-provider.module';
 import { HealthModule } from 'health/health.module';
 import { LlmModule } from 'shared/llm';
 import { DeduplicationModule } from 'shared/deduplication/deduplication.module';
+import { OpsBackupsModule } from './ops/backups/ops-backups.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DevModule } from './dev/dev.module';
@@ -71,7 +71,9 @@ import { DevModule } from './dev/dev.module';
 
         // In staging, use simple stdout logging to avoid pino-roll I/O hangs
         if (nodeEnv === 'staging') {
-          console.log('[AppModule] Using simple stdout logging (staging mode)');
+          new Logger('AppModule').debug(
+            '[AppModule] Using simple stdout logging (staging mode)',
+          );
           return {
             pinoHttp: {
               level: logCfg?.level ?? 'debug',
@@ -139,7 +141,6 @@ import { DevModule } from './dev/dev.module';
     HealthModule,
     DataProviderModule,
     TelegramIngestionModule,
-    SourceModule,
     StatsModule,
     ExtractionModule,
     ParsingModule,
@@ -166,6 +167,7 @@ import { DevModule } from './dev/dev.module';
     SettingsModule,
     LlmModule,
     DeduplicationModule,
+    OpsBackupsModule,
     DevModule,
   ],
   controllers: [AppController],

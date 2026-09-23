@@ -11,7 +11,7 @@ vi.mock('@/shared/api/endpoints', () => ({
   ENDPOINTS: {
     cryptoNews: {
       sources: {
-        add: '/ingestion-api/crypto-news/sources',
+        add: '/ingestion-api/feed/sources',
       },
     },
   },
@@ -36,7 +36,7 @@ describe('addCryptoNewsSource', () => {
     });
     await addCryptoNewsSource({ channelId: '1234567890' });
     expect(httpPost).toHaveBeenCalledWith(
-      '/ingestion-api/crypto-news/sources',
+      '/ingestion-api/feed/sources',
       {
         channelId: '1234567890',
       },

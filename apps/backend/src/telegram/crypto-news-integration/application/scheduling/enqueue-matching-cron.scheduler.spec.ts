@@ -263,4 +263,147 @@ describe('EnqueueMatchingCronScheduler (media mapping regression)', () => {
       expect(health.consecutiveFetchFailures).toBe(0);
     });
   });
+
+  describe('adaptive polling', () => {
+    const makeMatches = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({
+        ...matchedDto,
+        id: `adaptive-${n}-${i}`,
+        messageId: 9000 + i,
+      }));
+
+    function buildAdaptive(batches: unknown[][]) {
+      let call = 0;
+      const filteredNewsService = {
+        getMatchingMessages: jest
+          .fn()
+          .mockImplementation(() =>
+            Promise.resolve(batches[Math.min(call++, batches.length - 1)]),
+          ),
+      } as unknown as FilteredCryptoNewsService;
+      const enqueueUseCase = {
+        execute: jest.fn().mockResolvedValue({ id: 'entry-1' }),
+      } as unknown as EnqueueMatchingMessageUseCase;
+      const matchingConfigRepo = {
+        load: jest.fn().mockResolvedValue({ enabled: true }),
+      } as unknown as MatchingConfigRepository;
+      const scheduler = new EnqueueMatchingCronScheduler(
+        filteredNewsService,
+        enqueueUseCase,
+        matchingConfigRepo,
+        new MatchingHealthState(),
+        {} as SchedulerRegistry,
+        {} as ConfigService,
+      );
+      return { scheduler, filteredNewsService };
+    }
+
+    afterEach(() => {
+      jest.useRealTimers();
+      jest.restoreAllMocks();
+    });
+
+    it('schedules one catch-up re-poll after 3 consecutive full batches', async () => {
+      jest.useFakeTimers();
+      const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+      const { scheduler, filteredNewsService } = buildAdaptive([
+        makeMatches(50),
+        makeMatches(50),
+        makeMatches(50),
+      ]);
+
+      await scheduler.tick();
+      await scheduler.tick();
+      expect(setTimeoutSpy).not.toHaveBeenCalledWith(
+        expect.any(Function),
+        10_000,
+      );
+
+      await scheduler.tick();
+      expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 10_000);
+
+      await jest.advanceTimersByTimeAsync(10_000);
+      expect(
+        (filteredNewsService.getMatchingMessages as jest.Mock).mock.calls
+          .length,
+      ).toBe(4);
+    });
+
+    it('resets the streak on a non-full batch (no re-poll)', async () => {
+      jest.useFakeTimers();
+      const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+      const { scheduler } = buildAdaptive([
+        makeMatches(50),
+        makeMatches(50),
+        makeMatches(10),
+        makeMatches(50),
+        makeMatches(50),
+      ]);
+
+      await scheduler.tick();
+      await scheduler.tick();
+      await scheduler.tick();
+      await scheduler.tick();
+      await scheduler.tick();
+
+      expect(setTimeoutSpy).not.toHaveBeenCalledWith(
+        expect.any(Function),
+        10_000,
+      );
+    });
+
+    it('resets the streak when the fetch throws (no re-poll)', async () => {
+      jest.useFakeTimers();
+      const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+      const filteredNewsService = {
+        getMatchingMessages: jest
+          .fn()
+          .mockResolvedValueOnce(makeMatches(50))
+          .mockResolvedValueOnce(makeMatches(50))
+          .mockRejectedValueOnce(new Error('ingestion down'))
+          .mockResolvedValue(makeMatches(50)),
+      } as unknown as FilteredCryptoNewsService;
+      const scheduler = new EnqueueMatchingCronScheduler(
+        filteredNewsService,
+        {
+          execute: jest.fn().mockResolvedValue({ id: 'entry-1' }),
+        } as unknown as EnqueueMatchingMessageUseCase,
+        {
+          load: jest.fn().mockResolvedValue({ enabled: true }),
+        } as unknown as MatchingConfigRepository,
+        new MatchingHealthState(),
+        {} as SchedulerRegistry,
+        {} as ConfigService,
+      );
+
+      await scheduler.tick();
+      await scheduler.tick();
+      await scheduler.tick();
+      await scheduler.tick();
+      await scheduler.tick();
+
+      expect(setTimeoutSpy).not.toHaveBeenCalledWith(
+        expect.any(Function),
+        10_000,
+      );
+    });
+
+    it('skips an overlapping tick without fetching', async () => {
+      const { scheduler, filteredNewsService } = buildAdaptive([
+        makeMatches(1),
+      ]);
+      (scheduler as unknown as { isPolling: boolean }).isPolling = true;
+      const warn = jest.fn();
+      (scheduler as unknown as { logger: unknown }).logger = { warn };
+
+      await scheduler.tick();
+
+      expect(
+        filteredNewsService.getMatchingMessages as jest.Mock,
+      ).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledWith(
+        'Previous tick still running; skipping this tick',
+      );
+    });
+  });
 });

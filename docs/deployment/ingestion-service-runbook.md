@@ -2,7 +2,7 @@
 
 **Version:** 1.0  
 **Last Updated:** 2026-08-30  
-**Target Environment:** CryptoGanster Droplet (144.126.203.139 — ex-DO (suspended 2026-09-10); live env is Oracle `OracleDroplet`)  
+**Target Environment:** CryptoGanster Oracle (144.126.203.139 — ex-DO (suspended 2026-09-10); live env is Oracle `OracleDroplet`)  
 **Related Requirements:** 12.5, 7.2, 7.4, 7.5
 
 ## Overview
@@ -38,6 +38,7 @@ Ingestion Service (MTProto) ─┼─> STAGING Backend (SSE Client)
 ### Environment Variables
 
 **Ingestion Service (new `.env.ingestion`):**
+
 ```bash
 # MTProto Configuration (migrate from backend .env)
 INGESTION_TELEGRAM_API_ID=<from backend TELEGRAM_API_ID>
@@ -67,6 +68,7 @@ INGESTION_FLOOD_WAIT_MAX_ATTEMPTS=5
 ```
 
 **Backend Environments (add to existing `.env`):**
+
 ```bash
 # Feature flag for migration (Requirement 7.1)
 INGESTION_MODE=local  # Phase 1-2: local, Phase 3+: remote
@@ -78,6 +80,7 @@ INGESTION_REMOTE_URL=http://cryptoganster:3031
 ### Docker Compose Files
 
 **`apps/ingestion-telegram/docker-compose.yml`** (new file):
+
 ```yaml
 version: '3.8'
 
@@ -89,14 +92,14 @@ services:
     env_file:
       - .env.ingestion
     ports:
-      - "3031:3031"
+      - '3031:3031'
     networks:
       - onchain-bot-net
     volumes:
       - /opt/onchain-bot/uploads:/opt/onchain-bot/uploads
       - /opt/onchain-bot/apps/ingestion-telegram/logs:/app/logs
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3031/api/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3031/api/health']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -112,6 +115,7 @@ networks:
 ### GitHub Actions Workflow
 
 **`.github/workflows/deploy-ingestion.yml`** (new file):
+
 ```yaml
 name: Deploy ingestion service
 
@@ -214,7 +218,7 @@ jobs:
 
 ### 1.1 Pre-Deployment Checks
 
-**On CryptoGanster droplet:**
+**On CryptoGanster Oracle:**
 
 ```bash
 # Verify disk space (need ~2GB for Docker images)
@@ -282,7 +286,7 @@ gh workflow run deploy-ingestion.yml \
 # Monitor workflow progress
 gh run watch
 
-# Or deploy manually on droplet
+# Or deploy manually on Oracle server
 cd /opt/onchain-bot/apps/ingestion-telegram
 docker compose up -d ingestion-telegram
 ```
@@ -290,6 +294,7 @@ docker compose up -d ingestion-telegram
 ### 1.4 Validate Standalone Operation
 
 **Health Check:**
+
 ```bash
 # Check service health
 curl -s http://localhost:3031/api/health | jq .
@@ -321,6 +326,7 @@ curl -s http://localhost:3031/api/health | jq .
 ```
 
 **Channel Metadata:**
+
 ```bash
 # Verify all channels joined
 curl -s http://localhost:3031/api/channels | jq .
@@ -329,6 +335,7 @@ curl -s http://localhost:3031/api/channels | jq .
 ```
 
 **Message Streaming:**
+
 ```bash
 # Monitor SSE stream (Ctrl+C to stop)
 curl -N http://localhost:3031/api/ingestion/stream
@@ -342,6 +349,7 @@ curl -N http://localhost:3031/api/ingestion/stream
 ```
 
 **Log Inspection:**
+
 ```bash
 # Check for errors
 docker logs onchain-bot-ingestion-telegram --tail 100 | grep -i error
@@ -354,6 +362,7 @@ docker logs onchain-bot-ingestion-telegram | grep "message:ingested" | wc -l
 ```
 
 **Media Serving:**
+
 ```bash
 # Wait for first message with media
 # Extract URL from SSE stream, then test:
@@ -379,6 +388,7 @@ curl http://localhost:3030/api/health
 ```
 
 **Phase 1 Success Criteria:**
+
 - ✅ Health endpoint returns 200 OK
 - ✅ MTProto connected and authorized
 - ✅ All 15 channels joined and active
@@ -458,6 +468,7 @@ sleep 60
 ### 2.3 Validate SSE Connection
 
 **Check backend logs for SSE connection:**
+
 ```bash
 docker logs onchain-bot-backend-staging --tail 100 | grep -i "SSE"
 
@@ -467,6 +478,7 @@ docker logs onchain-bot-backend-staging --tail 100 | grep -i "SSE"
 ```
 
 **Check ingestion service sees the client:**
+
 ```bash
 curl -s http://localhost:3031/api/health | jq '.clients.connected'
 
@@ -491,6 +503,7 @@ docker logs -f onchain-bot-backend-staging | grep "KolIngestionOrchestrator"
 ```
 
 **Validate recent calls match production:**
+
 ```bash
 # Get recent calls from staging
 curl -s http://localhost:3031/api/vip-calls/calls/recent?limit=5 | jq '[.calls[] | {id, ticker, occurredAt}]' > /tmp/staging-calls.json
@@ -505,6 +518,7 @@ diff /tmp/staging-calls.json /tmp/prod-calls.json
 ### 2.5 Performance Validation
 
 **Measure SSE latency:**
+
 ```bash
 # Ingestion service logs message timestamp
 # Staging backend logs message received timestamp
@@ -517,6 +531,7 @@ docker logs onchain-bot-backend-staging | grep "Received message" | tail -1
 ```
 
 **Check resource usage:**
+
 ```bash
 # Staging backend should use LESS memory (no MTProto client)
 docker stats onchain-bot-backend-staging --no-stream
@@ -548,6 +563,7 @@ gh workflow run deploy-staging.yml
 ```
 
 **Phase 2 Success Criteria:**
+
 - ✅ Staging backend connects to ingestion service via SSE
 - ✅ Ingestion service shows 1 connected client
 - ✅ Messages processed identically to production
@@ -627,6 +643,7 @@ crontab -l | { cat; echo "0 */6 * * * /opt/onchain-bot/scripts/validate-ingestio
 **Run every 24 hours for 2 days:**
 
 **Day 1 - Hour 0 (migration complete):**
+
 ```bash
 # 1. Verify SSE connection uptime
 curl -s http://localhost:3031/api/health | jq '.uptime / 3600 / 1000'
@@ -643,6 +660,7 @@ curl -s http://localhost:3031/api/vip-calls/calls/recent?limit=1 | jq '.calls[0]
 ```
 
 **Day 1 - Hour 6:**
+
 ```bash
 # 1. Verify SSE connection still active
 curl -s http://localhost:3031/api/health | jq '.clients.connected'
@@ -657,18 +675,21 @@ docker logs onchain-bot-backend-staging --since 6h | grep -i "error\|fatal\|exce
 ```
 
 **Day 1 - Hour 12:**
+
 ```bash
 # Repeat Day 1 - Hour 6 checks
 /opt/onchain-bot/scripts/validate-ingestion-parity.sh
 ```
 
 **Day 1 - Hour 18:**
+
 ```bash
 # Repeat Day 1 - Hour 6 checks
 /opt/onchain-bot/scripts/validate-ingestion-parity.sh
 ```
 
 **Day 1 - Hour 24:**
+
 ```bash
 # 1. Verify 24h SSE connection stability (Requirement 8.4)
 curl -s http://localhost:3031/api/health | jq '.uptime / 3600 / 1000'
@@ -697,6 +718,7 @@ docker stats onchain-bot-ingestion-telegram --no-stream
 ```
 
 **Day 2 - Hour 24 (48h complete):**
+
 ```bash
 # 1. Final SSE connection stability check
 curl -s http://localhost:3031/api/health | jq '.uptime / 3600 / 1000'
@@ -733,6 +755,7 @@ cat /tmp/phase3-validation-report.txt
 ### 3.3 Incident Response During Validation
 
 **If SSE connection drops:**
+
 ```bash
 # 1. Check ingestion service status
 docker ps | grep onchain-bot-ingestion-telegram
@@ -752,6 +775,7 @@ docker compose -f docker-compose.staging.yml restart backend
 ```
 
 **If message divergence exceeds threshold:**
+
 ```bash
 # 1. Investigate staging backend logs
 docker logs onchain-bot-backend-staging --tail 200 | grep -i "error\|skip\|duplicate"
@@ -788,6 +812,7 @@ docker logs onchain-bot-ingestion-telegram --tail 200 | grep -i "broadcast"
 ### 4.1 Pre-Migration Final Checks
 
 **Confirm Phase 3 success:**
+
 ```bash
 # Review Phase 3 validation report
 cat /tmp/phase3-validation-report.txt
@@ -801,6 +826,7 @@ cat /tmp/phase3-validation-report.txt
 ```
 
 **Production readiness checklist:**
+
 ```bash
 # 1. Verify ingestion service health
 curl -s http://localhost:3031/api/health | jq '.'
@@ -926,6 +952,7 @@ RECENT_CALL=$(curl -s http://localhost:3030/api/vip-calls/calls/recent?limit=1)
 ### 4.5 24-Hour Production Monitoring
 
 **Hour 0 (migration complete):**
+
 ```bash
 # Record baseline
 curl -s http://localhost:3030/api/vip-calls/calls/recent?limit=1 | jq '.calls[0].id' > /tmp/prod-hour0-baseline.txt
@@ -935,6 +962,7 @@ curl -s http://localhost:3031/api/health | jq '.' > /tmp/prod-hour0-health.json
 ```
 
 **Hour 1:**
+
 ```bash
 # Verify SSE connection stable
 curl -s http://localhost:3031/api/health | jq '.clients.connected'
@@ -952,6 +980,7 @@ echo "Messages in 1h: $((HOUR1_ID - HOUR0_ID))"
 ```
 
 **Hour 6, 12, 18, 24:**
+
 ```bash
 # Run full validation script
 /opt/onchain-bot/scripts/validate-production-ingestion.sh
@@ -1039,6 +1068,7 @@ EOF
 **Objective:** Document the fast-rollback procedure to restore MTProto mode in any backend environment within 5 minutes.
 
 **Use Cases:**
+
 - Phase 2/3/4 migration failures
 - SSE connection instability
 - Message loss detected
@@ -1200,7 +1230,7 @@ echo "EMERGENCY ROLLBACK COMPLETE. All environments back to MTProto mode."
 
 ## Cutover ingestion-telegram (rename, stop-the-world)
 
-**Objective:** One-time droplet cutover from the old `ingestion-service` identity to the
+**Objective:** One-time Oracle cutover from the old `ingestion-service` identity to the
 renamed `ingestion-telegram` identity (compose service/container/DNS rename + dual-push
 workflow). After this cutover, routine deploys keep using the `deploy-ingestion.yml`
 workflow with zero manual steps.
@@ -1220,7 +1250,7 @@ workflow with zero manual steps.
   stopped: `docker ps | grep -i ingestion` must print nothing.
 - **NEVER copy the session string for testing.** No second local container, no pasting
   `INGESTION_TELEGRAM_MTPROTO_SESSION` into another env file, no `telegram:gen-session`
-  on the droplet. The session moves exactly once, via `mv` of the env file (step 3).
+  on the Oracle server. The session moves exactly once, via `mv` of the env file (step 3).
 - **Rollback never re-animates the stopped old container while the new one holds the
   session.** Rollback = stop the new container first, verify zero ingestion containers,
   then recreate from a previous image tag (previous `:sha` of the new image, or the old
@@ -1242,7 +1272,7 @@ ls -lh /data/backups/ingestion/ | tail -3
 # Must show: a fresh ingestion-backup-<timestamp>.dump
 ```
 
-> First-cutover note: if the droplet tree is still pre-rename, the env file is still at
+> First-cutover note: if the Oracle server tree is still pre-rename, the env file is still at
 > the legacy path (step 3 moves it). Source whichever path exists; after step 3 it is
 > always `/opt/onchain-bot/apps/ingestion-telegram/.env.production`.
 
@@ -1251,7 +1281,7 @@ ls -lh /data/backups/ingestion/ | tail -3
 ```bash
 cd /opt/onchain-bot/apps/backend
 docker compose -f docker-compose.ingestion.yml stop ingestion-service
-# If the droplet tree was already pulled past the rename (service is now
+# If the Oracle server tree was already pulled past the rename (service is now
 # `ingestion-telegram`), stop by container name instead:
 docker stop onchain-bot-ingestion 2>/dev/null || true
 
@@ -1351,7 +1381,7 @@ grep -n "proxy_pass http://onchain-bot-ingestion-telegram:3031/api/" /opt/onchai
 > frontend `nginx.conf` `/ingestion-api/` upstream stays on the OLD
 > `onchain-bot-ingestion:3031` name (with lazy `resolver 127.0.0.11` so nginx boots
 > even when DNS is unresolvable). The staging crash-loop of 2026-09-18 (`[emerg]
-> host not found in upstream "onchain-bot-ingestion-telegram"`) was caused by
+host not found in upstream "onchain-bot-ingestion-telegram"`) was caused by
 > shipping the new DNS before the singleton was renamed — deploy the frontend flip
 > (task-18) only together with step 5 above.
 
@@ -1399,7 +1429,7 @@ Every absolute path above exists in `.github/workflows/deploy-ingestion.yml` (th
 `.env.production` refs, the `data-source.js` dist path, the compose file path, the
 `:3032` health endpoint). Full grep output: `.omo/evidence/task-11-rename-ingestion-telegram.md`.
 The only intentional exception is the legacy `mv` source path
-(`/opt/onchain-bot/apps/ingestion-service/.env.production`): pre-rename droplet state,
+(`/opt/onchain-bot/apps/ingestion-service/.env.production`): pre-rename Oracle state,
 absent from the renamed workflow by design.
 
 ---
@@ -1574,12 +1604,14 @@ docker logs onchain-bot-ingestion-telegram --since 24h | grep -i "FLOOD_WAIT" | 
 ### Problem: SSE Connection Fails on Backend
 
 **Symptoms:**
+
 ```bash
 docker logs onchain-bot-backend-production | grep "SSE"
 # Output: "SSE connection failed: 503"
 ```
 
 **Resolution:**
+
 1. Check ingestion service status:
    ```bash
    curl http://localhost:3031/api/health
@@ -1589,13 +1621,15 @@ docker logs onchain-bot-backend-production | grep "SSE"
    docker compose -f /opt/onchain-bot/apps/ingestion-telegram/docker-compose.yml up -d
    ```
 3. If ingestion service is healthy but backend can't connect:
+
    ```bash
    # Check network connectivity
    docker exec onchain-bot-backend-production ping -c 3 cryptoganster
-   
+
    # If ping fails, check Docker network
    docker network inspect onchain-bot-net
    ```
+
 4. If network is broken, recreate containers:
    ```bash
    docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml down
@@ -1605,6 +1639,7 @@ docker logs onchain-bot-backend-production | grep "SSE"
 ### Problem: Message Loss Detected
 
 **Symptoms:**
+
 ```bash
 # Production shows fewer messages than staging
 curl -s http://localhost:3030/api/vip-calls/calls/recent?limit=100 | jq 'length'
@@ -1615,6 +1650,7 @@ curl -s http://localhost:3031/api/vip-calls/calls/recent?limit=100 | jq 'length'
 ```
 
 **Resolution:**
+
 1. Check if SSE connection dropped:
    ```bash
    docker logs onchain-bot-backend-production --since 1h | grep -i "reconnect"
@@ -1632,57 +1668,65 @@ curl -s http://localhost:3031/api/vip-calls/calls/recent?limit=100 | jq 'length'
 ### Problem: High FLOOD_WAIT Errors
 
 **Symptoms:**
+
 ```bash
 curl -s http://localhost:3031/api/health | jq '.floodWait.count24h'
 # Output: 15 (exceeds threshold of 10)
 ```
 
 **Resolution:**
+
 1. Check if sleep window is configured:
    ```bash
    grep "SLEEP_WINDOW" /opt/onchain-bot/apps/ingestion-telegram/.env.ingestion
    ```
 2. If not, add sleep window:
+
    ```bash
    cat >> /opt/onchain-bot/apps/ingestion-telegram/.env.ingestion << 'EOF'
    INGESTION_SLEEP_WINDOW_START_UTC=04
    INGESTION_SLEEP_WINDOW_END_UTC=08
    EOF
-   
+
    docker compose -f /opt/onchain-bot/apps/ingestion-telegram/docker-compose.yml restart
    ```
+
 3. If FLOOD_WAIT persists, increase poll interval:
+
    ```bash
    # Change from 90s to 120s
    sed -i 's/POLL_INTERVAL_BASE_MS=90000/POLL_INTERVAL_BASE_MS=120000/' /opt/onchain-bot/apps/ingestion-telegram/.env.ingestion
-   
+
    docker compose -f /opt/onchain-bot/apps/ingestion-telegram/docker-compose.yml restart
    ```
 
 ### Problem: MTProto Unauthorized After Migration
 
 **Symptoms:**
+
 ```bash
 curl -s http://localhost:3031/api/health | jq '.mtproto'
 # Output: {connected: false, authorized: false}
 ```
 
 **Resolution:**
+
 1. Verify session string is valid:
    ```bash
    grep "MTPROTO_SESSION" /opt/onchain-bot/apps/ingestion-telegram/.env.ingestion
    ```
 2. If session is missing or corrupted, regenerate:
+
    ```bash
    # On local machine with Node.js
    cd apps/backend
    npm run telegram:gen-session
-   
+
    # Copy output session string to production
    ssh CryptoGanster
    nano /opt/onchain-bot/apps/ingestion-telegram/.env.ingestion
    # Paste new session string
-   
+
    # Restart ingestion service
    docker compose -f /opt/onchain-bot/apps/ingestion-telegram/docker-compose.yml restart
    ```
@@ -1690,12 +1734,14 @@ curl -s http://localhost:3031/api/health | jq '.mtproto'
 ### Problem: Media Files Not Accessible
 
 **Symptoms:**
+
 ```bash
 curl -I http://localhost:3031/api/media/-1001234567890/12345/0
 # Output: HTTP 404 Not Found
 ```
 
 **Resolution:**
+
 1. Check if media file exists:
    ```bash
    find /opt/onchain-bot/uploads/crypto-news/media/ -name "12345-0.*"
@@ -1779,6 +1825,7 @@ EOF
    - Schedule post-mortem
 
 **On-Call Runbook Quick Links:**
+
 - Health Check: `curl http://localhost:3031/api/health | jq .`
 - Rollback: `bash /opt/onchain-bot/scripts/rollback-to-mtproto.sh production`
 - Logs: `docker logs onchain-bot-backend-production --tail 100`
@@ -1906,9 +1953,9 @@ echo "=== Parity check complete ==="
 
 ## Revision History
 
-| Version | Date       | Author | Changes                                    |
-|---------|------------|--------|--------------------------------------------|
-| 1.0     | 2026-08-30 | System | Initial deployment runbook                 |
+| Version | Date       | Author | Changes                                             |
+| ------- | ---------- | ------ | --------------------------------------------------- |
+| 1.0     | 2026-08-30 | System | Initial deployment runbook                          |
 | 1.1     | 2026-09-17 | System | Cutover ingestion-telegram (rename, stop-the-world) |
 
 ---

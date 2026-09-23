@@ -1,0 +1,19 @@
+# task-3-deprecados-deuda-tecnica — RECONSTRUCTED on VPS 2026-09-20 from git history + session record
+# Original log on local PC (gitignored). T3 = read-only (Commit: N). Veredicto del record: A1 CAE → borrado total aprobado.
+
+## A1 (del record): "¿MTProto backend vivo en prod/staging?" → NO
+SSE efectivo en todos los ambientes; 0 AUTH_KEY en logs; 4 guards. Sin sesión MTProto en backend prod/staging.
+
+## Re-verificación VPS 2026-09-20 (comando real)
+$ grep -n 'MTProto\|USE_SSE_INGESTION\|INGESTION_TELEGRAM_URL' apps/backend/.env.staging.template apps/backend/.env.production.template
+apps/backend/.env.staging.template:58:# Las credenciales MTProto están en apps/ingestion-telegram/.env (en el droplet)
+apps/backend/.env.staging.template:60:# ⚠️ NO DESCOMENTAR estas variables MTProto aquí - causará AUTH_KEY_DUPLICATED
+apps/backend/.env.staging.template:68:USE_SSE_INGESTION=true
+apps/backend/.env.staging.template:72:INGESTION_TELEGRAM_URL=http://onchain-bot-ingestion-telegram:3031
+apps/backend/.env.production.template:58:# Las credenciales MTProto están en apps/ingestion-telegram/.env (en el droplet)
+apps/backend/.env.production.template:60:# ⚠️ CRITICAL: NO poner credenciales MTProto aquí - causará AUTH_KEY_DUPLICATED
+apps/backend/.env.production.template:76:USE_SSE_INGESTION=true
+apps/backend/.env.production.template:81:INGESTION_TELEGRAM_URL=http://onchain-bot-ingestion-telegram:3031
+
+## Veredicto: PASS (A1 falsada, se mantiene)
+Templates confirman singleton MTProto en ingestion-telegram + SSE default. QA-failure (sesión MTProto backend en prod/staging → abortar T5) no se materializó.

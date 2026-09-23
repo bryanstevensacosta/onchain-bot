@@ -1,20 +1,23 @@
 export const ENDPOINTS = {
-  dashboard: {
-    kpis: '/dashboard/kpis',
-  },
   kols: {
-    list: '/telegram-kol/identity/kols',
-    get: (id: string) => `/telegram-kol/identity/kols/${id}`,
-    backfill: (id: string) => `/telegram-kol/ingestion/kols/${id}/backfill`,
-    add: '/telegram-kol/identity/kols',
-    setLifecycle: (id: string) => `/telegram-kol/identity/kols/${id}/lifecycle`,
+    // KOL identity moved to ingestion-telegram (telegram-feed-unification
+    // item 8): reads/writes go through the feed API (same /ingestion-api
+    // prefix the newsroom uses — vite dev proxies it to :3031, prod nginx
+    // rewrites /ingestion-api/* → /api/* on the ingestion host).
+    // No single-get route exists in the feed API: detail = list + find.
+    // No BLACKLISTED equivalent exists (toggle flips isActive only).
+    // Backfill has no feed equivalent: still hits the backend, which now
+    // answers 501 with the feed hint (surfaced inline by BackfillButton).
+    list: '/ingestion-api/feed/sources?type=kol',
+    add: '/ingestion-api/feed/sources',
+    toggle: (id: string) =>
+      `/ingestion-api/feed/sources/${encodeURIComponent(id)}/toggle`,
+    backfill: (id: string) => `/telegram-kol/identity/kols/${id}/backfill`,
   },
   publishing: {
     published: '/vip-calls/calls/published',
     failed: '/vip-calls/calls/failed',
     recent: '/vip-calls/calls/recent',
-    byToken: (chain: string, address: string) =>
-      `/vip-calls/calls/${chain}/${address}`,
     publish: '/vip-calls/publish',
   },
   extraction: {
@@ -54,13 +57,6 @@ export const ENDPOINTS = {
     approved: '/token/vip-call-approval/decisions/approved',
     rejected: '/token/vip-call-approval/decisions/rejected',
     recent: '/token/vip-call-approval/decisions/recent',
-    byToken: (chain: string, address: string) =>
-      `/token/vip-call-approval/decisions/${chain}/${address}`,
-    decisionsRejectedVerify:
-      '/token/vip-call-approval/decisions/rejected/verify',
-    reprocessBatch: '/token/vip-call-approval/reprocess/rejected',
-    reprocessOne: (chain: string, address: string) =>
-      `/token/vip-call-approval/reprocess/${chain}/${address}`,
   },
   honeypot: {
     analyze: '/token/honeypot/analyze',
@@ -84,16 +80,14 @@ export const ENDPOINTS = {
   },
   cryptoNews: {
     sources: {
-      // MIGRATED 2026-09-05: Ingestion-service is sole owner of crypto-news sources
-      // Backend POST /crypto-news/sources is deprecated (returns 501)
-      list: '/ingestion-api/crypto-news/sources',
-      add: '/ingestion-api/crypto-news/sources',
-      update: (channelId: string) =>
-        `/ingestion-api/crypto-news/sources/${channelId}`,
+      // Crypto-news sources are owned by the ingestion-service;
+      // all source writes go through the ingestion API below.
+      list: '/ingestion-api/feed/sources',
+      add: '/ingestion-api/feed/sources',
+      update: (channelId: string) => `/ingestion-api/feed/sources/${channelId}`,
       toggle: (channelId: string) =>
-        `/ingestion-api/crypto-news/sources/${channelId}/toggle`,
-      delete: (channelId: string) =>
-        `/ingestion-api/crypto-news/sources/${channelId}`,
+        `/ingestion-api/feed/sources/${channelId}/toggle`,
+      delete: (channelId: string) => `/ingestion-api/feed/sources/${channelId}`,
     },
   },
   trackedCalls: {
@@ -142,6 +136,9 @@ export const ENDPOINTS = {
   ingestion: {
     config: '/ingestion/config',
     health: '/ingestion/health',
+  },
+  ops: {
+    backupStatus: '/ops/backups/status',
   },
   cryptoNewsPublisher: {
     llm: {

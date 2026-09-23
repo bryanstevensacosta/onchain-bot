@@ -65,8 +65,8 @@ export interface ThreadsMessageDto {
  * ingestion-telegram changes — threads reuses the crypto-news feed).
  *
  * **Endpoints consumed:**
- * - GET /api/crypto-news/messages?limit=N&channelId=X — recent messages (RAW content)
- * - GET /api/crypto-news/messages/channel/:channelId?limit=N — messages by channel
+ * - GET /api/feed/messages?limit=N&channelId=X — recent messages (RAW content)
+ * - GET /api/feed/messages/channel/:channelId?limit=N — messages by channel
  *
  * **Error handling:**
  * - Network errors → log + return empty array (graceful degradation)
@@ -133,7 +133,7 @@ export class ThreadsIngestionClient {
       params.set('limit', String(Math.min(limit, 200)));
       if (channelId) params.set('channelId', channelId);
 
-      const url = `${this.baseUrl}/api/crypto-news/messages?${params.toString()}`;
+      const url = `${this.baseUrl}/api/feed/messages?${params.toString()}`;
 
       this.logger.debug(
         `Fetching messages from ingestion-telegram: ${url} (limit: ${limit}, channelId: ${channelId ?? 'all'})`,
@@ -152,14 +152,14 @@ export class ThreadsIngestionClient {
 
       if (!response.ok) {
         this.logger.warn(
-          `Ingestion-telegram returned ${response.status} for /api/crypto-news/messages`,
+          `Ingestion-telegram returned ${response.status} for /api/feed/messages`,
         );
         return [];
       }
 
       const body: unknown = await response.json();
 
-      // The ingestion-telegram wraps GET /api/crypto-news/messages as
+      // The ingestion-telegram wraps GET /api/feed/messages as
       // {timestamp, count, data} (ETag-busting) while sibling endpoints
       // return bare arrays — unwrap defensively, never assume.
       const messages = this.unwrapArray<ThreadsMessageDto>(body);
@@ -190,7 +190,7 @@ export class ThreadsIngestionClient {
     limit = 50,
   ): Promise<ReadonlyArray<ThreadsMessageDto>> {
     try {
-      const url = `${this.baseUrl}/api/crypto-news/messages/channel/${encodeURIComponent(channelId)}?limit=${Math.min(limit, 200)}`;
+      const url = `${this.baseUrl}/api/feed/messages/channel/${encodeURIComponent(channelId)}?limit=${Math.min(limit, 200)}`;
 
       this.logger.debug(
         `Fetching messages by channel from ingestion-telegram: ${channelId} (limit: ${limit})`,

@@ -4,18 +4,18 @@ Este repo corre en dos ambientes totalmente aislados. **Ninguno comparte credenc
 
 ## Resumen rápido
 
-| | Development (local Mac) | Production (droplet DO) |
-|---|---|---|
-| **Dónde corre** | `npm run dev:backend` (o Docker local) | docker-compose.prod en `/opt/onchain-bot` |
-| **Branch de Git** | cualquier feature branch | `master` (deploy automático) |
-| **Env file** | `apps/backend/.env.dev` (en gitignore) | `/opt/onchain-bot/.env.production` (en el droplet) |
-| **Telegram cuenta** | Tu cuenta personal de testing | Cuenta de Telegram DEDICADA a producción |
-| **MTProto session** | Sesión de tu cuenta dev | Sesión de la cuenta de producción |
-| **Bot tokens** | Bots de @BotFather para dev | Bots de @BotFather para prod (distintos tokens) |
-| **Postgres** | Local en Docker (puerto 5432) | Docker container en droplet (sin puerto al host) |
-| **Redis** | Local en Docker (puerto 6379) | Docker container en droplet (sin puerto al host) |
-| **DB sync** | `synchronize: true` (autogenera schema) | `synchronize: false` (usa migrations) |
-| **Acceso** | Tailscale no requerido (localhost) | Tailscale requerido (puertos cerrados a internet) |
+|                     | Development (local Mac)                 | Production (Oracle OCI)                                     |
+| ------------------- | --------------------------------------- | ----------------------------------------------------------- |
+| **Dónde corre**     | `npm run dev:backend` (o Docker local)  | docker-compose.prod en `/opt/onchain-bot`                   |
+| **Branch de Git**   | cualquier feature branch                | `master` (deploy automático)                                |
+| **Env file**        | `apps/backend/.env.dev` (en gitignore)  | `/opt/onchain-bot/.env.production` (en el servidor Oracle)  |
+| **Telegram cuenta** | Tu cuenta personal de testing           | Cuenta de Telegram DEDICADA a producción                    |
+| **MTProto session** | Sesión de tu cuenta dev                 | Sesión de la cuenta de producción                           |
+| **Bot tokens**      | Bots de @BotFather para dev             | Bots de @BotFather para prod (distintos tokens)             |
+| **Postgres**        | Local en Docker (puerto 5432)           | Docker container en el servidor Oracle (sin puerto al host) |
+| **Redis**           | Local en Docker (puerto 6379)           | Docker container en el servidor Oracle (sin puerto al host) |
+| **DB sync**         | `synchronize: true` (autogenera schema) | `synchronize: false` (usa migrations)                       |
+| **Acceso**          | Tailscale no requerido (localhost)      | Tailscale requerido (puertos cerrados a internet)           |
 
 ## Por qué cuentas separadas de Telegram
 
@@ -59,6 +59,7 @@ npm run telegram:gen-session
 ## ¿Cómo sabe el código si está en dev o prod?
 
 `process.env.NODE_ENV` se setea en cada `.env`:
+
 - `.env.dev` → `NODE_ENV=development`
 - `/opt/onchain-bot/.env.production` → `NODE_ENV=production`
 
@@ -87,6 +88,7 @@ docker compose -f apps/backend/docker-compose.prod.yml logs -f backend
 ## ¿Y si accidentalmente uso credenciales de dev en prod?
 
 Rota inmediatamente:
+
 1. Telegram: ve a my.telegram.org/apps, regenera api_hash, regenera session.
 2. Bot tokens: @BotFather → /revoke → regenera.
 3. API keys: en cada proveedor (Alchemy, Helius, etc.), regenera.

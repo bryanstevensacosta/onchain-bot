@@ -1,0 +1,79 @@
+# =====================================================================
+# onchain-backup-legacy-cleanup.service — gated weekly legacy cleanup
+# Plan: .omo/plans/prod-backend-rolling-backup.md T11
+# Doc gate embodied: docs/deployment/BACKUPS.md §10 (legacy inventory).
+#
+# What it does:
+#   Invokes scripts/cleanup-backups-legacy.sh, which auto-deletes legacy
+#   backup clutter ONLY when machine-verified gates pass, else exits 0
+#   doing nothing with a logged `cleanup-skipped-<reason>` line:
+#     (a) >=7 valid prod-backend-*.dump.gz (gzip -t each) + latest
+#         .meta.txt passes `sha256sum -c`;
+#     (b) drill status fresh: /opt/onchain-bot/backups/.rolling-status.json
+#         exists with last_drill.result=pass AND age <10 days (T10 owns the
+#         file — this unit only READS it, never writes);
+#     (c) deletions ONLY from an explicit allowlist, always top-level
+#         (`find -maxdepth 1`, never subdirectories, never rolling
+#         prod-backend-YYYYMMDD.dump.gz/.meta.txt):
+#           pre-deploy-*.dump.gz older than 7 days (keeps the week's
+#           deploy backups as extra net),
+#           prod-backend-*-*.dump uncompressed legacy (gzip -9 + gzip -t
+#           verify BEFORE deleting the original — reversible first),
+#           prod-ingestion-* and staging* top-level files only.
+#
+# Scheduling context:
+#   The T10 restore drill runs weekly before this unit; this timer fires
+#   Sunday 05:30:00 UTC — AFTER the drill on purpose, so gate (b) reads a
+#   fresh drill result and cleanup never races the drill or the 03:00 daily
+#   backup (shared dump-lock probe inside the script: lock held => skip).
+#
+# Secrets: NONE. The script reads dumps + status JSON only; no DB access,
+#   no EnvironmentFile needed.
+#
+# Locking:
+#   The shared lock-path probe lives INSIDE scripts/cleanup-backups-legacy.sh:
+#     /run/lock/onchain-backend-backup.lock (same path as backup-db.sh T1)
+#   lock held => `cleanup-skipped-lock-held`, exit 0. This unit adds NO
+#   second lock.
+#
+# Logging: StandardOutput/StandardError=journal (journald).
+#   View with: journalctl -u onchain-backup-legacy-cleanup.service
+#
+# Timezone: always explicit UTC (see OnCalendar in the .timer).
+#
+# INSTALL (Oracle server, as root — do NOT run on dev laptop, do NOT enable
+# anything on prod from here):
+#   sudo install -m 644 infra/systemd/onchain-backup-legacy-cleanup.service \
+#     /etc/systemd/system/onchain-backup-legacy-cleanup.service
+#   sudo install -m 644 infra/systemd/onchain-backup-legacy-cleanup.timer \
+#     /etc/systemd/system/onchain-backup-legacy-cleanup.timer
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now onchain-backup-legacy-cleanup.timer
+#   systemctl list-timers --all | grep onchain-backup-legacy-cleanup
+#   # expected: NEXT = next Sunday 05:30 UTC, LEFT shows countdown
+#   # manual dry-run (does NOT touch the timer; reads prod gates, deletes
+#   # nothing when DRY_RUN=1):
+#   #   sudo -u runner DRY_RUN=1 /bin/bash /opt/onchain-bot/scripts/cleanup-backups-legacy.sh
+#   #   journalctl -u onchain-backup-legacy-cleanup.service --since '5 min ago'
+#
+# MUST NOT touch: onchain-dev-infra.timer, prune timers, deploy.yml,
+#   backup-health.yml, existing timers, T10 files, scripts/backup-db.sh,
+#   scripts/sync-backups-offsite.sh, rclone, GitHub Secrets.
+# =====================================================================
+
+[Unit]
+Description=Gated weekly legacy backup cleanup (Sunday 05:30 UTC, after T10 drill)
+Documentation=file:///opt/onchain-bot/.omo/plans/prod-backend-rolling-backup.md
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=runner
+WorkingDirectory=/opt/onchain-bot
+# Shared dump-lock probe lives inside the script — no flock wrapper here.
+ExecStart=/bin/bash /opt/onchain-bot/scripts/cleanup-backups-legacy.sh
+StandardOutput=journal
+StandardError=journal
+# oneshot: no Restart= (timer re-fires weekly; a skipped run stays skipped
+# until next Sunday — gates fail safe to no-op by design).

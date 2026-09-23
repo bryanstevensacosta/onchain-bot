@@ -43,7 +43,7 @@ function mockTickerResolver(): TickerResolverService {
 }
 
 describe('TokenApprovedPublishHandler', () => {
-  it('subscribes to filters.token.approved', () => {
+  it('subscribes to vip-call.approval.approved', () => {
     expect(VipCallApprovedEvent.EVENT_NAME).toBe('vip-call.approval.approved');
   });
 

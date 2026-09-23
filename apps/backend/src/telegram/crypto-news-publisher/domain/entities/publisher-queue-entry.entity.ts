@@ -84,6 +84,19 @@ export interface PublisherQueueEntryProps {
  * Aggregate root: a single message queued for publication to the
  * crypto-news output channel.
  *
+ * FK-LESS BY DESIGN. The queue holds content snapshots, not live relations:
+ * `channelId`/`messageId` are opaque copies of the source coordinates (the
+ * `crypto_news_sources` / `crypto_news_messages` tables live ONLY in
+ * ingestion-telegram's `<base>_ingestion` DB since the ownership split of
+ * 2026-09-08 — the backend owns zero crypto-news tables, so no FK can or
+ * should exist). Likewise `imagePath`/`imagePaths` are local path strings
+ * (never bytes; the backend media cache is growth-zero staging in
+ * `os.tmpdir()`), and `matchedKeywordIds`/`keywordTemplateId` are frozen at
+ * enqueue time so later renames do not retroactively re-route entries.
+ * Re-processing a source message creates a NEW entry; entries never JOIN
+ * back to their origin. See
+ * `docs/architecture/crypto-news-schema-ownership.md`.
+ *
  * Lifecycle:
  *   PENDING → SCHEDULED → PUBLISHING → PUBLISHED
  *                                    ↘ FAILED
@@ -397,6 +410,35 @@ export class PublisherQueueEntry extends AggregateRoot<string> {
     this.state.status = 'FAILED';
     this.state.lastError = reason;
     this.state.publishedAt = new Date();
+  }
+
+  /**
+   * Transition PENDING/SCHEDULED → BLOCKED. Records why this entry was
+   * blocked (dedup) plus the coordinates of the message/entry it
+   * duplicates; terminal — no further transitions allowed (see
+   * `isTerminal`).
+   */
+  public markBlocked(
+    reason: string,
+    refs?: {
+      channelId?: string | null;
+      messageId?: number | null;
+      entryId?: string | null;
+    },
+  ): void {
+    this.assertPublishTransition('markBlocked');
+    if (!reason?.trim()) {
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        'blocked reason cannot be empty',
+        { id: this.state.id },
+      );
+    }
+    this.state.status = 'BLOCKED';
+    this.state.blockedReason = reason;
+    this.state.duplicateOfChannelId = refs?.channelId ?? null;
+    this.state.duplicateOfMessageId = refs?.messageId ?? null;
+    this.state.duplicateOfEntryId = refs?.entryId ?? null;
   }
 
   /**

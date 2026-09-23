@@ -1,19 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import {
-  KolMapper,
-  KolView,
-} from 'kol/identity/application/mappers/kol.mapper';
-import { KolRepository } from 'kol/identity/application/ports/kol.repository';
+import type { KolView } from 'kol/identity/application/mappers/kol.mapper';
+import { kolIdentityGone } from 'kol/identity/application/errors/kol-identity-gone.error';
 
 /**
- * Use case: list all monitored KOLs.
+ * 501 shim (item 8, telegram-feed-unification): KOL listing moved to
+ * ingestion-telegram (`GET {INGESTION_TELEGRAM_URL}/api/feed/sources?type=kol`).
+ * Backend pipeline reads go through `FeedIdentityHttpClient` (the
+ * `KolRepository` port) instead. Kept as a named shim — never silently deleted.
  */
 @Injectable()
 export class ListKolsUseCase {
-  constructor(private readonly kolRepo: KolRepository) {}
-
   public async execute(): Promise<ReadonlyArray<KolView>> {
-    const kols = await this.kolRepo.findAll();
-    return kols.map((k) => KolMapper.toView(k));
+    throw kolIdentityGone('ListKolsUseCase.execute');
   }
 }

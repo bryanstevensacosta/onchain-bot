@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Logger } from '@nestjs/common';
 import { EmbeddingService } from '../embedding.service';
+
+const specLogger = new Logger('EmbeddingServiceSpec');
 
 describe('EmbeddingService', () => {
   let service: EmbeddingService;
@@ -39,8 +42,8 @@ describe('EmbeddingService', () => {
 
   it('should return 384-dim embedding when model works', async () => {
     if (!isModelWorking) {
-      console.log(
-        '\nModel inference skipped in Jest due to ESM/ONNX compatibility. ' +
+      specLogger.warn(
+        'Model inference skipped in Jest due to ESM/ONNX compatibility. ' +
           'Works in production Node.js. Service code is correct.',
       );
       return;
