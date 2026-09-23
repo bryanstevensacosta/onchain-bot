@@ -8,7 +8,7 @@
 
 **What it will NOT do:** no canary en paralelo (imposible con 1 sesión por cuenta — el rollback rápido es la red real), no espeja fuentes de prod a staging, no toca scoring/backend pipeline, no métricas nuevas.
 
-**Effort:** Medium (9 todos en 4 waves + final + paso manual go-live)
+**Effort:** Medium (10 todos + final + paso manual go-live)
 **Risk:** Medium - el borrado viaja en la misma imagen (mitigado: stream byte-idéntico + suites + staging valida primero); el twin es infra nueva sin tráfico real; el go-live prod es manual con tu OK
 **Decisions to sanity-check:** cuentas (staging=vieja-dev, local=nueva); gemelo arranca VACÍO; rollback-seconds en vez de canary; tabla de código muerto explícita abajo
 
@@ -77,17 +77,18 @@ Your next move: approve, or run a high-accuracy review. Full execution detail fo
 
 ### Dependency matrix
 
-| Todo                                   | Depends on                                                       | Blocks       | Can parallelize with |
-| -------------------------------------- | ---------------------------------------------------------------- | ------------ | -------------------- |
-| T1 twin compose+env                    | —                                                                | T2, T3       | —                    |
-| T2 deploy staging                      | T1                                                               | T6           | T3                   |
-| T3 reapuntado+guía                     | T1                                                               | —            | T2                   |
-| T4 borrado SSE                         | —                                                                | T6           | T5                   |
-| T5 swap dev                            | operador (triple nueva)                                          | —            | T4                   |
-| T6 rollback+drill                      | T2, T4                                                           | —            | T7                   |
-| T7 docs                                | —                                                                | —            | T6                   |
-| 8 go-live prod (MANUAL)                | F1–F4 + T2 :prev + T6 drill + T3 traffic + USE_SSE + OK operador | —            | —                    |
-| 9 deploy ordering + rollbacks (Wave 4) | —                                                                | F1–F4 re-run | —                    |
+| Todo                                             | Depends on                                                       | Blocks                   | Can parallelize with |
+| ------------------------------------------------ | ---------------------------------------------------------------- | ------------------------ | -------------------- |
+| T1 twin compose+env                              | —                                                                | T2, T3                   | —                    |
+| T2 deploy staging                                | T1                                                               | T6                       | T3                   |
+| T3 reapuntado+guía                               | T1                                                               | —                        | T2                   |
+| T4 borrado SSE                                   | —                                                                | T6                       | T5                   |
+| T5 swap dev                                      | operador (triple nueva)                                          | —                        | T4                   |
+| T6 rollback+drill                                | T2, T4                                                           | —                        | T7                   |
+| T7 docs                                          | —                                                                | —                        | T6                   |
+| 8 go-live prod (MANUAL)                          | F1–F4 + T2 :prev + T6 drill + T3 traffic + USE_SSE + OK operador | —                        | —                    |
+| 9 deploy ordering + rollbacks (Wave 4)           | —                                                                | F1–F4 re-run             | —                    |
+| 10 semantic dedup (Wave 5, bloqueante PR master) | —                                                                | F1–F4 re-run + PR master | —                    |
 
 ## Todos
 
@@ -170,10 +171,21 @@ Round 1 (momus APPROVE WITH CHANGES + metis pre-mortem TOP-3: triple-duplication
 
 > Runs in parallel after ALL todos. ALL must APPROVE. Surface results and wait for the user's explicit okay before declaring complete. NOTA: tras el item 9 la Final Wave se RE-EJECUTA (F1–F4 ya pasaron una vez pre-item-9; el re-run es obligatorio porque el 9 toca workflows).
 
-- [x] F1. Plan compliance audit
-- [x] F2. Code quality review
-- [x] F3. Real manual QA
-- [x] F4. Scope fidelity
+- [ ] F1. Plan compliance audit (re-run tras item 10)
+- [ ] F2. Code quality review (re-run tras item 10)
+- [ ] F3. Real manual QA (re-run tras item 10)
+- [ ] F4. Scope fidelity (re-run tras item 10)
+
+## Wave 5 (bloqueante PR dev→master)
+
+- [x] 10. Dedup semántico cableado en enqueue (BLOCKED real)
+      What to do: Cablear `DeduplicationService` en el enqueue crypto-news (punto exacto: `EnqueueMatchingMessageUseCase` o scheduler — leer ambos y elegir el que ve el contenido filtrado ANTES del insert; si hay dos candidatos, el que ya maneja cap/cola): por cada candidato (a) `checkSemantic()` contra fingerprints recientes (ventana = TTL queue 24h + margen; threshold `DEDUP_SEMANTIC_ARBITER_THRESHOLD` default 0.7, sin cambiar), (b) duplicado → entry BLOCKED con `duplicate_of_*` (channel/message/queue-entry id según entity `publisher-queue-entry.entity.ts:75-79`), (c) único → enqueue normal + `storeFingerprint()` al publicar (para que futuros checks tengan datos). Corre en modo raw Y llm (el chequeo es previo al LLM, barato ~100ms CPU). Modelo: verificar carga en init (log `✓ Embedding model loaded` existe en código — probar en staging/dev boot; si no carga tras timeout documentado, el check degrada a exact-match-only, NUNCA bloquea enqueue — fail-open registrado en spec).
+      Must NOT do: cambiar matching/keywords/LLM/publish/cap/TTL; tocar threads publisher (importa el módulo pero no lo usa — follow-up documentado, no aquí); cambiar threshold; tocar retention/stream/media/SSE; commits de datos (specs con embeddings reales? usar fixtures/mocks + 1 test de integración opcional con modelo real si corre en CI en <60s, si no mock).
+      Parallelization: Wave 5 | Blocked by: — | Blocks: F1–F4 re-run + PR master
+      References: `apps/backend/src/shared/deduplication/` (service, store port, embedding.service, Fingerprint VO), `EnqueueMatchingMessageUseCase` + `EnqueueMatchingCronScheduler` (punto de inserción), `publisher-queue-entry.entity.ts:75-79,338` (campos duplicate_of + guarda BLOCKED), `DEDUP_SEMANTIC_ARBITER_THRESHOLD` (`app.config.ts:561`, default 0.7).
+      Acceptance criteria: specs — duplicado semántico → BLOCKED con refs (assert campos), único → PENDING + fingerprint guardado (assert store), modelo caído → enqueue sigue (fail-open spec); `npx jest deduplication crypto-news-publisher` verde; `npx tsc --noEmit` backend limpio; prueba viva en staging (forzar duplicado real oferta: publicar 2 veces el mismo contenido vía API y ver 2º BLOCKED — diseñar el probe en evidence).
+      QA scenarios: happy — duplicado → BLOCKED; failure — store caído → enqueue continúa (fail-open, spec). Evidence .omo/evidence/task-10-per-env-ingestion.txt
+      Commit: Y | feat(publisher): wire semantic dedup into enqueue
 
 ## Wave 4 (post-review, pre re-run Final)
 
@@ -193,4 +205,4 @@ Round 1 (momus APPROVE WITH CHANGES + metis pre-mortem TOP-3: triple-duplication
 
 ## Success criteria
 
-- 7 todos + item 9 + F1–F4 (re-run tras item 9) APPROVE + item 8 con tu OK final; gemelo desplegable por dispatch/auto; gate SSE simplificado probado vivo; drill <60s; docs coherentes; `.env` prod sin vars muertas; orden ingestion→backend→frontend exigible por CI.
+- 7 todos + item 9 + item 10 + F1–F4 (re-run tras item 10) APPROVE + item 8 con tu OK final; gemelo desplegable por dispatch/auto; gate SSE simplificado probado vivo; drill <60s; docs coherentes; `.env` prod sin vars muertas; publisher con dedup BLOCKED real (bloqueante PR master).
