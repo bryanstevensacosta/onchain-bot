@@ -8,7 +8,7 @@
 # The 03:00 UTC daily backup never races this unit: the script probes the
 # shared dump lock and skips (`cleanup-skipped-lock-held`) when held.
 #
-# INSTALL (droplet, as root — see .service header for full procedure):
+# INSTALL (Oracle server, as root — see .service header for full procedure):
 #   sudo install -m 644 infra/systemd/onchain-backup-legacy-cleanup.timer \
 #     /etc/systemd/system/onchain-backup-legacy-cleanup.timer
 #   sudo systemctl daemon-reload

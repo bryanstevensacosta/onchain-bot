@@ -6,7 +6,7 @@
 # (.github/workflows/backup-health.yml) and clear of the 03:00 daily
 # backup timer + 03:20 offsite sync. TZ always explicit UTC.
 #
-# INSTALL (droplet, as root — see .service header for full procedure):
+# INSTALL (Oracle server, as root — see .service header for full procedure):
 #   sudo install -m 644 infra/systemd/onchain-backup-drill.timer \
 #     /etc/systemd/system/onchain-backup-drill.timer
 #   sudo systemctl daemon-reload

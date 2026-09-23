@@ -464,7 +464,7 @@ No coverage thresholds enforced. Conventions: conventional commits (commitlint),
 
 ## Deploy
 
-Push to `master` → CI (Node 24) → GHCR images (`-backend`, `-frontend`) → self-hosted droplet: DB backup → migrations in a one-off container → recreate → healthcheck with **automatic rollback**. Staging deploys from `dev`; ingestion-telegram ships via its own path-triggered workflow (`deploy-ingestion.yml`, never cancelled mid-run).
+Push to `master` → CI (Node 24) → GHCR images (`-backend`, `-frontend`) → self-hosted Oracle server: DB backup → migrations in a one-off container → recreate → healthcheck with **automatic rollback**. Staging deploys from `dev`; ingestion-telegram ships via its own path-triggered workflow (`deploy-ingestion.yml`, never cancelled mid-run).
 
 Branch model: `dev` (integration) → PR squash → `master` (prod). See [GOVERNANCE.md](GOVERNANCE.md).
 
@@ -480,7 +480,7 @@ Branch model: `dev` (integration) → PR squash → `master` (prod). See [GOVERN
 | Recent / failed calls | `GET :3030/api/vip-calls/calls/recent` · `…/calls/failed` |
 
 ```bash
-# Droplet
+# Oracle
 docker compose -f /opt/onchain-bot/apps/backend/docker-compose.prod.yml logs backend --tail 100
 curl -s http://localhost:3030/api/health
 ```
@@ -496,7 +496,7 @@ curl -s http://localhost:3030/api/health
 | Backend hangs at boot, no logs             | `DATABASE_SYNCHRONIZE=true` against a big schema → check `NODE_ENV`, run `migration:show`                         |
 | Dashboard shows `0` KPIs / no live feed    | SSE disconnected (backend backoff 1 s→30 s) or dashboard module unwired; check `:3031/api/health`                 |
 | SSE `backfill:error`                       | Backfill is unimplemented end-to-end (ingestion-telegram gap) — use MTProto-legacy or re-seed                     |
-| Stale types after pulling                  | `tsc --noEmit` per app (pre-commit runs it for all 3 apps)                                    |
+| Stale types after pulling                  | `tsc --noEmit` per app (pre-commit runs it for all 3 apps)                                                        |
 
 ---
 
@@ -522,7 +522,7 @@ curl -s http://localhost:3030/api/health
 - **[apps/ingestion-telegram/AGENTS.md](apps/ingestion-telegram/AGENTS.md)** — SSE protocol, media, safety config, 25 verified gaps
 - **[apps/frontend/AGENTS.md](apps/frontend/AGENTS.md)** — FSD slices, contract, polling, proxy, 11 verified gaps
 - **[apps/backend/README.md](apps/backend/README.md)** · **[apps/frontend/README.md](apps/frontend/README.md)** — architecture overviews
-- **[docs/deployment/](docs/deployment/)** — droplet checklists, ingestion runbook + FAQ + post-deploy
+- **[docs/deployment/](docs/deployment/)** — Oracle checklists, ingestion runbook + FAQ + post-deploy
 - **[docs-money/](docs-money/)** — Telegram ToS, monetization, KOL onboarding, rate limits
 - **[GOVERNANCE.md](GOVERNANCE.md)** — branch model and protections
 

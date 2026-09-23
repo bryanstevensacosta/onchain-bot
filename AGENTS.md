@@ -25,7 +25,7 @@ Per-app docs (verified, authoritative over this file for details): `apps/backend
                     │  ✓ One MTProto session PER instance          │
                     │    (triple never shared across envs)         │
                     │  ✓ DB lógica propia por servidor Postgres:    │
-                    │    <base>_ingestion (dev local una, droplet   │
+                    │    <base>_ingestion (dev local una, Oracle    │
                     │    una prod + una staging twin:              │
                     │    alpha_meta_token_scanner_staging_ingestion)│
                     │  ✓ Tablas propias: crypto_news_sources,       │
@@ -70,7 +70,7 @@ Per-app docs (verified, authoritative over this file for details): `apps/backend
 
 1. **Un ingestion-telegram por env (1:1 con su backend)** — `docker-compose.ingestion.yml` (prod, host `:3032`→container `:3031`) + `docker-compose.staging-ingestion.yml` (twin, project `onchain-bot-staging-ingestion`, host `:3033`→container `:3031`) + dev local (`:3031`). Misma imagen, triple y DB distintas. El singleton multi-env está retirado (2026-09-22)
 2. **Una triple MTProto por env, jamás compartida** — cada instancia tiene SU triple (`INGESTION_TELEGRAM_MTPROTO_API_ID/_API_HASH/_SESSION` en SU `.env`: prod `.env.production`, staging `.env.staging` con la vieja cuenta de dev, local `.env` con la cuenta nueva). Mapa sin secretos: prod=cuenta actual, staging=vieja-dev, local=nueva (3-4 canales). Dos instancias con la misma triple causan `AUTH_KEY_DUPLICATED`. Pre-boot: triple-inequality assert por hashes (ver runbook twin)
-3. **Una DB de ingestion por env (`<base>_ingestion`)** — dev local `alpha_meta_token_scanner_ingestion`, droplet prod `alpha_meta_token_scanner_ingestion` + droplet staging `alpha_meta_token_scanner_staging_ingestion` (permitida desde per-env 2026-09-22; antes prohibida). Tablas `crypto_news_sources`, `crypto_news_messages`, `crypto_news_message_media` viven SOLO en la DB de SU env desde el split 2026-09-08 (antes existían también en el backend; migración `1860000000001-DropIngestionOwnedCryptoNewsTables`). El twin arranca VACÍO (sin seed, sin mirror prod)
+3. **Una DB de ingestion por env (`<base>_ingestion`)** — dev local `alpha_meta_token_scanner_ingestion`, Oracle prod `alpha_meta_token_scanner_ingestion` + Oracle staging `alpha_meta_token_scanner_staging_ingestion` (permitida desde per-env 2026-09-22; antes prohibida). Tablas `crypto_news_sources`, `crypto_news_messages`, `crypto_news_message_media` viven SOLO en la DB de SU env desde el split 2026-09-08 (antes existían también en el backend; migración `1860000000001-DropIngestionOwnedCryptoNewsTables`). El twin arranca VACÍO (sin seed, sin mirror prod)
 4. **Ingestion-telegram es el owner de media** — descarga archivos a `uploads/crypto-news/media/` y los sirve vía `GET /api/media/*`
 5. **Backends NO escriben crypto-news** — staging/prod solo LEEN vía HTTP API del ingestion-telegram (no réplican tablas ni datos)
 6. **Frontend consume directamente del ingestion-telegram** — `GET /api/crypto-news/messages` apunta al puerto 3032 (no proxy vía backend)
@@ -135,11 +135,11 @@ Frontend (cada env contra SU ingestion — ver `apps/frontend/AGENTS.md` §PROXY
 ├── infra/                   # cron/docker-prune, systemd/socat Tailscale tunnel templates, terraform/ (tracked tfvars + provider binaries — see Drift)
 ├── docs/                    # HELIUS, api, arch, architecture, bot, ci-cd, deployment, fixes, nest-js, proyect…
 ├── docs-money/              # ToS summary, monetization, KOL onboarding/legal, rate limits (7 files)
-├── .github/workflows/       # deploy.yml — GHCR build + self-hosted droplet deploy (NOT ssh-action)
+├── .github/workflows/       # deploy.yml — GHCR build + self-hosted Oracle server deploy (NOT ssh-action)
 ├── .husky/                  # pre-commit, commit-msg, pre-push (Husky v9)
 ├── GOVERNANCE.md            # Branch governance (Spanish, v2.0, active)
 ├── opencode.json            # opencode config
-├── bootstrap-droplet.sh     # droplet bootstrap
+├── bootstrap-droplet.sh     # Oracle bootstrap
 ├── .omo/ .sisyphus/ .kiro/ .playwright-mcp/  # agent/tool state — do NOT source
 ```
 
@@ -378,7 +378,7 @@ npm run docker:up                 # postgres:16 + redis:7 + pgAdmin (:5050) per 
 npm run docker:down
 ```
 
-## DEV ON THE DROPLET (alt-port layout, Oracle host also runs prod/staging)
+## DEV ON THE ORACLE SERVER (alt-port layout, Oracle host also runs prod/staging)
 
 Prod (`:3030/:5173/:5432/:6379`) and staging (`:3031/:4173/:5433/:6380`) occupy the
 standard ports, so dev runs fully shifted and NEVER shares DBs with them:
@@ -483,7 +483,7 @@ Prod `deploy.yml` flow:
 
 Branch model (`GOVERNANCE.md` v2.0, Spanish, active): `dev` (integration) → PR squash → `master` (prod); 1 approval + CI pass + resolved threads; long-lived only `dev`/`master`; no `release/*` (continuous deploy on master push).
 
-## PRODUCTION DROPLET
+## PRODUCTION ORACLE
 
 > Oracle migration 2026-09-10: prod serves from Oracle (`OracleDroplet`); ex-DO node `digitalocean` suspended 2026-09-10. Staging on Oracle HELD (fresh-DB migration bug = separate product track); LiteLLM gateway deferred to a separate track.
 
@@ -523,7 +523,7 @@ curl -s http://localhost:3030/api/vip-calls/calls/failed?limit=10
 ## DOCS MAP (beyond AGENTS.md)
 
 - `docs/proyect/{BC,PLAN,DEPLOY,ENV}.md` — project plans (Spanish).
-- `docs/deployment/` — droplet checklists + **ingestion-telegram runbook/FAQ/post-deploy** (operational, current).
+- `docs/deployment/` — Oracle checklists + **ingestion-telegram runbook/FAQ/post-deploy** (operational, current).
 - `docs/arch/01-11 + INDEX` — older arch series (superseded by `apps/backend/docs/spydefi/arch/` for backend).
 - `docs-money/` (7 files) — ToS-derived monetization notes (verify against current ToS before legal decisions).
 - Per-app `CHANGELOG.md` (`apps/{backend,frontend,ingestion-telegram}/CHANGELOG.md`) — hand-written from conventional commits (automation removed 2026-09-11; see `RELEASE-FLOW.md`, forthcoming).

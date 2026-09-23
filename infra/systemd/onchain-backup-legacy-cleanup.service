@@ -41,7 +41,7 @@
 #
 # Timezone: always explicit UTC (see OnCalendar in the .timer).
 #
-# INSTALL (droplet, as root — do NOT run on dev laptop, do NOT enable
+# INSTALL (Oracle server, as root — do NOT run on dev laptop, do NOT enable
 # anything on prod from here):
 #   sudo install -m 644 infra/systemd/onchain-backup-legacy-cleanup.service \
 #     /etc/systemd/system/onchain-backup-legacy-cleanup.service

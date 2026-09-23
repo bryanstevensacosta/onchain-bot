@@ -1,6 +1,6 @@
 # =====================================================================
 # Backup health watchdog — prod-backend rolling backups (T5).
-# Daily schedule + manual dispatch. Read-only: SSH to droplet (probe
+# Daily schedule + manual dispatch. Read-only: SSH to Oracle server (probe
 # local backups + disk) + `rclone lsl` to the offsite bucket (size +
 # newest object). Applies the ESCALA UNICA (identical in T1/T2/T5):
 #
@@ -20,7 +20,7 @@
 #   gh secret set DROPLET_USER      # e.g. runner
 #   gh secret set DROPLET_SSH_KEY   # private key with read access
 # Offsite credentials are NOT needed here: `rclone lsl` runs ON the
-# droplet, which reads /opt/onchain-bot/.rclone-offsite.env (T4).
+# Oracle server, which reads /opt/onchain-bot/.rclone-offsite.env (T4).
 #
 # LOCAL-ONLY MODE (no offsite yet): if any DROPLET_* secret is missing
 # the whole job skips green with a ::notice:: (first step below) —
@@ -60,7 +60,7 @@ jobs:
             echo "::notice::Backup-health watchdog not configured (DROPLET_* secrets missing). Skipping green until provisioning completes. See docs/deployment/BACKUPS.md."
           fi
 
-      - name: Setup SSH to droplet
+      - name: Setup SSH to Oracle server
         if: steps.cfg.outputs.configured == 'true'
         run: |
           set -euo pipefail
@@ -153,7 +153,7 @@ jobs:
           # backup: fail if >26h or missing
           if [ "$BACKUP_AGE_S" -lt 0 ]; then
             V_BACKUP=fail; FAIL=1
-            echo "::error::[ESCALA UNICA] no prod-backend-*.dump.gz found on droplet."
+            echo "::error::[ESCALA UNICA] no prod-backend-*.dump.gz found on Oracle server."
             AGE_H="(missing)"
           elif [ "$BACKUP_AGE_S" -gt "$MAX_AGE_S" ]; then
             V_BACKUP=fail; FAIL=1

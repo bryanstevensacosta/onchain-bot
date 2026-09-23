@@ -1,8 +1,8 @@
-# Droplet Environment Variables - Quick Checklist
+# Oracle Environment Variables - Quick Checklist
 
 ## 🎯 What You Need to Configure
 
-### 1. Extract from Backend .env (on droplet)
+### 1. Extract from Backend .env (on Oracle server)
 
 ```bash
 ssh OracleDroplet

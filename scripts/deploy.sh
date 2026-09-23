@@ -1,6 +1,6 @@
 #!/bin/bash
 ###############################################################################
-# Deploy script — executed on the production droplet by GitHub Actions via
+# Deploy script — executed on the production Oracle server by GitHub Actions via
 # appleboy/ssh-action. Triggered on push to master (and workflow_dispatch).
 #
 # Workflow references this file via:

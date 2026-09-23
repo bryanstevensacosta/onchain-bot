@@ -17,7 +17,7 @@
 # Secrets (NEVER in repo, NEVER via GitHub Secrets from systemd):
 #   POSTGRES_PASSWORD lives ONLY in the on-host file
 #     /opt/onchain-bot/.backup-env  (chmod 600, owner runner)
-#   created OUT-OF-BAND on the droplet (one time, as root):
+#   created OUT-OF-BAND on the Oracle server (one time, as root):
 #     install -m 600 -o runner /dev/null /opt/onchain-bot/.backup-env
 #     # then edit the file and set: POSTGRES_PASSWORD=<prod-backend-db-pw>
 #   The unit validates it at start (ExecStartPre test -s): missing/empty
@@ -42,7 +42,7 @@
 #
 # Timezone: always explicit UTC (see OnCalendar in the .timer).
 #
-# INSTALL (droplet, as root — do NOT run on dev laptop, do NOT enable
+# INSTALL (Oracle server, as root — do NOT run on dev laptop, do NOT enable
 # anything on prod from here):
 #   sudo install -m 644 infra/systemd/onchain-backend-backup.service \
 #     /etc/systemd/system/onchain-backend-backup.service
@@ -75,7 +75,7 @@ Environment=BACKUP_MODE=daily
 Environment=BACKUP_BASENAME=prod-backend
 Environment=BACKUP_ORIGIN=cron
 # Prod DB wiring (mirrors .github/workflows/deploy.yml Backup step):
-# the droplet ALSO runs onchain-bot-postgres-dev/-staging, and the
+# the Oracle server ALSO runs onchain-bot-postgres-dev/-staging, and the
 # script default (dev name, checked first) would match the DEV database
 # (16KB) instead of prod (8MB) — the anti-empty guard caught this live
 # (exit 4, existing file preserved). Pin the prod container explicitly.

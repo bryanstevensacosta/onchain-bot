@@ -7,7 +7,7 @@
 # the pair the timer just produced (T1 names: prod-backend-YYYYMMDD
 # .dump.gz + .meta.txt).
 #
-# Install (droplet, out-of-band):
+# Install (Oracle server, out-of-band):
 #   RCLONE_VERSION=1.69.0
 #   curl -fsSLO "https://downloads.rclone.com/v1.69.0/rclone-v${RCLONE_VERSION}-linux-amd64.deb"
 #   curl -fsSLO "https://downloads.rclone.com/v1.69.0/rclone-v${RCLONE_VERSION}-linux-amd64.deb.sha256"
@@ -68,14 +68,14 @@ if [ "$DRY_RUN" -eq 1 ]; then
   RCLONE_ARGS+=(--dry-run)
 fi
 
-# --- credentials: on-host file (droplet) or env (CI via GitHub Secrets) ---
+# --- credentials: on-host file (Oracle server) or env (CI via GitHub Secrets) ---
 if [ -n "${R2_ACCESS_KEY_ID:-}" ] && [ -n "${R2_SECRET_ACCESS_KEY:-}" ]; then
   : # CI path: vars already exported from GitHub Secrets (masked via ::add-mask:: there)
 else
   if [ ! -s "$RCLONE_ENV_FILE" ]; then
     echo "ERROR: missing credentials: file '$RCLONE_ENV_FILE' absent or empty," >&2
     echo "  and R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY not set in env." >&2
-    echo "  Droplet: fill $RCLONE_ENV_FILE (chmod 600)." >&2
+    echo "  Oracle: fill $RCLONE_ENV_FILE (chmod 600)." >&2
     echo "  CI: gh secret set R2_ENDPOINT/R2_BUCKET/R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY" >&2
     exit 1
   fi

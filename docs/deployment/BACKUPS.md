@@ -1,6 +1,6 @@
 # Prod Backend Rolling Backups — Scheme + Restore Runbook
 
-> **Scope:** prod backend DB (`alpha_meta_token_scanner`) on the Oracle droplet.
+> **Scope:** prod backend DB (`alpha_meta_token_scanner`) on the Oracle server.
 > **Canonical format from this scheme on:** `prod-backend-YYYYMMDD.dump.gz` (+ `.meta.txt`).
 > **Out of scope:** ingestion DB + staging DB (untouched by this scheme — see §9);
 > automatic restore (restore is manual-only, documented below); `uploads/` media
@@ -24,7 +24,7 @@ BACKUP_MODE=daily BACKUP_BASENAME=prod-backend BACKUP_ORIGIN=cron|pre-deploy \
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | File name                     | `prod-backend-YYYYMMDD.dump.gz` (date via `date +%Y%m%d`; QA override `FAKE_DATE`)                                                                                                                                 |
 | Sidecar                       | `prod-backend-YYYYMMDD.meta.txt` (date / sha256 / size / `BACKUP_ORIGIN`)                                                                                                                                          |
-| Directory (droplet)           | `/opt/onchain-bot/backups/` (daily mode refuses any other `BACKUP_DIR` except `/data/backups/*` QA paths)                                                                                                          |
+| Directory (Oracle server)     | `/opt/onchain-bot/backups/` (daily mode refuses any other `BACKUP_DIR` except `/data/backups/*` QA paths)                                                                                                          |
 | Write path                    | dump to `$FILE.tmp` in the same filesystem → validate → atomic `mv`                                                                                                                                                |
 | Validation (before overwrite) | `gzip -t` + size > 0 + `pg_restore --list` when available; `pg_dump` non-zero → delete `.tmp`, never overwrite                                                                                                     |
 | Anti-empty guard              | if a current `prod-backend-*.dump.gz` exists and the new valid dump weighs **< 50%** of it → delete `.tmp`, do NOT overwrite, exit 4 with a `suspicious-size` line (real case: 55 KB dump vs 7.9 MB of 2026-09-14) |
@@ -57,7 +57,7 @@ before migrations (`::error::` + non-zero step). Disk ≥ 80% emits `::warning::
   `EnvironmentFile=/opt/onchain-bot/.backup-env` (holds `POSTGRES_PASSWORD`;
   the service validates `test -s` at start), logs to journald.
   The lock lives INSIDE the script (§1) — the unit adds no second lock.
-- Install (on droplet, idempotent):
+- Install (on Oracle server, idempotent):
 
 ```bash
 sudo cp infra/systemd/onchain-backend-backup.service infra/systemd/onchain-backend-backup.timer /etc/systemd/system/
@@ -117,7 +117,7 @@ One scale governs the script, the deploy step, and the daily health watchdog
   (`fix(crypto-news-publisher): tmp-download-and-delete media cache`, 2026-09-19)
   moved the cache to `os.tmpdir()/backend-media-<uuid>/` with `finally` cleanup —
   **not yet deployed at dossier time**.
-- **No physical duplication on droplet:** backend-prod and ingestion-telegram mount
+- **No physical duplication on Oracle server:** backend-prod and ingestion-telegram mount
   the SAME host dir (`/opt/onchain-bot/apps/backend/uploads` → `/app/uploads` in
   both containers); 20/20 sampled backend files answer `200` on ingestion's
   `GET /api/media/...` (`127.0.0.1:3032`).
@@ -153,16 +153,16 @@ One scale governs the script, the deploy step, and the daily health watchdog
 
 ```bash
 # 1. List + pick the day
-ssh <droplet> 'ls -lh /opt/onchain-bot/backups/prod-backend-*.dump.gz'
+ssh <Oracle> 'ls -lh /opt/onchain-bot/backups/prod-backend-*.dump.gz'
 # 2. Verify integrity against the sidecar (date/sha256/size/origin)
-ssh <droplet> 'cd /opt/onchain-bot/backups && sha256sum -c prod-backend-YYYYMMDD.meta.txt'
+ssh <Oracle> 'cd /opt/onchain-bot/backups && sha256sum -c prod-backend-YYYYMMDD.meta.txt'
 # 3. Restore (decompress on the pipe — NEVER redirect the .gz straight into pg_restore)
 gunzip -c /opt/onchain-bot/backups/prod-backend-YYYYMMDD.dump.gz | pg_restore --clean --if-exists -U alpha_meta_token_scanner -d alpha_meta_token_scanner --role=alpha_meta_token_scanner
 # 4. Sanity
 psql -U alpha_meta_token_scanner -d alpha_meta_token_scanner -c 'SELECT count(*) FROM typeorm_migrations;'
 ```
 
-On the droplet the canonical invocation runs `pg_restore` inside the postgres
+On the Oracle server the canonical invocation runs `pg_restore` inside the postgres
 container (`docker exec -e PGPASSWORD=... onchain-bot-postgres-production ...`)
 with the same `gunzip -c … | pg_restore --clean --if-exists` shape; for a data-loss
 incident prefer the newest verified `.dump.gz` (≤ 26 h old per ESCALA ÚNICA §5).
@@ -174,14 +174,14 @@ Covered by its own path (NOT this scheme): `deploy-ingestion.yml` step
 (`ingestion-backup-*.dump`, 7-day prune). Same pipe shape applies:
 
 ```bash
-ssh <droplet> 'ls -lh /data/backups/ingestion/ | tail -10'
+ssh <Oracle> 'ls -lh /data/backups/ingestion/ | tail -10'
 gunzip -c /data/backups/ingestion/<file-if-gzipped> | pg_restore --clean --if-exists -U alpha_meta_token_scanner -d alpha_meta_token_scanner_ingestion --role=alpha_meta_token_scanner
 # Uncompressed legacy dumps: pg_restore --clean --if-exists -d <db> < file.dump  (no gunzip)
 ```
 
 ## 8. Secrets provisioning + key rotation
 
-Out-of-band on the droplet (never in repo, never in logs/summaries):
+Out-of-band on the Oracle server (never in repo, never in logs/summaries):
 
 ```bash
 # On-host env files (owner runner, mode 600)
@@ -362,7 +362,7 @@ Operator decisions remaining (not recurring chores):
 
 ## 15. Portability note — GNU-first `stat`
 
-Droplet scripts must try GNU `stat -c` FIRST and BSD `stat -f` second.
+Oracle scripts must try GNU `stat -c` FIRST and BSD `stat -f` second.
 Reason (seen live 2026-09-20): on Linux `stat -f %m <file>` succeeds but
 prints multi-line filesystem info (first line `File: "..."`), which breaks
 `$(( ))` arithmetic under `set -u` (`File: unbound variable`) and aborts the

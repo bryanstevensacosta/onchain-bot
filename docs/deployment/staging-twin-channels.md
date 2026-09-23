@@ -1,6 +1,6 @@
 # Staging twin: channel seeding mini-guide (per-env-ingestion T3)
 
-> Twin base URL on the droplet: `http://localhost:3033` (host) → container `:3031`.
+> Twin base URL on the Oracle server: `http://localhost:3033` (host) → container `:3031`.
 > The twin starts EMPTY by design (no seed, no prod mirror). All routes below
 > follow `apps/ingestion-telegram/docs/guides/ADD_FEED_SOURCE.md` with `:3033`
 > substituted for the singleton ports. NEVER run these against `:3032` (prod
@@ -19,7 +19,7 @@
 3. Staging backend repointed: `INGESTION_TELEGRAM_URL` =
    `http://onchain-bot-ingestion-telegram-staging:3031` in BOTH
    `docker-compose.staging.yml` (`environment:`, wins at runtime) AND the real
-   droplet file `/opt/onchain-bot-staging/apps/backend/.env.staging`
+   Oracle file `/opt/onchain-bot-staging/apps/backend/.env.staging`
    (gitignored — template alone does not run). Verify after recreate:
    `docker exec onchain-bot-backend-staging printenv INGESTION_TELEGRAM_URL`.
 4. Staging frontend baked with the twin upstream (image built with
@@ -95,7 +95,7 @@ Sources are operator data; the janitor never deletes them.
 4. Verify: `GET /api/feed/sources` count before/after. Never hand-edit the
    twin DB; the API is the only write path.
 
-## 5. Operator checklist: real droplet `.env.staging` (document only)
+## 5. Operator checklist: real Oracle `.env.staging` (document only)
 
 File: `/opt/onchain-bot-staging/apps/backend/.env.staging` (gitignored — this
 repo cannot edit it; the operator applies it before `recreate`).

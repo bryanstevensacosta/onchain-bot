@@ -1,9 +1,9 @@
 # CI/CD Pipeline & Runbook
 
-> **Owner:** Solo maintainer. **Topology:** CI on GitHub-hosted runners, CD on self-hosted droplet. **Automation:** none — releases are manual (see [Release Process](./release-process.md)).
+> **Owner:** Solo maintainer. **Topology:** CI on GitHub-hosted runners, CD on self-hosted Oracle server. **Automation:** none — releases are manual (see [Release Process](./release-process.md)).
 
 This document is the operational source of truth for how code travels from a
-local commit to production traffic on the CryptoGanster droplet, and what to
+local commit to production traffic on the CryptoGanster Oracle server, and what to
 do when something goes wrong. Pair it with:
 
 - [Branch Protection Policy](./branch-protection.md) — the gates
@@ -17,17 +17,17 @@ do when something goes wrong. Pair it with:
 ```
 git commit on dev → git push origin dev
   → CI (ubuntu-latest: Tests · Lint · TypeScript Check · Build)
-  → Deploy to staging on droplet (port 3031)
+  → Deploy to staging on Oracle server (port 3031)
 
 gh pr create (dev → master) → CI + Branch Governance
   → (review/merge is a one-click squash; 0 approvals required)
   → CI (re-runs against master)
-  → Deploy to production on droplet (port 3030)
+  → Deploy to production on Oracle server (port 3030)
   → maintainer cuts the release by hand: bump → changelog → tag + GitHub Release
 ```
 
 The pipeline separates **CI** (validation, GitHub-hosted) from **CD** (deploy,
-self-hosted) so the droplet's 20 GB disk is never consumed by `node_modules`
+self-hosted) so the Oracle server's 20 GB disk is never consumed by `node_modules`
 compiles, and so concurrent deploys can never race.
 
 ---
@@ -54,7 +54,7 @@ flowchart LR
     end
 
     %% ===== CD staging =====
-    subgraph CDStaging[" CD — self-hosted droplet (CryptoGanster) "]
+    subgraph CDStaging[" CD — self-hosted Oracle server (CryptoGanster) "]
         direction TB
         SyncStg[rsync source<br/>→ /opt/onchain-bot-staging]
         MigrateStg[typeorm migration:run]
@@ -64,7 +64,7 @@ flowchart LR
     end
 
     %% ===== CD prod =====
-    subgraph CDProd[" CD — self-hosted droplet (CryptoGanster) "]
+    subgraph CDProd[" CD — self-hosted Oracle server (CryptoGanster) "]
         direction TB
         BackupProd[scripts/backup-db.sh<br/>+ chown runner:runner]
         MigrateProd[typeorm migration:run]
@@ -109,9 +109,9 @@ flowchart LR
 - **Healthcheck budgets**: staging is 60 attempts × 2 s = 120 s; production is
   a single `sleep 180` followed by a `curl -v` (with a `--force-recreate`
   retry path on failure).
-- **Self-hosted runner isolation**: `Deploy to *` jobs run on the droplet's
+- **Self-hosted runner isolation**: `Deploy to *` jobs run on the Oracle server's
   GitHub Actions runner (`runs-on: self-hosted`); CI jobs run on ephemeral
-  `ubuntu-latest`. This means the droplet's 20 GB disk only ever sees
+  `ubuntu-latest`. This means the Oracle server's 20 GB disk only ever sees
   _built artifacts_ + `node_modules` for migrations, never the source build.
 - **Releases are manual** and are not a gate on prod deploy. After CI goes
   green on the merge commit, the maintainer tags + creates the GitHub Release
@@ -245,9 +245,9 @@ You are the oncall. There is no rotation. The expected oncall surface is:
 
 | Signal                         | Where to look                                                 | First action                                                                      |
 | ------------------------------ | ------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Telegram calls stop publishing | `production.telegram.published` event counter in `/dashboard` | SSH to droplet, `docker logs backend --tail 100`                                  |
+| Telegram calls stop publishing | `production.telegram.published` event counter in `/dashboard` | SSH to Oracle server, `docker logs backend --tail 100`                            |
 | Staging healthcheck failing    | `gh run list --workflow="Deploy to staging" --limit 3`        | Click the failed run, read step output                                            |
-| Prod healthcheck failing       | `gh run list --workflow="Deploy to production" --limit 3`     | Same — plus check droplet disk (`df -h`)                                          |
+| Prod healthcheck failing       | `gh run list --workflow="Deploy to production" --limit 3`     | Same — plus check Oracle disk (`df -h`)                                           |
 | MTProto listener wedge         | `kol/ingestion` logs                                          | `docker restart backend` (Task 8 documents the deterministic wedge)               |
 | Disk > 80%                     | SSH `df -h`                                                   | See **Disk full** below                                                           |
 | Release tag wrong / missing    | `gh release list`                                             | See [docs/release-process.md §Recovery](./release-process.md#recovery-procedures) |
@@ -272,7 +272,7 @@ ssh CryptoGanster 'df -h / /var/lib/docker 2>/dev/null'
 ### ⏪ Rollback
 
 **Default: `git revert` + redeploy.** Do not `git reset --hard` on `master`.
-The droplet's `git -C /opt/onchain-bot rev-parse HEAD` after each deploy
+The Oracle server's `git -C /opt/onchain-bot rev-parse HEAD` after each deploy
 gives you the exact deployed SHA, so:
 
 ```bash
@@ -331,7 +331,7 @@ gunzip -c /opt/onchain-bot/backups/prod-backend-YYYYMMDD.dump.gz | pg_restore --
 
 ### 💾 Disk full
 
-The droplet is a 20 GB VPS. The four biggest disk consumers, in order, are:
+The Oracle server is a 20 GB VPS. The four biggest disk consumers, in order, are:
 
 1. **Docker images + build cache** — `docker images` shows layers from each
    `docker compose build`. Mitigated by the `docker image prune` step in
@@ -346,7 +346,7 @@ The droplet is a 20 GB VPS. The four biggest disk consumers, in order, are:
    rsynced fresh on every deploy; only the `node_modules` and `dist`
    accumulate, and those are excluded by the rsync flags.
 
-**Triage commands** (run on the droplet):
+**Triage commands** (run on the Oracle server):
 
 ```bash
 # Top-level disk usage
@@ -376,7 +376,7 @@ sudo du -sh /opt/onchain-bot/backups/* 2>/dev/null | sort -hr | head -10
    scheduler tick.
 
    ```bash
-   # On the droplet
+   # On the Oracle server
    grep -E '^CRYPTO_NEWS_MEDIA_RETENTION_HOURS=' /opt/onchain-bot/apps/backend/.env.production
    sudo sed -i 's/^CRYPTO_NEWS_MEDIA_RETENTION_HOURS=.*/CRYPTO_NEWS_MEDIA_RETENTION_HOURS=24/' \
      /opt/onchain-bot/apps/backend/.env.production
@@ -454,14 +454,14 @@ section.
 # Nightly docker system prune at 02:00 UTC — reclaims ~1-3 GB/day
 # --filter until=72h protects images built in the last 3 days (one full
 # deploy cycle) from being pruned while a still-running container
-# references them. Adjust the hour on droplet-time, not UTC.
+# references them. Adjust the hour on Oracle-time, not UTC.
 0 2 * * * /usr/bin/docker system prune --force --filter "until=72h" >> /var/log/docker-prune.log 2>&1
 ```
 
 **How to install (idempotent):**
 
 ```bash
-# On the droplet
+# On the Oracle server
 crontab -u runner -l 2>/dev/null | grep -q 'docker system prune' \
   || ( crontab -u runner -l 2>/dev/null; \
        echo '0 2 * * * /usr/bin/docker system prune --force --filter "until=72h" >> /var/log/docker-prune.log 2>&1' ) \
@@ -506,17 +506,17 @@ left behind by `docker compose build` after a `up -d` that does not use
 | Prod healthcheck fails, retry also fails                       | Bad migration, OOM, broken image                                                                                  | `ssh CryptoGanster 'docker logs onchain-bot-backend-production --tail 50'` — see **Rollback** above |
 | Manual release mis-tags a version                              | Human error in tag or changelog entry                                                                             | Fix the tag + changelog entry by hand; see [Release Process](./release-process.md)                  |
 | Disk > 80%                                                     | See **Disk full** above (ESCALA ÚNICA: warn ≥80% / fail ≥90% or <2 GB — [BACKUPS.md](./deployment/BACKUPS.md) §5) | `df -h` then triage                                                                                 |
-| `Cannot connect to the Docker daemon` on droplet               | Docker daemon crashed                                                                                             | `ssh CryptoGanster 'sudo systemctl restart docker'` (runner reconnects automatically)               |
+| `Cannot connect to the Docker daemon` on Oracle server         | Docker daemon crashed                                                                                             | `ssh CryptoGanster 'sudo systemctl restart docker'` (runner reconnects automatically)               |
 
 ---
 
 ## What this pipeline does NOT do
 
-- **No preview environments per PR.** The droplet is too small to host
+- **No preview environments per PR.** The Oracle server is too small to host
   ephemeral environments; staging is the only non-prod target.
 - **No canary or blue/green deploys.** A single prod container is recreated
   in place via `docker compose up -d --force-recreate`.
-- **No autoscaling self-hosted runner.** The runner is the droplet itself.
+- **No autoscaling self-hosted runner.** The runner is the Oracle server itself.
 - **No external observability (Datadog, Sentry, etc.).** The only signal
   sources are GH Actions logs + `docker logs` + `df -h` — plus the daily
   `backup-health.yml` watchdog, which publishes the ESCALA ÚNICA table to

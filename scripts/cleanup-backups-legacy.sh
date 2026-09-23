@@ -36,7 +36,7 @@
 #   DRY_RUN=1 prints the plan without deleting/compressing anything.
 #
 # Env overrides (for QA against a temporal dir — NEVER point at prod data
-#   from dev; on the droplet BACKUP_DIR is always /opt/onchain-bot/backups):
+#   from dev; on the Oracle server BACKUP_DIR is always /opt/onchain-bot/backups):
 #   BACKUP_DIR (default /opt/onchain-bot/backups)
 #   STATUS_FILE (default $BACKUP_DIR/.rolling-status.json)
 #   BACKUP_LOCK_FILE (default /run/lock/onchain-backend-backup.lock)

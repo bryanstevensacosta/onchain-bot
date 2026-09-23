@@ -27,7 +27,7 @@ used by `ThreadsApiPublisherAdapter` + `ThreadsTokenRefresher` (T3).
 5. Exchange `code` -> short-lived (~1h) -> long-lived (60d):
    `node threads-meta-test/exchange.mjs --code <CODE>` (needs
    `THREADS_APP_SECRET`). Save the resulting long token as
-   `THREADS_ACCESS_TOKEN` in `apps/backend/.env` (dev) or the droplet env.
+   `THREADS_ACCESS_TOKEN` in `apps/backend/.env` (dev) or the Oracle server env.
    Set `THREADS_USER_ID` to your numeric user id (`me` also works).
 6. Verify with a dry run (zero network):
    `THREADS_ACCESS_TOKEN=FAKE node threads-meta-test/publish.mjs --text "spike" --dry-run`
@@ -98,12 +98,12 @@ curl -s http://localhost:3030/api/health
 
 ## 6. Env reference
 
-| Variable | Required | Default | Used by |
-| --- | --- | --- | --- |
-| `THREADS_ACCESS_TOKEN` | yes (publish/refresh) | `''` (refuse without network) | adapter + refresher |
-| `THREADS_USER_ID` | no | `''` -> `me` | adapter + refresher |
-| `THREADS_POLLING_INTERVAL_MINUTES` | no | `5` (clamped 1-60) | `AppConfig.threads` (operator mirror) |
-| `THREADS_DAILY_CAP` | no | `60` (clamped 1-250, Meta allows 250/24h) | `AppConfig.threads` (operator mirror) |
+| Variable                           | Required              | Default                                   | Used by                               |
+| ---------------------------------- | --------------------- | ----------------------------------------- | ------------------------------------- |
+| `THREADS_ACCESS_TOKEN`             | yes (publish/refresh) | `''` (refuse without network)             | adapter + refresher                   |
+| `THREADS_USER_ID`                  | no                    | `''` -> `me`                              | adapter + refresher                   |
+| `THREADS_POLLING_INTERVAL_MINUTES` | no                    | `5` (clamped 1-60)                        | `AppConfig.threads` (operator mirror) |
+| `THREADS_DAILY_CAP`                | no                    | `60` (clamped 1-250, Meta allows 250/24h) | `AppConfig.threads` (operator mirror) |
 
 Placeholders with EMPTY values ship in `apps/backend/.env.staging.template`
 and `apps/backend/.env.production.template`. Real values go ONLY in the

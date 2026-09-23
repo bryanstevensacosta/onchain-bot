@@ -8,26 +8,26 @@
 
 ## 0. Twin vs prod (tabla DNS/puertos/DBs)
 
-| Cosa                     | Prod                                                       | Staging twin                                                                                      |
-| ------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Compose                  | `apps/backend/docker-compose.ingestion.yml`                | `apps/backend/docker-compose.staging-ingestion.yml`                                               |
-| Project / container      | `onchain-bot-ingestion` / `onchain-bot-ingestion-telegram` | `onchain-bot-staging-ingestion` / `onchain-bot-ingestion-telegram-staging`                        |
-| Host:container port      | `127.0.0.1:3032:3031`                                      | `127.0.0.1:3033:3031` (interno siempre `:3031`)                                                   |
-| Env file (droplet, real) | `/opt/onchain-bot/apps/ingestion-telegram/.env.production` | `/opt/onchain-bot-staging/apps/ingestion-telegram/.env.staging`                                   |
-| Env template (repo)      | `apps/ingestion-telegram/.env.production.template`         | `apps/ingestion-telegram/.env.staging.template`                                                   |
-| Triple MTProto           | cuenta ACTUAL                                              | VIEJA cuenta de dev (jamás la misma que prod)                                                     |
-| DB                       | `alpha_meta_token_scanner_ingestion`                       | `alpha_meta_token_scanner_staging_ingestion` (VACÍA por diseño)                                   |
-| Uploads                  | bind prod                                                  | named volume `onchain-bot-staging-ingestion-uploads`                                              |
-| Red Docker               | `onchain-bot-net` (+ staging)                              | SOLO `onchain-bot-staging-net` (external)                                                         |
-| Backend que lo lee       | prod (`:3030`)                                             | staging (`:3031`) vía `INGESTION_TELEGRAM_URL=http://onchain-bot-ingestion-telegram-staging:3031` |
-| Frontend que lo lee      | prod (`:80`) vía `nginx.conf` singleton upstream           | staging (`:4173`) vía `nginx.staging.conf` twin upstream (bake `VITE_APP_ENV=staging`)            |
-| GHCR rollback pin        | `:prev`                                                    | `:staging-prev` (nunca compartidos)                                                               |
+| Cosa                           | Prod                                                       | Staging twin                                                                                      |
+| ------------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Compose                        | `apps/backend/docker-compose.ingestion.yml`                | `apps/backend/docker-compose.staging-ingestion.yml`                                               |
+| Project / container            | `onchain-bot-ingestion` / `onchain-bot-ingestion-telegram` | `onchain-bot-staging-ingestion` / `onchain-bot-ingestion-telegram-staging`                        |
+| Host:container port            | `127.0.0.1:3032:3031`                                      | `127.0.0.1:3033:3031` (interno siempre `:3031`)                                                   |
+| Env file (Oracle server, real) | `/opt/onchain-bot/apps/ingestion-telegram/.env.production` | `/opt/onchain-bot-staging/apps/ingestion-telegram/.env.staging`                                   |
+| Env template (repo)            | `apps/ingestion-telegram/.env.production.template`         | `apps/ingestion-telegram/.env.staging.template`                                                   |
+| Triple MTProto                 | cuenta ACTUAL                                              | VIEJA cuenta de dev (jamás la misma que prod)                                                     |
+| DB                             | `alpha_meta_token_scanner_ingestion`                       | `alpha_meta_token_scanner_staging_ingestion` (VACÍA por diseño)                                   |
+| Uploads                        | bind prod                                                  | named volume `onchain-bot-staging-ingestion-uploads`                                              |
+| Red Docker                     | `onchain-bot-net` (+ staging)                              | SOLO `onchain-bot-staging-net` (external)                                                         |
+| Backend que lo lee             | prod (`:3030`)                                             | staging (`:3031`) vía `INGESTION_TELEGRAM_URL=http://onchain-bot-ingestion-telegram-staging:3031` |
+| Frontend que lo lee            | prod (`:80`) vía `nginx.conf` singleton upstream           | staging (`:4173`) vía `nginx.staging.conf` twin upstream (bake `VITE_APP_ENV=staging`)            |
+| GHCR rollback pin              | `:prev`                                                    | `:staging-prev` (nunca compartidos)                                                               |
 
 ## 1. Env files (nombres, nunca valores)
 
 - Repo (plantillas, commiteadas): `apps/ingestion-telegram/.env.production.template`,
   `apps/ingestion-telegram/.env.staging.template` (triple VACÍA = pendiente de operador).
-- Droplet (reales, gitignored, `chmod 600`): las dos rutas de la tabla.
+- Oracle (reales, gitignored, `chmod 600`): las dos rutas de la tabla.
 - Backend staging también reapunta en DOS sitios: `docker-compose.staging.yml`
   (`environment:`, gana en runtime) + real
   `/opt/onchain-bot-staging/apps/backend/.env.staging` (ver `staging-twin-channels.md` §5).

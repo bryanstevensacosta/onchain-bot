@@ -4,7 +4,7 @@
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│  DROPLET (Ingestion Service - Puerto 3032 público)         │
+│  ORACLE (Ingestion Service - Puerto 3032 público)          │
 │  - Cuenta Telegram dedicada (API_ID producción)            │
 │  - 1 SOLO entorno (producción)                             │
 │  - Deploy: solo master branch                              │
@@ -18,7 +18,7 @@
 │  DEV LOCAL (Ingestion Service - Puerto 3031 opcional)      │
 │  - Cuenta Telegram separada (API_ID dev)                   │
 │  - Para testing de ingestion-telegram solamente             │
-│  - NO corre simultáneamente con droplet                    │
+│  - NO corre simultáneamente con el servidor Oracle                    │
 └────────────────────────────────────────────────────────────┘
 ```
 
@@ -83,7 +83,7 @@ npm run start:dev
 
 # 3. Cuando termines, revertir
 # Local: Ctrl+C
-# Droplet: docker compose ... start
+# Oracle: docker compose ... start
 ```
 
 **Desventajas:**
@@ -92,7 +92,7 @@ npm run start:dev
 
 #### Opción C: Cuenta Separada ⭐ (IMPLEMENTADO)
 
-**✅ Configuración actual:** Dev local usa credenciales separadas, droplet usa producción.
+**✅ Configuración actual:** Dev local usa credenciales separadas, el servidor Oracle usa producción.
 
 ```bash
 # Local: apps/ingestion-telegram/.env
@@ -100,7 +100,7 @@ INGESTION_TELEGRAM_MTPROTO_API_ID=34691112  # Dev account
 INGESTION_TELEGRAM_MTPROTO_API_HASH=<dev_hash>
 INGESTION_TELEGRAM_MTPROTO_SESSION=<dev_session>
 
-# Droplet: /opt/onchain-bot/apps/ingestion-telegram/.env
+# Oracle: /opt/onchain-bot/apps/ingestion-telegram/.env
 INGESTION_TELEGRAM_MTPROTO_API_ID=<prod_id>  # Production account
 INGESTION_TELEGRAM_MTPROTO_API_HASH=<prod_hash>
 INGESTION_TELEGRAM_MTPROTO_SESSION=<prod_session>
@@ -112,7 +112,7 @@ INGESTION_TELEGRAM_MTPROTO_SESSION=<prod_session>
 - ✅ Ambos pueden correr simultáneamente
 - ✅ Testing aislado
 
-**Nota:** Nunca corras dev local y droplet con las MISMAS credenciales simultáneamente.
+**Nota:** Nunca corras dev local y el servidor Oracle con las MISMAS credenciales simultáneamente.
 
 ---
 
@@ -136,7 +136,7 @@ onchain-bot/ (mismo repo)
 
 **Branches:**
 
-- `master` → Deploy ingestion a droplet
+- `master` → Deploy ingestion al servidor Oracle
 - `dev` → NO deploy ingestion (solo backend/frontend)
 
 **Deploy ingestion SOLO cuando:**
@@ -154,7 +154,7 @@ onchain-bot/ (mismo repo)
 
 ```
 ┌─────────────────────┐
-│ Ingestion (droplet) │
+│ Ingestion (Oracle server) │
 │ - Monitorea 45 KOLs │
 └──────┬──────────────┘
        │ Broadcast
@@ -173,7 +173,7 @@ onchain-bot/ (mismo repo)
 
 ```
 ┌─────────────────────┐
-│ Ingestion (droplet) │
+│ Ingestion (Oracle server) │
 │ - Monitorea 50 KOLs │
 └──────┬──────────────┘
        │ Broadcast (todos los canales)
@@ -230,14 +230,14 @@ if (INGESTION_CHANNEL_FILTER) {
 
 ---
 
-### 5. ¿Qué pasa si inicio ingestion local mientras droplet está corriendo?
+### 5. ¿Qué pasa si inicio ingestion local mientras el servidor Oracle está corriendo?
 
 **🚨 AUTH_KEY_DUPLICATED** - Telegram detecta 2 sesiones y desconecta ambas.
 
 **Cómo evitarlo:**
 
 1. Usa **Opción A (Mocks)** para desarrollo
-2. O usa **Opción B (Kill Switch)** deteniendo droplet primero
+2. O usa **Opción B (Kill Switch)** deteniendo el servidor Oracle primero
 3. O usa **Opción C (Cuenta separada)** con diferentes credenciales
 
 ---
@@ -247,7 +247,7 @@ if (INGESTION_CHANNEL_FILTER) {
 **NO. Solo tiene `.env.production`** (un solo entorno).
 
 ```bash
-# ✅ SÍ existe (droplet)
+# ✅ SÍ existe (Oracle server)
 apps/ingestion-telegram/.env.production
 
 # ❌ NO existen
@@ -262,7 +262,7 @@ apps/ingestion-telegram/.env.dev.local  # Mocks o cuenta dev
 
 ---
 
-### 7. ¿Cómo escalar horizontalmente (múltiples droplets)?
+### 7. ¿Cómo escalar horizontalmente (múltiples servidores Oracle)?
 
 Si en el futuro necesitas **alta disponibilidad**:
 
@@ -304,7 +304,7 @@ fly deploy
 
 **Ventajas:**
 
-- ✅ Independiente del droplet
+- ✅ Independiente del servidor Oracle
 - ✅ Mejor uptime (infraestructura gestionada)
 - ✅ Fácil escalar
 
@@ -320,7 +320,7 @@ fly deploy
 
 ### Fase 1: Centralizar Ingestion (Lo que falta)
 
-- [ ] Exponer puerto 3032 públicamente en droplet
+- [ ] Exponer puerto 3032 públicamente en el servidor Oracle
 - [ ] Configurar firewall: `ufw allow 3032/tcp`
 - [ ] Backend dev local apunta a Oracle: `http://100.110.169.120:3032`
 - [ ] NO correr ingestion-telegram en dev local
@@ -379,4 +379,4 @@ fly deploy
 2. **Agregar mock adapter** para desarrollo local
 3. **Deploy workflow independiente** para ingestion
 4. **Monitoreo básico** (health checks + alerts)
-5. **(Futuro) Evaluar Fly.io** si droplet se vuelve limitante
+5. **(Futuro) Evaluar Fly.io** si el servidor Oracle se vuelve limitante

@@ -1,4 +1,4 @@
-name: GHCR Test — Pull on droplet (measure)
+name: GHCR Test — Pull on Oracle server (measure)
 on:
   workflow_dispatch:
     inputs:

@@ -9,13 +9,13 @@
    - ⚠️ Variables remain TEMPORARILY until ingestion-telegram is deployed locally
    - Contains instructions for migration when ready
 
-2. **`apps/backend/.env.staging.template`** (Staging on droplet)
+2. **`apps/backend/.env.staging.template`** (Staging on Oracle)
    - ✅ Removed all MTProto credentials
    - ✅ Added `USE_SSE_INGESTION=true`
    - ✅ Added `INGESTION_REMOTE_URL=http://ingestion-telegram:3031`
    - ✅ Added clear warnings about NOT adding MTProto credentials
 
-3. **`apps/backend/.env.production.template`** (Production on droplet)
+3. **`apps/backend/.env.production.template`** (Production on Oracle)
    - ✅ Removed all MTProto credentials
    - ⚠️ `USE_SSE_INGESTION=false` by default (must be enabled during migration)
    - ✅ Added `INGESTION_REMOTE_URL=http://ingestion-telegram:3031`
@@ -40,13 +40,13 @@
 4. Add to backend: `USE_SSE_INGESTION=true`
 5. Run: `./scripts/validate-session-migration.sh`
 
-### STAGING (Droplet - `/opt/onchain-bot-staging`)
+### STAGING (Oracle - `/opt/onchain-bot-staging`)
 
 **Status:** ✅ READY FOR MIGRATION (template updated)
 
-**On droplet, you need to:**
+**On Oracle server, you need to:**
 
-1. SSH to droplet: `ssh root@144.126.203.139`  <!-- ex-DO (suspended 2026-09-10); current: ssh OracleDroplet -->
+1. SSH to Oracle server: `ssh root@144.126.203.139` <!-- ex-DO (suspended 2026-09-10); current: ssh OracleDroplet -->
 2. Navigate: `cd /opt/onchain-bot-staging`
 3. Check current `.env.staging` for MTProto credentials
 4. Create `apps/ingestion-telegram/.env` with those credentials
@@ -54,13 +54,13 @@
 6. Ensure `USE_SSE_INGESTION=true` in backend
 7. Run: `./scripts/validate-session-migration.sh`
 
-### PRODUCTION (Droplet - `/opt/onchain-bot`)
+### PRODUCTION (Oracle - `/opt/onchain-bot`)
 
 **Status:** ✅ READY FOR MIGRATION (template updated)
 
-**On droplet, you need to:**
+**On Oracle server, you need to:**
 
-1. SSH to droplet: `ssh root@144.126.203.139`  <!-- ex-DO (suspended 2026-09-10); current: ssh OracleDroplet -->
+1. SSH to Oracle server: `ssh root@144.126.203.139` <!-- ex-DO (suspended 2026-09-10); current: ssh OracleDroplet -->
 2. Navigate: `cd /opt/onchain-bot`
 3. **BACKUP FIRST**: `cp apps/backend/.env apps/backend/.env.backup.$(date +%Y%m%d-%H%M%S)`
 4. Extract MTProto credentials: `grep TELEGRAM_MTPROTO apps/backend/.env`
@@ -141,7 +141,7 @@ cat apps/ingestion-telegram/.env | grep INGESTION_TELEGRAM_MTPROTO
 ## 🎯 Next Steps:
 
 1. ✅ **Done**: Templates updated with migration warnings
-2. ⏭️ **Next**: SSH to droplet and migrate staging first
+2. ⏭️ **Next**: SSH to Oracle server and migrate staging first
 3. ⏭️ **Then**: Validate staging works for 48h
 4. ⏭️ **Finally**: Migrate production following the full guide
 

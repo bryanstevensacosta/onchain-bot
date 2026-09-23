@@ -11,7 +11,7 @@
   account as a member** (admin access not required).
 - Two base URLs. They are different services, do not mix them up:
   - Ingestion: `{INGESTION_TELEGRAM_URL}` = `http://localhost:3031` in dev,
-    `http://localhost:3032` via the droplet host mapping (container still
+    `http://localhost:3032` via the Oracle host mapping (container still
     listens on `:3031`). Owns sources, messages, media.
   - Backend: `http://localhost:3030` in dev. Owns filters, keywords,
     blacklist, matching flag, publisher queue. Owns **zero** crypto-news

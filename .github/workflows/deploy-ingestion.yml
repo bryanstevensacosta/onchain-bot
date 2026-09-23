@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'Which ingestion lane to deploy (staging twin needs item-1 compose + staging env on droplet)'
+        description: 'Which ingestion lane to deploy (staging twin needs item-1 compose + staging env on Oracle server)'
         required: false
         default: 'production'
         type: choice
@@ -17,14 +17,53 @@ on:
         # (:prev prod / :staging-prev staging). Dispatch-only, never on push.
         options: [production, staging, rollback-production, rollback-staging]
 
+# CONCURRENCY (item 9d): ONE shared group per physical target across all 3
+# deploy workflows. Prod target = /opt/onchain-bot (this workflow's prod lane
+# + prod rollback + the backend/frontend prod lanes of deploy.yml share it).
+# The twin lane + staging rollback override with ingestion-staging-target
+# below (staging target = /opt/onchain-bot-staging — shared with
+# deploy-staging.yml; this closes the twin-vs-deploy-staging race).
+# cancel-in-progress:false — lanes run migrations; killing one mid-migration
+# corrupts schema state. Tradeoff accepted and documented: a broken commit
+# blocks the queue behind it (operator cancels queued-not-running runs by
+# hand). Policy: supersede-queued-not-running ONLY, never kill a running lane.
 concurrency:
-  group: deploy-ingestion
+  group: ingestion-production-target
   cancel-in-progress: false # No cancelar, es crítico
 
 jobs:
+  # Dispatch-target guard: fails the run LOUDLY on empty/unknown target.
+  # Rationale: run 35825487913 dispatched with empty target silently skipped
+  # all 4 lanes (only build ran) — green-looking run, nothing deployed.
+  # Dispatch-only (`if` below): push events skip this job entirely.
+  # No `needs:` wiring on purpose: the 4 lanes already carry exact
+  # `inputs.target == '<lane>'` job-level `if`s, so an unknown target keeps
+  # them skipped while THIS job fails red. Adding `needs: validate-target`
+  # would couple push paths (where this job is skipped) to dispatch logic
+  # for zero extra safety — minimal correct shape is fail-loud here.
+  validate-target:
+    name: Validate dispatch target
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Validate target input
+        run: |
+          TARGET="${{ inputs.target }}"
+          case "$TARGET" in
+            production|staging|rollback-production|rollback-staging)
+              echo "dispatch target OK: $TARGET"
+              ;;
+            *)
+              echo "::error::unknown target, expected production|staging|rollback-production|rollback-staging (got '$TARGET')"
+              exit 1
+              ;;
+          esac
+
   build-and-push:
     name: Build and push ingestion service
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -65,8 +104,9 @@ jobs:
           platforms: linux/amd64,linux/arm64
 
   deploy:
-    name: Deploy to droplet
+    name: Deploy to Oracle
     runs-on: [self-hosted, oracle]
+    timeout-minutes: 30
     needs: build-and-push
     # Guard only: prod fires on master push or production dispatch ONLY.
     # Master-only ref guard is REQUIRED now that push.branches includes dev:
@@ -181,13 +221,14 @@ jobs:
   # Requires (operator, item 1): docker-compose.staging-ingestion.yml +
   # /opt/onchain-bot-staging ENVF + GitHub environment 'staging'.
   deploy-staging:
-    name: Deploy staging twin to droplet (:3033)
+    name: Deploy staging twin to Oracle (:3033)
     runs-on: [self-hosted, oracle]
     needs: [build-and-push, deploy]
     if: (github.event_name == 'workflow_dispatch' && inputs.target == 'staging') || (github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.deploy.result == 'success') || (github.event_name == 'push' && github.ref == 'refs/heads/dev')
     environment: staging # staging lane — pinned below, NEVER resolves prod env
+    timeout-minutes: 30
     concurrency:
-      group: deploy-ingestion-staging
+      group: ingestion-staging-target
       cancel-in-progress: false # single-flight: same triple never runs twice (AUTH_KEY_DUPLICATED)
     permissions:
       contents: read
@@ -367,9 +408,10 @@ jobs:
           done
 
   # Item 6 — rollback lanes (per-env-ingestion). Manual dispatch ONLY, never on
-  # push. Single-flight: prod rollback shares the top-level `deploy-ingestion`
-  # group (serializes against prod deploys); staging rollback shares
-  # `deploy-ingestion-staging` (serializes against twin deploys). Same MTProto
+  # push. Single-flight: prod rollback shares the top-level
+  # `ingestion-production-target` group (serializes against prod deploys);
+  # staging rollback shares `ingestion-staging-target` (serializes against
+  # twin deploys). Same MTProto
   # triple NEVER runs twice at once — two live containers with one session
   # cause AUTH_KEY_DUPLICATED and log the session out. Discipline in every
   # step: stop → verify stopped (gate) → start. `docker compose pull` is
@@ -379,8 +421,9 @@ jobs:
     runs-on: [self-hosted, oracle]
     if: github.event_name == 'workflow_dispatch' && inputs.target == 'rollback-production'
     environment: production
+    timeout-minutes: 15
     concurrency:
-      group: deploy-ingestion
+      group: ingestion-production-target
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
@@ -455,8 +498,9 @@ jobs:
     runs-on: [self-hosted, oracle]
     if: github.event_name == 'workflow_dispatch' && inputs.target == 'rollback-staging'
     environment: staging
+    timeout-minutes: 15
     concurrency:
-      group: deploy-ingestion-staging
+      group: ingestion-staging-target
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4

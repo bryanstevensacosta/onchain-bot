@@ -161,7 +161,7 @@ instead"). Retention is 2 releases per lane; `:prev-1` is the second resort.
   `:3031` on macOS, process-level restart with a subscribed SSE client):
   PASS, full cycle < 60 s — timestamps in
   `.omo/evidence/task-6-per-env-ingestion.txt`.
-- Droplet-twin drill (`rollback-staging` dispatch against `:3033`): PENDING —
+- Oracle-twin drill (`rollback-staging` dispatch against `:3033`): PENDING —
   blocked on twin deploy (procedure ready in the workflow job, executable later
   without rework: dispatch Actions → Deploy Ingestion Service →
   `target=rollback-staging`).

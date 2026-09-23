@@ -1,10 +1,10 @@
-# Plan de Migración: Ingestion Service Compartido (Droplet)
+# Plan de Migración: Ingestion Service Compartido (Oracle)
 
 ## 🎯 Arquitectura Objetivo
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  DROPLET (144.126.203.139 — ex-DO (suspended 2026-09-10))          │
+│  ORACLE (144.126.203.139 — ex-DO (suspended 2026-09-10))          │
 │                                                              │
 │  ┌────────────────────────────────────────────────┐         │
 │  │  onchain-bot-ingestion-telegram (puerto 3032→3031)      │         │
@@ -52,7 +52,7 @@
 ### FASE 1: Preparación (sin downtime)
 
 ```bash
-# 1. SSH al droplet
+# 1. SSH al servidor Oracle
 ssh root@144.126.203.139  # ex-DO (suspended 2026-09-10); current: ssh OracleDroplet
 
 # 2. Navegar a directorio
@@ -83,7 +83,7 @@ scp /tmp/ingestion-telegram.env.production root@144.126.203.139:/opt/onchain-bot
 ### FASE 3: Modificar Backend Configurations
 
 ```bash
-# 8. En el droplet, editar production backend .env
+# 8. En el servidor Oracle, editar production backend .env
 cd /opt/onchain-bot
 nano apps/backend/.env.production
 

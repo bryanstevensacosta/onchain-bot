@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # bootstrap-droplet.sh — Configura runner robusto + GHCR público + cron limpieza
-# Ejecutar como root en el droplet: bash bootstrap-droplet.sh
+# Ejecutar como root en el servidor Oracle: bash bootstrap-droplet.sh
 
 set -euo pipefail
 
@@ -58,9 +58,9 @@ echo "   Settings → Packages → onchain-bot-backend → Package settings → 
 echo "   Settings → Packages → onchain-bot-frontend → Package settings → Change visibility → Public"
 echo ""
 echo "Con GHCR público + pull :sha || :latest + cache registry:"
-echo "  - pull sin GITHUB_TOKEN en droplet"
+echo "  - pull sin GITHUB_TOKEN en el servidor Oracle"
 echo "  - cache registry no expira (vs GHA 7d)"
-echo "  - Build en ubuntu-latest (14GB) → pull <500MB en droplet"
+echo "  - Build en ubuntu-latest (14GB) → pull <500MB en el servidor Oracle"
 
 # 4. Firewall permanente crypto-news + socat persistente (idempotente, re-ejecutable)
 echo "--- 4/4: Firewall crypto-news permanente (DOCKER-USER + socat) ---"

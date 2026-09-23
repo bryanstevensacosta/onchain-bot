@@ -198,7 +198,7 @@ Vars (ver `.env.example` / `.env.production.template` — prod usa hosts docker 
 ## Persistencia / Docker
 
 - **Database**: Uses **Docker Postgres** from `apps/backend/docker-compose.yml` (container `onchain-bot-postgres-dev`, port mapping `0.0.0.0:5432→5432`). Connection from host: `localhost:5432`. **NO** separate local Postgres installation required.
-- **DB split 2026-09-08 + per-env 2026-09-22 — dedicated logical DB per env**: dev local `alpha_meta_token_scanner_ingestion`, droplet prod `alpha_meta_token_scanner_ingestion` + droplet staging `alpha_meta_token_scanner_staging_ingestion` (twin, arranca VACÍA por diseño — ver `docs/deployment/staging-twin-runbook.md`). Backend `PERSISTED_ENTITIES` = 39: the 3 crypto-news tables live ONLY here, in EACH env's own DB. pgAdmin: the extra DBs live in the SAME servers — no `servers.json` change, they just appear as another DB under the existing server entries.
+- **DB split 2026-09-08 + per-env 2026-09-22 — dedicated logical DB per env**: dev local `alpha_meta_token_scanner_ingestion`, Oracle prod `alpha_meta_token_scanner_ingestion` + Oracle staging `alpha_meta_token_scanner_staging_ingestion` (twin, arranca VACÍA por diseño — ver `docs/deployment/staging-twin-runbook.md`). Backend `PERSISTED_ENTITIES` = 39: the 3 crypto-news tables live ONLY here, in EACH env's own DB. pgAdmin: the extra DBs live in the SAME servers — no `servers.json` change, they just appear as another DB under the existing server entries.
 - **TypeORM**: 4 entities registered in `app.module.ts`:
   - `CryptoNewsSourceEntity` — sources (**SOLE OWNER** since 2026-09-05, reads+writes)
   - `CryptoNewsMessageEntity` — RAW message content (ingested from Telegram)
@@ -218,9 +218,9 @@ Vars (ver `.env.example` / `.env.production.template` — prod usa hosts docker 
 4. **Una DB de ingestion por env** (`<base>_ingestion`; twin: `alpha_meta_token_scanner_staging_ingestion`, VACÍA por diseño).
 5. **Retención 72h messages + media** (janitor de arriba; ver caveat prod en el punto anterior).
 
-### Crear los `.env` reales en el droplet (comandos, SIN valores)
+### Crear los `.env` reales en el servidor Oracle (comandos, SIN valores)
 
-El repo solo lleva templates (`.env.production.template` con `INGESTION_DATABASE_NAME=alpha_meta_token_scanner_ingestion`, `.env.staging.template` con `..._staging_ingestion` + triple VACÍA pendiente de operador). Los archivos reales viven SOLO en el droplet y nunca se commitean:
+El repo solo lleva templates (`.env.production.template` con `INGESTION_DATABASE_NAME=alpha_meta_token_scanner_ingestion`, `.env.staging.template` con `..._staging_ingestion` + triple VACÍA pendiente de operador). Los archivos reales viven SOLO en el servidor Oracle y nunca se commitean:
 
 ```bash
 ssh CryptoGanster
@@ -241,7 +241,7 @@ cp /opt/onchain-bot-staging/apps/ingestion-telegram/.env.staging.template \
 
 - Conteos pre/post primer janitor tick en prod (se espera purga grande de historia >72h restaurada — evidenciar, no confundir con pérdida).
 - `GET :3032/api/feed/sources` sirviendo las sources migradas (feed-unification; las viejas `/api/crypto-news/*` dan 404).
-- Ciclo scheduler-level en staging contra el droplet (probe source → `Found N matching messages` en logs → borrar probe).
+- Ciclo scheduler-level en staging contra el servidor Oracle (probe source → `Found N matching messages` en logs → borrar probe).
 - **Dockerfile**: build `node:22-alpine` (`npm ci --workspace=... --ignore-scripts`, `HUSKY=0`) → runtime con `dumb-init`, usuario `nodejs`, `uploads/crypto-news/media`, `EXPOSE 3031`, `HEALTHCHECK /api/health` (ver gap 23: siempre 200 por stubs), `CMD node apps/ingestion-telegram/dist/src/main.js`.
 - **`.gitignore`**: `/dist`, `/coverage`, `.env`/`.env.dev`/`.env.*.local` (secretos fuera de git), `/uploads` (media efímera). Commiteados como plantilla: `.env.example`, `.env.production.template`.
 
@@ -269,7 +269,7 @@ Unit co-locados (`*.spec.ts`): `app.module`, `stream.service`, `sse-stream.contr
 | `metrics` (72)                       | `GET /metrics` 200 + `text/plain` + formato Prometheus                                                            |
 | `E2E-TESTING-GUIDE.md`               | estrategia + troubleshooting (`AUTH_KEY_DUPLICATED`, SSH túneles, validación side-by-side prod-vs-staging ≥99.9%) |
 
-⚠️ **Restricción MTProto en tests**: prohibido inicializar `TelegramClient` en tests locales mientras el droplet corre (sesión única → `406 AUTH_KEY_DUPLICATED`). Los e2e levantan `AppModule` completo en memoria e inyectan por `StreamService`; contra Oracle usan `INGESTION_TELEGRAM_URL=http://100.110.169.120:3032` + `eventsource` (ex-DO (suspended 2026-09-10) was `http://144.126.203.139:3032`).
+⚠️ **Restricción MTProto en tests**: prohibido inicializar `TelegramClient` en tests locales mientras el servidor Oracle corre (sesión única → `406 AUTH_KEY_DUPLICATED`). Los e2e levantan `AppModule` completo en memoria e inyectan por `StreamService`; contra Oracle usan `INGESTION_TELEGRAM_URL=http://100.110.169.120:3032` + `eventsource` (ex-DO (suspended 2026-09-10) was `http://144.126.203.139:3032`).
 ⚠️ **Landmine `moduleNameMapper`** (unit y e2e): `^telegram/(.*)$` → `src/telegram/$1`, con solo `telegram/events` y `telegram/sessions` pineados a `node_modules`. Cualquier spec que importe otro subpath gramjs (`telegram/client`, `telegram/extensions/Logger`, …) resuelve a un archivo inexistente y rompe. Si agregas specs al MTProto layer, pinnea el subpath primero.
 
 ## Logging
@@ -314,11 +314,11 @@ Imagen: `ghcr.io/bryanstevensacosta/onchain-bot-ingestion-telegram:latest`.
 
 | Compose (`apps/backend/`)              | Uso                                                                                                                                                                                                                                                |
 | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docker-compose.ingestion.yml`         | standalone en droplet: host `127.0.0.1:3032` → container `3031` (3032 evita choque con staging en 3031); `INGESTION_PORT: 3031` interno; healthcheck a `:3031/api/health`                                                                          |
+| `docker-compose.ingestion.yml`         | standalone en el servidor Oracle: host `127.0.0.1:3032` → container `3031` (3032 evita choque con staging en 3031); `INGESTION_PORT: 3031` interno; healthcheck a `:3031/api/health`                                                               |
 | `docker-compose.staging-ingestion.yml` | staging TWIN (per-env 2026-09-22): project `onchain-bot-staging-ingestion`, host `127.0.0.1:3033` → container `3031`, `env_file` triple vieja-dev, DB `alpha_meta_token_scanner_staging_ingestion`, uploads propios, red `onchain-bot-staging-net` |
 | `docker-compose.with-ingestion.yml`    | extiende prod: build local del Dockerfile, `PORT: 3031`, backend con `INGESTION_TELEGRAM_URL: http://ingestion-telegram:3031` + volumen de media en **read-only** (ingestion owns writes), `depends_on` ingestion                                  |
 
-Notas: `with-ingestion` referencia `../ingestion-telegram/.env.production` — **no existe en el repo** (solo `.env.production.template`); crearlo desde la plantilla en el droplet, nunca commitear (ver comandos en Persistencia). Los e2e contra droplet usan el puerto host de SU env (**3032** prod, **3033** twin). `BACKEND_URL` fue eliminada del código (per-env T4, sin lector) y de ambas plantillas (`.env.production.template`, `.env.staging.template`, F1-fix 2026-09-22, doble-grep vacío); CORS sigue leyendo `BACKEND_STAGING_URL`/`BACKEND_PROD_URL` en `main.ts:73-74`.
+Notas: `with-ingestion` referencia `../ingestion-telegram/.env.production` — **no existe en el repo** (solo `.env.production.template`); crearlo desde la plantilla en el servidor Oracle, nunca commitear (ver comandos en Persistencia). Los e2e contra el servidor Oracle usan el puerto host de SU env (**3032** prod, **3033** twin). `BACKEND_URL` fue eliminada del código (per-env T4, sin lector) y de ambas plantillas (`.env.production.template`, `.env.staging.template`, F1-fix 2026-09-22, doble-grep vacío); CORS sigue leyendo `BACKEND_STAGING_URL`/`BACKEND_PROD_URL` en `main.ts:73-74`.
 
 Pipeline (desde split 2026-09-08, todo 10): `deploy-ingestion.yml` corre backup de la DB de ingestion + `migration:run` en one-off container ANTES de recrear (abort-on-failure); `deploy.yml` (backend prod) lleva un ordering gate que exige `GET :3032/api/feed/sources` healthy antes de migrar el backend. Lane staging (per-env T2): dispatch manual `target=staging` → twin en `:3033` con su DB + pin `:staging-prev` (rollback T6 consume `:prev` prod / `:staging-prev` staging — nunca compartidos). Ley code-before-schema: desplegar ingestion PRIMERO y verificar `:3032` sirviendo, y SOLO ENTONCES desplegar el backend con la drop migration (el orden inverso deja al backend sin tablas que su imagen vieja exige — probado en staging, task-7).
 

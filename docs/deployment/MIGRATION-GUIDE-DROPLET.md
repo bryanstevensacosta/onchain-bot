@@ -1,8 +1,8 @@
-# Ingestion Service - Migration Guide for Production Droplet
+# Ingestion Service - Migration Guide for Production Oracle
 
 ## Overview
 
-This guide walks through migrating MTProto session credentials from backend to ingestion-telegram on the production droplet (CryptoGanster - 144.126.203.139 — ex-DO (suspended 2026-09-10)).
+This guide walks through migrating MTProto session credentials from backend to ingestion-telegram on the production Oracle server (CryptoGanster - 144.126.203.139 — ex-DO (suspended 2026-09-10)).
 
 ⚠️ **CRITICAL**: This migration must be done carefully to avoid AUTH_KEY_DUPLICATED errors which can result in Telegram account suspension.
 
@@ -16,7 +16,7 @@ This guide walks through migrating MTProto session credentials from backend to i
 
 ## Step-by-Step Migration
 
-### Step 1: Connect to Production Droplet
+### Step 1: Connect to Production Oracle
 
 ```bash
 ssh root@144.126.203.139  # ex-DO (suspended 2026-09-10); current: ssh OracleDroplet
