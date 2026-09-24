@@ -40,17 +40,6 @@ on:
     types: [completed]
     branches: [master]
 
-# CONCURRENCY (item 9d): ONE shared group per physical target across all 3
-# deploy workflows. Prod target = /opt/onchain-bot (this workflow + the prod
-# lane + prod rollback of deploy-ingestion.yml share it).
-# cancel-in-progress:false — lanes run migrations; killing one mid-migration
-# corrupts schema state. Tradeoff accepted and documented: a broken commit
-# blocks the queue behind it (operator cancels queued-not-running runs by
-# hand). Policy: supersede-queued-not-running ONLY, never kill a running lane.
-concurrency:
-  group: ingestion-production-target
-  cancel-in-progress: false
-
 permissions:
   contents: read
   packages: write
@@ -206,6 +195,19 @@ jobs:
   deploy:
     name: Deploy to Oracle
     runs-on: [self-hosted, oracle]
+    # CONCURRENCY (item 9d): job-level single-flight on ONE shared group per
+    # physical target across all 3 deploy workflows. Prod target =
+    # /opt/onchain-bot (this job + the prod lane + prod rollback of
+    # deploy-ingestion.yml share it). Job-level (not top-level) so
+    # preflight/build jobs stay unguarded.
+    # cancel-in-progress:false — lanes run migrations; killing one
+    # mid-migration corrupts schema state. Tradeoff accepted and documented:
+    # a broken commit blocks the queue behind it (operator cancels
+    # queued-not-running runs by hand). Policy: supersede-queued-not-running
+    # ONLY, never kill a running lane.
+    concurrency:
+      group: ingestion-production-target
+      cancel-in-progress: false
     needs: [preflight, build-and-push]
     if: needs.preflight.outputs.run_deploy == 'true'
     timeout-minutes: 40
@@ -367,32 +369,6 @@ jobs:
           docker tag ghcr.io/${{ github.repository }}-frontend:${{ needs.preflight.outputs.effective_sha }} ghcr.io/${{ github.repository }}-frontend:latest 2>/dev/null || true
           docker tag ghcr.io/${{ github.repository }}-frontend:latest ghcr.io/${{ github.repository }}-frontend:latest 2>/dev/null || true
           docker images | head -20
-
-      - name: Post-pull cleanup (aggressive, keep only current)
-        run: |
-          echo "=== Post-pull prune (remove old SHA tags, keep latest) ==="
-          # ROLLBACK-PIN EXEMPTION (item 9c): docker image prune -af would GC
-          # the rollback targets. Snapshot namespaced pins first, prune, then
-          # re-pull them from GHCR (source of truth — pins are pushed there on
-          # every good deploy). Covers backend/frontend pins of BOTH envs plus
-          # the ingestion pins (same host, sibling workflow).
-          KEEP_PINS="$(docker images --format '{{.Repository}}:{{.Tag}}' | grep -E ':(prev-backend|prev-frontend|staging-prev-backend|staging-prev-frontend|prev|staging-prev|prev-1|staging-prev-1)$' || true)"
-          docker image prune -af 2>&1 | tail -20 || true
-          if [ -n "$KEEP_PINS" ]; then
-            echo "=== Restoring rollback pins from GHCR ==="
-            echo "$KEEP_PINS" | while read -r PIN; do
-              docker pull "$PIN" 2>&1 | tail -1 || echo "::warning::could not restore $PIN"
-            done
-            echo "=== Pins present locally ==="
-            docker images | grep -E 'prev' || echo "::warning::no prev tags local after restore"
-          else
-            echo "(no rollback pins local — first run, nothing to exempt)"
-          fi
-          docker builder prune -af 2>&1 | tail -10 || true
-          echo "=== Disk after pull + prune ==="
-          df -h | head -20
-          docker system df 2>&1 | head -20
-          PCT=$(df / | tail -1 | awk '{print $5}' | tr -d '%'); if [ "$PCT" -gt 80 ]; then echo "::warning::disk ${PCT}% full after pull+prune"; fi
 
       - name: Verify ingestion healthy before backend migrations (ordering gate)
         run: |
@@ -579,6 +555,10 @@ jobs:
   watch-bake-prod:
     name: Bake watch prod 15min (5xx/queue/SSE)
     runs-on: [self-hosted, oracle]
+    # Single-flight on the shared prod target (item 9d; cancel-in-progress:false — never kill a running lane).
+    concurrency:
+      group: ingestion-production-target
+      cancel-in-progress: false
     needs: [deploy]
     if: success() && needs.deploy.outputs.smoke_entered == 'true'
     timeout-minutes: 20
@@ -602,7 +582,13 @@ jobs:
               TOTAL=$((TOTAL + 1))
               case "$CODE" in 000|5*) BAD5XX=$((BAD5XX + 1));; esac
             done
-            SSE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 -H 'Accept: text/event-stream' "$INGESTION/api/ingestion/stream" || echo 000)"
+            # SSE header probe: the stream stays open indefinitely, so curl ALWAYS
+            # exits 28 on --max-time AFTER printing the -w code. `|| true`
+            # preserves curl's own code (200 healthy / 000 unreachable);
+            # `|| echo 000` would concatenate into "200000" and count every
+            # healthy probe as a disconnect (false-positive proven run 35963218317
+            # on the ingestion twin of this probe).
+            SSE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 -H 'Accept: text/event-stream' "$INGESTION/api/ingestion/stream" 2>/dev/null || true)"
             [ "$SSE" = "200" ] || DISC=$((DISC + 1))
             MH="$(curl -s --max-time 10 "$BACKEND/crypto-news/matching/health" || true)"
             PEND="$(echo "$MH" | jq -r '.queuePending // 0' 2>/dev/null || echo 0)"
@@ -646,6 +632,10 @@ jobs:
   auto-rollback-backend-prod:
     name: Auto-rollback backend prod on smoke failure (:prev-backend)
     runs-on: [self-hosted, oracle]
+    # Single-flight on the shared prod target (item 9d; cancel-in-progress:false — never kill a running lane).
+    concurrency:
+      group: ingestion-production-target
+      cancel-in-progress: false
     # T5 bake linkage: fires on smoke-rojo (deploy failed, watch skipped) OR
     # bake-rojo (deploy green, watch failed). needs.watch-bake-prod.result is
     # 'skipped' on the smoke-red leg, 'failure' on the bake-red leg.
@@ -741,6 +731,10 @@ jobs:
   auto-rollback-frontend-prod:
     name: Auto-rollback frontend prod on smoke failure (:prev-frontend)
     runs-on: [self-hosted, oracle]
+    # Single-flight on the shared prod target (item 9d; cancel-in-progress:false — never kill a running lane).
+    concurrency:
+      group: ingestion-production-target
+      cancel-in-progress: false
     # T5 bake linkage (chained job: always() + deploy/watch outcomes, per T4
     # asymmetry — failure() here would also key on the sibling backend auto
     # job; smoke-red leg leaves watch 'skipped', bake-red leg leaves deploy 'success').
@@ -845,6 +839,10 @@ jobs:
   rollback-backend-prod:
     name: Rollback backend prod to :prev-backend (:3030)
     runs-on: [self-hosted, oracle]
+    # Single-flight on the shared prod target (item 9d; cancel-in-progress:false — never kill a running lane).
+    concurrency:
+      group: ingestion-production-target
+      cancel-in-progress: false
     timeout-minutes: 15
     if: github.event_name == 'workflow_dispatch' && inputs.lane == 'rollback-backend-prod'
     environment: production
@@ -914,6 +912,10 @@ jobs:
   rollback-frontend-prod:
     name: Rollback frontend prod to :prev-frontend (:5173)
     runs-on: [self-hosted, oracle]
+    # Single-flight on the shared prod target (item 9d; cancel-in-progress:false — never kill a running lane).
+    concurrency:
+      group: ingestion-production-target
+      cancel-in-progress: false
     timeout-minutes: 15
     if: github.event_name == 'workflow_dispatch' && inputs.lane == 'rollback-frontend-prod'
     environment: production

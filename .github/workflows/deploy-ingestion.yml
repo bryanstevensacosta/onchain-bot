@@ -27,9 +27,8 @@ on:
 # corrupts schema state. Tradeoff accepted and documented: a broken commit
 # blocks the queue behind it (operator cancels queued-not-running runs by
 # hand). Policy: supersede-queued-not-running ONLY, never kill a running lane.
-concurrency:
-  group: ingestion-production-target
-  cancel-in-progress: false # No cancelar, es crítico
+# C5: enforced at JOB level on self-hosted deploy/rollback jobs only
+# (preflight/build jobs unguarded) — same groups below.
 
 jobs:
   # Dispatch-target guard: fails the run LOUDLY on empty/unknown target.
@@ -89,11 +88,16 @@ jobs:
           context: .
           file: apps/ingestion-telegram/Dockerfile
           push: true
+          # TAG HYGIENE (C1): :sha always; :latest ONLY from master legs;
+          # dev/dispatch-from-dev legs push :dev-latest + :dev-<sha> instead —
+          # dev builds NEVER push bare :latest (prod/twin pull strictly :sha).
           tags: |
             ghcr.io/${{ github.repository }}-ingestion-telegram:${{ github.sha }}
-            ghcr.io/${{ github.repository }}-ingestion-telegram:latest
             ghcr.io/${{ github.repository }}-ingestion:${{ github.sha }}
-            ghcr.io/${{ github.repository }}-ingestion:latest
+            ghcr.io/${{ github.repository }}-ingestion-telegram:${{ github.ref == 'refs/heads/master' && 'latest' || 'dev-latest' }}
+            ghcr.io/${{ github.repository }}-ingestion:${{ github.ref == 'refs/heads/master' && 'latest' || 'dev-latest' }}
+            ${{ github.ref != 'refs/heads/master' && format('ghcr.io/{0}-ingestion-telegram:dev-{1}', github.repository, github.sha) || format('ghcr.io/{0}-ingestion-telegram:{1}', github.repository, github.sha) }}
+            ${{ github.ref != 'refs/heads/master' && format('ghcr.io/{0}-ingestion:dev-{1}', github.repository, github.sha) || format('ghcr.io/{0}-ingestion:{1}', github.repository, github.sha) }}
           # TEMPORARY cache disable lifted — re-enabled 2026-09-10
           cache-from: |
             type=registry,ref=ghcr.io/${{ github.repository }}-ingestion-telegram:cache
@@ -116,6 +120,11 @@ jobs:
     runs-on: [self-hosted, oracle]
     timeout-minutes: 30
     needs: build-and-push
+    # C5: job-level single-flight on the prod target (serializes against
+    # prod rollback lanes sharing this group; build/preflight jobs unguarded).
+    concurrency:
+      group: ingestion-production-target
+      cancel-in-progress: false
     # T4 auto-rollback contract: smoke_entered is true once the post-deploy
     # health/smoke phase starts (Wait for health) — only post-smoke-rojo
     # triggers auto-rollback, never a red deploy before smoke.
@@ -146,32 +155,12 @@ jobs:
           sudo chown -R runner:runner /opt/onchain-bot || chown -R runner:runner /opt/onchain-bot || echo 'chown warning (non-fatal)'
           echo "=== ownership fixed ==="
 
-      - name: Pull latest image
+      - name: Pull deploy image (strict :sha, fail loudly on miss)
+        # C1: lanes pull strictly :<sha> — no :latest fallback (a missing sha
+        # fails the lane instead of silently deploying stale :latest).
         run: |
-          docker pull ghcr.io/${{ github.repository }}-ingestion-telegram:latest
-          # Old image is rollback-only (1-2 releases); best-effort so first-run without old tags cannot fail
-          docker pull ghcr.io/${{ github.repository }}-ingestion:latest || true
-
-      - name: Pin :prev on GOOD deploy (rollback contract for item 6)
-        # Contract (item 6 consumes it): :prev == last GOOD prod image,
-        # :prev-1 == 2nd-previous. Retention = 2 releases. Best-effort pulls
-        # so a first-run without prior tags cannot fail the deploy.
-        run: |
-          set -euo pipefail
-          for IMG in \
-            ghcr.io/${{ github.repository }}-ingestion-telegram \
-            ghcr.io/${{ github.repository }}-ingestion; do
-            docker pull "$IMG:prev" 2>/dev/null && {
-              docker tag "$IMG:prev" "$IMG:prev-1"
-              docker push "$IMG:prev-1"
-            } || echo "no prior :prev for $IMG (first run) — skipping :prev-1 rotation"
-            # Build runs on the github-hosted daemon, deploy on self-hosted:
-            # the :sha image is never local — pull it (fallback :latest) first.
-            docker pull "$IMG:${{ github.sha }}" || docker pull "$IMG:latest"
-            docker tag "$IMG:${{ github.sha }}" "$IMG:prev" || docker tag "$IMG:latest" "$IMG:prev"
-            docker push "$IMG:prev"
-            echo "pinned $IMG:prev"
-          done
+          docker pull ghcr.io/${{ github.repository }}-ingestion-telegram:${{ github.sha }}
+          docker pull ghcr.io/${{ github.repository }}-ingestion:${{ github.sha }}
 
       - name: Backup ingestion database
         run: |
@@ -210,11 +199,14 @@ jobs:
           echo "=== Ingestion migrations applied successfully ==="
 
       - name: Restart ingestion service
+        # C1: no `compose pull` (compose pins :latest) — retag verified :sha
+        # to :latest locally, then recreate without pulling.
         run: |
           ENVF=/opt/onchain-bot/apps/ingestion-telegram/.env.production; [ -f "$ENVF" ] || ENVF=/opt/onchain-bot/apps/ingestion-service/.env.production; set -a; source "$ENVF"; set +a
           set -a; source /opt/onchain-bot/apps/backend/.env.production; set +a
+          IMG_BASE=ghcr.io/${{ github.repository }}-ingestion-telegram
+          docker tag "$IMG_BASE:${{ github.sha }}" "$IMG_BASE:latest"
           cd /opt/onchain-bot/apps/backend
-          docker compose -f docker-compose.ingestion.yml pull
           docker compose -f docker-compose.ingestion.yml up -d --force-recreate
 
       - name: Mark smoke entered (T4 auto-rollback gate signal)
@@ -234,6 +226,26 @@ jobs:
             exit 1
           fi
           echo "✓ $CLIENTS client(s) connected"
+
+      - name: Pin :prev on GOOD deploy (rollback contract for item 6)
+        # C2: pins ONLY after Verify green — never pin an unverified image.
+        # Contract (item 6 consumes it): :prev == last GOOD prod image,
+        # :prev-1 == 2nd-previous. Retention = 2 releases. Best-effort pulls
+        # so a first-run without prior tags cannot fail the deploy.
+        # C1: strict :sha source — no :latest fallback.
+        run: |
+          set -euo pipefail
+          for IMG in \
+            ghcr.io/${{ github.repository }}-ingestion-telegram \
+            ghcr.io/${{ github.repository }}-ingestion; do
+            docker pull "$IMG:prev" 2>/dev/null && {
+              docker tag "$IMG:prev" "$IMG:prev-1"
+              docker push "$IMG:prev-1"
+            } || echo "no prior :prev for $IMG (first run) — skipping :prev-1 rotation"
+            docker tag "$IMG:${{ github.sha }}" "$IMG:prev"
+            docker push "$IMG:prev"
+            echo "pinned $IMG:prev"
+          done
 
   # BAKE-WATCH (prod-safety-gates item 5) — 15-min post-deploy observation,
   # ingestion prod lane (:3032). Runs ONLY when smoke went green (deploy
@@ -276,7 +288,12 @@ jobs:
               TOTAL=$((TOTAL + 1))
               case "$CODE" in 000|5*) BAD5XX=$((BAD5XX + 1));; esac
             done
-            SSE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 -H 'Accept: text/event-stream' "$INGESTION/api/ingestion/stream" || echo 000)"
+            # SSE header probe: the stream stays open indefinitely, so curl ALWAYS
+            # exits 28 on --max-time AFTER printing the -w code. `|| true`
+            # preserves curl's own code (200 healthy / 000 unreachable);
+            # `|| echo 000` would concatenate into "200000" and count every
+            # healthy probe as a disconnect (false-positive proven run 35963218317).
+            SSE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 -H 'Accept: text/event-stream' "$INGESTION/api/ingestion/stream" 2>/dev/null || true)"
             [ "$SSE" = "200" ] || DISC=$((DISC + 1))
             MH="$(curl -s --max-time 10 "$BACKEND/crypto-news/matching/health" || true)"
             PEND="$(echo "$MH" | jq -r '.queuePending // 0' 2>/dev/null || echo 0)"
@@ -400,10 +417,11 @@ jobs:
             echo "::warning::nothing listening on :3033 yet — expected pre-first-deploy; socat unit from install-socat-services.sh staging covers Tailscale ingress"
           fi
 
-      - name: Pull latest image
+      - name: Pull deploy image (strict :sha, fail loudly on miss)
+        # C1: twin pulls strictly :<sha> — no :latest fallback.
         run: |
-          docker pull ghcr.io/${{ github.repository }}-ingestion-telegram:latest
-          docker pull ghcr.io/${{ github.repository }}-ingestion:latest || true
+          docker pull ghcr.io/${{ github.repository }}-ingestion-telegram:${{ github.sha }}
+          docker pull ghcr.io/${{ github.repository }}-ingestion:${{ github.sha }}
 
       - name: Backup staging ingestion database (BEFORE migrate)
         # Checklist order: backup BEFORE migrate. DB is created by the first
@@ -446,13 +464,16 @@ jobs:
           echo "=== Staging ingestion migrations applied successfully ==="
 
       - name: Restart staging ingestion twin
+        # C1: no `compose pull` (compose pins :latest) — retag verified :sha
+        # to :latest locally, then recreate without pulling.
         run: |
           set -euo pipefail
           ENVF=/opt/onchain-bot-staging/apps/ingestion-telegram/.env.staging
           [ -f "$ENVF" ] || { echo "::error::staging ENVF missing: $ENVF"; exit 1; }
           set -a; source "$ENVF"; set +a
+          IMG_BASE=ghcr.io/${{ github.repository }}-ingestion-telegram
+          docker tag "$IMG_BASE:${{ github.sha }}" "$IMG_BASE:latest"
           cd /opt/onchain-bot-staging/apps/backend
-          docker compose -f docker-compose.staging-ingestion.yml pull
           docker compose -f docker-compose.staging-ingestion.yml up -d --force-recreate
 
       - name: Mark smoke entered (T4 auto-rollback gate signal)
@@ -515,7 +536,7 @@ jobs:
               docker tag "$IMG:staging-prev" "$IMG:staging-prev-1"
               docker push "$IMG:staging-prev-1"
             } || echo "no prior :staging-prev for $IMG (first run) — skipping rotation"
-            docker tag "$IMG:${{ github.sha }}" "$IMG:staging-prev" || docker tag "$IMG:latest" "$IMG:staging-prev"
+            docker tag "$IMG:${{ github.sha }}" "$IMG:staging-prev"
             docker push "$IMG:staging-prev"
             echo "pinned $IMG:staging-prev"
           done
@@ -537,6 +558,11 @@ jobs:
     if: failure() && needs.deploy.outputs.smoke_entered == 'true' && (needs.deploy.result == 'failure' || needs.watch-bake-ingestion-prod.result == 'failure')
     environment: production
     timeout-minutes: 10
+    # C5: job-level single-flight on the prod target (same group as deploy +
+    # manual prod rollback; build/preflight jobs unguarded).
+    concurrency:
+      group: ingestion-production-target
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
 
@@ -554,7 +580,7 @@ jobs:
             echo ""
             echo "| campo | valor |"
             echo "|---|---|"
-            echo "| trigger | post-deploy health/smoke FAILED (deploy red, smoke entered) |"
+            echo "| trigger | post-deploy smoke FAILED (deploy red) OR bake-watch FAILED (watch red, deploy green) — smoke entered |"
             echo "| target | ingestion-telegram:prev → :3032 |"
             echo "| manual escape | dispatch target=rollback-production intacto |"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -572,6 +598,12 @@ jobs:
       - name: Stop prod ingestion (single-flight, --timeout 30)
         run: |
           set -euo pipefail
+          # ENVF sourcing (mirrors the deploy restart step): compose
+          # interpolates ${REDIS_PASSWORD:?required} from host env — without
+          # this the stop dies pre-action (proven run 35963218317) and the
+          # watch-to-rollback linkage is dead on arrival.
+          ENVF=/opt/onchain-bot/apps/ingestion-telegram/.env.production; [ -f "$ENVF" ] || ENVF=/opt/onchain-bot/apps/ingestion-service/.env.production; set -a; source "$ENVF"; set +a
+          set -a; source /opt/onchain-bot/apps/backend/.env.production; set +a
           cd /opt/onchain-bot/apps/backend
           docker compose -f docker-compose.ingestion.yml stop --timeout 30 ingestion-telegram
           if docker ps --format '{{.Names}}' | grep -i ingestion; then
@@ -583,6 +615,10 @@ jobs:
       - name: Recreate from :prev (no pull — local retag wins)
         run: |
           set -euo pipefail
+          # Same ENVF sourcing as the stop step above: `up` interpolates the
+          # compose file too, so it needs the host env as well.
+          ENVF=/opt/onchain-bot/apps/ingestion-telegram/.env.production; [ -f "$ENVF" ] || ENVF=/opt/onchain-bot/apps/ingestion-service/.env.production; set -a; source "$ENVF"; set +a
+          set -a; source /opt/onchain-bot/apps/backend/.env.production; set +a
           IMG_BASE=ghcr.io/${{ github.repository }}-ingestion-telegram
           docker tag "$IMG_BASE:prev" "$IMG_BASE:latest"
           cd /opt/onchain-bot/apps/backend

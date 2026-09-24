@@ -36,4 +36,6 @@ jobs:
             build
             ci
             revert
+            release
+            hotfix
           requireScope: 'false'

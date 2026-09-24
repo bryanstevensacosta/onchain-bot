@@ -2,11 +2,21 @@ name: Disk Cleanup
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 3 * * *'
+    - cron: '30 5 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: oracle-maintenance
+  cancel-in-progress: false
 jobs:
   cleanup:
-    runs-on: self-hosted
+    runs-on: [self-hosted, oracle]
+    timeout-minutes: 15
     steps:
+      - name: Assert Oracle host
+        run: |
+          hostname
+          df -P /opt/onchain-bot
       - name: Disk before
         run: df -h; echo "---"; du -sh /opt/actions-runner/_diag/* 2>&1 | head -20; echo "---"; docker system df 2>&1 | head -20
       - name: Aggressive cleanup
@@ -24,7 +34,10 @@ jobs:
           sudo truncate -s 0 /opt/actions-runner/_diag/*.log 2>&1 | tail -5; echo "truncated"
           echo "=== NPM / tmp ==="
           npm cache clean --force 2>&1 | tail -3
-          sudo rm -rf /tmp/* 2>&1 | tail -5
+          echo "=== /tmp (targeted, runner-owned, +1d) ==="
+          find /tmp -maxdepth 1 -user runner -mtime +1 -delete 2>&1 | tail -5 || true
+          rm -rf /opt/actions-runner/_work/onchain-bot/_temp/* 2>&1 | tail -3 || true
+          rm -rf /opt/actions-runner/_work/_temp/* 2>&1 | tail -3 || true
           sudo apt clean 2>&1 | tail -3
           echo "=== Old node_modules ==="
           du -sh /opt/onchain-bot/node_modules 2>&1 | head -5
