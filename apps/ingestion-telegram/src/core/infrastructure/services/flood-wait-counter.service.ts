@@ -3,10 +3,16 @@ import { Injectable } from '@nestjs/common';
 @Injectable()
 export class FloodWaitCounterService {
   private readonly records: Array<{ timestamp: number; seconds: number }> = [];
+  private consecutiveFailures = 0;
 
   public record(seconds: number): void {
     this.prune();
     this.records.push({ timestamp: Date.now(), seconds });
+    this.consecutiveFailures += 1;
+  }
+
+  public recordSuccess(): void {
+    this.consecutiveFailures = 0;
   }
 
   public get count24h(): number {
@@ -21,12 +27,24 @@ export class FloodWaitCounterService {
   }
 
   public getConsecutiveFailures(): number {
-    // This is tracked by FloodWaitHandlerService
-    return 0;
+    return this.consecutiveFailures;
+  }
+
+  /**
+   * Per Requirement 5.6: method aliases matching the HealthController
+   * contract (the 24h window is already exposed as getters above).
+   */
+  public getCount24h(): number {
+    return this.count24h;
+  }
+
+  public getMaxSeconds24h(): number {
+    return this.maxSeconds24h;
   }
 
   public reset(): void {
     this.records.length = 0;
+    this.consecutiveFailures = 0;
   }
 
   private prune(): void {

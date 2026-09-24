@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import * as fs from 'node:fs';
 import type { Request, Response } from 'express';
 import { QueueController } from './queue.controller';
+import { QueueMediaController } from './queue-media.controller';
 import { PublisherQueueRepository } from 'telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
 import { LlmConfigRepository } from 'telegram/crypto-news-publisher/application/ports/llm-config.repository';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
@@ -10,6 +11,7 @@ import type { CryptoNewsSourceDto } from 'telegram/crypto-news-integration/infra
 
 describe('QueueController', () => {
   let controller: QueueController;
+  let mediaController: QueueMediaController;
   let queueRepo: jest.Mocked<PublisherQueueRepository>;
 
   const makeSourceDto = (
@@ -79,7 +81,7 @@ describe('QueueController', () => {
       .spyOn(global, 'fetch')
       .mockResolvedValue({ ok: true, json: async () => [] } as Response);
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [QueueController],
+      controllers: [QueueController, QueueMediaController],
       providers: [
         {
           provide: ConfigService,
@@ -126,6 +128,7 @@ describe('QueueController', () => {
     }).compile();
 
     controller = module.get<QueueController>(QueueController);
+    mediaController = module.get<QueueMediaController>(QueueMediaController);
     queueRepo = module.get(PublisherQueueRepository);
   });
 
@@ -347,7 +350,7 @@ describe('QueueController', () => {
       queueRepo.findByIdForDisplay.mockResolvedValue(null);
       const { res, json } = makeRes();
 
-      await controller.getQueueMedia('missing', makeReq(), res);
+      await mediaController.getQueueMedia('missing', makeReq(), res);
 
       expect(res.status).toHaveBeenCalledWith(404);
       expect(json).toHaveBeenCalledWith({ error: 'Entry not found' });
@@ -359,7 +362,7 @@ describe('QueueController', () => {
       );
       const { res, json } = makeRes();
 
-      await controller.getQueueMedia('abc', makeReq(), res);
+      await mediaController.getQueueMedia('abc', makeReq(), res);
 
       expect(res.status).toHaveBeenCalledWith(404);
       expect(json).toHaveBeenCalledWith({ error: 'Media not found' });
@@ -375,7 +378,7 @@ describe('QueueController', () => {
       const { res, send, setHeader } = makeRes();
 
       try {
-        await controller.getQueueMedia('abc', makeReq(), res);
+        await mediaController.getQueueMedia('abc', makeReq(), res);
 
         expect(readFileSpy).toHaveBeenCalledWith('/tmp/photo.jpg');
         expect(setHeader).toHaveBeenCalledWith('Content-Type', 'image/jpeg');
@@ -412,7 +415,7 @@ describe('QueueController', () => {
         const { res, setHeader, send } = makeRes();
 
         try {
-          await controller.getQueueMedia('abc', makeReq(), res);
+          await mediaController.getQueueMedia('abc', makeReq(), res);
           expect(setHeader).toHaveBeenCalledWith('Content-Type', mime);
           expect(send).toHaveBeenCalled();
         } finally {
@@ -430,7 +433,7 @@ describe('QueueController', () => {
       const { res, setHeader, send } = makeRes();
 
       try {
-        await controller.getQueueMedia('abc', makeReq(), res);
+        await mediaController.getQueueMedia('abc', makeReq(), res);
         expect(setHeader).toHaveBeenCalledWith(
           'Content-Type',
           'application/octet-stream',
@@ -454,7 +457,7 @@ describe('QueueController', () => {
       const { res, setHeader, send } = makeRes();
 
       try {
-        await controller.getQueueMedia('abc', makeReq(), res);
+        await mediaController.getQueueMedia('abc', makeReq(), res);
         expect(setHeader).toHaveBeenCalledWith('Content-Type', 'video/mp4');
         expect(send).toHaveBeenCalledWith(mp4);
       } finally {
@@ -472,7 +475,7 @@ describe('QueueController', () => {
       const { res, setHeader, send, status } = makeRes();
 
       try {
-        await controller.getQueueMedia('abc', makeReq('bytes=2-5'), res);
+        await mediaController.getQueueMedia('abc', makeReq('bytes=2-5'), res);
 
         expect(status).toHaveBeenCalledWith(206);
         expect(setHeader).toHaveBeenCalledWith('Content-Range', 'bytes 2-5/10');
@@ -492,7 +495,7 @@ describe('QueueController', () => {
       const { res, json, send } = makeRes();
 
       try {
-        await controller.getQueueMedia('abc', makeReq(), res);
+        await mediaController.getQueueMedia('abc', makeReq(), res);
 
         expect(res.status).toHaveBeenCalledWith(404);
         expect(json).toHaveBeenCalledWith({
@@ -515,7 +518,7 @@ describe('QueueController', () => {
 
       try {
         await expect(
-          controller.getQueueMedia('abc', makeReq(), res),
+          mediaController.getQueueMedia('abc', makeReq(), res),
         ).rejects.toBe(otherErr);
       } finally {
         readFileSpy.mockRestore();

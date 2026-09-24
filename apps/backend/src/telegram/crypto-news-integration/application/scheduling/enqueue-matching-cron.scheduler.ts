@@ -169,9 +169,13 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
 
     this.isPolling = true;
     try {
-      // Step 1: Fetch + filter + match via FilteredCryptoNewsService
+      // Step 1: Fetch + filter + match via FilteredCryptoNewsService.
+      // Pinned to type=crypto-news: the unified feed also carries KOL-typed
+      // rows, which must never enter the crypto-news publisher queue.
       const matches = await this.filteredNewsService.getMatchingMessages(
         this.FETCH_LIMIT,
+        undefined,
+        'crypto-news',
       );
       this.health.recordFetchSuccess();
 

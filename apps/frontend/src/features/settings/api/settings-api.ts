@@ -113,8 +113,7 @@ export async function applyPreset(id: string): Promise<SettingsPreset> {
   );
 }
 
-export async function deletePreset(id: string): Promise<{ deleted: boolean }> {
-  return httpDelete<{ deleted: boolean }>(
-    SETTINGS_ENDPOINTS.presets.delete(id),
-  );
+export async function deletePreset(id: string): Promise<void> {
+  // Backend answers 204 No Content — no body to parse.
+  await httpDelete<void>(SETTINGS_ENDPOINTS.presets.delete(id));
 }

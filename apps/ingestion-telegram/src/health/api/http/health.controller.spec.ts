@@ -6,22 +6,20 @@ import {
   ChannelMetadata,
 } from './health.controller';
 import { StreamService } from 'stream/application/services/stream.service';
+import { TelegramClientManager } from 'core/infrastructure/services/telegram-client-manager.service';
+import { FloodWaitCounterService } from 'core/infrastructure/services/flood-wait-counter.service';
+import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
 
 /**
- * Mock TelegramClientManager interface
+ * Mock TelegramClientManager (real class shape: gap-2 honest wiring)
  *
- * Simulates the TelegramClientManager that will be injected when MTProto layer is wired.
- * Allows testing different connection states (connected/disconnected).
+ * Mirrors the minimal health contract on the real TelegramClientManager:
+ * sync isConnected/isAuthorized booleans + nullable last-poll timestamp.
  */
 interface MockTelegramClientManager {
   isConnected: jest.Mock;
   isAuthorized: jest.Mock;
   getLastPollTimestamp: jest.Mock;
-  getChannelCount: jest.Mock;
-  getActiveChannelCount: jest.Mock;
-  getKolChannelCount: jest.Mock;
-  getNewsChannelCount: jest.Mock;
-  getChannelMetadata: jest.Mock;
 }
 
 /**
@@ -50,6 +48,7 @@ describe('HealthController', () => {
   let streamService: StreamService;
   let mockClientManager: MockTelegramClientManager;
   let mockFloodWaitCounter: MockFloodWaitCounter;
+  let mockFeedSourceRepo: { findAllActiveWithTypes: jest.Mock };
 
   beforeEach(async () => {
     // Create mock implementations
@@ -59,17 +58,16 @@ describe('HealthController', () => {
       getLastPollTimestamp: jest
         .fn()
         .mockReturnValue(new Date('2026-08-30T00:00:00Z')),
-      getChannelCount: jest.fn().mockReturnValue(15),
-      getActiveChannelCount: jest.fn().mockReturnValue(15),
-      getKolChannelCount: jest.fn().mockReturnValue(10),
-      getNewsChannelCount: jest.fn().mockReturnValue(5),
-      getChannelMetadata: jest.fn().mockReturnValue([]),
     };
 
     mockFloodWaitCounter = {
       getCount24h: jest.fn().mockReturnValue(0),
       getMaxSeconds24h: jest.fn().mockReturnValue(0),
       getConsecutiveFailures: jest.fn().mockReturnValue(0),
+    };
+
+    mockFeedSourceRepo = {
+      findAllActiveWithTypes: jest.fn().mockResolvedValue([]),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -80,6 +78,18 @@ describe('HealthController', () => {
           useValue: {
             getClientCount: jest.fn().mockReturnValue(0),
           },
+        },
+        {
+          provide: TelegramClientManager,
+          useValue: mockClientManager,
+        },
+        {
+          provide: FloodWaitCounterService,
+          useValue: mockFloodWaitCounter,
+        },
+        {
+          provide: TelegramFeedSourceRepository,
+          useValue: mockFeedSourceRepo,
         },
         {
           provide: 'TelegramClientManager',
@@ -101,10 +111,18 @@ describe('HealthController', () => {
       // Arrange
       mockClientManager.isConnected.mockResolvedValue(true);
       mockClientManager.isAuthorized.mockResolvedValue(true);
-      mockClientManager.getChannelCount.mockReturnValue(15);
-      mockClientManager.getActiveChannelCount.mockReturnValue(15);
-      mockClientManager.getKolChannelCount.mockReturnValue(10);
-      mockClientManager.getNewsChannelCount.mockReturnValue(5);
+      mockFeedSourceRepo.findAllActiveWithTypes.mockResolvedValue([
+        ...Array.from({ length: 10 }, (_, i) => ({
+          channelId: `-100kol${i}`,
+          title: `KOL ${i}`,
+          type: 'kol',
+        })),
+        ...Array.from({ length: 5 }, (_, i) => ({
+          channelId: `-100news${i}`,
+          title: `News ${i}`,
+          type: 'crypto-news',
+        })),
+      ]);
       mockClientManager.getLastPollTimestamp.mockReturnValue(
         new Date('2026-08-30T00:00:00Z'),
       );
@@ -146,10 +164,18 @@ describe('HealthController', () => {
       // Arrange
       mockClientManager.isConnected.mockResolvedValue(false);
       mockClientManager.isAuthorized.mockResolvedValue(true);
-      mockClientManager.getChannelCount.mockReturnValue(15);
-      mockClientManager.getActiveChannelCount.mockReturnValue(0); // No active channels when disconnected
-      mockClientManager.getKolChannelCount.mockReturnValue(10);
-      mockClientManager.getNewsChannelCount.mockReturnValue(5);
+      mockFeedSourceRepo.findAllActiveWithTypes.mockResolvedValue([
+        ...Array.from({ length: 10 }, (_, i) => ({
+          channelId: `-100kol${i}`,
+          title: `KOL ${i}`,
+          type: 'kol',
+        })),
+        ...Array.from({ length: 5 }, (_, i) => ({
+          channelId: `-100news${i}`,
+          title: `News ${i}`,
+          type: 'crypto-news',
+        })),
+      ]);
       mockClientManager.getLastPollTimestamp.mockReturnValue(
         new Date('2026-08-30T00:00:00Z'),
       );
@@ -305,12 +331,20 @@ describe('HealthController', () => {
       expect(isNaN(lastPollDate.getTime())).toBe(false);
     });
 
-    it('should return channel statistics from TelegramClientManager (Requirement 5.2)', async () => {
+    it('should return channel statistics from the feed registry (Requirement 5.2)', async () => {
       // Arrange
-      mockClientManager.getChannelCount.mockReturnValue(25);
-      mockClientManager.getActiveChannelCount.mockReturnValue(20);
-      mockClientManager.getKolChannelCount.mockReturnValue(15);
-      mockClientManager.getNewsChannelCount.mockReturnValue(10);
+      mockFeedSourceRepo.findAllActiveWithTypes.mockResolvedValue([
+        ...Array.from({ length: 15 }, (_, i) => ({
+          channelId: `-100kol${i}`,
+          title: `KOL ${i}`,
+          type: 'kol',
+        })),
+        ...Array.from({ length: 10 }, (_, i) => ({
+          channelId: `-100news${i}`,
+          title: `News ${i}`,
+          type: 'crypto-news',
+        })),
+      ]);
 
       const mockResponse = {
         status: jest.fn().mockReturnThis(),
@@ -324,7 +358,7 @@ describe('HealthController', () => {
       const response = mockResponse.json.mock.calls[0][0];
       expect(response.channels).toEqual({
         total: 25,
-        active: 20,
+        active: 25,
         kol: 15,
         news: 10,
       });
@@ -501,28 +535,20 @@ describe('HealthController', () => {
   });
 
   describe('getChannels', () => {
-    it('should return array of channel metadata (Requirement 5.3)', async () => {
+    it('should return array of channel metadata from the feed registry (Requirement 5.3)', async () => {
       // Arrange
-      const mockChannels: ChannelMetadata[] = [
+      mockFeedSourceRepo.findAllActiveWithTypes.mockResolvedValue([
         {
-          id: '-1001234567890',
+          channelId: '-1001234567890',
           title: 'Crypto News Channel',
-          handle: '@cryptonews',
-          participantCount: 15000,
           type: 'crypto-news',
-          joinedAt: '2026-01-01T00:00:00Z',
         },
         {
-          id: '-1009876543210',
+          channelId: '-1009876543210',
           title: 'KOL Alpha Signals',
-          handle: '@kolalpha',
-          participantCount: 5000,
           type: 'kol',
-          joinedAt: '2026-02-01T00:00:00Z',
         },
-      ];
-
-      mockClientManager.getChannelMetadata.mockReturnValue(mockChannels);
+      ]);
 
       // Act
       const result: ChannelMetadata[] = await controller.getChannels();
@@ -530,12 +556,19 @@ describe('HealthController', () => {
       // Assert
       expect(Array.isArray(result)).toBe(true);
       expect(result.length).toBe(2);
-      expect(result).toEqual(mockChannels);
+      expect(result).toEqual([
+        {
+          id: '-1001234567890',
+          title: 'Crypto News Channel',
+          type: 'crypto-news',
+        },
+        { id: '-1009876543210', title: 'KOL Alpha Signals', type: 'kol' },
+      ]);
     });
 
     it('should return empty array when no channels seeded', async () => {
       // Arrange
-      mockClientManager.getChannelMetadata.mockReturnValue([]);
+      mockFeedSourceRepo.findAllActiveWithTypes.mockResolvedValue([]);
 
       // Act
       const result = await controller.getChannels();
@@ -547,18 +580,9 @@ describe('HealthController', () => {
 
     it('should return channels with correct metadata structure (Requirement 5.3)', async () => {
       // Arrange
-      const mockChannels: ChannelMetadata[] = [
-        {
-          id: '-1001234567890',
-          title: 'Test Channel',
-          handle: '@testchannel',
-          participantCount: 1000,
-          type: 'kol',
-          joinedAt: '2026-01-15T10:30:00Z',
-        },
-      ];
-
-      mockClientManager.getChannelMetadata.mockReturnValue(mockChannels);
+      mockFeedSourceRepo.findAllActiveWithTypes.mockResolvedValue([
+        { channelId: '-1001234567890', title: 'Test Channel', type: 'kol' },
+      ]);
 
       // Act
       const result = await controller.getChannels();
@@ -574,54 +598,31 @@ describe('HealthController', () => {
       expect(result[0].id).toBe('-1001234567890');
       expect(result[0].title).toBe('Test Channel');
       expect(result[0].type).toBe('kol');
-
-      // Verify optional fields when present
-      expect(result[0].handle).toBe('@testchannel');
-      expect(result[0].participantCount).toBe(1000);
-      expect(result[0].joinedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     });
 
-    it('should handle channels with missing optional fields', async () => {
+    it('should fail open with empty array when the registry read throws', async () => {
       // Arrange
-      const mockChannels: ChannelMetadata[] = [
-        {
-          id: '-1001234567890',
-          title: 'Minimal Channel',
-          type: 'crypto-news',
-        },
-      ];
-
-      mockClientManager.getChannelMetadata.mockReturnValue(mockChannels);
+      mockFeedSourceRepo.findAllActiveWithTypes.mockRejectedValue(
+        new Error('DB down'),
+      );
 
       // Act
       const result = await controller.getChannels();
 
       // Assert
-      expect(result.length).toBe(1);
-      expect(result[0].id).toBe('-1001234567890');
-      expect(result[0].title).toBe('Minimal Channel');
-      expect(result[0].type).toBe('crypto-news');
-      expect(result[0].handle).toBeUndefined();
-      expect(result[0].participantCount).toBeUndefined();
-      expect(result[0].joinedAt).toBeUndefined();
+      expect(result).toEqual([]);
     });
 
     it('should validate channel type is either kol or crypto-news', async () => {
       // Arrange
-      const mockChannels: ChannelMetadata[] = [
+      mockFeedSourceRepo.findAllActiveWithTypes.mockResolvedValue([
+        { channelId: '-1001111111111', title: 'KOL Channel', type: 'kol' },
         {
-          id: '-1001111111111',
-          title: 'KOL Channel',
-          type: 'kol',
-        },
-        {
-          id: '-1002222222222',
+          channelId: '-1002222222222',
           title: 'News Channel',
           type: 'crypto-news',
         },
-      ];
-
-      mockClientManager.getChannelMetadata.mockReturnValue(mockChannels);
+      ]);
 
       // Act
       const result = await controller.getChannels();
@@ -634,23 +635,27 @@ describe('HealthController', () => {
 
     it('should handle large number of channels', async () => {
       // Arrange
-      const mockChannels: ChannelMetadata[] = Array.from(
-        { length: 100 },
-        (_, i) => ({
-          id: `-100${i}`,
-          title: `Channel ${i}`,
-          type: i % 2 === 0 ? ('kol' as const) : ('crypto-news' as const),
-        }),
-      );
-
-      mockClientManager.getChannelMetadata.mockReturnValue(mockChannels);
+      const sources: Array<{
+        channelId: string;
+        title: string;
+        type: 'kol' | 'crypto-news';
+      }> = Array.from({ length: 100 }, (_, i) => ({
+        channelId: `-100${i}`,
+        title: `Channel ${i}`,
+        type: i % 2 === 0 ? 'kol' : 'crypto-news',
+      }));
+      mockFeedSourceRepo.findAllActiveWithTypes.mockResolvedValue(sources);
 
       // Act
       const result = await controller.getChannels();
 
       // Assert
       expect(result.length).toBe(100);
-      expect(result).toEqual(mockChannels);
+      expect(result[0]).toEqual({
+        id: '-1000',
+        title: 'Channel 0',
+        type: 'kol',
+      });
     });
   });
 
@@ -692,7 +697,7 @@ describe('HealthController', () => {
       expect(Number.isNaN(response.uptime)).toBe(false);
     });
 
-    it('should handle TelegramClientManager async errors gracefully', async () => {
+    it('should degrade (503) when TelegramClientManager probe fails instead of throwing', async () => {
       // Arrange
       mockClientManager.isConnected.mockRejectedValue(
         new Error('Connection check failed'),
@@ -703,10 +708,17 @@ describe('HealthController', () => {
         json: jest.fn(),
       } as any;
 
-      // Act & Assert
-      await expect(controller.getHealth(mockResponse)).rejects.toThrow(
-        'Connection check failed',
+      // Act
+      await controller.getHealth(mockResponse);
+
+      // Assert - honest degraded, never a 500/throw and never fake-healthy
+      expect(mockResponse.status).toHaveBeenCalledWith(
+        HttpStatus.SERVICE_UNAVAILABLE,
       );
+      const response = mockResponse.json.mock.calls[0][0];
+      expect(response.status).toBe('degraded');
+      expect(response.mtproto.connected).toBe(false);
+      expect(response.warnings).toContain('mtproto-connected-probe-failed');
     });
   });
 
@@ -784,6 +796,122 @@ describe('HealthController', () => {
       // Should be a valid date
       const date = new Date(response.mtproto.lastPollAt);
       expect(isNaN(date.getTime())).toBe(false);
+    });
+
+    it('should omit lastPollAt instead of faking now when no poll clock exists', async () => {
+      // Arrange
+      mockClientManager.getLastPollTimestamp.mockReturnValue(null);
+
+      const mockResponse = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      } as any;
+
+      // Act
+      await controller.getHealth(mockResponse);
+
+      // Assert
+      const response = mockResponse.json.mock.calls[0][0];
+      expect('lastPollAt' in response.mtproto).toBe(false);
+    });
+  });
+
+  describe('honest wiring (gap 2)', () => {
+    it('should degrade with a reason when TelegramClientManager is not wired', async () => {
+      // Arrange
+      const unwired = new HealthController(
+        { getClientCount: () => 0 } as StreamService,
+        undefined,
+        undefined,
+        undefined,
+      );
+
+      const mockResponse = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      } as any;
+
+      // Act
+      await unwired.getHealth(mockResponse);
+
+      // Assert - never fake-healthy
+      expect(mockResponse.status).toHaveBeenCalledWith(
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+      const response = mockResponse.json.mock.calls[0][0];
+      expect(response.status).toBe('degraded');
+      expect(response.mtproto.connected).toBe(false);
+      expect(response.mtproto.authorized).toBe(false);
+      expect(response.warnings).toContain('mtproto-manager-unavailable');
+      expect(response.channels).toEqual({
+        total: 0,
+        active: 0,
+        kol: 0,
+        news: 0,
+      });
+    });
+
+    it('should zero channels with a warning when the registry read fails', async () => {
+      // Arrange
+      mockFeedSourceRepo.findAllActiveWithTypes.mockRejectedValue(
+        new Error('DB down'),
+      );
+
+      const mockResponse = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      } as any;
+
+      // Act
+      await controller.getHealth(mockResponse);
+
+      // Assert
+      const response = mockResponse.json.mock.calls[0][0];
+      expect(response.channels).toEqual({
+        total: 0,
+        active: 0,
+        kol: 0,
+        news: 0,
+      });
+      expect(response.warnings).toContain('channel-registry-read-failed');
+    });
+
+    it('should omit floodWait when FloodWaitCounter is not wired', async () => {
+      // Arrange
+      const noCounter = new HealthController(
+        { getClientCount: () => 0 } as StreamService,
+        mockClientManager as unknown as TelegramClientManager,
+        undefined,
+        mockFeedSourceRepo as unknown as TelegramFeedSourceRepository,
+      );
+
+      const mockResponse = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      } as any;
+
+      // Act
+      await noCounter.getHealth(mockResponse);
+
+      // Assert
+      const response = mockResponse.json.mock.calls[0][0];
+      expect('floodWait' in response).toBe(false);
+    });
+
+    it('should always expose imageRevision without changing the shape', async () => {
+      // Arrange
+      const mockResponse = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      } as any;
+
+      // Act
+      await controller.getHealth(mockResponse);
+
+      // Assert - additive-only T2 field, defaults to unknown
+      const response = mockResponse.json.mock.calls[0][0];
+      expect(typeof response.imageRevision).toBe('string');
+      expect(response.imageRevision.length).toBeGreaterThan(0);
     });
   });
 });

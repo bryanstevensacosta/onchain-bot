@@ -76,6 +76,22 @@ export async function httpPatch<TBody, TResp = unknown>(
   return (await res.json()) as TResp;
 }
 
+export async function httpPut<TBody, TResp = unknown>(
+  path: string,
+  body: TBody,
+): Promise<TResp> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new HttpError(res.status, text, `PUT ${path} → ${res.status}`);
+  }
+  return (await res.json()) as TResp;
+}
+
 export async function httpDelete<TResp = unknown>(
   path: string,
 ): Promise<TResp> {
@@ -84,5 +100,15 @@ export async function httpDelete<TResp = unknown>(
     const text = await res.text().catch(() => '');
     throw new HttpError(res.status, text, `DELETE ${path} → ${res.status}`);
   }
-  return (await res.json()) as TResp;
+  // Several backend DELETEs answer 204 No Content (crypto-news filters,
+  // publisher keywords/blacklist/queue, settings presets) — there is no
+  // body to parse, so resolve undefined instead of throwing on res.json().
+  if (res.status === 204) {
+    return undefined as TResp;
+  }
+  const text = await res.text().catch(() => '');
+  if (!text) {
+    return undefined as TResp;
+  }
+  return JSON.parse(text) as TResp;
 }
