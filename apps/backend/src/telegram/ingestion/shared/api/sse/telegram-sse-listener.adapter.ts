@@ -67,6 +67,7 @@ export class TelegramSseListenerAdapter
 {
   private readonly logger = new Logger(TelegramSseListenerAdapter.name);
   private readonly ingestionServiceUrl: string;
+  private readonly ingestionApiKey: string;
   private abortController: AbortController | null = null;
   private reconnectAttempts = 0;
   private readonly maxReconnectDelay: number;
@@ -78,6 +79,13 @@ export class TelegramSseListenerAdapter
     this.ingestionServiceUrl =
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       appConfig?.ingestion?.serviceUrl || 'http://localhost:3031';
+    const rawApiKey =
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      appConfig?.ingestion?.apiKey;
+    this.ingestionApiKey =
+      typeof rawApiKey === 'string' && rawApiKey.trim().length > 0
+        ? rawApiKey.trim()
+        : '';
 
     // SSE reconnect backoff knobs (fail-soft to 1000/30000 when unconfigured,
     // mirroring app.cryptoNews.pollingIntervalMinutes validation).
@@ -108,6 +116,16 @@ export class TelegramSseListenerAdapter
 
   async onModuleDestroy(): Promise<void> {
     await this.disconnect();
+  }
+
+  private buildSseHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      Accept: 'text/event-stream',
+    };
+    if (this.ingestionApiKey.length > 0) {
+      headers['x-api-key'] = this.ingestionApiKey;
+    }
+    return headers;
   }
 
   /**
@@ -166,7 +184,7 @@ export class TelegramSseListenerAdapter
     this.abortController = new AbortController();
 
     const response = await fetch(url, {
-      headers: { Accept: 'text/event-stream' },
+      headers: this.buildSseHeaders(),
       signal: this.abortController.signal,
     });
 
@@ -347,7 +365,7 @@ export class TelegramSseListenerAdapter
 
     try {
       const response = await fetch(backfillUrl, {
-        headers: { Accept: 'text/event-stream' },
+        headers: this.buildSseHeaders(),
         signal: abortController.signal,
       });
 

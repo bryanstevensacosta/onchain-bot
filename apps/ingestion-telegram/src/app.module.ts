@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LoggerModule } from 'nestjs-pino';
 import { appConfig } from './shared/common/config/app.config';
+import { ApiKeyGuard } from './shared/common/auth/api-key.guard';
 import { SharedModule } from './core/shared.module';
 import { StreamModule } from './stream/stream.module';
 import { MediaModule } from './media/media.module';
@@ -114,6 +116,11 @@ import { TelegramFeedMessageMediaEntity } from './feed/infrastructure/persistenc
 
     // Telegram ingestion (MTProto + coordinator)
     CoreModule,
+  ],
+  providers: [
+    // Partial API-key auth (gap 19): global guard, allow-all when
+    // INGESTION_API_KEY is unset (dev/e2e), 401 on protected routes when set.
+    { provide: APP_GUARD, useClass: ApiKeyGuard },
   ],
 })
 export class AppModule {}

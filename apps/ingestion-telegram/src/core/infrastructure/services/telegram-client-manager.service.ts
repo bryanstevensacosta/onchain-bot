@@ -138,4 +138,31 @@ export class TelegramClientManager {
   isAuthorized(): boolean {
     return this.authorizedAtLeastOnce;
   }
+
+  /**
+   * Honest connectivity probe for HealthController (gap 2).
+   *
+   * Returns true only when a live GramJS client reports a connected
+   * transport. Never throws: missing/misconfigured client reads as false
+   * so /api/health degrades instead of 500ing.
+   */
+  isConnected(): boolean {
+    try {
+      return this.client?.connected ?? false;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Last-poll timestamp for HealthController (gap 2).
+   *
+   * No poll clock is tracked yet (polling loop has no timestamp hook),
+   * so this honestly returns null and the controller omits lastPollAt
+   * instead of faking `now`. Wire a real clock here when the polling
+   * loop records one — the controller already renders non-null values.
+   */
+  getLastPollTimestamp(): Date | null {
+    return null;
+  }
 }

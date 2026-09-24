@@ -31,6 +31,7 @@ export class FloodWaitHandlerService {
       try {
         const result = await fn();
         this.consecutiveFailures = 0;
+        this.counter.recordSuccess();
         return result;
       } catch (err) {
         const seconds = this.extractWaitSeconds(err);
@@ -76,6 +77,7 @@ export class FloodWaitHandlerService {
   public resetPause(): void {
     this.pausedUntil = null;
     this.consecutiveFailures = 0;
+    this.counter.recordSuccess();
   }
 
   private extractWaitSeconds(err: unknown): number | null {

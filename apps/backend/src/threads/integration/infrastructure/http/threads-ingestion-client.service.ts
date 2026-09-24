@@ -80,15 +80,31 @@ export interface ThreadsMessageDto {
 export class ThreadsIngestionClient {
   private readonly logger = new Logger(ThreadsIngestionClient.name);
   private readonly baseUrl: string;
+  private readonly apiKey: string;
   private readonly timeout: number = 10000; // 10 seconds
 
   constructor(private readonly config: ConfigService) {
     const appConfig = this.config.get('app');
     this.baseUrl = appConfig?.ingestion?.serviceUrl || 'http://localhost:3031';
+    const rawApiKey = appConfig?.ingestion?.apiKey;
+    this.apiKey =
+      typeof rawApiKey === 'string' && rawApiKey.trim().length > 0
+        ? rawApiKey.trim()
+        : '';
 
     this.logger.log(
       `ThreadsIngestionClient initialized with baseUrl: ${this.baseUrl}`,
     );
+  }
+
+  private buildHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (this.apiKey.length > 0) {
+      headers['x-api-key'] = this.apiKey;
+    }
+    return headers;
   }
 
   /**
@@ -144,7 +160,7 @@ export class ThreadsIngestionClient {
 
       const response = await fetch(url, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.buildHeaders(),
         signal: controller.signal,
       });
 
@@ -201,7 +217,7 @@ export class ThreadsIngestionClient {
 
       const response = await fetch(url, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.buildHeaders(),
         signal: controller.signal,
       });
 

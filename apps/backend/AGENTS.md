@@ -1,6 +1,6 @@
 # apps/backend/ — NestJS Knowledge Base
 
-> Verified 2026-09-04 against code. v1.2.0 (source of truth: apps/backend/package.json + CHANGELOG; verified 2026-09-20). Supersedes the "19 BCs / 48 entities / vip-calls-channel" claims.
+> Verified 2026-09-04 against code. v1.3.0 (source of truth: apps/backend/package.json + CHANGELOG; verified 2026-09-24). Supersedes the "19 BCs / 48 entities / vip-calls-channel" claims.
 
 Contents: OVERVIEW · COMMANDS · STRUCTURE · MODULES · INGESTION · KOL DOMAIN · CRYPTO-NEWS · PUBLISHING ·
 PIPELINE · SCORING & GATES · HTTP ROUTES · SCHEDULERS · SHARED INFRA · PERSISTENCE ·
@@ -42,7 +42,6 @@ npm run lint               # eslint "{src,test}/**/*.ts" --fix
 ```
 src/
 ├── main.ts                     # bootstrap() at :85 (NOT :38) — DEBUG scaffolding, 120 s startup timeout
-├── main-debug.ts, main.backup.ts, test-new.ts   # ⚠️ stray files, not wired
 ├── app.module.ts               # 22 active modules + 2 commented (Dashboard, Identity)
 ├── app.controller.ts / app.service.ts / app.controller.spec.ts
 ├── token/ {intake/{extraction,parsing}, normalization, enrichment, classification,
@@ -617,7 +616,7 @@ Trust this section over README §4.
   (`DomainErrorFilter`), `kernel/` (AggregateRoot/Entity/ValueObject/DomainEvent/DomainError).
 - Root providers: `DevBackfillHook`, `FilteredBootstrapLogger`, `ConfigConnectivityService`.
 - Env files: `.env`, `.env.dev` (+ `.dev.backup-20260901-052702`), `.env.staging`,
-  `.env.{staging,production}.template` — NO `.env.example` at backend root.
+  `.env.{staging,production}.template`, `.env.example` (template inventory of ingestion/SSE knobs — copy to `.env`/`.env.dev`).
 - `jest.setup.ts`: loads `.env`, forces `DATABASE_ENABLED=true` (tests always hit Postgres).
 
 ## PERSISTENCE — 39 ENTITIES (split 2026-09-08; was 41)
@@ -678,6 +677,15 @@ Infra: `PORT=3000`, `DATABASE_{ENABLED=false,POSTGRES_*,SYNCHRONIZE=true,LOGGING
 The retired `INGESTION_REMOTE_URL` is already gone from the template (only `INGESTION_TELEGRAM_URL` is read, gap 21); the migration banner + `validate-session-migration.sh` reference (`:67`) are stale leftovers.
 Backend MTProto creds were removed from `src` entirely (see above); MTProto sessions must live ONLY in ingestion-telegram (AUTH_KEY_DUPLICATED otherwise).
 
+**Feed identity auth (master sync d2938003):** `kol/identity/infrastructure/http/feed-identity-http-client.ts`
+(+ `feed-identity-http-client.spec.ts`) sends optional `x-api-key` via `buildHeaders()` — empty key = keyless
+dev keeps working (fail-open `[]` on transport/shape errors). Key resolved in `shared/common/config/`
+(`app.config.ts:resolveIngestionApiKey()` from `INGESTION_TELEGRAM_API_KEY`, trimmed, default `''` as
+`ingestion.apiKey`). Templates: new `.env.example` documents `INGESTION_TELEGRAM_URL` + `INGESTION_TELEGRAM_API_KEY`
+
+- SSE backoff knobs; `.env.production.template` / `.env.staging.template` add optional `INGESTION_TELEGRAM_API_KEY=`
+  (ingestion side: `INGESTION_API_KEY`).
+
 ## LOGGING
 
 pino-roll daily files (`logging.dir/fileName`, `limit count:1`) in dev/prod; plain stdout in staging.
@@ -689,7 +697,7 @@ pino-roll daily files (`logging.dir/fileName`, `limit count:1`) in dev/prod; pla
 2. **MTProto branch deleted from backend `src`** (no `INGESTION_TELEGRAM_MTPROTO_*` reader, no adapter file — verified by grep): `useSse` defaults **true**, and an explicit `USE_SSE_INGESTION=false` no longer revives MTProto (`SharedIngestionModule` throws `410 Gone`), it just breaks ingestion until fixed. Staging/prod run SSE via env + compose `environment:`.
 3. **(Consolidated 2026-09-04)** `src/telegram/AGENTS.md` deleted after migration; its stale paths (`vip-calls-channel/`, MTProto-as-current) died with it. Per-BC READMEs still carry the same rot (gap 22).
 4. **Counts drift**: backend README says "16 BCs" (actually 22 wired), "306 tests", "46 KOLs seed", publishing "via MTProto" (it's Bot API) — README needs the same pass.
-5. **Stray files**: `src/main-debug.ts`, `main.backup.ts`, `test-new.ts` — delete or document.
+5. ~~**Stray files**~~ **RESOLVED (Carril 1, 2026-09-24)**: `src/main-debug.ts`, `main.backup.ts`, `test-new.ts` no existen en el árbol (glob+grep limpios) — nada que borrar.
 6. **Side-by-side spec cites `INGESTION_MODE`** — nonexistent; real flags `USE_SSE_INGESTION`/`USE_MOCK_INGESTION`.
 7. **`IdentityModule`/cross-BC imports in 7+ places** (reputation, kol-ingestion, shared-ingestion, telegram-ingestion, dashboard import IdentityModule; chain-dexter imports chain/detection + token/enrichment use cases; call-tracking imports `SettingsService`) — the no-BC-import rule is dead letter. Either legitimize shared-kernel imports or cut them.
 8. **Two controllers share `@Controller('chain-dexter')`** (`webhook.controller`: `POST webhook|health`; `chain-dexter.controller`: `GET token`) — paths don't collide today, but split ownership of one prefix confuses routing audits. Merge or re-prefix.

@@ -2,6 +2,7 @@ import {
   httpGet,
   httpPost,
   httpPatch,
+  httpPut,
   httpDelete,
 } from '@/shared/api/http-client';
 
@@ -144,12 +145,13 @@ export async function createFilter(
 
 /**
  * Update an existing content filter.
+ * Backend serves PUT /crypto-news/filters/:id (no PATCH route).
  */
 export async function updateFilter(
   id: string,
   dto: UpdateFilterDto,
 ): Promise<ContentFilter> {
-  return httpPatch<UpdateFilterDto, ContentFilter>(
+  return httpPut<UpdateFilterDto, ContentFilter>(
     `/crypto-news/filters/${id}`,
     dto,
   );

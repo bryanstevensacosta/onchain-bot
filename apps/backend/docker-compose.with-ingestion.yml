@@ -67,8 +67,8 @@ services:
       # invent the file here (documented, todo 7).
       - ../ingestion-telegram/.env.production
     environment:
-      # Server
-      PORT: 3031
+      # Server (canonical: INGESTION_PORT — gap 12 unification)
+      INGESTION_PORT: 3031
       HOST: 0.0.0.0
       NODE_ENV: production
       # Redis connection (shared with backend)

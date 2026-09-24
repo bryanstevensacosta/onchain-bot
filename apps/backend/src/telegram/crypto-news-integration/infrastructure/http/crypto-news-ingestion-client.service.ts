@@ -67,6 +67,15 @@ export interface CryptoNewsSourceDto {
 }
 
 /**
+ * Feed message type accepted by ingestion-telegram `GET /api/feed/messages`.
+ *
+ * Server validates `?type=` at SQL level (`kol | crypto-news`, 400 otherwise;
+ * mixed when omitted). Typed as a union — NOT string — so an invalid type can
+ * never be sent (fails at compile time, never at runtime).
+ */
+export type CryptoNewsFeedMessageType = 'kol' | 'crypto-news';
+
+/**
  * CryptoNewsIngestionClient - HTTP client for ingestion-telegram API
  *
  * **Per Opción A architecture:**
@@ -76,8 +85,8 @@ export interface CryptoNewsSourceDto {
  * - This client provides low-level HTTP fetch; filtering is done by consumers
  *
  * **Endpoints consumed:**
- * - GET /api/feed/messages?limit=N&channelId=X — recent messages (RAW content)
- * - GET /api/feed/messages/channel/:channelId?limit=N — messages by channel
+ * - GET /api/feed/messages?limit=N&channelId=X&type=crypto-news — recent messages (RAW content)
+ * - GET /api/feed/messages/channel/:channelId?limit=N&type=crypto-news — messages by channel
  * - GET /api/feed/sources — all active sources
  * - GET /api/feed/sources/active/ids — channel IDs only
  * - GET /api/feed/stats — message/source counts
@@ -135,21 +144,28 @@ export class CryptoNewsIngestionClient {
    *
    * @param limit - Max messages to fetch (default 50, max 200)
    * @param channelId - Optional channel filter
+   * @param type - Optional feed-type pin (`kol` | `crypto-news`). Stays
+   * `undefined` (mixed, backward compatible) unless the caller pins it —
+   * the crypto-news MATCHING flow must pass `'crypto-news'` so KOL-typed
+   * rows sharing the feed can never enter the publisher queue. Other
+   * consumers may legitimately want both, hence the mixed default.
    * @returns Array of raw messages (empty on error)
    */
   async fetchRecentMessages(
     limit = 50,
     channelId?: string,
+    type?: CryptoNewsFeedMessageType,
   ): Promise<ReadonlyArray<CryptoNewsMessageDto>> {
     try {
       const params = new URLSearchParams();
       params.set('limit', String(Math.min(limit, 200)));
       if (channelId) params.set('channelId', channelId);
+      if (type) params.set('type', type);
 
       const url = `${this.baseUrl}/api/feed/messages?${params.toString()}`;
 
       this.logger.debug(
-        `Fetching messages from ingestion-telegram: ${url} (limit: ${limit}, channelId: ${channelId ?? 'all'})`,
+        `Fetching messages from ingestion-telegram: ${url} (limit: ${limit}, channelId: ${channelId ?? 'all'}, type: ${type ?? 'mixed'})`,
       );
 
       const controller = new AbortController();
@@ -196,17 +212,25 @@ export class CryptoNewsIngestionClient {
    *
    * @param channelId - Telegram channel ID (e.g., "-1001234567890")
    * @param limit - Max messages (default 50, max 200)
+   * @param type - Optional feed-type pin (`kol` | `crypto-news`). Same
+   * mixed-by-default contract as fetchRecentMessages; the per-channel
+   * endpoint ignores unknown query params server-side today, so sending
+   * `type` is harmless and forward-compatible with a future server filter.
    * @returns Array of raw messages (empty on error)
    */
   async fetchMessagesByChannel(
     channelId: string,
     limit = 50,
+    type?: CryptoNewsFeedMessageType,
   ): Promise<ReadonlyArray<CryptoNewsMessageDto>> {
     try {
-      const url = `${this.baseUrl}/api/feed/messages/channel/${encodeURIComponent(channelId)}?limit=${Math.min(limit, 200)}`;
+      const params = new URLSearchParams();
+      params.set('limit', String(Math.min(limit, 200)));
+      if (type) params.set('type', type);
+      const url = `${this.baseUrl}/api/feed/messages/channel/${encodeURIComponent(channelId)}?${params.toString()}`;
 
       this.logger.debug(
-        `Fetching messages by channel from ingestion-telegram: ${channelId} (limit: ${limit})`,
+        `Fetching messages by channel from ingestion-telegram: ${channelId} (limit: ${limit}, type: ${type ?? 'mixed'})`,
       );
 
       const controller = new AbortController();

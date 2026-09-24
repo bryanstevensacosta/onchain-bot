@@ -96,6 +96,7 @@ _\*dev exception: maintainers may temporarily enable force-push for **backport s
 - **Target:** `master` branch
 - **Rules:** Requires PR, blocks deletion, blocks non-fast-forward, squash merge only
 - **Enforcement:** Active
+- **Bypass:** none since 2026-09-24 (`bypass_actors: []`, `current_user_can_bypass: never` — operator decision `can_admins_bypass=false`; legacy `enforce_admins: true` already blocked admins at the branch-protection layer)
 
 ---
 
@@ -159,6 +160,27 @@ git cherry-pick <squash-commit-hash-of-hotfix>
 gh pr create --base dev --head backport/hotfix-... --title "backport: hotfix #ISSUE"
 # Squash merge to dev
 ```
+
+### 5.1 Hotfix exemption — staging-green waiver (operator decision 2026-09-24)
+
+A hotfix may merge to `master` **without pre-merge green staging** (the only
+exemption to the staging-green merge gate in `.github/pull_request_template.md`).
+No admin bypass is involved at any point: `can_admins_bypass=false` (Master
+ruleset `bypass_actors: []` + legacy `enforce_admins: true`), so the hotfix
+still merges via PR with all 5 CI checks green.
+
+- **Named approver:** the operator (`@bryanstevensacosta`). No hotfix merges
+  without their explicit approval on the PR.
+- **Mandatory compensating controls:**
+  1. Post-merge staging drill of the merged SHA (same evidence as the template:
+     staging deploy run ID, twin smoke, traffic counts).
+  2. Shortened — never skipped — bake window after the prod deploy.
+  3. Follow-up PR via the normal lane (`dev → master` with full staging
+     evidence) within 24h.
+- **Waiver record location:** the incident issue (e.g. `hotfix: ... — Fix for
+#ISSUE`) holds the waiver: approver, merged SHA, substitute post-merge
+  evidence (staging drill run ID + counts), and the follow-up PR link. The PR
+  body must tick the template's "Hotfix waiver" boxes pointing at that issue.
 
 ---
 

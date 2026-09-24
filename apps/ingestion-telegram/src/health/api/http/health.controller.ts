@@ -3,11 +3,14 @@ import {
   Get,
   Logger,
   HttpStatus,
-  Inject,
+  Optional,
   Res,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { StreamService } from 'stream/application/services/stream.service';
+import { TelegramClientManager } from 'core/infrastructure/services/telegram-client-manager.service';
+import { FloodWaitCounterService } from 'core/infrastructure/services/flood-wait-counter.service';
+import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
 
 /**
  * Health check response interface
@@ -37,6 +40,10 @@ export interface HealthResponse {
     consecutiveFailures: number;
   };
   uptime: number; // milliseconds
+  // T2 version-match (prod-safety-gates item 2): additive-only served image
+  // revision (build-time IMAGE_REVISION, 'unknown' when unbaked). Optional so
+  // pre-T2 health consumers and strict-shape validators keep working.
+  imageRevision?: string;
 }
 
 /**
@@ -66,37 +73,18 @@ export interface ChannelMetadata {
  * - GET /api/health/live - Kubernetes liveness probe
  * - GET /api/health/channels - Channel metadata list
  *
+ * Wiring (gap 2): injects the REAL TelegramClientManager,
+ * FloodWaitCounterService and TelegramFeedSourceRepository (all @Global via
+ * SharedModule) with @Optional safe fallbacks. Missing/downstream-failure
+ * reads as degraded with a warnings[] reason — never fake-healthy.
+ *
+ * MetricsService is deliberately NOT wired here: nobody feeds it (gap 4 —
+ * all gauges sit at 0), so surfacing it would imply live metrics that do
+ * not exist. Flood-wait health comes straight from FloodWaitCounterService;
+ * Prometheus stays the metrics source via GET /metrics.
+ *
  * @controller Handles /api/health routes
  */
-/**
- * TelegramClientManager interface stub
- *
- * This interface will be satisfied by the actual TelegramClientManager
- * when the MTProto layer is wired into the ingestion service.
- */
-export interface TelegramClientManager {
-  isConnected(): Promise<boolean>;
-  isAuthorized(): Promise<boolean>;
-  getLastPollTimestamp(): Date | null;
-  getChannelCount(): number;
-  getActiveChannelCount(): number;
-  getKolChannelCount(): number;
-  getNewsChannelCount(): number;
-  getChannelMetadata(): ChannelMetadata[];
-}
-
-/**
- * FloodWaitCounter interface stub
- *
- * This interface will be satisfied by the actual FloodWaitCounter
- * when anti-ban protection is wired.
- */
-export interface FloodWaitCounter {
-  getCount24h(): number;
-  getMaxSeconds24h(): number;
-  getConsecutiveFailures(): number;
-}
-
 @Controller('api/health')
 export class HealthController {
   private readonly logger = new Logger(HealthController.name);
@@ -104,10 +92,9 @@ export class HealthController {
 
   constructor(
     private readonly streamService: StreamService,
-    @Inject('TelegramClientManager')
-    private readonly clientManager?: TelegramClientManager,
-    @Inject('FloodWaitCounter')
-    private readonly floodWaitCounter?: FloodWaitCounter,
+    @Optional() private readonly clientManager?: TelegramClientManager,
+    @Optional() private readonly floodWaitCounter?: FloodWaitCounterService,
+    @Optional() private readonly feedSourceRepo?: TelegramFeedSourceRepository,
   ) {
     this.startTime = Date.now();
   }
@@ -123,32 +110,90 @@ export class HealthController {
    */
   @Get()
   async getHealth(@Res() res: Response): Promise<void> {
-    // Per Requirement 5.4, 5.5: Check MTProto connection status
-    const mtprotoConnected = this.clientManager
-      ? await this.clientManager.isConnected()
-      : true; // Fallback for when not wired yet
-    const mtprotoAuthorized = this.clientManager
-      ? await this.clientManager.isAuthorized()
-      : true; // Fallback for when not wired yet
+    // Per Requirement 5.4, 5.5: Check MTProto connection status.
+    // Honest fallback: no manager (or a throwing probe) means we cannot
+    // prove connectivity, so report disconnected + degraded with a reason.
+    const warnings: string[] = [];
+    let mtprotoConnected = false;
+    let mtprotoAuthorized = false;
+    let lastPollAt: string | undefined;
+
+    if (!this.clientManager) {
+      warnings.push('mtproto-manager-unavailable');
+    } else {
+      try {
+        mtprotoConnected = await Promise.resolve(
+          this.clientManager.isConnected(),
+        );
+      } catch (err) {
+        warnings.push('mtproto-connected-probe-failed');
+        this.logger.warn(
+          `isConnected() probe failed: ${(err as Error).message}`,
+        );
+      }
+      try {
+        mtprotoAuthorized = await Promise.resolve(
+          this.clientManager.isAuthorized(),
+        );
+      } catch (err) {
+        warnings.push('mtproto-authorized-probe-failed');
+        this.logger.warn(
+          `isAuthorized() probe failed: ${(err as Error).message}`,
+        );
+      }
+      try {
+        const lastPoll = this.clientManager.getLastPollTimestamp();
+        if (lastPoll) lastPollAt = lastPoll.toISOString();
+      } catch (err) {
+        warnings.push('mtproto-last-poll-probe-failed');
+        this.logger.warn(
+          `getLastPollTimestamp() probe failed: ${(err as Error).message}`,
+        );
+      }
+    }
+
+    if (!mtprotoConnected) warnings.push('mtproto-disconnected');
+    if (mtprotoConnected && !mtprotoAuthorized)
+      warnings.push('mtproto-unauthorized');
 
     const status = mtprotoConnected && mtprotoAuthorized ? 'ok' : 'degraded';
 
-    const warnings: string[] = [];
+    // Honest channel counts from the local feed registry (fail-open []).
+    let total = 0;
+    let kol = 0;
+    let news = 0;
+    if (!this.feedSourceRepo) {
+      warnings.push('channel-registry-unavailable');
+    } else {
+      try {
+        const sources = await this.feedSourceRepo.findAllActiveWithTypes();
+        total = sources.length;
+        kol = sources.filter((s) => s.type !== 'crypto-news').length;
+        news = sources.filter((s) => s.type === 'crypto-news').length;
+      } catch (err) {
+        warnings.push('channel-registry-read-failed');
+        this.logger.warn(
+          `findAllActiveWithTypes() failed: ${(err as Error).message}`,
+        );
+      }
+    }
 
     const response: HealthResponse = {
       status,
+      // Served revision for the T2 version-match gate: read straight from the
+      // environment (same source app.config exposes) so no DI change is needed
+      // and HealthModule/spec wiring stays untouched. Never blocks: 'unknown'.
+      imageRevision: (process.env.IMAGE_REVISION || '').trim() || 'unknown',
       mtproto: {
         connected: mtprotoConnected,
         authorized: mtprotoAuthorized,
-        lastPollAt:
-          this.clientManager?.getLastPollTimestamp()?.toISOString() ||
-          new Date().toISOString(),
+        ...(lastPollAt ? { lastPollAt } : {}),
       },
       channels: {
-        total: this.clientManager?.getChannelCount() || 0,
-        active: this.clientManager?.getActiveChannelCount() || 0,
-        kol: this.clientManager?.getKolChannelCount() || 0,
-        news: this.clientManager?.getNewsChannelCount() || 0,
+        total,
+        active: total,
+        kol,
+        news,
       },
       clients: {
         connected: this.streamService.getClientCount(),
@@ -163,11 +208,21 @@ export class HealthController {
 
     // Per Requirement 5.6: Include flood wait metrics when available
     if (this.floodWaitCounter) {
-      response.floodWait = {
-        count24h: this.floodWaitCounter.getCount24h(),
-        maxSeconds24h: this.floodWaitCounter.getMaxSeconds24h(),
-        consecutiveFailures: this.floodWaitCounter.getConsecutiveFailures(),
-      };
+      try {
+        response.floodWait = {
+          count24h: this.floodWaitCounter.getCount24h(),
+          maxSeconds24h: this.floodWaitCounter.getMaxSeconds24h(),
+          consecutiveFailures: this.floodWaitCounter.getConsecutiveFailures(),
+        };
+      } catch (err) {
+        response.warnings = [
+          ...(response.warnings ?? []),
+          'flood-wait-read-failed',
+        ];
+        this.logger.warn(
+          `FloodWaitCounter read failed: ${(err as Error).message}`,
+        );
+      }
     }
 
     // Per Requirement 5.4, 5.5: Set HTTP status code based on service health
@@ -223,13 +278,25 @@ export class HealthController {
    */
   @Get('channels')
   async getChannels(): Promise<ChannelMetadata[]> {
-    if (!this.clientManager) {
+    if (!this.feedSourceRepo) {
       this.logger.debug(
-        'TelegramClientManager not wired - returning empty array',
+        'TelegramFeedSourceRepository not wired - returning empty array',
       );
       return [];
     }
 
-    return this.clientManager.getChannelMetadata();
+    try {
+      const sources = await this.feedSourceRepo.findAllActiveWithTypes();
+      return sources.map((s) => ({
+        id: s.channelId,
+        title: s.title,
+        type: s.type === 'crypto-news' ? 'crypto-news' : 'kol',
+      }));
+    } catch (err) {
+      this.logger.warn(
+        `Channel registry read failed: ${(err as Error).message}`,
+      );
+      return [];
+    }
   }
 }

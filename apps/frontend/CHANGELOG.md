@@ -6,29 +6,43 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 (none yet)
 
+## [1.2.0] - 2026-09-24
+
+### Changed
+
+- Newsroom pinned to `type=crypto-news` (+ prompt-playground). (PR #247)
+- KOL page + sources read from the feed API. (PR #247)
+- `nginx.staging.conf` twin upstream. (PR #247)
+
 ## [1.1.0] - 2026-09-16
 
 ### Added
+
 - `/threads` page: keywords, per-channel content filters, queue + health + toggles, blocked list, LLM config, prompt templates, backed by `threads-publisher` hooks (10s polls, no bare query keys). (PR #227)
 
 ## [1.0.2] - 2026-09-15
 
 ### Added
+
 - Browser tab title per environment (Dev / Stage / Prod Onchain Bot). (PR #217)
 
 ### Removed
+
 - Matching health badge from the Queue section (Start/Stop buttons already convey state). (PR #217)
 
 ### Fixed
+
 - Staging bundle no longer identifies as prod (`VITE_APP_ENV` baked at build). (PR #217)
 
 ## [1.0.1] - 2026-09-12
 
 ### Added
+
 - Pipeline health status badge on crypto-news page showing real-time scheduler state (LOADING/UNKNOWN/ON-OFF) with 15-second polling. Never crashes on 404 (tolerates old backend). (PR #203)
 - `useMatchingHealth` hook for consuming pipeline health API (`GET /crypto-news/matching/health`). (PR #203)
 
 ### Fixed
+
 - Deprecated `matchingEnabled` field removed from LLM config types (backend no longer returns it). (PR #203)
 
 ## [1.0.0] - 2026-09-11

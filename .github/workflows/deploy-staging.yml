@@ -253,7 +253,11 @@ jobs:
           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-backend:cache
           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-backend:cache,mode=max
           platforms: linux/amd64,linux/arm64
+          # T2 version-match: bake run SHA (backend Dockerfile declares no such
+          # ARG, so consumed-ignored — harmless). SHA var: effective_sha (push:
+          # github.sha; chain: pinned twin head_sha), matching tags on all legs.
           build-args: |
+            IMAGE_REVISION=${{ needs.preflight.outputs.effective_sha }}
             NODE_ENV=staging
 
       - name: Build and push frontend (staging)
@@ -267,6 +271,7 @@ jobs:
           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-frontend:cache,mode=max
           platforms: linux/amd64,linux/arm64
           build-args: |
+            IMAGE_REVISION=${{ needs.preflight.outputs.effective_sha }}
             VITE_APP_ENV=staging
 
   deploy-staging:
@@ -276,6 +281,11 @@ jobs:
     if: needs.preflight.outputs.run_deploy == 'true'
     timeout-minutes: 40
     environment: staging
+    # T4 auto-rollback contract (mirror of deploy.yml prod): smoke_entered is
+    # true once the post-deploy smoke phase starts — only post-smoke-rojo
+    # triggers auto-rollback, never a red deploy before smoke.
+    outputs:
+      smoke_entered: ${{ steps.smoke-marker.outputs.smoke_entered }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -448,6 +458,49 @@ jobs:
             sleep 5
           done
 
+      - name: Verify twin healthy before backend migrations (ordering gate)
+        run: |
+          # Staging mirror of the prod ordering gate (deploy.yml): the twin
+          # (:3033) must serve feed sources before staging backend migrations
+          # run. Liveness backstop — the T2 version-match gate below adds the
+          # SHA comparison on chain legs without replacing this.
+          echo "=== Ordering gate: staging twin must serve feed sources ==="
+          for i in $(seq 1 12); do
+            if curl -sf http://localhost:3033/api/feed/sources > /tmp/twin-gate.json 2>&1; then
+              echo "✅ Twin healthy on attempt $i (sources endpoint 200)"
+              head -c 300 /tmp/twin-gate.json; echo
+              break
+            fi
+            echo "⏳ Twin not serving (attempt $i/12), retrying in 10s..."
+            sleep 10
+            if [ "$i" -eq 12 ]; then
+              echo "::error::Staging twin is NOT serving :3033/api/feed/sources after 120s. Aborting staging backend deploy: deploy the twin FIRST (dispatch deploy-ingestion target=staging), then re-run this workflow."
+              exit 1
+            fi
+          done
+
+      - name: Version-match gate (served revision vs run SHA, chain legs only)
+        run: |
+          # T2 version-match (prod-safety-gates item 2): the serving twin must
+          # expose THIS run's SHA via /api/health.imageRevision. Runs BEFORE
+          # staging backend migrations (mismatch aborts here). CHAIN-ONLY by
+          # design (same deadlock analysis as prod deploy.yml: push/dispatch
+          # legs legitimately serve a different twin SHA) — explicit SKIP on
+          # those legs, liveness gate above stays as backstop (item 9f).
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "workflow_run" ]; then
+            echo "version-match SKIP (${{ github.event_name }} leg): served revision only comparable on chain legs — liveness gate above is the backstop"
+            exit 0
+          fi
+          EXPECTED="${{ needs.preflight.outputs.effective_sha }}"
+          SERVED="$(curl -sf --max-time 10 http://localhost:3033/api/health | jq -r '.imageRevision // "unknown"')"
+          echo "version-match: run SHA=$EXPECTED served imageRevision=$SERVED"
+          if [ "$SERVED" != "$EXPECTED" ]; then
+            echo "::error::esperaba $EXPECTED, sirve $SERVED — reintentar tras ingestion"
+            exit 1
+          fi
+          echo "✅ version-match: staging twin :3033 serves $EXPECTED"
+
       - name: Dry-run migrations (read-only, fail loudly)
         run: |
           set -euo pipefail
@@ -579,6 +632,10 @@ jobs:
           echo "=== Tailscale frontend healthcheck (curl -v) ==="
           curl -v -sf -o /dev/null http://100.110.169.120:4173/ || { echo "FRONTEND HEALTHCHECK FAILED"; exit 1; }
 
+      - name: Mark smoke entered (T4 auto-rollback gate signal)
+        id: smoke-marker
+        run: echo "smoke_entered=true" >> "$GITHUB_OUTPUT"
+
       - name: Post-deploy smoke checks (read-only)
         env:
           SMOKE_BACKEND_URL: http://localhost:3031
@@ -642,6 +699,195 @@ jobs:
         run: |
           echo "=== Restarting staging ==="
           cd /opt/onchain-bot-staging/apps/backend && docker compose -f docker-compose.staging.yml up -d --force-recreate backend frontend
+
+  # AUTO-ROLLBACK (prod-safety-gates item 4, staging mirror) — fires ONLY on
+  # post-smoke-rojo (deploy-staging FAILED + smoke entered). Same doctrine as
+  # prod: inline reuse of lane mechanics (pins/tags/compose/health gates), no
+  # new-run dispatch (deadlock on ingestion-staging-target), lanes serialized,
+  # budget <60s per lane, dispatch lanes stay manual-only.
+  auto-rollback-backend-staging:
+    name: Auto-rollback backend staging on smoke failure (:staging-prev-backend)
+    runs-on: [self-hosted, oracle]
+    needs: [deploy-staging]
+    if: failure() && needs.deploy-staging.outputs.smoke_entered == 'true'
+    timeout-minutes: 10
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Record auto-rollback decision
+        run: |
+          {
+            echo "### Auto-rollback backend staging (smoke rojo → :staging-prev-backend → :3031)"
+            echo ""
+            echo "| campo | valor |"
+            echo "|---|---|"
+            echo "| trigger | post-deploy smoke FAILED (deploy-staging red, smoke entered) |"
+            echo "| target | backend:staging-prev-backend → :3031 |"
+            echo "| manual escape | dispatch lane=rollback-backend-staging intacto |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Pull rollback target :staging-prev-backend (read-only, no retag yet)
+        run: |
+          set -euo pipefail
+          echo "ROLLBACK_T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/auto-backend-staging-rollback-t0
+          docker pull ghcr.io/${{ github.repository }}-backend:staging-prev-backend || { echo "::error::no backend:staging-prev-backend pinned (pins on GOOD deploys only) — auto-rollback inexecutable → ESCALATE (second level, see failure step)"; exit 1; }
+
+      - name: Stop backend staging (bounded grace, --timeout 30)
+        run: |
+          set -euo pipefail
+          cd /opt/onchain-bot-staging/apps/backend
+          docker compose -f docker-compose.staging.yml stop --timeout 30 backend
+          if docker ps --format '{{.Names}}' | grep -qx 'onchain-bot-backend-staging'; then
+            echo "::error::REFUSE: backend container still running — investigate instead of starting a second one"
+            exit 1
+          fi
+          echo "OK: backend stopped — safe to start exactly one"
+
+      - name: Recreate backend from :staging-prev-backend (no pull — local retag wins)
+        run: |
+          set -euo pipefail
+          docker tag ghcr.io/${{ github.repository }}-backend:staging-prev-backend ghcr.io/${{ github.repository }}-backend:staging-latest
+          cd /opt/onchain-bot-staging/apps/backend
+          docker compose -f docker-compose.staging.yml up -d --force-recreate backend
+
+      - name: Healthcheck gate (:3031) + post-rollback asserts + downtime measured
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if curl -sf --max-time 8 http://localhost:3031/api/health >/dev/null 2>&1; then
+              echo "backend healthy after ~$((i * 10))s"
+              break
+            fi
+            [ "$i" -eq 30 ] && { echo "::error::staging backend healthcheck failed after auto-rollback — ESCALATE (second level, see failure step)"; exit 1; }
+            sleep 10
+          done
+          curl -s http://localhost:3031/api/health | jq '.'
+          echo "ROLLBACK_T1=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/auto-backend-staging-rollback-t1
+          echo "downtime window: $(cat /tmp/auto-backend-staging-rollback-t0) → $(cat /tmp/auto-backend-staging-rollback-t1)"
+          {
+            echo "### Auto-rollback backend staging OK"
+            echo ""
+            echo "| campo | valor |"
+            echo "|---|---|"
+            echo "| target | backend:staging-prev-backend → :3031 |"
+            echo "| ventana | $(cat /tmp/auto-backend-staging-rollback-t0) → $(cat /tmp/auto-backend-staging-rollback-t1) |"
+            echo "| asserts | health 200 |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Second-level escalation (auto-rollback FAILED)
+        if: failure()
+        run: |
+          {
+            echo "### ESCALATION segundo nivel — auto-rollback backend staging FALLIDO"
+            echo ""
+            echo "1. CONGELAR lanes: no re-disparar rollback (sin re-loops). Lock manual: avisar al operador ANTES de cualquier dispatch/retry."
+            echo "2. AVISAR operador con ventana de downtime: $(cat /tmp/auto-backend-staging-rollback-t0 2>/dev/null || echo T0-desconocido) → $(date -u +%Y-%m-%dT%H:%M:%SZ)."
+            echo "3. DUMP pre-deploy: artifact /data/backups/staging/staging-backup-*.sql citado en los logs del job deploy-staging — adjuntar filename al incident record."
+            echo "4. INVALIDAR pin envenenado: si :staging-prev-backend también está rojo, no reintentarlo — forward-fix (nuevo sha) o restore."
+            echo "5. DB restore = decisión HUMANA explícita (jamás automática, jamás segundo rollback en loop): stop → psql del artifact → start → migration:show + counts asserts (runbook docs/deployment/backend-frontend-rollback.md §5)."
+            echo "6. Presupuesto: rollback <60s por lane; sin verde en 2 ventanas de healthcheck → forward-fix-or-restore."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::ESCALATION segundo nivel: auto-rollback backend staging fallido — lanes congelados, operador requerido (ver summary)"
+
+  auto-rollback-frontend-staging:
+    name: Auto-rollback frontend staging on smoke failure (:staging-prev-frontend)
+    runs-on: [self-hosted, oracle]
+    needs: [deploy-staging, auto-rollback-backend-staging]
+    if: always() && needs.deploy-staging.result == 'failure' && needs.deploy-staging.outputs.smoke_entered == 'true'
+    timeout-minutes: 10
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Record auto-rollback decision
+        run: |
+          {
+            echo "### Auto-rollback frontend staging (smoke rojo → :staging-prev-frontend → :4173)"
+            echo ""
+            echo "| campo | valor |"
+            echo "|---|---|"
+            echo "| trigger | post-deploy smoke FAILED (deploy-staging red, smoke entered) |"
+            echo "| target | frontend:staging-prev-frontend → :4173 |"
+            echo "| orden | tras auto-rollback-backend-staging (serializado, un writer docker) |"
+            echo "| manual escape | dispatch lane=rollback-frontend-staging intacto |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Pull rollback target :staging-prev-frontend (read-only, no retag yet)
+        run: |
+          set -euo pipefail
+          echo "ROLLBACK_T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/auto-frontend-staging-rollback-t0
+          docker pull ghcr.io/${{ github.repository }}-frontend:staging-prev-frontend || { echo "::error::no frontend:staging-prev-frontend pinned (pins on GOOD deploys only) — auto-rollback inexecutable → ESCALATE (second level, see failure step)"; exit 1; }
+
+      - name: Stop frontend staging (bounded grace, --timeout 30)
+        run: |
+          set -euo pipefail
+          cd /opt/onchain-bot-staging/apps/backend
+          docker compose -f docker-compose.staging.yml stop --timeout 30 frontend
+          if docker ps --format '{{.Names}}' | grep -qx 'onchain-bot-frontend-staging'; then
+            echo "::error::REFUSE: frontend container still running — investigate instead of starting a second one"
+            exit 1
+          fi
+          echo "OK: frontend stopped — safe to start exactly one"
+
+      - name: Recreate frontend from :staging-prev-frontend (no pull — local retag wins)
+        run: |
+          set -euo pipefail
+          docker tag ghcr.io/${{ github.repository }}-frontend:staging-prev-frontend ghcr.io/${{ github.repository }}-frontend:staging-latest
+          cd /opt/onchain-bot-staging/apps/backend
+          docker compose -f docker-compose.staging.yml up -d --force-recreate frontend
+
+      - name: Healthcheck gate (:4173) + downtime measured
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 60); do
+            if curl -sf --max-time 8 http://localhost:4173/ >/dev/null 2>&1; then
+              echo "frontend healthy after ~$((i * 2))s"
+              break
+            fi
+            [ "$i" -eq 60 ] && { echo "::error::staging frontend healthcheck failed after auto-rollback — ESCALATE (second level, see failure step)"; exit 1; }
+            sleep 2
+          done
+          echo "ROLLBACK_T1=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/auto-frontend-staging-rollback-t1
+          echo "downtime window: $(cat /tmp/auto-frontend-staging-rollback-t0) → $(cat /tmp/auto-frontend-staging-rollback-t1)"
+          {
+            echo "### Auto-rollback frontend staging OK"
+            echo ""
+            echo "| campo | valor |"
+            echo "|---|---|"
+            echo "| target | frontend:staging-prev-frontend → :4173 |"
+            echo "| ventana | $(cat /tmp/auto-frontend-staging-rollback-t0) → $(cat /tmp/auto-frontend-staging-rollback-t1) |"
+            echo "| asserts | http 200 |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Second-level escalation (auto-rollback FAILED)
+        if: failure()
+        run: |
+          {
+            echo "### ESCALATION segundo nivel — auto-rollback frontend staging FALLIDO"
+            echo ""
+            echo "1. CONGELAR lanes: no re-disparar rollback (sin re-loops). Lock manual: avisar al operador ANTES de cualquier dispatch/retry."
+            echo "2. AVISAR operador con ventana de downtime: $(cat /tmp/auto-frontend-staging-rollback-t0 2>/dev/null || echo T0-desconocido) → $(date -u +%Y-%m-%dT%H:%M:%SZ)."
+            echo "3. DUMP pre-deploy: artifact /data/backups/staging/staging-backup-*.sql — adjuntar filename al incident record."
+            echo "4. INVALIDAR pin envenenado: si :staging-prev-frontend también está rojo, no reintentarlo — forward-fix (nuevo sha)."
+            echo "5. DB restore = decisión HUMANA explícita (jamás automática, jamás segundo rollback en loop; frontend stateless — restore solo si el backend también cayó: ver runbook §5)."
+            echo "6. Presupuesto: rollback <60s por lane; sin verde en 2 ventanas de healthcheck → forward-fix-or-restore."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::ESCALATION segundo nivel: auto-rollback frontend staging fallido — lanes congelados, operador requerido (ver summary)"
 
   # ROLLBACK LANES (item 9c) — dispatch-only, never auto. Discipline mirrors
   # docs/deployment/ingestion-rollback.md §§2-5: stop → verify-stopped (gate)

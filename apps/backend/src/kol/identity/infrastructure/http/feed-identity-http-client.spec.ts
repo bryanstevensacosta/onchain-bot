@@ -27,6 +27,20 @@ describe('FeedIdentityHttpClient', () => {
     return new FeedIdentityHttpClient(config);
   }
 
+  function makeKeyedClient(apiKey: string): FeedIdentityHttpClient {
+    const config = {
+      get: (key: string) => {
+        if (key === 'app') {
+          return {
+            ingestion: { serviceUrl: 'http://feed:3031', apiKey },
+          };
+        }
+        return undefined;
+      },
+    } as unknown as ConfigService;
+    return new FeedIdentityHttpClient(config);
+  }
+
   beforeAll(() => {
     global.fetch = mockFetch;
   });
@@ -141,5 +155,35 @@ describe('FeedIdentityHttpClient', () => {
     ).rejects.toMatchObject({ status: 501 });
     // No HTTP write attempted
     expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('sends no x-api-key header when key is unset (keyless dev)', async () => {
+    mockOk(feedRows);
+    const client = makeClient();
+
+    await client.findAll();
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const init = mockFetch.mock.calls[0][1] as {
+      headers: Record<string, string>;
+    };
+    expect(init.headers['Content-Type']).toBe('application/json');
+    expect(init.headers['x-api-key']).toBeUndefined();
+  });
+
+  it('sends x-api-key header when configured', async () => {
+    mockOk(feedRows);
+    const client = makeKeyedClient('secret-key');
+
+    await client.findAll();
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const init = mockFetch.mock.calls[0][1] as {
+      headers: Record<string, string>;
+    };
+    expect(init.headers).toMatchObject({
+      'Content-Type': 'application/json',
+      'x-api-key': 'secret-key',
+    });
   });
 });

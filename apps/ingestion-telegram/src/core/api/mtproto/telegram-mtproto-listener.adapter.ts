@@ -75,7 +75,7 @@ export class TelegramMtprotoListenerAdapter
     );
 
     const cfg = this.config.get('app');
-    if (!cfg?.telegram?.mtprotoApiId || !cfg?.telegram?.mtprotoApiHash) return;
+    if (!cfg?.telegram?.apiId || !cfg?.telegram?.apiHash) return;
     await this.clientManager.markAuthorizedIfTrue();
   }
 
@@ -260,33 +260,6 @@ export class TelegramMtprotoListenerAdapter
         }
       }
     }
-  }
-
-  /**
-   * Filter peer IDs to only include channels (exclude users/bots)
-   * Users/bots will receive messages via real-time events only
-   *
-   * Channels in Telegram always have IDs prefixed with -100
-   * User/bot IDs are positive integers without prefix
-   */
-  private filterChannels(peerIds: string[]): string[] {
-    const channels: string[] = [];
-
-    for (const peerId of peerIds) {
-      // Channels always start with -100 (supergroup/channel format)
-      // Users/bots are plain positive integers or negative but NOT -100 prefix
-      const isChannel = peerId.startsWith('-100');
-
-      if (isChannel) {
-        channels.push(peerId);
-      } else {
-        this.logger.log(
-          `Skipping polling for ${peerId} (detected as user/bot by ID format) — will use real-time events only`,
-        );
-      }
-    }
-
-    return channels;
   }
 
   /**

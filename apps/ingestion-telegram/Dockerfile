@@ -46,6 +46,11 @@ COPY --from=builder /app/apps/ingestion-telegram/package*.json ./apps/ingestion-
 # Disable husky in production
 ENV HUSKY=0
 
+# T2 version-match (prod-safety-gates item 2): bake the built commit SHA into
+# the image so /api/health can expose it as imageRevision.
+ARG IMAGE_REVISION=unknown
+ENV IMAGE_REVISION=$IMAGE_REVISION
+
 # Install production dependencies only
 # Use --ignore-scripts to prevent prepare hook failures
 RUN npm ci --workspace=@alpha-meta-token-scanner/ingestion-telegram --omit=dev --ignore-scripts

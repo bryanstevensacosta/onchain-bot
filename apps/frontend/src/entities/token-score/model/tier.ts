@@ -19,13 +19,18 @@ export function tierTone(
   switch (tier) {
     case 'STRONG':
       return 'green';
+    case 'DECENT':
     case 'GOOD':
       return 'yellow';
     case 'NEUTRAL':
       return 'gray';
+    case 'RISKY':
     case 'POOR':
       return 'orange';
+    case 'AVOID':
     case 'FAILED':
       return 'red';
+    default:
+      return 'gray';
   }
 }

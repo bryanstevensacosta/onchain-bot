@@ -25,6 +25,9 @@
  *     INGESTION_TELEGRAM_BACKFILL_ENABLED
  *     USE_SSE_INGESTION, USE_SSE_CRYPTO_NEWS, USE_MOCK_INGESTION,
  *     INGESTION_TELEGRAM_URL (canonical, default http://localhost:3031)
+ *     INGESTION_TELEGRAM_API_KEY (optional server-to-server key for
+ *       ingestion-telegram; empty by default, never required — keyless
+ *       dev ingestion keeps working)
  *     SSE_RECONNECT_INITIAL_DELAY_MS, SSE_RECONNECT_MAX_DELAY_MS,
  *     CRYPTO_NEWS_POLLING_INTERVAL_MINUTES
  *     PUBLISHING_TELEGRAM_USE_REAL_MTPROTO/OUTPUT_CHANNEL,
@@ -100,6 +103,26 @@ export function resolveIngestionServiceUrl(
     return next;
   }
   return DEFAULT_INGESTION_TELEGRAM_URL;
+}
+
+/**
+ * Resolve the optional server-to-server API key for ingestion-telegram.
+ *
+ * Contract (shared with the ingestion lane): backend env
+ * `INGESTION_TELEGRAM_API_KEY` → sent as header `x-api-key`
+ * (ingestion env `INGESTION_API_KEY`, query `?apiKey=` fallback there).
+ * Optional by design: empty/whitespace/unset → '' (send nothing extra,
+ * keyless dev ingestion keeps working). No fail-fast, no throw.
+ */
+export function resolveIngestionApiKey(
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  const raw = env.INGESTION_TELEGRAM_API_KEY;
+  if (raw === undefined) {
+    return '';
+  }
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : '';
 }
 
 export interface HeliusNetworkConfig {
@@ -180,6 +203,7 @@ export interface AppConfig extends LlmConfigShape {
     useSseCryptoNews: boolean;
     useMock: boolean;
     serviceUrl: string;
+    apiKey: string;
     sse: {
       reconnectInitialDelayMs: number;
       reconnectMaxDelayMs: number;
@@ -388,6 +412,7 @@ export const appConfig = registerAs(
       useMock:
         (process.env.USE_MOCK_INGESTION ?? 'false').toLowerCase() === 'true',
       serviceUrl: resolveIngestionServiceUrl(),
+      apiKey: resolveIngestionApiKey(),
       // SSE reconnect backoff (TelegramSseListenerAdapter.calculateBackoff).
       // Fail-soft like CRYPTO_NEWS_POLLING_INTERVAL_MINUTES below: missing
       // or out-of-range values fall back to 1000/30000. Max is clamped to

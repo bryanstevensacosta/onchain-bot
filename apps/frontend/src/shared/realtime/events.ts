@@ -63,7 +63,17 @@ export interface ClassificationTokenClassifiedEvent {
   signals: ReadonlyArray<string>;
 }
 
-export type ScoreTier = 'STRONG' | 'GOOD' | 'NEUTRAL' | 'POOR' | 'FAILED';
+export type ScoreTier =
+  | 'STRONG'
+  | 'DECENT'
+  | 'NEUTRAL'
+  | 'RISKY'
+  | 'AVOID'
+  // Legacy tiers (pre-backend-alignment) — kept for backward compat with
+  // cached payloads / old snapshots. Do not emit these from new code.
+  | 'GOOD'
+  | 'POOR'
+  | 'FAILED';
 
 export interface ScoringTokenScoredEvent {
   chain: Chain;

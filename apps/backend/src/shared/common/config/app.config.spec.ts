@@ -9,7 +9,7 @@
  * empty-string and undefined cases. A real, non-empty value must be honored
  * verbatim.
  */
-import { appConfig } from './app.config';
+import { appConfig, resolveIngestionApiKey } from './app.config';
 
 describe('appConfig', () => {
   const ENV_KEY = 'INGESTION_TELEGRAM_METADATA_CACHE_FILE';
@@ -66,6 +66,43 @@ describe('appConfig', () => {
       expect(result.ingestion.telegram.metadataCache.filePath).toBe(
         `${process.cwd()}/.cache/kol-metadata.json`,
       );
+    });
+  });
+
+  describe('ingestion.apiKey (INGESTION_TELEGRAM_API_KEY, optional)', () => {
+    const API_KEY = 'INGESTION_TELEGRAM_API_KEY';
+    let savedApiKey: string | undefined;
+
+    beforeEach(() => {
+      savedApiKey = process.env[API_KEY];
+    });
+
+    afterEach(() => {
+      if (savedApiKey === undefined) {
+        delete process.env[API_KEY];
+      } else {
+        process.env[API_KEY] = savedApiKey;
+      }
+    });
+
+    it('defaults to empty string when unset (keyless dev keeps working)', () => {
+      delete process.env[API_KEY];
+      expect(resolveIngestionApiKey({ ...process.env })).toBe('');
+      expect(appConfig().ingestion.apiKey).toBe('');
+    });
+
+    it('treats empty/whitespace as missing', () => {
+      expect(resolveIngestionApiKey({ ...process.env, [API_KEY]: '' })).toBe(
+        '',
+      );
+      expect(resolveIngestionApiKey({ ...process.env, [API_KEY]: '   ' })).toBe(
+        '',
+      );
+    });
+
+    it('honors a real value verbatim (trimmed)', () => {
+      process.env[API_KEY] = 'secret-key';
+      expect(appConfig().ingestion.apiKey).toBe('secret-key');
     });
   });
 });

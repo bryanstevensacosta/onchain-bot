@@ -14,7 +14,6 @@ vi.mock('@/shared/api/endpoints', () => ({
       add: '/ingestion-api/feed/sources',
       toggle: (id: string) =>
         `/ingestion-api/feed/sources/${encodeURIComponent(id)}/toggle`,
-      backfill: (id: string) => `/telegram-kol/identity/kols/${id}/backfill`,
     },
   },
 }));

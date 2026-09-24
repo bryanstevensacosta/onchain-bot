@@ -75,12 +75,25 @@ class TelegramConfig {
   @IsString()
   @IsNotEmpty({ message: 'INGESTION_TELEGRAM_MTPROTO_SESSION is required' })
   sessionString!: string;
+
+  @IsString()
+  @IsOptional()
+  mtprotoLogLevel?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  mtprotoUseWss?: boolean;
+
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  mtprotoStartupDelayMs?: number;
 }
 
 class ApiConfig {
   @IsInt()
-  @Min(1, { message: 'INGESTION_API_PORT must be at least 1' })
-  @Max(65535, { message: 'INGESTION_API_PORT must not exceed 65535' })
+  @Min(1, { message: 'INGESTION_PORT must be at least 1' })
+  @Max(65535, { message: 'INGESTION_PORT must not exceed 65535' })
   port!: number;
 
   @IsString()
@@ -216,6 +229,12 @@ class LoggingConfig {
   level!: string;
 }
 
+class SecurityConfig {
+  @IsString()
+  @IsOptional()
+  apiKey?: string;
+}
+
 class AppConfigValidation {
   @IsEnum(['development', 'production', 'test'])
   nodeEnv!: string;
@@ -247,6 +266,11 @@ class AppConfigValidation {
   @ValidateNested()
   @Type(() => LoggingConfig)
   logging!: LoggingConfig;
+
+  @ValidateNested()
+  @IsOptional()
+  @Type(() => SecurityConfig)
+  security?: SecurityConfig;
 }
 
 /**
@@ -357,6 +381,30 @@ function loadSafetyConfig(): IngestionSafetyConfigFile {
 }
 
 /**
+ * Canonical ingestion HTTP port (gap 12 unification).
+ *
+ * Canonical var: INGESTION_PORT (namespaced, avoids generic PORT collisions,
+ * already present in .env.example + .env.{production,staging}.template +
+ * docker-compose.{ingestion,staging-ingestion}.yml).
+ * Deprecated fallbacks (kept for compat, removal TBD): INGESTION_API_PORT
+ * (previous app.config reader), PORT (previous main.ts reader + PaaS default).
+ * Chain: INGESTION_PORT > INGESTION_API_PORT > PORT > 3031. Runtime port
+ * number stays 3031 (container-internal; hosts map dev :3031 / twin :3033 /
+ * prod :3032). Per Requirement 6.3: Default port 3031.
+ */
+export const INGESTION_DEFAULT_PORT = 3031;
+
+export function resolveIngestionPort(): number {
+  const raw =
+    process.env.INGESTION_PORT?.trim() ||
+    process.env.INGESTION_API_PORT?.trim() ||
+    process.env.PORT?.trim() ||
+    String(INGESTION_DEFAULT_PORT);
+  const parsed = parseInt(raw, 10);
+  return Number.isNaN(parsed) ? INGESTION_DEFAULT_PORT : parsed;
+}
+
+/**
  * Main application configuration factory
  * Per Requirement 6.2: Environment variable validation with class-validator
  */
@@ -369,11 +417,20 @@ export const appConfig = registerAs('app', () => {
     apiId: parseInt(process.env.INGESTION_TELEGRAM_MTPROTO_API_ID || '0', 10),
     apiHash: process.env.INGESTION_TELEGRAM_MTPROTO_API_HASH || '',
     sessionString: process.env.INGESTION_TELEGRAM_MTPROTO_SESSION || '',
+    mtprotoLogLevel:
+      process.env.INGESTION_TELEGRAM_MTPROTO_LOG_LEVEL || 'error',
+    mtprotoUseWss: process.env.INGESTION_TELEGRAM_MTPROTO_USE_WSS === 'true',
+    mtprotoStartupDelayMs: parseInt(
+      process.env.INGESTION_TELEGRAM_MTPROTO_STARTUP_DELAY_MS || '0',
+      10,
+    ),
   };
 
   // API server configuration (Requirement 6.2)
+  // Canonical: INGESTION_PORT; deprecated fallbacks resolved in order
+  // (see resolveIngestionPort — gap 12 unification).
   const api = {
-    port: parseInt(process.env.INGESTION_API_PORT || '3031', 10),
+    port: resolveIngestionPort(),
     host: (process.env.INGESTION_API_HOST || '').trim() || '0.0.0.0',
     baseUrl:
       (process.env.INGESTION_API_BASE_URL || '').trim() ||
@@ -484,6 +541,12 @@ export const appConfig = registerAs('app', () => {
   // Node environment
   const nodeEnv = process.env.NODE_ENV || 'development';
 
+  // T2 version-match (prod-safety-gates item 2): served image revision baked
+  // at build time (Dockerfile ARG IMAGE_REVISION -> ENV). Fail-soft by
+  // design: missing/blank resolves to 'unknown' and never blocks boot or
+  // validation (no decorator in AppConfigValidation on purpose).
+  const imageRevision = (process.env.IMAGE_REVISION || '').trim() || 'unknown';
+
   // Validate configurations (fail fast on startup)
   // TODO: Implement validation functions
   //   validateMtprotoCredentials(telegram);
@@ -500,8 +563,18 @@ export const appConfig = registerAs('app', () => {
     process.env.INGESTION_CRYPTO_NEWS_MEDIA_RETENTION_HOURS ?? '72',
     10,
   );
+
+  // Partial API-key auth (gap 19): optional shared secret for sensitive
+  // routes. Fail-soft by design: unset/blank resolves to undefined and the
+  // guard allows-all (dev/e2e convenience) — never blocks boot or validation.
+  // Contract: ingestion env INGESTION_API_KEY, backend env
+  // INGESTION_TELEGRAM_API_KEY, transport header 'x-api-key' or '?apiKey='.
+  // Generate with: openssl rand -hex 32 (never commit a real value).
+  const apiKeyRaw = (process.env.INGESTION_API_KEY || '').trim();
+  const apiKey = apiKeyRaw.length > 0 ? apiKeyRaw : undefined;
   return {
     nodeEnv,
+    imageRevision,
     telegram,
     api,
     redis,
@@ -510,6 +583,8 @@ export const appConfig = registerAs('app', () => {
     database,
     logging,
     cryptoNewsMediaRetentionHours,
+    apiKey,
+    security: { apiKey },
   };
 });
 

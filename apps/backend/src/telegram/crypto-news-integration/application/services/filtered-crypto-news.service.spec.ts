@@ -68,7 +68,7 @@ function makeService(
     keywordRepo as never,
     blacklistRepo as never,
   );
-  return service;
+  return { service, ingestionClient };
 }
 
 describe('FilteredCryptoNewsService — album merge', () => {
@@ -89,7 +89,7 @@ describe('FilteredCryptoNewsService — album merge', () => {
         media: [photo('-1001', 102, 0)],
       }),
     ];
-    const service = makeService(batch);
+    const { service } = makeService(batch);
 
     const matched = await service.getMatchingMessages(50);
 
@@ -119,7 +119,7 @@ describe('FilteredCryptoNewsService — album merge', () => {
         media: [photo('-1001', 102, 0)],
       }),
     ];
-    const service = makeService(batch);
+    const { service } = makeService(batch);
 
     const matched = await service.getMatchingMessages(50);
 
@@ -137,7 +137,7 @@ describe('FilteredCryptoNewsService — album merge', () => {
         media: [photo('-1001', 201, 0)],
       }),
     ];
-    const service = makeService(batch);
+    const { service } = makeService(batch);
 
     const matched = await service.getMatchingMessages(50);
 
@@ -148,8 +148,34 @@ describe('FilteredCryptoNewsService — album merge', () => {
 
   it('returns empty when nothing matches', async () => {
     const batch = [rawMessage({ messageId: 301, content: 'weather today' })];
-    const service = makeService(batch);
+    const { service } = makeService(batch);
 
     await expect(service.getMatchingMessages(50)).resolves.toEqual([]);
+  });
+
+  it('forwards an explicit crypto-news type pin to the ingestion client', async () => {
+    const batch = [rawMessage({ messageId: 201, content: 'Revolut solo' })];
+    const { service, ingestionClient } = makeService(batch);
+
+    await service.getMatchingMessages(50, undefined, 'crypto-news');
+
+    expect(ingestionClient.fetchRecentMessages).toHaveBeenCalledWith(
+      50,
+      undefined,
+      'crypto-news',
+    );
+  });
+
+  it('keeps the mixed default (undefined type) when unpinned', async () => {
+    const batch = [rawMessage({ messageId: 201, content: 'Revolut solo' })];
+    const { service, ingestionClient } = makeService(batch);
+
+    await service.getMatchingMessages(50);
+
+    expect(ingestionClient.fetchRecentMessages).toHaveBeenCalledWith(
+      50,
+      undefined,
+      undefined,
+    );
   });
 });

@@ -78,8 +78,18 @@ describe('EnqueueMatchingCronScheduler (media mapping regression)', () => {
       {} as SchedulerRegistry,
       {} as ConfigService,
     );
-    return { scheduler, enqueueUseCase, health };
+    return { scheduler, enqueueUseCase, filteredNewsService, health };
   }
+
+  it('pins the matching fetch to type=crypto-news (KOL rows never enter the queue)', async () => {
+    const { scheduler, filteredNewsService } = buildScheduler([matchedDto]);
+
+    await scheduler.tick();
+
+    expect(
+      filteredNewsService.getMatchingMessages as jest.Mock,
+    ).toHaveBeenCalledWith(50, undefined, 'crypto-news');
+  });
 
   it('enqueues a media-bearing DTO (does not skip on missing filePath)', async () => {
     const { scheduler, enqueueUseCase } = buildScheduler([matchedDto]);

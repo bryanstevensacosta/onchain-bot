@@ -9,7 +9,6 @@ import type { KolReputationView } from '@/entities/kol-reputation';
 import { KolLeaderboard } from '@/widgets/kol-leaderboard';
 import { Button, Card } from '@/shared/ui';
 import { formatRelativeTime, usePagination } from '@/shared/lib';
-import { BackfillButton } from '@/features/trigger-backfill';
 import { SetKolLifecycleButton } from '@/features/set-kol-lifecycle';
 import { AddKolModal } from '@/features/add-kol';
 import { RecomputeKolReputationButton } from '@/features/recompute-kol-reputation/ui/recompute-kol-reputation-button';
@@ -82,7 +81,6 @@ function KolRow({ kol, rep, formulaId }: KolRowProps) {
           />
         )}
         <RecomputeKolReputationButton kolId={kol.id} formulaId={formulaId} />
-        <BackfillButton kolId={kol.id} limit={20} />
       </div>
     </Card>
   );

@@ -5,13 +5,35 @@ import * as path from 'path';
 
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
+function readArg(name: string): string | undefined {
+  const prefixed = `--${name}=`;
+  for (const arg of process.argv.slice(2)) {
+    if (arg.startsWith(prefixed)) return arg.slice(prefixed.length);
+  }
+  return undefined;
+}
+
 async function checkMessage() {
-  const apiId = parseInt(process.env.TELEGRAM_MTPROTO_API_ID || '', 10);
-  const apiHash = process.env.TELEGRAM_MTPROTO_API_HASH || '';
-  const session = process.env.TELEGRAM_MTPROTO_SESSION || '';
+  const apiId = parseInt(
+    process.env.INGESTION_TELEGRAM_MTPROTO_API_ID ||
+      process.env.TELEGRAM_MTPROTO_API_ID ||
+      '',
+    10,
+  );
+  const apiHash =
+    process.env.INGESTION_TELEGRAM_MTPROTO_API_HASH ||
+    process.env.TELEGRAM_MTPROTO_API_HASH ||
+    '';
+  const session =
+    process.env.INGESTION_TELEGRAM_MTPROTO_SESSION ||
+    process.env.TELEGRAM_MTPROTO_SESSION ||
+    '';
 
   if (!apiId || !apiHash || !session) {
-    console.error('Missing Telegram credentials in .env');
+    console.error(
+      'Missing Telegram credentials in .env ' +
+        '(INGESTION_TELEGRAM_MTPROTO_API_ID/_API_HASH/_SESSION)',
+    );
     process.exit(1);
   }
 
@@ -29,8 +51,17 @@ async function checkMessage() {
     await client.connect();
     console.log('Connected!\n');
 
-    const channelId = -1004466661332;
-    const messageId = 167;
+    const channelId = Number(
+      readArg('channelId') ?? readArg('channel') ?? -1004466661332,
+    );
+    const messageId = Number(readArg('messageId') ?? readArg('message') ?? 167);
+
+    if (!Number.isFinite(channelId) || !Number.isFinite(messageId)) {
+      console.error(
+        'Usage: check-telegram-message --channelId=<id> --messageId=<id>',
+      );
+      process.exit(1);
+    }
 
     console.log(`Fetching message ${messageId} from channel ${channelId}...\n`);
 

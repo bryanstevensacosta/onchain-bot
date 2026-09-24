@@ -1,6 +1,6 @@
 # apps/frontend/ — React/Vite Dashboard (Feature-Sliced Design)
 
-> Verified 2026-09-04 against code. v1.1.0 (source of truth: apps/frontend/package.json + CHANGELOG; verified 2026-09-20).
+> Verified 2026-09-04 against code. v1.2.0 (source of truth: apps/frontend/package.json + CHANGELOG; verified 2026-09-24).
 
 ## OVERVIEW
 
@@ -15,7 +15,7 @@ src/
 │         layouts/root-layout.tsx, providers/{query,socket}-provider.tsx, styles/}
 ├── pages/ {dashboard (KpiCards + IngestionHealth + LiveFeed + TopTokens + TrackedCalls), tokens-explorer, token-detail (displayName fallback canonical→snapshot→ticker; ContractAddress + copy; gauge + breakdown + snapshot + canonical), kols (rows + lifecycle/backfill/recompute/formula controls), crypto-news (550-line hub: messages + queue + keywords + ads + filters + llm-config + lightbox + album grouping), ops (replay/filters/presets tabs)}
 ├── widgets/ {kpi-cards, live-feed, top-tokens-table, kol-leaderboard, tracked-calls, ingestion-health}
-├── features/ (12) {add-kol, add-crypto-news-source, trigger-backfill, set-kol-lifecycle,
+├── features/ (11) {add-kol, add-crypto-news-source, set-kol-lifecycle,
 │              replay-message, reprocess-rejected, kol-score-formula, recompute-kol-reputation,
 │              settings (filters/presets tabs, presets = named settings snapshots),
 │              crypto-news-publisher (queue 10 s polling, backend cap 500; keywords/phrases/blacklist/llm-config),
@@ -35,7 +35,7 @@ src/
 Routes (`createBrowserRouter` — data-router API but NO loaders; Query owns server state):
 `/`, `/tokens`, `/tokens/:chain/:address`, `/kols`, `/crypto-news`, `/ops`.
 Nav has 5 links (Dashboard · Tokens · KOLs · News · Ops — README says 4, stale).
-Kols rows show lifecycle/listening state + rep score with 0.7/0.3 tone bands; `BackfillButton` (gap 1: broken URL) and `SetKolLifecycleButton` per row. Page paginates 15/page with `lastIngestedAt` relative times; Activate/Deactivate buttons by status, Recompute + Backfill(limit 20) per row. `AddKolModal` takes a bare Telegram ID/`@handle` (title/handle auto-resolved server-side), guards submit while pending, surfaces `mutation.error` inline. Score formula preset lives in `localStorage` (`useKolScoreFormula`) and is sent as `?formula=` on recompute.
+Kols rows show lifecycle/listening state + rep score with 0.7/0.3 tone bands; `SetKolLifecycleButton` per row. Page paginates 15/page with `lastIngestedAt` relative times; Activate/Deactivate buttons by status, Recompute per row (backfill removed 2026-09-24: `POST telegram-kol/identity/kols/:kolId/backfill` answers 501, no feed equivalent — trigger-backfill feature deleted). `AddKolModal` takes a bare Telegram ID/`@handle` (title/handle auto-resolved server-side), guards submit while pending, surfaces `mutation.error` inline. Score formula preset lives in `localStorage` (`useKolScoreFormula`) and is sent as `?formula=` on recompute.
 Pagination is client-side only (`usePagination`: slices fetched arrays, clamps on shrink) — large lists transfer fully.
 Modal convention (`AddKolModal`, `AddCryptoNewsSourceModal`): uncontrolled-close guard while pending, `mutation.reset()` on close, inline `mutation.error` alert; source modal validates `/^-100\d+$/` client-side. Settings tabs edit inline with staged `edits` map, grouped by filter `type`, invalidate `settingsFilterKeys.all` on success. Empty states in Spanish (`Cargando…`, `Sin snapshot de mercado`); null glyph is `—` (format lib).
 
@@ -72,7 +72,7 @@ Each backend also queries ITS ingestion via HTTP API — NO database replication
 
 ## DEAD URLS (verified 404 — fix, don't re-encode)
 
-1. `kols.backfill` → `/telegram-kol/ingestion/kols/:id/backfill` — backend is `POST telegram-kol/identity/kols/:kolId/backfill` (wrong `ingestion` segment). trigger-backfill broken.
+1. ~~`kols.backfill` → `/telegram-kol/ingestion/kols/:id/backfill` — RESOLVED 2026-09-24: path had already been corrected to `POST telegram-kol/identity/kols/:kolId/backfill`, but the backend answers 501 on all identity routes (identity moved to the feed API, no backfill equivalent) — trigger-backfill feature + `ENDPOINTS.kols.backfill` deleted, zero callers remain.~~
 2. `publishing.byToken` → `/vip-calls/calls/:chain/:address` — backend has no such route. Currently ZERO usages (dead definition, not dead page) — remove it or wire the per-token published lookup.
 3. `dashboard.kpis` → `/dashboard/kpis` — backend module commented out (backend gap: dashboard unwired). KpiCards degrades without crashing: KOLs card falls back to ingestion-health (`activeChannels`/`maxSafeChannels`), the rest render `0`/`0.0%`. Fix the backend wiring, not the widget.
 4. `filters.reprocessOne|reprocessBatch|decisionsRejectedVerify` — backend vip-call-approval controller has only 5 routes (apply + decisions ×4). The reprocess-rejected feature is client-complete (diagnostics table + per-row/btach mutations invalidating `rejected-diagnostics` + decisions) but server-missing. Its `useRejectedDiagnostics` key is a raw array, not a shared factory (style deviation).
@@ -94,7 +94,7 @@ Socket connects to `WS_URL` (`VITE_WS_URL` ?? `localhost:3030`); nginx holds WS 
 LiveFeed detail: `MAX_ITEMS` 50 ring buffer, tabs all/scored/decision with counts, joins `chain:solana`+`chain:evm` on mount, seeds history via `fetchRecentDecisions(10)` with `${at}-${kind}-${address}` dedup, score tone bands 70/50/30, timestamps from payload fields (`scoredAt/decidedAt/lastSeenAt`, `Date.now()` fallback) — README's "`hace 0s` hardcoded" is stale, fixed.
 Tokens-explorer is decision-driven (all/approved/rejected tabs over `useDecisions` + score/canonical/snapshot joins, `usePagination`, click → token-detail).
 
-⚠️ `ScoreTier` here = `STRONG|GOOD|NEUTRAL|POOR|FAILED` vs backend `STRONG|DECENT|NEUTRAL|RISKY|AVOID` — tier labels disagree (gap).
+`ScoreTier` alineado con backend (`STRONG|DECENT|NEUTRAL|RISKY|AVOID`; legacy `GOOD|POOR|FAILED` kept compat) + `tierTone()`/`classificationTone()` con fallback `gray` (Carril 1, gap 7 resolved).
 ⚠️ `TelegramMessageIngestedEvent` carries `text` — verify backend never emits raw text over WS (fix-1); backend `EVENT_MAP` funnels everything through `server.emit`.
 
 ## HTTP LAYER (fetch, NOT axios)
@@ -149,7 +149,7 @@ Docker build sets all to `""` → same-origin in prod (nginx routes by prefix).
 - Crypto-news views mirror backend DTOs (message with `linkPreview*` + `formattingEntities` + `groupedId`; `ContentFilter` + create/update DTOs); key factory takes object params (`['crypto-news','messages',{limit,channelId}]`).
 - `HolderConcentrationGauge`: Mobula segments (Top10>80, insiders>50, bundlers>30 warn) with hover tooltip, `—` without data; `LiquidityGauge` (locked/burned + RugCheck flag); `BondingCurveProgress`: pumpfun-aware (🎓 Graduated ≥99, bands 75+, null → `—`).
 - Detail hooks (`useKol(id)`, `useKolReputation(id)`) use `enabled: !!id` guards; list hooks poll.
-- Views mirror backend DTOs (`TokenSnapshotView` with RugCheck `locked/burnedPercent`, `primaryPair`, `completeness`; `PublishedCallView` repeats the local tier union — same mismatch as gap 7; `GateAllowView{allowed, reasons[]}`).
+- Views mirror backend DTOs (`TokenSnapshotView` with RugCheck `locked/burnedPercent`, `primaryPair`, `completeness`; `PublishedCallView` importa `ScoreTier` de `@/shared/realtime/events` (duplicado eliminado, Carril 1); `GateAllowView{allowed, reasons[]}`).
 - Config forms (`AdsRotationConfigForm`, LLM config) edit string drafts re-seeded from server only when upstream values actually change (no mid-edit clobber).
 - Kols footer: `rangeStart–rangeEnd de total` + page counter (Spanish UI); empty state `No hay KOLs registrados`.
 - `token-classification` is a chipless-fetch entity: types + `ClassificationChip` only (classifications arrive inside score/canonical payloads, never fetched directly).
@@ -157,13 +157,13 @@ Docker build sets all to `""` → same-origin in prod (nginx routes by prefix).
 - `SourceMultiSelect`: empty ids = global scope (`All sources (global)` label).
 - `uuid.generateId()`: `crypto.randomUUID()` with Math.random fallback for non-secure HTTP contexts.
 
-## TESTS (23 files, vitest)
+## TESTS (29 files, 331 tests, vitest)
 
 Co-located `*.test.{ts,tsx}` + `__tests__/` dirs, heaviest in crypto-news features (ads-manager 1900+ lines, crypto-news-page). `src/test/setup.ts` only. jsdom + testing-library/react in deps.
 
-## UNUSED DEPS (verified zero imports in `src/`)
+## REMOVED DEPS (Carril 1 — cero imports verificado)
 
-`recharts`, `zustand`, `lucide-react`, `zod`, `msw` — README's table is correct (add `msw`, also zero). Emojis serve as icons; no charts; no client store; no schema validation; no mocks.
+`recharts`, `zustand`, `lucide-react`, `zod` removidos de `package.json`. Se queda `msw` (devDep test-only vía `msw/node`, 2 suites threads-publisher). Emojis sirven como iconos; sin charts; sin client store; sin schema validation.
 
 ## CONVENTIONS
 
@@ -175,7 +175,7 @@ FSD downward-only (`app → pages → widgets → features → entities → shar
 
 ## DEPLOY
 
-Multi-stage Dockerfile (node:22-bookworm build with `tsc -b && vite build` via root `build:frontend` → nginx:1.27-alpine static, `EXPOSE 80`, wget healthcheck). `.dockerignore` present. `CHANGELOG.md` at app root (hand-written, v1.1.0 latest — matches `package.json`, the version source of truth). **Per-env bake (T3):** `ARG VITE_APP_ENV` re-declared after the second FROM + `RUN if [ "$VITE_APP_ENV" = "staging" ]` copies `nginx.staging.conf` over `default.conf` (COPY can't expand ARG in source); prod tag builds without arg (singleton upstream intact), staging tag with `--build-arg VITE_APP_ENV=staging` (twin upstream). Verify baked images by `grep 'set $ingestion_api' /etc/nginx/conf.d/default.conf` (see `docs/deployment/staging-twin-channels.md` §3).
+Multi-stage Dockerfile (node:22-bookworm build with `tsc -b && vite build` via root `build:frontend` → nginx:1.27-alpine static, `EXPOSE 80`, wget healthcheck). `.dockerignore` present. `CHANGELOG.md` at app root (hand-written, v1.2.0 latest — matches `package.json`, the version source of truth). **Per-env bake (T3):** `ARG VITE_APP_ENV` re-declared after the second FROM + `RUN if [ "$VITE_APP_ENV" = "staging" ]` copies `nginx.staging.conf` over `default.conf` (COPY can't expand ARG in source); prod tag builds without arg (singleton upstream intact), staging tag with `--build-arg VITE_APP_ENV=staging` (twin upstream). Verify baked images by `grep 'set $ingestion_api' /etc/nginx/conf.d/default.conf` (see `docs/deployment/staging-twin-channels.md` §3).
 
 ## COMMANDS
 
@@ -190,10 +190,10 @@ npm run format              # prettier --write "src/**/*.{ts,tsx}"
 
 ## GAPS (verified)
 
-1–6. **Dead URLs above** — backfill, byToken, dashboard kpis, reprocess ×3, `/api/*` in prod, filters/backfill proxy holes. Biggest functional hole in the dashboard. 7. **ScoreTier mismatch** vs backend (`GOOD/POOR/FAILED` vs `DECENT/RISKY/AVOID`) — and `tierTone()` has no default branch, so real backend tiers hit `tones[undefined]` → unstyled badge (clsx drops it, no crash, but wrong). Same smell in `classificationTone`: `'blue' as never` hack (Badge supports blue; the return type just omits it) and no default. Align the unions AND add fallbacks. 8. **Frontend README §3 stale** (`/kols`, `/token/token-gating/*`, 4 links vs 6 routes, missing crypto-news/settings/ads/tracking groups). 9. **Fix-1 smell**: `TelegramMessageIngestedEvent.text` typed on the socket — confirm backend never emits it. 10. **From README, still true**: no error boundaries; no skeletons (plain `Cargando...`); `Chain`/`ScoreTier` duplicated between entities and `realtime/events.ts`. (README's "`hace 0s` hardcoded" is stale — timestamps come from payload since the LiveFeed rewrite.) 11. **`/kols` nginx location** with no frontend caller using bare `/kols/*` — legacy leftover (README-era routes); remove or document.
+1–6. **Dead URLs above** — 1 backfill RESOLVED (feature deleted); 2 byToken already removed (zero usages; per-token lookup lives at `call-tracking/tracked/:chain/:address`); 3 dashboard kpis already removed (KpiCards degrades + documented); 4 reprocess already removed (zero references); 5 `/api/*` prefix already gone (zero `/api/`-prefixed fetches; both prefixes proxied); 6 filters hole CLOSED 2026-09-24 (`PUT /crypto-news/filters/:id` fix + `/crypto-news/filters/` location in both nginx confs + vite). 7. ~~**ScoreTier mismatch**~~ **RESOLVED (Carril 1)**: union alineada a backend + legacy compat, `tierTone()`/`classificationTone()` con fallback `gray`. 8. **Frontend README §3 stale** (`/kols`, `/token/token-gating/*`, 4 links vs 6 routes, missing crypto-news/settings/ads/tracking groups). 9. **Fix-1 smell**: `TelegramMessageIngestedEvent.text` typed on the socket — confirm backend never emits it. 10. **From README, still true**: no error boundaries; no skeletons (plain `Cargando...`); `Chain` duplicated between entities and `realtime/events.ts` (`ScoreTier` duplicate fixed, Carril 1). (README's "`hace 0s` hardcoded" is stale — timestamps come from payload since the LiveFeed rewrite.) 11. **`/kols` nginx location** with no frontend caller using bare `/kols/*` — legacy leftover (README-era routes); remove or document.
 
 ## NOTES
 
 - Strict port: run from root (`predev` port-cleanup) or Vite exits.
 - `@/` is frontend-only (tsconfig paths, not backend).
-- `dist/` + `tsconfig.tsbuildinfo` committed in app dir (build artifacts present).
+- `dist/` + `tsconfig.tsbuildinfo` existen en disco (build local) pero **no trackeados** (root `.gitignore` `**/dist/`) — nada que des-trackear.
