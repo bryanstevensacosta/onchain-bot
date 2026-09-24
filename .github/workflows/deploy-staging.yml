@@ -253,7 +253,11 @@ jobs:
           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-backend:cache
           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-backend:cache,mode=max
           platforms: linux/amd64,linux/arm64
+          # T2 version-match: bake run SHA (backend Dockerfile declares no such
+          # ARG, so consumed-ignored — harmless). SHA var: effective_sha (push:
+          # github.sha; chain: pinned twin head_sha), matching tags on all legs.
           build-args: |
+            IMAGE_REVISION=${{ needs.preflight.outputs.effective_sha }}
             NODE_ENV=staging
 
       - name: Build and push frontend (staging)
@@ -267,6 +271,7 @@ jobs:
           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-frontend:cache,mode=max
           platforms: linux/amd64,linux/arm64
           build-args: |
+            IMAGE_REVISION=${{ needs.preflight.outputs.effective_sha }}
             VITE_APP_ENV=staging
 
   deploy-staging:
@@ -447,6 +452,49 @@ jobs:
             fi
             sleep 5
           done
+
+      - name: Verify twin healthy before backend migrations (ordering gate)
+        run: |
+          # Staging mirror of the prod ordering gate (deploy.yml): the twin
+          # (:3033) must serve feed sources before staging backend migrations
+          # run. Liveness backstop — the T2 version-match gate below adds the
+          # SHA comparison on chain legs without replacing this.
+          echo "=== Ordering gate: staging twin must serve feed sources ==="
+          for i in $(seq 1 12); do
+            if curl -sf http://localhost:3033/api/feed/sources > /tmp/twin-gate.json 2>&1; then
+              echo "✅ Twin healthy on attempt $i (sources endpoint 200)"
+              head -c 300 /tmp/twin-gate.json; echo
+              break
+            fi
+            echo "⏳ Twin not serving (attempt $i/12), retrying in 10s..."
+            sleep 10
+            if [ "$i" -eq 12 ]; then
+              echo "::error::Staging twin is NOT serving :3033/api/feed/sources after 120s. Aborting staging backend deploy: deploy the twin FIRST (dispatch deploy-ingestion target=staging), then re-run this workflow."
+              exit 1
+            fi
+          done
+
+      - name: Version-match gate (served revision vs run SHA, chain legs only)
+        run: |
+          # T2 version-match (prod-safety-gates item 2): the serving twin must
+          # expose THIS run's SHA via /api/health.imageRevision. Runs BEFORE
+          # staging backend migrations (mismatch aborts here). CHAIN-ONLY by
+          # design (same deadlock analysis as prod deploy.yml: push/dispatch
+          # legs legitimately serve a different twin SHA) — explicit SKIP on
+          # those legs, liveness gate above stays as backstop (item 9f).
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "workflow_run" ]; then
+            echo "version-match SKIP (${{ github.event_name }} leg): served revision only comparable on chain legs — liveness gate above is the backstop"
+            exit 0
+          fi
+          EXPECTED="${{ needs.preflight.outputs.effective_sha }}"
+          SERVED="$(curl -sf --max-time 10 http://localhost:3033/api/health | jq -r '.imageRevision // "unknown"')"
+          echo "version-match: run SHA=$EXPECTED served imageRevision=$SERVED"
+          if [ "$SERVED" != "$EXPECTED" ]; then
+            echo "::error::esperaba $EXPECTED, sirve $SERVED — reintentar tras ingestion"
+            exit 1
+          fi
+          echo "✅ version-match: staging twin :3033 serves $EXPECTED"
 
       - name: Dry-run migrations (read-only, fail loudly)
         run: |

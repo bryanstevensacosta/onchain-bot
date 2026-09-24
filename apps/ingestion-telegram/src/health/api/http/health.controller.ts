@@ -37,6 +37,10 @@ export interface HealthResponse {
     consecutiveFailures: number;
   };
   uptime: number; // milliseconds
+  // T2 version-match (prod-safety-gates item 2): additive-only served image
+  // revision (build-time IMAGE_REVISION, 'unknown' when unbaked). Optional so
+  // pre-T2 health consumers and strict-shape validators keep working.
+  imageRevision?: string;
 }
 
 /**
@@ -137,6 +141,10 @@ export class HealthController {
 
     const response: HealthResponse = {
       status,
+      // Served revision for the T2 version-match gate: read straight from the
+      // environment (same source app.config exposes) so no DI change is needed
+      // and HealthModule/spec wiring stays untouched. Never blocks: 'unknown'.
+      imageRevision: (process.env.IMAGE_REVISION || '').trim() || 'unknown',
       mtproto: {
         connected: mtprotoConnected,
         authorized: mtprotoAuthorized,

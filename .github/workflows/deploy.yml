@@ -181,6 +181,12 @@ jobs:
           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-backend:cache
           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-backend:cache,mode=max
           platforms: linux/amd64,linux/arm64
+          # T2 version-match: bake run SHA (backend/frontend Dockerfiles declare
+          # no such ARG, so this is consumed-ignored there — harmless). SHA var:
+          # effective_sha (push legs: github.sha; chain legs: pinned upstream
+          # head_sha), matching the tags above on every leg.
+          build-args: |
+            IMAGE_REVISION=${{ needs.preflight.outputs.effective_sha }}
 
       - name: Build and push frontend
         uses: docker/build-push-action@v6
@@ -192,6 +198,10 @@ jobs:
           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-frontend:cache
           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-frontend:cache,mode=max
           platforms: linux/amd64,linux/arm64
+          # T2 version-match: same SHA contract as the backend image above
+          # (effective_sha on all legs; ignored without a matching ARG).
+          build-args: |
+            IMAGE_REVISION=${{ needs.preflight.outputs.effective_sha }}
 
   deploy:
     name: Deploy to Oracle
@@ -403,6 +413,30 @@ jobs:
               exit 1
             fi
           done
+
+      - name: Version-match gate (served revision vs run SHA, chain legs only)
+        run: |
+          # T2 version-match (prod-safety-gates item 2): the serving ingestion
+          # must expose THIS run's SHA via /api/health.imageRevision. Runs BEFORE
+          # backend migrations (mismatch aborts here, never past this point).
+          # CHAIN-ONLY by design: on push/dispatch legs the backend SHA and the
+          # serving ingestion SHA are legitimately different commits (backend-only
+          # push = ingestion untouched) — enforcing there would deadlock every
+          # backend-only deploy. The liveness gate above stays as the backstop
+          # on those legs (explicit SKIP below, never silent — item 9f).
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "workflow_run" ]; then
+            echo "version-match SKIP (${{ github.event_name }} leg): served revision only comparable on chain legs — liveness gate above is the backstop"
+            exit 0
+          fi
+          EXPECTED="${{ needs.preflight.outputs.effective_sha }}"
+          SERVED="$(curl -sf --max-time 10 http://localhost:3032/api/health | jq -r '.imageRevision // "unknown"')"
+          echo "version-match: run SHA=$EXPECTED served imageRevision=$SERVED"
+          if [ "$SERVED" != "$EXPECTED" ]; then
+            echo "::error::esperaba $EXPECTED, sirve $SERVED — reintentar tras ingestion"
+            exit 1
+          fi
+          echo "✅ version-match: ingestion :3032 serves $EXPECTED"
 
       - name: Dry-run migrations (read-only, fail loudly)
         run: |

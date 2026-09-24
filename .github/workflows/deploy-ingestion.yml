@@ -101,6 +101,14 @@ jobs:
           cache-to: |
             type=registry,ref=ghcr.io/${{ github.repository }}-ingestion-telegram:cache,mode=max
             type=registry,ref=ghcr.io/${{ github.repository }}-ingestion:cache,mode=max
+          # T2 version-match (prod-safety-gates item 2): bake the built commit
+          # SHA into the image (Dockerfile ARG->ENV IMAGE_REVISION) so
+          # /api/health exposes it as imageRevision. SHA var: github.sha —
+          # this job has no preflight; tags above already use github.sha on
+          # every leg (push master/dev + dispatch production/staging), so the
+          # arg matches the tag on all of them by construction.
+          build-args: |
+            IMAGE_REVISION=${{ github.sha }}
           platforms: linux/amd64,linux/arm64
 
   deploy:
