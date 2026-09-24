@@ -52,11 +52,11 @@ jobs:
       - name: Check remote branches (info only, Ruleset enforces)
         id: check-remote-branches
         run: |
-          EXTRA_BRANCHES=$(git ls-remote --heads origin | grep -vE "refs/heads/(master|dev|fix/.*|feat/.*|chore/.*|ci/.*)$" | wc -l)
+          EXTRA_BRANCHES=$(git ls-remote --heads origin | grep -vE "refs/heads/(master|dev|feat/.*|fix/.*|chore/.*|ci/.*|docs/.*|refactor/.*|perf/.*|test/.*|build/.*|style/.*|hotfix/.*|release/.*|revert/.*)$" | wc -l)
           echo "extra_branches=$EXTRA_BRANCHES" >> $GITHUB_OUTPUT
           if [ "$EXTRA_BRANCHES" -gt 0 ]; then
             echo "::warning::Ramas remotas adicionales (Ruleset las gestiona):"
-            git ls-remote --heads origin | grep -vE "refs/heads/(master|dev|fix/.*|feat/.*|chore/.*|ci/.*)$" | sed 's/.*refs\/heads\//  - /'
+            git ls-remote --heads origin | grep -vE "refs/heads/(master|dev|feat/.*|fix/.*|chore/.*|ci/.*|docs/.*|refactor/.*|perf/.*|test/.*|build/.*|style/.*|hotfix/.*|release/.*|revert/.*)$" | sed 's/.*refs\/heads\//  - /'
           fi
           echo "✅ Check remoto informativo — Ruleset es gate"
 
@@ -202,7 +202,7 @@ jobs:
                   return False
 
           # Regla 1
-          extra = sh('git ls-remote --heads origin | grep -vE "refs/heads/(master|dev)$" | wc -l')
+          extra = sh('git ls-remote --heads origin | grep -vE "refs/heads/(master|dev|feat/.*|fix/.*|chore/.*|ci/.*|docs/.*|refactor/.*|perf/.*|test/.*|build/.*|style/.*|hotfix/.*|release/.*|revert/.*)$" | wc -l')
           try:
               extra_n = int(extra or 0)
           except ValueError:

@@ -57,7 +57,7 @@
 dev ──────────────────────────────────────► (continuous integration)
   │
   ├── feature/* (short-lived branch, < 2 weeks)
-  │    └── PR → dev (requires: 1 approval, CI pass, conversation resolved)
+  │    └── PR → dev (requires: CI pass, conversation resolved; 0 required approvals, solo maintainer)
   │
   └── PR: dev → master (squash merge)
        └── master (production)
@@ -74,12 +74,12 @@ dev ─────────────────────────�
 
 ## 3. Branch Rules (Branch Protection + Rulesets)
 
-| Branch     | PR required | Approvals | Status checks   | Force push | Delete | Conversation resolved |
-| ---------- | ----------- | --------- | --------------- | ---------- | ------ | --------------------- |
-| **master** | ✅          | 1         | test, lint, tsc | ❌         | ❌     | ✅                    |
-| **dev**    | ✅          | 1         | test, lint, tsc | ❌\*       | ❌     | ✅                    |
+| Branch     | PR required | Approvals | Status checks                                                 | Force push | Delete | Conversation resolved |
+| ---------- | ----------- | --------- | ------------------------------------------------------------- | ---------- | ------ | --------------------- |
+| **master** | ✅          | 0\*       | Tests, Lint, TypeScript Check, Build, Branch Governance Check | ❌         | ❌     | ✅                    |
+| **dev**    | ✅          | 0\*       | Tests, Lint, TypeScript Check, Build, Branch Governance Check | ❌         | ❌     | ✅                    |
 
-_\*dev exception: maintainers may temporarily enable force-push for **backport sync** (requires 2 approvals on an issue/PR). See §6._
+_\*Solo maintainer: `required_approving_review_count` is 0 on both branches (a 1-approval rule would deadlock every PR). Compensating controls are linear history + strict checks + governance check + conversation resolution. Normative source: `docs/branch-protection.md` (canonical JSON + verify commands); this table is a summary only._
 
 ### GitHub Rulesets
 
@@ -120,7 +120,7 @@ gh pr create --base dev --head feature/my-change --title "feat: my change"
 ### 4.2 Merge to dev (integration)
 
 - PR to `dev` with base `dev`
-- Requirements: 1 approval + CI pass (test, lint, tsc) + conversation resolved
+- Requirements: CI pass (Tests, Lint, TypeScript Check, Build, Branch Governance Check) + conversation resolved (0 required approvals, solo maintainer)
 - **Squash merge** → keeps history clean on dev
 - Feature branch auto-deleted (auto-delete enabled)
 
@@ -199,12 +199,14 @@ still merges via PR with all 5 CI checks green.
 
 ### 6.2 Master Rollback (Emergency)
 
-**When:** A merge to master breaks production
+**When:** A merge to master breaks production. Force-push to master is
+blocked (`allow_force_pushes: false`), so rollback is revert-via-PR only:
 
 ```bash
 git checkout master && git pull origin master
 git revert HEAD -m 1  # revert the squash commit
-git push origin master --force-with-lease
+gh pr create --base master --head revert/<short-desc> --title "revert: <original subject>"
+# Squash merge via PR with all 5 CI checks green
 ```
 
 **Revert ONLY.** Documented in an issue with 2 approvals.
@@ -268,7 +270,7 @@ This job **fails CI** when it detects violations (Layer 3 - Audit):
 
 1. **Extra branches:** Detects remote branches outside the convention
 2. **Ancestor policy:** `master` must be an ancestor of `dev` (`git merge-base --is-ancestor master dev`)
-3. **Orphan commits on master:** `git log --oneline dev..master --grep -v "sync|chore|backport" | wc -l` > 0
+3. **Orphan commits on master:** `git log --oneline origin/dev..origin/master`, excluding merge-PR lines, conventional-type lines (`ci(`/`fix(`/`feat(`/`chore(`/`docs(`/`refactor(`/`perf(`/`test(`/`build(`/`revert(`), `ci:` lines, and `(#NNN)` PR references (see the `allowed_patterns` list in the `check-orphan-commits` step) — any remaining line fails the check
 4. **Force-push detected (24h):** `git reflog --since="24 hours ago" | grep -E "force-push|push --force" | wc -l` > 0 (on master/dev)
 
 **Note:** This workflow is informational and audit-only. Real prevention happens in Layers 1 and 2.
@@ -305,65 +307,10 @@ This job **fails CI** when it detects violations (Layer 3 - Audit):
 
 ---
 
-## 12. Automatic master → dev Sync
+## 12. Manual master → dev Sync
 
-**Problem:** Commits on `master` missing from `dev` cause conflicts in `dev` → `master` PRs.
+**Policy:** after every merge to `master`, sync `dev` manually — the automatic bot sync was retired (its PR checks never completed unattended; see `sync-dev.yml` header). The `sync-dev.yml` workflow is an open-PR refresher only (it runs `gh pr update-branch` on open `dev → master` PRs; it never touches `dev` itself). There is no `sync-master-to-dev.yml` workflow.
 
-**Solution:** Automatic workflow syncing `master` → `dev` after every push to `master`.
-
-### 12.1 Workflow: sync-master-to-dev.yml
-
-**Trigger:** `push` to `master` (also manual via `workflow_dispatch`)
-
-**Behavior:**
-
-1. Attempts to rebase `dev` onto `master` (`git rebase origin/master`)
-2. If the rebase succeeds → `git push --force-with-lease origin dev`
-3. If the rebase fails (conflicts):
-   - Aborts the rebase
-   - Creates a `sync/master-to-dev-<timestamp>` branch
-   - Opens an automatic PR to `dev` titled `"chore: sync master → dev (auto, conflicts detected)"`
-   - The PR requires manual conflict resolution
-
-**Benefits:**
-
-- **Automatic prevention:** `dev` always contains `master` commits
-- **Zero divergence:** Eliminates conflicts in `dev` → `master` PRs
-- **Manual fallback:** On conflicts, creates a PR for human resolution
-- **Non-invasive:** Only force-rebases when fast-forward
-
-### 12.2 Full Flow with Automatic Sync
-
+```bash
+git checkout dev && git merge origin/master
 ```
-master (PR merged) ──► workflow: sync-master-to-dev ──┬──► rebase succeeded
-                                                        │     └──► force-push to dev
-                                                        │
-                                                        └──► conflicts detected
-                                                              └──► creates PR sync/* → dev
-                                                                   └──► manual resolution
-```
-
-### 12.3 Conflict Handling
-
-**If the workflow fails with conflicts:**
-
-1. GitHub Actions automatically opens a PR from `sync/master-to-dev-<timestamp>` → `dev`
-2. A maintainer must:
-   - Review the PR
-   - Resolve conflicts locally:
-     ```bash
-     git fetch origin
-     git checkout sync/master-to-dev-<timestamp>
-     git rebase origin/dev
-     # Resolve conflicts manually
-     git push --force-with-lease origin sync/master-to-dev-<timestamp>
-     ```
-   - Approve and merge the PR
-
-**Important:** This flow guarantees `dev` never diverges from `master` for more than one PR cycle.
-
-### 12.4 Exceptions and Considerations
-
-- **`dev` protection:** The workflow has permission to force-push to `dev` (required for rebase)
-- **Rate limit:** The workflow only runs on push to `master` (max ~10-20 times/day on active projects)
-- **Audit:** All automatic syncs are recorded in `dev` history

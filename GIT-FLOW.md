@@ -291,9 +291,8 @@ git push origin dev
 
 Even solo dev must pull because:
 
-1. GitHub Actions create commits (Release Please)
-2. Squash merges happen on server
-3. Auto-sync workflows may run
+1. Squash merges happen on server (new SHAs)
+2. Manual master merges happen after each release
 
 **Without pull**:
 
