@@ -29,6 +29,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
 - Divergencias pivot P1–P9 OBLIGATORIAS: sin dedup propia (P1), identity/sources en ingestion-telegram (P4, G-07/G-09), extraction contrato×mención (P5), classification dentro de templates (P6, G-08), puente market-data (P7, G-17), tracking first-seen (P8, G-14), bot por template cifrado (P9, G-10). Cada todo que diverja del spec cita `mega-refactor-tramos.md:118-126`.
 - Onda de verificación P2 con sub-agentes por punto P3–P9 antes de implementar.
 - DDL recalculado 17 tablas efectivas (22 del spec − `kols`, `kol_channels`, `kol_reputation`, `kol_stats`, `classified_calls`; 18 si tracking separado cuenta aparte — G-13). Contratos central pinneados (versión fecha+hash).
+- Bot lookup exclusivo interactivo (P12a: `/start`, contrato directo o reenvío → ficha vía enrichment) SEPARADO de bots por template solo-publishing (P12b). Convergencia con `chain-dexter-bot` abierta a iterar (no duplicar bots lookup).
 - Dual-run sem 2-8 + shadow/dry-run + staging 14 días + rollback rehearsal + cutover por flags + cleanup (archivar, NO dropear).
 
 ### Must NOT have (guardrails, anti-slop, scope boundaries)
@@ -63,6 +64,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
 | 9-12 (templates→tracking) | 4-8                               | 14, 15                                     | 9∥10 parcial (approval tras templates domain)          |
 | 13 (avatar)               | 1, 4                              | 14                                         | con nada (requiere ingestion + P2)                     |
 | 14 (frontend)             | 4, 12, 13                         | 15                                         | —                                                      |
+| 17 (lookup bot)           | 8, 10                             | 15                                         | Wave 3, paralelo con 11-14                             |
 | 15, 16 (staging+cutover)  | todo lo anterior + central gate 8 | —                                          | —                                                      |
 
 ## Todos
@@ -184,6 +186,13 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       Acceptance criteria: `curl -s localhost:3030/api/vip-calls/calls/recent?limit=5` sigue respondiendo vía kol-system; `psql -c "\dn"` muestra `_archived`
       QA scenarios: happy cutover sin gap >1 cron; failure post-cutover → rollback ejecutado y medido. Evidence .omo/evidence/task-16-mega-refactor-kol-system.log
       Commit: Y | feat(kol-system)!: cutover y cleanup backend KOL (breaking scope)
+- [ ] 17. Bot lookup exclusivo interactivo (P12a)
+      What to do / Must NOT do: Módulo `lookup/`: `KOL_LOOKUP_BOT_TOKEN` exclusivo; `/start` explica (pegar contrato o reenviar mensaje); vía 1 extrae contrato directo del texto, vía 2 extrae de mensaje reenviado (forwarded `text+entities`); ficha completa vía enrichment (Mc, liquidez, holders, seguridad, links) formateada; inbound por getUpdates poller (patrón `chain-dexter-bot/update-poller.service.ts`) o webhook — decisión worker justificada; rate-limit por usuario. Tests: contrato directo, forward con contrato, forward sin contrato (respuesta ayuda, sin crash). Must NOT publicar en canales (lookup ≠ publishing) ni reutilizar tokens de template.
+      Parallelization: Wave 3 | Blocked by: 8, 10 | Blocks: 15
+      References: .omo/drafts/mega-refactor-tramos.md (P12); apps/backend/src/telegram/chain-dexter-bot/infrastructure/telegram/update-poller.service.ts (patrón poller); apps/backend/src/telegram/chain-dexter-bot/bot.config.ts:45-64 (resolución token por env)
+      Acceptance criteria: `npx jest apps/kol-system/src/lookup` verde con 3 casos (directo, forward-ok, forward-vacío); e2e contra Bot API test con `/start` respondiendo ayuda
+      QA scenarios: happy ficha completa <5s; failure token ausente → bot inactivo con warn (patrón dexter `bot.config.ts:89-91`), resto app sigue. Evidence .omo/evidence/task-17-mega-refactor-kol-system.log
+      Commit: Y | feat(kol-system): bot lookup exclusivo de contratos
 
 ## Final verification wave
 
