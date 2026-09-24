@@ -31,6 +31,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
 - DDL recalculado 17 tablas efectivas (22 del spec − `kols`, `kol_channels`, `kol_reputation`, `kol_stats`, `classified_calls`; 18 si tracking separado cuenta aparte — G-13). Contratos central pinneados (versión fecha+hash).
 - Bot lookup: SUPERSEDED por P13 — vive en `apps/dexter-onchain-bot/` (Tramo 3, todo 9), NO en kol-system. kol-system conserva solo bots por template solo-publishing (P12b).
 - P14: `vip-calls` absorbido — es NOMBRE de template seed, nunca módulo/código. Cada template publica o no según su bot configurado vía frontend.
+- P18: cada move-todo depreca su contraparte backend acto seguido (companion Nb); borrado solo en todo 16.
 - Dual-run sem 2-8 + shadow/dry-run + staging 14 días + rollback rehearsal + cutover por flags + cleanup (archivar, NO dropear).
 
 ### Must NOT have (guardrails, anti-slop, scope boundaries)
@@ -62,6 +63,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
 | 1 (P2 verify)                        | central 1,5                                     | 4-14 (aclara contratos antes de codificar) | 2, 3                                                   |
 | 2 (setup), 3 (shared)                | central 2,3                                     | 4-12                                       | 1                                                      |
 | 4-8 (pipeline)                       | 1, 2, 3                                         | 9-12                                       | entre sí NO (orden de flujo), sí con 13a (avatar spec) |
+| 18 (deprecación ingestión backend)   | 4 verificado                                    | 5                                          | —                                                      |
 | 9-12 (templates→tracking)            | 4-8                                             | 14, 15                                     | 9∥10 parcial (approval tras templates domain)          |
 | 13 (avatar)                          | 1, 4                                            | 14                                         | con nada (requiere ingestion + P2)                     |
 | 14 (frontend)                        | 4, 12, 13                                       | 15                                         | —                                                      |
@@ -103,9 +105,16 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
      Acceptance criteria: `curl -s 'localhost:3031/api/feed/sources?type=kol' | jq length` >= 0; test doble-delivery verde; `grep -ri "crypto-news" apps/kol-system/src/ingestion` vacío (assert negativo P10)
      QA scenarios: happy mensaje kol ingerido <10s vía SSE; failure SSE caído → polling 1min lo repesca (test con stream mock caído). Evidence .omo/evidence/task-4-mega-refactor-kol-system.log
      Commit: Y | feat(kol-system): ingestion kol-type HTTP+SSE
+- [ ] 18. Deprecar ingestión KOL backend (P18, companion del 4)
+      What to do / Must NOT do: Tras verificar el todo 4, marcar `@deprecated` (headers + JSDoc con puntero `apps/kol-system/src/ingestion/`) en la contraparte backend (`apps/backend/src/telegram/ingestion/kol/` o equivalente real que el worker resuelva con lsp_find_references; si no existe contraparte directa, deprecation header en el consumer más cercano). El código backend sigue funcionando (dual-run). Tests legacy verdes. Must NOT borrar nada ni cambiar comportamiento.
+      Parallelization: Wave 2 | Blocked by: 4 verificado | Blocks: 5
+      References: .omo/drafts/mega-refactor-tramos.md (P18); scripts/add-deprecation-headers.js (patrón, si aplica)
+      Acceptance criteria: `grep -r "@deprecated" apps/backend/src/telegram/ingestion/kol/ | wc -l` >= 1 (o header en consumer documentado en evidencia) + `npm run test:backend -- telegram/ingestion` verde
+      QA scenarios: happy headers presentes y suite verde; failure sin contraparte → documentar dónde y por qué en evidencia, NO inventar. Evidence .omo/evidence/task-4b-mega-refactor-kol-system.log
+      Commit: Y | chore(kol-system): depreca ingestión KOL backend (apunta a apps/kol-system)
 - [ ] 5. Extraction contrato×mención sin colapso (Ph4 spec + P5)
      What to do / Must NOT do: `ExtractFromMessageUseCase` directo (fix-1, sin event bus); por cada mención guarda contrato + timestamp + handle + url + channel info + db-id (`ExtractionCandidate`); multi-tip NO colapsa (override explícito del spec overview:64); repeats válidas. Tests: 1 mensaje × 3 menciones → 3 filas.
-     Parallelization: Wave 2 | Blocked by: 4 | Blocks: 6
+     Parallelization: Wave 2 | Blocked by: 4, 18 | Blocks: 6
      References: .omo/drafts/mega-refactor-tramos.md:122 (P5); .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:108-129; apps/backend/src/token/intake/extraction/ (origen a mover: extract-from-message.use-case.ts)
      Acceptance criteria: `psql -c "SELECT count(*) FROM extraction_candidates WHERE message_id='X'"` = 3 para fixture triple-mención
      QA scenarios: happy 3 filas; failure texto sin contrato → 0 filas, sin excepción. Evidence .omo/evidence/task-5-mega-refactor-kol-system.log
