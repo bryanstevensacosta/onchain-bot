@@ -122,9 +122,14 @@ export class ProcessCryptoNewsMessageHandler {
       // Step 3: Fetch + filter + match via FilteredCryptoNewsService.
       // Window of 10 (not 1): album siblings arrive together and the merge
       // inside getMatchingMessages needs them co-present to attach all
-      // photos to one entry.
+      // photos to one entry. Pinned to type=crypto-news: KOL-typed rows
+      // sharing the unified feed must never enter the publisher queue.
       const matchedMessages =
-        await this.filteredNewsService.getMatchingMessages(10, channelId);
+        await this.filteredNewsService.getMatchingMessages(
+          10,
+          channelId,
+          'crypto-news',
+        );
 
       // Select THIS event's entry (never [0]-assumed: the window may hold
       // other recent matches, and each event enqueues only its own).

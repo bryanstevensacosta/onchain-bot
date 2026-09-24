@@ -270,5 +270,17 @@ describe('ProcessCryptoNewsMessageHandler - Latency Measurement', () => {
       // Assert
       expect(enqueueUseCase.execute).not.toHaveBeenCalled();
     });
+
+    it('pins the matching fetch to type=crypto-news (KOL rows never enter the queue)', async () => {
+      filteredNewsService.getMatchingMessages.mockResolvedValue([]);
+
+      await handler.handle(mockRawMessage);
+
+      expect(filteredNewsService.getMatchingMessages).toHaveBeenCalledWith(
+        10,
+        '-100123456789',
+        'crypto-news',
+      );
+    });
   });
 });

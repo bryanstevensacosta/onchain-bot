@@ -36,6 +36,7 @@ import { CryptoNewsAdsModule } from 'telegram/crypto-news-ads/crypto-news-ads.mo
 import { BlacklistController } from 'telegram/crypto-news-publisher/api/http/blacklist.controller';
 import { KeywordsController } from 'telegram/crypto-news-publisher/api/http/keywords.controller';
 import { QueueController } from 'telegram/crypto-news-publisher/api/http/queue.controller';
+import { QueueMediaController } from 'telegram/crypto-news-publisher/api/http/queue-media.controller';
 import { LlmConfigController } from 'telegram/crypto-news-publisher/api/http/llm-config.controller';
 import { PhrasesController } from 'telegram/crypto-news-publisher/api/http/phrases.controller';
 import { BotApiCryptoNewsPublisherAdapter } from 'telegram/crypto-news-publisher/infrastructure/senders/bot-api-crypto-news-publisher.adapter';
@@ -96,6 +97,7 @@ import { TypeOrmSlotArbitrator } from 'telegram/shared/infrastructure/persistenc
     BlacklistController,
     KeywordsController,
     QueueController,
+    QueueMediaController,
     LlmConfigController,
     PhrasesController,
   ],

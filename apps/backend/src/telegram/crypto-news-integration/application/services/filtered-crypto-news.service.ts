@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { CryptoNewsIngestionClient } from '../../infrastructure/http/crypto-news-ingestion-client.service';
+import {
+  CryptoNewsIngestionClient,
+  type CryptoNewsFeedMessageType,
+} from '../../infrastructure/http/crypto-news-ingestion-client.service';
 import type {
   CryptoNewsMessageDto,
   CryptoNewsMessageMedia,
@@ -80,17 +83,23 @@ export class FilteredCryptoNewsService {
    *
    * @param limit - Max messages to fetch from ingestion-telegram (default 50)
    * @param channelId - Optional channel filter (fetches from all channels if omitted)
+   * @param type - Optional feed-type pin, forwarded as `?type=` to the
+   * ingestion API. Matching-flow callers pass `'crypto-news'` explicitly so
+   * KOL-typed rows can never enter the publisher queue; default stays
+   * `undefined` (mixed) for backward compatibility.
    * @returns Array of filtered messages with matched keywords (empty if none match)
    */
   async getMatchingMessages(
     limit = 50,
     channelId?: string,
+    type?: CryptoNewsFeedMessageType,
   ): Promise<ReadonlyArray<FilteredCryptoNewsMessage>> {
     try {
       // Step 1: Fetch raw messages from ingestion-telegram
       const rawMessages = await this.ingestionClient.fetchRecentMessages(
         limit,
         channelId,
+        type,
       );
 
       if (rawMessages.length === 0) {

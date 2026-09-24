@@ -77,12 +77,47 @@ describe('CryptoNewsIngestionClient (wrapper regression)', () => {
     expect(messages[0].messageId).toBe(7001);
   });
 
+  it('fetchRecentMessages sends type=crypto-news when pinned (exact query string)', async () => {
+    mockFetch.mockResolvedValue(okResponse([rawMessage]));
+
+    await client.fetchRecentMessages(50, undefined, 'crypto-news');
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
+    expect(url).toBe(
+      'http://localhost:3031/api/feed/messages?limit=50&type=crypto-news',
+    );
+  });
+
+  it('fetchRecentMessages keeps mixed default (no type param) when unpinned', async () => {
+    mockFetch.mockResolvedValue(okResponse([rawMessage]));
+
+    await client.fetchRecentMessages(50);
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
+    expect(url).toBe('http://localhost:3031/api/feed/messages?limit=50');
+    expect(url).not.toContain('type=');
+  });
+
   it('fetchRecentMessages returns [] on unexpected shapes (never throws)', async () => {
     mockFetch.mockResolvedValue(okResponse({ timestamp: 'x', count: 0 }));
 
     const messages = await client.fetchRecentMessages(50);
 
     expect(messages).toEqual([]);
+  });
+
+  it('fetchRecentMessages combines channelId + type pins (exact query string)', async () => {
+    mockFetch.mockResolvedValue(okResponse([rawMessage]));
+
+    await client.fetchRecentMessages(10, '-1009998887001', 'crypto-news');
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
+    expect(url).toBe(
+      'http://localhost:3031/api/feed/messages?limit=10&channelId=-1009998887001&type=crypto-news',
+    );
   });
 
   it('fetchMessagesByChannel accepts bare array AND wrapped shape', async () => {
@@ -99,6 +134,31 @@ describe('CryptoNewsIngestionClient (wrapper regression)', () => {
     );
     const wrapped = await client.fetchMessagesByChannel('-1009998887001');
     expect(wrapped).toHaveLength(1);
+  });
+
+  it('fetchMessagesByChannel sends type=crypto-news when pinned (exact query string)', async () => {
+    mockFetch.mockResolvedValue(okResponse([rawMessage]));
+
+    await client.fetchMessagesByChannel('-1009998887001', 50, 'crypto-news');
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
+    expect(url).toBe(
+      'http://localhost:3031/api/feed/messages/channel/-1009998887001?limit=50&type=crypto-news',
+    );
+  });
+
+  it('fetchMessagesByChannel keeps mixed default (no type param) when unpinned', async () => {
+    mockFetch.mockResolvedValue(okResponse([rawMessage]));
+
+    await client.fetchMessagesByChannel('-1009998887001');
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const url = (mockFetch.mock.calls[0] as unknown[])[0] as string;
+    expect(url).toBe(
+      'http://localhost:3031/api/feed/messages/channel/-1009998887001?limit=50',
+    );
+    expect(url).not.toContain('type=');
   });
 
   it('fetchSources accepts bare array AND wrapped shape', async () => {

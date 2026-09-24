@@ -76,6 +76,18 @@ export default defineConfig(({ mode }) => {
         },
         // POST /crypto-news/sources now handled by ingestion-telegram (migrated 2026-09-05, renamed 2026-09-17)
         // Old endpoint /crypto-news/sources deprecated (backend returns 501)
+        // Content-filter CRUD stays on the backend (Opción A, filter on-read):
+        // GET/POST /crypto-news/sources/:channelId/filters + PUT/DELETE/PATCH
+        // /crypto-news/filters/:id. Specific prefixes only — never bare
+        // /crypto-news (frontend route intact).
+        '/crypto-news/sources': {
+          target: BACKEND_PROXY_TARGET,
+          changeOrigin: false,
+        },
+        '/crypto-news/filters': {
+          target: BACKEND_PROXY_TARGET,
+          changeOrigin: false,
+        },
         '/ingestion-api': {
           target: INGESTION_PROXY_TARGET,
           changeOrigin: false,

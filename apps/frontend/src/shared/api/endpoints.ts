@@ -6,13 +6,13 @@ export const ENDPOINTS = {
     // rewrites /ingestion-api/* → /api/* on the ingestion host).
     // No single-get route exists in the feed API: detail = list + find.
     // No BLACKLISTED equivalent exists (toggle flips isActive only).
-    // Backfill has no feed equivalent: still hits the backend, which now
-    // answers 501 with the feed hint (surfaced inline by BackfillButton).
+    // No backfill key: POST /telegram-kol/identity/kols/:kolId/backfill
+    // answers 501 (identity lives in the feed API, which exposes no
+    // backfill equivalent), so no client may call it.
     list: '/ingestion-api/feed/sources?type=kol',
     add: '/ingestion-api/feed/sources',
     toggle: (id: string) =>
       `/ingestion-api/feed/sources/${encodeURIComponent(id)}/toggle`,
-    backfill: (id: string) => `/telegram-kol/identity/kols/${id}/backfill`,
   },
   publishing: {
     published: '/vip-calls/calls/published',
