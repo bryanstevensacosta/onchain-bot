@@ -1,3 +1,4 @@
+import type { Chain } from '@/shared/realtime/events';
 import type { TokenScoreView } from '../model/types';
 import { Badge, ChainIcon } from '@/shared/ui';
 import { signalLabel } from '@/shared/lib/signalLabels';
@@ -58,7 +59,7 @@ export function ScoreBreakdown({ factors }: ScoreBreakdownProps) {
 }
 
 interface ScoreChainProps {
-  chain: string;
+  chain: Chain | string;
 }
 
 export function ScoreChain({ chain }: ScoreChainProps) {

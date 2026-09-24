@@ -137,7 +137,49 @@ if [ -n "$agents_missing" ]; then
   exit 1
 fi
 
-# --- 4) Run full test suite (mirrors CI Tests job) ---
+# --- 4) Run affected tests (fast path; full suite runs in CI) ---
+# Full `npm run test:ci` (~3100 tests) on every push made pushes brutally
+# slow. Push now runs only tests related to changed files; CI keeps the
+# full suite as the gate. Falls back to the full suite when no git base
+# is resolvable.
 echo ""
-echo "🧪 Running tests before push..."
-npm run test:ci
+echo "🧪 Running affected tests before push (full suite runs in CI)..."
+push_base=$(git merge-base HEAD origin/dev 2>/dev/null || git merge-base HEAD origin/master 2>/dev/null || true)
+if [ -z "$push_base" ]; then
+  echo "   (no git base resolvable — running full suite)"
+  npm run test:ci
+else
+  push_changed=$(git diff --name-only "$push_base" HEAD -- 'apps/backend/**' 'apps/ingestion-telegram/**' 'apps/frontend/**' 2>/dev/null || true)
+  if [ -z "$push_changed" ]; then
+    echo "   (no app changes — skipping tests)"
+  else
+    push_status=0
+    # Backend: jest tests related to changed files (falls back to pass when
+    # only non-source files changed, e.g. Dockerfiles/docs).
+    if printf '%s\n' "$push_changed" | grep -q '^apps/backend/'; then
+      echo "   backend: related tests..."
+      be_files=$(printf '%s\n' "$push_changed" | grep '^apps/backend/' | while IFS= read -r f; do [ -f "$f" ] && printf '%s ' "$f"; done)
+      # shellcheck disable=SC2086
+      (cd apps/backend && npx jest --findRelatedTests $be_files --passWithNoTests --forceExit --silent) || push_status=1
+    fi
+    # Ingestion: same pattern.
+    if printf '%s\n' "$push_changed" | grep -q '^apps/ingestion-telegram/'; then
+      echo "   ingestion: related tests..."
+      in_files=$(printf '%s\n' "$push_changed" | grep '^apps/ingestion-telegram/' | while IFS= read -r f; do [ -f "$f" ] && printf '%s ' "$f"; done)
+      # shellcheck disable=SC2086
+      (cd apps/ingestion-telegram && npx jest --findRelatedTests $in_files --passWithNoTests --forceExit --silent) || push_status=1
+    fi
+    # Frontend suite is fast (~8s): run it whole when frontend changed.
+    if printf '%s\n' "$push_changed" | grep -q '^apps/frontend/'; then
+      echo "   frontend: full suite (fast)..."
+      npm run test -w @alpha-meta-token-scanner/frontend --if-present || push_status=1
+    fi
+    if [ "$push_status" -ne 0 ]; then
+      echo ""
+      echo "❌ Affected tests failed — fix and push again (CI runs the full suite anyway)."
+      echo ""
+      exit 1
+    fi
+    echo "   ✅ affected tests passed"
+  fi
+fi
