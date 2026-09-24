@@ -1951,12 +1951,26 @@ echo "=== Parity check complete ==="
 
 ---
 
+## Replay / Message-Loss Policy (ACCEPTED 2026-09-24)
+
+Lossy by design across 4 layers — documented, not a bug to fix without a product decision:
+
+1. Ingestion `StreamService`: no buffer, `Last-Event-ID` unsupported.
+2. Backfill endpoint deleted (per-env T4); backend `backfill()` 404s.
+3. `LastSeenManager` cursors in Redis without TTL — Redis loss = reflood (up to 50 historic msgs as new on cold start).
+4. Backend SSE client: tolerates gaps, no re-request.
+
+**Operational meaning**: any ingestion restart, SSE drop, or Redis flush can silently lose messages or re-emit history. No alert fires (by design). Acceptable per operator 2026-09-24. Building a real replay buffer is a project, not a fix — do not attempt incidentally.
+
+---
+
 ## Revision History
 
-| Version | Date       | Author | Changes                                             |
-| ------- | ---------- | ------ | --------------------------------------------------- |
-| 1.0     | 2026-08-30 | System | Initial deployment runbook                          |
-| 1.1     | 2026-09-17 | System | Cutover ingestion-telegram (rename, stop-the-world) |
+| Version | Date       | Author | Changes                                                                                                       |
+| ------- | ---------- | ------ | ------------------------------------------------------------------------------------------------------------- |
+| 1.0     | 2026-08-30 | System | Initial deployment runbook                                                                                    |
+| 1.2     | 2026-09-24 | System | Replay/loss policy accepted + INGESTION_API_KEY rollout (unset = warn-open; effective on next restart/deploy) |
+| 1.1     | 2026-09-17 | System | Cutover ingestion-telegram (rename, stop-the-world)                                                           |
 
 ---
 
