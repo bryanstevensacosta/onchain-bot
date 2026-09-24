@@ -4,7 +4,7 @@
 
 > Credenciales MTProto viven **SOLO en el `.env` de CADA instancia** (`INGESTION_TELEGRAM_*`). Nunca en `apps/backend/.env`, nunca compartidas entre envs → evita `AUTH_KEY_DUPLICATED`.
 
-> Versión v1.1.0 (source of truth: `package.json` + `CHANGELOG.md`; verificado 2026-09-20).
+> Versión v1.2.0 (source of truth: `package.json` + `CHANGELOG.md`; verificado 2026-09-24).
 
 ## Comandos
 

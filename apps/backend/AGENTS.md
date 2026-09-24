@@ -1,6 +1,6 @@
 # apps/backend/ — NestJS Knowledge Base
 
-> Verified 2026-09-04 against code. v1.2.0 (source of truth: apps/backend/package.json + CHANGELOG; verified 2026-09-20). Supersedes the "19 BCs / 48 entities / vip-calls-channel" claims.
+> Verified 2026-09-04 against code. v1.3.0 (source of truth: apps/backend/package.json + CHANGELOG; verified 2026-09-24). Supersedes the "19 BCs / 48 entities / vip-calls-channel" claims.
 
 Contents: OVERVIEW · COMMANDS · STRUCTURE · MODULES · INGESTION · KOL DOMAIN · CRYPTO-NEWS · PUBLISHING ·
 PIPELINE · SCORING & GATES · HTTP ROUTES · SCHEDULERS · SHARED INFRA · PERSISTENCE ·

@@ -1,6 +1,6 @@
 {
   "name": "@alpha-meta-token-scanner/ingestion-telegram",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Centralized Telegram ingestion service that streams messages to multiple backend environments via SSE",
   "private": true,
   "license": "UNLICENSED",

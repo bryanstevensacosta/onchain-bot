@@ -6,6 +6,27 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 (none yet)
 
+## [1.2.0] - 2026-09-24
+
+### Added
+
+- `telegram_feed_*` tables (+ JSONB columns, GIN indexes). (PR #246)
+- Per-env twin support: staging compose + dispatch lanes. (PR #246)
+- OpenAPI feed tags. (PR #246)
+
+### Changed
+
+- Media moved to `uploads/feed/media`. (PR #246)
+
+### Fixed
+
+- Dedup cursor-loss fix + monotonic cursors. (PR #246)
+- SSE simplification: registration, 401 gate, union, dual-broadcast and dead code deleted. (PR #246)
+
+### Removed
+
+- BREAKING: `/api/crypto-news/*` removed → `/api/feed/*` (+ `?type=` filter). (PR #246)
+
 ## [1.1.0] - 2026-09-18
 
 Rename GA: `ingestion-service` is now `ingestion-telegram` (MINOR: new optional config, no breaking change — old var still honored).
