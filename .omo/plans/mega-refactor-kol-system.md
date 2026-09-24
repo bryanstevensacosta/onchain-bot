@@ -82,14 +82,14 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
      Acceptance criteria: `test -f .omo/evidence/task-1-mega-refactor-kol-system.md && grep -c "file:line\|:" .omo/evidence/task-1-mega-refactor-kol-system.md` >= 7 (un veredicto con cita por punto P3–P9)
      QA scenarios: happy 7/7 verificados; failure algún P bloqueado → reportar al central, NO auto-rediseñar. Evidence .omo/evidence/task-1-mega-refactor-kol-system.md
      Commit: N (evidencia) | — | —
-- [ ] 2. App setup: esqueleto kol-system + health + compose (Ph1 spec)
+- [x] 2. App setup: esqueleto kol-system + health + compose (Ph1 spec)
      What to do / Must NOT do: `apps/kol-system/` con `package.json` (NestJS 11, TypeORM, schedule), `nest-cli.json`, `tsconfig.json`, `src/main.ts` (:3050, ValidationPipe), `src/app.module.ts` (14 imports stub), `.env.example` (`KOL_SYSTEM_ENABLED`, `TEMPLATE_ORCHESTRATOR_ENABLED`, `INGESTION_TELEGRAM_URL`, `KOL_BOT_TOKEN`, `ENCRYPTION_KEY`), `Dockerfile`, `docker-compose.yml` (DB `alpha_meta_token_scanner_kol_system` + redis), `GET /api/health`. Must NOT lógica de negocio.
      Parallelization: Wave 1 | Blocked by: central 2, 3 | Blocks: 3-12
      References: .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:24-63; .omo/reference/mega-refactor-target-tree.md (bloque kol-system raíz)
      Acceptance criteria: `curl -s localhost:3050/api/health | grep -q '"status":"ok"'`
      QA scenarios: happy health 200; failure puerto ocupado → `lsof -i :3050` y fallback según C-PORTS-01. Evidence .omo/evidence/task-2-mega-refactor-kol-system.log
      Commit: Y | feat(kol-system): app setup con health y compose
-- [ ] 3. Shared kernel + config + guards (Ph2 spec)
+- [x] 3. Shared kernel + config + guards (Ph2 spec)
      What to do / Must NOT do: `src/shared/kernel/{aggregate-root.ts,entity.ts,value-object.ts,domain-event.ts}`, `config/{app,database,redis,telegram}.config.ts` (registerAs + validación Tier-1 no-vacía), `ApiKeyGuard`, `DomainExceptionFilter`, `shared.module.ts`. Tests unitarios por componente. Must NOT importar TypeORM/axios en `domain/`.
      Parallelization: Wave 1 | Blocked by: 2 | Blocks: 4-12
      References: .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:65-87; apps/backend/src/shared/kernel/aggregate-root.ts:17 (patrón)
@@ -153,7 +153,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       QA scenarios: happy approve→publish; failure `KOL_BOT_TOKEN` ausente → 401 sin postear nada real. Evidence .omo/evidence/task-11-mega-refactor-kol-system.log
       Commit: Y | feat(kol-system): approval y publishing multi-bot
 - [ ] 12. Tracking first-seen + rating +5x (Ph12 spec + P8 + G-14)
-      What to do / Must NOT do: Columnas `first_seen_at`, `first_mc_at`, `last_call_mc_at`, `times_called`; job que las mantiene; `tracking` = `First time` vs `Nx from last call`; rating kol por calls +5x con fórmula + ejemplo numérico documentado; endpoint fila tabla. Ranking P11: job cron mantiene `kol_window_stats(caller, window, total_x)` (múltiple = `last_mc/first_mc_at`, SUMA por caller; display +NX 30D/7D, +% 1D) + `GET /api/kol-rankings?window=30d|7d|1d` ordenado desc. Tests: 2ª mención mismo kol+contrato → `2x from last call` con deltas; ranking con fixture 3 callers suma correcta por ventana.
+      What to do / Must NOT do: Columnas `first_seen_at`, `first_mc_at`, `last_call_mc_at`, `times_called`; job que las mantiene; `tracking` = `First time` vs `Nx from last call`; rating kol por calls +5x con fórmula + ejemplo numérico documentado; endpoint fila tabla. Ranking P11: job cron mantiene `kol_window_stats(caller, window, total_x, calls_count)` (múltiple = `last_mc/first_mc_at`, SUMA por caller + CONTEO de calls; display +NX 30D/7D, +% 1D) + `GET /api/kol-rankings?window=30d|7d|1d&sort=perf_desc|perf_asc|calls_desc` ordenado según sort. Tests: 2ª mención mismo kol+contrato → `2x from last call` con deltas; ranking con fixture 3 callers suma y conteo correctos por ventana.
       Parallelization: Wave 3 | Blocked by: 11 | Blocks: 14
       References: .omo/drafts/mega-refactor-tramos.md:125 (P8); apps/backend/src/token/normalization/infrastructure/persistence/typeorm/entities/canonical-token-call.entity.ts:84 (first_seen_at existente); .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:385-411
       Acceptance criteria: `psql -c "SELECT tracking FROM tracked_mentions WHERE times_called=2"` = `2x from last call` + `curl -s 'localhost:3050/api/kol-rankings?window=30d' | jq 'length >= 0'`
@@ -167,10 +167,10 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       QA scenarios: happy avatar servido; failure fetch MTProto falla → placeholder + retry diferido. Evidence .omo/evidence/task-13-mega-refactor-kol-system.log
       Commit: Y | feat(kol-system): avatar KOL con fallback (2 commits si toca ingestion)
 - [ ] 14. Frontend: tabla caller|call|mc at|tracking|time ago|more details+ (P5/P8 + C-UX-01)
-      What to do / Must NOT do: Vista por template (canales P6) con columnas exactas; `more details+` expande enrichment completo; avatar + handle + url + db-id en caller; polling 5-30s (TanStack) como resto del dashboard. P16: dashboard ÚNICO con multi-select de KOL sources (alimentado de ingestion-telegram) que filtra calls/ranking/gems/tracking del template. Must NOT romper dashboard legacy (convive hasta cutover).
+      What to do / Must NOT do: Vista por template (canales P6) con columnas exactas; `more details+` expande enrichment completo; avatar + handle + url + db-id en caller; polling 5-30s (TanStack) como resto del dashboard. P16: dashboard ÚNICO con multi-select de KOL sources (alimentado de ingestion-telegram) que filtra calls/ranking/gems/tracking del template. P17 layout: ranking performance horizontal 10 (5 izq + 5 der) con flechas mayor↔menor; tira horizontal top-10 callers por nº calls con selector 30D/7D/1D; sección extendida de configuración del template (sources, score display, filtros gemas, bot). Must NOT romper dashboard legacy (convive hasta cutover).
       Parallelization: Wave 4 | Blocked by: 12, 13 | Blocks: 15
       References: plan central C-UX-01 sub-tabla Tramo 1; apps/frontend/src/shared/api/endpoints.ts (prefijos vip-calls/kols); .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md (dashboard production-ready gate)
-      Acceptance criteria: `npx playwright test -g "kol calls table"` verde con ≥1 fila `First time` y ≥1 `Nx from last call` + `npx playwright test -g "kol rankings table"` verde con ≥1 fila por ventana (30d/7d/1d) + `npx playwright test -g "template sources filter"` verde (elegir 2 sources, tabla muestra solo sus calls; limpiar = todas)
+      Acceptance criteria: `npx playwright test -g "kol calls table"` verde con ≥1 fila `First time` y ≥1 `Nx from last call` + `npx playwright test -g "kol rankings table"` verde con ≥1 fila por ventana (30d/7d/1d) + `npx playwright test -g "template sources filter"` verde (elegir 2 sources, tabla muestra solo sus calls; limpiar = todas) + `npx playwright test -g "dashboard layout"` verde (ranking 5+5 con flechas que invierten orden; top-10 callers con selector 30D/7D/1D cambiando conteos)
       QA scenarios: happy tabla + expand + ranking con selector de ventana; failure API caída → empty-state, sin crash. Evidence .omo/evidence/task-14-mega-refactor-kol-system.log + captura
       Commit: Y | feat(frontend): tabla calls por template
 - [ ] 15. Dual-run + shadow + staging 14d + rollback rehearsal (C3 + G-19)
