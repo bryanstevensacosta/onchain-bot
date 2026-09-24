@@ -80,7 +80,7 @@ Your next move: approve — listo para $start-work Tramo 2 tras Gate T1. Full ex
      QA scenarios: happy boot + suite; failure puerto ocupado → C-PORTS-01. Evidence .omo/evidence/task-1-mega-refactor-content-publisher.log
      Commit: Y | feat(content-publisher): setup y shared transversal
 - [ ] 2. Ingestion crypto-news por HTTP+SSE (11-refactor §1)
-     What to do / Must NOT do: `CryptoNewsIngestionClient` + `ProcessCryptoNewsMessageHandler` movidos desde `crypto-news-integration/`; SSE listener con filtro `messageType==='crypto-news'` (C-SSE-01); polling fallback. Tests doble-delivery → 1 row. Must NOT métodos KOL (ya en kol-system; si existen, borrar).
+     What to do / Must NOT do: `CryptoNewsIngestionClient` + `ProcessCryptoNewsMessageHandler` movidos desde `crypto-news-integration/`; SSE listener con filtro `messageType==='crypto-news'` (C-SSE-01) — P10: suscribirse a `'kol'` está PROHIBIDO en esta app; polling fallback. Tests doble-delivery → 1 row. Must NOT métodos KOL (ya en kol-system; si existen, borrar).
      Parallelization: Wave 2 | Blocked by: 1 | Blocks: 3
      References: 11-refactor.md:86-137; apps/backend/src/telegram/crypto-news-integration/ (origen); plan central C-SSE-01
      Acceptance criteria: `curl -s 'localhost:3031/api/feed/messages?limit=1'` 200 + test doble-delivery verde

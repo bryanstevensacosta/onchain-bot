@@ -130,6 +130,8 @@ Consecuencias adaptadas (todo va a los planes por tramo):
 - **C2 C-SHARED-01 invertido**: Tramo 1 mueve el KOL bot fuera de `telegram/shared` primero; Tramo 2 extrae los crypto-news adapters después. El split de `telegram/shared` se hace en dos movimientos (orden inverso al v0).
 - **C3 riesgo piloto sobre money-path**: el patrón extracción+dual-run+rollback se valida directamente en VIP calls. Mitigaciones obligatorias del Tramo 1: shadow/dry-run del pipeline (canal espejo) antes de cutover, staging extendido (proponer 14 días vs 7 estándar), rollback rehearsal en staging, kill-switch `KOL_*_ENABLED`.
 - **C4 cadena de preconditions**: T2 arranca con T1 validado en staging; T3 con T2 validado. Sin solapes en `telegram/shared` ni `data-provider/`.
+- **P10 separación estricta por tipo (2026-09-24)**: `content-publisher` consume SOLO `messageType==='crypto-news'`; `kol-system` consume SOLO `messageType==='kol'` (crudos, sin mezcla). El fan-out SSE lleva ambos tipos; el filtrado es client-side obligatorio por app + query param donde exista. Ningún todo puede suscribirse al tipo ajeno.
+- **P11 ranking de kol callers (2026-09-24)**: endpoint `GET /api/kol-rankings?window=30d|7d|1d` + tabla frontend `caller | 30D: +22X | 7D: +4X | 1D: +46%`. Múltiple por call = `last_mc / first_mc_at` (enriquecido vía market-data, C-A ≤30s); agregado por caller y ventana = SUMA de múltiplos; display +NX en 30D/7D, +% en 1D. Job cron mantiene `kol_window_stats(caller, window, total_x)` (no cálculo on-request). El worker define fórmula con ejemplo numérico (patrón G-14).
 
 ## 8. Lo que haré al aprobar este borrador
 
