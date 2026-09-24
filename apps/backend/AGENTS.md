@@ -616,7 +616,7 @@ Trust this section over README §4.
   (`DomainErrorFilter`), `kernel/` (AggregateRoot/Entity/ValueObject/DomainEvent/DomainError).
 - Root providers: `DevBackfillHook`, `FilteredBootstrapLogger`, `ConfigConnectivityService`.
 - Env files: `.env`, `.env.dev` (+ `.dev.backup-20260901-052702`), `.env.staging`,
-  `.env.{staging,production}.template` — NO `.env.example` at backend root.
+  `.env.{staging,production}.template`, `.env.example` (template inventory of ingestion/SSE knobs — copy to `.env`/`.env.dev`).
 - `jest.setup.ts`: loads `.env`, forces `DATABASE_ENABLED=true` (tests always hit Postgres).
 
 ## PERSISTENCE — 39 ENTITIES (split 2026-09-08; was 41)
@@ -676,6 +676,15 @@ Infra: `PORT=3000`, `DATABASE_{ENABLED=false,POSTGRES_*,SYNCHRONIZE=true,LOGGING
 ⚠️ `.env.production.template` sets `USE_SSE_INGESTION=true` with `INGESTION_TELEGRAM_URL=http://onchain-bot-ingestion-telegram:3031` (prod DNS); staging twin uses `http://onchain-bot-ingestion-telegram-staging:3031` in `docker-compose.staging.yml:98` + `.env.staging.template:76`.
 The retired `INGESTION_REMOTE_URL` is already gone from the template (only `INGESTION_TELEGRAM_URL` is read, gap 21); the migration banner + `validate-session-migration.sh` reference (`:67`) are stale leftovers.
 Backend MTProto creds were removed from `src` entirely (see above); MTProto sessions must live ONLY in ingestion-telegram (AUTH_KEY_DUPLICATED otherwise).
+
+**Feed identity auth (master sync d2938003):** `kol/identity/infrastructure/http/feed-identity-http-client.ts`
+(+ `feed-identity-http-client.spec.ts`) sends optional `x-api-key` via `buildHeaders()` — empty key = keyless
+dev keeps working (fail-open `[]` on transport/shape errors). Key resolved in `shared/common/config/`
+(`app.config.ts:resolveIngestionApiKey()` from `INGESTION_TELEGRAM_API_KEY`, trimmed, default `''` as
+`ingestion.apiKey`). Templates: new `.env.example` documents `INGESTION_TELEGRAM_URL` + `INGESTION_TELEGRAM_API_KEY`
+
+- SSE backoff knobs; `.env.production.template` / `.env.staging.template` add optional `INGESTION_TELEGRAM_API_KEY=`
+  (ingestion side: `INGESTION_API_KEY`).
 
 ## LOGGING
 
