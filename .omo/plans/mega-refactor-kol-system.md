@@ -32,6 +32,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
 - Bot lookup: SUPERSEDED por P13 — vive en `apps/dexter-onchain-bot/` (Tramo 3, todo 9), NO en kol-system. kol-system conserva solo bots por template solo-publishing (P12b).
 - P14: `vip-calls` absorbido — es NOMBRE de template seed, nunca módulo/código. Cada template publica o no según su bot configurado vía frontend.
 - P18: cada move-todo depreca su contraparte backend acto seguido (companion Nb); borrado solo en todo 16.
+- P21: cada move-todo registra health indicator (`ingestion.sse`, `database`, `redis`, +1 por módulo); shared/ se REUTILIZA siempre (extender, nunca copiar/duplicar).
 - Dual-run sem 2-8 + shadow/dry-run + staging 14 días + rollback rehearsal + cutover por flags + cleanup (archivar, NO dropear).
 
 ### Must NOT have (guardrails, anti-slop, scope boundaries)
@@ -186,7 +187,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       What to do / Must NOT do: Sem 2-8 `KOL_PIPELINE_ENABLED=true` + `KOL_SYSTEM_ENABLED=true` comparando outputs side-by-side (logs + published); shadow/dry-run en canal espejo; staging 14 días; rehearsal rollback completo (re-enable backend + orchestrator off <30min) con tiempo medido. Suites legacy green: `npm run test:backend -- kol telegram token`, `test:ingestion`, `test:frontend`. Must NOT saltar staging ni rehearsal.
       Parallelization: Wave 4 | Blocked by: 11, 14 | Blocks: 16
       References: .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:639-693; plan central Gate T1
-      Acceptance criteria: `grep -q "staging-days: 14" /tmp/qa-tramo1.log && grep -q "rehearsal-min: " /tmp/qa-tramo1.log && grep -q "legacy-suites: green" /tmp/qa-tramo1.log` (el worker escribe esas 3 líneas con valores medidos: días efectivos, minutos rehearsal, resultado suites)
+      Acceptance criteria: `grep -q "staging-days: 14" /tmp/qa-tramo1.log && grep -q "rehearsal-min: " /tmp/qa-tramo1.log && grep -q "legacy-suites: green" /tmp/qa-tramo1.log` (el worker escribe esas 3 líneas con valores medidos: días efectivos, minutos rehearsal, resultado suites) + `curl -s localhost:3051/api/health | jq -e '.components | has("ingestion"), has("database"), has("templates"), has("publishing")'` (P21: todos los componentes en el health)
       QA scenarios: happy side-by-side sin divergencias >umbral; failure divergencia → investigar, NO cutover. Evidence /tmp/qa-tramo1.log + .omo/evidence/task-15-mega-refactor-kol-system.log
       Commit: N (evidencia) | — | —
 - [ ] 16. Cutover + cleanup Tramo 1 (Ph cutover spec)
