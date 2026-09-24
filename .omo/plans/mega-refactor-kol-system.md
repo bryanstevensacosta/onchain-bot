@@ -62,7 +62,8 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
 | Todo                                 | Depends on                                      | Blocks                                     | Can parallelize with                                   |
 | ------------------------------------ | ----------------------------------------------- | ------------------------------------------ | ------------------------------------------------------ |
 | 1 (P2 verify)                        | central 1,5                                     | 4-14 (aclara contratos antes de codificar) | 2, 3                                                   |
-| 2 (setup), 3 (shared)                | central 2,3                                     | 4-12                                       | 1                                                      |
+| 2 (setup), 3 (shared)                | central 2,3                                     | 4-12, 19                                   | 1                                                      |
+| 19 (config sin KOL_BOT_TOKEN)        | 3                                               | 10, 11                                     | —                                                      |
 | 4-8 (pipeline)                       | 1, 2, 3                                         | 9-12                                       | entre sí NO (orden de flujo), sí con 13a (avatar spec) |
 | 18 (deprecación ingestión backend)   | 4 verificado                                    | 5                                          | —                                                      |
 | 9-12 (templates→tracking)            | 4-8                                             | 14, 15                                     | 9∥10 parcial (approval tras templates domain)          |
@@ -149,7 +150,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
      QA scenarios: happy score + ranking; failure bajo-corte → descartado pre-publisher. Evidence .omo/evidence/task-9-mega-refactor-kol-system.log
      Commit: Y | feat(kol-system): scoring y classification por-template
 - [ ] 10. Templates CORE sin threads + bot-token cifrado (Ph9 spec + C1 + G-10 + G-11 + P9)
-      What to do / Must NOT do: `PublishingTemplate` + `TemplateOrchestratorService` (cron 1min) + `RankingEngine` (4 estrategias) + CRUD (`Create/Update/Activate/GetRankings`) + `TemplatesController` (11 endpoints); `threadConfig: null` + endpoints `.../threads/*` → 501 + test que fija el stub; tabla `template_bot_tokens` cifrada AES-256-GCM (`EncryptionService` + `ENCRYPTION_KEY` + migración + round-trip test + redact `'***'` en GET) + columnas `channel_id`, `label` + CRUD frontend (`GET/POST/PATCH /api/templates/:id/bots`); P22: config Telegram 100% DB (env SOLO seed del template `vip-calls`; prohibido `*_BOT_TOKEN` nuevo por template). P15 SUPERSEDED por P16: sin tabla `template_dashboards`. El template guarda `kolSourceIds: string[]` (vacío = todas las sources) + endpoint `PATCH /api/templates/:id/sources` validando channelIds contra `GET /api/feed/sources?type=kol`; seed `vip-calls` con selección vacía (todas). Must NOT threads implementados ni token en plano.
+      What to do / Must NOT do: `PublishingTemplate` + `TemplateOrchestratorService` (cron 1min) + `RankingEngine` (4 estrategias) + CRUD (`Create/Update/Activate/GetRankings`) + `TemplatesController` (11 endpoints); `threadConfig: null` + endpoints `.../threads/*` → 501 + test que fija el stub; tabla `telegram_bots` (id, token cifrado AES-256-GCM vía `EncryptionService` + `ENCRYPTION_KEY`, label; reutilizable: mismo bot en varios canales/templates) + template con `bot_id` + `channel_target` (sin `bot_id` = solo dashboard) + CRUD frontend (`GET/POST/PATCH /api/templates/:id/bots`, redact `'***'` en GET) + migración + round-trip test; P22/P23: config Telegram 100% DB, CERO env `KOL_BOT_TOKEN` (todo 19 lo retira de setup+validación). P15 SUPERSEDED por P16: sin tabla `template_dashboards`. El template guarda `kolSourceIds: string[]` (vacío = todas las sources) + endpoint `PATCH /api/templates/:id/sources` validando channelIds contra `GET /api/feed/sources?type=kol`; seed `vip-calls` con selección vacía (todas). Must NOT threads implementados ni token en plano.
       Parallelization: Wave 3 | Blocked by: 9 | Blocks: 11
       References: .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:221-313; .kiro/specs/refactor-kol-system/overview.md:1263 (publishing_config JSONB),938 (redact); .omo/drafts/mega-refactor-tramos.md:126 (P9),111 (C1)
       Acceptance criteria: `curl -s -o /dev/null -w "%{http_code}" localhost:3050/api/templates/x/threads` = 501; `psql -c "SELECT token FROM template_bot_tokens"` ilegible sin key; `GET` redacta
@@ -204,6 +205,13 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       Acceptance criteria: `ls apps/kol-system/src | grep -i lookup` vacío
       QA scenarios: —. Evidence —
       Commit: N | — | —
+- [ ] 19. Retirar KOL_BOT_TOKEN de setup+validación (P23)
+      What to do / Must NOT do: Quitar `KOL_BOT_TOKEN` de `.env.example` y de la validación Tier-1 (`validateKolSystemConfig` ya NO lo exige; app arranca sin bot configurado = modo solo-dashboard); `MultiBotPublisherAdapter` resuelve token desde catálogo `telegram_bots` por `template.bot_id` (NO env). Tests: boot sin token verde; validación exige `ENCRYPTION_KEY`+`DATABASE_URL` pero no bot. Must NOT dejar referencias a `process.env.KOL_BOT_TOKEN`.
+      Parallelization: Wave 1 | Blocked by: 3 | Blocks: 10, 11
+      References: .omo/drafts/mega-refactor-tramos.md (P23); apps/kol-system/.env.example; apps/kol-system/src/shared/config/app.config.ts (validateKolSystemConfig)
+      Acceptance criteria: `grep -rn "KOL_BOT_TOKEN" apps/kol-system --include="*.ts" | grep -v spec | wc -l` = 0 + `npx jest apps/kol-system/src/shared` verde
+      QA scenarios: happy boot sin bot (dashboard-only); failure `ENCRYPTION_KEY` ausente → error claro. Evidence .omo/evidence/task-19-mega-refactor-kol-system.log
+      Commit: Y | refactor(kol-system): config Telegram 100% DB sin KOL_BOT_TOKEN
 
 ## Final verification wave
 
