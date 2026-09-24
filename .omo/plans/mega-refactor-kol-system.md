@@ -33,6 +33,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
 - P14: `vip-calls` absorbido — es NOMBRE de template seed, nunca módulo/código. Cada template publica o no según su bot configurado vía frontend.
 - P18: cada move-todo depreca su contraparte backend acto seguido (companion Nb); borrado solo en todo 16.
 - P21: cada move-todo registra health indicator (`ingestion.sse`, `database`, `redis`, +1 por módulo); shared/ se REUTILIZA siempre (extender, nunca copiar/duplicar).
+- P25: `apps/kol-system/AGENTS.md` vivo — creado en todo 21, actualizado al cierre de cada todo.
 - Dual-run sem 2-8 + shadow/dry-run + staging 14 días + rollback rehearsal + cutover por flags + cleanup (archivar, NO dropear).
 
 ### Must NOT have (guardrails, anti-slop, scope boundaries)
@@ -219,6 +220,13 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       Acceptance criteria: `git check-ignore apps/kol-system/.env.staging && git check-ignore apps/kol-system/.env.production && echo IGNORED-OK`; `git ls-files apps/kol-system/.env*` lista solo development + 2 templates
       QA scenarios: happy boot con cada template (valores dummy); failure secreto commiteado → pre-commit lo cazaría (verificar con `git log --all -S 'sk-' --oneline -- apps/kol-system | wc -l` = 0). Evidence .omo/evidence/task-20-mega-refactor-kol-system.log
       Commit: Y | chore(kol-system): templates env multi-entorno (P24)
+- [ ] 21. AGENTS.md vivo de kol-system (P25)
+      What to do / Must NOT do: Crear `apps/kol-system/AGENTS.md` espejo de `apps/backend/AGENTS.md` en estructura (overview, comandos, envs, puertos, convenciones TS/ESLint, tests, decisiones P1–P24 aplicables con fecha) adaptado a kol-system; registrar REGLA standing: cada todo futuro cierra con paso "actualiza AGENTS.md si cambió algo (comandos, envs, puertos, decisiones)". Verificar enlaces a ficheros reales (0 links rotos). Must NOT copiar secciones backend que no apliquen (MTProto, providers).
+      Parallelization: Wave 1 | Blocked by: 3 | Blocks: — (standing rule para 4+)
+      References: .omo/drafts/mega-refactor-tramos.md (P25, P1–P24); apps/backend/AGENTS.md (estructura espejo); apps/ingestion-telegram/AGENTS.md (brevedad espejo)
+      Acceptance criteria: `test -f apps/kol-system/AGENTS.md && grep -c "P1[0-9]" apps/kol-system/AGENTS.md` >= 5 (decisiones pivot citadas)
+      QA scenarios: happy todo futuro lo actualiza (verificar en reviews); failure link roto → `grep -o "\[.*\](.*)" AGENTS.md` y comprobar destinos. Evidence .omo/evidence/task-21-mega-refactor-kol-system.log
+      Commit: Y | docs(kol-system): AGENTS.md vivo con regla de actualización
 
 ## Final verification wave
 
