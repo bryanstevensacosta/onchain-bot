@@ -28,10 +28,8 @@ import { PublishAdNowUseCase } from 'telegram/crypto-news-ads/application/handle
 import { RotationDeciderService } from 'telegram/crypto-news-ads/application/services/rotation-decider.service';
 import { AdFormatPublisherService } from 'telegram/crypto-news-ads/application/services/ad-format-publisher.service';
 import { AdsCronScheduler } from 'telegram/crypto-news-ads/application/scheduling/ads-cron.scheduler';
-import {
-  AdsController,
-  AdsMediaController,
-} from 'telegram/crypto-news-ads/api/http/ads.controller';
+import { AdsController } from 'telegram/crypto-news-ads/api/http/ads.controller';
+import { AdsMediaController } from 'telegram/crypto-news-ads/api/http/ads-media.controller';
 import { AdsRotationConfigController } from 'telegram/crypto-news-ads/api/http/ads-rotation-config.controller';
 import { AdMediaStoragePort } from 'telegram/crypto-news-ads/application/ports/ad-media-storage.port';
 import { LocalAdMediaStorageAdapter } from 'telegram/crypto-news-ads/infrastructure/storage/local-ad-media-storage.adapter';

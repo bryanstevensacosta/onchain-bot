@@ -1,7 +1,9 @@
+import type { Chain } from '@/shared/realtime/events';
+
 export interface TrackedCallView {
   id: string;
   kolId: string;
-  chain: string;
+  chain: Chain;
   address: string;
   ticker: string | null;
   mcAtPublish: number;

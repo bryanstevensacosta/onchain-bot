@@ -5,7 +5,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
-import { AdsController, AdsMediaController } from './ads.controller';
+import { AdsController } from './ads.controller';
+import { AdsMediaController } from './ads-media.controller';
 import { AdRepository } from 'telegram/crypto-news-ads/application/ports/ad.repository';
 import {
   AdMediaRecord,
