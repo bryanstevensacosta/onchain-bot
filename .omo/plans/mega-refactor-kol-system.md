@@ -30,6 +30,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
 - Onda de verificación P2 con sub-agentes por punto P3–P9 antes de implementar.
 - DDL recalculado 17 tablas efectivas (22 del spec − `kols`, `kol_channels`, `kol_reputation`, `kol_stats`, `classified_calls`; 18 si tracking separado cuenta aparte — G-13). Contratos central pinneados (versión fecha+hash).
 - Bot lookup: SUPERSEDED por P13 — vive en `apps/dexter-onchain-bot/` (Tramo 3, todo 9), NO en kol-system. kol-system conserva solo bots por template solo-publishing (P12b).
+- P14: `vip-calls` absorbido — es NOMBRE de template seed, nunca módulo/código. Cada template publica o no según su bot configurado vía frontend.
 - Dual-run sem 2-8 + shadow/dry-run + staging 14 días + rollback rehearsal + cutover por flags + cleanup (archivar, NO dropear).
 
 ### Must NOT have (guardrails, anti-slop, scope boundaries)
@@ -74,7 +75,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
 
 <!-- APPEND TASK BATCHES BELOW THIS LINE WITH edit/apply_patch - never rewrite the headers above. -->
 
-- [ ] 1. Onda P2: verificación por sub-agentes P3–P9 (P2)
+- [x] 1. Onda P2: verificación por sub-agentes P3–P9 (P2)
      What to do / Must NOT do: Fan-out 7 verificaciones read-only (explore/librarian, una por punto P3–P9): P3 tipos kol vs crypto en coordinator; P4 endpoints `?type=kol` + avatar feasibility MTProto; P5 parsing contratos multi-mención; P6 score display actual; P7 latencia market-data real (p95) y forma de `more details+`; P8 `first_seen_at` existente; P9 token-por-constructor en adapters. Consolidar claims con evidencia file:line en `.omo/evidence/task-1-mega-refactor-kol-system.md`. Must NOT implementar nada en este todo.
      Parallelization: Wave 1 | Blocked by: central 1, 5 | Blocks: 4-14
      References: .omo/drafts/mega-refactor-tramos.md:118-126; apps/ingestion-telegram/src/core/application/coordinators/message-persistence.coordinator.ts:98-101 (route por messageType); apps/backend/src/token/normalization/infrastructure/persistence/typeorm/entities/canonical-token-call.entity.ts:84
@@ -138,14 +139,14 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
      QA scenarios: happy score + ranking; failure bajo-corte → descartado pre-publisher. Evidence .omo/evidence/task-9-mega-refactor-kol-system.log
      Commit: Y | feat(kol-system): scoring y classification por-template
 - [ ] 10. Templates CORE sin threads + bot-token cifrado (Ph9 spec + C1 + G-10 + G-11 + P9)
-      What to do / Must NOT do: `PublishingTemplate` + `TemplateOrchestratorService` (cron 1min) + `RankingEngine` (4 estrategias) + CRUD (`Create/Update/Activate/GetRankings`) + `TemplatesController` (11 endpoints); `threadConfig: null` + endpoints `.../threads/*` → 501 + test que fija el stub; tabla `template_bot_tokens` cifrada AES-256-GCM (`EncryptionService` + `ENCRYPTION_KEY` + migración + round-trip test + redact `'***'` en GET). Must NOT threads implementados ni token en plano.
+      What to do / Must NOT do: `PublishingTemplate` + `TemplateOrchestratorService` (cron 1min) + `RankingEngine` (4 estrategias) + CRUD (`Create/Update/Activate/GetRankings`) + `TemplatesController` (11 endpoints); `threadConfig: null` + endpoints `.../threads/*` → 501 + test que fija el stub; tabla `template_bot_tokens` cifrada AES-256-GCM (`EncryptionService` + `ENCRYPTION_KEY` + migración + round-trip test + redact `'***'` en GET). P15: tabla `template_dashboards` (id, template_id FK, type: calls-table|kol-ranking|gem-feed|tracking-board, title, filters JSONB, layout JSONB, position) + `GET /api/templates/:id/dashboards` + CRUD + seed `vip-calls` con calls-table + kol-ranking. Must NOT threads implementados ni token en plano.
       Parallelization: Wave 3 | Blocked by: 9 | Blocks: 11
       References: .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:221-313; .kiro/specs/refactor-kol-system/overview.md:1263 (publishing_config JSONB),938 (redact); .omo/drafts/mega-refactor-tramos.md:126 (P9),111 (C1)
       Acceptance criteria: `curl -s -o /dev/null -w "%{http_code}" localhost:3050/api/templates/x/threads` = 501; `psql -c "SELECT token FROM template_bot_tokens"` ilegible sin key; `GET` redacta
       QA scenarios: happy CRUD + orchestrate; failure token ausente → publishing deshabilitado para ese template, resto sigue. Evidence .omo/evidence/task-10-mega-refactor-kol-system.log
       Commit: Y | feat(kol-system): templates core con stub threads y bot-token cifrado
 - [ ] 11. Approval + publishing multi-bot, movimiento KOL-bot (Ph10-11 spec + C2)
-      What to do / Must NOT do: `CallApproval` + `EvaluateApproval` + `GetPendingApprovals`; `PublishingJob` + `PublishFromTemplate` + `ManualPublish`; `MultiBotPublisherAdapter` (KOL_BOT_TOKEN); MOVER (lsp_find_references primero) el KOL bot fuera de `backend telegram/shared` — primer movimiento C-SHARED-01; ticker nunca null pre-publisher. Tests + e2e publish en canal espejo.
+      What to do / Must NOT do: `CallApproval` + `EvaluateApproval` + `GetPendingApprovals`; `PublishingJob` + `PublishFromTemplate` + `ManualPublish`; `MultiBotPublisherAdapter` (KOL_BOT_TOKEN); MOVER (lsp_find_references primero) el KOL bot fuera de `backend telegram/shared` — primer movimiento C-SHARED-01; ticker nunca null pre-publisher. P14: seed de template por defecto NOMBRADO `vip-calls` (dato, no módulo); publicar o no lo decide el bot configurado del template. Tests + e2e publish en canal espejo.
       Parallelization: Wave 3 | Blocked by: 10 | Blocks: 15
       References: .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:315-384; apps/backend/src/telegram/vip-calls/vip-channel/ (origen); apps/backend/src/telegram/vip-calls/shared/infrastructure/senders/bot-api-telegram-publisher.adapter.ts:24-52 (token por config)
       Acceptance criteria: `curl -s localhost:3050/api/approvals/pending | jq length` >= 0; e2e espejo publica 1 call
@@ -166,10 +167,10 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       QA scenarios: happy avatar servido; failure fetch MTProto falla → placeholder + retry diferido. Evidence .omo/evidence/task-13-mega-refactor-kol-system.log
       Commit: Y | feat(kol-system): avatar KOL con fallback (2 commits si toca ingestion)
 - [ ] 14. Frontend: tabla caller|call|mc at|tracking|time ago|more details+ (P5/P8 + C-UX-01)
-      What to do / Must NOT do: Vista por template (canales P6) con columnas exactas; `more details+` expande enrichment completo; avatar + handle + url + db-id en caller; polling 5-30s (TanStack) como resto del dashboard. Segunda vista P11: tabla ranking `caller | 30D | 7D | 1D` contra `/api/kol-rankings` con selector de ventana. Playwright: tabla renderiza con fixture. Must NOT romper dashboard legacy (convive hasta cutover).
+      What to do / Must NOT do: Vista por template (canales P6) con columnas exactas; `more details+` expande enrichment completo; avatar + handle + url + db-id en caller; polling 5-30s (TanStack) como resto del dashboard. P15: el template renderiza N dashboards en pestañas (cada uno con sus filtros guardados) + UI CRUD de dashboards (crear/duplicar/reordenar/eliminar). Segunda vista P11: tabla ranking `caller | 30D | 7D | 1D` contra `/api/kol-rankings` con selector de ventana. Playwright: tabla renderiza con fixture. Must NOT romper dashboard legacy (convive hasta cutover).
       Parallelization: Wave 4 | Blocked by: 12, 13 | Blocks: 15
       References: plan central C-UX-01 sub-tabla Tramo 1; apps/frontend/src/shared/api/endpoints.ts (prefijos vip-calls/kols); .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md (dashboard production-ready gate)
-      Acceptance criteria: `npx playwright test -g "kol calls table"` verde con ≥1 fila `First time` y ≥1 `Nx from last call` + `npx playwright test -g "kol rankings table"` verde con ≥1 fila por ventana (30d/7d/1d)
+      Acceptance criteria: `npx playwright test -g "kol calls table"` verde con ≥1 fila `First time` y ≥1 `Nx from last call` + `npx playwright test -g "kol rankings table"` verde con ≥1 fila por ventana (30d/7d/1d) + `npx playwright test -g "template dashboards"` verde (crear 2º dashboard tipo gem-feed con filtro, reordenar, eliminar)
       QA scenarios: happy tabla + expand + ranking con selector de ventana; failure API caída → empty-state, sin crash. Evidence .omo/evidence/task-14-mega-refactor-kol-system.log + captura
       Commit: Y | feat(frontend): tabla calls por template
 - [ ] 15. Dual-run + shadow + staging 14d + rollback rehearsal (C3 + G-19)
