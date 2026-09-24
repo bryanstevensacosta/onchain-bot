@@ -61,20 +61,20 @@ Your next move: approve — listo para $start-work Tramo 2 tras Gate T1. Full ex
 ## Todos
 
 > Implementation + Test = ONE todo. Never separate.
-> Contrato central pinneado: C-\* v2026-09-24 (central d3671cf0) — C-SSE-01, C-FLAGS-01, C-SHARED-01/C2, C-UX-01, C1. Spec base: `.kiro/specs/refactor-content-publisher/` (11-refactor 3437 líneas, guide 8 fases/7sem, tracker 133 tareas, playbook go/no-go).
+> Contrato central pinneado: C-\* v2026-09-24 (central 4b0c643f) — C-SSE-01, C-FLAGS-01, C-SHARED-01/C2, C-UX-01, C1. Spec base: `.kiro/specs/refactor-content-publisher/` (11-refactor 3437 líneas, guide 8 fases/7sem, tracker 133 tareas, playbook go/no-go).
 
 <!-- APPEND TASK BATCHES BELOW THIS LINE WITH edit/apply_patch - never rewrite the headers above. -->
 
 - [ ] 0. Precondition: Tramo 1 validado + checklist telegram/shared (G-15)
      What to do / Must NOT do: Verificar Gate T1 (staging 14d + shadow + rehearsal en evidencia) y listar archivos `backend telegram/shared` ya movidos por T1 (KOL-bot fuera); confirmar `KOL_BOT_TOKEN` sin referencias en `telegram/shared` restante. Must NOT arrancar sin Gate T1 verde.
-     Parallelization: Wave 0 | Blocked by: central gate T1 | Blocks: 1-12
+     Parallelization: Wave 0 | Blocked by: central gate T1 | Blocks: 1-11
      References: plan central Gate T1; .omo/drafts/mega-refactor-tramos.md:110,130 (C2); .kiro/specs/refactor-kol-system/overview.md:1373-1495 (6 renombres kol→threads)
      Acceptance criteria: `grep -r "KOL_BOT_TOKEN\|kol-bot" apps/backend/src/telegram/shared` vacío + evidencia Gate T1 enlazada
      QA scenarios: happy checklist verde; failure resto KOL en shared → devolver a T1, NO pisar. Evidence .omo/evidence/task-0-mega-refactor-content-publisher.log
      Commit: N | — | —
 - [ ] 1. App setup 11 módulos + shared transversal (Ph1-2 guide)
      What to do / Must NOT do: `apps/content-publisher/` (`package.json` NestJS11/TypeORM/Bull/OpenAI/BotAPI, nest-cli, tsconfig, `src/main.ts` :3040 dev / :3041 staging / :3042 prod, `app.module.ts` 11 imports, `.env.example` 25 vars, compose dev, `/api/health`) + `src/shared/` completo (VOs, eventos, excepciones, typeorm base+`naming-strategy`, http+retry, cache, messaging, monitoring Pino/Prometheus, security, decorators, filters, config, `ApiKeyGuard`). Tests >80% shared. Must NOT negocio aún.
-     Parallelization: Wave 1 | Blocked by: 0 | Blocks: 3-9
+     Parallelization: Wave 1 | Blocked by: 0 | Blocks: 2-8
      References: .kiro/specs/refactor-content-publisher/IMPLEMENTATION-GUIDE.md:24-79; 11-refactor.md:964-1051+ (shared); .omo/reference/mega-refactor-target-tree.md (bloque content-publisher shared)
      Acceptance criteria: `curl -s localhost:3040/api/health | grep -q '"status":"ok"'` + shared coverage >80%
      QA scenarios: happy boot + suite; failure puerto ocupado → C-PORTS-01. Evidence .omo/evidence/task-1-mega-refactor-content-publisher.log

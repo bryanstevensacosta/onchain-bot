@@ -48,13 +48,13 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
 
 ### Parallel execution waves
 
-> Wave 1: setup+shared+mapeo libs→src. Wave 2: token+chain+provider+cache/rate-limiter. Wave 3: extracción providers + puente HTTP + renombre legacy + frontend. Wave 4: staging/cutover/cleanup. Precondition wave 0: T1+T2 validados.
+> Wave 1: setup+shared+mapeo libs→src. Wave 2: token+chain+provider+cache/rate-limiter. Wave 3: extracción providers + puente HTTP + renombre legacy + frontend. Wave 4: staging/cutover market-data (todo 8). Wave 5: dexter-onchain-bot (todo 9, tras market estable). Precondition wave 0: T1+T2 validados.
 
 ### Dependency matrix
 
 | Todo                            | Depends on           | Blocks | Can parallelize with                       |
 | ------------------------------- | -------------------- | ------ | ------------------------------------------ |
-| 0 (precondition T2)             | central gates T1, T2 | 1-8    | —                                          |
+| 0 (precondition T2)             | central gates T1, T2 | 1-9    | —                                          |
 | 1 (setup+shared)                | 0, central 2,3       | 2, 3   | —                                          |
 | 2 (chain/provider/cache)        | 1                    | 4      | con nada (base de token/)                  |
 | 3 (token)                       | 1                    | 4      | ∥ 2 (módulos independientes, mismo wave)   |
@@ -66,7 +66,7 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
 ## Todos
 
 > Implementation + Test = ONE todo. Never separate.
-> Contrato central pinneado: C-\* v2026-09-24 (central d3671cf0) — C-DATA-01, C-FLAGS-01, C-PORTS-01, C-DB-01, C-UX-01. Spec base: `.kiro/specs/refactor-data/` (leer como REQUISITOS, no como topología: la topología v1 es monorepo Variante A de este plan, G-16).
+> Contrato central pinneado: C-\* v2026-09-24 (central 4b0c643f) — C-DATA-01, C-FLAGS-01, C-PORTS-01, C-DB-01, C-UX-01. Spec base: `.kiro/specs/refactor-data/` (leer como REQUISITOS, no como topología: la topología v1 es monorepo Variante A de este plan, G-16).
 
 <!-- APPEND TASK BATCHES BELOW THIS LINE WITH edit/apply_patch - never rewrite the headers above. -->
 
@@ -127,7 +127,7 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
      QA scenarios: happy snapshot render; failure API caída → empty-state. Evidence .omo/evidence/task-7-mega-refactor-market-data.log + capturas
      Commit: Y | feat(frontend): dashboard market-data
 - [ ] 8. Staging 7d + cutover + cleanup Tramo 3
-     What to do / Must NOT do: Staging 7 días (:4001), rehearsal rollback, cutover `USE_DATA_SERVICE_API=true` dev→staging→prod, monitor p95/error; tras OK: borrar `data-provider/` + `chain-dexter-bot` legacy backend, archivar tablas si aplica, deprecation headers. Cierra programa (Gate T3 central).
+     What to do / Must NOT do: Staging 7 días (:4001), rehearsal rollback, cutover `USE_DATA_SERVICE_API=true` dev→staging→prod, monitor p95/error; tras OK: borrar `data-provider/` + legacy backend (excepto `chain-dexter-bot/`, que extrae el todo 9 antes de su borrado), archivar tablas si aplica, deprecation headers. Cierra programa (Gate T3 central).
      Parallelization: Wave 4 | Blocked by: 5, 6, 7 | Blocks: 9
      References: .kiro/specs/refactor-data/overview.md (fases migración); plan central Gate T3
      Acceptance criteria: `ls apps/backend/src/data-provider 2>/dev/null` vacío + p95 prod <500ms 24h

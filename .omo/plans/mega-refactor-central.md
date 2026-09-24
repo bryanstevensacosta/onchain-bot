@@ -65,7 +65,7 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
 
 ## Tramos delegados (D2 — el central NO duplica sus todos)
 
-> Versión contratos: C-\* v2026-09-24 (central d3671cf0). Cada tramo pinnea esta versión al arrancar.
+> Versión contratos: C-\* v2026-09-24 (central 4b0c643f). Cada tramo pinnea esta versión al arrancar.
 > | Tramo | Plan (path) | Spec origen | Precondition | Done-gate |
 > | --- | --- | --- | --- | --- |
 > | T1 kol-system | `.omo/plans/mega-refactor-kol-system.md` | `.kiro/specs/refactor-kol-system/` (pivot P1–P9 manda) | central todos 1-3,5-7 | Gate T1 (todo 8 central): staging 14d + shadow + rehearsal |
@@ -76,7 +76,7 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
 
 > Implementation + Test = ONE todo. Never separate.
 > Defaults adoptados (a veto, Metis G-01/G-02/G-09/G-10/G-11 + preguntas):
-> DBs mismo-servidor-por-env `<base>_<app>` + `_staging` en twin (precedente `_ingestion`) · Puertos tripletas 3040/41/42, 3050/51/52, 4000/4001/4002 (worker verifica con lsof en Oracle; si clash, fallback a proxy) · Avatar lo sirve ingestion-telegram `/api/kol-avatar/:channelId` con placeholder fallback · Bot-tokens en tabla cifrada `template_bot_tokens` + `ENCRYPTION_KEY` rotatable · Threads-stub = `threadConfig: null` + endpoints 501 + test que lo fija · Endpoints ingestion: usar `?type=kol` existente (NO crear `/feed/kols`).
+> DBs mismo-servidor-por-env `<base>_<app>` + `_staging` en twin (precedente `_ingestion`) · Puertos tripletas 3040/41/42, 3050/51/52, 4000/4001/4002, 4060/4061/4062 (dexter, propuesto P13, verificar con lsof) (worker verifica con lsof en Oracle; si clash, fallback a proxy) · Avatar lo sirve ingestion-telegram `/api/kol-avatar/:channelId` con placeholder fallback · Bot-tokens en tabla cifrada `template_bot_tokens` + `ENCRYPTION_KEY` rotatable · Threads-stub = `threadConfig: null` + endpoints 501 + test que lo fija · Endpoints ingestion: usar `?type=kol` existente (NO crear `/feed/kols`).
 
 <!-- APPEND TASK BATCHES BELOW THIS LINE WITH edit/apply_patch - never rewrite the headers above. -->
 
@@ -87,13 +87,13 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
      Acceptance criteria: `git status --porcelain | grep -c boulder` = 0 en staged; `git branch --show-current` imprime `feat/mega-refactor-tramos`
      QA scenarios: happy `git log --oneline -1` muestra commit P0; failure: si `git stash list` no contiene boulder y el worktree lo modifica, abortar y reportar. Evidence .omo/evidence/task-1-mega-refactor-central.log
      Commit: Y | chore(git): P0 hygiene rama mega-refactor (stash boulder, stage specs+planes)
-- [ ] 2. Sellar C-DB-01: tabla 9 DBs + owners migración (G-01, G-13)
-     What to do / Must NOT do: Escribir en este plan la tabla: dev local `alpha_meta_token_scanner_{kol_system,content_publisher,market_data}`; Oracle prod `alpha_meta_token_scanner_{kol_system,content_publisher,market_data,dexter}`; twin staging `alpha_meta_token_scanner_{kol_system_staging,content_publisher_staging,market_data_staging,dexter_staging}`; owner `migration:run` por app (su propio `data-source.ts`); `synchronize:false, migrationsRun:false` fuera dev/test. Tramo 1 usa 17-18 tablas efectivas (NO 22). Must NOT inventar otros nombres.
+- [ ] 2. Sellar C-DB-01: tabla 12 DBs + owners migración (G-01, G-13)
+     What to do / Must NOT do: Escribir en este plan la tabla: dev local `alpha_meta_token_scanner_{kol_system,content_publisher,market_data,dexter}`; Oracle prod `alpha_meta_token_scanner_{kol_system,content_publisher,market_data,dexter}`; twin staging `alpha_meta_token_scanner_{kol_system_staging,content_publisher_staging,market_data_staging,dexter_staging}` (12 DBs); owner `migration:run` por app (su propio `data-source.ts`); `synchronize:false, migrationsRun:false` fuera dev/test. Tramo 1 usa 17-18 tablas efectivas (NO 22). Must NOT inventar otros nombres.
      Parallelization: Wave 1 | Blocked by: 1 | Blocks: tramos (sus database.config.ts)
      References: .omo/drafts/mega-refactor-tramos.md:99 (C-DB-01 promesa); apps/backend AGENTS (split 2026-09-08, baseline ingestion `1788844970659-BaselineIngestionSchema`); .kiro/specs/refactor-kol-system/overview.md:1211-1238 (22→17/18 tras P4+P6)
-     Acceptance criteria: `grep -c "alpha_meta_token_scanner_" .omo/plans/mega-refactor-central.md` >= 9
+     Acceptance criteria: `grep -o "alpha_meta_token_scanner_[a-z_]*" .omo/plans/mega-refactor-central.md | sort -u | wc -l` >= 12
      QA scenarios: happy tabla completa 3×3 con servidor+owner; failure: si falta staging twin, marcar incompleto. Evidence .omo/evidence/task-2-mega-refactor-central.log
-     Commit: Y | docs(central): sella C-DB-01 con 9 DBs y owners
+     Commit: Y | docs(central): sella C-DB-01 con 12 DBs y owners
 - [ ] 3. Sellar C-PORTS-01: tabla puertos×env + verificación Oracle (G-02)
      What to do / Must NOT do: Tabla dev/staging/prod: kol 3050/3051/3052, content 3040/3041/3042, market 4000/4001/4002, dexter 4060/4061/4062 (propuesto P13, worker verifica); backend 3030/3031/3030, ingestion 3031/3033/3032, frontend 5173/4173/80. Verificación ejecutable en Oracle: `lsof -i :3040-3042,3050-3052,4000-4002` debe salir vacío; si clash, fallback anotado (proxy reverso, NO cambiar tripletas sin veto). Must NOT asumir Oracle libres sin correr el comando.
      Parallelization: Wave 1 | Blocked by: 1 | Blocks: tramos (main.ts/Dockerfile/compose/nginx)

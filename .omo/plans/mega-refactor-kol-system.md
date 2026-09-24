@@ -56,21 +56,21 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
 
 ### Dependency matrix
 
-| Todo                      | Depends on                        | Blocks                                     | Can parallelize with                                   |
-| ------------------------- | --------------------------------- | ------------------------------------------ | ------------------------------------------------------ |
-| 1 (P2 verify)             | central 1,5                       | 4-14 (aclara contratos antes de codificar) | 2, 3                                                   |
-| 2 (setup), 3 (shared)     | central 2,3                       | 4-12                                       | 1                                                      |
-| 4-8 (pipeline)            | 1, 2, 3                           | 9-12                                       | entre sí NO (orden de flujo), sí con 13a (avatar spec) |
-| 9-12 (templates→tracking) | 4-8                               | 14, 15                                     | 9∥10 parcial (approval tras templates domain)          |
-| 13 (avatar)               | 1, 4                              | 14                                         | con nada (requiere ingestion + P2)                     |
-| 14 (frontend)             | 4, 12, 13                         | 15                                         | —                                                      |
-| 17 (lookup bot)           | 8, 10                             | 15                                         | Wave 3, paralelo con 11-14                             |
-| 15, 16 (staging+cutover)  | todo lo anterior + central gate 8 | —                                          | —                                                      |
+| Todo                                 | Depends on                                      | Blocks                                     | Can parallelize with                                   |
+| ------------------------------------ | ----------------------------------------------- | ------------------------------------------ | ------------------------------------------------------ |
+| 1 (P2 verify)                        | central 1,5                                     | 4-14 (aclara contratos antes de codificar) | 2, 3                                                   |
+| 2 (setup), 3 (shared)                | central 2,3                                     | 4-12                                       | 1                                                      |
+| 4-8 (pipeline)                       | 1, 2, 3                                         | 9-12                                       | entre sí NO (orden de flujo), sí con 13a (avatar spec) |
+| 9-12 (templates→tracking)            | 4-8                                             | 14, 15                                     | 9∥10 parcial (approval tras templates domain)          |
+| 13 (avatar)                          | 1, 4                                            | 14                                         | con nada (requiere ingestion + P2)                     |
+| 14 (frontend)                        | 4, 12, 13                                       | 15                                         | —                                                      |
+| 17 (lookup — SUPERSEDED P13, inerte) | —                                               | —                                          | — (sin wave)                                           |
+| 15, 16 (staging+cutover)             | todos 1-16 (excluye 17 inerte) + central gate 8 | —                                          | —                                                      |
 
 ## Todos
 
 > Implementation + Test = ONE todo. Never separate.
-> Contrato central pinneado: C-\* v2026-09-24 (central d3671cf0). Spec base: `.kiro/specs/refactor-kol-system/`; divergencias pivot: `.omo/drafts/mega-refactor-tramos.md:118-126` (P1–P9).
+> Contrato central pinneado: C-\* v2026-09-24 (central 4b0c643f). Spec base: `.kiro/specs/refactor-kol-system/`; divergencias pivot: `.omo/drafts/mega-refactor-tramos.md:118-126` (P1–P9).
 
 <!-- APPEND TASK BATCHES BELOW THIS LINE WITH edit/apply_patch - never rewrite the headers above. -->
 
@@ -99,7 +99,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
      What to do / Must NOT do: `KolIngestionClient` (`GET /api/feed/sources?type=kol`, `GET /api/feed/messages`), SSE listener suscrito a `/api/ingestion/stream` filtrando `messageType==='kol'` client-side (P10: `'crypto-news'` prohibido aquí), `ProcessKolMessageHandler`, polling fallback 1 min, backoff 1s→30s. Tests: doble-delivery realtime+polling → 1 row. Must NOT crear endpoints nuevos en ingestion ni filtrar server-side.
      Parallelization: Wave 2 | Blocked by: 1, 2, 3 | Blocks: 5-8
      References: .kiro/specs/refactor-kol-system/overview.md:176-207; plan central C-SSE-01; apps/backend/src/telegram/ingestion/shared/api/sse/ (patrón backoff cliente)
-     Acceptance criteria: `curl -s 'localhost:3031/api/feed/sources?type=kol' | jq length` >= 0; test doble-delivery verde
+     Acceptance criteria: `curl -s 'localhost:3031/api/feed/sources?type=kol' | jq length` >= 0; test doble-delivery verde; `grep -ri "crypto-news" apps/kol-system/src/ingestion` vacío (assert negativo P10)
      QA scenarios: happy mensaje kol ingerido <10s vía SSE; failure SSE caído → polling 1min lo repesca (test con stream mock caído). Evidence .omo/evidence/task-4-mega-refactor-kol-system.log
      Commit: Y | feat(kol-system): ingestion kol-type HTTP+SSE
 - [ ] 5. Extraction contrato×mención sin colapso (Ph4 spec + P5)
@@ -155,8 +155,8 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       What to do / Must NOT do: Columnas `first_seen_at`, `first_mc_at`, `last_call_mc_at`, `times_called`; job que las mantiene; `tracking` = `First time` vs `Nx from last call`; rating kol por calls +5x con fórmula + ejemplo numérico documentado; endpoint fila tabla. Ranking P11: job cron mantiene `kol_window_stats(caller, window, total_x)` (múltiple = `last_mc/first_mc_at`, SUMA por caller; display +NX 30D/7D, +% 1D) + `GET /api/kol-rankings?window=30d|7d|1d` ordenado desc. Tests: 2ª mención mismo kol+contrato → `2x from last call` con deltas; ranking con fixture 3 callers suma correcta por ventana.
       Parallelization: Wave 3 | Blocked by: 11 | Blocks: 14
       References: .omo/drafts/mega-refactor-tramos.md:125 (P8); apps/backend/src/token/normalization/infrastructure/persistence/typeorm/entities/canonical-token-call.entity.ts:84 (first_seen_at existente); .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:385-411
-      Acceptance criteria: `psql -c "SELECT tracking FROM tracked_mentions WHERE times_called=2"` = `2x from last call`
-      QA scenarios: happy primera vs segunda mención; failure `first_mc_at` null (enrich falló) → tracking muestra `mc n/a`, sin crash. Evidence .omo/evidence/task-12-mega-refactor-kol-system.log
+      Acceptance criteria: `psql -c "SELECT tracking FROM tracked_mentions WHERE times_called=2"` = `2x from last call` + `curl -s 'localhost:3050/api/kol-rankings?window=30d' | jq 'length >= 0'`
+      QA scenarios: happy primera vs segunda mención + ranking suma correcta por ventana (fixture 3 callers); failure `first_mc_at` null (enrich falló) → tracking muestra `mc n/a`, sin crash. Evidence .omo/evidence/task-12-mega-refactor-kol-system.log
       Commit: Y | feat(kol-system): tracking first-seen y rating
 - [ ] 13. Avatar KOL vía ingestion-telegram (P4 + G-09)
       What to do / Must NOT do: Fuente MTProto photo (o Bot API `getUserProfilePhotos`); owner ingestion-telegram (invariante media owner): columna/tabla + serve `GET /api/kol-avatar/:channelId` + job fetch-once + fallback placeholder; kol-system solo consume URL. Si ingestion necesita cambio, todo separado en su repo con backlink. Tests fallback.
@@ -169,8 +169,8 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       What to do / Must NOT do: Vista por template (canales P6) con columnas exactas; `more details+` expande enrichment completo; avatar + handle + url + db-id en caller; polling 5-30s (TanStack) como resto del dashboard. Segunda vista P11: tabla ranking `caller | 30D | 7D | 1D` contra `/api/kol-rankings` con selector de ventana. Playwright: tabla renderiza con fixture. Must NOT romper dashboard legacy (convive hasta cutover).
       Parallelization: Wave 4 | Blocked by: 12, 13 | Blocks: 15
       References: plan central C-UX-01 sub-tabla Tramo 1; apps/frontend/src/shared/api/endpoints.ts (prefijos vip-calls/kols); .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md (dashboard production-ready gate)
-      Acceptance criteria: `npx playwright test -g "kol calls table"` verde con ≥1 fila `First time` y ≥1 `Nx from last call`
-      QA scenarios: happy tabla + expand; failure API caída → empty-state, sin crash. Evidence .omo/evidence/task-14-mega-refactor-kol-system.log + captura
+      Acceptance criteria: `npx playwright test -g "kol calls table"` verde con ≥1 fila `First time` y ≥1 `Nx from last call` + `npx playwright test -g "kol rankings table"` verde con ≥1 fila por ventana (30d/7d/1d)
+      QA scenarios: happy tabla + expand + ranking con selector de ventana; failure API caída → empty-state, sin crash. Evidence .omo/evidence/task-14-mega-refactor-kol-system.log + captura
       Commit: Y | feat(frontend): tabla calls por template
 - [ ] 15. Dual-run + shadow + staging 14d + rollback rehearsal (C3 + G-19)
       What to do / Must NOT do: Sem 2-8 `KOL_PIPELINE_ENABLED=true` + `KOL_SYSTEM_ENABLED=true` comparando outputs side-by-side (logs + published); shadow/dry-run en canal espejo; staging 14 días; rehearsal rollback completo (re-enable backend + orchestrator off <30min) con tiempo medido. Suites legacy green: `npm run test:backend -- kol telegram token`, `test:ingestion`, `test:frontend`. Must NOT saltar staging ni rehearsal.
