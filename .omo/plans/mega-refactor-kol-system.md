@@ -212,6 +212,13 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       Acceptance criteria: `grep -rn "KOL_BOT_TOKEN" apps/kol-system --include="*.ts" | grep -v spec | wc -l` = 0 + `npx jest apps/kol-system/src/shared` verde
       QA scenarios: happy boot sin bot (dashboard-only); failure `ENCRYPTION_KEY` ausente → error claro. Evidence .omo/evidence/task-19-mega-refactor-kol-system.log
       Commit: Y | refactor(kol-system): config Telegram 100% DB sin KOL_BOT_TOKEN
+- [ ] 20. Templates env multi-entorno + scp a Oracle (P24)
+      What to do / Must NOT do: Crear `apps/kol-system/.env.development` (valores dummy dev), `.env.staging.template` y `.env.production.template` (placeholders `ENCRYPTION_KEY=`, `DATABASE_URL=`, `REDIS_URL=`, `INGESTION_TELEGRAM_URL` por env, SIN secretos); documentar en el template el `scp .env.staging/.env.production OracleDroplet:/opt/...` de despliegue (rutas según C-CI-01); verificar `.gitignore` cubre `.env.staging` y `.env.production` (NO `.env.*.template`); test: validación arranca con cada template + placeholders sustituidos (sin secretos reales). Must NOT commitear secretos ni rutas inventadas (las de Oracle las confirma el worker contra `docker-compose.*.yml` existentes).
+      Parallelization: Wave 1 | Blocked by: 19 | Blocks: 10, 11 (bots necesitan key por env)
+      References: .omo/drafts/mega-refactor-tramos.md (P24); apps/backend/.env.staging.template + .env.production.template (patrón espejo); .gitignore (`.env*` excepto example/template)
+      Acceptance criteria: `git check-ignore apps/kol-system/.env.staging && git check-ignore apps/kol-system/.env.production && echo IGNORED-OK`; `git ls-files apps/kol-system/.env*` lista solo development + 2 templates
+      QA scenarios: happy boot con cada template (valores dummy); failure secreto commiteado → pre-commit lo cazaría (verificar con `git log --all -S 'sk-' --oneline -- apps/kol-system | wc -l` = 0). Evidence .omo/evidence/task-20-mega-refactor-kol-system.log
+      Commit: Y | chore(kol-system): templates env multi-entorno (P24)
 
 ## Final verification wave
 
