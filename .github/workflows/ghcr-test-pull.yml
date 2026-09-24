@@ -12,8 +12,12 @@ permissions:
 
 jobs:
   pull-and-measure:
-    runs-on: self-hosted
+    runs-on: [self-hosted, oracle]
     steps:
+      - name: Assert Oracle host
+        run: |
+          hostname
+          df -P /opt/onchain-bot
       - name: Disk before
         run: |
           echo "=== df -h ==="
