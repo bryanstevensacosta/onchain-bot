@@ -40,18 +40,6 @@ on:
     types: [completed]
     branches: [dev]
 
-# CONCURRENCY (item 9d): ONE shared group per physical target across all 3
-# deploy workflows. Staging target = /opt/onchain-bot-staging (this workflow +
-# the twin lane + staging rollback of deploy-ingestion.yml share it — this
-# closes the twin-vs-deploy-staging race).
-# cancel-in-progress:false — lanes run migrations; killing one mid-migration
-# corrupts schema state. Tradeoff accepted and documented: a broken commit
-# blocks the queue behind it (operator cancels queued-not-running runs by
-# hand). Policy: supersede-queued-not-running ONLY, never kill a running lane.
-concurrency:
-  group: ingestion-staging-target
-  cancel-in-progress: false
-
 permissions:
   contents: read
   packages: write
@@ -277,6 +265,20 @@ jobs:
   deploy-staging:
     name: Deploy to staging
     runs-on: [self-hosted, oracle]
+    # CONCURRENCY (item 9d): job-level single-flight on ONE shared group per
+    # physical target across all 3 deploy workflows. Staging target =
+    # /opt/onchain-bot-staging (this job + the twin lane + staging rollback
+    # of deploy-ingestion.yml share it — this closes the
+    # twin-vs-deploy-staging race). Job-level (not top-level) so
+    # preflight/build jobs stay unguarded.
+    # cancel-in-progress:false — lanes run migrations; killing one
+    # mid-migration corrupts schema state. Tradeoff accepted and documented:
+    # a broken commit blocks the queue behind it (operator cancels
+    # queued-not-running runs by hand). Policy: supersede-queued-not-running
+    # ONLY, never kill a running lane.
+    concurrency:
+      group: ingestion-staging-target
+      cancel-in-progress: false
     needs: [preflight, build-and-push-staging]
     if: needs.preflight.outputs.run_deploy == 'true'
     timeout-minutes: 40
@@ -389,32 +391,6 @@ jobs:
           docker pull ghcr.io/${{ github.repository }}-frontend:staging-${{ needs.preflight.outputs.effective_sha }} || docker pull ghcr.io/${{ github.repository }}-frontend:staging-latest
           docker tag ghcr.io/${{ github.repository }}-frontend:staging-${{ needs.preflight.outputs.effective_sha }} ghcr.io/${{ github.repository }}-frontend:staging-latest 2>/dev/null || true
           docker images | head -20
-
-      - name: Post-pull cleanup (aggressive, keep only current)
-        run: |
-          echo "=== Post-pull prune (remove old SHA tags, keep latest) ==="
-          # ROLLBACK-PIN EXEMPTION (item 9c): docker image prune -af would GC
-          # the rollback targets. Snapshot namespaced pins first, prune, then
-          # re-pull them from GHCR (source of truth — pins are pushed there on
-          # every good deploy). Covers backend/frontend pins of BOTH envs plus
-          # the ingestion pins (same host, sibling workflow).
-          KEEP_PINS="$(docker images --format '{{.Repository}}:{{.Tag}}' | grep -E ':(prev-backend|prev-frontend|staging-prev-backend|staging-prev-frontend|prev|staging-prev|prev-1|staging-prev-1)$' || true)"
-          docker image prune -af 2>&1 | tail -20 || true
-          if [ -n "$KEEP_PINS" ]; then
-            echo "=== Restoring rollback pins from GHCR ==="
-            echo "$KEEP_PINS" | while read -r PIN; do
-              docker pull "$PIN" 2>&1 | tail -1 || echo "::warning::could not restore $PIN"
-            done
-            echo "=== Pins present locally ==="
-            docker images | grep -E 'prev' || echo "::warning::no prev tags local after restore"
-          else
-            echo "(no rollback pins local — first run, nothing to exempt)"
-          fi
-          docker builder prune -af 2>&1 | tail -10 || true
-          echo "=== Disk after pull + prune ==="
-          df -h | head -20
-          docker system df 2>&1 | head -20
-          PCT=$(df / | tail -1 | awk '{print $5}' | tr -d '%'); if [ "$PCT" -gt 80 ]; then echo "::warning::disk ${PCT}% full after pull+prune"; fi
 
       - name: Configure deploy environment
         run: |
@@ -687,6 +663,10 @@ jobs:
 
   restart-services:
     name: Restart services
+    # Single-flight on the shared staging target (item 9d; cancel-in-progress:false — never kill a running lane).
+    concurrency:
+      group: ingestion-staging-target
+      cancel-in-progress: false
     # result=='success' (not success()): with skip-when-chain-ran the deploy
     # job can SKIP, and success() is true on skipped upstreams — restarting on
     # a skip would recreate services for no reason.
@@ -708,6 +688,10 @@ jobs:
   auto-rollback-backend-staging:
     name: Auto-rollback backend staging on smoke failure (:staging-prev-backend)
     runs-on: [self-hosted, oracle]
+    # Single-flight on the shared staging target (item 9d; cancel-in-progress:false — never kill a running lane).
+    concurrency:
+      group: ingestion-staging-target
+      cancel-in-progress: false
     needs: [deploy-staging]
     if: failure() && needs.deploy-staging.outputs.smoke_entered == 'true'
     timeout-minutes: 10
@@ -800,6 +784,10 @@ jobs:
   auto-rollback-frontend-staging:
     name: Auto-rollback frontend staging on smoke failure (:staging-prev-frontend)
     runs-on: [self-hosted, oracle]
+    # Single-flight on the shared staging target (item 9d; cancel-in-progress:false — never kill a running lane).
+    concurrency:
+      group: ingestion-staging-target
+      cancel-in-progress: false
     needs: [deploy-staging, auto-rollback-backend-staging]
     if: always() && needs.deploy-staging.result == 'failure' && needs.deploy-staging.outputs.smoke_entered == 'true'
     timeout-minutes: 10
@@ -901,6 +889,10 @@ jobs:
   rollback-backend-staging:
     name: Rollback backend staging to :staging-prev-backend (:3031)
     runs-on: [self-hosted, oracle]
+    # Single-flight on the shared staging target (item 9d; cancel-in-progress:false — never kill a running lane).
+    concurrency:
+      group: ingestion-staging-target
+      cancel-in-progress: false
     timeout-minutes: 15
     if: github.event_name == 'workflow_dispatch' && inputs.lane == 'rollback-backend-staging'
     environment: staging
@@ -977,6 +969,10 @@ jobs:
   rollback-frontend-staging:
     name: Rollback frontend staging to :staging-prev-frontend (:4173)
     runs-on: [self-hosted, oracle]
+    # Single-flight on the shared staging target (item 9d; cancel-in-progress:false — never kill a running lane).
+    concurrency:
+      group: ingestion-staging-target
+      cancel-in-progress: false
     timeout-minutes: 15
     if: github.event_name == 'workflow_dispatch' && inputs.lane == 'rollback-frontend-staging'
     environment: staging
