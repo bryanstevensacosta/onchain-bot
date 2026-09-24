@@ -19,9 +19,66 @@ import { MessageQueue } from '../../infrastructure/services/message-queue';
 import { TelegramPeerResolver } from '../../infrastructure/services/telegram-peer-resolver';
 import { FloodWaitHandlerService } from '../../infrastructure/services/flood-wait-handler.service';
 import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
+import { IngestionSafetyConfig } from '../../infrastructure/config/ingestion-safety.config';
+import { SleepWindowService } from '../../infrastructure/services/sleep-window.service';
 import { Api } from 'telegram';
 import { CryptoNewsMessageTransformer } from 'shared/telegram/transformation';
 import { TelegramMediaExtractorService } from '../../application/services/telegram-media-extractor.service';
+
+/**
+ * Normalize a jitter setting to a [0, 1] fraction.
+ *
+ * Accepts both fractions (0.3) and percents (30) — the runtime
+ * IngestionSafetyConfig defaults to 0.3 while app.config validates 0–100
+ * and config/ingestion.config.json carries 30. Values > 1 are treated as
+ * percent; the result is clamped to [0, 1].
+ */
+export function normalizeJitterFraction(jitter: number): number {
+  if (!Number.isFinite(jitter)) return 0;
+  const fraction = jitter > 1 ? jitter / 100 : jitter;
+  return Math.min(Math.max(fraction, 0), 1);
+}
+
+/**
+ * Compute one polling delay from a base interval plus symmetric jitter.
+ *
+ * delay = base * (1 + (±jitter)), floored at 1s so a 100% jitter can never
+ * produce a zero/negative sleep (hot-loop guard). `random` is injectable
+ * for deterministic tests.
+ */
+export function computePollDelayMs(
+  baseMs: number,
+  jitter: number,
+  random: () => number = Math.random,
+): number {
+  const base = Number.isFinite(baseMs) && baseMs > 0 ? baseMs : 30_000;
+  const fraction = normalizeJitterFraction(jitter);
+  const delta = (random() * 2 - 1) * fraction;
+  return Math.max(1_000, Math.round(base * (1 + delta)));
+}
+
+/**
+ * Cap the per-iteration poll list at maxChannels (anti-ban).
+ *
+ * Returns the channels to poll plus how many were truncated (0 = no cap
+ * applied). A non-positive/non-finite max means "no cap".
+ */
+export function capPolledChannels(
+  channelIds: string[],
+  maxChannels: number,
+): { channels: string[]; truncated: number } {
+  if (!Number.isFinite(maxChannels) || maxChannels <= 0) {
+    return { channels: channelIds, truncated: 0 };
+  }
+  const limit = Math.floor(maxChannels);
+  if (channelIds.length <= limit) {
+    return { channels: channelIds, truncated: 0 };
+  }
+  return {
+    channels: channelIds.slice(0, limit),
+    truncated: channelIds.length - limit,
+  };
+}
 
 /**
  * TelegramMtprotoListenerAdapter - MTProto adapter for ingestion-telegram
@@ -50,6 +107,7 @@ export class TelegramMtprotoListenerAdapter
   private loggedCryptoNewsChannels = false;
   private cryptoNewsChannelCache = new Set<string>();
   private cacheRefreshInterval: NodeJS.Timeout | null = null;
+  private sleepNotified = false;
 
   constructor(
     private readonly config: ConfigService,
@@ -59,6 +117,8 @@ export class TelegramMtprotoListenerAdapter
     private readonly feedSourceRepo: TelegramFeedSourceRepository,
     private readonly messageTransformer: CryptoNewsMessageTransformer, // Phase 5: Shared transformation
     private readonly mediaExtractor: TelegramMediaExtractorService, // Phase 5.2: Extracted media download
+    private readonly safety: IngestionSafetyConfig,
+    private readonly sleepWindow: SleepWindowService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -195,23 +255,49 @@ export class TelegramMtprotoListenerAdapter
    *
    * This prevents message loss during channel updates and allows true
    * zero-downtime scaling.
+   *
+   * ANTI-BAN: the inter-iteration delay comes from IngestionSafetyConfig
+   * (pollIntervalBaseMs ± jitterPercent) — never a hardcoded constant — and
+   * each iteration polls at most maxChannels peers. While the sleep window
+   * is active, polling is skipped (realtime events still flow).
    */
   private async startPollingLoop(): Promise<void> {
     this.logger.log('Starting polling loop (dynamic channel refresh)');
 
-    // Simple polling every 30 seconds
     while (this.running) {
-      await this.sleep(30_000);
+      await this.sleep(this.computePollDelay());
 
       if (!this.running) break;
 
+      if (this.sleepWindow.isAsleep()) {
+        if (!this.sleepNotified) {
+          const wake = this.sleepWindow.getNextWakeTime();
+          this.logger.log(
+            `Sleep window active — polling paused${wake ? ` until ${wake.toISOString()}` : ''}`,
+          );
+          this.sleepNotified = true;
+        }
+        continue;
+      }
+      this.sleepNotified = false;
+
       // DYNAMIC: Get current channel list on each iteration
       // This picks up changes from DB without restarting the listener
-      const peers = [...this.subscribedChannelIds];
+      const allPeers = [...this.subscribedChannelIds];
 
-      if (peers.length === 0) {
+      if (allPeers.length === 0) {
         this.logger.debug('No channels to poll (skipping iteration)');
         continue;
+      }
+
+      const { channels: peers, truncated } = capPolledChannels(
+        allPeers,
+        this.safety.maxChannels,
+      );
+      if (truncated > 0) {
+        this.logger.warn(
+          `Polling capped at ${this.safety.maxChannels} channels — ${truncated} channel(s) skipped this iteration`,
+        );
       }
 
       for (const peerId of peers) {
@@ -260,6 +346,18 @@ export class TelegramMtprotoListenerAdapter
         }
       }
     }
+  }
+
+  /**
+   * One polling delay from IngestionSafetyConfig (base ± jitter).
+   * Extracted for specs; startPollingLoop is an infinite loop.
+   */
+  computePollDelay(random?: () => number): number {
+    return computePollDelayMs(
+      this.safety.pollIntervalBaseMs,
+      this.safety.jitterPercent,
+      random,
+    );
   }
 
   /**
@@ -390,8 +488,13 @@ export class TelegramMtprotoListenerAdapter
    * Update the list of subscribed channels without restarting the listener.
    *
    * SCALABLE DESIGN: New channels are automatically picked up by the polling
-   * loop in the next iteration (every 30s). Removed channels stop being polled.
+   * loop in the next iteration. Removed channels stop being polled.
    * No listener restart required = zero message loss.
+   *
+   * Newly added channels get their persisted cursors loaded so the first
+   * poll resumes where a previous run left off instead of reflooding up to
+   * 50 historic messages as new (LastSeenManager.load only fills gaps from
+   * Redis — it never rewinds in-memory progress).
    *
    * @param channelIds - New list of channel IDs to subscribe to
    */
@@ -411,6 +514,7 @@ export class TelegramMtprotoListenerAdapter
 
       if (added.length > 0) {
         this.logger.log(`New channels: ${added.join(', ')}`);
+        void this.lastSeenManager.load(added);
       }
       if (removed.length > 0) {
         this.logger.log(`Removed channels: ${removed.join(', ')}`);
@@ -418,7 +522,7 @@ export class TelegramMtprotoListenerAdapter
 
       this.subscribedChannelIds = [...channelIds];
       this.logger.log(
-        '✅ Channels updated — polling loop will pick up changes in next iteration (~30s)',
+        '✅ Channels updated — polling loop will pick up changes in next iteration',
       );
     }
   }

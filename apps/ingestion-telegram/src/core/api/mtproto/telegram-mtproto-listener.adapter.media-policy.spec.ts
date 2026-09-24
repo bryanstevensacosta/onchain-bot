@@ -26,6 +26,12 @@ function buildAdapter(deps: {
     } as never,
     { transform: deps.transform } as never,
     { extractAndDownload } as never,
+    {
+      maxChannels: 50,
+      pollIntervalBaseMs: 90_000,
+      jitterPercent: 30,
+    } as never,
+    { isAsleep: () => false, getNextWakeTime: () => null } as never,
   );
   return { adapter, extractAndDownload };
 }
