@@ -815,6 +815,114 @@ data: {"peerId":"-1001234567890","messageId":12340,"occurredAt":"2026-08-30T00:0
       );
     });
   });
+
+  describe('ingestion api key (x-api-key)', () => {
+    function makeAdapterWithApiKey(
+      apiKey: string | undefined,
+    ): TelegramSseListenerAdapter {
+      const config = {
+        get: jest.fn((key: string) => {
+          if (key === 'app') {
+            return {
+              ingestion: {
+                serviceUrl: 'http://localhost:3031',
+                ...(apiKey === undefined ? {} : { apiKey }),
+              },
+            };
+          }
+          return undefined;
+        }),
+      } as unknown as ConfigService;
+      return new TelegramSseListenerAdapter(config);
+    }
+
+    it('sends no x-api-key header on the stream when key is unset (keyless dev)', async () => {
+      const keyless = makeAdapterWithApiKey(undefined);
+      const ssePayload = `event: message:telegram
+data: {"peerId":"-1001234567890","messageId":12345,"occurredAt":"2026-08-30T00:01:00Z","media":[],"entities":[],"messageType":"kol"}
+
+`;
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        body: { getReader: () => createMockReader([ssePayload]) },
+      });
+
+      const generator = keyless.subscribe(['-1001234567890']);
+      for await (const message of generator) {
+        expect(message.messageId).toBe(12345);
+        break;
+      }
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const init = mockFetch.mock.calls[0][1] as {
+        headers: Record<string, string>;
+      };
+      expect(init.headers['Accept']).toBe('text/event-stream');
+      expect(init.headers['x-api-key']).toBeUndefined();
+      await keyless.disconnect();
+    });
+
+    it('sends x-api-key header on the stream when configured', async () => {
+      const keyed = makeAdapterWithApiKey('secret-key');
+      const ssePayload = `event: message:telegram
+data: {"peerId":"-1001234567890","messageId":12345,"occurredAt":"2026-08-30T00:01:00Z","media":[],"entities":[],"messageType":"kol"}
+
+`;
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        body: { getReader: () => createMockReader([ssePayload]) },
+      });
+
+      const generator = keyed.subscribe(['-1001234567890']);
+      for await (const message of generator) {
+        expect(message.messageId).toBe(12345);
+        break;
+      }
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const init = mockFetch.mock.calls[0][1] as {
+        headers: Record<string, string>;
+      };
+      expect(init.headers).toMatchObject({
+        Accept: 'text/event-stream',
+        'x-api-key': 'secret-key',
+      });
+      await keyed.disconnect();
+    });
+
+    it('sends x-api-key header on backfill when configured', async () => {
+      const keyed = makeAdapterWithApiKey('secret-key');
+      const ssePayload = `event: backfill:complete
+data: {"count":0}
+
+`;
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        body: { getReader: () => createMockReader([ssePayload]) },
+      });
+
+      await keyed.backfill('-1001234567890', 5);
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const init = mockFetch.mock.calls[0][1] as {
+        headers: Record<string, string>;
+      };
+      expect(init.headers).toMatchObject({
+        Accept: 'text/event-stream',
+        'x-api-key': 'secret-key',
+      });
+    });
+
+    it('trims whitespace-only apiKey to keyless behavior', () => {
+      const keyed = makeAdapterWithApiKey('   ');
+      expect(
+        (keyed as unknown as { ingestionApiKey: string }).ingestionApiKey,
+      ).toBe('');
+    });
+  });
 });
 
 /**

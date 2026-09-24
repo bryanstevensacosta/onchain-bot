@@ -48,6 +48,7 @@ export interface FeedKolSourceDto {
 export class FeedIdentityHttpClient extends KolRepository {
   private readonly logger = new Logger(FeedIdentityHttpClient.name);
   private readonly baseUrl: string;
+  private readonly apiKey: string;
   private readonly timeout: number = 10000; // 10 seconds
 
   constructor(private readonly config: ConfigService) {
@@ -58,6 +59,13 @@ export class FeedIdentityHttpClient extends KolRepository {
     this.baseUrl =
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       appConfig?.ingestion?.serviceUrl || 'http://localhost:3031';
+    const rawApiKey =
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      appConfig?.ingestion?.apiKey;
+    this.apiKey =
+      typeof rawApiKey === 'string' && rawApiKey.trim().length > 0
+        ? rawApiKey.trim()
+        : '';
 
     this.logger.log(
       `FeedIdentityHttpClient initialized with baseUrl: ${this.baseUrl}`,
@@ -114,6 +122,20 @@ export class FeedIdentityHttpClient extends KolRepository {
    * Fetch KOL rows from the feed API. Fail-open: any transport or shape
    * problem yields `[]` (callers degrade, boot never breaks).
    */
+  private buildHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (this.apiKey.length > 0) {
+      headers['x-api-key'] = this.apiKey;
+    }
+    return headers;
+  }
+
+  /**
+   * Fetch KOL rows from the feed API. Fail-open: any transport or shape
+   * problem yields `[]` (callers degrade, boot never breaks).
+   */
   private async fetchKolSources(): Promise<FeedKolSourceDto[]> {
     try {
       const url = `${this.baseUrl}/api/feed/sources?type=kol`;
@@ -124,7 +146,7 @@ export class FeedIdentityHttpClient extends KolRepository {
 
       const response = await fetch(url, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.buildHeaders(),
         signal: controller.signal,
       });
 

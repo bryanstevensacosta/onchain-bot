@@ -14,12 +14,7 @@ import {
   BaseFileSystemAdapter,
   MimeTypeResolver,
 } from 'shared/media';
-import {
-  ApiOperation,
-  ApiParam,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CryptoNewsPathBuilder } from 'media/infrastructure/crypto-news-path-builder';
 
 /**
@@ -98,7 +93,10 @@ export class MediaController extends BaseMediaHttpServer {
   @ApiParam({ name: 'messageId', description: 'Telegram message id' })
   @ApiParam({ name: 'index', description: 'Media attachment index (0-based)' })
   @ApiResponse({ status: 200, description: 'Media bytes' })
-  @ApiResponse({ status: 400, description: 'Invalid channelId/messageId/index' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid channelId/messageId/index',
+  })
   @ApiResponse({ status: 404, description: 'Media file not found' })
   async serveMedia(
     @Param('channelId') channelId: string,
@@ -156,9 +154,17 @@ export class MediaController extends BaseMediaHttpServer {
         `Served media: ${cleanChannelId}:${msgId}:${idx} (${path.basename(filePath)}, ${stat.size} bytes, ${mimeType})`,
       );
     } catch (error) {
-      if ((error as Error).message.includes('must be')) {
-        // Validation error from base class helpers
-        this.sendBadRequest(response, (error as Error).message);
+      const message = (error as Error).message ?? '';
+      if (
+        message.includes('must be') ||
+        message.includes('cannot be empty') ||
+        message.includes('no valid characters') ||
+        message.includes('traversal') ||
+        message.includes('outside root')
+      ) {
+        // Validation error from base class helpers or PathSanitizer
+        // (hostile channelId that sanitizes to empty, traversal attempt)
+        this.sendBadRequest(response, message);
         return;
       }
 

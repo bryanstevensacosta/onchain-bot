@@ -267,4 +267,32 @@ describe('MediaController (Phase 4 Updated)', () => {
       expect(testController['pathBuilder']).toBeDefined();
     });
   });
+
+  describe('serveMedia - Path traversal regression (gap 19)', () => {
+    it.each([
+      ['dot-dot-slash escape', '../../etc/passwd'],
+      ['encoded-slash escape', '..%2F..%2Fsecret'],
+      ['absolute path', '/etc/passwd'],
+      ['backslash escape', '..\\..\\windows'],
+      ['dots only', '...'],
+      ['dot-dot only', '..'],
+    ])('should never serve outside root for %s', async (_label, channelId) => {
+      const mockResponse = createMockResponse();
+
+      await controller.serveMedia(channelId, '12345', '0', mockResponse);
+
+      expect(mockResponse.status).toHaveBeenCalled();
+      const statusCall = (mockResponse.status as jest.Mock).mock.calls[0][0];
+      // Sanitized to a harmless subdir (404) or rejected as invalid (400) —
+      // never served (200) and never an unhandled 500.
+      expect([400, 404]).toContain(statusCall);
+    });
+
+    it('should resolve hostile channelIds inside the uploads root', () => {
+      const dir =
+        controller['pathBuilder'].getMediaDirectory('../../etc/passwd');
+      expect(dir.startsWith('/test/uploads/feed/media')).toBe(true);
+      expect(dir).not.toContain('..');
+    });
+  });
 });

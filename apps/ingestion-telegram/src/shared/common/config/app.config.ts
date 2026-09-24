@@ -229,6 +229,12 @@ class LoggingConfig {
   level!: string;
 }
 
+class SecurityConfig {
+  @IsString()
+  @IsOptional()
+  apiKey?: string;
+}
+
 class AppConfigValidation {
   @IsEnum(['development', 'production', 'test'])
   nodeEnv!: string;
@@ -260,6 +266,11 @@ class AppConfigValidation {
   @ValidateNested()
   @Type(() => LoggingConfig)
   logging!: LoggingConfig;
+
+  @ValidateNested()
+  @IsOptional()
+  @Type(() => SecurityConfig)
+  security?: SecurityConfig;
 }
 
 /**
@@ -552,6 +563,15 @@ export const appConfig = registerAs('app', () => {
     process.env.INGESTION_CRYPTO_NEWS_MEDIA_RETENTION_HOURS ?? '72',
     10,
   );
+
+  // Partial API-key auth (gap 19): optional shared secret for sensitive
+  // routes. Fail-soft by design: unset/blank resolves to undefined and the
+  // guard allows-all (dev/e2e convenience) — never blocks boot or validation.
+  // Contract: ingestion env INGESTION_API_KEY, backend env
+  // INGESTION_TELEGRAM_API_KEY, transport header 'x-api-key' or '?apiKey='.
+  // Generate with: openssl rand -hex 32 (never commit a real value).
+  const apiKeyRaw = (process.env.INGESTION_API_KEY || '').trim();
+  const apiKey = apiKeyRaw.length > 0 ? apiKeyRaw : undefined;
   return {
     nodeEnv,
     imageRevision,
@@ -563,6 +583,8 @@ export const appConfig = registerAs('app', () => {
     database,
     logging,
     cryptoNewsMediaRetentionHours,
+    apiKey,
+    security: { apiKey },
   };
 });
 
