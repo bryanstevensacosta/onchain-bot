@@ -116,7 +116,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       QA scenarios: happy headers presentes y suite verde; failure sin contraparte → documentar dónde y por qué en evidencia, NO inventar. Evidence .omo/evidence/task-4b-mega-refactor-kol-system.log
       Commit: Y | chore(kol-system): depreca ingestión KOL backend (apunta a apps/kol-system)
 - [ ] 5. Extraction contrato×mención sin colapso (Ph4 spec + P5)
-     What to do / Must NOT do: `ExtractFromMessageUseCase` directo (fix-1, sin event bus); por cada mención guarda contrato + timestamp + handle + url + channel info + db-id (`ExtractionCandidate`); multi-tip NO colapsa (override explícito del spec overview:64); repeats válidas. Tests: 1 mensaje × 3 menciones → 3 filas.
+     What to do / Must NOT do: `ExtractFromMessageUseCase` directo (fix-1, sin event bus); por cada mención guarda contrato + timestamp + handle + url + channel info + db-id (`ExtractionCandidate`); multi-tip NO colapsa (override explícito del spec overview:64); repeats válidas. P26: cada extracción EMITE snapshot base (mención + 4 fechas: `occurredAt`→`occurred_at_telegram`, `ingested_at_kol`=now, `enriched_at` lo pone enrichment) hacia enrichment. Tests: 1 mensaje × 3 menciones → 3 filas + 3 snapshots base.
      Parallelization: Wave 2 | Blocked by: 4, 18 | Blocks: 6
      References: .omo/drafts/mega-refactor-tramos.md:122 (P5); .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:108-129; apps/backend/src/token/intake/extraction/ (origen a mover: extract-from-message.use-case.ts)
      Acceptance criteria: `psql -c "SELECT count(*) FROM extraction_candidates WHERE message_id='X'"` = 3 para fixture triple-mención
@@ -137,7 +137,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
      QA scenarios: happy 4 filas; failure duplicado realtime+polling → 1 fila (solo anti-doble-delivery). Evidence .omo/evidence/task-7-mega-refactor-kol-system.log
      Commit: Y | feat(kol-system): normalization como índice de menciones
 - [ ] 8. Enrichment vía MarketDataPort dual (Ph7 spec + C-DATA-01 + G-17)
-     What to do / Must NOT do: `EnrichmentOrchestratorService` contra `MarketDataPort` con DOS implementaciones: `local-cascade` (default, reutiliza lógica backend vía ports) y `http-market-data` (stub tras `USE_DATA_SERVICE_API=true`, timeout + SLO p95<500ms); `mc at` = snapshot al capturar (retraso documentado ≤30s, C-A). Tests con MockPort. Must NOT mover providers físicos ni llamar market-data en Tramo 1 (flag default false).
+     What to do / Must NOT do: `EnrichmentOrchestratorService` contra `MarketDataPort` con DOS implementaciones: `local-cascade` (default, reutiliza lógica backend vía ports) y `http-market-data` (stub tras `USE_DATA_SERVICE_API=true`, timeout + SLO p95<500ms); `mc at` = snapshot al capturar (retraso documentado ≤30s, C-A). P26: enrichment completa snapshot en tabla `mention_snapshots` (`occurred_at_telegram`, `ingested_at_kol`, `enriched_at`=`snapshot_at`, + market data) y lo envía al frontend. Tests con MockPort + test 4 fechas presentes por snapshot. Must NOT mover providers físicos ni llamar market-data en Tramo 1 (flag default false).
      Parallelization: Wave 2 | Blocked by: 7 | Blocks: 9
      References: .omo/drafts/mega-refactor-tramos.md:125 (P7); .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:173-195; apps/backend/src/token/enrichment/application/handlers/enrich-token.use-case.ts (cascada origen)
      Acceptance criteria: `USE_DATA_SERVICE_API=false npx jest apps/kol-system/src/enrichment` verde; con `=true` usa HTTP (test con mock server)
@@ -165,7 +165,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       QA scenarios: happy approve→publish; failure `KOL_BOT_TOKEN` ausente → 401 sin postear nada real. Evidence .omo/evidence/task-11-mega-refactor-kol-system.log
       Commit: Y | feat(kol-system): approval y publishing multi-bot
 - [ ] 12. Tracking first-seen + rating +5x (Ph12 spec + P8 + G-14)
-      What to do / Must NOT do: Columnas `first_seen_at`, `first_mc_at`, `last_call_mc_at`, `times_called`; job que las mantiene; `tracking` = `First time` vs `Nx from last call`; rating kol por calls +5x con fórmula + ejemplo numérico documentado; endpoint fila tabla. Ranking P11: job cron mantiene `kol_window_stats(caller, window, total_x, calls_count)` (múltiple = `last_mc/first_mc_at`, SUMA por caller + CONTEO de calls; display +NX 30D/7D, +% 1D) + `GET /api/kol-rankings?window=30d|7d|1d&sort=perf_desc|perf_asc|calls_desc` ordenado según sort. Tests: 2ª mención mismo kol+contrato → `2x from last call` con deltas; ranking con fixture 3 callers suma y conteo correctos por ventana.
+      What to do / Must NOT do: Columnas `first_seen_at`, `first_mc_at`, `last_call_mc_at`, `times_called`; job que las mantiene; `tracking` = `First time` vs `Nx from last call`; rating kol por calls +5x con fórmula + ejemplo numérico documentado; endpoint fila tabla. Ranking P11: job cron mantiene `kol_window_stats(caller, window, total_x, calls_count)` (múltiple = `last_mc/first_mc_at`, SUMA por caller + CONTEO de calls; display +NX 30D/7D, +% 1D) + `GET /api/kol-rankings?window=30d|7d|1d&sort=perf_desc|perf_asc|calls_desc` ordenado según sort. P26: el X de performance se calcula contra el ÚLTIMO snapshot de (caller, contrato) (`last_mc/snapshot MC`, ej. +55X). Tests: 2ª mención mismo kol+contrato → `2x from last call` con deltas; ranking con fixture 3 callers suma y conteo correctos por ventana.
       Parallelization: Wave 3 | Blocked by: 11 | Blocks: 14
       References: .omo/drafts/mega-refactor-tramos.md:125 (P8); apps/backend/src/token/normalization/infrastructure/persistence/typeorm/entities/canonical-token-call.entity.ts:84 (first_seen_at existente); .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:385-411
       Acceptance criteria: `psql -c "SELECT tracking FROM tracked_mentions WHERE times_called=2"` = `2x from last call` + `curl -s 'localhost:3050/api/kol-rankings?window=30d' | jq 'length >= 0'`
@@ -206,21 +206,21 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       Acceptance criteria: `ls apps/kol-system/src | grep -i lookup` vacío
       QA scenarios: —. Evidence —
       Commit: N | — | —
-- [ ] 19. Retirar KOL_BOT_TOKEN de setup+validación (P23)
+- [x] 19. Retirar KOL_BOT_TOKEN de setup+validación (P23)
       What to do / Must NOT do: Quitar `KOL_BOT_TOKEN` de `.env.example` y de la validación Tier-1 (`validateKolSystemConfig` ya NO lo exige; app arranca sin bot configurado = modo solo-dashboard); `MultiBotPublisherAdapter` resuelve token desde catálogo `telegram_bots` por `template.bot_id` (NO env). Tests: boot sin token verde; validación exige `ENCRYPTION_KEY`+`DATABASE_URL` pero no bot. Must NOT dejar referencias a `process.env.KOL_BOT_TOKEN`.
       Parallelization: Wave 1 | Blocked by: 3 | Blocks: 10, 11
       References: .omo/drafts/mega-refactor-tramos.md (P23); apps/kol-system/.env.example; apps/kol-system/src/shared/config/app.config.ts (validateKolSystemConfig)
       Acceptance criteria: `grep -rn "KOL_BOT_TOKEN" apps/kol-system --include="*.ts" | grep -v spec | wc -l` = 0 + `npx jest apps/kol-system/src/shared` verde
       QA scenarios: happy boot sin bot (dashboard-only); failure `ENCRYPTION_KEY` ausente → error claro. Evidence .omo/evidence/task-19-mega-refactor-kol-system.log
       Commit: Y | refactor(kol-system): config Telegram 100% DB sin KOL_BOT_TOKEN
-- [ ] 20. Templates env multi-entorno + scp a Oracle (P24)
+- [x] 20. Templates env multi-entorno + scp a Oracle (P24)
       What to do / Must NOT do: Crear `apps/kol-system/.env.development` (valores dummy dev), `.env.staging.template` y `.env.production.template` (placeholders `ENCRYPTION_KEY=`, `DATABASE_URL=`, `REDIS_URL=`, `INGESTION_TELEGRAM_URL` por env, SIN secretos); documentar en el template el `scp .env.staging/.env.production OracleDroplet:/opt/...` de despliegue (rutas según C-CI-01); verificar `.gitignore` cubre `.env.staging` y `.env.production` (NO `.env.*.template`); test: validación arranca con cada template + placeholders sustituidos (sin secretos reales). Must NOT commitear secretos ni rutas inventadas (las de Oracle las confirma el worker contra `docker-compose.*.yml` existentes).
       Parallelization: Wave 1 | Blocked by: 19 | Blocks: 10, 11 (bots necesitan key por env)
       References: .omo/drafts/mega-refactor-tramos.md (P24); apps/backend/.env.staging.template + .env.production.template (patrón espejo); .gitignore (`.env*` excepto example/template)
       Acceptance criteria: `git check-ignore apps/kol-system/.env.staging && git check-ignore apps/kol-system/.env.production && echo IGNORED-OK`; `git ls-files apps/kol-system/.env*` lista solo development + 2 templates
       QA scenarios: happy boot con cada template (valores dummy); failure secreto commiteado → pre-commit lo cazaría (verificar con `git log --all -S 'sk-' --oneline -- apps/kol-system | wc -l` = 0). Evidence .omo/evidence/task-20-mega-refactor-kol-system.log
       Commit: Y | chore(kol-system): templates env multi-entorno (P24)
-- [ ] 21. AGENTS.md vivo de kol-system (P25)
+- [x] 21. AGENTS.md vivo de kol-system (P25)
       What to do / Must NOT do: Crear `apps/kol-system/AGENTS.md` espejo de `apps/backend/AGENTS.md` en estructura (overview, comandos, envs, puertos, convenciones TS/ESLint, tests, decisiones P1–P24 aplicables con fecha) adaptado a kol-system; registrar REGLA standing: cada todo futuro cierra con paso "actualiza AGENTS.md si cambió algo (comandos, envs, puertos, decisiones)". Verificar enlaces a ficheros reales (0 links rotos). Must NOT copiar secciones backend que no apliquen (MTProto, providers).
       Parallelization: Wave 1 | Blocked by: 3 | Blocks: — (standing rule para 4+)
       References: .omo/drafts/mega-refactor-tramos.md (P25, P1–P24); apps/backend/AGENTS.md (estructura espejo); apps/ingestion-telegram/AGENTS.md (brevedad espejo)
