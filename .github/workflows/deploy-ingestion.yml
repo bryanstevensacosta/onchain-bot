@@ -276,7 +276,12 @@ jobs:
               TOTAL=$((TOTAL + 1))
               case "$CODE" in 000|5*) BAD5XX=$((BAD5XX + 1));; esac
             done
-            SSE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 -H 'Accept: text/event-stream' "$INGESTION/api/ingestion/stream" || echo 000)"
+            # SSE header probe: the stream stays open indefinitely, so curl ALWAYS
+            # exits 28 on --max-time AFTER printing the -w code. `|| true`
+            # preserves curl's own code (200 healthy / 000 unreachable);
+            # `|| echo 000` would concatenate into "200000" and count every
+            # healthy probe as a disconnect (false-positive proven run 35963218317).
+            SSE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 -H 'Accept: text/event-stream' "$INGESTION/api/ingestion/stream" 2>/dev/null || true)"
             [ "$SSE" = "200" ] || DISC=$((DISC + 1))
             MH="$(curl -s --max-time 10 "$BACKEND/crypto-news/matching/health" || true)"
             PEND="$(echo "$MH" | jq -r '.queuePending // 0' 2>/dev/null || echo 0)"
@@ -554,7 +559,7 @@ jobs:
             echo ""
             echo "| campo | valor |"
             echo "|---|---|"
-            echo "| trigger | post-deploy health/smoke FAILED (deploy red, smoke entered) |"
+            echo "| trigger | post-deploy smoke FAILED (deploy red) OR bake-watch FAILED (watch red, deploy green) — smoke entered |"
             echo "| target | ingestion-telegram:prev → :3032 |"
             echo "| manual escape | dispatch target=rollback-production intacto |"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -572,6 +577,12 @@ jobs:
       - name: Stop prod ingestion (single-flight, --timeout 30)
         run: |
           set -euo pipefail
+          # ENVF sourcing (mirrors the deploy restart step): compose
+          # interpolates ${REDIS_PASSWORD:?required} from host env — without
+          # this the stop dies pre-action (proven run 35963218317) and the
+          # watch-to-rollback linkage is dead on arrival.
+          ENVF=/opt/onchain-bot/apps/ingestion-telegram/.env.production; [ -f "$ENVF" ] || ENVF=/opt/onchain-bot/apps/ingestion-service/.env.production; set -a; source "$ENVF"; set +a
+          set -a; source /opt/onchain-bot/apps/backend/.env.production; set +a
           cd /opt/onchain-bot/apps/backend
           docker compose -f docker-compose.ingestion.yml stop --timeout 30 ingestion-telegram
           if docker ps --format '{{.Names}}' | grep -i ingestion; then
@@ -583,6 +594,10 @@ jobs:
       - name: Recreate from :prev (no pull — local retag wins)
         run: |
           set -euo pipefail
+          # Same ENVF sourcing as the stop step above: `up` interpolates the
+          # compose file too, so it needs the host env as well.
+          ENVF=/opt/onchain-bot/apps/ingestion-telegram/.env.production; [ -f "$ENVF" ] || ENVF=/opt/onchain-bot/apps/ingestion-service/.env.production; set -a; source "$ENVF"; set +a
+          set -a; source /opt/onchain-bot/apps/backend/.env.production; set +a
           IMG_BASE=ghcr.io/${{ github.repository }}-ingestion-telegram
           docker tag "$IMG_BASE:prev" "$IMG_BASE:latest"
           cd /opt/onchain-bot/apps/backend

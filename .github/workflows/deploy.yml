@@ -602,7 +602,13 @@ jobs:
               TOTAL=$((TOTAL + 1))
               case "$CODE" in 000|5*) BAD5XX=$((BAD5XX + 1));; esac
             done
-            SSE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 -H 'Accept: text/event-stream' "$INGESTION/api/ingestion/stream" || echo 000)"
+            # SSE header probe: the stream stays open indefinitely, so curl ALWAYS
+            # exits 28 on --max-time AFTER printing the -w code. `|| true`
+            # preserves curl's own code (200 healthy / 000 unreachable);
+            # `|| echo 000` would concatenate into "200000" and count every
+            # healthy probe as a disconnect (false-positive proven run 35963218317
+            # on the ingestion twin of this probe).
+            SSE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 -H 'Accept: text/event-stream' "$INGESTION/api/ingestion/stream" 2>/dev/null || true)"
             [ "$SSE" = "200" ] || DISC=$((DISC + 1))
             MH="$(curl -s --max-time 10 "$BACKEND/crypto-news/matching/health" || true)"
             PEND="$(echo "$MH" | jq -r '.queuePending // 0' 2>/dev/null || echo 0)"
