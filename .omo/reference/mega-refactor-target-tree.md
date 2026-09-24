@@ -65,6 +65,10 @@ apps/
 │       │   ├── application/use-cases/score-token.use-case.ts(~)
 │       │   ├── domain/{aggregates/scored-call.aggregate.ts(~),value-objects/score-breakdown.vo.ts(~)}
 │       │   └── scoring.module.ts(~)
+│       ├── snapshot/                           # P26+P27: tablas propias, MISMA DB kol-system
+│       │   ├── domain/{aggregates/mention-snapshot.aggregate.ts(~),ports/snapshot-repository.port.ts(~)}
+│       │   ├── infrastructure/persistence/typeorm/{entities/mention-snapshot.entity.ts(~),repositories/typeorm-snapshot.repository.ts(~)}
+│       │   └── snapshot.module.ts(~)
 │       ├── templates/                          # 🆕 BC CORE (sin thread support en Tramo 1 — C1)
 │       │   ├── domain/aggregates/publishing-template.aggregate.ts
 │       │   ├── application/
