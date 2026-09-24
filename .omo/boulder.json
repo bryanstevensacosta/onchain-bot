@@ -1,5 +1,5 @@
 {
-  "active_work_id": "threads-publisher-a4eb96d4",
+  "active_work_id": "mega-refactor-kol-system-20260924",
   "schema_version": 2,
   "works": {
     "undefined": {
@@ -94,86 +94,329 @@
       },
       "ended_at": "2026-09-15T12:34:49.940Z",
       "elapsed_ms": 6654745
+    },
+    "rename-ingestion-telegram-71463a22": {
+      "work_id": "rename-ingestion-telegram-71463a22",
+      "active_plan": "/Users/bryanstevens/dev/onchain-bot/.omo/plans/rename-ingestion-telegram.md",
+      "plan_name": "rename-ingestion-telegram",
+      "status": "completed",
+      "started_at": "2026-09-17T08:13:27.940Z",
+      "updated_at": "2026-09-17T09:32:38.023Z",
+      "session_ids": [
+        "opencode:ses_f51e480a5ffe7gsnqul3Vxq821"
+      ],
+      "session_origins": {
+        "opencode:ses_f51e480a5ffe7gsnqul3Vxq821": "direct"
+      },
+      "agent": "atlas",
+      "task_sessions": {
+        "todo:1": {
+          "task_key": "todo:1",
+          "task_label": "1",
+          "task_title": "Pre-flight: rama limpia, inventario de tags/releases y backup",
+          "session_id": "opencode:ses_f5191bcedffenk233nTQjl3L2W",
+          "agent": "Sisyphus-Junior",
+          "category": "quick",
+          "updated_at": "2026-09-17T08:15:01.139Z",
+          "started_at": "2026-09-17T08:14:49.733Z",
+          "status": "completed",
+          "ended_at": "2026-09-17T08:15:01.139Z",
+          "elapsed_ms": 11406
+        },
+        "todo:2": {
+          "task_key": "todo:2",
+          "task_label": "2",
+          "task_title": "Filesystem: git mv + workspace npm + lock regenerado",
+          "session_id": "opencode:ses_f51900cacffeMzt6JfQDwgOavD",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "updated_at": "2026-09-17T08:20:25.133Z",
+          "started_at": "2026-09-17T08:19:37.108Z",
+          "status": "completed",
+          "ended_at": "2026-09-17T08:20:25.133Z",
+          "elapsed_ms": 48025
+        },
+        "todo:3": {
+          "task_key": "todo:3",
+          "task_label": "3",
+          "task_title": "Build wiring A: alias TS + jest + main.ts + 3 importadores vivos",
+          "session_id": "opencode:ses_f518b96d0ffeQxwEypPxpKIsKW",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "updated_at": "2026-09-17T08:34:30.229Z",
+          "started_at": "2026-09-17T08:23:33.603Z",
+          "status": "completed",
+          "ended_at": "2026-09-17T08:34:30.229Z",
+          "elapsed_ms": 656626
+        },
+        "todo:5": {
+          "task_key": "todo:5",
+          "task_label": "5",
+          "task_title": "Runtime: env INGESTION_SERVICE_URL → INGESTION_TELEGRAM_URL con fallback",
+          "session_id": "opencode:ses_f517e3174ffe7ncGMILYU4qX5F",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-09-17T08:40:01.670Z",
+          "status": "completed",
+          "updated_at": "2026-09-17T08:42:42.412Z",
+          "ended_at": "2026-09-17T08:42:42.412Z",
+          "elapsed_ms": 160742
+        },
+        "todo:9": {
+          "task_key": "todo:9",
+          "task_label": "9",
+          "task_title": "CI/CD: deploy-ingestion.yml dual-push + paths droplet",
+          "session_id": "opencode:ses_f517725dcffeWGN3JUd0W8oiYk",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "updated_at": "2026-09-17T08:45:19.579Z",
+          "started_at": "2026-09-17T08:44:44.376Z",
+          "status": "completed",
+          "ended_at": "2026-09-17T08:45:19.579Z",
+          "elapsed_ms": 35203
+        },
+        "todo:11": {
+          "task_key": "todo:11",
+          "task_label": "11",
+          "task_title": "Runbook de cutover en droplet (stop-the-world, anti AUTH_KEY_DUPLICATED)",
+          "session_id": "opencode:ses_f5174be5effel2pY7wM7Ls4Dmb",
+          "agent": "Sisyphus-Junior",
+          "category": "writing",
+          "updated_at": "2026-09-17T08:48:57.333Z",
+          "started_at": "2026-09-17T08:48:32.409Z",
+          "status": "completed",
+          "ended_at": "2026-09-17T08:48:57.333Z",
+          "elapsed_ms": 24924
+        },
+        "todo:12": {
+          "task_key": "todo:12",
+          "task_label": "12",
+          "task_title": "Docs vivos: bulk con tabla case-sensitive (67 md/txt)",
+          "session_id": "opencode:ses_f51716896ffetRqel0TgOoja5U",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-09-17T09:01:18.847Z",
+          "status": "completed",
+          "updated_at": "2026-09-17T09:05:59.849Z",
+          "ended_at": "2026-09-17T09:05:59.849Z",
+          "elapsed_ms": 281002
+        },
+        "todo:14": {
+          "task_key": "todo:14",
+          "task_label": "14",
+          "task_title": "RELEASE-FLOW.md al nuevo esquema",
+          "session_id": "opencode:ses_f51610cd3ffeQr4c4w05dtLfTM",
+          "agent": "Sisyphus-Junior",
+          "category": "writing",
+          "updated_at": "2026-09-17T09:08:37.809Z",
+          "started_at": "2026-09-17T09:08:23.688Z",
+          "status": "completed",
+          "ended_at": "2026-09-17T09:08:37.809Z",
+          "elapsed_ms": 14121
+        },
+        "todo:15": {
+          "task_key": "todo:15",
+          "task_label": "15",
+          "task_title": "Reetiquetado histórico: backup, recreate, gh release, delete old (DESTRUCTIVO)",
+          "session_id": "opencode:ses_f515fabe7ffezvp0Zva27MVnj3",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "updated_at": "2026-09-17T09:12:13.840Z",
+          "started_at": "2026-09-17T09:11:55.101Z",
+          "status": "completed",
+          "ended_at": "2026-09-17T09:12:13.840Z",
+          "elapsed_ms": 18739
+        },
+        "todo:16": {
+          "task_key": "todo:16",
+          "task_label": "16",
+          "task_title": "Verificación global: gate grep + suites + builds + compose",
+          "session_id": "opencode:ses_f515c59a1ffexa4FMLbUMWqhUY",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "updated_at": "2026-09-17T09:21:30.495Z",
+          "started_at": "2026-09-17T09:20:38.331Z",
+          "status": "completed",
+          "ended_at": "2026-09-17T09:21:30.495Z",
+          "elapsed_ms": 52164
+        },
+        "final-wave:f1": {
+          "task_key": "final-wave:f1",
+          "task_label": "F1",
+          "task_title": "Plan compliance audit",
+          "session_id": "opencode:ses_f514f96f9ffe36iO28B4chGz2i",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-09-17T09:23:13.370Z",
+          "status": "running",
+          "updated_at": "2026-09-17T09:31:13.783Z"
+        }
+      },
+      "ended_at": "2026-09-17T09:32:38.023Z",
+      "elapsed_ms": 4750083
+    },
+    "mega-refactor-kol-system-20260924": {
+      "work_id": "mega-refactor-kol-system-20260924",
+      "active_plan": ".omo/plans/mega-refactor-kol-system.md",
+      "plan_name": "mega-refactor-kol-system",
+      "session_ids": [
+        "codex:start-work-20260924"
+      ],
+      "status": "active",
+      "worktree_path": null,
+      "started_at": "2026-09-24T18:00:00Z",
+      "task_sessions": {}
     }
   },
   "session_ids": [
-    "opencode:ses_f5b5575d3ffe2trJ622o0Pm5Py",
-    "opencode:ses_f5b4dbd9cffeIo1azAWe4rIXDt"
+    "opencode:ses_f51e480a5ffe7gsnqul3Vxq821"
   ],
   "session_origins": {
-    "opencode:ses_f5b5575d3ffe2trJ622o0Pm5Py": "direct",
-    "opencode:ses_f5b4dbd9cffeIo1azAWe4rIXDt": "direct"
+    "opencode:ses_f51e480a5ffe7gsnqul3Vxq821": "direct"
   },
   "task_sessions": {
     "todo:1": {
       "task_key": "todo:1",
       "task_label": "1",
-      "task_title": "Scaffold src/threads + alias + 8 entidades + PERSISTED_ENTITIES(47) + migración",
-      "session_id": "opencode:ses_f5b4c4d56ffe6baEmCBxLE9IOQ",
+      "task_title": "Pre-flight: rama limpia, inventario de tags/releases y backup",
+      "session_id": "opencode:ses_f5191bcedffenk233nTQjl3L2W",
       "agent": "Sisyphus-Junior",
-      "category": "unspecified-high",
-      "updated_at": "2026-09-15T11:17:01.824Z",
-      "started_at": "2026-09-15T11:15:22.377Z",
+      "category": "quick",
+      "updated_at": "2026-09-17T08:15:01.139Z",
+      "started_at": "2026-09-17T08:14:49.733Z",
       "status": "completed",
-      "ended_at": "2026-09-15T11:17:01.824Z",
-      "elapsed_ms": 99447
+      "ended_at": "2026-09-17T08:15:01.139Z",
+      "elapsed_ms": 11406
     },
     "todo:2": {
       "task_key": "todo:2",
       "task_label": "2",
-      "task_title": "Publisher application core (enqueue + process-next + schedulers + throttle)",
-      "session_id": "opencode:ses_f5b36acf9ffeoLYQrOwql4rKBq",
+      "task_title": "Filesystem: git mv + workspace npm + lock regenerado",
+      "session_id": "opencode:ses_f51900cacffeMzt6JfQDwgOavD",
       "agent": "Sisyphus-Junior",
       "category": "unspecified-high",
-      "updated_at": "2026-09-15T11:24:24.503Z",
-      "started_at": "2026-09-15T11:23:20.279Z",
+      "updated_at": "2026-09-17T08:20:25.133Z",
+      "started_at": "2026-09-17T08:19:37.108Z",
       "status": "completed",
-      "ended_at": "2026-09-15T11:24:24.503Z",
-      "elapsed_ms": 64224
+      "ended_at": "2026-09-17T08:20:25.133Z",
+      "elapsed_ms": 48025
     },
-    "todo:4": {
-      "task_key": "todo:4",
-      "task_label": "4",
-      "task_title": "Publisher HTTP (5 controllers + guard prod + route-list test)",
-      "session_id": "opencode:ses_f5b2fea99ffeRxyIHu8qRHqQSB",
+    "todo:3": {
+      "task_key": "todo:3",
+      "task_label": "3",
+      "task_title": "Build wiring A: alias TS + jest + main.ts + 3 importadores vivos",
+      "session_id": "opencode:ses_f518b96d0ffeQxwEypPxpKIsKW",
       "agent": "Sisyphus-Junior",
-      "started_at": "2026-09-15T11:36:15.935Z",
+      "category": "unspecified-high",
+      "updated_at": "2026-09-17T08:34:30.229Z",
+      "started_at": "2026-09-17T08:23:33.603Z",
       "status": "completed",
-      "updated_at": "2026-09-15T11:43:46.595Z",
-      "ended_at": "2026-09-15T11:43:46.595Z",
-      "elapsed_ms": 450660
+      "ended_at": "2026-09-17T08:34:30.229Z",
+      "elapsed_ms": 656626
     },
-    "todo:7": {
-      "task_key": "todo:7",
-      "task_label": "7",
-      "task_title": "Frontend data (entities/threads + features/threads-publisher api/model)",
-      "session_id": "opencode:ses_f5b2fea99ffeRxyIHu8qRHqQSB",
+    "todo:5": {
+      "task_key": "todo:5",
+      "task_label": "5",
+      "task_title": "Runtime: env INGESTION_SERVICE_URL → INGESTION_TELEGRAM_URL con fallback",
+      "session_id": "opencode:ses_f517e3174ffe7ncGMILYU4qX5F",
       "agent": "Sisyphus-Junior",
-      "started_at": "2026-09-15T11:56:59.504Z",
+      "started_at": "2026-09-17T08:40:01.670Z",
       "status": "completed",
-      "updated_at": "2026-09-15T12:09:11.949Z",
-      "ended_at": "2026-09-15T12:09:11.949Z",
-      "elapsed_ms": 732445
+      "updated_at": "2026-09-17T08:42:42.412Z",
+      "ended_at": "2026-09-17T08:42:42.412Z",
+      "elapsed_ms": 160742
+    },
+    "todo:9": {
+      "task_key": "todo:9",
+      "task_label": "9",
+      "task_title": "CI/CD: deploy-ingestion.yml dual-push + paths droplet",
+      "session_id": "opencode:ses_f517725dcffeWGN3JUd0W8oiYk",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-09-17T08:45:19.579Z",
+      "started_at": "2026-09-17T08:44:44.376Z",
+      "status": "completed",
+      "ended_at": "2026-09-17T08:45:19.579Z",
+      "elapsed_ms": 35203
+    },
+    "todo:11": {
+      "task_key": "todo:11",
+      "task_label": "11",
+      "task_title": "Runbook de cutover en droplet (stop-the-world, anti AUTH_KEY_DUPLICATED)",
+      "session_id": "opencode:ses_f5174be5effel2pY7wM7Ls4Dmb",
+      "agent": "Sisyphus-Junior",
+      "category": "writing",
+      "updated_at": "2026-09-17T08:48:57.333Z",
+      "started_at": "2026-09-17T08:48:32.409Z",
+      "status": "completed",
+      "ended_at": "2026-09-17T08:48:57.333Z",
+      "elapsed_ms": 24924
+    },
+    "todo:12": {
+      "task_key": "todo:12",
+      "task_label": "12",
+      "task_title": "Docs vivos: bulk con tabla case-sensitive (67 md/txt)",
+      "session_id": "opencode:ses_f51716896ffetRqel0TgOoja5U",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-09-17T09:01:18.847Z",
+      "status": "completed",
+      "updated_at": "2026-09-17T09:05:59.849Z",
+      "ended_at": "2026-09-17T09:05:59.849Z",
+      "elapsed_ms": 281002
+    },
+    "todo:14": {
+      "task_key": "todo:14",
+      "task_label": "14",
+      "task_title": "RELEASE-FLOW.md al nuevo esquema",
+      "session_id": "opencode:ses_f51610cd3ffeQr4c4w05dtLfTM",
+      "agent": "Sisyphus-Junior",
+      "category": "writing",
+      "updated_at": "2026-09-17T09:08:37.809Z",
+      "started_at": "2026-09-17T09:08:23.688Z",
+      "status": "completed",
+      "ended_at": "2026-09-17T09:08:37.809Z",
+      "elapsed_ms": 14121
+    },
+    "todo:15": {
+      "task_key": "todo:15",
+      "task_label": "15",
+      "task_title": "Reetiquetado histórico: backup, recreate, gh release, delete old (DESTRUCTIVO)",
+      "session_id": "opencode:ses_f515fabe7ffezvp0Zva27MVnj3",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-09-17T09:12:13.840Z",
+      "started_at": "2026-09-17T09:11:55.101Z",
+      "status": "completed",
+      "ended_at": "2026-09-17T09:12:13.840Z",
+      "elapsed_ms": 18739
+    },
+    "todo:16": {
+      "task_key": "todo:16",
+      "task_label": "16",
+      "task_title": "Verificación global: gate grep + suites + builds + compose",
+      "session_id": "opencode:ses_f515c59a1ffexa4FMLbUMWqhUY",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-09-17T09:21:30.495Z",
+      "started_at": "2026-09-17T09:20:38.331Z",
+      "status": "completed",
+      "ended_at": "2026-09-17T09:21:30.495Z",
+      "elapsed_ms": 52164
     },
     "final-wave:f1": {
       "task_key": "final-wave:f1",
       "task_label": "F1",
-      "task_title": "Plan compliance audit — 8/8 todos `- [x]`; `git status --porcelain | grep -Ev '^(M|A|\\?\\?) (apps/backend/src/threads/|apps/backend/src/shared/common/(persistence/entities|config/app.config|config/config-validator)\\.ts|apps/frontend/src/(entities|features)/threads[^/]*|apps/frontend/src/pages/threads/|docs/threads-|\\.env.*template|apps/frontend/(vite.config.ts|nginx.conf)|apps/backend/tsconfig.json)'` → vacío (fuera de esto: solo harness `.omo/`); `git diff --stat -- apps/backend/src/telegram apps/ingestion-service` → vacío; `cd apps/backend && npm run migration:show` sin pendientes threads; `cd apps/backend && grep -n 'EXPECTED_ENTITY_COUNT = 47' src/shared/common/persistence/entities.ts` exit 0.",
-      "session_id": "opencode:ses_f5b068ce1ffeOsWmpAjHjn215v",
+      "task_title": "Plan compliance audit",
+      "session_id": "opencode:ses_f514f96f9ffe36iO28B4chGz2i",
       "agent": "Sisyphus-Junior",
-      "started_at": "2026-09-15T12:13:10.545Z",
-      "status": "completed",
-      "updated_at": "2026-09-15T12:33:27.651Z",
-      "ended_at": "2026-09-15T12:33:27.651Z",
-      "elapsed_ms": 1217106
+      "started_at": "2026-09-17T09:23:13.370Z",
+      "status": "running",
+      "updated_at": "2026-09-17T09:31:13.783Z"
     }
   },
-  "active_plan": "/data/repos/onchain-bot/.omo/plans/threads-publisher.md",
-  "plan_name": "threads-publisher",
+  "active_plan": "/Users/bryanstevens/dev/onchain-bot/.omo/plans/rename-ingestion-telegram.md",
+  "plan_name": "rename-ingestion-telegram",
   "status": "completed",
-  "started_at": "2026-09-15T10:43:55.195Z",
-  "updated_at": "2026-09-15T12:34:49.940Z",
+  "started_at": "2026-09-17T08:13:27.940Z",
+  "updated_at": "2026-09-17T09:32:38.023Z",
   "agent": "atlas",
-  "ended_at": "2026-09-15T12:34:49.940Z",
-  "elapsed_ms": 6654745
+  "ended_at": "2026-09-17T09:32:38.023Z",
+  "elapsed_ms": 4750083
 }

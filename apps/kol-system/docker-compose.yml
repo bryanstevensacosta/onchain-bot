@@ -1,0 +1,42 @@
+name: onchain-bot-kol-system
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: onchain-bot-kol-system-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: alpha_meta_token_scanner
+      POSTGRES_PASSWORD: alpha_meta_token_scanner
+      POSTGRES_DB: alpha_meta_token_scanner_kol_system
+    ports:
+      - '5435:5432'
+    volumes:
+      - kol-system-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U alpha_meta_token_scanner -d alpha_meta_token_scanner_kol_system',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: onchain-bot-kol-system-redis
+    restart: unless-stopped
+    ports:
+      - '6382:6379'
+    volumes:
+      - kol-system-redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  kol-system-postgres-data:
+  kol-system-redis-data:
