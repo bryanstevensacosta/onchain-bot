@@ -562,6 +562,79 @@ jobs:
             echo "| trigger | ${{ needs.preflight.outputs.trigger_note }} | | |"
           } >> "$GITHUB_STEP_SUMMARY"
 
+  # BAKE-WATCH (prod-safety-gates item 5) — 15-min post-deploy observation,
+  # backend+frontend lanes. Runs ONLY when smoke went green (deploy success +
+  # smoke_entered): a red smoke already fires auto-rollback (item 4); the bake
+  # watches a GREEN deploy for delayed regression. A RED watch fires the SAME
+  # auto-rollback jobs below (linkage: both auto jobs list this job in `needs:`
+  # and key their `if:` on `needs.watch-bake-prod.result` — grep watch-bake-prod).
+  # Probes reuse smoke endpoints (read-only GET, no new infra, no app changes):
+  #   THRESHOLD 5xx-rate: >5% of samples with HTTP>=500 (or unreachable=000) (%) → FAIL
+  #   THRESHOLD queue-stall: queuePending>0 AND lastEnqueuedAt unchanged for >10 (min) → FAIL
+  #   THRESHOLD SSE-disc: >2 non-200 SSE header probes over the window (count) → FAIL
+  # Window: 15 iters x 60s sleep ~= 15 min probes (+probe time ~= 17 min worst
+  # case < timeout below). Alerts: no dedicated channel exists (grep: no
+  # slack/pagerduty/notify in workflows) → log + $GITHUB_STEP_SUMMARY reuse;
+  # dedicated alert channel = follow-up (see task-5 evidence).
+  watch-bake-prod:
+    name: Bake watch prod 15min (5xx/queue/SSE)
+    runs-on: [self-hosted, oracle]
+    needs: [deploy]
+    if: success() && needs.deploy.outputs.smoke_entered == 'true'
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - name: Bake probes (~15 min window, read-only)
+        run: |
+          set -uo pipefail # NOT -e: probe misses accumulate, verdict at the end
+          BACKEND=http://localhost:3030
+          INGESTION=http://localhost:3032
+          ITERS=15 # iterations (count)
+          SLEEP_S=60 # inter-iteration sleep (s) → window ~= 15 min
+          # INLINE THRESHOLDS (units in names — item 5 acceptance):
+          THR_5XX_PCT=5 # max 5xx-rate (%, bad samples / total samples x 100)
+          THR_STALL_MIN=10 # max queue-stall (min): pending>0 + lastEnqueuedAt frozen
+          THR_SSE_DISC=2 # max SSE disconnects (count of non-200 header probes)
+          TOTAL=0; BAD5XX=0; DISC=0; STALL_ITERS=0; PREV_ENQ=""
+          for i in $(seq 1 $ITERS); do
+            for URL in "$BACKEND/api/health" "$BACKEND/api/vip-calls/calls/recent?limit=1" "$BACKEND/crypto-news/matching/health"; do
+              CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$URL" || echo 000)"
+              TOTAL=$((TOTAL + 1))
+              case "$CODE" in 000|5*) BAD5XX=$((BAD5XX + 1));; esac
+            done
+            SSE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 -H 'Accept: text/event-stream' "$INGESTION/api/ingestion/stream" || echo 000)"
+            [ "$SSE" = "200" ] || DISC=$((DISC + 1))
+            MH="$(curl -s --max-time 10 "$BACKEND/crypto-news/matching/health" || true)"
+            PEND="$(echo "$MH" | jq -r '.queuePending // 0' 2>/dev/null || echo 0)"
+            ENQ="$(echo "$MH" | jq -r '.lastEnqueuedAt // empty' 2>/dev/null || true)"
+            if [ "${PEND:-0}" != "0" ] && [ -n "${ENQ:-}" ] && [ "$ENQ" = "$PREV_ENQ" ]; then
+              STALL_ITERS=$((STALL_ITERS + 1))
+            else
+              STALL_ITERS=0
+            fi
+            PREV_ENQ="$ENQ"
+            echo "iter $i/$ITERS: bad5xx=$BAD5XX/$TOTAL sse_disc=$DISC stall_iters=$STALL_ITERS"
+            [ "$i" -lt "$ITERS" ] && sleep "$SLEEP_S"
+          done
+          RATE=$((BAD5XX * 100 / TOTAL))
+          STALL_MIN=$((STALL_ITERS * SLEEP_S / 60))
+          FAILS=0
+          [ "$RATE" -gt "$THR_5XX_PCT" ] && { echo "FAIL: 5xx-rate ${RATE}% > ${THR_5XX_PCT}%"; FAILS=$((FAILS + 1)); }
+          [ "$STALL_MIN" -gt "$THR_STALL_MIN" ] && { echo "FAIL: queue-stall ${STALL_MIN}min > ${THR_STALL_MIN}min"; FAILS=$((FAILS + 1)); }
+          [ "$DISC" -gt "$THR_SSE_DISC" ] && { echo "FAIL: SSE-disc ${DISC} > ${THR_SSE_DISC}"; FAILS=$((FAILS + 1)); }
+          {
+            echo "### Bake watch prod (15 min, backend+frontend lanes)"
+            echo ""
+            echo "| probe | observado | umbral | resultado |"
+            echo "|---|---|---|---|"
+            echo "| 5xx-rate | ${RATE}% ($BAD5XX/$TOTAL) | <= ${THR_5XX_PCT}% | $([ "$RATE" -gt "$THR_5XX_PCT" ] && echo FAIL || echo PASS) |"
+            echo "| queue-stall | ${STALL_MIN}min | <= ${THR_STALL_MIN}min | $([ "$STALL_MIN" -gt "$THR_STALL_MIN" ] && echo FAIL || echo PASS) |"
+            echo "| SSE-disc | ${DISC} | <= ${THR_SSE_DISC} | $([ "$DISC" -gt "$THR_SSE_DISC" ] && echo FAIL || echo PASS) |"
+            echo "| linkage | watch rojo → auto-rollback-backend/frontend-prod (item 4) | | |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          [ "$FAILS" -eq 0 ] || { echo "::error::bake watch ROJO ($FAILS probe(s)) — dispara auto-rollback (item 4)"; exit 1; }
+          echo "bake watch VERDE"
+
   # AUTO-ROLLBACK (prod-safety-gates item 4) — fires ONLY on post-smoke-rojo:
   # deploy FAILED + smoke phase was entered (smoke_entered output). Reuses the
   # rollback-lane mechanics inline (same pins/tags/compose/health gates — no
@@ -573,8 +646,11 @@ jobs:
   auto-rollback-backend-prod:
     name: Auto-rollback backend prod on smoke failure (:prev-backend)
     runs-on: [self-hosted, oracle]
-    needs: [deploy]
-    if: failure() && needs.deploy.outputs.smoke_entered == 'true'
+    # T5 bake linkage: fires on smoke-rojo (deploy failed, watch skipped) OR
+    # bake-rojo (deploy green, watch failed). needs.watch-bake-prod.result is
+    # 'skipped' on the smoke-red leg, 'failure' on the bake-red leg.
+    needs: [deploy, watch-bake-prod]
+    if: failure() && needs.deploy.outputs.smoke_entered == 'true' && (needs.deploy.result == 'failure' || needs.watch-bake-prod.result == 'failure')
     timeout-minutes: 10
     environment: production
     steps:
@@ -665,8 +741,11 @@ jobs:
   auto-rollback-frontend-prod:
     name: Auto-rollback frontend prod on smoke failure (:prev-frontend)
     runs-on: [self-hosted, oracle]
-    needs: [deploy, auto-rollback-backend-prod]
-    if: always() && needs.deploy.result == 'failure' && needs.deploy.outputs.smoke_entered == 'true'
+    # T5 bake linkage (chained job: always() + deploy/watch outcomes, per T4
+    # asymmetry — failure() here would also key on the sibling backend auto
+    # job; smoke-red leg leaves watch 'skipped', bake-red leg leaves deploy 'success').
+    needs: [deploy, watch-bake-prod, auto-rollback-backend-prod]
+    if: always() && needs.deploy.outputs.smoke_entered == 'true' && (needs.deploy.result == 'failure' || needs.watch-bake-prod.result == 'failure')
     timeout-minutes: 10
     environment: production
     steps:
