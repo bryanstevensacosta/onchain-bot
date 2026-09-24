@@ -246,7 +246,7 @@ cp /opt/onchain-bot-staging/apps/ingestion-telegram/.env.staging.template \
 - Conteos pre/post primer janitor tick en prod (se espera purga grande de historia >72h restaurada — evidenciar, no confundir con pérdida).
 - `GET :3032/api/feed/sources` sirviendo las sources migradas (feed-unification; las viejas `/api/crypto-news/*` dan 404).
 - Ciclo scheduler-level en staging contra el servidor Oracle (probe source → `Found N matching messages` en logs → borrar probe).
-- **Dockerfile**: build `node:22-alpine` (`npm ci --workspace=... --ignore-scripts`, `HUSKY=0`) → runtime con `dumb-init`, usuario `nodejs`, `uploads/crypto-news/media`, `EXPOSE 3031`, `HEALTHCHECK /api/health` (ver gap 23: siempre 200 por stubs), `CMD node apps/ingestion-telegram/dist/src/main.js`.
+- **Dockerfile**: build `node:22-alpine` (`npm ci --workspace=... --ignore-scripts`, `HUSKY=0`) → runtime con `dumb-init`, usuario `nodejs`, `uploads/crypto-news/media`, `EXPOSE 3031`, `HEALTHCHECK /api/health` (ver gap 23: siempre 200 por stubs), `CMD node apps/ingestion-telegram/dist/src/main.js`. `ARG IMAGE_REVISION` declarado al FINAL a propósito: su SHA cambia por push e invalidaría las capas de install/cache si estuviera arriba.
 - **`.gitignore`**: `/dist`, `/coverage`, `.env`/`.env.dev`/`.env.*.local` (secretos fuera de git), `/uploads` (media efímera). Commiteados como plantilla: `.env.example`, `.env.production.template`.
 
 ## Spec origen
