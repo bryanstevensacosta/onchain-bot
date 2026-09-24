@@ -29,7 +29,7 @@ interface LightboxMediaItem {
 export const TRUNCATION_LIMIT = 500;
 
 export function CryptoNewsPage() {
-  const messages = useCryptoNewsMessages(500);
+  const messages = useCryptoNewsMessages(500, undefined, 'crypto-news');
   const sources = useCryptoNewsSources();
   const [channelFilter, setChannelFilter] = useState<string>('');
   const [search, setSearch] = useState<string>('');

@@ -110,6 +110,10 @@ Raíz: package.json (@alpha-meta-token-scanner/ingestion-telegram), Dockerfile (
 
 Eventos SSE: `connection:established`, `message:telegram`, `health:ping` (cada 30 s, con `uptime`+`connectedClients`). Formato: `event: <type>\ndata: <json>\n\n`. (Los `backfill:*` murieron con el endpoint — per-env T4.)
 
+Feed reads (`GET /api/feed/messages`): `?type=kol|crypto-news` filtra a nivel SQL (`findRecent(limit, typeFilter)`).
+Valor inválido → 400 (`type must be one of kol, crypto-news`).
+Sin `type` devuelve mixto (legacy default, backward compatible).
+
 ## Pipeline de mensajes
 
 ```

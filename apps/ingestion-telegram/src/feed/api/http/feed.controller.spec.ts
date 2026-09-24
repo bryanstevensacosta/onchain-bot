@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { FeedController, parseMessageEntities } from './feed.controller';
 
 describe('parseMessageEntities (string-vs-array reader fallback)', () => {
@@ -69,8 +70,55 @@ describe('FeedController (feed message reads + stats)', () => {
     expect(res.data[0].messageEntities).toBeUndefined();
   });
 
+  it('getRecentMessages without type passes undefined (mixed, legacy behavior)', async () => {
+    messageRepo.findRecent.mockResolvedValue([feedRow()]);
+
+    await controller.getRecentMessages(50);
+
+    expect(messageRepo.findRecent).toHaveBeenCalledWith(50, undefined);
+  });
+
+  it('getRecentMessages with type=kol filters to kol only', async () => {
+    messageRepo.findRecent.mockResolvedValue([feedRow({ type: 'kol' })]);
+
+    const res = await controller.getRecentMessages(50, 'kol');
+
+    expect(messageRepo.findRecent).toHaveBeenCalledWith(50, 'kol');
+    expect(res.count).toBe(1);
+    expect(res.data[0].type).toBe('kol');
+  });
+
+  it('getRecentMessages with type=crypto-news filters to news only', async () => {
+    messageRepo.findRecent.mockResolvedValue([feedRow()]);
+
+    const res = await controller.getRecentMessages(50, 'crypto-news');
+
+    expect(messageRepo.findRecent).toHaveBeenCalledWith(50, 'crypto-news');
+    expect(res.data[0].type).toBe('crypto-news');
+  });
+
+  it('getRecentMessages caps limit at 200 AFTER type filtering', async () => {
+    messageRepo.findRecent.mockResolvedValue([]);
+
+    await controller.getRecentMessages(9999, 'crypto-news');
+
+    expect(messageRepo.findRecent).toHaveBeenCalledWith(200, 'crypto-news');
+  });
+
+  it('getRecentMessages rejects invalid type with 400', async () => {
+    await expect(controller.getRecentMessages(50, 'kol-news')).rejects.toThrow(
+      BadRequestException,
+    );
+    await expect(controller.getRecentMessages(50, 'kol-news')).rejects.toThrow(
+      'type must be one of kol, crypto-news',
+    );
+    expect(messageRepo.findRecent).not.toHaveBeenCalled();
+  });
+
   it("getRecentMessages maps '' entities rows to []", async () => {
-    messageRepo.findRecent.mockResolvedValue([feedRow({ messageEntities: '' })]);
+    messageRepo.findRecent.mockResolvedValue([
+      feedRow({ messageEntities: '' }),
+    ]);
 
     const res = await controller.getRecentMessages(50);
 

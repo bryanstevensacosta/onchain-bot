@@ -12,13 +12,18 @@ import {
   type CryptoNewsSource,
   type ContentFilter,
   type CreateFilterDto,
+  type FeedMessageType,
   type UpdateFilterDto,
 } from '@/entities/crypto-news/api/crypto-news-queries';
 
-export function useCryptoNewsMessages(limit = 50, channelId?: string) {
+export function useCryptoNewsMessages(
+  limit = 50,
+  channelId?: string,
+  type?: FeedMessageType,
+) {
   return useQuery<ReadonlyArray<CryptoNewsMessage>>({
-    queryKey: cryptoNewsKeys.messages(limit, channelId),
-    queryFn: () => fetchCryptoNewsMessages(limit, channelId),
+    queryKey: cryptoNewsKeys.messages(limit, channelId, type),
+    queryFn: () => fetchCryptoNewsMessages(limit, channelId, type),
     refetchInterval: 15_000,
   });
 }

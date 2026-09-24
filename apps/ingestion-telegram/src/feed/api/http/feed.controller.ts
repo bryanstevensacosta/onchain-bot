@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Header,
@@ -14,6 +15,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { TelegramFeedMessageRepository } from '../../infrastructure/persistence/typeorm/repositories/telegram-feed-message.repository';
+import type { TelegramFeedMessageType } from '../../infrastructure/persistence/typeorm/entities/telegram-feed-message.entity';
 import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
 
 /**
@@ -25,7 +27,9 @@ import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistenc
  */
 export function parseMessageEntities(
   value: unknown,
-): Array<{ type: string; offset: number; length: number; url?: string }> | undefined {
+):
+  | Array<{ type: string; offset: number; length: number; url?: string }>
+  | undefined {
   if (value == null) return undefined;
   if (typeof value === 'string') {
     if (value === '') return [];
@@ -46,6 +50,25 @@ export function parseMessageEntities(
     length: number;
     url?: string;
   }>;
+}
+
+const VALID_MESSAGE_TYPES: ReadonlyArray<TelegramFeedMessageType> = [
+  'kol',
+  'crypto-news',
+];
+
+function parseMessageTypeFilter(
+  type: string | undefined,
+): TelegramFeedMessageType | undefined {
+  if (type === undefined) {
+    return undefined;
+  }
+  if (!VALID_MESSAGE_TYPES.includes(type as TelegramFeedMessageType)) {
+    throw new BadRequestException(
+      `type must be one of ${VALID_MESSAGE_TYPES.join(', ')}`,
+    );
+  }
+  return type as TelegramFeedMessageType;
 }
 
 /**
@@ -71,11 +94,33 @@ export class FeedController {
 
   @Get('messages')
   @Header('Cache-Control', 'no-cache, must-revalidate')
-  @ApiOperation({ summary: 'Recent feed messages with media (RAW content, no filters)' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Max messages (default 50, capped at 200)' })
-  @ApiResponse({ status: 200, description: 'Recent messages with timestamp/count/data' })
-  async getRecentMessages(@Query('limit', ParseIntPipe) limit = 50) {
-    const messages = await this.messageRepo.findRecent(Math.min(limit, 200));
+  @ApiOperation({
+    summary: 'Recent feed messages with media (RAW content, no filters)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Max messages (default 50, capped at 200)',
+  })
+  @ApiQuery({
+    name: 'type',
+    required: false,
+    description:
+      'Filter by feed type: kol | crypto-news (default: mixed, backward compatible)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Recent messages with timestamp/count/data',
+  })
+  async getRecentMessages(
+    @Query('limit', ParseIntPipe) limit = 50,
+    @Query('type') type?: string,
+  ) {
+    const typeFilter = parseMessageTypeFilter(type);
+    const messages = await this.messageRepo.findRecent(
+      Math.min(limit, 200),
+      typeFilter,
+    );
 
     // Return object with timestamp to bust ETags on each request
     return {
@@ -89,7 +134,11 @@ export class FeedController {
   @Header('Cache-Control', 'no-cache, must-revalidate')
   @ApiOperation({ summary: 'Messages from one channel' })
   @ApiParam({ name: 'channelId', description: 'Telegram channel id' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Max messages (default 50, capped at 200)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Max messages (default 50, capped at 200)',
+  })
   @ApiResponse({ status: 200, description: 'Channel messages' })
   async getMessagesByChannel(
     @Param('channelId') channelId: string,

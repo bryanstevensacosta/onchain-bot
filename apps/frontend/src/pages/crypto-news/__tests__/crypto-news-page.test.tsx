@@ -1221,6 +1221,10 @@ describe('CryptoNewsPage — 24h window (Todo 2: crypto-news-24h-window-media-re
 
     renderWithClient(<CryptoNewsPage />);
 
-    expect(mockedUseMessages).toHaveBeenCalledWith(500);
+    expect(mockedUseMessages).toHaveBeenCalledWith(
+      500,
+      undefined,
+      'crypto-news',
+    );
   });
 });
