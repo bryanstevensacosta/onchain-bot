@@ -298,7 +298,7 @@ Real-time SSE event processor for `messageType='crypto-news'` messages. Implemen
 - Backend reads via HTTP (`INGESTION_TELEGRAM_URL/api/media/*`)
 - Serving re-sniffs via `media-serving.ts` (stored `.bin` MP4 served as `video/mp4`) with Range/206
 - **Backend cache is growth-zero (2026-09-19, backend-media-ownership)**: `ProcessNextQueuedArticleUseCase.ensureLocalFiles` stages to `os.tmpdir()/backend-media-<uuid>/` and deletes in `finally` (success AND failure); retry re-downloads from ingestion. Queue holds paths/URLs, never bytes. Specs: `zero-growth|re-download|orphan-404` in `process-next-queued-article.use-case.spec.ts`.
-- **Frontend display never breaks**: backend `queue.controller.ts:getQueueMedia` serves local-first with ingestion-proxy fallback (`convertLocalPathToIngestionUrl`), so deleted backend copies resolve via `GET /api/media/...` while ingestion holds them (72h).
+- **Frontend display never breaks**: backend `queue-media.controller.ts:getQueueMedia` (split from `queue.controller.ts`) serves local-first with ingestion-proxy fallback (`convertLocalPathToIngestionUrl`), so deleted backend copies resolve via `GET /api/media/...` while ingestion holds them (72h).
 - **Ownership**: news cache → ingestion-telegram; ingestion `uploads/` → ingestion-telegram (source of truth + 72h janitor); `crypto-news-ads-library/` → backend (untouched, was empty). Full table: `docs/deployment/media-ownership.md`; cleanup tool: `scripts/crypto-news-media-cleanup.mjs` (always dry-run by default).
 
 **3-Flag Control System (CRITICAL DEPENDENCY)**:
@@ -586,7 +586,7 @@ Filters CRUD intact: `POST /crypto-news/sources/:channelId/filters`, `GET .../fi
 `GET call-tracking/tracked/:chain/:address` (README's `vip-calls/calls/:chain/:address` is
 misattributed — the per-token lookup lives here), `GET telegram-kol/reputation/kols/top`.
 
-`ads.controller.ts` holds TWO controllers (`crypto-news-ads/ads` + `crypto-news-ads` media).
+Split one-controller-per-file: `AdsController` (`crypto-news-ads/ads`, 12 routes) + `AdsMediaController` (`crypto-news-ads`, 3 routes) + `ads-media.view.ts` + shared `ad-uuid.ts`.
 `POST dev/seed?count=&delay=` on `AppController` fires synthetic pipeline events
 (`scripts/seed-pipeline-events.ts`, 12×4 events) — ungated dev helper, see gap 14.
 
@@ -706,7 +706,7 @@ pino-roll daily files (`logging.dir/fileName`, `limit count:1`) in dev/prod; pla
 11. **`DevModule` wired unconditionally** (docstring says "only when USE_MOCK_INGESTION=true") — `/dev/inject-message|queue-status|clear-queue` live in prod with no auth. Worse: `POST dev/seed` sits on the root `AppController` (outside any dev module), firing synthetic pipeline events into the real event bus. Gate both or delete.
 12. **(Consolidated 2026-09-04)** sub-BC `AGENTS.md` files (`token/`, `telegram/`, `vip-calls/`, `crypto-news/`, `shared/`, `kol/`, `data-provider/`) deleted after migrating verified content here. Remaining staleness lives in `shared/README.md` (`ca/*` paths, "19 BCs", `:178`) and per-BC READMEs (gap 22).
 13. **Ticker-null nuance**: publish flow rejects null ticker, but `TrackedPublishedCall.ticker` is `varchar NULL` by design (tracking tolerates unresolved tickers) — don't "fix" the column; enforce at the publisher boundary only.
-14. **CryptoNewsController is 702 lines** (imports `fs`, `Req/Res`, `InjectRepository` — TypeORM leaking into api layer).
+14. ~~**CryptoNewsController is 702 lines**~~ **RESOLVED (stale claim + splits done)**: no 702-line file existed on dev. Split instead: `queue.controller.ts` 433→173 + `QueueMediaController` (`GET :id/media`) + `queue-entry.view/mapper` (f9c196bd); routes byte-identical.
 15. **Health is static** (`status:'ok'` always) — same stub problem as ingestion-telegram gap 2, backend side.
 16. **Ghost event `filters.token.approved|rejected`**: named in `token/AGENTS.md`, `telegram/AGENTS.md`, `vip-calls/AGENTS.md`, vip-call-approval README and one spec — but NO event file defines it and NO use case emits it. The real wire events are `vip-call.approval.approved|rejected`. The ghost survives because `scripts/seed-pipeline-events.ts` EMITS it (step 4) — seeded approvals vanish into the void since `TokenApprovedPublishHandler` listens to the real name. Purge the ghost name or the next reader will subscribe to silence.
 17. ~~**Dead var `INGESTION_REMOTE_URL`** in `.env.production.template`~~ **RESOLVED**: the template no longer mentions it (only `INGESTION_TELEGRAM_URL` is read) — but it keeps a stale migration banner + `validate-session-migration.sh` reference (`:67`), and the gitignored repo `.env.staging` still carries dead `INGESTION_SERVICE_URL` + dummy `INGESTION_TELEGRAM_MTPROTO_*` (harmless: compose `environment:` wins at runtime; the Oracle server real file is operator-owned).
