@@ -141,3 +141,10 @@ Consecuencias adaptadas (todo va a los planes por tramo):
 ---
 
 _Compaction-resume: este fichero ES el punto de retorno. Al volver, leer secciones 2-5 y el gate._
+
+## 9. Generación de planes 2026-09-24 (aprobado "procede")
+
+- Scaffolds: `mega-refactor-central` + `mega-refactor-{kol-system,content-publisher,market-data}` (`--unclear`).
+- Metis gaps G-01–G-21 integrados; defaults adoptados (DBs mismo-servidor, tripletas puertos, `?type=kol`, avatar ingestion, tokens cifrados, threads-501) a veto del usuario.
+- Todos: central 8 · T1 16 · T2 12 (0-11) · T3 9 (0-8). TL;DR + commit/success rellenos.
+- Revisión Momus ×4: central APPROVE (3 minor → fixed: matriz, path coordinator, sección Tramos delegados D2) · T3 APPROVE (minor → fixed: matriz, placeholders) · T1 REWORK → FIXED (rutas token/intake + coordinator core, placeholders, waves 3-5, acceptance ejecutables, DDL 17 desglosado) · T2 REWORK → FIXED (contrato pinneado d3671cf0, matriz reescrita, placeholders, M1/M3). Aceptado como minor pendiente: T2-M2 (rangos spec abiertos).
