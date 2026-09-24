@@ -29,6 +29,7 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
 - Extracción FÍSICA de providers (C-DATA-01, último movimiento): 13 data-providers + Dexter (`chain-dexter-bot` gap-7) → adapters `token/infrastructure/providers/`.
 - Lado servidor del puente: `MarketDataPort` HTTP con SLO p95<500ms; vuelve default `USE_DATA_SERVICE_API=true` por env (G-17).
 - Renombre legacy R-4/G-18: `/token/market-data/*` → `/token/enrichment` + desambiguación `MarketDataProviderPort` + migración frontend (C-UX-01).
+- App hermana `apps/dexter-onchain-bot/` (P13, fase final del tramo): solo lógica bot Telegram alimentada por market-data HTTP; `/start` + `/ca` + detección pelada + extracción forwards; reutiliza router/pipeline/formatter/trade-buttons/settings de `chain-dexter-bot`; token `DEXTER_BOT_TOKEN`; puertos 4060/4061/4062 (verificar lsof); DB propia `<base>_dexter[_staging]`.
 - Staging 7 días + cutover + cleanup.
 
 ### Must NOT have (guardrails, anti-slop, scope boundaries)
@@ -51,15 +52,16 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
 
 ### Dependency matrix
 
-| Todo                                 | Depends on           | Blocks | Can parallelize with                     |
-| ------------------------------------ | -------------------- | ------ | ---------------------------------------- |
-| 0 (precondition T2)                  | central gates T1, T2 | 1-8    | —                                        |
-| 1 (setup+shared)                     | 0, central 2,3       | 2, 3   | —                                        |
-| 2 (chain/provider/cache)             | 1                    | 4      | con nada (base de token/)                |
-| 3 (token)                            | 1                    | 4      | ∥ 2 (módulos independientes, mismo wave) |
-| 4 (extracción)                       | 2, 3                 | 8      | —                                        |
-| 5-7 (puente+renombre+frontend)       | 4                    | 8      | 5 ∥ 6 ∥ 7                                |
-| 8 (staging+cutover, cierra programa) | 5, 6, 7              | —      | —                                        |
+| Todo                            | Depends on           | Blocks | Can parallelize with                       |
+| ------------------------------- | -------------------- | ------ | ------------------------------------------ |
+| 0 (precondition T2)             | central gates T1, T2 | 1-8    | —                                          |
+| 1 (setup+shared)                | 0, central 2,3       | 2, 3   | —                                          |
+| 2 (chain/provider/cache)        | 1                    | 4      | con nada (base de token/)                  |
+| 3 (token)                       | 1                    | 4      | ∥ 2 (módulos independientes, mismo wave)   |
+| 4 (extracción)                  | 2, 3                 | 8      | —                                          |
+| 5-7 (puente+renombre+frontend)  | 4                    | 8      | 5 ∥ 6 ∥ 7                                  |
+| 8 (staging+cutover market-data) | 5, 6, 7              | 9      | —                                          |
+| 9 (dexter app, fase final)      | 5, 8                 | —      | — (cierra programa; alternativa T4 a veto) |
 
 ## Todos
 
@@ -126,11 +128,18 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
      Commit: Y | feat(frontend): dashboard market-data
 - [ ] 8. Staging 7d + cutover + cleanup Tramo 3
      What to do / Must NOT do: Staging 7 días (:4001), rehearsal rollback, cutover `USE_DATA_SERVICE_API=true` dev→staging→prod, monitor p95/error; tras OK: borrar `data-provider/` + `chain-dexter-bot` legacy backend, archivar tablas si aplica, deprecation headers. Cierra programa (Gate T3 central).
-     Parallelization: Wave 4 | Blocked by: 5, 6, 7 | Blocks: — (cierra programa)
+     Parallelization: Wave 4 | Blocked by: 5, 6, 7 | Blocks: 9
      References: .kiro/specs/refactor-data/overview.md (fases migración); plan central Gate T3
      Acceptance criteria: `ls apps/backend/src/data-provider 2>/dev/null` vacío + p95 prod <500ms 24h
      QA scenarios: happy cutover sin degradación; failure → rollback + medición. Evidence .omo/evidence/task-8-mega-refactor-market-data.log
      Commit: Y | feat(market-data)!: cutover y cleanup providers backend
+- [ ] 9. App dexter-onchain-bot: extracción + cutover (P13, fase final)
+     What to do / Must NOT do: `apps/dexter-onchain-bot/` (`package`, nest-cli, tsconfig, `src/main.ts` :4060 dev/:4061 staging/:4062 prod — verificar `lsof` C-PORTS-01, compose con DB `<base>_dexter[_staging]`, `/api/health`); mover desde `chain-dexter-bot/`: `CommandRouterService` + comandos (`/start` reescrito: info+uso lookup, `/ca <contrato>`, resto `/x /z /c /cc /tb /settings` heredados) + `TokenScanPipeline.resolve` + formatter + `TradeButtonRegistry` + settings por chat + poller/webhook; NUEVO: detector de address pelada (sin slash) + extractor de forwards/cualquier-texto (parse→normalize vía market-data, wallet/token/exchange/agregador); ficha Rendida por market-data HTTP (puente todo 5 default-true); token `DEXTER_BOT_TOKEN` (migra `CHAIN_DEXTER_BOT_TOKEN`, env + `.env.example`); rate-limit por usuario. Tests: /start, /ca, pelado, forward-ok, forward-vacío, settings. Must NOT publicar en canales (lookup ≠ publishing) ni lógica de scoring/tracking (eso es kol-system).
+     Parallelization: Wave 5 | Blocked by: 5, 8 | Blocks: — (cierra programa)
+     References: .omo/drafts/mega-refactor-tramos.md (P13, P12-bis); apps/backend/src/telegram/chain-dexter-bot/ (origen completo: bot.config.ts, command-router.service.ts:22-89, commands/, token-scan.pipeline, message-formatter.adapter, trade-button-registry.ts:91-187, update-poller.service.ts:27-61, chat-settings.service); plan central C-BOTS-01/C-PORTS-01/C-DB-01 (entradas dexter)
+     Acceptance criteria: `curl -s localhost:4060/api/health | grep -q '"status":"ok"'` + `npx jest apps/dexter-onchain-bot` verde (5 casos) + e2e `/start` responde ayuda y `/ca <fixture>` devuelve ficha con trade buttons
+     QA scenarios: happy ficha <5s con botones; failure market-data caído → mensaje explícito (sin ficha parcial silenciosa); failure token ausente → bot inactivo con warn, app sigue. Evidence .omo/evidence/task-9-mega-refactor-market-data.log
+     Commit: Y | feat(dexter-onchain-bot): extracción bot lookup y cutover
 
 ## Final verification wave
 
@@ -148,4 +157,4 @@ Un commit por todo (feat(market-data): …). Extracción providers con `!`. Push
 ## Success criteria
 
 - `apps/market-data/` en prod con `USE_DATA_SERVICE_API=true` por defecto y p95<500ms 24h.
-- Backend sin `data-provider/` ni `chain-dexter-bot`; legacy renombrado; programa completo.
+- Backend sin `data-provider/` ni `chain-dexter-bot`; legacy renombrado; dexter-onchain-bot en prod; programa completo.

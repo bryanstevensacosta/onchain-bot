@@ -29,7 +29,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
 - Divergencias pivot P1–P9 OBLIGATORIAS: sin dedup propia (P1), identity/sources en ingestion-telegram (P4, G-07/G-09), extraction contrato×mención (P5), classification dentro de templates (P6, G-08), puente market-data (P7, G-17), tracking first-seen (P8, G-14), bot por template cifrado (P9, G-10). Cada todo que diverja del spec cita `mega-refactor-tramos.md:118-126`.
 - Onda de verificación P2 con sub-agentes por punto P3–P9 antes de implementar.
 - DDL recalculado 17 tablas efectivas (22 del spec − `kols`, `kol_channels`, `kol_reputation`, `kol_stats`, `classified_calls`; 18 si tracking separado cuenta aparte — G-13). Contratos central pinneados (versión fecha+hash).
-- Bot lookup exclusivo interactivo (P12a: `/start`, contrato directo o reenvío → ficha vía enrichment) SEPARADO de bots por template solo-publishing (P12b). Convergencia con `chain-dexter-bot` abierta a iterar (no duplicar bots lookup).
+- Bot lookup: SUPERSEDED por P13 — vive en `apps/dexter-onchain-bot/` (Tramo 3, todo 9), NO en kol-system. kol-system conserva solo bots por template solo-publishing (P12b).
 - Dual-run sem 2-8 + shadow/dry-run + staging 14 días + rollback rehearsal + cutover por flags + cleanup (archivar, NO dropear).
 
 ### Must NOT have (guardrails, anti-slop, scope boundaries)
@@ -186,13 +186,13 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       Acceptance criteria: `curl -s localhost:3030/api/vip-calls/calls/recent?limit=5` sigue respondiendo vía kol-system; `psql -c "\dn"` muestra `_archived`
       QA scenarios: happy cutover sin gap >1 cron; failure post-cutover → rollback ejecutado y medido. Evidence .omo/evidence/task-16-mega-refactor-kol-system.log
       Commit: Y | feat(kol-system)!: cutover y cleanup backend KOL (breaking scope)
-- [ ] 17. Bot lookup exclusivo interactivo (P12a)
-      What to do / Must NOT do: Módulo `lookup/`: `KOL_LOOKUP_BOT_TOKEN` exclusivo; `/start` explica (pegar contrato o reenviar mensaje); vía 1 extrae contrato directo del texto, vía 2 extrae de mensaje reenviado (forwarded `text+entities`); ficha completa vía enrichment (Mc, liquidez, holders, seguridad, links) formateada; inbound por getUpdates poller (patrón `chain-dexter-bot/update-poller.service.ts`) o webhook — decisión worker justificada; rate-limit por usuario. Tests: contrato directo, forward con contrato, forward sin contrato (respuesta ayuda, sin crash). Must NOT publicar en canales (lookup ≠ publishing) ni reutilizar tokens de template.
-      Parallelization: Wave 3 | Blocked by: 8, 10 | Blocks: 15
-      References: .omo/drafts/mega-refactor-tramos.md (P12, P12-bis: reutilizar router+pipeline+formatter+trade-buttons de Dexter); apps/backend/src/telegram/chain-dexter-bot/application/handlers/command-router.service.ts:22-89 (patrón router slash-only); apps/backend/src/telegram/chain-dexter-bot/application/handlers/commands/x-token-scan.handler.ts:35-83 (scan+ficha+botones); apps/backend/src/telegram/chain-dexter-bot/infrastructure/telegram/trade-button-registry.ts:91-187; apps/backend/src/telegram/chain-dexter-bot/infrastructure/telegram/update-poller.service.ts:27-61 (poller+deleteWebhook)
-      Acceptance criteria: `npx jest apps/kol-system/src/lookup` verde con 3 casos (directo, forward-ok, forward-vacío); e2e contra Bot API test con `/start` respondiendo ayuda
-      QA scenarios: happy ficha completa <5s; failure token ausente → bot inactivo con warn (patrón dexter `bot.config.ts:89-91`), resto app sigue. Evidence .omo/evidence/task-17-mega-refactor-kol-system.log
-      Commit: Y | feat(kol-system): bot lookup exclusivo de contratos
+- [ ] 17. SUPERSEDED por P13 — NO ejecutar. Contenido movido a Tramo 3 todo 9 (`apps/dexter-onchain-bot/`).
+      What to do / Must NOT do: Saltar este todo. Must NOT implementar lookup en kol-system.
+      Parallelization: — | Blocked by: — | Blocks: —
+      References: .omo/drafts/mega-refactor-tramos.md (P13); .omo/plans/mega-refactor-market-data.md todo 9
+      Acceptance criteria: `ls apps/kol-system/src | grep -i lookup` vacío
+      QA scenarios: —. Evidence —
+      Commit: N | — | —
 
 ## Final verification wave
 

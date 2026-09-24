@@ -181,7 +181,7 @@ apps/
 │           ├── guards/api-key.guard.ts
 │           └── shared.module.ts(~)
 │
-└── market-data/                                # ★ TRAMO 3 (Variante A BC único; puertos/DB en C-PORTS-01/C-DB-01)
+├── market-data/                                # ★ TRAMO 3 (Variante A BC único; puertos/DB en C-PORTS-01/C-DB-01)
     ├── package.json nest-cli.json tsconfig.json Dockerfile docker-compose.yml .env.example(~)
     └── src/
         ├── main.ts
@@ -211,5 +211,19 @@ apps/
             ├── value-objects/{chain-id.vo.ts,token-id.vo.ts}
             └── guards/api-key.guard.ts
 ```
+
+└── dexter-onchain-bot/ # ★ TRAMO 3 fase final (P13; puertos 4060/61/62 a verificar, DB <base>\_dexter)
+│ ├── package.json nest-cli.json tsconfig.json Dockerfile docker-compose.yml .env.example(~)
+│ └── src/
+│ ├── main.ts app.module.ts
+│ ├── lookup/ # Bot interactivo (DEXTER_BOT_TOKEN)
+│ │ ├── application/{handlers/{command-router.service.ts,token-scan.pipeline.ts(~),commands/{start-ca.handlers.ts(~),bare-contract-detector.service.ts(~),forward-extractor.service.ts(~)}},services/chat-settings.service.ts}
+│ │ ├── domain/ports/{scan-engine.port.ts(~) → market-data HTTP}
+│ │ ├── infrastructure/telegram/{bot-client.ts,update-poller.service.ts,webhook.controller.ts(~),message-formatter.adapter.ts,trade-button-registry.ts,inline-keyboard.builder.ts}
+│ │ ├── infrastructure/persistence/typeorm/entities/chat-settings.entity.ts
+│ │ └── lookup.module.ts(~)
+│ └── shared/ # config (telegram: token+ingestMode) + guards + filters
+│ ├── config/{app.config.ts,telegram.config.ts}(~)
+│ └── shared.module.ts(~)
 
 **Notas para el plan**: (1) `src/` como prefijo (README content-publisher; 11-refactor mezcla con/without — manda `src/`). (2) kol-system: solo templates/approval/publishing/telegram-conexión son literales del spec; resto BCs patronados `(~)`. (3) market-data: Variante A literal con dir renombrado; si escala → Variante B (apps/api+bot+worker, libs/) como fase posterior. (4) DBs/migraciones por app en C-DB-01, no en el tree. (5) `market-data` legacy (`/token/market-data`, `MarketDataProviderPort`) se renombra dentro del Tramo 3 (R-4).
