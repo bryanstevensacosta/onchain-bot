@@ -5,6 +5,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { AppModule } from './app.module';
 import { Logger } from 'nestjs-pino';
+import { resolveIngestionPort } from './shared/common/config/app.config';
 
 function resolveAppVersion(): string {
   try {
@@ -76,7 +77,9 @@ async function bootstrap() {
     credentials: true,
   });
 
-  const port = process.env.PORT || 3031;
+  // Canonical port reader (gap 12): INGESTION_PORT > INGESTION_API_PORT
+  // (deprecated) > PORT (deprecated) > 3031. Single source in app.config.
+  const port = resolveIngestionPort();
   setupFeedDocs(app);
   await app.listen(port);
 

@@ -22,7 +22,7 @@ export interface TokenClassificationView {
 
 export function classificationTone(
   c: Classification,
-): 'green' | 'yellow' | 'orange' | 'red' | 'gray' {
+): 'green' | 'yellow' | 'orange' | 'red' | 'blue' | 'gray' {
   switch (c) {
     case 'TOKEN':
       return 'green';
@@ -30,10 +30,12 @@ export function classificationTone(
     case 'ROUTER':
       return 'yellow';
     case 'NFT':
-      return 'blue' as never;
+      return 'blue';
     case 'SCAM':
       return 'red';
     case 'UNKNOWN':
+      return 'gray';
+    default:
       return 'gray';
   }
 }

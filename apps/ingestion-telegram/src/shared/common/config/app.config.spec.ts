@@ -156,6 +156,60 @@ describe('appConfig', () => {
     });
   });
 
+  describe('Port unification (gap 12: INGESTION_PORT canonical)', () => {
+    it('should prefer INGESTION_PORT over deprecated fallbacks', () => {
+      setValidMtprotoEnv();
+      setValidRedisEnv();
+      process.env.INGESTION_PORT = '3031';
+      process.env.INGESTION_API_PORT = '4040';
+      process.env.PORT = '5050';
+      process.env.INGESTION_API_HOST = '0.0.0.0';
+      process.env.INGESTION_API_BASE_URL = 'http://localhost:3031';
+
+      const config = appConfig();
+      expect(config.api.port).toBe(3031);
+    });
+
+    it('should fall back to INGESTION_API_PORT when canonical is missing', () => {
+      setValidMtprotoEnv();
+      setValidRedisEnv();
+      delete process.env.INGESTION_PORT;
+      process.env.INGESTION_API_PORT = '4040';
+      delete process.env.PORT;
+      process.env.INGESTION_API_HOST = '0.0.0.0';
+      process.env.INGESTION_API_BASE_URL = 'http://localhost:3031';
+
+      const config = appConfig();
+      expect(config.api.port).toBe(4040);
+    });
+
+    it('should fall back to PORT when both namespaced vars are missing', () => {
+      setValidMtprotoEnv();
+      setValidRedisEnv();
+      delete process.env.INGESTION_PORT;
+      delete process.env.INGESTION_API_PORT;
+      process.env.PORT = '5050';
+      process.env.INGESTION_API_HOST = '0.0.0.0';
+      process.env.INGESTION_API_BASE_URL = 'http://localhost:3031';
+
+      const config = appConfig();
+      expect(config.api.port).toBe(5050);
+    });
+
+    it('should default to 3031 when no port var is set', () => {
+      setValidMtprotoEnv();
+      setValidRedisEnv();
+      delete process.env.INGESTION_PORT;
+      delete process.env.INGESTION_API_PORT;
+      delete process.env.PORT;
+      process.env.INGESTION_API_HOST = '0.0.0.0';
+      process.env.INGESTION_API_BASE_URL = 'http://localhost:3031';
+
+      const config = appConfig();
+      expect(config.api.port).toBe(3031);
+    });
+  });
+
   describe('Safety configuration file loading', () => {
     it('should use defaults when config file is missing', () => {
       setValidMtprotoEnv();
