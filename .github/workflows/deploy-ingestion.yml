@@ -116,6 +116,11 @@ jobs:
     runs-on: [self-hosted, oracle]
     timeout-minutes: 30
     needs: build-and-push
+    # T4 auto-rollback contract: smoke_entered is true once the post-deploy
+    # health/smoke phase starts (Wait for health) — only post-smoke-rojo
+    # triggers auto-rollback, never a red deploy before smoke.
+    outputs:
+      smoke_entered: ${{ steps.smoke-marker.outputs.smoke_entered }}
     permissions:
       contents: read
       packages: write
@@ -212,6 +217,10 @@ jobs:
           docker compose -f docker-compose.ingestion.yml pull
           docker compose -f docker-compose.ingestion.yml up -d --force-recreate
 
+      - name: Mark smoke entered (T4 auto-rollback gate signal)
+        id: smoke-marker
+        run: echo "smoke_entered=true" >> "$GITHUB_OUTPUT"
+
       - name: Wait for health
         run: |
           sleep 10
@@ -249,6 +258,10 @@ jobs:
     if: always() && needs.build-and-push.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.target == 'staging') || (github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.deploy.result == 'success') || (github.event_name == 'push' && github.ref == 'refs/heads/dev'))
     environment: staging # staging lane — pinned below, NEVER resolves prod env
     timeout-minutes: 30
+    # T4 auto-rollback contract (twin mirror): smoke_entered gates the twin
+    # auto-rollback job — only post-smoke-rojo, never pre-smoke red.
+    outputs:
+      smoke_entered: ${{ steps.smoke-marker.outputs.smoke_entered }}
     concurrency:
       group: ingestion-staging-target
       cancel-in-progress: false # single-flight: same triple never runs twice (AUTH_KEY_DUPLICATED)
@@ -368,6 +381,10 @@ jobs:
           docker compose -f docker-compose.staging-ingestion.yml pull
           docker compose -f docker-compose.staging-ingestion.yml up -d --force-recreate
 
+      - name: Mark smoke entered (T4 auto-rollback gate signal)
+        id: smoke-marker
+        run: echo "smoke_entered=true" >> "$GITHUB_OUTPUT"
+
       - name: Wait for health (:3033)
         run: |
           sleep 10
@@ -428,6 +445,230 @@ jobs:
             docker push "$IMG:staging-prev"
             echo "pinned $IMG:staging-prev"
           done
+
+  # AUTO-ROLLBACK (prod-safety-gates item 4, ingestion lanes) — fires ONLY on
+  # post-smoke-rojo (deploy job FAILED + smoke entered). Inline reuse of the
+  # rollback-lane mechanics (same :prev/:staging-prev pins, stop → verify →
+  # start, no pull in rollback, health + SSE + AUTH asserts): dispatching a NEW
+  # run would deadlock on the shared concurrency groups (new run queues behind
+  # this one, which waits for it). Dispatch lanes below stay manual-only.
+  # Budget: <60s per lane. Timeout caps each job, never holds runner.
+  auto-rollback-production:
+    name: Auto-rollback prod ingestion on smoke failure (:prev)
+    runs-on: [self-hosted, oracle]
+    needs: [deploy]
+    if: failure() && needs.deploy.outputs.smoke_entered == 'true'
+    environment: production
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Record auto-rollback decision
+        run: |
+          {
+            echo "### Auto-rollback prod ingestion (smoke rojo → :prev → :3032)"
+            echo ""
+            echo "| campo | valor |"
+            echo "|---|---|"
+            echo "| trigger | post-deploy health/smoke FAILED (deploy red, smoke entered) |"
+            echo "| target | ingestion-telegram:prev → :3032 |"
+            echo "| manual escape | dispatch target=rollback-production intacto |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Pull rollback target :prev (read-only, no retag yet)
+        run: |
+          set -euo pipefail
+          echo "ROLLBACK_T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/auto-ingestion-rollback-t0
+          for IMG in \
+            ghcr.io/${{ github.repository }}-ingestion-telegram \
+            ghcr.io/${{ github.repository }}-ingestion; do
+            docker pull "$IMG:prev" || { echo "::error::no $IMG:prev pinned — auto-rollback inexecutable → ESCALATE (second level, see failure step)"; exit 1; }
+          done
+
+      - name: Stop prod ingestion (single-flight, --timeout 30)
+        run: |
+          set -euo pipefail
+          cd /opt/onchain-bot/apps/backend
+          docker compose -f docker-compose.ingestion.yml stop --timeout 30 ingestion-telegram
+          if docker ps --format '{{.Names}}' | grep -i ingestion; then
+            echo "::error::REFUSE: ingestion container still running — starting a second one would AUTH_KEY_DUPLICATED the session"
+            exit 1
+          fi
+          echo "OK: world empty — safe to start exactly one container"
+
+      - name: Recreate from :prev (no pull — local retag wins)
+        run: |
+          set -euo pipefail
+          IMG_BASE=ghcr.io/${{ github.repository }}-ingestion-telegram
+          docker tag "$IMG_BASE:prev" "$IMG_BASE:latest"
+          cd /opt/onchain-bot/apps/backend
+          docker compose -f docker-compose.ingestion.yml up -d --force-recreate
+
+      - name: Healthcheck gate (:3032) + SSE + AUTH asserts + downtime measured
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 12); do
+            if curl -sf --max-time 8 http://localhost:3032/api/health >/dev/null 2>&1; then
+              echo "healthy after ~$((i * 5))s"
+              break
+            fi
+            [ "$i" -eq 12 ] && { echo "::error::healthcheck failed after auto-rollback — ESCALATE (second level, see failure step)"; exit 1; }
+            sleep 5
+          done
+          curl -s http://localhost:3032/api/health | jq '.'
+          SSE_CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 \
+            -H 'Accept: text/event-stream' http://localhost:3032/api/ingestion/stream || true)"
+          [ "$SSE_CODE" = "200" ] || { echo "::error::SSE probe http=$SSE_CODE (want 200 post-T4 open stream)"; exit 1; }
+          echo "PASS: SSE stream headers 200"
+          if docker logs onchain-bot-ingestion-telegram --since 10m 2>/dev/null | grep -qi 'AUTH_KEY_DUPLICATED'; then
+            echo "::error::AUTH_KEY_DUPLICATED in logs — recovery is interactive-only (runbook §AUTH_KEY_DUPLICATED)"
+            exit 1
+          fi
+          echo "ROLLBACK_T1=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/auto-ingestion-rollback-t1
+          echo "downtime window: $(cat /tmp/auto-ingestion-rollback-t0) → $(cat /tmp/auto-ingestion-rollback-t1) (SSE clients reconnect 1s→30s backoff, expected seconds)"
+          {
+            echo "### Auto-rollback prod ingestion OK"
+            echo ""
+            echo "| campo | valor |"
+            echo "|---|---|"
+            echo "| target | ingestion-telegram:prev → :3032 |"
+            echo "| ventana | $(cat /tmp/auto-ingestion-rollback-t0) → $(cat /tmp/auto-ingestion-rollback-t1) |"
+            echo "| asserts | health + SSE 200 + no AUTH_KEY_DUPLICATED |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Second-level escalation (auto-rollback FAILED)
+        if: failure()
+        run: |
+          {
+            echo "### ESCALATION segundo nivel — auto-rollback prod ingestion FALLIDO"
+            echo ""
+            echo "1. CONGELAR lanes: no re-disparar rollback (sin re-loops — :prev ya está vivo o ausente). Lock manual: avisar al operador ANTES de cualquier dispatch/retry."
+            echo "2. AVISAR operador con ventana de downtime: $(cat /tmp/auto-ingestion-rollback-t0 2>/dev/null || echo T0-desconocido) → $(date -u +%Y-%m-%dT%H:%M:%SZ)."
+            echo "3. DUMP pre-deploy: artifact /data/backups/ingestion/ingestion-backup-*.dump de los logs del job deploy — adjuntar filename al incident record."
+            echo "4. INVALIDAR pin envenenado: si :prev también está rojo, no reintentarlo — forward-fix (nuevo sha)."
+            echo "5. Si hay AUTH_KEY_DUPLICATED: recovery INTERACTIVA-only (runbook §AUTH_KEY_DUPLICATED) — parar TODO, una sola sesión, re-gen interactivo si Telegram deslogueó."
+            echo "6. DB restore = decisión HUMANA explícita (jamás automática, jamás segundo rollback en loop): restore del dump → start → health + SSE + AUTH asserts."
+            echo "7. Presupuesto: rollback <60s por lane; sin verde en 2 ventanas de healthcheck → forward-fix-or-restore."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::ESCALATION segundo nivel: auto-rollback prod ingestion fallido — lanes congelados, operador requerido (ver summary)"
+
+  auto-rollback-staging:
+    name: Auto-rollback staging twin on smoke failure (:staging-prev)
+    runs-on: [self-hosted, oracle]
+    needs: [deploy-staging]
+    if: failure() && needs.deploy-staging.outputs.smoke_entered == 'true'
+    environment: staging
+    timeout-minutes: 10
+    concurrency:
+      group: ingestion-staging-target
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Record auto-rollback decision
+        run: |
+          {
+            echo "### Auto-rollback staging twin (smoke rojo → :staging-prev → :3033)"
+            echo ""
+            echo "| campo | valor |"
+            echo "|---|---|"
+            echo "| trigger | post-deploy smoke FAILED (deploy-staging red, smoke entered) |"
+            echo "| target | ingestion-telegram:staging-prev → :3033 |"
+            echo "| manual escape | dispatch target=rollback-staging intacto |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Pull rollback target :staging-prev (read-only, no retag yet)
+        run: |
+          set -euo pipefail
+          echo "ROLLBACK_T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/auto-ingestion-rollback-staging-t0
+          ENVF=/opt/onchain-bot-staging/apps/ingestion-telegram/.env.staging
+          [ -f "$ENVF" ] || { echo "::error::staging ENVF missing: $ENVF"; exit 1; }
+          for IMG in \
+            ghcr.io/${{ github.repository }}-ingestion-telegram \
+            ghcr.io/${{ github.repository }}-ingestion; do
+            docker pull "$IMG:staging-prev" || { echo "::error::no $IMG:staging-prev pinned — auto-rollback inexecutable → ESCALATE (second level, see failure step)"; exit 1; }
+          done
+
+      - name: Stop staging twin (single-flight, --timeout 30)
+        run: |
+          set -euo pipefail
+          cd /opt/onchain-bot-staging/apps/backend
+          docker compose -f docker-compose.staging-ingestion.yml stop --timeout 30 ingestion-telegram-staging
+          if docker ps --format '{{.Names}}' | grep -i ingestion-telegram-staging; then
+            echo "::error::REFUSE: twin still running — starting a second one would AUTH_KEY_DUPLICATED the staging triple"
+            exit 1
+          fi
+          echo "OK: twin stopped — safe to start exactly one container"
+
+      - name: Recreate twin from :staging-prev (no pull — local retag wins)
+        run: |
+          set -euo pipefail
+          IMG_BASE=ghcr.io/${{ github.repository }}-ingestion-telegram
+          docker tag "$IMG_BASE:staging-prev" "$IMG_BASE:latest"
+          cd /opt/onchain-bot-staging/apps/backend
+          docker compose -f docker-compose.staging-ingestion.yml up -d --force-recreate
+
+      - name: Healthcheck gate (:3033) + SSE + AUTH asserts + downtime measured
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 12); do
+            if curl -sf --max-time 8 http://localhost:3033/api/health >/dev/null 2>&1; then
+              echo "twin healthy after ~$((i * 5))s"
+              break
+            fi
+            [ "$i" -eq 12 ] && { echo "::error::twin healthcheck failed after auto-rollback — ESCALATE (second level, see failure step)"; exit 1; }
+            sleep 5
+          done
+          curl -s http://localhost:3033/api/health | jq '.'
+          SSE_CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 \
+            -H 'Accept: text/event-stream' http://localhost:3033/api/ingestion/stream || true)"
+          [ "$SSE_CODE" = "200" ] || { echo "::error::twin SSE probe http=$SSE_CODE (want 200 post-T4 open stream)"; exit 1; }
+          echo "PASS: twin SSE stream headers 200"
+          if docker logs onchain-bot-ingestion-telegram-staging --since 10m 2>/dev/null | grep -qi 'AUTH_KEY_DUPLICATED'; then
+            echo "::error::AUTH_KEY_DUPLICATED in twin logs — recovery is interactive-only (runbook §AUTH_KEY_DUPLICATED)"
+            exit 1
+          fi
+          echo "ROLLBACK_T1=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/auto-ingestion-rollback-staging-t1
+          echo "downtime window: $(cat /tmp/auto-ingestion-rollback-staging-t0) → $(cat /tmp/auto-ingestion-rollback-staging-t1) (SSE clients reconnect 1s→30s backoff, expected seconds)"
+          {
+            echo "### Auto-rollback staging twin OK"
+            echo ""
+            echo "| campo | valor |"
+            echo "|---|---|"
+            echo "| target | ingestion-telegram:staging-prev → :3033 |"
+            echo "| ventana | $(cat /tmp/auto-ingestion-rollback-staging-t0) → $(cat /tmp/auto-ingestion-rollback-staging-t1) |"
+            echo "| asserts | health + SSE 200 + no AUTH_KEY_DUPLICATED |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Second-level escalation (auto-rollback FAILED)
+        if: failure()
+        run: |
+          {
+            echo "### ESCALATION segundo nivel — auto-rollback staging twin FALLIDO"
+            echo ""
+            echo "1. CONGELAR lanes: no re-disparar rollback (sin re-loops). Lock manual: avisar al operador ANTES de cualquier dispatch/retry."
+            echo "2. AVISAR operador con ventana de downtime: $(cat /tmp/auto-ingestion-rollback-staging-t0 2>/dev/null || echo T0-desconocido) → $(date -u +%Y-%m-%dT%H:%M:%SZ)."
+            echo "3. DUMP pre-deploy: artifact /data/backups/ingestion-staging/ingestion-staging-backup-*.dump — adjuntar filename al incident record."
+            echo "4. INVALIDAR pin envenenado: si :staging-prev también está rojo, no reintentarlo — forward-fix (nuevo sha)."
+            echo "5. Si hay AUTH_KEY_DUPLICATED: recovery INTERACTIVA-only (runbook §AUTH_KEY_DUPLICATED)."
+            echo "6. DB restore = decisión HUMANA explícita (jamás automática, jamás segundo rollback en loop)."
+            echo "7. Presupuesto: rollback <60s por lane; sin verde en 2 ventanas de healthcheck → forward-fix-or-restore."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::ESCALATION segundo nivel: auto-rollback staging twin fallido — lanes congelados, operador requerido (ver summary)"
 
   # Item 6 — rollback lanes (per-env-ingestion). Manual dispatch ONLY, never on
   # push. Single-flight: prod rollback shares the top-level

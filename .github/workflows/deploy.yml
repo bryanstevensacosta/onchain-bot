@@ -210,6 +210,12 @@ jobs:
     if: needs.preflight.outputs.run_deploy == 'true'
     timeout-minutes: 40
     environment: production
+    # T4 auto-rollback contract: smoke_entered is true once the post-deploy
+    # smoke phase starts. Auto-rollback jobs gate on this output so a red
+    # deploy BEFORE smoke (migrations, health, pin) never triggers a rollback
+    # — only post-smoke-rojo does (item 4 Must NOT do).
+    outputs:
+      smoke_entered: ${{ steps.smoke-marker.outputs.smoke_entered }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -523,6 +529,10 @@ jobs:
           docker push ghcr.io/${{ github.repository }}-frontend:prev-frontend
           echo "pinned frontend:prev-frontend @ $SHA"
 
+      - name: Mark smoke entered (T4 auto-rollback gate signal)
+        id: smoke-marker
+        run: echo "smoke_entered=true" >> "$GITHUB_OUTPUT"
+
       - name: Post-deploy smoke checks (read-only)
         env:
           SMOKE_BACKEND_URL: http://localhost:3030
@@ -551,6 +561,198 @@ jobs:
             echo "| ingestion (backstop) | twin-externo | http://localhost:3032/api/feed/sources | smoke-prod.sh §3,5 |"
             echo "| trigger | ${{ needs.preflight.outputs.trigger_note }} | | |"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # AUTO-ROLLBACK (prod-safety-gates item 4) — fires ONLY on post-smoke-rojo:
+  # deploy FAILED + smoke phase was entered (smoke_entered output). Reuses the
+  # rollback-lane mechanics inline (same pins/tags/compose/health gates — no
+  # new mechanics): dispatching a NEW run would deadlock on the shared
+  # ingestion-production-target concurrency group (new run queues behind this
+  # one, which waits for it). Dispatch lanes below stay manual-only (escape).
+  # Lanes serialized (frontend needs backend-auto) — never two docker writers
+  # at once. Budget: <60s per lane. Timeout caps each job, never holds runner.
+  auto-rollback-backend-prod:
+    name: Auto-rollback backend prod on smoke failure (:prev-backend)
+    runs-on: [self-hosted, oracle]
+    needs: [deploy]
+    if: failure() && needs.deploy.outputs.smoke_entered == 'true'
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Record auto-rollback decision
+        run: |
+          {
+            echo "### Auto-rollback backend prod (smoke rojo → :prev-backend → :3030)"
+            echo ""
+            echo "| campo | valor |"
+            echo "|---|---|"
+            echo "| trigger | post-deploy smoke FAILED (deploy job red, smoke entered) |"
+            echo "| target | backend:prev-backend → :3030 |"
+            echo "| manual escape | dispatch lane=rollback-backend-prod intacto |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Pull rollback target :prev-backend (read-only, no retag yet)
+        run: |
+          set -euo pipefail
+          echo "ROLLBACK_T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/auto-backend-prod-rollback-t0
+          docker pull ghcr.io/${{ github.repository }}-backend:prev-backend || { echo "::error::no backend:prev-backend pinned (pins on GOOD deploys only) — auto-rollback inexecutable → ESCALATE (second level, see failure step)"; exit 1; }
+
+      - name: Stop backend prod (bounded grace, --timeout 30)
+        run: |
+          set -euo pipefail
+          cd /opt/onchain-bot/apps/backend
+          docker compose -f docker-compose.prod.yml stop --timeout 30 backend
+          if docker ps --format '{{.Names}}' | grep -qx 'onchain-bot-backend-production'; then
+            echo "::error::REFUSE: backend container still running — investigate instead of starting a second one"
+            exit 1
+          fi
+          echo "OK: backend stopped — safe to start exactly one"
+
+      - name: Recreate backend from :prev-backend (no pull — local retag wins)
+        run: |
+          set -euo pipefail
+          docker tag ghcr.io/${{ github.repository }}-backend:prev-backend ghcr.io/${{ github.repository }}-backend:latest
+          cd /opt/onchain-bot/apps/backend
+          docker compose -f docker-compose.prod.yml up -d --force-recreate backend
+
+      - name: Healthcheck gate (:3030) + post-rollback asserts + downtime measured
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 12); do
+            if curl -sf --max-time 8 http://localhost:3030/api/health >/dev/null 2>&1; then
+              echo "backend healthy after ~$((i * 5))s"
+              break
+            fi
+            [ "$i" -eq 12 ] && { echo "::error::backend healthcheck failed after auto-rollback — ESCALATE (second level, see failure step)"; exit 1; }
+            sleep 5
+          done
+          curl -s http://localhost:3030/api/health | jq '.'
+          echo "ROLLBACK_T1=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/auto-backend-prod-rollback-t1
+          echo "downtime window: $(cat /tmp/auto-backend-prod-rollback-t0) → $(cat /tmp/auto-backend-prod-rollback-t1)"
+          {
+            echo "### Auto-rollback backend prod OK"
+            echo ""
+            echo "| campo | valor |"
+            echo "|---|---|"
+            echo "| target | backend:prev-backend → :3030 |"
+            echo "| ventana | $(cat /tmp/auto-backend-prod-rollback-t0) → $(cat /tmp/auto-backend-prod-rollback-t1) |"
+            echo "| asserts | health 200 |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Second-level escalation (auto-rollback FAILED)
+        if: failure()
+        run: |
+          {
+            echo "### ESCALATION segundo nivel — auto-rollback backend prod FALLIDO"
+            echo ""
+            echo "1. CONGELAR lanes: no re-disparar rollback (sin re-loops — el pin :prev-backend ya está vivo o ausente; un segundo ciclo solo suma downtime). Lock manual: avisar al operador ANTES de cualquier dispatch/retry."
+            echo "2. AVISAR operador con ventana de downtime: $(cat /tmp/auto-backend-prod-rollback-t0 2>/dev/null || echo T0-desconocido) → $(date -u +%Y-%m-%dT%H:%M:%SZ)."
+            echo "3. DUMP pre-deploy: artifact pg_dump citado en el summary del job deploy (backups/prod-backend-*.dump.gz + .meta.txt con sha) — adjuntar filename/sha al incident record."
+            echo "4. INVALIDAR pin envenenado: si :prev-backend también está rojo, no reintentarlo — forward-fix (nuevo sha) o restore."
+            echo "5. DB restore = decisión HUMANA explícita (jamás automática, jamás segundo rollback en loop): stop → pg_restore/psql del artifact → start → migration:show + counts asserts (runbook docs/deployment/backend-frontend-rollback.md §5)."
+            echo "6. Presupuesto: rollback <60s por lane; sin verde en 2 ventanas de healthcheck → forward-fix-or-restore."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::ESCALATION segundo nivel: auto-rollback backend prod fallido — lanes congelados, operador requerido (ver summary)"
+
+  auto-rollback-frontend-prod:
+    name: Auto-rollback frontend prod on smoke failure (:prev-frontend)
+    runs-on: [self-hosted, oracle]
+    needs: [deploy, auto-rollback-backend-prod]
+    if: always() && needs.deploy.result == 'failure' && needs.deploy.outputs.smoke_entered == 'true'
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Record auto-rollback decision
+        run: |
+          {
+            echo "### Auto-rollback frontend prod (smoke rojo → :prev-frontend → :5173)"
+            echo ""
+            echo "| campo | valor |"
+            echo "|---|---|"
+            echo "| trigger | post-deploy smoke FAILED (deploy job red, smoke entered) |"
+            echo "| target | frontend:prev-frontend → :5173 |"
+            echo "| orden | tras auto-rollback-backend-prod (serializado, un writer docker) |"
+            echo "| manual escape | dispatch lane=rollback-frontend-prod intacto |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Pull rollback target :prev-frontend (read-only, no retag yet)
+        run: |
+          set -euo pipefail
+          echo "ROLLBACK_T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/auto-frontend-prod-rollback-t0
+          docker pull ghcr.io/${{ github.repository }}-frontend:prev-frontend || { echo "::error::no frontend:prev-frontend pinned (pins on GOOD deploys only) — auto-rollback inexecutable → ESCALATE (second level, see failure step)"; exit 1; }
+
+      - name: Stop frontend prod (bounded grace, --timeout 30)
+        run: |
+          set -euo pipefail
+          cd /opt/onchain-bot/apps/backend
+          docker compose -f docker-compose.prod.yml stop --timeout 30 frontend
+          if docker ps --format '{{.Names}}' | grep -qx 'onchain-bot-frontend-production'; then
+            echo "::error::REFUSE: frontend container still running — investigate instead of starting a second one"
+            exit 1
+          fi
+          echo "OK: frontend stopped — safe to start exactly one"
+
+      - name: Recreate frontend from :prev-frontend (no pull — local retag wins)
+        run: |
+          set -euo pipefail
+          docker tag ghcr.io/${{ github.repository }}-frontend:prev-frontend ghcr.io/${{ github.repository }}-frontend:latest
+          cd /opt/onchain-bot/apps/backend
+          docker compose -f docker-compose.prod.yml up -d --force-recreate frontend
+
+      - name: Healthcheck gate (:5173) + downtime measured
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if curl -sf --max-time 8 http://localhost:5173/ >/dev/null 2>&1; then
+              echo "frontend healthy after ~$((i * 5))s"
+              break
+            fi
+            [ "$i" -eq 30 ] && { echo "::error::frontend healthcheck failed after auto-rollback — ESCALATE (second level, see failure step)"; exit 1; }
+            sleep 5
+          done
+          echo "ROLLBACK_T1=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/auto-frontend-prod-rollback-t1
+          echo "downtime window: $(cat /tmp/auto-frontend-prod-rollback-t0) → $(cat /tmp/auto-frontend-prod-rollback-t1)"
+          {
+            echo "### Auto-rollback frontend prod OK"
+            echo ""
+            echo "| campo | valor |"
+            echo "|---|---|"
+            echo "| target | frontend:prev-frontend → :5173 |"
+            echo "| ventana | $(cat /tmp/auto-frontend-prod-rollback-t0) → $(cat /tmp/auto-frontend-prod-rollback-t1) |"
+            echo "| asserts | http 200 |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Second-level escalation (auto-rollback FAILED)
+        if: failure()
+        run: |
+          {
+            echo "### ESCALATION segundo nivel — auto-rollback frontend prod FALLIDO"
+            echo ""
+            echo "1. CONGELAR lanes: no re-disparar rollback (sin re-loops). Lock manual: avisar al operador ANTES de cualquier dispatch/retry."
+            echo "2. AVISAR operador con ventana de downtime: $(cat /tmp/auto-frontend-prod-rollback-t0 2>/dev/null || echo T0-desconocido) → $(date -u +%Y-%m-%dT%H:%M:%SZ)."
+            echo "3. DUMP pre-deploy: artifact pg_dump citado en el summary del job deploy — adjuntar filename/sha al incident record."
+            echo "4. INVALIDAR pin envenenado: si :prev-frontend también está rojo, no reintentarlo — forward-fix (nuevo sha)."
+            echo "5. DB restore = decisión HUMANA explícita (jamás automática, jamás segundo rollback en loop; frontend es stateless — restore solo si el backend también cayó: ver runbook §5)."
+            echo "6. Presupuesto: rollback <60s por lane; sin verde en 2 ventanas de healthcheck → forward-fix-or-restore."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::ESCALATION segundo nivel: auto-rollback frontend prod fallido — lanes congelados, operador requerido (ver summary)"
 
   # ROLLBACK LANES (item 9c) — dispatch-only, never auto. Discipline mirrors
   # docs/deployment/ingestion-rollback.md §§2-5: stop → verify-stopped (gate)
