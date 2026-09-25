@@ -107,7 +107,7 @@ Your next move: approve — listo para $start-work Tramo 2 tras Gate T1. Full ex
      Acceptance criteria: `curl -s -X POST localhost:3040/llm/playground/preview -d '{}'` 200 (mock) sin persistir nada (`psql` queue count igual)
      QA scenarios: happy generate+publish; failure gateway caído tras `llmMaxAttempts=3` → FAILED con retry vía cron. Evidence .omo/evidence/task-5-mega-refactor-feed-publisher.log
      Commit: Y | feat(feed-publisher): módulo LLM completo
-- [ ] 6. Scheduling/ads + media library (11-refactor §8)
+- [x] 6. Scheduling/ads + media library (11-refactor §8)
      What to do / Must NOT do: Mover `feed-ads/` → `scheduling/` (core rotación + media), uploads → `apps/feed-publisher/uploads/ads-library/` (Opción B), renombre módulo, `ads-cron` 1min, 3 controllers. Solo feed (threads sin ads v1). Tests rotación ponderada.
      Parallelization: Wave 3 | Blocked by: 4 | Blocks: 10
      References: 11-refactor.md:665-791; apps/backend/src/telegram/crypto-news-ads/ (origen)

@@ -44,7 +44,7 @@ Design pivots that govern every future todo:
 | 3    | DONE (evidence `.omo/evidence/task-T2-03.log`)                | Matching + keywords + filters (18 suites / 64 tests, wired)                                                     |
 | 4    | DONE (evidence `.omo/evidence/task-T2-04.log`)                | Queue unificada + deduplication (18 suites / 76 tests, wired)                                                   |
 | 5    | DONE (evidence `.omo/evidence/task-T2-05.log`)                | LLM config+templates+core+playground (19 suites / 62 tests, wired, drain rebind)                                |
-| 6    | TODO                                                          | Scheduling/ads + media library                                                                                  |
+| 6    | DONE (evidence `.omo/evidence/task-T2-06.log`)                | Scheduling/posts + media library (18 suites / 72 tests, wired, P38 per-target delay+caps)                       |
 | 7    | TODO                                                          | Telegram crypto+threads adapters (C2)                                                                           |
 | 8    | TODO                                                          | Threads esqueleto + contrato C1                                                                                 |
 | 9    | TODO                                                          | Frontend 4 endpoints + flags UI                                                                                 |
@@ -158,7 +158,32 @@ apps/feed-publisher/
                          # (/api/llm config+flags, /api/llm/templates CRUD
                          # with 409 in-use, /api/llm preview+models) +
                          # health hook
-  src/scheduling/        # STUB (todo 6)
+   src/scheduling/        # BUILT (todo 6, wired): ScheduledAd
+                          # (immutable catalog, per-format media invariants,
+                          # expiry sweep) + SchedulingConfig (single-row
+                          # id=1, fail-closed, P38 per-target publishDelayMs
+                          # + dailyCap for telegram|threads) +
+                          # SchedulingState (global postsSinceLastAd cadence
+                          # + per-target cursor/counter/dayKey) +
+                          # RotationDeciderService (pure 6-way decision incl.
+                          # publish-delay-not-met + held daily-cap-reached)
+                          # + PublishScheduledAdUseCase (per-tick per-target
+                          # orchestration, disable-after-3, not-configured
+                          # never burns) + PublishScheduledAdNowUseCase
+                          # (decider bypass, no failure bookkeeping) +
+                          # upload/clear/reuse media use-cases (magic-byte
+                          # sniff, library sha256 dedup, replace-safe) +
+                          # AdMediaLibraryEntry (FK-less, content-deduped) +
+                          # in-memory repos (LIVE) + TypeORM shapes/mappers
+                          # unwired (GAP-1) + LocalSchedulingMediaStorage
+                          # (`uploads/ads/<ad>/<uuid>` + `uploads/
+                          # ads-library/<hash>`) + in-memory dispatcher
+                          # (todo 7 binds Bot API) + cron 1min (sweep even
+                          # when OFF, cadence reset once per tick) +
+                          # 3 controllers (/api/scheduling/ads,
+                          # /api/scheduling/rotation-config,
+                          # /api/scheduling/media + library, Range/206) +
+                          # health hook
   src/threads/           # STUB (todo 8, v1 skeleton only)
   src/telegram/          # STUB (todo 7, crypto+threads)
   src/shared/            # transversal (DONE, tested)
@@ -228,7 +253,13 @@ base `INGESTION_TELEGRAM_URL`, `x-api-key` from day one, fail-open `[]`)
   `forwardRef(() => LlmModule)` (raw adapter deleted); the old
   `llm.module.spec.ts` + `queue.module.spec.ts` stubs now boot with a
   global `ConfigModule` (transitive IngestionModule needs it).
-  3 modules still stubs (scheduling, threads, telegram).
+- `SchedulingModule` (todo 6, wired): `ScheduledAd` +
+  `SchedulingConfig`/`SchedulingState` (P38) + `RotationDeciderService` +
+  `PublishScheduledAdUseCase` + `PublishScheduledAdNowUseCase` +
+  media upload/clear/reuse + `SchedulingCronScheduler` +
+  `SchedulingHealthState` + in-memory repos/dispatcher/storage +
+  3 controllers + `SchedulingHealthIndicator` (P21 hook).
+  2 modules still stubs (threads, telegram).
 
 * tolerant DTOs (`raw-feed-message.dto`, `feed-source.dto`)
 * `IngestionHealthIndicator` (`{ component: 'ingestion', status }`,
@@ -247,7 +278,10 @@ fail-open), `INGESTION_TELEGRAM_URL` + `INGESTION_TELEGRAM_API_KEY`
 `LLM_ENABLED`, `PUBLISHING_ENABLED`, C-FLAGS-01) + `MATCHING_CRON_ENABLED`,
 queue bounds (`QUEUE_TTL_HOURS=24`, `QUEUE_MAX_PENDING`), `DEDUP_ENABLED`,
 LLM (`USE_MOCK_AI`, `OPENAI_API_KEY`, `LLM_MODEL`, `LLM_MAX_ATTEMPTS=3`),
-ads (`ADS_ENABLED`, `ADS_ROTATION_EVERY_N`), telegram
+ads (`ADS_ENABLED`, `ADS_ROTATION_EVERY_N` legacy + `SCHEDULING_*`
+per-target `TELEGRAM|THREADS_{PUBLISH_DELAY_MS,DAILY_CAP}` (P38),
+`SCHEDULING_CRON_ENABLED`, `SCHEDULING_MIN_MINUTES_BETWEEN_ADS`,
+`FEED_PUBLISHER_UPLOADS_ROOT`), telegram
 (`CRYPTO_NEWS_BOT_TOKEN`, `THREADS_BOT_TOKEN`,
 `TELEGRAM_RATE_LIMIT_PER_MINUTE`). Templates for staging (:3041) + prod
 (:3042) next to the app. BotAPI = raw axios over Telegram Bot HTTP API
@@ -373,6 +407,41 @@ coverage target >80% (pure units, no I/O).
   `llmMaxAttempts` then FAILED (existing queue path, spec-covered).
   TypeORM shapes + mappers for both llm tables ship UNWIRED (GAP-1)
   with in-memory adapters live. Worktree left dirty (no commit).
+- Todo 6 (P25): scheduling stack ported reference read-only from
+  backend `crypto-news-ads/` (rotation decider/cron/publish-now,
+  upload/clear/reuse handlers, storage adapter, path builder, ads +
+  rotation-config + media controllers, ads mapper); nothing outside
+  `apps/feed-publisher/` touched (lockfile untouched — no new deps:
+  `cron` + `@nestjs/swagger` + `FileInterceptor` resolve via hoisted
+  root modules). P10/P32 grep gates green (verified empty incl.
+  `src/scheduling/`). Failing-first: 2 core specs red on missing
+  modules, then green; 18 suites / 72 tests for scheduling + full
+  106/343 + `tsc` clean + `nest build` clean + boot smoke (health +
+  rotation-config GET/PATCH per-target + ads POST/GET + library list).
+  Deliberate deviations from the backend: (a) P36 rename ads ->
+  scheduling everywhere (entities, routes `/api/scheduling/*`,
+  tables `feed_scheduled_*`/`feed_ad_media_library`, dirs
+  `uploads/ads/` + `uploads/ads-library/`); (b) P38 per-target
+  `publishDelayMs` + `dailyCap` (telegram|threads) with independent
+  waits + daily cutoffs (UTC dayKey, lazy rollover) — backend had one
+  global `minMinutesBetweenAds`; (c) cap reached HELDS to next day
+  (`heldUntilNextDay`, cursor untouched, no failure count — never
+  silently dropped, spec-covered incl. next-day retry + sibling
+  independence); (d) shared cadence `postsSinceLastAd` resets ONCE
+  per cron tick when any target published (never inside the
+  per-target publish, so telegram cannot starve threads mid-tick);
+  (e) no Postgres advisory lock on the cron (single instance until
+  GAP-3; overlap guard covers double ticks); (f) no slot
+  arbitrator / random-delay throttle (todo 7 owns publisher
+  pacing); (g) media sniffing is a local magic-byte helper (no
+  cross-app helper import); (h) `publish-now` resets the cadence
+  (manual posts count as the interleaved post) but skips failure
+  bookkeeping. TypeORM shapes + mappers for all 5 scheduling tables
+  ship UNWIRED (GAP-1) with in-memory adapters live. Backend
+  `crypto-news-ads-library/` was empty per its AGENTS.md, so the
+  uploads move is dir creation (`uploads/ads-library/.gitkeep`,
+  gitignored like backend `uploads/`) — no bytes to migrate.
+  Worktree left dirty (no commit).
 
 ## STANDING RULE
 
