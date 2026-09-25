@@ -651,4 +651,21 @@ Lossy by design: no replay (backfill endpoint deleted with the multi-backend lay
 - **`@/*` alias is frontend-only.** Don't use it in backend imports.
 - **No CLAUDE.md exists** — conventions live in `apps/backend/docs/spydefi/arch/`, `GOVERNANCE.md` (branches), and per-app AGENTS.md files.
 - **AGENTS.md map**: this file (root) + `apps/{backend,ingestion-telegram,frontend}/AGENTS.md`. No sub-BC AGENTS.md remain (consolidated 2026-09-04).
+
+## MEGA-REFACTOR (branch `feat/mega-refactor-tramos`)
+
+Goal: extract 3 new apps out of the backend — kol-system → content-publisher
+→ market-data (+ `dexter-onchain-bot` as Tramo 3 final phase, P13). Per-env SSE
++ per-app DBs intact.
+
+| Tramo           | Plan                                            |
+| --------------- | ----------------------------------------------- |
+| central (index) | `.omo/plans/mega-refactor-central.md`           |
+| 1 · kol-system  | `.omo/plans/mega-refactor-kol-system.md`        |
+| 2 · content-pub.| `.omo/plans/mega-refactor-content-publisher.md` |
+| 3 · market-data | `.omo/plans/mega-refactor-market-data.md`       |
+
+Decisions: `.omo/drafts/mega-refactor-tramos.md` §7.6 (P1–P27). Target tree:
+`.omo/reference/mega-refactor-target-tree.md`. Build status per app lives in
+`apps/kol-system/AGENTS.md` §PROGRAM INDEX.
 ```

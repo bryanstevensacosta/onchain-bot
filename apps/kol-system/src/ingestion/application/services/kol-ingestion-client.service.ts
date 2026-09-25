@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  KolIngestedMessage,
   KolIngestionClientPort,
 } from '../../domain/ports/ingestion-client.port';
 import { ProcessKolMessageHandler } from '../handlers/process-kol-message.handler';
@@ -15,19 +16,22 @@ import {
 import { DEFAULT_INGESTION_BASE_URL } from '../../infrastructure/http/ingestion-http-client.adapter';
 
 const STREAM_PATH = '/api/ingestion/stream';
-const POLL_INTERVAL_MS = 60_000;
+const CATCH_UP_LIMIT = 50;
 const BASE_RECONNECT_DELAY_MS = 1000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
 
 /**
- * KOL ingestion client: realtime SSE + polling fallback.
+ * KOL ingestion client: realtime SSE with reconnect catch-up by cursor.
  *
  * Subscribes to `GET {baseUrl}/api/ingestion/stream` and accepts only
  * frames whose `data` carries the KOL marker (the top-level frame kind
  * is `message:telegram` for every telegram frame, so filtering MUST be
- * client-side on `data.messageType`). A 1-minute polling fallback via
- * the port covers gaps while the stream is down. Disconnects back off
- * from 1s doubling to a 30s cap.
+ * client-side on `data.messageType`). SSE-only by design (P20): there is
+ * NO periodic polling loop. Gaps while the stream is down are closed by
+ * an explicit catch-up read (`GET /api/feed/messages?type=kol`, filtered
+ * client-side to rows newer than the per-channel cursor) on boot and
+ * after every disconnect. Disconnects back off from 1s doubling to a
+ * 30s cap.
  */
 @Injectable()
 export class KolIngestionClientService
@@ -35,8 +39,8 @@ export class KolIngestionClientService
 {
   private readonly logger = new Logger(KolIngestionClientService.name);
   private readonly baseUrl: string;
+  private readonly cursors = new Map<string, number>();
   private abortController: AbortController | null = null;
-  private pollTimer: ReturnType<typeof setInterval> | null = null;
   private sseLoop: Promise<void> | null = null;
   private stopped = true;
 
@@ -63,27 +67,20 @@ export class KolIngestionClientService
   }
 
   start(): void {
-    if (!this.stopped && (this.sseLoop || this.pollTimer)) {
+    if (!this.stopped && this.sseLoop) {
       return;
     }
     this.stopped = false;
+    void this.catchUpAfterReconnect().catch((error) => {
+      this.logger.warn(
+        `Boot catch-up failed (${error instanceof Error ? error.message : String(error)})`,
+      );
+    });
     this.sseLoop = this.runSseLoop();
-    this.pollTimer = setInterval(() => {
-      void this.pollOnce().catch((error) => {
-        this.logger.warn(
-          `Polling fallback failed (${error instanceof Error ? error.message : String(error)})`,
-        );
-      });
-    }, POLL_INTERVAL_MS);
-    this.pollTimer.unref?.();
   }
 
   stop(): void {
     this.stopped = true;
-    if (this.pollTimer) {
-      clearInterval(this.pollTimer);
-      this.pollTimer = null;
-    }
     if (this.abortController) {
       this.abortController.abort();
       this.abortController = null;
@@ -99,6 +96,13 @@ export class KolIngestionClientService
   }
 
   /**
+   * Highest messageId accepted for a channel (0 when nothing seen yet).
+   */
+  getLastSeenMessageId(channelId: string): number {
+    return this.cursors.get(channelId) ?? 0;
+  }
+
+  /**
    * Accepts one realtime SSE frame. Returns true when a new KOL row
    * was recorded; malformed or non-KOL frames are ignored (no throw).
    */
@@ -107,7 +111,11 @@ export class KolIngestionClientService
       return false;
     }
     try {
-      return this.handler.handle(frame);
+      const accepted = this.handler.handle(frame);
+      if (accepted) {
+        this.advanceCursor(frame);
+      }
+      return accepted;
     } catch (error) {
       this.logger.warn(
         `Realtime frame ignored (${error instanceof Error ? error.message : String(error)})`,
@@ -116,11 +124,27 @@ export class KolIngestionClientService
     }
   }
 
-  /** Polling fallback: fetch recent KOL rows and feed them through the handler. */
-  async pollOnce(limit = 50): Promise<number> {
-    const rows = await this.port.fetchRecentKolMessages(limit);
+  /**
+   * Reconnect catch-up by cursor: fetch recent KOL rows and feed only
+   * rows newer than the per-channel cursor through the handler.
+   * Best-effort: never throws (warns and returns 0 on feed errors).
+   * NOT periodic — call on boot and after an SSE disconnect.
+   */
+  async catchUpAfterReconnect(limit = CATCH_UP_LIMIT): Promise<number> {
+    let rows: KolIngestedMessage[];
+    try {
+      rows = await this.port.fetchRecentKolMessages(limit);
+    } catch (error) {
+      this.logger.warn(
+        `Catch-up read failed (${error instanceof Error ? error.message : String(error)})`,
+      );
+      return 0;
+    }
     let accepted = 0;
     for (const row of rows) {
+      if (row.messageId <= (this.cursors.get(row.channelId) ?? 0)) {
+        continue;
+      }
       const frame = {
         type: 'message:telegram',
         data: {
@@ -136,6 +160,31 @@ export class KolIngestionClientService
       }
     }
     return accepted;
+  }
+
+  private advanceCursor(frame: unknown): void {
+    const data = (frame as { data?: Record<string, unknown> }).data;
+    if (!data || typeof data !== 'object') {
+      return;
+    }
+    const channelId =
+      typeof data['peerId'] === 'string'
+        ? data['peerId']
+        : typeof data['channelId'] === 'string'
+          ? data['channelId']
+          : null;
+    const messageId =
+      typeof data['messageId'] === 'number' &&
+      Number.isFinite(data['messageId'])
+        ? data['messageId']
+        : null;
+    if (channelId === null || messageId === null) {
+      return;
+    }
+    const prev = this.cursors.get(channelId) ?? 0;
+    if (messageId > prev) {
+      this.cursors.set(channelId, messageId);
+    }
   }
 
   private async runSseLoop(): Promise<void> {
@@ -154,6 +203,10 @@ export class KolIngestionClientService
         this.logger.warn(
           `SSE stream disconnected (attempt ${attempt}), reconnecting in ${delay}ms: ${error instanceof Error ? error.message : String(error)}`,
         );
+        const caughtUp = await this.catchUpAfterReconnect();
+        if (caughtUp > 0) {
+          this.logger.log(`Catch-up accepted ${caughtUp} missed KOL row(s)`);
+        }
         await this.sleep(delay);
       }
     }

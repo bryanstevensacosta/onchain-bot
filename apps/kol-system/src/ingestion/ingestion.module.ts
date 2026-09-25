@@ -9,7 +9,8 @@ import { KolIngestionClientService } from './application/services/kol-ingestion-
  *
  * Read-only client over the ingestion-telegram feed API scoped to KOL
  * sources (`?type=kol`): realtime SSE with client-side filtering on
- * `data.messageType` plus a 1-minute polling fallback. Backoff 1s -> 30s.
+ * `data.messageType` plus reconnect catch-up by cursor (no periodic
+ * polling). Backoff 1s -> 30s.
  */
 @Module({
   providers: [

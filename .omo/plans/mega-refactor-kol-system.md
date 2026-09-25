@@ -101,7 +101,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
      Acceptance criteria: `npx jest apps/kol-system/src/shared --coverage` sin fallos; `grep -r "from 'typeorm'\|from 'axios'" apps/kol-system/src/shared/kernel apps/kol-system/src/shared/domain` vacío
      QA scenarios: happy suite verde; failure import externo en domain → mover a infrastructure. Evidence .omo/evidence/task-3-mega-refactor-kol-system.log
      Commit: Y | feat(kol-system): shared kernel y config
-- [ ] 4. Ingestion kol-type por HTTP+SSE (Ph3 spec + P3)
+- [x] 4. Ingestion kol-type por HTTP+SSE (Ph3 spec + P3)
      What to do / Must NOT do: `KolIngestionClient` (`GET /api/feed/sources?type=kol`, `GET /api/feed/messages`), SSE listener suscrito a `/api/ingestion/stream` filtrando `messageType==='kol'` client-side (P10: `'crypto-news'` prohibido aquí), `ProcessKolMessageHandler`, P20 SSE-ONLY sin polling (al reconectar, catch-up por cursor desde último messageId, NO cron), backoff 1s→30s. Tests: doble-delivery realtime+catch-up → 1 row. Must NOT crear endpoints nuevos en ingestion ni filtrar server-side.
      Parallelization: Wave 2 | Blocked by: 1, 2, 3 | Blocks: 5-8
      References: .kiro/specs/refactor-kol-system/overview.md:176-207; plan central C-SSE-01; apps/backend/src/telegram/ingestion/shared/api/sse/ (patrón backoff cliente)

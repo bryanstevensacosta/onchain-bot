@@ -3,16 +3,17 @@
 > Verified 2026-09-24 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4 built).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md` §7.6 (2026-09-24).
 
-Contents: OVERVIEW · COMMANDS · STRUCTURE · MODULES · INGESTION · ENV INVENTORY ·
-PORTS · HEALTH · TS/ESLINT CONVENTIONS · TESTS · MODULE MAP · GAPS · STANDING RULE · NOTES
+Contents: OVERVIEW · PROGRAM INDEX · COMMANDS · STRUCTURE · MODULES · INGESTION ·
+ENV INVENTORY · PORTS · HEALTH · TS/ESLINT CONVENTIONS · TESTS · MODULE MAP ·
+SNAPSHOTS · GAPS · STANDING RULE · NOTES
 
 ## OVERVIEW
 
 NestJS 11 service (Tramo 1 of the mega-refactor) that will own the whole KOL
 alpha-call path: KOL mentions in → extraction → enrichment → templates →
 dashboard/rankings (+ optional per-template publishing). Skeleton today:
-Config + `GET /api/health` wired; ingestion client (SSE + polling fallback)
-implemented but NOT yet wired into `AppModule`.
+Config + `GET /api/health` + `IngestionModule` (SSE-only KOL client, P20)
+wired into `AppModule`.
 
 Design pivots (2026-09-24) that govern every future todo:
 
@@ -34,13 +35,30 @@ at | time ago | more details +`.
   `messageType==='kol'` (crude, unmixed). No todo may subscribe to the foreign
   type (`crypto-news` belongs to content-publisher).
 - **P14 — vip-calls absorbed by templates**: `vip-calls` is NOT a module —
-  it is the generic NAME of a default seed template. Backend `vip-calls/`
-  is deleted at cleanup, never recreated under any name.
+  it is the generic NAME of a default seed template. Backend
+  `apps/backend/src/telegram/vip-calls/` is deleted at cleanup, never
+  recreated under any name.
 - **P16 — single dashboard with source selector**: each template has ONE
   dashboard; template stores `kolSourceIds: string[]` (empty = all).
+- **P17 — horizontal dashboard layout** (planned, not built — gap 6): ranking
+  performance HORIZONTAL 10 total (5 left + 5 right) with arrows toggling
+  perf asc↔desc; horizontal top-10 callers strip by call COUNT with 30D/7D/1D
+  selector; extended template-config section. Backend: `kol_window_stats`
+  holds `total_x` + `calls_count` per (caller, window); ranking endpoint
+  exposes both + `sort=perf_asc|perf_desc`.
 - **P18 — gradual per-BC deprecation**: each completed BC deprecates its
   backend counterpart immediately (`@deprecated` header + pointer, pattern
   `scripts/add-deprecation-headers.js`); deletion only in todo 16.
+- **P19 — avatar source of truth permanent** (ingestion-telegram owns it, no
+  consumer here yet — gap 5): MTProto fetch-ONCE at source registration,
+  stored PERMANENTLY, EXCLUDED from the 72h janitor; `avatarUrl` in the
+  `GET /api/feed/sources` projection; no periodic refresh (explicit manual
+  only); placeholder fallback.
+- **P20 — SSE-only, no polling** (done 2026-09-24, was gap 2): listener
+  filters `data.messageType==='kol'` client-side; reconnect catch-up by
+  cursor (`GET /api/feed/messages?type=kol` from last messageId, NO periodic
+  loop). The 1-min fallback built in todo 4 was removed the same day — do
+  NOT add new polling citing anything but P20.
 - **P21 — health per component + shared without duplicating**: every move-todo
   registers its indicator in `GET /api/health`; reuse `src/shared/`, extend it
   instead of copying.
@@ -52,8 +70,34 @@ at | time ago | more details +`.
   templates `.env.development` / `.env.staging.template` /
   `.env.production.template` (placeholders, NO secrets); real files gitignored,
   copied via `scp` to OracleDroplet on deploy. Backend-mirror pattern.
+- **P26 — snapshot per extraction, 4 timestamps** (planned — see SNAPSHOTS):
+  each ingestion → extraction emits a base snapshot, enrichment completes it
+  in table `mention_snapshots` (`occurred_at_telegram`, `ingested_at_kol`,
+  `enriched_at`, `snapshot_at` = `enriched_at`). Performance compares vs the
+  LAST snapshot of (caller, contract).
+- **P27 — snapshots in own module, SAME DB** (planned — see SNAPSHOTS):
+  `src/snapshot/` with its own tables inside the kol-system DB (no separate
+  DB; enrichment writes via port). Joins + single-transaction atomicity;
+  split (timescale/partition) only if volume demands.
 - **P25 — this file is living**: created in todo 21, updated at the close of
   every task set (see STANDING RULE).
+
+## PROGRAM INDEX (mega-refactor, branch `feat/mega-refactor-tramos`)
+
+Order: kol-system → content-publisher → market-data (+ `dexter-onchain-bot`
+as Tramo 3 final phase, P13). All paths verified 2026-09-24.
+
+| Tramo            | Plan                                            | Scope                           |
+| ---------------- | ----------------------------------------------- | ------------------------------- |
+| central (index)  | `.omo/plans/mega-refactor-central.md`           | order, contracts, cutover       |
+| 1 · kol-system   | `.omo/plans/mega-refactor-kol-system.md`        | this app (16 todos)             |
+| 2 · content-pub. | `.omo/plans/mega-refactor-content-publisher.md` | crypto-news (12 todos)          |
+| 3 · market-data  | `.omo/plans/mega-refactor-market-data.md`       | data service + Dexter (9 todos) |
+
+Decisions source: `.omo/drafts/mega-refactor-tramos.md` §7.6 (P1–P27).
+Target tree: `.omo/reference/mega-refactor-target-tree.md` — names
+`apps/content-publisher/`, `apps/market-data/`, `apps/dexter-onchain-bot/`
+as PLANNED (not yet scaffolded; only `apps/kol-system/` exists).
 
 ## COMMANDS
 
@@ -89,17 +133,17 @@ Health was verified by booting `node dist/main.js` with
 ```text
 src/
 ├── main.ts                       # bootstrap() — ValidationPipe whitelist/forbidNonWhitelisted/transform, listen KOL_SYSTEM_PORT ?? 3050
-├── app.module.ts                 # Config (envFilePath ['.env.dev', '.env']) + HealthModule ONLY
+├── app.module.ts                 # Config (envFilePath ['.env.dev', '.env']) + HealthModule + IngestionModule (wired)
 ├── health/
 │   ├── health.module.ts
 │   ├── health.controller.spec.ts
 │   └── api/http/health.controller.ts   # GET /api/health → { status: 'ok' } (static shape)
-├── ingestion/                    # BUILT (todo 4) but NOT wired into AppModule yet
+├── ingestion/                    # BUILT (todo 4) + WIRED into AppModule (P20 SSE-only)
 │   ├── ingestion.module.ts       # providers: ProcessKolMessageHandler, KolIngestionClientService, KolIngestionClientPort→Adapter
 │   ├── domain/ports/ingestion-client.port.ts
 │   ├── application/
 │   │   ├── handlers/process-kol-message.handler.ts (+ .spec.ts)
-│   │   └── services/kol-ingestion-client.service.ts (+ .spec.ts)  # SSE + 1-min polling fallback, backoff 1s→30s
+│   │   └── services/kol-ingestion-client.service.ts (+ .spec.ts)  # SSE-only, catch-up by cursor, backoff 1s→30s
 │   └── infrastructure/http/
 │       ├── ingestion-http-client.adapter.ts (+ .spec.ts)
 │       └── dto/kol-source.dto.ts, raw-kol-message.dto.ts
@@ -122,28 +166,26 @@ tsconfig{,.build}.json, docker-compose.yml (postgres :5435, redis :6382), Docker
 
 ## MODULES (app.module.ts — verified list)
 
-Wired today: `ConfigModule` (global, `.env.dev` > `.env`) + `HealthModule`.
-`IngestionModule` exists (todo 4) but is NOT imported yet — wiring it is a
-future todo (P20 follow-up decides whether the 1-min polling fallback stays).
+Wired today: `ConfigModule` (global, `.env.dev` > `.env`) + `HealthModule` +
+`IngestionModule` (todo 4, SSE-only KOL client per P20 — wired 2026-09-24).
 
 Planned (per spec, NOT built — do not import until their todos land):
 extraction, normalization, enrichment (market-data bridge, P7), scoring,
 templates (+ classification inside templates, P6), approval, publishing
 (per-template bots, P9/P12b), tracking (first-appearance, P8), rankings (P11).
 
-## INGESTION — SSE + polling fallback (`ingestion/`)
+## INGESTION — SSE-only (`ingestion/`)
 
 `KolIngestionClientService` (`application/services/`) subscribes to `GET
 {INGESTION_TELEGRAM_URL}/api/ingestion/stream` and accepts ONLY frames whose
 `data.messageType==='kol'` — the top-level frame kind is `message:telegram`
-for every telegram frame, so filtering MUST be client-side (P10). A 1-minute
-polling fallback via the port covers gaps while the stream is down.
-Disconnects back off 1s doubling → 30s cap.
+for every telegram frame, so filtering MUST be client-side (P10). There is NO
+periodic polling loop (P20): gaps while the stream is down are closed by an
+explicit catch-up read (`GET /api/feed/messages?type=kol`, rows newer than
+the per-channel cursor) on boot and after every disconnect. Disconnects back
+off 1s doubling → 30s cap.
 
-Catch-up is by cursor (`GET /api/feed/messages?type=kol` from last messageId,
-no periodic loop) per P20. **P20 follow-up**: kol-system is SSE-only by
-design — if the 1-min fallback was already implemented (it was, todo 4), a
-follow-up todo removes it. Do NOT add new polling without citing P20.
+Do NOT add new polling without citing P20.
 
 Base URL resolution: `INGESTION_TELEGRAM_URL` config → env → default
 `http://localhost:3031` (dev default; per env it points at the OWN
@@ -242,15 +284,17 @@ ingestion-telegram; duplicates cause `AUTH_KEY_DUPLICATED`).
 
 ## MODULE MAP (as built + planned)
 
-Built (wired): `HealthModule` (`GET /api/health`).
-Built (unwired): `IngestionModule` — `KolIngestionClientService` (SSE +
-polling fallback, P20 follow-up pending) + `ProcessKolMessageHandler` +
+Built (wired): `HealthModule` (`GET /api/health`) + `IngestionModule`
+(SSE-only, P20) — `KolIngestionClientService` (realtime SSE + catch-up by
+cursor, backoff 1s→30s) + `ProcessKolMessageHandler` +
 `KolIngestionClientPort → IngestionHttpClientAdapter` (feed reads
 `?type=kol`) + DTOs (`kol-source.dto`, `raw-kol-message.dto`).
 Built (infra): `SharedModule` pieces — kernel, 4 configs, api-key guard,
 domain-exception filter.
-Planned: extraction (P5 contract × mention) → normalization → enrichment
-(P7 market-data bridge: `mc at` + `more details +`) → templates with embedded
+Planned: extraction (P5 contract × mention, emits base snapshot P26) →
+normalization → enrichment (P7 market-data bridge: `mc at` + `more details +`;
+completes snapshot P26) → snapshot (`src/snapshot/` own module, same DB, P27;
+planned, not built) → templates with embedded
 classification (P6: channel picker + score viz + gem filters) → scoring →
 approval → publishing (P9/P12b per-template bots, P22/P23 DB catalog +
 P23-bis admin-verified targets) → tracking (P8 first-appearance) → rankings
@@ -271,12 +315,31 @@ contract C-DATA-01 — consume via ports, never move).
   `more details +` in the dashboard (P7).
 - Frontend only renders enriched mentions (contract + market data together).
 
+## SNAPSHOTS (P26 + P27 — planned, not built)
+
+Each extraction emits a base snapshot; enrichment completes it in table
+`mention_snapshots` (owned by planned module `src/snapshot/`, SAME kol-system
+DB — no separate DB; enrichment writes via port).
+
+| Column                 | Set by             | Meaning                    |
+| ---------------------- | ------------------ | -------------------------- |
+| `occurred_at_telegram` | ingestion-telegram | capture in Telegram        |
+| `ingested_at_kol`      | kol-system         | arrival here               |
+| `enriched_at`          | enrichment         | market data attached       |
+| `snapshot_at`          | enrichment         | = `enriched_at`, snap time |
+
+Performance compares against the LAST snapshot of (caller, contract)
+(e.g. +55X vs last snapshot MC). Rationale: mention↔snapshot joins +
+single-transaction atomicity; split (timescale/partition) only if volume
+demands.
+
 ## GAPS (verified 2026-09-24 — fix in their own todos, not opportunistically)
 
-1. `IngestionModule` not wired into `AppModule` (only Config + Health) —
-   SSE client never boots at runtime.
-2. P20 follow-up open: 1-min polling fallback still present
-   (`POLL_INTERVAL_MS = 60_000`); SSE-only design wants it removed.
+1. RESOLVED 2026-09-24 — `IngestionModule` wired into `AppModule`
+   (Config + Health + Ingestion); SSE client boots at runtime.
+2. RESOLVED 2026-09-24 (P20 done) — 1-min polling fallback removed;
+   SSE-only with reconnect catch-up by cursor. No `setInterval`/`pollTimer`
+   remains in non-spec source.
 3. `GET /api/health` is a static stub — no per-component indicators yet (P21).
 4. `buildAppConfig().port` reads `PORT ?? 3030` while `main.ts` uses
    `KOL_SYSTEM_PORT ?? 3050` — bare `PORT` will mislead.
@@ -289,6 +352,7 @@ contract C-DATA-01 — consume via ports, never move).
    (Tramo 3, C-DATA-01).
 8. P24 templates `.env.development` / `.env.staging.template` /
    `.env.production.template` do not exist yet — only `.env.example`.
+9. P26/P27 `src/snapshot/` + `mention_snapshots` not built (no consumer yet).
 
 ## STANDING RULE
 
