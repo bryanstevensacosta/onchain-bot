@@ -6,8 +6,8 @@ import type { ReasoningEffort } from '@/features/feed-publisher/api/llm-config-a
  * Prompt-playground views. Mirror the backend preview DTOs verbatim —
  * do not extend without a backend change.
  *
- * Contract (parallel backend track):
- *   POST /crypto-news-publisher/llm/preview
+ * Contract (Tramo 2, todo 9 — feed-publisher):
+ *   POST /feed-api/api/llm/preview
  *   body:    { templateId?, draft?, rawTitle?, rawContent, hasImage?, generate? }
  *   response:{ renderedUserPrompt, systemPrompt, model, maxTokens,
  *              temperature, reasoningEffort, content }
@@ -52,7 +52,7 @@ export async function previewPrompt(
   body: PreviewPlaygroundBody,
 ): Promise<PreviewPlaygroundResult> {
   return httpPost<PreviewPlaygroundBody, PreviewPlaygroundResult>(
-    ENDPOINTS.feedPublisher.llm.preview,
+    ENDPOINTS.feedPublisher.llm.preview(),
     body,
   );
 }

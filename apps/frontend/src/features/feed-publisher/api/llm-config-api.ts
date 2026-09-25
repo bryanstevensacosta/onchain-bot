@@ -4,6 +4,7 @@ import {
   httpPatch,
   httpPost,
 } from '@/shared/api/http-client';
+import { ENDPOINTS } from '@/shared/api/endpoints';
 
 export type ReasoningEffort = 'low' | 'medium' | 'high' | 'max' | null;
 
@@ -16,6 +17,7 @@ export interface PromptTemplate {
   readonly id: string;
   readonly name: string;
   readonly description: string | null;
+  readonly contentType?: string | null;
   readonly model: string;
   readonly supportsVision: boolean;
   readonly maxTokens: number;
@@ -28,7 +30,7 @@ export interface PromptTemplate {
 }
 
 export interface LlmConfig {
-  readonly id: number;
+  readonly id?: number;
   readonly defaultTemplateId: string;
   readonly targetChannel: string;
   readonly llmEnabled: boolean;
@@ -52,10 +54,11 @@ export type UpdatePromptTemplateBody = Partial<CreatePromptTemplateBody>;
 export type UpdateLlmConfigBody = Partial<Omit<LlmConfig, 'id' | 'updatedAt'>>;
 
 /**
- * Single source of truth for keyword-matching activation:
- * crypto_news_matching_config (id=1), served by
- * GET/PATCH /crypto-news/matching/config. The scheduler and SSE handler
- * read this exact row; the frontend MatchingToggleButton is the only writer.
+ * Single source of truth for keyword-matching activation.
+ * Tramo 2 (todo 9): served by feed-publisher
+ * (`GET/PATCH /feed-api/feed-publisher/matching/config`,
+ * `:3040` dev / `:3041` staging / `:3042` prod). The scheduler reads
+ * this exact row; the frontend MatchingToggleButton is the only writer.
  */
 export interface MatchingConfig {
   readonly id: number;
@@ -66,8 +69,26 @@ export interface MatchingConfig {
 export type UpdateMatchingConfigBody = Partial<Pick<MatchingConfig, 'enabled'>>;
 
 /**
+ * Composed 3-flag view (Tramo 2, todo 9):
+ * GET /feed-api/api/llm/flags on feed-publisher. `matching` is owned by
+ * MatchingConfig; `llm` + `publishing` by LlmConfig. `llmActive` is true
+ * only when llm AND publishing are on (C-FLAGS-01); `mode` is the
+ * truth-table label (all-paused | drain-raw | drain-llm |
+ * enqueue-only | raw-pipeline | full-pipeline).
+ */
+export interface PipelineFlagsView {
+  readonly flags: {
+    readonly matching: boolean;
+    readonly llm: boolean;
+    readonly publishing: boolean;
+  };
+  readonly llmActive: boolean;
+  readonly mode: string;
+}
+
+/**
  * Frozen 6-field health contract for the keyword-matching scheduler,
- * served by GET /crypto-news/matching/health. Mirrors the backend
+ * served by GET /feed-api/feed-publisher/matching/health. Mirrors the
  * MatchingHealth DTO verbatim — do not extend without a backend change.
  */
 export interface MatchingHealth {
@@ -85,7 +106,7 @@ export const matchingHealthKeys = {
 };
 
 export async function fetchMatchingHealth(): Promise<MatchingHealth> {
-  return httpGet<MatchingHealth>('/crypto-news/matching/health');
+  return httpGet<MatchingHealth>(ENDPOINTS.feedPublisher.matching.health());
 }
 
 export const matchingConfigKeys = {
@@ -94,16 +115,25 @@ export const matchingConfigKeys = {
 };
 
 export async function fetchMatchingConfig(): Promise<MatchingConfig> {
-  return httpGet<MatchingConfig>('/crypto-news/matching/config');
+  return httpGet<MatchingConfig>(ENDPOINTS.feedPublisher.matching.config());
 }
 
 export async function updateMatchingConfig(
   body: UpdateMatchingConfigBody,
 ): Promise<MatchingConfig> {
   return httpPatch<UpdateMatchingConfigBody, MatchingConfig>(
-    '/crypto-news/matching/config',
+    ENDPOINTS.feedPublisher.matching.config(),
     body,
   );
+}
+
+export const pipelineFlagsKeys = {
+  all: ['feed-publisher', 'llm', 'flags'] as const,
+  flags: () => [...pipelineFlagsKeys.all] as const,
+};
+
+export async function fetchPipelineFlags(): Promise<PipelineFlagsView> {
+  return httpGet<PipelineFlagsView>(ENDPOINTS.feedPublisher.llm.flags());
 }
 
 export const llmConfigKeys = {
@@ -115,39 +145,37 @@ export const llmConfigKeys = {
 };
 
 export async function fetchLlmModels(): Promise<ReadonlyArray<LlmModel>> {
-  return httpGet<ReadonlyArray<LlmModel>>('/crypto-news-publisher/llm/models');
+  return httpGet<ReadonlyArray<LlmModel>>(ENDPOINTS.feedPublisher.llm.models());
 }
 
 export async function fetchLlmConfig(): Promise<LlmConfig> {
-  return httpGet<LlmConfig>('/crypto-news-publisher/llm/config');
+  return httpGet<LlmConfig>(ENDPOINTS.feedPublisher.llm.config());
 }
 
 export async function updateLlmConfig(
   body: UpdateLlmConfigBody,
 ): Promise<LlmConfig> {
   return httpPatch<UpdateLlmConfigBody, LlmConfig>(
-    '/crypto-news-publisher/llm/config',
+    ENDPOINTS.feedPublisher.llm.config(),
     body,
   );
 }
 
 export async function fetchTemplates(): Promise<ReadonlyArray<PromptTemplate>> {
   return httpGet<ReadonlyArray<PromptTemplate>>(
-    '/crypto-news-publisher/llm/templates',
+    ENDPOINTS.feedPublisher.llm.templates(),
   );
 }
 
 export async function fetchTemplate(id: string): Promise<PromptTemplate> {
-  return httpGet<PromptTemplate>(
-    `/crypto-news-publisher/llm/templates/${encodeURIComponent(id)}`,
-  );
+  return httpGet<PromptTemplate>(ENDPOINTS.feedPublisher.llm.template(id));
 }
 
 export async function createTemplate(
   body: CreatePromptTemplateBody,
 ): Promise<PromptTemplate> {
   return httpPost<CreatePromptTemplateBody, PromptTemplate>(
-    '/crypto-news-publisher/llm/templates',
+    ENDPOINTS.feedPublisher.llm.templates(),
     body,
   );
 }
@@ -157,15 +185,13 @@ export async function updateTemplate(
   body: UpdatePromptTemplateBody,
 ): Promise<PromptTemplate> {
   return httpPatch<UpdatePromptTemplateBody, PromptTemplate>(
-    `/crypto-news-publisher/llm/templates/${encodeURIComponent(id)}`,
+    ENDPOINTS.feedPublisher.llm.template(id),
     body,
   );
 }
 
 export async function deleteTemplate(id: string): Promise<void> {
-  await httpDelete<void>(
-    `/crypto-news-publisher/llm/templates/${encodeURIComponent(id)}`,
-  );
+  await httpDelete<void>(ENDPOINTS.feedPublisher.llm.template(id));
 }
 
 export async function toggleMatchingEnabled(

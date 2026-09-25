@@ -49,7 +49,7 @@ function makeLib(
 ): MediaLibraryView {
   return {
     id,
-    url: `/crypto-news-scheduling/media-library/${id}`,
+    url: `/feed-api/api/scheduling/media/library/${id}`,
     originalFileName,
     mimeType: originalFileName ? 'image/png' : null,
     fileSize: originalFileName ? 1024 : null,
@@ -680,7 +680,10 @@ describe('SchedulingManager', () => {
     } as never);
     render(<SchedulingManager />);
     const img = screen.getByAltText('Pump alpha image');
-    expect(img).toHaveAttribute('src', '/crypto-news-scheduling/media/media-1');
+    expect(img).toHaveAttribute(
+      'src',
+      '/feed-api/api/scheduling/media/media-1',
+    );
   });
 
   it('removes the image via clearSchedulingImage after confirmation', () => {
@@ -943,7 +946,7 @@ describe('SchedulingManager', () => {
     ) as HTMLImageElement;
     expect(currentImage).toHaveAttribute(
       'src',
-      '/crypto-news-scheduling/media/media-1',
+      '/feed-api/api/scheduling/media/media-1',
     );
   });
 
@@ -987,11 +990,11 @@ describe('SchedulingManager', () => {
     expect(screen.getByText('Reuse existing image')).toBeInTheDocument();
     expect(screen.getByAltText('banner.png')).toHaveAttribute(
       'src',
-      '/crypto-news-scheduling/media-library/lib-1',
+      '/feed-api/api/scheduling/media/library/lib-1',
     );
     expect(screen.getByAltText('lib-2')).toHaveAttribute(
       'src',
-      '/crypto-news-scheduling/media-library/lib-2',
+      '/feed-api/api/scheduling/media/library/lib-2',
     );
     // caption under each thumbnail
     expect(screen.getByText('banner.png')).toBeInTheDocument();
@@ -1975,7 +1978,7 @@ describe('SchedulingManager', () => {
     ).toBeInTheDocument();
     expect(
       within(modalCard).getByLabelText('Current scheduling video'),
-    ).toHaveAttribute('src', '/crypto-news-scheduling/media/media-v');
+    ).toHaveAttribute('src', '/feed-api/api/scheduling/media/media-v');
   });
 });
 

@@ -23,7 +23,7 @@ src/
 │              feed-scheduling (1 473-line manager: staged media protocol create→upload→PATCH format; `expiresAt: null` = explicit clear),
 │              feed-filters (regex pattern/replacement/flags default `gi`/priority + live preview)}
 - Keywords support compound AND-groups, per-template binding, exact/substring modes (`KW_PAGE_SIZE` 5); phrases poll 10 s + guarded search + conflict-check mutation; presets create with empty snapshot; lightbox has arrow-key nav with wraparound.
-- Publisher ops: `MatchingToggleButton` (start/stop with spinner + pulse dot), `BlockedPostsList` (BLOCKED filter + shared details modal), `PromptTemplates` (643 lines: model/vision/maxTokens/temperature/reasoning-effort forms).
+- Publisher ops: `MatchingToggleButton` (start/stop with spinner + pulse dot + `pipeline-mode` badge from `GET /feed-api/api/llm/flags`), `FeedQueueStatsStrip` (per-status depth from `GET /feed-api/api/queue/stats`, hides on error), `FeedThreadsStubSection` (v1 skeleton: 501 `THREADS_NOT_IMPLEMENTED` → deferred-to-v2 notice, API down → empty-state), `BlockedPostsList` (BLOCKED filter + shared details modal), `PromptTemplates` (643 lines: model/vision/maxTokens/temperature/reasoning-effort forms).
 - Blacklist mirrors keywords (910 lines: batch create, compound groups, per-source scope); scheduling poll 10 s; `KolReputationView` carries full outcome metrics (x2/x5/x10/x50, rug50/rug80, neutral) + `isTrusted/isSuspicious`; copy buttons with Spanish aria-labels (`Copiar contrato`).
 - `CanonicalTokenCallView` keeps per-source `messageIds` + metrics + confidence; `TokenScoreView` keeps legacy `classifiedAt?` + `avgKolReputation`.
 - Compound modal: client-generated row IDs (`generateId()`), AND-grouped phrase rows with per-row case/mode/media/template binding; source invalidation is broad (`feedKeys.all`).
@@ -70,6 +70,9 @@ Correctly scoped prefixes: `telegram-kol/identity`, `telegram-kol/reputation`, `
 
 **IMPORTANT:** Frontend queries its OWN env's ingestion-telegram DIRECTLY for feed data (no backend proxy).
 Each backend also queries ITS ingestion via HTTP API — NO database replication, NO shared data.
+
+**FEED-PUBLISHER — Tramo 2 todo 9 (feed-publisher `:3040` dev / `:3041` staging / `:3042` prod)** (`/feed-api` same-origin → upstream feed-publisher; ver §PROXY):
+Migrated control-plane (shape-compatible, read+write): matching config+health (`/feed-api/feed-publisher/matching/*`, `MatchingConfig{id,enabled,updatedAt}` verbatim), llm config+models+templates+preview+flags (`/feed-api/api/llm/*`; `LlmConfig.id` now optional — new service is id-less single-row; `PromptTemplate.contentType?` additive; `PipelineFlagsView{flags,llmActive,mode}` truth-table), scheduling/ads full catalog (`/feed-api/api/scheduling/*`: `scheduling`→`ads`, `media-library`→`media/library`, `reuse-image`→`reuse-library-media{libraryMediaIds[]}`, `publish-now{target?}`, `RotationConfigView.minMinutesBetweenScheduling`→`minMinutesBetweenAds` + optional `telegram/threads` limits). Queue: stats ONLY (`/feed-api/api/queue/stats` → `FeedQueueStatsView` 11 fields); rich list/cancel + keywords/phrases/blacklist stay on backend legacy (`/crypto-news-publisher/*`, slim feed-publisher views carry no rawContent/media) until cutover (todo 11). Threads: v1 skeleton (`/feed-api/api/threads` → 501 `THREADS_NOT_IMPLEMENTED`, resolved-not-thrown → stub section). Path builder `shared/api/feed-publisher-base.ts` (`feedPublisherPath`, `FEED_PUBLISHER_PREFIX='/feed-api'`); all migrated paths centralized in `ENDPOINTS.feedPublisher` (queue/matching/llm/scheduling/threads).
 
 **KOL-SYSTEM — Tramo 1 (kol-system `:3050` en dev)** (`/kol-api` same-origin → upstream kol-system; ver §PROXY):
 Rutas per-template (`shared/api/endpoints.ts` `kolSystem`, consumidas por `entities/template/api/template-queries.ts`):
@@ -118,6 +121,7 @@ Tokens-explorer is decision-driven (all/approved/rejected tabs over `useDecision
 - `VITE_API_BASE_URL` (backend) — default `''` (same-origin in Docker; unset locally)
 - `VITE_WS_URL` (websocket) — default `http://localhost:3030`
 - `VITE_APP_ENV` (environment) — default `development`, values: `development|staging|production`
+- `VITE_FEED_PUBLISHER_URL` (feed-publisher direct base, Tramo 2 todo 9) — default `''` (= same-origin `/feed-api` proxy; FEED naming per P35, never CONTENT)
 
 No `VITE_INGESTION_BASE_URL` exists anywhere in `src` (verified by grep): feed reads go same-origin via `/ingestion-api/*` (vite dev proxies to `:3031`, prod/staging nginx rewrites `/ingestion-api/*` → `/api/*` on the per-env upstream).
 
@@ -136,6 +140,7 @@ Docker build sets all to `""` → same-origin in prod (nginx routes by prefix).
 - Backend proxy (`localhost:3030`): `/api`, `/crypto-news-publisher`, `/crypto-news-scheduling`, `/crypto-news/matching`, `/socket.io` (ws:true)
 - **Ingestion-telegram proxy (`INGESTION_PROXY_TARGET`, default `http://localhost:3031`):** `/ingestion-api/*` → rewrite `^/ingestion-api` → `/api`
 - **Kol-system proxy (`KOL_SYSTEM_PROXY_TARGET`, default `http://localhost:3050`):** `/kol-api/*` → rewrite `^/kol-api` → `/api` (Tramo 1; `vite.config.ts:98-102`)
+- **Feed-publisher proxy (`FEED_PUBLISHER_PROXY_TARGET`, default `http://localhost:3040`):** `/feed-api/*` → rewrite strips `^/feed-api` to root (Tramo 2 todo 9: `/feed-api/api/queue/stats` → `/api/queue/stats`, `/feed-api/feed-publisher/matching/config` → `/feed-publisher/matching/config`; triplet `:3040` dev / `:3041` staging / `:3042` prod via env override)
 - **REMOVED:** `/crypto-news/(messages|sources|backfill|media)` regex — feed reads go via `/ingestion-api/feed/*`
 
 **Prod (`nginx.conf`, staging: `nginx.staging.conf`):**
@@ -143,6 +148,7 @@ Docker build sets all to `""` → same-origin in prod (nginx routes by prefix).
 - Backend locations (`backend:3030`): dashboard, telegram-kol, vip-calls, token, ingestion, call-tracking, telegram, settings, kols, feed-publisher, crypto-news-scheduling, socket.io
 - **Ingestion-telegram location:** `/ingestion-api/` → rewrite → `/api/` on the per-env upstream: prod `onchain-bot-ingestion-telegram:3031` (`nginx.conf:252-258`), staging `onchain-bot-ingestion-telegram-staging:3031` (`nginx.staging.conf:256-260`, host `:3033`)
 - ⚠️ **Kol-system location MISSING:** `nginx.conf`/`nginx.staging.conf` have NO `/kol-api/` block (verified by grep — solo existe en `vite.config.ts`). `/templates` works in dev only until prod deploy mirrors it (`/kol-api/` → rewrite → `/api/` on the kol-system upstream, dual-applied to both confs like `/ingestion-api/`).
+- ⚠️ **Feed-publisher location MISSING (deploy follow-up, Tramo 2 todos 10/11):** `nginx.conf`/`nginx.staging.conf` have NO `/feed-api/` block by design (todo 9 = dev config only). `/crypto-news` control-plane (matching toggles, llm config, scheduling, queue stats, threads stub) works in dev only until deploy mirrors it (`/feed-api/` → strip prefix on the feed-publisher upstream `:3041` staging / `:3042` prod, dual-applied to both confs like `/ingestion-api/`).
 - **REMOVED:** `/crypto-news/{messages,sources,media}` — now `/ingestion-api/feed/*`
 - SPA fallback + gzip + security headers (`nosniff`, `DENY`, strict referrer) + 502 `@maintenance` JSON + `client_max_body_size 12m`
 
@@ -174,9 +180,10 @@ Docker build sets all to `""` → same-origin in prod (nginx routes by prefix).
 - Template-dashboard widgets (`widgets/template-dashboard/ui/`, barrel `widgets/template-dashboard/index.ts`): `CallsTable` (ticker/`$` o address `aaaa…zzzz`, score, `formatMc` `$2.50M`, `timeAgo`, `trackingLabelFor` First-time/`Nx from last call`, expandable breakdown rows, testids `kol-calls-table`/`call-row-*`/`db-id-*`/`more-details-*`/`details-*`) + `PerformanceRanking` (top-10 en mitades 5+5 vía `splitRankingHalves`, toggle `perf_desc/asc` vía `togglePerfSort`, orden vía `sortRankings`, testids `kol-rankings-table`/`perf-half-left|right`/`perf-card-*`/`perf-sort-toggle`) + `TopCallersStrip` (top-10 por calls con selector `30d/7d/1d`, testids `top-callers-strip`/`window-selector`/`window-*`/`top-caller-*`) + `TemplateConfigSection` (read-only: sources `All sources|N selected`, score floor, gems `≥score · N pattern(s)` + lista, bot `botId ?? dashboard-only → channelTarget`, testids `template-config`/`config-*`) + `KolAvatar` (img 32px redonda u placeholder con iniciales, testids `avatar-img-*`/`avatar-placeholder-*`). Helpers puros en `entities/template/model/helpers.ts` (`filterCallsBySources` empty=all, `splitRankingHalves`, `sortRankings`, `togglePerfSort`, `trackingLabelFor`, `timeAgo`, `formatMc`, `avatarSrcFor`); tipos en `model/types.ts` (`TemplateView` con kolSourceIds/score-floor/gems/bot/target/canPublish, `TemplateCallRow` con campos anulables y arreglo breakdown, `KolRankingRow` caller/window/totalX/counts/display, `KolSourceOption` channelId/handle/title/avatarUrl/url).
 - `uuid.generateId()`: `crypto.randomUUID()` with Math.random fallback for non-secure HTTP contexts.
 
-## TESTS (31 files, vitest + Playwright e2e)
+## TESTS (37 files, vitest + Playwright e2e)
 
 Co-located `*.test.{ts,tsx}` + `__tests__/` dirs, heaviest in feed features (scheduling-manager 1900+ lines, feed-page). `src/test/setup.ts` only. jsdom + testing-library/react in deps.
+Feed-publisher (Tramo 2, todo 9): `shared/api/feed-publisher-base.test.ts` (path builder: proxy default + absolute override), `features/feed-publisher/api/{llm-config-api,threads-stub-api}.test.ts` (migrated-path pinning + 501-resolved-not-thrown), `features/feed-publisher/ui/{feed-queue-stats-strip,feed-threads-stub-section}.test.tsx` (stats render + API-down empty states). E2E Playwright (`e2e/feed-publisher.spec.ts`, 4 tests con `/feed-api/**` mockeados: queue-stats strip, 3-flag toggles PATCH matching + `pipeline-mode` badge, scheduling rotation-config, threads 501 stub + API-down empty states; `npx playwright test -g "feed-publisher"` 4/4).
 Template-dashboard: `entities/template/model/helpers.test.ts` (pure helpers: tracking/mc/timeAgo/filter/sort/halves/avatar) + `widgets/template-dashboard/ui/template-dashboard.test.tsx` (jsdom: calls First-time/Nx + db-ids, perf 5+5 halves + sort toggle, window selector + caller counts, config extended). E2E Playwright (`e2e/template-dashboard.spec.ts`, 6 tests con `/kol-api/**` + `/ingestion-api/**` mockeados: calls table, rankings por window, source-filter narrow/clear, halves 5+5 + sort + window + config, API-down empty states, avatar-404 placeholder) + `e2e/qa-screenshots.spec.ts` (legacy dashboard intact, mockea `/kol-api/templates*`). `playwright.config.ts` (`testDir e2e`, baseURL `:5174`, webServer `vite --port 5174`, `reuseExistingServer` fuera de CI); `vitest.config.ts` excluye `e2e/**`; `npm run test:e2e` (`@playwright/test` devDep).
 
 ## REMOVED DEPS (Carril 1 — cero imports verificado)

@@ -37,6 +37,11 @@ vi.mock('@/features/feed-publisher/model/use-keywords', () => {
 });
 
 vi.mock('@/features/feed-publisher/model/use-queue', () => ({
+  useFeedQueueStats: vi.fn(() => ({
+    data: undefined,
+    isLoading: false,
+    error: null,
+  })),
   useQueue: vi.fn(),
   useQueueCounts: vi.fn(),
 }));
@@ -64,6 +69,11 @@ vi.mock('@/features/feed-publisher/model/use-llm-config', () => {
     useToggleMatching: vi.fn(() => ({ ...mutStub })),
     useToggleLlm: vi.fn(() => ({ ...mutStub })),
     useTogglePublishing: vi.fn(() => ({ ...mutStub })),
+    usePipelineFlags: vi.fn(() => ({
+      data: undefined,
+      isLoading: false,
+      error: null,
+    })),
   };
 });
 

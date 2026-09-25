@@ -1,3 +1,5 @@
+import { feedPublisherPath } from './feed-publisher-base';
+
 export const ENDPOINTS = {
   kols: {
     // KOL identity moved to ingestion-telegram (telegram-feed-unification
@@ -161,13 +163,67 @@ export const ENDPOINTS = {
     backupStatus: '/ops/backups/status',
   },
   feedPublisher: {
+    // Tramo 2 (todo 9): queue stats, matching config, llm config and
+    // scheduling/ads are served by feed-publisher (:3040 dev / :3041
+    // staging / :3042 prod) behind the same-origin /feed-api prefix
+    // (vite dev proxy strips it; VITE_FEED_PUBLISHER_URL overrides it
+    // for direct service access). Queue list/cancel + keywords/phrases/
+    // blacklist stay on the backend legacy until cutover (todo 11).
+    queue: {
+      // Stats only: the rich list/cancel stay on the backend legacy
+      // (`/crypto-news-publisher/queue*` — slim feed-publisher views
+      // carry no rawContent/media for the newsroom UI) until cutover.
+      stats: () => feedPublisherPath('/api/queue/stats'),
+    },
+    matching: {
+      config: () => feedPublisherPath('/feed-publisher/matching/config'),
+      health: () => feedPublisherPath('/feed-publisher/matching/health'),
+    },
     llm: {
-      models: '/crypto-news-publisher/llm/models',
-      config: '/crypto-news-publisher/llm/config',
-      templates: '/crypto-news-publisher/llm/templates',
+      models: () => feedPublisherPath('/api/llm/models'),
+      config: () => feedPublisherPath('/api/llm/config'),
+      flags: () => feedPublisherPath('/api/llm/flags'),
+      templates: () => feedPublisherPath('/api/llm/templates'),
       template: (id: string) =>
-        `/crypto-news-publisher/llm/templates/${encodeURIComponent(id)}`,
-      preview: '/crypto-news-publisher/llm/preview',
+        feedPublisherPath(`/api/llm/templates/${encodeURIComponent(id)}`),
+      preview: () => feedPublisherPath('/api/llm/preview'),
+    },
+    scheduling: {
+      ads: () => feedPublisherPath('/api/scheduling/ads'),
+      ad: (id: string) =>
+        feedPublisherPath(`/api/scheduling/ads/${encodeURIComponent(id)}`),
+      adImage: (id: string) =>
+        feedPublisherPath(
+          `/api/scheduling/ads/${encodeURIComponent(id)}/image`,
+        ),
+      adVideo: (id: string) =>
+        feedPublisherPath(
+          `/api/scheduling/ads/${encodeURIComponent(id)}/video`,
+        ),
+      adReuseLibraryMedia: (id: string) =>
+        feedPublisherPath(
+          `/api/scheduling/ads/${encodeURIComponent(id)}/reuse-library-media`,
+        ),
+      adPublishNow: (id: string) =>
+        feedPublisherPath(
+          `/api/scheduling/ads/${encodeURIComponent(id)}/publish-now`,
+        ),
+      rotationConfig: () =>
+        feedPublisherPath('/api/scheduling/rotation-config'),
+      mediaLibrary: () => feedPublisherPath('/api/scheduling/media/library'),
+      libraryMedia: (libraryMediaId: string) =>
+        feedPublisherPath(
+          `/api/scheduling/media/library/${encodeURIComponent(libraryMediaId)}`,
+        ),
+      media: (mediaId: string) =>
+        feedPublisherPath(
+          `/api/scheduling/media/${encodeURIComponent(mediaId)}`,
+        ),
+    },
+    threads: {
+      // v1 skeleton (C1): every route answers 501 THREADS_NOT_IMPLEMENTED
+      // until the v2 un-stubbing contract activates it.
+      root: () => feedPublisherPath('/api/threads'),
     },
   },
 } as const;

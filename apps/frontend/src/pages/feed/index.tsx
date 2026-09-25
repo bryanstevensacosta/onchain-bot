@@ -7,6 +7,8 @@ import { renderFormattedText } from '@/shared/lib/render-telegram-entities';
 import { ManageFeedSourcesModal } from '@/features/manage-feed-sources';
 import {
   BlockedPostsList,
+  FeedQueueStatsStrip,
+  FeedThreadsStubSection,
   KeywordsManager,
   LlmConfigForm,
   MatchingToggleButton,
@@ -514,6 +516,7 @@ export function FeedPage() {
             </summary>
             <div className="space-y-3 pt-2">
               <MatchingToggleButton />
+              <FeedQueueStatsStrip />
               <QueueView />
             </div>
           </details>
@@ -553,6 +556,15 @@ export function FeedPage() {
             <div className="space-y-4 pt-2">
               <SchedulingManager />
               <SchedulingRotationConfigForm />
+            </div>
+          </details>
+
+          <details className="space-y-3 rounded-lg border border-slate-700 bg-slate-800/30 p-4">
+            <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 select-none">
+              Threads (feed-publisher v1)
+            </summary>
+            <div className="space-y-4 pt-2">
+              <FeedThreadsStubSection />
             </div>
           </details>
         </aside>

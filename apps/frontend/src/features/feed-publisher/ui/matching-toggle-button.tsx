@@ -2,6 +2,7 @@ import { Button } from '@/shared/ui';
 import {
   useLlmConfig,
   useMatchingConfig,
+  usePipelineFlags,
   useToggleMatching,
   useToggleLlm,
   useTogglePublishing,
@@ -11,12 +12,13 @@ export function MatchingToggleButton(): React.ReactElement {
   const { data: cfg, isLoading: isLlmLoading } = useLlmConfig();
   const { data: matchingCfg, isLoading: isMatchingLoading } =
     useMatchingConfig();
+  const { data: flags } = usePipelineFlags();
   const matchingMut = useToggleMatching();
   const llmMut = useToggleLlm();
   const publishingMut = useTogglePublishing();
 
-  // Source of truth for keyword matching: crypto_news_matching_config id=1
-  // via GET /crypto-news/matching/config.
+  // Source of truth for keyword matching: feed-publisher MatchingConfig
+  // via GET /feed-api/feed-publisher/matching/config.
   const isMatchingEnabled = matchingCfg?.enabled ?? false;
   const isLlmEnabled = cfg?.llmEnabled ?? false;
   const isPublishingEnabled = cfg?.publishingEnabled ?? false;
@@ -29,7 +31,14 @@ export function MatchingToggleButton(): React.ReactElement {
     publishingMut.isPending;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-testid="matching-toggle-button">
+      {flags?.mode && (
+        <div data-testid="pipeline-mode" className="text-xs text-slate-400">
+          Pipeline mode:{' '}
+          <span className="font-mono text-slate-200">{flags.mode}</span>
+          {flags.llmActive ? ' · LLM active' : ' · LLM idle'}
+        </div>
+      )}
       {/* Matching Control */}
       <div className="flex items-center gap-3">
         <Button

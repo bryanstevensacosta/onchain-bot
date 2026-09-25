@@ -16,6 +16,12 @@ export default defineConfig(({ mode }) => {
     env.INGESTION_PROXY_TARGET ?? 'http://localhost:3031';
   const KOL_SYSTEM_PROXY_TARGET =
     env.KOL_SYSTEM_PROXY_TARGET ?? 'http://localhost:3050';
+  // Feed-publisher (Tramo 2, todo 9): queue stats, matching config, llm
+  // config + flags, scheduling/ads, threads stub. FEED naming (not
+  // CONTENT) per the P35 content→feed rename. Dev config only — prod
+  // nginx (/feed-api/ location) is a deploy follow-up (todos 10/11).
+  const FEED_PUBLISHER_PROXY_TARGET =
+    env.FEED_PUBLISHER_PROXY_TARGET ?? 'http://localhost:3040';
   // Hosts permitidos (el acceso por Tailscale llega con otro Host header).
   const ALLOWED_HOSTS = (
     env.VITE_ALLOWED_HOSTS ??
@@ -99,6 +105,11 @@ export default defineConfig(({ mode }) => {
           target: KOL_SYSTEM_PROXY_TARGET,
           changeOrigin: false,
           rewrite: (path) => path.replace(/^\/kol-api/, '/api'),
+        },
+        '/feed-api': {
+          target: FEED_PUBLISHER_PROXY_TARGET,
+          changeOrigin: false,
+          rewrite: (path) => path.replace(/^\/feed-api/, ''),
         },
         '/socket.io': {
           target: BACKEND_PROXY_TARGET,

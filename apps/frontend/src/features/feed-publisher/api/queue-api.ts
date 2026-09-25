@@ -1,5 +1,5 @@
-import { httpGet, HttpError } from '@/shared/api/http-client';
-import { API_BASE_URL } from '@/shared/config/env';
+import { httpDelete, httpGet } from '@/shared/api/http-client';
+import { ENDPOINTS } from '@/shared/api/endpoints';
 
 export interface QueueEntryView {
   readonly id: string;
@@ -41,11 +41,32 @@ export interface QueueCountsView {
   readonly remaining: number;
 }
 
+/**
+ * Feed-publisher queue stats (Tramo 2, todo 9):
+ * GET /feed-api/api/queue/stats on feed-publisher
+ * (:3040 dev / :3041 staging / :3042 prod). Richer than the legacy
+ * counts (per-status depth + tick health) and the plan acceptance
+ * probe for the queue migration.
+ */
+export interface FeedQueueStatsView {
+  readonly pending: number;
+  readonly scheduled: number;
+  readonly publishing: number;
+  readonly published: number;
+  readonly failed: number;
+  readonly blocked: number;
+  readonly total: number;
+  readonly lastTickAt: string | null;
+  readonly lastProcessedAt: string | null;
+  readonly consecutiveFailures: number;
+}
+
 export const queueKeys = {
   all: ['feed-publisher', 'queue'] as const,
   list: (limit: number, status?: string) =>
     [...queueKeys.all, 'list', { limit, status }] as const,
   counts: () => [...queueKeys.all, 'counts'] as const,
+  stats: () => [...queueKeys.all, 'stats'] as const,
 };
 
 export async function fetchQueue(
@@ -66,13 +87,12 @@ export async function fetchQueueCounts(): Promise<QueueCountsView> {
   return httpGet<QueueCountsView>('/crypto-news-publisher/queue/counts');
 }
 
+export async function fetchFeedQueueStats(): Promise<FeedQueueStatsView> {
+  return httpGet<FeedQueueStatsView>(ENDPOINTS.feedPublisher.queue.stats());
+}
+
 export async function cancelQueueEntry(id: string): Promise<void> {
-  const res = await fetch(
-    `${API_BASE_URL}/feed-publisher/queue/${encodeURIComponent(id)}`,
-    { method: 'DELETE' },
+  await httpDelete<void>(
+    `/crypto-news-publisher/queue/${encodeURIComponent(id)}`,
   );
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new HttpError(res.status, body, `DELETE queue/${id} → ${res.status}`);
-  }
 }

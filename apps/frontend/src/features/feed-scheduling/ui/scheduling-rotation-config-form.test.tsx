@@ -39,21 +39,19 @@ describe('SchedulingRotationConfigForm', () => {
 
   it('renders the current config values', () => {
     mockedUseRotationConfig.mockReturnValue({
-      data: { enabled: true, everyNPosts: 6, minMinutesBetweenScheduling: 45 },
+      data: { enabled: true, everyNPosts: 6, minMinutesBetweenAds: 45 },
       isLoading: false,
       error: null,
     } as never);
     render(<SchedulingRotationConfigForm />);
     expect(screen.getByLabelText(/Scheduling enabled/)).toBeChecked();
     expect(screen.getByLabelText(/Every N posts/)).toHaveValue(6);
-    expect(screen.getByLabelText(/Min minutes between scheduling/)).toHaveValue(
-      45,
-    );
+    expect(screen.getByLabelText(/Min minutes between ads/)).toHaveValue(45);
   });
 
   it('saves the edited config', () => {
     mockedUseRotationConfig.mockReturnValue({
-      data: { enabled: false, everyNPosts: 4, minMinutesBetweenScheduling: 30 },
+      data: { enabled: false, everyNPosts: 4, minMinutesBetweenAds: 30 },
       isLoading: false,
       error: null,
     } as never);
@@ -67,7 +65,7 @@ describe('SchedulingRotationConfigForm', () => {
     expect(updateMutMock).toHaveBeenCalledWith({
       enabled: false,
       everyNPosts: 8,
-      minMinutesBetweenScheduling: 30,
+      minMinutesBetweenAds: 30,
     });
   });
 

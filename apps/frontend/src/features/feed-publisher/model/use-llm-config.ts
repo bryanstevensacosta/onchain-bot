@@ -6,11 +6,13 @@ import {
   fetchLlmModels,
   fetchMatchingConfig,
   fetchMatchingHealth,
+  fetchPipelineFlags,
   fetchTemplate,
   fetchTemplates,
   llmConfigKeys,
   matchingConfigKeys,
   matchingHealthKeys,
+  pipelineFlagsKeys,
   toggleLlmEnabled,
   toggleMatchingEnabled,
   togglePublishingEnabled,
@@ -21,6 +23,7 @@ import {
   type LlmModel,
   type MatchingConfig,
   type MatchingHealth,
+  type PipelineFlagsView,
   type PromptTemplate,
   type UpdateLlmConfigBody,
   type UpdatePromptTemplateBody,
@@ -64,10 +67,10 @@ export function useUpdateLlmConfig() {
 }
 
 /**
- * Single-row matching activation (crypto_news_matching_config id=1).
- * SOLE source of truth read by the scheduler + SSE handler; the
- * MatchingToggleButton below is the only writer. 5s staleness keeps
- * Start/Stop in lock-step across tabs.
+ * Single-row matching activation (feed-publisher MatchingConfig).
+ * SOLE source of truth read by the scheduler; the MatchingToggleButton
+ * below is the only writer. 5s staleness keeps Start/Stop in lock-step
+ * across tabs.
  */
 export function useMatchingConfig() {
   return useQuery<MatchingConfig>({
@@ -78,9 +81,8 @@ export function useMatchingConfig() {
 }
 
 /**
- * Scheduler health tripwire (GET /crypto-news/matching/health).
- * Never throws to the UI: consumers render UNKNOWN on error
- * (old backend 404s this route — that silent gap hid the prod outage).
+ * Scheduler health tripwire (GET /feed-api/feed-publisher/matching/health).
+ * Never throws to the UI: consumers render UNKNOWN on error.
  */
 export function useMatchingHealth() {
   return useQuery<MatchingHealth>({
@@ -94,9 +96,26 @@ export function useMatchingHealth() {
 }
 
 /**
+ * Composed 3-flag view (GET /feed-api/api/llm/flags, 15 s polling).
+ * Read-only truth-table mode for the MatchingToggleButton header;
+ * never throws to the UI (badge hides on error).
+ */
+export function usePipelineFlags() {
+  return useQuery<PipelineFlagsView>({
+    queryKey: pipelineFlagsKeys.flags(),
+    queryFn: fetchPipelineFlags,
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
+    staleTime: 5_000,
+    retry: false,
+  });
+}
+
+/**
  * Toggle keyword matching enabled/disabled. Writes the SOLE source
- * (PATCH /crypto-news/matching/config) with optimistic update;
- * reverts on error. Publishing/LLM toggles stay on the old endpoint.
+ * (PATCH /feed-api/feed-publisher/matching/config) with optimistic
+ * update; reverts on error. Publishing/LLM toggles stay on the
+ * feed-publisher llm endpoint.
  */
 export function useToggleMatching() {
   const qc = useQueryClient();

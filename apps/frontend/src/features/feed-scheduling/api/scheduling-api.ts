@@ -5,12 +5,13 @@ import {
   httpPost,
   httpPostForm,
 } from '@/shared/api/http-client';
+import { ENDPOINTS } from '@/shared/api/endpoints';
 
 /**
- * View models for the feed-scheduling REST API (mirrors the backend
- * `SchedulingView` / `RotationConfigView` mappers; the backend ads module
- * dies at cutover and is replaced by the scheduling controllers serving
- * `/crypto-news-scheduling/*`).
+ * View models for the feed-scheduling REST API (Tramo 2, todo 9:
+ * served by feed-publisher `GET /feed-api/api/scheduling/*`,
+ * `:3040` dev / `:3041` staging / `:3042` prod — P36 scheduling
+ * naming, not ads).
  */
 
 export type SchedulingFormat = 'text' | 'photo' | 'video' | 'album';
@@ -45,10 +46,17 @@ export interface SchedulingView {
   readonly updatedAt: string;
 }
 
+export interface SchedulingTargetLimitsView {
+  readonly publishDelayMs: number;
+  readonly dailyCap: number;
+}
+
 export interface RotationConfigView {
   readonly enabled: boolean;
   readonly everyNPosts: number;
-  readonly minMinutesBetweenScheduling: number;
+  readonly minMinutesBetweenAds: number;
+  readonly telegram?: SchedulingTargetLimitsView;
+  readonly threads?: SchedulingTargetLimitsView;
 }
 
 export interface MediaLibraryView {
@@ -97,7 +105,7 @@ export async function fetchScheduling(): Promise<
   ReadonlyArray<SchedulingView>
 > {
   return httpGet<ReadonlyArray<SchedulingView>>(
-    '/crypto-news-scheduling/scheduling',
+    ENDPOINTS.feedPublisher.scheduling.ads(),
   );
 }
 
@@ -105,7 +113,7 @@ export async function fetchMediaLibrary(): Promise<
   ReadonlyArray<MediaLibraryView>
 > {
   return httpGet<ReadonlyArray<MediaLibraryView>>(
-    '/crypto-news-scheduling/media-library',
+    ENDPOINTS.feedPublisher.scheduling.mediaLibrary(),
   );
 }
 
@@ -113,7 +121,7 @@ export async function createScheduling(
   body: CreateSchedulingBody,
 ): Promise<SchedulingView> {
   return httpPost<CreateSchedulingBody, SchedulingView>(
-    '/crypto-news-scheduling/scheduling',
+    ENDPOINTS.feedPublisher.scheduling.ads(),
     body,
   );
 }
@@ -123,15 +131,13 @@ export async function updateScheduling(
   body: UpdateSchedulingBody,
 ): Promise<SchedulingView> {
   return httpPatch<UpdateSchedulingBody, SchedulingView>(
-    `/crypto-news-scheduling/scheduling/${encodeURIComponent(id)}`,
+    ENDPOINTS.feedPublisher.scheduling.ad(id),
     body,
   );
 }
 
 export async function deleteScheduling(id: string): Promise<void> {
-  await httpDelete<void>(
-    `/crypto-news-scheduling/scheduling/${encodeURIComponent(id)}`,
-  );
+  await httpDelete<void>(ENDPOINTS.feedPublisher.scheduling.ad(id));
 }
 
 export async function uploadSchedulingImage(
@@ -141,7 +147,7 @@ export async function uploadSchedulingImage(
   const form = new FormData();
   form.append('file', file);
   return httpPostForm<SchedulingView>(
-    `/crypto-news-scheduling/scheduling/${encodeURIComponent(schedulingId)}/image`,
+    ENDPOINTS.feedPublisher.scheduling.adImage(schedulingId),
     form,
   );
 }
@@ -150,7 +156,7 @@ export async function clearSchedulingImage(
   schedulingId: string,
 ): Promise<SchedulingView> {
   return httpDelete<SchedulingView>(
-    `/crypto-news-scheduling/scheduling/${encodeURIComponent(schedulingId)}/image`,
+    ENDPOINTS.feedPublisher.scheduling.adImage(schedulingId),
   );
 }
 
@@ -161,7 +167,7 @@ export async function uploadSchedulingVideo(
   const form = new FormData();
   form.append('file', file);
   return httpPostForm<SchedulingView>(
-    `/crypto-news-scheduling/scheduling/${encodeURIComponent(schedulingId)}/video`,
+    ENDPOINTS.feedPublisher.scheduling.adVideo(schedulingId),
     form,
   );
 }
@@ -170,25 +176,25 @@ export async function clearSchedulingVideo(
   schedulingId: string,
 ): Promise<SchedulingView> {
   return httpDelete<SchedulingView>(
-    `/crypto-news-scheduling/scheduling/${encodeURIComponent(schedulingId)}/video`,
+    ENDPOINTS.feedPublisher.scheduling.adVideo(schedulingId),
   );
 }
 
 export function schedulingImageUrl(mediaId: string): string {
-  return `/crypto-news-scheduling/media/${encodeURIComponent(mediaId)}`;
+  return ENDPOINTS.feedPublisher.scheduling.media(mediaId);
 }
 
 export function schedulingVideoUrl(mediaId: string): string {
-  return `/crypto-news-scheduling/media/${encodeURIComponent(mediaId)}`;
+  return ENDPOINTS.feedPublisher.scheduling.media(mediaId);
 }
 
 export async function reuseLibraryImage(
   schedulingId: string,
   libraryMediaId: string,
 ): Promise<SchedulingView> {
-  return httpPost<{ libraryMediaId: string }, SchedulingView>(
-    `/crypto-news-scheduling/scheduling/${encodeURIComponent(schedulingId)}/reuse-image`,
-    { libraryMediaId },
+  return httpPost<{ libraryMediaIds: string[] }, SchedulingView>(
+    ENDPOINTS.feedPublisher.scheduling.adReuseLibraryMedia(schedulingId),
+    { libraryMediaIds: [libraryMediaId] },
   );
 }
 
@@ -197,7 +203,7 @@ export async function reuseLibraryImages(
   libraryMediaIds: string[],
 ): Promise<SchedulingView> {
   return httpPost<{ libraryMediaIds: string[] }, SchedulingView>(
-    `/crypto-news-scheduling/scheduling/${encodeURIComponent(schedulingId)}/reuse-library-images`,
+    ENDPOINTS.feedPublisher.scheduling.adReuseLibraryMedia(schedulingId),
     { libraryMediaIds },
   );
 }
@@ -210,26 +216,29 @@ export interface PublishAdNowResult {
 
 export async function publishSchedulingNow(
   id: string,
+  target: 'telegram' | 'threads' = 'telegram',
 ): Promise<PublishAdNowResult> {
-  return httpPost<object, PublishAdNowResult>(
-    `/crypto-news-scheduling/scheduling/${encodeURIComponent(id)}/publish-now`,
-    {},
+  return httpPost<{ target: string }, PublishAdNowResult>(
+    ENDPOINTS.feedPublisher.scheduling.adPublishNow(id),
+    { target },
   );
 }
 
 export function libraryImageUrl(libraryMediaId: string): string {
-  return `/crypto-news-scheduling/media-library/${encodeURIComponent(libraryMediaId)}`;
+  return ENDPOINTS.feedPublisher.scheduling.libraryMedia(libraryMediaId);
 }
 
 export async function fetchRotationConfig(): Promise<RotationConfigView> {
-  return httpGet<RotationConfigView>('/crypto-news-scheduling/rotation-config');
+  return httpGet<RotationConfigView>(
+    ENDPOINTS.feedPublisher.scheduling.rotationConfig(),
+  );
 }
 
 export async function updateRotationConfig(
   body: UpdateRotationConfigBody,
 ): Promise<RotationConfigView> {
   return httpPatch<UpdateRotationConfigBody, RotationConfigView>(
-    '/crypto-news-scheduling/rotation-config',
+    ENDPOINTS.feedPublisher.scheduling.rotationConfig(),
     body,
   );
 }

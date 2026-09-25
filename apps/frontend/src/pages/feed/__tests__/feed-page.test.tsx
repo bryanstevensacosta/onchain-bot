@@ -54,6 +54,11 @@ vi.mock('@/features/feed-publisher/model/use-keywords', () => {
 });
 
 vi.mock('@/features/feed-publisher/model/use-queue', () => ({
+  useFeedQueueStats: vi.fn(() => ({
+    data: undefined,
+    isLoading: false,
+    error: null,
+  })),
   useQueue: vi.fn(),
   useQueueCounts: vi.fn(),
   useCancelQueueEntry: vi.fn(() => ({

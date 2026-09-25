@@ -78,7 +78,7 @@ describe('previewPrompt', () => {
       string,
       RequestInit,
     ];
-    expect(url).toContain('/crypto-news-publisher/llm/preview');
+    expect(url).toContain('/feed-api/api/llm/preview');
     expect(init.method).toBe('POST');
     expect(JSON.parse(init.body as string)).toEqual(body);
     expect(result.content).toBe('salida');

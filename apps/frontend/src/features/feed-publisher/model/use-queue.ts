@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   cancelQueueEntry,
+  fetchFeedQueueStats,
   fetchQueue,
   fetchQueueCounts,
   queueKeys,
+  type FeedQueueStatsView,
   type QueueCountsView,
   type QueueEntryView,
 } from '@/features/feed-publisher/api/queue-api';
@@ -30,6 +32,21 @@ export function useQueueCounts() {
     queryKey: queueKeys.counts(),
     queryFn: fetchQueueCounts,
     refetchInterval: 10_000,
+  });
+}
+
+/**
+ * Feed-publisher queue stats (GET /feed-api/api/queue/stats, 10 s).
+ * Per-status depth + tick health from the new service; never throws
+ * to the UI (stats strip hides on error, legacy counts stay).
+ */
+export function useFeedQueueStats() {
+  return useQuery<FeedQueueStatsView>({
+    queryKey: queueKeys.stats(),
+    queryFn: fetchFeedQueueStats,
+    refetchInterval: 10_000,
+    staleTime: 5_000,
+    retry: false,
   });
 }
 

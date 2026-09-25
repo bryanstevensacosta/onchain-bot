@@ -59,13 +59,13 @@ function makeSchedulingView(
 describe('schedulingImageUrl', () => {
   it('builds the media URL from an imageMediaId', () => {
     expect(schedulingImageUrl('abc-123')).toBe(
-      '/crypto-news-scheduling/media/abc-123',
+      '/feed-api/api/scheduling/media/abc-123',
     );
   });
 
   it('encodes special characters in the media id', () => {
     expect(schedulingImageUrl('a b/c')).toBe(
-      '/crypto-news-scheduling/media/a%20b%2Fc',
+      '/feed-api/api/scheduling/media/a%20b%2Fc',
     );
   });
 });
@@ -90,9 +90,7 @@ describe('uploadSchedulingImage', () => {
       string,
       RequestInit | undefined,
     ];
-    expect(url).toContain(
-      '/crypto-news-scheduling/scheduling/scheduling-1/image',
-    );
+    expect(url).toContain('/feed-api/api/scheduling/ads/scheduling-1/image');
     expect(init?.method).toBe('POST');
     const form = init?.body as FormData;
     expect(form).toBeInstanceOf(FormData);
@@ -106,7 +104,7 @@ describe('uploadSchedulingImage', () => {
 
     await uploadSchedulingImage('scheduling/1', new File(['x'], 'a.png'));
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
-      '/scheduling/scheduling%2F1/image',
+      '/ads/scheduling%2F1/image',
     );
   });
 });
@@ -129,9 +127,7 @@ describe('clearSchedulingImage', () => {
       string,
       RequestInit | undefined,
     ];
-    expect(url).toContain(
-      '/crypto-news-scheduling/scheduling/scheduling-1/image',
-    );
+    expect(url).toContain('/feed-api/api/scheduling/ads/scheduling-1/image');
     expect(init?.method).toBe('DELETE');
   });
 });
@@ -145,7 +141,7 @@ describe('fetchMediaLibrary', () => {
     const library: MediaLibraryView[] = [
       {
         id: 'lib-1',
-        url: '/crypto-news-scheduling/media/lib-1',
+        url: '/feed-api/api/scheduling/media/lib-1',
         originalFileName: 'a.png',
         mimeType: 'image/png',
         fileSize: 1024,
@@ -164,7 +160,7 @@ describe('fetchMediaLibrary', () => {
       string,
       RequestInit | undefined,
     ];
-    expect(url).toContain('/crypto-news-scheduling/media-library');
+    expect(url).toContain('/feed-api/api/scheduling/media/library');
     expect(init?.method).toBeUndefined();
   });
 });
@@ -189,11 +185,11 @@ describe('reuseLibraryImage', () => {
       RequestInit | undefined,
     ];
     expect(url).toContain(
-      '/crypto-news-scheduling/scheduling/scheduling-1/reuse-image',
+      '/feed-api/api/scheduling/ads/scheduling-1/reuse-library-media',
     );
     expect(init?.method).toBe('POST');
     expect(init?.headers).toEqual({ 'Content-Type': 'application/json' });
-    expect(init?.body).toBe(JSON.stringify({ libraryMediaId: 'lib-1' }));
+    expect(init?.body).toBe(JSON.stringify({ libraryMediaIds: ['lib-1'] }));
   });
 
   it('URL-encodes the scheduling id in the path', async () => {
@@ -203,7 +199,7 @@ describe('reuseLibraryImage', () => {
 
     await reuseLibraryImage('scheduling/1', 'lib-1');
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
-      '/scheduling/scheduling%2F1/reuse-image',
+      '/ads/scheduling%2F1/reuse-library-media',
     );
   });
 
@@ -216,7 +212,7 @@ describe('reuseLibraryImage', () => {
       HttpError,
     );
     await expect(reuseLibraryImage('scheduling-1', 'lib-1')).rejects.toThrow(
-      'POST /crypto-news-scheduling/scheduling/scheduling-1/reuse-image → 404',
+      'POST /feed-api/api/scheduling/ads/scheduling-1/reuse-library-media → 404',
     );
   });
 });
@@ -224,13 +220,13 @@ describe('reuseLibraryImage', () => {
 describe('libraryImageUrl', () => {
   it('builds the library url from a libraryMediaId', () => {
     expect(libraryImageUrl('lib-1')).toBe(
-      '/crypto-news-scheduling/media-library/lib-1',
+      '/feed-api/api/scheduling/media/library/lib-1',
     );
   });
 
   it('encodes special characters in the library media id', () => {
     expect(libraryImageUrl('a b/c')).toBe(
-      '/crypto-news-scheduling/media-library/a%20b%2Fc',
+      '/feed-api/api/scheduling/media/library/a%20b%2Fc',
     );
   });
 });
@@ -238,13 +234,13 @@ describe('libraryImageUrl', () => {
 describe('schedulingVideoUrl', () => {
   it('builds the media URL from a videoMediaId', () => {
     expect(schedulingVideoUrl('abc-123')).toBe(
-      '/crypto-news-scheduling/media/abc-123',
+      '/feed-api/api/scheduling/media/abc-123',
     );
   });
 
   it('encodes special characters in the media id', () => {
     expect(schedulingVideoUrl('a b/c')).toBe(
-      '/crypto-news-scheduling/media/a%20b%2Fc',
+      '/feed-api/api/scheduling/media/a%20b%2Fc',
     );
   });
 });
@@ -269,9 +265,7 @@ describe('uploadSchedulingVideo', () => {
       string,
       RequestInit | undefined,
     ];
-    expect(url).toContain(
-      '/crypto-news-scheduling/scheduling/scheduling-1/video',
-    );
+    expect(url).toContain('/feed-api/api/scheduling/ads/scheduling-1/video');
     expect(init?.method).toBe('POST');
     const form = init?.body as FormData;
     expect(form).toBeInstanceOf(FormData);
@@ -285,7 +279,7 @@ describe('uploadSchedulingVideo', () => {
 
     await uploadSchedulingVideo('scheduling/1', new File(['x'], 'clip.mp4'));
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
-      '/scheduling/scheduling%2F1/video',
+      '/ads/scheduling%2F1/video',
     );
   });
 });
@@ -308,9 +302,7 @@ describe('clearSchedulingVideo', () => {
       string,
       RequestInit | undefined,
     ];
-    expect(url).toContain(
-      '/crypto-news-scheduling/scheduling/scheduling-1/video',
-    );
+    expect(url).toContain('/feed-api/api/scheduling/ads/scheduling-1/video');
     expect(init?.method).toBe('DELETE');
   });
 });
@@ -335,7 +327,7 @@ describe('reuseLibraryImages', () => {
       RequestInit | undefined,
     ];
     expect(url).toContain(
-      '/crypto-news-scheduling/scheduling/scheduling-1/reuse-library-images',
+      '/feed-api/api/scheduling/ads/scheduling-1/reuse-library-media',
     );
     expect(init?.method).toBe('POST');
     expect(init?.headers).toEqual({ 'Content-Type': 'application/json' });
@@ -351,7 +343,7 @@ describe('reuseLibraryImages', () => {
 
     await reuseLibraryImages('scheduling/1', ['lib-1']);
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
-      '/scheduling/scheduling%2F1/reuse-library-images',
+      '/ads/scheduling%2F1/reuse-library-media',
     );
   });
 
@@ -364,7 +356,7 @@ describe('reuseLibraryImages', () => {
       HttpError,
     );
     await expect(reuseLibraryImages('scheduling-1', ['lib-1'])).rejects.toThrow(
-      'POST /crypto-news-scheduling/scheduling/scheduling-1/reuse-library-images → 404',
+      'POST /feed-api/api/scheduling/ads/scheduling-1/reuse-library-media → 404',
     );
   });
 });
@@ -393,11 +385,11 @@ describe('publishSchedulingNow', () => {
       RequestInit | undefined,
     ];
     expect(url).toContain(
-      '/crypto-news-scheduling/scheduling/scheduling-1/publish-now',
+      '/feed-api/api/scheduling/ads/scheduling-1/publish-now',
     );
     expect(init?.method).toBe('POST');
     expect(init?.headers).toEqual({ 'Content-Type': 'application/json' });
-    expect(init?.body).toBe(JSON.stringify({}));
+    expect(init?.body).toBe(JSON.stringify({ target: 'telegram' }));
   });
 
   it('URL-encodes the scheduling id in the path', async () => {
@@ -409,7 +401,7 @@ describe('publishSchedulingNow', () => {
 
     await publishSchedulingNow('scheduling/1');
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
-      '/scheduling/scheduling%2F1/publish-now',
+      '/ads/scheduling%2F1/publish-now',
     );
   });
 
@@ -440,7 +432,7 @@ describe('publishSchedulingNow', () => {
       HttpError,
     );
     await expect(publishSchedulingNow('scheduling-1')).rejects.toThrow(
-      'POST /crypto-news-scheduling/scheduling/scheduling-1/publish-now → 404',
+      'POST /feed-api/api/scheduling/ads/scheduling-1/publish-now → 404',
     );
   });
 });

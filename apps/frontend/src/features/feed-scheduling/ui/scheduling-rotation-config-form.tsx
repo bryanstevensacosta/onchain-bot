@@ -8,18 +8,18 @@ import {
 interface DraftState {
   enabled: boolean;
   everyNPosts: string;
-  minMinutesBetweenScheduling: string;
+  minMinutesBetweenAds: string;
 }
 
 function draftFromConfig(cfg: {
   enabled: boolean;
   everyNPosts: number;
-  minMinutesBetweenScheduling: number;
+  minMinutesBetweenAds: number;
 }): DraftState {
   return {
     enabled: cfg.enabled,
     everyNPosts: String(cfg.everyNPosts),
-    minMinutesBetweenScheduling: String(cfg.minMinutesBetweenScheduling),
+    minMinutesBetweenAds: String(cfg.minMinutesBetweenAds),
   };
 }
 
@@ -39,8 +39,7 @@ export function SchedulingRotationConfigForm(): React.ReactElement {
         prev &&
         prev.enabled === cfg.enabled &&
         prev.everyNPosts === String(cfg.everyNPosts) &&
-        prev.minMinutesBetweenScheduling ===
-          String(cfg.minMinutesBetweenScheduling)
+        prev.minMinutesBetweenAds === String(cfg.minMinutesBetweenAds)
       ) {
         return prev;
       }
@@ -76,8 +75,8 @@ export function SchedulingRotationConfigForm(): React.ReactElement {
     !updateMut.isPending &&
     current.everyNPosts !== '' &&
     Number(current.everyNPosts) >= 1 &&
-    current.minMinutesBetweenScheduling !== '' &&
-    Number(current.minMinutesBetweenScheduling) >= 0;
+    current.minMinutesBetweenAds !== '' &&
+    Number(current.minMinutesBetweenAds) >= 0;
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -85,7 +84,7 @@ export function SchedulingRotationConfigForm(): React.ReactElement {
     updateMut.mutate({
       enabled: current.enabled,
       everyNPosts: Number(current.everyNPosts),
-      minMinutesBetweenScheduling: Number(current.minMinutesBetweenScheduling),
+      minMinutesBetweenAds: Number(current.minMinutesBetweenAds),
     });
   }
 
@@ -133,17 +132,17 @@ export function SchedulingRotationConfigForm(): React.ReactElement {
               htmlFor="rotation-min-minutes"
               className="block text-xs uppercase text-slate-500 mb-1"
             >
-              Min minutes between scheduling (min 0)
+              Min minutes between ads (min 0)
             </label>
             <input
               id="rotation-min-minutes"
               type="number"
               min={0}
-              value={current.minMinutesBetweenScheduling}
+              value={current.minMinutesBetweenAds}
               onChange={(e) =>
                 setDraft({
                   ...current,
-                  minMinutesBetweenScheduling: e.target.value,
+                  minMinutesBetweenAds: e.target.value,
                 })
               }
               className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-blue-500"

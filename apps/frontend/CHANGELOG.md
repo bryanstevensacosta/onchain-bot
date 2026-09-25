@@ -7,6 +7,11 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 ### Added
 
 - `/templates` route: per-template dashboard (source picker, calls, 5+5 ranking, 30D/7D/1D top callers, extended config, avatars) + Playwright e2e. (feat/mega-refactor-tramos)
+- Feed-publisher control-plane wiring: queue stats strip (`GET /feed-api/api/queue/stats`), matching flags + `pipeline-mode` badge, LLM config over migrated paths, scheduling catalog over `/feed-api/api/scheduling/*`, threads 501 stub section, and the `/feed-api` dev proxy. (feat/mega-refactor-tramos)
+
+### Changed
+
+- Scheduling slice renamed `feed-ads` -> `feed-scheduling` (English naming). (feat/mega-refactor-tramos)
 
 ### Fixed
 
