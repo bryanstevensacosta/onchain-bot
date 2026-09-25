@@ -49,9 +49,7 @@ class FakePublisher extends ThreadsApiPublisherPort {
   public constructor(private readonly behavior: () => ThreadsPublishResult) {
     super();
   }
-  public async publish(input: {
-    text: string;
-  }): Promise<ThreadsPublishResult> {
+  public async publish(input: { text: string }): Promise<ThreadsPublishResult> {
     this.publishedTexts.push(input.text);
     return this.behavior();
   }
@@ -102,10 +100,13 @@ const setup = (opts?: {
     publishingEnabled: true,
     ...(opts?.config ?? {}),
   });
-  const throttle = new SharedThrottleSchedulerService(new FakeThrottleStateRepo(), {
-    minDelayMs: 0,
-    maxDelayMs: 0,
-  });
+  const throttle = new SharedThrottleSchedulerService(
+    new FakeThrottleStateRepo(),
+    {
+      minDelayMs: 0,
+      maxDelayMs: 0,
+    },
+  );
   const llm = new FakeLlm(opts?.llmOutput ?? 'refined post');
   const publisher = new FakePublisher(
     opts?.publishBehavior ?? (() => successResult('post-1')),
@@ -170,12 +171,9 @@ describe('ProcessNextThreadsArticleUseCase', () => {
 
   it('BLOCKED path: blocking failure → FAILED with the reason (terminal, no retry)', async () => {
     const { queueRepo, enqueue, useCase } = setup({
-      publishBehavior: () =>
-        failureResult('Content violates policy', false),
+      publishBehavior: () => failureResult('Content violates policy', false),
     });
-    expect(
-      isBlockingFailureReason('Content violates policy'),
-    ).toBe(true);
+    expect(isBlockingFailureReason('Content violates policy')).toBe(true);
 
     const entry = await enqueue.execute({ message: message(1) });
     await useCase.execute();
@@ -189,8 +187,7 @@ describe('ProcessNextThreadsArticleUseCase', () => {
   it('transient failure consumes the retry budget before going FAILED', async () => {
     const { queueRepo, enqueue, useCase } = setup({
       config: { llmMaxAttempts: 3 },
-      publishBehavior: () =>
-        failureResult('Rate limit exceeded', true),
+      publishBehavior: () => failureResult('Rate limit exceeded', true),
     });
 
     const entry = await enqueue.execute({ message: message(1) });

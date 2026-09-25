@@ -1,19 +1,22 @@
 /**
  * Telegram Entity Normalizer
- * 
+ *
  * Normalizes GramJS entity objects from className format to normalized type strings.
- * 
+ *
  * Entities represent structured data within message text:
  * - URLs and text URLs (clickable links)
  * - Mentions and hashtags (social features)
  * - Text formatting (bold, italic, code, etc.)
- * 
+ *
  * Example:
  * Input:  { offset: 0, length: 10, className: 'MessageEntityUrl', url: 'https://...' }
  * Output: { offset: 0, length: 10, type: 'url', url: 'https://...' }
  */
 
-import { AbstractEntityNormalizer, type NormalizedEntity } from '../core/abstract-entity-normalizer';
+import {
+  AbstractEntityNormalizer,
+  type NormalizedEntity,
+} from '../core/abstract-entity-normalizer';
 
 interface GramjsMessageEntity {
   offset: number;
@@ -25,10 +28,10 @@ interface GramjsMessageEntity {
 export class TelegramEntityNormalizer extends AbstractEntityNormalizer {
   /**
    * Normalize array of Telegram entities
-   * 
+   *
    * Converts GramJS className format to normalized type strings.
    * Preserves offset, length, and optional URL field.
-   * 
+   *
    * @param entities - Raw entities from GramJS message
    * @returns Array of normalized entities
    */
@@ -37,7 +40,7 @@ export class TelegramEntityNormalizer extends AbstractEntityNormalizer {
 
     return entities.map((e: any) => {
       const entity: GramjsMessageEntity = e;
-      
+
       const normalized: NormalizedEntity = {
         offset: entity.offset,
         length: entity.length,

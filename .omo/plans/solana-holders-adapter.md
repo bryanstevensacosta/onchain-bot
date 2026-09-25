@@ -5,6 +5,7 @@
 > Implement new `SolanaRpcAdapter` to fetch token holders for SPL tokens on Solana using `getTokenLargestAccounts` RPC method. Integrates with existing enrichment pipeline, providing holder count and top 10 holder percentage.
 
 > **Deliverables**:
+>
 > - New `SolanaRpcAdapter` in `apps/backend/src/chain/explorer/infrastructure/providers/solana-rpc.adapter.ts`
 > - Integration with enrichment pipeline (first-non-null merge)
 > - TypeScript type updates
@@ -19,15 +20,19 @@
 ## Context
 
 ### Original Request
+
 User wants to display holders data for Solana SPL tokens (especially PumpFun tokens like `Ckit5s1Cpc3RdMh1HrhfW2nAy4PnkkgjXgXMeykbpump`). Currently, no provider returns holders for this token.
 
 ### Interview Summary
+
 **Key Discussions**:
+
 - Existing providers (DexScreener, GeckoTerminal, Birdeye, Helius DAS) don't have holders data for this token
 - Solana RPC method `getTokenLargestAccounts` provides top 20 holders
 - Helius RPC is already configured in the project
 
 **Research Findings**:
+
 - `getTokenLargestAccounts` returns top 20 holders with balances
 - Helius RPC can be reused (already has API key configured)
 - Free public RPC available as fallback (`https://api.mainnet.solana.com`)
@@ -37,24 +42,29 @@ User wants to display holders data for Solana SPL tokens (especially PumpFun tok
 ## Work Objectives
 
 ### Core Objective
+
 Add holders data retrieval for Solana SPL tokens via Solana RPC `getTokenLargestAccounts` method.
 
 ### Concrete Deliverables
+
 - New `SolanaRpcAdapter` extending `MarketDataProviderPort`
 - Adapter fetches top 20 holders, calculates `top10HolderPercent`
 - Integrates with existing enrichment pipeline via first-non-null merge
 
 ### Definition of Done
+
 - [ ] New adapter returns `MarketData` with holders and top10HolderPercent
 - [ ] Enrichment pipeline merges holder data from new adapter
 - [ ] API call to `POST /token/market-data/enrich` returns holders for SPL tokens
 - [ ] Frontend displays holders count when available
 
 ### Must Have
+
 - Holders count from top 20 accounts (or total if DAS available)
 - Top 10 holder percentage calculation
 
 ### Must NOT Have (Guardrails)
+
 - Don't modify existing provider adapters
 - Don't change frontend (already displays holders when available)
 - Don't implement getProgramAccounts (too expensive, not needed)
@@ -66,6 +76,7 @@ Add holders data retrieval for Solana SPL tokens via Solana RPC `getTokenLargest
 > **ZERO HUMAN INTERVENTION** - ALL verification is agent-executed.
 
 ### Test Decision
+
 - **Infrastructure exists**: YES (Jest in backend)
 - **Automated tests**: YES (tests-after)
 - **Framework**: Jest (already configured)
@@ -127,22 +138,18 @@ Task 4: Manual API test (final verification)
   **QA Scenarios**:
 
   Scenario: Adapter returns holders data for SPL token
-    Tool: Bash (curl)
-    Preconditions: Helius API key configured
-    Steps:
-      1. Call enrichment API with force=true for SPL token
-      2. Verify response includes holders and top10HolderPercent
-    Expected Result: holders > 0, top10HolderPercent between 0-100
-    Evidence: JSON response from API
+  Tool: Bash (curl)
+  Preconditions: Helius API key configured
+  Steps: 1. Call enrichment API with force=true for SPL token 2. Verify response includes holders and top10HolderPercent
+  Expected Result: holders > 0, top10HolderPercent between 0-100
+  Evidence: JSON response from API
 
   Scenario: Adapter returns null for non-Solana chain
-    Tool: Bash (curl)
-    Preconditions: N/A
-    Steps:
-      1. Call enrichment API with chain=evm
-      2. Verify response doesn't include data from SolanaRpcAdapter
-    Expected Result: Adapter returns null, other providers used
-    Evidence: JSON response
+  Tool: Bash (curl)
+  Preconditions: N/A
+  Steps: 1. Call enrichment API with chain=evm 2. Verify response doesn't include data from SolanaRpcAdapter
+  Expected Result: Adapter returns null, other providers used
+  Evidence: JSON response
 
 - [ ] 2. Register adapter in enrichment module
 
@@ -225,9 +232,10 @@ Task 4: Manual API test (final verification)
 ## Success Criteria
 
 ### Verification Commands
+
 ```bash
 # Build
-npm run build -w @alpha-meta-token-scanner/backend
+npm run build -w @onchain-bot/backend
 
 # Test
 npm run test:backend -- --testPathPattern=solana-rpc
@@ -239,6 +247,7 @@ curl -X POST "http://localhost:3030/token/market-data/enrich" \
 ```
 
 ### Final Checklist
+
 - [ ] Adapter created at correct path
 - [ ] Extends MarketDataProviderPort correctly
 - [ ] Returns holders and top10HolderPercent

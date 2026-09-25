@@ -163,8 +163,10 @@ export class ThreadsApiPublisherAdapter extends ThreadsApiPublisherPort {
       const json = (await res.json().catch(() => ({}))) as { id?: unknown };
       if (!res.ok) {
         const raw = JSON.stringify(json);
-        const classified =
-          ThreadsApiPublisherAdapter.classifyHttpFailure(res.status, raw);
+        const classified = ThreadsApiPublisherAdapter.classifyHttpFailure(
+          res.status,
+          raw,
+        );
         return { ok: false, status: 'FAILED', ...classified };
       }
       if (typeof json.id !== 'string' || json.id.length === 0) {
@@ -244,8 +246,10 @@ export class ThreadsApiPublisherAdapter extends ThreadsApiPublisherPort {
       const json = (await res.json().catch(() => ({}))) as { id?: unknown };
       if (!res.ok) {
         const raw = JSON.stringify(json);
-        const classified =
-          ThreadsApiPublisherAdapter.classifyHttpFailure(res.status, raw);
+        const classified = ThreadsApiPublisherAdapter.classifyHttpFailure(
+          res.status,
+          raw,
+        );
         return { ok: false, status: 'FAILED', ...classified };
       }
       const remoteId = typeof json.id === 'string' ? json.id : containerId;

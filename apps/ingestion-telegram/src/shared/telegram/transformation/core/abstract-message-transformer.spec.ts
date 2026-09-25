@@ -5,7 +5,10 @@ import {
 } from './abstract-message-transformer';
 import { AbstractTextExtractor } from './abstract-text-extractor';
 import { AbstractMediaExtractor } from './abstract-media-extractor';
-import { AbstractEntityNormalizer, type NormalizedEntity } from './abstract-entity-normalizer';
+import {
+  AbstractEntityNormalizer,
+  type NormalizedEntity,
+} from './abstract-entity-normalizer';
 
 /**
  * Mock extractors for testing
@@ -17,7 +20,9 @@ class MockTextExtractor extends AbstractTextExtractor {
 }
 
 class MockMediaExtractor extends AbstractMediaExtractor {
-  protected readonly slots = [{ field: 'photo' as const, type: 'photo' as const }];
+  protected readonly slots = [
+    { field: 'photo' as const, type: 'photo' as const },
+  ];
 
   extract(media: unknown): any {
     if (!media || typeof media !== 'object') return null;
@@ -94,7 +99,11 @@ describe('AbstractMessageTransformer', () => {
     textExtractor = new MockTextExtractor();
     mediaExtractor = new MockMediaExtractor();
     entityNormalizer = new MockEntityNormalizer();
-    transformer = new TestMessageTransformer(textExtractor, mediaExtractor, entityNormalizer);
+    transformer = new TestMessageTransformer(
+      textExtractor,
+      mediaExtractor,
+      entityNormalizer,
+    );
   });
 
   describe('isValidMessage()', () => {
@@ -153,7 +162,7 @@ describe('AbstractMessageTransformer', () => {
       const before = Date.now();
       const result = transformer.testExtractDate(raw);
       const after = Date.now();
-      
+
       expect(result.getTime()).toBeGreaterThanOrEqual(before);
       expect(result.getTime()).toBeLessThanOrEqual(after);
     });
@@ -185,9 +194,9 @@ describe('AbstractMessageTransformer', () => {
     it('should delegate to text extractor', () => {
       const spy = jest.spyOn(textExtractor, 'extract');
       const raw: RawTelegramMessage = { message: 'Hello' };
-      
+
       const result = transformer.testExtractText(raw);
-      
+
       expect(spy).toHaveBeenCalledWith(raw);
       expect(result).toBe('Hello');
     });
@@ -199,9 +208,9 @@ describe('AbstractMessageTransformer', () => {
       const raw: RawTelegramMessage = {
         media: { photo: { id: 'test', accessHash: 'hash' } },
       };
-      
+
       const result = transformer.testExtractMedia(raw);
-      
+
       expect(spy).toHaveBeenCalledWith(raw.media);
       expect(result).toHaveLength(1);
       expect(result[0].type).toBe('photo');
@@ -219,9 +228,9 @@ describe('AbstractMessageTransformer', () => {
       const raw: RawTelegramMessage = {
         entities: [{ offset: 0, length: 10, type: 'url' }],
       };
-      
+
       const result = transformer.testNormalizeEntities(raw);
-      
+
       expect(spy).toHaveBeenCalledWith(raw.entities);
       expect(result).toEqual([{ offset: 0, length: 10, type: 'url' }]);
     });

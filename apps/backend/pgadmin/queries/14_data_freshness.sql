@@ -1,5 +1,5 @@
 -- =====================================================================
--- alpha-meta-token-scanner :: Data Freshness
+-- onchain-bot :: Data Freshness
 -- =====================================================================
 -- Cuán frescos son los datos por tabla (tiempo desde último registro).
 -- =====================================================================

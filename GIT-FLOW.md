@@ -1,7 +1,7 @@
 # Git Flow & Branch Strategy
 
 **Last Updated**: 2026-09-04  
-**Repository**: Alpha Meta Token Scanner (Monorepo)
+**Repository**: Onchain Bot (Monorepo)
 
 ## Branch Structure & Rules
 

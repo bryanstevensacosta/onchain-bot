@@ -86,10 +86,7 @@ export class EnqueueThreadsMessageUseCase {
       message.messageId,
     );
     if (duplicate !== null) {
-      if (
-        duplicate.status === 'PENDING' ||
-        duplicate.status === 'PUBLISHED'
-      ) {
+      if (duplicate.status === 'PENDING' || duplicate.status === 'PUBLISHED') {
         this.logger.debug(
           `message ${message.channelId}:${message.messageId} already ${duplicate.status} — skipping`,
         );

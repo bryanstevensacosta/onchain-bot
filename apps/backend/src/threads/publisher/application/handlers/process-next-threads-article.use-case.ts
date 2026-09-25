@@ -128,11 +128,7 @@ export class ProcessNextThreadsArticleUseCase {
         return;
       }
 
-      await this.queueRepo.markPublished(
-        entry.id,
-        result.remoteId,
-        generated,
-      );
+      await this.queueRepo.markPublished(entry.id, result.remoteId, generated);
       await this.throttleScheduler.setLastPublishAt(now);
 
       this.logger.log(
@@ -175,9 +171,7 @@ export class ProcessNextThreadsArticleUseCase {
     reason: string,
     opts: { reintentable: boolean; llmMaxAttempts: number },
   ): Promise<void> {
-    this.logger.error(
-      `failed to publish queue entry ${entry.id}: ${reason}`,
-    );
+    this.logger.error(`failed to publish queue entry ${entry.id}: ${reason}`);
     if (!opts.reintentable || isBlockingFailureReason(reason)) {
       await this.queueRepo.markFailed(entry.id, reason);
       this.logger.log(

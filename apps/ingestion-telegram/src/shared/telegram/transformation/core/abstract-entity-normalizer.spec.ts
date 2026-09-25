@@ -37,7 +37,9 @@ describe('AbstractEntityNormalizer', () => {
     });
 
     it('should map MessageEntityTextUrl to text_url', () => {
-      expect(normalizer.testNormalizeType('MessageEntityTextUrl')).toBe('text_url');
+      expect(normalizer.testNormalizeType('MessageEntityTextUrl')).toBe(
+        'text_url',
+      );
     });
 
     it('should map MessageEntityBold to bold', () => {
@@ -45,7 +47,9 @@ describe('AbstractEntityNormalizer', () => {
     });
 
     it('should map MessageEntityItalic to italic', () => {
-      expect(normalizer.testNormalizeType('MessageEntityItalic')).toBe('italic');
+      expect(normalizer.testNormalizeType('MessageEntityItalic')).toBe(
+        'italic',
+      );
     });
 
     it('should map MessageEntityCode to code', () => {
@@ -57,15 +61,21 @@ describe('AbstractEntityNormalizer', () => {
     });
 
     it('should map MessageEntityMention to mention', () => {
-      expect(normalizer.testNormalizeType('MessageEntityMention')).toBe('mention');
+      expect(normalizer.testNormalizeType('MessageEntityMention')).toBe(
+        'mention',
+      );
     });
 
     it('should map MessageEntityHashtag to hashtag', () => {
-      expect(normalizer.testNormalizeType('MessageEntityHashtag')).toBe('hashtag');
+      expect(normalizer.testNormalizeType('MessageEntityHashtag')).toBe(
+        'hashtag',
+      );
     });
 
     it('should map MessageEntityCashtag to cashtag', () => {
-      expect(normalizer.testNormalizeType('MessageEntityCashtag')).toBe('cashtag');
+      expect(normalizer.testNormalizeType('MessageEntityCashtag')).toBe(
+        'cashtag',
+      );
     });
 
     it('should return "unknown" for unrecognized className', () => {
@@ -88,7 +98,12 @@ describe('AbstractEntityNormalizer', () => {
   describe('normalize()', () => {
     it('should normalize array of entities', () => {
       const entities = [
-        { offset: 0, length: 10, className: 'MessageEntityUrl', url: 'https://example.com' },
+        {
+          offset: 0,
+          length: 10,
+          className: 'MessageEntityUrl',
+          url: 'https://example.com',
+        },
         { offset: 11, length: 5, className: 'MessageEntityBold' },
       ];
 
@@ -123,7 +138,12 @@ describe('AbstractEntityNormalizer', () => {
 
     it('should only include url field when present', () => {
       const entities = [
-        { offset: 0, length: 10, className: 'MessageEntityUrl', url: 'https://example.com' },
+        {
+          offset: 0,
+          length: 10,
+          className: 'MessageEntityUrl',
+          url: 'https://example.com',
+        },
         { offset: 11, length: 5, className: 'MessageEntityBold' },
       ];
 
@@ -134,9 +154,7 @@ describe('AbstractEntityNormalizer', () => {
     });
 
     it('should handle entities without className', () => {
-      const entities = [
-        { offset: 0, length: 10 },
-      ];
+      const entities = [{ offset: 0, length: 10 }];
 
       const result = normalizer.normalize(entities);
 

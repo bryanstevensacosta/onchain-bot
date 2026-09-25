@@ -16,7 +16,7 @@ NestJS 11 pipeline (DDD/Hexagonal) that consumes Telegram messages, runs them th
 ## COMMANDS
 
 ```bash
-# In apps/backend/ (or root with -w @alpha-meta-token-scanner/backend)
+# In apps/backend/ (or root with -w @onchain-bot/backend)
 npm run start:dev          # db:migrate + nest start --watch
 npm run start:debug        # db:migrate + nest start --debug --watch
 npm run dev:mock           # USE_SSE_INGESTION=false USE_MOCK_INGESTION=true start:dev (no Telegram)
@@ -763,7 +763,7 @@ Hang at boot → check `NODE_ENV`, "Using migrations (synchronize: false)" in lo
 | `staging` \| `production` | JavaScript (`dist/`)                               | `dist/backend/src/shared/common/persistence/data-source.js` |
 | else (unset/dev/test)     | TypeScript (`src/`) via `typeorm-ts-node-commonjs` | `src/shared/common/persistence/data-source.ts`              |
 
-Staging-local caveat (NODE_ENV=staging hits dist mode): CLI `data-source.ts:28` loads only `.env` (never `.env.staging`); `.env.staging:97-105` is Docker-only, so local `NODE_ENV=staging` hits dev DB `alpha_meta_token_scanner` on `localhost:5432` by default.
+Staging-local caveat (NODE_ENV=staging hits dist mode): CLI `data-source.ts:28` loads only `.env` (never `.env.staging`); `.env.staging:97-105` is Docker-only, so local `NODE_ENV=staging` hits dev DB `onchain_bot` on `localhost:5432` by default (target name post-rename; the pre-rename dev DB keeps its old name until the dev volume is recreated — see rename evidence log).
 `--dry-run` (all 3 scripts): prints `[DRYRUN] mode=<javascript|typescript> data-source=<path>`, exit 0 without DB. See `.omo/drafts/staging-migration-test-fix.md`.
 
 ## OPS (scripts + compose)
@@ -771,7 +771,7 @@ Staging-local caveat (NODE_ENV=staging hits dist mode): CLI `data-source.ts:28` 
 - `scripts/seed-pipeline-events.ts` (181 lines): emits 4 events × N tokens (12 real addresses: USDC/SOL/BOME/WBTC/AAVE/CAKE/USDT/CBBTC/MATIC/GME…). ⚠️ Step 4 emits the GHOST `filters.token.*` names (gap 20) with classifications (`LEGITIMATE/RISKY/SAFE`) outside the `Classification` VO set (gap 31) — seeded approvals never reach `TokenApprovedPublishHandler`.
 - `scripts/run-migrations.sh` (15 lines): dual-mode — compiled `dist/.../data-source.js` in Docker, `typeorm-ts-node-commonjs` + `src/...` locally. `set -euo pipefail`.
 - `scripts/cli/`: interactive readline tools (inject reads `scripts/fixtures/*.json`).
-- Compose: `docker-compose.yml` (dev), `.prod.yml` (backend `:3030` + postgres/redis health-gated), `.staging.yml` (staging backend, `INGESTION_TELEGRAM_URL` pinned to staging ingestion at `:98`), `.with-ingestion.yml` (builds ingestion Dockerfile, `PORT: 3031`, backend gets `INGESTION_TELEGRAM_URL: http://ingestion-telegram:3031` + read-only media volume, `depends_on` healthy), `.ingestion.yml` (prod ingestion standalone, host `:3032`→container `:3031`), `.staging-ingestion.yml` (staging ingestion, per-env 2026-09-22: project `onchain-bot-staging-ingestion`, host `:3033`→container `:3031`, own `.env.staging` triple + `alpha_meta_token_scanner_staging_ingestion` DB + own uploads volume). Healthchecks hit `/api/health` (stub-200 caveat, gap 18 backend / gap 23 ingestion-telegram).
+- Compose: `docker-compose.yml` (dev), `.prod.yml` (backend `:3030` + postgres/redis health-gated), `.staging.yml` (staging backend, `INGESTION_TELEGRAM_URL` pinned to staging ingestion at `:98`), `.with-ingestion.yml` (builds ingestion Dockerfile, `PORT: 3031`, backend gets `INGESTION_TELEGRAM_URL: http://ingestion-telegram:3031` + read-only media volume, `depends_on` healthy), `.ingestion.yml` (prod ingestion standalone, host `:3032`→container `:3031`), `.staging-ingestion.yml` (staging ingestion, per-env 2026-09-22: project `onchain-bot-staging-ingestion`, host `:3033`→container `:3031`, own `.env.staging` triple + `onchain_bot_staging_ingestion` DB + own uploads volume). Healthchecks hit `/api/health` (stub-200 caveat, gap 18 backend / gap 23 ingestion-telegram).
 
 ## NOTES
 

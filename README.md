@@ -1,4 +1,4 @@
-# Alpha Meta Token Scanner
+# Onchain Bot
 
 > Real-time pipeline that discovers, validates, and republishes on-chain token alpha-calls from Telegram KOL channels — with a live operations dashboard.
 
@@ -66,7 +66,7 @@ npm run dev:ingestion   # :3031 (root script; without it `npm run dev` can't hea
 ```
 
 > First run needs env files: `apps/backend/.env` (or `.env.dev`) and `apps/ingestion-telegram/.env` with Telegram API credentials (`my.telegram.org`). Never commit them.
-> No Telegram credentials yet? Run the backend in mock mode instead: `npm run dev:mock -w @alpha-meta-token-scanner/backend` — CLI fixtures in, no MTProto needed.
+> No Telegram credentials yet? Run the backend in mock mode instead: `npm run dev:mock -w @onchain-bot/backend` — CLI fixtures in, no MTProto needed.
 
 ---
 

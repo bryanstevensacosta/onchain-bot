@@ -10,7 +10,7 @@
 
 ```bash
 # Desde la raíz: `npm run dev:ingestion` (:3031, con port-cleanup). Desde aquí
-# (o root con -w @alpha-meta-token-scanner/ingestion-telegram; también hay
+# (o root con -w @onchain-bot/ingestion-telegram; también hay
 # `lint/build/test:ingestion` en el root)
 npm run start:dev   # watch, puerto 3031
 npm run build && npm run start:prod  # prod: node dist/main
@@ -85,7 +85,7 @@ src/
         └── infrastructure/services/ (telegram-client-manager, telegram-peer-resolver, last-seen-manager, flood-wait-handler, flood-wait-counter, sleep-window, message-queue)
 test/  (app.e2e-spec.ts, full-message-flow, stream-reconnection, load-test-concurrent-clients, metrics, E2E-TESTING-GUIDE.md, jest-e2e.json)
 scripts/ (telegram-gen-session.ts, check-telegram-message.ts)
-Raíz: package.json (@alpha-meta-token-scanner/ingestion-telegram), Dockerfile (multi-stage node:22-alpine, dumb-init, user nodejs, HEALTHCHECK :3031/api/health), .env{,.example,.production.template,.backup-before-regen}, eslint.config.mjs, nest-cli.json (deleteOutDir), tsconfig{,.build,.eslint}.json, jest.setup.ts, uploads/ (crypto-news/media/{channelId}/{messageId}_{index}.ext), coverage/, dist/
+Raíz: package.json (@onchain-bot/ingestion-telegram), Dockerfile (multi-stage node:22-alpine, dumb-init, user nodejs, HEALTHCHECK :3031/api/health), .env{,.example,.production.template,.backup-before-regen}, eslint.config.mjs, nest-cli.json (deleteOutDir), tsconfig{,.build,.eslint}.json, jest.setup.ts, uploads/ (crypto-news/media/{channelId}/{messageId}_{index}.ext), coverage/, dist/
 ```
 
 ## Módulos (app.module.ts)
@@ -157,7 +157,7 @@ Notas de path real:
 
 **Architecture post-migration (2026-09-05, per-env 2026-09-22)**:
 
-- **KOLs + crypto-news**: cada ingestion-telegram lee SU DB local (`<base>_ingestion` de su env); staging ingestion tiene su propia `alpha_meta_token_scanner_staging_ingestion` (arranca VACÍA, sin mirror prod)
+- **KOLs + crypto-news**: cada ingestion-telegram lee SU DB local (`<base>_ingestion` de su env); staging ingestion tiene su propia `onchain_bot_staging_ingestion` (arranca VACÍA, sin mirror prod). Nombres TARGET tras el rename — las DBs Oracle conservan el nombre pre-rename hasta que ejecute el runbook (.omo/runbooks/rename-onchain-bot-db.md, fase 3).
 - **Rationale**: sin dependencia HTTP al backend, cada env arranca solo con sus datos; staging experimenta sin rozar prod
 
 ## Servicios clave
@@ -216,7 +216,7 @@ Vars (ver `.env.example` / `.env.production.template` — prod usa hosts docker 
 ## Persistencia / Docker
 
 - **Database**: Uses **Docker Postgres** from `apps/backend/docker-compose.yml` (container `onchain-bot-postgres-dev`, port mapping `0.0.0.0:5432→5432`). Connection from host: `localhost:5432`. **NO** separate local Postgres installation required.
-- **DB split 2026-09-08 + per-env 2026-09-22 — dedicated logical DB per env**: dev local `alpha_meta_token_scanner_ingestion`, Oracle prod `alpha_meta_token_scanner_ingestion` + Oracle staging `alpha_meta_token_scanner_staging_ingestion` (staging ingestion, arranca VACÍA por diseño — ver `docs/deployment/staging-twin-runbook.md`). Backend `PERSISTED_ENTITIES` = 39: the 3 crypto-news tables live ONLY here, in EACH env's own DB. pgAdmin: the extra DBs live in the SAME servers — no `servers.json` change, they just appear as another DB under the existing server entries.
+- **DB split 2026-09-08 + per-env 2026-09-22 — dedicated logical DB per env**: TARGET names tras el rename — dev local `onchain_bot_ingestion`, Oracle prod `onchain_bot_ingestion` + Oracle staging `onchain_bot_staging_ingestion` (staging ingestion, arranca VACÍA por diseño — ver `docs/deployment/staging-twin-runbook.md`; estado live pre-rename en el runbook .omo/runbooks/rename-onchain-bot-db.md, fase 3). Backend `PERSISTED_ENTITIES` = 39: the 3 crypto-news tables live ONLY here, in EACH env's own DB. pgAdmin: the extra DBs live in the SAME servers — no `servers.json` change, they just appear as another DB under the existing server entries.
 - **TypeORM**: 4 entities registered in `app.module.ts`:
   - `CryptoNewsSourceEntity` — sources (**SOLE OWNER** since 2026-09-05, reads+writes)
   - `CryptoNewsMessageEntity` — RAW message content (ingested from Telegram)
@@ -233,12 +233,12 @@ Vars (ver `.env.example` / `.env.production.template` — prod usa hosts docker 
 1. **Un ingestion-telegram por env, misma imagen** — prod (`docker-compose.ingestion.yml`, host `127.0.0.1:3032` → container `3031`) + staging ingestion (`docker-compose.staging-ingestion.yml`, project `onchain-bot-staging-ingestion`, host `127.0.0.1:3033` → container `3031`) + dev local (`:3031`). Prohibido: dos instancias con la misma triple, ingestion dentro de `docker-compose.staging.yml`/`.prod.yml`.
 2. **Una triple MTProto por env, jamás compartida** (`INGESTION_TELEGRAM_MTPROTO_*` en el `.env` de SU instancia: prod cuenta actual, staging vieja-dev, local nueva). Pre-boot: triple-inequality assert por hashes (ver `docs/deployment/staging-twin-runbook.md`).
 3. **Un solo storage de media por env** (`uploads/crypto-news/media/` — named volume propio de staging ingestion; dueño ingestion-telegram de SU env).
-4. **Una DB de ingestion por env** (`<base>_ingestion`; staging: `alpha_meta_token_scanner_staging_ingestion`, VACÍA por diseño).
+4. **Una DB de ingestion por env** (`<base>_ingestion`; TARGET staging: `onchain_bot_staging_ingestion`, VACÍA por diseño — nombre live pre-rename en el runbook .omo/runbooks/rename-onchain-bot-db.md, fase 3).
 5. **Retención 72h messages + media** (janitor de arriba; ver caveat prod en el punto anterior).
 
 ### Crear los `.env` reales en el servidor Oracle (comandos, SIN valores)
 
-El repo solo lleva templates (`.env.production.template` con `INGESTION_DATABASE_NAME=alpha_meta_token_scanner_ingestion`, `.env.staging.template` con `..._staging_ingestion` + triple VACÍA pendiente de operador). Los archivos reales viven SOLO en el servidor Oracle y nunca se commitean:
+El repo solo lleva templates (`.env.production.template` con `INGESTION_DATABASE_NAME=onchain_bot_ingestion`, `.env.staging.template` con `..._staging_ingestion` + triple VACÍA pendiente de operador). Los archivos reales viven SOLO en el servidor Oracle y nunca se commitean:
 
 ```bash
 ssh CryptoGanster
@@ -330,11 +330,11 @@ Requisitos del cliente (Req 2.4): reconexión con backoff 1 s→30 s; **sin** `L
 
 Imagen: `ghcr.io/bryanstevensacosta/onchain-bot-ingestion-telegram:latest`.
 
-| Compose (`apps/backend/`)              | Uso                                                                                                                                                                                                                                                     |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docker-compose.ingestion.yml`         | standalone en el servidor Oracle: host `127.0.0.1:3032` → container `3031` (3032 evita choque con staging en 3031); `INGESTION_PORT: 3031` interno; healthcheck a `:3031/api/health`                                                                    |
-| `docker-compose.staging-ingestion.yml` | staging ingestion (per-env 2026-09-22): project `onchain-bot-staging-ingestion`, host `127.0.0.1:3033` → container `3031`, `env_file` triple vieja-dev, DB `alpha_meta_token_scanner_staging_ingestion`, uploads propios, red `onchain-bot-staging-net` |
-| `docker-compose.with-ingestion.yml`    | extiende prod: build local del Dockerfile, `PORT: 3031`, backend con `INGESTION_TELEGRAM_URL: http://ingestion-telegram:3031` + volumen de media en **read-only** (ingestion owns writes), `depends_on` ingestion                                       |
+| Compose (`apps/backend/`)              | Uso                                                                                                                                                                                                                                                                                   |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docker-compose.ingestion.yml`         | standalone en el servidor Oracle: host `127.0.0.1:3032` → container `3031` (3032 evita choque con staging en 3031); `INGESTION_PORT: 3031` interno; healthcheck a `:3031/api/health`                                                                                                  |
+| `docker-compose.staging-ingestion.yml` | staging ingestion (per-env 2026-09-22): project `onchain-bot-staging-ingestion`, host `127.0.0.1:3033` → container `3031`, `env_file` triple vieja-dev, DB TARGET `onchain_bot_staging_ingestion` (live pre-rename en runbook fase 3), uploads propios, red `onchain-bot-staging-net` |
+| `docker-compose.with-ingestion.yml`    | extiende prod: build local del Dockerfile, `PORT: 3031`, backend con `INGESTION_TELEGRAM_URL: http://ingestion-telegram:3031` + volumen de media en **read-only** (ingestion owns writes), `depends_on` ingestion                                                                     |
 
 Notas: `with-ingestion` referencia `../ingestion-telegram/.env.production` — **no existe en el repo** (solo `.env.production.template`); crearlo desde la plantilla en el servidor Oracle, nunca commitear (ver comandos en Persistencia). Los e2e contra el servidor Oracle usan el puerto host de SU env (**3032** prod, **3033** staging). `BACKEND_URL` fue eliminada del código (per-env T4, sin lector) y de ambas plantillas (`.env.production.template`, `.env.staging.template`, F1-fix 2026-09-22, doble-grep vacío); CORS sigue leyendo `BACKEND_STAGING_URL`/`BACKEND_PROD_URL` en `main.ts:73-74`.
 
@@ -358,7 +358,7 @@ Pipeline (desde split 2026-09-08, todo 10): `deploy-ingestion.yml` corre backup 
 
 ## Dependencias (`package.json`)
 
-Runtime: `telegram@^2.26.22` (GramJS MTProto), `@nestjs/*` v11 + `@willsoto/nestjs-prometheus`, `nestjs-pino@^4.6.1` + `pino@^10.3.1`, `ioredis@^5.4.1`, `typeorm@^0.3.30` + `pg@^8.22.0`, `prom-client@^15.1.3`, `class-validator/transformer`, `dotenv@^17.4.2`. Dev/test: `eventsource@^5.1.1` (cliente SSE en e2e), `supertest@^7`, `ts-jest@^29`, `typescript@^5.7.3`. Workspace npm `apps/*` (`@alpha-meta-token-scanner/ingestion-telegram`).
+Runtime: `telegram@^2.26.22` (GramJS MTProto), `@nestjs/*` v11 + `@willsoto/nestjs-prometheus`, `nestjs-pino@^4.6.1` + `pino@^10.3.1`, `ioredis@^5.4.1`, `typeorm@^0.3.30` + `pg@^8.22.0`, `prom-client@^15.1.3`, `class-validator/transformer`, `dotenv@^17.4.2`. Dev/test: `eventsource@^5.1.1` (cliente SSE en e2e), `supertest@^7`, `ts-jest@^29`, `typescript@^5.7.3`. Workspace npm `apps/*` (`@onchain-bot/ingestion-telegram`).
 
 ## Relaciones con otras apps
 

@@ -70,7 +70,14 @@ describe('CryptoNewsPathBuilder (feed root)', () => {
   it('builds media paths under the feed segment', () => {
     const built = builder.buildMediaPath('-1001234567890', 167, 0, '.jpg');
     expect(built).toBe(
-      path.join('/tmp', 'uploads', 'feed', 'media', '-1001234567890', '167_0.jpg'),
+      path.join(
+        '/tmp',
+        'uploads',
+        'feed',
+        'media',
+        '-1001234567890',
+        '167_0.jpg',
+      ),
     );
     expect(built).toContain(`${path.sep}feed${path.sep}media${path.sep}`);
     expect(built).not.toContain('crypto-news');

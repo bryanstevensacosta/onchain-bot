@@ -133,9 +133,9 @@ at | time ago | more details +`.
 - **C-DB-01 — one DB per app**: kol-system owns `onchain_bot_kol_system`
   (dev + Oracle prod) / `onchain_bot_kol_system_staging` (staging ingestion) on
   the same server per env (12-DB table in the central plan, bases
-  `onchain_bot_*` for the 4 NEW apps only — existing
-  `alpha_meta_token_scanner*` DBs stay UNTOUCHED, renaming prod data needs
-  its own migration decision); own `data-source.ts`, own migrations,
+  `onchain_bot_*` for the 4 NEW apps only — pre-existing backend/ingestion
+  DBs stay UNTOUCHED until the rename runbook executes
+  (.omo/runbooks/rename-onchain-bot-db.md, phase 3); own `data-source.ts`, own migrations,
   `synchronize:false, migrationsRun:false` outside dev/test. Staging AND
   production envs are both specced (PORTS table below + per-env templates
   `.env.staging.template` / `.env.production.template`).
@@ -481,7 +481,7 @@ src/
 test/
 ├── health.e2e-spec.ts
 └── jest-e2e.json
-Root: package.json (@alpha-meta-token-scanner/kol-system v0.1.0), nest-cli.json (deleteOutDir),
+Root: package.json (@onchain-bot/kol-system v0.1.0), nest-cli.json (deleteOutDir),
 tsconfig{,.build}.json, docker-compose.yml (postgres :5435, redis :6382), Dockerfile,
 .env.example, coverage/, dist/
 ```
@@ -935,8 +935,9 @@ One-DB-per-app (C-DB-01, central plan todo 2): dev local
 `onchain_bot_kol_system`, Oracle prod same base name, staging ingestion
 `onchain_bot_kol_system_staging` — 12 DBs total across the four
 apps (kol/content/market/dexter × 3 envs) on the same server per env
-(precedent: `<base>_ingestion`). Existing `alpha_meta_token_scanner*` DBs
-stay UNTOUCHED (open question: prod rename needs its own migration decision).
+(precedent: `<base>_ingestion`). Pre-existing backend/ingestion DBs
+stay UNTOUCHED until the rename runbook executes
+(.omo/runbooks/rename-onchain-bot-db.md, phase 3).
 Owner of migrations is kol-system itself (own
 `data-source.ts` + `migration:run`); snapshot tables (`mention_snapshots`) live
 in THIS db (P27), never a separate base.
@@ -981,7 +982,7 @@ gap narrowed 2026-09-25).
 Staging verification (todo 15): health with ALL components `up` —
 verified live 2026-09-25 on `:3051` (`jq -e '.components |
 has("ingestion"), has("database"), has("templates"), has("publishing")'`
-→ true ×4). Staging clock STARTED 2026-09-25 (14d, NOT complete);
+→ true ×4). Staging 48h validación STARTED 2026-09-25 (C4-bis: validación, NOT blocking T2);
 harness `apps/kol-system/scripts/dual-run-compare.mjs` (5% threshold,
 exit 2 + NO-cutover path over) + `rollback-rehearsal.sh` (timed 0.0min,
 <30min PASS); evidence `.omo/evidence/task-15-mega-refactor-kol-system.log`
@@ -1172,11 +1173,11 @@ sort=perf_desc|perf_asc|calls_desc`, wired (`TrackingModule` in
 - P11 (2026-09-24): KOL caller ranking `GET /api/kol-rankings?window=30d|7d|1d` over cron-fed `kol_window_stats`.
 - P12-bis (2026-09-24): per-template publishing bots stay in kol-system (unchanged by P13).
 - P13 (2026-09-24): Dexter lookup SUPERSEDES P12a → own app `apps/dexter-onchain-bot` (Tramo 3).
-- P14 (2026-09-24): `vip-calls` is a template NAME (default seed), never a module; backend dir deleted at cleanup.
+- P14 (2026-09-24, actualizado C4-bis 2026-09-25): `vip-calls` is a template NAME (default seed), never a module; backend dir deleted SOLO en FINAL REVIEW central (C4-bis.3), nunca en todo 16.
 - P15 (2026-09-24): SUPERSEDED by P16 — no multi-dashboard CRUD.
 - P16 (2026-09-24): one dashboard per template with source selector (`kolSourceIds: string[]`).
 - P17 (2026-09-24): horizontal-10 performance rank (5+5, arrows) + top-10 by count strip + extended config section.
-- P18 (2026-09-24): gradual per-BC deprecation (`@deprecated` headers now, deletion in todo 16).
+- P18 (2026-09-24, actualizado C4-bis 2026-09-25): gradual per-BC deprecation (`@deprecated` headers now, deletion SOLO en FINAL REVIEW central — nunca en todo 16).
 - P19 (2026-09-24): avatar resolved once by ingestion-telegram, permanent (janitor-excluded), consumed as URL.
 - P20 (2026-09-24): SSE-only ingestion, no polling loop (catch-up by cursor; remove 1-min fallback).
 - P21 (2026-09-24): health indicator per component; reuse/extend `src/shared/`, never copy.
@@ -1193,7 +1194,14 @@ sort=perf_desc|perf_asc|calls_desc`, wired (`TrackingModule` in
 - C-SSE-01 (2026-09-24): frames carry `data.messageType`; filtering is mandatory client-side (central todo 5).
 - C1 (2026-09-24): threads deferred — templates ship `threadConfig: null` + 501 stub; v2 with content-publisher.
 - C2 (2026-09-24): C-SHARED-01 inverted — Tramo 1 moves the KOL bot first, Tramo 2 the crypto adapters.
-- C3/C4 (2026-09-24): pilot risk on money-path (shadow/staging-14d/rehearsal/kill-switch); T2←T1, T3←T2 gates.
+- C3/C4 (2026-09-24, SUPERSEDED por C4-bis 2026-09-25 en lo bloqueante): pilot risk on money-path (shadow/staging-48h-validación/rehearsal/kill-switch); gates inter-tramo = deprecation-check + green (staging NO bloquea siguiente tramo); validación completa + eliminación deprecated + backend-remainder en FINAL REVIEW central.
+
+## DEPRECATION DISCIPLINE (C4-bis 2026-09-25)
+
+Every deprecated backend counterpart carries a `@deprecated` JSDoc stating
+the new path (`apps/kol-system/...`) plus the refactor target; nothing
+deprecated is deleted in-tramo — elimination happens ONLY in the central
+FINAL REVIEW (todo 9), which also decides the backend remainder.
 
 ## STANDING RULE
 

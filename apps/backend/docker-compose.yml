@@ -10,18 +10,18 @@ services:
     container_name: onchain-bot-postgres-dev
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-alpha_meta_token_scanner}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alpha_meta_token_scanner}
-      POSTGRES_DB: ${POSTGRES_DB:-alpha_meta_token_scanner}
+      POSTGRES_USER: ${POSTGRES_USER:-onchain_bot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-onchain_bot}
+      POSTGRES_DB: ${POSTGRES_DB:-onchain_bot}
     ports:
       - '${POSTGRES_PORT:-5432}:5432'
     volumes:
-      - alpha-meta-token-scanner-pg-data:/var/lib/postgresql/data
+      - onchain-bot-pg-data:/var/lib/postgresql/data
     healthcheck:
       test:
         [
           'CMD-SHELL',
-          'pg_isready -U ${POSTGRES_USER:-alpha_meta_token_scanner} -d ${POSTGRES_DB:-alpha_meta_token_scanner}',
+          'pg_isready -U ${POSTGRES_USER:-onchain_bot} -d ${POSTGRES_DB:-onchain_bot}',
         ]
       interval: 5s
       timeout: 3s
@@ -34,7 +34,7 @@ services:
     ports:
       - '${REDIS_PORT:-6379}:6379'
     volumes:
-      - alpha-meta-token-scanner-redis-data:/data
+      - onchain-bot-redis-data:/data
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
@@ -67,15 +67,15 @@ services:
     ports:
       - '${PGADMIN_PORT:-5050}:80'
     volumes:
-      - alpha-meta-token-scanner-pgadmin-data:/var/lib/pgadmin
+      - onchain-bot-pgadmin-data:/var/lib/pgadmin
       - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
       - ./pgadmin/preferences.json:/pgadmin4/preferences.json:ro
       - ./pgadmin/queries:/var/lib/pgadmin/storage/admin_admin.com/queries:ro
 
 volumes:
-  alpha-meta-token-scanner-pg-data:
-    name: alpha-meta-token-scanner-pg-data
-  alpha-meta-token-scanner-pgadmin-data:
-    name: alpha-meta-token-scanner-pgadmin-data
-  alpha-meta-token-scanner-redis-data:
-    name: alpha-meta-token-scanner-redis-data
+  onchain-bot-pg-data:
+    name: onchain-bot-pg-data
+  onchain-bot-pgadmin-data:
+    name: onchain-bot-pgadmin-data
+  onchain-bot-redis-data:
+    name: onchain-bot-redis-data

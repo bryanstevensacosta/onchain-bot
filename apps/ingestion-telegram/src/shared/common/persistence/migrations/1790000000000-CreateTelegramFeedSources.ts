@@ -16,9 +16,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * - `crypto_news_sources` is NOT touched otherwise — it stays live until
  *   plan item 5.
  */
-export class CreateTelegramFeedSources1790000000000
-  implements MigrationInterface
-{
+export class CreateTelegramFeedSources1790000000000 implements MigrationInterface {
   name = 'CreateTelegramFeedSources1790000000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

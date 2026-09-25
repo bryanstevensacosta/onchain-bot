@@ -4,7 +4,7 @@
  * Runs BEFORE any *.e2e-spec.ts (wired via test/jest-e2e.json `setupFiles`).
  * All 7 e2e specs boot the full AppModule, whose TypeORM config reads
  * INGESTION_DATABASE_NAME — without this file the suites connect to the dev
- * DB from `.env` (alpha_meta_token_scanner_ingestion).
+ * DB from `.env` (onchain_bot_ingestion).
  *
  * Behavior:
  * - If INGESTION_DATABASE_NAME is explicitly set to a NON-test database

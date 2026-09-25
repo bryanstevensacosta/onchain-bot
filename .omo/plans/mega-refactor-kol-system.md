@@ -7,7 +7,7 @@
 
 **What you'll get:** Una app nueva `kol-system` que saca todo lo KOL del monolito: tabla de calls por mención (sin dedup), templates configurables por bot, tracking first-seen y dashboard por template.
 
-**Why this approach:** Va primero por ser el money-path, con red de seguridad reforzada (staging 14 días + canal espejo + rollback ensayado). El diseño pivota del spec original: sin dedup, identidad en ingestion-telegram y classification dentro de templates.
+**Why this approach:** Va primero por ser el money-path, con red de seguridad reforzada (staging 48h validación no-bloqueante C4-bis + canal espejo + rollback ensayado; validación completa en FINAL REVIEW central). El diseño pivota del spec original: sin dedup, identidad en ingestion-telegram y classification dentro de templates.
 
 **What it will NOT do:** No toca crypto-news, no mueve providers físicos, no implementa threads (stub 501), no abre MTProto nuevo.
 
@@ -35,7 +35,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
 - P21: cada move-todo registra health indicator (`ingestion.sse`, `database`, `redis`, +1 por módulo); shared/ se REUTILIZA siempre (extender, nunca copiar/duplicar).
 - P25: `apps/kol-system/AGENTS.md` vivo — creado en todo 21, actualizado al cierre de cada todo.
 - P28: scoring 100% configurable por template (`scoring_config`; follow-up todo 22).
-- Dual-run sem 2-8 + shadow/dry-run + staging 14 días + rollback rehearsal + cutover por flags + cleanup (archivar, NO dropear).
+- Dual-run sem 2-8 + shadow/dry-run + staging 48h validación (C4-bis, no-bloqueante para T2) + rollback rehearsal + cutover por flags + deprecate-only (borrado solo en FINAL REVIEW central, NO aquí).
 
 ### Must NOT have (guardrails, anti-slop, scope boundaries)
 
@@ -44,7 +44,8 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
 - NO crear `/api/feed/kols` ni `/kol-messages` (usar `?type=kol` hasta decisión central G-05).
 - NO mover providers físicos (C-DATA-01: extracción física es Tramo 3) ni tocar `telegram/shared` fuera del movimiento KOL-bot (C-SHARED-01/C2).
 - NO MTProto fuera de ingestion-telegram. NO threads implementados (stub 501 + test).
-- NO cutover sin Gate T1 del plan central (staging 14d + shadow + rehearsal + E2E>200 + load 100/h×24h).
+- NO next-tramo sin Gate T1 C4-bis (deprecation-check + green suites). Staging 48h + shadow + rehearsal + E2E>200 + load 100/h×24h es validación, NO bloqueante para arrancar T2.
+- NO borrado en este tramo (C4-bis.3): deprecate-only con JSDoc (nueva ruta + refactor target); la eliminación es solo en la FINAL REVIEW central.
 
 ## Verification strategy
 
@@ -186,20 +187,20 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       Acceptance criteria: `npx playwright test -g "kol calls table"` verde con ≥1 fila `First time` y ≥1 `Nx from last call` + `npx playwright test -g "kol rankings table"` verde con ≥1 fila por ventana (30d/7d/1d) + `npx playwright test -g "template sources filter"` verde (elegir 2 sources, tabla muestra solo sus calls; limpiar = todas) + `npx playwright test -g "dashboard layout"` verde (ranking 5+5 con flechas que invierten orden; top-10 callers con selector 30D/7D/1D cambiando conteos)
       QA scenarios: happy tabla + expand + ranking con selector de ventana; failure API caída → empty-state, sin crash. Evidence .omo/evidence/task-14-mega-refactor-kol-system.log + captura
       Commit: Y | feat(frontend): tabla calls por template
-- [x] 15. Dual-run + shadow + staging 14d + rollback rehearsal (C3 + G-19)
-      What to do / Must NOT do: Sem 2-8 `KOL_PIPELINE_ENABLED=true` + `KOL_SYSTEM_ENABLED=true` comparando outputs side-by-side (logs + published); shadow/dry-run en canal espejo; staging 14 días; rehearsal rollback completo (re-enable backend + orchestrator off <30min) con tiempo medido. Suites legacy green: `npm run test:backend -- kol telegram token`, `test:ingestion`, `test:frontend`. Must NOT saltar staging ni rehearsal.
+- [x] 15. Dual-run + shadow + staging 48h validación + rollback rehearsal (C4-bis, no-bloqueante T2)
+      What to do / Must NOT do: Sem 2-8 `KOL_PIPELINE_ENABLED=true` + `KOL_SYSTEM_ENABLED=true` comparando outputs side-by-side (logs + published); shadow/dry-run en canal espejo; staging 48h validación (checklist completo sin recortes); rehearsal rollback completo (re-enable backend + orchestrator off <30min) con tiempo medido. Suites legacy green: `npm run test:backend -- kol telegram token`, `test:ingestion`, `test:frontend`. La ventana 48h NO bloquea arrancar T2 (hard gate T2 = deprecation-check + green). Must NOT saltar staging ni rehearsal como validación.
       Parallelization: Wave 4 | Blocked by: 11, 14 | Blocks: 16
       References: .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:639-693; plan central Gate T1
       Acceptance criteria: `grep -q "staging-hours: 48" /tmp/qa-tramo1.log && grep -q "rehearsal-min: " /tmp/qa-tramo1.log && grep -q "legacy-suites: green" /tmp/qa-tramo1.log` (el worker escribe esas 3 líneas con valores medidos: días efectivos, minutos rehearsal, resultado suites) + `curl -s localhost:3051/api/health | jq -e '.components | has("ingestion"), has("database"), has("templates"), has("publishing")'` (P21: todos los componentes en el health)
       QA scenarios: happy side-by-side sin divergencias >umbral; failure divergencia → investigar, NO cutover. Evidence /tmp/qa-tramo1.log + .omo/evidence/task-15-mega-refactor-kol-system.log
       Commit: N (evidencia) | — | —
-- [ ] 16. Cutover + cleanup Tramo 1 (Ph cutover spec)
-      What to do / Must NOT do: Staging 48h (`KOL_PIPELINE_ENABLED=false`, `KOL_SYSTEM_ENABLED=true`) → prod Blue/Green (deploy inactivo, health, `TEMPLATE_ORCHESTRATOR_ENABLED=true`, observar 30min+2h, disable backend) → tras 7 días OK: `rm -rf` kol backend (`kol/`, `ingestion/kol/`, `vip-calls/`), archivar tablas a `_archived` (NO DROP), deprecation headers resto. Rollback <30min listo.
-      Parallelization: Wave 4 | Blocked by: 15 | Blocks: Tramo 2 (precondition)
-      References: .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:658-714; plan central Gate T1
-      Acceptance criteria: `curl -s localhost:3030/api/vip-calls/calls/recent?limit=5` sigue respondiendo vía kol-system; `psql -c "\dn"` muestra `_archived`
+- [ ] 16. Cutover por flags + deprecate-only Tramo 1 (C4-bis: borrado solo en FINAL REVIEW)
+      What to do / Must NOT do: Staging 48h validación (`KOL_PIPELINE_ENABLED=false`, `KOL_SYSTEM_ENABLED=true`) → prod Blue/Green (deploy inactivo, health, `TEMPLATE_ORCHESTRATOR_ENABLED=true`, observar 30min+2h, disable backend) → deprecate-only: headers `@deprecated` + JSDoc (nueva ruta `apps/kol-system/...` + refactor target) en TODO el legacy KOL backend (`kol/`, `ingestion/kol/`, `vip-calls/`); NADA de `rm -rf`, NADA de DROP (archivado/borrado solo en FINAL REVIEW central todo 9). Cutover flags se mantienen. Rollback <30min listo.
+      Parallelization: Wave 4 | Blocked by: 15 | Blocks: Tramo 2 vía deprecation-check (T2-todo 0 verifica este deprecate + green, NO el reloj 48h)
+      References: .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:658-714; plan central Gate T1 C4-bis + FINAL REVIEW; .omo/drafts/mega-refactor-tramos.md §10 (C4-bis)
+      Acceptance criteria: `curl -s localhost:3030/api/vip-calls/calls/recent?limit=5` sigue respondiendo vía kol-system; `grep -r "@deprecated" apps/backend/src/kol apps/backend/src/telegram/vip-calls 2>/dev/null | wc -l` >= 1 por concepto; `ls apps/backend/src/kol` NO vacío (borrado prohibido aquí)
       QA scenarios: happy cutover sin gap >1 cron; failure post-cutover → rollback ejecutado y medido. Evidence .omo/evidence/task-16-mega-refactor-kol-system.log
-      Commit: Y | feat(kol-system)!: cutover y cleanup backend KOL (breaking scope)
+      Commit: Y | feat(kol-system): cutover por flags y deprecate-only backend KOL
 - [ ] 17. SUPERSEDED por P13 — NO ejecutar. Contenido movido a Tramo 3 todo 9 (`apps/dexter-onchain-bot/`).
       What to do / Must NOT do: Saltar este todo. Must NOT implementar lookup en kol-system.
       Parallelization: — | Blocked by: — | Blocks: —
@@ -252,5 +253,5 @@ Un commit por todo (feat(kol-system): …), salvo evidencia (N). Cutover con `!`
 ## Success criteria
 
 - `apps/kol-system/` en prod publicando VIP calls con `KOL_PIPELINE_ENABLED=false`.
-- Backend sin `kol/`, `ingestion/kol/`, `vip-calls/`; tablas archivadas en `_archived`.
-- Dashboard por template con tabla first-seen; staging 14d + rehearsal <30min en evidencia.
+- Backend con `kol/`, `ingestion/kol/`, `vip-calls/` deprecated (JSDoc con nueva ruta); borrado y archivado solo en FINAL REVIEW central.
+- Dashboard por template con tabla first-seen; staging 48h validación + rehearsal <30min en evidencia.

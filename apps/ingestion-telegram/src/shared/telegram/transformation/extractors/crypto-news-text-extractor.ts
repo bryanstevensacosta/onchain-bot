@@ -1,12 +1,12 @@
 /**
  * Crypto News Text Extractor
- * 
+ *
  * Extracts text from crypto-news messages using 4-source cascade:
  * 1. msg.message (primary)
  * 2. msg.text (secondary)
  * 3. msg.media.caption (tertiary)
  * 4. msg.fwdFrom.message (fallback)
- * 
+ *
  * Unlike KOL messages, crypto-news text is opaque content that can cross
  * the event bus boundary (no ToS restrictions).
  */
@@ -16,7 +16,7 @@ import { AbstractTextExtractor } from '../core/abstract-text-extractor';
 export class CryptoNewsTextExtractor extends AbstractTextExtractor {
   /**
    * Extract text with 4-source cascade
-   * 
+   *
    * @param msg - Telegram message object
    * @returns Extracted text or empty string
    */

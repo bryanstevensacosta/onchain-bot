@@ -44,8 +44,8 @@ services:
     container_name: onchain-bot-kol-system-postgres-staging
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-alpha_meta_token_scanner}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alpha_meta_token_scanner}
+      POSTGRES_USER: ${POSTGRES_USER:-onchain_bot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-onchain_bot}
       POSTGRES_DB: ${POSTGRES_DB:-onchain_bot_kol_system_staging}
     ports:
       - '5436:5432'
@@ -55,7 +55,7 @@ services:
       test:
         [
           'CMD-SHELL',
-          'pg_isready -U ${POSTGRES_USER:-alpha_meta_token_scanner} -d ${POSTGRES_DB:-onchain_bot_kol_system_staging}',
+          'pg_isready -U ${POSTGRES_USER:-onchain_bot} -d ${POSTGRES_DB:-onchain_bot_kol_system_staging}',
         ]
       interval: 5s
       timeout: 3s
@@ -97,9 +97,10 @@ services:
       KOL_SYSTEM_PORT: 3050
       # DB name onchain_bot_kol_system_staging per central plan
       # C-DB-01 (twin staging `<base>_<app>_staging`, base onchain_bot_*
-      # solo para apps NUEVAS — existentes alpha_meta_token_scanner* intactas);
+      # for NEW apps — pre-existing backend/ingestion DBs rename via runbook
+      # .omo/runbooks/rename-onchain-bot-db.md, untouched until then);
       # because kol-system reads DATABASE_URL (src/shared/config/database.config.ts).
-      DATABASE_URL: postgres://${POSTGRES_USER:-alpha_meta_token_scanner}:${POSTGRES_PASSWORD:-alpha_meta_token_scanner}@postgres:5432/${POSTGRES_DB:-onchain_bot_kol_system_staging}
+      DATABASE_URL: postgres://${POSTGRES_USER:-onchain_bot}:${POSTGRES_PASSWORD:-onchain_bot}@postgres:5432/${POSTGRES_DB:-onchain_bot_kol_system_staging}
       # Single-string form because kol-system reads REDIS_URL
       # (src/shared/config/redis.config.ts). Override with KOL_SYSTEM_REDIS_URL
       # when the staging redis carries a password.

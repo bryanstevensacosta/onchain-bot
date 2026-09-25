@@ -1,14 +1,14 @@
 /**
  * Abstract base class for entity normalization
- * 
+ *
  * Normalizes Telegram entity objects (links, mentions, hashtags, etc.)
  * from GramJS className format to a common normalized format.
- * 
+ *
  * Entities represent structured data within message text:
  * - URLs and text URLs
  * - Mentions and hashtags
  * - Text formatting (bold, italic, code, etc.)
- * 
+ *
  * @abstract
  */
 
@@ -25,7 +25,7 @@ export interface NormalizedEntity {
 export abstract class AbstractEntityNormalizer {
   /**
    * Normalize Telegram entities to common format
-   * 
+   *
    * @param entities - Raw entities from Telegram message
    * @returns Array of normalized entities
    */
@@ -33,9 +33,9 @@ export abstract class AbstractEntityNormalizer {
 
   /**
    * Map Telegram className to normalized type
-   * 
+   *
    * GramJS uses className like "MessageEntityUrl", we normalize to "url".
-   * 
+   *
    * @param className - Telegram entity className
    * @returns Normalized type string
    */
@@ -58,7 +58,7 @@ export abstract class AbstractEntityNormalizer {
       MessageEntityPhone: 'phone',
       MessageEntityBlockquote: 'blockquote',
     };
-    
+
     return map[className ?? ''] ?? 'unknown';
   }
 }

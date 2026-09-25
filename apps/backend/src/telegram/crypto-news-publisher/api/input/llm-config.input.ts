@@ -18,7 +18,10 @@ const REASONING_EFFORTS = ['low', 'medium', 'high', 'max'] as const;
 export type ReasoningEffortDto = (typeof REASONING_EFFORTS)[number];
 
 export class CreatePromptTemplateDto {
-  @ApiProperty({ description: 'Template name (unique)', example: 'default-news' })
+  @ApiProperty({
+    description: 'Template name (unique)',
+    example: 'default-news',
+  })
   @IsString()
   @Length(1, 100)
   public name!: string;
@@ -28,12 +31,17 @@ export class CreatePromptTemplateDto {
   @IsString()
   public description?: string | null;
 
-  @ApiProperty({ description: 'Gateway model id', example: 'opencode-zen/deepseek-v4-flash' })
+  @ApiProperty({
+    description: 'Gateway model id',
+    example: 'opencode-zen/deepseek-v4-flash',
+  })
   @IsString()
   @Length(1, 200)
   public model!: string;
 
-  @ApiPropertyOptional({ description: 'Whether the template supports vision input' })
+  @ApiPropertyOptional({
+    description: 'Whether the template supports vision input',
+  })
   @IsOptional()
   @IsBoolean()
   public supportsVision?: boolean;
@@ -50,7 +58,10 @@ export class CreatePromptTemplateDto {
   @Max(2)
   public temperature!: number;
 
-  @ApiPropertyOptional({ description: 'Reasoning effort', enum: REASONING_EFFORTS })
+  @ApiPropertyOptional({
+    description: 'Reasoning effort',
+    enum: REASONING_EFFORTS,
+  })
   @IsOptional()
   @IsIn(REASONING_EFFORTS)
   public reasoningEffort?: ReasoningEffortDto | null;
@@ -84,7 +95,9 @@ export class UpdatePromptTemplateDto {
   @Length(1, 200)
   public model?: string;
 
-  @ApiPropertyOptional({ description: 'Whether the template supports vision input' })
+  @ApiPropertyOptional({
+    description: 'Whether the template supports vision input',
+  })
   @IsOptional()
   @IsBoolean()
   public supportsVision?: boolean;
@@ -103,7 +116,10 @@ export class UpdatePromptTemplateDto {
   @Max(2)
   public temperature?: number;
 
-  @ApiPropertyOptional({ description: 'Reasoning effort', enum: REASONING_EFFORTS })
+  @ApiPropertyOptional({
+    description: 'Reasoning effort',
+    enum: REASONING_EFFORTS,
+  })
   @IsOptional()
   @IsIn(REASONING_EFFORTS)
   public reasoningEffort?: ReasoningEffortDto | null;
@@ -159,12 +175,17 @@ export class PreviewPromptDraftDto {
   @Max(2)
   public temperature?: number;
 
-  @ApiPropertyOptional({ description: 'Reasoning effort', enum: REASONING_EFFORTS })
+  @ApiPropertyOptional({
+    description: 'Reasoning effort',
+    enum: REASONING_EFFORTS,
+  })
   @IsOptional()
   @IsIn(REASONING_EFFORTS)
   public reasoningEffort?: ReasoningEffortDto | null;
 
-  @ApiPropertyOptional({ description: 'Informational only on the dry-run path (no image bytes)' })
+  @ApiPropertyOptional({
+    description: 'Informational only on the dry-run path (no image bytes)',
+  })
   @IsOptional()
   @IsBoolean()
   // Accepted so playground drafts validate; preview samples carry no image
@@ -184,7 +205,10 @@ export class PreviewPromptDto {
   @IsString()
   public templateId?: string;
 
-  @ApiPropertyOptional({ description: 'Inline draft template (XOR with templateId)', type: PreviewPromptDraftDto })
+  @ApiPropertyOptional({
+    description: 'Inline draft template (XOR with templateId)',
+    type: PreviewPromptDraftDto,
+  })
   @IsOptional()
   @ValidateNested()
   @Type(() => PreviewPromptDraftDto)
@@ -208,7 +232,9 @@ export class PreviewPromptDto {
   @IsBoolean()
   public hasImage?: boolean;
 
-  @ApiPropertyOptional({ description: 'When true, make one real LLM call; otherwise render only' })
+  @ApiPropertyOptional({
+    description: 'When true, make one real LLM call; otherwise render only',
+  })
   @IsOptional()
   @IsBoolean()
   public generate?: boolean;
@@ -220,18 +246,26 @@ export class UpdateLlmConfigDto {
   @IsString()
   public defaultTemplateId?: string;
 
-  @ApiPropertyOptional({ description: 'Target Telegram channel', example: '-1001234567890' })
+  @ApiPropertyOptional({
+    description: 'Target Telegram channel',
+    example: '-1001234567890',
+  })
   @IsOptional()
   @IsString()
   @Length(1, 64)
   public targetChannel?: string;
 
-  @ApiPropertyOptional({ description: 'LLM refinement enabled (locked in production; requires publishingEnabled)' })
+  @ApiPropertyOptional({
+    description:
+      'LLM refinement enabled (locked in production; requires publishingEnabled)',
+  })
   @IsOptional()
   @IsBoolean()
   public llmEnabled?: boolean;
 
-  @ApiPropertyOptional({ description: 'Master publishing switch (queue drain)' })
+  @ApiPropertyOptional({
+    description: 'Master publishing switch (queue drain)',
+  })
   @IsOptional()
   @IsBoolean()
   public publishingEnabled?: boolean;
@@ -241,14 +275,19 @@ export class UpdateLlmConfigDto {
   @IsBoolean()
   public rejectNonLatin?: boolean;
 
-  @ApiPropertyOptional({ description: 'Max publishes per day (min 1)', example: 36 })
+  @ApiPropertyOptional({
+    description: 'Max publishes per day (min 1)',
+    example: 36,
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   public dailyCap?: number;
 
-  @ApiPropertyOptional({ description: 'UTC hour of the daily cap reset (0-23)' })
+  @ApiPropertyOptional({
+    description: 'UTC hour of the daily cap reset (0-23)',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -256,14 +295,18 @@ export class UpdateLlmConfigDto {
   @Max(23)
   public dailyResetUtcHour?: number;
 
-  @ApiPropertyOptional({ description: 'Min random delay between publishes (ms)' })
+  @ApiPropertyOptional({
+    description: 'Min random delay between publishes (ms)',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(0)
   public randomDelayMinMs?: number;
 
-  @ApiPropertyOptional({ description: 'Max random delay between publishes (ms, min 1)' })
+  @ApiPropertyOptional({
+    description: 'Max random delay between publishes (ms, min 1)',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

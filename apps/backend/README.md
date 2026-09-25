@@ -1,4 +1,4 @@
-# apps/backend — Alpha Meta Token Scanner
+# apps/backend — Onchain Bot
 
 Pipeline NestJS que descubre alpha-calls de tokens on-chain desde canales de Telegram KOL, las valida, estructura y republica a canales de output.
 

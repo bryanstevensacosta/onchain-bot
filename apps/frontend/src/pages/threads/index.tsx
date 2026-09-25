@@ -448,8 +448,8 @@ export function ThreadsPage(): React.ReactElement {
         <div className="space-y-1">
           <h1 className="text-2xl font-bold text-slate-100">Threads</h1>
           <p className="text-sm text-slate-400 mt-1">
-            Threads publishing pipeline: keywords, filters, queue, and
-            drafting assistant.
+            Threads publishing pipeline: keywords, filters, queue, and drafting
+            assistant.
           </p>
         </div>
       </header>

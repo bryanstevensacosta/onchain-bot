@@ -36,6 +36,17 @@ import { DefaultTrackingFilterSeedService } from 'token/call-tracking/infrastruc
 import { TrackedCallsController } from 'token/call-tracking/api/http/tracked-calls.controller';
 
 /**
+ * @deprecated Moved to apps/kol-system/src/tracking/ (Tramo 1, todo 12 + P18 companion).
+ * Tracking first-seen now lives in kol-system: first_seen_at / first_mc_at / last_call_mc_at /
+ * times_called + `First time` vs `Nx from last call` + kol_window_stats rankings (P8/P11).
+ * This module stays wired for dual-run; it will be removed in todo 16 (cutover + cleanup).
+ * Do not extend it — add tracking logic in apps/kol-system/src/tracking/ instead.
+ *
+ * New location: apps/kol-system/src/tracking/
+ * Reason: extracting KOL pipeline from backend monolith to dedicated app
+ * Breaking change: Yes (removal in todo 16)
+ * Rollback: re-enable backend path (KOL_PIPELINE_ENABLED=true)
+ *
  * Call Tracking BC module.
  *
  * Two responsibilities:

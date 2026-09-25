@@ -20,7 +20,12 @@ describe('TelegramEntityNormalizer', () => {
 
     it('should normalize MessageEntityTextUrl to text_url', () => {
       const entities = [
-        { offset: 0, length: 10, className: 'MessageEntityTextUrl', url: 'https://example.com' },
+        {
+          offset: 0,
+          length: 10,
+          className: 'MessageEntityTextUrl',
+          url: 'https://example.com',
+        },
       ];
 
       const result = normalizer.normalize(entities);
@@ -88,7 +93,12 @@ describe('TelegramEntityNormalizer', () => {
 
     it('should include url field when present', () => {
       const entities = [
-        { offset: 0, length: 10, className: 'MessageEntityTextUrl', url: 'https://example.com' },
+        {
+          offset: 0,
+          length: 10,
+          className: 'MessageEntityTextUrl',
+          url: 'https://example.com',
+        },
       ];
 
       const result = normalizer.normalize(entities);
@@ -136,9 +146,7 @@ describe('TelegramEntityNormalizer', () => {
     });
 
     it('should handle entities without className', () => {
-      const entities = [
-        { offset: 0, length: 10 },
-      ];
+      const entities = [{ offset: 0, length: 10 }];
 
       const result = normalizer.normalize(entities);
 
@@ -146,9 +154,7 @@ describe('TelegramEntityNormalizer', () => {
     });
 
     it('should handle entities with null className', () => {
-      const entities = [
-        { offset: 0, length: 10, className: null },
-      ];
+      const entities = [{ offset: 0, length: 10, className: null }];
 
       const result = normalizer.normalize(entities);
 

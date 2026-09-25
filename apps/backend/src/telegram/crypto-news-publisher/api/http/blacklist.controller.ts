@@ -14,12 +14,7 @@ import { BlacklistPhraseRepository } from 'telegram/crypto-news-publisher/applic
 import { BlacklistPhrase } from 'telegram/crypto-news-publisher/domain/entities/blacklist-phrase.entity';
 import type { MatchMode } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
 import { PhraseRegistryService } from 'telegram/crypto-news-publisher/application/services/phrase-registry.service';
-import {
-  ApiOperation,
-  ApiParam,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 export interface BlacklistPhraseView {
   readonly id: string;
@@ -135,7 +130,9 @@ export class BlacklistController {
 
   @Post('batch')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Create an AND-group of blacklist phrases in one call' })
+  @ApiOperation({
+    summary: 'Create an AND-group of blacklist phrases in one call',
+  })
   @ApiResponse({ status: 201, description: 'Blacklist phrases created' })
   @ApiResponse({ status: 400, description: 'Validation error' })
   public async createBatch(

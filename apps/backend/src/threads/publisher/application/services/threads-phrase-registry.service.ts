@@ -36,7 +36,7 @@ export class ThreadsPhraseRegistryService {
   ) {}
 
   /**
-    * Check that `phrase` is not already taken within its own table.
+   * Check that `phrase` is not already taken within its own table.
    *
    * Only simple phrases (`andGroupId === null`) are validated.
    * Compounds are silently skipped.

@@ -1,3 +1,16 @@
+/**
+ * @deprecated Moved to apps/kol-system/src/normalization/ (Tramo 1, todo 7 + P18 companion).
+ * Normalization as mention-index now lives in kol-system: NormalizeCallUseCase →
+ * (contract, kol, messageId) index WITHOUT collapse ("one card per coin" explicitly
+ * derogated per P1). This module stays wired for dual-run; it will be removed in
+ * todo 16 (cutover + cleanup). Do not extend it — add normalization logic in
+ * apps/kol-system/src/normalization/ instead.
+ *
+ * New location: apps/kol-system/src/normalization/
+ * Reason: extracting KOL pipeline from backend monolith to dedicated app
+ * Breaking change: Yes (removal in todo 16)
+ * Rollback: re-enable backend path (KOL_PIPELINE_ENABLED=true)
+ */
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';

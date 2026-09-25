@@ -27,9 +27,13 @@ export type TelegramFeedMessageType = 'kol' | 'crypto-news';
 @Entity({ name: 'telegram_feed_messages' })
 @Index('idx_telegram_feed_messages_channel_id', ['channelId'])
 @Index('idx_telegram_feed_messages_ingested_at', ['ingestedAt'])
-@Index('uq_telegram_feed_messages_channel_message', ['channelId', 'messageId'], {
-  unique: true,
-})
+@Index(
+  'uq_telegram_feed_messages_channel_message',
+  ['channelId', 'messageId'],
+  {
+    unique: true,
+  },
+)
 export class TelegramFeedMessageEntity {
   @PrimaryColumn({ name: 'id', type: 'uuid' })
   public id!: string;

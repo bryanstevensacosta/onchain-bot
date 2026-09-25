@@ -1,11 +1,11 @@
 # BC Coupling Analysis & Recommendations
 
-> Analysis of the risk-evaluation pipeline (`classification → scoring → token-gating`) and `settings` as a candidate BC, in the alpha-meta-token-scanner monorepo.
+> Analysis of the risk-evaluation pipeline (`classification → scoring → token-gating`) and `settings` as a candidate BC, in the onchain-bot monorepo.
 > Scope: `apps/backend/src/token/{classification,scoring,token-gating,honeypot}` and `apps/backend/src/settings/`. Single-operator internal app, no auth, single deploy unit.
 
 ## 1. Executive Summary
 
-The risk-evaluation chain is **three distinct Bounded Contexts**, not one. Each answers a different verb: *classify* (categorize a token from a snapshot), *quantify* (reduce to a 0–100 score), and *decide* (apply hard gates to approve/reject). They share data through domain events, not direct calls, and persist in separate tables (`token_classifications`, `token_scores`, `filter_decisions`) with no foreign keys between them. The frontend already mirrors that split (`entities/token-classification`, `entities/token-score`, `entities/filter-decision`).
+The risk-evaluation chain is **three distinct Bounded Contexts**, not one. Each answers a different verb: _classify_ (categorize a token from a snapshot), _quantify_ (reduce to a 0–100 score), and _decide_ (apply hard gates to approve/reject). They share data through domain events, not direct calls, and persist in separate tables (`token_classifications`, `token_scores`, `filter_decisions`) with no foreign keys between them. The frontend already mirrors that split (`entities/token-classification`, `entities/token-score`, `entities/filter-decision`).
 
 **Three explicit verdicts:**
 
@@ -13,7 +13,7 @@ The risk-evaluation chain is **three distinct Bounded Contexts**, not one. Each 
 2. **Settings → KEEP FLAT (single BC, four controllers).** `SettingsModule` is already a first-class NestJS module (`settings.module.ts:15-37`) with its own 4 tables and 4 HTTP controllers. Sub-BC decomposition is only justified once an admin UI forces 1:1 ownership boundaries.
 3. **Real technical debt lives in event payload shape, not BC boundaries.** Data is silently dropped in `token-classified.handler.ts:33-36` (liquidity/MC/volume/holders → `null`), and `token-scored.handler.ts:45-50` re-queries classification to recover `riskWeight` rather than reading it from the event. These are additive enrichments, not merge-trigger refactors.
 
-**DDD heuristic used throughout:** *distinct verbs = distinct BCs*; *same verb, different stakeholders = same BC*; *data shape overlaps ≠ shared BC*.
+**DDD heuristic used throughout:** _distinct verbs = distinct BCs_; _same verb, different stakeholders = same BC_; _data shape overlaps ≠ shared BC_.
 
 **Verdict: classification+scoring+token-gating → KEEP SEPARATE.**
 **Verdict: settings → KEEP FLAT (single BC, four controllers).**
@@ -23,11 +23,11 @@ The risk-evaluation chain is **three distinct Bounded Contexts**, not one. Each 
 
 ### Table 1 — Cross-BC imports in the risk-evaluation pipeline
 
-| From → To | classification | scoring | token-gating |
-|---|---|---|---|
-| **classification** uses | — | emits `classification.token.classified` (no direct import) | none |
-| **scoring** uses | imports `TokenClassifiedEvent` only (`token-classified.handler.ts:3-4`) for the event-bus bridge; does NOT import `TokenClassification` entity or repo | — | emits `scoring.token.scored` (no direct import) |
-| **token-gating** uses | imports `TokenClassificationRepository` **only inside the event-bus handler** (`token-scored.handler.ts:6,47`) to re-query `riskWeight`; the use case `apply-filters.use-case.ts:1-12` does **not** import anything from classification | imports `TokenScoredEvent` only (`token-scored.handler.ts:4`) for the event-bus bridge | — |
+| From → To               | classification                                                                                                                                                                                                                          | scoring                                                                                | token-gating                                    |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| **classification** uses | —                                                                                                                                                                                                                                       | emits `classification.token.classified` (no direct import)                             | none                                            |
+| **scoring** uses        | imports `TokenClassifiedEvent` only (`token-classified.handler.ts:3-4`) for the event-bus bridge; does NOT import `TokenClassification` entity or repo                                                                                  | —                                                                                      | emits `scoring.token.scored` (no direct import) |
+| **token-gating** uses   | imports `TokenClassificationRepository` **only inside the event-bus handler** (`token-scored.handler.ts:6,47`) to re-query `riskWeight`; the use case `apply-filters.use-case.ts:1-12` does **not** import anything from classification | imports `TokenScoredEvent` only (`token-scored.handler.ts:4`) for the event-bus bridge | —                                               |
 
 **Interpretation:** every cross-BC reference is mediated by the in-process event bus (`@nestjs/event-emitter`) plus a port-driven re-query inside one handler. There are no module-to-module circular imports and no shared aggregates. The single direct dependency (`TokenClassificationRepository` inside `token-scored.handler.ts:6`) is the actual debt — see §3b and §4.
 
@@ -39,12 +39,12 @@ Every BC in the risk pipeline imports `ChainId` from `chain/chain-detection/doma
 
 `SettingsModule` (`settings.module.ts:15-37`) owns four controllers, four TypeORM entities, and two services. Each sub-domain below has **its own controller, its own entity, and its own DTO** — the only thing they share is the parent module and the audit log writer.
 
-| Sub-domain | Own controller | Own DTO/input | Own entity (table) | Own URL prefix |
-|---|---|---|---|---|
-| Signal penalties | `SignalsController` (`settings.module.ts:29`) | `signal.dto.ts` (CRUD) | `SignalEntity` → `signals` (`settings.module.ts:19`) | `/settings/signals` |
+| Sub-domain                   | Own controller                                   | Own DTO/input              | Own entity (table)                                      | Own URL prefix         |
+| ---------------------------- | ------------------------------------------------ | -------------------------- | ------------------------------------------------------- | ---------------------- |
+| Signal penalties             | `SignalsController` (`settings.module.ts:29`)    | `signal.dto.ts` (CRUD)     | `SignalEntity` → `signals` (`settings.module.ts:19`)    | `/settings/signals`    |
 | Score thresholds (KOL tiers) | `ThresholdsController` (`settings.module.ts:30`) | `scoring-threshold.dto.ts` | `ScoringThresholdEntity` → `scoring_thresholds` (`:21`) | `/settings/thresholds` |
-| Filter/parameter catch-all | `FiltersController` (`settings.module.ts:31`) | `settings-filter.dto.ts` | `SettingsFilterEntity` → `settings_filters` (`:22`) | `/settings/filters` |
-| Audit log (read-only) | `AuditController` (`settings.module.ts:32`) | `audit-query.dto.ts` | `SettingsAuditLogEntity` → `settings_audit_log` (`:23`) | `/settings/audit` |
+| Filter/parameter catch-all   | `FiltersController` (`settings.module.ts:31`)    | `settings-filter.dto.ts`   | `SettingsFilterEntity` → `settings_filters` (`:22`)     | `/settings/filters`    |
+| Audit log (read-only)        | `AuditController` (`settings.module.ts:32`)      | `audit-query.dto.ts`       | `SettingsAuditLogEntity` → `settings_audit_log` (`:23`) | `/settings/audit`      |
 
 The **frontend does not yet have a `settings` page** (`apps/frontend/src/pages/` has 6 pages — dashboard, live-feed, tokens-explorer, token-detail, kols, ops — no settings). Operators currently mutate settings via the Tailscale-only HTTP API and an ad-hoc admin script.
 
@@ -78,7 +78,7 @@ The four sub-domains share **only** the audit log writer (`AuditService`) and th
 
 Compare against the alternative: a flat namespace of `/settings/signals`, `/settings/thresholds`, `/settings/filters`, `/settings/audit` (current) versus a sub-BC split of `SignalsModule`, `ThresholdsModule`, `FiltersModule`, `AuditModule` each with their own DI graph, their own TypeORM `forFeature`, and their own consumer surface. The sub-BC split would require ~3× the boilerplate (4 modules, 4 controllers duplicated as exports, 4 service layers, 4 caching strategies) for an operator who today hits 4 URLs and sees one audit log. There is no observable benefit until an external trigger (UI, team, deploy cadence) demands it.
 
-The real problem here is **inside one of the sub-domains**: `settings_filters` table (`settings-filter.entity.ts:10-47`) is overloaded as a catch-all for ~28 distinct `type` values (base_score, multiplier_pivot, security_cap_*, min_score, max_risk_weight, min_completeness, blocked_classification, enable_blacklist, publishable_chain, honeypot_*, bundlers_threshold, insiders_threshold, bonding_threshold, kol_*, known_good_kol, known_bad_kol, blacklist_mint, …). The `value`/`numericValue` polymorphic columns are the symptom — the domain knows there are 4 distinct parameter families (scoring-formula, KOL-reputation, honeypot-thresholds, chain-gating). Reading `apps/backend/README.md` §6 confirms that the operator's mental model already groups them this way ("Tipos de `SettingsFilterEntity.type`" is followed by type-by-type enumeration rather than a category-first view).
+The real problem here is **inside one of the sub-domains**: `settings_filters` table (`settings-filter.entity.ts:10-47`) is overloaded as a catch-all for ~28 distinct `type` values (base*score, multiplier_pivot, security_cap*_, min*score, max_risk_weight, min_completeness, blocked_classification, enable_blacklist, publishable_chain, honeypot*_, bundlers*threshold, insiders_threshold, bonding_threshold, kol*\*, known_good_kol, known_bad_kol, blacklist_mint, …). The `value`/`numericValue` polymorphic columns are the symptom — the domain knows there are 4 distinct parameter families (scoring-formula, KOL-reputation, honeypot-thresholds, chain-gating). Reading `apps/backend/README.md` §6 confirms that the operator's mental model already groups them this way ("Tipos de `SettingsFilterEntity.type`" is followed by type-by-type enumeration rather than a category-first view).
 
 **Verdict: KEEP FLAT.** Sub-BC decomposition is premature — there is no admin UI yet, no team split, and no independent-deploy requirement. The actionable fix is internal to `SettingsFilterEntity`: split the catch-all into 4 typed tables (or 4 polymorphic concrete subclasses sharing the audit log), not into 4 NestJS modules.
 

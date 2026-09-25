@@ -18,12 +18,7 @@ import {
   DeleteFilterUseCase,
   ToggleFilterUseCase,
 } from 'telegram/ingestion/crypto-news/application/handlers/filters';
-import {
-  ApiOperation,
-  ApiParam,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 /**
  * Crypto-news content-filter endpoints (post db-separation todo 4).
@@ -55,7 +50,10 @@ export class CryptoNewsController {
   @Post('sources/:channelId/filters')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a content filter for a channel' })
-  @ApiParam({ name: 'channelId', description: 'Telegram channel id (opaque, FK-less)' })
+  @ApiParam({
+    name: 'channelId',
+    description: 'Telegram channel id (opaque, FK-less)',
+  })
   @ApiResponse({ status: 201, description: 'Filter created' })
   @ApiResponse({ status: 400, description: 'Validation error' })
   @ApiResponse({ status: 404, description: 'Unknown channel id' })
@@ -94,7 +92,10 @@ export class CryptoNewsController {
    */
   @Get('sources/:channelId/filters')
   @ApiOperation({ summary: 'List content filters for a channel' })
-  @ApiParam({ name: 'channelId', description: 'Telegram channel id (opaque, FK-less)' })
+  @ApiParam({
+    name: 'channelId',
+    description: 'Telegram channel id (opaque, FK-less)',
+  })
   @ApiResponse({ status: 200, description: 'Channel filters' })
   @ApiResponse({ status: 404, description: 'Unknown channel id' })
   public async getFilters(@Param('channelId') channelId: string) {

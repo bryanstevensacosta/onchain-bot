@@ -44,9 +44,9 @@ async function main(): Promise<void> {
   const client = new Client({
     host: process.env.POSTGRES_HOST ?? 'localhost',
     port: Number(process.env.POSTGRES_PORT ?? 5432),
-    user: process.env.POSTGRES_USER ?? 'alpha_meta_token_scanner',
-    password: process.env.POSTGRES_PASSWORD ?? 'alpha_meta_token_scanner',
-    database: process.env.POSTGRES_DB ?? 'alpha_meta_token_scanner',
+    user: process.env.POSTGRES_USER ?? 'onchain_bot',
+    password: process.env.POSTGRES_PASSWORD ?? 'onchain_bot',
+    database: process.env.POSTGRES_DB ?? 'onchain_bot',
   });
   await client.connect();
 

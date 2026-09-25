@@ -31,7 +31,7 @@ $ curl http://localhost:3030/api/health
   "status": "ok",
   "uptime": 1687,
   "timestamp": "2026-09-05T03:01:22.335Z",
-  "service": "alpha-meta-token-scanner",
+  "service": "onchain-bot",
   "version": "0.0.0"
 }
 ```

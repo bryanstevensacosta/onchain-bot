@@ -1,10 +1,5 @@
 import { Controller, Get, ParseBoolPipe, Query } from '@nestjs/common';
-import {
-  ApiOperation,
-  ApiQuery,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { KeywordRepository } from 'telegram/crypto-news-publisher/application/ports/keyword.repository';
 import { BlacklistPhraseRepository } from 'telegram/crypto-news-publisher/application/ports/blacklist-phrase.repository';
 import type { MatchMode } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
@@ -59,7 +54,9 @@ export class PhrasesController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'List all phrases (keywords + blacklist) newest first' })
+  @ApiOperation({
+    summary: 'List all phrases (keywords + blacklist) newest first',
+  })
   @ApiResponse({ status: 200, description: 'All phrases' })
   public async list(): Promise<ReadonlyArray<PhraseEntry>> {
     const [keywords, blacklist] = await Promise.all([
@@ -103,8 +100,14 @@ export class PhrasesController {
   }
 
   @Get('search')
-  @ApiOperation({ summary: 'Search phrases by text across keywords and blacklist' })
-  @ApiQuery({ name: 'q', required: true, description: 'Case-insensitive substring to search' })
+  @ApiOperation({
+    summary: 'Search phrases by text across keywords and blacklist',
+  })
+  @ApiQuery({
+    name: 'q',
+    required: true,
+    description: 'Case-insensitive substring to search',
+  })
   @ApiQuery({ name: 'table', required: false, enum: ['keyword', 'blacklist'] })
   @ApiResponse({ status: 200, description: 'Matching phrases' })
   public async search(
@@ -169,10 +172,16 @@ export class PhrasesController {
   }
 
   @Get('conflict-check')
-  @ApiOperation({ summary: 'Check whether a phrase would conflict with existing entries' })
+  @ApiOperation({
+    summary: 'Check whether a phrase would conflict with existing entries',
+  })
   @ApiQuery({ name: 'phrase', required: true, description: 'Phrase to check' })
   @ApiQuery({ name: 'caseSensitive', required: false, type: Boolean })
-  @ApiQuery({ name: 'matchMode', required: false, enum: ['exact', 'substring'] })
+  @ApiQuery({
+    name: 'matchMode',
+    required: false,
+    enum: ['exact', 'substring'],
+  })
   @ApiResponse({ status: 200, description: 'Conflict check result' })
   public async conflictCheck(
     @Query('phrase') phrase: string,

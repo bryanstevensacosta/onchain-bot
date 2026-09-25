@@ -198,7 +198,7 @@ Multi-stage Dockerfile (node:22-bookworm build with `tsc -b && vite build` via r
 ## COMMANDS
 
 ```bash
-cd apps/frontend            # or root -w @alpha-meta-token-scanner/frontend
+cd apps/frontend            # or root -w @onchain-bot/frontend
 npm run dev                 # :5173 strict (root runs port-cleanup first)
 npm run build               # tsc -b && vite build
 npm run test | :watch       # vitest run | vitest

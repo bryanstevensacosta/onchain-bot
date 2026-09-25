@@ -15,7 +15,7 @@ COPY apps/ingestion-telegram/package*.json ./apps/ingestion-telegram/
 
 # Install dependencies (including devDependencies for build)
 # Use --ignore-scripts to prevent prepare hook failures (no husky in Docker)
-RUN npm ci --workspace=@alpha-meta-token-scanner/ingestion-telegram --ignore-scripts
+RUN npm ci --workspace=@onchain-bot/ingestion-telegram --ignore-scripts
 
 # Copy source code
 COPY apps/ingestion-telegram/ ./apps/ingestion-telegram/
@@ -25,7 +25,7 @@ COPY tsconfig.base.json ./
 COPY config/ ./config/
 
 # Build application
-RUN npm run build --workspace=@alpha-meta-token-scanner/ingestion-telegram
+RUN npm run build --workspace=@onchain-bot/ingestion-telegram
 
 # Stage 2: Production
 FROM node:22-alpine
@@ -48,7 +48,7 @@ ENV HUSKY=0
 
 # Install production dependencies only
 # Use --ignore-scripts to prevent prepare hook failures
-RUN npm ci --workspace=@alpha-meta-token-scanner/ingestion-telegram --omit=dev --ignore-scripts
+RUN npm ci --workspace=@onchain-bot/ingestion-telegram --omit=dev --ignore-scripts
 
 # Copy built application
 COPY --from=builder /app/apps/ingestion-telegram/dist ./apps/ingestion-telegram/dist

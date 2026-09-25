@@ -1,8 +1,5 @@
 import { BadRequestException, RequestMethod } from '@nestjs/common';
-import {
-  METHOD_METADATA,
-  PATH_METADATA,
-} from '@nestjs/common/constants';
+import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ThreadsBlacklistController } from './blacklist.controller';
@@ -38,7 +35,10 @@ interface RouteProbe {
 }
 
 const routeOf = (controller: ControllerClass, method: string): RouteProbe => {
-  const target = controller.prototype as Record<string, (...args: never[]) => unknown>;
+  const target = controller.prototype as Record<
+    string,
+    (...args: never[]) => unknown
+  >;
   const handler = target[method];
   return {
     controller,
@@ -148,34 +148,154 @@ describe('ThreadsPublisher HTTP routes (T4)', () => {
     it('exposes the pinned method routes', () => {
       const expected: RouteProbe[] = [
         // keywords CRUD + batch
-        { controller: ThreadsKeywordsController, method: 'list', httpMethod: RequestMethod.GET, path: '/' },
-        { controller: ThreadsKeywordsController, method: 'getOne', httpMethod: RequestMethod.GET, path: ':id' },
-        { controller: ThreadsKeywordsController, method: 'create', httpMethod: RequestMethod.POST, path: '/' },
-        { controller: ThreadsKeywordsController, method: 'createBatch', httpMethod: RequestMethod.POST, path: 'batch' },
-        { controller: ThreadsKeywordsController, method: 'update', httpMethod: RequestMethod.PATCH, path: ':id' },
-        { controller: ThreadsKeywordsController, method: 'remove', httpMethod: RequestMethod.DELETE, path: ':id' },
+        {
+          controller: ThreadsKeywordsController,
+          method: 'list',
+          httpMethod: RequestMethod.GET,
+          path: '/',
+        },
+        {
+          controller: ThreadsKeywordsController,
+          method: 'getOne',
+          httpMethod: RequestMethod.GET,
+          path: ':id',
+        },
+        {
+          controller: ThreadsKeywordsController,
+          method: 'create',
+          httpMethod: RequestMethod.POST,
+          path: '/',
+        },
+        {
+          controller: ThreadsKeywordsController,
+          method: 'createBatch',
+          httpMethod: RequestMethod.POST,
+          path: 'batch',
+        },
+        {
+          controller: ThreadsKeywordsController,
+          method: 'update',
+          httpMethod: RequestMethod.PATCH,
+          path: ':id',
+        },
+        {
+          controller: ThreadsKeywordsController,
+          method: 'remove',
+          httpMethod: RequestMethod.DELETE,
+          path: ':id',
+        },
         // blacklist CRUD + batch
-        { controller: ThreadsBlacklistController, method: 'list', httpMethod: RequestMethod.GET, path: '/' },
-        { controller: ThreadsBlacklistController, method: 'create', httpMethod: RequestMethod.POST, path: '/' },
-        { controller: ThreadsBlacklistController, method: 'createBatch', httpMethod: RequestMethod.POST, path: 'batch' },
-        { controller: ThreadsBlacklistController, method: 'remove', httpMethod: RequestMethod.DELETE, path: ':id' },
+        {
+          controller: ThreadsBlacklistController,
+          method: 'list',
+          httpMethod: RequestMethod.GET,
+          path: '/',
+        },
+        {
+          controller: ThreadsBlacklistController,
+          method: 'create',
+          httpMethod: RequestMethod.POST,
+          path: '/',
+        },
+        {
+          controller: ThreadsBlacklistController,
+          method: 'createBatch',
+          httpMethod: RequestMethod.POST,
+          path: 'batch',
+        },
+        {
+          controller: ThreadsBlacklistController,
+          method: 'remove',
+          httpMethod: RequestMethod.DELETE,
+          path: ':id',
+        },
         // phrases search + conflict-check
-        { controller: ThreadsPhrasesController, method: 'list', httpMethod: RequestMethod.GET, path: '/' },
-        { controller: ThreadsPhrasesController, method: 'search', httpMethod: RequestMethod.GET, path: 'search' },
-        { controller: ThreadsPhrasesController, method: 'conflictCheck', httpMethod: RequestMethod.GET, path: 'conflict-check' },
+        {
+          controller: ThreadsPhrasesController,
+          method: 'list',
+          httpMethod: RequestMethod.GET,
+          path: '/',
+        },
+        {
+          controller: ThreadsPhrasesController,
+          method: 'search',
+          httpMethod: RequestMethod.GET,
+          path: 'search',
+        },
+        {
+          controller: ThreadsPhrasesController,
+          method: 'conflictCheck',
+          httpMethod: RequestMethod.GET,
+          path: 'conflict-check',
+        },
         // queue list + counts + cancel
-        { controller: ThreadsQueueController, method: 'list', httpMethod: RequestMethod.GET, path: '/' },
-        { controller: ThreadsQueueController, method: 'counts', httpMethod: RequestMethod.GET, path: 'counts' },
-        { controller: ThreadsQueueController, method: 'remove', httpMethod: RequestMethod.DELETE, path: ':id' },
+        {
+          controller: ThreadsQueueController,
+          method: 'list',
+          httpMethod: RequestMethod.GET,
+          path: '/',
+        },
+        {
+          controller: ThreadsQueueController,
+          method: 'counts',
+          httpMethod: RequestMethod.GET,
+          path: 'counts',
+        },
+        {
+          controller: ThreadsQueueController,
+          method: 'remove',
+          httpMethod: RequestMethod.DELETE,
+          path: ':id',
+        },
         // llm config + models + templates CRUD
-        { controller: ThreadsLlmConfigController, method: 'listModels', httpMethod: RequestMethod.GET, path: 'models' },
-        { controller: ThreadsLlmConfigController, method: 'listTemplates', httpMethod: RequestMethod.GET, path: 'templates' },
-        { controller: ThreadsLlmConfigController, method: 'getTemplate', httpMethod: RequestMethod.GET, path: 'templates/:id' },
-        { controller: ThreadsLlmConfigController, method: 'createTemplate', httpMethod: RequestMethod.POST, path: 'templates' },
-        { controller: ThreadsLlmConfigController, method: 'updateTemplate', httpMethod: RequestMethod.PATCH, path: 'templates/:id' },
-        { controller: ThreadsLlmConfigController, method: 'deleteTemplate', httpMethod: RequestMethod.DELETE, path: 'templates/:id' },
-        { controller: ThreadsLlmConfigController, method: 'getConfig', httpMethod: RequestMethod.GET, path: 'config' },
-        { controller: ThreadsLlmConfigController, method: 'updateConfig', httpMethod: RequestMethod.PATCH, path: 'config' },
+        {
+          controller: ThreadsLlmConfigController,
+          method: 'listModels',
+          httpMethod: RequestMethod.GET,
+          path: 'models',
+        },
+        {
+          controller: ThreadsLlmConfigController,
+          method: 'listTemplates',
+          httpMethod: RequestMethod.GET,
+          path: 'templates',
+        },
+        {
+          controller: ThreadsLlmConfigController,
+          method: 'getTemplate',
+          httpMethod: RequestMethod.GET,
+          path: 'templates/:id',
+        },
+        {
+          controller: ThreadsLlmConfigController,
+          method: 'createTemplate',
+          httpMethod: RequestMethod.POST,
+          path: 'templates',
+        },
+        {
+          controller: ThreadsLlmConfigController,
+          method: 'updateTemplate',
+          httpMethod: RequestMethod.PATCH,
+          path: 'templates/:id',
+        },
+        {
+          controller: ThreadsLlmConfigController,
+          method: 'deleteTemplate',
+          httpMethod: RequestMethod.DELETE,
+          path: 'templates/:id',
+        },
+        {
+          controller: ThreadsLlmConfigController,
+          method: 'getConfig',
+          httpMethod: RequestMethod.GET,
+          path: 'config',
+        },
+        {
+          controller: ThreadsLlmConfigController,
+          method: 'updateConfig',
+          httpMethod: RequestMethod.PATCH,
+          path: 'config',
+        },
       ];
       for (const { controller, method, httpMethod, path } of expected) {
         expect(routeOf(controller, method)).toMatchObject({
@@ -286,9 +406,9 @@ describe('ThreadsPublisher HTTP routes (T4)', () => {
 
     it('smuggled matchingEnabled → 400 with hint in any env', async () => {
       process.env.NODE_ENV = 'development';
-      await expect(
-        llm.updateConfig({ matchingEnabled: true }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(llm.updateConfig({ matchingEnabled: true })).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 

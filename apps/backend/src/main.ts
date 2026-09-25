@@ -207,7 +207,9 @@ async function bootstrap(): Promise<void> {
   bootLogger.debug('[DEBUG] 8.6. Setting up global filters');
   app.useGlobalFilters(new DomainErrorFilter());
 
-  bootLogger.debug('[DEBUG] 8.6b. Setting up Swagger/OpenAPI docs at /api/docs');
+  bootLogger.debug(
+    '[DEBUG] 8.6b. Setting up Swagger/OpenAPI docs at /api/docs',
+  );
   // Crypto-news scope only: publisher (keywords/blacklist/queue/llm/phrases),
   // matching, filters, dead-letter. No global prefix is set in this app, so
   // 'api/docs' cannot collide with '/api/health' or any controller route.

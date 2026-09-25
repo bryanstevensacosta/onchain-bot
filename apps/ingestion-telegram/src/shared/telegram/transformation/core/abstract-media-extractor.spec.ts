@@ -220,7 +220,8 @@ describe('AbstractMediaExtractor', () => {
       const slot: MediaSlot = {
         field: 'document',
         type: 'video',
-        validate: (raw) => raw.mimeType?.toString().startsWith('video/') ?? false,
+        validate: (raw) =>
+          raw.mimeType?.toString().startsWith('video/') ?? false,
       };
 
       expect(extractor.testTrySlot(media, slot)).toBeNull();
@@ -239,7 +240,8 @@ describe('AbstractMediaExtractor', () => {
       const slot: MediaSlot = {
         field: 'document',
         type: 'video',
-        validate: (raw) => raw.mimeType?.toString().startsWith('video/') ?? false,
+        validate: (raw) =>
+          raw.mimeType?.toString().startsWith('video/') ?? false,
       };
 
       const result = extractor.testTrySlot(media, slot);

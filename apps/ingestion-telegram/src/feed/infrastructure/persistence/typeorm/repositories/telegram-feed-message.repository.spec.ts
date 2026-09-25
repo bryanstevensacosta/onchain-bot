@@ -28,9 +28,8 @@ function testDataSource(): DataSource {
     type: 'postgres',
     host: process.env.INGESTION_DATABASE_HOST ?? 'localhost',
     port: parseInt(process.env.INGESTION_DATABASE_PORT ?? '5434', 10),
-    username: process.env.INGESTION_DATABASE_USER ?? 'alpha_meta_token_scanner',
-    password:
-      process.env.INGESTION_DATABASE_PASSWORD ?? 'alpha_meta_token_scanner',
+    username: process.env.INGESTION_DATABASE_USER ?? 'onchain_bot',
+    password: process.env.INGESTION_DATABASE_PASSWORD ?? 'onchain_bot',
     database: TEST_DB,
     entities: [TelegramFeedMessageEntity, TelegramFeedMessageMediaEntity],
     synchronize: true,
@@ -43,9 +42,8 @@ async function ensureTestDatabase(): Promise<void> {
     type: 'postgres',
     host: process.env.INGESTION_DATABASE_HOST ?? 'localhost',
     port: parseInt(process.env.INGESTION_DATABASE_PORT ?? '5434', 10),
-    username: process.env.INGESTION_DATABASE_USER ?? 'alpha_meta_token_scanner',
-    password:
-      process.env.INGESTION_DATABASE_PASSWORD ?? 'alpha_meta_token_scanner',
+    username: process.env.INGESTION_DATABASE_USER ?? 'onchain_bot',
+    password: process.env.INGESTION_DATABASE_PASSWORD ?? 'onchain_bot',
     database: 'postgres',
     logging: false,
   });

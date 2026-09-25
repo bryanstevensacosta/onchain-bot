@@ -4,7 +4,13 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ## [Unreleased]
 
-(none yet)
+### Added
+
+- Permanent avatar module: `GET /api/kol-avatar/:channelId` (public, 200 placeholder) + `POST .../refresh` (guarded, single re-fetch); fetch-once at registration, excluded from the 72h janitor, under the `kol-avatar` flood guard; `avatarUrl` in `GET /api/feed/sources`; migration `1790300000000-KolAvatarColumns`. (feat/mega-refactor-tramos)
+
+### Changed
+
+- Docs: `twin` → staging ingestion (`ingestion-telegram-staging`). (feat/mega-refactor-tramos)
 
 ## [1.2.0] - 2026-09-24
 

@@ -18,7 +18,7 @@ export class HealthController {
       status: 'ok',
       uptime: Math.floor((Date.now() - this.startTime) / 1000),
       timestamp: new Date().toISOString(),
-      service: 'alpha-meta-token-scanner',
+      service: 'onchain-bot',
       version: process.env.npm_package_version ?? '0.0.0',
     };
   }

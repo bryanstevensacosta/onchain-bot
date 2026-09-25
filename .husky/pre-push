@@ -172,7 +172,7 @@ else
     # Frontend suite is fast (~8s): run it whole when frontend changed.
     if printf '%s\n' "$push_changed" | grep -q '^apps/frontend/'; then
       echo "   frontend: full suite (fast)..."
-      npm run test -w @alpha-meta-token-scanner/frontend --if-present || push_status=1
+      npm run test -w @onchain-bot/frontend --if-present || push_status=1
     fi
     if [ "$push_status" -ne 0 ]; then
       echo ""

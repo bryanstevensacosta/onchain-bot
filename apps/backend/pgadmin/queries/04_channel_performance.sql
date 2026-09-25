@@ -1,5 +1,5 @@
 -- =====================================================================
--- alpha-meta-token-scanner :: Channel Performance Ranking
+-- onchain-bot :: Channel Performance Ranking
 -- =====================================================================
 -- Canales ordenados por reputación y precisión de llamadas.
 -- =====================================================================

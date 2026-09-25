@@ -21,9 +21,7 @@ describe('CryptoNewsMessageTransformer', () => {
             mimeType: 'image/jpeg',
           },
         },
-        entities: [
-          { offset: 0, length: 8, className: 'MessageEntityBold' },
-        ],
+        entities: [{ offset: 0, length: 8, className: 'MessageEntityBold' }],
         groupedId: BigInt(999),
         date: 1609459200,
       };

@@ -106,7 +106,7 @@ ORDER BY extname;
 
 -- **For Development:**
 -- Run this script once after creating local database:
---   psql -h localhost -U postgres -d alpha_meta_token_scanner -f scripts/db/install-extensions.sql
+--   psql -h localhost -U postgres -d onchain_bot -f scripts/db/install-extensions.sql
 
 -- **For Staging/Production:**
 -- Include this script in database initialization/migration process:

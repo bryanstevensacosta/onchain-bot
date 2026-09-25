@@ -81,7 +81,10 @@ describe('AbstractTextExtractor', () => {
     });
 
     it('should return null when obj is not an object', () => {
-      const result = extractor.testExtractFromField('not an object' as any, 'message');
+      const result = extractor.testExtractFromField(
+        'not an object' as any,
+        'message',
+      );
       expect(result).toBeNull();
     });
   });
@@ -93,7 +96,11 @@ describe('AbstractTextExtractor', () => {
         text: 'Found text',
         caption: 'Caption text',
       };
-      const result = extractor.testCascadeExtract(msg, ['message', 'text', 'caption']);
+      const result = extractor.testCascadeExtract(msg, [
+        'message',
+        'text',
+        'caption',
+      ]);
       expect(result).toBe('Found text');
     });
 
@@ -103,7 +110,11 @@ describe('AbstractTextExtractor', () => {
         text: null,
         caption: null,
       };
-      const result = extractor.testCascadeExtract(msg, ['message', 'text', 'caption']);
+      const result = extractor.testCascadeExtract(msg, [
+        'message',
+        'text',
+        'caption',
+      ]);
       expect(result).toBe('');
     });
 
@@ -113,7 +124,11 @@ describe('AbstractTextExtractor', () => {
         text: 'Second',
         caption: 'Third',
       };
-      const result = extractor.testCascadeExtract(msg, ['message', 'text', 'caption']);
+      const result = extractor.testCascadeExtract(msg, [
+        'message',
+        'text',
+        'caption',
+      ]);
       expect(result).toBe('First');
     });
 
@@ -123,7 +138,11 @@ describe('AbstractTextExtractor', () => {
         text: '   ',
         caption: 'Valid text',
       };
-      const result = extractor.testCascadeExtract(msg, ['message', 'text', 'caption']);
+      const result = extractor.testCascadeExtract(msg, [
+        'message',
+        'text',
+        'caption',
+      ]);
       expect(result).toBe('Valid text');
     });
 
@@ -135,7 +154,11 @@ describe('AbstractTextExtractor', () => {
 
     it('should handle missing fields gracefully', () => {
       const msg = { message: 'Hello' };
-      const result = extractor.testCascadeExtract(msg, ['nonexistent1', 'nonexistent2', 'message']);
+      const result = extractor.testCascadeExtract(msg, [
+        'nonexistent1',
+        'nonexistent2',
+        'message',
+      ]);
       expect(result).toBe('Hello');
     });
   });

@@ -17,7 +17,7 @@ export function RootLayout() {
       <header className="border-b border-slate-800 bg-slate-950">
         <div className="px-6 py-3 flex items-center gap-6">
           <Link to="/" className="text-lg font-bold text-blue-400">
-            Alpha Meta Token Scanner
+            Onchain Bot
           </Link>
           <nav className="flex gap-1">
             {NAV.map((item) => (

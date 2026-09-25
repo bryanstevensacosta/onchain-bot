@@ -1,3 +1,17 @@
+/**
+ * @deprecated Moved to apps/kol-system/src/telegram/ (+ templates orchestration in
+ * apps/kol-system/src/templates/) (Tramo 1, todo 11 + P18 companion). Publishing multi-bot
+ * now lives in kol-system: PublishingJob + PublishFromTemplate + ManualPublish via
+ * MultiBotPublisherAdapter (P14: `vip-calls` is a template SEED name, never a module).
+ * Ticker never null pre-publisher (invariant kept both sides). This module stays wired
+ * for dual-run; it will be removed in todo 16 (cutover + cleanup). Do not extend it —
+ * add publishing logic in apps/kol-system/src/telegram/ instead.
+ *
+ * New location: apps/kol-system/src/telegram/
+ * Reason: extracting KOL pipeline from backend monolith to dedicated app
+ * Breaking change: Yes (removal in todo 16)
+ * Rollback: re-enable backend path (KOL_PIPELINE_ENABLED=true)
+ */
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { isDatabaseEnabled } from 'shared/common/persistence/database.module';

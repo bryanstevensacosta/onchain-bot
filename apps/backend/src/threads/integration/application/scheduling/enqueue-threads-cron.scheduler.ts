@@ -107,7 +107,9 @@ export class EnqueueThreadsCronScheduler {
    */
   async tick(): Promise<void> {
     if (this.running) {
-      this.logger.warn('Previous threads tick still running; skipping this tick');
+      this.logger.warn(
+        'Previous threads tick still running; skipping this tick',
+      );
       return;
     }
 
@@ -198,7 +200,9 @@ export class EnqueueThreadsCronScheduler {
    * - Map media type: 'webpage' → 'document' (threads queue has no webpage)
    * - Resolve media file paths for publisher consumption
    */
-  private mapToEnqueueDto(match: FilteredThreadsMessage): EnqueueThreadsMessageDto {
+  private mapToEnqueueDto(
+    match: FilteredThreadsMessage,
+  ): EnqueueThreadsMessageDto {
     return {
       channelId: match.channelId,
       messageId: match.messageId,

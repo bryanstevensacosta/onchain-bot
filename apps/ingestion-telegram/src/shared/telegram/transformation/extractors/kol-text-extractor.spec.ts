@@ -27,9 +27,9 @@ describe('KolTextExtractor', () => {
     });
 
     it('should extract text from media caption (tertiary)', () => {
-      expect(
-        extractor.extract({ media: { caption: 'Photo caption' } }),
-      ).toBe('Photo caption');
+      expect(extractor.extract({ media: { caption: 'Photo caption' } })).toBe(
+        'Photo caption',
+      );
     });
 
     it('should extract text from forwarded message (fallback)', () => {

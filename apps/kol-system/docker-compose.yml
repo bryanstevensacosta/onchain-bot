@@ -6,19 +6,15 @@ services:
     container_name: onchain-bot-kol-system-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: alpha_meta_token_scanner
-      POSTGRES_PASSWORD: alpha_meta_token_scanner
+      POSTGRES_USER: onchain_bot
+      POSTGRES_PASSWORD: onchain_bot
       POSTGRES_DB: onchain_bot_kol_system
     ports:
       - '5435:5432'
     volumes:
       - kol-system-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test:
-        [
-          'CMD-SHELL',
-          'pg_isready -U alpha_meta_token_scanner -d onchain_bot_kol_system',
-        ]
+      test: ['CMD-SHELL', 'pg_isready -U onchain_bot -d onchain_bot_kol_system']
       interval: 10s
       timeout: 5s
       retries: 5

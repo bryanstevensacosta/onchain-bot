@@ -240,7 +240,7 @@ jobs:
         run: npm run build:frontend
 
       - name: Build ingestion-telegram
-        run: npm run build -w @alpha-meta-token-scanner/ingestion-telegram
+        run: npm run build -w @onchain-bot/ingestion-telegram
 
       - name: Upload backend dist
         if: success()

@@ -19,6 +19,17 @@ import { SettingsModule } from 'settings/settings.module';
 import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 
 /**
+ * @deprecated Moved to apps/kol-system/src/scoring/ (Tramo 1, todo 9 + P18 companion).
+ * Scoring now lives in kol-system: ScoreTokenUseCase (base 50, tiers, 8 fail-fast gates,
+ * 100% per-template scoring_config). This module stays wired for dual-run; it will be
+ * removed in todo 16 (cutover + cleanup). Do not extend it — add scoring logic in
+ * apps/kol-system/src/scoring/ instead.
+ *
+ * New location: apps/kol-system/src/scoring/
+ * Reason: extracting KOL pipeline from backend monolith to dedicated app
+ * Breaking change: Yes (removal in todo 16)
+ * Rollback: re-enable backend path (KOL_PIPELINE_ENABLED=true)
+ *
  * Scoring BC module.
  *
  * Consumes: `classification.token.classified` events (with limited data)

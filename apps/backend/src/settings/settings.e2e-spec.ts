@@ -28,8 +28,8 @@ describe('SettingsPresets (e2e)', () => {
     // SAFETY (task 3, db-separation): this spec builds its own TypeOrmModule
     // and runs under the UNIT jest regex, so test/jest-e2e.setup.ts never
     // applies. Pin to the dedicated e2e DB and refuse to boot against a
-    // non-test database (default would be the dev DB alpha_meta_token_scanner).
-    const testDatabase = 'alpha_meta_token_scanner_e2e';
+    // non-test database (default would be the dev DB onchain_bot).
+    const testDatabase = 'onchain_bot_e2e';
     const envDatabase = process.env.POSTGRES_DB;
     if (envDatabase && !/(_test|_entity|_e2e)$/.test(envDatabase)) {
       throw new Error(
@@ -55,9 +55,9 @@ describe('SettingsPresets (e2e)', () => {
               type: 'postgres' as const,
               host: (db?.host as string) ?? 'localhost',
               port: (db?.port as number) ?? 5432,
-              username: (db?.username as string) ?? 'alpha_meta_token_scanner',
-              password: (db?.password as string) ?? 'alpha_meta_token_scanner',
-              database: (db?.database as string) ?? 'alpha_meta_token_scanner',
+              username: (db?.username as string) ?? 'onchain_bot',
+              password: (db?.password as string) ?? 'onchain_bot',
+              database: (db?.database as string) ?? 'onchain_bot',
               entities: [
                 SettingsPresetEntity,
                 SignalEntity,

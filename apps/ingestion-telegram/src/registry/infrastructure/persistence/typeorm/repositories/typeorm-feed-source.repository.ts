@@ -191,9 +191,7 @@ export class TelegramFeedSourceRepository {
   ): Promise<TelegramFeedSourceEntity> {
     try {
       const saved = await this.repo.save(source);
-      this.logger.log(
-        `Saved feed source: ${saved.channelId} (${saved.title})`,
-      );
+      this.logger.log(`Saved feed source: ${saved.channelId} (${saved.title})`);
       return saved;
     } catch (error) {
       this.logger.error(

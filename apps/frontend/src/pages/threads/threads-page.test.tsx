@@ -189,9 +189,9 @@ describe('ThreadsPage — 6 sections, no Ads', () => {
         `expected fetch of ${expected}`,
       ).toBe(true);
     }
-    expect(
-      calledUrls.some((u) => u.includes('/crypto-news-publisher/')),
-    ).toBe(false);
+    expect(calledUrls.some((u) => u.includes('/crypto-news-publisher/'))).toBe(
+      false,
+    );
   });
 
   it('renders queue counters, queue row, and blocked row', async () => {
@@ -203,9 +203,7 @@ describe('ThreadsPage — 6 sections, no Ads', () => {
     expect(screen.getByText('24')).toBeInTheDocument();
     expect(screen.getByText('PENDING')).toBeInTheDocument();
 
-    expect(
-      await screen.findByText('Blocked Threads post'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Blocked Threads post')).toBeInTheDocument();
     expect(screen.getByText('blacklisted phrase hit')).toBeInTheDocument();
   });
 

@@ -1,17 +1,20 @@
 /**
  * Abstract base class for message transformation (Template Method pattern)
- * 
+ *
  * Orchestrates the extraction of text, media, and entities from raw Telegram messages.
  * Subclasses provide concrete extractors and entity normalizers via dependency injection.
- * 
+ *
  * Template method: transform() → extractText() → extractMedia() → normalizeEntities()
- * 
+ *
  * @abstract
  */
 
 import type { AbstractTextExtractor } from './abstract-text-extractor';
 import type { AbstractMediaExtractor } from './abstract-media-extractor';
-import type { AbstractEntityNormalizer, NormalizedEntity } from './abstract-entity-normalizer';
+import type {
+  AbstractEntityNormalizer,
+  NormalizedEntity,
+} from './abstract-entity-normalizer';
 
 /**
  * Raw message input (from GramJS)
@@ -73,10 +76,10 @@ export abstract class AbstractMessageTransformer {
 
   /**
    * Template method: orchestrates message transformation
-   * 
+   *
    * Subclasses can override to add pre/post processing,
    * but the default implementation covers most cases.
-   * 
+   *
    * @param raw - Raw Telegram message
    * @returns Transformed message or null if invalid
    */
@@ -147,7 +150,7 @@ export abstract class AbstractMessageTransformer {
 
   /**
    * Normalize peerId to string
-   * 
+   *
    * Handles bigint, number, string, and objects with toString()
    */
   protected normalizePeerId(peerId: unknown): string {
@@ -160,7 +163,7 @@ export abstract class AbstractMessageTransformer {
 
   /**
    * Extract date from message
-   * 
+   *
    * Falls back to current date if missing (should not happen in real messages)
    */
   protected extractDate(raw: RawTelegramMessage): Date {
@@ -172,7 +175,7 @@ export abstract class AbstractMessageTransformer {
 
   /**
    * Extract groupedId (for media albums)
-   * 
+   *
    * Returns null if not present
    */
   protected extractGroupedId(raw: RawTelegramMessage): bigint | string | null {
@@ -186,16 +189,19 @@ export abstract class AbstractMessageTransformer {
 
   /**
    * Extract webpage preview metadata (step 4)
-   * 
+   *
    * Extracts URL preview metadata from raw.media.webpage WITHOUT downloading the preview photo.
    * This allows the frontend to display link previews using the original URL.
-   * 
+   *
    * Returns null if no webpage preview is present.
    */
-  protected extractWebpagePreview(raw: RawTelegramMessage): WebpagePreview | null {
+  protected extractWebpagePreview(
+    raw: RawTelegramMessage,
+  ): WebpagePreview | null {
     if (!raw.media || typeof raw.media !== 'object') return null;
 
-    const webpage = (raw.media as { webpage?: Record<string, unknown> }).webpage;
+    const webpage = (raw.media as { webpage?: Record<string, unknown> })
+      .webpage;
     if (!webpage || typeof webpage !== 'object') return null;
 
     // Extract metadata (no photo download)

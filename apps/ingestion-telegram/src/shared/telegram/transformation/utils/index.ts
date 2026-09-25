@@ -1,6 +1,6 @@
 /**
  * Utility functions for message transformation
- * 
+ *
  * Pure functions for:
  * - Type coercion (bigint, string, Buffer conversions)
  * - Media validation (file reference checks, error detection)

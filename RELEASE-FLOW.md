@@ -165,9 +165,9 @@ Each of the 3 changelogs carries a `## [Unreleased]` header at the top, below th
 Empty state while nothing is queued:
 
 ```markdown
-  ## [Unreleased]
+## [Unreleased]
 
-  (none yet)
+(none yet)
 ```
 
 ## 9. Rollback playbook
@@ -248,3 +248,7 @@ git push origin <app>-v<X.Y.Z>
 ```
 
 Verified locally: `gpg (GnuPG) 2.4.7` installed (`gpg --version`), and git supports `-s/--sign` on tags (`git tag --help`). What is UNVERIFIED is the end-to-end signing run: no key has been generated and no `-s` tag has been cut in this repo, so the first signed tag must be test-verified with `git tag -v <tag>` before relying on it.
+
+## 13. Language: English only
+
+Changelogs (`apps/*/CHANGELOG.md`) and `gh release` notes are written in English (Keep-a-Changelog tone). Existing released history is exempt — leave old sections as-is and write only new entries in English.

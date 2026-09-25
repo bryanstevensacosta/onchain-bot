@@ -1,6 +1,6 @@
 /**
  * Concrete implementations of extraction strategies
- * 
+ *
  * These classes implement specific extraction logic for:
  * - Text extraction (KOL vs crypto-news strategies)
  * - Media metadata extraction (from GramJS objects)

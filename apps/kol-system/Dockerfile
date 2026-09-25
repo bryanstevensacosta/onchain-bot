@@ -15,14 +15,14 @@ COPY apps/kol-system/package*.json ./apps/kol-system/
 
 # Install dependencies (including devDependencies for build)
 # Use --ignore-scripts to prevent prepare hook failures (no husky in Docker)
-RUN npm ci --workspace=@alpha-meta-token-scanner/kol-system --ignore-scripts
+RUN npm ci --workspace=@onchain-bot/kol-system --ignore-scripts
 
 # Copy source code
 COPY apps/kol-system/ ./apps/kol-system/
 COPY tsconfig.base.json ./
 
 # Build application
-RUN npm run build --workspace=@alpha-meta-token-scanner/kol-system
+RUN npm run build --workspace=@onchain-bot/kol-system
 
 # Stage 2: Production
 FROM node:22-alpine
@@ -45,7 +45,7 @@ ENV HUSKY=0
 
 # Install production dependencies only
 # Use --ignore-scripts to prevent prepare hook failures
-RUN npm ci --workspace=@alpha-meta-token-scanner/kol-system --omit=dev --ignore-scripts
+RUN npm ci --workspace=@onchain-bot/kol-system --omit=dev --ignore-scripts
 
 # Copy built application
 COPY --from=builder /app/apps/kol-system/dist ./apps/kol-system/dist

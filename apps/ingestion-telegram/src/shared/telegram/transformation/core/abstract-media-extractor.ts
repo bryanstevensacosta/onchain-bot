@@ -1,16 +1,16 @@
 /**
  * Abstract base class for media metadata extraction
- * 
+ *
  * Extracts metadata from Telegram media objects (photos, videos, documents).
  * Does NOT handle physical download - that's the responsibility of MediaDownloaderService.
- * 
+ *
  * This class focuses on extracting:
  * - File IDs and access hashes
  * - File references (for Telegram API)
  * - MIME types
  * - DC IDs and dates
  * - Webpage preview metadata
- * 
+ *
  * @abstract
  */
 
@@ -45,9 +45,9 @@ export abstract class AbstractMediaExtractor {
 
   /**
    * Extract media metadata from Telegram media object.
-   * 
+   *
    * Returns null if no valid media found.
-   * 
+   *
    * @param media - Raw Telegram media object
    * @returns Media attachment metadata or null
    */
@@ -55,7 +55,7 @@ export abstract class AbstractMediaExtractor {
 
   /**
    * Try to extract from a specific slot (photo, video, document)
-   * 
+   *
    * @param media - Media container object
    * @param slot - Slot configuration
    * @returns Attachment metadata or null
@@ -79,7 +79,7 @@ export abstract class AbstractMediaExtractor {
 
   /**
    * Build TelegramMediaAttachment from raw media object
-   * 
+   *
    * @param raw - Raw media object
    * @param type - Media type (photo or video)
    * @returns Attachment metadata or null if invalid
@@ -106,10 +106,10 @@ export abstract class AbstractMediaExtractor {
 
   /**
    * Extract webpage preview media
-   * 
+   *
    * Telegram messages can contain webpage previews with embedded photos.
    * This method extracts the preview photo if present.
-   * 
+   *
    * @param media - Media object
    * @returns Attachment with webpage metadata or null
    */
@@ -151,7 +151,7 @@ export abstract class AbstractMediaExtractor {
 
   /**
    * Convert file reference to Buffer
-   * 
+   *
    * File references can come as Buffer, string (binary), or array.
    */
   protected fileReferenceToBuffer(v: unknown): Buffer | null {
@@ -163,7 +163,7 @@ export abstract class AbstractMediaExtractor {
 
   /**
    * Coerce value to string (for IDs and hashes)
-   * 
+   *
    * Handles bigint, string, number, boolean, symbol.
    */
   protected coerceToString(v: unknown): bigint | string {

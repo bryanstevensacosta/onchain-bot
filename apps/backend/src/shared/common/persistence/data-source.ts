@@ -34,9 +34,9 @@ export default new DataSource({
   type: 'postgres',
   host: process.env.POSTGRES_HOST ?? 'localhost',
   port: parseInt(process.env.POSTGRES_PORT ?? '5432', 10),
-  username: process.env.POSTGRES_USER ?? 'alpha_meta_token_scanner',
-  password: process.env.POSTGRES_PASSWORD ?? 'alpha_meta_token_scanner',
-  database: process.env.POSTGRES_DB ?? 'alpha_meta_token_scanner',
+  username: process.env.POSTGRES_USER ?? 'onchain_bot',
+  password: process.env.POSTGRES_PASSWORD ?? 'onchain_bot',
+  database: process.env.POSTGRES_DB ?? 'onchain_bot',
   entities: PERSISTED_ENTITIES,
   // __dirname-based (NOT cwd-relative): the CLI runs from apps/backend
   // locally (src/…/*.ts) and from /app inside Docker (dist/backend/…/*.js).

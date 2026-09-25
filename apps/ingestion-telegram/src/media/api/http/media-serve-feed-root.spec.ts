@@ -74,7 +74,12 @@ describe('MediaController serve-by-glob (feed root)', () => {
     await fs.writeFile(path.join(dir, `${messageId}_${index}.jpg`), payload);
 
     const { res, chunks, sink } = createMockResponse();
-    await controller.serveMedia(channelId, String(messageId), String(index), res);
+    await controller.serveMedia(
+      channelId,
+      String(messageId),
+      String(index),
+      res,
+    );
     await waitFinished(sink);
 
     expect(res.status).not.toHaveBeenCalledWith(404);
@@ -93,7 +98,12 @@ describe('MediaController serve-by-glob (feed root)', () => {
     await fs.writeFile(path.join(dir, `${messageId}_${index}.mp4`), payload);
 
     const { res, chunks, sink } = createMockResponse();
-    await controller.serveMedia(channelId, String(messageId), String(index), res);
+    await controller.serveMedia(
+      channelId,
+      String(messageId),
+      String(index),
+      res,
+    );
     await waitFinished(sink);
 
     expect(Buffer.concat(chunks)).toEqual(payload);
@@ -106,7 +116,12 @@ describe('MediaController serve-by-glob (feed root)', () => {
     await fs.writeFile(path.join(dir, `${messageId}_${index}.jpg`), payload);
 
     const { res } = createMockResponse();
-    await controller.serveMedia(channelId, String(messageId), String(index), res);
+    await controller.serveMedia(
+      channelId,
+      String(messageId),
+      String(index),
+      res,
+    );
 
     expect(res.status).toHaveBeenCalledWith(404);
   });

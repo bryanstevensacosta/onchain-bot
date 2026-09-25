@@ -35,6 +35,18 @@ import {
 } from 'shared/cache/token-image-cache.adapter';
 
 /**
+ * @deprecated Moved to apps/kol-system/src/enrichment/ (Tramo 1, todo 8 + P18 companion).
+ * Enrichment via MarketDataPort dual now lives in kol-system: EnrichmentOrchestratorService
+ * (local-cascade default + http-market-data stub; snapshot completion in src/snapshot/).
+ * Physical providers stay in backend (Tramo 3 moves them). This module stays wired for
+ * dual-run; it will be removed in todo 16 (cutover + cleanup). Do not extend it — add
+ * enrichment logic in apps/kol-system/src/enrichment/ instead.
+ *
+ * New location: apps/kol-system/src/enrichment/
+ * Reason: extracting KOL pipeline from backend monolith to dedicated app
+ * Breaking change: Yes (removal in todo 16)
+ * Rollback: re-enable backend path (KOL_PIPELINE_ENABLED=true)
+ *
  * Chain Explorer BC module.
  *
  * Provides third-party market data adapters AND the enrichment pipeline:

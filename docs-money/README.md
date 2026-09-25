@@ -1,4 +1,4 @@
-# docs-money/ · Monetización de Alpha Meta Token Scanner
+# docs-money/ · Monetización de Onchain Bot
 
 > Documentación iterativa sobre cómo monetizar el pipeline de Alpha Meta
 > sin violar los ToS de Telegram.
@@ -10,9 +10,9 @@
 
 ## TL;DR en 30 segundos
 
-1. **Tu producto, definido legalmente**: *"Servicio de alertas cripto generado a
+1. **Tu producto, definido legalmente**: _"Servicio de alertas cripto generado a
    partir de inteligencia agregada sobre KOLs de Telegram, entregado vía bot
-   propio."* — Es UGC derivado, no scraping, si operas correctamente.
+   propio."_ — Es UGC derivado, no scraping, si operas correctamente.
 2. **Lo que monetiza**:
    - KOL Fast Track (Stars)
    - BuyBot B2B para proyectos (USDT/crypto externo)
@@ -32,26 +32,27 @@
 
 ## Índice de archivos
 
-| # | Carpeta / archivo | Qué cubre |
-|---|---|---|
-| 01 | [`01-telegram-tos-summary.md`](./01-telegram-tos-summary.md) | Mapeo ToS ↔ cada fase de tu pipeline (apps/backend/src/kol/, telegram/vip-calls-channel/, token/, chain/) |
-| 02 | [`02-monetization-options.md`](./02-monetization-options.md) | 8 modelos de negocio viables con pricing reference y análisis de riesgo |
-| 03 | [`03-dos-and-donts.md`](./03-dos-and-donts.md) | Checklist operacional, patrones de código correcto/incorrecto, auto-auditoría mensual |
-| 04 | [`04-architecture-gaps.md`](./04-architecture-gaps.md) | Lo que tienes hoy + lo que falta construir + roadmap técnico en 7 fases |
-| 05 | [`05-kol-onboarding-legal-limits-and-monetization.md`](./05-kol-onboarding-legal-limits-and-monetization.md) | Legal de leer CAs sin opt-in, autorización, riesgos de reputación, modelos de cobro a KOLs |
-| 06 | [`06-rate-limits-verified.md`](./06-rate-limits-verified.md) | Límites de Telegram verificados contra fuentes oficiales + ban prevention |
-| fix-1 | [`fix-1/`](./fix-1/) | **🚧 Fix en progreso** — descripción del riesgo de mayor severidad (Bot Dev §4.3). Título de carpeta pendiente hasta tener `solution.md`. |
+| #     | Carpeta / archivo                                                                                            | Qué cubre                                                                                                                                 |
+| ----- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| 01    | [`01-telegram-tos-summary.md`](./01-telegram-tos-summary.md)                                                 | Mapeo ToS ↔ cada fase de tu pipeline (apps/backend/src/kol/, telegram/vip-calls-channel/, token/, chain/)                                 |
+| 02    | [`02-monetization-options.md`](./02-monetization-options.md)                                                 | 8 modelos de negocio viables con pricing reference y análisis de riesgo                                                                   |
+| 03    | [`03-dos-and-donts.md`](./03-dos-and-donts.md)                                                               | Checklist operacional, patrones de código correcto/incorrecto, auto-auditoría mensual                                                     |
+| 04    | [`04-architecture-gaps.md`](./04-architecture-gaps.md)                                                       | Lo que tienes hoy + lo que falta construir + roadmap técnico en 7 fases                                                                   |
+| 05    | [`05-kol-onboarding-legal-limits-and-monetization.md`](./05-kol-onboarding-legal-limits-and-monetization.md) | Legal de leer CAs sin opt-in, autorización, riesgos de reputación, modelos de cobro a KOLs                                                |
+| 06    | [`06-rate-limits-verified.md`](./06-rate-limits-verified.md)                                                 | Límites de Telegram verificados contra fuentes oficiales + ban prevention                                                                 |
+| fix-1 | [`fix-1/`](./fix-1/)                                                                                         | **🚧 Fix en progreso** — descripción del riesgo de mayor severidad (Bot Dev §4.3). Título de carpeta pendiente hasta tener `solution.md`. |
 
 ### Fixes en progreso
 
 Cada fix vive en su propia carpeta `fix-N/` con dos archivos:
+
 - `problem.md` — qué está mal, evidencia en el código, ToS que viola, riesgo de no arreglarlo.
 - `solution.md` — pasos concretos para arreglarlo, código antes/después, tests, plan de despliegue.
 
 La carpeta se renombra a un título descriptivo cuando ambos archivos están listos.
 
-| Carpeta | Estado | Severidad |
-|---|---|---|
+| Carpeta  | Estado                                                                    | Severidad  |
+| -------- | ------------------------------------------------------------------------- | ---------- |
 | `fix-1/` | 🟡 `problem.md` listo · `solution.md` listo (pendiente de implementación) | 🔴 Crítica |
 
 ---
@@ -86,34 +87,34 @@ scripts/
 
 ### Telegram — Términos de Servicio
 
-| Documento | URL | Usado en |
-|---|---|---|
-| ToS general | https://telegram.org/tos | 01 |
-| Bot ToS (usuario final) | https://telegram.org/tos/bots | 01 |
-| **Bot Developer ToS** | https://telegram.org/tos/bot-developers | 01, 02, 03, 04 |
-| **Content Licensing + AI Scraping** | https://telegram.org/tos/content-licensing | 01, 03 |
-| Content Creator Rewards | https://telegram.org/tos/content-creator-rewards | 01, 02 |
-| Stars ToS | https://telegram.org/tos/stars | 01, 02 |
-| Mini Apps ToS | https://telegram.org/tos/mini-apps | 01 |
-| **API ToS** (third-party client apps) | https://core.telegram.org/api/terms | 01, 03 |
-| **Blockchain Guidelines** | https://core.telegram.org/bots/blockchain-guidelines | 01, 02 |
+| Documento                             | URL                                                  | Usado en       |
+| ------------------------------------- | ---------------------------------------------------- | -------------- |
+| ToS general                           | https://telegram.org/tos                             | 01             |
+| Bot ToS (usuario final)               | https://telegram.org/tos/bots                        | 01             |
+| **Bot Developer ToS**                 | https://telegram.org/tos/bot-developers              | 01, 02, 03, 04 |
+| **Content Licensing + AI Scraping**   | https://telegram.org/tos/content-licensing           | 01, 03         |
+| Content Creator Rewards               | https://telegram.org/tos/content-creator-rewards     | 01, 02         |
+| Stars ToS                             | https://telegram.org/tos/stars                       | 01, 02         |
+| Mini Apps ToS                         | https://telegram.org/tos/mini-apps                   | 01             |
+| **API ToS** (third-party client apps) | https://core.telegram.org/api/terms                  | 01, 03         |
+| **Blockchain Guidelines**             | https://core.telegram.org/bots/blockchain-guidelines | 01, 02         |
 
 ### Telegram — Mecánicas operativas
 
-| Recurso | URL | Usado en |
-|---|---|---|
-| @BotFather | https://t.me/BotFather | 04 |
-| Bot API overview | https://core.telegram.org/bots/api | 04 |
-| Bot payments | https://core.telegram.org/bots/payments | 04 |
-| TON Connect SDK | https://docs.ton.org/v3/guidelines/ton-connect/overview | 02 |
+| Recurso          | URL                                                     | Usado en |
+| ---------------- | ------------------------------------------------------- | -------- |
+| @BotFather       | https://t.me/BotFather                                  | 04       |
+| Bot API overview | https://core.telegram.org/bots/api                      | 04       |
+| Bot payments     | https://core.telegram.org/bots/payments                 | 04       |
+| TON Connect SDK  | https://docs.ton.org/v3/guidelines/ton-connect/overview | 02       |
 
 ### Telegram — Referencias de producto
 
-| Recurso | URL | Usado en |
-|---|---|---|
-| Telegram Stars announcement | https://telegram.org/blog/telegram-stars | 02 |
-| Content Creator Rewards launch | https://telegram.org/blog/mini-app-bar-paid-media-and-more | 02 |
-| Sponsored messages API | https://core.telegram.org/api/sponsored-messages | 01 |
+| Recurso                        | URL                                                        | Usado en |
+| ------------------------------ | ---------------------------------------------------------- | -------- |
+| Telegram Stars announcement    | https://telegram.org/blog/telegram-stars                   | 02       |
+| Content Creator Rewards launch | https://telegram.org/blog/mini-app-bar-paid-media-and-more | 02       |
+| Sponsored messages API         | https://core.telegram.org/api/sponsored-messages           | 01       |
 
 ---
 

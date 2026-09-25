@@ -1,5 +1,5 @@
 -- =====================================================================
--- alpha-meta-token-scanner :: Call Performance Distribution
+-- onchain-bot :: Call Performance Distribution
 -- =====================================================================
 -- Distribución de outcomes de las llamadas evaluadas.
 -- =====================================================================

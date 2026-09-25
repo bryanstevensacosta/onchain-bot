@@ -1,14 +1,14 @@
 {
   "Servers": {
     "1": {
-      "Name": "alpha-meta-token-scanner",
+      "Name": "onchain-bot",
       "Group": "Servers",
       "Host": "onchain-bot-postgres-dev",
       "Port": 5432,
       "MaintenanceDB": "alpha_meta_token_scanner",
       "Username": "alpha_meta_token_scanner",
       "SSLMode": "prefer",
-      "Comment": "Auto-loaded Alpha Meta Token Scanner database",
+      "Comment": "Auto-loaded Onchain Bot database (conn holds pre-rename role until DB runbook executes)",
       "Tags": [
         {
           "color": "#5cdb95",

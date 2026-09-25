@@ -21,9 +21,7 @@ describe('KolMessageTransformer', () => {
             mimeType: 'image/jpeg',
           },
         },
-        entities: [
-          { offset: 4, length: 4, className: 'MessageEntityBold' },
-        ],
+        entities: [{ offset: 4, length: 4, className: 'MessageEntityBold' }],
         groupedId: BigInt(999),
         date: 1609459200,
       };

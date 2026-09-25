@@ -173,8 +173,9 @@ export class ThreadsLlmAdapter {
       `PromptTemplate not found: ${requestedId} — falling back to ${THREADS_DEFAULT_TEMPLATE_ID}`,
     );
     if (requestedId !== THREADS_DEFAULT_TEMPLATE_ID) {
-      const seeded =
-        await this.templateRepo.findById(THREADS_DEFAULT_TEMPLATE_ID);
+      const seeded = await this.templateRepo.findById(
+        THREADS_DEFAULT_TEMPLATE_ID,
+      );
       if (seeded) {
         return seeded;
       }

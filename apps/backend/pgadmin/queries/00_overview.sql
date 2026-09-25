@@ -1,5 +1,5 @@
 -- =====================================================================
--- alpha-meta-token-scanner :: Database Overview
+-- onchain-bot :: Database Overview
 -- =====================================================================
 -- Vista rápida de todas las tablas: filas, tamaño, última actividad.
 -- =====================================================================

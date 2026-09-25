@@ -1,4 +1,4 @@
-# apps/frontend — Alpha Meta Token Scanner Dashboard
+# apps/frontend — Onchain Bot Dashboard
 
 React 18 + Vite 5 dashboard para monitorizar en tiempo real el pipeline de alpha-calls. Dark theme, polling + WebSocket, 8 rutas.
 

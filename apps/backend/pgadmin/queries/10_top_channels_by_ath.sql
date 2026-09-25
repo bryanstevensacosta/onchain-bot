@@ -1,5 +1,5 @@
 -- =====================================================================
--- alpha-meta-token-scanner :: Top Channels by ATH Multiple
+-- onchain-bot :: Top Channels by ATH Multiple
 -- =====================================================================
 -- Canales cuyo ATH promedio en llamadas ha sido más alto.
 -- =====================================================================

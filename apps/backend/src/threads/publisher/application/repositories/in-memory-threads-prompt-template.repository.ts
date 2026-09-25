@@ -71,9 +71,7 @@ export class InMemoryThreadsPromptTemplateRepository extends ThreadsPromptTempla
     return [...this.rows.values()];
   }
 
-  public async findById(
-    id: string,
-  ): Promise<ThreadsPromptTemplate | null> {
+  public async findById(id: string): Promise<ThreadsPromptTemplate | null> {
     return this.rows.get(id) ?? null;
   }
 
@@ -82,9 +80,7 @@ export class InMemoryThreadsPromptTemplateRepository extends ThreadsPromptTempla
   ): Promise<ReadonlyArray<ThreadsPromptTemplate>> {
     return ids
       .map((id) => this.rows.get(id) ?? null)
-      .filter(
-        (row): row is ThreadsPromptTemplate => row !== null,
-      );
+      .filter((row): row is ThreadsPromptTemplate => row !== null);
   }
 
   public async save(

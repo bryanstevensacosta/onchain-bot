@@ -11,9 +11,7 @@ import { ThreadsQueueController } from './api/http/queue.controller';
 import { ThreadsPublisherModule } from 'threads/publisher/threads-publisher.module';
 import { EnqueueThreadsMessageUseCase } from 'threads/publisher/application/handlers/enqueue-threads-message.use-case';
 import { ProcessNextThreadsArticleUseCase } from 'threads/publisher/application/handlers/process-next-threads-article.use-case';
-import {
-  ThreadsApiPublisherPort,
-} from 'threads/publisher/application/ports/threads-api-publisher.port';
+import { ThreadsApiPublisherPort } from 'threads/publisher/application/ports/threads-api-publisher.port';
 import { ThreadsApiPublisherAdapter } from 'threads/publisher/infrastructure/senders/threads-api-publisher.adapter';
 
 /**
@@ -104,30 +102,30 @@ describe('ThreadsPublisherModule smoke (real providers)', () => {
   });
 
   it('instantiates the application use-cases', () => {
-    expect(
-      module.get(EnqueueThreadsMessageUseCase),
-    ).toBeInstanceOf(EnqueueThreadsMessageUseCase);
-    expect(
-      module.get(ProcessNextThreadsArticleUseCase),
-    ).toBeInstanceOf(ProcessNextThreadsArticleUseCase);
+    expect(module.get(EnqueueThreadsMessageUseCase)).toBeInstanceOf(
+      EnqueueThreadsMessageUseCase,
+    );
+    expect(module.get(ProcessNextThreadsArticleUseCase)).toBeInstanceOf(
+      ProcessNextThreadsArticleUseCase,
+    );
   });
 
   it('registers all 5 HTTP controllers', () => {
-    expect(
-      module.get(ThreadsKeywordsController),
-    ).toBeInstanceOf(ThreadsKeywordsController);
-    expect(
-      module.get(ThreadsBlacklistController),
-    ).toBeInstanceOf(ThreadsBlacklistController);
-    expect(
-      module.get(ThreadsPhrasesController),
-    ).toBeInstanceOf(ThreadsPhrasesController);
-    expect(
-      module.get(ThreadsQueueController),
-    ).toBeInstanceOf(ThreadsQueueController);
-    expect(
-      module.get(ThreadsLlmConfigController),
-    ).toBeInstanceOf(ThreadsLlmConfigController);
+    expect(module.get(ThreadsKeywordsController)).toBeInstanceOf(
+      ThreadsKeywordsController,
+    );
+    expect(module.get(ThreadsBlacklistController)).toBeInstanceOf(
+      ThreadsBlacklistController,
+    );
+    expect(module.get(ThreadsPhrasesController)).toBeInstanceOf(
+      ThreadsPhrasesController,
+    );
+    expect(module.get(ThreadsQueueController)).toBeInstanceOf(
+      ThreadsQueueController,
+    );
+    expect(module.get(ThreadsLlmConfigController)).toBeInstanceOf(
+      ThreadsLlmConfigController,
+    );
   });
 });
 

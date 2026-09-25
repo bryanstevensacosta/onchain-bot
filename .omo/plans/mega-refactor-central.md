@@ -5,7 +5,7 @@
 <!-- Fill this LAST, after the detailed plan below is written, so it summarizes the REAL plan. -->
 <!-- Plain English for a non-engineer: NO file paths, NO todo numbers, NO wave/agent/tool names. -->
 
-**What you'll get:** Un índice que gobierna el mega-refactor: 3 tramos en orden (kol, content, market-data), 9 contratos con valores sellados y gates que impiden avanzar sin evidencia.
+**What you'll get:** Un índice que gobierna el mega-refactor: 3 tramos en orden (kol, content, market-data), 9 contratos con valores sellados, gates inter-tramo rápidos (deprecation-check + green) y UNA full final review al cierre.
 
 **Why this approach:** Sin un centro con contratos versionados, tres extracciones gigantes de un monolito colisionan (mismo `telegram/shared`, mismos providers, mismos puertos). El centro fija las reglas; los tramos solo ejecutan.
 
@@ -13,7 +13,7 @@
 
 **Effort:** Medium (8 todos de gobernanza, sin código)
 **Risk:** Medium - un contrato mal sellado bloquea 3 tramos
-**Decisions I made for you:** DBs mismo-servidor `<base>_<app>`; tripletas de puertos con verificación Oracle; `?type=kol` en vez de endpoints nuevos; staging 14 días para el Tramo 1; threads-stub 501; avatar servido por ingestion-telegram; bot-tokens cifrados. Vetos bienvenidos arriba.
+**Decisions I made for you:** DBs mismo-servidor `<base>_<app>`; tripletas de puertos con verificación Oracle; `?type=kol` en vez de endpoints nuevos; staging 48h validación no-bloqueante T1 (C4-bis) + FINAL REVIEW con validación completa; threads-stub 501; avatar servido por ingestion-telegram; bot-tokens cifrados. Vetos bienvenidos arriba.
 
 Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execution detail follows below.
 
@@ -27,8 +27,8 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
 
 - Plan índice que gobierna el mega-refactor en 3 tramos delegados: Tramo 1 kol-system (`mega-refactor-kol-system.md`), Tramo 2 content-publisher (`mega-refactor-content-publisher.md`), Tramo 3 market-data (`mega-refactor-market-data.md`).
 - 9 contratos versionados como única fuente (C-SHARED-01, C-DATA-01, C-PORTS-01, C-BOTS-01, C-DB-01, C-SSE-01, C-CI-01, C-FLAGS-01, C-UX-01) — los tramos los referencian, nunca los redefinen.
-- Orden de ejecución kol-system → content-publisher → market-data con cadena de preconditions (T2←T1 staging, T3←T2 staging).
-- Gates de tramo + checklist de cutover global. Rama `feat/mega-refactor-tramos`.
+- Orden de ejecución kol-system → content-publisher → market-data con cadena de preconditions C4-bis (T2←T1 deprecation-check + green, T3←T2 deprecation-check + green; staging por tramo es validación, NO bloqueante para arrancar código del siguiente tramo).
+- Gates inter-tramo rápidos + UNA FINAL REVIEW al completar los 3 tramos (validación completa, eliminación deprecated, backend-remainder decision, cierre de programa) + checklist de cutover global. Rama `feat/mega-refactor-tramos`.
 
 ### Must NOT have (guardrails, anti-slop, scope boundaries)
 
@@ -36,7 +36,8 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
 - NO toca código producto (`apps/*`, `scripts/*`); este plan solo produce/actualiza artefactos `.omo/` y decisiones de contrato.
 - NO reabre decisiones selladas (orden, `apps/market-data`, rama) salvo veto explícito del usuario.
 - NO permite que dos tramos toquen `telegram/shared` o `data-provider/` sin citar C-SHARED-01 / C-DATA-01.
-- NO cutover sin staging validado + rollback ensayado (endurecido: Tramo 1 staging 14 días + shadow/dry-run por pilotar el money-path).
+- NO arranca código del siguiente tramo sin su gate inter-tramo C4-bis (deprecation-check + green suites del tramo previo). Staging por tramo (48h T1; ventanas T2-T3 existentes) es validación, NO bloqueante para arrancar el siguiente tramo.
+- NO borrado de código deprecated hasta la FINAL REVIEW (C4-bis.3): los tramos deprecatan con JSDoc (nueva ruta + refactor target), la eliminación es solo en la review final.
 
 ## Verification strategy
 
@@ -65,12 +66,12 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
 
 ## Tramos delegados (D2 — el central NO duplica sus todos)
 
-> Versión contratos: C-\* v2026-09-24 (central 4b0c643f). Cada tramo pinnea esta versión al arrancar.
+> Versión contratos: C-\* v2026-09-24 (central 4b0c643f) + estrategia C4-bis 2026-09-25 (gates rápidos + FINAL REVIEW). Cada tramo pinnea esta versión al arrancar.
 > | Tramo | Plan (path) | Spec origen | Precondition | Done-gate |
 > | --- | --- | --- | --- | --- |
-> | T1 kol-system | `.omo/plans/mega-refactor-kol-system.md` | `.kiro/specs/refactor-kol-system/` (pivot P1–P9 manda) | central todos 1-3,5-7 | Gate T1 (todo 8 central): staging 14d + shadow + rehearsal |
-> | T2 content-publisher | `.omo/plans/mega-refactor-content-publisher.md` | `.kiro/specs/refactor-content-publisher/` | Gate T1 + checklist shared (T2-todo 0) | Gate T2: staging 7d + rehearsal 30min |
-> | T3 market-data | `.omo/plans/mega-refactor-market-data.md` | `.kiro/specs/refactor-data/` (requisitos, no topología) | Gate T2 + mapeo libs→src (T3-todo 0) | Gate T3: p95<500ms 24h, cierra programa |
+> | T1 kol-system | `.omo/plans/mega-refactor-kol-system.md` | `.kiro/specs/refactor-kol-system/` (pivot P1–P9 manda) | central todos 1-3,5-7 | Gate T1 (todo 8 central): deprecation-check + green suites; staging 48h como validación no-bloqueante |
+> | T2 content-publisher | `.omo/plans/mega-refactor-content-publisher.md` | `.kiro/specs/refactor-content-publisher/` | Gate T1 (deprecation-check + green) + checklist shared (T2-todo 0) | Gate T2: deprecation-check + green suites; staging 7d como validación no-bloqueante |
+> | T3 market-data | `.omo/plans/mega-refactor-market-data.md` | `.kiro/specs/refactor-data/` (requisitos, no topología) | Gate T2 (deprecation-check + green) + mapeo libs→src (T3-todo 0) | Gate T3: deprecation-check + green suites; p95<500ms como validación. Cierre real en FINAL REVIEW (todo 9 central) |
 
 ## Todos
 
@@ -88,7 +89,7 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
      QA scenarios: happy `git log --oneline -1` muestra commit P0; failure: si `git stash list` no contiene boulder y el worktree lo modifica, abortar y reportar. Evidence .omo/evidence/task-1-mega-refactor-central.log
      Commit: Y | chore(git): P0 hygiene rama mega-refactor (stash boulder, stage specs+planes)
 - [ ] 2. Sellar C-DB-01: tabla 12 DBs + owners migración (G-01, G-13)
-     What to do / Must NOT do: Escribir en este plan la tabla: dev local `onchain_bot_{kol_system,content_publisher,market_data,dexter}`; Oracle prod `onchain_bot_{kol_system,content_publisher,market_data,dexter}`; staging ingestion `onchain_bot_{kol_system_staging,content_publisher_staging,market_data_staging,dexter_staging}` (12 DBs); owner `migration:run` por app (su propio `data-source.ts`); `synchronize:false, migrationsRun:false` fuera dev/test. Nombres `onchain_bot_*` SOLO para las 4 apps NUEVAS (decisión 2026-09-25): los existentes `alpha_meta_token_scanner[_staging|_ingestion|_staging_ingestion]` quedan INTOCADOS — renombrar datos prod necesita su propia decisión de migración (open question, ver evidencia task-dbs-envs). Tramo 1 usa 17-18 tablas efectivas (NO 22). Must NOT inventar otros nombres ni renombrar DBs existentes.
+     What to do / Must NOT do: Escribir en este plan la tabla: dev local `onchain_bot_{kol_system,content_publisher,market_data,dexter}`; Oracle prod `onchain_bot_{kol_system,content_publisher,market_data,dexter}`; staging ingestion `onchain_bot_{kol_system_staging,content_publisher_staging,market_data_staging,dexter_staging}` (12 DBs); owner `migration:run` por app (su propio `data-source.ts`); `synchronize:false, migrationsRun:false` fuera dev/test. Nombres `onchain_bot_*` SOLO para las 4 apps NUEVAS (decisión 2026-09-25): las DBs pre-existentes de backend/ingestion quedan INTOCADAS hasta que ejecute el runbook de renombre (.omo/runbooks/rename-onchain-bot-db.md, fase 3 — esta tarea; era el open question de evidencia task-dbs-envs). Tramo 1 usa 17-18 tablas efectivas (NO 22). Must NOT inventar otros nombres ni renombrar DBs existentes.
      Parallelization: Wave 1 | Blocked by: 1 | Blocks: tramos (sus database.config.ts)
      References: .omo/drafts/mega-refactor-tramos.md:99 (C-DB-01 promesa); apps/backend AGENTS (split 2026-09-08, baseline ingestion `1788844970659-BaselineIngestionSchema`); .kiro/specs/refactor-kol-system/overview.md:1211-1238 (22→17/18 tras P4+P6); .omo/evidence/task-dbs-envs.log (rename onchain*bot*_ + open question prod)
      Acceptance criteria: `grep -o "onchain*bot*[a-z_]\_" .omo/plans/mega-refactor-central.md | sort -u | wc -l` >= 8 (4 bases + 4 staging)
@@ -129,13 +130,20 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
      Acceptance criteria: todo prefijo de endpoints.ts tiene fila con dueña + baseURL; 0 filas "TBD"
      QA scenarios: happy `grep -c "localhost:305" apps/frontend/src/shared/api/endpoints.ts` > 0 tras Tramo 1; failure proxy ausente → 404 en dev. Evidence .omo/evidence/task-7-mega-refactor-central.log
      Commit: Y | docs(central): sella C-UX-01 con mapa por prefijo
-- [ ] 8. Gates T1/T2/T3 + cutover global (C3, G-19)
-     What to do / Must NOT do: Gate T1: staging 48h (C3-bis, override 14d) + shadow/dry-run canal espejo + rollback rehearsal + E2E>200 green + load 100calls/h×24h + suites legacy green (`npm run test:backend -- token kol telegram`, `test:ingestion`, `test:frontend`). Gate T2: staging 7 días + E2E spec + rollback 30min ensayado. Gate T3: staging 7 días + `USE_DATA_SERVICE_API` staged. Cutover global kol→content→data, nunca en paralelo sobre mismo código. Must NOT declarar done sin evidencia en `.omo/evidence/`.
-     Parallelization: Wave 3 | Blocked by: 4, 6, 7 | Blocks: — (cierra programa)
-     References: .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:658-693 (checklist+cutover+rollback); .kiro/specs/refactor-content-publisher/MIGRATION-PLAYBOOK.md:52-65 (go/no-go); .omo/drafts/mega-refactor-tramos.md:113,131 (C3)
-     Acceptance criteria: checklist con 0 items sin evidencia enlazada
-     QA scenarios: happy todos los gates con logs; failure cualquier gate rojo → programa bloqueado, rollback ejecutado. Evidence .omo/evidence/task-8-mega-refactor-central.log
-     Commit: Y | docs(central): gates y cutover global verificados
+- [ ] 8. Gates T1/T2/T3 rápidos + cutover global (C4-bis, override C3/C3-bis como bloqueantes)
+     What to do / Must NOT do: Hard gate inter-tramo C4-bis (IGUAL para T1/T2/T3): (a) deprecation-check — TODO el legacy del concepto del tramo verificado deprecated con JSDoc claro (nueva ruta + refactor target), verificado por grep; (b) green suites — suites legacy + nuevas en verde (`npm run test:backend`, `test:ingestion`, `test:frontend` según tramo). Staging por tramo queda como VALIDACIÓN no-bloqueante (T1 48h con shadow/dry-run canal espejo + E2E>200 + load 100calls/h×24h; T2 7 días + E2E spec + rollback 30min ensayado; T3 p95<500ms + `USE_DATA_SERVICE_API` staged) — su ventana NO bloquea arrancar código del siguiente tramo. Cutover global kol→content→data por flags, nunca en paralelo sobre mismo código. Must NOT exigir ventana staging completa para arrancar el siguiente tramo; Must NOT borrar deprecated aquí (solo FINAL REVIEW todo 9).
+     Parallelization: Wave 3 | Blocked by: 4, 6, 7 | Blocks: 9 (FINAL REVIEW)
+     References: .omo/drafts/mega-refactor-tramos.md §10 (C4-bis 2026-09-25); .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:658-693 (checklist+cutover+rollback); .kiro/specs/refactor-content-publisher/MIGRATION-PLAYBOOK.md:52-65 (go/no-go)
+     Acceptance criteria: por tramo: `grep -r "@deprecated" <legacy-tramo>` >= 1 por concepto + suites verdes en evidencia; checklist con 0 items sin evidencia enlazada
+     QA scenarios: happy deprecation-check + green por tramo con logs; failure deprecation-check rojo o suites rojas → siguiente tramo bloqueado, rollback ejecutado. Evidence .omo/evidence/task-8-mega-refactor-central.log
+     Commit: Y | docs(central): gates rápidos C4-bis y cutover global verificados
+- [ ] 9. FINAL REVIEW: validación completa + eliminación deprecated + backend-remainder + cierre (C4-bis.1-3)
+     What to do / Must NOT do: UNA full final review cuando los 3 tramos completan: (a) validación completa — staging extendido + E2E + load + rollback rehearsal medido + suites legacy + 0 divergencias dual-run, con evidencia por tramo; (b) deprecated ELIMINATION — `rm -rf` legacy deprecated + DROP/archivado de tablas + deprecation headers resto, verificado por grep (`grep -r "@deprecated" apps/backend/src` → 0 tras eliminar o solo headers residuales documentados); (c) backend-remainder decision — lo que quede sin decidir del backend se decide aquí (absorber / archivar / mantener) y se registra; (d) cierre de programa — gates T1/T2/T3 + esta review con logs. Must NOT ejecutar antes de los 3 tramos; Must NOT borrar deprecated fuera de este todo.
+     Parallelization: Wave 4 | Blocked by: 8 + Gates T1/T2/T3 | Blocks: — (cierra programa)
+     References: .omo/drafts/mega-refactor-tramos.md §10 (C4-bis); planes T1/T2/T3 todos de cutover/deprecate-only
+     Acceptance criteria: validación completa con 0 items sin evidencia + `ls apps/backend/src/{kol,telegram/data-provider}` vacío según decisión + backend-remainder registrado
+     QA scenarios: happy review completa verde → programa cerrado; failure cualquier validación roja → rollback ejecutado y medido, programa NO cerrado. Evidence .omo/evidence/task-9-mega-refactor-central.log
+     Commit: Y | docs(central): FINAL REVIEW con eliminación deprecated y cierre
 
 ## Final verification wave
 
@@ -153,5 +161,6 @@ Docs de gobernanza: un commit por todo (docs(central): …), push a `feat/mega-r
 ## Success criteria
 
 - 9 contratos con valores + versión fecha+hash, 0 "TBD".
-- Gates T1/T2/T3 definidos con evidencia enlazada.
+- Gates T1/T2/T3 rápidos (deprecation-check + green) + FINAL REVIEW definidos con evidencia enlazada.
 - Tramos solo referencian contratos (grep de redefiniciones = 0).
+- Cero borrado deprecated fuera de la FINAL REVIEW (grep `@deprecated` en backend > 0 hasta el todo 9).

@@ -183,9 +183,7 @@ export class ThreadsQueueEntry extends AggregateRoot<string> {
    * Rehydrate from persistence without validation (use the persisted
    * shape as-is).
    */
-  public static reconstitute(
-    props: ThreadsQueueEntryProps,
-  ): ThreadsQueueEntry {
+  public static reconstitute(props: ThreadsQueueEntryProps): ThreadsQueueEntry {
     return new ThreadsQueueEntry(props.id, props);
   }
 

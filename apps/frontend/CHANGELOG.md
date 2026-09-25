@@ -4,7 +4,17 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ## [Unreleased]
 
-(none yet)
+### Added
+
+- `/templates` route: per-template dashboard (source picker, calls, 5+5 ranking, 30D/7D/1D top callers, extended config, avatars) + Playwright e2e. (feat/mega-refactor-tramos)
+
+### Fixed
+
+- Crypto-news sources pinned to `?type=crypto-news` (no longer list kol). (feat/mega-refactor-tramos)
+
+### Note
+
+- `/templates` works in dev only until `/kol-api` is mirrored in prod/staging nginx. (feat/mega-refactor-tramos)
 
 ## [1.2.0] - 2026-09-24
 

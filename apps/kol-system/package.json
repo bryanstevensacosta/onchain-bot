@@ -1,5 +1,5 @@
 {
-  "name": "@alpha-meta-token-scanner/kol-system",
+  "name": "@onchain-bot/kol-system",
   "version": "0.1.0",
   "description": "KOL system service skeleton (Tramo 1, app setup)",
   "private": true,

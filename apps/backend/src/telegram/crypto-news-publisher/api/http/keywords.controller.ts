@@ -13,12 +13,7 @@ import {
 import { KeywordRepository } from 'telegram/crypto-news-publisher/application/ports/keyword.repository';
 import { Keyword } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
 import { PhraseRegistryService } from 'telegram/crypto-news-publisher/application/services/phrase-registry.service';
-import {
-  ApiOperation,
-  ApiParam,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 export interface KeywordView {
   readonly id: string;

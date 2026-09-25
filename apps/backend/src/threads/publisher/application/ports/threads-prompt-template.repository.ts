@@ -17,9 +17,7 @@ import { ThreadsPromptTemplate } from 'threads/publisher/domain/entities/threads
  */
 export abstract class ThreadsPromptTemplateRepository {
   public abstract findAll(): Promise<ReadonlyArray<ThreadsPromptTemplate>>;
-  public abstract findById(
-    id: string,
-  ): Promise<ThreadsPromptTemplate | null>;
+  public abstract findById(id: string): Promise<ThreadsPromptTemplate | null>;
   public abstract findByIds(
     ids: ReadonlyArray<string>,
   ): Promise<ReadonlyArray<ThreadsPromptTemplate>>;

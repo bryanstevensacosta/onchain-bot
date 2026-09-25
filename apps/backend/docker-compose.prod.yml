@@ -13,16 +13,16 @@ services:
     env_file:
       - .env.production
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-alpha_meta_token_scanner}
+      POSTGRES_USER: ${POSTGRES_USER:-onchain_bot}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      POSTGRES_DB: ${POSTGRES_DB:-alpha_meta_token_scanner}
+      POSTGRES_DB: ${POSTGRES_DB:-onchain_bot}
     volumes:
       - onchain-bot-pg-data:/var/lib/postgresql/data
     healthcheck:
       test:
         [
           'CMD-SHELL',
-          'pg_isready -U ${POSTGRES_USER:-alpha_meta_token_scanner} -d ${POSTGRES_DB:-alpha_meta_token_scanner}',
+          'pg_isready -U ${POSTGRES_USER:-onchain_bot} -d ${POSTGRES_DB:-onchain_bot}',
         ]
       interval: 5s
       timeout: 3s

@@ -4,7 +4,13 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ## [Unreleased]
 
-(none yet)
+### Fixed
+
+- Crypto-news queue accepts crypto-news only: `?type=crypto-news` pin in matching/cron/handler + client-side drop + anti-kol SSE guard. (feat/mega-refactor-tramos)
+
+### Deprecated
+
+- `telegram/ingestion/kol/kol-ingestion.module.ts` → `apps/kol-system/src/ingestion/` (P18; live for dual-run, deleted at cutover). (feat/mega-refactor-tramos)
 
 ## [1.3.0] - 2026-09-24
 

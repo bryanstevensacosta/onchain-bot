@@ -1,6 +1,6 @@
 /**
  * Core abstractions for Telegram message transformation
- * 
+ *
  * These base classes define the framework for transforming raw Telegram messages
  * into normalized TelegramRawMessage format. Subclasses implement specific
  * extraction strategies (KOL vs crypto-news).

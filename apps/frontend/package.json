@@ -1,7 +1,7 @@
 {
-  "name": "@alpha-meta-token-scanner/frontend",
+  "name": "@onchain-bot/frontend",
   "version": "1.2.0",
-  "description": "React + Vite dashboard for Alpha Meta Token Scanner",
+  "description": "React + Vite dashboard for Onchain Bot",
   "private": true,
   "type": "module",
   "scripts": {

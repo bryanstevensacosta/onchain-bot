@@ -21,9 +21,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * safe to re-run and coexists with synchronize-era dev DBs. No
  * seeds, no secrets, no tokens in this migration.
  */
-export class CreateThreadsPublisherTables1875000000001
-  implements MigrationInterface
-{
+export class CreateThreadsPublisherTables1875000000001 implements MigrationInterface {
   public name = 'CreateThreadsPublisherTables1875000000001';
 
   public async up(qr: QueryRunner): Promise<void> {

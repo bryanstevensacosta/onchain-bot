@@ -5,7 +5,7 @@
 
 ## OVERVIEW
 
-**Alpha Meta Token Scanner** — monorepo, 3 apps: NestJS alpha-call pipeline (`apps/backend`, :3030) + per-env Telegram ingestion (`apps/ingestion-telegram`, same image per env — dev :3031, staging twin host :3033, prod host :3032 — SSE fan-out) + React/Vite dashboard (`apps/frontend`, :5173). Private, UNLICENSED. Node 22+ required, CI runs Node 24. TypeScript 5.9 (root) / 5.7 (backends).
+**Onchain Bot** — monorepo, 3 apps: NestJS alpha-call pipeline (`apps/backend`, :3030) + per-env Telegram ingestion (`apps/ingestion-telegram`, same image per env — dev :3031, staging twin host :3033, prod host :3032 — SSE fan-out) + React/Vite dashboard (`apps/frontend`, :5173). Private, UNLICENSED. Node 22+ required, CI runs Node 24. TypeScript 5.9 (root) / 5.7 (backends).
 
 Per-app docs (verified, authoritative over this file for details): `apps/backend/AGENTS.md`, `apps/ingestion-telegram/AGENTS.md`, `apps/frontend/AGENTS.md`. Sub-BC `AGENTS.md` files were consolidated into `apps/backend/AGENTS.md` on 2026-09-04 (7 files migrated + deleted).
 
@@ -27,7 +27,7 @@ Per-app docs (verified, authoritative over this file for details): `apps/backend
                     │  ✓ DB lógica propia por servidor Postgres:    │
                     │    <base>_ingestion (dev local una, Oracle    │
                     │    una prod + una staging twin:              │
-                    │    alpha_meta_token_scanner_staging_ingestion)│
+                    │    onchain_bot_staging_ingestion)│
                     │  ✓ Tablas propias: crypto_news_sources,       │
                     │    crypto_news_messages, crypto_news_         │
                     │    message_media (KOL identity sigue en el    │
@@ -70,7 +70,7 @@ Per-app docs (verified, authoritative over this file for details): `apps/backend
 
 1. **Un ingestion-telegram por env (1:1 con su backend)** — `docker-compose.ingestion.yml` (prod, host `:3032`→container `:3031`) + `docker-compose.staging-ingestion.yml` (twin, project `onchain-bot-staging-ingestion`, host `:3033`→container `:3031`) + dev local (`:3031`). Misma imagen, triple y DB distintas. El singleton multi-env está retirado (2026-09-22)
 2. **Una triple MTProto por env, jamás compartida** — cada instancia tiene SU triple (`INGESTION_TELEGRAM_MTPROTO_API_ID/_API_HASH/_SESSION` en SU `.env`: prod `.env.production`, staging `.env.staging` con la vieja cuenta de dev, local `.env` con la cuenta nueva). Mapa sin secretos: prod=cuenta actual, staging=vieja-dev, local=nueva (3-4 canales). Dos instancias con la misma triple causan `AUTH_KEY_DUPLICATED`. Pre-boot: triple-inequality assert por hashes (ver runbook twin)
-3. **Una DB de ingestion por env (`<base>_ingestion`)** — dev local `alpha_meta_token_scanner_ingestion`, Oracle prod `alpha_meta_token_scanner_ingestion` + Oracle staging `alpha_meta_token_scanner_staging_ingestion` (permitida desde per-env 2026-09-22; antes prohibida). Tablas `crypto_news_sources`, `crypto_news_messages`, `crypto_news_message_media` viven SOLO en la DB de SU env desde el split 2026-09-08 (antes existían también en el backend; migración `1860000000001-DropIngestionOwnedCryptoNewsTables`). El twin arranca VACÍO (sin seed, sin mirror prod)
+3. **Una DB de ingestion por env (`<base>_ingestion`)** — TARGET names tras el rename: dev local `onchain_bot_ingestion`, Oracle prod `onchain_bot_ingestion` + Oracle staging `onchain_bot_staging_ingestion` (permitida desde per-env 2026-09-22; antes prohibida). Estado live: las DBs Oracle conservan el nombre pre-rename hasta que ejecute el runbook (.omo/runbooks/rename-onchain-bot-db.md, fase 3). Tablas `crypto_news_sources`, `crypto_news_messages`, `crypto_news_message_media` viven SOLO en la DB de SU env desde el split 2026-09-08 (antes existían también en el backend; migración `1860000000001-DropIngestionOwnedCryptoNewsTables`). El twin arranca VACÍO (sin seed, sin mirror prod)
 4. **Ingestion-telegram es el owner de media** — descarga archivos a `uploads/crypto-news/media/` y los sirve vía `GET /api/media/*`
 5. **Backends NO escriben crypto-news** — staging/prod solo LEEN vía HTTP API del ingestion-telegram (no réplican tablas ni datos)
 6. **Frontend consume directamente del ingestion-telegram** — `GET /api/crypto-news/messages` apunta al puerto 3032 (no proxy vía backend)

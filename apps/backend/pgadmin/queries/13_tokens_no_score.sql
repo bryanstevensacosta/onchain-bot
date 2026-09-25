@@ -1,5 +1,5 @@
 -- =====================================================================
--- alpha-meta-token-scanner :: Tokens Without Score Yet
+-- onchain-bot :: Tokens Without Score Yet
 -- =====================================================================
 -- Tokens canónicos que aún no han sido puntuados.
 -- =====================================================================
