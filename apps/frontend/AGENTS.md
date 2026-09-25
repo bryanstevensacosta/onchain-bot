@@ -62,11 +62,11 @@ Correctly scoped prefixes: `telegram-kol/identity`, `telegram-kol/reputation`, `
 - `GET /ingestion-api/feed/stats` — statistics (totalMessages, totalSources, activeSources)
 - `GET /ingestion-api/media/:channelId/:messageId/:index` — serve feed media files
 
-| Env     | Frontend | Ingestion upstream (nginx/vite)                                                           |
-| ------- | -------- | ----------------------------------------------------------------------------------------- |
-| dev     | `:5173`  | vite `INGESTION_PROXY_TARGET` → `http://localhost:3031`                                   |
-| staging | `:4173`  | `nginx.staging.conf` → `onchain-bot-ingestion-telegram-staging:3031` (twin, host `:3033`) |
-| prod    | `:80`    | `nginx.conf` → `onchain-bot-ingestion-telegram:3031` (host `:3032`)                       |
+| Env     | Frontend | Ingestion upstream (nginx/vite)                                                              |
+| ------- | -------- | -------------------------------------------------------------------------------------------- |
+| dev     | `:5173`  | vite `INGESTION_PROXY_TARGET` → `http://localhost:3031`                                      |
+| staging | `:4173`  | `nginx.staging.conf` → `onchain-bot-ingestion-telegram-staging:3031` (staging, host `:3033`) |
+| prod    | `:80`    | `nginx.conf` → `onchain-bot-ingestion-telegram:3031` (host `:3032`)                          |
 
 **IMPORTANT:** Frontend queries its OWN env's ingestion-telegram DIRECTLY for feed data (no backend proxy).
 Each backend also queries ITS ingestion via HTTP API — NO database replication, NO shared data.
@@ -93,7 +93,7 @@ Rutas per-template (`shared/api/endpoints.ts` `kolSystem`, consumidas por `entit
 5. `llm-config-api.ts` uses `/api/crypto-news-publisher/*` prefix — vite dev proxies `/api`, but **nginx prod has no `/api` location** → LLM config broken in prod only.
 6. ~~`/crypto-news/filters/*` unproxied — RESOLVED: filters moved to backend, messages/sources/media moved to ingestion-telegram `/ingestion-api` prefix.~~
 
-**RESOLVED (feed-unification + per-env):** ~~7. Frontend crypto-news queries still point to backend~~ — now `GET /ingestion-api/feed/*` same-origin (vite dev → `:3031`, prod nginx → singleton, staging nginx → twin). ~~8. Content filters API stays in backend~~ — confirmed: filter CRUD (`/crypto-news/sources/:channelId/filters`, `/crypto-news/filters/:id/*`) stays in backend; ingestion stores RAW, backend matches on-read (Opción A).
+**RESOLVED (feed-unification + per-env):** ~~7. Frontend crypto-news queries still point to backend~~ — now `GET /ingestion-api/feed/*` same-origin (vite dev → `:3031`, prod nginx → singleton, staging nginx → staging ingestion). ~~8. Content filters API stays in backend~~ — confirmed: filter CRUD (`/crypto-news/sources/:channelId/filters`, `/crypto-news/filters/:id/*`) stays in backend; ingestion stores RAW, backend matches on-read (Opción A).
 
 ## POLLING (verified `refetchInterval`)
 
@@ -138,15 +138,15 @@ Docker build sets all to `""` → same-origin in prod (nginx routes by prefix).
 - **Kol-system proxy (`KOL_SYSTEM_PROXY_TARGET`, default `http://localhost:3050`):** `/kol-api/*` → rewrite `^/kol-api` → `/api` (Tramo 1; `vite.config.ts:98-102`)
 - **REMOVED:** `/crypto-news/(messages|sources|backfill|media)` regex — feed reads go via `/ingestion-api/feed/*`
 
-**Prod (`nginx.conf`, twin: `nginx.staging.conf`):**
+**Prod (`nginx.conf`, staging: `nginx.staging.conf`):**
 
 - Backend locations (`backend:3030`): dashboard, telegram-kol, vip-calls, token, ingestion, call-tracking, telegram, settings, kols, crypto-news-publisher, crypto-news-ads, socket.io
-- **Ingestion-telegram location:** `/ingestion-api/` → rewrite → `/api/` on the per-env upstream: prod `onchain-bot-ingestion-telegram:3031` (`nginx.conf:252-258`), staging twin `onchain-bot-ingestion-telegram-staging:3031` (`nginx.staging.conf:256-260`, host `:3033`)
+- **Ingestion-telegram location:** `/ingestion-api/` → rewrite → `/api/` on the per-env upstream: prod `onchain-bot-ingestion-telegram:3031` (`nginx.conf:252-258`), staging `onchain-bot-ingestion-telegram-staging:3031` (`nginx.staging.conf:256-260`, host `:3033`)
 - ⚠️ **Kol-system location MISSING:** `nginx.conf`/`nginx.staging.conf` have NO `/kol-api/` block (verified by grep — solo existe en `vite.config.ts`). `/templates` works in dev only until prod deploy mirrors it (`/kol-api/` → rewrite → `/api/` on the kol-system upstream, dual-applied to both confs like `/ingestion-api/`).
 - **REMOVED:** `/crypto-news/{messages,sources,media}` — now `/ingestion-api/feed/*`
 - SPA fallback + gzip + security headers (`nosniff`, `DENY`, strict referrer) + 502 `@maintenance` JSON + `client_max_body_size 12m`
 
-**Architecture note:** Feed data flows per env: Telegram → OWN ingestion-telegram DB → HTTP API → frontend (direct query, no backend middleman). Staging image bakes the twin upstream via `VITE_APP_ENV=staging` (`Dockerfile:27-35` re-declared ARG + `RUN if` copy; prod default path unchanged). Twin precondition: twin container MUST join `onchain-bot-staging-net` or the staging DNS name doesn't resolve. Drift guard: whoever edits the `/ingestion-api/` block dual-applies to both confs (see `nginx.staging.conf:244-255` owner note).
+**Architecture note:** Feed data flows per env: Telegram → OWN ingestion-telegram DB → HTTP API → frontend (direct query, no backend middleman). Staging image bakes the staging upstream via `VITE_APP_ENV=staging` (`Dockerfile:27-35` re-declared ARG + `RUN if` copy; prod default path unchanged). Staging precondition: staging container MUST join `onchain-bot-staging-net` or the staging DNS name doesn't resolve. Drift guard: whoever edits the `/ingestion-api/` block dual-applies to both confs (see `nginx.staging.conf:244-255` owner note).
 
 **Feed-reading pages:** `/crypto-news` (messages + queue + sources via `/ingestion-api/feed/*`), `/kols` (sources `?type=kol` for the AddKol flow).
 
@@ -193,7 +193,7 @@ FSD downward-only (`app → pages → widgets → features → entities → shar
 
 ## DEPLOY
 
-Multi-stage Dockerfile (node:22-bookworm build with `tsc -b && vite build` via root `build:frontend` → nginx:1.27-alpine static, `EXPOSE 80`, wget healthcheck). `.dockerignore` present. `CHANGELOG.md` at app root (hand-written, v1.2.0 latest — matches `package.json`, the version source of truth). **Per-env bake (T3):** `ARG VITE_APP_ENV` re-declared after the second FROM + `RUN if [ "$VITE_APP_ENV" = "staging" ]` copies `nginx.staging.conf` over `default.conf` (COPY can't expand ARG in source); prod tag builds without arg (singleton upstream intact), staging tag with `--build-arg VITE_APP_ENV=staging` (twin upstream). Verify baked images by `grep 'set $ingestion_api' /etc/nginx/conf.d/default.conf` (see `docs/deployment/staging-twin-channels.md` §3).
+Multi-stage Dockerfile (node:22-bookworm build with `tsc -b && vite build` via root `build:frontend` → nginx:1.27-alpine static, `EXPOSE 80`, wget healthcheck). `.dockerignore` present. `CHANGELOG.md` at app root (hand-written, v1.2.0 latest — matches `package.json`, the version source of truth). **Per-env bake (T3):** `ARG VITE_APP_ENV` re-declared after the second FROM + `RUN if [ "$VITE_APP_ENV" = "staging" ]` copies `nginx.staging.conf` over `default.conf` (COPY can't expand ARG in source); prod tag builds without arg (singleton upstream intact), staging tag with `--build-arg VITE_APP_ENV=staging` (staging upstream). Verify baked images by `grep 'set $ingestion_api' /etc/nginx/conf.d/default.conf` (see `docs/deployment/staging-twin-channels.md` §3).
 
 ## COMMANDS
 

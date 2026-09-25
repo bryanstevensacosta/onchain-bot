@@ -131,7 +131,7 @@ at | time ago | more details +`.
   content-publisher (threads stub C1 lives in
   `.omo/plans/mega-refactor-content-publisher.md` todo 8).
 - **C-DB-01 — one DB per app**: kol-system owns `onchain_bot_kol_system`
-  (dev + Oracle prod) / `onchain_bot_kol_system_staging` (twin staging) on
+  (dev + Oracle prod) / `onchain_bot_kol_system_staging` (staging ingestion) on
   the same server per env (12-DB table in the central plan, bases
   `onchain_bot_*` for the 4 NEW apps only — existing
   `alpha_meta_token_scanner*` DBs stay UNTOUCHED, renaming prod data needs
@@ -891,7 +891,7 @@ exported, unwired until composite health — gap 3).
 | ------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `KOL_SYSTEM_ENABLED`            | `false`                                                      | master switch                                                                                                                             |
 | `TEMPLATE_ORCHESTRATOR_ENABLED` | `false`                                                      | template orchestrator flag                                                                                                                |
-| `INGESTION_TELEGRAM_URL`        | `http://localhost:3031`                                      | OWN ingestion per env (dev `:3031`, twin `:3033`, prod `:3032`)                                                                           |
+| `INGESTION_TELEGRAM_URL`        | `http://localhost:3031`                                      | OWN ingestion per env (dev `:3031`, staging `:3033`, prod `:3032`)                                                                        |
 | `INGESTION_TELEGRAM_API_KEY`    | (empty — copy from owning ingestion `INGESTION_API_KEY`)     | upstream key, sent as `x-api-key` on SSE + feed reads (backend-mirror; empty = keyless)                                                   |
 | `ENCRYPTION_KEY`                | ``(empty — generate`openssl rand -hex 32`, NEVER commit)     | Tier-1 required, DISTINCT per env (P24)                                                                                                   |
 | `DATABASE_URL`                  | `postgres://…@localhost:5435/onchain_bot_kol_system`         | Tier-1 required; logical DB owned by kol-system                                                                                           |
@@ -919,12 +919,12 @@ commit.
 Spec triplet (kol-system): **3050 / 3051 / 3052** (dev / staging / prod —
 `.omo/drafts/mega-refactor-tramos.md` §4 A6, validated §7.1).
 
-| Service                      | Dev     | Staging twin | Prod      |
-| ---------------------------- | ------- | ------------ | --------- |
-| kol-system HTTP              | `:3050` | `:3051`      | `:3052`   |
-| kol-system DB                | `:5435` | (per-env)    | (per-env) |
-| kol-system Redis             | `:6382` | (per-env)    | (per-env) |
-| ingestion (its own, per env) | `:3031` | `:3033`      | `:3032`   |
+| Service                      | Dev     | Staging ingestion | Prod      |
+| ---------------------------- | ------- | ----------------- | --------- |
+| kol-system HTTP              | `:3050` | `:3051`           | `:3052`   |
+| kol-system DB                | `:5435` | (per-env)         | (per-env) |
+| kol-system Redis             | `:6382` | (per-env)         | (per-env) |
+| ingestion (its own, per env) | `:3031` | `:3033`           | `:3032`   |
 
 Local `docker-compose.yml`: postgres `5435:5432` (db
 `onchain_bot_kol_system`), redis `6382:6379`. No clash with
@@ -932,7 +932,7 @@ backend (`:3030/:5432/:6379`) or ingestion (`:3031/:3032/:3033`).
 DB naming follows `onchain_bot_<app>` per env for NEW apps (contract C-DB-01):
 `onchain_bot_kol_system[_staging]`.
 One-DB-per-app (C-DB-01, central plan todo 2): dev local
-`onchain_bot_kol_system`, Oracle prod same base name, twin staging
+`onchain_bot_kol_system`, Oracle prod same base name, staging ingestion
 `onchain_bot_kol_system_staging` — 12 DBs total across the four
 apps (kol/content/market/dexter × 3 envs) on the same server per env
 (precedent: `<base>_ingestion`). Existing `alpha_meta_token_scanner*` DBs
