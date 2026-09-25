@@ -13,6 +13,10 @@ import { MobulaAdapter } from 'token/enrichment/infrastructure/providers/mobula.
 import { MoralisAdapter } from 'token/enrichment/infrastructure/providers/moralis.adapter';
 import { RugCheckAdapter } from 'token/enrichment/infrastructure/providers/rugcheck.adapter';
 import { SolanaRpcAdapter } from 'token/enrichment/infrastructure/providers/solana-rpc.adapter';
+import {
+  HttpMarketDataAdapter,
+  useDataServiceApi,
+} from 'token/enrichment/infrastructure/providers/http-market-data.adapter';
 import { MARKET_DATA_PROVIDERS } from 'token/enrichment/enrichment.tokens';
 import { TokenSnapshotRepository } from 'token/enrichment/application/ports/token-snapshot.repository';
 import { EnrichmentEventPublisher } from 'token/enrichment/application/ports/enrichment-event.publisher';
@@ -80,6 +84,7 @@ import {
     MoralisAdapter,
     RugCheckAdapter,
     SolanaRpcAdapter,
+    HttpMarketDataAdapter,
     TokenImageService,
     {
       provide: TOKEN_IMAGE_FETCHER,
@@ -102,18 +107,24 @@ import {
         moralis: MoralisAdapter,
         rugcheck: RugCheckAdapter,
         solanaRpc: SolanaRpcAdapter,
-      ): ReadonlyArray<MarketDataProviderPort> => [
-        dex,
-        gt,
-        cg,
-        cmc,
-        birdeye,
-        helius,
-        mobula,
-        moralis,
-        rugcheck,
-        solanaRpc,
-      ],
+        http: HttpMarketDataAdapter,
+      ): ReadonlyArray<MarketDataProviderPort> => {
+        // G-17: default false — the server has no aggregators yet, so
+        // flipping now would regress enrichment. Merge is the fallback.
+        const local = [
+          dex,
+          gt,
+          cg,
+          cmc,
+          birdeye,
+          helius,
+          mobula,
+          moralis,
+          rugcheck,
+          solanaRpc,
+        ];
+        return useDataServiceApi() ? [http, ...local] : local;
+      },
       inject: [
         DexScreenerAdapter,
         GeckoTerminalAdapter,
@@ -125,6 +136,7 @@ import {
         MoralisAdapter,
         RugCheckAdapter,
         SolanaRpcAdapter,
+        HttpMarketDataAdapter,
       ],
     },
     EnrichTokenUseCase,

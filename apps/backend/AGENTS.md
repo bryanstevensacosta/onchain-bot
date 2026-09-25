@@ -646,11 +646,22 @@ Publisher{Queue,ThrottleState,SlotState}, Ad{,Media,RotationConfig,RotationState
 - TypeORM migrations: 15 files in `src/shared/common/persistence/migrations/` (`{ts}-*.ts`); DataSource `…/persistence/data-source.ts`.
 - `DATABASE_ENABLED=false` → in-memory repos; dev/test `synchronize:true`, staging/prod migrations (migration runbook from the old doc is still accurate — kept below).
 
-## DATA PROVIDERS — 13 CONFIRMED
+## DATA PROVIDERS — 13 CONFIRMED (CANONICAL HOME: market-data, SINCE TODO 4)
 
-`alchemy, birdeye, coingecko, coinmarketcap, dexscreener, fluxrpc, geckoterminal, helius, mobula, moralis, pumpdev, rugcheck, solana-rpc` + `core/` (`DataProviderPort`: 28 lines — `name`, `logger`, optional `onModuleInit()`). Categories: Market Data (dexscreener, geckoterminal, birdeye, mobula, moralis, coingecko, coinmarketcap) · RPC (alchemy EVM, helius Solana, fluxrpc, solana-rpc) · Security (rugcheck) · Trading (pumpdev). Conventions (see `data-provider/AGENTS.md`, current): per-provider `{x}.config/module/service/types/index/README`; `forRoot(testConfig)` + `forRootAsync()` env-driven; **raw axios, no shared HTTP wrapper**; **silent `null` on 404/429/timeout** (consumers cascade) **but log the failure**; no cache/rate-limit at this layer (consumer-side, 30–60 s TTL recommended). Rate limits live in per-provider READMEs (e.g. DexScreener 60 req/min, Birdeye 1 req/s, Helius 1M CU/month); shapes in `{provider}.types.ts`. `DataProviderModule` is `@Global`. Deps also include `openai`, `@huggingface/@xenova transformers` (LLM), `sharp`, `bs58`, `socket.io`, `lru-cache`.
+> **@deprecated (Tramo 3, todo 4, C-DATA-01 + P46/P47):** canonical owner is
+> `apps/market-data/src/provider/infrastructure/` (13 adapters +
+> `ProvidersModule`, registry 13/13). This tree keeps deprecated
+> re-export shims for dual-run (local default until the todo-5 HTTP
+> bridge, G-17); removed at cutover (todo 8). Zero `from 'data-provider`
+> imports remain in backend `*.ts` — 13 consumers (10 enrichment
+> adapters + 2 chain probers + ticker-resolver) import the canonical
+> home directly. chain-dexter-bot stays INTEGRATED (standalone is todo 9;
+> covered by `market-data-consumers.spec.ts`). Evidence:
+> `.omo/evidence/task-T3-04.log`.
 
-⚠️ `data-provider/README.md` says "11 providers" (13 exist) and points adapters at `chain/explorer/` (deleted). Same stale-doc class as gap 15. (`data-provider.module.ts` verified: imports+exports all 13.)
+`alchemy, birdeye, coingecko, coinmarketcap, dexscreener, fluxrpc, geckoterminal, helius, mobula, moralis, pumpdev, rugcheck, solana-rpc` + `core/` (`DataProviderPort`: 28 lines — `name`, `logger`, optional `onModuleInit()`). Tramo 3 todo 5 (G-17): `HttpMarketDataAdapter` (`token/enrichment/infrastructure/providers/http-market-data.adapter.ts`) calls `GET {MARKET_DATA_URL}/api/market-data/snapshot` (x-api-key, abort timeout, null + warn on failure) and prepends the cascade as http-primary + local-fallback when `USE_DATA_SERVICE_API=true` — DEFAULT FALSE (no flip: the server returns pending shells with no aggregators yet, flipping would regress enrichment; staging/prod flip only after the todo-8 24h SLO). Categories: Market Data (dexscreener, geckoterminal, birdeye, mobula, moralis, coingecko, coinmarketcap) · RPC (alchemy EVM, helius Solana, fluxrpc, solana-rpc) · Security (rugcheck) · Trading (pumpdev). Conventions: per-provider `{x}.config/module/service/types/index/README`; `forRoot(testConfig)` + `forRootAsync()` env-driven; **raw axios, no shared HTTP wrapper**; **silent `null` on 404/429/timeout** (consumers cascade) **but log the failure**; no cache/rate-limit at this layer (consumer-side, 30–60 s TTL recommended). Rate limits live in per-provider READMEs (e.g. DexScreener 60 req/min, Birdeye 1 req/s, Helius 1M CU/month); shapes in `{provider}.types.ts`. `DataProviderModule` is `@Global`. Deps also include `openai`, `@huggingface/@xenova transformers` (LLM), `sharp`, `bs58`, `socket.io`, `lru-cache`.
+
+⚠️ `data-provider/README.md` "11 providers" line fixed to 13 in todo 4 (index notice added); per-provider README import examples re-pointed at the canonical home. `chain/explorer/` references remain stale (gap 21 class).
 
 ## TESTS
 

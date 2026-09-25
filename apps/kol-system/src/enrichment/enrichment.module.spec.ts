@@ -45,7 +45,7 @@ describe('EnrichmentModule (USE_DATA_SERVICE_API selector)', () => {
     expect(providers[0]).toBeInstanceOf(LocalCascadeMarketDataAdapter);
   });
 
-  it('USE_DATA_SERVICE_API=true -> http-market-data', async () => {
+  it('USE_DATA_SERVICE_API=true -> http-market-data primary + local fallback', async () => {
     process.env.USE_DATA_SERVICE_API = 'true';
     moduleRef = await Test.createTestingModule({
       imports: [EnrichmentModule],
@@ -53,7 +53,8 @@ describe('EnrichmentModule (USE_DATA_SERVICE_API selector)', () => {
 
     const providers = moduleRef.get<MarketDataPort[]>(MARKET_DATA_PROVIDERS);
 
-    expect(providers).toHaveLength(1);
+    expect(providers).toHaveLength(2);
     expect(providers[0]).toBeInstanceOf(HttpMarketDataAdapter);
+    expect(providers[1]).toBeInstanceOf(LocalCascadeMarketDataAdapter);
   });
 });

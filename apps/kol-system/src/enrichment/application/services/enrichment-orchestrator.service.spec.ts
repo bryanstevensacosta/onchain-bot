@@ -126,6 +126,19 @@ describe('EnrichmentOrchestratorService (dual-port, first-non-null cascade)', ()
     expect(snapshot.snapshot_at).toEqual(snapshot.enriched_at);
   });
 
+  it('market-data down -> http null + local fallback serves (todo 5 bridge)', async () => {
+    const http = new StubPort('http-market-data', new Error('ECONNREFUSED'));
+    const local = new StubPort('local-cascade', data({ priceUsd: 9 }));
+    const { service } = setup([http, local]);
+
+    const { snapshot, errors } = await service.enrich(input());
+
+    expect(local.calls).toBe(1);
+    expect(snapshot.priceUsd).toBe(9);
+    expect(errors).toHaveLength(1);
+    expect(errors[0].provider).toBe('http-market-data');
+  });
+
   it('writes via SnapshotWriterPort (P27: enrichment never touches the table)', async () => {
     const p1 = new StubPort('p1', data({ priceUsd: 3 }));
     const writer = new InMemoryMentionSnapshotRepository();

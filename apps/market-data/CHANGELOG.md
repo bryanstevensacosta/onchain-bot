@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **HTTP bridge + SLO + staged flag (Tramo 3, todo 5, G-17):**
+  `GET /api/market-data/snapshot?chain=&address=` compat edge (the exact
+  contract kol-system calls; 12 `MarketData` fields, null + explicit
+  `status: 'pending'` until the todo-3 aggregators land; bad chain → 404,
+  never a silent null; 30s cache with `x-cache: HIT`) +
+  `POST /api/v1/addresses/batch` (1..50 items, per-item `{ error }` on
+  bad rows, 400 over cap, per-item cache shared with the GET edge so
+  batch traffic warms single reads). Measured SLO: warm-burst p95 =
+  0.96ms < 500ms PASS (50 GETs + 2 batch-50 in one 60/min window;
+  `scripts/measure-slo.mjs`; evidence
+  `.omo/evidence/task-5-mega-refactor-market-data.log`). Honesty note:
+  numbers cover edge + cache (pending shells, no provider fan-out yet) —
+  re-measure after aggregators land before any staging flip. Consumers:
+  kol-system dev flipped (`USE_DATA_SERVICE_API=true` + http-primary /
+  local-fallback); backend HTTP leaf landed with default FALSE (no flip —
+  flipping would regress enrichment); feed-publisher verified N/A;
+  staging/prod flags stay false until the 24h staging SLO (todo 8).
+
 ### Changed
 
 - **Provider hexagonal restructure (provider-hex, pure move, no behavior

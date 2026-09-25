@@ -4,6 +4,8 @@ import { ChainModule } from 'chain/chain.module';
 import { ProviderModule } from 'provider/provider.module';
 import { GatewayRateLimitGuard } from './gateway-rate-limit.guard';
 import { AddressesController } from './api/http/addresses.controller';
+import { AddressesBatchController } from './api/http/addresses-batch.controller';
+import { MarketDataSnapshotController } from './api/http/market-data-snapshot.controller';
 import { ChainsController } from './api/http/chains.controller';
 import { ProvidersController } from './api/http/providers.controller';
 import { TokensSnapshotController } from './api/http/tokens-snapshot.controller';
@@ -15,6 +17,9 @@ import { TokensSnapshotController } from './api/http/tokens-snapshot.controller'
  * AddressesController owns the universal model
  * (GET /api/v1/addresses/:chain/:address); TokensSnapshotController
  * stays as a deprecated kind=token alias (referenced by consumers).
+ * MarketDataSnapshotController serves the kol-system compat contract
+ * (GET /api/market-data/snapshot, todo 5) + AddressesBatchController
+ * the 50-item batch (POST /api/v1/addresses/batch, todo 5, G-17).
  * Composes address/chain/provider ports, applies rate-limit + cache
  * per endpoint; auth (x-api-key) is enforced globally by ApiKeyGuard.
  * Feature modules expose ports — no stray controllers.
@@ -23,6 +28,8 @@ import { TokensSnapshotController } from './api/http/tokens-snapshot.controller'
   imports: [AddressModule, ChainModule, ProviderModule],
   controllers: [
     AddressesController,
+    AddressesBatchController,
+    MarketDataSnapshotController,
     ChainsController,
     ProvidersController,
     TokensSnapshotController,

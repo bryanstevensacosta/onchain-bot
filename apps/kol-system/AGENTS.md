@@ -610,13 +610,17 @@ provider down → null + next in cascade). All-null → snapshot still written
 with null market fields + per-provider errors (the row is kept, `mc at`
 stays empty). Empty cascade is a constructor throw (fail-fast wiring, same
 as the backend). `MARKET_DATA_PROVIDERS` resolves to
-`[LocalCascadeMarketDataAdapter]` by default, or `[HttpMarketDataAdapter]`
-(stub: `GET {MARKET_DATA_URL}/api/market-data/snapshot?chain=&address=`,
-AbortController timeout default 2000ms, non-ok/transport-error/timeout →
-null; documented SLO p95<500ms once market-data is live in Tramo 3) only
-when `USE_DATA_SERVICE_API=true` (default false — Tramo 1 makes NO
-market-data calls, C-DATA-01: no providers moved, `MarketData` interface
-copied read-only). Rug signals travel as a GROUP
+`[LocalCascadeMarketDataAdapter]` by default, or `[HttpMarketDataAdapter,
+LocalCascadeMarketDataAdapter]` (http primary + local fallback, todo 5)
+only when `USE_DATA_SERVICE_API=true` (dev flipped after the measured
+warm-burst p95 0.96ms < 500ms PASS — evidence
+`.omo/evidence/task-5-mega-refactor-market-data.log`; staging/prod stay
+false until the todo-8 24h SLO). The http leaf calls
+`GET {MARKET_DATA_URL}/api/market-data/snapshot?chain=&address=`
+(compat edge, default base `http://localhost:4000`) with `x-api-key`
+when `MARKET_DATA_API_KEY` is set, AbortController timeout default
+2000ms; non-ok/transport-error/timeout → null + warn + recorded error
+while the local cascade serves next (adversarial: fallback + alert). Rug signals travel as a GROUP
 (`lockedLiquidityPercent` + `burnedPercent` + `top10HolderPercent`) — never
 gate on a single field (gates land in todo 9).
 
@@ -887,20 +891,21 @@ exported, unwired until composite health — gap 3).
 
 ## ENV INVENTORY (`.env.example`, 35 lines — verified)
 
-| Var                             | Value / default in example                                   | Notes                                                                                                                                     |
-| ------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `KOL_SYSTEM_ENABLED`            | `false`                                                      | master switch                                                                                                                             |
-| `TEMPLATE_ORCHESTRATOR_ENABLED` | `false`                                                      | template orchestrator flag                                                                                                                |
-| `INGESTION_TELEGRAM_URL`        | `http://localhost:3031`                                      | OWN ingestion per env (dev `:3031`, staging `:3033`, prod `:3032`)                                                                        |
-| `INGESTION_TELEGRAM_API_KEY`    | (empty — copy from owning ingestion `INGESTION_API_KEY`)     | upstream key, sent as `x-api-key` on SSE + feed reads (backend-mirror; empty = keyless)                                                   |
-| `ENCRYPTION_KEY`                | ``(empty — generate`openssl rand -hex 32`, NEVER commit)     | Tier-1 required, DISTINCT per env (P24)                                                                                                   |
-| `DATABASE_URL`                  | `postgres://…@localhost:5435/onchain_bot_kol_system`         | Tier-1 required; logical DB owned by kol-system                                                                                           |
-| `REDIS_URL`                     | `redis://localhost:6379/0`                                   | optional-with-warning (falls back to in-memory)                                                                                           |
-| `KOL_SYSTEM_PORT`               | `3050`                                                       | dev default                                                                                                                               |
-| `KOL_SYSTEM_API_KEY`            | (absent from example — guard reads it, fail-open when empty) | optional-with-warning                                                                                                                     |
-| `USE_DATA_SERVICE_API`          | `false`                                                      | enrichment leaf selector (P7): `false` = local-cascade (default, Tramo 1, NO market-data calls); `true` = http-market-data stub (Tramo 3) |
-| `MARKET_DATA_URL`               | `http://localhost:3060`                                      | base URL of the market-data service (read ONLY when `USE_DATA_SERVICE_API=true`)                                                          |
-| `MARKET_DATA_TIMEOUT_MS`        | `2000`                                                       | per-request timeout of the HTTP leaf (documented SLO p95<500ms once live)                                                                 |
+| Var                             | Value / default in example                                   | Notes                                                                                                                                                                                                                                          |
+| ------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `KOL_SYSTEM_ENABLED`            | `false`                                                      | master switch                                                                                                                                                                                                                                  |
+| `TEMPLATE_ORCHESTRATOR_ENABLED` | `false`                                                      | template orchestrator flag                                                                                                                                                                                                                     |
+| `INGESTION_TELEGRAM_URL`        | `http://localhost:3031`                                      | OWN ingestion per env (dev `:3031`, staging `:3033`, prod `:3032`)                                                                                                                                                                             |
+| `INGESTION_TELEGRAM_API_KEY`    | (empty — copy from owning ingestion `INGESTION_API_KEY`)     | upstream key, sent as `x-api-key` on SSE + feed reads (backend-mirror; empty = keyless)                                                                                                                                                        |
+| `ENCRYPTION_KEY`                | ``(empty — generate`openssl rand -hex 32`, NEVER commit)     | Tier-1 required, DISTINCT per env (P24)                                                                                                                                                                                                        |
+| `DATABASE_URL`                  | `postgres://…@localhost:5435/onchain_bot_kol_system`         | Tier-1 required; logical DB owned by kol-system                                                                                                                                                                                                |
+| `REDIS_URL`                     | `redis://localhost:6379/0`                                   | optional-with-warning (falls back to in-memory)                                                                                                                                                                                                |
+| `KOL_SYSTEM_PORT`               | `3050`                                                       | dev default                                                                                                                                                                                                                                    |
+| `KOL_SYSTEM_API_KEY`            | (absent from example — guard reads it, fail-open when empty) | optional-with-warning                                                                                                                                                                                                                          |
+| `USE_DATA_SERVICE_API`          | `false`                                                      | enrichment leaf selector (P7, G-17): `false` = local-cascade (default); `true` = http-market-data PRIMARY + local fallback (todo 5 resilient bridge). Dev flipped true (SLO green); staging/prod stay false until the 24h staging SLO (todo 8) |
+| `MARKET_DATA_URL`               | `http://localhost:4000`                                      | base URL of the market-data service (dev `:4000`, staging `:4001`, prod `:4002`; read ONLY when `USE_DATA_SERVICE_API=true`)                                                                                                                   |
+| `MARKET_DATA_TIMEOUT_MS`        | `2000`                                                       | per-request timeout of the HTTP leaf (measured SLO p95 0.96ms warm, todo 5)                                                                                                                                                                    |
+| `MARKET_DATA_API_KEY`           | (empty = keyless dev, fail-open)                             | inbound key of the market-data service, sent as `x-api-key`; copy from the owning market-data env on deploy, NEVER commit                                                                                                                      |
 
 Tier-1 validation (`validateKolSystemConfig`): `ENCRYPTION_KEY` +
 `DATABASE_URL` must be non-empty or boot throws `ConfigValidationError`.

@@ -105,8 +105,9 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
      Acceptance criteria: `grep -rn "from 'data-provider" apps/backend/src | wc -l` = 0; `npm run test:backend -- token/enrichment` verde
      QA scenarios: happy enrich vía HTTP igual resultado; failure market-data caído → fallback cascada local (flag) + alerta. Evidence .omo/evidence/task-4-mega-refactor-market-data.log
      Commit: Y | feat(market-data)!: extracción física de providers
-- [ ] 5. Puente HTTP + SLO + flag default (G-17)
+- [x] 5. Puente HTTP + SLO + flag default (G-17)
      What to do / Must NOT do: Servidor cumple SLO p95<500ms (cache + batch); `USE_DATA_SERVICE_API=true` default por env de forma escalonada (dev→staging→prod); T1/T2 cambian su `MarketDataPort` a HTTP como default con fallback local. Medición p95 con carga realista. Tests SLO.
+     DONE 2026-09-25: compat `GET /api/market-data/snapshot` + `POST /api/v1/addresses/batch` (50-cap) + warm-burst p95 0.96ms PASS (`scripts/measure-slo.mjs`); kol-system dev flipped (http-primary + local-fallback), backend leaf default-FALSE (no flip — server has no aggregators yet), feed-publisher N/A, staging/prod false hasta SLO 24h (todo 8). Evidence `.omo/evidence/task-5-mega-refactor-market-data.log`.
      Parallelization: Wave 3 | Blocked by: 4 | Blocks: 8
      References: .kiro/specs/refactor-data/overview.md:1295-1321 (flag + SLO); planes T1 todo 8 / T2 (port dual ya implementado)
      Acceptance criteria: p95 medido <500ms en evidencia + `curl` batch 50 tokens OK
@@ -147,6 +148,13 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
       Acceptance criteria: `curl sin key → 401/403` + `grep -rni "sk-\|api[_-]?key\s*[:=]\s*['\"][^'\"]" apps/market-data/src apps/market-data/.env* 2>/dev/null | grep -v spec | wc -l` = 0
       QA scenarios: happy key válida con scope; failure compromiso simulado → revocar+rotar+audit en <15min (drill documentado). Evidence .omo/evidence/task-10-mega-refactor-market-data.log
       Commit: Y | feat(market-data): seguridad auth keys con scopes y rotación
+- [ ] 11. Streaming ccxt on-demand vía ws (P49)
+      What to do / Must NOT do: `src/stream/` (suscripciones watchTicker/watchOHLCV on-demand por cliente autenticado P46, backpressure, rate-limit compartido con REST, auto-limpieza al desconectar) expuesto en `gateway/api/ws` (Socket.IO o WS nativo — decisión worker justificada; http intacto). Tests: subscribe/recibe/unsubscribe, backpressure, auth requerida. Must NOT streams sin auth ni fugas al desconectar.
+      Parallelization: Wave 3 | Blocked by: 2 (gateway), 10 (auth) | Blocks: 8
+      References: .omo/drafts/mega-refactor-tramos.md (P49); ccxt pro docs (watch\*); apps/market-data/src/gateway/
+      Acceptance criteria: cliente suscrito recibe ticks + `curl`-equivalente ws cierra limpio; 100 subs simuladas sin degradar REST (p95 intacto)
+      QA scenarios: happy stream live; failure exchange cae → error al suscriptor + reintento con backoff. Evidence .omo/evidence/task-11-mega-refactor-market-data.log
+      Commit: Y | feat(market-data): streaming ccxt on-demand por ws
 
 ## Final verification wave
 

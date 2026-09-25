@@ -30,13 +30,15 @@ export function useDataServiceApi(
 
 /**
  * EnrichmentModule — market-data bridge via dual `MarketDataPort`
- * (Tramo 1, todo 8, P7 + C-DATA-01 + G-17).
+ * (Tramo 1, todo 8, P7 + C-DATA-01 + G-17; resilient bridge todo 5).
  *
  * `MARKET_DATA_PROVIDERS` resolves to `[LocalCascadeMarketDataAdapter]` by
- * default, or `[HttpMarketDataAdapter]` (stub: timeout + documented
- * p95<500ms SLO) when `USE_DATA_SERVICE_API=true`. The orchestrator merges
- * first-non-null per field (backend cascade mirror, silent-null fallback)
- * and completes the P26 snapshot, writing it through `SnapshotWriterPort`
+ * default, or `[HttpMarketDataAdapter, LocalCascadeMarketDataAdapter]`
+ * (http primary + local fallback) when `USE_DATA_SERVICE_API=true`. The
+ * orchestrator merges first-non-null per field, so a down market-data
+ * resolves null with a warn + recorded error while the local cascade
+ * serves next (adversarial: fallback + alert, never a silent break).
+ * The completed P26 snapshot is written through `SnapshotWriterPort`
  * (P27: `useExisting` alias of the snapshot-owned repository — enrichment
  * never touches the table directly).
  */
@@ -70,7 +72,7 @@ export function useDataServiceApi(
       useFactory: (
         local: LocalCascadeMarketDataAdapter,
         http: HttpMarketDataAdapter,
-      ) => (useDataServiceApi() ? [http] : [local]),
+      ) => (useDataServiceApi() ? [http, local] : [local]),
       inject: [LocalCascadeMarketDataAdapter, HttpMarketDataAdapter],
     },
     {

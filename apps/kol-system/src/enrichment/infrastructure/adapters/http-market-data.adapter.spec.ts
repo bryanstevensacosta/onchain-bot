@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import {
+  HTTP_MARKET_DATA_DEFAULT_BASE_URL,
   HTTP_MARKET_DATA_DEFAULT_TIMEOUT_MS,
   HttpMarketDataAdapter,
 } from './http-market-data.adapter';
@@ -32,6 +33,28 @@ describe('HttpMarketDataAdapter (stub behind USE_DATA_SERVICE_API=true)', () => 
 
   it('default timeout honors the p95<500ms SLO budget', () => {
     expect(HTTP_MARKET_DATA_DEFAULT_TIMEOUT_MS).toBeLessThanOrEqual(2000);
+  });
+
+  it('default base URL points at the market-data dev port (:4000)', () => {
+    expect(HTTP_MARKET_DATA_DEFAULT_BASE_URL).toBe('http://localhost:4000');
+  });
+
+  it('sends x-api-key when MARKET_DATA_API_KEY is set (fail-open empty)', async () => {
+    process.env.MARKET_DATA_API_KEY = 'secret-key';
+    try {
+      fetchMock.mockResolvedValue(okResponse({ priceUsd: 2 }));
+      const adapter = new HttpMarketDataAdapter('http://market-data:4000');
+
+      await adapter.fetch('evm', ADDRESS);
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const init = fetchMock.mock.calls[0][1] as {
+        headers: Record<string, string>;
+      };
+      expect(init.headers['x-api-key']).toBe('secret-key');
+    } finally {
+      delete process.env.MARKET_DATA_API_KEY;
+    }
   });
 
   it('maps an ok response to MarketData (chain/address as query params)', async () => {

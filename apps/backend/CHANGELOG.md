@@ -6,6 +6,8 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Added
 
+- Tramo 3 todo 5 (G-17) HTTP bridge: new `HttpMarketDataAdapter` (backend `MarketData` shape with `pairs: []`/`imageUrls: []`, `GET /api/market-data/snapshot`, `x-api-key`, abort timeout, null + warn on every failure) wired into `EnrichmentModule` as http-primary + local-fallback when `USE_DATA_SERVICE_API=true`. DEFAULT FALSE — no flip: the server returns pending shells (no aggregators yet), so flipping would regress enrichment; staging/prod flip only after the 24h staging SLO (todo 8). (feat/mega-refactor-tramos)
+- Tramo 3 todo 4 (C-DATA-01) consumer-side: backend `data-provider/` is now deprecated re-export shims over the market-data canonical home (`apps/market-data/src/provider/infrastructure/`); 13 consumers rewired (10 enrichment adapters, 2 chain probers, ticker-resolver); new adversarial suites `shim-identity` (13/13 class identity) + dexter `market-data-consumers` (gap-7 integrated default). (feat/mega-refactor-tramos)
 - P41 API prefix migration dual-serve (T2 todo 13 Fase 1): every feed controller serves old+new (`crypto-news-publisher/*` + `feed-publisher/*`, `crypto-news-ads/*` + `crypto-news-scheduling/*` + `feed-scheduling/*`, `threads-publisher/*` + `feed-threads-publisher/*`, `crypto-news/matching` + `feed-matching`, new `FeedFiltersController` on `feed-filters/*` delegating to the same filter use-cases). Old paths intact; cutover todo 11 drops them. `ops/backups` kept; backend does NOT adopt `feed-sources`. (feat/mega-refactor-tramos)
 
 ### Fixed
