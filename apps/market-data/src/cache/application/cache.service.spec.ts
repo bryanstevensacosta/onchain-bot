@@ -1,4 +1,4 @@
-import { InMemoryCacheAdapter } from './in-memory-cache.adapter';
+import { InMemoryCacheAdapter } from '../infrastructure/in-memory-cache.adapter';
 import { CacheService } from './cache.service';
 
 /**

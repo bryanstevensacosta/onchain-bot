@@ -1,29 +1,12 @@
-import { DynamicModule, Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { ALCHEMY_CONFIG, AlchemyConfig } from './alchemy.config';
-import { AlchemyService } from './alchemy.service';
-
-@Module({
-  providers: [
-    {
-      provide: ALCHEMY_CONFIG,
-      inject: [ConfigService],
-      useFactory: (cs: ConfigService): AlchemyConfig =>
-        cs.get<AlchemyConfig>('app.alchemy') ?? { apiKey: '' },
-    },
-    AlchemyService,
-  ],
-  exports: [AlchemyService],
-})
-export class AlchemyModule {
-  public static forRoot(config: AlchemyConfig): DynamicModule {
-    return {
-      module: AlchemyModule,
-      providers: [
-        { provide: ALCHEMY_CONFIG, useValue: config },
-        AlchemyService,
-      ],
-      exports: [AlchemyService],
-    };
-  }
-}
+/**
+ * @deprecated Moved to apps/market-data/src/provider/infrastructure/alchemy/ (Tramo 3, todo 4, C-DATA-01).
+ * Canonical owner is now market-data (ProvidersModule); this file is a
+ * dual-run re-export shim so legacy backend consumers stay green.
+ * Removed at cutover (todo 8). Do not extend it.
+ *
+ * New location: apps/market-data/src/provider/infrastructure/alchemy/
+ * Reason: extracting market-data providers from backend monolith to dedicated app
+ * Breaking change: Yes (removal at cutover)
+ * Rollback: restore backend implementation from git history
+ */
+export * from '../../../../market-data/src/provider/infrastructure/alchemy/alchemy.module';

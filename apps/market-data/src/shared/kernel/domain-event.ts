@@ -1,11 +1,6 @@
 /**
- * DomainEvent base (Tramo 3, todo 1).
- *
- * Mirrors the sibling extraction services: named events (<bc>.<aggregate>.
- * <action>), published only AFTER save() via commitEvents().
+ * @deprecated Hexagonal home is `src/shared/domain/kernel/domain-event.ts`
+ * (Tramo 3, todo 12, P50). Compat re-export so `shared/*` consumers
+ * keep working unchanged. Removed at cutover (todo 8).
  */
-export abstract class DomainEvent {
-  public readonly occurredAt: Date = new Date();
-
-  protected constructor(public readonly name: string) {}
-}
+export * from '../domain/kernel/domain-event';

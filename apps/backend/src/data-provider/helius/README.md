@@ -16,37 +16,37 @@ Helius es la capa de datos enriquecidos para Solana. Se usa para:
 
 ## Plan actual (Free — $0)
 
-| Límite | Valor |
-|--------|-------|
-| Plan | **Free** (Developer) |
+| Límite                     | Valor                              |
+| -------------------------- | ---------------------------------- |
+| Plan                       | **Free** (Developer)               |
 | Compute Units (CU) por mes | **1,000,000** (se resetea mensual) |
-| Rate limit | Depende del endpoint |
-| Chains | Solana mainnet + devnet |
-| Enhanced Transactions | ✅ (10,000 req/mes en Free) |
-| DAS API | ✅ |
-| WebSocket | ✅ |
-| Webhooks | Limitados |
+| Rate limit                 | Depende del endpoint               |
+| Chains                     | Solana mainnet + devnet            |
+| Enhanced Transactions      | ✅ (10,000 req/mes en Free)        |
+| DAS API                    | ✅                                 |
+| WebSocket                  | ✅                                 |
+| Webhooks                   | Limitados                          |
 
 > Con 1M CU/mes, ~33k requests/día promedio. Para producción, los planes superiores ofrecen 10M+ CU.
 
 ### Comparativa de planes
 
-| Feature | Free | Growth ($50) | Business (custom) |
-|---------|:----:|:------------:|:-----------------:|
-| CU/mes | 1,000,000 | 10,000,000+ | Custom |
-| Enhanced TX req/mes | 10,000 | 100,000+ | Custom |
-| Webhooks | 2 | 10+ | Custom |
-| Yellowstone gRPC | ❌ | ✅ | ✅ |
-| Rate limit (RPC) | 100 req/s | 500 req/s | Custom |
+| Feature             |   Free    | Growth ($50) | Business (custom) |
+| ------------------- | :-------: | :----------: | :---------------: |
+| CU/mes              | 1,000,000 | 10,000,000+  |      Custom       |
+| Enhanced TX req/mes |  10,000   |   100,000+   |      Custom       |
+| Webhooks            |     2     |     10+      |      Custom       |
+| Yellowstone gRPC    |    ❌     |      ✅      |        ✅         |
+| Rate limit (RPC)    | 100 req/s |  500 req/s   |      Custom       |
 
 ## Endpoints implementados en el servicio
 
-| Método service | API | Tipo | CU aprox. | Descripción |
-|----------------|-----|:----:|:---------:|-------------|
-| `getTokenAccounts(mint)` | RPC `getTokenAccounts` | RPC | ~40 | Token accounts por mint (holders) |
-| `getAsset(id)` | DAS `getAsset` | DAS | ~80 | Asset metadata + price |
-| `parseTransaction(signature)` | Enhanced TX `POST /v0/transactions` | REST | ~20 | Tx parseada completa |
-| `getAddressHistory(address, limit?)` | Enhanced TX `GET /v0/addresses/{address}/transactions` | REST | ~20 | Historial de address |
+| Método service                       | API                                                    | Tipo | CU aprox. | Descripción                       |
+| ------------------------------------ | ------------------------------------------------------ | :--: | :-------: | --------------------------------- |
+| `getTokenAccounts(mint)`             | RPC `getTokenAccounts`                                 | RPC  |    ~40    | Token accounts por mint (holders) |
+| `getAsset(id)`                       | DAS `getAsset`                                         | DAS  |    ~80    | Asset metadata + price            |
+| `parseTransaction(signature)`        | Enhanced TX `POST /v0/transactions`                    | REST |    ~20    | Tx parseada completa              |
+| `getAddressHistory(address, limit?)` | Enhanced TX `GET /v0/addresses/{address}/transactions` | REST |    ~20    | Historial de address              |
 
 ### Response types
 
@@ -108,62 +108,62 @@ Helius es la capa de datos enriquecidos para Solana. Se usa para:
 
 ### Métodos sugeridos para agregar
 
-| Método service sugerido | Método/Endpoint | Para qué sirve |
-|-------------------------|-----------------|----------------|
-| `getBalance(address)` | RPC `getBalance` | Balance SOL |
+| Método service sugerido                    | Método/Endpoint               | Para qué sirve            |
+| ------------------------------------------ | ----------------------------- | ------------------------- |
+| `getBalance(address)`                      | RPC `getBalance`              | Balance SOL               |
 | `getSignaturesForAddress(address, limit?)` | RPC `getSignaturesForAddress` | Signatures de una address |
-| `getTransaction(signature)` | RPC `getTransaction` | Tx raw (no parseada) |
-| `getTokenSupply(mint)` | RPC `getTokenSupply` | Supply de un SPL token |
-| `getAssetsByOwner(owner)` | DAS `getAssetsByOwner` | Assets de un owner |
-| `getNftEditions(mint)` | DAS `getNftEditions` | Ediciones de un NFT |
-| `getWebhook(webhookId)` | Webhooks API | Gestionar webhooks |
-| `createWebhook(params)` | Webhooks API | Crear webhook |
+| `getTransaction(signature)`                | RPC `getTransaction`          | Tx raw (no parseada)      |
+| `getTokenSupply(mint)`                     | RPC `getTokenSupply`          | Supply de un SPL token    |
+| `getAssetsByOwner(owner)`                  | DAS `getAssetsByOwner`        | Assets de un owner        |
+| `getNftEditions(mint)`                     | DAS `getNftEditions`          | Ediciones de un NFT       |
+| `getWebhook(webhookId)`                    | Webhooks API                  | Gestionar webhooks        |
+| `createWebhook(params)`                    | Webhooks API                  | Crear webhook             |
 
 ## Todos los endpoints de Helius
 
 ### RPC (JSON-RPC estándar de Solana)
 
-| Método | CU | Descripción |
-|--------|:--:|-------------|
-| `getBalance` | 10 | Balance en lamports |
-| `getAccountInfo` | 10 | Info de cuenta |
-| `getMultipleAccounts` | 20 | Múltiples cuentas |
-| `getProgramAccounts` | 40 | Cuentas de un programa |
-| `getTokenAccountsByOwner` | 10 | Token accounts de un owner |
-| `getTokenAccountBalance` | 10 | Balance de un token account |
-| `getTokenSupply` | 20 | Supply de un mint |
-| `getTokenLargestAccounts` | 20 | Top holders de un mint |
-| `getTransaction` | 40 | Tx por signature |
-| `getSignaturesForAddress` | 40 | Signatures de una address |
-| `simulateTransaction` | 40 | Simular tx |
-| `getBlock` | 40 | Bloque por slot |
-| `getBlockHeight` | 10 | Altura actual |
-| `getSlot` | 20 | Slot actual |
-| `getEpochInfo` | 10 | Info de epoch |
-| `getLatestBlockhash` | 10 | Blockhash actual |
+| Método                    | CU  | Descripción                 |
+| ------------------------- | :-: | --------------------------- |
+| `getBalance`              | 10  | Balance en lamports         |
+| `getAccountInfo`          | 10  | Info de cuenta              |
+| `getMultipleAccounts`     | 20  | Múltiples cuentas           |
+| `getProgramAccounts`      | 40  | Cuentas de un programa      |
+| `getTokenAccountsByOwner` | 10  | Token accounts de un owner  |
+| `getTokenAccountBalance`  | 10  | Balance de un token account |
+| `getTokenSupply`          | 20  | Supply de un mint           |
+| `getTokenLargestAccounts` | 20  | Top holders de un mint      |
+| `getTransaction`          | 40  | Tx por signature            |
+| `getSignaturesForAddress` | 40  | Signatures de una address   |
+| `simulateTransaction`     | 40  | Simular tx                  |
+| `getBlock`                | 40  | Bloque por slot             |
+| `getBlockHeight`          | 10  | Altura actual               |
+| `getSlot`                 | 20  | Slot actual                 |
+| `getEpochInfo`            | 10  | Info de epoch               |
+| `getLatestBlockhash`      | 10  | Blockhash actual            |
 
 ### DAS API (Digital Asset Standard)
 
-| Método | CU | Descripción |
-|--------|:--:|-------------|
-| `getAsset` | 80 | Info de un asset |
-| `getAssetProof` | 80 | Merkle proof |
-| `getAssetsByOwner` | 80 | Assets de un owner |
-| `getAssetsByCreator` | 80 | Assets por creator |
-| `getAssetsByGroup` | 80 | Assets por colección |
-| `getTokenAccounts` | 40 | Token accounts |
-| `searchAssets` | 160 | Búsqueda avanzada |
+| Método               | CU  | Descripción          |
+| -------------------- | :-: | -------------------- |
+| `getAsset`           | 80  | Info de un asset     |
+| `getAssetProof`      | 80  | Merkle proof         |
+| `getAssetsByOwner`   | 80  | Assets de un owner   |
+| `getAssetsByCreator` | 80  | Assets por creator   |
+| `getAssetsByGroup`   | 80  | Assets por colección |
+| `getTokenAccounts`   | 40  | Token accounts       |
+| `searchAssets`       | 160 | Búsqueda avanzada    |
 
 ### Enhanced Transactions API
 
-| Endpoint | CU | Descripción |
-|----------|:--:|-------------|
-| `POST /v0/transactions` | ~20 | Parsear transacciones por signature |
-| `GET /v0/addresses/{address}/transactions` | ~20 | Historial de address |
-| `POST /v0/webhooks` | — | Crear webhook |
-| `GET /v0/webhooks/{id}` | — | Obtener webhook |
-| `PUT /v0/webhooks/{id}` | — | Actualizar webhook |
-| `DELETE /v0/webhooks/{id}` | — | Eliminar webhook |
+| Endpoint                                   | CU  | Descripción                         |
+| ------------------------------------------ | :-: | ----------------------------------- |
+| `POST /v0/transactions`                    | ~20 | Parsear transacciones por signature |
+| `GET /v0/addresses/{address}/transactions` | ~20 | Historial de address                |
+| `POST /v0/webhooks`                        |  —  | Crear webhook                       |
+| `GET /v0/webhooks/{id}`                    |  —  | Obtener webhook                     |
+| `PUT /v0/webhooks/{id}`                    |  —  | Actualizar webhook                  |
+| `DELETE /v0/webhooks/{id}`                 |  —  | Eliminar webhook                    |
 
 ## Autenticación
 
@@ -208,22 +208,22 @@ curl -s --request GET \
 
 ## Chains soportadas
 
-| Chain | Tipo | Estado |
-|-------|------|--------|
-| **Solana** (mainnet) | L1 | ✅ |
-| **Solana** (devnet) | L1 | ✅ |
+| Chain                | Tipo | Estado |
+| -------------------- | ---- | ------ |
+| **Solana** (mainnet) | L1   | ✅     |
+| **Solana** (devnet)  | L1   | ✅     |
 
 ## Manejo de errores
 
-| HTTP / RPC Code | Significado | Acción |
-|-----------------|-------------|--------|
-| 400 | Bad request | Revisar payload |
-| 401 | API key inválida | Verificar `.env` |
-| 429 | Rate limit / CU excedido | Retry con backoff |
-| 500 | Internal error | Retry después de 1s |
-| `-32000` | Server error | Retry |
-| `-32001` | Resource not found | Verificar address/signature |
-| `-32602` | Invalid params | Revisar payload |
+| HTTP / RPC Code | Significado              | Acción                      |
+| --------------- | ------------------------ | --------------------------- |
+| 400             | Bad request              | Revisar payload             |
+| 401             | API key inválida         | Verificar `.env`            |
+| 429             | Rate limit / CU excedido | Retry con backoff           |
+| 500             | Internal error           | Retry después de 1s         |
+| `-32000`        | Server error             | Retry                       |
+| `-32001`        | Resource not found       | Verificar address/signature |
+| `-32602`        | Invalid params           | Revisar payload             |
 
 El service actual retorna `null` silenciosamente en errores y logea en debug.
 
@@ -231,31 +231,31 @@ El service actual retorna `null` silenciosamente en errores y logea en debug.
 
 ### Por categoría
 
-| Categoría | CU promedio | Métodos |
-|-----------|:-----------:|---------|
-| **Lecturas ligeras** | 10 CU | `getBalance`, `getAccountInfo`, `getTokenAccountsByOwner`, `getSlot`, `getBlockHeight`, `getEpochInfo`, `getLatestBlockhash` |
-| **Lecturas medias** | 20 CU | `getMultipleAccounts`, `getTokenSupply`, `getTokenLargestAccounts`, `getBlock` |
-| **Lecturas pesadas** | 40 CU | `getProgramAccounts`, `getTransaction`, `getSignaturesForAddress`, `simulateTransaction`, `getTokenAccounts` |
-| **DAS** | 80 CU | `getAsset`, `getAssetsByOwner`, `getAssetProof` |
-| **DAS pesado** | 160 CU | `searchAssets` |
-| **Enhanced TX** | ~20 CU | `parseTransaction`, `getAddressHistory` |
+| Categoría            | CU promedio | Métodos                                                                                                                      |
+| -------------------- | :---------: | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Lecturas ligeras** |    10 CU    | `getBalance`, `getAccountInfo`, `getTokenAccountsByOwner`, `getSlot`, `getBlockHeight`, `getEpochInfo`, `getLatestBlockhash` |
+| **Lecturas medias**  |    20 CU    | `getMultipleAccounts`, `getTokenSupply`, `getTokenLargestAccounts`, `getBlock`                                               |
+| **Lecturas pesadas** |    40 CU    | `getProgramAccounts`, `getTransaction`, `getSignaturesForAddress`, `simulateTransaction`, `getTokenAccounts`                 |
+| **DAS**              |    80 CU    | `getAsset`, `getAssetsByOwner`, `getAssetProof`                                                                              |
+| **DAS pesado**       |   160 CU    | `searchAssets`                                                                                                               |
+| **Enhanced TX**      |   ~20 CU    | `parseTransaction`, `getAddressHistory`                                                                                      |
 
 ### Uso proyectado mensual (1M CU gratis)
 
-| Escenario | CU/request | Requests/mes estimados |
-|-----------|:----------:|:---------------------:|
-| Solo balances | 10 CU | ~100,000 |
-| Solo DAS getAsset | 80 CU | ~12,500 |
-| Enhanced TX parse | 20 CU | ~50,000 |
-| Mix holder analysis | ~30 CU | ~33,333 |
-| Mix pipeline típico | ~40 CU | ~25,000 |
+| Escenario           | CU/request | Requests/mes estimados |
+| ------------------- | :--------: | :--------------------: |
+| Solo balances       |   10 CU    |        ~100,000        |
+| Solo DAS getAsset   |   80 CU    |        ~12,500         |
+| Enhanced TX parse   |   20 CU    |        ~50,000         |
+| Mix holder analysis |   ~30 CU   |        ~33,333         |
+| Mix pipeline típico |   ~40 CU   |        ~25,000         |
 
 ## Ejemplos de uso
 
 ### Uso básico del service
 
 ```typescript
-import { HeliusService } from 'data-provider/helius';
+import { HeliusService } from 'apps/market-data/src/provider/infrastructure/helius';
 
 // 1. Token accounts de un mint (holder count)
 const accounts = await helius.getTokenAccounts(
@@ -291,13 +291,12 @@ if (tx) {
 }
 
 // 4. Address history
-const history = await helius.getAddressHistory(
-  '9x...',
-  10,
-);
+const history = await helius.getAddressHistory('9x...', 10);
 if (history) {
   for (const tx of history) {
-    console.log(`${tx.type}: ${tx.signature} (${new Date((tx.blockTime ?? 0) * 1000).toISOString()})`);
+    console.log(
+      `${tx.type}: ${tx.signature} (${new Date((tx.blockTime ?? 0) * 1000).toISOString()})`,
+    );
   }
 }
 ```
@@ -331,16 +330,16 @@ async function analyzeHolders(mint: string) {
 
 ### Diferencia entre Helius y otros providers Solana
 
-| Aspecto | Helius | Birdeye | FluxRPC |
-|---------|--------|---------|---------|
-| DAS API | ✅ | ❌ | ❌ |
-| Enhanced TX parsing | ✅ (único) | ❌ | ❌ |
-| RPC estándar | ✅ | ❌ | ✅ |
-| Market data | Limitado | ✅ (mejor) | ❌ |
-| Holders analysis | ✅ | ✅ | ❌ |
-| Address history | ✅ | Solo Solana wallet | ❌ |
-| Free tier | 1M CU/mes | 30k CU/mes | No free |
-| Pricing | Créditos | CU | Por byte |
+| Aspecto             | Helius     | Birdeye            | FluxRPC  |
+| ------------------- | ---------- | ------------------ | -------- |
+| DAS API             | ✅         | ❌                 | ❌       |
+| Enhanced TX parsing | ✅ (único) | ❌                 | ❌       |
+| RPC estándar        | ✅         | ❌                 | ✅       |
+| Market data         | Limitado   | ✅ (mejor)         | ❌       |
+| Holders analysis    | ✅         | ✅                 | ❌       |
+| Address history     | ✅         | Solo Solana wallet | ❌       |
+| Free tier           | 1M CU/mes  | 30k CU/mes         | No free  |
+| Pricing             | Créditos   | CU                 | Por byte |
 
 ## Enhanced WebSockets (tiempo real)
 
@@ -354,9 +353,9 @@ Helius ofrece WebSockets mejorados con parsing automático de transacciones. El 
 
 interface TransactionNotification {
   signature: string;
-  type: string;           // "SWAP", "NFT_SALE", "TRANSFER", "DEPOSIT", etc.
-  source: string;          // "JUPITER", "RAYDIUM", "PHANTOM", etc.
-  description: string;     // Descripción legible: "WALLET_A swapped 1.5 SOL for 225.5 USDC"
+  type: string; // "SWAP", "NFT_SALE", "TRANSFER", "DEPOSIT", etc.
+  source: string; // "JUPITER", "RAYDIUM", "PHANTOM", etc.
+  description: string; // Descripción legible: "WALLET_A swapped 1.5 SOL for 225.5 USDC"
   fee: number;
   feePayer: string;
   slot: number;
@@ -381,7 +380,8 @@ interface TransactionNotification {
 // Gestor de WebSocket para monitorear transacciones de tokens en tiempo real
 class HeliusWSManager {
   private ws: WebSocket | null = null;
-  private subscriptions: Map<string, (data: TransactionNotification) => void> = new Map();
+  private subscriptions: Map<string, (data: TransactionNotification) => void> =
+    new Map();
 
   constructor(private apiKey: string) {}
 
@@ -415,24 +415,34 @@ class HeliusWSManager {
     };
   }
 
-  trackMint(mint: string, onTransaction: (tx: TransactionNotification) => void) {
+  trackMint(
+    mint: string,
+    onTransaction: (tx: TransactionNotification) => void,
+  ) {
     this.subscriptions.set(mint, onTransaction);
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.subscribeToMint(mint, onTransaction);
     }
   }
 
-  private subscribeToMint(mint: string, _cb: (tx: TransactionNotification) => void) {
-    this.ws?.send(JSON.stringify({
-      jsonrpc: '2.0',
-      id: Date.now(),
-      method: 'transactionSubscribe',
-      params: [{
-        vote: false,
-        failed: false,
-        accountInclude: [mint],
-      }],
-    }));
+  private subscribeToMint(
+    mint: string,
+    _cb: (tx: TransactionNotification) => void,
+  ) {
+    this.ws?.send(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: Date.now(),
+        method: 'transactionSubscribe',
+        params: [
+          {
+            vote: false,
+            failed: false,
+            accountInclude: [mint],
+          },
+        ],
+      }),
+    );
   }
 }
 
@@ -452,13 +462,13 @@ Helius permite crear webhooks para recibir notificaciones HTTP cuando ocurren ev
 
 La API de Webhooks de Helius permite crear, listar, actualizar y eliminar webhooks:
 
-| Operación | Método | Endpoint | Descripción |
-|-----------|--------|----------|-------------|
-| Crear | POST | `/webhooks` | Crear webhook para monitorear cuentas |
-| Listar | GET | `/webhooks` | Listar todos los webhooks |
-| Obtener | GET | `/webhooks/{id}` | Detalle de un webhook |
-| Actualizar | PUT | `/webhooks/{id}` | Modificar webhook existente |
-| Eliminar | DELETE | `/webhooks/{id}` | Eliminar webhook |
+| Operación  | Método | Endpoint         | Descripción                           |
+| ---------- | ------ | ---------------- | ------------------------------------- |
+| Crear      | POST   | `/webhooks`      | Crear webhook para monitorear cuentas |
+| Listar     | GET    | `/webhooks`      | Listar todos los webhooks             |
+| Obtener    | GET    | `/webhooks/{id}` | Detalle de un webhook                 |
+| Actualizar | PUT    | `/webhooks/{id}` | Modificar webhook existente           |
+| Eliminar   | DELETE | `/webhooks/{id}` | Eliminar webhook                      |
 
 ### Crear webhook para monitoreo de tokens
 
@@ -508,7 +518,11 @@ async function handleHeliusWebhook(notification: TransactionNotification) {
     if (!exists) {
       console.log(`Nuevo token detectado via webhook: ${mint}`);
       // Encolar para enrichment asíncrono
-      await enrichmentQueue.enqueue({ mint, signature, source: 'helius-webhook' });
+      await enrichmentQueue.enqueue({
+        mint,
+        signature,
+        source: 'helius-webhook',
+      });
     }
   }
 }
@@ -575,7 +589,10 @@ interface TokenActivity {
   recentSells: number;
 }
 
-async function analyzeTokenActivity(mint: string, limit = 20): Promise<TokenActivity | null> {
+async function analyzeTokenActivity(
+  mint: string,
+  limit = 20,
+): Promise<TokenActivity | null> {
   const history = await helius.getAddressHistory(mint, limit);
   if (!history || history.length === 0) return null;
 
@@ -595,7 +612,7 @@ async function analyzeTokenActivity(mint: string, limit = 20): Promise<TokenActi
     else if (tx.type === 'TRANSFER') activity.transferCount++;
 
     // Unique wallets involucradas
-    tx.signer.forEach(s => activity.uniqueTraders.add(s));
+    tx.signer.forEach((s) => activity.uniqueTraders.add(s));
 
     // Sumar transfers de este mint
     for (const t of tx.tokenTransfers ?? []) {
@@ -615,34 +632,34 @@ async function analyzeTokenActivity(mint: string, limit = 20): Promise<TokenActi
 
 Helius ofrece varios planes vía su Plans & Billing API:
 
-| Plan | CU/mes | Enhanced TX req/mes | Rate limit RPC | Yellowstone gRPC | Webhooks |
-|------|:------:|:-------------------:|:--------------:|:----------------:|:--------:|
-| **Free (Developer)** | 1,000,000 | 10,000 | 100 req/s | ❌ | 2 |
-| **Growth** ($50/mes) | 10,000,000+ | 100,000+ | 500 req/s | ✅ | 10+ |
-| **Business** (custom) | Custom | Custom | Custom | ✅ | Custom |
+| Plan                  |   CU/mes    | Enhanced TX req/mes | Rate limit RPC | Yellowstone gRPC | Webhooks |
+| --------------------- | :---------: | :-----------------: | :------------: | :--------------: | :------: |
+| **Free (Developer)**  |  1,000,000  |       10,000        |   100 req/s    |        ❌        |    2     |
+| **Growth** ($50/mes)  | 10,000,000+ |      100,000+       |   500 req/s    |        ✅        |   10+    |
+| **Business** (custom) |   Custom    |       Custom        |     Custom     |        ✅        |  Custom  |
 
 ### Métodos de la API de billing
 
-| Método | Descripción |
-|--------|-------------|
-| `getHeliusPlanInfo()` | Obtener plan actual |
-| `compareHeliusPlans()` | Comparar planes disponibles |
-| `previewUpgrade(newPlan)` | Previsualizar costo de upgrade |
-| `upgradePlan(email, firstName, lastName)` | Upgrade de plan |
-| `payRenewal()` | Pagar renovación |
+| Método                                    | Descripción                    |
+| ----------------------------------------- | ------------------------------ |
+| `getHeliusPlanInfo()`                     | Obtener plan actual            |
+| `compareHeliusPlans()`                    | Comparar planes disponibles    |
+| `previewUpgrade(newPlan)`                 | Previsualizar costo de upgrade |
+| `upgradePlan(email, firstName, lastName)` | Upgrade de plan                |
+| `payRenewal()`                            | Pagar renovación               |
 
 ## RPC V2 Enhanced (métodos avanzados)
 
 Helius ofrece una capa RPC V2 con métodos mejorados que incluyen paginación server-side y filtrado:
 
-| Método RPC V2 | Descripción | CU |
-|----------------|-------------|:--:|
-| `getTransactionsForAddress(address, options)` | Transaction history con pagination_token | ~20 |
-| `getProgramAccountsV2(programId, config)` | Program accounts con pagination_key | ~40 |
-| `getAllProgramAccounts(programId, config)` | Auto-paginación de program accounts | ~40 |
-| `getTokenAccountsByOwnerV2(owner, filter, config)` | Token accounts v2 con pagination_key | ~10 |
-| `getAllTokenAccountsByOwner(owner, filter, config)` | Auto-paginación de token accounts | ~10 |
-| `getPriorityFeeEstimate(request)` | Estimación de fees prioritarios | ~10 |
+| Método RPC V2                                       | Descripción                              | CU  |
+| --------------------------------------------------- | ---------------------------------------- | :-: |
+| `getTransactionsForAddress(address, options)`       | Transaction history con pagination_token | ~20 |
+| `getProgramAccountsV2(programId, config)`           | Program accounts con pagination_key      | ~40 |
+| `getAllProgramAccounts(programId, config)`          | Auto-paginación de program accounts      | ~40 |
+| `getTokenAccountsByOwnerV2(owner, filter, config)`  | Token accounts v2 con pagination_key     | ~10 |
+| `getAllTokenAccountsByOwner(owner, filter, config)` | Auto-paginación de token accounts        | ~10 |
+| `getPriorityFeeEstimate(request)`                   | Estimación de fees prioritarios          | ~10 |
 
 Estos métodos son útiles cuando se necesita paginar grandes conjuntos de datos sin manejar la paginación manualmente.
 
@@ -654,15 +671,15 @@ Estos métodos son útiles cuando se necesita paginar grandes conjuntos de datos
 
 ## Manejo avanzado de errores
 
-| HTTP / RPC Code | Significado | Estrategia de retry |
-|-----------------|-------------|---------------------|
-| 400 | Bad request | No retry (error de programación) |
-| 401 | API key inválida | No retry (check config) |
-| 429 | Rate limit / CU excedido | Exponential backoff, max 5 retries |
-| 500 | Internal server error | Retry 3 veces con 1s间隔 |
-| `-32000` | Server error (RPC) | Retry con backoff |
-| `-32001` | Resource not found | No retry (retornar null) |
-| `-32602` | Invalid params | No retry (error de programación) |
+| HTTP / RPC Code | Significado              | Estrategia de retry                |
+| --------------- | ------------------------ | ---------------------------------- |
+| 400             | Bad request              | No retry (error de programación)   |
+| 401             | API key inválida         | No retry (check config)            |
+| 429             | Rate limit / CU excedido | Exponential backoff, max 5 retries |
+| 500             | Internal server error    | Retry 3 veces con 1s间隔           |
+| `-32000`        | Server error (RPC)       | Retry con backoff                  |
+| `-32001`        | Resource not found       | No retry (retornar null)           |
+| `-32602`        | Invalid params           | No retry (error de programación)   |
 
 ```typescript
 // Estrategia de retry completa para Helius
@@ -682,20 +699,20 @@ async function heliusFetchWithRetry<T>(
       if (isAxios && err.response?.status === 429) {
         const delay = baseDelay * Math.pow(4, attempt); // 1s, 4s, 16s
         this.logger.warn(`Helius rate limited, retrying in ${delay}ms`);
-        await new Promise(r => setTimeout(r, delay));
+        await new Promise((r) => setTimeout(r, delay));
         continue;
       }
 
       // 5xx: error temporal → backoff estándar
       if (isAxios && (err.response?.status ?? 0) >= 500) {
         const delay = baseDelay * Math.pow(2, attempt); // 1s, 2s, 4s
-        await new Promise(r => setTimeout(r, delay));
+        await new Promise((r) => setTimeout(r, delay));
         continue;
       }
 
       // RPC error -32000: server error → retry
       if (isAxios && err.response?.data?.error?.code === -32000) {
-        await new Promise(r => setTimeout(r, baseDelay));
+        await new Promise((r) => setTimeout(r, baseDelay));
         continue;
       }
 
@@ -711,24 +728,24 @@ async function heliusFetchWithRetry<T>(
 
 ### Uso actual del servicio
 
-| Operación | Métodos llamados | CU | Veces/día | CU/día |
-|-----------|-----------------|:--:|:---------:|:------:|
-| Holder count | `getTokenAccounts` (RPC) | 40 | 100 | 4,000 |
-| Token metadata | `getAsset` (DAS) | 80 | 100 | 8,000 |
-| Parse transaction | `parseTransaction` (Enhanced) | 20 | 50 | 1,000 |
-| Address history | `getAddressHistory` (Enhanced) | 20 | 50 | 1,000 |
-| **Total** | | | | **14,000 CU/día** |
+| Operación         | Métodos llamados               | CU  | Veces/día |      CU/día       |
+| ----------------- | ------------------------------ | :-: | :-------: | :---------------: |
+| Holder count      | `getTokenAccounts` (RPC)       | 40  |    100    |       4,000       |
+| Token metadata    | `getAsset` (DAS)               | 80  |    100    |       8,000       |
+| Parse transaction | `parseTransaction` (Enhanced)  | 20  |    50     |       1,000       |
+| Address history   | `getAddressHistory` (Enhanced) | 20  |    50     |       1,000       |
+| **Total**         |                                |     |           | **14,000 CU/día** |
 
 Con 1,000,000 CU/mes y 14,000 CU/día → ~71 días de operación continua. **Sobra capacidad.**
 
 ### Escenarios de escalado
 
-| Escenario | CU/op | Op/día | CU/día | CU/mes | ¿Free alcanza? |
-|-----------|:-----:|:------:|:------:|:------:|:--------------:|
-| Holder analysis básico | 120 | 200 | 24,000 | 720,000 | ✅ Sí |
-| Full enrichment Solana | 200 | 100 | 20,000 | 600,000 | ✅ Sí |
-| Monitoreo intensivo | 140 | 500 | 70,000 | 2,100,000 | ❌ No (Growth) |
-| Parsing masivo de txs | 20 | 2,000 | 40,000 | 1,200,000 | ❌ No (Growth) |
+| Escenario              | CU/op | Op/día | CU/día |  CU/mes   | ¿Free alcanza? |
+| ---------------------- | :---: | :----: | :----: | :-------: | :------------: |
+| Holder analysis básico |  120  |  200   | 24,000 |  720,000  |     ✅ Sí      |
+| Full enrichment Solana |  200  |  100   | 20,000 |  600,000  |     ✅ Sí      |
+| Monitoreo intensivo    |  140  |  500   | 70,000 | 2,100,000 | ❌ No (Growth) |
+| Parsing masivo de txs  |  20   | 2,000  | 40,000 | 1,200,000 | ❌ No (Growth) |
 
 ## Preguntas frecuentes
 
@@ -747,6 +764,7 @@ Para un pipeline que procesa ~100 tokens/día en Solana, el plan Free (1M CU/mes
 ### ¿Cómo migrar de Free a Growth?
 
 Usar la Plans API:
+
 ```typescript
 // GET /plans/compare → comparar planes
 // GET /plans/upgrade/preview?newPlan=growth → ver costo

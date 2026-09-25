@@ -1,29 +1,12 @@
-import { DynamicModule, Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { HELIUS_CONFIG, HeliusConfig } from './helius.config';
-import { HeliusService } from './helius.service';
-
-@Module({
-  providers: [
-    {
-      provide: HELIUS_CONFIG,
-      inject: [ConfigService],
-      useFactory: (cs: ConfigService): HeliusConfig =>
-        cs.get<HeliusConfig>('app.helius') ?? {
-          apiKey: '',
-          mainnet: { rpcUrl: '' },
-        },
-    },
-    HeliusService,
-  ],
-  exports: [HeliusService],
-})
-export class HeliusModule {
-  public static forRoot(config: HeliusConfig): DynamicModule {
-    return {
-      module: HeliusModule,
-      providers: [{ provide: HELIUS_CONFIG, useValue: config }, HeliusService],
-      exports: [HeliusService],
-    };
-  }
-}
+/**
+ * @deprecated Moved to apps/market-data/src/provider/infrastructure/helius/ (Tramo 3, todo 4, C-DATA-01).
+ * Canonical owner is now market-data (ProvidersModule); this file is a
+ * dual-run re-export shim so legacy backend consumers stay green.
+ * Removed at cutover (todo 8). Do not extend it.
+ *
+ * New location: apps/market-data/src/provider/infrastructure/helius/
+ * Reason: extracting market-data providers from backend monolith to dedicated app
+ * Breaking change: Yes (removal at cutover)
+ * Rollback: restore backend implementation from git history
+ */
+export * from '../../../../market-data/src/provider/infrastructure/helius/helius.module';

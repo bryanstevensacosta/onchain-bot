@@ -21,15 +21,15 @@ Usado en el pipeline para enrichment de tokens con datos de holders, precio, vol
 
 ## Plan (Beta gratuito)
 
-| Límite | Valor |
-|--------|-------|
-| Costo | **$0 — sin API key** |
-| Rate limit | **~10-30 calls/minuto** (fluctúa según tráfico) |
-| Cache | **1 minuto** (server-side) |
-| Freshness | **2-3 segundos** después de confirmación en blockchain |
-| Endpoints | ~30 endpoints REST públicos |
-| Cobertura | 200+ networks, 1,500+ DEXes, 39M+ tokens |
-| Estado | **Beta** (cambios frecuentes, usar version header) |
+| Límite     | Valor                                                  |
+| ---------- | ------------------------------------------------------ |
+| Costo      | **$0 — sin API key**                                   |
+| Rate limit | **~10-30 calls/minuto** (fluctúa según tráfico)        |
+| Cache      | **1 minuto** (server-side)                             |
+| Freshness  | **2-3 segundos** después de confirmación en blockchain |
+| Endpoints  | ~30 endpoints REST públicos                            |
+| Cobertura  | 200+ networks, 1,500+ DEXes, 39M+ tokens               |
+| Estado     | **Beta** (cambios frecuentes, usar version header)     |
 
 > Para rate limits más altos y estables, los mismos datos on-chain están disponibles via CoinGecko API Pro (plan pago) con endpoints `/onchain/*`. [CoinGecko API Pricing](https://www.coingecko.com/en/api/pricing)
 
@@ -44,14 +44,15 @@ https://api.geckoterminal.com/api/v2
 ### Versioning
 
 Se recomienda setear la versión via `Accept` header:
+
 ```
 Accept: application/json;version=20230203
 ```
 
 ### Endpoint implementado en el servicio
 
-| Método service | Endpoint | Descripción |
-|----------------|----------|-------------|
+| Método service                       | Endpoint                                        | Descripción                                                |
+| ------------------------------------ | ----------------------------------------------- | ---------------------------------------------------------- |
 | `getTokenInfo(networkSlug, address)` | `GET /networks/{network}/tokens/{address}/info` | Metadata del token (nombre, symbol, holders, precio, etc.) |
 
 ### Response type: Token Info
@@ -82,48 +83,48 @@ Accept: application/json;version=20230203
 
 ### Otros endpoints disponibles (no implementados en service)
 
-| Endpoint | Descripción |
-|----------|-------------|
-| `GET /networks` | Lista de todas las networks soportadas |
-| `GET /networks/{network}/tokens/{address}` | Token data por address |
-| `GET /networks/{network}/tokens/multi/{addresses}` | Token data batch (comma-separated) |
-| `GET /networks/{network}/tokens/{address}/pools` | Top pools por token |
-| `GET /networks/trending_pools` | Trending pools globales |
-| `GET /networks/{network}/trending_pools` | Trending pools por network |
-| `GET /networks/new_pools` | New pools globales |
-| `GET /networks/{network}/pools/{address}` | Pool data por address |
-| `GET /networks/{network}/pools/{address}/ohlcv/{timeframe}` | OHLCV chart |
-| `GET /networks/{network}/pools/{address}/trades` | Trades 24h |
-| `GET /search/pools?q={query}` | Search pools |
-| `GET /simple/networks/{network}/token_price/{addresses}` | Simple token price |
-| `GET /tokens/info_recently_updated` | Recently updated tokens |
+| Endpoint                                                    | Descripción                            |
+| ----------------------------------------------------------- | -------------------------------------- |
+| `GET /networks`                                             | Lista de todas las networks soportadas |
+| `GET /networks/{network}/tokens/{address}`                  | Token data por address                 |
+| `GET /networks/{network}/tokens/multi/{addresses}`          | Token data batch (comma-separated)     |
+| `GET /networks/{network}/tokens/{address}/pools`            | Top pools por token                    |
+| `GET /networks/trending_pools`                              | Trending pools globales                |
+| `GET /networks/{network}/trending_pools`                    | Trending pools por network             |
+| `GET /networks/new_pools`                                   | New pools globales                     |
+| `GET /networks/{network}/pools/{address}`                   | Pool data por address                  |
+| `GET /networks/{network}/pools/{address}/ohlcv/{timeframe}` | OHLCV chart                            |
+| `GET /networks/{network}/pools/{address}/trades`            | Trades 24h                             |
+| `GET /search/pools?q={query}`                               | Search pools                           |
+| `GET /simple/networks/{network}/token_price/{addresses}`    | Simple token price                     |
+| `GET /tokens/info_recently_updated`                         | Recently updated tokens                |
 
 ### Networks soportadas (slugs)
 
 La API de GeckoTerminal usa slugs cortos para identificar networks. Ejemplos de los principales:
 
-| Network | slug (network ID) | CoinGecko asset platform ID |
-|---------|:-----------------:|:---------------------------:|
-| Ethereum | `eth` | `ethereum` |
-| BNB Chain | `bsc` | `binance-smart-chain` |
-| Solana | `solana` | `solana` |
-| Base | `base` | `base` |
-| Arbitrum | `arbitrum` | `arbitrum-one` |
-| Polygon POS | `polygon_pos` | `polygon-pos` |
-| Avalanche | `avax` | `avalanche` |
-| Optimism | `optimism` | `optimistic-ethereum` |
-| Fantom | `ftm` | `fantom` |
-| Cronos | `cro` | `cronos` |
-| zkSync | `zksync` | `zksync` |
-| Linea | `linea` | `linea` |
-| Blast | `blast` | `blast` |
-| Mantle | `mantle` | `mantle` |
-| Scroll | `scroll` | `scroll` |
-| Mode | `mode` | `mode` |
-| Sui | `sui-network` | `sui` |
-| Aptos | `aptos` | `aptos` |
-| TON | `ton` | `the-open-network` |
-| Starknet | `starknet-alpha` | `starknet` |
+| Network     | slug (network ID) | CoinGecko asset platform ID |
+| ----------- | :---------------: | :-------------------------: |
+| Ethereum    |       `eth`       |         `ethereum`          |
+| BNB Chain   |       `bsc`       |    `binance-smart-chain`    |
+| Solana      |     `solana`      |          `solana`           |
+| Base        |      `base`       |           `base`            |
+| Arbitrum    |    `arbitrum`     |       `arbitrum-one`        |
+| Polygon POS |   `polygon_pos`   |        `polygon-pos`        |
+| Avalanche   |      `avax`       |         `avalanche`         |
+| Optimism    |    `optimism`     |    `optimistic-ethereum`    |
+| Fantom      |       `ftm`       |          `fantom`           |
+| Cronos      |       `cro`       |          `cronos`           |
+| zkSync      |     `zksync`      |          `zksync`           |
+| Linea       |      `linea`      |           `linea`           |
+| Blast       |      `blast`      |           `blast`           |
+| Mantle      |     `mantle`      |          `mantle`           |
+| Scroll      |     `scroll`      |          `scroll`           |
+| Mode        |      `mode`       |           `mode`            |
+| Sui         |   `sui-network`   |            `sui`            |
+| Aptos       |      `aptos`      |           `aptos`           |
+| TON         |       `ton`       |     `the-open-network`      |
+| Starknet    | `starknet-alpha`  |         `starknet`          |
 
 > El adapter resuelve el slug via `CHAIN_CATALOG` (chain registry) usando el campo `geckoTerminalSlug`, no tiene hardcoded mapping.
 
@@ -152,12 +153,12 @@ curl -s 'https://api.geckoterminal.com/api/v2/simple/networks/eth/token_price/0x
 
 ## Rate limits
 
-| Límite | Valor |
-|--------|-------|
-| Requests/min (público) | ~10-30 (fluctúa) |
+| Límite                 | Valor                 |
+| ---------------------- | --------------------- |
+| Requests/min (público) | ~10-30 (fluctúa)      |
 | Con CoinGecko API paid | 250 req/min (25x más) |
-| Cache | 1 minuto server-side |
-| Tipo de limit | IP-based |
+| Cache                  | 1 minuto server-side  |
+| Tipo de limit          | IP-based              |
 
 > El rate limit público es bajo. Para producción se recomienda cache agresivo o suscribirse a CoinGecko API Pro para acceder a los mismos endpoints via `/onchain/*` con 250 req/min.
 
@@ -170,14 +171,15 @@ curl -s 'https://api.geckoterminal.com/api/v2/simple/networks/eth/token_price/0x
 
 ## Manejo de errores
 
-| HTTP | Significado | Acción |
-|------|-------------|--------|
-| 200 | OK | Response válido |
-| 404 | Token no encontrado | Address inválido o token sin datos |
-| 429 | Rate limit excedido | Esperar 2-6 segundos |
-| 5xx | Error interno | Retry con backoff |
+| HTTP | Significado         | Acción                             |
+| ---- | ------------------- | ---------------------------------- |
+| 200  | OK                  | Response válido                    |
+| 404  | Token no encontrado | Address inválido o token sin datos |
+| 429  | Rate limit excedido | Esperar 2-6 segundos               |
+| 5xx  | Error interno       | Retry con backoff                  |
 
 El servicio actual maneja:
+
 - **404**: retorna `null` (no es error, es "no hay datos")
 - **429/5xx/timeout**: retorna `null` y loggea en debug
 - **Errores de red**: capturados, loggeados, retorna `null`
@@ -187,12 +189,15 @@ El servicio actual maneja:
 ### Uso básico
 
 ```typescript
-import { GeckoTerminalService } from 'data-provider/geckoterminal';
+import { GeckoTerminalService } from 'apps/market-data/src/provider/infrastructure/geckoterminal';
 
 // El servicio se inyecta automáticamente (DataProviderModule es @Global)
 
 // 1. Token info en Solana
-const info = await gecko.getTokenInfo('solana', 'So11111111111111111111111111111111111111112');
+const info = await gecko.getTokenInfo(
+  'solana',
+  'So11111111111111111111111111111111111111112',
+);
 if (info) {
   console.log(`${info.name} (${info.symbol})`);
   console.log(`  Price: $${info.priceUsd}`);
@@ -203,7 +208,10 @@ if (info) {
 }
 
 // 2. Token info en Ethereum
-const ethInfo = await gecko.getTokenInfo('eth', '0xdac17f958d2ee523a2206206994597c13d831ec7');
+const ethInfo = await gecko.getTokenInfo(
+  'eth',
+  '0xdac17f958d2ee523a2206206994597c13d831ec7',
+);
 ```
 
 ### Uso en enrichment
@@ -232,32 +240,32 @@ async function enrichWithGeckoTerminal(address: string, slug: string) {
 
 ## Comparativa con otros providers
 
-| Aspecto | GeckoTerminal | DexScreener | Birdeye | CoinGecko |
-|---------|:-------------:|:-----------:|:-------:|:---------:|
-| Costo | **$0** | $0 | $0 (30K CU) | Demo/Pro |
-| API Key | ❌ No | ❌ No | ✅ Sí | ✅ Sí |
-| Rate limit | 10-30/min | 60/min | 1/s | 10-50/min |
-| Holders | ✅ Sí | ❌ No | ✅ Sí | ❌ No |
-| Top 10 holder % | ✅ Sí | ❌ No | ❌ No | ❌ No |
-| GT Score | ✅ Sí | ❌ No | ❌ No | ❌ No |
-| Precio | ✅ Sí | ✅ Sí | ✅ Sí | ✅ Sí |
-| Liquidez | ❌ No | ✅ Sí | ✅ Sí | ❌ No |
-| Cobertura chains | 200+ | 40+ | 14 | 100+ |
-| DEXes | 1,500+ | 80+ | ~20 | N/A |
-| OHLCV | ✅ Sí | ❌ No | ✅ Sí | ✅ Sí |
-| Trades 24h | ✅ Sí | ❌ No | ❌ No | ❌ No |
+| Aspecto          | GeckoTerminal | DexScreener |   Birdeye   | CoinGecko |
+| ---------------- | :-----------: | :---------: | :---------: | :-------: |
+| Costo            |    **$0**     |     $0      | $0 (30K CU) | Demo/Pro  |
+| API Key          |     ❌ No     |    ❌ No    |    ✅ Sí    |   ✅ Sí   |
+| Rate limit       |   10-30/min   |   60/min    |     1/s     | 10-50/min |
+| Holders          |     ✅ Sí     |    ❌ No    |    ✅ Sí    |   ❌ No   |
+| Top 10 holder %  |     ✅ Sí     |    ❌ No    |    ❌ No    |   ❌ No   |
+| GT Score         |     ✅ Sí     |    ❌ No    |    ❌ No    |   ❌ No   |
+| Precio           |     ✅ Sí     |    ✅ Sí    |    ✅ Sí    |   ✅ Sí   |
+| Liquidez         |     ❌ No     |    ✅ Sí    |    ✅ Sí    |   ❌ No   |
+| Cobertura chains |     200+      |     40+     |     14      |   100+    |
+| DEXes            |    1,500+     |     80+     |     ~20     |    N/A    |
+| OHLCV            |     ✅ Sí     |    ❌ No    |    ✅ Sí    |   ✅ Sí   |
+| Trades 24h       |     ✅ Sí     |    ❌ No    |    ❌ No    |   ❌ No   |
 
 ## Diferencia con CoinGecko API
 
 GeckoTerminal y CoinGecko son del mismo equipo pero APIs diferentes:
 
-| Aspecto | GeckoTerminal API | CoinGecko API (/onchain) |
-|---------|:-----------------:|:------------------------:|
-| Rate limit | 10-30 req/min | 250+ req/min (paid) |
-| Costo | Gratis | Demo gratis / Pro paga |
-| Coverage | Misma data on-chain | Misma data on-chain |
-| Endpoints | REST beta | REST + WebSocket + Webhooks |
-| SLA | Sin SLA | Soporte empresarial |
+| Aspecto    |  GeckoTerminal API  |  CoinGecko API (/onchain)   |
+| ---------- | :-----------------: | :-------------------------: |
+| Rate limit |    10-30 req/min    |     250+ req/min (paid)     |
+| Costo      |       Gratis        |   Demo gratis / Pro paga    |
+| Coverage   | Misma data on-chain |     Misma data on-chain     |
+| Endpoints  |      REST beta      | REST + WebSocket + Webhooks |
+| SLA        |       Sin SLA       |     Soporte empresarial     |
 
 > Estrategia: GeckoTerminal gratis para desarrollo/prototyping; CoinGecko Pro para producción con alta demanda.
 

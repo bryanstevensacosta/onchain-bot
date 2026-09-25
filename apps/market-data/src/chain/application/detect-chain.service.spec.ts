@@ -1,7 +1,7 @@
-import { StaticChainCatalog } from './static-chain-catalog';
-import { DetectChainService } from './application/detect-chain.service';
-import { EvmChainProber } from './infrastructure/probers/evm-chain.prober';
-import { SolanaChainProber } from './infrastructure/probers/solana-chain.prober';
+import { StaticChainCatalog } from '../infrastructure/static-chain-catalog';
+import { DetectChainService } from './detect-chain.service';
+import { EvmChainProber } from '../infrastructure/probers/evm-chain.prober';
+import { SolanaChainProber } from '../infrastructure/probers/solana-chain.prober';
 
 /**
  * Failing-first spec (Tramo 3, todo 2): detect-chain use case.

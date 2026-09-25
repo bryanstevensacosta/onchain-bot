@@ -1,17 +1,7 @@
-import { registerAs } from '@nestjs/config';
-
-export interface AppConfig {
-  port: number;
-  nodeEnv: string;
-}
-
-export function buildAppConfig(
-  env: NodeJS.ProcessEnv = process.env,
-): AppConfig {
-  return {
-    port: parseInt(env.MARKET_DATA_PORT ?? '4000', 10),
-    nodeEnv: env.NODE_ENV ?? 'development',
-  };
-}
-
-export const appConfig = registerAs('app', (): AppConfig => buildAppConfig());
+/**
+ * @deprecated Hexagonal home is
+ * `src/shared/infrastructure/config/app.config.ts` (Tramo 3, todo 12,
+ * P50). Compat re-export so `shared/*` consumers keep working unchanged.
+ * Removed at cutover (todo 8).
+ */
+export * from '../infrastructure/config/app.config';

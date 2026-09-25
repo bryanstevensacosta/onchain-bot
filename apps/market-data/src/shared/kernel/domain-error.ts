@@ -1,26 +1,6 @@
 /**
- * ErrorCode catalog + DomainError base (Tramo 3, todo 1).
- *
- * DomainError -> HTTP status via DomainExceptionFilter.
+ * @deprecated Hexagonal home is `src/shared/domain/kernel/domain-error.ts`
+ * (Tramo 3, todo 12, P50). Compat re-export so `shared/*` consumers
+ * keep working unchanged. Removed at cutover (todo 8).
  */
-export enum ErrorCode {
-  NOT_FOUND = 'NOT_FOUND',
-  VALIDATION = 'VALIDATION',
-  CONFLICT = 'CONFLICT',
-  UNAUTHORIZED = 'UNAUTHORIZED',
-  FORBIDDEN = 'FORBIDDEN',
-  RATE_LIMITED = 'RATE_LIMITED',
-  PROVIDER_FAILED = 'PROVIDER_FAILED',
-  INTERNAL = 'INTERNAL',
-}
-
-export class DomainError extends Error {
-  constructor(
-    public readonly code: ErrorCode,
-    message: string,
-    public readonly details?: unknown,
-  ) {
-    super(message);
-    this.name = 'DomainError';
-  }
-}
+export * from '../domain/kernel/domain-error';

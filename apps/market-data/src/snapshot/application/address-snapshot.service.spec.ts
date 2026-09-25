@@ -1,7 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { ChainModule } from 'chain/chain.module';
-import { ProviderModule } from 'provider/provider.module';
-import { AddressModule } from './address.module';
+import { SnapshotModule } from '../snapshot.module';
 import { AddressSnapshotService } from './address-snapshot.service';
 
 describe('AddressSnapshotService (snapshot per kind)', () => {
@@ -9,7 +7,7 @@ describe('AddressSnapshotService (snapshot per kind)', () => {
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      imports: [ChainModule, ProviderModule, AddressModule],
+      imports: [SnapshotModule],
     }).compile();
     snapshots = module.get(AddressSnapshotService);
   });

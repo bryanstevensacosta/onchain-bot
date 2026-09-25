@@ -1,5 +1,5 @@
-import { EvmChainProber } from './infrastructure/probers/evm-chain.prober';
-import { SolanaChainProber } from './infrastructure/probers/solana-chain.prober';
+import { EvmChainProber } from './probers/evm-chain.prober';
+import { SolanaChainProber } from './probers/solana-chain.prober';
 
 /**
  * Failing-first spec (Tramo 3, todo 2): format probers.

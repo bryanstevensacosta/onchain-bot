@@ -1,12 +1,16 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { appConfig } from './config/app.config';
-import { databaseConfig } from './config/database.config';
-import { ApiKeyGuard } from './guards/api-key.guard';
-import { DomainExceptionFilter } from './filters/domain-exception.filter';
+import { appConfig } from './infrastructure/config/app.config';
+import { databaseConfig } from './infrastructure/config/database.config';
+import { ApiKeyGuard } from './infrastructure/guards/api-key.guard';
+import { DomainExceptionFilter } from './infrastructure/filters/domain-exception.filter';
 
 /**
- * SharedModule - global shared kernel for market-data (Tramo 3, todo 1).
+ * SharedModule - global shared kernel for market-data (Tramo 3, todo 1;
+ * hexagonal layout todo 12, P50: domain/ owns the framework-agnostic
+ * kernel + value objects + pure key helpers, infrastructure/ owns
+ * config namespaces + guards + filters + decorators, application/
+ * stays empty until a transversal use case lands).
  *
  * Registers the app + database config namespaces and provides the
  * API-key guard + domain-exception filter. Framework-agnostic kernel

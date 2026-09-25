@@ -1,20 +1,6 @@
 /**
- * ValueObject base class (Tramo 3, todo 1).
- *
- * Mirrors the sibling extraction services: immutable, equality by
- * structural value.
+ * @deprecated Hexagonal home is `src/shared/domain/kernel/value-object.ts`
+ * (Tramo 3, todo 12, P50). Compat re-export so `shared/*` consumers
+ * keep working unchanged. Removed at cutover (todo 8).
  */
-export abstract class ValueObject<T> {
-  protected constructor(protected readonly props: T) {}
-
-  public equals(other: ValueObject<T>): boolean {
-    if (other === null || other === undefined) {
-      return false;
-    }
-    return JSON.stringify(this.props) === JSON.stringify(other.props);
-  }
-
-  protected get value(): T {
-    return this.props;
-  }
-}
+export * from '../domain/kernel/value-object';

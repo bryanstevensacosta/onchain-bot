@@ -1,38 +1,12 @@
-export interface BirdeyeTokenOverviewData {
-  readonly address: string;
-  readonly price: number | null;
-  readonly priceChange24h: number | null;
-  readonly volume24h: number | null;
-  readonly liquidity: number | null;
-  readonly mc: number | null;
-  readonly totalSupply: number | null;
-  readonly holder: number | null;
-  readonly decimals: number | null;
-  readonly name: string | null;
-  readonly symbol: string | null;
-}
-
-export interface BirdeyeResponse<T> {
-  readonly success: boolean;
-  readonly data: T | null;
-}
-
-export interface BirdeyePriceData {
-  readonly value: number;
-  readonly updateUnixTime: number;
-  readonly updateHumanTime: string;
-}
-
-export interface BirdeyeTokenTrade {
-  readonly txHash: string;
-  readonly blockUnixTime: number;
-  readonly type: 'buy' | 'sell';
-  readonly price: number;
-  readonly volume: number;
-  readonly mint: string;
-}
-
-export interface BirdeyeTradesData {
-  readonly items: ReadonlyArray<BirdeyeTokenTrade>;
-  readonly hasMore: boolean;
-}
+/**
+ * @deprecated Moved to apps/market-data/src/provider/infrastructure/birdeye/ (Tramo 3, todo 4, C-DATA-01).
+ * Canonical owner is now market-data (ProvidersModule); this file is a
+ * dual-run re-export shim so legacy backend consumers stay green.
+ * Removed at cutover (todo 8). Do not extend it.
+ *
+ * New location: apps/market-data/src/provider/infrastructure/birdeye/
+ * Reason: extracting market-data providers from backend monolith to dedicated app
+ * Breaking change: Yes (removal at cutover)
+ * Rollback: restore backend implementation from git history
+ */
+export * from '../../../../market-data/src/provider/infrastructure/birdeye/birdeye.types';

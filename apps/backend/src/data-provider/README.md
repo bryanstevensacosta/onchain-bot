@@ -1,15 +1,21 @@
 # Data Providers — Index
 
-Capa de abstracción para fuentes de datos blockchain. 11 providers especializados que implementan `DataProviderPort` + 1 módulo core `@Global()`. Cada provider sigue la misma estructura: `config.ts`, `module.ts`, `service.ts`, `types.ts`, `index.ts` y `README.md`.
+> **@deprecated (Tramo 3, todo 4, C-DATA-01):** canonical owner is now
+> `apps/market-data/src/provider/infrastructure/` (13 adapters +
+> `ProvidersModule`). This tree keeps deprecated re-export shims for
+> dual-run; removed at cutover (todo 8). Author new providers in
+> market-data, not here.
+
+Capa de abstracción para fuentes de datos blockchain. 13 providers especializados que implementan `DataProviderPort` + 1 módulo core `@Global()`. Cada provider sigue la misma estructura: `config.ts`, `module.ts`, `service.ts`, `types.ts`, `index.ts` y `README.md`.
 
 ---
 
 ## Core
 
-| Archivo | Descripción |
-|---------|-------------|
-| [`core/data-provider.port.ts`](core/README.md) | Clase abstracta base `DataProviderPort` con `name`, `logger`, `onModuleInit()` |
-| [`core/data-provider.module.ts`](core/README.md) | Módulo `@Global()` que agrega y exporta los 11 providers |
+| Archivo                                          | Descripción                                                                    |
+| ------------------------------------------------ | ------------------------------------------------------------------------------ |
+| [`core/data-provider.port.ts`](core/README.md)   | Clase abstracta base `DataProviderPort` con `name`, `logger`, `onModuleInit()` |
+| [`core/data-provider.module.ts`](core/README.md) | Módulo `@Global()` que agrega y exporta los 11 providers                       |
 
 ---
 
@@ -17,32 +23,32 @@ Capa de abstracción para fuentes de datos blockchain. 11 providers especializad
 
 Providers de precio, liquidez, volumen, holders y metadata para el pipeline de enrichment de tokens.
 
-| Provider | README | Enfoque | Costo Free | Coverage |
-|----------|--------|---------|:----------:|:--------:|
-| **DexScreener** | [README](dexscreener/README.md) | Pairs cross-chain, search, profiles, boosts | **$0** (60 req/min) | 40+ chains, 80+ DEXes |
-| **GeckoTerminal** | [README](geckoterminal/README.md) | Holders, top10%, GT score, precio, volumen | **$0** (~10-30 req/min) | 200+ networks, 1,500+ DEXes |
-| **Birdeye** | [README](birdeye/README.md) | Token overview, price, trades, security | 30k CU/mes | 14 chains (Solana full) |
-| **Mobula** | [README](mobula/README.md) | Concentration metrics, bonding curve, factory | 60 req/min | 6 chains |
-| **Moralis** | [README](moralis/README.md) | Token analytics, holders, price, wallet balances | 40k CU/día | 5 EVM chains |
-| **CoinGecko** | [README](coingecko/README.md) | Price, MC, FDV (fallback blue chips) | 10k créditos/mes | 100+ asset platforms |
-| **CoinMarketCap** | [README](coinmarketcap/README.md) | Quotes, metadata, listings, global metrics | 20k créditos/mes | Chain-agnostic |
+| Provider          | README                            | Enfoque                                          |       Costo Free        |          Coverage           |
+| ----------------- | --------------------------------- | ------------------------------------------------ | :---------------------: | :-------------------------: |
+| **DexScreener**   | [README](dexscreener/README.md)   | Pairs cross-chain, search, profiles, boosts      |   **$0** (60 req/min)   |    40+ chains, 80+ DEXes    |
+| **GeckoTerminal** | [README](geckoterminal/README.md) | Holders, top10%, GT score, precio, volumen       | **$0** (~10-30 req/min) | 200+ networks, 1,500+ DEXes |
+| **Birdeye**       | [README](birdeye/README.md)       | Token overview, price, trades, security          |       30k CU/mes        |   14 chains (Solana full)   |
+| **Mobula**        | [README](mobula/README.md)        | Concentration metrics, bonding curve, factory    |       60 req/min        |          6 chains           |
+| **Moralis**       | [README](moralis/README.md)       | Token analytics, holders, price, wallet balances |       40k CU/día        |        5 EVM chains         |
+| **CoinGecko**     | [README](coingecko/README.md)     | Price, MC, FDV (fallback blue chips)             |    10k créditos/mes     |    100+ asset platforms     |
+| **CoinMarketCap** | [README](coinmarketcap/README.md) | Quotes, metadata, listings, global metrics       |    20k créditos/mes     |       Chain-agnostic        |
 
 ## RPC / Blockchain Data
 
 Providers de acceso directo a blockchain (JSON-RPC, DAS API, transacciones parseadas).
 
-| Provider | README | Enfoque | Costo Free | Coverage |
-|----------|--------|---------|:----------:|:--------:|
+| Provider    | README                      | Enfoque                                         | Costo Free |  Coverage  |
+| ----------- | --------------------------- | ----------------------------------------------- | :--------: | :--------: |
 | **Alchemy** | [README](alchemy/README.md) | JSON-RPC EVM, token balances, logs, tx receipts | 30M CU/mes | 80+ chains |
-| **Helius** | [README](helius/README.md) | Solana RPC + DAS API + Enhanced Transactions | 1M CU/mes | Solana |
-| **FluxRPC** | [README](fluxrpc/README.md) | Solana JSON-RPC HTTP/3 + QUIC | Por byte | Solana |
+| **Helius**  | [README](helius/README.md)  | Solana RPC + DAS API + Enhanced Transactions    | 1M CU/mes  |   Solana   |
+| **FluxRPC** | [README](fluxrpc/README.md) | Solana JSON-RPC HTTP/3 + QUIC                   |  Por byte  |   Solana   |
 
 ## Trading / Execution
 
 Providers para ejecución de trades en DEXes.
 
-| Provider | README | Enfoque | Costo | Coverage |
-|----------|--------|---------|:-----:|:--------:|
+| Provider    | README                      | Enfoque                                        |     Costo      |     Coverage      |
+| ----------- | --------------------------- | ---------------------------------------------- | :------------: | :---------------: |
 | **PumpDev** | [README](pumpdev/README.md) | Pump.fun trading, token creation, Jito bundles | Comisión 0.25% | Solana (pump.fun) |
 
 ---
@@ -143,7 +149,7 @@ chain/detection/infrastructure/probers/
 ## Uso
 
 ```typescript
-import { DataProviderModule } from 'data-provider/core/data-provider.module';
+import { DataProviderModule } from 'apps/market-data/src/provider/infrastructure/providers.module';
 
 // Solo importar DataProviderModule una vez en AppModule (es @Global).
 // Luego inyectar cualquier servicio directamente:
@@ -180,38 +186,38 @@ Ver el plan de refactor en [`.omo/plans/data-provider-refactor.md`](../../../../
 
 ## Proveedores por tipo de dato
 
-| Dato | Proveedores |
-|------|-------------|
-| **Precio USD** | DexScreener, GeckoTerminal, Birdeye, Mobula, Moralis, CoinGecko, CoinMarketCap |
-| **Liquidez USD** | DexScreener, Birdeye |
-| **Volumen 24h** | DexScreener, GeckoTerminal, Birdeye, CoinGecko, CoinMarketCap |
-| **Market Cap / FDV** | GeckoTerminal, CoinGecko, CoinMarketCap |
-| **Holders** | GeckoTerminal, Birdeye, Moralis, Helius |
-| **Top 10 Holder %** | GeckoTerminal, Moralis |
-| **Price Change %** | GeckoTerminal, Birdeye, CoinGecko, CoinMarketCap |
-| **Insiders / Bundlers / Dev %** | Mobula |
-| **Locked Liquidity / Burned %** | RugCheck |
-| **GT Score** | GeckoTerminal |
-| **Balance (RPC)** | Alchemy, Helius, FluxRPC |
-| **Transaction data** | Alchemy, Helius, FluxRPC |
-| **Token metadata** | Moralis, CoinMarketCap |
-| **Pairs / DEX data** | DexScreener, Birdeye |
-| **Token profiles / news** | DexScreener, CoinMarketCap |
-| **Global metrics** | CoinMarketCap |
-| **Trading execution** | PumpDev |
+| Dato                            | Proveedores                                                                    |
+| ------------------------------- | ------------------------------------------------------------------------------ |
+| **Precio USD**                  | DexScreener, GeckoTerminal, Birdeye, Mobula, Moralis, CoinGecko, CoinMarketCap |
+| **Liquidez USD**                | DexScreener, Birdeye                                                           |
+| **Volumen 24h**                 | DexScreener, GeckoTerminal, Birdeye, CoinGecko, CoinMarketCap                  |
+| **Market Cap / FDV**            | GeckoTerminal, CoinGecko, CoinMarketCap                                        |
+| **Holders**                     | GeckoTerminal, Birdeye, Moralis, Helius                                        |
+| **Top 10 Holder %**             | GeckoTerminal, Moralis                                                         |
+| **Price Change %**              | GeckoTerminal, Birdeye, CoinGecko, CoinMarketCap                               |
+| **Insiders / Bundlers / Dev %** | Mobula                                                                         |
+| **Locked Liquidity / Burned %** | RugCheck                                                                       |
+| **GT Score**                    | GeckoTerminal                                                                  |
+| **Balance (RPC)**               | Alchemy, Helius, FluxRPC                                                       |
+| **Transaction data**            | Alchemy, Helius, FluxRPC                                                       |
+| **Token metadata**              | Moralis, CoinMarketCap                                                         |
+| **Pairs / DEX data**            | DexScreener, Birdeye                                                           |
+| **Token profiles / news**       | DexScreener, CoinMarketCap                                                     |
+| **Global metrics**              | CoinMarketCap                                                                  |
+| **Trading execution**           | PumpDev                                                                        |
 
 ---
 
 ## Proveedores por blockchain
 
-| Blockchain | Market Data | RPC | Trading |
-|-----------|-------------|:---:|:-------:|
-| **Ethereum** | DexScreener, GeckoTerminal, Moralis, CoinGecko, CoinMarketCap | Alchemy | — |
-| **BNB Chain** | DexScreener, GeckoTerminal, Moralis, CoinGecko, CoinMarketCap | Alchemy | — |
-| **Solana** | DexScreener, GeckoTerminal, Birdeye, CoinGecko, CoinMarketCap | Helius, FluxRPC | PumpDev |
-| **Base** | DexScreener, GeckoTerminal, CoinGecko, CoinMarketCap | Alchemy | — |
-| **Arbitrum** | DexScreener, GeckoTerminal, Moralis, CoinGecko, CoinMarketCap | Alchemy | — |
-| **Polygon** | DexScreener, GeckoTerminal, Moralis, CoinGecko, CoinMarketCap | Alchemy | — |
-| **Avalanche** | DexScreener, GeckoTerminal, CoinGecko, CoinMarketCap | Alchemy | — |
-| **Optimism** | DexScreener, GeckoTerminal, CoinGecko, CoinMarketCap | Alchemy | — |
-| **Otras 40+** | DexScreener, GeckoTerminal | — | — |
+| Blockchain    | Market Data                                                   |       RPC       | Trading |
+| ------------- | ------------------------------------------------------------- | :-------------: | :-----: |
+| **Ethereum**  | DexScreener, GeckoTerminal, Moralis, CoinGecko, CoinMarketCap |     Alchemy     |    —    |
+| **BNB Chain** | DexScreener, GeckoTerminal, Moralis, CoinGecko, CoinMarketCap |     Alchemy     |    —    |
+| **Solana**    | DexScreener, GeckoTerminal, Birdeye, CoinGecko, CoinMarketCap | Helius, FluxRPC | PumpDev |
+| **Base**      | DexScreener, GeckoTerminal, CoinGecko, CoinMarketCap          |     Alchemy     |    —    |
+| **Arbitrum**  | DexScreener, GeckoTerminal, Moralis, CoinGecko, CoinMarketCap |     Alchemy     |    —    |
+| **Polygon**   | DexScreener, GeckoTerminal, Moralis, CoinGecko, CoinMarketCap |     Alchemy     |    —    |
+| **Avalanche** | DexScreener, GeckoTerminal, CoinGecko, CoinMarketCap          |     Alchemy     |    —    |
+| **Optimism**  | DexScreener, GeckoTerminal, CoinGecko, CoinMarketCap          |     Alchemy     |    —    |
+| **Otras 40+** | DexScreener, GeckoTerminal                                    |        —        |    —    |

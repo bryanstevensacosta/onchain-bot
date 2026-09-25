@@ -1,74 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { ChainCatalogPort } from 'chain/application/ports/chain-catalog.port';
-import { ProviderRegistryService } from 'provider/provider-registry.service';
-import { AddressIdVo } from './address-id.vo';
-import { AddressKind } from './address-kind';
-import {
-  AddressKindDetectorService,
-  AddressProbe,
-} from './address-kind-detector.service';
-
-export interface AddressSnapshotInput {
-  readonly chain: string;
-  readonly value: string;
-  readonly kindHint?: unknown;
-  readonly probe?: AddressProbe | null;
-}
-
-export interface AddressSnapshot {
-  readonly chain: string;
-  readonly address: string;
-  readonly kind: AddressKind;
-  readonly key: string;
-  readonly status: 'pending';
-  readonly providers: ReadonlyArray<string>;
-}
-
 /**
- * AddressSnapshotService (Tramo 3, P45).
- *
- * The absorbed token path: kind=token snapshots compose exactly what
- * the old token shell did (chain validation + supporting-provider
- * hints). Every other kind rides the same shape — one snapshot per
- * kind. Chain qualifier is mandatory: empty chain throws, unknown
- * chain 404s (never a silent null). Full aggregators land in todo 3 —
- * status stays `pending` until then.
+ * @deprecated Canonical home is
+ * `src/snapshot/application/address-snapshot.service.ts` (Tramo 3,
+ * todo 12, P50 — the snapshot concern was promoted to its own module).
+ * Compat re-export so `address/*` consumers keep working unchanged.
+ * Removed at cutover (todo 8).
  */
-@Injectable()
-export class AddressSnapshotService {
-  public constructor(
-    private readonly catalog: ChainCatalogPort,
-    private readonly providers: ProviderRegistryService,
-    private readonly kinds: AddressKindDetectorService,
-  ) {}
-
-  public async getSnapshot(input: AddressSnapshotInput): Promise<AddressSnapshot> {
-    const chain = (input.chain ?? '').trim();
-    if (chain === '') {
-      throw new NotFoundException('Chain qualifier is required');
-    }
-    const known = await this.catalog.findById(chain);
-    if (known === null) {
-      throw new NotFoundException(`Unknown chain: ${chain}`);
-    }
-    const kind = await this.kinds.detect({
-      chain: known.id,
-      value: input.value,
-      kindHint: input.kindHint,
-      probe: input.probe ?? null,
-    });
-    const id = AddressIdVo.from(known.id, input.value, kind);
-    const supporting = this.providers
-      .listProviders()
-      .filter((provider) => provider.supportsChains.includes(known.id))
-      .map((provider) => provider.name);
-    return {
-      chain: id.chain,
-      address: id.address,
-      kind: id.kind,
-      key: id.key,
-      status: 'pending',
-      providers: supporting,
-    };
-  }
-}
+export * from '../snapshot/application/address-snapshot.service';

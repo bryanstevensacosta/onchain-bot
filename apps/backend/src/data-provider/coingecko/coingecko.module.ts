@@ -1,29 +1,12 @@
-import { DynamicModule, Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { COINGECKO_CONFIG, CoinGeckoConfig } from './coingecko.config';
-import { CoinGeckoService } from './coingecko.service';
-
-@Module({
-  providers: [
-    {
-      provide: COINGECKO_CONFIG,
-      inject: [ConfigService],
-      useFactory: (cs: ConfigService): CoinGeckoConfig =>
-        cs.get<CoinGeckoConfig>('app.coingecko') ?? { apiKey: '' },
-    },
-    CoinGeckoService,
-  ],
-  exports: [CoinGeckoService, COINGECKO_CONFIG],
-})
-export class CoinGeckoModule {
-  public static forRoot(config: CoinGeckoConfig): DynamicModule {
-    return {
-      module: CoinGeckoModule,
-      providers: [
-        { provide: COINGECKO_CONFIG, useValue: config },
-        CoinGeckoService,
-      ],
-      exports: [CoinGeckoService, COINGECKO_CONFIG],
-    };
-  }
-}
+/**
+ * @deprecated Moved to apps/market-data/src/provider/infrastructure/coingecko/ (Tramo 3, todo 4, C-DATA-01).
+ * Canonical owner is now market-data (ProvidersModule); this file is a
+ * dual-run re-export shim so legacy backend consumers stay green.
+ * Removed at cutover (todo 8). Do not extend it.
+ *
+ * New location: apps/market-data/src/provider/infrastructure/coingecko/
+ * Reason: extracting market-data providers from backend monolith to dedicated app
+ * Breaking change: Yes (removal at cutover)
+ * Rollback: restore backend implementation from git history
+ */
+export * from '../../../../market-data/src/provider/infrastructure/coingecko/coingecko.module';

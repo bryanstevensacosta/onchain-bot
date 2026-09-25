@@ -1,20 +1,17 @@
 import { Module } from '@nestjs/common';
-import { ChainModule } from 'chain/chain.module';
-import { ProviderModule } from 'provider/provider.module';
-import { AddressKindDetectorService } from './address-kind-detector.service';
-import { AddressSnapshotService } from './address-snapshot.service';
+import { AddressKindDetectorService } from './application/address-kind-detector.service';
 
 /**
- * AddressModule (Tramo 3, P45).
+ * AddressModule (Tramo 3, P45; hexagonal slim-down todo 12, P50).
  *
  * Universal address model: Address = chain + value + kind
- * (wallet | token | program | exchange | unknown). Absorbs the token/
- * stub — token logic is the kind=token path of AddressSnapshotService.
- * Exposes services as ports; HTTP lives in gateway/ (P43).
+ * (wallet | token | program | exchange | unknown). Snapshot aggregation
+ * moved to SnapshotModule (`src/snapshot/` — token logic stays the
+ * kind=token path). Exposes the kind detector as a port; HTTP lives in
+ * gateway/ (P43).
  */
 @Module({
-  imports: [ChainModule, ProviderModule],
-  providers: [AddressKindDetectorService, AddressSnapshotService],
-  exports: [AddressKindDetectorService, AddressSnapshotService],
+  providers: [AddressKindDetectorService],
+  exports: [AddressKindDetectorService],
 })
 export class AddressModule {}

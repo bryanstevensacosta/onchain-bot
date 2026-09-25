@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ChainCatalogPort } from './application/ports/chain-catalog.port';
 import { CHAIN_PROBERS } from './application/ports/chain-prober.port';
-import { StaticChainCatalog } from './static-chain-catalog';
+import { StaticChainCatalog } from './infrastructure/static-chain-catalog';
 import { DetectChainService } from './application/detect-chain.service';
 import { EvmChainProber } from './infrastructure/probers/evm-chain.prober';
 import { SolanaChainProber } from './infrastructure/probers/solana-chain.prober';

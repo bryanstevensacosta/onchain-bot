@@ -1,4 +1,4 @@
-import { ChainFamily, ChainInfo } from '../../chain-info';
+import { ChainFamily, ChainInfo } from '../../domain/chain-info';
 
 /**
  * ChainCatalogPort (Tramo 3, todo 2).

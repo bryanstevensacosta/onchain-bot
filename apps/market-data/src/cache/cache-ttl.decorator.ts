@@ -1,12 +1,7 @@
-import { SetMetadata } from '@nestjs/common';
-
 /**
- * CacheTTL (Tramo 3, todo 2).
- *
- * Marks a gateway GET handler cacheable for N seconds. Read by the
- * CacheInterceptor; handlers without it use the interceptor default.
+ * @deprecated Hexagonal home is
+ * `src/cache/infrastructure/cache-ttl.decorator.ts` (Tramo 3, todo 12,
+ * P50). Compat re-export so `cache/*` consumers keep working unchanged.
+ * Removed at cutover (todo 8).
  */
-export const CACHE_TTL_KEY = 'cache_ttl_seconds';
-
-export const CacheTTL = (seconds: number): MethodDecorator & ClassDecorator =>
-  SetMetadata(CACHE_TTL_KEY, seconds);
+export * from './infrastructure/cache-ttl.decorator';

@@ -15,6 +15,7 @@
 | frontend                      | `http://localhost:5173` | `:4173`                     | `:80` (nginx static + proxy) |
 | kol-system (NEW T1)           | `http://localhost:3050` | `:3051` (spec triplet)      | `:3052` (spec triplet)       |
 | feed-publisher (NEW T2)       | `http://localhost:3040` | `:3041`                     | `:3042`                      |
+| market-data (NEW T3)          | `http://localhost:4000` | `:4001` (host)              | `:4002` (host)               |
 | kol-system pg/redis (dev)     | `:5435` / `:6382`       | per-env                     | per-env                      |
 | feed-publisher pg/redis (dev) | `:5436` / `:6383`       | server-shared               | server-shared                |
 
@@ -37,11 +38,12 @@ kol-system `:3050` (dev only — **no nginx `/kol-api/` block yet**);
 | ingestion-telegram | Global `ApiKeyGuard`: `INGESTION_API_KEY` vs `x-api-key` header or `?apiKey=`. Unset = warn + allow-all. Public keyless: `GET /api/feed/*`, `/api/media/*`, `GET /api/kol-avatar/*`, `/api/health`, `/live`, `/ready`. Protected: `GET /api/ingestion/stream`, `/debug/*`, `/metrics`, all feed writes |
 | kol-system         | `ApiKeyGuard` (`KOL_SYSTEM_API_KEY`, fail-open when empty; provided via `@Global` SharedModule)                                                                                                                                                                                                        |
 | feed-publisher     | `ApiKeyGuard` (`FEED_PUBLISHER_API_KEY`, `x-api-key` header, fail-open when empty; `@Public()` bypass for health/metrics; provided via `@Global` SharedModule)                                                                                                                                         |
+| market-data        | `ApiKeyGuard` (`MARKET_DATA_API_KEY`, `x-api-key` header, fail-open when empty; `@Public()` bypass for health; `shared/guards` is a compat re-export of `shared/infrastructure/guards`)                                                                                                                |
 | frontend           | None (same-origin; env vars `VITE_API_BASE_URL`, `VITE_WS_URL`, `VITE_FEED_PUBLISHER_URL`, all default `''`)                                                                                                                                                                                           |
 
 ---
 
-## 1. backend (`apps/backend/src`) — ~178 routes, 45 controllers
+## 1. backend (`apps/backend/src`) — ~184 routes, 51 controllers
 
 Base `http://localhost:3030`. No global prefix; health is `GET /api/health`.
 
@@ -77,51 +79,54 @@ Base `http://localhost:3030`. No global prefix; health is `GET /api/health`.
 
 ### 1.3 Token pipeline (`token/*`)
 
-| Method | Path                                                 | Purpose / params / response                              |
-| ------ | ---------------------------------------------------- | -------------------------------------------------------- |
-| POST   | `/token/intake/extraction/extract`                   | Extract candidates from raw text (`{text}` → candidates) |
-| GET    | `/token/intake/extraction/results/recent`            | Recent extraction results (`?limit=`)                    |
-| GET    | `/token/intake/extraction/results/:kolId/:messageId` | Extraction by message                                    |
-| POST   | `/token/intake/parsing/parse`                        | Parse candidates → structured call                       |
-| GET    | `/token/intake/parsing/calls/recent`                 | Recent parsed calls                                      |
-| GET    | `/token/intake/parsing/calls/:kolId/:messageId`      | Parsed call by message                                   |
-| GET    | `/token/normalization/tokens/recent`                 | Recent canonical calls (`?limit=`)                       |
-| GET    | `/token/normalization/tokens/:chain/:address`        | Canonical call by token                                  |
-| POST   | `/chain/detection/detect`                            | Detect chain (`{address}` → chain)                       |
-| GET    | `/chain/detection/results/recent`                    | Recent detections                                        |
-| GET    | `/chain/detection/results/:address`                  | Detection by address                                     |
-| POST   | `/token/market-data/enrich`                          | Enrich token (`{chain, address}` → snapshot)             |
-| GET    | `/token/market-data/snapshots/recent`                | Recent snapshots                                         |
-| GET    | `/token/market-data/snapshots/:chain/:address`       | Snapshot by token                                        |
-| GET    | `/token/image/:chain/:address`                       | Token icon (LRU + WebP, DexScreener fallback)            |
-| POST   | `/token/classification/classify`                     | Classify token (safe/scam/unknown)                       |
-| GET    | `/token/classification/tokens/recent`                | Recent classifications                                   |
-| GET    | `/token/classification/tokens/:chain/:address`       | Classification by token                                  |
-| POST   | `/token/scoring/score`                               | Score 0–100 (`{chain, address}` → score + `breakdown[]`) |
-| GET    | `/token/scoring/tokens/top`                          | Top scores                                               |
-| GET    | `/token/scoring/tokens/recent`                       | Recent scores                                            |
-| GET    | `/token/scoring/tokens/:chain/:address`              | Score by token                                           |
-| POST   | `/token/vip-call-approval/apply`                     | Run 8 gates (→ approved/rejected)                        |
-| GET    | `/token/vip-call-approval/decisions/approved`        | Approved decisions                                       |
-| GET    | `/token/vip-call-approval/decisions/rejected`        | Rejected decisions                                       |
-| GET    | `/token/vip-call-approval/decisions/recent`          | Recent decisions                                         |
-| GET    | `/token/vip-call-approval/decisions/:chain/:address` | Decision by token                                        |
-| POST   | `/token/honeypot/analyze`                            | Honeypot analysis (`{chain, address}`)                   |
-| GET    | `/token/honeypot/analyses/recent`                    | Recent analyses                                          |
-| GET    | `/token/honeypot/analyses/:chain/:address`           | Analysis by token                                        |
-| POST   | `/token/call-tracking/calls/evaluate`                | Evaluate call outcome                                    |
-| POST   | `/token/call-tracking/jobs/enqueue`                  | Enqueue eval job                                         |
-| GET    | `/token/call-tracking/jobs/:id`                      | Job status                                               |
-| POST   | `/token/call-tracking/jobs/evaluate-due`             | Evaluate due jobs                                        |
-| POST   | `/token/call-tracking/scheduler/tick`                | Manual scheduler tick                                    |
-| GET    | `/call-tracking/tracked`                             | Tracked calls (`?limit=`, `?hasMilestones=`)             |
-| GET    | `/call-tracking/tracked/:chain/:address`             | Tracked call detail                                      |
-| POST   | `/call-tracking/gate-allow`                          | Repost gate check                                        |
-| GET    | `/achievements/thresholds`                           | Milestone thresholds                                     |
-| PUT    | `/achievements/thresholds`                           | Replace thresholds                                       |
-| POST   | `/achievements/thresholds`                           | Add threshold                                            |
-| DELETE | `/achievements/thresholds/:multiple`                 | Remove threshold                                         |
-| POST   | `/achievements/admin/tick`                           | Manual trophy tick                                       |
+| Method | Path                                                 | Purpose / params / response                                                                              |
+| ------ | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| POST   | `/token/intake/extraction/extract`                   | Extract candidates from raw text (`{text}` → candidates)                                                 |
+| GET    | `/token/intake/extraction/results/recent`            | Recent extraction results (`?limit=`)                                                                    |
+| GET    | `/token/intake/extraction/results/:kolId/:messageId` | Extraction by message                                                                                    |
+| POST   | `/token/intake/parsing/parse`                        | Parse candidates → structured call                                                                       |
+| GET    | `/token/intake/parsing/calls/recent`                 | Recent parsed calls                                                                                      |
+| GET    | `/token/intake/parsing/calls/:kolId/:messageId`      | Parsed call by message                                                                                   |
+| GET    | `/token/normalization/tokens/recent`                 | Recent canonical calls (`?limit=`)                                                                       |
+| GET    | `/token/normalization/tokens/:chain/:address`        | Canonical call by token                                                                                  |
+| POST   | `/chain/detection/detect`                            | Detect chain (`{address}` → chain)                                                                       |
+| GET    | `/chain/detection/results/recent`                    | Recent detections                                                                                        |
+| GET    | `/chain/detection/results/:address`                  | Detection by address                                                                                     |
+| POST   | `/token/enrichment/enrich`                           | Enrich token (`{chain, address}` → snapshot; canonical since T3 todo 6, `enrichment.controller.ts:16`)   |
+| GET    | `/token/enrichment/snapshots/recent`                 | Recent snapshots (`enrichment.controller.ts:28`)                                                         |
+| GET    | `/token/enrichment/snapshots/:chain/:address`        | Snapshot by token (`enrichment.controller.ts:36`)                                                        |
+| POST   | `/token/market-data/enrich`                          | **307 redirect** → `/token/enrichment/enrich` (one-version shim, `enrichment-redirect.controller.ts:14`) |
+| GET    | `/token/market-data/snapshots/recent`                | **307 redirect** (shim `:20`)                                                                            |
+| GET    | `/token/market-data/snapshots/:chain/:address`       | **307 redirect** (shim `:33`)                                                                            |
+| GET    | `/token/image/:chain/:address`                       | Token icon (LRU + WebP, DexScreener fallback)                                                            |
+| POST   | `/token/classification/classify`                     | Classify token (safe/scam/unknown)                                                                       |
+| GET    | `/token/classification/tokens/recent`                | Recent classifications                                                                                   |
+| GET    | `/token/classification/tokens/:chain/:address`       | Classification by token                                                                                  |
+| POST   | `/token/scoring/score`                               | Score 0–100 (`{chain, address}` → score + `breakdown[]`)                                                 |
+| GET    | `/token/scoring/tokens/top`                          | Top scores                                                                                               |
+| GET    | `/token/scoring/tokens/recent`                       | Recent scores                                                                                            |
+| GET    | `/token/scoring/tokens/:chain/:address`              | Score by token                                                                                           |
+| POST   | `/token/vip-call-approval/apply`                     | Run 8 gates (→ approved/rejected)                                                                        |
+| GET    | `/token/vip-call-approval/decisions/approved`        | Approved decisions                                                                                       |
+| GET    | `/token/vip-call-approval/decisions/rejected`        | Rejected decisions                                                                                       |
+| GET    | `/token/vip-call-approval/decisions/recent`          | Recent decisions                                                                                         |
+| GET    | `/token/vip-call-approval/decisions/:chain/:address` | Decision by token                                                                                        |
+| POST   | `/token/honeypot/analyze`                            | Honeypot analysis (`{chain, address}`)                                                                   |
+| GET    | `/token/honeypot/analyses/recent`                    | Recent analyses                                                                                          |
+| GET    | `/token/honeypot/analyses/:chain/:address`           | Analysis by token                                                                                        |
+| POST   | `/token/call-tracking/calls/evaluate`                | Evaluate call outcome                                                                                    |
+| POST   | `/token/call-tracking/jobs/enqueue`                  | Enqueue eval job                                                                                         |
+| GET    | `/token/call-tracking/jobs/:id`                      | Job status                                                                                               |
+| POST   | `/token/call-tracking/jobs/evaluate-due`             | Evaluate due jobs                                                                                        |
+| POST   | `/token/call-tracking/scheduler/tick`                | Manual scheduler tick                                                                                    |
+| GET    | `/call-tracking/tracked`                             | Tracked calls (`?limit=`, `?hasMilestones=`)                                                             |
+| GET    | `/call-tracking/tracked/:chain/:address`             | Tracked call detail                                                                                      |
+| POST   | `/call-tracking/gate-allow`                          | Repost gate check                                                                                        |
+| GET    | `/achievements/thresholds`                           | Milestone thresholds                                                                                     |
+| PUT    | `/achievements/thresholds`                           | Replace thresholds                                                                                       |
+| POST   | `/achievements/thresholds`                           | Add threshold                                                                                            |
+| DELETE | `/achievements/thresholds/:multiple`                 | Remove threshold                                                                                         |
+| POST   | `/achievements/admin/tick`                           | Manual trophy tick                                                                                       |
 
 ### 1.4 Telegram publishing / VIP (`vip-calls`, `chain-dexter`)
 
@@ -137,24 +142,32 @@ Base `http://localhost:3030`. No global prefix; health is `GET /api/health`.
 
 ### 1.5 Ingestion proxy / crypto-news filters (Opción A, backend-owned)
 
-| Method | Path                                      | Purpose / params / response                                          |
-| ------ | ----------------------------------------- | -------------------------------------------------------------------- |
-| GET    | `/ingestion/config`                       | Ingestion config view                                                |
-| GET    | `/ingestion/health`                       | Ingestion health view                                                |
-| POST   | `/crypto-news/sources/:channelId/filters` | Create content filter (`{pattern, replacement?, flags?, priority?}`) |
-| GET    | `/crypto-news/sources/:channelId/filters` | Filters by channel                                                   |
-| PUT    | `/crypto-news/filters/:id`                | Replace filter                                                       |
-| DELETE | `/crypto-news/filters/:id`                | Delete filter                                                        |
-| PATCH  | `/crypto-news/filters/:id/toggle`         | Enable/disable filter                                                |
-| GET    | `/crypto-news/matching/config`            | Matching flag + config (sole source id=1)                            |
-| GET    | `/crypto-news/matching/health`            | Matching health                                                      |
-| PATCH  | `/crypto-news/matching/config`            | Toggle matching (rejects `matchingEnabled` in LLM body with 400)     |
-| GET    | `/crypto-news/dead-letter`                | Dead-letter queue                                                    |
-| POST   | `/crypto-news/dead-letter/:id/retry`      | Retry dead letter                                                    |
+| Method | Path                                      | Purpose / params / response                                                    |
+| ------ | ----------------------------------------- | ------------------------------------------------------------------------------ |
+| GET    | `/ingestion/config`                       | Ingestion config view                                                          |
+| GET    | `/ingestion/health`                       | Ingestion health view                                                          |
+| POST   | `/crypto-news/sources/:channelId/filters` | Create content filter (`{pattern, replacement?, flags?, priority?}`)           |
+| GET    | `/crypto-news/sources/:channelId/filters` | Filters by channel                                                             |
+| PUT    | `/crypto-news/filters/:id`                | Replace filter                                                                 |
+| DELETE | `/crypto-news/filters/:id`                | Delete filter                                                                  |
+| PATCH  | `/crypto-news/filters/:id/toggle`         | Enable/disable filter                                                          |
+| GET    | `/crypto-news/matching/config`            | Matching flag + config (sole source id=1; also serves `/feed-matching/config`) |
+| GET    | `/crypto-news/matching/health`            | Matching health (also `/feed-matching/health`)                                 |
+| PATCH  | `/crypto-news/matching/config`            | Toggle matching (rejects `matchingEnabled` in LLM body with 400)               |
+| GET    | `/crypto-news/dead-letter`                | Dead-letter queue                                                              |
+| POST   | `/crypto-news/dead-letter/:id/retry`      | Retry dead letter                                                              |
 
-### 1.6 Crypto-news publisher (`crypto-news-publisher/*`) — legacy until T2 cutover
+Dual-serve (P41, T2 todo 13 Fase 1): `PUT|DELETE|PATCH /feed-filters/:id[toggle]`
+(`feed-filters.controller.ts:41,76,93`) delegate to the SAME filter use-cases
+as `PUT|DELETE|PATCH /crypto-news/filters/:id`. Per-channel create/list
+(`POST|GET /crypto-news/sources/:channelId/filters`) stay on the old
+controller only — no `feed-sources` in the backend.
 
-Keywords (`/crypto-news-publisher/keywords`): `GET /`, `GET /:id`,
+### 1.6 Crypto-news publisher (`crypto-news-publisher/*` ≡ `feed-publisher/*`) — legacy until T2 cutover
+
+Every controller below dual-serves both prefixes (array `@Controller`,
+e.g. `['crypto-news-publisher/keywords', 'feed-publisher/keywords']`).
+Keywords (`/crypto-news-publisher/keywords` ≡ `/feed-publisher/keywords`): `GET /`, `GET /:id`,
 `POST /` (single + AND-groups), `POST /batch`, `PATCH /:id`,
 `DELETE /:id`.
 Phrases (`/crypto-news-publisher/phrases`, **read-only — no write
@@ -170,7 +183,7 @@ Queue (`/crypto-news-publisher/queue`): `GET /` (rich list, cap 500),
 `GET /counts`, `DELETE /:id` (cancel);
 `GET /crypto-news-publisher/queue/:id/media` (media preview).
 
-### 1.7 Crypto-news ads (`crypto-news-ads/*`) — legacy until T2 cutover
+### 1.7 Crypto-news ads (`crypto-news-ads/*` ≡ `crypto-news-scheduling/*` ≡ `feed-scheduling/*`) — legacy until T2 cutover
 
 Ads (`/crypto-news-ads/ads`): `GET /`, `POST /`, `PATCH /:id`,
 `POST /:id/image`, `POST /:id/reuse-image`, `DELETE /:id/image`,
@@ -181,7 +194,7 @@ Media (`/crypto-news-ads`): `GET /media/:mediaId`,
 `GET /media-library`, `GET /media-library/:libraryMediaId`.
 Rotation (`/crypto-news-ads/rotation-config`): `GET /`, `PATCH /`.
 
-### 1.8 Threads publisher (`threads-publisher/*`, `threads/*`) — legacy mirror
+### 1.8 Threads publisher (`threads-publisher/*` ≡ `feed-threads-publisher/*`, `threads/*`) — legacy mirror
 
 Keywords (`/threads-publisher/keywords`): `GET /`, `GET /:id`,
 `POST /`, `POST /batch`, `PATCH /:id`, `DELETE /:id`.
@@ -223,6 +236,10 @@ Ops: `GET /ops/backups/status`, `GET /ops/backups/config`.
 
 ## 2. ingestion-telegram (`apps/ingestion-telegram/src`) — 20 routes, 8 controllers
 
+Feed + registry dual-serve BOTH prefixes: `@Controller(['api/feed',
+'api/crypto-news'])` (`feed.controller.ts:88`, `sources.controller.ts:66`).
+Every path below exists under `/api/feed/*` AND `/api/crypto-news/*`.
+
 ### SSE / stream
 
 | Method | Path                    | Purpose / params / response                                                                                                                                                                                                                                                                                    |
@@ -231,23 +248,23 @@ Ops: `GET /ops/backups/status`, `GET /ops/backups/config`.
 
 ### Feed reads (public GET)
 
-| Method | Path                                    | Purpose / params / response                                                                             |
-| ------ | --------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| GET    | `/api/feed/messages`                    | Recent RAW messages (`?limit=50`, `?type=kol\|crypto-news`; invalid type → 400; omitted = mixed legacy) |
-| GET    | `/api/feed/messages/channel/:channelId` | History by channel (`?limit=50`)                                                                        |
-| GET    | `/api/feed/stats`                       | `{totalMessages, totalSources, activeSources}` (typed counts)                                           |
+| Method | Path                                    | Purpose / params / response                                                                                                            |
+| ------ | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/feed/messages`                    | Recent RAW messages (`?limit=50`, `?type=kol\|crypto-news`; invalid type → 400; omitted = mixed legacy; ≡ `/api/crypto-news/messages`) |
+| GET    | `/api/feed/messages/channel/:channelId` | History by channel (`?limit=50`; ≡ `/api/crypto-news/messages/channel/:channelId`)                                                     |
+| GET    | `/api/feed/stats`                       | `{totalMessages, totalSources, activeSources}` (typed counts; ≡ `/api/crypto-news/stats`)                                              |
 
 ### Registry / sources (writes protected when key set)
 
-| Method | Path                                  | Purpose / params / response                                                                                                      |
-| ------ | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| POST   | `/api/feed/sources`                   | Register source (`{channelId, title?, handle?, type?}` → 201 + source view incl. `avatarUrl`; fetch-once avatar fire-and-forget) |
-| POST   | `/api/feed/sources/batch`             | Batch register                                                                                                                   |
-| GET    | `/api/feed/sources`                   | List sources (`?type=`; each row carries `avatarUrl: /api/kol-avatar/:channelId`)                                                |
-| GET    | `/api/feed/sources/active/ids`        | Active channel IDs only                                                                                                          |
-| PATCH  | `/api/feed/sources/:channelId`        | Update source                                                                                                                    |
-| PATCH  | `/api/feed/sources/:channelId/toggle` | Flip `isActive`                                                                                                                  |
-| DELETE | `/api/feed/sources/:channelId`        | Delete source                                                                                                                    |
+| Method | Path                                  | Purpose / params / response                                                                                                                                    |
+| ------ | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/api/feed/sources`                   | Register source (`{channelId, title?, handle?, type?}` → 201 + source view incl. `avatarUrl`; fetch-once avatar fire-and-forget; ≡ `/api/crypto-news/sources`) |
+| POST   | `/api/feed/sources/batch`             | Batch register                                                                                                                                                 |
+| GET    | `/api/feed/sources`                   | List sources (`?type=`; each row carries `avatarUrl: /api/kol-avatar/:channelId`)                                                                              |
+| GET    | `/api/feed/sources/active/ids`        | Active channel IDs only                                                                                                                                        |
+| PATCH  | `/api/feed/sources/:channelId`        | Update source                                                                                                                                                  |
+| PATCH  | `/api/feed/sources/:channelId/toggle` | Flip `isActive`                                                                                                                                                |
+| DELETE | `/api/feed/sources/:channelId`        | Delete source                                                                                                                                                  |
 
 ### Media / avatar
 
@@ -335,9 +352,15 @@ Base `http://localhost:3050` (dev; `:3051` staging, `:3052` prod).
 | ------ | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | GET    | `/api/kol-rankings` | Caller ranking (`?window=30d\|7d\|1d&sort=perf_desc\|perf_asc\|calls_desc` → `[{caller, window, totalX, callsCount, strongCalls, display}]`; unknown → 400) |
 
+Avatar: no HTTP routes in kol-system — `KolAvatarResolverService`
+(`ingestion/application/services/kol-avatar-resolver.service.ts`) resolves
+`avatarUrl` per caller from the ingestion source catalog and falls back to
+the servable placeholder `/api/kol-avatar/<caller>` (ingestion-owned);
+ranking/template rows carry the resolved `avatarUrl`.
+
 ---
 
-## 4. feed-publisher (`apps/feed-publisher/src`) — NEW Tramo 2 surface, 72 routes, 16 controllers
+## 4. feed-publisher (`apps/feed-publisher/src`) — NEW Tramo 2 surface, 73 routes, 16 controllers
 
 Base `http://localhost:3040` (dev; `:3041` staging, `:3042` prod).
 `FEED_PUBLISHER_API_KEY` (`x-api-key`), `@Public()` bypasses health;
@@ -413,7 +436,40 @@ Template-bots (`/api/content-template-bots`): `POST /`, `GET /`,
 
 ---
 
-## 5. frontend (`apps/frontend/src/shared/api`) — consumer map, no server
+## 5. market-data (`apps/market-data/src`) — NEW Tramo 3 gateway, 10 routes, 7 controllers
+
+Base `http://localhost:4000` (`MARKET_DATA_PORT`; staging host `:4001`,
+prod host `:4002` — `main.ts:8,28`). `MARKET_DATA_API_KEY` fail-open
+guard, `@Public()` health. No global prefix. Six compat re-export files
+under `gateway/api/http/` + `shared/guards/api-key.guard.ts` carry no
+decorators (removed at cutover, todo 8).
+
+### Gateway (`api/v1/*`) + legacy snapshot
+
+| Method | Path                                | Purpose / params / response                                                                                             |
+| ------ | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/v1/chains`                    | Chain catalog (`chains.controller.ts:24`)                                                                               |
+| GET    | `/api/v1/chains/detect`             | Detect chain (`?address=` required, 400 without; `:30`)                                                                 |
+| GET    | `/api/v1/chains/:id`                | Chain by id (`:38`)                                                                                                     |
+| GET    | `/api/v1/providers`                 | Provider catalog (`providers.controller.ts:19`)                                                                         |
+| GET    | `/api/v1/providers/:name`           | Provider by name (`:25`)                                                                                                |
+| GET    | `/api/v1/addresses/:chain/:address` | Address snapshot (`?kind=` optional; `addresses.controller.ts:30`)                                                      |
+| POST   | `/api/v1/addresses/batch`           | Batch snapshot (`addresses-batch.controller.ts:63`)                                                                     |
+| GET    | `/api/v1/tokens/:chain/:address`    | Token snapshot — thin alias pinned to `kind=token`, deprecated, removed at cutover (`tokens-snapshot.controller.ts:19`) |
+| GET    | `/api/market-data/snapshot`         | Legacy snapshot (`?chain=&address=`; `market-data-snapshot.controller.ts:33`)                                           |
+
+### Health
+
+| Method | Path          | Purpose / params / response         |
+| ------ | ------------- | ----------------------------------- |
+| GET    | `/api/health` | `{status: 'ok'}` (`@Public`; `:14`) |
+
+Frontend has NO market-data wiring yet (no `VITE_*` var, no `/api/v1/`
+refs) — screens still read backend `/token/enrichment/*` §1.3.
+
+---
+
+## 6. frontend (`apps/frontend/src/shared/api`) — consumer map, no server
 
 `http-client.ts` (fetch, `HttpError{status, body}`; GET/POST/PATCH/DELETE
 
@@ -421,21 +477,21 @@ Template-bots (`/api/content-template-bots`): `POST /`, `GET /`,
   truth) + `settings-endpoints.ts` + `feed-publisher-base.ts`
   (`feedPublisherPath`, prefix `/feed-api`).
 
-| Group (`ENDPOINTS.*`)                                                                 | Backend routes consumed                                                                                                                                                                                                  |
-| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `kols`                                                                                | `GET /ingestion-api/feed/sources?type=kol`, `POST /ingestion-api/feed/sources`, `PATCH …/toggle` (identity moved to feed API; backfill deleted)                                                                          |
-| `publishing`                                                                          | `/vip-calls/calls/published\|failed\|recent`, `POST /vip-calls/publish`                                                                                                                                                  |
-| `extraction/parsing/normalization/enrichment/classification/scoring/filters/honeypot` | `token/*` pipeline routes §1.3 verbatim                                                                                                                                                                                  |
-| `reputation`                                                                          | `/telegram-kol/reputation/kols[/top\|/:id]`, `POST …/recompute/:id[?formula=]`                                                                                                                                           |
-| `callTracking`                                                                        | `POST /token/call-tracking/scheduler/tick\|jobs/evaluate-due\|jobs/enqueue`                                                                                                                                              |
-| `feed.sources`                                                                        | `GET /ingestion-api/feed/sources?type=crypto-news`, add/update/toggle/delete                                                                                                                                             |
-| `trackedCalls`                                                                        | `GET /call-tracking/tracked[/:chain/:address]`, `POST /call-tracking/gate-allow`                                                                                                                                         |
-| `threads.*`                                                                           | `/threads-publisher/*` + `/threads/matching/*` verbatim                                                                                                                                                                  |
-| `ingestion`                                                                           | `GET /ingestion/config`, `GET /ingestion/health`                                                                                                                                                                         |
-| `kolSystem`                                                                           | `/kol-api/templates[/:id\|/:id/rankings\|/:id/sources\|/:id/pending-approvals]`, `/kol-api/kol-rankings?window&sort`, `/ingestion-api/kol-avatar/:channelId` (pending-approvals defined, no fetcher yet)                 |
-| `ops`                                                                                 | `GET /ops/backups/status`                                                                                                                                                                                                |
-| `feedPublisher.queue/matching/llm/scheduling/threads`                                 | `/feed-api/api/queue/stats`, `/feed-api/feed-publisher/matching/*`, `/feed-api/api/llm/*` (models/config/flags/templates/preview), `/feed-api/api/scheduling/*` (ads/media/rotation), `/feed-api/api/threads` (501 stub) |
-| `SETTINGS_ENDPOINTS`                                                                  | `/settings/filters[?type=]`, `/settings/presets[/active\|/:id\|/:id/apply]`                                                                                                                                              |
+| Group (`ENDPOINTS.*`)                                                      | Backend routes consumed                                                                                                                                                                                                  |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `kols`                                                                     | `GET /ingestion-api/feed/sources?type=kol`, `POST /ingestion-api/feed/sources`, `PATCH …/toggle` (identity moved to feed API; backfill deleted)                                                                          |
+| `publishing`                                                               | `/vip-calls/calls/published\|failed\|recent`, `POST /vip-calls/publish`                                                                                                                                                  |
+| `extraction/parsing/normalization/classification/scoring/filters/honeypot` | `token/*` pipeline routes §1.3 verbatim (enrichment = `/token/enrichment/*` since T3 todo 6; backend 307-redirects legacy `/token/market-data/*`)                                                                        |
+| `reputation`                                                               | `/telegram-kol/reputation/kols[/top\|/:id]`, `POST …/recompute/:id[?formula=]`                                                                                                                                           |
+| `callTracking`                                                             | `POST /token/call-tracking/scheduler/tick\|jobs/evaluate-due\|jobs/enqueue`                                                                                                                                              |
+| `feed.sources`                                                             | `GET /ingestion-api/feed/sources?type=crypto-news`, add/update/toggle/delete                                                                                                                                             |
+| `trackedCalls`                                                             | `GET /call-tracking/tracked[/:chain/:address]`, `POST /call-tracking/gate-allow`                                                                                                                                         |
+| `threads.*`                                                                | `/threads-publisher/*` + `/threads/matching/*` verbatim                                                                                                                                                                  |
+| `ingestion`                                                                | `GET /ingestion/config`, `GET /ingestion/health`                                                                                                                                                                         |
+| `kolSystem`                                                                | `/kol-api/templates[/:id\|/:id/rankings\|/:id/sources\|/:id/pending-approvals]`, `/kol-api/kol-rankings?window&sort`, `/ingestion-api/kol-avatar/:channelId` (pending-approvals defined, no fetcher yet)                 |
+| `ops`                                                                      | `GET /ops/backups/status`                                                                                                                                                                                                |
+| `feedPublisher.queue/matching/llm/scheduling/threads`                      | `/feed-api/api/queue/stats`, `/feed-api/feed-publisher/matching/*`, `/feed-api/api/llm/*` (models/config/flags/templates/preview), `/feed-api/api/scheduling/*` (ads/media/rotation), `/feed-api/api/threads` (501 stub) |
+| `SETTINGS_ENDPOINTS`                                                       | `/settings/filters[?type=]`, `/settings/presets[/active\|/:id\|/:id/apply]`                                                                                                                                              |
 
 Socket.IO (`VITE_WS_URL` ?? `localhost:3030`, ws→polling, 5 retries
 1 s→30 s): `scoring.token.scored`, `vip-call.approval.*`,
@@ -445,7 +501,8 @@ rooms `chain:solana|evm`, `verdict:approved|rejected`, `published:all`,
 
 ## Verification
 
-- Route decorators grepped per app (backend 45 files, ingestion 8,
-  kol-system 7, feed-publisher 16 controller files); counts in
+- Route decorators grepped per app (backend 51 files / 184 method
+  decorators, ingestion 8 / 20, kol-system 7 / 30, feed-publisher 16 /
+  73, market-data 7 real + 6 compat re-exports / 10); counts in
   `.omo/evidence/apis-catalog.log`.
 - `npx prettier --check APIS.md` clean.

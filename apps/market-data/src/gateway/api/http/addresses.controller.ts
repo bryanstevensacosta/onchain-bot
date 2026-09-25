@@ -1,48 +1,7 @@
-import {
-  BadRequestException,
-  Controller,
-  Get,
-  Param,
-  Query,
-  UseGuards,
-  UseInterceptors,
-} from '@nestjs/common';
-import { CacheInterceptor } from 'cache/cache.interceptor';
-import { CacheTTL } from 'cache/cache-ttl.decorator';
-import { AddressSnapshotService } from 'address/address-snapshot.service';
-import { GatewayRateLimitGuard } from '../../gateway-rate-limit.guard';
-
 /**
- * AddressesController (Tramo 3, P45).
- *
- * Universal edge: GET /api/v1/addresses/:chain/:address[?kind=].
- * Chain qualifier is mandatory (400 when missing/blank); kind hint is
- * optional and never crashes (unknown kinds resolve to explicit
- * `unknown`). Edge policies (auth via global ApiKeyGuard, rate-limit,
- * cache) applied here — never in address/ (P43).
+ * @deprecated Hexagonal home is
+ * `src/gateway/infrastructure/http/addresses.controller.ts` (Tramo 3,
+ * todo 12, P50). Compat re-export so `gateway/*` consumers keep working
+ * unchanged. Removed at cutover (todo 8).
  */
-@UseGuards(GatewayRateLimitGuard)
-@UseInterceptors(CacheInterceptor)
-@Controller('api/v1/addresses')
-export class AddressesController {
-  public constructor(private readonly snapshots: AddressSnapshotService) {}
-
-  @Get(':chain/:address')
-  @CacheTTL(30)
-  public async getAddress(
-    @Param('chain') chain: string,
-    @Param('address') address: string,
-    @Query('kind') kind?: string,
-  ): Promise<unknown> {
-    if ((chain ?? '').trim() === '') {
-      throw new BadRequestException(
-        'Chain qualifier is required (GET /api/v1/addresses/:chain/:address)',
-      );
-    }
-    return (await this.snapshots.getSnapshot({
-      chain,
-      value: address,
-      kindHint: kind,
-    })) as unknown;
-  }
-}
+export * from '../../infrastructure/http/addresses.controller';

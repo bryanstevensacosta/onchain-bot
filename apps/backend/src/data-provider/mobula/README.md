@@ -18,24 +18,24 @@ Mobula se usa en el pipeline para análisis de riesgo y detección de patrones d
 
 ## Plan actual (Demo — $0)
 
-| Límite | Valor |
-|--------|-------|
-| Plan | **Demo** (gratuito) |
-| Endpoints disponibles | Todos los v2 básicos |
-| Rate limit | **60 requests/minuto** |
-| Chains | 6 (Ethereum, BSC, Base, Arbitrum, Polygon, Solana) |
-| API Key | Requerida (gratis en [mobula.io](https://mobula.io)) |
+| Límite                | Valor                                                |
+| --------------------- | ---------------------------------------------------- |
+| Plan                  | **Demo** (gratuito)                                  |
+| Endpoints disponibles | Todos los v2 básicos                                 |
+| Rate limit            | **60 requests/minuto**                               |
+| Chains                | 6 (Ethereum, BSC, Base, Arbitrum, Polygon, Solana)   |
+| API Key               | Requerida (gratis en [mobula.io](https://mobula.io)) |
 
 > No hay planes públicos detallados. La API demo permite integración y pruebas. Para producción contactar con Mobula.
 
 ## Endpoints implementados en el servicio
 
-| Método service | Endpoint API | Descripción |
-|----------------|--------------|-------------|
-| `getTokenMarkets(address, blockchain)` | `GET /token/markets` | Market data + concentration metrics |
-| `getWalletPortfolio(wallet)` | `GET /wallet/portfolio` | Portfolio completo de una wallet |
-| `getTokenHistory(address, from?, to?)` | `GET /token/history` | Precio/volumen histórico (timestamp, price, volume) |
-| `getTokenMetadata(address)` | `GET /token/metadata` | Metadata (name, symbol, icon, decimals) |
+| Método service                         | Endpoint API            | Descripción                                         |
+| -------------------------------------- | ----------------------- | --------------------------------------------------- |
+| `getTokenMarkets(address, blockchain)` | `GET /token/markets`    | Market data + concentration metrics                 |
+| `getWalletPortfolio(wallet)`           | `GET /wallet/portfolio` | Portfolio completo de una wallet                    |
+| `getTokenHistory(address, from?, to?)` | `GET /token/history`    | Precio/volumen histórico (timestamp, price, volume) |
+| `getTokenMetadata(address)`            | `GET /token/metadata`   | Metadata (name, symbol, icon, decimals)             |
 
 ### Response types
 
@@ -85,25 +85,25 @@ Mobula se usa en el pipeline para análisis de riesgo y detección de patrones d
 
 ### Métodos sugeridos para agregar
 
-| Método service sugerido | Endpoint | Para qué sirve |
-|-------------------------|----------|----------------|
-| `getTokenMarketsBatch(addresses)` | `POST /token/markets/batch` | Market data de múltiples tokens |
-| `getTokenPrice(address)` | `GET /token/price` | Precio rápido |
-| `getSearch(query)` | `GET /search` | Buscar tokens por nombre/símbolo |
-| `getTokenHolders(address)` | `GET /token/holders` | Holders de un token |
+| Método service sugerido           | Endpoint                    | Para qué sirve                   |
+| --------------------------------- | --------------------------- | -------------------------------- |
+| `getTokenMarketsBatch(addresses)` | `POST /token/markets/batch` | Market data de múltiples tokens  |
+| `getTokenPrice(address)`          | `GET /token/price`          | Precio rápido                    |
+| `getSearch(query)`                | `GET /search`               | Buscar tokens por nombre/símbolo |
+| `getTokenHolders(address)`        | `GET /token/holders`        | Holders de un token              |
 
 ## Todos los endpoints de la API v2
 
-| # | Endpoint | Método | Descripción |
-|---|----------|--------|-------------|
-| 1 | `/token/markets` | GET | Market data de un token |
-| 2 | `/token/markets/batch` | POST | Market data batch |
-| 3 | `/token/price` | GET | Precio de un token |
-| 4 | `/token/history` | GET | Precio histórico |
-| 5 | `/token/metadata` | GET | Metadata (name, symbol, icon) |
-| 6 | `/token/holders` | GET | Holders de un token |
-| 7 | `/wallet/portfolio` | GET | Portfolio de una wallet |
-| 8 | `/search` | GET | Buscar tokens |
+| #   | Endpoint               | Método | Descripción                   |
+| --- | ---------------------- | ------ | ----------------------------- |
+| 1   | `/token/markets`       | GET    | Market data de un token       |
+| 2   | `/token/markets/batch` | POST   | Market data batch             |
+| 3   | `/token/price`         | GET    | Precio de un token            |
+| 4   | `/token/history`       | GET    | Precio histórico              |
+| 5   | `/token/metadata`      | GET    | Metadata (name, symbol, icon) |
+| 6   | `/token/holders`       | GET    | Holders de un token           |
+| 7   | `/wallet/portfolio`    | GET    | Portfolio de una wallet       |
+| 8   | `/search`              | GET    | Buscar tokens                 |
 
 ## Autenticación
 
@@ -124,73 +124,79 @@ curl -s --request GET \
 
 ## Chains soportadas (6)
 
-| # | Chain | CHAIN_MAP slug | Estado |
-|---|-------|----------------|--------|
-| 1 | **Ethereum** | `ethereum` | ✅ |
-| 2 | **BSC** | `bsc` | ✅ |
-| 3 | **Base** | `base` | ✅ |
-| 4 | **Arbitrum** | `arbitrum` | ✅ |
-| 5 | **Polygon** | `polygon` | ✅ |
-| 6 | **Solana** | `solana` | ✅ |
+| #   | Chain        | CHAIN_MAP slug | Estado |
+| --- | ------------ | -------------- | ------ |
+| 1   | **Ethereum** | `ethereum`     | ✅     |
+| 2   | **BSC**      | `bsc`          | ✅     |
+| 3   | **Base**     | `base`         | ✅     |
+| 4   | **Arbitrum** | `arbitrum`     | ✅     |
+| 5   | **Polygon**  | `polygon`      | ✅     |
+| 6   | **Solana**   | `solana`       | ✅     |
 
 ## Valor único: Concentration Metrics
 
 Mobula es el único provider que ofrece métricas de concentración, críticas para detectar tokens manipulados:
 
 ### Insiders Holdings %
+
 Porcentaje de supply en manos de wallets "insider" (wallets sospechosas de pertenecer al equipo/insiders). Un valor >20% es señal de alerta.
 
 ### Bundlers Holdings %
+
 Porcentaje de supply comprado en bloque en el momento del launch. Un valor >30% sugiere que un grupo coordinado controla gran parte del supply.
 
 ### Dev Holdings %
+
 Porcentaje de supply controlado directamente por el deployer. Dev >10% puede indicar riesgo de rug pull.
 
 ### Top 10 Holdings %
+
 Porcentaje de supply en las 10 wallets más grandes. >50% es alta concentración.
 
 ### Bonding Percentage %
+
 Porcentaje del supply que está en la bonding curve de un AMM (típicamente pump.fun). Referencia para saber cuánto supply está en circulación.
 
 ### Factory
+
 Address del factory contract que creó el token. Útil para identificar si el token fue creado con un factory conocido o sospechoso.
 
 ### Interpretación rápida
 
-| Métrica | Normal | Alerta | Riesgo alto |
-|---------|--------|--------|-------------|
-| Top 10 % | <30% | 30-50% | >50% |
-| Insiders % | <5% | 5-15% | >15% |
-| Bundlers % | <10% | 10-25% | >25% |
-| Dev % | <3% | 3-10% | >10% |
-| Bonding % | — | <10% | >50% (mucho supply fuera de circulación) |
+| Métrica    | Normal | Alerta | Riesgo alto                              |
+| ---------- | ------ | ------ | ---------------------------------------- |
+| Top 10 %   | <30%   | 30-50% | >50%                                     |
+| Insiders % | <5%    | 5-15%  | >15%                                     |
+| Bundlers % | <10%   | 10-25% | >25%                                     |
+| Dev %      | <3%    | 3-10%  | >10%                                     |
+| Bonding %  | —      | <10%   | >50% (mucho supply fuera de circulación) |
 
 ## Manejo de errores
 
-| HTTP | Significado | Acción |
-|------|-------------|--------|
-| 400 | Invalid parameters | Revisar address/blockchain |
-| 401 | API key inválida | Verificar `.env` |
-| 404 | Token no encontrado | Probablemente no listado en Mobula |
-| 429 | Rate limit | Esperar y retry |
-| 500 | Internal error | Retry con backoff |
+| HTTP | Significado         | Acción                             |
+| ---- | ------------------- | ---------------------------------- |
+| 400  | Invalid parameters  | Revisar address/blockchain         |
+| 401  | API key inválida    | Verificar `.env`                   |
+| 404  | Token no encontrado | Probablemente no listado en Mobula |
+| 429  | Rate limit          | Esperar y retry                    |
+| 500  | Internal error      | Retry con backoff                  |
 
 El service actual retorna `null` silenciosamente en errores y logea en debug.
 
 ## Rate limits
 
-| Límite | Valor |
-|--------|-------|
-| Rate limit | **60 requests/minuto** |
-| Plan Demo | Sin CU, sin costos por request |
-| Batch | No disponible en Demo |
+| Límite     | Valor                          |
+| ---------- | ------------------------------ |
+| Rate limit | **60 requests/minuto**         |
+| Plan Demo  | Sin CU, sin costos por request |
+| Batch      | No disponible en Demo          |
 
 ## Ejemplos de uso
 
 ### Uso básico del service
 
 ```typescript
-import { MobulaService } from 'data-provider/mobula';
+import { MobulaService } from 'apps/market-data/src/provider/infrastructure/mobula';
 
 // 1. Market data + concentration de un token
 const markets = await mobula.getTokenMarkets(
@@ -225,7 +231,9 @@ const history = await mobula.getTokenHistory(
 );
 if (history) {
   for (const entry of history) {
-    console.log(`${new Date(entry.timestamp * 1000).toISOString()}: $${entry.price}`);
+    console.log(
+      `${new Date(entry.timestamp * 1000).toISOString()}: $${entry.price}`,
+    );
   }
 }
 
@@ -252,7 +260,9 @@ async function assessConcentrationRisk(address: string, chain: string) {
   let riskScore = 0;
 
   if ((markets.top10HoldingsPercentage ?? 0) > 50) {
-    alerts.push(`Top 10 holders: ${markets.top10HoldingsPercentage}% (riesgo alto)`);
+    alerts.push(
+      `Top 10 holders: ${markets.top10HoldingsPercentage}% (riesgo alto)`,
+    );
     riskScore += 3;
   }
   if ((markets.insidersHoldingsPercentage ?? 0) > 15) {
@@ -268,7 +278,9 @@ async function assessConcentrationRisk(address: string, chain: string) {
     riskScore += 3;
   }
   if ((markets.bondingPercentage ?? 0) > 50) {
-    alerts.push(`Bonding curve: ${markets.bondingPercentage}% (mucho supply bloqueado)`);
+    alerts.push(
+      `Bonding curve: ${markets.bondingPercentage}% (mucho supply bloqueado)`,
+    );
     riskScore += 1;
   }
 
@@ -279,15 +291,15 @@ async function assessConcentrationRisk(address: string, chain: string) {
 
 ### Diferencia con otros providers
 
-| Aspecto | Mobula | Birdeye | Moralis |
-|---------|--------|---------|---------|
-| Concentration metrics | ✅ (único) | ❌ | ❌ |
-| Multi-chain | 6 chains | 14 chains | 5 EVM |
-| Solana | ✅ | ✅ (mejor) | ❌ |
-| EVM | ✅ | Limitado | ✅ (mejor) |
-| Wallet portfolio | ✅ | Solo Solana | ✅ |
-| Price history | ✅ | ✅ | ❌ |
-| Free tier | Demo (60 req/min) | 30k CU/mes | 40k CU/día |
+| Aspecto               | Mobula            | Birdeye     | Moralis    |
+| --------------------- | ----------------- | ----------- | ---------- |
+| Concentration metrics | ✅ (único)        | ❌          | ❌         |
+| Multi-chain           | 6 chains          | 14 chains   | 5 EVM      |
+| Solana                | ✅                | ✅ (mejor)  | ❌         |
+| EVM                   | ✅                | Limitado    | ✅ (mejor) |
+| Wallet portfolio      | ✅                | Solo Solana | ✅         |
+| Price history         | ✅                | ✅          | ❌         |
+| Free tier             | Demo (60 req/min) | 30k CU/mes  | 40k CU/día |
 
 ## Estrategia de integración en el pipeline
 
@@ -369,10 +381,13 @@ async function calculateMobulaRiskScore(address: string, chain: string) {
 Las métricas de concentración cambian lentamente. Se puede cachear por 5-10 minutos.
 
 ```typescript
-const concentrationCache = new Map<string, {
-  data: MobulaMarketToken;
-  timestamp: number;
-}>();
+const concentrationCache = new Map<
+  string,
+  {
+    data: MobulaMarketToken;
+    timestamp: number;
+  }
+>();
 const CONCENTRATION_TTL = 300_000; // 5 minutos
 
 async function getCachedConcentration(
@@ -403,10 +418,8 @@ Con 60 req/min, hay que distribuir las llamadas. Si el pipeline procesa muchos t
 const MOBULA_RATE = 60; // req/min
 const MOBULA_INTERVAL = 60_000 / MOBULA_RATE; // ~1s entre llamadas
 
-async function rateLimitedMobulaCall<T>(
-  fn: () => Promise<T>,
-): Promise<T> {
-  await new Promise(r => setTimeout(r, MOBULA_INTERVAL));
+async function rateLimitedMobulaCall<T>(fn: () => Promise<T>): Promise<T> {
+  await new Promise((r) => setTimeout(r, MOBULA_INTERVAL));
   return fn();
 }
 ```
@@ -417,12 +430,12 @@ async function rateLimitedMobulaCall<T>(
 
 Mide el porcentaje del supply total en manos de las 10 wallets más grandes. Es la métrica más básica de concentración.
 
-| Rango | Interpretación | Acción recomendada |
-|-------|----------------|--------------------|
-| 0-20% | Distribución saludable | Continuar |
-| 20-40% | Concentración moderada | Monitorear |
-| 40-60% | Alta concentración | Investigar |
-| >60% | Extremadamente concentrado | Rechazar token |
+| Rango  | Interpretación             | Acción recomendada |
+| ------ | -------------------------- | ------------------ |
+| 0-20%  | Distribución saludable     | Continuar          |
+| 20-40% | Concentración moderada     | Monitorear         |
+| 40-60% | Alta concentración         | Investigar         |
+| >60%   | Extremadamente concentrado | Rechazar token     |
 
 ### Insider Holdings %
 
@@ -454,15 +467,28 @@ Porcentaje del supply que está bloqueado en una bonding curve (típicamente pum
 ### Factory Fingerprinting
 
 El campo `factory` revela qué factory contract creó el token. Esto permite:
+
 - Detectar factories conocidos (UniswapV2, pancakeswap, pumpfun)
 - Identificar factories sospechosos
 - Correlacionar con riesgos conocidos
 
 ```typescript
-const KNOWN_FACTORIES: Record<string, { name: string; risk: 'low' | 'medium' | 'high' }> = {
-  '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f': { name: 'Uniswap V2', risk: 'low' },
-  '0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6': { name: 'PancakeSwap V2', risk: 'low' },
-  '0x6A2d1E4c1bF66B6E64b1F5fC8D6D3b9b6e8a9b0c': { name: 'PumpFun Factory', risk: 'medium' },
+const KNOWN_FACTORIES: Record<
+  string,
+  { name: string; risk: 'low' | 'medium' | 'high' }
+> = {
+  '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f': {
+    name: 'Uniswap V2',
+    risk: 'low',
+  },
+  '0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6': {
+    name: 'PancakeSwap V2',
+    risk: 'low',
+  },
+  '0x6A2d1E4c1bF66B6E64b1F5fC8D6D3b9b6e8a9b0c': {
+    name: 'PumpFun Factory',
+    risk: 'medium',
+  },
 };
 
 function assessFactoryRisk(factory: string | null): string {
@@ -477,18 +503,18 @@ function assessFactoryRisk(factory: string | null): string {
 
 Mobula y DexScreener son complementarios, no sustitutos:
 
-| Aspecto | Mobula | DexScreener |
-|---------|--------|-------------|
-| Concentration metrics | ✅ Único | ❌ |
-| Bonding curve % | ✅ Único | ❌ |
-| Factory fingerprinting | ✅ Único | ❌ |
-| Cross-chain pairs | ❌ (1 chain por call) | ✅ (automático) |
-| Price/liquidity/volume | ✅ | ✅ (más completo) |
-| Search | ❌ (sugerido) | ✅ |
-| Token profiles/boosts | ❌ | ✅ |
-| Rate limit | 60 req/min | 60 req/min |
-| API Key | ✅ Requerida | ❌ No requiere |
-| Wallet portfolio | ✅ | ❌ |
+| Aspecto                | Mobula                | DexScreener       |
+| ---------------------- | --------------------- | ----------------- |
+| Concentration metrics  | ✅ Único              | ❌                |
+| Bonding curve %        | ✅ Único              | ❌                |
+| Factory fingerprinting | ✅ Único              | ❌                |
+| Cross-chain pairs      | ❌ (1 chain por call) | ✅ (automático)   |
+| Price/liquidity/volume | ✅                    | ✅ (más completo) |
+| Search                 | ❌ (sugerido)         | ✅                |
+| Token profiles/boosts  | ❌                    | ✅                |
+| Rate limit             | 60 req/min            | 60 req/min        |
+| API Key                | ✅ Requerida          | ❌ No requiere    |
+| Wallet portfolio       | ✅                    | ❌                |
 
 ### Flujo combinado recomendado
 

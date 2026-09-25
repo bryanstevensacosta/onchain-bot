@@ -1,29 +1,12 @@
-import { DynamicModule, Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { MORALIS_CONFIG, MoralisConfig } from './moralis.config';
-import { MoralisService } from './moralis.service';
-
-@Module({
-  providers: [
-    {
-      provide: MORALIS_CONFIG,
-      inject: [ConfigService],
-      useFactory: (cs: ConfigService): MoralisConfig =>
-        cs.get<MoralisConfig>('app.moralis') ?? { apiKey: '' },
-    },
-    MoralisService,
-  ],
-  exports: [MoralisService],
-})
-export class MoralisModule {
-  public static forRoot(config: MoralisConfig): DynamicModule {
-    return {
-      module: MoralisModule,
-      providers: [
-        { provide: MORALIS_CONFIG, useValue: config },
-        MoralisService,
-      ],
-      exports: [MoralisService],
-    };
-  }
-}
+/**
+ * @deprecated Moved to apps/market-data/src/provider/infrastructure/moralis/ (Tramo 3, todo 4, C-DATA-01).
+ * Canonical owner is now market-data (ProvidersModule); this file is a
+ * dual-run re-export shim so legacy backend consumers stay green.
+ * Removed at cutover (todo 8). Do not extend it.
+ *
+ * New location: apps/market-data/src/provider/infrastructure/moralis/
+ * Reason: extracting market-data providers from backend monolith to dedicated app
+ * Breaking change: Yes (removal at cutover)
+ * Rollback: restore backend implementation from git history
+ */
+export * from '../../../../market-data/src/provider/infrastructure/moralis/moralis.module';

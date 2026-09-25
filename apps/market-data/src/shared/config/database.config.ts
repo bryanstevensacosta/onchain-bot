@@ -1,22 +1,7 @@
-import { registerAs } from '@nestjs/config';
-
-export interface DatabaseConfig {
-  url: string;
-  synchronize: boolean;
-}
-
-export function buildDatabaseConfig(
-  env: NodeJS.ProcessEnv = process.env,
-): DatabaseConfig {
-  return {
-    url:
-      env.DATABASE_URL ??
-      'postgres://onchain_bot:onchain_bot@localhost:5438/onchain_bot_market_data',
-    synchronize: env.DATABASE_SYNCHRONIZE === 'true',
-  };
-}
-
-export const databaseConfig = registerAs(
-  'database',
-  (): DatabaseConfig => buildDatabaseConfig(),
-);
+/**
+ * @deprecated Hexagonal home is
+ * `src/shared/infrastructure/config/database.config.ts` (Tramo 3,
+ * todo 12, P50). Compat re-export so `shared/*` consumers keep working
+ * unchanged. Removed at cutover (todo 8).
+ */
+export * from '../infrastructure/config/database.config';

@@ -1,15 +1,12 @@
-export { DexScreenerModule } from './dexscreener.module';
-export { DexScreenerService } from './dexscreener.service';
-export { DEXSCREENER_CONFIG } from './dexscreener.config';
-export type { DexScreenerConfig } from './dexscreener.config';
-export type {
-  DexScreenerPair,
-  DexScreenerPairsResponse,
-  DexScreenerSearchResponse,
-  DexScreenerTokenProfile,
-  DexScreenerTokenBoost,
-  DexScreenerOrder,
-  DexScreenerOrdersResponse,
-  DexScreenerMeta,
-  DexScreenerPairSummary,
-} from './dexscreener.types';
+/**
+ * @deprecated Moved to apps/market-data/src/provider/infrastructure/dexscreener/ (Tramo 3, todo 4, C-DATA-01).
+ * Canonical owner is now market-data (ProvidersModule); this file is a
+ * dual-run re-export shim so legacy backend consumers stay green.
+ * Removed at cutover (todo 8). Do not extend it.
+ *
+ * New location: apps/market-data/src/provider/infrastructure/dexscreener/
+ * Reason: extracting market-data providers from backend monolith to dedicated app
+ * Breaking change: Yes (removal at cutover)
+ * Rollback: restore backend implementation from git history
+ */
+export * from '../../../../market-data/src/provider/infrastructure/dexscreener/index';

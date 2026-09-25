@@ -2,16 +2,17 @@ import { Module } from '@nestjs/common';
 import { AddressModule } from 'address/address.module';
 import { ChainModule } from 'chain/chain.module';
 import { ProviderModule } from 'provider/provider.module';
-import { GatewayRateLimitGuard } from './gateway-rate-limit.guard';
-import { AddressesController } from './api/http/addresses.controller';
-import { AddressesBatchController } from './api/http/addresses-batch.controller';
-import { MarketDataSnapshotController } from './api/http/market-data-snapshot.controller';
-import { ChainsController } from './api/http/chains.controller';
-import { ProvidersController } from './api/http/providers.controller';
-import { TokensSnapshotController } from './api/http/tokens-snapshot.controller';
+import { SnapshotModule } from 'snapshot/snapshot.module';
+import { GatewayRateLimitGuard } from './application/gateway-rate-limit.guard';
+import { AddressesController } from './infrastructure/http/addresses.controller';
+import { AddressesBatchController } from './infrastructure/http/addresses-batch.controller';
+import { MarketDataSnapshotController } from './infrastructure/http/market-data-snapshot.controller';
+import { ChainsController } from './infrastructure/http/chains.controller';
+import { ProvidersController } from './infrastructure/http/providers.controller';
+import { TokensSnapshotController } from './infrastructure/http/tokens-snapshot.controller';
 
 /**
- * GatewayModule (Tramo 3, P45, P43).
+ * GatewayModule (Tramo 3, P45, P43; hexagonal layout todo 12, P50).
  *
  * Aggregated-data edge: the ONLY controllers in the app outside health.
  * AddressesController owns the universal model
@@ -25,7 +26,7 @@ import { TokensSnapshotController } from './api/http/tokens-snapshot.controller'
  * Feature modules expose ports — no stray controllers.
  */
 @Module({
-  imports: [AddressModule, ChainModule, ProviderModule],
+  imports: [AddressModule, ChainModule, ProviderModule, SnapshotModule],
   controllers: [
     AddressesController,
     AddressesBatchController,

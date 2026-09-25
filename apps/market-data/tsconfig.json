@@ -20,6 +20,7 @@
       "cache/*": ["src/cache/*"],
       "rate-limiter/*": ["src/rate-limiter/*"],
       "gateway/*": ["src/gateway/*"],
+      "snapshot/*": ["src/snapshot/*"],
       "src/*": ["src/*"]
     }
   },

@@ -1,26 +1,7 @@
-import { ValueObject } from '../kernel/value-object';
-
 /**
- * ChainId VO (Tramo 3, todo 1).
- *
- * Shared-kernel contract: chain slug, always lowercased + trimmed
- * (e.g. 'solana', 'ethereum'). Handle with care — downstream consumers
- * (token keys, provider routing) break if the normalization changes.
+ * @deprecated Hexagonal home is
+ * `src/shared/domain/value-objects/chain-id.vo.ts` (Tramo 3, todo 12,
+ * P50). Compat re-export so `shared/*` consumers keep working unchanged.
+ * Removed at cutover (todo 8).
  */
-export class ChainIdVo extends ValueObject<{ raw: string }> {
-  private constructor(raw: string) {
-    super({ raw });
-  }
-
-  public static from(raw: string): ChainIdVo {
-    const normalized = (raw ?? '').trim().toLowerCase();
-    if (normalized === '') {
-      throw new Error('ChainId must be a non-empty string');
-    }
-    return new ChainIdVo(normalized);
-  }
-
-  public get raw(): string {
-    return this.value.raw;
-  }
-}
+export * from '../domain/value-objects/chain-id.vo';

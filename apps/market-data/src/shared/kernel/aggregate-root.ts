@@ -1,14 +1,6 @@
-import { DomainEvent } from './domain-event';
-import { Entity } from './entity';
-
 /**
- * AggregateRoot base class (Tramo 3, todo 1).
- *
- * Entity + DomainEvent collection. Rule: publish events only AFTER save(),
- * via commitEvents().
+ * @deprecated Hexagonal home is `src/shared/domain/kernel/aggregate-root.ts`
+ * (Tramo 3, todo 12, P50). Compat re-export so `shared/*` consumers
+ * keep working unchanged. Removed at cutover (todo 8).
  */
-export abstract class AggregateRoot<TId> extends Entity<TId> {
-  protected constructor(id: TId) {
-    super(id);
-  }
-}
+export * from '../domain/kernel/aggregate-root';

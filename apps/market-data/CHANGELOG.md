@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Global hexagonal restructure + legacy deprecated (Tramo 3, todo 12,
+  P50, no behavior change):** every module now follows domain/ +
+  application/ + infrastructure/ (chain, address, cache, rate-limiter,
+  gateway, shared join the already-hexagonal provider). New canonical
+  `src/snapshot/` module owns `AddressSnapshotService` (moved verbatim
+  from address/ with its domain types; `SnapshotModule` composes
+  Address + Chain + Provider ports; gateway/app wire it). All pre-hex
+  roots (plus gateway `api/http/`) stay as `@deprecated` compat
+  re-exports naming the new home (removal at cutover, todo 8), so
+  `chain/*`, `address/*`, `cache/*`, `rate-limiter/*`, `gateway/*`,
+  `shared/*` importers — and the backend cross-app shims into
+  `provider/infrastructure/**` — resolve unchanged. Additive-only new
+  code: domain ports (rate-limiter, circuit-breaker, address-probe),
+  gateway edge policy (rate budget + batch cap/TTL + cache-key
+  builders), address seed extraction. Verified: 32 suites / 109 tests
+  identical pre/post, `tsc --noEmit` clean, `nest build` clean, boot
+  `:4000` spot-checks (chains, detect, 13 providers, snapshots, tokens
+  alias, compat 12-field snapshot, `x-cache: HIT`, batch-50 cap,
+  rate-limit 429s).
+
 ### Added
 
 - **HTTP bridge + SLO + staged flag (Tramo 3, todo 5, G-17):**
