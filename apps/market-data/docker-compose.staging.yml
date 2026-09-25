@@ -1,3 +1,5 @@
+name: onchain-bot-market-data-staging
+
 # Staging environment - market-data (Tramo 3, per-env model)
 #
 # MIRROR of apps/feed-publisher/docker-compose.staging.yml (Tramo 2 staging
