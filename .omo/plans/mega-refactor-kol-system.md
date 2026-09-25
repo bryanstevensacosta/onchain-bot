@@ -136,7 +136,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
      Acceptance criteria: `psql -c "SELECT count(*) FROM normalized_mentions"` = 4 para fixture; 0 llamadas a merge/collapse en `src/normalization`
      QA scenarios: happy 4 filas; failure duplicado realtime+polling → 1 fila (solo anti-doble-delivery). Evidence .omo/evidence/task-7-mega-refactor-kol-system.log
      Commit: Y | feat(kol-system): normalization como índice de menciones
-- [ ] 8. Enrichment vía MarketDataPort dual (Ph7 spec + C-DATA-01 + G-17)
+- [x] 8. Enrichment vía MarketDataPort dual (Ph7 spec + C-DATA-01 + G-17)
      What to do / Must NOT do: `EnrichmentOrchestratorService` contra `MarketDataPort` con DOS implementaciones: `local-cascade` (default, reutiliza lógica backend vía ports) y `http-market-data` (stub tras `USE_DATA_SERVICE_API=true`, timeout + SLO p95<500ms); `mc at` = snapshot al capturar (retraso documentado ≤30s, C-A). P26: enrichment completa snapshot en tabla `mention_snapshots` (P27: entidad propiedad del módulo `src/snapshot/`, MISMA DB kol-system; enrichment escribe vía port) (`occurred_at_telegram`, `ingested_at_kol`, `enriched_at`=`snapshot_at`, + market data) y lo envía al frontend. Tests con MockPort + test 4 fechas presentes por snapshot. Must NOT mover providers físicos ni llamar market-data en Tramo 1 (flag default false).
      Parallelization: Wave 2 | Blocked by: 7 | Blocks: 9
      References: .omo/drafts/mega-refactor-tramos.md:125 (P7); .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:173-195; apps/backend/src/token/enrichment/application/handlers/enrich-token.use-case.ts (cascada origen)

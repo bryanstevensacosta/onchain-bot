@@ -5,6 +5,8 @@ import { IngestionModule } from './ingestion/ingestion.module';
 import { ExtractionModule } from './extraction/extraction.module';
 import { ParsingModule } from './parsing/parsing.module';
 import { NormalizationModule } from './normalization/normalization.module';
+import { EnrichmentModule } from './enrichment/enrichment.module';
+import { SnapshotModule } from './snapshot/snapshot.module';
 
 /**
  * AppModule - Root module for kol-system skeleton (Tramo 1, todos 2+4+5).
@@ -16,7 +18,12 @@ import { NormalizationModule } from './normalization/normalization.module';
  * snapshot bases handed directly to enrichment) + ParsingModule
  * (structured call per mention, P5 1:1, direct call fix-1) +
  * NormalizationModule (mention index, P1 + G-12, direct call fix-1,
- * one normalization.call.normalized event per mention via direct return).
+ * one normalization.call.normalized event per mention via direct return) +
+ * EnrichmentModule (MarketDataPort dual: local-cascade default,
+ * http-market-data stub behind USE_DATA_SERVICE_API, P7, direct call
+ * fix-1, completes the P26 snapshot) + SnapshotModule (owns the
+ * mention_snapshots entity, P27, same kol-system DB, enrichment writes
+ * via port).
  * ConfigModule is global, so the ingestion HTTP adapter resolves
  * ConfigService without importing SharedModule.
  */
@@ -31,6 +38,8 @@ import { NormalizationModule } from './normalization/normalization.module';
     ExtractionModule,
     ParsingModule,
     NormalizationModule,
+    EnrichmentModule,
+    SnapshotModule,
   ],
 })
 export class AppModule {}

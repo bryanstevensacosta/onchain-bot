@@ -1,6 +1,6 @@
 # apps/kol-system/ — NestJS Knowledge Base
 
-> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4+5+6+7 built).
+> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4+5+6+7+8 built).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md` §7.6 (2026-09-24).
 
 Contents: OVERVIEW · PROGRAM INDEX · COMMANDS · STRUCTURE · MODULES · INGESTION ·
@@ -15,7 +15,10 @@ dashboard/rankings (+ optional per-template publishing). Built today:
 Config + `GET /api/health` + `IngestionModule` (SSE-only KOL client, P20) +
 `ExtractionModule` (contract × mention, P5, direct call + P26 snapshot
 bases, todo 5) + `ParsingModule` (structured call per mention, P5 1:1,
-todo 6) + `NormalizationModule` (mention index, P1 + G-12, todo 7) wired
+todo 6) + `NormalizationModule` (mention index, P1 + G-12, todo 7) +
+`EnrichmentModule` (MarketDataPort dual: local-cascade default +
+http-market-data stub, P7, direct call + P26 completion, todo 8) +
+`SnapshotModule` (owns `mention_snapshots`, P27, same DB, todo 8) wired
 into `AppModule`.
 
 Design pivots (2026-09-24) that govern every future todo:
@@ -136,7 +139,7 @@ Health was verified by booting `node dist/main.js` with
 ```text
 src/
 ├── main.ts                       # bootstrap() — ValidationPipe whitelist/forbidNonWhitelisted/transform, listen KOL_SYSTEM_PORT ?? 3050
-├── app.module.ts                 # Config (envFilePath ['.env.dev', '.env']) + HealthModule + IngestionModule + ExtractionModule + ParsingModule + NormalizationModule (all wired)
+├── app.module.ts                 # Config (envFilePath ['.env.dev', '.env']) + HealthModule + IngestionModule + ExtractionModule + ParsingModule + NormalizationModule + EnrichmentModule + SnapshotModule (all wired)
 ├── health/
 │   ├── health.module.ts
 │   ├── health.controller.spec.ts
@@ -181,6 +184,22 @@ src/
 │   ├── application/ports/normalized-mention.repository.ts
 │   ├── infrastructure/repositories/in-memory-normalized-mention.repository.ts  # upsert by id = double-delivery guard
 │   └── health/normalization-health.indicator.ts  # check() → { component: 'normalization', status } (unwired until composite health)
+├── enrichment/                   # BUILT (todo 8, P7 + C-DATA-01 + G-17) + WIRED into AppModule
+│   ├── enrichment.module.ts      # MARKET_DATA_PROVIDERS → [LocalCascade] default, [HttpMarketData] iff USE_DATA_SERVICE_API=true;
+│   │                             #   SnapshotWriterPort→useExisting MentionSnapshotRepository (P27); exports orchestrator + port + health
+│   ├── enrichment.tokens.ts      # MARKET_DATA_PROVIDERS + LOCAL_CASCADE_DELEGATES + MARKET_DATA_BASE_URL/TIMEOUT_MS
+│   ├── domain/ports/market-data.port.ts  # MarketData (read-only backend mirror) + MarketDataPort.fetch → null|throw = no-data
+│   ├── domain/ports/snapshot-writer.port.ts  # save() — enrichment writes snapshots ONLY via this port (P27)
+│   ├── application/services/enrichment-orchestrator.service.ts (+ .spec.ts)  # parallel allSettled, first-non-null merge, silent-null; { snapshot, errors }
+│   ├── infrastructure/adapters/local-cascade-market-data.adapter.ts (+ .spec.ts)  # default leaf; [] → null, delegates in order, throw → next
+│   ├── infrastructure/adapters/http-market-data.adapter.ts (+ .spec.ts)  # stub: GET /api/market-data/snapshot, AbortController timeout, non-ok/err → null; p95<500ms SLO
+│   └── health/enrichment-health.indicator.ts  # check() → { component: 'enrichment', status } (unwired until composite health)
+├── snapshot/                     # BUILT (todo 8, P26/P27) + WIRED into AppModule
+│   ├── snapshot.module.ts        # provides MentionSnapshotRepository→InMemory + SnapshotHealthIndicator; exports both
+│   ├── domain/entities/mention-snapshot.entity.ts (+ .spec.ts)  # 4 timestamps (snapshot_at = enriched_at) + mc-at + rug-signal group
+│   ├── application/ports/mention-snapshot.repository.ts  # save/findByMentionId/count (same kol-system DB, no separate DB)
+│   ├── infrastructure/repositories/in-memory-mention-snapshot.repository.ts (+ .spec.ts)  # upsert by mentionId = double-delivery guard
+│   └── health/snapshot-health.indicator.ts  # check() → { component: 'snapshot', status } (unwired until composite health)
 ├── shared/                       # kernel/config/guards/filters — REUSE, extend, never copy (P21)
 │   ├── kernel/aggregate-root.ts, entity.ts, value-object.ts, domain-error.ts, domain-event.ts (+ specs)
 │   ├── value-objects/chain-hint.vo.ts, normalized-address.vo.ts (+ spec)  # P21 identity VOs (EVM/Solana) — extraction/parsing/normalization share this home
@@ -208,12 +227,16 @@ wired 2026-09-25) + `ParsingModule` (todo 6, 1:1 `ParsedCall` per candidate
 per P5, direct call fix-1, no collapse — wired 2026-09-25) +
 `NormalizationModule` (todo 7, mention index per P1 + G-12, direct call
 fix-1, one `normalization.call.normalized` event per mention via direct
-return — wired 2026-09-25).
+return — wired 2026-09-25) + `EnrichmentModule` (todo 8, MarketDataPort
+dual per P7 + C-DATA-01, direct call fix-1, first-non-null merge with
+silent-null fallback, completes the P26 snapshot via port — wired
+2026-09-25) + `SnapshotModule` (todo 8, owns `mention_snapshots` per P27,
+same kol-system DB — wired 2026-09-25).
 
 Planned (per spec, NOT built — do not import until their todos land):
-enrichment (market-data bridge, P7), scoring,
-templates (+ classification inside templates, P6), approval, publishing
-(per-template bots, P9/P12b), tracking (first-appearance, P8), rankings (P11).
+scoring, templates (+ classification inside templates, P6), approval,
+publishing (per-template bots, P9/P12b), tracking (first-appearance, P8),
+rankings (P11).
 
 ## INGESTION — SSE-only (`ingestion/`)
 
@@ -293,7 +316,58 @@ one bad mention never kills the pipeline. Empty input → empty output,
 never a throw. `NormalizationHealthIndicator.check()` is the P21 hook
 point (provided + exported, unwired until composite health — gap 3).
 
-## ENV INVENTORY (`.env.example`, 26 lines — verified)
+## ENRICHMENT — market-data bridge via dual port (`enrichment/`, todo 8)
+
+`EnrichmentOrchestratorService` runs as a DIRECT call (fix-1, no event bus):
+input `{ mentionId, kolId, messageId, contractIndex, chain, address,
+occurred_at_telegram, ingested_at_kol }` (P26 base carried over) → output
+`{ snapshot, errors }` with ONE `MentionSnapshot` per mention. Cascade
+mirrors the backend `EnrichTokenUseCase` read-only: providers run in
+parallel (`Promise.allSettled`), results merge first-non-null per field
+(provider order wins), and every failure — throw OR null — lands in
+`errors` while the cascade continues (silent-null fallback; adversarial:
+provider down → null + next in cascade). All-null → snapshot still written
+with null market fields + per-provider errors (the row is kept, `mc at`
+stays empty). Empty cascade is a constructor throw (fail-fast wiring, same
+as the backend). `MARKET_DATA_PROVIDERS` resolves to
+`[LocalCascadeMarketDataAdapter]` by default, or `[HttpMarketDataAdapter]`
+(stub: `GET {MARKET_DATA_URL}/api/market-data/snapshot?chain=&address=`,
+AbortController timeout default 2000ms, non-ok/transport-error/timeout →
+null; documented SLO p95<500ms once market-data is live in Tramo 3) only
+when `USE_DATA_SERVICE_API=true` (default false — Tramo 1 makes NO
+market-data calls, C-DATA-01: no providers moved, `MarketData` interface
+copied read-only). Rug signals travel as a GROUP
+(`lockedLiquidityPercent` + `burnedPercent` + `top10HolderPercent`) — never
+gate on a single field (gates land in todo 9).
+
+`mc at` semantics: `marketCapUsd` is the market cap AT `enriched_at`
+(`snapshot_at` = same instant) — a snapshot at capture, NOT a live quote.
+It lags the Telegram capture by the SSE-delivery + enrichment delay,
+documented ≤30s (P20 reconnect catch-up is the noisy tail; steady-state
+delivery is seconds). `EnrichmentHealthIndicator.check()` is the P21 hook
+point (provided + exported, unwired until composite health — gap 3).
+
+## SNAPSHOT — own module, same DB (`snapshot/`, todo 8)
+
+`MentionSnapshot` (id = mentionId) carries the 4 P26 timestamps
+(`occurred_at_telegram`, `ingested_at_kol`, `enriched_at`,
+`snapshot_at` = `enriched_at`) + market fields (`priceUsd`,
+`marketCapUsd` = mc-at, `liquidityUsd`, `volume24hUsd`, `fdvUsd`,
+`priceChange24h`, `holders`, `top10HolderPercent`, `symbol`, `name`,
+`lockedLiquidityPercent`, `burnedPercent`) + kol ref
+(`kolId`/`messageId`/`contractIndex`/`contractAddress`/`chain`).
+`hasMarketData()` is true when price/mc/liquidity resolved. The entity is
+OWNED here (P27): same kol-system DB as the mention index (joins stay
+local, single-transaction atomicity; split only if volume demands),
+persistence behind `MentionSnapshotRepository`
+(`save`/`findByMentionId`/`count`, in-memory today — TypeORM entity +
+migration land with the persistence todo). Enrichment writes ONLY via
+`SnapshotWriterPort` (`useExisting` alias — never touches the table
+directly). Repo upserts by mentionId = double-delivery guard (P1).
+`SnapshotHealthIndicator.check()` is the P21 hook point (provided +
+exported, unwired until composite health — gap 3).
+
+## ENV INVENTORY (`.env.example`, 35 lines — verified)
 
 | Var                             | Value / default in example                                        | Notes                                                           |
 | ------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------- |
@@ -305,6 +379,9 @@ point (provided + exported, unwired until composite health — gap 3).
 | `REDIS_URL`                     | `redis://localhost:6379/0`                                        | optional-with-warning (falls back to in-memory)                 |
 | `KOL_SYSTEM_PORT`               | `3050`                                                            | dev default                                                     |
 | `KOL_SYSTEM_API_KEY`            | (absent from example — guard reads it, fail-open when empty)      | optional-with-warning                                           |
+| `USE_DATA_SERVICE_API`          | `false`                                                           | enrichment leaf selector (P7): `false` = local-cascade (default, Tramo 1, NO market-data calls); `true` = http-market-data stub (Tramo 3) |
+| `MARKET_DATA_URL`               | `http://localhost:3060`                                           | base URL of the market-data service (read ONLY when `USE_DATA_SERVICE_API=true`) |
+| `MARKET_DATA_TIMEOUT_MS`        | `2000`                                                            | per-request timeout of the HTTP leaf (documented SLO p95<500ms once live) |
 
 Tier-1 validation (`validateKolSystemConfig`): `ENCRYPTION_KEY` +
 `DATABASE_URL` must be non-empty or boot throws `ConfigValidationError`.
@@ -348,7 +425,9 @@ Per P21 each move-todo registers its indicator here (`ingestion.sse`,
 extraction/parsing/normalization/enrichment/scoring/templates/approval/publishing/tracking).
 `ExtractionHealthIndicator.check()` (`extraction/health/`, todo 5) +
 `ParsingHealthIndicator.check()` (`parsing/health/`, todo 6) +
-`NormalizationHealthIndicator.check()` (`normalization/health/`, todo 7)
+`NormalizationHealthIndicator.check()` (`normalization/health/`, todo 7) +
+`EnrichmentHealthIndicator.check()` (`enrichment/health/`, todo 8) +
+`SnapshotHealthIndicator.check()` (`snapshot/health/`, todo 8)
 are the per-module hook points — provided + exported, NOT yet consumed
 (no composite health system exists; wiring lands with the composite-health
 todo, gap 3).
@@ -403,9 +482,15 @@ Built (domain): `ExtractionModule` (todo 5, P5+P26 — `ExtractFromMessageUseCas
 direct call fix-1, `ExtractionCandidate` per occurrence, snapshot bases via
 direct return; identity VOs `ChainHint`/`NormalizedAddress` extended in
 `src/shared/value-objects/`, P21).
-Planned: enrichment (P7 market-data bridge: `mc at` + `more details +`;
-completes snapshot P26) → snapshot (`src/snapshot/` own module, same DB, P27;
-planned, not built) → templates with embedded
+Built (domain): `EnrichmentModule` (todo 8, P7 + C-DATA-01 —
+`EnrichmentOrchestratorService` direct call fix-1 against `MarketDataPort`,
+local-cascade default + http-market-data stub behind
+`USE_DATA_SERVICE_API`, first-non-null merge + silent-null, completes the
+P26 snapshot writing via port; `mc at` = snapshot at capture, ≤30s delay).
+Built (domain): `SnapshotModule` (todo 8, P26/P27 — owns
+`MentionSnapshot` + `MentionSnapshotRepository`, SAME kol-system DB,
+in-memory today, TypeORM later; enrichment writes via `SnapshotWriterPort`).
+Planned: templates with embedded
 classification (P6: channel picker + score viz + gem filters) → scoring →
 approval → publishing (P9/P12b per-template bots, P22/P23 DB catalog +
 P23-bis admin-verified targets) → tracking (P8 first-appearance) → rankings
@@ -426,12 +511,12 @@ contract C-DATA-01 — consume via ports, never move).
   `more details +` in the dashboard (P7).
 - Frontend only renders enriched mentions (contract + market data together).
 
-## SNAPSHOTS (P26 base live in extraction, P27 table planned)
+## SNAPSHOTS (P26 base live in extraction, P27 table BUILT todo 8)
 
 Each extraction emits a base snapshot (`ExtractionSnapshotBase`, via the
-use-case direct return — no bus); enrichment will complete it in table
-`mention_snapshots` (owned by planned module `src/snapshot/`, SAME kol-system
-DB — no separate DB; enrichment writes via port).
+use-case direct return — no bus); enrichment completes it as a
+`MentionSnapshot` row (owned by `src/snapshot/`, SAME kol-system DB — no
+separate DB; enrichment writes via `SnapshotWriterPort`).
 
 | Column                 | Set by             | Meaning                    |
 | ---------------------- | ------------------ | -------------------------- |
@@ -467,8 +552,10 @@ demands.
    (Tramo 3, C-DATA-01).
 8. P24 templates `.env.development` / `.env.staging.template` /
    `.env.production.template` do not exist yet — only `.env.example`.
-9. P26/P27 `src/snapshot/` + `mention_snapshots` not built (no consumer yet —
-   extraction emits the P26 base in-memory via direct return since todo 5).
+9. RESOLVED 2026-09-25 (todo 8) — `src/snapshot/` + `MentionSnapshot`
+   built and wired (`SnapshotModule` in `AppModule`); enrichment completes
+   the P26 base via `SnapshotWriterPort`. In-memory repo today; TypeORM
+   entity + migration land with the persistence todo.
 10. `bs58` is a declared kol-system dep (Solana validation, backend-mirror
     `^6.0.0`, resolved via hoisted root `node_modules`).
 
