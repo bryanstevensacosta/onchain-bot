@@ -303,6 +303,7 @@ as PLANNED (not yet scaffolded; only `apps/kol-system/` exists).
 
 ```bash
 # In apps/kol-system/
+npm run dev                # nest start --watch (alias of start:dev, port KOL_SYSTEM_PORT, default 3050)
 npm run start:dev          # nest start --watch (port KOL_SYSTEM_PORT, default 3050)
 npm run start:debug        # nest start --debug --watch
 npm run start:prod         # node dist/main (after build)
@@ -891,6 +892,7 @@ exported, unwired until composite health — gap 3).
 | `KOL_SYSTEM_ENABLED`            | `false`                                                      | master switch                                                                                                                             |
 | `TEMPLATE_ORCHESTRATOR_ENABLED` | `false`                                                      | template orchestrator flag                                                                                                                |
 | `INGESTION_TELEGRAM_URL`        | `http://localhost:3031`                                      | OWN ingestion per env (dev `:3031`, twin `:3033`, prod `:3032`)                                                                           |
+| `INGESTION_TELEGRAM_API_KEY`    | (empty — copy from owning ingestion `INGESTION_API_KEY`)     | upstream key, sent as `x-api-key` on SSE + feed reads (backend-mirror; empty = keyless)                                                   |
 | `ENCRYPTION_KEY`                | ``(empty — generate`openssl rand -hex 32`, NEVER commit)     | Tier-1 required, DISTINCT per env (P24)                                                                                                   |
 | `DATABASE_URL`                  | `postgres://…@localhost:5435/onchain_bot_kol_system`         | Tier-1 required; logical DB owned by kol-system                                                                                           |
 | `REDIS_URL`                     | `redis://localhost:6379/0`                                   | optional-with-warning (falls back to in-memory)                                                                                           |
