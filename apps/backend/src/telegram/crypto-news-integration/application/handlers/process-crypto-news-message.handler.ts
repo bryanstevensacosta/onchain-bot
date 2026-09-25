@@ -75,6 +75,16 @@ export class ProcessCryptoNewsMessageHandler {
    */
   async handle(raw: TelegramRawMessage): Promise<void> {
     try {
+      // P10: the queue accepts ONLY crypto-news (KOL goes to kol-system).
+      // The router gates by messageType, but a mis-routed KOL event must
+      // never trigger a fetch+enqueue here — skip defensively.
+      if (raw.messageType !== undefined && raw.messageType !== 'crypto-news') {
+        this.logger.debug(
+          `Skipping non-crypto-news event ${raw.peerId}:${raw.messageId} (messageType=${raw.messageType})`,
+        );
+        return;
+      }
+
       // Step 1: Check matchingEnabled flag
       const config = await this.matchingConfigRepo.load();
       if (!config?.enabled) {

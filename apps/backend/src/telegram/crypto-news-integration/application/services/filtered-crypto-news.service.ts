@@ -83,16 +83,17 @@ export class FilteredCryptoNewsService {
    *
    * @param limit - Max messages to fetch from ingestion-telegram (default 50)
    * @param channelId - Optional channel filter (fetches from all channels if omitted)
-   * @param type - Optional feed-type pin, forwarded as `?type=` to the
-   * ingestion API. Matching-flow callers pass `'crypto-news'` explicitly so
-   * KOL-typed rows can never enter the publisher queue; default stays
-   * `undefined` (mixed) for backward compatibility.
+   * @param type - Feed-type pin, forwarded as `?type=` to the ingestion
+   * API. Defaults to `'crypto-news'` so the publisher queue only ever sees
+   * crypto-news rows (P10: KOL goes to kol-system). The per-channel
+   * endpoint ignores `?type=` server-side, so rows are ALSO dropped
+   * client-side when `raw.type` is defined and !== 'crypto-news'.
    * @returns Array of filtered messages with matched keywords (empty if none match)
    */
   async getMatchingMessages(
     limit = 50,
     channelId?: string,
-    type?: CryptoNewsFeedMessageType,
+    type: CryptoNewsFeedMessageType = 'crypto-news',
   ): Promise<ReadonlyArray<FilteredCryptoNewsMessage>> {
     try {
       // Step 1: Fetch raw messages from ingestion-telegram
@@ -102,7 +103,14 @@ export class FilteredCryptoNewsService {
         type,
       );
 
-      if (rawMessages.length === 0) {
+      // P10: the unified feed carries KOL-typed rows; the per-channel
+      // endpoint ignores ?type= server-side, so drop non-crypto rows here.
+      // Rows without a type (pre-unified fixtures) pass through.
+      const cryptoOnly = rawMessages.filter(
+        (raw) => raw.type === undefined || raw.type === 'crypto-news',
+      );
+
+      if (cryptoOnly.length === 0) {
         this.logger.debug(
           `No raw messages fetched from ingestion-telegram (limit: ${limit}, channelId: ${channelId ?? 'all'})`,
         );
@@ -110,7 +118,7 @@ export class FilteredCryptoNewsService {
       }
 
       this.logger.debug(
-        `Fetched ${rawMessages.length} raw messages, now filtering...`,
+        `Fetched ${rawMessages.length} raw messages (${cryptoOnly.length} crypto-news), now filtering...`,
       );
 
       // Step 2: Load keywords and blacklist phrases (cache-friendly query)
@@ -122,7 +130,7 @@ export class FilteredCryptoNewsService {
       // Step 3: Filter and match each message
       const matched: FilteredCryptoNewsMessage[] = [];
 
-      for (const raw of rawMessages) {
+      for (const raw of cryptoOnly) {
         const result = await this.filterAndMatch(
           raw,
           keywords,
@@ -135,10 +143,10 @@ export class FilteredCryptoNewsService {
 
       // Step 4: Merge album siblings + collapse multi-match groups so one
       // Telegram album produces exactly one queue entry with all its photos.
-      const filtered = this.mergeAlbumGroups(matched, rawMessages);
+      const filtered = this.mergeAlbumGroups(matched, cryptoOnly);
 
       this.logger.log(
-        `Filtered ${rawMessages.length} raw messages → ${filtered.length} matched (keywords + not blacklisted)`,
+        `Filtered ${cryptoOnly.length} raw messages → ${filtered.length} matched (keywords + not blacklisted)`,
       );
 
       return filtered;

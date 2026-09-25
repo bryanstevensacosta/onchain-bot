@@ -166,7 +166,7 @@ describe('FilteredCryptoNewsService — album merge', () => {
     );
   });
 
-  it('keeps the mixed default (undefined type) when unpinned', async () => {
+  it('pins type=crypto-news by default when unpinned (P10: KOL never enters the queue)', async () => {
     const batch = [rawMessage({ messageId: 201, content: 'Revolut solo' })];
     const { service, ingestionClient } = makeService(batch);
 
@@ -175,7 +175,30 @@ describe('FilteredCryptoNewsService — album merge', () => {
     expect(ingestionClient.fetchRecentMessages).toHaveBeenCalledWith(
       50,
       undefined,
-      undefined,
+      'crypto-news',
     );
+  });
+
+  it('drops KOL-typed rows client-side even when the server leaks them (mixed batch)', async () => {
+    const batch = [
+      rawMessage({
+        id: 'uuid-kol',
+        messageId: 301,
+        content: 'Revolut KOL leak',
+        type: 'kol',
+      }),
+      rawMessage({
+        id: 'uuid-news',
+        messageId: 302,
+        content: 'Revolut crypto news',
+        type: 'crypto-news',
+      }),
+    ];
+    const { service } = makeService(batch);
+
+    const matched = await service.getMatchingMessages(50);
+
+    expect(matched).toHaveLength(1);
+    expect(matched[0].messageId).toBe(302);
   });
 });

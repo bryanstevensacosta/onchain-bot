@@ -282,5 +282,12 @@ describe('ProcessCryptoNewsMessageHandler - Latency Measurement', () => {
         'crypto-news',
       );
     });
+
+    it('skips mis-routed KOL events without fetching (P10: queue is crypto-news only)', async () => {
+      await handler.handle({ ...mockRawMessage, messageType: 'kol' });
+
+      expect(filteredNewsService.getMatchingMessages).not.toHaveBeenCalled();
+      expect(enqueueUseCase.execute).not.toHaveBeenCalled();
+    });
   });
 });

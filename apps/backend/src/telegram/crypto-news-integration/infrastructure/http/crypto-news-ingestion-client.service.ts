@@ -43,6 +43,15 @@ export interface CryptoNewsMessageDto {
   readonly id: string;
   readonly channelId: string;
   readonly messageId: number;
+  /**
+   * Feed discriminator echoed by ingestion-telegram `GET /api/feed/messages`
+   * (`transformMessageForApi` spreads the entity, so `type` is present on
+   * the wire). Optional for backward compatibility with fixtures recorded
+   * before the unified feed; `FilteredCryptoNewsService` drops any row
+   * whose type is defined and !== 'crypto-news' so KOL-typed rows sharing
+   * the feed can never enter the publisher queue (P10).
+   */
+  readonly type?: 'kol' | 'crypto-news';
   readonly title: string | null;
   readonly content: string; // ← RAW content from Telegram (no filters applied)
   readonly publishedAt: string; // ISO timestamp

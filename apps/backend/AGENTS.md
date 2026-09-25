@@ -258,7 +258,8 @@ Real-time SSE event processor for `messageType='crypto-news'` messages. Implemen
    - Always skip: `PENDING` (already in queue), `PUBLISHED` (already published)
    - Conditionally skip: `FAILED` + blocking reason (uses `isBlockingFailureReason()` helper)
    - Allow retry: `FAILED` + non-blocking reason (e.g., "Expired: exceeded 24h", "Rate limit exceeded")
-3. **Filter + match**: Calls `FilteredCryptoNewsService.getMatchingMessages(1, channelId)`
+3. **Filter + match**: Calls `FilteredCryptoNewsService.getMatchingMessages(10, channelId, 'crypto-news')`
+   - Queue is crypto-news ONLY (P10: KOL goes to kol-system) — fetch pinned to `?type=crypto-news`, `getMatchingMessages` defaults to the pin, KOL-typed rows dropped client-side, mis-routed KOL SSE events skipped in `handle()`
    - Fetches RAW content from ingestion-telegram
    - Applies ContentFilterService regex transforms
    - Evaluates keyword matching
@@ -547,7 +548,7 @@ Dynamic-interval polling scheduler that fetches crypto-news messages from ingest
 **Pipeline** (same as ProcessCryptoNewsMessageHandler):
 
 1. Check `MatchingConfig.enabled` (skip if disabled)
-2. Fetch recent messages: `FilteredCryptoNewsService.getMatchingMessages(limit=50)`
+2. Fetch recent messages: `FilteredCryptoNewsService.getMatchingMessages(50, undefined, 'crypto-news')` (queue is crypto-news ONLY, P10)
 3. For each match: `EnqueueMatchingMessageUseCase.execute()`
 4. Log batch stats (enqueued / skipped)
 
