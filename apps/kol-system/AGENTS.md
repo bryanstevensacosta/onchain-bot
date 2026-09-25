@@ -2,6 +2,10 @@
 
 > Verified 2026-09-24 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4 built).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md` §7.6 (2026-09-24).
+> Cross-tramo contracts (C-DB-01, C-SSE-01, C-SHARED-01/C2, C-DATA-01, C-BOTS-01) pinned in
+> `.omo/plans/mega-refactor-central.md` v2026-09-24; threads stub C1 lives in
+> `.omo/plans/mega-refactor-content-publisher.md` todo 8; market-data bridge + dexter app in
+> `.omo/plans/mega-refactor-market-data.md` todos 4-9.
 
 Contents: OVERVIEW · COMMANDS · STRUCTURE · MODULES · INGESTION · ENV INVENTORY ·
 PORTS · HEALTH · TS/ESLINT CONVENTIONS · TESTS · MODULE MAP · GAPS · STANDING RULE · NOTES
@@ -54,6 +58,41 @@ at | time ago | more details +`.
   copied via `scp` to OracleDroplet on deploy. Backend-mirror pattern.
 - **P25 — this file is living**: created in todo 21, updated at the close of
   every task set (see STANDING RULE).
+- **P6/P7/P8/P9 — templates own classification; enrichment bridges market-data;
+  tracking is first-seen; bots are per-template optional**: no separate
+  classification BC (channel picker + score viz + gem filters live in the
+  template); enrichment consumes `apps/market-data` for `mc at` + `more details
++`; tracking = `First time` vs `Nx from last call`; each template may carry
+  its own publishing bot token (BYO-token, viable publishing-only).
+- **P11/P17 — rankings + horizontal layout**: `GET /api/kol-rankings?window=30d|7d|1d`
+  over cron-fed `kol_window_stats(caller, window, total_x, calls_count)`;
+  multiple per call = `last_mc / first_mc_at`, SUM per caller; performance rank
+  horizontal 10 (5 left + 5 right, arrows flip asc/desc) + top-10 callers strip
+  by call count with 30D/7D/1D selector.
+- **P19/P20 — avatar fetch-once + SSE-only**: ingestion-telegram resolves the
+  channel avatar once at source registration, stores it permanently (excluded
+  from the 72h janitor), serves it via feed projection; kol-system consumes the
+  URL only, never polls — SSE filtered client-side + catch-up by cursor.
+- **P26/P27 — snapshots in own module, same DB**: every extraction emits a
+  snapshot base with 4 dates (`occurred_at_telegram`, `ingested_at_kol`,
+  `enriched_at`, `snapshot_at`); module `src/snapshot/` owns `mention_snapshots`
+  inside the kol-system DB (no separate base); performance compares against the
+  LAST snapshot of (caller, contract).
+- **P12-bis/P13 — Dexter lookup is NOT here**: bot lookup lives in
+  `apps/dexter-onchain-bot/` (Tramo 3), fed by `apps/market-data`; kol-system
+  keeps only per-template publishing bots. C1: thread support is deferred —
+  templates ship with `threadConfig: null` + 501 stub; v2 arrives with
+  content-publisher.
+- **P2 — verify each point separately**: plan Tramo 1 verifies P3–P9 with
+  dedicated explore/librarian passes before implementing.
+- **C-DB-01 — one DB per app**: kol-system owns `<base>_kol_system[_staging]`
+  on the same server per env (12-DB table in the central plan); own
+  `data-source.ts`, own migrations, `synchronize:false, migrationsRun:false`
+  outside dev/test.
+- **C-SSE-01 — strict type filtering**: SSE frames carry
+  `data.messageType: 'kol'|'crypto-news'`; kol-system subscribes ONLY to
+  `'kol'` client-side (+ `?type=kol` where the query param exists); subscribing
+  to `crypto-news` is forbidden here (mirror rule binds content-publisher).
 
 ## COMMANDS
 
@@ -191,6 +230,13 @@ Local `docker-compose.yml`: postgres `5435:5432` (db
 backend (`:3030/:5432/:6379`) or ingestion (`:3031/:3032/:3033`).
 DB naming follows `<base>_<app>` per env (contract C-DB-01):
 `alpha_meta_token_scanner_kol_system[_staging]`.
+One-DB-per-app (C-DB-01, central plan todo 2): dev local
+`alpha_meta_token_scanner_kol_system`, Oracle prod same base name, twin staging
+`alpha_meta_token_scanner_kol_system_staging` — 12 DBs total across the four
+apps (kol/content/market/dexter × 3 envs) on the same server per env
+(precedent: `<base>_ingestion`). Owner of migrations is kol-system itself (own
+`data-source.ts` + `migration:run`); snapshot tables (`mention_snapshots`) live
+in THIS db (P27), never a separate base.
 
 Port discrepancy to know: `main.ts` listens on `KOL_SYSTEM_PORT ?? 3050`,
 while `buildAppConfig().port` reads `PORT ?? 3030`. Canonical runtime port is
@@ -262,6 +308,43 @@ Explicitly NOT in kol-system: `crypto-news` (content-publisher, P10),
 (`apps/dexter-onchain-bot`, P13), data providers (Tramo 3 owns extraction,
 contract C-DATA-01 — consume via ports, never move).
 
+## SNAPSHOT MODULE (P26/P27 — own module, same DB)
+
+`src/snapshot/` owns `mention_snapshots` (+ future aggregates) inside the
+kol-system DB. Extraction emits the snapshot base per mention (contract +
+`occurred_at_telegram` from ingestion + `ingested_at_kol=now`); enrichment
+completes it (`enriched_at=snapshot_at` + market data) and writes via port so
+snapshot+mención stay atomic in one transaction. Tracking joins
+mención↔snapshot locally; performance X of a call compares `last_mc` against
+the LAST snapshot MC of that (caller, contract) (e.g. +55X). No separate base;
+split (timescale/partitioning) only as a later phase if volume demands it.
+
+## DASHBOARD LAYOUT (P16/P11/P17 — one dashboard per template)
+
+Each template has ONE dashboard with a KOL source multi-select
+(`kolSourceIds: string[]`, empty = all; picker fed by
+`GET /api/feed/sources?type=kol`, mentions filtered locally). Columns:
+`caller | call | mc at | tracking | time ago | more details +` (P5/P8; caller =
+handle + url + db-id + avatar). Ranking block: performance horizontal 10 (5
+left + 5 right, arrows toggle `sort=perf_asc|perf_desc`) over
+`kol_window_stats.total_x`, plus a top-10 callers-by-count strip with
+30D/7D/1D selector over `calls_count`; display +NX on 30D/7D, +% on 1D. Below:
+extended template config section (sources, score display, gem filters, bot).
+Legacy backend dashboard coexists until cutover — never break it early.
+
+## BOTS CATALOG (P22/P23/P23-bis — DB, zero KOL_BOT_TOKEN)
+
+No `KOL_BOT_TOKEN` exists, not even as seed (P23 follow-up removes it from
+validation if todos 2-3 added it). Reusable catalog `telegram_bots` (id,
+encrypted token, label) + template fields `bot_id` + `channel_target`; one bot
+may publish for many templates/channels (A = bot X + channel 1, B = bot X +
+channel 2); no `bot_id` = dashboard-only. Legacy per-template table
+`template_bot_tokens` (P22) converges into this catalog. Target flow:
+pick saved bot or add new → pick `channel_target` among channels where THAT
+bot is admin (verified via Bot API `getChatMember`, stored
+`admin_verified_at`); verified channels reusable as suggestions. Rotation = UI
+update, no redeploy; tokens AES-256-GCM encrypted (shared pattern).
+
 ## EXTRACTION → ENRICHMENT → FRONTEND FLOW
 
 - Extraction (P5) extracts the smart contract per mention (contract × mention,
@@ -289,6 +372,42 @@ contract C-DATA-01 — consume via ports, never move).
    (Tramo 3, C-DATA-01).
 8. P24 templates `.env.development` / `.env.staging.template` /
    `.env.production.template` do not exist yet — only `.env.example`.
+
+## DECISIONS (P1–P27 + contracts — one line each, 2026-09-24)
+
+- P1 (2026-09-24): no dedup of any kind in kol-system; repeats are first-class rows.
+- P2 (2026-09-24): Tramo 1 plan verifies P3–P9 with separate explore/librarian passes.
+- P3 (2026-09-24): ingestion consumes `kol`-type messages, distinct from `crypto-news`.
+- P4 (2026-09-24): identity/sources live in ingestion-telegram (`kol` + `crypto-news` types); no profiles stored here.
+- P5 (2026-09-24): extraction = contract × mention (+ timestamp, handle, url, channel, db-id).
+- P6 (2026-09-24): classification lives INSIDE templates (channel picker + score viz + gem filters).
+- P7 (2026-09-24): enrichment bridges `apps/market-data` → `mc at` + `more details +`.
+- P8 (2026-09-24): tracking = `First time` vs `Nx from last call` (first `mc at` as reference).
+- P9 (2026-09-24): optional per-template publishing bot (BYO-token, publishing-only, viable).
+- P10 (2026-09-24): strict type separation — subscribe ONLY to `messageType==='kol'`.
+- P11 (2026-09-24): KOL caller ranking `GET /api/kol-rankings?window=30d|7d|1d` over cron-fed `kol_window_stats`.
+- P12-bis (2026-09-24): per-template publishing bots stay in kol-system (unchanged by P13).
+- P13 (2026-09-24): Dexter lookup SUPERSEDES P12a → own app `apps/dexter-onchain-bot` (Tramo 3).
+- P14 (2026-09-24): `vip-calls` is a template NAME (default seed), never a module; backend dir deleted at cleanup.
+- P15 (2026-09-24): SUPERSEDED by P16 — no multi-dashboard CRUD.
+- P16 (2026-09-24): one dashboard per template with source selector (`kolSourceIds: string[]`).
+- P17 (2026-09-24): horizontal-10 performance rank (5+5, arrows) + top-10 by count strip + extended config section.
+- P18 (2026-09-24): gradual per-BC deprecation (`@deprecated` headers now, deletion in todo 16).
+- P19 (2026-09-24): avatar resolved once by ingestion-telegram, permanent (janitor-excluded), consumed as URL.
+- P20 (2026-09-24): SSE-only ingestion, no polling loop (catch-up by cursor; remove 1-min fallback).
+- P21 (2026-09-24): health indicator per component; reuse/extend `src/shared/`, never copy.
+- P22 (2026-09-24): telegram config in DB (`template_bot_tokens`); no new `*_BOT_TOKEN` env per template.
+- P23 (2026-09-24): reusable `telegram_bots` catalog + `bot_id`/`channel_target`; zero `KOL_BOT_TOKEN`.
+- P23-bis (2026-09-24): `channel_target` admin-verified via `getChatMember` (`admin_verified_at`).
+- P24 (2026-09-24): multi-env envs — distinct `ENCRYPTION_KEY` per env; tracked templates + `scp` deploy.
+- P25 (2026-09-24): this AGENTS.md is living — updated at the close of every task set.
+- P26 (2026-09-24): snapshot per extraction with 4 dates (`occurred_at_telegram`, `ingested_at_kol`, `enriched_at`, `snapshot_at`).
+- P27 (2026-09-24): snapshots in own module `src/snapshot/`, SAME kol-system DB (default, a veto).
+- C-DB-01 (2026-09-24): one-DB-per-app `<base>_<app>` same-server per env (12 DBs; central todo 2).
+- C-SSE-01 (2026-09-24): frames carry `data.messageType`; filtering is mandatory client-side (central todo 5).
+- C1 (2026-09-24): threads deferred — templates ship `threadConfig: null` + 501 stub; v2 with content-publisher.
+- C2 (2026-09-24): C-SHARED-01 inverted — Tramo 1 moves the KOL bot first, Tramo 2 the crypto adapters.
+- C3/C4 (2026-09-24): pilot risk on money-path (shadow/staging-14d/rehearsal/kill-switch); T2←T1, T3←T2 gates.
 
 ## STANDING RULE
 
