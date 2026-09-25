@@ -128,7 +128,7 @@ Your next move: approve — listo para $start-work Tramo 2 tras Gate T1. Full ex
      Acceptance criteria: matriz partial/failed/transient verde en suite; contrato escrito y referenciado por ambos tramos
      QA scenarios: happy stub coherente con T1; failure publish parcial → resume desde mensaje 2. Evidence .omo/evidence/task-8-mega-refactor-feed-publisher.log
      Commit: Y | feat(feed-publisher): threads esqueleto y contrato v2
-- [ ] 9. Frontend: 4 endpoints críticos + flags UI (C-UX-01)
+- [x] 9. Frontend: 4 endpoints críticos + flags UI (C-UX-01)
      What to do / Must NOT do: Migrar sub-tabla T2 (queue stats, matching config, llm config, ads) a `:3040/41/42` + `VITE_FEED_PUBLISHER_URL` + toggles 3-flag (`MatchingToggleButton`) + proxies vite/nginx. Playwright 4 flujos. Must NOT romper dashboard KOL (Tramo 1).
      Parallelization: Wave 4 | Blocked by: 5, 6, 7 | Blocks: 10
      References: plan central C-UX-01 sub-tabla Tramo 2; .kiro/specs/refactor-feed-publisher/MIGRATION-PLAYBOOK.md:124-145; apps/frontend/src/shared/api/endpoints.ts:143-152 (feedPublisher) y :99-135 (threads)
