@@ -5,6 +5,29 @@
 # 1) Refuse commits on `master` — solo maintainer uses `dev` + PR.
 #    Bypass: `git commit --no-verify` (documented in docs/branch-protection.md
 #    § "Husky --no-verify bypass"; do NOT use casually).
+# 2) Knowledge-base gate (BLOCKING) — SCOPED apps only.
+#    RULE: committing ANY file under apps/<app>/ requires BOTH
+#    apps/<app>/AGENTS.md AND apps/<app>/CHANGELOG.md staged in the SAME commit,
+#    but ONLY for these scoped apps: apps/ingestion-telegram, apps/kol-system,
+#    apps/feed-publisher, apps/frontend.
+#    SCOPE NOTES: apps/backend is OUT of scope (never triggers). FUTURE app
+#    apps/market-data: skip silently, do NOT enforce (see gate_scope below).
+#    EXCEPTIONS (pass): (a) when the ONLY staged files for that app ARE its
+#    AGENTS.md / CHANGELOG.md themselves (docs-only commits pass, incl.
+#    CHANGELOG-only); (b) files OUTSIDE the scoped apps (other apps, root,
+#    .omo/, .kiro/, docs/, scripts/, ...) never trigger (.omo-only commits pass).
+#    HOME: this gate lives ONLY in pre-commit. It was REMOVED from pre-push and
+#    is absent from all PR workflows (verified 2026-09-25) — do NOT re-add it
+#    elsewhere.
+#    Bypass: `git commit --no-verify` skips this hook entirely (git-inherent,
+#    no code needed — hook never runs).
+#    Failure: prints a per-app missing-file error (`git add` hint) and exits 1.
+#    Plan ref: .omo/plans/husky-precommit-hooks.md (lint-staged + tsc + docs
+#    warning preserved below; this gate is the new BLOCKING layer on top of
+#    the plan's non-blocking staleness warning).
+# 3) Lint-staged: ESLint --fix on staged TS/TSX, Prettier on JSON/MD/YAML.
+# 4) Strict TypeScript check on all three workspaces (mirrors CI `TypeScript Check`).
+# 5) Docs staleness check — non-blocking warning, mirrors pre-commit hook default.
 branch=$(git rev-parse --abbrev-ref HEAD)
 if [ "$branch" = "master" ]; then
   echo ""
@@ -15,13 +38,52 @@ if [ "$branch" = "master" ]; then
   exit 1
 fi
 
-# 2) Lint-staged: ESLint --fix on staged TS/TSX, Prettier on JSON/MD/YAML.
+# 2) Knowledge-base gate (BLOCKING, scoped). See header §2 for RULE/exceptions.
+# Scoped apps ONLY: ingestion-telegram, kol-system, feed-publisher, frontend.
+# FUTURE: apps/market-data — skip silently, do NOT enforce (not in gate_scope).
+gate_scope="ingestion-telegram kol-system feed-publisher frontend"
+gate_staged=$(git diff --cached --name-only --diff-filter=ACMR || true)
+gate_failed=0
+if [ -n "$gate_staged" ]; then
+  gate_apps=$(printf '%s\n' "$gate_staged" | grep '^apps/[^/]*/' | cut -d/ -f2 | sort -u || true)
+  for gate_app in $gate_apps; do
+    case " $gate_scope " in
+      *" $gate_app "*) ;;
+      *) continue ;; # out of scope (backend, market-data, future apps): skip silently
+    esac
+    [ -d "apps/$gate_app" ] || continue
+    gate_other=$(printf '%s\n' "$gate_staged" | grep "^apps/$gate_app/" | grep -v "^apps/$gate_app/AGENTS\.md$" | grep -v "^apps/$gate_app/CHANGELOG\.md$" || true)
+    if [ -z "$gate_other" ]; then
+      continue
+    fi
+    gate_missing=""
+    printf '%s\n' "$gate_staged" | grep -qx "apps/$gate_app/AGENTS.md" || gate_missing="$gate_missing apps/$gate_app/AGENTS.md"
+    printf '%s\n' "$gate_staged" | grep -qx "apps/$gate_app/CHANGELOG.md" || gate_missing="$gate_missing apps/$gate_app/CHANGELOG.md"
+    if [ -n "$gate_missing" ]; then
+      echo ""
+      echo "❌ Knowledge-base gate: app '$gate_app' changed but docs missing from this commit."
+      echo "   Files under apps/$gate_app/ require BOTH docs staged:"
+      for gate_need in $gate_missing; do
+        echo "   • MISSING: $gate_need  (git add $gate_need)"
+      done
+      echo "   Exception: docs-only commits (only AGENTS.md/CHANGELOG.md staged for this app) pass."
+      echo "   Bypass:    git commit --no-verify  (skips this hook entirely)"
+      echo ""
+      gate_failed=1
+    fi
+  done
+  if [ "$gate_failed" = "1" ]; then
+    exit 1
+  fi
+fi
+
+# 3) Lint-staged: ESLint --fix on staged TS/TSX, Prettier on JSON/MD/YAML.
 npx --no -- lint-staged || exit 1
 
-# 3) Strict TypeScript check on all three workspaces (mirrors CI `TypeScript Check`).
+# 4) Strict TypeScript check on all three workspaces (mirrors CI `TypeScript Check`).
 npx --no -- tsc --noEmit --incremental false -p apps/backend/tsconfig.json && \
   npx --no -- tsc --noEmit --incremental false -p apps/frontend/tsconfig.json && \
   npx --no -- tsc --noEmit --incremental false -p apps/ingestion-telegram/tsconfig.json || exit 1
 
-# 4) Docs staleness check — non-blocking warning, mirrors pre-commit hook default.
+# 5) Docs staleness check — non-blocking warning, mirrors pre-commit hook default.
 node scripts/check-docs-staleness.mjs || true

@@ -114,14 +114,14 @@ Your next move: approve — listo para $start-work Tramo 2 tras Gate T1. Full ex
      Acceptance criteria: `ls apps/feed-publisher/uploads/ads-library | wc -l` > 0 tras migrate-media + `curl -s localhost:3040/api/ads | jq length` >= 0
      QA scenarios: happy ad intercalado cada N posts; failure media ausente → post sin media, sin crash. Evidence .omo/evidence/task-6-mega-refactor-feed-publisher.log
      Commit: Y | feat(feed-publisher): scheduling y ads library
-- [ ] 7. Telegram crypto+threads adapters, segundo movimiento C2 (11-refactor §10)
+- [x] 7. Telegram crypto+threads adapters, segundo movimiento C2 (11-refactor §10)
      What to do / Must NOT do: `feed-bot-api.adapter` (mover `BotApiFeedPublisherAdapter`) + `threads-bot-api.adapter` (nuevo, `THREADS_BOT_TOKEN`) + `TelegramPublisherPort`; routing por `contentType`; rate-limit configurable por bot. Verificar (lsp_find_references) que KOL-bot ya está fuera. Tests sendMessage/sendPhoto mock.
      Parallelization: Wave 3 | Blocked by: 4 | Blocks: 10
      References: 11-refactor.md:896-961; apps/backend/src/telegram/crypto-news-publisher/infrastructure/senders/bot-api-feed-publisher.adapter.ts:26-83; .omo/drafts/mega-refactor-tramos.md:110 (C2)
      Acceptance criteria: `grep -rn "vip-calls\|KOL_BOT" apps/feed-publisher/src/telegram` vacío
      QA scenarios: happy send por tipo; failure token ausente → error claro sin postear. Evidence .omo/evidence/task-7-mega-refactor-feed-publisher.log
      Commit: Y | feat(feed-publisher): adapters telegram crypto+threads
-- [ ] 8. Threads esqueleto + contrato des-stubbeo C1 (11-refactor §9)
+- [x] 8. Threads esqueleto + contrato des-stubbeo C1 (11-refactor §9)
      What to do / Must NOT do: `thread-builder/scheduler` + 3 use-cases + cron + entidades + controller que exponen el stub que Tramo 1 fijó (mismos 501); documento CONTRATO de des-stubbeo (qué endpoints se activan en v2, qué consume kol: `threadConfig`, bot threads). Tests stub + partial-publish matrix (PARTIAL retry desde mensaje 2, FAILED sin retry, IN_PROGRESS backoff).
      Parallelization: Wave 3 | Blocked by: 4 | Blocks: 10
      References: 11-refactor.md:794-893; plan Tramo 1 todo 10 (stub fijado); .omo/drafts/mega-refactor-tramos.md:111 (C1)
