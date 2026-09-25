@@ -1,11 +1,11 @@
-# telegram-bots-gateway - Work Plan
+# telegram-core - Work Plan
 
 ## TL;DR (For humans)
 
 <!-- Fill this LAST, after the detailed plan below is written, so it summarizes the REAL plan. -->
 <!-- Plain English for a non-engineer: NO file paths, NO todo numbers, NO wave/agent/tool names. -->
 
-**What you'll get:** Una app `telegram-bots-gateway/` (Bot API gateway): vault cifrado de tokens, send único con rate-limit global por bot, ingress único de updates con router a las apps. Las apps dejan de guardar tokens.
+**What you'll get:** Una app `telegram-core/` con dos módulos: `mtproto/` (sesión única MTProto por env, migrada de ingestion-telegram) + `bots/` (vault cifrado, send con rate-limit global, ingress webhook+router, resolver de bot: handle/id/username/avatar). Las apps dejan de guardar tokens y de correr MTProto.
 
 **Why this approach:** Los límites de Telegram son por bot, no por app — tres apps con el mismo bot necesitan un punto único de coordinación o un burst conjunto lo banea. Un ingress único además resuelve que getUpdates/webhook son mutuamente excluyentes por bot.
 
@@ -13,7 +13,7 @@
 
 **Effort:** Medium (8 todos)
 **Risk:** Medium - punto único de envío (mitigado: stateless + réplicas)
-**Decisions I made for you:** DB propia `onchain_bot_bots[_staging]`; puertos 4070/4071/4072 (verificar lsof); migración por app con dual-send temporal.
+**Decisions I made for you:** DB propia `onchain_bot_telegram_core[_staging]`; puertos 4070/4071/4072 (verificar lsof); migración por app con dual-send temporal.
 
 Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execution detail follows below.
 
@@ -25,9 +25,9 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
 
 ### Must have
 
-- App `apps/telegram-bots-gateway/` (:4070/71/72 a verificar): vault tokens cifrados (AES-256-GCM + ENCRYPTION_KEY por env), send gateway con rate-limit global por bot (30/s broadcast, ~1/s por chat, backoff centralizado ante 429), ingress único webhook + router de updates a apps (kol-system, feed-publisher, dexter-onchain-bot), health por bot.
+- App `apps/telegram-core/` (:4070/71/72 a verificar): vault tokens cifrados (AES-256-GCM + ENCRYPTION_KEY por env), send gateway con rate-limit global por bot (30/s broadcast, ~1/s por chat, backoff centralizado ante 429), ingress único webhook + router de updates a apps (kol-system, feed-publisher, dexter-onchain-bot), health por bot.
 - Migración por app (dual-send temporal + cutover + deprecación): `telegram_bots` (kol) → vault; adapters kol/feed/dexter → clientes HTTP del gateway.
-- DB propia `onchain_bot_bots[_staging]`; envs staging+prod; CI/deploy como el resto.
+- DB propia `onchain_bot_telegram_core[_staging]`; envs staging+prod; CI/deploy como el resto.
 
 ### Must NOT have (guardrails, anti-slop, scope boundaries)
 
@@ -40,7 +40,7 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
 > Zero human intervention - all verification is agent-executed.
 
 - Test decision: tests-after + Jest + e2e (dual-send parity) + live 429-backoff proof (mock Telegram 429 then success).
-- Evidence: .omo/evidence/task-<N>-telegram-bots-gateway.<ext>
+- Evidence: .omo/evidence/task-<N>-telegram-core.<ext>
 
 ## Execution strategy
 
@@ -65,54 +65,61 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
 <!-- APPEND TASK BATCHES BELOW THIS LINE WITH edit/apply_patch - never rewrite the headers above. -->
 
 - [ ] 1. App setup + vault cifrado
-     What to do / Must NOT do: `apps/telegram-bots-gateway/` (NestJS, :4070 dev/:4071 staging/:4072 prod a verificar con lsof, health, compose, Dockerfile CMD dist/main.js, `.env.*` + templates, DB `onchain_bot_bots[_staging]`); tabla `bot_vault` (id, label, token AES-256-GCM, owner_app, created/rotated_at) + CRUD interno + redact; `ENCRYPTION_KEY` por env; rotación sin redeploy. Tests + coverage. Must NOT lógica de envío aún.
+     What to do / Must NOT do: `apps/telegram-core/` (NestJS, :4070 dev/:4071 staging/:4072 prod a verificar con lsof, health, compose, Dockerfile CMD dist/main.js, `.env.*` + templates, DB `onchain_bot_telegram_core[_staging]`); tabla `bot_vault` (id, label, token AES-256-GCM, owner_app, created/rotated_at) + CRUD interno + redact; `ENCRYPTION_KEY` por env; rotación sin redeploy. Tests + coverage. Must NOT lógica de envío aún.
      Parallelization: Wave 1 | Blocked by: central C-PORTS/C-DB/C-CI | Blocks: 2-8
      References: apps/kol-system/src/templates/ (patrón telegram_bots a migrar); .omo/drafts/mega-refactor-tramos.md (P42)
      Acceptance criteria: `curl -s localhost:4070/api/health | grep -q '"status":"ok"'` + round-trip cifrado verde
-     QA scenarios: happy CRUD vault; failure sin ENCRYPTION_KEY → error claro, sin boot. Evidence .omo/evidence/task-1-telegram-bots-gateway.log
-     Commit: Y | feat(telegram-bots-gateway): setup y vault cifrado
+     QA scenarios: happy CRUD vault; failure sin ENCRYPTION_KEY → error claro, sin boot. Evidence .omo/evidence/task-1-telegram-core.log
+     Commit: Y | feat(telegram-core): setup y vault cifrado
 - [ ] 2. Send gateway con rate-limit global por bot
      What to do / Must NOT do: `POST /api/bots/:id/send` (message/photo/media-group) con cuota global por bot (30/s broadcast, ~1/s por chat, colas por bot) + backoff centralizado ante 429 (respeta retry-after, reintenta, contabiliza) + idempotencia por (bot, chat, client_msg_id). Tests: burst multi-app simulado no supera cuota; 429 mock → backoff y reenvío. Must NOT políticas de producto (delays/caps quedan en las apps).
      Parallelization: Wave 2 | Blocked by: 1 | Blocks: 5, 6, 7
      References: https://core.telegram.org/bots/api (broadcast 30/s; getUpdates↔webhook excluyentes); adapters actuales kol/feed/dexter (lógica send a migrar)
      Acceptance criteria: `npx jest src/send` verde con test burst-3-apps bajo cuota + test 429-backoff
-     QA scenarios: happy envío <RTT+cola; failure 429 persistente → FAILED con evidencia, sin reintento infinito. Evidence .omo/evidence/task-2-telegram-bots-gateway.log
-     Commit: Y | feat(telegram-bots-gateway): send con rate-limit global
+     QA scenarios: happy envío <RTT+cola; failure 429 persistente → FAILED con evidencia, sin reintento infinito. Evidence .omo/evidence/task-2-telegram-core.log
+     Commit: Y | feat(telegram-core): send con rate-limit global
 - [ ] 3. Ingress único webhook + router
      What to do / Must NOT do: webhook receptor por bot + router de updates a apps suscritas (kol-system, feed-publisher, dexter) con firma/secreto por ruta; getUpdates SOLO como fallback si webhook imposible (nunca ambos a la vez por bot). Tests: fan-out a 2 apps; fallback exclusivo. Must NOT lógica de negocio en el router (pasa-through + auth).
      Parallelization: Wave 2 | Blocked by: 1 | Blocks: 5, 6, 7
      References: Bot API docs (mutual exclusion); dexter update-poller (patrón a retirar)
      Acceptance criteria: update de prueba llega a las 2 apps suscritas; getUpdates y webhook nunca activos juntos (test)
-     QA scenarios: happy fan-out; failure app caída → reintento con backoff + dead-letter. Evidence .omo/evidence/task-3-telegram-bots-gateway.log
-     Commit: Y | feat(telegram-bots-gateway): ingress webhook + router
+     QA scenarios: happy fan-out; failure app caída → reintento con backoff + dead-letter. Evidence .omo/evidence/task-3-telegram-core.log
+     Commit: Y | feat(telegram-core): ingress webhook + router
 - [ ] 4. Migración kol-system al gateway
      What to do / Must NOT do: `telegram_bots` → vault (migración datos cifrados de nuevo, NO copiar tokens en plano); adapters kol → clientes HTTP gateway; dual-send temporal (gateway + directo, comparar) + cutover + deprecación módulo telegram kol. Tests paridad.
      Parallelization: Wave 3 | Blocked by: 2, 3 | Blocks: 8
      References: apps/kol-system/src/telegram/; apps/kol-system/src/templates/ (telegram_bots)
      Acceptance criteria: dual-send paridad 0 divergencias + cutover + módulo viejo deprecado
-     QA scenarios: happy paridad; failure divergencia → no cutover. Evidence .omo/evidence/task-4-telegram-bots-gateway.log
+     QA scenarios: happy paridad; failure divergencia → no cutover. Evidence .omo/evidence/task-4-telegram-core.log
      Commit: Y | feat(kol-system): publishing vía gateway
 - [ ] 5. Migración feed-publisher al gateway
      What to do / Must NOT do: igual que 4 para adapters crypto+threads + bots por sesión/template.
      Parallelization: Wave 3 | Blocked by: 2, 3 | Blocks: 8
      References: apps/feed-publisher/src/telegram/
      Acceptance criteria: paridad + cutover + deprecación
-     QA scenarios: happy paridad; failure no cutover. Evidence .omo/evidence/task-5-telegram-bots-gateway.log
+     QA scenarios: happy paridad; failure no cutover. Evidence .omo/evidence/task-5-telegram-core.log
      Commit: Y | feat(feed-publisher): publishing vía gateway
 - [ ] 6. Migración dexter al gateway
      What to do / Must NOT do: igual que 4 para el bot dexter (lookup + trade buttons) + updates vía router.
      Parallelization: Wave 3 | Blocked by: 2, 3 | Blocks: 8
      References: apps/dexter-onchain-bot/ (Tramo 3)
      Acceptance criteria: paridad + cutover + deprecación
-     QA scenarios: happy paridad; failure no cutover. Evidence .omo/evidence/task-6-telegram-bots-gateway.log
+     QA scenarios: happy paridad; failure no cutover. Evidence .omo/evidence/task-6-telegram-core.log
      Commit: Y | feat(dexter-onchain-bot): lookup vía gateway
 - [ ] 7. Cutover global + cleanup + CI/deploy
      What to do / Must NOT do: flags/corte por app, borrado adapters viejos, CI `ci:gateway` + deploy staging/prod + healthchecks, réplicas (stateless, ≥2 en prod), final review. Must NOT cerrar sin las 3 apps migradas.
      Parallelization: Wave 4 | Blocked by: 4, 5, 6 | Blocks: —
      References: plan central C-CI-01 (extender matriz con gateway)
      Acceptance criteria: 0 tokens fuera del vault (`grep` auditoría) + healthchecks verdes + réplicas
-     QA scenarios: happy corte limpio; failure rollback por app. Evidence .omo/evidence/task-7-telegram-bots-gateway.log
-     Commit: Y | feat(telegram-bots-gateway)!: cutover global
+     QA scenarios: happy corte limpio; failure rollback por app. Evidence .omo/evidence/task-7-telegram-core.log
+     Commit: Y | feat(telegram-core)!: cutover global
+- [ ] 8. Migración MTProto por env + deprecación ingestion-telegram
+     What to do / Must NOT do: Por env (dev→staging→prod): apagar MTProto en ingestion-telegram, encender `mtproto/` en telegram-core con LA MISMA session string (jamás ambas vivas — AUTH_KEY_DUPLICATED); triples (`API_ID/HASH/SESSION`) mudadas a env de telegram-core; core expone MISMO contrato (HTTP feed + SSE) para no tocar consumers; avatares + sources registry migran con sus tablas; ingestion-telegram deprecado (headers) y borrado al final. Tests: paridad frames pre/post por env + cutover atómico medido. Must NOT correr dos sesiones con la misma triple ni un segundo.
+     Parallelization: Wave 5 | Blocked by: 7 | Blocks: — (cierra programa telegram)
+     References: apps/ingestion-telegram/src/ (listener, polling, persistence, SSE, avatar); .omo/drafts/mega-refactor-tramos.md (P42/P43)
+     Acceptance criteria: `diff <(frames pre) <(frames post)` vacío por env + 0 `AUTH_KEY_DUPLICATED` en logs
+     QA scenarios: happy paridad total; failure gap de frames → rollback a ingestion-telegram (sesión intacta). Evidence .omo/evidence/task-8-telegram-core.log
+     Commit: Y | feat(telegram-core)!: MTProto migrado, ingestion deprecado
 
 ## Commit strategy
 
