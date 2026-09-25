@@ -165,7 +165,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       Acceptance criteria: `curl -s localhost:3050/api/approvals/pending | jq length` >= 0; e2e espejo publica 1 call
       QA scenarios: happy approve→publish; failure `KOL_BOT_TOKEN` ausente → 401 sin postear nada real. Evidence .omo/evidence/task-11-mega-refactor-kol-system.log
       Commit: Y | feat(kol-system): approval y publishing multi-bot
-- [ ] 12. Tracking first-seen + rating +5x (Ph12 spec + P8 + G-14)
+- [x] 12. Tracking first-seen + rating +5x (Ph12 spec + P8 + G-14)
       What to do / Must NOT do: Columnas `first_seen_at`, `first_mc_at`, `last_call_mc_at`, `times_called`; job que las mantiene; `tracking` = `First time` vs `Nx from last call`; rating kol por calls +5x con fórmula + ejemplo numérico documentado; endpoint fila tabla. Ranking P11: job cron mantiene `kol_window_stats(caller, window, total_x, calls_count)` (múltiple = `last_mc/first_mc_at`, SUMA por caller + CONTEO de calls; display +NX 30D/7D, +% 1D) + `GET /api/kol-rankings?window=30d|7d|1d&sort=perf_desc|perf_asc|calls_desc` ordenado según sort. P26: el X de performance se calcula contra el ÚLTIMO snapshot de (caller, contrato) (`last_mc/snapshot MC`, ej. +55X). Tests: 2ª mención mismo kol+contrato → `2x from last call` con deltas; ranking con fixture 3 callers suma y conteo correctos por ventana.
       Parallelization: Wave 3 | Blocked by: 11 | Blocks: 14
       References: .omo/drafts/mega-refactor-tramos.md:125 (P8); apps/backend/src/token/normalization/infrastructure/persistence/typeorm/entities/canonical-token-call.entity.ts:84 (first_seen_at existente); .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:385-411
@@ -228,7 +228,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       Acceptance criteria: `test -f apps/kol-system/AGENTS.md && grep -c "P1[0-9]" apps/kol-system/AGENTS.md` >= 5 (decisiones pivot citadas)
       QA scenarios: happy todo futuro lo actualiza (verificar en reviews); failure link roto → `grep -o "\[.*\](.*)" AGENTS.md` y comprobar destinos. Evidence .omo/evidence/task-21-mega-refactor-kol-system.log
       Commit: Y | docs(kol-system): AGENTS.md vivo con regla de actualización
-- [ ] 22. Scoring configurable por template (P28, follow-up del 9)
+- [x] 22. Scoring configurable por template (P28, follow-up del 9)
   What to do / Must NOT do: Añadir `scoring_config` al modelo PublishingTemplate (pesos, bonus, penalties, tier thresholds, gate thresholds: min score, caps; defaults = v1 actual del todo 9); ScoreTokenUseCase lee la config del template de la mención (fallback a defaults si ausente); endpoint/UI edita `scoring_config` con validación (rangos); tests: mismo input con 2 configs distintas → scores distintos + defaults intactos cuando no hay config. Must NOT romper el default v1 (compatibilidad).
   Parallelization: Wave 3 | Blocked by: 9, 10 (modelo template) | Blocks: 15 (staging lo valida)
   References: .omo/drafts/mega-refactor-tramos.md (P28); apps/kol-system/src/scoring/ (fórmula v1 como defaults); apps/kol-system/src/templates/ (modelo a extender)

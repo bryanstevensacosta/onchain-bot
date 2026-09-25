@@ -1,6 +1,6 @@
 # apps/kol-system/ — NestJS Knowledge Base
 
-> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4+5+6+7+8+9+10+11+22 built).
+> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4+5+6+7+8+9+10+11+12+22 built).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md` §7.6 (2026-09-24).
 
 Contents: OVERVIEW · HOW IT WORKS (non-technical) · PROGRAM INDEX · COMMANDS ·
@@ -30,7 +30,10 @@ bouncer: `CallApproval` + `EvaluateApproval` + `GetPendingApprovals` +
 `ApprovalsController`, todo 11, Ph10) + `TelegramModule` (per-template
 KOL-bot publishing: `PublishingJob` + `PublishFromTemplate` +
 `ManualPublish` + `MultiBotPublisherAdapter` on the DB catalog, first
-C-SHARED-01 move, todo 11, Ph11 + C2) wired into `AppModule`.
+C-SHARED-01 move, todo 11, Ph11 + C2) + `TrackingModule` (first-seen
+`TrackedMention` + kol +5x rating + `kol_window_stats` cron +
+`GET /api/kol-rankings`, todo 12, Ph12 + P8 + P11 + P17) wired into
+`AppModule`.
 
 Design pivots (2026-09-24) that govern every future todo:
 
@@ -193,14 +196,13 @@ flowchart LR
     ENR["market desk: asks market-data, fills price at capture (BUILT)<br/>src/enrichment/ (enrichment-orchestrator.service, market-data.port)<br/>IN: mention + base - OUT: completed snapshot"]
     SCORE["judge: scores 0-100, drops low scores (BUILT)<br/>src/scoring/ (score-token.use-case, score-gates, scored-call.entity)<br/>IN: enriched row - OUT: ScoredCall"]
     TMPL["shop window: picks channels, ranks, shows views (BUILT)<br/>src/templates/ (publishing-template.entity, template-orchestrator.service, ranking-engine.service)<br/>IN: scored rows - OUT: PublishingTemplate views"]
-    APPR["bouncer: per-template accept or reject (BUILT)<br/>src/approval/ (CallApproval, evaluate + pending + manual decide)<br/>IN: scored rows - OUT: CallApproval"]
-    PUB["poster: sends via the template own bot (BUILT)<br/>src/telegram/ (PublishingJob, catalog token per call)<br/>IN: approvals - OUT: PublishingJob + bot posts"]
-    TRACK["scoreboard: first-seen plus rankings per window (PLANNED, not in src/)<br/>kol_window_stats (planned name)<br/>IN: posts + scores - OUT: kol_window_stats"]
+    APPR["bouncer: per-template accept or reject (BUILT)<br/>src/approval/ (call-approval.entity, evaluate + pending + manual decide)<br/>IN: scored rows - OUT: CallApproval"]
+    PUB["poster: sends via the template own bot (BUILT)<br/>src/telegram/ (publishing-job.entity, multi-bot-publisher.adapter)<br/>IN: approvals - OUT: PublishingJob + bot posts"]
+    TRACK["scoreboard: first-seen plus rankings per window (BUILT)<br/>src/tracking/ (TrackedMention, tracking-cron, kol-rankings)<br/>IN: posts + scores - OUT: kol_window_stats"]
     DASH["screen: calls table plus rankings on display (PLANNED, not in src/)<br/>served views (planned)<br/>IN: template views - OUT: rows on screen"]
 
     ING --> EXT --> PAR --> NORM --> SNAP --> ENR --> SCORE --> TMPL --> APPR --> PUB --> TRACK --> DASH
 
-    style TRACK stroke-dasharray:5
     style DASH stroke-dasharray:5
 ```
 
@@ -216,8 +218,33 @@ Per node — what enters, what it does (plain words), what exits:
 - **templates (BUILT, `src/templates/`, todo 10)** — IN: scored rows. DOES: the shop window that picks channels per template (`kolSourceIds`, empty = all), ranks with `application/services/ranking-engine.service.ts` (4 strategies), refreshes per template on a 1 min cron via `application/services/template-orchestrator.service.ts`, seeds the default `vip-calls` view (`application/services/template-seed.service.ts`). OUT: `PublishingTemplate` aggregate (`domain/entities/publishing-template.entity.ts`; verified name is `.entity.ts`, not `.aggregate.ts`) + dashboard views (P6, P14, P16).
 - **approval (BUILT, `src/approval/`, todo 11)** — IN: scored rows in template scope. DOES: the bouncer that accepts or rejects per template (`CallApproval` aggregate, id `templateId:mentionId`, P1 upsert guard; `EvaluateApprovalUseCase` auto-decides active + source-visible (P16) + score-floor, `RequestApprovalUseCase` enqueues pending rows, manual approve/reject endpoints; `GET /api/templates/:id/pending-approvals` delegates here — the todo-10 stub is gone). OUT: `CallApproval` + `approval.call.decided` events (direct return, fix-1).
 - **publishing (BUILT, `src/telegram/`, todo 11)** — IN: approvals. DOES: the poster that sends via the template's own DB-catalog bot (`MultiBotPublisherAdapter`, token per call from `BotTokenResolverPort`, P23 — no env token; `VipMessageFormatter` card; ticker non-null enforced pre-publisher; missing bot/channel/verification degrades to dashboard-only, unknown bot → 401 with no post). OUT: `PublishingJob` (reserved→published/failed) + `publishing.telegram.published|failed` + bot posts (P9, P22, P23, first C-SHARED-01 move — backend `vip-channel`/`telegram/shared` sender code now lives here, backend untouched).
-- **tracking/rankings (PLANNED, not in `src/`)** — IN: published calls + scores + snapshots. DOES: the scoreboard that tracks first-appearance + runs the background ranking job per window (ranking math verified BUILT inside templates via `get-template-rankings.use-case.ts` + `ranking-engine.service.ts`; the standalone tracking module is not). OUT: `kol_window_stats` rows (planned table name, `total_x` + `calls_count` per caller/window) + rankings API (P8, P11, P17).
+- **tracking/rankings (BUILT, `src/tracking/`, todo 12)** — IN: mentions + mc observations. DOES: the scoreboard that tracks first-appearance per (kol, contract) (`TrackedMention`, own `first_mc_at` column) + runs the background ranking job per window (`TrackingCronService`, 1 min cron) + kol +5x rating (`domain/kol-rating.ts`, backend `Outcome.STRONG>=5x` mirror). OUT: `kol_window_stats` rows (`total_x` + `calls_count` + `strongCalls` per caller/window) + `GET /api/kol-rankings?window=30d|7d|1d&sort=perf_desc|perf_asc|calls_desc` (P8, P11, P17).
 - **dashboard (PLANNED, not in `src/`, served views)** — IN: template views. DOES: the screen that shows the calls table + sideways rankings + top callers. OUT: rows on screen (P5, P16, P17).
+
+### UN MENSAJE KOL, DE PUNTA A PUNTA
+
+> One kol-type frame followed row by row: every DB write is a pipeline
+> step. Table names are the snake_case plural of their entity class in
+> `src/` (all 9 classes verified by grep; no `@Entity` decorators exist
+> yet — repos are in-memory, TypeORM lands with the persistence todo —
+> so names after `mention_snapshots` / `kol_window_stats` /
+> `telegram_bots` are the spec intent for that todo).
+
+```mermaid
+flowchart LR
+    SSE["live tip frame from its own ingestion-telegram<br/>SSE message:telegram, messageType kol, no DB write<br/>IN: stream - OUT: one kol frame (P10, P20)"]
+    EXT["spotter writes one row per contract mention<br/>table extraction_candidates (ExtractionCandidate)<br/>plus snapshot base: occurred_at_telegram + ingested_at_kol (P5, P1, P26)"]
+    PAR["reader writes one structured row per candidate<br/>table parsed_calls (ParsedCall, 1:1, id mirrors candidate) (P5)"]
+    NORM["librarian files one card per mention, never merges<br/>table normalized_mentions (NormalizedMention) (P1)"]
+    ENR["market desk completes the snapshot row<br/>table mention_snapshots (MentionSnapshot, enriched_at = snapshot_at, marketCapUsd = mc at) (P7, P26, P27)"]
+    SCORE["judge writes one row per passing mention<br/>table scored_calls (ScoredCall, score 0-100, below-cut discarded) (P6, P28)"]
+    APPR["bouncer writes one row per template decision<br/>table call_approvals (CallApproval, id templateId:mentionId) (Ph10)"]
+    PUB["poster writes one row per send<br/>table publishing_jobs (PublishingJob, reserved to published or failed) (Ph11)"]
+    TRACK["scoreboard folds the mention and refreshes windows<br/>table tracked_mentions (TrackedMention, first_mc_at pinned)<br/>plus table kol_window_stats (total_x + calls_count per caller, window) (P8, P11, P17)"]
+    READ["screens read, never compute<br/>dashboard calls table plus GET /api/kol-rankings (P5, P16, P17)"]
+
+    SSE --> EXT --> PAR --> NORM --> ENR --> SCORE --> APPR --> PUB --> TRACK --> READ
+```
 
 ## PROGRAM INDEX (mega-refactor, branch `feat/mega-refactor-tramos`)
 
@@ -270,7 +297,7 @@ Health was verified by booting `node dist/main.js` with
 ```text
 src/
 ├── main.ts                       # bootstrap() — ValidationPipe whitelist/forbidNonWhitelisted/transform, listen KOL_SYSTEM_PORT ?? 3050
-├── app.module.ts                 # Config (envFilePath ['.env.dev', '.env']) + HealthModule + IngestionModule + ExtractionModule + ParsingModule + NormalizationModule + EnrichmentModule + SnapshotModule + ScoringModule + TemplatesModule + ApprovalModule + TelegramModule (all wired)
+├── app.module.ts                 # Config (envFilePath ['.env.dev', '.env']) + HealthModule + IngestionModule + ExtractionModule + ParsingModule + NormalizationModule + EnrichmentModule + SnapshotModule + ScoringModule + TemplatesModule + ApprovalModule + TelegramModule + TrackingModule (all wired)
 ├── health/
 │   ├── health.module.ts
 │   ├── health.controller.spec.ts
@@ -391,6 +418,19 @@ src/
 │   ├── api/http/publishing.controller.ts (+ .spec.ts)  # POST publish|manual + GET recent|failed (P14: no vip-calls route)
 │   ├── api/http/dto/publishing.dto.ts  # class-validator DTOs
 │   └── health/telegram-health.indicator.ts  # check() → { component: 'publishing', status } (unwired until composite health)
+├── tracking/                     # BUILT (todo 12, Ph12 + P8/P11/P17) + WIRED into AppModule
+│   ├── tracking.module.ts        # controller + 3 use-cases/services + 2 repos + health; NO ScheduleModule.forRoot (uses the templates-registered explorer)
+│   ├── domain/entities/tracked-mention.entity.ts (+ .spec.ts)  # id kolId:chain:address, own first_mc_at (no canonical assumption), last_call_mc_at = latest, times_called; tracking First time|Nx from last call|mc n/a
+│   ├── domain/entities/kol-window-stat.entity.ts  # id caller:window, totalX + callsCount + strongCalls(>=5x), display +NX (30d/7d) / +% (1d) (covered by cron + controller specs)
+│   ├── domain/kol-rating.ts (+ .spec.ts)  # classifyMultiple/outcomeWeight/rateKol — backend Outcome STRONG>=5x mirror (read-only ref), worked example score 0.3
+│   ├── application/handlers/record-mention.use-case.ts (+ .spec.ts)  # direct call fix-1, first pins first_mc_at, later folds (P1 upsert guard)
+│   ├── application/services/tracking-cron.service.ts (+ .spec.ts)  # @Cron 1min (TRACKING_CRON_ENABLED=true), rebuild(now): SUM last_mc/first_mc_at + SUM times_called per caller/window
+│   ├── application/use-cases/get-kol-rankings.use-case.ts (+ .spec.ts, with controller)  # window 30d|7d|1d + sort perf_desc|perf_asc|calls_desc, ties by caller
+│   ├── application/ports/tracked-mention.repository.ts, kol-window-stat.repository.ts
+│   ├── infrastructure/repositories/in-memory-tracked-mention.repository.ts, in-memory-kol-window-stat.repository.ts
+│   ├── api/http/rankings.controller.ts  # GET /api/kol-rankings → [{ caller, window, totalX, callsCount, strongCalls, display }]
+│   ├── api/http/dto/rankings-query.dto.ts  # @IsIn window/sort (400 on unknown at HTTP layer)
+│   └── health/tracking-health.indicator.ts  # check() → { component: 'tracking', status } (unwired until composite health)
 ├── shared/                       # kernel/config/guards/filters — REUSE, extend, never copy (P21)
 │   ├── kernel/aggregate-root.ts, entity.ts, value-object.ts, domain-error.ts, domain-event.ts (+ specs)
 │   ├── value-objects/chain-hint.vo.ts, normalized-address.vo.ts (+ spec)  # P21 identity VOs (EVM/Solana) — extraction/parsing/normalization share this home
@@ -432,10 +472,13 @@ templates CORE without threads per Ph9 + C1, direct call fix-1, cron 1 min
 fix-1, `CallApproval` + evaluate/request/pending + manual decide —
 wired 2026-09-25) + `TelegramModule` (todo 11, per-template KOL-bot
 publishing per Ph11 + C2, first C-SHARED-01 move, catalog token per call,
-ticker non-null pre-publisher — wired 2026-09-25).
+ticker non-null pre-publisher — wired 2026-09-25) + `TrackingModule`
+(todo 12, first-seen + rating + rankings per Ph12 + P8 + P11 + P17,
+direct call fix-1, `TrackedMention` + tracking cron + `GET
+/api/kol-rankings` — wired 2026-09-25).
 
 Planned (per spec, NOT built — do not import until their todos land):
-tracking (first-appearance, P8), rankings (P11).
+dashboard (served views, todo 14).
 
 ## INGESTION — SSE-only (`ingestion/`)
 
@@ -735,6 +778,54 @@ reports component `publishing` (the composite-health contract names the
 pipeline stage — todo 15 asserts it) — provided + exported, unwired until
 composite health (gap 3).
 
+## TRACKING — first-seen + rating + rankings API (`tracking/`, todo 12)
+
+`TrackedMention` aggregate (Ph12 + P8, id `kolId:chain:address` — the
+repo upsert is the P1 double-delivery guard): owns `first_seen_at`,
+`first_mc_at` (OWN column, pinned from the mention's own mc on creation,
+never overwritten — no canonical `mcAtCall` assumption by construction:
+this module holds no port to any snapshot/tracking table outside
+`src/tracking/`), `last_call_mc_at` (LATEST observation per mention —
+P26 X-vs-latest; null when the latest enrichment produced no market
+data), `last_seen_at`, `times_called`. Dashboard `tracking` label:
+`First time` (first mention) vs `Nx from last call`
+(`last_call_mc_at/first_mc_at`, e.g. 100→200 = `2x from last call`) vs
+`mc n/a` (either mc side null — enrichment failed — no crash).
+
+`RecordMentionUseCase` (direct call fix-1): first mention creates the
+row, later mentions fold into it (`{ tracked, isFirst, multiple,
+mcDelta }`, `mcDelta` = latest − previous latest, null when either side
+is missing). Different contracts of the same kol track independently.
+
+Kol +5x rating (`domain/kol-rating.ts`, pure functions): `classifyMultiple`
+reuses the backend `Outcome` ladder read-only
+(`apps/backend/src/token/call-tracking/domain/value-objects/outcome.vo.ts`
++ `dexscreener-call-outcome-evaluator.adapter.ts` `classifyOutcome` —
+STRONG ≥5x / GOOD ≥2x / NEUTRAL ≥0.5x / POOR below / null→NEUTRAL) and
+`outcomeWeight` reuses `Outcome.weight()` (1 / 0.5 / 0 / −0.3 / −0.8;
+FAILED reserved for a future rug-signal input, never produced here);
+`rateKol` returns `{ total, strong, good, neutral, poor, failed, score }`
+with score = mean weight (worked example pinned by spec: [10x, 3x, 1x,
+0.2x] → (1 + 0.5 + 0 − 0.3)/4 = 0.3).
+
+`TrackingCronService` (`@Cron('*/1 * * * *')`, gated by
+`TRACKING_CRON_ENABLED=true`): `rebuild(now)` maintains
+`kol_window_stats(caller, window, total_x, calls_count)` for 30d/7d/1d
+(P11 + P17) — rows enter a window by `last_seen_at`; per caller:
+`total_x` = SUM of `last_call_mc_at/first_mc_at` (null-mc rows contribute
+0, never poison the sum), `calls_count` = SUM of `times_called`,
+`strongCalls` = pairs at ≥5x. Screens read, never compute.
+
+`RankingsController`: `GET /api/kol-rankings?window=30d|7d|1d&
+sort=perf_desc|perf_asc|calls_desc` (defaults 30d/perf_desc; unknown
+values → VALIDATION → 400 at the HTTP layer) returns `[{ caller,
+window, totalX, callsCount, strongCalls, display }]` with `display`
+`+NX` for 30d/7d and `+%` for 1d (P11 table shape; acceptance `jq
+'length >= 0'`). `TrackingHealthIndicator.check()` reports component
+`tracking` — provided + exported, unwired until composite health (gap 3).
+Scheduling note: no second `ScheduleModule.forRoot()` here — the
+templates-registered explorer scans all providers app-wide.
+
 ## SNAPSHOT — own module, same DB (`snapshot/`, todo 8)
 
 `MentionSnapshot` (id = mentionId) carries the 4 P26 timestamps
@@ -820,7 +911,9 @@ extraction/parsing/normalization/enrichment/scoring/templates/approval/publishin
 `TemplatesHealthIndicator.check()` (`templates/health/`, todo 10) +
 `ApprovalHealthIndicator.check()` (`approval/health/`, todo 11) +
 `TelegramHealthIndicator.check()` (`telegram/health/`, todo 11,
-component `publishing`)
+component `publishing`) +
+`TrackingHealthIndicator.check()` (`tracking/health/`, todo 12,
+component `tracking`)
 are the per-module hook points — provided + exported, NOT yet consumed
 (no composite health system exists; wiring lands with the composite-health
 todo, gap 3).
@@ -899,9 +992,8 @@ v1 `DEFAULT_SCORING_CONFIG` + merge/validate in `src/scoring/domain/`;
 stored as `scoring_config` on the template, edited via
 `PATCH /api/templates/:id/scoring` with 400-on-invalid; scorer fallback
 to defaults when absent).
-Planned: tracking (P8 first-appearance) →
-rankings (P11 `GET /api/kol-rankings?window=30d|7d|1d`, cron-fed
-`kol_window_stats`, P17 layout) → dashboard (P16 single + source selector).
+Planned: dashboard (P8 tracking display + P16 single + source selector,
+todo 14 — served views).
 
 Explicitly NOT in kol-system: `crypto-news` (content-publisher, P10),
 `vip-calls` as code (template name only, P14), Dexter lookup
@@ -958,7 +1050,14 @@ demands.
 5. P19 avatar pipeline (ingestion resolves + serves permanently, excluded
    from 72h janitor, `avatarUrl` in feed projection, fetch-once) has no
    consumer here yet.
-6. P11/P17 ranking + `kol_window_stats` + `GET /api/kol-rankings` not built.
+6. RESOLVED 2026-09-25 (todo 12) — `src/tracking/` + `TrackedMention`
+   (first-seen, own `first_mc_at`) + kol +5x rating (backend
+   `Outcome.STRONG>=5x` mirror) + `TrackingCronService` (1 min cron,
+   `kol_window_stats` with `total_x` + `calls_count` + `strongCalls` per
+   caller/window) + `GET /api/kol-rankings?window=30d|7d|1d&
+   sort=perf_desc|perf_asc|calls_desc`, wired (`TrackingModule` in
+   `AppModule`); in-memory repos today, TypeORM entities + migrations
+   land with the persistence todo.
 7. No MTProto anywhere here by design (sessions live ONLY in
    ingestion-telegram, one triple per env). No data providers here by design
    (Tramo 3, C-DATA-01).

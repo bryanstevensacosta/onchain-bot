@@ -11,6 +11,7 @@ import { ScoringModule } from './scoring/scoring.module';
 import { TemplatesModule } from './templates/templates.module';
 import { ApprovalModule } from './approval/approval.module';
 import { TelegramModule } from './telegram/telegram.module';
+import { TrackingModule } from './tracking/tracking.module';
 
 /**
  * AppModule - Root module for kol-system skeleton (Tramo 1, todos 2+4+5).
@@ -37,7 +38,9 @@ import { TelegramModule } from './telegram/telegram.module';
  * EvaluateApproval + GetPendingApprovals + ApprovalsController) +
  * TelegramModule (per-template KOL-bot publishing, todo 11, Ph11 + C2:
  * PublishingJob + PublishFromTemplate + ManualPublish, catalog token per
- * call, first C-SHARED-01 move).
+ * call, first C-SHARED-01 move) + TrackingModule (first-seen + rating +
+ * rankings API, todo 12, Ph12 + P8 + P11 + P17: TrackedMention +
+ * RecordMention + TrackingCron + GET /api/kol-rankings).
  * ConfigModule is global, so the ingestion HTTP adapter resolves
  * ConfigService without importing SharedModule.
  */
@@ -58,6 +61,7 @@ import { TelegramModule } from './telegram/telegram.module';
     TemplatesModule,
     ApprovalModule,
     TelegramModule,
+    TrackingModule,
   ],
 })
 export class AppModule {}
