@@ -34,6 +34,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
 - P18: cada move-todo depreca su contraparte backend acto seguido (companion Nb); borrado solo en todo 16.
 - P21: cada move-todo registra health indicator (`ingestion.sse`, `database`, `redis`, +1 por módulo); shared/ se REUTILIZA siempre (extender, nunca copiar/duplicar).
 - P25: `apps/kol-system/AGENTS.md` vivo — creado en todo 21, actualizado al cierre de cada todo.
+- P28: scoring 100% configurable por template (`scoring_config`; follow-up todo 22).
 - Dual-run sem 2-8 + shadow/dry-run + staging 14 días + rollback rehearsal + cutover por flags + cleanup (archivar, NO dropear).
 
 ### Must NOT have (guardrails, anti-slop, scope boundaries)
@@ -227,6 +228,13 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       Acceptance criteria: `test -f apps/kol-system/AGENTS.md && grep -c "P1[0-9]" apps/kol-system/AGENTS.md` >= 5 (decisiones pivot citadas)
       QA scenarios: happy todo futuro lo actualiza (verificar en reviews); failure link roto → `grep -o "\[.*\](.*)" AGENTS.md` y comprobar destinos. Evidence .omo/evidence/task-21-mega-refactor-kol-system.log
       Commit: Y | docs(kol-system): AGENTS.md vivo con regla de actualización
+- [ ] 22. Scoring configurable por template (P28, follow-up del 9)
+  What to do / Must NOT do: Añadir `scoring_config` al modelo PublishingTemplate (pesos, bonus, penalties, tier thresholds, gate thresholds: min score, caps; defaults = v1 actual del todo 9); ScoreTokenUseCase lee la config del template de la mención (fallback a defaults si ausente); endpoint/UI edita `scoring_config` con validación (rangos); tests: mismo input con 2 configs distintas → scores distintos + defaults intactos cuando no hay config. Must NOT romper el default v1 (compatibilidad).
+  Parallelization: Wave 3 | Blocked by: 9, 10 (modelo template) | Blocks: 15 (staging lo valida)
+  References: .omo/drafts/mega-refactor-tramos.md (P28); apps/kol-system/src/scoring/ (fórmula v1 como defaults); apps/kol-system/src/templates/ (modelo a extender)
+  Acceptance criteria: `npx jest src/scoring src/templates` verde con test de 2-configs-distinto-score
+  QA scenarios: happy config custom cambia score; failure config inválida → 400 con mensaje, defaults intactos. Evidence .omo/evidence/task-22-mega-refactor-kol-system.log
+  Commit: Y | feat(kol-system): scoring configurable por template
 
 ## Final verification wave
 
