@@ -34,6 +34,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
 - P18: cada move-todo depreca su contraparte backend acto seguido (companion Nb); borrado solo en todo 16.
 - P21: cada move-todo registra health indicator (`ingestion.sse`, `database`, `redis`, +1 por módulo); shared/ se REUTILIZA siempre (extender, nunca copiar/duplicar).
 - P25: `apps/kol-system/AGENTS.md` vivo — creado en todo 21, actualizado al cierre de cada todo.
+- P28: scoring 100% configurable por template (`scoring_config`; follow-up todo 22).
 - Dual-run sem 2-8 + shadow/dry-run + staging 14 días + rollback rehearsal + cutover por flags + cleanup (archivar, NO dropear).
 
 ### Must NOT have (guardrails, anti-slop, scope boundaries)
@@ -101,70 +102,70 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
      Acceptance criteria: `npx jest apps/kol-system/src/shared --coverage` sin fallos; `grep -r "from 'typeorm'\|from 'axios'" apps/kol-system/src/shared/kernel apps/kol-system/src/shared/domain` vacío
      QA scenarios: happy suite verde; failure import externo en domain → mover a infrastructure. Evidence .omo/evidence/task-3-mega-refactor-kol-system.log
      Commit: Y | feat(kol-system): shared kernel y config
-- [ ] 4. Ingestion kol-type por HTTP+SSE (Ph3 spec + P3)
+- [x] 4. Ingestion kol-type por HTTP+SSE (Ph3 spec + P3)
      What to do / Must NOT do: `KolIngestionClient` (`GET /api/feed/sources?type=kol`, `GET /api/feed/messages`), SSE listener suscrito a `/api/ingestion/stream` filtrando `messageType==='kol'` client-side (P10: `'crypto-news'` prohibido aquí), `ProcessKolMessageHandler`, P20 SSE-ONLY sin polling (al reconectar, catch-up por cursor desde último messageId, NO cron), backoff 1s→30s. Tests: doble-delivery realtime+catch-up → 1 row. Must NOT crear endpoints nuevos en ingestion ni filtrar server-side.
      Parallelization: Wave 2 | Blocked by: 1, 2, 3 | Blocks: 5-8
      References: .kiro/specs/refactor-kol-system/overview.md:176-207; plan central C-SSE-01; apps/backend/src/telegram/ingestion/shared/api/sse/ (patrón backoff cliente)
      Acceptance criteria: `curl -s 'localhost:3031/api/feed/sources?type=kol' | jq length` >= 0; test doble-delivery verde; `grep -ri "crypto-news" apps/kol-system/src/ingestion` vacío (assert negativo P10)
      QA scenarios: happy mensaje kol ingerido <10s vía SSE; failure SSE caído → polling 1min lo repesca (test con stream mock caído). Evidence .omo/evidence/task-4-mega-refactor-kol-system.log
      Commit: Y | feat(kol-system): ingestion kol-type HTTP+SSE
-- [ ] 18. Deprecar ingestión KOL backend (P18, companion del 4)
+- [x] 18. Deprecar ingestión KOL backend (P18, companion del 4)
       What to do / Must NOT do: Tras verificar el todo 4, marcar `@deprecated` (headers + JSDoc con puntero `apps/kol-system/src/ingestion/`) en la contraparte backend (`apps/backend/src/telegram/ingestion/kol/` o equivalente real que el worker resuelva con lsp_find_references; si no existe contraparte directa, deprecation header en el consumer más cercano). El código backend sigue funcionando (dual-run). Tests legacy verdes. Must NOT borrar nada ni cambiar comportamiento.
       Parallelization: Wave 2 | Blocked by: 4 verificado | Blocks: 5
       References: .omo/drafts/mega-refactor-tramos.md (P18); scripts/add-deprecation-headers.js (patrón, si aplica)
       Acceptance criteria: `grep -r "@deprecated" apps/backend/src/telegram/ingestion/kol/ | wc -l` >= 1 (o header en consumer documentado en evidencia) + `npm run test:backend -- telegram/ingestion` verde
       QA scenarios: happy headers presentes y suite verde; failure sin contraparte → documentar dónde y por qué en evidencia, NO inventar. Evidence .omo/evidence/task-4b-mega-refactor-kol-system.log
       Commit: Y | chore(kol-system): depreca ingestión KOL backend (apunta a apps/kol-system)
-- [ ] 5. Extraction contrato×mención sin colapso (Ph4 spec + P5)
+- [x] 5. Extraction contrato×mención sin colapso (Ph4 spec + P5)
      What to do / Must NOT do: `ExtractFromMessageUseCase` directo (fix-1, sin event bus); por cada mención guarda contrato + timestamp + handle + url + channel info + db-id (`ExtractionCandidate`); multi-tip NO colapsa (override explícito del spec overview:64); repeats válidas. P26: cada extracción EMITE snapshot base (mención + 4 fechas: `occurredAt`→`occurred_at_telegram`, `ingested_at_kol`=now, `enriched_at` lo pone enrichment) hacia enrichment. Tests: 1 mensaje × 3 menciones → 3 filas + 3 snapshots base.
      Parallelization: Wave 2 | Blocked by: 4, 18 | Blocks: 6
      References: .omo/drafts/mega-refactor-tramos.md:122 (P5); .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:108-129; apps/backend/src/token/intake/extraction/ (origen a mover: extract-from-message.use-case.ts)
      Acceptance criteria: `psql -c "SELECT count(*) FROM extraction_candidates WHERE message_id='X'"` = 3 para fixture triple-mención
      QA scenarios: happy 3 filas; failure texto sin contrato → 0 filas, sin excepción. Evidence .omo/evidence/task-5-mega-refactor-kol-system.log
      Commit: Y | feat(kol-system): extraction por mención
-- [ ] 6. Parsing a ficha estructurada preservando menciones (Ph5 spec + P5)
+- [x] 6. Parsing a ficha estructurada preservando menciones (Ph5 spec + P5)
      What to do / Must NOT do: `ParseFromCandidatesUseCase` → `ParsedCall` (ticker, address, chain, kol ref); preserva 1:1 con candidatos (NO collapse-to-one). Tests property: nº parsed == nº candidates para fixture.
      Parallelization: Wave 2 | Blocked by: 5 | Blocks: 7
      References: .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:130-151; apps/backend/src/token/intake/parsing/ (origen: parse-from-candidates.use-case.ts)
      Acceptance criteria: `npx jest apps/kol-system/src/parsing` verde + invariante 1:1 en test
      QA scenarios: happy parse completo; failure ilegible → descartado con log, pipeline sigue. Evidence .omo/evidence/task-6-mega-refactor-kol-system.log
      Commit: Y | feat(kol-system): parsing preservando menciones
-- [ ] 7. Normalization como índice de menciones (Ph6 spec + G-12)
+- [x] 7. Normalization como índice de menciones (Ph6 spec + G-12)
      What to do / Must NOT do: `NormalizeCallUseCase` → índice `(contract, kol, messageId)` SIN colapso ("one card per coin" del spec queda EXPLÍCITAMENTE derogado); tabla menciones separada de canonical; `normalization.call.normalized` por mención. Tests: mismo contrato × 2 kols × 2 mensajes → 4 filas normalizadas.
      Parallelization: Wave 2 | Blocked by: 6 | Blocks: 8
      References: .omo/drafts/mega-refactor-tramos.md:118 (P1); .kiro/specs/refactor-kol-system/overview.md:100,1100 (derogado: merge duplicates)
      Acceptance criteria: `psql -c "SELECT count(*) FROM normalized_mentions"` = 4 para fixture; 0 llamadas a merge/collapse en `src/normalization`
      QA scenarios: happy 4 filas; failure duplicado realtime+polling → 1 fila (solo anti-doble-delivery). Evidence .omo/evidence/task-7-mega-refactor-kol-system.log
      Commit: Y | feat(kol-system): normalization como índice de menciones
-- [ ] 8. Enrichment vía MarketDataPort dual (Ph7 spec + C-DATA-01 + G-17)
+- [x] 8. Enrichment vía MarketDataPort dual (Ph7 spec + C-DATA-01 + G-17)
      What to do / Must NOT do: `EnrichmentOrchestratorService` contra `MarketDataPort` con DOS implementaciones: `local-cascade` (default, reutiliza lógica backend vía ports) y `http-market-data` (stub tras `USE_DATA_SERVICE_API=true`, timeout + SLO p95<500ms); `mc at` = snapshot al capturar (retraso documentado ≤30s, C-A). P26: enrichment completa snapshot en tabla `mention_snapshots` (P27: entidad propiedad del módulo `src/snapshot/`, MISMA DB kol-system; enrichment escribe vía port) (`occurred_at_telegram`, `ingested_at_kol`, `enriched_at`=`snapshot_at`, + market data) y lo envía al frontend. Tests con MockPort + test 4 fechas presentes por snapshot. Must NOT mover providers físicos ni llamar market-data en Tramo 1 (flag default false).
      Parallelization: Wave 2 | Blocked by: 7 | Blocks: 9
      References: .omo/drafts/mega-refactor-tramos.md:125 (P7); .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:173-195; apps/backend/src/token/enrichment/application/handlers/enrich-token.use-case.ts (cascada origen)
      Acceptance criteria: `USE_DATA_SERVICE_API=false npx jest apps/kol-system/src/enrichment` verde; con `=true` usa HTTP (test con mock server)
      QA scenarios: happy enrich con `mc at` persistido; failure provider caído → null + siguiente en cascada (silent null). Evidence .omo/evidence/task-8-mega-refactor-kol-system.log
      Commit: Y | feat(kol-system): enrichment dual-port con mc-at
-- [ ] 9. Scoring + classification-config por template (Ph8 spec + P6 + G-08)
+- [x] 9. Scoring + classification-config por template (Ph8 spec + P6 + G-08)
      What to do / Must NOT do: `ScoreTokenUseCase` (base 50, tiers, 8 fail-fast gates) + `ScoredCall`; classification COMO CONFIG por-template (canales visibles, score display, filtros gemas: threshold score + regex sobre enrichment) — SIN tabla `classified_calls`, SIN BC standalone; flujo `enrichment→scoring→templates`. Tests gates + ejemplo filtro gema.
      Parallelization: Wave 3 | Blocked by: 8 | Blocks: 10
      References: .omo/drafts/mega-refactor-tramos.md:124 (P6); .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:196-220; apps/backend AGENTS §SCORING & GATES (8 gates)
      Acceptance criteria: `grep -r "classified_calls" apps/kol-system/src` vacío; suite scoring verde
      QA scenarios: happy score + ranking; failure bajo-corte → descartado pre-publisher. Evidence .omo/evidence/task-9-mega-refactor-kol-system.log
      Commit: Y | feat(kol-system): scoring y classification por-template
-- [ ] 10. Templates CORE sin threads + bot-token cifrado (Ph9 spec + C1 + G-10 + G-11 + P9)
+- [x] 10. Templates CORE sin threads + bot-token cifrado (Ph9 spec + C1 + G-10 + G-11 + P9)
       What to do / Must NOT do: `PublishingTemplate` + `TemplateOrchestratorService` (cron 1min) + `RankingEngine` (4 estrategias) + CRUD (`Create/Update/Activate/GetRankings`) + `TemplatesController` (11 endpoints); `threadConfig: null` + endpoints `.../threads/*` → 501 + test que fija el stub; tabla `telegram_bots` (id, token cifrado AES-256-GCM vía `EncryptionService` + `ENCRYPTION_KEY`, label; reutilizable: mismo bot en varios canales/templates) + template con `bot_id` + `channel_target` (sin `bot_id` = solo dashboard) + CRUD frontend (`GET/POST/PATCH /api/templates/:id/bots`, redact `'***'` en GET) + verificación admin al asignar canal (`getChatMember` → administrator/creator, guarda `admin_verified_at`; publicar exige canal verificado) + migración + round-trip test; P22/P23: config Telegram 100% DB, CERO env `KOL_BOT_TOKEN` (todo 19 lo retira de setup+validación). P15 SUPERSEDED por P16: sin tabla `template_dashboards`. El template guarda `kolSourceIds: string[]` (vacío = todas las sources) + endpoint `PATCH /api/templates/:id/sources` validando channelIds contra `GET /api/feed/sources?type=kol`; seed `vip-calls` con selección vacía (todas). Must NOT threads implementados ni token en plano.
       Parallelization: Wave 3 | Blocked by: 9 | Blocks: 11
       References: .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:221-313; .kiro/specs/refactor-kol-system/overview.md:1263 (publishing_config JSONB),938 (redact); .omo/drafts/mega-refactor-tramos.md:126 (P9),111 (C1)
       Acceptance criteria: `curl -s -o /dev/null -w "%{http_code}" localhost:3050/api/templates/x/threads` = 501; `psql -c "SELECT token FROM template_bot_tokens"` ilegible sin key; `GET` redacta
       QA scenarios: happy CRUD + orchestrate; failure token ausente → publishing deshabilitado para ese template, resto sigue. Evidence .omo/evidence/task-10-mega-refactor-kol-system.log
       Commit: Y | feat(kol-system): templates core con stub threads y bot-token cifrado
-- [ ] 11. Approval + publishing multi-bot, movimiento KOL-bot (Ph10-11 spec + C2)
+- [x] 11. Approval + publishing multi-bot, movimiento KOL-bot (Ph10-11 spec + C2)
       What to do / Must NOT do: `CallApproval` + `EvaluateApproval` + `GetPendingApprovals`; `PublishingJob` + `PublishFromTemplate` + `ManualPublish`; `MultiBotPublisherAdapter` (KOL_BOT_TOKEN); MOVER (lsp_find_references primero) el KOL bot fuera de `backend telegram/shared` — primer movimiento C-SHARED-01; ticker nunca null pre-publisher. P14: seed de template por defecto NOMBRADO `vip-calls` (dato, no módulo); publicar o no lo decide el bot configurado del template. Tests + e2e publish en canal espejo.
       Parallelization: Wave 3 | Blocked by: 10 | Blocks: 15
       References: .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:315-384; apps/backend/src/telegram/vip-calls/vip-channel/ (origen); apps/backend/src/telegram/vip-calls/shared/infrastructure/senders/bot-api-telegram-publisher.adapter.ts:24-52 (token por config)
       Acceptance criteria: `curl -s localhost:3050/api/approvals/pending | jq length` >= 0; e2e espejo publica 1 call
       QA scenarios: happy approve→publish; failure `KOL_BOT_TOKEN` ausente → 401 sin postear nada real. Evidence .omo/evidence/task-11-mega-refactor-kol-system.log
       Commit: Y | feat(kol-system): approval y publishing multi-bot
-- [ ] 12. Tracking first-seen + rating +5x (Ph12 spec + P8 + G-14)
+- [x] 12. Tracking first-seen + rating +5x (Ph12 spec + P8 + G-14)
       What to do / Must NOT do: Columnas `first_seen_at`, `first_mc_at`, `last_call_mc_at`, `times_called`; job que las mantiene; `tracking` = `First time` vs `Nx from last call`; rating kol por calls +5x con fórmula + ejemplo numérico documentado; endpoint fila tabla. Ranking P11: job cron mantiene `kol_window_stats(caller, window, total_x, calls_count)` (múltiple = `last_mc/first_mc_at`, SUMA por caller + CONTEO de calls; display +NX 30D/7D, +% 1D) + `GET /api/kol-rankings?window=30d|7d|1d&sort=perf_desc|perf_asc|calls_desc` ordenado según sort. P26: el X de performance se calcula contra el ÚLTIMO snapshot de (caller, contrato) (`last_mc/snapshot MC`, ej. +55X). Tests: 2ª mención mismo kol+contrato → `2x from last call` con deltas; ranking con fixture 3 callers suma y conteo correctos por ventana.
       Parallelization: Wave 3 | Blocked by: 11 | Blocks: 14
       References: .omo/drafts/mega-refactor-tramos.md:125 (P8); apps/backend/src/token/normalization/infrastructure/persistence/typeorm/entities/canonical-token-call.entity.ts:84 (first_seen_at existente); .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:385-411
@@ -227,6 +228,13 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       Acceptance criteria: `test -f apps/kol-system/AGENTS.md && grep -c "P1[0-9]" apps/kol-system/AGENTS.md` >= 5 (decisiones pivot citadas)
       QA scenarios: happy todo futuro lo actualiza (verificar en reviews); failure link roto → `grep -o "\[.*\](.*)" AGENTS.md` y comprobar destinos. Evidence .omo/evidence/task-21-mega-refactor-kol-system.log
       Commit: Y | docs(kol-system): AGENTS.md vivo con regla de actualización
+- [x] 22. Scoring configurable por template (P28, follow-up del 9)
+      What to do / Must NOT do: Añadir `scoring_config` al modelo PublishingTemplate (pesos, bonus, penalties, tier thresholds, gate thresholds: min score, caps; defaults = v1 actual del todo 9); ScoreTokenUseCase lee la config del template de la mención (fallback a defaults si ausente); endpoint/UI edita `scoring_config` con validación (rangos); tests: mismo input con 2 configs distintas → scores distintos + defaults intactos cuando no hay config. Must NOT romper el default v1 (compatibilidad).
+      Parallelization: Wave 3 | Blocked by: 9, 10 (modelo template) | Blocks: 15 (staging lo valida)
+      References: .omo/drafts/mega-refactor-tramos.md (P28); apps/kol-system/src/scoring/ (fórmula v1 como defaults); apps/kol-system/src/templates/ (modelo a extender)
+      Acceptance criteria: `npx jest src/scoring src/templates` verde con test de 2-configs-distinto-score
+      QA scenarios: happy config custom cambia score; failure config inválida → 400 con mensaje, defaults intactos. Evidence .omo/evidence/task-22-mega-refactor-kol-system.log
+      Commit: Y | feat(kol-system): scoring configurable por template
 
 ## Final verification wave
 

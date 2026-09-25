@@ -10,7 +10,7 @@ import {
  *
  * Rules: only top-level `message:telegram` frames whose `data` carries
  * the KOL marker are accepted; everything else is ignored (no throw).
- * Realtime + polling double-delivery collapses to a single row via the
+ * Realtime + catch-up double-delivery collapses to a single row via the
  * seen-key set (`channelId:messageId`).
  */
 @Injectable()

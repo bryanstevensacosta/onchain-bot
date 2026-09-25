@@ -40,7 +40,7 @@ describe('ProcessKolMessageHandler', () => {
     expect(handler.processed).toHaveLength(0);
   });
 
-  it('collapses double-delivery (realtime + polling) into a single row', () => {
+  it('collapses double-delivery (realtime + catch-up) into a single row', () => {
     const handler = new ProcessKolMessageHandler();
     const frame = kolFrame('-100123', 9);
     expect(handler.handle(frame)).toBe(true);
