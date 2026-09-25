@@ -7,6 +7,7 @@ import { KolsPage } from '@/pages/kols';
 import { OpsPage } from '@/pages/ops';
 import { CryptoNewsPage } from '@/pages/crypto-news';
 import { PlaygroundPage } from '@/pages/playground';
+import { TemplateDashboardPage } from '@/pages/template-dashboard';
 import { ThreadsPage } from '@/pages/threads';
 
 export const router = createBrowserRouter([
@@ -21,6 +22,7 @@ export const router = createBrowserRouter([
       { path: 'crypto-news', element: <CryptoNewsPage /> },
       { path: 'playground', element: <PlaygroundPage /> },
       { path: 'threads', element: <ThreadsPage /> },
+      { path: 'templates', element: <TemplateDashboardPage /> },
       { path: 'ops', element: <OpsPage /> },
     ],
   },

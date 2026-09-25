@@ -3,10 +3,13 @@ import {
   ConflictException,
   Injectable,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { TelegramFeedSourceRepository } from '../../infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
 import type { TelegramFeedSourceType } from '../../infrastructure/persistence/typeorm/entities/telegram-feed-source.entity';
 import { TelegramListenerPort } from 'core/ports/telegram-listener.port';
+import { kolAvatarUrlFor } from '../../../avatar/avatar.constants';
+import { KolAvatarService } from '../../../avatar/kol-avatar.service';
 
 export interface RegisterNewsSourceInput {
   readonly channelId: string;
@@ -23,6 +26,8 @@ export interface RegisterNewsSourceOutput {
   readonly isActive: boolean;
   readonly lifecycleStatus: string;
   readonly addedAt: string;
+  /** P19: permanent avatar URL (file-or-placeholder, always servable). */
+  readonly avatarUrl: string;
 }
 
 export interface BatchSourceItem {
@@ -78,6 +83,7 @@ export class RegisterNewsSourceUseCase {
   constructor(
     private readonly sourceRepo: TelegramFeedSourceRepository,
     private readonly telegramListener: TelegramListenerPort,
+    @Optional() private readonly avatars?: KolAvatarService,
   ) {}
 
   public async execute(
@@ -90,8 +96,7 @@ export class RegisterNewsSourceUseCase {
     const normalizedChannelId = this.normalizeChannelId(input.channelId);
 
     // Check for duplicates
-    const existing =
-      await this.sourceRepo.findByChannelId(normalizedChannelId);
+    const existing = await this.sourceRepo.findByChannelId(normalizedChannelId);
     if (existing) {
       const handleInfo = existing.handle ? `@${existing.handle}` : 'no handle';
       throw new ConflictException(
@@ -147,6 +152,10 @@ export class RegisterNewsSourceUseCase {
       `Registered new feed source: ${saved.channelId} (${saved.title})`,
     );
 
+    // P19 fetch-ONCE: KOL sources resolve their avatar at registration
+    // (best-effort — MTProto miss keeps the placeholder, registration wins).
+    this.kickAvatarFetch(saved.channelId, saved.type);
+
     // Return output
     return {
       channelId: saved.channelId,
@@ -156,6 +165,7 @@ export class RegisterNewsSourceUseCase {
       isActive: saved.isActive,
       lifecycleStatus: saved.lifecycleStatus,
       addedAt: saved.addedAt?.toISOString() ?? new Date().toISOString(),
+      avatarUrl: kolAvatarUrlFor(saved.channelId),
     };
   }
 
@@ -193,9 +203,7 @@ export class RegisterNewsSourceUseCase {
     const results: RegisterNewsSourceOutput[] = [];
 
     for (const entry of normalized) {
-      const existing = await this.sourceRepo.findByChannelId(
-        entry.channelId,
-      );
+      const existing = await this.sourceRepo.findByChannelId(entry.channelId);
       if (!existing) {
         let title = entry.title?.trim();
         if (!title) {
@@ -216,12 +224,17 @@ export class RegisterNewsSourceUseCase {
         const saved = await this.sourceRepo.save(createdEntity);
         created += 1;
         results.push(this.toOutput(saved));
+        this.kickAvatarFetch(saved.channelId, saved.type);
         continue;
       }
 
       let touched = false;
       const nextTitle = entry.title?.trim();
-      if (nextTitle !== undefined && nextTitle !== '' && nextTitle !== existing.title) {
+      if (
+        nextTitle !== undefined &&
+        nextTitle !== '' &&
+        nextTitle !== existing.title
+      ) {
         existing.title = nextTitle;
         touched = true;
       }
@@ -250,9 +263,7 @@ export class RegisterNewsSourceUseCase {
         existing.isActive = entry.isActive;
         touched = true;
       }
-      const saved = touched
-        ? await this.sourceRepo.save(existing)
-        : existing;
+      const saved = touched ? await this.sourceRepo.save(existing) : existing;
       if (touched) {
         updated += 1;
       }
@@ -352,7 +363,32 @@ export class RegisterNewsSourceUseCase {
       isActive: saved.isActive,
       lifecycleStatus: saved.lifecycleStatus,
       addedAt: saved.addedAt?.toISOString() ?? new Date().toISOString(),
+      avatarUrl: kolAvatarUrlFor(saved.channelId),
     };
+  }
+
+  /**
+   * P19 fetch-ONCE hook: fire-and-forget avatar fetch for newly registered
+   * KOL sources. Never fails registration — `fetchOnce` resolves to
+   * `placeholder` on MTProto trouble (deferred retry via explicit refresh).
+   */
+  private kickAvatarFetch(
+    channelId: string,
+    type: TelegramFeedSourceType,
+  ): void {
+    if (type !== 'kol' || !this.avatars) {
+      return;
+    }
+    void this.avatars
+      .fetchOnce(channelId)
+      .then((status) =>
+        this.logger.log(`Avatar fetch-once for ${channelId}: ${status}`),
+      )
+      .catch((error: unknown) =>
+        this.logger.warn(
+          `Avatar fetch-once failed for ${channelId} (${error instanceof Error ? error.message : String(error)})`,
+        ),
+      );
   }
 
   /**

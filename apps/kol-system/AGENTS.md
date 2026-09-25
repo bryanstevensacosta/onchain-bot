@@ -9,7 +9,7 @@
 
 Contents: OVERVIEW · HOW IT WORKS (non-technical) · PROGRAM INDEX · COMMANDS ·
 STRUCTURE · MODULES · INGESTION · ENV INVENTORY · PORTS · HEALTH ·
-TS/ESLINT CONVENTIONS · TESTS · MODULE MAP · SNAPSHOTS · GAPS ·
+TS/ESLINT CONVENTIONS · TESTS · MODULE MAP · SNAPSHOTS · GAPS · DECISIONS ·
 STANDING RULE · NOTES
 
 ## OVERVIEW
@@ -113,33 +113,23 @@ at | time ago | more details +`.
   with range validation (400 on invalid, stored config left intact).
 - **P25 — this file is living**: created in todo 21, updated at the close of
   every task set (see STANDING RULE).
+- **P2 — verify each point separately**: plan Tramo 1 verifies P3–P9 with
+  dedicated explore/librarian passes before implementing.
 - **P6/P7/P8/P9 — templates own classification; enrichment bridges market-data;
   tracking is first-seen; bots are per-template optional**: no separate
   classification BC (channel picker + score viz + gem filters live in the
   template); enrichment consumes `apps/market-data` for `mc at` + `more details
 +`; tracking = `First time` vs `Nx from last call`; each template may carry
   its own publishing bot token (BYO-token, viable publishing-only).
-- **P11/P17 — rankings + horizontal layout**: `GET /api/kol-rankings?window=30d|7d|1d`
-  over cron-fed `kol_window_stats(caller, window, total_x, calls_count)`;
-  multiple per call = `last_mc / first_mc_at`, SUM per caller; performance rank
-  horizontal 10 (5 left + 5 right, arrows flip asc/desc) + top-10 callers strip
-  by call count with 30D/7D/1D selector.
-- **P19/P20 — avatar fetch-once + SSE-only**: ingestion-telegram resolves the
-  channel avatar once at source registration, stores it permanently (excluded
-  from the 72h janitor), serves it via feed projection; kol-system consumes the
-  URL only, never polls — SSE filtered client-side + catch-up by cursor.
-- **P26/P27 — snapshots in own module, same DB**: every extraction emits a
-  snapshot base with 4 dates (`occurred_at_telegram`, `ingested_at_kol`,
-  `enriched_at`, `snapshot_at`); module `src/snapshot/` owns `mention_snapshots`
-  inside the kol-system DB (no separate base); performance compares against the
-  LAST snapshot of (caller, contract).
+- **P11 — ranking formula** (layout lives in the P17 bullet above): multiple
+  per call = `last_mc / first_mc_at` (market-data enriched), SUM per caller per
+  window, cron-fed `kol_window_stats`; display +NX on 30D/7D, +% on 1D.
 - **P12-bis/P13 — Dexter lookup is NOT here**: bot lookup lives in
   `apps/dexter-onchain-bot/` (Tramo 3), fed by `apps/market-data`; kol-system
   keeps only per-template publishing bots. C1: thread support is deferred —
   templates ship with `threadConfig: null` + 501 stub; v2 arrives with
-  content-publisher.
-- **P2 — verify each point separately**: plan Tramo 1 verifies P3–P9 with
-  dedicated explore/librarian passes before implementing.
+  content-publisher (threads stub C1 lives in
+  `.omo/plans/mega-refactor-content-publisher.md` todo 8).
 - **C-DB-01 — one DB per app**: kol-system owns `<base>_kol_system[_staging]`
   on the same server per env (12-DB table in the central plan); own
   `data-source.ts`, own migrations, `synchronize:false, migrationsRun:false`
@@ -148,6 +138,8 @@ at | time ago | more details +`.
   `data.messageType: 'kol'|'crypto-news'`; kol-system subscribes ONLY to
   `'kol'` client-side (+ `?type=kol` where the query param exists); subscribing
   to `crypto-news` is forbidden here (mirror rule binds content-publisher).
+- **C2 — C-SHARED-01 inverted**: Tramo 1 moves the KOL bot out of
+  `telegram/shared` first; Tramo 2 extracts the crypto-news adapters after.
 
 ## HOW THE SYSTEM WORKS (non-technical)
 
@@ -1048,43 +1040,6 @@ Explicitly NOT in kol-system: `crypto-news` (content-publisher, P10),
 (`apps/dexter-onchain-bot`, P13), data providers (Tramo 3 owns extraction,
 contract C-DATA-01 — consume via ports, never move).
 
-## SNAPSHOT MODULE (P26/P27 — own module, same DB)
-
-`src/snapshot/` owns `mention_snapshots` (+ future aggregates) inside the
-kol-system DB. Extraction emits the snapshot base per mention (contract +
-`occurred_at_telegram` from ingestion + `ingested_at_kol=now`); enrichment
-completes it (`enriched_at=snapshot_at` + market data) and writes via port so
-snapshot+mención stay atomic in one transaction. Tracking joins
-mención↔snapshot locally; performance X of a call compares `last_mc` against
-the LAST snapshot MC of that (caller, contract) (e.g. +55X). No separate base;
-split (timescale/partitioning) only as a later phase if volume demands it.
-
-## DASHBOARD LAYOUT (P16/P11/P17 — one dashboard per template)
-
-Each template has ONE dashboard with a KOL source multi-select
-(`kolSourceIds: string[]`, empty = all; picker fed by
-`GET /api/feed/sources?type=kol`, mentions filtered locally). Columns:
-`caller | call | mc at | tracking | time ago | more details +` (P5/P8; caller =
-handle + url + db-id + avatar). Ranking block: performance horizontal 10 (5
-left + 5 right, arrows toggle `sort=perf_asc|perf_desc`) over
-`kol_window_stats.total_x`, plus a top-10 callers-by-count strip with
-30D/7D/1D selector over `calls_count`; display +NX on 30D/7D, +% on 1D. Below:
-extended template config section (sources, score display, gem filters, bot).
-Legacy backend dashboard coexists until cutover — never break it early.
-
-## BOTS CATALOG (P22/P23/P23-bis — DB, zero KOL_BOT_TOKEN)
-
-No `KOL_BOT_TOKEN` exists, not even as seed (P23 follow-up removes it from
-validation if todos 2-3 added it). Reusable catalog `telegram_bots` (id,
-encrypted token, label) + template fields `bot_id` + `channel_target`; one bot
-may publish for many templates/channels (A = bot X + channel 1, B = bot X +
-channel 2); no `bot_id` = dashboard-only. Legacy per-template table
-`template_bot_tokens` (P22) converges into this catalog. Target flow:
-pick saved bot or add new → pick `channel_target` among channels where THAT
-bot is admin (verified via Bot API `getChatMember`, stored
-`admin_verified_at`); verified channels reusable as suggestions. Rotation = UI
-update, no redeploy; tokens AES-256-GCM encrypted (shared pattern).
-
 ## EXTRACTION → ENRICHMENT → FRONTEND FLOW
 
 - Extraction (P5) extracts the smart contract per mention (contract × mention,
@@ -1132,9 +1087,16 @@ demands.
      exist as unwired hook points; wiring lands with the composite-health todo.
 4. `buildAppConfig().port` reads `PORT ?? 3030` while `main.ts` uses
    `KOL_SYSTEM_PORT ?? 3050` — bare `PORT` will mislead.
-5. P19 avatar pipeline (ingestion resolves + serves permanently, excluded
-   from 72h janitor, `avatarUrl` in feed projection, fetch-once) has no
-   consumer here yet.
+5. RESOLVED 2026-09-25 (todo 13) — P19 consumer built:
+   `KolAvatarResolverService` (`src/ingestion/application/services/`,
+   exported by `IngestionModule`) matches callers (channelId or handle,
+   `@` tolerated) against `GET /api/feed/sources?type=kol` rows in one
+   read per request; unknown callers + feed outages fall back to
+   `/api/kol-avatar/<caller>` (placeholder 200 downstream, never throws).
+   `GET /api/kol-rankings` rows and `GET /api/templates/:id/rankings`
+   items carry `avatarUrl` (null without a resolver = dashboard renders
+   placeholder). `KolSource.avatarUrl` parsed from the projection
+   (`avatarUrl`/`avatar_url`, null when absent).
 6. RESOLVED 2026-09-25 (todo 12) — `src/tracking/` + `TrackedMention`
    (first-seen, own `first_mc_at`) + kol +5x rating (backend
    `Outcome.STRONG>=5x` mirror) + `TrackingCronService` (1 min cron,
@@ -1164,7 +1126,7 @@ sort=perf_desc|perf_asc|calls_desc`, wired (`TrackingModule` in
     `eslint.config.*` in kol-system yet — `npm run lint` errors repo-wide
     (pre-existing; gates here are prettier + tsc + jest).
 
-## DECISIONS (P1–P27 + contracts — one line each, 2026-09-24)
+## DECISIONS (P1–P29 + contracts — one line each, 2026-09-24)
 
 - P1 (2026-09-24): no dedup of any kind in kol-system; repeats are first-class rows.
 - P2 (2026-09-24): Tramo 1 plan verifies P3–P9 with separate explore/librarian passes.
@@ -1194,6 +1156,8 @@ sort=perf_desc|perf_asc|calls_desc`, wired (`TrackingModule` in
 - P25 (2026-09-24): this AGENTS.md is living — updated at the close of every task set.
 - P26 (2026-09-24): snapshot per extraction with 4 dates (`occurred_at_telegram`, `ingested_at_kol`, `enriched_at`, `snapshot_at`).
 - P27 (2026-09-24): snapshots in own module `src/snapshot/`, SAME kol-system DB (default, a veto).
+- P28 (2026-09-24): scoring configurable per template (`scoring_config`, defaults = v1; UI-editable).
+- P29 (2026-09-24): avatar resolution reuses ingestion-telegram's safety/rate-limit guard (no own limiter).
 - C-DB-01 (2026-09-24): one-DB-per-app `<base>_<app>` same-server per env (12 DBs; central todo 2).
 - C-SSE-01 (2026-09-24): frames carry `data.messageType`; filtering is mandatory client-side (central todo 5).
 - C1 (2026-09-24): threads deferred — templates ship `threadConfig: null` + 501 stub; v2 with content-publisher.

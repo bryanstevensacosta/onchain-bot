@@ -65,6 +65,7 @@ describe('ApiKeyGuard', () => {
       ['GET', '/api/feed/sources/active/ids'],
       ['GET', '/api/feed/stats'],
       ['GET', '/api/media/-1001/2/0'],
+      ['GET', '/api/kol-avatar/-1001'],
       ['GET', '/api/health'],
       ['GET', '/api/health/live'],
       ['GET', '/api/health/ready'],
@@ -97,6 +98,13 @@ describe('ApiKeyGuard', () => {
       const guard = new ApiKeyGuard(mockConfigService(TEST_KEY));
       expect(() =>
         guard.canActivate(makeContext('POST', '/api/feed/sources')),
+      ).toThrow('Invalid or missing API key');
+    });
+
+    it('401s on explicit avatar refresh without key', () => {
+      const guard = new ApiKeyGuard(mockConfigService(TEST_KEY));
+      expect(() =>
+        guard.canActivate(makeContext('POST', '/api/kol-avatar/-1001/refresh')),
       ).toThrow('Invalid or missing API key');
     });
 

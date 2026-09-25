@@ -101,6 +101,8 @@ Raíz: package.json (@alpha-meta-token-scanner/ingestion-telegram), Dockerfile (
 
 ~~`GET /api/ingestion/backfill/:channelId` + `GET /api/ingestion/stream/status`~~ — **DELETED** (per-env T4 con la capa multi-backend: registry controller/DTO/service/entity, union, SSEBroadcast + bloque dual, tracker, buffer+entity, breaker, legacy controller). No hay register-flow ni status de backends; el stream es la única vía.
 | `GET /api/media/:channelId/:messageId/:index` | MediaController.serveMedia | Stream archivo `{messageId}_{index}.*` desde `uploads/crypto-news/media/{channelId}/`; 400 params no numéricos; 404 dir/archivo; `Cache-Control: public, max-age=31536000` + ETag + Accept-Ranges |
+| `GET /api/kol-avatar/:channelId` | KolAvatarController.serveAvatar | **NEW 2026-09-25 (todo 13, P19)**: foto permanente `{channelId}.jpg` desde `uploads/avatar/` (200, 1y cache) o placeholder SVG inline (200) si nunca se resolvió / falló MTProto; 400 id hostil. GET público (keyless, como `/api/media/*`) |
+| `POST /api/kol-avatar/:channelId/refresh` | KolAvatarController.refreshAvatar | **NEW 2026-09-25 (todo 13, P19)**: refresh manual EXPLÍCITO (única re-descarga; sin loop periódico) vía guard serializado + flood-wait (P29); 201 `{channelId, avatar: fetched\|cached\|placeholder, avatarUrl}`. Protegido (POST → API key si set) |
 | `POST /api/crypto-news/sources` | CryptoNewsController.addSource | **NEW 2026-09-05**: Creates crypto-news source in ingestion-telegram DB. Body: `{channelId, title?, handle?}`. Returns 201 + source view. Replaces backend endpoint (now deprecated, returns 501). Ingestion-telegram is SOLE OWNER of crypto-news sources. |
 | `GET /api/health` | HealthController.getHealth | ⚠️ **Stubs**: `HealthModule` provee `'TelegramClientManager' → null` y `'FloodWaitCounter' → null` → responde `mtproto{connected:true, authorized:true}` por fallback, `channels` todo `0`, sin `floodWait`. El manager real ni implementa esa interfaz (ver Gaps). `warnings[]` siempre vacío (el tracker que lo alimentaba fue eliminado per-env T4); 200 ok / 503 degraded |
 | `GET /api/health/ready` / `GET /api/health/live` | HealthController | readiness (acepta SSE) / liveness (proceso vivo) — únicos endpoints con datos reales |
@@ -113,6 +115,9 @@ Eventos SSE: `connection:established`, `message:telegram`, `health:ping` (cada 3
 Feed reads (`GET /api/feed/messages`): `?type=kol|crypto-news` filtra a nivel SQL (`findRecent(limit, typeFilter)`).
 Valor inválido → 400 (`type must be one of kol, crypto-news`).
 Sin `type` devuelve mixto (legacy default, backward compatible).
+Feed sources (`GET /api/feed/sources[?type=]`): cada fila lleva `avatarUrl: /api/kol-avatar/:channelId` (P19, 2026-09-25 — kol-system lo consume para rankings + caller display; siempre servable: foto o placeholder 200).
+
+KOL avatars (todo 13, P19 + P29, 2026-09-25): `src/avatar/` (`AvatarModule`, importado por `RetentionModule`; reusa `SharedModule` — sin limiter ni cliente MTProto propios). Fetch-ONCE al registrar source kol (`RegisterNewsSourceUseCase` → `KolAvatarService.fetchOnce`, fire-and-forget, nunca tumba el alta); MTProto miss → placeholder + retry diferido vía refresh explícito. Storage permanente `uploads/avatar/` + columnas nullable `avatar_path`/`avatar_updated_at` en `telegram_feed_sources` (migración `1790300000000-KolAvatarColumns`; el FILE manda al servir). EXCLUIDO del janitor 72h: sus dos pasadas SQL tocan solo `telegram_feed_message*` y el orphan-sweep camina solo `uploads/feed/media/` (pinned por `kol-avatar.janitor.spec.ts`).
 
 ## Pipeline de mensajes
 

@@ -33,6 +33,7 @@ import { TemplatesController } from './api/http/templates.controller';
 import { TelegramBotsController } from './api/http/telegram-bots.controller';
 import { ThreadsStubController } from './api/http/threads-stub.controller';
 import { TemplatesHealthIndicator } from './health/templates-health.indicator';
+import { IngestionModule } from '../ingestion/ingestion.module';
 
 /**
  * TemplatesModule — templates CORE without threads (Tramo 1, todo 10,
@@ -55,6 +56,7 @@ import { TemplatesHealthIndicator } from './health/templates-health.indicator';
     ScheduleModule.forRoot(),
     ScoringModule,
     forwardRef(() => ApprovalModule),
+    IngestionModule,
   ],
   controllers: [
     TemplatesController,

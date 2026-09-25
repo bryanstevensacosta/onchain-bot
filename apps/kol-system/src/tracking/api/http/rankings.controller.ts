@@ -1,10 +1,14 @@
-import { Controller, Get, Query, UseFilters } from '@nestjs/common';
+import { Controller, Get, Optional, Query, UseFilters } from '@nestjs/common';
 import { DomainExceptionFilter } from '../../../shared/filters/domain-exception.filter';
 import type { KolWindowStat } from '../../domain/entities/kol-window-stat.entity';
 import { GetKolRankingsUseCase } from '../../application/use-cases/get-kol-rankings.use-case';
+import { KolAvatarResolverService } from '../../../ingestion/application/services/kol-avatar-resolver.service';
 import { RankingsQueryDto } from './dto/rankings-query.dto';
 
-function toJson(stat: KolWindowStat): Record<string, unknown> {
+function toJson(
+  stat: KolWindowStat,
+  avatarUrl: string | null,
+): Record<string, unknown> {
   return {
     caller: stat.caller,
     window: stat.window,
@@ -12,6 +16,7 @@ function toJson(stat: KolWindowStat): Record<string, unknown> {
     callsCount: stat.callsCount,
     strongCalls: stat.strongCalls,
     display: stat.display,
+    avatarUrl,
   };
 }
 
@@ -26,7 +31,10 @@ function toJson(stat: KolWindowStat): Record<string, unknown> {
 @Controller('api/kol-rankings')
 @UseFilters(DomainExceptionFilter)
 export class RankingsController {
-  public constructor(private readonly rankings: GetKolRankingsUseCase) {}
+  public constructor(
+    private readonly rankings: GetKolRankingsUseCase,
+    @Optional() private readonly avatars?: KolAvatarResolverService,
+  ) {}
 
   @Get()
   public async list(
@@ -36,6 +44,9 @@ export class RankingsController {
       window: query.window,
       sort: query.sort,
     });
-    return rows.map(toJson);
+    const avatarUrls = this.avatars
+      ? await this.avatars.resolveMany(rows.map((row) => row.caller))
+      : {};
+    return rows.map((row) => toJson(row, avatarUrls[row.caller] ?? null));
   }
 }

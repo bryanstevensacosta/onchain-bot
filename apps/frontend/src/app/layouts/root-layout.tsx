@@ -7,6 +7,7 @@ const NAV = [
   { to: '/crypto-news', label: 'News' },
   { to: '/playground', label: 'Playground' },
   { to: '/threads', label: 'Threads' },
+  { to: '/templates', label: 'Templates' },
   { to: '/ops', label: 'Ops' },
 ];
 

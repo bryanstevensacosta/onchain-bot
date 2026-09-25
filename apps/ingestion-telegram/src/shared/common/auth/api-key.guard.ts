@@ -22,13 +22,16 @@ import { timingSafeEqual } from 'node:crypto';
  *   timing-safe key match, else 401.
  *
  * Public allowlist (GET only, exact prefixes):
- * - /api/feed/*, /api/media/*, /api/health, /api/health/live, /api/health/ready
+ * - /api/feed/*, /api/media/*, /api/kol-avatar/*, /api/health, /api/health/live, /api/health/ready
  *   (Docker HEALTHCHECK hits /api/health — must stay public).
  * Protected: /api/ingestion/stream, /debug/*, /metrics, everything else
  * (including POST/PATCH/DELETE under /api/feed).
  */
 const PUBLIC_FEED_PREFIX = '/api/feed';
 const PUBLIC_MEDIA_PREFIX = '/api/media';
+// P19: avatar reads are public like media (file-or-placeholder, always 200);
+// the explicit POST refresh stays protected.
+const PUBLIC_AVATAR_PREFIX = '/api/kol-avatar';
 const HEALTH_EXACT = '/api/health';
 const HEALTH_LIVE_PREFIX = '/api/health/live';
 const HEALTH_READY_PREFIX = '/api/health/ready';
@@ -66,6 +69,9 @@ export function isPublicApiKeyExempt(method: string, rawPath: string): boolean {
     return true;
   }
   if (matchesPrefix(path, PUBLIC_MEDIA_PREFIX)) {
+    return true;
+  }
+  if (matchesPrefix(path, PUBLIC_AVATAR_PREFIX)) {
     return true;
   }
   return false;

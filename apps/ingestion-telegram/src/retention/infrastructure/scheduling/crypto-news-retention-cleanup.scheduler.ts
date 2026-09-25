@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { promises as fs } from 'fs';
+import * as path from 'path';
 import { DataSource } from 'typeorm';
 import type { AppConfig } from 'shared/common/config/app.config';
 import {
@@ -273,8 +274,11 @@ export class CryptoNewsRetentionCleanupScheduler {
   }
 
   private async cleanupOrphanFiles(): Promise<number> {
-    const { readdir, stat, unlink } = await import('fs/promises');
-    const path = await import('path');
+    // Static imports (testable under jest; dynamic import() needs
+    // --experimental-vm-modules and silently disabled this sweep in tests).
+    // Scope is FIXED to the message-media tree: avatar storage
+    // (`uploads/avatar/`) is never walked (P19, pinned by spec).
+    const { readdir, stat, unlink } = fs;
 
     const uploadsRoot: string =
       this.config.get('app.uploads.root') ??

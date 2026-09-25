@@ -8,6 +8,7 @@ import { GetKolRankingsUseCase } from './application/use-cases/get-kol-rankings.
 import { TrackingCronService } from './application/services/tracking-cron.service';
 import { RankingsController } from './api/http/rankings.controller';
 import { TrackingHealthIndicator } from './health/tracking-health.indicator';
+import { IngestionModule } from '../ingestion/ingestion.module';
 
 /**
  * TrackingModule — first-seen + rating + rankings API (Tramo 1, todo 12,
@@ -30,6 +31,7 @@ import { TrackingHealthIndicator } from './health/tracking-health.indicator';
  * (a duplicate would fork the scheduler registry).
  */
 @Module({
+  imports: [IngestionModule],
   controllers: [RankingsController],
   providers: [
     RecordMentionUseCase,

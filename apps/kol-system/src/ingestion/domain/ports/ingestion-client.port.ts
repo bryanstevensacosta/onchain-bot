@@ -17,6 +17,12 @@ export interface KolSource {
   title: string | null;
   handle: string | null;
   type: string;
+  /**
+   * P19: permanent avatar URL from the feed projection
+   * (`GET /api/feed/sources?type=kol`). Null when the projection predates
+   * avatars — consumers fall back to the servable placeholder.
+   */
+  avatarUrl: string | null;
 }
 
 export abstract class KolIngestionClientPort {

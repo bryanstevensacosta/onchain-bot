@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   Inject,
+  Optional,
   Param,
   Patch,
   Post,
@@ -14,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { DomainExceptionFilter } from '../../../shared/filters/domain-exception.filter';
 import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
+import { KolAvatarResolverService } from '../../../ingestion/application/services/kol-avatar-resolver.service';
 import { TemplateRepository } from '../../domain/ports/template.repository';
 import type { PublishingTemplate } from '../../domain/entities/publishing-template.entity';
 import { CreateTemplateUseCase } from '../../application/use-cases/create-template.use-case';
@@ -95,6 +97,7 @@ export class TemplatesController {
     private readonly assignChannel: AssignTemplateChannelUseCase,
     @Inject(forwardRef(() => GetPendingApprovalsUseCase))
     private readonly pendingApprovals: GetPendingApprovalsUseCase,
+    @Optional() private readonly avatars?: KolAvatarResolverService,
   ) {}
 
   @Get()
@@ -173,6 +176,9 @@ export class TemplatesController {
       strategy: query.strategy,
       limit: query.limit,
     });
+    const avatarUrls = this.avatars
+      ? await this.avatars.resolveMany(ranked.map((call) => call.kolId))
+      : {};
     return {
       templateId,
       strategy,
@@ -184,6 +190,7 @@ export class TemplatesController {
         rank: call.rank,
         strategy: call.strategy,
         scoredAt: call.scoredAt.toISOString(),
+        avatarUrl: avatarUrls[call.kolId] ?? null,
       })),
     };
   }

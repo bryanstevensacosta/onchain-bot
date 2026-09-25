@@ -54,6 +54,22 @@ export class TelegramFeedSourceEntity {
   @Column({ name: 'last_ingested_at', type: 'timestamptz', nullable: true })
   public lastIngestedAt!: Date | null;
 
+  /**
+   * KOL avatar bookkeeping (Tramo 1, todo 13, P19).
+   *
+   * Absolute path of the permanent photo under `uploads/avatar/` (served at
+   * `GET /api/kol-avatar/:channelId`). NULL = never fetched or MTProto miss
+   * (placeholder served). The FILE is the source of truth for serving; these
+   * columns are bookkeeping only. Nullable so pre-avatar rows stay valid;
+   * excluded from the 72h janitor with the files (janitor touches only
+   * `telegram_feed_message*` + `uploads/feed/media/`).
+   */
+  @Column({ name: 'avatar_path', type: 'varchar', length: 512, nullable: true })
+  public avatarPath!: string | null;
+
+  @Column({ name: 'avatar_updated_at', type: 'timestamptz', nullable: true })
+  public avatarUpdatedAt!: Date | null;
+
   @CreateDateColumn({ name: 'added_at', type: 'timestamptz' })
   public addedAt!: Date;
 

@@ -7,6 +7,7 @@ import { TelegramFeedMessageRepository } from 'feed/infrastructure/persistence/t
 import { SourcesController } from 'registry/api/http/sources.controller';
 import { FeedController } from 'feed/api/http/feed.controller';
 import { RegisterNewsSourceUseCase } from 'registry/application/use-cases/register-news-source.use-case';
+import { AvatarModule } from '../avatar/avatar.module';
 import { CryptoNewsRetentionCleanupScheduler } from './infrastructure/scheduling/crypto-news-retention-cleanup.scheduler';
 import { DiskMonitorService } from './infrastructure/scheduling/disk-monitor.service';
 
@@ -40,6 +41,7 @@ import { DiskMonitorService } from './infrastructure/scheduling/disk-monitor.ser
 @Module({
   imports: [
     SharedModule,
+    AvatarModule, // KOL avatars (P19): controller + fetch-once for RegisterNewsSourceUseCase
     TypeOrmModule.forFeature([
       TelegramFeedMessageEntity,
       TelegramFeedMessageMediaEntity,

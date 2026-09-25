@@ -12,6 +12,8 @@ export interface RawKolSourceDto {
   handle?: unknown;
   username?: unknown;
   type?: unknown;
+  avatarUrl?: unknown;
+  avatar_url?: unknown;
 }
 
 function asString(value: unknown): string | null {
@@ -29,5 +31,6 @@ export function toKolSource(raw: RawKolSourceDto): KolSource | null {
     title: asString(raw.title),
     handle: asString(raw.handle) ?? asString(raw.username),
     type: asString(raw.type) ?? 'kol',
+    avatarUrl: asString(raw.avatarUrl) ?? asString(raw.avatar_url),
   };
 }

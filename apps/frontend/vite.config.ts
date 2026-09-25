@@ -14,6 +14,8 @@ export default defineConfig(({ mode }) => {
     env.BACKEND_PROXY_TARGET ?? 'http://localhost:3030';
   const INGESTION_PROXY_TARGET =
     env.INGESTION_PROXY_TARGET ?? 'http://localhost:3031';
+  const KOL_SYSTEM_PROXY_TARGET =
+    env.KOL_SYSTEM_PROXY_TARGET ?? 'http://localhost:3050';
   // Hosts permitidos (el acceso por Tailscale llega con otro Host header).
   const ALLOWED_HOSTS = (
     env.VITE_ALLOWED_HOSTS ??
@@ -92,6 +94,11 @@ export default defineConfig(({ mode }) => {
           target: INGESTION_PROXY_TARGET,
           changeOrigin: false,
           rewrite: (path) => path.replace(/^\/ingestion-api/, '/api'),
+        },
+        '/kol-api': {
+          target: KOL_SYSTEM_PROXY_TARGET,
+          changeOrigin: false,
+          rewrite: (path) => path.replace(/^\/kol-api/, '/api'),
         },
         '/socket.io': {
           target: BACKEND_PROXY_TARGET,

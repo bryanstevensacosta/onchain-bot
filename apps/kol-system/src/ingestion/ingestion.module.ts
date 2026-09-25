@@ -3,6 +3,7 @@ import { KolIngestionClientPort } from './domain/ports/ingestion-client.port';
 import { IngestionHttpClientAdapter } from './infrastructure/http/ingestion-http-client.adapter';
 import { ProcessKolMessageHandler } from './application/handlers/process-kol-message.handler';
 import { KolIngestionClientService } from './application/services/kol-ingestion-client.service';
+import { KolAvatarResolverService } from './application/services/kol-avatar-resolver.service';
 
 /**
  * IngestionModule - KOL feed ingestion for kol-system (Tramo 1, todo 4).
@@ -16,11 +17,16 @@ import { KolIngestionClientService } from './application/services/kol-ingestion-
   providers: [
     ProcessKolMessageHandler,
     KolIngestionClientService,
+    KolAvatarResolverService,
     {
       provide: KolIngestionClientPort,
       useClass: IngestionHttpClientAdapter,
     },
   ],
-  exports: [KolIngestionClientPort, KolIngestionClientService],
+  exports: [
+    KolIngestionClientPort,
+    KolIngestionClientService,
+    KolAvatarResolverService,
+  ],
 })
 export class IngestionModule {}

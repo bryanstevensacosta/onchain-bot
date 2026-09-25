@@ -21,6 +21,7 @@ import {
 } from '@nestjs/swagger';
 import { TelegramFeedSourceRepository } from '../../infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
 import type { TelegramFeedSourceType } from '../../infrastructure/persistence/typeorm/entities/telegram-feed-source.entity';
+import { kolAvatarUrlFor } from '../../../avatar/avatar.constants';
 import {
   RegisterNewsSourceUseCase,
   type RegisterFeedSourceBatchInput,
@@ -71,7 +72,10 @@ export class SourcesController {
 
   @Post('sources')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Register a Telegram channel as a feed source (sole owner endpoint)' })
+  @ApiOperation({
+    summary:
+      'Register a Telegram channel as a feed source (sole owner endpoint)',
+  })
   @ApiResponse({ status: 201, description: 'Source registered' })
   @ApiResponse({ status: 400, description: 'Invalid channelId format' })
   @ApiResponse({ status: 409, description: 'Channel already registered' })
@@ -81,16 +85,27 @@ export class SourcesController {
 
   @Post('sources/batch')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Idempotent batch upsert of feed sources by channel_id (backfill)' })
-  @ApiResponse({ status: 201, description: 'Batch upserted (created/updated/total)' })
+  @ApiOperation({
+    summary: 'Idempotent batch upsert of feed sources by channel_id (backfill)',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Batch upserted (created/updated/total)',
+  })
   @ApiResponse({ status: 400, description: 'Invalid batch payload' })
   async batchUpsert(@Body() input: RegisterFeedSourceBatchInput) {
     return this.registerSourceUseCase.executeBatch(input);
   }
 
   @Get('sources')
-  @ApiOperation({ summary: 'All feed sources (including inactive), optional type filter' })
-  @ApiQuery({ name: 'type', required: false, description: 'Filter by source type (kol|crypto-news)' })
+  @ApiOperation({
+    summary: 'All feed sources (including inactive), optional type filter',
+  })
+  @ApiQuery({
+    name: 'type',
+    required: false,
+    description: 'Filter by source type (kol|crypto-news)',
+  })
   @ApiResponse({ status: 200, description: 'All sources' })
   async getSources(@Query('type') type?: string) {
     const typeFilter = parseTypeFilter(type);
@@ -106,12 +121,21 @@ export class SourcesController {
         lifecycleStatus: s.lifecycleStatus,
         addedAt: s.addedAt?.toISOString(),
         updatedAt: s.updatedAt?.toISOString(),
+        // P19: permanent avatar URL (file-or-placeholder, always servable).
+        avatarUrl: kolAvatarUrlFor(s.channelId),
       }));
   }
 
   @Get('sources/active/ids')
-  @ApiOperation({ summary: 'Active source channel ids (backend consumer), optional type filter' })
-  @ApiQuery({ name: 'type', required: false, description: 'Filter by source type (kol|crypto-news)' })
+  @ApiOperation({
+    summary:
+      'Active source channel ids (backend consumer), optional type filter',
+  })
+  @ApiQuery({
+    name: 'type',
+    required: false,
+    description: 'Filter by source type (kol|crypto-news)',
+  })
   @ApiResponse({ status: 200, description: 'Array of channel ids' })
   async getActiveSourceIds(@Query('type') type?: string) {
     const typeFilter = parseTypeFilter(type);
@@ -153,6 +177,7 @@ export class SourcesController {
       lifecycleStatus: updated.lifecycleStatus,
       addedAt: updated.addedAt?.toISOString(),
       updatedAt: updated.updatedAt?.toISOString(),
+      avatarUrl: kolAvatarUrlFor(updated.channelId),
     };
   }
 
@@ -175,6 +200,7 @@ export class SourcesController {
     return {
       channelId: updated.channelId,
       isActive: updated.isActive,
+      avatarUrl: kolAvatarUrlFor(updated.channelId),
     };
   }
 

@@ -137,6 +137,26 @@ export const ENDPOINTS = {
     config: '/ingestion/config',
     health: '/ingestion/health',
   },
+  kolSystem: {
+    // kol-system Tramo 1 (per-template dashboard, todo 14): same-origin
+    // /kol-api prefix, vite dev proxies it to :3050 (KOL_SYSTEM_PROXY_TARGET),
+    // prod nginx must mirror it (kol-system upstream) on deploy.
+    templates: '/kol-api/templates',
+    template: (id: string) => `/kol-api/templates/${encodeURIComponent(id)}`,
+    templateRankings: (id: string) =>
+      `/kol-api/templates/${encodeURIComponent(id)}/rankings`,
+    templateSources: (id: string) =>
+      `/kol-api/templates/${encodeURIComponent(id)}/sources`,
+    templatePending: (id: string) =>
+      `/kol-api/templates/${encodeURIComponent(id)}/pending-approvals`,
+    kolRankings: (window: string, sort: string) =>
+      `/kol-api/kol-rankings?window=${encodeURIComponent(window)}&sort=${encodeURIComponent(sort)}`,
+    // Avatar contract (P19/P4, todo 13): ingestion-telegram serves
+    // GET /api/kol-avatar/:channelId (+ avatarUrl on the source projection).
+    // Code against the contract; <KolAvatar/> falls back to placeholder on 404.
+    kolAvatar: (channelId: string) =>
+      `/ingestion-api/kol-avatar/${encodeURIComponent(channelId)}`,
+  },
   ops: {
     backupStatus: '/ops/backups/status',
   },
