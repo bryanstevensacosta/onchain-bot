@@ -71,8 +71,8 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
      Acceptance criteria: `curl -s localhost:4070/api/health | grep -q '"status":"ok"'` + round-trip cifrado verde
      QA scenarios: happy CRUD vault; failure sin ENCRYPTION_KEY → error claro, sin boot. Evidence .omo/evidence/task-1-telegram-bots-gateway.log
      Commit: Y | feat(telegram-bots-gateway): setup y vault cifrado
-- [ ] 2. Send gateway con rate-limit global por bot
-     What to do / Must NOT do: `POST /api/bots/:id/send` (message/photo/media-group) con cuota global por bot (30/s broadcast, ~1/s por chat, colas por bot) + backoff centralizado ante 429 (respeta retry-after, reintenta, contabiliza) + idempotencia por (bot, chat, client_msg_id). Tests: burst multi-app simulado no supera cuota; 429 mock → backoff y reenvío. Must NOT políticas de producto (delays/caps quedan en las apps).
+- [ ] 2. Send gateway con rate-limit global por bot + acceso seguro entre BCs
+     What to do / Must NOT do: `POST /api/bots/:id/send` (message/photo/media-group) con cuota global por bot (30/s broadcast, ~1/s por chat, colas por bot) + backoff centralizado ante 429 (respeta retry-after, reintenta, contabiliza) + idempotencia por (bot, chat, client_msg_id). ACCESO SEGURO entre BCs: API keys por app-cliente con scopes (send vs admin), requests firmadas HMAC (timestamp+nonce anti-replay), TLS siempre, keys jamás en logs; compromise drill. Tests: burst multi-app simulado no supera cuota; 429 mock → backoff y reenvío; firma inválida/expirada → 401/403. Must NOT políticas de producto (delays/caps quedan en las apps).
      Parallelization: Wave 2 | Blocked by: 1 | Blocks: 5, 6, 7
      References: https://core.telegram.org/bots/api (broadcast 30/s; getUpdates↔webhook excluyentes); adapters actuales kol/feed/dexter (lógica send a migrar)
      Acceptance criteria: `npx jest src/send` verde con test burst-3-apps bajo cuota + test 429-backoff

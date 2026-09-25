@@ -1,0 +1,24 @@
+name: onchain-bot-bots-gateway-staging
+
+services:
+  gateway:
+    image: ghcr.io/bryanstevensacosta/onchain-bot-telegram-bots-gateway:latest
+    container_name: onchain-bot-bots-gateway-staging
+    env_file:
+      - .env.staging
+    ports:
+      - '127.0.0.1:4071:4071'
+    environment:
+      BOTS_GATEWAY_PORT: '4071'
+      DATABASE_SYNCHRONIZE: 'false'
+    volumes:
+      - bots-avatars-staging:/app/uploads/avatars
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'wget -qO- http://localhost:4071/api/health || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  bots-avatars-staging:

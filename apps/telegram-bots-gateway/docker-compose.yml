@@ -1,0 +1,38 @@
+name: onchain-bot-bots-gateway-dev
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: onchain-bot-postgres-bots
+    environment:
+      POSTGRES_DB: onchain_bot_bots
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5436:5432'
+    volumes:
+      - bots-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  gateway:
+    build:
+      context: ../..
+      dockerfile: apps/telegram-bots-gateway/Dockerfile
+    container_name: onchain-bot-bots-gateway-dev
+    env_file:
+      - .env.development
+    ports:
+      - '4070:4070'
+    volumes:
+      - bots-avatars:/app/uploads/avatars
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  bots-postgres-data:
+  bots-avatars:
