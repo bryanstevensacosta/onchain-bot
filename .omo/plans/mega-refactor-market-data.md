@@ -26,7 +26,7 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
 ### Must have
 
 - Nueva app `apps/market-data/` (:4000/4001/4002) **Variante A BC único como v1** (override explícito del repo-separado-Nx del spec: mapear cada `libs/*` → `src/*` del tree; G-16). Módulos: token, chain, provider, cache, rate-limiter, shared. Variante B como fase posterior gateada (nº consumers o p95).
-- Extracción FÍSICA de providers (C-DATA-01, último movimiento): 13 data-providers + Dexter (`chain-dexter-bot` gap-7) → adapters `token/infrastructure/providers/`.
+- Extracción FÍSICA de providers (C-DATA-01, último movimiento): 15 entradas `data-provider/` (13 adapters: alchemy, birdeye, coingecko, coinmarketcap, dexscreener, fluxrpc, geckoterminal, helius, mobula, moralis, pumpdev, rugcheck, solana-rpc + `core/` + README) + Dexter (`chain-dexter-bot` gap-7) → adapters bajo `address/infrastructure/providers/` (modelo P45) registrados en el health registry del todo 2.
 - Lado servidor del puente: `MarketDataPort` HTTP con SLO p95<500ms; vuelve default `USE_DATA_SERVICE_API=true` por env (G-17).
 - Renombre legacy R-4/G-18: `/token/market-data/*` → `/token/enrichment` + desambiguación `MarketDataProviderPort` + migración frontend (C-UX-01).
 - App hermana `apps/dexter-onchain-bot/` (P13, fase final del tramo): solo lógica bot Telegram alimentada por market-data HTTP; `/start` + `/ca` + detección pelada + extracción forwards; reutiliza router/pipeline/formatter/trade-buttons/settings de `chain-dexter-bot`; token `DEXTER_BOT_TOKEN`; puertos 4060/4061/4062 (verificar lsof); DB propia `onchain_bot_dexter[_staging]`.
@@ -84,7 +84,7 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
      Acceptance criteria: `curl -s localhost:4000/api/health | grep -q '"status":"ok"'`
      QA scenarios: happy boot; failure clash :4000 → fallback C-PORTS-01. Evidence .omo/evidence/task-1-mega-refactor-market-data.log
      Commit: Y | feat(market-data): setup Variante A
-- [ ] 2. Módulos chain + provider + cache + rate-limiter
+- [x] 2. Módulos chain + provider + cache + rate-limiter
      What to do / Must NOT do: `chain/` (catálogo estático + probers EVM/Solana + `detect-chain`), `provider/` (health/latency/rate-limit + `/api/v1/providers`), `cache/` (Redis+memory+interceptor), `rate-limiter/` (sliding window + circuit breaker). Tests por módulo. Must NOT tocar token/ aún.
      Parallelization: Wave 1 | Blocked by: 1 | Blocks: 5
      References: .kiro/specs/refactor-data/naming-and-architecture.md:309-400; apps/backend/src/chain (origen probers); apps/backend/src/token/enrichment (origen chain-specific)
@@ -99,7 +99,7 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
      QA scenarios: happy agregado multi-source; failure todos providers vacíos → error explícito (NO null silencioso al cliente). Evidence .omo/evidence/task-3-mega-refactor-market-data.log
      Commit: Y | feat(market-data): módulo token con aggregators
 - [ ] 4. Extracción física providers + Dexter (C-DATA-01, último movimiento)
-     What to do / Must NOT do: Mover con `lsp_find_references` primero: 13 adapters `data-provider/` → `token/infrastructure/providers/` + `chain-dexter-bot` (gap-7) → consumers de market-data (bot standalone según spec data o integrado — default integrado, a veto); backend pasa a consumir vía HTTP. Tests: consumers legacy verdes contra HTTP.
+     What to do / Must NOT do: Mover con `lsp_find_references` primero: 13 adapters `data-provider/` → `address/infrastructure/providers/` (P45) + `chain-dexter-bot` (gap-7) → consumers de market-data (bot standalone según spec data o integrado — default integrado, a veto); backend pasa a consumir vía HTTP. Los adapters son CÓDIGO (no van a DB); a DB van health-log + snapshots + rate-state (P44). Tests: consumers legacy verdes contra HTTP.
      Parallelization: Wave 3 | Blocked by: 2, 3 | Blocks: 8
      References: plan central C-DATA-01; apps/backend/src/data-provider/ (13); apps/backend/src/telegram/chain-dexter-bot/; .kiro/specs/refactor-data/overview.md (bot Dexter)
      Acceptance criteria: `grep -rn "from 'data-provider" apps/backend/src | wc -l` = 0; `npm run test:backend -- token/enrichment` verde
@@ -140,6 +140,13 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
      Acceptance criteria: `curl -s localhost:4060/api/health | grep -q '"status":"ok"'` + `npx jest apps/dexter-onchain-bot` verde (5 casos) + e2e `/start` responde ayuda y `/ca <fixture>` devuelve ficha con trade buttons
      QA scenarios: happy ficha <5s con botones; failure market-data caído → mensaje explícito (sin ficha parcial silenciosa); failure token ausente → bot inactivo con warn, app sigue. Evidence .omo/evidence/task-9-mega-refactor-market-data.log
      Commit: Y | feat(dexter-onchain-bot): extracción bot lookup y cutover
+- [ ] 10. Seguridad market-data (P46)
+      What to do / Must NOT do: auth key obligatoria en todo salvo `/api/health`: keys por cliente con scopes (read/snapshot vs admin) en tabla `api_keys` (hash, NUNCA en plano), rotación sin redeploy (endpoint admin + grace dual-key), rate-limit por key, audit log de accesos (quién/cuándo/qué endpoint, sin keys), keys jamás en logs/respuestas/errores, bind loopback+Tailscale (documentar), procedimiento de compromiso escrito (revocar+rotar+auditar ventana). Tests: sin key 401/403, scope insuficiente 403, rotación sin downtime, key en log ausente (grep). Must NOT logs con keys ni una sola ruta sensible sin auth.
+      Parallelization: Wave 4 | Blocked by: 2 (gateway) | Blocks: 8
+      References: .omo/drafts/mega-refactor-tramos.md (P46); apps/market-data/src/gateway/ (edge a proteger); apps/market-data/src/shared/guards/ (ApiKeyGuard base)
+      Acceptance criteria: `curl sin key → 401/403` + `grep -rni "sk-\|api[_-]?key\s*[:=]\s*['\"][^'\"]" apps/market-data/src apps/market-data/.env* 2>/dev/null | grep -v spec | wc -l` = 0
+      QA scenarios: happy key válida con scope; failure compromiso simulado → revocar+rotar+audit en <15min (drill documentado). Evidence .omo/evidence/task-10-mega-refactor-market-data.log
+      Commit: Y | feat(market-data): seguridad auth keys con scopes y rotación
 
 ## Final verification wave
 
