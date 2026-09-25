@@ -129,7 +129,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
      Acceptance criteria: `npx jest apps/kol-system/src/parsing` verde + invariante 1:1 en test
      QA scenarios: happy parse completo; failure ilegible → descartado con log, pipeline sigue. Evidence .omo/evidence/task-6-mega-refactor-kol-system.log
      Commit: Y | feat(kol-system): parsing preservando menciones
-- [ ] 7. Normalization como índice de menciones (Ph6 spec + G-12)
+- [x] 7. Normalization como índice de menciones (Ph6 spec + G-12)
      What to do / Must NOT do: `NormalizeCallUseCase` → índice `(contract, kol, messageId)` SIN colapso ("one card per coin" del spec queda EXPLÍCITAMENTE derogado); tabla menciones separada de canonical; `normalization.call.normalized` por mención. Tests: mismo contrato × 2 kols × 2 mensajes → 4 filas normalizadas.
      Parallelization: Wave 2 | Blocked by: 6 | Blocks: 8
      References: .omo/drafts/mega-refactor-tramos.md:118 (P1); .kiro/specs/refactor-kol-system/overview.md:100,1100 (derogado: merge duplicates)

@@ -1,6 +1,6 @@
 # apps/kol-system/ — NestJS Knowledge Base
 
-> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4+5+6 built).
+> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4+5+6+7 built).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md` §7.6 (2026-09-24).
 
 Contents: OVERVIEW · PROGRAM INDEX · COMMANDS · STRUCTURE · MODULES · INGESTION ·
@@ -14,7 +14,9 @@ alpha-call path: KOL mentions in → extraction → enrichment → templates →
 dashboard/rankings (+ optional per-template publishing). Built today:
 Config + `GET /api/health` + `IngestionModule` (SSE-only KOL client, P20) +
 `ExtractionModule` (contract × mention, P5, direct call + P26 snapshot
-bases, todo 5) wired into `AppModule`.
+bases, todo 5) + `ParsingModule` (structured call per mention, P5 1:1,
+todo 6) + `NormalizationModule` (mention index, P1 + G-12, todo 7) wired
+into `AppModule`.
 
 Design pivots (2026-09-24) that govern every future todo:
 
@@ -134,7 +136,7 @@ Health was verified by booting `node dist/main.js` with
 ```text
 src/
 ├── main.ts                       # bootstrap() — ValidationPipe whitelist/forbidNonWhitelisted/transform, listen KOL_SYSTEM_PORT ?? 3050
-├── app.module.ts                 # Config (envFilePath ['.env.dev', '.env']) + HealthModule + IngestionModule + ExtractionModule (all wired)
+├── app.module.ts                 # Config (envFilePath ['.env.dev', '.env']) + HealthModule + IngestionModule + ExtractionModule + ParsingModule + NormalizationModule (all wired)
 ├── health/
 │   ├── health.module.ts
 │   ├── health.controller.spec.ts
@@ -170,6 +172,15 @@ src/
 │   ├── infrastructure/adapters/heuristic-parser.adapter.ts (+ .spec.ts)  # explicit $XYZ > labeled; NO collapse (P5)
 │   ├── infrastructure/repositories/in-memory-parsed-call.repository.ts  # upsert by id = double-delivery guard
 │   └── health/parsing-health.indicator.ts  # check() → { component: 'parsing', status } (unwired until composite health)
+├── normalization/                # BUILT (todo 7, P1 + G-12) + WIRED into AppModule
+│   ├── normalization.module.ts   # providers: NormalizeCallUseCase,
+│   │                             #   NormalizedMentionRepository→InMemory, NormalizationHealthIndicator (hook point, P21)
+│   ├── domain/entities/normalized-mention.entity.ts  # one row per mention, id chain:address:kolId:messageId:contractIndex (covered by use-case spec)
+│   ├── domain/events/call-normalized.event.ts  # eventName normalization.call.normalized, aggregateId = mention id
+│   ├── application/handlers/normalize-call.use-case.ts (+ .spec.ts)  # direct call fix-1, returns { normalized, events, discarded }
+│   ├── application/ports/normalized-mention.repository.ts
+│   ├── infrastructure/repositories/in-memory-normalized-mention.repository.ts  # upsert by id = double-delivery guard
+│   └── health/normalization-health.indicator.ts  # check() → { component: 'normalization', status } (unwired until composite health)
 ├── shared/                       # kernel/config/guards/filters — REUSE, extend, never copy (P21)
 │   ├── kernel/aggregate-root.ts, entity.ts, value-object.ts, domain-error.ts, domain-event.ts (+ specs)
 │   ├── value-objects/chain-hint.vo.ts, normalized-address.vo.ts (+ spec)  # P21 identity VOs (EVM/Solana) — extraction/parsing/normalization share this home
@@ -194,10 +205,13 @@ Wired today: `ConfigModule` (global, `.env.dev` > `.env`) + `HealthModule` +
 `IngestionModule` (todo 4, SSE-only KOL client per P20 — wired 2026-09-24) +
 `ExtractionModule` (todo 5, contract × mention per P5 + P26 snapshot bases —
 wired 2026-09-25) + `ParsingModule` (todo 6, 1:1 `ParsedCall` per candidate
-per P5, direct call fix-1, no collapse — wired 2026-09-25).
+per P5, direct call fix-1, no collapse — wired 2026-09-25) +
+`NormalizationModule` (todo 7, mention index per P1 + G-12, direct call
+fix-1, one `normalization.call.normalized` event per mention via direct
+return — wired 2026-09-25).
 
 Planned (per spec, NOT built — do not import until their todos land):
-normalization, enrichment (market-data bridge, P7), scoring,
+enrichment (market-data bridge, P7), scoring,
 templates (+ classification inside templates, P6), approval, publishing
 (per-template bots, P9/P12b), tracking (first-appearance, P8), rankings (P11).
 
@@ -256,6 +270,29 @@ going — one bad mention never kills the pipeline. Empty input → empty
 output, never a throw. `ParsingHealthIndicator.check()` is the P21 hook
 point (provided + exported, unwired until composite health — gap 3).
 
+## NORMALIZATION — mention index (`normalization/`, todo 7)
+
+`NormalizeCallUseCase` runs as a DIRECT call (fix-1, no event bus):
+input `{ parsed }` → output `{ normalized, events, discarded }` with ONE
+`NormalizedMention` per parsed call (P1 mention index, G-12, Ph6 spec —
+the backend `CanonicalTokenCall.mergeWith` single-card-per-coin shape is
+EXPLICITLY derogated here; there is no `mergeWith`, no collapse, no
+dedup layer — the mentions table is a separate concept from any canonical
+view). `NormalizedMention` carries ticker/name/chart (`ParsedCall` field
+patterns, backend reference read-only), address (`NormalizedAddress`
+shared VO, P21), chain (from `chainHint`), and kol ref (`kolId` +
+`handle` for the `caller` column); id is
+`chain:address:kolId:messageId:contractIndex`, so the repo upsert is the
+ONLY guard (P1, same double-delivery pattern as extraction/parsing — a
+realtime + catch-up re-delivery overwrites the same rows). One
+`normalization.call.normalized` event per mention (`CallNormalizedEvent`,
+`aggregateId` = mention id) is returned directly — kol-system wires no
+bus, so there is no publisher on the way out. An illegible call is
+discarded with a warn log (`discarded` count); the batch keeps going —
+one bad mention never kills the pipeline. Empty input → empty output,
+never a throw. `NormalizationHealthIndicator.check()` is the P21 hook
+point (provided + exported, unwired until composite health — gap 3).
+
 ## ENV INVENTORY (`.env.example`, 26 lines — verified)
 
 | Var                             | Value / default in example                                        | Notes                                                           |
@@ -309,9 +346,12 @@ while `buildAppConfig().port` reads `PORT ?? 3030`. Canonical runtime port is
 Per P21 each move-todo registers its indicator here (`ingestion.sse`,
 `database`, `redis`, +1 per module:
 extraction/parsing/normalization/enrichment/scoring/templates/approval/publishing/tracking).
-`ExtractionHealthIndicator.check()` (`extraction/health/`, todo 5) is the
-extraction hook point — provided + exported, NOT yet consumed (no composite
-health system exists; wiring lands with the composite-health todo, gap 3).
+`ExtractionHealthIndicator.check()` (`extraction/health/`, todo 5) +
+`ParsingHealthIndicator.check()` (`parsing/health/`, todo 6) +
+`NormalizationHealthIndicator.check()` (`normalization/health/`, todo 7)
+are the per-module hook points — provided + exported, NOT yet consumed
+(no composite health system exists; wiring lands with the composite-health
+todo, gap 3).
 Staging verification (todo 15): health with ALL components `up`.
 
 ## TS/ESLINT CONVENTIONS
@@ -363,7 +403,7 @@ Built (domain): `ExtractionModule` (todo 5, P5+P26 — `ExtractFromMessageUseCas
 direct call fix-1, `ExtractionCandidate` per occurrence, snapshot bases via
 direct return; identity VOs `ChainHint`/`NormalizedAddress` extended in
 `src/shared/value-objects/`, P21).
-Planned: normalization → enrichment (P7 market-data bridge: `mc at` + `more details +`;
+Planned: enrichment (P7 market-data bridge: `mc at` + `more details +`;
 completes snapshot P26) → snapshot (`src/snapshot/` own module, same DB, P27;
 planned, not built) → templates with embedded
 classification (P6: channel picker + score viz + gem filters) → scoring →
@@ -413,7 +453,8 @@ demands.
    SSE-only with reconnect catch-up by cursor. No `setInterval`/`pollTimer`
    remains in non-spec source.
 3. `GET /api/health` is a static stub — no per-component indicators yet (P21).
-   `ExtractionHealthIndicator` (todo 5) exists as an unwired hook point;
+   `ExtractionHealthIndicator` (todo 5) + `ParsingHealthIndicator` (todo 6)
+   + `NormalizationHealthIndicator` (todo 7) exist as unwired hook points;
    wiring lands with the composite-health todo.
 4. `buildAppConfig().port` reads `PORT ?? 3030` while `main.ts` uses
    `KOL_SYSTEM_PORT ?? 3050` — bare `PORT` will mislead.

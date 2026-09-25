@@ -4,6 +4,7 @@ import { HealthModule } from './health/health.module';
 import { IngestionModule } from './ingestion/ingestion.module';
 import { ExtractionModule } from './extraction/extraction.module';
 import { ParsingModule } from './parsing/parsing.module';
+import { NormalizationModule } from './normalization/normalization.module';
 
 /**
  * AppModule - Root module for kol-system skeleton (Tramo 1, todos 2+4+5).
@@ -12,7 +13,10 @@ import { ParsingModule } from './parsing/parsing.module';
  * (GET /api/health -> { status: 'ok' }) + IngestionModule (KOL SSE
  * client, P20 SSE-only with reconnect catch-up by cursor) +
  * ExtractionModule (contract x mention, P5, direct call fix-1 + P26
- * snapshot bases handed directly to enrichment).
+ * snapshot bases handed directly to enrichment) + ParsingModule
+ * (structured call per mention, P5 1:1, direct call fix-1) +
+ * NormalizationModule (mention index, P1 + G-12, direct call fix-1,
+ * one normalization.call.normalized event per mention via direct return).
  * ConfigModule is global, so the ingestion HTTP adapter resolves
  * ConfigService without importing SharedModule.
  */
@@ -26,6 +30,7 @@ import { ParsingModule } from './parsing/parsing.module';
     IngestionModule,
     ExtractionModule,
     ParsingModule,
+    NormalizationModule,
   ],
 })
 export class AppModule {}
