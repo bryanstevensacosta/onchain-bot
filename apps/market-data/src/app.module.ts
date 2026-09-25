@@ -6,6 +6,7 @@ import { SharedModule } from './shared/shared.module';
 import { ApiKeyGuard } from './shared/guards/api-key.guard';
 import { TokenModule } from './token/token.module';
 import { AddressModule } from './address/address.module';
+import { ProvidersModule } from './provider/infrastructure/providers.module';
 import { ChainModule } from './chain/chain.module';
 import { ProviderModule } from './provider/provider.module';
 import { CacheModule } from './cache/cache.module';
@@ -33,6 +34,7 @@ import { GatewayModule } from './gateway/gateway.module';
     SharedModule,
     TokenModule,
     AddressModule,
+    ProvidersModule,
     ChainModule,
     ProviderModule,
     CacheModule,

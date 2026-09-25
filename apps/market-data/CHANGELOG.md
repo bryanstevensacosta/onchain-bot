@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Provider hexagonal restructure (provider-hex, pure move, no behavior
+  change):** `src/provider/` now follows domain/application/
+  infrastructure layers — `domain/` owns `DataProviderPort`,
+  `ProviderDescriptor` + `DEFAULT_PROVIDERS`, and the health value
+  objects; `application/` owns `ProviderRegistryService` (composing the
+  extracted `ProviderHealthChecker` with the identical up/degraded/down
+  truth table, plus an additive `listFailoverOrder` over the pure
+  `ProviderFailoverPolicy`); `infrastructure/<name>/` keeps one dir per
+  adapter. Root files and `infrastructure/core/` remain as compat
+  re-exports so `provider/*` consumers (address, gateway) and backend
+  shims resolve unchanged. 30 suites / 103 tests (identical), `tsc` +
+  `nest build` clean.
+
+### Added
+
+- **Physical provider extraction (Tramo 3, todo 4, C-DATA-01, P46/P47):**
+  the 13 market-data adapters (alchemy, birdeye, coingecko,
+  coinmarketcap, dexscreener, fluxrpc, geckoterminal, helius, mobula,
+  moralis, pumpdev, rugcheck, solana-rpc) are now canonically owned by
+  this app under `src/provider/infrastructure/` (relocated from the
+  interim `src/address/infrastructure/providers/` P45 path; address
+  consumes via ports only). `ProvidersModule` aggregates them;
+  `ProviderRegistryService` tracks 13/13 descriptors (new `trading`
+  kind for pumpdev). Backend keeps deprecated re-export shims
+  (dual-run, local default; HTTP bridge + SLO + flag default land in
+  todo 5, G-17; removal at cutover, todo 8). chain-dexter-bot stays
+  integrated (standalone extraction is todo 9). 30 suites / 103 tests
+  (3 new: registry-13, providers barrel, providers-module boot).
+
 ### Added
 
 - **Universal address model (P45):** new `src/address/` absorbs the

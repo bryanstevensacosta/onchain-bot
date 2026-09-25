@@ -1,9 +1,11 @@
 # apps/market-data/ — NestJS Knowledge Base
 
-> Verified 2026-09-25 against code + `.omo/evidence/task-T3-address.log`
-> (P45) — prior tallies in `.omo/evidence/task-T3-02.log`.
-> v0.1.0 (source of truth: `package.json`; Tramo 3, todos 0-2 DONE,
-> P45 address model DONE, todo-3 aggregators pending).
+> Verified 2026-09-25 against code + `.omo/evidence/task-T3-04.log`
+> (todo 4 + P47) — prior tallies in `.omo/evidence/task-T3-address.log`
+> (P45) and `.omo/evidence/task-T3-02.log`.
+> v0.1.0 (source of truth: `package.json`; Tramo 3, todos 0-2 + 4 DONE,
+> P45 address model DONE, P47 provider-home relocation DONE,
+> todo-3 aggregators pending).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md`
 > §7.6 (2026-09-24, P30 2026-09-25).
 > Cross-tramo contracts pinned in `.omo/plans/mega-refactor-central.md`
@@ -50,35 +52,48 @@ Design pivots that govern every future todo:
 > (`.omo/evidence/task-0-mega-refactor-market-data.log` for todo 0,
 > `.omo/evidence/task-T3-01.log` for todo 1).
 
-| Todo | Status                                                               | What                                                                                                                        |
-| ---- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| 0    | DONE (evidence `.omo/evidence/task-0-mega-refactor-market-data.log`) | Precondition Gate T2: 6/6 backend `Moved to apps/feed-publisher` areas verified                                             |
-| 1    | DONE (evidence `.omo/evidence/task-T3-01.log`)                       | App setup + shared kernel (10 suites / 17 tests; boot smoke `:4000`)                                                        |
-| 2    | DONE (evidence `.omo/evidence/task-T3-02.log`)                       | Modules chain + provider + cache + rate-limiter + gateway shell (P43)                                                       |
-| P45  | DONE (evidence `.omo/evidence/task-T3-address.log`)                  | Address model absorbs token: `src/address/` + `/api/v1/addresses/*` (token = kind=token path; `/tokens/*` deprecated alias) |
-| 3    | TODO (model DONE via P45)                                            | Aggregators + persistence for address snapshots + HTTP batch                                                                |
-| 4    | TODO                                                                 | Physical provider extraction + Dexter (C-DATA-01, last move)                                                                |
-| 5    | TODO                                                                 | HTTP bridge + SLO + flag default (G-17)                                                                                     |
-| 6    | TODO                                                                 | Legacy market-data rename + frontend migration (R-4, G-18)                                                                  |
-| 7    | TODO                                                                 | Frontend: data dashboard + Dexter (C-UX-01)                                                                                 |
-| 8    | TODO                                                                 | Staging 7d + cutover + cleanup Tramo 3                                                                                      |
-| 9    | TODO                                                                 | dexter-onchain-bot app: extraction + cutover (P13, final phase)                                                             |
+| Todo | Status                                                               | What                                                                                                                                                               |
+| ---- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0    | DONE (evidence `.omo/evidence/task-0-mega-refactor-market-data.log`) | Precondition Gate T2: 6/6 backend `Moved to apps/feed-publisher` areas verified                                                                                    |
+| 1    | DONE (evidence `.omo/evidence/task-T3-01.log`)                       | App setup + shared kernel (10 suites / 17 tests; boot smoke `:4000`)                                                                                               |
+| 2    | DONE (evidence `.omo/evidence/task-T3-02.log`)                       | Modules chain + provider + cache + rate-limiter + gateway shell (P43)                                                                                              |
+| P45  | DONE (evidence `.omo/evidence/task-T3-address.log`)                  | Address model absorbs token: `src/address/` + `/api/v1/addresses/*` (token = kind=token path; `/tokens/*` deprecated alias)                                        |
+| 3    | TODO (model DONE via P45)                                            | Aggregators + persistence for address snapshots + HTTP batch                                                                                                       |
+| 4    | DONE (evidence `.omo/evidence/task-T3-04.log`)                       | Physical provider extraction + Dexter-integrated (C-DATA-01, last move): 13 adapters canonical in `src/provider/infrastructure/`, registry 13/13, backend on shims |
+| P47  | DONE (evidence `.omo/evidence/task-T3-04.log`)                       | Provider-home relocation: `address/infrastructure/providers/*` → `provider/infrastructure/<name>/` (single-level, P43-aligned)                                     |
+| 5    | TODO                                                                 | HTTP bridge + SLO + flag default (G-17)                                                                                                                            |
+| 6    | TODO                                                                 | Legacy market-data rename + frontend migration (R-4, G-18)                                                                                                         |
+| 7    | TODO                                                                 | Frontend: data dashboard + Dexter (C-UX-01)                                                                                                                        |
+| 8    | TODO                                                                 | Staging 7d + cutover + cleanup Tramo 3                                                                                                                             |
+| 9    | TODO                                                                 | dexter-onchain-bot app: extraction + cutover (P13, final phase)                                                                                                    |
 
 ## PROGRAM STATUS
 
-Todos 0-2 DONE (verified 2026-09-25 against code + evidence logs):
+Todos 0-2 + 4 DONE (verified 2026-09-25 against code + evidence logs):
 
 - Wired modules: health (live `GET /api/health`, `@Public()`) + shared
   (global) + address (P45 universal model) + token (deprecated P45
-  alias) + chain/provider/cache/rate-limiter (ports, todo 2) + gateway
+  alias) + chain/provider/cache/rate-limiter (ports, todo 2) +
+  `ProvidersModule` (todo 4: the 13 canonical adapters) + gateway
   (P43: the ONLY feature controllers).
-- Suite tally: 27 suites / 85 tests green (21/55 from todo 2 + 6 new
-  P45 specs: kind, id VO, detector, snapshot, module, gateway edge).
-- Live edge verified on `:4000`: 6 chains, detect EVM+Solana, 7
-  provider statuses, address snapshot per kind, `/tokens/*` alias
-  pinned to kind=token, unknown kind -> explicit `unknown` (no crash),
-  404 on unknown chain, `x-cache` HIT, x-api-key 403/200 with key set
-  (fail-open dev otherwise).
+- Suite tally: 30 suites / 103 tests green (27/85 pre-todo-4 + 3 new
+  todo-4 specs: registry-13, providers barrel, providers-module boot).
+- Live edge verified on `:4000` (pre-todo-4): 6 chains, detect
+  EVM+Solana, 7 provider statuses, address snapshot per kind,
+  `/tokens/*` alias pinned to kind=token, unknown kind -> explicit
+  `unknown` (no crash), 404 on unknown chain, `x-cache` HIT, x-api-key
+  403/200 with key set (fail-open dev otherwise). Post-todo-4 the
+  registry serves 13 statuses (edge re-verify lands with todo-5 SLO).
+- Todo 4 (C-DATA-01, last move): 13 adapters physically extracted from
+  `apps/backend/src/data-provider/` to `src/provider/infrastructure/`
+  (P47 single-level home; byte-identical copies + relative-ized port
+  imports, ConfigService wiring preserved so backend keys keep flowing
+  through the shims). Registry extended 7 -> 13 descriptors (+`trading`
+  kind for pumpdev). Backend keeps deprecated re-export shims only
+  (dual-run, local default until todo-5 HTTP cutover; removed todo 8);
+  zero `from 'data-provider` imports remain in backend `*.ts`.
+  chain-dexter-bot stays INTEGRATED (standalone is todo 9); its scan
+  path is covered by a market-data consumer suite (gap-7).
 - P30 applied at setup: `MARKET_DATA_API_KEY` in `.env.example` day one;
   Dockerfile CMD `dist/main.js`; app-level `npm run dev`; staging+prod
   env templates + DBs `onchain_bot_market_data[_staging]` from day one;
@@ -86,8 +101,8 @@ Todos 0-2 DONE (verified 2026-09-25 against code + evidence logs):
 - Gate T2 recorded: 6/6 backend feed areas carry
   `Moved to apps/feed-publisher` headers (todo-0 log).
 
-Todos 3-9 PENDING (not started, no evidence — todo 3 model half DONE
-via P45; aggregators + persistence + batch HTTP remain).
+Todo 3 REMAINS (aggregators + persistence + batch HTTP — model half DONE
+via P45). Todos 5-9 PENDING (not started, no evidence).
 
 Worktree state 2026-09-25: DIRTY (new `apps/market-data/` tree untracked;
 `apps/feed-publisher/` + backend touched by parallel Tramo-2 work —
@@ -114,7 +129,7 @@ apps/market-data/
   src/address/           # DONE (P45): AddressIdVo (chain+address+kind) + detector + snapshot service
   src/token/             # DEPRECATED (P45): thin alias of AddressModule (token = kind=token path)
   src/chain/             # DONE (todo 2): STATIC_CHAINS(6) + EVM/Solana probers + DetectChainService
-  src/provider/          # DONE (todo 2): 7-descriptor registry + health/latency (adapters land todo 4)
+  src/provider/          # HEXAGONAL (provider-hex): domain/ (port + descriptors + health VOs) + application/ (registry + checker + failover) + infrastructure/ (todo 4, P47: 13 canonical adapters + ProvidersModule); root files are compat re-exports
   src/cache/             # DONE (todo 2, global): CachePort + in-memory + CacheService + interceptor (SLO layer)
   src/rate-limiter/      # DONE (todo 2, global): sliding window + circuit breaker
   src/gateway/           # DONE (todo 2, P43): ONLY feature controllers (chains/providers/tokens-shell) + edge rate-limit guard
@@ -141,8 +156,8 @@ kind=token). Chain, provider, cache, rate-limiter expose PORTS only
 `src/gateway/` (chains, providers, addresses + deprecated tokens
 alias + `GatewayRateLimitGuard`; auth via global `ApiKeyGuard`).
 `SharedModule`, `CacheModule`, `RateLimiterModule` are `@Global()`.
-The 13 physical adapters land in todo 4 (C-DATA-01, last move — never
-earlier).
+The 13 physical adapters live in `src/provider/infrastructure/`
+(todo 4, C-DATA-01 + P47 — never earlier, never under `address/`).
 
 ## ENV INVENTORY
 
@@ -177,8 +192,8 @@ on Oracle at deploy).
 `GET /api/health` -> `{ status: 'ok' }` (`@Public()`, skips the global
 edge auth; composite probes land with later todos and never claim
 liveness they don't have). Gateway edge: `GET /api/v1/chains` (6),
-`GET /api/v1/chains/detect?address=`, `GET /api/v1/providers` (7),
-`GET /api/v1/addresses/:chain/:address[?kind=]` (P45; kind hint
+`GET /api/v1/chains/detect?address=`, `GET /api/v1/providers` (13 since
+todo 4), `GET /api/v1/addresses/:chain/:address[?kind=]` (P45; kind hint
 optional, garbage -> explicit `unknown`), `GET /api/v1/tokens/
 :chain/:address` (deprecated alias pinned to kind=token).
 
@@ -202,7 +217,9 @@ coverage target >80% (pure units, no I/O).
 3. Redis adapters (cache + rate-limiter windows use `REDIS_URL`).
 4. Address snapshot aggregators + persistence (todo 3 remainder:
    model + edge DONE via P45; aggregators + batch HTTP pending).
-5. Physical provider extraction (todo 4, C-DATA-01).
+5. ~~Physical provider extraction (todo 4, C-DATA-01)~~ DONE
+   (`src/provider/infrastructure/`, 13/13 registered; HTTP bridge +
+   SLO + flag default remain todo 5, G-17).
 6. HTTP bridge + SLO measurement + flag default (todo 5, G-17).
 7. Legacy rename + frontend (todos 6-7, R-4/G-18/C-UX-01).
 8. Deploy workflows (staging/prod) + rollback rehearsal (todo 8).
@@ -210,16 +227,18 @@ coverage target >80% (pure units, no I/O).
 
 ## DECISIONS INDEX
 
-| Decision                      | One-line                                                                        | Status in this app                                                    |
-| ----------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| Variante A v1 (G-16)          | Single-BC monorepo; spec `libs/*` → `src/*`                                     | APPLIED (todo 1; mapping table in log)                                |
-| P30 Tramo-1 lessons           | x-api-key day one, `dist/main.js`, env templates, living KB                     | APPLIED (todo 1)                                                      |
-| C-DB-01 own logical DB        | `onchain_bot_market_data[_staging]`                                             | PLANNED (TypeORM unwired, GAP-1)                                      |
-| C-DATA-01 providers move last | 13 adapters move in todo 4, never earlier                                       | PINNED (stub comment in provider module)                              |
-| G-17 SLO-gated default        | `USE_DATA_SERVICE_API=true` only with p95<500ms measured                        | PINNED (todo 5; flag OFF in all templates)                            |
-| P43 gateway de salida         | `src/gateway/` owns aggregated-data HTTP; modules expose ports only             | APPLIED (todo 2: 3 controllers + edge guard, zero module controllers) |
-| P45 address universal model   | `src/address/` absorbs token (kind discriminator); `/tokens/*` deprecated alias | APPLIED (this change: model + detector + snapshots + edge)            |
-| P39 standing rule             | AGENTS.md + CHANGELOG `## [Unreleased]` per todo                                | APPLIED (this refresh)                                                |
+| Decision                      | One-line                                                                               | Status in this app                                                        |
+| ----------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Variante A v1 (G-16)          | Single-BC monorepo; spec `libs/*` → `src/*`                                            | APPLIED (todo 1; mapping table in log)                                    |
+| P30 Tramo-1 lessons           | x-api-key day one, `dist/main.js`, env templates, living KB                            | APPLIED (todo 1)                                                          |
+| C-DB-01 own logical DB        | `onchain_bot_market_data[_staging]`                                                    | PLANNED (TypeORM unwired, GAP-1)                                          |
+| C-DATA-01 providers move last | 13 adapters move in todo 4, never earlier                                              | APPLIED (todo 4: canonical `src/provider/infrastructure/`, backend shims) |
+| P46 extraction mechanics      | Copy + shim (byte-identical, local default; HTTP cutover is todo 5)                    | APPLIED (todo 4: zero backend `from 'data-provider` imports)              |
+| P47 provider home             | Single-level `src/provider/infrastructure/<name>/` (P43-aligned, not under `address/`) | APPLIED (todo 4 close-out relocation)                                     |
+| G-17 SLO-gated default        | `USE_DATA_SERVICE_API=true` only with p95<500ms measured                               | PINNED (todo 5; flag OFF in all templates)                                |
+| P43 gateway de salida         | `src/gateway/` owns aggregated-data HTTP; modules expose ports only                    | APPLIED (todo 2: 3 controllers + edge guard, zero module controllers)     |
+| P45 address universal model   | `src/address/` absorbs token (kind discriminator); `/tokens/*` deprecated alias        | APPLIED (this change: model + detector + snapshots + edge)                |
+| P39 standing rule             | AGENTS.md + CHANGELOG `## [Unreleased]` per todo                                       | APPLIED (this refresh)                                                    |
 
 ## DECISIONS
 
@@ -250,13 +269,42 @@ coverage target >80% (pure units, no I/O).
   refines when present (RPC evidence lands with todo-4 adapters).
   tsconfig + jest mapper gained `address/*`.
 - Todo 2 (P43 gateway): `src/gateway/` holds the only feature
-  controllers (chains/providers/tokens-shell) composing module ports +
-  edge rate-limit (`GatewayRateLimitGuard` 60/min/IP) + cache
+  controllers (chains, providers, addresses + deprecated tokens
+  alias + `GatewayRateLimitGuard` 60/min/IP + cache
   (`CacheInterceptor`, `x-cache` HIT/MISS) + global `ApiKeyGuard`
   (health `@Public()`). v1 probers are format-only (no RPC — RPC
-  evidence lands with the todo-4 adapter extraction); token/ untouched
-  (shell only, no import). tsconfig + jest mapper gained
-  `rate-limiter/*` + `gateway/*`.
+  evidence lands with the todo-4 adapter extraction). tsconfig + jest
+  mapper gained `rate-limiter/*` + `gateway/*`.
+- P46 (todo 4 extraction mechanics): adapters copied byte-identical
+  (only the `DataProviderPort` import re-pointed to the sibling
+  `core/`); Nest `forRoot`/`forRootAsync` ConfigService wiring
+  preserved so backend env keys keep flowing through the shims with
+  zero behavior change. Backend `src/data-provider/**` (68 files) are
+  deprecated `export *` shims; 13 consumers (10 enrichment adapters +
+  2 chain probers + ticker-resolver) import the canonical home via
+  relative paths — local default until the todo-5 HTTP bridge (G-17).
+  Failing-first: registry-13 + barrel + module-boot specs (red before
+  the copy, green after); backend shim-identity + dexter-consumer
+  suites pin every consumer (adversarial: first drift fails fast).
+- P47 (todo 4 close-out relocation): adapters first landed under
+  `src/address/infrastructure/providers/` (P45 path from the plan)
+  then moved single-level to `src/provider/infrastructure/<name>/`
+  (P43-aligned: provider code lives with the provider port, address
+  consumes via ports only — verified zero deep imports). Plain `mv`
+  (tree untracked, `git mv` refused); all 84 backend references +
+  `AppModule` re-pointed; `tsc` + suites re-greened after the move.
+- Provider-hex (pure restructure, no behavior change): `src/provider/`
+  is now hexagonal — `domain/` (DataProviderPort, descriptors, health
+  VOs) <- `application/` (registry composes the extracted
+  `ProviderHealthChecker` with the identical truth table, plus an
+  additive `listFailoverOrder` over the pure `ProviderFailoverPolicy`)
+  <- `infrastructure/<name>/` (one dir per adapter: service + config +
+  types + module). Root `provider-registry.service.ts` /
+  `provider-descriptor.ts` and `infrastructure/core/` stay as compat
+  re-exports so `provider/*` consumers (address, gateway) and the
+  backend cross-app shims resolve unchanged; 13 adapter services now
+  import the port from `../../domain/`. Verified 30 suites / 103 tests
+  (identical to pre-move) + `tsc` + `nest build` clean.
 
 ## STANDING RULE
 

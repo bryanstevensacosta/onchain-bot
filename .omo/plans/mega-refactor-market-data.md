@@ -98,8 +98,8 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
      Acceptance criteria: `curl -s 'localhost:4000/api/v1/tokens/solana/<addr-fixture>' | jq .priceUsd` > 0
      QA scenarios: happy agregado multi-source; failure todos providers vacíos → error explícito (NO null silencioso al cliente). Evidence .omo/evidence/task-3-mega-refactor-market-data.log
      Commit: Y | feat(market-data): módulo token con aggregators
-- [ ] 4. Extracción física providers + Dexter (C-DATA-01, último movimiento)
-     What to do / Must NOT do: Mover con `lsp_find_references` primero: 13 adapters `data-provider/` → `address/infrastructure/providers/` (P45) + `chain-dexter-bot` (gap-7) → consumers de market-data (bot standalone según spec data o integrado — default integrado, a veto); backend pasa a consumir vía HTTP. Los adapters son CÓDIGO (no van a DB); a DB van health-log + snapshots + rate-state (P44). Tests: consumers legacy verdes contra HTTP.
+- [x] 4. Extracción física providers + Dexter (C-DATA-01, último movimiento)
+     What to do / Must NOT do: Mover con `lsp_find_references` primero: 13 adapters `data-provider/` → `src/provider/infrastructure/<nombre>/` (P47; address/ orquesta vía ports, NO los aloja) + adapter NUEVO `ccxt` (P48: tickers+OHLCV CEX, enableRateLimit, exchange allowlist por env) + `chain-dexter-bot` (gap-7) → consumers de market-data (bot standalone según spec data o integrado — default integrado, a veto); backend pasa a consumir vía HTTP. Los adapters son CÓDIGO (no van a DB); a DB van health-log + snapshots + rate-state (P44). Tests: consumers legacy verdes contra HTTP.
      Parallelization: Wave 3 | Blocked by: 2, 3 | Blocks: 8
      References: plan central C-DATA-01; apps/backend/src/data-provider/ (13); apps/backend/src/telegram/chain-dexter-bot/; .kiro/specs/refactor-data/overview.md (bot Dexter)
      Acceptance criteria: `grep -rn "from 'data-provider" apps/backend/src | wc -l` = 0; `npm run test:backend -- token/enrichment` verde
