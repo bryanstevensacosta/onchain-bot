@@ -122,7 +122,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
      Acceptance criteria: `psql -c "SELECT count(*) FROM extraction_candidates WHERE message_id='X'"` = 3 para fixture triple-mención
      QA scenarios: happy 3 filas; failure texto sin contrato → 0 filas, sin excepción. Evidence .omo/evidence/task-5-mega-refactor-kol-system.log
      Commit: Y | feat(kol-system): extraction por mención
-- [ ] 6. Parsing a ficha estructurada preservando menciones (Ph5 spec + P5)
+- [x] 6. Parsing a ficha estructurada preservando menciones (Ph5 spec + P5)
      What to do / Must NOT do: `ParseFromCandidatesUseCase` → `ParsedCall` (ticker, address, chain, kol ref); preserva 1:1 con candidatos (NO collapse-to-one). Tests property: nº parsed == nº candidates para fixture.
      Parallelization: Wave 2 | Blocked by: 5 | Blocks: 7
      References: .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:130-151; apps/backend/src/token/intake/parsing/ (origen: parse-from-candidates.use-case.ts)
