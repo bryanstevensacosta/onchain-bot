@@ -4,6 +4,10 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Tramo 3 todo 6 (R-4/G-18) legacy rename: `EnrichmentController` moved from `/token/market-data/*` to `/token/enrichment/*`; new `EnrichmentRedirectController` keeps the old paths as temporary 307 redirects (one version, removed at cutover todo 8). `MarketDataProviderPort` marked `@deprecated` + `LegacyEnrichmentPort` type alias (alias-over-rename: hard rename would churn 15 files + `MARKET_DATA_PROVIDERS` DI token mid dual-run; canonical `MarketDataPort` already lives in `apps/market-data` + kol-system). (feat/mega-refactor-tramos)
+
 ### Added
 
 - Tramo 3 todo 5 (G-17) HTTP bridge: new `HttpMarketDataAdapter` (backend `MarketData` shape with `pairs: []`/`imageUrls: []`, `GET /api/market-data/snapshot`, `x-api-key`, abort timeout, null + warn on every failure) wired into `EnrichmentModule` as http-primary + local-fallback when `USE_DATA_SERVICE_API=true`. DEFAULT FALSE — no flip: the server returns pending shells (no aggregators yet), so flipping would regress enrichment; staging/prod flip only after the 24h staging SLO (todo 8). (feat/mega-refactor-tramos)

@@ -569,7 +569,7 @@ EnqueueMatchingCronScheduler ready (fetch limit: 50, enabled: true, interval: 5m
 ## HTTP ROUTES — 35 CONTROLLERS (verified `@Controller` prefixes)
 
 Pipeline: `token/intake/extraction`, `token/intake/parsing`, `token/normalization`,
-`token/market-data` (+ `token/image`), `token/classification`, `token/scoring`,
+`token/enrichment` (renamed Tramo 3 todo 6 from `token/market-data`; legacy kept as temporary 307 redirect, removed at cutover todo 8) (+ `token/image`), `token/classification`, `token/scoring`,
 `token/vip-call-approval`, `token/honeypot`, `token/call-tracking` + `call-tracking`
 (two prefixes: `call-tracking.controller` and `token/call-tracking`), `achievements`,
 `chain/detection`. Telegram: `telegram-kol/identity`, `telegram-kol/reputation`,

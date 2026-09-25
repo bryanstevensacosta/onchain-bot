@@ -236,6 +236,13 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       Acceptance criteria: `npx jest src/scoring src/templates` verde con test de 2-configs-distinto-score
       QA scenarios: happy config custom cambia score; failure config inválida → 400 con mensaje, defaults intactos. Evidence .omo/evidence/task-22-mega-refactor-kol-system.log
       Commit: Y | feat(kol-system): scoring configurable por template
+- [x] 23. Auth anti-exploit kol-system (P50)
+      What to do / Must NOT do: auth key en TODOS los controllers salvo `/api/health`; publishing exige binding template/session con canal admin-verificado (ownership: el binding pertenece al dueño que lo creó; imposible publicar en canales ajenos); rate-limit; audit log de publishes (quién/qué/dónde, sin tokens); grep-gate cero keys en logs; drill compromiso documentado. Tests: sin key 401, binding ajeno 403, canal no verificado bloqueado. Must NOT publicar sin binding verificado jamás.
+      Parallelization: Wave 4 | Blocked by: 10, 11 | Blocks: 16
+      References: .omo/drafts/mega-refactor-tramos.md (P50); apps/kol-system/src/templates/ + src/telegram/
+      Acceptance criteria: matriz curl (sin key/binding ajeno/canal sin verificar → 401/403/bloqueo) verde + `npx jest` verde
+      QA scenarios: happy publish legítimo; failure exploit simulado (binding ajeno) → 403 + audit. Evidence .omo/evidence/task-23-mega-refactor-kol-system.log
+      Commit: Y | feat(kol-system): auth anti-exploit con ownership
 
 ## Final verification wave
 

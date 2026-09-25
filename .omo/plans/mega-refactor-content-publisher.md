@@ -162,6 +162,13 @@ Your next move: approve — listo para $start-work Tramo 2 tras Gate T1. Full ex
       Acceptance criteria: fase 1 `curl` old 200 + new 200 por prefijo y env; fase 3 old 404 + new 200 por prefijo y env (`crypto-news-publisher|…` old → 404, `feed-*` new → 200; `ops/backups` 200 intacto; `feed-sources` 200 solo vía ingestion `/ingestion-api/feed/sources`)
       QA scenarios: happy dual-serve + migración + cutover por env con logs; failure divergencia old≠new en fase 1 → NO migrar frontend; failure coherence vite≠nginx → NO cutover. Evidence .omo/evidence/task-13-mega-refactor-feed-publisher.log
       Commit: Y | feat(feed-publisher): api prefix migration dual-serve
+- [x] 14. Auth anti-exploit feed-publisher (P50)
+      What to do / Must NOT do: igual que T1-23 en feed-publisher: auth key global salvo health; publishing exige vínculo session×target con canal admin-verificado + ownership; rate-limit; audit log; cero keys en logs; drill. Tests + matriz curl. Must NOT publicar sin vínculo verificado.
+      Parallelization: Wave 4 | Blocked by: 12 | Blocks: 11
+      References: .omo/drafts/mega-refactor-tramos.md (P50); apps/feed-publisher/src/sessions/ + src/template/ + src/telegram/
+      Acceptance criteria: matriz 401/403/bloqueo verde + suites verdes
+      QA scenarios: happy legítimo; failure exploit → 403 + audit. Evidence .omo/evidence/task-14-mega-refactor-content-publisher.log
+      Commit: Y | feat(feed-publisher): auth anti-exploit con ownership
 
 ## Final verification wave
 

@@ -144,6 +144,13 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
      Acceptance criteria: validación completa con 0 items sin evidencia + `ls apps/backend/src/{kol,telegram/data-provider}` vacío según decisión + backend-remainder registrado
      QA scenarios: happy review completa verde → programa cerrado; failure cualquier validación roja → rollback ejecutado y medido, programa NO cerrado. Evidence .omo/evidence/task-9-mega-refactor-central.log
      Commit: Y | docs(central): FINAL REVIEW con eliminación deprecated y cierre
+- [ ] 10. Auth anti-exploit ingestion-telegram (P50, excepción documentada: único todo de implementación de este plan)
+      What to do / Must NOT do: auth key en TODO salvo `/api/health` (+ SSE con `x-api-key` ya existente — extender a feed/media/avatar si falta); rate-limit; audit log accesos; cero keys en logs; drill compromiso. Tests + matriz curl. Must NOT endpoint sensible sin auth.
+      Parallelization: Wave 4 | Blocked by: — | Blocks: programa (requisito final review)
+      References: .omo/drafts/mega-refactor-tramos.md (P50); apps/ingestion-telegram/src/
+      Acceptance criteria: matriz 401/403 verde + suites verdes
+      QA scenarios: happy con key; failure sin key → 401. Evidence .omo/evidence/task-sec1-central.log
+      Commit: Y | feat(ingestion-telegram): auth anti-exploit global
 
 ## Final verification wave
 
