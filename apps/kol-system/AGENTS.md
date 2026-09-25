@@ -1,6 +1,6 @@
 # apps/kol-system/ — NestJS Knowledge Base
 
-> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4+5+6+7+8 built).
+> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4+5+6+7+8+9 built).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md` §7.6 (2026-09-24).
 
 Contents: OVERVIEW · PROGRAM INDEX · COMMANDS · STRUCTURE · MODULES · INGESTION ·
@@ -10,16 +10,18 @@ SNAPSHOTS · GAPS · STANDING RULE · NOTES
 ## OVERVIEW
 
 NestJS 11 service (Tramo 1 of the mega-refactor) that will own the whole KOL
-alpha-call path: KOL mentions in → extraction → enrichment → templates →
-dashboard/rankings (+ optional per-template publishing). Built today:
+alpha-call path: KOL mentions in → extraction → enrichment → scoring →
+templates → dashboard/rankings (+ optional per-template publishing). Built today:
 Config + `GET /api/health` + `IngestionModule` (SSE-only KOL client, P20) +
 `ExtractionModule` (contract × mention, P5, direct call + P26 snapshot
 bases, todo 5) + `ParsingModule` (structured call per mention, P5 1:1,
 todo 6) + `NormalizationModule` (mention index, P1 + G-12, todo 7) +
 `EnrichmentModule` (MarketDataPort dual: local-cascade default +
 http-market-data stub, P7, direct call + P26 completion, todo 8) +
-`SnapshotModule` (owns `mention_snapshots`, P27, same DB, todo 8) wired
-into `AppModule`.
+`SnapshotModule` (owns `mention_snapshots`, P27, same DB, todo 8) +
+`ScoringModule` (score v1 + 8 gates per mention, classification as
+per-template config, P6 + G-08, direct call + P26 completion, todo 9)
+wired into `AppModule`.
 
 Design pivots (2026-09-24) that govern every future todo:
 
@@ -139,7 +141,7 @@ Health was verified by booting `node dist/main.js` with
 ```text
 src/
 ├── main.ts                       # bootstrap() — ValidationPipe whitelist/forbidNonWhitelisted/transform, listen KOL_SYSTEM_PORT ?? 3050
-├── app.module.ts                 # Config (envFilePath ['.env.dev', '.env']) + HealthModule + IngestionModule + ExtractionModule + ParsingModule + NormalizationModule + EnrichmentModule + SnapshotModule (all wired)
+├── app.module.ts                 # Config (envFilePath ['.env.dev', '.env']) + HealthModule + IngestionModule + ExtractionModule + ParsingModule + NormalizationModule + EnrichmentModule + SnapshotModule + ScoringModule (all wired)
 ├── health/
 │   ├── health.module.ts
 │   ├── health.controller.spec.ts
@@ -200,6 +202,17 @@ src/
 │   ├── application/ports/mention-snapshot.repository.ts  # save/findByMentionId/count (same kol-system DB, no separate DB)
 │   ├── infrastructure/repositories/in-memory-mention-snapshot.repository.ts (+ .spec.ts)  # upsert by mentionId = double-delivery guard
 │   └── health/snapshot-health.indicator.ts  # check() → { component: 'snapshot', status } (unwired until composite health)
+├── scoring/                      # BUILT (todo 9, P6 + G-08) + WIRED into AppModule
+│   ├── scoring.module.ts         # providers: ScoreTokenUseCase, ScoredCallRepository→InMemory, ScoringHealthIndicator (hook point, P21)
+│   ├── domain/entities/scored-call.entity.ts  # one row per passing mention, id = mentionId, score + tier + breakdown (covered by use-case spec)
+│   ├── domain/value-objects/score.vo.ts, score-tier.vo.ts  # 0-100 Score + 5-tier ScoreTier, thresholds 80/60/40/20
+│   ├── domain/events/call-scored.event.ts  # eventName scoring.token.scored, aggregateId = mention id
+│   ├── domain/template-classification.config.ts (+ .spec.ts)  # P6: per-template classification config (NOT a table, NOT a BC)
+│   ├── application/handlers/score-token.use-case.ts (+ .spec.ts)  # direct call fix-1, { scored, events, discarded }
+│   ├── application/handlers/score-gates.ts  # 8 fail-fast gates (backend ApplyVipCallApprovalUseCase mirror)
+│   ├── application/ports/scored-call.repository.ts  # save/findByMentionId/count
+│   ├── infrastructure/repositories/in-memory-scored-call.repository.ts  # upsert by mentionId = double-delivery guard
+│   └── health/scoring-health.indicator.ts  # check() → { component: 'scoring', status } (unwired until composite health)
 ├── shared/                       # kernel/config/guards/filters — REUSE, extend, never copy (P21)
 │   ├── kernel/aggregate-root.ts, entity.ts, value-object.ts, domain-error.ts, domain-event.ts (+ specs)
 │   ├── value-objects/chain-hint.vo.ts, normalized-address.vo.ts (+ spec)  # P21 identity VOs (EVM/Solana) — extraction/parsing/normalization share this home
@@ -231,12 +244,14 @@ return — wired 2026-09-25) + `EnrichmentModule` (todo 8, MarketDataPort
 dual per P7 + C-DATA-01, direct call fix-1, first-non-null merge with
 silent-null fallback, completes the P26 snapshot via port — wired
 2026-09-25) + `SnapshotModule` (todo 8, owns `mention_snapshots` per P27,
-same kol-system DB — wired 2026-09-25).
+same kol-system DB — wired 2026-09-25) + `ScoringModule` (todo 9, score
+v1 + 8 gates per mention per P6 + G-08, direct call fix-1, classification
+as per-template config — wired 2026-09-25).
 
 Planned (per spec, NOT built — do not import until their todos land):
-scoring, templates (+ classification inside templates, P6), approval,
-publishing (per-template bots, P9/P12b), tracking (first-appearance, P8),
-rankings (P11).
+templates (consume scoring output + own the classification config, P6),
+approval, publishing (per-template bots, P9/P12b), tracking
+(first-appearance, P8), rankings (P11).
 
 ## INGESTION — SSE-only (`ingestion/`)
 
@@ -347,6 +362,52 @@ documented ≤30s (P20 reconnect catch-up is the noisy tail; steady-state
 delivery is seconds). `EnrichmentHealthIndicator.check()` is the P21 hook
 point (provided + exported, unwired until composite health — gap 3).
 
+## SCORING — score + gates per mention, classification as config (`scoring/`, todo 9)
+
+`ScoreTokenUseCase` runs as a DIRECT call (fix-1, no event bus):
+input `{ mentions }` (market + rug-group fields mirroring the
+`MentionSnapshot`, P26 base carried over) → output
+`{ scored, events, discarded }` with ONE `ScoredCall` per passing
+mention. Formula v1 mirrors the backend `ScoreTokenUseCase` read-only:
+base 50 + market bonuses (liquidity/holders/mc/volume) + buzz −
+signal penalties (CRITICAL −15 / HIGH −8 / MEDIUM −4 / LOW −1) ×
+reputation multiplier (pivot 0.5, slope 0.3 → 0.85–1.15), floored by
+security flag (SCAM→5, SUSPICIOUS→30, UNKNOWN→20, LEGITIMATE→100),
+clamped 0–100 with per-factor `breakdown[]` (score display reads it).
+Tiers: STRONG 80 / DECENT 60 / NEUTRAL 40 / RISKY 20 / AVOID.
+Reputation arrives in-input (`avgKolReputation`, default 0.5 unknown —
+no reputation BC here); buzz counts default 1/1 per mention.
+
+Risk comes from the rug-signal GROUP (`lockedLiquidityPercent` +
+`burnedPercent` + `top10HolderPercent` → composite `riskWeight`,
+renormalized over available components; all-null → 0, unknown risk
+surfaces via INSUFFICIENT_DATA instead) — never a single field.
+Completeness = resolved market fields / 5. No market data at all →
+`securityFlag` defaults UNKNOWN (cap 20 → discarded by SCORE_TOO_LOW
+under default gates); any market field → LEGITIMATE.
+
+Gates (`score-gates.ts`, backend `ApplyVipCallApprovalUseCase` mirror,
+G-08) run after scoring, in order: INVALID_ADDRESS → SCORE_TOO_LOW
+(default min 50) → CLASSIFICATION_BLOCKED (default `['SCAM']`) →
+BLACKLISTED (inline list, default on-but-empty) → HONEYPOT_SUSPECTED
+(score < 10 + group risk ≥ 80, cheap heuristic) → RISK_WEIGHT_EXCEEDED
+→ INSUFFICIENT_DATA → CHAIN_UNSUPPORTED (`evm|solana`, kol-system
+`ChainHint` terms where the backend says `ethereum|solana`). Any reason
+= discarded pre-publisher (not persisted, no event — adversarial:
+below-cut never reaches templates). Repo upserts by mentionId =
+double-delivery guard (P1). `ScoringHealthIndicator.check()` is the P21
+hook point (provided + exported, unwired until composite health — gap 3).
+
+Classification is per-template config (`TemplateClassificationConfig`,
+P6): `kolSourceIds` (visible channels, empty = all, P16 seed default) +
+`minVisibleScore` (score display floor) + gem filters (`gemMinScore` +
+`gemPatterns` regexes over enrichment text, AND semantics — score ≥
+threshold AND every pattern matches). Pure value object: NO
+classification table, NO standalone BC (acceptance:
+`grep -r classified_calls apps/kol-system/src` is empty). The full
+templates module (todo 10) owns it from here — the VO moves unchanged.
+Flow: `enrichment → scoring → templates`.
+
 ## SNAPSHOT — own module, same DB (`snapshot/`, todo 8)
 
 `MentionSnapshot` (id = mentionId) carries the 4 P26 timestamps
@@ -427,7 +488,8 @@ extraction/parsing/normalization/enrichment/scoring/templates/approval/publishin
 `ParsingHealthIndicator.check()` (`parsing/health/`, todo 6) +
 `NormalizationHealthIndicator.check()` (`normalization/health/`, todo 7) +
 `EnrichmentHealthIndicator.check()` (`enrichment/health/`, todo 8) +
-`SnapshotHealthIndicator.check()` (`snapshot/health/`, todo 8)
+`SnapshotHealthIndicator.check()` (`snapshot/health/`, todo 8) +
+`ScoringHealthIndicator.check()` (`scoring/health/`, todo 9)
 are the per-module hook points — provided + exported, NOT yet consumed
 (no composite health system exists; wiring lands with the composite-health
 todo, gap 3).
@@ -490,8 +552,14 @@ P26 snapshot writing via port; `mc at` = snapshot at capture, ≤30s delay).
 Built (domain): `SnapshotModule` (todo 8, P26/P27 — owns
 `MentionSnapshot` + `MentionSnapshotRepository`, SAME kol-system DB,
 in-memory today, TypeORM later; enrichment writes via `SnapshotWriterPort`).
-Planned: templates with embedded
-classification (P6: channel picker + score viz + gem filters) → scoring →
+Built (domain): `ScoringModule` (todo 9, P6 + G-08 —
+`ScoreTokenUseCase` direct call fix-1, base-50 v1 formula + 8 gates,
+below-cut discarded pre-publisher; `ScoredCall` per passing mention +
+`breakdown` for score display; classification as `TemplateClassificationConfig`
+per-template VO — visible channels + display floor + gem filters — NO
+table, NO BC; flow `enrichment→scoring→templates`).
+Planned: templates (own the classification config + consume scoring
+output, P6: channel picker + score viz + gem filters) → scoring →
 approval → publishing (P9/P12b per-template bots, P22/P23 DB catalog +
 P23-bis admin-verified targets) → tracking (P8 first-appearance) → rankings
 (P11 `GET /api/kol-rankings?window=30d|7d|1d`, cron-fed `kol_window_stats`,
@@ -509,6 +577,9 @@ contract C-DATA-01 — consume via ports, never move).
 - Each extraction passes to enrichment first; enrichment talks to
   `apps/market-data` to fetch the market snapshot that fills `mc at` and
   `more details +` in the dashboard (P7).
+- Each enriched mention passes to scoring; scoring computes the 0–100
+  score + tier and discards below-cut mentions pre-publisher — templates
+  (todo 10) only ever see passing mentions with their breakdown (P6).
 - Frontend only renders enriched mentions (contract + market data together).
 
 ## SNAPSHOTS (P26 base live in extraction, P27 table BUILT todo 8)
@@ -539,8 +610,10 @@ demands.
    remains in non-spec source.
 3. `GET /api/health` is a static stub — no per-component indicators yet (P21).
    `ExtractionHealthIndicator` (todo 5) + `ParsingHealthIndicator` (todo 6)
-   + `NormalizationHealthIndicator` (todo 7) exist as unwired hook points;
-   wiring lands with the composite-health todo.
+   + `NormalizationHealthIndicator` (todo 7) + `EnrichmentHealthIndicator`
+   (todo 8) + `SnapshotHealthIndicator` (todo 8) + `ScoringHealthIndicator`
+   (todo 9) exist as unwired hook points; wiring lands with the
+   composite-health todo.
 4. `buildAppConfig().port` reads `PORT ?? 3030` while `main.ts` uses
    `KOL_SYSTEM_PORT ?? 3050` — bare `PORT` will mislead.
 5. P19 avatar pipeline (ingestion resolves + serves permanently, excluded

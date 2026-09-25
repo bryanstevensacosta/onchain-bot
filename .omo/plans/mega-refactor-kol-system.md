@@ -143,7 +143,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
      Acceptance criteria: `USE_DATA_SERVICE_API=false npx jest apps/kol-system/src/enrichment` verde; con `=true` usa HTTP (test con mock server)
      QA scenarios: happy enrich con `mc at` persistido; failure provider caído → null + siguiente en cascada (silent null). Evidence .omo/evidence/task-8-mega-refactor-kol-system.log
      Commit: Y | feat(kol-system): enrichment dual-port con mc-at
-- [ ] 9. Scoring + classification-config por template (Ph8 spec + P6 + G-08)
+- [x] 9. Scoring + classification-config por template (Ph8 spec + P6 + G-08)
      What to do / Must NOT do: `ScoreTokenUseCase` (base 50, tiers, 8 fail-fast gates) + `ScoredCall`; classification COMO CONFIG por-template (canales visibles, score display, filtros gemas: threshold score + regex sobre enrichment) — SIN tabla `classified_calls`, SIN BC standalone; flujo `enrichment→scoring→templates`. Tests gates + ejemplo filtro gema.
      Parallelization: Wave 3 | Blocked by: 8 | Blocks: 10
      References: .omo/drafts/mega-refactor-tramos.md:124 (P6); .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:196-220; apps/backend AGENTS §SCORING & GATES (8 gates)

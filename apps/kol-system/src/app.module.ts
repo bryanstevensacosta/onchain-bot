@@ -7,6 +7,7 @@ import { ParsingModule } from './parsing/parsing.module';
 import { NormalizationModule } from './normalization/normalization.module';
 import { EnrichmentModule } from './enrichment/enrichment.module';
 import { SnapshotModule } from './snapshot/snapshot.module';
+import { ScoringModule } from './scoring/scoring.module';
 
 /**
  * AppModule - Root module for kol-system skeleton (Tramo 1, todos 2+4+5).
@@ -23,7 +24,9 @@ import { SnapshotModule } from './snapshot/snapshot.module';
  * http-market-data stub behind USE_DATA_SERVICE_API, P7, direct call
  * fix-1, completes the P26 snapshot) + SnapshotModule (owns the
  * mention_snapshots entity, P27, same kol-system DB, enrichment writes
- * via port).
+ * via port) + ScoringModule (score v1 + 8 gates per mention,
+ * classification as per-template config, P6, direct call fix-1,
+ * enrichment -> scoring -> templates).
  * ConfigModule is global, so the ingestion HTTP adapter resolves
  * ConfigService without importing SharedModule.
  */
@@ -40,6 +43,7 @@ import { SnapshotModule } from './snapshot/snapshot.module';
     NormalizationModule,
     EnrichmentModule,
     SnapshotModule,
+    ScoringModule,
   ],
 })
 export class AppModule {}
