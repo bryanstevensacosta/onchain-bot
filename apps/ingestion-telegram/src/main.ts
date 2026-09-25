@@ -80,6 +80,17 @@ async function bootstrap() {
   // Canonical port reader (gap 12): INGESTION_PORT > INGESTION_API_PORT
   // (deprecated) > PORT (deprecated) > 3031. Single source in app.config.
   const port = resolveIngestionPort();
+
+  // sec1 M2: trust proxy ONLY when explicitly enabled (TRUST_PROXY=true).
+  // Lets Express + the rate limiter honor x-forwarded-for-first; default
+  // OFF so untrusted clients cannot spoof their rate-limit identity.
+  if (process.env.TRUST_PROXY === 'true') {
+    const server = app.getHttpAdapter().getInstance() as {
+      set?: (key: string, value: unknown) => void;
+    };
+    server.set?.('trust proxy', 1);
+  }
+
   setupFeedDocs(app);
   await app.listen(port);
 

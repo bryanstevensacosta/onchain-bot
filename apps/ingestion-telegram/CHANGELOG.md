@@ -6,6 +6,8 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Added
 
+- Full API-key auth (sec1): `GET /api/feed/*` + `/api/crypto-news/*` reads now require the key (dual-prefix parity), two-bucket in-memory rate limiting (60/min protected+writes, 300/min media/avatar, health trio + SSE exempt, 401 precedes 429), one structured `auth:access:decision` audit line per decision with pino-http redaction of both key transports, and the key-compromise drill (`docs/deployment/ingestion-api-key-compromise-drill.md`). (feat/mega-refactor-tramos)
+
 - P41 API prefix migration dual-serve (T2 todo 13 Fase 1): `FeedController` + `SourcesController` serve old `api/crypto-news/*` alongside `api/feed/*` (same handlers). `feed-sources` scope lives ONLY here; backend keeps its `/crypto-news/sources/:channelId/filters` CRUD (no `feed-sources` in backend). Old paths drop at cutover todo 11. (feat/mega-refactor-tramos)
 
 ### Added

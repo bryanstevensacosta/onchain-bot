@@ -3,40 +3,48 @@ import {
   ExecutionContext,
   Injectable,
   Logger,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { timingSafeEqual } from 'node:crypto';
+import { AccessDecision, stripQueryForAudit } from './access-audit';
+import { StructuredLoggerService } from '../logging/structured-logger.service';
 
 /**
- * Partial API-key auth for ingestion-telegram (gap 19).
+ * Global API-key auth for ingestion-telegram (sec1 hardened, gap 19 full).
  *
  * Contract (shared with backend lane):
  * - ingestion env: INGESTION_API_KEY (this service)
  * - backend env: INGESTION_TELEGRAM_API_KEY (backend sends it)
- * - transport: header 'x-api-key' OR query '?apiKey='
+ * - transport: header 'x-api-key' canonical; query '?apiKey=' kept as
+ *   deprecated legacy for backend compat (docs steer to the header).
  *
  * Behavior:
  * - UNSET (empty/undefined): Logger.warn once + allow-all (dev/e2e convenience).
- * - SET: public GET reads stay keyless; everything else requires a
- *   timing-safe key match, else 401.
+ * - SET: every machine read requires a timing-safe key match, else 401.
+ *   Dual-prefix parity: '/api/feed' AND '/api/crypto-news' are BOTH
+ *   protected (closes the hole where crypto-news reads 401 while feed
+ *   reads stayed public).
  *
- * Public allowlist (GET only, exact prefixes):
- * - /api/feed/*, /api/media/*, /api/kol-avatar/*, /api/health, /api/health/live, /api/health/ready
+ * Public (keyless, GET only):
+ * - exact GET /api/health, GET /api/health/ready, GET /api/health/live
  *   (Docker HEALTHCHECK hits /api/health — must stay public).
- * Protected: /api/ingestion/stream, /debug/*, /metrics, everything else
- * (including POST/PATCH/DELETE under /api/feed).
+ * - GET /api/media/* (browser bytes stay public — D1).
+ * - GET /api/kol-avatar/:channelId single-segment reads (browser bytes —
+ *   photo or placeholder, always 200; D1).
+ * Protected (401 without key): everything else, including GET feed reads,
+ * GET /api/health/channels, GET /api/ingestion/stream, GET /metrics,
+ * GET /debug/*, and ALL writes (POST/PATCH/DELETE sources*, POST refresh).
  */
-const PUBLIC_FEED_PREFIX = '/api/feed';
+export const PROTECTED_FEED_PREFIXES = ['/api/feed', '/api/crypto-news'];
 const PUBLIC_MEDIA_PREFIX = '/api/media';
-// P19: avatar reads are public like media (file-or-placeholder, always 200);
-// the explicit POST refresh stays protected.
-const PUBLIC_AVATAR_PREFIX = '/api/kol-avatar';
 const HEALTH_EXACT = '/api/health';
 const HEALTH_LIVE_PREFIX = '/api/health/live';
 const HEALTH_READY_PREFIX = '/api/health/ready';
+const SSE_STREAM_PATH = '/api/ingestion/stream';
 
-function normalizePath(rawPath: string): string {
+export function normalizePath(rawPath: string): string {
   const withoutQuery = rawPath.split('?')[0] ?? rawPath;
   const withSlash = withoutQuery.startsWith('/')
     ? withoutQuery
@@ -48,6 +56,11 @@ function normalizePath(rawPath: string): string {
 
 function matchesPrefix(path: string, prefix: string): boolean {
   return path === prefix || path.startsWith(`${prefix}/`);
+}
+
+/** Public avatar read = exactly one path segment (the channel id). */
+export function isPublicAvatarRead(path: string): boolean {
+  return /^\/api\/kol-avatar\/[^/]+$/.test(path);
 }
 
 /** Exported for unit tests: true when the request is keyless-public. */
@@ -65,13 +78,10 @@ export function isPublicApiKeyExempt(method: string, rawPath: string): boolean {
   if (matchesPrefix(path, HEALTH_READY_PREFIX)) {
     return true;
   }
-  if (matchesPrefix(path, PUBLIC_FEED_PREFIX)) {
-    return true;
-  }
   if (matchesPrefix(path, PUBLIC_MEDIA_PREFIX)) {
     return true;
   }
-  if (matchesPrefix(path, PUBLIC_AVATAR_PREFIX)) {
+  if (isPublicAvatarRead(path)) {
     return true;
   }
   return false;
@@ -87,16 +97,18 @@ export function timingSafeCompare(a: string, b: string): boolean {
   return timingSafeEqual(aBuf, bBuf);
 }
 
-interface GuardRequest {
+export interface GuardRequest {
   method?: string;
   path?: string;
   originalUrl?: string;
   url?: string;
+  ip?: string;
   headers?: Record<string, string | string[] | undefined>;
   query?: Record<string, string | string[] | undefined>;
+  socket?: { remoteAddress?: string };
 }
 
-function readPath(req: GuardRequest): string {
+export function readPath(req: GuardRequest): string {
   if (typeof req.path === 'string' && req.path.length > 0) {
     return req.path;
   }
@@ -109,7 +121,7 @@ function readPath(req: GuardRequest): string {
   return fallback.split('?')[0] ?? '/';
 }
 
-function readProvidedKey(req: GuardRequest): string | undefined {
+export function readProvidedKey(req: GuardRequest): string | undefined {
   const headerValue = req.headers?.['x-api-key'];
   const headerKey = Array.isArray(headerValue) ? headerValue[0] : headerValue;
   if (typeof headerKey === 'string' && headerKey.length > 0) {
@@ -123,39 +135,86 @@ function readProvidedKey(req: GuardRequest): string | undefined {
   return undefined;
 }
 
+/** Shared expected-key resolution (also used by RateLimitGuard for M1). */
+export function resolveExpectedApiKey(
+  get: (key: string) => unknown,
+): string | undefined {
+  const direct = get('app.apiKey');
+  if (typeof direct === 'string' && direct.trim().length > 0) {
+    return direct.trim();
+  }
+  const appCfg = get('app') as
+    | { apiKey?: unknown; security?: { apiKey?: unknown } }
+    | undefined;
+  if (
+    appCfg &&
+    typeof appCfg.apiKey === 'string' &&
+    appCfg.apiKey.trim().length > 0
+  ) {
+    return appCfg.apiKey.trim();
+  }
+  const nested = appCfg?.security?.apiKey;
+  if (typeof nested === 'string' && nested.trim().length > 0) {
+    return nested.trim();
+  }
+  return undefined;
+}
+
+function readClientIp(req: GuardRequest): string {
+  if (typeof req.ip === 'string' && req.ip.length > 0) {
+    return req.ip;
+  }
+  return req.socket?.remoteAddress ?? 'unknown';
+}
+
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
   private readonly logger = new Logger(ApiKeyGuard.name);
   private warnedUnset = false;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    @Optional() private readonly audit?: StructuredLoggerService,
+  ) {}
+
+  private emitAudit(
+    method: string,
+    rawPath: string,
+    clientIp: string,
+    decision: AccessDecision,
+    note?: string,
+  ): void {
+    // guard name is kebab-case on purpose: the audit grep-gate asserts zero
+    // `apiKey` hits over captured logs, and `ApiKeyGuard` would trip it.
+    const fields = {
+      method,
+      path: stripQueryForAudit(rawPath),
+      decision,
+      guard: 'api-key-guard',
+      clientIp,
+      ...(note ? { note } : {}),
+    };
+    if (this.audit) {
+      this.audit.logAccessDecision(fields);
+    } else {
+      this.logger.log({
+        event: 'auth:access:decision',
+        ...fields,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
 
   private resolveExpectedKey(): string | undefined {
-    const direct = this.configService.get<string>('app.apiKey');
-    if (typeof direct === 'string' && direct.trim().length > 0) {
-      return direct.trim();
-    }
-    const appCfg = this.configService.get<{
-      apiKey?: unknown;
-      security?: { apiKey?: unknown };
-    }>('app');
-    if (
-      appCfg &&
-      typeof appCfg.apiKey === 'string' &&
-      appCfg.apiKey.trim().length > 0
-    ) {
-      return appCfg.apiKey.trim();
-    }
-    const nested = appCfg?.security?.apiKey;
-    if (typeof nested === 'string' && nested.trim().length > 0) {
-      return nested.trim();
-    }
-    return undefined;
+    return resolveExpectedApiKey((key: string) => this.configService.get(key));
   }
 
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest<GuardRequest>();
     const expected = this.resolveExpectedKey();
+    const method = (req.method ?? 'GET').toUpperCase();
+    const path = readPath(req);
+    const clientIp = readClientIp(req);
 
     if (!expected) {
       if (!this.warnedUnset) {
@@ -163,20 +222,25 @@ export class ApiKeyGuard implements CanActivate {
         this.logger.warn(
           'INGESTION_API_KEY is not set — API-key auth is disabled (allow-all). Set INGESTION_API_KEY to protect sensitive routes.',
         );
+        this.emitAudit(method, path, clientIp, 'allow', 'unset-key-allow-all');
       }
       return true;
     }
 
-    const method = (req.method ?? 'GET').toUpperCase();
-    const path = readPath(req);
     if (isPublicApiKeyExempt(method, path)) {
+      this.emitAudit(method, path, clientIp, 'allow', 'public-exempt');
       return true;
     }
 
     const provided = readProvidedKey(req);
     if (!provided || !timingSafeCompare(provided, expected)) {
+      this.emitAudit(method, path, clientIp, 'deny');
       throw new UnauthorizedException('Invalid or missing API key');
     }
+    this.emitAudit(method, path, clientIp, 'allow');
     return true;
   }
 }
+
+/** Re-exported for the rate limiter: the SSE handshake path is exempt. */
+export { SSE_STREAM_PATH };

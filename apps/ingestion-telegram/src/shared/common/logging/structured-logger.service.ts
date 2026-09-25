@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { AccessAuditFields, buildAccessAuditLine } from '../auth/access-audit';
 
 /**
  * StructuredLoggerService
@@ -201,6 +202,17 @@ export class StructuredLoggerService {
       authorized,
       timestamp: new Date().toISOString(),
     });
+  }
+
+  /**
+   * Log one auth allow/deny decision (sec1 T3 — key-compromise audit trail).
+   *
+   * Structural guarantee: `path` is query-stripped by buildAccessAuditLine,
+   * and no key value is ever accepted as input — so `?apiKey=` and the
+   * `x-api-key` value can never reach a log line.
+   */
+  logAccessDecision(fields: AccessAuditFields): void {
+    this.logger.log(buildAccessAuditLine(fields));
   }
 
   /**

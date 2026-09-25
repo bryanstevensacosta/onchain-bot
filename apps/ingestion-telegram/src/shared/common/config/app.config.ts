@@ -572,6 +572,10 @@ export const appConfig = registerAs('app', () => {
   // Generate with: openssl rand -hex 32 (never commit a real value).
   const apiKeyRaw = (process.env.INGESTION_API_KEY || '').trim();
   const apiKey = apiKeyRaw.length > 0 ? apiKeyRaw : undefined;
+  // Trust-proxy flag (sec1 M2): when true, Express serves behind a trusted
+  // proxy AND the rate limiter keys by x-forwarded-for-first. Defaults OFF:
+  // honoring the header from an untrusted client lets it rotate identities.
+  const trustProxy = process.env.TRUST_PROXY === 'true';
   return {
     nodeEnv,
     imageRevision,
@@ -585,6 +589,7 @@ export const appConfig = registerAs('app', () => {
     feedMediaRetentionHours,
     apiKey,
     security: { apiKey },
+    trustProxy,
   };
 });
 
