@@ -1,3 +1,15 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/scheduling/ (Tramo 2, todo 6 + P18 companion).
+ * Ads rotation + media library now live in feed-publisher: rotation core + media
+ * library + ads-cron (renamed scheduling, "scheduling posts" ubiquity). This module
+ * stays wired for dual-run; it will be removed at cutover (todo 11). Do not extend
+ * it — add scheduling/ads logic in apps/feed-publisher/src/scheduling/ instead.
+ *
+ * New location: apps/feed-publisher/src/scheduling/
+ * Reason: extracting feed pipeline from backend monolith to dedicated app
+ * Breaking change: Yes (removal at cutover)
+ * Rollback: re-enable backend path (USE_FEED_PUBLISHER=false)
+ */
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdRepository } from 'telegram/crypto-news-ads/application/ports/ad.repository';

@@ -1,3 +1,15 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (matching side; Tramo 2, todo 8 + P18 companion).
+ * Threads fetch→filter→enqueue now lives in feed-publisher: FilteredThreadsService +
+ * EnqueueThreadsCronScheduler + ThreadsMatchingConfig (threads esqueleto v1). This
+ * module stays wired for dual-run; it will be removed at cutover (todo 11). Do not
+ * extend it — add threads matching logic in apps/feed-publisher/src/threads/ instead.
+ *
+ * New location: apps/feed-publisher/src/threads/
+ * Reason: extracting feed pipeline from backend monolith to dedicated app
+ * Breaking change: Yes (removal at cutover)
+ * Rollback: re-enable backend path (USE_FEED_PUBLISHER=false)
+ */
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThreadsIngestionClient } from 'threads/integration/infrastructure/http/threads-ingestion-client.service';

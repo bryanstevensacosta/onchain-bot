@@ -1,3 +1,15 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/filters/ (Tramo 2, todo 3 + P18 companion).
+ * Content filters now live in feed-publisher: ContentFilterService (ReDoS-safe) +
+ * ChannelFilterRepository + filter CRUD use-cases (FK-less per spec). This module
+ * stays wired for dual-run; it will be removed at cutover (todo 11). Do not extend
+ * it — add filter logic in apps/feed-publisher/src/filters/ instead.
+ *
+ * New location: apps/feed-publisher/src/filters/
+ * Reason: extracting feed pipeline from backend monolith to dedicated app
+ * Breaking change: Yes (removal at cutover)
+ * Rollback: re-enable backend path (USE_FEED_PUBLISHER=false)
+ */
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { CryptoNewsPersistenceModule } from 'telegram/ingestion/crypto-news/crypto-news-persistence.module';
