@@ -97,3 +97,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `.env.staging.template` (secrets unset, operator fills on droplet);
   DRY-RUN only, no deploy workflow yet, nothing applied to Oracle
   (branch `feat/mega-refactor-tramos`).
+- **API prefix migration dual-serve contract (todo 13, backend-side):**
+  no code change in this app (it already serves `feed-*` names); the
+  backend dual-serves old+new until cutover todo 11, when this app
+  becomes the sole owner of `feed-publisher/*`, `feed-scheduling/*`,
+  `feed-threads-publisher/*`, `feed-matching/*`, and `feed-filters/*`.

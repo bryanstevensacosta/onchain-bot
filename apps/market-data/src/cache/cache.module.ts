@@ -1,10 +1,24 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
+import { CachePort } from './cache.port';
+import { InMemoryCacheAdapter } from './in-memory-cache.adapter';
+import { CacheService } from './cache.service';
+import { CacheInterceptor } from './cache.interceptor';
 
 /**
- * CacheModule - STUB (Tramo 3, todo 1).
+ * CacheModule (Tramo 3, todo 2, SLO layer).
  *
- * Todo 2 lands here: Redis + in-memory + cache interceptor (SLO p95<500ms
- * depends on this layer).
+ * Global: CachePort (v1 in-memory; Redis swaps in via REDIS_URL without
+ * changing consumers) + CacheService + CacheInterceptor. Edge caching
+ * is applied per-endpoint in src/gateway/ via @UseInterceptors.
  */
-@Module({})
+@Global()
+@Module({
+  providers: [
+    InMemoryCacheAdapter,
+    CacheService,
+    CacheInterceptor,
+    { provide: CachePort, useExisting: InMemoryCacheAdapter },
+  ],
+  exports: [CachePort, CacheService, CacheInterceptor],
+})
 export class CacheModule {}

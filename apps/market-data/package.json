@@ -72,6 +72,8 @@
       "^chain/(.*)$": "<rootDir>/src/chain/$1",
       "^provider/(.*)$": "<rootDir>/src/provider/$1",
       "^cache/(.*)$": "<rootDir>/src/cache/$1",
+      "^rate-limiter/(.*)$": "<rootDir>/src/rate-limiter/$1",
+      "^gateway/(.*)$": "<rootDir>/src/gateway/$1",
       "^src/(.*)$": "<rootDir>/src/$1"
     }
   }

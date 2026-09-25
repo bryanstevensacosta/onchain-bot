@@ -17,6 +17,8 @@
       "chain/*": ["src/chain/*"],
       "provider/*": ["src/provider/*"],
       "cache/*": ["src/cache/*"],
+      "rate-limiter/*": ["src/rate-limiter/*"],
+      "gateway/*": ["src/gateway/*"],
       "src/*": ["src/*"]
     }
   },

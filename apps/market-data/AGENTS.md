@@ -1,8 +1,8 @@
 # apps/market-data/ — NestJS Knowledge Base
 
-> Verified 2026-09-25 against code + `.omo/evidence/task-T3-01.log`.
-> v0.1.0 (source of truth: `package.json`; Tramo 3, todos 0-1 DONE,
-> 2-9 pending). Variante A monorepo (no Nx, no `libs/*` — G-16).
+> Verified 2026-09-25 against code + `.omo/evidence/task-T3-02.log`.
+> v0.1.0 (source of truth: `package.json`; Tramo 3, todos 0-2 DONE,
+> 3-9 pending). Variante A monorepo (no Nx, no `libs/*` — G-16).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md`
 > §7.6 (2026-09-24, P30 2026-09-25).
 > Cross-tramo contracts pinned in `.omo/plans/mega-refactor-central.md`
@@ -22,8 +22,8 @@ NestJS 11 service (Tramo 3 of the mega-refactor) owning all market data
 outside the monolith: chain catalog + probers → provider registry →
 aggregators (price/holders/security) → token snapshots over HTTP with
 a measured p95<500ms SLO, plus the final-phase `dexter-onchain-bot`
-sibling (P13, todo 9). Todos 0-1 DONE (gate + setup, 6 stubs in
-`app.module.ts`); todos 2-9 pending.
+sibling (P13, todo 9). Todos 0-2 DONE (gate + setup + chain/provider/
+cache/rate-limiter + gateway shell); todos 3-9 pending.
 See PROGRAM STATUS for the verified tally.
 
 Design pivots that govern every future todo:
@@ -53,7 +53,7 @@ Design pivots that govern every future todo:
 | ---- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | 0    | DONE (evidence `.omo/evidence/task-0-mega-refactor-market-data.log`) | Precondition Gate T2: 6/6 backend `Moved to apps/feed-publisher` areas verified |
 | 1    | DONE (evidence `.omo/evidence/task-T3-01.log`)                       | App setup + shared kernel (10 suites / 17 tests; boot smoke `:4000`)            |
-| 2    | TODO                                                                 | Modules chain + provider + cache + rate-limiter                                 |
+| 2    | DONE (evidence `.omo/evidence/task-T3-02.log`)                       | Modules chain + provider + cache + rate-limiter + gateway shell (P43)           |
 | 3    | TODO                                                                 | Module token: aggregate + aggregators + HTTP                                    |
 | 4    | TODO                                                                 | Physical provider extraction + Dexter (C-DATA-01, last move)                    |
 | 5    | TODO                                                                 | HTTP bridge + SLO + flag default (G-17)                                         |
@@ -64,13 +64,17 @@ Design pivots that govern every future todo:
 
 ## PROGRAM STATUS
 
-Todos 0-1 DONE (verified 2026-09-25 against code + evidence logs):
+Todos 0-2 DONE (verified 2026-09-25 against code + evidence logs):
 
-- Wired modules: health (live `GET /api/health`) + shared (global) +
-  5 stub feature modules (token, chain, provider, cache, rate-limiter).
-  0 business-logic modules yet — stubs boot, todos 2-3 fill them.
-- Suite tally: 10 suites / 17 tests green (health, 5 stub modules,
-  chain-id/token-id VOs, api-key guard, app config).
+- Wired modules: health (live `GET /api/health`, `@Public()`) + shared
+  (global) + token STUB (todo 3) + chain/provider/cache/rate-limiter
+  (ports, todo 2) + gateway (P43: the ONLY feature controllers).
+- Suite tally: 21 suites / 55 tests green (10/17 from todo 1 + 11 new
+  todo-2 specs: catalog, probers, detect-chain, registry, cache,
+  limiter, breaker, 4 gateway specs).
+- Live edge verified on `:4000`: 6 chains, detect EVM+Solana, 7
+  provider statuses, token snapshot shell, 404s, `x-cache` HIT,
+  x-api-key 403/200 with key set (fail-open dev otherwise).
 - P30 applied at setup: `MARKET_DATA_API_KEY` in `.env.example` day one;
   Dockerfile CMD `dist/main.js`; app-level `npm run dev`; staging+prod
   env templates + DBs `onchain_bot_market_data[_staging]` from day one;
@@ -78,7 +82,7 @@ Todos 0-1 DONE (verified 2026-09-25 against code + evidence logs):
 - Gate T2 recorded: 6/6 backend feed areas carry
   `Moved to apps/feed-publisher` headers (todo-0 log).
 
-Todos 2-9 PENDING (not started, no evidence).
+Todos 3-9 PENDING (not started, no evidence).
 
 Worktree state 2026-09-25: DIRTY (new `apps/market-data/` tree untracked;
 `apps/feed-publisher/` + backend touched by parallel Tramo-2 work —
@@ -100,13 +104,14 @@ docker compose -f apps/market-data/docker-compose.yml up -d  # pg :5438 + redis 
 ```
 apps/market-data/
   src/main.ts            # bootstrap :4000 (MARKET_DATA_PORT) + ValidationPipe
-  src/app.module.ts      # Config global + Health + Shared + 5 stub modules
-  src/health/            # GET /api/health static stub
+  src/app.module.ts      # Config global + Health + Shared + token stub + 4 port modules + Gateway (APP_GUARD ApiKeyGuard)
+  src/health/            # GET /api/health (@Public(), skips edge auth)
   src/token/             # STUB (todo 3): snapshot + aggregators + HTTP
-  src/chain/             # STUB (todo 2): catalog + probers + detect-chain
-  src/provider/          # STUB (todo 2): health/latency registry + /api/v1/providers
-  src/cache/             # STUB (todo 2): Redis+memory+interceptor (SLO layer)
-  src/rate-limiter/      # STUB (todo 2): sliding window + circuit breaker
+  src/chain/             # DONE (todo 2): STATIC_CHAINS(6) + EVM/Solana probers + DetectChainService
+  src/provider/          # DONE (todo 2): 7-descriptor registry + health/latency (adapters land todo 4)
+  src/cache/             # DONE (todo 2, global): CachePort + in-memory + CacheService + interceptor (SLO layer)
+  src/rate-limiter/      # DONE (todo 2, global): sliding window + circuit breaker
+  src/gateway/           # DONE (todo 2, P43): ONLY feature controllers (chains/providers/tokens-shell) + edge rate-limit guard
   src/shared/            # transversal (DONE, tested)
     config/              # app (MARKET_DATA_PORT) + database namespaces
     kernel/              # AggregateRoot/Entity/ValueObject/DomainEvent/DomainError
@@ -119,11 +124,13 @@ apps/market-data/
 
 ## MODULES
 
-All 5 feature modules are STUBS (empty `@Module({})`, boot-tested only).
-`SharedModule` is `@Global()` (app + database config namespaces + guard
-
-- filter). Business logic lands in todos 2-3; the 13 physical adapters
-  land in todo 4 (C-DATA-01, last move — never earlier).
+Token is still a STUB (empty `@Module({})`, todo 3). Chain, provider,
+cache, rate-limiter expose PORTS only (no controllers — P43): the sole
+HTTP surface besides health is `src/gateway/` (chains, providers,
+tokens-shell + `GatewayRateLimitGuard`; auth via global `ApiKeyGuard`).
+`SharedModule`, `CacheModule`, `RateLimiterModule` are `@Global()`.
+The 13 physical adapters land in todo 4 (C-DATA-01, last move — never
+earlier).
 
 ## ENV INVENTORY
 
@@ -155,8 +162,11 @@ on Oracle at deploy).
 
 ## HEALTH
 
-`GET /api/health` -> `{ status: 'ok' }` (static stub; composite probes land
-with later todos and never claim liveness they don't have).
+`GET /api/health` -> `{ status: 'ok' }` (`@Public()`, skips the global
+edge auth; composite probes land with later todos and never claim
+liveness they don't have). Gateway edge: `GET /api/v1/chains` (6),
+`GET /api/v1/chains/detect?address=`, `GET /api/v1/providers` (7),
+`GET /api/v1/tokens/:chain/:address` (pending shell until todo 3).
 
 ## TS/ESLINT CONVENTIONS
 
@@ -176,7 +186,7 @@ coverage target >80% (pure units, no I/O).
 1. Persistence entities/migrations (TypeORM wiring, `synchronize:false` outside dev).
 2. `/metrics` exporter + Pino logging.
 3. Redis adapters (cache + rate-limiter windows use `REDIS_URL`).
-4. Token/chain/provider/cache/rate-limiter business logic (todos 2-3).
+4. Token business logic (todo 3: snapshot + aggregators + HTTP).
 5. Physical provider extraction (todo 4, C-DATA-01).
 6. HTTP bridge + SLO measurement + flag default (todo 5, G-17).
 7. Legacy rename + frontend (todos 6-7, R-4/G-18/C-UX-01).
@@ -185,14 +195,15 @@ coverage target >80% (pure units, no I/O).
 
 ## DECISIONS INDEX
 
-| Decision                      | One-line                                                    | Status in this app                         |
-| ----------------------------- | ----------------------------------------------------------- | ------------------------------------------ |
-| Variante A v1 (G-16)          | Single-BC monorepo; spec `libs/*` → `src/*`                 | APPLIED (todo 1; mapping table in log)     |
-| P30 Tramo-1 lessons           | x-api-key day one, `dist/main.js`, env templates, living KB | APPLIED (todo 1)                           |
-| C-DB-01 own logical DB        | `onchain_bot_market_data[_staging]`                         | PLANNED (TypeORM unwired, GAP-1)           |
-| C-DATA-01 providers move last | 13 adapters move in todo 4, never earlier                   | PINNED (stub comment in provider module)   |
-| G-17 SLO-gated default        | `USE_DATA_SERVICE_API=true` only with p95<500ms measured    | PINNED (todo 5; flag OFF in all templates) |
-| P39 standing rule             | AGENTS.md + CHANGELOG `## [Unreleased]` per todo            | APPLIED (this refresh)                     |
+| Decision                      | One-line                                                            | Status in this app                                                    |
+| ----------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Variante A v1 (G-16)          | Single-BC monorepo; spec `libs/*` → `src/*`                         | APPLIED (todo 1; mapping table in log)                                |
+| P30 Tramo-1 lessons           | x-api-key day one, `dist/main.js`, env templates, living KB         | APPLIED (todo 1)                                                      |
+| C-DB-01 own logical DB        | `onchain_bot_market_data[_staging]`                                 | PLANNED (TypeORM unwired, GAP-1)                                      |
+| C-DATA-01 providers move last | 13 adapters move in todo 4, never earlier                           | PINNED (stub comment in provider module)                              |
+| G-17 SLO-gated default        | `USE_DATA_SERVICE_API=true` only with p95<500ms measured            | PINNED (todo 5; flag OFF in all templates)                            |
+| P43 gateway de salida         | `src/gateway/` owns aggregated-data HTTP; modules expose ports only | APPLIED (todo 2: 3 controllers + edge guard, zero module controllers) |
+| P39 standing rule             | AGENTS.md + CHANGELOG `## [Unreleased]` per todo                    | APPLIED (this refresh)                                                |
 
 ## DECISIONS
 
@@ -211,6 +222,14 @@ coverage target >80% (pure units, no I/O).
   free repo-wide (grep + lsof, see evidence log).
 - Failing-first: all 10 spec files authored before their implementation
   files in this todo; suites run green after.
+- Todo 2 (P43 gateway): `src/gateway/` holds the only feature
+  controllers (chains/providers/tokens-shell) composing module ports +
+  edge rate-limit (`GatewayRateLimitGuard` 60/min/IP) + cache
+  (`CacheInterceptor`, `x-cache` HIT/MISS) + global `ApiKeyGuard`
+  (health `@Public()`). v1 probers are format-only (no RPC — RPC
+  evidence lands with the todo-4 adapter extraction); token/ untouched
+  (shell only, no import). tsconfig + jest mapper gained
+  `rate-limiter/*` + `gateway/*`.
 
 ## STANDING RULE
 

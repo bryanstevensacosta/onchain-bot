@@ -1,10 +1,17 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
+import { RateLimiterService } from './rate-limiter.service';
+import { CircuitBreakerService } from './circuit-breaker.service';
 
 /**
- * RateLimiterModule - STUB (Tramo 3, todo 1).
+ * RateLimiterModule (Tramo 3, todo 2).
  *
- * Todo 2 lands here: sliding-window limiter + circuit breaker (pre-call
- * gate for the todo-3 aggregator cascades).
+ * Global sliding-window limiter + circuit breaker. Pre-call gate for
+ * the todo-3 aggregator cascades; edge HTTP policy lives in
+ * src/gateway/.
  */
-@Module({})
+@Global()
+@Module({
+  providers: [RateLimiterService, CircuitBreakerService],
+  exports: [RateLimiterService, CircuitBreakerService],
+})
 export class RateLimiterModule {}

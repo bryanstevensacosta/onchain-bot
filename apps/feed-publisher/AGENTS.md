@@ -704,5 +704,9 @@ English per `RELEASE-FLOW.md` (P39). Stale knowledge base = failed todo.
 ## NOTES
 
 - P10 enforced by grep gate: `grep -rn "vip-calls\|KOL_BOT\|kol-bot" apps/feed-publisher/src` must stay empty.
+- P41 dual-serve contract (T2 todo 13, backend-side): the backend dual-serves old+new until
+  cutover todo 11; this app already serves `feed-*` names and becomes sole owner of
+  `feed-publisher/*`, `feed-scheduling/*`, `feed-threads-publisher/*`, `feed-matching/*`,
+  `feed-filters/*` at cutover. No code change here in todo 13.
 - Bot tokens OPTIONAL at boot (dashboard-only mode); adapters fail with a
   clear error when absent (todo 7).

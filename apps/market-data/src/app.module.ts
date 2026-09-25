@@ -1,20 +1,24 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { HealthModule } from './health/health.module';
 import { SharedModule } from './shared/shared.module';
+import { ApiKeyGuard } from './shared/guards/api-key.guard';
 import { TokenModule } from './token/token.module';
 import { ChainModule } from './chain/chain.module';
 import { ProviderModule } from './provider/provider.module';
 import { CacheModule } from './cache/cache.module';
 import { RateLimiterModule } from './rate-limiter/rate-limiter.module';
+import { GatewayModule } from './gateway/gateway.module';
 
 /**
- * AppModule - Root module for market-data skeleton (Tramo 3, todo 1).
+ * AppModule - Root module for market-data (Tramo 3, todo 2).
  *
  * Wires Config (envFilePath ['.env.dev', '.env']) + HealthModule
  * (GET /api/health -> { status: 'ok' }) + SharedModule (global) +
- * 5 stub feature modules (token, chain, provider, cache, rate-limiter).
- * All feature modules are EMPTY stubs: business logic lands in todos 2-3.
+ * TokenModule (STUB until todo 3) + Chain/Provider/Cache/RateLimiter
+ * (ports, todo 2) + GatewayModule (P43: the ONLY feature controllers).
+ * Inbound x-api-key enforced globally at the edge (fail-open dev).
  * Variante A: single-BC monorepo app (no Nx, no libs/* — see AGENTS.md G-16).
  */
 @Module({
@@ -30,6 +34,8 @@ import { RateLimiterModule } from './rate-limiter/rate-limiter.module';
     ProviderModule,
     CacheModule,
     RateLimiterModule,
+    GatewayModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ApiKeyGuard }],
 })
 export class AppModule {}

@@ -1,11 +1,15 @@
 import { Module } from '@nestjs/common';
+import { ProviderRegistryService } from './provider-registry.service';
 
 /**
- * ProviderModule - STUB (Tramo 3, todo 1).
+ * ProviderModule (Tramo 3, todo 2, P43).
  *
- * Todo 2 lands here: provider health/latency/rate-limit registry +
- * GET /api/v1/providers. The 13 physical adapters land in todo 4
- * (C-DATA-01, last move) under token/infrastructure/providers/.
+ * Exposes the health/latency registry as a PORT only — no controllers.
+ * GET /api/v1/providers lives in src/gateway/. The 13 physical adapters
+ * land in todo 4 (C-DATA-01, last move) under token/infrastructure/.
  */
-@Module({})
+@Module({
+  providers: [ProviderRegistryService],
+  exports: [ProviderRegistryService],
+})
 export class ProviderModule {}
