@@ -5,7 +5,7 @@
  * (INGESTION_TELEGRAM_API_KEY on SSE + feed reads, P30 day-one rule),
  * the ApiKeyGuard CHECKS the inbound key (CONTENT_PUBLISHER_API_KEY).
  * Empty expected key = fail-open (keyless dev), mirroring the backend
- * feed-identity contract and kol-system.
+ * feed-identity contract and the sibling extraction service.
  */
 export const API_KEY_HEADER = 'x-api-key';
 

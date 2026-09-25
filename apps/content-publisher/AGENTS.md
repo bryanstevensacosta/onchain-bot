@@ -40,7 +40,7 @@ Design pivots that govern every future todo:
 | ---- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | 0    | DONE (evidence `.omo/evidence/task-T2-01-content-publisher.log`) | Precondition Gate T1: 9/9 backend `@deprecated` headers + T1 suites signal + `telegram/shared` clean of KOL-bot |
 | 1    | DONE (this scaffold)                                             | App setup + shared transversal, green                                                                           |
-| 2    | TODO                                                             | Ingestion crypto-news HTTP+SSE                                                                                  |
+| 2    | DONE (evidence `.omo/evidence/task-T2-02.log`)                   | Ingestion crypto-news HTTP+SSE (SSE-only, catch-up by cursor, x-api-key day one)                                |
 | 3    | TODO                                                             | Matching + keywords + filters                                                                                   |
 | 4    | TODO                                                             | Queue unificada + deduplication                                                                                 |
 | 5    | TODO                                                             | LLM config+templates+core+playground                                                                            |
@@ -68,7 +68,11 @@ apps/content-publisher/
   src/main.ts            # bootstrap :3040 (CONTENT_PUBLISHER_PORT) + ValidationPipe
   src/app.module.ts      # Config global + Health + 10 stub modules
   src/health/            # GET /api/health static stub
-  src/ingestion/         # STUB (todo 2)
+  src/ingestion/         # BUILT (todo 2, wired): CryptoNewsIngestionClient
+                         # (SSE-only + catch-up by cursor, backoff 1s→30s) +
+                         # ProcessCryptoNewsMessageHandler (seen-key dedup) +
+                         # IngestionHttpClientAdapter (?type=crypto-news, x-api-key)
+                         # + DTOs + port + IngestionHealthIndicator (P21 hook)
   src/matching/          # STUB (todo 3)
   src/keywords/          # STUB (todo 3)
   src/filters/           # STUB (todo 3)
@@ -97,10 +101,24 @@ apps/content-publisher/
 
 ## MODULES
 
-All 10 feature modules are `@Module({})` stubs with a `*.module.spec.ts`
-compile test pointing at the todo that fills them. SharedModule is `@Global()`
-(config namespaces + guard + filter + cache/event-bus ports in-memory +
-metrics + HTTP client).
+9 feature modules remain `@Module({})` stubs with a `*.module.spec.ts`
+compile test pointing at the todo that fills them. `IngestionModule`
+(todo 2, wired): `CryptoNewsIngestionClient` (SSE-only crypto-news
+client — accepts ONLY `data.messageType==='crypto-news'`, foreign type
+rejected by negative assert, P10; reconnect catch-up by cursor, NO
+periodic polling; backoff 1s doubling → 30s cap; `x-api-key` on SSE
+from day one, P30) + `ProcessCryptoNewsMessageHandler` (one frame at a
+time, `channelId:messageId` seen-key = double-delivery guard) +
+`IngestionHttpClientAdapter` (`CryptoNewsIngestionClientPort` impl:
+`GET /api/feed/sources?type=crypto-news` + `/api/feed/messages?type=…`,
+base `INGESTION_TELEGRAM_URL`, `x-api-key` from day one, fail-open `[]`)
+
+- tolerant DTOs (`raw-crypto-news-message.dto`, `crypto-news-source.dto`)
+- `IngestionHealthIndicator` (`{ component: 'ingestion', status }`,
+  P21 hook point, provided + exported, unwired until composite health).
+  SharedModule is `@Global()`
+  (config namespaces + guard + filter + cache/event-bus ports in-memory +
+  metrics + HTTP client).
 
 ## ENV INVENTORY
 
@@ -165,6 +183,12 @@ coverage target >80% (pure units, no I/O).
   outside `apps/content-publisher/` except the mandated lockfile sync.
 - Deps mirror backend versions (axios ^1.18.0, ioredis ^5.4.1, openai
   ^6.45.0) + BullMQ ^5.12.0 (queue backend, wired in todo 4).
+- P32 applied (todo 2): zero foreign-type token in new ingestion code —
+  the single `'kol'` string in `src/` lives in the SSE negative assert
+  (`crypto-news-ingestion-client.service.spec.ts:35`); `api-key.ts`
+  comment reworded to "sibling extraction service". Pre-existing P10
+  rationale comments elsewhere still name the foreign type as
+  documentation (out of scope for this todo).
 
 ## STANDING RULE
 
