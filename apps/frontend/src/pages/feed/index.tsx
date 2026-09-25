@@ -13,7 +13,10 @@ import {
   PromptTemplates,
   QueueView,
 } from '@/features/feed-publisher';
-import { AdsManager, AdsRotationConfigForm } from '@/features/feed-ads';
+import {
+  SchedulingManager,
+  SchedulingRotationConfigForm,
+} from '@/features/feed-scheduling';
 import { ContentFilterManager } from '@/features/feed-filters';
 import { useSearchPhrases } from '@/features/feed-publisher/model/use-phrases';
 
@@ -545,11 +548,11 @@ export function FeedPage() {
             className="space-y-3 rounded-lg border border-slate-700 bg-slate-800/30 p-4"
           >
             <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 select-none">
-              Ads
+              Scheduling
             </summary>
             <div className="space-y-4 pt-2">
-              <AdsManager />
-              <AdsRotationConfigForm />
+              <SchedulingManager />
+              <SchedulingRotationConfigForm />
             </div>
           </details>
         </aside>

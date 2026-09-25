@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { Button, Card } from '@/shared/ui';
-import { AdHtmlPreview } from '@/features/feed-ads';
+import { SchedulingHtmlPreview } from '@/features/feed-scheduling';
 import { markdownToTelegramHtml } from '@/features/prompt-playground/lib/markdown-to-telegram-html';
 import { HttpError } from '@/shared/api/http-client';
 import { useFeedMessages } from '@/entities/feed';
@@ -663,7 +663,7 @@ export function PlaygroundForm(): React.ReactElement {
               {result.content ? (
                 outputView === 'rendered' ? (
                   <div className="bg-slate-800/50 rounded p-2 max-h-40 overflow-y-auto">
-                    <AdHtmlPreview
+                    <SchedulingHtmlPreview
                       body={markdownToTelegramHtml(result.content)}
                     />
                   </div>

@@ -143,7 +143,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchSpy);
 });
 
-describe('ThreadsPage — 6 sections, no Ads', () => {
+describe('ThreadsPage — 6 sections, no Scheduling', () => {
   it('renders header "Threads" and EXACTLY 6 details blocks', async () => {
     renderWithClient(<ThreadsPage />);
 
@@ -166,7 +166,7 @@ describe('ThreadsPage — 6 sections, no Ads', () => {
 
     const details = document.querySelectorAll('details');
     expect(details).toHaveLength(6);
-    expect(screen.queryByText('Ads')).not.toBeInTheDocument();
+    expect(screen.queryByText('Scheduling')).not.toBeInTheDocument();
   });
 
   it('fetches Threads URLs (never feed publisher URLs)', async () => {

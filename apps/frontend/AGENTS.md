@@ -13,18 +13,18 @@ Strict FSD. Dev `:5173` (strictPort); prod is nginx static + per-prefix proxy to
 src/
 ├── app/ {entry.tsx (createRoot), index.tsx (providers), router/routes.tsx (9 routes),
 │         layouts/root-layout.tsx, providers/{query,socket}-provider.tsx, styles/}
-├── pages/ {dashboard (KpiCards + IngestionHealth + LiveFeed + TopTokens + TrackedCalls), tokens-explorer, token-detail (displayName fallback canonical→snapshot→ticker; ContractAddress + copy; gauge + breakdown + snapshot + canonical), kols (rows + lifecycle/backfill/recompute/formula controls), feed (550-line hub: messages + queue + keywords + ads + filters + llm-config + lightbox + album grouping), playground, threads, template-dashboard (thin wrapper → widgets/template-dashboard), ops (replay/filters/presets tabs)}
+├── pages/ {dashboard (KpiCards + IngestionHealth + LiveFeed + TopTokens + TrackedCalls), tokens-explorer, token-detail (displayName fallback canonical→snapshot→ticker; ContractAddress + copy; gauge + breakdown + snapshot + canonical), kols (rows + lifecycle/backfill/recompute/formula controls), feed (550-line hub: messages + queue + keywords + scheduling + filters + llm-config + lightbox + album grouping), playground, threads, template-dashboard (thin wrapper → widgets/template-dashboard), ops (replay/filters/presets tabs)}
 ├── widgets/ {kpi-cards, live-feed, top-tokens-table, kol-leaderboard, tracked-calls, ingestion-health,
 │           template-dashboard (TemplateDashboard: template picker + SourceMultiSelect + CallsTable + PerformanceRanking + TopCallersStrip + TemplateConfigSection + KolAvatar)}
 ├── features/ (11) {add-kol, add-feed-source, set-kol-lifecycle,
 │              replay-message, reprocess-rejected, kol-score-formula, recompute-kol-reputation,
 │              settings (filters/presets tabs, presets = named settings snapshots),
 │              feed-publisher (queue 10 s polling, backend cap 500; keywords/phrases/blacklist/llm-config),
-│              feed-ads (1 473-line manager: staged media protocol create→upload→PATCH format; `expiresAt: null` = explicit clear),
+│              feed-scheduling (1 473-line manager: staged media protocol create→upload→PATCH format; `expiresAt: null` = explicit clear),
 │              feed-filters (regex pattern/replacement/flags default `gi`/priority + live preview)}
 - Keywords support compound AND-groups, per-template binding, exact/substring modes (`KW_PAGE_SIZE` 5); phrases poll 10 s + guarded search + conflict-check mutation; presets create with empty snapshot; lightbox has arrow-key nav with wraparound.
 - Publisher ops: `MatchingToggleButton` (start/stop with spinner + pulse dot), `BlockedPostsList` (BLOCKED filter + shared details modal), `PromptTemplates` (643 lines: model/vision/maxTokens/temperature/reasoning-effort forms).
-- Blacklist mirrors keywords (910 lines: batch create, compound groups, per-source scope); ads poll 10 s; `KolReputationView` carries full outcome metrics (x2/x5/x10/x50, rug50/rug80, neutral) + `isTrusted/isSuspicious`; copy buttons with Spanish aria-labels (`Copiar contrato`).
+- Blacklist mirrors keywords (910 lines: batch create, compound groups, per-source scope); scheduling poll 10 s; `KolReputationView` carries full outcome metrics (x2/x5/x10/x50, rug50/rug80, neutral) + `isTrusted/isSuspicious`; copy buttons with Spanish aria-labels (`Copiar contrato`).
 - `CanonicalTokenCallView` keeps per-source `messageIds` + metrics + confidence; `TokenScoreView` keeps legacy `classifiedAt?` + `avgKolReputation`.
 - Compound modal: client-generated row IDs (`generateId()`), AND-grouped phrase rows with per-row case/mode/media/template binding; source invalidation is broad (`feedKeys.all`).
 ├── entities/ (12) {kol, kol-reputation, canonical-call, token-score, token-classification,
@@ -48,7 +48,7 @@ Modal convention (`AddKolModal`, `AddFeedSourceModal`): uncontrolled-close guard
 Correctly scoped prefixes: `telegram-kol/identity`, `telegram-kol/reputation`, `token/intake/*`,
 `token/normalization`, `token/market-data`, `token/classification`, `token/scoring`,
 `token/vip-call-approval`, `token/honeypot`, `token/call-tracking`, `call-tracking`,
-`vip-calls`, `feed-publisher/*`, `feed-ads/*`, `settings/*`,
+`vip-calls`, `feed-publisher/*`, `crypto-news-scheduling/*`, `settings/*`,
 `dashboard/kpis`, `ingestion/{config,health}`, `token/image/:chain/:address` (CDN fallback in `format.ts`).
 
 **INGESTION-TELEGRAM — una instancia por env (per-env 2026-09-22)** (`/ingestion-api` same-origin → upstream por env):
@@ -133,14 +133,14 @@ Docker build sets all to `""` → same-origin in prod (nginx routes by prefix).
 
 **Dev (`vite.config.ts`):**
 
-- Backend proxy (`localhost:3030`): `/api`, `/crypto-news-publisher`, `/crypto-news-ads`, `/crypto-news/matching`, `/socket.io` (ws:true)
+- Backend proxy (`localhost:3030`): `/api`, `/crypto-news-publisher`, `/crypto-news-scheduling`, `/crypto-news/matching`, `/socket.io` (ws:true)
 - **Ingestion-telegram proxy (`INGESTION_PROXY_TARGET`, default `http://localhost:3031`):** `/ingestion-api/*` → rewrite `^/ingestion-api` → `/api`
 - **Kol-system proxy (`KOL_SYSTEM_PROXY_TARGET`, default `http://localhost:3050`):** `/kol-api/*` → rewrite `^/kol-api` → `/api` (Tramo 1; `vite.config.ts:98-102`)
 - **REMOVED:** `/crypto-news/(messages|sources|backfill|media)` regex — feed reads go via `/ingestion-api/feed/*`
 
 **Prod (`nginx.conf`, staging: `nginx.staging.conf`):**
 
-- Backend locations (`backend:3030`): dashboard, telegram-kol, vip-calls, token, ingestion, call-tracking, telegram, settings, kols, feed-publisher, feed-ads, socket.io
+- Backend locations (`backend:3030`): dashboard, telegram-kol, vip-calls, token, ingestion, call-tracking, telegram, settings, kols, feed-publisher, crypto-news-scheduling, socket.io
 - **Ingestion-telegram location:** `/ingestion-api/` → rewrite → `/api/` on the per-env upstream: prod `onchain-bot-ingestion-telegram:3031` (`nginx.conf:252-258`), staging `onchain-bot-ingestion-telegram-staging:3031` (`nginx.staging.conf:256-260`, host `:3033`)
 - ⚠️ **Kol-system location MISSING:** `nginx.conf`/`nginx.staging.conf` have NO `/kol-api/` block (verified by grep — solo existe en `vite.config.ts`). `/templates` works in dev only until prod deploy mirrors it (`/kol-api/` → rewrite → `/api/` on the kol-system upstream, dual-applied to both confs like `/ingestion-api/`).
 - **REMOVED:** `/crypto-news/{messages,sources,media}` — now `/ingestion-api/feed/*`
@@ -166,17 +166,17 @@ Docker build sets all to `""` → same-origin in prod (nginx routes by prefix).
 - `HolderConcentrationGauge`: Mobula segments (Top10>80, insiders>50, bundlers>30 warn) with hover tooltip, `—` without data; `LiquidityGauge` (locked/burned + RugCheck flag); `BondingCurveProgress`: pumpfun-aware (🎓 Graduated ≥99, bands 75+, null → `—`).
 - Detail hooks (`useKol(id)`, `useKolReputation(id)`) use `enabled: !!id` guards; list hooks poll.
 - Views mirror backend DTOs (`TokenSnapshotView` with RugCheck `locked/burnedPercent`, `primaryPair`, `completeness`; `PublishedCallView` importa `ScoreTier` de `@/shared/realtime/events` (duplicado eliminado, Carril 1); `GateAllowView{allowed, reasons[]}`).
-- Config forms (`AdsRotationConfigForm`, LLM config) edit string drafts re-seeded from server only when upstream values actually change (no mid-edit clobber).
+- Config forms (`SchedulingRotationConfigForm`, LLM config) edit string drafts re-seeded from server only when upstream values actually change (no mid-edit clobber).
 - Kols footer: `rangeStart–rangeEnd de total` + page counter (Spanish UI); empty state `No hay KOLs registrados`.
 - `token-classification` is a chipless-fetch entity: types + `ClassificationChip` only (classifications arrive inside score/canonical payloads, never fetched directly).
-- `AdHtmlPreview` (224 lines): sanitizing mini-renderer mirroring backend `telegram-html-sanitizer.ts` — Telegram HTML allowlist, tokenized rebuild as React elements, no `dangerouslySetInnerHTML`.
+- `SchedulingHtmlPreview` (224 lines): sanitizing mini-renderer mirroring backend `telegram-html-sanitizer.ts` — Telegram HTML allowlist, tokenized rebuild as React elements, no `dangerouslySetInnerHTML`.
 - `SourceMultiSelect`: empty ids = global scope (`All sources (global)` label).
 - Template-dashboard widgets (`widgets/template-dashboard/ui/`, barrel `widgets/template-dashboard/index.ts`): `CallsTable` (ticker/`$` o address `aaaa…zzzz`, score, `formatMc` `$2.50M`, `timeAgo`, `trackingLabelFor` First-time/`Nx from last call`, expandable breakdown rows, testids `kol-calls-table`/`call-row-*`/`db-id-*`/`more-details-*`/`details-*`) + `PerformanceRanking` (top-10 en mitades 5+5 vía `splitRankingHalves`, toggle `perf_desc/asc` vía `togglePerfSort`, orden vía `sortRankings`, testids `kol-rankings-table`/`perf-half-left|right`/`perf-card-*`/`perf-sort-toggle`) + `TopCallersStrip` (top-10 por calls con selector `30d/7d/1d`, testids `top-callers-strip`/`window-selector`/`window-*`/`top-caller-*`) + `TemplateConfigSection` (read-only: sources `All sources|N selected`, score floor, gems `≥score · N pattern(s)` + lista, bot `botId ?? dashboard-only → channelTarget`, testids `template-config`/`config-*`) + `KolAvatar` (img 32px redonda u placeholder con iniciales, testids `avatar-img-*`/`avatar-placeholder-*`). Helpers puros en `entities/template/model/helpers.ts` (`filterCallsBySources` empty=all, `splitRankingHalves`, `sortRankings`, `togglePerfSort`, `trackingLabelFor`, `timeAgo`, `formatMc`, `avatarSrcFor`); tipos en `model/types.ts` (`TemplateView` con kolSourceIds/score-floor/gems/bot/target/canPublish, `TemplateCallRow` con campos anulables y arreglo breakdown, `KolRankingRow` caller/window/totalX/counts/display, `KolSourceOption` channelId/handle/title/avatarUrl/url).
 - `uuid.generateId()`: `crypto.randomUUID()` with Math.random fallback for non-secure HTTP contexts.
 
 ## TESTS (31 files, vitest + Playwright e2e)
 
-Co-located `*.test.{ts,tsx}` + `__tests__/` dirs, heaviest in feed features (ads-manager 1900+ lines, feed-page). `src/test/setup.ts` only. jsdom + testing-library/react in deps.
+Co-located `*.test.{ts,tsx}` + `__tests__/` dirs, heaviest in feed features (scheduling-manager 1900+ lines, feed-page). `src/test/setup.ts` only. jsdom + testing-library/react in deps.
 Template-dashboard: `entities/template/model/helpers.test.ts` (pure helpers: tracking/mc/timeAgo/filter/sort/halves/avatar) + `widgets/template-dashboard/ui/template-dashboard.test.tsx` (jsdom: calls First-time/Nx + db-ids, perf 5+5 halves + sort toggle, window selector + caller counts, config extended). E2E Playwright (`e2e/template-dashboard.spec.ts`, 6 tests con `/kol-api/**` + `/ingestion-api/**` mockeados: calls table, rankings por window, source-filter narrow/clear, halves 5+5 + sort + window + config, API-down empty states, avatar-404 placeholder) + `e2e/qa-screenshots.spec.ts` (legacy dashboard intact, mockea `/kol-api/templates*`). `playwright.config.ts` (`testDir e2e`, baseURL `:5174`, webServer `vite --port 5174`, `reuseExistingServer` fuera de CI); `vitest.config.ts` excluye `e2e/**`; `npm run test:e2e` (`@playwright/test` devDep).
 
 ## REMOVED DEPS (Carril 1 — cero imports verificado)
@@ -209,7 +209,7 @@ npm run format              # prettier --write "src/**/*.{ts,tsx}"
 
 ## GAPS (verified)
 
-1–6. **Dead URLs above** — 1 backfill RESOLVED (feature deleted); 2 byToken already removed (zero usages; per-token lookup lives at `call-tracking/tracked/:chain/:address`); 3 dashboard kpis already removed (KpiCards degrades + documented); 4 reprocess already removed (zero references); 5 `/api/*` prefix already gone (zero `/api/`-prefixed fetches; both prefixes proxied); 6 filters hole CLOSED 2026-09-24 (`PUT /crypto-news/filters/:id` fix + `/crypto-news/filters/` location in both nginx confs + vite). 7. ~~**ScoreTier mismatch**~~ **RESOLVED (Carril 1)**: union alineada a backend + legacy compat, `tierTone()`/`classificationTone()` con fallback `gray`. 8. **Frontend README §3 stale** (`/kols`, `/token/token-gating/*`, 4 links vs 6 routes, missing crypto-news/settings/ads/tracking groups). 9. **Fix-1 smell**: `TelegramMessageIngestedEvent.text` typed on the socket — confirm backend never emits it. 10. **From README, still true**: no error boundaries; no skeletons (plain `Cargando...`); ~~`Chain` duplicated between entities and `realtime/events.ts` (`ScoreTier` duplicate fixed, Carril 1)~~ **`Chain` unified**: no second export existed — 2 holdouts on bare `string` now import canonical `Chain` from `realtime/events.ts` (display keeps `Chain | string`). (README's "`hace 0s` hardcoded" is stale — timestamps come from payload since the LiveFeed rewrite.) 11. **`/kols` nginx location** with no frontend caller using bare `/kols/*` — legacy leftover (README-era routes); remove or document.
+1–6. **Dead URLs above** — 1 backfill RESOLVED (feature deleted); 2 byToken already removed (zero usages; per-token lookup lives at `call-tracking/tracked/:chain/:address`); 3 dashboard kpis already removed (KpiCards degrades + documented); 4 reprocess already removed (zero references); 5 `/api/*` prefix already gone (zero `/api/`-prefixed fetches; both prefixes proxied); 6 filters hole CLOSED 2026-09-24 (`PUT /crypto-news/filters/:id` fix + `/crypto-news/filters/` location in both nginx confs + vite). 7. ~~**ScoreTier mismatch**~~ **RESOLVED (Carril 1)**: union alineada a backend + legacy compat, `tierTone()`/`classificationTone()` con fallback `gray`. 8. **Frontend README §3 stale** (`/kols`, `/token/token-gating/*`, 4 links vs 6 routes, missing crypto-news/settings/scheduling/tracking groups). 9. **Fix-1 smell**: `TelegramMessageIngestedEvent.text` typed on the socket — confirm backend never emits it. 10. **From README, still true**: no error boundaries; no skeletons (plain `Cargando...`); ~~`Chain` duplicated between entities and `realtime/events.ts` (`ScoreTier` duplicate fixed, Carril 1)~~ **`Chain` unified**: no second export existed — 2 holdouts on bare `string` now import canonical `Chain` from `realtime/events.ts` (display keeps `Chain | string`). (README's "`hace 0s` hardcoded" is stale — timestamps come from payload since the LiveFeed rewrite.) 11. **`/kols` nginx location** with no frontend caller using bare `/kols/*` — legacy leftover (README-era routes); remove or document.
 
 ## NOTES
 

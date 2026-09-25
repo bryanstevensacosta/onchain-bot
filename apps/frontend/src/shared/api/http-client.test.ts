@@ -26,7 +26,7 @@ describe('httpPostForm', () => {
     formData.append('file', new Blob(['x'], { type: 'image/png' }), 'a.png');
 
     const result = await httpPostForm<{ ok: boolean }>(
-      '/crypto-news-ads/ads/1/image',
+      '/crypto-news-scheduling/scheduling/1/image',
       formData,
     );
 
@@ -36,7 +36,7 @@ describe('httpPostForm', () => {
       string,
       RequestInit | undefined,
     ];
-    expect(url).toContain('/crypto-news-ads/ads/1/image');
+    expect(url).toContain('/crypto-news-scheduling/scheduling/1/image');
     expect(init?.method).toBe('POST');
     expect(init?.body).toBe(formData);
     // Browser sets the multipart boundary — never a manual Content-Type.
@@ -52,10 +52,10 @@ describe('httpPostForm', () => {
     formData.append('file', new Blob(['x']), 'a.png');
 
     await expect(
-      httpPostForm('/crypto-news-ads/ads/1/image', formData),
+      httpPostForm('/crypto-news-scheduling/scheduling/1/image', formData),
     ).rejects.toThrow(HttpError);
     await expect(
-      httpPostForm('/crypto-news-ads/ads/1/image', formData),
-    ).rejects.toThrow('POST /crypto-news-ads/ads/1/image → 500');
+      httpPostForm('/crypto-news-scheduling/scheduling/1/image', formData),
+    ).rejects.toThrow('POST /crypto-news-scheduling/scheduling/1/image → 500');
   });
 });

@@ -10,16 +10,16 @@ React 18 + Vite 5 dashboard para monitorizar en tiempo real el pipeline de alpha
 
 ## 1. Páginas y rutas
 
-| Ruta                      | Página          | Descripción                                                                                                    |
-| ------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------- |
-| `/`                       | Dashboard       | KPIs (KOLs, calls, approval rate, published) + Live Feed + Top Tokens                                          |
-| `/tokens`                 | Tokens Explorer | Tokens canónicos recientes (deduplicados)                                                                      |
-| `/tokens/:chain/:address` | Token Detail    | Detalle de un token: score, snapshot, decisiones                                                               |
-| `/kols`                   | KOLs            | Lista de KOLs, controles de lifecycle, leaderboard de reputación                                               |
-| `/crypto-news`            | Crypto-News     | Newsroom: mensajes + queue + keywords + ads + filtros + llm-config (lee ingestion vía `/ingestion-api/feed/*`) |
-| `/playground`             | Playground      | Prompt playground (feed)                                                                                       |
-| `/threads`                | Threads         | Publisher de threads (keywords/phrases/blacklist/queue/llm)                                                    |
-| `/ops`                    | Ops Panel       | Replay de mensajes a través del pipeline                                                                       |
+| Ruta                      | Página          | Descripción                                                                                                           |
+| ------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `/`                       | Dashboard       | KPIs (KOLs, calls, approval rate, published) + Live Feed + Top Tokens                                                 |
+| `/tokens`                 | Tokens Explorer | Tokens canónicos recientes (deduplicados)                                                                             |
+| `/tokens/:chain/:address` | Token Detail    | Detalle de un token: score, snapshot, decisiones                                                                      |
+| `/kols`                   | KOLs            | Lista de KOLs, controles de lifecycle, leaderboard de reputación                                                      |
+| `/crypto-news`            | Crypto-News     | Newsroom: mensajes + queue + keywords + scheduling + filtros + llm-config (lee ingestion vía `/ingestion-api/feed/*`) |
+| `/playground`             | Playground      | Prompt playground (feed)                                                                                              |
+| `/threads`                | Threads         | Publisher de threads (keywords/phrases/blacklist/queue/llm)                                                           |
+| `/ops`                    | Ops Panel       | Replay de mensajes a través del pipeline                                                                              |
 
 Navegación sticky en header con 7 links (Dashboard · Tokens · KOLs · News · Playground · Threads · Ops — ver `src/app/layouts/root-layout.tsx`).
 
@@ -83,12 +83,12 @@ Navegación sticky en header con 7 links (Dashboard · Tokens · KOLs · News ·
 | Queue / counts                       | `GET /crypto-news-publisher/queue` · `/counts`                  | 10s     |
 | Keywords / phrases / blacklist / llm | `GET /crypto-news-publisher/{keywords,phrases,blacklist,llm}/*` | 10s     |
 
-### Settings / Ads / Tracking
+### Settings / Scheduling / Tracking
 
 | Query                                          | Endpoint                                                                                                  |
 | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | Señales / filtros / umbrales / presets / audit | `GET /settings/{signals,filters,thresholds,presets,audit}/*`                                              |
-| Ads + rotation-config                          | `GET /feed-ads/{ads,rotation-config}/*`                                                                   |
+| Scheduling + rotation-config                   | `GET /crypto-news-scheduling/{scheduling,rotation-config,media-library,media}/*`                          |
 | Calls seguidos / gate                          | `GET /call-tracking/tracked` · `GET /call-tracking/tracked/:chain/:address` · `/call-tracking/gate-allow` |
 | Ingestion config/health                        | `GET /ingestion/{config,health}`                                                                          |
 

@@ -1,6 +1,6 @@
 # apps/feed-publisher/ — NestJS Knowledge Base
 
-> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 2 scaffold, todos 1-4).
+> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 2 scaffold, todos 1-5).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md` §7.6 (2026-09-24).
 > Cross-tramo contracts pinned in `.omo/plans/mega-refactor-central.md` v2026-09-24;
 > feed-publisher plan in `.omo/plans/mega-refactor-feed-publisher.md` (12 todos).
@@ -43,7 +43,7 @@ Design pivots that govern every future todo:
 | 2    | DONE (evidence `.omo/evidence/task-T2-02.log`)                | Ingestion feed HTTP+SSE (SSE-only, catch-up by cursor, x-api-key day one)                                       |
 | 3    | DONE (evidence `.omo/evidence/task-T2-03.log`)                | Matching + keywords + filters (18 suites / 64 tests, wired)                                                     |
 | 4    | DONE (evidence `.omo/evidence/task-T2-04.log`)                | Queue unificada + deduplication (18 suites / 76 tests, wired)                                                   |
-| 5    | TODO                                                          | LLM config+templates+core+playground                                                                            |
+| 5    | DONE (evidence `.omo/evidence/task-T2-05.log`)                | LLM config+templates+core+playground (19 suites / 62 tests, wired, drain rebind)                                |
 | 6    | TODO                                                          | Scheduling/ads + media library                                                                                  |
 | 7    | TODO                                                          | Telegram crypto+threads adapters (C2)                                                                           |
 | 8    | TODO                                                          | Threads esqueleto + contrato C1                                                                                 |
@@ -131,7 +131,33 @@ apps/feed-publisher/
                          # `dedup_fingerprints` table, NO pgvector) +
                          # in-memory store (GAP-1, TypeORM shape unwired) +
                          # health hook
-  src/llm/               # STUB (todo 5)
+  src/llm/               # BUILT (todo 5, wired): LlmConfig
+                         # (single-row id=1, fail-closed seed, shouldGenerateLlm
+                         # = llm AND publishing, C-FLAGS-01) + pipeline-flags
+                         # (pure 8-combo truth-table resolver + mode) +
+                         # PromptTemplate (GLOBAL catalog P33/P34:
+                         # contentType crypto-news|threads|global, GLOBAL
+                         # applies everywhere) + latin-script-validator
+                         # (pure non-Latin finder) + FeedLlmGenerator
+                         # (keyword-bound > default resolution, single-pass
+                         # {{title}}/{{original}}/{{hasImage}} render,
+                         # vision fail-open, vision auto-disable, mock
+                         # short-circuit, LlmFailedError wrap) +
+                         # LlmArticleRendererAdapter (LIVE
+                         # QueuedArticleRendererPort binding: raw passthrough
+                         # unless llm AND publishing, empty + non-Latin
+                         # rejection -> FAILED + cron retry downstream) +
+                         # PreviewPromptUseCase (transient entry, render or
+                         # one generation, NEVER persists) + GetLlmModels
+                         # (gateway /v1/models, 5s timeout) +
+                         # GetPipelineFlags (matching + llm compose) +
+                         # gateway (default) / mock (USE_MOCK_AI) adapters +
+                         # in-memory repos (fail-closed config seed,
+                         # default-feed GLOBAL seed; TypeORM shapes +
+                         # mappers unwired, GAP-1) + 3 controllers
+                         # (/api/llm config+flags, /api/llm/templates CRUD
+                         # with 409 in-use, /api/llm preview+models) +
+                         # health hook
   src/scheduling/        # STUB (todo 6)
   src/threads/           # STUB (todo 8, v1 skeleton only)
   src/telegram/          # STUB (todo 7, crypto+threads)
@@ -192,8 +218,17 @@ base `INGESTION_TELEGRAM_URL`, `x-api-key` from day one, fail-open `[]`)
   `KeywordsController` + `BlacklistController` + health hook
 - `FiltersModule` (todo 3, wired): `ContentFilterService` +
   `ChannelContentFilterConfig` (opaque channelId, FK-less) + use-cases +
-  `FiltersController` + health hook. 4 modules still stubs
-  (llm, scheduling, threads, telegram).
+  `FiltersController` + health hook.
+- `LlmModule` (todo 5, wired — imports Keywords + Matching via
+  forwardRef): `LlmConfig` + `PromptTemplate` (GLOBAL catalog) +
+  `FeedLlmGenerator` + `LlmArticleRendererAdapter` (LIVE drain render
+  binding) + playground + models + flags use-cases + 3 controllers +
+  `LlmHealthIndicator` (P21 hook). `QueueModule` rebinds
+  `QueuedArticleRendererPort` to the LLM renderer via
+  `forwardRef(() => LlmModule)` (raw adapter deleted); the old
+  `llm.module.spec.ts` + `queue.module.spec.ts` stubs now boot with a
+  global `ConfigModule` (transitive IngestionModule needs it).
+  3 modules still stubs (scheduling, threads, telegram).
 
 * tolerant DTOs (`raw-feed-message.dto`, `feed-source.dto`)
 * `IngestionHealthIndicator` (`{ component: 'ingestion', status }`,
@@ -312,6 +347,32 @@ coverage target >80% (pure units, no I/O).
     symbols -> `feed` symbols; `contentType` values + `messageType`
     stay `'crypto-news'|'threads'` / `'crypto-news'`. One blind-rename
     artifact fixed (`feed:` id expectation in the entity spec).
+- Todo 5 (P25): LLM stack ported reference read-only from backend
+  `crypto-news-publisher` LLM code (llm-config + prompt-template
+  entities/validators, gateway/mock adapters, preview use-case,
+  llm-config controller/input, latin validator, get-models use-case);
+  nothing outside `apps/feed-publisher/` touched (lockfile untouched —
+  no new deps: `openai` was already a dep, `cron` + `@nestjs/swagger`
+  resolve via hoisted root modules). P10/P32 grep gates green
+  (verified empty incl. `src/llm/`). Failing-first: 4 domain specs red
+  on missing modules, then green; 19 suites / 62 tests for llm + full
+  89/272 + `tsc` clean + `nest build` clean + boot smoke (playground
+  preview curl with mock, queue stats unchanged). Deliberate
+  deviations from the backend: (a) GLOBAL template catalog gains a
+  `contentType` scope (`crypto-news|threads|global`, P33/P34 —
+  backend templates are crypto-only); (b) errors are `LlmFailedError`
+  (this app's taxonomy) instead of plain `Error`; (c) entries carry
+  `imagePaths[]` (first readable file feeds vision; backend used
+  single `imagePath`); (d) `QueueModule` rebinds its renderer token to
+  the LLM adapter now (the raw adapter file is deleted); (e) no
+  target-channel Bot API check on PATCH config (todo 7 owns the
+  publisher port); (f) gateway reads flat `LLM_GATEWAY_*` env
+  (fallback `OPENAI_API_KEY`, `.env.example` extended) instead of the
+  backend `app.llm.gateway` namespace. Gateway-down adversarial:
+  generator wraps in `LlmFailedError` -> drain `failOrRetry` to
+  `llmMaxAttempts` then FAILED (existing queue path, spec-covered).
+  TypeORM shapes + mappers for both llm tables ship UNWIRED (GAP-1)
+  with in-memory adapters live. Worktree left dirty (no commit).
 
 ## STANDING RULE
 

@@ -52,7 +52,7 @@ export default defineConfig(({ mode }) => {
           target: BACKEND_PROXY_TARGET,
           changeOrigin: false,
         },
-        '/crypto-news-ads': {
+        '/crypto-news-scheduling': {
           target: BACKEND_PROXY_TARGET,
           changeOrigin: false,
         },

@@ -1,7 +1,9 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { DeduplicationModule } from '../deduplication/deduplication.module';
+import { LlmModule } from '../llm/llm.module';
+import { LlmArticleRendererAdapter } from '../llm/infrastructure/llm/llm-article-renderer.adapter';
 import { PublisherQueueRepository } from './domain/ports/publisher-queue.repository';
 import { QueuedArticleRendererPort } from './application/ports/queued-article-renderer.port';
 import { QueuedArticleDispatcherPort } from './application/ports/queued-article-dispatcher.port';
@@ -12,7 +14,6 @@ import { PublisherCronScheduler } from './application/scheduling/publisher-cron.
 import { ExpireStaleQueueEntriesScheduler } from './application/scheduling/expire-stale-queue-entries.scheduler';
 import { QueueHealthState } from './application/state/queue-health.state';
 import { QueueMatchedMessageAdapter } from './infrastructure/feed/queue-matched-message.adapter';
-import { RawContentRendererAdapter } from './infrastructure/render/raw-content-renderer.adapter';
 import { InMemoryQueuedArticleDispatcher } from './infrastructure/dispatch/in-memory-queued-article.dispatcher';
 import { InMemoryPublisherQueueRepository } from './infrastructure/persistence/in-memory/in-memory-publisher-queue.repository';
 import { QueueController } from './api/http/queue.controller';
@@ -24,14 +25,20 @@ import { QueueHealthIndicator } from './health/queue-health.indicator';
  * Owns the unified queue (`contentType` discriminator): PublisherQueueEntry
  * + QueueManager (strict `QUEUE_MAX_PENDING` cap, default 36) +
  * EnqueueMatchingMessage (binds the todo 3 `MatchedMessageEnqueuePort`) +
- * ProcessNextQueuedArticle (one-per-tick drain, raw render + in-memory
- * dispatch until todos 5/7) + schedulers (1min drain + 30min TTL expire,
+ * ProcessNextQueuedArticle (one-per-tick drain, LLM render when the
+ * flags say so + raw passthrough otherwise, in-memory dispatch until
+ * todo 7) + schedulers (1min drain + 30min TTL expire,
  * default 24h) + `GET/DELETE /api/queue`. The TypeORM shape + mapper ship
  * unwired (GAP-1); BullMQ-over-Redis replaces the in-memory repo (GAP-3)
  * without touching QueueManager.
  */
 @Module({
-  imports: [ConfigModule, ScheduleModule.forRoot(), DeduplicationModule],
+  imports: [
+    ConfigModule,
+    ScheduleModule.forRoot(),
+    DeduplicationModule,
+    forwardRef(() => LlmModule),
+  ],
   controllers: [QueueController],
   providers: [
     QueueManager,
@@ -42,7 +49,7 @@ import { QueueHealthIndicator } from './health/queue-health.indicator';
     QueueHealthState,
     QueueHealthIndicator,
     QueueMatchedMessageAdapter,
-    RawContentRendererAdapter,
+    LlmArticleRendererAdapter,
     InMemoryQueuedArticleDispatcher,
     InMemoryPublisherQueueRepository,
     {
@@ -51,7 +58,7 @@ import { QueueHealthIndicator } from './health/queue-health.indicator';
     },
     {
       provide: QueuedArticleRendererPort,
-      useClass: RawContentRendererAdapter,
+      useClass: LlmArticleRendererAdapter,
     },
     {
       provide: QueuedArticleDispatcherPort,

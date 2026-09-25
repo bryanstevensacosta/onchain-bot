@@ -100,7 +100,7 @@ Your next move: approve — listo para $start-work Tramo 2 tras Gate T1. Full ex
      Acceptance criteria: `curl -s localhost:3040/api/queue/stats | jq .pending` >= 0 + cascada verde
      QA scenarios: happy enqueue→drain; failure embeddings caídos → fail-open (enqueue igual). Evidence .omo/evidence/task-4-mega-refactor-feed-publisher.log
      Commit: Y | feat(feed-publisher): queue unificada y dedup
-- [ ] 5. LLM config+templates+core+playground (11-refactor §7)
+- [x] 5. LLM config+templates+core+playground (11-refactor §7)
      What to do / Must NOT do: `LlmConfig` (3-flag: matching/llm/publishing, `LLM = llm AND publishing`), `PromptTemplate` por content-type, `LlmGenerator` (gateway multi-provider, default) + `MockLlm` (`USE_MOCK_AI`), `Playground` preview sin side-effects, 3 controllers. Tests generación + validación non-Latin.
      Parallelization: Wave 3 | Blocked by: 4 | Blocks: 10
      References: 11-refactor.md:537-661; apps/backend/src/telegram/crypto-news-publisher/ (FeedLlmAdapter origen); plan central C-FLAGS-01

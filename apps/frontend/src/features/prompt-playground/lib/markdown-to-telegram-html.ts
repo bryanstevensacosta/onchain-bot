@@ -4,7 +4,7 @@
  * The publisher sends `parse_mode: HTML`, so real posts must use `<b>`,
  * `<i>`, … — but drafts under test may allow Markdown, and judging raw
  * asterisks is painful. This converts the common subset to the Telegram
- * allowlist (mirrored by `AdHtmlPreview`) so "Vista previa" shows
+ * allowlist (mirrored by `SchedulingHtmlPreview`) so "Vista previa" shows
  * formatting either way. Existing HTML tags pass through untouched.
  */
 const CODE_FENCE_REGEX = /```(\w*)\n([\s\S]*?)```/g;
