@@ -148,7 +148,7 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
       Acceptance criteria: `curl sin key → 401/403` + `grep -rni "sk-\|api[_-]?key\s*[:=]\s*['\"][^'\"]" apps/market-data/src apps/market-data/.env* 2>/dev/null | grep -v spec | wc -l` = 0
       QA scenarios: happy key válida con scope; failure compromiso simulado → revocar+rotar+audit en <15min (drill documentado). Evidence .omo/evidence/task-10-mega-refactor-market-data.log
       Commit: Y | feat(market-data): seguridad auth keys con scopes y rotación
-- [ ] 11. Streaming ccxt on-demand vía ws (P49)
+- [x] 11. Streaming ccxt on-demand vía ws (P49)
       What to do / Must NOT do: `src/stream/` (suscripciones watchTicker/watchOHLCV on-demand por cliente autenticado P46, backpressure, rate-limit compartido con REST, auto-limpieza al desconectar) expuesto en `gateway/api/ws` (Socket.IO o WS nativo — decisión worker justificada; http intacto). Tests: subscribe/recibe/unsubscribe, backpressure, auth requerida. Must NOT streams sin auth ni fugas al desconectar.
       Parallelization: Wave 3 | Blocked by: 2 (gateway), 10 (auth) | Blocks: 8
       References: .omo/drafts/mega-refactor-tramos.md (P49); ccxt pro docs (watch\*); apps/market-data/src/gateway/

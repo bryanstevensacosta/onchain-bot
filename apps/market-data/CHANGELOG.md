@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **On-demand ccxt streaming over ws (Tramo 3, todo 11, P49):** new
+  `src/stream/` module (`StreamModule`, wired in `AppModule` +
+  `GatewayModule`) multiplexing `watchTickers` / `watchOHLCVForSymbols`
+  feeds over exactly ONE shared WS connection per exchange
+  (`ExchangeConnectionManager`: lazy connect, refcounted
+  watch/unwatch, EXCHANGE_DOWN fan-out with `retryAfterMs` and 1s->30s
+  backoff reconnect + re-watch while refs remain; closes on last
+  unsub). The thin `StreamBrokerService` adds P46 auth (ticker=`read`,
+  ohlcv=`snapshot`, legacy env key admin-equivalent, fail-open mirrors
+  the HTTP guard), per-client subscriptions (100/client cap, exchange
+  allowlist via `MARKET_DATA_STREAM_EXCHANGES`), the SHARED REST 60/min
+  sliding budget (same `gw:<ip>` key + singleton limiter — REST abuse
+  throttles WS subscribes and vice versa), and backpressure (128-deep
+  per-client queues, drop-oldest + drop counter) with full cleanup on
+  disconnect (every manager ref released — no leaks). Transport is
+  Socket.IO (`gateway/infrastructure/ws/`, namespace `/market-data`;
+  `gateway/api/ws/` stays a `@deprecated` compat re-export): zero new
+  deps, same stack as the backend WsGateway + dashboard client. The
+  ccxt.pro driver is an OPTIONAL peer behind
+  `MARKET_DATA_STREAM_DRIVER=ccxt` (default `memory` driver is
+  deterministic; missing peer fails loudly, never silently). Verified:
+  43 suites / 149 tests green (+5/+23), `tsc --noEmit` clean, `nest
+build` clean, live `:4133` matrix (keyless/wrong-key handshakes
+  UNAUTHORIZED + disconnect; 100 subs stream ~13.3k ticks with zero
+  loss; REST p95 = 2.40ms < 500ms PASS under the fan-out; full
+  unsubscribe + disconnect + re-subscribe clean).
+
+### Added
+
+- **Scoped API-key auth system (Tramo 3, todo 10, P46 seguridad):** new
+  `src/auth/` module (`AuthModule`, wired in `AppModule` + `SharedModule`)
+  replacing the single env-key check with per-client keys in scopes
+  `read` / `snapshot` / `admin` (hierarchy admin > snapshot > read;
+  `read` = GET chains/providers/addresses/tokens, `snapshot` adds the
+  batch POST + compat snapshot GET, `admin` adds `POST|GET
+/api/v1/auth/keys`, `POST /api/v1/auth/keys/:id/rotate`, `DELETE
+/api/v1/auth/keys/:id`, `GET /api/v1/auth/audit`). Keys are stored as
+  SHA-256 hashes only (plaintext returned exactly once on create/rotate;
+  list/audit/logs/responses/errors never carry key material — enforced
+  by a source-scanning grep-gate spec). Rotation is zero-downtime with
+  no redeploy/reboot (admin endpoint, dual-key 10-min grace: old + new
+  both verify until grace expires; revoke kills immediately). Per-key
+  sliding-window rate-limit (per-key `rateLimitPerMin`, 429 on breach)
+  plus an append-only access audit (key id + name, method, path, status
+  — query strings stripped). Loopback bind by default (`MARKET_DATA_HOST`
+  default `127.0.0.1`; wider exposure is an explicit operator decision —
+  Tailscale IP or `0.0.0.0`, never the default). Legacy
+  `MARKET_DATA_API_KEY` still works as admin-equivalent; fail-open only
+  when no auth is configured at all (empty env + empty store). No-key is
+  401, wrong scope is 403. Verified: 38 suites / 126 tests green
+  (+6 suites / +17 tests), `tsc --noEmit` clean, boot `:4123` curl matrix
+  (health 200 keyless; chains 401 nokey/wrong, 200 keyed; batch 403 on
+  read key, 200 on snapshot key; rotate old + new both 200; revoke 204;
+  list/audit carry prefixes only, no hashes or full keys).
+
 ### Changed
 
 - **Global hexagonal restructure + legacy deprecated (Tramo 3, todo 12,

@@ -11,6 +11,7 @@ import {
 import { CacheService } from 'cache/application/cache.service';
 import { AddressSnapshotService } from 'snapshot/application/address-snapshot.service';
 import { GatewayRateLimitGuard } from '../../application/gateway-rate-limit.guard';
+import { RequireScope } from 'auth/application/require-scope.decorator';
 import {
   GATEWAY_BATCH_MAX_ITEMS,
   GATEWAY_BATCH_TTL_SECONDS,
@@ -53,6 +54,7 @@ export class BatchRequestDto {
  * for p95<500ms + cache warming).
  */
 @UseGuards(GatewayRateLimitGuard)
+@RequireScope('snapshot')
 @Controller('api/v1/addresses')
 export class AddressesBatchController {
   public constructor(

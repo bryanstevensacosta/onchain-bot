@@ -21,6 +21,8 @@
       "rate-limiter/*": ["src/rate-limiter/*"],
       "gateway/*": ["src/gateway/*"],
       "snapshot/*": ["src/snapshot/*"],
+      "stream/*": ["src/stream/*"],
+      "auth/*": ["src/auth/*"],
       "src/*": ["src/*"]
     }
   },

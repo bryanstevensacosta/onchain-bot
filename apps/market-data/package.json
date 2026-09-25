@@ -76,6 +76,8 @@
       "^rate-limiter/(.*)$": "<rootDir>/src/rate-limiter/$1",
       "^gateway/(.*)$": "<rootDir>/src/gateway/$1",
       "^snapshot/(.*)$": "<rootDir>/src/snapshot/$1",
+      "^stream/(.*)$": "<rootDir>/src/stream/$1",
+      "^auth/(.*)$": "<rootDir>/src/auth/$1",
       "^src/(.*)$": "<rootDir>/src/$1"
     }
   }

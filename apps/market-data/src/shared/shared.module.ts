@@ -4,6 +4,7 @@ import { appConfig } from './infrastructure/config/app.config';
 import { databaseConfig } from './infrastructure/config/database.config';
 import { ApiKeyGuard } from './infrastructure/guards/api-key.guard';
 import { DomainExceptionFilter } from './infrastructure/filters/domain-exception.filter';
+import { AuthModule } from 'auth/auth.module';
 
 /**
  * SharedModule - global shared kernel for market-data (Tramo 3, todo 1;
@@ -20,7 +21,7 @@ import { DomainExceptionFilter } from './infrastructure/filters/domain-exception
  */
 @Global()
 @Module({
-  imports: [ConfigModule.forFeature(appConfig), ConfigModule.forFeature(databaseConfig)],
+  imports: [ConfigModule.forFeature(appConfig), ConfigModule.forFeature(databaseConfig), AuthModule],
   providers: [ApiKeyGuard, DomainExceptionFilter],
   exports: [ConfigModule, ApiKeyGuard, DomainExceptionFilter],
 })

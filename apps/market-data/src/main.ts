@@ -26,7 +26,11 @@ async function bootstrap(): Promise<void> {
   );
 
   const port = Number(process.env.MARKET_DATA_PORT ?? 4000);
-  await app.listen(port);
+  // P46: loopback-only by default; Tailscale/off-droplet exposure is an
+  // explicit operator decision (MARKET_DATA_HOST=0.0.0.0 or the tailscale
+  // IP), never the default. See AGENTS.md §SECURITY.
+  const host = process.env.MARKET_DATA_HOST ?? '127.0.0.1';
+  await app.listen(port, host);
 }
 
 // eslint-disable-next-line no-console

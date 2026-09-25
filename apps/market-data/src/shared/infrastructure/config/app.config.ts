@@ -3,6 +3,7 @@ import { registerAs } from '@nestjs/config';
 export interface AppConfig {
   port: number;
   nodeEnv: string;
+  host: string;
 }
 
 export function buildAppConfig(
@@ -11,6 +12,7 @@ export function buildAppConfig(
   return {
     port: parseInt(env.MARKET_DATA_PORT ?? '4000', 10),
     nodeEnv: env.NODE_ENV ?? 'development',
+    host: env.MARKET_DATA_HOST ?? '127.0.0.1',
   };
 }
 

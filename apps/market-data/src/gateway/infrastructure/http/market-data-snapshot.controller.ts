@@ -9,6 +9,7 @@ import { CacheInterceptor } from 'cache/infrastructure/cache.interceptor';
 import { CacheTTL } from 'cache/infrastructure/cache-ttl.decorator';
 import { AddressSnapshotService } from 'snapshot/application/address-snapshot.service';
 import { GatewayRateLimitGuard } from '../../application/gateway-rate-limit.guard';
+import { RequireScope } from 'auth/application/require-scope.decorator';
 
 /**
  * Market-data snapshot compat edge (Tramo 3, todo 5, G-17).
@@ -26,6 +27,7 @@ import { GatewayRateLimitGuard } from '../../application/gateway-rate-limit.guar
  */
 @UseGuards(GatewayRateLimitGuard)
 @UseInterceptors(CacheInterceptor)
+@RequireScope('snapshot')
 @Controller('api/market-data')
 export class MarketDataSnapshotController {
   public constructor(private readonly snapshots: AddressSnapshotService) {}

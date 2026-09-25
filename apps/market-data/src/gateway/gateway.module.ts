@@ -10,6 +10,8 @@ import { MarketDataSnapshotController } from './infrastructure/http/market-data-
 import { ChainsController } from './infrastructure/http/chains.controller';
 import { ProvidersController } from './infrastructure/http/providers.controller';
 import { TokensSnapshotController } from './infrastructure/http/tokens-snapshot.controller';
+import { MarketDataWsGateway } from './infrastructure/ws/market-data-ws.gateway';
+import { StreamModule } from 'stream/stream.module';
 
 /**
  * GatewayModule (Tramo 3, P45, P43; hexagonal layout todo 12, P50).
@@ -23,10 +25,13 @@ import { TokensSnapshotController } from './infrastructure/http/tokens-snapshot.
  * the 50-item batch (POST /api/v1/addresses/batch, todo 5, G-17).
  * Composes address/chain/provider ports, applies rate-limit + cache
  * per endpoint; auth (x-api-key) is enforced globally by ApiKeyGuard.
- * Feature modules expose ports — no stray controllers.
+ * Feature modules expose ports — no stray controllers. Since todo 11
+ * (P49) it also owns the WS transport: MarketDataWsGateway
+ * (Socket.IO namespace /market-data, on-demand ticks over the
+ * stream/ broker's shared per-exchange connections).
  */
 @Module({
-  imports: [AddressModule, ChainModule, ProviderModule, SnapshotModule],
+  imports: [AddressModule, ChainModule, ProviderModule, SnapshotModule, StreamModule],
   controllers: [
     AddressesController,
     AddressesBatchController,
@@ -35,7 +40,7 @@ import { TokensSnapshotController } from './infrastructure/http/tokens-snapshot.
     ProvidersController,
     TokensSnapshotController,
   ],
-  providers: [GatewayRateLimitGuard],
-  exports: [GatewayRateLimitGuard],
+  providers: [GatewayRateLimitGuard, MarketDataWsGateway],
+  exports: [GatewayRateLimitGuard, MarketDataWsGateway],
 })
 export class GatewayModule {}

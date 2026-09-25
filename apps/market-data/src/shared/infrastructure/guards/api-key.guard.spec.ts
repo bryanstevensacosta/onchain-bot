@@ -29,9 +29,11 @@ describe('ApiKeyGuard', () => {
     expect(guard.canActivate(contextWith({ 'x-api-key': 'secret' }))).toBe(
       true,
     );
-    expect(guard.canActivate(contextWith({ 'x-api-key': 'wrong' }))).toBe(
-      false,
+    expect(() =>
+      guard.canActivate(contextWith({ 'x-api-key': 'wrong' })),
+    ).toThrow(expect.objectContaining({ status: 401 }));
+    expect(() => guard.canActivate(contextWith({}))).toThrow(
+      expect.objectContaining({ status: 401 }),
     );
-    expect(guard.canActivate(contextWith({}))).toBe(false);
   });
 });
