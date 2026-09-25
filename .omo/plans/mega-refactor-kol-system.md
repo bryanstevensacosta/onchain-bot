@@ -108,14 +108,14 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
      Acceptance criteria: `curl -s 'localhost:3031/api/feed/sources?type=kol' | jq length` >= 0; test doble-delivery verde; `grep -ri "crypto-news" apps/kol-system/src/ingestion` vacío (assert negativo P10)
      QA scenarios: happy mensaje kol ingerido <10s vía SSE; failure SSE caído → polling 1min lo repesca (test con stream mock caído). Evidence .omo/evidence/task-4-mega-refactor-kol-system.log
      Commit: Y | feat(kol-system): ingestion kol-type HTTP+SSE
-- [ ] 18. Deprecar ingestión KOL backend (P18, companion del 4)
+- [x] 18. Deprecar ingestión KOL backend (P18, companion del 4)
       What to do / Must NOT do: Tras verificar el todo 4, marcar `@deprecated` (headers + JSDoc con puntero `apps/kol-system/src/ingestion/`) en la contraparte backend (`apps/backend/src/telegram/ingestion/kol/` o equivalente real que el worker resuelva con lsp_find_references; si no existe contraparte directa, deprecation header en el consumer más cercano). El código backend sigue funcionando (dual-run). Tests legacy verdes. Must NOT borrar nada ni cambiar comportamiento.
       Parallelization: Wave 2 | Blocked by: 4 verificado | Blocks: 5
       References: .omo/drafts/mega-refactor-tramos.md (P18); scripts/add-deprecation-headers.js (patrón, si aplica)
       Acceptance criteria: `grep -r "@deprecated" apps/backend/src/telegram/ingestion/kol/ | wc -l` >= 1 (o header en consumer documentado en evidencia) + `npm run test:backend -- telegram/ingestion` verde
       QA scenarios: happy headers presentes y suite verde; failure sin contraparte → documentar dónde y por qué en evidencia, NO inventar. Evidence .omo/evidence/task-4b-mega-refactor-kol-system.log
       Commit: Y | chore(kol-system): depreca ingestión KOL backend (apunta a apps/kol-system)
-- [ ] 5. Extraction contrato×mención sin colapso (Ph4 spec + P5)
+- [x] 5. Extraction contrato×mención sin colapso (Ph4 spec + P5)
      What to do / Must NOT do: `ExtractFromMessageUseCase` directo (fix-1, sin event bus); por cada mención guarda contrato + timestamp + handle + url + channel info + db-id (`ExtractionCandidate`); multi-tip NO colapsa (override explícito del spec overview:64); repeats válidas. P26: cada extracción EMITE snapshot base (mención + 4 fechas: `occurredAt`→`occurred_at_telegram`, `ingested_at_kol`=now, `enriched_at` lo pone enrichment) hacia enrichment. Tests: 1 mensaje × 3 menciones → 3 filas + 3 snapshots base.
      Parallelization: Wave 2 | Blocked by: 4, 18 | Blocks: 6
      References: .omo/drafts/mega-refactor-tramos.md:122 (P5); .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:108-129; apps/backend/src/token/intake/extraction/ (origen a mover: extract-from-message.use-case.ts)

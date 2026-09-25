@@ -1,6 +1,6 @@
 # apps/kol-system/ — NestJS Knowledge Base
 
-> Verified 2026-09-24 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4 built).
+> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4+5 built).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md` §7.6 (2026-09-24).
 
 Contents: OVERVIEW · PROGRAM INDEX · COMMANDS · STRUCTURE · MODULES · INGESTION ·
@@ -11,9 +11,10 @@ SNAPSHOTS · GAPS · STANDING RULE · NOTES
 
 NestJS 11 service (Tramo 1 of the mega-refactor) that will own the whole KOL
 alpha-call path: KOL mentions in → extraction → enrichment → templates →
-dashboard/rankings (+ optional per-template publishing). Skeleton today:
-Config + `GET /api/health` + `IngestionModule` (SSE-only KOL client, P20)
-wired into `AppModule`.
+dashboard/rankings (+ optional per-template publishing). Built today:
+Config + `GET /api/health` + `IngestionModule` (SSE-only KOL client, P20) +
+`ExtractionModule` (contract × mention, P5, direct call + P26 snapshot
+bases, todo 5) wired into `AppModule`.
 
 Design pivots (2026-09-24) that govern every future todo:
 
@@ -133,7 +134,7 @@ Health was verified by booting `node dist/main.js` with
 ```text
 src/
 ├── main.ts                       # bootstrap() — ValidationPipe whitelist/forbidNonWhitelisted/transform, listen KOL_SYSTEM_PORT ?? 3050
-├── app.module.ts                 # Config (envFilePath ['.env.dev', '.env']) + HealthModule + IngestionModule (wired)
+├── app.module.ts                 # Config (envFilePath ['.env.dev', '.env']) + HealthModule + IngestionModule + ExtractionModule (all wired)
 ├── health/
 │   ├── health.module.ts
 │   ├── health.controller.spec.ts
@@ -147,8 +148,21 @@ src/
 │   └── infrastructure/http/
 │       ├── ingestion-http-client.adapter.ts (+ .spec.ts)
 │       └── dto/kol-source.dto.ts, raw-kol-message.dto.ts
+├── extraction/                   # BUILT (todo 5, P5+P26) + WIRED into AppModule
+│   ├── extraction.module.ts      # providers: ExtractFromMessageUseCase, ExtractorPort→RegexExtractorAdapter,
+│   │                             #   ExtractionCandidateRepository→InMemory, ExtractionHealthIndicator (hook point, P21)
+│   ├── domain/entities/extraction-candidate.entity.ts (+ .spec.ts)  # contract × mention, db-id kolId:messageId:index
+│   ├── domain/snapshot-base.ts   # P26 base: occurred_at_telegram + ingested_at_kol (no enriched_at)
+│   ├── domain/ports/extractor.port.ts
+│   ├── domain/value-objects/ticker.vo.ts, url.vo.ts
+│   ├── application/handlers/extract-from-message.use-case.ts (+ .spec.ts)  # direct call fix-1, returns { candidates, snapshotBases }
+│   ├── application/ports/extraction-candidate.repository.ts
+│   ├── infrastructure/adapters/regex-extractor.adapter.ts (+ .spec.ts)     # NO Map-dedupe (P1): one entry per occurrence
+│   ├── infrastructure/repositories/in-memory-extraction-candidate.repository.ts  # upsert by id = double-delivery guard
+│   └── health/extraction-health.indicator.ts  # check() → { component: 'extraction', status } (unwired until composite health)
 ├── shared/                       # kernel/config/guards/filters — REUSE, extend, never copy (P21)
 │   ├── kernel/aggregate-root.ts, entity.ts, value-object.ts, domain-error.ts, domain-event.ts (+ specs)
+│   ├── value-objects/chain-hint.vo.ts, normalized-address.vo.ts (+ spec)  # P21 identity VOs (EVM/Solana) — extraction/parsing/normalization share this home
 │   ├── config/app.config.ts (+ spec)          # Tier-1: ENCRYPTION_KEY + DATABASE_URL required
 │   ├── config/database.config.ts (+ spec)
 │   ├── config/redis.config.ts (+ spec)
@@ -167,10 +181,12 @@ tsconfig{,.build}.json, docker-compose.yml (postgres :5435, redis :6382), Docker
 ## MODULES (app.module.ts — verified list)
 
 Wired today: `ConfigModule` (global, `.env.dev` > `.env`) + `HealthModule` +
-`IngestionModule` (todo 4, SSE-only KOL client per P20 — wired 2026-09-24).
+`IngestionModule` (todo 4, SSE-only KOL client per P20 — wired 2026-09-24) +
+`ExtractionModule` (todo 5, contract × mention per P5 + P26 snapshot bases —
+wired 2026-09-25).
 
 Planned (per spec, NOT built — do not import until their todos land):
-extraction, normalization, enrichment (market-data bridge, P7), scoring,
+normalization, enrichment (market-data bridge, P7), scoring,
 templates (+ classification inside templates, P6), approval, publishing
 (per-template bots, P9/P12b), tracking (first-appearance, P8), rankings (P11).
 
@@ -190,6 +206,25 @@ Do NOT add new polling without citing P20.
 Base URL resolution: `INGESTION_TELEGRAM_URL` config → env → default
 `http://localhost:3031` (dev default; per env it points at the OWN
 ingestion-telegram instance — invariant 1:1, same as the backend).
+
+## EXTRACTION — contract × mention (`extraction/`, todo 5)
+
+`ExtractFromMessageUseCase` runs as a DIRECT call (fix-1, no event bus):
+one `ExtractionCandidate` per contract occurrence — multi-tip messages do
+NOT collapse (override of the backend collapse-to-one), repeats are valid
+(each = own row, own db-id `kolId:messageId:contractIndex`). Regexes mirror
+the backend adapter but its `Map`-dedupe is deliberately NOT copied (P1).
+Text without contracts → empty arrays, never a throw; malformed addresses
+are skipped with a debug log. The ONLY guard is double-delivery: the repo
+upserts by deterministic id, so realtime + catch-up re-delivery overwrites
+the same rows.
+
+P26 handoff is a DIRECT return (`{ candidates, snapshotBases }`), not an
+event. Justification: kol-system wires no event bus at this stage; the head
+of the money-path stays synchronous/deterministic (no lossy pub/sub between
+extraction and enrichment); the snapshot row itself belongs to the planned
+`src/snapshot/` module (P27), which enrichment will write via port.
+`enriched_at` is therefore absent from the base by design.
 
 ## ENV INVENTORY (`.env.example`, 26 lines — verified)
 
@@ -244,6 +279,9 @@ while `buildAppConfig().port` reads `PORT ?? 3030`. Canonical runtime port is
 Per P21 each move-todo registers its indicator here (`ingestion.sse`,
 `database`, `redis`, +1 per module:
 extraction/parsing/normalization/enrichment/scoring/templates/approval/publishing/tracking).
+`ExtractionHealthIndicator.check()` (`extraction/health/`, todo 5) is the
+extraction hook point — provided + exported, NOT yet consumed (no composite
+health system exists; wiring lands with the composite-health todo, gap 3).
 Staging verification (todo 15): health with ALL components `up`.
 
 ## TS/ESLINT CONVENTIONS
@@ -291,8 +329,11 @@ cursor, backoff 1s→30s) + `ProcessKolMessageHandler` +
 `?type=kol`) + DTOs (`kol-source.dto`, `raw-kol-message.dto`).
 Built (infra): `SharedModule` pieces — kernel, 4 configs, api-key guard,
 domain-exception filter.
-Planned: extraction (P5 contract × mention, emits base snapshot P26) →
-normalization → enrichment (P7 market-data bridge: `mc at` + `more details +`;
+Built (domain): `ExtractionModule` (todo 5, P5+P26 — `ExtractFromMessageUseCase`
+direct call fix-1, `ExtractionCandidate` per occurrence, snapshot bases via
+direct return; identity VOs `ChainHint`/`NormalizedAddress` extended in
+`src/shared/value-objects/`, P21).
+Planned: normalization → enrichment (P7 market-data bridge: `mc at` + `more details +`;
 completes snapshot P26) → snapshot (`src/snapshot/` own module, same DB, P27;
 planned, not built) → templates with embedded
 classification (P6: channel picker + score viz + gem filters) → scoring →
@@ -315,9 +356,10 @@ contract C-DATA-01 — consume via ports, never move).
   `more details +` in the dashboard (P7).
 - Frontend only renders enriched mentions (contract + market data together).
 
-## SNAPSHOTS (P26 + P27 — planned, not built)
+## SNAPSHOTS (P26 base live in extraction, P27 table planned)
 
-Each extraction emits a base snapshot; enrichment completes it in table
+Each extraction emits a base snapshot (`ExtractionSnapshotBase`, via the
+use-case direct return — no bus); enrichment will complete it in table
 `mention_snapshots` (owned by planned module `src/snapshot/`, SAME kol-system
 DB — no separate DB; enrichment writes via port).
 
@@ -341,6 +383,8 @@ demands.
    SSE-only with reconnect catch-up by cursor. No `setInterval`/`pollTimer`
    remains in non-spec source.
 3. `GET /api/health` is a static stub — no per-component indicators yet (P21).
+   `ExtractionHealthIndicator` (todo 5) exists as an unwired hook point;
+   wiring lands with the composite-health todo.
 4. `buildAppConfig().port` reads `PORT ?? 3030` while `main.ts` uses
    `KOL_SYSTEM_PORT ?? 3050` — bare `PORT` will mislead.
 5. P19 avatar pipeline (ingestion resolves + serves permanently, excluded
@@ -352,7 +396,10 @@ demands.
    (Tramo 3, C-DATA-01).
 8. P24 templates `.env.development` / `.env.staging.template` /
    `.env.production.template` do not exist yet — only `.env.example`.
-9. P26/P27 `src/snapshot/` + `mention_snapshots` not built (no consumer yet).
+9. P26/P27 `src/snapshot/` + `mention_snapshots` not built (no consumer yet —
+   extraction emits the P26 base in-memory via direct return since todo 5).
+10. `bs58` is a declared kol-system dep (Solana validation, backend-mirror
+    `^6.0.0`, resolved via hoisted root `node_modules`).
 
 ## STANDING RULE
 
