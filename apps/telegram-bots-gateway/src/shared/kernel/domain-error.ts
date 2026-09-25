@@ -5,6 +5,7 @@ export enum ErrorCode {
   UNAUTHORIZED = 'UNAUTHORIZED',
   FORBIDDEN = 'FORBIDDEN',
   UPSTREAM = 'UPSTREAM',
+  RATE_LIMITED = 'RATE_LIMITED',
 }
 
 export class DomainError extends Error {

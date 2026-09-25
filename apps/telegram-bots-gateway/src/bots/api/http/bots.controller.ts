@@ -2,8 +2,10 @@ import { Controller, Get, Param, Res, StreamableFile } from '@nestjs/common';
 import type { Response } from 'express';
 import * as fs from 'node:fs';
 import { BotResolverService } from '../../application/bot-resolver.service';
+import { RequireScope } from '../../../auth/api/http/require-scope.decorator';
 
 @Controller('api/bots')
+@RequireScope('send')
 export class BotsController {
   public constructor(private readonly resolver: BotResolverService) {}
 

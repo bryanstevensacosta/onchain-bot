@@ -9,10 +9,12 @@ import {
   Post,
 } from '@nestjs/common';
 import { VaultService } from '../../application/vault.service';
+import { RequireScope } from '../../../auth/api/http/require-scope.decorator';
 import { RegisterBotDto, RotateBotDto } from './dto/vault.dto';
 
 /** Internal vault CRUD. All reads redacted (`token: '***'`). No MTProto here. */
 @Controller('api/vault/bots')
+@RequireScope('admin')
 export class VaultController {
   public constructor(private readonly vault: VaultService) {}
 

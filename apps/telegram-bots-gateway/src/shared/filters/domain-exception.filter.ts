@@ -13,6 +13,7 @@ const STATUS: Record<ErrorCode, number> = {
   [ErrorCode.UNAUTHORIZED]: HttpStatus.UNAUTHORIZED,
   [ErrorCode.FORBIDDEN]: HttpStatus.FORBIDDEN,
   [ErrorCode.UPSTREAM]: HttpStatus.BAD_GATEWAY,
+  [ErrorCode.RATE_LIMITED]: HttpStatus.TOO_MANY_REQUESTS,
 };
 
 @Catch(DomainError)

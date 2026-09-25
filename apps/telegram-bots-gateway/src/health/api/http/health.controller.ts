@@ -9,6 +9,7 @@ export class HealthController {
       components: {
         vault: 'up',
         resolver: 'up',
+        send: 'up',
       },
     };
   }
