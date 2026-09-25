@@ -216,7 +216,7 @@ apps/
             └── guards/api-key.guard.ts
 ```
 
-└── dexter-onchain-bot/ # ★ TRAMO 3 fase final (P13; puertos 4060/61/62 a verificar, DB <base>\_dexter)
+└── dexter-onchain-bot/ # ★ TRAMO 3 fase final (P13; puertos 4060/61/62 a verificar, DB onchain_bot_dexter[_staging] per C-DB-01)
 │ ├── package.json nest-cli.json tsconfig.json Dockerfile docker-compose.yml .env.example(~)
 │ └── src/
 │ ├── main.ts app.module.ts

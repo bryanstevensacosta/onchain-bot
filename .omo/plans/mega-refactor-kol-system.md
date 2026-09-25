@@ -89,7 +89,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
      QA scenarios: happy 7/7 verificados; failure algún P bloqueado → reportar al central, NO auto-rediseñar. Evidence .omo/evidence/task-1-mega-refactor-kol-system.md
      Commit: N (evidencia) | — | —
 - [x] 2. App setup: esqueleto kol-system + health + compose (Ph1 spec)
-     What to do / Must NOT do: `apps/kol-system/` con `package.json` (NestJS 11, TypeORM, schedule), `nest-cli.json`, `tsconfig.json`, `src/main.ts` (:3050, ValidationPipe), `src/app.module.ts` (14 imports stub), `.env.example` (`KOL_SYSTEM_ENABLED`, `TEMPLATE_ORCHESTRATOR_ENABLED`, `INGESTION_TELEGRAM_URL`, `KOL_BOT_TOKEN`, `ENCRYPTION_KEY`), `Dockerfile`, `docker-compose.yml` (DB `alpha_meta_token_scanner_kol_system` + redis), `GET /api/health`. Must NOT lógica de negocio.
+     What to do / Must NOT do: `apps/kol-system/` con `package.json` (NestJS 11, TypeORM, schedule), `nest-cli.json`, `tsconfig.json`, `src/main.ts` (:3050, ValidationPipe), `src/app.module.ts` (14 imports stub), `.env.example` (`KOL_SYSTEM_ENABLED`, `TEMPLATE_ORCHESTRATOR_ENABLED`, `INGESTION_TELEGRAM_URL`, `KOL_BOT_TOKEN`, `ENCRYPTION_KEY`), `Dockerfile`, `docker-compose.yml` (DB `onchain_bot_kol_system` + redis), `GET /api/health`. Must NOT lógica de negocio.
      Parallelization: Wave 1 | Blocked by: central 2, 3 | Blocks: 3-12
      References: .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:24-63; .omo/reference/mega-refactor-target-tree.md (bloque kol-system raíz)
      Acceptance criteria: `curl -s localhost:3050/api/health | grep -q '"status":"ok"'`
@@ -186,7 +186,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       Acceptance criteria: `npx playwright test -g "kol calls table"` verde con ≥1 fila `First time` y ≥1 `Nx from last call` + `npx playwright test -g "kol rankings table"` verde con ≥1 fila por ventana (30d/7d/1d) + `npx playwright test -g "template sources filter"` verde (elegir 2 sources, tabla muestra solo sus calls; limpiar = todas) + `npx playwright test -g "dashboard layout"` verde (ranking 5+5 con flechas que invierten orden; top-10 callers con selector 30D/7D/1D cambiando conteos)
       QA scenarios: happy tabla + expand + ranking con selector de ventana; failure API caída → empty-state, sin crash. Evidence .omo/evidence/task-14-mega-refactor-kol-system.log + captura
       Commit: Y | feat(frontend): tabla calls por template
-- [ ] 15. Dual-run + shadow + staging 14d + rollback rehearsal (C3 + G-19)
+- [x] 15. Dual-run + shadow + staging 14d + rollback rehearsal (C3 + G-19)
       What to do / Must NOT do: Sem 2-8 `KOL_PIPELINE_ENABLED=true` + `KOL_SYSTEM_ENABLED=true` comparando outputs side-by-side (logs + published); shadow/dry-run en canal espejo; staging 14 días; rehearsal rollback completo (re-enable backend + orchestrator off <30min) con tiempo medido. Suites legacy green: `npm run test:backend -- kol telegram token`, `test:ingestion`, `test:frontend`. Must NOT saltar staging ni rehearsal.
       Parallelization: Wave 4 | Blocked by: 11, 14 | Blocks: 16
       References: .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:639-693; plan central Gate T1

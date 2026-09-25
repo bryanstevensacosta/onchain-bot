@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_USER: alpha_meta_token_scanner
       POSTGRES_PASSWORD: alpha_meta_token_scanner
-      POSTGRES_DB: alpha_meta_token_scanner_kol_system
+      POSTGRES_DB: onchain_bot_kol_system
     ports:
       - '5435:5432'
     volumes:
@@ -17,7 +17,7 @@ services:
       test:
         [
           'CMD-SHELL',
-          'pg_isready -U alpha_meta_token_scanner -d alpha_meta_token_scanner_kol_system',
+          'pg_isready -U alpha_meta_token_scanner -d onchain_bot_kol_system',
         ]
       interval: 10s
       timeout: 5s

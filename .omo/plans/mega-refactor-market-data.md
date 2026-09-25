@@ -29,7 +29,7 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
 - Extracción FÍSICA de providers (C-DATA-01, último movimiento): 13 data-providers + Dexter (`chain-dexter-bot` gap-7) → adapters `token/infrastructure/providers/`.
 - Lado servidor del puente: `MarketDataPort` HTTP con SLO p95<500ms; vuelve default `USE_DATA_SERVICE_API=true` por env (G-17).
 - Renombre legacy R-4/G-18: `/token/market-data/*` → `/token/enrichment` + desambiguación `MarketDataProviderPort` + migración frontend (C-UX-01).
-- App hermana `apps/dexter-onchain-bot/` (P13, fase final del tramo): solo lógica bot Telegram alimentada por market-data HTTP; `/start` + `/ca` + detección pelada + extracción forwards; reutiliza router/pipeline/formatter/trade-buttons/settings de `chain-dexter-bot`; token `DEXTER_BOT_TOKEN`; puertos 4060/4061/4062 (verificar lsof); DB propia `<base>_dexter[_staging]`.
+- App hermana `apps/dexter-onchain-bot/` (P13, fase final del tramo): solo lógica bot Telegram alimentada por market-data HTTP; `/start` + `/ca` + detección pelada + extracción forwards; reutiliza router/pipeline/formatter/trade-buttons/settings de `chain-dexter-bot`; token `DEXTER_BOT_TOKEN`; puertos 4060/4061/4062 (verificar lsof); DB propia `onchain_bot_dexter[_staging]`.
 - Staging 7 días + cutover + cleanup.
 
 ### Must NOT have (guardrails, anti-slop, scope boundaries)
@@ -78,7 +78,7 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
      QA scenarios: happy mapeo 1:1; failure lib sin destino → pedir veto, NO inventar módulo. Evidence .omo/evidence/task-0-mega-refactor-market-data.log
      Commit: N | — | —
 - [ ] 1. App setup + shared kernel (Variante A)
-     What to do / Must NOT do: `apps/market-data/` (package, nest-cli, tsconfig, `src/main.ts` :4000, `app.module.ts` 6 imports, `.env.example`, compose dev con DB `alpha_meta_token_scanner_market_data`, `/api/health`) + `src/shared/{kernel,value-objects/chain-id+token-id,guards/api-key}`. Tests base. Must NOT multi-app (eso es Variante B futura).
+     What to do / Must NOT do: `apps/market-data/` (package, nest-cli, tsconfig, `src/main.ts` :4000, `app.module.ts` 6 imports, `.env.example`, compose dev con DB `onchain_bot_market_data`, `/api/health`) + `src/shared/{kernel,value-objects/chain-id+token-id,guards/api-key}`. Tests base. Must NOT multi-app (eso es Variante B futura).
      Parallelization: Wave 1 | Blocked by: 0 | Blocks: 3, 4
      References: .kiro/specs/refactor-data/naming-and-architecture.md:244-400 (Variante A literal, renombrar dir); plan central C-DB-01/C-PORTS-01
      Acceptance criteria: `curl -s localhost:4000/api/health | grep -q '"status":"ok"'`
