@@ -5,7 +5,14 @@
 # 1) Refuse commits on `master` — solo maintainer uses `dev` + PR.
 #    Bypass: `git commit --no-verify` (documented in docs/branch-protection.md
 #    § "Husky --no-verify bypass"; do NOT use casually).
-# 2) Knowledge-base gate (BLOCKING) — SCOPED apps only.
+# 2) Lint-staged: ESLint --fix on staged TS/TSX, Prettier on JSON/MD/YAML.
+# 3) Strict TypeScript check on all three workspaces (mirrors CI `TypeScript Check`).
+# 4) Docs staleness check — non-blocking warning, mirrors pre-commit hook default.
+# 5) Knowledge-base gate (BLOCKING, runs LAST) — SCOPED apps only.
+#    NOTE: read RELEASE-FLOW.md changelog rules before deciding whether this
+#    commit is a candidate for AGENTS.md / CHANGELOG.md updates (feat/fix that
+#    ships product code needs a changelog entry; chore/ci/docs/refactor-only
+#    rides along and is NOT a candidate).
 #    RULE: committing ANY file under apps/<app>/ requires BOTH
 #    apps/<app>/AGENTS.md AND apps/<app>/CHANGELOG.md staged in the SAME commit,
 #    but ONLY for these scoped apps: apps/ingestion-telegram, apps/kol-system,
@@ -16,7 +23,8 @@
 #    AGENTS.md / CHANGELOG.md themselves (docs-only commits pass, incl.
 #    CHANGELOG-only); (b) files OUTSIDE the scoped apps (other apps, root,
 #    .omo/, .kiro/, docs/, scripts/, ...) never trigger (.omo-only commits pass).
-#    HOME: this gate lives ONLY in pre-commit. It was REMOVED from pre-push and
+#    HOME: this gate lives ONLY in pre-commit, and runs LAST (after
+#    lint-staged/tsc/docs-staleness above). It was REMOVED from pre-push and
 #    is absent from all PR workflows (verified 2026-09-25) — do NOT re-add it
 #    elsewhere.
 #    Bypass: `git commit --no-verify` skips this hook entirely (git-inherent,
@@ -25,9 +33,6 @@
 #    Plan ref: .omo/plans/husky-precommit-hooks.md (lint-staged + tsc + docs
 #    warning preserved below; this gate is the new BLOCKING layer on top of
 #    the plan's non-blocking staleness warning).
-# 3) Lint-staged: ESLint --fix on staged TS/TSX, Prettier on JSON/MD/YAML.
-# 4) Strict TypeScript check on all three workspaces (mirrors CI `TypeScript Check`).
-# 5) Docs staleness check — non-blocking warning, mirrors pre-commit hook default.
 branch=$(git rev-parse --abbrev-ref HEAD)
 if [ "$branch" = "master" ]; then
   echo ""
@@ -38,9 +43,23 @@ if [ "$branch" = "master" ]; then
   exit 1
 fi
 
-# 2) Knowledge-base gate (BLOCKING, scoped). See header §2 for RULE/exceptions.
+# 2) Lint-staged: ESLint --fix on staged TS/TSX, Prettier on JSON/MD/YAML.
+npx --no -- lint-staged || exit 1
+
+# 3) Strict TypeScript check on all three workspaces (mirrors CI `TypeScript Check`).
+npx --no -- tsc --noEmit --incremental false -p apps/backend/tsconfig.json && \
+  npx --no -- tsc --noEmit --incremental false -p apps/frontend/tsconfig.json && \
+  npx --no -- tsc --noEmit --incremental false -p apps/ingestion-telegram/tsconfig.json || exit 1
+
+# 4) Docs staleness check — non-blocking warning, mirrors pre-commit hook default.
+node scripts/check-docs-staleness.mjs || true
+
+# 5) Knowledge-base gate (BLOCKING, scoped, runs LAST). See header §5 for RULE/exceptions.
 # Scoped apps ONLY: ingestion-telegram, kol-system, feed-publisher, frontend.
 # FUTURE: apps/market-data — skip silently, do NOT enforce (not in gate_scope).
+# NOTE: this block runs LAST — lint-staged, tsc, and docs-staleness above have
+# already passed when you see its output. Read RELEASE-FLOW.md changelog rules
+# before staging docs vs bypassing.
 gate_scope="ingestion-telegram kol-system feed-publisher frontend"
 gate_staged=$(git diff --cached --name-only --diff-filter=ACMR || true)
 gate_failed=0
@@ -61,13 +80,15 @@ if [ -n "$gate_staged" ]; then
     printf '%s\n' "$gate_staged" | grep -qx "apps/$gate_app/CHANGELOG.md" || gate_missing="$gate_missing apps/$gate_app/CHANGELOG.md"
     if [ -n "$gate_missing" ]; then
       echo ""
-      echo "❌ Knowledge-base gate: app '$gate_app' changed but docs missing from this commit."
+      echo "❌ Knowledge-base gate (LAST check — lint/tsc/staleness already passed): app '$gate_app' changed but docs missing from this commit."
       echo "   Files under apps/$gate_app/ require BOTH docs staged:"
       for gate_need in $gate_missing; do
         echo "   • MISSING: $gate_need  (git add $gate_need)"
       done
       echo "   Exception: docs-only commits (only AGENTS.md/CHANGELOG.md staged for this app) pass."
-      echo "   Bypass:    git commit --no-verify  (skips this hook entirely)"
+      echo "   See RELEASE-FLOW.md changelog rules to judge whether this commit is a docs candidate."
+      echo "   If this commit is NOT a candidate for AGENTS.md/CHANGELOG.md (or both), proceed with: git commit --no-verify"
+      echo "   (--no-verify is safe here: all pre-existing checks above already passed; it only skips this gate.)"
       echo ""
       gate_failed=1
     fi
@@ -76,14 +97,3 @@ if [ -n "$gate_staged" ]; then
     exit 1
   fi
 fi
-
-# 3) Lint-staged: ESLint --fix on staged TS/TSX, Prettier on JSON/MD/YAML.
-npx --no -- lint-staged || exit 1
-
-# 4) Strict TypeScript check on all three workspaces (mirrors CI `TypeScript Check`).
-npx --no -- tsc --noEmit --incremental false -p apps/backend/tsconfig.json && \
-  npx --no -- tsc --noEmit --incremental false -p apps/frontend/tsconfig.json && \
-  npx --no -- tsc --noEmit --incremental false -p apps/ingestion-telegram/tsconfig.json || exit 1
-
-# 5) Docs staleness check — non-blocking warning, mirrors pre-commit hook default.
-node scripts/check-docs-staleness.mjs || true

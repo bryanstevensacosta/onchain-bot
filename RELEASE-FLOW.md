@@ -1,21 +1,21 @@
 # RELEASE-FLOW.md — Manual releases (solo-dev)
 
 > Owner: solo maintainer. No automation. release-please was removed (see git history); this file is the whole process.
-> Scope: 3 apps versioned independently: `backend`, `frontend`, `ingestion-telegram`. Enterprise playbooks live in sections 7-12 below (rollback, hotfix, flags freeze, optional tag signing, changelog strategy, Unreleased convention).
+> Scope: N apps versioned independently — any directory under `apps/` with its own `package.json` + `CHANGELOG.md` (tags `<app>-v<X.Y.Z>`, per-app clocks; source of truth is each `apps/*/package.json`). Enterprise playbooks live in sections 7-12 below (rollback, hotfix, flags freeze, optional tag signing, changelog strategy, Unreleased convention).
 
 ## 1. When to release
 
 Release when it is worth it, not on a schedule. No trains, no freeze, no notifications.
 
 - Ship an app when its changelog section is written and `dev` is green (CI pass on the PR).
-- Each app releases on its own clock. If only backend changed, only backend gets a tag. Never bump the other two "to keep them in sync".
+- Each app releases on its own clock. If only one app changed, only that app gets a tag. Never bump the others "to keep them in sync".
 - Typical triggers: a user visible fix is verified, a feature is done and smoke checked, or queued fixes pile up enough to justify the push to `master`.
 - Do not release chore, ci, docs, or refactor only commits. They ride along with the next feat or fix.
 - Flow reminder: work lands on `dev` by PR, then squash to `master` for deploy. Tag from `master` after the squash lands.
 
 ## 2. Version judgment: major, minor, patch
 
-SemVer per app, judged on what that app's users (or its consumers) feel. A breaking change in backend is a major for backend only, not for frontend.
+SemVer per app, judged on what that app's users (or its consumers) feel. A breaking change in one app is a major for that app only, not for its siblings.
 
 ### Major (X.0.0): real breaking change with cited evidence
 
@@ -27,7 +27,7 @@ Real examples from this repo (all three footers were first introduced on `dev` i
 - `352de6b` "BREAKING CHANGE: Seed-based channel subscription deprecated in favor of DB-driven approach". Breaking where seed wiring existed (backend, ingestion). Judge per app: major only where the removed path was usable.
 - `b66beda` "BREAKING CHANGE: FeedSeeder completely removed from module wiring". Same rule: major where the seeder was wired, nowhere else.
 
-Rule: scope the major to the apps that actually break. A backend breaking change does not bump frontend to the next major.
+Rule: scope the major to the apps that actually break. A breaking change in one app does not bump its siblings to the next major.
 
 Rule on accidents: a fix with a stray `!` or a pasted `BREAKING CHANGE:` footer is NOT a major. Remove the `!`, drop the footer, do not bump the version. (This repo lived that mistake: squash bodies re-emitted the MTProto footer up to 96 times in one body, e.g. HIT=96 in `0573b06` quoted by merge `d1eedd9`. Re-emission is not a new breaking change.)
 
@@ -47,7 +47,7 @@ Bug fix, NULL safety, query correction, CI fix that ships product code, perf fix
 
 ## 3. Exact steps
 
-Do them in order, per app. `<app>` is one of `backend`, `frontend`, `ingestion-telegram`. Never use a bare `v*` tag.
+Do them in order, per app. `<app>` is any directory under `apps/` with its own `package.json` + `CHANGELOG.md` (see onboarding below). Never use a bare `v*` tag.
 
 ```bash
 # 0. Be on dev, clean tree, know your base SHA (the master squash commit you ship)
@@ -83,7 +83,16 @@ gh release view <app>-v<X.Y.Z> --json tagName,name,body,isLatest
 git ls-remote --tags origin | grep <app>-v<X.Y.Z>
 ```
 
-Latest marking rule: do not juggle `--latest` by hand. Default is to accept whatever GitHub assigns (creation order wins) and record the outcome with `gh release list --json tagName,isLatest` in your evidence. If the wrong release shows as latest, fix it once with `gh release edit <app>-v<X.Y.Z> --latest` and note why. Never mark all three app releases latest in one session; at most one holds the flag, and "none touched" is an acceptable documented choice.
+Latest marking rule: do not juggle `--latest` by hand. Default is to accept whatever GitHub assigns (creation order wins) and record the outcome with `gh release list --json tagName,isLatest` in your evidence. If the wrong release shows as latest, fix it once with `gh release edit <app>-v<X.Y.Z> --latest` and note why. Never mark all app releases latest in one session; at most one holds the flag, and "none touched" is an acceptable documented choice.
+
+### New app onboarding (first release)
+
+Any new directory under `apps/` with its own `package.json` + `CHANGELOG.md` follows this flow automatically — no allowlist, no file update needed to enroll it:
+
+- First version is always `0.1.0` in `apps/<app>/package.json` (no `0.0.x` pre-releases, no inheriting a sibling's number).
+- Tag namespace is `<app>-v<X.Y.Z>` from day one (e.g. `<app>-v0.1.0`), same section 3 steps 3-6. Never a bare `v*` tag.
+- New `apps/<app>/CHANGELOG.md` starts with a title plus an empty `## [Unreleased]` section (see section 8); the first release renames it to `## [0.1.0] - YYYY-MM-DD` with one bullet per shipped behavior, each citing its PR.
+- First-release checklist: run the full section 4 checklist on the first tag (no shortcuts — base SHA, version equality, citations, tag name, notes equality all apply).
 
 ### Deprecated tag name: `ingestion-service-v*`
 
@@ -107,8 +116,8 @@ Copy this into the PR or your notes, check every box before tagging:
 One change, one entry, in the right app. This rule exists because squash bodies re-emitted old footers (the MTProto breaking line appeared 4 to 6 times across the 4.0.0 changelog sections, and a single carrier body hit HIT=96). Transcribing automation output without judgment is what produced that mess.
 
 - Never copy a squash body into a changelog uncurated. Read the net diff (`git diff ^1 ^2 --stat` on the merge, or the PR files tab) and write one bullet per real change.
-- One entry per change across the whole repo. If a merge touched backend and ingestion, each app changelog gets one bullet describing what changed for that app, not a full copy of the shared body in both.
-- Scopes are per app. Backend entries never list frontend-only work and vice versa. Shared or infra work (workflows, docs, scripts) goes to the app it served, or to no changelog if it served none (it rides along silently).
+- One entry per change across the whole repo. If a merge touched two apps, each app changelog gets one bullet describing what changed for that app, not a full copy of the shared body in both.
+- Scopes are per app. One app's entries never list sibling-only work and vice versa. Shared or infra work (workflows, docs, scripts) goes to the app it served, or to no changelog if it served none (it rides along silently).
 - Footers do not propagate. A `BREAKING CHANGE:` line quoted inside a later merge body counts zero times unless the later merge itself introduces an incompatibility. Check the diff, not the body.
 - When in doubt, cite the smallest real unit: the brought-in commit or PR from the TSV, not the aggregate sync merge that carried it.
 
@@ -160,7 +169,7 @@ Exclude (rides along silently, no bullet):
 
 ## 8. `## [Unreleased]` convention
 
-Each of the 3 changelogs carries a `## [Unreleased]` header at the top, below the title, above the newest version section. Accumulate bullets there as PRs land on `master`; at release time, rename that header to `## [X.Y.Z] - YYYY-MM-DD` and start a fresh empty `## [Unreleased]` above it. Never keep released bullets under Unreleased, never duplicate a bullet into both places.
+Each app changelog (`apps/*/CHANGELOG.md`) carries a `## [Unreleased]` header at the top, below the title, above the newest version section. Accumulate bullets there as PRs land on `master`; at release time, rename that header to `## [X.Y.Z] - YYYY-MM-DD` and start a fresh empty `## [Unreleased]` above it. Never keep released bullets under Unreleased, never duplicate a bullet into both places.
 
 Empty state while nothing is queued:
 
@@ -217,21 +226,9 @@ Branch `hotfix/<slug>` from `master` (not from `dev`; `dev` may hold unreleased 
 
 ## 11. Flags freeze at release
 
-At release time the pipeline flags are part of the release state: record them, do not flip them mid-release. The three flags (backend AGENTS.md, feed 3-flag control):
+Flag state is temporal and lives outside this guide — it is recorded at release time, per app, in that app's `AGENTS.md` (no flag names or values here).
 
-- `matchingEnabled` (enqueue on/off)
-- `llmEnabled` (LLM transform on/off; effective only when publishing is also on)
-- `publishingEnabled` (queue drain on/off; master switch)
-
-How to record known-good state (names and values pattern, NO secret values):
-
-```bash
-# Read current state before tagging (values are booleans, safe to log)
-curl -s http://localhost:3030/crypto-news-publisher/llm/config
-# Expected shape: {"matchingEnabled": <bool>, "llmEnabled": <bool>, "publishingEnabled": <bool>}
-```
-
-Read path verified in `apps/frontend/src/features/feed-publisher/api/llm-config-api.ts:68` (`GET /crypto-news-publisher/llm/config`); the same prefix accepts `PATCH` for updates. Save the three booleans next to the release evidence. Rule: no flag flips between tagging and the deploy healthcheck passing. If a flag must change, it is a separate deliberate action after the release verifies, recorded with its own timestamp.
+Rule: at release time the runtime flags are part of the release state: record them, do not flip them mid-release. Before tagging, save the current flag state next to the release evidence (names and boolean values only, NO secrets); no flag flips between tagging and the deploy healthcheck passing. If a flag must change, it is a separate deliberate action after the release verifies, recorded with its own timestamp.
 
 ## 12. Tag signing (OPTIONAL, manual setup pending)
 
