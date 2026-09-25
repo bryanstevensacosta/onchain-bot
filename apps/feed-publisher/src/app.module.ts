@@ -11,6 +11,8 @@ import { LlmModule } from './llm/llm.module';
 import { SchedulingModule } from './scheduling/scheduling.module';
 import { ThreadsModule } from './threads/threads.module';
 import { TelegramModule } from './telegram/telegram.module';
+import { ContentTemplatesModule } from './template/content-templates.module';
+import { SessionsModule } from './sessions/sessions.module';
 
 /**
  * AppModule - Root module for feed-publisher skeleton (Tramo 2, todo 1).
@@ -39,6 +41,8 @@ import { TelegramModule } from './telegram/telegram.module';
     SchedulingModule,
     ThreadsModule,
     TelegramModule,
+    ContentTemplatesModule,
+    SessionsModule,
   ],
 })
 export class AppModule {}

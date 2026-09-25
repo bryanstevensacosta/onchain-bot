@@ -2,7 +2,7 @@
 
 > Verified 2026-09-25 against code + `.omo/evidence/task-T2-*.log`
 > (counts re-verified per log, see PROGRAM STATUS). v0.1.0 (source of
-> truth: `package.json`; Tramo 2, todos 0-8 DONE, 9-12 pending).
+> truth: `package.json`; Tramo 2, todos 0-8+12 DONE, 9-11 pending).
 > Renamed `content-publisher` -> `feed-publisher` mid-todo-4 (co-agent).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md`
 > §7.6 (2026-09-24, P30-P39 2026-09-25).
@@ -23,10 +23,11 @@ NestJS 11 service (Tramo 2 of the mega-refactor) owning all feed
 outside the monolith: ingestion (SSE-only + cursor catch-up) →
 matching/keywords/filters → unified queue (`contentType`) + dedup →
 LLM (global catalog) → scheduling/ads (P38 per-target delay+caps) →
-telegram (crypto + threads) publishing, with threads as skeleton +
-v2 contract only (C1). Todos 0-8 DONE and wired (11 modules in
-`app.module.ts`); todos 9-12 pending (frontend, staging, cutover,
-templates+sessions). See PROGRAM STATUS for the verified tally.
+telegram (crypto + threads) publishing + template/sessions
+multi-tab (P33/P34), with threads as skeleton +
+v2 contract only (C1). Todos 0-8+12 DONE and wired (13 modules in
+`app.module.ts`); todos 9-11 pending (frontend, staging, cutover).
+See PROGRAM STATUS for the verified tally.
 
 Design pivots that govern every future todo:
 
@@ -66,31 +67,32 @@ Design pivots that govern every future todo:
 | 9    | TODO                                                             | Frontend 4 endpoints + flags UI                                                                                 |
 | 10   | TODO                                                             | Staging 7d + rollback rehearsal                                                                                 |
 | 11   | TODO                                                             | Cutover + cleanup (`USE_FEED_PUBLISHER`)                                                                        |
-| 12   | TODO (P33+P34)                                                   | `src/content-templates/` + `src/sessions/` multi-tab (blocks 9, 11)                                             |
+| 12   | DONE (evidence `.omo/evidence/task-T2-12.log`)                   | `src/template/` + `src/sessions/` multi-tab (P33+P34, blocks 9, 11)                                             |
 
 \* Todo-0 log name (`task-T2-01-feed-publisher.log`) collides with the
 todo-1 naming scheme on disk; content verified as the Gate T1 log.
 
 ## PROGRAM STATUS
 
-Todos 0-8 DONE (verified 2026-09-25 against code + evidence logs):
+Todos 0-8+12 DONE (verified 2026-09-25 against code + evidence logs):
 
-- Wired modules: 10 feature (ingestion, matching, keywords, filters,
-  queue, deduplication, llm, scheduling, threads, telegram) + health.
+- Wired modules: 12 feature (ingestion, matching, keywords, filters,
+  queue, deduplication, llm, scheduling, threads, telegram,
+  template, sessions) + health.
   0 stubs remain.
-- Cumulative full-suite tally: 127 suites / 429 tests green
-  (`task-T2-08.log`); per-module counts in PROGRAM INDEX.
+- Cumulative full-suite tally: 143 suites / 460 tests green
+  (127/429 at todo 8 + 16/31 new in todo 12).
 - P10/P32 grep gates green (crypto-news only, zero foreign-type
   token outside the SSE negative assert). P38 per-target
   delay+caps live in scheduling. C-FLAGS-01 3-flag control live in
   llm/queue. C2 telegram adapters live with Bot API bindings.
   Threads v1 = skeleton + `src/threads/CONTRACT.md` (C1).
 
-Todos 9-12 PENDING (not started, no evidence):
+Todos 9-11 PENDING (not started, no evidence):
 
-- 9 frontend sub-table + flags UI; 10 staging 7d + rollback
-  rehearsal; 11 cutover + backend feed cleanup; 12 templates +
-  sessions (P33/P34, blocks 9 and 11).
+- 9 frontend sub-table + flags UI (now unblocked: templates/sessions
+  CRUD are the tab backends); 10 staging 7d + rollback
+  rehearsal; 11 cutover + backend feed cleanup.
 - Plan-file lag: `.omo/plans/mega-refactor-content-publisher.md`
   still shows 7/8 unchecked — evidence logs prove both DONE;
   plan checkboxes need a sync (out of scope: read-only here).
@@ -262,6 +264,29 @@ apps/feed-publisher/
                           # per-bot `TelegramRateLimiter` (fixed 60s
                           # window) + LIVE queue/scheduling dispatchers +
                           # `TelegramHealthIndicator` (P21 hook)
+   src/template/          # BUILT (todo 12, wired; renamed from
+                          # src/content-templates/ 2026-09-25, dir only:
+                          # `ContentTemplatesModule`, `PublishingContentTemplate`,
+                          # file names, `/api/content-templates` routes, and the
+                          # `content-templates` health component are all KEPT to
+                          # avoid breaking frontend wiring): `PublishingContentTemplate`
+                          # (eligible sources + keywords, OWN content filters
+                          # on-read fail-open, reusable GLOBAL prompt-template
+                          # ref, telegram/threads/both targets, own
+                          # queue+matching+scheduling toggles, one-shot +
+                          # recurring scheduling posts, DB bot bindings) +
+                          # `TemplateBot` catalog (P23-like: AES-256-GCM via
+                          # ENCRYPTION_KEY, redacted reads) + CRUD + bots
+                          # controllers + health hook
+   src/sessions/          # BUILT (todo 12, wired): `PublishingSession`
+                          # (tab = session: template-loaded or ad-hoc,
+                          # source toggles only, own keywords +
+                          # matching/publishing/llm switches + own scheduling
+                          # + N telegram/threads targets + active/inactive) +
+                          # `SessionPublishPlanner` (SHARED global dedup probe
+                          # once per message, P38 per-target pacing, unknown
+                          # bots skip one target) + recording publisher +
+                          # CRUD controller + health hook
   src/shared/            # transversal (DONE, tested)
     config/              # app + database + redis + telegram namespaces
     kernel/              # AggregateRoot/Entity/ValueObject/DomainEvent/DomainError
@@ -337,15 +362,26 @@ base `INGESTION_TELEGRAM_URL`, `x-api-key` from day one, fail-open `[]`)
   3 controllers + `SchedulingHealthIndicator` (P21 hook).
   `ScheduledAdDispatcherPort` is LIVE Telegram-backed since todo 7
   (text posts; the in-memory dispatcher remains as a test double only).
-- `TelegramModule` (todo 7, wired — imports Llm via forwardRef):
-  `TelegramPublisherPort` + crypto/threads Bot API adapters +
+- `TelegramModule` (todo 7, wired — imports Llm via forwardRef): `TelegramPublisherPort` + crypto/threads Bot API adapters +
   `TelegramPublisherRouter` + per-bot rate limiters + LIVE
   `QueuedArticleDispatcherPort` / `ScheduledAdDispatcherPort`
   bindings (Queue/Scheduling rebind via forwardRef; their in-memory
   dispatchers remain as test doubles) + `TelegramHealthIndicator`
   (P21 hook).
-  0 modules still stubs — all 10 feature modules wired
-  (threads skeleton + C1 contract landed in todo 8).
+- `ContentTemplatesModule` (todo 12, wired, lives in `src/template/`): `PublishingContentTemplate` +
+  `TemplateBot` (P23-like catalog) + `TemplateEncryptionService` +
+  template + bot use-cases + 2 controllers
+  (`/api/content-templates`, `/api/content-template-bots`) +
+  `ContentTemplatesHealthIndicator` (P21 hook). Exports repos +
+  encryption for sessions.
+- `SessionsModule` (todo 12, wired — imports ContentTemplates +
+  Deduplication): `PublishingSession` + `PublishingSessionUseCases`
+  (template-snapshot load) + `SessionPublishPlanner` (shared global
+  dedup + P38 pacing) + `RecordingSessionPublisher` (live binding;
+  Bot API binding follow-up) + `SessionsController`
+  (`/api/sessions` CRUD + activate/deactivate + source toggles) +
+  `SessionsHealthIndicator` (P21 hook).
+  0 modules still stubs — all 12 feature modules wired.
 
 * tolerant DTOs (`raw-feed-message.dto`, `feed-source.dto`)
 * `IngestionHealthIndicator` (`{ component: 'ingestion', status }`,
@@ -376,6 +412,11 @@ chatId — e.g. DB-backed `LlmConfig.targetChannel` — always wins).
 Templates for staging (:3041) + prod
 (:3042) next to the app. BotAPI = raw axios over Telegram Bot HTTP API
 (same as backend adapter) — no extra dep.
+Staging prep status (todo 10, prep only): `docker-compose.staging.yml` +
+`.env.staging.template` landed DRY-RUN (host `:3041`, DB
+`onchain_bot_feed_publisher_staging`); pending operator decision: staging
+secrets (bot tokens, `INGESTION_TELEGRAM_API_KEY`, pg password) are filled
+on the droplet and never committed.
 
 ## PORTS
 
@@ -425,8 +466,8 @@ coverage target >80% (pure units, no I/O).
 | P30 Tramo-1 lessons                     | x-api-key day one, `dist/main.js`, env templates, lockfile | APPLIED (todo 1)                                         |
 | P31 canonical ingestion names per env   | staging `:3033`, prod `:3032`, dev `:3031`                 | REFERENCED (ports table)                                 |
 | P32 zero foreign-type token             | No `'kol'` string outside the SSE negative assert          | ENFORCED (grep gate)                                     |
-| P33 global templates vision             | `contentType`-scoped GLOBAL prompt catalog                 | APPLIED (todo 5); full `content-templates/` BC = todo 12 |
-| P34 sessions multi-tab vision           | `src/sessions/`, shared global dedup + templates           | PLANNED (todo 12)                                        |
+| P33 global templates vision             | `contentType`-scoped GLOBAL prompt catalog                 | APPLIED (todo 5); full `src/template/` BC = todo 12 DONE |
+| P34 sessions multi-tab vision           | `src/sessions/`, shared global dedup + templates           | APPLIED (todo 12 DONE)                                   |
 | P36 ads -> scheduling rename            | Routes/tables/dirs `scheduling/*`, `feed_scheduled_*`      | APPLIED (todo 6)                                         |
 | P38 per-target delay + daily cap        | `publishDelayMs` + `dailyCap` per telegram\|threads        | APPLIED (todo 6)                                         |
 | P39 standing rule                       | AGENTS.md + CHANGELOG `## [Unreleased]` per todo           | APPLIED (this refresh)                                   |
@@ -629,6 +670,30 @@ coverage target >80% (pure units, no I/O).
     is pending (this todo is read-only outside
     `apps/feed-publisher/` by constraint). Worktree left dirty
     (no commit).
+- Todo 12 (P25): content-templates + sessions BCs built from the
+  sibling-service template pattern + v3 `PublishingProfile` design
+  (research `.omo/evidence/content-templates-research.md`), nothing
+  outside `apps/feed-publisher/` touched (lockfile untouched — no new
+  deps). P10/P32 grep gates green (verified empty incl. both new
+  BCs). Failing-first: 2 entity specs red on missing modules, then
+  green; 16 suites / 31 tests new + full 143/460 + `tsc` clean +
+  `nest build` clean + boot smoke (`:3099` health ok, empty lists on
+  all 3 new controllers). Deliberate decisions: (a) P23-like bot
+  catalog is a NEW table owned by this BC (`TemplateBot`,
+  ciphertext-only, redacted reads) — feed-publisher has no bots table
+  to reuse and importing the sibling catalog would cycle the module
+  graph; (b) prompt templates stay GLOBAL (reusable ref, never copied
+  into templates/sessions); (c) dedup stays GLOBAL and shared (one
+  probe per message blocks ALL sessions); (d) P38 pacing is per
+  (session, target) with session overrides falling back to injected
+  global limits — delay/cap HOLD, never drop; (e) template edits do
+  NOT rewrite live sessions (creation-time snapshot); (f) the
+  publisher binding is the in-memory recorder (Bot API binding is a
+  follow-up resolving catalog tokens per call, same shape as todo 7);
+  (g) TypeORM shapes deferred (GAP-1, one unwired orm-entity stub).
+  Adversarial: inactive sessions consume/publish nothing
+  (spec-pinned, incl. the multi-tab integration). Worktree left dirty
+  (no commit).
 
 ## STANDING RULE
 

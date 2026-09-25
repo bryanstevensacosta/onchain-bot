@@ -1,0 +1,152 @@
+# Staging environment - feed-publisher (Tramo 2, per-env model)
+#
+# MIRROR of apps/kol-system/docker-compose.staging.yml (Tramo 1 staging prep,
+# evidence .omo/evidence/task-staging-prep.log; backend staging refs cited
+# inline as `backend-staging:<line>`; twin refs as `staging-ingestion:<line>`).
+# DRY-RUN ONLY — no feed-publisher deploy workflow exists yet; nothing here has
+# ever been applied to Oracle. See .omo/evidence/task-T2-10-prep.log.
+#
+# Project name EXPLÍCITO: sin `name:`, compose usa el basename del
+# directorio (`feed-publisher`), que COLISIONA con el proyecto del dev compose
+# (mismo basename, mismos services postgres/redis) y cada `up` de un lado
+# recrea/destruye los contenedores del otro. Misma doctrina que
+# backend-staging:7 (`name: onchain-bot-staging`) y kol-system staging:13.
+name: onchain-bot-feed-publisher-staging
+#
+# ARCHITECTURE (per-env model — same as kol-system staging):
+# - feed-publisher staging consumes the STAGING TWIN
+#   (apps/backend/docker-compose.staging-ingestion.yml, project
+#   onchain-bot-staging-ingestion, host 127.0.0.1:3033 → container :3031,
+#   DNS onchain-bot-ingestion-telegram-staging).
+# - Twin MUST join onchain-bot-staging-net (this file's default net, same
+#   name as backend-staging:153) or this service cannot resolve the twin DNS.
+# - Feed-publisher staging pins the same DNS via compose `environment:`
+#   below (same as kol-system staging:112 and backend-staging:98). Compose
+#   `environment:` wins over `.env.staging`.
+# BOOT ORDER: start docker-compose.staging-ingestion.yml FIRST — the twin
+# compose owns the staging twin on onchain-bot-staging-net.
+#
+# PORTS (verified, no clashes on Oracle — see task-T2-10-prep.log §2):
+# - feed-publisher HTTP host :3041 → container :3040. Triplet feed
+#   3040/3041/3042 (dev/staging/prod) per .env.example:5.
+#   Container port is FEED_PUBLISHER_PORT (default 3040, src/main.ts:27).
+# - postgres host :5437 → container :5432. Backend staging uses NO host port
+#   for postgres; dev feed-publisher uses :5436 (docker-compose.yml:13),
+#   kol-system staging uses :5436 (kol-system staging:51 — TAKEN on Oracle,
+#   verified live 2026-09-25), Oracle dev infra uses :5434 — :5437 is free
+#   repo-wide (grep 5437: only build-artifact hits, no source/config).
+# - redis host :6384 → container :6379. Backend staging uses :6380
+#   (backend-staging:53), dev feed-publisher uses :6383
+#   (docker-compose.yml:28), kol-system staging uses :6383 (TAKEN on Oracle,
+#   verified live), Oracle dev infra uses :6381 — :6384 is free repo-wide
+#   (grep 6384: zero hits).
+#   OPERATOR-CONFIRM both host ports on first deploy (lsof on Oracle).
+#
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: onchain-bot-feed-publisher-postgres-staging
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-onchain_bot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-onchain_bot}
+      POSTGRES_DB: ${POSTGRES_DB:-onchain_bot_feed_publisher_staging}
+    ports:
+      - '5437:5432'
+    volumes:
+      - onchain-bot-feed-publisher-staging-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-onchain_bot} -d ${POSTGRES_DB:-onchain_bot_feed_publisher_staging}',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: onchain-bot-feed-publisher-redis-staging
+    restart: unless-stopped
+    ports:
+      - '6384:6379'
+    volumes:
+      - onchain-bot-feed-publisher-staging-redis-data:/data
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'sh',
+          '-c',
+          'if [ -n "$REDIS_PASSWORD" ]; then redis-cli -a "$REDIS_PASSWORD" ping | grep -q PONG; else redis-cli ping | grep -q PONG; fi',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass "$REDIS_PASSWORD"}
+
+  feed-publisher:
+    build:
+      context: ../..
+      dockerfile: apps/feed-publisher/Dockerfile
+    image: ghcr.io/bryanstevensacosta/onchain-bot-feed-publisher:staging-latest
+    container_name: onchain-bot-feed-publisher-staging
+    restart: unless-stopped
+    env_file:
+      - .env.staging
+    environment:
+      NODE_ENV: staging
+      # Container port (src/main.ts:27 reads FEED_PUBLISHER_PORT ?? 3040;
+      # src/shared/config/app.config.ts:13). Host mapping 3041:3040 below.
+      FEED_PUBLISHER_PORT: 3040
+      # DB name onchain_bot_feed_publisher_staging per central plan
+      # C-DB-01 (twin staging `<base>_<app>_staging`; post-rename
+      # content-publisher -> feed-publisher name — see task-T2-10-prep.log);
+      # because feed-publisher reads DATABASE_URL
+      # (src/shared/config/database.config.ts:12-14).
+      DATABASE_URL: postgres://${POSTGRES_USER:-onchain_bot}:${POSTGRES_PASSWORD:-onchain_bot}@postgres:5432/${POSTGRES_DB:-onchain_bot_feed_publisher_staging}
+      # Migrations off on staging (never synchronize; persistence todo owns
+      # data-source.ts + migrations — GAP-1, inert until then).
+      DATABASE_SYNCHRONIZE: false
+      # Single-string form because feed-publisher reads REDIS_URL
+      # (src/shared/config/redis.config.ts:11). Override with
+      # FEED_PUBLISHER_REDIS_URL when the staging redis carries a password.
+      REDIS_URL: ${FEED_PUBLISHER_REDIS_URL:-redis://redis:6379/1}
+      # Ingestion mode - compose `environment:` wins over .env.staging.
+      # STAGING TWIN: staging reads the twin, NOT dev (:3031) or prod (:3032).
+      # Same DNS backend staging pins at backend-staging:98 and kol-system
+      # staging pins at kol-system staging:112.
+      INGESTION_TELEGRAM_URL: http://onchain-bot-ingestion-telegram-staging:3031
+    ports:
+      - '3041:3040'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # NOTE: feed-publisher image has NO wget/curl (Dockerfile installs only
+      # dumb-init) — probe via node like the Dockerfile HEALTHCHECK does
+      # (Dockerfile:63-64, same pattern as kol-system staging:121-122).
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:3040/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  default:
+    name: onchain-bot-staging-net
+
+volumes:
+  onchain-bot-feed-publisher-staging-pg-data:
+    name: onchain-bot-feed-publisher-staging-pg-data
+  onchain-bot-feed-publisher-staging-redis-data:
+    name: onchain-bot-feed-publisher-staging-redis-data

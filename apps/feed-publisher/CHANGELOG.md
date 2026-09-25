@@ -69,4 +69,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   services, create/enqueue/publish use-cases, publisher cron, 501 stub
   controller matching the Tramo 1 pinning, and the `CONTRACT.md`
   un-stubbing contract for v2. 14 suites / 54 tests.
-- **Cumulative:** full workspace suite at 127 suites / 429 tests green.
+- **Content templates + sessions multi-tab (todo 12):** Reusable
+  `PublishingContentTemplate` profiles (eligible sources + keywords,
+  own on-read content filters, reusable GLOBAL prompt-template ref,
+  telegram/threads/both targets, own queue + matching + scheduling
+  toggles, one-shot + recurring scheduling posts, DB bot bindings)
+  with a P23-like `TemplateBot` catalog (AES-256-GCM tokens,
+  redacted reads), plus `PublishingSession` tabs (template-loaded or
+  ad-hoc, source toggles only, own keywords and
+  matching/publishing/llm switches, own scheduling, N telegram +
+  N threads targets, active/inactive) routed by a shared-dedup,
+  per-target-paced planner (two differently-configured sessions
+  publish to different targets; inactive sessions stay silent).
+  Frontend-backed CRUD on `/api/content-templates`,
+  `/api/content-template-bots`, and `/api/sessions`.
+  16 suites / 31 tests.
+- **Cumulative:** full workspace suite at 143 suites / 460 tests green.
+- **Rename `src/content-templates/` → `src/template/`:** directory-only
+  rename (shorter import paths). Kept intentionally: `ContentTemplatesModule`,
+  `PublishingContentTemplate`, file names, `/api/content-templates` and
+  `/api/content-template-bots` routes, and the `content-templates` health
+  component — no frontend wiring changes needed. 16 suites / 31 tests
+  (template + sessions) green, full 143/460 green, `tsc` clean post-rename.
+- **Staging deploy prep (todo 10, prep only):** `docker-compose.staging.yml`
+  (host `:3041` → container `:3040`, pg `:5437` / redis `:6384`) with
+  logical DB `onchain_bot_feed_publisher_staging` plus
+  `.env.staging.template` (secrets unset, operator fills on droplet);
+  DRY-RUN only, no deploy workflow yet, nothing applied to Oracle
+  (branch `feat/mega-refactor-tramos`).
