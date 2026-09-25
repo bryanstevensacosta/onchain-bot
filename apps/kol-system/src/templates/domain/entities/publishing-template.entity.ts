@@ -3,6 +3,13 @@ import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
 import type { DomainEvent } from '../../../shared/kernel/domain-event';
 import { TemplateClassificationConfig } from '../template-classification.config';
 import {
+  DEFAULT_SCORING_CONFIG,
+  mergeScoringConfig,
+  validateScoringConfig,
+  type ScoringConfigPatch,
+  type TemplateScoringConfig,
+} from '../../../scoring/domain/scoring-config';
+import {
   TemplateActivatedEvent,
   TemplateCreatedEvent,
   TemplateSourceConfigUpdatedEvent,
@@ -39,6 +46,7 @@ export interface CreatePublishingTemplateInput {
   readonly rankingStrategy?: RankingStrategy;
   readonly rankingLimit?: number;
   readonly rankingWeights?: RankingWeights;
+  readonly scoringConfig?: ScoringConfigPatch;
   readonly botId?: string | null;
   readonly channelTarget?: string | null;
   readonly active?: boolean;
@@ -75,6 +83,7 @@ export class PublishingTemplate extends AggregateRoot<string> {
   private strategyState: RankingStrategy;
   private limitState: number;
   private weightsState: RankingWeights;
+  private scoringConfigState: TemplateScoringConfig;
   private assignedBotId: string | null;
   private assignedChannel: string | null;
   private verifiedAtState: Date | null;
@@ -96,6 +105,7 @@ export class PublishingTemplate extends AggregateRoot<string> {
     this.strategyState = 'score';
     this.limitState = 50;
     this.weightsState = DEFAULT_RANKING_WEIGHTS;
+    this.scoringConfigState = DEFAULT_SCORING_CONFIG;
     this.assignedBotId = null;
     this.assignedChannel = null;
     this.verifiedAtState = null;
@@ -130,6 +140,7 @@ export class PublishingTemplate extends AggregateRoot<string> {
       rankingStrategy: input.rankingStrategy,
       rankingLimit: input.rankingLimit,
       rankingWeights: input.rankingWeights,
+      scoringConfig: input.scoringConfig,
     });
     if (input.active !== undefined) template.activeState = input.active;
     if (input.botId !== undefined) template.assignedBotId = input.botId;
@@ -173,6 +184,11 @@ export class PublishingTemplate extends AggregateRoot<string> {
 
   public get weights(): RankingWeights {
     return this.weightsState;
+  }
+
+  /** Per-template scoring rules (P28) — v1 defaults until customized. */
+  public get scoringConfig(): TemplateScoringConfig {
+    return this.scoringConfigState;
   }
 
   /** C1: threads are deferred to Tramo 2 — always null, never configured. */
@@ -228,8 +244,21 @@ export class PublishingTemplate extends AggregateRoot<string> {
     rankingStrategy?: RankingStrategy;
     rankingLimit?: number;
     rankingWeights?: RankingWeights;
+    scoringConfig?: ScoringConfigPatch;
   }): void {
     this.applyConfig(patch);
+    this.touch();
+  }
+
+  /**
+   * Replaces scoring rules with the merged patch (PATCH semantics: merges
+   * over the CURRENT config, validates the effective result, throws
+   * VALIDATION → 400 on out-of-range values).
+   */
+  public setScoringConfig(patch: ScoringConfigPatch): void {
+    const merged = mergeScoringConfig(this.scoringConfigState, patch);
+    validateScoringConfig(merged);
+    this.scoringConfigState = merged;
     this.touch();
   }
 
@@ -294,6 +323,7 @@ export class PublishingTemplate extends AggregateRoot<string> {
     rankingStrategy?: RankingStrategy;
     rankingLimit?: number;
     rankingWeights?: RankingWeights;
+    scoringConfig?: ScoringConfigPatch;
   }): void {
     if (patch.rankingStrategy !== undefined) {
       if (!RANKING_STRATEGIES.includes(patch.rankingStrategy)) {
@@ -317,6 +347,14 @@ export class PublishingTemplate extends AggregateRoot<string> {
     }
     if (patch.rankingWeights !== undefined) {
       this.weightsState = Object.freeze({ ...patch.rankingWeights });
+    }
+    if (patch.scoringConfig !== undefined) {
+      const merged = mergeScoringConfig(
+        this.scoringConfigState,
+        patch.scoringConfig,
+      );
+      validateScoringConfig(merged);
+      this.scoringConfigState = merged;
     }
     const needsRebuild =
       patch.kolSourceIds !== undefined ||

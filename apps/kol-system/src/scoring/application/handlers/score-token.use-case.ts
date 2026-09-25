@@ -6,11 +6,14 @@ import {
 } from '../../domain/entities/scored-call.entity';
 import { Score } from '../../domain/value-objects/score.vo';
 import { CallScoredEvent } from '../../domain/events/call-scored.event';
+import { evaluateScoreGates, type ScoreGateConfig } from './score-gates';
 import {
-  evaluateScoreGates,
-  DEFAULT_GATE_CONFIG,
-  type ScoreGateConfig,
-} from './score-gates';
+  resolveScoringConfig,
+  type ScoringBonusTiers,
+  type ScoringConfigPatch,
+  type ScoringSignalPenalties,
+  type TemplateScoringConfig,
+} from '../../domain/scoring-config';
 import { ScoredCallRepository } from '../ports/scored-call.repository';
 
 export interface ScoreSignal {
@@ -44,6 +47,13 @@ export interface ScoreMentionInput {
   readonly sourceCount?: number;
   readonly mentionCount?: number;
   readonly config?: ScoreGateConfig;
+  /**
+   * Per-template scoring overrides (todo 22, P28): deep-partial patch
+   * over the v1 defaults (`DEFAULT_SCORING_CONFIG`). Absent = v1 math
+   * untouched. Legacy `config` (gate-only) still wins for gates when both
+   * are given.
+   */
+  readonly scoringConfig?: ScoringConfigPatch;
 }
 
 export interface ScoreTokenResult {
@@ -55,51 +65,8 @@ export interface ScoreTokenResult {
   readonly discarded: number;
 }
 
-/** Severity-weighted signal penalties (backend mirror). */
-const SIGNAL_PENALTIES = { CRITICAL: 15, HIGH: 8, MEDIUM: 4, LOW: 1 } as const;
-
-/** Security-flag score ceilings (backend mirror). */
-const SECURITY_FLAG_CAPS = {
-  SCAM: 5,
-  SUSPICIOUS: 30,
-  UNKNOWN: 20,
-  LEGITIMATE: 100,
-} as const;
-
-/** Bonus tiers (backend `defaultSettings` mirror). */
-const BONUS_TIERS = {
-  liquidityThresholdHigh: 10_000,
-  liquidityHigh: 20,
-  liquidityThresholdMedium: 5_000,
-  liquidityMedium: 10,
-  liquidityThresholdLow: 1_000,
-  liquidityLow: 5,
-  liquidityInsufficient: -10,
-  holdersThresholdHigh: 500,
-  holdersHigh: 15,
-  holdersThresholdMedium: 100,
-  holdersMedium: 8,
-  holdersThresholdLow: 10,
-  holdersLow: 3,
-  holdersNone: -10,
-  mcThresholdHigh: 500_000,
-  mcHigh: 10,
-  mcThresholdMedium: 100_000,
-  mcMedium: 5,
-  mcThresholdLow: 10_000,
-  mcLow: 2,
-  volumeThresholdHigh: 50_000,
-  volumeHigh: 5,
-  volumeThresholdLow: 10_000,
-  volumeLow: 2,
-  buzzMultiSource: 10,
-  buzzTwoSources: 5,
-  buzzMultiMentions: 5,
-  buzzTwoMentions: 2,
-} as const;
-
 /**
- * Score enriched mentions (Tramo 1, todo 9, P6 + G-08).
+ * Score enriched mentions (Tramo 1, todo 9, P6 + G-08; per-template config todo 22, P28).
  *
  * Direct call, fix-1: invoked synchronously with the mention inputs —
  * no event bus on the way in or out (kol-system wires no bus; flow
@@ -121,7 +88,9 @@ export class ScoreTokenUseCase {
 
   public constructor(private readonly scoredRepo: ScoredCallRepository) {}
 
-  public async execute(input: { mentions: ReadonlyArray<ScoreMentionInput> }): Promise<ScoreTokenResult> {
+  public async execute(input: {
+    mentions: ReadonlyArray<ScoreMentionInput>;
+  }): Promise<ScoreTokenResult> {
     const mentions = input.mentions ?? [];
     if (mentions.length === 0) {
       return { scored: [], events: [], discarded: 0 };
@@ -167,19 +136,52 @@ export class ScoreTokenUseCase {
 
   /** Returns the ScoredCall when all gates pass, else null (discard). */
   private scoreOne(input: ScoreMentionInput): ScoredCall | null {
+    const scoring: TemplateScoringConfig = resolveScoringConfig(
+      input.scoringConfig,
+    );
     const breakdown: ScoreBreakdownItem[] = [];
-    let score = 50;
-    breakdown.push({ factor: 'BASE_SCORE', delta: 50, note: 'v1 base' });
+    let score = scoring.baseScore;
+    breakdown.push({
+      factor: 'BASE_SCORE',
+      delta: scoring.baseScore,
+      note: 'v1 base',
+    });
 
-    score += this.liquidityBonus(input.liquidityUsd ?? null, breakdown);
-    score += this.holdersBonus(input.holders ?? null, breakdown);
-    score += this.marketCapBonus(input.marketCapUsd ?? null, breakdown);
-    score += this.volumeBonus(input.volume24hUsd ?? null, breakdown);
-    score += this.buzzBonus(input.sourceCount ?? 1, input.mentionCount ?? 1, breakdown);
-    score += this.signalPenalties(input.signals ?? [], breakdown);
+    score += this.liquidityBonus(
+      input.liquidityUsd ?? null,
+      breakdown,
+      scoring.bonuses,
+    );
+    score += this.holdersBonus(
+      input.holders ?? null,
+      breakdown,
+      scoring.bonuses,
+    );
+    score += this.marketCapBonus(
+      input.marketCapUsd ?? null,
+      breakdown,
+      scoring.bonuses,
+    );
+    score += this.volumeBonus(
+      input.volume24hUsd ?? null,
+      breakdown,
+      scoring.bonuses,
+    );
+    score += this.buzzBonus(
+      input.sourceCount ?? 1,
+      input.mentionCount ?? 1,
+      breakdown,
+      scoring.bonuses,
+    );
+    score += this.signalPenalties(
+      input.signals ?? [],
+      breakdown,
+      scoring.signalPenalties,
+    );
 
     const avgRep = input.avgKolReputation ?? 0.5;
-    const multiplier = 1 + (avgRep - 0.5) * 0.3;
+    const multiplier =
+      1 + (avgRep - scoring.multiplierPivot) * scoring.multiplierSlope;
     if (multiplier !== 1) {
       const before = score;
       score = Math.round(score * multiplier);
@@ -191,7 +193,7 @@ export class ScoreTokenUseCase {
     }
 
     const securityFlag = input.securityFlag ?? this.defaultSecurityFlag(input);
-    const cap = SECURITY_FLAG_CAPS[securityFlag];
+    const cap = scoring.securityCaps[securityFlag];
     if (score > cap) {
       breakdown.push({
         factor: 'SECURITY_FLAG_CAP',
@@ -206,7 +208,7 @@ export class ScoreTokenUseCase {
 
     const riskWeight = ScoreTokenUseCase.computeRiskWeight(input);
     const completeness = ScoreTokenUseCase.computeCompleteness(input);
-    const config = input.config ?? DEFAULT_GATE_CONFIG;
+    const config = input.config ?? scoring.gates;
     const reasons = evaluateScoreGates({
       chain: input.chain,
       address: input.address,
@@ -234,6 +236,7 @@ export class ScoreTokenUseCase {
       avgKolReputation: avgRep,
       breakdown,
       scoredAt: new Date(),
+      tierThresholds: scoring.tiers,
     });
   }
 
@@ -242,7 +245,9 @@ export class ScoreTokenUseCase {
    * under default gates); any market field → LEGITIMATE. Explicit input
    * always wins (same skew note as the backend event path, gap 24 there).
    */
-  private defaultSecurityFlag(input: ScoreMentionInput): 'UNKNOWN' | 'LEGITIMATE' {
+  private defaultSecurityFlag(
+    input: ScoreMentionInput,
+  ): 'UNKNOWN' | 'LEGITIMATE' {
     const fields = [
       input.priceUsd,
       input.liquidityUsd,
@@ -250,7 +255,9 @@ export class ScoreTokenUseCase {
       input.volume24hUsd,
       input.holders,
     ];
-    return fields.some((f) => f !== undefined && f !== null) ? 'LEGITIMATE' : 'UNKNOWN';
+    return fields.some((f) => f !== undefined && f !== null)
+      ? 'LEGITIMATE'
+      : 'UNKNOWN';
   }
 
   /**
@@ -266,11 +273,17 @@ export class ScoreTokenUseCase {
   }): number {
     const parts: number[] = [];
     const weights: number[] = [];
-    if (input.top10HolderPercent !== undefined && input.top10HolderPercent !== null) {
+    if (
+      input.top10HolderPercent !== undefined &&
+      input.top10HolderPercent !== null
+    ) {
       parts.push(input.top10HolderPercent * 0.5);
       weights.push(0.5);
     }
-    if (input.lockedLiquidityPercent !== undefined && input.lockedLiquidityPercent !== null) {
+    if (
+      input.lockedLiquidityPercent !== undefined &&
+      input.lockedLiquidityPercent !== null
+    ) {
       parts.push((100 - input.lockedLiquidityPercent) * 0.25);
       weights.push(0.25);
     }
@@ -280,7 +293,9 @@ export class ScoreTokenUseCase {
     }
     if (parts.length === 0) return 0;
     const totalWeight = weights.reduce((a, b) => a + b, 0);
-    return Math.round((parts.reduce((a, b) => a + b, 0) / totalWeight) * 100) / 100;
+    return (
+      Math.round((parts.reduce((a, b) => a + b, 0) / totalWeight) * 100) / 100
+    );
   }
 
   /** Fraction of market fields resolved (0..1). */
@@ -298,18 +313,38 @@ export class ScoreTokenUseCase {
       input.volume24hUsd,
       input.holders,
     ];
-    return fields.filter((f) => f !== undefined && f !== null).length / fields.length;
+    return (
+      fields.filter((f) => f !== undefined && f !== null).length / fields.length
+    );
   }
 
-  private liquidityBonus(liq: number | null, breakdown: ScoreBreakdownItem[]): number {
+  private liquidityBonus(
+    liq: number | null,
+    breakdown: ScoreBreakdownItem[],
+    t: ScoringBonusTiers,
+  ): number {
     if (liq === null) return 0;
-    const t = BONUS_TIERS;
     if (liq >= t.liquidityThresholdHigh)
-      return this.push(breakdown, 'LIQUIDITY_HIGH', t.liquidityHigh, `$${liq} high`);
+      return this.push(
+        breakdown,
+        'LIQUIDITY_HIGH',
+        t.liquidityHigh,
+        `$${liq} high`,
+      );
     if (liq >= t.liquidityThresholdMedium)
-      return this.push(breakdown, 'LIQUIDITY_MEDIUM', t.liquidityMedium, `$${liq} medium`);
+      return this.push(
+        breakdown,
+        'LIQUIDITY_MEDIUM',
+        t.liquidityMedium,
+        `$${liq} medium`,
+      );
     if (liq >= t.liquidityThresholdLow)
-      return this.push(breakdown, 'LIQUIDITY_LOW', t.liquidityLow, `$${liq} low`);
+      return this.push(
+        breakdown,
+        'LIQUIDITY_LOW',
+        t.liquidityLow,
+        `$${liq} low`,
+      );
     return this.push(
       breakdown,
       'LIQUIDITY_INSUFFICIENT',
@@ -318,34 +353,66 @@ export class ScoreTokenUseCase {
     );
   }
 
-  private holdersBonus(holders: number | null, breakdown: ScoreBreakdownItem[]): number {
+  private holdersBonus(
+    holders: number | null,
+    breakdown: ScoreBreakdownItem[],
+    t: ScoringBonusTiers,
+  ): number {
     if (holders === null) return 0;
-    const t = BONUS_TIERS;
     if (holders >= t.holdersThresholdHigh)
-      return this.push(breakdown, 'HOLDERS_HIGH', t.holdersHigh, `${holders} holders`);
+      return this.push(
+        breakdown,
+        'HOLDERS_HIGH',
+        t.holdersHigh,
+        `${holders} holders`,
+      );
     if (holders >= t.holdersThresholdMedium)
-      return this.push(breakdown, 'HOLDERS_MEDIUM', t.holdersMedium, `${holders} holders`);
+      return this.push(
+        breakdown,
+        'HOLDERS_MEDIUM',
+        t.holdersMedium,
+        `${holders} holders`,
+      );
     if (holders >= t.holdersThresholdLow)
-      return this.push(breakdown, 'HOLDERS_LOW', t.holdersLow, `${holders} holders`);
-    if (holders === 0) return this.push(breakdown, 'HOLDERS_NONE', t.holdersNone, '0 holders');
+      return this.push(
+        breakdown,
+        'HOLDERS_LOW',
+        t.holdersLow,
+        `${holders} holders`,
+      );
+    if (holders === 0)
+      return this.push(breakdown, 'HOLDERS_NONE', t.holdersNone, '0 holders');
     return 0;
   }
 
-  private marketCapBonus(mc: number | null, breakdown: ScoreBreakdownItem[]): number {
+  private marketCapBonus(
+    mc: number | null,
+    breakdown: ScoreBreakdownItem[],
+    t: ScoringBonusTiers,
+  ): number {
     if (mc === null) return 0;
-    const t = BONUS_TIERS;
-    if (mc >= t.mcThresholdHigh) return this.push(breakdown, 'MC_HIGH', t.mcHigh, `$${mc} mc`);
+    if (mc >= t.mcThresholdHigh)
+      return this.push(breakdown, 'MC_HIGH', t.mcHigh, `$${mc} mc`);
     if (mc >= t.mcThresholdMedium)
       return this.push(breakdown, 'MC_MEDIUM', t.mcMedium, `$${mc} mc`);
-    if (mc >= t.mcThresholdLow) return this.push(breakdown, 'MC_LOW', t.mcLow, `$${mc} mc`);
+    if (mc >= t.mcThresholdLow)
+      return this.push(breakdown, 'MC_LOW', t.mcLow, `$${mc} mc`);
     return 0;
   }
 
-  private volumeBonus(vol: number | null, breakdown: ScoreBreakdownItem[]): number {
+  private volumeBonus(
+    vol: number | null,
+    breakdown: ScoreBreakdownItem[],
+    t: ScoringBonusTiers,
+  ): number {
     if (vol === null) return 0;
-    const t = BONUS_TIERS;
     if (vol >= t.volumeThresholdHigh)
-      return this.push(breakdown, 'VOLUME_HIGH', t.volumeHigh, `$${vol} volume`);
+      return this.push(
+        breakdown,
+        'VOLUME_HIGH',
+        t.volumeHigh,
+        `$${vol} volume`,
+      );
     if (vol >= t.volumeThresholdLow)
       return this.push(breakdown, 'VOLUME_LOW', t.volumeLow, `$${vol} volume`);
     return 0;
@@ -355,23 +422,48 @@ export class ScoreTokenUseCase {
     sources: number,
     mentions: number,
     breakdown: ScoreBreakdownItem[],
+    t: ScoringBonusTiers,
   ): number {
-    const t = BONUS_TIERS;
     let delta = 0;
-    if (sources >= 3) delta += this.push(breakdown, 'MULTI_CHANNEL_BUZZ', t.buzzMultiSource, `${sources} channels`);
-    else if (sources === 2) delta += this.push(breakdown, 'TWO_CHANNELS', t.buzzTwoSources, '2 channels');
-    if (mentions >= 5) delta += this.push(breakdown, 'HIGH_MENTION_COUNT', t.buzzMultiMentions, `${mentions} mentions`);
-    else if (mentions >= 2) delta += this.push(breakdown, 'MULTIPLE_MENTIONS', t.buzzTwoMentions, `${mentions} mentions`);
+    if (sources >= 3)
+      delta += this.push(
+        breakdown,
+        'MULTI_CHANNEL_BUZZ',
+        t.buzzMultiSource,
+        `${sources} channels`,
+      );
+    else if (sources === 2)
+      delta += this.push(
+        breakdown,
+        'TWO_CHANNELS',
+        t.buzzTwoSources,
+        '2 channels',
+      );
+    if (mentions >= 5)
+      delta += this.push(
+        breakdown,
+        'HIGH_MENTION_COUNT',
+        t.buzzMultiMentions,
+        `${mentions} mentions`,
+      );
+    else if (mentions >= 2)
+      delta += this.push(
+        breakdown,
+        'MULTIPLE_MENTIONS',
+        t.buzzTwoMentions,
+        `${mentions} mentions`,
+      );
     return delta;
   }
 
   private signalPenalties(
     signals: ReadonlyArray<ScoreSignal>,
     breakdown: ScoreBreakdownItem[],
+    penalties: ScoringSignalPenalties,
   ): number {
     let total = 0;
     for (const s of signals) {
-      const penalty = SIGNAL_PENALTIES[s.severity] ?? 0;
+      const penalty = penalties[s.severity] ?? 0;
       if (penalty > 0) {
         total -= penalty;
         breakdown.push({

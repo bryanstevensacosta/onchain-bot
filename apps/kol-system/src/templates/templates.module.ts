@@ -1,6 +1,7 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ScoringModule } from '../scoring/scoring.module';
+import { ApprovalModule } from '../approval/approval.module';
 import { TemplateRepository } from './domain/ports/template.repository';
 import { TelegramBotRepository } from './domain/ports/telegram-bot.repository';
 import { TelegramAdminVerifierPort } from './domain/ports/telegram-admin-verifier.port';
@@ -44,10 +45,17 @@ import { TemplatesHealthIndicator } from './health/templates-health.indicator';
  * (`.../threads/*` → 501) + `telegram_bots` catalog (AES-256-GCM tokens,
  * redacted reads, admin-verified channel targets) + `vip-calls` seed
  * (P14, dashboard-only). Imports `ScoringModule` for the shared
- * `ScoredCallRepository` (rankings read gate-passing mentions only).
+ * `ScoredCallRepository` (rankings read gate-passing mentions only) and
+ * `ApprovalModule` (forwardRef — the pending-approvals endpoint delegates
+ * to `GetPendingApprovalsUseCase`, todo 11). Exports `EncryptionService`
+ * so the telegram publisher resolves catalog tokens (P23).
  */
 @Module({
-  imports: [ScheduleModule.forRoot(), ScoringModule],
+  imports: [
+    ScheduleModule.forRoot(),
+    ScoringModule,
+    forwardRef(() => ApprovalModule),
+  ],
   controllers: [
     TemplatesController,
     TelegramBotsController,
@@ -90,6 +98,7 @@ import { TemplatesHealthIndicator } from './health/templates-health.indicator';
   exports: [
     TemplateRepository,
     TelegramBotRepository,
+    EncryptionService,
     RankingEngine,
     TemplatesHealthIndicator,
   ],

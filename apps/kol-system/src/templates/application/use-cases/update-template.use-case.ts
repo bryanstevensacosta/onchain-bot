@@ -7,6 +7,7 @@ import type {
   RankingStrategy,
   RankingWeights,
 } from '../../domain/entities/publishing-template.entity';
+import type { ScoringConfigPatch } from '../../../scoring/domain/scoring-config';
 
 export interface UpdateTemplatePatch {
   readonly kolSourceIds?: ReadonlyArray<string>;
@@ -16,6 +17,7 @@ export interface UpdateTemplatePatch {
   readonly rankingStrategy?: RankingStrategy;
   readonly rankingLimit?: number;
   readonly rankingWeights?: RankingWeights;
+  readonly scoringConfig?: ScoringConfigPatch;
 }
 
 /**

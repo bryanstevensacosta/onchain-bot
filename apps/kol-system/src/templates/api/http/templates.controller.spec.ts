@@ -8,7 +8,7 @@ import { TelegramAdminVerifierPort } from '../../domain/ports/telegram-admin-ver
 import { SourceValidatorPort } from '../../domain/ports/source-validator.port';
 import { PublishingTemplate } from '../../domain/entities/publishing-template.entity';
 
-describe('TemplatesController 11 endpoints (todo 10, failing-first)', () => {
+describe('TemplatesController 12 endpoints (todo 10 + todo 22 scoring, failing-first)', () => {
   let app: INestApplication;
 
   beforeEach(async () => {
@@ -96,7 +96,6 @@ describe('TemplatesController 11 endpoints (todo 10, failing-first)', () => {
     const server = app.getHttpServer();
     const repo = app.get(TemplateRepository);
     await repo.save(PublishingTemplate.create({ id: 't', name: 't' }));
-    // bot catalog lives in its own controller; seed via repository through the API
     const created = await request(server)
       .post('/api/telegram-bots')
       .send({ label: 'b', token: '111:TOKEN' })
@@ -108,5 +107,48 @@ describe('TemplatesController 11 endpoints (todo 10, failing-first)', () => {
     expect(res.body.channelTarget).toBe('@vip');
     expect(res.body.adminVerifiedAt).not.toBeNull();
     expect(res.body.canPublish).toBe(true);
+  });
+
+  it('PATCH /:id/scoring edits scoring_config with range validation (todo 22, P28)', async () => {
+    const server = app.getHttpServer();
+    // Defaults visible on read (v1 values).
+    const one = await request(server)
+      .get('/api/templates/vip-calls')
+      .expect(200);
+    expect(one.body.scoringConfig.baseScore).toBe(50);
+    expect(one.body.scoringConfig.tiers).toEqual({
+      strong: 80,
+      decent: 60,
+      neutral: 40,
+      risky: 20,
+    });
+    // Happy path: partial patch merges over defaults.
+    const patched = await request(server)
+      .patch('/api/templates/vip-calls/scoring')
+      .send({ baseScore: 10, gates: { minScore: 0 } })
+      .expect(200);
+    expect(patched.body.scoringConfig.baseScore).toBe(10);
+    expect(patched.body.scoringConfig.gates.minScore).toBe(0);
+    expect(patched.body.scoringConfig.bonuses.liquidityHigh).toBe(20);
+    // Invalid ranges -> 400 (DTO validation).
+    await request(server)
+      .patch('/api/templates/vip-calls/scoring')
+      .send({ baseScore: 101 })
+      .expect(400);
+    // Invalid ordering passes the DTO but fails entity validation -> 400.
+    await request(server)
+      .patch('/api/templates/vip-calls/scoring')
+      .send({ tiers: { strong: 10, decent: 60, neutral: 40, risky: 20 } })
+      .expect(400);
+    // Failed patches leave the stored config intact.
+    const after = await request(server)
+      .get('/api/templates/vip-calls')
+      .expect(200);
+    expect(after.body.scoringConfig.baseScore).toBe(10);
+    // Missing template -> 404.
+    await request(server)
+      .patch('/api/templates/nope/scoring')
+      .send({ baseScore: 10 })
+      .expect(404);
   });
 });

@@ -158,7 +158,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       Acceptance criteria: `curl -s -o /dev/null -w "%{http_code}" localhost:3050/api/templates/x/threads` = 501; `psql -c "SELECT token FROM template_bot_tokens"` ilegible sin key; `GET` redacta
       QA scenarios: happy CRUD + orchestrate; failure token ausente → publishing deshabilitado para ese template, resto sigue. Evidence .omo/evidence/task-10-mega-refactor-kol-system.log
       Commit: Y | feat(kol-system): templates core con stub threads y bot-token cifrado
-- [ ] 11. Approval + publishing multi-bot, movimiento KOL-bot (Ph10-11 spec + C2)
+- [x] 11. Approval + publishing multi-bot, movimiento KOL-bot (Ph10-11 spec + C2)
       What to do / Must NOT do: `CallApproval` + `EvaluateApproval` + `GetPendingApprovals`; `PublishingJob` + `PublishFromTemplate` + `ManualPublish`; `MultiBotPublisherAdapter` (KOL_BOT_TOKEN); MOVER (lsp_find_references primero) el KOL bot fuera de `backend telegram/shared` — primer movimiento C-SHARED-01; ticker nunca null pre-publisher. P14: seed de template por defecto NOMBRADO `vip-calls` (dato, no módulo); publicar o no lo decide el bot configurado del template. Tests + e2e publish en canal espejo.
       Parallelization: Wave 3 | Blocked by: 10 | Blocks: 15
       References: .kiro/specs/refactor-kol-system/IMPLEMENTATION-GUIDE.md:315-384; apps/backend/src/telegram/vip-calls/vip-channel/ (origen); apps/backend/src/telegram/vip-calls/shared/infrastructure/senders/bot-api-telegram-publisher.adapter.ts:24-52 (token por config)

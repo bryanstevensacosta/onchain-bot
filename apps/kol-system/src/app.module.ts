@@ -9,6 +9,8 @@ import { EnrichmentModule } from './enrichment/enrichment.module';
 import { SnapshotModule } from './snapshot/snapshot.module';
 import { ScoringModule } from './scoring/scoring.module';
 import { TemplatesModule } from './templates/templates.module';
+import { ApprovalModule } from './approval/approval.module';
+import { TelegramModule } from './telegram/telegram.module';
 
 /**
  * AppModule - Root module for kol-system skeleton (Tramo 1, todos 2+4+5).
@@ -30,7 +32,12 @@ import { TemplatesModule } from './templates/templates.module';
  * enrichment -> scoring -> templates) + TemplatesModule (templates CORE
  * without threads, todo 10, Ph9 + P6/P14/P16/P22/P23/P23-bis + C1:
  * orchestrator cron 1 min, 4-strategy ranking engine, 11-endpoint
- * controller, threads 501 stub, telegram_bots catalog, vip-calls seed).
+ * controller, threads 501 stub, telegram_bots catalog, vip-calls seed) +
+ * ApprovalModule (per-template bouncer, todo 11, Ph10: CallApproval +
+ * EvaluateApproval + GetPendingApprovals + ApprovalsController) +
+ * TelegramModule (per-template KOL-bot publishing, todo 11, Ph11 + C2:
+ * PublishingJob + PublishFromTemplate + ManualPublish, catalog token per
+ * call, first C-SHARED-01 move).
  * ConfigModule is global, so the ingestion HTTP adapter resolves
  * ConfigService without importing SharedModule.
  */
@@ -49,6 +56,8 @@ import { TemplatesModule } from './templates/templates.module';
     SnapshotModule,
     ScoringModule,
     TemplatesModule,
+    ApprovalModule,
+    TelegramModule,
   ],
 })
 export class AppModule {}

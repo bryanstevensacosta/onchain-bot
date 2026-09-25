@@ -1,6 +1,6 @@
 # apps/kol-system/ — NestJS Knowledge Base
 
-> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4+5+6+7+8+9+10 built).
+> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4+5+6+7+8+9+10+11+22 built).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md` §7.6 (2026-09-24).
 
 Contents: OVERVIEW · HOW IT WORKS (non-technical) · PROGRAM INDEX · COMMANDS ·
@@ -21,10 +21,16 @@ todo 6) + `NormalizationModule` (mention index, P1 + G-12, todo 7) +
 http-market-data stub, P7, direct call + P26 completion, todo 8) +
 `SnapshotModule` (owns `mention_snapshots`, P27, same DB, todo 8) +
 `ScoringModule` (score v1 + 8 gates per mention, classification as
-per-template config, P6 + G-08, direct call + P26 completion, todo 9) +
+per-template config, P6 + G-08, direct call + P26 completion, todo 9;
+per-template `scoring_config` with v1 defaults, P28, todo 22) +
 `TemplatesModule` (templates CORE without threads, Ph9 + C1, cron 1 min +
-4-strategy ranking + 11 endpoints + threads 501 stub + `telegram_bots`
-catalog + `vip-calls` seed, todo 10) wired into `AppModule`.
+4-strategy ranking + 12 endpoints + threads 501 stub + `telegram_bots`
+catalog + `vip-calls` seed, todo 10) + `ApprovalModule` (per-template
+bouncer: `CallApproval` + `EvaluateApproval` + `GetPendingApprovals` +
+`ApprovalsController`, todo 11, Ph10) + `TelegramModule` (per-template
+KOL-bot publishing: `PublishingJob` + `PublishFromTemplate` +
+`ManualPublish` + `MultiBotPublisherAdapter` on the DB catalog, first
+C-SHARED-01 move, todo 11, Ph11 + C2) wired into `AppModule`.
 
 Design pivots (2026-09-24) that govern every future todo:
 
@@ -90,6 +96,14 @@ at | time ago | more details +`.
   `src/snapshot/` with its own tables inside the kol-system DB (no separate
   DB; enrichment writes via port). Joins + single-transaction atomicity;
   split (timescale/partition) only if volume demands.
+- **P28 — scoring configurable por template** (done 2026-09-25, todo 22):
+  NOTHING hardcoded in the scorer — base score, market bonuses, signal
+  penalties, security caps, reputation pivot/slope, tier thresholds and
+  gate thresholds (min score, caps) live in `scoring_config` on the
+  template (`src/scoring/domain/scoring-config.ts`, defaults = v1).
+  `ScoreTokenUseCase` reads the mention's template config with fallback
+  to defaults when absent; `PATCH /api/templates/:id/scoring` edits it
+  with range validation (400 on invalid, stored config left intact).
 - **P25 — this file is living**: created in todo 21, updated at the close of
   every task set (see STANDING RULE).
 
@@ -179,15 +193,13 @@ flowchart LR
     ENR["market desk: asks market-data, fills price at capture (BUILT)<br/>src/enrichment/ (enrichment-orchestrator.service, market-data.port)<br/>IN: mention + base - OUT: completed snapshot"]
     SCORE["judge: scores 0-100, drops low scores (BUILT)<br/>src/scoring/ (score-token.use-case, score-gates, scored-call.entity)<br/>IN: enriched row - OUT: ScoredCall"]
     TMPL["shop window: picks channels, ranks, shows views (BUILT)<br/>src/templates/ (publishing-template.entity, template-orchestrator.service, ranking-engine.service)<br/>IN: scored rows - OUT: PublishingTemplate views"]
-    APPR["bouncer: per-template accept or reject (PLANNED, not in src/)<br/>CallApproval (planned name)<br/>IN: scored rows - OUT: CallApproval"]
-    PUB["poster: sends via the template own bot (PLANNED, not in src/)<br/>PublishingJob (planned name)<br/>IN: approvals - OUT: PublishingJob + bot posts"]
+    APPR["bouncer: per-template accept or reject (BUILT)<br/>src/approval/ (CallApproval, evaluate + pending + manual decide)<br/>IN: scored rows - OUT: CallApproval"]
+    PUB["poster: sends via the template own bot (BUILT)<br/>src/telegram/ (PublishingJob, catalog token per call)<br/>IN: approvals - OUT: PublishingJob + bot posts"]
     TRACK["scoreboard: first-seen plus rankings per window (PLANNED, not in src/)<br/>kol_window_stats (planned name)<br/>IN: posts + scores - OUT: kol_window_stats"]
     DASH["screen: calls table plus rankings on display (PLANNED, not in src/)<br/>served views (planned)<br/>IN: template views - OUT: rows on screen"]
 
     ING --> EXT --> PAR --> NORM --> SNAP --> ENR --> SCORE --> TMPL --> APPR --> PUB --> TRACK --> DASH
 
-    style APPR stroke-dasharray:5
-    style PUB stroke-dasharray:5
     style TRACK stroke-dasharray:5
     style DASH stroke-dasharray:5
 ```
@@ -202,8 +214,8 @@ Per node — what enters, what it does (plain words), what exits:
 - **enrichment (BUILT, `src/enrichment/`, todo 8)** — IN: mention + P26 base. DOES: the market desk that asks market-data (`application/services/enrichment-orchestrator.service.ts` through `domain/ports/market-data.port.ts`, local cascade `infrastructure/adapters/local-cascade-market-data.adapter.ts` default, http stub `infrastructure/adapters/http-market-data.adapter.ts` behind `USE_DATA_SERVICE_API`) and fills price-at-capture. OUT: completed `MentionSnapshot` (`marketCapUsd` = mc-at) (P7).
 - **scoring (BUILT, `src/scoring/`, todo 9)** — IN: enriched row (market + rug-signal group). DOES: the judge that scores 0–100 (`application/handlers/score-token.use-case.ts`, base 50 v1) and runs the 8 fail-fast gates in `application/handlers/score-gates.ts`; below-cut never reaches templates; persists via `application/ports/scored-call.repository.ts`. OUT: `ScoredCall` (`domain/entities/scored-call.entity.ts`, id = mentionId) + event `scoring.token.scored` (`domain/events/call-scored.event.ts`) (P6, G-08). Classification note: `TemplateClassificationConfig` is a per-template value object (visible channels + display floor + gem filters) — NOT a table, NOT a BC (`grep -r classified_calls apps/kol-system/src` is empty); the templates module owns it (`src/templates/domain/template-classification.config.ts`, scoring path re-exports).
 - **templates (BUILT, `src/templates/`, todo 10)** — IN: scored rows. DOES: the shop window that picks channels per template (`kolSourceIds`, empty = all), ranks with `application/services/ranking-engine.service.ts` (4 strategies), refreshes per template on a 1 min cron via `application/services/template-orchestrator.service.ts`, seeds the default `vip-calls` view (`application/services/template-seed.service.ts`). OUT: `PublishingTemplate` aggregate (`domain/entities/publishing-template.entity.ts`; verified name is `.entity.ts`, not `.aggregate.ts`) + dashboard views (P6, P14, P16).
-- **approval (PLANNED, not in `src/`)** — IN: scored rows in template scope. DOES: the bouncer that accepts or rejects per template (gates live in scoring today as the backend-mirror stopgap; `templates.controller.ts` exposes only a `pending-approvals` stub for todo 11). OUT: `CallApproval` (planned aggregate name, not in `src/` yet).
-- **publishing (PLANNED, not in `src/`)** — IN: approvals. DOES: the poster that sends via the template's own DB-catalog bot (`domain/entities/telegram-bot.entity.ts`, verified BUILT in templates) to admin-verified channels. OUT: `PublishingJob` (planned name, not in `src/` yet) + bot posts (P9, P22, P23).
+- **approval (BUILT, `src/approval/`, todo 11)** — IN: scored rows in template scope. DOES: the bouncer that accepts or rejects per template (`CallApproval` aggregate, id `templateId:mentionId`, P1 upsert guard; `EvaluateApprovalUseCase` auto-decides active + source-visible (P16) + score-floor, `RequestApprovalUseCase` enqueues pending rows, manual approve/reject endpoints; `GET /api/templates/:id/pending-approvals` delegates here — the todo-10 stub is gone). OUT: `CallApproval` + `approval.call.decided` events (direct return, fix-1).
+- **publishing (BUILT, `src/telegram/`, todo 11)** — IN: approvals. DOES: the poster that sends via the template's own DB-catalog bot (`MultiBotPublisherAdapter`, token per call from `BotTokenResolverPort`, P23 — no env token; `VipMessageFormatter` card; ticker non-null enforced pre-publisher; missing bot/channel/verification degrades to dashboard-only, unknown bot → 401 with no post). OUT: `PublishingJob` (reserved→published/failed) + `publishing.telegram.published|failed` + bot posts (P9, P22, P23, first C-SHARED-01 move — backend `vip-channel`/`telegram/shared` sender code now lives here, backend untouched).
 - **tracking/rankings (PLANNED, not in `src/`)** — IN: published calls + scores + snapshots. DOES: the scoreboard that tracks first-appearance + runs the background ranking job per window (ranking math verified BUILT inside templates via `get-template-rankings.use-case.ts` + `ranking-engine.service.ts`; the standalone tracking module is not). OUT: `kol_window_stats` rows (planned table name, `total_x` + `calls_count` per caller/window) + rankings API (P8, P11, P17).
 - **dashboard (PLANNED, not in `src/`, served views)** — IN: template views. DOES: the screen that shows the calls table + sideways rankings + top callers. OUT: rows on screen (P5, P16, P17).
 
@@ -219,7 +231,7 @@ as Tramo 3 final phase, P13). All paths verified 2026-09-24.
 | 2 · content-pub. | `.omo/plans/mega-refactor-content-publisher.md` | crypto-news (12 todos)          |
 | 3 · market-data  | `.omo/plans/mega-refactor-market-data.md`       | data service + Dexter (9 todos) |
 
-Decisions source: `.omo/drafts/mega-refactor-tramos.md` §7.6 (P1–P27).
+Decisions source: `.omo/drafts/mega-refactor-tramos.md` §7.6 (P1–P28).
 Target tree: `.omo/reference/mega-refactor-target-tree.md` — names
 `apps/content-publisher/`, `apps/market-data/`, `apps/dexter-onchain-bot/`
 as PLANNED (not yet scaffolded; only `apps/kol-system/` exists).
@@ -258,7 +270,7 @@ Health was verified by booting `node dist/main.js` with
 ```text
 src/
 ├── main.ts                       # bootstrap() — ValidationPipe whitelist/forbidNonWhitelisted/transform, listen KOL_SYSTEM_PORT ?? 3050
-├── app.module.ts                 # Config (envFilePath ['.env.dev', '.env']) + HealthModule + IngestionModule + ExtractionModule + ParsingModule + NormalizationModule + EnrichmentModule + SnapshotModule + ScoringModule + TemplatesModule (all wired)
+├── app.module.ts                 # Config (envFilePath ['.env.dev', '.env']) + HealthModule + IngestionModule + ExtractionModule + ParsingModule + NormalizationModule + EnrichmentModule + SnapshotModule + ScoringModule + TemplatesModule + ApprovalModule + TelegramModule (all wired)
 ├── health/
 │   ├── health.module.ts
 │   ├── health.controller.spec.ts
@@ -346,11 +358,39 @@ src/
 │   ├── infrastructure/security/encryption.service.ts (+ .spec.ts)  # AES-256-GCM via ENCRYPTION_KEY (hex64 direct, else sha256), fail-closed
 │   ├── infrastructure/telegram/http-telegram-admin-verifier.adapter.ts (+ .spec.ts)  # getMe + getChatMember → administrator/creator, fail-closed
 │   ├── infrastructure/ingestion/http-source-validator.adapter.ts (+ .spec.ts)  # GET /api/feed/sources?type=kol, fail-open
-│   ├── api/http/templates.controller.ts (+ .spec.ts)  # 11 endpoints: CRUD + activate/deactivate + rankings + pending-approvals(stub todo 11) + sources + channel
+│   ├── api/http/templates.controller.ts (+ .spec.ts)  # 12 endpoints: CRUD + activate/deactivate + rankings + pending-approvals (delegates to approval, todo 11) + sources + channel + scoring(P28)
 │   ├── api/http/telegram-bots.controller.ts (+ .spec.ts)  # redacted CRUD (GET → '***')
 │   ├── api/http/threads-stub.controller.ts (+ .spec.ts)  # .../threads/* → 501 THREADS_NOT_IMPLEMENTED (C1, pinned)
 │   ├── api/http/dto/template.dto.ts  # class-validator DTOs (RankingsQueryDto.limit has @Type(() => Number) for query strings)
 │   └── health/templates-health.indicator.ts  # check() → { component: 'templates', status } (unwired until composite health)
+├── approval/                     # BUILT (todo 11, Ph10) + WIRED into AppModule
+│   ├── approval.module.ts        # ScoringModule + forwardRef TemplatesModule; controller + 4 providers, 4 exports
+│   ├── domain/entities/call-approval.entity.ts (+ .spec.ts)  # id templateId:mentionId (P1 upsert), pending→approved|rejected, double-decide 409
+│   ├── domain/events/call-approval.event.ts  # approval.call.decided (+ decidedBy + reason)
+│   ├── application/handlers/evaluate-approval.use-case.ts (+ .spec.ts)  # auto active→source(P16)→floor, direct call fix-1
+│   ├── application/handlers/request-approval.use-case.ts  # enqueue pending, idempotent (covered by controller spec)
+│   ├── application/handlers/get-pending-approvals.use-case.ts (+ .spec.ts)  # newest-first, optional templateId, limit 1..500
+│   ├── application/ports/call-approval.repository.ts
+│   ├── infrastructure/repositories/in-memory-call-approval.repository.ts  # upsert by id = double-delivery guard
+│   ├── api/http/approvals.controller.ts (+ .spec.ts)  # GET pending + POST request|evaluate + POST :id/approve|reject
+│   ├── api/http/dto/approval.dto.ts  # class-validator DTOs (limit has @Type(() => Number) for query strings)
+│   └── health/approval-health.indicator.ts  # check() → { component: 'approval', status } (unwired until composite health)
+├── telegram/                     # BUILT (todo 11, Ph11 + C2, first C-SHARED-01 move) + WIRED into AppModule
+│   ├── telegram.module.ts        # TemplatesModule (repos + EncryptionService) + ApprovalModule (rejected blocks); 3 use-case/adapter exports
+│   ├── domain/entities/publishing-job.entity.ts (+ .spec.ts)  # ticker NON-NULL by construction (VALIDATION), reserved→published|failed
+│   ├── domain/events/publishing-events.ts  # publishing.telegram.published|failed (backend wire names kept)
+│   ├── domain/ports/telegram-publisher.port.ts  # sendMessage({ botToken per call, chatId, text }) — token-per-call divergence (P23)
+│   ├── domain/ports/bot-token-resolver.port.ts  # resolveBotToken(botId) → plaintext, unknown → UNAUTHORIZED
+│   ├── application/use-cases/publish-from-template.use-case.ts (+ .spec.ts)  # ticker-first guard + canPublish gate + dashboard-only degrade
+│   ├── application/use-cases/manual-publish.use-case.ts (+ .spec.ts)  # ops hatch, explicit bot + channel, same guards
+│   ├── application/ports/publishing-job.repository.ts
+│   ├── infrastructure/repositories/in-memory-publishing-job.repository.ts  # newest-first reads
+│   ├── infrastructure/formatters/vip-message-formatter.ts (+ .spec.ts)  # MOVED card (backend vip-channel read-only ref)
+│   ├── infrastructure/telegram/multi-bot-publisher.adapter.ts (+ .spec.ts)  # MOVED sender, per-call token, 1 msg/min per bot, fetch
+│   ├── infrastructure/security/bot-token-resolver.adapter.ts (+ .spec.ts)  # catalog + EncryptionService decrypt, fail-closed
+│   ├── api/http/publishing.controller.ts (+ .spec.ts)  # POST publish|manual + GET recent|failed (P14: no vip-calls route)
+│   ├── api/http/dto/publishing.dto.ts  # class-validator DTOs
+│   └── health/telegram-health.indicator.ts  # check() → { component: 'publishing', status } (unwired until composite health)
 ├── shared/                       # kernel/config/guards/filters — REUSE, extend, never copy (P21)
 │   ├── kernel/aggregate-root.ts, entity.ts, value-object.ts, domain-error.ts, domain-event.ts (+ specs)
 │   ├── value-objects/chain-hint.vo.ts, normalized-address.vo.ts (+ spec)  # P21 identity VOs (EVM/Solana) — extraction/parsing/normalization share this home
@@ -387,11 +427,15 @@ v1 + 8 gates per mention per P6 + G-08, direct call fix-1, classification
 as per-template config — wired 2026-09-25) + `TemplatesModule` (todo 10,
 templates CORE without threads per Ph9 + C1, direct call fix-1, cron 1 min
 + 4-strategy ranking + 11-endpoint controller + threads 501 stub +
-`telegram_bots` catalog + `vip-calls` seed — wired 2026-09-25).
+`telegram_bots` catalog + `vip-calls` seed — wired 2026-09-25) +
+`ApprovalModule` (todo 11, per-template bouncer per Ph10, direct call
+fix-1, `CallApproval` + evaluate/request/pending + manual decide —
+wired 2026-09-25) + `TelegramModule` (todo 11, per-template KOL-bot
+publishing per Ph11 + C2, first C-SHARED-01 move, catalog token per call,
+ticker non-null pre-publisher — wired 2026-09-25).
 
 Planned (per spec, NOT built — do not import until their todos land):
-approval, publishing (per-template bots, P9/P12b), tracking
-(first-appearance, P8), rankings (P11).
+tracking (first-appearance, P8), rankings (P11).
 
 ## INGESTION — SSE-only (`ingestion/`)
 
@@ -526,6 +570,20 @@ Completeness = resolved market fields / 5. No market data at all →
 `securityFlag` defaults UNKNOWN (cap 20 → discarded by SCORE_TOO_LOW
 under default gates); any market field → LEGITIMATE.
 
+Per-template scoring (todo 22, P28): `src/scoring/domain/scoring-config.ts`
+holds `TemplateScoringConfig` (base + bonuses + signal penalties +
+security caps + multiplier pivot/slope + tiers + gates) with
+`DEFAULT_SCORING_CONFIG` = the v1 values above (single source of truth —
+the old module-level consts were removed). `ScoreMentionInput.scoringConfig`
+is a deep-partial patch merged over defaults by `resolveScoringConfig`
+(absent = v1 math untouched; legacy gate-only `config` still wins for
+gates when both are given); `ScoredCall` receives the effective `tiers`
+via its existing `tierThresholds` prop. `validateScoringConfig` enforces
+ranges + threshold-ladder/tiers ordering (VALIDATION → 400); the merge
+strips explicit-`undefined` keys so class-transformer DTO instances never
+clobber base values on spread (real 400 bug found in review, pinned by
+spec).
+
 Gates (`score-gates.ts`, backend `ApplyVipCallApprovalUseCase` mirror,
 G-08) run after scoring, in order: INVALID_ADDRESS → SCORE_TOO_LOW
 (default min 50) → CLASSIFICATION_BLOCKED (default `['SCAM']`) →
@@ -590,16 +648,92 @@ only `administrator`/`creator` stores `admin_verified_at`; anything else
 (incl. transport errors) rejects fail-closed with FORBIDDEN and stores
 nothing. Source selector (`PATCH /:id/sources`) validates against
 `GET /api/feed/sources?type=kol` (P16) — fail-open when the feed is
-unreachable. `GET /:id/pending-approvals` returns `{ pending: [] }` by
-design until todo 11 (approval). `TemplatesController` has 11 endpoints
+unreachable. Scoring rules (`PATCH /:id/scoring`, P28) merge a partial
+`scoring_config` over the CURRENT template config and validate the
+effective result (ranges + ordering → 400, stored config intact on
+failure); `GET` responses embed the full `scoringConfig`.
+`GET /:id/pending-approvals` delegates to `GetPendingApprovalsUseCase`
+(todo 11 — the stub is gone). `TemplatesController` has 12 endpoints
 (CRUD + activate/deactivate + rankings + pending-approvals + sources +
-channel); `ThreadsStubController` answers 501
+channel + scoring); `ThreadsStubController` answers 501
 `THREADS_NOT_IMPLEMENTED` on `:id/threads` + `:id/threads/*` (pinned by
 spec — no threads impl, Tramo 2). `TemplatesHealthIndicator.check()` is
 the P21 hook point (provided + exported, unwired until composite health —
 gap 3). Gotcha fixed here: never name an injected property `create` when
 the controller has a `create()` route handler (the property clobbers the
-prototype method → `callback.apply is not a function` 500).
+prototype method → `callback.apply is not a function` 500). `TemplatesModule`
+imports `ApprovalModule` via `forwardRef` (and vice versa) so the
+pending-approvals endpoint reads live decisions; it also exports
+`EncryptionService` so the telegram publisher resolves catalog tokens (P23).
+
+## APPROVAL — per-template bouncer (`approval/`, todo 11)
+
+`CallApproval` aggregate (Ph10, id `templateId:mentionId` — the repo upsert
+is the P1 double-delivery guard): rows start `pending`, then approve
+(manual/auto) or reject with a reason code (`TEMPLATE_INACTIVE` |
+`SOURCE_NOT_VISIBLE` | `SCORE_BELOW_FLOOR` | manual text); double-decide →
+409 CONFLICT. The ticker may be null HERE (approval tolerates it — the
+non-null invariant lives at the publisher boundary only, backend gap-13
+nuance).
+
+`EvaluateApprovalUseCase` (direct call fix-1): loads the gate-passing
+`ScoredCall` (404 when the mention never passed scoring — below-cut never
+reaches the bouncer) + the template, applies active → source-visible
+(`kolSourceIds`, empty = all, P16) → score ≥ `minVisibleScore`, persists,
+returns `approval.call.decided` directly. `RequestApprovalUseCase`
+enqueues the pending row (idempotent — re-requests return the existing
+row). `GetPendingApprovalsUseCase` lists pending newest-first, optionally
+scoped (`limit` 1..500, default 50).
+
+`ApprovalsController`: `GET /api/approvals/pending` (acceptance: `jq
+length >= 0`) + `POST /api/approvals/request` + `POST
+/api/approvals/evaluate` + manual `POST /api/approvals/:id/approve|reject`
+(all 201; `DomainExceptionFilter` maps NOT_FOUND→404, VALIDATION→400,
+CONFLICT→409). `ApprovalHealthIndicator.check()` is the P21 hook point
+(provided + exported, unwired until composite health — gap 3).
+
+## PUBLISHING — per-template KOL-bot sender (`telegram/`, todo 11)
+
+First C-SHARED-01 move: `VipMessageFormatter` (publish card
+`{emoji} $CHAIN | $TICKER` + MC + address + Dexscreener link + trade-button
+keyboard + milestone format) and `MultiBotPublisherAdapter` (Bot API
+`sendMessage`/`sendPhoto`, Markdown, 4096-char chunks, 1024-char captions,
+1 msg/min throttle) are MOVED here from backend `vip-calls/vip-channel` +
+`telegram/shared` (read-only reference — backend untouched in this todo;
+deprecation companion comes later) with ONE divergence: the bot token
+arrives PER CALL from the DB catalog instead of one env binding (P23 —
+there is no `KOL_BOT_TOKEN`, no `VIP_CALLS_BOT_TOKEN` in this app, not even
+as seed; `grep` for them finds only doc comments saying so). Throttling is
+tracked per token, so N template bots send independently. Transport is
+global `fetch` (no axios here — same as the admin verifier), 10 s timeout.
+
+`PublishingJob` aggregate: ticker NON-NULL by construction (`create`
+throws VALIDATION on null/blank — an unresolved ticker can never reach the
+Bot API); lifecycle reserved→published (`telegramMessageId` backfilled) /
+failed (reason kept); emits `publishing.telegram.published|failed`
+(backend wire names kept).
+
+`PublishFromTemplateUseCase` (direct call fix-1): ticker guard FIRST, then
+the template gate — inactive / no bot / no channel / unverified channel →
+dashboard-only `{ published: false, reason }` with NO Telegram call and NO
+job (adversarial: missing token degrades the template, never the batch);
+a REJECTED approval blocks with `NOT_APPROVED`; unknown catalog bot →
+UNAUTHORIZED (HTTP 401, no post attempted — fail-closed). On success the
+job is reserved→finalized and the mirror channel gets exactly 1 card.
+`ManualPublishUseCase` is the ops escape hatch (explicit `botId` +
+`channelTarget`, same guards, job provenance `templateId ?? 'manual'`).
+
+`PublishingController`: `POST /api/publishing/publish` + `POST
+/api/publishing/manual` (201) + `GET /api/publishing/recent|failed`
+(`limit` 1..500, default 50). P14: no `vip-calls` route, controller, or
+module exists anywhere — `vip-calls` is only a seed NAME passed as
+`templateId`; the seed boots dashboard-only and `canPublish()` flips true
+once a bot is assigned + admin-verified (pinned by spec). Ticker
+resolution stays upstream (parsing heuristic — the 9-level provider
+cascade is NOT moved, C-DATA-01 intact). `TelegramHealthIndicator.check()`
+reports component `publishing` (the composite-health contract names the
+pipeline stage — todo 15 asserts it) — provided + exported, unwired until
+composite health (gap 3).
 
 ## SNAPSHOT — own module, same DB (`snapshot/`, todo 8)
 
@@ -682,7 +816,11 @@ extraction/parsing/normalization/enrichment/scoring/templates/approval/publishin
 `NormalizationHealthIndicator.check()` (`normalization/health/`, todo 7) +
 `EnrichmentHealthIndicator.check()` (`enrichment/health/`, todo 8) +
 `SnapshotHealthIndicator.check()` (`snapshot/health/`, todo 8) +
-`ScoringHealthIndicator.check()` (`scoring/health/`, todo 9)
+`ScoringHealthIndicator.check()` (`scoring/health/`, todo 9) +
+`TemplatesHealthIndicator.check()` (`templates/health/`, todo 10) +
+`ApprovalHealthIndicator.check()` (`approval/health/`, todo 11) +
+`TelegramHealthIndicator.check()` (`telegram/health/`, todo 11,
+component `publishing`)
 are the per-module hook points — provided + exported, NOT yet consumed
 (no composite health system exists; wiring lands with the composite-health
 todo, gap 3).
@@ -753,11 +891,15 @@ per-template VO — visible channels + display floor + gem filters — NO
 table, NO BC; flow `enrichment→scoring→templates`; VO moved to
 `templates/` in todo 10, old path re-exports).
 Built (domain): `TemplatesModule` (todo 10, Ph9 + C1 — `PublishingTemplate`
-aggregate, orchestrator cron 1 min, 4-strategy `RankingEngine`, 11-endpoint
+aggregate, orchestrator cron 1 min, 4-strategy `RankingEngine`, 12-endpoint
 controller, threads 501 stub, `telegram_bots` catalog with AES-256-GCM +
 redact + admin verify, `vip-calls` seed; flow `scoring→templates`).
-Planned: approval → publishing (P9/P12b per-template bots, consumes the
-todo-10 catalog + verified targets) → tracking (P8 first-appearance) →
+Built (domain): `ScoringConfig` (todo 22, P28 — `TemplateScoringConfig` +
+v1 `DEFAULT_SCORING_CONFIG` + merge/validate in `src/scoring/domain/`;
+stored as `scoring_config` on the template, edited via
+`PATCH /api/templates/:id/scoring` with 400-on-invalid; scorer fallback
+to defaults when absent).
+Planned: tracking (P8 first-appearance) →
 rankings (P11 `GET /api/kol-rankings?window=30d|7d|1d`, cron-fed
 `kol_window_stats`, P17 layout) → dashboard (P16 single + source selector).
 
@@ -808,8 +950,9 @@ demands.
    `ExtractionHealthIndicator` (todo 5) + `ParsingHealthIndicator` (todo 6)
    + `NormalizationHealthIndicator` (todo 7) + `EnrichmentHealthIndicator`
    (todo 8) + `SnapshotHealthIndicator` (todo 8) + `ScoringHealthIndicator`
-   (todo 9) + `TemplatesHealthIndicator` (todo 10) exist as unwired hook
-   points; wiring lands with the composite-health todo.
+   (todo 9) + `TemplatesHealthIndicator` (todo 10) + `ApprovalHealthIndicator`
+   (todo 11) + `TelegramHealthIndicator` (todo 11, component `publishing`)
+   exist as unwired hook points; wiring lands with the composite-health todo.
 4. `buildAppConfig().port` reads `PORT ?? 3030` while `main.ts` uses
    `KOL_SYSTEM_PORT ?? 3050` — bare `PORT` will mislead.
 5. P19 avatar pipeline (ingestion resolves + serves permanently, excluded
