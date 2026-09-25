@@ -57,7 +57,7 @@ Correctly scoped prefixes: `telegram-kol/identity`, `telegram-kol/reputation`, `
 - `GET /ingestion-api/feed/messages?limit=50&type=kol|crypto-news` — recent feed messages with media (SQL-level `type` filter; 400 invalid; omitted = mixed legacy default)
 - Newsroom (`/crypto-news`) + prompt-playground pin `type=crypto-news`; threads wrapper untouched/mixed.
 - `GET /ingestion-api/feed/messages/channel/:channelId?limit=50` — messages by channel
-- `GET /ingestion-api/feed/sources` — all active feed sources
+- `GET /ingestion-api/feed/sources?type=crypto-news` — crypto-news sources only (type-pinned; bare = mixed kol + news legacy default)
 - `GET /ingestion-api/feed/sources/active/ids?type=kol` — channel IDs only (kols page)
 - `GET /ingestion-api/feed/stats` — statistics (totalMessages, totalSources, activeSources)
 - `GET /ingestion-api/media/:channelId/:messageId/:index` — serve feed media files

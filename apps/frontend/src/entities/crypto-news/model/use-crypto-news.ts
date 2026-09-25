@@ -28,10 +28,10 @@ export function useCryptoNewsMessages(
   });
 }
 
-export function useCryptoNewsSources() {
+export function useCryptoNewsSources(type: FeedMessageType = 'crypto-news') {
   return useQuery<ReadonlyArray<CryptoNewsSource>>({
-    queryKey: cryptoNewsKeys.sources(),
-    queryFn: () => fetchCryptoNewsSources(),
+    queryKey: cryptoNewsKeys.sources(type),
+    queryFn: () => fetchCryptoNewsSources(type),
     refetchInterval: 30_000,
   });
 }

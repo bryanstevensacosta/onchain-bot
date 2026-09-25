@@ -81,7 +81,8 @@ export const cryptoNewsKeys = {
   all: ['crypto-news'] as const,
   messages: (limit: number, channelId?: string, type?: FeedMessageType) =>
     [...cryptoNewsKeys.all, 'messages', { limit, channelId, type }] as const,
-  sources: () => [...cryptoNewsKeys.all, 'sources'] as const,
+  sources: (type: FeedMessageType = 'crypto-news') =>
+    [...cryptoNewsKeys.all, 'sources', { type }] as const,
   filters: (channelId: string) =>
     [...cryptoNewsKeys.all, 'filters', channelId] as const,
 };
@@ -107,11 +108,11 @@ export async function fetchCryptoNewsMessages(
   return response.data;
 }
 
-export async function fetchCryptoNewsSources(): Promise<
-  ReadonlyArray<CryptoNewsSource>
-> {
+export async function fetchCryptoNewsSources(
+  type: FeedMessageType = 'crypto-news',
+): Promise<ReadonlyArray<CryptoNewsSource>> {
   return httpGet<ReadonlyArray<CryptoNewsSource>>(
-    '/ingestion-api/feed/sources',
+    `/ingestion-api/feed/sources?type=${type}`,
   );
 }
 

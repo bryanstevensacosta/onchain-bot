@@ -82,7 +82,7 @@ export const ENDPOINTS = {
     sources: {
       // Crypto-news sources are owned by the ingestion-service;
       // all source writes go through the ingestion API below.
-      list: '/ingestion-api/feed/sources',
+      list: '/ingestion-api/feed/sources?type=crypto-news',
       add: '/ingestion-api/feed/sources',
       update: (channelId: string) => `/ingestion-api/feed/sources/${channelId}`,
       toggle: (channelId: string) =>
