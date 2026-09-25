@@ -69,6 +69,7 @@
     "moduleNameMapper": {
       "^shared/(.*)$": "<rootDir>/src/shared/$1",
       "^token/(.*)$": "<rootDir>/src/token/$1",
+      "^address/(.*)$": "<rootDir>/src/address/$1",
       "^chain/(.*)$": "<rootDir>/src/chain/$1",
       "^provider/(.*)$": "<rootDir>/src/provider/$1",
       "^cache/(.*)$": "<rootDir>/src/cache/$1",

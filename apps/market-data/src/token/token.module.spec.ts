@@ -1,8 +1,8 @@
 import { Test } from '@nestjs/testing';
 import { TokenModule } from './token.module';
 
-describe('TokenModule', () => {
-  it('boots as a stub (aggregators land in todo 3)', async () => {
+describe('TokenModule (deprecated alias, P45)', () => {
+  it('boots as an alias of AddressModule (token = kind=token path)', async () => {
     const module = await Test.createTestingModule({
       imports: [TokenModule],
     }).compile();

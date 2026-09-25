@@ -1,47 +1,25 @@
-import { ValueObject } from '../kernel/value-object';
-import { ChainIdVo } from './chain-id.vo';
+import { AddressIdVo } from 'address/address-id.vo';
 
 /**
- * TokenId VO (Tramo 3, todo 1).
+ * TokenId VO (Tramo 3, todo 1; P45 absorbs it into AddressIdVo).
  *
- * Shared-kernel contract: composite identity `${chain}:${address}`,
- * lowercased (same key rule as the backend canonical call). Handle with
- * care — payload/key changes break downstream consumers.
+ * @deprecated Use AddressIdVo.from(chain, value, 'token') — the token
+ * model is the kind=token path of the universal address model
+ * (Address = chain + value + kind). This alias pins kind=token and
+ * will be removed in the final review.
  */
-export class TokenIdVo extends ValueObject<{ chain: string; address: string }> {
+export class TokenIdVo extends AddressIdVo {
   private constructor(chain: string, address: string) {
-    super({ chain, address });
+    super(chain, address, 'token');
   }
 
-  public static from(chain: string, address: string): TokenIdVo {
-    const normalizedChain = ChainIdVo.from(chain).raw;
-    const normalizedAddress = (address ?? '').trim().toLowerCase();
-    if (normalizedAddress === '') {
-      throw new Error('TokenId address must be a non-empty string');
-    }
-    return new TokenIdVo(normalizedChain, normalizedAddress);
+  public static fromToken(chain: string, address: string): TokenIdVo {
+    const base = AddressIdVo.from(chain, address, 'token');
+    return new TokenIdVo(base.chain, base.address);
   }
 
-  public static parse(key: string): TokenIdVo {
-    const separator = (key ?? '').indexOf(':');
-    if (separator <= 0) {
-      throw new Error(`Invalid token key (expected chain:address): ${key}`);
-    }
-    return TokenIdVo.from(
-      key.slice(0, separator),
-      key.slice(separator + 1),
-    );
-  }
-
-  public get chain(): string {
-    return this.value.chain;
-  }
-
-  public get address(): string {
-    return this.value.address;
-  }
-
-  public get key(): string {
-    return `${this.value.chain}:${this.value.address}`;
+  public static parseToken(key: string): TokenIdVo {
+    const base = AddressIdVo.parse(key, 'token');
+    return new TokenIdVo(base.chain, base.address);
   }
 }

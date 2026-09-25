@@ -5,6 +5,7 @@ import { HealthModule } from './health/health.module';
 import { SharedModule } from './shared/shared.module';
 import { ApiKeyGuard } from './shared/guards/api-key.guard';
 import { TokenModule } from './token/token.module';
+import { AddressModule } from './address/address.module';
 import { ChainModule } from './chain/chain.module';
 import { ProviderModule } from './provider/provider.module';
 import { CacheModule } from './cache/cache.module';
@@ -16,7 +17,8 @@ import { GatewayModule } from './gateway/gateway.module';
  *
  * Wires Config (envFilePath ['.env.dev', '.env']) + HealthModule
  * (GET /api/health -> { status: 'ok' }) + SharedModule (global) +
- * TokenModule (STUB until todo 3) + Chain/Provider/Cache/RateLimiter
+ * TokenModule (deprecated P45 alias of AddressModule) + AddressModule
+ * (universal model, P45) + Chain/Provider/Cache/RateLimiter
  * (ports, todo 2) + GatewayModule (P43: the ONLY feature controllers).
  * Inbound x-api-key enforced globally at the edge (fail-open dev).
  * Variante A: single-BC monorepo app (no Nx, no libs/* — see AGENTS.md G-16).
@@ -30,6 +32,7 @@ import { GatewayModule } from './gateway/gateway.module';
     HealthModule,
     SharedModule,
     TokenModule,
+    AddressModule,
     ChainModule,
     ProviderModule,
     CacheModule,

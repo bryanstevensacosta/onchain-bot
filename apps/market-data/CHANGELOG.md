@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Universal address model (P45):** new `src/address/` absorbs the
+  token stub — `Address = chain + address + kind` (`wallet | token |
+program | exchange | unknown`) via `AddressIdVo` (mandatory chain
+  qualifier, lowercased `chain:address` key, kind in equality),
+  `AddressKindDetectorService` (explicit hint > known registries >
+  optional on-chain probe > format; garbage resolves to explicit
+  `unknown`, never a crash), and `AddressSnapshotService` (one
+  snapshot shape per kind; token logic is the kind=token path).
+  Gateway edge `GET /api/v1/addresses/:chain/:address[?kind=]`;
+  `GET /api/v1/tokens/:chain/:address` stays as a deprecated
+  kind=token alias. `src/token/` + `TokenIdVo` kept as deprecated
+  aliases (removal in final review). 27 suites / 85 tests; live
+  `:4000` edge verified (per-kind snapshots, unknown-no-crash, 404
+  on unknown chain).
+
 - **Chain + provider + cache + rate-limiter + gateway shell (todo 2,
   P43):** `chain/` (6-entry static catalog, EVM/Solana format-only
   probers, `DetectChainService` with parallel-probe coordination),

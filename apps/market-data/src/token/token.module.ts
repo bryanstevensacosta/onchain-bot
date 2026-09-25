@@ -1,11 +1,16 @@
 import { Module } from '@nestjs/common';
+import { AddressModule } from 'address/address.module';
 
 /**
- * TokenModule - STUB (Tramo 3, todo 1).
+ * TokenModule (Tramo 3, P45).
  *
- * Todo 3 lands here: TokenSnapshot aggregate + VOs + events + ports,
- * Price/Holders/Security aggregators, AggregateTokenData use-case,
- * REST GET /api/v1/tokens/:chain/:address + batch.
+ * @deprecated Absorbed into AddressModule — token logic is the
+ * kind=token path of AddressSnapshotService (Address = chain + value
+ * + kind). This module is a thin alias re-exporting AddressModule and
+ * will be removed in the final review. New code imports address/*.
  */
-@Module({})
+@Module({
+  imports: [AddressModule],
+  exports: [AddressModule],
+})
 export class TokenModule {}
