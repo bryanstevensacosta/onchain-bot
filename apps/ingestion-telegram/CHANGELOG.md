@@ -10,6 +10,7 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Changed
 
+- Feed rename (code-level): `crypto_news_*` tables → `telegram_feed_*` (`telegram_feed_sources/messages/message_media`, migrations `1790000000000`/`1790045326364`/`1790100000000`/`1790200000000`), on-disk media prefix `uploads/crypto-news/media` → `uploads/feed/media` (legacy paths rewritten by `feed-path-builder`), and transformer renames (`news-text-extractor` → `feed-text-extractor`, `news-message-transformer` → `feed-message-transformer`). (feat/mega-refactor-tramos)
 - Docs: `twin` → staging ingestion (`ingestion-telegram-staging`). (feat/mega-refactor-tramos)
 
 ## [1.2.0] - 2026-09-24

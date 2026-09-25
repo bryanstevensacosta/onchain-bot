@@ -1,13 +1,35 @@
 # Changelog — kol-system
 
-Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v0.1.0.
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
 ### Added
 
-- New NestJS 11 app `@onchain-bot/kol-system` (`:3050/3051/3052`): per-mention KOL pipeline with no dedup — SSE-only kol ingestion, contract-per-mention extraction, 1:1 parsing, merge-free mention-index normalization, dual-port enrichment, 4-timestamp snapshots, per-template configurable scoring v1, CORE templates, approval, multi-bot publishing, first-seen tracking. (feat/mega-refactor-tramos)
-- Templates: CRUD + `kolSourceIds` + `scoring_config` + encrypted `telegram_bots` catalog (AES-256-GCM) with admin-verified channel + `vip-calls` seed (dashboard-only). (feat/mega-refactor-tramos)
-- Rankings: `GET /api/kol-rankings?window=30d|7d|1d&sort=...` + cron-fed `kol_window_stats` + 5x rating. (feat/mega-refactor-tramos)
-- Threads 501 stub (un-stubbed in Tramo 2). (feat/mega-refactor-tramos)
-- Envs: `KOL_SYSTEM_*`, `TEMPLATE_ORCHESTRATOR_ENABLED`, per-env `ENCRYPTION_KEY`, `INGESTION_TELEGRAM_*`, `onchain_bot_kol_system[_staging]` (one DB per app). (feat/mega-refactor-tramos)
+- Setup/shared: new NestJS 11 app `@onchain-bot/kol-system` (HTTP `:3050/:3051/:3052` dev/staging/prod, own Postgres `onchain_bot_kol_system[_staging]` plus own Redis) with shared kernel (AggregateRoot/Entity/ValueObject/DomainEvent/DomainError), tiered config validation, API-key guard, domain-exception filter, and composite `GET /api/health`.
+- Ingestion (SSE-only): `IngestionModule` subscribes to its own ingestion-telegram live stream and accepts only `messageType === 'kol'` frames client-side, with cursor-based catch-up (`GET /api/feed/messages?type=kol`) on boot and after every disconnect, backoff 1s doubling to a 30s cap, and no polling loop.
+- Extraction: `ExtractFromMessageUseCase` emits one `ExtractionCandidate` per contract occurrence (contract x mention, repeats are first-class rows, id `kolId:messageId:contractIndex`) plus a snapshot base per mention via direct return.
+- Parsing: `ParseFromCandidatesUseCase` emits one `ParsedCall` per candidate (1:1, db-id mirrors the candidate) with per-mention ticker resolution (explicit `$XYZ` over labeled over null); illegible candidates are discarded with a count, never a throw.
+- Normalization: `NormalizeCallUseCase` files one `NormalizedMention` per parsed call (merge-free mention index, id `chain:address:kolId:messageId:contractIndex`) and returns one `normalization.call.normalized` event per mention.
+- Enrichment (dual-port): `EnrichmentOrchestratorService` resolves `MarketDataPort` to the local cascade by default or the HTTP market-data stub when `USE_DATA_SERVICE_API=true`, merges first-non-null per field with silent-null fallback, and completes the snapshot via `SnapshotWriterPort`.
+- Snapshot: `SnapshotModule` owns `mention_snapshots` in the same kol-system database (4 timestamps `occurred_at_telegram`, `ingested_at_kol`, `enriched_at`, `snapshot_at`, plus market-cap-at-capture and rug-signal group); enrichment writes only through the port.
+- Scoring (plus per-template config): `ScoreTokenUseCase` scores 0-100 (base 50 v1 with market bonuses, signal penalties, reputation multiplier, security-flag floors, 5 tiers) and runs 8 fail-fast gates with below-cut mentions discarded pre-publisher; rules live in per-template `scoring_config` (`DEFAULT_SCORING_CONFIG` = v1) editable via `PATCH /api/templates/:id/scoring` with range validation.
+- Templates (core): `PublishingTemplate` aggregate with `kolSourceIds` source selector, classification config, ranking config, `threadConfig: null` plus a 501 threads stub, AES-256-GCM `telegram_bots` catalog with redacted reads and admin-verified channel assignment, 1-minute orchestrator cron, 4-strategy ranking engine, 12-endpoint controller, and an idempotent `vip-calls` seed (dashboard-only).
+- Approval: per-template bouncer (`CallApproval` id `templateId:mentionId`, pending/approved/rejected with 409 on double-decide) with auto-evaluate (active, source-visible, score floor), pending queue, and manual approve/reject endpoints.
+- Publishing: per-template KOL-bot sender (`PublishingJob` reserved to published/failed, ticker non-null by construction, catalog token resolved per call, 1 msg/min throttle per token) with template-gate degrade to dashboard-only and `POST /api/publishing/publish|manual` plus `GET /api/publishing/recent|failed`.
+- Tracking plus rankings: `TrackedMention` first-seen fold per (kol, chain, address) with own `first_mc_at`, kol +5x rating mirror, 1-minute cron feeding `kol_window_stats`, and `GET /api/kol-rankings?window=30d|7d|1d&sort=perf_desc|perf_asc|calls_desc`.
+- Avatar consumption: `KolAvatarResolverService` resolves caller avatars from the owning ingestion-telegram `GET /api/feed/sources?type=kol` projection (channel id or handle, `@` tolerated) with placeholder fallback on unknown callers or feed outages; ranking rows carry `avatarUrl`.
+- Dual-run and staging harness: `scripts/dual-run-compare.mjs` (5 percent divergence threshold, exit 2 with no-cutover path when over) and `scripts/rollback-rehearsal.sh` (timed, under 30 minutes), with staging validation clock started 2026-09-25.
+- Envs: `KOL_SYSTEM_*` settings plus `TEMPLATE_ORCHESTRATOR_ENABLED`, `TRACKING_CRON_ENABLED`, per-env `ENCRYPTION_KEY`, upstream `INGESTION_TELEGRAM_*`, `USE_DATA_SERVICE_API` leaf selector, and tracked `.env.development` / `.env.staging.template` / `.env.production.template` placeholders with no secrets.
+- Deprecations: each completed pipeline step marks its backend counterpart with an `@deprecated` header pointing at the new kol-system path; deletions happen only in the central final review, never per step.
+
+### Fixed
+
+- Removed the 1-minute polling fallback so ingestion is SSE-only with reconnect catch-up by cursor.
+- Removed every `KOL_BOT_TOKEN` binding so bot tokens live only in the database catalog (dashboard-only boot without a bot).
+- Fixed scoring-config merge to strip explicit-`undefined` keys so partial updates never clobber base values with a 400.
+- Fixed templates controller injection clobber where a `create` property shadowed the `create()` route handler.
+
+Test tally (cumulative, 2026-09-25): kol-system 71 suites / 282 tests green (`npx jest`, zero failures); legacy parity suites green per `.omo/evidence/task-15-mega-refactor-kol-system.log` (backend kol/telegram/token 143 suites / 1582 tests, ingestion 48 / 659, frontend 31 files / 354 tests).
