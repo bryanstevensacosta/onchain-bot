@@ -26,9 +26,9 @@ Your next move: approve — listo para $start-work Tramo 2 tras Gate T1. Full ex
 ### Must have
 
 - Nueva app `apps/content-publisher/` (:3040/3041/3042) con 11 módulos: ingestion, matching, keywords, filters, queue (unificado `contentType`), deduplication, llm, scheduling (ads), threads (ESQUELETO v1 + contrato de des-stubbeo para kol C1), telegram (crypto+threads, segundo movimiento C-SHARED-01/C2), shared. Spec base `.kiro/specs/refactor-content-publisher/11-refactor.md` (3437 líneas reales).
-- Precondition: Tramo 1 validado en staging + checklist `telegram/shared` ya movido (KOL-bot fuera) — solo extrae crypto-adapters (G-15).
+- Precondition C4-bis: Gate T1 (deprecation-check + green suites, NO reloj staging) + checklist `telegram/shared` ya movido (KOL-bot fuera) — solo extrae crypto-adapters (G-15).
 - `EnrichmentPort` dual igual que Tramo 1 (local default, HTTP tras flag; G-17). Dual-path SSE+polling, 3-flag control, rollback 30min, deprecation 5 fases post-cutover.
-- Staging 7 días + rollback rehearsal + cutover `USE_CONTENT_PUBLISHER` + cleanup backend crypto-news.
+- Staging 7 días validación (C4-bis, no-bloqueante para T3) + rollback rehearsal + cutover `USE_CONTENT_PUBLISHER` + deprecate-only backend crypto-news (borrado solo en FINAL REVIEW central).
 
 ### Must NOT have (guardrails, anti-slop, scope boundaries)
 
@@ -65,14 +65,14 @@ Your next move: approve — listo para $start-work Tramo 2 tras Gate T1. Full ex
 
 <!-- APPEND TASK BATCHES BELOW THIS LINE WITH edit/apply_patch - never rewrite the headers above. -->
 
-- [ ] 0. Precondition: Tramo 1 validado + checklist telegram/shared (G-15)
-     What to do / Must NOT do: Verificar Gate T1 (staging 14d + shadow + rehearsal en evidencia) y listar archivos `backend telegram/shared` ya movidos por T1 (KOL-bot fuera); confirmar `KOL_BOT_TOKEN` sin referencias en `telegram/shared` restante. Must NOT arrancar sin Gate T1 verde.
-     Parallelization: Wave 0 | Blocked by: central gate T1 | Blocks: 1-11
-     References: plan central Gate T1; .omo/drafts/mega-refactor-tramos.md:110,130 (C2); .kiro/specs/refactor-kol-system/overview.md:1373-1495 (6 renombres kol→threads)
-     Acceptance criteria: `grep -r "KOL_BOT_TOKEN\|kol-bot" apps/backend/src/telegram/shared` vacío + evidencia Gate T1 enlazada
-     QA scenarios: happy checklist verde; failure resto KOL en shared → devolver a T1, NO pisar. Evidence .omo/evidence/task-0-mega-refactor-content-publisher.log
+- [x] 0. Precondition: Gate T1 C4-bis (deprecation-check + green) + checklist telegram/shared (G-15)
+     What to do / Must NOT do: Verificar Gate T1 C4-bis: (a) deprecation-check T1 — todo el legacy KOL (`kol/`, `ingestion/kol/`, `vip-calls/`) con `@deprecated` + JSDoc (nueva ruta + refactor target); (b) suites T1 en verde en evidencia; staging 48h es validación y NO se exige completa para arrancar (C4-bis.4). Listar archivos `backend telegram/shared` ya movidos por T1 (KOL-bot fuera); confirmar `KOL_BOT_TOKEN` sin referencias en `telegram/shared` restante. Must NOT arrancar sin deprecation-check + green T1.
+     Parallelization: Wave 0 | Blocked by: central gate T1 (deprecation-check + green) | Blocks: 1-11
+     References: plan central Gate T1 C4-bis + FINAL REVIEW; .omo/drafts/mega-refactor-tramos.md §10 (C4-bis), :110,130 (C2); .kiro/specs/refactor-kol-system/overview.md:1373-1495 (6 renombres kol→threads)
+     Acceptance criteria: `grep -r "@deprecated" apps/backend/src/kol apps/backend/src/telegram/vip-calls 2>/dev/null | wc -l` >= 1 por concepto + suites T1 verdes en evidencia + `grep -r "KOL_BOT_TOKEN\|kol-bot" apps/backend/src/telegram/shared` vacío
+     QA scenarios: happy deprecation-check + green + checklist verde; failure resto KOL en shared sin deprecar → devolver a T1, NO pisar. Evidence .omo/evidence/task-0-mega-refactor-content-publisher.log
      Commit: N | — | —
-- [ ] 1. App setup 11 módulos + shared transversal (Ph1-2 guide)
+- [x] 1. App setup 11 módulos + shared transversal (Ph1-2 guide)
      What to do / Must NOT do: `apps/content-publisher/` (`package.json` NestJS11/TypeORM/Bull/OpenAI/BotAPI, nest-cli, tsconfig, `src/main.ts` :3040 dev / :3041 staging / :3042 prod, `app.module.ts` 11 imports, `.env.example` 25 vars, compose dev, `/api/health`) + `src/shared/` completo (VOs, eventos, excepciones, typeorm base+`naming-strategy`, http+retry, cache, messaging, monitoring Pino/Prometheus, security, decorators, filters, config, `ApiKeyGuard`). Tests >80% shared. Must NOT negocio aún. P30 (lecciones T1): Dockerfile CMD `dist/main.js`; alias `npm run dev`; `INGESTION_TELEGRAM_API_KEY` en `.env.example` desde el día 1; env templates staging+prod + DBs `onchain_bot_*`; lockfile sincronizado; AGENTS.md vivo.
      Parallelization: Wave 1 | Blocked by: 0 | Blocks: 2-8
      References: .kiro/specs/refactor-content-publisher/IMPLEMENTATION-GUIDE.md:24-79; 11-refactor.md:964-1051+ (shared); .omo/reference/mega-refactor-target-tree.md (bloque content-publisher shared)
@@ -142,13 +142,19 @@ Your next move: approve — listo para $start-work Tramo 2 tras Gate T1. Full ex
       Acceptance criteria: `/tmp/qa-tramo2.log` con 7 días + rehearsal <30min + 6 E2E verdes
       QA scenarios: happy métricas en objetivo; failure >5% failed >30min → rollback (P0 playbook). Evidence /tmp/qa-tramo2.log + .omo/evidence/task-10-mega-refactor-content-publisher.log
       Commit: N | — | —
-- [ ] 11. Cutover + cleanup Tramo 2 (guide sem 6-7)
-      What to do / Must NOT do: `USE_CONTENT_PUBLISHER=true` dev→staging→prod (día 1/3/7); monitor; tras validación: deprecation headers (5 fases, `scripts/add-deprecation-headers.js`) + borrar BCs backend crypto-news + migrar uploads; backend pierde ~15k LOC. Rollback listo.
+- [ ] 11. Cutover + cleanup Tramo 2 (guide sem 6-7) What to do / Must NOT do: `USE_CONTENT_PUBLISHER=true` dev→staging→prod (día 1/3/7); monitor; tras validación: deprecation headers (5 fases, `scripts/add-deprecation-headers.js`) + borrar BCs backend crypto-news + migrar uploads; backend pierde ~15k LOC. Rollback listo.
       Parallelization: Wave 4 | Blocked by: 10 | Blocks: Tramo 3 (precondition)
       References: .kiro/specs/refactor-content-publisher/IMPLEMENTATION-GUIDE.md:563-600+; MIGRATION-PLAYBOOK.md:234-300
       Acceptance criteria: `curl -s localhost:3042/api/queue/stats` 200 en prod + `ls apps/backend/src/telegram | grep crypto-news` vacío
       QA scenarios: happy publish end-to-end prod; failure → rollback + medición. Evidence .omo/evidence/task-11-mega-refactor-content-publisher.log
       Commit: Y | feat(content-publisher)!: cutover y cleanup crypto-news backend
+- [ ] 12. BCs content-templates + sessions (P33 + P34)
+      What to do / Must NOT do: (a) `src/content-templates/`: PublishingTemplate espejo kol-system (keywords elegibles, source filter, prompt-template LLM global reutilizable, target telegram/threads/ambos, queue+matching+scheduling+filters propios, content filters propios, bot DB frontend) + scheduling one-shot + recurrente (ads migrado, "scheduling posts"). (b) `src/sessions/`: tab = sesión (cargar template o ad-hoc); por sesión: sources on/off (toggles, NO crea sources), keywords, matching/publishing/llm on/off, scheduling propio, N bots telegram + N threads, active/inactive, CRUD frontend; dedup + prompt-templates globales compartidos. Tests + e2e tabs. Must NOT tocar kol (P32); threads impl solo esqueleto previo (aquí sí se implementa target threads por sesión).
+      Parallelization: Wave 4 | Blocked by: 3, 4, 5, 6, 7 | Blocks: 9 (frontend), 11
+      References: .omo/drafts/mega-refactor-tramos.md (P33, P34); .omo/evidence/content-templates-research.md; .kiro/specs/refactor-content-publisher/11-refactor.md:2516-3560 (v3); apps/kol-system/src/templates/ (patrón)
+      Acceptance criteria: `npx jest src/content-templates src/sessions` verde (2 sesiones activas con configs distintas publican a targets distintos; global dedup compartido)
+      QA scenarios: happy multi-tab; failure sesión inactiva no consume ni publica. Evidence .omo/evidence/task-12-mega-refactor-content-publisher.log
+      Commit: Y | feat(content-publisher): templates y sessions multi-tab
 
 ## Final verification wave
 
