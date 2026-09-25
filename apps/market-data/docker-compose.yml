@@ -1,0 +1,39 @@
+name: onchain-bot-market-data
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: onchain-bot-market-data-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: onchain_bot
+      POSTGRES_PASSWORD: onchain_bot
+      POSTGRES_DB: onchain_bot_market_data
+    ports:
+      - '5438:5432'
+    volumes:
+      - market-data-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'pg_isready -U onchain_bot -d onchain_bot_market_data']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: onchain-bot-market-data-redis
+    restart: unless-stopped
+    ports:
+      - '6385:6379'
+    volumes:
+      - market-data-redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  market-data-postgres-data:
+  market-data-redis-data:
