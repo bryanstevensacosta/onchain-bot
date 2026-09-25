@@ -59,19 +59,19 @@ Navegación sticky en header con 7 links (Dashboard · Tokens · KOLs · News ·
 
 ### Pipeline Data
 
-| Query                   | Endpoint                                           | Polling |
-| ----------------------- | -------------------------------------------------- | ------- |
-| Calls canónicos         | `GET /token/normalization/tokens/recent`           | 10s     |
-| Top scores              | `GET /token/scoring/tokens/top`                    | 5s      |
-| Scores recientes        | `GET /token/scoring/tokens/recent`                 | 5s      |
-| Decisiones recientes    | `GET /token/vip-call-approval/decisions/recent`    | 5s      |
-| Decisiones aprobadas    | `GET /token/vip-call-approval/decisions/approved`  | 5s      |
-| Decisiones rechazadas   | `GET /token/vip-call-approval/decisions/rejected`  | 5s      |
-| Publicaciones exitosas  | `GET /vip-calls/calls/published`                   | 5s      |
-| Publicaciones fallidas  | `GET /vip-calls/calls/failed`                      | 15s     |
-| Snapshot por token      | `GET /token/market-data/snapshots/:chain/:address` | —       |
-| Score por token         | `GET /token/scoring/tokens/:chain/:address`        | —       |
-| Call canónico por token | `GET /token/normalization/tokens/:chain/:address`  | —       |
+| Query                   | Endpoint                                          | Polling |
+| ----------------------- | ------------------------------------------------- | ------- |
+| Calls canónicos         | `GET /token/normalization/tokens/recent`          | 10s     |
+| Top scores              | `GET /token/scoring/tokens/top`                   | 5s      |
+| Scores recientes        | `GET /token/scoring/tokens/recent`                | 5s      |
+| Decisiones recientes    | `GET /token/vip-call-approval/decisions/recent`   | 5s      |
+| Decisiones aprobadas    | `GET /token/vip-call-approval/decisions/approved` | 5s      |
+| Decisiones rechazadas   | `GET /token/vip-call-approval/decisions/rejected` | 5s      |
+| Publicaciones exitosas  | `GET /vip-calls/calls/published`                  | 5s      |
+| Publicaciones fallidas  | `GET /vip-calls/calls/failed`                     | 15s     |
+| Snapshot por token      | `GET /token/enrichment/snapshots/:chain/:address` | —       |
+| Score por token         | `GET /token/scoring/tokens/:chain/:address`       | —       |
+| Call canónico por token | `GET /token/normalization/tokens/:chain/:address` | —       |
 
 ### Crypto-News (backend `feed-publisher/*` + feed en ingestion)
 

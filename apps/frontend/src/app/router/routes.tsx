@@ -9,6 +9,8 @@ import { FeedPage } from '@/pages/feed';
 import { PlaygroundPage } from '@/pages/playground';
 import { TemplateDashboardPage } from '@/pages/template-dashboard';
 import { ThreadsPage } from '@/pages/threads';
+import { MarketDataPage } from '@/pages/market-data';
+import { DexterPage } from '@/pages/dexter';
 
 export const router = createBrowserRouter([
   {
@@ -23,6 +25,8 @@ export const router = createBrowserRouter([
       { path: 'playground', element: <PlaygroundPage /> },
       { path: 'threads', element: <ThreadsPage /> },
       { path: 'templates', element: <TemplateDashboardPage /> },
+      { path: 'market-data', element: <MarketDataPage /> },
+      { path: 'dexter', element: <DexterPage /> },
       { path: 'ops', element: <OpsPage /> },
     ],
   },

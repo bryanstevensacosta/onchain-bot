@@ -13,7 +13,7 @@ Strict FSD. Dev `:5173` (strictPort); prod is nginx static + per-prefix proxy to
 src/
 ├── app/ {entry.tsx (createRoot), index.tsx (providers), router/routes.tsx (9 routes),
 │         layouts/root-layout.tsx, providers/{query,socket}-provider.tsx, styles/}
-├── pages/ {dashboard (KpiCards + IngestionHealth + LiveFeed + TopTokens + TrackedCalls), tokens-explorer, token-detail (displayName fallback canonical→snapshot→ticker; ContractAddress + copy; gauge + breakdown + snapshot + canonical), kols (rows + lifecycle/backfill/recompute/formula controls), feed (550-line hub: messages + queue + keywords + scheduling + filters + llm-config + lightbox + album grouping), playground, threads, template-dashboard (thin wrapper → widgets/template-dashboard), ops (replay/filters/presets tabs)}
+├── pages/ {dashboard (KpiCards + IngestionHealth + LiveFeed + TopTokens + TrackedCalls), tokens-explorer, token-detail (displayName fallback canonical→snapshot→ticker; ContractAddress + copy; gauge + breakdown + snapshot + canonical), kols (rows + lifecycle/backfill/recompute/formula controls), feed (550-line hub: messages + queue + keywords + scheduling + filters + llm-config + lightbox + album grouping), playground, threads, template-dashboard (thin wrapper → widgets/template-dashboard), market-data (Tramo 3 todo 7: chains + detect + providers + address lookup + compat snapshot + batch), dexter (Tramo 3 todo 7: /x full-scan + /c chart via market-data HTTP), ops (replay/filters/presets tabs)}
 ├── widgets/ {kpi-cards, live-feed, top-tokens-table, kol-leaderboard, tracked-calls, ingestion-health,
 │           template-dashboard (TemplateDashboard: template picker + SourceMultiSelect + CallsTable + PerformanceRanking + TopCallersStrip + TemplateConfigSection + KolAvatar)}
 ├── features/ (11) {add-kol, add-feed-source, set-kol-lifecycle,
@@ -27,16 +27,16 @@ src/
 - Blacklist mirrors keywords (910 lines: batch create, compound groups, per-source scope); scheduling poll 10 s; `KolReputationView` carries full outcome metrics (x2/x5/x10/x50, rug50/rug80, neutral) + `isTrusted/isSuspicious`; copy buttons with Spanish aria-labels (`Copiar contrato`).
 - `CanonicalTokenCallView` keeps per-source `messageIds` + metrics + confidence; `TokenScoreView` keeps legacy `classifiedAt?` + `avgKolReputation`.
 - Compound modal: client-generated row IDs (`generateId()`), AND-grouped phrase rows with per-row case/mode/media/template binding; source invalidation is broad (`feedKeys.all`).
-├── entities/ (12) {kol, kol-reputation, canonical-call, token-score, token-classification,
+├── entities/ (13) {kol, kol-reputation, canonical-call, token-score, token-classification,
 │              token-snapshot, filter-decision, published-call, tracked-call, feed, dashboard,
-│              template (TemplateView/TemplateCallRow/KolRankingRow/KolSourceOption + templateKeys + 6 hooks + pure helpers)}
+│              market-data (Tramo 3 todo 7: ChainInfo/ProviderStatus/AddressSnapshot/compat-snapshot/batch views + kind/health tones + chart urls + 5 hooks), template (TemplateView/TemplateCallRow/KolRankingRow/KolSourceOption + templateKeys + 6 hooks + pure helpers)}
 ├── shared/ {api/{http-client, endpoints, settings-endpoints}, config/env.ts, lib/{format, signalLabels, render-telegram-entities, use-pagination, uuid}, realtime/{events, socket, use-event-stream}, ui/{button, badge, card, modal, token-image, gauges, lightbox, chain-icon, bonding-curve-progress}}
 └── test/setup.ts (single `jest-dom/vitest` import)
 ```
 
 Routes (`createBrowserRouter` — data-router API but NO loaders; Query owns server state):
-`/`, `/tokens`, `/tokens/:chain/:address`, `/kols`, `/crypto-news`, `/playground`, `/threads`, `/templates`, `/ops`.
-Nav has 8 links (Dashboard · Tokens · KOLs · News · Playground · Threads · Templates · Ops — README says 4, stale).
+`/`, `/tokens`, `/tokens/:chain/:address`, `/kols`, `/crypto-news`, `/playground`, `/threads`, `/templates`, `/market-data`, `/dexter`, `/ops`.
+Nav has 10 links (Dashboard · Tokens · KOLs · News · Playground · Threads · Templates · Data · Dexter · Ops — README says 4, stale).
 `/templates` (Tramo 1, kol-system): `TemplateDashboardPage` (`pages/template-dashboard/index.tsx`, thin wrapper) renders `TemplateDashboard` (`widgets/template-dashboard/ui/template-dashboard.tsx`): template picker (defaults to first template) → `SourceMultiSelect` (checkbox chips per KOL source, `Clear (all)` = empty = all sources; change PATCHes `kolSourceIds` via `useUpdateTemplateSources`, invalidates detail/calls/templates) → `CallsTable` + `PerformanceRanking` + `TopCallersStrip` + `TemplateConfigSection`. Calls are enriched client-side (rankings row joined with feed-source handle/title/url/avatarUrl, call row wins) then filtered by `filterCallsBySources`. Every widget degrades to an empty-state div on API error (never crashes; e2e pins `template-dashboard-empty`).
 Kols rows show lifecycle/listening state + rep score with 0.7/0.3 tone bands; `SetKolLifecycleButton` per row. Page paginates 15/page with `lastIngestedAt` relative times; Activate/Deactivate buttons by status, Recompute per row (backfill removed 2026-09-24: `POST telegram-kol/identity/kols/:kolId/backfill` answers 501, no feed equivalent — trigger-backfill feature deleted). `AddKolModal` takes a bare Telegram ID/`@handle` (title/handle auto-resolved server-side), guards submit while pending, surfaces `mutation.error` inline. Score formula preset lives in `localStorage` (`useKolScoreFormula`) and is sent as `?formula=` on recompute.
 Pagination is client-side only (`usePagination`: slices fetched arrays, clamps on shrink) — large lists transfer fully.
@@ -46,7 +46,7 @@ Modal convention (`AddKolModal`, `AddFeedSourceModal`): uncontrolled-close guard
 
 **PRIMARY BACKEND** (`localhost:3030` in dev, `backend:3030` in prod):
 Correctly scoped prefixes: `telegram-kol/identity`, `telegram-kol/reputation`, `token/intake/*`,
-`token/normalization`, `token/market-data`, `token/classification`, `token/scoring`,
+`token/normalization`, `token/enrichment` (renamed Tramo 3 todo 6 from `token/market-data`; backend keeps a temporary 307 redirect, removed at cutover todo 8), `token/classification`, `token/scoring`,
 `token/vip-call-approval`, `token/honeypot`, `token/call-tracking`, `call-tracking`,
 `vip-calls`, `feed-publisher/*`, `crypto-news-scheduling/*`, `settings/*`,
 `dashboard/kpis`, `ingestion/{config,health}`, `token/image/:chain/:address` (CDN fallback in `format.ts`).
@@ -85,6 +85,19 @@ Rutas per-template (`shared/api/endpoints.ts` `kolSystem`, consumidas por `entit
 - `GET /ingestion-api/kol-avatar/:channelId` — KOL avatar file-or-placeholder (contrato P19/P4 con ingestion-telegram; `avatarSrcFor()` en `entities/template/model/helpers.ts` resuelve `avatarUrl → /ingestion-api/kol-avatar/:channelId → TEMPLATE_AVATAR_PLACEHOLDER`; `KolAvatar` muestra inicial del handle si falla/404)
 - `ENDPOINTS.kolSystem.templatePending` definido pero SIN fetcher (pending-approvals sin UI — no llamar hasta cablearlo).
 
+**MARKET-DATA — Tramo 3 todo 7 (market-data `:4000` dev / `:4001` staging / `:4002` prod)** (`/market-data-api` same-origin → upstream market-data; ver §PROXY):
+Rutas gateway P43 (`shared/api/endpoints.ts` `marketData` + `shared/api/market-data-base.ts` path builder, consumidas por `entities/market-data/api/market-data-queries.ts`):
+
+- `GET /market-data-api/api/v1/chains` — static chain catalog (`useMarketChains`, 30 s polling)
+- `GET /market-data-api/api/v1/chains/detect?address=` — detect-chain probe (`useDetectChain`, `enabled: !!address`)
+- `GET /market-data-api/api/v1/providers` — provider health/latency registry (`useMarketProviders`, 15 s polling)
+- `GET /market-data-api/api/v1/addresses/:chain/:address[?kind=]` — universal address snapshot with kind display (`wallet|token|program|exchange|unknown`, `useAddressSnapshot`, `enabled` guard)
+- `GET /market-data-api/api/v1/tokens/:chain/:address` — deprecated token alias (kind=token pinned, defined, no fetcher yet)
+- `GET /market-data-api/api/market-data/snapshot?chain=&address=` — 12-field compat snapshot (`useCompatSnapshot`, `enabled` guard)
+- `POST /market-data-api/api/v1/addresses/batch` — `{ items: [{ chain, address, kind? }] }` 1..50 → `{ snapshots: [...] }`, per-item `{ error }` on failure (manual fetch, no hook)
+
+`/market-data` page: chains (+ detect form) + providers table + address lookup (kind badge) + compat snapshot grid + batch textarea (one `<chain> <address> [kind]` per line). `/dexter` page: Dexter lookup over market-data HTTP (no bot token) — `/x <chain> <address>` full-scan card (kind badge + compat fields + providers) + `/c <chain> <address>` chart card (DexScreener/GeckoTerminal links + price context); bare `<chain> <address>` defaults to `/x`. Every section degrades to an empty-state div on API error (never crashes; e2e pins `market-*-empty` + `dexter-*-empty`).
+
 ⚠️ Frontend README §3 is stale (`/kols`, `/token/token-gating/*` — neither exists). Trust `endpoints.ts`.
 
 ## DEAD URLS (verified 404 — fix, don't re-encode)
@@ -100,7 +113,7 @@ Rutas per-template (`shared/api/endpoints.ts` `kolSystem`, consumidas por `entit
 
 ## POLLING (verified `refetchInterval`)
 
-scores/decisions/published 5 s · failed 15 s · canonical 10 s · kols/reputation/tracked/dashboard 30 s (reputation `refetchIntervalInBackground: false`) · feed 15/30 s. Token-detail composes canonical + score + snapshot byToken (all alive).
+scores/decisions/published 5 s · failed 15 s · canonical 10 s · kols/reputation/tracked/dashboard 30 s (reputation `refetchIntervalInBackground: false`) · feed 15/30 s · market-data chains 30 s · market-data providers 15 s (address/compat/detect lookups are on-demand with `enabled` guards, no polling). Token-detail composes canonical + score + snapshot byToken (all alive).
 
 ## REALTIME (`shared/realtime/`)
 
@@ -122,6 +135,7 @@ Tokens-explorer is decision-driven (all/approved/rejected tabs over `useDecision
 - `VITE_WS_URL` (websocket) — default `http://localhost:3030`
 - `VITE_APP_ENV` (environment) — default `development`, values: `development|staging|production`
 - `VITE_FEED_PUBLISHER_URL` (feed-publisher direct base, Tramo 2 todo 9) — default `''` (= same-origin `/feed-api` proxy; FEED naming per P35, never CONTENT)
+- `VITE_MARKET_DATA_URL` (market-data direct base, Tramo 3 todo 7) — default `''` (= same-origin `/market-data-api` proxy; triplet `:4000` dev / `:4001` staging / `:4002` prod via `MARKET_DATA_PROXY_TARGET`)
 
 No `VITE_INGESTION_BASE_URL` exists anywhere in `src` (verified by grep): feed reads go same-origin via `/ingestion-api/*` (vite dev proxies to `:3031`, prod/staging nginx rewrites `/ingestion-api/*` → `/api/*` on the per-env upstream).
 
@@ -141,6 +155,7 @@ Docker build sets all to `""` → same-origin in prod (nginx routes by prefix).
 - **Ingestion-telegram proxy (`INGESTION_PROXY_TARGET`, default `http://localhost:3031`):** `/ingestion-api/*` → rewrite `^/ingestion-api` → `/api`
 - **Kol-system proxy (`KOL_SYSTEM_PROXY_TARGET`, default `http://localhost:3050`):** `/kol-api/*` → rewrite `^/kol-api` → `/api` (Tramo 1; `vite.config.ts:98-102`)
 - **Feed-publisher proxy (`FEED_PUBLISHER_PROXY_TARGET`, default `http://localhost:3040`):** `/feed-api/*` → rewrite strips `^/feed-api` to root (Tramo 2 todo 9: `/feed-api/api/queue/stats` → `/api/queue/stats`, `/feed-api/feed-publisher/matching/config` → `/feed-publisher/matching/config`; triplet `:3040` dev / `:3041` staging / `:3042` prod via env override)
+- **Market-data proxy (`MARKET_DATA_PROXY_TARGET`, default `http://localhost:4000`):** `/market-data-api/*` → rewrite strips `^/market-data-api` to root (Tramo 3 todo 7: `/market-data-api/api/v1/chains` → `/api/v1/chains`, compat `/market-data-api/api/market-data/snapshot` → `/api/market-data/snapshot`; triplet `:4000` dev / `:4001` staging / `:4002` prod via env override)
 - **REMOVED:** `/crypto-news/(messages|sources|backfill|media)` regex — feed reads go via `/ingestion-api/feed/*`
 
 **Prod (`nginx.conf`, staging: `nginx.staging.conf`):**
@@ -149,6 +164,7 @@ Docker build sets all to `""` → same-origin in prod (nginx routes by prefix).
 - **Ingestion-telegram location:** `/ingestion-api/` → rewrite → `/api/` on the per-env upstream: prod `onchain-bot-ingestion-telegram:3031` (`nginx.conf:252-258`), staging `onchain-bot-ingestion-telegram-staging:3031` (`nginx.staging.conf:256-260`, host `:3033`)
 - ⚠️ **Kol-system location MISSING:** `nginx.conf`/`nginx.staging.conf` have NO `/kol-api/` block (verified by grep — solo existe en `vite.config.ts`). `/templates` works in dev only until prod deploy mirrors it (`/kol-api/` → rewrite → `/api/` on the kol-system upstream, dual-applied to both confs like `/ingestion-api/`).
 - ⚠️ **Feed-publisher location MISSING (deploy follow-up, Tramo 2 todos 10/11):** `nginx.conf`/`nginx.staging.conf` have NO `/feed-api/` block by design (todo 9 = dev config only). `/crypto-news` control-plane (matching toggles, llm config, scheduling, queue stats, threads stub) works in dev only until deploy mirrors it (`/feed-api/` → strip prefix on the feed-publisher upstream `:3041` staging / `:3042` prod, dual-applied to both confs like `/ingestion-api/`).
+- ⚠️ **Market-data location DEPLOY FOLLOW-UP (Tramo 3 todo 8):** `nginx.conf`/`nginx.staging.conf` carry a `/market-data-api/` block (prefix stripped, lazy-DNS like `/ingestion-api/`), but the upstream service is NOT deployed yet — prod `onchain-bot-market-data:4000` / staging `onchain-bot-market-data-staging:4000` must resolve at deploy (staging container MUST join `onchain-bot-staging-net`), else the location 502s. `/market-data` + `/dexter` work in dev only until then.
 - **REMOVED:** `/crypto-news/{messages,sources,media}` — now `/ingestion-api/feed/*`
 
 **P41 dual-serve (T2 todo 13 Fase 2, live):** fetchers on new prefixes (`/feed-publisher/*`,
@@ -193,6 +209,7 @@ stays (P41 exclusion, no backend `feed-sources`). Proxies carry old+new side by 
 Co-located `*.test.{ts,tsx}` + `__tests__/` dirs, heaviest in feed features (scheduling-manager 1900+ lines, feed-page). `src/test/setup.ts` only. jsdom + testing-library/react in deps.
 Feed-publisher (Tramo 2, todo 9): `shared/api/feed-publisher-base.test.ts` (path builder: proxy default + absolute override), `features/feed-publisher/api/{llm-config-api,threads-stub-api}.test.ts` (migrated-path pinning + 501-resolved-not-thrown), `features/feed-publisher/ui/{feed-queue-stats-strip,feed-threads-stub-section}.test.tsx` (stats render + API-down empty states). E2E Playwright (`e2e/feed-publisher.spec.ts`, 4 tests con `/feed-api/**` mockeados: queue-stats strip, 3-flag toggles PATCH matching + `pipeline-mode` badge, scheduling rotation-config, threads 501 stub + API-down empty states; `npx playwright test -g "feed-publisher"` 4/4).
 Template-dashboard: `entities/template/model/helpers.test.ts` (pure helpers: tracking/mc/timeAgo/filter/sort/halves/avatar) + `widgets/template-dashboard/ui/template-dashboard.test.tsx` (jsdom: calls First-time/Nx + db-ids, perf 5+5 halves + sort toggle, window selector + caller counts, config extended). E2E Playwright (`e2e/template-dashboard.spec.ts`, 6 tests con `/kol-api/**` + `/ingestion-api/**` mockeados: calls table, rankings por window, source-filter narrow/clear, halves 5+5 + sort + window + config, API-down empty states, avatar-404 placeholder) + `e2e/qa-screenshots.spec.ts` (legacy dashboard intact, mockea `/kol-api/templates*`). `playwright.config.ts` (`testDir e2e`, baseURL `:5174`, webServer `vite --port 5174`, `reuseExistingServer` fuera de CI); `vitest.config.ts` excluye `e2e/**`; `npm run test:e2e` (`@playwright/test` devDep).
+Market-data (Tramo 3, todo 7): `shared/api/market-data-base.test.ts` (path builder: proxy default + absolute override), `entities/market-data/model/helpers.test.ts` (kind normalise/tone, health tone, chart urls), `pages/market-data/market-data.test.tsx` (jsdom: chains+providers render + API-down empty states), `pages/dexter/dexter.test.tsx` (jsdom: idle + parse-error + /x + /c mounts). E2E Playwright (`e2e/market-data.spec.ts`, 7 tests con `/market-data-api/**` mockeados: chains+providers, detect + address kind display, compat + batch incl. per-item error, /x full-scan, /c chart links, API-down empty states ×2; `npx playwright test -g "market-data|dexter"` 7/7).
 
 ## REMOVED DEPS (Carril 1 — cero imports verificado)
 

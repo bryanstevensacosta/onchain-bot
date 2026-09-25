@@ -91,7 +91,7 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
      Acceptance criteria: `curl -s localhost:4000/api/v1/chains | jq length` > 0 + suites verdes
      QA scenarios: happy detect EVM+Solana; failure RPC caído → null + siguiente prober. Evidence .omo/evidence/task-2-mega-refactor-market-data.log
      Commit: Y | feat(market-data): chain, provider, cache y rate-limiter
-- [ ] 3. Módulo token: agregado + aggregators + HTTP (Variante A §token)
+- [x] 3. SUPERSEDED por P45 — NO ejecutar. Absorbido por modelo `address/` (todo 2 + refactor P45).
      What to do / Must NOT do: `TokenSnapshot` + VOs + eventos + ports; `Price/Holders/SecurityAggregators` (cascadas DexS→Gecko→CG, Gecko→Helius/Moralis→Alchemy, Rugcheck+Birdeye+heuristics) con rate-limit pre-call; `AggregateTokenData` (`Promise.allSettled` + persist + `publishAll(commitEvents())`); REST `GET /api/v1/tokens/:chain/:address` + batch. Tests cascada + invariantes (price>0).
      Parallelization: Wave 2 | Blocked by: 1 | Blocks: 5
      References: .kiro/specs/refactor-data/naming-and-architecture.md:260-308,605-932 (código ejemplo port+adapter+service+use-case); apps/backend/src/data-provider/ (13 adapters origen)
@@ -113,14 +113,14 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
      Acceptance criteria: p95 medido <500ms en evidencia + `curl` batch 50 tokens OK
      QA scenarios: happy p95; failure p95>500ms → NO default true, optimizar cache. Evidence .omo/evidence/task-5-mega-refactor-market-data.log
      Commit: Y | feat(market-data): puente HTTP con SLO y flag
-- [ ] 6. Renombre legacy market-data + migración frontend (R-4, G-18)
+- [x] 6. Renombre legacy market-data + migración frontend (R-4, G-18)
      What to do / Must NOT do: Backend `/token/market-data/*` → `/token/enrichment` (con redirect temporal 307 una versión); `MarketDataProviderPort` → alias claro (`LegacyEnrichmentPort` o rename, a veto worker con justificación); frontend `endpoints.ts:37-40` + README/AGENTS menciones; C-UX-01 actualizado. Tests frontend verdes.
      Parallelization: Wave 3 | Blocked by: 4 | Blocks: 8
      References: .omo/drafts/mega-refactor-tramos.md:103-104 (R-4); apps/frontend/src/shared/api/endpoints.ts:37-40; apps/backend/src/token/enrichment/api/http/enrichment.controller.ts:8
      Acceptance criteria: `grep -rn "token/market-data" apps/frontend/src apps/backend/src --include="*.ts" | grep -v redirect` vacío + `test:frontend` verde
      QA scenarios: happy redirect 307 funciona; failure link roto → Playwright lo caza. Evidence .omo/evidence/task-6-mega-refactor-market-data.log
      Commit: Y | refactor(market-data): renombre legacy y migración frontend
-- [ ] 7. Frontend: dashboard data + Dexter (C-UX-01)
+- [x] 7. Frontend: dashboard data + Dexter (C-UX-01)
      What to do / Must NOT do: Vistas consumo `:4000/4001/4002` (snapshots, chains, providers) + Dexter (`/x`, `/c`) contra market-data; proxies vite/nginx; polling TanStack. Playwright flujos.
      Parallelization: Wave 3 | Blocked by: 5, 6 | Blocks: 8
      References: plan central C-UX-01 sub-tabla T3; apps/frontend/src/shared/api/endpoints.ts
@@ -141,7 +141,7 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
      Acceptance criteria: `curl -s localhost:4060/api/health | grep -q '"status":"ok"'` + `npx jest apps/dexter-onchain-bot` verde (5 casos) + e2e `/start` responde ayuda y `/ca <fixture>` devuelve ficha con trade buttons
      QA scenarios: happy ficha <5s con botones; failure market-data caído → mensaje explícito (sin ficha parcial silenciosa); failure token ausente → bot inactivo con warn, app sigue. Evidence .omo/evidence/task-9-mega-refactor-market-data.log
      Commit: Y | feat(dexter-onchain-bot): extracción bot lookup y cutover
-- [ ] 10. Seguridad market-data (P46)
+- [x] 10. Seguridad market-data (P46)
       What to do / Must NOT do: auth key obligatoria en todo salvo `/api/health`: keys por cliente con scopes (read/snapshot vs admin) en tabla `api_keys` (hash, NUNCA en plano), rotación sin redeploy (endpoint admin + grace dual-key), rate-limit por key, audit log de accesos (quién/cuándo/qué endpoint, sin keys), keys jamás en logs/respuestas/errores, bind loopback+Tailscale (documentar), procedimiento de compromiso escrito (revocar+rotar+auditar ventana). Tests: sin key 401/403, scope insuficiente 403, rotación sin downtime, key en log ausente (grep). Must NOT logs con keys ni una sola ruta sensible sin auth.
       Parallelization: Wave 4 | Blocked by: 2 (gateway) | Blocks: 8
       References: .omo/drafts/mega-refactor-tramos.md (P46); apps/market-data/src/gateway/ (edge a proteger); apps/market-data/src/shared/guards/ (ApiKeyGuard base)

@@ -22,6 +22,11 @@ export default defineConfig(({ mode }) => {
   // nginx (/feed-api/ location) is a deploy follow-up (todos 10/11).
   const FEED_PUBLISHER_PROXY_TARGET =
     env.FEED_PUBLISHER_PROXY_TARGET ?? 'http://localhost:3040';
+  // Market-data (Tramo 3, todo 7): snapshots, chains, providers, address
+  // lookup + Dexter views. Triplet :4000 dev / :4001 staging / :4002
+  // prod via env override. Prod nginx is a deploy follow-up (todo 8).
+  const MARKET_DATA_PROXY_TARGET =
+    env.MARKET_DATA_PROXY_TARGET ?? 'http://localhost:4000';
   // Hosts permitidos (el acceso por Tailscale llega con otro Host header).
   const ALLOWED_HOSTS = (
     env.VITE_ALLOWED_HOSTS ??
@@ -130,6 +135,11 @@ export default defineConfig(({ mode }) => {
           target: FEED_PUBLISHER_PROXY_TARGET,
           changeOrigin: false,
           rewrite: (path) => path.replace(/^\/feed-api/, ''),
+        },
+        '/market-data-api': {
+          target: MARKET_DATA_PROXY_TARGET,
+          changeOrigin: false,
+          rewrite: (path) => path.replace(/^\/market-data-api/, ''),
         },
         '/socket.io': {
           target: BACKEND_PROXY_TARGET,

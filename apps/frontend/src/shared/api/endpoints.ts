@@ -1,4 +1,5 @@
 import { feedPublisherPath } from './feed-publisher-base';
+import { marketDataPath } from './market-data-base';
 
 export const ENDPOINTS = {
   kols: {
@@ -36,10 +37,11 @@ export const ENDPOINTS = {
       `/token/normalization/tokens/${chain}/${address}`,
   },
   enrichment: {
-    enrich: '/token/market-data/enrich',
-    recent: '/token/market-data/snapshots/recent',
+    // T3-todo-6 rename: legacy /token/market-data/* 307-redirects here for one version.
+    enrich: '/token/enrichment/enrich',
+    recent: '/token/enrichment/snapshots/recent',
     byToken: (chain: string, address: string) =>
-      `/token/market-data/snapshots/${chain}/${address}`,
+      `/token/enrichment/snapshots/${chain}/${address}`,
   },
   classification: {
     classify: '/token/classification/classify',
@@ -225,5 +227,36 @@ export const ENDPOINTS = {
       // until the v2 un-stubbing contract activates it.
       root: () => feedPublisherPath('/api/threads'),
     },
+  },
+  marketData: {
+    // Tramo 3 (todo 7): market-data `:4000` dev / `:4001` staging /
+    // `:4002` prod behind the same-origin /market-data-api prefix
+    // (vite dev proxy strips it; VITE_MARKET_DATA_URL overrides it
+    // for direct service access).
+    chains: marketDataPath('/api/v1/chains'),
+    chain: (id: string) =>
+      marketDataPath(`/api/v1/chains/${encodeURIComponent(id)}`),
+    detect: (address: string) =>
+      marketDataPath(
+        `/api/v1/chains/detect?address=${encodeURIComponent(address)}`,
+      ),
+    providers: marketDataPath('/api/v1/providers'),
+    provider: (name: string) =>
+      marketDataPath(`/api/v1/providers/${encodeURIComponent(name)}`),
+    address: (chain: string, address: string, kind?: string) => {
+      const base = `/api/v1/addresses/${encodeURIComponent(chain)}/${encodeURIComponent(address)}`;
+      return marketDataPath(
+        kind ? `${base}?kind=${encodeURIComponent(kind)}` : base,
+      );
+    },
+    token: (chain: string, address: string) =>
+      marketDataPath(
+        `/api/v1/tokens/${encodeURIComponent(chain)}/${encodeURIComponent(address)}`,
+      ),
+    compatSnapshot: (chain: string, address: string) =>
+      marketDataPath(
+        `/api/market-data/snapshot?chain=${encodeURIComponent(chain)}&address=${encodeURIComponent(address)}`,
+      ),
+    batch: () => marketDataPath('/api/v1/addresses/batch'),
   },
 } as const;

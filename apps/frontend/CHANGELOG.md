@@ -4,6 +4,14 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ## [Unreleased]
 
+### Added
+
+- Tramo 3 todo 7 (C-UX-01) market-data dashboard: `/market-data` page (chain catalog + detect-chain probe, provider health/latency table, address lookup with kind badge, 12-field compat snapshot, batch lookup up to 50 with per-item errors) and `/dexter` page (Dexter `/x` full-scan and `/c` chart lookup over market-data HTTP, no bot token), both behind the same-origin `/market-data-api` proxy (vite dev → `:4000`, staging `:4001`, prod `:4002` via `MARKET_DATA_PROXY_TARGET`/`VITE_MARKET_DATA_URL`) with TanStack polling (chains 30s, providers 15s, lookups on-demand) and empty states on API down. Playwright `e2e/market-data.spec.ts` (7 tests). Prod/staging nginx locations added but flagged deploy follow-up (todo 8: upstream service not deployed yet). (feat/mega-refactor-tramos)
+
+### Changed
+
+- Tramo 3 todo 6 (R-4/G-18) legacy rename: `ENDPOINTS.enrichment` moved from `/token/market-data/*` to `/token/enrichment/*` (backend keeps a temporary 307 redirect for one version); new `endpoints-enrichment.test.ts` pins the new paths + asserts zero legacy paths. (feat/mega-refactor-tramos)
+
 ### Changed
 
 - P41 API prefix migration (T2 todo 13 Fase 2): feed fetchers moved to new prefixes (`/feed-publisher/*`, `/feed-threads-publisher/*`, `/feed-filters/*`); per-channel `/crypto-news/sources/:channelId/filters` CRUD stays (P41 exclusion). Dev `vite.config.ts` + prod `nginx.conf` + staging `nginx.staging.conf` proxy old+new side by side with coherence (vite prefix set == nginx location set x env); `ops/backups` untouched. Old paths still served until cutover todo 11. (feat/mega-refactor-tramos)
