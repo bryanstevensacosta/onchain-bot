@@ -31,7 +31,7 @@ Sistema de **inteligencia ML/AI para crypto-news** con templates configurables q
 
 ### Ubicación en el Monorepo
 
-**Nuevo servicio independiente**: `apps/feed-intelligence/`
+**Nuevo servicio independiente**: `apps/fe/`
 
 **Rationale**:
 
@@ -77,9 +77,10 @@ Sistema de **inteligencia ML/AI para crypto-news** con templates configurables q
 
 ```
 Telegram → Ingestion-telegram (RAW storage type=crypto-news)
-              ↓
-Intelligence polling (every 30s)
-              ↓ GET /api/feed/messages?type=crypto-news
+              ↓ SSE broadcast (real-time)
+              ↓ GET /api/ingestion/stream
+Feed-Intelligence BC0: Ingestion (SSE client)
+              ↓ FeedMessageIngestedEvent
     ClassifyNewsMessageUseCase
               ↓
     ClusteringCronScheduler (every 5 min)

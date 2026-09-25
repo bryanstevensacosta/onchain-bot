@@ -19,13 +19,14 @@ Sistema de inteligencia template-driven para crypto-news con classification, clu
 **Para**: Product Manager, Tech Lead, Stakeholders  
 **Lectura**: 10 minutos
 
-Visión general del sistema template-driven, 5 bounded contexts, flujo completo desde ingestion hasta content-publisher.
+Visión general del sistema template-driven, 6 bounded contexts (Ingestion SSE + 5 processing), flujo completo desde ingestion hasta content-publisher.
 
 **Contenido clave**:
 
-- 🎯 Visión v2.0: Templates configurables en DB
-- 🏗️ 5 Bounded Contexts (Classification, Clustering, Ranking, Aggregation, **Template Management**)
-- 📊 BC 5 detalle: ContentTemplate entity + TemplateConfig
+- 🎯 Visión v2.0: Templates configurables en DB + SSE real-time ingestion
+- 🏗️ 6 Bounded Contexts: **BC0 Ingestion (SSE)** → BC1 Classification → BC2 Clustering+Synthesis → BC3 Ranking → BC4 Content Generation → BC5 Template Management
+- 🔌 BC0 Feed Ingestion: SSE consumer (<1s latency vs 30s polling), event-driven
+- 📊 BC5 detalle: ContentTemplate entity + TemplateConfig + Story Tracking
 - 🔌 API para content-publisher
 - 📊 Datos reales de producción (Oracle VPS)
 
@@ -41,12 +42,13 @@ Arquitectura detallada con todos los bounded contexts incluyendo **Cluster Synth
 **Contenido clave**:
 
 - 📐 Estructura completa de `apps/feed-intelligence/`
+- 🔌 **BC 0: Feed Ingestion (SSE consumer)** — real-time, event-driven, <1s latency
 - 🎯 BC 1: Classification (rule-based + LLM fallback)
 - 🔗 BC 2: Clustering + **Cluster Synthesis** (LLM merge duplicates instead of discard)
 - 📈 BC 3: Ranking (5-dimensional scoring)
 - 📰 BC 4: Content Generation (template-driven renderers)
 - 📋 BC 5: Template Management + **Story Tracking** (detect news updates, timeline)
-- 🗄️ Database schemas v2.0 (8 tables: templates, content, stories, synthesis)
+- 🗄️ Database schemas v2.0 (9 tables: ingested_feed_messages + templates + content + stories + synthesis)
 - 🔌 API endpoints completos
 
 ---

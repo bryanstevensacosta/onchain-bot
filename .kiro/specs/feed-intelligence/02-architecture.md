@@ -12,7 +12,7 @@
 apps/feed-intelligence/
 ├── src/
 │   ├── main.ts                                    # Bootstrap NestJS :4002
-│   ├── app.module.ts                              # Root module (5 BCs + template management)
+│   ├── app.module.ts                              # Root module (6 BCs: Ingestion + 5 processing)
 │   ├── shared/
 │   │   ├── kernel/                                # DDD base classes
 │   │   │   ├── aggregate-root.ts
@@ -24,22 +24,32 @@ apps/feed-intelligence/
 │   │   │   ├── database/database.module.ts        # TypeORM setup (alpha_meta_token_scanner_intelligence)
 │   │   │   └── persistence/entities.ts            # Entity registry
 │   │   └── clients/
-│   │       ├── ingestion-client.module.ts         # HTTP client to ingestion-telegram
-│   │       ├── ingestion-client.service.ts        # GET /api/feed/messages (crypto-news ONLY)
 │   │       └── llm-gateway-client.service.ts      # POST llm-gateway:4001/embeddings/embed
+│   ├── ingestion/                                 # BC 0: Feed Ingestion **NEW** (SSE consumer)
+│   │   ├── ingestion.module.ts
+│   │   ├── domain/
+│   │   │   └── entities/ingested-feed-message.entity.ts
+│   │   ├── application/
+│   │   │   ├── services/
+│   │   │   │   └── feed-ingestion-orchestrator.service.ts
+│   │   │   └── use-cases/
+│   │   │       └── process-feed-message.use-case.ts
+│   │   └── infrastructure/
+│   │       └── adapters/
+│   │           └── telegram-sse-listener.adapter.ts  # SSE client (fetch+ReadableStream, backoff)
 │   ├── classification/                            # BC 1: Classification
 │   ├── clustering/                                # BC 2: Clustering + Synthesis
 │   │   └── application/
 │   │       └── services/
 │   │           ├── clustering-orchestrator.service.ts
-│   │           └── cluster-synthesis.service.ts   # NEW: LLM merge duplicates
+│   │           └── cluster-synthesis.service.ts   # LLM merge duplicates
 │   ├── ranking/                                   # BC 3: Ranking
-│   ├── aggregation/                               # BC 4: Aggregation (renamed from "aggregation")
+│   ├── aggregation/                               # BC 4: Content Generation
 │   │   └── application/
 │   │       └── services/
 │   │           ├── content-generator.service.ts   # Generates from templates
 │   │           └── template-renderer.service.ts   # Renders content
-│   ├── template/                                  # BC 5: Template Management (NEW)
+│   ├── template/                                  # BC 5: Template Management
 │   │   ├── domain/
 │   │   │   ├── entities/content-template.entity.ts
 │   │   │   └── value-objects/template-type.vo.ts  # HIGHLIGHTS|DIGEST|BREAKING|NARRATIVE
@@ -52,14 +62,14 @@ apps/feed-intelligence/
 │   │   │       └── narrative-tracker.service.ts    # Story tracking
 │   │   └── api/
 │   │       └── http/template.controller.ts         # CRUD templates
-│   ├── content/                                   # NEW: Generated Content API
+│   ├── content/                                   # Generated Content API
 │   │   ├── domain/entities/generated-content.entity.ts
 │   │   ├── application/
 │   │   │   └── use-cases/
 │   │   │       ├── poll-pending-content.use-case.ts
 │   │   │       └── mark-consumed.use-case.ts
 │   │   └── api/http/content.controller.ts         # /content/pending (content-publisher consumer)
-│   ├── story/                                     # NEW: Story Tracking (BC 5 sub-module)
+│   ├── story/                                     # Story Tracking (BC 5 sub-module)
 │   │   ├── domain/entities/news-story.entity.ts
 │   │   └── application/
 │   │       └── services/
@@ -73,6 +83,339 @@ apps/feed-intelligence/
 ├── docker-compose.yml
 └── package.json
 ```
+
+## 🔌 Bounded Context 0: Feed Ingestion (NEW — SSE Consumer)
+
+### Rationale
+
+**Problema**: Classification polling (`GET /api/feed/messages` cada 30s) introduce latency de hasta 30s y carga innecesaria.
+
+**Solución**: SSE client (mismo patrón que backend `TelegramSseListenerAdapter`) consume `GET /api/ingestion/stream` en tiempo real.
+
+### Dominio
+
+```typescript
+// ingestion/domain/entities/ingested-feed-message.entity.ts
+export class IngestedFeedMessage extends AggregateRoot<string> {
+  public readonly id: string;                      // UUID
+  public readonly channelId: string;
+  public readonly messageId: number;
+  public content: string;
+  public publishedAt: Date;
+  public ingestedAt: Date;
+  public media: Array<{ url: string; type: string }>;
+  public processed: boolean;                       // Classification pending
+
+  static create(props: { ... }): IngestedFeedMessage { ... }
+
+  public markProcessed(): void {
+    this.processed = true;
+    this.addDomainEvent(new FeedMessageProcessedEvent({ id: this.id }));
+  }
+}
+```
+
+### Infraestructura
+
+**SSE Adapter** (basado en backend `TelegramSseListenerAdapter`):
+
+```typescript
+// ingestion/infrastructure/adapters/telegram-sse-listener.adapter.ts
+@Injectable()
+export class TelegramSseListenerAdapter implements OnModuleInit {
+  private abortController: AbortController | null = null;
+  private reconnectAttempts = 0;
+  private readonly MAX_RECONNECT_ATTEMPTS = Infinity;
+  private readonly INITIAL_BACKOFF_MS = 1000;
+  private readonly MAX_BACKOFF_MS = 30000;
+
+  constructor(
+    private readonly config: FeedIntelligenceConfig,
+    private readonly processFeedMessageUseCase: ProcessFeedMessageUseCase,
+    private readonly logger: Logger,
+  ) {}
+
+  async onModuleInit() {
+    await this.connect();
+  }
+
+  private async connect(): Promise<void> {
+    this.abortController = new AbortController();
+
+    try {
+      const sseUrl = `${this.config.ingestionTelegramUrl}/api/ingestion/stream`;
+      this.logger.log(`Connecting to SSE: ${sseUrl}`);
+
+      const response = await fetch(sseUrl, {
+        signal: this.abortController.signal,
+        headers: {
+          Accept: 'text/event-stream',
+          'Cache-Control': 'no-cache',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`SSE connection failed: ${response.status}`);
+      }
+
+      this.logger.log('SSE connected successfully');
+      this.reconnectAttempts = 0;
+
+      await this.consumeStream(response.body!);
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        this.logger.log('SSE connection aborted');
+        return;
+      }
+
+      this.logger.error(`SSE connection error: ${error.message}`);
+      await this.scheduleReconnect();
+    }
+  }
+
+  private async consumeStream(body: ReadableStream<Uint8Array>): Promise<void> {
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          await this.processLine(line);
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Stream consumption error: ${error.message}`);
+    } finally {
+      reader.releaseLock();
+      await this.scheduleReconnect();
+    }
+  }
+
+  private async processLine(line: string): Promise<void> {
+    if (!line.startsWith('data: ')) return;
+
+    try {
+      const data = JSON.parse(line.slice(6));
+
+      // Skip heartbeats
+      if (data.type === 'health:ping') return;
+
+      // Process feed messages (type=crypto-news)
+      if (data.type === 'crypto-news') {
+        await this.processFeedMessageUseCase.execute({
+          channelId: data.channelId,
+          messageId: data.messageId,
+          content: data.content,
+          publishedAt: new Date(data.publishedAt),
+          media: data.media || [],
+        });
+      }
+    } catch (error) {
+      this.logger.error(`Failed to process SSE line: ${error.message}`, line);
+    }
+  }
+
+  private async scheduleReconnect(): Promise<void> {
+    this.reconnectAttempts++;
+    const backoff = Math.min(
+      this.INITIAL_BACKOFF_MS * Math.pow(2, this.reconnectAttempts - 1),
+      this.MAX_BACKOFF_MS,
+    );
+
+    this.logger.log(
+      `Reconnecting in ${backoff}ms (attempt ${this.reconnectAttempts})...`,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, backoff));
+    await this.connect();
+  }
+
+  async onModuleDestroy() {
+    this.abortController?.abort();
+  }
+}
+```
+
+### Aplicación
+
+```typescript
+// ingestion/application/use-cases/process-feed-message.use-case.ts
+@Injectable()
+export class ProcessFeedMessageUseCase {
+  constructor(
+    private readonly ingestedMessageRepo: IngestedFeedMessageRepository,
+    private readonly eventBus: EventBus,
+  ) {}
+
+  async execute(input: {
+    channelId: string;
+    messageId: number;
+    content: string;
+    publishedAt: Date;
+    media: Array<{ url: string; type: string }>;
+  }): Promise<void> {
+    // 1. Check if already ingested (idempotency)
+    const existing = await this.ingestedMessageRepo.findByCompositeKey(
+      input.channelId,
+      input.messageId,
+    );
+
+    if (existing) {
+      return; // Already processed
+    }
+
+    // 2. Create entity
+    const message = IngestedFeedMessage.create({
+      channelId: input.channelId,
+      messageId: input.messageId,
+      content: input.content,
+      publishedAt: input.publishedAt,
+      ingestedAt: new Date(),
+      media: input.media,
+      processed: false,
+    });
+
+    // 3. Persist
+    await this.ingestedMessageRepo.save(message);
+
+    // 4. Emit event for classification
+    await this.eventBus.publish(
+      new FeedMessageIngestedEvent({
+        id: message.id,
+        channelId: message.channelId,
+        messageId: message.messageId,
+        content: message.content,
+        publishedAt: message.publishedAt,
+      }),
+    );
+  }
+}
+
+// ingestion/application/services/feed-ingestion-orchestrator.service.ts
+@Injectable()
+export class FeedIngestionOrchestratorService {
+  constructor(
+    private readonly ingestedMessageRepo: IngestedFeedMessageRepository,
+  ) {}
+
+  async getUnprocessedMessages(limit = 100): Promise<IngestedFeedMessage[]> {
+    return this.ingestedMessageRepo.findUnprocessed(limit);
+  }
+
+  async markProcessed(messageId: string): Promise<void> {
+    const message = await this.ingestedMessageRepo.findById(messageId);
+    if (!message) return;
+
+    message.markProcessed();
+    await this.ingestedMessageRepo.save(message);
+  }
+}
+```
+
+### Database Schema
+
+```sql
+-- BC0: Feed Ingestion
+CREATE TABLE ingested_feed_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  channel_id VARCHAR(64) NOT NULL,
+  message_id INTEGER NOT NULL,
+  content TEXT NOT NULL,
+  published_at TIMESTAMPTZ NOT NULL,
+  ingested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  media JSONB DEFAULT '[]',
+  processed BOOLEAN DEFAULT FALSE,
+  UNIQUE(channel_id, message_id)
+);
+
+CREATE INDEX idx_ingested_feed_messages_processed ON ingested_feed_messages(processed) WHERE processed = FALSE;
+CREATE INDEX idx_ingested_feed_messages_ingested ON ingested_feed_messages(ingested_at DESC);
+```
+
+### Integration con BC1 (Classification)
+
+**Event-driven** (en lugar de polling):
+
+```typescript
+// classification/infrastructure/event-handlers/feed-message-ingested.handler.ts
+@EventsHandler(FeedMessageIngestedEvent)
+export class FeedMessageIngestedHandler implements IEventHandler<FeedMessageIngestedEvent> {
+  constructor(
+    private readonly classifyUseCase: ClassifyNewsMessageUseCase,
+    private readonly ingestionOrchestrator: FeedIngestionOrchestratorService,
+  ) {}
+
+  async handle(event: FeedMessageIngestedEvent): Promise<void> {
+    try {
+      // Classify immediately
+      await this.classifyUseCase.execute({
+        channelId: event.channelId,
+        messageId: event.messageId,
+        content: event.content,
+        occurredAt: event.publishedAt,
+      });
+
+      // Mark as processed
+      await this.ingestionOrchestrator.markProcessed(event.id);
+    } catch (error) {
+      this.logger.error(`Failed to classify message ${event.id}`, error);
+      // Retry handled by DLQ or cron fallback
+    }
+  }
+}
+```
+
+**Fallback Cron** (por si SSE falla):
+
+```typescript
+// classification/infrastructure/scheduling/classification-fallback.scheduler.ts
+@Injectable()
+export class ClassificationFallbackScheduler {
+  @Cron(CronExpression.EVERY_MINUTE)
+  async processUnprocessedMessages(): Promise<void> {
+    // Process any messages missed by SSE
+    const unprocessed =
+      await this.ingestionOrchestrator.getUnprocessedMessages(50);
+
+    for (const msg of unprocessed) {
+      await this.classifyUseCase.execute({
+        channelId: msg.channelId,
+        messageId: msg.messageId,
+        content: msg.content,
+        occurredAt: msg.publishedAt,
+      });
+
+      await this.ingestionOrchestrator.markProcessed(msg.id);
+    }
+
+    if (unprocessed.length > 0) {
+      this.logger.warn(
+        `Fallback processed ${unprocessed.length} messages (SSE may be down)`,
+      );
+    }
+  }
+}
+```
+
+### Monitoring
+
+```typescript
+// Prometheus metrics
+feed_intelligence_sse_connected{status="connected|disconnected"}
+feed_intelligence_messages_ingested_total
+feed_intelligence_messages_processed_total
+feed_intelligence_ingestion_lag_seconds  // publishedAt → ingestedAt
+```
+
+---
 
 ## 🎯 Bounded Context 1: Classification
 
