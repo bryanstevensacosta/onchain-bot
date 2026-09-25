@@ -774,6 +774,7 @@ Staging-local caveat (NODE_ENV=staging hits dist mode): CLI `data-source.ts:28` 
 
 ## NOTES
 
+- **DEPRECATION (Tramo 1, P18 gradual migration)**: `src/telegram/ingestion/kol/kol-ingestion.module.ts` carries an `@deprecated` header pointing at `apps/kol-system/src/ingestion/`. Code still live for dual-run; deletion only at Tramo 1 cutover — do not extend it.
 - `chain/identity/` + `token/identity/` are VO-only libraries (no module, no routes) — shared identifier types, not dead code. `kol/stats` is a stub (leaderboard/ROI per README).
 - `shared/common/utils/telegram-html-sanitizer.ts`: Telegram `parse_mode: HTML` allowlist sanitizer for ad/crypto bodies (mirrored by frontend `AdHtmlPreview` — keep both allowlists in sync).
 - Staging/prod deploy: `.github/workflows/deploy.yml` (test → ssh → backup → build → `migration:run` → recreate → `:3030/api/health`).

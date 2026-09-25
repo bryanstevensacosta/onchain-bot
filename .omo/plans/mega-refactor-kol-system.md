@@ -172,7 +172,7 @@ Your next move: approve — revisión Momus superada tras fixes; listo para $sta
       Acceptance criteria: `psql -c "SELECT tracking FROM tracked_mentions WHERE times_called=2"` = `2x from last call` + `curl -s 'localhost:3050/api/kol-rankings?window=30d' | jq 'length >= 0'`
       QA scenarios: happy primera vs segunda mención + ranking suma correcta por ventana (fixture 3 callers); failure `first_mc_at` null (enrich falló) → tracking muestra `mc n/a`, sin crash. Evidence .omo/evidence/task-12-mega-refactor-kol-system.log
       Commit: Y | feat(kol-system): tracking first-seen y rating
-- [ ] 13. Avatar KOL vía ingestion-telegram (P4 + G-09)
+- [x] 13. Avatar KOL vía ingestion-telegram (P4 + G-09)
       What to do / Must NOT do: Fuente MTProto photo (o Bot API `getUserProfilePhotos`); owner ingestion-telegram (invariante media owner): columna/tabla + serve `GET /api/kol-avatar/:channelId` + `avatarUrl` en proyección `GET /api/feed/sources` + job fetch-ONCE al registrar source (SIN refresh periódico; solo explícito manual) + fallback placeholder. P19: avatares PERMANENTES — EXCLUIDOS del janitor 72h (verificar que el cleanup solo toca messages+media de mensajes); kol-system solo consume URL (rankings + dashboard). Si ingestion necesita cambio, todo separado en su repo con backlink. Tests fallback + test anti-janitor (avatar sobrevive a corrida de retención).
       Parallelization: Wave 4 | Blocked by: 1, 4 | Blocks: 14
       References: .omo/drafts/mega-refactor-tramos.md:121 (P4); apps/ingestion-telegram (media owner: `uploads/crypto-news/media/` + `GET /api/media/*`)

@@ -11,10 +11,11 @@ Strict FSD. Dev `:5173` (strictPort); prod is nginx static + per-prefix proxy to
 
 ```
 src/
-├── app/ {entry.tsx (createRoot), index.tsx (providers), router/routes.tsx (6 routes),
+├── app/ {entry.tsx (createRoot), index.tsx (providers), router/routes.tsx (9 routes),
 │         layouts/root-layout.tsx, providers/{query,socket}-provider.tsx, styles/}
-├── pages/ {dashboard (KpiCards + IngestionHealth + LiveFeed + TopTokens + TrackedCalls), tokens-explorer, token-detail (displayName fallback canonical→snapshot→ticker; ContractAddress + copy; gauge + breakdown + snapshot + canonical), kols (rows + lifecycle/backfill/recompute/formula controls), crypto-news (550-line hub: messages + queue + keywords + ads + filters + llm-config + lightbox + album grouping), ops (replay/filters/presets tabs)}
-├── widgets/ {kpi-cards, live-feed, top-tokens-table, kol-leaderboard, tracked-calls, ingestion-health}
+├── pages/ {dashboard (KpiCards + IngestionHealth + LiveFeed + TopTokens + TrackedCalls), tokens-explorer, token-detail (displayName fallback canonical→snapshot→ticker; ContractAddress + copy; gauge + breakdown + snapshot + canonical), kols (rows + lifecycle/backfill/recompute/formula controls), crypto-news (550-line hub: messages + queue + keywords + ads + filters + llm-config + lightbox + album grouping), playground, threads, template-dashboard (thin wrapper → widgets/template-dashboard), ops (replay/filters/presets tabs)}
+├── widgets/ {kpi-cards, live-feed, top-tokens-table, kol-leaderboard, tracked-calls, ingestion-health,
+│           template-dashboard (TemplateDashboard: template picker + SourceMultiSelect + CallsTable + PerformanceRanking + TopCallersStrip + TemplateConfigSection + KolAvatar)}
 ├── features/ (11) {add-kol, add-crypto-news-source, set-kol-lifecycle,
 │              replay-message, reprocess-rejected, kol-score-formula, recompute-kol-reputation,
 │              settings (filters/presets tabs, presets = named settings snapshots),
@@ -26,15 +27,17 @@ src/
 - Blacklist mirrors keywords (910 lines: batch create, compound groups, per-source scope); ads poll 10 s; `KolReputationView` carries full outcome metrics (x2/x5/x10/x50, rug50/rug80, neutral) + `isTrusted/isSuspicious`; copy buttons with Spanish aria-labels (`Copiar contrato`).
 - `CanonicalTokenCallView` keeps per-source `messageIds` + metrics + confidence; `TokenScoreView` keeps legacy `classifiedAt?` + `avgKolReputation`.
 - Compound modal: client-generated row IDs (`generateId()`), AND-grouped phrase rows with per-row case/mode/media/template binding; source invalidation is broad (`cryptoNewsKeys.all`).
-├── entities/ (11) {kol, kol-reputation, canonical-call, token-score, token-classification,
-│              token-snapshot, filter-decision, published-call, tracked-call, crypto-news, dashboard}
+├── entities/ (12) {kol, kol-reputation, canonical-call, token-score, token-classification,
+│              token-snapshot, filter-decision, published-call, tracked-call, crypto-news, dashboard,
+│              template (TemplateView/TemplateCallRow/KolRankingRow/KolSourceOption + templateKeys + 6 hooks + pure helpers)}
 ├── shared/ {api/{http-client, endpoints, settings-endpoints}, config/env.ts, lib/{format, signalLabels, render-telegram-entities, use-pagination, uuid}, realtime/{events, socket, use-event-stream}, ui/{button, badge, card, modal, token-image, gauges, lightbox, chain-icon, bonding-curve-progress}}
 └── test/setup.ts (single `jest-dom/vitest` import)
 ```
 
 Routes (`createBrowserRouter` — data-router API but NO loaders; Query owns server state):
-`/`, `/tokens`, `/tokens/:chain/:address`, `/kols`, `/crypto-news`, `/ops`.
-Nav has 5 links (Dashboard · Tokens · KOLs · News · Ops — README says 4, stale).
+`/`, `/tokens`, `/tokens/:chain/:address`, `/kols`, `/crypto-news`, `/playground`, `/threads`, `/templates`, `/ops`.
+Nav has 8 links (Dashboard · Tokens · KOLs · News · Playground · Threads · Templates · Ops — README says 4, stale).
+`/templates` (Tramo 1, kol-system): `TemplateDashboardPage` (`pages/template-dashboard/index.tsx`, thin wrapper) renders `TemplateDashboard` (`widgets/template-dashboard/ui/template-dashboard.tsx`): template picker (defaults to first template) → `SourceMultiSelect` (checkbox chips per KOL source, `Clear (all)` = empty = all sources; change PATCHes `kolSourceIds` via `useUpdateTemplateSources`, invalidates detail/calls/templates) → `CallsTable` + `PerformanceRanking` + `TopCallersStrip` + `TemplateConfigSection`. Calls are enriched client-side (rankings row joined with feed-source handle/title/url/avatarUrl, call row wins) then filtered by `filterCallsBySources`. Every widget degrades to an empty-state div on API error (never crashes; e2e pins `template-dashboard-empty`).
 Kols rows show lifecycle/listening state + rep score with 0.7/0.3 tone bands; `SetKolLifecycleButton` per row. Page paginates 15/page with `lastIngestedAt` relative times; Activate/Deactivate buttons by status, Recompute per row (backfill removed 2026-09-24: `POST telegram-kol/identity/kols/:kolId/backfill` answers 501, no feed equivalent — trigger-backfill feature deleted). `AddKolModal` takes a bare Telegram ID/`@handle` (title/handle auto-resolved server-side), guards submit while pending, surfaces `mutation.error` inline. Score formula preset lives in `localStorage` (`useKolScoreFormula`) and is sent as `?formula=` on recompute.
 Pagination is client-side only (`usePagination`: slices fetched arrays, clamps on shrink) — large lists transfer fully.
 Modal convention (`AddKolModal`, `AddCryptoNewsSourceModal`): uncontrolled-close guard while pending, `mutation.reset()` on close, inline `mutation.error` alert; source modal validates `/^-100\d+$/` client-side. Settings tabs edit inline with staged `edits` map, grouped by filter `type`, invalidate `settingsFilterKeys.all` on success. Empty states in Spanish (`Cargando…`, `Sin snapshot de mercado`); null glyph is `—` (format lib).
@@ -67,6 +70,17 @@ Correctly scoped prefixes: `telegram-kol/identity`, `telegram-kol/reputation`, `
 
 **IMPORTANT:** Frontend queries its OWN env's ingestion-telegram DIRECTLY for feed data (no backend proxy).
 Each backend also queries ITS ingestion via HTTP API — NO database replication, NO shared data.
+
+**KOL-SYSTEM — Tramo 1 (kol-system `:3050` en dev)** (`/kol-api` same-origin → upstream kol-system; ver §PROXY):
+Rutas per-template (`shared/api/endpoints.ts` `kolSystem`, consumidas por `entities/template/api/template-queries.ts`):
+
+- `GET /kol-api/templates` — template list for the picker (`useTemplates`, 30 s polling)
+- `GET /kol-api/templates/:id` — template detail/config (`useTemplateDetail`, 30 s, `enabled: !!id`)
+- `GET /kol-api/templates/:id/rankings` — ranked mentions mapped to `TemplateCallRow` (`useTemplateCalls`, 10 s)
+- `PATCH /kol-api/templates/:id/sources` — persist `kolSourceIds` array (`useUpdateTemplateSources` mutation)
+- `GET /kol-api/kol-rankings?window=30d|7d|1d&sort=perf_desc|perf_asc|calls_desc` — KOL rankings (`useKolRankings`, 15 s; window selector + perf halves + top-callers strip share it)
+- `GET /ingestion-api/kol-avatar/:channelId` — KOL avatar file-or-placeholder (contrato P19/P4 con ingestion-telegram; `avatarSrcFor()` en `entities/template/model/helpers.ts` resuelve `avatarUrl → /ingestion-api/kol-avatar/:channelId → TEMPLATE_AVATAR_PLACEHOLDER`; `KolAvatar` muestra inicial del handle si falla/404)
+- `ENDPOINTS.kolSystem.templatePending` definido pero SIN fetcher (pending-approvals sin UI — no llamar hasta cablearlo).
 
 ⚠️ Frontend README §3 is stale (`/kols`, `/token/token-gating/*` — neither exists). Trust `endpoints.ts`.
 
@@ -121,12 +135,14 @@ Docker build sets all to `""` → same-origin in prod (nginx routes by prefix).
 
 - Backend proxy (`localhost:3030`): `/api`, `/crypto-news-publisher`, `/crypto-news-ads`, `/crypto-news/matching`, `/socket.io` (ws:true)
 - **Ingestion-telegram proxy (`INGESTION_PROXY_TARGET`, default `http://localhost:3031`):** `/ingestion-api/*` → rewrite `^/ingestion-api` → `/api`
+- **Kol-system proxy (`KOL_SYSTEM_PROXY_TARGET`, default `http://localhost:3050`):** `/kol-api/*` → rewrite `^/kol-api` → `/api` (Tramo 1; `vite.config.ts:98-102`)
 - **REMOVED:** `/crypto-news/(messages|sources|backfill|media)` regex — feed reads go via `/ingestion-api/feed/*`
 
 **Prod (`nginx.conf`, twin: `nginx.staging.conf`):**
 
 - Backend locations (`backend:3030`): dashboard, telegram-kol, vip-calls, token, ingestion, call-tracking, telegram, settings, kols, crypto-news-publisher, crypto-news-ads, socket.io
 - **Ingestion-telegram location:** `/ingestion-api/` → rewrite → `/api/` on the per-env upstream: prod `onchain-bot-ingestion-telegram:3031` (`nginx.conf:252-258`), staging twin `onchain-bot-ingestion-telegram-staging:3031` (`nginx.staging.conf:256-260`, host `:3033`)
+- ⚠️ **Kol-system location MISSING:** `nginx.conf`/`nginx.staging.conf` have NO `/kol-api/` block (verified by grep — solo existe en `vite.config.ts`). `/templates` works in dev only until prod deploy mirrors it (`/kol-api/` → rewrite → `/api/` on the kol-system upstream, dual-applied to both confs like `/ingestion-api/`).
 - **REMOVED:** `/crypto-news/{messages,sources,media}` — now `/ingestion-api/feed/*`
 - SPA fallback + gzip + security headers (`nosniff`, `DENY`, strict referrer) + 502 `@maintenance` JSON + `client_max_body_size 12m`
 
@@ -155,11 +171,13 @@ Docker build sets all to `""` → same-origin in prod (nginx routes by prefix).
 - `token-classification` is a chipless-fetch entity: types + `ClassificationChip` only (classifications arrive inside score/canonical payloads, never fetched directly).
 - `AdHtmlPreview` (224 lines): sanitizing mini-renderer mirroring backend `telegram-html-sanitizer.ts` — Telegram HTML allowlist, tokenized rebuild as React elements, no `dangerouslySetInnerHTML`.
 - `SourceMultiSelect`: empty ids = global scope (`All sources (global)` label).
+- Template-dashboard widgets (`widgets/template-dashboard/ui/`, barrel `widgets/template-dashboard/index.ts`): `CallsTable` (ticker/`$` o address `aaaa…zzzz`, score, `formatMc` `$2.50M`, `timeAgo`, `trackingLabelFor` First-time/`Nx from last call`, expandable breakdown rows, testids `kol-calls-table`/`call-row-*`/`db-id-*`/`more-details-*`/`details-*`) + `PerformanceRanking` (top-10 en mitades 5+5 vía `splitRankingHalves`, toggle `perf_desc/asc` vía `togglePerfSort`, orden vía `sortRankings`, testids `kol-rankings-table`/`perf-half-left|right`/`perf-card-*`/`perf-sort-toggle`) + `TopCallersStrip` (top-10 por calls con selector `30d/7d/1d`, testids `top-callers-strip`/`window-selector`/`window-*`/`top-caller-*`) + `TemplateConfigSection` (read-only: sources `All sources|N selected`, score floor, gems `≥score · N pattern(s)` + lista, bot `botId ?? dashboard-only → channelTarget`, testids `template-config`/`config-*`) + `KolAvatar` (img 32px redonda u placeholder con iniciales, testids `avatar-img-*`/`avatar-placeholder-*`). Helpers puros en `entities/template/model/helpers.ts` (`filterCallsBySources` empty=all, `splitRankingHalves`, `sortRankings`, `togglePerfSort`, `trackingLabelFor`, `timeAgo`, `formatMc`, `avatarSrcFor`); tipos en `model/types.ts` (`TemplateView` con kolSourceIds/score-floor/gems/bot/target/canPublish, `TemplateCallRow` con campos anulables y arreglo breakdown, `KolRankingRow` caller/window/totalX/counts/display, `KolSourceOption` channelId/handle/title/avatarUrl/url).
 - `uuid.generateId()`: `crypto.randomUUID()` with Math.random fallback for non-secure HTTP contexts.
 
-## TESTS (29 files, 331 tests, vitest)
+## TESTS (31 files, vitest + Playwright e2e)
 
 Co-located `*.test.{ts,tsx}` + `__tests__/` dirs, heaviest in crypto-news features (ads-manager 1900+ lines, crypto-news-page). `src/test/setup.ts` only. jsdom + testing-library/react in deps.
+Template-dashboard: `entities/template/model/helpers.test.ts` (pure helpers: tracking/mc/timeAgo/filter/sort/halves/avatar) + `widgets/template-dashboard/ui/template-dashboard.test.tsx` (jsdom: calls First-time/Nx + db-ids, perf 5+5 halves + sort toggle, window selector + caller counts, config extended). E2E Playwright (`e2e/template-dashboard.spec.ts`, 6 tests con `/kol-api/**` + `/ingestion-api/**` mockeados: calls table, rankings por window, source-filter narrow/clear, halves 5+5 + sort + window + config, API-down empty states, avatar-404 placeholder) + `e2e/qa-screenshots.spec.ts` (legacy dashboard intact, mockea `/kol-api/templates*`). `playwright.config.ts` (`testDir e2e`, baseURL `:5174`, webServer `vite --port 5174`, `reuseExistingServer` fuera de CI); `vitest.config.ts` excluye `e2e/**`; `npm run test:e2e` (`@playwright/test` devDep).
 
 ## REMOVED DEPS (Carril 1 — cero imports verificado)
 
@@ -184,6 +202,7 @@ cd apps/frontend            # or root -w @alpha-meta-token-scanner/frontend
 npm run dev                 # :5173 strict (root runs port-cleanup first)
 npm run build               # tsc -b && vite build
 npm run test | :watch       # vitest run | vitest
+npm run test:e2e             # playwright e2e/ (vite :5174 webServer, reuseExistingServer fuera de CI)
 npm run lint                # eslint src --fix (react+hooks+prettier)
 npm run format              # prettier --write "src/**/*.{ts,tsx}"
 ```

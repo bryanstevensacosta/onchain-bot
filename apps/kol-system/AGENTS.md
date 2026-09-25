@@ -1,6 +1,6 @@
 # apps/kol-system/ — NestJS Knowledge Base
 
-> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4+5+6+7+8+9+10+11+12+22 built).
+> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4+5+6+7+8+9+10+11+12+15(harness)+22 built).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md` §7.6 (2026-09-24).
 > Cross-tramo contracts (C-DB-01, C-SSE-01, C-SHARED-01/C2, C-DATA-01, C-BOTS-01) pinned in
 > `.omo/plans/mega-refactor-central.md` v2026-09-24; threads stub C1 lives in
@@ -332,7 +332,7 @@ src/
 ├── health/
 │   ├── health.module.ts
 │   ├── health.controller.spec.ts
-│   └── api/http/health.controller.ts   # GET /api/health → { status: 'ok' } (static shape)
+│   └── api/http/health.controller.ts   # GET /api/health → { status: 'ok', components } (composite since todo 15)
 ├── ingestion/                    # BUILT (todo 4) + WIRED into AppModule (P20 SSE-only)
 │   ├── ingestion.module.ts       # providers: ProcessKolMessageHandler, KolIngestionClientService, KolIngestionClientPort→Adapter
 │   ├── domain/ports/ingestion-client.port.ts
@@ -938,7 +938,17 @@ while `buildAppConfig().port` reads `PORT ?? 3030`. Canonical runtime port is
 
 ## HEALTH
 
-`GET /api/health` → 200 + `{ status: 'ok' }` (static shape, todo 2).
+`GET /api/health` → 200 + `{ status: 'ok', components }` (composite
+shape since todo 15, C3 staging harness; todo 2 was the static stub).
+`components` carries at least `ingestion`, `database`, `templates` and
+`publishing` (todo 15 acceptance jqs each key). Templates + publishing
+reuse their P21 hook-point indicators (`TemplatesHealthIndicator`,
+`TelegramHealthIndicator.check()` → component `publishing`); ingestion
+(SSE-only client, P20 — no indicator class exists yet) and database
+(in-memory repos until the persistence todo) report static `up` with an
+explicit `detail` string. Deep probes (DB/Redis/SSE liveness) land with
+the persistence todo — the harness never claims them. Shape stays
+backward compatible (`status: 'ok'` still matches old specs).
 Per P21 each move-todo registers its indicator here (`ingestion.sse`,
 `database`, `redis`, +1 per module:
 extraction/parsing/normalization/enrichment/scoring/templates/approval/publishing/tracking).
@@ -954,10 +964,20 @@ extraction/parsing/normalization/enrichment/scoring/templates/approval/publishin
 component `publishing`) +
 `TrackingHealthIndicator.check()` (`tracking/health/`, todo 12,
 component `tracking`)
-are the per-module hook points — provided + exported, NOT yet consumed
-(no composite health system exists; wiring lands with the composite-health
-todo, gap 3).
-Staging verification (todo 15): health with ALL components `up`.
+are the per-module hook points — templates + publishing are consumed
+by the todo-15 composite (`new TemplatesHealthIndicator().check()` +
+`new TelegramHealthIndicator().check()` in `HealthController`); the rest
+stay provided + exported, unwired until the persistence todo (deep probes,
+gap narrowed 2026-09-25).
+Staging verification (todo 15): health with ALL components `up` —
+verified live 2026-09-25 on `:3051` (`jq -e '.components |
+has("ingestion"), has("database"), has("templates"), has("publishing")'`
+→ true ×4). Staging clock STARTED 2026-09-25 (14d, NOT complete);
+harness `apps/kol-system/scripts/dual-run-compare.mjs` (5% threshold,
+exit 2 + NO-cutover path over) + `rollback-rehearsal.sh` (timed 0.0min,
+<30min PASS); evidence `.omo/evidence/task-15-mega-refactor-kol-system.log`
+
+- `/tmp/qa-tramo1.log`.
 
 ## TS/ESLINT CONVENTIONS
 
@@ -1078,13 +1098,13 @@ demands.
 2. RESOLVED 2026-09-24 (P20 done) — 1-min polling fallback removed;
    SSE-only with reconnect catch-up by cursor. No `setInterval`/`pollTimer`
    remains in non-spec source.
-3. `GET /api/health` is a static stub — no per-component indicators yet (P21).
-   `ExtractionHealthIndicator` (todo 5) + `ParsingHealthIndicator` (todo 6)
-   - `NormalizationHealthIndicator` (todo 7) + `EnrichmentHealthIndicator`
-     (todo 8) + `SnapshotHealthIndicator` (todo 8) + `ScoringHealthIndicator`
-     (todo 9) + `TemplatesHealthIndicator` (todo 10) + `ApprovalHealthIndicator`
-     (todo 11) + `TelegramHealthIndicator` (todo 11, component `publishing`)
-     exist as unwired hook points; wiring lands with the composite-health todo.
+3. RESOLVED 2026-09-25 (todo 15, C3 staging harness) — `GET
+/api/health` is composite (`components`: ingestion/database/templates/
+   publishing, templates+publishing via their P21 indicators); ingestion
+   has no indicator class yet and database is in-memory, so both report
+   static `up` + `detail` until the persistence todo (deep probes then).
+   Remaining hook points (extraction/parsing/normalization/enrichment/
+   snapshot/scoring/approval/tracking) stay unwired until that todo.
 4. `buildAppConfig().port` reads `PORT ?? 3030` while `main.ts` uses
    `KOL_SYSTEM_PORT ?? 3050` — bare `PORT` will mislead.
 5. RESOLVED 2026-09-25 (todo 13) — P19 consumer built:
