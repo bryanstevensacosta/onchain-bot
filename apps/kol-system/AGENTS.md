@@ -1,6 +1,6 @@
 # apps/kol-system/ — NestJS Knowledge Base
 
-> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4+5 built).
+> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4+5+6 built).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md` §7.6 (2026-09-24).
 
 Contents: OVERVIEW · PROGRAM INDEX · COMMANDS · STRUCTURE · MODULES · INGESTION ·
@@ -160,6 +160,16 @@ src/
 │   ├── infrastructure/adapters/regex-extractor.adapter.ts (+ .spec.ts)     # NO Map-dedupe (P1): one entry per occurrence
 │   ├── infrastructure/repositories/in-memory-extraction-candidate.repository.ts  # upsert by id = double-delivery guard
 │   └── health/extraction-health.indicator.ts  # check() → { component: 'extraction', status } (unwired until composite health)
+├── parsing/                      # BUILT (todo 6, P5 1:1) + WIRED into AppModule
+│   ├── parsing.module.ts         # providers: ParseFromCandidatesUseCase, ParserPort→HeuristicParserAdapter,
+│   │                             #   ParsedCallRepository→InMemory, ParsingHealthIndicator (hook point, P21)
+│   ├── domain/entities/parsed-call.entity.ts  # 1:1 per candidate, db-id mirrors candidate (covered by use-case spec)
+│   ├── domain/ports/parser.port.ts  # message-level fields only (ticker/name/chart) — no primary-contract decision
+│   ├── application/handlers/parse-from-candidates.use-case.ts (+ .spec.ts)  # direct call fix-1, returns { parsed, discarded }
+│   ├── application/ports/parsed-call.repository.ts
+│   ├── infrastructure/adapters/heuristic-parser.adapter.ts (+ .spec.ts)  # explicit $XYZ > labeled; NO collapse (P5)
+│   ├── infrastructure/repositories/in-memory-parsed-call.repository.ts  # upsert by id = double-delivery guard
+│   └── health/parsing-health.indicator.ts  # check() → { component: 'parsing', status } (unwired until composite health)
 ├── shared/                       # kernel/config/guards/filters — REUSE, extend, never copy (P21)
 │   ├── kernel/aggregate-root.ts, entity.ts, value-object.ts, domain-error.ts, domain-event.ts (+ specs)
 │   ├── value-objects/chain-hint.vo.ts, normalized-address.vo.ts (+ spec)  # P21 identity VOs (EVM/Solana) — extraction/parsing/normalization share this home
@@ -183,7 +193,8 @@ tsconfig{,.build}.json, docker-compose.yml (postgres :5435, redis :6382), Docker
 Wired today: `ConfigModule` (global, `.env.dev` > `.env`) + `HealthModule` +
 `IngestionModule` (todo 4, SSE-only KOL client per P20 — wired 2026-09-24) +
 `ExtractionModule` (todo 5, contract × mention per P5 + P26 snapshot bases —
-wired 2026-09-25).
+wired 2026-09-25) + `ParsingModule` (todo 6, 1:1 `ParsedCall` per candidate
+per P5, direct call fix-1, no collapse — wired 2026-09-25).
 
 Planned (per spec, NOT built — do not import until their todos land):
 normalization, enrichment (market-data bridge, P7), scoring,
@@ -225,6 +236,25 @@ of the money-path stays synchronous/deterministic (no lossy pub/sub between
 extraction and enrichment); the snapshot row itself belongs to the planned
 `src/snapshot/` module (P27), which enrichment will write via port.
 `enriched_at` is therefore absent from the base by design.
+
+## PARSING — structured call per mention (`parsing/`, todo 6)
+
+`ParseFromCandidatesUseCase` runs as a DIRECT call (fix-1, no event bus):
+input `{ candidates, rawText? }` → output `{ parsed, discarded }` with
+ONE `ParsedCall` per candidate (P5 1:1 — override of the backend
+`ParsedContract.fromAddresses` collapse-to-`addresses[0]`, which emits one
+`TokenCall` per message). `ParsedCall` carries ticker, address
+(`NormalizedAddress` shared VO, P21), chain (from `chainHint`), and kol ref
+(`kolId` + `handle` for the `caller` column); db-id mirrors the candidate
+(`kolId:messageId:contractIndex`), so the repo upsert is the ONLY guard
+(P1, same double-delivery pattern as extraction). Ticker is per-mention:
+candidate context first, message-level heuristic fallback
+(`HeuristicParserAdapter`: explicit `$XYZ` > labeled > null — patterns
+mirror the backend reference, collapse logic NOT copied). An illegible
+candidate is discarded with a warn log (`discarded` count); the batch keeps
+going — one bad mention never kills the pipeline. Empty input → empty
+output, never a throw. `ParsingHealthIndicator.check()` is the P21 hook
+point (provided + exported, unwired until composite health — gap 3).
 
 ## ENV INVENTORY (`.env.example`, 26 lines — verified)
 

@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { HealthModule } from './health/health.module';
 import { IngestionModule } from './ingestion/ingestion.module';
 import { ExtractionModule } from './extraction/extraction.module';
+import { ParsingModule } from './parsing/parsing.module';
 
 /**
  * AppModule - Root module for kol-system skeleton (Tramo 1, todos 2+4+5).
@@ -24,6 +25,7 @@ import { ExtractionModule } from './extraction/extraction.module';
     HealthModule,
     IngestionModule,
     ExtractionModule,
+    ParsingModule,
   ],
 })
 export class AppModule {}
