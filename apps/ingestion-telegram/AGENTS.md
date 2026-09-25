@@ -129,6 +129,11 @@ Raíz: package.json (@onchain-bot/ingestion-telegram), Dockerfile (multi-stage n
 | `POST /api/feed/sources/batch` | SourcesController | Alta en lote |
 | `GET /api/feed/sources[?type=]` | SourcesController | Cada fila lleva `avatarUrl: /api/kol-avatar/:channelId` (P19 — kol-system lo consume para rankings + caller display; siempre servable: foto o placeholder 200) |
 | `GET /api/feed/sources/active/ids` | SourcesController | Ids activos (lo consume el backend para identidad kol) |
+
+**P41 dual-serve (T2 todo 13 Fase 1, live):** `FeedController` + `SourcesController` responden
+`@Controller(['api/feed', 'api/crypto-news'])` — old `/api/crypto-news/sources|messages|stats` junto a
+new `/api/feed/*` (mismos handlers). Alcance `feed-sources` SOLO aquí (el backend NO lo adopta:
+su CRUD `/crypto-news/sources/:channelId/filters` queda intacto). Old cae en cutover todo 11.
 | `GET /api/health` | HealthController.getHealth | ⚠️ **Stubs**: `HealthModule` provee `'TelegramClientManager' → null` y `'FloodWaitCounter' → null` → responde `mtproto{connected:true, authorized:true}` por fallback, `channels` todo `0`, sin `floodWait`. El manager real ni implementa esa interfaz (ver Gaps). `warnings[]` siempre vacío (el tracker que lo alimentaba fue eliminado per-env T4); 200 ok / 503 degraded |
 | `GET /api/health/ready` / `GET /api/health/live` | HealthController | readiness (acepta SSE) / liveness (proceso vivo) — únicos endpoints con datos reales |
 | `GET /api/health/channels` | HealthController.getChannels | ⚠️ Siempre `[]` (ClientManager stub null) |

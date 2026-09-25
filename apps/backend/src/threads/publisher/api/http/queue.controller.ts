@@ -77,7 +77,7 @@ export interface ThreadsQueueCountsView {
  *  - No `threads_oauth_tokens.access_token` is ever exposed here
  *    (the queue entry carries no token field at all).
  */
-@Controller('threads-publisher/queue')
+@Controller(['threads-publisher/queue', 'feed-threads-publisher/queue'])
 export class ThreadsQueueController {
   /** UTC reset hour for the 24h window (4am UTC). */
   private static readonly RESET_HOUR_UTC = 4;

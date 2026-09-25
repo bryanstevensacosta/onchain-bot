@@ -113,7 +113,7 @@ interface CreateKeywordBatchDto {
  * default) cannot be deleted.
  */
 @ApiTags('crypto-news-publisher')
-@Controller('crypto-news-publisher/keywords')
+@Controller(['crypto-news-publisher/keywords', 'feed-publisher/keywords'])
 export class KeywordsController {
   public constructor(
     private readonly keywordRepo: KeywordRepository,

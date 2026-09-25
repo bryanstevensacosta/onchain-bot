@@ -72,7 +72,7 @@ interface CreateThreadsBlacklistBatchDto {
  *  - PATCH  /:id       Update a blacklist phrase (partial)
  *  - DELETE /:id       Remove a blacklist phrase
  */
-@Controller('threads-publisher/blacklist')
+@Controller(['threads-publisher/blacklist', 'feed-threads-publisher/blacklist'])
 export class ThreadsBlacklistController {
   public constructor(
     private readonly blacklistRepo: ThreadsBlacklistPhraseRepository,

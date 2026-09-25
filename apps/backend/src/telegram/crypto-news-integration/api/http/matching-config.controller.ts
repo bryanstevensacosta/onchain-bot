@@ -51,7 +51,7 @@ export interface MatchingHealthView {
  * CRYPTO_NEWS_POLLING_INTERVAL_MINUTES) is unrelated and unchanged.
  */
 @ApiTags('crypto-news-matching')
-@Controller('crypto-news/matching')
+@Controller(['crypto-news/matching', 'feed-matching'])
 export class MatchingConfigController {
   public constructor(
     private readonly matchingConfigRepo: MatchingConfigRepository,

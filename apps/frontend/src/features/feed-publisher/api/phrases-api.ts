@@ -53,7 +53,7 @@ export const phrasesKeys = {
 };
 
 export async function fetchPhrases(): Promise<ReadonlyArray<PhraseEntry>> {
-  return httpGet<ReadonlyArray<PhraseEntry>>('/crypto-news-publisher/phrases');
+  return httpGet<ReadonlyArray<PhraseEntry>>('/feed-publisher/phrases');
 }
 
 export async function searchPhrases(
@@ -66,7 +66,7 @@ export async function searchPhrases(
     params.set('table', table);
   }
   return httpGet<ReadonlyArray<PhraseEntry>>(
-    `/crypto-news-publisher/phrases/search?${params.toString()}`,
+    `/feed-publisher/phrases/search?${params.toString()}`,
   );
 }
 
@@ -84,6 +84,6 @@ export async function checkConflict(
     params.set('matchMode', matchMode);
   }
   return httpGet<ConflictCheckResult>(
-    `/crypto-news-publisher/phrases/conflict-check?${params.toString()}`,
+    `/feed-publisher/phrases/conflict-check?${params.toString()}`,
   );
 }

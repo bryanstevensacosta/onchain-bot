@@ -201,7 +201,7 @@ export function DetailsModal({
                     className="h-auto w-full max-h-48 rounded object-contain bg-slate-900"
                   >
                     <source
-                      src={`/crypto-news-publisher/queue/${entry.id}/media?index=${idx}`}
+                      src={`/feed-publisher/queue/${entry.id}/media?index=${idx}`}
                       type="video/mp4"
                     />
                     Your browser does not support the video tag.
@@ -209,7 +209,7 @@ export function DetailsModal({
                 ) : (
                   <img
                     key={idx}
-                    src={`/crypto-news-publisher/queue/${entry.id}/media?index=${idx}`}
+                    src={`/feed-publisher/queue/${entry.id}/media?index=${idx}`}
                     alt={`Media ${idx + 1}`}
                     className="h-auto w-full max-h-48 rounded object-contain bg-slate-900"
                     loading="lazy"
@@ -362,7 +362,7 @@ export function QueueRow({
                   className="h-auto w-full max-h-48 rounded object-contain bg-slate-900"
                 >
                   <source
-                    src={`/crypto-news-publisher/queue/${entry.id}/media?index=${idx}`}
+                    src={`/feed-publisher/queue/${entry.id}/media?index=${idx}`}
                     type="video/mp4"
                   />
                   Your browser does not support the video tag.
@@ -370,7 +370,7 @@ export function QueueRow({
               ) : (
                 <img
                   key={idx}
-                  src={`/crypto-news-publisher/queue/${entry.id}/media?index=${idx}`}
+                  src={`/feed-publisher/queue/${entry.id}/media?index=${idx}`}
                   alt={`Media ${idx + 1}`}
                   className="h-auto w-full max-h-48 rounded object-contain bg-slate-900"
                   loading="lazy"

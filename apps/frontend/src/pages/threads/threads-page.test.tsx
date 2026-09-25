@@ -27,7 +27,7 @@ function jsonResponse(body: unknown) {
 const fetchSpy = vi.fn();
 
 function mockFetchRouter(url: string) {
-  if (url.includes('/threads-publisher/keywords')) {
+  if (url.includes('/feed-threads-publisher/keywords')) {
     return jsonResponse([
       {
         id: 'tkw-1',
@@ -38,10 +38,10 @@ function mockFetchRouter(url: string) {
       },
     ]);
   }
-  if (url.includes('/threads-publisher/blacklist')) {
+  if (url.includes('/feed-threads-publisher/blacklist')) {
     return jsonResponse([]);
   }
-  if (url.includes('/threads-publisher/queue/counts')) {
+  if (url.includes('/feed-threads-publisher/queue/counts')) {
     return jsonResponse({ pending: 5, publishedToday: 12, remaining: 24 });
   }
   if (url.includes('status=BLOCKED')) {
@@ -63,7 +63,7 @@ function mockFetchRouter(url: string) {
       },
     ]);
   }
-  if (url.includes('/threads-publisher/queue')) {
+  if (url.includes('/feed-threads-publisher/queue')) {
     return jsonResponse([
       {
         id: 'tq-1',
@@ -99,7 +99,7 @@ function mockFetchRouter(url: string) {
       queuePending: 5,
     });
   }
-  if (url.includes('/threads-publisher/llm/config')) {
+  if (url.includes('/feed-threads-publisher/llm/config')) {
     return jsonResponse({
       id: 1,
       defaultTemplateId: 'threads-default',
@@ -114,7 +114,7 @@ function mockFetchRouter(url: string) {
       updatedAt: '2025-01-01T00:00:00.000Z',
     });
   }
-  if (url.includes('/threads-publisher/llm/templates')) {
+  if (url.includes('/feed-threads-publisher/llm/templates')) {
     return jsonResponse([
       {
         id: 'threads-default',
@@ -177,12 +177,12 @@ describe('ThreadsPage — 6 sections, no Scheduling', () => {
 
     const calledUrls = fetchSpy.mock.calls.map((c) => String(c[0]));
     for (const expected of [
-      '/threads-publisher/keywords',
-      '/threads-publisher/queue/counts',
+      '/feed-threads-publisher/keywords',
+      '/feed-threads-publisher/queue/counts',
       '/threads/matching/config',
       '/threads/matching/health',
-      '/threads-publisher/llm/config',
-      '/threads-publisher/llm/templates',
+      '/feed-threads-publisher/llm/config',
+      '/feed-threads-publisher/llm/templates',
     ]) {
       expect(
         calledUrls.some((u) => u.includes(expected)),

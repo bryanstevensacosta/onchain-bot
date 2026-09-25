@@ -150,6 +150,14 @@ Docker build sets all to `""` → same-origin in prod (nginx routes by prefix).
 - ⚠️ **Kol-system location MISSING:** `nginx.conf`/`nginx.staging.conf` have NO `/kol-api/` block (verified by grep — solo existe en `vite.config.ts`). `/templates` works in dev only until prod deploy mirrors it (`/kol-api/` → rewrite → `/api/` on the kol-system upstream, dual-applied to both confs like `/ingestion-api/`).
 - ⚠️ **Feed-publisher location MISSING (deploy follow-up, Tramo 2 todos 10/11):** `nginx.conf`/`nginx.staging.conf` have NO `/feed-api/` block by design (todo 9 = dev config only). `/crypto-news` control-plane (matching toggles, llm config, scheduling, queue stats, threads stub) works in dev only until deploy mirrors it (`/feed-api/` → strip prefix on the feed-publisher upstream `:3041` staging / `:3042` prod, dual-applied to both confs like `/ingestion-api/`).
 - **REMOVED:** `/crypto-news/{messages,sources,media}` — now `/ingestion-api/feed/*`
+
+**P41 dual-serve (T2 todo 13 Fase 2, live):** fetchers on new prefixes (`/feed-publisher/*`,
+`/feed-threads-publisher/*`, `/feed-filters/:id*`); per-channel `/crypto-news/sources/:channelId/filters`
+stays (P41 exclusion, no backend `feed-sources`). Proxies carry old+new side by side with coherence
+(vite prefix set == nginx location set × env, `nginx.conf` ≡ `nginx.staging.conf`): `/feed-publisher/`,
+`/feed-scheduling/`, `/feed-threads-publisher/`, `/feed-matching/`, `/feed-filters/` added next to old.
+`ops/backups` untouched. Old retires at cutover todo 11.
+
 - SPA fallback + gzip + security headers (`nosniff`, `DENY`, strict referrer) + 502 `@maintenance` JSON + `client_max_body_size 12m`
 
 **Architecture note:** Feed data flows per env: Telegram → OWN ingestion-telegram DB → HTTP API → frontend (direct query, no backend middleman). Staging image bakes the staging upstream via `VITE_APP_ENV=staging` (`Dockerfile:27-35` re-declared ARG + `RUN if` copy; prod default path unchanged). Staging precondition: staging container MUST join `onchain-bot-staging-net` or the staging DNS name doesn't resolve. Drift guard: whoever edits the `/ingestion-api/` block dual-applies to both confs (see `nginx.staging.conf:244-255` owner note).

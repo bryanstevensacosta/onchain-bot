@@ -58,7 +58,7 @@ export async function fetchThreadsKeywords(): Promise<
   ReadonlyArray<ThreadsKeywordView>
 > {
   return httpGet<ReadonlyArray<ThreadsKeywordView>>(
-    '/threads-publisher/keywords',
+    '/feed-threads-publisher/keywords',
   );
 }
 
@@ -66,7 +66,7 @@ export async function createThreadsKeyword(
   body: CreateThreadsKeywordBody,
 ): Promise<ThreadsKeywordView> {
   return httpPost<CreateThreadsKeywordBody, ThreadsKeywordView>(
-    '/threads-publisher/keywords',
+    '/feed-threads-publisher/keywords',
     body,
   );
 }
@@ -77,7 +77,7 @@ export async function createThreadsKeywordBatch(
   return httpPost<
     CreateThreadsKeywordBatchBody,
     ReadonlyArray<ThreadsKeywordView>
-  >('/threads-publisher/keywords/batch', body);
+  >('/feed-threads-publisher/keywords/batch', body);
 }
 
 export async function updateThreadsKeyword(
@@ -85,13 +85,13 @@ export async function updateThreadsKeyword(
   body: UpdateThreadsKeywordBody,
 ): Promise<ThreadsKeywordView> {
   return httpPatch<UpdateThreadsKeywordBody, ThreadsKeywordView>(
-    `/threads-publisher/keywords/${encodeURIComponent(id)}`,
+    `/feed-threads-publisher/keywords/${encodeURIComponent(id)}`,
     body,
   );
 }
 
 export async function deleteThreadsKeyword(id: string): Promise<void> {
   await httpDelete<void>(
-    `/threads-publisher/keywords/${encodeURIComponent(id)}`,
+    `/feed-threads-publisher/keywords/${encodeURIComponent(id)}`,
   );
 }

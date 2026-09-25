@@ -63,7 +63,7 @@ function parseTypeFilter(
  * - DELETE /api/feed/sources/:channelId — delete source
  */
 @ApiTags('feed')
-@Controller('api/feed')
+@Controller(['api/feed', 'api/crypto-news'])
 export class SourcesController {
   constructor(
     private readonly sourceRepo: TelegramFeedSourceRepository,

@@ -4,6 +4,10 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- P41 API prefix migration (T2 todo 13 Fase 2): feed fetchers moved to new prefixes (`/feed-publisher/*`, `/feed-threads-publisher/*`, `/feed-filters/*`); per-channel `/crypto-news/sources/:channelId/filters` CRUD stays (P41 exclusion). Dev `vite.config.ts` + prod `nginx.conf` + staging `nginx.staging.conf` proxy old+new side by side with coherence (vite prefix set == nginx location set x env); `ops/backups` untouched. Old paths still served until cutover todo 11. (feat/mega-refactor-tramos)
+
 ### Added
 
 - `/templates` route: per-template dashboard (source picker, calls, 5+5 ranking, 30D/7D/1D top callers, extended config, avatars) + Playwright e2e. (feat/mega-refactor-tramos)

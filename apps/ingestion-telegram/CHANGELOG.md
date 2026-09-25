@@ -6,6 +6,10 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Added
 
+- P41 API prefix migration dual-serve (T2 todo 13 Fase 1): `FeedController` + `SourcesController` serve old `api/crypto-news/*` alongside `api/feed/*` (same handlers). `feed-sources` scope lives ONLY here; backend keeps its `/crypto-news/sources/:channelId/filters` CRUD (no `feed-sources` in backend). Old paths drop at cutover todo 11. (feat/mega-refactor-tramos)
+
+### Added
+
 - Permanent avatar module: `GET /api/kol-avatar/:channelId` (public, 200 placeholder) + `POST .../refresh` (guarded, single re-fetch); fetch-once at registration, excluded from the 72h janitor, under the `kol-avatar` flood guard; `avatarUrl` in `GET /api/feed/sources`; migration `1790300000000-KolAvatarColumns`. (feat/mega-refactor-tramos)
 
 ### Changed

@@ -32,7 +32,7 @@ import {
  *  - GET /:id/media  Serve the downloaded image attached to a queue entry
  */
 @ApiTags('crypto-news-publisher')
-@Controller('crypto-news-publisher/queue')
+@Controller(['crypto-news-publisher/queue', 'feed-publisher/queue'])
 export class QueueMediaController {
   private readonly logger = new Logger(QueueMediaController.name);
   private readonly ingestionBaseUrl: string;

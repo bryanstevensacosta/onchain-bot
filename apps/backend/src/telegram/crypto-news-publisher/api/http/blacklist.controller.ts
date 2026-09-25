@@ -70,7 +70,7 @@ interface CreateBlacklistBatchDto {
  *  - DELETE /:id       Remove a blacklist phrase
  */
 @ApiTags('crypto-news-publisher')
-@Controller('crypto-news-publisher/blacklist')
+@Controller(['crypto-news-publisher/blacklist', 'feed-publisher/blacklist'])
 export class BlacklistController {
   public constructor(
     private readonly blacklistRepo: BlacklistPhraseRepository,

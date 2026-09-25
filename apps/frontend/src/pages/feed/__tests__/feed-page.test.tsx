@@ -754,7 +754,7 @@ describe('FeedPage — publisher (keywords + queue)', () => {
     expect(video).not.toBeNull();
     expect(video!.querySelector('source')).toHaveAttribute(
       'src',
-      '/crypto-news-publisher/queue/q-video/media?index=0',
+      '/feed-publisher/queue/q-video/media?index=0',
     );
     // No <img> should render for the video path
     // No <img> should render for the video path

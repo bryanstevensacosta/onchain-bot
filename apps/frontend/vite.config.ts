@@ -52,6 +52,10 @@ export default defineConfig(({ mode }) => {
           target: BACKEND_PROXY_TARGET,
           changeOrigin: false,
         },
+        '/feed-publisher': {
+          target: BACKEND_PROXY_TARGET,
+          changeOrigin: false,
+        },
         // Ops backups status (GET /ops/backups/status on the backend).
         // IMPORTANT: Use specific path to avoid intercepting frontend /ops route
         '/ops/backups': {
@@ -62,9 +66,17 @@ export default defineConfig(({ mode }) => {
           target: BACKEND_PROXY_TARGET,
           changeOrigin: false,
         },
+        '/feed-scheduling': {
+          target: BACKEND_PROXY_TARGET,
+          changeOrigin: false,
+        },
         // Threads publisher (mirror of feed-publisher precedent above).
         // IMPORTANT: Use specific paths to avoid intercepting frontend /threads route
         '/threads-publisher': {
+          target: BACKEND_PROXY_TARGET,
+          changeOrigin: false,
+        },
+        '/feed-threads-publisher': {
           target: BACKEND_PROXY_TARGET,
           changeOrigin: false,
         },
@@ -82,6 +94,10 @@ export default defineConfig(({ mode }) => {
           target: BACKEND_PROXY_TARGET,
           changeOrigin: false,
         },
+        '/feed-matching': {
+          target: BACKEND_PROXY_TARGET,
+          changeOrigin: false,
+        },
         // POST /crypto-news/sources now handled by ingestion-telegram (migrated 2026-09-05, renamed 2026-09-17)
         // Old endpoint /feed/sources deprecated (backend returns 501)
         // Content-filter CRUD stays on the backend (Opción A, filter on-read):
@@ -93,6 +109,10 @@ export default defineConfig(({ mode }) => {
           changeOrigin: false,
         },
         '/crypto-news/filters': {
+          target: BACKEND_PROXY_TARGET,
+          changeOrigin: false,
+        },
+        '/feed-filters': {
           target: BACKEND_PROXY_TARGET,
           changeOrigin: false,
         },

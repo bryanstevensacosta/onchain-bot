@@ -1,5 +1,7 @@
 # apps/backend/ — NestJS Knowledge Base
 
+> ⚠️ DEPRECATED — this backend monolith is being dismantled via the mega-refactor (see `.omo/plans/mega-refactor-central.md`). BCs are extracted per tramo: kol-system (Tramo 1, done) → feed-publisher (Tramo 2, in progress) → market-data + dexter (Tramo 3) → telegram-bots-gateway (future). No new features here — bugfixes only. Legacy code carries `@deprecated` headers pointing at new locations; removal happens only at the FINAL REVIEW (C4-bis).
+
 > Verified 2026-09-04 against code. v1.3.0 (source of truth: apps/backend/package.json + CHANGELOG; verified 2026-09-24). Supersedes the "19 BCs / 48 entities / vip-calls-channel" claims.
 
 Contents: OVERVIEW · COMMANDS · STRUCTURE · MODULES · INGESTION · KOL DOMAIN · CRYPTO-NEWS · PUBLISHING ·
@@ -597,6 +599,15 @@ Stubs (return `{note:'Stub …'}`): all four `telegram-kol/stats/*` endpoints �
 ⚠️ README §4 tables are stale on prefixes (`/kols`, `/market-data`, `/intake/...` without
 `token/` scope, missing settings/ads/publisher/image/achievements groups entirely).
 Trust this section over README §4.
+
+**P41 dual-serve (T2 todo 13 Fase 1, live):** feed controllers serve old+new via
+`@Controller([...])` array alias (same handlers, zero duplication): `crypto-news-publisher/*` +
+`feed-publisher/*` (queue ×2, keywords, phrases, blacklist, llm), `crypto-news-ads/*` +
+`crypto-news-scheduling/*` + `feed-scheduling/*` (ads, rotation-config, media), `threads-publisher/*` +
+`feed-threads-publisher/*` (×5), `crypto-news/matching` + `feed-matching`, new `FeedFiltersController`
+(`feed-filters/:id*`, same filter use-cases; per-channel `crypto-news/sources/:channelId/filters` stays
+old-only per P41 exclusion). `ops/backups` kept. Old drops at cutover todo 11. Pinned by
+`src/telegram/api-prefix-migration-dual-serve.spec.ts` (18 tests).
 
 ## SHARED INFRA (`src/shared/` + feature modules)
 

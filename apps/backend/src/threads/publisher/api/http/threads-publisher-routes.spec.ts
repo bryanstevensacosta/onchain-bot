@@ -125,7 +125,22 @@ describe('ThreadsPublisher HTTP routes (T4)', () => {
     ] as Array<[ControllerClass, string]>)(
       'registers %p with exact prefix %s',
       (controller, prefix) => {
-        expect(controllerPathOf(controller)).toBe(prefix);
+        const paths = controllerPathOf(controller);
+        expect(Array.isArray(paths) ? paths : [paths]).toContain(prefix);
+      },
+    );
+
+    it.each([
+      [ThreadsKeywordsController, 'feed-threads-publisher/keywords'],
+      [ThreadsBlacklistController, 'feed-threads-publisher/blacklist'],
+      [ThreadsPhrasesController, 'feed-threads-publisher/phrases'],
+      [ThreadsQueueController, 'feed-threads-publisher/queue'],
+      [ThreadsLlmConfigController, 'feed-threads-publisher/llm'],
+    ] as Array<[ControllerClass, string]>)(
+      'dual-serves %p on new prefix %s',
+      (controller, prefix) => {
+        const paths = controllerPathOf(controller);
+        expect(Array.isArray(paths) ? paths : [paths]).toContain(prefix);
       },
     );
 

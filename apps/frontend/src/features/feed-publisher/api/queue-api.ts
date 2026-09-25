@@ -79,12 +79,12 @@ export async function fetchQueue(
     qs.set('status', status);
   }
   return httpGet<ReadonlyArray<QueueEntryView>>(
-    `/crypto-news-publisher/queue?${qs.toString()}`,
+    `/feed-publisher/queue?${qs.toString()}`,
   );
 }
 
 export async function fetchQueueCounts(): Promise<QueueCountsView> {
-  return httpGet<QueueCountsView>('/crypto-news-publisher/queue/counts');
+  return httpGet<QueueCountsView>('/feed-publisher/queue/counts');
 }
 
 export async function fetchFeedQueueStats(): Promise<FeedQueueStatsView> {
@@ -92,7 +92,5 @@ export async function fetchFeedQueueStats(): Promise<FeedQueueStatsView> {
 }
 
 export async function cancelQueueEntry(id: string): Promise<void> {
-  await httpDelete<void>(
-    `/crypto-news-publisher/queue/${encodeURIComponent(id)}`,
-  );
+  await httpDelete<void>(`/feed-publisher/queue/${encodeURIComponent(id)}`);
 }

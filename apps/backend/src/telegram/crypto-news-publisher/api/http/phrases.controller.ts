@@ -46,7 +46,7 @@ export interface PhraseEntry {
  *  - GET /conflict-check  Check if a phrase would conflict with existing entries
  */
 @ApiTags('crypto-news-publisher')
-@Controller('crypto-news-publisher/phrases')
+@Controller(['crypto-news-publisher/phrases', 'feed-publisher/phrases'])
 export class PhrasesController {
   public constructor(
     private readonly keywordRepo: KeywordRepository,

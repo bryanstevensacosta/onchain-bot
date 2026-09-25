@@ -47,7 +47,7 @@ export interface ThreadsPhraseEntry {
  *  - GET /search        Search phrases by text across both tables
  *  - GET /conflict-check  Check if a phrase would conflict with existing entries
  */
-@Controller('threads-publisher/phrases')
+@Controller(['threads-publisher/phrases', 'feed-threads-publisher/phrases'])
 export class ThreadsPhrasesController {
   public constructor(
     private readonly keywordRepo: ThreadsKeywordRepository,

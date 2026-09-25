@@ -146,23 +146,20 @@ export async function createFilter(
 
 /**
  * Update an existing content filter.
- * Backend serves PUT /crypto-news/filters/:id (no PATCH route).
+ * Backend serves PUT /feed-filters/:id (no PATCH route).
  */
 export async function updateFilter(
   id: string,
   dto: UpdateFilterDto,
 ): Promise<ContentFilter> {
-  return httpPut<UpdateFilterDto, ContentFilter>(
-    `/crypto-news/filters/${id}`,
-    dto,
-  );
+  return httpPut<UpdateFilterDto, ContentFilter>(`/feed-filters/${id}`, dto);
 }
 
 /**
  * Delete a content filter by ID.
  */
 export async function deleteFilter(id: string): Promise<void> {
-  await httpDelete(`/crypto-news/filters/${id}`);
+  await httpDelete(`/feed-filters/${id}`);
 }
 
 /**
@@ -172,7 +169,7 @@ export async function toggleFilter(
   id: string,
 ): Promise<{ id: string; isActive: boolean }> {
   return httpPatch<Record<string, never>, { id: string; isActive: boolean }>(
-    `/crypto-news/filters/${id}/toggle`,
+    `/feed-filters/${id}/toggle`,
     {},
   );
 }

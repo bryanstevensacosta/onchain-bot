@@ -16,7 +16,11 @@ import {
  *            factory enforces defaults)
  *  - PATCH / Partial update (PATCH semantics via optional fields)
  */
-@Controller('crypto-news-ads/rotation-config')
+@Controller([
+  'crypto-news-ads/rotation-config',
+  'crypto-news-scheduling/rotation-config',
+  'feed-scheduling/rotation-config',
+])
 export class AdsRotationConfigController {
   public constructor(
     private readonly rotationConfigRepo: AdRotationConfigRepository,

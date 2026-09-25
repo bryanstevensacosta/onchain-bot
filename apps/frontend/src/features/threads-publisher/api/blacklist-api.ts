@@ -62,7 +62,7 @@ export async function fetchThreadsBlacklist(): Promise<
   ReadonlyArray<ThreadsBlacklistPhraseView>
 > {
   return httpGet<ReadonlyArray<ThreadsBlacklistPhraseView>>(
-    '/threads-publisher/blacklist',
+    '/feed-threads-publisher/blacklist',
   );
 }
 
@@ -70,7 +70,7 @@ export async function createThreadsBlacklist(
   body: CreateThreadsBlacklistBody,
 ): Promise<ThreadsBlacklistPhraseView> {
   return httpPost<CreateThreadsBlacklistBody, ThreadsBlacklistPhraseView>(
-    '/threads-publisher/blacklist',
+    '/feed-threads-publisher/blacklist',
     body,
   );
 }
@@ -81,7 +81,7 @@ export async function createThreadsBlacklistBatch(
   return httpPost<
     CreateThreadsBlacklistBatchBody,
     ReadonlyArray<ThreadsBlacklistPhraseView>
-  >('/threads-publisher/blacklist/batch', body);
+  >('/feed-threads-publisher/blacklist/batch', body);
 }
 
 export async function updateThreadsBlacklist(
@@ -89,13 +89,13 @@ export async function updateThreadsBlacklist(
   body: UpdateThreadsBlacklistBody,
 ): Promise<ThreadsBlacklistPhraseView> {
   return httpPatch<UpdateThreadsBlacklistBody, ThreadsBlacklistPhraseView>(
-    `/threads-publisher/blacklist/${encodeURIComponent(id)}`,
+    `/feed-threads-publisher/blacklist/${encodeURIComponent(id)}`,
     body,
   );
 }
 
 export async function deleteThreadsBlacklist(id: string): Promise<void> {
   await httpDelete<void>(
-    `/threads-publisher/blacklist/${encodeURIComponent(id)}`,
+    `/feed-threads-publisher/blacklist/${encodeURIComponent(id)}`,
   );
 }

@@ -118,7 +118,7 @@ interface CreateThreadsKeywordBatchDto {
  * that `ThreadsPromptTemplate` rows referenced by any keyword (or the
  * global default) cannot be deleted.
  */
-@Controller('threads-publisher/keywords')
+@Controller(['threads-publisher/keywords', 'feed-threads-publisher/keywords'])
 export class ThreadsKeywordsController {
   public constructor(
     private readonly keywordRepo: ThreadsKeywordRepository,

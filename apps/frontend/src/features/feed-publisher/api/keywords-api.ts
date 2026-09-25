@@ -49,7 +49,7 @@ export async function createKeywordBatch(
   body: CreateKeywordBatchBody,
 ): Promise<ReadonlyArray<KeywordView>> {
   return httpPost<CreateKeywordBatchBody, ReadonlyArray<KeywordView>>(
-    '/crypto-news-publisher/keywords/batch',
+    '/feed-publisher/keywords/batch',
     body,
   );
 }
@@ -77,14 +77,14 @@ export const keywordsKeys = {
 };
 
 export async function fetchKeywords(): Promise<ReadonlyArray<KeywordView>> {
-  return httpGet<ReadonlyArray<KeywordView>>('/crypto-news-publisher/keywords');
+  return httpGet<ReadonlyArray<KeywordView>>('/feed-publisher/keywords');
 }
 
 export async function createKeyword(
   body: CreateKeywordBody,
 ): Promise<KeywordView> {
   return httpPost<CreateKeywordBody, KeywordView>(
-    '/crypto-news-publisher/keywords',
+    '/feed-publisher/keywords',
     body,
   );
 }
@@ -94,13 +94,11 @@ export async function updateKeyword(
   body: UpdateKeywordBody,
 ): Promise<KeywordView> {
   return httpPatch<UpdateKeywordBody, KeywordView>(
-    `/crypto-news-publisher/keywords/${encodeURIComponent(id)}`,
+    `/feed-publisher/keywords/${encodeURIComponent(id)}`,
     body,
   );
 }
 
 export async function deleteKeyword(id: string): Promise<void> {
-  await httpDelete<void>(
-    `/crypto-news-publisher/keywords/${encodeURIComponent(id)}`,
-  );
+  await httpDelete<void>(`/feed-publisher/keywords/${encodeURIComponent(id)}`);
 }

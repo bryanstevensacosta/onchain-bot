@@ -4,6 +4,10 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ## [Unreleased]
 
+### Added
+
+- P41 API prefix migration dual-serve (T2 todo 13 Fase 1): every feed controller serves old+new (`crypto-news-publisher/*` + `feed-publisher/*`, `crypto-news-ads/*` + `crypto-news-scheduling/*` + `feed-scheduling/*`, `threads-publisher/*` + `feed-threads-publisher/*`, `crypto-news/matching` + `feed-matching`, new `FeedFiltersController` on `feed-filters/*` delegating to the same filter use-cases). Old paths intact; cutover todo 11 drops them. `ops/backups` kept; backend does NOT adopt `feed-sources`. (feat/mega-refactor-tramos)
+
 ### Fixed
 
 - Crypto-news queue accepts crypto-news only: `?type=crypto-news` pin in matching/cron/handler + client-side drop + anti-kol SSE guard. (feat/mega-refactor-tramos)

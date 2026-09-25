@@ -85,7 +85,7 @@ function parseMessageTypeFilter(
  * arrays on the channel read).
  */
 @ApiTags('feed')
-@Controller('api/feed')
+@Controller(['api/feed', 'api/crypto-news'])
 export class FeedController {
   constructor(
     private readonly messageRepo: TelegramFeedMessageRepository,

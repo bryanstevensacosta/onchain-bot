@@ -51,7 +51,11 @@ import {
  * Bodies validated by the global `ValidationPipe` (400 on shape
  * violations). `Ad` is immutable — PATCH rebuilds via `applyAdPatch`.
  */
-@Controller('crypto-news-ads/ads')
+@Controller([
+  'crypto-news-ads/ads',
+  'crypto-news-scheduling/ads',
+  'feed-scheduling/ads',
+])
 export class AdsController {
   public constructor(
     private readonly adRepo: AdRepository,

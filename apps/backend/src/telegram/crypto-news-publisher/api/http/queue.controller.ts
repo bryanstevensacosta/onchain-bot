@@ -42,7 +42,7 @@ export type { QueueCountsView, QueueEntryView, QueueSourceView };
  * Media lives in `QueueMediaController` (GET /:id/media, same prefix).
  */
 @ApiTags('crypto-news-publisher')
-@Controller('crypto-news-publisher/queue')
+@Controller(['crypto-news-publisher/queue', 'feed-publisher/queue'])
 export class QueueController {
   /** UTC reset hour for the 24h window (4am UTC). */
   private static readonly RESET_HOUR_UTC = 4;

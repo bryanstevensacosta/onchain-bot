@@ -7,6 +7,7 @@ import { ChannelFilterRepository } from 'telegram/ingestion/crypto-news/applicat
 import { TypeOrmChannelFilterRepository } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/repositories/typeorm-channel-filter.repository';
 import { ContentFilterService } from 'telegram/ingestion/crypto-news/application/services/content-filter.service';
 import { CryptoNewsController } from 'telegram/ingestion/crypto-news/api/http/crypto-news.controller';
+import { FeedFiltersController } from 'telegram/ingestion/crypto-news/api/http/feed-filters.controller';
 import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 import {
   CreateFilterUseCase,
@@ -45,7 +46,7 @@ import {
     // Now: SharedIngestionModule → CryptoNewsIngestionModule (one-way, no forwardRef needed)
     SharedIngestionModule,
   ],
-  controllers: [CryptoNewsController],
+  controllers: [CryptoNewsController, FeedFiltersController],
   providers: [
     TypeOrmChannelFilterRepository,
     {

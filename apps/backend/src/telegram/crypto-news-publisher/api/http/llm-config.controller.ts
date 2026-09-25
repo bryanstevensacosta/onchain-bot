@@ -75,7 +75,7 @@ export type {
  * and `Keyword.templateId` — easier to express at the controller
  * boundary than inside the persistence layer.
  */
-@Controller('crypto-news-publisher/llm')
+@Controller(['crypto-news-publisher/llm', 'feed-publisher/llm'])
 export class LlmConfigController {
   private readonly logger = new Logger(LlmConfigController.name);
 

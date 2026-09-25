@@ -20,7 +20,7 @@ import type { AdMediaLibraryEntryView } from './ads-media.view';
  * missing row or file — never 500 for a stale path). Only the STORED
  * relative path from the media row is joined with the uploads root.
  */
-@Controller('crypto-news-ads')
+@Controller(['crypto-news-ads', 'crypto-news-scheduling', 'feed-scheduling'])
 export class AdsMediaController {
   private readonly uploadsRoot: string;
 

@@ -77,7 +77,7 @@ export type {
  * — easier to express at the controller boundary than inside the
  * persistence layer.
  */
-@Controller('threads-publisher/llm')
+@Controller(['threads-publisher/llm', 'feed-threads-publisher/llm'])
 export class ThreadsLlmConfigController {
   public constructor(
     private readonly templateRepo: ThreadsPromptTemplateRepository,
