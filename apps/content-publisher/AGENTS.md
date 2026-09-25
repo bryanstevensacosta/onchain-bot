@@ -1,6 +1,6 @@
 # apps/content-publisher/ — NestJS Knowledge Base
 
-> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 2 scaffold, todo 1).
+> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 2 scaffold, todos 1-3).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md` §7.6 (2026-09-24).
 > Cross-tramo contracts pinned in `.omo/plans/mega-refactor-central.md` v2026-09-24;
 > content-publisher plan in `.omo/plans/mega-refactor-content-publisher.md` (12 todos).
@@ -41,7 +41,7 @@ Design pivots that govern every future todo:
 | 0    | DONE (evidence `.omo/evidence/task-T2-01-content-publisher.log`) | Precondition Gate T1: 9/9 backend `@deprecated` headers + T1 suites signal + `telegram/shared` clean of KOL-bot |
 | 1    | DONE (this scaffold)                                             | App setup + shared transversal, green                                                                           |
 | 2    | DONE (evidence `.omo/evidence/task-T2-02.log`)                   | Ingestion crypto-news HTTP+SSE (SSE-only, catch-up by cursor, x-api-key day one)                                |
-| 3    | TODO                                                             | Matching + keywords + filters                                                                                   |
+| 3    | DONE (evidence `.omo/evidence/task-T2-03.log`)                   | Matching + keywords + filters (18 suites / 64 tests, wired)                                                     |
 | 4    | TODO                                                             | Queue unificada + deduplication                                                                                 |
 | 5    | TODO                                                             | LLM config+templates+core+playground                                                                            |
 | 6    | TODO                                                             | Scheduling/ads + media library                                                                                  |
@@ -73,9 +73,32 @@ apps/content-publisher/
                          # ProcessCryptoNewsMessageHandler (seen-key dedup) +
                          # IngestionHttpClientAdapter (?type=crypto-news, x-api-key)
                          # + DTOs + port + IngestionHealthIndicator (P21 hook)
-  src/matching/          # STUB (todo 3)
-  src/keywords/          # STUB (todo 3)
-  src/filters/           # STUB (todo 3)
+  src/matching/          # BUILT (todo 3, wired): FilteredCryptoNewsService
+                         # (typed crypto-only fetches, foreign rows dropped
+                         # client-side) + MatchingEvaluator (pure OR/AND-group/
+                         # blacklist/album-merge core) + EvaluateMessageMatch
+                         # (single-message dry-run) + EnqueueMatchingCronScheduler
+                         # (MATCHING_CRON_ENABLED + DB flag, dynamic 1/5min,
+                         # overlap guard, adaptive re-poll, health state) +
+                         # MatchingConfig entity + in-memory repo (TypeORM shape
+                         # ships unwired, GAP-1) + IngestionFeedAdapter (text-only
+                         # rows, media: [] — media-aware fetch lands in todo 4) +
+                         # InMemoryMatchedMessageCollector (todo 4 replaces with
+                         # queue adapter) + controller + input DTO + health hook
+  src/keywords/          # BUILT (todo 3, wired): Keyword / BlacklistPhrase
+                         # aggregates (exact|substring, channel scope, media gate)
+                         # + compound AND-group evaluator + allowed/blacklist
+                         # matchers + PhraseRegistryService (409 intra/cross-table)
+                         # + CRUD + batch AND-group use-cases + in-memory repos
+                         # (TypeORM shapes + mappers unwired, GAP-1) + 2
+                         # controllers + DTOs + health hook
+  src/filters/           # BUILT (todo 3, wired): ContentFilterService
+                         # (ReDoS-safe: 512-char cap, flags whitelist, compiled
+                         # cache, 100ms overrun warn, invalid skip) +
+                         # ChannelContentFilterConfig entity (opaque channelId,
+                         # FK-less) + CRUD/toggle/list use-cases + in-memory repo
+                         # (TypeORM shape unwired, GAP-1) + controller + DTOs +
+                         # health hook
   src/queue/             # STUB (todo 4)
   src/deduplication/     # STUB (todo 4)
   src/llm/               # STUB (todo 5)
@@ -113,8 +136,24 @@ time, `channelId:messageId` seen-key = double-delivery guard) +
 `GET /api/feed/sources?type=crypto-news` + `/api/feed/messages?type=…`,
 base `INGESTION_TELEGRAM_URL`, `x-api-key` from day one, fail-open `[]`)
 
-- tolerant DTOs (`raw-crypto-news-message.dto`, `crypto-news-source.dto`)
-- `IngestionHealthIndicator` (`{ component: 'ingestion', status }`,
+- `MatchingModule` (todo 3, wired — imports Ingestion/Keywords/Filters):
+  `FilteredCryptoNewsService` + `MatchingEvaluator` +
+  `EvaluateMessageMatchUseCase` + `EnqueueMatchingCronScheduler` +
+  single-row `MatchingConfig` (fail-closed seed) + `CryptoNewsFeedPort`
+  (`IngestionFeedAdapter`) + `MatchedMessageEnqueuePort`
+  (`InMemoryMatchedMessageCollector` until todo 4) +
+  `MatchingConfigController` (`GET/PATCH config`, `GET health` frozen
+  6-field view) + `MatchingHealthIndicator` (P21 hook)
+- `KeywordsModule` (todo 3, wired): `Keyword` / `BlacklistPhrase` +
+  matchers + `PhraseRegistryService` + CRUD/batch use-cases +
+  `KeywordsController` + `BlacklistController` + health hook
+- `FiltersModule` (todo 3, wired): `ContentFilterService` +
+  `ChannelContentFilterConfig` (opaque channelId, FK-less) + use-cases +
+  `FiltersController` + health hook. 6 modules still stubs
+  (queue, deduplication, llm, scheduling, threads, telegram).
+
+* tolerant DTOs (`raw-crypto-news-message.dto`, `crypto-news-source.dto`)
+* `IngestionHealthIndicator` (`{ component: 'ingestion', status }`,
   P21 hook point, provided + exported, unwired until composite health).
   SharedModule is `@Global()`
   (config namespaces + guard + filter + cache/event-bus ports in-memory +
@@ -189,6 +228,21 @@ coverage target >80% (pure units, no I/O).
   comment reworded to "sibling extraction service". Pre-existing P10
   rationale comments elsewhere still name the foreign type as
   documentation (out of scope for this todo).
+- Todo 3 (P25): matching/keywords/filters ported reference read-only
+  from backend `crypto-news-integration` + `crypto-news-publisher`
+  keyword/filter code + `ingestion/crypto-news` filter service; nothing
+  outside `apps/content-publisher/` touched (lockfile untouched — no new
+  deps: `cron` + `@nestjs/swagger` resolve via hoisted root modules,
+  same as todo 2). P10/P32 grep gates green (patterns in NOTES below;
+  verified empty in the three new modules). Overlap-guard race
+  fixed by claiming `isPolling` before the first await (a same-macrotask
+  tick slipped through otherwise — caught by spec). TypeORM shapes for
+  all three modules ship UNWIRED (no forRoot in this app yet) with
+  in-memory adapters live (backend `DATABASE_ENABLED=false` pattern);
+  wiring is GAP-1. Feed rows are text-only (`media: []`) until todo 4
+  lands media-aware fetches (album merge already implemented against
+  the typed shape). 18 suites / 64 tests green + full 55/137 + `tsc`
+  clean + `nest build` clean.
 
 ## STANDING RULE
 
