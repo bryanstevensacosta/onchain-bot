@@ -155,6 +155,13 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
       Acceptance criteria: cliente suscrito recibe ticks + `curl`-equivalente ws cierra limpio; 100 subs simuladas sin degradar REST (p95 intacto)
       QA scenarios: happy stream live; failure exchange cae → error al suscriptor + reintento con backoff. Evidence .omo/evidence/task-11-mega-refactor-market-data.log
       Commit: Y | feat(market-data): streaming ccxt on-demand por ws
+- [ ] 12. Gateway hexagonal (refactor estructural)
+      What to do / Must NOT do: reestructurar `src/gateway/` en `domain/` (ports de borde, políticas rate-limit/cache/auth como objetos), `application/` (edge services, composición de puertos de módulos) y `infrastructure/http|ws/` (controllers REST + handlers ws puros). Sin cambio de comportamiento (suites iguales ±0). Tests + tsc + boot curl.
+      Parallelization: Wave 3 | Blocked by: 2 (gateway existe) | Blocks: —
+      References: .omo/drafts/mega-refactor-tramos.md (P43); apps/market-data/src/gateway/
+      Acceptance criteria: `npx jest` mismos conteos ±0 + `npx tsc --noEmit` limpio + rutas idénticas (`curl` spot-check)
+      QA scenarios: happy sin regresión; failure diff de rutas → revertir. Evidence .omo/evidence/task-12-mega-refactor-market-data.log
+      Commit: Y | refactor(market-data): gateway hexagonal
 
 ## Final verification wave
 
