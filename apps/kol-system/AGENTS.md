@@ -1,11 +1,12 @@
 # apps/kol-system/ — NestJS Knowledge Base
 
-> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4+5+6+7+8+9 built).
+> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4+5+6+7+8+9+10 built).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md` §7.6 (2026-09-24).
 
-Contents: OVERVIEW · PROGRAM INDEX · COMMANDS · STRUCTURE · MODULES · INGESTION ·
-ENV INVENTORY · PORTS · HEALTH · TS/ESLINT CONVENTIONS · TESTS · MODULE MAP ·
-SNAPSHOTS · GAPS · STANDING RULE · NOTES
+Contents: OVERVIEW · HOW IT WORKS (non-technical) · PROGRAM INDEX · COMMANDS ·
+STRUCTURE · MODULES · INGESTION · ENV INVENTORY · PORTS · HEALTH ·
+TS/ESLINT CONVENTIONS · TESTS · MODULE MAP · SNAPSHOTS · GAPS ·
+STANDING RULE · NOTES
 
 ## OVERVIEW
 
@@ -20,8 +21,10 @@ todo 6) + `NormalizationModule` (mention index, P1 + G-12, todo 7) +
 http-market-data stub, P7, direct call + P26 completion, todo 8) +
 `SnapshotModule` (owns `mention_snapshots`, P27, same DB, todo 8) +
 `ScoringModule` (score v1 + 8 gates per mention, classification as
-per-template config, P6 + G-08, direct call + P26 completion, todo 9)
-wired into `AppModule`.
+per-template config, P6 + G-08, direct call + P26 completion, todo 9) +
+`TemplatesModule` (templates CORE without threads, Ph9 + C1, cron 1 min +
+4-strategy ranking + 11 endpoints + threads 501 stub + `telegram_bots`
+catalog + `vip-calls` seed, todo 10) wired into `AppModule`.
 
 Design pivots (2026-09-24) that govern every future todo:
 
@@ -90,6 +93,120 @@ at | time ago | more details +`.
 - **P25 — this file is living**: created in todo 21, updated at the close of
   every task set (see STANDING RULE).
 
+## HOW THE SYSTEM WORKS (non-technical)
+
+> Plain-words tour for non-engineers: what happens to one tip, from a
+> Telegram channel to a row on a screen. Every factual claim cites its
+> P-decision (`.omo/drafts/mega-refactor-tramos.md` §7.6, 2026-09-24);
+> the technical detail lives in the sections below.
+
+```mermaid
+flowchart TB
+    subgraph TG["Telegram - where tips are born"]
+        KOL["KOL channels<br/>people whose tips we follow<br/>IN: channel posts - OUT: raw messages (P3, P4)"]
+    end
+
+    subgraph EAR["ingestion-telegram - the single ear (one per env)"]
+        LIS["Listener<br/>instant alerts plus a full sweep every 30s<br/>IN: channel posts - OUT: fresh messages (C-A)"]
+        SORT["Sorter: tips vs news<br/>labels each message kol or crypto-news<br/>IN: fresh messages - OUT: labelled messages (P3, P10)"]
+        PIC["Profile pictures: fetched once<br/>kept forever, never auto-deleted<br/>IN: channel list - OUT: avatar picture (P19)"]
+        SHOUT["Live shout-out<br/>every connected app hears it at once<br/>IN: labelled messages - OUT: live stream (P20)"]
+    end
+
+    subgraph APP["kol-system - the factory (this app)"]
+        DOOR["Front door: listens only<br/>takes tips, ignores news, catches up by bookmark<br/>IN: live stream - OUT: tip messages (P10, P20)"]
+        SPOT["1 Spotter: one row per mention<br/>finds the contract in each tip, repeats count<br/>IN: tip message - OUT: one row per contract mention (P5, P1)"]
+        STAMP["2 Time-stamper: four clocks<br/>seen on Telegram, arrived here, market attached, snapshot taken<br/>IN: mention row - OUT: row plus start times (P26, P27)"]
+        MARKET["3 Market desk: asks market-data<br/>fills price-at-capture (mc at) plus more details<br/>IN: mention row - OUT: row plus market snapshot (P7)"]
+        SCORE["4 Judge: score 0-100<br/>rules set per template, low scores filtered out<br/>IN: enriched row - OUT: passing rows with score (P28, P6)"]
+        TMPL["5 Templates: pick, label, rank, optionally post<br/>source picker, labels, ranking engine, own bot per template<br/>IN: scored rows - OUT: dashboard views plus bot posts (P6, P16, P11, P9)"]
+    end
+
+    subgraph SCREENS["Screens people look at"]
+        DASH["Dashboard: one per template<br/>calls table, sideways rankings, top callers, first-seen tracking<br/>IN: template views - OUT: rows on screen (P5, P8, P16, P17)"]
+        RANK["Rankings list API<br/>best callers per 30 days, 7 days, 1 day<br/>IN: scores - OUT: ordered caller list (P11)"]
+    end
+
+    subgraph EDGE["Neighbours at the edges"]
+        MDATA["market-data: the price library<br/>answers what is this address worth right now<br/>IN: address question - OUT: market snapshot (P7)"]
+        DEXTER["dexter-onchain-bot: the lookup bot<br/>you send it a contract, it answers with info<br/>IN: contract from chat - OUT: info card (P13)"]
+    end
+
+    KOL --> LIS
+    LIS --> SORT
+    SORT --> SHOUT
+    KOL --> PIC
+    PIC -.-> DASH
+    SHOUT --> DOOR
+    DOOR --> SPOT --> STAMP --> MARKET --> SCORE --> TMPL
+    TMPL --> DASH
+    SCORE --> RANK
+    MARKET <--> MDATA
+    DEXTER <--> MDATA
+```
+
+What goes in and out at each stage, in plain words:
+
+- **Listener (ear)** — IN: channel posts, OUT: fresh messages. Hears instantly, plus re-checks every channel every 30s so nothing slips through (C-A).
+- **Sorter (ear)** — IN: fresh messages, OUT: messages labelled tip or news. Tips go to kol-system, news goes to content-publisher; each side ignores the other type (P3, P10).
+- **Profile pictures (ear)** — IN: channel list, OUT: avatar picture. Each channel photo is fetched once, kept forever, and shown next to its calls (P19).
+- **Live shout-out (ear)** — IN: labelled messages, OUT: live stream. One broadcast every connected app hears; each app has its own ear per env, never shared (C-SSE-01).
+- **Front door (this app)** — IN: live stream, OUT: tip messages. Listens only, no repeated asking; after a dropout it catches up from its bookmark (P10, P20).
+- **1 Spotter** — IN: tip message, OUT: one row per contract mention. Every mention gets its own row, even repeats — repeats are data, not noise (P5, P1).
+- **2 Time-stamper** — IN: mention row, OUT: row plus four clocks. Stamps seen-on-Telegram, arrived-here, market-attached, snapshot-taken; later gains compare vs the last one (P26, P27).
+- **3 Market desk** — IN: mention row, OUT: row plus market snapshot. Asks the market-data service for the price at capture (the `mc at` column) and the `more details` behind it (P7).
+- **4 Judge** — IN: enriched row, OUT: passing rows with score. Scores 0-100 with rules each template configures; low scores are filtered out before anything is shown (P28, P6).
+- **5 Templates** — IN: scored rows, OUT: dashboard views plus optional bot posts. Each template picks its channels (P16), labels calls its own way (P6), ranks callers (P11), and may post via its own bot to channels where that bot is admin-checked (P9, P23-bis). Bot secrets live in the database, not in files (P22, P23). The default view is named vip-calls (P14). No threads yet (C1).
+- **Dashboard** — IN: template views, OUT: rows on screen. Calls table (`caller`, `call`, `mc at`, `time ago`, `more details`), rankings laid out sideways, top callers by number of calls, and first-seen tracking (`First time` vs `Nx from last call`) (P5, P8, P16, P17).
+- **Rankings list API** — IN: scores, OUT: ordered caller list. Best callers per 30 days, 7 days, 1 day, refreshed by a background job — screens read, never compute (P11).
+- **market-data (edge)** — IN: address question, OUT: market snapshot. The price library both the market desk and the lookup bot ask; it owns the data providers, nobody else touches them (P7).
+- **dexter-onchain-bot (edge)** — IN: contract from chat, OUT: info card. A separate bot app: send it a contract and it answers with market info; fed by market-data (P13).
+
+### PIPELINE POR BCS
+
+> One node per kol-system BC in process order. `(BUILT)` = wired in
+> `AppModule` today; `(PLANNED)` = per spec, not in `src/` yet — do not
+> import until its todo lands. Aggregate/event/table names are exact only
+> where the module exists; planned names are the spec intent.
+
+```mermaid
+flowchart LR
+    ING["front door: hears the live tip stream, ignores news (BUILT)<br/>src/ingestion/ (KolIngestionClientService, SSE)<br/>IN: live stream - OUT: tip messages"]
+    EXT["spotter: finds the contract in each tip, repeats count (BUILT)<br/>src/extraction/ (extract-from-message.use-case, regex-extractor.adapter)<br/>IN: tip message - OUT: ExtractionCandidate"]
+    PAR["reader: turns each find into named fields (BUILT)<br/>src/parsing/ (parse-from-candidates.use-case, heuristic-parser.adapter)<br/>IN: candidates - OUT: ParsedCall"]
+    NORM["librarian: files one card per mention, never merges (BUILT)<br/>src/normalization/ (normalize-call.use-case, normalized-mention.entity)<br/>IN: parsed calls - OUT: NormalizedMention"]
+    SNAP["photo album: keeps the snapshot table (BUILT)<br/>src/snapshot/ (mention-snapshot.entity, mention-snapshot.repository)<br/>IN: base + market fill - OUT: MentionSnapshot"]
+    ENR["market desk: asks market-data, fills price at capture (BUILT)<br/>src/enrichment/ (enrichment-orchestrator.service, market-data.port)<br/>IN: mention + base - OUT: completed snapshot"]
+    SCORE["judge: scores 0-100, drops low scores (BUILT)<br/>src/scoring/ (score-token.use-case, score-gates, scored-call.entity)<br/>IN: enriched row - OUT: ScoredCall"]
+    TMPL["shop window: picks channels, ranks, shows views (BUILT)<br/>src/templates/ (publishing-template.entity, template-orchestrator.service, ranking-engine.service)<br/>IN: scored rows - OUT: PublishingTemplate views"]
+    APPR["bouncer: per-template accept or reject (PLANNED, not in src/)<br/>CallApproval (planned name)<br/>IN: scored rows - OUT: CallApproval"]
+    PUB["poster: sends via the template own bot (PLANNED, not in src/)<br/>PublishingJob (planned name)<br/>IN: approvals - OUT: PublishingJob + bot posts"]
+    TRACK["scoreboard: first-seen plus rankings per window (PLANNED, not in src/)<br/>kol_window_stats (planned name)<br/>IN: posts + scores - OUT: kol_window_stats"]
+    DASH["screen: calls table plus rankings on display (PLANNED, not in src/)<br/>served views (planned)<br/>IN: template views - OUT: rows on screen"]
+
+    ING --> EXT --> PAR --> NORM --> SNAP --> ENR --> SCORE --> TMPL --> APPR --> PUB --> TRACK --> DASH
+
+    style APPR stroke-dasharray:5
+    style PUB stroke-dasharray:5
+    style TRACK stroke-dasharray:5
+    style DASH stroke-dasharray:5
+```
+
+Per node — what enters, what it does (plain words), what exits:
+
+- **ingestion (BUILT, `src/ingestion/`)** — IN: live SSE stream from its own ingestion-telegram. DOES: the front door that only listens (takes kol-type frames, catches up by cursor after disconnects) via `application/services/kol-ingestion-client.service.ts` (`KolIngestionClientService`) → `application/handlers/process-kol-message.handler.ts` → HTTP read through `infrastructure/http/ingestion-http-client.adapter.ts`. OUT: tip messages (P10, P20). No aggregate — transport only.
+- **extraction (BUILT, `src/extraction/`, todo 5)** — IN: tip message. DOES: the spotter that finds the contract in each mention (`application/handlers/extract-from-message.use-case.ts` + `infrastructure/adapters/regex-extractor.adapter.ts`); every mention gets its own row, repeats count. OUT: `ExtractionCandidate` (`domain/entities/extraction-candidate.entity.ts`, id `kolId:messageId:contractIndex`) + P26 snapshot base via direct return (P5, P1, P26).
+- **parsing (BUILT, `src/parsing/`, todo 6)** — IN: extraction candidates. DOES: the reader that turns each candidate into named fields (ticker, address, chain hint, kol ref) via `application/handlers/parse-from-candidates.use-case.ts` + `infrastructure/adapters/heuristic-parser.adapter.ts`. OUT: `ParsedCall` (`domain/entities/parsed-call.entity.ts`), 1:1 per candidate, db-id mirrors the candidate (P5).
+- **normalization (BUILT, `src/normalization/`, todo 7)** — IN: parsed calls. DOES: the librarian that files one row per mention (`application/handlers/normalize-call.use-case.ts`; no merge, no dedup — repeats stay). OUT: `NormalizedMention` (`domain/entities/normalized-mention.entity.ts`, id `chain:address:kolId:messageId:contractIndex`) + event `normalization.call.normalized` (`domain/events/call-normalized.event.ts`) per mention (P1).
+- **snapshot (BUILT, `src/snapshot/`, todo 8)** — IN: P26 base from extraction + market fill from enrichment (via `SnapshotWriterPort`). DOES: the photo album that keeps the snapshot table in the same kol-system DB (`application/ports/mention-snapshot.repository.ts` + `infrastructure/repositories/in-memory-mention-snapshot.repository.ts`). OUT: `MentionSnapshot` row (`domain/entities/mention-snapshot.entity.ts`, `mention_snapshots`, id = mentionId, 4 timestamps) (P26, P27).
+- **enrichment (BUILT, `src/enrichment/`, todo 8)** — IN: mention + P26 base. DOES: the market desk that asks market-data (`application/services/enrichment-orchestrator.service.ts` through `domain/ports/market-data.port.ts`, local cascade `infrastructure/adapters/local-cascade-market-data.adapter.ts` default, http stub `infrastructure/adapters/http-market-data.adapter.ts` behind `USE_DATA_SERVICE_API`) and fills price-at-capture. OUT: completed `MentionSnapshot` (`marketCapUsd` = mc-at) (P7).
+- **scoring (BUILT, `src/scoring/`, todo 9)** — IN: enriched row (market + rug-signal group). DOES: the judge that scores 0–100 (`application/handlers/score-token.use-case.ts`, base 50 v1) and runs the 8 fail-fast gates in `application/handlers/score-gates.ts`; below-cut never reaches templates; persists via `application/ports/scored-call.repository.ts`. OUT: `ScoredCall` (`domain/entities/scored-call.entity.ts`, id = mentionId) + event `scoring.token.scored` (`domain/events/call-scored.event.ts`) (P6, G-08). Classification note: `TemplateClassificationConfig` is a per-template value object (visible channels + display floor + gem filters) — NOT a table, NOT a BC (`grep -r classified_calls apps/kol-system/src` is empty); the templates module owns it (`src/templates/domain/template-classification.config.ts`, scoring path re-exports).
+- **templates (BUILT, `src/templates/`, todo 10)** — IN: scored rows. DOES: the shop window that picks channels per template (`kolSourceIds`, empty = all), ranks with `application/services/ranking-engine.service.ts` (4 strategies), refreshes per template on a 1 min cron via `application/services/template-orchestrator.service.ts`, seeds the default `vip-calls` view (`application/services/template-seed.service.ts`). OUT: `PublishingTemplate` aggregate (`domain/entities/publishing-template.entity.ts`; verified name is `.entity.ts`, not `.aggregate.ts`) + dashboard views (P6, P14, P16).
+- **approval (PLANNED, not in `src/`)** — IN: scored rows in template scope. DOES: the bouncer that accepts or rejects per template (gates live in scoring today as the backend-mirror stopgap; `templates.controller.ts` exposes only a `pending-approvals` stub for todo 11). OUT: `CallApproval` (planned aggregate name, not in `src/` yet).
+- **publishing (PLANNED, not in `src/`)** — IN: approvals. DOES: the poster that sends via the template's own DB-catalog bot (`domain/entities/telegram-bot.entity.ts`, verified BUILT in templates) to admin-verified channels. OUT: `PublishingJob` (planned name, not in `src/` yet) + bot posts (P9, P22, P23).
+- **tracking/rankings (PLANNED, not in `src/`)** — IN: published calls + scores + snapshots. DOES: the scoreboard that tracks first-appearance + runs the background ranking job per window (ranking math verified BUILT inside templates via `get-template-rankings.use-case.ts` + `ranking-engine.service.ts`; the standalone tracking module is not). OUT: `kol_window_stats` rows (planned table name, `total_x` + `calls_count` per caller/window) + rankings API (P8, P11, P17).
+- **dashboard (PLANNED, not in `src/`, served views)** — IN: template views. DOES: the screen that shows the calls table + sideways rankings + top callers. OUT: rows on screen (P5, P16, P17).
+
 ## PROGRAM INDEX (mega-refactor, branch `feat/mega-refactor-tramos`)
 
 Order: kol-system → content-publisher → market-data (+ `dexter-onchain-bot`
@@ -141,7 +258,7 @@ Health was verified by booting `node dist/main.js` with
 ```text
 src/
 ├── main.ts                       # bootstrap() — ValidationPipe whitelist/forbidNonWhitelisted/transform, listen KOL_SYSTEM_PORT ?? 3050
-├── app.module.ts                 # Config (envFilePath ['.env.dev', '.env']) + HealthModule + IngestionModule + ExtractionModule + ParsingModule + NormalizationModule + EnrichmentModule + SnapshotModule + ScoringModule (all wired)
+├── app.module.ts                 # Config (envFilePath ['.env.dev', '.env']) + HealthModule + IngestionModule + ExtractionModule + ParsingModule + NormalizationModule + EnrichmentModule + SnapshotModule + ScoringModule + TemplatesModule (all wired)
 ├── health/
 │   ├── health.module.ts
 │   ├── health.controller.spec.ts
@@ -210,9 +327,30 @@ src/
 │   ├── domain/template-classification.config.ts (+ .spec.ts)  # P6: per-template classification config (NOT a table, NOT a BC)
 │   ├── application/handlers/score-token.use-case.ts (+ .spec.ts)  # direct call fix-1, { scored, events, discarded }
 │   ├── application/handlers/score-gates.ts  # 8 fail-fast gates (backend ApplyVipCallApprovalUseCase mirror)
-│   ├── application/ports/scored-call.repository.ts  # save/findByMentionId/count
+│   ├── application/ports/scored-call.repository.ts  # save/findByMentionId/findRecent/count (findRecent added todo 10 for rankings)
 │   ├── infrastructure/repositories/in-memory-scored-call.repository.ts  # upsert by mentionId = double-delivery guard
 │   └── health/scoring-health.indicator.ts  # check() → { component: 'scoring', status } (unwired until composite health)
+├── templates/                    # BUILT (todo 10, Ph9 + P6/P9/P14/P16/P22/P23/P23-bis + C1) + WIRED into AppModule
+│   ├── templates.module.ts       # ScheduleModule.forRoot + ScoringModule (shared ScoredCallRepository); 3 controllers, 18 providers
+│   ├── domain/template-classification.config.ts  # P6 VO moved here from scoring/ (old path re-exports; specs green)
+│   ├── domain/entities/publishing-template.entity.ts (+ .spec.ts)  # kolSourceIds P16, threadConfig null (C1), botId + channelTarget nullable (P23), adminVerifiedAt (P23-bis)
+│   ├── domain/entities/telegram-bot.entity.ts (+ .spec.ts)  # reusable catalog, ciphertext-only, toRedacted() → '***'
+│   ├── domain/events/template-events.ts  # templates.template.created|activated|sources-updated
+│   ├── domain/ports/template.repository.ts, telegram-bot.repository.ts, telegram-admin-verifier.port.ts, source-validator.port.ts
+│   ├── application/services/ranking-engine.service.ts (+ .spec.ts)  # 4 strategies: score/engagement/recency (100→50/12h)/weighted
+│   ├── application/services/template-orchestrator.service.ts (+ .spec.ts)  # @Cron 1min (TEMPLATE_ORCHESTRATOR_ENABLED=true), per-template fail-open
+│   ├── application/services/template-seed.service.ts (+ .spec.ts)  # idempotent vip-calls seed (P14, dashboard-only, no bot)
+│   ├── application/use-cases/create|update|set-sources|activate|get-rankings|assign-channel (+ specs)  # sources feed-validated (P16); channel getChatMember-verified (P23-bis)
+│   ├── application/use-cases/create|list(+get)|update(+delete)-telegram-bot (+ spec)  # AES-256-GCM round-trip, redact, rotate
+│   ├── infrastructure/repositories/in-memory-template.repository.ts, in-memory-telegram-bot.repository.ts
+│   ├── infrastructure/security/encryption.service.ts (+ .spec.ts)  # AES-256-GCM via ENCRYPTION_KEY (hex64 direct, else sha256), fail-closed
+│   ├── infrastructure/telegram/http-telegram-admin-verifier.adapter.ts (+ .spec.ts)  # getMe + getChatMember → administrator/creator, fail-closed
+│   ├── infrastructure/ingestion/http-source-validator.adapter.ts (+ .spec.ts)  # GET /api/feed/sources?type=kol, fail-open
+│   ├── api/http/templates.controller.ts (+ .spec.ts)  # 11 endpoints: CRUD + activate/deactivate + rankings + pending-approvals(stub todo 11) + sources + channel
+│   ├── api/http/telegram-bots.controller.ts (+ .spec.ts)  # redacted CRUD (GET → '***')
+│   ├── api/http/threads-stub.controller.ts (+ .spec.ts)  # .../threads/* → 501 THREADS_NOT_IMPLEMENTED (C1, pinned)
+│   ├── api/http/dto/template.dto.ts  # class-validator DTOs (RankingsQueryDto.limit has @Type(() => Number) for query strings)
+│   └── health/templates-health.indicator.ts  # check() → { component: 'templates', status } (unwired until composite health)
 ├── shared/                       # kernel/config/guards/filters — REUSE, extend, never copy (P21)
 │   ├── kernel/aggregate-root.ts, entity.ts, value-object.ts, domain-error.ts, domain-event.ts (+ specs)
 │   ├── value-objects/chain-hint.vo.ts, normalized-address.vo.ts (+ spec)  # P21 identity VOs (EVM/Solana) — extraction/parsing/normalization share this home
@@ -246,10 +384,12 @@ silent-null fallback, completes the P26 snapshot via port — wired
 2026-09-25) + `SnapshotModule` (todo 8, owns `mention_snapshots` per P27,
 same kol-system DB — wired 2026-09-25) + `ScoringModule` (todo 9, score
 v1 + 8 gates per mention per P6 + G-08, direct call fix-1, classification
-as per-template config — wired 2026-09-25).
+as per-template config — wired 2026-09-25) + `TemplatesModule` (todo 10,
+templates CORE without threads per Ph9 + C1, direct call fix-1, cron 1 min
++ 4-strategy ranking + 11-endpoint controller + threads 501 stub +
+`telegram_bots` catalog + `vip-calls` seed — wired 2026-09-25).
 
 Planned (per spec, NOT built — do not import until their todos land):
-templates (consume scoring output + own the classification config, P6),
 approval, publishing (per-template bots, P9/P12b), tracking
 (first-appearance, P8), rankings (P11).
 
@@ -405,8 +545,61 @@ P6): `kolSourceIds` (visible channels, empty = all, P16 seed default) +
 threshold AND every pattern matches). Pure value object: NO
 classification table, NO standalone BC (acceptance:
 `grep -r classified_calls apps/kol-system/src` is empty). The full
-templates module (todo 10) owns it from here — the VO moves unchanged.
+templates module (todo 10) owns it from here — the VO moved there
+unchanged (`templates/domain/template-classification.config.ts`; the old
+`scoring/` path re-exports it so scoring specs stay green).
 Flow: `enrichment → scoring → templates`.
+
+## TEMPLATES — templates CORE without threads (`templates/`, todo 10)
+
+`PublishingTemplate` aggregate (Ph9 CORE + P6/P14/P16/P22/P23/P23-bis +
+C1): `kolSourceIds` source selector (empty = all, P16 single dashboard) +
+classification config from todo 9 + ranking config (strategy + limit 50 +
+weights 0.5/0.2/0.3) + `threadConfig: null` ALWAYS (C1 — threads deferred
+to Tramo 2, no thread domain/service/repo exists here) + `botId` +
+`channelTarget` nullable (P23 catalog reference; null = dashboard-only) +
+`adminVerifiedAt` nullable (P23-bis). Publishing requires active + bot +
+channel + verification (`canPublish()`); anything less is dashboard-only
+by design. Seed `vip-calls` (P14 — a datum, not a module) boots active,
+bot-less, all-sources via idempotent `TemplateSeedService`.
+
+`TemplateOrchestratorService` (`@Cron('*/1 * * * *')`, gated by
+`TEMPLATE_ORCHESTRATOR_ENABLED=true`): per active template, recent scored
+calls (limit 100, gate-passing only) → source + score filters → ranking
+engine → `{ ranked, publishingEnabled, skippedPublishingReason? }`.
+Adversarial rule: a missing token/bot/unverified channel degrades THAT
+template to dashboard-only while the rest continue; one throwing template
+is caught per template and surfaced as `error` (never kills the batch).
+
+`RankingEngine` (pure, 4 strategies): `score` (score desc) ·
+`engagement` (views + reactions, null = 0) · `recency` (exponential decay,
+100 at 0h → 50 at 12h half-life) · `weighted` (configurable weights over
+score/100 + engagement/max + decay/100, zero-sum rejected). One-based
+`rank`, optional `limit` truncation, empty in → empty out.
+
+Bot catalog (`telegram_bots`, P22/P23): `TelegramBot` stores ONLY
+AES-256-GCM ciphertext (`EncryptionService` + per-env `ENCRYPTION_KEY`,
+wire format `iv:tag:data` hex; hex64 key direct, else SHA-256; fail-closed
+on empty key / tamper / wrong key). CRUD via
+`GET/POST/GET :id/PATCH :id/DELETE :id /api/telegram-bots` — reads ALWAYS
+redacted (`token: '***'`, ciphertext never leaves the repo). There is NO
+`KOL_BOT_TOKEN` anywhere (code or env — only this doc names it, to say it
+must not exist). Channel assign (`PATCH /api/templates/:id/channel`)
+decrypts the catalog token and calls `getChatMember` (via `getMe` bot id):
+only `administrator`/`creator` stores `admin_verified_at`; anything else
+(incl. transport errors) rejects fail-closed with FORBIDDEN and stores
+nothing. Source selector (`PATCH /:id/sources`) validates against
+`GET /api/feed/sources?type=kol` (P16) — fail-open when the feed is
+unreachable. `GET /:id/pending-approvals` returns `{ pending: [] }` by
+design until todo 11 (approval). `TemplatesController` has 11 endpoints
+(CRUD + activate/deactivate + rankings + pending-approvals + sources +
+channel); `ThreadsStubController` answers 501
+`THREADS_NOT_IMPLEMENTED` on `:id/threads` + `:id/threads/*` (pinned by
+spec — no threads impl, Tramo 2). `TemplatesHealthIndicator.check()` is
+the P21 hook point (provided + exported, unwired until composite health —
+gap 3). Gotcha fixed here: never name an injected property `create` when
+the controller has a `create()` route handler (the property clobbers the
+prototype method → `callback.apply is not a function` 500).
 
 ## SNAPSHOT — own module, same DB (`snapshot/`, todo 8)
 
@@ -557,13 +750,16 @@ Built (domain): `ScoringModule` (todo 9, P6 + G-08 —
 below-cut discarded pre-publisher; `ScoredCall` per passing mention +
 `breakdown` for score display; classification as `TemplateClassificationConfig`
 per-template VO — visible channels + display floor + gem filters — NO
-table, NO BC; flow `enrichment→scoring→templates`).
-Planned: templates (own the classification config + consume scoring
-output, P6: channel picker + score viz + gem filters) → scoring →
-approval → publishing (P9/P12b per-template bots, P22/P23 DB catalog +
-P23-bis admin-verified targets) → tracking (P8 first-appearance) → rankings
-(P11 `GET /api/kol-rankings?window=30d|7d|1d`, cron-fed `kol_window_stats`,
-P17 layout) → dashboard (P16 single + source selector).
+table, NO BC; flow `enrichment→scoring→templates`; VO moved to
+`templates/` in todo 10, old path re-exports).
+Built (domain): `TemplatesModule` (todo 10, Ph9 + C1 — `PublishingTemplate`
+aggregate, orchestrator cron 1 min, 4-strategy `RankingEngine`, 11-endpoint
+controller, threads 501 stub, `telegram_bots` catalog with AES-256-GCM +
+redact + admin verify, `vip-calls` seed; flow `scoring→templates`).
+Planned: approval → publishing (P9/P12b per-template bots, consumes the
+todo-10 catalog + verified targets) → tracking (P8 first-appearance) →
+rankings (P11 `GET /api/kol-rankings?window=30d|7d|1d`, cron-fed
+`kol_window_stats`, P17 layout) → dashboard (P16 single + source selector).
 
 Explicitly NOT in kol-system: `crypto-news` (content-publisher, P10),
 `vip-calls` as code (template name only, P14), Dexter lookup
@@ -612,8 +808,8 @@ demands.
    `ExtractionHealthIndicator` (todo 5) + `ParsingHealthIndicator` (todo 6)
    + `NormalizationHealthIndicator` (todo 7) + `EnrichmentHealthIndicator`
    (todo 8) + `SnapshotHealthIndicator` (todo 8) + `ScoringHealthIndicator`
-   (todo 9) exist as unwired hook points; wiring lands with the
-   composite-health todo.
+   (todo 9) + `TemplatesHealthIndicator` (todo 10) exist as unwired hook
+   points; wiring lands with the composite-health todo.
 4. `buildAppConfig().port` reads `PORT ?? 3030` while `main.ts` uses
    `KOL_SYSTEM_PORT ?? 3050` — bare `PORT` will mislead.
 5. P19 avatar pipeline (ingestion resolves + serves permanently, excluded
@@ -631,6 +827,15 @@ demands.
    entity + migration land with the persistence todo.
 10. `bs58` is a declared kol-system dep (Solana validation, backend-mirror
     `^6.0.0`, resolved via hoisted root `node_modules`).
+11. RESOLVED 2026-09-25 (todo 10) — `src/templates/` + `PublishingTemplate`
+    (threadConfig null, bot/channel nullable) + orchestrator cron 1 min +
+    4-strategy ranking + 11-endpoint controller + threads 501 stub +
+    `telegram_bots` catalog (AES-256-GCM, redacted) + `vip-calls` seed,
+    wired (`TemplatesModule` in `AppModule`); classification VO moved here
+    from scoring (re-export keeps scoring green). In-memory repos today;
+    TypeORM entities + migrations land with the persistence todo. No
+    `eslint.config.*` in kol-system yet — `npm run lint` errors repo-wide
+    (pre-existing; gates here are prettier + tsc + jest).
 
 ## STANDING RULE
 

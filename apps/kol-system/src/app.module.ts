@@ -8,6 +8,7 @@ import { NormalizationModule } from './normalization/normalization.module';
 import { EnrichmentModule } from './enrichment/enrichment.module';
 import { SnapshotModule } from './snapshot/snapshot.module';
 import { ScoringModule } from './scoring/scoring.module';
+import { TemplatesModule } from './templates/templates.module';
 
 /**
  * AppModule - Root module for kol-system skeleton (Tramo 1, todos 2+4+5).
@@ -26,7 +27,10 @@ import { ScoringModule } from './scoring/scoring.module';
  * mention_snapshots entity, P27, same kol-system DB, enrichment writes
  * via port) + ScoringModule (score v1 + 8 gates per mention,
  * classification as per-template config, P6, direct call fix-1,
- * enrichment -> scoring -> templates).
+ * enrichment -> scoring -> templates) + TemplatesModule (templates CORE
+ * without threads, todo 10, Ph9 + P6/P14/P16/P22/P23/P23-bis + C1:
+ * orchestrator cron 1 min, 4-strategy ranking engine, 11-endpoint
+ * controller, threads 501 stub, telegram_bots catalog, vip-calls seed).
  * ConfigModule is global, so the ingestion HTTP adapter resolves
  * ConfigService without importing SharedModule.
  */
@@ -44,6 +48,7 @@ import { ScoringModule } from './scoring/scoring.module';
     EnrichmentModule,
     SnapshotModule,
     ScoringModule,
+    TemplatesModule,
   ],
 })
 export class AppModule {}

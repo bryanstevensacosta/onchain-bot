@@ -18,6 +18,10 @@ export class InMemoryScoredCallRepository extends ScoredCallRepository {
     return this.rows.get(mentionId) ?? null;
   }
 
+  public async findRecent(limit: number): Promise<ScoredCall[]> {
+    return [...this.rows.values()].slice(-Math.max(0, limit));
+  }
+
   public async count(): Promise<number> {
     return this.rows.size;
   }

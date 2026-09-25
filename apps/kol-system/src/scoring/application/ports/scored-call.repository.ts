@@ -10,6 +10,9 @@ import type { ScoredCall } from '../../domain/entities/scored-call.entity';
  */
 export abstract class ScoredCallRepository {
   public abstract save(scored: ScoredCall): Promise<void>;
-  public abstract findByMentionId(mentionId: string): Promise<ScoredCall | null>;
+  public abstract findByMentionId(
+    mentionId: string,
+  ): Promise<ScoredCall | null>;
+  public abstract findRecent(limit: number): Promise<ScoredCall[]>;
   public abstract count(): Promise<number>;
 }
