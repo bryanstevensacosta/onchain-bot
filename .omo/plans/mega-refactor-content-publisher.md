@@ -86,7 +86,7 @@ Your next move: approve — listo para $start-work Tramo 2 tras Gate T1. Full ex
      Acceptance criteria: `curl -s 'localhost:3031/api/feed/messages?limit=1'` 200 + test doble-delivery verde
      QA scenarios: happy ingesta <10s SSE; failure SSE caído → polling repesca. Evidence .omo/evidence/task-2-mega-refactor-content-publisher.log
      Commit: Y | feat(content-publisher): ingestion crypto-news
-- [ ] 3. Matching + keywords + filters (11-refactor §§2-4)
+- [x] 3. Matching + keywords + filters (11-refactor §§2-4)
      What to do / Must NOT do: Mover `FilteredCryptoNewsService`, `EnqueueMatchingCronScheduler`, `MatchingConfig`; `Keyword`/`BlacklistPhrase` + evaluators; `compound/` nuevo; `ContentFilterService` (ReDoS-safe) desde `ingestion/crypto-news/`; FK-less (recomendación spec). Tests OR/blacklist/AND-groups + 41 renombres tabla guide. Must NOT threads en matching (directo a queue).
      Parallelization: Wave 2 | Blocked by: 2 | Blocks: 4
      References: 11-refactor.md:140-371; IMPLEMENTATION-GUIDE tabla 41 renombres; apps/backend/src/telegram/crypto-news-integration + crypto-news-publisher (origen keywords)
