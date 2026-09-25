@@ -39,6 +39,7 @@ export class KolIngestionClientService
 {
   private readonly logger = new Logger(KolIngestionClientService.name);
   private readonly baseUrl: string;
+  private readonly apiKey: string;
   private readonly cursors = new Map<string, number>();
   private abortController: AbortController | null = null;
   private sseLoop: Promise<void> | null = null;
@@ -56,6 +57,14 @@ export class KolIngestionClientService
         : process.env['INGESTION_TELEGRAM_URL']
       )?.trim() || DEFAULT_INGESTION_BASE_URL;
     this.baseUrl = raw.replace(/\/+$/, '');
+    // Upstream key for the twin (backend-mirror: INGESTION_TELEGRAM_API_KEY
+    // sent as x-api-key; empty = keyless, same as the backend SSE client).
+    const keyFromConfig = config?.get<string>('INGESTION_TELEGRAM_API_KEY');
+    this.apiKey =
+      (typeof keyFromConfig === 'string' && keyFromConfig.trim().length > 0
+        ? keyFromConfig
+        : process.env['INGESTION_TELEGRAM_API_KEY']
+      )?.trim() || '';
   }
 
   async onModuleInit(): Promise<void> {
@@ -215,9 +224,15 @@ export class KolIngestionClientService
   private async connectAndStream(url: string): Promise<void> {
     this.abortController = new AbortController();
     let response: Response;
+    const headers: Record<string, string> = {
+      Accept: 'text/event-stream',
+    };
+    if (this.apiKey.length > 0) {
+      headers['x-api-key'] = this.apiKey;
+    }
     try {
       response = await fetch(url, {
-        headers: { Accept: 'text/event-stream' },
+        headers,
         signal: this.abortController.signal,
       });
     } catch (error) {

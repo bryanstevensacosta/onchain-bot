@@ -66,5 +66,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
-# Start application
-CMD ["node", "apps/kol-system/dist/src/main.js"]
+# Start application (nest build emits dist/main.js — sourceRoot src, no src/ prefix)
+CMD ["node", "apps/kol-system/dist/main.js"]
