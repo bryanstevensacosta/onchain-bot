@@ -37,7 +37,7 @@ function makeResult(
 describe('playgroundKeys', () => {
   it('builds a stable preview key', () => {
     expect(playgroundKeys.preview()).toEqual([
-      'crypto-news-publisher',
+      'feed-publisher',
       'llm',
       'playground',
       'preview',
@@ -50,7 +50,7 @@ describe('previewPrompt', () => {
     vi.unstubAllGlobals();
   });
 
-  it('posts the draft + sample to /crypto-news-publisher/llm/preview', async () => {
+  it('posts the draft + sample to /feed-publisher/llm/preview', async () => {
     const fetchMock = vi.fn(async () =>
       jsonResponse(makeResult({ content: 'salida' })),
     );

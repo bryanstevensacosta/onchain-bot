@@ -9,13 +9,13 @@ import {
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { ConfigService } from '@nestjs/config';
-import { CryptoNewsRetentionCleanupScheduler } from '../retention/infrastructure/scheduling/crypto-news-retention-cleanup.scheduler';
+import { FeedRetentionCleanupScheduler } from '../retention/infrastructure/scheduling/feed-retention-cleanup.scheduler';
 
 function makeConfig(root: string): ConfigService {
   return {
     get: (key: string) => {
       if (key === 'app') {
-        return { cryptoNewsMediaRetentionHours: 72 };
+        return { feedMediaRetentionHours: 72 };
       }
       if (key === 'app.uploads.root') {
         return root;
@@ -50,7 +50,7 @@ describe('Retention janitor anti-avatar guarantee (P19 permanent)', () => {
         return [];
       },
     };
-    return new CryptoNewsRetentionCleanupScheduler(
+    return new FeedRetentionCleanupScheduler(
       dataSource as never,
       makeConfig(root),
     );

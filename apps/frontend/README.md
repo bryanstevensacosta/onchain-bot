@@ -17,7 +17,7 @@ React 18 + Vite 5 dashboard para monitorizar en tiempo real el pipeline de alpha
 | `/tokens/:chain/:address` | Token Detail    | Detalle de un token: score, snapshot, decisiones                                                               |
 | `/kols`                   | KOLs            | Lista de KOLs, controles de lifecycle, leaderboard de reputación                                               |
 | `/crypto-news`            | Crypto-News     | Newsroom: mensajes + queue + keywords + ads + filtros + llm-config (lee ingestion vía `/ingestion-api/feed/*`) |
-| `/playground`             | Playground      | Prompt playground (crypto-news)                                                                                |
+| `/playground`             | Playground      | Prompt playground (feed)                                                                                       |
 | `/threads`                | Threads         | Publisher de threads (keywords/phrases/blacklist/queue/llm)                                                    |
 | `/ops`                    | Ops Panel       | Replay de mensajes a través del pipeline                                                                       |
 
@@ -73,7 +73,7 @@ Navegación sticky en header con 7 links (Dashboard · Tokens · KOLs · News ·
 | Score por token         | `GET /token/scoring/tokens/:chain/:address`        | —       |
 | Call canónico por token | `GET /token/normalization/tokens/:chain/:address`  | —       |
 
-### Crypto-News (backend `crypto-news-publisher/*` + feed en ingestion)
+### Crypto-News (backend `feed-publisher/*` + feed en ingestion)
 
 | Query                                | Endpoint                                                        | Polling |
 | ------------------------------------ | --------------------------------------------------------------- | ------- |
@@ -88,7 +88,7 @@ Navegación sticky en header con 7 links (Dashboard · Tokens · KOLs · News ·
 | Query                                          | Endpoint                                                                                                  |
 | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | Señales / filtros / umbrales / presets / audit | `GET /settings/{signals,filters,thresholds,presets,audit}/*`                                              |
-| Ads + rotation-config                          | `GET /crypto-news-ads/{ads,rotation-config}/*`                                                            |
+| Ads + rotation-config                          | `GET /feed-ads/{ads,rotation-config}/*`                                                                   |
 | Calls seguidos / gate                          | `GET /call-tracking/tracked` · `GET /call-tracking/tracked/:chain/:address` · `/call-tracking/gate-allow` |
 | Ingestion config/health                        | `GET /ingestion/{config,health}`                                                                          |
 
@@ -132,7 +132,7 @@ src/
 ├── app/                    ← Setup de la app
 │   ├── entry.tsx           # Entry point (createRoot)
 │   ├── index.tsx           # <App />: providers wrapper
-│   ├── router/routes.tsx   # React Router config (8 rutas: /, tokens, tokens/:chain/:address, kols, crypto-news, playground, threads, ops)
+│   ├── router/routes.tsx   # React Router config (8 rutas: /, tokens, tokens/:chain/:address, kols, feed, playground, threads, ops)
 │   ├── layouts/            # RootLayout (header nav + Outlet)
 │   ├── providers/          # QueryProvider + SocketProvider
 │   └── styles/             # Tailwind directives (globals.css)

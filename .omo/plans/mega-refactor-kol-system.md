@@ -9,7 +9,7 @@
 
 **Why this approach:** Va primero por ser el money-path, con red de seguridad reforzada (staging 48h validación no-bloqueante C4-bis + canal espejo + rollback ensayado; validación completa en FINAL REVIEW central). El diseño pivota del spec original: sin dedup, identidad en ingestion-telegram y classification dentro de templates.
 
-**What it will NOT do:** No toca crypto-news, no mueve providers físicos, no implementa threads (stub 501), no abre MTProto nuevo.
+**What it will NOT do:** No toca feed, no mueve providers físicos, no implementa threads (stub 501), no abre MTProto nuevo.
 
 **Effort:** XL (16 todos, 9-10 semanas)
 **Risk:** High - piloto sobre el money-path real

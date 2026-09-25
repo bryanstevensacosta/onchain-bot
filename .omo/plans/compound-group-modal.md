@@ -87,17 +87,17 @@ Your next move: Approve o ejecutar high-accuracy review.
      Commit: Y | feat(backend): add batch endpoint for keywords
 
 - [ ] 3. Frontend API: agregar función batch create para blacklist
-     What to do / Must NOT do: Agregar `createBlacklistBatch(phrases: CreateBlacklistBody[])` en `apps/frontend/src/features/crypto-news-publisher/api/blacklist-api.ts`. Llama a `POST /blacklist/batch`.
+     What to do / Must NOT do: Agregar `createBlacklistBatch(phrases: CreateBlacklistBody[])` en `apps/frontend/src/features/feed-publisher/api/blacklist-api.ts`. Llama a `POST /blacklist/batch`.
      Parallelization: Wave 1 | Blocked by: - | Blocks: 6
-     References: apps/frontend/src/features/crypto-news-publisher/api/blacklist-api.ts:1-50
+     References: apps/frontend/src/features/feed-publisher/api/blacklist-api.ts:1-50
      Acceptance criteria: La función hace HTTP POST a `/crypto-news-publisher/blacklist/batch` y retorna array de BlacklistPhraseView
      QA scenarios: Llamar la función mocked, verificar URL y payload
      Commit: Y | feat(frontend): add batch create for blacklist phrases
 
 - [ ] 4. Frontend API: agregar función batch create para keywords
-     What to do / Must NOT do: Agregar `createKeywordBatch(phrases: CreateKeywordBody[])` en `apps/frontend/src/features/crypto-news-publisher/api/keywords-api.ts`.
+     What to do / Must NOT do: Agregar `createKeywordBatch(phrases: CreateKeywordBody[])` en `apps/frontend/src/features/feed-publisher/api/keywords-api.ts`.
      Parallelization: Wave 1 | Blocked by: - | Blocks: 8
-     References: apps/frontend/src/features/crypto-news-publisher/api/keywords-api.ts
+     References: apps/frontend/src/features/feed-publisher/api/keywords-api.ts
      Acceptance criteria: La función hace HTTP POST a `/crypto-news-publisher/keywords/batch` y retorna array de KeywordView
      QA scenarios: Llamar la función mocked, verificar URL y payload
      Commit: Y | feat(frontend): add batch create for keywords
@@ -105,7 +105,7 @@ Your next move: Approve o ejecutar high-accuracy review.
 - [ ] 5. Frontend UI: crear CompoundGroupModal para blacklist
      What to do / Must NOT do: Crear componente que acepta lista dinámica de frases (agregar/eliminar inputs). Shared props con BlacklistModal existente. State interno: array de objetos `{phrase: string, ...options}`. Submit genera UUID y llama a batch API.
      Parallelization: Wave 2 | Blocked by: 1,2 | Blocks: -
-     References: apps/frontend/src/features/crypto-news-publisher/ui/blacklist-manager.tsx:40-235 (BlacklistModal como referencia)
+     References: apps/frontend/src/features/feed-publisher/ui/blacklist-manager.tsx:40-235 (BlacklistModal como referencia)
      Acceptance criteria: Modal con múltiples inputs de frase, cada uno con checkboxes de opciones. Botón "+ Add phrase" agrega nuevo input. Botón "X" elimina input. Mínimo 2 frases para submit.
      QA scenarios: Agregar 3 frases, eliminar la del medio, submit con 2 frases
      Commit: Y | feat(frontend): add CompoundGroupModal for blacklist
@@ -113,7 +113,7 @@ Your next move: Approve o ejecutar high-accuracy review.
 - [ ] 6. Frontend UI: crear CompoundGroupModal para keywords
      What to do / Must NOT do: Similar a blacklist pero con campos extra de template selection. Reuse lógica de CompoundGroupModal o crea versión genérica.
      Parallelization: Wave 2 | Blocked by: 3,4 | Blocks: -
-     References: apps/frontend/src/features/crypto-news-publisher/ui/keywords-section.tsx:46-200 (KeywordsModal como referencia)
+     References: apps/frontend/src/features/feed-publisher/ui/keywords-section.tsx:46-200 (KeywordsModal como referencia)
      Acceptance criteria: Mismos inputs que blacklist + template selector. Submit llama batch API.
      QA scenarios: Crear grupo con 3 keywords, verificar template se aplica a todas
      Commit: Y | feat(frontend): add CompoundGroupModal for keywords
@@ -121,7 +121,7 @@ Your next move: Approve o ejecutar high-accuracy review.
 - [ ] 7. Integración: agregar botón "+ Add Compound Group" en blacklist-manager
      What to do / Must NOT do: Agregar segundo botón junto a "+ Add Phrase". El nuevo botón abre CompoundGroupModal. Mantener botón existente sin cambios.
      Parallelization: Wave 2 | Blocked by: 1,2 | Blocks: -
-     References: apps/frontend/src/features/crypto-news-publisher/ui/blacklist-manager.tsx (buscar donde está el botón Add)
+     References: apps/frontend/src/features/feed-publisher/ui/blacklist-manager.tsx (buscar donde está el botón Add)
      Acceptance criteria: Header muestra "Blacklist Phrases (N)" con dos botones: [+] Add Phrase y [+] Add Compound Group
      QA scenarios: Click en Add Compound Group abre modal correcto
      Commit: Y | feat(frontend): add compound group button to blacklist
@@ -129,7 +129,7 @@ Your next move: Approve o ejecutar high-accuracy review.
 - [ ] 8. Integración: agregar botón "+ Add Compound Group" en keywords-section
      What to do / Must NOT do: Igual que blacklist — segundo botón para compound groups.
      Parallelization: Wave 2 | Blocked by: 3,4 | Blocks: -
-     References: apps/frontend/src/features/crypto-news-publisher/ui/keywords-section.tsx
+     References: apps/frontend/src/features/feed-publisher/ui/keywords-section.tsx
      Acceptance criteria: Keywords header muestra dos botones
      QA scenarios: Click en Add Compound Group abre modal correcto
      Commit: Y | feat(frontend): add compound group button to keywords

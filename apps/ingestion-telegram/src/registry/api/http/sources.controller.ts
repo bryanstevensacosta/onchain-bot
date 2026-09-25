@@ -51,9 +51,9 @@ function parseTypeFilter(
  * HTTP API for the unified feed source catalog.
  *
  * Ingestion-service is the SOLE OWNER of feed sources
- * (`telegram_feed_sources`: `kol` + `crypto-news` rows).
+ * (`telegram_feed_sources`: `kol` + `feed` rows).
  *
- * Routes (ported 1:1 from the retired crypto-news controller):
+ * Routes (ported 1:1 from the retired feed controller):
  * - POST /api/feed/sources — register new source (201/409/400)
  * - POST /api/feed/sources/batch — idempotent upsert by channel_id (backfill)
  * - GET /api/feed/sources[?type=] — all sources (including inactive)

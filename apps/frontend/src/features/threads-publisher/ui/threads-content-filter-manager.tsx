@@ -1,4 +1,4 @@
-import { ContentFilterManager } from '@/features/crypto-news-filters/ui/content-filter-manager';
+import { ContentFilterManager } from '@/features/feed-filters/ui/content-filter-manager';
 import { ThreadsSection } from './threads-section';
 
 /**

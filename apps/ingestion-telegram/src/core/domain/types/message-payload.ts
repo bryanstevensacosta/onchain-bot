@@ -2,7 +2,7 @@
  * MessagePayload - SSE event payload for Telegram messages
  *
  * Per ADR docs/architecture/adr-kol-raw-text.md (Q1-B amendment):
- * - Raw Telegram text IS carried in `text` for BOTH types (kol + crypto-news)
+ * - Raw Telegram text IS carried in `text` for BOTH types (kol + feed)
  * - Backend-internal ToS boundary UNCHANGED: `KolMessageIngestedEvent`
  *   (`telegram.message.ingested`) still carries NO text (fix-1 holds)
  *

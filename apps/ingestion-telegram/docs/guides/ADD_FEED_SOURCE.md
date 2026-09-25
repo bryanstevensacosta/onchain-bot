@@ -1,4 +1,4 @@
-# Add a feed source (KOL or crypto-news)
+# Add a feed source (KOL or feed)
 
 > Base URL below is the env's OWN ingestion: dev `http://localhost:3031`,
 > prod droplet host `:3032`, staging twin host `:3033` (each maps to
@@ -18,7 +18,7 @@ curl -sf -X POST http://localhost:3031/api/feed/sources \
 # → 201 {channelId, handle, title, type:'kol', isActive, lifecycleStatus, addedAt}
 ```
 
-- `type` defaults to `crypto-news` when omitted, so KOL adds MUST pass
+- `type` defaults to `feed` when omitted, so KOL adds MUST pass
   `"type":"kol"` explicitly.
 - `channelId` is normalized server-side (channels get the `-100` prefix);
   malformed ids → 400, already-registered → 409.
@@ -31,7 +31,7 @@ curl -sf 'http://localhost:3031/api/feed/sources?type=kol' | head -c 400
 curl -sf 'http://localhost:3031/api/feed/sources/active/ids?type=kol'
 ```
 
-## Add a crypto-news channel
+## Add a feed channel
 
 ```bash
 curl -sf -X POST http://localhost:3031/api/feed/sources \
@@ -41,7 +41,7 @@ curl -sf -X POST http://localhost:3031/api/feed/sources \
 ```
 
 Same 400/409 rules. Media downloads start automatically for
-`crypto-news` rows only (KOL rows never download, by policy).
+`feed` rows only (KOL rows never download, by policy).
 
 ## Bulk import (backfill path)
 
@@ -105,9 +105,9 @@ reversible by hand:
    updates in place), then `DELETE` any rows that should never have
    existed. Verify with
    `GET /api/feed/sources` count before/after.
-4. **Wrong type (`kol` vs `crypto-news`):** there is no type-change
+4. **Wrong type (`kol` vs `feed`):** there is no type-change
    endpoint. `DELETE` the row and `POST` it again with the right `type`.
-   (Media rows only ever exist for `crypto-news`; a re-created KOL row
+   (Media rows only ever exist for `feed`; a re-created KOL row
    starts with zero media by policy.)
 5. **Nuclear (dev only):** `DELETE` every row you added and let the 72 h
    janitor plus the hourly disk check reclaim files. Never hand-edit the

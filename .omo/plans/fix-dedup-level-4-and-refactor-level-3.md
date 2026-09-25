@@ -16,12 +16,12 @@ approach: Fix sharp in Docker → refactor Level 3 from hard block to scorer sig
 
 ## Components (topology ledger)
 
-| id  | outcome                                                                                   | status   | evidence path                                                                                                                                                                                                                                                |
-| --- | ----------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| C1  | **Fix sharp on staging Docker** — EmbeddingService carga modelo `Xenova/all-MiniLM-L6-v2` | active   | `apps/backend/Dockerfile:11` (`--ignore-scripts`), `apps/backend/Dockerfile:25` (runtime sin `libvips`), `apps/backend/src/shared/deduplication/infrastructure/ml/embedding.service.ts:14` (MODEL_PATH)                                                      |
-| C2  | **Refactor Level 3 URL match** — de hard block a señal en el scorer                       | active   | `apps/backend/src/telegram/crypto-news-publisher/infrastructure/event-bus/crypto-news-message-ingested.handler.ts:214-231` (checkUrl hard block), `apps/backend/src/shared/deduplication/domain/services/dedup-scorer.service.ts:256` (urlBoost ya modelado) |
-| C3  | **Verify Level 4 end-to-end on staging** — embeddings + scorer + gray_zone LLM arbiter    | active   | `apps/backend/src/shared/deduplication/application/services/deduplication.service.ts:178-365` (checkSemantic), `apps/backend/src/shared/deduplication/domain/services/dedup-scorer.service.ts:202-290` (computeScore)                                        |
-| C4  | **Optional: Activate LLM arbiter for gray_zone** — mock → real LLM                        | deferred | `apps/backend/src/shared/deduplication/application/services/llm-arbiter.service.ts`, `deploy-staging.yml:170-176` (USE_MOCK_AI)                                                                                                                              |
+| id  | outcome                                                                                   | status   | evidence path                                                                                                                                                                                                                                         |
+| --- | ----------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1  | **Fix sharp on staging Docker** — EmbeddingService carga modelo `Xenova/all-MiniLM-L6-v2` | active   | `apps/backend/Dockerfile:11` (`--ignore-scripts`), `apps/backend/Dockerfile:25` (runtime sin `libvips`), `apps/backend/src/shared/deduplication/infrastructure/ml/embedding.service.ts:14` (MODEL_PATH)                                               |
+| C2  | **Refactor Level 3 URL match** — de hard block a señal en el scorer                       | active   | `apps/backend/src/telegram/crypto-news-publisher/infrastructure/event-bus/feed-message-ingested.handler.ts:214-231` (checkUrl hard block), `apps/backend/src/shared/deduplication/domain/services/dedup-scorer.service.ts:256` (urlBoost ya modelado) |
+| C3  | **Verify Level 4 end-to-end on staging** — embeddings + scorer + gray_zone LLM arbiter    | active   | `apps/backend/src/shared/deduplication/application/services/deduplication.service.ts:178-365` (checkSemantic), `apps/backend/src/shared/deduplication/domain/services/dedup-scorer.service.ts:202-290` (computeScore)                                 |
+| C4  | **Optional: Activate LLM arbiter for gray_zone** — mock → real LLM                        | deferred | `apps/backend/src/shared/deduplication/application/services/llm-arbiter.service.ts`, `deploy-staging.yml:170-176` (USE_MOCK_AI)                                                                                                                       |
 
 ## Open assumptions (announced defaults)
 
@@ -45,7 +45,7 @@ approach: Fix sharp in Docker → refactor Level 3 from hard block to scorer sig
 
 ### Level 3 URL hard block
 
-- `apps/backend/src/telegram/crypto-news-publisher/infrastructure/event-bus/crypto-news-message-ingested.handler.ts:214-231` — `checkUrl()` es hard block: si cualquier URL ya se vio en 48h → bloquea y retorna sin seguir a semantic check
+- `apps/backend/src/telegram/crypto-news-publisher/infrastructure/event-bus/feed-message-ingested.handler.ts:214-231` — `checkUrl()` es hard block: si cualquier URL ya se vio en 48h → bloquea y retorna sin seguir a semantic check
 - `apps/backend/src/shared/deduplication/domain/services/url-normalizer.service.ts:35-45` — `extractUrls()` extrae URLs del contenido con regex `https?://\S+`
 
 ### Scorer already has urlOverlapCount + urlBoost
@@ -110,7 +110,7 @@ approach: Fix sharp in Docker → refactor Level 3 from hard block to scorer sig
 
 | #   | Task                                                                                                                                   | Prio   |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| T5  | `crypto-news-message-ingested.handler.ts`: Remove hard block in `checkUrl()`, return `urlOverlapCount` instead                         | high   |
+| T5  | `feed-message-ingested.handler.ts`: Remove hard block in `checkUrl()`, return `urlOverlapCount` instead                                | high   |
 | T6  | `deduplication.service.ts`: Wire `urlOverlapCount` from URL check into semantic check via `checkSemantic()` signature                  | high   |
 | T7  | `dedup-scorer.service.spec.ts`: Update test to verify `urlBoost` applies when `urlOverlapCount > 0` (no hard block)                    | medium |
 | T8  | `deduplication.service.spec.ts`: Add test case for two messages sharing URLs — expect `isDuplicate: false` but scorer receives overlap | medium |
@@ -131,7 +131,7 @@ approach: Fix sharp in Docker → refactor Level 3 from hard block to scorer sig
 
 **QA (C3)**:
 
-- Manual test: trigger crypto-news event with two semantically similar messages sharing a URL
+- Manual test: trigger feed event with two semantically similar messages sharing a URL
 - Expect: Level 1 passes, Level 2 passes, URL check does NOT hard-block, semantic check runs, scorer produces score with urlBoost, verdict is `gray_zone` or `different`
 - DB query: `SELECT * FROM dedup_records WHERE url_overlap_count > 0` returns records
 
@@ -151,7 +151,7 @@ approach: Fix sharp in Docker → refactor Level 3 from hard block to scorer sig
   - ✅ No sharp errors
 - [x] 4. SSH staging: verify libvips installed in container
   - ✅ `libvips.so.42` found at `/usr/lib/x86_64-linux-gnu/`
-- [x] 5. `crypto-news-message-ingested.handler.ts` — Remove hard block in `checkUrl()`, return `urlOverlapCount` instead
+- [x] 5. `feed-message-ingested.handler.ts` — Remove hard block in `checkUrl()`, return `urlOverlapCount` instead
   - ✅ URL hard block removed; handler passes urlOverlapCount to checkSemantic
   - ✅ Test updated: `should pass URL overlap as signal instead of blocking`
 - [x] 6. `deduplication.service.ts` — Wire `urlOverlapCount` from URL check into `checkSemantic()`

@@ -1,8 +1,8 @@
-# crypto-news-link-preview - Work Plan
+# feed-link-preview - Work Plan
 
 ## TL;DR (For humans)
 
-**What you'll get:** Cuando un post de Telegram contiene un link (ej. una noticia de Cointelegraph), la preview del link (título, descripción e imagen) se va a mostrar en el dashboard de crypto-news, no solo el texto crudo del mensaje. La imagen del preview se descarga igual que las fotos normales.
+**What you'll get:** Cuando un post de Telegram contiene un link (ej. una noticia de Cointelegraph), la preview del link (título, descripción e imagen) se va a mostrar en el dashboard de feed, no solo el texto crudo del mensaje. La imagen del preview se descarga igual que las fotos normales.
 
 **Why this approach:** Telegram ya devuelve la metadata del link preview (`WebPage` con `url`, `title`, `description`, `photo`) dentro de `MessageMediaWebPage`. El listener actual ignora este tipo de media porque solo mira `MessageMediaPhoto`. La solución es detectar ambos tipos y extraer la información.
 
@@ -20,7 +20,7 @@
 - Extraer `url`, `title`, `description`, `siteName` de `WebPage`
 - Descargar `webpage.photo` a disco (reusando `extractMediaForMessage`)
 - Añadir columnas `link_preview_url`, `link_preview_title`, `link_preview_description`, `link_preview_site_name` a `crypto_news_messages`
-- Extender `CryptoNewsMessageProps`, mapper, TypeORM entity, API view
+- Extender `FeedMessageProps`, mapper, TypeORM entity, API view
 - Mostrar link preview en frontend (card con título, descripción, imagen opcional)
 
 ### Must NOT have
@@ -29,12 +29,12 @@
 - NO crear tabla extra (columnas en la tabla existente)
 - NO extraer `embedUrl`, `embedType`, `embedWidth`, `embedHeight` (scope futuro)
 - NO modificar el flujo de mensajes sin link preview
-- NO modificar el `CryptoNewsMediaGrid` (la foto del preview se maneja igual)
+- NO modificar el `FeedMediaGrid` (la foto del preview se maneja igual)
 
 ## Verification strategy
 
 - Test decision: tests-after
-- Evidence: `.omo/evidence/crypto-news-link-preview/`
+- Evidence: `.omo/evidence/feed-link-preview/`
 - QA: Vitest backend (3 new tests) + Vitest frontend (2 new tests)
 
 ## Execution strategy
@@ -105,8 +105,8 @@ Wave 2 (frontend): Types + rendering
 
 - [ ] 2. Persistir link preview en DB + exponer en API
      What to do / Must NOT do:
-  - **Domain entity** (`crypto-news-message.entity.ts`):
-    - Añadir a `CryptoNewsMessageProps`:
+  - **Domain entity** (`feed-message.entity.ts`):
+    - Añadir a `FeedMessageProps`:
       ```ts
       readonly linkPreviewUrl: string | null;
       readonly linkPreviewTitle: string | null;
@@ -115,7 +115,7 @@ Wave 2 (frontend): Types + rendering
       ```
     - En `create()`, aceptar estos campos como opcionales (todos default `null`)
     - Añadir getters correspondientes
-  - **TypeORM entity** (`infrastructure/persistence/typeorm/entities/crypto-news-message.entity.ts`):
+  - **TypeORM entity** (`infrastructure/persistence/typeorm/entities/feed-message.entity.ts`):
     - Añadir columnas:
       ```ts
       @Column({ name: 'link_preview_url', type: 'text', nullable: true })
@@ -127,10 +127,10 @@ Wave 2 (frontend): Types + rendering
       @Column({ name: 'link_preview_site_name', type: 'varchar', length: 128, nullable: true })
       linkPreviewSiteName!: string | null;
       ```
-  - **Mapper** (`crypto-news-message.mapper.ts`):
+  - **Mapper** (`feed-message.mapper.ts`):
     - Mapear los 4 campos en `toEntity()` y `toDomain()`
-  - **Controller** (`crypto-news.controller.ts`):
-    - Añadir a `CryptoNewsMessageView`:
+  - **Controller** (`feed.controller.ts`):
+    - Añadir a `FeedMessageView`:
       ```ts
       readonly linkPreviewUrl: string | null;
       readonly linkPreviewTitle: string | null;
@@ -139,24 +139,24 @@ Wave 2 (frontend): Types + rendering
       ```
     - Mapear en `toView()` o donde se construye la view
   - NO crear tabla separada
-  - NO modificar `CryptoNewsMessageMediaEntity`
+  - NO modificar `FeedMessageMediaEntity`
     References:
-  - `apps/backend/src/telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity.ts:20-29`
-  - `apps/backend/src/telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity.ts:19-51`
-  - `apps/backend/src/telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/mappers/crypto-news-message.mapper.ts`
-  - `apps/backend/src/telegram/ingestion/crypto-news/api/http/crypto-news.controller.ts:39-48`
+  - `apps/backend/src/telegram/ingestion/feed/domain/entities/feed-message.entity.ts:20-29`
+  - `apps/backend/src/telegram/ingestion/feed/infrastructure/persistence/typeorm/entities/feed-message.entity.ts:19-51`
+  - `apps/backend/src/telegram/ingestion/feed/infrastructure/persistence/typeorm/mappers/feed-message.mapper.ts`
+  - `apps/backend/src/telegram/ingestion/feed/api/http/feed.controller.ts:39-48`
 
 - [ ] 3. Mostrar link preview en el frontend
      What to do / Must NOT do:
-  - **Types** (`apps/frontend/src/entities/crypto-news/api/crypto-news-queries.ts`):
-    - Añadir a `CryptoNewsMessage`:
+  - **Types** (`apps/frontend/src/entities/feed/api/feed-queries.ts`):
+    - Añadir a `FeedMessage`:
       ```ts
       readonly linkPreviewUrl: string | null;
       readonly linkPreviewTitle: string | null;
       readonly linkPreviewDescription: string | null;
       readonly linkPreviewSiteName: string | null;
       ```
-  - **Render** (`apps/frontend/src/pages/crypto-news/index.tsx`):
+  - **Render** (`apps/frontend/src/pages/feed/index.tsx`):
     - Después del `<p>` de content y antes del cierre del `</article>`, añadir:
       ```tsx
       {
@@ -196,21 +196,21 @@ Wave 2 (frontend): Types + rendering
   - NO modificar el media grid ni el rendering de fotos existentes
   - NO modificar el orden de article (img arriba, texto abajo, preview abajo del todo)
     References:
-  - `apps/frontend/src/entities/crypto-news/api/crypto-news-queries.ts:11-18`
-  - `apps/frontend/src/pages/crypto-news/index.tsx:142-155`
+  - `apps/frontend/src/entities/feed/api/feed-queries.ts:11-18`
+  - `apps/frontend/src/pages/feed/index.tsx:142-155`
 
 ## Final verification wave
 
 - [ ] F1. TypeScript compila backend + frontend
-- [ ] F2. Tests pasan (backend crypto-news + frontend crypto-news page)
+- [ ] F2. Tests pasan (backend feed + frontend feed page)
 - [ ] F3. Playwright: verificar que link preview se renderiza
 - [ ] F4. Scope fidelity: NO cambios en KOL, NO tablas extra
 
 ## Commit strategy
 
-1. `feat(crypto-news): ingest link preview from MessageMediaWebPage`
-2. `feat(crypto-news): persist link preview metadata in DB + expose via API`
-3. `feat(frontend): render link preview card in crypto-news page`
+1. `feat(feed): ingest link preview from MessageMediaWebPage`
+2. `feat(feed): persist link preview metadata in DB + expose via API`
+3. `feat(frontend): render link preview card in feed page`
 
 ## Success criteria
 

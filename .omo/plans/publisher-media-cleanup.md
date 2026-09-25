@@ -24,7 +24,7 @@ Your next move: Approve this plan to proceed with implementation. Full execution
 
 ### Must have
 
-- Add `mediaTtlDays` to `CryptoNewsPublisherConfig` (default 0 = disabled, max 365)
+- Add `mediaTtlDays` to `FeedPublisherConfig` (default 0 = disabled, max 365)
 - Add config validator for `PUBLISHER_MEDIA_TTL_DAYS` (min 0, max 365)
 - Create `MediaCleanupService` with `cleanupPublishedMedia(paths, ttlDays)`
 - In `ProcessNextQueuedArticleUseCase.execute()` after `markPublished`, call cleanup
@@ -62,7 +62,7 @@ Your next move: Approve this plan to proceed with implementation. Full execution
 
 | Todo                                                     | Depends on | Blocks | Can parallelize with |
 | -------------------------------------------------------- | ---------- | ------ | -------------------- |
-| T1: Add mediaTtlDays to CryptoNewsPublisherConfig        | —          | T2, T3 | T2                   |
+| T1: Add mediaTtlDays to FeedPublisherConfig              | —          | T2, T3 | T2                   |
 | T2: Add config validator for PUBLISHER_MEDIA_TTL_DAYS    | T1         | T3     | —                    |
 | T3: Create MediaCleanupService                           | T1, T2     | T4     | —                    |
 | T4: Integrate cleanup in ProcessNextQueuedArticleUseCase | T3         | T5     | —                    |
@@ -83,11 +83,11 @@ Your next move: Approve this plan to proceed with implementation. Full execution
 
 <!-- APPEND TASK BATCHES BELOW THIS LINE WITH edit/apply_patch - never rewrite the headers above. -->
 
-- [ ] 1. Add mediaTtlDays to CryptoNewsPublisherConfig
-     What to do: Add `mediaTtlDays` field to `CryptoNewsPublisherConfig` interface and `DEFAULT_CONFIG` (default 0 = disabled, max 365). Update `loadCryptoNewsPublisherConfig` to read `PUBLISHER_MEDIA_TTL_DAYS` env var.
+- [ ] 1. Add mediaTtlDays to FeedPublisherConfig
+     What to do: Add `mediaTtlDays` field to `FeedPublisherConfig` interface and `DEFAULT_CONFIG` (default 0 = disabled, max 365). Update `loadFeedPublisherConfig` to read `PUBLISHER_MEDIA_TTL_DAYS` env var.
      Must NOT do: Change existing fields, break existing configs.
      Parallelization: Wave 1 | Blocked by: — | Blocks: 2, 3
-     References: apps/backend/src/telegram/crypto-news-publisher/infrastructure/config/crypto-news-publisher.config.ts:1-50
+     References: apps/backend/src/telegram/crypto-news-publisher/infrastructure/config/feed-publisher.config.ts:1-50
      Acceptance criteria: Config has `mediaTtlDays` field with default 0, reads from env var
      QA scenarios: happy: config loads with default 0. failure: invalid value >365 → validation error.
      Commit: Y | feat(config): add publisher media TTL config

@@ -613,7 +613,7 @@ describe('HealthController', () => {
       expect(result).toEqual([]);
     });
 
-    it('should validate channel type is either kol or crypto-news', async () => {
+    it('should validate channel type is either kol or feed', async () => {
       // Arrange
       mockFeedSourceRepo.findAllActiveWithTypes.mockResolvedValue([
         { channelId: '-1001111111111', title: 'KOL Channel', type: 'kol' },

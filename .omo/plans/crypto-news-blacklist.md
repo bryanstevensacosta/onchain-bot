@@ -1,8 +1,8 @@
-# crypto-news-blacklist - Work Plan
+# feed-blacklist - Work Plan
 
 ## TL;DR (For humans)
 
-**What you'll get:** Nueva funcionalidad de blacklist en el pipeline de crypto-news: frases que bloquean posts incluso cuando matchean keywords. Incluye UI dedicada (agregar/editar/listar frases), registro de posts bloqueados en la DB (status `BLOCKED`), y paginación de 5/página tanto en la lista de blacklist como en los posts bloqueados.
+**What you'll get:** Nueva funcionalidad de blacklist en el pipeline de feed: frases que bloquean posts incluso cuando matchean keywords. Incluye UI dedicada (agregar/editar/listar frases), registro de posts bloqueados en la DB (status `BLOCKED`), y paginación de 5/página tanto en la lista de blacklist como en los posts bloqueados.
 
 **Why this approach:** Mismo patrón que Keywords existente — domain entity + TypeORM + REST controller + frontend feature — para consistencia y menor carga cognitiva. La blacklist se aplica en el handler que ya procesa mensajes (donde están los keywords), después del match de keywords pero antes de encolar.
 
@@ -26,8 +26,8 @@ Your next move: **approve** para ejecutar. Full execution detail follows below.
 1. **Domain**: Nueva entidad `BlacklistPhrase` (phrase, caseSensitive, sourceChannelIds[], enabled)
 2. **Persistence**: TypeORM entity + mapper + repository (CRUD: findAll, findEnabled, save, delete)
 3. **REST API**: `/crypto-news-publisher/blacklist` (GET list, POST create, PATCH update, DELETE)
-4. **Pipeline change**: Handler `CryptoNewsMessageIngestedHandler` — tras match de keywords, verificar blacklist phrases activas para el source. Si matchea → guardar queue entry con status `BLOCKED` + razón
-5. **Frontend**: Nueva sección "Blacklist" en crypto-news publisher (al lado de Keywords y Templates)
+4. **Pipeline change**: Handler `FeedMessageIngestedHandler` — tras match de keywords, verificar blacklist phrases activas para el source. Si matchea → guardar queue entry con status `BLOCKED` + razón
+5. **Frontend**: Nueva sección "Blacklist" en feed publisher (al lado de Keywords y Templates)
    - Tabla con paginación 5/página (igual que Keywords)
    - Modal para agregar/editar blacklist phrase
    - Ver posts bloqueados con paginación 5/página
@@ -45,7 +45,7 @@ Your next move: **approve** para ejecutar. Full execution detail follows below.
 > Zero human intervention - all verification is agent-executed.
 
 - Test decision: tests-after (Jest backend + Vitest frontend)
-- Evidence: .omo/evidence/task-<N>-crypto-news-blacklist.<ext>
+- Evidence: .omo/evidence/task-<N>-feed-blacklist.<ext>
 
 ## Execution strategy
 
@@ -103,8 +103,8 @@ Your next move: **approve** para ejecutar. Full execution detail follows below.
   - Unit test: BlacklistPhrase.matches() case-insensitive
   - Unit test: BlacklistPhrase.isApplicableTo() empty sourceChannels → true
   - Unit test: PublisherQueueEntry.create() con status=BLOCKED → ok
-    QA: tests-after, archivo `.omo/evidence/task-1-crypto-news-blacklist.spec.ts`
-    Commit: fea(crypto-news): add BlacklistPhrase domain entity and BLOCKED queue status
+    QA: tests-after, archivo `.omo/evidence/task-1-feed-blacklist.spec.ts`
+    Commit: fea(feed): add BlacklistPhrase domain entity and BLOCKED queue status
 
 - [ ] 2. **Persistence: TypeORM entity + mapper + repository for BlacklistPhrase**
      What to do / Must NOT do:
@@ -115,7 +115,7 @@ Your next move: **approve** para ejecutar. Full execution detail follows below.
     - findAll(), findEnabled(), save(), delete()
   - Crear impl TypeORM: `typeorm-blacklist-phrase.repository.ts`
   - Registrar en TypeOrmModule.forFeature() en el módulo
-  - Registrar provider en el módulo del crypto-news-publisher
+  - Registrar provider en el módulo del feed-publisher
   - **Must NOT**: crear directorio infrastructure/persistence/typeorm/repositories — usar el existente
 
   Parallelization: Wave 1 | Blocked by: 1 | Blocks: 3,5
@@ -124,13 +124,13 @@ Your next move: **approve** para ejecutar. Full execution detail follows below.
   - Keyword mapper: `apps/backend/src/telegram/crypto-news-publisher/infrastructure/persistence/typeorm/mappers/keyword.mapper.ts`
   - Keyword repository: `apps/backend/src/telegram/crypto-news-publisher/infrastructure/persistence/typeorm/repositories/typeorm-keyword.repository.ts`
   - Port: `apps/backend/src/telegram/crypto-news-publisher/application/ports/keyword.repository.ts`
-  - Module registration: `apps/backend/src/telegram/crypto-news-publisher/api/http/crypto-news-publisher.module.ts`
+  - Module registration: `apps/backend/src/telegram/crypto-news-publisher/api/http/feed-publisher.module.ts`
   - In-memory repo para tests: `apps/backend/src/telegram/crypto-news-publisher/infrastructure/repositories/`
     Acceptance:
   - `tsc --noEmit` backend pasa
   - `findAll()` returns all rows; `findEnabled()` returns only where enabled=true
     QA: test con in-memory repo
-    Commit: fea(crypto-news): add BlacklistPhrase TypeORM entity, mapper, and repository
+    Commit: fea(feed): add BlacklistPhrase TypeORM entity, mapper, and repository
 
 - [ ] 3. **REST API: Blacklist CRUD controller**
      What to do / Must NOT do:
@@ -153,7 +153,7 @@ Your next move: **approve** para ejecutar. Full execution detail follows below.
   - POST `/crypto-news-publisher/blacklist` con phrase existente → 409
   - GET / devuelve lista completa
     QA: integration test via http (puede ser e2e o mock del service)
-    Commit: fea(crypto-news): add Blacklist CRUD REST API
+    Commit: fea(feed): add Blacklist CRUD REST API
 
 - [ ] 4. **Queue status BLOCKED → TypeORM entity + controller toView**
      What to do / Must NOT do:
@@ -174,11 +174,11 @@ Your next move: **approve** para ejecutar. Full execution detail follows below.
     Acceptance:
   - `tsc --noEmit` both apps pass
   - Queue entry with BLOCKED status + blockedReason renders in DetailsModal
-    Commit: fea(crypto-news): add BLOCKED status and blockedReason to queue entry
+    Commit: fea(feed): add BLOCKED status and blockedReason to queue entry
 
-- [ ] 5. **Pipeline: blacklist filtering in CryptoNewsMessageIngestedHandler**
+- [ ] 5. **Pipeline: blacklist filtering in FeedMessageIngestedHandler**
      What to do / Must NOT do:
-  - Inyectar `BlacklistPhraseRepository` en `CryptoNewsMessageIngestedHandler`
+  - Inyectar `BlacklistPhraseRepository` en `FeedMessageIngestedHandler`
   - Agregar cache TTL para blacklist phrases (mismo patrón 10s que keywords)
   - En `handle()`, **después** del match de keywords y antes de `enqueue.execute()`:
     1. Si encontró `matchedKeyword`, cargar enabled blacklist phrases (cached)
@@ -193,7 +193,7 @@ Your next move: **approve** para ejecutar. Full execution detail follows below.
 
   Parallelization: Wave 2 | Blocked by: 1 | Blocks: 6,7,8
   References:
-  - `apps/backend/src/telegram/crypto-news-publisher/infrastructure/event-bus/crypto-news-message-ingested.handler.ts`
+  - `apps/backend/src/telegram/crypto-news-publisher/infrastructure/event-bus/feed-message-ingested.handler.ts`
   - `apps/backend/src/telegram/crypto-news-publisher/application/handlers/enqueue-matching-message.use-case.ts`
     Acceptance:
   - `tsc --noEmit` backend passes
@@ -201,28 +201,28 @@ Your next move: **approve** para ejecutar. Full execution detail follows below.
   - Message with keyword "BTC" + no blacklist → queue entry with status PENDING
   - Message with keyword on source A + blacklist only for source B → still PENDING enqueued
     QA: test handler con keywords + blacklists mockeadas
-    Commit: fea(crypto-news): add blacklist filtering to message handler
+    Commit: fea(feed): add blacklist filtering to message handler
 
 - [ ] 6. **Frontend: BlacklistPhrase type API + hooks**
      What to do / Must NOT do:
   - Crear API types and fetch functions:
-    - `apps/frontend/src/features/crypto-news-publisher/api/blacklist-api.ts`
+    - `apps/frontend/src/features/feed-publisher/api/blacklist-api.ts`
       - `BlacklistPhraseView` interface
       - `fetchBlacklist()`, `createBlacklist()`, `updateBlacklist()`, `deleteBlacklist()`
   - Crear hooks:
-    - `apps/frontend/src/features/crypto-news-publisher/model/use-blacklist.ts`
+    - `apps/frontend/src/features/feed-publisher/model/use-blacklist.ts`
       - `useBlacklist()` con refetchInterval: 10_000s (like useKeywords)
       - `useCreateBlacklist()`, `useUpdateBlacklist()`, `useDeleteBlacklist()`
   - No poner barrel exports hasta que exista el UI
 
   Parallelization: Wave 3 | Blocked by: 1 | Blocks: 9
   References:
-  - keywords API: `apps/frontend/src/features/crypto-news-publisher/api/keywords-api.ts`
-  - keywords hooks: `apps/frontend/src/features/crypto-news-publisher/model/use-keywords.ts`
-  - Frontend @ alias: `@/features/crypto-news-publisher/api/blacklist-api`
+  - keywords API: `apps/frontend/src/features/feed-publisher/api/keywords-api.ts`
+  - keywords hooks: `apps/frontend/src/features/feed-publisher/model/use-keywords.ts`
+  - Frontend @ alias: `@/features/feed-publisher/api/blacklist-api`
     Acceptance:
   - `tsc --noEmit` frontend passes
-    Commit: fea(crypto-news): add BlacklistPhrase API and hooks
+    Commit: fea(feed): add BlacklistPhrase API and hooks
 
 - [ ] 7. **Frontend: blocked queue entries fetch + hooks**
      What to do / Must NOT do:
@@ -239,12 +239,12 @@ Your next move: **approve** para ejecutar. Full execution detail follows below.
   - `queue.controller.ts:list()`
     Acceptance:
   - `tsc --noEmit` frontend + backend
-    Commit: fea(crypto-news): add blocked queue fetch with status filter
+    Commit: fea(feed): add blocked queue fetch with status filter
 
 - [ ] 8. **Frontend: Blacklist Manager UI + pagination**
      What to do / Must NOT do:
-  - Nueva sección "Blacklist" en página crypto-news (al lado de Keywords y Templates)
-  - Componente `BlacklistManager` en `apps/frontend/src/features/crypto-news-publisher/ui/blacklist-manager.tsx`
+  - Nueva sección "Blacklist" en página feed (al lado de Keywords y Templates)
+  - Componente `BlacklistManager` en `apps/frontend/src/features/feed-publisher/ui/blacklist-manager.tsx`
     - Tabla paginada 5/página con columnas: phrase, caseSensitive count, enabled toggle
     - Modal "Add Blacklist Phrase" (phrase input, caseSensitive toggle, enabled por defectito)
     - Fila con enable/disable toggle + delete button
@@ -254,17 +254,17 @@ Your next move: **approve** para ejecutar. Full execution detail follows below.
 
   Parallelization: Wave 4 | Blocked by: 3,4 | Blocks: 10
   References:
-  - KeywordsManager: `apps/frontend/src/features/crypto-news-publisher/ui/keywords-manager.tsx`
-  - Page routing: `apps/frontend/src/pages/crypto-news/index.tsx`
+  - KeywordsManager: `apps/frontend/src/features/feed-publisher/ui/keywords-manager.tsx`
+  - Page routing: `apps/frontend/src/pages/feed/index.tsx`
     Acceptance:
   - `tsc --noEmit` frontend pasa
   - Puede crear/editar/eliminar blacklist phrases
   - Paginación funciona 5/página
-    Commit: fea(crypto-news): add BlacklistManager UI with pagination
+    Commit: fea(feed): add BlacklistManager UI with pagination
 
 - [ ] 9. **Frontend: Blocked Posts list**
      What to do / Must NOT do:
-  - En la página de crypto-news, debajo de la tabla de blacklist, mostrar "Blocked Posts" section
+  - En la página de feed, debajo de la tabla de blacklist, mostrar "Blocked Posts" section
   - `BlockedPostsList` component:
     - Lista paginada 5/página de queue entries con status=BLOCKED
     - Cada fila: channelId, messageId, rawTitle (si tiene), blockedReason, timestamp
@@ -278,21 +278,21 @@ Your next move: **approve** para ejecutar. Full execution detail follows below.
     Acceptance:
   - `tsc --noEmit` frontend pasa
   - Muestra posts BLOCKED paginados
-    Commit: fea(crypto-news): add BlockedPostsList UI
+    Commit: fea(feed): add BlockedPostsList UI
 
 - [ ] 10. **Test suite + verification**
       What to do / Must NOT do:
       - Backend tests:
         - `blacklist-phrase.spec.ts`: create, matches, isApplicableTo, Source channel filter
         - `blacklist.controller.spec.ts`: CRUD, dedup, 404
-        - `crypto-news-message-ingested.handler.spec.ts`: blacklist blocking flow
+        - `feed-message-ingested.handler.spec.ts`: blacklist blocking flow
       - Frontend tests: agregar `matchedBlacklistPhraseIds` / blocked posts display tests
       - **No modificar** tests existentes sin verificar que sigan pasando
 
   Parallelization: Wave 5 | Blocked: 5,8,9 | Blocks: F1-F4
   References: test patterns in `apps/backend/src/telegram/crypto-news-publisher/application/handlers/enqueue-matching-message.use-case.spec.ts`
   Acceptance: - `npm run test:backend` passes - `npm run test:frontend` passes
-  Commit: test(crypto-news): add blacklist domain, controller, and handler tests
+  Commit: test(feed): add blacklist domain, controller, and handler tests
 
   > Runs in parallel after ALL todos. All must APPROVE. Surface results and wait for the user's explicit okay before declaring complete.
 
@@ -304,12 +304,12 @@ Your next move: **approve** para ejecutar. Full execution detail follows below.
 ## Commit strategy
 
 - Commit por cada todo wave (1-5 commits):
-  - fea(crypto-news): add BlacklistPhrase domain entity and BLOCKED queue status
-  - fea(crypto-news): add BlacklistPhrase TypeORM entity, mapper, and repository
-  - fea(crypto-news): add Blacklist CRUD controller and queue status filter
-  - fea(crypto-news): add blacklist filtering to message handler
-  - fea(crypto-news): add BlacklistManager and BlockedPostsList UI
-  - test(crypto-news): add blacklist tests
+  - fea(feed): add BlacklistPhrase domain entity and BLOCKED queue status
+  - fea(feed): add BlacklistPhrase TypeORM entity, mapper, and repository
+  - fea(feed): add Blacklist CRUD controller and queue status filter
+  - fea(feed): add blacklist filtering to message handler
+  - fea(feed): add BlacklistManager and BlockedPostsList UI
+  - test(feed): add blacklist tests
 
 ## Success criteria
 

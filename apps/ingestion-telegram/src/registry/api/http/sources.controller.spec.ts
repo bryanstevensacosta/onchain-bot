@@ -195,7 +195,7 @@ describe('RegisterNewsSourceUseCase (feed repo wiring + batch)', () => {
 
   beforeEach(() => jest.clearAllMocks());
 
-  it('execute creates a crypto-news source by default', async () => {
+  it('execute creates a feed source by default', async () => {
     const repo = fakeRepo();
     const useCase = new RegisterNewsSourceUseCase(repo as any, listener);
     const out = await useCase.execute({ channelId: '123', title: 'T' });

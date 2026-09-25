@@ -1,8 +1,8 @@
-# bot-api-crypto-news-publisher-decompose - Work Plan
+# bot-api-feed-publisher-decompose - Work Plan
 
 ## TL;DR (For humans)
 
-**What you'll get:** El archivo `bot-api-crypto-news-publisher.adapter.ts` pasa de 687 líneas a ~100 — se divide en 4 archivos más pequeños y enfocados. El adaptador principal queda como una fachada delgada que compone servicios especializados.
+**What you'll get:** El archivo `bot-api-feed-publisher.adapter.ts` pasa de 687 líneas a ~100 — se divide en 4 archivos más pequeños y enfocados. El adaptador principal queda como una fachada delgada que compone servicios especializados.
 
 **Why this approach:** Mismo patrón probado en mtproto-adapter (794→346 líneas, 7 módulos). Extracción gradual y atómica — cada fase es un paso reversible sin cambio de comportamiento.
 
@@ -30,9 +30,9 @@
 ### Must NOT have (guardrails, anti-slop, scope boundaries)
 
 - No changes to `TelegramPublisherPort` / `SendResult`
-- No changes to existing test file (`bot-api-crypto-news-publisher.adapter.spec.ts`)
+- No changes to existing test file (`bot-api-feed-publisher.adapter.spec.ts`)
 - No changes to public method signatures (`sendMessage`, `sendPhoto`, `sendVideo`, `sendMediaGroup`, `getChat`)
-- No changes to `CryptoNewsPublisherModule` providers — the adapter is already registered as `TelegramPublisherPort`, and extracted modules are plain classes/functions (no new @Injectable needed)
+- No changes to `FeedPublisherModule` providers — the adapter is already registered as `TelegramPublisherPort`, and extracted modules are plain classes/functions (no new @Injectable needed)
 - No behavior changes — extract, don't refactor
 - No new dependencies
 
@@ -42,16 +42,16 @@ Before:
 
 ```
 senders/
-├── bot-api-crypto-news-publisher.adapter.ts   (687L)
-└── bot-api-crypto-news-publisher.adapter.spec.ts (61L)
+├── bot-api-feed-publisher.adapter.ts   (687L)
+└── bot-api-feed-publisher.adapter.spec.ts (61L)
 ```
 
 After:
 
 ```
 senders/
-├── bot-api-crypto-news-publisher.adapter.ts   (~100L) — facade
-├── bot-api-crypto-news-publisher.adapter.spec.ts (61L) — unchanged
+├── bot-api-feed-publisher.adapter.ts   (~100L) — facade
+├── bot-api-feed-publisher.adapter.spec.ts (61L) — unchanged
 ├── bot-api-http-client.ts                     (~190L) — postJson, postMultipart, postMultipartMediaGroup
 ├── build-multipart-body.ts                    (~80L)  — buildMultipartBody, buildMediaGroupMultipartBody
 ├── guess-mime-type.ts                         (~25L)  — guessMimeType
@@ -63,20 +63,20 @@ senders/
 > Zero human intervention — all verification is agent-executed.
 
 - Test decision: tests-after — existing test suite + ESLint + tsc --noEmit
-- Evidence: `.omo/evidence/bot-api-crypto-news-publisher-decompose/`
+- Evidence: `.omo/evidence/bot-api-feed-publisher-decompose/`
 
 ## Execution strategy
 
 ### Todos (sequential — each builds on previous)
 
-| #   | Todo                       | What                                                           | File                                       |
-| --- | -------------------------- | -------------------------------------------------------------- | ------------------------------------------ |
-| T1  | Extract multipart builders | Move `buildMultipartBody`, `buildMediaGroupMultipartBody`      | `build-multipart-body.ts`                  |
-| T2  | Extract MIME guesser       | Move `guessMimeType`                                           | `guess-mime-type.ts`                       |
-| T3  | Extract file utils         | Extract file-reading/validation helpers                        | `telegram-file-utils.ts`                   |
-| T4  | Extract HTTP client        | Extract `postJson`, `postMultipart`, `postMultipartMediaGroup` | `bot-api-http-client.ts`                   |
-| T5  | Rewire adapter             | Compose extracted modules, keep thin facade                    | `bot-api-crypto-news-publisher.adapter.ts` |
-| T6  | Final verification         | ESLint 0, tsc 0, tests pass                                    | —                                          |
+| #   | Todo                       | What                                                           | File                                |
+| --- | -------------------------- | -------------------------------------------------------------- | ----------------------------------- |
+| T1  | Extract multipart builders | Move `buildMultipartBody`, `buildMediaGroupMultipartBody`      | `build-multipart-body.ts`           |
+| T2  | Extract MIME guesser       | Move `guessMimeType`                                           | `guess-mime-type.ts`                |
+| T3  | Extract file utils         | Extract file-reading/validation helpers                        | `telegram-file-utils.ts`            |
+| T4  | Extract HTTP client        | Extract `postJson`, `postMultipart`, `postMultipartMediaGroup` | `bot-api-http-client.ts`            |
+| T5  | Rewire adapter             | Compose extracted modules, keep thin facade                    | `bot-api-feed-publisher.adapter.ts` |
+| T6  | Final verification         | ESLint 0, tsc 0, tests pass                                    | —                                   |
 
 ### Dependency matrix
 
@@ -305,7 +305,7 @@ All extracts are independent — they could run in parallel. But sequential is s
      ```typescript
      private readonly httpClient = new BotApiHttpClient(
        this.logger,
-       BotApiCryptoNewsPublisherAdapter.API_BASE,
+       BotApiFeedPublisherAdapter.API_BASE,
        this.botToken,
        this.outputChannel,
      );
@@ -376,7 +376,7 @@ All extracts are independent — they could run in parallel. But sequential is s
         ```typescript
         private readonly httpClient = new BotApiHttpClient(
           this.logger,
-          BotApiCryptoNewsPublisherAdapter.API_BASE,
+          BotApiFeedPublisherAdapter.API_BASE,
           this.botToken,
           this.outputChannel,
         );
@@ -423,9 +423,9 @@ All extracts are independent — they could run in parallel. But sequential is s
 - [ ] 6. **Final verification**
      What to do:
      1. `wc -l` on adapter → target ~100 lines
-     2. `npx eslint apps/backend/src/telegram/crypto-news-publisher/infrastructure/senders/bot-api-crypto-news-publisher.adapter.ts` → 0 errors, 0 warnings
+     2. `npx eslint apps/backend/src/telegram/crypto-news-publisher/infrastructure/senders/bot-api-feed-publisher.adapter.ts` → 0 errors, 0 warnings
      3. `npx tsc --noEmit` (from `apps/backend`) → 0 errors
-     4. `npx jest --testPathPattern="bot-api-crypto-news-publisher"` → all pass
+     4. `npx jest --testPathPattern="bot-api-feed-publisher"` → all pass
      5. Verify each new file exists:
         - `build-multipart-body.ts`
         - `guess-mime-type.ts`

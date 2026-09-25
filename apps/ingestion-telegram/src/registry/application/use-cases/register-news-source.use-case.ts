@@ -61,7 +61,7 @@ const BATCH_MAX_ITEMS = 500;
  * Use case: Register a new Telegram channel as a feed source.
  *
  * Ingestion-service is the SOLE OWNER of feed sources
- * (`telegram_feed_sources`, unified catalog for `kol` + `crypto-news`).
+ * (`telegram_feed_sources`, unified catalog for `kol` + `feed`).
  *
  * This use case:
  * 1. Validates the input (channelId format) — 400 on invalid

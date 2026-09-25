@@ -7,7 +7,7 @@
  * eliminating ~400+ lines of duplicated code across the codebase.
  *
  * **Usage**:
- * - Ingestion-service: Use directly (owner of crypto-news media)
+ * - Ingestion-service: Use directly (owner of feed media)
  * - Backend: Import from ingestion-telegram for ads media components
  *
  * **Cohesion Benefits**:

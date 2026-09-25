@@ -1,10 +1,10 @@
-# crypto-news-prompt-templates - Work Plan
+# feed-prompt-templates - Work Plan
 
 ## TL;DR (For humans)
 
 **What you'll get:** Una biblioteca de templates de prompt + LLM settings en la DB. Los creas, editas y borras desde el frontend sin tocar código. Cada keyword puede tener un template propio, o usar el "default" configurado globalmente. La UI además tiene un dropdown de modelos del gateway (vía `/v1/models` proxyeado por el backend) y campos para `maxTokens`, `temperature`, `reasoningEffort`.
 
-**Why this approach:** Hoy todo está hardcodeado en `crypto-news-publisher.config.json`. Cualquier cambio requiere editar JSON en disco. Con templates en la DB, todo se gestiona desde el UI. Y al ser una entity con CRUD, los templates son reutilizables entre keywords.
+**Why this approach:** Hoy todo está hardcodeado en `feed-publisher.config.json`. Cualquier cambio requiere editar JSON en disco. Con templates en la DB, todo se gestiona desde el UI. Y al ser una entity con CRUD, los templates son reutilizables entre keywords.
 
 **Effort:** Medium-large (~10 archivos, 1 wave + 2 waves)
 **Risk:** Low — todo es aditivo, no se elimina nada hasta que el JSON se migra y queda dead-code
@@ -19,7 +19,7 @@
 - Repos: `PromptTemplateRepository`, `LlmConfigRepository`
 - 7 endpoints in `LlmConfigController` (CRUD templates + get/post LlmConfig + GET gateway models)
 - `GetLlmModelsUseCase` (proxy to gateway)
-- `CryptoNewsLlmAdapter` resolves the template per entry
+- `FeedLlmAdapter` resolves the template per entry
 - One-time JSON→DB migration on startup (idempotent)
 - Frontend: `llm-config.tsx` (default LLM settings form) + `prompt-templates.tsx` (list + create/edit modal) + small edit in `keywords-manager.tsx` to show template binding
 - Hooks: `useLlmModels`, `useLlmConfig`, `useLlmTemplates`
@@ -79,17 +79,17 @@ Wave 3: frontend (config + templates UI)
   - Mappers: domain ↔ TypeORM for both
   - New: `apps/backend/src/telegram/crypto-news-publisher/infrastructure/migration/llm-config-migration.ts`
     - On startup, check if `LlmConfigEntity` table is empty
-    - **Branch A: JSON file exists.** Read `apps/backend/config/crypto-news-publisher.config.json`. Create a `PromptTemplateEntity` named "Default (imported)" with `model = JSON.prompt.model, maxTokens = 2000, temperature = 0.7, promptText = JSON.prompt.template` (the `2000/0.7` come from the current `crypto-news-llm.adapter.ts` hardcoded defaults, NOT the JSON). Create `LlmConfigEntity(id=1)` with `defaultTemplateId = imported.id` and ALL 7 JSON fields populated.
+    - **Branch A: JSON file exists.** Read `apps/backend/config/feed-publisher.config.json`. Create a `PromptTemplateEntity` named "Default (imported)" with `model = JSON.prompt.model, maxTokens = 2000, temperature = 0.7, promptText = JSON.prompt.template` (the `2000/0.7` come from the current `feed-llm.adapter.ts` hardcoded defaults, NOT the JSON). Create `LlmConfigEntity(id=1)` with `defaultTemplateId = imported.id` and ALL 7 JSON fields populated.
     - **Branch B: JSON file absent** (fresh deploy). Same as A but use the in-code `DEFAULTS` constants for the prompt and template values: `model = 'default', maxTokens = 2000, temperature = 0.7, promptText = DEFAULT_PROMPT_TEXT, dailyCap = 36, ...` etc. So a fresh prod deploy with no JSON file still seeds a working LlmConfig.
     - Both branches are idempotent: if `LlmConfigEntity.findById(1)` returns a row, no-op.
     - Wrap both branches in a transaction (`dataSource.transaction`) to prevent two concurrent backend starts from racing the empty-check.
     - Log "[llm-config-migration] seeded LlmConfig + N template(s)" on success.
-  - `crypto-news-publisher.module.ts`:
+  - `feed-publisher.module.ts`:
     - Add `TypeOrmModule.forFeature([PromptTemplateEntity, LlmConfigEntity])`
     - Add `PromptTemplateRepository`, `LlmConfigRepository` providers
     - Add `LlmConfigMigration` to `onApplicationBootstrap` (NestJS lifecycle hook)
-  - **Delete `apps/backend/config/crypto-news-publisher.config.json` AS PART OF THIS TODO** (not T2). Once migration runs and LlmConfig is populated, the file is dead code. We remove the file in T1 commit so future T2 changes are unambiguous about the source of truth.
-  - **DO NOT modify `crypto-news-llm.adapter.ts` here** — that change is in T2 once we know the new repos exist.
+  - **Delete `apps/backend/config/feed-publisher.config.json` AS PART OF THIS TODO** (not T2). Once migration runs and LlmConfig is populated, the file is dead code. We remove the file in T1 commit so future T2 changes are unambiguous about the source of truth.
+  - **DO NOT modify `feed-llm.adapter.ts` here** — that change is in T2 once we know the new repos exist.
   - Tests: `prompt-template.entity.spec.ts`, `llm-config.entity.spec.ts`, `llm-config-migration.spec.ts` (with two branches: JSON present, JSON absent)
 
 - [ ] 2. LlmConfigController + LlmPort change + adapter + handler plumbing
@@ -111,10 +111,10 @@ Wave 3: frontend (config + templates UI)
     - `DELETE /crypto-news-publisher/llm/templates/:id` — refuse (409) if it's `LlmConfig.defaultTemplateId` OR any keyword's `templateId` references it. Error body explains: "in use by default config" or "in use by N keyword(s)"
     - `GET /crypto-news-publisher/llm/config` — return LlmConfig
     - `PATCH /crypto-news-publisher/llm/config` — body: `{ defaultTemplateId?, targetChannel?, enabled?, dailyCap?, dailyResetUtcHour?, randomDelayMinMs?, randomDelayMaxMs?, llmMaxAttempts? }` (LlmConfig's actual fields; **does not** include model/maxTokens/temperature — those are on PromptTemplate, not LlmConfig, per the separation of concerns in T1)
-  - **Modify `CryptoNewsMessageIngestedHandler`** (`infrastructure/event-bus/crypto-news-message-ingested.handler.ts`):
+  - **Modify `FeedMessageIngestedHandler`** (`infrastructure/event-bus/feed-message-ingested.handler.ts`):
     - `handle()` currently does `const keywords = await this.keywordRepo.findEnabled()` and then `keywords.find((kw) => kw.matches(...))` — it discards the matched keyword. **Pass the matched keyword to the use case.** The variable name is `matchedKeyword`. Pass it as a new arg.
   - **Modify `EnqueueMatchingMessageUseCase`** (`application/handlers/enqueue-matching-message.use-case.ts`):
-    - Input shape now: `EnqueueMatchingMessageInput = { message: CryptoNewsMessage, matchedKeyword?: Keyword }` (matched keyword is optional in case the match logic is changed in the future)
+    - Input shape now: `EnqueueMatchingMessageInput = { message: FeedMessage, matchedKeyword?: Keyword }` (matched keyword is optional in case the match logic is changed in the future)
     - When `matchedKeyword` is present, pass `keywordTemplateId = matchedKeyword.templateId ?? null` to the queue repo's enqueue call (add a new field on the queue entry)
   - **Modify `PublisherQueueEntry`** (`domain/entities/publisher-queue-entry.entity.ts`):
     - Add `keywordTemplateId: string | null` field
@@ -122,7 +122,7 @@ Wave 3: frontend (config + templates UI)
   - **Modify `PublisherQueueRepository` (port + TypeORM impl)**:
     - `enqueue()` signature now takes `entry: PublisherQueueEntry` (already does); no change
     - `PublisherQueueEntity` (TypeORM) gets a new column `keywordTemplateId: string | null`
-  - **Modify `CryptoNewsLlmAdapter`** (`infrastructure/llm/crypto-news-llm.adapter.ts`):
+  - **Modify `FeedLlmAdapter`** (`infrastructure/llm/feed-llm.adapter.ts`):
     - Constructor: take `PromptTemplateRepository` + `LlmConfigRepository` (no more JSON file dependency)
     - `generateForEntry(entry: PublisherQueueEntry): Promise<string>`:
       1. `const cfg = await this.llmConfigRepo.load()`
@@ -131,12 +131,12 @@ Wave 3: frontend (config + templates UI)
       4. `const prompt = template.promptText.replace('{{title}}', entry.rawTitle ?? '').replace('{{original}}', entry.rawContent).replace('{{hasImage}}', entry.imagePath ? 'sí' : 'no')` — use a single regex pass to avoid O(N×M) chained replaces
       5. `return this.llmPort.generateText({ prompt, imageBase64, mimeType, model: template.model, maxTokens: template.maxTokens, temperature: template.temperature, reasoningEffort: template.reasoningEffort })`
   - **Modify `keywords.controller.ts`**: when creating/updating a keyword, accept `templateId: string | null` in the request body and pass it through to the repo
-  - Tests: `get-llm-models.use-case.spec.ts`, `llm-config.controller.spec.ts`, `llm-config-template-resolution.spec.ts` (covers: default template path, keyword-template override path, template-not-found error), update `crypto-news-llm.adapter.spec.ts` to mock the new repos
+  - Tests: `get-llm-models.use-case.spec.ts`, `llm-config.controller.spec.ts`, `llm-config-template-resolution.spec.ts` (covers: default template path, keyword-template override path, template-not-found error), update `feed-llm.adapter.spec.ts` to mock the new repos
   - **No file deletes** — the JSON config is deleted in T1 (already done in this plan)
 
 - [ ] 3. Frontend: config + templates UI
      What to do:
-  - New: `apps/frontend/src/features/crypto-news-publisher/api/llm-config-api.ts`
+  - New: `apps/frontend/src/features/feed-publisher/api/llm-config-api.ts`
     - `fetchLlmModels(): Promise<{id: string, ownedBy?: string}[]>` — `/crypto-news-publisher/llm/models`
     - `fetchLlmConfig(): Promise<LlmConfig>` — `/crypto-news-publisher/llm/config`
     - `updateLlmConfig(patch): Promise<LlmConfig>` — PATCH
@@ -146,14 +146,14 @@ Wave 3: frontend (config + templates UI)
     - `updateTemplate(id, patch): Promise<PromptTemplate>` — PATCH
     - `deleteTemplate(id): Promise<void>` — DELETE
     - Types: `PromptTemplate`, `LlmConfig`
-  - New: `apps/frontend/src/features/crypto-news-publisher/model/use-llm-config.ts`
+  - New: `apps/frontend/src/features/feed-publisher/model/use-llm-config.ts`
     - `useLlmModels()` — `staleTime: 5 * 60_000` (5 min, NOT 10s — model list is static and polling it faster wastes gateway quota)
     - `useLlmConfig()` — `staleTime: 5_000` (5s, low-latency for config edits)
     - `useUpdateLlmConfig()` (mutation)
     - `useTemplates()` — `staleTime: 30_000` (30s, templates change rarely)
     - `useTemplate(id)` — `staleTime: 30_000`
     - `useCreateTemplate()` / `useUpdateTemplate()` / `useDeleteTemplate()` (mutations that invalidate templates cache)
-  - New: `apps/frontend/src/features/crypto-news-publisher/ui/llm-config.tsx`
+  - New: `apps/frontend/src/features/feed-publisher/ui/llm-config.tsx`
     - Top section: "Default LLM settings" form
     - Form fields:
       - **Model**: dropdown populated from `useLlmModels()` — `<select>` with `{id, ownedBy}` options
@@ -162,15 +162,15 @@ Wave 3: frontend (config + templates UI)
       - **Reasoning effort**: `<select>` with `null | 'low' | 'medium' | 'high'`
       - **Default template**: dropdown from `useTemplates()`
     - "Save" button → PATCH `/crypto-news-publisher/llm/config`
-  - New: `apps/frontend/src/features/crypto-news-publisher/ui/prompt-templates.tsx`
+  - New: `apps/frontend/src/features/feed-publisher/ui/prompt-templates.tsx`
     - List of templates (card or row per template) showing name, model, max tokens, temperature, description
     - "New template" button → opens create modal
     - "Edit" button per template → opens edit modal (same form fields as config + `promptText` textarea with `{{title}}`, `{{original}}`, `{{hasImage}}` placeholder hints — **only these three, the only ones the queue entry actually has**)
     - "Delete" button per template (with confirmation dialog, disabled if it's the default or any keyword uses it)
-  - Modify: `apps/frontend/src/features/crypto-news-publisher/ui/keywords-manager.tsx`
+  - Modify: `apps/frontend/src/features/feed-publisher/ui/keywords-manager.tsx`
     - Each keyword row shows: name, caseSensitive, enabled, and now **template** (e.g. "Default" or "Template: Clickbait" if overridden)
     - The create/edit keyword form includes a "Template" dropdown (default = "Use global default")
-  - Add to the existing publisher section in `pages/crypto-news/index.tsx`:
+  - Add to the existing publisher section in `pages/feed/index.tsx`:
     - New collapsible `<details>` for "LLM Configuration" inside the publisher section
     - Or: render `llm-config.tsx` + `prompt-templates.tsx` as separate sections
 
@@ -187,8 +187,8 @@ Wave 3: frontend (config + templates UI)
 
 ## Commits
 
-1. `feat(crypto-news-publisher): add prompt templates + llm config persistence`
-2. `feat(crypto-news-publisher): add LlmConfigController + model list proxy`
+1. `feat(feed-publisher): add prompt templates + llm config persistence`
+2. `feat(feed-publisher): add LlmConfigController + model list proxy`
 3. `feat(frontend): add LLM config + prompt templates UI`
 
 ## Success criteria

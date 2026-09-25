@@ -56,7 +56,7 @@ export default defineConfig(({ mode }) => {
           target: BACKEND_PROXY_TARGET,
           changeOrigin: false,
         },
-        // Threads publisher (mirror of crypto-news-publisher precedent above).
+        // Threads publisher (mirror of feed-publisher precedent above).
         // IMPORTANT: Use specific paths to avoid intercepting frontend /threads route
         '/threads-publisher': {
           target: BACKEND_PROXY_TARGET,
@@ -71,17 +71,17 @@ export default defineConfig(({ mode }) => {
         },
         // Matching activation (SOLE source: crypto_news_matching_config id=1)
         // GET/PATCH /crypto-news/matching/config on the backend
-        // IMPORTANT: Use specific path to avoid intercepting frontend /crypto-news route
+        // IMPORTANT: Use specific path to avoid intercepting frontend /feed route
         '/crypto-news/matching': {
           target: BACKEND_PROXY_TARGET,
           changeOrigin: false,
         },
         // POST /crypto-news/sources now handled by ingestion-telegram (migrated 2026-09-05, renamed 2026-09-17)
-        // Old endpoint /crypto-news/sources deprecated (backend returns 501)
+        // Old endpoint /feed/sources deprecated (backend returns 501)
         // Content-filter CRUD stays on the backend (Opción A, filter on-read):
         // GET/POST /crypto-news/sources/:channelId/filters + PUT/DELETE/PATCH
-        // /crypto-news/filters/:id. Specific prefixes only — never bare
-        // /crypto-news (frontend route intact).
+        // /feed/filters/:id. Specific prefixes only — never bare
+        // /feed (frontend route intact).
         '/crypto-news/sources': {
           target: BACKEND_PROXY_TARGET,
           changeOrigin: false,

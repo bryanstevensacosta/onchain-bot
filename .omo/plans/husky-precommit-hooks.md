@@ -266,7 +266,7 @@ Wave 3: Verify all hooks + docs check (sequential — depends on all configs + h
     //   L0 = Proyecto root
     //   L1 = App (backend, frontend)
     //   L2 = Bounded Context (telegram, token, kol, ...) ← STOP level
-    //   L3 = Sub-BC (vip-calls, chain-dexter-bot, crypto-news, ...)
+    //   L3 = Sub-BC (vip-calls, chain-dexter-bot, feed, ...)
     //   L4+ = Módulo interno (shared, ingestion, ...)
     //
     // Regla: al cambiar un archivo, se reportan todos los AGENTS.md

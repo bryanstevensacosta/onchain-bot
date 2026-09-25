@@ -80,7 +80,7 @@ function parseMessageTypeFilter(
  * - GET /api/feed/messages/channel/:channelId — messages by channel
  * - GET /api/feed/stats — message/source counts
  *
- * Response shapes are ported 1:1 from the retired crypto-news controller
+ * Response shapes are ported 1:1 from the retired feed controller
  * (wrapped `{timestamp,count,data}` on the recent-messages read, bare
  * arrays on the channel read).
  */

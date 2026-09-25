@@ -20,11 +20,11 @@ import { TelegramFeedMessageEntity } from 'feed/infrastructure/persistence/typeo
 import { TelegramFeedMessageMediaEntity } from 'feed/infrastructure/persistence/typeorm/entities/telegram-feed-message-media.entity';
 import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
 import { TelegramFeedMessageRepository } from 'feed/infrastructure/persistence/typeorm/repositories/telegram-feed-message.repository';
-import { CryptoNewsMessageTransformer } from 'shared/telegram/transformation';
+import { FeedMessageTransformer } from 'shared/telegram/transformation';
 import { TelegramMediaExtractorService } from './application/services/telegram-media-extractor.service';
 
 /**
- * SharedModule - Telegram infrastructure shared across KOL and crypto-news ingestion
+ * SharedModule - Telegram infrastructure shared across KOL and feed ingestion
  *
  * Provides:
  * - TelegramListenerPort implementation (TelegramMtprotoListenerAdapter)
@@ -35,9 +35,9 @@ import { TelegramMediaExtractorService } from './application/services/telegram-m
  * - Last seen tracking
  * - Message queue
  * - Media downloader service
- * - CryptoNewsMessageTransformer (shared transformation pipeline, Phase 5)
+ * - FeedMessageTransformer (shared transformation pipeline, Phase 5)
  *
- * @Global to avoid circular dependency issues with KolModule and CryptoNewsModule
+ * @Global to avoid circular dependency issues with KolModule and FeedModule
  */
 @Global()
 @Module({
@@ -67,11 +67,11 @@ import { TelegramMediaExtractorService } from './application/services/telegram-m
 
     // Message transformation (Phase 5 - shared pipeline)
     {
-      provide: CryptoNewsMessageTransformer,
+      provide: FeedMessageTransformer,
       useFactory: () => {
-        // CryptoNewsMessageTransformer only extracts metadata (no download)
+        // FeedMessageTransformer only extracts metadata (no download)
         // Media download is handled separately by TelegramMediaExtractorService
-        return new CryptoNewsMessageTransformer();
+        return new FeedMessageTransformer();
       },
     },
 
@@ -98,7 +98,7 @@ import { TelegramMediaExtractorService } from './application/services/telegram-m
     TelegramFeedMessageRepository, // Export for feed readers (item 3)
     TelegramClientManager,
     TelegramListenerPort,
-    CryptoNewsMessageTransformer, // Export transformer (Phase 5)
+    FeedMessageTransformer, // Export transformer (Phase 5)
     DeduplicationService,
     MessagePersistenceCoordinator,
     LastSeenManager,

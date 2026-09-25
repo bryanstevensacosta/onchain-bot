@@ -107,7 +107,7 @@ GET /api/health
 
 Returns service health status, MTProto connection state, and metrics.
 
-### Feed reads (feed-unification; the old `/api/crypto-news/*` paths return 404)
+### Feed reads (feed-unification; the old `/api/feed/*` paths return 404)
 
 ```
 GET /api/feed/sources

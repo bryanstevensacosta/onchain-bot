@@ -1,4 +1,4 @@
-# crypto-news-image-only-filter - Work Plan
+# feed-image-only-filter - Work Plan
 
 ## TL;DR (For humans)
 
@@ -57,18 +57,18 @@
         return;
       }
       ```
-    - **Note**: I need to confirm `message` is accessible here. Looking at the plan for T4 (handle plumbing), `EnqueueMatchingMessageUseCase.execute({ message, matchedKeyword })` receives the full `CryptoNewsMessage`. The message has `imagePath` from the publisher-queue-entry perspective — but wait, `imagePath` is on the QUEUE ENTRY, not on the message. Let me re-check the message shape.
+    - **Note**: I need to confirm `message` is accessible here. Looking at the plan for T4 (handle plumbing), `EnqueueMatchingMessageUseCase.execute({ message, matchedKeyword })` receives the full `FeedMessage`. The message has `imagePath` from the publisher-queue-entry perspective — but wait, `imagePath` is on the QUEUE ENTRY, not on the message. Let me re-check the message shape.
 
-    Actually, looking at the codebase: the `CryptoNewsMessage` in `domain/entities/crypto-news-message.entity.ts` has `media: CryptoNewsMedia[]` (plural). The `imagePath` is on the queue entry, which is derived from the first media item. So at enqueue time, I need to compute `hasImage` from `message.media.length > 0`.
+    Actually, looking at the codebase: the `FeedMessage` in `domain/entities/feed-message.entity.ts` has `media: FeedMedia[]` (plural). The `imagePath` is on the queue entry, which is derived from the first media item. So at enqueue time, I need to compute `hasImage` from `message.media.length > 0`.
 
-    Looking at the actual handler code: `EnqueueMatchingMessageUseCase.execute({ message })`. The `message` is `CryptoNewsMessage`. Its `media` array contains `CryptoNewsMedia` items. The queue entry's `imagePath` is built from the first media item at enqueue time (in the same use case).
+    Looking at the actual handler code: `EnqueueMatchingMessageUseCase.execute({ message })`. The `message` is `FeedMessage`. Its `media` array contains `FeedMedia` items. The queue entry's `imagePath` is built from the first media item at enqueue time (in the same use case).
 
     So the check is `message.media.length > 0`, not `!message.imagePath`. The imagePath field is only available on the queue entry AFTER the use case creates it — so the check has to be on `message.media`.
 
-  - Frontend `apps/frontend/src/features/crypto-news-publisher/api/keywords-api.ts`:
+  - Frontend `apps/frontend/src/features/feed-publisher/api/keywords-api.ts`:
     - Add `requireImage?: boolean` to `CreateKeywordBody` and `UpdateKeywordBody`
     - Add `requireImage: boolean` to `KeywordView`
-  - Frontend `apps/frontend/src/features/crypto-news-publisher/ui/keywords-manager.tsx`:
+  - Frontend `apps/frontend/src/features/feed-publisher/ui/keywords-manager.tsx`:
     - Add a new case-sensitive-style checkbox in the create form (same row): "Only with image"
     - Add the same checkbox in the edit form
     - In the row display, optionally show a small icon when `requireImage` is true
@@ -87,4 +87,4 @@
 
 ## Commits
 
-1. `feat(crypto-news-publisher): add requireImage filter to keywords`
+1. `feat(feed-publisher): add requireImage filter to keywords`

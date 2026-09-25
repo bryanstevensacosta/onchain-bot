@@ -95,10 +95,10 @@ Wave 1: single todo (only one file changes meaningfully)
   1. MUST NOT: change backend, blacklist-api.ts, use-blacklist.ts, keywords-section.tsx
      Parallelization: Wave 1 | Blocked by: — | Blocks: —
      References (executor has NO interview context - be exhaustive):
-  - Target file: `apps/frontend/src/features/crypto-news-publisher/ui/blacklist-manager.tsx:1-418`
-  - Keywords pattern (create form): `apps/frontend/src/features/crypto-news-publisher/ui/keywords-section.tsx:226-238`
-  - Keywords pattern (table): `apps/frontend/src/features/crypto-news-publisher/ui/keywords-section.tsx:390-412`
-  - Frontend API types (already have matchMode): `apps/frontend/src/features/crypto-news-publisher/api/blacklist-api.ts:11,20,28`
+  - Target file: `apps/frontend/src/features/feed-publisher/ui/blacklist-manager.tsx:1-418`
+  - Keywords pattern (create form): `apps/frontend/src/features/feed-publisher/ui/keywords-section.tsx:226-238`
+  - Keywords pattern (table): `apps/frontend/src/features/feed-publisher/ui/keywords-section.tsx:390-412`
+  - Frontend API types (already have matchMode): `apps/frontend/src/features/feed-publisher/api/blacklist-api.ts:11,20,28`
   - Frontend tests: `npm run test:frontend` (Vitest)
     Acceptance criteria (agent-executable):
   - `npm run test:frontend` passes (14 suites, 154+ tests)

@@ -3,7 +3,7 @@
  *
  * Per ADR `docs/architecture/adr-kol-raw-text.md` (telegram-feed-unification
  * item 7, decision Q1-B): KOL raw text IS extracted via the same 4-source
- * cascade as crypto-news (`message` → `text` → `media.caption` →
+ * cascade as feed (`message` → `text` → `media.caption` →
  * `fwdFrom.message`). The coordinator persists it RAW into
  * `telegram_feed_messages` (type='kol', no media) and carries it in the SSE
  * `payload.text`.
@@ -21,7 +21,7 @@ export class KolTextExtractor extends AbstractTextExtractor {
   /**
    * Extract text from KOL message with 4-source cascade (Q1-B).
    *
-   * Same cascade as `CryptoNewsTextExtractor`:
+   * Same cascade as `FeedTextExtractor`:
    * 1. msg.message (primary)
    * 2. msg.text (secondary)
    * 3. msg.media.caption (tertiary)

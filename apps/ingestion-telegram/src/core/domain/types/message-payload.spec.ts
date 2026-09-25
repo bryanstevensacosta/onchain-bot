@@ -5,7 +5,7 @@
  * to verify compliance with architectural invariants:
  *
  * - Q1-B (adr-kol-raw-text.md): Text field CARRIED for BOTH types
- *   (kol + crypto-news). Backend-internal ToS boundary unchanged:
+ *   (kol + feed). Backend-internal ToS boundary unchanged:
  *   `KolMessageIngestedEvent` still carries NO text (fix-1 holds).
  * - Invariant 5: Media URLs follow path format /api/media/:channelId/:messageId/:index
  * - Requirements: Entities preservation, groupedId handling
@@ -160,7 +160,7 @@ describe('MessagePayload Transformation', () => {
       expect(broadcastedPayloads).toHaveLength(1);
       const payload = broadcastedPayloads[0];
 
-      // For crypto-news, text field IS included (even if empty string)
+      // For feed, text field IS included (even if empty string)
       expect(payload).toHaveProperty('text');
       expect(payload.text).toBe(''); // Defaults to empty string when missing
       expect(payload.peerId).toBe('-1009876543210');
@@ -612,7 +612,7 @@ describe('MessagePayload Transformation', () => {
       expect(payload.messageType).toBe('kol');
     });
 
-    it('should set messageType discriminator correctly for crypto-news messages', async () => {
+    it('should set messageType discriminator correctly for feed messages', async () => {
       // Arrange
       const rawMessage: TelegramRawMessage = {
         peerId: '-1009876543210',

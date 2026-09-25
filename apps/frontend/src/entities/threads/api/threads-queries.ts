@@ -1,13 +1,13 @@
 /**
  * Threads entity queries — key factories + Threads-typed views.
  *
- * Mirror of `entities/crypto-news/api/crypto-news-queries.ts`, reduced to
+ * Mirror of `entities/feed/api/feed-queries.ts`, reduced to
  * the T7 surface: query-key factories, the queue entry/counts views, and
  * IMPORT-reuse (no copies) of the shared messages/sources/filters queries.
  *
  * Messages, sources and content filters are owned by the SAME backend
- * routes for both products, so they are re-exported from the crypto-news
- * ingestion-api instead of being duplicated here. The "zero /crypto-news*"
+ * routes for both products, so they are re-exported from the feed
+ * ingestion-api instead of being duplicated here. The "zero /feed*"
  * invariant applies to endpoint URLs DEFINED in threads modules — the
  * reused filters/messages/sources calls intentionally keep hitting the
  * shared backend routes via these imports.
@@ -19,22 +19,22 @@
  * keeps matching the exclusion pattern).
  */
 export {
-  fetchCryptoNewsMessages,
-  fetchCryptoNewsSources,
+  fetchFeedMessages,
+  fetchFeedSources,
   fetchFilters,
   createFilter,
   updateFilter,
   deleteFilter,
   toggleFilter,
-} from '@/entities/crypto-news/api/crypto-news-queries';
+} from '@/entities/feed/api/feed-queries';
 export type {
-  CryptoNewsMessage,
-  CryptoNewsSource,
+  FeedMessage,
+  FeedSource,
   ContentFilter,
   CreateFilterDto,
   UpdateFilterDto,
-  CryptoNewsMediaView,
-} from '@/entities/crypto-news/api/crypto-news-queries';
+  FeedMediaView,
+} from '@/entities/feed/api/feed-queries';
 
 /**
  * Threads queue entry view — frontend mirror of the backend

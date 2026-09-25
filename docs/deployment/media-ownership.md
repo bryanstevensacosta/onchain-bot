@@ -14,7 +14,7 @@
 ## Detalle operativo
 
 - Fuente de verdad: `apps/ingestion-telegram/uploads/crypto-news/media/`.
-  Janitor `CryptoNewsRetentionCleanupScheduler`, retención 72h, lock `9_421_373`.
+  Janitor `FeedRetentionCleanupScheduler`, retención 72h, lock `9_421_373`.
 - Backend solo cachea en publish: descarga vía `INGESTION_TELEGRAM_URL` +
   `GET /api/media/:channelId/:messageId/:index`, escribe en
   `uploads/crypto-news/media/` y debe borrar tras publicar.

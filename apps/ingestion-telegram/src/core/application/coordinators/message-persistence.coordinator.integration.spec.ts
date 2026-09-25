@@ -809,14 +809,14 @@ describe('MessagePersistenceCoordinator - Broadcast Pipeline Deduplication (Inte
       expect(broadcastedMessages).toHaveLength(1);
     });
 
-    it('duplicate crypto-news realtime+polling delivery persists exactly 1 row (isDuplicate wired, item 9)', async () => {
+    it('duplicate feed realtime+polling delivery persists exactly 1 row (isDuplicate wired, item 9)', async () => {
       const feedRepo = module.get<TelegramFeedMessageRepository>(
         TelegramFeedMessageRepository,
       );
       const saveMock = feedRepo.save as jest.Mock;
       saveMock.mockClear();
 
-      // Same crypto-news message arrives twice (realtime event + 30s polling sweep)
+      // Same feed message arrives twice (realtime event + 30s polling sweep)
       const realtime = createMessage('channel_news_dup', 77, {
         text: 'Same news twice',
       });

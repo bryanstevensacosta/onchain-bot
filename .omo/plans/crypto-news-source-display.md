@@ -1,10 +1,10 @@
-# crypto-news-source-display - Work Plan
+# feed-source-display - Work Plan
 
 ## TL;DR (For humans)
 
 **What you'll get:** En lugar de "4466661332" en cada noticia, verás el nombre del canal (handle público con enlace, o nombre del canal privado) y un link que lleva directamente al post original en Telegram. Cero cambios en el backend — solo frontend.
 
-**Why this approach:** La data de los sources (handle, title) ya se carga en la página de crypto-news para el filtro dropdown. No necesitamos tocar el backend ni hacer joins extra. Es solo mapear el `channelId` con el source correspondiente y renderizar el nombre + un `<a>` link.
+**Why this approach:** La data de los sources (handle, title) ya se carga en la página de feed para el filtro dropdown. No necesitamos tocar el backend ni hacer joins extra. Es solo mapear el `channelId` con el source correspondiente y renderizar el nombre + un `<a>` link.
 
 **What it will NOT do:** No cambia el backend, no cambia la API, no cambia el filtro dropdown. El link se abre en nueva pestaña (estándar de seguridad).
 
@@ -31,7 +31,7 @@ Your next move: approve and implement. Full execution detail follows below.
 ### Must NOT have (guardrails, anti-slop, scope boundaries)
 
 - NO modificar el backend
-- NO modificar la API (`CryptoNewsMessageView` o `CryptoNewsSourceView`)
+- NO modificar la API (`FeedMessageView` o `FeedSourceView`)
 - NO modificar el filter dropdown
 - NO cambiar la consulta de datos (solo el rendering)
 - NO añadir nuevos hooks/queries/queries de TanStack Query
@@ -41,7 +41,7 @@ Your next move: approve and implement. Full execution detail follows below.
 > Zero human intervention - all verification is agent-executed.
 
 - Test decision: tests-after — se modifican tests existentes + 2 nuevos
-- Evidence: `.omo/evidence/crypto-news-source-display/`
+- Evidence: `.omo/evidence/feed-source-display/`
 - Playwright snapshot confirmando que el texto cambió y los links existen
 
 ## Execution strategy
@@ -52,9 +52,9 @@ Wave 1: Frontend + tests (1 todo, sin dependencias externas)
 
 ### Dependency matrix
 
-| Todo                             | Depends on                             | Blocks | Can parallelize with |
-| -------------------------------- | -------------------------------------- | ------ | -------------------- |
-| T1. Frontend handle/link + tests | T7-T8 de crypto-news-images (ya hecho) | —      | —                    |
+| Todo                             | Depends on                      | Blocks | Can parallelize with |
+| -------------------------------- | ------------------------------- | ------ | -------------------- |
+| T1. Frontend handle/link + tests | T7-T8 de feed-images (ya hecho) | —      | —                    |
 
 ## Todos
 
@@ -64,7 +64,7 @@ Wave 1: Frontend + tests (1 todo, sin dependencias externas)
 
 - [ ] 1. Mostrar handle/title del source + link al post original en Telegram
      What to do / Must NOT do:
-  - **ÚNICO ARCHIVO:** `apps/frontend/src/pages/crypto-news/index.tsx`
+  - **ÚNICO ARCHIVO:** `apps/frontend/src/pages/feed/index.tsx`
   - **NO modificar** el filter dropdown existente (líneas 74-78) — debe seguir mostrando `s.title ({s.channelId})`
   - **NO modificar** el loading/error state existente (líneas 86-94)
   - **NO añadir nuevas queries/hooks** — solo usa `sources.data` y `messages.data` que ya existen en el componente
@@ -127,18 +127,18 @@ Wave 1: Frontend + tests (1 todo, sin dependencias externas)
 
   ### Verificación post-cambio:
   - `cd apps/frontend && npx tsc --noEmit` → exit 0
-  - `cd apps/frontend && npx vitest run src/pages/crypto-news/__tests__/ --reporter=verbose` → todos los tests pasan (3 nuevos + 3 existentes = 6)
-  - `cd apps/frontend && npx eslint src/pages/crypto-news/` → sin errores
+  - `cd apps/frontend && npx vitest run src/pages/feed/__tests__/ --reporter=verbose` → todos los tests pasan (3 nuevos + 3 existentes = 6)
+  - `cd apps/frontend && npx eslint src/pages/feed/` → sin errores
   - PLAYWRIGHT: abrir `/crypto-news`, verificar que los nombres de canal se renderizan como links azules subrayados y los filtros dropdown siguen funcionando
 
   Parallelization: Wave 1 | Blocked by: — | Blocks: —
   References (executor has NO interview context - be exhaustive):
-  - `apps/frontend/src/pages/crypto-news/index.tsx:1` — import: `import { useState } from 'react'` (cambiar a `import { useMemo, useState } from 'react'`)
-  - `apps/frontend/src/pages/crypto-news/index.tsx:96-130` — bucle de messages con el `<span>` a reemplazar
-  - `apps/frontend/src/pages/crypto-news/index.tsx:74-78` — filter dropdown (NO modificar)
-  - `apps/frontend/src/pages/crypto-news/index.tsx:12` — `useCryptoNewsSources()` hook
-  - Test file: `apps/frontend/src/pages/crypto-news/__tests__/crypto-news-page.test.tsx` (leer completo ANTES de editar)
-  - `apps/frontend/src/entities/crypto-news/api/crypto-news-queries.ts:3-15` — interfaces `CryptoNewsMessage` y `CryptoNewsMediaView`
+  - `apps/frontend/src/pages/feed/index.tsx:1` — import: `import { useState } from 'react'` (cambiar a `import { useMemo, useState } from 'react'`)
+  - `apps/frontend/src/pages/feed/index.tsx:96-130` — bucle de messages con el `<span>` a reemplazar
+  - `apps/frontend/src/pages/feed/index.tsx:74-78` — filter dropdown (NO modificar)
+  - `apps/frontend/src/pages/feed/index.tsx:12` — `useFeedSources()` hook
+  - Test file: `apps/frontend/src/pages/feed/__tests__/feed-page.test.tsx` (leer completo ANTES de editar)
+  - `apps/frontend/src/entities/feed/api/feed-queries.ts:3-15` — interfaces `FeedMessage` y `FeedMediaView`
   - Telegram URL format: `https://t.me/{handle}/{messageId}` (public) / `https://t.me/c/{channelId}/{messageId}` (private)
   - Tailwind classes: `text-blue-400 hover:text-blue-300 underline`
   - React `useMemo` docs
@@ -150,16 +150,16 @@ Wave 1: Frontend + tests (1 todo, sin dependencias externas)
   - `useMemo` importado de React (línea 1)
   - Vitest: 6 tests pasan (3 originales + 3 nuevos)
   - TypeScript: `cd apps/frontend && npx tsc --noEmit` → exit 0
-  - ESLint: `cd apps/frontend && npx eslint src/pages/crypto-news/` → sin errores
+  - ESLint: `cd apps/frontend && npx eslint src/pages/feed/` → sin errores
   - Filter dropdown (líneas 74-78) sigue mostrando `s.title ({s.channelId})` — verificar por inspección
-  - Evidence: `.omo/evidence/task-1-crypto-news-source-display.md` creado con resumen de tests + captura de Playwright
-    QA scenarios: happy + failure, Evidence `.omo/evidence/task-1-crypto-news-source-display.md`
+  - Evidence: `.omo/evidence/task-1-feed-source-display.md` creado con resumen de tests + captura de Playwright
+    QA scenarios: happy + failure, Evidence `.omo/evidence/task-1-feed-source-display.md`
   - Happy (vitest): source con handle → link público `https://t.me/test-handle/5` sin `@` en URL
   - Happy (vitest): source sin handle → link privado `https://t.me/c/123/5` + display title "Test Channel"
   - Happy (vitest): source no encontrado en map → display `msg.channelId` raw (fallback sin link)
   - Happy (playwright): abrir `/crypto-news`, verificar que hay `<a>` links en los articles y el filter dropdown sigue funcionando con los mismos options
   - Failure: mock vacío (no sources, no messages) → sin crash, solo "No messages yet"
-    Commit: Y | `feat(frontend): show source handle/title and Telegram link in crypto-news page`
+    Commit: Y | `feat(frontend): show source handle/title and Telegram link in feed page`
 
 ## Final verification wave
 
@@ -167,12 +167,12 @@ Wave 1: Frontend + tests (1 todo, sin dependencias externas)
 
 - [ ] F1. Plan compliance audit — verificar que el cambio es solo frontend, no hay backend tocado
 - [ ] F2. Code quality — TypeScript + ESLint + Vitest pasan
-- [ ] F3. Real manual QA — Playwright abre /crypto-news, verifica link rendering
+- [ ] F3. Real manual QA — Playwright abre /feed, verifica link rendering
 - [ ] F4. Scope fidelity — NO backend changes, NO API changes, NO filter changes
 
 ## Commit strategy
 
-1. `feat(frontend): show source handle/title and Telegram link in crypto-news page`
+1. `feat(frontend): show source handle/title and Telegram link in feed page`
 
 ## Success criteria
 

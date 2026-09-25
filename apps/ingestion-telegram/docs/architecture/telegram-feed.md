@@ -11,7 +11,7 @@
 
 ## Why one table
 
-KOL channels and crypto-news channels have the same operational shape:
+KOL channels and feed channels have the same operational shape:
 a Telegram channel id, an optional handle/title, an active flag, a lifecycle,
 a last-ingested cursor. Two tables (`kols` in backend, `crypto_news_sources`
 in ingestion) meant two registration paths, two polling loops, and a backend
@@ -26,7 +26,7 @@ Tables (all owned by ingestion-telegram, `<base>_ingestion` DB):
 | ----------------------------- | ------------------------ | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `telegram_feed_sources`       | `channel_id` varchar(64) | `type` varchar(16) | `handle` nullable, `title`, `is_active`, `lifecycle_status` default `ACTIVE`, `last_ingested_at` nullable (absorbed from backend `kols`), `added_at`/`updated_at` |
 | `telegram_feed_messages`      | `id`                     | `type` varchar(16) | shape of `crypto_news_messages` + `type`; GIN index `idx_telegram_feed_messages_entities_gin USING GIN(message_entities)`; unique per channel+message             |
-| `telegram_feed_message_media` | `id`                     | via parent FK      | same shape as before, `ON DELETE CASCADE` to messages; holds ONLY crypto-news rows (KOL never downloads, see policy)                                              |
+| `telegram_feed_message_media` | `id`                     | via parent FK      | same shape as before, `ON DELETE CASCADE` to messages; holds ONLY feed rows (KOL never downloads, see policy)                                                     |
 
 Entity homes: `src/registry/infrastructure/persistence/typeorm/entities/telegram-feed-source.entity.ts`,
 `src/feed/infrastructure/persistence/typeorm/entities/telegram-feed-message(.media).entity.ts`.
@@ -37,10 +37,10 @@ Entity homes: `src/registry/infrastructure/persistence/typeorm/entities/telegram
   carry `payload.text` for KOL (Q1-B, see `adr-kol-raw-text.md`). The
   backend-internal ToS boundary is unchanged: raw text never crosses the
   backend event bus (fix-1, `KolMessageIngestedEvent` carries no text).
-- **Media: crypto-news ONLY.** The MTProto adapter gate
-  (`isCryptoNewsChannel`, now a branch on registry `type`) skips downloads
+- **Media: feed ONLY.** The MTProto adapter gate
+  (`isFeedChannel`, now a branch on registry `type`) skips downloads
   for KOL, and the coordinator persists `media = []` for `type='kol'` as
-  defense-in-depth. Media rows exist only for crypto-news messages.
+  defense-in-depth. Media rows exist only for feed messages.
 - Raw text is NEVER written to disk logs (`[PAYLOAD-TRANSFORM-DEBUG]` logs
   shape only: lengths, never content).
 
@@ -48,15 +48,15 @@ Entity homes: `src/registry/infrastructure/persistence/typeorm/entities/telegram
 
 Source CRUD lives in `SourcesController` (`src/registry/`, `@Controller('api/feed')`):
 
-| Method + path                                   | Result                                                                                                                                                                                 |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /api/feed/sources`                        | 201 registered / 409 duplicate / 400 invalid `channelId`; `type` defaults to `crypto-news`, pass `type: 'kol'` for KOL channels                                                        |
-| `POST /api/feed/sources/batch`                  | 201 idempotent upsert by `channel_id` (created/updated/total); whole batch validated BEFORE any write, so a 400 leaves the table untouched; used by `scripts/backfill-kols-to-feed.ts` |
-| `GET /api/feed/sources[?type=kol\|crypto-news]` | all sources incl. inactive; invalid `type` → 400                                                                                                                                       |
-| `GET /api/feed/sources/active/ids[?type=]`      | channel-id strings only; the backend consumer path                                                                                                                                     |
-| `PATCH /api/feed/sources/:channelId`            | update `title`/`handle` only (400 no fields, 404 unknown); there is NO endpoint for `last_ingested_at` — the backend orchestrator treats that write as a documented no-op              |
-| `PATCH /api/feed/sources/:channelId/toggle`     | flip `isActive` blindly (404 unknown); no single-get endpoint, so callers fetch-then-toggle                                                                                            |
-| `DELETE /api/feed/sources/:channelId`           | 200 `{success:true}` (404 unknown)                                                                                                                                                     |
+| Method + path                               | Result                                                                                                                                                                                 |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/feed/sources`                    | 201 registered / 409 duplicate / 400 invalid `channelId`; `type` defaults to `feed`, pass `type: 'kol'` for KOL channels                                                               |
+| `POST /api/feed/sources/batch`              | 201 idempotent upsert by `channel_id` (created/updated/total); whole batch validated BEFORE any write, so a 400 leaves the table untouched; used by `scripts/backfill-kols-to-feed.ts` |
+| `GET /api/feed/sources[?type=kol\|feed]`    | all sources incl. inactive; invalid `type` → 400                                                                                                                                       |
+| `GET /api/feed/sources/active/ids[?type=]`  | channel-id strings only; the backend consumer path                                                                                                                                     |
+| `PATCH /api/feed/sources/:channelId`        | update `title`/`handle` only (400 no fields, 404 unknown); there is NO endpoint for `last_ingested_at` — the backend orchestrator treats that write as a documented no-op              |
+| `PATCH /api/feed/sources/:channelId/toggle` | flip `isActive` blindly (404 unknown); no single-get endpoint, so callers fetch-then-toggle                                                                                            |
+| `DELETE /api/feed/sources/:channelId`       | 200 `{success:true}` (404 unknown)                                                                                                                                                     |
 
 Reads live in `FeedController` (`src/feed/`, `@Controller('api/feed')`):
 
@@ -73,7 +73,7 @@ Unchanged plumbing (NOT under `/api/feed/`):
 | `GET /api/media/:channelId/:messageId/:index` | `src/media/` (`MediaController`); serves by glob, never trusts `file_path` for lookup |
 | `GET /api/ingestion/stream`                   | `src/stream/` (SSE fan-out, 30 s heartbeat; lossy by design, no replay)               |
 
-Hard cut, no aliases: the old `/api/crypto-news/*` routes return 404
+Hard cut, no aliases: the old `/api/feed/*` routes return 404
 (item 5). Backend `GET telegram-kol/identity/kols*` returns 501 with feed
 hints (item 8); reads go through `FeedIdentityHttpClient`
 (`GET /api/feed/sources?type=kol`).
@@ -89,7 +89,7 @@ hints (item 8); reads go through `FeedIdentityHttpClient`
 
 ## Retention (72 h, one janitor)
 
-`CryptoNewsRetentionCleanupScheduler` (`src/retention/`, the ONLY code with
+`FeedRetentionCleanupScheduler` (`src/retention/`, the ONLY code with
 DELETE): daily `0 3 * * *` full pass + hourly disk-pressure check (>90 %
 usage runs the aggressive 48 h cutoff, `AGGRESSIVE_CLEANUP_RETENTION_HOURS`).
 Advisory lock `9_421_373`, clock `ingested_at` (arrival, never

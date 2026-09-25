@@ -24,13 +24,13 @@ Desacoplar y consolidar las responsabilidades de transformación de mensajes Tel
 ### FASE 2: Implementaciones Concretas (44 tests) ✅
 
 - KolTextExtractor (vacío por ToS)
-- CryptoNewsTextExtractor (4-source cascade)
+- FeedTextExtractor (4-source cascade)
 - TelegramMediaExtractor (metadata only)
 - TelegramEntityNormalizer
 
 ### FASE 3: Transformers (20 tests) ✅
 
-- CryptoNewsMessageTransformer (ingestion-telegram)
+- FeedMessageTransformer (ingestion-telegram)
 - KolMessageTransformer (backend)
 - Integration tests end-to-end
 
@@ -45,7 +45,7 @@ Desacoplar y consolidar las responsabilidades de transformación de mensajes Tel
 
 - TelegramMtprotoListenerAdapter refactorizado
 - extractAllText() eliminado (~80 LOC)
-- Delegación a CryptoNewsMessageTransformer
+- Delegación a FeedMessageTransformer
 - SharedModule provee transformer
 
 ### FASE 5.2: Media Extractor Service (808 tests) ✅
@@ -85,11 +85,11 @@ apps/ingestion-telegram/src/shared/telegram/transformation/
 │   └── abstract-message-transformer.ts (template method)
 ├── extractors/
 │   ├── kol-text-extractor.ts (vacío por ToS)
-│   ├── crypto-news-text-extractor.ts (4-source cascade)
+│   ├── feed-text-extractor.ts (4-source cascade)
 │   ├── telegram-media-extractor.ts (metadata)
 │   └── telegram-entity-normalizer.ts
 ├── transformers/
-│   ├── crypto-news-message-transformer.ts (ingestion-only)
+│   ├── feed-message-transformer.ts (ingestion-only)
 │   └── index.ts
 └── utils/
     ├── type-coercion.ts (bigInt, string, buffer)
@@ -126,7 +126,7 @@ import {
 **Ingestion** importa local:
 
 ```typescript
-import { CryptoNewsMessageTransformer } from 'shared/telegram/transformation';
+import { FeedMessageTransformer } from 'shared/telegram/transformation';
 import { TelegramMediaExtractorService } from 'telegram/shared/application/services/telegram-media-extractor.service';
 ```
 

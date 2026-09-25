@@ -337,7 +337,7 @@ The Oracle server is a 20 GB VPS. The four biggest disk consumers, in order, are
    `docker compose build`. Mitigated by the `docker image prune` step in
    `deploy-staging.yml` (line 208) and the cron below.
 2. **Crypto-news media downloads** — photo attachments downloaded by the
-   crypto-news ingestion BC into `$UPLOADS_ROOT` (default `./uploads`).
+   feed ingestion BC into `$UPLOADS_ROOT` (default `./uploads`).
    Mitigated by `CRYPTO_NEWS_MEDIA_RETENTION_HOURS` (default `48`, see
    `apps/backend/src/shared/common/config/app.config.ts:555`).
 3. **Postgres WAL + base backups** — `/var/lib/postgresql` inside the
@@ -414,7 +414,7 @@ sudo du -sh /opt/onchain-bot/backups/* 2>/dev/null | sort -hr | head -10
    ```bash
    # From your laptop, hit the admin endpoint that triggers immediate retention cleanup
    curl -X POST -H "x-admin-token: $ADMIN_TOKEN" \
-     http://localhost:3030/api/crypto-news/admin/retention/run
+     http://localhost:3030/api/feed/admin/retention/run
    ```
 
    If that endpoint does not exist, the manual fallback is:

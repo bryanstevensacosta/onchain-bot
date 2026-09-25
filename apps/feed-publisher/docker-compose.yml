@@ -1,0 +1,39 @@
+name: onchain-bot-feed-publisher
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: onchain-bot-feed-publisher-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: onchain_bot
+      POSTGRES_PASSWORD: onchain_bot
+      POSTGRES_DB: onchain_bot_feed_publisher
+    ports:
+      - '5436:5432'
+    volumes:
+      - feed-publisher-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'pg_isready -U onchain_bot -d onchain_bot_feed_publisher']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: onchain-bot-feed-publisher-redis
+    restart: unless-stopped
+    ports:
+      - '6383:6379'
+    volumes:
+      - feed-publisher-redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  feed-publisher-postgres-data:
+  feed-publisher-redis-data:

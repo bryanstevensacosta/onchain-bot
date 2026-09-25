@@ -4,7 +4,7 @@
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md` §7.6 (2026-09-24).
 > Cross-tramo contracts (C-DB-01, C-SSE-01, C-SHARED-01/C2, C-DATA-01, C-BOTS-01) pinned in
 > `.omo/plans/mega-refactor-central.md` v2026-09-24; threads stub C1 lives in
-> `.omo/plans/mega-refactor-content-publisher.md` todo 8; market-data bridge + dexter app in
+> `.omo/plans/mega-refactor-feed-publisher.md` todo 8; market-data bridge + dexter app in
 > `.omo/plans/mega-refactor-market-data.md` todos 4-9.
 
 Contents: OVERVIEW · HOW IT WORKS (non-technical) · PROGRAM INDEX · COMMANDS ·
@@ -45,10 +45,10 @@ Design pivots (2026-09-24) that govern every future todo:
   (each mention = one row). Ingestion-telegram dedups source-side; kol-system
   adds no layer of its own.
 - **P3 — ingestion by type**: consumes `kol`-type messages from
-  ingestion-telegram, distinct from `crypto-news` (the `route(raw,
+  ingestion-telegram, distinct from `feed` (the `route(raw,
 kol|crypto-news)` coordinator already exists over there).
 - **P4 — identity/sources live in ingestion-telegram**: sources have 2 types
-  (`kol` + `crypto-news`). kol-system stores NO profiles; it consumes sources
+  (`kol` + `feed`). kol-system stores NO profiles; it consumes sources
   over HTTP (`GET /api/feed/sources?type=kol`). KOL avatar is resolved once by
   ingestion-telegram (MTProto) and served from then on (see P19 note in GAPS).
 - **P5 — extraction = contract × mention**: smart contract per KOL mention +
@@ -57,7 +57,7 @@ kol|crypto-news)` coordinator already exists over there).
 at | time ago | more details +`.
 - **P10 — strict type separation**: kol-system subscribes ONLY to
   `messageType==='kol'` (crude, unmixed). No todo may subscribe to the foreign
-  type (`crypto-news` belongs to content-publisher).
+  type (`feed` belongs to feed-publisher).
 - **P14 — vip-calls absorbed by templates**: `vip-calls` is NOT a module —
   it is the generic NAME of a default seed template. Backend
   `apps/backend/src/telegram/vip-calls/` is deleted at cleanup, never
@@ -128,8 +128,8 @@ at | time ago | more details +`.
   `apps/dexter-onchain-bot/` (Tramo 3), fed by `apps/market-data`; kol-system
   keeps only per-template publishing bots. C1: thread support is deferred —
   templates ship with `threadConfig: null` + 501 stub; v2 arrives with
-  content-publisher (threads stub C1 lives in
-  `.omo/plans/mega-refactor-content-publisher.md` todo 8).
+  feed-publisher (threads stub C1 lives in
+  `.omo/plans/mega-refactor-feed-publisher.md` todo 8).
 - **C-DB-01 — one DB per app**: kol-system owns `onchain_bot_kol_system`
   (dev + Oracle prod) / `onchain_bot_kol_system_staging` (staging ingestion) on
   the same server per env (12-DB table in the central plan, bases
@@ -142,9 +142,9 @@ at | time ago | more details +`.
 - **C-SSE-01 — strict type filtering**: SSE frames carry
   `data.messageType: 'kol'|'crypto-news'`; kol-system subscribes ONLY to
   `'kol'` client-side (+ `?type=kol` where the query param exists); subscribing
-  to `crypto-news` is forbidden here (mirror rule binds content-publisher).
+  to `feed` is forbidden here (mirror rule binds feed-publisher).
 - **C2 — C-SHARED-01 inverted**: Tramo 1 moves the KOL bot out of
-  `telegram/shared` first; Tramo 2 extracts the crypto-news adapters after.
+  `telegram/shared` first; Tramo 2 extracts the feed adapters after.
 
 ## HOW THE SYSTEM WORKS (non-technical)
 
@@ -161,7 +161,7 @@ flowchart TB
 
     subgraph EAR["ingestion-telegram - the single ear (one per env)"]
         LIS["Listener<br/>instant alerts plus a full sweep every 30s<br/>IN: channel posts - OUT: fresh messages (C-A)"]
-        SORT["Sorter: tips vs news<br/>labels each message kol or crypto-news<br/>IN: fresh messages - OUT: labelled messages (P3, P10)"]
+        SORT["Sorter: tips vs news<br/>labels each message kol or feed<br/>IN: fresh messages - OUT: labelled messages (P3, P10)"]
         PIC["Profile pictures: fetched once<br/>kept forever, never auto-deleted<br/>IN: channel list - OUT: avatar picture (P19)"]
         SHOUT["Live shout-out<br/>every connected app hears it at once<br/>IN: labelled messages - OUT: live stream (P20)"]
     end
@@ -201,7 +201,7 @@ flowchart TB
 What goes in and out at each stage, in plain words:
 
 - **Listener (ear)** — IN: channel posts, OUT: fresh messages. Hears instantly, plus re-checks every channel every 30s so nothing slips through (C-A).
-- **Sorter (ear)** — IN: fresh messages, OUT: messages labelled tip or news. Tips go to kol-system, news goes to content-publisher; each side ignores the other type (P3, P10).
+- **Sorter (ear)** — IN: fresh messages, OUT: messages labelled tip or news. Tips go to kol-system, news goes to feed-publisher; each side ignores the other type (P3, P10).
 - **Profile pictures (ear)** — IN: channel list, OUT: avatar picture. Each channel photo is fetched once, kept forever, and shown next to its calls (P19).
 - **Live shout-out (ear)** — IN: labelled messages, OUT: live stream. One broadcast every connected app hears; each app has its own ear per env, never shared (C-SSE-01).
 - **Front door (this app)** — IN: live stream, OUT: tip messages. Listens only, no repeated asking; after a dropout it catches up from its bookmark (P10, P20).
@@ -284,19 +284,19 @@ flowchart LR
 
 ## PROGRAM INDEX (mega-refactor, branch `feat/mega-refactor-tramos`)
 
-Order: kol-system → content-publisher → market-data (+ `dexter-onchain-bot`
+Order: kol-system → feed-publisher → market-data (+ `dexter-onchain-bot`
 as Tramo 3 final phase, P13). All paths verified 2026-09-24.
 
-| Tramo            | Plan                                            | Scope                           |
-| ---------------- | ----------------------------------------------- | ------------------------------- |
-| central (index)  | `.omo/plans/mega-refactor-central.md`           | order, contracts, cutover       |
-| 1 · kol-system   | `.omo/plans/mega-refactor-kol-system.md`        | this app (16 todos)             |
-| 2 · content-pub. | `.omo/plans/mega-refactor-content-publisher.md` | crypto-news (12 todos)          |
-| 3 · market-data  | `.omo/plans/mega-refactor-market-data.md`       | data service + Dexter (9 todos) |
+| Tramo            | Plan                                         | Scope                           |
+| ---------------- | -------------------------------------------- | ------------------------------- |
+| central (index)  | `.omo/plans/mega-refactor-central.md`        | order, contracts, cutover       |
+| 1 · kol-system   | `.omo/plans/mega-refactor-kol-system.md`     | this app (16 todos)             |
+| 2 · content-pub. | `.omo/plans/mega-refactor-feed-publisher.md` | feed (12 todos)                 |
+| 3 · market-data  | `.omo/plans/mega-refactor-market-data.md`    | data service + Dexter (9 todos) |
 
 Decisions source: `.omo/drafts/mega-refactor-tramos.md` §7.6 (P1–P28).
 Target tree: `.omo/reference/mega-refactor-target-tree.md` — names
-`apps/content-publisher/`, `apps/market-data/`, `apps/dexter-onchain-bot/`
+`apps/feed-publisher/`, `apps/market-data/`, `apps/dexter-onchain-bot/`
 as PLANNED (not yet scaffolded; only `apps/kol-system/` exists).
 
 ## COMMANDS
@@ -1065,7 +1065,7 @@ to defaults when absent).
 Planned: dashboard (P8 tracking display + P16 single + source selector,
 todo 14 — served views).
 
-Explicitly NOT in kol-system: `crypto-news` (content-publisher, P10),
+Explicitly NOT in kol-system: `feed` (feed-publisher, P10),
 `vip-calls` as code (template name only, P14), Dexter lookup
 (`apps/dexter-onchain-bot`, P13), data providers (Tramo 3 owns extraction,
 contract C-DATA-01 — consume via ports, never move).
@@ -1162,8 +1162,8 @@ sort=perf_desc|perf_asc|calls_desc`, wired (`TrackingModule` in
 
 - P1 (2026-09-24): no dedup of any kind in kol-system; repeats are first-class rows.
 - P2 (2026-09-24): Tramo 1 plan verifies P3–P9 with separate explore/librarian passes.
-- P3 (2026-09-24): ingestion consumes `kol`-type messages, distinct from `crypto-news`.
-- P4 (2026-09-24): identity/sources live in ingestion-telegram (`kol` + `crypto-news` types); no profiles stored here.
+- P3 (2026-09-24): ingestion consumes `kol`-type messages, distinct from `feed`.
+- P4 (2026-09-24): identity/sources live in ingestion-telegram (`kol` + `feed` types); no profiles stored here.
 - P5 (2026-09-24): extraction = contract × mention (+ timestamp, handle, url, channel, db-id).
 - P6 (2026-09-24): classification lives INSIDE templates (channel picker + score viz + gem filters).
 - P7 (2026-09-24): enrichment bridges `apps/market-data` → `mc at` + `more details +`.
@@ -1192,7 +1192,7 @@ sort=perf_desc|perf_asc|calls_desc`, wired (`TrackingModule` in
 - P29 (2026-09-24): avatar resolution reuses ingestion-telegram's safety/rate-limit guard (no own limiter).
 - C-DB-01 (2026-09-24): one-DB-per-app `<base>_<app>` same-server per env (12 DBs; central todo 2).
 - C-SSE-01 (2026-09-24): frames carry `data.messageType`; filtering is mandatory client-side (central todo 5).
-- C1 (2026-09-24): threads deferred — templates ship `threadConfig: null` + 501 stub; v2 with content-publisher.
+- C1 (2026-09-24): threads deferred — templates ship `threadConfig: null` + 501 stub; v2 with feed-publisher.
 - C2 (2026-09-24): C-SHARED-01 inverted — Tramo 1 moves the KOL bot first, Tramo 2 the crypto adapters.
 - C3/C4 (2026-09-24, SUPERSEDED por C4-bis 2026-09-25 en lo bloqueante): pilot risk on money-path (shadow/staging-48h-validación/rehearsal/kill-switch); gates inter-tramo = deprecation-check + green (staging NO bloquea siguiente tramo); validación completa + eliminación deprecated + backend-remainder en FINAL REVIEW central.
 

@@ -18,7 +18,7 @@ export interface ActiveFeedSourceWithType extends ActiveFeedSource {
 /**
  * Repository for querying the unified `telegram_feed_sources` catalog.
  *
- * Mirrors `CryptoNewsSourceRepository` semantics EXACTLY:
+ * Mirrors `FeedSourceRepository` semantics EXACTLY:
  * - queries fail-open (`[]` / `null` / `false`) on DB error — never crash
  *   the ingestion loop;
  * - `findAllActive` projects `select: [channelId, title]` and filters

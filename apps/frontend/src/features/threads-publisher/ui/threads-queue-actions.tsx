@@ -5,7 +5,7 @@ import { useCancelThreadsQueueEntry } from '../model/use-threads-queue';
 /**
  * Threads queue cancel button — thin wrapper bound to the injected
  * `queryKeys` scope (invalidated after a successful cancel) instead of
- * cloning the crypto-news row actions.
+ * cloning the feed row actions.
  */
 export interface ThreadsQueueCancelButtonProps {
   entryId: string;

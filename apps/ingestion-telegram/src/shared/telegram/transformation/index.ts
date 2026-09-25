@@ -4,7 +4,7 @@
  * **Architecture**: Template Method + Strategy Pattern
  *
  * **Purpose**: Transform raw Telegram messages into normalized TelegramRawMessage format
- * with different strategies for KOL (ToS-compliant, no text) vs crypto-news (4-source cascade + media download).
+ * with different strategies for KOL (ToS-compliant, no text) vs feed (4-source cascade + media download).
  *
  * **Location**: Ingestion-service is the source of truth (backend imports via @ingestion-telegram/telegram/*)
  *
@@ -25,7 +25,7 @@
  * } from '@ingestion-telegram/telegram/transformation';
  *
  * // Ingestion (local import)
- * import { CryptoNewsMessageTransformer } from 'shared/telegram/transformation';
+ * import { FeedMessageTransformer } from 'shared/telegram/transformation';
  * ```
  *
  * @module telegram/transformation

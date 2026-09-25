@@ -559,7 +559,7 @@ export const appConfig = registerAs('app', () => {
   // unified with the backend's CRYPTO_NEWS_MEDIA_RETENTION_HOURS default
   // (72h). The scheduler clamps to >= 1h at the seam. Clock is
   // crypto_news_messages.ingested_at (arrival), NEVER published_at.
-  const cryptoNewsMediaRetentionHours = parseInt(
+  const feedMediaRetentionHours = parseInt(
     process.env.INGESTION_CRYPTO_NEWS_MEDIA_RETENTION_HOURS ?? '72',
     10,
   );
@@ -582,7 +582,7 @@ export const appConfig = registerAs('app', () => {
     ingestionSafety,
     database,
     logging,
-    cryptoNewsMediaRetentionHours,
+    feedMediaRetentionHours,
     apiKey,
     security: { apiKey },
   };

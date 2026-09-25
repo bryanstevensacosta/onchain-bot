@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
 import { Button, Card } from '@/shared/ui';
-import { AdHtmlPreview } from '@/features/crypto-news-ads';
+import { AdHtmlPreview } from '@/features/feed-ads';
 import { markdownToTelegramHtml } from '@/features/prompt-playground/lib/markdown-to-telegram-html';
 import { HttpError } from '@/shared/api/http-client';
-import { useCryptoNewsMessages } from '@/entities/crypto-news';
+import { useFeedMessages } from '@/entities/feed';
 import {
   useCreateTemplate,
   useLlmModels,
@@ -17,7 +17,7 @@ import type {
   PromptTemplate,
   ReasoningEffort,
   UpdatePromptTemplateBody,
-} from '@/features/crypto-news-publisher/api/llm-config-api';
+} from '@/features/feed-publisher/api/llm-config-api';
 
 interface DraftState {
   templateId: string;
@@ -158,7 +158,7 @@ const labelCls = 'block text-xs uppercase text-slate-500 mb-1';
 export function PlaygroundForm(): React.ReactElement {
   const { data: templates, isLoading: templatesLoading } = useTemplates();
   const { data: models } = useLlmModels();
-  const samples = useCryptoNewsMessages(50, undefined, 'crypto-news');
+  const samples = useFeedMessages(50, undefined, 'crypto-news');
   const previewMut = usePreviewMutation();
   const createMut = useCreateTemplate();
   const updateMut = useUpdateTemplate();

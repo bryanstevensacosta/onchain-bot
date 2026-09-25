@@ -52,8 +52,8 @@
     Must NOT do: No duplicar código - solo agregar al DetailsModal existente
     Parallelization: Wave 1 | Blocked by: - | Blocks: -
     References:
-  - apps/frontend/src/features/crypto-news-publisher/ui/queue-view.tsx:60-216 (DetailsModal)
-  - apps/frontend/src/features/crypto-news-publisher/ui/queue-view.tsx:262-276 (media en QueueRow como referencia)
+  - apps/frontend/src/features/feed-publisher/ui/queue-view.tsx:60-216 (DetailsModal)
+  - apps/frontend/src/features/feed-publisher/ui/queue-view.tsx:262-276 (media en QueueRow como referencia)
     Acceptance criteria:
   - npm run lint:frontend pasa
   - Blocked posts muestran media en el modal

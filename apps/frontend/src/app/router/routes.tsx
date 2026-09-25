@@ -5,7 +5,7 @@ import { TokensExplorerPage } from '@/pages/tokens-explorer';
 import { TokenDetailPage } from '@/pages/token-detail';
 import { KolsPage } from '@/pages/kols';
 import { OpsPage } from '@/pages/ops';
-import { CryptoNewsPage } from '@/pages/crypto-news';
+import { FeedPage } from '@/pages/feed';
 import { PlaygroundPage } from '@/pages/playground';
 import { TemplateDashboardPage } from '@/pages/template-dashboard';
 import { ThreadsPage } from '@/pages/threads';
@@ -19,7 +19,7 @@ export const router = createBrowserRouter([
       { path: 'tokens', element: <TokensExplorerPage /> },
       { path: 'tokens/:chain/:address', element: <TokenDetailPage /> },
       { path: 'kols', element: <KolsPage /> },
-      { path: 'crypto-news', element: <CryptoNewsPage /> },
+      { path: 'crypto-news', element: <FeedPage /> },
       { path: 'playground', element: <PlaygroundPage /> },
       { path: 'threads', element: <ThreadsPage /> },
       { path: 'templates', element: <TemplateDashboardPage /> },

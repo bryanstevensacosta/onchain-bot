@@ -15,7 +15,7 @@ import {
   MimeTypeResolver,
 } from 'shared/media';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { CryptoNewsPathBuilder } from 'media/infrastructure/crypto-news-path-builder';
+import { FeedPathBuilder } from 'media/infrastructure/feed-path-builder';
 
 /**
  * MediaController serves Telegram media files (photos/videos) via HTTP
@@ -50,7 +50,7 @@ import { CryptoNewsPathBuilder } from 'media/infrastructure/crypto-news-path-bui
 export class MediaController extends BaseMediaHttpServer {
   private readonly logger = new Logger(MediaController.name);
   private readonly fileSystem: LocalFileSystemAdapter;
-  private readonly pathBuilder: CryptoNewsPathBuilder;
+  private readonly pathBuilder: FeedPathBuilder;
 
   constructor(private readonly config: ConfigService) {
     super(); // Initialize base class
@@ -62,7 +62,7 @@ export class MediaController extends BaseMediaHttpServer {
     const mediaRoot = path.join(uploadsRoot, 'feed', 'media');
 
     this.fileSystem = new LocalFileSystemAdapter();
-    this.pathBuilder = new CryptoNewsPathBuilder({
+    this.pathBuilder = new FeedPathBuilder({
       root: mediaRoot,
       recursive: true,
     });

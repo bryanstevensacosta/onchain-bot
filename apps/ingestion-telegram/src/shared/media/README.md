@@ -6,7 +6,7 @@
 
 ## Overview
 
-This package provides base classes and utilities for media operations across ingestion-telegram (crypto-news) and backend (ads). It eliminates ~400+ lines of duplicated code and establishes consistent patterns for:
+This package provides base classes and utilities for media operations across ingestion-telegram (feed) and backend (ads). It eliminates ~400+ lines of duplicated code and establishes consistent patterns for:
 
 - Path building and sanitization
 - MIME type detection
@@ -39,7 +39,7 @@ shared/media/
 ```typescript
 import { BaseMediaPathBuilder, PathConfig } from 'shared/media';
 
-class CryptoNewsPathBuilder extends BaseMediaPathBuilder {
+class FeedPathBuilder extends BaseMediaPathBuilder {
   constructor(config: PathConfig) {
     super(config);
   }
@@ -62,7 +62,7 @@ class CryptoNewsPathBuilder extends BaseMediaPathBuilder {
 }
 
 // Usage
-const builder = new CryptoNewsPathBuilder({
+const builder = new FeedPathBuilder({
   root: 'uploads/crypto-news/media',
   recursive: true,
 });
@@ -192,7 +192,7 @@ class MediaController extends BaseMediaHttpServer {
 ```typescript
 import { BaseTelegramMediaDownloader } from 'shared/media';
 
-class CryptoNewsMediaDownloader extends BaseTelegramMediaDownloader {
+class FeedMediaDownloader extends BaseTelegramMediaDownloader {
   constructor(
     fileSystem: BaseFileSystemAdapter,
     pathBuilder: BaseMediaPathBuilder,
@@ -229,7 +229,7 @@ class CryptoNewsMediaDownloader extends BaseTelegramMediaDownloader {
 }
 
 // Usage
-const downloader = new CryptoNewsMediaDownloader(
+const downloader = new FeedMediaDownloader(
   fileSystem,
   pathBuilder,
   floodHandler,
@@ -306,7 +306,7 @@ npm test -- path-sanitizer.spec
 
 ### Phase 2: Ingestion Service Migration (Next)
 
-- [ ] Create CryptoNewsPathBuilder
+- [ ] Create FeedPathBuilder
 - [ ] Migrate MediaDownloaderService
 - [ ] Migrate MediaController
 - [ ] Update imports in listener adapter
@@ -324,7 +324,7 @@ npm test -- path-sanitizer.spec
 
 - [ ] Create BaseMediaEntity
 - [ ] Generate TypeORM migration
-- [ ] Update both CryptoNewsMessageMediaEntity classes
+- [ ] Update both FeedMessageMediaEntity classes
 - [ ] Test persistence layer
 
 ### Phase 5: Cleanup & Documentation

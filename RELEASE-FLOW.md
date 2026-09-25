@@ -25,7 +25,7 @@ Real examples from this repo (all three footers were first introduced on `dev` i
 
 - `351fe02` "BREAKING CHANGE: MTProto credentials must now be in ingestion-service ONLY". Breaking for backend and ingestion (config move, old backend MTProto mode is rollback only). Not breaking for frontend (no frontend files touched by that change), so frontend would not take a major for it.
 - `352de6b` "BREAKING CHANGE: Seed-based channel subscription deprecated in favor of DB-driven approach". Breaking where seed wiring existed (backend, ingestion). Judge per app: major only where the removed path was usable.
-- `b66beda` "BREAKING CHANGE: CryptoNewsSeeder completely removed from module wiring". Same rule: major where the seeder was wired, nowhere else.
+- `b66beda` "BREAKING CHANGE: FeedSeeder completely removed from module wiring". Same rule: major where the seeder was wired, nowhere else.
 
 Rule: scope the major to the apps that actually break. A backend breaking change does not bump frontend to the next major.
 
@@ -217,7 +217,7 @@ Branch `hotfix/<slug>` from `master` (not from `dev`; `dev` may hold unreleased 
 
 ## 11. Flags freeze at release
 
-At release time the pipeline flags are part of the release state: record them, do not flip them mid-release. The three flags (backend AGENTS.md, crypto-news 3-flag control):
+At release time the pipeline flags are part of the release state: record them, do not flip them mid-release. The three flags (backend AGENTS.md, feed 3-flag control):
 
 - `matchingEnabled` (enqueue on/off)
 - `llmEnabled` (LLM transform on/off; effective only when publishing is also on)
@@ -231,7 +231,7 @@ curl -s http://localhost:3030/crypto-news-publisher/llm/config
 # Expected shape: {"matchingEnabled": <bool>, "llmEnabled": <bool>, "publishingEnabled": <bool>}
 ```
 
-Read path verified in `apps/frontend/src/features/crypto-news-publisher/api/llm-config-api.ts:68` (`GET /crypto-news-publisher/llm/config`); the same prefix accepts `PATCH` for updates. Save the three booleans next to the release evidence. Rule: no flag flips between tagging and the deploy healthcheck passing. If a flag must change, it is a separate deliberate action after the release verifies, recorded with its own timestamp.
+Read path verified in `apps/frontend/src/features/feed-publisher/api/llm-config-api.ts:68` (`GET /crypto-news-publisher/llm/config`); the same prefix accepts `PATCH` for updates. Save the three booleans next to the release evidence. Rule: no flag flips between tagging and the deploy healthcheck passing. If a flag must change, it is a separate deliberate action after the release verifies, recorded with its own timestamp.
 
 ## 12. Tag signing (OPTIONAL, manual setup pending)
 

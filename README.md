@@ -279,8 +279,8 @@ flowchart LR
 | `vip-calls/vip-decisions`   | verdict listeners (log-only, no doors — the real trigger lives in vip-channel)                   |
 | `vip-calls/vip-achievement` | trophy posters (no doors, works purely on letters)                                               |
 | `chain-dexter-bot`          | chart bot sidecar (`/x` `/z` `/c` scans + charts + trade buttons)                                |
-| `crypto-news-publisher`     | news line: watchwords → queue → AI rewrite → bot                                                 |
-| `crypto-news-ads`           | ads wheel + photo library                                                                        |
+| `feed-publisher`            | news line: watchwords → queue → AI rewrite → bot                                                 |
+| `feed-ads`                  | ads wheel + photo library                                                                        |
 | `shared/` + `extensions/`   | bot plug + message formatter                                                                     |
 
 **Basement — plumbing everybody uses**
@@ -451,7 +451,7 @@ Templates live next to the apps (`.env.example`, `.env.production.template`). MT
 | ------------------ | -------------------------- | ------------------------------------------------------------------------------------ |
 | backend            | Jest (`--forceExit`, 30 s) | 197 co-located `*.spec.ts` + `test/` e2e (incl. prod-vs-staging side-by-side parity) |
 | ingestion-telegram | Jest                       | 43 specs + 7 e2e (stream reconnect, concurrent clients, metrics)                     |
-| frontend           | Vitest                     | 29 `*.test.{ts,tsx}` (330 tests; heaviest: crypto-news ads/page)                     |
+| frontend           | Vitest                     | 29 `*.test.{ts,tsx}` (330 tests; heaviest: feed ads/page)                            |
 
 ```bash
 npm test                      # backend + frontend workspaces

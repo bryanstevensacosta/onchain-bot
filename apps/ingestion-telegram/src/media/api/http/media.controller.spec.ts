@@ -202,7 +202,7 @@ describe('MediaController (Phase 4 Updated)', () => {
   });
 
   describe('Integration with Base Classes', () => {
-    it('should use CryptoNewsPathBuilder for directory resolution', async () => {
+    it('should use FeedPathBuilder for directory resolution', async () => {
       const mockResponse = createMockResponse();
 
       const getDirSpy = jest.spyOn(

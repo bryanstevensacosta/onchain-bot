@@ -3,7 +3,7 @@
  *
  * These base classes define the framework for transforming raw Telegram messages
  * into normalized TelegramRawMessage format. Subclasses implement specific
- * extraction strategies (KOL vs crypto-news).
+ * extraction strategies (KOL vs feed).
  */
 
 // Export all core abstractions (will be added in subsequent tasks)

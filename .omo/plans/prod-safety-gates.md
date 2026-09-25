@@ -24,7 +24,7 @@ Your next move: approve, or run a high-accuracy review. Full execution detail fo
 
 - Merge gate: PR template con checklist de staging-evidencia (smoke + tráfico observado con run IDs) + branch protection en `master` exigiendo checks verdes incl. staging deploy (documentar el click-path en settings; si la API lo permite, hacerlo por `gh api`, si no, checklist operador).
 - Version-match gates: backend despliega solo si la ingestion sirviente expone el SHA esperado (`/api/health` o endpoint version con `imageRevision`; comparar contra el SHA del run; mismatch = abort con mensaje accionable). Aplica a prod (`:3032`) y staging/twin (`:3033`).
-- Migraciones defensivas como patrón: toda migración destructiva futura lleva assert de preservación (counts pre/post + backup path en el mensaje de error, estilo `DropCryptoNewsSourcesResidual`); auditar las pendientes existentes y añadir asserts donde falten (lista cerrada en el todo, sin reescribir migraciones ya aplicadas).
+- Migraciones defensivas como patrón: toda migración destructiva futura lleva assert de preservación (counts pre/post + backup path en el mensaje de error, estilo `DropFeedSourcesResidual`); auditar las pendientes existentes y añadir asserts donde falten (lista cerrada en el todo, sin reescribir migraciones ya aplicadas).
 - Auto-rollback post-smoke: si el smoke post-deploy falla tras un deploy a prod/staging, disparar el rollback lane correspondiente automáticamente (conservando el dispatch manual como escape); registrar la decisión + downtime en el summary.
 - Bake + alertas: ventana 15 min post-deploy prod con checks (5xx, queue stall, SSE disconnect) — implementar como job `watch` post-deploy que falla ruidoso (y por tanto dispara el rollback del punto anterior); documentar umbrales.
 
@@ -81,10 +81,10 @@ Your next move: approve, or run a high-accuracy review. Full execution detail fo
      Commit: Y | ci(gates): version-match before backend deploy
 
 - [x] 3. Patrón migraciones defensivas (generalizar lo que nos salvó)
-     What to do: Inventariar migraciones destructivas pendientes/futuras (DROP/RENAME/ALTER con pérdida) en backend + ingestion; a cada una: assert pre-ejecución (counts == 0 o backup path existente verificable) con mensaje que diga QUÉ hacer (no solo qué falló), estilo `DropCryptoNewsSourcesResidual`. Las ya aplicadas NO se reescriben (inmutabilidad). Añadir sección al runbook de migraciones con el patrón + checklist.
+     What to do: Inventariar migraciones destructivas pendientes/futuras (DROP/RENAME/ALTER con pérdida) en backend + ingestion; a cada una: assert pre-ejecución (counts == 0 o backup path existente verificable) con mensaje que diga QUÉ hacer (no solo qué falló), estilo `DropFeedSourcesResidual`. Las ya aplicadas NO se reescriben (inmutabilidad). Añadir sección al runbook de migraciones con el patrón + checklist.
      Must NOT do: reescribir migraciones aplicadas; tocar lógica de negocio; migraciones sin necesidad (solo destructivas).
      Parallelization: Wave 2 | Blocked by: — | Blocks: —
-     References: `DropCryptoNewsSourcesResidual` (patrón), `docs/deployment/*migration*`, carpetas `migrations/` de ambas apps.
+     References: `DropFeedSourcesResidual` (patrón), `docs/deployment/*migration*`, carpetas `migrations/` de ambas apps.
      Acceptance criteria: lista cerrada en evidence (cada migración destructiva: assert presente/añadido/n-a con motivo); nueva migración de ejemplo? NO crear tablas de mentira — probar el patrón con `migration:show` + review; `docs:check` exit 0.
      QA scenarios: happy — inventario completo; failure — migración destructiva sin assert → añadido con mensaje accionable. Evidence .omo/evidence/task-3-prod-safety-gates.txt
      Commit: Y | docs(db): defensive migration pattern plus asserts

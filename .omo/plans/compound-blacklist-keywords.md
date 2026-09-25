@@ -6,10 +6,10 @@
 
 **Why this approach:** En vez de crear una entidad nueva (FilterGroup), se agrega un solo campo `andGroupId` a cada frase. Las frases con el mismo `andGroupId` forman un grupo AND. Las frases con `andGroupId = null` son Simples (OR, igual que hoy). Esto es backward compatible al 100% — los datos existentes siguen funcionando sin migración.
 
-**What it will NOT do:** No se toca el PublisherQueueEntry ni su lógica de path de imágenes. No se renombra la columna `require_image` en la DB (solo cambia el nombre en TypeScript). No se agrega una entidad separada para grupos. No se modifica CryptoNewsMessage ni su carga de media.
+**What it will NOT do:** No se toca el PublisherQueueEntry ni su lógica de path de imágenes. No se renombra la columna `require_image` en la DB (solo cambia el nombre en TypeScript). No se agrega una entidad separada para grupos. No se modifica FeedMessage ni su carga de media.
 
 **Effort:** Medium — ~18 archivos, 5-6 commits, 9 todos
-**Risk:** Low — cambios localizados en un solo BC (crypto-news-publisher), backward compatible, con tests
+**Risk:** Low — cambios localizados en un solo BC (feed-publisher), backward compatible, con tests
 **Decisions to sanity-check:** La lógica de matching AND en el handler (mezclar Simples con Compounds requiere separarlos primero) y la decisión de mantener el nombre de columna DB `require_image` para evitar data loss con TypeORM synchronize.
 
 Your next move: **Run the dual high-accuracy Momus review** (you asked me to run Momus after writing the plan). I'll do that now.
@@ -26,7 +26,7 @@ Your next move: **Run the dual high-accuracy Momus review** (you asked me to run
 - `andGroupId: string | null` field on `BlacklistPhrase` domain entity + TypeORM entity + mapper + DTOs
 - Rename `requireImage` → `requireMedia` on `Keyword` across all layers (TS property rename only; DB column name `require_image` stays unchanged)
 - Add `requireMedia: boolean` (default false) to `BlacklistPhrase` across all layers
-- Matching logic in `crypto-news-message-ingested.handler.ts`:
+- Matching logic in `feed-message-ingested.handler.ts`:
   - Simple phrases (andGroupId=null): OR logic (any match blocks/enqueues) — same as today
   - Compound groups (same andGroupId): AND logic (ALL must match to block/enqueue)
   - requireMedia check: if true and message has no media → skip that item/group
@@ -38,7 +38,7 @@ Your next move: **Run the dual high-accuracy Momus review** (you asked me to run
 - Do NOT rename the DB column `require_image` to `require_media` (TypeORM synchronize with true would drop+recreate = data loss). Keep `@Column({ name: 'require_image' })` but rename the TS property.
 - Do NOT modify `PublisherQueueEntry` or its `imagePath`/`imagePaths` fields (that's about stored media files, not the require concept — out of scope)
 - Do NOT add a separate CompoundGroup entity — use `andGroupId` as a shared UUID across phrase rows
-- Do NOT modify `CryptoNewsMessage` or its media loading logic
+- Do NOT modify `FeedMessage` or its media loading logic
 - Do NOT change `EnqueueMatchingMessageUseCase` beyond the `requireImage`→`requireMedia` rename (its logic already handles `message.media.length === 0` correctly)
 
 ## Verification strategy
@@ -239,21 +239,21 @@ Your next move: **Run the dual high-accuracy Momus review** (you asked me to run
     - Compounds: group by andGroupId. For each group, if ALL match AND (requireMedia → hasMedia check) → add to matchedKeywords (all phrase IDs in the group)
     - If matchedKeywords.length > 0 → continue to enqueue
   - Add `private hasMedia(message): boolean` helper
-  - Update `crypto-news-message-ingested.handler.spec.ts`:
+  - Update `feed-message-ingested.handler.spec.ts`:
     - Add test cases for: simple matches as before (backward comp), compound where all match → blocked/enqueued, compound where one fails → not blocked/enqueued, requireMedia with media present → matches, requireMedia without media → skips
     - Fix existing mock `findAllEnabled` → `findEnabled` on BlacklistPhraseRepository mock (line 56: s/findAllEnabled/findEnabled)
-  - Must NOT change the `@OnEvent('crypto-news.message.ingested')` decorator or event type
+  - Must NOT change the `@OnEvent('feed.message.ingested')` decorator or event type
   - Edge case: if deleting a phrase leaves a Compound group with only 1 remaining phrase → that phrase becomes Simple (set andGroupId to null). Implementation: the `delete` in controllers does NOT auto-cleanup; the handler simply treats single-phrase groups as-if they were simple (they won't trigger AND logic since there's only 1 phrase — it matches as today). No special delete logic needed.
   - Must NOT change the BLOCKED status creation logic (lines 120-153) except for the checkBlacklist input
   - Must NOT change `EnqueueMatchingMessageUseCase.execute()` signature
     Parallelization: Wave 4 | Blocked by: 1, 2 | Blocks: 7
     References:
-  - `apps/backend/src/telegram/crypto-news-publisher/infrastructure/event-bus/crypto-news-message-ingested.handler.ts` — full file; `checkBlacklist()` lines 265-282, keyword matching lines 97-99, `getEnabledKeywords()` lines 220-236, `getEnabledBlacklistPhrases()` lines 241-259, `handle()` lines 72-177
-  - `apps/backend/src/telegram/crypto-news-publisher/infrastructure/event-bus/crypto-news-message-ingested.handler.spec.ts` — full file; mock setup lines 37-80, existing test patterns
+  - `apps/backend/src/telegram/crypto-news-publisher/infrastructure/event-bus/feed-message-ingested.handler.ts` — full file; `checkBlacklist()` lines 265-282, keyword matching lines 97-99, `getEnabledKeywords()` lines 220-236, `getEnabledBlacklistPhrases()` lines 241-259, `handle()` lines 72-177
+  - `apps/backend/src/telegram/crypto-news-publisher/infrastructure/event-bus/feed-message-ingested.handler.spec.ts` — full file; mock setup lines 37-80, existing test patterns
   - `apps/backend/src/telegram/crypto-news-publisher/domain/entities/blacklist-phrase.entity.ts` — BlacklistPhrase.checkWithMedia() and isMatchInGroup()
   - `apps/backend/src/telegram/crypto-news-publisher/domain/entities/keyword.entity.ts` — Keyword.isMatchInGroup()
     Acceptance criteria (agent-executable):
-  - `cd apps/backend && npm run test -- --testPathPattern="crypto-news-message-ingested"` passes
+  - `cd apps/backend && npm run test -- --testPathPattern="feed-message-ingested"` passes
   - `cd apps/backend && npx tsc --noEmit` has no errors
   - Handler spec covers: simple+compound matching for both keywords and blacklist
     QA scenarios:
@@ -275,8 +275,8 @@ Your next move: **Run the dual high-accuracy Momus review** (you asked me to run
   - Must NOT change any query keys or fetch functions
     Parallelization: Wave 5 | Blocked by: 4, 5, 6 | Blocks: 8, 9
     References:
-  - `apps/frontend/src/features/crypto-news-publisher/api/keywords-api.ts` — full file; `KeywordView` lines 8-26, `CreateKeywordBody` lines 28-40, `UpdateKeywordBody` lines 42-56
-  - `apps/frontend/src/features/crypto-news-publisher/api/blacklist-api.ts` — full file; `BlacklistPhraseView` lines 8-16, `CreateBlacklistBody` lines 18-24, `UpdateBlacklistBody` lines 26-32
+  - `apps/frontend/src/features/feed-publisher/api/keywords-api.ts` — full file; `KeywordView` lines 8-26, `CreateKeywordBody` lines 28-40, `UpdateKeywordBody` lines 42-56
+  - `apps/frontend/src/features/feed-publisher/api/blacklist-api.ts` — full file; `BlacklistPhraseView` lines 8-16, `CreateBlacklistBody` lines 18-24, `UpdateBlacklistBody` lines 26-32
     Acceptance criteria (agent-executable):
   - `cd apps/frontend && npx tsc --noEmit` has no errors
   - TypeScript types compile correctly with new fields
@@ -301,9 +301,9 @@ Your next move: **Run the dual high-accuracy Momus review** (you asked me to run
   - Must NOT change requireImage → requireMedia also in labels (use "Media" not "Image")
     Parallelization: Wave 6 | Blocked by: 7 | Blocks: —
     References:
-  - `apps/frontend/src/features/crypto-news-publisher/ui/keywords-section.tsx` — full file; existing modal lines ~130-200, table lines ~250-350, edit modal lines ~370-450
-  - `apps/frontend/src/features/crypto-news-publisher/ui/blacklist-manager.tsx` — reference for existing UI patterns
-  - `apps/frontend/src/features/crypto-news-publisher/api/keywords-api.ts` — updated API types with andGroupId, requireMedia
+  - `apps/frontend/src/features/feed-publisher/ui/keywords-section.tsx` — full file; existing modal lines ~130-200, table lines ~250-350, edit modal lines ~370-450
+  - `apps/frontend/src/features/feed-publisher/ui/blacklist-manager.tsx` — reference for existing UI patterns
+  - `apps/frontend/src/features/feed-publisher/api/keywords-api.ts` — updated API types with andGroupId, requireMedia
     Acceptance criteria (agent-executable):
   - `cd apps/frontend && npx tsc --noEmit` has no errors
   - `cd apps/frontend && npm run build` succeeds
@@ -330,9 +330,9 @@ Your next move: **Run the dual high-accuracy Momus review** (you asked me to run
   - Must NOT change the SourceMultiSelect or channel source logic
     Parallelization: Wave 6 | Blocked by: 7 | Blocks: —
     References:
-  - `apps/frontend/src/features/crypto-news-publisher/ui/blacklist-manager.tsx` — full file; existing modal lines ~55-170, table lines ~200-380
-  - `apps/frontend/src/features/crypto-news-publisher/ui/keywords-section.tsx` — sibling UI for reference patterns (Todo 8 will be done first)
-  - `apps/frontend/src/features/crypto-news-publisher/api/blacklist-api.ts` — updated API types
+  - `apps/frontend/src/features/feed-publisher/ui/blacklist-manager.tsx` — full file; existing modal lines ~55-170, table lines ~200-380
+  - `apps/frontend/src/features/feed-publisher/ui/keywords-section.tsx` — sibling UI for reference patterns (Todo 8 will be done first)
+  - `apps/frontend/src/features/feed-publisher/api/blacklist-api.ts` — updated API types
     Acceptance criteria (agent-executable):
   - `cd apps/frontend && npx tsc --noEmit` has no errors
   - `cd apps/frontend && npm run build` succeeds
@@ -353,7 +353,7 @@ Your next move: **Run the dual high-accuracy Momus review** (you asked me to run
 - [ ] F1. Plan compliance audit — verify all 9 todos completed, all acceptance criteria met
 - [ ] F2. Code quality review — check for unused imports, consistent naming, no lint errors (`cd apps/backend && npm run lint`, `cd apps/frontend && npm run lint`)
 - [ ] F3. Real manual QA — user opens the dashboard, creates Simple + Compound items for both blacklist and keywords, verifies the matching behavior
-- [ ] F4. Scope fidelity — confirm no changes to PublisherQueueEntry, no DB column rename, no new CompoundGroup entity, no changes to CryptoNewsMessage
+- [ ] F4. Scope fidelity — confirm no changes to PublisherQueueEntry, no DB column rename, no new CompoundGroup entity, no changes to FeedMessage
 
 ## Commit strategy
 

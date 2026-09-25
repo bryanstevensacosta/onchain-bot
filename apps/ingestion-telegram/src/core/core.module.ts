@@ -35,7 +35,7 @@ import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistenc
  *   peer snapshot, the polling loop picks it up in the next iteration).
  *
  * Channel ownership (item 7):
- * - KOLs + crypto-news: read from local DB via TelegramFeedSourceRepository
+ * - KOLs + feed: read from local DB via TelegramFeedSourceRepository
  *   (ingestion-telegram is sole owner of telegram_feed_sources since the
  *   item-6 backfill; backend reads identity via /api/feed/sources?type=kol)
  * - Classification: registry row type (channelId → 'kol' | 'crypto-news').
@@ -91,7 +91,7 @@ export class CoreModule implements OnModuleInit {
       }
 
       this.logger.log(
-        `✅ Channel fetch complete: ${this.kolChannelIds.length} KOLs + ${this.newsChannelIds.length} crypto-news (from local DB) = ${totalChannels} total`,
+        `✅ Channel fetch complete: ${this.kolChannelIds.length} KOLs + ${this.newsChannelIds.length} feed (from local DB) = ${totalChannels} total`,
       );
 
       // Step 3: Start MTProto listener (exactly once — see gap 15 note above)
@@ -173,7 +173,7 @@ export class CoreModule implements OnModuleInit {
 
       if (newTotal !== previousTotal) {
         this.logger.log(
-          `📊 Channel list updated: ${previousTotal} → ${newTotal} (${kolIds.length} KOLs, ${newsIds.length} crypto-news, from local DB)`,
+          `📊 Channel list updated: ${previousTotal} → ${newTotal} (${kolIds.length} KOLs, ${newsIds.length} feed, from local DB)`,
         );
       }
 
@@ -234,7 +234,7 @@ export class CoreModule implements OnModuleInit {
     }
 
     this.logger.log(
-      `📻 Subscribing to ${this.currentChannelIds.length} channels (${this.kolChannelIds.length} KOL, ${this.newsChannelIds.length} crypto-news)...`,
+      `📻 Subscribing to ${this.currentChannelIds.length} channels (${this.kolChannelIds.length} KOL, ${this.newsChannelIds.length} feed)...`,
     );
 
     try {

@@ -77,7 +77,7 @@ export class MessagePersistenceCoordinator {
     private readonly streamService: StreamService,
     private readonly deduplicationService: DeduplicationService,
     private readonly lastSeenManager: LastSeenManager,
-    private readonly cryptoNewsMessageRepo: TelegramFeedMessageRepository,
+    private readonly feedMessageRepo: TelegramFeedMessageRepository,
     private readonly config: ConfigService,
   ) {
     // Load API base URL from config (e.g., "http://localhost:3031")
@@ -178,7 +178,7 @@ export class MessagePersistenceCoordinator {
    * This is the SINGLE SOURCE OF TRUTH - backends query via HTTP API, NO replication.
    *
    * Per policy C2: KOL rows persist content RAW with NO media rows and NO
-   * download (the media gate lives in the adapter: isCryptoNewsChannel branch).
+   * download (the media gate lives in the adapter: isFeedChannel branch).
    *
    * Idempotency: Skip if message already exists (duplicate ingestion check).
    *
@@ -191,11 +191,10 @@ export class MessagePersistenceCoordinator {
   ): Promise<void> {
     try {
       // Check for duplicate (idempotency)
-      const existing =
-        await this.cryptoNewsMessageRepo.findByChannelAndMessageId(
-          raw.peerId,
-          raw.messageId,
-        );
+      const existing = await this.feedMessageRepo.findByChannelAndMessageId(
+        raw.peerId,
+        raw.messageId,
+      );
 
       if (existing) {
         this.logger.debug(
@@ -226,8 +225,8 @@ export class MessagePersistenceCoordinator {
         : null;
       messageEntity.groupedId = raw.groupedId?.toString() ?? null;
 
-      // Media rows ONLY for crypto-news (policy C2: KOL persists no media).
-      // The adapter gate (isCryptoNewsChannel) already skips KOL downloads,
+      // Media rows ONLY for feed (policy C2: KOL persists no media).
+      // The adapter gate (isFeedChannel) already skips KOL downloads,
       // so raw.media is expected empty for kol; this branch is defense-in-depth.
       messageEntity.media =
         messageType === 'crypto-news'
@@ -246,7 +245,7 @@ export class MessagePersistenceCoordinator {
           : [];
 
       // Save to database (media rows saved automatically via cascade)
-      await this.cryptoNewsMessageRepo.save(messageEntity);
+      await this.feedMessageRepo.save(messageEntity);
 
       this.logger.log(
         `Persisted ${messageType} message: ${raw.peerId}:${raw.messageId} (${messageEntity.media.length} media)`,

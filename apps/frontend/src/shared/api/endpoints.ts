@@ -78,7 +78,7 @@ export const ENDPOINTS = {
     evaluateDue: '/token/call-tracking/jobs/evaluate-due',
     enqueue: '/token/call-tracking/jobs/enqueue',
   },
-  cryptoNews: {
+  feed: {
     sources: {
       // Crypto-news sources are owned by the ingestion-service;
       // all source writes go through the ingestion API below.
@@ -160,7 +160,7 @@ export const ENDPOINTS = {
   ops: {
     backupStatus: '/ops/backups/status',
   },
-  cryptoNewsPublisher: {
+  feedPublisher: {
     llm: {
       models: '/crypto-news-publisher/llm/models',
       config: '/crypto-news-publisher/llm/config',

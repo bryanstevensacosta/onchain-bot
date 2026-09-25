@@ -81,7 +81,7 @@ También necesita cambios en el backend para soportar `matchMode`.
 #### 6. Verify Repository (Port)
 
 - Verificar que `BlacklistPhraseRepository` no tenga métodos que filtren por campos específicos
-- Verificar que `crypto-news-message-ingested.handler.ts` no necesite cambios
+- Verificar que `feed-message-ingested.handler.ts` no necesite cambios
 
 ---
 
@@ -89,7 +89,7 @@ También necesita cambios en el backend para soportar `matchMode`.
 
 #### 1. API Types
 
-**File:** `apps/frontend/src/features/crypto-news-publisher/api/blacklist-api.ts`
+**File:** `apps/frontend/src/features/feed-publisher/api/blacklist-api.ts`
 
 - Agregar `matchMode: 'exact' | 'substring'` a `BlacklistPhraseView`
 - Agregar `matchMode?: 'exact' | 'substring'` a `CreateBlacklistBody`
@@ -97,13 +97,13 @@ También necesita cambios en el backend para soportar `matchMode`.
 
 #### 2. Model Hooks (use-blacklist)
 
-**File:** `apps/frontend/src/features/crypto-news-publisher/model/use-blacklist.ts`
+**File:** `apps/frontend/src/features/feed-publisher/model/use-blacklist.ts`
 
 - Verificar que los hooks soporten los nuevos campos
 
 #### 3. New Combined Component
 
-**File:** `apps/frontend/src/features/crypto-news-publisher/ui/keywords-manager.tsx`
+**File:** `apps/frontend/src/features/feed-publisher/ui/keywords-manager.tsx`
 
 - Crear nuevo componente combinado que contenga:
   - Keywords (ya existe, mantener)
@@ -117,7 +117,7 @@ También necesita cambios en el backend para soportar `matchMode`.
 
 #### 4. Page Update
 
-**File:** `apps/frontend/src/pages/crypto-news/index.tsx`
+**File:** `apps/frontend/src/pages/feed/index.tsx`
 
 - Cambiar de:
   ```tsx

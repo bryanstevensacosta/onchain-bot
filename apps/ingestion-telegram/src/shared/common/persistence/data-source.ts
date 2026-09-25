@@ -36,7 +36,7 @@ import { TelegramFeedMessageMediaEntity } from 'feed/infrastructure/persistence/
 
 /**
  * The 3 ingestion-owned tables (sole owner since 2026-09-05;
- * legacy crypto-news tables cut in feed-unification item 5;
+ * legacy feed tables cut in feed-unification item 5;
  * BackfillMessageEntity removed in per-env-ingestion item 4).
  * Must stay in sync with the `entities` array in `src/app.module.ts`.
  * Backend entities are NEVER listed here (split-brain ownership).

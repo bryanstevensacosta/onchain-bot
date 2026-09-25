@@ -9,7 +9,7 @@ import {
 /**
  * TypeORM repository for unified feed messages (`telegram_feed_messages`).
  *
- * Mirrors `CryptoNewsMessageRepository` method-for-method (rename + `type`
+ * Mirrors `FeedMessageRepository` method-for-method (rename + `type`
  * discriminator, zero semantic change):
  * - Store incoming feed messages from Telegram
  * - Serve recent messages to frontend/backend via HTTP API
@@ -32,7 +32,7 @@ export class TelegramFeedMessageRepository {
    *
    * The optional `type` discriminator filters at SQL level (WHERE clause),
    * so the 200-cap (`take`) applies AFTER type filtering — a `kol`-heavy
-   * feed can no longer starve `crypto-news` reads. Omit for mixed (legacy).
+   * feed can no longer starve `feed` reads. Omit for mixed (legacy).
    */
   async findRecent(
     limit = 50,

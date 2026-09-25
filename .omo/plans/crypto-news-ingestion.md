@@ -1,6 +1,7 @@
-# crypto-news-ingestion - Work Plan
+# feed-ingestion - Work Plan
 
 ## TL;DR (For humans)
+
 <!-- Fill this LAST, after the detailed plan below is written, so it summarizes the REAL plan. -->
 <!-- Plain English for a non-engineer: NO file paths, NO todo numbers, NO wave/agent/tool names. -->
 
@@ -18,15 +19,17 @@ Your next move: Run `$start-work` to execute the plan.
 
 ---
 
-> **TL;DR (machine):** Effort=Large, Risk=Medium. Restructure telegram/ingestion/ into 3 sub-BCs. Move KOL seeds/seeder. Create crypto-news BC with own tables + message storage. IngestionCoordinator for unified subscription + routing. New frontend page.
+> **TL;DR (machine):** Effort=Large, Risk=Medium. Restructure telegram/ingestion/ into 3 sub-BCs. Move KOL seeds/seeder. Create feed BC with own tables + message storage. IngestionCoordinator for unified subscription + routing. New frontend page.
 
 ## Scope
+
 ### Must have
-- Structure `telegram/ingestion/` as 3 sub-modules: `shared/`, `kol/`, `crypto-news/`
+
+- Structure `telegram/ingestion/` as 3 sub-modules: `shared/`, `kol/`, `feed/`
 - Move KOL seeds and seeder from `kol/identity/` to `telegram/ingestion/kol/`
-- New crypto-news BC with domain entities, ports, use cases, persistence
+- New feed BC with domain entities, ports, use cases, persistence
 - New DB tables: `crypto_news_sources` (news channel registry), `crypto_news_messages` (news messages)
-- `CryptoNewsSeeder` that registers news channels on boot
+- `FeedSeeder` that registers news channels on boot
 - `StoreNewsMessageUseCase` that persists incoming news messages
 - `IngestionCoordinator` that subscribes once and routes messages by channel type
 - New env vars: `INGESTION_TELEGRAM_NEWS_SEED_ENABLED`, `INGESTION_TELEGRAM_SEED_NEWS`
@@ -34,6 +37,7 @@ Your next move: Run `$start-work` to execute the plan.
 - Tests for all new code (unit + integration)
 
 ### Must NOT have (guardrails, anti-slop, scope boundaries)
+
 - Do NOT add `channelType` to the `kols` table or Kol aggregate
 - Do NOT modify `kol/identity/` domain entity, API endpoints, or existing use cases
 - Do NOT change the KOL alpha pipeline (extraction → parsing → normalization → ...)
@@ -43,41 +47,48 @@ Your next move: Run `$start-work` to execute the plan.
 - Do NOT create a separate MTProto session or listener for news (share with KOLs)
 
 ## Verification strategy
+
 > Zero human intervention - all verification is agent-executed.
-- **Test decision:** TDD for new crypto-news BC; tests-after for restructuring moves
+
+- **Test decision:** TDD for new feed BC; tests-after for restructuring moves
 - **Framework:** Jest (co-located `*.spec.ts`), existing pattern
-- **Evidence:** `.omo/evidence/task-<N>-crypto-news-ingestion.<ext>`
+- **Evidence:** `.omo/evidence/task-<N>-feed-ingestion.<ext>`
 
 ## Execution strategy
+
 ### Parallel execution waves
+
 - **Wave 1** (T1–T2): Restructure shared/ + move KOL artifacts (no new logic, safe)
-- **Wave 2** (T3–T4): Create crypto-news domain + application layer (pure TS, no I/O)
-- **Wave 3** (T5): Create crypto-news infrastructure (persistence, seeds, seeder)
+- **Wave 2** (T3–T4): Create feed domain + application layer (pure TS, no I/O)
+- **Wave 3** (T5): Create feed infrastructure (persistence, seeds, seeder)
 - **Wave 4** (T6): IngestionCoordinator + routing logic (most risk — touches message flow)
 - **Wave 5** (T7–T8): Config + module wiring + DB entities registration
 - **Wave 6** (T9): Frontend page + backend endpoint
 - **Wave 7** (T10): Tests for all new code
 
 ### Dependency matrix
-| Todo | Depends on | Blocks | Can parallelize with |
-| --- | --- | --- | --- |
-| T1. shared/ restructuring | — | T5, T6 | T2 |
-| T2. Move KOL seeder | — | T6 | T1 |
-| T3. Crypto-news domain | T1 | T4 | — |
-| T4. Crypto-news app layer | T3 | T5 | — |
-| T5. Crypto-news infra | T4 | T6 | — |
-| T6. IngestionCoordinator | T1, T2, T5 | T7 | — |
-| T7. Config + module wiring | T6 | T8 | — |
-| T8. DB entities registration | T7 | T9 | — |
-| T9. Frontend + API endpoint | T8 | T10 | — |
-| T10. Tests | T3, T4, T5, T9 | — | — |
+
+| Todo                         | Depends on     | Blocks | Can parallelize with |
+| ---------------------------- | -------------- | ------ | -------------------- |
+| T1. shared/ restructuring    | —              | T5, T6 | T2                   |
+| T2. Move KOL seeder          | —              | T6     | T1                   |
+| T3. Crypto-news domain       | T1             | T4     | —                    |
+| T4. Crypto-news app layer    | T3             | T5     | —                    |
+| T5. Crypto-news infra        | T4             | T6     | —                    |
+| T6. IngestionCoordinator     | T1, T2, T5     | T7     | —                    |
+| T7. Config + module wiring   | T6             | T8     | —                    |
+| T8. DB entities registration | T7             | T9     | —                    |
+| T9. Frontend + API endpoint  | T8             | T10    | —                    |
+| T10. Tests                   | T3, T4, T5, T9 | —      | —                    |
 
 ## Todos
+
 > Implementation + Test = ONE todo. Never separate.
+
 <!-- APPEND TASK BATCHES BELOW THIS LINE WITH edit/apply_patch - never rewrite the headers above. -->
 
 - [x] 1. Restructure `telegram/ingestion/` into `shared/` sub-module
-  **What to do / Must NOT do:**
+     **What to do / Must NOT do:**
   - Create `telegram/ingestion/shared/` directory with the subdirectories preserving the current structure:
     - `api/http/` ← move `ingestion-config.controller.ts`, `ingestion-health.controller.ts`
     - `api/input/` ← move `start-ingestion.input.ts`
@@ -105,14 +116,14 @@ Your next move: Run `$start-work` to execute the plan.
   - **Commit:** `Y` | `refactor(ingestion): restructure telegram/ingestion into shared/ sub-module`
 
 - [x] 2. Move KOL seeds and seeder to `telegram/ingestion/kol/`
-  **What to do / Must NOT do:**
+     **What to do / Must NOT do:**
   - Create `telegram/ingestion/kol/seeds/kol.seed.ts` — identical copy of current `kol/identity/infrastructure/seeds/kol.seed.ts`
   - Create `telegram/ingestion/kol/seeders/kol.seeder.ts` — copy of `kol/identity/infrastructure/seeders/kol.seeder.ts` with these MODIFICATIONS:
     - Remove `OnApplicationBootstrap` implementation (auto-start on boot will be handled by IngestionCoordinator)
     - Add explicit `public async seed(): Promise<{ added: number; skipped: number; failed: number; notAKol: number }>` method (idempotent, can be called by coordinator)
     - Keep all existing logic (resolveMetadata, RegisterKolUseCase calls, etc.)
   - Create `telegram/ingestion/kol/kol-ingestion.module.ts`:
-    - Provides `KolSeeder` 
+    - Provides `KolSeeder`
     - Imports `ConfigModule` (needed for seed config)
   - Update `kol/identity/identity.module.ts`:
     - Remove `KolSeeder` from providers
@@ -135,11 +146,11 @@ Your next move: Run `$start-work` to execute the plan.
   - **QA scenarios:** Build passes, all KOL seed tests pass, KolSeeder can be called manually
   - **Commit:** `Y` | `refactor(ingestion): move KOL seeds/seeder to telegram/ingestion/kol/ sub-module`
 
-- [x] 3. Create crypto-news domain layer
-  **What to do / Must NOT do:**
-  - Create `telegram/ingestion/crypto-news/domain/entities/crypto-news-source.entity.ts` (aggregate root):
+- [x] 3. Create feed domain layer
+     **What to do / Must NOT do:**
+  - Create `telegram/ingestion/feed/domain/entities/feed-source.entity.ts` (aggregate root):
     ```
-    CryptoNewsSource extends AggregateRoot<string> {
+    FeedSource extends AggregateRoot<string> {
       state: {
         channelId: string;        // Telegram peer ID (same format as KolId)
         handle: string | null;    // @username
@@ -147,15 +158,15 @@ Your next move: Run `$start-work` to execute the plan.
         isActive: boolean;        // Whether ingestion is active
         addedAt: Date;
       }
-      static create(input: { channelId: string; handle?: string; title: string }): CryptoNewsSource
-      static reconstitute(props: {...}): CryptoNewsSource
+      static create(input: { channelId: string; handle?: string; title: string }): FeedSource
+      static reconstitute(props: {...}): FeedSource
       activate() / deactivate()
       recordMessageIngested(messageId: number, occurredAt: Date): void
     }
     ```
-  - Create `telegram/ingestion/crypto-news/domain/entities/crypto-news-message.entity.ts`:
+  - Create `telegram/ingestion/feed/domain/entities/feed-message.entity.ts`:
     ```
-    CryptoNewsMessage {
+    FeedMessage {
       id: string (UUID);
       channelId: string;
       messageId: number;
@@ -166,19 +177,19 @@ Your next move: Run `$start-work` to execute the plan.
     }
     ```
     Note: This is NOT an aggregate root — it's a record/entity. No domain events needed.
-  - Create `telegram/ingestion/crypto-news/domain/events/crypto-news-message-ingested.event.ts`:
+  - Create `telegram/ingestion/feed/domain/events/feed-message-ingested.event.ts`:
     ```
-    CryptoNewsMessageIngestedEvent extends DomainEvent {
+    FeedMessageIngestedEvent extends DomainEvent {
       payload: { channelId: string; messageId: number; title: string | null; occurredAt: Date }
     }
     ```
-  - Create `telegram/ingestion/crypto-news/domain/events/crypto-news-source-seeded.event.ts`:
+  - Create `telegram/ingestion/feed/domain/events/feed-source-seeded.event.ts`:
     ```
-    CryptoNewsSourceSeededEvent extends DomainEvent {
+    FeedSourceSeededEvent extends DomainEvent {
       payload: { channelId: string; title: string; handle: string | null }
     }
     ```
-  - Must NOT: extend Kol or KolId — crypto-news uses its own identity
+  - Must NOT: extend Kol or KolId — feed uses its own identity
   - Must NOT: couple to any KOL concept
   - **Parallelization:** Wave 2 | Blocked by: T1 | Blocks: T4
   - **References:**
@@ -187,52 +198,52 @@ Your next move: Run `$start-work` to execute the plan.
     - `apps/backend/src/shared/kernel/domain-error.ts` — error codes
     - `apps/backend/src/shared/kernel/domain-event.ts` — event base class
   - **Acceptance criteria:**
-    - CryptoNewsSource can be created, activated, deactivated
-    - CryptoNewsMessage can hold all required fields
+    - FeedSource can be created, activated, deactivated
+    - FeedMessage can hold all required fields
     - Events extend DomainEvent correctly
     - TypeScript compiles without errors
-  - **QA scenarios:** Unit test: create CryptoNewsSource → verify fields. Create with empty title → expect DomainError. Events serialize correctly.
-  - **Commit:** `Y` | `feat(crypto-news): add crypto-news domain entities and events`
+  - **QA scenarios:** Unit test: create FeedSource → verify fields. Create with empty title → expect DomainError. Events serialize correctly.
+  - **Commit:** `Y` | `feat(feed): add feed domain entities and events`
 
-- [x] 4. Create crypto-news application layer
-  **What to do / Must NOT do:**
-  - Create `telegram/ingestion/crypto-news/application/ports/crypto-news-source.repository.ts`:
+- [x] 4. Create feed application layer
+     **What to do / Must NOT do:**
+  - Create `telegram/ingestion/feed/application/ports/feed-source.repository.ts`:
     ```
-    abstract class CryptoNewsSourceRepository {
-      abstract save(source: CryptoNewsSource): Promise<void>;
-      abstract findByChannelId(channelId: string): Promise<CryptoNewsSource | null>;
-      abstract findAll(): Promise<ReadonlyArray<CryptoNewsSource>>;
-      abstract findActive(): Promise<ReadonlyArray<CryptoNewsSource>>;
+    abstract class FeedSourceRepository {
+      abstract save(source: FeedSource): Promise<void>;
+      abstract findByChannelId(channelId: string): Promise<FeedSource | null>;
+      abstract findAll(): Promise<ReadonlyArray<FeedSource>>;
+      abstract findActive(): Promise<ReadonlyArray<FeedSource>>;
       abstract delete(channelId: string): Promise<void>;
     }
     ```
-  - Create `telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository.ts`:
+  - Create `telegram/ingestion/feed/application/ports/feed-message.repository.ts`:
     ```
-    abstract class CryptoNewsMessageRepository {
-      abstract save(message: CryptoNewsMessage): Promise<void>;
-      abstract findRecent(limit: number): Promise<ReadonlyArray<CryptoNewsMessage>>;
-      abstract findByChannelId(channelId: string, limit: number): Promise<ReadonlyArray<CryptoNewsMessage>>;
-      abstract findById(id: string): Promise<CryptoNewsMessage | null>;
+    abstract class FeedMessageRepository {
+      abstract save(message: FeedMessage): Promise<void>;
+      abstract findRecent(limit: number): Promise<ReadonlyArray<FeedMessage>>;
+      abstract findByChannelId(channelId: string, limit: number): Promise<ReadonlyArray<FeedMessage>>;
+      abstract findById(id: string): Promise<FeedMessage | null>;
     }
     ```
-  - Create `telegram/ingestion/crypto-news/application/ports/crypto-news-event.publisher.ts`:
+  - Create `telegram/ingestion/feed/application/ports/feed-event.publisher.ts`:
     ```
-    abstract class CryptoNewsEventPublisher {
+    abstract class FeedEventPublisher {
       abstract publishAll(events: DomainEvent[]): Promise<void>;
     }
     ```
-  - Create `telegram/ingestion/crypto-news/application/handlers/register-news-source.use-case.ts` (RegisterNewsSourceUseCase):
+  - Create `telegram/ingestion/feed/application/handlers/register-news-source.use-case.ts` (RegisterNewsSourceUseCase):
     - Validates channelId (numeric Telegram ID)
-    - Creates CryptoNewsSource
+    - Creates FeedSource
     - Saves via repo
     - Publishes events
-  - Create `telegram/ingestion/crypto-news/application/handlers/store-news-message.use-case.ts` (StoreNewsMessageUseCase):
+  - Create `telegram/ingestion/feed/application/handlers/store-news-message.use-case.ts` (StoreNewsMessageUseCase):
     ```
     execute(input: { channelId: string; messageId: number; text: string; occurredAt: Date }): Promise<void>
     ```
-    - Creates CryptoNewsMessage
+    - Creates FeedMessage
     - Saves via repo
-    - Publishes CryptoNewsMessageIngestedEvent
+    - Publishes FeedMessageIngestedEvent
   - Must NOT: use any KOL concepts or imports from kol/ BC
   - **Parallelization:** Wave 2 | Blocked by: T3 | Blocks: T5
   - **References:**
@@ -244,25 +255,26 @@ Your next move: Run `$start-work` to execute the plan.
     - RegisterNewsSourceUseCase compiles with its dependencies
     - StoreNewsMessageUseCase compiles with its dependencies
   - **QA scenarios:** Unit test RegisterNewsSourceUseCase with in-memory repo. Unit test StoreNewsMessageUseCase.
-  - **Commit:** `Y` | `feat(crypto-news): add crypto-news application ports and use cases`
+  - **Commit:** `Y` | `feat(feed): add feed application ports and use cases`
 
-- [x] 5. Create crypto-news infrastructure layer
-  **What to do / Must NOT do:**
-  - Create `telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-source.entity.ts` (TypeORM):
+- [x] 5. Create feed infrastructure layer
+     **What to do / Must NOT do:**
+  - Create `telegram/ingestion/feed/infrastructure/persistence/typeorm/entities/feed-source.entity.ts` (TypeORM):
     - Table: `crypto_news_sources`
     - Columns: `channel_id` (PK, varchar), `handle` (varchar, nullable), `title` (varchar), `is_active` (boolean), `added_at` (timestamptz), `updated_at` (timestamptz)
-  - Create `telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/entities/crypto-news-message.entity.ts` (TypeORM):
+  - Create `telegram/ingestion/feed/infrastructure/persistence/typeorm/entities/feed-message.entity.ts` (TypeORM):
     - Table: `crypto_news_messages`
     - Columns: `id` (PK, UUID), `channel_id` (varchar), `message_id` (integer), `title` (varchar, nullable), `content` (text), `published_at` (timestamptz), `ingested_at` (timestamptz)
 - Index: `idx_crypto_news_messages_channel_id` on `channel_id`
 - Index: `idx_crypto_news_messages_ingested_at` on `ingested_at`
   - Create TypeORM mappers (source + message) to convert between domain and persistence
-  - Create `InMemoryCryptoNewsSourceRepository` (for tests / no-DB mode)
-  - Create `InMemoryCryptoNewsMessageRepository` (for tests / no-DB mode)
-  - Create `TypeOrmCryptoNewsSourceRepository`
-  - Create `TypeOrmCryptoNewsMessageRepository`
-  - Create `InProcessCryptoNewsEventPublisher`
-  - Create `telegram/ingestion/crypto-news/infrastructure/seeds/crypto-news.seed.ts`:
+  - Create `InMemoryFeedSourceRepository` (for tests / no-DB mode)
+  - Create `InMemoryFeedMessageRepository` (for tests / no-DB mode)
+  - Create `TypeOrmFeedSourceRepository`
+  - Create `TypeOrmFeedMessageRepository`
+  - Create `InProcessFeedEventPublisher`
+  - Create `telegram/ingestion/feed/infrastructure/seeds/feed.seed.ts`:
+
     ```
     export interface SeedChannel {
       readonly channelId: string;
@@ -270,17 +282,19 @@ Your next move: Run `$start-work` to execute the plan.
       readonly title?: string;
       readonly username?: string;
     }
-    
+
     export const CRYPTO_NEWS_SEED: ReadonlyArray<SeedChannel> = [
       // Placeholder — user fills in actual news channel IDs
       // { channelId: '...', title: 'CoinDesk', handle: 'coindesk' },
       // { channelId: '...', title: 'CoinTelegraph', handle: 'cointelegraph' },
     ];
     ```
+
     Note: Use `SeedChannel` interface (not `SeedKol`) to keep concepts separate. Name it `SeedChannel` instead of `SeedNewsChannel` for brevity, or `SeedNewsChannel` for clarity.
-  - Create `telegram/ingestion/crypto-news/infrastructure/seeders/crypto-news.seeder.ts`:
+
+  - Create `telegram/ingestion/feed/infrastructure/seeders/feed.seeder.ts`:
     - Similar to KolSeeder but for news channels
-    - Inject `CryptoNewsSourceRepository`, `RegisterNewsSourceUseCase`, `ConfigService`, `TelegramListenerPort`
+    - Inject `FeedSourceRepository`, `RegisterNewsSourceUseCase`, `ConfigService`, `TelegramListenerPort`
     - `seed()` method: iterates over `CRYPTO_NEWS_SEED` (or env override), resolves metadata via Telegram, registers each source
     - No auto-start listening (coordinator handles it)
   - Must NOT: reuse SeedKol or KOL_SEED — create independent types
@@ -297,58 +311,58 @@ Your next move: Run `$start-work` to execute the plan.
     - Seeder can resolve metadata and register sources
     - `CRYPTO_NEWS_SEED` array exists with at least one placeholder entry
   - **QA scenarios:** Unit test in-memory repos. Unit test seeder with mock listener. Verify TypeORM entities match expected schema.
-  - **Commit:** `Y` | `feat(crypto-news): add crypto-news persistence, repos, seeds, and seeder`
+  - **Commit:** `Y` | `feat(feed): add feed persistence, repos, seeds, and seeder`
 
 - [x] 6. Create IngestionCoordinator in shared/ for unified message routing
-  **What to do / Must NOT do:**
+     **What to do / Must NOT do:**
   - Create `telegram/ingestion/shared/application/ingestion-coordinator.service.ts`:
     ```
     @Injectable()
     export class IngestionCoordinator implements OnApplicationBootstrap {
       constructor(
         private readonly kolSeeder: KolSeeder,              // from telegram/ingestion/kol/
-        private readonly cryptoNewsSeeder: CryptoNewsSeeder, // from telegram/ingestion/crypto-news/
+        private readonly feedSeeder: FeedSeeder, // from telegram/ingestion/crypto-news/
         private readonly kolRepo: KolRepository,             // from kol/identity
-        private readonly cryptoNewsSourceRepo: CryptoNewsSourceRepository,
+        private readonly feedSourceRepo: FeedSourceRepository,
         private readonly kolOrchestrator: KolIngestionOrchestratorUseCase,
         private readonly storeNewsMessage: StoreNewsMessageUseCase,
         private readonly listener: TelegramListenerPort,
         private readonly config: ConfigService,
       ) {}
-      
+
       async onApplicationBootstrap(): Promise<void> {
         // 1. Check if seeding is enabled
         const kolSeedConfig = this.config.get('app.ingestion.telegram.seed');
         const newsSeedConfig = this.config.get('app.ingestion.telegram.newsSeed');
-        
+
         // 2. Seed KOLs if enabled
         if (kolSeedConfig?.enabled) await this.kolSeeder.seed();
-        
+
         // 3. Seed news channels if enabled
-        if (newsSeedConfig?.enabled) await this.cryptoNewsSeeder.seed();
-        
+        if (newsSeedConfig?.enabled) await this.feedSeeder.seed();
+
         // 4. Check if auto-start is enabled
         const shouldAutoStart = kolSeedConfig?.autoStartListening ?? true;
         if (!shouldAutoStart) return;
-        
+
         // 5. Collect ALL active channels from both repos
         const activeKols = (await this.kolRepo.findAll()).filter(k => k.isActive);
-        const activeNews = (await this.cryptoNewsSourceRepo.findActive());
+        const activeNews = (await this.feedSourceRepo.findActive());
         const allChannelIds = [
           ...activeKols.map(k => k.kolId.value),
           ...activeNews.map(s => s.channelId),
         ];
-        
+
         if (allChannelIds.length === 0) return;
-        
+
         // 6. Subscribe once and route
         this.consumeAll(allChannelIds);
       }
-      
+
       private async consumeAll(channelIds: string[]): Promise<void> {
         for await (const raw of this.listener.subscribe(channelIds)) {
           // Check if this is a news source
-          const newsSource = await this.cryptoNewsSourceRepo.findByChannelId(raw.peerId);
+          const newsSource = await this.feedSourceRepo.findByChannelId(raw.peerId);
           if (newsSource) {
             await this.storeNewsMessage.execute({
               channelId: raw.peerId,
@@ -396,7 +410,7 @@ Your next move: Run `$start-work` to execute the plan.
   - **Commit:** `Y` | `feat(ingestion): add IngestionCoordinator for unified channel subscription and routing`
 
 - [x] 7. Add env var config for crypto news seeding
-  **What to do / Must NOT do:**
+     **What to do / Must NOT do:**
   - Add to `AppConfig` interface in `shared/common/config/app.config.ts`:
     ```typescript
     ingestion: {
@@ -435,19 +449,19 @@ Your next move: Run `$start-work` to execute the plan.
   - **QA scenarios:** Unit test parseSeedNewsChannels with various inputs. Verify config loads from env. Verify default is enabled=true.
   - **Commit:** `Y` | `feat(config): add INGESTION_TELEGRAM_NEWS_SEED_ENABLED and SEED_NEWS env vars`
 
-- [x] 8. Wire crypto-news module into app and register DB entities
-  **What to do / Must NOT do:**
-  - Create `telegram/ingestion/crypto-news/crypto-news-ingestion.module.ts`:
-    - Provides all crypto-news providers (repos, use cases, seeder, event publisher)
+- [x] 8. Wire feed module into app and register DB entities
+     **What to do / Must NOT do:**
+  - Create `telegram/ingestion/feed/feed-ingestion.module.ts`:
+    - Provides all feed providers (repos, use cases, seeder, event publisher)
     - Implements the repository provider factory (in-memory vs TypeORM) same pattern as IdentityModule
     - Imports `ConfigModule` for env access
   - Update `telegram/ingestion/telegram-ingestion.module.ts`:
-    - Import `CryptoNewsIngestionModule`
+    - Import `FeedIngestionModule`
     - Import `KolIngestionModule` (from T2)
     - Export from SharedIngestionModule: `IngestionCoordinator`
-  - Register `CryptoNewsSourceEntity` and `CryptoNewsMessageEntity` in `shared/common/persistence/database.module.ts`:
+  - Register `FeedSourceEntity` and `FeedMessageEntity` in `shared/common/persistence/database.module.ts`:
     - Add to the `PERSISTED_ENTITIES` array
-  - Must NOT: create circular imports between shared/ and crypto-news/
+  - Must NOT: create circular imports between shared/ and feed/
   - Must NOT: register entities in kol/identity's module
   - **Parallelization:** Wave 5 | Blocked by: T7 | Blocks: T9
   - **References:**
@@ -456,25 +470,25 @@ Your next move: Run `$start-work` to execute the plan.
     - `apps/backend/src/shared/common/persistence/database.module.ts` — PERSISTED_ENTITIES
     - `apps/backend/src/kol/identity/identity.module.ts:45-61` — repository factory pattern (in-memory vs TypeORM)
   - **Acceptance criteria:**
-    - `CryptoNewsIngestionModule` can be imported and resolves all providers
+    - `FeedIngestionModule` can be imported and resolves all providers
     - `telegram-ingestion.module.ts` imports all 3 sub-modules
     - DB entities are registered in TypeORM
     - No circular dependencies
     - `npm run build` passes
-  - **QA scenarios:** Build passes. Verify DI resolution: inject CryptoNewsSourceRepository → resolves to correct implementation. Run with DATABASE_ENABLED=true → verify tables are created.
-  - **Commit:** `Y` | `feat(crypto-news): wire crypto-news module and register DB entities`
+  - **QA scenarios:** Build passes. Verify DI resolution: inject FeedSourceRepository → resolves to correct implementation. Run with DATABASE_ENABLED=true → verify tables are created.
+  - **Commit:** `Y` | `feat(feed): wire feed module and register DB entities`
 
 - [x] 9. Create frontend page `/crypto-news` and backend API endpoint
-  **What to do / Must NOT do:**
+     **What to do / Must NOT do:**
   - **Backend:**
-    - Create `telegram/ingestion/crypto-news/api/http/crypto-news.controller.ts`:
-      - `GET /crypto-news/messages?limit=50` — returns recent news messages (from CryptoNewsMessageRepository)
+    - Create `telegram/ingestion/feed/api/http/feed.controller.ts`:
+      - `GET /crypto-news/messages?limit=50` — returns recent news messages (from FeedMessageRepository)
       - `GET /crypto-news/sources` — returns all news sources
       - `POST /crypto-news/backfill/:channelId` — backfill historical news messages
-    - Wire controller in `CryptoNewsIngestionModule`
+    - Wire controller in `FeedIngestionModule`
   - **Frontend:**
-    - Create `apps/frontend/src/pages/crypto-news/index.tsx` — page component showing news messages in a table/card layout
-    - Create `apps/frontend/src/pages/crypto-news/columns.tsx` — table column definitions (if using shadcn/ui table)
+    - Create `apps/frontend/src/pages/feed/index.tsx` — page component showing news messages in a table/card layout
+    - Create `apps/frontend/src/pages/feed/columns.tsx` — table column definitions (if using shadcn/ui table)
     - Register route in `apps/frontend/src/app/App.tsx` or router file: `/crypto-news`
     - Add nav link in sidebar/header (in the existing layout)
     - Page layout: title "Crypto News", filter by source (dropdown), list of news cards with: source name, date, content preview
@@ -493,19 +507,19 @@ Your next move: Run `$start-work` to execute the plan.
     - Frontend page renders at `/crypto-news` with news messages
     - Nav link exists in the app header/sidebar
     - `npm run build` passes (both apps)
-  - **QA scenarios:** Call GET /crypto-news/messages with seeded data → verify response. Navigate to /crypto-news in browser → verify page renders. Verify nav link exists.
-  - **Commit:** `Y` | `feat(crypto-news): add backend API and frontend page for crypto news`
+  - **QA scenarios:** Call GET /feed/messages with seeded data → verify response. Navigate to /feed in browser → verify page renders. Verify nav link exists.
+  - **Commit:** `Y` | `feat(feed): add backend API and frontend page for crypto news`
 
 - [ ] 10. Tests for all new code
-  **What to do / Must NOT do:**
-  - Create `telegram/ingestion/crypto-news/domain/entities/__tests__/crypto-news-source.entity.spec.ts`:
+      **What to do / Must NOT do:**
+  - Create `telegram/ingestion/feed/domain/entities/__tests__/feed-source.entity.spec.ts`:
     - Test creation with valid/invalid channel ID
     - Test activation/deactivation
     - Test recordMessageIngested
-  - Create `telegram/ingestion/crypto-news/application/handlers/__tests__/register-news-source.use-case.spec.ts`:
+  - Create `telegram/ingestion/feed/application/handlers/__tests__/register-news-source.use-case.spec.ts`:
     - Test successful registration
     - Test duplicate channel ID → CONFLICT
-  - Create `telegram/ingestion/crypto-news/application/handlers/__tests__/store-news-message.use-case.spec.ts`:
+  - Create `telegram/ingestion/feed/application/handlers/__tests__/store-news-message.use-case.spec.ts`:
     - Test storing a message
     - Test event published
   - Create `telegram/ingestion/shared/application/__tests__/ingestion-coordinator.service.spec.ts`:
@@ -524,29 +538,33 @@ Your next move: Run `$start-work` to execute the plan.
   - **Acceptance criteria:**
     - All new files have co-located `*.spec.ts` tests
     - `npm run test:backend` passes with all new tests included
-    - Coverage: at least 80% on new crypto-news BC
+    - Coverage: at least 80% on new feed BC
   - **QA scenarios:** Run full test suite. Verify all new tests pass. Verify no existing tests broken.
-  - **Commit:** `Y` | `test(crypto-news): add tests for crypto-news domain, use cases, and coordinator`
+  - **Commit:** `Y` | `test(feed): add tests for feed domain, use cases, and coordinator`
 
 ## Final verification wave
+
 > Runs in parallel after ALL todos. ALL must APPROVE. Surface results and wait for the user's explicit okay before declaring complete.
+
 - [ ] F1. **Plan compliance audit** — Verify every todo in this plan was completed. Check scope boundaries: no channelType on kols, no pipeline changes, no WebSocket.
 - [ ] F2. **Code quality review** — Run `npm run lint:backend`, `npm run build`, review for DDD violations (domain importing infra, entities in shared/, etc.)
 - [ ] F3. **Real manual QA** — Start the app (`npm run dev:backend-only`), verify: (a) KOL seeds still register, (b) KOL messages still flow through pipeline, (c) Crypto news endpoint returns data, (d) Frontend page renders
 - [ ] F4. **Scope fidelity** — Confirm NOT changed: Kol aggregate, pipeline BCs, existing KOL API/frontend pages
 
 ## Commit strategy
+
 - Each todo = one conventional commit
 - Type: `feat` for new functionality, `refactor` for moves, `test` for tests, `feat(config)` for config changes
-- Scope: `(crypto-news)`, `(ingestion)`, or `(config)`
+- Scope: `(feed)`, `(ingestion)`, or `(config)`
 - No fixup/squash — commits should be clean and reviewable individually
 
 ## Success criteria
-1. `telegram/ingestion/` has three sub-modules: `shared/`, `kol/`, `crypto-news/`
+
+1. `telegram/ingestion/` has three sub-modules: `shared/`, `kol/`, `feed/`
 2. KOL seeds/seeder moved — `kol/identity/seeders/` no longer exists
 3. `crypto_news_sources` and `crypto_news_messages` tables created automatically via TypeORM `synchronize: true`
 4. `INGESTION_TELEGRAM_NEWS_SEED_ENABLED` controls news seeding independently
-5. `CryptoNewsSeeder` registers news channels on boot (if enabled)
+5. `FeedSeeder` registers news channels on boot (if enabled)
 6. `IngestionCoordinator` subscribes once and routes messages correctly
 7. `GET /crypto-news/messages` returns stored news
 8. Frontend `/crypto-news` page renders with nav link

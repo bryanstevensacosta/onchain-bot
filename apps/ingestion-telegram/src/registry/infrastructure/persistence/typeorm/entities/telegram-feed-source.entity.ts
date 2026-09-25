@@ -10,7 +10,7 @@ import {
 /**
  * Unified feed source type discriminator.
  *
- * - `crypto-news`: opaque news channels (media download enabled, RAW text kept)
+ * - `feed`: opaque news channels (media download enabled, RAW text kept)
  * - `kol`: KOL channels (no media by policy; identity migrates here in item 6)
  */
 export type TelegramFeedSourceType = 'kol' | 'crypto-news';

@@ -22,7 +22,7 @@ import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistenc
 import { IngestionSafetyConfig } from '../../infrastructure/config/ingestion-safety.config';
 import { SleepWindowService } from '../../infrastructure/services/sleep-window.service';
 import { Api } from 'telegram';
-import { CryptoNewsMessageTransformer } from 'shared/telegram/transformation';
+import { FeedMessageTransformer } from 'shared/telegram/transformation';
 import { TelegramMediaExtractorService } from '../../application/services/telegram-media-extractor.service';
 
 /**
@@ -104,8 +104,8 @@ export class TelegramMtprotoListenerAdapter
   private readonly messageQueue = new MessageQueue<TelegramRawMessage>();
   private readonly peerResolver = new TelegramPeerResolver();
   private running = false;
-  private loggedCryptoNewsChannels = false;
-  private cryptoNewsChannelCache = new Set<string>();
+  private loggedFeedChannels = false;
+  private feedChannelCache = new Set<string>();
   private cacheRefreshInterval: NodeJS.Timeout | null = null;
   private sleepNotified = false;
 
@@ -115,21 +115,21 @@ export class TelegramMtprotoListenerAdapter
     private readonly lastSeenManager: LastSeenManager,
     private readonly floodWaitHandler: FloodWaitHandlerService,
     private readonly feedSourceRepo: TelegramFeedSourceRepository,
-    private readonly messageTransformer: CryptoNewsMessageTransformer, // Phase 5: Shared transformation
+    private readonly messageTransformer: FeedMessageTransformer, // Phase 5: Shared transformation
     private readonly mediaExtractor: TelegramMediaExtractorService, // Phase 5.2: Extracted media download
     private readonly safety: IngestionSafetyConfig,
     private readonly sleepWindow: SleepWindowService,
   ) {}
 
   async onModuleInit(): Promise<void> {
-    // Load active crypto-news channels from DB on startup
+    // Load active feed channels from DB on startup
     // This runs regardless of MTProto credentials
-    await this.refreshCryptoNewsChannelCache();
+    await this.refreshFeedChannelCache();
 
     // Refresh cache every 5 minutes
     this.cacheRefreshInterval = setInterval(
       () => {
-        void this.refreshCryptoNewsChannelCache();
+        void this.refreshFeedChannelCache();
       },
       5 * 60 * 1000,
     );
@@ -364,10 +364,10 @@ export class TelegramMtprotoListenerAdapter
    * Transform raw Telegram message to TelegramRawMessage format
    *
    * Phase 5.2 Refactor: Fully delegated transformation pipeline:
-   * - Text extraction → CryptoNewsMessageTransformer (4-source cascade)
-   * - Media metadata → CryptoNewsMessageTransformer
-   * - Media download → TelegramMediaExtractorService (crypto-news only)
-   * - Entity normalization → CryptoNewsMessageTransformer
+   * - Text extraction → FeedMessageTransformer (4-source cascade)
+   * - Media metadata → FeedMessageTransformer
+   * - Media download → TelegramMediaExtractorService (feed only)
+   * - Entity normalization → FeedMessageTransformer
    */
   private async transformMessage(
     peerId: string,
@@ -390,7 +390,7 @@ export class TelegramMtprotoListenerAdapter
       throw new Error(`Failed to transform message ${peerId}:${msg.id}`);
     }
 
-    // Step 2: Download media for crypto-news channels (if applicable)
+    // Step 2: Download media for feed channels (if applicable)
     let media =
       transformed.media.length > 0
         ? (transformed.media as unknown as TelegramMediaAttachment[])
@@ -398,7 +398,7 @@ export class TelegramMtprotoListenerAdapter
 
     if (
       msg.media &&
-      this.isCryptoNewsChannel(peerId) &&
+      this.isFeedChannel(peerId) &&
       transformed.media.length > 0
     ) {
       try {
@@ -434,38 +434,38 @@ export class TelegramMtprotoListenerAdapter
   }
 
   /**
-   * Refresh the in-memory cache of active crypto-news channels from DB.
+   * Refresh the in-memory cache of active feed channels from DB.
    * Called on startup and every 5 minutes.
    *
    * Replaces the deprecated seed-based approach.
    */
-  private async refreshCryptoNewsChannelCache(): Promise<void> {
+  private async refreshFeedChannelCache(): Promise<void> {
     try {
       const sources = await this.feedSourceRepo.findAllActive('crypto-news');
-      this.cryptoNewsChannelCache = new Set(sources.map((s) => s.channelId));
+      this.feedChannelCache = new Set(sources.map((s) => s.channelId));
 
       this.logger.log(
-        `[DB-CACHE] Loaded ${this.cryptoNewsChannelCache.size} active crypto-news channels from DB: ${Array.from(this.cryptoNewsChannelCache).join(', ')}`,
+        `[DB-CACHE] Loaded ${this.feedChannelCache.size} active feed channels from DB: ${Array.from(this.feedChannelCache).join(', ')}`,
       );
     } catch (error) {
       this.logger.error(
-        `[DB-CACHE] Failed to refresh crypto-news channel cache: ${(error as Error).message}`,
+        `[DB-CACHE] Failed to refresh feed channel cache: ${(error as Error).message}`,
       );
     }
   }
 
   /**
-   * Check if a channel is a crypto-news channel (uses DB cache).
+   * Check if a channel is a feed channel (uses DB cache).
    *
-   * This method queries the database to determine active crypto-news sources.
+   * This method queries the database to determine active feed sources.
    * Sources are created/updated via ingestion-telegram API (`POST /api/feed/sources`).
    */
-  private isCryptoNewsChannel(peerId: string): boolean {
-    const isMatch = this.cryptoNewsChannelCache.has(peerId);
+  private isFeedChannel(peerId: string): boolean {
+    const isMatch = this.feedChannelCache.has(peerId);
 
     if (!isMatch && peerId.startsWith('-100')) {
       this.logger.debug(
-        `[DB-CACHE] Channel ${peerId} not found in active crypto-news sources`,
+        `[DB-CACHE] Channel ${peerId} not found in active feed sources`,
       );
     }
 

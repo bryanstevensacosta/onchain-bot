@@ -1,8 +1,8 @@
 # META APROXIMADA — Tree completo monorepo post-refactor
 
 > **Uso**: incluir en `.omo/plans/mega-refactor-central.md` como meta aproximada (no contrato rígido: el worker puede adaptar nombres manteniendo layout hexagonal + DDD).
-> **Decidido 2026-09-24**: orden kol-system → content-publisher → market-data · `apps/market-data` (sellado §7.4) · rama `feat/mega-refactor-tramos`.
-> **Fuentes literales**: content-publisher ← `11-refactor.md` §§1-11 · market-data ← `naming-and-architecture.md` Variante A (dir renombrado `onchain-data/` → `market-data/`) · kol-system ← `overview.md` §§Estado-Propuesto/Conexión + `IMPLEMENTATION-GUIDE.md` Ph1-13.
+> **Decidido 2026-09-24**: orden kol-system → feed-publisher → market-data · `apps/market-data` (sellado §7.4) · rama `feat/mega-refactor-tramos`.
+> **Fuentes literales**: feed-publisher ← `11-refactor.md` §§1-11 · market-data ← `naming-and-architecture.md` Variante A (dir renombrado `onchain-data/` → `market-data/`) · kol-system ← `overview.md` §§Estado-Propuesto/Conexión + `IMPLEMENTATION-GUIDE.md` Ph1-13.
 > **Marcas**: `(~)` = nombre patronado por mí siguiendo el hexagonal del repo (el spec no lo fija) · `(futuro)` = fuera de v1.
 
 ```
@@ -12,11 +12,11 @@ apps/
 │       ├── kol/                                # ❌ ELIMINADO Tramo 1 (→ kol-system/kol-identity)
 │       ├── telegram/
 │       │   ├── ingestion/kol/                  # ❌ ELIMINADO Tramo 1 (→ kol-system/ingestion+extraction+parsing)
-│       │   ├── ingestion/crypto-news/          # ❌ ELIMINADO Tramo 2 (→ content-publisher/filters)
+│       │   ├── ingestion/feed/          # ❌ ELIMINADO Tramo 2 (→ feed-publisher/filters)
 │       │   ├── vip-calls/                      # ❌ ELIMINADO Tramo 1 (→ kol-system/*)
-│       │   ├── crypto-news-integration/        # ❌ ELIMINADO Tramo 2 (→ content-publisher/ingestion+matching)
-│       │   ├── crypto-news-publisher/          # ❌ ELIMINADO Tramo 2 (→ content-publisher/queue+llm+keywords)
-│       │   ├── crypto-news-ads/                # ❌ ELIMINADO Tramo 2 (→ content-publisher/scheduling)
+│       │   ├── feed-integration/        # ❌ ELIMINADO Tramo 2 (→ feed-publisher/ingestion+matching)
+│       │   ├── feed-publisher/          # ❌ ELIMINADO Tramo 2 (→ feed-publisher/queue+llm+keywords)
+│       │   ├── feed-ads/                # ❌ ELIMINADO Tramo 2 (→ feed-publisher/scheduling)
 │       │   └── shared/                         # ⚠️ PARTIDO C-SHARED-01: KOL bot → Tramo 1, crypto adapters → Tramo 2
 │       └── token/enrichment/                   # ⚠️ CONSUMIDO vía ports Tramos 1-2, movido físico Tramo 3 (C-DATA-01)
 │
@@ -110,24 +110,24 @@ apps/
 │           ├── filters/domain-exception.filter.ts(~)
 │           └── shared.module.ts(~)
 │
-├── content-publisher/                          # ★ TRAMO 2 (8 fases / 7 sem, :3040/:3041/:3042)
+├── feed-publisher/                          # ★ TRAMO 2 (8 fases / 7 sem, :3040/:3041/:3042)
 │   ├── package.json                            # NestJS 11, TypeORM, Bull, OpenAI, Bot API
 │   ├── nest-cli.json
 │   ├── tsconfig.json
 │   ├── Dockerfile
 │   ├── docker-compose.yml                      # postgres + redis dev
-│   ├── .env.example                            # 25 vars (USE_CONTENT_PUBLISHER en backend)
+│   ├── .env.example                            # 25 vars (USE_FEED_PUBLISHER en backend)
 │   ├── uploads/ads-library/                    # Assets físicos (gitignored, Opción B decidida en spec)
 │   └── src/
 │       ├── main.ts                             # Bootstrap :3040
 │       ├── app.module.ts                       # 11 imports
 │       ├── ingestion/
-│       │   ├── application/{services/crypto-news-ingestion-client.service.ts,handlers/process-crypto-news-message.handler.ts}
+│       │   ├── application/{services/feed-ingestion-client.service.ts,handlers/process-feed-message.handler.ts}
 │       │   ├── domain/ports/ingestion-client.port.ts
 │       │   ├── infrastructure/http/{ingestion-http-client.adapter.ts,dto/{raw-message.dto.ts,source.dto.ts}}
 │       │   └── ingestion.module.ts
 │       ├── matching/
-│       │   ├── application/{services/{filtered-crypto-news.service.ts,matching-evaluator.service.ts},use-cases/evaluate-message-match.use-case.ts,scheduling/enqueue-matching-cron.scheduler.ts}
+│       │   ├── application/{services/{filtered-feed.service.ts,matching-evaluator.service.ts},use-cases/evaluate-message-match.use-case.ts,scheduling/enqueue-matching-cron.scheduler.ts}
 │       │   ├── domain/{entities/matching-config.entity.ts,ports/{matching-config-repository.port.ts,keyword-provider.port.ts}}
 │       │   ├── infrastructure/persistence/typeorm/{entities/matching-config.entity.ts,repositories/typeorm-matching-config.repository.ts}
 │       │   └── matching.module.ts
@@ -161,7 +161,7 @@ apps/
 │       │   ├── playground/{application/use-cases/generate-preview.use-case.ts,api/{controllers/playground.controller.ts,dto/{preview-request.dto.ts,preview-response.dto.ts}}}
 │       │   ├── api/{controllers/{llm-config.controller.ts,templates.controller.ts,models.controller.ts},dto/{update-llm-config.dto.ts,create-template.dto.ts}}
 │       │   └── llm.module.ts
-│       ├── scheduling/                         # Ads (renombrado crypto-news-ads, crypto-news only)
+│       ├── scheduling/                         # Ads (renombrado feed-ads, feed only)
 │       │   ├── core/{application/{services/{ad-rotation.service.ts,ad-scheduler.service.ts},use-cases/{create-ad.use-case.ts,list-ads.use-case.ts,update-rotation-config.use-case.ts,get-next-ad.use-case.ts},scheduling/ads-cron.scheduler.ts},domain/{entities/{ad.entity.ts,ad-rotation-config.entity.ts,ad-rotation-state.entity.ts},ports/{ad-repository.port.ts,rotation-config-repository.port.ts}},infrastructure/persistence/typeorm/{entities/{ad.entity.ts,ad-rotation-config.entity.ts,ad-rotation-state.entity.ts},repositories/{typeorm-ad.repository.ts,typeorm-rotation-config.repository.ts}}}
 │       │   ├── media/{application/{services/ad-media-library.service.ts,use-cases/{create-ad-media.use-case.ts,list-ad-media.use-case.ts,delete-ad-media.use-case.ts}},domain/{entities/{ad-media.entity.ts,ad-media-library.entity.ts},ports/ad-media-repository.port.ts},infrastructure/persistence/typeorm/{entities/{ad-media.entity.ts,ad-media-library.entity.ts},repositories/typeorm-ad-media.repository.ts}}
 │       │   ├── api/{controllers/{ads.controller.ts,rotation-config.controller.ts,ad-media.controller.ts},dto/{create-ad.dto.ts,upload-ad-media.dto.ts}}
@@ -172,10 +172,10 @@ apps/
 │       │   ├── infrastructure/persistence/typeorm/{entities/{thread.entity.ts,thread-message.entity.ts},repositories/typeorm-thread.repository.ts}
 │       │   ├── api/{controllers/threads.controller.ts,dto/{create-thread.dto.ts,enqueue-thread.dto.ts}}
 │       │   └── threads.module.ts
-│       ├── telegram/                           # Adapters crypto-news + threads (NO KOL — C-SHARED-01/C2)
-│       │   ├── application/services/{crypto-news-bot-publisher.service.ts,threads-bot-publisher.service.ts}
+│       ├── telegram/                           # Adapters feed + threads (NO KOL — C-SHARED-01/C2)
+│       │   ├── application/services/{feed-bot-publisher.service.ts,threads-bot-publisher.service.ts}
 │       │   ├── domain/ports/telegram-publisher.port.ts
-│       │   ├── infrastructure/adapters/{crypto-news-bot-api.adapter.ts,threads-bot-api.adapter.ts}
+│       │   ├── infrastructure/adapters/{feed-bot-api.adapter.ts,threads-bot-api.adapter.ts}
 │       │   └── telegram.module.ts
 │       └── shared/
 │           ├── domain/{value-objects/{channel-id.vo.ts,message-id.vo.ts,content-hash.vo.ts,content-type.vo.ts,timestamp.vo.ts,url.vo.ts,language-code.vo.ts},events/{base/{domain-event.base.ts,event-metadata.ts},content/{message-matched.event.ts,queue-entry-created.event.ts,content-published.event.ts,thread-created.event.ts},system/{health-check-failed.event.ts,rate-limit-exceeded.event.ts}},exceptions/{domain-exception.ts,validation-exception.ts,not-found-exception.ts,business-rule-violation.exception.ts}}
@@ -230,4 +230,4 @@ apps/
 │ ├── config/{app.config.ts,telegram.config.ts}(~)
 │ └── shared.module.ts(~)
 
-**Notas para el plan**: (1) `src/` como prefijo (README content-publisher; 11-refactor mezcla con/without — manda `src/`). (2) kol-system: solo templates/approval/publishing/telegram-conexión son literales del spec; resto BCs patronados `(~)`. (3) market-data: Variante A literal con dir renombrado; si escala → Variante B (apps/api+bot+worker, libs/) como fase posterior. (4) DBs/migraciones por app en C-DB-01, no en el tree. (5) `market-data` legacy (`/token/market-data`, `MarketDataProviderPort`) se renombra dentro del Tramo 3 (R-4).
+**Notas para el plan**: (1) `src/` como prefijo (README feed-publisher; 11-refactor mezcla con/without — manda `src/`). (2) kol-system: solo templates/approval/publishing/telegram-conexión son literales del spec; resto BCs patronados `(~)`. (3) market-data: Variante A literal con dir renombrado; si escala → Variante B (apps/api+bot+worker, libs/) como fase posterior. (4) DBs/migraciones por app en C-DB-01, no en el tree. (5) `market-data` legacy (`/token/market-data`, `MarketDataProviderPort`) se renombra dentro del Tramo 3 (R-4).

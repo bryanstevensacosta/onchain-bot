@@ -1,4 +1,4 @@
-# crypto-news-media-viewer - Work Plan
+# feed-media-viewer - Work Plan
 
 ## TL;DR (For humans)
 
@@ -10,7 +10,7 @@
 
 - [ ] 1. Envolver `<img>` en `<a>` para abrir a tamaño completo
      What to do:
-  - **ÚNICO ARCHIVO:** `apps/frontend/src/pages/crypto-news/index.tsx`
+  - **ÚNICO ARCHIVO:** `apps/frontend/src/pages/feed/index.tsx`
   - Encontrar el bloque actual (líneas ~176-184):
     ```tsx
     <img
@@ -37,12 +37,12 @@
   - `target="_blank"` abre en nueva pestaña
   - NO modificar otros elementos (metadata, link preview, etc.)
   - Tests: añadir `groupedId: undefined` a fixtures si faltan
-  - Verificar: `cd apps/frontend && npx tsc --noEmit` y `npx vitest run src/pages/crypto-news/__tests__/`
+  - Verificar: `cd apps/frontend && npx tsc --noEmit` y `npx vitest run src/pages/feed/__tests__/`
 
 - [ ] 2. (Opcional/Futuro) Soporte de video
   - **Backend**: en `extractRawPhotoAttachment`, también detectar `MessageMediaDocument` con `mimeType.startsWith('video/')` y extraer igual que una foto (fileId, accessHash, fileReference)
   - **Frontend**: renderizar `<video src={url} controls className="w-full rounded" />` en lugar de `<img>` cuando `m.type === 'video'`
-  - Requiere cambiar `CryptoNewsMedia.type` de `'photo'` literal a `'photo' | 'video'`
+  - Requiere cambiar `FeedMedia.type` de `'photo'` literal a `'photo' | 'video'`
   - Scope futuro, no incluido en este plan
 
 ## Verification
@@ -52,4 +52,4 @@
 
 ## Commit
 
-1. `feat(frontend): open crypto-news images in new tab at full resolution`
+1. `feat(frontend): open feed images in new tab at full resolution`

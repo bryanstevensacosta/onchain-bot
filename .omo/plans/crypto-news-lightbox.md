@@ -1,4 +1,4 @@
-# crypto-news-lightbox - Work Plan
+# feed-lightbox - Work Plan
 
 ## TL;DR (For humans)
 
@@ -109,7 +109,7 @@
 
     Importar `useState` de React.
 
-  - **Modificar** `apps/frontend/src/pages/crypto-news/index.tsx`:
+  - **Modificar** `apps/frontend/src/pages/feed/index.tsx`:
     - Import: `import { Lightbox } from '@/shared/ui/lightbox';`
     - Estado: `const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);`
     - Reemplazar el `<a href={url} target="_blank">` que envuelve cada `<img>` por:
@@ -138,8 +138,8 @@
         );
       }
       ```
-    - NOTA: el Lightbox debe renderizarse dentro del article o al nivel del page. Lo más limpio: renderizarlo al final del `return` del `CryptoNewsPage` para que el overlay cubra toda la página.
-    - Mover el estado `lightboxIndex` al componente `CryptoNewsPage`, no dentro del IIFE de grouping.
+    - NOTA: el Lightbox debe renderizarse dentro del article o al nivel del page. Lo más limpio: renderizarlo al final del `return` del `FeedPage` para que el overlay cubra toda la página.
+    - Mover el estado `lightboxIndex` al componente `FeedPage`, no dentro del IIFE de grouping.
   - NO mantener el `<a target="_blank">` — reemplazar completamente por `<button>` con `onClick`
   - NO modificar el layout de imágenes/texto existente
 
@@ -152,4 +152,4 @@
 
 ## Commits
 
-1. `feat(frontend): add image lightbox to crypto-news`
+1. `feat(frontend): add image lightbox to feed`

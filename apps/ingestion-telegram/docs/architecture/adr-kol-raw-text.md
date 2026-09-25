@@ -10,15 +10,15 @@
 
 ## What changed
 
-| Before (fix-1) | After (Q1-B) |
-| --- | --- |
-| `KolTextExtractor` returned `''` always | 4-source cascade (`message` → `text` → `media.caption` → `fwdFrom.message`), same as crypto-news |
-| Coordinator persisted ONLY crypto-news rows | `persistFeedMessage(raw, type)` persists BOTH types; KOL rows carry `content = raw.text`, `media = []` |
-| SSE `payload.text` present ONLY for crypto-news | `payload.text = raw.text ?? ''` for BOTH types |
-| Channels from backend HTTP (`BackendChannelProviderService`) + `newsIds`-membership classification | Channels from LOCAL `telegram_feed_sources` (`findAllActiveWithTypes()`); classification by registry row type; unknown channel → `'kol'` (previous default, kept) |
-| `BackendChannelProviderService` (HTTP fetch half) | DELETED. Registration-store half moved to `BackendRegistryService` (stream home, next to its only consumers) |
+| Before (fix-1)                                                                                                                | After (Q1-B)                                                                                                                                                                         |
+| ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `KolTextExtractor` returned `''` always                                                                                       | 4-source cascade (`message` → `text` → `media.caption` → `fwdFrom.message`), same as feed                                                                                            |
+| Coordinator persisted ONLY feed rows                                                                                          | `persistFeedMessage(raw, type)` persists BOTH types; KOL rows carry `content = raw.text`, `media = []`                                                                               |
+| SSE `payload.text` present ONLY for feed                                                                                      | `payload.text = raw.text ?? ''` for BOTH types                                                                                                                                       |
+| Channels from backend HTTP (`BackendChannelProviderService`) + `newsIds`-membership classification                            | Channels from LOCAL `telegram_feed_sources` (`findAllActiveWithTypes()`); classification by registry row type; unknown channel → `'kol'` (previous default, kept)                    |
+| `BackendChannelProviderService` (HTTP fetch half)                                                                             | DELETED. Registration-store half moved to `BackendRegistryService` (stream home, next to its only consumers)                                                                         |
 | Refresh gated `updateSubscribedChannels` on `previousTotal > 0`; cold-start empty DB never listened, never scheduled recovery | Refresh ALWAYS scheduled; `updateSubscribedChannels` called unconditionally (incl. empty snapshot); 0 → N transition starts the listener; `subscribe()` called EXACTLY ONCE (gap 15) |
-| `[PAYLOAD-TRANSFORM-DEBUG]` logs printed raw text to disk | REDACTED to shape-only (lengths). Raw text MUST NEVER be logged (disk log = text store) |
+| `[PAYLOAD-TRANSFORM-DEBUG]` logs printed raw text to disk                                                                     | REDACTED to shape-only (lengths). Raw text MUST NEVER be logged (disk log = text store)                                                                                              |
 
 ## Blast radius
 
@@ -30,7 +30,7 @@
   `EVENT_MAP` forwards the event without text (asserted in
   `kol-message-ingested.event.spec.ts`). Raw KOL text reaches the backend
   pipeline ONLY via the direct SSE-adapter → orchestrator handoff.
-- **Media:** KOL NEVER downloads (adapter `isCryptoNewsChannel` gate intact +
+- **Media:** KOL NEVER downloads (adapter `isFeedChannel` gate intact +
   coordinator persists `media = []` for kol as defense-in-depth).
 - **Dedup:** `isDuplicate()` wired in `route()` for BOTH types (cursor +
   in-memory cache) — realtime+polling double-delivery → 1 row + 1 frame.

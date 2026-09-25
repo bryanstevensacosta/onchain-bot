@@ -8,7 +8,7 @@ import { SourcesController } from 'registry/api/http/sources.controller';
 import { FeedController } from 'feed/api/http/feed.controller';
 import { RegisterNewsSourceUseCase } from 'registry/application/use-cases/register-news-source.use-case';
 import { AvatarModule } from '../avatar/avatar.module';
-import { CryptoNewsRetentionCleanupScheduler } from './infrastructure/scheduling/crypto-news-retention-cleanup.scheduler';
+import { FeedRetentionCleanupScheduler } from './infrastructure/scheduling/feed-retention-cleanup.scheduler';
 import { DiskMonitorService } from './infrastructure/scheduling/disk-monitor.service';
 
 /**
@@ -36,7 +36,7 @@ import { DiskMonitorService } from './infrastructure/scheduling/disk-monitor.ser
  * REMOVED:
  * - Static channel seed list completely removed (DB-driven only)
  * - Add sources via: POST /api/feed/sources (ingestion-telegram endpoint)
- * - Legacy crypto-news controller/entities/repos cut in feed-unification item 5
+ * - Legacy feed controller/entities/repos cut in feed-unification item 5
  */
 @Module({
   imports: [
@@ -52,7 +52,7 @@ import { DiskMonitorService } from './infrastructure/scheduling/disk-monitor.ser
     TelegramFeedMessageRepository,
     RegisterNewsSourceUseCase,
     DiskMonitorService,
-    CryptoNewsRetentionCleanupScheduler,
+    FeedRetentionCleanupScheduler,
   ],
   exports: [TelegramFeedMessageRepository],
 })

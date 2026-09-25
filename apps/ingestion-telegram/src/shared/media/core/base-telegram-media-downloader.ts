@@ -25,7 +25,7 @@ import { BaseMediaPathBuilder } from './base-media-path-builder';
  *
  * @example
  * ```ts
- * class CryptoNewsMediaDownloader extends BaseTelegramMediaDownloader {
+ * class FeedMediaDownloader extends BaseTelegramMediaDownloader {
  *   protected buildStoragePath(
  *     channelId: string,
  *     messageId: number,

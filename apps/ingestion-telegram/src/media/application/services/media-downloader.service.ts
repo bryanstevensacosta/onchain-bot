@@ -9,7 +9,7 @@ import {
   BaseFileSystemAdapter,
   DownloadedMedia,
 } from 'shared/media';
-import { CryptoNewsPathBuilder } from 'media/infrastructure/crypto-news-path-builder';
+import { FeedPathBuilder } from 'media/infrastructure/feed-path-builder';
 
 /**
  * MediaDownloaderService - Downloads Telegram media to disk
@@ -45,7 +45,7 @@ export class MediaDownloaderService extends BaseTelegramMediaDownloader {
     const mediaRoot = path.join(uploadsRoot, 'feed', 'media');
 
     const fileSystem = new LocalFileSystemAdapter();
-    const pathBuilder = new CryptoNewsPathBuilder({
+    const pathBuilder = new FeedPathBuilder({
       root: mediaRoot,
       recursive: true,
     });
@@ -144,7 +144,7 @@ export class MediaDownloaderService extends BaseTelegramMediaDownloader {
     extension: string,
   ): string {
     // Type-safe access to our concrete path builder
-    const pathBuilder = this.pathBuilder as CryptoNewsPathBuilder;
+    const pathBuilder = this.pathBuilder as FeedPathBuilder;
     return pathBuilder.buildMediaPath(channelId, messageId, index, extension);
   }
 }

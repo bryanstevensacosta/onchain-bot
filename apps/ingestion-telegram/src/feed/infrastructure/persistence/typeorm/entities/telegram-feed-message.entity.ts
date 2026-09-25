@@ -4,7 +4,7 @@ import { TelegramFeedMessageMediaEntity } from './telegram-feed-message-media.en
 /**
  * Feed message type discriminator.
  *
- * `crypto-news` rows are backfilled by the `TelegramFeedMessages` migration
+ * `feed` rows are backfilled by the `TelegramFeedMessages` migration
  * (RENAME of `crypto_news_messages`); `kol` rows arrive with item 7
  * (coordinator persist path). Same union the coordinator `route()` accepts.
  */

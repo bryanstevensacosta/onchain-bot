@@ -1,4 +1,4 @@
-# crypto-news-text-entities - Work Plan
+# feed-text-entities - Work Plan
 
 ## TL;DR (For humans)
 
@@ -52,13 +52,13 @@
     ```
   - **IngestionCoordinator**: Los entities YA están en `raw.entities` (el port ya lo tiene). Solo hay que verificar que `IngestionCoordinator.route()` pase los entities. Mirar la línea ~125 de `ingestion-coordinator.service.ts` y verificar que `raw.entities` se pase al `StoreNewsMessageUseCase.execute()`. Si no, añadirlo.
   - **StoreNewsMessageUseCase**: Aceptar `entities?: ReadonlyArray<{offset: number; length: number; type: string; url?: string | null}>` opcional en input. `JSON.stringify()` antes de pasar al dominio.
-  - **Domain entity** (`crypto-news-message.entity.ts`):
+  - **Domain entity** (`feed-message.entity.ts`):
     - Añadir `formattingEntities: string | null` a Props (JSON string)
     - Añadir getter. En `create()`, aceptar opcional y `JSON.stringify`
     - Default `null` en `create()` input
   - **TypeORM entity**: Añadir columna `message_entities` (TEXT, nullable)
   - **Mapper**: Mapear bidireccionalmente
-  - **In-memory repo**: El `Map<string, CryptoNewsMessage>` almacena la entidad de dominio completa. Como `formattingEntities` es parte de la entidad de dominio, se guarda automáticamente. Solo verificar que `findById`, `findRecent`, `findByChannelId` retornan el campo sin error.
+  - **In-memory repo**: El `Map<string, FeedMessage>` almacena la entidad de dominio completa. Como `formattingEntities` es parte de la entidad de dominio, se guarda automáticamente. Solo verificar que `findById`, `findRecent`, `findByChannelId` retornan el campo sin error.
   - **Controller**: Exponer como `formattingEntities: any[] | null` en view. Parsear JSON con try/catch:
     ```ts
     try {
@@ -73,7 +73,7 @@
 
 - [ ] 2. Frontend: parsear y renderizar entities
      What to do / Must NOT do:
-  - **Types** (`crypto-news-queries.ts`): Añadir:
+  - **Types** (`feed-queries.ts`): Añadir:
     ```ts
     readonly formattingEntities?: ReadonlyArray<{
       offset: number;
@@ -114,7 +114,7 @@
     }
     ```
   - **Render**: Reemplazar `{msg.content}` por `{renderFormattedText(msg.content, msg.formattingEntities)}` en el `<p>` de content (línea 159). Conservar `whitespace-pre-wrap` en el contenedor.
-  - **Tests**: Añadir `formattingEntities: undefined` a los mocks existentes en `crypto-news-page.test.tsx` (para no romper tests). Añadir 2 nuevos tests para el parser:
+  - **Tests**: Añadir `formattingEntities: undefined` a los mocks existentes en `feed-page.test.tsx` (para no romper tests). Añadir 2 nuevos tests para el parser:
     1. Texto con entity `text_url` → verificar que se renderiza `<a href="url">`
     2. Texto sin entities → verificar que se renderiza texto plano sin `<a>`
   - NO modificar el layout existente (metadata, imágenes, link preview card)
@@ -127,13 +127,13 @@
 
 - [ ] F1. TypeScript compila backend + frontend
 - [ ] F2. Tests pasan:
-  - Backend: `cd apps/backend && npx jest crypto-news --no-coverage` (58 tests)
-  - Frontend: `cd apps/frontend && npx vitest run src/pages/crypto-news/__tests__/` (6+ tests)
+  - Backend: `cd apps/backend && npx jest feed --no-coverage` (58 tests)
+  - Frontend: `cd apps/frontend && npx vitest run src/pages/feed/__tests__/` (6+ tests)
 - [ ] F3. Playwright: verificar en mensaje de cointelegraph que "News | Markets | YouTube" son `<a>` links con `href` correcto
 - [ ] F4. Verificar que bold, italic, code se renderizan con tags correctos (si hay mensajes con esos formatos)
 - [ ] F5. Spoiler CSS existe y no rompe otros estilos
 
 ## Commit strategy
 
-1. `feat(crypto-news): extract and persist Telegram message formatting entities`
+1. `feat(feed): extract and persist Telegram message formatting entities`
 2. `feat(frontend): render Telegram message entities (bold, links, etc.)`

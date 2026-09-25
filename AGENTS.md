@@ -37,7 +37,7 @@ Per-app docs (verified, authoritative over this file for details): `apps/backend
                     │                                               │
                     │  API ENDPOINTS (read-only para su backend):   │
                     │  → GET /api/feed/sources (feed-unification;  │
-                    │    las viejas /api/crypto-news/* dan 404)    │
+                    │    las viejas /api/feed/* dan 404)    │
                     │  → GET /api/feed/messages                   │
                     │  → GET /api/media/:channelId/:messageId/:idx │
                     │  → GET /api/ingestion/stream (SSE, sin gate) │
@@ -50,7 +50,7 @@ Per-app docs (verified, authoritative over this file for details): `apps/backend
           │ (local)       │  │ Staging     │  │ Production │
           │ → ingestion   │  │ → twin      │  │ → prod     │
           │   :3031       │  │   :3033     │  │   :3032    │
-          │ NO crypto-news│  │ NO crypto-  │  │ NO crypto- │
+          │ NO feed│  │ NO crypto-  │  │ NO crypto- │
           │ DB tables     │  │ news tables │  │ news tables│
           └───────────────┘  └─────────────┘  └────────────┘
                   │                │                │
@@ -70,12 +70,12 @@ Per-app docs (verified, authoritative over this file for details): `apps/backend
 
 1. **Un ingestion-telegram por env (1:1 con su backend)** — `docker-compose.ingestion.yml` (prod, host `:3032`→container `:3031`) + `docker-compose.staging-ingestion.yml` (twin, project `onchain-bot-staging-ingestion`, host `:3033`→container `:3031`) + dev local (`:3031`). Misma imagen, triple y DB distintas. El singleton multi-env está retirado (2026-09-22)
 2. **Una triple MTProto por env, jamás compartida** — cada instancia tiene SU triple (`INGESTION_TELEGRAM_MTPROTO_API_ID/_API_HASH/_SESSION` en SU `.env`: prod `.env.production`, staging `.env.staging` con la vieja cuenta de dev, local `.env` con la cuenta nueva). Mapa sin secretos: prod=cuenta actual, staging=vieja-dev, local=nueva (3-4 canales). Dos instancias con la misma triple causan `AUTH_KEY_DUPLICATED`. Pre-boot: triple-inequality assert por hashes (ver runbook twin)
-3. **Una DB de ingestion por env (`<base>_ingestion`)** — TARGET names tras el rename: dev local `onchain_bot_ingestion`, Oracle prod `onchain_bot_ingestion` + Oracle staging `onchain_bot_staging_ingestion` (permitida desde per-env 2026-09-22; antes prohibida). Estado live: las DBs Oracle conservan el nombre pre-rename hasta que ejecute el runbook (.omo/runbooks/rename-onchain-bot-db.md, fase 3). Tablas `crypto_news_sources`, `crypto_news_messages`, `crypto_news_message_media` viven SOLO en la DB de SU env desde el split 2026-09-08 (antes existían también en el backend; migración `1860000000001-DropIngestionOwnedCryptoNewsTables`). El twin arranca VACÍO (sin seed, sin mirror prod)
+3. **Una DB de ingestion por env (`<base>_ingestion`)** — TARGET names tras el rename: dev local `onchain_bot_ingestion`, Oracle prod `onchain_bot_ingestion` + Oracle staging `onchain_bot_staging_ingestion` (permitida desde per-env 2026-09-22; antes prohibida). Estado live: las DBs Oracle conservan el nombre pre-rename hasta que ejecute el runbook (.omo/runbooks/rename-onchain-bot-db.md, fase 3). Tablas `crypto_news_sources`, `crypto_news_messages`, `crypto_news_message_media` viven SOLO en la DB de SU env desde el split 2026-09-08 (antes existían también en el backend; migración `1860000000001-DropIngestionOwnedFeedTables`). El twin arranca VACÍO (sin seed, sin mirror prod)
 4. **Ingestion-telegram es el owner de media** — descarga archivos a `uploads/crypto-news/media/` y los sirve vía `GET /api/media/*`
-5. **Backends NO escriben crypto-news** — staging/prod solo LEEN vía HTTP API del ingestion-telegram (no réplican tablas ni datos)
-6. **Frontend consume directamente del ingestion-telegram** — `GET /api/crypto-news/messages` apunta al puerto 3032 (no proxy vía backend)
+5. **Backends NO escriben feed** — staging/prod solo LEEN vía HTTP API del ingestion-telegram (no réplican tablas ni datos)
+6. **Frontend consume directamente del ingestion-telegram** — `GET /api/feed/messages` apunta al puerto 3032 (no proxy vía backend)
 7. **NO definir ingestion-telegram en `docker-compose.staging.yml` ni `.prod.yml`** — un compose por env: `docker-compose.ingestion.yml` (prod standalone) + `docker-compose.staging-ingestion.yml` (twin)
-8. **Retención 72h de messages + media en ingestion** — janitor `CryptoNewsRetentionCleanupScheduler` (ingestion-telegram, lock `9_421_373`, reloj `ingested_at`); 72h por invariante del plan. Valor efectivo en prod pendiente de decisión del operador (el backend prod limpiaba media con 24h; ver dossier task-10 §4)
+8. **Retención 72h de messages + media en ingestion** — janitor `FeedRetentionCleanupScheduler` (ingestion-telegram, lock `9_421_373`, reloj `ingested_at`); 72h por invariante del plan. Valor efectivo en prod pendiente de decisión del operador (el backend prod limpiaba media con 24h; ver dossier task-10 §4)
 
 **Rationale** (per-env 2026-09-22 — cada env es dueño de sus datos):
 
@@ -97,9 +97,9 @@ ingestion-telegram:
     4. Emite evento SSE (metadata-only, NO content)
 Backend (staging/prod) — OPCIÓN A (filter on-read):
     1. EnqueueMatchingCronScheduler (cron every minute):
-       a. Fetch RAW messages: CryptoNewsIngestionClient → GET su-ingestion/api/feed/messages?limit=50
+       a. Fetch RAW messages: FeedIngestionClient → GET su-ingestion/api/feed/messages?limit=50
           (prod `:3032`, staging twin `:3033`, dev `:3031` — cada backend lee SU ingestion)
-       b. Filter + match: FilteredCryptoNewsService:
+       b. Filter + match: FilteredFeedService:
           - Load per-channel ContentFilterService rules (regex transforms)
           - Apply filters to title + content (on-read, NO persist)
           - Evaluate keywords (simple + AND-groups)
@@ -174,7 +174,7 @@ was removed 2026-09-14 (its PR checks never completed unattended; see
 | DB migrations        | `cd apps/backend && npm run migration:run` (`scripts/run-migrations.sh` + TypeORM)           |
 | Backfill scripts     | `apps/backend/scripts/backfills/` (19 date-prefixed, idempotent) + `migrate.js/ts`           |
 | MTProto session      | `apps/ingestion-telegram`: `npm run telegram:gen-session` (sessions live ONLY there)         |
-| Seed KOLs/sources    | `POST telegram-kol/identity/kols` / `POST crypto-news/sources` on backend (DB-driven)        |
+| Seed KOLs/sources    | `POST telegram-kol/identity/kols` / `POST feed/sources` on backend (DB-driven)               |
 | Architecture docs    | `apps/backend/docs/spydefi/arch/` (14 files: DDD, anti-patterns, ADRs)                       |
 | Safety config        | `config/ingestion.config.json` (used only in Docker; dev falls back to defaults)             |
 | Git hooks            | `.husky/{pre-commit,commit-msg,pre-push}` + `lint-staged.config.js` + `commitlint.config.js` |
@@ -263,8 +263,8 @@ To bypass all hooks for a single commit: `git commit --no-verify -m "..."`.
 
 ### Database
 
-- TypeORM 0.3 with `synchronize: true` (dev/test). Staging/prod: migrations (`scripts/run-migrations.sh`; backend 15 files incl. `1860000000001-DropIngestionOwnedCryptoNewsTables`; ingestion-telegram baseline `1788844970659-BaselineIngestionSchema` + `migration:*` scripts + `data-source.ts` since 2026-09-08, `synchronize:false, migrationsRun:false` outside dev/test).
-- DB split 2026-09-08: backend `PERSISTED_ENTITIES` = 39 (sin las 3 tablas crypto-news); ingestion DB `<base>_ingestion` con 5 tablas propias. pgAdmin: la segunda DB vive en el MISMO servidor — sin cambio en `apps/backend/pgadmin/servers.json`, aparece como otra DB bajo el mismo server entry.
+- TypeORM 0.3 with `synchronize: true` (dev/test). Staging/prod: migrations (`scripts/run-migrations.sh`; backend 15 files incl. `1860000000001-DropIngestionOwnedFeedTables`; ingestion-telegram baseline `1788844970659-BaselineIngestionSchema` + `migration:*` scripts + `data-source.ts` since 2026-09-08, `synchronize:false, migrationsRun:false` outside dev/test).
+- DB split 2026-09-08: backend `PERSISTED_ENTITIES` = 39 (sin las 3 tablas feed); ingestion DB `<base>_ingestion` con 5 tablas propias. pgAdmin: la segunda DB vive en el MISMO servidor — sin cambio en `apps/backend/pgadmin/servers.json`, aparece como otra DB bajo el mismo server entry.
 - Per-BC schema-per-context is v2 plan; v1 uses in-memory repos within modules (largest: normalization cap 5000).
 - Database toggle: `DATABASE_ENABLED=true` to enable; tests force it on in `jest.setup.ts` (both services).
 
@@ -309,7 +309,7 @@ Source: `apps/backend/docs/spydefi/arch/09-anti-patterns.md` — project-level r
 - **UN ingestion-telegram por env (1:1 con su backend)** — dev `:3031`, staging twin host `:3033`→container `:3031` (`docker-compose.staging-ingestion.yml`), prod host `:3032`→container `:3031` (`docker-compose.ingestion.yml`). Misma imagen, jamás dos instancias con la misma triple
 - **NEVER duplicate MTProto credentials across envs** — una triple por env (`INGESTION_TELEGRAM_MTPROTO_*` en el `.env` de SU instancia); duplicarlas causa `AUTH_KEY_DUPLICATED`. Mapa: prod=cuenta actual, staging=vieja-dev, local=nueva
 - **NEVER define ingestion-telegram in `docker-compose.staging.yml` or `.prod.yml`** — un compose por env (ver invariante #7)
-- **NEVER create crypto-news tables in the backend** — cada env lee SU ingestion vía HTTP API (sin réplicas, sin tablas duplicadas)
+- **NEVER create feed tables in the backend** — cada env lee SU ingestion vía HTTP API (sin réplicas, sin tablas duplicadas)
 - **Backend MUST consume via SSE its own ingestion** — `INGESTION_TELEGRAM_URL`: dev `http://localhost:3031`, staging twin `http://onchain-bot-ingestion-telegram-staging:3031`, prod `http://onchain-bot-ingestion-telegram:3031` (host `:3032`; Tailscale `cryptoganster.tailf01c61.ts.net:3032` — live on Oracle since 2026-09-10, ex-DO (suspended 2026-09-10) was `100.84.4.28` — twin `:3033`)
 - **Staging/production backends filter client-side** — cada ingestion emite SUS canales, su backend filtra lo que necesita
 
@@ -546,7 +546,7 @@ Telegram MTProto ──► ingestion-telegram :3031 ──SSE /api/ingestion/str
 - Backend↔ingestion heartbeat: SSE `health:ping` 30 s; backend backoff 1 s→30 s; no replay (lossy by design).
 - Media: ingestion-telegram owns `uploads/`; backend reads via HTTP (`INGESTION_TELEGRAM_URL`) or read-only volume in compose.
 - Ports: each ingestion listens `:3031` in dev and inside its container; Oracle host maps prod `127.0.0.1:3032` → `:3031` and staging twin `127.0.0.1:3033` → `:3031` (host ports avoid the clash with staging backend on `:3031`).
-- Channels: KOL identity lives in backend DB (`telegram-kol/identity`, polled by ingestion-telegram); crypto-news sources/messages/media live in the ingestion DB (`<base>_ingestion`, owned by ingestion-telegram since split 2026-09-08).
+- Channels: KOL identity lives in backend DB (`telegram-kol/identity`, polled by ingestion-telegram); feed sources/messages/media live in the ingestion DB (`<base>_ingestion`, owned by ingestion-telegram since split 2026-09-08).
 
 ## BACKEND PIPELINE (alpha-call path + opaque news path)
 
@@ -565,7 +565,7 @@ kol msg ──► intake/extraction ──► intake/parsing ──► normaliza
                                                                                   ▼
                                                               call-tracking (evals) + achievements (milestones)
 
-crypto-news msg ──► ingestion-telegram (persist RAW) ──► backend poll (every min) ──► FilteredCryptoNewsService
+feed msg ──► ingestion-telegram (persist RAW) ──► backend poll (every min) ──► FilteredFeedService
                                                                                           (fetch + filter + match)
                                                                 ▼
                                                     EnqueueMatchingCronScheduler ──► queue ──► LLM ──► Bot API
@@ -576,11 +576,11 @@ crypto-news msg ──► ingestion-telegram (persist RAW) ──► backend pol
 
 The pipeline uses **3 independent flags** controlling enqueue, LLM, and publishing:
 
-| Flag                | Owner            | Controls                          | Location                   |
-| ------------------- | ---------------- | --------------------------------- | -------------------------- |
-| `matchingEnabled`   | `MatchingConfig` | `EnqueueMatchingCronScheduler`    | `crypto-news-integration/` |
-| `llmEnabled`        | `LlmConfig`      | LLM vs raw content mode           | `crypto-news-publisher/`   |
-| `publishingEnabled` | `LlmConfig`      | `PublisherCronScheduler` (master) | `crypto-news-publisher/`   |
+| Flag                | Owner            | Controls                          | Location            |
+| ------------------- | ---------------- | --------------------------------- | ------------------- |
+| `matchingEnabled`   | `MatchingConfig` | `EnqueueMatchingCronScheduler`    | `feed-integration/` |
+| `llmEnabled`        | `LlmConfig`      | LLM vs raw content mode           | `feed-publisher/`   |
+| `publishingEnabled` | `LlmConfig`      | `PublisherCronScheduler` (master) | `feed-publisher/`   |
 
 **Critical Dependency**: `LLM generation = llmEnabled AND publishingEnabled`
 
@@ -608,7 +608,7 @@ LLM generation **ONLY occurs when BOTH** `llmEnabled=true` AND `publishingEnable
 
 **Frontend**: 3 independent toggle buttons in `MatchingToggleButton` component (optimistic updates per flag).
 
-**Why decoupled**: Matching shouldn't depend on publisher config; separate configs prevent unnecessary coupling (see `apps/backend/AGENTS.md` §CRYPTO-NEWS for migration details).
+**Why decoupled**: Matching shouldn't depend on publisher config; separate configs prevent unnecessary coupling (see `apps/backend/AGENTS.md` §FEED for migration details).
 
 ```
 
@@ -646,7 +646,7 @@ Lossy by design: no replay (backfill endpoint deleted with the multi-backend lay
 
 - **`.env.dev` takes precedence** over `.env` (`ConfigModule.envFilePath: ['.env.dev', '.env']`, both NestJS services).
 - **Port cleanup before dev**: `scripts/cleanup-ports.mjs` runs as `predev` hook — kills stale 3030/5173 holders.
-- **MTProto lives in ingestion-telegram** (`INGESTION_TELEGRAM_MTPROTO_*` there, nowhere else). Backend publishing is Bot API (`vip-calls/vip-channel` + crypto-news publisher + chain-dexter-bot). Backend MTProto branch is deleted (forcing it throws `410 Gone`); rollback is a previous image tag, never a backend session.
+- **MTProto lives in ingestion-telegram** (`INGESTION_TELEGRAM_MTPROTO_*` there, nowhere else). Backend publishing is Bot API (`vip-calls/vip-channel` + feed publisher + chain-dexter-bot). Backend MTProto branch is deleted (forcing it throws `410 Gone`); rollback is a previous image tag, never a backend session.
 - **Frontend port 5173 is strict**: Vite exits if port is held; cleanup script handles this.
 - **`@/*` alias is frontend-only.** Don't use it in backend imports.
 - **No CLAUDE.md exists** — conventions live in `apps/backend/docs/spydefi/arch/`, `GOVERNANCE.md` (branches), and per-app AGENTS.md files.
@@ -654,7 +654,7 @@ Lossy by design: no replay (backfill endpoint deleted with the multi-backend lay
 
 ## MEGA-REFACTOR (branch `feat/mega-refactor-tramos`)
 
-Goal: extract 3 new apps out of the backend — kol-system → content-publisher
+Goal: extract 3 new apps out of the backend — kol-system → feed-publisher
 → market-data (+ `dexter-onchain-bot` as Tramo 3 final phase, P13). Per-env SSE
 + per-app DBs intact.
 
@@ -662,7 +662,7 @@ Goal: extract 3 new apps out of the backend — kol-system → content-publisher
 | --------------- | ----------------------------------------------- |
 | central (index) | `.omo/plans/mega-refactor-central.md`           |
 | 1 · kol-system  | `.omo/plans/mega-refactor-kol-system.md`        |
-| 2 · content-pub.| `.omo/plans/mega-refactor-content-publisher.md` |
+| 2 · content-pub.| `.omo/plans/mega-refactor-feed-publisher.md` |
 | 3 · market-data | `.omo/plans/mega-refactor-market-data.md`       |
 
 Decisions: `.omo/drafts/mega-refactor-tramos.md` §7.6 (P1–P27). Target tree:

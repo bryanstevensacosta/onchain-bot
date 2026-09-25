@@ -1,6 +1,6 @@
 import { httpPost } from '@/shared/api/http-client';
 import { ENDPOINTS } from '@/shared/api/endpoints';
-import type { ReasoningEffort } from '@/features/crypto-news-publisher/api/llm-config-api';
+import type { ReasoningEffort } from '@/features/feed-publisher/api/llm-config-api';
 
 /**
  * Prompt-playground views. Mirror the backend preview DTOs verbatim —
@@ -44,7 +44,7 @@ export interface PreviewPlaygroundResult {
 }
 
 export const playgroundKeys = {
-  all: ['crypto-news-publisher', 'llm', 'playground'] as const,
+  all: ['feed-publisher', 'llm', 'playground'] as const,
   preview: () => [...playgroundKeys.all, 'preview'] as const,
 };
 
@@ -52,7 +52,7 @@ export async function previewPrompt(
   body: PreviewPlaygroundBody,
 ): Promise<PreviewPlaygroundResult> {
   return httpPost<PreviewPlaygroundBody, PreviewPlaygroundResult>(
-    ENDPOINTS.cryptoNewsPublisher.llm.preview,
+    ENDPOINTS.feedPublisher.llm.preview,
     body,
   );
 }

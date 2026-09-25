@@ -10,7 +10,7 @@
  *
  * Covers (item 3 acceptance):
  * - repo roundtrip on the NEW table (`telegram_feed_messages`)
- * - `type` discriminator persistence (`crypto-news` + `kol` union)
+ * - `type` discriminator persistence (`feed` + `kol` union)
  * - media cascade save on the new (message ↔ media) pair
  * - all 6 mirrored methods: findRecent / findByChannelId /
  *   findByChannelAndMessageId / save / count / countByChannelId

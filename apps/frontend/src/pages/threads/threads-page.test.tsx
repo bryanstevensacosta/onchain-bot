@@ -169,7 +169,7 @@ describe('ThreadsPage — 6 sections, no Ads', () => {
     expect(screen.queryByText('Ads')).not.toBeInTheDocument();
   });
 
-  it('fetches Threads URLs (never crypto-news publisher URLs)', async () => {
+  it('fetches Threads URLs (never feed publisher URLs)', async () => {
     renderWithClient(<ThreadsPage />);
 
     await screen.findByText('SEC');
