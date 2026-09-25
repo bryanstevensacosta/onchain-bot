@@ -28,6 +28,7 @@ export const DEFAULT_INGESTION_BASE_URL = 'http://localhost:3031';
 export class IngestionHttpClientAdapter extends KolIngestionClientPort {
   private readonly logger = new Logger(IngestionHttpClientAdapter.name);
   private readonly baseUrl: string;
+  private readonly apiKey: string;
 
   constructor(private readonly config: ConfigService) {
     super();
@@ -38,6 +39,14 @@ export class IngestionHttpClientAdapter extends KolIngestionClientPort {
         : process.env['INGESTION_TELEGRAM_URL']
       )?.trim() || DEFAULT_INGESTION_BASE_URL;
     this.baseUrl = raw.replace(/\/+$/, '');
+    // Same upstream key as the SSE client (backend-mirror); feed reads are
+    // public today, the header future-proofs them if the guard expands.
+    const keyFromConfig = config?.get<string>('INGESTION_TELEGRAM_API_KEY');
+    this.apiKey =
+      (typeof keyFromConfig === 'string' && keyFromConfig.trim().length > 0
+        ? keyFromConfig
+        : process.env['INGESTION_TELEGRAM_API_KEY']
+      )?.trim() || '';
   }
 
   override async listKolSources(): Promise<KolSource[]> {
@@ -77,8 +86,14 @@ export class IngestionHttpClientAdapter extends KolIngestionClientPort {
 
   private async getJson(url: string): Promise<unknown> {
     let response: Response;
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+    };
+    if (this.apiKey.length > 0) {
+      headers['x-api-key'] = this.apiKey;
+    }
     try {
-      response = await fetch(url, { headers: { Accept: 'application/json' } });
+      response = await fetch(url, { headers });
     } catch (error) {
       this.logger.warn(
         `Feed request failed: ${url} (${error instanceof Error ? error.message : String(error)})`,
