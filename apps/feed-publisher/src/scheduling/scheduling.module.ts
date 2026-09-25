@@ -1,6 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { TelegramModule } from '../telegram/telegram.module';
+import { TelegramScheduledAdDispatcher } from '../telegram/application/dispatch/telegram-scheduled-ad.dispatcher';
 import { ScheduledAdRepository } from './domain/ports/scheduled-ad.repository';
 import { ScheduledAdMediaRepository } from './domain/ports/scheduled-ad-media.repository';
 import { AdMediaLibraryRepository } from './domain/ports/ad-media-library.repository';
@@ -34,8 +36,8 @@ import { SchedulingHealthIndicator } from './health/scheduling-health.indicator'
  * Owns the moved ads catalog (rotation core + media library, P36
  * renamed to scheduling): `ScheduledAd` + per-target `SchedulingConfig`
  * (publish delay + daily cap each, P38) + per-target
- * `SchedulingState` cursors + in-memory dispatcher (todo 7 binds Bot
- * API) + 1min cron + 3 controllers (`/api/scheduling/ads`,
+ * `SchedulingState` cursors + Telegram Bot API dispatcher (todo 7,
+ * text posts; ad media resolution is a follow-up) + 1min cron + 3 controllers (`/api/scheduling/ads`,
  * `/api/scheduling/rotation-config`, `/api/scheduling/media`).
  * Feed posts only in v1 (no per-post threads targeting yet; the
  * threads DELIVERY target already paces independently).
@@ -44,7 +46,11 @@ import { SchedulingHealthIndicator } from './health/scheduling-health.indicator'
  * adapters live (backend `DATABASE_ENABLED=false` pattern).
  */
 @Module({
-  imports: [ConfigModule, ScheduleModule.forRoot()],
+  imports: [
+    ConfigModule,
+    ScheduleModule.forRoot(),
+    forwardRef(() => TelegramModule),
+  ],
   controllers: [
     SchedulingAdsController,
     SchedulingRotationConfigController,
@@ -93,7 +99,7 @@ import { SchedulingHealthIndicator } from './health/scheduling-health.indicator'
     },
     {
       provide: ScheduledAdDispatcherPort,
-      useClass: InMemoryScheduledAdDispatcher,
+      useClass: TelegramScheduledAdDispatcher,
     },
   ],
   exports: [

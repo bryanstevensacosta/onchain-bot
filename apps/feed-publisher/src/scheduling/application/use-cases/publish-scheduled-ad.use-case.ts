@@ -17,8 +17,8 @@ import { SchedulingHealthState } from '../state/scheduling-health.state';
  *      hold reasons return early. A `daily-cap-reached` hold leaves
  *      the cursor untouched: the post is retried after the UTC-day
  *      rollover, never dropped, never failure-counted.
- *   4. Dispatch via `ScheduledAdDispatcherPort` (in-memory until
- *      todo 7 binds Bot API; missing publisher returns ok=false and
+ *   4. Dispatch via `ScheduledAdDispatcherPort` (Telegram Bot API
+ *      since todo 7, text posts; missing publisher returns ok=false and
  *      is treated as not-configured: no failure bookkeeping).
  *   5. Success: persist cursor + dispatcher timestamp + ad stats.
  *      The shared cadence counter is NOT reset here — the cron

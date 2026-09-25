@@ -3,6 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { DeduplicationModule } from '../deduplication/deduplication.module';
 import { LlmModule } from '../llm/llm.module';
+import { TelegramModule } from '../telegram/telegram.module';
+import { TelegramQueuedArticleDispatcher } from '../telegram/application/dispatch/telegram-queued-article.dispatcher';
 import { LlmArticleRendererAdapter } from '../llm/infrastructure/llm/llm-article-renderer.adapter';
 import { PublisherQueueRepository } from './domain/ports/publisher-queue.repository';
 import { QueuedArticleRendererPort } from './application/ports/queued-article-renderer.port';
@@ -26,8 +28,8 @@ import { QueueHealthIndicator } from './health/queue-health.indicator';
  * + QueueManager (strict `QUEUE_MAX_PENDING` cap, default 36) +
  * EnqueueMatchingMessage (binds the todo 3 `MatchedMessageEnqueuePort`) +
  * ProcessNextQueuedArticle (one-per-tick drain, LLM render when the
- * flags say so + raw passthrough otherwise, in-memory dispatch until
- * todo 7) + schedulers (1min drain + 30min TTL expire,
+ * flags say so + raw passthrough otherwise, Telegram Bot API dispatch
+ * since todo 7) + schedulers (1min drain + 30min TTL expire,
  * default 24h) + `GET/DELETE /api/queue`. The TypeORM shape + mapper ship
  * unwired (GAP-1); BullMQ-over-Redis replaces the in-memory repo (GAP-3)
  * without touching QueueManager.
@@ -38,6 +40,7 @@ import { QueueHealthIndicator } from './health/queue-health.indicator';
     ScheduleModule.forRoot(),
     DeduplicationModule,
     forwardRef(() => LlmModule),
+    forwardRef(() => TelegramModule),
   ],
   controllers: [QueueController],
   providers: [
@@ -62,7 +65,7 @@ import { QueueHealthIndicator } from './health/queue-health.indicator';
     },
     {
       provide: QueuedArticleDispatcherPort,
-      useClass: InMemoryQueuedArticleDispatcher,
+      useClass: TelegramQueuedArticleDispatcher,
     },
   ],
   exports: [
