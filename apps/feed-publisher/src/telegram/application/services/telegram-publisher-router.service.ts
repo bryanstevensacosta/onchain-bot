@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import type { ContentType } from 'shared/value-objects/content-type.vo';
-import type { SchedulingTarget } from '../../../scheduling/domain/scheduling-target';
 import { CryptoNewsBotApiAdapter } from '../../infrastructure/bot-api/crypto-news-bot-api.adapter';
 import { ThreadsBotApiAdapter } from '../../infrastructure/bot-api/threads-bot-api.adapter';
 import type { TelegramPublisherPort } from '../../domain/ports/telegram-publisher.port';
@@ -30,18 +29,6 @@ export class TelegramPublisherRouter {
     }
     throw new Error(
       `Unsupported content type for Telegram publish: ${contentType}`,
-    );
-  }
-
-  public forSchedulingTarget(target: SchedulingTarget): TelegramPublisherPort {
-    if (target === 'telegram') {
-      return this.crypto;
-    }
-    if (target === 'threads') {
-      return this.threads;
-    }
-    throw new Error(
-      `Unsupported scheduling target for Telegram publish: ${String(target)}`,
     );
   }
 

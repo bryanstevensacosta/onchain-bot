@@ -5,7 +5,6 @@ import { CryptoNewsBotApiAdapter } from './infrastructure/bot-api/crypto-news-bo
 import { ThreadsBotApiAdapter } from './infrastructure/bot-api/threads-bot-api.adapter';
 import { TelegramPublisherRouter } from './application/services/telegram-publisher-router.service';
 import { TelegramQueuedArticleDispatcher } from './application/dispatch/telegram-queued-article.dispatcher';
-import { TelegramScheduledAdDispatcher } from './application/dispatch/telegram-scheduled-ad.dispatcher';
 import { TelegramHealthIndicator } from './health/telegram-health.indicator';
 import { BotsGatewaySenderPort } from './domain/ports/bots-gateway-sender.port';
 import { GatewayHmacSigner } from './infrastructure/gateway/gateway-hmac-signer.service';
@@ -28,7 +27,6 @@ describe('TelegramModule', () => {
     expect(module.get(ThreadsBotApiAdapter)).toBeDefined();
     expect(module.get(TelegramPublisherRouter)).toBeDefined();
     expect(module.get(TelegramQueuedArticleDispatcher)).toBeDefined();
-    expect(module.get(TelegramScheduledAdDispatcher)).toBeDefined();
     expect(module.get(TelegramHealthIndicator)).toBeDefined();
     await module.close();
   });

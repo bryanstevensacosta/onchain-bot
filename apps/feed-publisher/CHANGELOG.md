@@ -133,3 +133,8 @@ sha256(rawBody)`, keyless dev fails open) with per-chunk
   `src/telegram/` Bot API adapters are deprecated since the gateway
   migration (gateway todos 5-6) and run dual-leg only; removal at
   cutover — new sends go via `apps/telegram-bots-gateway`.
+- **Scheduling core extracted to `apps/scheduling-posts` (branch
+  `feat/mega-refactor-tramos`):** `src/scheduling/` moved (not dual-run)
+  with unwire in `app.module`, `telegram.module`, publisher router
+  `forSchedulingTarget`, and `TelegramScheduledAdDispatcher` (+ 2 specs);
+  feed-publisher consumes scheduling via contract.

@@ -8,13 +8,15 @@ import { SchedulingMediaStoragePort } from '../../domain/ports/scheduling-media-
 import { extensionForMimeType } from '../../application/services/scheduling-media-sniffer';
 
 /**
- * Disk adapter for `SchedulingMediaStoragePort` (Opcion B: the
- * library lives under the feed-publisher app root).
+ * Disk adapter for `SchedulingMediaStoragePort` (the library lives
+ * under the scheduling-posts app root, permanent retention — no
+ * janitor deletes here).
  *
  * Per-post files land under `<root>/ads/<adId>/<uuid>.<ext>`, shared
  * library files under `<root>/ads-library/<contentHash>.<ext>`, and
  * only RELATIVE paths ever leave this adapter. Root resolves from
- * `FEED_PUBLISHER_UPLOADS_ROOT` (default `<cwd>/uploads`).
+ * `SCHEDULING_POSTS_UPLOADS_ROOT` (default `<cwd>/uploads`,
+ * `FEED_PUBLISHER_UPLOADS_ROOT` kept as fallback).
  */
 @Injectable()
 export class LocalSchedulingMediaStorageAdapter extends SchedulingMediaStoragePort {
@@ -22,8 +24,12 @@ export class LocalSchedulingMediaStorageAdapter extends SchedulingMediaStoragePo
 
   public constructor(config?: ConfigService) {
     super();
-    const fromEnv = process.env.FEED_PUBLISHER_UPLOADS_ROOT;
-    const fromConfig = config?.get<string>('FEED_PUBLISHER_UPLOADS_ROOT');
+    const fromEnv =
+      process.env.SCHEDULING_POSTS_UPLOADS_ROOT ??
+      process.env.FEED_PUBLISHER_UPLOADS_ROOT;
+    const fromConfig =
+      config?.get<string>('SCHEDULING_POSTS_UPLOADS_ROOT') ??
+      config?.get<string>('FEED_PUBLISHER_UPLOADS_ROOT');
     this.uploadsRoot =
       fromEnv ?? fromConfig ?? path.join(process.cwd(), 'uploads');
   }

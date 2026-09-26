@@ -10,7 +10,6 @@ import type {
 } from '../../domain/ports/bots-gateway-sender.port';
 import type { TelegramPublisherPort } from '../../domain/ports/telegram-publisher.port';
 import { PublisherQueueEntry } from '../../../queue/domain/publisher-queue-entry.entity';
-import { ScheduledAd } from '../../../scheduling/domain/scheduled-ad.entity';
 
 function makeConfig(env: Record<string, string> = {}): ConfigService {
   return {
@@ -128,34 +127,5 @@ describe('feed-publisher publish-via-gateway (dual parity)', () => {
     );
     expect(parity.snapshot()).toMatchObject({ total: 1, diverged: 1 });
     expect(() => parity.assertNoDivergence()).toThrow(/cutover blocked/);
-  });
-
-  it('scheduling dual-send returns the direct leg with 0 divergences', async () => {
-    const crypto = makeAdapter();
-    const router = new TelegramPublisherRouter(crypto, makeAdapter());
-    const { sender, calls } = makeGateway({ ok: true, messageId: 777 });
-    const parity = new DualSendParityService();
-    const dispatcher = new TelegramScheduledAdDispatcher(
-      router,
-      makeConfig({
-        CRYPTO_NEWS_OUTPUT_CHANNEL: '@crypto-news',
-        FEED_PUBLISH_MODE: 'dual',
-      }),
-      sender,
-      parity,
-      new GatewayBotMappingService(),
-    );
-    const out = await dispatcher.publish(
-      ScheduledAd.create({
-        name: 'ad',
-        body: 'ad body',
-        format: 'text',
-        buttons: [],
-      }),
-      'telegram',
-    );
-    expect(out).toMatchObject({ ok: true, messageId: 7 });
-    expect(calls).toHaveLength(1);
-    expect(parity.snapshot()).toMatchObject({ total: 1, diverged: 0 });
   });
 });

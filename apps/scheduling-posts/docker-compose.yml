@@ -1,0 +1,38 @@
+name: onchain-bot-scheduling-posts
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: onchain-bot-scheduling-posts-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: onchain_bot
+      POSTGRES_PASSWORD: onchain_bot
+      POSTGRES_DB: onchain_bot_scheduling
+    ports:
+      - '5442:5432'
+    volumes:
+      - scheduling-posts-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U onchain_bot -d onchain_bot_scheduling']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: onchain-bot-scheduling-posts-redis
+    restart: unless-stopped
+    ports:
+      - '6389:6379'
+    volumes:
+      - scheduling-posts-redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  scheduling-posts-postgres-data:
+  scheduling-posts-redis-data:

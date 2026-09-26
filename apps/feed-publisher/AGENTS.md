@@ -115,6 +115,13 @@ Worktree state 2026-09-25: DIRTY (uncommitted: todo-7/8 telegram +
 threads trees, `.env.*` templates, telegram/threads module wiring).
 No commit per todo convention (worktree left dirty, no commit).
 
+2026-09-26 scheduling-posts todos 1-2 (move source): `src/scheduling/`
+moved to `apps/scheduling-posts/` via staged `git mv`; this app unwired
+the leftovers (`app.module`, `telegram.module`, publisher router
+`forSchedulingTarget`, `TelegramScheduledAdDispatcher` + 2 specs).
+Full suite 140/435 green post-move. This AGENTS.md otherwise unchanged
+(todo 11 cutover owns the rewrite).
+
 ## GATEWAY MIGRATION (telegram-bots-gateway todo 5, DONE 2026-09-26)
 
 Feed publishing via the gateway with dual-send parity (mirrors the

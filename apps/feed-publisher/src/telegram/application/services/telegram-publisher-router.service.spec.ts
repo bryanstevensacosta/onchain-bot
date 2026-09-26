@@ -43,25 +43,6 @@ describe('TelegramPublisherRouter', () => {
     expect(router.forContentType('threads')).toBe(threads);
   });
 
-  it("routes scheduling targets ('telegram' -> crypto, 'threads' -> threads)", () => {
-    const crypto = new CryptoNewsBotApiAdapter(
-      makeConfig({
-        CRYPTO_NEWS_BOT_TOKEN: 'c',
-        CRYPTO_NEWS_OUTPUT_CHANNEL: '@c',
-      }),
-      silentHttp(),
-      new TelegramRateLimiter(20),
-    );
-    const threads = new ThreadsBotApiAdapter(
-      makeConfig({ THREADS_BOT_TOKEN: 't', THREADS_OUTPUT_CHANNEL: '@t' }),
-      silentHttp(),
-      new TelegramRateLimiter(20),
-    );
-    const router = new TelegramPublisherRouter(crypto, threads);
-    expect(router.forSchedulingTarget('telegram')).toBe(crypto);
-    expect(router.forSchedulingTarget('threads')).toBe(threads);
-  });
-
   it('throws a clear error for unknown content types', () => {
     const crypto = new CryptoNewsBotApiAdapter(
       makeConfig({}),

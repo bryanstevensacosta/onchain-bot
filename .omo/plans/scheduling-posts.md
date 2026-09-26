@@ -62,14 +62,14 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
 
 <!-- APPEND TASK BATCHES BELOW THIS LINE WITH edit/apply_patch - never rewrite the headers above. -->
 
-- [ ] 0. Contrato sessions↔scheduling-posts (bloqueante)
+- [x] 0. Contrato sessions↔scheduling-posts (bloqueante) — SIGNED 2026-09-26, evidence `.omo/evidence/contract-sessions-scheduler.md` (P34/P38/P38-bis checklist verde §9; P38-ter/P42/P50/P52 cubiertos).
      What to do / Must NOT do: definir petición (sesión, vínculo target, contenido, cuándo: once/cron, idempotencia), estados (scheduled/fired/cancelled/failed), callbacks de resultado a sessions, auth entre apps. Solo docs + diagramas. Must NOT código sin este contrato.
      Parallelization: Wave 1 | Blocked by: P52 | Blocks: 1-5
      References: apps/feed-publisher/src/scheduling/ (origen); apps/feed-publisher/src/sessions/ (consumidor); .omo/drafts/mega-refactor-tramos.md (P34, P38, P52)
      Acceptance criteria: documento de contrato con ejemplos + casos borde (cancel, reintento, target caído)
      QA scenarios: happy contrato completo; failure ambigüedad → se aclara, no se codifica. Evidence .omo/evidence/task-0-scheduling-posts.log
      Commit: Y | docs(scheduling-posts): contrato sessions↔scheduler
-- [ ] 1. App setup + core/ (scheduling, rotation, media, health)
+- [x] 1. App setup + core/ (scheduling, rotation, media, health)
      What to do / Must NOT do: `apps/scheduling-posts/` (:4080/81/82 verificar, health, compose, Dockerfile, envs, DB `onchain_bot_scheduling[_staging]`); `core/` con scheduling+rotation+media+health migrados de feed-publisher (git mv); `uploads/` imágenes. Tests + coverage. Must NOT lógica sessions.
      Parallelization: Wave 1 | Blocked by: 0 | Blocks: 3, 4
      References: apps/feed-publisher/src/scheduling/ (origen); .omo/plans/scheduling-posts.md (contrato todo 0)
