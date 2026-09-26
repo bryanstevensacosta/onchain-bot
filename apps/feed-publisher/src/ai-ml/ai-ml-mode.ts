@@ -1,18 +1,20 @@
 /**
- * Cutover flag for the ai-ml migration (ai-ml plan todo 3).
+ * Cutover flag for the ai-ml migration (ai-ml plan todo 4 cutover).
  *
- * `FEED_AI_ML_MODE` (default `dual`):
- * - `local` = legacy in-process adapters only (rollback position).
+ * `FEED_AI_ML_MODE` (default `ai-ml` since todo 4):
+ * - `local` = legacy in-process adapters only (rollback position;
+ *   set explicitly to roll back, divergence never auto-rolls back).
  * - `dual` = local + ai-ml legs run side by side, outcomes compared
- *   via `AiMlParityService`, the LOCAL leg serves (no behavior change).
- * - `ai-ml` = ai-ml over HTTP only, fail-closed (cutover rehearsal;
- *   blocked while `assertNoDivergence` reports divergences).
+ *   via `AiMlParityService`, the LOCAL leg serves (rollback/shadow).
+ * - `ai-ml` = ai-ml over HTTP only, fail-closed (DEFAULT — local
+ *   code is deprecated, dual-leg only, removal planned).
  *
- * Unknown values fall back to `dual` (parity runs, local serves).
+ * Unknown values fall back to `ai-ml` (fail-closed: remote serves
+ * or throws loudly, never silent-local).
  */
 export type AiMlMode = 'local' | 'dual' | 'ai-ml';
 
-export const DEFAULT_AI_ML_MODE: AiMlMode = 'dual';
+export const DEFAULT_AI_ML_MODE: AiMlMode = 'ai-ml';
 
 export const AI_ML_DEFAULT_BASE_URL = 'http://127.0.0.1:4090';
 

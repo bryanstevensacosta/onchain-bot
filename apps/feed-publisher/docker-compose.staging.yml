@@ -118,6 +118,16 @@ services:
       # Same DNS backend staging pins at backend-staging:98 and kol-system
       # staging pins at kol-system staging:112.
       INGESTION_TELEGRAM_URL: http://onchain-bot-ingestion-telegram-staging:3031
+      # ai-ml cutover (ai-ml plan todo 4): staging serves ai-ml over HTTP.
+      # Same onchain-bot-staging-net DNS as the ai-ml staging service
+      # (apps/ai-ml/docker-compose.staging.yml, container
+      # onchain-bot-ai-ml-staging:4090, host :4091). Compose
+      # `environment:` wins over .env.staging. Rollback is explicit:
+      # FEED_AI_ML_MODE=dual (local serves + shadow). PROD keeps its own
+      # template untouched until operator approval (ai-ml todo 4 STOP).
+      AI_ML_URL: ${AI_ML_URL:-http://onchain-bot-ai-ml-staging:4090}
+      AI_ML_API_KEY: ${AI_ML_API_KEY:-}
+      FEED_AI_ML_MODE: ${FEED_AI_ML_MODE:-ai-ml}
     ports:
       - '3041:3040'
     depends_on:

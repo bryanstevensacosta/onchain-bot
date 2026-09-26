@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **ai-ml migration, cutover (ai-ml todo 4):** default flipped to
+  `FEED_AI_ML_MODE=ai-ml` (fail-closed: ai-ml over HTTP serves, local
+  code deprecated, dual-leg only, removal planned). Rollback stays
+  explicit (`FEED_AI_ML_MODE=dual` serves local + shadow ledger;
+  divergence blocks promotion via `AiMlParityService`
+  `assertNoDivergence`, never auto-rolls back). Dev
+  (`.env.example`, `AI_ML_URL=http://127.0.0.1:4090`) + staging
+  (`.env.staging.template` + `docker-compose.staging.yml`
+  `AI_ML_URL=http://onchain-bot-ai-ml-staging:4090`,
+  `FEED_AI_ML_MODE=${FEED_AI_ML_MODE:-ai-ml}`) serve ai-ml; PROD
+  template untouched (no prod deploy in this todo). CI runs ai-ml +
+  feed-publisher suites with the cutover env (`FEED_AI_ML_MODE=ai-ml`).
+  Cutover contract spec (`ai-ml-cutover.spec.ts`: default ai-ml,
+  dual rollback serves local on ai-ml-down, divergence blocks).
+  Full 148/476 green in cutover mode + `tsc` clean both apps.
+  Staging prep checklist in `.omo/evidence/task-4-ai-ml.log` (deploy
+  deferred to operator).
+
 - **ai-ml migration, dual-run (ai-ml todo 3):** feed-publisher as an
   ai-ml HTTP client (`src/ai-ml/`): generate (`POST /api/llm/generate`),
   embeddings (`POST /api/embeddings/embed`), and prompts resolve

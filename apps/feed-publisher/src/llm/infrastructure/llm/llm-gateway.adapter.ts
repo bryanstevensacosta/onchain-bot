@@ -15,9 +15,8 @@ import { LlmPort, type LlmGenerateRequest } from '../../application/ports/llm.po
  * adapter reports unavailable and every call fails fast with a wrapped
  * error the drain path turns into FAILED + cron retry.
  *
- * @deprecated Dual local leg only (ai-ml todo 3): serves exclusively
- * through `DualLlmAdapter` under `FEED_AI_ML_MODE`. Removed at ai-ml
- * todo 4 cutover — new code must call ai-ml over HTTP.
+ * @deprecated Dual local leg only (cutover since ai-ml todo 4, default ai-ml): serves exclusively
+ * through `DualLlmAdapter` under `FEED_AI_ML_MODE`. Dual-leg only (local|dual rollback/shadow); removal planned — new code must call ai-ml over HTTP.
  */
 @Injectable()
 export class LlmGatewayAdapter extends LlmPort {

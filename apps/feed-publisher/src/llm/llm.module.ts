@@ -41,11 +41,12 @@ import { LlmHealthIndicator } from './health/llm-health.indicator';
  * (P21 hook). TypeORM shapes + mappers ship unwired (GAP-1) with
  * in-memory adapters live.
  *
- * @deprecated Local serving leg only (ai-ml todo 3 dual-run):
+ * @deprecated Local serving leg only (ai-ml todo 4 cutover):
  * `LlmPort` resolves to `DualLlmAdapter` over
- * `FEED_AI_ML_MODE=local|dual|ai-ml` (default `dual` — local serves,
- * ai-ml compares). New generation code must call ai-ml over HTTP;
- * the in-process gateway/mock adapters are removed at ai-ml todo 4.
+ * `FEED_AI_ML_MODE=local|dual|ai-ml` (default `ai-ml` — ai-ml serves,
+ * fail-closed; `local|dual` are rollback/shadow only). New generation
+ * code must call ai-ml over HTTP; the in-process gateway/mock
+ * adapters are dual-leg only and scheduled for removal.
  */
 @Module({
   imports: [

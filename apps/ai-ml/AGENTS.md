@@ -41,13 +41,13 @@ Design pivots that govern every future todo:
 
 ## PROGRAM INDEX
 
-| Todo | Status                                           | What                                                                                                                                                                                          |
-| ---- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0    | DONE (evidence `.omo/evidence/task-0-ai-ml.log`) | App setup + LLM gateway (ports 4090/91/92, health, compose dev+staging, envs, DB `onchain_bot_ai_ml[_staging]`, gateway mock/openai/LiteLLM + config + auth keys + rate-limit + audit; 14/46) |
-| 1    | DONE (evidence `.omo/evidence/task-1-ai-ml.log`) | Global versioned prompt-templates catalog + dual-read migration from feed-publisher (CRUD + history + activate + resolve; 17/57)                                                              |
-| 2    | DONE (evidence `.omo/evidence/task-2-ai-ml.log`) | Centralized embeddings (mock/OpenAI/local, model-per-call + LRU cache, loud 503s) + playground dry-run preview (render or one generation, `persisted: false`)                                 |
-| 3    | TODO                                             | feed-publisher as HTTP client (dual-run + parity + cutover + local llm deprecation)                                                                                                           |
-| 4    | TODO                                             | Cutover + cleanup + CI/deploy staging/prod                                                                                                                                                    |
+| Todo | Status                                                                | What                                                                                                                                                                                          |
+| ---- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | DONE (evidence `.omo/evidence/task-0-ai-ml.log`)                      | App setup + LLM gateway (ports 4090/91/92, health, compose dev+staging, envs, DB `onchain_bot_ai_ml[_staging]`, gateway mock/openai/LiteLLM + config + auth keys + rate-limit + audit; 14/46) |
+| 1    | DONE (evidence `.omo/evidence/task-1-ai-ml.log`)                      | Global versioned prompt-templates catalog + dual-read migration from feed-publisher (CRUD + history + activate + resolve; 17/57)                                                              |
+| 2    | DONE (evidence `.omo/evidence/task-2-ai-ml.log`)                      | Centralized embeddings (mock/OpenAI/local, model-per-call + LRU cache, loud 503s) + playground dry-run preview (render or one generation, `persisted: false`)                                 |
+| 3    | DONE (feed-publisher side, evidence `.omo/evidence/task-3-ai-ml.log`) | feed-publisher as HTTP client (dual-run + parity + cutover + local llm deprecation)                                                                                                           |
+| 4    | DONE (evidence `.omo/evidence/task-4-ai-ml.log`)                      | Cutover + cleanup + CI/deploy staging/prod (prep only, no prod deploy)                                                                                                                        |
 
 ## PROGRAM STATUS
 
@@ -77,6 +77,19 @@ Todo 0 DONE (verified 2026-09-26 against code + evidence log):
   `persisted: false` contract-pinned; live boot `:4099` verified
   incl. render → generate → template path → 503 on pinned
   OpenAI-down).
+
+Todos 3-4 DONE (2026-09-26, feed-publisher is the migration client):
+
+- Todo 3 (dual-run, evidence `.omo/evidence/task-3-ai-ml.log`):
+  feed-publisher calls ai-ml over HTTP behind `FEED_AI_ML_MODE`
+  (local serves, dual shadows with `AiMlParityService`, ai-ml
+  rehearsal fail-closed). No ai-ml code change — gateway vision +
+  knobs already live here.
+- Todo 4 (cutover, evidence `.omo/evidence/task-4-ai-ml.log`):
+  feed-publisher default flipped to `ai-ml`; local legs deprecated
+  dual-leg only. This side contributed CI test entries + staging
+  prep only (compose + templates); PROD untouched, deploy deferred.
+  23/85 green + `tsc` clean.
 
 ## COMMANDS
 
@@ -249,7 +262,11 @@ export caught red, fixed).
   constraint lifts.
 - G-3: Gateway/openai `generateText` success paths need live creds
   (covered by dual-run parity in todo 3, not unit tests).
-- G-4: Staging/prod deploy workflows do not exist yet (cutover todo 4).
+- G-4: Staging/prod deploy workflows do not exist yet (todo 4 shipped
+  prep only: CI test entries for ai-ml + feed-publisher cutover env,
+  staging compose + templates for both apps, checklist in
+  `.omo/evidence/task-4-ai-ml.log`; no prod deploy, PROD templates
+  untouched — deploy deferred to operator).
 
 ## DECISIONS INDEX
 

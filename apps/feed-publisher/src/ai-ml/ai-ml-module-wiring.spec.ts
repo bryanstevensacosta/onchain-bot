@@ -40,7 +40,7 @@ describe('LlmModule ai-ml wiring', () => {
 
   it('dual adapter is fully wired: no ai-ml server means skipped, never silent-local', async () => {
     process.env.USE_MOCK_AI = 'true';
-    delete process.env.FEED_AI_ML_MODE;
+    process.env.FEED_AI_ML_MODE = 'dual';
     process.env.AI_ML_URL = 'http://127.0.0.1:44999';
     const module = await Test.createTestingModule({
       imports: [
@@ -56,6 +56,7 @@ describe('LlmModule ai-ml wiring', () => {
       expect(parity.summary().llm.skipped).toBe(1);
     } finally {
       delete process.env.USE_MOCK_AI;
+      delete process.env.FEED_AI_ML_MODE;
       delete process.env.AI_ML_URL;
       await module.close();
     }
@@ -77,7 +78,7 @@ describe('DeduplicationModule ai-ml wiring', () => {
 
   it('dual adapter is fully wired: no ai-ml server means skipped, never silent-local', async () => {
     process.env.USE_MOCK_AI = 'true';
-    delete process.env.FEED_AI_ML_MODE;
+    process.env.FEED_AI_ML_MODE = 'dual';
     process.env.AI_ML_URL = 'http://127.0.0.1:44999';
     const module = await Test.createTestingModule({
       imports: [
@@ -93,6 +94,7 @@ describe('DeduplicationModule ai-ml wiring', () => {
       expect(parity.summary().embeddings.skipped).toBe(1);
     } finally {
       delete process.env.USE_MOCK_AI;
+      delete process.env.FEED_AI_ML_MODE;
       delete process.env.AI_ML_URL;
       await module.close();
     }

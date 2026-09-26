@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Cutover readiness (todo 4, prep only, no prod deploy):** no ai-ml
+  code change needed — vision payload (`imageUrl`/`imageBase64`) +
+  per-call knobs (`model`/`maxTokens`/`temperature`/`reasoningEffort`)
+  already live on the gateway since todos 0-2, so the feed-publisher
+  cutover blockers from todo 3 are resolved server-side. Todo 4 on
+  this side is CI (`ci.yml` runs ai-ml + feed-publisher suites with
+  `FEED_AI_ML_MODE=ai-ml`) + staging prep (compose + templates carry
+  host `:4091` → container `:4090`; PROD template untouched). Staging
+  prep checklist in `.omo/evidence/task-4-ai-ml.log`; deploy deferred
+  to operator. 23 suites / 85 tests green, `tsc` clean.
+
 - **Centralized embeddings (todo 2):** new `src/embeddings/`
   module (`EmbeddingsModule`, wired in `AppModule`) exposing THE
   single embeddings interface (`EmbeddingsService`) for dedup +

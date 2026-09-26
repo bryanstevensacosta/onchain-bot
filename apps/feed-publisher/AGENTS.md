@@ -175,17 +175,19 @@ gateway-migration.controller.ts` (`POST
   video, button ads need gateway upload/`reply_markup` support (or stay
   dual); vault mapping is in-memory (persisted at global cutover).
 
-## AI-ML MIGRATION (ai-ml plan todo 3, DONE 2026-09-26)
+## AI-ML MIGRATION (ai-ml plan todos 3-4, CUTOVER 2026-09-26)
 
 Feed LLM + embeddings via ai-ml over HTTP with dual-run parity
-(mirrors the telegram-bots-gateway todo-5 pattern). Mode stays
-`dual` — NO cutover in this todo (adversarial: any divergence blocks
-cutover via `assertNoDivergence`).
+(mirrors the telegram-bots-gateway todo-5 pattern). Todo 3 landed
+dual-run (default `dual`); todo 4 flipped the cutover (default
+`ai-ml` — adversarial: divergence blocks promotion via
+`assertNoDivergence`, rollback is explicit `FEED_AI_ML_MODE=dual`).
 
-- **Path** (`FEED_AI_ML_MODE`, default `dual`): `local` = legacy
-  in-process legs only (rollback); `dual` = local + ai-ml, compare
-  via `AiMlParityService`, return the LOCAL leg; `ai-ml` = ai-ml
-  only, fail-closed (cutover rehearsal, proven live for prompts).
+- **Path** (`FEED_AI_ML_MODE`, default `ai-ml` since todo 4):
+  `local` = legacy in-process legs only (explicit rollback);
+  `dual` = local + ai-ml, compare via `AiMlParityService`, return
+  the LOCAL leg (rollback/shadow); `ai-ml` = ai-ml only,
+  fail-closed (DEFAULT — local code deprecated, dual-leg only).
 - **New code** (`src/ai-ml/`, this app only): `ai-ml-mode.ts`
   (flag resolution, unknown → `dual`) + `infrastructure/`
   (`ai-ml-http` — fetch + `AI_ML_TIMEOUT_MS` bound, `x-api-key`
@@ -907,6 +909,7 @@ English per `RELEASE-FLOW.md` (P39). Stale knowledge base = failed todo.
 - Local LLM/embeddings deprecated: the in-process gateway/mock LLM +
   OpenAI/mock embedding adapters (4 `@deprecated` headers) run
   dual-leg only since the ai-ml migration (ai-ml todo 3) behind
-  `FEED_AI_ML_MODE` (default `dual`, local serves); new generation
+  `FEED_AI_ML_MODE` (default `ai-ml` since todo 4, ai-ml serves
+  fail-closed; `local|dual` are rollback/shadow only); new generation
   code goes via `apps/ai-ml` over HTTP (see `AI-ML MIGRATION` above).
   Divergence → no cutover (`assertNoDivergence` CONFLICT).

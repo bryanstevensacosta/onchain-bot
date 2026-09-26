@@ -11,9 +11,9 @@ export const LOCAL_EMBEDDING_PORT = 'LOCAL_EMBEDDING_PORT';
  * Dual-run embeddings port (ai-ml plan todo 3).
  *
  * Same mode contract as `DualLlmAdapter`: `local` serves the legacy
- * leg untouched; `dual` (default) runs both, records parity, returns
+ * leg untouched; `dual` runs both, records parity, returns
  * LOCAL (dedup never blocks on ai-ml — outages record `skipped`);
- * `ai-ml` serves the remote leg only and throws LOUD on outage
+ * `ai-ml` (DEFAULT since ai-ml todo 4) serves the remote leg only and throws LOUD on outage
  * (mirrors the ai-ml 503 contract; the `DeduplicationService`
  * fail-open catch still degrades to not-a-duplicate downstream).
  */

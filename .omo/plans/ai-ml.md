@@ -63,7 +63,7 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
 - [x] 1. Catálogo prompt-templates global versionado + migración desde feed-publisher (dual-read temporal). Tests. Evidence .omo/evidence/task-1-ai-ml.log | Commit: Y | feat(ai-ml): catálogo prompts
 - [x] 2. Embeddings centralizados (deduplicación + búsqueda) + playground preview sin side-effects. Tests. Evidence .omo/evidence/task-2-ai-ml.log | Commit: Y | feat(ai-ml): embeddings y playground
 - [x] 3. Migración feed-publisher a cliente HTTP (dual-run + paridad + cutover + deprecación llm local). Tests. Evidence .omo/evidence/task-3-ai-ml.log | Commit: Y | feat(feed-publisher): LLM vía ai-ml
-- [ ] 4. Cutover + cleanup + CI/deploy staging/prod. Evidence .omo/evidence/task-4-ai-ml.log | Commit: Y | feat(ai-ml)!: cutover
+- [x] 4. Cutover + cleanup + CI/deploy staging/prod. Evidence .omo/evidence/task-4-ai-ml.log | Commit: Y | feat(ai-ml)!: cutover
 
 ## Final verification wave
 

@@ -11,9 +11,9 @@ export const LOCAL_LLM_PORT = 'LOCAL_LLM_PORT';
  * Dual-run LLM port (ai-ml plan todo 3).
  *
  * `FEED_AI_ML_MODE=local` serves the legacy leg untouched;
- * `dual` (default) runs both legs, records the parity outcome, and
+ * `dual` runs both legs, records the parity outcome, and
  * returns the LOCAL text (a down ai-ml records `skipped` and never
- * breaks serving); `ai-ml` serves the remote leg only and fails
+ * breaks serving); `ai-ml` (DEFAULT since ai-ml todo 4) serves the remote leg only and fails
  * closed. Divergence never promotes itself — `assertNoDivergence`
  * blocks the cutover until the ledgers are clean.
  */

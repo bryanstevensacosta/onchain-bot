@@ -6,11 +6,11 @@ import {
 } from './ai-ml-mode';
 
 describe('resolveAiMlMode', () => {
-  it('defaults to dual when unset, empty, or unknown (fail-safe: parity runs, local serves)', () => {
-    expect(DEFAULT_AI_ML_MODE).toBe('dual');
-    expect(resolveAiMlMode(undefined)).toBe('dual');
-    expect(resolveAiMlMode('')).toBe('dual');
-    expect(resolveAiMlMode('gateway')).toBe('dual');
+  it('defaults to ai-ml when unset, empty, or unknown (cutover default since ai-ml todo 4; rollback via explicit local|dual)', () => {
+    expect(DEFAULT_AI_ML_MODE).toBe('ai-ml');
+    expect(resolveAiMlMode(undefined)).toBe('ai-ml');
+    expect(resolveAiMlMode('')).toBe('ai-ml');
+    expect(resolveAiMlMode('gateway')).toBe('ai-ml');
     expect(resolveAiMlMode('LOCAL ')).toBe('local');
   });
 

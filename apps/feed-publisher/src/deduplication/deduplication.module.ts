@@ -24,12 +24,12 @@ import { DeduplicationHealthIndicator } from './health/deduplication-health.indi
  * Owns the DeduplicationService cascade (exact -> content -> semantic,
  * fail-open) + normalizers + scorers + embeddings. Embedding serving
  * is dual: `EmbeddingPort` resolves to `DualEmbeddingAdapter` over
- * `FEED_AI_ML_MODE=local|dual|ai-ml` (default `dual` — local serves,
- * ai-ml compares).
+ * `FEED_AI_ML_MODE=local|dual|ai-ml` (default `ai-ml` — ai-ml serves,
+ * fail-closed; `local|dual` are rollback/shadow only).
  *
- * @deprecated Local serving leg only (ai-ml todo 3 dual-run). New
+ * @deprecated Local serving leg only (ai-ml todo 4 cutover). New
  * embedding code must call ai-ml over HTTP; the in-process OpenAI/mock
- * adapters are removed at ai-ml todo 4.
+ * adapters are dual-leg only and scheduled for removal.
  * Storage decision: plain `dedup_fingerprints` table (NO pgvector —
  * vetoable in review); the TypeORM shape + mapper ship unwired (GAP-1)
  * with the in-memory store live.
