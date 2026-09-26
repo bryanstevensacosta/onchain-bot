@@ -1,7 +1,12 @@
 import { Module, forwardRef } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { KeywordsModule } from '../keywords/keywords.module';
 import { MatchingModule } from '../matching/matching.module';
+import { AiMlModule } from '../ai-ml/ai-ml.module';
+import {
+  DualLlmAdapter,
+  LOCAL_LLM_PORT,
+} from '../ai-ml/application/services/dual-llm.adapter';
 import { LlmConfigRepository } from './domain/ports/llm-config.repository';
 import { PromptTemplateRepository } from './domain/ports/prompt-template.repository';
 import { LlmPort } from './application/ports/llm.port';
@@ -20,12 +25,14 @@ import { LlmPlaygroundController } from './api/http/llm-playground.controller';
 import { LlmHealthIndicator } from './health/llm-health.indicator';
 
 /**
- * LlmModule (Tramo 2, todo 5).
+ * LlmModule (Tramo 2, todo 5; ai-ml dual-run since ai-ml todo 3).
  *
  * Owns the feed LLM stack: single-row `LlmConfig` (llm/publishing
  * switches; matching lives in the matching module) + GLOBAL
  * `PromptTemplate` catalog (`global` rows reusable across content
- * types) + `FeedLlmGenerator` (gateway default, mock on USE_MOCK_AI) +
+ * types) + `FeedLlmGenerator` (keyword-bound > default resolution,
+ * single-pass `{{title}}/{{original}}/{{hasImage}}` render, vision
+ * fail-open, mock short-circuit, LlmFailedError wrap) +
  * `LlmArticleRendererAdapter` (drain-path flags + non-Latin guard, the
  * LIVE `QueuedArticleRendererPort` binding since todo 5) +
  * `PreviewPromptUseCase` (side-effect-free playground) + 3
@@ -33,18 +40,35 @@ import { LlmHealthIndicator } from './health/llm-health.indicator';
  * `/api/llm/preview` + `/api/llm/models`) + `LlmHealthIndicator`
  * (P21 hook). TypeORM shapes + mappers ship unwired (GAP-1) with
  * in-memory adapters live.
+ *
+ * @deprecated Local serving leg only (ai-ml todo 3 dual-run):
+ * `LlmPort` resolves to `DualLlmAdapter` over
+ * `FEED_AI_ML_MODE=local|dual|ai-ml` (default `dual` — local serves,
+ * ai-ml compares). New generation code must call ai-ml over HTTP;
+ * the in-process gateway/mock adapters are removed at ai-ml todo 4.
  */
 @Module({
-  imports: [ConfigModule, KeywordsModule, forwardRef(() => MatchingModule)],
+  imports: [
+    ConfigModule,
+    KeywordsModule,
+    forwardRef(() => MatchingModule),
+    AiMlModule,
+  ],
   controllers: [LlmConfigController, PromptTemplatesController, LlmPlaygroundController],
   providers: [
     MockLlmAdapter,
     LlmGatewayAdapter,
     {
-      provide: LlmPort,
+      // Legacy local leg (mock | gateway) — serves only via DualLlmAdapter now.
+      provide: LOCAL_LLM_PORT,
       useFactory: (mock: MockLlmAdapter, gateway: LlmGatewayAdapter): LlmPort =>
         process.env.USE_MOCK_AI === 'true' ? mock : gateway,
       inject: [MockLlmAdapter, LlmGatewayAdapter],
+    },
+    DualLlmAdapter,
+    {
+      provide: LlmPort,
+      useExisting: DualLlmAdapter,
     },
     FeedLlmGenerator,
     LlmArticleRendererAdapter,

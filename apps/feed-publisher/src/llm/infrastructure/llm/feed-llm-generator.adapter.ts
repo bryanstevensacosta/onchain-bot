@@ -1,8 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { readFileSync } from 'node:fs';
 import { extname } from 'node:path';
 import { LlmFailedError } from 'shared/exceptions/feed-publisher.error';
 import type { PublisherQueueEntry } from '../../../queue/domain/publisher-queue-entry.entity';
+import { resolveAiMlMode } from '../../../ai-ml/ai-ml-mode';
+import { AiMlParityService } from '../../../ai-ml/application/services/ai-ml-parity.service';
+import { AiMlPromptClient } from '../../../ai-ml/infrastructure/ai-ml-prompt-client';
+import type { PromptTemplate } from '../../domain/prompt-template.entity';
 import { LlmPort } from '../../application/ports/llm.port';
 import { LlmConfigRepository } from '../../domain/ports/llm-config.repository';
 import { PromptTemplateRepository } from '../../domain/ports/prompt-template.repository';
@@ -19,6 +23,13 @@ import { PromptTemplateRepository } from '../../domain/ports/prompt-template.rep
  * as `LlmFailedError` — the drain path retries to `llmMaxAttempts`
  * then marks FAILED (cron retry). Missing local images degrade
  * fail-open (text-only generation).
+ *
+ * ai-ml todo 3: after resolving the local template, the generator
+ * best-effort resolves the same NAME over ai-ml
+ * (`POST /api/prompts/resolve`) and records the content parity. The
+ * compare is observational only — the LOCAL template always serves
+ * (ai-ml outages record `skipped`). Prompt serving cutover waits for
+ * per-template knobs on the ai-ml catalog (ai-ml todo 4).
  */
 @Injectable()
 export class FeedLlmGenerator {
@@ -28,6 +39,12 @@ export class FeedLlmGenerator {
     private readonly llmPort: LlmPort,
     private readonly templateRepo: PromptTemplateRepository,
     private readonly llmConfigRepo: LlmConfigRepository,
+    @Inject(AiMlPromptClient)
+    @Optional()
+    private readonly promptClient?: AiMlPromptClient,
+    @Inject(AiMlParityService)
+    @Optional()
+    private readonly parity?: AiMlParityService,
   ) {}
 
   public async generateForEntry(entry: PublisherQueueEntry): Promise<{
@@ -57,6 +74,7 @@ export class FeedLlmGenerator {
         `PromptTemplate not found: ${templateId} (set as default in LlmConfig)`,
       );
     }
+    await this.comparePromptDual(template);
     const prompt = renderPrompt(template.promptText, entry);
     const systemPrompt = template.systemPromptText.trim();
     const useVision = template.supportsVision;
@@ -135,6 +153,36 @@ export class FeedLlmGenerator {
   /** Exposed for tests + playground: same render path as generation. */
   public renderPromptFor(templatePromptText: string, entry: PublisherQueueEntry): string {
     return renderPrompt(templatePromptText, entry);
+  }
+
+  private async comparePromptDual(template: PromptTemplate): Promise<void> {
+    if (resolveAiMlMode(process.env['FEED_AI_ML_MODE']) === 'local') {
+      return;
+    }
+    if (!this.promptClient || !this.parity) {
+      return;
+    }
+    try {
+      const resolved = await this.promptClient.resolve(template.name);
+      if (resolved === null) {
+        this.parity.recordPrompt('diverged', 'ai-ml missing template ' + template.name);
+        return;
+      }
+      this.parity.recordPrompt(
+        this.parity.comparePrompts(
+          { content: template.promptText, systemContent: template.systemPromptText },
+          {
+            content: resolved.template.content,
+            systemContent: resolved.template.systemContent,
+          },
+        ),
+      );
+    } catch (err) {
+      this.parity.recordPrompt(
+        'skipped',
+        err instanceof Error ? err.message.slice(0, 200) : String(err).slice(0, 200),
+      );
+    }
   }
 
   private readImagePayload(entry: PublisherQueueEntry): {

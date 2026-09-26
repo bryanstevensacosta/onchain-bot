@@ -175,6 +175,70 @@ gateway-migration.controller.ts` (`POST
   video, button ads need gateway upload/`reply_markup` support (or stay
   dual); vault mapping is in-memory (persisted at global cutover).
 
+## AI-ML MIGRATION (ai-ml plan todo 3, DONE 2026-09-26)
+
+Feed LLM + embeddings via ai-ml over HTTP with dual-run parity
+(mirrors the telegram-bots-gateway todo-5 pattern). Mode stays
+`dual` — NO cutover in this todo (adversarial: any divergence blocks
+cutover via `assertNoDivergence`).
+
+- **Path** (`FEED_AI_ML_MODE`, default `dual`): `local` = legacy
+  in-process legs only (rollback); `dual` = local + ai-ml, compare
+  via `AiMlParityService`, return the LOCAL leg; `ai-ml` = ai-ml
+  only, fail-closed (cutover rehearsal, proven live for prompts).
+- **New code** (`src/ai-ml/`, this app only): `ai-ml-mode.ts`
+  (flag resolution, unknown → `dual`) + `infrastructure/`
+  (`ai-ml-http` — fetch + `AI_ML_TIMEOUT_MS` bound, `x-api-key`
+  `AI_ML_API_KEY` from day one; `ai-ml-llm-client` → `POST
+/api/llm/generate`; `ai-ml-embedding-client` → `POST
+/api/embeddings/embed`; `ai-ml-prompt-client` → `POST
+/api/prompts/resolve`, 404 → null) + `application/services/`
+  (`ai-ml-parity.service` — per-leg matched/diverged/skipped ledgers
+  - outcome-level compares + `assertNoDivergence()` CONFLICT gate;
+    `dual-llm.adapter` on the `LlmPort` token via `LOCAL_LLM_PORT`;
+    `dual-embedding.adapter` on the `EmbeddingPort` token via
+    `LOCAL_EMBEDDING_PORT`) + `api/http/ai-ml-status.controller.ts`
+    (`GET /api/ai-ml/status`: mode + remote probe + ledger) +
+    `health/ai-ml-health.indicator.ts` (P21 hook).
+- **Wiring**: `LlmModule` + `DeduplicationModule` import `AiMlModule`
+  (one-directional, no cycle) and bind their legacy factories under
+  `LOCAL_*` — every generation path (drain renderer, playground
+  preview/template) dual-runs with zero call-site changes.
+  `FeedLlmGenerator` best-effort resolves the template NAME over
+  ai-ml after the local load and records prompt parity (observational
+  only — local always serves; mock short-circuit skips it).
+- **Parity rules**: mock-vs-mock must agree byte-for-byte (same
+  deterministic algorithms both sides — drift is a real signal);
+  real providers compare outcome-level (both non-empty / both fail);
+  embeddings need equal length + cosine ≥ 0.999; prompts need trimmed
+  content + systemContent equality. Remote-down in dual records
+  `skipped` (serving never breaks, dedup never blocks).
+- **Deviations** (documented): remote LLM leg drops the image payload
+  (ai-ml `GenerateDto` has no vision fields — text-only legs never
+  false-diverge; vision over ai-ml lands at ai-ml todo 4); prompt
+  resolve is compare-only (ai-ml catalog v1 carries no per-template
+  knobs, D-9); `ai-ml`-mode embedding outages throw LOUD at the
+  adapter (the service-level fail-open catch still degrades
+  downstream). Local gateway/mock + OpenAI/mock embedding adapters
+  are `@deprecated` (dual-leg only, removed at ai-ml todo 4).
+- **DI trap found live** (not just in tests): union-typed ctor params
+  (`X | null`) erase to `Object` in decorator metadata, so Nest
+  injects `undefined` and `@Optional()` swallows it — the first live
+  boot 500d on `recordLlm`. Fixed with explicit `@Inject()` on every
+  ai-ml ctor param + required dual-adapter deps (fail fast) + wiring
+  specs that assert `skipped === 1` with no server (proves the remote
+  leg is attempted, never silent-local).
+- **Evidence**: `.omo/evidence/task-3-ai-ml.log` — 147 suites / 473
+  tests green (+7/+38), `tsc` + `nest build` clean, live dual
+  (`:4090` mock ai-ml + `:3040` dual: preview-generate → llm
+  matched:1; template preview → prompts matched:1 before the
+  expected credential-less provider failure) + live `ai-ml`-mode
+  prompt rehearsal. Cutover stays CLOSED (ai-ml todo 4 owns
+  `ai-ml`-mode promotion + knob migration + CI/deploy).
+- **Known cutover blockers** (ai-ml todo 4): per-template knobs on
+  the ai-ml catalog (model/maxTokens/temperature/reasoningEffort +
+  vision payload); then `FEED_AI_ML_MODE=ai-ml` promotion per env.
+
 ## COMMANDS
 
 ```bash
@@ -840,3 +904,9 @@ English per `RELEASE-FLOW.md` (P39). Stale knowledge base = failed todo.
   module) run dual-leg only since the gateway migration (gateway todos
   5-6) and are removed at cutover; new sends go via
   `apps/telegram-bots-gateway` (see `GATEWAY MIGRATION` above).
+- Local LLM/embeddings deprecated: the in-process gateway/mock LLM +
+  OpenAI/mock embedding adapters (4 `@deprecated` headers) run
+  dual-leg only since the ai-ml migration (ai-ml todo 3) behind
+  `FEED_AI_ML_MODE` (default `dual`, local serves); new generation
+  code goes via `apps/ai-ml` over HTTP (see `AI-ML MIGRATION` above).
+  Divergence → no cutover (`assertNoDivergence` CONFLICT).

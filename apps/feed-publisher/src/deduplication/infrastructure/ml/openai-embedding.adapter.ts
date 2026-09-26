@@ -9,6 +9,10 @@ import { EmbeddingPort } from '../../application/ports/embedding.port';
  * Selected by the module factory only when `OPENAI_API_KEY` is set and
  * `USE_MOCK_AI` is not 'true'. Every failure resolves null (fail-open) —
  * the cascade degrades to exact+content stages instead of blocking.
+ *
+ * @deprecated Dual local leg only (ai-ml todo 3): serves exclusively
+ * through `DualEmbeddingAdapter` under `FEED_AI_ML_MODE`. Removed at
+ * ai-ml todo 4 cutover — new code must call ai-ml over HTTP.
  */
 @Injectable()
 export class OpenAiEmbeddingAdapter extends EmbeddingPort {

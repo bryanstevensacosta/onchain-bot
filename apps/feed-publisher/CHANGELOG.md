@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **ai-ml migration, dual-run (ai-ml todo 3):** feed-publisher as an
+  ai-ml HTTP client (`src/ai-ml/`): generate (`POST /api/llm/generate`),
+  embeddings (`POST /api/embeddings/embed`), and prompts resolve
+  (`POST /api/prompts/resolve`) with `x-api-key` (`AI_ML_API_KEY`) from
+  day one. `FEED_AI_ML_MODE=local|dual|ai-ml` (default `dual`): dual runs
+  both legs, compares via `AiMlParityService` (matched/diverged/skipped
+  per leg + `assertNoDivergence` cutover gate), and serves LOCAL —
+  `ai-ml` mode is fail-closed cutover rehearsal only. `LlmPort` and
+  `EmbeddingPort` resolve to the dual adapters (legacy factories kept
+  under `LOCAL_*`); `FeedLlmGenerator` records prompt parity
+  observationally; `GET /api/ai-ml/status` exposes mode + remote probe +
+  ledger. Local gateway/mock + OpenAI/mock adapters deprecated
+  (dual-leg only, removed at ai-ml todo 4). 7 suites / 38 tests;
+  full 147/473 green. Prompt serving cutover waits for per-template
+  knobs on the ai-ml catalog (ai-ml todo 4).
+
 - **App setup + shared transversal (todo 1):** NestJS 11 service skeleton
   (`:3040` dev / `:3041` staging / `:3042` prod), `GET /api/health`,
   10 feature-module shells, and the full `src/shared/` transversal
