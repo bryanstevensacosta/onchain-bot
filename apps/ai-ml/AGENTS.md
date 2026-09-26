@@ -1,8 +1,8 @@
 # apps/ai-ml/ — NestJS Knowledge Base
 
-> Verified 2026-09-26 against code + `.omo/evidence/task-0-ai-ml.log`
-> (todo 0). v0.1.0 (source of truth: `package.json`; ai-ml plan
-> todos 0-1 in progress, todo 0 DONE). Decisions cited as Pxx come
+> Verified 2026-09-26 against code + `.omo/evidence/task-1-ai-ml.log`
+> (todos 0-1). v0.1.0 (source of truth: `package.json`; ai-ml plan
+> todos 0-1 DONE, todos 2-4 pending). Decisions cited as Pxx come
 > from `.omo/drafts/mega-refactor-tramos.md` §7.6. Plan:
 > `.omo/plans/ai-ml.md` (5 todos: 0-4). Central contracts:
 > `.omo/plans/mega-refactor-central.md`.
@@ -21,8 +21,8 @@ matching arrives from the consumer) + scoped API keys with per-key
 rate limits + usage audit (sizes only, never content). Any app
 generates via ai-ml over HTTP or uses pre-written content — ai-ml
 never makes business decisions (templates, scoring, scheduling
-decide; ai-ml only generates). Todo 0 DONE (setup + gateway);
-todos 1-4 pending (prompts catalog, embeddings + playground,
+decide; ai-ml only generates). Todos 0-1 DONE (setup + gateway +
+prompts catalog); todos 2-4 pending (embeddings + playground,
 feed-publisher migration, cutover).
 
 Design pivots that govern every future todo:
@@ -44,7 +44,7 @@ Design pivots that govern every future todo:
 | Todo | Status                                           | What                                                                                                                                                                                          |
 | ---- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0    | DONE (evidence `.omo/evidence/task-0-ai-ml.log`) | App setup + LLM gateway (ports 4090/91/92, health, compose dev+staging, envs, DB `onchain_bot_ai_ml[_staging]`, gateway mock/openai/LiteLLM + config + auth keys + rate-limit + audit; 14/46) |
-| 1    | TODO                                             | Global versioned prompt-templates catalog + migration from feed-publisher (dual-read)                                                                                                         |
+| 1    | DONE (evidence `.omo/evidence/task-1-ai-ml.log`) | Global versioned prompt-templates catalog + dual-read migration from feed-publisher (CRUD + history + activate + resolve; 17/57)                                                              |
 | 2    | TODO                                             | Centralized embeddings (dedup + search) + playground preview without side-effects                                                                                                             |
 | 3    | TODO                                             | feed-publisher as HTTP client (dual-run + parity + cutover + local llm deprecation)                                                                                                           |
 | 4    | TODO                                             | Cutover + cleanup + CI/deploy staging/prod                                                                                                                                                    |
@@ -63,6 +63,10 @@ Todo 0 DONE (verified 2026-09-26 against code + evidence log):
   unavailable, generations fail fast with a clear error.
 - Live boot `:4090` verified (health + models + generate + flags +
   config PATCH + usage); keyless dev fail-open mirrors market-data.
+- Wired modules: + prompts (global versioned catalog + dual-read
+  `POST /api/prompts/resolve` with `legacy-fallback` to the
+  feed-publisher `default-feed` snapshot; live boot `:4090`
+  verified incl. create → v2 → pin v1 → rollback → history).
 
 ## COMMANDS
 
@@ -70,11 +74,13 @@ Todo 0 DONE (verified 2026-09-26 against code + evidence log):
 cd apps/ai-ml
 npm run dev            # watch, :4090 (AI_ML_PORT)
 npm run build          # nest build -> dist/main.js
-npm test               # jest, 14 suites / 46 tests
+npm test               # jest, 17 suites / 57 tests
 npm run test:cov       # coverage (no thresholds enforced)
 npx tsc --noEmit -p tsconfig.json
 AI_ML_PORT=4090 node dist/main.js   # prod-shaped boot
 curl -s http://127.0.0.1:4090/api/health
+curl -s -X POST http://127.0.0.1:4090/api/prompts/resolve \
+  -H 'content-type: application/json' -d '{"name":"default-feed"}'
 ```
 
 Root aliases (`dev:ai-ml`, `test:ai-ml`, …) are NOT wired yet —
@@ -92,6 +98,11 @@ src/
                           #   rate limiter + audit + admin controller + module
   llm/                    # port + 3 adapters + config + flags + audit +
                           #   3 use-cases + controller + module
+  prompts/                # versioned GLOBAL catalog (todo 1): domain +
+                          #   repository port + in-memory store + legacy
+                          #   feed-publisher snapshot + catalog service
+                          #   (dual-read) + controller + module (+ unwired
+                          #   TypeORM shape `ai_ml_prompt_templates`)
 docker-compose.yml        # dev pg :5444 + redis :6391
 docker-compose.staging.yml# staging pg :5445 + redis :6392 + app :4091→:4090
 Dockerfile                # multi-stage, CMD dist/main.js, EXPOSE 4090
@@ -100,15 +111,24 @@ Dockerfile                # multi-stage, CMD dist/main.js, EXPOSE 4090
 
 ## MODULES
 
-| Module | Routes (all under `/api`)                                    | Notes                                                            |
-| ------ | ------------------------------------------------------------ | ---------------------------------------------------------------- |
-| health | `GET /health`                                                | Public, Docker HEALTHCHECK target                                |
-| auth   | `POST /auth/keys`, `GET /auth/keys`, `DELETE /auth/keys/:id` | Admin scope; plaintext returned EXACTLY ONCE on create           |
-| llm    | `POST /llm/generate` (generate)                              | Single generation entry; fails fast when no provider             |
-| llm    | `GET /llm/models` (read)                                     | Gateway hits `{base}/v1/models` fail-open; mock/static otherwise |
-| llm    | `GET /llm/config` (read), `PATCH /llm/config` (admin)        | The two owned switches (llm + publishing)                        |
-| llm    | `GET /llm/flags?matching=` (read)                            | Resolved 3-flag view (`mode` + `llmActive`)                      |
-| llm    | `GET /llm/usage` (admin)                                     | Sizes + latency + status only — never prompt/output content      |
+| Module  | Routes (all under `/api`)                                    | Notes                                                            |
+| ------- | ------------------------------------------------------------ | ---------------------------------------------------------------- |
+| health  | `GET /health`                                                | Public, Docker HEALTHCHECK target                                |
+| auth    | `POST /auth/keys`, `GET /auth/keys`, `DELETE /auth/keys/:id` | Admin scope; plaintext returned EXACTLY ONCE on create           |
+| llm     | `POST /llm/generate` (generate)                              | Single generation entry; fails fast when no provider             |
+| llm     | `GET /llm/models` (read)                                     | Gateway hits `{base}/v1/models` fail-open; mock/static otherwise |
+| llm     | `GET /llm/config` (read), `PATCH /llm/config` (admin)        | The two owned switches (llm + publishing)                        |
+| llm     | `GET /llm/flags?matching=` (read)                            | Resolved 3-flag view (`mode` + `llmActive`)                      |
+| llm     | `GET /llm/usage` (admin)                                     | Sizes + latency + status only — never prompt/output content      |
+| prompts | `GET /prompts[?contentType=]` (read)                         | Active templates (global scope matches any filter)               |
+| prompts | `GET /prompts/:name[?version=]` (read)                       | Active row, or pinned version                                    |
+| prompts | `GET /prompts/:name/versions` (read)                         | Immutable version history                                        |
+| prompts | `GET /prompts/:name/active` (read)                           | The rollback pointer                                             |
+| prompts | `POST /prompts` (admin)                                      | Create (v1, active; 409 on duplicate name)                       |
+| prompts | `POST /prompts/:name/versions` (admin)                       | New version (auto-active)                                        |
+| prompts | `POST /prompts/:name/versions/:v/activate` (admin)           | Move pointer (rollback = older version)                          |
+| prompts | `POST /prompts/resolve` (read)                               | Dual-read name+version (ai-ml first, legacy fallback)            |
+| prompts | `DELETE /prompts/:name[?version=]` (admin)                   | Drop one version or the whole name                               |
 
 ## ENV INVENTORY
 
@@ -161,21 +181,24 @@ ports on Oracle with lsof before first deploy).
 - Strict-ish (`tsconfig.base.json`): `strictNullChecks`,
   `noImplicitAny`, `noFallthroughCasesInSwitch`,
   `forceConsistentCasingInFileNames`, `isolatedModules`.
-- Path aliases: `shared/*`, `llm/*`, `auth/*`, `src/*` (no `@/*`).
+- Path aliases: `shared/*`, `llm/*`, `auth/*`, `prompts/*`, `src/*` (no `@/*`).
 
 ## TESTS
 
-Jest (`testRegex: .*.spec\.ts$`), co-located: **14 suites / 46
+Jest (`testRegex: .*.spec\.ts$`), co-located: **17 suites / 57
 tests** green. Coverage, no thresholds: domain 100%, guard 93%,
 adapters availability-only (no network in CI — gateway/openai
 `generateText` happy paths are covered by dual-run parity in
 todo 3). Failing-first: `app-wiring.spec.ts` was written before
-`AppModule` existed (module-not-found red), then green.
+`AppModule` existed (module-not-found red), then green; todo 1
+specs went red on missing `prompts/` modules (3 suites), then
+green (11 tests: validation + versioning/rollback + fallback).
 
 ## GAPS
 
 - G-1: TypeORM persistence unwired (in-memory `LlmConfig` + key
-  store + audits; tables land with todo 1 reusing the same shapes).
+  store + audits + prompt catalog; `ai_ml_prompt_templates` + key
+  shapes land wired in a later todo reusing the same shapes).
 - G-2: Root wiring untouched (read-only outside `apps/ai-ml`):
   no `dev:ai-ml` / `test:ai-ml` / `build:ai-ml` root aliases, no
   lint-staged entry, no pre-commit `tsc` coverage — wire when the
@@ -186,14 +209,15 @@ todo 3). Failing-first: `app-wiring.spec.ts` was written before
 
 ## DECISIONS INDEX
 
-| ID  | Decision                                                          |
-| --- | ----------------------------------------------------------------- |
-| D-1 | Ports 4090/91/92 + pg 5444/45 + redis 6391/92 (verified free)     |
-| D-2 | Scopes read\|generate\|admin (ai-ml-specific; generate = LLM use) |
-| D-3 | HMAC-peppered key hashes (ENCRYPTION_KEY); missing = loud error   |
-| D-4 | Provider order mock > gateway > openai; unconfigured = fail fast  |
-| D-5 | Usage audit stores sizes only, never content                      |
-| D-6 | No root-file edits (read-only constraint) — aliases pending (G-2) |
+| ID  | Decision                                                                             |
+| --- | ------------------------------------------------------------------------------------ |
+| D-1 | Ports 4090/91/92 + pg 5444/45 + redis 6391/92 (verified free)                        |
+| D-2 | Scopes read\|generate\|admin (ai-ml-specific; generate = LLM use)                    |
+| D-3 | HMAC-peppered key hashes (ENCRYPTION_KEY); missing = loud error                      |
+| D-4 | Provider order mock > gateway > openai; unconfigured = fail fast                     |
+| D-5 | Usage audit stores sizes only, never content                                         |
+| D-6 | No root-file edits (read-only constraint) — aliases pending (G-2)                    |
+| D-7 | Prompts: versions immutable + single active pointer; pinned resolve never falls back |
 
 ## DECISIONS
 
@@ -210,6 +234,13 @@ todo 3). Failing-first: `app-wiring.spec.ts` was written before
 - **D-5** — Audit sizes only: usage billing without prompt leakage.
 - **D-6** — Root `package.json` / `lint-staged.config.js` / Husky
   untouched per task constraint; documented in G-2.
+- **D-7** — Prompt versions are immutable rows, exactly one active
+  per name; `activate` moves the pointer (rollback = older version,
+  spec-pinned + live-verified). Pinned `resolve` never falls back
+  (a pinned miss is a caller bug, 404); unpinned unknown names fall
+  back to the hand-copied feed-publisher `default-feed` snapshot
+  (legacy-fallback) until feed-publisher todo 3 repoints it here —
+  never an import, so the source stays readable read-only.
 
 ## STANDING RULE
 

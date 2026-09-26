@@ -6,16 +6,18 @@ import { SharedModule } from './shared/shared.module';
 import { ApiKeyGuard } from './shared/infrastructure/guards/api-key.guard';
 import { AuthModule } from './auth/auth.module';
 import { LlmModule } from './llm/llm.module';
+import { PromptsModule } from './prompts/prompts.module';
 
 /**
- * AppModule - Root module for ai-ml (todo 0).
+ * AppModule - Root module for ai-ml (todos 0-1).
  *
  * Wires Config (envFilePath ['.env.dev', '.env']) + HealthModule
  * (GET /api/health -> { status: 'ok' }) + SharedModule (global audit)
  * + AuthModule (scoped keys, fail-closed without ENCRYPTION_KEY on
  * staging/prod) + LlmModule (multi-provider gateway + 3-flag mirror
- * + usage audit). Inbound x-api-key enforced globally at the edge
- * (fail-open dev).
+ * + usage audit) + PromptsModule (versioned global prompt catalog +
+ * dual-read feed-publisher fallback). Inbound x-api-key enforced
+ * globally at the edge (fail-open dev).
  */
 @Module({
   imports: [
@@ -27,6 +29,7 @@ import { LlmModule } from './llm/llm.module';
     SharedModule,
     AuthModule,
     LlmModule,
+    PromptsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ApiKeyGuard }],
 })

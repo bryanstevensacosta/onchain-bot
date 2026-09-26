@@ -71,6 +71,7 @@
       "^shared/(.*)$": "<rootDir>/src/shared/$1",
       "^llm/(.*)$": "<rootDir>/src/llm/$1",
       "^auth/(.*)$": "<rootDir>/src/auth/$1",
+      "^prompts/(.*)$": "<rootDir>/src/prompts/$1",
       "^src/(.*)$": "<rootDir>/src/$1"
     }
   }
