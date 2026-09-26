@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Dexter flat layout (follow-up of todo 13, no behavior change):**
+  `src/dexter/` level removed — `commands/`, `scan/`, `settings/` lifted
+  to `src/` top level via `git mv`, `telegram-io/` renamed to
+  `src/telegram/` (no `-io` suffix), `dexter.module.ts` moved to
+  `src/dexter.module.ts` (single composition root, still no nested Nest
+  modules — commands ⇄ telegram would `forwardRef`-cycle). All imports
+  re-pointed, `dexter/*` path alias + jest mapper entry dropped (unused),
+  AGENTS.md paths updated. Suite counts unchanged (6 suites / 20 tests).
+- **Hexagonal split by sub-BCs (Tramo 3, todo 13, follow-up of
+  todo 9, P13):** flat `src/dexter/` (todo 9 lift-and-shift) split into
+  four hexagonal sub-BCs with zero behavior change — `commands/`
+  (router + handlers: slash dispatch, bare-address fallback, context
+  resolver, per-user rate limiter), `scan/` (pipeline + address
+  detector + forward extractor + market-data client + formatter),
+  `telegram/` (poller, webhook + lookup controllers, Bot API client,
+  trade-button registry, keyboard builder), `settings/` (chat-settings
+  domain + service, bot config, in-memory repositories). Each sub-BC
+  owns `domain/` ports, `application/` use-cases/services, and
+  `infrastructure/` adapters (`telegram` also owns `api/` HTTP).
+  Two new domain ports: `scan/domain/ports/scan-pipeline.port.ts`
+  (`ScanPipeline` + `ResolvedToken` + `ChainIdentifier`, decoupled from
+  the telegram `ChainId`) and
+  `telegram/domain/ports/telegram.port.ts` (Bot API shapes,
+  re-exported by the client). `src/` root keeps only
+  `dexter.module.ts` (single composition root — nested Nest modules
+  would `forwardRef`-cycle commands against telegram). Every spec
+  moved with its source; suite counts unchanged (6 suites / 20 tests).
+- **Verified:** `jest` 20/20 green (±0), `tsc --noEmit` clean,
+  `nest build` ok, boot on `:4060` with empty route diff (4 routes:
+  `GET /api/health`, `GET /dexter/token`, `POST /dexter/webhook`,
+  `POST /dexter/health`) and identical spot curls (`/api/health` ok,
+  `/dexter/health` polling, `/dexter/token` explicit errors,
+  webhook `{ ok: true }`, unknown route 404).
+
 ### Added
 
 - **Dexter onchain lookup bot extraction (Tramo 3, todo 9, P13):** new
@@ -15,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   market-data HTTP (todo 5 bridge, default-true).
 - **Setup:** `package.json` (NestJS 11, `@nestjs/axios` for the Bot API
   client), `nest-cli.json`, `tsconfig.json` / `tsconfig.build.json`
-  (`dexter/*`, `shared/*`, `src/*` paths), `src/main.ts` (`DEXTER_PORT`,
+  (`shared/*`, `src/*` paths), `src/main.ts` (`DEXTER_PORT`,
   default dev `:4060`, loopback bind, global `ValidationPipe`),
   `AppModule` (Config + Health + Dexter), `GET /api/health`,
   `.env.example` + `.env.staging.template` + `.env.production.template`,

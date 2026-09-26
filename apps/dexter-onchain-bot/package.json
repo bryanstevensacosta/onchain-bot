@@ -64,7 +64,6 @@
     "coverageDirectory": "./coverage",
     "testEnvironment": "node",
     "moduleNameMapper": {
-      "^dexter/(.*)$": "<rootDir>/src/dexter/$1",
       "^shared/(.*)$": "<rootDir>/src/shared/$1",
       "^src/(.*)$": "<rootDir>/src/$1"
     }

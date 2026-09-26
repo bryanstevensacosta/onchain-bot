@@ -148,8 +148,8 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
       Acceptance criteria: `curl sin key → 401/403` + `grep -rni "sk-\|api[_-]?key\s*[:=]\s*['\"][^'\"]" apps/market-data/src apps/market-data/.env* 2>/dev/null | grep -v spec | wc -l` = 0
       QA scenarios: happy key válida con scope; failure compromiso simulado → revocar+rotar+audit en <15min (drill documentado). Evidence .omo/evidence/task-10-mega-refactor-market-data.log
       Commit: Y | feat(market-data): seguridad auth keys con scopes y rotación
-- [ ] 13. Dexter hexagonal por sub-BCs (follow-up todo 9)
-      What to do / Must NOT do: partir `src/dexter/` (lift-and-shift plano) en `commands/` (router+handlers), `scan/` (pipeline+detector+extractor), `telegram-io/` (poller/webhook/client/keyboard/registry), `settings/`, cada uno hexagonal (`domain/` ports, `application/` casos de uso, `infrastructure/` adapters). Sin cambio de comportamiento (suites ±0). Tests + tsc + boot curl.
+- [x] 13. Dexter plano top-level por sub-BCs (follow-up todo 9)
+      What to do / Must NOT do: aplanar `src/dexter/` a top-level `src/commands/`, `src/scan/`, `src/settings/`, `src/telegram/` (SIN `-io`, SIN nivel intermedio), cada uno hexagonal (`domain/` ports, `application/` casos de uso, `infrastructure/` adapters). Sin cambio de comportamiento (suites ±0). Tests + tsc + boot curl.
       Parallelization: Wave 5 | Blocked by: 9 | Blocks: —
       References: apps/dexter-onchain-bot/src/dexter/ (origen plano)
       Acceptance criteria: `npx jest` mismos conteos ±0 + `npx tsc --noEmit` limpio + 0 ficheros sueltos en raíz de `src/dexter/` (solo módulos)

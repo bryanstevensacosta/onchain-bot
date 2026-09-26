@@ -12,7 +12,6 @@
     "baseUrl": "./",
     "incremental": true,
     "paths": {
-      "dexter/*": ["src/dexter/*"],
       "shared/*": ["src/shared/*"],
       "src/*": ["src/*"]
     }

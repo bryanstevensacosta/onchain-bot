@@ -1,11 +1,11 @@
 # apps/dexter-onchain-bot/ — NestJS Knowledge Base
 
-> Verified 2026-09-25 against code + `.omo/evidence/task-9-mega-refactor-market-data.log`
-> (Tramo 3, todo 9, P13). v0.1.0 (source of truth: `package.json`).
+> Verified 2026-09-25 against code + `.omo/evidence/task-13-mega-refactor-market-data.log`
+> (Tramo 3, todo 13, follow-up of todo 9, P13). v0.1.0 (source of truth: `package.json`).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md`
 > §7.6. Contracts pinned in `.omo/plans/mega-refactor-central.md`
 > v2026-09-24 (C-PORTS-01, C-DB-01, C-BOTS-01); plan in
-> `.omo/plans/mega-refactor-market-data.md` (todo 9, final phase).
+> `.omo/plans/mega-refactor-market-data.md` (todo 13, hexagonal split).
 
 Contents: OVERVIEW · COMMANDS · STRUCTURE · MODULES · ENV INVENTORY ·
 PORTS · HEALTH · SECURITY · TS CONVENTIONS · TESTS · GAPS · DECISIONS ·
@@ -50,54 +50,72 @@ cd apps/dexter-onchain-bot && DEXTER_PORT=4060 npm run start:dev
 src/
 ├── main.ts                     # bootstrap() — DEXTER_PORT ?? 4060, host 127.0.0.1, ValidationPipe
 ├── app.module.ts               # Config (.env.dev > .env) + Health + Dexter
+├── dexter.module.ts            # single composition root (see MODULES; avoids commands ⇄ telegram forwardRef cycles)
 ├── health/                     # GET /api/health -> { status: 'ok', service }
-└── dexter/
-    ├── dexter.module.ts        # full wiring (see MODULES)
-    ├── bot.config.ts           # DEXTER_BOT_TOKEN (+ CHAIN_DEXTER_* fallback), ingest mode, rate limit
-    ├── bot-client.ts           # Bot API client (moved, lookup answers only)
-    ├── trade-button-registry.ts# 8 buttons (moved; affiliate tags rebranded dexter-*)
-    ├── message-formatter.ts    # full/compact cards, 4096 cap (moved)
-    ├── inline-keyboard.builder.ts # scan + trade-button keyboards (moved)
-    ├── market-data.client.ts   # NEW — GET /api/market-data/snapshot + resolveAny (chain sweep)
-    ├── token-scan.pipeline.ts  # resolve() via market-data (moved shape, re-wired source)
-    ├── address-detector.ts     # NEW — bare EVM/Solana detection + extractAddresses
-    ├── forward-extractor.ts    # NEW — any-text candidates (addresses + exchange mentions)
-    ├── rate-limiter.ts         # NEW — per-user sliding window (60 s)
-    ├── chat-settings.ts        # settings model + repo ports + defaults (TypeORM NOT moved)
-    ├── in-memory.repositories.ts # in-memory groups/settings (moved logic)
-    ├── chat-settings.service.ts# getOrCreate/update/toggle (moved, in-memory wired)
-    ├── context-resolver.service.ts # update -> CommandContext (moved)
-    ├── command-handler.ts      # CommandHandler/CommandContext types (moved)
-    ├── bare-address.handler.ts # NEW — non-slash fallback (extract -> scan-first)
-    ├── command-router.service.ts # slash dispatch + fallback + per-user limit + tb callbacks
-    ├── commands/               # start (REWRITTEN) + ca (NEW) + x/z/c/cc/tb/settings (inherited)
-    ├── update-poller.service.ts# polling ingress (moved; active only in polling mode)
-    ├── webhook.controller.ts   # POST /dexter/webhook (+secret, per-user limit) + POST /dexter/health
-    └── dexter.controller.ts    # GET /dexter/token?address= (native HTTP lookup, manual QA)
+├── commands/                   # router + handlers (slash + bare fallback)
+│   ├── domain/ports/command-handler.port.ts # CommandHandler/CommandContext types
+│   └── application/
+│       ├── router/command-router.service.ts # slash dispatch + fallback + per-user limit + tb callbacks
+│       ├── context/context-resolver.service.ts # update -> CommandContext
+│       ├── rate-limit/user-rate-limiter.ts  # per-user sliding window (60 s)
+│       └── handlers/       # start/help (REWRITTEN) + ca (NEW) + x/z/c/cc/tb/settings (inherited) + bare-address fallback
+├── scan/                       # pipeline + detector + extractor
+│   ├── domain/
+│   │   ├── ports/scan-pipeline.port.ts # ScanPipeline + ResolvedToken + ChainIdentifier + SCAN_PIPELINE
+│   │   ├── detector/address-detector.ts# bare EVM/Solana detection + extractAddresses
+│   │   └── extractor/forward-extractor.ts # any-text candidates (addresses + exchange mentions)
+│   ├── application/pipeline/token-scan.pipeline.ts # resolve() via market-data (re-exports port types)
+│   └── infrastructure/
+│       ├── market-data/market-data.client.ts # NEW — GET /api/market-data/snapshot + resolveAny (chain sweep)
+│       └── formatter/message-formatter.ts    # full/compact cards, 4096 cap (moved)
+├── telegram/                   # poller + webhook + client + keyboard + registry
+│   ├── domain/ports/telegram.port.ts # Bot API shapes (updates, messages, keyboards, responses)
+│   ├── application/poller/update-poller.service.ts # polling ingress (active only in polling mode)
+│   ├── api/http/
+│   │   ├── webhook.controller.ts # POST /dexter/webhook (+secret, per-user limit) + POST /dexter/health
+│   │   └── dexter.controller.ts  # GET /dexter/token?address= (native HTTP lookup, manual QA)
+│   └── infrastructure/
+│       ├── telegram/bot-client.ts# Bot API client (lookup answers only; re-exports domain port types)
+│       └── keyboard/
+│           ├── trade-button-registry.ts # 8 buttons (affiliate tags rebranded dexter-*)
+│           └── inline-keyboard.builder.ts # scan + trade-button keyboards
+└── settings/                   # chat config + bot config
+    ├── domain/chat-settings.ts # settings model + repo ports + defaults (TypeORM NOT moved)
+    ├── application/chat-settings.service.ts # getOrCreate/update/toggle (in-memory wired)
+    └── infrastructure/
+        ├── config/bot.config.ts# DEXTER_BOT_TOKEN (+ CHAIN_DEXTER_* fallback), ingest mode, rate limit
+        └── repositories/in-memory.repositories.ts # in-memory groups/settings
 ```
 
 Root files: `package.json` (`@onchain-bot/dexter-onchain-bot`), `nest-cli.json`,
-`tsconfig.json` / `tsconfig.build.json` (paths `dexter/*`, `shared/*`, `src/*`),
+`tsconfig.json` / `tsconfig.build.json` (paths `shared/*`, `src/*`),
 `.env.example` + `.env.staging.template` + `.env.production.template`,
 `docker-compose.yml` (dev) + `docker-compose.staging.yml`, `Dockerfile`
 (`CMD apps/dexter-onchain-bot/dist/main.js`).
 
 ## MODULES
 
-`DexterModule` (single module, no cross-BC imports by construction):
+`DexterModule` (single composition-root module over the 4 sub-BC
+folders — deliberately NOT one Nest module per sub-BC: the poller and
+webhook in telegram depend on the router in commands, while the
+handlers in commands depend on the client/keyboards/registry in
+telegram, so nested modules would need `forwardRef` cycles for zero
+behavioral gain; per-BC modules remain future work):
 
-- Config: `DexterBotConfigService` (global via `ConfigModule`).
-- Ingress: `DexterWebhookController` (webhook) + `UpdatePollerService`
-  (polling; drops `deleteWebhook` first, offset-tracked loop).
-- Routing: `CommandRouterService` (factory-built with all 9 handlers +
-  `BareAddressHandler` fallback + shared `UserRateLimiter`).
-- Scan: `MarketDataClient` → `TokenScanPipeline` (`SCAN_PIPELINE` token,
-  `TokenScanPipeline` alias) → `MessageFormatterAdapter` +
-  `TradeButtonRegistry` + `InlineKeyboardBuilder`.
-- Settings: `InMemoryChatGroupRepository` /
-  `InMemoryChatSettingsRepository` behind `CHAT_GROUP_REPOSITORY` /
-  `CHAT_SETTINGS_REPOSITORY` symbols → `ChatSettingsService` →
-  `ContextResolverService`.
+- settings/: `DexterBotConfigService` (global via `ConfigModule`) +
+  `InMemoryChatGroupRepository` / `InMemoryChatSettingsRepository`
+  behind `CHAT_GROUP_REPOSITORY` / `CHAT_SETTINGS_REPOSITORY` symbols →
+  `ChatSettingsService` → commands' `ContextResolverService`.
+- telegram/: `DexterWebhookController` (webhook) +
+  `UpdatePollerService` (polling; drops `deleteWebhook` first,
+  offset-tracked loop) + `TelegramBotClient` + `TradeButtonRegistry` +
+  `InlineKeyboardBuilder` + `DexterController` (native HTTP lookup).
+- commands/: `CommandRouterService` (factory-built with all 9 handlers
+  - `BareAddressHandler` fallback + shared `UserRateLimiter`).
+- scan/: `MarketDataClient` → `TokenScanPipeline` (`SCAN_PIPELINE`
+  token, now defined in the scan domain port and re-exported by
+  `DexterModule`; `TokenScanPipeline` alias) → `MessageFormatterAdapter`
+  - scan domain detector/extractor (pure functions).
 
 Commands: `/start` (rewritten: lookup info + usage, zero publish words),
 `/ca` (new: full card), `/x` full, `/z` compact, `/c` chart+scan, `/cc`
@@ -168,16 +186,17 @@ positions.
 ## TESTS
 
 Jest (`testRegex .*\.spec\.ts$`, `--forceExit`, 30 s). 6 suites /
-20 tests, failing-first (first run: 6 red — modules missing):
+20 tests, failing-first (first run: 6 red — modules missing).
+Todo 13 moved every spec with its source — counts unchanged (±0):
 
-| Spec                                  | Covers                                                                                             |
-| ------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `address-detector.spec.ts`            | solana/evm/bare recognition, ordered deduped extraction                                            |
-| `forward-extractor.spec.ts`           | forward-ok (address + exchange), forward-empty, blank                                              |
-| `rate-limiter.spec.ts`                | per-user budget + independence                                                                     |
-| `commands/start-ca.spec.ts`           | /start rewritten (lookup, /ca, no publish/channel words); /ca card + usage + explicit unresolvable |
-| `command-router-bare-forward.spec.ts` | bare scan, forward-ok scan, forward-empty reply, unknown slash                                     |
-| `commands/settings.spec.ts`           | /settings render, /tb on/off                                                                       |
+| Spec                                                              | Covers                                                                                             |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `scan/domain/detector/address-detector.spec.ts`                   | solana/evm/bare recognition, ordered deduped extraction                                            |
+| `scan/domain/extractor/forward-extractor.spec.ts`                 | forward-ok (address + exchange), forward-empty, blank                                              |
+| `commands/application/rate-limit/user-rate-limiter.spec.ts`       | per-user budget + independence                                                                     |
+| `commands/application/handlers/start-ca.spec.ts`                  | /start rewritten (lookup, /ca, no publish/channel words); /ca card + usage + explicit unresolvable |
+| `commands/application/router/command-router-bare-forward.spec.ts` | bare scan, forward-ok scan, forward-empty reply, unknown slash                                     |
+| `commands/application/handlers/settings.spec.ts`                  | /settings render, /tb on/off                                                                       |
 
 ## GAPS
 
@@ -197,6 +216,31 @@ Jest (`testRegex .*\.spec\.ts$`, `--forceExit`, 30 s). 6 suites /
 ## DECISIONS
 
 - P13: standalone `apps/dexter-onchain-bot/` (extraction, not integration).
+- Flat layout (follow-up of todo 13, no behavior change): the
+  `src/dexter/` level is gone — `commands/`, `scan/`, `settings/` were
+  lifted to `src/` top level via `git mv`, `telegram-io/` renamed to
+  `src/telegram/` (no `-io` suffix), and `dexter.module.ts` moved to
+  `src/dexter.module.ts` (still the single composition root wired by
+  `AppModule` — no nested Nest modules, commands ⇄ telegram would
+  `forwardRef`-cycle). All imports re-pointed (sibling BCs moved
+  together, so `../../../` cross-BC relative depth is unchanged);
+  the unused `dexter/*` path alias + jest mapper entry were dropped.
+  Verified: jest 6/20 (±0), `tsc --noEmit` clean, `nest build` ok,
+  boot `:4060` route diff empty (4 routes + spot curls identical).
+- Todo 13 (hexagonal split, no behavior change): flat `src/dexter/`
+  (lift-and-shift from todo 9) split into `commands/` (router+handlers),
+  `scan/` (pipeline+detector+extractor), `telegram/`
+  (poller/webhook/client/keyboard/registry), `settings/` — each with
+  `domain/` ports, `application/` use-cases/services, `infrastructure/`
+  adapters (+ `api/` HTTP where it owns routes). Two new domain ports:
+  `scan/domain/ports/scan-pipeline.port.ts` (`ScanPipeline` +
+  `ResolvedToken` + `ChainIdentifier`, decoupled from the telegram
+  `ChainId`) and `telegram/domain/ports/telegram.port.ts` (Bot API
+  shapes; the client re-exports them). `DexterModule` stays the single
+  composition root (no nested Nest modules — commands ⇄ telegram
+  would `forwardRef`-cycle). Verified: jest 6/20 (±0), `tsc --noEmit`
+  clean, `nest build` ok, boot `:4060` route diff empty (4 routes +
+  spot curls identical).
 - Token migration: `DEXTER_BOT_TOKEN` wins, `CHAIN_DEXTER_BOT_TOKEN`
   fallback (C-BOTS-01).
 - Bridge default-true: market-data HTTP is the only source (no local
