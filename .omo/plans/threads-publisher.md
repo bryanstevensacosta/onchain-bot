@@ -144,6 +144,12 @@ QA scenarios (name the exact tool + invocation): happy:`cd apps/backend && DATAB
 - [x] F4. Humano opt-in manual (EXCEPCIÓN ÚNICA al red-ban; fuera de waves agent) — con token TEST en `apps/backend/.env.test` (jamás commitear): `node threads-meta-test/publish.mjs --text 'spike-verify <ts>'` → post visible en cuenta tester → teardown: borrar post + `rm` test env + `git checkout -- <env si tocado>`; humano confirma + go/no-go (esto BLOQUEA el completo hasta su okay). ⏸️ PAUSADO 2026-09-15: a la espera del humano (sin token TEST disponible para el agente; excepción explícitamente humana). Reanudar con GO/NO-GO del operador.
 - [x] F5. Scope fidelity — `test ! -e apps/threads-publisher && echo NO-STANDALONE`; `grep -r 'THREADS_' apps/backend/.env.staging.template apps/backend/.env.production.template | grep -v '=$' || echo TEMPLATES-EMPTY`; `cd apps/backend && DATABASE_ENABLED=true npx jest --forceExit` verde (suite completa, sin conteo hardcodeado) + `cd apps/frontend && npx vitest run` verde; `git diff --check` limpio; `test -f docs/threads-token-runbook.md docs/threads-go-no-go.md` (repo root).
 
+## FASE 2 — app standalone + target/ (P54, 2026-09-25; revierte F5/NO-STANDALONE por decisión)
+
+- [ ] 9. App `apps/threads-publisher/` setup + migración threads (puertos 4100/01/02 verificar, health, compose, envs, DB `onchain_bot_threads[_staging]`); mover backend threads (+ feed-publisher threads) con dual-run + cutover + deprecación; bot/threads tokens vía gateway. Tests + coverage. Evidence .omo/evidence/task-9-threads-publisher.log | Commit: Y | feat(threads-publisher): app standalone
+- [ ] 10. `target/` en feed-publisher y kol-calls-publisher (sustituye dirs `telegram/`+`threads/`): target = bot telegram vía gateway O publisher threads (a elección por vínculo P38-bis); sessions/templates referencian targets. Tests + migración callers. Evidence .omo/evidence/task-10-threads-publisher.log | Commit: Y | refactor: target/ sustituye telegram+threads
+- [ ] 11. Cutover + cleanup + CI/deploy staging/prod. Evidence .omo/evidence/task-11-threads-publisher.log | Commit: Y | feat(threads-publisher)!: cutover
+
 ## Commit strategy
 
 - 8 commits atómicos (uno por todo, `feat(threads): …`), rama `feat/threads-publisher` desde `dev`; convención commitlint + hooks vigentes (pre-commit tsc, pre-push tests). Push + PR squash a `dev` solo al final con F1–F5 APPROVE (F4-humano incluido). `threads-meta-test/` queda como evidencia (no se borra hasta go/no-go).
