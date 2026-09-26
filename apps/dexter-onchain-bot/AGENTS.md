@@ -1,7 +1,8 @@
 # apps/dexter-onchain-bot/ — NestJS Knowledge Base
 
-> Verified 2026-09-25 against code + `.omo/evidence/task-13-mega-refactor-market-data.log`
-> (Tramo 3, todo 13, follow-up of todo 9, P13). v0.1.0 (source of truth: `package.json`).
+> Verified 2026-09-26 against code + `.omo/evidence/task-6-telegram-bots-gateway.log`
+> (telegram-bots-gateway todo 6: lookup via gateway, dual-send parity).
+> Tramo 3 base verified 2026-09-25 (todo 13). v0.1.0 (source of truth: `package.json`).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md`
 > §7.6. Contracts pinned in `.omo/plans/mega-refactor-central.md`
 > v2026-09-24 (C-PORTS-01, C-DB-01, C-BOTS-01); plan in
@@ -32,7 +33,7 @@ stays inactive with a warn — verified in the boot log).
 npm run dev                  # DEXTER_PORT=4060 nest start --watch
 npm run build                # nest build (emits dist/main.js)
 npm run start:prod           # node dist/main
-npm test                     # jest --forceExit (6 suites / 20 tests)
+npm test                     # jest --forceExit (16 suites / 55 tests)
 npx tsc --noEmit -p tsconfig.json
 ```
 
@@ -68,14 +69,20 @@ src/
 │   └── infrastructure/
 │       ├── market-data/market-data.client.ts # NEW — GET /api/market-data/snapshot + resolveAny (chain sweep)
 │       └── formatter/message-formatter.ts    # full/compact cards, 4096 cap (moved)
-├── telegram/                   # poller + webhook + client + keyboard + registry
+├── telegram/                   # poller + webhook + ingress + client + keyboard + registry
 │   ├── domain/ports/telegram.port.ts # Bot API shapes (updates, messages, keyboards, responses)
+│   ├── domain/ports/bots-gateway-sender.port.ts # vault-id-only send port (todo 6, no token crosses)
 │   ├── application/poller/update-poller.service.ts # polling ingress (active only in polling mode)
+│   ├── application/services/dual-send-parity.service.ts # outcome-only ledger + 409 cutover gate (todo 6)
+│   ├── application/use-cases/migrate-bots-to-gateway.use-case.ts # env token → vault register (todo 6)
 │   ├── api/http/
 │   │   ├── webhook.controller.ts # POST /dexter/webhook (+secret, per-user limit) + POST /dexter/health
+│   │   ├── ingress.controller.ts # POST /dexter/ingress (gateway fan-out target, todo 6)
+│   │   ├── gateway-migration.controller.ts # POST /api/dexter-bots/migrate-to-gateway (todo 6)
 │   │   └── dexter.controller.ts  # GET /dexter/token?address= (native HTTP lookup, manual QA)
 │   └── infrastructure/
-│       ├── telegram/bot-client.ts# Bot API client (lookup answers only; re-exports domain port types)
+│       ├── gateway/            # HMAC signer + vault-id mapping + send client + send-mode (todo 6)
+│       ├── telegram/bot-client.ts# Bot API client (DEPRECATED direct leg; dual router, todo 6)
 │       └── keyboard/
 │           ├── trade-button-registry.ts # 8 buttons (affiliate tags rebranded dexter-*)
 │           └── inline-keyboard.builder.ts # scan + trade-button keyboards
@@ -83,7 +90,7 @@ src/
     ├── domain/chat-settings.ts # settings model + repo ports + defaults (TypeORM NOT moved)
     ├── application/chat-settings.service.ts # getOrCreate/update/toggle (in-memory wired)
     └── infrastructure/
-        ├── config/bot.config.ts# DEXTER_BOT_TOKEN (+ CHAIN_DEXTER_* fallback), ingest mode, rate limit
+        ├── config/bot.config.ts# DEXTER_BOT_TOKEN (+ CHAIN_DEXTER_* fallback), ingest mode, rate limit + gateway fields (todo 6)
         └── repositories/in-memory.repositories.ts # in-memory groups/settings
 ```
 
@@ -126,20 +133,24 @@ text with no contract gets the "no veo ningún contrato" reply.
 
 ## ENV INVENTORY
 
-| Variable                                                             | Default                                 | Meaning                                      |
-| -------------------------------------------------------------------- | --------------------------------------- | -------------------------------------------- |
-| `DEXTER_ENABLED`                                                     | `false`                                 | master switch                                |
-| `DEXTER_PORT` / `DEXTER_HOST`                                        | `4060` / `127.0.0.1`                    | bind (triplet 4060/4061/4062)                |
-| `DEXTER_BOT_TOKEN`                                                   | `''`                                    | lookup bot token (wins over legacy)          |
-| `CHAIN_DEXTER_BOT_TOKEN`                                             | `''`                                    | legacy fallback (deprecated, honored)        |
-| `DEXTER_WEBHOOK_SECRET/URL`                                          | —                                       | webhook auth + registration                  |
-| `DEXTER_INGEST_MODE`                                                 | `polling`                               | `webhook` (staging/prod) or `polling` (dev)  |
-| `DEXTER_POLLING_INTERVAL_MS`                                         | `1000`                                  | poller cadence (min 100)                     |
-| `MARKET_DATA_URL` / `MARKET_DATA_API_KEY` / `MARKET_DATA_TIMEOUT_MS` | `http://localhost:4000` / `''` / `2000` | ONLY market-data source                      |
-| `DEXTER_RATE_LIMIT_PER_USER`                                         | `30`                                    | per-user commands per 60 s                   |
-| `DEXTER_DEFAULT_TRADE_BUTTONS`                                       | `DEX,PHO,TRO`                           | default button set                           |
-| `DATABASE_URL`                                                       | `…/onchain_bot_dexter`                  | RESERVED (v1 is in-memory; no TypeORM wired) |
-| `REDIS_URL`                                                          | `…/6387/0`                              | RESERVED (limiter is in-process)             |
+| Variable                                                                     | Default                                 | Meaning                                                                       |
+| ---------------------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------- |
+| `DEXTER_ENABLED`                                                             | `false`                                 | master switch                                                                 |
+| `DEXTER_PORT` / `DEXTER_HOST`                                                | `4060` / `127.0.0.1`                    | bind (triplet 4060/4061/4062)                                                 |
+| `DEXTER_BOT_TOKEN`                                                           | `''`                                    | lookup bot token (wins over legacy — direct-leg credential only since todo 6) |
+| `CHAIN_DEXTER_BOT_TOKEN`                                                     | `''`                                    | legacy fallback (deprecated, honored)                                         |
+| `DEXTER_BOT_VAULT_ID`                                                        | `''`                                    | gateway vault id for this bot (todo 6; set by hand after migration)           |
+| `DEXTER_SEND_MODE`                                                           | `dual`                                  | `direct` (deprecated) \| `dual` (both legs + parity) \| `gateway` (cutover)   |
+| `BOTS_GATEWAY_URL` / `BOTS_GATEWAY_CLIENT_ID` / `BOTS_GATEWAY_CLIENT_SECRET` | `http://localhost:4070` / `''` / `''`   | gateway base + HMAC client (empty = keyless/unsigned dev)                     |
+| `DEXTER_INGRESS_SECRET`                                                      | `null`                                  | shared secret for `POST /dexter/ingress` (empty = unsigned dev)               |
+| `DEXTER_WEBHOOK_SECRET/URL`                                                  | —                                       | webhook auth + registration                                                   |
+| `DEXTER_INGEST_MODE`                                                         | `polling`                               | `webhook` (staging/prod) or `polling` (dev)                                   |
+| `DEXTER_POLLING_INTERVAL_MS`                                                 | `1000`                                  | poller cadence (min 100)                                                      |
+| `MARKET_DATA_URL` / `MARKET_DATA_API_KEY` / `MARKET_DATA_TIMEOUT_MS`         | `http://localhost:4000` / `''` / `2000` | ONLY market-data source                                                       |
+| `DEXTER_RATE_LIMIT_PER_USER`                                                 | `30`                                    | per-user commands per 60 s                                                    |
+| `DEXTER_DEFAULT_TRADE_BUTTONS`                                               | `DEX,PHO,TRO`                           | default button set                                                            |
+| `DATABASE_URL`                                                               | `…/onchain_bot_dexter`                  | RESERVED (v1 is in-memory; no TypeORM wired)                                  |
+| `REDIS_URL`                                                                  | `…/6387/0`                              | RESERVED (limiter is in-process)                                              |
 
 ## PORTS
 
@@ -160,10 +171,73 @@ repo-wide by grep. Compose `name:` is explicit (`onchain-bot-dexter`,
   `{ error: 'Token not found' }` (market-data down/pending → error, never
   a partial card).
 
+## GATEWAY MIGRATION (telegram-bots-gateway todo 6, DONE 2026-09-26)
+
+Lookup answers via the gateway with dual-send parity (mirrors the
+kol-system todo-4 / feed-publisher todo-5 pattern). Mode stays `dual` —
+NO cutover in this todo (adversarial: any divergence blocks cutover via
+`assertNoDivergence`).
+
+- **Path** (`DEXTER_SEND_MODE`, default `dual`): `direct` = legacy
+  direct Bot API only (deprecated); `dual` = gateway + direct, compare
+  via `DualSendParityService`, return the direct leg; `gateway` =
+  gateway vault id only, fail-closed (cutover rehearsal, proven live).
+- **New code** (`src/telegram/`, all inside this app): `domain/ports/
+bots-gateway-sender.port.ts` (token never crosses — vault `botId`
+  only) + `infrastructure/gateway/` (`gateway-hmac-signer` — canonical
+  `METHOD\npath\nts\nnonce\nsha256(rawBody)`, flat env
+  `BOTS_GATEWAY_CLIENT_ID/_SECRET`, keyless dev returns `{}`;
+  `gateway-send-client` — 4096-char message chunks with per-chunk
+  `client_msg_id`, global `fetch`; `gateway-bot-mapping` — local
+  `dexter` label → vault id, unmapped falls back; `send-mode` helper) +
+  `application/services/dual-send-parity.service.ts` (outcome-only
+  compare — `messageId`s never compared; keyboard/edit/callback shapes
+  recorded as `skipped`, never diverged; `assertNoDivergence()` throws
+  409; deviation: Nest `ConflictException`, this app owns no
+  `src/shared/kernel/`) + `application/use-cases/
+migrate-bots-to-gateway.use-case.ts` (env token → vault register,
+  labels/ids only in results) + `api/http/
+gateway-migration.controller.ts` (`POST
+/api/dexter-bots/migrate-to-gateway`, 201) + `api/http/
+ingress.controller.ts` (`POST /dexter/ingress`, 201 — gateway router
+  fan-out target, `x-gateway-bot` + timing-safe `x-gateway-secret`
+  vs `DEXTER_INGRESS_SECRET`, unsigned accepted with warn in dev only,
+  dispatch errors acked).
+- **Wiring**: `TelegramBotClient.sendMessage` routes by mode INSIDE the
+  client, so all 9 handlers + the router keep calling it unchanged
+  (lookup/scan/commands untouched otherwise). Plain-text sends run both
+  legs in `dual`; keyboard sends (`reply_markup`) stay direct-only
+  (gateway `SendDto` has no `reply_markup`) and are recorded as
+  skipped; `editMessageText` / `answerCallbackQuery` / `getUpdates` /
+  `setWebhook` have no gateway equivalent and stay direct-only.
+  `gateway` mode is fail-closed without a vault id or for keyboard
+  shapes — the catalog token is never resolved client-side. The direct
+  client carries `@deprecated` (dual-leg only, removed at gateway
+  todo 7). Backend `chain-dexter-bot/` move source untouched
+  (read-only).
+- **Operator wiring**: vault migration needs an `admin`-scoped gateway
+  client (send scope alone 403s — same as todos 4/5); DISTINCT secrets
+  per env. Staging/prod templates pin `DEXTER_SEND_MODE=gateway`.
+- **Evidence**: `.omo/evidence/task-6-telegram-bots-gateway.log` —
+  16 suites / 55 tests green (+10/+35), `tsc` + `nest build` clean,
+  live dual `/start` (direct 401 vs gateway 777 — environmental
+  divergence, gate correctly closed) + live keyboard `/tb` skip (no
+  gateway call) + live gateway-mode `/help` 777 (token never resolved)
+  - 0 token leaks.
+- **Known cutover blockers** (gateway todo 7): keyboard sends
+  (`reply_markup`), `editMessageText`, `answerCallbackQuery` need
+  gateway support (or stay dual); vault mapping is in-memory
+  (persisted at global cutover).
+
 ## SECURITY
 
 - Webhook secret: `DEXTER_WEBHOOK_SECRET` enforced when set (unsigned
-  webhook accepted in dev only, with a warn).
+  webhook accepted in dev only, with a warn). Gateway ingress secret:
+  `DEXTER_INGRESS_SECRET` enforced the same way on
+  `POST /dexter/ingress` (todo 6).
+- Gateway HMAC: `BOTS_GATEWAY_CLIENT_ID/_SECRET` sign every gateway
+  request (canonical `METHOD\npath\nts\nnonce\nsha256(rawBody)`);
+  empty = unsigned keyless dev (gateway guard fails open).
 - Rate limit: per-user sliding window (`DEXTER_RATE_LIMIT_PER_USER`/60 s)
   in the router (all paths) AND again at the webhook edge; over-budget
   updates are acked without dispatch.
@@ -185,18 +259,29 @@ positions.
 
 ## TESTS
 
-Jest (`testRegex .*\.spec\.ts$`, `--forceExit`, 30 s). 6 suites /
-20 tests, failing-first (first run: 6 red — modules missing).
-Todo 13 moved every spec with its source — counts unchanged (±0):
+Jest (`testRegex .*\.spec\.ts$`, `--forceExit`, 30 s). 16 suites /
+55 tests, failing-first (first run: 10 red — gateway modules missing).
+Todo 13 moved every spec with its source — counts unchanged (±0);
+todo 6 added 10 suites / 35 tests (±0 since):
 
-| Spec                                                              | Covers                                                                                             |
-| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `scan/domain/detector/address-detector.spec.ts`                   | solana/evm/bare recognition, ordered deduped extraction                                            |
-| `scan/domain/extractor/forward-extractor.spec.ts`                 | forward-ok (address + exchange), forward-empty, blank                                              |
-| `commands/application/rate-limit/user-rate-limiter.spec.ts`       | per-user budget + independence                                                                     |
-| `commands/application/handlers/start-ca.spec.ts`                  | /start rewritten (lookup, /ca, no publish/channel words); /ca card + usage + explicit unresolvable |
-| `commands/application/router/command-router-bare-forward.spec.ts` | bare scan, forward-ok scan, forward-empty reply, unknown slash                                     |
-| `commands/application/handlers/settings.spec.ts`                  | /settings render, /tb on/off                                                                       |
+| Spec                                                                      | Covers                                                                                             |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `scan/domain/detector/address-detector.spec.ts`                           | solana/evm/bare recognition, ordered deduped extraction                                            |
+| `scan/domain/extractor/forward-extractor.spec.ts`                         | forward-ok (address + exchange), forward-empty, blank                                              |
+| `commands/application/rate-limit/user-rate-limiter.spec.ts`               | per-user budget + independence                                                                     |
+| `commands/application/handlers/start-ca.spec.ts`                          | /start rewritten (lookup, /ca, no publish/channel words); /ca card + usage + explicit unresolvable |
+| `commands/application/router/command-router-bare-forward.spec.ts`         | bare scan, forward-ok scan, forward-empty reply, unknown slash                                     |
+| `commands/application/handlers/settings.spec.ts`                          | /settings render, /tb on/off                                                                       |
+| `telegram/infrastructure/gateway/gateway-hmac-signer.service.spec.ts`     | canonical sign/verify, tamper + wrong-secret reject, keyless `{}`                                  |
+| `telegram/infrastructure/gateway/gateway-bot-mapping.service.spec.ts`     | local→vault map + unmapped fallback                                                                |
+| `telegram/infrastructure/gateway/gateway-send-client.service.spec.ts`     | message post + chunking + empty/keyboard/401 fail-closed, no token in body/URL                     |
+| `telegram/infrastructure/gateway/send-mode.spec.ts`                       | mode parsing, dual default                                                                         |
+| `telegram/application/services/dual-send-parity.service.spec.ts`          | outcome agreement, ok-mismatch → 409 gate, skipped never diverged                                  |
+| `telegram/application/use-cases/migrate-bots-to-gateway.use-case.spec.ts` | vault register + map, missing-token + duplicate + 403 paths                                        |
+| `telegram/api/http/gateway-migration.controller.spec.ts`                  | 201 labels/ids-only shape                                                                          |
+| `telegram/api/http/ingress.controller.spec.ts`                            | fan-out dispatch + secret rejects + error-ack + unsigned dev                                       |
+| `telegram/infrastructure/telegram/bot-client-dual-send.spec.ts`           | dual/direct/gateway routing, vault resolution, keyboard skip, divergence gate                      |
+| `telegram/dual-send-secret-scan.spec.ts`                                  | vault-ids-only bodies, no console.\*, no direct token reads                                        |
 
 ## GAPS
 

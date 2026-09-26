@@ -99,7 +99,7 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
      Acceptance criteria: paridad + cutover + deprecación
      QA scenarios: happy paridad; failure no cutover. Evidence .omo/evidence/task-5-telegram-bots-gateway.log
      Commit: Y | feat(feed-publisher): publishing vía gateway
-- [ ] 6. Migración dexter al gateway
+- [x] 6. Migración dexter al gateway
      What to do / Must NOT do: igual que 4 para el bot dexter (lookup + trade buttons) + updates vía router.
      Parallelization: Wave 3 | Blocked by: 2, 3 | Blocks: 8
      References: apps/dexter-onchain-bot/ (Tramo 3 — IF it exists by then) ELSE backend/src/telegram/chain-dexter-bot/ (bot-client.ts sendMessage/editMessage/answerCallbackQuery/getUpdates/setWebhook, chain-dexter-bot.adapter.ts, webhook.controller.ts webhook+per-chat limiter, update-poller.service.ts, 7 command handlers — see inventory rows 8-11; app dir missing on feat/mega-refactor-tramos 2026-09-25)

@@ -11,6 +11,14 @@ import { SCAN_PIPELINE } from './scan/domain/ports/scan-pipeline.port';
 import { DexterController } from './telegram/api/http/dexter.controller';
 import { DexterWebhookController } from './telegram/api/http/webhook.controller';
 import { UpdatePollerService } from './telegram/application/poller/update-poller.service';
+import { DualSendParityService } from './telegram/application/services/dual-send-parity.service';
+import { MigrateBotsToGatewayUseCase } from './telegram/application/use-cases/migrate-bots-to-gateway.use-case';
+import { GatewayHmacSigner } from './telegram/infrastructure/gateway/gateway-hmac-signer.service';
+import { GatewayBotMappingService } from './telegram/infrastructure/gateway/gateway-bot-mapping.service';
+import { GatewaySendClient } from './telegram/infrastructure/gateway/gateway-send-client.service';
+import { BotsGatewaySenderPort } from './telegram/domain/ports/bots-gateway-sender.port';
+import { GatewayMigrationController } from './telegram/api/http/gateway-migration.controller';
+import { DexterIngressController } from './telegram/api/http/ingress.controller';
 import {
   InMemoryChatGroupRepository,
   InMemoryChatSettingsRepository,
@@ -63,13 +71,37 @@ export { SCAN_PIPELINE };
  * Per-user rate limit enforced in the router (all paths) and again at
  * the webhook edge. Lookup-only: no channel publishing, no
  * scoring/tracking imports anywhere in this module.
+ *
+ * Gateway migration (telegram-bots-gateway todo 6): `sendMessage` runs
+ * `DEXTER_SEND_MODE` (`direct` legacy | `dual` both legs + parity |
+ * `gateway` vault-id only). `GatewaySendClient` (behind
+ * `BotsGatewaySenderPort`) carries the gateway leg with vault ids only;
+ * `MigrateBotsToGatewayUseCase` (+ `POST
+ * /api/dexter-bots/migrate-to-gateway`) registers the env token once;
+ * `DexterIngressController` (`POST /dexter/ingress`) accepts the
+ * gateway router fan-out into the same command router. Mode stays
+ * `dual` — no cutover in this todo.
  */
 @Module({
   imports: [HttpModule],
-  controllers: [DexterController, DexterWebhookController],
+  controllers: [
+    DexterController,
+    DexterWebhookController,
+    GatewayMigrationController,
+    DexterIngressController,
+  ],
   providers: [
     DexterBotConfigService,
     TelegramBotClient,
+    GatewayHmacSigner,
+    GatewayBotMappingService,
+    GatewaySendClient,
+    {
+      provide: BotsGatewaySenderPort,
+      useExisting: GatewaySendClient,
+    },
+    DualSendParityService,
+    MigrateBotsToGatewayUseCase,
     TradeButtonRegistry,
     InlineKeyboardBuilder,
     MessageFormatterAdapter,
@@ -190,6 +222,8 @@ export { SCAN_PIPELINE };
   exports: [
     DexterBotConfigService,
     TelegramBotClient,
+    BotsGatewaySenderPort,
+    DualSendParityService,
     TradeButtonRegistry,
     InlineKeyboardBuilder,
     MessageFormatterAdapter,

@@ -1,8 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
+import { randomUUID } from 'node:crypto';
 import { DexterBotConfigService } from '../../../settings/infrastructure/config/bot.config';
+import { GatewaySendClient } from '../gateway/gateway-send-client.service';
+import { GatewayBotMappingService } from '../gateway/gateway-bot-mapping.service';
+import { DualSendParityService } from '../../application/services/dual-send-parity.service';
 import type {
   SendMessageOptions,
   TelegramResponse,
@@ -29,16 +33,30 @@ export type {
  *
  * Lookup-only: sendMessage/editMessageText/answerCallbackQuery answer
  * user lookups; this client NEVER posts to channels.
+ *
+ * @deprecated Dual-leg only (telegram-bots-gateway todo 6): `sendMessage`
+ * routes through `DEXTER_SEND_MODE` (`direct` legacy | `dual` both legs +
+ * parity, returns direct | `gateway` vault-id only, fail-closed). The
+ * gateway leg resolves the token server-side from the vault id — the
+ * client never sends `DEXTER_BOT_TOKEN` there. `editMessageText`,
+ * `answerCallbackQuery`, `getUpdates`, `setWebhook` have no gateway
+ * equivalent and stay direct-only (recorded as skipped). Removed at
+ * gateway todo 7.
  */
 @Injectable()
 export class TelegramBotClient {
   private readonly logger = new Logger(TelegramBotClient.name);
   private static readonly API_BASE = 'https://api.telegram.org/bot';
+  private static readonly LOCAL_ID = 'dexter';
+  private static readonly MAX_LENGTH = 4096;
 
   public constructor(
     private readonly configService: ConfigService,
     private readonly httpService: HttpService,
     private readonly botConfig: DexterBotConfigService,
+    @Optional() private readonly gateway?: GatewaySendClient,
+    @Optional() private readonly mapping?: GatewayBotMappingService,
+    @Optional() private readonly parity?: DualSendParityService,
   ) {}
 
   private get apiBase(): string {
@@ -47,6 +65,117 @@ export class TelegramBotClient {
   }
 
   public async sendMessage(
+    chatId: number | string,
+    text: string,
+    options: SendMessageOptions = {},
+  ): Promise<{ ok: boolean; messageId: number | null; error: string | null }> {
+    const mode = this.botConfig.get().sendMode ?? 'dual';
+    if (mode === 'gateway') {
+      return this.sendViaGatewayOnly(chatId, text, options);
+    }
+    const direct = await this.sendDirect(chatId, text, options);
+    if (mode === 'dual') {
+      await this.runGatewayLeg(chatId, text, options, direct);
+    }
+    return direct;
+  }
+
+  private resolveVaultId(): string {
+    const mapped =
+      this.mapping?.resolveGatewayId(TelegramBotClient.LOCAL_ID) ??
+      TelegramBotClient.LOCAL_ID;
+    if (mapped !== TelegramBotClient.LOCAL_ID) return mapped;
+    return this.botConfig.get().botVaultId ?? '';
+  }
+
+  private static chunkCount(text: string): number {
+    return Math.max(1, Math.ceil(text.length / TelegramBotClient.MAX_LENGTH));
+  }
+
+  private async runGatewayLeg(
+    chatId: number | string,
+    text: string,
+    options: SendMessageOptions,
+    direct: { ok: boolean; messageId: number | null; error: string | null },
+  ): Promise<void> {
+    if (!this.gateway || !this.parity) return;
+    const chat = String(chatId);
+    const vaultId = this.resolveVaultId();
+    if (!vaultId) {
+      this.parity.record({
+        botId: TelegramBotClient.LOCAL_ID,
+        chatId: chat,
+        shape: 'message',
+        direct,
+        gateway: { ok: false, messageId: null, error: 'no gateway vault id' },
+        chunks: TelegramBotClient.chunkCount(text),
+      });
+      return;
+    }
+    if (options.reply_markup) {
+      this.parity.recordSkipped({
+        botId: vaultId,
+        chatId: chat,
+        shape: 'keyboard',
+        chunks: TelegramBotClient.chunkCount(text),
+      });
+      return;
+    }
+    const gateway = await this.gateway.sendViaGateway({
+      botId: vaultId,
+      chatId: chat,
+      text,
+      parseMode: options.parse_mode,
+      clientMsgId: `dexter-${randomUUID()}`,
+    });
+    this.parity.record({
+      botId: vaultId,
+      chatId: chat,
+      shape: 'message',
+      direct,
+      gateway,
+      chunks: TelegramBotClient.chunkCount(text),
+    });
+  }
+
+  private async sendViaGatewayOnly(
+    chatId: number | string,
+    text: string,
+    options: SendMessageOptions,
+  ): Promise<{ ok: boolean; messageId: number | null; error: string | null }> {
+    if (!this.gateway) {
+      return {
+        ok: false,
+        messageId: null,
+        error: 'gateway client not wired',
+      };
+    }
+    if (options.reply_markup) {
+      return {
+        ok: false,
+        messageId: null,
+        error: 'gateway: reply_markup not supported (direct-only shape)',
+      };
+    }
+    const vaultId = this.resolveVaultId();
+    if (!vaultId) {
+      return {
+        ok: false,
+        messageId: null,
+        error:
+          'no gateway vault id — run POST /api/dexter-bots/migrate-to-gateway',
+      };
+    }
+    return this.gateway.sendViaGateway({
+      botId: vaultId,
+      chatId: String(chatId),
+      text,
+      parseMode: options.parse_mode,
+      clientMsgId: `dexter-${randomUUID()}`,
+    });
+  }
+
+  private async sendDirect(
     chatId: number | string,
     text: string,
     options: SendMessageOptions = {},

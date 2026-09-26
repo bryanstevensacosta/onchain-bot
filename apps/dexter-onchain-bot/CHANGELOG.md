@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Lookup via telegram-bots-gateway (todo 6, dual-send, no cutover):**
+  `DEXTER_SEND_MODE` (`direct` deprecated | `dual` default | `gateway`
+  fail-closed) routing INSIDE `TelegramBotClient.sendMessage`, so all 9
+  handlers + the router call it unchanged (lookup/scan/commands
+  untouched otherwise). New `src/telegram/` code: vault-id-only port
+  (`domain/ports/bots-gateway-sender.port.ts`, token never crosses) +
+  `infrastructure/gateway/` (HMAC signer, vault-id mapping, 4096-chunk
+  send client over `fetch`, send-mode helper) + `DualSendParityService`
+  (outcome-only ledger, keyboard/edit/callback shapes recorded as
+  `skipped`, `assertNoDivergence()` 409 cutover gate — Nest
+  `ConflictException`, this app owns no `src/shared/kernel/`) +
+  `MigrateBotsToGatewayUseCase` with `POST
+/api/dexter-bots/migrate-to-gateway` (env token → vault, labels/ids
+  only) + `POST /dexter/ingress` (gateway router fan-out target,
+  `x-gateway-bot` + timing-safe secret, unsigned dev-only, errors
+  acked). Gateway leg resolves the token server-side from the vault id
+  (`DEXTER_BOT_VAULT_ID` or the migration mapping); direct client is
+  `@deprecated` (dual-leg only). Staging/prod templates pin
+  `DEXTER_SEND_MODE=gateway`.
+- **Tests (failing-first, +10 suites / +35 tests, 16/55 green):**
+  signer, mapping, send-client, send-mode, parity, migrate use-case,
+  migration controller, ingress controller, bot-client dual routing
+  (dual/direct/gateway, vault resolution, keyboard skip, divergence
+  gate), secret-scan (vault-ids-only, no `console.*`, no direct token
+  reads).
+- **Verified:** `jest` 55/55 green, `tsc --noEmit` clean, `nest build`
+  ok, gateway regression 15/66 green (zero gateway source edits), live
+  dual `/start` (direct 401 vs gateway 777 — environmental divergence,
+  gate closed) + live keyboard `/tb` skip + live gateway-mode `/help`
+  777 (token never resolved) + 0 token leaks. Mode stays `dual`.
+  Evidence `.omo/evidence/task-6-telegram-bots-gateway.log`.
+- **Known cutover blockers (gateway todo 7):** keyboard sends
+  (`reply_markup`), `editMessageText`, `answerCallbackQuery` need
+  gateway support (or stay dual); vault mapping is in-memory.
+
 ### Changed
 
 - **Dexter flat layout (follow-up of todo 13, no behavior change):**
