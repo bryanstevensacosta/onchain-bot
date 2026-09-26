@@ -4,6 +4,16 @@ import { firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
 import { ChainDexterBotConfigService } from '../../bot.config';
 
+/**
+ * @deprecated Bot API client moves to dexter-onchain-bot via the
+ * telegram-bots-gateway (todo 6): `sendMessage` routes through
+ * `DEXTER_SEND_MODE` (`GatewaySendClient` → `POST /api/bots/:id/send`);
+ * ingress moves to the gateway router (`POST /dexter/ingress` fan-out).
+ * Backend legacy copy (`sendMessage`/`editMessageText`/`answerCallbackQuery`/
+ * `getUpdates`/`setWebhook`/`getMe`, no send-side limiter, no 429 handling);
+ * removed at the global cutover (gateway todo 7). Do not extend.
+ */
+
 export interface TelegramChat {
   id: number;
   type: 'private' | 'group' | 'supergroup' | 'channel';

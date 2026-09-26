@@ -828,3 +828,8 @@ English per `RELEASE-FLOW.md` (P39). Stale knowledge base = failed todo.
   persists the vault mapping. Divergence → no cutover
   (`assertNoDivergence` CONFLICT). Backend legacy feed senders untouched
   (deprecate at todo 7).
+- Direct Telegram adapters deprecated: the `src/telegram/` Bot API
+  adapters (5 `@deprecated` headers: crypto/threads/base/HTTP-client +
+  module) run dual-leg only since the gateway migration (gateway todos
+  5-6) and are removed at cutover; new sends go via
+  `apps/telegram-bots-gateway` (see `GATEWAY MIGRATION` above).

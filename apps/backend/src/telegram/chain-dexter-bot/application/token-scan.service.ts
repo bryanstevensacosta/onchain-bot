@@ -1,5 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+/**
+ * NOTE (Tramo 3, todo 4, C-DATA-01, gap-7 integrated default): this bot stays
+ * INTEGRATED — standalone extraction is todo 9. Its scan path composes the
+ * DetectChain + Enrich use cases whose 13 providers are now canonically owned
+ * by market-data (`apps/market-data/src/provider/infrastructure/`,
+ * re-exported via backend `data-provider/` shims). HTTP cutover lands in
+ * todo 5 (G-17, staged `USE_DATA_SERVICE_API` rollout); until then local
+ * composition is the default. Covered by
+ * `market-data-consumers.spec.ts` (same dir).
+ */
 import { DetectChainUseCase } from 'chain/detection/application/handlers/detect-chain.use-case';
 import {
   EnrichTokenUseCase,
@@ -40,6 +50,14 @@ export interface TokenScanResult {
 }
 
 @Injectable()
+/**
+ * @deprecated Token holder moves to dexter-onchain-bot
+ * (`scan/` pipeline + `TelegramBotClient`) via the telegram-bots-gateway
+ * (todo 6): `CHAIN_DEXTER_BOT_TOKEN` registers into the gateway vault
+ * (`POST /api/dexter-bots/migrate-to-gateway`), answers send via
+ * `POST /api/bots/:id/send`. Backend legacy copy; removed at the global
+ * cutover (gateway todo 7). Do not extend.
+ */
 export class TokenScanService {
   private readonly logger = new Logger(TokenScanService.name);
   private readonly botToken: string;

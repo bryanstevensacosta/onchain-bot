@@ -288,6 +288,8 @@ export class LlmConfigController {
       dto.targetChannel !== undefined &&
       dto.targetChannel.trim().length > 0
     ) {
+      // @deprecated Channel verify (`getChat`) moves to the telegram-bots-gateway
+      // per-bot health (todo 7); this direct publisher call retires at cutover.
       const result = await this.publisher.getChat(dto.targetChannel);
       const enforce = process.env.NODE_ENV === 'production';
       if (!result.ok && (result.error === 'unreachable' || !enforce)) {

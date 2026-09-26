@@ -31,6 +31,7 @@ function toFormatterInput(token: ResolvedToken) {
   };
 }
 
+/** @deprecated Moved to dexter-onchain-bot (`commands/`) via the telegram-bots-gateway (todo 6); removed at cutover (gateway todo 7). Do not extend. */
 @Injectable()
 export class XTokenScanHandler implements CommandHandler {
   public readonly name = 'x';

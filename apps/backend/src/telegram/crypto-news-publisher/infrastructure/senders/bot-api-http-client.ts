@@ -10,6 +10,12 @@ import type { SendResult } from 'telegram/shared';
  * `https` module — no external HTTP client dependency needed.
  *
  * Composed manually by `BotApiCryptoNewsPublisherAdapter` (not @Injectable).
+ *
+ * @deprecated Transport moves to the telegram-bots-gateway (todo 5):
+ * feed-publisher `GatewaySendClient` → `POST /api/bots/:id/send`
+ * (gateway owns the Bot API transport + global quota + 429 backoff).
+ * Backend legacy copy; removed at the global cutover (gateway todo 7).
+ * Do not extend.
  */
 export class BotApiHttpClient {
   constructor(

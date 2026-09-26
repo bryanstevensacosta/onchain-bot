@@ -12,6 +12,12 @@ import {
 } from 'telegram/shared';
 
 /**
+ * @deprecated Ad dispatch moves to feed-publisher via the
+ * telegram-bots-gateway (todo 5): `TelegramScheduledAdDispatcher` →
+ * `GatewaySendClient` → `POST /api/bots/:id/send` (cutover blocker: button
+ * ads need gateway `reply_markup` support — gateway todo 7 — or stay dual).
+ * Backend legacy copy; removed at the global cutover. Do not extend.
+ *
  * Build the inline keyboard for an ad from its explicitly configured
  * `buttons` (opt-in per ad — body anchors are NOT auto-extracted into
  * buttons). Each `{ text, url }` pair becomes one URL button. Buttons are

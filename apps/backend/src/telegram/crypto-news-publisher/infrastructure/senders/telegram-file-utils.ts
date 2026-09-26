@@ -11,6 +11,11 @@ export interface FileReadResult {
  * statSync → isFile → readFileSync pattern used by sendPhoto/sendVideo.
  *
  * Returns { bytes, error? } — callers check `error` and propagate.
+ *
+ * @deprecated Send helpers move to feed-publisher
+ * (`telegram/infrastructure/bot-api/read-file.ts`) via the
+ * telegram-bots-gateway (todo 5); removed at the global cutover
+ * (gateway todo 7). Do not extend.
  */
 export function readFileWithValidation(
   filePath: string,

@@ -6,6 +6,14 @@ import {
 } from 'telegram/shared';
 import { formatUrlsAsMarkdown } from 'shared/common/utils/telegram-url-formatter';
 
+/**
+ * @deprecated Formatting moves to kol-system
+ * (`telegram/infrastructure/formatters/vip-message-formatter.ts`) with sends
+ * via the telegram-bots-gateway (todo 4: `GatewaySendClient` →
+ * `POST /api/bots/:id/send`). Backend legacy copy; removed at the global
+ * cutover (gateway todo 7). Do not extend.
+ */
+
 const CHAIN_EMOJI: Record<string, string> = {
   solana: '🟣',
   base: '🔵',

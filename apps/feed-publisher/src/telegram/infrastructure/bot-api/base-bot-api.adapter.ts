@@ -23,6 +23,11 @@ import { TelegramRateLimiter } from '../../application/services/telegram-rate-li
  * Shared Bot API send logic for the feed bots (moved read-only from
  * the backend `BotApiCryptoNewsPublisherAdapter`, Tramo 2 todo 7).
  *
+ * @deprecated Dual-leg only (telegram-bots-gateway todo 5): prefer the
+ * gateway path (`FEED_PUBLISH_MODE=gateway`, vault ids from
+ * `POST /api/content-template-bots/migrate-to-gateway`). Removed at the
+ * global cutover (gateway todo 7). Do not extend.
+ *
  * Subclasses differ ONLY in identity: token env name, default-channel
  * env name, and their own `TelegramRateLimiter` instance (per-bot
  * pacing). Tokens stay OPTIONAL at boot (dashboard-only mode): every

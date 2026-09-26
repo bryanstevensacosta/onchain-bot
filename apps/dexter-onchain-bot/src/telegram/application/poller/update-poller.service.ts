@@ -16,6 +16,11 @@ import {
  * `infrastructure/telegram/update-poller.service.ts` — config import
  * re-pointed at DexterBotConfigService, token-var names updated).
  *
+ * @deprecated Direct polling retires at the global cutover (gateway todo 7):
+ * prefer the gateway `UpdatePollerService` fallback + fan-out to
+ * `POST /dexter/ingress` (telegram-bots-gateway todo 3/6). Stays live for
+ * the dual leg (polling ingest mode) only. Do not extend.
+ *
  * Active only in polling ingest mode (dev default). Webhook mode leaves
  * the poller inactive; the webhook controller serves updates instead.
  */

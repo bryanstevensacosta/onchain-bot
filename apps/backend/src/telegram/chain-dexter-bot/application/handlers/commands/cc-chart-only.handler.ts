@@ -5,6 +5,7 @@ import { TokenScanPipeline } from '../token-scan.pipeline';
 
 const VALID_TIMEFRAMES = new Set(['1m', '5m', '15m', '1h', '4h', '1d', '1w']);
 
+/** @deprecated Moved to dexter-onchain-bot (`commands/`) via the telegram-bots-gateway (todo 6); removed at cutover (gateway todo 7). Do not extend. */
 @Injectable()
 export class CcChartOnlyHandler implements CommandHandler {
   public readonly name = 'cc';

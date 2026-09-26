@@ -1,7 +1,7 @@
 # apps/telegram-bots-gateway/ — NestJS Knowledge Base
 
-> Verified 2026-09-26 against code. v0.1.0 (source of truth: `package.json`; todos 1–3 built: setup + vault + resolver + send gateway + service auth + ingress router).
-> Plan: `.omo/plans/telegram-bots-gateway.md` (todos 1–2). Decisions P42 in `.omo/drafts/mega-refactor-tramos.md` §7.6.
+> Verified 2026-09-26 against code. v0.1.0 (source of truth: `package.json`; todos 1–6 built: setup + vault + resolver + send gateway + service auth + ingress router + kol/feed/dexter migration contracts; todo 8: legacy deprecation headers + inventory extension, analysis only).
+> Plan: `.omo/plans/telegram-bots-gateway.md` (todos 1–2 + BOT USAGE INVENTORY rows 1–40 + EXTENSION). Decisions P42 in `.omo/drafts/mega-refactor-tramos.md` §7.6.
 
 ## OVERVIEW
 
@@ -18,6 +18,23 @@ idempotency) + `AuthModule` (per-client keys, `send` vs `admin` scopes, HMAC tim
 
 - `IngressModule` (todo 3: single webhook ingress + update router with per-route secret,
   fan-out to subscribed apps, webhook-vs-polling exclusivity, dead-letter).
+- First migrated client (todo 4): kol-system publishes via this gateway
+  (`KOL_PUBLISH_MODE=direct|dual|gateway`, vault migration
+  `POST /api/vault/bots` with `admin` scope + HMAC). No gateway code
+  changed in todo 4 — see §FIRST CLIENT below.
+- Third migrated client (todo 6): dexter-onchain-bot answers lookups
+  via this gateway (`DEXTER_SEND_MODE=direct|dual|gateway`, env-token
+  vault migration, `POST /dexter/ingress` fan-out target). No gateway
+  code changed in todo 6 — see §DEXTER CLIENT below. (feed-publisher
+  migrated in todo 5 with zero gateway changes and no docs touch —
+  its contract lives in `apps/feed-publisher/AGENTS.md` §GATEWAY
+  MIGRATION.)
+- Legacy deprecation sweep (todo 8, analysis + headers only): every
+  remaining legacy direct-leg file carries an `@deprecated` JSDoc naming
+  its gateway destination + absorbing todo (4/5/6) + removal todo (7);
+  full 40-row inventory + per-file deprecation order + orphan check in
+  the plan §BOT USAGE INVENTORY + §EXTENSION. No logic moved, nothing
+  deleted (todo 7 deletes).
 
 ## COMMANDS
 
@@ -165,9 +182,33 @@ public). Keys/secrets/signatures never logged or echoed (pinned by guard spec + 
 matrix). TLS terminates at ingress — the gateway serves plain HTTP, never expose
 `:4071`/`:4072` directly. Rotation drills: `docs/auth-compromise-drill.md`.
 
-## INGRESS (todo 3)
+## FIRST CLIENT — kol-system migration (todo 4, no gateway code changes)
 
-`POST /api/ingress/:botId/updates` (public to Telegram, 201): the per-route
+kol-system (`apps/kol-system/src/telegram/`) is the first app migrated
+onto this gateway; all migration code lives THERE (read-only outside
+kol-system in todo 4, so nothing here moved):
+
+- Vault migration: kol-system `POST /api/telegram-bots/migrate-to-gateway`
+  decrypts each local `telegram_bots` entry and re-registers it HERE via
+  `POST /api/vault/bots` (`admin` scope, HMAC-signed) — the gateway
+  re-encrypts with its own `ENCRYPTION_KEY`; plaintext lives only inside
+  the TLS request body. The gateway mints fresh vault ids; kol-system keeps
+  the local→vault map (in-memory until todo 7 persists it).
+- Send path: kol-system `GatewaySendClient` → `POST /api/bots/:id/send`
+  (`send` scope, HMAC-signed, `client_msg_id` = kol publishing-job id).
+  Dual-send (`KOL_PUBLISH_MODE=dual`) runs the gateway leg beside the
+  legacy direct leg and compares outcomes; `gateway` mode is the cutover
+  (fail-closed, catalog token never resolved client-side).
+- Operator wiring: register the client in `BOTS_GATEWAY_CLIENTS`
+  (`{"kol-system":{"secret":"…","scopes":["send"]}}` for sends plus an
+  `admin`-scoped credential for the one-shot migration), DISTINCT secrets
+  per env. Canonical signing reminder for client implementers:
+  `METHOD\npath\ntimestamp\nnonce\nsha256(rawBody)` with the EXACT route
+  path (`/api/bots/:id/send`, `/api/vault/bots`) and the EXACT JSON bytes
+  (this server verifies `rawBody`, enabled by `rawBody: true` in `main.ts`).
+
+## INGRESS (todo 3)`POST /api/ingress/:botId/updates` (public to Telegram, 201): the per-route
+
 `x-telegram-bot-api-secret-token` is timing-safe compared (unknown bot / mismatch →
 401); polling-mode routes refuse delivery with 409 — webhook and getUpdates never
 run together per bot (single `mode` field in `SubscriptionRegistryService`, no second
@@ -184,6 +225,42 @@ routes also seed from `BOTS_GATEWAY_INGRESS` JSON. `UpdatePollerService` is the
 getUpdates fallback (polling mode only, offset cursor, vault token lookup); starting
 it under webhook mode throws CONFLICT. In-memory registry + fan-out are exact
 single-process; shared stores land with multi-replica deploy (todo 7).
+
+## DEXTER CLIENT — dexter-onchain-bot migration (todo 6, no gateway code changes)
+
+dexter-onchain-bot (`apps/dexter-onchain-bot/src/telegram/`) is the
+third app migrated onto this gateway; all migration code lives THERE
+(read-only outside dexter in todo 6, so nothing here moved):
+
+- Vault migration: dexter `POST /api/dexter-bots/migrate-to-gateway`
+  registers its `DEXTER_BOT_TOKEN` env token HERE via
+  `POST /api/vault/bots` (`admin` scope, HMAC-signed,
+  `ownerApp: 'dexter-onchain-bot'`) — the gateway re-encrypts with its
+  own `ENCRYPTION_KEY`; plaintext lives only inside the TLS request
+  body. The gateway mints the vault id; dexter keeps the local
+  `dexter`→vault map (in-memory until todo 7 persists it) or pins
+  `DEXTER_BOT_VAULT_ID` by hand.
+- Send path: dexter `GatewaySendClient` → `POST /api/bots/:id/send`
+  (`send` scope, HMAC-signed, `client_msg_id` per lookup) with routing
+  INSIDE its `TelegramBotClient.sendMessage`
+  (`DEXTER_SEND_MODE=direct|dual|gateway`, default `dual`). Plain-text
+  lookup answers run both legs with outcome parity; keyboard sends
+  (`reply_markup`), `editMessageText`, and `answerCallbackQuery` have
+  NO gateway equivalent (`SendDto` carries no `reply_markup`) and stay
+  direct-only (recorded as skipped, never diverged — gateway todo 7
+  must cover them for cutover).
+- Ingress path: dexter `POST /dexter/ingress` is the subscriber target
+  for `UpdateFanoutService` (raw update byte-identical with
+  `x-gateway-bot` + shared `x-gateway-secret`); direct webhook/poller
+  stay live for the dual leg.
+- Operator wiring: register the client in `BOTS_GATEWAY_CLIENTS`
+  (`{"dexter-onchain-bot":{"secret":"…","scopes":["send"]}}` for sends
+  plus an `admin`-scoped credential for the one-shot migration),
+  DISTINCT secrets per env. Staging/prod dexter templates pin
+  `DEXTER_SEND_MODE=gateway`.
+- Evidence: `.omo/evidence/task-6-telegram-bots-gateway.log` — live
+  dual `/start` (direct 401 vs gateway 777, environmental), keyboard
+  `/tb` skip, gateway-mode `/help` 777 with the token never resolved.
 
 ## ENV INVENTORY (`.env.example` — verified)
 

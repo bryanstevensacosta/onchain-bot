@@ -129,3 +129,7 @@ sha256(rawBody)`, keyless dev fails open) with per-chunk
   as the deprecated dual leg. Gateway-incompatible shapes (local-file
   media, video, button ads) skip the gateway leg without diverging.
   9 suites / 30 tests (159/513 total green).
+- **Direct Telegram adapters deprecated (dual-leg only):** the
+  `src/telegram/` Bot API adapters are deprecated since the gateway
+  migration (gateway todos 5-6) and run dual-leg only; removal at
+  cutover — new sends go via `apps/telegram-bots-gateway`.

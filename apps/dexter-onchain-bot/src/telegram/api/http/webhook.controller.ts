@@ -19,6 +19,12 @@ import type { TelegramUpdate } from '../../domain/ports/telegram.port';
  * Webhook controller (moved from backend chain-dexter-bot
  * `infrastructure/telegram/webhook.controller.ts`).
  *
+ * @deprecated Direct ingress retires at the global cutover (gateway todo 7):
+ * prefer the gateway fan-out target `POST /dexter/ingress`
+ * (`apps/dexter-onchain-bot/src/telegram/api/http/ingress.controller.ts`,
+ * telegram-bots-gateway todo 3/6). Stays live for the dual leg only.
+ * Do not extend.
+ *
  * Lookup-only ingress: per-chat drop-guard (inherited) PLUS per-user
  * sliding-window rate limit (P13). Over-budget updates are acked without
  * dispatch — never published anywhere.

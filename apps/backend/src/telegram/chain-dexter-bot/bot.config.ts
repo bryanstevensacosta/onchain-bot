@@ -1,6 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+/**
+ * @deprecated Settings move to dexter-onchain-bot
+ * (`settings/infrastructure/config/bot.config.ts`, `DEXTER_BOT_TOKEN` →
+ * vault via `POST /api/dexter-bots/migrate-to-gateway`) with sends/ingress
+ * via the telegram-bots-gateway (todo 6). Backend legacy copy; removed at
+ * the global cutover (gateway todo 7). Do not extend.
+ */
+
 export type ChainDexterIngestMode = 'webhook' | 'polling';
 export type ChainDexterPriceMode = 'sim' | 'adv';
 export type ChainDexterButtonPosition = 'top' | 'bot';

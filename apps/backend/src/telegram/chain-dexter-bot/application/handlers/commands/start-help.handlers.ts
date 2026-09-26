@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { CommandHandler, CommandContext } from '../command-handler';
 import { TelegramBotClient } from '../../../infrastructure/telegram/bot-client';
 
+/** @deprecated Moved to dexter-onchain-bot (`commands/`) via the telegram-bots-gateway (todo 6); removed at cutover (gateway todo 7). Do not extend. */
 @Injectable()
 export class StartCommandHandler implements CommandHandler {
   public readonly name = 'start';
@@ -26,6 +27,7 @@ Más comandos próximamente. Tip: en móvil, baja el tamaño de fuente para mejo
   }
 }
 
+/** @deprecated Moved to dexter-onchain-bot (`commands/`) via the telegram-bots-gateway (todo 6); removed at cutover (gateway todo 7). Do not extend. */
 @Injectable()
 export class HelpCommandHandler implements CommandHandler {
   public readonly name = 'help';

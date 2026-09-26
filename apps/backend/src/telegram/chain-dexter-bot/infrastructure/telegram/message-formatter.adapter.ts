@@ -15,6 +15,7 @@ export interface FormattedTokenMessage {
  * Output respects Telegram's 4096 char message limit. Truncation breaks at a safe
  * position (newline or space) and appends a truncation marker.
  */
+/** @deprecated Moved to dexter-onchain-bot (`scan/infrastructure/formatter/message-formatter.ts`) via the telegram-bots-gateway (todo 6); removed at cutover (gateway todo 7). Do not extend. */
 @Injectable()
 export class MessageFormatterAdapter {
   private static readonly MAX_LENGTH = 4096;

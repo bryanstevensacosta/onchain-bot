@@ -15,6 +15,14 @@ const REFRESH_CALLBACK_PREFIX = 'refresh:';
 const TB_TOGGLE_CALLBACK_PREFIX = 'tb:toggle:';
 
 @Injectable()
+/**
+ * @deprecated Keyboards move to dexter-onchain-bot
+ * (`telegram/infrastructure/keyboard/inline-keyboard.builder.ts`) via the
+ * telegram-bots-gateway (todo 6). Cutover blocker: keyboard sends
+ * (`reply_markup`) + `editMessageText` + `answerCallbackQuery` have NO
+ * `SendDto` equivalent — gateway todo 7 must cover them before cutover.
+ * Backend legacy copy; removed at the global cutover. Do not extend.
+ */
 export class InlineKeyboardBuilder {
   private static readonly MAX_ROWS = 8;
 

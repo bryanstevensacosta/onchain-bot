@@ -32,6 +32,13 @@ interface AppConfigShape {
 /**
  * Bot API publisher adapter for the crypto-news flow.
  *
+ * @deprecated Sends move to feed-publisher via the telegram-bots-gateway
+ * (todo 5): `TelegramQueuedArticleDispatcher` → `GatewaySendClient` →
+ * `POST /api/bots/:id/send` (vault id only, global per-bot quota +
+ * centralized 429 backoff). This backend legacy direct-leg copy
+ * (`CRYPTO_NEWS_BOT_TOKEN`, throttle+slot upstream, no 429 handling) stays
+ * live until the global cutover (gateway todo 7) deletes it. Do not extend.
+ *
  * Implements `TelegramPublisherPort` against the configured
  * `app.publishing.cryptoNews.{botToken, outputChannel}` (distinct from
  * vip-calls — separate token + channel). Two methods:

@@ -42,6 +42,7 @@ export interface TradeButton {
  * NOTE: URLs are chain-dexter-branded. Affiliate tags use "chaindexter" as a placeholder
  * — replace with real affiliate tag via env var when available.
  */
+/** @deprecated Moved to dexter-onchain-bot (`telegram/infrastructure/keyboard/trade-button-registry.ts`) via the telegram-bots-gateway (todo 6); removed at cutover (gateway todo 7). Do not extend. */
 @Injectable()
 export class TradeButtonRegistry {
   private readonly buttons: ReadonlyMap<TradeButtonCode, TradeButton>;

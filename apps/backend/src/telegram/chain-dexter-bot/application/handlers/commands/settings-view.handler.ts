@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { CommandContext, CommandHandler } from '../command-handler';
 import { TelegramBotClient } from '../../../infrastructure/telegram/bot-client';
 
+/** @deprecated Moved to dexter-onchain-bot (`commands/`) via the telegram-bots-gateway (todo 6); removed at cutover (gateway todo 7). Do not extend. */
 @Injectable()
 export class SettingsViewHandler implements CommandHandler {
   public readonly name = 'settings';

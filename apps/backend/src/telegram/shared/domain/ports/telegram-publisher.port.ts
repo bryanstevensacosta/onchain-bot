@@ -1,6 +1,13 @@
 /**
  * Outbound port: send a Telegram message — text or photo.
  *
+ * @deprecated Send path moves to the telegram-bots-gateway (todos 4/5/6):
+ * `POST /api/bots/:id/send` behind per-app `*GatewaySenderPort`
+ * (`GatewaySendClient`) with global per-bot quota + centralized 429 backoff
+ * (gateway todo 2). Backend legacy port; removed at the global cutover
+ * (gateway todo 7). Do not extend.
+ *
+ *
  * Implemented by BotApiTelegramPublisherAdapter (vip-calls and
  * crypto-news variants), MockTelegramPublisherAdapter, etc.
  *

@@ -19,6 +19,14 @@ interface TelegramUpdate {
 }
 
 @Injectable()
+/**
+ * @deprecated Lookup answers move to dexter-onchain-bot via the
+ * telegram-bots-gateway (todo 6): `TelegramBotClient.sendMessage` routes
+ * through `DEXTER_SEND_MODE` (`GatewaySendClient` → `POST /api/bots/:id/send`).
+ * Backend legacy direct-leg copy (`CHAIN_DEXTER_BOT_TOKEN`, no send-side
+ * limiter, no 429 handling); removed at the global cutover (gateway todo 7).
+ * Do not extend.
+ */
 export class ChainDexterBotAdapter {
   private readonly logger = new Logger(ChainDexterBotAdapter.name);
   private static readonly API_BASE = 'https://api.telegram.org/bot';

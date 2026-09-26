@@ -6,6 +6,12 @@ import { MessageFormatterPort, TelegramPublisherPort } from 'telegram/shared';
 import { VipCallsMessageFormatterAdapter } from '../../../vip-channel/infrastructure/formatters/vip-message-formatter.adapter';
 
 @Injectable()
+/**
+ * @deprecated Milestone posts move to kol-system via the telegram-bots-gateway
+ * (todo 4): same `publisher.sendMessage` shape through `POST /api/bots/:id/send`.
+ * Backend legacy copy; kept wired until the global cutover (gateway todo 7)
+ * deletes it. Do not extend.
+ */
 export class AchievementReachedHandler {
   private readonly logger = new Logger(AchievementReachedHandler.name);
 

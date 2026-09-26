@@ -18,6 +18,14 @@ interface RateLimiter {
   isAllowed(chatId: number): boolean;
 }
 
+/**
+ * @deprecated Ingress moves to the telegram-bots-gateway router (todo 3/6):
+ * `POST /api/ingress/:botId/updates` fans out to dexter
+ * `POST /dexter/ingress`. This backend legacy direct webhook (secret-token
+ * check + per-chat in-memory limiter) stays live until the global cutover
+ * (gateway todo 7) deletes it. Do not extend.
+ */
+
 class InMemoryRateLimiter implements RateLimiter {
   private readonly hits = new Map<
     number,

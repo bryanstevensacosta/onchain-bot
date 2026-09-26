@@ -6,6 +6,10 @@ import type { TelegramSendResult } from '../../domain/ports/telegram-publisher.p
  * Thin transport for the Telegram Bot API (moved read-only from the
  * backend `BotApiHttpClient`, Tramo 2 todo 7).
  *
+ * @deprecated Dual-leg only (telegram-bots-gateway todo 5): the gateway
+ * owns the Bot API transport (`POST /api/bots/:id/send`). Removed at the
+ * global cutover (gateway todo 7). Do not extend.
+ *
  * Token-agnostic on purpose: callers pass the FULL method URL (base +
  * token + method), so one singleton serves both the crypto and the
  * threads bot. JSON POST (`sendMessage`) + multipart POST (`sendPhoto`,

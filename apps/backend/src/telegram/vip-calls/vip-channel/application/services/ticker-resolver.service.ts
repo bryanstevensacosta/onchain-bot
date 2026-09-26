@@ -1,14 +1,14 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
-import { DexScreenerService } from 'data-provider/dexscreener/dexscreener.service';
-import { GeckoTerminalService } from 'data-provider/geckoterminal/geckoterminal.service';
-import { CoinGeckoService } from 'data-provider/coingecko/coingecko.service';
+import { DexScreenerService } from '../../../../../../../market-data/src/provider/infrastructure/dexscreener/dexscreener.service';
+import { GeckoTerminalService } from '../../../../../../../market-data/src/provider/infrastructure/geckoterminal/geckoterminal.service';
+import { CoinGeckoService } from '../../../../../../../market-data/src/provider/infrastructure/coingecko/coingecko.service';
 import {
   COINGECKO_CONFIG,
   type CoinGeckoConfig,
-} from 'data-provider/coingecko/coingecko.config';
-import { MoralisService } from 'data-provider/moralis/moralis.service';
-import { HeliusService } from 'data-provider/helius/helius.service';
+} from '../../../../../../../market-data/src/provider/infrastructure/coingecko/coingecko.config';
+import { MoralisService } from '../../../../../../../market-data/src/provider/infrastructure/moralis/moralis.service';
+import { HeliusService } from '../../../../../../../market-data/src/provider/infrastructure/helius/helius.service';
 
 /**
  * TickerResolverService implements a 9-level cascading fallback system
