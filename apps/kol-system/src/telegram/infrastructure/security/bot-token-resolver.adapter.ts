@@ -8,6 +8,12 @@ import { EncryptionService } from '../../../templates/infrastructure/security/en
  * Catalog token resolver (P23): decrypts the `telegram_bots` ciphertext
  * for `botId`. Unknown bot → UNAUTHORIZED (401, no post attempted);
  * tampered ciphertext → VALIDATION from `EncryptionService` (fail-closed).
+ *
+ * @deprecated Cut over to the telegram-bots-gateway (todo 4): the gateway
+ * vault owns tokens after `POST /api/telegram-bots/migrate-to-gateway`
+ * and the gateway path never resolves plaintext here. This resolver stays
+ * wired ONLY for the `dual` parity leg and is removed at the global
+ * cutover (gateway todo 7). Do not extend it.
  */
 @Injectable()
 export class BotTokenResolverAdapter extends BotTokenResolverPort {

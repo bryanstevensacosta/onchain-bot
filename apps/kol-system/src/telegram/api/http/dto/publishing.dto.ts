@@ -85,3 +85,12 @@ export class RecentQueryDto {
   @Max(500)
   public limit?: number;
 }
+
+export class AuditQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  public limit?: number;
+}

@@ -8,6 +8,13 @@ import {
 /**
  * Multi-bot Bot API publisher (first C-SHARED-01 move, Tramo 1 todo 11).
  *
+ * @deprecated Cut over to the telegram-bots-gateway (todo 4):
+ * `BotsGatewaySenderPort` (`GatewaySendClient` → `POST /api/bots/:id/send`)
+ * carries the same chunking with global per-bot quota + centralized 429
+ * backoff. This adapter stays wired ONLY for the `dual` parity leg
+ * (`KOL_PUBLISH_MODE=dual`) and is removed at the global cutover
+ * (gateway todo 7). Do not extend it.
+ *
  * MOVED from `apps/backend/src/telegram/vip-calls/shared/infrastructure/senders/bot-api-telegram-publisher.adapter.ts`
  * (read-only reference — backend untouched in this todo): same wire shape
  * (`sendMessage`/`sendPhoto`, Markdown, 4096-char chunks, 1024-char

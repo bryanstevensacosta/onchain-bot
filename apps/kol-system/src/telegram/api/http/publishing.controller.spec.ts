@@ -52,6 +52,7 @@ describe('PublishingController (todo 11, failing-first)', () => {
     const server = app.getHttpServer();
     const res = await request(server)
       .post('/api/publishing/publish')
+      .set('x-owner-id', 'default')
       .send({
         templateId: 'vip-calls',
         mentionId: 'solana:ABC:k1:1:0',
@@ -73,6 +74,7 @@ describe('PublishingController (todo 11, failing-first)', () => {
     const server = app.getHttpServer();
     await request(server)
       .post('/api/publishing/publish')
+      .set('x-owner-id', 'default')
       .send({
         templateId: 'vip-calls',
         mentionId: 'solana:ABC:k1:1:0',

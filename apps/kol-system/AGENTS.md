@@ -1,6 +1,6 @@
 # apps/kol-system/ — NestJS Knowledge Base
 
-> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4+5+6+7+8+9+10+11+12+15(harness)+22 built).
+> Verified 2026-09-26 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4+5+6+7+8+9+10+11+12+15(harness)+22+23(auth) built; gateway todo 4: publishing via telegram-bots-gateway with dual-send parity).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md` §7.6 (2026-09-24).
 > Cross-tramo contracts (C-DB-01, C-SSE-01, C-SHARED-01/C2, C-DATA-01, C-BOTS-01) pinned in
 > `.omo/plans/mega-refactor-central.md` v2026-09-24; threads stub C1 lives in
@@ -34,7 +34,9 @@ bouncer: `CallApproval` + `EvaluateApproval` + `GetPendingApprovals` +
 `ApprovalsController`, todo 11, Ph10) + `TelegramModule` (per-template
 KOL-bot publishing: `PublishingJob` + `PublishFromTemplate` +
 `ManualPublish` + `MultiBotPublisherAdapter` on the DB catalog, first
-C-SHARED-01 move, todo 11, Ph11 + C2) + `TrackingModule` (first-seen
+C-SHARED-01 move, todo 11, Ph11 + C2; auth todo 23, P50: `x-api-key` on
+every controller except health, `x-owner-id` binding ownership on
+publishing, rate-limit, token-free audit log) + `TrackingModule` (first-seen
 `TrackedMention` + kol +5x rating + `kol_window_stats` cron +
 `GET /api/kol-rankings`, todo 12, Ph12 + P8 + P11 + P17) wired into
 `AppModule`.
@@ -409,7 +411,7 @@ src/
 ├── templates/                    # BUILT (todo 10, Ph9 + P6/P9/P14/P16/P22/P23/P23-bis + C1) + WIRED into AppModule
 │   ├── templates.module.ts       # ScheduleModule.forRoot + ScoringModule (shared ScoredCallRepository); 3 controllers, 18 providers
 │   ├── domain/template-classification.config.ts  # P6 VO moved here from scoring/ (old path re-exports; specs green)
-│   ├── domain/entities/publishing-template.entity.ts (+ .spec.ts)  # kolSourceIds P16, threadConfig null (C1), botId + channelTarget nullable (P23), adminVerifiedAt (P23-bis)
+│   ├── domain/entities/publishing-template.entity.ts (+ .spec.ts)  # kolSourceIds P16, threadConfig null (C1), botId + channelTarget nullable (P23), adminVerifiedAt (P23-bis), ownerId (P50)
 │   ├── domain/entities/telegram-bot.entity.ts (+ .spec.ts)  # reusable catalog, ciphertext-only, toRedacted() → '***'
 │   ├── domain/events/template-events.ts  # templates.template.created|activated|sources-updated
 │   ├── domain/ports/template.repository.ts, telegram-bot.repository.ts, telegram-admin-verifier.port.ts, source-validator.port.ts
@@ -439,20 +441,32 @@ src/
 │   ├── api/http/approvals.controller.ts (+ .spec.ts)  # GET pending + POST request|evaluate + POST :id/approve|reject
 │   ├── api/http/dto/approval.dto.ts  # class-validator DTOs (limit has @Type(() => Number) for query strings)
 │   └── health/approval-health.indicator.ts  # check() → { component: 'approval', status } (unwired until composite health)
-├── telegram/                     # BUILT (todo 11, Ph11 + C2, first C-SHARED-01 move) + WIRED into AppModule
-│   ├── telegram.module.ts        # TemplatesModule (repos + EncryptionService) + ApprovalModule (rejected blocks); 3 use-case/adapter exports
+├── telegram/                     # BUILT (todo 11, Ph11 + C2, first C-SHARED-01 move; gateway routing todo 4) + WIRED into AppModule
+│   ├── telegram.module.ts        # TemplatesModule (repos + EncryptionService) + ApprovalModule (rejected blocks); direct adapters DEPRECATED (dual leg only), gateway client + migration wired
 │   ├── domain/entities/publishing-job.entity.ts (+ .spec.ts)  # ticker NON-NULL by construction (VALIDATION), reserved→published|failed
 │   ├── domain/events/publishing-events.ts  # publishing.telegram.published|failed (backend wire names kept)
-│   ├── domain/ports/telegram-publisher.port.ts  # sendMessage({ botToken per call, chatId, text }) — token-per-call divergence (P23)
-│   ├── domain/ports/bot-token-resolver.port.ts  # resolveBotToken(botId) → plaintext, unknown → UNAUTHORIZED
-│   ├── application/use-cases/publish-from-template.use-case.ts (+ .spec.ts)  # ticker-first guard + canPublish gate + dashboard-only degrade
-│   ├── application/use-cases/manual-publish.use-case.ts (+ .spec.ts)  # ops hatch, explicit bot + channel, same guards
+│   ├── domain/ports/telegram-publisher.port.ts  # sendMessage({ botToken per call, chatId, text }) — token-per-call divergence (P23); DEPRECATED, dual leg only
+│   ├── domain/ports/bot-token-resolver.port.ts  # resolveBotToken(botId) → plaintext, unknown → UNAUTHORIZED; DEPRECATED, dual leg only
+│   ├── domain/ports/bots-gateway-sender.port.ts  # sendViaGateway({ botId (vault id, never a token), chatId, text }) — gateway todo 4
+│   ├── application/use-cases/publish-from-template.use-case.ts (+ .spec.ts)  # ticker-first guard + canPublish gate + dashboard-only degrade + P50 ownership FIRST + audit + KOL_PUBLISH_MODE routing (direct|dual|gateway)
+│   ├── application/use-cases/manual-publish.use-case.ts (+ .spec.ts)  # ops hatch, explicit bot + channel, same guards + P50 ownership when templateId resolves + audit + gateway routing
+│   ├── application/use-cases/migrate-bots-to-gateway.use-case.ts (+ .spec.ts)  # vault→vault re-encrypt (decrypt local → POST gateway /api/vault/bots, admin HMAC) + local→vault id mapping
+│   ├── application/use-cases/publish-via-gateway.spec.ts  # mode matrix: gateway-only (no token resolution) + dual parity + divergence recorded
+│   ├── application/services/publish-audit-log.service.ts (+ .spec.ts)  # P50: who/what/where, no tokens (in-memory; TypeORM later)
+│   ├── application/services/publish-rate-limit.service.ts (+ .spec.ts)  # P50: fixed-window 30/min (PUBLISH_RATE_LIMIT_PER_MIN), 429 before any Telegram call
+│   ├── application/services/dual-send-parity.service.ts (+ .spec.ts)  # dual-send ledger (ok-agreement per send) + assertNoDivergence cutover gate
+│   ├── api/http/gateway-migration.controller.ts (+ .spec.ts)  # POST /api/telegram-bots/migrate-to-gateway (201, key-guarded, labels/ids only)
+│   ├── api/http/publishing-auth.spec.ts  # P50 matrix: 401/403/blocked/legit over HTTP
+│   ├── publish-secret-scan.spec.ts  # P50 gate: no console.*, no key literals, audit has no token fields; gateway path carries no botToken
 │   ├── application/ports/publishing-job.repository.ts
 │   ├── infrastructure/repositories/in-memory-publishing-job.repository.ts  # newest-first reads
 │   ├── infrastructure/formatters/vip-message-formatter.ts (+ .spec.ts)  # MOVED card (backend vip-channel read-only ref)
-│   ├── infrastructure/telegram/multi-bot-publisher.adapter.ts (+ .spec.ts)  # MOVED sender, per-call token, 1 msg/min per bot, fetch
-│   ├── infrastructure/security/bot-token-resolver.adapter.ts (+ .spec.ts)  # catalog + EncryptionService decrypt, fail-closed
-│   ├── api/http/publishing.controller.ts (+ .spec.ts)  # POST publish|manual + GET recent|failed (P14: no vip-calls route)
+│   ├── infrastructure/telegram/multi-bot-publisher.adapter.ts (+ .spec.ts)  # DEPRECATED sender, per-call token, 1 msg/min per bot, fetch (dual leg only)
+│   ├── infrastructure/security/bot-token-resolver.adapter.ts (+ .spec.ts)  # DEPRECATED catalog + EncryptionService decrypt, fail-closed (dual leg only)
+│   ├── infrastructure/gateway/gateway-hmac-signer.service.ts (+ .spec.ts)  # HMAC-SHA256 signer mirroring the gateway canonical string (METHOD, path, ts, nonce, sha256(rawBody))
+│   ├── infrastructure/gateway/gateway-send-client.service.ts (+ .spec.ts)  # gateway sender (message/photo, 4096/1024 chunk parity, client_msg_id idempotency, fail-closed)
+│   ├── infrastructure/gateway/gateway-bot-mapping.service.ts (+ .spec.ts)  # local catalog id → gateway vault id (in-memory; persisted at global cutover)
+│   ├── api/http/publishing.controller.ts (+ .spec.ts)  # POST publish|manual + GET recent|failed|audit (P14: no vip-calls route) + P50 guard/rate-limit/owner binding
 │   ├── api/http/dto/publishing.dto.ts  # class-validator DTOs
 │   └── health/telegram-health.indicator.ts  # check() → { component: 'publishing', status } (unwired until composite health)
 ├── tracking/                     # BUILT (todo 12, Ph12 + P8/P11/P17) + WIRED into AppModule
@@ -475,7 +489,8 @@ src/
 │   ├── config/database.config.ts (+ spec)
 │   ├── config/redis.config.ts (+ spec)
 │   ├── config/telegram.config.ts (+ spec)     # botToken '' by design — DB catalog (P23), no env fallback
-│   ├── guards/api-key.guard.ts (+ spec)       # fail-open when KOL_SYSTEM_API_KEY empty
+│   ├── guards/api-key.guard.ts (+ spec)       # P50: 401 on missing/wrong key, fail-open when KOL_SYSTEM_API_KEY empty; on ALL controllers except health
+│   ├── guards/owner-binding.ts (+ spec)       # P50: OWNER_ID_HEADER x-owner-id + assertBindingOwner (missing/foreign → FORBIDDEN 403)
 │   ├── filters/domain-exception.filter.ts (+ spec)
 │   └── shared.module.ts (+ spec)
 test/
@@ -820,6 +835,77 @@ reports component `publishing` (the composite-health contract names the
 pipeline stage — todo 15 asserts it) — provided + exported, unwired until
 composite health (gap 3).
 
+## PUBLISHING VIA GATEWAY (`telegram/`, gateway todo 4 — first migrated client)
+
+`KOL_PUBLISH_MODE` (`direct` | `dual` | `gateway`, default `dual`) routes
+both publish use-cases after the shared guards (ticker, gate, approval,
+ownership — unchanged): `direct` = legacy path; `dual` = direct leg +
+gateway leg, outcomes compared in `DualSendParityService`, the DIRECT leg
+returned; `gateway` = gateway leg only — the catalog token is never
+resolved (cutover). Gateway sends (`GatewaySendClient` →
+`POST /api/bots/:id/send`, `message`/`photo`, `parse_mode: Markdown`,
+same 4096/1024 chunking as the direct adapter, `client_msg_id` = job id
+for idempotency) are HMAC-signed (`GatewayHmacSigner`, canonical
+`METHOD\npath\nts\nnonce\nsha256(rawBody)` mirroring the gateway todo 2
+auth; keyless dev sends unsigned, the gateway guard fails open). Gateway
+401/403/upstream/transport failures are fail-closed
+`{ ok: false, error }` — never a throw for expected failures, never a
+token (only the vault `botId` travels; the gateway decrypts server-side).
+
+Vault migration: `POST /api/telegram-bots/migrate-to-gateway` (201,
+key-guarded, `MigrateBotsToGatewayUseCase`) decrypts each local
+`telegram_bots` entry and re-registers it into the gateway vault
+(`POST /api/vault/bots`, `admin` scope) — plaintext lives ONLY inside
+the TLS request body, never at rest outside a vault, never in logs
+(labels/ids only); tampered ciphertext fails per-bot without a gateway
+call; already-mapped bots are skipped. The local→vault id map lives in
+`GatewayBotMappingService` (in-memory; persisted at the global cutover,
+gateway todo 7). Parity = outcome agreement per send (`messageId`s are
+NOT compared — two legs are two Telegram messages by construction);
+`assertNoDivergence()` is the cutover gate (any divergence blocks
+cutover). Verify-on-assign (`getChatMember`) stays direct for now — the
+gateway exposes no member-check endpoint (candidate for gateway todo 7).
+
+Deprecation (gateway todo 7 removes): `MultiBotPublisherAdapter`,
+`BotTokenResolverAdapter` and the direct binding carry `@deprecated`
+headers — wired ONLY for the `dual` parity leg. Backend legacy mirrors
+(`apps/backend/src/telegram/vip-calls/...`, plan inventory rows 1-3) are
+out of scope here (untouched — read-only outside this app in todo 4).
+
+## AUTH — key + ownership + limits (`shared/guards` + `telegram/`, todo 23)
+
+P50 anti-exploit: `ApiKeyGuard` (`shared/guards/api-key.guard.ts`) sits on
+EVERY controller except `GET /api/health` (templates, telegram-bots,
+threads-stub, approvals, publishing, rankings). Keyless dev stays fail-open
+(empty `KOL_SYSTEM_API_KEY`); with a key set, missing/wrong keys throw 401
+(auth and ownership never share a status code). `SharedModule` is imported
+in `AppModule` so the guard resolves app-wide.
+
+Publishing additionally requires the template/session binding: templates
+carry `ownerId` (stamped at creation, seed default `'default'`,
+`PublishingTemplate.ownerId`); both POSTs read `x-owner-id`
+(`shared/guards/owner-binding.ts`, `OWNER_ID_HEADER`) and the use-cases
+enforce it FIRST via `assertBindingOwner` — missing binding or foreign
+owner → FORBIDDEN 403 + `denied` audit entry, zero Telegram calls.
+Direct (non-HTTP) use-case calls pass `requesterOwnerId: undefined` and
+skip the check (internal path). Unverified/unconfigured channels stay
+`published:false` dashboard-only + `blocked` audit entry (never a throw —
+the batch keeps flowing). `ManualPublishUseCase` enforces the same binding
+when its `templateId` resolves to a known template.
+
+`PublishRateLimitService` (fixed window, default 30/min, override via
+`PUBLISH_RATE_LIMIT_PER_MIN`) throws RATE_LIMITED 429 BEFORE any Telegram
+call, keyed per caller+scope. `PublishAuditLogService` records
+who/what/where (`actor`, `action` publish|manual|blocked|denied,
+`templateId`, `mentionId`, `channelTarget`, `reason`) — no tokens, keys or
+ciphertext by type construction; read via `GET /api/publishing/audit`
+(key-guarded). Both are in-memory today; Redis counters + TypeORM audit
+rows land with the persistence todo. Zero-secrets is pinned by the
+secret-scan gate (`src/telegram/publish-secret-scan.spec.ts`: no
+`console.*` in the publish path, no key literals, audit JSON has no
+token-shaped fields). Compromise procedure: `docs/auth-compromise-drill.md`
+(rotate key/bot/`ENCRYPTION_KEY`, re-verify channels, curl matrix).
+
 ## TRACKING — first-seen + rating + rankings API (`tracking/`, todo 12)
 
 `TrackedMention` aggregate (Ph12 + P8, id `kolId:chain:address` — the
@@ -889,7 +975,7 @@ directly). Repo upserts by mentionId = double-delivery guard (P1).
 `SnapshotHealthIndicator.check()` is the P21 hook point (provided +
 exported, unwired until composite health — gap 3).
 
-## ENV INVENTORY (`.env.example`, 35 lines — verified)
+## ENV INVENTORY (`.env.example`, 61 lines — verified)
 
 | Var                             | Value / default in example                                   | Notes                                                                                                                                                                                                                                          |
 | ------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -906,6 +992,11 @@ exported, unwired until composite health — gap 3).
 | `MARKET_DATA_URL`               | `http://localhost:4000`                                      | base URL of the market-data service (dev `:4000`, staging `:4001`, prod `:4002`; read ONLY when `USE_DATA_SERVICE_API=true`)                                                                                                                   |
 | `MARKET_DATA_TIMEOUT_MS`        | `2000`                                                       | per-request timeout of the HTTP leaf (measured SLO p95 0.96ms warm, todo 5)                                                                                                                                                                    |
 | `MARKET_DATA_API_KEY`           | (empty = keyless dev, fail-open)                             | inbound key of the market-data service, sent as `x-api-key`; copy from the owning market-data env on deploy, NEVER commit                                                                                                                      |
+| `PUBLISH_RATE_LIMIT_PER_MIN`    | `30`                                                         | P50 publish cap per caller+scope (429 over limit, pre-Telegram)                                                                                                                                                                                |
+| `BOTS_GATEWAY_URL`              | `http://localhost:4070`                                      | gateway base (dev `:4070`, staging `:4071`, prod `:4072`)                                                                                                                                                                                      |
+| `BOTS_GATEWAY_CLIENT_ID`        | (empty = keyless dev)                                        | gateway client id (api-key header); copy id from the owning gateway `BOTS_GATEWAY_CLIENTS` on deploy, NEVER commit                                                                                                                             |
+| `BOTS_GATEWAY_CLIENT_SECRET`    | (empty = unsigned dev)                                       | HMAC secret for request signatures; DISTINCT per env, NEVER commit                                                                                                                                                                             |
+| `KOL_PUBLISH_MODE`              | `dual`                                                       | `direct` (legacy, deprecated) \| `dual` (both legs + parity, returns direct) \| `gateway` (cutover, fail-closed); staging/prod templates pin `gateway`                                                                                         |
 
 Tier-1 validation (`validateKolSystemConfig`): `ENCRYPTION_KEY` +
 `DATABASE_URL` must be non-empty or boot throws `ConfigValidationError`.
@@ -1195,6 +1286,7 @@ sort=perf_desc|perf_asc|calls_desc`, wired (`TrackingModule` in
 - P27 (2026-09-24): snapshots in own module `src/snapshot/`, SAME kol-system DB (default, a veto).
 - P28 (2026-09-24): scoring configurable per template (`scoring_config`, defaults = v1; UI-editable).
 - P29 (2026-09-24): avatar resolution reuses ingestion-telegram's safety/rate-limit guard (no own limiter).
+- P50 (2026-09-25): auth anti-exploit in kol-system (todo 23) — key on every controller except health (401, fail-open keyless dev); publishing only on owned + admin-verified bindings (missing/foreign → 403 + audit, unverified → dashboard-only block); rate-limit 429 pre-Telegram; token-free audit log; secret-scan gate; compromise drill in `docs/auth-compromise-drill.md`.
 - C-DB-01 (2026-09-24): one-DB-per-app `<base>_<app>` same-server per env (12 DBs; central todo 2).
 - C-SSE-01 (2026-09-24): frames carry `data.messageType`; filtering is mandatory client-side (central todo 5).
 - C1 (2026-09-24): threads deferred — templates ship `threadConfig: null` + 501 stub; v2 with feed-publisher.
