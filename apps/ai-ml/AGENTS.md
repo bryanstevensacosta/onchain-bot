@@ -1,0 +1,227 @@
+# apps/ai-ml/ — NestJS Knowledge Base
+
+> Verified 2026-09-26 against code + `.omo/evidence/task-0-ai-ml.log`
+> (todo 0). v0.1.0 (source of truth: `package.json`; ai-ml plan
+> todos 0-1 in progress, todo 0 DONE). Decisions cited as Pxx come
+> from `.omo/drafts/mega-refactor-tramos.md` §7.6. Plan:
+> `.omo/plans/ai-ml.md` (5 todos: 0-4). Central contracts:
+> `.omo/plans/mega-refactor-central.md`.
+
+Contents: OVERVIEW · PROGRAM INDEX · PROGRAM STATUS · COMMANDS ·
+STRUCTURE · MODULES · ENV INVENTORY · PORTS · HEALTH · SECURITY ·
+TS/ESLINT CONVENTIONS · TESTS · GAPS · DECISIONS INDEX · DECISIONS ·
+STANDING RULE · NOTES
+
+## OVERVIEW
+
+NestJS 11 service owning everything AI/ML outside the monolith: a
+multi-provider LLM gateway (mock default, LiteLLM-style gateway,
+OpenAI direct) + the 3-flag mirror (llm + publishing owned here,
+matching arrives from the consumer) + scoped API keys with per-key
+rate limits + usage audit (sizes only, never content). Any app
+generates via ai-ml over HTTP or uses pre-written content — ai-ml
+never makes business decisions (templates, scoring, scheduling
+decide; ai-ml only generates). Todo 0 DONE (setup + gateway);
+todos 1-4 pending (prompts catalog, embeddings + playground,
+feed-publisher migration, cutover).
+
+Design pivots that govern every future todo:
+
+- **Single gateway (plan §Scope)** — one LLM gateway, one catalog,
+  one playground. N gateways is the failure mode being removed.
+- **3-flag mirror** — ai-ml owns `llmEnabled` + `publishingEnabled`
+  (`LlmConfig`); `matching` lives in the consumer and arrives as
+  input. LLM generation runs ONLY when llm AND publishing are on.
+- **C-DB-01 — own logical DB**: `onchain_bot_ai_ml[_staging]`
+  on the same server as the backend DB per env (compose ships the
+  volumes; TypeORM persistence lands with the prompts catalog).
+- **Tramo lessons (P30)** — x-api-key day one, `dist/main.js`,
+  app-level `npm run dev`, env templates staging+prod from setup,
+  AGENTS.md vivo.
+
+## PROGRAM INDEX
+
+| Todo | Status                                           | What                                                                                                                                                                                          |
+| ---- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | DONE (evidence `.omo/evidence/task-0-ai-ml.log`) | App setup + LLM gateway (ports 4090/91/92, health, compose dev+staging, envs, DB `onchain_bot_ai_ml[_staging]`, gateway mock/openai/LiteLLM + config + auth keys + rate-limit + audit; 14/46) |
+| 1    | TODO                                             | Global versioned prompt-templates catalog + migration from feed-publisher (dual-read)                                                                                                         |
+| 2    | TODO                                             | Centralized embeddings (dedup + search) + playground preview without side-effects                                                                                                             |
+| 3    | TODO                                             | feed-publisher as HTTP client (dual-run + parity + cutover + local llm deprecation)                                                                                                           |
+| 4    | TODO                                             | Cutover + cleanup + CI/deploy staging/prod                                                                                                                                                    |
+
+## PROGRAM STATUS
+
+Todo 0 DONE (verified 2026-09-26 against code + evidence log):
+
+- Wired modules: health (live `GET /api/health`, `@Public()`) +
+  shared (global audit) + auth (scoped keys + admin key management +
+  startup ENCRYPTION_KEY guard) + llm (gateway + config + flags +
+  models + usage).
+- Provider selection: `USE_MOCK_AI=true` (mock, zero cost) wins, then
+  gateway (`LLM_GATEWAY_BASE_URL` + key, `OPENAI_API_KEY` fallback),
+  then OpenAI direct; nothing configured → gateway bound but
+  unavailable, generations fail fast with a clear error.
+- Live boot `:4090` verified (health + models + generate + flags +
+  config PATCH + usage); keyless dev fail-open mirrors market-data.
+
+## COMMANDS
+
+```bash
+cd apps/ai-ml
+npm run dev            # watch, :4090 (AI_ML_PORT)
+npm run build          # nest build -> dist/main.js
+npm test               # jest, 14 suites / 46 tests
+npm run test:cov       # coverage (no thresholds enforced)
+npx tsc --noEmit -p tsconfig.json
+AI_ML_PORT=4090 node dist/main.js   # prod-shaped boot
+curl -s http://127.0.0.1:4090/api/health
+```
+
+Root aliases (`dev:ai-ml`, `test:ai-ml`, …) are NOT wired yet —
+read-only constraint outside `apps/ai-ml` (see GAPS).
+
+## STRUCTURE
+
+```
+src/
+  main.ts                 # bootstrap (:4090 dev, loopback-only default)
+  app.module.ts           # Config + Health + Shared + Auth + Llm, APP_GUARD
+  health/                 # GET /api/health -> { status: 'ok' } (@Public)
+  shared/                 # global audit + @Public + ApiKeyGuard + api-key util
+  auth/                   # scopes (read|generate|admin) + HMAC store +
+                          #   rate limiter + audit + admin controller + module
+  llm/                    # port + 3 adapters + config + flags + audit +
+                          #   3 use-cases + controller + module
+docker-compose.yml        # dev pg :5444 + redis :6391
+docker-compose.staging.yml# staging pg :5445 + redis :6392 + app :4091→:4090
+Dockerfile                # multi-stage, CMD dist/main.js, EXPOSE 4090
+.env.example / .env.staging.template / .env.production.template
+```
+
+## MODULES
+
+| Module | Routes (all under `/api`)                                    | Notes                                                            |
+| ------ | ------------------------------------------------------------ | ---------------------------------------------------------------- |
+| health | `GET /health`                                                | Public, Docker HEALTHCHECK target                                |
+| auth   | `POST /auth/keys`, `GET /auth/keys`, `DELETE /auth/keys/:id` | Admin scope; plaintext returned EXACTLY ONCE on create           |
+| llm    | `POST /llm/generate` (generate)                              | Single generation entry; fails fast when no provider             |
+| llm    | `GET /llm/models` (read)                                     | Gateway hits `{base}/v1/models` fail-open; mock/static otherwise |
+| llm    | `GET /llm/config` (read), `PATCH /llm/config` (admin)        | The two owned switches (llm + publishing)                        |
+| llm    | `GET /llm/flags?matching=` (read)                            | Resolved 3-flag view (`mode` + `llmActive`)                      |
+| llm    | `GET /llm/usage` (admin)                                     | Sizes + latency + status only — never prompt/output content      |
+
+## ENV INVENTORY
+
+See `.env.example` (authoritative). Key vars: `AI_ML_PORT` (4090),
+`AI_ML_HOST` (127.0.0.1), `AI_ML_API_KEY` (legacy env key,
+admin-equivalent), `ENCRYPTION_KEY` (REQUIRED staging/prod — boot
+throws without it; HMAC pepper), `DATABASE_URL`
+(`onchain_bot_ai_ml[_staging]`), `REDIS_URL`, `LLM_ENABLED` /
+`PUBLISHING_ENABLED`, `USE_MOCK_AI` (default true), `LLM_GATEWAY_*`,
+`OPENAI_API_KEY`, `LLM_MODEL` (gpt-4o-mini), `LLM_MAX_ATTEMPTS=3`.
+
+## PORTS
+
+| Env     | HTTP                             | Postgres  | Redis        |
+| ------- | -------------------------------- | --------- | ------------ |
+| dev     | `:4090`                          | `:5444`   | `:6391`      |
+| staging | host `:4091` → container `:4090` | `:5445`   | `:6392`      |
+| prod    | host `:4092` → container `:4090` | server DB | server redis |
+
+Triplet 4090/91/92 + 5444/45 + 6391/92 verified free repo-wide
+2026-09-26 (lsof + source grep zero hits; OPERATOR-CONFIRM host
+ports on Oracle with lsof before first deploy).
+
+## HEALTH
+
+- `GET /api/health` → `{ status: 'ok' }` (public).
+- Dockerfile HEALTHCHECK + staging compose probe via node (image has
+  no wget/curl — same pattern as market-data).
+
+## SECURITY
+
+- Inbound `x-api-key` enforced globally (APP_GUARD). Resolution:
+  `@Public()` → scoped store keys (HMAC-SHA256 peppered with
+  ENCRYPTION_KEY; timing-safe verify; scope check 403; per-key
+  sliding-window rate limit 429) → legacy `AI_ML_API_KEY` env key
+  (admin-equivalent) → fail-open ONLY when nothing is configured
+  (keyless dev). Otherwise 401.
+- Audit: every guard decision recorded (key id + method + path +
+  status). Key material, hashes, and query strings never enter logs.
+- Scopes: `admin > generate > read` (downward only).
+- `ENCRYPTION_KEY` missing → LOUD: `ApiKeyService` throws
+  `ENCRYPTION_KEY is required but empty (distinct per env)` on any
+  key operation; `AuthModule.onModuleInit` throws at boot on
+  staging/production (dev only warns — keyless fail-open).
+- Loopback-only bind by default (`AI_ML_HOST=127.0.0.1`).
+
+## TS/ESLINT CONVENTIONS
+
+- `singleQuote: true`, `trailingComma: all` (root `.prettierrc`).
+- Strict-ish (`tsconfig.base.json`): `strictNullChecks`,
+  `noImplicitAny`, `noFallthroughCasesInSwitch`,
+  `forceConsistentCasingInFileNames`, `isolatedModules`.
+- Path aliases: `shared/*`, `llm/*`, `auth/*`, `src/*` (no `@/*`).
+
+## TESTS
+
+Jest (`testRegex: .*.spec\.ts$`), co-located: **14 suites / 46
+tests** green. Coverage, no thresholds: domain 100%, guard 93%,
+adapters availability-only (no network in CI — gateway/openai
+`generateText` happy paths are covered by dual-run parity in
+todo 3). Failing-first: `app-wiring.spec.ts` was written before
+`AppModule` existed (module-not-found red), then green.
+
+## GAPS
+
+- G-1: TypeORM persistence unwired (in-memory `LlmConfig` + key
+  store + audits; tables land with todo 1 reusing the same shapes).
+- G-2: Root wiring untouched (read-only outside `apps/ai-ml`):
+  no `dev:ai-ml` / `test:ai-ml` / `build:ai-ml` root aliases, no
+  lint-staged entry, no pre-commit `tsc` coverage — wire when the
+  constraint lifts.
+- G-3: Gateway/openai `generateText` success paths need live creds
+  (covered by dual-run parity in todo 3, not unit tests).
+- G-4: Staging/prod deploy workflows do not exist yet (cutover todo 4).
+
+## DECISIONS INDEX
+
+| ID  | Decision                                                          |
+| --- | ----------------------------------------------------------------- |
+| D-1 | Ports 4090/91/92 + pg 5444/45 + redis 6391/92 (verified free)     |
+| D-2 | Scopes read\|generate\|admin (ai-ml-specific; generate = LLM use) |
+| D-3 | HMAC-peppered key hashes (ENCRYPTION_KEY); missing = loud error   |
+| D-4 | Provider order mock > gateway > openai; unconfigured = fail fast  |
+| D-5 | Usage audit stores sizes only, never content                      |
+| D-6 | No root-file edits (read-only constraint) — aliases pending (G-2) |
+
+## DECISIONS
+
+- **D-1** — 4090/91/92 triplet per plan (verificar): lsof free +
+  zero repo hits 2026-09-26; pg/redis picked adjacent-free 5444/45 +
+  6391/92 (5440/6387 taken by dexter/scheduling-posts).
+- **D-2** — `generate` scope (not `snapshot`): ai-ml authorizes LLM
+  use, not data snapshots; hierarchy admin > generate > read.
+- **D-3** — HMAC pepper (not plain SHA-256): stolen DB rows alone
+  do not verify without the env pepper; missing pepper fails loud
+  (adversarial requirement), never silent-keyless.
+- **D-4** — Mock default ON (`USE_MOCK_AI=true`): zero-cost dev/test;
+  prod template flips it off.
+- **D-5** — Audit sizes only: usage billing without prompt leakage.
+- **D-6** — Root `package.json` / `lint-staged.config.js` / Husky
+  untouched per task constraint; documented in G-2.
+
+## STANDING RULE
+
+ai-ml never decides — it only generates. Business logic
+(templates, scoring, scheduling) lives in the consumer; pre-written
+content always stays allowed (ai-ml is optional by design).
+
+## NOTES
+
+- Backend `shared/llm` + feed-publisher `src/llm` are the migration
+  SOURCES (inventory: `.omo/plans/ai-ml.md` §INVENTARIO) — ai-ml
+  replicates their shape, it does not import them.
+- Prompt catalog + embeddings + playground = todos 1-2 (this todo
+  ships the gateway they will hang off).
+- `.kiro/` untouched per task constraint.

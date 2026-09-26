@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolvePackageJsonExports": true,
+    "allowSyntheticDefaultImports": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "removeComments": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "paths": {
+      "shared/*": ["src/shared/*"],
+      "llm/*": ["src/llm/*"],
+      "auth/*": ["src/auth/*"],
+      "src/*": ["src/*"]
+    }
+  },
+  "exclude": ["src/**/*.spec.ts", "src/**/*.spec.ts.bak"]
+}
