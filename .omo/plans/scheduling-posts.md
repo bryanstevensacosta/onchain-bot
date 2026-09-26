@@ -76,7 +76,7 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
      Acceptance criteria: `curl :4080/api/health` 200 + suites verdes + tsc limpio
      QA scenarios: happy boot; failure puerto ocupado → fallback C-PORTS. Evidence .omo/evidence/task-1-scheduling-posts.log
      Commit: Y | feat(scheduling-posts): setup y core migrado
-- [ ] 2. Telegram vía gateway + tablas scheduled-posts
+- [x] 2. Telegram vía gateway + tablas scheduled-posts
      What to do / Must NOT do: publish via `telegram-bots-gateway` (HMAC, dual-send temporal + paridad); tablas `scheduled_posts` (one-shot + recurrente, on/off, target binding, estado). Tests paridad. Must NOT Bot API directo.
      Parallelization: Wave 2 | Blocked by: 1 | Blocks: 5
      References: .omo/plans/telegram-bots-gateway.md (patrón migración 4/5/6)

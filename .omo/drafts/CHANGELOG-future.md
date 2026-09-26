@@ -3,7 +3,7 @@
 > Borrador para cuando la rama `feat/mega-refactor-tramos` se mergee a `dev` (vía PR) y luego a `master` con releases por app (ver `RELEASE-FLOW.md`). NO commitear a `CHANGELOG.md` aún.
 > Generado 2026-09-25 desde 51 commits + AGENTS + diff (+46.103/−160, 328 ficheros).
 
-## kol-system — NEW APP `v0.1.0` (crear `apps/kol-system/CHANGELOG.md`)
+## kol-system — NEW APP `v0.1.0` (crear `apps/kol-calls/CHANGELOG.md`)
 
 ### Added
 
@@ -31,7 +31,7 @@
 
 ### Deprecated
 
-- `telegram/ingestion/kol/kol-ingestion.module.ts` → `apps/kol-system/src/ingestion/` (P18; vivo para dual-run, borrado en cutover).
+- `telegram/ingestion/kol/kol-ingestion.module.ts` → `apps/kol-calls/src/ingestion/` (P18; vivo para dual-run, borrado en cutover).
 
 ## frontend — `v1.3.0` (menor: templates + type-pin)
 
