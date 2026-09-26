@@ -67,7 +67,7 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
 - [x] 1. App setup + vault cifrado
      What to do / Must NOT do: `apps/telegram-bots-gateway/` (NestJS, :4070 dev/:4071 staging/:4072 prod a verificar con lsof, health, compose, Dockerfile CMD dist/main.js, `.env.*` + templates, DB `onchain_bot_bots[_staging]`); tabla `bot_vault` (id, label, token AES-256-GCM, owner_app, created/rotated_at) + CRUD interno + redact; `ENCRYPTION_KEY` por env; rotación sin redeploy. Tests + coverage. Must NOT lógica de envío aún.
      Parallelization: Wave 1 | Blocked by: central C-PORTS/C-DB/C-CI | Blocks: 2-8
-     References: apps/kol-system/src/templates/ (patrón telegram_bots a migrar); .omo/drafts/mega-refactor-tramos.md (P42)
+     References: apps/kol-calls/src/templates/ (patrón telegram_bots a migrar); .omo/drafts/mega-refactor-tramos.md (P42)
      Acceptance criteria: `curl -s localhost:4070/api/health | grep -q '"status":"ok"'` + round-trip cifrado verde
      QA scenarios: happy CRUD vault; failure sin ENCRYPTION_KEY → error claro, sin boot. Evidence .omo/evidence/task-1-telegram-bots-gateway.log
      Commit: Y | feat(telegram-bots-gateway): setup y vault cifrado
@@ -88,7 +88,7 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
 - [x] 4. Migración kol-system al gateway
      What to do / Must NOT do: `telegram_bots` → vault (migración datos cifrados de nuevo, NO copiar tokens en plano); adapters kol → clientes HTTP gateway; dual-send temporal (gateway + directo, comparar) + cutover + deprecación módulo telegram kol. Tests paridad.
      Parallelization: Wave 3 | Blocked by: 2, 3 | Blocks: 8
-     References: apps/kol-system/src/telegram/ (MultiBotPublisherAdapter, BotTokenResolverAdapter, publish use-cases, publishing.controller); apps/kol-system/src/templates/ (telegram_bots vault, HttpTelegramAdminVerifierAdapter getMe/getChatMember, assign-template-channel); backend legacy mirror backend/src/telegram/vip-calls/shared/.../bot-api-telegram-publisher.adapter.ts (deprecate at cutover — see inventory rows 1-3, 14-17)
+     References: apps/kol-calls/src/telegram/ (MultiBotPublisherAdapter, BotTokenResolverAdapter, publish use-cases, publishing.controller); apps/kol-calls/src/templates/ (telegram_bots vault, HttpTelegramAdminVerifierAdapter getMe/getChatMember, assign-template-channel); backend legacy mirror backend/src/telegram/vip-calls/shared/.../bot-api-telegram-publisher.adapter.ts (deprecate at cutover — see inventory rows 1-3, 14-17)
      Acceptance criteria: dual-send paridad 0 divergencias + cutover + módulo viejo deprecado
      QA scenarios: happy paridad; failure divergencia → no cutover. Evidence .omo/evidence/task-4-telegram-bots-gateway.log
      Commit: Y | feat(kol-system): publishing vía gateway
@@ -115,7 +115,7 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
 - [x] 8. Análisis migración bot + plan deprecación legacy
      What to do / Must NOT do: inventario exhaustivo de TODO lo bot-Telegram en el repo (adapters, pollers, webhooks, senders, formatters con botones, settings, tokens env/DB) con tabla archivo→app→destino gateway→todo 4/5/6 que lo absorbe; plan de deprecación legacy por archivo (JSDoc con nueva ruta, orden, borrado en cutover todo 7). Solo análisis+headers, sin mover lógica. Tests: suites verdes tras headers.
      Parallelization: Wave 3 | Blocked by: 3 | Blocks: 4, 5, 6
-     References: .omo/plans/telegram-bots-gateway.md (BOT USAGE INVENTORY existente); apps/backend/src/telegram/; apps/kol-system/src/telegram/; apps/feed-publisher/src/telegram/
+     References: .omo/plans/telegram-bots-gateway.md (BOT USAGE INVENTORY existente); apps/backend/src/telegram/; apps/kol-calls/src/telegram/; apps/feed-publisher/src/telegram/
      Acceptance criteria: tabla sin archivo bot sin destino + `grep -r "@deprecated" <áreas>` cubre todo el inventario
      QA scenarios: happy inventario completo; failure archivo sin destino → se añade destino, no se deja huérfano. Evidence .omo/evidence/task-8-telegram-bots-gateway.log
      Commit: Y | docs(telegram-bots-gateway): análisis migración + plan deprecación
@@ -165,7 +165,7 @@ Un commit por todo; migraciones con dual-send verificado; cutover con `!`.
 | `CHAIN_DEXTER_WEBHOOK_SECRET/URL/INGEST_MODE/POLLING_INTERVAL_MS`               | `app.config.ts:509-514` + `bot.config.ts:47-73`                                                                    | backend (dexter)                                                        |
 | `THREADS_BOT_TOKEN` / `THREADS_OUTPUT_CHANNEL`                                  | `feed-publisher/.../telegram.config.ts:31,33`                                                                      | feed-publisher (threads adapter — Telegram Bot API shape, separate bot) |
 | `TELEGRAM_BOT_TOKEN` (deprecated)                                               | `app.config.ts:383` fallback only, no sender reads it                                                              | none (dead default)                                                     |
-| DB vault `telegram_bots.encryptedToken` (AES-256-GCM, `ENCRYPTION_KEY` per env) | `apps/kol-system/src/templates/domain/entities/telegram-bot.entity.ts:21`                                          | kol-system (P23 — zero env token by design)                             |
+| DB vault `telegram_bots.encryptedToken` (AES-256-GCM, `ENCRYPTION_KEY` per env) | `apps/kol-calls/src/templates/domain/entities/telegram-bot.entity.ts:21`                                           | kol-system (P23 — zero env token by design)                             |
 | DB vault `template_bot_tokens` / template bots                                  | `apps/feed-publisher/src/template/domain/entities/template-bot.entity.ts:11` + `template-encryption.service.ts:19` | feed-publisher                                                          |
 | `TELEGRAM_RATE_LIMIT_PER_MINUTE` + `CRYPTO_NEWS                                 | THREADS_RATE_LIMIT_PER_MINUTE`                                                                                     | `feed-publisher/.../telegram.config.ts:26-40`                           | feed-publisher (per-bot limiters) |
 

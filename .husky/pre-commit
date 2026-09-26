@@ -15,7 +15,7 @@
 #    rides along and is NOT a candidate).
 #    RULE: committing ANY file under apps/<app>/ requires BOTH
 #    apps/<app>/AGENTS.md AND apps/<app>/CHANGELOG.md staged in the SAME commit,
-#    but ONLY for these scoped apps: apps/ingestion-telegram, apps/kol-system,
+#    but ONLY for these scoped apps: apps/ingestion-telegram, apps/kol-calls,
 #    apps/feed-publisher, apps/frontend.
 #    SCOPE NOTES: apps/backend is OUT of scope (never triggers). FUTURE app
 #    apps/market-data: skip silently, do NOT enforce (see gate_scope below).
@@ -55,12 +55,12 @@ npx --no -- tsc --noEmit --incremental false -p apps/backend/tsconfig.json && \
 node scripts/check-docs-staleness.mjs || true
 
 # 5) Knowledge-base gate (BLOCKING, scoped, runs LAST). See header §5 for RULE/exceptions.
-# Scoped apps ONLY: ingestion-telegram, kol-system, feed-publisher, frontend.
+# Scoped apps ONLY: ingestion-telegram, kol-calls, feed-publisher, frontend.
 # FUTURE: apps/market-data — skip silently, do NOT enforce (not in gate_scope).
 # NOTE: this block runs LAST — lint-staged, tsc, and docs-staleness above have
 # already passed when you see its output. Read RELEASE-FLOW.md changelog rules
 # before staging docs vs bypassing.
-gate_scope="ingestion-telegram kol-system feed-publisher frontend"
+gate_scope="ingestion-telegram kol-calls feed-publisher frontend"
 gate_staged=$(git diff --cached --name-only --diff-filter=ACMR || true)
 gate_failed=0
 if [ -n "$gate_staged" ]; then

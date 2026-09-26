@@ -103,7 +103,7 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
      QA scenarios: happy puertos libres; failure clash → documentar alternativa y pedir veto, NO auto-reasignar. Evidence .omo/evidence/task-3-mega-refactor-central.log
      Commit: Y | docs(central): sella C-PORTS-01 con verificación Oracle
 - [x] 4. Sellar C-CI-01: matriz CI/deploy 3 apps (G-03, G-19 base)
-     What to do / Must NOT do: Matriz por app (kol/content/market): `test:<app>` (Jest), `lint:<app>`, `tsc --noEmit`, `build:<app>`, imagen GHCR `:sha+:latest`, `deploy-<app>.yml` o matriz con path-filters (`apps/kol-system/**` etc.), migraciones en one-off container antes de `compose up -d`, healthcheck + rollback por app. Tramos solo referencian jobs. Must NOT acoplar deploys entre apps (cada app despliega sola).
+     What to do / Must NOT do: Matriz por app (kol/content/market): `test:<app>` (Jest), `lint:<app>`, `tsc --noEmit`, `build:<app>`, imagen GHCR `:sha+:latest`, `deploy-<app>.yml` o matriz con path-filters (`apps/kol-calls/**` etc.), migraciones en one-off container antes de `compose up -d`, healthcheck + rollback por app. Tramos solo referencian jobs. Must NOT acoplar deploys entre apps (cada app despliega sola).
      Parallelization: Wave 2 | Blocked by: 2, 3 | Blocks: gates 6-8 (precondition cutover)
      References: .github/workflows/ci.yml:80-107,236-267 (solo backend/frontend/ingestion hoy); .github/workflows/deploy.yml (patrón buildx+GHCR+one-off migrations+rollback)
      Acceptance criteria: matriz 3 apps × (test,lint,build,imagen,deploy,migrate,health) sin celdas vacías
@@ -158,27 +158,29 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
 
 Regla sync: `synchronize:false, migrationsRun:false` fuera de dev/test; owner `migration:run` por app con su propio `data-source.ts`. Mismo-servidor-por-env `<base>_<app>` (+`_staging` en staging, precedente `_ingestion`). Nombres `onchain_bot_*` SOLO para las 4 apps NUEVAS (decisión 2026-09-25): DBs pre-existentes de backend/ingestion quedan INTOCADAS hasta que ejecute el runbook de renombre (`.omo/runbooks/rename-onchain-bot-db.md`, fase 3). Tramo 1 usa 17-18 tablas efectivas (NO 22). Nota: `onchain_bot_bots[_staging]` del gateway (`.omo/plans/telegram-bots-gateway.md`) NO entra en estas 12 — se sella en su propio plan.
 
-| App                | Dev local (mismo servidor)   | Oracle prod (mismo servidor) | Staging (sufijo `_staging`)          | Owner migración                                              |
-| ------------------ | ---------------------------- | ---------------------------- | ------------------------------------ | ------------------------------------------------------------ |
-| kol-system         | `onchain_bot_kol_system`     | `onchain_bot_kol_system`     | `onchain_bot_kol_system_staging`     | kol-system `migration:run` (`data-source.ts` propio)         |
-| feed-publisher     | `onchain_bot_feed_publisher` | `onchain_bot_feed_publisher` | `onchain_bot_feed_publisher_staging` | feed-publisher `migration:run` (`data-source.ts` propio)     |
-| market-data        | `onchain_bot_market_data`    | `onchain_bot_market_data`    | `onchain_bot_market_data_staging`    | market-data `migration:run` (`data-source.ts` propio)        |
-| dexter-onchain-bot | `onchain_bot_dexter`         | `onchain_bot_dexter`         | `onchain_bot_dexter_staging`         | dexter-onchain-bot `migration:run` (`data-source.ts` propio) |
+| App                         | Dev local (mismo servidor)                                | Oracle prod (mismo servidor)                    | Staging (sufijo `_staging`)                             | Owner migración                                              |
+| --------------------------- | --------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------ |
+| kol-system (kol-calls, P51) | `onchain_bot_kol_system`                                  | `onchain_bot_kol_system`                        | `onchain_bot_kol_system_staging`                        | kol-system `migration:run` (`data-source.ts` propio)         |
+| kol-calls-publisher (P51)   | `onchain_bot_kol_system` (SAME DB initially, split later) | `onchain_bot_kol_system` (SAME DB inicialmente) | `onchain_bot_kol_system_staging` (SAME DB inicialmente) | kol-system (until split; own `data-source.ts` at split)      |
+| feed-publisher              | `onchain_bot_feed_publisher`                              | `onchain_bot_feed_publisher`                    | `onchain_bot_feed_publisher_staging`                    | feed-publisher `migration:run` (`data-source.ts` propio)     |
+| market-data                 | `onchain_bot_market_data`                                 | `onchain_bot_market_data`                       | `onchain_bot_market_data_staging`                       | market-data `migration:run` (`data-source.ts` propio)        |
+| dexter-onchain-bot          | `onchain_bot_dexter`                                      | `onchain_bot_dexter`                            | `onchain_bot_dexter_staging`                            | dexter-onchain-bot `migration:run` (`data-source.ts` propio) |
 
 ### C-PORTS-01 — tabla puertos×env (versión: 2026-09-26 + 5f463b88)
 
 Tripletas dev/staging/prod por app nueva; sin cambios sin veto (si clash: fallback proxy reverso, NO reasignar). Verificación local 2026-09-26: `lsof` sobre `:3040 :3050 :4000 :4060 :4070` vacío (nada escuchando en este host; rangos completos no chequeables aquí — ver paso operador Oracle).
 
-| App / servicio           | Dev  | Staging | Prod | Estado                                                          |
-| ------------------------ | ---- | ------- | ---- | --------------------------------------------------------------- |
-| kol-system               | 3050 | 3051    | 3052 | sellado (spec)                                                  |
-| feed-publisher (content) | 3040 | 3041    | 3042 | sellado (spec `11-refactor.md:1367-1369`)                       |
-| market-data              | 4000 | 4001    | 4002 | adoptado (spec traía solo `4000:4000`; tripleta por convención) |
-| dexter-onchain-bot       | 4060 | 4061    | 4062 | propuesto P13, verificado local vacío                           |
-| telegram-bots-gateway    | 4070 | 4071    | 4072 | propuesto (plan gateway), verificado local vacío                |
-| backend                  | 3030 | 3031    | 3030 | existente                                                       |
-| ingestion-telegram       | 3031 | 3033    | 3032 | existente (1:1 por env)                                         |
-| frontend                 | 5173 | 4173    | 80   | existente                                                       |
+| App / servicio              | Dev  | Staging | Prod | Estado                                                             |
+| --------------------------- | ---- | ------- | ---- | ------------------------------------------------------------------ |
+| kol-system (kol-calls, P51) | 3050 | 3051    | 3052 | sellado (spec); keeps ports + DB post-split                        |
+| kol-calls-publisher (P51)   | 3060 | 3061    | 3062 | NEW 2026-09-26 (P51 split; same logical DB initially, split later) |
+| feed-publisher (content)    | 3040 | 3041    | 3042 | sellado (spec `11-refactor.md:1367-1369`)                          |
+| market-data                 | 4000 | 4001    | 4002 | adoptado (spec traía solo `4000:4000`; tripleta por convención)    |
+| dexter-onchain-bot          | 4060 | 4061    | 4062 | propuesto P13, verificado local vacío                              |
+| telegram-bots-gateway       | 4070 | 4071    | 4072 | propuesto (plan gateway), verificado local vacío                   |
+| backend                     | 3030 | 3031    | 3030 | existente                                                          |
+| ingestion-telegram          | 3031 | 3033    | 3032 | existente (1:1 por env)                                            |
+| frontend                    | 5173 | 4173    | 80   | existente                                                          |
 
 Operador Oracle (paso manual pendiente, sin escrituras): `lsof -i :3040-3042,3050-3052,4000-4002,4060-4062,4070-4072` debe salir vacío; evidencia en `task-3` log.
 
@@ -188,7 +190,7 @@ Verificado contra disco 2026-09-26: `ci.yml` hoy solo cubre backend/frontend/ing
 
 | App                   | test                              | lint                  | tsc --noEmit | build                  | imagen GHCR      | deploy                                                                             | migrate                                    | health+rollback                  |
 | --------------------- | --------------------------------- | --------------------- | ------------ | ---------------------- | ---------------- | ---------------------------------------------------------------------------------- | ------------------------------------------ | -------------------------------- |
-| kol-system            | `test:kol-system` (Jest)          | `lint:kol-system`     | sí           | `build:kol-system`     | `:sha`+`:latest` | `deploy-kol-system.yml` o matriz con path-filter `apps/kol-system/**`              | one-off container antes de `compose up -d` | `/api/health` + rollback por app |
+| kol-system            | `test:kol-system` (Jest)          | `lint:kol-system`     | sí           | `build:kol-system`     | `:sha`+`:latest` | `deploy-kol-system.yml` o matriz con path-filter `apps/kol-calls/**`               | one-off container antes de `compose up -d` | `/api/health` + rollback por app |
 | feed-publisher        | `test:feed-publisher` (Jest)      | `lint:feed-publisher` | sí           | `build:feed-publisher` | `:sha`+`:latest` | `deploy-feed-publisher.yml` o matriz con path-filter `apps/feed-publisher/**`      | one-off container antes de `compose up -d` | `/api/health` + rollback por app |
 | market-data           | `test:market-data` (Jest)         | `lint:market-data`    | sí           | `build:market-data`    | `:sha`+`:latest` | `deploy-market-data.yml` o matriz con path-filter `apps/market-data/**`            | one-off container antes de `compose up -d` | `/api/health` + rollback por app |
 | dexter-onchain-bot    | `test:dexter` (Jest, 5 casos P13) | `lint:dexter`         | sí           | `build:dexter`         | `:sha`+`:latest` | con market-data (fase final T3) + path-filter `apps/dexter-onchain-bot/**`         | one-off container antes de `compose up -d` | `/api/health` + rollback por app |
