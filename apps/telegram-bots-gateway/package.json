@@ -77,6 +77,7 @@
       "^vault/(.*)$": "<rootDir>/src/vault/$1",
       "^bots/(.*)$": "<rootDir>/src/bots/$1",
       "^health/(.*)$": "<rootDir>/src/health/$1",
+      "^ingress/(.*)$": "<rootDir>/src/ingress/$1",
       "^src/(.*)$": "<rootDir>/src/$1"
     }
   }

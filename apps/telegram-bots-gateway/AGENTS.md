@@ -1,6 +1,6 @@
 # apps/telegram-bots-gateway/ — NestJS Knowledge Base
 
-> Verified 2026-09-25 against code. v0.1.0 (source of truth: `package.json`; todos 1–2 built: setup + vault + resolver + send gateway + service auth).
+> Verified 2026-09-26 against code. v0.1.0 (source of truth: `package.json`; todos 1–3 built: setup + vault + resolver + send gateway + service auth + ingress router).
 > Plan: `.omo/plans/telegram-bots-gateway.md` (todos 1–2). Decisions P42 in `.omo/drafts/mega-refactor-tramos.md` §7.6.
 
 ## OVERVIEW
@@ -15,7 +15,9 @@ redacted reads, rotation without redeploy, `admin` scope) + `BotsModule` (resolv
 handle, bot id, username, cached avatar; `send` scope) + `SendModule` (`POST /api/bots/:id/send`:
 message/photo/media-group, global per-bot quota 30/s + ~1/s per chat, centralized 429 backoff,
 idempotency) + `AuthModule` (per-client keys, `send` vs `admin` scopes, HMAC timestamp+nonce).
-Ingress router (todo 3) is NOT built — do not import it until its todo lands.
+
+- `IngressModule` (todo 3: single webhook ingress + update router with per-route secret,
+  fan-out to subscribed apps, webhook-vs-polling exclusivity, dead-letter).
 
 ## COMMANDS
 
@@ -74,6 +76,17 @@ src/
 │   ├── application/send-accounting.service.ts      # sent/quotaWaits/429/retried/failed per bot
 │   ├── infrastructure/bot-api-client.ts (+ .spec.ts)  # POST Bot API, 429 retry_after + bounded retries, fail-closed
 │   └── send.integration.spec.ts  # supertest matrix: happy send + 401s + replay + 403 + admin vault + stats
+├── ingress/                      # BUILT (todo 3, webhook ingress + router)
+│   ├── ingress.module.ts         # imports VaultModule (poller token lookup); INGRESS_FANOUT_OPTS from env
+│   ├── domain/ingress-route.ts                 # IngressRoute: botId + webhookSecret + mode (webhook|polling) + subscribers
+│   ├── application/subscription-registry.service.ts (+ .spec.ts)  # in-memory routes; BOTS_GATEWAY_INGRESS JSON seed
+│   ├── application/ingress-mode.service.ts     # webhook XOR polling per bot (single mode field, never both)
+│   ├── application/update-fanout.service.ts (+ .spec.ts)  # byte-identical POST per subscriber + HMAC + retry + dead-letter
+│   ├── application/dead-letter.store.ts        # in-memory dead letters (persisted in todo 7)
+│   ├── application/update-poller.service.ts    # getUpdates fallback (polling mode only, offset cursor)
+│   ├── api/http/ingress.controller.ts          # POST :botId/updates (public, per-route secret) + admin route/mode/dead-letter
+│   ├── api/http/dto/ingress.dto.ts             # UpsertRouteDto + SetModeDto + SubscriberDto
+│   └── ingress.integration.spec.ts  # supertest: fan-out 2 apps + 401 + 409 exclusivity + dead-letter
 ├── shared/
 │   ├── kernel/aggregate-root.ts, domain-error.ts
 │   ├── config/app.config.ts (+ .spec.ts)            # Tier-1: ENCRYPTION_KEY + DATABASE_URL required; port BOTS_GATEWAY_PORT ?? 4070; telegramApiBase + clockSkewSec (todo 2)
@@ -91,10 +104,7 @@ uploads/avatars/ (permanent cache, janitor-excluded — no janitor exists here)
 Wired today: `ConfigModule` (global, `.env.dev` > `.env`, Tier-1 via `buildAppConfig()`) +
 `HealthModule` (`GET /api/health`) + `VaultModule` (todo 1, `admin` scope since todo 2) +
 `BotsModule` (todo 1, resolver only, `send` scope since todo 2) + `AuthModule` (todo 2, global
-`APP_GUARD`) + `SendModule` (todo 2, send gateway).
-
-Planned (per spec, NOT built — do not import until its todo lands):
-ingress webhook + router (todo 3).
+`APP_GUARD`) + `SendModule` (todo 2, send gateway) + `IngressModule` (todo 3, ingress router).
 
 ## VAULT (todo 1)
 
@@ -155,18 +165,41 @@ public). Keys/secrets/signatures never logged or echoed (pinned by guard spec + 
 matrix). TLS terminates at ingress — the gateway serves plain HTTP, never expose
 `:4071`/`:4072` directly. Rotation drills: `docs/auth-compromise-drill.md`.
 
+## INGRESS (todo 3)
+
+`POST /api/ingress/:botId/updates` (public to Telegram, 201): the per-route
+`x-telegram-bot-api-secret-token` is timing-safe compared (unknown bot / mismatch →
+401); polling-mode routes refuse delivery with 409 — webhook and getUpdates never
+run together per bot (single `mode` field in `SubscriptionRegistryService`, no second
+flag to drift; `IngressModeService` + poller both assert the same invariant).
+`UpdateFanoutService` POSTs the raw update byte-identical to every subscribed app
+(kol-system, feed-publisher, dexter) with `x-gateway-bot` + optional per-subscriber
+`x-gateway-signature` HMAC — pass-through + auth, zero business logic. Down apps get
+bounded retries (`BOTS_GATEWAY_FANOUT_MAX_ATTEMPTS=4`, backoff
+`BOTS_GATEWAY_FANOUT_BACKOFF_MS=200,1000,5000`), then a `DeadLetterStore` record
+(operator replay + persistence land with todo 7). Route management (`PUT|GET
+:botId/subscriptions`, `DELETE :botId/subscriptions/:appId`, `POST :botId/mode`,
+`POST :botId/poller/start|stop`, `GET :botId/dead-letter`) requires `admin` scope;
+routes also seed from `BOTS_GATEWAY_INGRESS` JSON. `UpdatePollerService` is the
+getUpdates fallback (polling mode only, offset cursor, vault token lookup); starting
+it under webhook mode throws CONFLICT. In-memory registry + fan-out are exact
+single-process; shared stores land with multi-replica deploy (todo 7).
+
 ## ENV INVENTORY (`.env.example` — verified)
 
-| Var                           | Value / default in example                     | Notes                                                                                             |
-| ----------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `BOTS_GATEWAY_PORT`           | `4070`                                         | dev default; staging `4071`, prod `4072`                                                          |
-| `ENCRYPTION_KEY`              | (empty — `openssl rand -hex 32`, NEVER commit) | Tier-1 required, DISTINCT per env; empty → exit 1, no listen                                      |
-| `DATABASE_URL`                | `postgres://…@localhost:5432/onchain_bot_bots` | Tier-1 required; own logical DB                                                                   |
-| `DATABASE_SYNCHRONIZE`        | `true`                                         | dev only; `false` in staging/prod templates                                                       |
-| `AVATAR_DIR`                  | `uploads/avatars`                              | permanent cache, janitor-excluded                                                                 |
-| `BOTS_GATEWAY_CLIENTS`        | (empty = keyless dev)                          | JSON per-client keys+scopes (`{"id":{"secret":"…","scopes":["send"]}}`); DISTINCT secrets per env |
-| `BOTS_GATEWAY_CLOCK_SKEW_SEC` | `300`                                          | HMAC timestamp window (s); nonces live 2× this                                                    |
-| `TELEGRAM_API_BASE`           | `https://api.telegram.org`                     | override ONLY for local mock-Telegram live tests                                                  |
+| Var                                | Value / default in example                     | Notes                                                                                                              |
+| ---------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `BOTS_GATEWAY_PORT`                | `4070`                                         | dev default; staging `4071`, prod `4072`                                                                           |
+| `ENCRYPTION_KEY`                   | (empty — `openssl rand -hex 32`, NEVER commit) | Tier-1 required, DISTINCT per env; empty → exit 1, no listen                                                       |
+| `DATABASE_URL`                     | `postgres://…@localhost:5432/onchain_bot_bots` | Tier-1 required; own logical DB                                                                                    |
+| `DATABASE_SYNCHRONIZE`             | `true`                                         | dev only; `false` in staging/prod templates                                                                        |
+| `AVATAR_DIR`                       | `uploads/avatars`                              | permanent cache, janitor-excluded                                                                                  |
+| `BOTS_GATEWAY_CLIENTS`             | (empty = keyless dev)                          | JSON per-client keys+scopes (`{"id":{"secret":"…","scopes":["send"]}}`); DISTINCT secrets per env                  |
+| `BOTS_GATEWAY_CLOCK_SKEW_SEC`      | `300`                                          | HMAC timestamp window (s); nonces live 2× this                                                                     |
+| `TELEGRAM_API_BASE`                | `https://api.telegram.org`                     | override ONLY for local mock-Telegram live tests                                                                   |
+| `BOTS_GATEWAY_INGRESS`             | (empty = no routes)                            | JSON per-bot routes (`{"<botId>":{"webhookSecret":"…","mode":"webhook","subscribers":[{"appId":"…","url":"…"}]}}`) |
+| `BOTS_GATEWAY_FANOUT_MAX_ATTEMPTS` | `4`                                            | bounded fan-out retries per subscriber before dead-letter                                                          |
+| `BOTS_GATEWAY_FANOUT_BACKOFF_MS`   | `200,1000,5000`                                | retry backoff schedule (ms, comma-separated)                                                                       |
 
 Templates (tracked, placeholders, NO secrets): `.env.development`, `.env.staging.template`,
 `.env.production.template`. Real files (`.env.staging`, `.env.production`) gitignored, copied via
@@ -182,8 +215,8 @@ gateway `4070:4070`. No clash with backend (`:3030`), ingestion (`:3031/32/33`),
 
 ## HEALTH
 
-`GET /api/health` → 200 + `{ status: 'ok', components: { vault: 'up', resolver: 'up', send: 'up' } }`
-(public, no auth). Per-component indicators (ingress) register here in todo 3.
+`GET /api/health` → 200 + `{ status: 'ok', components: { vault: 'up', resolver: 'up', send: 'up', ingress: 'up' } }`
+(public, no auth).
 
 ## TS/ESLINT CONVENTIONS
 
@@ -191,7 +224,7 @@ gateway `4070:4070`. No clash with backend (`:3030`), ingestion (`:3031/32/33`),
   `noFallthroughCasesInSwitch`, `forceConsistentCasingInFileNames`, `isolatedModules` —
   mirroring `tsconfig.base.json` (`strict` NOT enabled globally). `nodenext` module/resolution.
 - Path aliases (`tsconfig.json` + jest `moduleNameMapper`): `shared/*`, `vault/*`, `bots/*`,
-  `health/*`, `src/*` rooted at `src/`. No `@/*` (frontend-only).
+  `health/*`, `ingress/*`, `src/*` rooted at `src/`. No `@/*` (frontend-only).
 - Prettier: `singleQuote: true`, `trailingComma: "all"` (root config).
 - NestJS: `deleteOutDir: true` in `nest-cli.json`; `process.noDeprecation = true` in `main.ts`.
 - `ConfigModule.envFilePath: ['.env.dev', '.env']` — `.env.dev` wins.
@@ -207,7 +240,9 @@ Co-located `*.spec.ts` (`testRegex: .*\.spec\.ts$`); no coverage thresholds. Fai
 6 suites written red (missing modules), then implemented green (19 tests) in todo 1;
 6 more suites red → green (35 tests) in todo 2 — 12 suites / 54 tests total, incl.
 `send.integration.spec.ts` (supertest HMAC matrix over HTTP) + 3-apps × 12 burst under
-quota + 429-backoff + idempotency. No MTProto in tests
+quota + 429-backoff + idempotency; 3 more suites red → green (12 tests) in todo 3 —
+15 suites / 66 tests total, incl. `ingress.integration.spec.ts` (fan-out to 2 apps,
+per-route-secret 401, webhook-vs-polling 409, app-down dead-letter). No MTProto in tests
 (sessions live ONLY in ingestion-telegram; duplicates cause `AUTH_KEY_DUPLICATED`) — the resolver
 spec injects a mocked `FETCH_FN`, never the real Bot API.
 
@@ -221,6 +256,10 @@ spec injects a mocked `FETCH_FN`, never the real Bot API.
 3. RESOLVED 2026-09-25 (todo 2) — `AuthModule` global `APP_GUARD`: vault CRUD requires
    `admin`, send/resolver/stats require `send`, health stays public; keyless dev still
    fail-open. Compromise drills in `docs/auth-compromise-drill.md`.
+4. Jest `--testTimeout=30s` (found 2026-09-26, todo 3): jest parses the timeout as a
+   number, so `30s` is NaN and the effective per-test timeout stays the 5 s default —
+   keep slow paths (fan-out retries) under 5 s in specs; the ingress integration spec
+   pins `BOTS_GATEWAY_FANOUT_BACKOFF_MS=5,5,5` for this reason.
 
 ## STANDING RULE
 

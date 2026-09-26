@@ -17,6 +17,7 @@
       "vault/*": ["src/vault/*"],
       "bots/*": ["src/bots/*"],
       "health/*": ["src/health/*"],
+      "ingress/*": ["src/ingress/*"],
       "src/*": ["src/*"]
     }
   },

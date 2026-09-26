@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { BotsModule } from './bots/bots.module';
 import { HealthModule } from './health/health.module';
+import { IngressModule } from './ingress/ingress.module';
 import { SendModule } from './send/send.module';
 import { buildAppConfig } from './shared/config/app.config';
 import { VaultModule } from './vault/vault.module';
@@ -28,6 +29,7 @@ import { VaultModule } from './vault/vault.module';
     BotsModule,
     AuthModule,
     SendModule,
+    IngressModule,
   ],
 })
 export class AppModule {}

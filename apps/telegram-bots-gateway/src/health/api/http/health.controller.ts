@@ -10,6 +10,7 @@ export class HealthController {
         vault: 'up',
         resolver: 'up',
         send: 'up',
+        ingress: 'up',
       },
     };
   }
