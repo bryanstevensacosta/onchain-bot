@@ -84,7 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Frontend-backed CRUD on `/api/content-templates`,
   `/api/content-template-bots`, and `/api/sessions`.
   16 suites / 31 tests.
-- **Cumulative:** full workspace suite at 143 suites / 460 tests green.
+- **Cumulative:** full workspace suite at 159 suites / 513 tests green.
 - **Rename `src/content-templates/` → `src/template/`:** directory-only
   rename (shorter import paths). Kept intentionally: `ContentTemplatesModule`,
   `PublishingContentTemplate`, file names, `/api/content-templates` and
@@ -102,3 +102,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   backend dual-serves old+new until cutover todo 11, when this app
   becomes the sole owner of `feed-publisher/*`, `feed-scheduling/*`,
   `feed-threads-publisher/*`, `feed-matching/*`, and `feed-filters/*`.
+- **Auth anti-exploit (todo 14, P50):** global API-key guard (401 on
+  missing/invalid key, only `GET /api/health` public) with global
+  domain-error mapping (403/429/404 survive the wire);
+  ownership-enforced `POST /api/sessions/:id/publish` (owned
+  session x target binding + admin-verified bot + verified channel,
+  every violation 403 with no existence leak); per-session publish
+  rate limiter (10/min default, 429, audited, never sent);
+  `GET /api/publish-audit` (routing facts only, never tokens);
+  secret-scan gate spec (bot tokens, private keys, provider keys);
+  and a compromise drill runbook (`docs/compromise-drill.md`).
+  The cron planner enforces the same ownership rules fail-safe.
+  7 suites / 23 tests.
+- **Publishing via telegram-bots-gateway (gateway todo 5, dual mode):**
+  HMAC-signed gateway client (`METHOD path timestamp nonce
+sha256(rawBody)`, keyless dev fails open) with per-chunk
+  `client_msg_id` idempotency; `FEED_PUBLISH_MODE`
+  (`direct | dual | gateway`, default `dual`) routing in the queue and
+  scheduling dispatchers with an outcome-only parity ledger
+  (`messageId`s never compared; `assertNoDivergence` blocks cutover on
+  any divergence); vault-to-vault migration of the `TemplateBot`
+  catalog plus the crypto/threads env bots via
+  `POST /api/content-template-bots/migrate-to-gateway` (labels/ids
+  only, never tokens); explicit session publishes resolve vault ids so
+  sessions/targets keep working; legacy crypto/threads adapters kept
+  as the deprecated dual leg. Gateway-incompatible shapes (local-file
+  media, video, button ads) skip the gateway leg without diverging.
+  9 suites / 30 tests (159/513 total green).

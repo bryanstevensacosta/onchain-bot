@@ -40,9 +40,14 @@ describe('ApiKeyGuard', () => {
     expect(guard.canActivate(context({}))).toBe(true);
   });
 
-  it('checks the exact key when configured', () => {
+  it('checks the exact key when configured (401 on mismatch)', () => {
     process.env.FEED_PUBLISHER_API_KEY = 'secret';
     expect(guard.canActivate(context({ 'x-api-key': 'secret' }))).toBe(true);
-    expect(guard.canActivate(context({ 'x-api-key': 'wrong' }))).toBe(false);
+    expect(() => guard.canActivate(context({ 'x-api-key': 'wrong' }))).toThrow(
+      expect.objectContaining({ status: 401 }),
+    );
+    expect(() => guard.canActivate(context({}))).toThrow(
+      expect.objectContaining({ status: 401 }),
+    );
   });
 });

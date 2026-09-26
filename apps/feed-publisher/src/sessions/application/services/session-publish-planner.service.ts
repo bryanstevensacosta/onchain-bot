@@ -5,6 +5,7 @@ import type { PublishTarget } from '../../../template/domain/template-target';
 import { PUBLISH_TARGETS } from '../../../template/domain/template-target';
 import { PublishingSessionRepository } from '../../domain/ports/publishing-session.repository';
 import type { SessionPublishPlan } from '../ports/session-publisher.port';
+import { isBotAuthorizedFor } from './session-publish-authorizer.service';
 
 export interface SessionIncomingMessage {
   readonly channelId: string;
@@ -44,6 +45,11 @@ function utcDayKey(at: Date): string {
  * from the session schedule overrides, falling back to the injected
  * global limits: delay-not-met and cap-reached HOLD the plan (never
  * drop, never burn). Unknown catalog bots skip THAT target only.
+ *
+ * Todo 14 (P50): the cron path enforces the same ownership rules as
+ * the explicit publish path — unverified bots, target mismatches, and
+ * channel hijacks are skipped silently (fail-safe; the explicit path
+ * throws 403 and audits the block instead).
  */
 @Injectable()
 export class SessionPublishPlanner {
@@ -88,6 +94,7 @@ export class SessionPublishPlanner {
         for (const binding of bindings) {
           const bot = await this.bots.findById(binding.botId);
           if (!bot) continue;
+          if (!isBotAuthorizedFor(bot, target, binding.chatId)) continue;
           plans.push({
             sessionId: session.id,
             target,

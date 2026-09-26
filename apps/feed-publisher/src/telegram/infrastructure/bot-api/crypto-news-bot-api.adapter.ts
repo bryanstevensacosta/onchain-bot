@@ -17,6 +17,11 @@ import {
  * always wins over the env default). Own rate-limit budget via
  * `CRYPTO_NEWS_RATE_LIMIT_PER_MINUTE` falling back to
  * `TELEGRAM_RATE_LIMIT_PER_MINUTE`.
+ *
+ * @deprecated Dual-leg only (telegram-bots-gateway todo 5): prefer the
+ * gateway path (`FEED_PUBLISH_MODE=gateway`, vault id
+ * `env:CRYPTO_NEWS_BOT_TOKEN`). Removed at the global cutover
+ * (gateway todo 7). Do not extend.
  */
 @Injectable()
 export class CryptoNewsBotApiAdapter extends BaseBotApiAdapter {

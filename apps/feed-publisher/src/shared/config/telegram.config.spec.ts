@@ -33,4 +33,36 @@ describe('telegram config', () => {
     expect(config.cryptoNewsRateLimitPerMinute).toBe(10);
     expect(config.threadsRateLimitPerMinute).toBe(30);
   });
+
+  it('defaults the gateway client to localhost:4070 + dual mode', () => {
+    const config = buildTelegramConfig({} as NodeJS.ProcessEnv);
+    expect(config.botsGateway).toMatchObject({
+      baseUrl: 'http://localhost:4070',
+      clientId: '',
+      clientSecret: '',
+      publishMode: 'dual',
+    });
+  });
+
+  it('reads the gateway client + trims trailing slashes', () => {
+    const config = buildTelegramConfig({
+      BOTS_GATEWAY_URL: 'http://gateway:4070///',
+      BOTS_GATEWAY_CLIENT_ID: 'feed-publisher',
+      BOTS_GATEWAY_CLIENT_SECRET: 'shh',
+      FEED_PUBLISH_MODE: 'gateway',
+    } as NodeJS.ProcessEnv);
+    expect(config.botsGateway).toMatchObject({
+      baseUrl: 'http://gateway:4070',
+      clientId: 'feed-publisher',
+      clientSecret: 'shh',
+      publishMode: 'gateway',
+    });
+  });
+
+  it('falls back to dual on unknown FEED_PUBLISH_MODE', () => {
+    const config = buildTelegramConfig({
+      FEED_PUBLISH_MODE: 'both',
+    } as NodeJS.ProcessEnv);
+    expect(config.botsGateway.publishMode).toBe('dual');
+  });
 });

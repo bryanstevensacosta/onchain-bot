@@ -28,14 +28,15 @@ async function harness(): Promise<{
 }> {
   const sessions = new InMemoryPublishingSessionRepository();
   const bots = new InMemoryTemplateBotRepository();
-  await bots.save(
-    TemplateBot.create({
-      id: 'tg-1',
-      label: 'TG',
-      target: 'telegram',
-      tokenCiphertext: 'iv:tag:data',
-    }),
-  );
+  const bot = TemplateBot.create({
+    id: 'tg-1',
+    label: 'TG',
+    target: 'telegram',
+    tokenCiphertext: 'iv:tag:data',
+    defaultChatId: '@news',
+  });
+  bot.markChannelVerified(new Date('2026-09-25T00:00:00Z'));
+  await bots.save(bot);
   const dedup = new DeduplicationService(
     new InMemoryDeduplicationStore(),
     new MockEmbeddingAdapter(),

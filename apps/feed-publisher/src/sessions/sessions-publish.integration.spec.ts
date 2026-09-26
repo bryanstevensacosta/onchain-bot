@@ -32,22 +32,24 @@ describe('sessions multi-tab publish (acceptance)', () => {
   it('routes per-session targets with one shared dedup', async () => {
     const sessions = new InMemoryPublishingSessionRepository();
     const bots = new InMemoryTemplateBotRepository();
-    await bots.save(
-      TemplateBot.create({
-        id: 'tg-news',
-        label: 'News',
-        target: 'telegram',
-        tokenCiphertext: 'iv:tag:data',
-      }),
-    );
-    await bots.save(
-      TemplateBot.create({
-        id: 'th-digest',
-        label: 'Digest',
-        target: 'threads',
-        tokenCiphertext: 'iv:tag:data',
-      }),
-    );
+    const newsBot = TemplateBot.create({
+      id: 'tg-news',
+      label: 'News',
+      target: 'telegram',
+      tokenCiphertext: 'iv:tag:data',
+      defaultChatId: '@news',
+    });
+    newsBot.markChannelVerified(new Date('2026-09-25T00:00:00Z'));
+    await bots.save(newsBot);
+    const digestBot = TemplateBot.create({
+      id: 'th-digest',
+      label: 'Digest',
+      target: 'threads',
+      tokenCiphertext: 'iv:tag:data',
+      defaultChatId: '@digest',
+    });
+    digestBot.markChannelVerified(new Date('2026-09-25T00:00:00Z'));
+    await bots.save(digestBot);
     const dedup = new DeduplicationService(
       new InMemoryDeduplicationStore(),
       new MockEmbeddingAdapter(),

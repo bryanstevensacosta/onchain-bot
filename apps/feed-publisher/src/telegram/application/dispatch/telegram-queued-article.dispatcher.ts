@@ -3,17 +3,30 @@ import { ConfigService } from '@nestjs/config';
 import { QueuedArticleDispatcherPort } from '../../../queue/application/ports/queued-article-dispatcher.port';
 import type { PublisherQueueEntry } from '../../../queue/domain/publisher-queue-entry.entity';
 import { LlmConfigRepository } from '../../../llm/domain/ports/llm-config.repository';
+import type { TelegramSendResult } from '../../domain/ports/telegram-publisher.port';
 import { TelegramPublisherRouter } from '../services/telegram-publisher-router.service';
+import { BotsGatewaySenderPort } from '../../domain/ports/bots-gateway-sender.port';
+import { DualSendParityService } from '../services/dual-send-parity.service';
+import { GatewayBotMappingService } from '../../infrastructure/gateway/gateway-bot-mapping.service';
+import { resolveFeedPublishMode } from '../../infrastructure/gateway/publish-mode';
 
 /**
  * LIVE `QueuedArticleDispatcherPort` binding (Tramo 2, todo 7 — replaces
- * the in-memory recorder; the recorder remains as a test double only).
+ * the in-memory recorder; the recorder remains as a test double only;
+ * gateway routing telegram-bots-gateway todo 5).
  *
  * Drain path: route by `entry.contentType` (crypto-news -> crypto bot,
  * threads -> threads bot) -> resolve the destination chat
  * (`LlmConfig.targetChannel` first, env output channel fallback) ->
  * pick the send shape (album -> sendMediaGroup, one image ->
  * sendPhoto, text-only -> sendMessage).
+ *
+ * Publish path (`FEED_PUBLISH_MODE`): `direct` = legacy adapters only
+ * (deprecated); `dual` = both legs, compare via `DualSendParityService`,
+ * return the direct leg; `gateway` = gateway vault id only — the env
+ * token is never resolved (cutover). Gateway-incompatible shapes
+ * (local-file images: no gateway upload endpoint) skip the gateway leg
+ * (recorded as skipped, never diverged).
  *
  * Failure contract (matches the drain use-case + scheduling gate):
  * throws `Error` whose message carries the adapter reason. Missing
@@ -30,6 +43,12 @@ export class TelegramQueuedArticleDispatcher extends QueuedArticleDispatcherPort
     @Optional()
     @Inject(LlmConfigRepository)
     private readonly llmConfigs?: LlmConfigRepository,
+    @Optional()
+    private readonly gateway?: BotsGatewaySenderPort,
+    @Optional()
+    private readonly parity?: DualSendParityService,
+    @Optional()
+    private readonly mapping?: GatewayBotMappingService,
   ) {
     super();
   }
@@ -43,8 +62,30 @@ export class TelegramQueuedArticleDispatcher extends QueuedArticleDispatcherPort
         'TelegramQueuedArticleDispatcher: empty content (not configured?)',
       );
     }
-    const adapter = this.router.forContentType(entry.contentType);
+    const mode = resolveFeedPublishMode(this.config);
     const chatId = await this.resolveChatId(entry.contentType);
+    if (mode === 'gateway') {
+      return this.dispatchViaGateway(entry, content, chatId);
+    }
+    const direct = await this.sendDirect(entry, content, chatId);
+    if (mode === 'dual') {
+      await this.compareGatewayLeg(entry, content, chatId, direct);
+    }
+    if (!direct.result.ok) {
+      throw new Error(
+        direct.result.error ??
+          'TelegramQueuedArticleDispatcher: publish failed',
+      );
+    }
+    return { telegramMessageId: String(direct.result.messageId ?? 'unknown') };
+  }
+
+  private async sendDirect(
+    entry: PublisherQueueEntry,
+    content: string,
+    chatId: string,
+  ): Promise<{ result: TelegramSendResult }> {
+    const adapter = this.router.forContentType(entry.contentType);
     const images = [...entry.imagePaths];
     const result =
       images.length > 1
@@ -57,12 +98,79 @@ export class TelegramQueuedArticleDispatcher extends QueuedArticleDispatcherPort
               undefined,
             )
           : await adapter.sendMessage(chatId, content, undefined, undefined);
+    return { result };
+  }
+
+  private async compareGatewayLeg(
+    entry: PublisherQueueEntry,
+    content: string,
+    chatId: string,
+    direct: { result: TelegramSendResult },
+  ): Promise<void> {
+    if (!this.gateway || !this.parity) return;
+    if (entry.imagePaths.length > 0) {
+      this.parity.recordSkipped({
+        botId: this.vaultBotId(entry.contentType),
+        chatId,
+        shape: 'local-file',
+        chunks: 1,
+      });
+      return;
+    }
+    const gateway = await this.gateway.sendViaGateway({
+      botId: this.vaultBotId(entry.contentType),
+      chatId,
+      kind: 'message',
+      text: content,
+      clientMsgId: `queue:${entry.id}`,
+    });
+    this.parity.record({
+      botId: this.vaultBotId(entry.contentType),
+      chatId,
+      shape: 'message',
+      direct: direct.result,
+      gateway,
+      chunks: 1,
+    });
+  }
+
+  private async dispatchViaGateway(
+    entry: PublisherQueueEntry,
+    content: string,
+    chatId: string,
+  ): Promise<{ readonly telegramMessageId: string }> {
+    if (!this.gateway) {
+      throw new Error(
+        'TelegramQueuedArticleDispatcher: gateway client unwired (not configured)',
+      );
+    }
+    if (entry.imagePaths.length > 0) {
+      throw new Error(
+        'TelegramQueuedArticleDispatcher: gateway has no local-file upload — ' +
+          'media entries need the direct leg (dual mode) until gateway todo 7 (not configured)',
+      );
+    }
+    const result = await this.gateway.sendViaGateway({
+      botId: this.vaultBotId(entry.contentType),
+      chatId,
+      kind: 'message',
+      text: content,
+      clientMsgId: `queue:${entry.id}`,
+    });
     if (!result.ok) {
       throw new Error(
         result.error ?? 'TelegramQueuedArticleDispatcher: publish failed',
       );
     }
     return { telegramMessageId: String(result.messageId ?? 'unknown') };
+  }
+
+  private vaultBotId(contentType: string): string {
+    const localKey =
+      contentType === 'threads'
+        ? 'env:THREADS_BOT_TOKEN'
+        : 'env:CRYPTO_NEWS_BOT_TOKEN';
+    return this.mapping?.resolveGatewayId(localKey) ?? localKey;
   }
 
   private async resolveChatId(contentType: string): Promise<string> {

@@ -2,17 +2,18 @@
 
 > Verified 2026-09-25 against code + `.omo/evidence/task-T2-*.log`
 > (counts re-verified per log, see PROGRAM STATUS). v0.1.0 (source of
-> truth: `package.json`; Tramo 2, todos 0-8+12 DONE, 9-11 pending).
+> truth: `package.json`; Tramo 2, todos 0-8+12+14 DONE, 9-11 pending).
 > Renamed `content-publisher` -> `feed-publisher` mid-todo-4 (co-agent).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md`
-> §7.6 (2026-09-24, P30-P39 2026-09-25).
+> §7.6 (2026-09-24, P30-P39 2026-09-25, P50 2026-09-25).
 > Cross-tramo contracts pinned in `.omo/plans/mega-refactor-central.md`
 > v2026-09-24;
 > feed-publisher plan in `.omo/plans/mega-refactor-content-publisher.md`
 > (13 todos: 0-12; filename predates the rename).
 > Spec base: `.kiro/specs/refactor-feed-publisher/` (11-refactor 3437 lines).
 
-Contents: OVERVIEW · PROGRAM INDEX · PROGRAM STATUS · COMMANDS ·
+Contents: OVERVIEW · PROGRAM INDEX · PROGRAM STATUS · GATEWAY
+MIGRATION (todo 5) · COMMANDS ·
 STRUCTURE · MODULES · ENV INVENTORY · PORTS · HEALTH ·
 TS/ESLINT CONVENTIONS · TESTS · GAPS · DECISIONS INDEX · DECISIONS ·
 STANDING RULE · NOTES
@@ -24,8 +25,9 @@ outside the monolith: ingestion (SSE-only + cursor catch-up) →
 matching/keywords/filters → unified queue (`contentType`) + dedup →
 LLM (global catalog) → scheduling/ads (P38 per-target delay+caps) →
 telegram (crypto + threads) publishing + template/sessions
-multi-tab (P33/P34), with threads as skeleton +
-v2 contract only (C1). Todos 0-8+12 DONE and wired (13 modules in
+multi-tab (P33/P34) + ownership-enforced publish auth (P50), with
+threads as skeleton +
+v2 contract only (C1). Todos 0-8+12+14 DONE and wired (13 modules in
 `app.module.ts`); todos 9-11 pending (frontend, staging, cutover).
 See PROGRAM STATUS for the verified tally.
 
@@ -53,40 +55,52 @@ Design pivots that govern every future todo:
 > by grep over those logs; any count that cannot be re-verified is
 > marked UNVERIFIED (none currently).
 
-| Todo | Status                                                           | What                                                                                                            |
-| ---- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| 0    | DONE (evidence `.omo/evidence/task-T2-01-feed-publisher.log`\*)  | Precondition Gate T1: 9/9 backend `@deprecated` headers + T1 suites signal + `telegram/shared` clean of KOL-bot |
-| 1    | DONE (evidence `.omo/evidence/task-T2-01-content-publisher.log`) | App setup + shared transversal (34 suites / 56 tests; legacy batch 52/452 green alongside)                      |
-| 2    | DONE (evidence `.omo/evidence/task-T2-02.log`)                   | Ingestion feed SSE-only + cursor catch-up + x-api-key day one (7 suites / 21 tests; full 40/76)                 |
-| 3    | DONE (evidence `.omo/evidence/task-T2-03.log`)                   | Matching + keywords + filters (18 suites / 64 tests, wired)                                                     |
-| 4    | DONE (evidence `.omo/evidence/task-T2-04.log`)                   | Queue unificada + deduplication (18 suites / 76 tests, wired; full 71/211)                                      |
-| 5    | DONE (evidence `.omo/evidence/task-T2-05.log`)                   | LLM config+templates+core+playground (19 suites / 62 tests, wired, drain rebind; full 89/272)                   |
-| 6    | DONE (evidence `.omo/evidence/task-T2-06.log`)                   | Scheduling/posts + media library (18 suites / 72 tests, wired, P38 per-target delay+caps; full 106/343)         |
-| 7    | DONE (evidence `.omo/evidence/task-T2-07.log`)                   | Telegram crypto+threads adapters (C2, 9 suites / 32 tests; recorded against todo-8 red phase, fixed in todo 8)  |
-| 8    | DONE (evidence `.omo/evidence/task-T2-08.log`)                   | Threads esqueleto + contrato C1 (14 suites / 54 tests, wired; full 127/429)                                     |
-| 9    | TODO                                                             | Frontend 4 endpoints + flags UI                                                                                 |
-| 10   | TODO                                                             | Staging 7d + rollback rehearsal                                                                                 |
-| 11   | TODO                                                             | Cutover + cleanup (`USE_FEED_PUBLISHER`)                                                                        |
-| 12   | DONE (evidence `.omo/evidence/task-T2-12.log`)                   | `src/template/` + `src/sessions/` multi-tab (P33+P34, blocks 9, 11)                                             |
+| Todo | Status                                                                      | What                                                                                                                                            |
+| ---- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | DONE (evidence `.omo/evidence/task-T2-01-feed-publisher.log`\*)             | Precondition Gate T1: 9/9 backend `@deprecated` headers + T1 suites signal + `telegram/shared` clean of KOL-bot                                 |
+| 1    | DONE (evidence `.omo/evidence/task-T2-01-content-publisher.log`)            | App setup + shared transversal (34 suites / 56 tests; legacy batch 52/452 green alongside)                                                      |
+| 2    | DONE (evidence `.omo/evidence/task-T2-02.log`)                              | Ingestion feed SSE-only + cursor catch-up + x-api-key day one (7 suites / 21 tests; full 40/76)                                                 |
+| 3    | DONE (evidence `.omo/evidence/task-T2-03.log`)                              | Matching + keywords + filters (18 suites / 64 tests, wired)                                                                                     |
+| 4    | DONE (evidence `.omo/evidence/task-T2-04.log`)                              | Queue unificada + deduplication (18 suites / 76 tests, wired; full 71/211)                                                                      |
+| 5    | DONE (evidence `.omo/evidence/task-T2-05.log`)                              | LLM config+templates+core+playground (19 suites / 62 tests, wired, drain rebind; full 89/272)                                                   |
+| 6    | DONE (evidence `.omo/evidence/task-T2-06.log`)                              | Scheduling/posts + media library (18 suites / 72 tests, wired, P38 per-target delay+caps; full 106/343)                                         |
+| 7    | DONE (evidence `.omo/evidence/task-T2-07.log`)                              | Telegram crypto+threads adapters (C2, 9 suites / 32 tests; recorded against todo-8 red phase, fixed in todo 8)                                  |
+| 8    | DONE (evidence `.omo/evidence/task-T2-08.log`)                              | Threads esqueleto + contrato C1 (14 suites / 54 tests, wired; full 127/429)                                                                     |
+| 9    | TODO                                                                        | Frontend 4 endpoints + flags UI                                                                                                                 |
+| 10   | TODO                                                                        | Staging 7d + rollback rehearsal                                                                                                                 |
+| 11   | TODO                                                                        | Cutover + cleanup (`USE_FEED_PUBLISHER`)                                                                                                        |
+| 12   | DONE (evidence `.omo/evidence/task-T2-12.log`)                              | `src/template/` + `src/sessions/` multi-tab (P33+P34, blocks 9, 11)                                                                             |
+| 13   | DONE (backend-side, no code here)                                           | Dual-serve contract: backend dual-serves old+new until cutover (see NOTES P41)                                                                  |
+| 14   | DONE (evidence `.omo/evidence/task-14-mega-refactor-content-publisher.log`) | Auth anti-exploit (P50): global API-key guard (401) + ownership-enforced publish (403) + rate-limit (429) + audit log + secret-scan + drill doc |
 
 \* Todo-0 log name (`task-T2-01-feed-publisher.log`) collides with the
 todo-1 naming scheme on disk; content verified as the Gate T1 log.
 
 ## PROGRAM STATUS
 
-Todos 0-8+12 DONE (verified 2026-09-25 against code + evidence logs):
+Todos 0-8+12+14 DONE (verified 2026-09-25 against code + evidence logs):
 
 - Wired modules: 12 feature (ingestion, matching, keywords, filters,
   queue, deduplication, llm, scheduling, threads, telegram,
   template, sessions) + health.
   0 stubs remain.
-- Cumulative full-suite tally: 143 suites / 460 tests green
-  (127/429 at todo 8 + 16/31 new in todo 12).
+- Cumulative full-suite tally: 150 suites / 483 tests green
+  (143/460 at todo 12 + 7/23 new in todo 14).
 - P10/P32 grep gates green (crypto-news only, zero foreign-type
   token outside the SSE negative assert). P38 per-target
   delay+caps live in scheduling. C-FLAGS-01 3-flag control live in
   llm/queue. C2 telegram adapters live with Bot API bindings.
   Threads v1 = skeleton + `src/threads/CONTRACT.md` (C1).
+- P50 auth anti-exploit live: global `ApiKeyGuard` (APP_GUARD, 401 on
+  mismatch — only `@Public()` health skips it) + global
+  `DomainExceptionFilter` (APP_FILTER, 403/429/404 survive the wire) +
+  `POST /api/sessions/:id/publish` behind `SessionPublishAuthorizer`
+  (owned session x target binding + admin-verified bot + verified
+  channel, every violation 403 with no existence leak) +
+  per-session `PublishRateLimiter` (10/min default, 429, audited) +
+  `GET /api/publish-audit` (routing facts only, never tokens) +
+  secret-scan gate spec + `docs/compromise-drill.md`. The cron
+  planner enforces the same ownership rules fail-safe (skips).
 
 Todos 9-11 PENDING (not started, no evidence):
 
@@ -100,6 +114,59 @@ Todos 9-11 PENDING (not started, no evidence):
 Worktree state 2026-09-25: DIRTY (uncommitted: todo-7/8 telegram +
 threads trees, `.env.*` templates, telegram/threads module wiring).
 No commit per todo convention (worktree left dirty, no commit).
+
+## GATEWAY MIGRATION (telegram-bots-gateway todo 5, DONE 2026-09-26)
+
+Feed publishing via the gateway with dual-send parity (mirrors the
+kol-system todo-4 pattern). Mode stays `dual` — NO cutover in this todo
+(adversarial: any divergence blocks cutover via `assertNoDivergence`).
+
+- **Path** (`FEED_PUBLISH_MODE`, default `dual`): `direct` = legacy
+  adapters only (deprecated); `dual` = gateway + direct, compare via
+  `DualSendParityService`, return the direct leg; `gateway` = gateway
+  vault id only, fail-closed (cutover rehearsal, proven live).
+- **New code** (`src/telegram/`, all inside this app): `domain/ports/
+bots-gateway-sender.port.ts` (token never crosses — vault `botId`
+  only) + `infrastructure/gateway/` (`gateway-hmac-signer` — canonical
+  `METHOD\npath\nts\nnonce\nsha256(rawBody)`, keyless dev returns `{}`;
+  `gateway-send-client` — message/photo-URL/media_group chunks with
+  per-chunk `client_msg_id`, global `fetch`; `gateway-bot-mapping` —
+  local→vault ids, unmapped falls back; `publish-mode` helper) +
+  `application/services/dual-send-parity.service.ts` (outcome-only
+  compare — `messageId`s never compared; incompatible shapes recorded
+  as `skipped`, never diverged; `assertNoDivergence()` throws CONFLICT)
+  - `application/use-cases/migrate-bots-to-gateway.use-case.ts`
+    (TemplateBot catalog vault-to-vault + crypto/threads env bots,
+    labels/ids only in results) + `api/http/
+gateway-migration.controller.ts` (`POST
+/api/content-template-bots/migrate-to-gateway`, 201).
+- **Wiring**: queue + scheduling dispatchers run the gateway leg beside
+  the direct leg in `dual` (text-only shapes; local files / video /
+  button ads skip — the gateway `SendDto` covers message + photo-URL +
+  media_group-URL only, no upload, no `reply_markup`); `gateway` mode
+  is fail-closed for those shapes. `TelegramModule` imports
+  `ContentTemplatesModule` for the migration repos + encryption;
+  `SessionsModule` imports `TelegramModule` (forwardRef) so explicit
+  session publishes resolve vault ids (live plan carries the vault id)
+  - `GatewaySessionPublisher` provided/exported (recorder stays live
+    until gateway todo 7). Legacy crypto/threads/base adapters are
+    `@deprecated` (dual-leg only, removed at gateway todo 7). Backend
+    legacy mirrors untouched (deprecate at cutover, todo 7).
+- **Flat-env deviation** (vs kol-system): this app never loads the
+  `telegram` namespace (`AppModule` has no `load:` — adapters read flat
+  `config.get('CRYPTO_NEWS_BOT_TOKEN')`), so gateway client fields
+  read FLAT first (`BOTS_GATEWAY_URL/_CLIENT_ID/_CLIENT_SECRET`,
+  `FEED_PUBLISH_MODE`) with the namespace as fallback. Operator wiring:
+  vault migration needs an `admin`-scoped gateway client (send scope
+  alone 403s — hit live); DISTINCT secrets per env.
+- **Evidence**: `.omo/evidence/task-5-telegram-bots-gateway.log` —
+  159 suites / 513 tests green (+9/+30), `tsc` + `nest build` clean,
+  live dual publish-now (direct 401 vs gateway 777 — environmental
+  divergence, gate correctly closed) + live gateway-mode 777 (token
+  never resolved) + live session vault-id plan + 0 token leaks.
+- **Known cutover blockers** (gateway todo 7): local-file media legs,
+  video, button ads need gateway upload/`reply_markup` support (or stay
+  dual); vault mapping is in-memory (persisted at global cutover).
 
 ## COMMANDS
 
@@ -264,6 +331,17 @@ apps/feed-publisher/
                           # per-bot `TelegramRateLimiter` (fixed 60s
                           # window) + LIVE queue/scheduling dispatchers +
                           # `TelegramHealthIndicator` (P21 hook)
+                          # GATEWAY (bots-gateway todo 5, dual mode):
+                          # `domain/ports/bots-gateway-sender.port.ts`
+                          # (vault-id only, no token) +
+                          # `infrastructure/gateway/` (hmac-signer,
+                          # send-client, bot-mapping, publish-mode) +
+                          # `DualSendParityService` (outcome-only ledger +
+                          # CONFLICT cutover gate) +
+                          # `MigrateBotsToGatewayUseCase` (catalog +
+                          # env bots → vault) + `GatewayMigrationController`
+                          # (`POST .../migrate-to-gateway`) — direct
+                          # adapters @deprecated (dual-leg only)
    src/template/          # BUILT (todo 12, wired; renamed from
                           # src/content-templates/ 2026-09-25, dir only:
                           # `ContentTemplatesModule`, `PublishingContentTemplate`,
@@ -408,7 +486,12 @@ per-target `TELEGRAM|THREADS_{PUBLISH_DELAY_MS,DAILY_CAP}` (P38),
 `TELEGRAM_RATE_LIMIT_PER_MINUTE` shared default + optional
 `CRYPTO_NEWS|THREADS_RATE_LIMIT_PER_MINUTE` per-bot overrides +
 `CRYPTO_NEWS|THREADS_OUTPUT_CHANNEL` env channel defaults; explicit
-chatId — e.g. DB-backed `LlmConfig.targetChannel` — always wins).
+chatId — e.g. DB-backed `LlmConfig.targetChannel` — always wins) +
+bots-gateway client (todo 5: `BOTS_GATEWAY_URL` dev `:4070` /
+staging `:4071` / prod `:4072`, `BOTS_GATEWAY_CLIENT_ID`,
+`BOTS_GATEWAY_CLIENT_SECRET`, `FEED_PUBLISH_MODE=direct|dual|gateway`
+default `dual`; read FLAT first — the `telegram` namespace is not
+loaded by `AppModule`; migration needs an `admin`-scoped client).
 Templates for staging (:3041) + prod
 (:3042) next to the app. BotAPI = raw axios over Telegram Bot HTTP API
 (same as backend adapter) — no extra dep.
@@ -458,24 +541,26 @@ coverage target >80% (pure units, no I/O).
 
 ## DECISIONS INDEX
 
-| Decision                                | One-line                                                   | Status in this app                                       |
-| --------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------- |
-| P10 strict type separation              | SSE subscribes ONLY to `messageType==='crypto-news'`       | ENFORCED (grep gate, NOTES)                              |
-| P20 SSE-only + cursor catch-up (mirror) | No periodic polling; reconnect resumes from cursor         | APPLIED (todo 2)                                         |
-| P21 health per component                | One indicator per module, P21 hook                         | APPLIED (10/10 wired, composite pending)                 |
-| P30 Tramo-1 lessons                     | x-api-key day one, `dist/main.js`, env templates, lockfile | APPLIED (todo 1)                                         |
-| P31 canonical ingestion names per env   | staging `:3033`, prod `:3032`, dev `:3031`                 | REFERENCED (ports table)                                 |
-| P32 zero foreign-type token             | No `'kol'` string outside the SSE negative assert          | ENFORCED (grep gate)                                     |
-| P33 global templates vision             | `contentType`-scoped GLOBAL prompt catalog                 | APPLIED (todo 5); full `src/template/` BC = todo 12 DONE |
-| P34 sessions multi-tab vision           | `src/sessions/`, shared global dedup + templates           | APPLIED (todo 12 DONE)                                   |
-| P36 ads -> scheduling rename            | Routes/tables/dirs `scheduling/*`, `feed_scheduled_*`      | APPLIED (todo 6)                                         |
-| P38 per-target delay + daily cap        | `publishDelayMs` + `dailyCap` per telegram\|threads        | APPLIED (todo 6)                                         |
-| P39 standing rule                       | AGENTS.md + CHANGELOG `## [Unreleased]` per todo           | APPLIED (this refresh)                                   |
-| C-FLAGS-01 3-flag control               | `LLM = llm AND publishing`                                 | APPLIED (todos 4/5)                                      |
-| C-SSE-01 dual-path ingestion            | SSE filtered to feed + cursor catch-up                     | APPLIED (todo 2, polling dropped per P20)                |
-| C-DB-01 own logical DB                  | `onchain_bot_feed_publisher[_staging]`                     | PLANNED (GAP-1, TypeORM unwired)                         |
-| C-SHARED-01/C2 telegram move            | Crypto+threads adapters, second shared move                | APPLIED (todo 7)                                         |
-| C1 threads un-stubbing contract         | `src/threads/CONTRACT.md`                                  | APPLIED (todo 8, v1 = 501 skeleton)                      |
+| Decision                                | One-line                                                                                  | Status in this app                                       |
+| --------------------------------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| P10 strict type separation              | SSE subscribes ONLY to `messageType==='crypto-news'`                                      | ENFORCED (grep gate, NOTES)                              |
+| P20 SSE-only + cursor catch-up (mirror) | No periodic polling; reconnect resumes from cursor                                        | APPLIED (todo 2)                                         |
+| P21 health per component                | One indicator per module, P21 hook                                                        | APPLIED (10/10 wired, composite pending)                 |
+| P30 Tramo-1 lessons                     | x-api-key day one, `dist/main.js`, env templates, lockfile                                | APPLIED (todo 1)                                         |
+| P31 canonical ingestion names per env   | staging `:3033`, prod `:3032`, dev `:3031`                                                | REFERENCED (ports table)                                 |
+| P32 zero foreign-type token             | No `'kol'` string outside the SSE negative assert                                         | ENFORCED (grep gate)                                     |
+| P33 global templates vision             | `contentType`-scoped GLOBAL prompt catalog                                                | APPLIED (todo 5); full `src/template/` BC = todo 12 DONE |
+| P34 sessions multi-tab vision           | `src/sessions/`, shared global dedup + templates                                          | APPLIED (todo 12 DONE)                                   |
+| P36 ads -> scheduling rename            | Routes/tables/dirs `scheduling/*`, `feed_scheduled_*`                                     | APPLIED (todo 6)                                         |
+| P38 per-target delay + daily cap        | `publishDelayMs` + `dailyCap` per telegram\|threads                                       | APPLIED (todo 6)                                         |
+| P39 standing rule                       | AGENTS.md + CHANGELOG `## [Unreleased]` per todo                                          | APPLIED (this refresh)                                   |
+| C-FLAGS-01 3-flag control               | `LLM = llm AND publishing`                                                                | APPLIED (todos 4/5)                                      |
+| C-SSE-01 dual-path ingestion            | SSE filtered to feed + cursor catch-up                                                    | APPLIED (todo 2, polling dropped per P20)                |
+| C-DB-01 own logical DB                  | `onchain_bot_feed_publisher[_staging]`                                                    | PLANNED (GAP-1, TypeORM unwired)                         |
+| C-SHARED-01/C2 telegram move            | Crypto+threads adapters, second shared move                                               | APPLIED (todo 7)                                         |
+| C1 threads un-stubbing contract         | `src/threads/CONTRACT.md`                                                                 | APPLIED (todo 8, v1 = 501 skeleton)                      |
+| P50 auth anti-exploit                   | Global key (401) + ownership publish (403) + rate-limit + audit + secret-scan + drill     | APPLIED (todo 14)                                        |
+| Gateway todo 5 dual-send                | `FEED_PUBLISH_MODE` direct\|dual\|gateway + HMAC client + parity ledger + vault migration | APPLIED (dual default, no cutover; blockers documented)  |
 
 ## DECISIONS
 
@@ -694,6 +779,33 @@ coverage target >80% (pure units, no I/O).
   Adversarial: inactive sessions consume/publish nothing
   (spec-pinned, incl. the multi-tab integration). Worktree left dirty
   (no commit).
+- Todo 14 (P25 + P50): auth anti-exploit, nothing outside
+  `apps/feed-publisher/` touched except the mandated evidence log
+  (lockfile untouched — no new deps: `supertest` was already a dep).
+  P10/P32 grep gates green (verified empty incl. the new publish
+  path). Failing-first: 7 new spec files red on missing modules (5
+  missing-module + 2 metadata), then green; 7 suites / 23 tests new
+  - full 150/483 + `tsc` clean + `nest build` clean + live curl
+    matrix (`:3099`: health 200 keyless, guarded 401s, publish
+    201/403/404/429). Deliberate decisions: (a) `ApiKeyGuard` throws
+    401 instead of returning false, so scanners see 401 on bad keys
+    and 403 stays reserved for ownership violations (existing guard
+    spec updated to the throw contract); (b) global guard + filter via
+    `APP_GUARD`/`APP_FILTER` in `AppModule` (no `main.ts` change —
+    every present AND future controller is covered, only `@Public()`
+    health skips); (c) unknown bot ids read as FORBIDDEN, never
+    NOT_FOUND (no catalog-existence leak); (d) ownership =
+    session-owned binding + same-target bot + `adminVerifiedAt` set +
+    `chatId === defaultChatId` (the verified channel — hijacked chats
+    403 even when the binding names them); (e) the cron planner skips
+    violators silently (fail-safe) while the explicit path throws +
+    audits (loud); (f) audit entries are routing facts only
+    (spec-pinned key allowlist, no token/ciphertext fields exist);
+    (g) old planner/integration fixtures upgraded to verified bots
+    with matching channels (the new invariant, not a behavior carve).
+    Adversarial: exploit simulation matrix spec-pinned at unit + HTTP
+    level (cross-session reuse, unverified bot, target mismatch,
+    channel hijack, rate flood). Worktree left dirty (no commit).
 
 ## STANDING RULE
 
@@ -710,3 +822,9 @@ English per `RELEASE-FLOW.md` (P39). Stale knowledge base = failed todo.
   `feed-filters/*` at cutover. No code change here in todo 13.
 - Bot tokens OPTIONAL at boot (dashboard-only mode); adapters fail with a
   clear error when absent (todo 7).
+- Gateway todo 5 (dual-send): `FEED_PUBLISH_MODE` defaults to `dual`
+  (parity runs, direct leg returned); `gateway` is cutover rehearsal
+  only until gateway todo 7 covers local-file/video/button shapes +
+  persists the vault mapping. Divergence → no cutover
+  (`assertNoDivergence` CONFLICT). Backend legacy feed senders untouched
+  (deprecate at todo 7).

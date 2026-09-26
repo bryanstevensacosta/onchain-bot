@@ -15,11 +15,14 @@ import {
   toPublishingSessionView,
   type PublishingSessionView,
 } from '../../application/use-cases/publishing-session.use-cases';
+import { PublishSessionMessageUseCase } from '../../application/use-cases/publish-session-message.use-case';
+import type { SessionPublishPlan } from '../../application/ports/session-publisher.port';
 import {
   CreateSessionDto,
   SetSourceToggleDto,
   UpdateSessionDto,
 } from '../input/session.input';
+import { PublishSessionMessageDto } from '../input/publish-session-message.input';
 
 /**
  * Publishing-session CRUD (`/api/sessions`, frontend-backed).
@@ -33,7 +36,10 @@ import {
 @ApiTags('feed-publisher-sessions')
 @Controller('api/sessions')
 export class SessionsController {
-  public constructor(private readonly useCases: PublishingSessionUseCases) {}
+  public constructor(
+    private readonly useCases: PublishingSessionUseCases,
+    private readonly publish: PublishSessionMessageUseCase,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -136,5 +142,28 @@ export class SessionsController {
   @ApiResponse({ status: 204, description: 'Session deleted' })
   public async remove(@Param('id') id: string): Promise<void> {
     await this.useCases.remove(id);
+  }
+
+  @Post(':id/publish')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Publish one message through a session-owned binding',
+  })
+  @ApiResponse({ status: 201, description: 'Published (audited)' })
+  @ApiResponse({ status: 401, description: 'Missing or invalid api key' })
+  @ApiResponse({ status: 403, description: 'Foreign binding, bot, or channel' })
+  @ApiResponse({ status: 404, description: 'Unknown session id' })
+  @ApiResponse({ status: 429, description: 'Session rate limit exceeded' })
+  public async publishMessage(
+    @Param('id') id: string,
+    @Body() dto: PublishSessionMessageDto,
+  ): Promise<{ plan: SessionPublishPlan }> {
+    return this.publish.execute({
+      sessionId: id,
+      target: dto.target,
+      botId: dto.botId,
+      chatId: dto.chatId,
+      content: dto.content,
+    });
   }
 }

@@ -92,7 +92,7 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
      Acceptance criteria: dual-send paridad 0 divergencias + cutover + módulo viejo deprecado
      QA scenarios: happy paridad; failure divergencia → no cutover. Evidence .omo/evidence/task-4-telegram-bots-gateway.log
      Commit: Y | feat(kol-system): publishing vía gateway
-- [ ] 5. Migración feed-publisher al gateway
+- [x] 5. Migración feed-publisher al gateway
      What to do / Must NOT do: igual que 4 para adapters crypto+threads + bots por sesión/template.
      Parallelization: Wave 3 | Blocked by: 2, 3 | Blocks: 8
      References: apps/feed-publisher/src/telegram/ (base/crypto/threads adapters, router, rate-limiter, dispatchers, health); apps/feed-publisher/src/sessions/ (RecordingSessionPublisher Bot API binding follow-up) + src/template/ (template-bot vault); backend legacy mirrors backend/src/telegram/crypto-news-publisher/.../bot-api-crypto-news-publisher.adapter.ts + crypto-news-ads/ad-format-publisher.service.ts (deprecate at cutover — see inventory rows 4-7, 18-21; threads-bot ≠ Meta Threads API backend/src/threads/publisher, out of scope)
