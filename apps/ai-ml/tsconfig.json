@@ -16,6 +16,8 @@
       "llm/*": ["src/llm/*"],
       "auth/*": ["src/auth/*"],
       "prompts/*": ["src/prompts/*"],
+      "embeddings/*": ["src/embeddings/*"],
+      "playground/*": ["src/playground/*"],
       "src/*": ["src/*"]
     }
   },

@@ -61,7 +61,7 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
 
 - [x] 0. App setup + gateway LLM (puertos 4090/91/92, health, compose, envs, DB `onchain_bot_ai_ml[_staging]`, gateway multi-provider + Mock + config, auth keys + rate-limit + audit). Tests + coverage. Evidence .omo/evidence/task-0-ai-ml.log | Commit: Y | feat(ai-ml): setup y gateway
 - [x] 1. Catálogo prompt-templates global versionado + migración desde feed-publisher (dual-read temporal). Tests. Evidence .omo/evidence/task-1-ai-ml.log | Commit: Y | feat(ai-ml): catálogo prompts
-- [ ] 2. Embeddings centralizados (deduplicación + búsqueda) + playground preview sin side-effects. Tests. Evidence .omo/evidence/task-2-ai-ml.log | Commit: Y | feat(ai-ml): embeddings y playground
+- [x] 2. Embeddings centralizados (deduplicación + búsqueda) + playground preview sin side-effects. Tests. Evidence .omo/evidence/task-2-ai-ml.log | Commit: Y | feat(ai-ml): embeddings y playground
 - [ ] 3. Migración feed-publisher a cliente HTTP (dual-run + paridad + cutover + deprecación llm local). Tests. Evidence .omo/evidence/task-3-ai-ml.log | Commit: Y | feat(feed-publisher): LLM vía ai-ml
 - [ ] 4. Cutover + cleanup + CI/deploy staging/prod. Evidence .omo/evidence/task-4-ai-ml.log | Commit: Y | feat(ai-ml)!: cutover
 

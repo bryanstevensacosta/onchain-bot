@@ -72,6 +72,8 @@
       "^llm/(.*)$": "<rootDir>/src/llm/$1",
       "^auth/(.*)$": "<rootDir>/src/auth/$1",
       "^prompts/(.*)$": "<rootDir>/src/prompts/$1",
+      "^embeddings/(.*)$": "<rootDir>/src/embeddings/$1",
+      "^playground/(.*)$": "<rootDir>/src/playground/$1",
       "^src/(.*)$": "<rootDir>/src/$1"
     }
   }

@@ -60,6 +60,11 @@ import { LlmController } from './api/http/llm.controller';
     GetLlmModelsUseCase,
     GetPipelineFlagsUseCase,
   ],
-  exports: [LlmPort, LlmConfigRepository, UsageAuditService],
+  exports: [
+    LlmPort,
+    LlmConfigRepository,
+    UsageAuditService,
+    GenerateTextUseCase,
+  ],
 })
 export class LlmModule {}

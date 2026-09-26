@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Centralized embeddings (todo 2):** new `src/embeddings/`
+  module (`EmbeddingsModule`, wired in `AppModule`) exposing THE
+  single embeddings interface (`EmbeddingsService`) for dedup +
+  search: model-per-call routing (`text-embedding-*` → OpenAI,
+  `*MiniLM*`/`xenova*` → local, `mock*` → mock; unknown names are
+  400, never silent fallback) with an LRU cache per (effective
+  model, text) (`EMBEDDING_CACHE_MAX_ENTRIES=500`) and a pure
+  `cosineSimilarity` helper. Three adapters: deterministic mock
+  (64-dim, `USE_MOCK_AI=true` default), OpenAI
+  (`EMBEDDING_MODEL`, default `text-embedding-3-small`), and lazy
+  local all-MiniLM (`EMBEDDING_LOCAL_MODEL`, default
+  `Xenova/all-MiniLM-L6-v2`, 30s load timeout, `@xenova/transformers`
+  stays an OPTIONAL dep — missing dep is an explicit 503). Outages
+  are LOUD (503 with a remediation hint, never null — deliberate
+  deviation from the feed-publisher fail-open source). Routes
+  under `/api/embeddings`: `POST /embed` + `/batch` (≤100) +
+  `/similarity` (`generate`-scoped) and `GET /models` (`read`).
+- **Playground dry-run preview (todo 2):** new `src/playground/`
+  module (`PlaygroundModule`, wired in `AppModule`) with
+  `POST /api/playground/preview` (`generate`-scoped): catalog
+  template (name+version, dual-read `ai-ml` → `legacy-fallback`)
+  or inline draft rendered against sample content
+  (`{{title}}`/`{{original}}`/`{{hasImage}}`, byte-parity with the
+  feed-publisher source incl. `sí`/`no`), render-only by default
+  or exactly ONE gateway generation (`generate=true`). Writes
+  nothing — `persisted: false` rides every response (spec-pinned).
+  Template knobs fall back to gateway defaults (the ai-ml catalog
+  v1 carries no per-template model settings).
+- **Tests:** 23 suites / 85 tests green (Jest, +6/+28) — LRU
+  cache + cosine + routing/cache/loud-error service specs +
+  module wiring ×2 + playground render/generate/no-persistence;
+  live boot `:4099` verified (health, models, embed, similarity,
+  draft render → generate, catalog create → named preview,
+  pinned-OpenAI-down 503, unknown-model 400). Evidence
+  `.omo/evidence/task-2-ai-ml.log`.
+
 - **Versioned global prompt catalog (todo 1):** new `src/prompts/`
   module (`PromptsModule`, wired in `AppModule`) with a `PromptTemplate`
   entity per (name, version) — `name`, `version`, `content`,
