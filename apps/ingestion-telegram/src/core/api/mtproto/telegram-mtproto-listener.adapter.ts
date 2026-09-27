@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NewMessage } from 'telegram/events';
+import type { TelegramClient } from 'telegram';
 import type {
   TelegramRawMessage,
   TelegramMediaAttachment,
@@ -108,6 +109,7 @@ export class TelegramMtprotoListenerAdapter
   private feedChannelCache = new Set<string>();
   private cacheRefreshInterval: NodeJS.Timeout | null = null;
   private sleepNotified = false;
+  private listenerDisabled = false;
 
   constructor(
     private readonly config: ConfigService,
@@ -136,7 +138,25 @@ export class TelegramMtprotoListenerAdapter
 
     const cfg = this.config.get('app');
     if (!cfg?.telegram?.apiId || !cfg?.telegram?.apiHash) return;
-    await this.clientManager.markAuthorizedIfTrue();
+    // Fail-soft: an invalid/failed MTProto session must never crash the app
+    // (Nest aborts bootstrap when onModuleInit throws). Log + continue with
+    // the listener disabled — HTTP API + SSE stay live, /api/health degrades.
+    try {
+      await this.clientManager.markAuthorizedIfTrue();
+    } catch (err) {
+      this.listenerDisabled = true;
+      this.logger.error(
+        `MTProto listener disabled — HTTP+SSE continue without Telegram: ${(err as Error)?.message ?? String(err)}`,
+      );
+    }
+  }
+
+  /**
+   * Fail-soft probe: true when listener init failed and Telegram ingestion
+   * is off while HTTP API + SSE stay live.
+   */
+  isListenerDisabled(): boolean {
+    return this.listenerDisabled;
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -151,7 +171,20 @@ export class TelegramMtprotoListenerAdapter
       throw new Error('Telegram listener already running');
     }
 
-    const client = this.clientManager.ensureClient();
+    // Fail-soft: an invalid session string throws synchronously out of
+    // ensureClient ('Not a valid string') — idle instead of crashing the
+    // background listener task. Real triples are unaffected.
+    let client: TelegramClient;
+    try {
+      client = this.clientManager.ensureClient();
+    } catch (err) {
+      this.logger.warn(
+        `Telegram session invalid — listener will idle: ${(err as Error)?.message ?? String(err)}`,
+      );
+      this.subscribedChannelIds = [...channelIds];
+      this.running = true;
+      return;
+    }
     let authorized = false;
 
     this.logger.log('Checking MTProto authorization...');

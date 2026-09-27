@@ -96,7 +96,19 @@ export class TelegramClientManager {
   async markAuthorizedIfTrue(): Promise<void> {
     if (this.authorizedAtLeastOnce) return;
 
-    this.ensureClient();
+    // Fail-soft listener init: an invalid session string throws
+    // synchronously out of ensureClient ('Not a valid string'). Swallow it
+    // here so onModuleInit never crashes the app — HTTP API + SSE stay live
+    // and /api/health reports degraded. Real triples are unaffected.
+    try {
+      this.ensureClient();
+    } catch (err) {
+      this.client = null;
+      this.logger.error(
+        `MTProto listener disabled — invalid session, HTTP+SSE continue without Telegram: ${(err as Error)?.message ?? String(err)}`,
+      );
+      return;
+    }
 
     const cfg = this.config.get('app');
     const delay = cfg?.telegram?.mtprotoStartupDelayMs ?? 0;

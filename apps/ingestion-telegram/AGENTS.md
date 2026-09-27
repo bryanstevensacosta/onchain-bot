@@ -192,6 +192,8 @@ MTProto listener — doble vía:
 
 Notas de path real:
 
+Fail-soft boot (P60-bis): con triple inválida/dummy el listener se desactiva (`markAuthorizedIfTrue()` traga el error de sesión, `subscribe()` queda en idle sin lanzar) pero el servicio sigue arriba — HTTP API + SSE vivos; `GET /api/health` responde `degraded` (503) con `mtproto-disconnected` en `warnings[]`.
+
 - **Rename crypto→feed (2026-09-25, evidencia `.omo/evidence/rename-feed.log`)**: `transformMessage` delegado a `FeedMessageTransformer` (`shared/transformation/transformers/feed-message-transformer.ts`; texto vía `feed-text-extractor.ts`, cascada `message → text → media.caption → fwdFrom.message`). Media download delegado a `TelegramMediaExtractorService` (`shared/transformation/extractors/telegram-media-extractor.ts`, **solo feed**; KOL nunca descarga). El servicio encapsula: metadata extraction + `MediaDownloaderService.download()` para photos/videos.
 - `transformMessage` extrae texto con prioridad `message → text → media.caption → fwdFrom.message` (`''` si nada) y descarga media **solo para feed** (discriminador wire/DB `crypto-news` preservado; cache DB `telegram_feed_sources`, refresh 5 min; KOL nunca descarga; solo `MessageMediaPhoto` + documentos video).
 - ⚠️ ~~`DeduplicationService` está inyectado en el coordinator pero `route()` **nunca llama `isDuplicate()`**~~ **WIRED (feed-unification)**: `route()` llama `isDuplicate()` para realtime+polling (1 row + 1 frame); solo el polling salta `id <= lastSeen`.

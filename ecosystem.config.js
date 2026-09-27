@@ -106,9 +106,12 @@ module.exports = {
 
     // ingestion-telegram :3031 — MTProto listener + SSE fan-out.
     // Shares backend postgres (DB onchain_bot_ingestion, CREATE DATABASE once).
-    app('ingestion', 'ingestion-telegram', 'run start:dev', {
+    // API_ID '0' disables the MTProto listener (adapter skips when falsy)
+    // so HTTP API + SSE still serve. A truthy dummy would crash boot:
+    // GramJS StringSession throws synchronously in onModuleInit.
+    app('ingestion-telegram', 'ingestion-telegram', 'run start:dev', {
       INGESTION_PORT: 3031,
-      INGESTION_TELEGRAM_MTPROTO_API_ID: '1',
+      INGESTION_TELEGRAM_MTPROTO_API_ID: '0',
       INGESTION_TELEGRAM_MTPROTO_API_HASH:
         'dev-dummy-hash-0000000000000000000000',
       INGESTION_TELEGRAM_MTPROTO_SESSION: 'dev-dummy-session',
