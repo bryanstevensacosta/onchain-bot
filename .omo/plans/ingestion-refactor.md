@@ -19,6 +19,7 @@
 
 - **Files:** `apps/backend/tsconfig.json` (`@ingestion-telegram/telegram/*`), `apps/backend/src/telegram/ingestion/shared/transformers/transformation-import.spec.ts`, `apps/backend/src/main.ts` (alias comment §44-48)
 - **Do:** point `@ingestion-telegram/telegram/*` at `../ingestion-telegram/src/shared/transformation/*` (current target `src/shared/telegram/*` does not exist on disk); fix spec import or delete spec if tramo owner retires cross-app use.
+- **Done 2026-09-27:** retargeted (5 files) + spec 7/7 green + tsc clean. P60 audit: 0 code deps new→backend; disconnection order in `.omo/evidence/backend-deps-audit.log`.
 - **Accept:** `cd apps/backend && npx tsc --noEmit -p tsconfig.json`
 - **Evidence:** `.omo/evidence/shared-boundaries.md` §5 (+ §4 P6); `.omo/evidence/shared-verdict.log` — (backend alias roto)
 - **Commit:** `fix(backend): correct @ingestion-telegram/telegram alias post-flatten`

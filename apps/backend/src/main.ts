@@ -46,7 +46,10 @@ register({
       path.join(repoRoot, 'apps/ingestion-telegram/dist/src/shared/media/*'),
     ],
     '@ingestion-telegram/telegram/*': [
-      path.join(repoRoot, 'apps/ingestion-telegram/dist/src/shared/telegram/*'),
+      path.join(
+        repoRoot,
+        'apps/ingestion-telegram/dist/src/shared/transformation/*',
+      ),
     ],
   },
 });

@@ -9,7 +9,7 @@ import {
   AbstractMessageTransformer,
   KolMessageTransformer,
   FeedMessageTransformer,
-} from '@ingestion-telegram/telegram/transformation';
+} from '@ingestion-telegram/telegram/index';
 
 describe('Cross-app imports (backend → ingestion-telegram)', () => {
   it('should import AbstractMessageTransformer', () => {

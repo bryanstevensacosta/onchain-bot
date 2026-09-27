@@ -28,9 +28,11 @@
       "data-provider/*": ["src/data-provider/*"],
       "health/*": ["src/health/*"],
       "src/*": ["src/*"],
-      "@ingestion-telegram/media/*": ["../ingestion-telegram/src/shared/media/*"],
+      "@ingestion-telegram/media/*": [
+        "../ingestion-telegram/src/shared/media/*"
+      ],
       "@ingestion-telegram/telegram/*": [
-        "../ingestion-telegram/src/shared/telegram/*"
+        "../ingestion-telegram/src/shared/transformation/*"
       ]
     }
   },
