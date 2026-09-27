@@ -1,5 +1,5 @@
 /**
- * P58 absorption parity (metadata absorbs avatar fetch-serve).
+ * P58 absorption parity (metadata absorbs profile-photo fetch-serve).
  *
  * RED-first: `MetadataService` does not exist yet. Pins that the absorbed
  * behavior matches the old `KolAvatarService` contract 1:1 — fetch-once,
@@ -57,7 +57,7 @@ function makeRepo(): {
   return { repo, rows };
 }
 
-describe('MetadataService absorption parity (P58 absorbs avatar/)', () => {
+describe('MetadataService absorption parity (P58 absorbs profile photos)', () => {
   let root: string;
 
   beforeEach(() => {
@@ -78,7 +78,7 @@ describe('MetadataService absorption parity (P58 absorbs avatar/)', () => {
     expect(second).toBe('cached');
     expect(calls).toEqual(['-1001']);
     const row = rows.get('-1001');
-    expect(row?.avatarPath).toContain('avatar');
+    expect(row?.profilePhotoPath).toContain('avatar');
     expect(row?.handle).toBe('alpha');
   });
 
@@ -88,7 +88,7 @@ describe('MetadataService absorption parity (P58 absorbs avatar/)', () => {
     const service = new MetadataService(makeConfig(root), photos, repo);
     await expect(service.fetchOnce('-1009', null)).resolves.toBe('placeholder');
     expect(calls).toEqual(['-1009']);
-    expect(service.findAvatarFile('-1009')).toBeNull();
+    expect(service.findProfilePhotoFile('-1009')).toBeNull();
   });
 
   it('refresh re-downloads even when a file exists (explicit-only refetch)', async () => {
@@ -109,7 +109,7 @@ describe('MetadataService absorption parity (P58 absorbs avatar/)', () => {
     const status = await service.fetchOnce('-1001', 'alpha');
     expect(status).toBe('cached');
     expect(calls).toEqual([]);
-    expect(service.findAvatarFile('-1001')).toContain('-1001__alpha.jpg');
+    expect(service.findProfilePhotoFile('-1001')).toContain('-1001__alpha.jpg');
   });
 
   it('dedupes colliding legacy + handle files to a single file (no-dup)', async () => {
@@ -121,7 +121,7 @@ describe('MetadataService absorption parity (P58 absorbs avatar/)', () => {
     writeFileSync(join(root, 'avatar', '-1001__alpha.jpg'), 'handle-bytes');
     await service.fetchOnce('-1001', 'alpha');
     service.migrateFilename('-1001', 'alpha');
-    expect(service.findAvatarFile('-1001')).toContain('-1001__alpha.jpg');
+    expect(service.findProfilePhotoFile('-1001')).toContain('-1001__alpha.jpg');
   });
 
   it('public view carries kind/handle/url/type per id (schema §1)', async () => {
@@ -141,7 +141,7 @@ describe('MetadataService absorption parity (P58 absorbs avatar/)', () => {
       peerType: 'channel',
       handle: 'watcher',
       url: 'https://t.me/watcher',
-      avatarUrl: '/api/metadata/-1007/avatar',
+      profilePhotoUrl: '/api/metadata/-1007/avatar',
     });
   });
 });

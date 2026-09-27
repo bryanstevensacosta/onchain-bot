@@ -96,7 +96,7 @@ export class RegisterNewsSourceUseCase {
   constructor(
     private readonly sourceRepo: TelegramFeedSourceRepository,
     private readonly telegramListener: TelegramListenerPort,
-    @Optional() private readonly avatars?: KolAvatarService,
+    @Optional() private readonly profilePhotos?: KolAvatarService,
     @Optional() private readonly metadata?: MetadataService,
   ) {}
 
@@ -195,7 +195,7 @@ export class RegisterNewsSourceUseCase {
     // P19 fetch-ONCE (avatar-total, central todo 12: EVERY type, not just
     // kol) — best-effort, MTProto miss keeps the placeholder and
     // registration wins. The handle names the avatar file.
-    this.kickAvatarFetch(saved.channelId, saved.handle);
+    this.kickProfilePhoto(saved.channelId, saved.handle);
 
     // Return output
     return {
@@ -289,7 +289,7 @@ export class RegisterNewsSourceUseCase {
         const saved = await this.sourceRepo.save(createdEntity);
         created += 1;
         results.push(this.toOutput(saved));
-        this.kickAvatarFetch(saved.channelId, saved.handle);
+        this.kickProfilePhoto(saved.channelId, saved.handle);
         this.mirrorToMetadata(saved.channelId, {
           handle: saved.handle,
           title: saved.title,
@@ -542,11 +542,11 @@ export class RegisterNewsSourceUseCase {
    * `placeholder` on MTProto trouble (deferred retry via explicit
    * refresh or the backfill endpoint).
    */
-  private kickAvatarFetch(channelId: string, handle?: string | null): void {
-    if (!this.avatars) {
+  private kickProfilePhoto(channelId: string, handle?: string | null): void {
+    if (!this.profilePhotos) {
       return;
     }
-    void this.avatars
+    void this.profilePhotos
       .fetchOnce(channelId, handle ?? null)
       .then((status) =>
         this.logger.log(`Avatar fetch-once for ${channelId}: ${status}`),

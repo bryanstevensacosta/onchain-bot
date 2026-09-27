@@ -100,15 +100,15 @@ export class TelegramChannelMetadataEntity {
   public phone!: string | null;
 
   /**
-   * Avatar bookkeeping absorbed from `avatar/` (schema §2 + §3):
+   * Profile-photo bookkeeping absorbed from `avatar/` (schema §2 + §3):
    * absolute path of the permanent photo under `uploads/avatar/`
    * (the FILE is the source of truth for serving).
    */
   @Column({ name: 'avatar_path', type: 'varchar', length: 512, nullable: true })
-  public avatarPath!: string | null;
+  public profilePhotoPath!: string | null;
 
   @Column({ name: 'avatar_updated_at', type: 'timestamptz', nullable: true })
-  public avatarUpdatedAt!: Date | null;
+  public profilePhotoUpdatedAt!: Date | null;
 
   /** Photo change detection (schema §2 #6). */
   @Column({ name: 'photo_dc_id', type: 'integer', nullable: true })

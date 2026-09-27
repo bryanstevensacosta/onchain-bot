@@ -15,9 +15,9 @@ import { createReadStream, statSync } from 'fs';
 import type { Response } from 'express';
 import { MetadataService } from './metadata.service';
 import {
-  METADATA_AVATAR_CONTENT_TYPE,
-  METADATA_AVATAR_PLACEHOLDER_CONTENT_TYPE,
-  METADATA_AVATAR_PLACEHOLDER_SVG,
+  METADATA_PROFILE_PHOTO_CONTENT_TYPE,
+  METADATA_PROFILE_PHOTO_PLACEHOLDER_CONTENT_TYPE,
+  METADATA_PROFILE_PHOTO_PLACEHOLDER_SVG,
   sanitizeAvatarChannelId,
 } from './metadata.constants';
 
@@ -26,7 +26,7 @@ import {
  *
  * Canonical owner of identity per id (kind/handle/photo/url/type):
  * - `GET /api/metadata/:channelId` — public identity view (never `phone`)
- * - `GET /api/metadata/:channelId/avatar` — canonical avatar serve
+ * - `GET /api/metadata/:channelId/avatar` — canonical profile-photo serve
  *   (successor of the deprecated `GET /api/kol-avatar/:channelId`)
  * - `POST /api/metadata/:channelId/refresh` — explicit manual refresh
  *   (identity re-resolve + photo re-fetch, guarded; protected)
@@ -44,7 +44,8 @@ export class MetadataController {
   @Post('backfill')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
-    summary: 'Backfill metadata + avatars for rows missing them (fetch-once)',
+    summary:
+      'Backfill metadata + profile photos for rows missing them (fetch-once)',
   })
   @ApiResponse({ status: 201, description: 'Backfill totals' })
   public async backfillMetadata(): Promise<{
@@ -79,11 +80,14 @@ export class MetadataController {
   }
 
   @Get(':channelId/avatar')
-  @ApiOperation({ summary: 'Serve a channel avatar (or placeholder)' })
+  @ApiOperation({ summary: 'Serve a channel profile photo (or placeholder)' })
   @ApiParam({ name: 'channelId', description: 'Telegram channel id' })
-  @ApiResponse({ status: 200, description: 'Avatar bytes or placeholder SVG' })
+  @ApiResponse({
+    status: 200,
+    description: 'Profile-photo bytes or placeholder SVG',
+  })
   @ApiResponse({ status: 400, description: 'Invalid channelId' })
-  public async serveAvatar(
+  public async serveProfilePhoto(
     @Param('channelId') channelId: string,
     @Res() response: Response,
   ): Promise<void> {
@@ -93,7 +97,7 @@ export class MetadataController {
         `Invalid channelId: ${channelId}. Must contain alphanumeric characters`,
       );
     }
-    const filePath = this.metadata.findAvatarFile(channelId);
+    const filePath = this.metadata.findProfilePhotoFile(channelId);
     if (filePath) {
       let size = 0;
       try {
@@ -102,7 +106,7 @@ export class MetadataController {
         this.sendPlaceholder(response);
         return;
       }
-      response.setHeader('Content-Type', METADATA_AVATAR_CONTENT_TYPE);
+      response.setHeader('Content-Type', METADATA_PROFILE_PHOTO_CONTENT_TYPE);
       response.setHeader('Content-Length', String(size));
       response.setHeader('Cache-Control', 'public, max-age=31536000');
       createReadStream(filePath).pipe(response);
@@ -131,10 +135,10 @@ export class MetadataController {
   }
 
   private sendPlaceholder(response: Response): void {
-    const body = METADATA_AVATAR_PLACEHOLDER_SVG;
+    const body = METADATA_PROFILE_PHOTO_PLACEHOLDER_SVG;
     response.setHeader(
       'Content-Type',
-      METADATA_AVATAR_PLACEHOLDER_CONTENT_TYPE,
+      METADATA_PROFILE_PHOTO_PLACEHOLDER_CONTENT_TYPE,
     );
     response.setHeader('Content-Length', String(Buffer.byteLength(body)));
     response.setHeader('Cache-Control', 'public, max-age=3600');

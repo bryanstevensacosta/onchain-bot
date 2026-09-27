@@ -3,7 +3,7 @@ import { RegisterNewsSourceUseCase } from './register-news-source.use-case';
 /**
  * Central todo 12 (P57): avatar for ALL ids + t.me url on sources.
  *
- * FAILING-FIRST: `kickAvatarFetch` still filters kol-only and outputs
+ * FAILING-FIRST: `kickProfilePhoto` still filters kol-only and outputs
  * carry no `url` — RED until the avatar-total work lands.
  */
 describe('RegisterNewsSourceUseCase avatar-total + url (central todo 12)', () => {
@@ -55,7 +55,7 @@ describe('RegisterNewsSourceUseCase avatar-total + url (central todo 12)', () =>
     };
   }
 
-  function makeAvatars() {
+  function makeProfilePhotos() {
     const calls: Array<{ channelId: string; handle?: string | null }> = [];
     return {
       calls,
@@ -70,17 +70,17 @@ describe('RegisterNewsSourceUseCase avatar-total + url (central todo 12)', () =>
 
   it('execute fetches the avatar for feed (crypto-news) sources too', async () => {
     const repo = fakeRepo();
-    const avatars = makeAvatars();
+    const profilePhotos = makeProfilePhotos();
     const useCase = new RegisterNewsSourceUseCase(
       repo as any,
       listenerFor('channel') as any,
-      avatars as never,
+      profilePhotos as never,
     );
     // Let the fire-and-forget avatar fetch settle.
     const out = await useCase.execute({ channelId: '123', title: 'News' });
     await new Promise((resolve) => setImmediate(resolve));
     expect(out.type).toBe('crypto-news');
-    expect(avatars.fetchOnce).toHaveBeenCalledWith(
+    expect(profilePhotos.fetchOnce).toHaveBeenCalledWith(
       '-100123',
       expect.anything(),
     );
@@ -88,11 +88,11 @@ describe('RegisterNewsSourceUseCase avatar-total + url (central todo 12)', () =>
 
   it('execute exposes the t.me url', async () => {
     const repo = fakeRepo();
-    const avatars = makeAvatars();
+    const profilePhotos = makeProfilePhotos();
     const useCase = new RegisterNewsSourceUseCase(
       repo as any,
       listenerFor('channel') as any,
-      avatars as never,
+      profilePhotos as never,
     );
     const out = await useCase.execute({
       channelId: '123',
@@ -104,11 +104,11 @@ describe('RegisterNewsSourceUseCase avatar-total + url (central todo 12)', () =>
 
   it('executeBatch stores the t.me url on created rows', async () => {
     const repo = fakeRepo();
-    const avatars = makeAvatars();
+    const profilePhotos = makeProfilePhotos();
     const useCase = new RegisterNewsSourceUseCase(
       repo as any,
       listenerFor('channel') as any,
-      avatars as never,
+      profilePhotos as never,
     );
     const out = await useCase.executeBatch({
       sources: [{ channelId: '-1001', title: 'News', handle: 'newsdaily' }],

@@ -3,8 +3,8 @@
  *
  * RED-first: pins the adversarial invariants before the module exists —
  * (a) `phone` is stored-never-exposed (no SELECT, no DTO, no log),
- * (b) the avatar directory has ONE owner (metadata re-exports the avatar
- * constants, no second dir name), and
+ * (b) the profile-photo directory has ONE owner (metadata re-exports the
+ * avatar constants, no second dir name), and
  * (c) registry writes mirror into metadata (dual-write, schema §4 step 1)
  * so the catalog holds subscription state (active/type) while identity
  * (handle/photo) is referenced by id.
@@ -14,7 +14,7 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { ConfigService } from '@nestjs/config';
 import { KOL_AVATAR_DIR_NAME } from '../avatar/avatar.constants';
-import { METADATA_AVATAR_DIR_NAME } from './metadata.constants';
+import { METADATA_PROFILE_PHOTO_DIR_NAME } from './metadata.constants';
 import { RegisterNewsSourceUseCase } from '../registry/application/use-cases/register-news-source.use-case';
 import { MetadataService } from './metadata.service';
 import type { MetadataPhotoPort } from './metadata-photo.port';
@@ -71,9 +71,9 @@ describe('metadata no-duplication (P58 adversarial)', () => {
     expect(JSON.stringify(view)).not.toContain('5551234567');
   });
 
-  it('avatar storage has a single owner: metadata reuses the avatar dir name', () => {
-    expect(METADATA_AVATAR_DIR_NAME).toBe(KOL_AVATAR_DIR_NAME);
-    expect(METADATA_AVATAR_DIR_NAME).toBe('avatar');
+  it('profile-photo storage has a single owner: metadata reuses the avatar dir name', () => {
+    expect(METADATA_PROFILE_PHOTO_DIR_NAME).toBe(KOL_AVATAR_DIR_NAME);
+    expect(METADATA_PROFILE_PHOTO_DIR_NAME).toBe('avatar');
   });
 
   it('registry writes mirror into metadata (dual-write, schema §4 step 1)', async () => {

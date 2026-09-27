@@ -9,9 +9,10 @@ import { MtprotoMetadataPhotoAdapter } from './mtproto-metadata-photo.adapter';
  * MetadataModule — central channel-metadata BC (P58, absorbs `avatar/`).
  *
  * Owner of `telegram_channel_metadata` (identity per id: kind/handle/
- * phone-if-present/photo/url/type) + `{uploadsRoot}/avatar/` (permanent,
- * janitor-excluded) + the canonical routes (`GET /api/metadata/:id`,
- * `GET /api/metadata/:id/avatar`, refresh, backfill).
+ * phone-if-present/photo/url/type) + `{uploadsRoot}/avatar/` (permanent
+ * profile-photo files, janitor-excluded) + the canonical routes
+ * (`GET /api/metadata/:id`, `GET /api/metadata/:id/avatar`, refresh,
+ * backfill).
  *
  * Reuses SharedModule (MTProto client manager, peer resolver, flood guard,
  * `MetadataRepository`, source repository) — no own limiter, no own MTProto

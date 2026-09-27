@@ -12,10 +12,10 @@ import { MetadataPhotoPort } from './metadata-photo.port';
 import { MetadataRepository } from './metadata.repository';
 import type { TelegramChannelMetadataEntity } from './channel-metadata.entity';
 import {
-  METADATA_AVATAR_DIR_NAME,
-  METADATA_AVATAR_FILE_EXTENSION,
+  METADATA_PROFILE_PHOTO_DIR_NAME,
+  METADATA_PROFILE_PHOTO_FILE_EXTENSION,
   avatarFileNameFor,
-  metadataAvatarUrlFor,
+  metadataProfilePhotoUrlFor,
   sanitizeAvatarChannelId,
   sourceUrlFor,
 } from './metadata.constants';
@@ -27,7 +27,7 @@ import {
 import { TelegramListenerPort } from 'core/ports/telegram-listener.port';
 import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
 
-export type MetadataAvatarStatus = 'fetched' | 'cached' | 'placeholder';
+export type MetadataProfilePhotoStatus = 'fetched' | 'cached' | 'placeholder';
 
 export interface RegistryMirrorFields {
   readonly handle?: string | null;
@@ -60,7 +60,7 @@ export interface ChannelMetadataView {
   readonly isFake: boolean;
   readonly participantsCount: number | null;
   readonly url: string | null;
-  readonly avatarUrl: string;
+  readonly profilePhotoUrl: string;
   readonly fetchStatus: string;
   readonly updatedAt: string | null;
 }
@@ -77,10 +77,10 @@ export interface MetadataBackfillResult {
  *
  * Owns identity per Telegram id: the `getEntity` taxonomy
  * (kind/handle/phone-if-present/photo/url/type) persisted in
- * `telegram_channel_metadata`, plus the permanent avatar files under
- * `{uploadsRoot}/avatar/` (absorbed fetch-serve logic — same fetch-once +
- * promise-tail serialize + legacy/handle-qualified filenames + single-file
- * dedupe as the old `KolAvatarService`).
+ * `telegram_channel_metadata`, plus the permanent profile-photo files
+ * under `{uploadsRoot}/avatar/` (absorbed fetch-serve logic — same
+ * fetch-once + promise-tail serialize + legacy/handle-qualified filenames
+ * + single-file dedupe as the old `KolAvatarService`).
  *
  * Split of responsibilities (schema §4):
  * - identity (kind/handle/photo/url/type) lives HERE, referenced by id;
@@ -106,39 +106,42 @@ export class MetadataService {
     @Optional() private readonly sources?: TelegramFeedSourceRepository,
   ) {}
 
-  public avatarUrlFor(channelId: string): string {
-    return metadataAvatarUrlFor(channelId);
+  public profilePhotoUrlFor(channelId: string): string {
+    return metadataProfilePhotoUrlFor(channelId);
   }
 
-  public avatarDir(): string {
+  public profilePhotoDir(): string {
     const app = this.readAppConfig();
     const root: string =
       typeof app?.uploads?.root === 'string' && app.uploads.root.length > 0
         ? app.uploads.root
         : join(process.cwd(), 'uploads');
-    return join(root, METADATA_AVATAR_DIR_NAME);
+    return join(root, METADATA_PROFILE_PHOTO_DIR_NAME);
   }
 
-  public avatarFilePath(channelId: string, handle?: string | null): string {
-    return join(this.avatarDir(), avatarFileNameFor(channelId, handle));
+  public profilePhotoFilePath(
+    channelId: string,
+    handle?: string | null,
+  ): string {
+    return join(this.profilePhotoDir(), avatarFileNameFor(channelId, handle));
   }
 
   /**
-   * Resolve the stored avatar file for a channel, any filename variant.
+   * Resolve the stored profile-photo file for a channel, any filename variant.
    *
    * Matches `{sanitizedChannelId}*.jpg` (legacy bare + handle-qualified)
    * so pre-migration files keep serving. Newest variant wins when both
    * exist (the migration dedupes them right after). `null` = no file
    * (placeholder served downstream). Never throws.
    */
-  public findAvatarFile(channelId: string): string | null {
+  public findProfilePhotoFile(channelId: string): string | null {
     const clean = sanitizeAvatarChannelId(channelId);
     if (clean.length === 0) {
       return null;
     }
     let entries: string[];
     try {
-      entries = readdirSync(this.avatarDir());
+      entries = readdirSync(this.profilePhotoDir());
     } catch {
       return null;
     }
@@ -146,9 +149,9 @@ export class MetadataService {
       .filter(
         (name) =>
           name.startsWith(clean) &&
-          name.endsWith(METADATA_AVATAR_FILE_EXTENSION),
+          name.endsWith(METADATA_PROFILE_PHOTO_FILE_EXTENSION),
       )
-      .map((name) => join(this.avatarDir(), name));
+      .map((name) => join(this.profilePhotoDir(), name));
     if (matches.length === 0) {
       return null;
     }
@@ -160,16 +163,16 @@ export class MetadataService {
     return qualified[qualified.length - 1] ?? matches[matches.length - 1];
   }
 
-  public hasAvatar(channelId: string): boolean {
+  public hasProfilePhoto(channelId: string): boolean {
     const clean = sanitizeAvatarChannelId(channelId);
     if (clean.length === 0) {
       return false;
     }
-    return this.findAvatarFile(channelId) !== null;
+    return this.findProfilePhotoFile(channelId) !== null;
   }
 
   /**
-   * Migrate a channel's avatar filename to the handle-qualified form.
+   * Migrate a channel's profile-photo filename to the handle-qualified form.
    *
    * Best-effort + idempotent: renames a lone legacy file, dedupes
    * colliding legacy + handle files to ONE (keeps the handle-qualified
@@ -183,14 +186,15 @@ export class MetadataService {
     }
     let entries: string[];
     try {
-      entries = readdirSync(this.avatarDir());
+      entries = readdirSync(this.profilePhotoDir());
     } catch {
       return;
     }
     const expected = avatarFileNameFor(channelId, handle);
     const owned = entries.filter(
       (name) =>
-        name.startsWith(clean) && name.endsWith(METADATA_AVATAR_FILE_EXTENSION),
+        name.startsWith(clean) &&
+        name.endsWith(METADATA_PROFILE_PHOTO_FILE_EXTENSION),
     );
     if (owned.length === 0) {
       return;
@@ -199,29 +203,29 @@ export class MetadataService {
       if (owned.length === 1 && owned[0] === expected) {
         return;
       }
-      const expectedPath = join(this.avatarDir(), expected);
+      const expectedPath = join(this.profilePhotoDir(), expected);
       if (owned.includes(expected)) {
         // Collision: drop every non-expected sibling (no-dup).
         for (const name of owned) {
           if (name !== expected) {
-            unlinkSync(join(this.avatarDir(), name));
+            unlinkSync(join(this.profilePhotoDir(), name));
           }
         }
         return;
       }
       // Lone legacy file → rename to the handle-qualified name.
       if (owned.length === 1) {
-        renameSync(join(this.avatarDir(), owned[0]), expectedPath);
+        renameSync(join(this.profilePhotoDir(), owned[0]), expectedPath);
       } else {
         // Several legacy-shape files (should not happen): keep one.
-        renameSync(join(this.avatarDir(), owned[0]), expectedPath);
+        renameSync(join(this.profilePhotoDir(), owned[0]), expectedPath);
         for (const name of owned.slice(1)) {
-          unlinkSync(join(this.avatarDir(), name));
+          unlinkSync(join(this.profilePhotoDir(), name));
         }
       }
     } catch (error) {
       this.logger.warn(
-        `Metadata avatar filename migration failed for ${channelId} (${error instanceof Error ? error.message : String(error)}) — legacy file kept serving`,
+        `Metadata profile-photo filename migration failed for ${channelId} (${error instanceof Error ? error.message : String(error)}) — legacy file kept serving`,
       );
     }
   }
@@ -234,7 +238,7 @@ export class MetadataService {
   public async fetchOnce(
     channelId: string,
     handle?: string | null,
-  ): Promise<MetadataAvatarStatus> {
+  ): Promise<MetadataProfilePhotoStatus> {
     return this.enqueue(() => this.fetchAndStore(channelId, false, handle));
   }
 
@@ -246,12 +250,12 @@ export class MetadataService {
   public async refresh(
     channelId: string,
     handle?: string | null,
-  ): Promise<MetadataAvatarStatus> {
+  ): Promise<MetadataProfilePhotoStatus> {
     return this.enqueue(() => this.fetchAndStore(channelId, true, handle));
   }
 
   /**
-   * Backfill avatars + identity for pre-metadata rows (P58 catch-up).
+   * Backfill profile photos + identity for pre-metadata rows (P58 catch-up).
    *
    * Walks every registry row (the subscription catalog) and adopts each
    * into metadata + fetches ONLY the ones with no file on disk
@@ -473,16 +477,16 @@ export class MetadataService {
       isFake: row.isFake ?? false,
       participantsCount: row.participantsCount ?? null,
       url: sourceUrlFor(row.handle),
-      avatarUrl: metadataAvatarUrlFor(row.channelId),
+      profilePhotoUrl: metadataProfilePhotoUrlFor(row.channelId),
       fetchStatus: row.fetchStatus ?? 'miss',
       updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : null,
     };
   }
 
   private enqueue(
-    work: () => Promise<MetadataAvatarStatus>,
-  ): Promise<MetadataAvatarStatus> {
-    const run: Promise<MetadataAvatarStatus> = this.tail.then(work, work);
+    work: () => Promise<MetadataProfilePhotoStatus>,
+  ): Promise<MetadataProfilePhotoStatus> {
+    const run: Promise<MetadataProfilePhotoStatus> = this.tail.then(work, work);
     this.tail = run.then(
       () => undefined,
       () => undefined,
@@ -494,8 +498,8 @@ export class MetadataService {
     channelId: string,
     force: boolean,
     handle?: string | null,
-  ): Promise<MetadataAvatarStatus> {
-    if (!force && this.hasAvatar(channelId)) {
+  ): Promise<MetadataProfilePhotoStatus> {
+    if (!force && this.hasProfilePhoto(channelId)) {
       this.migrateFilename(channelId, handle);
       return 'cached';
     }
@@ -511,24 +515,24 @@ export class MetadataService {
     if (!photo || photo.length === 0) {
       return 'placeholder';
     }
-    mkdirSync(this.avatarDir(), { recursive: true });
+    mkdirSync(this.profilePhotoDir(), { recursive: true });
     this.migrateFilename(channelId, handle);
-    const existing = this.findAvatarFile(channelId);
-    const filePath = existing ?? this.avatarFilePath(channelId, handle);
+    const existing = this.findProfilePhotoFile(channelId);
+    const filePath = existing ?? this.profilePhotoFilePath(channelId, handle);
     writeFileSync(filePath, photo);
-    await this.recordAvatar(channelId, filePath, handle);
+    await this.recordProfilePhoto(channelId, filePath, handle);
     return 'fetched';
   }
 
   /**
-   * Avatar bookkeeping (absorbed from `avatar/`, schema §2 + §3).
+   * Profile-photo bookkeeping (absorbed from `avatar/`, schema §2 + §3).
    *
    * Writes the metadata row (`avatar_path`/`avatar_updated_at`) and
    * mirrors the same columns to the registry row (dual-write, schema §4
    * step 1 — the registry mirror goes read-dead after cutover). The FILE
    * stays the source of truth for serving. Never throws.
    */
-  private async recordAvatar(
+  private async recordProfilePhoto(
     channelId: string,
     filePath: string,
     handle?: string | null,
@@ -545,15 +549,15 @@ export class MetadataService {
           fetchStatus: 'ok',
         });
       }
-      row.avatarPath = filePath;
-      row.avatarUpdatedAt = new Date();
+      row.profilePhotoPath = filePath;
+      row.profilePhotoUpdatedAt = new Date();
       if (handle && !row.handle) {
         row.handle = handle;
       }
       await this.metadata.save(row);
     } catch (error) {
       this.logger.warn(
-        `Metadata avatar bookkeeping failed for ${channelId} (${error instanceof Error ? error.message : String(error)}) — file kept, row untouched`,
+        `Metadata profile-photo bookkeeping failed for ${channelId} (${error instanceof Error ? error.message : String(error)}) — file kept, row untouched`,
       );
     }
     if (this.sources) {
@@ -567,7 +571,7 @@ export class MetadataService {
         }
       } catch (error) {
         this.logger.warn(
-          `Registry avatar mirror failed for ${channelId} (${error instanceof Error ? error.message : String(error)}) — metadata row kept`,
+          `Registry profile-photo mirror failed for ${channelId} (${error instanceof Error ? error.message : String(error)}) — metadata row kept`,
         );
       }
     }
