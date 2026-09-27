@@ -9,11 +9,11 @@
 apps/
 ├── backend/                                    # ADELGAZADO por tramos (post-cleanup sem 10 de cada tramo)
 │   └── src/
-│       ├── kol/                                # ❌ ELIMINADO Tramo 1 (→ kol-system/kol-identity)
+│       ├── kol/                                # ❌ ELIMINADO Tramo 1 (→ kol-calls: SUPERSEDED P4, sources en ingestion-telegram)
 │       ├── telegram/
-│       │   ├── ingestion/kol/                  # ❌ ELIMINADO Tramo 1 (→ kol-system/ingestion+extraction+parsing)
+│       │   ├── ingestion/kol/                  # ❌ ELIMINADO Tramo 1 (→ kol-calls/ingestion+extraction+parsing)
 │       │   ├── ingestion/feed/          # ❌ ELIMINADO Tramo 2 (→ feed-publisher/filters)
-│       │   ├── vip-calls/                      # ❌ ELIMINADO Tramo 1 (→ kol-system/*)
+│       │   ├── vip-calls/                      # ❌ ELIMINADO Tramo 1 (→ kol-calls-publisher/*, P51; P14: vip-calls = seed NAME, no módulo)
 │       │   ├── feed-integration/        # ❌ ELIMINADO Tramo 2 (→ feed-publisher/ingestion+matching)
 │       │   ├── feed-publisher/          # ❌ ELIMINADO Tramo 2 (→ feed-publisher/queue+llm+keywords)
 │       │   ├── feed-ads/                # ❌ ELIMINADO Tramo 2 (→ feed-publisher/scheduling)
@@ -24,13 +24,13 @@ apps/
 │
 ├── ingestion-telegram/                         # Sin cambio (C-SSE-01: +2 consumers HTTP/SSE por env)
 │
-├── kol-system/                                 # ★ TRAMO 1 (11 fases / 9-10 sem, :3050/:3051/:3052)
+├── kol-calls/                                  # ★ TRAMO 1 hot path (canonical, rename 2026-09-26 kol-system→kol-calls via git mv; 11 fases / 9-10 sem, :3050/:3051/:3052; P51: scoring/templates/approval/telegram MOVED a apps/kol-calls-publisher/ — ver su AGENTS.md §STRUCTURE)
 │   ├── package.json
 │   ├── nest-cli.json
 │   ├── tsconfig.json
 │   ├── Dockerfile
 │   ├── docker-compose.yml                      # postgres + redis dev
-│   ├── .env.example                            # KOL_SYSTEM_ENABLED, TEMPLATE_ORCHESTRATOR_ENABLED, INGESTION_TELEGRAM_URL, KOL_BOT_TOKEN
+│   ├── .env.example                            # KOL_CALLS_ENABLED, TEMPLATE_ORCHESTRATOR_ENABLED, INGESTION_TELEGRAM_URL (P23: cero KOL_BOT_TOKEN, config Telegram 100% DB)
 │   └── src/
 │       ├── main.ts                             # Bootstrap :3050
 │       ├── app.module.ts                       # 14 imports
@@ -65,7 +65,7 @@ apps/
 │       │   ├── application/use-cases/score-token.use-case.ts(~)
 │       │   ├── domain/{aggregates/scored-call.aggregate.ts(~),value-objects/score-breakdown.vo.ts(~)}
 │       │   └── scoring.module.ts(~)
-│       ├── snapshot/                           # P26+P27: tablas propias, MISMA DB kol-system
+│       ├── snapshot/                           # P26+P27: tablas propias, MISMA DB kol-calls
 │       │   ├── domain/{aggregates/mention-snapshot.aggregate.ts(~),ports/snapshot-repository.port.ts(~)}
 │       │   ├── infrastructure/persistence/typeorm/{entities/mention-snapshot.entity.ts(~),repositories/typeorm-snapshot.repository.ts(~)}
 │       │   └── snapshot.module.ts(~)
@@ -92,7 +92,7 @@ apps/
 │       │   ├── domain/aggregates/tracked-call.aggregate.ts(~)
 │       │   ├── api/controllers/tracking.controller.ts(~)
 │       │   └── tracking.module.ts(~)
-│       ├── kol-identity/                       # ⚠️ PIVOT §7.6 P4: SUPERSEDED — sources+avatar viven en ingestion-telegram (tipos kol|crypto-news); kol-system consume vía HTTP, no guarda perfiles
+│       ├── kol-identity/                       # ⚠️ PIVOT §7.6 P4: SUPERSEDED — sources+avatar viven en ingestion-telegram (tipos kol|crypto-news); kol-calls consume vía HTTP, no guarda perfiles
 │       │   ├── application/use-cases/{register-kol.use-case.ts(~),list-kols.use-case.ts(~)}
 │       │   ├── domain/aggregates/kol-profile.aggregate.ts(~)
 │       │   ├── infrastructure/persistence/typeorm/{entities/kol-profile.entity.ts(~),repositories/typeorm-kol.repository.ts(~)}
@@ -230,4 +230,4 @@ apps/
 │ ├── config/{app.config.ts,telegram.config.ts}(~)
 │ └── shared.module.ts(~)
 
-**Notas para el plan**: (1) `src/` como prefijo (README feed-publisher; 11-refactor mezcla con/without — manda `src/`). (2) kol-system: solo templates/approval/publishing/telegram-conexión son literales del spec; resto BCs patronados `(~)`. (3) market-data: Variante A literal con dir renombrado; si escala → Variante B (apps/api+bot+worker, libs/) como fase posterior. (4) DBs/migraciones por app en C-DB-01, no en el tree. (5) `market-data` legacy (`/token/market-data`, `MarketDataProviderPort`) se renombra dentro del Tramo 3 (R-4).
+**Notas para el plan**: (1) `src/` como prefijo (README feed-publisher; 11-refactor mezcla con/without — manda `src/`). (2) kol-calls: solo approval/publishing/telegram-conexión eran literales del spec; resto BCs patronados `(~)`; P51: templates/scoring/approval/telegram MOVED a `apps/kol-calls-publisher/` (ver su AGENTS.md §STRUCTURE). (3) market-data: Variante A literal con dir renombrado; si escala → Variante B (apps/api+bot+worker, libs/) como fase posterior. (4) DBs/migraciones por app en C-DB-01, no en el tree. (5) `market-data` legacy (`/token/market-data`, `MarketDataProviderPort`) se renombra dentro del Tramo 3 (R-4).
