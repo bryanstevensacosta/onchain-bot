@@ -1,6 +1,9 @@
 # Database inventory (plain language)
 
 > Live re-query: 2026-09-25 via read-only `SELECT` on OracleDroplet + local dev.
+> Refresh 2026-09-26: new-app sections below are declared from live entity
+> reads (`@Entity` table names + columns), NOT from live `SELECT` — every new
+> app still runs in-memory, so all new logical DBs hold 0 live tables.
 > No secret values are stored in this file. Counts are approximate rows ("filas aprox").
 > Table counts verified: prod backend 53 / prod ingestion 6 / staging backend 49 /
 > staging ingestion 6 / kol-system staging 0.
@@ -242,10 +245,171 @@ typeorm_migrations 6.
 
 ## Server 3 — onchain-bot-kol-system-postgres-staging (OracleDroplet, staging)
 
-### Database `onchain_bot_kol_system_staging` — future home of kol-system (0 tables)
+### Database `onchain_bot_kol_system_staging` — home of kol-calls + kol-calls-publisher (0 live tables)
 
-Empty on purpose: the kol-system app (Tramo 1) will create its own tables here.
+Empty on purpose: the kol-calls app (Tramo 1, renamed `kol-system` ->
+`kol-calls` 2026-09-26, DB names unchanged) and kol-calls-publisher (P51
+split 2026-09-26, same logical DB initially, split later) both run on
+in-memory repos — their TypeORM persistence is still unwired, so no tables
+exist yet. Intended tables are listed under "New app databases" below.
 Nothing to list yet.
+
+## New app databases (declared in code, 0 live tables each)
+
+Every app below owns one logical DB per env (`onchain_bot_<app>` prod +
+dev, `onchain_bot_<app>_staging` staging, same server as the backend DB per
+env). All persistence shapes are UNWIRED (in-memory repos are live) unless
+noted — the tables below come from live entity reads, so each "table" is
+the declared future shape, not a live row store.
+
+### Database `onchain_bot_kol_system[_staging]` — kol-calls hot path (Tramo 1)
+
+Owner: `apps/kol-calls/` (renamed from `kol-system` 2026-09-26; DB names
+unchanged). No `@Entity` decorators exist yet — repos are in-memory,
+TypeORM lands with the persistence todo. Table names are the spec intent
+from `apps/kol-calls/AGENTS.md`.
+
+- **extraction_candidates** — one row per contract mention in a KOL tip.
+  Columns: id, kolId, messageId, contractIndex, occurredAt, contractAddress, tickers, urls, handle, channelUrl, channelId, channelTitle.
+- **parsed_calls** — one structured row per candidate (ticker, name, chart).
+  Columns: id, kolId, messageId, contractIndex, occurredAt, contractAddress, ticker, name, chart, handle, channelId.
+- **normalized_mentions** — one filed row per mention, never merged.
+  Columns: id, kolId, messageId, contractIndex, occurredAt, contractAddress, ticker, name, chart, handle, channelId.
+- **mention_snapshots** — market picture at capture plus four clocks.
+  Columns: mentionId, kolId, messageId, contractIndex, contractAddress, chain, occurred_at_telegram, ingested_at_kol, enriched_at (= snapshot_at), priceUsd, liquidityUsd, volume24hUsd, marketCapUsd, fdvUsd, priceChange24h, holders, top10HolderPercent, symbol, name, lockedLiquidityPercent, burnedPercent.
+- **tracked_mentions** — first-seen tracker per (caller, contract).
+  Columns: id, kolId, chain, address, firstSeenAt, firstMcAt, lastCallMcAt, lastSeenAt, lastMentionId, timesCalled.
+- **kol_window_stats** — precomputed ranking rows per (caller, window).
+  Columns: id, caller, window, totalX, callsCount, strongCalls.
+
+### Database `onchain_bot_kol_system[_staging]` (shared) — kol-calls-publisher (P51)
+
+Owner: `apps/kol-calls-publisher/` (split 2026-09-26; SAME logical DB as
+kol-calls initially, split later; HTTP `:3060`/`:3061`/`:3062`). Same
+unwired state: domain entities only, in-memory repos, no `@Entity` yet.
+
+- **scored_calls** — score 0-100 per passing mention with reasons.
+  Columns: mentionId, kolId, messageId, contractIndex, chain, address, score, avgKolReputation, breakdown, scoredAt, tier.
+- **publishing_templates** — per-template channel picker, labels, ranking, bot link.
+  Columns: id, name, kolSourceIds, minVisibleScore, gemMinScore, gemPatterns, rankingStrategy, rankingLimit, rankingWeights, scoringConfig, botId, channelTarget, active, ownerId.
+- **telegram_bots** — reusable bot catalog, token as ciphertext only.
+  Columns: id, label, encryptedToken, createdAt, updatedAt.
+- **call_approvals** — accept-or-reject row per (template, mention).
+  Columns: id, templateId, mentionId, kolId, chain, address, ticker (may be empty here), score, status, reason, decidedBy, decidedAt, createdAt.
+- **publishing_jobs** — one send attempt per approved mention (ticker never empty).
+  Columns: id, templateId, mentionId, ticker, chain, address, channelTarget, message, status, telegramMessageId, failedReason, createdAt, finalizedAt.
+
+### Database `onchain_bot_feed_publisher[_staging]` — feed-publisher (Tramo 2)
+
+Owner: `apps/feed-publisher/` (HTTP `:3040`/`:3041`/`:3042`, dev pg
+`:5436`). TypeORM shapes exist but are UNWIRED (GAP-1, in-memory live) —
+except `feed_content_templates`, which is a shape stub without `@Entity`.
+
+- **feed_publisher_queue** — news items waiting to be published, with progress.
+  Columns: id, contentType, channelId, messageId, rawContent, rawTitle, imagePaths, groupedId, messageReceivedAt, queuedAt, matchedKeywordIds, keywordTemplateId, status, attempts, publishedAt, telegramMessageId, generatedContent, lastError, blockedReason, duplicateOfChannelId, duplicateOfMessageId, duplicateOfEntryId.
+- **feed_publisher_keywords** — allowed trigger words that select news.
+  Columns: id, phrase, caseSensitive, sourceChannelIds, templateId, enabled, andGroupId, requireMedia, matchMode, createdAt.
+- **feed_publisher_blacklist_phrases** — forbidden phrases that block a news item.
+  Columns: id, phrase, caseSensitive, matchMode, sourceChannelIds, andGroupId, requireMedia, enabled, createdAt.
+- **channel_content_filter_configs** — find-and-replace text cleanups per channel (name kept, no rename).
+  Columns: id, channelId, pattern, replacement, flags, isActive, priority, createdAt, updatedAt.
+- **feed_publisher_matching_config** — master switch for matching news to keywords.
+  Columns: id, enabled, updatedAt.
+- **feed_llm_config** — writing robot settings and daily limits (single row).
+  Columns: id, defaultTemplateId, targetChannel, llmEnabled, publishingEnabled, rejectNonLatin, dailyCap, dailyResetUtcHour, randomDelayMinMs, randomDelayMaxMs, llmMaxAttempts, updatedAt.
+- **feed_prompt_templates** — reusable writing instructions, global catalog.
+  Columns: id, name, description, contentType, model, supportsVision, maxTokens, temperature, reasoningEffort, promptText, systemPromptText, createdAt, updatedAt.
+- **dedup_fingerprints** — fingerprints used to spot repeated news (name kept, plain table, no vector extension).
+  Columns: id, fingerprintType, fingerprintValue, source, channelId, messageId, contentHash, urlHashes, tokens, numbers, entities, cashtags, content, embedding, referencedEntryId, createdAt.
+- **feed_threads** — Threads post containers with progress.
+  Columns: id, status, messagesPublished, lastPublishedMessageIndex, attempts, failureReason, nextAttemptAt, createdAt, updatedAt.
+- **feed_thread_messages** — single posts inside a Threads container.
+  Columns: id, threadId, idx, content, mediaUrls, delaySeconds, publishedAt, remoteId.
+- **feed_content_templates** (future stub, no `@Entity` yet) — reusable publishing setups.
+  Columns: id, name, active, sourceIds, keywordIds, promptTemplateId, targets.
+- Template bot catalog + publishing sessions — in-memory only, no table shape declared yet.
+
+### Database `onchain_bot_scheduling[_staging]` — scheduling-posts (Tramo 2 follow-up)
+
+Owner: `apps/scheduling-posts/` (moved from feed-publisher via `git mv`
+2026-09-26; HTTP `:4080`/`:4081`/`:4082`, dev pg `:5442`). Shapes UNWIRED
+(GAP-1, in-memory live).
+
+- **feed_scheduled_ads** — sponsored messages library (renamed ads -> scheduling per P36).
+  Columns: id, name, body, format, imageMediaId, videoMediaId, albumMediaIds, buttons, enabled, order, timesPublished, consecutiveFailures, lastPublishedAt, expiresAt, expirationAction, createdAt, updatedAt.
+- **feed_scheduled_ad_media** — pictures or video attached to each sponsored message.
+  Columns: id, adId, filePath, mimeType, fileSize, createdAt.
+- **feed_ad_media_library** — shared shelf of reusable media files.
+  Columns: id, filePath, contentHash, originalFileName, mimeType, fileSize, createdAt.
+- **feed_scheduling_config** — how often a sponsored message appears, per target (single row).
+  Columns: id, enabled, everyNPosts, minMinutesBetweenAds, telegramPublishDelayMs, telegramDailyCap, threadsPublishDelayMs, threadsDailyCap, createdAt, updatedAt.
+- **feed_scheduling_state** — counters and daily tallies per target (single row).
+  Columns: id, postsSinceLastAd, telegramLastAdId, telegramLastPublishedAt, telegramPublishedToday, telegramDayKey, threadsLastAdId, threadsLastPublishedAt, threadsPublishedToday, threadsDayKey, updatedAt.
+- **scheduled_posts** — one-shot and recurring contract posts, replay-safe.
+  Columns: id, sessionId, binding, content, scheduleKind, idempotencyKey, state, messageId, firedAt, reason, lastFiredAt, createdAt, updatedAt.
+
+### Database `onchain_bot_market_data[_staging]` — market-data (Tramo 3)
+
+Owner: `apps/market-data/` (HTTP `:4000`/`:4001`/`:4002`, dev pg `:5438`).
+0 tables declared — no entities exist; persistence (address snapshots +
+`api_keys`) lands with todo 3. HTTP answers are computed live, nothing is
+stored.
+
+### Database `onchain_bot_dexter[_staging]` — dexter-onchain-bot (Tramo 3 final phase)
+
+Owner: `apps/dexter-onchain-bot/` (HTTP `:4060`/`:4061`/`:4062`, dev pg
+`:5440`). 0 tables — chat groups + chat settings run in-memory
+(TypeORM intentionally not moved); the DBs are provisioned but unwired.
+
+- **chat_groups** (planned, no shape yet) — chats the lookup bot has seen.
+  Columns: id, telegramChatId, telegramChatType, title, telegramChatUsername, createdAt, lastSeenAt.
+- **chat_settings** (planned, no shape yet) — per-chat trade buttons and display options.
+  Columns: chatGroupId, enabledTradeButtons, tradeButtonsPosition, tradeButtonsLimit, emojiMode, groupMode, autoResponder, priceMode, updatedAt.
+
+### Database `onchain_bot_ai_ml[_staging]` — ai-ml (shared service)
+
+Owner: `apps/ai-ml/` (HTTP `:4090`/`:4091`/`:4092`, dev pg `:5444`). One
+declared shape, UNWIRED (in-memory live); keys, audits and usage stay
+in-memory.
+
+- **ai_ml_prompt_templates** — versioned global writing-instruction catalog.
+  Columns: id, name, version, content, systemContent, variables, contentType, isActive, createdAt, updatedAt.
+
+### Database `onchain_bot_bots[_staging]` — telegram-bots-gateway (shared service)
+
+Owner: `apps/telegram-bots-gateway/` (HTTP `:4070`/`:4071`/`:4072`).
+One declared shape, scaffold-only (no migration, in-memory repo live).
+
+- **bot_vault** — bot tokens as ciphertext only, never plaintext.
+  Columns: id, label, token (ciphertext), owner_app, created_at, rotated_at.
+
+### Database `onchain_bot_threads[_staging]` — threads-publisher
+
+Owner: `apps/threads-publisher/` (HTTP `:4100`/`:4101`/`:4102`, dev pg
+`:5446`, dev redis `:6393`). Shapes below come from live reads of
+`src/threads/domain/` (8 domain entities) + `src/feed-threads/domain/`
+(`FeedThread`); persistence is UNWIRED (in-memory repos live), so the
+logical DBs hold 0 live tables — each "table" is the declared future
+shape, not a live row store.
+
+- **threads_keywords** — allowed trigger words for Threads posts.
+  Columns: id, phrase, matchMode, channelId, requireMedia, templateId.
+- **threads_blacklist_phrases** — forbidden phrases for Threads posts.
+  Columns: id, phrase.
+- **threads_llm_configs** — writing robot settings and daily limits (single row id=1).
+  Columns: llmEnabled, publishingEnabled, rejectNonLatin, dailyCap, llmMaxAttempts, model (from `THREADS_LLM_MODEL`, no provider pinned in code).
+- **threads_matching_configs** — master switch for Threads matching (single row).
+  Columns: enabled.
+- **threads_oauth_tokens** — login tokens for posting to Threads, single row id=1 (values never shown here).
+  Columns: id, accessToken, threadsUserId, obtainedAt, expiresInS.
+- **threads_prompt_templates** — reusable writing instructions for Threads (seed threads-default).
+  Columns: id, name, content, model, maxTokens, temperature, vision.
+- **threads_queue_entries** — Threads posts waiting to be published, 6-state lifecycle.
+  Columns: id, channelId, messageId, rawContent, status (PENDING, SCHEDULED, PUBLISHING, PUBLISHED, FAILED, BLOCKED), queuedAt, matchedKeywordIds, generatedContent, lastError, publishedRemoteId.
+- **threads_throttle_states** — brake that slows Threads posting down.
+  Columns: lastPublishedAt, dayKey, publishedToday.
+- **feed_threads** — Threads post containers with progress (DRAFT to QUEUED to IN_PROGRESS to COMPLETED, PARTIAL resume, FAILED terminal).
+  Columns: id, status, messages (content, delayMs), messagesPublished, failureReason.
 
 ## Local dev (laptop)
 
@@ -263,12 +427,37 @@ else 0). No local ingestion database was found.
   `vip_published_calls`, `kol_reputations`, `monitored_calls`,
   `tracked_published_calls`, `call_performances`, `call_evaluation_jobs`,
   plus settings and achievements helpers) move to the new `kol-system` database
-  (`onchain_bot_kol_system[_staging]`) in Tramo 1. The `kol-identity` profile idea
+  (`onchain_bot_kol_system[_staging]`) in Tramo 1, under the new per-mention
+  shapes (`extraction_candidates`, `parsed_calls`, `normalized_mentions`,
+  `mention_snapshots`, `scored_calls`, `call_approvals`, `publishing_jobs`,
+  `tracked_mentions`, `kol_window_stats`, `publishing_templates`,
+  `telegram_bots`). The `kol-identity` profile idea
   was dropped (P4): channel lists stay in ingestion-telegram.
+  (`kol-system` renamed `kol-calls` 2026-09-26, DB names unchanged;
+  scoring/templates/approval/publishing moved to `kol-calls-publisher`,
+  same DB initially.)
 - Feed tables (`crypto_news_*` in the backend) move to the new `feed-publisher`
   database in Tramo 2 AND are renamed `crypto_news_*` -> `feed_*` (P35), with a
-  database migration. Ads tables are also renamed to scheduling language (P36).
-- Threads tables (`threads_*`) move to `feed-publisher` as well (threads area).
+  database migration — PENDING per the rename runbook
+  (`.omo/runbooks/rename-onchain-bot-db.md`, phase 3). The new apps already
+  declare `feed_*` shapes (`feed_publisher_*`, `feed_llm_config`,
+  `feed_prompt_templates`, `feed_threads*`, `feed_scheduled_*`,
+  `feed_scheduling_*`, `feed_ad_media_library`, `scheduled_posts`), but those
+  shapes are UNWIRED — live feed data still sits in the backend
+  `crypto_news_*` tables until cutover. Ads tables are also renamed to scheduling language (P36).
+  Kept names (no rename): `channel_content_filter_configs`, `dedup_fingerprints`.
+- Threads tables (`threads_*`) are owned by the standalone
+  `threads-publisher` app (`onchain_bot_threads[_staging]`, 8 domain
+  entities + `feed_threads`, in-memory live); `feed-publisher` keeps its
+  own `feed_threads` + `feed_thread_messages` shapes for the v2 thread
+  flow (unwired).
+- Ingestion tables (`telegram_feed_*`) already carry the new naming and stay owned
+  by ingestion-telegram; they are not moved or renamed.
+- market-data (`onchain_bot_market_data[_staging]`, 0 tables) and
+  dexter-onchain-bot (`onchain_bot_dexter[_staging]`, 0 tables, in-memory
+  settings) declare no tables yet; ai-ml declares only
+  `ai_ml_prompt_templates` (unwired); telegram-bots-gateway declares only
+  `bot_vault` (scaffold-only).
 - Ingestion tables (`telegram_feed_*`) already carry the new naming and stay owned
   by ingestion-telegram; they are not moved or renamed.
 - One-off copies (`kols_backup_20260923`, `published_calls`, `notified_achievements`,

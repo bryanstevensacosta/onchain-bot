@@ -1,0 +1,71 @@
+# Staging environment - threads-publisher (threads-publisher plan Fase 2 todo 9)
+#
+# MIRROR of apps/feed-publisher/docker-compose.staging.yml (per-env model).
+# DRY-RUN ONLY — no threads-publisher deploy workflow exists yet; nothing here
+# has ever been applied to Oracle.
+#
+# Project name EXPLÍCITO: sin `name:`, compose usa el basename del
+# directorio (`threads-publisher`), que COLISIONA con el proyecto del dev
+# compose (mismo basename, mismos services postgres/redis) y cada `up` de un
+# lado recrea/destruye los contenedores del otro.
+name: onchain-bot-threads-publisher-staging
+#
+# ARCHITECTURE (per-env model):
+# - threads-publisher staging consumes the STAGING TWIN ingestion
+#   (apps/backend/docker-compose.staging-ingestion.yml, project
+#   onchain-bot-staging-ingestion, host 127.0.0.1:3033 → container :3031,
+#   DNS onchain-bot-ingestion-telegram-staging).
+# - Twin MUST join onchain-bot-staging-net (this file's default net) or this
+#   service cannot resolve the twin DNS.
+#
+# PORTS (verified free repo-wide 2026-09-26 — grep 5447:/6394:/4101: zero
+# source/config hits; OPERATOR-CONFIRM both host ports on Oracle with lsof):
+# - threads-publisher HTTP host :4101 → container :4100. Triplet
+#   4100/4101/4102 (dev/staging/prod) per .env.example.
+#   Container port is THREADS_PUBLISHER_PORT (default 4100, src/main.ts).
+# - postgres host :5447 → container :5432. Dev threads-publisher uses :5446;
+#   ai-ml staging uses :5445 — :5447 is free repo-wide.
+# - redis host :6394 → container :6379. Dev threads-publisher uses :6393;
+#   ai-ml staging uses :6392 (verify) — :6394 is free repo-wide.
+#   OPERATOR-CONFIRM both host ports on first deploy (lsof on Oracle).
+#
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: onchain-bot-threads-publisher-postgres-staging
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-onchain_bot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-onchain_bot}
+      POSTGRES_DB: ${POSTGRES_DB:-onchain_bot_threads_staging}
+    ports:
+      - '5447:5432'
+    volumes:
+      - onchain-bot-threads-publisher-staging-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-onchain_bot} -d ${POSTGRES_DB:-onchain_bot_threads_staging}',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: onchain-bot-threads-publisher-redis-staging
+    restart: unless-stopped
+    ports:
+      - '6394:6379'
+    volumes:
+      - onchain-bot-threads-publisher-staging-redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  onchain-bot-threads-publisher-staging-pg-data:
+  onchain-bot-threads-publisher-staging-redis-data:
