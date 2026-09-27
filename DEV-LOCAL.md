@@ -103,3 +103,61 @@ docker compose -f docker-compose.dev.yml down -v  # NUKE: removes DB volumes too
 | `relation does not exist` in ingestion        | Step 1.3 (`CREATE DATABASE`) was skipped                                                                                            |
 | File watcher misses edits (macOS)             | Restart the service: `up -d --force-recreate <svc>`                                                                                 |
 | Change a dependency                           | `docker compose -f docker-compose.dev.yml build <svc> && up -d <svc>`                                                               |
+
+## 6. Host alternative: pm2 (`ecosystem.config.js`)
+
+Same 12 services, natively on the host instead of Docker. Companion file:
+`ecosystem.config.js` (repo root). All secrets there are DUMMIES — never put
+real tokens/keys in it (same rule as §1: real MTProto triple lives ONLY in
+`apps/ingestion-telegram/.env`, never referenced).
+
+Prerequisites: Node 22+, `npm i -g pm2`, and the C-DB-01 infra running
+(per-app DB/Redis containers from `docker-compose.dev.yml` — the `env:` blocks
+in `ecosystem.config.js` target the HOST-mapped ports, e.g. kol-calls pg
+`localhost:5435`, NOT the compose service names):
+
+```bash
+# 1) Infra only (no app containers):
+docker compose -f docker-compose.dev.yml up -d pg-backend redis-backend \
+  pg-kol redis-kol pg-feed redis-feed pg-gateway pg-market redis-market \
+  pg-dexter redis-dexter pg-scheduling redis-scheduling pg-aiml redis-aiml \
+  pg-threads redis-threads
+
+# 2) Ingestion DB lives on the shared backend postgres — create it once
+#    (same as §1 step 3):
+docker exec onchain-dev-pg-backend psql -U onchain_bot -d onchain_bot \
+  -c 'CREATE DATABASE onchain_bot_ingestion;'
+```
+
+Lifecycle:
+
+```bash
+pm2 start ecosystem.config.js                        # all 12
+pm2 start ecosystem.config.js --only backend         # one service
+pm2 start ecosystem.config.js --only backend --no-autorestart  # dry-run wiring check
+pm2 stop <app> | pm2 restart <app> | pm2 delete <app>
+pm2 stop all && pm2 delete all                       # full cleanup (leave nothing running)
+pm2 logs <app> --lines 50                            # tail one service
+pm2 logs --lines 20                                  # everything (repo-root .logs/*.log)
+pm2 monit                                            # cpu/mem dashboard
+pm2 describe <app>                                   # resolved cwd/script/env/log paths
+```
+
+Notes:
+
+- `watch=false` in the config: Nest (`--watch`) / vite watch THEMSELVES —
+  pm2 must not double-watch. `max_memory_restart`: `1G` (Nest), `512M`
+  (frontend). Logs: repo-root `.logs/<app>.log` + `.logs/<app>-error.log`
+  (absolute paths via `__dirname` — pm2 resolves relative log paths against
+  each app's `cwd`, verified 2026-09-27).
+- Backend boots DB-less by default (`DATABASE_ENABLED=false`); for a DB-backed
+  boot, uncomment the `POSTGRES_*` block in `ecosystem.config.js` (DB
+  `onchain_bot` must exist first). New apps expect their C-DB-01 DBs to exist
+  (`DATABASE_SYNCHRONIZE=true` creates TABLES, not databases).
+- Either Docker (§1) or pm2 — NEVER both: same host ports. Stop one stack
+  fully before starting the other.
+- Known host strays (NOT pm2, do NOT kill blindly — verify with
+  `lsof -iTCP -sTCP:LISTEN -P` first): detached `node apps/*/dist/main`
+  processes from killed shells hold their ports (seen 2026-09-27 on `:4000`
+  market-data, `:4060` dexter). `pm2 delete all` does not touch them; stop the
+  owning shell/session or kill by explicit PID only.
