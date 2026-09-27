@@ -6,11 +6,11 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Added
 
+- Consolidated ingestion-telegram docs set (feat/mega-refactor-tramos): new plain-words English `DB.md` (databases per env + the 3 `telegram_feed_*` tables + columns, Redis keys, on-disk layouts, migration history) and `BC.md` (per-area what/how with verified paths, HTTP APIs with inputs/outputs, classes + technical names explained for core, feed, registry, stream, retention, media, avatar, shared, health/metrics/debug), plus a PURPOSE section in `AGENTS.md` naming what each of the 4 docs is for. Standing rule: the 4 docs are updated continuously with every behavior or schema change (Unreleased entry first, never batch-at-release).
+
 - Full API-key auth (sec1): `GET /api/feed/*` + `/api/crypto-news/*` reads now require the key (dual-prefix parity), two-bucket in-memory rate limiting (60/min protected+writes, 300/min media/avatar, health trio + SSE exempt, 401 precedes 429), one structured `auth:access:decision` audit line per decision with pino-http redaction of both key transports, and the key-compromise drill (`docs/deployment/ingestion-api-key-compromise-drill.md`). (feat/mega-refactor-tramos)
 
 - P41 API prefix migration dual-serve (T2 todo 13 Fase 1): `FeedController` + `SourcesController` serve old `api/crypto-news/*` alongside `api/feed/*` (same handlers). `feed-sources` scope lives ONLY here; backend keeps its `/crypto-news/sources/:channelId/filters` CRUD (no `feed-sources` in backend). Old paths drop at cutover todo 11. (feat/mega-refactor-tramos)
-
-### Added
 
 - Permanent avatar module: `GET /api/kol-avatar/:channelId` (public, 200 placeholder) + `POST .../refresh` (guarded, single re-fetch); fetch-once at registration, excluded from the 72h janitor, under the `kol-avatar` flood guard; `avatarUrl` in `GET /api/feed/sources`; migration `1790300000000-KolAvatarColumns`. (feat/mega-refactor-tramos)
 

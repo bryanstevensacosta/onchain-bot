@@ -8,6 +8,15 @@
 
 > Versión v1.2.0 (source of truth: `package.json` + `CHANGELOG.md`; verificado 2026-09-24).
 
+## Doc set purpose (DB.md / BC.md / CHANGELOG.md / AGENTS.md)
+
+| Doc            | What it is for                                                                                                                                                                                                      | Update rule                                                                                                                       |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `DB.md`        | Plain-words English reference: databases per env + the 3 tables + columns, non-Postgres state, files, schema history.                                                                                               | Update when any table, column, DB name, Redis key, on-disk layout, or migration changes.                                          |
+| `BC.md`        | Plain-words English guide per area (core, feed, registry, stream, retention, media, avatar, shared, health/metrics/debug): what/how with paths, HTTP APIs with inputs/outputs, classes + technical names explained. | Update when any area gains/loses an endpoint, changes behavior, or adds/removes a class. Keep every cited path real.              |
+| `CHANGELOG.md` | Manual release history + `Unreleased` tracker for this branch.                                                                                                                                                      | Every behavior or schema change lands an `Unreleased` entry first (continuous updates of the 4-doc set, never batch-at-release).  |
+| `AGENTS.md`    | Contributor knowledge base (this file): commands, wiring, gaps, invariants, env vars — the working reference.                                                                                                       | Update alongside code changes; keep the PURPOSE table above and the gaps list truthful (no reintroducing fixed gaps as features). |
+
 ## Comandos
 
 ```bash
