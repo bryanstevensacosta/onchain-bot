@@ -11,13 +11,15 @@ import { RateLimitGuard } from './shared/common/auth/rate-limit.guard';
 import { LoggingModule } from './shared/common/logging/logging.module';
 import { SharedModule } from './core/shared.module';
 import { StreamModule } from './stream/stream.module';
-import { MediaModule } from './media/media.module';
+import { MediaModule } from './feed-media/media.module';
 import { HealthModule } from './health/health.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { CoreModule } from './core/core.module';
+import { MetadataModule } from './metadata/metadata.module';
 import { TelegramFeedSourceEntity } from './registry/infrastructure/persistence/typeorm/entities/telegram-feed-source.entity';
 import { TelegramFeedMessageEntity } from './feed/infrastructure/persistence/typeorm/entities/telegram-feed-message.entity';
 import { TelegramFeedMessageMediaEntity } from './feed/infrastructure/persistence/typeorm/entities/telegram-feed-message-media.entity';
+import { TelegramChannelMetadataEntity } from './metadata/channel-metadata.entity';
 
 /**
  * AppModule - Root module for Ingestion Service
@@ -83,6 +85,7 @@ import { TelegramFeedMessageMediaEntity } from './feed/infrastructure/persistenc
             TelegramFeedSourceEntity,
             TelegramFeedMessageEntity,
             TelegramFeedMessageMediaEntity,
+            TelegramChannelMetadataEntity, // P58 central metadata
           ],
           synchronize,
           logging: dbConfig?.logging || false,
@@ -147,6 +150,9 @@ import { TelegramFeedMessageMediaEntity } from './feed/infrastructure/persistenc
 
     // Telegram ingestion (MTProto + coordinator)
     CoreModule,
+
+    // P58 central channel metadata (absorbs avatar/)
+    MetadataModule,
   ],
   providers: [
     // sec1 hardened auth (gap 19 full): global guards, allow-all when

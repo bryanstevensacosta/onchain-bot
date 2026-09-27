@@ -68,10 +68,10 @@ Reads live in `FeedController` (`src/feed/`, `@Controller('api/feed')`):
 
 Unchanged plumbing (NOT under `/api/feed/`):
 
-| Method + path                                 | Owner                                                                                 |
-| --------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `GET /api/media/:channelId/:messageId/:index` | `src/media/` (`MediaController`); serves by glob, never trusts `file_path` for lookup |
-| `GET /api/ingestion/stream`                   | `src/stream/` (SSE fan-out, 30 s heartbeat; lossy by design, no replay)               |
+| Method + path                                 | Owner                                                                                                                              |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/media/:channelId/:messageId/:index` | `src/feed-media/` (`MediaController`); serves by glob from `feed-media/` with legacy fallback, never trusts `file_path` for lookup |
+| `GET /api/ingestion/stream`                   | `src/stream/` (SSE fan-out, 30 s heartbeat; lossy by design, no replay)                                                            |
 
 Hard cut, no aliases: the old `/api/feed/*` routes return 404
 (item 5). Backend `GET telegram-kol/identity/kols*` returns 501 with feed
@@ -81,7 +81,7 @@ hints (item 8); reads go through `FeedIdentityHttpClient`
 ## Ownership split
 
 - **Ingestion owns** sources + messages + media (tables, files under
-  `<UPLOADS_ROOT>/feed/media/`, retention janitor, SSE broadcast).
+  `<UPLOADS_ROOT>/feed-media/`, retention janitor, SSE broadcast).
 - **Backend owns** scoring, reputation, filters/keywords, publisher queue,
   publishing (Bot API). It reads identity via HTTP, never writes feed rows.
 - **Frontend reads** feed directly

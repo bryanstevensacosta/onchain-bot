@@ -282,7 +282,7 @@ export class FeedRetentionCleanupScheduler {
       this.config.get('app.uploadsRoot') ??
       'uploads';
     const mediaSub: string =
-      this.config.get('app.uploads.mediaPath') ?? 'feed/media';
+      this.config.get('app.uploads.mediaPath') ?? 'feed-media';
     const mediaRoot: string = path.isAbsolute(uploadsRoot)
       ? path.join(uploadsRoot, mediaSub)
       : path.join(process.cwd(), uploadsRoot, mediaSub);

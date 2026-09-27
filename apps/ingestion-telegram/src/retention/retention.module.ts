@@ -8,6 +8,7 @@ import { SourcesController } from 'registry/api/http/sources.controller';
 import { FeedController } from 'feed/api/http/feed.controller';
 import { RegisterNewsSourceUseCase } from 'registry/application/use-cases/register-news-source.use-case';
 import { AvatarModule } from '../avatar/avatar.module';
+import { MetadataModule } from '../metadata/metadata.module';
 import { FeedRetentionCleanupScheduler } from './infrastructure/scheduling/feed-retention-cleanup.scheduler';
 import { DiskMonitorService } from './infrastructure/scheduling/disk-monitor.service';
 
@@ -41,7 +42,8 @@ import { DiskMonitorService } from './infrastructure/scheduling/disk-monitor.ser
 @Module({
   imports: [
     SharedModule,
-    AvatarModule, // KOL avatars (P19): controller + fetch-once for RegisterNewsSourceUseCase
+    AvatarModule, // KOL avatars (P19): controller + fetch-once for RegisterNewsSourceUseCase (deprecated, see MetadataModule)
+    MetadataModule, // P58 central metadata: dual-write target for registry writes + canonical avatar serve
     TypeOrmModule.forFeature([
       TelegramFeedMessageEntity,
       TelegramFeedMessageMediaEntity,

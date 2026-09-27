@@ -291,7 +291,7 @@ describe('MediaController (Phase 4 Updated)', () => {
     it('should resolve hostile channelIds inside the uploads root', () => {
       const dir =
         controller['pathBuilder'].getMediaDirectory('../../etc/passwd');
-      expect(dir.startsWith('/test/uploads/feed/media')).toBe(true);
+      expect(dir.startsWith('/test/uploads/feed-media')).toBe(true);
       expect(dir).not.toContain('..');
     });
   });

@@ -19,9 +19,17 @@ import {
   KOL_AVATAR_PLACEHOLDER_SVG,
   sanitizeAvatarChannelId,
 } from './avatar.constants';
+import { avatarDeprecationHeaders } from '../metadata/metadata.constants';
 
 /**
  * Channel avatar HTTP API (Tramo 1, todo 13, P19; avatar-total todo 12, P57).
+ *
+ * @deprecated P58: ownership moved to `metadata/` (`MetadataController`
+ * serves the canonical `GET /api/metadata/:channelId/avatar`). These
+ * routes keep serving bytes (200) during dual-write and carry
+ * `Deprecation`/`Sunset`/`Link rel='successor-version'` headers (the only
+ * behavior change). DELETION after staging is green (schema §4 step 5) —
+ * do not add new callers.
  *
  * - `GET /api/kol-avatar/:channelId` — stored photo (200, 1y cache) or the
  *   inline placeholder SVG (200) when no photo was ever fetched / the
@@ -55,6 +63,7 @@ export class KolAvatarController {
         `Invalid channelId: ${channelId}. Must contain alphanumeric characters`,
       );
     }
+    this.applyDeprecation(response, channelId);
     const filePath = this.avatars.findAvatarFile(channelId);
     if (filePath) {
       let size = 0;
@@ -79,12 +88,15 @@ export class KolAvatarController {
     summary: 'Backfill avatars for source rows missing a file (fetch-once)',
   })
   @ApiResponse({ status: 201, description: 'Backfill totals' })
-  public async backfillAvatars(): Promise<{
+  public async backfillAvatars(
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<{
     checked: number;
     fetched: number;
     cached: number;
     placeholder: number;
   }> {
+    this.applyDeprecation(response, 'backfill');
     return this.avatars.backfillMissing();
   }
 
@@ -97,6 +109,7 @@ export class KolAvatarController {
   public async refreshAvatar(
     @Param('channelId') channelId: string,
     @Query('handle') handle?: string,
+    @Res({ passthrough: true }) response?: Response,
   ): Promise<{
     channelId: string;
     avatar: string;
@@ -108,12 +121,26 @@ export class KolAvatarController {
         `Invalid channelId: ${channelId}. Must contain alphanumeric characters`,
       );
     }
+    if (response) {
+      this.applyDeprecation(response, channelId);
+    }
     const avatar = await this.avatars.refresh(channelId, handle ?? null);
     return {
       channelId,
       avatar,
       avatarUrl: this.avatars.avatarUrlFor(channelId),
     };
+  }
+
+  /**
+   * P58 deprecation headers (the only behavior change on these routes).
+   * Bytes/statuses are untouched; deletion after staging is green.
+   */
+  private applyDeprecation(response: Response, channelId: string): void {
+    const headers = avatarDeprecationHeaders(channelId);
+    response.setHeader('Deprecation', headers.Deprecation);
+    response.setHeader('Sunset', headers.Sunset);
+    response.setHeader('Link', headers.Link);
   }
 
   private sendPlaceholder(response: Response): void {

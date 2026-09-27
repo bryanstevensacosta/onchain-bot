@@ -282,7 +282,7 @@ describe('MessagePayload Transformation', () => {
           {
             type: 'photo',
             index: 0,
-            filePath: '/uploads/feed/media/-1001234567890/12345-0.jpg',
+            filePath: '/uploads/feed-media/-1001234567890/12345-0.jpg',
             mimeType: 'image/jpeg',
             fileSize: 245678,
           },

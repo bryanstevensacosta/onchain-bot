@@ -12,14 +12,16 @@ import { TelegramPeerResolver } from './infrastructure/services/telegram-peer-re
 import { MessageQueue } from './infrastructure/services/message-queue';
 import { TelegramListenerPort } from './ports/telegram-listener.port';
 import { StreamModule } from 'stream/stream.module';
-import { MediaDownloaderService } from 'media/application/services/media-downloader.service';
+import { MediaDownloaderService } from 'feed-media/application/services/media-downloader.service';
 import { RedisService } from 'shared/common/cache/redis.service';
 import { IngestionSafetyConfig } from './infrastructure/config/ingestion-safety.config';
 import { TelegramFeedSourceEntity } from 'registry/infrastructure/persistence/typeorm/entities/telegram-feed-source.entity';
 import { TelegramFeedMessageEntity } from 'feed/infrastructure/persistence/typeorm/entities/telegram-feed-message.entity';
 import { TelegramFeedMessageMediaEntity } from 'feed/infrastructure/persistence/typeorm/entities/telegram-feed-message-media.entity';
+import { TelegramChannelMetadataEntity } from 'metadata/channel-metadata.entity';
 import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
 import { TelegramFeedMessageRepository } from 'feed/infrastructure/persistence/typeorm/repositories/telegram-feed-message.repository';
+import { MetadataRepository } from 'metadata/metadata.repository';
 import { FeedMessageTransformer } from 'shared/transformation';
 import { TelegramMediaExtractorService } from './application/services/telegram-media-extractor.service';
 
@@ -47,7 +49,8 @@ import { TelegramMediaExtractorService } from './application/services/telegram-m
       TelegramFeedSourceEntity,
       TelegramFeedMessageEntity,
       TelegramFeedMessageMediaEntity,
-    ]), // For feed persistence
+      TelegramChannelMetadataEntity,
+    ]), // For feed persistence + P58 channel metadata
   ],
   providers: [
     // Config & Infrastructure
@@ -57,6 +60,7 @@ import { TelegramMediaExtractorService } from './application/services/telegram-m
     // Feed DB repositories
     TelegramFeedSourceRepository,
     TelegramFeedMessageRepository,
+    MetadataRepository, // P58 identity reads (phone excluded by the entity)
 
     // MTProto layer
     TelegramClientManager,
@@ -96,6 +100,7 @@ import { TelegramMediaExtractorService } from './application/services/telegram-m
     IngestionSafetyConfig,
     TelegramFeedSourceRepository, // Export for feed modules
     TelegramFeedMessageRepository, // Export for feed readers (item 3)
+    MetadataRepository, // Export for metadata consumers (P58)
     TelegramClientManager,
     TelegramListenerPort,
     FeedMessageTransformer, // Export transformer (Phase 5)

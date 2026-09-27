@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Api } from 'telegram';
 import type { TelegramClient } from 'telegram';
 import type { TelegramMediaAttachment } from '../../ports/telegram-listener.port';
-import { MediaDownloaderService } from 'media/application/services/media-downloader.service';
+import { MediaDownloaderService } from 'feed-media/application/services/media-downloader.service';
 
 /**
  * TelegramMediaExtractorService

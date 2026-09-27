@@ -17,6 +17,10 @@ import {
   assertSubscribableKind,
   type TelegramEntityKind,
 } from '../entity-kind';
+import type { MetadataKind } from 'metadata/metadata-kind';
+// Value import (not `import type`): emitDecoratorMetadata must see the
+// runtime class or Nest resolves the @Optional() param to null.
+import { MetadataService } from 'metadata/metadata.service';
 
 export interface RegisterNewsSourceInput {
   readonly channelId: string;
@@ -93,6 +97,7 @@ export class RegisterNewsSourceUseCase {
     private readonly sourceRepo: TelegramFeedSourceRepository,
     private readonly telegramListener: TelegramListenerPort,
     @Optional() private readonly avatars?: KolAvatarService,
+    @Optional() private readonly metadata?: MetadataService,
   ) {}
 
   public async execute(
@@ -177,6 +182,15 @@ export class RegisterNewsSourceUseCase {
     this.logger.log(
       `Registered new feed source: ${saved.channelId} (${saved.title})`,
     );
+
+    // P58 dual-write (schema §4 step 1): mirror identity into metadata by
+    // id — the catalog keeps subscription state, metadata owns identity.
+    this.mirrorToMetadata(saved.channelId, {
+      handle: saved.handle,
+      title: saved.title,
+      kind: entityKind ?? null,
+      isBot,
+    });
 
     // P19 fetch-ONCE (avatar-total, central todo 12: EVERY type, not just
     // kol) — best-effort, MTProto miss keeps the placeholder and
@@ -276,6 +290,12 @@ export class RegisterNewsSourceUseCase {
         created += 1;
         results.push(this.toOutput(saved));
         this.kickAvatarFetch(saved.channelId, saved.handle);
+        this.mirrorToMetadata(saved.channelId, {
+          handle: saved.handle,
+          title: saved.title,
+          kind: kindMeta.kind ?? null,
+          isBot: kindMeta.isBot,
+        });
         continue;
       }
 
@@ -336,6 +356,17 @@ export class RegisterNewsSourceUseCase {
       const saved = touched ? await this.sourceRepo.save(existing) : existing;
       if (touched) {
         updated += 1;
+        this.mirrorToMetadata(saved.channelId, {
+          handle: saved.handle,
+          title: saved.title,
+          kind: (kindMeta.kind ??
+            (existing as { entityKind?: string | null }).entityKind ??
+            null) as MetadataKind | null,
+          isBot:
+            kindMeta.isBot ??
+            (existing as { isBot?: boolean | null }).isBot ??
+            null,
+        });
       }
       results.push(this.toOutput(saved));
     }
@@ -475,6 +506,33 @@ export class RegisterNewsSourceUseCase {
       avatarUrl: kolAvatarUrlFor(saved.channelId),
       url: saved.url ?? sourceUrlFor(saved.handle),
     };
+  }
+
+  /**
+   * P58 dual-write mirror (schema §4 step 1): fire-and-forget identity
+   * mirror into metadata. Never fails registration — `adoptRegistryRow`
+   * is best-effort by contract (and guarded here for test doubles).
+   */
+  private mirrorToMetadata(
+    channelId: string,
+    fields: {
+      handle: string | null;
+      title: string;
+      kind: MetadataKind | null;
+      isBot: boolean | null;
+    },
+  ): void {
+    if (!this.metadata) {
+      return;
+    }
+    void Promise.resolve()
+      .then(() => this.metadata?.adoptRegistryRow(channelId, fields))
+      .then(() => this.logger.log(`Metadata mirror for ${channelId}: ok`))
+      .catch((error: unknown) =>
+        this.logger.warn(
+          `Metadata mirror failed for ${channelId} (${error instanceof Error ? error.message : String(error)})`,
+        ),
+      );
   }
 
   /**

@@ -19,9 +19,10 @@
       "feed/*": ["src/feed/*"],
       "retention/*": ["src/retention/*"],
       "core/*": ["src/core/*"],
+      "metadata/*": ["src/metadata/*"],
       "debug/*": ["src/debug/*"],
       "stream/*": ["src/stream/*"],
-      "media/*": ["src/media/*"],
+      "feed-media/*": ["src/feed-media/*"],
       "health/*": ["src/health/*"],
       "src/*": ["src/*"]
     }

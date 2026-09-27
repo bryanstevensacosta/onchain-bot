@@ -122,7 +122,7 @@ describe('TelegramMtprotoListenerAdapter media policy (item 9: KOL never downloa
       {
         type: 'photo',
         index: 0,
-        filePath: '/uploads/feed/media/x.jpg',
+        filePath: '/uploads/feed-media/x.jpg',
         mimeType: 'image/jpeg',
         fileSize: 1234,
       },

@@ -37,6 +37,10 @@ import {
   type RegisterFeedSourceBatchInput,
   type RegisterNewsSourceInput,
 } from '../../application/use-cases/register-news-source.use-case';
+import type { MetadataKind } from 'metadata/metadata-kind';
+// Value import (not `import type`): emitDecoratorMetadata must see the
+// runtime class or Nest resolves the @Optional() param to null.
+import { MetadataService } from 'metadata/metadata.service';
 
 const VALID_TYPES: ReadonlyArray<TelegramFeedSourceType> = [
   'kol',
@@ -81,6 +85,7 @@ export class SourcesController {
     private readonly registerSourceUseCase: RegisterNewsSourceUseCase,
     private readonly telegramListener: TelegramListenerPort,
     @Optional() private readonly avatars?: KolAvatarService,
+    @Optional() private readonly metadata?: MetadataService,
   ) {}
 
   @Post('sources')
@@ -237,6 +242,19 @@ export class SourcesController {
     }
 
     const updated = await this.sourceRepo.save(source);
+    // P58 dual-write: mirror identity edits into metadata by id (best-effort).
+    if (this.metadata) {
+      void this.metadata
+        .adoptRegistryRow(updated.channelId, {
+          handle: updated.handle,
+          title: updated.title,
+          kind:
+            ((updated as { entityKind?: string | null })
+              .entityKind as MetadataKind | null) ?? null,
+          isBot: (updated as { isBot?: boolean | null }).isBot ?? null,
+        })
+        .catch(() => undefined);
+    }
     return {
       channelId: updated.channelId,
       handle: updated.handle,

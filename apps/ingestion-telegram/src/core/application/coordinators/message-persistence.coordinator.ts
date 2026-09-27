@@ -12,6 +12,7 @@ import type {
   MediaPayload,
 } from 'core/domain/types/message-payload';
 import { kolAvatarUrlFor, sourceUrlFor } from 'src/avatar/avatar.constants';
+import { MetadataRepository } from 'metadata/metadata.repository';
 import { randomUUID } from 'crypto';
 
 /**
@@ -82,6 +83,7 @@ export class MessagePersistenceCoordinator {
     private readonly feedMessageRepo: TelegramFeedMessageRepository,
     private readonly config: ConfigService,
     @Optional() private readonly sources?: TelegramFeedSourceRepository,
+    @Optional() private readonly metadata?: MetadataRepository,
   ) {
     // Load API base URL from config (e.g., "http://localhost:3031")
     const appConfig = this.config.get('app');
@@ -266,16 +268,32 @@ export class MessagePersistenceCoordinator {
   }
 
   /**
-   * Read-only source-row lookup for SSE enrichment (central todo 12, P57).
+   * Read-only source-row lookup for SSE enrichment (central todo 12, P57;
+   * P58: metadata-first, registry mirror as fallback).
    *
-   * Fail-open by design: unknown channels and DB trouble resolve to nulls
-   * (the frame still broadcasts with `handle: null` + a servable
-   * `avatarUrl`). Never writes, never throws past this boundary.
+   * Identity is OWNED by `metadata/` and referenced by id — this lookup
+   * holds no local copy of handle/photo. Fail-open by design: unknown
+   * channels and DB trouble resolve to nulls (the frame still broadcasts
+   * with `handle: null` + a servable `avatarUrl`). Never writes, never
+   * throws past this boundary.
    */
   private async resolveSourceEnrichment(channelId: string): Promise<{
     handle: string | null;
     sourceUrl: string | null;
   }> {
+    if (this.metadata) {
+      try {
+        const meta = await this.metadata.findByChannelId(channelId);
+        if (meta) {
+          const handle = meta.handle ?? null;
+          return { handle, sourceUrl: sourceUrlFor(handle) };
+        }
+      } catch (error) {
+        this.logger.warn(
+          `SSE metadata lookup failed for ${channelId} (${error instanceof Error ? error.message : String(error)}) — falling back to registry mirror`,
+        );
+      }
+    }
     if (!this.sources) {
       return { handle: null, sourceUrl: null };
     }

@@ -2,20 +2,26 @@ import * as path from 'node:path';
 import { BaseMediaPathBuilder, PathConfig } from 'shared/media';
 
 /**
- * Old on-disk segment (pre item 4) and new on-disk segment (post item 4).
+ * Old on-disk segments (pre-unification) and the new on-disk segment.
  * Serving resolves by `{messageId}_{index}.*` glob under the channel dir,
  * so it is immune to the move; the janitor reads `file_path` and is not —
  * hence the prefix rewrite (migration + {@link rewriteMediaFilePathPrefix}).
+ *
+ * History: `crypto-news/media` (original) → `feed/media` (rename
+ * 2026-09-25) → `feed-media` (unification, this change). Both old segments
+ * stay readable via the serve fallback during rollout.
  */
 export const LEGACY_MEDIA_PATH_SEGMENT = 'crypto-news/media';
-export const FEED_MEDIA_PATH_SEGMENT = 'feed/media';
+export const LEGACY_FEED_MEDIA_PATH_SEGMENT = 'feed/media';
+export const FEED_MEDIA_PATH_SEGMENT = 'feed-media';
 
 /**
- * Rewrite a stored `file_path` from the legacy on-disk prefix to the feed
- * prefix. Mirrors the rename migration's `UPDATE` semantics exactly:
+ * Rewrite a stored `file_path` from either legacy on-disk prefix to the
+ * unified `feed-media` prefix. Mirrors the rename migration's `UPDATE`
+ * semantics exactly:
  *
  * - backslashes are normalized to `/` first (Windows-authored rows);
- * - ONLY paths containing the legacy segment are rewritten;
+ * - ONLY paths containing a legacy segment are rewritten;
  * - everything else (empty string, already-new paths, foreign layouts) is
  *   returned byte-identical so no-match rows stay visible for remediation
  *   (re-move or manual rewrite + orphan scan in both directions).
@@ -24,33 +30,38 @@ export const FEED_MEDIA_PATH_SEGMENT = 'feed/media';
  * @returns Rewritten path, or the input unchanged when it does not match
  */
 export function rewriteMediaFilePathPrefix(filePath: string): string {
-  if (!filePath.includes('crypto-news')) {
-    return filePath;
-  }
+  // Normalize first: Windows-authored rows carry backslashes, so the
+  // segment gates must run on the normalized form (not the raw input).
   const normalized = filePath.replace(/\\/g, '/');
-  if (!normalized.includes(`${LEGACY_MEDIA_PATH_SEGMENT}/`)) {
+  if (!normalized.includes('crypto-news') && !normalized.includes('feed/')) {
     return filePath;
   }
-  return normalized.replaceAll(
-    LEGACY_MEDIA_PATH_SEGMENT,
-    FEED_MEDIA_PATH_SEGMENT,
-  );
+  if (
+    !normalized.includes(`${LEGACY_MEDIA_PATH_SEGMENT}/`) &&
+    !normalized.includes(`${LEGACY_FEED_MEDIA_PATH_SEGMENT}/`)
+  ) {
+    return filePath;
+  }
+  return normalized
+    .replaceAll(LEGACY_MEDIA_PATH_SEGMENT, FEED_MEDIA_PATH_SEGMENT)
+    .replaceAll(LEGACY_FEED_MEDIA_PATH_SEGMENT, FEED_MEDIA_PATH_SEGMENT);
 }
 
 /**
  * Path builder for feed media files.
  *
  * Implements the convention:
- * `uploads/feed/media/{channelId}/{messageId}_{index}.{ext}`
- * (pre item 4: `uploads/crypto-news/media/...` — see
- * {@link LEGACY_MEDIA_PATH_SEGMENT}).
+ * `uploads/feed-media/{channelId}/{messageId}_{index}.{ext}`
+ * (pre-unification: `uploads/feed/media/...`, originally
+ * `uploads/crypto-news/media/...` — see {@link LEGACY_MEDIA_PATH_SEGMENT}
+ * and {@link LEGACY_FEED_MEDIA_PATH_SEGMENT}).
  *
  * Example:
  * - channelId: `-1001234567890`
  * - messageId: `167`
  * - index: `0`
  * - extension: `.jpg`
- * → `uploads/feed/media/-1001234567890/167_0.jpg`
+ * → `uploads/feed-media/-1001234567890/167_0.jpg`
  *
  * **Phase 2 Migration**: Replaces duplicated path logic in MediaDownloaderService.
  */
@@ -71,7 +82,7 @@ export class FeedPathBuilder extends BaseMediaPathBuilder {
    * @example
    * ```ts
    * builder.buildMediaPath('-1001234567890', 167, 0, '.jpg');
-   * // → /app/uploads/crypto-news/media/-1001234567890/167_0.jpg
+   * // → /app/uploads/feed-media/-1001234567890/167_0.jpg
    * ```
    */
   public buildMediaPath(
@@ -107,7 +118,7 @@ export class FeedPathBuilder extends BaseMediaPathBuilder {
    * @example
    * ```ts
    * builder.getMediaDirectory('-1001234567890');
-   * // → /app/uploads/crypto-news/media/-1001234567890
+   * // → /app/uploads/feed-media/-1001234567890
    * ```
    */
   public getMediaDirectory(channelId: string): string {
@@ -129,7 +140,7 @@ export class FeedPathBuilder extends BaseMediaPathBuilder {
    *
    * @example
    * ```ts
-   * builder.parseMediaPath('/uploads/crypto-news/media/123/167_0.jpg');
+   * builder.parseMediaPath('/uploads/feed-media/123/167_0.jpg');
    * // → { channelId: '123', messageId: 167, index: 0, extension: '.jpg' }
    * ```
    */

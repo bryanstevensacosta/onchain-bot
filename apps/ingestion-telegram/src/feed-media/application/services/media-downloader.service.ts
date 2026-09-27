@@ -9,7 +9,7 @@ import {
   BaseFileSystemAdapter,
   DownloadedMedia,
 } from 'shared/media';
-import { FeedPathBuilder } from 'media/infrastructure/feed-path-builder';
+import { FeedPathBuilder } from 'feed-media/infrastructure/feed-path-builder';
 
 /**
  * MediaDownloaderService - Downloads Telegram media to disk
@@ -27,7 +27,9 @@ import { FeedPathBuilder } from 'media/infrastructure/feed-path-builder';
  *
  * Responsibilities:
  * - Download photos/videos from Telegram via MTProto
- * - Save to disk at uploads/feed/media/:channelId/:messageId_:index.ext
+ * - Save to disk at uploads/feed-media/:channelId/:messageId_:index.ext
+ *   (unified home; legacy `feed/media/` + `crypto-news/media/` stay
+ *   readable via the serve fallback during rollout)
  * - Return absolute file path + MIME type + file size
  * - Handle FloodWait errors with exponential backoff (via override)
  */
@@ -42,7 +44,7 @@ export class MediaDownloaderService extends BaseTelegramMediaDownloader {
     // Initialize base class with file system adapter and path builder
     const appConfig = config.get('app');
     const uploadsRoot = appConfig?.uploads?.root || 'uploads';
-    const mediaRoot = path.join(uploadsRoot, 'feed', 'media');
+    const mediaRoot = path.join(uploadsRoot, 'feed-media');
 
     const fileSystem = new LocalFileSystemAdapter();
     const pathBuilder = new FeedPathBuilder({

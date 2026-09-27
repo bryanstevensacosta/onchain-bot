@@ -225,7 +225,7 @@ describe('TelegramFeedMessageRepository (telegram_feed_messages roundtrip)', () 
     child.messageId = parent.id;
     child.index = 0;
     child.type = 'photo';
-    child.filePath = 'uploads/feed/media/-1001/42_0.jpg';
+    child.filePath = 'uploads/feed-media/-1001/42_0.jpg';
     child.mimeType = 'image/jpeg';
     child.fileSize = 1234;
     child.createdAt = new Date();
@@ -235,6 +235,6 @@ describe('TelegramFeedMessageRepository (telegram_feed_messages roundtrip)', () 
 
     const found = await repo.findByChannelAndMessageId('-1001', 42);
     expect(found?.media).toHaveLength(1);
-    expect(found?.media[0]?.filePath).toBe('uploads/feed/media/-1001/42_0.jpg');
+    expect(found?.media[0]?.filePath).toBe('uploads/feed-media/-1001/42_0.jpg');
   });
 });

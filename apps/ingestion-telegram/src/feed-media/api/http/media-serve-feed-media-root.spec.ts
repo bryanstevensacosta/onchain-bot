@@ -8,15 +8,17 @@ import type { Response } from 'express';
 import { MediaController } from './media.controller';
 
 /**
- * Serve-by-glob from the NEW on-disk root (`{UPLOADS_ROOT}/feed/media`).
+ * Serve-by-glob from the unified on-disk home (`{UPLOADS_ROOT}/feed-media`)
+ * with rollout fallback to the legacy segments (`feed/media`,
+ * `crypto-news/media`).
  *
  * Uses a real temp uploads tree (no mocks of the filesystem): proves that
- * after the `crypto-news/media` → `feed/media` move, `GET
- * /api/media/:channelId/:messageId/:index` still serves the moved bytes
- * (400/404/cache semantics unchanged), and that a file left behind under
- * the legacy segment is NOT served from the new root (404).
+ * `GET /api/media/:channelId/:messageId/:index` serves bytes from the new
+ * home directly (no fallback log), still serves a file left behind under a
+ * legacy segment via fallback (200 + one `media:serve:fallback` log hit),
+ * and keeps 400/404/cache semantics unchanged.
  */
-describe('MediaController serve-by-glob (feed root)', () => {
+describe('MediaController serve-by-glob (feed-media root)', () => {
   const channelId = '-1001234567890';
   const messageId = 167;
   const index = 0;
@@ -68,11 +70,16 @@ describe('MediaController serve-by-glob (feed root)', () => {
     await fs.rm(tmpRoot, { recursive: true, force: true });
   });
 
-  it('serves a moved fixture from feed/media with cache headers (200 path)', async () => {
-    const dir = path.join(tmpRoot, 'feed', 'media', channelId);
+  it('serves a fixture from feed-media directly with cache headers (200 path)', async () => {
+    const dir = path.join(tmpRoot, 'feed-media', channelId);
     await fs.mkdir(dir, { recursive: true });
     await fs.writeFile(path.join(dir, `${messageId}_${index}.jpg`), payload);
 
+    const fallbackSpy = jest.spyOn(
+      (controller as unknown as { logger: { warn: (...a: unknown[]) => void } })
+        .logger,
+      'warn',
+    );
     const { res, chunks, sink } = createMockResponse();
     await controller.serveMedia(
       channelId,
@@ -90,10 +97,14 @@ describe('MediaController serve-by-glob (feed root)', () => {
       'public, max-age=31536000',
     );
     expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'image/jpg');
+    expect(fallbackSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining('media:serve:fallback'),
+    );
+    fallbackSpy.mockRestore();
   });
 
   it('resolves by {messageId}_{index}.* glob regardless of extension', async () => {
-    const dir = path.join(tmpRoot, 'feed', 'media', channelId);
+    const dir = path.join(tmpRoot, 'feed-media', channelId);
     await fs.mkdir(dir, { recursive: true });
     await fs.writeFile(path.join(dir, `${messageId}_${index}.mp4`), payload);
 
@@ -110,11 +121,43 @@ describe('MediaController serve-by-glob (feed root)', () => {
     expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'video/mp4');
   });
 
-  it('returns 404 for a file left behind under the legacy segment', async () => {
-    const dir = path.join(tmpRoot, 'crypto-news', 'media', channelId);
-    await fs.mkdir(dir, { recursive: true });
-    await fs.writeFile(path.join(dir, `${messageId}_${index}.jpg`), payload);
+  it.each([
+    ['feed', 'media'],
+    ['crypto-news', 'media'],
+  ])(
+    'serves a file left behind under legacy %s via fallback (200 + fallback log)',
+    async (...segments: string[]) => {
+      const dir = path.join(tmpRoot, ...segments, channelId);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, `${messageId}_${index}.jpg`), payload);
 
+      const fallbackSpy = jest.spyOn(
+        (
+          controller as unknown as {
+            logger: { warn: (...a: unknown[]) => void };
+          }
+        ).logger,
+        'warn',
+      );
+      const { res, chunks, sink } = createMockResponse();
+      await controller.serveMedia(
+        channelId,
+        String(messageId),
+        String(index),
+        res,
+      );
+      await waitFinished(sink);
+
+      expect(Buffer.concat(chunks)).toEqual(payload);
+      expect(res.status).not.toHaveBeenCalledWith(404);
+      expect(fallbackSpy).toHaveBeenCalledWith(
+        expect.stringContaining('media:serve:fallback'),
+      );
+      fallbackSpy.mockRestore();
+    },
+  );
+
+  it('returns 404 when the file exists in neither home nor legacy roots', async () => {
     const { res } = createMockResponse();
     await controller.serveMedia(
       channelId,

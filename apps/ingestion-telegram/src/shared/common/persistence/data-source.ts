@@ -7,8 +7,8 @@ import { DataSource } from 'typeorm';
 // Register TypeScript path aliases for TypeORM CLI
 // (mirrors apps/backend/src/shared/common/persistence/data-source.ts;
 // alias set matches apps/ingestion-telegram/tsconfig.json — shared/*,
-// registry/*, feed/*, retention/*, core/*, debug/*, stream/*, media/*,
-// health/*, src/*)
+// registry/*, feed/*, retention/*, core/*, metadata/*, debug/*, stream/*,
+// feed-media/*, health/*, src/*)
 register({
   baseUrl: resolve(__dirname, '../../../'),
   paths: {
@@ -19,9 +19,10 @@ register({
     'feed/*': ['src/feed/*'],
     'retention/*': ['src/retention/*'],
     'core/*': ['src/core/*'],
+    'metadata/*': ['src/metadata/*'],
     'debug/*': ['src/debug/*'],
     'stream/*': ['src/stream/*'],
-    'media/*': ['src/media/*'],
+    'feed-media/*': ['src/feed-media/*'],
     'health/*': ['src/health/*'],
     'src/*': ['src/*'],
   },
@@ -33,11 +34,13 @@ dotenv.config();
 import { TelegramFeedSourceEntity } from 'registry/infrastructure/persistence/typeorm/entities/telegram-feed-source.entity';
 import { TelegramFeedMessageEntity } from 'feed/infrastructure/persistence/typeorm/entities/telegram-feed-message.entity';
 import { TelegramFeedMessageMediaEntity } from 'feed/infrastructure/persistence/typeorm/entities/telegram-feed-message-media.entity';
+import { TelegramChannelMetadataEntity } from 'metadata/channel-metadata.entity';
 
 /**
- * The 3 ingestion-owned tables (sole owner since 2026-09-05;
+ * The 4 ingestion-owned tables (sole owner since 2026-09-05;
  * legacy feed tables cut in feed-unification item 5;
- * BackfillMessageEntity removed in per-env-ingestion item 4).
+ * BackfillMessageEntity removed in per-env-ingestion item 4;
+ * telegram_channel_metadata added in P58 central metadata).
  * Must stay in sync with the `entities` array in `src/app.module.ts`.
  * Backend entities are NEVER listed here (split-brain ownership).
  */
@@ -45,6 +48,7 @@ export const INGESTION_PERSISTED_ENTITIES = [
   TelegramFeedSourceEntity,
   TelegramFeedMessageEntity,
   TelegramFeedMessageMediaEntity,
+  TelegramChannelMetadataEntity,
 ];
 
 export default new DataSource({

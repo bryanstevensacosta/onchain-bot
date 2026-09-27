@@ -2,6 +2,7 @@ import * as path from 'node:path';
 import {
   FeedPathBuilder,
   FEED_MEDIA_PATH_SEGMENT,
+  LEGACY_FEED_MEDIA_PATH_SEGMENT,
   LEGACY_MEDIA_PATH_SEGMENT,
   rewriteMediaFilePathPrefix,
 } from './feed-path-builder';
@@ -14,34 +15,51 @@ import {
  * Any drift between the two strands rows (janitor reads `file_path`).
  */
 describe('rewriteMediaFilePathPrefix', () => {
-  it('rewrites an absolute legacy path to the feed prefix', () => {
+  it('rewrites an absolute oldest-legacy path to the feed-media prefix', () => {
     expect(
       rewriteMediaFilePathPrefix(
         '/app/uploads/crypto-news/media/-1001234567890/167_0.jpg',
       ),
-    ).toBe('/app/uploads/feed/media/-1001234567890/167_0.jpg');
+    ).toBe('/app/uploads/feed-media/-1001234567890/167_0.jpg');
   });
 
-  it('rewrites a relative legacy path to the feed prefix', () => {
+  it('rewrites an absolute feed-legacy path to the feed-media prefix', () => {
+    expect(
+      rewriteMediaFilePathPrefix(
+        '/app/uploads/feed/media/-1001234567890/167_0.jpg',
+      ),
+    ).toBe('/app/uploads/feed-media/-1001234567890/167_0.jpg');
+  });
+
+  it('rewrites a relative oldest-legacy path to the feed-media prefix', () => {
     expect(
       rewriteMediaFilePathPrefix('uploads/crypto-news/media/ch/1_0.png'),
-    ).toBe('uploads/feed/media/ch/1_0.png');
+    ).toBe('uploads/feed-media/ch/1_0.png');
   });
 
-  it('normalizes backslashes before rewriting (Windows-authored rows)', () => {
+  it('rewrites a relative feed-legacy path to the feed-media prefix', () => {
+    expect(rewriteMediaFilePathPrefix('uploads/feed/media/ch/1_0.png')).toBe(
+      'uploads/feed-media/ch/1_0.png',
+    );
+  });
+
+  it('rewrites backslash legacy paths from either legacy segment', () => {
     expect(
       rewriteMediaFilePathPrefix(
         'C:\\app\\uploads\\crypto-news\\media\\ch\\1_0.jpg',
       ),
-    ).toBe('C:/app/uploads/feed/media/ch/1_0.jpg');
+    ).toBe('C:/app/uploads/feed-media/ch/1_0.jpg');
+    expect(
+      rewriteMediaFilePathPrefix('C:\\app\\uploads\\feed\\media\\ch\\1_0.jpg'),
+    ).toBe('C:/app/uploads/feed-media/ch/1_0.jpg');
   });
 
   it('leaves empty-string rows byte-identical (benign, glob-served)', () => {
     expect(rewriteMediaFilePathPrefix('')).toBe('');
   });
 
-  it('leaves already-new feed paths byte-identical', () => {
-    const feed = '/app/uploads/feed/media/ch/1_0.jpg';
+  it('leaves already-new feed-media paths byte-identical', () => {
+    const feed = '/app/uploads/feed-media/ch/1_0.jpg';
     expect(rewriteMediaFilePathPrefix(feed)).toBe(feed);
   });
 
@@ -57,36 +75,30 @@ describe('rewriteMediaFilePathPrefix', () => {
 
   it('exposes the exact segments the migration swaps', () => {
     expect(LEGACY_MEDIA_PATH_SEGMENT).toBe('crypto-news/media');
-    expect(FEED_MEDIA_PATH_SEGMENT).toBe('feed/media');
+    expect(LEGACY_FEED_MEDIA_PATH_SEGMENT).toBe('feed/media');
+    expect(FEED_MEDIA_PATH_SEGMENT).toBe('feed-media');
   });
 });
 
-describe('FeedPathBuilder (feed root)', () => {
+describe('FeedPathBuilder (feed-media root)', () => {
   const builder = new FeedPathBuilder({
-    root: path.join('/tmp', 'uploads', 'feed', 'media'),
+    root: path.join('/tmp', 'uploads', 'feed-media'),
     recursive: true,
   });
 
-  it('builds media paths under the feed segment', () => {
+  it('builds media paths under the feed-media segment', () => {
     const built = builder.buildMediaPath('-1001234567890', 167, 0, '.jpg');
     expect(built).toBe(
-      path.join(
-        '/tmp',
-        'uploads',
-        'feed',
-        'media',
-        '-1001234567890',
-        '167_0.jpg',
-      ),
+      path.join('/tmp', 'uploads', 'feed-media', '-1001234567890', '167_0.jpg'),
     );
-    expect(built).toContain(`${path.sep}feed${path.sep}media${path.sep}`);
+    expect(built).toContain(`${path.sep}feed-media${path.sep}`);
     expect(built).not.toContain('crypto-news');
   });
 
-  it('resolves channel directories under the feed segment', () => {
+  it('resolves channel directories under the feed-media segment', () => {
     const dir = builder.getMediaDirectory('-1001234567890');
     expect(dir).toBe(
-      path.join('/tmp', 'uploads', 'feed', 'media', '-1001234567890'),
+      path.join('/tmp', 'uploads', 'feed-media', '-1001234567890'),
     );
   });
 

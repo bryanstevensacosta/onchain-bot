@@ -196,6 +196,14 @@ What it does and how:
   are fail-open (empty/false/null on DB trouble); writes raise errors.
 - Day-to-day management: rename (title/handle), flip the on/off switch
   (toggle), delete. Unknown channels get 404.
+- Subscription slimming (P58): this catalog keeps SUBSCRIPTION state
+  (`channel_id`/`type`/`is_active`/`lifecycle_status`/`last_ingested_at`).
+  Identity (`handle`/`title`/`url`/`avatar_*`/`entity_kind`/`is_bot`) is
+  owned by `metadata/` (`telegram_channel_metadata`, same channel id);
+  these columns are deprecated dual-write mirrors (register/batch/PATCH
+  mirror into metadata via `MetadataService.adoptRegistryRow`; deleted
+  after staging is green). Feed/stream/media/core read identity from
+  metadata, never from local copies.
 
 HTTP APIs (served by `SourcesController` under BOTH `/api/feed` and
 `/api/crypto-news`; needs the API key when one is set):
@@ -297,7 +305,7 @@ What it does and how:
 - Pass 2 — old messages (`processMessageBatch`): direct SQL delete in batches
   of 1000; leftover media rows fall away via cascade.
 - Pass 3 — orphan media rows; pass 4 — orphan files under
-  `uploads/feed/media/` (older than 24 h, skipping `*.tmp`; the avatar folder
+  `uploads/feed-media/` (older than 24 h, skipping `*.tmp`; the avatar folder
   is never entered).
 - The disk guard
   (`apps/ingestion-telegram/src/retention/infrastructure/scheduling/disk-monitor.service.ts`,
@@ -322,33 +330,40 @@ Classes and technical names (plain explanations):
 - `DISK_WARN_THRESHOLD_PERCENT` (`80`) /
   `DISK_CRITICAL_THRESHOLD_PERCENT` (`90`) — the two fullness lines.
 
-## 6. Media — feed photo/video download and serving (`src/media/`)
+## 6. Media — feed photo/video download and serving (`src/feed-media/`)
 
 In plain words: saves the photos and videos attached to news messages and
 hands them back over HTTP. Owns no database table (other layers write the
-rows); produces files and file paths.
+rows); produces files and file paths. The directory moved from `src/media/`
+to `src/feed-media/` in the 2026-09-27 unification; the class names
+(`MediaModule`, `MediaController`, `MediaDownloaderService`,
+`FeedPathBuilder`) were deliberately kept — renaming them changes no runtime
+behavior and would widen the DI/spec blast radius for nothing.
 
 What it does and how:
 
 - Download
-  (`apps/ingestion-telegram/src/media/application/services/media-downloader.service.ts`):
+  (`apps/ingestion-telegram/src/feed-media/application/services/media-downloader.service.ts`):
   when a news message arrives with a photo or video, downloads it immediately
   (Telegram file links expire after ~1 hour) to
-  `uploads/feed/media/{channelId}/{messageId}_{index}.{ext}`. Photos become
+  `uploads/feed-media/{channelId}/{messageId}_{index}.{ext}`. Photos become
   `.jpg`; video extensions come from a mime map (fallback `.bin`).
   Telegram slow-down pauses are retried with backoff. KOL messages never
   download.
 - Path rules
-  (`apps/ingestion-telegram/src/media/infrastructure/feed-path-builder.ts`):
+  (`apps/ingestion-telegram/src/feed-media/infrastructure/feed-path-builder.ts`):
   builds, parses, and validates paths; sanitizes channel ids and blocks
-  path-traversal; rewrites the legacy `crypto-news/media` prefix to
-  `feed/media` for old rows.
+  path-traversal; rewrites both legacy prefixes (`crypto-news/media` and
+  `feed/media`) to `feed-media` for old rows.
 - Serve
-  (`apps/ingestion-telegram/src/media/api/http/media.controller.ts`):
+  (`apps/ingestion-telegram/src/feed-media/api/http/media.controller.ts`):
   `GET /api/media/:channelId/:messageId/:index` streams the file with 1-year
   cache headers. Finds the file by `{messageId}_{index}.*` glob — never reads
-  the stored `file_path`. Bad ids → 400, missing → 404. Public (keyless).
-- Wiring (`apps/ingestion-telegram/src/media/media.module.ts`): registers the
+  the stored `file_path`. Looks in the unified home first, then falls back to
+  the legacy segments (`feed/media/`, `crypto-news/media/`), logging one
+  `media:serve:fallback` warn line per fallback hit so the rollout tail stays
+  visible. Bad ids → 400, missing → 404. Public (keyless).
+- Wiring (`apps/ingestion-telegram/src/feed-media/media.module.ts`): registers the
   controller; the downloader is provided globally by `SharedModule`.
 
 Classes and technical names (plain explanations):
@@ -406,6 +421,12 @@ What it does and how:
 - Wiring (`apps/ingestion-telegram/src/avatar/avatar.module.ts`, imported by
   `RetentionModule`): controller + service + photo-port binding; reuses
   `SharedModule` (no own MTProto client or limiter).
+- DEPRECATED (P58): ownership moved to `metadata/` (§10). These three
+  routes keep serving identical bytes but now carry `Deprecation: true` +
+  `Sunset` + `Link: </api/metadata/:channelId/avatar>;
+rel='successor-version'` headers (the only behavior change). Deletion
+  after staging is green — new callers use `GET
+/api/metadata/:channelId/avatar`.
 
 Classes and technical names (plain explanations):
 
@@ -499,3 +520,76 @@ None of them handle Telegram messages directly; they serve the parts that do.
   `GET /debug/telegram/message/:channelId/:messageId` fetches ONE live message
   from Telegram and shows its text fields, media summary, markers, and album
   id (API key; debug only, not for monitoring).
+
+## 10. Metadata — channel identity per id (`src/metadata/`)
+
+In plain words: one identity card per Telegram channel. It stores what
+`client.getEntity(id)` knows about each id — kind, handle, photo, public
+link, type — plus the permanent profile photo, and hands both out over
+HTTP. It absorbed the avatar area (§7, now a deprecated shim with
+identical bytes). The registry (§3) keeps only subscription state
+(active/type) and mirrors identity here on every write.
+
+What it does and how:
+
+- Identity card (`apps/ingestion-telegram/src/metadata/channel-metadata.entity.ts`):
+  one row per Telegram id in `telegram_channel_metadata` — `channel_id`
+  (key), `peer_type` (`user|chat|channel`, NULL when unresolved),
+  `kind` (`channel|supergroup|group|user|bot|unknown`), `title`,
+  `first_name`/`last_name` (user rows), `handle` + `usernames`, `about`,
+  `is_bot`/`verified`/`is_scam`/`is_fake`, `participants_count`,
+  `avatar_path`/`avatar_updated_at` + photo change-detection refs,
+  `fetch_status` (`ok|min|miss|flood`). The `phone` column (user rows)
+  is stored but NEVER exposed: excluded from every repository read
+  (`select: false`), absent from every view and log, with no index.
+- Taxonomy (`apps/ingestion-telegram/src/metadata/metadata-kind.ts`):
+  `classifyMetadataKind` (GramJS `className` + `bot` flag, no title
+  heuristics), `peerTypeForKind` (fine → coarse projection),
+  `isSubscribableMetadataKind` (channels/groups only; users/bots/unknown
+  rejected with an explicit error).
+- Photo fetch-serve, absorbed from avatar
+  (`apps/ingestion-telegram/src/metadata/metadata.service.ts` +
+  `mtproto-metadata-photo.adapter.ts` via `metadata-photo.port.ts`):
+  fetch-once per id (a stored file means "already fetched"), explicit
+  refresh only, no periodic loop; one serialized promise tail + the shared
+  flood-wait guard (`metadata-photo` label, P29 reuse); legacy bare +
+  `@handle`-qualified filenames with single-file dedupe; MTProto miss →
+  placeholder, never a throw. Bookkeeping writes the metadata row and
+  mirrors the registry row (dual-write).
+- Registry mirror entry: `MetadataService.adoptRegistryRow(channelId,
+fields)` — called by register/batch/PATCH (fire-and-forget,
+  best-effort). Existing rows merge; a NULL mirror never clears a stored
+  phone. `backfillMissing` adopts every registry row and fetches only
+  missing photos.
+- Read-only consumers: feed/stream/media/core project through
+  `ChannelMetadataView` (never `phone`, never disk paths) or
+  `MetadataRepository` reads. The SSE enrichment looks metadata up first
+  and falls back to the registry mirror.
+
+HTTP APIs (served by `MetadataController` at `/api/metadata`; POSTs need
+the API key when one is set):
+
+| Method + path                                     | Input               | Output                                                                                                                                                                                           |
+| ------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /api/metadata/:channelId` — identity         | none                | 200 + identity view (`channelId`, `peerType`, `kind`, `title`, names, `handle`, `usernames`, `about`, flags, `participantsCount`, `url`, `avatarUrl`, `fetchStatus`); never `phone`. 404 unknown |
+| `GET /api/metadata/:channelId/avatar` — photo     | none                | Canonical avatar serve (successor of `GET /api/kol-avatar/:channelId`): stored `.jpg` (1-year cache) or placeholder SVG (200); 400 hostile id                                                    |
+| `POST /api/metadata/:channelId/refresh` — refresh | Optional `?handle=` | 201 + fresh identity view (re-resolve + photo re-fetch)                                                                                                                                          |
+| `POST /api/metadata/backfill` — catch-up          | none                | 201 + `{ checked, fetched, cached, placeholder }`                                                                                                                                                |
+
+Classes and technical names (plain explanations):
+
+- `MetadataModule` — wiring box (imports `SharedModule`; imported by
+  `RetentionModule` + `AppModule`).
+- `MetadataService` — the librarian (identity resolve/refresh/mirror +
+  avatar fetch-serve; statuses `MetadataAvatarStatus = 'fetched' |
+'cached' | 'placeholder'`).
+- `MetadataRepository` — the shelf (`findByChannelId`, `findAll`,
+  `create`, `save`; fail-open reads; `phone` excluded by the entity).
+- `MetadataPhotoPort` — the plug interface
+  (`apps/ingestion-telegram/src/metadata/metadata-photo.port.ts`):
+  `fetchChannelPhoto(channelId)` → photo bytes or "no photo", never throws.
+- `MtprotoMetadataPhotoAdapter extends MetadataPhotoPort` — the Telegram hands.
+- `MetadataController` — the HTTP waiter.
+- Constants/helpers (`metadata.constants.ts`): single-owner re-exports of
+  the avatar constants, `metadataAvatarUrlFor`,
+  `avatarDeprecationHeaders` (`Deprecation`/`Sunset`/`Link`).

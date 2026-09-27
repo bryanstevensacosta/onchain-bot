@@ -21,7 +21,7 @@ function makeConfig(root: string): ConfigService {
         return root;
       }
       if (key === 'app.uploads.mediaPath') {
-        return 'feed/media';
+        return 'feed-media';
       }
       return undefined;
     },
@@ -58,7 +58,7 @@ describe('Retention janitor anti-avatar guarantee (P19 permanent)', () => {
 
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), 'kol-avatar-janitor-'));
-    mkdirSync(join(root, 'feed', 'media', '-1001'), { recursive: true });
+    mkdirSync(join(root, 'feed-media', '-1001'), { recursive: true });
     mkdirSync(join(root, 'avatar'), { recursive: true });
   });
 
@@ -69,7 +69,7 @@ describe('Retention janitor anti-avatar guarantee (P19 permanent)', () => {
   it('avatar files survive a retention tick while orphan media is swept', async () => {
     const avatarFile = join(root, 'avatar', '-1001.jpg');
     writeFileSync(avatarFile, 'permanent-avatar');
-    const orphanMedia = join(root, 'feed', 'media', '-1001', '9_0.jpg');
+    const orphanMedia = join(root, 'feed-media', '-1001', '9_0.jpg');
     writeFileSync(orphanMedia, 'orphan');
     const old = Date.now() - 25 * 60 * 60 * 1000;
     utimesSync(orphanMedia, new Date(old), new Date(old));

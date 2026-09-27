@@ -30,6 +30,13 @@ export interface KolAvatarBackfillResult {
 /**
  * Channel avatar store (Tramo 1, todo 13, P19 + P29; avatar-total todo 12, P57).
  *
+ * @deprecated P58: fetch-serve ownership moved to `MetadataService`
+ * (`src/metadata/metadata.service.ts`, same fetch-once + serialize +
+ * filename + dedupe behavior, parity-pinned). This service keeps working
+ * during dual-write (files shared under `uploads/avatar/`); metadata
+ * mirrors bookkeeping to its own table. DELETION after staging is green
+ * (schema §4 step 5).
+ *
  * Fetch-ONCE at source registration FOR EVERY source type (kol-only
  * filter removed in central todo 12): a stored file means "already
  * fetched" and is never re-downloaded except through the explicit manual
@@ -45,7 +52,7 @@ export interface KolAvatarBackfillResult {
  * P29: every Telegram hit is funneled through one promise tail (serialized,
  * no bursts) and the existing flood-wait guard (see the photo adapter).
  * Permanent storage: `{uploadsRoot}/avatar/` — outside the janitor's
- * `feed/media` tree, excluded from the 72h retention by construction
+ * `feed-media` tree, excluded from the 72h retention by construction
  * (`kol-avatar.janitor.spec.ts` pins it).
  *
  * Never throws for Telegram/DB trouble: MTProto failure → `placeholder`

@@ -97,7 +97,7 @@ describe('FeedRetentionCleanupScheduler', () => {
         ).length;
         if (calls === 1) {
           return Promise.resolve([
-            { id: 'media-1', file_path: '/uploads/feed/media/old.jpg' },
+            { id: 'media-1', file_path: '/uploads/feed-media/old.jpg' },
           ]);
         }
         return Promise.resolve([]);
@@ -133,7 +133,7 @@ describe('FeedRetentionCleanupScheduler', () => {
     );
     await scheduler.tick();
 
-    expect(mockedUnlink).toHaveBeenCalledWith('/uploads/feed/media/old.jpg');
+    expect(mockedUnlink).toHaveBeenCalledWith('/uploads/feed-media/old.jpg');
     expect(query).toHaveBeenCalledWith(
       'DELETE FROM telegram_feed_message_media WHERE id = $1',
       ['media-1'],

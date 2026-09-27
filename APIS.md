@@ -32,14 +32,14 @@ kol-system `:3050` (dev only — **no nginx `/kol-api/` block yet**);
 
 ## Auth summary
 
-| App                | Mechanism                                                                                                                                                                                                                                                                                              |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| backend            | None (no guard found; open inside VPC)                                                                                                                                                                                                                                                                 |
-| ingestion-telegram | Global `ApiKeyGuard`: `INGESTION_API_KEY` vs `x-api-key` header or `?apiKey=`. Unset = warn + allow-all. Public keyless: `GET /api/feed/*`, `/api/media/*`, `GET /api/kol-avatar/*`, `/api/health`, `/live`, `/ready`. Protected: `GET /api/ingestion/stream`, `/debug/*`, `/metrics`, all feed writes |
-| kol-system         | `ApiKeyGuard` (`KOL_SYSTEM_API_KEY`, fail-open when empty; provided via `@Global` SharedModule)                                                                                                                                                                                                        |
-| feed-publisher     | `ApiKeyGuard` (`FEED_PUBLISHER_API_KEY`, `x-api-key` header, fail-open when empty; `@Public()` bypass for health/metrics; provided via `@Global` SharedModule)                                                                                                                                         |
-| market-data        | `ApiKeyGuard` (`MARKET_DATA_API_KEY`, `x-api-key` header, fail-open when empty; `@Public()` bypass for health; `shared/guards` is a compat re-export of `shared/infrastructure/guards`)                                                                                                                |
-| frontend           | None (same-origin; env vars `VITE_API_BASE_URL`, `VITE_WS_URL`, `VITE_FEED_PUBLISHER_URL`, all default `''`)                                                                                                                                                                                           |
+| App                | Mechanism                                                                                                                                                                                                                                                                                                    |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| backend            | None (no guard found; open inside VPC)                                                                                                                                                                                                                                                                       |
+| ingestion-telegram | Global `ApiKeyGuard`: `INGESTION_API_KEY` vs `x-api-key` header or `?apiKey=`. Unset = warn + allow-all. Public keyless: `GET /api/feed/*`, `/api/media/*`, `GET /api/kol-avatar/*`, `/api/health`, `/live`, `/ready`. Protected: `GET /api/ingestion/stream`, `/debug/*`, `/metrics`, all feed writes, `GET | POST /api/metadata/\*`(no metadata exemption in`api-key.guard.ts:40,88`), `GET /api/feed/sources/resolve` |
+| kol-system         | `ApiKeyGuard` (`KOL_SYSTEM_API_KEY`, fail-open when empty; provided via `@Global` SharedModule)                                                                                                                                                                                                              |
+| feed-publisher     | `ApiKeyGuard` (`FEED_PUBLISHER_API_KEY`, `x-api-key` header, fail-open when empty; `@Public()` bypass for health/metrics; provided via `@Global` SharedModule)                                                                                                                                               |
+| market-data        | `ApiKeyGuard` (`MARKET_DATA_API_KEY`, `x-api-key` header, fail-open when empty; `@Public()` bypass for health; `shared/guards` is a compat re-export of `shared/infrastructure/guards`)                                                                                                                      |
+| frontend           | None (same-origin; env vars `VITE_API_BASE_URL`, `VITE_WS_URL`, `VITE_FEED_PUBLISHER_URL`, all default `''`)                                                                                                                                                                                                 |
 
 ---
 
@@ -234,17 +234,18 @@ Ops: `GET /ops/backups/status`, `GET /ops/backups/config`.
 
 ---
 
-## 2. ingestion-telegram (`apps/ingestion-telegram/src`) — 20 routes, 8 controllers
+## 2. ingestion-telegram (`apps/ingestion-telegram/src`) — 26 routes, 9 controllers
 
 Feed + registry dual-serve BOTH prefixes: `@Controller(['api/feed',
-'api/crypto-news'])` (`feed.controller.ts:88`, `sources.controller.ts:66`).
+'api/crypto-news'])` (`feed.controller.ts:88`, `sources.controller.ts:81`).
 Every path below exists under `/api/feed/*` AND `/api/crypto-news/*`.
+`metadata.controller.ts:40` (`api/metadata`) is single-prefix (no dual-serve).
 
 ### SSE / stream
 
-| Method | Path                    | Purpose / params / response                                                                                                                                                                                                                                                                                    |
-| ------ | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/api/ingestion/stream` | SSE fan-out (open stream, no gate; **protected when key set**). Events: `connection:established`, `message:telegram` (`{peerId, messageId, occurredAt, text? (feed only), media[], entities?, groupedId?, messageType: 'kol'\|'crypto-news'}`), `health:ping` every 30 s. Lossy: no replay, no `Last-Event-ID` |
+| Method | Path                    | Purpose / params / response                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------ | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/ingestion/stream` | SSE fan-out (open stream, no gate; **protected when key set**; `sse-stream.controller.ts:34,54`). Events: `connection:established`, `message:telegram` (`{peerId, messageId, occurredAt, text? (feed only), media[], entities?, groupedId?, messageType: 'kol'\|'crypto-news'` + enriched `handle`/`avatarUrl`/`sourceUrl` — metadata-first, fail-open nulls, `message-persistence.coordinator.ts:354`), `health:ping` every 30 s. Lossy: no replay, no `Last-Event-ID` |
 
 ### Feed reads (public GET)
 
@@ -256,23 +257,36 @@ Every path below exists under `/api/feed/*` AND `/api/crypto-news/*`.
 
 ### Registry / sources (writes protected when key set)
 
-| Method | Path                                  | Purpose / params / response                                                                                                                                    |
-| ------ | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| POST   | `/api/feed/sources`                   | Register source (`{channelId, title?, handle?, type?}` → 201 + source view incl. `avatarUrl`; fetch-once avatar fire-and-forget; ≡ `/api/crypto-news/sources`) |
-| POST   | `/api/feed/sources/batch`             | Batch register                                                                                                                                                 |
-| GET    | `/api/feed/sources`                   | List sources (`?type=`; each row carries `avatarUrl: /api/kol-avatar/:channelId`)                                                                              |
-| GET    | `/api/feed/sources/active/ids`        | Active channel IDs only                                                                                                                                        |
-| PATCH  | `/api/feed/sources/:channelId`        | Update source                                                                                                                                                  |
-| PATCH  | `/api/feed/sources/:channelId/toggle` | Flip `isActive`                                                                                                                                                |
-| DELETE | `/api/feed/sources/:channelId`        | Delete source                                                                                                                                                  |
+| Method | Path                                  | Purpose / params / response                                                                                                                                                                                                                                                       |
+| ------ | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/api/feed/sources`                   | Register source (`{channelId, title?, handle?, type?}` → 201 + source view incl. `avatarUrl`; fetch-once avatar fire-and-forget; ≡ `/api/crypto-news/sources`)                                                                                                                    |
+| POST   | `/api/feed/sources/batch`             | Batch register (`{created, updated, total}`, 201)                                                                                                                                                                                                                                 |
+| GET    | `/api/feed/sources/resolve?input=`    | Kind-resolver (`sources.controller.ts:118`): `@handle\|id\|t.me` → `{input, kind: channel\|supergroup\|group\|user\|bot\|unknown, canSubscribe, channelId, title, handle, isBot, avatarUrl, url}` (`:145`; single `getEntity`, 400 empty/invite, 404 unresolvable; **protected**) |
+| GET    | `/api/feed/sources`                   | List sources (`?type=`; each row carries `avatarUrl: /api/kol-avatar/:channelId` + `url: https://t.me/<handle>` column projection, null handle-less — `sources.controller.ts:186,188`; ≡ dual prefix)                                                                             |
+| GET    | `/api/feed/sources/active/ids`        | Active channel IDs only                                                                                                                                                                                                                                                           |
+| PATCH  | `/api/feed/sources/:channelId`        | Update source                                                                                                                                                                                                                                                                     |
+| PATCH  | `/api/feed/sources/:channelId/toggle` | Flip `isActive`                                                                                                                                                                                                                                                                   |
+| DELETE | `/api/feed/sources/:channelId`        | Delete source                                                                                                                                                                                                                                                                     |
 
-### Media / avatar
+### Media / avatar / metadata
 
-| Method | Path                                      | Purpose / params / response                                                                                   |
-| ------ | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| GET    | `/api/media/:channelId/:messageId/:index` | Serve feed media file (public; 400 bad params, 404 missing; 1y cache + ETag; **no 206 ranges**)               |
-| GET    | `/api/kol-avatar/:channelId`              | KOL avatar file-or-placeholder (public, always 200; permanent, janitor-excluded)                              |
-| POST   | `/api/kol-avatar/:channelId/refresh`      | Explicit avatar refresh (**protected**; → 201 `{channelId, avatar: fetched\|cached\|placeholder, avatarUrl}`) |
+| Method | Path                                      | Purpose / params / response                                                                                                                                                                                                                                       |
+| ------ | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/media/:channelId/:messageId/:index` | Serve feed media file (public; `media.controller.ts:59,113`; unified home `uploads/feed-media/` + legacy fallbacks `feed/media/`, `crypto-news/media/` with `media:serve:fallback` warn — `:73`; 400 bad params, 404 missing; 1y cache + ETag; **no 206 ranges**) |
+| GET    | `/api/kol-avatar/:channelId`              | KOL avatar file-or-placeholder (public, always 200; permanent, janitor-excluded; **@deprecated P58** — `Deprecation`/`Sunset`/`Link` headers to `/api/metadata/:channelId/avatar`; `kol-avatar.controller.ts:47,51`)                                              |
+| POST   | `/api/kol-avatar/backfill`                | Avatar-total catch-up (**protected**; → 201 `{checked, fetched, cached, placeholder}`, fetch-once missing-only; `kol-avatar.controller.ts:85`; **@deprecated P58**)                                                                                               |
+| POST   | `/api/kol-avatar/:channelId/refresh`      | Explicit avatar refresh (**protected**; → 201 `{channelId, avatar: fetched\|cached\|placeholder, avatarUrl}`; `kol-avatar.controller.ts:103`; **@deprecated P58**)                                                                                                |
+| GET    | `/api/metadata/:channelId`                | Channel identity view — `{channelId, peerType, kind, title, handle, url, avatarUrl→/api/metadata/:id/avatar, …}` never `phone` (404 unknown id; **protected**; `metadata.controller.ts:40,59`)                                                                    |
+| GET    | `/api/metadata/:channelId/avatar`         | Canonical avatar serve, successor of `/api/kol-avatar/:channelId` (200 bytes-or-placeholder; **protected** — no guard exemption; `metadata.controller.ts:81`)                                                                                                     |
+| POST   | `/api/metadata/backfill`                  | Metadata + avatar catch-up (**protected**; → 201 `{checked, fetched, cached, placeholder}`; `metadata.controller.ts:44`)                                                                                                                                          |
+| POST   | `/api/metadata/:channelId/refresh`        | Metadata re-resolve + photo re-fetch (**protected**; `?handle=` optional; `metadata.controller.ts:114`)                                                                                                                                                           |
+
+No gateway module in ingestion-telegram (no `@Controller` with gateway prefix —
+grep-proven). Proxy notes (all grep-proven): SSE sends
+`X-Accel-Buffering: no` + 30 s heartbeat against proxy/CDN idle timeouts
+(`stream.service.ts:133`); `TRUST_PROXY` defaults OFF — `x-forwarded-for`
+honored only when `TRUST_PROXY=true` (`main.ts:87`, rate-limit keyed by
+socket IP otherwise).
 
 ### Health / metrics / debug
 
@@ -502,7 +516,7 @@ rooms `chain:solana|evm`, `verdict:approved|rejected`, `published:all`,
 ## Verification
 
 - Route decorators grepped per app (backend 51 files / 184 method
-  decorators, ingestion 8 / 20, kol-system 7 / 30, feed-publisher 16 /
+  decorators, ingestion 9 / 26, kol-system 7 / 30, feed-publisher 16 /
   73, market-data 7 real + 6 compat re-exports / 10); counts in
   `.omo/evidence/apis-catalog.log`.
 - `npx prettier --check APIS.md` clean.

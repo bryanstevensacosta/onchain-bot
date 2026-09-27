@@ -57,7 +57,7 @@ COPY --from=builder /app/apps/ingestion-telegram/dist ./apps/ingestion-telegram/
 COPY --from=builder /app/config ./config
 
 # Create uploads directory
-RUN mkdir -p /app/uploads/crypto-news/media && \
+RUN mkdir -p /app/uploads/feed-media && \
     chown -R nodejs:nodejs /app/uploads
 
 # Set proper ownership

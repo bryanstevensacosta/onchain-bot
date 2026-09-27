@@ -15,7 +15,7 @@ import {
   MimeTypeResolver,
 } from 'shared/media';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { FeedPathBuilder } from 'media/infrastructure/feed-path-builder';
+import { FeedPathBuilder } from 'feed-media/infrastructure/feed-path-builder';
 
 /**
  * MediaController serves Telegram media files (photos/videos) via HTTP
@@ -34,14 +34,24 @@ import { FeedPathBuilder } from 'media/infrastructure/feed-path-builder';
  *
  * Endpoint: GET /api/media/:channelId/:messageId/:index
  *
- * Media Storage Convention:
- * - Location: {UPLOADS_ROOT}/feed/media/{channelId}/
+ * Media Storage Convention (unified home):
+ * - Location: {UPLOADS_ROOT}/feed-media/{channelId}/
  * - Pattern: {messageId}_{index}.{ext}
  * - Extensions: .jpg, .png, .webp, .gif, .mp4, .webm
+ *
+ * Rollout fallback: files not yet moved from the legacy segments
+ * (`feed/media/`, `crypto-news/media/`) are still served (one
+ * `media:serve:fallback` warn log per hit so the rollout tail is visible).
+ * New downloads always land in the unified home.
  *
  * Security:
  * - Channel ID sanitized by path builder (path traversal safe)
  * - messageId/index validated via base class helpers
+ *
+ * NOTE (class names kept): the directory moved `src/media/` →
+ * `src/feed-media/` but `MediaModule`/`MediaController`/`MediaDownloaderService`
+ * keep their names — renaming them buys no runtime behavior and widens the
+ * DI/spec blast radius (see CHANGELOG Unreleased entry).
  *
  * @controller Handles /api/media routes
  */
@@ -51,6 +61,7 @@ export class MediaController extends BaseMediaHttpServer {
   private readonly logger = new Logger(MediaController.name);
   private readonly fileSystem: LocalFileSystemAdapter;
   private readonly pathBuilder: FeedPathBuilder;
+  private readonly fallbackBuilders: FeedPathBuilder[];
 
   constructor(private readonly config: ConfigService) {
     super(); // Initialize base class
@@ -59,13 +70,25 @@ export class MediaController extends BaseMediaHttpServer {
     const appConfig = this.config.get('app');
     const uploadsRoot =
       appConfig?.uploads?.root || path.join(process.cwd(), 'uploads');
-    const mediaRoot = path.join(uploadsRoot, 'feed', 'media');
+    const mediaRoot = path.join(uploadsRoot, 'feed-media');
 
     this.fileSystem = new LocalFileSystemAdapter();
     this.pathBuilder = new FeedPathBuilder({
       root: mediaRoot,
       recursive: true,
     });
+    // Rollout fallback: legacy segments stay readable until the on-disk
+    // move + DB prefix rewrite converge (ordered oldest-last).
+    this.fallbackBuilders = [
+      new FeedPathBuilder({
+        root: path.join(uploadsRoot, 'feed', 'media'),
+        recursive: true,
+      }),
+      new FeedPathBuilder({
+        root: path.join(uploadsRoot, 'crypto-news', 'media'),
+        recursive: true,
+      }),
+    ];
 
     this.logger.log(
       `MediaController initialized with uploads root: ${uploadsRoot}`,
@@ -113,17 +136,33 @@ export class MediaController extends BaseMediaHttpServer {
         'channelId',
       );
 
-      // Build media directory path
-      const mediaDir = this.pathBuilder.getMediaDirectory(cleanChannelId);
+      // Build media directory paths: unified home first, legacy fallbacks after
+      const candidates: Array<{ builder: FeedPathBuilder; legacy: boolean }> = [
+        { builder: this.pathBuilder, legacy: false },
+        ...this.fallbackBuilders.map((builder) => ({ builder, legacy: true })),
+      ];
 
       // Find file matching pattern: {messageId}_{index}.*
       const filePattern = new RegExp(`^${msgId}_${idx}\\.`);
-      const matchingFiles = await this.fileSystem.findByPattern(
-        mediaDir,
-        filePattern,
-      );
+      let filePath: string | undefined;
+      for (const { builder, legacy } of candidates) {
+        const mediaDir = builder.getMediaDirectory(cleanChannelId);
+        const matchingFiles = await this.fileSystem.findByPattern(
+          mediaDir,
+          filePattern,
+        );
+        if (matchingFiles.length > 0) {
+          filePath = matchingFiles[0]; // Take first match
+          if (legacy) {
+            this.logger.warn(
+              `media:serve:fallback ${cleanChannelId}:${msgId}:${idx} served from legacy ${builder.getRoot()}`,
+            );
+          }
+          break;
+        }
+      }
 
-      if (matchingFiles.length === 0) {
+      if (!filePath) {
         this.logger.warn(
           `Media file not found: ${cleanChannelId}:${msgId}:${idx}`,
         );
@@ -133,8 +172,6 @@ export class MediaController extends BaseMediaHttpServer {
         );
         return;
       }
-
-      const filePath = matchingFiles[0]; // Take first match
 
       // Get file stats and stream
       const stat = await this.fileSystem.stat(filePath);

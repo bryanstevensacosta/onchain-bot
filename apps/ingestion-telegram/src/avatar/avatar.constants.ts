@@ -5,7 +5,7 @@
  * (media-owner invariant): stored under `{uploadsRoot}/avatar/`, served at
  * `GET /api/kol-avatar/:channelId`, projected as `avatarUrl` in
  * `GET /api/feed/sources`. The 72h retention janitor only touches
- * `telegram_feed_messages*` tables + `uploads/feed/media/` — this directory
+ * `telegram_feed_messages*` tables + `uploads/feed-media/` — this directory
  * is excluded by construction (pinned by `kol-avatar.janitor.spec.ts`).
  */
 export const KOL_AVATAR_DIR_NAME = 'avatar';

@@ -23,7 +23,7 @@ Telegram API (MTProto)
          ↓
    Ingestion instance of THIS env (container :3031)
    • MTProto Client (own triple from its own .env)
-   • Media Downloader → own uploads/crypto-news/media/
+   • Media Downloader → own uploads/feed-media/
    • SSE Broadcaster (open stream, no gate)
    • Own <base>_ingestion DB (crypto_news_sources/messages/media)
          ↓
