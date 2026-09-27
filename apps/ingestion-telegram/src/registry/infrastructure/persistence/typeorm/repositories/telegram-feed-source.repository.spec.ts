@@ -61,6 +61,8 @@ describe('TelegramFeedSourceRepository', () => {
         isActive: true,
         lifecycleStatus: 'ACTIVE',
         lastIngestedAt: null,
+        entityKind: null,
+        isBot: null,
       });
       expect(result.type).toBe('crypto-news');
       expect(result.isActive).toBe(true);

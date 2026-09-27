@@ -21,7 +21,12 @@ import {
 } from '@nestjs/swagger';
 import { TelegramFeedSourceRepository } from '../../infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
 import type { TelegramFeedSourceType } from '../../infrastructure/persistence/typeorm/entities/telegram-feed-source.entity';
+import { TelegramListenerPort } from 'core/ports/telegram-listener.port';
 import { kolAvatarUrlFor } from '../../../avatar/avatar.constants';
+import {
+  normalizeResolveInput,
+  SUBSCRIBABLE_KINDS,
+} from '../../application/entity-kind';
 import {
   RegisterNewsSourceUseCase,
   type RegisterFeedSourceBatchInput,
@@ -56,6 +61,7 @@ function parseTypeFilter(
  * Routes (ported 1:1 from the retired feed controller):
  * - POST /api/feed/sources — register new source (201/409/400)
  * - POST /api/feed/sources/batch — idempotent upsert by channel_id (backfill)
+ * - GET /api/feed/sources/resolve?input=@handle|id|t.me — entity kind probe (P57)
  * - GET /api/feed/sources[?type=] — all sources (including inactive)
  * - GET /api/feed/sources/active/ids[?type=] — IDs only (backend consumer)
  * - PATCH /api/feed/sources/:channelId — update title/handle
@@ -68,6 +74,7 @@ export class SourcesController {
   constructor(
     private readonly sourceRepo: TelegramFeedSourceRepository,
     private readonly registerSourceUseCase: RegisterNewsSourceUseCase,
+    private readonly telegramListener: TelegramListenerPort,
   ) {}
 
   @Post('sources')
@@ -95,6 +102,46 @@ export class SourcesController {
   @ApiResponse({ status: 400, description: 'Invalid batch payload' })
   async batchUpsert(@Body() input: RegisterFeedSourceBatchInput) {
     return this.registerSourceUseCase.executeBatch(input);
+  }
+
+  @Get('sources/resolve')
+  @ApiOperation({
+    summary:
+      'Resolve a Telegram entity kind (@handle|id|t.me) via single getEntity (P57)',
+  })
+  @ApiQuery({
+    name: 'input',
+    required: true,
+    description: 'Telegram @handle, numeric id, or t.me URL to classify',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Entity kind + subscribability',
+  })
+  @ApiResponse({ status: 400, description: 'Empty input or invite link' })
+  @ApiResponse({ status: 404, description: 'Entity not found / not visible' })
+  async resolveSource(@Query('input') input: string) {
+    const normalized = normalizeResolveInput(input ?? '');
+    let metadata;
+    try {
+      metadata = await this.telegramListener.resolveChannelMetadata(normalized);
+    } catch (error) {
+      throw new NotFoundException(
+        `Cannot resolve "${normalized}": ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    const kind = metadata.kind ?? 'unknown';
+    return {
+      input: normalized,
+      kind,
+      canSubscribe: (SUBSCRIBABLE_KINDS as ReadonlyArray<string>).includes(
+        kind,
+      ),
+      channelId: metadata.peerId,
+      title: metadata.title,
+      handle: metadata.handle,
+      isBot: metadata.isBot ?? false,
+    };
   }
 
   @Get('sources')

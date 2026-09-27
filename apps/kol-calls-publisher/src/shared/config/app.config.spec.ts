@@ -78,7 +78,7 @@ describe('kol-calls-publisher config (Tier-1 validation)', () => {
 
   it('buildAppConfig honors env values and defaults', () => {
     expect(buildAppConfig({ ...validEnv(), PORT: '3040' }).port).toBe(3040);
-    expect(buildAppConfig({ ...validEnv() }).port).toBe(3030);
+    expect(buildAppConfig({ ...validEnv() }).port).toBe(3060);
     expect(buildAppConfig({ ...validEnv() }).encryptionKey).toBe(
       'encryption-key-123',
     );

@@ -151,6 +151,20 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
       Acceptance criteria: matriz 401/403 verde + suites verdes
       QA scenarios: happy con key; failure sin key → 401. Evidence .omo/evidence/task-sec1-central.log
       Commit: Y | feat(ingestion-telegram): auth anti-exploit global
+- [x] 11. Kind-resolver + guard channel/group-only (P57) + BC entity-metadata (P58)
+      What to do / Must NOT do: endpoint `GET /api/sources/resolve?input=<@handle|id|t.me>` con taxonomía real MTProto (bot/person/channel/group, `instanceof`/`className`/`isBot`, NO heurística title); guard en alta/batch/suscripción que RECHAZA no-channel/group con 400 explícito. Tests matriz kinds. Must NOT romper altas válidas existentes.
+      Parallelization: Wave 4 | Blocked by: — | Blocks: frontend sources UI
+      References: .omo/evidence/sources-crud-verify.md (gaps G2/G3); apps/ingestion-telegram/src/registry/
+      Acceptance criteria: `curl` bot → tipo bot + 400 al guardar; channel → 201
+      QA scenarios: happy channel guarda; failure user-id → 400 claro. Evidence .omo/evidence/task-11-central.log
+      Commit: Y | feat(ingestion-telegram): kind-resolver y guard
+- [ ] 12. Avatar total + url t.me + SSE enriquecido (P57)
+      What to do / Must NOT do: quitar filtro kol-only (avatar para TODOS los ids) + backfill filas existentes (respetando fetch-once: solo las sin avatar) + filename con `@handle` (migración archivos + colisiones) + columna `url` t.me/XXXXX en sources + SSE con handle/avatarUrl (revisión C-SSE-01; consumers actualizados). never-update + no-dup intactos. Tests: backfill, colisión handles, frame SSE con handle.
+      Parallelization: Wave 4 | Blocked by: 11 | Blocks: —
+      References: .omo/evidence/sources-crud-verify.md (gaps G4/G5); apps/ingestion-telegram/src/avatar/
+      Acceptance criteria: `ls uploads/avatar | wc -l` cubre feed+kol; frame SSE trae handle
+      QA scenarios: happy avatar feed visible; failure MTProto → placeholder + retry diferido. Evidence .omo/evidence/task-12-central.log
+      Commit: Y | feat(ingestion-telegram): avatar total y SSE enriquecido
 
 ## Contratos sellados (C-\* — versión: 2026-09-26 + 5f463b88; los tramos referencian, nunca redefinen)
 

@@ -10,7 +10,7 @@ export function buildAppConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): AppConfig {
   return {
-    port: parseInt(env.PORT ?? '3030', 10),
+    port: parseInt(env.PORT ?? '3050', 10),
     nodeEnv: env.NODE_ENV ?? 'development',
     encryptionKey: env.ENCRYPTION_KEY ?? '',
   };

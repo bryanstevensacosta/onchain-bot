@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - Rename `apps/kol-system/` → `apps/kol-calls/` via `git mv` (no behavior change): package `@onchain-bot/kol-calls`, Dockerfile/compose paths, compose project/containers/volumes `onchain-bot-kol-calls[-staging]`, env keys `KOL_CALLS_ENABLED`/`KOL_CALLS_PORT`/`KOL_CALLS_API_KEY` (code honors pre-rename `KOL_SYSTEM_*` as fallback), `.env` templates, scripts, and docs path refs. Functional values unchanged: ports `:3050`/`:3051`/`:3052`, DBs `onchain_bot_kol_system[_staging]`, GHCR history stays under the old image name.
+- Default `PORT` to `3050` (was backend `3030` fallback) so bare `PORT` no longer misleads; canonical runtime port stays `KOL_CALLS_PORT=3050`.
 
 ### Added
 

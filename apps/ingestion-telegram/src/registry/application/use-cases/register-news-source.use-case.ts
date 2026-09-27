@@ -10,6 +10,10 @@ import type { TelegramFeedSourceType } from '../../infrastructure/persistence/ty
 import { TelegramListenerPort } from 'core/ports/telegram-listener.port';
 import { kolAvatarUrlFor } from '../../../avatar/avatar.constants';
 import { KolAvatarService } from '../../../avatar/kol-avatar.service';
+import {
+  assertSubscribableKind,
+  type TelegramEntityKind,
+} from '../entity-kind';
 
 export interface RegisterNewsSourceInput {
   readonly channelId: string;
@@ -104,37 +108,52 @@ export class RegisterNewsSourceUseCase {
       );
     }
 
-    // Auto-resolve title and handle from Telegram if not provided
+    // Auto-resolve title and handle from Telegram if not provided.
+    // P57: kind is ALWAYS resolved best-effort (single getEntity) so the
+    // channel/group-only guard runs even when title+handle are explicit.
+    // MTProto failure stays fail-open (kind null) — registration of a real
+    // channel must never break because Telegram was unreachable.
     let title = input.title?.trim();
     let handle = input.handle?.trim() || undefined;
+    let entityKind: TelegramEntityKind | null = null;
+    let isBot: boolean | null = null;
 
-    if (!title || !handle) {
-      try {
-        this.logger.log(
-          `Auto-resolving metadata for channel ${normalizedChannelId}...`,
+    try {
+      this.logger.log(
+        `Auto-resolving metadata for channel ${normalizedChannelId}...`,
+      );
+      const metadata =
+        await this.telegramListener.resolveChannelMetadata(normalizedChannelId);
+      title = title || metadata.title;
+      handle = handle || metadata.handle || undefined;
+      entityKind = metadata.kind ?? null;
+      isBot = metadata.isBot ?? null;
+      this.logger.log(
+        `Resolved metadata: title="${title}", handle="${handle || 'none'}", kind="${entityKind ?? 'unknown-unresolved'}"`,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to auto-resolve metadata for ${normalizedChannelId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      // If title still not available, fail
+      if (!title) {
+        throw new BadRequestException(
+          `Cannot register source: title not provided and auto-resolution failed for channel ${normalizedChannelId}. ` +
+            `Either provide a title explicitly or ensure the bot has joined the channel.`,
         );
-        const metadata =
-          await this.telegramListener.resolveChannelMetadata(
-            normalizedChannelId,
-          );
-        title = title || metadata.title;
-        handle = handle || metadata.handle || undefined;
-        this.logger.log(
-          `Resolved metadata: title="${title}", handle="${handle || 'none'}"`,
-        );
-      } catch (error) {
-        this.logger.warn(
-          `Failed to auto-resolve metadata for ${normalizedChannelId}: ${error instanceof Error ? error.message : String(error)}`,
-        );
-        // If title still not available, fail
-        if (!title) {
-          throw new BadRequestException(
-            `Cannot register source: title not provided and auto-resolution failed for channel ${normalizedChannelId}. ` +
-              `Either provide a title explicitly or ensure the bot has joined the channel.`,
-          );
-        }
-        // Handle can remain undefined
       }
+      // Handle can remain undefined; kind stays null (fail-open).
+    }
+
+    if (!entityKind) {
+      const probe = await this.resolveKindBestEffort(normalizedChannelId);
+      entityKind = probe.kind;
+      if (isBot === null) {
+        isBot = probe.isBot;
+      }
+    }
+    if (entityKind) {
+      assertSubscribableKind(entityKind, normalizedChannelId);
     }
 
     // Create new source
@@ -143,6 +162,7 @@ export class RegisterNewsSourceUseCase {
       title, // guaranteed non-empty at this point
       handle,
       input.type ?? 'crypto-news',
+      { entityKind, isBot },
     );
 
     // Persist to database
@@ -198,11 +218,32 @@ export class RegisterNewsSourceUseCase {
       this.validateBatchItem(item, index),
     );
 
+    // P57: resolve entity kinds for the whole batch BEFORE any write, so a
+    // single user/bot entry 400s the batch with the table untouched.
+    // MTProto failure per item stays fail-open (kind null).
+    const kinds = await Promise.all(
+      normalized.map((entry) => this.resolveKindBestEffort(entry.channelId)),
+    );
+    normalized.forEach((entry, index) => {
+      const kind = kinds[index]?.kind ?? null;
+      if (kind) {
+        try {
+          assertSubscribableKind(kind, entry.channelId);
+        } catch (error) {
+          throw new BadRequestException(
+            `sources[${index}] (${entry.channelId}): ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }
+    });
+
     let created = 0;
     let updated = 0;
     const results: RegisterNewsSourceOutput[] = [];
 
-    for (const entry of normalized) {
+    for (let i = 0; i < normalized.length; i += 1) {
+      const entry = normalized[i];
+      const kindMeta = kinds[i] ?? { kind: null, isBot: null };
       const existing = await this.sourceRepo.findByChannelId(entry.channelId);
       if (!existing) {
         let title = entry.title?.trim();
@@ -214,6 +255,7 @@ export class RegisterNewsSourceUseCase {
           title,
           entry.handle?.trim() || undefined,
           entry.type,
+          { entityKind: kindMeta.kind, isBot: kindMeta.isBot },
         );
         if (entry.isActive !== undefined) {
           createdEntity.isActive = entry.isActive;
@@ -261,6 +303,21 @@ export class RegisterNewsSourceUseCase {
         entry.isActive !== existing.isActive
       ) {
         existing.isActive = entry.isActive;
+        touched = true;
+      }
+      if (
+        kindMeta.kind !== null &&
+        kindMeta.kind !==
+          (existing as { entityKind?: string | null }).entityKind
+      ) {
+        (existing as { entityKind?: string | null }).entityKind = kindMeta.kind;
+        touched = true;
+      }
+      if (
+        kindMeta.isBot !== null &&
+        kindMeta.isBot !== (existing as { isBot?: boolean | null }).isBot
+      ) {
+        (existing as { isBot?: boolean | null }).isBot = kindMeta.isBot;
         touched = true;
       }
       const saved = touched ? await this.sourceRepo.save(existing) : existing;
@@ -326,6 +383,44 @@ export class RegisterNewsSourceUseCase {
       isActive: item.isActive,
       lifecycleStatus: item.lifecycleStatus,
     };
+  }
+
+  /**
+   * P57 best-effort kind probe (single getEntity via the port).
+   *
+   * Never throws: MTProto trouble resolves to `{ kind: null }` (fail-open)
+   * so registration of a real channel survives outages.
+   *
+   * Probes every id form (`raw`, `-100`-prefixed, stripped): a bot/user id
+   * only resolves WITHOUT the `-100` prefix, while channels need it —
+   * probing just the normalized form would fail-open bots straight
+   * through the guard.
+   */
+  private async resolveKindBestEffort(
+    channelId: string,
+  ): Promise<{ kind: TelegramEntityKind | null; isBot: boolean | null }> {
+    const stripped = channelId.replace(/^-100/, '').replace(/^[+-]/, '');
+    const candidates = [channelId, stripped, `-100${stripped}`].filter(
+      (candidate, index, all) => all.indexOf(candidate) === index,
+    );
+    for (const candidate of candidates) {
+      try {
+        const metadata =
+          await this.telegramListener.resolveChannelMetadata(candidate);
+        return {
+          kind: metadata?.kind ?? null,
+          isBot: metadata?.isBot ?? null,
+        };
+      } catch (error) {
+        this.logger.debug(
+          `Kind probe missed for ${candidate}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+    this.logger.warn(
+      `Kind probe failed for ${channelId} in all id forms (fail-open)`,
+    );
+    return { kind: null, isBot: null };
   }
 
   private async resolveTitle(channelId: string): Promise<string> {

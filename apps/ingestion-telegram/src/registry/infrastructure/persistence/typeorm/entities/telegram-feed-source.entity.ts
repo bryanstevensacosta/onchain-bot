@@ -70,6 +70,22 @@ export class TelegramFeedSourceEntity {
   @Column({ name: 'avatar_updated_at', type: 'timestamptz', nullable: true })
   public avatarUpdatedAt!: Date | null;
 
+  /**
+   * P57 entity-kind bookkeeping (central todo 11).
+   *
+   * Real MTProto taxonomy captured at registration (`channel` |
+   * `supergroup` | `group` | `user` | `bot` | `unknown`). NULL = resolved
+   * before the kind-resolver existed, or MTProto was unreachable at
+   * registration (fail-open). Rows with `user`/`bot` predate the guard
+   * and are skipped by the subscribe filter — never deleted silently.
+   * Full per-id metadata lives in the P58 `metadata/` track (follow-up).
+   */
+  @Column({ name: 'entity_kind', type: 'varchar', length: 16, nullable: true })
+  public entityKind!: string | null;
+
+  @Column({ name: 'is_bot', type: 'boolean', nullable: true })
+  public isBot!: boolean | null;
+
   @CreateDateColumn({ name: 'added_at', type: 'timestamptz' })
   public addedAt!: Date;
 

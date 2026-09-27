@@ -13,6 +13,8 @@ export interface ActiveFeedSource {
 
 export interface ActiveFeedSourceWithType extends ActiveFeedSource {
   readonly type: TelegramFeedSourceType;
+  /** P57: explicit user/bot rows are skipped by the subscribe filter. */
+  readonly entityKind: string | null;
 }
 
 /**
@@ -92,7 +94,7 @@ export class TelegramFeedSourceRepository {
           lifecycleStatus: 'ACTIVE',
           isActive: true,
         },
-        select: ['channelId', 'title', 'type'],
+        select: ['channelId', 'title', 'type', 'entityKind'],
       });
 
       this.logger.log(
@@ -103,6 +105,7 @@ export class TelegramFeedSourceRepository {
         channelId: s.channelId,
         title: s.title,
         type: s.type,
+        entityKind: s.entityKind ?? null,
       }));
     } catch (error) {
       this.logger.error(
@@ -215,6 +218,7 @@ export class TelegramFeedSourceRepository {
     title: string,
     handle?: string,
     type: TelegramFeedSourceType = 'crypto-news',
+    meta?: { entityKind?: string | null; isBot?: boolean | null },
   ): TelegramFeedSourceEntity {
     const source = this.repo.create({
       channelId,
@@ -224,6 +228,8 @@ export class TelegramFeedSourceRepository {
       isActive: true,
       lifecycleStatus: 'ACTIVE',
       lastIngestedAt: null,
+      entityKind: meta?.entityKind ?? null,
+      isBot: meta?.isBot ?? null,
     });
     return source;
   }
