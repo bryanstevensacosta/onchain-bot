@@ -209,8 +209,8 @@ as `@deprecated` compat re-exports (removal at cutover, todo 8).
 
 `.env.example` (10 vars): switches (`MARKET_DATA_ENABLED`,
 `USE_DATA_SERVICE_API`), port + host (`MARKET_DATA_HOST` default
-`127.0.0.1` — loopback-only, P46; wider exposure is an explicit
-operator decision), `MARKET_DATA_API_KEY` (inbound,
+`0.0.0.0` — container default, P46; dev may pin `127.0.0.1` for
+loopback-only), `MARKET_DATA_API_KEY` (inbound,
 fail-open, P30 day-one), stream (`MARKET_DATA_STREAM_DRIVER`
 memory|ccxt, `MARKET_DATA_STREAM_EXCHANGES` allowlist — todo 11,
 P49), `DATABASE_URL` + `DATABASE_SYNCHRONIZE`,
@@ -430,10 +430,11 @@ records key id + name, method, path (query stripped), status — never
 key material. Grep-gate spec fails the suite on any secret-like
 literal or key-variable logging in auth/guard/controller sources.
 
-Bind: `MARKET_DATA_HOST` defaults to `127.0.0.1` (loopback-only). On
-Oracle the service stays behind loopback or the Tailscale IP — never
-`0.0.0.0` without an explicit operator decision (staging `:4001`,
-prod `:4002` same rule).
+Bind: `MARKET_DATA_HOST` defaults to `0.0.0.0` (container default —
+loopback-in-container is unreachable via published ports; staging
+backport 2026-09-27). On Oracle the service stays behind the published
+loopback/host port or the Tailscale IP (staging `:4001`, prod `:4002`
+same rule); dev may pin `127.0.0.1` for loopback-only.
 
 Compromise drill (<15 min, no redeploy): 1. `GET /api/v1/auth/keys`
 find the prefix. 2. `DELETE /api/v1/auth/keys/:id` (revoke, immediate

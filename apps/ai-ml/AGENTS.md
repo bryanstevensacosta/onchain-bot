@@ -119,7 +119,7 @@ read-only constraint outside `apps/ai-ml` (see GAPS).
 
 ```
 src/
-  main.ts                 # bootstrap (:4090 dev, loopback-only default)
+  main.ts                 # bootstrap (:4090 dev, 0.0.0.0 default)
   app.module.ts           # Config + Health + Shared + Auth + Llm, APP_GUARD
   health/                 # GET /api/health -> { status: 'ok' } (@Public)
   shared/                 # global audit + @Public + ApiKeyGuard + api-key util
@@ -174,7 +174,7 @@ Dockerfile                # multi-stage, CMD dist/main.js, EXPOSE 4090
 ## ENV INVENTORY
 
 See `.env.example` (authoritative). Key vars: `AI_ML_PORT` (4090),
-`AI_ML_HOST` (127.0.0.1), `AI_ML_API_KEY` (legacy env key,
+`AI_ML_HOST` (0.0.0.0 — container default; dev may pin 127.0.0.1), `AI_ML_API_KEY` (legacy env key,
 admin-equivalent), `ENCRYPTION_KEY` (REQUIRED staging/prod — boot
 throws without it; HMAC pepper), `DATABASE_URL`
 (`onchain_bot_ai_ml[_staging]`), `REDIS_URL`, `LLM_ENABLED` /
@@ -217,7 +217,7 @@ ports on Oracle with lsof before first deploy).
   `ENCRYPTION_KEY is required but empty (distinct per env)` on any
   key operation; `AuthModule.onModuleInit` throws at boot on
   staging/production (dev only warns — keyless fail-open).
-- Loopback-only bind by default (`AI_ML_HOST=127.0.0.1`).
+- Bind all interfaces by default (`AI_ML_HOST=0.0.0.0`) — loopback-in-container is unreachable via published ports (staging backport 2026-09-27); dev may pin `127.0.0.1` for loopback-only.
 
 ## TS/ESLINT CONVENTIONS
 

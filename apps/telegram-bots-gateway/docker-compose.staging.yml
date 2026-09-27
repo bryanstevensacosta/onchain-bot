@@ -2,6 +2,9 @@ name: onchain-bot-bots-gateway-staging
 
 services:
   gateway:
+    build:
+      context: ../..
+      dockerfile: apps/telegram-bots-gateway/Dockerfile
     image: ghcr.io/bryanstevensacosta/onchain-bot-telegram-bots-gateway:latest
     container_name: onchain-bot-bots-gateway-staging
     env_file:
@@ -13,12 +16,20 @@ services:
       DATABASE_SYNCHRONIZE: 'false'
     volumes:
       - bots-avatars-staging:/app/uploads/avatars
+    networks:
+      default:
+        aliases:
+          - onchain-bot-telegram-bots-gateway-staging
     healthcheck:
       test:
         ['CMD-SHELL', 'wget -qO- http://localhost:4071/api/health || exit 1']
       interval: 30s
       timeout: 5s
       retries: 3
+
+networks:
+  default:
+    name: onchain-bot-staging-net
 
 volumes:
   bots-avatars-staging:

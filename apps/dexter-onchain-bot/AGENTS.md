@@ -49,7 +49,7 @@ cd apps/dexter-onchain-bot && DEXTER_PORT=4060 npm run start:dev
 
 ```
 src/
-├── main.ts                     # bootstrap() — DEXTER_PORT ?? 4060, host 127.0.0.1, ValidationPipe
+├── main.ts                     # bootstrap() — DEXTER_PORT ?? 4060, host 0.0.0.0 default, ValidationPipe
 ├── app.module.ts               # Config (.env.dev > .env) + Health + Dexter
 ├── dexter.module.ts            # single composition root (see MODULES; avoids commands ⇄ telegram forwardRef cycles)
 ├── health/                     # GET /api/health -> { status: 'ok', service }
@@ -136,7 +136,7 @@ text with no contract gets the "no veo ningún contrato" reply.
 | Variable                                                                     | Default                                 | Meaning                                                                       |
 | ---------------------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------- |
 | `DEXTER_ENABLED`                                                             | `false`                                 | master switch                                                                 |
-| `DEXTER_PORT` / `DEXTER_HOST`                                                | `4060` / `127.0.0.1`                    | bind (triplet 4060/4061/4062)                                                 |
+| `DEXTER_PORT` / `DEXTER_HOST`                                                | `4060` / `0.0.0.0`                      | bind (triplet 4060/4061/4062; dev may pin 127.0.0.1)                          |
 | `DEXTER_BOT_TOKEN`                                                           | `''`                                    | lookup bot token (wins over legacy — direct-leg credential only since todo 6) |
 | `CHAIN_DEXTER_BOT_TOKEN`                                                     | `''`                                    | legacy fallback (deprecated, honored)                                         |
 | `DEXTER_BOT_VAULT_ID`                                                        | `''`                                    | gateway vault id for this bot (todo 6; set by hand after migration)           |

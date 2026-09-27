@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Staging backport 2026-09-27:** declared `@nestjs/swagger ^11.4.7`
+  (matches backend/ingestion-telegram) — imported across the API
+  surface but previously resolved only via hoisted root, absent in the
+  Docker build context. Lockfile regen deferred (see
+  `.omo/evidence/staging-backport.log`).
+
 ### Added
 
 - **Unified delivery surface `src/target/` (threads-publisher Fase 2

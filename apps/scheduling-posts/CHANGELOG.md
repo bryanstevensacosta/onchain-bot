@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **Staging backport 2026-09-27:** nonexistent `cron ^0.4.4` → `^4.4.0`
+  (typo; `new CronJob('* * * * *', cb)` is v4-compatible). Declared
+  `@nestjs/swagger ^11.4.7` (matches backend/ingestion-telegram; 3
+  scheduling controllers import it). Staging compose: `BOTS_GATEWAY_URL`
+  `:4070` → `:4071` + joined `onchain-bot-staging-net` (same URL fix in
+  `.env.staging.template`). Lockfile regen deferred (see
+  `.omo/evidence/staging-backport.log`).
+
 ### Added (todos 1-2)
 
 - App setup: `src/main.ts` (:4080 `SCHEDULING_POSTS_PORT`), `src/app.module.ts`

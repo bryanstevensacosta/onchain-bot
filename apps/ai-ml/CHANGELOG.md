@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Staging backport 2026-09-27:** default bind `AI_ML_HOST` changed
+  `127.0.0.1` → `0.0.0.0` (loopback-in-container is unreachable via the
+  published-port mapping; droplet staging already ran with `0.0.0.0`).
+  `.env.staging.template` pinned to `0.0.0.0`; dev may still set
+  `127.0.0.1` explicitly for loopback-only.
+
 ### Added
 
 - **Cutover readiness (todo 4, prep only, no prod deploy):** no ai-ml

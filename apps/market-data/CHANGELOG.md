@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Staging backport 2026-09-27:** default bind `MARKET_DATA_HOST`
+  changed `127.0.0.1` → `0.0.0.0` (loopback-in-container is unreachable
+  via the published-port mapping; droplet staging already ran with
+  `0.0.0.0`). Dev may still set `127.0.0.1` explicitly for
+  loopback-only.
+
 ### Added
 
 - **On-demand ccxt streaming over ws (Tramo 3, todo 11, P49):** new

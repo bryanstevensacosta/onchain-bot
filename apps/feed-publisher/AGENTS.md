@@ -906,6 +906,10 @@ English per `RELEASE-FLOW.md` (P39). Stale knowledge base = failed todo.
 ## NOTES
 
 - P10 enforced by grep gate: `grep -rn "vip-calls\|KOL_BOT\|kol-bot" apps/feed-publisher/src` must stay empty.
+- Staging backport 2026-09-27: `@nestjs/swagger ^11.4.7` is a declared
+  dep (matches backend/ingestion-telegram); earlier todos resolved it
+  via hoisted root only. Lockfile regen deferred (drift reported in
+  `.omo/evidence/staging-backport.log`).
 - P41 dual-serve contract (T2 todo 13, backend-side): the backend dual-serves old+new until
   cutover todo 11; this app already serves `feed-*` names and becomes sole owner of
   `feed-publisher/*`, `feed-scheduling/*`, `feed-threads-publisher/*`, `feed-matching/*`,

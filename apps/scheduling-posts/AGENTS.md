@@ -109,7 +109,7 @@ apps/scheduling-posts/
   uploads/               # media library on disk (gitignored; permanent — no janitor)
   Dockerfile             # EXPOSE 4080, CMD dist/main.js, uploads volume path
   docker-compose.yml     # pg :5442 + redis :6389 (next free repo-wide)
-  docker-compose.staging.yml  # host :4081, pg :5443, redis :6390 (DRY-RUN, OPERATOR-CONFIRM)
+  docker-compose.staging.yml  # host :4081, pg :5443, redis :6390 (LIVE staging since 2026-09-27; BOTS_GATEWAY_URL :4071, onchain-bot-staging-net)
   .env.example / .development / .staging.template / .production.template
 ```
 
@@ -161,7 +161,8 @@ bindings). Templates for staging (`:4081`) + prod (`:4082`).
 | staging | :4081 | :5443\*       | :6390\*       |
 | prod    | :4082 | server-shared | server-shared |
 
-\* DRY-RUN, OPERATOR-CONFIRM on Oracle. No clashes with backend
+\* LIVE staging since 2026-09-27 (staging backport: cron ^4.4.0,
+swagger declared, gateway URL :4071, staging-net). No clashes with backend
 (`:3030`), ingestion (`:3031/32/33`), frontend (`:5173`),
 feed-publisher (`:3040/41/42`, pg `:5436`), kol-stacks, market-data
 (`:5438`/`:6385`), dexter (`:5440`/`:6387`), gateway (`:4070/71/72`).
@@ -220,3 +221,7 @@ units, no I/O) — current 87% stmts.
   run via `-w @onchain-bot/scheduling-posts`). Lockfile untouched
   (no new deps: `cron` + `class-validator/transformer` + `supertest`
   resolve via hoisted root modules).
+- Staging backport 2026-09-27: `cron ^0.4.4` → `^4.4.0` (nonexistent
+  version typo) + `@nestjs/swagger ^11.4.7` declared (3 controllers
+  import it). Lockfile regen deferred (drift reported in
+  `.omo/evidence/staging-backport.log`).

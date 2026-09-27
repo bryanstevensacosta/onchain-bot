@@ -27,7 +27,11 @@ async function bootstrap(): Promise<void> {
   );
 
   const port = Number(process.env.DEXTER_PORT ?? 4060);
-  const host = process.env.DEXTER_HOST ?? '127.0.0.1';
+  // Container default: bind all interfaces so published ports are reachable
+  // from the host (loopback-in-container is unreachable via port mapping).
+  // Staging/prod set DEXTER_HOST=0.0.0.0 in their env files; dev may pin
+  // DEXTER_HOST=127.0.0.1 for loopback-only.
+  const host = process.env.DEXTER_HOST ?? '0.0.0.0';
   await app.listen(port, host);
 }
 

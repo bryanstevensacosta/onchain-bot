@@ -25,9 +25,11 @@ async function bootstrap(): Promise<void> {
   );
 
   const port = Number(process.env.AI_ML_PORT ?? 4090);
-  // Loopback-only by default; wider exposure is an explicit operator
-  // decision (AI_ML_HOST=0.0.0.0 or the Tailscale IP), never the default.
-  const host = process.env.AI_ML_HOST ?? '127.0.0.1';
+  // Container default: bind all interfaces so published ports are reachable
+  // from the host (loopback-in-container is unreachable via port mapping).
+  // Staging/prod set AI_ML_HOST=0.0.0.0 in their env files; dev may pin
+  // AI_ML_HOST=127.0.0.1 for loopback-only.
+  const host = process.env.AI_ML_HOST ?? '0.0.0.0';
   await app.listen(port, host);
 }
 

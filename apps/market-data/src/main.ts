@@ -26,10 +26,12 @@ async function bootstrap(): Promise<void> {
   );
 
   const port = Number(process.env.MARKET_DATA_PORT ?? 4000);
-  // P46: loopback-only by default; Tailscale/off-droplet exposure is an
-  // explicit operator decision (MARKET_DATA_HOST=0.0.0.0 or the tailscale
-  // IP), never the default. See AGENTS.md §SECURITY.
-  const host = process.env.MARKET_DATA_HOST ?? '127.0.0.1';
+  // P46: container default binds all interfaces so published ports are
+  // reachable from the host (loopback-in-container is unreachable via port
+  // mapping). Staging/prod set MARKET_DATA_HOST=0.0.0.0 in their env files;
+  // dev may pin MARKET_DATA_HOST=127.0.0.1 for loopback-only.
+  // See AGENTS.md §SECURITY.
+  const host = process.env.MARKET_DATA_HOST ?? '0.0.0.0';
   await app.listen(port, host);
 }
 

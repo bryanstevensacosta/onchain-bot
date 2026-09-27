@@ -66,6 +66,59 @@ services:
       timeout: 3s
       retries: 10
 
+  threads-publisher:
+    build:
+      context: ../..
+      dockerfile: apps/threads-publisher/Dockerfile
+    image: ghcr.io/bryanstevensacosta/onchain-bot-threads-publisher:staging-latest
+    container_name: onchain-bot-threads-publisher-staging
+    restart: unless-stopped
+    env_file:
+      - .env.staging
+    environment:
+      NODE_ENV: staging
+      # Container port (src/shared/config/app.config.ts reads
+      # THREADS_PUBLISHER_PORT ?? 4100). Host mapping 4101:4100 below.
+      THREADS_PUBLISHER_PORT: 4100
+      # DB name onchain_bot_threads_staging per central plan C-DB-01
+      # (staging `<base>_<app>_staging`); app reads DATABASE_URL
+      # (src/shared/config/app.config.ts).
+      DATABASE_URL: postgres://${POSTGRES_USER:-onchain_bot}:${POSTGRES_PASSWORD:-onchain_bot}@postgres:5432/${POSTGRES_DB:-onchain_bot_threads_staging}
+      # Migrations off on staging (never synchronize; persistence wiring
+      # is GAP-1, inert until then).
+      DATABASE_SYNCHRONIZE: false
+      # Single-string form (REDIS_URL in .env.staging.template).
+      REDIS_URL: ${THREADS_PUBLISHER_REDIS_URL:-redis://redis:6379/0}
+      # Gateway + ingestion URLs come from .env.staging (template pins
+      # staging :4071 + the staging twin) — compose wins if overridden.
+      BOTS_GATEWAY_URL: ${BOTS_GATEWAY_URL:-http://onchain-bot-telegram-bots-gateway-staging:4071}
+      INGESTION_TELEGRAM_URL: ${INGESTION_TELEGRAM_URL:-http://onchain-bot-ingestion-telegram-staging:3031}
+    ports:
+      - '4101:4100'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # NOTE: threads-publisher image has NO wget/curl (Dockerfile installs
+      # only dumb-init) — probe via node like feed-publisher staging does.
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:4100/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  default:
+    name: onchain-bot-staging-net
+
 volumes:
   onchain-bot-threads-publisher-staging-pg-data:
   onchain-bot-threads-publisher-staging-redis-data:
