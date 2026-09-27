@@ -1,4 +1,4 @@
-import type { ChatSettings } from '../../../settings/domain/chat-settings';
+import type { ChatSettings } from '@/settings/domain/chat-settings';
 
 /**
  * Command contract (moved from backend chain-dexter-bot

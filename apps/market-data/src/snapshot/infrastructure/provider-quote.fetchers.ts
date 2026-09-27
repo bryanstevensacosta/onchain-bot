@@ -1,6 +1,8 @@
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
 import { BirdeyeService } from 'provider/infrastructure/birdeye';
+import { CoinGeckoService } from 'provider/infrastructure/coingecko';
+import { MobulaService } from 'provider/infrastructure/mobula';
 import { MoralisService } from 'provider/infrastructure/moralis';
 import { RugCheckService } from 'provider/infrastructure/rugcheck';
 import type {
@@ -33,6 +35,8 @@ export interface ProviderQuoteDeps {
   readonly dexscreener: DexScreenerService;
   readonly geckoterminal: GeckoTerminalService;
   readonly birdeye: BirdeyeService;
+  readonly coingecko: CoinGeckoService;
+  readonly mobula: MobulaService;
   readonly moralis: MoralisService;
   readonly rugcheck: RugCheckService;
 }
@@ -91,6 +95,43 @@ export function buildProviderQuoteFetchers(
         top10HolderPercent: toNumber(info.top10HolderPercent),
         symbol: info.symbol,
         name: info.name,
+        totalSupply: toNumber(info.totalSupply),
+      };
+      return quote;
+    },
+  };
+
+  /** CoinGecko platform ids differ from the catalog chain ids. */
+  const COINGECKO_PLATFORMS: Record<string, string> = {
+    ethereum: 'ethereum',
+    bsc: 'binance-smart-chain',
+    base: 'base',
+    arbitrum: 'arbitrum-one',
+    polygon: 'polygon-pos',
+    solana: 'solana',
+  };
+
+  const coingecko: QuoteFetcher = {
+    name: 'coingecko',
+    supportsChains: ['ethereum', 'bsc', 'base', 'arbitrum', 'polygon', 'solana'],
+    fetch: async (chain: string, address: string) => {
+      const platform = COINGECKO_PLATFORMS[chain];
+      if (!platform) {
+        return null;
+      }
+      const info = await deps.coingecko.getTokenContractInfo(platform, address);
+      if (info === null) {
+        return null;
+      }
+      const quote: Partial<SnapshotQuote> = {
+        priceUsd: toNumber(info.priceUsd),
+        marketCapUsd: toNumber(info.marketCapUsd),
+        fdvUsd: toNumber(info.fdvUsd),
+        volume24hUsd: toNumber(info.volumeUsdH24),
+        priceChange24h: toNumber(info.priceChangePercent24h),
+        totalSupply: toNumber(info.totalSupply),
+        circulatingSupply: toNumber(info.circulatingSupply),
+        maxSupply: toNumber(info.maxSupply),
       };
       return quote;
     },
@@ -113,6 +154,27 @@ export function buildProviderQuoteFetchers(
         holders: toNumber(overview.holder),
         symbol: overview.symbol,
         name: overview.name,
+        totalSupply: toNumber(overview.totalSupply),
+      };
+      return quote;
+    },
+  };
+
+  const mobula: QuoteFetcher = {
+    name: 'mobula',
+    supportsChains: ['ethereum', 'bsc', 'base', 'arbitrum', 'polygon', 'solana'],
+    fetch: async (chain: string, address: string) => {
+      const markets = await deps.mobula.getTokenMarkets(address, chain);
+      if (markets === null) {
+        return null;
+      }
+      const quote: Partial<SnapshotQuote> = {
+        priceUsd: toNumber(markets.priceUSD),
+        liquidityUsd: toNumber(markets.approximateReserveUSD),
+        marketCapUsd: toNumber(markets.marketCapUSD),
+        fdvUsd: toNumber(markets.marketCapDilutedUSD),
+        top10HolderPercent: toNumber(markets.top10HoldingsPercentage),
+        totalSupply: toNumber(markets.totalSupply),
       };
       return quote;
     },
@@ -149,7 +211,7 @@ export function buildProviderQuoteFetchers(
       if (summary === null) {
         return null;
       }
-      const locked = summary.lockedLiquidity.map((entry) => entry.percent);
+      const locked = (summary.lockedLiquidity ?? []).map((entry) => entry.percent);
       const quote: Partial<SnapshotQuote> = {
         lockedLiquidityPercent:
           locked.length > 0 ? Math.max(...locked) : null,
@@ -159,5 +221,5 @@ export function buildProviderQuoteFetchers(
     },
   };
 
-  return [dexscreener, geckoterminal, birdeye, moralis, rugcheck];
+  return [dexscreener, geckoterminal, birdeye, coingecko, mobula, moralis, rugcheck];
 }

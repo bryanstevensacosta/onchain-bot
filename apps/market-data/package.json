@@ -79,6 +79,7 @@
       "^snapshot/(.*)$": "<rootDir>/src/snapshot/$1",
       "^stream/(.*)$": "<rootDir>/src/stream/$1",
       "^auth/(.*)$": "<rootDir>/src/auth/$1",
+      "^chain-logo/(.*)$": "<rootDir>/src/chain-logo/$1",
       "^src/(.*)$": "<rootDir>/src/$1"
     }
   }

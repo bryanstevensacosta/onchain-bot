@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import type {
   CommandContext,
   CommandHandler,
-} from '../../domain/ports/command-handler.port';
-import { TelegramBotClient } from '../../../telegram/infrastructure/telegram/bot-client';
+} from '@/commands/domain/ports/command-handler.port';
+import { TelegramBotClient } from '@/telegram/infrastructure/telegram/bot-client';
 
 /**
  * /settings — chat config view (inherited from backend chain-dexter-bot

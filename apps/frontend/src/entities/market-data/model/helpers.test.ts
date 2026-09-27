@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import {
   addressKindTone,
   chartUrlFor,
+  detectChainForAddress,
   isKnownAddressKind,
   normalizeAddressKind,
   providerHealthTone,
@@ -41,7 +42,6 @@ describe('market-data helpers', () => {
     expect(providerHealthTone('down')).toBe('red');
     expect(providerHealthTone('unknown')).toBe('gray');
   });
-
   it('builds chart urls per chain family', () => {
     const sol = chartUrlFor(
       'solana',
@@ -52,5 +52,33 @@ describe('market-data helpers', () => {
     const evm = chartUrlFor('ethereum', '0xabc');
     expect(evm.dexscreener).toContain('dexscreener.com/ethereum/0xabc');
     expect(evm.geckoterminal).toContain('geckoterminal.com/eth/pools/0xabc');
+  });
+});
+
+describe('detectChainForAddress (bare-address format guess)', () => {
+  it('maps base58 32-44 chars to solana with no alternatives', () => {
+    const hit = detectChainForAddress(
+      'So11111111111111111111111111111111111111112',
+    );
+    expect(hit?.chain).toBe('solana');
+    expect(hit?.candidates).toEqual(['solana']);
+  });
+
+  it('maps 0x + 40 hex to ethereum and lists every EVM alternative', () => {
+    const hit = detectChainForAddress(
+      '0x6B175474E89094C44Da98b954EedeAC495271d0F',
+    );
+    expect(hit?.chain).toBe('ethereum');
+    expect(hit?.candidates).toContain('ethereum');
+    expect(hit?.candidates).toContain('base');
+    expect(hit?.candidates).toContain('bsc');
+    expect(hit && hit.candidates.length).toBeGreaterThan(1);
+  });
+
+  it('returns null for garbage, empty, and slash input', () => {
+    expect(detectChainForAddress('hello')).toBeNull();
+    expect(detectChainForAddress('0x123')).toBeNull();
+    expect(detectChainForAddress('')).toBeNull();
+    expect(detectChainForAddress('/x solana abc')).toBeNull();
   });
 });

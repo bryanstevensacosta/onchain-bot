@@ -3,7 +3,7 @@ import { TradeButton, TradeButtonRegistry } from './trade-button-registry';
 import type {
   InlineKeyboardButton,
   InlineKeyboardMarkup,
-} from '../../domain/ports/telegram.port';
+} from '@/telegram/domain/ports/telegram.port';
 
 export type { InlineKeyboardButton, InlineKeyboardMarkup };
 

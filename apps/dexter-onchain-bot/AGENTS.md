@@ -33,7 +33,7 @@ stays inactive with a warn — verified in the boot log).
 npm run dev                  # DEXTER_PORT=4060 nest start --watch
 npm run build                # nest build (emits dist/main.js)
 npm run start:prod           # node dist/main
-npm test                     # jest --forceExit (16 suites / 55 tests)
+npm test                     # jest --forceExit (19 suites / 69 tests)
 npx tsc --noEmit -p tsconfig.json
 ```
 
@@ -65,9 +65,9 @@ src/
 │   │   ├── ports/scan-pipeline.port.ts # ScanPipeline + ResolvedToken + ChainIdentifier + SCAN_PIPELINE
 │   │   ├── detector/address-detector.ts# bare EVM/Solana detection + extractAddresses
 │   │   └── extractor/forward-extractor.ts # any-text candidates (addresses + exchange mentions)
-│   ├── application/pipeline/token-scan.pipeline.ts # resolve() via market-data (re-exports port types)
+│   ├── application/pipeline/token-scan.pipeline.ts # resolve() + resolveDetailed() via market-data (detect-first, format-narrowed sweep, explicit ambiguous/invalid; re-exports port types)
 │   └── infrastructure/
-│       ├── market-data/market-data.client.ts # NEW — GET /api/market-data/snapshot + resolveAny (chain sweep)
+│       ├── market-data/market-data.client.ts # NEW — GET /api/market-data/snapshot + GET /api/v1/chains/detect (chain-detect hint; resolveAny first-hit sweep REMOVED — silent-guess path, replaced by the pipeline collect-all)
 │       └── formatter/message-formatter.ts    # full/compact cards, 4096 cap (moved)
 ├── telegram/                   # poller + webhook + ingress + client + keyboard + registry
 │   ├── domain/ports/telegram.port.ts # Bot API shapes (updates, messages, keyboards, responses)
@@ -95,7 +95,7 @@ src/
 ```
 
 Root files: `package.json` (`@onchain-bot/dexter-onchain-bot`), `nest-cli.json`,
-`tsconfig.json` / `tsconfig.build.json` (paths `shared/*`, `src/*`),
+`tsconfig.json` / `tsconfig.build.json` (paths `@/*`, `shared/*`, `src/*`),
 `.env.example` + `.env.staging.template` + `.env.production.template`,
 `docker-compose.yml` (dev) + `docker-compose.staging.yml`, `Dockerfile`
 (`CMD apps/dexter-onchain-bot/dist/main.js`).
@@ -169,7 +169,11 @@ repo-wide by grep. Compose `name:` is explicit (`onchain-bot-dexter`,
 - `POST /dexter/health` → `{ status: 'ok', ingestMode }`.
 - `GET /dexter/token?address=` → resolved card + `text`, or
   `{ error: 'Token not found' }` (market-data down/pending → error, never
-  a partial card).
+  a partial card). Bare addresses need no chain qualifier (detect-first
+  via chain-detect, else the format-narrowed solana-first sweep);
+  ambiguity answers `{ error: 'Ambiguous address …', candidates }` and
+  garbage answers `{ error: 'Invalid address: …' }` — explicit choice,
+  never a silent guess.
 
 ## GATEWAY MIGRATION (telegram-bots-gateway todo 6, DONE 2026-09-26)
 
@@ -259,29 +263,34 @@ positions.
 
 ## TESTS
 
-Jest (`testRegex .*\.spec\.ts$`, `--forceExit`, 30 s). 16 suites /
-55 tests, failing-first (first run: 10 red — gateway modules missing).
+Jest (`testRegex .*\.spec\.ts$`, `--forceExit`, 30 s). 19 suites /
+69 tests, failing-first (first run: 10 red — gateway modules missing).
 Todo 13 moved every spec with its source — counts unchanged (±0);
-todo 6 added 10 suites / 35 tests (±0 since):
+todo 6 added 10 suites / 35 tests (±0 since); bare-address added
+3 suites / 14 tests:
 
-| Spec                                                                      | Covers                                                                                             |
-| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `scan/domain/detector/address-detector.spec.ts`                           | solana/evm/bare recognition, ordered deduped extraction                                            |
-| `scan/domain/extractor/forward-extractor.spec.ts`                         | forward-ok (address + exchange), forward-empty, blank                                              |
-| `commands/application/rate-limit/user-rate-limiter.spec.ts`               | per-user budget + independence                                                                     |
-| `commands/application/handlers/start-ca.spec.ts`                          | /start rewritten (lookup, /ca, no publish/channel words); /ca card + usage + explicit unresolvable |
-| `commands/application/router/command-router-bare-forward.spec.ts`         | bare scan, forward-ok scan, forward-empty reply, unknown slash                                     |
-| `commands/application/handlers/settings.spec.ts`                          | /settings render, /tb on/off                                                                       |
-| `telegram/infrastructure/gateway/gateway-hmac-signer.service.spec.ts`     | canonical sign/verify, tamper + wrong-secret reject, keyless `{}`                                  |
-| `telegram/infrastructure/gateway/gateway-bot-mapping.service.spec.ts`     | local→vault map + unmapped fallback                                                                |
-| `telegram/infrastructure/gateway/gateway-send-client.service.spec.ts`     | message post + chunking + empty/keyboard/401 fail-closed, no token in body/URL                     |
-| `telegram/infrastructure/gateway/send-mode.spec.ts`                       | mode parsing, dual default                                                                         |
-| `telegram/application/services/dual-send-parity.service.spec.ts`          | outcome agreement, ok-mismatch → 409 gate, skipped never diverged                                  |
-| `telegram/application/use-cases/migrate-bots-to-gateway.use-case.spec.ts` | vault register + map, missing-token + duplicate + 403 paths                                        |
-| `telegram/api/http/gateway-migration.controller.spec.ts`                  | 201 labels/ids-only shape                                                                          |
-| `telegram/api/http/ingress.controller.spec.ts`                            | fan-out dispatch + secret rejects + error-ack + unsigned dev                                       |
-| `telegram/infrastructure/telegram/bot-client-dual-send.spec.ts`           | dual/direct/gateway routing, vault resolution, keyboard skip, divergence gate                      |
-| `telegram/dual-send-secret-scan.spec.ts`                                  | vault-ids-only bodies, no console.\*, no direct token reads                                        |
+| Spec                                                                      | Covers                                                                                                                       |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `scan/domain/detector/address-detector.spec.ts`                           | solana/evm/bare recognition, ordered deduped extraction                                                                      |
+| `scan/application/pipeline/token-scan-bare-address.spec.ts`               | bare solana/EVM via detect, detect-down sweep fallback, multi-chain ambiguous → null, garbage invalid, explicit chain intact |
+| `scan/application/pipeline/token-scan-supply.spec.ts`                     | supply passthrough (client → token), null-supply resolve + N/A card, FDV + supply lines rendered                             |
+| `scan/infrastructure/market-data/market-data-client-detect.spec.ts`       | detect-chain hit, non-ok → null, fetch throw → null (never throws)                                                           |
+| `telegram/api/http/dexter-controller-bare.spec.ts`                        | resolved card, ambiguous candidates, invalid, not-found, missing-param explicit shapes                                       |
+| `scan/domain/extractor/forward-extractor.spec.ts`                         | forward-ok (address + exchange), forward-empty, blank                                                                        |
+| `commands/application/rate-limit/user-rate-limiter.spec.ts`               | per-user budget + independence                                                                                               |
+| `commands/application/handlers/start-ca.spec.ts`                          | /start rewritten (lookup, /ca, no publish/channel words); /ca card + usage + explicit unresolvable                           |
+| `commands/application/router/command-router-bare-forward.spec.ts`         | bare scan, forward-ok scan, forward-empty reply, unknown slash                                                               |
+| `commands/application/handlers/settings.spec.ts`                          | /settings render, /tb on/off                                                                                                 |
+| `telegram/infrastructure/gateway/gateway-hmac-signer.service.spec.ts`     | canonical sign/verify, tamper + wrong-secret reject, keyless `{}`                                                            |
+| `telegram/infrastructure/gateway/gateway-bot-mapping.service.spec.ts`     | local→vault map + unmapped fallback                                                                                          |
+| `telegram/infrastructure/gateway/gateway-send-client.service.spec.ts`     | message post + chunking + empty/keyboard/401 fail-closed, no token in body/URL                                               |
+| `telegram/infrastructure/gateway/send-mode.spec.ts`                       | mode parsing, dual default                                                                                                   |
+| `telegram/application/services/dual-send-parity.service.spec.ts`          | outcome agreement, ok-mismatch → 409 gate, skipped never diverged                                                            |
+| `telegram/application/use-cases/migrate-bots-to-gateway.use-case.spec.ts` | vault register + map, missing-token + duplicate + 403 paths                                                                  |
+| `telegram/api/http/gateway-migration.controller.spec.ts`                  | 201 labels/ids-only shape                                                                                                    |
+| `telegram/api/http/ingress.controller.spec.ts`                            | fan-out dispatch + secret rejects + error-ack + unsigned dev                                                                 |
+| `telegram/infrastructure/telegram/bot-client-dual-send.spec.ts`           | dual/direct/gateway routing, vault resolution, keyboard skip, divergence gate                                                |
+| `telegram/dual-send-secret-scan.spec.ts`                                  | vault-ids-only bodies, no console.\*, no direct token reads                                                                  |
 
 ## GAPS
 
@@ -291,8 +300,11 @@ todo 6 added 10 suites / 35 tests (±0 since):
 2. Chat settings are in-memory: a restart loses `/tb` customization
    (same as backend with `DATABASE_ENABLED=false`); the
    `onchain_bot_dexter[_staging]` DBs are provisioned but unwired.
-3. `resolveAny` sweeps 6 chains sequentially (6 × timeout worst case);
-   add a detect-chain edge or parallel sweep when p95 matters.
+3. Bare lookup is detect-first + format-narrowed sweep (solana → [solana],
+   EVM → [ethereum, base, bsc, arbitrum, polygon], detect winner ordered
+   first): identity on 2+ chains answers ambiguous with candidates
+   (explicit `chain:address` retry, never first-hit). The EVM sweep is
+   sequential (5 × timeout worst case); parallelize when p95 matters.
 4. No e2e against a live bot token (unit specs + manual `GET
 /dexter/token` only); needs a sandbox bot before staging.
 5. No dexter deploy workflow / CI job yet (same as market-data staging
@@ -339,6 +351,12 @@ todo 6 added 10 suites / 35 tests (±0 since):
 
 ## NOTES
 
+- Supply fields (2026-09-27, feat/mega-refactor-tramos): `ResolvedToken`
+  carries `totalSupply` + `circulatingSupply` + `maxSupply` (market-data
+  HTTP passthrough, null when the provider has none — never a partial
+  card). The full Telegram card renders FDV (was already fetched, now
+  formatted) + Total/Circulating/Max supply lines (`N/A` null-safe).
+  `GET /dexter/token` returns them via the pipeline token spread.
 - Backend `chain-dexter-bot/` is the read-only move source: do NOT edit
   it here; deprecate/remove only at the FINAL REVIEW (C4-bis).
 - Staging/prod compose + env templates are DRY-RUN (no deploy workflow,

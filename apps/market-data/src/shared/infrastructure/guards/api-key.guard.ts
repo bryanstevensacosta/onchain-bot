@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
-import { API_KEY_HEADER, isAuthorized } from '../../domain/api-key';
+import { API_KEY_HEADER, isAuthorized } from '@/shared/domain/api-key';
 import { REQUIRED_SCOPE_KEY } from 'auth/application/require-scope.decorator';
 import { AccessAuditService } from 'auth/application/access-audit.service';
 import { ApiKeyRateLimiter } from 'auth/application/api-key-rate-limiter';

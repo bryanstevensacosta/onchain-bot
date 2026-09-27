@@ -16,6 +16,7 @@ import { AddressModule } from './address/address.module';
 import { SnapshotModule } from './snapshot/snapshot.module';
 import { ProvidersModule } from './provider/infrastructure/providers.module';
 import { ChainModule } from './chain/chain.module';
+import { ChainLogoModule } from './chain-logo/chain-logo.module';
 import { ProviderModule } from './provider/provider.module';
 import { CacheModule } from './cache/cache.module';
 import { RateLimiterModule } from './rate-limiter/rate-limiter.module';
@@ -65,6 +66,7 @@ import { StreamModule } from './stream/stream.module';
     SnapshotModule,
     ProvidersModule,
     ChainModule,
+    ChainLogoModule,
     ProviderModule,
     CacheModule,
     RateLimiterModule,

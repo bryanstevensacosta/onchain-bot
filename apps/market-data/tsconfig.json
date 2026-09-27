@@ -24,6 +24,7 @@
       "snapshot/*": ["src/snapshot/*"],
       "stream/*": ["src/stream/*"],
       "auth/*": ["src/auth/*"],
+      "chain-logo/*": ["src/chain-logo/*"],
       "src/*": ["src/*"]
     }
   },

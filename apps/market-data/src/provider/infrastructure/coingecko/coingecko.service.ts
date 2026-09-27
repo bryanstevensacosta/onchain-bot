@@ -75,6 +75,9 @@ export class CoinGeckoService extends DataProviderPort {
         fdvUsd: md.fully_diluted_valuation?.usd ?? null,
         volumeUsdH24: md.total_volume?.usd ?? null,
         priceChangePercent24h: md.price_change_percentage_24h ?? null,
+        totalSupply: md.total_supply ?? null,
+        circulatingSupply: md.circulating_supply ?? null,
+        maxSupply: md.max_supply ?? null,
         imageUrls: this.extractImageUrls(data.image),
       };
     } catch (err) {

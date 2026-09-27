@@ -1,5 +1,5 @@
 import { Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { MigrateBotsToGatewayUseCase } from '../../application/use-cases/migrate-bots-to-gateway.use-case';
+import { MigrateBotsToGatewayUseCase } from '@/telegram/application/use-cases/migrate-bots-to-gateway.use-case';
 
 /**
  * Vault migration trigger (telegram-bots-gateway todo 6).

@@ -1,7 +1,7 @@
 import { SettingsViewHandler } from './settings-view.handler';
 import { TbTradeButtonsHandler } from './tb-trade-buttons.handler';
-import type { CommandContext } from '../../domain/ports/command-handler.port';
-import { DEFAULT_CHAT_SETTINGS } from '../../../settings/domain/chat-settings';
+import type { CommandContext } from '@/commands/domain/ports/command-handler.port';
+import { DEFAULT_CHAT_SETTINGS } from '@/settings/domain/chat-settings';
 
 function makeContext(): CommandContext {
   return {

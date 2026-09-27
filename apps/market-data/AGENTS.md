@@ -54,23 +54,24 @@ Design pivots that govern every future todo:
 > (`.omo/evidence/task-0-mega-refactor-market-data.log` for todo 0,
 > `.omo/evidence/task-T3-01.log` for todo 1).
 
-| Todo | Status                                                                | What                                                                                                                                                                                                                                                                                  |
-| ---- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0    | DONE (evidence `.omo/evidence/task-0-mega-refactor-market-data.log`)  | Precondition Gate T2: 6/6 backend `Moved to apps/feed-publisher` areas verified                                                                                                                                                                                                       |
-| 1    | DONE (evidence `.omo/evidence/task-T3-01.log`)                        | App setup + shared kernel (10 suites / 17 tests; boot smoke `:4000`)                                                                                                                                                                                                                  |
-| 2    | DONE (evidence `.omo/evidence/task-T3-02.log`)                        | Modules chain + provider + cache + rate-limiter + gateway shell (P43)                                                                                                                                                                                                                 |
-| P45  | DONE (evidence `.omo/evidence/task-T3-address.log`)                   | Address model absorbs token: `src/address/` + `/api/v1/addresses/*` (token = kind=token path; `/tokens/*` deprecated alias)                                                                                                                                                           |
-| 3    | TODO (model DONE via P45)                                             | Aggregators + persistence for address snapshots + HTTP batch                                                                                                                                                                                                                          |
-| 4    | DONE (evidence `.omo/evidence/task-T3-04.log`)                        | Physical provider extraction + Dexter-integrated (C-DATA-01, last move): 13 adapters canonical in `src/provider/infrastructure/`, registry 13/13, backend on shims                                                                                                                    |
-| P47  | DONE (evidence `.omo/evidence/task-T3-04.log`)                        | Provider-home relocation: `address/infrastructure/providers/*` → `provider/infrastructure/<name>/` (single-level, P43-aligned)                                                                                                                                                        |
-| 5    | DONE (evidence `.omo/evidence/task-5-mega-refactor-market-data.log`)  | HTTP bridge + SLO + staged flag (G-17): compat `GET /api/market-data/snapshot` + `POST /api/v1/addresses/batch` (50-cap) + warm-burst p95 0.96ms < 500ms PASS; kol-system dev flipped, backend leaf default-false                                                                     |
-| 10   | DONE (evidence `.omo/evidence/task-10-mega-refactor-market-data.log`) | Scoped API-key auth (P46 seguridad): `src/auth/` (hash-only store, read/snapshot/admin, dual-key rotation, per-key limit, audit, loopback bind, compromise drill)                                                                                                                     |
-| 11   | DONE (evidence `.omo/evidence/task-11-mega-refactor-market-data.log`) | Streaming ccxt on-demand vía ws (P49): `src/stream/` (single-conn-per-exchange manager + broker: P46 auth, shared REST rate budget, backpressure, disconnect cleanup) + Socket.IO `gateway/infrastructure/ws` (`/market-data`); 43/149 green, live `:4133` 100 subs + REST p95 intact |
-| 12   | DONE (evidence `.omo/evidence/task-12-mega-refactor-market-data.log`) | Hexagonal global + legacy deprecated (P50): every module in domain/ + application/ + infrastructure/ + new `SnapshotModule`; all legacy roots are `@deprecated` compat re-exports; 32 suites / 109 tests identical, routes identical                                                  |
-| 6    | TODO                                                                  | Legacy market-data rename + frontend migration (R-4, G-18)                                                                                                                                                                                                                            |
-| 7    | TODO                                                                  | Frontend: data dashboard + Dexter (C-UX-01)                                                                                                                                                                                                                                           |
-| 8    | TODO                                                                  | Staging 7d + cutover + cleanup Tramo 3                                                                                                                                                                                                                                                |
-| 9    | TODO                                                                  | dexter-onchain-bot app: extraction + cutover (P13, final phase)                                                                                                                                                                                                                       |
+| Todo | Status                                                                | What                                                                                                                                                                                                                                                                                                |
+| ---- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | DONE (evidence `.omo/evidence/task-0-mega-refactor-market-data.log`)  | Precondition Gate T2: 6/6 backend `Moved to apps/feed-publisher` areas verified                                                                                                                                                                                                                     |
+| 1    | DONE (evidence `.omo/evidence/task-T3-01.log`)                        | App setup + shared kernel (10 suites / 17 tests; boot smoke `:4000`)                                                                                                                                                                                                                                |
+| 2    | DONE (evidence `.omo/evidence/task-T3-02.log`)                        | Modules chain + provider + cache + rate-limiter + gateway shell (P43)                                                                                                                                                                                                                               |
+| P45  | DONE (evidence `.omo/evidence/task-T3-address.log`)                   | Address model absorbs token: `src/address/` + `/api/v1/addresses/*` (token = kind=token path; `/tokens/*` deprecated alias)                                                                                                                                                                         |
+| 3    | TODO (model DONE via P45)                                             | Aggregators + persistence for address snapshots + HTTP batch                                                                                                                                                                                                                                        |
+| 4    | DONE (evidence `.omo/evidence/task-T3-04.log`)                        | Physical provider extraction + Dexter-integrated (C-DATA-01, last move): 13 adapters canonical in `src/provider/infrastructure/`, registry 13/13, backend on shims                                                                                                                                  |
+| P47  | DONE (evidence `.omo/evidence/task-T3-04.log`)                        | Provider-home relocation: `address/infrastructure/providers/*` → `provider/infrastructure/<name>/` (single-level, P43-aligned)                                                                                                                                                                      |
+| 5    | DONE (evidence `.omo/evidence/task-5-mega-refactor-market-data.log`)  | HTTP bridge + SLO + staged flag (G-17): compat `GET /api/market-data/snapshot` + `POST /api/v1/addresses/batch` (50-cap) + warm-burst p95 0.96ms < 500ms PASS; kol-system dev flipped, backend leaf default-false                                                                                   |
+| 10   | DONE (evidence `.omo/evidence/task-10-mega-refactor-market-data.log`) | Scoped API-key auth (P46 seguridad): `src/auth/` (hash-only store, read/snapshot/admin, dual-key rotation, per-key limit, audit, loopback bind, compromise drill)                                                                                                                                   |
+| 11   | DONE (evidence `.omo/evidence/task-11-mega-refactor-market-data.log`) | Streaming ccxt on-demand vía ws (P49): `src/stream/` (single-conn-per-exchange manager + broker: P46 auth, shared REST rate budget, backpressure, disconnect cleanup) + Socket.IO `gateway/infrastructure/ws` (`/market-data`); 43/149 green, live `:4133` 100 subs + REST p95 intact               |
+| 12   | DONE (evidence `.omo/evidence/task-12-mega-refactor-market-data.log`) | Hexagonal global + legacy deprecated (P50): every module in domain/ + application/ + infrastructure/ + new `SnapshotModule`; all legacy roots are `@deprecated` compat re-exports; 32 suites / 109 tests identical, routes identical                                                                |
+| logo | DONE (evidence `.omo/evidence/chain-logo.log`)                        | Permanent chain-logo resolver: `src/chain-logo/` (fetch-ONCE TrustWallet primary + CoinGecko fallback + placeholder, `uploads/chain-logo/<chain>.png`) + gateway `GET /api/v1/chains/:id/logo` (public, long cache) + `POST /api/v1/chains/:id/logo/refresh` (admin); `ChainInfo.logoUrl` per chain |
+| 6    | TODO                                                                  | Legacy market-data rename + frontend migration (R-4, G-18)                                                                                                                                                                                                                                          |
+| 7    | TODO                                                                  | Frontend: data dashboard + Dexter (C-UX-01)                                                                                                                                                                                                                                                         |
+| 8    | TODO                                                                  | Staging 7d + cutover + cleanup Tramo 3                                                                                                                                                                                                                                                              |
+| 9    | TODO                                                                  | dexter-onchain-bot app: extraction + cutover (P13, final phase)                                                                                                                                                                                                                                     |
 
 ## PROGRAM STATUS
 
@@ -148,6 +149,22 @@ Todos 0-2 + 4-5 + 10-12 DONE (verified 2026-09-25 against code + evidence logs):
   this AGENTS.md created viva from todo 1.
 - Gate T2 recorded: 6/6 backend feed areas carry
   `Moved to apps/feed-publisher` headers (todo-0 log).
+- Chain-logo resolver (evidence `.omo/evidence/chain-logo.log`):
+  `src/chain-logo/` owns the fetch-ONCE store
+  (`uploads/chain-logo/<chain>.png`, `CHAIN_LOGO_DIR` override) —
+  TrustWallet primary (`bsc` pinned to the `binance` slug) +
+  CoinGecko `asset_platforms` image fallback + 1x1 PNG placeholder
+  (upstream 404s logged, never thrown; unknown chains get the
+  placeholder with zero network/disk touch). Gateway edge (P43):
+  `GET /api/v1/chains/:id/logo` (`@Public()`, `Cache-Control:
+public, max-age=86400, immutable`) + `POST
+/api/v1/chains/:id/logo/refresh` (`admin` scope, the ONLY re-fetch
+  path — no periodic refresh). Every `ChainInfo` carries `logoUrl`
+  (`/api/v1/chains/<id>/logo`) for frontend `[logo] name` badges.
+  Verified: 55 suites / 199 tests green, `tsc --noEmit` clean, live
+  boot (all 6 logos fetched from TrustWallet primary, bsc via the
+  `binance` slug; unknown chain 200s the placeholder; second read
+  keeps mtime, refresh re-fetches).
 
 Todo 3 REMAINS (aggregators + persistence + batch HTTP — model half DONE
 via P45). Todos 5-9 PENDING (not started, no evidence).
@@ -177,7 +194,8 @@ apps/market-data/
   src/address/           # HEXAGONAL (todo 12, P50): domain/ (kind + AddressIdVo + probe port) + application/ (kind detector) + infrastructure/ (known-addresses seed); snapshot aggregation MOVED to snapshot/; root files are @deprecated compat re-exports
   src/snapshot/          # NEW (todo 12, P50): SnapshotModule (imports Address+Chain+Provider) + domain/ (snapshot types) + application/ (AddressSnapshotService, moved verbatim from address/) + infrastructure/ (.gitkeep — TypeORM entity + repository land todo 3, P44)
   src/token/             # DEPRECATED (P45): thin alias of AddressModule (token = kind=token path)
-  src/chain/             # HEXAGONAL (todos 2+12, P50): domain/ (ChainInfo + STATIC_CHAINS) + application/ (DetectChainService + ports/) + infrastructure/ (static catalog + probers); root files are @deprecated compat re-exports
+  src/chain/             # HEXAGONAL (todos 2+12, P50): domain/ (ChainInfo + STATIC_CHAINS, incl. logoUrl) + application/ (DetectChainService + ports/) + infrastructure/ (static catalog + probers); root files are @deprecated compat re-exports
+  src/chain-logo/        # NEW (chain-logo resolver): domain/ (TrustWallet/CoinGecko id maps + placeholder PNG + logoUrl builder) + application/ (ChainLogoFetcherPort + ChainLogoService fetch-ONCE file store) + infrastructure/ (HttpChainLogoFetcher, global fetch, 8s timeout) + ChainLogoModule (ports only — HTTP lives in gateway/ per P43)
   src/provider/          # HEXAGONAL (provider-hex): domain/ (port + descriptors + health VOs) + application/ (registry + checker + failover) + infrastructure/ (todo 4, P47: 13 canonical adapters + ProvidersModule); root files are compat re-exports
   src/cache/             # HEXAGONAL (todo 12, P50, global): domain/ (CachePort) + application/ (CacheService) + infrastructure/ (in-memory adapter + interceptor + TTL decorator, the SLO layer); root files are @deprecated compat re-exports
   src/rate-limiter/      # HEXAGONAL (todo 12, P50, global): domain/ (limiter + breaker ports) + application/ (sliding window + circuit breaker) + infrastructure/ (.gitkeep — Redis windows land GAP-3); root files are @deprecated compat re-exports
@@ -196,7 +214,7 @@ aggregation promoted to `src/snapshot/`, P50). `src/token/` is a
 deprecated alias (module re-exports AddressModule; TokenIdVo pins
 kind=token). Chain, provider, cache, rate-limiter expose PORTS only
 (no controllers — P43): the sole HTTP surface besides health is
-`src/gateway/` (chains, providers, addresses + deprecated tokens
+`src/gateway/` (chains + chain logos, providers, addresses + deprecated tokens
 alias + compat snapshot + batch-50 + `GatewayRateLimitGuard`; auth via
 global `ApiKeyGuard`). `SharedModule`, `CacheModule`,
 `RateLimiterModule` are `@Global()`. The 13 physical adapters live in
@@ -246,6 +264,11 @@ liveness they don't have). Gateway edge: `GET /api/v1/chains` (6),
 todo 4), `GET /api/v1/addresses/:chain/:address[?kind=]` (P45; kind hint
 optional, garbage -> explicit `unknown`), `GET /api/v1/tokens/
 :chain/:address` (deprecated alias pinned to kind=token).
+`GET /api/v1/chains/:id/logo` -> `image/png` (`@Public()`,
+`Cache-Control: public, max-age=86400, immutable`; unknown chains get
+the 1x1 placeholder, 200 never 404) + `POST
+/api/v1/chains/:id/logo/refresh` (`admin` scope, explicit re-fetch).
+Every chain entry carries `logoUrl` (`/api/v1/chains/<id>/logo`).
 
 ## STREAM (P49, todo 11)
 
@@ -265,8 +288,10 @@ operator-gated).
 
 Mirrors kol-system/feed-publisher: `singleQuote`, strictNullChecks/noImplicitAny,
 `emitDecoratorMetadata` + `experimentalDecorators`, path aliases
-`shared/*`, `token/*`, `chain/*`, `provider/*`, `cache/*`, `src/*`. No `@/*`
-alias here.
+`@/*` (= `src/*`, for 2+-level imports; 2026-09-27 migration),
+`shared/*`, `token/*`, `chain/*`, `provider/*`, `cache/*`, `src/*`.
+Exception: `provider/infrastructure/*` keeps relative `../../domain/data-provider.port`
+(backend imports those files cross-app; `@/` would not resolve under the backend project).
 
 ## TESTS
 
@@ -312,6 +337,7 @@ coverage target >80% (pure units, no I/O).
 | P50 hexagonal global + snapshot module | Every module in domain/ + application/ + infrastructure/; legacy roots `@deprecated` re-exports; snapshot aggregation promoted from address/ to `SnapshotModule`                           | APPLIED (todo 12: 32/109 identical, `tsc` + `nest build` clean, routes identical)                                      |
 | P46 seguridad market-data              | Scoped keys (read/snapshot/admin), hash-only store, zero-downtime rotation, per-key limit, audit, loopback bind, compromise drill                                                          | APPLIED (todo 10: `src/auth/`, 38/126 green, `:4123` curl matrix)                                                      |
 | P49 streaming ccxt on-demand           | Single ccxt.pro WS conn per exchange (multiplexed watch) + thin stream/ broker (P46 auth, per-client subs, backpressure, cleanup) on Socket.IO gateway/api/ws, shared rate-limit with REST | APPLIED (todo 11: `src/stream/` + `gateway/infrastructure/ws`, 43/149 green, live `:4133` 100 subs + REST p95 intact)  |
+| Chain-logo resolver                    | Fetch-ONCE TrustWallet primary (bsc->binance slug) + CoinGecko fallback + placeholder; gateway public logo edge + admin refresh; `ChainInfo.logoUrl`                                       | APPLIED (`src/chain-logo/` + `ChainLogoController`, 55/199 green, live 6/6 from TrustWallet primary)                   |
 
 ## DECISIONS
 
@@ -417,12 +443,27 @@ coverage target >80% (pure units, no I/O).
   green after (+5 suites / +23 tests, 43/149 total). tsconfig + jest
   mapper gained `stream/*`. One necessary inline comment kept:
   reconnect must re-watch (adapters drop watch-lists on disconnect).
+- Chain-logo resolver (permanent, fetch-ONCE, no periodic refresh):
+  `src/chain-logo/` is hexagonal — `domain/` (TrustWallet/CoinGecko id
+  maps with the verified `bsc`->`binance` pin + `chainLogoUrl`
+  builder + 1x1 PNG placeholder) <- `application/`
+  (`ChainLogoFetcherPort` seam + `ChainLogoService`: disk-hit first,
+  then TrustWallet primary, then CoinGecko `asset_platforms` image,
+  then placeholder persisted; unknown chains short-circuit to the
+  placeholder; upstream gaps warn-log, never throw) <-
+  `infrastructure/` (`HttpChainLogoFetcher` over global fetch, 8s
+  timeout, null on any gap). HTTP lives in gateway/ per P43
+  (`ChainLogoController`: public long-cache GET + admin POST
+  refresh). `ChainInfo` gains required `logoUrl`. tsconfig + jest
+  mapper gained `chain-logo/*`. Failing-first: domain + service
+  specs red before impl (missing modules), green after (+3 suites /
+  +16 tests, 55/199 total).
 
 ## SECURITY (P46, todo 10)
 
 Scoped API keys (`src/auth/`): `read` (GET chains/providers/addresses/
 tokens) < `snapshot` (+ batch POST + compat snapshot GET) < `admin`
-(+ `/api/v1/auth/*`). Store holds SHA-256 hashes + 11-char display
+(+ `/api/v1/auth/*` + chain-logo `POST .../logo/refresh`). Store holds SHA-256 hashes + 11-char display
 prefixes only — plaintext exists solely in the create/rotate response
 (single display, operator copies it once). No-key -> 401, wrong scope
 -> 403, per-key over-limit -> 429. Audit (`GET /api/v1/auth/audit`)
@@ -450,6 +491,18 @@ gaps + decisions) plus a `CHANGELOG.md` `## [Unreleased]` entry in
 English per `RELEASE-FLOW.md` (P39). Stale knowledge base = failed todo.
 
 ## NOTES
+
+- Supply fields (2026-09-27, feat/mega-refactor-tramos): `SnapshotQuote`
+  carries `totalSupply` + `circulatingSupply` + `maxSupply` (all-nullable;
+  first-non-null merge prefers real values, providers without supplies
+  merge nulls without crashing). Wired fetchers: geckoterminal
+  (`total_supply` string→number), birdeye (`totalSupply`), mobula
+  (`totalSupply` only), coingecko (`total_supply`/`circulating_supply`/
+  `max_supply` — types + service extended; new fetcher with the
+  CoinGecko platform map). Dexscreener/moralis/rugcheck carry no supplies
+  (null). `snapshot_history.quote` is jsonb — no migration needed; the
+  compat edge `GET /api/market-data/snapshot` returns 15 fields.
+  Evidence: `.omo/evidence/supply-fields.log`.
 
 - Gate T2 record: `.omo/evidence/task-0-mega-refactor-market-data.log`
   (6/6 backend feed areas with `Moved to apps/feed-publisher` headers).

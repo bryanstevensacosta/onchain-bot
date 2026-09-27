@@ -5,8 +5,8 @@ import type {
   ChatGroupRepository,
   ChatSettings,
   ChatSettingsRepository,
-} from '../../domain/chat-settings';
-import { DEFAULT_CHAT_SETTINGS } from '../../domain/chat-settings';
+} from '@/settings/domain/chat-settings';
+import { DEFAULT_CHAT_SETTINGS } from '@/settings/domain/chat-settings';
 
 /**
  * In-memory chat-group repository (moved from backend chain-dexter-bot

@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Supply fields on the lookup card (`totalSupply`,
+  `circulatingSupply`, `maxSupply`, all-nullable):** `MarketDataClient`
+  maps them from the market-data snapshot (null-safe `?? null`),
+  `TokenScanPipeline.toResolvedToken` passes them through, `ResolvedToken`
+  carries them, and the full Telegram card renders FDV + Total /
+  Circulating / Max supply lines (`N/A` when the provider has none —
+  never a partial card, never a crash). `GET /dexter/token` returns them
+  via the pipeline token spread. Failing-first:
+  `token-scan-supply.spec.ts` (passthrough + adversarial nulls + card
+  lines). (feat/mega-refactor-tramos)
+
+- **Bare-address lookup (no chain qualifier):** `GET
+/dexter/token?address=` and every bot scan path accept a lone
+  contract. `TokenScanPipeline.resolveDetailed` validates format (garbage
+  → `invalid`, no network calls), reuses market-data chain-detect (`GET
+/api/v1/chains/detect` via `MarketDataClient.detectChain`, down →
+  solana-first sweep fallback), then sweeps the format-narrowed chains
+  (solana → `[solana]`, EVM → `[ethereum, base, bsc, arbitrum,
+polygon]`, detect winner ordered first) collecting identity hits:
+  exactly one → resolved, two or more → `ambiguous` with `candidates`
+  (explicit `chain:address` retry, never a first-hit silent guess), zero
+  → `not-found`. `resolve()` keeps its contract (non-resolved → null,
+  so Telegram handlers keep their explicit cannot-resolve message). The
+  controller surfaces `{ error: 'Ambiguous address …', candidates }` and
+  `{ error: 'Invalid address: …' }` alongside the unchanged `Token not
+found` / `Address required` shapes. `MarketDataClient.resolveAny`
+  removed (first-hit silent-guess path, zero callers).
+- **Tests (failing-first, +3 suites / +14 tests, 19/69 green):**
+  pipeline bare solana + bare EVM + detect-down sweep fallback +
+  multi-chain ambiguous + garbage invalid + explicit-chain intact;
+  client detect hit + non-ok → null + throw → null (never throws);
+  controller resolved/ambiguous/invalid/not-found/missing explicit
+  shapes.
+
 ### Fixed
 
 - **Staging backport 2026-09-27:** default bind `DEXTER_HOST` changed

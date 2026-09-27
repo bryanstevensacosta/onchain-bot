@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ChainProberPort, ProbeResult } from '../../application/ports/chain-prober.port';
+import { ChainProberPort, ProbeResult } from '@/chain/application/ports/chain-prober.port';
 
 /**
  * EvmChainProber (Tramo 3, todo 2, v1 format-only).

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { DexterBotConfigService } from '../../../settings/infrastructure/config/bot.config';
+import { DexterBotConfigService } from '@/settings/infrastructure/config/bot.config';
 
 /**
  * Trade button codes supported by the bot.

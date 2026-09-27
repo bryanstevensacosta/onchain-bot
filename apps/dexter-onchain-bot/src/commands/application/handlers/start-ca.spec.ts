@@ -1,8 +1,8 @@
 import { CaScanHandler } from './ca.handler';
 import { StartCommandHandler } from './start.handler';
-import type { CommandContext } from '../../domain/ports/command-handler.port';
-import { DEFAULT_CHAT_SETTINGS } from '../../../settings/domain/chat-settings';
-import type { ResolvedToken } from '../../../scan/domain/ports/scan-pipeline.port';
+import type { CommandContext } from '@/commands/domain/ports/command-handler.port';
+import { DEFAULT_CHAT_SETTINGS } from '@/settings/domain/chat-settings';
+import type { ResolvedToken } from '@/scan/domain/ports/scan-pipeline.port';
 
 const SOL = 'So11111111111111111111111111111111111111112';
 

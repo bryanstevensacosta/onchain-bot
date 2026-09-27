@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   resolveDexterSendMode,
   type DexterSendMode,
-} from '../../../telegram/infrastructure/gateway/send-mode';
+} from '@/telegram/infrastructure/gateway/send-mode';
 
 export type DexterIngestMode = 'webhook' | 'polling';
 

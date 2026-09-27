@@ -71,3 +71,32 @@ export function chartUrlFor(
     geckoterminal: `https://www.geckoterminal.com/${gecko}/pools/${address}`,
   };
 }
+
+export const EVM_CANDIDATE_CHAINS: ReadonlyArray<string> = [
+  'ethereum',
+  'base',
+  'bsc',
+  'arbitrum',
+  'polygon',
+];
+
+const EVM_ADDRESS_FORMAT = /^0x[a-fA-F0-9]{40}$/;
+const SOLANA_ADDRESS_FORMAT = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+
+export interface DetectedChain {
+  readonly chain: string;
+  readonly candidates: ReadonlyArray<string>;
+}
+
+export function detectChainForAddress(value: string): DetectedChain | null {
+  const trimmed = (value ?? '').trim();
+  if (trimmed === '' || trimmed.startsWith('/')) return null;
+  if (/\s/.test(trimmed)) return null;
+  if (EVM_ADDRESS_FORMAT.test(trimmed)) {
+    return { chain: 'ethereum', candidates: EVM_CANDIDATE_CHAINS };
+  }
+  if (SOLANA_ADDRESS_FORMAT.test(trimmed)) {
+    return { chain: 'solana', candidates: ['solana'] };
+  }
+  return null;
+}

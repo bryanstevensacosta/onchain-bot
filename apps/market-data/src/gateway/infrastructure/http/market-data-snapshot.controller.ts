@@ -8,7 +8,7 @@ import {
 import { CacheInterceptor } from 'cache/infrastructure/cache.interceptor';
 import { CacheTTL } from 'cache/infrastructure/cache-ttl.decorator';
 import { AddressSnapshotService } from 'snapshot/application/address-snapshot.service';
-import { GatewayRateLimitGuard } from '../../application/gateway-rate-limit.guard';
+import { GatewayRateLimitGuard } from '@/gateway/application/gateway-rate-limit.guard';
 import { RequireScope } from 'auth/application/require-scope.decorator';
 
 /**
@@ -58,6 +58,9 @@ export class MarketDataSnapshotController {
       name: snap.name,
       lockedLiquidityPercent: snap.lockedLiquidityPercent,
       burnedPercent: snap.burnedPercent,
+      totalSupply: snap.totalSupply,
+      circulatingSupply: snap.circulatingSupply,
+      maxSupply: snap.maxSupply,
       chain: snap.chain,
       address: snap.address,
       kind: snap.kind,

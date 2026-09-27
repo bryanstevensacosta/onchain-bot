@@ -21,6 +21,9 @@ export interface SnapshotQuote {
   readonly name: string | null;
   readonly lockedLiquidityPercent: number | null;
   readonly burnedPercent: number | null;
+  readonly totalSupply: number | null;
+  readonly circulatingSupply: number | null;
+  readonly maxSupply: number | null;
 }
 
 export const SNAPSHOT_QUOTE_FIELDS: ReadonlyArray<keyof SnapshotQuote> = [
@@ -36,6 +39,9 @@ export const SNAPSHOT_QUOTE_FIELDS: ReadonlyArray<keyof SnapshotQuote> = [
   'name',
   'lockedLiquidityPercent',
   'burnedPercent',
+  'totalSupply',
+  'circulatingSupply',
+  'maxSupply',
 ];
 
 export function emptySnapshotQuote(): SnapshotQuote {
@@ -52,6 +58,9 @@ export function emptySnapshotQuote(): SnapshotQuote {
     name: null,
     lockedLiquidityPercent: null,
     burnedPercent: null,
+    totalSupply: null,
+    circulatingSupply: null,
+    maxSupply: null,
   };
 }
 

@@ -52,6 +52,9 @@ export interface MarketDataSnapshotView {
   readonly name: string | null;
   readonly lockedLiquidityPercent: number | null;
   readonly burnedPercent: number | null;
+  readonly totalSupply: number | null;
+  readonly circulatingSupply: number | null;
+  readonly maxSupply: number | null;
   readonly chain: string;
   readonly address: string;
   readonly kind: AddressKind;

@@ -9,6 +9,8 @@ import { isDatabaseEnabled } from 'shared/infrastructure/config/database.config'
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
 import { BirdeyeService } from 'provider/infrastructure/birdeye';
+import { CoinGeckoService } from 'provider/infrastructure/coingecko';
+import { MobulaService } from 'provider/infrastructure/mobula';
 import { MoralisService } from 'provider/infrastructure/moralis';
 import { RugCheckService } from 'provider/infrastructure/rugcheck';
 import { AddressSnapshotService } from './application/address-snapshot.service';
@@ -59,6 +61,8 @@ import { SnapshotHistoryRepository } from './infrastructure/snapshot-history.rep
         DexScreenerService,
         GeckoTerminalService,
         BirdeyeService,
+        CoinGeckoService,
+        MobulaService,
         MoralisService,
         RugCheckService,
       ],
@@ -66,6 +70,8 @@ import { SnapshotHistoryRepository } from './infrastructure/snapshot-history.rep
         dexscreener: DexScreenerService,
         geckoterminal: GeckoTerminalService,
         birdeye: BirdeyeService,
+        coingecko: CoinGeckoService,
+        mobula: MobulaService,
         moralis: MoralisService,
         rugcheck: RugCheckService,
       ) =>
@@ -73,6 +79,8 @@ import { SnapshotHistoryRepository } from './infrastructure/snapshot-history.rep
           dexscreener,
           geckoterminal,
           birdeye,
+          coingecko,
+          mobula,
           moralis,
           rugcheck,
         }),

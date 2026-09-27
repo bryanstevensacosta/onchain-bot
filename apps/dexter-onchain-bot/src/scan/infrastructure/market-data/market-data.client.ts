@@ -26,17 +26,17 @@ export interface MarketDataSnapshot {
   readonly volume24hUsd: number | null;
   readonly holders: number | null;
   readonly top10HolderPercent: number | null;
+  readonly totalSupply: number | null;
+  readonly circulatingSupply: number | null;
+  readonly maxSupply: number | null;
   readonly status: string | null;
 }
 
-const CANDIDATE_CHAINS = [
-  'solana',
-  'ethereum',
-  'base',
-  'bsc',
-  'arbitrum',
-  'polygon',
-] as const;
+export interface ChainDetectHit {
+  readonly chainId: string;
+  readonly points: number;
+  readonly reasons: ReadonlyArray<string>;
+}
 
 @Injectable()
 export class MarketDataClient {
@@ -86,6 +86,9 @@ export class MarketDataClient {
         volume24hUsd: body.volume24hUsd ?? null,
         holders: body.holders ?? null,
         top10HolderPercent: body.top10HolderPercent ?? null,
+        totalSupply: body.totalSupply ?? null,
+        circulatingSupply: body.circulatingSupply ?? null,
+        maxSupply: body.maxSupply ?? null,
         status: body.status ?? null,
       };
     } catch (err) {
@@ -99,21 +102,43 @@ export class MarketDataClient {
   }
 
   /**
-   * Resolves a bare address without a chain qualifier: tries candidate
-   * chains in order and returns the first snapshot carrying identity
-   * (symbol or name). A snapshot with only nulls (pending shell) does
-   * NOT count — the address stays unresolved.
+   * Chain-detect reuse (market-data `GET /api/v1/chains/detect`, read-only
+   * reference to `DetectChainService`): format-level chain hint for a bare
+   * address. Every failure resolves null with a warn — the caller falls
+   * back to the solana-first sweep, never a silent guess.
    */
-  public async resolveAny(
-    address: string,
-  ): Promise<{ chain: string; snapshot: MarketDataSnapshot } | null> {
-    for (const chain of CANDIDATE_CHAINS) {
-      const snapshot = await this.getSnapshot(chain, address);
-      if (!snapshot) continue;
-      if (snapshot.symbol !== null || snapshot.name !== null) {
-        return { chain, snapshot };
+  public async detectChain(address: string): Promise<ChainDetectHit | null> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const url =
+        `${this.baseUrl}/api/v1/chains/detect` +
+        `?address=${encodeURIComponent(address)}`;
+      const headers: Record<string, string> =
+        this.apiKey === '' ? {} : { 'x-api-key': this.apiKey };
+      const res = await fetch(url, { signal: controller.signal, headers });
+      if (!res.ok) {
+        this.logger.warn(`chain-detect responded ${res.status} — null`);
+        return null;
       }
+      const body = (await res.json()) as Partial<ChainDetectHit>;
+      if (typeof body.chainId !== 'string' || body.chainId === '') {
+        return null;
+      }
+      return {
+        chainId: body.chainId,
+        points: typeof body.points === 'number' ? body.points : 0,
+        reasons: Array.isArray(body.reasons)
+          ? (body.reasons as ReadonlyArray<string>)
+          : [],
+      };
+    } catch (err) {
+      this.logger.warn(
+        `chain-detect fetch failed (${err instanceof Error ? err.message : 'unknown'}) — null`,
+      );
+      return null;
+    } finally {
+      clearTimeout(timer);
     }
-    return null;
   }
 }

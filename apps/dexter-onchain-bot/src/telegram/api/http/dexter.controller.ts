@@ -1,6 +1,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { TokenScanPipeline } from '../../../scan/application/pipeline/token-scan.pipeline';
-import { MessageFormatterAdapter } from '../../../scan/infrastructure/formatter/message-formatter';
+import { TokenScanPipeline } from '@/scan/application/pipeline/token-scan.pipeline';
+import { MessageFormatterAdapter } from '@/scan/infrastructure/formatter/message-formatter';
 
 /**
  * HTTP lookup surface (dexter-onchain-bot native — no backend equivalent
@@ -22,10 +22,25 @@ export class DexterController {
     if (!address) {
       return { error: 'Address required' };
     }
-    const token = await this.pipeline.resolve(address);
-    if (!token) {
+    const outcome = await this.pipeline.resolveDetailed(address);
+    if (outcome.status === 'ambiguous') {
+      return {
+        error:
+          'Ambiguous address — it resolves on more than one chain. Retry with an explicit chain qualifier (chain:address).',
+        address: outcome.address,
+        candidates: outcome.candidates,
+      };
+    }
+    if (outcome.status === 'invalid') {
+      return {
+        error: `Invalid address: ${outcome.reason}`,
+        address: outcome.address,
+      };
+    }
+    if (outcome.status === 'not-found') {
       return { error: 'Token not found' };
     }
+    const token = outcome.token;
     return {
       ...token,
       text: this.formatter.format(token),

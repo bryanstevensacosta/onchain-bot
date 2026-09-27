@@ -3,13 +3,13 @@ import type { ContextResolverService } from '../context/context-resolver.service
 import type {
   CommandContext,
   CommandHandler,
-} from '../../domain/ports/command-handler.port';
+} from '@/commands/domain/ports/command-handler.port';
 import type {
   TelegramBotClient,
   TelegramUpdate,
-} from '../../../telegram/infrastructure/telegram/bot-client';
-import type { ChatSettingsService } from '../../../settings/application/chat-settings.service';
-import type { InlineKeyboardBuilder } from '../../../telegram/infrastructure/keyboard/inline-keyboard.builder';
+} from '@/telegram/infrastructure/telegram/bot-client';
+import type { ChatSettingsService } from '@/settings/application/chat-settings.service';
+import type { InlineKeyboardBuilder } from '@/telegram/infrastructure/keyboard/inline-keyboard.builder';
 import type { UserRateLimiter } from '../rate-limit/user-rate-limiter';
 import type { BareAddressHandler } from '../handlers/bare-address.handler';
 

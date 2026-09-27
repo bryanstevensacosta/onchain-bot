@@ -10,10 +10,10 @@ import {
   Req,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { DexterBotConfigService } from '../../../settings/infrastructure/config/bot.config';
-import { CommandRouterService } from '../../../commands/application/router/command-router.service';
-import { UserRateLimiter } from '../../../commands/application/rate-limit/user-rate-limiter';
-import type { TelegramUpdate } from '../../domain/ports/telegram.port';
+import { DexterBotConfigService } from '@/settings/infrastructure/config/bot.config';
+import { CommandRouterService } from '@/commands/application/router/command-router.service';
+import { UserRateLimiter } from '@/commands/application/rate-limit/user-rate-limiter';
+import type { TelegramUpdate } from '@/telegram/domain/ports/telegram.port';
 
 /**
  * Webhook controller (moved from backend chain-dexter-bot

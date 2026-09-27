@@ -3,8 +3,8 @@ import {
   BotsGatewaySenderPort,
   type DexterGatewaySendInput,
   type DexterGatewaySendResult,
-} from '../../domain/ports/bots-gateway-sender.port';
-import { DexterBotConfigService } from '../../../settings/infrastructure/config/bot.config';
+} from '@/telegram/domain/ports/bots-gateway-sender.port';
+import { DexterBotConfigService } from '@/settings/infrastructure/config/bot.config';
 import { GatewayHmacSigner } from './gateway-hmac-signer.service';
 
 /**

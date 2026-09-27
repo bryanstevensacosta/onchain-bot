@@ -4,12 +4,12 @@ import {
   OnApplicationBootstrap,
   OnApplicationShutdown,
 } from '@nestjs/common';
-import { DexterBotConfigService } from '../../../settings/infrastructure/config/bot.config';
-import { CommandRouterService } from '../../../commands/application/router/command-router.service';
+import { DexterBotConfigService } from '@/settings/infrastructure/config/bot.config';
+import { CommandRouterService } from '@/commands/application/router/command-router.service';
 import {
   TelegramBotClient,
   TelegramUpdate,
-} from '../../infrastructure/telegram/bot-client';
+} from '@/telegram/infrastructure/telegram/bot-client';
 
 /**
  * Update poller (moved from backend chain-dexter-bot

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   addressKindTone,
   chartUrlFor,
+  detectChainForAddress,
   normalizeAddressKind,
   useAddressSnapshot,
   useCompatSnapshot,
@@ -14,25 +15,58 @@ interface ParsedScan {
   readonly command: DexterCommand;
   readonly chain: string;
   readonly address: string;
+  readonly chainSource: 'explicit' | 'detected';
+  readonly candidates?: ReadonlyArray<string>;
 }
 
-function parseDexterInput(raw: string): ParsedScan | null {
+export function parseDexterInput(raw: string): ParsedScan | null {
   const parts = raw.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) {
     return null;
   }
   const first = parts[0].toLowerCase();
-  if ((first === '/x' || first === '/c') && parts.length >= 3) {
+  const command = first === '/x' ? 'x' : first === '/c' ? 'c' : null;
+  if (command !== null) {
+    if (parts.length >= 3) {
+      return {
+        command,
+        chain: parts[1],
+        address: parts[2],
+        chainSource: 'explicit',
+      };
+    }
+    if (parts.length === 2) {
+      const detected = detectChainForAddress(parts[1]);
+      if (detected === null) return null;
+      return {
+        command,
+        chain: detected.chain,
+        address: parts[1],
+        chainSource: 'detected',
+        candidates: detected.candidates,
+      };
+    }
+    return null;
+  }
+  if (parts.length === 1) {
+    const detected = detectChainForAddress(parts[0]);
+    if (detected === null) return null;
     return {
-      command: first.slice(1) as DexterCommand,
-      chain: parts[1],
-      address: parts[2],
+      command: 'x',
+      chain: detected.chain,
+      address: parts[0],
+      chainSource: 'detected',
+      candidates: detected.candidates,
     };
   }
-  if (parts.length >= 2 && !parts[0].startsWith('/')) {
-    return { command: 'x', chain: parts[0], address: parts[1] };
-  }
-  return null;
+  if (parts[0].startsWith('/')) return null;
+  if (detectChainForAddress(parts[0]) !== null) return null;
+  return {
+    command: 'x',
+    chain: parts[0],
+    address: parts[1],
+    chainSource: 'explicit',
+  };
 }
 
 function FullScanCard({ chain, address }: { chain: string; address: string }) {
@@ -87,6 +121,10 @@ function FullScanCard({ chain, address }: { chain: string; address: string }) {
           <dd className="font-mono">{compat.data.marketCapUsd ?? '—'}</dd>
         </div>
         <div>
+          <dt className="text-slate-500">FDV</dt>
+          <dd className="font-mono">{compat.data.fdvUsd ?? '—'}</dd>
+        </div>
+        <div>
           <dt className="text-slate-500">Liquidity</dt>
           <dd className="font-mono">{compat.data.liquidityUsd ?? '—'}</dd>
         </div>
@@ -101,6 +139,18 @@ function FullScanCard({ chain, address }: { chain: string; address: string }) {
         <div>
           <dt className="text-slate-500">Top-10 %</dt>
           <dd className="font-mono">{compat.data.top10HolderPercent ?? '—'}</dd>
+        </div>
+        <div>
+          <dt className="text-slate-500">Total supply</dt>
+          <dd className="font-mono">{compat.data.totalSupply ?? '—'}</dd>
+        </div>
+        <div>
+          <dt className="text-slate-500">Circulating</dt>
+          <dd className="font-mono">{compat.data.circulatingSupply ?? '—'}</dd>
+        </div>
+        <div>
+          <dt className="text-slate-500">Max supply</dt>
+          <dd className="font-mono">{compat.data.maxSupply ?? '—'}</dd>
         </div>
         <div>
           <dt className="text-slate-500">Status</dt>
@@ -186,7 +236,7 @@ export function DexterPage() {
           <input
             data-testid="dexter-input"
             className="flex-1 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm font-mono"
-            placeholder="/x solana <address> · /c ethereum <address>"
+            placeholder="/x solana <address> · /c ethereum <address> · or paste a bare address"
             value={input}
             onChange={(e) => setInput(e.target.value)}
           />
@@ -200,11 +250,29 @@ export function DexterPage() {
             className="text-sm text-red-400 mt-2"
           >
             Usage: /x &lt;chain&gt; &lt;address&gt; or /c &lt;chain&gt;
-            &lt;address&gt;.
+            &lt;address&gt; — or paste a bare contract address (0x… for EVM,
+            base58 for Solana).
           </div>
         )}
         {scan && (
           <div className="mt-4" data-testid={`dexter-${scan.command}`}>
+            {scan.chainSource === 'detected' && (
+              <div
+                data-testid="dexter-detected-chain"
+                className="text-xs text-slate-400 mb-2"
+              >
+                Detected chain: {scan.chain} (from address format).
+              </div>
+            )}
+            {scan.candidates && scan.candidates.length > 1 && (
+              <div
+                data-testid="dexter-ambiguous-hint"
+                className="text-xs text-amber-300 mb-2"
+              >
+                EVM address — showing {scan.chain}. For another EVM chain, retry
+                with an explicit qualifier ({scan.candidates.join(', ')}).
+              </div>
+            )}
             {scan.command === 'x' ? (
               <FullScanCard chain={scan.chain} address={scan.address} />
             ) : (

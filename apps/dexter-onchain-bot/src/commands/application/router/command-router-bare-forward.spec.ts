@@ -1,7 +1,7 @@
 import { CommandRouterService } from './command-router.service';
-import { DEFAULT_CHAT_SETTINGS } from '../../../settings/domain/chat-settings';
-import { extractForwardCandidates } from '../../../scan/domain/extractor/forward-extractor';
-import type { TelegramUpdate } from '../../../telegram/domain/ports/telegram.port';
+import { DEFAULT_CHAT_SETTINGS } from '@/settings/domain/chat-settings';
+import { extractForwardCandidates } from '@/scan/domain/extractor/forward-extractor';
+import type { TelegramUpdate } from '@/telegram/domain/ports/telegram.port';
 
 const SOL = 'So11111111111111111111111111111111111111112';
 

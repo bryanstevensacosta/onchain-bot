@@ -14,6 +14,7 @@ export interface ChainInfo {
   readonly nativeSymbol: string;
   readonly explorerUrl: string | null;
   readonly geckoTerminalSlug: string | null;
+  readonly logoUrl: string;
 }
 
 export const STATIC_CHAINS: ReadonlyArray<ChainInfo> = [
@@ -24,6 +25,7 @@ export const STATIC_CHAINS: ReadonlyArray<ChainInfo> = [
     nativeSymbol: 'ETH',
     explorerUrl: 'https://etherscan.io',
     geckoTerminalSlug: 'eth',
+    logoUrl: '/api/v1/chains/ethereum/logo',
   },
   {
     id: 'solana',
@@ -32,6 +34,7 @@ export const STATIC_CHAINS: ReadonlyArray<ChainInfo> = [
     nativeSymbol: 'SOL',
     explorerUrl: 'https://solscan.io',
     geckoTerminalSlug: 'solana',
+    logoUrl: '/api/v1/chains/solana/logo',
   },
   {
     id: 'bsc',
@@ -40,6 +43,7 @@ export const STATIC_CHAINS: ReadonlyArray<ChainInfo> = [
     nativeSymbol: 'BNB',
     explorerUrl: 'https://bscscan.com',
     geckoTerminalSlug: 'bsc',
+    logoUrl: '/api/v1/chains/bsc/logo',
   },
   {
     id: 'base',
@@ -48,6 +52,7 @@ export const STATIC_CHAINS: ReadonlyArray<ChainInfo> = [
     nativeSymbol: 'ETH',
     explorerUrl: 'https://basescan.org',
     geckoTerminalSlug: 'base',
+    logoUrl: '/api/v1/chains/base/logo',
   },
   {
     id: 'arbitrum',
@@ -56,6 +61,7 @@ export const STATIC_CHAINS: ReadonlyArray<ChainInfo> = [
     nativeSymbol: 'ETH',
     explorerUrl: 'https://arbiscan.io',
     geckoTerminalSlug: 'arbitrum',
+    logoUrl: '/api/v1/chains/arbitrum/logo',
   },
   {
     id: 'polygon',
@@ -64,5 +70,6 @@ export const STATIC_CHAINS: ReadonlyArray<ChainInfo> = [
     nativeSymbol: 'POL',
     explorerUrl: 'https://polygonscan.com',
     geckoTerminalSlug: 'polygon_pos',
+    logoUrl: '/api/v1/chains/polygon/logo',
   },
 ];

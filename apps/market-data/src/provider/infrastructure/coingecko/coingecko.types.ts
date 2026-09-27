@@ -10,6 +10,9 @@ export interface CoinGeckoMarketData {
   readonly fully_diluted_valuation?: { readonly usd?: number | null };
   readonly total_volume?: { readonly usd?: number | null };
   readonly price_change_percentage_24h?: number | null;
+  readonly total_supply?: number | null;
+  readonly circulating_supply?: number | null;
+  readonly max_supply?: number | null;
 }
 
 export interface CoinGeckoResponse {
@@ -23,5 +26,8 @@ export interface CoinGeckoTokenInfo {
   readonly fdvUsd: number | null;
   readonly volumeUsdH24: number | null;
   readonly priceChangePercent24h: number | null;
+  readonly totalSupply: number | null;
+  readonly circulatingSupply: number | null;
+  readonly maxSupply: number | null;
   readonly imageUrls: ReadonlyArray<string>;
 }

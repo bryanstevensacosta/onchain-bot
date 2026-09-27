@@ -10,13 +10,13 @@ import {
 } from 'class-validator';
 import { CacheService } from 'cache/application/cache.service';
 import { AddressSnapshotService } from 'snapshot/application/address-snapshot.service';
-import { GatewayRateLimitGuard } from '../../application/gateway-rate-limit.guard';
+import { GatewayRateLimitGuard } from '@/gateway/application/gateway-rate-limit.guard';
 import { RequireScope } from 'auth/application/require-scope.decorator';
 import {
   GATEWAY_BATCH_MAX_ITEMS,
   GATEWAY_BATCH_TTL_SECONDS,
   buildBatchCacheKey,
-} from '../../domain/gateway-policy';
+} from '@/gateway/domain/gateway-policy';
 
 export class BatchItemDto {
   @IsString()

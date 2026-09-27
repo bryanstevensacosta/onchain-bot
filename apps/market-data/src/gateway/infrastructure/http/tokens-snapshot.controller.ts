@@ -1,6 +1,6 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { AddressSnapshotService } from 'snapshot/application/address-snapshot.service';
-import { GatewayRateLimitGuard } from '../../application/gateway-rate-limit.guard';
+import { GatewayRateLimitGuard } from '@/gateway/application/gateway-rate-limit.guard';
 
 /**
  * TokensSnapshotController (Tramo 3, P45).

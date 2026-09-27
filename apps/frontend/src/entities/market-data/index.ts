@@ -12,10 +12,13 @@ export type {
 export {
   addressKindTone,
   chartUrlFor,
+  detectChainForAddress,
+  EVM_CANDIDATE_CHAINS,
   isKnownAddressKind,
   normalizeAddressKind,
   providerHealthTone,
 } from './model/helpers';
+export type { DetectedChain } from './model/helpers';
 export {
   fetchAddressSnapshot,
   fetchBatchSnapshots,

@@ -2,11 +2,11 @@ import { Injectable } from '@nestjs/common';
 import type {
   CommandContext,
   CommandHandler,
-} from '../../domain/ports/command-handler.port';
-import { MessageFormatterAdapter } from '../../../scan/infrastructure/formatter/message-formatter';
-import { TelegramBotClient } from '../../../telegram/infrastructure/telegram/bot-client';
-import { TokenScanPipeline } from '../../../scan/application/pipeline/token-scan.pipeline';
-import type { ResolvedToken } from '../../../scan/domain/ports/scan-pipeline.port';
+} from '@/commands/domain/ports/command-handler.port';
+import { MessageFormatterAdapter } from '@/scan/infrastructure/formatter/message-formatter';
+import { TelegramBotClient } from '@/telegram/infrastructure/telegram/bot-client';
+import { TokenScanPipeline } from '@/scan/application/pipeline/token-scan.pipeline';
+import type { ResolvedToken } from '@/scan/domain/ports/scan-pipeline.port';
 
 function toFormatterInput(token: ResolvedToken) {
   return {

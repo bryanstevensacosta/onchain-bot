@@ -6,6 +6,14 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Added
 
+- Supply fields on the `/dexter` full-scan card: FDV (fetched but never
+  displayed until now) + Total / Circulating / Max supply cards from the
+  extended `MarketDataSnapshotView` (null → `—` glyph, never crashes).
+  Failing-first: real-values + null-safe cases in `dexter.test.tsx`.
+  (feat/mega-refactor-tramos)
+
+- Bare-address Dexter scans: pasting a lone contract (or `/x <address>` / `/c <address>`) no longer shows the usage error. `detectChainForAddress` (`entities/market-data/model/helpers.ts`) auto-fills the chain by format (0x + 40 hex → ethereum, base58 32-44 chars → solana) with a `dexter-detected-chain` notice; bare EVM adds a `dexter-ambiguous-hint` naming every EVM alternative (explicit retry for base/bsc/arbitrum/polygon, never a silent guess); garbage single tokens stay a parse error with bare-aware usage guidance. Failing-first: bare solana + bare EVM + ambiguous + invalid cases in `dexter.test.tsx` + `helpers.test.ts`. (feat/mega-refactor-tramos)
+
 - Tramo 3 todo 7 (C-UX-01) market-data dashboard: `/market-data` page (chain catalog + detect-chain probe, provider health/latency table, address lookup with kind badge, 12-field compat snapshot, batch lookup up to 50 with per-item errors) and `/dexter` page (Dexter `/x` full-scan and `/c` chart lookup over market-data HTTP, no bot token), both behind the same-origin `/market-data-api` proxy (vite dev → `:4000`, staging `:4001`, prod `:4002` via `MARKET_DATA_PROXY_TARGET`/`VITE_MARKET_DATA_URL`) with TanStack polling (chains 30s, providers 15s, lookups on-demand) and empty states on API down. Playwright `e2e/market-data.spec.ts` (7 tests). Prod/staging nginx locations added but flagged deploy follow-up (todo 8: upstream service not deployed yet). (feat/mega-refactor-tramos)
 
 ### Changed

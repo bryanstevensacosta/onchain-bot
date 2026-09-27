@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AddressModule } from 'address/address.module';
 import { ChainModule } from 'chain/chain.module';
+import { ChainLogoModule } from 'chain-logo/chain-logo.module';
 import { ProviderModule } from 'provider/provider.module';
 import { SnapshotModule } from 'snapshot/snapshot.module';
 import { GatewayRateLimitGuard } from './application/gateway-rate-limit.guard';
@@ -8,6 +9,7 @@ import { AddressesController } from './infrastructure/http/addresses.controller'
 import { AddressesBatchController } from './infrastructure/http/addresses-batch.controller';
 import { MarketDataSnapshotController } from './infrastructure/http/market-data-snapshot.controller';
 import { ChainsController } from './infrastructure/http/chains.controller';
+import { ChainLogoController } from './infrastructure/http/chain-logo.controller';
 import { ProvidersController } from './infrastructure/http/providers.controller';
 import { TokensSnapshotController } from './infrastructure/http/tokens-snapshot.controller';
 import { MarketDataWsGateway } from './infrastructure/ws/market-data-ws.gateway';
@@ -22,7 +24,9 @@ import { StreamModule } from 'stream/stream.module';
  * stays as a deprecated kind=token alias (referenced by consumers).
  * MarketDataSnapshotController serves the kol-system compat contract
  * (GET /api/market-data/snapshot, todo 5) + AddressesBatchController
- * the 50-item batch (POST /api/v1/addresses/batch, todo 5, G-17).
+ * the 50-item batch (POST /api/v1/addresses/batch, todo 5, G-17) +
+ * ChainLogoController the chain badges (GET /api/v1/chains/:id/logo
+ * public + POST /api/v1/chains/:id/logo/refresh admin).
  * Composes address/chain/provider ports, applies rate-limit + cache
  * per endpoint; auth (x-api-key) is enforced globally by ApiKeyGuard.
  * Feature modules expose ports — no stray controllers. Since todo 11
@@ -31,12 +35,13 @@ import { StreamModule } from 'stream/stream.module';
  * stream/ broker's shared per-exchange connections).
  */
 @Module({
-  imports: [AddressModule, ChainModule, ProviderModule, SnapshotModule, StreamModule],
+  imports: [AddressModule, ChainModule, ChainLogoModule, ProviderModule, SnapshotModule, StreamModule],
   controllers: [
     AddressesController,
     AddressesBatchController,
     MarketDataSnapshotController,
     ChainsController,
+    ChainLogoController,
     ProvidersController,
     TokensSnapshotController,
   ],

@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import type { CommandContext } from '../../domain/ports/command-handler.port';
-import { InlineKeyboardBuilder } from '../../../telegram/infrastructure/keyboard/inline-keyboard.builder';
-import { MessageFormatterAdapter } from '../../../scan/infrastructure/formatter/message-formatter';
-import { TelegramBotClient } from '../../../telegram/infrastructure/telegram/bot-client';
-import { TradeButtonRegistry } from '../../../telegram/infrastructure/keyboard/trade-button-registry';
-import { TokenScanPipeline } from '../../../scan/application/pipeline/token-scan.pipeline';
-import { extractForwardCandidates } from '../../../scan/domain/extractor/forward-extractor';
+import type { CommandContext } from '@/commands/domain/ports/command-handler.port';
+import { InlineKeyboardBuilder } from '@/telegram/infrastructure/keyboard/inline-keyboard.builder';
+import { MessageFormatterAdapter } from '@/scan/infrastructure/formatter/message-formatter';
+import { TelegramBotClient } from '@/telegram/infrastructure/telegram/bot-client';
+import { TradeButtonRegistry } from '@/telegram/infrastructure/keyboard/trade-button-registry';
+import { TokenScanPipeline } from '@/scan/application/pipeline/token-scan.pipeline';
+import { extractForwardCandidates } from '@/scan/domain/extractor/forward-extractor';
 import { sendFullScan } from './ca.handler';
 
 /**

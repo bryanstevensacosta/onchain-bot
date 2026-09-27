@@ -4,7 +4,7 @@ import {
   ExceptionFilter,
   HttpStatus,
 } from '@nestjs/common';
-import { DomainError, ErrorCode } from '../../domain/kernel/domain-error';
+import { DomainError, ErrorCode } from '@/shared/domain/kernel/domain-error';
 
 const STATUS_BY_CODE: Record<ErrorCode, number> = {
   [ErrorCode.NOT_FOUND]: HttpStatus.NOT_FOUND,

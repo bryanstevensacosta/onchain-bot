@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Supply fields end-to-end (`totalSupply`, `circulatingSupply`,
+  `maxSupply`, all-nullable):** `SnapshotQuote` + `SNAPSHOT_QUOTE_FIELDS`
+  - `emptySnapshotQuote` extended, so the first-non-null merge prefers
+    real values and providers without supplies merge nulls without
+    crashing. Wired in `provider-quote.fetchers.ts`: GeckoTerminal
+    (`total_supply` string→number), Birdeye (`totalSupply`), Mobula (new
+    fetcher, `totalSupply` only), CoinGecko (new fetcher with the
+    CoinGecko platform map; `CoinGeckoTokenInfo` + service now parse
+    `total_supply`/`circulating_supply`/`max_supply`). DexScreener,
+    Moralis and RugCheck carry no supplies (null). `snapshot_history`
+    persists them with zero migration (`quote` is jsonb); the compat edge
+    `GET /api/market-data/snapshot` returns 15 fields. Failing-first:
+    `provider-quote-fetchers-supply.spec.ts` (per-provider mapping +
+    adversarial no-supply + merge preference) + gateway 15-field pin.
+    (feat/mega-refactor-tramos)
+
+- **Permanent chain-logo resolver:** new `src/chain-logo/` module
+  (`ChainLogoModule`, wired in `AppModule` + `GatewayModule`) serving
+  frontend `[logo] name` badges from `uploads/chain-logo/<chain>.png`
+  (overridable via `CHAIN_LOGO_DIR`). Resolution is fetch-ONCE per
+  chain — TrustWallet assets primary
+  (`raw.githubusercontent.com/trustwallet/assets/master/blockchains/<slug>/info/logo.png`,
+  with `bsc` pinned to the `binance` slug), CoinGecko
+  `asset_platforms` image fallback, 1x1 PNG placeholder when every
+  upstream 404s (logged, never thrown; unknown chains get the
+  placeholder with zero network/disk touch). No periodic refresh —
+  only the explicit `POST /api/v1/chains/:id/logo/refresh` (`admin`
+  scope) re-fetches. Gateway edge `GET /api/v1/chains/:id/logo`
+  (`@Public()`, `Cache-Control: public, max-age=86400, immutable`,
+  unknown chains 200 the placeholder, never 404), and every
+  `ChainInfo` now carries `logoUrl`
+  (`/api/v1/chains/<id>/logo`). Verified: 55 suites / 199 tests green
+  (fetch-once/no-re-fetch, fallback, missing-chain placeholder,
+  gateway bytes + cache + refresh + catalog `logoUrl`), `tsc --noEmit`
+  clean, live boot (all 6 catalog logos fetched from the TrustWallet
+  primary; second reads keep mtime, refresh re-fetches).
+
 ### Fixed
 
 - **Staging backport 2026-09-27:** default bind `MARKET_DATA_HOST`

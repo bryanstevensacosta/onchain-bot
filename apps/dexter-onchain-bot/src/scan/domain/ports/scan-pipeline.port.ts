@@ -35,6 +35,9 @@ export interface ResolvedToken {
   readonly holders: number | null;
   readonly top10HolderPercent: number | null;
   readonly top20HolderPercent: number | null;
+  readonly totalSupply: number | null;
+  readonly circulatingSupply: number | null;
+  readonly maxSupply: number | null;
   readonly poolAddress: string | null;
   readonly source: 'market-data-http';
 }

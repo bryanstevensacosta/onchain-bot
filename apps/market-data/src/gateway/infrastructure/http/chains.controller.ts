@@ -3,7 +3,7 @@ import { CacheInterceptor } from 'cache/infrastructure/cache.interceptor';
 import { CacheTTL } from 'cache/infrastructure/cache-ttl.decorator';
 import { ChainCatalogPort } from 'chain/application/ports/chain-catalog.port';
 import { DetectChainService } from 'chain/application/detect-chain.service';
-import { GatewayRateLimitGuard } from '../../application/gateway-rate-limit.guard';
+import { GatewayRateLimitGuard } from '@/gateway/application/gateway-rate-limit.guard';
 
 /**
  * ChainsController (Tramo 3, todo 2, P43).

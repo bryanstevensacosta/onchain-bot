@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { ResolvedToken } from '../../domain/ports/scan-pipeline.port';
+import type { ResolvedToken } from '@/scan/domain/ports/scan-pipeline.port';
 
 export interface FormattedTokenMessage {
   readonly text: string;
@@ -74,6 +74,9 @@ export class MessageFormatterAdapter {
     const vol = this.formatMoney(tokenInfo.volume24hUsd);
     const holders = this.formatNumber(tokenInfo.holders);
     const top10 = this.formatPercent(tokenInfo.top10HolderPercent);
+    const totalSupply = this.formatNumber(tokenInfo.totalSupply);
+    const circulating = this.formatNumber(tokenInfo.circulatingSupply);
+    const maxSupply = this.formatNumber(tokenInfo.maxSupply);
 
     return `${header}
 
@@ -83,8 +86,11 @@ export class MessageFormatterAdapter {
 ├ USD:     ${price} (${priceChange})
 ├ LIQ:     ${liq}
 ├ VOL:     ${vol}
-└ HOLDERS: ${holders}
-   └ Top 10: ${top10}`;
+├ HOLDERS: ${holders}
+│  └ Top 10: ${top10}
+├ Total supply: ${totalSupply}
+├ Circulating:  ${circulating}
+└ Max supply:   ${maxSupply}`;
   }
 
   private formatCompact(tokenInfo: ResolvedToken): string {
