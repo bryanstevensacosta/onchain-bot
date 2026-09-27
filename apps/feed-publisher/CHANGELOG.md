@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Unified delivery surface `src/target/` (threads-publisher Fase 2
+  todo 10, P38-bis per-binding config):** `target = bot telegram via
+gateway OR publisher threads` (per-binding choice). `TargetModule`
+  (@Global) binds `TargetDispatcherPort` → `TargetDispatcherService`
+  (telegram legs via the telegram-bots-gateway with vault-id mapping,
+  threads legs via `ThreadsPublisherHttpClient` POST
+  `/threads-publisher/queue/enqueue` on `THREADS_PUBLISHER_URL`,
+  default `http://localhost:4100`) with per-binding pacing
+  (publishDelayMs + dailyCap HOLD, never drop) + `TargetHealthIndicator`
+  (P21) + `TargetQueuedArticleDispatcher` (now the LIVE
+  `QueuedArticleDispatcherPort` binding: `crypto-news` → telegram,
+  `threads` → threads, `not configured` releases to PENDING).
+  Migrated callers: sessions planner + explicit publish resolve through
+  `target/` (gateway publisher delegates to the dispatcher; use-case
+  mapping is structural, no `telegram/` import), queue drain rebound,
+  templates assert the per-target bindings + per-target schedule limits
+  contract. `src/telegram/` + `src/threads/` deprecated
+  (`@deprecated` headers, dual-leg only, removed at threads-publisher
+  todo 11 — no deletion here). Caller-migration + secret-shape gates
+  spec-pinned (adversarial broken-caller suite red-before/green-after).
+  5 suites / 14 tests new (full 153/491 green, `tsc` clean, boot
+  `:3099` health + queue stats verified).
 - **ai-ml migration, cutover (ai-ml todo 4):** default flipped to
   `FEED_AI_ML_MODE=ai-ml` (fail-closed: ai-ml over HTTP serves, local
   code deprecated, dual-leg only, removal planned). Rollback stays

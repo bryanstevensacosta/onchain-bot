@@ -147,7 +147,7 @@ QA scenarios (name the exact tool + invocation): happy:`cd apps/backend && DATAB
 ## FASE 2 — app standalone + target/ (P54, 2026-09-25; revierte F5/NO-STANDALONE por decisión)
 
 - [x] 9. App `apps/threads-publisher/` setup + migración threads (puertos 4100/01/02 verificar, health, compose, envs, DB `onchain_bot_threads[_staging]`); mover backend threads (+ feed-publisher threads) con dual-run + cutover + deprecación; bot/threads tokens vía gateway. Tests + coverage. Evidence .omo/evidence/task-9-threads-publisher.log | Commit: Y | feat(threads-publisher): app standalone
-- [ ] 10. `target/` en feed-publisher y kol-calls-publisher (sustituye dirs `telegram/`+`threads/`): target = bot telegram vía gateway O publisher threads (a elección por vínculo P38-bis); sessions/templates referencian targets. Tests + migración callers. Evidence .omo/evidence/task-10-threads-publisher.log | Commit: Y | refactor: target/ sustituye telegram+threads
+- [x] 10. `target/` en feed-publisher y kol-calls-publisher (sustituye dirs `telegram/`+`threads/`): target = bot telegram vía gateway O publisher threads (a elección por vínculo P38-bis); sessions/templates referencian targets. Tests + migración callers. Evidence .omo/evidence/task-10-threads-publisher.log | Commit: Y | refactor: target/ sustituye telegram+threads
 - [ ] 11. Cutover + cleanup + CI/deploy staging/prod. Evidence .omo/evidence/task-11-threads-publisher.log | Commit: Y | feat(threads-publisher)!: cutover
 
 ## Commit strategy

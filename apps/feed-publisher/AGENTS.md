@@ -84,8 +84,9 @@ Todos 0-8+12+14 DONE (verified 2026-09-25 against code + evidence logs):
   queue, deduplication, llm, scheduling, threads, telegram,
   template, sessions) + health.
   0 stubs remain.
-- Cumulative full-suite tally: 150 suites / 483 tests green
-  (143/460 at todo 12 + 7/23 new in todo 14).
+- Cumulative full-suite tally: 153 suites / 491 tests green
+  (150/483 pre-todo-10 + 5 suites / 15 tests new in
+  threads-publisher todo 10 `src/target/`).
 - P10/P32 grep gates green (crypto-news only, zero foreign-type
   token outside the SSE negative assert). P38 per-target
   delay+caps live in scheduling. C-FLAGS-01 3-flag control live in
@@ -415,6 +416,21 @@ apps/feed-publisher/
                           # env bots → vault) + `GatewayMigrationController`
                           # (`POST .../migrate-to-gateway`) — direct
                           # adapters @deprecated (dual-leg only)
+   src/target/          # UNIFIED DELIVERY (threads-publisher Fase 2
+                          # todo 10, P38-bis, wired via AppModule, @Global):
+                          # `TargetDispatcherPort` → `TargetDispatcherService`
+                          # (telegram via gateway vault id, threads via
+                          # threads-publisher HTTP `POST
+                          # /threads-publisher/queue/enqueue`,
+                          # `THREADS_PUBLISHER_URL` default `:4100`) +
+                          # per-binding pacing (delay/cap HOLD) +
+                          # `TargetQueuedArticleDispatcher` (LIVE queue-drain
+                          # binding) + `ThreadsPublisherHttpClient` +
+                          # `TargetHealthIndicator` + caller-migration gate
+                          # spec (no caller outside target/ imports the
+                          # legacy trees) + template x target contract spec.
+                          # `src/telegram/` + `src/threads/` are
+                          # @deprecated (dual-leg only, todo 11 deletes).
    src/template/          # BUILT (todo 12, wired; renamed from
                           # src/content-templates/ 2026-09-25, dir only:
                           # `ContentTemplatesModule`, `PublishingContentTemplate`,
@@ -626,6 +642,7 @@ coverage target >80% (pure units, no I/O).
 | P34 sessions multi-tab vision           | `src/sessions/`, shared global dedup + templates                                          | APPLIED (todo 12 DONE)                                   |
 | P36 ads -> scheduling rename            | Routes/tables/dirs `scheduling/*`, `feed_scheduled_*`                                     | APPLIED (todo 6)                                         |
 | P38 per-target delay + daily cap        | `publishDelayMs` + `dailyCap` per telegram\|threads                                       | APPLIED (todo 6)                                         |
+| P38-bis per-binding target config       | `target/` bindings carry bot+channel+delay+caps; dispatcher owns transport                | APPLIED (threads-publisher todo 10)                      |
 | P39 standing rule                       | AGENTS.md + CHANGELOG `## [Unreleased]` per todo                                          | APPLIED (this refresh)                                   |
 | C-FLAGS-01 3-flag control               | `LLM = llm AND publishing`                                                                | APPLIED (todos 4/5)                                      |
 | C-SSE-01 dual-path ingestion            | SSE filtered to feed + cursor catch-up                                                    | APPLIED (todo 2, polling dropped per P20)                |
