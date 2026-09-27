@@ -39,6 +39,15 @@ export interface AddressSnapshotView {
   readonly providers: ReadonlyArray<string>;
 }
 
+export interface DevWalletView {
+  readonly wallet: string;
+  readonly holdAmount: number | null;
+  readonly percentOfSupply: number | null;
+  readonly pnlUsd: number | null;
+  readonly tag: string | null;
+  readonly probable?: boolean;
+}
+
 export interface MarketDataSnapshotView {
   readonly priceUsd: number | null;
   readonly liquidityUsd: number | null;
@@ -55,6 +64,8 @@ export interface MarketDataSnapshotView {
   readonly totalSupply: number | null;
   readonly circulatingSupply: number | null;
   readonly maxSupply: number | null;
+  readonly devWallets: ReadonlyArray<DevWalletView> | null;
+  readonly devPctSupply: number | null;
   readonly chain: string;
   readonly address: string;
   readonly kind: AddressKind;

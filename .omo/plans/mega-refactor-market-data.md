@@ -134,6 +134,20 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
      Acceptance criteria: `ls apps/backend/src/data-provider 2>/dev/null` vacío + p95 prod <500ms 24h
      QA scenarios: happy cutover sin degradación; failure → rollback + medición. Evidence .omo/evidence/task-8-mega-refactor-market-data.log
      Commit: Y | feat(market-data)!: cutover y cleanup providers backend
+- [ ] 14. Snapshot history persistente + límites outbound por provider (GAP-1 + anti-ban)
+      What to do / Must NOT do: entidad TypeORM `snapshot_history` (uuid PK + unique(key, createdAt); columnas del row shape; BTREE (key, createdAt); retención 90d + janitor) reemplazando el ring en memoria (migración + backfill n/a — arranca vacío, documentado); token-bucket outbound por provider con los límites de `.omo/evidence/providers-reference.md` (dex 60/min, birdeye CU, etc.) aplicado en fetchers (fail-open con error explícito si el bucket niega). ORDEN OBLIGATORIO: caché primero (HIT no consume cuota), limiter SOLO en miss. Tests: persistencia + límites + janitor + orden cache→limiter. Must NOT perder historia en reboot tras esto.
+      Parallelization: Wave 3 | Blocked by: 2 | Blocks: 8 (kol depende de historia para ventanas)
+      References: apps/market-data/src/snapshot/infrastructure/snapshot-history.repository.ts (GAP-1); .omo/evidence/providers-reference.md (límites)
+      Acceptance criteria: reinicio conserva historial (`count` pre/post igual) + test bucket niega exceso
+      QA scenarios: happy historial sobrevive reboot; failure provider capado → error explícito + fallback. Evidence .omo/evidence/task-14-mega-refactor-market-data.log
+      Commit: Y | feat(market-data): historial persistente y límites outbound
+- [x] 15. Supplies + holders + dev-wallet + display por kind (P61/P62)
+      What to do / Must NOT do: quote con totalSupply/circulatingSupply/maxSupply + holders (count, top10, dev summary + devWallets top) vía Birdeye holder-profile/positions/wallet + fallback feePayer primera-tx; UI dexter + dashboard por matriz kind (chain/token/wallet/program, secciones vacías ocultas). Tests + fallback nulos explícitos. Must NOT tumbar snapshot si un provider falla.
+      Parallelization: Wave 3 | Blocked by: 2 | Blocks: 8
+      References: .omo/drafts/mega-refactor-tramos.md (P61, P62); Birdeye holder docs
+      Acceptance criteria: token real muestra supplies + dev% + UI por kind sin secciones rotas
+      QA scenarios: happy con datos; failure sin datos → nulls + UI limpia. Evidence .omo/evidence/task-15-mega-refactor-market-data.log
+      Commit: Y | feat(market-data): supplies, holders y dev-wallet
 - [x] 9. App dexter-onchain-bot: extracción + cutover (P13, fase final)
      What to do / Must NOT do: `apps/dexter-onchain-bot/` ESTRUCTURA HEXAGONAL (`domain/` puertos+agregados, `application/` casos de uso+router, `infrastructure/` adapters telegram+http) (`package`, nest-cli, tsconfig, `src/main.ts` :4060 dev/:4061 staging/:4062 prod — verificar `lsof` C-PORTS-01, compose con DB `<base>_dexter[_staging]`, `/api/health`); mover desde `chain-dexter-bot/`: `CommandRouterService` + comandos (`/start` reescrito: info+uso lookup, `/ca <contrato>`, resto `/x /z /c /cc /tb /settings` heredados) + `TokenScanPipeline.resolve` + formatter + `TradeButtonRegistry` + settings por chat + poller/webhook; NUEVO: detector de address pelada (sin slash) + extractor de forwards/cualquier-texto (parse→normalize vía market-data, wallet/token/exchange/agregador); ficha Rendida por market-data HTTP (puente todo 5 default-true); token `DEXTER_BOT_TOKEN` (migra `CHAIN_DEXTER_BOT_TOKEN`, env + `.env.example`); rate-limit por usuario. Tests: /start, /ca, pelado, forward-ok, forward-vacío, settings. Must NOT publicar en canales (lookup ≠ publishing) ni lógica de scoring/tracking (eso es kol-system).
      Parallelization: Wave 5 | Blocked by: 5, 8 | Blocks: — (cierra programa)

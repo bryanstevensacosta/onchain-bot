@@ -3,9 +3,11 @@ import {
   addressKindTone,
   chartUrlFor,
   detectChainForAddress,
+  DevRiskBadge,
   normalizeAddressKind,
   useAddressSnapshot,
   useCompatSnapshot,
+  useDevDumpAlert,
 } from '@/entities/market-data';
 import { Badge, Button, Card } from '@/shared/ui';
 
@@ -72,6 +74,7 @@ export function parseDexterInput(raw: string): ParsedScan | null {
 function FullScanCard({ chain, address }: { chain: string; address: string }) {
   const snapshot = useAddressSnapshot(chain, address, 'token');
   const compat = useCompatSnapshot(chain, address);
+  const devAlert = useDevDumpAlert(compat.data?.devPctSupply ?? null);
 
   if (snapshot.isPending || compat.isPending) {
     return <div data-testid="dexter-scan-loading">Cargando…</div>;
@@ -104,6 +107,15 @@ function FullScanCard({ chain, address }: { chain: string; address: string }) {
             {kind}
           </Badge>
         </span>
+        <DevRiskBadge
+          devPctSupply={compat.data.devPctSupply ?? null}
+          devWallets={compat.data.devWallets ?? null}
+        />
+        {devAlert.triggered && (
+          <span data-testid="dexter-dev-alert" className="text-xs text-red-400">
+            {devAlert.reason}
+          </span>
+        )}
         <span className="font-mono text-slate-200">
           {compat.data.symbol ?? compat.data.name ?? snapshot.data.key}
         </span>
@@ -151,6 +163,12 @@ function FullScanCard({ chain, address }: { chain: string; address: string }) {
         <div>
           <dt className="text-slate-500">Max supply</dt>
           <dd className="font-mono">{compat.data.maxSupply ?? '—'}</dd>
+        </div>
+        <div>
+          <dt className="text-slate-500">Dev % supply</dt>
+          <dd className="font-mono" data-testid="dexter-dev-pct">
+            {compat.data.devPctSupply ?? '—'}
+          </dd>
         </div>
         <div>
           <dt className="text-slate-500">Status</dt>

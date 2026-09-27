@@ -85,7 +85,13 @@ export class SnapshotAggregatorService {
           reason instanceof Error ? reason.message : String(reason);
       }
     }
-    type MergeAcc = { -readonly [K in keyof SnapshotQuote]: number | string | null };
+    type MergeAcc = {
+      -readonly [K in keyof SnapshotQuote]:
+        | number
+        | string
+        | ReadonlyArray<unknown>
+        | null;
+    };
     const merged: MergeAcc = { ...emptySnapshotQuote() };
     const sources: Array<string> = [];
     for (const fetcher of eligible) {
@@ -95,10 +101,10 @@ export class SnapshotAggregatorService {
       }
       let contributed = false;
       for (const field of SNAPSHOT_QUOTE_FIELDS) {
-        const current: number | string | null = merged[field];
-        const value: number | string | null | undefined = quote[field];
+        const current = merged[field] as unknown;
+        const value = quote[field] as unknown;
         if (current === null && value !== null && value !== undefined) {
-          merged[field] = value;
+          (merged as Record<string, unknown>)[field] = value;
           contributed = true;
         }
       }

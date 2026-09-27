@@ -8,6 +8,15 @@
  * untouched — thin wrappers in `snapshot/infrastructure/` adapt their
  * existing public methods to this shape).
  */
+export interface DevWalletQuote {
+  readonly wallet: string;
+  readonly holdAmount: number | null;
+  readonly percentOfSupply: number | null;
+  readonly pnlUsd: number | null;
+  readonly tag: string | null;
+  readonly probable?: boolean;
+}
+
 export interface SnapshotQuote {
   readonly priceUsd: number | null;
   readonly marketCapUsd: number | null;
@@ -24,6 +33,8 @@ export interface SnapshotQuote {
   readonly totalSupply: number | null;
   readonly circulatingSupply: number | null;
   readonly maxSupply: number | null;
+  readonly devWallets: ReadonlyArray<DevWalletQuote> | null;
+  readonly devPctSupply: number | null;
 }
 
 export const SNAPSHOT_QUOTE_FIELDS: ReadonlyArray<keyof SnapshotQuote> = [
@@ -42,6 +53,8 @@ export const SNAPSHOT_QUOTE_FIELDS: ReadonlyArray<keyof SnapshotQuote> = [
   'totalSupply',
   'circulatingSupply',
   'maxSupply',
+  'devWallets',
+  'devPctSupply',
 ];
 
 export function emptySnapshotQuote(): SnapshotQuote {
@@ -61,6 +74,8 @@ export function emptySnapshotQuote(): SnapshotQuote {
     totalSupply: null,
     circulatingSupply: null,
     maxSupply: null,
+    devWallets: null,
+    devPctSupply: null,
   };
 }
 

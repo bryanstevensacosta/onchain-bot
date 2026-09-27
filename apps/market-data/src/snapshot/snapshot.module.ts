@@ -16,6 +16,7 @@ import { RugCheckService } from 'provider/infrastructure/rugcheck';
 import { AddressSnapshotService } from './application/address-snapshot.service';
 import { SnapshotAggregatorService } from './application/snapshot-aggregator.service';
 import { SnapshotHistoryJanitorService } from './application/snapshot-history-janitor.service';
+import { HoldersModule } from '../holders/holders.module';
 import { SNAPSHOT_QUOTE_PROVIDERS } from './domain/snapshot-quote.types';
 import {
   buildProviderQuoteFetchers,
@@ -45,6 +46,7 @@ import { SnapshotHistoryRepository } from './infrastructure/snapshot-history.rep
     ChainModule,
     ProviderModule,
     ProvidersModule,
+    HoldersModule,
     RateLimiterModule,
     ...(isDatabaseEnabled()
       ? [TypeOrmModule.forFeature([SnapshotHistoryEntity])]

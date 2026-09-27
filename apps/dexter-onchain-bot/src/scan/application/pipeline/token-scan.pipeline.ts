@@ -167,6 +167,15 @@ export class TokenScanPipeline implements ScanPipeline {
       readonly totalSupply: number | null;
       readonly circulatingSupply: number | null;
       readonly maxSupply: number | null;
+      readonly devWallets?: ReadonlyArray<{
+        readonly wallet: string;
+        readonly holdAmount: number | null;
+        readonly percentOfSupply: number | null;
+        readonly pnlUsd: number | null;
+        readonly tag: string | null;
+        readonly probable?: boolean;
+      }> | null;
+      readonly devPctSupply?: number | null;
     },
   ): ResolvedToken {
     return {
@@ -188,6 +197,8 @@ export class TokenScanPipeline implements ScanPipeline {
       totalSupply: snapshot.totalSupply,
       circulatingSupply: snapshot.circulatingSupply,
       maxSupply: snapshot.maxSupply,
+      devWallets: snapshot.devWallets ?? null,
+      devPctSupply: snapshot.devPctSupply ?? null,
       poolAddress: null,
       source: 'market-data-http',
     };

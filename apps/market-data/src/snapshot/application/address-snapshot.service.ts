@@ -26,6 +26,7 @@ import {
 import { SnapshotAggregatorService } from './snapshot-aggregator.service';
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
 import { applyOutboundRateLimit } from '../infrastructure/rate-limited-fetchers';
+import { DevHoldingsService } from '../../holders/application/dev-holdings.service';
 
 /**
  * AddressSnapshotService (Tramo 3, P45; canonical home todo 12, P50;
@@ -60,6 +61,9 @@ export class AddressSnapshotService {
     @Optional()
     @Inject(RateLimiterPort)
     private readonly outbound: RateLimiterPort | null = null,
+    @Optional()
+    @Inject(DevHoldingsService)
+    private readonly devHoldings: DevHoldingsService | null = null,
   ) {}
 
   public async getSnapshot(input: AddressSnapshotInput): Promise<AddressSnapshot> {
@@ -111,17 +115,35 @@ export class AddressSnapshotService {
         this.providers.recordFailure(name);
       }
     }
+    let devWallets: AddressSnapshot['devWallets'] = null;
+    let devPctSupply: number | null = null;
+    const providerErrors: Record<string, string> = { ...outcome.errors };
+    if (kind === 'token' && this.devHoldings) {
+      try {
+        const dev = await this.devHoldings.resolve(known.id, input.value);
+        devWallets = (dev.devWallets ?? null) as AddressSnapshot['devWallets'];
+        devPctSupply = dev.devPctSupply;
+        for (const [k, v] of Object.entries(dev.providerErrors)) {
+          providerErrors[`dev:${k}`] = v;
+        }
+      } catch {
+        devWallets = null;
+        devPctSupply = null;
+      }
+    }
     const snapshot: AddressSnapshot = {
       chain: id.chain,
       address: id.address,
       kind: id.kind,
       key: id.key,
-      status: outcome.allFailed ? 'pending' : 'ready',
+      status: outcome.allFailed && devWallets === null ? 'pending' : 'ready',
       providers: supporting,
       sources: outcome.sources,
-      providerErrors: outcome.errors,
+      providerErrors,
       ...emptySnapshotQuote(),
       ...outcome.quote,
+      devWallets,
+      devPctSupply,
     };
     await this.history.save({
       key: snapshot.key,
@@ -129,9 +151,13 @@ export class AddressSnapshotService {
       address: snapshot.address,
       kind: snapshot.kind,
       status: snapshot.status,
-      quote: outcome.quote,
+      quote: {
+        ...outcome.quote,
+        devWallets,
+        devPctSupply,
+      },
       sources: outcome.sources,
-      providerErrors: outcome.errors,
+      providerErrors,
     });
     if (this.cache) {
       await this.cache.set(cacheKey, snapshot, SNAPSHOT_CACHE_TTL_SECONDS);

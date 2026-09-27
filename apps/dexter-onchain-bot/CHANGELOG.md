@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Dev holdings on the lookup card (`devWallets[]` + `devPctSupply`):**
+  `MarketDataClient` maps them null-safe from the snapshot,
+  `TokenScanPipeline.toResolvedToken` passes them through, `ResolvedToken`
+  carries them, and the full Telegram card renders a `Dev:` line (pct +
+  top-3 short wallets, `(probable)` flag; `Dev: N/A (no key or no data)`
+  when absent — never a partial card). Failing-first:
+  `token-scan-dev.spec.ts` (passthrough + card values + adversarial
+  nulls). (feat/mega-refactor-tramos)
+
 - **Supply fields on the lookup card (`totalSupply`,
   `circulatingSupply`, `maxSupply`, all-nullable):** `MarketDataClient`
   maps them from the market-data snapshot (null-safe `?? null`),

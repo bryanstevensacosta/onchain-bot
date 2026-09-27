@@ -245,6 +245,11 @@ npm run format              # prettier --write "src/**/*.{ts,tsx}"
 
 ## NOTES
 
+- Holders + dev-wallet (2026-09-27, feat/mega-refactor-tramos):
+  `DevRiskBadge` (dev % supply, green/yellow/red/gray) +
+  `useDevDumpAlert` (15% wiring point) on token-detail + `/dexter`
+  (`dexter-dev-pct`, `dexter-dev-alert`). Null-safe N/A. Test:
+  `dev-risk-badge.test.tsx`.
 - Supply fields (2026-09-27, feat/mega-refactor-tramos): `/dexter`
   full-scan card renders FDV (was fetched but never displayed) +
   Total/Circulating/Max supply cards from `MarketDataSnapshotView`

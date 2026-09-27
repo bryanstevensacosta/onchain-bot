@@ -6,6 +6,15 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Added
 
+- Dev holdings risk badge + dump-alert wiring: `MarketDataSnapshotView`
+  gains `devWallets[]` + `devPctSupply`; new `DevRiskBadge` (green <5% /
+  yellow 5-15% / red >=15% / gray N/A, wallet tooltip) +
+  `useDevDumpAlert` (threshold 15% wiring point for tracking alerts)
+  rendered on `/tokens/:chain/:address` (`dev-dump-alert`) and `/dexter`
+  full-scan (`dexter-dev-pct` + `dexter-dev-alert`). Null-safe N/A, never
+  crashes. Test: `dev-risk-badge.test.tsx` (N/A + tones + pct).
+  (feat/mega-refactor-tramos)
+
 - Supply fields on the `/dexter` full-scan card: FDV (fetched but never
   displayed until now) + Total / Circulating / Max supply cards from the
   extended `MarketDataSnapshotView` (null → `—` glyph, never crashes).

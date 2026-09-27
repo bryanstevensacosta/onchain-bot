@@ -351,6 +351,11 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
 
 ## NOTES
 
+- Holders + dev-wallet (2026-09-27, feat/mega-refactor-tramos):
+  `ResolvedToken` carries `devWallets[]` + `devPctSupply` (market-data
+  HTTP passthrough, null when absent). Full card renders a `Dev:` line
+  (pct + top-3 wallets, `Dev: N/A` null-safe). Spec:
+  `token-scan-dev.spec.ts`.
 - Supply fields (2026-09-27, feat/mega-refactor-tramos): `ResolvedToken`
   carries `totalSupply` + `circulatingSupply` + `maxSupply` (market-data
   HTTP passthrough, null when the provider has none — never a partial

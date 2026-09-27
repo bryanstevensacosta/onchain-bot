@@ -77,6 +77,7 @@ export class MessageFormatterAdapter {
     const totalSupply = this.formatNumber(tokenInfo.totalSupply);
     const circulating = this.formatNumber(tokenInfo.circulatingSupply);
     const maxSupply = this.formatNumber(tokenInfo.maxSupply);
+    const devSection = this.formatDevSection(tokenInfo);
 
     return `${header}
 
@@ -90,7 +91,8 @@ export class MessageFormatterAdapter {
 │  └ Top 10: ${top10}
 ├ Total supply: ${totalSupply}
 ├ Circulating:  ${circulating}
-└ Max supply:   ${maxSupply}`;
+├ Max supply:   ${maxSupply}
+${devSection}`;
   }
 
   private formatCompact(tokenInfo: ResolvedToken): string {
@@ -131,5 +133,22 @@ export class MessageFormatterAdapter {
     if (value === null || value === undefined) return 'N/A';
     const sign = value >= 0 ? '+' : '';
     return `${sign}${value.toFixed(2)}%`;
+  }
+
+  private formatDevSection(tokenInfo: ResolvedToken): string {
+    const pct = tokenInfo.devPctSupply;
+    const wallets = tokenInfo.devWallets;
+    if (pct === null && (wallets === null || wallets.length === 0)) {
+      return '└ Dev: N/A (no key or no data)';
+    }
+    const pctLabel = pct === null ? 'N/A' : `${pct.toFixed(2)}%`;
+    const top = (wallets ?? []).slice(0, 3).map((w) => {
+      const short = w.wallet.length > 10 ? `${w.wallet.slice(0, 4)}…${w.wallet.slice(-4)}` : w.wallet;
+      const share = w.percentOfSupply === null ? 'N/A' : `${w.percentOfSupply.toFixed(2)}%`;
+      const flag = w.probable ? ' (probable)' : '';
+      return `${short} ${share}${flag}`;
+    });
+    const walletsLabel = top.length > 0 ? ` [${top.join(' | ')}]` : '';
+    return `└ Dev: ${pctLabel} supply${walletsLabel}`;
   }
 }

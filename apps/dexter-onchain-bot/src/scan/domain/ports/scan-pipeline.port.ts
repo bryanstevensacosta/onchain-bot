@@ -19,6 +19,15 @@ export type ChainIdentifier =
   | 'polygon'
   | 'unknown';
 
+export interface DevWalletView {
+  readonly wallet: string;
+  readonly holdAmount: number | null;
+  readonly percentOfSupply: number | null;
+  readonly pnlUsd: number | null;
+  readonly tag: string | null;
+  readonly probable?: boolean;
+}
+
 export interface ResolvedToken {
   readonly address: string;
   readonly chain: ChainIdentifier;
@@ -38,6 +47,8 @@ export interface ResolvedToken {
   readonly totalSupply: number | null;
   readonly circulatingSupply: number | null;
   readonly maxSupply: number | null;
+  readonly devWallets: ReadonlyArray<DevWalletView> | null;
+  readonly devPctSupply: number | null;
   readonly poolAddress: string | null;
   readonly source: 'market-data-http';
 }

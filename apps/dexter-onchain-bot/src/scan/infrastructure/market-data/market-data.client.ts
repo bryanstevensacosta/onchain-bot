@@ -11,6 +11,15 @@ import { Injectable, Logger } from '@nestjs/common';
  * reports an explicit message, never a silent partial card.
  */
 
+export interface DevWalletSnapshot {
+  readonly wallet: string;
+  readonly holdAmount: number | null;
+  readonly percentOfSupply: number | null;
+  readonly pnlUsd: number | null;
+  readonly tag: string | null;
+  readonly probable?: boolean;
+}
+
 export interface MarketDataSnapshot {
   readonly chain: string;
   readonly address: string;
@@ -29,6 +38,8 @@ export interface MarketDataSnapshot {
   readonly totalSupply: number | null;
   readonly circulatingSupply: number | null;
   readonly maxSupply: number | null;
+  readonly devWallets: ReadonlyArray<DevWalletSnapshot> | null;
+  readonly devPctSupply: number | null;
   readonly status: string | null;
 }
 
@@ -89,6 +100,11 @@ export class MarketDataClient {
         totalSupply: body.totalSupply ?? null,
         circulatingSupply: body.circulatingSupply ?? null,
         maxSupply: body.maxSupply ?? null,
+        devWallets: Array.isArray(body.devWallets)
+          ? (body.devWallets as ReadonlyArray<DevWalletSnapshot>)
+          : null,
+        devPctSupply:
+          typeof body.devPctSupply === 'number' ? body.devPctSupply : null,
         status: body.status ?? null,
       };
     } catch (err) {
