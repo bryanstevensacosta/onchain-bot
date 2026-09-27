@@ -9,11 +9,15 @@ import type {
 } from '../../../shared/config/telegram.config';
 import { PublishingJob } from '../../domain/entities/publishing-job.entity';
 import { PublishingJobRepository } from '../ports/publishing-job.repository';
-import { TelegramPublisherPort } from '../../domain/ports/telegram-publisher.port';
-import { BotTokenResolverPort } from '../../domain/ports/bot-token-resolver.port';
-import { BotsGatewaySenderPort } from '../../domain/ports/bots-gateway-sender.port';
-import { DualSendParityService } from '../services/dual-send-parity.service';
-import { GatewayBotMappingService } from '../../infrastructure/gateway/gateway-bot-mapping.service';
+import {
+  BotTokenResolverPort,
+  BotsGatewaySenderPort,
+  DualSendParityService,
+  GatewayBotMappingService,
+  TelegramPublisherPort,
+} from '../../../target/telegram-ports';
+import type { TargetKind } from '../../../target/domain/target-binding';
+import type { TargetDispatcherPort } from '../../../target/application/ports/target-dispatcher.port';
 import { VipMessageFormatter } from '../../infrastructure/formatters/vip-message-formatter';
 import { CallApprovalRepository } from '../../../approval/application/ports/call-approval.repository';
 import { TemplateRepository } from '../../../templates/domain/ports/template.repository';
@@ -35,6 +39,13 @@ export interface PublishFromTemplateInput {
    * template owner or the publish is denied with 403 + audit.
    */
   readonly requesterOwnerId?: string | null;
+  /**
+   * Delivery target (threads-publisher plan Fase 2 todo 10, P38-bis
+   * per-binding choice): `telegram` (default, gateway/dual/direct
+   * below) or `threads` (threads-publisher HTTP via the target
+   * dispatcher). Templates reference targets; sessions operate them.
+   */
+  readonly target?: TargetKind;
 }
 
 export interface PublishFromTemplateOutput {
@@ -79,6 +90,7 @@ export class PublishFromTemplateUseCase {
     @Optional() private readonly parity?: DualSendParityService,
     @Optional() private readonly mapping?: GatewayBotMappingService,
     @Optional() private readonly config?: ConfigService,
+    @Optional() private readonly targets?: TargetDispatcherPort,
   ) {}
 
   public async execute(
@@ -122,6 +134,13 @@ export class PublishFromTemplateUseCase {
     );
     if (approval && approval.status === 'rejected') {
       return this.dashboardOnly(input, actor, 'NOT_APPROVED');
+    }
+
+    if ((input.target ?? 'telegram') === 'threads') {
+      return this.executeViaThreads(input, actor, {
+        botId: template.botId as string,
+        channelTarget: template.channelTarget as string,
+      });
     }
 
     if (this.publishMode() === 'gateway') {
@@ -200,6 +219,73 @@ export class PublishFromTemplateUseCase {
     } catch {
       return 'direct';
     }
+  }
+
+  private async executeViaThreads(
+    input: PublishFromTemplateInput,
+    actor: string,
+    target: { botId: string; channelTarget: string },
+  ): Promise<PublishFromTemplateOutput> {
+    const message = this.formatter.format({
+      chain: input.chain,
+      address: input.address,
+      ticker: (input.ticker ?? '').trim(),
+      marketCapUsd: input.marketCapUsd ?? null,
+      chart: input.chart ?? null,
+    });
+    const job = PublishingJob.create({
+      templateId: input.templateId,
+      mentionId: input.mentionId,
+      ticker: (input.ticker ?? '').trim(),
+      chain: input.chain,
+      address: input.address,
+      channelTarget: target.channelTarget,
+      message,
+    });
+    await this.jobs.save(job);
+    if (!this.targets) {
+      job.markFailed('threads: target dispatcher unwired (not configured)');
+      await this.jobs.save(job);
+      const events = job.commit();
+      return {
+        published: false,
+        reason: 'THREADS_NOT_CONFIGURED',
+        jobId: job.id,
+        messageId: null,
+        message,
+        events,
+      };
+    }
+    const result = await this.targets.dispatch({
+      target: 'threads',
+      botId: target.botId,
+      chatId: target.channelTarget,
+      content: message,
+      clientMsgId: job.id,
+    });
+    if (result.ok) {
+      job.markPublished(null);
+    } else {
+      job.markFailed(`threads: ${result.error}`);
+    }
+    await this.jobs.save(job);
+    const events = job.commit();
+    this.audit?.record({
+      actor,
+      action: 'publish',
+      templateId: input.templateId,
+      mentionId: input.mentionId,
+      channelTarget: target.channelTarget,
+      reason: result.ok ? null : result.error,
+    });
+    return {
+      published: result.ok,
+      reason: result.ok ? null : result.error,
+      jobId: job.id,
+      messageId: null,
+      message,
+      events,
+    };
   }
 
   private async executeViaGateway(

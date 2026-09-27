@@ -1,6 +1,7 @@
 import { AggregateRoot } from '../../../shared/kernel/aggregate-root';
 import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
 import type { DomainEvent } from '../../../shared/kernel/domain-event';
+import { DEFAULT_OWNER_ID } from '../../../shared/guards/owner-binding';
 import { TemplateClassificationConfig } from '../template-classification.config';
 import {
   DEFAULT_SCORING_CONFIG,
@@ -50,6 +51,8 @@ export interface CreatePublishingTemplateInput {
   readonly botId?: string | null;
   readonly channelTarget?: string | null;
   readonly active?: boolean;
+  /** Binding owner (P50): whoever created the template owns its publishing. */
+  readonly ownerId?: string | null;
 }
 
 function slugify(name: string): string {
@@ -76,6 +79,10 @@ function slugify(name: string): string {
  * template stays dashboard-only and the orchestrator skips publishing for
  * that template while the rest continue (adversarial: missing token never
  * kills the batch).
+ *
+ * Ownership (P50, todo 23): `ownerId` stamps the binding owner at creation
+ * (whoever created the template owns its publishing). Publishing requires
+ * presenting that same owner in `x-owner-id`; foreign bindings are 403.
  */
 export class PublishingTemplate extends AggregateRoot<string> {
   private activeState: boolean;
@@ -87,6 +94,7 @@ export class PublishingTemplate extends AggregateRoot<string> {
   private assignedBotId: string | null;
   private assignedChannel: string | null;
   private verifiedAtState: Date | null;
+  private ownerState: string;
   private readonly createdAt: Date;
   private updatedAt: Date;
   private readonly displayName: string;
@@ -109,6 +117,7 @@ export class PublishingTemplate extends AggregateRoot<string> {
     this.assignedBotId = null;
     this.assignedChannel = null;
     this.verifiedAtState = null;
+    this.ownerState = DEFAULT_OWNER_ID;
     this.createdAt = new Date();
     this.updatedAt = new Date();
   }
@@ -146,6 +155,17 @@ export class PublishingTemplate extends AggregateRoot<string> {
     if (input.botId !== undefined) template.assignedBotId = input.botId;
     if (input.channelTarget !== undefined)
       template.assignedChannel = input.channelTarget;
+    if (input.ownerId !== undefined && input.ownerId !== null) {
+      const owner = input.ownerId.trim();
+      if (!owner) {
+        throw new DomainError(
+          ErrorCode.VALIDATION,
+          'template ownerId must not be blank',
+          { name },
+        );
+      }
+      template.ownerState = owner;
+    }
     template.apply(new TemplateCreatedEvent({ templateId: id, name }));
     return template;
   }
@@ -206,6 +226,35 @@ export class PublishingTemplate extends AggregateRoot<string> {
 
   public get adminVerifiedAt(): Date | null {
     return this.verifiedAtState;
+  }
+
+  /** Binding owner (P50): publishing requires presenting this same owner. */
+  public get ownerId(): string {
+    return this.ownerState;
+  }
+
+  /**
+   * Target bindings (threads-publisher plan Fase 2 todo 10, P38-bis):
+   * the template delivery surface as links. Today only the telegram
+   * binding exists (bot + verified channel); the threads binding
+   * lands when `threadConfig` un-stubbes (C1, threads-publisher
+   * owns the leg). Empty = dashboard-only (P38-ter).
+   */
+  public targetBindings(): ReadonlyArray<{
+    readonly target: 'telegram' | 'threads';
+    readonly botId: string;
+    readonly chatId: string;
+  }> {
+    if (this.assignedBotId === null || this.assignedChannel === null) {
+      return [];
+    }
+    return [
+      {
+        target: 'telegram',
+        botId: this.assignedBotId,
+        chatId: this.assignedChannel,
+      },
+    ];
   }
 
   public get createdAtDate(): Date {

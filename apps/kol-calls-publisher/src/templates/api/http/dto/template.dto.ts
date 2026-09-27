@@ -354,6 +354,11 @@ export class CreateTemplateDto {
   public name!: string;
 
   @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  public ownerId?: string;
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   public kolSourceIds?: string[];

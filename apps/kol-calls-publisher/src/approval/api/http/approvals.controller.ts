@@ -7,8 +7,10 @@ import {
   Post,
   Query,
   UseFilters,
+  UseGuards,
 } from '@nestjs/common';
 import { DomainExceptionFilter } from '../../../shared/filters/domain-exception.filter';
+import { ApiKeyGuard } from '../../../shared/guards/api-key.guard';
 import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
 import type { CallApproval } from '../../domain/entities/call-approval.entity';
 import { CallApprovalRepository } from '../../application/ports/call-approval.repository';
@@ -48,6 +50,7 @@ function toJson(approval: CallApproval): Record<string, unknown> {
  * manual `POST /api/approvals/:id/approve|reject`.
  */
 @Controller('api/approvals')
+@UseGuards(ApiKeyGuard)
 @UseFilters(DomainExceptionFilter)
 export class ApprovalsController {
   public constructor(

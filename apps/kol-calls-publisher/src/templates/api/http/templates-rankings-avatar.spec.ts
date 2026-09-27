@@ -5,7 +5,7 @@ import request from 'supertest';
 import { TemplatesModule } from '../../templates.module';
 import { TelegramAdminVerifierPort } from '../../domain/ports/telegram-admin-verifier.port';
 import { SourceValidatorPort } from '../../domain/ports/source-validator.port';
-import { KolAvatarResolverService } from '../../../ingestion/application/services/kol-avatar-resolver.service';
+import { AvatarResolver } from '../../application/ports/avatar-resolver.port';
 import { ScoredCallRepository } from '../../../scoring/application/ports/scored-call.repository';
 import { ScoredCall } from '../../../scoring/domain/entities/scored-call.entity';
 import { Score } from '../../../scoring/domain/value-objects/score.vo';
@@ -27,7 +27,7 @@ describe('TemplatesController rankings avatarUrl (P19 caller display)', () => {
           unknownIds: [],
         }),
       })
-      .overrideProvider(KolAvatarResolverService)
+      .overrideProvider(AvatarResolver)
       .useValue({
         resolveMany: async (callers: string[]) =>
           Object.fromEntries(

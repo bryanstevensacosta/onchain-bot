@@ -33,11 +33,14 @@ import { TemplatesController } from './api/http/templates.controller';
 import { TelegramBotsController } from './api/http/telegram-bots.controller';
 import { ThreadsStubController } from './api/http/threads-stub.controller';
 import { TemplatesHealthIndicator } from './health/templates-health.indicator';
-import { IngestionModule } from '../ingestion/ingestion.module';
+import {
+  AvatarResolver,
+  NoopAvatarResolver,
+} from './application/ports/avatar-resolver.port';
 
 /**
- * TemplatesModule — templates CORE without threads (Tramo 1, todo 10,
- * Ph9 + P6/P9/P14/P16/P22/P23/P23-bis + C1).
+ * TemplatesModule — templates CORE without threads (P51: moved unchanged
+ * from kol-system; Ph9 + P6/P9/P14/P16/P22/P23/P23-bis + C1).
  *
  * `PublishingTemplate` aggregate (kolSourceIds P16, classification config
  * from todo 9, `threadConfig: null` always) + `TemplateOrchestratorService`
@@ -50,13 +53,17 @@ import { IngestionModule } from '../ingestion/ingestion.module';
  * `ApprovalModule` (forwardRef — the pending-approvals endpoint delegates
  * to `GetPendingApprovalsUseCase`, todo 11). Exports `EncryptionService`
  * so the telegram publisher resolves catalog tokens (P23).
+ *
+ * P51 divergence: the IngestionModule import is GONE (avatar resolution
+ * lived there). Rankings avatars resolve via the optional
+ * `AvatarResolver` port (unprovided = null fallback, dashboard renders
+ * the placeholder); a kol-calls HTTP-backed adapter is the follow-up.
  */
 @Module({
   imports: [
     ScheduleModule.forRoot(),
     ScoringModule,
     forwardRef(() => ApprovalModule),
-    IngestionModule,
   ],
   controllers: [
     TemplatesController,
@@ -80,6 +87,10 @@ import { IngestionModule } from '../ingestion/ingestion.module';
     DeleteTelegramBotUseCase,
     EncryptionService,
     TemplatesHealthIndicator,
+    {
+      provide: AvatarResolver,
+      useClass: NoopAvatarResolver,
+    },
     {
       provide: TemplateRepository,
       useClass: InMemoryTemplateRepository,

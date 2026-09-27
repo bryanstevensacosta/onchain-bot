@@ -9,11 +9,15 @@ import type {
 } from '../../../shared/config/telegram.config';
 import { PublishingJob } from '../../domain/entities/publishing-job.entity';
 import { PublishingJobRepository } from '../ports/publishing-job.repository';
-import { TelegramPublisherPort } from '../../domain/ports/telegram-publisher.port';
-import { BotTokenResolverPort } from '../../domain/ports/bot-token-resolver.port';
-import { BotsGatewaySenderPort } from '../../domain/ports/bots-gateway-sender.port';
-import { DualSendParityService } from '../services/dual-send-parity.service';
-import { GatewayBotMappingService } from '../../infrastructure/gateway/gateway-bot-mapping.service';
+import {
+  BotTokenResolverPort,
+  BotsGatewaySenderPort,
+  DualSendParityService,
+  GatewayBotMappingService,
+  TelegramPublisherPort,
+} from '../../../target/telegram-ports';
+import type { TargetKind } from '../../../target/domain/target-binding';
+import type { TargetDispatcherPort } from '../../../target/application/ports/target-dispatcher.port';
 import { VipMessageFormatter } from '../../infrastructure/formatters/vip-message-formatter';
 import { TemplateRepository } from '../../../templates/domain/ports/template.repository';
 import { PublishAuditLogService } from '../services/publish-audit-log.service';
@@ -29,6 +33,7 @@ export interface ManualPublishInput {
   readonly marketCapUsd?: number | null;
   readonly chart?: string | null;
   readonly requesterOwnerId?: string | null;
+  readonly target?: TargetKind;
 }
 
 export interface ManualPublishOutput {
@@ -62,6 +67,7 @@ export class ManualPublishUseCase {
     @Optional() private readonly parity?: DualSendParityService,
     @Optional() private readonly mapping?: GatewayBotMappingService,
     @Optional() private readonly config?: ConfigService,
+    @Optional() private readonly targets?: TargetDispatcherPort,
   ) {}
 
   public async execute(
@@ -105,6 +111,9 @@ export class ManualPublishUseCase {
     }
     if (this.publishMode() === 'gateway') {
       return this.executeViaGateway(input);
+    }
+    if ((input.target ?? 'telegram') === 'threads') {
+      return this.executeViaThreads(input);
     }
     const botToken = await this.tokens.resolveBotToken(input.botId);
     const message = this.formatter.format({
@@ -155,6 +164,65 @@ export class ManualPublishUseCase {
     return {
       jobId: job.id,
       messageId: result.messageId,
+      message,
+      events: job.commit(),
+    };
+  }
+
+  private async executeViaThreads(
+    input: ManualPublishInput,
+  ): Promise<ManualPublishOutput> {
+    const message = this.formatter.format({
+      chain: input.chain,
+      address: input.address,
+      ticker: (input.ticker ?? '').trim(),
+      marketCapUsd: input.marketCapUsd ?? null,
+      chart: input.chart ?? null,
+    });
+    const job = PublishingJob.create({
+      templateId: input.templateId ?? 'manual',
+      mentionId: input.mentionId ?? `${input.chain}:${input.address}`,
+      ticker: (input.ticker ?? '').trim(),
+      chain: input.chain,
+      address: input.address,
+      channelTarget: input.channelTarget,
+      message,
+    });
+    await this.jobs.save(job);
+    if (!this.targets) {
+      job.markFailed('threads: target dispatcher unwired (not configured)');
+      await this.jobs.save(job);
+      return {
+        jobId: job.id,
+        messageId: null,
+        message,
+        events: job.commit(),
+      };
+    }
+    const result = await this.targets.dispatch({
+      target: 'threads',
+      botId: input.botId,
+      chatId: input.channelTarget,
+      content: message,
+      clientMsgId: job.id,
+    });
+    if (result.ok) {
+      job.markPublished(null);
+    } else {
+      job.markFailed(`threads: ${result.error}`);
+    }
+    await this.jobs.save(job);
+    this.audit?.record({
+      actor: input.requesterOwnerId ?? 'internal',
+      action: 'manual',
+      templateId: input.templateId ?? 'manual',
+      mentionId: input.mentionId ?? `${input.chain}:${input.address}`,
+      channelTarget: input.channelTarget,
+      reason: result.ok ? null : result.error,
+    });
+    return {
+      jobId: job.id,
+      messageId: null,
       message,
       events: job.commit(),
     };

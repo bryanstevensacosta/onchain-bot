@@ -1,0 +1,16 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "..",
+  "testRegex": ".e2e-spec.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "collectCoverageFrom": [],
+  "coverageDirectory": "../coverage",
+  "testEnvironment": "node",
+  "moduleNameMapper": {
+    "^shared/(.*)$": "<rootDir>/src/shared/$1",
+    "^telegram/(.*)$": "<rootDir>/src/telegram/$1",
+    "^src/(.*)$": "<rootDir>/src/$1"
+  }
+}

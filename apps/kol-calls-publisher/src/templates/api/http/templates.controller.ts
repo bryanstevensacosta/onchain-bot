@@ -11,11 +11,13 @@ import {
   Post,
   Query,
   UseFilters,
+  UseGuards,
   forwardRef,
 } from '@nestjs/common';
 import { DomainExceptionFilter } from '../../../shared/filters/domain-exception.filter';
+import { ApiKeyGuard } from '../../../shared/guards/api-key.guard';
 import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import { KolAvatarResolverService } from '../../../ingestion/application/services/kol-avatar-resolver.service';
+import { AvatarResolver } from '../../application/ports/avatar-resolver.port';
 import { TemplateRepository } from '../../domain/ports/template.repository';
 import type { PublishingTemplate } from '../../domain/entities/publishing-template.entity';
 import { CreateTemplateUseCase } from '../../application/use-cases/create-template.use-case';
@@ -66,6 +68,7 @@ function toJson(template: PublishingTemplate): Record<string, unknown> {
     botId: template.botId,
     channelTarget: template.channelTarget,
     adminVerifiedAt: template.adminVerifiedAt?.toISOString() ?? null,
+    ownerId: template.ownerId,
     canPublish: template.canPublish(),
     createdAt: template.createdAtDate.toISOString(),
     updatedAt: template.updatedAtDate.toISOString(),
@@ -85,6 +88,7 @@ function toJson(template: PublishingTemplate): Record<string, unknown> {
  * Thread routes are NOT here — `ThreadsStubController` answers 501 (C1).
  */
 @Controller('api/templates')
+@UseGuards(ApiKeyGuard)
 @UseFilters(DomainExceptionFilter)
 export class TemplatesController {
   public constructor(
@@ -97,7 +101,9 @@ export class TemplatesController {
     private readonly assignChannel: AssignTemplateChannelUseCase,
     @Inject(forwardRef(() => GetPendingApprovalsUseCase))
     private readonly pendingApprovals: GetPendingApprovalsUseCase,
-    @Optional() private readonly avatars?: KolAvatarResolverService,
+    @Optional()
+    @Inject(AvatarResolver)
+    private readonly avatars?: AvatarResolver,
   ) {}
 
   @Get()

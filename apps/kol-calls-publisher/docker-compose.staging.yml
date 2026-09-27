@@ -1,0 +1,53 @@
+# Staging environment - kol-calls-publisher (P51 split from kol-system)
+#
+# DRY-RUN ONLY — no kol-calls-publisher deploy workflow exists yet; nothing
+# here has ever been applied to Oracle.
+#
+# P51 decision: SAME logical DB initially (`onchain_bot_kol_system_staging`
+# on the kol-system staging postgres) — split later. This compose defines
+# NO own postgres/redis; it joins the kol-system staging net + DB.
+#
+# Project name EXPLICIT (collision doctrine, see kol-system staging file).
+name: onchain-bot-kol-calls-publisher-staging
+#
+# PORTS (no clashes on Oracle):
+# - publisher HTTP host :3061 → container :3060. Triplet publisher
+#   3060/3061/3062 (dev/staging/prod) per P51 (central C-PORTS-01 row).
+# - No pg/redis host ports here (reuses kol-system staging :5436/:6383).
+#   OPERATOR-CONFIRM host :3061 on first deploy (lsof on Oracle).
+#
+services:
+  kol-calls-publisher:
+    build:
+      context: ../..
+      dockerfile: apps/kol-calls-publisher/Dockerfile
+    image: ghcr.io/bryanstevensacosta/onchain-bot-kol-calls-publisher:staging-latest
+    container_name: onchain-bot-kol-calls-publisher-staging
+    restart: unless-stopped
+    env_file:
+      - .env.staging
+    environment:
+      NODE_ENV: staging
+      KOL_CALLS_PUBLISHER_PORT: 3060
+      DATABASE_URL: postgres://${POSTGRES_USER:-onchain_bot}:${POSTGRES_PASSWORD:-onchain_bot}@postgres:5432/${POSTGRES_DB:-onchain_bot_kol_system_staging}
+      REDIS_URL: ${KOL_CALLS_PUBLISHER_REDIS_URL:-redis://redis:6379/0}
+      # Upstream kol-calls staging (:3051) on the staging net
+      KOL_CALLS_URL: http://onchain-bot-kol-calls-staging:3050
+    ports:
+      - '3061:3060'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:3060/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  default:
+    name: onchain-bot-staging-net

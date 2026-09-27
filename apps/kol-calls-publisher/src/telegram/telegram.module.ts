@@ -26,6 +26,14 @@ import { TelegramHealthIndicator } from './health/telegram-health.indicator';
  * TelegramModule — per-template KOL-bot publishing (Tramo 1, todo 11,
  * Ph11 + C2 + first C-SHARED-01 move; gateway routing todo 4).
  *
+ * @deprecated Delivery moved to `src/target/` (threads-publisher plan
+ * Fase 2 todo 10, P38-bis per-binding config): new callers resolve
+ * through `TargetDispatcherPort` (telegram via gateway, threads via
+ * threads-publisher HTTP) or import the legacy ports through
+ * `src/target/telegram-ports.ts`. This module stays wired ONLY for
+ * the `dual` parity leg. Removed at threads-publisher todo 11 — do
+ * not extend.
+ *
  * `PublishingJob` (ticker non-null by construction) +
  * `PublishFromTemplateUseCase` (template `canPublish()` gate, catalog token
  * per call, dashboard-only degradation) + `ManualPublishUseCase` (explicit
