@@ -12,12 +12,14 @@ import { GatewayRateLimitGuard } from '../../application/gateway-rate-limit.guar
 import { RequireScope } from 'auth/application/require-scope.decorator';
 
 /**
- * Market-data snapshot compat edge (Tramo 3, todo 5, G-17).
+ * Market-data snapshot compat edge (Tramo 3, todo 5, G-17; enriched
+ * todo-3 gap).
  *
  * `GET /api/market-data/snapshot?chain=&address=` — the exact contract
  * the kol-system `HttpMarketDataAdapter` already calls. Returns the
- * 12 kol-system `MarketData` fields (null until the todo-3 aggregators
- * land — explicit `status: 'pending'`, never a silent shape change) plus
+ * 12 kol-system `MarketData` fields (live-merged, first-non-null across
+ * the supporting providers; null + explicit `status: 'pending'` with
+ * per-provider `providerErrors` only when every provider failed) plus
  * the address echo (`chain/address/kind/key/status/providers`).
  *
  * Chain qualifier is mandatory (blank → 404, unknown chain → 404 via
@@ -44,24 +46,26 @@ export class MarketDataSnapshotController {
       kindHint: 'token',
     });
     return {
-      priceUsd: null,
-      liquidityUsd: null,
-      volume24hUsd: null,
-      marketCapUsd: null,
-      fdvUsd: null,
-      priceChange24h: null,
-      holders: null,
-      top10HolderPercent: null,
-      symbol: null,
-      name: null,
-      lockedLiquidityPercent: null,
-      burnedPercent: null,
+      priceUsd: snap.priceUsd,
+      liquidityUsd: snap.liquidityUsd,
+      volume24hUsd: snap.volume24hUsd,
+      marketCapUsd: snap.marketCapUsd,
+      fdvUsd: snap.fdvUsd,
+      priceChange24h: snap.priceChange24h,
+      holders: snap.holders,
+      top10HolderPercent: snap.top10HolderPercent,
+      symbol: snap.symbol,
+      name: snap.name,
+      lockedLiquidityPercent: snap.lockedLiquidityPercent,
+      burnedPercent: snap.burnedPercent,
       chain: snap.chain,
       address: snap.address,
       kind: snap.kind,
       key: snap.key,
       status: snap.status,
       providers: snap.providers,
+      sources: snap.sources,
+      providerErrors: snap.providerErrors,
     };
   }
 }

@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { ConfigModule } from '@nestjs/config';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { ChainModule } from 'chain/chain.module';
@@ -6,6 +7,13 @@ import { ProviderModule } from 'provider/provider.module';
 import { CacheModule } from 'cache/cache.module';
 import { RateLimiterModule } from 'rate-limiter/rate-limiter.module';
 import { GatewayModule } from 'gateway/gateway.module';
+import { SNAPSHOT_QUOTE_PROVIDERS } from 'snapshot/domain/snapshot-quote.types';
+
+const nullFetcher = {
+  name: 'dexscreener',
+  supportsChains: ['solana', 'ethereum', 'bsc', 'base', 'arbitrum', 'polygon'],
+  fetch: async () => null,
+};
 
 /**
  * Failing-first spec (Tramo 3, todo 2, P43): token snapshot shell.
@@ -19,8 +27,18 @@ describe('gateway token snapshot shell (P43)', () => {
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      imports: [ChainModule, ProviderModule, CacheModule, RateLimiterModule, GatewayModule],
-    }).compile();
+      imports: [
+        ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
+        ChainModule,
+        ProviderModule,
+        CacheModule,
+        RateLimiterModule,
+        GatewayModule,
+      ],
+    })
+      .overrideProvider(SNAPSHOT_QUOTE_PROVIDERS)
+      .useValue([nullFetcher])
+      .compile();
     app = module.createNestApplication();
     await app.init();
   });

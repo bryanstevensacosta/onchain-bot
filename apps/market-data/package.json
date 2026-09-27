@@ -67,6 +67,7 @@
     "coverageDirectory": "./coverage",
     "testEnvironment": "node",
     "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1",
       "^shared/(.*)$": "<rootDir>/src/shared/$1",
       "^token/(.*)$": "<rootDir>/src/token/$1",
       "^address/(.*)$": "<rootDir>/src/address/$1",

@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { ConfigModule } from '@nestjs/config';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { ChainModule } from 'chain/chain.module';
@@ -7,6 +8,13 @@ import { CacheModule } from 'cache/cache.module';
 import { RateLimiterModule } from 'rate-limiter/rate-limiter.module';
 import { AddressModule } from 'address/address.module';
 import { GatewayModule } from 'gateway/gateway.module';
+import { SNAPSHOT_QUOTE_PROVIDERS } from 'snapshot/domain/snapshot-quote.types';
+
+const nullFetcher = {
+  name: 'dexscreener',
+  supportsChains: ['solana', 'ethereum', 'bsc', 'base', 'arbitrum', 'polygon'],
+  fetch: async () => null,
+};
 
 /**
  * Failing-first spec (Tramo 3, P45): universal addresses edge.
@@ -21,6 +29,7 @@ describe('gateway addresses edge (P45)', () => {
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       imports: [
+        ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
         ChainModule,
         ProviderModule,
         CacheModule,
@@ -28,7 +37,10 @@ describe('gateway addresses edge (P45)', () => {
         AddressModule,
         GatewayModule,
       ],
-    }).compile();
+    })
+      .overrideProvider(SNAPSHOT_QUOTE_PROVIDERS)
+      .useValue([nullFetcher])
+      .compile();
     app = module.createNestApplication();
     await app.init();
   });

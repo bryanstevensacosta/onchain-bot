@@ -92,6 +92,20 @@ export class AddressesBatchController {
           key: snap.key,
           status: snap.status,
           providers: snap.providers,
+          sources: snap.sources,
+          providerErrors: snap.providerErrors,
+          priceUsd: snap.priceUsd,
+          liquidityUsd: snap.liquidityUsd,
+          volume24hUsd: snap.volume24hUsd,
+          marketCapUsd: snap.marketCapUsd,
+          fdvUsd: snap.fdvUsd,
+          priceChange24h: snap.priceChange24h,
+          holders: snap.holders,
+          top10HolderPercent: snap.top10HolderPercent,
+          symbol: snap.symbol,
+          name: snap.name,
+          lockedLiquidityPercent: snap.lockedLiquidityPercent,
+          burnedPercent: snap.burnedPercent,
         } as Record<string, unknown>;
       });
     } catch (err) {

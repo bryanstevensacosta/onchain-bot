@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -22,7 +23,14 @@ describe('gateway edge policies (P43)', () => {
   beforeAll(async () => {
     process.env.MARKET_DATA_API_KEY = 'edge-test-key';
     const module = await Test.createTestingModule({
-      imports: [ChainModule, ProviderModule, CacheModule, RateLimiterModule, GatewayModule],
+      imports: [
+        ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
+        ChainModule,
+        ProviderModule,
+        CacheModule,
+        RateLimiterModule,
+        GatewayModule,
+      ],
       providers: [{ provide: APP_GUARD, useClass: ApiKeyGuard }],
     }).compile();
     app = module.createNestApplication();

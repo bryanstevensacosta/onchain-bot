@@ -1,6 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import { ChainCatalogPort } from 'chain/application/ports/chain-catalog.port';
 import { ProviderRegistryService } from 'provider/application/provider-registry.service';
+import { CacheService } from 'cache/application/cache.service';
+import { RateLimiterPort } from 'rate-limiter/domain/rate-limiter.port';
+import { resolveProviderOutboundBudget } from 'rate-limiter/domain/provider-outbound-limits';
 import { AddressIdVo } from 'address/domain/address-id.vo';
 import {
   AddressKindDetectorService,
@@ -9,16 +17,33 @@ import {
   AddressSnapshot,
   AddressSnapshotInput,
 } from '../domain/snapshot.types';
+import {
+  SNAPSHOT_CACHE_TTL_SECONDS,
+  SNAPSHOT_QUOTE_PROVIDERS,
+  emptySnapshotQuote,
+  type QuoteFetcher,
+} from '../domain/snapshot-quote.types';
+import { SnapshotAggregatorService } from './snapshot-aggregator.service';
+import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
+import { applyOutboundRateLimit } from '../infrastructure/rate-limited-fetchers';
 
 /**
- * AddressSnapshotService (Tramo 3, P45; canonical home todo 12, P50).
+ * AddressSnapshotService (Tramo 3, P45; canonical home todo 12, P50;
+ * live aggregation todo-3 gap).
  *
  * The absorbed token path: kind=token snapshots compose exactly what
  * the old token shell did (chain validation + supporting-provider
- * hints). Every other kind rides the same shape — one snapshot per
- * kind. Chain qualifier is mandatory: empty chain throws, unknown
- * chain 404s (never a silent null). Full aggregators land in todo 3 —
- * status stays `pending` until then.
+ * hints), now with a live parallel fan-out over the supporting
+ * providers (first-non-null merge). Every other kind rides the same
+ * shape — one snapshot per kind. Chain qualifier is mandatory: empty
+ * chain throws, unknown chain 404s (never a silent null). `ready`
+ * needs a single merged field; `pending` (all providers failed) names
+ * every miss in `providerErrors`. Hot results are cached (30s TTL) and
+ * every call persists one history row (P44). MANDATORY order
+ * (todo 14, anti-ban): the cache is checked FIRST — a HIT returns
+ * before any outbound budget is touched; the per-provider token
+ * buckets gate fetchers ONLY on a miss. A denied bucket is an
+ * explicit `providerErrors` entry, never a failed snapshot.
  */
 @Injectable()
 export class AddressSnapshotService {
@@ -26,6 +51,15 @@ export class AddressSnapshotService {
     private readonly catalog: ChainCatalogPort,
     private readonly providers: ProviderRegistryService,
     private readonly kinds: AddressKindDetectorService,
+    private readonly aggregator: SnapshotAggregatorService,
+    private readonly history: SnapshotHistoryRepository,
+    @Optional()
+    @Inject(SNAPSHOT_QUOTE_PROVIDERS)
+    private readonly fetchers: ReadonlyArray<QuoteFetcher> | null,
+    @Optional() private readonly cache: CacheService | null,
+    @Optional()
+    @Inject(RateLimiterPort)
+    private readonly outbound: RateLimiterPort | null = null,
   ) {}
 
   public async getSnapshot(input: AddressSnapshotInput): Promise<AddressSnapshot> {
@@ -48,13 +82,60 @@ export class AddressSnapshotService {
       .listProviders()
       .filter((provider) => provider.supportsChains.includes(known.id))
       .map((provider) => provider.name);
-    return {
+    const cacheKey = `snapshot:${id.chain}:${id.address}:${id.kind}`;
+    if (this.cache) {
+      const cached = await this.cache.get<AddressSnapshot>(cacheKey);
+      if (cached !== null) {
+        return cached;
+      }
+    }
+    const active = (this.fetchers ?? []).filter((fetcher) =>
+      fetcher.supportsChains.includes(known.id),
+    );
+    const gated = applyOutboundRateLimit(
+      active,
+      this.outbound,
+      (name: string) =>
+        resolveProviderOutboundBudget(this.providers.listProviders(), name),
+    );
+    const outcome = await this.aggregator.aggregate(
+      known.id,
+      input.value,
+      gated,
+    );
+    for (const source of outcome.sources) {
+      this.providers.recordSuccess(source, 0);
+    }
+    for (const name of Object.keys(outcome.errors)) {
+      if (!outcome.sources.includes(name)) {
+        this.providers.recordFailure(name);
+      }
+    }
+    const snapshot: AddressSnapshot = {
       chain: id.chain,
       address: id.address,
       kind: id.kind,
       key: id.key,
-      status: 'pending',
+      status: outcome.allFailed ? 'pending' : 'ready',
       providers: supporting,
+      sources: outcome.sources,
+      providerErrors: outcome.errors,
+      ...emptySnapshotQuote(),
+      ...outcome.quote,
     };
+    await this.history.save({
+      key: snapshot.key,
+      chain: snapshot.chain,
+      address: snapshot.address,
+      kind: snapshot.kind,
+      status: snapshot.status,
+      quote: outcome.quote,
+      sources: outcome.sources,
+      providerErrors: outcome.errors,
+    });
+    if (this.cache) {
+      await this.cache.set(cacheKey, snapshot, SNAPSHOT_CACHE_TTL_SECONDS);
+    }
+    return snapshot;
   }
 }

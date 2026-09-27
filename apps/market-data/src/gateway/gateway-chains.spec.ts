@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { ConfigModule } from '@nestjs/config';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { ChainModule } from 'chain/chain.module';
@@ -18,7 +19,14 @@ describe('gateway chains (P43)', () => {
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      imports: [ChainModule, ProviderModule, CacheModule, RateLimiterModule, GatewayModule],
+      imports: [
+        ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
+        ChainModule,
+        ProviderModule,
+        CacheModule,
+        RateLimiterModule,
+        GatewayModule,
+      ],
     }).compile();
     app = module.createNestApplication();
     await app.init();

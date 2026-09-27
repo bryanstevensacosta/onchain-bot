@@ -1,14 +1,28 @@
 import { Test } from '@nestjs/testing';
+import { ConfigModule } from '@nestjs/config';
 import { SnapshotModule } from '../snapshot.module';
 import { AddressSnapshotService } from './address-snapshot.service';
+import { SNAPSHOT_QUOTE_PROVIDERS } from '../domain/snapshot-quote.types';
+
+const nullFetcher = {
+  name: 'dexscreener',
+  supportsChains: ['solana', 'ethereum', 'bsc', 'base', 'arbitrum', 'polygon'],
+  fetch: async () => null,
+};
 
 describe('AddressSnapshotService (snapshot per kind)', () => {
   let snapshots: AddressSnapshotService;
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      imports: [SnapshotModule],
-    }).compile();
+      imports: [
+        ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
+        SnapshotModule,
+      ],
+    })
+      .overrideProvider(SNAPSHOT_QUOTE_PROVIDERS)
+      .useValue([nullFetcher])
+      .compile();
     snapshots = module.get(AddressSnapshotService);
   });
 

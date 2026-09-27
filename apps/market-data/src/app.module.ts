@@ -1,9 +1,16 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_GUARD } from '@nestjs/core';
 import { HealthModule } from './health/health.module';
 import { SharedModule } from './shared/shared.module';
 import { ApiKeyGuard } from './shared/infrastructure/guards/api-key.guard';
+import {
+  buildDatabaseConfig,
+  isDatabaseEnabled,
+} from './shared/infrastructure/config/database.config';
+import { SnapshotHistoryEntity } from './snapshot/infrastructure/snapshot-history.entity';
+import { CreateSnapshotHistory1772000000000 } from './snapshot/infrastructure/migrations/1772000000000-CreateSnapshotHistory';
 import { TokenModule } from './token/token.module';
 import { AddressModule } from './address/address.module';
 import { SnapshotModule } from './snapshot/snapshot.module';
@@ -35,6 +42,24 @@ import { StreamModule } from './stream/stream.module';
     }),
     HealthModule,
     SharedModule,
+    ...(isDatabaseEnabled()
+      ? [
+          TypeOrmModule.forRootAsync({
+            inject: [ConfigService],
+            useFactory: () => {
+              const database = buildDatabaseConfig();
+              return {
+                type: 'postgres',
+                url: database.url,
+                synchronize: database.synchronize,
+                migrationsRun: false,
+                entities: [SnapshotHistoryEntity],
+                migrations: [CreateSnapshotHistory1772000000000],
+              };
+            },
+          }),
+        ]
+      : []),
     TokenModule,
     AddressModule,
     SnapshotModule,
