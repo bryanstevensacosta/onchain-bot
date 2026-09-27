@@ -25,6 +25,7 @@
       "stream/*": ["src/stream/*"],
       "auth/*": ["src/auth/*"],
       "chain-logo/*": ["src/chain-logo/*"],
+      "holders/*": ["src/holders/*"],
       "src/*": ["src/*"]
     }
   },

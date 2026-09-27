@@ -23,6 +23,7 @@ import { RateLimiterModule } from './rate-limiter/rate-limiter.module';
 import { GatewayModule } from './gateway/gateway.module';
 import { AuthModule } from './auth/auth.module';
 import { StreamModule } from './stream/stream.module';
+import { HoldersModule } from './holders/holders.module';
 
 /**
  * AppModule - Root module for market-data (Tramo 3, todo 2).
@@ -73,6 +74,7 @@ import { StreamModule } from './stream/stream.module';
     GatewayModule,
     AuthModule,
     StreamModule,
+    HoldersModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ApiKeyGuard }],
 })

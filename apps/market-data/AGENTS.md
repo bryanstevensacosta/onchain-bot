@@ -54,44 +54,48 @@ Design pivots that govern every future todo:
 > (`.omo/evidence/task-0-mega-refactor-market-data.log` for todo 0,
 > `.omo/evidence/task-T3-01.log` for todo 1).
 
-| Todo | Status                                                                | What                                                                                                                                                                                                                                                                                                |
-| ---- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0    | DONE (evidence `.omo/evidence/task-0-mega-refactor-market-data.log`)  | Precondition Gate T2: 6/6 backend `Moved to apps/feed-publisher` areas verified                                                                                                                                                                                                                     |
-| 1    | DONE (evidence `.omo/evidence/task-T3-01.log`)                        | App setup + shared kernel (10 suites / 17 tests; boot smoke `:4000`)                                                                                                                                                                                                                                |
-| 2    | DONE (evidence `.omo/evidence/task-T3-02.log`)                        | Modules chain + provider + cache + rate-limiter + gateway shell (P43)                                                                                                                                                                                                                               |
-| P45  | DONE (evidence `.omo/evidence/task-T3-address.log`)                   | Address model absorbs token: `src/address/` + `/api/v1/addresses/*` (token = kind=token path; `/tokens/*` deprecated alias)                                                                                                                                                                         |
-| 3    | TODO (model DONE via P45)                                             | Aggregators + persistence for address snapshots + HTTP batch                                                                                                                                                                                                                                        |
-| 4    | DONE (evidence `.omo/evidence/task-T3-04.log`)                        | Physical provider extraction + Dexter-integrated (C-DATA-01, last move): 13 adapters canonical in `src/provider/infrastructure/`, registry 13/13, backend on shims                                                                                                                                  |
-| P47  | DONE (evidence `.omo/evidence/task-T3-04.log`)                        | Provider-home relocation: `address/infrastructure/providers/*` → `provider/infrastructure/<name>/` (single-level, P43-aligned)                                                                                                                                                                      |
-| 5    | DONE (evidence `.omo/evidence/task-5-mega-refactor-market-data.log`)  | HTTP bridge + SLO + staged flag (G-17): compat `GET /api/market-data/snapshot` + `POST /api/v1/addresses/batch` (50-cap) + warm-burst p95 0.96ms < 500ms PASS; kol-system dev flipped, backend leaf default-false                                                                                   |
-| 10   | DONE (evidence `.omo/evidence/task-10-mega-refactor-market-data.log`) | Scoped API-key auth (P46 seguridad): `src/auth/` (hash-only store, read/snapshot/admin, dual-key rotation, per-key limit, audit, loopback bind, compromise drill)                                                                                                                                   |
-| 11   | DONE (evidence `.omo/evidence/task-11-mega-refactor-market-data.log`) | Streaming ccxt on-demand vía ws (P49): `src/stream/` (single-conn-per-exchange manager + broker: P46 auth, shared REST rate budget, backpressure, disconnect cleanup) + Socket.IO `gateway/infrastructure/ws` (`/market-data`); 43/149 green, live `:4133` 100 subs + REST p95 intact               |
-| 12   | DONE (evidence `.omo/evidence/task-12-mega-refactor-market-data.log`) | Hexagonal global + legacy deprecated (P50): every module in domain/ + application/ + infrastructure/ + new `SnapshotModule`; all legacy roots are `@deprecated` compat re-exports; 32 suites / 109 tests identical, routes identical                                                                |
-| logo | DONE (evidence `.omo/evidence/chain-logo.log`)                        | Permanent chain-logo resolver: `src/chain-logo/` (fetch-ONCE TrustWallet primary + CoinGecko fallback + placeholder, `uploads/chain-logo/<chain>.png`) + gateway `GET /api/v1/chains/:id/logo` (public, long cache) + `POST /api/v1/chains/:id/logo/refresh` (admin); `ChainInfo.logoUrl` per chain |
-| 6    | TODO                                                                  | Legacy market-data rename + frontend migration (R-4, G-18)                                                                                                                                                                                                                                          |
-| 7    | TODO                                                                  | Frontend: data dashboard + Dexter (C-UX-01)                                                                                                                                                                                                                                                         |
-| 8    | TODO                                                                  | Staging 7d + cutover + cleanup Tramo 3                                                                                                                                                                                                                                                              |
-| 9    | TODO                                                                  | dexter-onchain-bot app: extraction + cutover (P13, final phase)                                                                                                                                                                                                                                     |
+| Todo | Status                                                                | What                                                                                                                                                                                                                                                                                                                                                                                      |
+| ---- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | DONE (evidence `.omo/evidence/task-0-mega-refactor-market-data.log`)  | Precondition Gate T2: 6/6 backend `Moved to apps/feed-publisher` areas verified                                                                                                                                                                                                                                                                                                           |
+| 1    | DONE (evidence `.omo/evidence/task-T3-01.log`)                        | App setup + shared kernel (10 suites / 17 tests; boot smoke `:4000`)                                                                                                                                                                                                                                                                                                                      |
+| 2    | DONE (evidence `.omo/evidence/task-T3-02.log`)                        | Modules chain + provider + cache + rate-limiter + gateway shell (P43)                                                                                                                                                                                                                                                                                                                     |
+| P45  | DONE (evidence `.omo/evidence/task-T3-address.log`)                   | Address model absorbs token: `src/address/` + `/api/v1/addresses/*` (token = kind=token path; `/tokens/*` deprecated alias)                                                                                                                                                                                                                                                               |
+| 3    | TODO (model DONE via P45)                                             | Aggregators + persistence for address snapshots + HTTP batch                                                                                                                                                                                                                                                                                                                              |
+| 4    | DONE (evidence `.omo/evidence/task-T3-04.log`)                        | Physical provider extraction + Dexter-integrated (C-DATA-01, last move): 13 adapters canonical in `src/provider/infrastructure/`, registry 13/13, backend on shims                                                                                                                                                                                                                        |
+| P47  | DONE (evidence `.omo/evidence/task-T3-04.log`)                        | Provider-home relocation: `address/infrastructure/providers/*` → `provider/infrastructure/<name>/` (single-level, P43-aligned)                                                                                                                                                                                                                                                            |
+| 5    | DONE (evidence `.omo/evidence/task-5-mega-refactor-market-data.log`)  | HTTP bridge + SLO + staged flag (G-17): compat `GET /api/market-data/snapshot` + `POST /api/v1/addresses/batch` (50-cap) + warm-burst p95 0.96ms < 500ms PASS; kol-system dev flipped, backend leaf default-false                                                                                                                                                                         |
+| 10   | DONE (evidence `.omo/evidence/task-10-mega-refactor-market-data.log`) | Scoped API-key auth (P46 seguridad): `src/auth/` (hash-only store, read/snapshot/admin, dual-key rotation, per-key limit, audit, loopback bind, compromise drill)                                                                                                                                                                                                                         |
+| 11   | DONE (evidence `.omo/evidence/task-11-mega-refactor-market-data.log`) | Streaming ccxt on-demand vía ws (P49): `src/stream/` (single-conn-per-exchange manager + broker: P46 auth, shared REST rate budget, backpressure, disconnect cleanup) + Socket.IO `gateway/infrastructure/ws` (`/market-data`); 43/149 green, live `:4133` 100 subs + REST p95 intact                                                                                                     |
+| 12   | DONE (evidence `.omo/evidence/task-12-mega-refactor-market-data.log`) | Hexagonal global + legacy deprecated (P50): every module in domain/ + application/ + infrastructure/ + new `SnapshotModule`; all legacy roots are `@deprecated` compat re-exports; 32 suites / 109 tests identical, routes identical                                                                                                                                                      |
+| 16   | DONE (evidence `.omo/evidence/task-16-mega-refactor-market-data.log`) | ccxt-first cascade + limiter-config per provider (P48-bis): `src/provider/infrastructure/ccxt/` REST adapter (14th, tickers/OHLCV CEX, optional peer, allowlist `MARKET_DATA_CCXT_EXCHANGES`); fetchers ccxt-first where covered (`covers()`), merge untouched; full limiter config via ports (window/quota/endpoint-cost/backoff), cost-aware fail-open gate; 61/232 green, live `:4146` |
+| logo | DONE (evidence `.omo/evidence/chain-logo.log`)                        | Permanent chain-logo resolver: `src/chain-logo/` (fetch-ONCE TrustWallet primary + CoinGecko fallback + placeholder, `uploads/chain-logo/<chain>.png`) + gateway `GET /api/v1/chains/:id/logo` (public, long cache) + `POST /api/v1/chains/:id/logo/refresh` (admin); `ChainInfo.logoUrl` per chain                                                                                       |
+| 6    | TODO                                                                  | Legacy market-data rename + frontend migration (R-4, G-18)                                                                                                                                                                                                                                                                                                                                |
+| 7    | TODO                                                                  | Frontend: data dashboard + Dexter (C-UX-01)                                                                                                                                                                                                                                                                                                                                               |
+| 8    | TODO                                                                  | Staging 7d + cutover + cleanup Tramo 3                                                                                                                                                                                                                                                                                                                                                    |
+| 9    | TODO                                                                  | dexter-onchain-bot app: extraction + cutover (P13, final phase)                                                                                                                                                                                                                                                                                                                           |
 
 ## PROGRAM STATUS
 
-Todos 0-2 + 4-5 + 10-12 DONE (verified 2026-09-25 against code + evidence logs):
+Todos 0-2 + 4-5 + 10-12 + 16 DONE (verified 2026-09-25 against code + evidence logs):
 
 - Wired modules: health (live `GET /api/health`, `@Public()`) + shared
   (global) + address (P45 universal model; snapshot aggregation moved to
   `SnapshotModule`, P50) + snapshot (P50 canonical home of
   `AddressSnapshotService`) + token (deprecated P45
   alias) + chain/provider/cache/rate-limiter (hexagonal ports, todos 2+12) +
-  `ProvidersModule` (todo 4: the 13 canonical adapters) + gateway
+  `ProvidersModule` (todos 4+16: the 14 canonical adapters) + gateway
   (P43: the ONLY feature controllers, hexagonal since todo 12; todo 11
   adds the WS transport `MarketDataWsGateway`, namespace `/market-data`)
   - stream (todo 11, P49: `ExchangeConnectionManager` + `StreamBrokerService`
   - in-memory/ccxt adapters + `DefaultExchangeAdapterFactory`).
-- Suite tally: 43 suites / 149 tests green (+5 suites / +23 tests for
-  todo 11, P49: policy, in-memory adapter, manager single-conn +
-  EXCHANGE_DOWN backoff, broker auth/scope/subscribe/backpressure/
-  shared-budget/cleanup/cap, gateway handshake + routing + disconnect;
-  pre-todo-11 baseline was 38/126).
+- Suite tally: 61 suites / 232 tests green (+4 suites / +21 tests for
+  todo 16, P48-bis: limiter-config, ccxt REST, cascade order,
+  quota-cost + adversarial breach; barrel + registry + outbound
+  specs updated 13 -> 14; pre-todo-16 baseline was 57/211).
+- Todo 11 (P49) added +5 suites / +23 tests over its 38/126 baseline
+  (policy, in-memory adapter, manager single-conn + EXCHANGE_DOWN
+  backoff, broker auth/scope/subscribe/backpressure/shared-budget/
+  cleanup/cap, gateway handshake + routing + disconnect).
 - Todo 10 (P46 seguridad): `src/auth/` owns scoped API keys
   (read/snapshot/admin, SHA-256 hash-only store, dual-key 10-min grace
   rotation with zero downtime, per-key sliding-window limit, access
@@ -101,6 +105,21 @@ Todos 0-2 + 4-5 + 10-12 DONE (verified 2026-09-25 against code + evidence logs):
   chains 401 nokey/wrong + 200 keyed, batch 403 read-key + 200
   snapshot-key, rotate old + new 200, revoke 204, list/audit carry
   11-char prefixes only (no hashes, no full keys).
+- Todo 16 (P48-bis ccxt-first + limiter-config): `src/provider/
+infrastructure/ccxt/` owns the REST adapter (14th provider —
+  `CcxtService` tickers/OHLCV over the unified ccxt API with
+  `enableRateLimit`, CEX-symbol coverage gate, allowlist
+  `MARKET_DATA_CCXT_EXCHANGES`, optional peer by dynamic require
+  with warn-once + null fail-open; full limiter config via the
+  port, 600/min with OHLCV cost 5). The quote cascade runs
+  ccxt-first where covered (`covers()` on the fetcher skips the
+  bucket for onchain addresses — zero quota burn); merge stays
+  first-non-null, order otherwise unchanged. The outbound gate
+  burns one slot per cost unit and denies with an explicit
+  `providerErrors` entry (fail-open). Live `:4146`: registry
+  lists ccxt first, onchain snapshot merges dex+gecko
+  (`ccxt: no data`), CEX symbol pends explicitly with the peer
+  absent (real exchange hit operator-gated, no new deps).
 - Todo 11 (P49 streaming): `src/stream/` owns on-demand ccxt
   streaming — `ExchangeConnectionManager` holds exactly ONE
   connection per exchange (lazy connect, refcounted multiplexed
@@ -167,7 +186,7 @@ public, max-age=86400, immutable`) + `POST
   keeps mtime, refresh re-fetches).
 
 Todo 3 REMAINS (aggregators + persistence + batch HTTP — model half DONE
-via P45). Todos 5-9 PENDING (not started, no evidence).
+via P45). Todos 8-9 PENDING (not started, no evidence).
 
 Worktree state 2026-09-25: DIRTY (new `apps/market-data/` tree untracked;
 `apps/feed-publisher/` + backend touched by parallel Tramo-2 work —
@@ -196,7 +215,7 @@ apps/market-data/
   src/token/             # DEPRECATED (P45): thin alias of AddressModule (token = kind=token path)
   src/chain/             # HEXAGONAL (todos 2+12, P50): domain/ (ChainInfo + STATIC_CHAINS, incl. logoUrl) + application/ (DetectChainService + ports/) + infrastructure/ (static catalog + probers); root files are @deprecated compat re-exports
   src/chain-logo/        # NEW (chain-logo resolver): domain/ (TrustWallet/CoinGecko id maps + placeholder PNG + logoUrl builder) + application/ (ChainLogoFetcherPort + ChainLogoService fetch-ONCE file store) + infrastructure/ (HttpChainLogoFetcher, global fetch, 8s timeout) + ChainLogoModule (ports only — HTTP lives in gateway/ per P43)
-  src/provider/          # HEXAGONAL (provider-hex): domain/ (port + descriptors + health VOs) + application/ (registry + checker + failover) + infrastructure/ (todo 4, P47: 13 canonical adapters + ProvidersModule); root files are compat re-exports
+  src/provider/          # HEXAGONAL (provider-hex): domain/ (port + descriptors + health VOs) + application/ (registry + checker + failover) + infrastructure/ (todos 4+16, P47: 14 canonical adapters + ProvidersModule); root files are compat re-exports
   src/cache/             # HEXAGONAL (todo 12, P50, global): domain/ (CachePort) + application/ (CacheService) + infrastructure/ (in-memory adapter + interceptor + TTL decorator, the SLO layer); root files are @deprecated compat re-exports
   src/rate-limiter/      # HEXAGONAL (todo 12, P50, global): domain/ (limiter + breaker ports) + application/ (sliding window + circuit breaker) + infrastructure/ (.gitkeep — Redis windows land GAP-3); root files are @deprecated compat re-exports
   src/gateway/           # HEXAGONAL (todos 2+12, P50, P43): domain/ (edge policy: 60/min budget + batch cap/TTL + cache-key builders) + application/ (rate-limit guard) + infrastructure/http/ (the ONLY feature controllers) + infrastructure/ws/ (todo 11, P49: MarketDataWsGateway, Socket.IO namespace /market-data over the stream/ broker); the api/http/ + api/ws/ compat re-export shims were REMOVED (gateway-dedupe: zero consumers, canonical is infrastructure/)
@@ -217,8 +236,8 @@ kind=token). Chain, provider, cache, rate-limiter expose PORTS only
 `src/gateway/` (chains + chain logos, providers, addresses + deprecated tokens
 alias + compat snapshot + batch-50 + `GatewayRateLimitGuard`; auth via
 global `ApiKeyGuard`). `SharedModule`, `CacheModule`,
-`RateLimiterModule` are `@Global()`. The 13 physical adapters live in
-`src/provider/infrastructure/` (todo 4, C-DATA-01 + P47 — never earlier,
+`RateLimiterModule` are `@Global()`. The 14 physical adapters live in
+`src/provider/infrastructure/` (todo 4, C-DATA-01 + P47 + todo 16 P48 ccxt — never earlier,
 never under `address/`). Since todo 12 every module is hexagonal
 (domain/ + application/ + infrastructure/) with its pre-hex roots kept
 as `@deprecated` compat re-exports (removal at cutover, todo 8).
@@ -231,7 +250,8 @@ as `@deprecated` compat re-exports (removal at cutover, todo 8).
 loopback-only), `MARKET_DATA_API_KEY` (inbound,
 fail-open, P30 day-one), stream (`MARKET_DATA_STREAM_DRIVER`
 memory|ccxt, `MARKET_DATA_STREAM_EXCHANGES` allowlist — todo 11,
-P49), `DATABASE_URL` + `DATABASE_SYNCHRONIZE`,
+P49), ccxt REST (`MARKET_DATA_CCXT_EXCHANGES` allowlist, default
+`binance` first — todo 16, P48), `DATABASE_URL` + `DATABASE_SYNCHRONIZE`,
 `REDIS_URL`. Templates for staging (`:4001`, DB
 `onchain_bot_market_data_staging`, `SYNCHRONIZE=false`) + prod (`:4002`,
 DB `onchain_bot_market_data`) next to the app.
@@ -260,8 +280,8 @@ on Oracle at deploy).
 `GET /api/health` -> `{ status: 'ok' }` (`@Public()`, skips the global
 edge auth; composite probes land with later todos and never claim
 liveness they don't have). Gateway edge: `GET /api/v1/chains` (6),
-`GET /api/v1/chains/detect?address=`, `GET /api/v1/providers` (13 since
-todo 4), `GET /api/v1/addresses/:chain/:address[?kind=]` (P45; kind hint
+`GET /api/v1/chains/detect?address=`, `GET /api/v1/providers` (14 since
+todo 16), `GET /api/v1/addresses/:chain/:address[?kind=]` (P45; kind hint
 optional, garbage -> explicit `unknown`), `GET /api/v1/tokens/
 :chain/:address` (deprecated alias pinned to kind=token).
 `GET /api/v1/chains/:id/logo` -> `image/png` (`@Public()`,
@@ -312,7 +332,7 @@ coverage target >80% (pure units, no I/O).
    todo 8).
 6. ~~Streaming ccxt on-demand vía ws (todo 11, P49)~~ DONE
    (`src/stream/` + Socket.IO `/market-data`; REST ccxt adapter P48
-   stays pending, live-exchange verification operator-gated).
+   DONE todo 16 — live-exchange hit operator-gated).
 7. ~~HTTP bridge + SLO measurement + flag default (todo 5, G-17)~~ DONE
    (compat edge + batch-50 + p95 0.96ms PASS; kol-system dev flipped,
    backend default-false, staging/prod pending the 24h SLO in todo 8).
@@ -322,22 +342,23 @@ coverage target >80% (pure units, no I/O).
 
 ## DECISIONS INDEX
 
-| Decision                               | One-line                                                                                                                                                                                   | Status in this app                                                                                                     |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| Variante A v1 (G-16)                   | Single-BC monorepo; spec `libs/*` → `src/*`                                                                                                                                                | APPLIED (todo 1; mapping table in log)                                                                                 |
-| P30 Tramo-1 lessons                    | x-api-key day one, `dist/main.js`, env templates, living KB                                                                                                                                | APPLIED (todo 1)                                                                                                       |
-| C-DB-01 own logical DB                 | `onchain_bot_market_data[_staging]`                                                                                                                                                        | PLANNED (TypeORM unwired, GAP-1)                                                                                       |
-| C-DATA-01 providers move last          | 13 adapters move in todo 4, never earlier                                                                                                                                                  | APPLIED (todo 4: canonical `src/provider/infrastructure/`, backend shims)                                              |
-| P46 extraction mechanics               | Copy + shim (byte-identical, local default; HTTP cutover is todo 5)                                                                                                                        | APPLIED (todo 4: zero backend `from 'data-provider` imports)                                                           |
-| P47 provider home                      | Single-level `src/provider/infrastructure/<name>/` (P43-aligned, not under `address/`)                                                                                                     | APPLIED (todo 4 close-out relocation)                                                                                  |
-| G-17 SLO-gated default                 | `USE_DATA_SERVICE_API=true` only with p95<500ms measured                                                                                                                                   | APPLIED (todo 5: p95 0.96ms PASS, kol-system dev flipped, backend default-false, staging/prod gated on todo-8 24h SLO) |
-| P43 gateway de salida                  | `src/gateway/` owns aggregated-data HTTP; modules expose ports only                                                                                                                        | APPLIED (todo 2: 3 controllers + edge guard, zero module controllers)                                                  |
-| P45 address universal model            | `src/address/` absorbs token (kind discriminator); `/tokens/*` deprecated alias                                                                                                            | APPLIED (model + detector + edge; snapshot service promoted to `snapshot/` in todo 12, P50)                            |
-| P39 standing rule                      | AGENTS.md + CHANGELOG `## [Unreleased]` per todo                                                                                                                                           | APPLIED (this refresh)                                                                                                 |
-| P50 hexagonal global + snapshot module | Every module in domain/ + application/ + infrastructure/; legacy roots `@deprecated` re-exports; snapshot aggregation promoted from address/ to `SnapshotModule`                           | APPLIED (todo 12: 32/109 identical, `tsc` + `nest build` clean, routes identical)                                      |
-| P46 seguridad market-data              | Scoped keys (read/snapshot/admin), hash-only store, zero-downtime rotation, per-key limit, audit, loopback bind, compromise drill                                                          | APPLIED (todo 10: `src/auth/`, 38/126 green, `:4123` curl matrix)                                                      |
-| P49 streaming ccxt on-demand           | Single ccxt.pro WS conn per exchange (multiplexed watch) + thin stream/ broker (P46 auth, per-client subs, backpressure, cleanup) on Socket.IO gateway/api/ws, shared rate-limit with REST | APPLIED (todo 11: `src/stream/` + `gateway/infrastructure/ws`, 43/149 green, live `:4133` 100 subs + REST p95 intact)  |
-| Chain-logo resolver                    | Fetch-ONCE TrustWallet primary (bsc->binance slug) + CoinGecko fallback + placeholder; gateway public logo edge + admin refresh; `ChainInfo.logoUrl`                                       | APPLIED (`src/chain-logo/` + `ChainLogoController`, 55/199 green, live 6/6 from TrustWallet primary)                   |
+| Decision                               | One-line                                                                                                                                                                                   | Status in this app                                                                                                          |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| Variante A v1 (G-16)                   | Single-BC monorepo; spec `libs/*` → `src/*`                                                                                                                                                | APPLIED (todo 1; mapping table in log)                                                                                      |
+| P30 Tramo-1 lessons                    | x-api-key day one, `dist/main.js`, env templates, living KB                                                                                                                                | APPLIED (todo 1)                                                                                                            |
+| C-DB-01 own logical DB                 | `onchain_bot_market_data[_staging]`                                                                                                                                                        | PLANNED (TypeORM unwired, GAP-1)                                                                                            |
+| C-DATA-01 providers move last          | 13 adapters move in todo 4, never earlier                                                                                                                                                  | APPLIED (todo 4: canonical `src/provider/infrastructure/`, backend shims)                                                   |
+| P46 extraction mechanics               | Copy + shim (byte-identical, local default; HTTP cutover is todo 5)                                                                                                                        | APPLIED (todo 4: zero backend `from 'data-provider` imports)                                                                |
+| P47 provider home                      | Single-level `src/provider/infrastructure/<name>/` (P43-aligned, not under `address/`)                                                                                                     | APPLIED (todo 4 close-out relocation)                                                                                       |
+| G-17 SLO-gated default                 | `USE_DATA_SERVICE_API=true` only with p95<500ms measured                                                                                                                                   | APPLIED (todo 5: p95 0.96ms PASS, kol-system dev flipped, backend default-false, staging/prod gated on todo-8 24h SLO)      |
+| P43 gateway de salida                  | `src/gateway/` owns aggregated-data HTTP; modules expose ports only                                                                                                                        | APPLIED (todo 2: 3 controllers + edge guard, zero module controllers)                                                       |
+| P45 address universal model            | `src/address/` absorbs token (kind discriminator); `/tokens/*` deprecated alias                                                                                                            | APPLIED (model + detector + edge; snapshot service promoted to `snapshot/` in todo 12, P50)                                 |
+| P39 standing rule                      | AGENTS.md + CHANGELOG `## [Unreleased]` per todo                                                                                                                                           | APPLIED (this refresh)                                                                                                      |
+| P50 hexagonal global + snapshot module | Every module in domain/ + application/ + infrastructure/; legacy roots `@deprecated` re-exports; snapshot aggregation promoted from address/ to `SnapshotModule`                           | APPLIED (todo 12: 32/109 identical, `tsc` + `nest build` clean, routes identical)                                           |
+| P46 seguridad market-data              | Scoped keys (read/snapshot/admin), hash-only store, zero-downtime rotation, per-key limit, audit, loopback bind, compromise drill                                                          | APPLIED (todo 10: `src/auth/`, 38/126 green, `:4123` curl matrix)                                                           |
+| P49 streaming ccxt on-demand           | Single ccxt.pro WS conn per exchange (multiplexed watch) + thin stream/ broker (P46 auth, per-client subs, backpressure, cleanup) on Socket.IO gateway/api/ws, shared rate-limit with REST | APPLIED (todo 11: `src/stream/` + `gateway/infrastructure/ws`, 43/149 green, live `:4133` 100 subs + REST p95 intact)       |
+| P48-bis ccxt-first + limiter-config    | ccxt FIRST where covered (CEX tickers/OHLCV) + full limiter config per provider via ports (window, quota, endpoint cost, backoff), cost-aware fail-open gate, merge untouched              | APPLIED (todo 16: `provider/infrastructure/ccxt/` + ccxt-first fetchers + `getRateLimitConfig`, 61/232 green, live `:4146`) |
+| Chain-logo resolver                    | Fetch-ONCE TrustWallet primary (bsc->binance slug) + CoinGecko fallback + placeholder; gateway public logo edge + admin refresh; `ChainInfo.logoUrl`                                       | APPLIED (`src/chain-logo/` + `ChainLogoController`, 55/199 green, live 6/6 from TrustWallet primary)                        |
 
 ## DECISIONS
 
@@ -423,6 +444,21 @@ coverage target >80% (pure units, no I/O).
   unknown->explicit `unknown`, 404 unknown chain/provider, compat
   12-field snapshot, `x-cache: HIT`, batch-2 + batch-51->400,
   65-request burst -> 200s + 429s).
+- P48-bis ccxt-first + limiter-config (todo 16): REST adapter
+  `src/provider/infrastructure/ccxt/` (`CcxtService` + config +
+  types + module + barrel; 14th registry descriptor at 600/min,
+  OHLCV cost 5) prepended to the quote fetchers with a `covers()`
+  CEX-symbol gate (uncovered inputs skip the bucket — zero quota
+  burn); `DataProviderPort.getRateLimitConfig()` is the per-adapter
+  seam (default 60/min, 1s->30s backoff); the gate burns one slot
+  per cost unit and fails open explicitly. Registry/barrel/module
+  specs moved 13 -> 14. Failing-first: limiter-config + ccxt +
+  cascade-order + quota-cost (incl. adversarial breach on a real
+  limiter) specs red before impl, green after (+4 suites / +21
+  tests, 61/232 total). tsconfig/jest mappers unchanged
+  (`provider/*` covers the new dir). One necessary inline note
+  kept: ccxt `supportsChains` is eligibility only, coverage is
+  symbol-gated.
 - P49 streaming on-demand (todo 11): `src/stream/` is hexagonal —
   `domain/` (stream types + policy + `ExchangeWsPort` one-conn
   contract) <- `application/` (`ExchangeConnectionManager` single
@@ -491,6 +527,14 @@ gaps + decisions) plus a `CHANGELOG.md` `## [Unreleased]` entry in
 English per `RELEASE-FLOW.md` (P39). Stale knowledge base = failed todo.
 
 ## NOTES
+
+- Holders + dev-wallet (2026-09-27, feat/mega-refactor-tramos):
+  `BirdeyeService.getHolderProfile` + `getDevPositions` (holder_profile
+  tags incl. dev hold_amount/percent_of_supply/PnL + holder_positions
+  `labels=dev`) feed `src/holders/DevHoldingsService` (Birdeye ->
+  Helius first-tx feePayer probable -> explicit nulls; solana-only).
+  `SnapshotQuote` gains `devWallets[]` + `devPctSupply`; compat edge
+  returns 17 fields. Evidence: `.omo/evidence/holders-dev.log`.
 
 - Supply fields (2026-09-27, feat/mega-refactor-tramos): `SnapshotQuote`
   carries `totalSupply` + `circulatingSupply` + `maxSupply` (all-nullable;

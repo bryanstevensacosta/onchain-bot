@@ -1,6 +1,7 @@
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
 import { BirdeyeService } from 'provider/infrastructure/birdeye';
+import { CcxtService } from 'provider/infrastructure/ccxt';
 import { CoinGeckoService } from 'provider/infrastructure/coingecko';
 import { MobulaService } from 'provider/infrastructure/mobula';
 import { MoralisService } from 'provider/infrastructure/moralis';
@@ -35,6 +36,7 @@ export interface ProviderQuoteDeps {
   readonly dexscreener: DexScreenerService;
   readonly geckoterminal: GeckoTerminalService;
   readonly birdeye: BirdeyeService;
+  readonly ccxt: CcxtService;
   readonly coingecko: CoinGeckoService;
   readonly mobula: MobulaService;
   readonly moralis: MoralisService;
@@ -47,13 +49,38 @@ export interface ProviderQuoteDeps {
  *
  * No adapter internals change: each fetcher calls one public method and
  * normalizes to `Partial<SnapshotQuote>` (null when the adapter has no
- * data — missing key, unknown chain, or 404). Order mirrors the backend
- * enrichment failover (dexscreener first); the aggregator merges
- * first-non-null per field across all of them in parallel.
+ * data — missing key, unknown chain, or 404). Order is ccxt-first where
+ * it covers (P48-bis: free CEX tickers with generous limits); every
+ * other fetcher keeps the backend enrichment failover order and the
+ * aggregator merges first-non-null per field across all of them in
+ * parallel. The ccxt fetcher short-circuits to null for onchain
+ * addresses (`covers`), so uncovered inputs fall back untouched.
  */
 export function buildProviderQuoteFetchers(
   deps: ProviderQuoteDeps,
 ): ReadonlyArray<QuoteFetcher> {
+  const ccxt: QuoteFetcher = {
+    name: 'ccxt',
+    supportsChains: ['ethereum', 'solana', 'bsc', 'base', 'arbitrum', 'polygon'],
+    endpoint: 'ticker',
+    covers: (_chain: string, address: string) =>
+      CcxtService.isCexSymbol(address),
+    fetch: async (_chain: string, address: string) => {
+      const ticker = await deps.ccxt.fetchTicker(
+        deps.ccxt.defaultExchange,
+        address,
+      );
+      if (ticker === null || ticker.last === null) {
+        return null;
+      }
+      const quote: Partial<SnapshotQuote> = {
+        priceUsd: ticker.last,
+        symbol: ticker.symbol,
+      };
+      return quote;
+    },
+  };
+
   const dexscreener: QuoteFetcher = {
     name: 'dexscreener',
     supportsChains: ['ethereum', 'solana', 'bsc', 'base'],
@@ -221,5 +248,5 @@ export function buildProviderQuoteFetchers(
     },
   };
 
-  return [dexscreener, geckoterminal, birdeye, coingecko, mobula, moralis, rugcheck];
+  return [ccxt, dexscreener, geckoterminal, birdeye, coingecko, mobula, moralis, rugcheck];
 }

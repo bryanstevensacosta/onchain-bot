@@ -32,6 +32,7 @@ describe('resolveProviderOutboundBudget (centralized outbound limits)', () => {
       expect(budget).toEqual({
         limit: descriptor.rateLimitPerMin,
         windowMs: 60_000,
+        cost: 1,
       });
     }
   });
@@ -47,7 +48,22 @@ describe('resolveProviderOutboundBudget (centralized outbound limits)', () => {
     expect(resolveProviderOutboundBudget(descriptors, 'nope')).toEqual({
       limit: 60,
       windowMs: 60_000,
+      cost: 1,
     });
+  });
+
+  it('resolves the per-endpoint cost from the descriptor (todo 16, P48-bis)', () => {
+    const withCosts = [
+      ...descriptors,
+      { name: 'ccxt', rateLimitPerMin: 600, endpointCosts: { ohlcv: 5 } },
+    ];
+    expect(
+      resolveProviderOutboundBudget(withCosts, 'ccxt', 'ohlcv').cost,
+    ).toBe(5);
+    expect(
+      resolveProviderOutboundBudget(withCosts, 'ccxt', 'ticker').cost,
+    ).toBe(1);
+    expect(resolveProviderOutboundBudget(withCosts, 'ccxt').cost).toBe(1);
   });
 
   it('builds outbound bucket keys disjoint from the edge gw: namespace', () => {

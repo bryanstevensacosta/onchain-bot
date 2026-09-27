@@ -134,13 +134,20 @@ Your next move: approve — listo para $start-work Tramo 3 tras Gate T2. Full ex
      Acceptance criteria: `ls apps/backend/src/data-provider 2>/dev/null` vacío + p95 prod <500ms 24h
      QA scenarios: happy cutover sin degradación; failure → rollback + medición. Evidence .omo/evidence/task-8-mega-refactor-market-data.log
      Commit: Y | feat(market-data)!: cutover y cleanup providers backend
-- [ ] 14. Snapshot history persistente + límites outbound por provider (GAP-1 + anti-ban)
+- [x] 14. Snapshot history persistente + límites outbound por provider (GAP-1 + anti-ban)
       What to do / Must NOT do: entidad TypeORM `snapshot_history` (uuid PK + unique(key, createdAt); columnas del row shape; BTREE (key, createdAt); retención 90d + janitor) reemplazando el ring en memoria (migración + backfill n/a — arranca vacío, documentado); token-bucket outbound por provider con los límites de `.omo/evidence/providers-reference.md` (dex 60/min, birdeye CU, etc.) aplicado en fetchers (fail-open con error explícito si el bucket niega). ORDEN OBLIGATORIO: caché primero (HIT no consume cuota), limiter SOLO en miss. Tests: persistencia + límites + janitor + orden cache→limiter. Must NOT perder historia en reboot tras esto.
       Parallelization: Wave 3 | Blocked by: 2 | Blocks: 8 (kol depende de historia para ventanas)
       References: apps/market-data/src/snapshot/infrastructure/snapshot-history.repository.ts (GAP-1); .omo/evidence/providers-reference.md (límites)
       Acceptance criteria: reinicio conserva historial (`count` pre/post igual) + test bucket niega exceso
       QA scenarios: happy historial sobrevive reboot; failure provider capado → error explícito + fallback. Evidence .omo/evidence/task-14-mega-refactor-market-data.log
       Commit: Y | feat(market-data): historial persistente y límites outbound
+- [x] 16. Cascada ccxt-primero + limiter-config por provider (P48-bis)
+      What to do / Must NOT do: ccxt PRIMERO donde cubre (tickers/OHLCV CEX); cada adapter expone configuración completa (ventana, cuota, costo por endpoint, backoff) vía ports; fetchers la respetan (fail-open explícito). Tests: orden + respeto de cuota por provider. Must NOT romper merge actual.
+      Parallelization: Wave 3 | Blocked by: 2, 14 | Blocks: 8
+      References: .omo/drafts/mega-refactor-tramos.md (P48-bis); .omo/evidence/providers-reference.md (límites); apps/market-data/src/provider/
+      Acceptance criteria: `npx jest` verde + test orden (ccxt primero donde cubre) + test cuota
+      QA scenarios: happy cascada reordenada; failure provider capado → siguiente, error explícito. Evidence .omo/evidence/task-16-mega-refactor-market-data.log
+      Commit: Y | feat(market-data): cascada ccxt-primero y limiter-config
 - [x] 15. Supplies + holders + dev-wallet + display por kind (P61/P62)
       What to do / Must NOT do: quote con totalSupply/circulatingSupply/maxSupply + holders (count, top10, dev summary + devWallets top) vía Birdeye holder-profile/positions/wallet + fallback feePayer primera-tx; UI dexter + dashboard por matriz kind (chain/token/wallet/program, secciones vacías ocultas). Tests + fallback nulos explícitos. Must NOT tumbar snapshot si un provider falla.
       Parallelization: Wave 3 | Blocked by: 2 | Blocks: 8

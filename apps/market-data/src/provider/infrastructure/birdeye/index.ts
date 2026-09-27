@@ -8,4 +8,8 @@ export type {
   BirdeyePriceData,
   BirdeyeTokenTrade,
   BirdeyeTradesData,
+  BirdeyeHolderProfileData,
+  BirdeyeHolderPositionsData,
+  BirdeyeHolderPosition,
+  BirdeyeHolderTagEntry,
 } from './birdeye.types.js';

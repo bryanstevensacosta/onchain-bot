@@ -9,6 +9,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **ccxt-first cascade + per-provider limiter config (P48-bis):** new
+  `src/provider/infrastructure/ccxt/` REST adapter (14th provider:
+  CEX tickers + OHLCV over the unified ccxt API with
+  `enableRateLimit`, exchange allowlist via
+  `MARKET_DATA_CCXT_EXCHANGES`, optional `ccxt` peer loaded by
+  dynamic require — missing package resolves to null, fail-open).
+  The snapshot cascade is ccxt-first where it covers (CEX pair
+  symbols via `covers()`); every other fetcher keeps its existing
+  order and the first-non-null merge is untouched, so onchain
+  addresses fall back exactly as before. Every adapter exposes its
+  full limiter contract through the port
+  (`DataProviderPort.getRateLimitConfig`: window, quota,
+  per-endpoint costs, backoff 1s->30s; registry descriptors carry
+  the same numbers, ccxt at 600/min with OHLCV cost 5). The
+  outbound gate burns one bucket slot per cost unit, skips the
+  bucket for uncovered inputs (zero quota burn), and denies with
+  an explicit fail-open error naming quota and cost. Failing-first:
+  `provider-limiter-config.spec.ts` + `ccxt.service.spec.ts` +
+  `cascade-order.spec.ts` (order + ccxt-wins-where-covers +
+  onchain fallback) + `rate-limited-fetchers-cost.spec.ts`
+  (cost burn + deny message + covers-skip + adversarial quota
+  breach on a real sliding-window limiter still merging the rest).
+  Verified: 61 suites / 232 tests green, `tsc --noEmit` clean,
+  live `:4146` (registry lists ccxt first; onchain snapshot merges
+  dex+gecko with `ccxt: no data`; CEX symbol pends explicitly with
+  the peer absent — real exchange hit operator-gated, no new deps).
+  (feat/mega-refactor-tramos)
+
+- **Holders + dev-wallet via Birdeye (quote `devWallets[]` + `devPctSupply`):**
+  `BirdeyeService.getHolderProfile` (`GET /token/v1/holder_profile` —
+  tag mix incl. dev hold_amount/percent_of_supply/PnL) +
+  `getDevPositions` (`GET /token/v1/holder_positions?labels=dev`, top 10)
+  with no-key -> null, never throws. New `src/holders/`
+  (`DevHoldingsService` fallback chain: Birdeye -> Helius
+  `getFirstTxFeePayer` as probable dev -> explicit nulls, never crash;
+  non-solana -> nulls). `SnapshotQuote` gains `devWallets` +
+  `devPctSupply` (empty=nulls; aggregator merge extended); `HoldersModule`
+  wired in `AppModule` + `SnapshotModule`; `AddressSnapshotService`
+  attaches dev holdings for kind=token only (history quote carries them,
+  `dev:*` providerErrors, `pending` only when price merge AND dev both
+  empty). Compat `GET /api/market-data/snapshot` returns 17 fields.
+  Failing-first: `dev-holdings.service.spec.ts` (birdeye map + helius
+  probable + no-key nulls + throw nulls + non-solana).
+  (feat/mega-refactor-tramos)
+
 - **Supply fields end-to-end (`totalSupply`, `circulatingSupply`,
   `maxSupply`, all-nullable):** `SnapshotQuote` + `SNAPSHOT_QUOTE_FIELDS`
   - `emptySnapshotQuote` extended, so the first-non-null merge prefers

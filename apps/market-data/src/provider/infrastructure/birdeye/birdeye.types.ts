@@ -36,3 +36,33 @@ export interface BirdeyeTradesData {
   readonly items: ReadonlyArray<BirdeyeTokenTrade>;
   readonly hasMore: boolean;
 }
+
+export interface BirdeyeHolderTagEntry {
+  readonly tag: string;
+  readonly count?: number | null;
+  readonly holdAmount?: number | null;
+  readonly percentOfSupply?: number | null;
+  readonly pnlUsd?: number | null;
+}
+
+export interface BirdeyeHolderProfileData {
+  readonly address: string;
+  readonly holderCount?: number | null;
+  readonly tags?: ReadonlyArray<BirdeyeHolderTagEntry> | null;
+  readonly devHoldAmount?: number | null;
+  readonly devPercentOfSupply?: number | null;
+  readonly devPnlUsd?: number | null;
+}
+
+export interface BirdeyeHolderPosition {
+  readonly wallet: string;
+  readonly holdAmount: number | null;
+  readonly percentOfSupply: number | null;
+  readonly pnlUsd: number | null;
+  readonly tag?: string | null;
+}
+
+export interface BirdeyeHolderPositionsData {
+  readonly items: ReadonlyArray<BirdeyeHolderPosition>;
+  readonly hasMore?: boolean;
+}

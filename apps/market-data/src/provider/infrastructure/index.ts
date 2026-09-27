@@ -1,6 +1,6 @@
 /**
- * Canonical barrel for the 13 physical market-data adapters
- * (Tramo 3, todo 4, C-DATA-01, P45 path).
+ * Canonical barrel for the 14 physical market-data adapters
+ * (Tramo 3, todo 4, C-DATA-01, P45 path + todo 16, P48 ccxt).
  *
  * Physically extracted from `apps/backend/src/data-provider/` — the backend
  * keeps deprecated re-export shims only (removed at cutover, todo 8).
@@ -10,6 +10,7 @@ export { DataProviderPort } from '../domain/data-provider.port';
 export { ProvidersModule } from './providers.module';
 export { AlchemyModule, AlchemyService } from './alchemy';
 export { BirdeyeModule, BirdeyeService } from './birdeye';
+export { CcxtModule, CcxtService } from './ccxt';
 export { CoinGeckoModule, CoinGeckoService } from './coingecko';
 export { CoinMarketCapModule, CoinMarketCapService } from './coinmarketcap';
 export { DexScreenerModule, DexScreenerService } from './dexscreener';

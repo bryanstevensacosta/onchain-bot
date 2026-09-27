@@ -14,9 +14,24 @@ export interface ProviderDescriptor {
   readonly kind: ProviderKind;
   readonly supportsChains: ReadonlyArray<string>;
   readonly rateLimitPerMin: number;
+  /** Per-endpoint bucket cost in requests (default 1; P48-bis). */
+  readonly endpointCosts?: Readonly<Record<string, number>>;
+  /** Reconnect backoff bounds in ms (default 1s -> 30s; P48-bis). */
+  readonly backoffInitialMs?: number;
+  readonly backoffMaxMs?: number;
 }
 
 export const DEFAULT_PROVIDERS: ReadonlyArray<ProviderDescriptor> = [
+  {
+    // Eligibility only: effective coverage is CEX-pair symbols (covers()).
+    name: 'ccxt',
+    kind: 'market',
+    supportsChains: ['ethereum', 'solana', 'bsc', 'base', 'arbitrum', 'polygon'],
+    rateLimitPerMin: 600,
+    endpointCosts: { ticker: 1, ohlcv: 5, quote: 1 },
+    backoffInitialMs: 1_000,
+    backoffMaxMs: 30_000,
+  },
   {
     name: 'dexscreener',
     kind: 'market',

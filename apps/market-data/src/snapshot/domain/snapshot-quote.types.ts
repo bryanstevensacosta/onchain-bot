@@ -8,6 +8,8 @@
  * untouched — thin wrappers in `snapshot/infrastructure/` adapt their
  * existing public methods to this shape).
  */
+import type { ProviderRateLimitConfig } from 'provider/domain/provider-limiter-config';
+
 export interface DevWalletQuote {
   readonly wallet: string;
   readonly holdAmount: number | null;
@@ -83,17 +85,24 @@ export function emptySnapshotQuote(): SnapshotQuote {
  * One provider's fetch step. `name` MUST match the provider registry
  * descriptor (so health recording + the `providers` hint list stay
  * consistent); `supportsChains` mirrors the descriptor's chain list.
+ *
+ * P48-bis seams (all optional, additive): `covers` gates effective
+ * coverage before any quota is touched (ccxt: CEX pair symbols only);
+ * `endpoint` + `limiterConfig` select the per-endpoint bucket cost.
  */
 export interface QuoteFetcher {
   readonly name: string;
   readonly supportsChains: ReadonlyArray<string>;
+  readonly covers?: (chain: string, address: string) => boolean;
+  readonly endpoint?: string;
+  readonly limiterConfig?: ProviderRateLimitConfig;
   fetch(
     chain: string,
     address: string,
   ): Promise<Partial<SnapshotQuote> | null>;
 }
 
-/** DI token for the ordered fetcher list (registry order: dex first). */
+/** DI token for the ordered fetcher list (P48-bis: ccxt first where it covers). */
 export const SNAPSHOT_QUOTE_PROVIDERS = 'SNAPSHOT_QUOTE_PROVIDERS';
 
 /** Per-call ceiling for one provider fetch (adapters use 5-8s axios). */

@@ -18,11 +18,14 @@ export const PROVIDER_OUTBOUND_DEFAULT_PER_MIN = 60;
 export interface ProviderOutboundBudget {
   readonly limit: number;
   readonly windowMs: number;
+  /** Bucket tokens burned per call for the resolved endpoint (default 1). */
+  readonly cost?: number;
 }
 
 export interface ProviderBudgetDescriptor {
   readonly name: string;
   readonly rateLimitPerMin: number;
+  readonly endpointCosts?: Readonly<Record<string, number>>;
 }
 
 export function buildOutboundKey(name: string): string {
@@ -32,10 +35,13 @@ export function buildOutboundKey(name: string): string {
 export function resolveProviderOutboundBudget(
   descriptors: ReadonlyArray<ProviderBudgetDescriptor>,
   name: string,
+  endpoint = 'quote',
 ): ProviderOutboundBudget {
   const found = descriptors.find((descriptor) => descriptor.name === name);
+  const rawCost = found?.endpointCosts?.[endpoint];
   return {
     limit: found?.rateLimitPerMin ?? PROVIDER_OUTBOUND_DEFAULT_PER_MIN,
     windowMs: PROVIDER_OUTBOUND_WINDOW_MS,
+    cost: typeof rawCost === 'number' && rawCost >= 1 ? Math.floor(rawCost) : 1,
   };
 }

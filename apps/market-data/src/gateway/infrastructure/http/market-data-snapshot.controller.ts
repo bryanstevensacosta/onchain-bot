@@ -61,6 +61,8 @@ export class MarketDataSnapshotController {
       totalSupply: snap.totalSupply,
       circulatingSupply: snap.circulatingSupply,
       maxSupply: snap.maxSupply,
+      devWallets: snap.devWallets,
+      devPctSupply: snap.devPctSupply,
       chain: snap.chain,
       address: snap.address,
       kind: snap.kind,

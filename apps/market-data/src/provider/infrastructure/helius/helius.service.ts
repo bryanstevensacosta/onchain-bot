@@ -196,4 +196,24 @@ export class HeliusService extends DataProviderPort {
       return null;
     }
   }
+
+  public async getFirstTxFeePayer(
+    mint: string,
+  ): Promise<{ readonly wallet: string; readonly signature: string } | null> {
+    try {
+      const history = await this.getAddressHistory(mint, 100);
+      if (!history || history.length === 0) return null;
+      const earliest = [...history].sort(
+        (a, b) => (a.blockTime ?? 0) - (b.blockTime ?? 0),
+      )[0];
+      const payer =
+        Array.isArray(earliest.signer) && earliest.signer.length > 0
+          ? earliest.signer[0]
+          : null;
+      if (!payer) return null;
+      return { wallet: payer, signature: earliest.signature };
+    } catch {
+      return null;
+    }
+  }
 }

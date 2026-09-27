@@ -8,6 +8,8 @@ import type {
   BirdeyeTokenOverviewData,
   BirdeyePriceData,
   BirdeyeTradesData,
+  BirdeyeHolderProfileData,
+  BirdeyeHolderPositionsData,
 } from './birdeye.types';
 
 const BASE = 'https://public-api.birdeye.so';
@@ -139,6 +141,63 @@ export class BirdeyeService extends DataProviderPort {
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 404) return null;
       this.logger.debug(`Birdeye /txs/token failed: ${(err as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Holder profile for a token — tag mix incl. dev (hold_amount,
+   * percent_of_supply, PnL). No key -> null, never throws.
+   */
+  public async getHolderProfile(
+    address: string,
+    chain: string = 'solana',
+  ): Promise<BirdeyeHolderProfileData | null> {
+    if (!this.apiKey) return null;
+    try {
+      const { data } = await axios.get<
+        BirdeyeResponse<BirdeyeHolderProfileData>
+      >(`${BASE}/token/v1/holder_profile`, {
+        params: { address },
+        headers: { 'X-API-KEY': this.apiKey, 'x-chain': chain },
+        timeout: 8_000,
+      });
+      if (!data.success || !data.data) return null;
+      return data.data;
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+      this.logger.debug(
+        `Birdeye /holder_profile failed: ${(err as Error).message}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Holder positions filtered by label (default dev wallets).
+   * No key -> null, never throws.
+   */
+  public async getDevPositions(
+    address: string,
+    chain: string = 'solana',
+    limit: number = 10,
+  ): Promise<BirdeyeHolderPositionsData | null> {
+    if (!this.apiKey) return null;
+    try {
+      const { data } = await axios.get<
+        BirdeyeResponse<BirdeyeHolderPositionsData>
+      >(`${BASE}/token/v1/holder_positions`, {
+        params: { address, labels: 'dev', limit: String(limit), offset: '0' },
+        headers: { 'X-API-KEY': this.apiKey, 'x-chain': chain },
+        timeout: 8_000,
+      });
+      if (!data.success || !data.data) return null;
+      return data.data;
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+      this.logger.debug(
+        `Birdeye /holder_positions failed: ${(err as Error).message}`,
+      );
       return null;
     }
   }

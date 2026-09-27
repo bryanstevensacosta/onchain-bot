@@ -7,6 +7,16 @@
 export { DataProviderPort } from './data-provider.port';
 export type { ProviderDescriptor, ProviderKind } from './provider-descriptor';
 export { DEFAULT_PROVIDERS } from './provider-descriptor';
+export {
+  DEFAULT_PROVIDER_RATE_LIMIT_CONFIG,
+  resolveEndpointCost,
+  resolveProviderLimiterConfig,
+} from './provider-limiter-config';
+export type {
+  ProviderBackoffConfig,
+  ProviderLimiterDescriptor,
+  ProviderRateLimitConfig,
+} from './provider-limiter-config';
 export type {
   ProviderHealth,
   ProviderHealthSnapshot,
