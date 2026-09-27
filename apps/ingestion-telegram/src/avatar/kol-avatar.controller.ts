@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
   Res,
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -20,14 +21,19 @@ import {
 } from './avatar.constants';
 
 /**
- * KOL avatar HTTP API (Tramo 1, todo 13, P19).
+ * Channel avatar HTTP API (Tramo 1, todo 13, P19; avatar-total todo 12, P57).
  *
  * - `GET /api/kol-avatar/:channelId` — stored photo (200, 1y cache) or the
  *   inline placeholder SVG (200) when no photo was ever fetched / the
- *   MTProto fetch failed. Public (keyless GET, like `/api/media/*`).
+ *   MTProto fetch failed. Serves legacy bare + @handle-qualified files.
+ *   Public (keyless GET, like `/api/media/*`).
  * - `POST /api/kol-avatar/:channelId/refresh` — explicit manual refresh
  *   through the guarded fetch path (P19: the ONLY re-fetch; P29: same
- *   serialized guard). Protected (POST → API key when set).
+ *   serialized guard). Optional `?handle=` names the file. Protected
+ *   (POST → API key when set).
+ * - `POST /api/kol-avatar/backfill` — fetch avatars for every source row
+ *   missing a file (fetch-once respected, serialized, never throws).
+ *   Protected (POST → API key when set).
  */
 @ApiTags('kol-avatar')
 @Controller('api/kol-avatar')
@@ -49,8 +55,8 @@ export class KolAvatarController {
         `Invalid channelId: ${channelId}. Must contain alphanumeric characters`,
       );
     }
-    if (this.avatars.hasAvatar(channelId)) {
-      const filePath = this.avatars.avatarFilePath(channelId);
+    const filePath = this.avatars.findAvatarFile(channelId);
+    if (filePath) {
       let size = 0;
       try {
         size = statSync(filePath).size;
@@ -67,13 +73,31 @@ export class KolAvatarController {
     this.sendPlaceholder(response);
   }
 
+  @Post('backfill')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Backfill avatars for source rows missing a file (fetch-once)',
+  })
+  @ApiResponse({ status: 201, description: 'Backfill totals' })
+  public async backfillAvatars(): Promise<{
+    checked: number;
+    fetched: number;
+    cached: number;
+    placeholder: number;
+  }> {
+    return this.avatars.backfillMissing();
+  }
+
   @Post(':channelId/refresh')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Explicit manual avatar refresh (guarded fetch)' })
   @ApiParam({ name: 'channelId', description: 'Telegram channel id' })
   @ApiResponse({ status: 201, description: 'Refresh outcome' })
   @ApiResponse({ status: 400, description: 'Invalid channelId' })
-  public async refreshAvatar(@Param('channelId') channelId: string): Promise<{
+  public async refreshAvatar(
+    @Param('channelId') channelId: string,
+    @Query('handle') handle?: string,
+  ): Promise<{
     channelId: string;
     avatar: string;
     avatarUrl: string;
@@ -84,7 +108,7 @@ export class KolAvatarController {
         `Invalid channelId: ${channelId}. Must contain alphanumeric characters`,
       );
     }
-    const avatar = await this.avatars.refresh(channelId);
+    const avatar = await this.avatars.refresh(channelId, handle ?? null);
     return {
       channelId,
       avatar,

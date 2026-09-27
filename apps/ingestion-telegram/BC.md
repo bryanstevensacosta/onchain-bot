@@ -35,6 +35,9 @@ What it does and how:
   broadcast card, and hands it to the live broadcast service. One bad message
   is logged and skipped; it never crashes the listener. News channels keep
   text and photos; tip channels are saved as raw text with no photo rows.
+  The card also carries the source row's `handle` plus `avatarUrl` and
+  `sourceUrl` (read-only lookup, fail-open to nulls — consumers keep
+  filtering on `messageType` only).
 - Photo downloading (news only) —
   `apps/ingestion-telegram/src/core/application/services/telegram-media-extractor.service.ts`:
   downloads photos and videos for news channels at ingestion time; tip
@@ -99,7 +102,9 @@ Classes and technical names (plain explanations):
 - `MessagePayload` / `MediaPayload` / `EntityPayload`
   (`apps/ingestion-telegram/src/core/domain/types/message-payload.ts`): the
   broadcast card shapes — ids, date, raw text, file cards with download URLs,
-  formatting details.
+  formatting details, plus the additive source display fields `handle`,
+  `avatarUrl`, `sourceUrl` (central todo 12; unknown fields must be ignored
+  by consumers).
 - `DeduplicationService` (duplicate notebook), `CoreModule` (the foreman:
   reads channels, starts the listener once, classifies, forwards),
   `SharedModule` (global wiring box), `TelegramClientManager` (single login
@@ -179,8 +184,10 @@ What it does and how:
   cleans the channel number to the `-100...` shape, looks the title up from
   Telegram when missing (rejection with 400 when unresolvable), rejects
   duplicates with 409, and creates the row switched on (default kind
-  `crypto-news`). New `kol` channels trigger a profile-photo fetch in the
-  background (never blocks registration).
+  `crypto-news`). Every new channel of EITHER kind triggers a profile-photo
+  fetch in the background (never blocks registration). The public link
+  `https://t.me/<handle>` is stored in the `url` column (NULL without a
+  handle) and recomputed whenever the handle changes.
 - Bulk import: `executeBatch` accepts up to 500 channels; the whole batch is
   validated BEFORE anything is written, and re-runs are safe (idempotent).
 - Listing: the repository
@@ -193,15 +200,15 @@ What it does and how:
 HTTP APIs (served by `SourcesController` under BOTH `/api/feed` and
 `/api/crypto-news`; needs the API key when one is set):
 
-| Method + path                                           | Input                                                                                                       | Output                                                                                                            |
-| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `POST /api/feed/sources` — register one channel         | `channelId` (required), `title`/`handle` (optional), `type` (`kol` \| `crypto-news`, default `crypto-news`) | 201 + source view (`channelId`, `handle`, `title`, `type`, `isActive`, `lifecycleStatus`, `addedAt`, `avatarUrl`) |
-| `POST /api/feed/sources/batch` — bulk add/update        | `sources` array (1–500 items)                                                                               | 201 + `{ created, updated, total, results[] }`                                                                    |
-| `GET /api/feed/sources[?type=]` — list all              | Optional `type` filter                                                                                      | Array of full rows newest-first (each with `avatarUrl`)                                                           |
-| `GET /api/feed/sources/active/ids[?type=]` — watch-list | Optional `type` filter                                                                                      | Array of channel-id strings                                                                                       |
-| `PATCH /api/feed/sources/:channelId` — rename           | `{ title?, handle? }`                                                                                       | 200 + updated source view                                                                                         |
-| `PATCH /api/feed/sources/:channelId/toggle` — on/off    | none                                                                                                        | 200 + `{ channelId, isActive, avatarUrl }`                                                                        |
-| `DELETE /api/feed/sources/:channelId` — remove          | none                                                                                                        | 200 + `{ success: true }`                                                                                         |
+| Method + path                                           | Input                                                                                                       | Output                                                                                                                   |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `POST /api/feed/sources` — register one channel         | `channelId` (required), `title`/`handle` (optional), `type` (`kol` \| `crypto-news`, default `crypto-news`) | 201 + source view (`channelId`, `handle`, `title`, `type`, `isActive`, `lifecycleStatus`, `addedAt`, `avatarUrl`, `url`) |
+| `POST /api/feed/sources/batch` — bulk add/update        | `sources` array (1–500 items)                                                                               | 201 + `{ created, updated, total, results[] }`                                                                           |
+| `GET /api/feed/sources[?type=]` — list all              | Optional `type` filter                                                                                      | Array of full rows newest-first (each with `avatarUrl` + `url`)                                                          |
+| `GET /api/feed/sources/active/ids[?type=]` — watch-list | Optional `type` filter                                                                                      | Array of channel-id strings                                                                                              |
+| `PATCH /api/feed/sources/:channelId` — rename           | `{ title?, handle? }`                                                                                       | 200 + updated source view                                                                                                |
+| `PATCH /api/feed/sources/:channelId/toggle` — on/off    | none                                                                                                        | 200 + `{ channelId, isActive, avatarUrl }`                                                                               |
+| `DELETE /api/feed/sources/:channelId` — remove          | none                                                                                                        | 200 + `{ success: true }`                                                                                                |
 
 Classes and technical names (plain explanations):
 
@@ -249,7 +256,8 @@ HTTP API:
 
 - `GET /api/ingestion/stream` — open `text/event-stream` response. First
   `event: connection:established` (`{clientId, timestamp, message}`), then per
-  message `event: message:telegram`, plus `health:ping` on the heartbeat.
+  message `event: message:telegram` (carries `handle`/`avatarUrl`/`sourceUrl`
+  next to `messageType` since central todo 12), plus `health:ping` on the heartbeat.
   Needs the API key when one is set. No history, no `Last-Event-ID`, no
   per-backend filtering.
 
@@ -361,16 +369,26 @@ mimeType, fileSize}`).
 
 In plain words: saves each channel's small profile picture once, hands it
 back over HTTP, and is deliberately permanent — the 72-hour janitor never
-touches it.
+touches it. Since central todo 12 this covers channels of EVERY kind
+(news included, not just tips), files are named with the handle, and a
+backfill endpoint catches up rows registered before avatars existed.
 
 What it does and how:
 
 - Fetch-once
-  (`apps/ingestion-telegram/src/avatar/kol-avatar.service.ts`): when a KOL
+  (`apps/ingestion-telegram/src/avatar/kol-avatar.service.ts`): when ANY
   source is registered, downloads the channel's profile photo exactly once (a
-  stored file means "already fetched"). The ONLY re-download is the explicit
-  manual refresh. No periodic loop. Telegram/DB trouble never throws: a miss
-  serves a placeholder and retries later via refresh.
+  stored file means "already fetched"). The ONLY re-downloads are the explicit
+  manual refresh and the backfill below. No periodic loop. Telegram/DB trouble
+  never throws: a miss serves a placeholder and retries later via refresh.
+- File names (`apps/ingestion-telegram/src/avatar/avatar.constants.ts`):
+  `{channelId}__{handle}.jpg` once the handle is known, legacy bare
+  `{channelId}.jpg` otherwise. Old files are renamed lazily (and colliding
+  pairs deduped to one file) without ever re-downloading; serving finds any
+  variant.
+- Backfill: `POST /api/kol-avatar/backfill` walks every source row and
+  fetches only the ones with no file (serialized, never throws; returns
+  `{checked, fetched, cached, placeholder}`).
 - Telegram fetch
   (`apps/ingestion-telegram/src/avatar/mtproto-avatar-photo.adapter.ts`):
   resolves the channel and calls `downloadProfilePhoto` inside the flood-wait
@@ -379,10 +397,12 @@ What it does and how:
   `GET /api/kol-avatar/:channelId` returns the stored `.jpg` (1-year cache)
   or an inline grey `?` placeholder SVG (1-hour cache, HTTP 200) when no photo
   was ever fetched. Never 404s. `POST /api/kol-avatar/:channelId/refresh`
-  forces one guarded re-download (needs the API key when one is set).
+  (optional `?handle=` to name the file) forces one guarded re-download
+  (needs the API key when one is set).
 - Every row of `GET /api/feed/sources` carries
   `avatarUrl: /api/kol-avatar/:channelId` (built by `kolAvatarUrlFor` in
-  `apps/ingestion-telegram/src/avatar/avatar.constants.ts`) — always servable.
+  `apps/ingestion-telegram/src/avatar/avatar.constants.ts`) — always servable —
+  plus `url: https://t.me/<handle>` (NULL without a handle).
 - Wiring (`apps/ingestion-telegram/src/avatar/avatar.module.ts`, imported by
   `RetentionModule`): controller + service + photo-port binding; reuses
   `SharedModule` (no own MTProto client or limiter).
@@ -450,7 +470,7 @@ None of them handle Telegram messages directly; they serve the parts that do.
   fetch recipe), `BaseMediaRetentionPolicy` (walk-and-delete template),
   `MimeTypeResolver` (mime ↔ extension both ways), `PathSanitizer`
   (id/filename scrubbing, traversal checks).
-- Mail-sorting table (`src/shared/telegram/transformation/`): turns a raw
+- Mail-sorting table (`src/shared/transformation/`): turns a raw
   GramJS message into a clean `TransformedMessage` via a fixed 4-step recipe
   (pull text → pull media metadata → normalize markers → copy link-preview
   card). `FeedTextExtractor` / `KolTextExtractor` (4-source text cascade),

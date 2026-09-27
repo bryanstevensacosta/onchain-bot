@@ -3,6 +3,7 @@ import type {
   ResolvedChannelMetadata,
   JoinChannelResult,
 } from '../../ports/telegram-listener.port';
+import { classifyEntityKind } from 'registry/application/entity-kind';
 
 export class TelegramPeerResolver {
   async resolvePeerAsChannel(client: TelegramClient, channelId: string) {
@@ -43,17 +44,23 @@ export class TelegramPeerResolver {
       username?: string;
       firstName?: string;
       lastName?: string;
+      className?: string;
+      bot?: boolean;
+      broadcast?: boolean;
+      megagroup?: boolean;
     };
     const resolvedId = entity?.id !== undefined ? String(entity.id) : channelId;
+    const kind = classifyEntityKind(entity);
+    const displayName =
+      entity?.title?.trim() ||
+      [entity?.firstName, entity?.lastName].filter(Boolean).join(' ').trim() ||
+      `Telegram ${kind} ${resolvedId}`;
     return {
       peerId: resolvedId,
-      title: entity?.title?.trim() || `Telegram channel ${resolvedId}`,
+      title: displayName,
       handle: entity?.username?.trim() || null,
-      kind: entity?.title?.trim()
-        ? 'channel'
-        : entity?.firstName || entity?.lastName
-          ? 'user'
-          : 'unknown',
+      kind,
+      isBot: entity?.bot === true,
     };
   }
 

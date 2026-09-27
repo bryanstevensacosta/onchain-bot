@@ -7,6 +7,7 @@ import {
   HttpCode,
   HttpStatus,
   NotFoundException,
+  Optional,
   Param,
   Patch,
   Post,
@@ -22,7 +23,11 @@ import {
 import { TelegramFeedSourceRepository } from '../../infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
 import type { TelegramFeedSourceType } from '../../infrastructure/persistence/typeorm/entities/telegram-feed-source.entity';
 import { TelegramListenerPort } from 'core/ports/telegram-listener.port';
-import { kolAvatarUrlFor } from '../../../avatar/avatar.constants';
+import {
+  kolAvatarUrlFor,
+  sourceUrlFor,
+} from '../../../avatar/avatar.constants';
+import { KolAvatarService } from '../../../avatar/kol-avatar.service';
 import {
   normalizeResolveInput,
   SUBSCRIBABLE_KINDS,
@@ -75,6 +80,7 @@ export class SourcesController {
     private readonly sourceRepo: TelegramFeedSourceRepository,
     private readonly registerSourceUseCase: RegisterNewsSourceUseCase,
     private readonly telegramListener: TelegramListenerPort,
+    @Optional() private readonly avatars?: KolAvatarService,
   ) {}
 
   @Post('sources')
@@ -141,6 +147,9 @@ export class SourcesController {
       title: metadata.title,
       handle: metadata.handle,
       isBot: metadata.isBot ?? false,
+      // P57: same display enrichments as the stored source views.
+      avatarUrl: kolAvatarUrlFor(metadata.peerId),
+      url: sourceUrlFor(metadata.handle),
     };
   }
 
@@ -170,6 +179,8 @@ export class SourcesController {
         updatedAt: s.updatedAt?.toISOString(),
         // P19: permanent avatar URL (file-or-placeholder, always servable).
         avatarUrl: kolAvatarUrlFor(s.channelId),
+        // P57: public t.me URL (stored column, display fallback by handle).
+        url: s.url ?? sourceUrlFor(s.handle),
       }));
   }
 
@@ -211,7 +222,18 @@ export class SourcesController {
       source.title = updates.title.trim();
     }
     if (updates.handle !== undefined) {
-      source.handle = updates.handle?.trim() || null;
+      const nextHandle = updates.handle?.trim() || null;
+      if (nextHandle !== source.handle) {
+        source.handle = nextHandle;
+        source.url = sourceUrlFor(nextHandle);
+        // P57: renames the avatar file to the handle-qualified form
+        // (best-effort, never fails the PATCH).
+        try {
+          this.avatars?.migrateFilename(source.channelId, nextHandle);
+        } catch {
+          // migrateFilename never throws; defense in depth.
+        }
+      }
     }
 
     const updated = await this.sourceRepo.save(source);
@@ -225,6 +247,7 @@ export class SourcesController {
       addedAt: updated.addedAt?.toISOString(),
       updatedAt: updated.updatedAt?.toISOString(),
       avatarUrl: kolAvatarUrlFor(updated.channelId),
+      url: updated.url ?? sourceUrlFor(updated.handle),
     };
   }
 
@@ -248,6 +271,7 @@ export class SourcesController {
       channelId: updated.channelId,
       isActive: updated.isActive,
       avatarUrl: kolAvatarUrlFor(updated.channelId),
+      url: updated.url ?? sourceUrlFor(updated.handle),
     };
   }
 

@@ -22,7 +22,7 @@ import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistenc
 import { IngestionSafetyConfig } from '../../infrastructure/config/ingestion-safety.config';
 import { SleepWindowService } from '../../infrastructure/services/sleep-window.service';
 import { Api } from 'telegram';
-import { FeedMessageTransformer } from 'shared/telegram/transformation';
+import { FeedMessageTransformer } from 'shared/transformation';
 import { TelegramMediaExtractorService } from '../../application/services/telegram-media-extractor.service';
 
 /**
@@ -537,7 +537,11 @@ export class TelegramMtprotoListenerAdapter
       await this.clientManager.connect();
     }
 
-    return this.peerResolver.resolveChannelMetadata(client, channelId);
+    // P57: single getEntity() inside the shared flood guard (P29 reuse —
+    // label 'entity-resolve', same backoff/counter as polling/avatar).
+    return this.floodWaitHandler.withRetry('entity-resolve', () =>
+      this.peerResolver.resolveChannelMetadata(client, channelId),
+    );
   }
 
   async joinChannel(peerId: string): Promise<JoinChannelResult> {

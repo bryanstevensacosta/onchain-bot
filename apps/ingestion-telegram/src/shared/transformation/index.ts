@@ -25,10 +25,10 @@
  * } from '@ingestion-telegram/telegram/transformation';
  *
  * // Ingestion (local import)
- * import { FeedMessageTransformer } from 'shared/telegram/transformation';
+ * import { FeedMessageTransformer } from 'shared/transformation';
  * ```
  *
- * @module telegram/transformation
+ * @module transformation
  */
 
 // Re-export all modules

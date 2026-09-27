@@ -20,7 +20,7 @@ import { TelegramFeedMessageEntity } from 'feed/infrastructure/persistence/typeo
 import { TelegramFeedMessageMediaEntity } from 'feed/infrastructure/persistence/typeorm/entities/telegram-feed-message-media.entity';
 import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
 import { TelegramFeedMessageRepository } from 'feed/infrastructure/persistence/typeorm/repositories/telegram-feed-message.repository';
-import { FeedMessageTransformer } from 'shared/telegram/transformation';
+import { FeedMessageTransformer } from 'shared/transformation';
 import { TelegramMediaExtractorService } from './application/services/telegram-media-extractor.service';
 
 /**

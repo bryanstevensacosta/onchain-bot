@@ -8,7 +8,10 @@ import {
 import { TelegramFeedSourceRepository } from '../../infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
 import type { TelegramFeedSourceType } from '../../infrastructure/persistence/typeorm/entities/telegram-feed-source.entity';
 import { TelegramListenerPort } from 'core/ports/telegram-listener.port';
-import { kolAvatarUrlFor } from '../../../avatar/avatar.constants';
+import {
+  kolAvatarUrlFor,
+  sourceUrlFor,
+} from '../../../avatar/avatar.constants';
 import { KolAvatarService } from '../../../avatar/kol-avatar.service';
 import {
   assertSubscribableKind,
@@ -32,6 +35,8 @@ export interface RegisterNewsSourceOutput {
   readonly addedAt: string;
   /** P19: permanent avatar URL (file-or-placeholder, always servable). */
   readonly avatarUrl: string;
+  /** P57: public t.me URL (null for handle-less channels). */
+  readonly url: string | null;
 }
 
 export interface BatchSourceItem {
@@ -164,6 +169,7 @@ export class RegisterNewsSourceUseCase {
       input.type ?? 'crypto-news',
       { entityKind, isBot },
     );
+    source.url = sourceUrlFor(handle);
 
     // Persist to database
     const saved = await this.sourceRepo.save(source);
@@ -172,9 +178,10 @@ export class RegisterNewsSourceUseCase {
       `Registered new feed source: ${saved.channelId} (${saved.title})`,
     );
 
-    // P19 fetch-ONCE: KOL sources resolve their avatar at registration
-    // (best-effort — MTProto miss keeps the placeholder, registration wins).
-    this.kickAvatarFetch(saved.channelId, saved.type);
+    // P19 fetch-ONCE (avatar-total, central todo 12: EVERY type, not just
+    // kol) — best-effort, MTProto miss keeps the placeholder and
+    // registration wins. The handle names the avatar file.
+    this.kickAvatarFetch(saved.channelId, saved.handle);
 
     // Return output
     return {
@@ -186,6 +193,7 @@ export class RegisterNewsSourceUseCase {
       lifecycleStatus: saved.lifecycleStatus,
       addedAt: saved.addedAt?.toISOString() ?? new Date().toISOString(),
       avatarUrl: kolAvatarUrlFor(saved.channelId),
+      url: saved.url ?? sourceUrlFor(saved.handle),
     };
   }
 
@@ -257,6 +265,7 @@ export class RegisterNewsSourceUseCase {
           entry.type,
           { entityKind: kindMeta.kind, isBot: kindMeta.isBot },
         );
+        createdEntity.url = sourceUrlFor(createdEntity.handle);
         if (entry.isActive !== undefined) {
           createdEntity.isActive = entry.isActive;
         }
@@ -266,7 +275,7 @@ export class RegisterNewsSourceUseCase {
         const saved = await this.sourceRepo.save(createdEntity);
         created += 1;
         results.push(this.toOutput(saved));
-        this.kickAvatarFetch(saved.channelId, saved.type);
+        this.kickAvatarFetch(saved.channelId, saved.handle);
         continue;
       }
 
@@ -284,6 +293,10 @@ export class RegisterNewsSourceUseCase {
         const nextHandle = entry.handle?.trim() || null;
         if (nextHandle !== existing.handle) {
           existing.handle = nextHandle;
+          const nextUrl = sourceUrlFor(nextHandle);
+          if (nextUrl !== existing.url) {
+            existing.url = nextUrl;
+          }
           touched = true;
         }
       }
@@ -449,6 +462,7 @@ export class RegisterNewsSourceUseCase {
     isActive: boolean;
     lifecycleStatus: string;
     addedAt?: Date;
+    url?: string | null;
   }): RegisterNewsSourceOutput {
     return {
       channelId: saved.channelId,
@@ -459,23 +473,23 @@ export class RegisterNewsSourceUseCase {
       lifecycleStatus: saved.lifecycleStatus,
       addedAt: saved.addedAt?.toISOString() ?? new Date().toISOString(),
       avatarUrl: kolAvatarUrlFor(saved.channelId),
+      url: saved.url ?? sourceUrlFor(saved.handle),
     };
   }
 
   /**
-   * P19 fetch-ONCE hook: fire-and-forget avatar fetch for newly registered
-   * KOL sources. Never fails registration — `fetchOnce` resolves to
-   * `placeholder` on MTProto trouble (deferred retry via explicit refresh).
+   * P19 fetch-ONCE hook (avatar-total, central todo 12): fire-and-forget
+   * avatar fetch for EVERY newly registered source — kol-only filter
+   * removed. Never fails registration — `fetchOnce` resolves to
+   * `placeholder` on MTProto trouble (deferred retry via explicit
+   * refresh or the backfill endpoint).
    */
-  private kickAvatarFetch(
-    channelId: string,
-    type: TelegramFeedSourceType,
-  ): void {
-    if (type !== 'kol' || !this.avatars) {
+  private kickAvatarFetch(channelId: string, handle?: string | null): void {
+    if (!this.avatars) {
       return;
     }
     void this.avatars
-      .fetchOnce(channelId)
+      .fetchOnce(channelId, handle ?? null)
       .then((status) =>
         this.logger.log(`Avatar fetch-once for ${channelId}: ${status}`),
       )

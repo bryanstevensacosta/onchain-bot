@@ -73,4 +73,17 @@ export interface MessagePayload {
    * - 'crypto-news': General market intel from news channel
    */
   messageType: 'kol' | 'crypto-news';
+
+  /**
+   * Source display enrichments (central todo 12, P57 — additive, tolerant).
+   *
+   * Resolved read-only from the `telegram_feed_sources` row at broadcast
+   * time; unknown rows / DB trouble yield `handle: null` (+ `sourceUrl:
+   * null`) while `avatarUrl` stays always servable (placeholder 200
+   * downstream). Consumers filter on `messageType` only and must ignore
+   * unknown fields — these three never gate routing.
+   */
+  handle?: string | null;
+  avatarUrl?: string;
+  sourceUrl?: string | null;
 }

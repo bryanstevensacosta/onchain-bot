@@ -39,19 +39,20 @@ One row per watched Telegram channel. This service is the SOLE OWNER
 Entity:
 `apps/ingestion-telegram/src/registry/infrastructure/persistence/typeorm/entities/telegram-feed-source.entity.ts`
 
-| Column (database name) | Plain meaning                                                                                        |
-| ---------------------- | ---------------------------------------------------------------------------------------------------- |
-| `channel_id`           | The Telegram channel identity (primary key, e.g. `-100...`). One row per channel.                    |
-| `handle`               | The public `@name` of the channel, if known (optional).                                              |
-| `title`                | The human-readable channel name (required; auto-looked-up from Telegram when missing).               |
-| `type`                 | The KIND of channel: `kol` (expert tips) or `crypto-news` (news).                                    |
-| `is_active`            | The on/off switch. Only `true` rows are listened to.                                                 |
-| `lifecycle_status`     | Second on/off label: `ACTIVE` or `INACTIVE`. Watched means BOTH switches on.                         |
-| `last_ingested_at`     | When a message was last saved from this channel (empty if none yet).                                 |
-| `avatar_path`          | Where the channel's saved profile photo file lives (bookkeeping note; the file itself is the truth). |
-| `avatar_updated_at`    | When that profile photo was last refreshed.                                                          |
-| `added_at`             | When this row was first added (automatic).                                                           |
-| `updated_at`           | When this row was last changed (automatic).                                                          |
+| Column (database name) | Plain meaning                                                                                                              |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `channel_id`           | The Telegram channel identity (primary key, e.g. `-100...`). One row per channel.                                          |
+| `handle`               | The public `@name` of the channel, if known (optional).                                                                    |
+| `url`                  | The public link `https://t.me/<handle>` (NULL for handle-less channels; recomputed on register/batch/PATCH). Display-only. |
+| `title`                | The human-readable channel name (required; auto-looked-up from Telegram when missing).                                     |
+| `type`                 | The KIND of channel: `kol` (expert tips) or `crypto-news` (news).                                                          |
+| `is_active`            | The on/off switch. Only `true` rows are listened to.                                                                       |
+| `lifecycle_status`     | Second on/off label: `ACTIVE` or `INACTIVE`. Watched means BOTH switches on.                                               |
+| `last_ingested_at`     | When a message was last saved from this channel (empty if none yet).                                                       |
+| `avatar_path`          | Where the channel's saved profile photo file lives (bookkeeping note; the file itself is the truth).                       |
+| `avatar_updated_at`    | When that profile photo was last refreshed.                                                                                |
+| `added_at`             | When this row was first added (automatic).                                                                                 |
+| `updated_at`           | When this row was last changed (automatic).                                                                                |
 
 Who touches it:
 
@@ -133,12 +134,12 @@ Who touches it:
 - Rate-limit counters: in-memory per address (lost on restart, by design).
 - Files on disk (per environment, janitor-managed except avatars):
   - `{UPLOADS_ROOT}/feed/media/{channelId}/{messageId}_{index}.{ext}` — message photos/videos (72-hour janitor).
-  - `{UPLOADS_ROOT}/avatar/{channelId}.jpg` — channel profile photos (permanent, janitor-excluded).
+  - `{UPLOADS_ROOT}/avatar/{channelId}__{handle}.jpg` — channel profile photos (permanent, janitor-excluded; legacy bare `{channelId}.jpg` files migrate lazily, at most one file per channel).
 
 ## 4. Schema history (migrations)
 
 `apps/ingestion-telegram/src/shared/common/persistence/migrations/`
-holds 7 versioned scripts; `apps/ingestion-telegram/src/shared/common/persistence/data-source.ts`
+holds 8 versioned scripts; `apps/ingestion-telegram/src/shared/common/persistence/data-source.ts`
 names the 3 live tables. Removed tables (do not look for them):
 `backfill_messages` (replay feature dropped),
 `channel_content_filter_configs` (filters moved to the backend),

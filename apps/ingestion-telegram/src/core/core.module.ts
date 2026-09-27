@@ -141,7 +141,21 @@ export class CoreModule implements OnModuleInit {
   private async refreshChannels(): Promise<void> {
     try {
       // Single local read (fail-open [] on DB error — see repository).
-      const sources = await this.feedSourceRepo.findAllActiveWithTypes();
+      const allSources = await this.feedSourceRepo.findAllActiveWithTypes();
+
+      // P57 subscribe guard (defense in depth — the register/batch guard
+      // 400s user/bot writes, but pre-guard rows stay in the table):
+      // explicit user/bot kinds never reach the listener. NULL kinds
+      // (legacy / MTProto-unreachable at registration) stay subscribed.
+      const sources = allSources.filter((s) => {
+        if (s.entityKind === 'user' || s.entityKind === 'bot') {
+          this.logger.warn(
+            `Skipping non-subscribable source ${s.channelId} (kind=${s.entityKind}) — registered before the kind guard`,
+          );
+          return false;
+        }
+        return true;
+      });
 
       // Unknown/future row types default to 'kol' (= previous
       // newsIds-membership default: not-news → kol). Recorded in ADR.

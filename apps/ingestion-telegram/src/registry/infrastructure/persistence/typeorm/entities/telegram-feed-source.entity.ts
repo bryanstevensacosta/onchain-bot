@@ -86,6 +86,17 @@ export class TelegramFeedSourceEntity {
   @Column({ name: 'is_bot', type: 'boolean', nullable: true })
   public isBot!: boolean | null;
 
+  /**
+   * P57 public link (central todo 12).
+   *
+   * `https://t.me/<handle>` for handle-bearing channels, NULL for
+   * private handle-less channels (no guessed URLs). Recomputed whenever
+   * the handle changes (register / batch / PATCH). Display-only: the
+   * listener subscribes by `channel_id`, never by this URL.
+   */
+  @Column({ name: 'url', type: 'varchar', length: 256, nullable: true })
+  public url!: string | null;
+
   @CreateDateColumn({ name: 'added_at', type: 'timestamptz' })
   public addedAt!: Date;
 

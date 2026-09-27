@@ -18,7 +18,20 @@ export interface ResolvedChannelMetadata {
   readonly peerId: string;
   readonly title: string;
   readonly handle: string | null;
-  readonly kind: 'channel' | 'user' | 'unknown';
+  /**
+   * P57 real MTProto taxonomy (single `getEntity()`: `User|Chat|Channel`
+   * `className` + `bot` flag — no title heuristics). `unknown` = entity
+   * resolved but shape unrecognized (rejected by the register guard).
+   */
+  readonly kind:
+    | 'channel'
+    | 'supergroup'
+    | 'group'
+    | 'user'
+    | 'bot'
+    | 'unknown';
+  /** True when the entity is a Telegram bot (`User.bot`). */
+  readonly isBot: boolean;
 }
 
 export interface JoinChannelResult {

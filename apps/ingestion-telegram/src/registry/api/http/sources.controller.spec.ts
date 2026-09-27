@@ -128,6 +128,7 @@ describe('SourcesController (feed source catalog)', () => {
       channelId: '-1001',
       isActive: false,
       avatarUrl: '/api/kol-avatar/-1001',
+      url: 'https://t.me/watcher',
     });
   });
 
