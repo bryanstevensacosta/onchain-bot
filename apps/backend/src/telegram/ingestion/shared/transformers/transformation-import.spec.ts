@@ -8,7 +8,7 @@
 import {
   AbstractMessageTransformer,
   KolMessageTransformer,
-  CryptoNewsMessageTransformer,
+  FeedMessageTransformer,
 } from '@ingestion-telegram/telegram/transformation';
 
 describe('Cross-app imports (backend → ingestion-telegram)', () => {
@@ -22,9 +22,9 @@ describe('Cross-app imports (backend → ingestion-telegram)', () => {
     expect(typeof KolMessageTransformer).toBe('function');
   });
 
-  it('should import CryptoNewsMessageTransformer', () => {
-    expect(CryptoNewsMessageTransformer).toBeDefined();
-    expect(typeof CryptoNewsMessageTransformer).toBe('function');
+  it('should import FeedMessageTransformer', () => {
+    expect(FeedMessageTransformer).toBeDefined();
+    expect(typeof FeedMessageTransformer).toBe('function');
   });
 
   it('should instantiate KolMessageTransformer', () => {
@@ -32,8 +32,8 @@ describe('Cross-app imports (backend → ingestion-telegram)', () => {
     expect(transformer).toBeInstanceOf(AbstractMessageTransformer);
   });
 
-  it('should instantiate CryptoNewsMessageTransformer', () => {
-    const transformer = new CryptoNewsMessageTransformer();
+  it('should instantiate FeedMessageTransformer', () => {
+    const transformer = new FeedMessageTransformer();
     expect(transformer).toBeInstanceOf(AbstractMessageTransformer);
   });
 
@@ -54,7 +54,7 @@ describe('Cross-app imports (backend → ingestion-telegram)', () => {
   });
 
   it('should transform a crypto-news message (integration)', () => {
-    const transformer = new CryptoNewsMessageTransformer();
+    const transformer = new FeedMessageTransformer();
     const raw = {
       id: 123,
       peerId: '456',
