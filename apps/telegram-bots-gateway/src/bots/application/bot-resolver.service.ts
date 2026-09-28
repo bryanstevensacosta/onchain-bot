@@ -2,8 +2,8 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { DomainError, ErrorCode } from '../../shared/kernel/domain-error';
-import { VaultService } from '../../vault/application/vault.service';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import { VaultService } from '@/vault/application/vault.service';
 
 export interface BotProfile {
   readonly id: string;

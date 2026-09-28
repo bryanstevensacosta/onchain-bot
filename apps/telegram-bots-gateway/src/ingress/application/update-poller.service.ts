@@ -1,9 +1,9 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import { DomainError, ErrorCode } from '../../shared/kernel/domain-error';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
 import { SubscriptionRegistryService } from './subscription-registry.service';
 import { IngressModeService } from './ingress-mode.service';
 import { UpdateFanoutService } from './update-fanout.service';
-import { VaultService } from '../../vault/application/vault.service';
+import { VaultService } from '@/vault/application/vault.service';
 
 export type PollerFetchFn = (
   url: string,

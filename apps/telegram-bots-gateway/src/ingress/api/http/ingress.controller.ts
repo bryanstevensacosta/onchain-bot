@@ -11,12 +11,12 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { timingSafeEqual } from 'crypto';
-import { RequireScope } from '../../../auth/api/http/require-scope.decorator';
-import { SubscriptionRegistryService } from '../../application/subscription-registry.service';
-import { IngressModeService } from '../../application/ingress-mode.service';
-import { UpdateFanoutService } from '../../application/update-fanout.service';
-import { UpdatePollerService } from '../../application/update-poller.service';
-import { DeadLetterStore } from '../../application/dead-letter.store';
+import { RequireScope } from '@/auth/api/http/require-scope.decorator';
+import { SubscriptionRegistryService } from '@/ingress/application/subscription-registry.service';
+import { IngressModeService } from '@/ingress/application/ingress-mode.service';
+import { UpdateFanoutService } from '@/ingress/application/update-fanout.service';
+import { UpdatePollerService } from '@/ingress/application/update-poller.service';
+import { DeadLetterStore } from '@/ingress/application/dead-letter.store';
 import { SetModeDto, UpsertRouteDto } from './dto/ingress.dto';
 
 /**

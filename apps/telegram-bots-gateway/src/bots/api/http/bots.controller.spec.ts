@@ -1,10 +1,11 @@
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { BotsController } from './bots.controller';
-import { BotResolverService } from '../../application/bot-resolver.service';
-import { VaultService } from '../../../vault/application/vault.service';
-import { InMemoryBotVaultRepository } from '../../../vault/infrastructure/in-memory-bot-vault.repository';
-import { EncryptionService } from '../../../vault/infrastructure/encryption.service';
+import { BotResolverService } from '@/bots/application/bot-resolver.service';
+import { VaultService } from '@/vault/application/vault.service';
+import { BotBindingService } from '@/vault/application/bot-binding.service';
+import { InMemoryBotVaultRepository } from '@/vault/infrastructure/in-memory-bot-vault.repository';
+import { EncryptionService } from '@/vault/infrastructure/encryption.service';
 
 const KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
@@ -67,6 +68,7 @@ describe('BotsController GET /api/bots/:id/profile', () => {
       providers: [
         BotResolverService,
         VaultService,
+        BotBindingService,
         InMemoryBotVaultRepository,
         EncryptionService,
         {
@@ -113,6 +115,7 @@ describe('BotsController GET /api/bots/:id/profile', () => {
       providers: [
         BotResolverService,
         VaultService,
+        BotBindingService,
         InMemoryBotVaultRepository,
         EncryptionService,
         {

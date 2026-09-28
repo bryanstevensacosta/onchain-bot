@@ -65,11 +65,15 @@ describe('/start (rewritten info+usage, lookup-only)', () => {
 });
 
 describe('/ca <contract> (full token card via market-data HTTP)', () => {
-  it('resolves the fixture and sends a card with trade buttons', async () => {
+  it('resolves the fixture and sends the own scan card via gateway', async () => {
     const bot = makeBot();
     const pipeline = { resolve: async () => FIXTURE };
     const formatter = {
-      formatTokenScan: () => ({ text: 'CARD $SOL', truncated: false }),
+      formatScanCard: () => ({
+        text: 'CARD $SOL',
+        truncated: false,
+        parseMode: 'MarkdownV2',
+      }),
     };
     const registry = {
       getButtonsForChain: () => [
@@ -109,9 +113,10 @@ describe('/ca <contract> (full token card via market-data HTTP)', () => {
   it('reports explicitly when market-data cannot resolve', async () => {
     const bot = makeBot();
     const pipeline = { resolve: async () => null };
+    const formatter = { escapeMarkdownV2: (s: string) => s };
     const handler = new CaScanHandler(
       pipeline as never,
-      {} as never,
+      formatter as never,
       {} as never,
       {} as never,
       bot as never,

@@ -1,10 +1,10 @@
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { VaultController } from './vault.controller';
-import { VaultService } from '../../application/vault.service';
-import { EncryptionService } from '../../infrastructure/encryption.service';
-import { InMemoryBotVaultRepository } from '../../infrastructure/in-memory-bot-vault.repository';
-import { REDACTED_TOKEN } from '../../domain/bot-vault.entity';
+import { VaultService } from '@/vault/application/vault.service';
+import { EncryptionService } from '@/vault/infrastructure/encryption.service';
+import { InMemoryBotVaultRepository } from '@/vault/infrastructure/in-memory-bot-vault.repository';
+import { REDACTED_TOKEN } from '@/vault/domain/bot-vault.entity';
 
 const KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 

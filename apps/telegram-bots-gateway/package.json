@@ -73,6 +73,7 @@
       }
     },
     "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1",
       "^shared/(.*)$": "<rootDir>/src/shared/$1",
       "^vault/(.*)$": "<rootDir>/src/vault/$1",
       "^bots/(.*)$": "<rootDir>/src/bots/$1",

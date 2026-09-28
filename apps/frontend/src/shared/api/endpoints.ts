@@ -1,5 +1,6 @@
 import { feedPublisherPath } from './feed-publisher-base';
 import { marketDataPath } from './market-data-base';
+import { dexterPath } from './dexter-base';
 
 export const ENDPOINTS = {
   kols: {
@@ -258,5 +259,15 @@ export const ENDPOINTS = {
         `/api/market-data/snapshot?chain=${encodeURIComponent(chain)}&address=${encodeURIComponent(address)}`,
       ),
     batch: () => marketDataPath('/api/v1/addresses/batch'),
+  },
+  dexter: {
+    // Dexter bot binding (exclusive-gateway task): the lookup bot is
+    // bound FROM the gateway inventory — create (env token → vault),
+    // link-as-target (bind), edit (relink = unbind + bind), unlink.
+    // Same-origin `/dexter-api` prefix (vite dev → `:4060`).
+    inventory: dexterPath('/api/dexter-bots/inventory'),
+    bind: dexterPath('/api/dexter-bots/bind'),
+    unbind: dexterPath('/api/dexter-bots/unbind'),
+    migrate: dexterPath('/api/dexter-bots/migrate-to-gateway'),
   },
 } as const;

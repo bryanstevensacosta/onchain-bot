@@ -1,5 +1,5 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import { DomainError, ErrorCode } from '../../shared/kernel/domain-error';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
 import { SendAccountingService } from '../application/send-accounting.service';
 
 export type BotFetchFn = (

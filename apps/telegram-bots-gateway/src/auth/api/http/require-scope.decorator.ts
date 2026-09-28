@@ -1,5 +1,5 @@
 import { SetMetadata } from '@nestjs/common';
-import type { ClientScope } from '../../domain/client-credential';
+import type { ClientScope } from '@/auth/domain/client-credential';
 
 export const REQUIRE_SCOPE_KEY = 'botsGateway.requireScope';
 

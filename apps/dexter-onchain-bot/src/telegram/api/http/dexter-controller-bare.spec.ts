@@ -25,7 +25,14 @@ const TOKEN: ResolvedToken = {
 
 function makeController(outcome: unknown) {
   const pipeline = { resolveDetailed: async () => outcome };
-  const formatter = { format: () => 'CARD' };
+  const formatter = {
+    format: () => 'CARD',
+    formatScanCard: () => ({
+      text: 'SCAN-CARD',
+      truncated: false,
+      parseMode: 'MarkdownV2',
+    }),
+  };
   return new DexterController(pipeline as never, formatter as never);
 }
 
@@ -35,6 +42,8 @@ describe('DexterController bare-address lookup (explicit errors, no silent guess
     const body = (await controller.getToken(SOL)) as Record<string, unknown>;
     expect(body['address']).toBe(SOL);
     expect(body['text']).toBe('CARD');
+    expect(body['scanCard']).toBe('SCAN-CARD');
+    expect(body['scanCardParseMode']).toBe('MarkdownV2');
   });
 
   it('names every candidate when the address is ambiguous', async () => {

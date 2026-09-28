@@ -8,10 +8,10 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ClientRegistryService } from '../../application/client-registry.service';
-import type { ClientScope } from '../../domain/client-credential';
-import { HmacService } from '../../application/hmac.service';
-import { NonceStore } from '../../application/nonce-store';
+import { ClientRegistryService } from '@/auth/application/client-registry.service';
+import type { ClientScope } from '@/auth/domain/client-credential';
+import { HmacService } from '@/auth/application/hmac.service';
+import { NonceStore } from '@/auth/application/nonce-store';
 import { REQUIRE_SCOPE_KEY } from './require-scope.decorator';
 
 export interface GatewayClientBinding {

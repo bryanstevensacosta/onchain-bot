@@ -4,6 +4,33 @@
 
 ### Added
 
+- **Exclusive bot↔app binding (dexter task):** one bot serves ONE app
+  at a time. `BotBindingService` (vault-owned, exported from
+  `VaultModule`): `bind` locks a vault bot to an app id (second bind
+  to a different app → CONFLICT 409; re-bind to the same app is
+  idempotent), `unbind` releases it back to `available`, `inventory`
+  lists every vault bot with `{ boundApp, available }` (fresh
+  registers start locked to `ownerApp`, never floating).
+  `GET /api/bots/inventory` + `POST /api/bots/:id/bind` (admin) +
+  `POST /api/bots/:id/unbind` (admin) on `BotsController`.
+  `SendService.send` enforces the lock per caller client id (locked
+  bot used by another app → 409, no Telegram call). Failing-first:
+  `bot-binding.service.spec.ts` (second bind rejected + inventory
+  availability + send-gate); `send.service.spec.ts` extended
+  (per-app bots burst + cross-app send rejected).
+  (feat/mega-refactor-tramos)
+
+### Fixed
+
+- **Staging backport 2026-09-27:** staging compose builds locally
+  (GHCR pull denied) + joins `onchain-bot-staging-net` with DNS alias
+  `onchain-bot-telegram-bots-gateway-staging`. Registered
+  `scheduling-posts-staging` + `threads-publisher-staging` send-clients
+  in the staging `BOTS_GATEWAY_CLIENTS` (droplet env only, never
+  committed).
+
+### Added
+
 - App scaffold (todo 1): NestJS 11 service on port triplet 4070/4071/4072 (dev/staging/prod, verified free with `lsof`), `GET /api/health`, `Dockerfile` (`CMD dist/main.js`), dev + staging compose files, `.env.example` + `.env.development` + staging/production templates (own DB `onchain_bot_bots[_staging]`).
 - Encrypted bot vault (todo 1): `bot_vault` table shape (id, label, AES-256-GCM token, owner_app, created/rotated_at), internal CRUD (`POST/GET/GET :id/PATCH :id/rotate/DELETE :id /api/vault/bots`) with redacted reads (`token: '***'`), rotation without redeploy, fail-closed boot without `ENCRYPTION_KEY` (clear error, exit 1).
 - Bot resolver (todo 1): `GET /api/bots/:id/profile` (handle, bot id, username, display name, avatar URL via Bot API `getMe`/`getUserProfilePhotos`) with permanent avatar cache under `uploads/avatars/` (janitor-excluded); `GET /api/bots/:id/avatar` serves the cached JPEG or 404 when uncached.

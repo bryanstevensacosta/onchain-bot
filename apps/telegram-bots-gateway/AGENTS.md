@@ -111,7 +111,7 @@ src/
 │   └── filters/domain-exception.filter.ts           # DomainError → HTTP status
 Root: package.json (@onchain-bot/telegram-bots-gateway v0.1.0), nest-cli.json (deleteOutDir),
 tsconfig{,.build}.json, jest.setup.ts, docker-compose.yml (postgres :5436, gateway :4070),
-docker-compose.staging.yml (:4071), Dockerfile (CMD dist/main.js),
+docker-compose.staging.yml (:4071, local build, onchain-bot-staging-net + alias onchain-bot-telegram-bots-gateway-staging), Dockerfile (CMD dist/main.js),
 .env.example, .env.development, .env.staging.template, .env.production.template,
 uploads/avatars/ (permanent cache, janitor-excluded — no janitor exists here)
 ```
@@ -149,6 +149,23 @@ app — cache never expires). `GET /api/bots/:id/profile` returns
 photo or the fetch fails; upstream errors surface as 502 WITHOUT the token). `GET
 /api/bots/:id/avatar` serves the cached JPEG (1y cache) or 404 when uncached. Transport is global
 `fetch` (10 s timeout, injectable `FETCH_FN` for tests — no axios here). No MTProto anywhere.
+
+## EXCLUSIVE BINDING (dexter task, DONE 2026-09-28)
+
+One bot serves ONE app at a time (replaces the todo-1 "one bot serves
+many apps" comment): `BotBindingService` (`vault/application/`,
+exported from `VaultModule`) — `bind` locks a vault bot to an app id
+(second bind to a different app → CONFLICT 409; same-app re-bind
+idempotent), `unbind` releases it to `available`, `inventory` lists
+every vault bot as `{ id, label, ownerApp, boundApp, available }`
+(fresh registers start locked to `ownerApp`, never floating).
+`BotsController`: `GET /api/bots/inventory` (`send` scope) + `POST
+/api/bots/:id/bind` / `POST /api/bots/:id/unbind` (`admin` scope).
+`SendService.send` enforces the lock against the caller client id
+(locked bot + foreign caller → 409 before any Telegram call; keyless
+dev with no caller stays fail-open). Evidence:
+`.omo/evidence/dexter-exclusive.log` (bind + exclusivity reject +
+double-bind race).
 
 ## SEND (todo 2)
 
@@ -264,19 +281,19 @@ third app migrated onto this gateway; all migration code lives THERE
 
 ## ENV INVENTORY (`.env.example` — verified)
 
-| Var                                | Value / default in example                     | Notes                                                                                                              |
-| ---------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `BOTS_GATEWAY_PORT`                | `4070`                                         | dev default; staging `4071`, prod `4072`                                                                           |
-| `ENCRYPTION_KEY`                   | (empty — `openssl rand -hex 32`, NEVER commit) | Tier-1 required, DISTINCT per env; empty → exit 1, no listen                                                       |
-| `DATABASE_URL`                     | `postgres://…@localhost:5432/onchain_bot_bots` | Tier-1 required; own logical DB                                                                                    |
-| `DATABASE_SYNCHRONIZE`             | `true`                                         | dev only; `false` in staging/prod templates                                                                        |
-| `AVATAR_DIR`                       | `uploads/avatars`                              | permanent cache, janitor-excluded                                                                                  |
-| `BOTS_GATEWAY_CLIENTS`             | (empty = keyless dev)                          | JSON per-client keys+scopes (`{"id":{"secret":"…","scopes":["send"]}}`); DISTINCT secrets per env                  |
-| `BOTS_GATEWAY_CLOCK_SKEW_SEC`      | `300`                                          | HMAC timestamp window (s); nonces live 2× this                                                                     |
-| `TELEGRAM_API_BASE`                | `https://api.telegram.org`                     | override ONLY for local mock-Telegram live tests                                                                   |
-| `BOTS_GATEWAY_INGRESS`             | (empty = no routes)                            | JSON per-bot routes (`{"<botId>":{"webhookSecret":"…","mode":"webhook","subscribers":[{"appId":"…","url":"…"}]}}`) |
-| `BOTS_GATEWAY_FANOUT_MAX_ATTEMPTS` | `4`                                            | bounded fan-out retries per subscriber before dead-letter                                                          |
-| `BOTS_GATEWAY_FANOUT_BACKOFF_MS`   | `200,1000,5000`                                | retry backoff schedule (ms, comma-separated)                                                                       |
+| Var                                | Value / default in example                     | Notes                                                                                                                                                                                                       |
+| ---------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BOTS_GATEWAY_PORT`                | `4070`                                         | dev default; staging `4071`, prod `4072`                                                                                                                                                                    |
+| `ENCRYPTION_KEY`                   | (empty — `openssl rand -hex 32`, NEVER commit) | Tier-1 required, DISTINCT per env; empty → exit 1, no listen                                                                                                                                                |
+| `DATABASE_URL`                     | `postgres://…@localhost:5432/onchain_bot_bots` | Tier-1 required; own logical DB                                                                                                                                                                             |
+| `DATABASE_SYNCHRONIZE`             | `true`                                         | dev only; `false` in staging/prod templates                                                                                                                                                                 |
+| `AVATAR_DIR`                       | `uploads/avatars`                              | permanent cache, janitor-excluded                                                                                                                                                                           |
+| `BOTS_GATEWAY_CLIENTS`             | (empty = keyless dev)                          | JSON per-client keys+scopes (`{"id":{"secret":"…","scopes":["send"]}}`); DISTINCT secrets per env; staging also registers `scheduling-posts-staging` + `threads-publisher-staging` (send, since 2026-09-27) |
+| `BOTS_GATEWAY_CLOCK_SKEW_SEC`      | `300`                                          | HMAC timestamp window (s); nonces live 2× this                                                                                                                                                              |
+| `TELEGRAM_API_BASE`                | `https://api.telegram.org`                     | override ONLY for local mock-Telegram live tests                                                                                                                                                            |
+| `BOTS_GATEWAY_INGRESS`             | (empty = no routes)                            | JSON per-bot routes (`{"<botId>":{"webhookSecret":"…","mode":"webhook","subscribers":[{"appId":"…","url":"…"}]}}`)                                                                                          |
+| `BOTS_GATEWAY_FANOUT_MAX_ATTEMPTS` | `4`                                            | bounded fan-out retries per subscriber before dead-letter                                                                                                                                                   |
+| `BOTS_GATEWAY_FANOUT_BACKOFF_MS`   | `200,1000,5000`                                | retry backoff schedule (ms, comma-separated)                                                                                                                                                                |
 
 Templates (tracked, placeholders, NO secrets): `.env.development`, `.env.staging.template`,
 `.env.production.template`. Real files (`.env.staging`, `.env.production`) gitignored, copied via
@@ -300,8 +317,9 @@ gateway `4070:4070`. No clash with backend (`:3030`), ingestion (`:3031/32/33`),
 - TypeScript 5.7 (verified `tsc --noEmit` clean), `strictNullChecks`, `noImplicitAny`,
   `noFallthroughCasesInSwitch`, `forceConsistentCasingInFileNames`, `isolatedModules` —
   mirroring `tsconfig.base.json` (`strict` NOT enabled globally). `nodenext` module/resolution.
-- Path aliases (`tsconfig.json` + jest `moduleNameMapper`): `shared/*`, `vault/*`, `bots/*`,
-  `health/*`, `ingress/*`, `src/*` rooted at `src/`. No `@/*` (frontend-only).
+- Path aliases (`tsconfig.json` + jest `moduleNameMapper`): `@/*` (= `src/*`,
+  for 2+-level imports; 2026-09-27 migration), `shared/*`, `vault/*`, `bots/*`,
+  `health/*`, `ingress/*`, `src/*` rooted at `src/`.
 - Prettier: `singleQuote: true`, `trailingComma: "all"` (root config).
 - NestJS: `deleteOutDir: true` in `nest-cli.json`; `process.noDeprecation = true` in `main.ts`.
 - `ConfigModule.envFilePath: ['.env.dev', '.env']` — `.env.dev` wins.
@@ -318,7 +336,7 @@ Co-located `*.spec.ts` (`testRegex: .*\.spec\.ts$`); no coverage thresholds. Fai
 6 more suites red → green (35 tests) in todo 2 — 12 suites / 54 tests total, incl.
 `send.integration.spec.ts` (supertest HMAC matrix over HTTP) + 3-apps × 12 burst under
 quota + 429-backoff + idempotency; 3 more suites red → green (12 tests) in todo 3 —
-15 suites / 66 tests total, incl. `ingress.integration.spec.ts` (fan-out to 2 apps,
+16 suites / 70 tests total, incl. `ingress.integration.spec.ts` (fan-out to 2 apps,
 per-route-secret 401, webhook-vs-polling 409, app-down dead-letter). No MTProto in tests
 (sessions live ONLY in ingestion-telegram; duplicates cause `AUTH_KEY_DUPLICATED`) — the resolver
 spec injects a mocked `FETCH_FN`, never the real Bot API.

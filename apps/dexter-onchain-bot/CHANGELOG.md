@@ -9,6 +9,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Exclusive gateway bot + bind-from-inventory API:** dexter binds its
+  bot FROM the gateway inventory (never by pasting a token here):
+  `GET /api/dexter-bots/inventory` (vault bots + availability),
+  `POST /api/dexter-bots/bind` (link-as-target → locks one vault bot
+  to `dexter-onchain-bot`, 409 when another app holds it, records the
+  local `dexter` → vault mapping), `POST /api/dexter-bots/unbind`
+  (release; edit = unlink + relink). Creation stays on
+  `POST /api/dexter-bots/migrate-to-gateway` (env token → vault).
+  Failing-first: `dexter-bot-binding.service.spec.ts` (bind records
+  mapping + inventory lists availability). (feat/mega-refactor-tramos)
+
+- **Own scan-card template (`formatScanCard`, MarkdownV2):** built from
+  `docs/examples-for-dexter/rick-bot-scanner.md` (card anatomy) under
+  the `format-comparison.md` decision (entities-parse, MarkdownV2-send):
+  header (`🔍 $SYMBOL | name — chain` + contract code line) +
+  price/MC/liq + supplies (FDV + total/circulating/max) + holders/dev
+  - links (DexScreener + GeckoTerminal) + trade-buttons hint (buttons
+    travel as the inline keyboard; links keep the card actionable when
+    the keyboard shape stays gateway-unsupported). All user strings
+    MarkdownV2-escaped, 4096-char cap. `/x` + `/ca` (+ bare fallback)
+    send it via `sendFullScan`. Failing-first: `scan-card.spec.ts`
+    (real PERPS-like fixture renders every section, MarkdownV2,
+    length-capped). (feat/mega-refactor-tramos)
+
+### Changed
+
+- **Gateway-only sends (direct leg retired):** `resolveDexterSendMode`
+  always resolves `gateway` (stale `direct`/`dual` env values fall
+  through instead of touching the Bot API); `TelegramBotClient`
+  `.sendMessage` routes unconditionally to the inventory-bound vault
+  bot (token never resolved client-side); keyboard shapes
+  (`reply_markup`) degrade to text-only (gateway `SendDto` carries no
+  `reply_markup` — links row keeps cards actionable; native keyboards
+  return with gateway todo 7). Market-data HTTP remains the ONLY
+  market-data source (unchanged). Specs updated: `send-mode.spec.ts`
+  (always-gateway), `bot-client-dual-send.spec.ts` (gateway-only
+  matrix), `gateway-send-client.service.spec.ts` (keyboard → text-only),
+  `start-ca.spec.ts` (own-template mocks).
+
 - **Dev holdings on the lookup card (`devWallets[]` + `devPctSupply`):**
   `MarketDataClient` maps them null-safe from the snapshot,
   `TokenScanPipeline.toResolvedToken` passes them through, `ResolvedToken`

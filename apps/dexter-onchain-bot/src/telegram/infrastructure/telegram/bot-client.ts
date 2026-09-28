@@ -27,21 +27,13 @@ export type {
 } from '@/telegram/domain/ports/telegram.port';
 
 /**
- * Telegram Bot API types + client (moved from backend chain-dexter-bot
- * `infrastructure/telegram/bot-client.ts` — config import re-pointed at
- * the local DexterBotConfigService).
+ * Telegram Bot API types + client.
  *
- * Lookup-only: sendMessage/editMessageText/answerCallbackQuery answer
- * user lookups; this client NEVER posts to channels.
- *
- * @deprecated Dual-leg only (telegram-bots-gateway todo 6): `sendMessage`
- * routes through `DEXTER_SEND_MODE` (`direct` legacy | `dual` both legs +
- * parity, returns direct | `gateway` vault-id only, fail-closed). The
- * gateway leg resolves the token server-side from the vault id — the
- * client never sends `DEXTER_BOT_TOKEN` there. `editMessageText`,
- * `answerCallbackQuery`, `getUpdates`, `setWebhook` have no gateway
- * equivalent and stay direct-only (recorded as skipped). Removed at
- * gateway todo 7.
+ * Exclusive-gateway task: dexter sends ONLY via the gateway
+ * (`sendMessage` routes unconditionally to the inventory-bound vault
+ * bot; the direct Bot API leg is retired — `sendDirect` remains as
+ * dead code until the FINAL REVIEW removes it). Lookup-only:
+ * answers user lookups, NEVER posts to channels.
  */
 @Injectable()
 export class TelegramBotClient {
@@ -69,15 +61,7 @@ export class TelegramBotClient {
     text: string,
     options: SendMessageOptions = {},
   ): Promise<{ ok: boolean; messageId: number | null; error: string | null }> {
-    const mode = this.botConfig.get().sendMode ?? 'dual';
-    if (mode === 'gateway') {
-      return this.sendViaGatewayOnly(chatId, text, options);
-    }
-    const direct = await this.sendDirect(chatId, text, options);
-    if (mode === 'dual') {
-      await this.runGatewayLeg(chatId, text, options, direct);
-    }
-    return direct;
+    return this.sendViaGatewayOnly(chatId, text, options);
   }
 
   private resolveVaultId(): string {
@@ -150,13 +134,7 @@ export class TelegramBotClient {
         error: 'gateway client not wired',
       };
     }
-    if (options.reply_markup) {
-      return {
-        ok: false,
-        messageId: null,
-        error: 'gateway: reply_markup not supported (direct-only shape)',
-      };
-    }
+    void options.reply_markup;
     const vaultId = this.resolveVaultId();
     if (!vaultId) {
       return {

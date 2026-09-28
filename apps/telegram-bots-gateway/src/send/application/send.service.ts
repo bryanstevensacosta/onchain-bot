@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { VaultService } from '../../vault/application/vault.service';
-import { DomainError, ErrorCode } from '../../shared/kernel/domain-error';
+import { VaultService } from '@/vault/application/vault.service';
+import { BotBindingService } from '@/vault/application/bot-binding.service';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
 import { SendDto } from '../api/http/dto/send.dto';
 import { PerBotRateLimiterService } from './per-bot-rate-limiter.service';
 import { BotApiClient } from '../infrastructure/bot-api-client';
@@ -25,6 +26,7 @@ export interface SendResult extends SendResultRecord {
 export class SendService {
   public constructor(
     private readonly vault: VaultService,
+    private readonly binding: BotBindingService,
     private readonly limiter: PerBotRateLimiterService,
     private readonly botApi: BotApiClient,
     private readonly idempotency: InMemoryIdempotencyStore,
@@ -41,7 +43,8 @@ export class SendService {
       const hit = this.idempotency.get(botId, dto.chat_id, dto.client_msg_id);
       if (hit) return { ...hit, cached: true };
     }
-    await this.vault.get(botId);
+    const entry = await this.vault.get(botId);
+    this.binding.assertUsable(botId, caller, entry.ownerApp);
     const { method, payload } = SendService.toBotApi(dto);
     const { waitedMs } = await this.limiter.acquire(botId, dto.chat_id);
     if (waitedMs > 0) this.accounting.markQuotaWait(botId, waitedMs);

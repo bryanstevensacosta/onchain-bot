@@ -33,7 +33,7 @@ stays inactive with a warn — verified in the boot log).
 npm run dev                  # DEXTER_PORT=4060 nest start --watch
 npm run build                # nest build (emits dist/main.js)
 npm run start:prod           # node dist/main
-npm test                     # jest --forceExit (19 suites / 69 tests)
+npm test                     # jest --forceExit (23 suites / 74 tests)
 npx tsc --noEmit -p tsconfig.json
 ```
 
@@ -174,6 +174,46 @@ repo-wide by grep. Compose `name:` is explicit (`onchain-bot-dexter`,
   ambiguity answers `{ error: 'Ambiguous address …', candidates }` and
   garbage answers `{ error: 'Invalid address: …' }` — explicit choice,
   never a silent guess.
+
+## EXCLUSIVE GATEWAY + OWN SCAN CARD (feat/mega-refactor-tramos, DONE 2026-09-28)
+
+Supersedes §GATEWAY MIGRATION dual regime above (kept for history):
+dexter is now gateway-ONLY and owns its scan-card template.
+
+- **Exclusive binding**: dexter binds its bot FROM the gateway
+  inventory — `GET /api/dexter-bots/inventory` (vault bots +
+  availability) → `POST /api/dexter-bots/bind { vaultId }`
+  (link-as-target; locks one vault bot to `dexter-onchain-bot`, 409
+  when another app holds it; records local `dexter` → vault mapping)
+  → `POST /api/dexter-bots/unbind` (release; edit = unlink + relink).
+  Creation stays on `POST /api/dexter-bots/migrate-to-gateway` (env
+  token → vault). New: `telegram/application/
+dexter-bot-binding.service.ts` + `telegram/api/http/
+bot-binding.controller.ts` (wired in `DexterModule`). Frontend
+  `/dexter` carries the bind UI (`DexterBotBindingSection`: create +
+  inventory list + link/unlink, `ENDPOINTS.dexter`, same-origin
+  `/dexter-api` → `:4060` dev / `:4061` staging / `:4062` prod).
+- **Gateway-only sends**: `resolveDexterSendMode` always resolves
+  `gateway` (stale `direct`/`dual` fall through); `TelegramBotClient`
+  `.sendMessage` goes unconditionally to the inventory-bound vault bot
+  (token never resolved client-side, direct leg retired);
+  `reply_markup` degrades to text-only (gateway `SendDto` has none —
+  scan cards carry DexScreener/GeckoTerminal links + trade hint; native
+  keyboards return with gateway todo 7). Market-data HTTP remains the
+  ONLY market-data source.
+- **Own scan card** (`MessageFormatterAdapter.formatScanCard`,
+  MarkdownV2): from `docs/examples-for-dexter/rick-bot-scanner.md`
+  anatomy under the `format-comparison.md` decision
+  (entities-parse, MarkdownV2-send) — header (`🔍 $SYMBOL | name —
+chain` + contract code) + price/MC/liq + supplies (FDV +
+  total/circulating/max) + holders/dev + links + trade hint; user
+  strings MarkdownV2-escaped, 4096 cap. `/x` + `/ca` (+ bare fallback)
+  send it via `sendFullScan` (no keyboard).
+- **Evidence**: `.omo/evidence/dexter-exclusive.log` — jest + tsc +
+  live (bind, exclusivity reject, scan card).
+- **Known limits**: vault mapping in-memory (persisted at global
+  cutover); keyboards text-only until gateway todo 7 covers
+  `reply_markup`.
 
 ## GATEWAY MIGRATION (telegram-bots-gateway todo 6, DONE 2026-09-26)
 

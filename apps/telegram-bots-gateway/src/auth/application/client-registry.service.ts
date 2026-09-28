@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { DomainError, ErrorCode } from '../../shared/kernel/domain-error';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
 import type { ClientCredential, ClientScope } from '../domain/client-credential';
 
 /**

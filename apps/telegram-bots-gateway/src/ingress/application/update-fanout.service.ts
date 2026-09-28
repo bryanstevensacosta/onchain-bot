@@ -1,6 +1,6 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { createHmac } from 'crypto';
-import { DomainError, ErrorCode } from '../../shared/kernel/domain-error';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
 import { SubscriptionRegistryService } from './subscription-registry.service';
 import { DeadLetterStore } from './dead-letter.store';
 

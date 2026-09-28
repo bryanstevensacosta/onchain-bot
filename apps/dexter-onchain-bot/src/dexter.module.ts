@@ -13,11 +13,13 @@ import { DexterWebhookController } from './telegram/api/http/webhook.controller'
 import { UpdatePollerService } from './telegram/application/poller/update-poller.service';
 import { DualSendParityService } from './telegram/application/services/dual-send-parity.service';
 import { MigrateBotsToGatewayUseCase } from './telegram/application/use-cases/migrate-bots-to-gateway.use-case';
+import { DexterBotBindingService } from './telegram/application/dexter-bot-binding.service';
 import { GatewayHmacSigner } from './telegram/infrastructure/gateway/gateway-hmac-signer.service';
 import { GatewayBotMappingService } from './telegram/infrastructure/gateway/gateway-bot-mapping.service';
 import { GatewaySendClient } from './telegram/infrastructure/gateway/gateway-send-client.service';
 import { BotsGatewaySenderPort } from './telegram/domain/ports/bots-gateway-sender.port';
 import { GatewayMigrationController } from './telegram/api/http/gateway-migration.controller';
+import { DexterBotBindingController } from './telegram/api/http/bot-binding.controller';
 import { DexterIngressController } from './telegram/api/http/ingress.controller';
 import {
   InMemoryChatGroupRepository,
@@ -88,6 +90,7 @@ export { SCAN_PIPELINE };
     DexterController,
     DexterWebhookController,
     GatewayMigrationController,
+    DexterBotBindingController,
     DexterIngressController,
   ],
   providers: [
@@ -102,6 +105,7 @@ export { SCAN_PIPELINE };
     },
     DualSendParityService,
     MigrateBotsToGatewayUseCase,
+    DexterBotBindingService,
     TradeButtonRegistry,
     InlineKeyboardBuilder,
     MessageFormatterAdapter,

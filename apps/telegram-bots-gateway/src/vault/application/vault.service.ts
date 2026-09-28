@@ -3,7 +3,7 @@ import {
   BotVaultEntry,
   type RedactedBotVaultEntry,
 } from '../domain/bot-vault.entity';
-import { DomainError, ErrorCode } from '../../shared/kernel/domain-error';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
 import { EncryptionService } from '../infrastructure/encryption.service';
 import { InMemoryBotVaultRepository } from '../infrastructure/in-memory-bot-vault.repository';
 

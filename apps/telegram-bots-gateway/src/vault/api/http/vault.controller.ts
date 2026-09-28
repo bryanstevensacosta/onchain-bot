@@ -8,8 +8,8 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import { VaultService } from '../../application/vault.service';
-import { RequireScope } from '../../../auth/api/http/require-scope.decorator';
+import { VaultService } from '@/vault/application/vault.service';
+import { RequireScope } from '@/auth/api/http/require-scope.decorator';
 import { RegisterBotDto, RotateBotDto } from './dto/vault.dto';
 
 /** Internal vault CRUD. All reads redacted (`token: '***'`). No MTProto here. */

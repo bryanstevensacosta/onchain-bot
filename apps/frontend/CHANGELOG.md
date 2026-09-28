@@ -6,6 +6,11 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Added
 
+- Dexter bot binding UI on `/dexter`: gateway inventory list with
+  Link-as-target / Unlink actions plus Create-from-env-token; binding is
+  gateway-exclusive 1:1 (one bot serves one app, locked bots cannot bind).
+  (feat/mega-refactor-tramos)
+
 - Dev holdings risk badge + dump-alert wiring: `MarketDataSnapshotView`
   gains `devWallets[]` + `devPctSupply`; new `DevRiskBadge` (green <5% /
   yellow 5-15% / red >=15% / gray N/A, wallet tooltip) +

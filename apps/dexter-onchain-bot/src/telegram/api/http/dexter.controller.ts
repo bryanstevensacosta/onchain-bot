@@ -41,9 +41,12 @@ export class DexterController {
       return { error: 'Token not found' };
     }
     const token = outcome.token;
+    const scanCard = this.formatter.formatScanCard(token);
     return {
       ...token,
       text: this.formatter.format(token),
+      scanCard: scanCard.text,
+      scanCardParseMode: scanCard.parseMode,
     };
   }
 }

@@ -5,9 +5,9 @@ import {
 } from '@nestjs/common';
 import { RequireScope } from './require-scope.decorator';
 import { ServiceAuthGuard } from './service-auth.guard';
-import { ClientRegistryService } from '../../application/client-registry.service';
-import { HmacService } from '../../application/hmac.service';
-import { NonceStore } from '../../application/nonce-store';
+import { ClientRegistryService } from '@/auth/application/client-registry.service';
+import { HmacService } from '@/auth/application/hmac.service';
+import { NonceStore } from '@/auth/application/nonce-store';
 
 const SECRET = 'kol-system-test-secret-abcdef123456';
 const ADMIN_SECRET = 'ops-admin-test-secret-abcdef123456';

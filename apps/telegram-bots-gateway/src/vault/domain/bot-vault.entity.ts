@@ -1,5 +1,5 @@
-import { AggregateRoot } from '../../shared/kernel/aggregate-root';
-import { DomainError, ErrorCode } from '../../shared/kernel/domain-error';
+import { AggregateRoot } from '@/shared/kernel/aggregate-root';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
 
 /** Redaction marker for bot tokens in every read projection. */
 export const REDACTED_TOKEN = '***';

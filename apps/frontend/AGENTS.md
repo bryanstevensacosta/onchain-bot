@@ -98,6 +98,8 @@ Rutas gateway P43 (`shared/api/endpoints.ts` `marketData` + `shared/api/market-d
 
 `/market-data` page: chains (+ detect form) + providers table + address lookup (kind badge) + compat snapshot grid + batch textarea (one `<chain> <address> [kind]` per line). `/dexter` page: Dexter lookup over market-data HTTP (no bot token) — `/x <chain> <address>` full-scan card (kind badge + compat fields + providers) + `/c <chain> <address>` chart card (DexScreener/GeckoTerminal links + price context); bare `<chain> <address>` defaults to `/x`. Bare contract pastes need no chain: a lone address (or `/x <address>` / `/c <address>`) auto-fills it by format (`detectChainForAddress` in `entities/market-data/model/helpers.ts`: 0x + 40 hex → ethereum, base58 32-44 → solana) and renders a `dexter-detected-chain` notice; EVM bare adds a `dexter-ambiguous-hint` naming every EVM alternative (ethereum default, explicit retry for base/bsc/arbitrum/polygon — never a silent guess). Garbage single tokens stay a parse error with bare-aware usage guidance. Every section degrades to an empty-state div on API error (never crashes; e2e pins `market-*-empty` + `dexter-*-empty`).
 
+Bot binding lives at the top of the same `/dexter` page: `DexterBotBindingSection` (`pages/dexter/index.tsx`, above the scan card) lists the gateway inventory (`ENDPOINTS.dexter`: inventory/bind/unbind/migrate-to-gateway) with Link-as-target / Unlink actions plus Create-from-env-token. Binding is gateway-exclusive 1:1 — one bot serves one app, a bot locked by another app cannot bind here.
+
 ⚠️ Frontend README §3 is stale (`/kols`, `/token/token-gating/*` — neither exists). Trust `endpoints.ts`.
 
 ## DEAD URLS (verified 404 — fix, don't re-encode)

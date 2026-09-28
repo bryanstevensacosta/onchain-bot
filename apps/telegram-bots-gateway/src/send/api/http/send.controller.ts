@@ -8,10 +8,10 @@ import {
   Req,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { RequireScope } from '../../../auth/api/http/require-scope.decorator';
-import type { GatewayClientBinding } from '../../../auth/api/http/service-auth.guard';
+import { RequireScope } from '@/auth/api/http/require-scope.decorator';
+import type { GatewayClientBinding } from '@/auth/api/http/service-auth.guard';
 import { SendDto } from './dto/send.dto';
-import { SendService } from '../../application/send.service';
+import { SendService } from '@/send/application/send.service';
 
 /**
  * Send gateway (todo 2): `POST /api/bots/:id/send`

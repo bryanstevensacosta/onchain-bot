@@ -6,6 +6,12 @@ export interface FormattedTokenMessage {
   readonly truncated: boolean;
 }
 
+export interface ScanCardMessage {
+  readonly text: string;
+  readonly truncated: boolean;
+  readonly parseMode: 'MarkdownV2';
+}
+
 /**
  * Markdown message formatter for Telegram (moved from backend
  * chain-dexter-bot `infrastructure/telegram/message-formatter.adapter.ts`).
@@ -31,6 +37,112 @@ export class MessageFormatterAdapter {
 
   public format(tokenInfo: ResolvedToken): string {
     return this.formatTokenScan(tokenInfo, { compact: false }).text;
+  }
+
+  /**
+   * Dexter own scan-card template (MarkdownV2 for Bot API sends).
+   *
+   * Built from `docs/examples-for-dexter/rick-bot-scanner.md` (card
+   * anatomy: header + stats + holders/dev + links + trade rows +
+   * contract) and the `format-comparison.md` decision (parse from
+   * entities JSON, store raw+entities, render MarkdownV2 for bot
+   * messages). Own layout — not a copy of any observed bot card:
+   *
+   * - header: `🔍 $SYMBOL | name — chain` + contract code line
+   * - price/MC/liq row, supplies row (FDV + total/circulating/max),
+   *   holders/dev row, links row (DexScreener + GeckoTerminal),
+   *   trade-buttons hint (buttons travel as the inline keyboard;
+   *   the links row keeps the card actionable when the keyboard
+   *   shape stays direct-only).
+   *
+   * All user-controlled strings are MarkdownV2-escaped; the contract
+   * hex rides in a code span (no reserved chars). Output capped at
+   * 4096 chars like the legacy cards.
+   */
+  public formatScanCard(tokenInfo: ResolvedToken): ScanCardMessage {
+    const esc = MessageFormatterAdapter.escapeV2;
+    const symbol = esc(tokenInfo.symbol);
+    const name = esc(tokenInfo.name);
+    const chain = esc(tokenInfo.chain);
+    const header = `🔍 *$${symbol}* \\| ${name} — ${chain}`;
+    const contract = `\`${tokenInfo.address}\``;
+    const priceLine =
+      `💰 ${this.formatMoneyV2(tokenInfo.priceUsd)} ` +
+      `\\(${this.formatPercentV2(tokenInfo.priceChange24h)}\\) ` +
+      `• MC ${this.formatMoneyV2(tokenInfo.marketCapUsd)} ` +
+      `• Liq ${this.formatMoneyV2(tokenInfo.liquidityUsd)}`;
+    const supplyLine =
+      `📦 FDV ${this.formatMoneyV2(tokenInfo.fdvUsd)} ` +
+      `• Total supply ${this.formatNumberV2(tokenInfo.totalSupply)} ` +
+      `• Circulating ${this.formatNumberV2(tokenInfo.circulatingSupply)} ` +
+      `• Max supply ${this.formatNumberV2(tokenInfo.maxSupply)}`;
+    const holdersLine =
+      `👥 Holders ${this.formatNumberV2(tokenInfo.holders)} ` +
+      `• Top 10 ${this.formatPercentV2(tokenInfo.top10HolderPercent)} ` +
+      `• ${this.formatDevV2(tokenInfo)}`;
+    const linksLine =
+      `🔗 [DexScreener](${this.scanUrl('dexscreener', tokenInfo)}) ` +
+      `\\| [GeckoTerminal](${this.scanUrl('geckoterminal', tokenInfo)})`;
+    const tradeLine = `🤖 Trade via buttons below ⤵`;
+    const raw = [
+      header,
+      contract,
+      '',
+      priceLine,
+      supplyLine,
+      holdersLine,
+      '',
+      linksLine,
+      tradeLine,
+    ].join('\n');
+    const capped = this.enforceLength(raw);
+    return { ...capped, parseMode: 'MarkdownV2' };
+  }
+
+  private static escapeV2(text: string): string {
+    if (!text) return '';
+    return text.replace(/([_*[\]()~`>#+=|{}.!\\-])/g, '\\$1');
+  }
+
+  private scanUrl(
+    venue: 'dexscreener' | 'geckoterminal',
+    tokenInfo: ResolvedToken,
+  ): string {
+    const address = tokenInfo.address;
+    if (venue === 'dexscreener') {
+      return `https://dexscreener.com/${tokenInfo.chain}/${address}`;
+    }
+    return `https://www.geckoterminal.com/${tokenInfo.chain}/pools/${address}`;
+  }
+
+  private formatMoneyV2(value: number | null): string {
+    return MessageFormatterAdapter.escapeV2(this.formatMoney(value));
+  }
+
+  private formatNumberV2(value: number | null): string {
+    return MessageFormatterAdapter.escapeV2(this.formatNumber(value));
+  }
+
+  private formatPercentV2(value: number | null): string {
+    return MessageFormatterAdapter.escapeV2(this.formatPercent(value));
+  }
+
+  private formatDevV2(tokenInfo: ResolvedToken): string {
+    const esc = MessageFormatterAdapter.escapeV2;
+    const pct = tokenInfo.devPctSupply;
+    const wallets = tokenInfo.devWallets ?? [];
+    if (pct === null && wallets.length === 0) return 'Dev N/A';
+    const pctLabel = pct === null ? 'N/A' : `${pct.toFixed(2)}%`;
+    const top = wallets.slice(0, 2).map((w) => {
+      const short =
+        w.wallet.length > 10
+          ? `${w.wallet.slice(0, 4)}…${w.wallet.slice(-4)}`
+          : w.wallet;
+      return short;
+    });
+    const walletsLabel =
+      top.length > 0 ? ` \\(${top.map(esc).join(', ')}\\)` : '';
+    return `Dev ${esc(pctLabel)}${walletsLabel}`;
   }
 
   public escapeMarkdown(text: string): string {
@@ -143,8 +255,12 @@ ${devSection}`;
     }
     const pctLabel = pct === null ? 'N/A' : `${pct.toFixed(2)}%`;
     const top = (wallets ?? []).slice(0, 3).map((w) => {
-      const short = w.wallet.length > 10 ? `${w.wallet.slice(0, 4)}…${w.wallet.slice(-4)}` : w.wallet;
-      const share = w.percentOfSupply === null ? 'N/A' : `${w.percentOfSupply.toFixed(2)}%`;
+      const short =
+        w.wallet.length > 10
+          ? `${w.wallet.slice(0, 4)}…${w.wallet.slice(-4)}`
+          : w.wallet;
+      const share =
+        w.percentOfSupply === null ? 'N/A' : `${w.percentOfSupply.toFixed(2)}%`;
       const flag = w.probable ? ' (probable)' : '';
       return `${short} ${share}${flag}`;
     });

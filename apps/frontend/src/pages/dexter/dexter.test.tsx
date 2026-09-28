@@ -204,6 +204,66 @@ describe('DexterPage', () => {
     vi.restoreAllMocks();
   });
 
+  it('renders the bot binding section with create-from-env action', () => {
+    renderPage();
+    expect(screen.getByTestId('dexter-bot-create')).toBeInTheDocument();
+  });
+
+  it('links an available inventory bot as target (exclusive binding)', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (String(url).includes('/api/dexter-bots/inventory')) {
+        return {
+          ok: true,
+          json: async () => [
+            {
+              id: 'vault-1',
+              label: 'dexter-bot',
+              ownerApp: 'dexter-onchain-bot',
+              boundApp: null,
+              available: true,
+            },
+          ],
+        };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    renderPage();
+    expect(
+      await screen.findByTestId('dexter-bot-inventory'),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('dexter-bot-row-vault-1')).toHaveTextContent(
+      'available',
+    );
+    expect(screen.getByTestId('dexter-bot-link-vault-1')).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
+  it('shows a locked bot as bound with unlink (edit = relink)', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => [
+        {
+          id: 'vault-9',
+          label: 'dexter-bot',
+          ownerApp: 'dexter-onchain-bot',
+          boundApp: 'dexter-onchain-bot',
+          available: false,
+        },
+      ],
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    renderPage();
+    expect(
+      await screen.findByTestId('dexter-bot-inventory'),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('dexter-bot-row-vault-9')).toHaveTextContent(
+      'bound:dexter-onchain-bot',
+    );
+    expect(screen.getByTestId('dexter-bot-unlink-vault-9')).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
   it('renders supply cards null-safe (em-dash, no crash)', () => {
     vi.spyOn(marketData, 'useAddressSnapshot').mockReturnValue({
       data: {

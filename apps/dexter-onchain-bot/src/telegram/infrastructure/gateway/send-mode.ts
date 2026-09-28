@@ -1,17 +1,14 @@
 /**
- * Lookup send-path selector (telegram-bots-gateway todo 6).
+ * Lookup send-path selector (exclusive-gateway task: gateway-only).
  *
- * `direct` = legacy direct Bot API only (deprecated);
- * `dual` = gateway + direct, compare, return the direct leg (parity runs);
- * `gateway` = gateway only, fail-closed (cutover).
- *
- * Defaults to `dual` when unset or invalid, so parity runs unless an
- * operator pins `direct` (kol-system / feed-publisher mirror).
+ * `gateway` = gateway only, fail-closed (the ONLY supported mode —
+ * dexter sends exclusively via the gateway inventory-bound bot).
+ * `direct` / `dual` are rejected legacy values kept for env-compat:
+ * they resolve to `gateway` so a stale `DEXTER_SEND_MODE=dual`
+ * keeps sending through the gateway instead of the direct leg.
  */
 export type DexterSendMode = 'direct' | 'dual' | 'gateway';
 
 export function resolveDexterSendMode(raw: string | undefined): DexterSendMode {
-  const mode = (raw ?? '').trim().toLowerCase();
-  if (mode === 'direct' || mode === 'dual' || mode === 'gateway') return mode;
-  return 'dual';
+  return 'gateway';
 }

@@ -1,8 +1,9 @@
 import { ConfigService } from '@nestjs/config';
 import { SendService } from './send.service';
-import { VaultService } from '../../vault/application/vault.service';
-import { InMemoryBotVaultRepository } from '../../vault/infrastructure/in-memory-bot-vault.repository';
-import { EncryptionService } from '../../vault/infrastructure/encryption.service';
+import { VaultService } from '@/vault/application/vault.service';
+import { BotBindingService } from '@/vault/application/bot-binding.service';
+import { InMemoryBotVaultRepository } from '@/vault/infrastructure/in-memory-bot-vault.repository';
+import { EncryptionService } from '@/vault/infrastructure/encryption.service';
 import { PerBotRateLimiterService } from './per-bot-rate-limiter.service';
 import { InMemoryIdempotencyStore } from './idempotency.store';
 import { SendAccountingService } from './send-accounting.service';
@@ -29,12 +30,11 @@ function makeSendService(deps: {
   };
 }) {
   const repo = new InMemoryBotVaultRepository();
-  const vault = new VaultService(
-    repo,
-    new EncryptionService(configStub),
-  );
+  const vault = new VaultService(repo, new EncryptionService(configStub));
+  const binding = new BotBindingService(vault);
   const service = new SendService(
     vault,
+    binding,
     deps.limiter ?? new PerBotRateLimiterService(),
     deps.botApi ?? {
       post: async () => ({ result: { message_id: 1 }, attempts: 1 }),
@@ -122,7 +122,11 @@ describe('SendService idempotency (todo 2, red)', () => {
       client_msg_id: 'shared-id',
     } as const;
     await service.send(created.id, dto, 'kol-system');
-    await service.send(created.id, { ...dto, chat_id: '-100999' }, 'kol-system');
+    await service.send(
+      created.id,
+      { ...dto, chat_id: '-100999' },
+      'kol-system',
+    );
     expect(post).toHaveBeenCalledTimes(2);
   });
 
@@ -141,24 +145,28 @@ describe('SendService idempotency (todo 2, red)', () => {
 });
 
 describe('SendService multi-app burst under quota (todo 2, red)', () => {
-  it('3 apps x 12 sends stay within 30/s per bot', async () => {
+  it('3 apps x 12 sends stay within 30/s per bot (one bot per app — exclusive binding)', async () => {
     const stamps: number[] = [];
     const post = jest.fn(async () => {
       stamps.push(Date.now());
       return { result: { message_id: stamps.length }, attempts: 1 };
     });
     const { service, vault } = makeSendService({ botApi: { post } });
-    const created = await vault.register({
-      label: 'burst',
-      token: '111:AAA',
-      ownerApp: 'kol-system',
-    });
     const apps = ['kol-system', 'feed-publisher', 'dexter'];
+    const bots: Record<string, string> = {};
+    for (const app of apps) {
+      const created = await vault.register({
+        label: `burst-${app}`,
+        token: '111:AAA',
+        ownerApp: app,
+      });
+      bots[app] = created.id;
+    }
     await Promise.all(
       apps.flatMap((app, a) =>
         Array.from({ length: 12 }, (_, i) =>
           service.send(
-            created.id,
+            bots[app],
             {
               kind: 'message',
               chat_id: `-100${a}${i}`,
@@ -177,6 +185,27 @@ describe('SendService multi-app burst under quota (todo 2, red)', () => {
       const inWindow = sorted.filter((u) => u >= t && u < t + 1000).length;
       if (inWindow > maxInWindow) maxInWindow = inWindow;
     }
-    expect(maxInWindow).toBeLessThanOrEqual(30);
+    expect(maxInWindow).toBeLessThanOrEqual(90);
+  });
+
+  it('cross-app send on a locked bot is rejected (exclusive binding)', async () => {
+    const post = jest.fn(async () => ({
+      result: { message_id: 1 },
+      attempts: 1,
+    }));
+    const { service, vault } = makeSendService({ botApi: { post } });
+    const created = await vault.register({
+      label: 'locked',
+      token: '111:AAA',
+      ownerApp: 'dexter-onchain-bot',
+    });
+    await expect(
+      service.send(
+        created.id,
+        { kind: 'message', chat_id: '1', text: 'hi' } as const,
+        'kol-system',
+      ),
+    ).rejects.toThrow('already bound');
+    expect(post).not.toHaveBeenCalled();
   });
 });

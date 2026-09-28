@@ -91,7 +91,7 @@ describe('GatewaySendClient (dexter gateway todo 6)', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('fails closed on keyboard shapes (no gateway reply_markup)', async () => {
+  it('drops keyboard shapes and sends text-only (no gateway reply_markup)', async () => {
     const fetchMock = mockFetchOnce({ ok: true, message_id: 1 });
     const client = makeClient();
     const out = await client.sendViaGateway({
@@ -100,9 +100,8 @@ describe('GatewaySendClient (dexter gateway todo 6)', () => {
       text: 'CARD',
       replyMarkup: { inline_keyboard: [] },
     });
-    expect(out.ok).toBe(false);
-    expect(out.error).toMatch(/reply_markup/);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(out.ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('fails closed on gateway 401 without throwing', async () => {

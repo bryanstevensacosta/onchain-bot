@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { BotVaultOrmEntity } from '../../vault/infrastructure/bot-vault.orm-entity';
+import { BotVaultOrmEntity } from '@/vault/infrastructure/bot-vault.orm-entity';
 
 /**
  * Own-DB data source (`onchain_bot_bots[_staging]`, same server per env).

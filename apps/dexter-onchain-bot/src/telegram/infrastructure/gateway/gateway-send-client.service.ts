@@ -8,18 +8,20 @@ import { DexterBotConfigService } from '@/settings/infrastructure/config/bot.con
 import { GatewayHmacSigner } from './gateway-hmac-signer.service';
 
 /**
- * Gateway-backed Bot API sender (telegram-bots-gateway todo 6).
+ * Gateway-backed Bot API sender (exclusive-gateway task: gateway-only).
  *
  * Chunking mirrors the direct `TelegramBotClient` (4096-char messages)
- * so dual-send parity compares like-for-like. Each chunk is one gateway
+ * so sends stay like-for-like. Each chunk is one gateway
  * `POST /api/bots/:id/send` (`message`, `parse_mode` passed through,
  * `client_msg_id` suffixed per chunk for idempotency). Keyboard shapes
  * (`reply_markup`) have NO gateway equivalent (`SendDto` carries no
- * `reply_markup`) — fail closed so callers record the leg as skipped,
- * never silently keyboard-less. The plaintext token never appears here —
- * only the vault `botId` travels (the gateway decrypts server-side).
- * Fail-closed: auth, upstream and transport failures return
- * `{ ok: false }`. Uses global `fetch` (no axios here).
+ * `reply_markup`) — the markup is dropped and the text goes anyway
+ * (scan cards carry DexScreener/GeckoTerminal links + a trade hint,
+ * so the message stays actionable; native keyboards return when
+ * gateway todo 7 covers them). The plaintext token never appears
+ * here — only the vault `botId` travels (the gateway decrypts
+ * server-side). Fail-closed: auth, upstream and transport failures
+ * return `{ ok: false }`. Uses global `fetch` (no axios here).
  */
 @Injectable()
 export class GatewaySendClient extends BotsGatewaySenderPort {
@@ -39,13 +41,7 @@ export class GatewaySendClient extends BotsGatewaySenderPort {
     if (!input.text || input.text.length === 0) {
       return { ok: false, messageId: null, error: 'empty message' };
     }
-    if (input.replyMarkup) {
-      return {
-        ok: false,
-        messageId: null,
-        error: 'gateway: reply_markup not supported (direct-only shape)',
-      };
-    }
+    void input.replyMarkup;
     try {
       let lastMessageId: number | null = null;
       const chunks = GatewaySendClient.splitMessage(input.text);
