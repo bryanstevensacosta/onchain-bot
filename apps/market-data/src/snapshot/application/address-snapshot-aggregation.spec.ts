@@ -1,5 +1,5 @@
 import { AddressSnapshotService } from './address-snapshot.service';
-import { SnapshotAggregatorService } from './snapshot-aggregator.service';
+import { SnapshotAggregatorService } from 'aggregators/application/snapshot-aggregator.service';
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
 import type { QuoteFetcher } from '../domain/snapshot-quote.types';
 import type { AddressSnapshot } from '../domain/snapshot.types';

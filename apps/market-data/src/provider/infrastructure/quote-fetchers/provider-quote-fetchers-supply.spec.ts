@@ -1,6 +1,6 @@
 import { buildProviderQuoteFetchers } from './provider-quote.fetchers';
-import { SnapshotAggregatorService } from '../application/snapshot-aggregator.service';
-import { emptySnapshotQuote } from '../domain/snapshot-quote.types';
+import { SnapshotAggregatorService } from 'aggregators/application/snapshot-aggregator.service';
+import { emptySnapshotQuote } from 'snapshot/domain/snapshot-quote.types';
 
 /**
  * Failing-first: supply fields end-to-end (totalSupply, circulatingSupply,

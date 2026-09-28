@@ -20,13 +20,17 @@ import {
 import {
   SNAPSHOT_CACHE_TTL_SECONDS,
   SNAPSHOT_QUOTE_PROVIDERS,
+  SNAPSHOT_QUOTE_FIELDS,
   emptySnapshotQuote,
   type QuoteFetcher,
 } from '../domain/snapshot-quote.types';
-import { SnapshotAggregatorService } from './snapshot-aggregator.service';
+import { SnapshotAggregatorService } from 'aggregators/application/snapshot-aggregator.service';
+import {
+  AggregationPolicyPort,
+} from 'aggregators/domain/aggregation-policy.port';
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
-import { applyOutboundRateLimit } from '../infrastructure/rate-limited-fetchers';
-import { DevHoldingsService } from '../../holders/application/dev-holdings.service';
+import { applyOutboundRateLimit } from 'provider/infrastructure/quote-fetchers/rate-limited-fetchers';
+import { DevHoldingsPort } from '../../holders/domain/holdings.port';
 
 /**
  * AddressSnapshotService (Tramo 3, P45; canonical home todo 12, P50;
@@ -62,8 +66,11 @@ export class AddressSnapshotService {
     @Inject(RateLimiterPort)
     private readonly outbound: RateLimiterPort | null = null,
     @Optional()
-    @Inject(DevHoldingsService)
-    private readonly devHoldings: DevHoldingsService | null = null,
+    @Inject(DevHoldingsPort)
+    private readonly devHoldings: DevHoldingsPort | null = null,
+    @Optional()
+    @Inject(AggregationPolicyPort)
+    private readonly policy: AggregationPolicyPort | null = null,
   ) {}
 
   public async getSnapshot(input: AddressSnapshotInput): Promise<AddressSnapshot> {
@@ -96,8 +103,23 @@ export class AddressSnapshotService {
     const active = (this.fetchers ?? []).filter((fetcher) =>
       fetcher.supportsChains.includes(known.id),
     );
+    // Aggregators policy order (market-data restructure): ordered
+    // provider list from context (kind, chain, fields, quota state,
+    // account credits). Empty quota/credits is the identity — the
+    // cascade order is byte-identical to the pre-policy pipeline.
+    const ordered =
+      this.policy === null
+        ? active
+        : this.policy.orderFetchers(active, {
+            kind,
+            chain: known.id,
+            address: input.value,
+            fields: [...SNAPSHOT_QUOTE_FIELDS],
+            quota: {},
+            credits: {},
+          });
     const gated = applyOutboundRateLimit(
-      active,
+      ordered,
       this.outbound,
       (name: string) =>
         resolveProviderOutboundBudget(this.providers.listProviders(), name),

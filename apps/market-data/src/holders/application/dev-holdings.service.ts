@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { BirdeyeService } from 'provider/infrastructure/birdeye/birdeye.service';
 import { HeliusService } from 'provider/infrastructure/helius/helius.service';
+import { DevHoldingsPort } from '../domain/holdings.port';
 import {
   emptyDevHoldings,
   type DevHoldingsResult,
@@ -17,13 +18,15 @@ function toNumber(value: unknown): number | null {
 }
 
 @Injectable()
-export class DevHoldingsService {
+export class DevHoldingsService extends DevHoldingsPort {
   private readonly logger = new Logger(DevHoldingsService.name);
 
   public constructor(
     private readonly birdeye: BirdeyeService,
     private readonly helius: HeliusService,
-  ) {}
+  ) {
+    super();
+  }
 
   public async resolve(
     chain: string,

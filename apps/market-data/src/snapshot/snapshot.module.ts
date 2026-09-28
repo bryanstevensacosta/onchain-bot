@@ -15,31 +15,34 @@ import { MobulaService } from 'provider/infrastructure/mobula';
 import { MoralisService } from 'provider/infrastructure/moralis';
 import { RugCheckService } from 'provider/infrastructure/rugcheck';
 import { AddressSnapshotService } from './application/address-snapshot.service';
-import { SnapshotAggregatorService } from './application/snapshot-aggregator.service';
 import { SnapshotHistoryJanitorService } from './application/snapshot-history-janitor.service';
 import { HoldersModule } from '../holders/holders.module';
+import { AggregatorsModule } from 'aggregators/aggregators.module';
 import { SNAPSHOT_QUOTE_PROVIDERS } from './domain/snapshot-quote.types';
 import {
   buildProviderQuoteFetchers,
-} from './infrastructure/provider-quote.fetchers';
+} from 'provider/infrastructure/quote-fetchers/provider-quote.fetchers';
 import { SnapshotHistoryEntity } from './infrastructure/snapshot-history.entity';
 import { SnapshotHistoryRepository } from './infrastructure/snapshot-history.repository';
 
 /**
- * SnapshotModule (Tramo 3, todo 12, P50; live aggregation todo-3 gap;
- * persistent history + outbound budgets todo 14, GAP-1).
+ * SnapshotModule (Tramo 3, todo 12, P50; market-data restructure:
+ * aggregation moved to AggregatorsModule — this module owns history
+ * persistence only, plus the thin pipeline orchestrator).
  *
- * Canonical home of snapshot aggregation (moved from AddressModule —
- * P45 placed it under address/, P50 promotes it to its own module so
- * every module follows domain/ + application/ + infrastructure/).
- * The service consumes chain/provider ports plus the address kind
- * detector; delivery stays in gateway/ (P43). The live fan-out runs
- * over thin `QuoteFetcher` wrappers around the canonical adapters
- * (imported via `ProvidersModule` — adapters themselves untouched),
- * each gated by its per-provider outbound token bucket (registry
- * `rateLimitPerMin`, fail-open with an explicit error on deny).
- * History persists to `snapshot_history` when `DATABASE_ENABLED=true`
- * (TypeORM entity + 90d janitor); otherwise the v1 in-memory ring.
+ * The orchestrator (`AddressSnapshotService`) runs the pipeline —
+ * address resolve -> cache-first -> aggregators policy order ->
+ * provider fetch (token-bucket) -> merge -> history persist ->
+ * cache set — consuming chain/provider ports, the address kind
+ * detector, the aggregation policy + merge from AggregatorsModule, and
+ * dev holdings through `DevHoldingsPort`; delivery stays in gateway/
+ * (P43). The live fan-out runs over thin `QuoteFetcher` wrappers
+ * around the canonical adapters (imported via `ProvidersModule` —
+ * adapters themselves untouched), each gated by its per-provider
+ * outbound token bucket (registry `rateLimitPerMin`, fail-open with an
+ * explicit error on deny). History persists to `snapshot_history` when
+ * `DATABASE_ENABLED=true` (TypeORM entity + 90d janitor); otherwise
+ * the v1 in-memory ring.
  */
 @Module({
   imports: [
@@ -48,6 +51,7 @@ import { SnapshotHistoryRepository } from './infrastructure/snapshot-history.rep
     ProviderModule,
     ProvidersModule,
     HoldersModule,
+    AggregatorsModule,
     RateLimiterModule,
     ...(isDatabaseEnabled()
       ? [TypeOrmModule.forFeature([SnapshotHistoryEntity])]
@@ -55,7 +59,6 @@ import { SnapshotHistoryRepository } from './infrastructure/snapshot-history.rep
   ],
   providers: [
     AddressSnapshotService,
-    SnapshotAggregatorService,
     SnapshotHistoryJanitorService,
     SnapshotHistoryRepository,
     {

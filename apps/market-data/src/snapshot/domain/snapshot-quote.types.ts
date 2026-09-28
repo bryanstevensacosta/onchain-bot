@@ -5,8 +5,9 @@
  * fanned out in parallel and the first non-null value per field wins.
  * `SnapshotQuote` is the merged, all-nullable price view; `QuoteFetcher`
  * is the per-provider fetch shape the aggregator runs (adapters stay
- * untouched — thin wrappers in `snapshot/infrastructure/` adapt their
- * existing public methods to this shape).
+ * untouched — thin wrappers in `provider/infrastructure/quote-fetchers/`
+ * adapt their existing public methods to this shape; the merge lives in
+ * `aggregators/`).
  */
 import type { ProviderRateLimitConfig } from 'provider/domain/provider-limiter-config';
 

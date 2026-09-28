@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Final `src/` restructure (R1, no behavior change):** chain lives
+  inside address (`src/address/chain/` — catalog + probers; `chain/*`
+  alias retargeted, `src/chain/*.ts` stay as deprecated re-exports) +
+  NEW `src/aggregators/` (`AggregatorsModule`: merge moved verbatim
+  from snapshot/, failover order data moved from provider/, NEW
+  `AggregationPolicyPort` with a ccxt-first/quota-aware default —
+  empty quota/credits is the identity, so the cascade order is
+  unchanged) + fetchers moved to
+  `provider/infrastructure/quote-fetchers/` + snapshot is history-only
+  (`SnapshotModule` imports `AggregatorsModule`; the orchestrator runs
+  resolve -> cache-first -> policy order -> token-bucket fetch ->
+  merge -> history persist -> cache set) + cache/rate-limiter moved to
+  `shared/infrastructure/` (aliases retargeted, old roots are
+  deprecated shims) + holders resolves through the NEW
+  `DevHoldingsPort` (`useExisting` binding, runtime-identical). Moved
+  with `git mv`; every old path stays as a `@deprecated` compat
+  re-export (removal at cutover, todo 8). Verified: 62 suites / 238
+  tests green (61 pre-existing suites byte-identical + 1 NEW
+  failing-first policy spec), `tsc --noEmit` clean, `nest build`
+  clean, live boot route-diff identical (status codes + response key
+  sets + provider order; snapshot values differ only by live provider
+  variance). (feat/mega-refactor-tramos)
+
 ### Added
 
 - **ccxt-first cascade + per-provider limiter config (P48-bis):** new

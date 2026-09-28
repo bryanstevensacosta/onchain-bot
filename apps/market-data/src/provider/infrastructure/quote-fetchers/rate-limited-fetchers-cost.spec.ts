@@ -1,6 +1,6 @@
 import { RateLimiterService } from 'rate-limiter/application/rate-limiter.service';
-import { SnapshotAggregatorService } from '../application/snapshot-aggregator.service';
-import type { QuoteFetcher } from '../domain/snapshot-quote.types';
+import { SnapshotAggregatorService } from 'aggregators/application/snapshot-aggregator.service';
+import type { QuoteFetcher } from 'snapshot/domain/snapshot-quote.types';
 import { applyOutboundRateLimit } from './rate-limited-fetchers';
 
 function fetcher(name: string, cost?: number): QuoteFetcher {

@@ -1,5 +1,5 @@
-import { SnapshotAggregatorService } from '../application/snapshot-aggregator.service';
-import type { QuoteFetcher } from '../domain/snapshot-quote.types';
+import { SnapshotAggregatorService } from 'aggregators/application/snapshot-aggregator.service';
+import type { QuoteFetcher } from 'snapshot/domain/snapshot-quote.types';
 import { buildProviderQuoteFetchers } from './provider-quote.fetchers';
 
 /**

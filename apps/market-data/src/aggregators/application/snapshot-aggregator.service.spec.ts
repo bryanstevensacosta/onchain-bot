@@ -1,5 +1,5 @@
 import { SnapshotAggregatorService } from './snapshot-aggregator.service';
-import type { QuoteFetcher, SnapshotQuote } from '../domain/snapshot-quote.types';
+import type { QuoteFetcher, SnapshotQuote } from 'snapshot/domain/snapshot-quote.types';
 
 function okFetcher(
   name: string,

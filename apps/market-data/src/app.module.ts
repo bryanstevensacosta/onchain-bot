@@ -14,6 +14,7 @@ import { CreateSnapshotHistory1772000000000 } from './snapshot/infrastructure/mi
 import { TokenModule } from './token/token.module';
 import { AddressModule } from './address/address.module';
 import { SnapshotModule } from './snapshot/snapshot.module';
+import { AggregatorsModule } from './aggregators/aggregators.module';
 import { ProvidersModule } from './provider/infrastructure/providers.module';
 import { ChainModule } from './chain/chain.module';
 import { ChainLogoModule } from './chain-logo/chain-logo.module';
@@ -65,6 +66,7 @@ import { HoldersModule } from './holders/holders.module';
     TokenModule,
     AddressModule,
     SnapshotModule,
+    AggregatorsModule,
     ProvidersModule,
     ChainModule,
     ChainLogoModule,

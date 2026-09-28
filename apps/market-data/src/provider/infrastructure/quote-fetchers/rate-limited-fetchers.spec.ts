@@ -1,4 +1,4 @@
-import type { QuoteFetcher } from '../domain/snapshot-quote.types';
+import type { QuoteFetcher } from 'snapshot/domain/snapshot-quote.types';
 import { applyOutboundRateLimit } from './rate-limited-fetchers';
 
 function fetcher(name: string): QuoteFetcher {
