@@ -132,7 +132,7 @@ export function FeedPage() {
     <div className="px-6 py-6 space-y-6">
       <header className="flex items-start justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-slate-100">Crypto News</h1>
+          <h1 className="text-2xl font-bold text-slate-100">Feed</h1>
           <p className="text-sm text-slate-400 mt-1">
             Ingested messages from monitored feed Telegram channels.
           </p>
@@ -172,7 +172,7 @@ export function FeedPage() {
             </Card>
             <Card>
               <div className="text-xs uppercase text-slate-500">
-                Messages (last 72h)
+                Messages (last 24h)
               </div>
               <div className="text-2xl font-bold text-slate-100 mt-1">
                 {(messages.data ?? []).length}

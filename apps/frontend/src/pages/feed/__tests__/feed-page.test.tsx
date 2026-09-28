@@ -1209,16 +1209,16 @@ describe('FeedPage — 24h window (Todo 2: feed-24h-window-media-retention)', ()
     mockedUseSources.mockReturnValue(makeSourcesQuery([baseSource]));
   });
 
-  it('renders the KPI label "Messages (last 72h)" instead of the legacy "50 most recent"', () => {
+  it('renders the KPI label "Messages (last 24h)" instead of the legacy "50 most recent"', () => {
     mockedUseMessages.mockReturnValue(makeMessagesQuery([]));
 
     renderWithClient(<FeedPage />);
 
-    expect(screen.getByText('Messages (last 72h)')).toBeInTheDocument();
+    expect(screen.getByText('Messages (last 24h)')).toBeInTheDocument();
     expect(screen.queryByText(/50 most recent/i)).not.toBeInTheDocument();
   });
 
-  it('requests useFeedMessages with limit 500 so the full 48h window fits', () => {
+  it('requests useFeedMessages with limit 500 so the full 24h window fits', () => {
     mockedUseMessages.mockReturnValue(makeMessagesQuery([]));
 
     renderWithClient(<FeedPage />);

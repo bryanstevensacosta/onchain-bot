@@ -101,15 +101,6 @@ test.describe('feed-publisher (Tramo 2, todo 9)', () => {
       if (path === '/api/llm/templates' && method === 'GET') {
         return json([]);
       }
-      if (path === '/api/scheduling/ads' && method === 'GET') {
-        return json([]);
-      }
-      if (path === '/api/scheduling/rotation-config' && method === 'GET') {
-        return json({ enabled: true, everyNPosts: 6, minMinutesBetweenAds: 45 });
-      }
-      if (path === '/api/scheduling/media/library' && method === 'GET') {
-        return json([]);
-      }
       if (path === '/api/threads') {
         return json(
           {
@@ -118,6 +109,27 @@ test.describe('feed-publisher (Tramo 2, todo 9)', () => {
           },
           501,
         );
+      }
+      return route.fallback();
+    });
+
+    // Scheduling moved to scheduling-posts (live-errors-fix 2026-09-28):
+    // same-origin /scheduling-api prefix (vite dev → :4080).
+    await page.route('**/scheduling-api/**', (route: Route) => {
+      const url = new URL(route.request().url());
+      const path = url.pathname.replace(/^\/scheduling-api/, '');
+      const method = route.request().method();
+      const json = (body: unknown, status = 200) =>
+        route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+
+      if (path === '/api/scheduling/ads' && method === 'GET') {
+        return json([]);
+      }
+      if (path === '/api/scheduling/rotation-config' && method === 'GET') {
+        return json({ enabled: true, everyNPosts: 6, minMinutesBetweenAds: 45 });
+      }
+      if (path === '/api/scheduling/media/library' && method === 'GET') {
+        return json([]);
       }
       return route.fallback();
     });
@@ -157,7 +169,7 @@ test.describe('feed-publisher (Tramo 2, todo 9)', () => {
 
   test('queue stats strip renders feed-publisher depth', async ({ page }) => {
     await mockFeedPublisher(page);
-    await page.goto('/crypto-news');
+    await page.goto('/feed');
     const strip = page.getByTestId('feed-queue-stats');
     await expect(strip).toBeVisible();
     await expect(strip.getByText('Pending')).toBeVisible();
@@ -176,7 +188,7 @@ test.describe('feed-publisher (Tramo 2, todo 9)', () => {
         return route.fallback();
       },
     );
-    await page.goto('/crypto-news');
+    await page.goto('/feed');
     const toggles = page.getByTestId('matching-toggle-button');
     await expect(toggles).toBeVisible();
     await expect(page.getByTestId('pipeline-mode')).toContainText('enqueue-only');
@@ -186,7 +198,7 @@ test.describe('feed-publisher (Tramo 2, todo 9)', () => {
 
   test('scheduling rotation config renders from feed-publisher', async ({ page }) => {
     await mockFeedPublisher(page);
-    await page.goto('/crypto-news');
+    await page.goto('/feed');
     await expect(page.getByLabel(/Every N posts/)).toHaveValue('6');
     await expect(page.getByLabel(/Min minutes between ads/)).toHaveValue('45');
   });
@@ -195,7 +207,7 @@ test.describe('feed-publisher (Tramo 2, todo 9)', () => {
     page,
   }) => {
     await mockFeedPublisher(page);
-    await page.goto('/crypto-news');
+    await page.goto('/feed');
     await page.getByText('Threads (feed-publisher v1)').click();
     await expect(page.getByTestId('feed-threads-stub')).toContainText(
       'Threads deferred to v2',
@@ -207,9 +219,16 @@ test.describe('feed-publisher (Tramo 2, todo 9)', () => {
       route.fulfill({ status: 500, body: 'down' }),
     );
     await page.reload();
-    await expect(page.getByText('Crypto News')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Feed' })).toBeVisible();
     await page.getByText('Threads (feed-publisher v1)').click();
     await expect(page.getByTestId('feed-threads-empty')).toBeVisible();
     await expect(page.getByTestId('feed-queue-stats')).toHaveCount(0);
+  });
+
+  test('legacy /crypto-news redirects to /feed', async ({ page }) => {
+    await mockFeedPublisher(page);
+    await page.goto('/crypto-news');
+    await expect(page).toHaveURL(/\/feed$/);
+    await expect(page.getByRole('heading', { name: 'Feed' })).toBeVisible();
   });
 });

@@ -59,13 +59,13 @@ function makeSchedulingView(
 describe('schedulingImageUrl', () => {
   it('builds the media URL from an imageMediaId', () => {
     expect(schedulingImageUrl('abc-123')).toBe(
-      '/feed-api/api/scheduling/media/abc-123',
+      '/scheduling-api/api/scheduling/media/abc-123',
     );
   });
 
   it('encodes special characters in the media id', () => {
     expect(schedulingImageUrl('a b/c')).toBe(
-      '/feed-api/api/scheduling/media/a%20b%2Fc',
+      '/scheduling-api/api/scheduling/media/a%20b%2Fc',
     );
   });
 });
@@ -90,7 +90,9 @@ describe('uploadSchedulingImage', () => {
       string,
       RequestInit | undefined,
     ];
-    expect(url).toContain('/feed-api/api/scheduling/ads/scheduling-1/image');
+    expect(url).toContain(
+      '/scheduling-api/api/scheduling/ads/scheduling-1/image',
+    );
     expect(init?.method).toBe('POST');
     const form = init?.body as FormData;
     expect(form).toBeInstanceOf(FormData);
@@ -127,7 +129,9 @@ describe('clearSchedulingImage', () => {
       string,
       RequestInit | undefined,
     ];
-    expect(url).toContain('/feed-api/api/scheduling/ads/scheduling-1/image');
+    expect(url).toContain(
+      '/scheduling-api/api/scheduling/ads/scheduling-1/image',
+    );
     expect(init?.method).toBe('DELETE');
   });
 });
@@ -141,7 +145,7 @@ describe('fetchMediaLibrary', () => {
     const library: MediaLibraryView[] = [
       {
         id: 'lib-1',
-        url: '/feed-api/api/scheduling/media/lib-1',
+        url: '/scheduling-api/api/scheduling/media/lib-1',
         originalFileName: 'a.png',
         mimeType: 'image/png',
         fileSize: 1024,
@@ -160,7 +164,7 @@ describe('fetchMediaLibrary', () => {
       string,
       RequestInit | undefined,
     ];
-    expect(url).toContain('/feed-api/api/scheduling/media/library');
+    expect(url).toContain('/scheduling-api/api/scheduling/media/library');
     expect(init?.method).toBeUndefined();
   });
 });
@@ -185,7 +189,7 @@ describe('reuseLibraryImage', () => {
       RequestInit | undefined,
     ];
     expect(url).toContain(
-      '/feed-api/api/scheduling/ads/scheduling-1/reuse-library-media',
+      '/scheduling-api/api/scheduling/ads/scheduling-1/reuse-library-media',
     );
     expect(init?.method).toBe('POST');
     expect(init?.headers).toEqual({ 'Content-Type': 'application/json' });
@@ -212,7 +216,7 @@ describe('reuseLibraryImage', () => {
       HttpError,
     );
     await expect(reuseLibraryImage('scheduling-1', 'lib-1')).rejects.toThrow(
-      'POST /feed-api/api/scheduling/ads/scheduling-1/reuse-library-media → 404',
+      'POST /scheduling-api/api/scheduling/ads/scheduling-1/reuse-library-media → 404',
     );
   });
 });
@@ -220,13 +224,13 @@ describe('reuseLibraryImage', () => {
 describe('libraryImageUrl', () => {
   it('builds the library url from a libraryMediaId', () => {
     expect(libraryImageUrl('lib-1')).toBe(
-      '/feed-api/api/scheduling/media/library/lib-1',
+      '/scheduling-api/api/scheduling/media/library/lib-1',
     );
   });
 
   it('encodes special characters in the library media id', () => {
     expect(libraryImageUrl('a b/c')).toBe(
-      '/feed-api/api/scheduling/media/library/a%20b%2Fc',
+      '/scheduling-api/api/scheduling/media/library/a%20b%2Fc',
     );
   });
 });
@@ -234,13 +238,13 @@ describe('libraryImageUrl', () => {
 describe('schedulingVideoUrl', () => {
   it('builds the media URL from a videoMediaId', () => {
     expect(schedulingVideoUrl('abc-123')).toBe(
-      '/feed-api/api/scheduling/media/abc-123',
+      '/scheduling-api/api/scheduling/media/abc-123',
     );
   });
 
   it('encodes special characters in the media id', () => {
     expect(schedulingVideoUrl('a b/c')).toBe(
-      '/feed-api/api/scheduling/media/a%20b%2Fc',
+      '/scheduling-api/api/scheduling/media/a%20b%2Fc',
     );
   });
 });
@@ -265,7 +269,9 @@ describe('uploadSchedulingVideo', () => {
       string,
       RequestInit | undefined,
     ];
-    expect(url).toContain('/feed-api/api/scheduling/ads/scheduling-1/video');
+    expect(url).toContain(
+      '/scheduling-api/api/scheduling/ads/scheduling-1/video',
+    );
     expect(init?.method).toBe('POST');
     const form = init?.body as FormData;
     expect(form).toBeInstanceOf(FormData);
@@ -302,7 +308,9 @@ describe('clearSchedulingVideo', () => {
       string,
       RequestInit | undefined,
     ];
-    expect(url).toContain('/feed-api/api/scheduling/ads/scheduling-1/video');
+    expect(url).toContain(
+      '/scheduling-api/api/scheduling/ads/scheduling-1/video',
+    );
     expect(init?.method).toBe('DELETE');
   });
 });
@@ -327,7 +335,7 @@ describe('reuseLibraryImages', () => {
       RequestInit | undefined,
     ];
     expect(url).toContain(
-      '/feed-api/api/scheduling/ads/scheduling-1/reuse-library-media',
+      '/scheduling-api/api/scheduling/ads/scheduling-1/reuse-library-media',
     );
     expect(init?.method).toBe('POST');
     expect(init?.headers).toEqual({ 'Content-Type': 'application/json' });
@@ -356,7 +364,7 @@ describe('reuseLibraryImages', () => {
       HttpError,
     );
     await expect(reuseLibraryImages('scheduling-1', ['lib-1'])).rejects.toThrow(
-      'POST /feed-api/api/scheduling/ads/scheduling-1/reuse-library-media → 404',
+      'POST /scheduling-api/api/scheduling/ads/scheduling-1/reuse-library-media → 404',
     );
   });
 });
@@ -385,7 +393,7 @@ describe('publishSchedulingNow', () => {
       RequestInit | undefined,
     ];
     expect(url).toContain(
-      '/feed-api/api/scheduling/ads/scheduling-1/publish-now',
+      '/scheduling-api/api/scheduling/ads/scheduling-1/publish-now',
     );
     expect(init?.method).toBe('POST');
     expect(init?.headers).toEqual({ 'Content-Type': 'application/json' });
@@ -432,7 +440,7 @@ describe('publishSchedulingNow', () => {
       HttpError,
     );
     await expect(publishSchedulingNow('scheduling-1')).rejects.toThrow(
-      'POST /feed-api/api/scheduling/ads/scheduling-1/publish-now → 404',
+      'POST /scheduling-api/api/scheduling/ads/scheduling-1/publish-now → 404',
     );
   });
 });

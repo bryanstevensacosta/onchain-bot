@@ -4,6 +4,34 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ## [Unreleased]
 
+### Added
+
+- Profiles UI on `/profiles` (Tramo 2, todo 16): publishing profiles are
+  feed-publisher sessions (one tab = one session, P34) with content
+  templates as creation-time starting points. Sticky header
+  `[Profile: <name>]` (profile picker + Manage Profile button) + sticky
+  tab menu (sources|keywords|queue|target|filters|llm). Manage Profile
+  modal validates lowercase-dash names, previews the normalized id
+  (dedup-friendly, mirrors backend `slugify`), loads a template or runs
+  ad-hoc, and lists existing profiles with activate/deactivate/delete.
+  Sources tab: global sources with per-profile toggles (toggles only).
+  Keywords tab: paginated preview tables (allowed / blocked / compound
+  AND-groups, 5 per page). Queue tab: session queue entries + stats
+  strip. Target tab: telegram/threads bindings + matching/publishing/llm
+  switches with canConsume/canPublish badges. Filters tab: per-source
+  filter list with toggles + server-side preview with RAW/filtered badge.
+  LLM tab: global llm config + pipeline flags mode. Recent messages show
+  a 3-line clamp with per-message status badges from the new status
+  endpoint (Not matched / Pending to publish / Blocked by … / Published
+  / Failed / Not found) + a fixed scrollable details modal with reasons.
+  Profile names render as React text (XSS-safe). Tests:
+  `entities/profile/model/profile-helpers.test.ts` (normalize/validate/
+  badge tones/pagination/compound split) +
+  `pages/profiles/__tests__/profiles.test.tsx` (header/tabs/sticky/
+  validation/XSS/badges/modal/keywords/llm/sources) + Playwright
+  `e2e/profiles.spec.ts` (5 flows, `/feed-api/**` + `/ingestion-api/**`
+  mocked). (feat/mega-refactor-tramos)
+
 ### Changed
 
 - UI route renamed `/crypto-news` -> `/feed` (breaking UI change):

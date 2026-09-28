@@ -8,10 +8,10 @@ import {
 import { ENDPOINTS } from '@/shared/api/endpoints';
 
 /**
- * View models for the feed-scheduling REST API (Tramo 2, todo 9:
- * served by feed-publisher `GET /feed-api/api/scheduling/*`,
- * `:3040` dev / `:3041` staging / `:3042` prod — P36 scheduling
- * naming, not ads).
+ * View models for the feed-scheduling REST API (live-errors-fix
+ * 2026-09-28: served by scheduling-posts
+ * `GET /scheduling-api/api/scheduling/*`, `:4080` dev / `:4081`
+ * staging / `:4082` prod — P36 scheduling naming, not ads).
  */
 
 export type SchedulingFormat = 'text' | 'photo' | 'video' | 'album';

@@ -27,6 +27,17 @@ export default defineConfig(({ mode }) => {
   // prod via env override. Prod nginx is a deploy follow-up (todo 8).
   const MARKET_DATA_PROXY_TARGET =
     env.MARKET_DATA_PROXY_TARGET ?? 'http://localhost:4000';
+  // Scheduling-posts (live-errors-fix 2026-09-28): the ads catalog,
+  // rotation-config and media library moved out of feed-publisher
+  // into scheduling-posts. Triplet :4080 dev / :4081 staging / :4082
+  // prod via env override. Prod nginx is a deploy follow-up.
+  const SCHEDULING_POSTS_PROXY_TARGET =
+    env.SCHEDULING_POSTS_PROXY_TARGET ?? 'http://localhost:4080';
+  // Dexter (exclusive-gateway task): bot binding API (inventory/bind/
+  // unbind/migrate). Triplet :4060 dev / :4061 staging / :4062 prod
+  // via env override. Prod nginx is a deploy follow-up.
+  const DEXTER_PROXY_TARGET =
+    env.DEXTER_PROXY_TARGET ?? 'http://localhost:4060';
   // Hosts permitidos (el acceso por Tailscale llega con otro Host header).
   const ALLOWED_HOSTS = (
     env.VITE_ALLOWED_HOSTS ??
@@ -136,10 +147,20 @@ export default defineConfig(({ mode }) => {
           changeOrigin: false,
           rewrite: (path) => path.replace(/^\/feed-api/, ''),
         },
+        '/scheduling-api': {
+          target: SCHEDULING_POSTS_PROXY_TARGET,
+          changeOrigin: false,
+          rewrite: (path) => path.replace(/^\/scheduling-api/, ''),
+        },
         '/market-data-api': {
           target: MARKET_DATA_PROXY_TARGET,
           changeOrigin: false,
           rewrite: (path) => path.replace(/^\/market-data-api/, ''),
+        },
+        '/dexter-api': {
+          target: DEXTER_PROXY_TARGET,
+          changeOrigin: false,
+          rewrite: (path) => path.replace(/^\/dexter-api/, ''),
         },
         '/socket.io': {
           target: BACKEND_PROXY_TARGET,

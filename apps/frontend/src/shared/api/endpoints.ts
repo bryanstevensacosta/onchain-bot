@@ -1,4 +1,5 @@
 import { feedPublisherPath } from './feed-publisher-base';
+import { schedulingPath } from './scheduling-base';
 import { marketDataPath } from './market-data-base';
 import { dexterPath } from './dexter-base';
 
@@ -178,9 +179,54 @@ export const ENDPOINTS = {
       // carry no rawContent/media for the newsroom UI) until cutover.
       stats: () => feedPublisherPath('/api/queue/stats'),
     },
+    // Tramo 2 (todo 16): profiles ARE feed-publisher sessions (one tab
+    // = one session, P34) + content templates as starting points.
+    // Status/evaluate/preview close the UX gaps G1/G2/G5 (todos 17/18).
+    sessions: {
+      list: () => feedPublisherPath('/api/sessions'),
+      detail: (id: string) =>
+        feedPublisherPath(`/api/sessions/${encodeURIComponent(id)}`),
+      activate: (id: string) =>
+        feedPublisherPath(`/api/sessions/${encodeURIComponent(id)}/activate`),
+      deactivate: (id: string) =>
+        feedPublisherPath(`/api/sessions/${encodeURIComponent(id)}/deactivate`),
+      sources: (id: string) =>
+        feedPublisherPath(`/api/sessions/${encodeURIComponent(id)}/sources`),
+    },
+    templates: {
+      list: () => feedPublisherPath('/api/content-templates'),
+      detail: (id: string) =>
+        feedPublisherPath(`/api/content-templates/${encodeURIComponent(id)}`),
+    },
+    keywords: {
+      list: () => feedPublisherPath('/feed-publisher/keywords'),
+    },
+    blacklist: {
+      list: () => feedPublisherPath('/feed-publisher/blacklist'),
+    },
+    profileFilters: {
+      list: (channelId: string) =>
+        feedPublisherPath(
+          `/feed-publisher/sources/${encodeURIComponent(channelId)}/filters`,
+        ),
+      toggle: (id: string) =>
+        feedPublisherPath(
+          `/feed-publisher/filters/${encodeURIComponent(id)}/toggle`,
+        ),
+      preview: (channelId: string) =>
+        feedPublisherPath(
+          `/feed-publisher/sources/${encodeURIComponent(channelId)}/filters/preview`,
+        ),
+    },
+    queueList: () => feedPublisherPath('/api/queue'),
     matching: {
       config: () => feedPublisherPath('/feed-publisher/matching/config'),
       health: () => feedPublisherPath('/feed-publisher/matching/health'),
+      messageStatus: (channelId: string, messageId: number) =>
+        feedPublisherPath(
+          `/feed-publisher/matching/messages/${encodeURIComponent(channelId)}/${messageId}/status`,
+        ),
+      evaluate: () => feedPublisherPath('/feed-publisher/matching/evaluate'),
     },
     llm: {
       models: () => feedPublisherPath('/api/llm/models'),
@@ -192,36 +238,36 @@ export const ENDPOINTS = {
       preview: () => feedPublisherPath('/api/llm/preview'),
     },
     scheduling: {
-      ads: () => feedPublisherPath('/api/scheduling/ads'),
+      // Live-errors-fix 2026-09-28: scheduling moved out of
+      // feed-publisher into scheduling-posts (`:4080` dev / `:4081`
+      // staging / `:4082` prod) behind the same-origin
+      // `/scheduling-api` prefix (vite dev proxy strips it;
+      // `VITE_SCHEDULING_POSTS_URL` overrides it for direct service
+      // access). Backend legacy (`/crypto-news-scheduling/*`,
+      // `/feed-scheduling/*`) stays untouched.
+      ads: () => schedulingPath('/api/scheduling/ads'),
       ad: (id: string) =>
-        feedPublisherPath(`/api/scheduling/ads/${encodeURIComponent(id)}`),
+        schedulingPath(`/api/scheduling/ads/${encodeURIComponent(id)}`),
       adImage: (id: string) =>
-        feedPublisherPath(
-          `/api/scheduling/ads/${encodeURIComponent(id)}/image`,
-        ),
+        schedulingPath(`/api/scheduling/ads/${encodeURIComponent(id)}/image`),
       adVideo: (id: string) =>
-        feedPublisherPath(
-          `/api/scheduling/ads/${encodeURIComponent(id)}/video`,
-        ),
+        schedulingPath(`/api/scheduling/ads/${encodeURIComponent(id)}/video`),
       adReuseLibraryMedia: (id: string) =>
-        feedPublisherPath(
+        schedulingPath(
           `/api/scheduling/ads/${encodeURIComponent(id)}/reuse-library-media`,
         ),
       adPublishNow: (id: string) =>
-        feedPublisherPath(
+        schedulingPath(
           `/api/scheduling/ads/${encodeURIComponent(id)}/publish-now`,
         ),
-      rotationConfig: () =>
-        feedPublisherPath('/api/scheduling/rotation-config'),
-      mediaLibrary: () => feedPublisherPath('/api/scheduling/media/library'),
+      rotationConfig: () => schedulingPath('/api/scheduling/rotation-config'),
+      mediaLibrary: () => schedulingPath('/api/scheduling/media/library'),
       libraryMedia: (libraryMediaId: string) =>
-        feedPublisherPath(
+        schedulingPath(
           `/api/scheduling/media/library/${encodeURIComponent(libraryMediaId)}`,
         ),
       media: (mediaId: string) =>
-        feedPublisherPath(
-          `/api/scheduling/media/${encodeURIComponent(mediaId)}`,
-        ),
+        schedulingPath(`/api/scheduling/media/${encodeURIComponent(mediaId)}`),
     },
     threads: {
       // v1 skeleton (C1): every route answers 501 THREADS_NOT_IMPLEMENTED

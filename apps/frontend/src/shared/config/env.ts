@@ -17,3 +17,18 @@ export const FEED_PUBLISHER_BASE_URL =
  * prod `:4002`). Set to an absolute URL for direct service access.
  */
 export const MARKET_DATA_BASE_URL = import.meta.env.VITE_MARKET_DATA_URL ?? '';
+
+/**
+ * Dexter service base (exclusive-gateway task). Empty = same-origin
+ * `/dexter-api` proxy (vite dev → `:4060`, staging `:4061`,
+ * prod `:4062`). Set to an absolute URL for direct service access.
+ */
+export const DEXTER_BASE_URL = import.meta.env.VITE_DEXTER_URL ?? '';
+
+/**
+ * Scheduling-posts service base (live-errors-fix 2026-09-28). Empty =
+ * same-origin `/scheduling-api` proxy (vite dev → `:4080`, staging
+ * `:4081`, prod `:4082`). Set to an absolute URL for direct access.
+ */
+export const SCHEDULING_POSTS_BASE_URL =
+  import.meta.env.VITE_SCHEDULING_POSTS_URL ?? '';

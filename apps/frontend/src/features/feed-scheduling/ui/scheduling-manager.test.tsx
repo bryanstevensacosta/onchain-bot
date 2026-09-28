@@ -49,7 +49,7 @@ function makeLib(
 ): MediaLibraryView {
   return {
     id,
-    url: `/feed-api/api/scheduling/media/library/${id}`,
+    url: `/scheduling-api/api/scheduling/media/library/${id}`,
     originalFileName,
     mimeType: originalFileName ? 'image/png' : null,
     fileSize: originalFileName ? 1024 : null,
@@ -682,7 +682,7 @@ describe('SchedulingManager', () => {
     const img = screen.getByAltText('Pump alpha image');
     expect(img).toHaveAttribute(
       'src',
-      '/feed-api/api/scheduling/media/media-1',
+      '/scheduling-api/api/scheduling/media/media-1',
     );
   });
 
@@ -946,7 +946,7 @@ describe('SchedulingManager', () => {
     ) as HTMLImageElement;
     expect(currentImage).toHaveAttribute(
       'src',
-      '/feed-api/api/scheduling/media/media-1',
+      '/scheduling-api/api/scheduling/media/media-1',
     );
   });
 
@@ -990,11 +990,11 @@ describe('SchedulingManager', () => {
     expect(screen.getByText('Reuse existing image')).toBeInTheDocument();
     expect(screen.getByAltText('banner.png')).toHaveAttribute(
       'src',
-      '/feed-api/api/scheduling/media/library/lib-1',
+      '/scheduling-api/api/scheduling/media/library/lib-1',
     );
     expect(screen.getByAltText('lib-2')).toHaveAttribute(
       'src',
-      '/feed-api/api/scheduling/media/library/lib-2',
+      '/scheduling-api/api/scheduling/media/library/lib-2',
     );
     // caption under each thumbnail
     expect(screen.getByText('banner.png')).toBeInTheDocument();
@@ -1978,7 +1978,7 @@ describe('SchedulingManager', () => {
     ).toBeInTheDocument();
     expect(
       within(modalCard).getByLabelText('Current scheduling video'),
-    ).toHaveAttribute('src', '/feed-api/api/scheduling/media/media-v');
+    ).toHaveAttribute('src', '/scheduling-api/api/scheduling/media/media-v');
   });
 });
 

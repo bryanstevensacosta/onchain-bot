@@ -16,12 +16,12 @@ React 18 + Vite 5 dashboard para monitorizar en tiempo real el pipeline de alpha
 | `/tokens`                 | Tokens Explorer | Tokens canónicos recientes (deduplicados)                                                                             |
 | `/tokens/:chain/:address` | Token Detail    | Detalle de un token: score, snapshot, decisiones                                                                      |
 | `/kols`                   | KOLs            | Lista de KOLs, controles de lifecycle, leaderboard de reputación                                                      |
-| `/crypto-news`            | Crypto-News     | Newsroom: mensajes + queue + keywords + scheduling + filtros + llm-config (lee ingestion vía `/ingestion-api/feed/*`) |
+| `/feed`                   | Feed            | Newsroom: mensajes + queue + keywords + scheduling + filtros + llm-config (lee ingestion vía `/ingestion-api/feed/*`) |
 | `/playground`             | Playground      | Prompt playground (feed)                                                                                              |
 | `/threads`                | Threads         | Publisher de threads (keywords/phrases/blacklist/queue/llm)                                                           |
 | `/ops`                    | Ops Panel       | Replay de mensajes a través del pipeline                                                                              |
 
-Navegación sticky en header con 7 links (Dashboard · Tokens · KOLs · News · Playground · Threads · Ops — ver `src/app/layouts/root-layout.tsx`).
+Navegación sticky en header con 7 links (Dashboard · Tokens · KOLs · Feed · Playground · Threads · Ops — ver `src/app/layouts/root-layout.tsx`).
 
 ---
 
