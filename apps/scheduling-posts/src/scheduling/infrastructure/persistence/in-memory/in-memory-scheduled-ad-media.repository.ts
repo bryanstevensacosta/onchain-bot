@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import {
   ScheduledAdMediaRepository,
   type ScheduledAdMediaRecord,
-} from '../../../domain/ports/scheduled-ad-media.repository';
+} from '@/scheduling/domain/ports/scheduled-ad-media.repository';
 
 /**
  * In-memory `ScheduledAdMediaRepository` — the LIVE binding until

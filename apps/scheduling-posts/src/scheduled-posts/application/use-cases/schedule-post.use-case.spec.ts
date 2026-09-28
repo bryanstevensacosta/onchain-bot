@@ -1,10 +1,10 @@
 import { DomainError } from 'shared/kernel/domain-error';
-import { InMemoryScheduledPostRepository } from '../../infrastructure/persistence/in-memory/in-memory-scheduled-post.repository';
-import { InMemorySessionAuthorizer } from '../../infrastructure/sessions/in-memory-session.authorizer';
-import { InMemoryContentRefResolver } from '../../infrastructure/content/in-memory-content-ref.resolver';
-import { InMemoryPublishRateLimiter } from '../../infrastructure/rate-limit/in-memory-publish-rate-limiter';
+import { InMemoryScheduledPostRepository } from '@/scheduled-posts/infrastructure/persistence/in-memory/in-memory-scheduled-post.repository';
+import { InMemorySessionAuthorizer } from '@/scheduled-posts/infrastructure/sessions/in-memory-session.authorizer';
+import { InMemoryContentRefResolver } from '@/scheduled-posts/infrastructure/content/in-memory-content-ref.resolver';
+import { InMemoryPublishRateLimiter } from '@/scheduled-posts/infrastructure/rate-limit/in-memory-publish-rate-limiter';
 import { SchedulePostUseCase } from './schedule-post.use-case';
-import type { SessionRecord } from '../../domain/ports/session-binding.authorizer';
+import type { SessionRecord } from '@/scheduled-posts/domain/ports/session-binding.authorizer';
 
 function session(overrides: Partial<SessionRecord> = {}): SessionRecord {
   return {
@@ -25,12 +25,16 @@ function session(overrides: Partial<SessionRecord> = {}): SessionRecord {
   };
 }
 
+function futureFireAt(): string {
+  return new Date(Date.now() + 3600_000).toISOString();
+}
+
 function request(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     sessionId: 'morning-desk',
     binding: { target: 'telegram', bindingId: 'b-1', botId: 'bot_X', chatId: '-100123' },
     content: { kind: 'pre-written', text: 'GM', mediaIds: [], buttons: null },
-    scheduleKind: { kind: 'once', fireAt: '2026-09-27T08:00:00.000Z' },
+    scheduleKind: { kind: 'once', fireAt: futureFireAt() },
     idempotencyKey: '3f6b4c2a-0000-4000-8000-000000000001',
     ...overrides,
   } as Record<string, unknown>;

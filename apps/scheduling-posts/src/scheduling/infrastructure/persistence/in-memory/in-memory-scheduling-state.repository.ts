@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { SchedulingState } from '../../../domain/scheduling-state.entity';
-import { SchedulingStateRepository } from '../../../domain/ports/scheduling-state.repository';
-import type { SchedulingTarget } from '../../../domain/scheduling-target';
+import { SchedulingState } from '@/scheduling/domain/scheduling-state.entity';
+import { SchedulingStateRepository } from '@/scheduling/domain/ports/scheduling-state.repository';
+import type { SchedulingTarget } from '@/scheduling/domain/scheduling-target';
 
 /**
  * In-memory `SchedulingStateRepository` — the LIVE binding until

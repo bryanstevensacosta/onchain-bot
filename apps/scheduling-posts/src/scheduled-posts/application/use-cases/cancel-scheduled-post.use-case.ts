@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
-import { ScheduledPost } from '../../domain/scheduled-post.entity';
-import { ScheduledPostRepository } from '../../domain/ports/scheduled-post.repository';
-import { ScheduleResultCallbackPort } from '../../domain/ports/schedule-result-callback.port';
+import { ScheduledPost } from '@/scheduled-posts/domain/scheduled-post.entity';
+import { ScheduledPostRepository } from '@/scheduled-posts/domain/ports/scheduled-post.repository';
+import { ScheduleResultCallbackPort } from '@/scheduled-posts/domain/ports/schedule-result-callback.port';
 
 /**
  * Session-initiated cancel (contract §3: `DELETE /scheduled/:id` by

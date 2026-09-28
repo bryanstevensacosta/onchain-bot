@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { SchedulingConfig } from '../../../domain/scheduling-config.entity';
-import { SchedulingConfigRepository } from '../../../domain/ports/scheduling-config.repository';
+import { SchedulingConfig } from '@/scheduling/domain/scheduling-config.entity';
+import { SchedulingConfigRepository } from '@/scheduling/domain/ports/scheduling-config.repository';
 
 /**
  * In-memory `SchedulingConfigRepository` — the LIVE binding until

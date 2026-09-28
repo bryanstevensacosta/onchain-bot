@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { ScheduleResultCallback } from '../../domain/schedule-request';
-import { ScheduleResultCallbackPort } from '../../domain/ports/schedule-result-callback.port';
+import type { ScheduleResultCallback } from '@/scheduled-posts/domain/schedule-request';
+import { ScheduleResultCallbackPort } from '@/scheduled-posts/domain/ports/schedule-result-callback.port';
 
 /**
  * HTTP result callbacks scheduler → sessions (contract §4,

@@ -4,8 +4,8 @@ import * as crypto from 'node:crypto';
 import * as path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
-import { SchedulingMediaStoragePort } from '../../domain/ports/scheduling-media-storage.port';
-import { extensionForMimeType } from '../../application/services/scheduling-media-sniffer';
+import { SchedulingMediaStoragePort } from '@/scheduling/domain/ports/scheduling-media-storage.port';
+import { extensionForMimeType } from '@/scheduling/application/services/scheduling-media-sniffer';
 
 /**
  * Disk adapter for `SchedulingMediaStoragePort` (the library lives

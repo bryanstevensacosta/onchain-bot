@@ -14,12 +14,12 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import { ScheduledAdMediaRepository } from '../../domain/ports/scheduled-ad-media.repository';
-import { AdMediaLibraryRepository } from '../../domain/ports/ad-media-library.repository';
-import { SchedulingMediaStoragePort } from '../../domain/ports/scheduling-media-storage.port';
-import { AdMediaLibraryEntry } from '../../domain/ad-media-library-entry.entity';
+import { ScheduledAdMediaRepository } from '@/scheduling/domain/ports/scheduled-ad-media.repository';
+import { AdMediaLibraryRepository } from '@/scheduling/domain/ports/ad-media-library.repository';
+import { SchedulingMediaStoragePort } from '@/scheduling/domain/ports/scheduling-media-storage.port';
+import { AdMediaLibraryEntry } from '@/scheduling/domain/ad-media-library-entry.entity';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
-import { sniffSchedulingMimeType } from '../../application/services/scheduling-media-sniffer';
+import { sniffSchedulingMimeType } from '@/scheduling/application/services/scheduling-media-sniffer';
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

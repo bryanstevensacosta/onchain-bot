@@ -1,7 +1,7 @@
 import {
   ContentRefResolver,
   type ResolvedContentRef,
-} from '../../domain/ports/content-ref.resolver';
+} from '@/scheduled-posts/domain/ports/content-ref.resolver';
 
 export class InMemoryContentRefResolver extends ContentRefResolver {
   private readonly rows = new Map<string, ResolvedContentRef>();

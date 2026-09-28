@@ -10,6 +10,9 @@ import type { SchedulePostDto } from './api/http/schedule-post.dto';
 
 const KEY = '3f6b4c2a-0000-4000-8000-000000000001';
 
+const FIRE_AT = new Date(Date.now() + 3600_000).toISOString();
+const TICK = new Date(new Date(FIRE_AT).getTime() + 30_000);
+
 function dto(overrides: Partial<SchedulePostDto> = {}): SchedulePostDto {
   return {
     sessionId: 'morning-desk',
@@ -19,7 +22,7 @@ function dto(overrides: Partial<SchedulePostDto> = {}): SchedulePostDto {
     mediaIds: [],
     buttons: null,
     scheduleKind: 'once',
-    fireAt: '2026-09-27T08:00:00.000Z',
+    fireAt: FIRE_AT,
     idempotencyKey: KEY,
     ...overrides,
   } as SchedulePostDto;
@@ -104,7 +107,7 @@ describe('ScheduledPostsController', () => {
     await expect(controller.byId('sp_ghost')).rejects.toMatchObject({ code: 'NOT_FOUND' });
 
     const fire = module.get(FireDuePostsUseCase);
-    const fired = await fire.fireDue(new Date('2026-09-27T08:00:30.000Z'));
+    const fired = await fire.fireDue(TICK);
     expect(fired).toHaveLength(1);
 
     await expect(controller.remove(created.id, 'morning-desk')).rejects.toMatchObject({

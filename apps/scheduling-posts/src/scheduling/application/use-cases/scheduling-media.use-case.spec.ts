@@ -2,14 +2,14 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { DomainError } from 'shared/kernel/domain-error';
-import { ScheduledAd } from '../../domain/scheduled-ad.entity';
+import { ScheduledAd } from '@/scheduling/domain/scheduled-ad.entity';
 import { UploadScheduledAdMediaUseCase } from './upload-scheduled-ad-media.use-case';
 import { ClearScheduledAdMediaUseCase } from './clear-scheduled-ad-media.use-case';
 import { ReuseLibraryMediaUseCase } from './reuse-library-media.use-case';
-import { InMemoryScheduledAdRepository } from '../../infrastructure/persistence/in-memory/in-memory-scheduled-ad.repository';
-import { InMemoryScheduledAdMediaRepository } from '../../infrastructure/persistence/in-memory/in-memory-scheduled-ad-media.repository';
-import { InMemoryAdMediaLibraryRepository } from '../../infrastructure/persistence/in-memory/in-memory-ad-media-library.repository';
-import { LocalSchedulingMediaStorageAdapter } from '../../infrastructure/storage/local-scheduling-media-storage.adapter';
+import { InMemoryScheduledAdRepository } from '@/scheduling/infrastructure/persistence/in-memory/in-memory-scheduled-ad.repository';
+import { InMemoryScheduledAdMediaRepository } from '@/scheduling/infrastructure/persistence/in-memory/in-memory-scheduled-ad-media.repository';
+import { InMemoryAdMediaLibraryRepository } from '@/scheduling/infrastructure/persistence/in-memory/in-memory-ad-media-library.repository';
+import { LocalSchedulingMediaStorageAdapter } from '@/scheduling/infrastructure/storage/local-scheduling-media-storage.adapter';
 
 const PNG = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,

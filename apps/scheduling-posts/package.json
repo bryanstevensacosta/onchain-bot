@@ -77,6 +77,7 @@
       }
     },
     "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1",
       "^shared/(.*)$": "<rootDir>/src/shared/$1",
       "^scheduling/(.*)$": "<rootDir>/src/scheduling/$1",
       "^scheduled-posts/(.*)$": "<rootDir>/src/scheduled-posts/$1",

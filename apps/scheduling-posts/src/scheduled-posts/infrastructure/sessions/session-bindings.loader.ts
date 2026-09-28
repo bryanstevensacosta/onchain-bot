@@ -1,4 +1,4 @@
-import type { SessionRecord } from '../../domain/ports/session-binding.authorizer';
+import type { SessionRecord } from '@/scheduled-posts/domain/ports/session-binding.authorizer';
 import type { SchedulingTarget } from 'scheduling/domain/scheduling-target';
 import { isSchedulingTarget } from 'scheduling/domain/scheduling-target';
 

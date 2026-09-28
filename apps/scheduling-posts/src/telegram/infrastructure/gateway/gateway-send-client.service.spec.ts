@@ -1,5 +1,5 @@
 import { GatewaySendClient } from './gateway-send-client.service';
-import type { SchedulingGatewaySendInput } from '../../domain/ports/scheduling-gateway-sender.port';
+import type { SchedulingGatewaySendInput } from '@/telegram/domain/ports/scheduling-gateway-sender.port';
 
 function input(
   overrides: Partial<SchedulingGatewaySendInput> = {},

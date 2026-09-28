@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { AdMediaLibraryEntry } from '../../../domain/ad-media-library-entry.entity';
-import { AdMediaLibraryRepository } from '../../../domain/ports/ad-media-library.repository';
+import { AdMediaLibraryEntry } from '@/scheduling/domain/ad-media-library-entry.entity';
+import { AdMediaLibraryRepository } from '@/scheduling/domain/ports/ad-media-library.repository';
 
 /**
  * In-memory `AdMediaLibraryRepository` — the LIVE binding until

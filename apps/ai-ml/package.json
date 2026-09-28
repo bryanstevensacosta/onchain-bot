@@ -1,7 +1,7 @@
 {
   "name": "@onchain-bot/ai-ml",
   "version": "0.1.0",
-  "description": "Centralised AI/ML service: multi-provider LLM gateway + global prompt catalog + embeddings + playground (ai-ml plan, todos 0+1)",
+  "description": "Centralised AI/ML service: multi-provider LLM gateway + global prompt catalog + embeddings + playground (ai-ml plan, todos 0-4)",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
@@ -68,6 +68,7 @@
     "coverageDirectory": "./coverage",
     "testEnvironment": "node",
     "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1",
       "^shared/(.*)$": "<rootDir>/src/shared/$1",
       "^llm/(.*)$": "<rootDir>/src/llm/$1",
       "^auth/(.*)$": "<rootDir>/src/auth/$1",

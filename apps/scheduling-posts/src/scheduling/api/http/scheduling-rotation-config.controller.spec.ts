@@ -1,5 +1,5 @@
 import { SchedulingRotationConfigController } from './scheduling-rotation-config.controller';
-import { InMemorySchedulingConfigRepository } from '../../infrastructure/persistence/in-memory/in-memory-scheduling-config.repository';
+import { InMemorySchedulingConfigRepository } from '@/scheduling/infrastructure/persistence/in-memory/in-memory-scheduling-config.repository';
 
 describe('SchedulingRotationConfigController', () => {
   it('returns the fail-closed seed and patches per-target limits', async () => {

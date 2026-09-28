@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
-import type { TelegramSendResult } from '../../domain/ports/telegram-send-result';
+import type { TelegramSendResult } from '@/telegram/domain/ports/telegram-send-result';
 
 /**
  * Gateway send record: the gateway outcome vs the planned expectation.

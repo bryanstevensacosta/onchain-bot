@@ -1,10 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ScheduledAdRepository } from '../../domain/ports/scheduled-ad.repository';
-import { SchedulingConfigRepository } from '../../domain/ports/scheduling-config.repository';
-import { SchedulingStateRepository } from '../../domain/ports/scheduling-state.repository';
-import { ScheduledAdDispatcherPort } from '../../domain/ports/scheduled-ad-dispatcher.port';
+import { ScheduledAdRepository } from '@/scheduling/domain/ports/scheduled-ad.repository';
+import { SchedulingConfigRepository } from '@/scheduling/domain/ports/scheduling-config.repository';
+import { SchedulingStateRepository } from '@/scheduling/domain/ports/scheduling-state.repository';
+import { ScheduledAdDispatcherPort } from '@/scheduling/domain/ports/scheduled-ad-dispatcher.port';
 import { RotationDeciderService } from '../services/rotation-decider.service';
-import type { SchedulingTarget } from '../../domain/scheduling-target';
+import type { SchedulingTarget } from '@/scheduling/domain/scheduling-target';
 import { SchedulingHealthState } from '../state/scheduling-health.state';
 
 /**

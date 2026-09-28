@@ -1,7 +1,7 @@
-import { ScheduledAd } from '../../../../domain/scheduled-ad.entity';
-import { SchedulingConfig } from '../../../../domain/scheduling-config.entity';
-import { SchedulingState } from '../../../../domain/scheduling-state.entity';
-import { AdMediaLibraryEntry } from '../../../../domain/ad-media-library-entry.entity';
+import { ScheduledAd } from '@/scheduling/domain/scheduled-ad.entity';
+import { SchedulingConfig } from '@/scheduling/domain/scheduling-config.entity';
+import { SchedulingState } from '@/scheduling/domain/scheduling-state.entity';
+import { AdMediaLibraryEntry } from '@/scheduling/domain/ad-media-library-entry.entity';
 import {
   fromAdMediaLibraryOrmEntity,
   fromScheduledAdOrmEntity,

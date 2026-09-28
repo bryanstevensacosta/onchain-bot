@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { ScheduledAd } from '../../../domain/scheduled-ad.entity';
-import { ScheduledAdRepository } from '../../../domain/ports/scheduled-ad.repository';
+import { ScheduledAd } from '@/scheduling/domain/scheduled-ad.entity';
+import { ScheduledAdRepository } from '@/scheduling/domain/ports/scheduled-ad.repository';
 
 /**
  * In-memory `ScheduledAdRepository` — the LIVE binding until GAP-1.

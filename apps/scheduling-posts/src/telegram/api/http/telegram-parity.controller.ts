@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { DualSendParityService } from '../../application/services/dual-send-parity.service';
+import { DualSendParityService } from '@/telegram/application/services/dual-send-parity.service';
 
 /**
  * Parity ledger reads (guarded by the global x-api-key guard):

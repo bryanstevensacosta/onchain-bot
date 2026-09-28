@@ -1,5 +1,5 @@
-import { ScheduledPost } from '../../../domain/scheduled-post.entity';
-import { ScheduledPostRepository } from '../../../domain/ports/scheduled-post.repository';
+import { ScheduledPost } from '@/scheduled-posts/domain/scheduled-post.entity';
+import { ScheduledPostRepository } from '@/scheduled-posts/domain/ports/scheduled-post.repository';
 
 export class InMemoryScheduledPostRepository extends ScheduledPostRepository {
   private readonly rows = new Map<string, ScheduledPost>();

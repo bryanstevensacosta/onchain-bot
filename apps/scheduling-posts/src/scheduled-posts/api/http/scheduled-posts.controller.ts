@@ -10,11 +10,11 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
-import { SchedulePostUseCase } from '../../application/use-cases/schedule-post.use-case';
-import { CancelScheduledPostUseCase } from '../../application/use-cases/cancel-scheduled-post.use-case';
-import { FireDuePostsUseCase } from '../../application/use-cases/fire-due-posts.use-case';
-import { ScheduledPostRepository } from '../../domain/ports/scheduled-post.repository';
-import type { ScheduleRequest } from '../../domain/schedule-request';
+import { SchedulePostUseCase } from '@/scheduled-posts/application/use-cases/schedule-post.use-case';
+import { CancelScheduledPostUseCase } from '@/scheduled-posts/application/use-cases/cancel-scheduled-post.use-case';
+import { FireDuePostsUseCase } from '@/scheduled-posts/application/use-cases/fire-due-posts.use-case';
+import { ScheduledPostRepository } from '@/scheduled-posts/domain/ports/scheduled-post.repository';
+import type { ScheduleRequest } from '@/scheduled-posts/domain/schedule-request';
 import { SchedulePostDto } from './schedule-post.dto';
 
 /**

@@ -1,7 +1,7 @@
 import { RotationDeciderService } from './rotation-decider.service';
-import { ScheduledAd } from '../../domain/scheduled-ad.entity';
-import { SchedulingConfig } from '../../domain/scheduling-config.entity';
-import { SchedulingState } from '../../domain/scheduling-state.entity';
+import { ScheduledAd } from '@/scheduling/domain/scheduled-ad.entity';
+import { SchedulingConfig } from '@/scheduling/domain/scheduling-config.entity';
+import { SchedulingState } from '@/scheduling/domain/scheduling-state.entity';
 
 function makeAd(id: string, order: number): ScheduledAd {
   return ScheduledAd.create({ id, name: `ad-${id}`, body: 'hello', order });

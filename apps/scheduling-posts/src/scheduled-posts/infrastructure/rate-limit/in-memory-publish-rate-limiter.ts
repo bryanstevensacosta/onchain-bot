@@ -1,6 +1,6 @@
 import { Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PublishRateLimiter } from '../../domain/ports/publish-rate-limiter.port';
+import { PublishRateLimiter } from '@/scheduled-posts/domain/ports/publish-rate-limiter.port';
 
 interface Window {
   count: number;

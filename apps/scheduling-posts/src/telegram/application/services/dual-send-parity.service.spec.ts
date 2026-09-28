@@ -1,5 +1,5 @@
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
-import type { TelegramSendResult } from '../../domain/ports/telegram-send-result';
+import type { TelegramSendResult } from '@/telegram/domain/ports/telegram-send-result';
 import { DualSendParityService } from './dual-send-parity.service';
 
 describe('DualSendParityService', () => {

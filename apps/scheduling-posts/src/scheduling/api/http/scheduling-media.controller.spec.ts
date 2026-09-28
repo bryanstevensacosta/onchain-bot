@@ -3,9 +3,9 @@ import * as path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { BadRequestException } from '@nestjs/common';
 import { SchedulingMediaController } from './scheduling-media.controller';
-import { InMemoryScheduledAdMediaRepository } from '../../infrastructure/persistence/in-memory/in-memory-scheduled-ad-media.repository';
-import { InMemoryAdMediaLibraryRepository } from '../../infrastructure/persistence/in-memory/in-memory-ad-media-library.repository';
-import { LocalSchedulingMediaStorageAdapter } from '../../infrastructure/storage/local-scheduling-media-storage.adapter';
+import { InMemoryScheduledAdMediaRepository } from '@/scheduling/infrastructure/persistence/in-memory/in-memory-scheduled-ad-media.repository';
+import { InMemoryAdMediaLibraryRepository } from '@/scheduling/infrastructure/persistence/in-memory/in-memory-ad-media-library.repository';
+import { LocalSchedulingMediaStorageAdapter } from '@/scheduling/infrastructure/storage/local-scheduling-media-storage.adapter';
 
 const PNG = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,

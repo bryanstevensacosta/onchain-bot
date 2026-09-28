@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { ScheduledAd } from '../../domain/scheduled-ad.entity';
+import { ScheduledAd } from '@/scheduling/domain/scheduled-ad.entity';
 import {
   ScheduledAdDispatcherPort,
   type ScheduledAdDispatchResult,
-} from '../../domain/ports/scheduled-ad-dispatcher.port';
-import type { SchedulingTarget } from '../../domain/scheduling-target';
+} from '@/scheduling/domain/ports/scheduled-ad-dispatcher.port';
+import type { SchedulingTarget } from '@/scheduling/domain/scheduling-target';
 
 export interface DispatchedSchedulingPost {
   readonly adId: string;

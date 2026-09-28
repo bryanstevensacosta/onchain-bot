@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ScheduledAdRepository } from '../../domain/ports/scheduled-ad.repository';
-import { SchedulingStateRepository } from '../../domain/ports/scheduling-state.repository';
-import { ScheduledAdDispatcherPort } from '../../domain/ports/scheduled-ad-dispatcher.port';
-import { ScheduledAd } from '../../domain/scheduled-ad.entity';
-import type { SchedulingTarget } from '../../domain/scheduling-target';
+import { ScheduledAdRepository } from '@/scheduling/domain/ports/scheduled-ad.repository';
+import { SchedulingStateRepository } from '@/scheduling/domain/ports/scheduling-state.repository';
+import { ScheduledAdDispatcherPort } from '@/scheduling/domain/ports/scheduled-ad-dispatcher.port';
+import { ScheduledAd } from '@/scheduling/domain/scheduled-ad.entity';
+import type { SchedulingTarget } from '@/scheduling/domain/scheduling-target';
 import { SchedulingHealthState } from '../state/scheduling-health.state';
 
 export interface PublishScheduledAdNowResult {

@@ -1,12 +1,12 @@
-import { ScheduledAd } from '../../domain/scheduled-ad.entity';
+import { ScheduledAd } from '@/scheduling/domain/scheduled-ad.entity';
 import { PublishScheduledAdUseCase } from '../use-cases/publish-scheduled-ad.use-case';
 import { RotationDeciderService } from '../services/rotation-decider.service';
 import { SchedulingHealthState } from '../state/scheduling-health.state';
 import { SchedulingCronScheduler } from './scheduling-cron.scheduler';
-import { InMemoryScheduledAdRepository } from '../../infrastructure/persistence/in-memory/in-memory-scheduled-ad.repository';
-import { InMemorySchedulingConfigRepository } from '../../infrastructure/persistence/in-memory/in-memory-scheduling-config.repository';
-import { InMemorySchedulingStateRepository } from '../../infrastructure/persistence/in-memory/in-memory-scheduling-state.repository';
-import { InMemoryScheduledAdDispatcher } from '../../infrastructure/dispatch/in-memory-scheduled-ad.dispatcher';
+import { InMemoryScheduledAdRepository } from '@/scheduling/infrastructure/persistence/in-memory/in-memory-scheduled-ad.repository';
+import { InMemorySchedulingConfigRepository } from '@/scheduling/infrastructure/persistence/in-memory/in-memory-scheduling-config.repository';
+import { InMemorySchedulingStateRepository } from '@/scheduling/infrastructure/persistence/in-memory/in-memory-scheduling-state.repository';
+import { InMemoryScheduledAdDispatcher } from '@/scheduling/infrastructure/dispatch/in-memory-scheduled-ad.dispatcher';
 
 function makeHarness() {
   const adRepo = new InMemoryScheduledAdRepository();

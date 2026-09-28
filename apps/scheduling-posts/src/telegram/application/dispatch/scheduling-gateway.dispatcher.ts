@@ -6,10 +6,10 @@ import {
 } from 'scheduling/domain/ports/scheduled-ad-dispatcher.port';
 import type { ScheduledAd } from 'scheduling/domain/scheduled-ad.entity';
 import type { SchedulingTarget } from 'scheduling/domain/scheduling-target';
-import type { TelegramSendResult } from '../../domain/ports/telegram-send-result';
-import { SchedulingGatewaySenderPort } from '../../domain/ports/scheduling-gateway-sender.port';
+import type { TelegramSendResult } from '@/telegram/domain/ports/telegram-send-result';
+import { SchedulingGatewaySenderPort } from '@/telegram/domain/ports/scheduling-gateway-sender.port';
 import { DualSendParityService } from '../services/dual-send-parity.service';
-import { GatewayBotMappingService } from '../../infrastructure/gateway/gateway-bot-mapping.service';
+import { GatewayBotMappingService } from '@/telegram/infrastructure/gateway/gateway-bot-mapping.service';
 
 export interface ScheduledPostSendInput {
   readonly postId: string;

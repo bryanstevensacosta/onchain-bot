@@ -1,11 +1,11 @@
 import { Body, Controller, Get, Patch } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { SchedulingConfigRepository } from '../../domain/ports/scheduling-config.repository';
+import { SchedulingConfigRepository } from '@/scheduling/domain/ports/scheduling-config.repository';
 import { UpdateSchedulingRotationConfigDto } from '../input/scheduling.input';
 import {
   toSchedulingRotationConfigView,
   type SchedulingRotationConfigView,
-} from '../../application/mappers/scheduling.mapper';
+} from '@/scheduling/application/mappers/scheduling.mapper';
 
 /**
  * Scheduling rotation config (`/api/scheduling/rotation-config`,

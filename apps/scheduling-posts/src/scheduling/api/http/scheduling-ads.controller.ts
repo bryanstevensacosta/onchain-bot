@@ -13,25 +13,25 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { ScheduledAdRepository } from '../../domain/ports/scheduled-ad.repository';
-import { ScheduledAdMediaRepository } from '../../domain/ports/scheduled-ad-media.repository';
-import { SchedulingMediaStoragePort } from '../../domain/ports/scheduling-media-storage.port';
-import { ScheduledAd } from '../../domain/scheduled-ad.entity';
+import { ScheduledAdRepository } from '@/scheduling/domain/ports/scheduled-ad.repository';
+import { ScheduledAdMediaRepository } from '@/scheduling/domain/ports/scheduled-ad-media.repository';
+import { SchedulingMediaStoragePort } from '@/scheduling/domain/ports/scheduling-media-storage.port';
+import { ScheduledAd } from '@/scheduling/domain/scheduled-ad.entity';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
-import { UploadScheduledAdMediaUseCase } from '../../application/use-cases/upload-scheduled-ad-media.use-case';
-import { ClearScheduledAdMediaUseCase } from '../../application/use-cases/clear-scheduled-ad-media.use-case';
-import { ReuseLibraryMediaUseCase } from '../../application/use-cases/reuse-library-media.use-case';
+import { UploadScheduledAdMediaUseCase } from '@/scheduling/application/use-cases/upload-scheduled-ad-media.use-case';
+import { ClearScheduledAdMediaUseCase } from '@/scheduling/application/use-cases/clear-scheduled-ad-media.use-case';
+import { ReuseLibraryMediaUseCase } from '@/scheduling/application/use-cases/reuse-library-media.use-case';
 import {
   PublishScheduledAdNowUseCase,
   type PublishScheduledAdNowResult,
-} from '../../application/use-cases/publish-scheduled-ad-now.use-case';
+} from '@/scheduling/application/use-cases/publish-scheduled-ad-now.use-case';
 import {
   applyScheduledAdPatch,
   isUniqueViolation,
   toButtonsOrNull,
   toScheduledAdView,
   type ScheduledAdView,
-} from '../../application/mappers/scheduling.mapper';
+} from '@/scheduling/application/mappers/scheduling.mapper';
 import {
   CreateScheduledAdDto,
   PublishScheduledAdNowDto,

@@ -11,7 +11,7 @@ import { EmbeddingsModule } from './embeddings/embeddings.module';
 import { PlaygroundModule } from './playground/playground.module';
 
 /**
- * AppModule - Root module for ai-ml (todos 0-2).
+ * AppModule - Root module for ai-ml (todos 0-4).
  *
  * Wires Config (envFilePath ['.env.dev', '.env']) + HealthModule
  * (GET /api/health -> { status: 'ok' }) + SharedModule (global audit)

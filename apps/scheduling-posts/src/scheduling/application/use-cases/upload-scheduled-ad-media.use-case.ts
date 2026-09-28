@@ -1,15 +1,15 @@
 import * as crypto from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
-import { ScheduledAdRepository } from '../../domain/ports/scheduled-ad.repository';
+import { ScheduledAdRepository } from '@/scheduling/domain/ports/scheduled-ad.repository';
 import {
   ScheduledAdMediaRepository,
   type ScheduledAdMediaRecord,
-} from '../../domain/ports/scheduled-ad-media.repository';
-import { AdMediaLibraryRepository } from '../../domain/ports/ad-media-library.repository';
-import { SchedulingMediaStoragePort } from '../../domain/ports/scheduling-media-storage.port';
-import { AdMediaLibraryEntry } from '../../domain/ad-media-library-entry.entity';
-import { ScheduledAd } from '../../domain/scheduled-ad.entity';
+} from '@/scheduling/domain/ports/scheduled-ad-media.repository';
+import { AdMediaLibraryRepository } from '@/scheduling/domain/ports/ad-media-library.repository';
+import { SchedulingMediaStoragePort } from '@/scheduling/domain/ports/scheduling-media-storage.port';
+import { AdMediaLibraryEntry } from '@/scheduling/domain/ad-media-library-entry.entity';
+import { ScheduledAd } from '@/scheduling/domain/scheduled-ad.entity';
 import {
   extensionForMimeType,
   sniffSchedulingMimeType,

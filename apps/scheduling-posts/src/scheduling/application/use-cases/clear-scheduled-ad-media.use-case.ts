@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
-import { ScheduledAdRepository } from '../../domain/ports/scheduled-ad.repository';
-import { ScheduledAdMediaRepository } from '../../domain/ports/scheduled-ad-media.repository';
-import { SchedulingMediaStoragePort } from '../../domain/ports/scheduling-media-storage.port';
-import { ScheduledAd } from '../../domain/scheduled-ad.entity';
+import { ScheduledAdRepository } from '@/scheduling/domain/ports/scheduled-ad.repository';
+import { ScheduledAdMediaRepository } from '@/scheduling/domain/ports/scheduled-ad-media.repository';
+import { SchedulingMediaStoragePort } from '@/scheduling/domain/ports/scheduling-media-storage.port';
+import { ScheduledAd } from '@/scheduling/domain/scheduled-ad.entity';
 import {
   toScheduledAdView,
   type ScheduledAdView,

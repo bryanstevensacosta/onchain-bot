@@ -1,16 +1,16 @@
 import { Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
-import { ScheduledPost } from '../../domain/scheduled-post.entity';
-import { CronDueChecker } from '../../domain/cron-due.checker';
-import type { ScheduleResultCallback } from '../../domain/schedule-request';
-import { ScheduledPostRepository } from '../../domain/ports/scheduled-post.repository';
+import { ScheduledPost } from '@/scheduled-posts/domain/scheduled-post.entity';
+import { CronDueChecker } from '@/scheduled-posts/domain/cron-due.checker';
+import type { ScheduleResultCallback } from '@/scheduled-posts/domain/schedule-request';
+import { ScheduledPostRepository } from '@/scheduled-posts/domain/ports/scheduled-post.repository';
 import {
   SessionBindingAuthorizer,
   type VerifiedBinding,
-} from '../../domain/ports/session-binding.authorizer';
-import { ContentRefResolver } from '../../domain/ports/content-ref.resolver';
-import { ScheduleResultCallbackPort } from '../../domain/ports/schedule-result-callback.port';
+} from '@/scheduled-posts/domain/ports/session-binding.authorizer';
+import { ContentRefResolver } from '@/scheduled-posts/domain/ports/content-ref.resolver';
+import { ScheduleResultCallbackPort } from '@/scheduled-posts/domain/ports/schedule-result-callback.port';
 import { SchedulingConfigRepository } from 'scheduling/domain/ports/scheduling-config.repository';
 import { SchedulingStateRepository } from 'scheduling/domain/ports/scheduling-state.repository';
 import { AdMediaLibraryRepository } from 'scheduling/domain/ports/ad-media-library.repository';

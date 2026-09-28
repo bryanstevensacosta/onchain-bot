@@ -3,8 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import {
   SchedulingGatewaySenderPort,
   type SchedulingGatewaySendInput,
-} from '../../domain/ports/scheduling-gateway-sender.port';
-import type { TelegramSendResult } from '../../domain/ports/telegram-send-result';
+} from '@/telegram/domain/ports/scheduling-gateway-sender.port';
+import type { TelegramSendResult } from '@/telegram/domain/ports/telegram-send-result';
 import { GatewayHmacSigner } from './gateway-hmac-signer.service';
 
 /**

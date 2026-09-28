@@ -1,9 +1,9 @@
 import type { ConfigService } from '@nestjs/config';
 import { SchedulingGatewayDispatcher } from './scheduling-gateway.dispatcher';
-import { GatewaySendClient } from '../../infrastructure/gateway/gateway-send-client.service';
-import { GatewayBotMappingService } from '../../infrastructure/gateway/gateway-bot-mapping.service';
+import { GatewaySendClient } from '@/telegram/infrastructure/gateway/gateway-send-client.service';
+import { GatewayBotMappingService } from '@/telegram/infrastructure/gateway/gateway-bot-mapping.service';
 import { DualSendParityService } from '../services/dual-send-parity.service';
-import type { SchedulingGatewaySenderPort } from '../../domain/ports/scheduling-gateway-sender.port';
+import type { SchedulingGatewaySenderPort } from '@/telegram/domain/ports/scheduling-gateway-sender.port';
 import { ScheduledAd } from 'scheduling/domain/scheduled-ad.entity';
 
 function makeConfig(env: Record<string, string> = {}): ConfigService {

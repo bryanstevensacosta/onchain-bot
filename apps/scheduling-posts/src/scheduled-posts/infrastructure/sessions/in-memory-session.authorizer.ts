@@ -1,7 +1,7 @@
 import {
   SessionBindingAuthorizer,
   type SessionRecord,
-} from '../../domain/ports/session-binding.authorizer';
+} from '@/scheduled-posts/domain/ports/session-binding.authorizer';
 
 export class InMemorySessionAuthorizer extends SessionBindingAuthorizer {
   private readonly rows = new Map<string, SessionRecord>();

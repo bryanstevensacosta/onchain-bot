@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { SchedulingTarget } from '../../domain/scheduling-target';
+import type { SchedulingTarget } from '@/scheduling/domain/scheduling-target';
 
 /**
  * In-memory scheduling health (same shape as the queue health state).

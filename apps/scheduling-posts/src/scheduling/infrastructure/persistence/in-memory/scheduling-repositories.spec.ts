@@ -2,9 +2,9 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { DomainError } from 'shared/kernel/domain-error';
-import { ScheduledAd } from '../../../domain/scheduled-ad.entity';
+import { ScheduledAd } from '@/scheduling/domain/scheduled-ad.entity';
 import { InMemoryScheduledAdRepository } from './in-memory-scheduled-ad.repository';
-import { LocalSchedulingMediaStorageAdapter } from '../../storage/local-scheduling-media-storage.adapter';
+import { LocalSchedulingMediaStorageAdapter } from '@/scheduling/infrastructure/storage/local-scheduling-media-storage.adapter';
 
 describe('InMemoryScheduledAdRepository', () => {
   it('lists in catalog order and filters active/expired', async () => {

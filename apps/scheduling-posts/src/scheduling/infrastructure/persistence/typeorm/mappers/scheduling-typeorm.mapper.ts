@@ -1,8 +1,8 @@
-import { ScheduledAd } from '../../../../domain/scheduled-ad.entity';
-import { SchedulingConfig } from '../../../../domain/scheduling-config.entity';
-import { SchedulingState } from '../../../../domain/scheduling-state.entity';
-import { AdMediaLibraryEntry } from '../../../../domain/ad-media-library-entry.entity';
-import type { ScheduledAdMediaRecord } from '../../../../domain/ports/scheduled-ad-media.repository';
+import { ScheduledAd } from '@/scheduling/domain/scheduled-ad.entity';
+import { SchedulingConfig } from '@/scheduling/domain/scheduling-config.entity';
+import { SchedulingState } from '@/scheduling/domain/scheduling-state.entity';
+import { AdMediaLibraryEntry } from '@/scheduling/domain/ad-media-library-entry.entity';
+import type { ScheduledAdMediaRecord } from '@/scheduling/domain/ports/scheduled-ad-media.repository';
 import { ScheduledAdOrmEntity } from '../scheduled-ad.orm-entity';
 import { ScheduledAdMediaOrmEntity } from '../scheduled-ad-media.orm-entity';
 import { AdMediaLibraryOrmEntity } from '../ad-media-library.orm-entity';

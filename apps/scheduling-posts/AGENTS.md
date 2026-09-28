@@ -178,8 +178,9 @@ indicators). Shape backward compatible (`status: 'ok'`).
 
 Mirrors feed-publisher: `singleQuote`, strictNullChecks/noImplicitAny,
 `emitDecoratorMetadata` + `experimentalDecorators`, path aliases
+`@/*` (= `src/*`, for 2+-level imports; 2026-09-27 migration),
 `shared/*`, `scheduling/*`, `scheduled-posts/*`, `telegram/*`,
-`health/*`, `gateway/*`, `src/*`. No `@/*` alias here.
+`health/*`, `gateway/*`, `src/*`.
 
 ## TESTS
 

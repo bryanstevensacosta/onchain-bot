@@ -2,12 +2,12 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { CronJob } from 'cron';
-import { ScheduledAdRepository } from '../../domain/ports/scheduled-ad.repository';
-import { SchedulingConfigRepository } from '../../domain/ports/scheduling-config.repository';
-import { SchedulingStateRepository } from '../../domain/ports/scheduling-state.repository';
+import { ScheduledAdRepository } from '@/scheduling/domain/ports/scheduled-ad.repository';
+import { SchedulingConfigRepository } from '@/scheduling/domain/ports/scheduling-config.repository';
+import { SchedulingStateRepository } from '@/scheduling/domain/ports/scheduling-state.repository';
 import { PublishScheduledAdUseCase } from '../use-cases/publish-scheduled-ad.use-case';
 import { SchedulingHealthState } from '../state/scheduling-health.state';
-import { SCHEDULING_TARGETS } from '../../domain/scheduling-target';
+import { SCHEDULING_TARGETS } from '@/scheduling/domain/scheduling-target';
 
 /**
  * Scheduling rotation scheduler: one tick per minute (todo 6).

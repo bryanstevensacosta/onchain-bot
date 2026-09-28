@@ -1,8 +1,8 @@
 # apps/ai-ml/ — NestJS Knowledge Base
 
-> Verified 2026-09-26 against code + `.omo/evidence/task-2-ai-ml.log`
-> (todos 0-2). v0.1.0 (source of truth: `package.json`; ai-ml plan
-> todos 0-2 DONE, todos 3-4 pending). Decisions cited as Pxx come
+> Verified 2026-09-28 against code + `.omo/evidence/F-aiml.log`
+> (todos 0-4). v0.1.0 (source of truth: `package.json`; ai-ml plan
+> todos 0-4 DONE). Decisions cited as Pxx come
 > from `.omo/drafts/mega-refactor-tramos.md` §7.6. Plan:
 > `.omo/plans/ai-ml.md` (5 todos: 0-4). Central contracts:
 > `.omo/plans/mega-refactor-central.md`.
@@ -21,9 +21,9 @@ matching arrives from the consumer) + scoped API keys with per-key
 rate limits + usage audit (sizes only, never content). Any app
 generates via ai-ml over HTTP or uses pre-written content — ai-ml
 never makes business decisions (templates, scoring, scheduling
-decide; ai-ml only generates). Todos 0-2 DONE (setup + gateway +
-prompts catalog + embeddings + playground); todos 3-4 pending
-(feed-publisher migration, cutover).
+decide; ai-ml only generates). Todos 0-4 DONE (setup + gateway +
+prompts catalog + embeddings + playground + feed-publisher
+migration + cutover).
 
 Design pivots that govern every future todo:
 
@@ -225,8 +225,8 @@ ports on Oracle with lsof before first deploy).
 - Strict-ish (`tsconfig.base.json`): `strictNullChecks`,
   `noImplicitAny`, `noFallthroughCasesInSwitch`,
   `forceConsistentCasingInFileNames`, `isolatedModules`.
-- Path aliases: `shared/*`, `llm/*`, `auth/*`, `prompts/*`,
-  `embeddings/*`, `playground/*`, `src/*` (no `@/*`).
+- Path aliases: `@/*` (= `src/*`, for 2+-level imports; 2026-09-27 migration),
+  `shared/*`, `llm/*`, `auth/*`, `prompts/*`, `embeddings/*`, `playground/*`, `src/*`.
 
 ## TESTS
 

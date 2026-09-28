@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { ScheduledAd } from '../../domain/scheduled-ad.entity';
-import { SchedulingConfig } from '../../domain/scheduling-config.entity';
-import { SchedulingState } from '../../domain/scheduling-state.entity';
-import type { SchedulingTarget } from '../../domain/scheduling-target';
+import { ScheduledAd } from '@/scheduling/domain/scheduled-ad.entity';
+import { SchedulingConfig } from '@/scheduling/domain/scheduling-config.entity';
+import { SchedulingState } from '@/scheduling/domain/scheduling-state.entity';
+import type { SchedulingTarget } from '@/scheduling/domain/scheduling-target';
 
 export type RotationHoldReason =
   | 'posts-not-met'

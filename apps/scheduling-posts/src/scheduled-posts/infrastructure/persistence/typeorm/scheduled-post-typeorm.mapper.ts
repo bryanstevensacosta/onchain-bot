@@ -1,5 +1,5 @@
-import { ScheduledPost } from '../../../domain/scheduled-post.entity';
-import type { ScheduledPostProps } from '../../../domain/scheduled-post.entity';
+import { ScheduledPost } from '@/scheduled-posts/domain/scheduled-post.entity';
+import type { ScheduledPostProps } from '@/scheduled-posts/domain/scheduled-post.entity';
 import { ScheduledPostOrmEntity } from './scheduled-post.orm-entity';
 
 /**

@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
-import { ScheduledPost } from '../../domain/scheduled-post.entity';
-import type { ScheduleRequest } from '../../domain/schedule-request';
-import { CronDueChecker } from '../../domain/cron-due.checker';
-import { ScheduledPostRepository } from '../../domain/ports/scheduled-post.repository';
-import { SessionBindingAuthorizer } from '../../domain/ports/session-binding.authorizer';
-import { ContentRefResolver } from '../../domain/ports/content-ref.resolver';
-import { PublishRateLimiter } from '../../domain/ports/publish-rate-limiter.port';
+import { ScheduledPost } from '@/scheduled-posts/domain/scheduled-post.entity';
+import type { ScheduleRequest } from '@/scheduled-posts/domain/schedule-request';
+import { CronDueChecker } from '@/scheduled-posts/domain/cron-due.checker';
+import { ScheduledPostRepository } from '@/scheduled-posts/domain/ports/scheduled-post.repository';
+import { SessionBindingAuthorizer } from '@/scheduled-posts/domain/ports/session-binding.authorizer';
+import { ContentRefResolver } from '@/scheduled-posts/domain/ports/content-ref.resolver';
+import { PublishRateLimiter } from '@/scheduled-posts/domain/ports/publish-rate-limiter.port';
 
 export interface SchedulePostResult {
   readonly post: ScheduledPost;

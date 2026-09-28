@@ -11,7 +11,7 @@
 
 **What it will NOT do:** No toca matching/scoring/LLM (quedan en feed-publisher). No publica sin vínculo verificado (P38-ter espejo).
 
-**Effort:** Large (6 todos)
+**Effort:** Large (4 todos)
 **Risk:** Medium - frontera sessions/scheduler
 **Decisions I made for you:** puertos 4080/81/82 (verificar); DB propia `onchain_bot_scheduling[_staging]`; telegram SOLO vía gateway.
 

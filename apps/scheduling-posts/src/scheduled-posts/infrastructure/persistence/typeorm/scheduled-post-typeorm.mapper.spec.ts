@@ -1,4 +1,4 @@
-import { ScheduledPost } from '../../../domain/scheduled-post.entity';
+import { ScheduledPost } from '@/scheduled-posts/domain/scheduled-post.entity';
 import { ScheduledPostTypeormMapper } from './scheduled-post-typeorm.mapper';
 
 describe('ScheduledPostTypeormMapper', () => {

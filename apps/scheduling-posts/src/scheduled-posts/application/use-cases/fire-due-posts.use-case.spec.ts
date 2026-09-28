@@ -1,13 +1,13 @@
-import { InMemoryScheduledPostRepository } from '../../infrastructure/persistence/in-memory/in-memory-scheduled-post.repository';
-import { InMemorySessionAuthorizer } from '../../infrastructure/sessions/in-memory-session.authorizer';
-import { InMemoryContentRefResolver } from '../../infrastructure/content/in-memory-content-ref.resolver';
-import { InMemoryCallbackRecorder } from '../../infrastructure/callbacks/in-memory-callback.recorder';
+import { InMemoryScheduledPostRepository } from '@/scheduled-posts/infrastructure/persistence/in-memory/in-memory-scheduled-post.repository';
+import { InMemorySessionAuthorizer } from '@/scheduled-posts/infrastructure/sessions/in-memory-session.authorizer';
+import { InMemoryContentRefResolver } from '@/scheduled-posts/infrastructure/content/in-memory-content-ref.resolver';
+import { InMemoryCallbackRecorder } from '@/scheduled-posts/infrastructure/callbacks/in-memory-callback.recorder';
 import { InMemorySchedulingConfigRepository } from 'scheduling/infrastructure/persistence/in-memory/in-memory-scheduling-config.repository';
 import { InMemorySchedulingStateRepository } from 'scheduling/infrastructure/persistence/in-memory/in-memory-scheduling-state.repository';
 import { InMemoryAdMediaLibraryRepository } from 'scheduling/infrastructure/persistence/in-memory/in-memory-ad-media-library.repository';
 import { SchedulingConfig } from 'scheduling/domain/scheduling-config.entity';
-import { ScheduledPost } from '../../domain/scheduled-post.entity';
-import type { SessionRecord } from '../../domain/ports/session-binding.authorizer';
+import { ScheduledPost } from '@/scheduled-posts/domain/scheduled-post.entity';
+import type { SessionRecord } from '@/scheduled-posts/domain/ports/session-binding.authorizer';
 import type { TelegramSendResult } from 'telegram/domain/ports/telegram-send-result';
 import { FireDuePostsUseCase } from './fire-due-posts.use-case';
 
