@@ -34,6 +34,90 @@ vi.mock('@/entities/feed/model/use-feed', () => ({
   })),
 }));
 
+vi.mock('@/entities/profile', () => {
+  const mutStub = { mutate: vi.fn(), isPending: false };
+  return {
+    useProfiles: vi.fn(() => ({ data: [], isLoading: false, error: null })),
+    useProfileTemplates: vi.fn(() => ({
+      data: [],
+      isLoading: false,
+      error: null,
+    })),
+    useCreateProfile: vi.fn(() => ({
+      ...mutStub,
+      error: null,
+      reset: vi.fn(),
+    })),
+    useUpdateProfile: vi.fn(() => ({ ...mutStub })),
+    useToggleProfileSource: vi.fn(() => ({ ...mutStub })),
+    useActivateProfile: vi.fn(() => ({ ...mutStub })),
+    useDeactivateProfile: vi.fn(() => ({ ...mutStub })),
+    useDeleteProfile: vi.fn(() => ({ ...mutStub })),
+    useProfileSources: vi.fn(() => ({
+      data: [],
+      isLoading: false,
+      error: null,
+    })),
+    usePublisherKeywords: vi.fn(() => ({
+      data: [],
+      isLoading: false,
+      error: null,
+    })),
+    usePublisherBlacklist: vi.fn(() => ({
+      data: [],
+      isLoading: false,
+      error: null,
+    })),
+    useProfileQueue: vi.fn(() => ({
+      data: [],
+      isLoading: false,
+      error: null,
+    })),
+    useProfileRecentMessages: vi.fn(() => ({
+      data: [],
+      isLoading: false,
+      error: null,
+    })),
+    useMessageStatus: vi.fn(() => ({
+      data: undefined,
+      isLoading: false,
+      error: null,
+    })),
+    useChannelFilters: vi.fn(() => ({
+      data: [],
+      isLoading: false,
+      error: null,
+    })),
+    useToggleChannelFilter: vi.fn(() => ({ ...mutStub })),
+    useFiltersPreview: vi.fn(() => ({
+      ...mutStub,
+      data: undefined,
+      error: null,
+      reset: vi.fn(),
+    })),
+    useProfileLlm: vi.fn(() => ({
+      data: undefined,
+      isLoading: false,
+      error: null,
+    })),
+    badgeTone: vi.fn(() => 'gray' as const),
+    paginate: vi.fn(
+      (items: ReadonlyArray<unknown>, page: number, _pageSize: number) => ({
+        pageItems: items,
+        page,
+        totalPages: 1,
+        total: items.length,
+      }),
+    ),
+    splitKeywordGroups: vi.fn((rows: ReadonlyArray<unknown>) => ({
+      single: rows,
+      compound: [],
+    })),
+    normalizeProfileName: vi.fn((raw: string) => raw.toLowerCase()),
+    isValidProfileName: vi.fn(() => true),
+  };
+});
+
 vi.mock('@/features/feed-publisher/model/use-keywords', () => {
   const mutStub = {
     mutate: vi.fn(),
@@ -917,7 +1001,9 @@ describe('FeedPage — search filter (free-text)', () => {
     fireEvent.change(input, { target: { value: 'bitcoin' } });
     expect(screen.getAllByRole('article')).toHaveLength(2);
 
-    const select = screen.getAllByRole('combobox')[0] as HTMLSelectElement;
+    const select = screen.getByLabelText(
+      'Filter by source',
+    ) as HTMLSelectElement;
     fireEvent.change(select, { target: { value: 'srcA' } });
 
     const articles = screen.getAllByRole('article');
@@ -1127,7 +1213,9 @@ describe('FeedPage — expand/collapse', () => {
       screen.queryAllByRole('button', { name: /show less/i }),
     ).toHaveLength(1);
 
-    const select = screen.getAllByRole('combobox')[0] as HTMLSelectElement;
+    const select = screen.getByLabelText(
+      'Filter by source',
+    ) as HTMLSelectElement;
     fireEvent.change(select, { target: { value: baseSource.channelId } });
 
     expect(
@@ -1200,6 +1288,74 @@ describe('FeedPage — expand/collapse', () => {
       within(article).getByRole('button', { name: /show more/i }),
     ).toBeInTheDocument();
     expect(within(article).getByText(/F+/)).toBeInTheDocument();
+  });
+});
+
+describe('FeedPage — sessions section (merged /profiles)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedUseSources.mockReturnValue(makeSourcesQuery([baseSource]));
+    mockedUseMessages.mockReturnValue(makeMessagesQuery([]));
+  });
+
+  it('renders the session header with picker, template name and tabs', async () => {
+    const profile = await import('@/entities/profile');
+    vi.mocked(profile.useProfiles).mockReturnValue({
+      data: [
+        {
+          id: 'desk-alpha',
+          name: 'Desk Alpha',
+          templateId: null,
+          active: true,
+          matchingEnabled: true,
+          publishingEnabled: true,
+          llmEnabled: true,
+          keywordIds: [],
+          sourceToggles: {},
+          telegramTargets: [],
+          threadsTargets: [],
+          canConsume: true,
+          canPublish: true,
+        },
+      ],
+      isLoading: false,
+      error: null,
+    } as unknown as ReturnType<typeof profile.useProfiles>);
+
+    renderWithClient(<FeedPage />);
+
+    expect(screen.getByTestId('sessions-header')).toHaveTextContent(
+      '[Session: Desk Alpha]',
+    );
+    expect(screen.getByTestId('session-template-name')).toHaveTextContent(
+      'template: Ad-hoc',
+    );
+    expect(screen.getByTestId('session-picker')).toBeInTheDocument();
+    expect(screen.getByTestId('manage-session-button')).toBeInTheDocument();
+    for (const tab of [
+      'sources',
+      'keywords',
+      'queue',
+      'target',
+      'filters',
+      'llm',
+    ]) {
+      expect(screen.getByTestId(`session-tab-${tab}`)).toBeInTheDocument();
+    }
+  });
+
+  it('renders the sessions empty state when no sessions exist', async () => {
+    const profile = await import('@/entities/profile');
+    vi.mocked(profile.useProfiles).mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as unknown as ReturnType<typeof profile.useProfiles>);
+    renderWithClient(<FeedPage />);
+
+    expect(screen.getByTestId('sessions-empty')).toHaveTextContent(
+      'No sessions yet',
+    );
   });
 });
 

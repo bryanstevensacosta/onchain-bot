@@ -19,7 +19,16 @@ import {
   type PublisherBlacklistView,
   type PublisherKeywordView,
 } from '@/entities/profile';
-import type { ProfileTab } from '../index';
+export const SESSION_TABS = [
+  'sources',
+  'keywords',
+  'queue',
+  'target',
+  'filters',
+  'llm',
+] as const;
+
+export type SessionTab = (typeof SESSION_TABS)[number];
 
 const PAGE_SIZE = 5;
 
@@ -219,7 +228,7 @@ function QueueTab({ profile }: { profile: ProfileView }): React.ReactElement {
       ) : (
         <>
           <p className="text-xs text-slate-500">
-            {matching} profile keyword(s) bound · {entries.length} entries
+            {matching} session keyword(s) bound · {entries.length} entries
           </p>
           <ul className="space-y-1">
             {entries.map((e) => (
@@ -293,7 +302,7 @@ function TargetTab({ profile }: { profile: ProfileView }): React.ReactElement {
         {switches.map((s) => (
           <button
             key={s.key}
-            data-testid={`profile-switch-${s.key}`}
+            data-testid={`session-switch-${s.key}`}
             type="button"
             role="switch"
             aria-checked={s.value}
@@ -412,7 +421,7 @@ function FiltersTab({ profile }: { profile: ProfileView }): React.ReactElement {
                 </code>
                 {!inProfileScope ? (
                   <span className="text-[10px] text-slate-500">
-                    outside profile scope
+                    outside session scope
                   </span>
                 ) : null}
                 <button
@@ -500,11 +509,11 @@ function LlmTab(): React.ReactElement {
   );
 }
 
-export function ProfileTabPanels({
+export function SessionTabPanels({
   tab,
   profile,
 }: {
-  tab: ProfileTab;
+  tab: SessionTab;
   profile: ProfileView;
 }): React.ReactElement {
   switch (tab) {

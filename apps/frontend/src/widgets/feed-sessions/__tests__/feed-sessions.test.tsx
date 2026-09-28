@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 
 import * as profile from '@/entities/profile';
-import { ProfilesPage } from '../index';
+import { FeedSessionsSection } from '../ui/feed-sessions-section';
 
 const PROFILE = {
   id: 'desk-alpha',
@@ -210,7 +210,7 @@ function mockAll() {
   } as unknown as ReturnType<typeof profile.useProfileLlm>);
 }
 
-describe('ProfilesPage (Tramo 2, todo 16)', () => {
+describe('FeedSessionsSection (/feed sessions, ex-/profiles)', () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
@@ -224,19 +224,46 @@ describe('ProfilesPage (Tramo 2, todo 16)', () => {
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     );
-    return render(<ProfilesPage />, { wrapper });
+    return render(<FeedSessionsSection />, { wrapper });
   }
 
   it('renders the profile header with the active profile name', () => {
     renderPage();
-    const header = screen.getByTestId('profiles-header');
-    expect(header).toHaveTextContent('[Profile: Desk Alpha]');
+    const header = screen.getByTestId('sessions-header');
+    expect(header).toHaveTextContent('[Session: Desk Alpha]');
     expect(header.className).toMatch(/sticky/);
+  });
+
+  it('shows Ad-hoc when the session has no template', () => {
+    renderPage();
+    expect(screen.getByTestId('session-template-name')).toHaveTextContent(
+      'template: Ad-hoc',
+    );
+  });
+
+  it('shows the template name for template-bound sessions', () => {
+    mockAll();
+    vi.spyOn(profile, 'useProfiles').mockReturnValue({
+      data: [{ ...PROFILE, templateId: 't-breakout' }],
+    } as unknown as ReturnType<typeof profile.useProfiles>);
+    vi.spyOn(profile, 'useProfileTemplates').mockReturnValue({
+      data: [{ id: 't-breakout', name: 'Breakout' }],
+    } as unknown as ReturnType<typeof profile.useProfileTemplates>);
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    render(<FeedSessionsSection />, { wrapper });
+    expect(screen.getByTestId('session-template-name')).toHaveTextContent(
+      'template: Breakout',
+    );
   });
 
   it('keeps menu and header sticky', () => {
     renderPage();
-    expect(screen.getByTestId('profiles-menu').className).toMatch(/sticky/);
+    expect(screen.getByTestId('sessions-menu').className).toMatch(/sticky/);
   });
 
   it('renders all six tabs', () => {
@@ -249,21 +276,21 @@ describe('ProfilesPage (Tramo 2, todo 16)', () => {
       'filters',
       'llm',
     ]) {
-      expect(screen.getByTestId(`profile-tab-${tab}`)).toBeInTheDocument();
+      expect(screen.getByTestId(`session-tab-${tab}`)).toBeInTheDocument();
     }
   });
 
   it('validates profile names and previews the normalized id', () => {
     renderPage();
-    fireEvent.click(screen.getByTestId('manage-profile-button'));
-    const input = screen.getByTestId('profile-name-input');
+    fireEvent.click(screen.getByTestId('manage-session-button'));
+    const input = screen.getByTestId('session-name-input');
     fireEvent.change(input, { target: { value: 'My New Desk!!' } });
     // Normalized preview is dedup-friendly (lowercase + dashes).
-    expect(screen.getByTestId('profile-id-preview')).toHaveTextContent(
+    expect(screen.getByTestId('session-id-preview')).toHaveTextContent(
       'my-new-desk',
     );
     fireEvent.change(input, { target: { value: '-bad-' } });
-    expect(screen.getByTestId('profile-name-error')).toBeInTheDocument();
+    expect(screen.getByTestId('session-name-error')).toBeInTheDocument();
   });
 
   it('renders profile names as text (XSS-safe)', () => {
@@ -277,9 +304,9 @@ describe('ProfilesPage (Tramo 2, todo 16)', () => {
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     );
-    render(<ProfilesPage />, { wrapper });
+    render(<FeedSessionsSection />, { wrapper });
     expect(document.querySelector('img')).toBeNull();
-    expect(screen.getByTestId('profiles-header')).toHaveTextContent(
+    expect(screen.getByTestId('sessions-header')).toHaveTextContent(
       '<img src=x onerror=alert(1)>',
     );
   });
@@ -306,7 +333,7 @@ describe('ProfilesPage (Tramo 2, todo 16)', () => {
 
   it('renders paginated keyword preview tables (allowed/block/compound)', () => {
     renderPage();
-    fireEvent.click(screen.getByTestId('profile-tab-keywords'));
+    fireEvent.click(screen.getByTestId('session-tab-keywords'));
     expect(screen.getByTestId('keywords-allowed-table')).toHaveTextContent(
       'etf',
     );
@@ -318,7 +345,7 @@ describe('ProfilesPage (Tramo 2, todo 16)', () => {
 
   it('renders the llm config section', () => {
     renderPage();
-    fireEvent.click(screen.getByTestId('profile-tab-llm'));
+    fireEvent.click(screen.getByTestId('session-tab-llm'));
     expect(screen.getByTestId('llm-config-section')).toHaveTextContent(
       'full-pipeline',
     );
@@ -326,7 +353,7 @@ describe('ProfilesPage (Tramo 2, todo 16)', () => {
 
   it('renders per-source toggles in the sources tab', () => {
     renderPage();
-    fireEvent.click(screen.getByTestId('profile-tab-sources'));
+    fireEvent.click(screen.getByTestId('session-tab-sources'));
     expect(screen.getByTestId('source-toggle--1001')).toBeInTheDocument();
     expect(screen.getByTestId('source-toggle--1002')).toBeInTheDocument();
   });

@@ -287,6 +287,32 @@ dual-run (default `dual`); todo 4 flipped the cutover (default
   the ai-ml catalog (model/maxTokens/temperature/reasoningEffort +
   vision payload); then `FEED_AI_ML_MODE=ai-ml` promotion per env.
 
+## SESSION DISPLAY NAME (DONE 2026-09-28)
+
+User-provided, editable, API-visible tab label on `PublishingSession`.
+Evidence: `.omo/evidence/session-name.log` — 158 suites / 520 tests
+green (+1/+11), `tsc` clean, prettier clean.
+
+- **Contract** (`SESSION_NAME_MAX_LENGTH = 80`,
+  `assertValidSessionName`, `defaultSessionName` in
+  `sessions/domain/entities/publishing-session.entity.ts`): non-empty
+  after trim, max 80 chars (DTO `@MaxLength` + domain assert on
+  create/rename/update). Duplicates ALLOWED — names are display
+  labels only, `id` (slugified when implicit) stays unique.
+- **Default** (`PublishingSessionUseCases.create`): omitted name ->
+  `<template-name>-<n>` when loaded from a template, `ad-hoc-<n>`
+  otherwise (n = row count + 1; entity floor `ad-hoc-1`).
+- **Editable**: `rename(name)` + `updateConfig({ name })` + use-case
+  `rename` + `PATCH /api/sessions/:id { name }`; every view
+  (create/list/get/update) returns `name` for tabs/header.
+- **Existing rows**: `backfillSessionNames`
+  (`sessions/infrastructure/persistence/session-name-migration.ts`)
+  patches empty/missing names to the default (touched count
+  returned); future TypeORM wiring (GAP-1) lands `name VARCHAR(80)
+NOT NULL` with this backfill first.
+- Nothing outside `apps/feed-publisher/` touched; worktree left
+  dirty (no commit).
+
 ## COMMANDS
 
 ```bash

@@ -5,6 +5,7 @@ import { Lightbox } from '@/shared/ui/lightbox';
 import { formatRelativeTime } from '@/shared/lib';
 import { renderFormattedText } from '@/shared/lib/render-telegram-entities';
 import { ManageFeedSourcesModal } from '@/features/manage-feed-sources';
+import { FeedSessionsSection } from '@/widgets/feed-sessions';
 import {
   BlockedPostsList,
   FeedQueueStatsStrip,
@@ -130,6 +131,8 @@ export function FeedPage() {
 
   return (
     <div className="px-6 py-6 space-y-6">
+      <FeedSessionsSection />
+
       <header className="flex items-start justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold text-slate-100">Feed</h1>
@@ -184,6 +187,7 @@ export function FeedPage() {
             <label className="text-sm text-slate-400">Filter by source:</label>
             <select
               value={channelFilter}
+              aria-label="Filter by source"
               onChange={(e) => setChannelFilter(e.target.value)}
               className="bg-slate-800 text-slate-100 text-sm rounded px-3 py-1.5 border border-slate-700"
             >

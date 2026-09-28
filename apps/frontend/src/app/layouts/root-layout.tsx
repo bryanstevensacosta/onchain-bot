@@ -5,7 +5,6 @@ const NAV = [
   { to: '/tokens', label: 'Tokens' },
   { to: '/kols', label: 'KOLs' },
   { to: '/feed', label: 'Feed' },
-  { to: '/profiles', label: 'Profiles' },
   { to: '/playground', label: 'Playground' },
   { to: '/threads', label: 'Threads' },
   { to: '/templates', label: 'Templates' },

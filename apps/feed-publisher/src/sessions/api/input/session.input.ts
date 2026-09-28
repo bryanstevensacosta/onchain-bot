@@ -1,4 +1,5 @@
-import { IsArray, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsOptional, IsString, MaxLength } from 'class-validator';
+import { SESSION_NAME_MAX_LENGTH } from '@/sessions/domain/entities/publishing-session.entity';
 
 /**
  * Frontend DTOs for session CRUD (todo 12, P34).
@@ -8,8 +9,10 @@ export class CreateSessionDto {
   @IsString()
   public id?: string;
 
+  @IsOptional()
   @IsString()
-  public name!: string;
+  @MaxLength(SESSION_NAME_MAX_LENGTH)
+  public name?: string;
 
   @IsOptional()
   @IsString()
@@ -44,6 +47,11 @@ export class CreateSessionDto {
 }
 
 export class UpdateSessionDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(SESSION_NAME_MAX_LENGTH)
+  public name?: string;
+
   @IsOptional()
   @IsString()
   public templateId?: string | null;

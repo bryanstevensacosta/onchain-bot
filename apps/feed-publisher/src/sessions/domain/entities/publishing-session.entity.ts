@@ -24,7 +24,7 @@ export interface SessionSchedule {
 
 export interface CreatePublishingSessionInput {
   readonly id?: string;
-  readonly name: string;
+  readonly name?: string;
   readonly templateId?: string | null;
   readonly sourceToggles?: Record<string, boolean>;
   readonly keywordIds?: ReadonlyArray<string>;
@@ -35,6 +35,45 @@ export interface CreatePublishingSessionInput {
   readonly telegramTargets?: ReadonlyArray<SessionBotTarget>;
   readonly threadsTargets?: ReadonlyArray<SessionBotTarget>;
   readonly active?: boolean;
+}
+
+/**
+ * Session display-name contract (tabs/header/API).
+ *
+ * - User-provided on create, editable via rename/update at any time.
+ * - Omitted on create -> the use-case defaults to
+ *   `<template-name|ad-hoc>-<n>` (n = existing row count + 1).
+ * - Non-empty (after trim), max {@link SESSION_NAME_MAX_LENGTH} chars.
+ * - Duplicates ALLOWED: names are display labels only; `id` is the
+ *   unique identity (slugified from the name when no explicit id).
+ */
+export const SESSION_NAME_MAX_LENGTH = 80;
+
+export function assertValidSessionName(name: string): string {
+  const trimmed = (name ?? '').trim();
+  if (!trimmed) {
+    throw new DomainError(
+      ErrorCode.VALIDATION,
+      'session name must not be empty',
+    );
+  }
+  if (trimmed.length > SESSION_NAME_MAX_LENGTH) {
+    throw new DomainError(
+      ErrorCode.VALIDATION,
+      `session name must be at most ${SESSION_NAME_MAX_LENGTH} characters`,
+      { length: trimmed.length },
+    );
+  }
+  return trimmed;
+}
+
+/** Default display name for sessions created without one. */
+export function defaultSessionName(
+  templateName: string | null,
+  seq: number,
+): string {
+  const base = (templateName ?? '').trim() || 'ad-hoc';
+  return `${base}-${seq}`;
 }
 
 function slugify(name: string): string {
@@ -88,7 +127,7 @@ function normalizeSchedule(
  * Inactive sessions consume nothing and publish nothing (adversarial).
  */
 export class PublishingSession extends AggregateRoot<string> {
-  private readonly displayName: string;
+  private displayName: string;
   private templateIdState: string | null;
   private sourceTogglesState: Record<string, boolean>;
   private keywordIdsState: ReadonlyArray<string>;
@@ -120,13 +159,10 @@ export class PublishingSession extends AggregateRoot<string> {
   }
 
   public static create(input: CreatePublishingSessionInput): PublishingSession {
-    const name = (input.name ?? '').trim();
-    if (!name) {
-      throw new DomainError(
-        ErrorCode.VALIDATION,
-        'session name must not be empty',
-      );
-    }
+    const name =
+      input.name === undefined || input.name === null
+        ? defaultSessionName(null, 1)
+        : assertValidSessionName(input.name);
     const id = (input.id ?? slugify(name)).trim();
     if (!id) {
       throw new DomainError(
@@ -259,7 +295,13 @@ export class PublishingSession extends AggregateRoot<string> {
     this.touch();
   }
 
+  public rename(name: string): void {
+    this.displayName = assertValidSessionName(name);
+    this.touch();
+  }
+
   public updateConfig(patch: {
+    name?: string;
     templateId?: string | null;
     sourceToggles?: Record<string, boolean>;
     keywordIds?: ReadonlyArray<string>;
@@ -271,6 +313,7 @@ export class PublishingSession extends AggregateRoot<string> {
     threadsTargets?: ReadonlyArray<SessionBotTarget>;
     active?: boolean;
   }): void {
+    if (patch.name !== undefined) this.rename(patch.name);
     if (patch.templateId !== undefined) this.templateIdState = patch.templateId;
     if (patch.sourceToggles !== undefined) {
       this.sourceTogglesState = { ...patch.sourceToggles };

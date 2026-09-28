@@ -11,19 +11,19 @@ import {
   type ProfileView,
 } from '@/entities/profile';
 
-interface ManageProfileModalProps {
+interface ManageSessionModalProps {
   readonly isOpen: boolean;
   readonly onClose: () => void;
   readonly profiles: ReadonlyArray<ProfileView>;
   readonly onCreated: (id: string) => void;
 }
 
-export function ManageProfileModal({
+export function ManageSessionModal({
   isOpen,
   onClose,
   profiles,
   onCreated,
-}: ManageProfileModalProps): React.ReactElement {
+}: ManageSessionModalProps): React.ReactElement {
   const [name, setName] = useState('');
   const [templateId, setTemplateId] = useState<string>('');
   const { data: templates } = useProfileTemplates();
@@ -43,7 +43,7 @@ export function ManageProfileModal({
       ? 'Use lowercase letters, digits and single dashes (e.g. desk-alpha).'
       : null;
   const duplicateError = duplicate
-    ? `Profile id “${normalized}” already exists.`
+    ? `Session id “${normalized}” already exists.`
     : null;
   const canCreate =
     normalized !== '' && isValidProfileName(normalized) && !duplicate;
@@ -69,33 +69,33 @@ export function ManageProfileModal({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Manage Profile"
+      title="Manage Sessions"
       size="lg"
     >
       <div className="max-h-[70vh] overflow-y-auto pr-1">
         <label
           className="block text-xs uppercase text-slate-500 mb-1"
-          htmlFor="profile-name"
+          htmlFor="session-name"
         >
-          Profile name
+          Session name
         </label>
         <input
-          id="profile-name"
-          data-testid="profile-name-input"
+          id="session-name"
+          data-testid="session-name-input"
           className="w-full bg-slate-800 text-slate-100 text-sm rounded px-2 py-1.5 border border-slate-700"
           value={name}
           placeholder="desk-alpha"
           onChange={(e) => setName(e.target.value)}
         />
         <p
-          data-testid="profile-id-preview"
+          data-testid="session-id-preview"
           className="text-xs text-slate-500 mt-1"
         >
           id: {normalized === '' ? '—' : normalized}
         </p>
         {nameError !== null ? (
           <p
-            data-testid="profile-name-error"
+            data-testid="session-name-error"
             className="text-xs text-red-400 mt-1"
           >
             {nameError}
@@ -103,7 +103,7 @@ export function ManageProfileModal({
         ) : null}
         {duplicateError !== null ? (
           <p
-            data-testid="profile-name-error"
+            data-testid="session-name-error"
             className="text-xs text-red-400 mt-1"
           >
             {duplicateError}
@@ -112,13 +112,13 @@ export function ManageProfileModal({
 
         <label
           className="block text-xs uppercase text-slate-500 mt-3 mb-1"
-          htmlFor="profile-template"
+          htmlFor="session-template"
         >
           Start from template (optional)
         </label>
         <select
-          id="profile-template"
-          data-testid="profile-template-select"
+          id="session-template"
+          data-testid="session-template-select"
           className="w-full bg-slate-800 text-slate-100 text-sm rounded px-2 py-1.5 border border-slate-700"
           value={templateId}
           onChange={(e) => setTemplateId(e.target.value)}
@@ -132,20 +132,20 @@ export function ManageProfileModal({
         </select>
 
         {create.error ? (
-          <p className="text-xs text-red-400 mt-2">Could not create profile.</p>
+          <p className="text-xs text-red-400 mt-2">Could not create session.</p>
         ) : null}
         <button
-          data-testid="profile-create-button"
+          data-testid="session-create-button"
           type="button"
           disabled={!canCreate || create.isPending}
           onClick={handleCreate}
           className="mt-3 text-sm px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-40"
         >
-          Create profile
+          Create session
         </button>
 
         <h3 className="text-sm font-semibold text-slate-200 mt-5 mb-2">
-          Existing profiles
+          Existing sessions
         </h3>
         <ul className="space-y-1.5">
           {profiles.map((p) => (
@@ -159,7 +159,7 @@ export function ManageProfileModal({
               </span>
               {p.active ? (
                 <button
-                  data-testid={`profile-deactivate-${p.id}`}
+                  data-testid={`session-deactivate-${p.id}`}
                   type="button"
                   onClick={() => deactivate.mutate(p.id)}
                   className="text-xs px-2 py-1 rounded bg-slate-700 hover:bg-slate-600"
@@ -168,7 +168,7 @@ export function ManageProfileModal({
                 </button>
               ) : (
                 <button
-                  data-testid={`profile-activate-${p.id}`}
+                  data-testid={`session-activate-${p.id}`}
                   type="button"
                   onClick={() => activate.mutate(p.id)}
                   className="text-xs px-2 py-1 rounded bg-slate-700 hover:bg-slate-600"
@@ -177,7 +177,7 @@ export function ManageProfileModal({
                 </button>
               )}
               <button
-                data-testid={`profile-delete-${p.id}`}
+                data-testid={`session-delete-${p.id}`}
                 type="button"
                 onClick={() => remove.mutate(p.id)}
                 className="text-xs px-2 py-1 rounded bg-red-900/50 text-red-300 hover:bg-red-900"

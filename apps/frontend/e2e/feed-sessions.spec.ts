@@ -1,9 +1,9 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
-const PROFILE = {
+const SESSION = {
   id: 'desk-alpha',
   name: 'Desk Alpha',
-  templateId: null,
+  templateId: 't-breakout',
   active: true,
   matchingEnabled: true,
   publishingEnabled: true,
@@ -15,6 +15,8 @@ const PROFILE = {
   canConsume: true,
   canPublish: true,
 };
+
+const TEMPLATES = [{ id: 't-breakout', name: 'Breakout' }];
 
 const SOURCES = [
   {
@@ -52,13 +54,13 @@ const MESSAGES = [
   },
 ];
 
-test.describe('profiles (Tramo 2, todo 16)', () => {
-  let sessionState: typeof PROFILE;
+test.describe('feed sessions (ex-/profiles, on /feed)', () => {
+  let sessionState: typeof SESSION;
 
-  async function mockProfiles(page: Page) {
+  async function mockSessions(page: Page) {
     sessionState = {
-      ...PROFILE,
-      sourceToggles: { ...PROFILE.sourceToggles },
+      ...SESSION,
+      sourceToggles: { ...SESSION.sourceToggles },
     };
     await page.route('**/ingestion-api/**', (route: Route) => {
       const url = new URL(route.request().url());
@@ -93,7 +95,7 @@ test.describe('profiles (Tramo 2, todo 16)', () => {
         return json([sessionState]);
       }
       if (path === '/api/content-templates' && method === 'GET') {
-        return json([]);
+        return json(TEMPLATES);
       }
       if (path === '/feed-publisher/keywords' && method === 'GET') {
         return json([
@@ -208,11 +210,23 @@ test.describe('profiles (Tramo 2, todo 16)', () => {
     });
   }
 
-  test('header, tabs and status badges render', async ({ page }) => {
-    await mockProfiles(page);
+  test('legacy /profiles redirects to /feed', async ({ page }) => {
+    await mockSessions(page);
     await page.goto('/profiles');
-    await expect(page.getByTestId('profiles-header')).toContainText(
-      '[Profile: Desk Alpha]',
+    await expect(page).toHaveURL(/\/feed$/);
+    await expect(page.getByTestId('sessions-header')).toBeVisible();
+  });
+
+  test('session header, template name, tabs and status badges render', async ({
+    page,
+  }) => {
+    await mockSessions(page);
+    await page.goto('/feed');
+    await expect(page.getByTestId('sessions-header')).toContainText(
+      '[Session: Desk Alpha]',
+    );
+    await expect(page.getByTestId('session-template-name')).toContainText(
+      'template: Breakout',
     );
     for (const tab of [
       'sources',
@@ -222,17 +236,20 @@ test.describe('profiles (Tramo 2, todo 16)', () => {
       'filters',
       'llm',
     ]) {
-      await expect(page.getByTestId(`profile-tab-${tab}`)).toBeVisible();
+      await expect(page.getByTestId(`session-tab-${tab}`)).toBeVisible();
     }
     await expect(page.getByTestId('status-badge--1001-7')).toContainText(
       'Pending to publish',
     );
+    await page.screenshot({
+      path: test.info().outputPath('feed-sessions.png'),
+    });
   });
 
-  test('sources toggles PATCH per-profile', async ({ page }) => {
-    await mockProfiles(page);
-    await page.goto('/profiles');
-    await page.getByTestId('profile-tab-sources').click();
+  test('sources toggles PATCH per-session', async ({ page }) => {
+    await mockSessions(page);
+    await page.goto('/feed');
+    await page.getByTestId('session-tab-sources').click();
     const toggle = page.getByTestId('source-toggle--1002');
     await expect(toggle).toHaveText('Off');
     await toggle.click();
@@ -242,10 +259,10 @@ test.describe('profiles (Tramo 2, todo 16)', () => {
   test('keywords tables, queue, target, filters and llm tabs render', async ({
     page,
   }) => {
-    await mockProfiles(page);
-    await page.goto('/profiles');
+    await mockSessions(page);
+    await page.goto('/feed');
 
-    await page.getByTestId('profile-tab-keywords').click();
+    await page.getByTestId('session-tab-keywords').click();
     await expect(page.getByTestId('keywords-allowed-table')).toContainText(
       'etf',
     );
@@ -253,21 +270,21 @@ test.describe('profiles (Tramo 2, todo 16)', () => {
       'scam',
     );
 
-    await page.getByTestId('profile-tab-target').click();
+    await page.getByTestId('session-tab-target').click();
     await expect(page.getByTestId('target-tab')).toContainText('-1009');
 
-    await page.getByTestId('profile-tab-filters').click();
+    await page.getByTestId('session-tab-filters').click();
     await expect(page.getByTestId('filters-tab')).toBeVisible();
 
-    await page.getByTestId('profile-tab-llm').click();
+    await page.getByTestId('session-tab-llm').click();
     await expect(page.getByTestId('llm-config-section')).toContainText(
       'full-pipeline',
     );
   });
 
   test('recent details modal opens fixed with scroll', async ({ page }) => {
-    await mockProfiles(page);
-    await page.goto('/profiles');
+    await mockSessions(page);
+    await page.goto('/feed');
     await page.getByTestId('recent-open--1001-7').click();
     const modal = page.getByTestId('recent-details-modal');
     await expect(modal).toBeVisible();
@@ -279,14 +296,14 @@ test.describe('profiles (Tramo 2, todo 16)', () => {
   test('manage modal validates names and previews the normalized id', async ({
     page,
   }) => {
-    await mockProfiles(page);
-    await page.goto('/profiles');
-    await page.getByTestId('manage-profile-button').click();
-    await page.getByTestId('profile-name-input').fill('My New Desk!!');
-    await expect(page.getByTestId('profile-id-preview')).toContainText(
+    await mockSessions(page);
+    await page.goto('/feed');
+    await page.getByTestId('manage-session-button').click();
+    await page.getByTestId('session-name-input').fill('My New Desk!!');
+    await expect(page.getByTestId('session-id-preview')).toContainText(
       'my-new-desk',
     );
-    await page.getByTestId('profile-name-input').fill('-bad-');
-    await expect(page.getByTestId('profile-name-error')).toBeVisible();
+    await page.getByTestId('session-name-input').fill('-bad-');
+    await expect(page.getByTestId('session-name-error')).toBeVisible();
   });
 });

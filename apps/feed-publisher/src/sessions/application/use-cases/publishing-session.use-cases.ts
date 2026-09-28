@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import {
   PublishingSession,
+  defaultSessionName,
   type CreatePublishingSessionInput,
 } from '@/sessions/domain/entities/publishing-session.entity';
 import { PublishingSessionRepository } from '@/sessions/domain/ports/publishing-session.repository';
@@ -87,6 +88,12 @@ export class PublishingSessionUseCases {
     }
     const session = PublishingSession.create({
       ...input,
+      name:
+        input.name ??
+        defaultSessionName(
+          fromTemplate?.name ?? null,
+          (await this.sessions.list()).length + 1,
+        ),
       sourceToggles:
         input.sourceToggles ??
         Object.fromEntries(
@@ -143,6 +150,9 @@ export class PublishingSessionUseCases {
     return this.update(id, { active: true });
   }
 
+  public async rename(id: string, name: string): Promise<PublishingSession> {
+    return this.update(id, { name });
+  }
   public async deactivate(id: string): Promise<PublishingSession> {
     return this.update(id, { active: false });
   }

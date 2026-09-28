@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Session display name (`src/sessions/`):** user-provided on create,
+  editable at any time (`PATCH /api/sessions/:id` with `name`, or
+  `rename`), shown in every API view (create/list/get/update) for the
+  tabs/header. Omitted on create defaults to `<template-name|ad-hoc>-<n>`
+  (n = existing row count + 1; entity floor `ad-hoc-1`). Validation:
+  non-empty after trim, max 80 chars (`SESSION_NAME_MAX_LENGTH`,
+  DTO `@MaxLength` + domain assert). Duplicates ALLOWED — names are
+  display labels only, `id` stays the unique identity. Existing rows:
+  `backfillSessionNames` patches empty/missing names to the default
+  (future TypeORM: `name VARCHAR(80) NOT NULL`). 11 tests in
+  `src/sessions/session-name.spec.ts` (full 158/520 green).
+
 - **Per-message lifecycle status + dry-run + faithful filters preview
   (Tramo 2 todos 17/18, backend partial):** `GET
 /feed-publisher/matching/messages/:channelId/:messageId/status` joins

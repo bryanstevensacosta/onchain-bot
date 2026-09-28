@@ -88,6 +88,7 @@ export class SessionsController {
     @Body() dto: UpdateSessionDto,
   ): Promise<PublishingSessionView> {
     const updated = await this.useCases.update(id, {
+      name: dto.name,
       templateId: dto.templateId,
       sourceToggles: dto.sourceToggles,
       keywordIds: dto.keywordIds,

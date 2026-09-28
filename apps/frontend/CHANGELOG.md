@@ -4,6 +4,31 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- `/profiles` merged into `/feed` as sessions (breaking UI change):
+  `pages/profiles/ui/*` moved to `widgets/feed-sessions/ui/` (FSD:
+  pages cannot import from other pages) and rendered at the top of
+  `FeedPage` as `FeedSessionsSection`: sticky header
+  `[Session: <name>]` (session picker + `template: <name>|Ad-hoc` +
+  Manage Sessions button) + sticky tab menu
+  (sources|keywords|queue|target|filters|llm) + recent with status
+  badges. Legacy `/profiles` answers `<Navigate to="/feed" replace />`
+  so old bookmarks keep working; nav drops the Profiles link (10 links
+  left); `pages/profiles/index.tsx` is a deprecated redirect stub.
+  User-facing labels renamed profiles→sessions/templates (entity layer
+  `entities/profile`, hooks, testids aside, API contract untouched;
+  session testids renamed `sessions-*`/`session-*`). Feed source filter
+  select gains `aria-label="Filter by source"` (was positional
+  `combobox[0]` in specs, now displaced by the session picker). Tests:
+  `widgets/feed-sessions/__tests__/feed-sessions.test.tsx` (moved +
+  renamed, + Ad-hoc/template-bound template-name cases) +
+  `pages/feed/__tests__/feed-page.test.tsx` sessions section (header +
+  template + tabs render, empty state; `@/entities/profile` mocked) +
+  Playwright `e2e/feed-sessions.spec.ts` (renamed, 6 flows on `/feed` +
+  redirect test + `feed-sessions.png` screenshot).
+  (feat/mega-refactor-tramos)
+
 ### Added
 
 - Profiles UI on `/profiles` (Tramo 2, todo 16): publishing profiles are

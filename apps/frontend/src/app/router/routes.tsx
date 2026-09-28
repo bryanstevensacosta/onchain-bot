@@ -10,7 +10,6 @@ import { TokenDetailPage } from '@/pages/token-detail';
 import { KolsPage } from '@/pages/kols';
 import { OpsPage } from '@/pages/ops';
 import { FeedPage } from '@/pages/feed';
-import { ProfilesPage } from '@/pages/profiles';
 import { PlaygroundPage } from '@/pages/playground';
 import { TemplateDashboardPage } from '@/pages/template-dashboard';
 import { ThreadsPage } from '@/pages/threads';
@@ -27,7 +26,7 @@ export const router = createBrowserRouter([
       { path: 'tokens/:chain/:address', element: <TokenDetailPage /> },
       { path: 'kols', element: <KolsPage /> },
       { path: 'feed', element: <FeedPage /> },
-      { path: 'profiles', element: <ProfilesPage /> },
+      { path: 'profiles', element: <Navigate to="/feed" replace /> },
       { path: 'crypto-news', element: <Navigate to="/feed" replace /> },
       { path: 'playground', element: <PlaygroundPage /> },
       { path: 'threads', element: <ThreadsPage /> },
