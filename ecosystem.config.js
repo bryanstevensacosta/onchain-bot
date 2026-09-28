@@ -74,6 +74,20 @@ function app(name, dir, args, env, overrides = {}) {
   };
 }
 
+// Local redis reality (2026-09-28): the ONLY dev redis running is
+// onchain-bot-redis-dev on localhost:6379 (docker-compose.dev.yml per-app
+// redis services :6382+ were never started). Every app below therefore
+// targets redis://localhost:6379/<db> with a UNIQUE db index per app
+// (backend + ingestion-telegram use HOST/PORT vars = implicit db 0):
+//   db 0: backend (REDIS_HOST/PORT) + ingestion-telegram (INGESTION_REDIS_*)
+//   db 1: kol-calls | db 2: kol-calls-publisher | db 3: feed-publisher
+//   db 4: market-data | db 5: dexter | db 6: scheduling-posts
+//   db 7: ai-ml | db 8: threads-publisher
+// (kol-calls/publisher shared one redis :6382/0 before; split to db 1/2.)
+// gateway has no REDIS usage (no REDIS_URL needed).
+// To run the old per-app redises instead, start them via
+// docker-compose.dev.yml and revert these URLs.
+
 module.exports = {
   apps: [
     // backend :3030 — NestJS alpha-call pipeline (legacy monolith core).
@@ -132,7 +146,7 @@ module.exports = {
       KOL_CALLS_PORT: 3050,
       DATABASE_URL:
         'postgres://onchain_bot:onchain_bot@localhost:5435/onchain_bot_kol_system',
-      REDIS_URL: 'redis://localhost:6382/0',
+      REDIS_URL: 'redis://localhost:6379/1',
       DATABASE_SYNCHRONIZE: 'true',
       ENCRYPTION_KEY:
         'dev-dummy-encryption-key-00000000000000000000000000000000',
@@ -149,7 +163,7 @@ module.exports = {
       KOL_CALLS_PUBLISHER_PORT: 3060,
       DATABASE_URL:
         'postgres://onchain_bot:onchain_bot@localhost:5435/onchain_bot_kol_system',
-      REDIS_URL: 'redis://localhost:6382/0',
+      REDIS_URL: 'redis://localhost:6379/2',
       DATABASE_SYNCHRONIZE: 'true',
       ENCRYPTION_KEY:
         'dev-dummy-encryption-key-00000000000000000000000000000000',
@@ -165,7 +179,7 @@ module.exports = {
       FEED_PUBLISHER_PORT: 3040,
       DATABASE_URL:
         'postgres://onchain_bot:onchain_bot@localhost:5436/onchain_bot_feed_publisher',
-      REDIS_URL: 'redis://localhost:6383/0',
+      REDIS_URL: 'redis://localhost:6379/3',
       DATABASE_SYNCHRONIZE: 'true',
       ENCRYPTION_KEY:
         'dev-dummy-encryption-key-00000000000000000000000000000000',
@@ -179,7 +193,7 @@ module.exports = {
       MARKET_DATA_PORT: 4000,
       DATABASE_URL:
         'postgres://onchain_bot:onchain_bot@localhost:5438/onchain_bot_market_data',
-      REDIS_URL: 'redis://localhost:6385/0',
+      REDIS_URL: 'redis://localhost:6379/4',
       DATABASE_SYNCHRONIZE: 'true',
       ENCRYPTION_KEY:
         'dev-dummy-encryption-key-00000000000000000000000000000000',
@@ -190,7 +204,7 @@ module.exports = {
       DEXTER_PORT: 4060,
       DATABASE_URL:
         'postgres://onchain_bot:onchain_bot@localhost:5440/onchain_bot_dexter',
-      REDIS_URL: 'redis://localhost:6387/0',
+      REDIS_URL: 'redis://localhost:6379/5',
       DATABASE_SYNCHRONIZE: 'true',
       ENCRYPTION_KEY:
         'dev-dummy-encryption-key-00000000000000000000000000000000',
@@ -212,7 +226,7 @@ module.exports = {
       SCHEDULING_POSTS_PORT: 4080,
       DATABASE_URL:
         'postgres://onchain_bot:onchain_bot@localhost:5442/onchain_bot_scheduling',
-      REDIS_URL: 'redis://localhost:6389/0',
+      REDIS_URL: 'redis://localhost:6379/6',
       DATABASE_SYNCHRONIZE: 'true',
       ENCRYPTION_KEY:
         'dev-dummy-encryption-key-00000000000000000000000000000000',
@@ -224,7 +238,7 @@ module.exports = {
       THREADS_PUBLISHER_PORT: 4100,
       DATABASE_URL:
         'postgres://onchain_bot:onchain_bot@localhost:5446/onchain_bot_threads',
-      REDIS_URL: 'redis://localhost:6393/0',
+      REDIS_URL: 'redis://localhost:6379/8',
       DATABASE_SYNCHRONIZE: 'true',
       ENCRYPTION_KEY:
         'dev-dummy-encryption-key-00000000000000000000000000000000',
@@ -236,7 +250,7 @@ module.exports = {
       AI_ML_PORT: 4090,
       DATABASE_URL:
         'postgres://onchain_bot:onchain_bot@localhost:5444/onchain_bot_ai_ml',
-      REDIS_URL: 'redis://localhost:6391/0',
+      REDIS_URL: 'redis://localhost:6379/7',
       DATABASE_SYNCHRONIZE: 'true',
       ENCRYPTION_KEY:
         'dev-dummy-encryption-key-00000000000000000000000000000000',
