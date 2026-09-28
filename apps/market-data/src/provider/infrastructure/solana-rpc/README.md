@@ -1,5 +1,7 @@
 # Solana RPC — Data Provider
 
+> Cost: FREE — public JSON-RPC, no API key. Zero-cost cascade (chain kind, runs 24/7 at $0).
+
 Plain Solana JSON-RPC 2.0 client: top-20 holders via
 `getTokenLargestAccounts` and chain probing via `getAccountInfo`, with
 primary → public-RPC failover on transport errors only.

@@ -1,5 +1,7 @@
 # Alchemy provider
 
+> Cost: KEYED (`ALCHEMY_API_KEY`) — chain kind, fallback only. Without the key every method returns null (skip, never throws); zero-cost cascade never spends on it.
+
 EVM chain-data adapter (Ethereum mainnet JSON-RPC + Alchemy Enhanced API).
 Kind: `chain` (registry: `provider-descriptor.ts:70-74`).
 

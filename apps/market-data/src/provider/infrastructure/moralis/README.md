@@ -1,5 +1,7 @@
 # Moralis provider
 
+> Cost: KEYED (`MORALIS_API_KEY`) — fallback tier `keyed`. Without the key every method returns null (skip, never throws); zero-cost cascade never spends on it.
+
 EVM-only market-data adapter (analytics, holders, metadata, price,
 wallet balances). Kind: `market` (registry:
 `provider-descriptor.ts:63-68`).

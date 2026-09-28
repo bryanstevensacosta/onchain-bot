@@ -1,5 +1,7 @@
 # CoinMarketCap Provider
 
+> Cost: KEYED (`COINMARKETCAP_API_KEY`) — fallback tier `keyed`. Without the key every method returns null (skip, never throws); zero-cost cascade never spends on it.
+
 Real-time quotes, static metadata, ranked listings, ID map, price
 conversion, and global aggregate metrics.
 

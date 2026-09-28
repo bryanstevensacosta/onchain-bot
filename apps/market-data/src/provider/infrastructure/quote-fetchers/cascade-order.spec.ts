@@ -41,17 +41,17 @@ function stubDeps(overrides: Record<string, unknown> = {}): never {
 }
 
 describe('ccxt-first cascade order (P48-bis)', () => {
-  it('places ccxt first and preserves the existing relative order', () => {
+  it('places ccxt first and keeps free providers before keyed fallback', () => {
     const fetchers = buildProviderQuoteFetchers(stubDeps());
     expect(fetchers.map((fetcher) => fetcher.name)).toEqual([
       'ccxt',
       'dexscreener',
       'geckoterminal',
+      'rugcheck',
       'birdeye',
       'coingecko',
       'mobula',
       'moralis',
-      'rugcheck',
     ]);
   });
 
@@ -74,9 +74,9 @@ describe('ccxt-first cascade order (P48-bis)', () => {
     const fetchers: ReadonlyArray<QuoteFetcher> =
       buildProviderQuoteFetchers(stubDeps());
     const ccxt = fetchers[0];
-    expect(ccxt.covers?.('solana', 'So11111111111111111111111111111111111111112')).toBe(
-      false,
-    );
+    expect(
+      ccxt.covers?.('solana', 'So11111111111111111111111111111111111111112'),
+    ).toBe(false);
     expect(ccxt.covers?.('solana', 'BTC/USDT')).toBe(true);
     const aggregator = new SnapshotAggregatorService();
     const outcome = await aggregator.aggregate(

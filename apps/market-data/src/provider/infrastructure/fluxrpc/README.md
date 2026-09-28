@@ -1,5 +1,7 @@
 # FluxRPC — Solana Data Provider
 
+> Cost: KEYED (`FLUXRPC_API_KEY`) — chain kind, fallback only. Without the key every method returns null (skip, never throws); zero-cost cascade never spends on it.
+
 FluxRPC adapter: standard Solana JSON-RPC over HTTP for balances, token
 accounts, transactions, and chain state. Solana mainnet
 (`supportsChains: ['solana']`, kind `chain`, 300 req/min internal

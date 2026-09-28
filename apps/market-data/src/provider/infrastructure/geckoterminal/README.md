@@ -1,5 +1,7 @@
 # GeckoTerminal provider
 
+> Cost: FREE — no API key (Pro key optional, unused). Zero-cost cascade tier `free` (runs 24/7 at $0).
+
 Free token-info source (100+ networks): holders, price, FDV/market cap,
 volume, price change, GT score — aggregated across DEXes.
 

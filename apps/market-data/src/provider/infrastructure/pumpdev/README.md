@@ -1,5 +1,7 @@
 # PumpDev provider
 
+> Cost: KEYED (`PUMPDEV_API_KEY`) — trading kind, fallback only. Without the key every method returns null (skip, never throws); zero-cost cascade never spends on it.
+
 pump.fun trading / token-creation adapter via the PumpDev REST API
 (`https://pumpdev.io/`, see `@see` in `pumpdev.service.ts:25`).
 

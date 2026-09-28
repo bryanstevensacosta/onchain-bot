@@ -600,6 +600,25 @@ English per `RELEASE-FLOW.md` (P39). Stale knowledge base = failed todo.
 
 - Gate T2 record: `.omo/evidence/task-0-mega-refactor-market-data.log`
   (6/6 backend feed areas with `Moved to apps/feed-publisher` headers).
+
+- Zero-cost cascade (2026-09-28, feat/mega-refactor-tramos,
+  consumer-probe): quote fetchers run free-first ordered by coverage —
+  `ccxt` (CEX-only via `covers()`) → `dexscreener` (broadest onchain) →
+  `geckoterminal` (broad onchain + supplies) → `rugcheck` (free
+  security fields) — then keyed fallback `birdeye` → `coingecko` →
+  `mobula` → `moralis` (null without keys, never throwing). Tiers pinned
+  in `QUOTE_FETCHER_COST_TIER`
+  (`provider/infrastructure/quote-fetchers/provider-quote.fetchers.ts`)
+  - `zero-cost-cascade.spec.ts` (order + all-null aggregate + real
+    keyless-adapter skip, adversarial: paid call without key resolves
+    null, never 401-crashes). Rate limiters respected per provider via
+    the outbound token-bucket gate (budgets from the registry
+    descriptors). Live probe (no keys in env, $0 spend): JUP/solana +
+    小股东/bsc both `ready` 9/17 fields from free sources only
+    (dexscreener + geckoterminal); SECT has no input
+    (`docs/addresses-testing/SECT.md` empty — not probed, never
+    invented). Evidence: `.omo/evidence/zero-cost-probe.log`.
+
 - `libs/*` → `src/*` mapping (G-16): providers →
   `token/infrastructure/providers`; aggregators →
   `token/application/services`; cache/rate-limiter → own modules;

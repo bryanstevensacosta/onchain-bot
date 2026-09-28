@@ -1,5 +1,7 @@
 # Birdeye provider
 
+> Cost: KEYED (`BIRDEYE_API_KEY`) — fallback tier `keyed`. Without the key every method returns null (skip, never throws); zero-cost cascade never spends on it.
+
 Solana-focused market-data adapter (price, overview incl. holders,
 recent swaps). Kind: `market` (registry: `provider-descriptor.ts:44-49`).
 

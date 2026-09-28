@@ -1,5 +1,7 @@
 # RugCheck provider
 
+> Cost: FREE — no API key. Zero-cost cascade tier `free` (runs 24/7 at $0).
+
 Solana token-safety adapter. Fetches the RugCheck report summary for a
 mint and exposes deterministic mock data for tokens without a report.
 

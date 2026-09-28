@@ -1,5 +1,7 @@
 # Mobula provider
 
+> Cost: KEYED (`MOBULA_API_KEY`) — fallback tier `keyed`. Without the key every method returns null (skip, never throws); zero-cost cascade never spends on it.
+
 Multi-chain (EVM + Solana) market-data adapter. Unique value:
 concentration metrics (top-10, insiders, bundlers, dev), bonding-curve
 detection, factory fingerprinting (`mobula.service.ts:18-25`). Kind:

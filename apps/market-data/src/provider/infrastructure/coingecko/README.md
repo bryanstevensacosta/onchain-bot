@@ -1,5 +1,7 @@
 # CoinGecko Provider
 
+> Cost: KEYED (`COINGECKO_API_KEY`) — fallback tier `keyed`. Without the key every method returns null (skip, never throws); zero-cost cascade never spends on it.
+
 Price/MC/FDV fallback for established tokens (blue chips) where
 DexScreener / GeckoTerminal may lack data.
 

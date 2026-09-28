@@ -44,24 +44,56 @@ export interface ProviderQuoteDeps {
 }
 
 /**
+ * Zero-cost cascade tiers (Tramo 3, consumer-probe).
+ *
+ * `free` providers answer with no API key (dexscreener, geckoterminal,
+ * rugcheck, ccxt public tickers) and run 24/7 at $0. `keyed` providers
+ * need their env key and return null without one — they are fallback
+ * only: never called for cost, never throwing (skip, never 401-crash).
+ * The builder order below keeps every `free` fetcher before every
+ * `keyed` one; `zero-cost-cascade.spec.ts` pins this invariant.
+ */
+export const QUOTE_FETCHER_COST_TIER: Readonly<
+  Record<string, 'free' | 'keyed'>
+> = {
+  ccxt: 'free',
+  dexscreener: 'free',
+  geckoterminal: 'free',
+  rugcheck: 'free',
+  birdeye: 'keyed',
+  coingecko: 'keyed',
+  mobula: 'keyed',
+  moralis: 'keyed',
+};
+
+/**
  * Thin wrappers adapting the canonical adapters' EXISTING public methods
  * to the aggregator's `QuoteFetcher` shape (Tramo 3, todo-3 gap).
  *
  * No adapter internals change: each fetcher calls one public method and
  * normalizes to `Partial<SnapshotQuote>` (null when the adapter has no
- * data — missing key, unknown chain, or 404). Order is ccxt-first where
- * it covers (P48-bis: free CEX tickers with generous limits); every
- * other fetcher keeps the backend enrichment failover order and the
- * aggregator merges first-non-null per field across all of them in
- * parallel. The ccxt fetcher short-circuits to null for onchain
- * addresses (`covers`), so uncovered inputs fall back untouched.
+ * data — missing key, unknown chain, or 404). Order is zero-cost first:
+ * free providers ordered by coverage (ccxt CEX-only via `covers`,
+ * dexscreener broadest onchain, geckoterminal broad onchain + supplies,
+ * rugcheck free security fields), then keyed providers as fallback
+ * (birdeye, coingecko, mobula, moralis — null without keys, never
+ * throwing). The aggregator merges first-non-null per field across all
+ * of them in parallel. The ccxt fetcher short-circuits to null for
+ * onchain addresses (`covers`), so uncovered inputs fall back untouched.
  */
 export function buildProviderQuoteFetchers(
   deps: ProviderQuoteDeps,
 ): ReadonlyArray<QuoteFetcher> {
   const ccxt: QuoteFetcher = {
     name: 'ccxt',
-    supportsChains: ['ethereum', 'solana', 'bsc', 'base', 'arbitrum', 'polygon'],
+    supportsChains: [
+      'ethereum',
+      'solana',
+      'bsc',
+      'base',
+      'arbitrum',
+      'polygon',
+    ],
     endpoint: 'ticker',
     covers: (_chain: string, address: string) =>
       CcxtService.isCexSymbol(address),
@@ -140,7 +172,14 @@ export function buildProviderQuoteFetchers(
 
   const coingecko: QuoteFetcher = {
     name: 'coingecko',
-    supportsChains: ['ethereum', 'bsc', 'base', 'arbitrum', 'polygon', 'solana'],
+    supportsChains: [
+      'ethereum',
+      'bsc',
+      'base',
+      'arbitrum',
+      'polygon',
+      'solana',
+    ],
     fetch: async (chain: string, address: string) => {
       const platform = COINGECKO_PLATFORMS[chain];
       if (!platform) {
@@ -189,7 +228,14 @@ export function buildProviderQuoteFetchers(
 
   const mobula: QuoteFetcher = {
     name: 'mobula',
-    supportsChains: ['ethereum', 'bsc', 'base', 'arbitrum', 'polygon', 'solana'],
+    supportsChains: [
+      'ethereum',
+      'bsc',
+      'base',
+      'arbitrum',
+      'polygon',
+      'solana',
+    ],
     fetch: async (chain: string, address: string) => {
       const markets = await deps.mobula.getTokenMarkets(address, chain);
       if (markets === null) {
@@ -238,15 +284,25 @@ export function buildProviderQuoteFetchers(
       if (summary === null) {
         return null;
       }
-      const locked = (summary.lockedLiquidity ?? []).map((entry) => entry.percent);
+      const locked = (summary.lockedLiquidity ?? []).map(
+        (entry) => entry.percent,
+      );
       const quote: Partial<SnapshotQuote> = {
-        lockedLiquidityPercent:
-          locked.length > 0 ? Math.max(...locked) : null,
+        lockedLiquidityPercent: locked.length > 0 ? Math.max(...locked) : null,
         burnedPercent: toNumber(summary.burnedPercent),
       };
       return quote;
     },
   };
 
-  return [ccxt, dexscreener, geckoterminal, birdeye, coingecko, mobula, moralis, rugcheck];
+  return [
+    ccxt,
+    dexscreener,
+    geckoterminal,
+    rugcheck,
+    birdeye,
+    coingecko,
+    mobula,
+    moralis,
+  ];
 }

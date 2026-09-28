@@ -1,5 +1,7 @@
 # DexScreener provider
 
+> Cost: FREE — no API key. Zero-cost cascade tier `free` (runs 24/7 at $0).
+
 Free DEX market-data source (80+ DEXes, 40+ chains). Primary enrichment
 source: token pairs cross-chain, search, profiles/boosts, orders, metas.
 

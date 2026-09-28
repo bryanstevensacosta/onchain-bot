@@ -1,5 +1,7 @@
 # Helius — Solana Data Provider
 
+> Cost: KEYED (`HELIUS_API_KEY`) — chain kind, fallback only. Without the key every method returns null (skip, never throws); zero-cost cascade never spends on it.
+
 Helius adapter: Solana RPC (standard + DAS) plus the Enhanced Transactions
 API for token metadata, holder counts, and parsed transactions.
 Solana-only (`supportsChains: ['solana']`, kind `chain`, 300 req/min
