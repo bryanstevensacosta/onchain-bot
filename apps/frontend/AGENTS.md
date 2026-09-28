@@ -36,8 +36,8 @@ src/
 ```
 
 Routes (`createBrowserRouter` — data-router API but NO loaders; Query owns server state):
-`/`, `/tokens`, `/tokens/:chain/:address`, `/kols`, `/crypto-news`, `/playground`, `/threads`, `/templates`, `/market-data`, `/dexter`, `/ops`.
-Nav has 10 links (Dashboard · Tokens · KOLs · News · Playground · Threads · Templates · Data · Dexter · Ops — README says 4, stale).
+`/`, `/tokens`, `/tokens/:chain/:address`, `/kols`, `/feed`, `/playground`, `/threads`, `/templates`, `/market-data`, `/dexter`, `/ops` (+ legacy `/crypto-news` → `<Navigate to="/feed" replace />` bookmark redirect).
+Nav has 10 links (Dashboard · Tokens · KOLs · Feed · Playground · Threads · Templates · Data · Dexter · Ops — README says 4, stale).
 `/templates` (Tramo 1, kol-system): `TemplateDashboardPage` (`pages/template-dashboard/index.tsx`, thin wrapper) renders `TemplateDashboard` (`widgets/template-dashboard/ui/template-dashboard.tsx`): template picker (defaults to first template) → `SourceMultiSelect` (checkbox chips per KOL source, `Clear (all)` = empty = all sources; change PATCHes `kolSourceIds` via `useUpdateTemplateSources`, invalidates detail/calls/templates) → `CallsTable` + `PerformanceRanking` + `TopCallersStrip` + `TemplateConfigSection`. Calls are enriched client-side (rankings row joined with feed-source handle/title/url/avatarUrl, call row wins) then filtered by `filterCallsBySources`. Every widget degrades to an empty-state div on API error (never crashes; e2e pins `template-dashboard-empty`).
 Kols rows show lifecycle/listening state + rep score with 0.7/0.3 tone bands; `SetKolLifecycleButton` per row. Page paginates 15/page with `lastIngestedAt` relative times; Activate/Deactivate buttons by status, Recompute per row (backfill removed 2026-09-24: `POST telegram-kol/identity/kols/:kolId/backfill` answers 501, no feed equivalent — trigger-backfill feature deleted). `AddKolModal` takes a bare Telegram ID/`@handle` (title/handle auto-resolved server-side), guards submit while pending, surfaces `mutation.error` inline. Score formula preset lives in `localStorage` (`useKolScoreFormula`) and is sent as `?formula=` on recompute.
 Pagination is client-side only (`usePagination`: slices fetched arrays, clamps on shrink) — large lists transfer fully.
@@ -56,7 +56,7 @@ Correctly scoped prefixes: `telegram-kol/identity`, `telegram-kol/reputation`, `
 **Cada frontend consulta SU ingestion (nunca el de otro env).** Rutas feed-unification (las viejas `/api/feed/*` dan 404):
 
 - `GET /ingestion-api/feed/messages?limit=50&type=kol|crypto-news` — recent feed messages with media (SQL-level `type` filter; 400 invalid; omitted = mixed legacy default)
-- Newsroom (`/crypto-news`) + prompt-playground pin `type=crypto-news`; threads wrapper untouched/mixed.
+- Newsroom (`/feed`) + prompt-playground pin `type=crypto-news`; threads wrapper untouched/mixed.
 - `GET /ingestion-api/feed/messages/channel/:channelId?limit=50` — messages by channel
 - `GET /ingestion-api/feed/sources?type=crypto-news` — crypto-news sources only (type-pinned; bare = mixed kol + news legacy default)
 - `GET /ingestion-api/feed/sources/active/ids?type=kol` — channel IDs only (kols page)
@@ -157,7 +157,8 @@ Docker build sets all to `""` → same-origin in prod (nginx routes by prefix).
 - Backend proxy (`localhost:3030`): `/api`, `/crypto-news-publisher`, `/crypto-news-scheduling`, `/crypto-news/matching`, `/socket.io` (ws:true)
 - **Ingestion-telegram proxy (`INGESTION_PROXY_TARGET`, default `http://localhost:3031`):** `/ingestion-api/*` → rewrite `^/ingestion-api` → `/api`
 - **Kol-system proxy (`KOL_SYSTEM_PROXY_TARGET`, default `http://localhost:3050`):** `/kol-api/*` → rewrite `^/kol-api` → `/api` (Tramo 1; `vite.config.ts:98-102`)
-- **Feed-publisher proxy (`FEED_PUBLISHER_PROXY_TARGET`, default `http://localhost:3040`):** `/feed-api/*` → rewrite strips `^/feed-api` to root (Tramo 2 todo 9: `/feed-api/api/queue/stats` → `/api/queue/stats`, `/feed-api/feed-publisher/matching/config` → `/feed-publisher/matching/config`; triplet `:3040` dev / `:3041` staging / `:3042` prod via env override)
+- **Feed-publisher proxy (`FEED_PUBLISHER_PROXY_TARGET`, default `http://localhost:3040`):** `/feed-api/*` → rewrite strips `^/feed-api` to root (Tramo 2 todo 9: `/feed-api/api/queue/stats` → `/api/queue/stats`, `/feed-api/feed-publisher/matching/config` → `/feed-publisher/matching/config`; triplet `:3040` dev / `:3041` staging / `:3042` prod via env override; scheduling/ads left `/feed-api` 2026-09-28 — now on `/scheduling-api`, next bullet)
+- **Scheduling-posts proxy (`SCHEDULING_POSTS_PROXY_TARGET`, default `http://localhost:4080`):** `/scheduling-api/*` → rewrite strips `^/scheduling-api` to root (live-errors-fix 2026-09-28: `/scheduling-api/api/scheduling/ads` → `/api/scheduling/ads`, same for `rotation-config` + `media/library`; triplet `:4080` dev / `:4081` staging / `:4082` prod via env override)
 - **Market-data proxy (`MARKET_DATA_PROXY_TARGET`, default `http://localhost:4000`):** `/market-data-api/*` → rewrite strips `^/market-data-api` to root (Tramo 3 todo 7: `/market-data-api/api/v1/chains` → `/api/v1/chains`, compat `/market-data-api/api/market-data/snapshot` → `/api/market-data/snapshot`; triplet `:4000` dev / `:4001` staging / `:4002` prod via env override)
 - **REMOVED:** `/crypto-news/(messages|sources|backfill|media)` regex — feed reads go via `/ingestion-api/feed/*`
 
@@ -166,8 +167,8 @@ Docker build sets all to `""` → same-origin in prod (nginx routes by prefix).
 - Backend locations (`backend:3030`): dashboard, telegram-kol, vip-calls, token, ingestion, call-tracking, telegram, settings, kols, feed-publisher, crypto-news-scheduling, socket.io
 - **Ingestion-telegram location:** `/ingestion-api/` → rewrite → `/api/` on the per-env upstream: prod `onchain-bot-ingestion-telegram:3031` (`nginx.conf:252-258`), staging `onchain-bot-ingestion-telegram-staging:3031` (`nginx.staging.conf:256-260`, host `:3033`)
 - ⚠️ **Kol-system location MISSING:** `nginx.conf`/`nginx.staging.conf` have NO `/kol-api/` block (verified by grep — solo existe en `vite.config.ts`). `/templates` works in dev only until prod deploy mirrors it (`/kol-api/` → rewrite → `/api/` on the kol-system upstream, dual-applied to both confs like `/ingestion-api/`).
-- ⚠️ **Feed-publisher location MISSING (deploy follow-up, Tramo 2 todos 10/11):** `nginx.conf`/`nginx.staging.conf` have NO `/feed-api/` block by design (todo 9 = dev config only). `/crypto-news` control-plane (matching toggles, llm config, scheduling, queue stats, threads stub) works in dev only until deploy mirrors it (`/feed-api/` → strip prefix on the feed-publisher upstream `:3041` staging / `:3042` prod, dual-applied to both confs like `/ingestion-api/`).
-- ⚠️ **Market-data location DEPLOY FOLLOW-UP (Tramo 3 todo 8):** `nginx.conf`/`nginx.staging.conf` carry a `/market-data-api/` block (prefix stripped, lazy-DNS like `/ingestion-api/`), but the upstream service is NOT deployed yet — prod `onchain-bot-market-data:4000` / staging `onchain-bot-market-data-staging:4000` must resolve at deploy (staging container MUST join `onchain-bot-staging-net`), else the location 502s. `/market-data` + `/dexter` work in dev only until then.
+- ⚠️ **Feed-publisher location MISSING (deploy follow-up, Tramo 2 todos 10/11):** `nginx.conf`/`nginx.staging.conf` have NO `/feed-api/` block by design (todo 9 = dev config only). `/feed` control-plane (matching toggles, llm config, scheduling, queue stats, threads stub) works in dev only until deploy mirrors it (`/feed-api/` → strip prefix on the feed-publisher upstream `:3041` staging / `:3042` prod, dual-applied to both confs like `/ingestion-api/`).
+- ⚠️ **Scheduling location DEPLOY FOLLOW-UP (live-errors-fix 2026-09-28):** `nginx.conf`/`nginx.staging.conf` have NO `/scheduling-api/` block yet (scheduling/ads + rotation-config + media library work in dev only until deploy mirrors it: `/scheduling-api/` → strip prefix on the scheduling-posts upstream `:4081` staging / `:4082` prod, dual-applied to both confs like `/ingestion-api/`).\*\* `nginx.conf`/`nginx.staging.conf` carry a `/market-data-api/` block (prefix stripped, lazy-DNS like `/ingestion-api/`), but the upstream service is NOT deployed yet — prod `onchain-bot-market-data:4000` / staging `onchain-bot-market-data-staging:4000` must resolve at deploy (staging container MUST join `onchain-bot-staging-net`), else the location 502s. `/market-data` + `/dexter` work in dev only until then.
 - **REMOVED:** `/crypto-news/{messages,sources,media}` — now `/ingestion-api/feed/*`
 
 **P41 dual-serve (T2 todo 13 Fase 2, live):** fetchers on new prefixes (`/feed-publisher/*`,
@@ -181,7 +182,7 @@ stays (P41 exclusion, no backend `feed-sources`). Proxies carry old+new side by 
 
 **Architecture note:** Feed data flows per env: Telegram → OWN ingestion-telegram DB → HTTP API → frontend (direct query, no backend middleman). Staging image bakes the staging upstream via `VITE_APP_ENV=staging` (`Dockerfile:27-35` re-declared ARG + `RUN if` copy; prod default path unchanged). Staging precondition: staging container MUST join `onchain-bot-staging-net` or the staging DNS name doesn't resolve. Drift guard: whoever edits the `/ingestion-api/` block dual-applies to both confs (see `nginx.staging.conf:244-255` owner note).
 
-**Feed-reading pages:** `/crypto-news` (messages + queue + sources via `/ingestion-api/feed/*`), `/kols` (sources `?type=kol` for the AddKol flow).
+**Feed-reading pages:** `/feed` (messages + queue + sources via `/ingestion-api/feed/*`), `/kols` (sources `?type=kol` for the AddKol flow).
 
 ## WIDGETS & LIB
 

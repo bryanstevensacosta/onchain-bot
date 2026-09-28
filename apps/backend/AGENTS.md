@@ -170,7 +170,7 @@ Backend enforces LLM generation in production via controller guard:
 
    **Crypto-news sources/messages/media are SOLELY OWNED by ingestion-telegram in its own `<base>_ingestion` DB.**
 
-   - **Ingestion-telegram**: reads/writes its 3 tables + runs the 72h retention janitor
+   - **Ingestion-telegram**: reads/writes its 3 tables + runs the 24h retention janitor
    - **Backend**: no tables, no write path, no legacy reads — only filters CRUD + on-read matching
      (`FilteredCryptoNewsService` over HTTP-fetched RAW content)
    - **Eliminates**: circular dependency (backend ↔ ingestion), dual-DB sync issues
@@ -301,8 +301,8 @@ Real-time SSE event processor for `messageType='crypto-news'` messages. Implemen
 - Backend reads via HTTP (`INGESTION_TELEGRAM_URL/api/media/*`)
 - Serving re-sniffs via `media-serving.ts` (stored `.bin` MP4 served as `video/mp4`) with Range/206
 - **Backend cache is growth-zero (2026-09-19, backend-media-ownership)**: `ProcessNextQueuedArticleUseCase.ensureLocalFiles` stages to `os.tmpdir()/backend-media-<uuid>/` and deletes in `finally` (success AND failure); retry re-downloads from ingestion. Queue holds paths/URLs, never bytes. Specs: `zero-growth|re-download|orphan-404` in `process-next-queued-article.use-case.spec.ts`.
-- **Frontend display never breaks**: backend `queue-media.controller.ts:getQueueMedia` (split from `queue.controller.ts`) serves local-first with ingestion-proxy fallback (`convertLocalPathToIngestionUrl`), so deleted backend copies resolve via `GET /api/media/...` while ingestion holds them (72h).
-- **Ownership**: news cache → ingestion-telegram; ingestion `uploads/` → ingestion-telegram (source of truth + 72h janitor); `crypto-news-ads-library/` → backend (untouched, was empty). Full table: `docs/deployment/media-ownership.md`; cleanup tool: `scripts/crypto-news-media-cleanup.mjs` (always dry-run by default).
+- **Frontend display never breaks**: backend `queue-media.controller.ts:getQueueMedia` (split from `queue.controller.ts`) serves local-first with ingestion-proxy fallback (`convertLocalPathToIngestionUrl`), so deleted backend copies resolve via `GET /api/media/...` while ingestion holds them (24h).
+- **Ownership**: news cache → ingestion-telegram; ingestion `uploads/` → ingestion-telegram (source of truth + 24h janitor); `crypto-news-ads-library/` → backend (untouched, was empty). Full table: `docs/deployment/media-ownership.md`; cleanup tool: `scripts/crypto-news-media-cleanup.mjs` (always dry-run by default).
 
 **3-Flag Control System (CRITICAL DEPENDENCY)**:
 
@@ -524,7 +524,7 @@ silently dropped (no honeypot/filters/crypto-news on the socket). `hello` handsh
 tick EVERY_MINUTE; ads tick EVERY_MINUTE. ~~`MediaRetentionCleanupScheduler`~~ — **MOVED to
 ingestion-telegram 2026-09-08** (deleted here: provider + scheduler + spec): the new
 `CryptoNewsRetentionCleanupScheduler` runs EVERY_HOUR over there (advisory lock `9_421_373`,
-media pass + NEW messages pass, clock `ingested_at`, 72h per invariant; prod effective value
+media pass + NEW messages pass, clock `ingested_at`, 24h per invariant; valor efectivo en prod 24h por decisión del operador 2026-09-28
 pending operator decision — see task-10 §4 dossier: prod backend cleaned media with 24h).
 
 `SchedulerRegistry` dynamic registration (config-driven, concurrency-guarded):
@@ -749,7 +749,7 @@ pino-roll daily files (`logging.dir/fileName`, `limit count:1`) in dev/prod; pla
 Per-BC layout `api/application/domain/infrastructure` (+ `__tests__/` allowed beside co-located specs in some BCs).
 Use cases `<Action><Entity>UseCase` (`KolIngestionOrchestratorUseCase` lives in `kol/identity`, NOT `kol/ingestion`).
 Ports in `application/ports/`, impls in `infrastructure/` — except gap 7.
-Aliases per-BC (`shared/*`, `token/*`, …), never `@/*`.
+Aliases per-BC (`shared/*`, `token/*`, …) + `@/*` (= `src/*`, for 2+-level imports; 2026-09-27 migration).
 **Natural keys**: every pipeline entity keys on `${chain}:${address}` (lowercased).
 **Kernel**: extend `AggregateRoot` when the aggregate owns invariants + events, `Entity` for passive objects; promote a VO to shared only when 3+ BCs depend on it (audit payload changes).
 **KOL IDs**: numeric Telegram user/channel ID as string (`"123456789"`).
@@ -785,7 +785,7 @@ Hang at boot → check `NODE_ENV`, "Using migrations (synchronize: false)" in lo
 | `staging` \| `production` | JavaScript (`dist/`)                               | `dist/backend/src/shared/common/persistence/data-source.js` |
 | else (unset/dev/test)     | TypeScript (`src/`) via `typeorm-ts-node-commonjs` | `src/shared/common/persistence/data-source.ts`              |
 
-Staging-local caveat (NODE_ENV=staging hits dist mode): CLI `data-source.ts:28` loads only `.env` (never `.env.staging`); `.env.staging:97-105` is Docker-only, so local `NODE_ENV=staging` hits dev DB `onchain_bot` on `localhost:5432` by default (target name post-rename; the pre-rename dev DB keeps its old name until the dev volume is recreated — see rename evidence log).
+Staging-local caveat (NODE_ENV=staging hits dist mode): CLI `data-source.ts:28` loads only `.env` (never `.env.staging`); `.env.staging:97-105` is Docker-only, so local `NODE_ENV=staging` hits dev DB `onchain_bot_backend` on `localhost:5432` by default (consolidated 2026-09-28; the pre-consolidation dev DB keeps its old name until the dev volume is recreated — see rename evidence log).
 `--dry-run` (all 3 scripts): prints `[DRYRUN] mode=<javascript|typescript> data-source=<path>`, exit 0 without DB. See `.omo/drafts/staging-migration-test-fix.md`.
 
 ## OPS (scripts + compose)

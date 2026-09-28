@@ -139,7 +139,7 @@ src/
   playground/             # dry-run preview (todo 2): use-case (render or
                           #   ONE generation, `persisted: false`) +
                           #   controller + module (imports Llm + Prompts)
-docker-compose.yml        # dev pg :5444 + redis :6391
+docker-compose.yml        # standalone dev pg :5444 + redis :6391 (centralized dev uses single pg :5432)
 docker-compose.staging.yml# staging pg :5445 + redis :6392 + app :4091→:4090
 Dockerfile                # multi-stage, CMD dist/main.js, EXPOSE 4090
 .env.example / .env.staging.template / .env.production.template
@@ -186,13 +186,13 @@ fallback alias), `EMBEDDING_LOCAL_MODEL`
 
 ## PORTS
 
-| Env     | HTTP                             | Postgres  | Redis        |
-| ------- | -------------------------------- | --------- | ------------ |
-| dev     | `:4090`                          | `:5444`   | `:6391`      |
-| staging | host `:4091` → container `:4090` | `:5445`   | `:6392`      |
-| prod    | host `:4092` → container `:4090` | server DB | server redis |
+| Env     | HTTP                             | Postgres            | Redis        |
+| ------- | -------------------------------- | ------------------- | ------------ |
+| dev     | `:4090`                          | `:5432` (single pg) | `:6391`      |
+| staging | host `:4091` → container `:4090` | `:5445`             | `:6392`      |
+| prod    | host `:4092` → container `:4090` | server DB           | server redis |
 
-Triplet 4090/91/92 + 5444/45 + 6391/92 verified free repo-wide
+Triplet 4090/91/92 + dev single pg :5432 / staging pg :5445 + 6391/92 verified free repo-wide
 2026-09-26 (lsof + source grep zero hits; OPERATOR-CONFIRM host
 ports on Oracle with lsof before first deploy).
 

@@ -251,7 +251,7 @@ npm run dev -w @onchain-bot/feed-publisher   # watch, :3040
 npm test -w @onchain-bot/feed-publisher      # jest, all specs
 npm run build -w @onchain-bot/feed-publisher # nest build -> dist/main.js
 curl -s localhost:3040/api/health               # {"status":"ok"}
-docker compose -f apps/feed-publisher/docker-compose.yml up -d  # pg :5436 + redis :6383
+docker compose -f apps/feed-publisher/docker-compose.yml up -d  # standalone pg :5436 + redis :6383 (centralized dev uses single pg :5432, see docker-compose.dev.yml)
 ```
 
 ## STRUCTURE
@@ -589,14 +589,14 @@ on the droplet and never committed.
 
 ## PORTS
 
-| Env     | App   | Postgres      | Redis         |
-| ------- | ----- | ------------- | ------------- |
-| dev     | :3040 | :5436         | :6383         |
-| staging | :3041 | server-shared | server-shared |
-| prod    | :3042 | server-shared | server-shared |
+| Env     | App   | Postgres                                  | Redis         |
+| ------- | ----- | ----------------------------------------- | ------------- |
+| dev     | :3040 | :5432 (single pg, DB `feed_publisher_db`) | :6383         |
+| staging | :3041 | server-shared                             | server-shared |
+| prod    | :3042 | server-shared                             | server-shared |
 
 No clashes with backend (:3030), ingestion (:3031), frontend (:5173),
-kol-system (:3050, pg :5435, redis :6382).
+kol-calls (:3050, DB `onchain_bot_kol_calls`, redis :6382).
 
 ## HEALTH
 
@@ -608,7 +608,8 @@ with later todos and never claim liveness they don't have).
 
 Mirrors kol-system/backend: `singleQuote`, strictNullChecks/noImplicitAny,
 `emitDecoratorMetadata` + `experimentalDecorators`, path aliases
-`shared/*`, `telegram/*`, `src/*`. No `@/*` alias here.
+`@/*` (= `src/*`, for 2+-level imports; 2026-09-27 migration),
+`shared/*`, `telegram/*`, `src/*`.
 
 ## TESTS
 

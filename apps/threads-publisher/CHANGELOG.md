@@ -5,6 +5,13 @@ Source of truth for the version: `package.json`.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Staging backport 2026-09-27:** staging compose now ships the
+  `threads-publisher:` app service (local build + env + `4101:4100` +
+  node health probe + `onchain-bot-staging-net`, mirroring
+  feed-publisher) — previously pg+redis only.
+
 ### Added
 
 - Standalone `apps/threads-publisher/` service (Fase 2 todo 9): Meta

@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Birdeye WS realtime as the stream/ DEX source:** new
+  `BirdeyeWsAdapter` in `src/provider/infrastructure/birdeye/`
+  (`birdeye-ws.client.ts` + `birdeye-ws.types.ts`) speaking the
+  documented protocol verbatim over
+  `wss://public-api.birdeye.so/socket/solana` (`echo-protocol`):
+  combined `SUBSCRIBE_PRICE` (1m/usd) + `SUBSCRIBE_TXS` per type
+  (gateway overwrites one sub per type, so the full mint list is
+  resent on every watch change) + `SUBSCRIBE_NEW_PAIR` per handshake;
+  `PRICE_DATA` routes to broker-shaped ticker/ohlcv events
+  (`symbol` carries the mint verbatim), keyless `connect()` fails
+  loudly, server close fans out `EXCHANGE_DOWN` (backoff + re-watch
+  stay in `ExchangeConnectionManager`). `DefaultExchangeAdapterFactory`
+  builds it for `exchange: 'birdeye'` (key from `BIRDEYE_API_KEY`;
+  allowlist via `MARKET_DATA_STREAM_EXCHANGES`). Failing-first:
+  `birdeye-ws.client.spec.ts` (mock socket, +1 suite / +6 tests).
+  Live `:4000`-adjacent QA (evidence `.omo/evidence/birdeye-ws.log`):
+  handshake accepted, zero error frames, adversarial drop ->
+  EXCHANGE_DOWN + resubscribe-on-reconnect; market pushes are
+  Premium-gated on this key, so the mocked suite stays the gate.
+  (feat/mega-refactor-tramos)
+
 ### Fixed
 
 - **Provider API keys wired through app config:** every keyed adapter

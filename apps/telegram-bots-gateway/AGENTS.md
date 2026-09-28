@@ -110,7 +110,7 @@ src/
 │   ├── config/data-source.ts                        # own-DB data source (onchain_bot_bots[_staging]); migrations explicit
 │   └── filters/domain-exception.filter.ts           # DomainError → HTTP status
 Root: package.json (@onchain-bot/telegram-bots-gateway v0.1.0), nest-cli.json (deleteOutDir),
-tsconfig{,.build}.json, jest.setup.ts, docker-compose.yml (postgres :5436, gateway :4070),
+tsconfig{,.build}.json, jest.setup.ts, docker-compose.yml (standalone postgres :5436, gateway :4070; centralized dev uses single pg :5432),
 docker-compose.staging.yml (:4071, local build, onchain-bot-staging-net + alias onchain-bot-telegram-bots-gateway-staging), Dockerfile (CMD dist/main.js),
 .env.example, .env.development, .env.staging.template, .env.production.template,
 uploads/avatars/ (permanent cache, janitor-excluded — no janitor exists here)
@@ -302,7 +302,7 @@ Templates (tracked, placeholders, NO secrets): `.env.development`, `.env.staging
 ## PORTS
 
 Spec triplet: **4070 / 4071 / 4072** (dev / staging / prod — plan §Decisions; verified free with
-`lsof -i :4070`). Local `docker-compose.yml`: postgres `5436:5432` (db `onchain_bot_bots`),
+`lsof -i :4070`). Local `docker-compose.yml`: standalone postgres `5436:5432` (db `onchain_bot_bots`); centralized dev (`docker-compose.dev.yml`) uses the single pg `:5432` with user `onchain_bot`,
 gateway `4070:4070`. No clash with backend (`:3030`), ingestion (`:3031/32/33`), kol-system
 (`:3050`), market-data (`:4000`), dexter (`:4060`). DB naming `onchain_bot_bots[_staging]`
 (one-DB-per-app, same server per env).

@@ -44,8 +44,9 @@ Design pivots inherited from kol-system (unchanged by the split):
   approval, bot-of-gateway + channel/group target. Contracts between
   apps: mentions+snapshots (kol-calls → publisher, paginated + keyed +
   `x-api-key`), rating (publisher reads kol-calls tracking via
-  `GET /api/kol-rankings`). Same logical DB initially
-  (`onchain_bot_kol_system[_staging]`, split later). kol-calls keeps
+  `GET /api/kol-rankings`). OWN DB since split 2026-09-28
+  (dev `onchain_bot_kol_calls_publisher` on single postgres `:5432`;
+  staging/prod still `onchain_bot_kol_system[_staging]` until split). kol-calls keeps
   `:3050` + DB (hot path stable, staging untouched); this app takes
   NEW ports 3060/61/62. No behavior change in moved code.
 
@@ -172,24 +173,24 @@ unknown ids 404 (never empty 200).
 
 ## ENV INVENTORY (`.env.example` — verified)
 
-| Var                             | Default                                   | Notes                                                                                                   |
-| ------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `KOL_CALLS_PUBLISHER_ENABLED`   | `false`                                   | master switch                                                                                           |
-| `TEMPLATE_ORCHESTRATOR_ENABLED` | `false`                                   | kill-switch (publishing off when absent)                                                                |
-| `KOL_CALLS_URL`                 | `http://localhost:3050`                   | upstream kol-calls per env (`:3050`/`:3051`/`:3052`)                                                    |
-| `KOL_CALLS_API_KEY`             | empty                                     | upstream key, sent as `x-api-key` (copy `KOL_SYSTEM_API_KEY`, NEVER commit)                             |
-| `KOL_CALLS_PUBLISHER_API_KEY`   | empty                                     | inbound key (fail-open empty); guard falls back to `KOL_SYSTEM_API_KEY` during the shared-DB transition |
-| `ENCRYPTION_KEY`                | empty (Tier-1 required)                   | DISTINCT per env (P24)                                                                                  |
-| `DATABASE_URL`                  | `…@localhost:5435/onchain_bot_kol_system` | SAME logical DB as kol-calls initially (P51, split later)                                               |
-| `REDIS_URL`                     | `redis://localhost:6382/0`                | reuses kol-calls dev redis initially                                                                    |
-| `KOL_CALLS_PUBLISHER_PORT`      | `3060`                                    | triplet 3060/61/62                                                                                      |
-| `KOL_CALLS_SYNC_ENABLED`        | `false`                                   | sync cron flag (safe default off)                                                                       |
-| `KOL_CALLS_SYNC_INTERVAL_MS`    | `60000`                                   | reserved (cron expression is `*/1 * * * *`)                                                             |
-| `KOL_CALLS_SYNC_LIMIT`          | `50`                                      | page size per tick                                                                                      |
-| `BOTS_GATEWAY_URL`              | `http://localhost:4070`                   | gateway base per env (`:4070`/`:4071`/`:4072`)                                                          |
-| `BOTS_GATEWAY_CLIENT_ID/SECRET` | empty                                     | DISTINCT per env, NEVER commit                                                                          |
-| `KOL_PUBLISH_MODE`              | `dual`                                    | `direct` (deprecated) \| `dual` \| `gateway` (prod template pins `gateway`)                             |
-| `PUBLISH_RATE_LIMIT_PER_MIN`    | `30`                                      | 429 over limit, pre-Telegram                                                                            |
+| Var                             | Default                                            | Notes                                                                                                   |
+| ------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `KOL_CALLS_PUBLISHER_ENABLED`   | `false`                                            | master switch                                                                                           |
+| `TEMPLATE_ORCHESTRATOR_ENABLED` | `false`                                            | kill-switch (publishing off when absent)                                                                |
+| `KOL_CALLS_URL`                 | `http://localhost:3050`                            | upstream kol-calls per env (`:3050`/`:3051`/`:3052`)                                                    |
+| `KOL_CALLS_API_KEY`             | empty                                              | upstream key, sent as `x-api-key` (copy `KOL_SYSTEM_API_KEY`, NEVER commit)                             |
+| `KOL_CALLS_PUBLISHER_API_KEY`   | empty                                              | inbound key (fail-open empty); guard falls back to `KOL_SYSTEM_API_KEY` during the shared-DB transition |
+| `ENCRYPTION_KEY`                | empty (Tier-1 required)                            | DISTINCT per env (P24)                                                                                  |
+| `DATABASE_URL`                  | `…@localhost:5432/onchain_bot_kol_calls_publisher` | OWN DB since split 2026-09-28 (was shared P51)                                                          |
+| `REDIS_URL`                     | `redis://localhost:6382/0`                         | reuses kol-calls dev redis initially                                                                    |
+| `KOL_CALLS_PUBLISHER_PORT`      | `3060`                                             | triplet 3060/61/62                                                                                      |
+| `KOL_CALLS_SYNC_ENABLED`        | `false`                                            | sync cron flag (safe default off)                                                                       |
+| `KOL_CALLS_SYNC_INTERVAL_MS`    | `60000`                                            | reserved (cron expression is `*/1 * * * *`)                                                             |
+| `KOL_CALLS_SYNC_LIMIT`          | `50`                                               | page size per tick                                                                                      |
+| `BOTS_GATEWAY_URL`              | `http://localhost:4070`                            | gateway base per env (`:4070`/`:4071`/`:4072`)                                                          |
+| `BOTS_GATEWAY_CLIENT_ID/SECRET` | empty                                              | DISTINCT per env, NEVER commit                                                                          |
+| `KOL_PUBLISH_MODE`              | `dual`                                             | `direct` (deprecated) \| `dual` \| `gateway` (prod template pins `gateway`)                             |
+| `PUBLISH_RATE_LIMIT_PER_MIN`    | `30`                                               | 429 over limit, pre-Telegram                                                                            |
 
 Tier-1 validation: `ENCRYPTION_KEY` + `DATABASE_URL` non-empty.
 P24 templates (tracked, placeholders, NO secrets): `.env.development`,
@@ -198,11 +199,11 @@ gitignored, copied via `scp` on deploy (backend-mirror).
 
 ## PORTS
 
-| Service                  | Dev                                  | Staging (host)                                                      | Prod (host)                                    |
-| ------------------------ | ------------------------------------ | ------------------------------------------------------------------- | ---------------------------------------------- |
-| kol-calls-publisher HTTP | `:3060`                              | `:3061`                                                             | `:3062`                                        |
-| kol-calls (upstream)     | `:3050`                              | `:3051`                                                             | `:3052`                                        |
-| DB/Redis                 | reuses kol-calls dev `:5435`/`:6382` | reuses kol-calls staging (same `onchain_bot_kol_system_staging` DB) | same `onchain_bot_kol_system` DB (split later) |
+| Service                  | Dev                                                                                        | Staging (host)                                                      | Prod (host)                                    |
+| ------------------------ | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- | ---------------------------------------------- |
+| kol-calls-publisher HTTP | `:3060`                                                                                    | `:3061`                                                             | `:3062`                                        |
+| kol-calls (upstream)     | `:3050`                                                                                    | `:3051`                                                             | `:3052`                                        |
+| DB/Redis                 | dev single pg `:5432` (`onchain_bot_kol_calls_publisher`) + reuses kol-calls redis `:6382` | reuses kol-calls staging (same `onchain_bot_kol_system_staging` DB) | same `onchain_bot_kol_system` DB (split later) |
 
 No clashes with backend (`:3030`), ingestion (`:3031/32/33`), frontend
 (`:5173`), kol-calls (`:3050/51/52`), feed-publisher (`:3040/41/42`),
@@ -227,8 +228,8 @@ todo 10). Shape backward compatible (`status: 'ok'`).
 - TypeScript 5.9, `strictNullChecks`, `noImplicitAny`,
   `noFallthroughCasesInSwitch`, `forceConsistentCasingInFileNames`,
   `isolatedModules` (`strict` NOT enabled globally).
-- Path aliases: `shared/*`, `telegram/*`, `src/*` rooted at `src/`.
-  No `@/*` (frontend-only).
+- Path aliases: `@/*` (= `src/*`, for 2+-level imports; 2026-09-27 migration),
+  `shared/*`, `telegram/*`, `src/*` rooted at `src/`.
 - ESLint (flat config, backend-mirror): `no-explicit-any` off,
   `require-await` off, `no-floating-promises`/`no-unsafe-*` warn,
   unused vars warn (`^_`), `prettier/prettier` error.
@@ -278,9 +279,8 @@ wiring, publish-via-target, template bindings).
 ## DECISIONS (P51 — one line each, 2026-09-26; rest inherited)
 
 - P51 (2026-09-25/26): split kol-system → kol-calls (hot path, keeps
-  `:3050` + `onchain_bot_kol_system[_staging]`, staging untouched) +
-  kol-calls-publisher (NEW `:3060`/`:3061`/`:3062`, SAME logical DB
-  initially, split later); moved = templates/scoring(P28)/approval/
+  `:3050` + dev DB now `onchain_bot_kol_calls` (consolidation 2026-09-28), staging untouched) +
+  kol-calls-publisher (NEW `:3060`/`:3061`/`:3062`, OWN dev DB `onchain_bot_kol_calls_publisher` since split 2026-09-28; staging/prod shared until split); moved = templates/scoring(P28)/approval/
   telegram(publishing); kept = ingestion/extraction/parsing/
   normalization/snapshot/enrichment/tracking + rankings API; contracts =
   mentions+snapshots (paginated, keyed, `x-api-key`) + rating reads

@@ -157,7 +157,7 @@ text with no contract gets the "no veo ningún contrato" reply.
 C-PORTS-01 triplet: dev `:4060` / staging host `:4061`→container `:4060` /
 prod host `:4062`→container `:4060`. Verified free with
 `lsof -i :4060 -i :4061 -i :4062` (empty) before first boot. Dev compose
-DBs: postgres `:5440` (`onchain_bot_dexter`), redis `:6387`; staging:
+DBs: postgres single `:5432` (`onchain_bot_dexter`, consolidated 2026-09-28; standalone compose still `:5440`), redis `:6387`; staging:
 `:5441` (`onchain_bot_dexter_staging`), `:6388` — all verified free
 repo-wide by grep. Compose `name:` is explicit (`onchain-bot-dexter`,
 `onchain-bot-dexter-staging`) so dev/staging never recreate each other.

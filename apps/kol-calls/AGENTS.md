@@ -1,6 +1,7 @@
 # apps/kol-calls/ — NestJS Knowledge Base
 
-> Rename 2026-09-26: `apps/kol-system/` → `apps/kol-calls/` via `git mv` (package `@onchain-bot/kol-calls`, env `KOL_CALLS_*` with `KOL_SYSTEM_*` fallback, compose `onchain-bot-kol-calls[-staging]`); functional values unchanged (ports `:3050`/`:3051`/`:3052`, DBs `onchain_bot_kol_system[_staging]`). Pre-rename history below still says `kol-system`.
+> Rename 2026-09-26: `apps/kol-system/` → `apps/kol-calls/` via `git mv` (package `@onchain-bot/kol-calls`, env `KOL_CALLS_*` with `KOL_SYSTEM_*` fallback, compose `onchain-bot-kol-calls[-staging]`); functional values unchanged (ports `:3050`/`:3051`/`:3052`, DBs `onchain_bot_kol_system[_staging]`).
+> DB rename 2026-09-28 (dev-consolidation): dev DB is now `onchain_bot_kol_calls` on the single dev postgres `:5432` (staging/prod keep `onchain_bot_kol_system[_staging]` until rename). Pre-rename history below still says `kol-system`.
 > Verified 2026-09-26 against code. v0.1.0 (source of truth: `package.json`; Tramo 1 scaffold, todos 2+4+5+6+7+8+9+10+11+12+15(harness)+22+23(auth) built; gateway todo 4: publishing via telegram-bots-gateway with dual-send parity; **P51 split 2026-09-26: scoring/templates/approval/telegram MOVED to `apps/kol-calls-publisher/` (git mv, no behavior change) — this app is now the kol-calls hot path; moved sections below are historical**).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md` §7.6 (2026-09-24).
 > Cross-tramo contracts (C-DB-01, C-SSE-01, C-SHARED-01/C2, C-DATA-01, C-BOTS-01) pinned in
@@ -76,7 +77,7 @@ at | time ago | more details +`.
   `scripts/add-deprecation-headers.js`); deletion only in todo 16.
 - **P19 — avatar source of truth permanent** (ingestion-telegram owns it, no
   consumer here yet — gap 5): MTProto fetch-ONCE at source registration,
-  stored PERMANENTLY, EXCLUDED from the 72h janitor; `avatarUrl` in the
+  stored PERMANENTLY, EXCLUDED from the 24h janitor; `avatarUrl` in the
   `GET /api/feed/sources` projection; no periodic refresh (explicit manual
   only); placeholder fallback.
 - **P20 — SSE-only, no polling** (done 2026-09-24, was gap 2): listener
@@ -131,8 +132,10 @@ at | time ago | more details +`.
   templates ship with `threadConfig: null` + 501 stub; v2 arrives with
   feed-publisher (threads stub C1 lives in
   `.omo/plans/mega-refactor-feed-publisher.md` todo 8).
-- **C-DB-01 — one DB per app**: kol-calls owns `onchain_bot_kol_system`
-  (dev + Oracle prod) / `onchain_bot_kol_system_staging` (staging ingestion) on
+- **C-DB-01 — one DB per app**: kol-calls owns `onchain_bot_kol_calls`
+  (dev, single postgres `:5432`, consolidated 2026-09-28) /
+  `onchain_bot_kol_system` (Oracle prod, rename pending) /
+  `onchain_bot_kol_system_staging` (staging ingestion) on
   the same server per env (12-DB table in the central plan, bases
   `onchain_bot_*` for the 4 NEW apps only — pre-existing backend/ingestion
   DBs stay UNTOUCHED until the rename runbook executes
@@ -982,7 +985,7 @@ exported, unwired until composite health — gap 3).
 | `INGESTION_TELEGRAM_URL`        | `http://localhost:3031`                                      | OWN ingestion per env (dev `:3031`, staging `:3033`, prod `:3032`)                                                                                                                                                                             |
 | `INGESTION_TELEGRAM_API_KEY`    | (empty — copy from owning ingestion `INGESTION_API_KEY`)     | upstream key, sent as `x-api-key` on SSE + feed reads (backend-mirror; empty = keyless)                                                                                                                                                        |
 | `ENCRYPTION_KEY`                | ``(empty — generate`openssl rand -hex 32`, NEVER commit)     | Tier-1 required, DISTINCT per env (P24)                                                                                                                                                                                                        |
-| `DATABASE_URL`                  | `postgres://…@localhost:5435/onchain_bot_kol_system`         | Tier-1 required; logical DB owned by kol-calls                                                                                                                                                                                                 |
+| `DATABASE_URL`                  | `postgres://…@localhost:5432/onchain_bot_kol_calls`          | Tier-1 required; logical DB owned by kol-calls                                                                                                                                                                                                 |
 | `REDIS_URL`                     | `redis://localhost:6379/0`                                   | optional-with-warning (falls back to in-memory)                                                                                                                                                                                                |
 | `KOL_CALLS_PORT`                | `3050`                                                       | dev default                                                                                                                                                                                                                                    |
 | `KOL_CALLS_API_KEY`             | (absent from example — guard reads it, fail-open when empty) | optional-with-warning                                                                                                                                                                                                                          |
@@ -1013,28 +1016,26 @@ commit.
 Spec triplet (kol-calls): **3050 / 3051 / 3052** (dev / staging / prod —
 `.omo/drafts/mega-refactor-tramos.md` §4 A6, validated §7.1).
 
-| Service                        | Dev     | Staging ingestion | Prod      |
-| ------------------------------ | ------- | ----------------- | --------- |
-| kol-calls HTTP (kol-calls)     | `:3050` | `:3051`           | `:3052`   |
-| kol-calls-publisher HTTP (P51) | `:3060` | `:3061`           | `:3062`   |
-| kol-calls DB                   | `:5435` | (per-env)         | (per-env) |
-| kol-calls Redis                | `:6382` | (per-env)         | (per-env) |
-| ingestion (its own, per env)   | `:3031` | `:3033`           | `:3032`   |
+| Service                        | Dev                 | Staging ingestion | Prod      |
+| ------------------------------ | ------------------- | ----------------- | --------- |
+| kol-calls HTTP (kol-calls)     | `:3050`             | `:3051`           | `:3052`   |
+| kol-calls-publisher HTTP (P51) | `:3060`             | `:3061`           | `:3062`   |
+| kol-calls DB                   | `:5432` (single pg) | (per-env)         | (per-env) |
+| kol-calls Redis                | `:6382`             | (per-env)         | (per-env) |
+| ingestion (its own, per env)   | `:3031`             | `:3033`           | `:3032`   |
 
-P51 (2026-09-26): the publisher takes NEW ports 3060/61/62 and shares
-the SAME logical DB initially (`onchain_bot_kol_system[_staging]`,
-split later) — it defines no own postgres/redis (reuses kol-calls
-services per env).
+P51 (2026-09-26): the publisher takes NEW ports 3060/61/62 and shared
+the SAME logical DB initially (`onchain_bot_kol_system[_staging]`) — split done 2026-09-28: dev DBs are now `onchain_bot_kol_calls` + `onchain_bot_kol_calls_publisher` on the single dev postgres `:5432` (staging/prod still shared until split).
 
 Local `docker-compose.yml`: postgres `5435:5432` (db
 `onchain_bot_kol_system`), redis `6382:6379`. No clash with
 backend (`:3030/:5432/:6379`) or ingestion (`:3031/:3032/:3033`).
 DB naming follows `onchain_bot_<app>` per env for NEW apps (contract C-DB-01):
-`onchain_bot_kol_system[_staging]`.
+`onchain_bot_kol_calls` (dev, consolidated 2026-09-28; legacy standalone compose still `onchain_bot_kol_system`).
 One-DB-per-app (C-DB-01, central plan todo 2): dev local
-`onchain_bot_kol_system`, Oracle prod same base name, staging ingestion
-`onchain_bot_kol_system_staging` — 12 DBs total across the four
-apps (kol/content/market/dexter × 3 envs) on the same server per env
+`onchain_bot_kol_calls` (single postgres `:5432`), Oracle prod `onchain_bot_kol_system` (rename pending), staging ingestion
+`onchain_bot_kol_system_staging` — 11 DBs total across the apps
+(kol/kol-publisher/content/market/dexter/bots/scheduling/threads/ai-ml/backend/ingestion × envs) on the same server per env
 (precedent: `<base>_ingestion`). Pre-existing backend/ingestion DBs
 stay UNTOUCHED until the rename runbook executes
 (.omo/runbooks/rename-onchain-bot-db.md, phase 3).
@@ -1102,7 +1103,8 @@ exit 2 + NO-cutover path over) + `rollback-rehearsal.sh` (timed 0.0min,
   (`strict` NOT enabled globally). Backend uses `nodenext`; this app follows
   the same NestJS layout.
 - Path aliases (`package.json` jest `moduleNameMapper`, `tsconfig.json`):
-  `shared/*`, `telegram/*`, `src/*` rooted at `src/`. No `@/*` (frontend-only).
+  `@/*` (= `src/*`, for 2+-level imports; 2026-09-27 migration),
+  `shared/*`, `telegram/*`, `src/*` rooted at `src/`.
 - ESLint (flat config, backend-mirror): `@typescript-eslint/no-explicit-any`
   off, `require-await` off, `no-floating-promises`/`no-unsafe-*` warn,
   unused vars warn (`^_`), `prettier/prettier` error.
@@ -1296,7 +1298,7 @@ sort=perf_desc|perf_asc|calls_desc`, wired (`TrackingModule` in
 - P28 (2026-09-24): scoring configurable per template (`scoring_config`, defaults = v1; UI-editable).
 - P29 (2026-09-24): avatar resolution reuses ingestion-telegram's safety/rate-limit guard (no own limiter).
 - P50 (2026-09-25): auth anti-exploit in kol-calls (todo 23) — key on every controller except health (401, fail-open keyless dev); publishing only on owned + admin-verified bindings (missing/foreign → 403 + audit, unverified → dashboard-only block); rate-limit 429 pre-Telegram; token-free audit log; secret-scan gate; compromise drill in `docs/auth-compromise-drill.md`.
-- P51 (2026-09-26): split kol-system → kol-calls (this app: hot path, keeps `:3050` + `onchain_bot_kol_system[_staging]`, staging untouched) + kol-calls-publisher (`apps/kol-calls-publisher/`, NEW `:3060`/`:3061`/`:3062`, SAME logical DB initially, split later); moved via `git mv` = templates/scoring(P28)/approval/telegram(publishing); kept = ingestion/extraction/parsing/normalization/snapshot/enrichment/tracking + rankings API; contracts = `GET /api/mentions` + `GET /api/snapshots` (paginated, keyed, `x-api-key`; 401/400/404) + rating reads tracking (`GET /api/kol-rankings` stays here); no behavior change; evidence `.omo/evidence/task-P51-split.log`.
+- P51 (2026-09-26): split kol-system → kol-calls (this app: hot path, keeps `:3050` + dev DB now `onchain_bot_kol_calls` since consolidation 2026-09-28, staging untouched) + kol-calls-publisher (`apps/kol-calls-publisher/`, NEW `:3060`/`:3061`/`:3062`, SAME logical DB initially, split later); moved via `git mv` = templates/scoring(P28)/approval/telegram(publishing); kept = ingestion/extraction/parsing/normalization/snapshot/enrichment/tracking + rankings API; contracts = `GET /api/mentions` + `GET /api/snapshots` (paginated, keyed, `x-api-key`; 401/400/404) + rating reads tracking (`GET /api/kol-rankings` stays here); no behavior change; evidence `.omo/evidence/task-P51-split.log`.
 - C-DB-01 (2026-09-24): one-DB-per-app `<base>_<app>` same-server per env (12 DBs; central todo 2).
 - C-SSE-01 (2026-09-24): frames carry `data.messageType`; filtering is mandatory client-side (central todo 5).
 - C1 (2026-09-24): threads deferred — templates ship `threadConfig: null` + 501 stub; v2 with feed-publisher.

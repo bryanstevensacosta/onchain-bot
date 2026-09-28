@@ -217,7 +217,7 @@ npm run dev -w @onchain-bot/market-data   # watch, :4000
 npm test -w @onchain-bot/market-data      # jest, all specs
 npm run build -w @onchain-bot/market-data # nest build -> dist/main.js
 curl -s localhost:4000/api/health            # {"status":"ok"}
-docker compose -f apps/market-data/docker-compose.yml up -d  # pg :5438 + redis :6385
+docker compose -f apps/market-data/docker-compose.yml up -d  # standalone pg :5438 + redis :6385 (centralized dev uses single pg :5432, see docker-compose.dev.yml)
 ```
 
 ## STRUCTURE
@@ -299,15 +299,15 @@ and never committed.
 
 ## PORTS
 
-| Env     | App   | Postgres      | Redis         |
-| ------- | ----- | ------------- | ------------- |
-| dev     | :4000 | :5438         | :6385         |
-| staging | :4001 | :5439         | :6386         |
-| prod    | :4002 | server-shared | server-shared |
+| Env     | App   | Postgres          | Redis         |
+| ------- | ----- | ----------------- | ------------- |
+| dev     | :4000 | :5432 (single pg) | :6385         |
+| staging | :4001 | :5439             | :6386         |
+| prod    | :4002 | server-shared     | server-shared |
 
 No clashes with backend (:3030), ingestion (:3031), frontend (:5173),
-kol-system (:3050, pg :5435, redis :6382), feed-publisher (:3040, pg
-:5436, redis :6383). Staging host ports :5439/:6386 verified free
+kol-calls (:3050, DB `onchain_bot_kol_calls`, redis :6382), feed-publisher (:3040, DB
+`onchain_bot_feed_publisher`, redis :6383). Staging host ports :5439/:6386 verified free
 repo-wide (grep zero source/config hits; operator to confirm with lsof
 on Oracle at deploy).
 
@@ -338,7 +338,14 @@ Socket.IO namespace `/market-data` (`MarketDataWsGateway`): auth via
 128-deep queues (drop-oldest + counter), subscribes share the REST
 60/min budget, disconnect frees everything. Driver:
 `MARKET_DATA_STREAM_DRIVER` (memory default; ccxt = real ccxt.pro,
-operator-gated).
+operator-gated). DEX source: `exchange: 'birdeye'` always builds the
+Birdeye WS client (`provider/infrastructure/birdeye/birdeye-ws.client.ts`
+— `wss://public-api.birdeye.so/socket/solana`, echo-protocol,
+SUBSCRIBE_PRICE 1m + SUBSCRIBE_TXS + SUBSCRIBE_NEW_PAIR verbatim,
+`symbol` = mint verbatim; key from `BIRDEYE_API_KEY`, loud without it;
+allowlist via `MARKET_DATA_STREAM_EXCHANGES`; evidence
+`.omo/evidence/birdeye-ws.log` — market pushes Premium-gated, mocked
+suite is the gate).
 
 ## TS/ESLINT CONVENTIONS
 
@@ -413,7 +420,7 @@ coverage target >80% (pure units, no I/O).
 - Deps mirror feed-publisher minus LLM/queue stack (no `openai`,
   `bullmq`, `@nestjs/schedule` — this service has no queue, no cron, no
   LLM in v1; added in later todos only if the plan demands).
-- Triplet 4000/4001/4002 + pg :5438/:5439 + redis :6385/:6386 verified
+- Triplet 4000/4001/4002 + dev single pg :5432 / staging pg :5439 + redis :6385/:6386 verified
   free repo-wide (grep + lsof, see evidence log).
 - Failing-first: all 10 spec files authored before their implementation
   files in this todo; suites run green after.

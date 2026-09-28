@@ -78,7 +78,7 @@ todo convention (worktree left dirty, no commit).
 npm test -w @onchain-bot/scheduling-posts      # jest, all specs
 npm run build -w @onchain-bot/scheduling-posts # nest build -> dist/main.js
 curl -s localhost:4080/api/health              # {"status":"ok",...}
-docker compose -f apps/scheduling-posts/docker-compose.yml up -d  # pg :5442 + redis :6389
+docker compose -f apps/scheduling-posts/docker-compose.yml up -d  # standalone pg :5442 + redis :6389 (centralized dev uses single pg :5432, see docker-compose.dev.yml)
 ```
 
 From repo root (root `package.json` untouched — run via `-w`).
@@ -108,7 +108,7 @@ apps/scheduling-posts/
                          # NEW config/ (scheduling-posts + database namespaces, Tier-1 DATABASE_URL)
   uploads/               # media library on disk (gitignored; permanent — no janitor)
   Dockerfile             # EXPOSE 4080, CMD dist/main.js, uploads volume path
-  docker-compose.yml     # pg :5442 + redis :6389 (next free repo-wide)
+  docker-compose.yml     # standalone pg :5442 + redis :6389 (centralized dev: single pg :5432)
   docker-compose.staging.yml  # host :4081, pg :5443, redis :6390 (LIVE staging since 2026-09-27; BOTS_GATEWAY_URL :4071, onchain-bot-staging-net)
   .env.example / .development / .staging.template / .production.template
 ```
@@ -155,16 +155,16 @@ bindings). Templates for staging (`:4081`) + prod (`:4082`).
 
 ## PORTS
 
-| Env     | App   | Postgres      | Redis         |
-| ------- | ----- | ------------- | ------------- |
-| dev     | :4080 | :5442         | :6389         |
-| staging | :4081 | :5443\*       | :6390\*       |
-| prod    | :4082 | server-shared | server-shared |
+| Env     | App   | Postgres          | Redis         |
+| ------- | ----- | ----------------- | ------------- |
+| dev     | :4080 | :5432 (single pg) | :6389         |
+| staging | :4081 | :5443\*           | :6390\*       |
+| prod    | :4082 | server-shared     | server-shared |
 
 \* LIVE staging since 2026-09-27 (staging backport: cron ^4.4.0,
 swagger declared, gateway URL :4071, staging-net). No clashes with backend
 (`:3030`), ingestion (`:3031/32/33`), frontend (`:5173`),
-feed-publisher (`:3040/41/42`, pg `:5436`), kol-stacks, market-data
+feed-publisher (`:3040/41/42`, DB `onchain_bot_feed_publisher`), kol-stacks, market-data
 (`:5438`/`:6385`), dexter (`:5440`/`:6387`), gateway (`:4070/71/72`).
 
 ## HEALTH

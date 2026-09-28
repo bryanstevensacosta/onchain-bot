@@ -72,7 +72,7 @@ cutover todo 11). No commit per dirty-worktree constraint.
 npm test -w @onchain-bot/threads-publisher      # jest, all specs
 npm run build -w @onchain-bot/threads-publisher # nest build -> dist/main.js
 curl -s localhost:4100/api/health               # {"status":"ok",...}
-docker compose -f apps/threads-publisher/docker-compose.yml up -d  # pg :5446 + redis :6393
+docker compose -f apps/threads-publisher/docker-compose.yml up -d  # standalone pg :5446 + redis :6393 (centralized dev uses single pg :5432, see docker-compose.dev.yml)
 ```
 
 From repo root (root `package.json` untouched — run via `-w`).
@@ -101,8 +101,8 @@ apps/threads-publisher/
                          # DualThreadsPublisher (outcome ledger + CONFLICT gate)
   src/shared/            # config (Tier-1 DATABASE_URL) + api-key guard/filter/security/decorators + kernel
   Dockerfile             # EXPOSE 4100, CMD dist/main.js
-  docker-compose.yml     # pg :5446 + redis :6393 (next free repo-wide)
-  docker-compose.staging.yml  # host :4101, pg :5447, redis :6394 (DRY-RUN, OPERATOR-CONFIRM)
+  docker-compose.yml     # standalone pg :5446 + redis :6393 (centralized dev: single pg :5432)
+  docker-compose.staging.yml  # host :4101, pg :5447, redis :6394 (LIVE staging since 2026-09-27: app service added, onchain-bot-staging-net)
   .env.example / .env.staging.template / .env.production.template
 ```
 
@@ -141,13 +141,14 @@ cadence (`THREADS_PUBLISH_CRON` every-10-min, `THREADS_DAILY_CAP=60`)
 
 ## PORTS
 
-| Env     | App   | Postgres      | Redis         |
-| ------- | ----- | ------------- | ------------- |
-| dev     | :4100 | :5446         | :6393         |
-| staging | :4101 | :5447\*       | :6394\*       |
-| prod    | :4102 | server-shared | server-shared |
+| Env     | App   | Postgres          | Redis         |
+| ------- | ----- | ----------------- | ------------- |
+| dev     | :4100 | :5432 (single pg) | :6393         |
+| staging | :4101 | :5447\*           | :6394\*       |
+| prod    | :4102 | server-shared     | server-shared |
 
-\* DRY-RUN, OPERATOR-CONFIRM on Oracle. No clashes with backend
+\* LIVE staging since 2026-09-27 (staging backport added the app
+service). No clashes with backend
 (`:3030`), ingestion (`:3031/32/33`), frontend (`:5173`),
 feed-publisher (`:3040/41/42`), kol-stacks, market-data, dexter,
 gateway (`:4070/71/72`), scheduling-posts (`:4080/81/82`).
@@ -163,8 +164,9 @@ indicators). Shape backward compatible (`status: 'ok'`).
 
 Mirrors feed-publisher: `singleQuote`, strictNullChecks/noImplicitAny,
 `emitDecoratorMetadata` + `experimentalDecorators`, path aliases
+`@/*` (= `src/*`, for 2+-level imports; 2026-09-27 migration),
 `shared/*`, `threads/*`, `feed-threads/*`, `telegram/*`, `health/*`,
-`src/*`. No `@/*` alias here.
+`src/*`.
 
 ## TESTS
 

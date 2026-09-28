@@ -4,6 +4,11 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ## [Unreleased]
 
+### Docs
+
+- Dev DB name pinned: `ingestion_telegram_db` on the shared single
+  Postgres `:5432` (see `docker-compose.dev.yml`).
+
 ### Added
 
 - Consolidated ingestion-telegram docs set (feat/mega-refactor-tramos): new plain-words English `DB.md` (databases per env + the 3 `telegram_feed_*` tables + columns, Redis keys, on-disk layouts, migration history) and `BC.md` (per-area what/how with verified paths, HTTP APIs with inputs/outputs, classes + technical names explained for core, feed, registry, stream, retention, media, avatar, shared, health/metrics/debug), plus a PURPOSE section in `AGENTS.md` naming what each of the 4 docs is for. Standing rule: the 4 docs are updated continuously with every behavior or schema change (Unreleased entry first, never batch-at-release).

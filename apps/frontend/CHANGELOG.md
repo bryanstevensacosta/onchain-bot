@@ -4,6 +4,18 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- UI route renamed `/crypto-news` -> `/feed` (breaking UI change):
+  nav label `News` -> `Feed`, page heading `Crypto News` -> `Feed`,
+  legacy `/crypto-news` answers `<Navigate to="/feed" replace />` so old
+  bookmarks keep working. Backend/API surface untouched on purpose:
+  `type=crypto-news`, `/crypto-news/*` filter + publisher + scheduling
+  prefixes, `['crypto-news', …]` query keys and `uploads/crypto-news/`
+  paths stay as-is (backend contract, not UI route). E2E
+  `feed-publisher.spec.ts` moved to `/feed` + new legacy-redirect test.
+  (feat/mega-refactor-tramos)
+
 ### Added
 
 - Scanner search modal on `/dexter`: `ScanSearchModal`
