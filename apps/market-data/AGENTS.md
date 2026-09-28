@@ -101,6 +101,10 @@ Todos 0-2 + 4-5 + 10-12 + 16 + R1 DONE (verified 2026-09-28 against code + evide
   the NEW `AggregationPolicyPort` default spec, failing-first red→green;
   all 61 pre-existing suites byte-identical counts — no behavior
   change). Pre-R1 baseline was 61/232.
+- Suite tally: 64 suites / 248 tests green (+1 suite / +6 tests for
+  the coverage-expand `solana-rpc` quote fetcher, failing-first
+  red→green; pre-expand baseline 63/242 per
+  `.omo/evidence/zero-cost-probe.log`).
 - Suite tally: 61 suites / 232 tests green (+4 suites / +21 tests for
   todo 16, P48-bis: limiter-config, ccxt REST, cascade order,
   quota-cost + adversarial breach; barrel + registry + outbound
@@ -577,6 +581,22 @@ gaps + decisions) plus a `CHANGELOG.md` `## [Unreleased]` entry in
 English per `RELEASE-FLOW.md` (P39). Stale knowledge base = failed todo.
 
 ## NOTES
+
+- Coverage-expand (2026-09-28, feat/mega-refactor-tramos):
+  `SolanaRpcService.getTokenSupply` (NEW; total only — no
+  max/circulating leg exists on-chain) + `getTokenLargestAccounts`
+  wired as the `solana-rpc` quote fetcher (solana-only, tier `free`,
+  order geckoterminal -> solana-rpc -> rugcheck; `totalSupply` +
+  `top10HolderPercent`, RPC down -> null never throws). Birdeye
+  holder-profile + `holder_positions?labels=dev` VERIFIED as-is
+  (skip-without-key, mocked specs already green — no code change).
+  Live keyless (`:4161`): JUP/solana 9/17 -> 10/17
+  (`+totalSupply` on-chain, `solana-rpc` in sources; top10 null —
+  public RPC throttles largest-accounts with sustained 429, unit-pinned
+  with mocks, Helius primary resolves it); 小股东/bsc unchanged 9/17
+  (solana-only fetcher correctly skipped); SECT never probed (empty
+  input, never invented). Batch keeps its legacy flat compat shape.
+  Evidence: `.omo/evidence/coverage-expand.log`.
 
 - Holders + dev-wallet (2026-09-27, feat/mega-refactor-tramos):
   `BirdeyeService.getHolderProfile` + `getDevPositions` (holder_profile

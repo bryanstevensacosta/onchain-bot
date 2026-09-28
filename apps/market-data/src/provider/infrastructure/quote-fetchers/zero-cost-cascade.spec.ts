@@ -29,6 +29,10 @@ function stubDeps(overrides: Record<string, unknown> = {}): never {
       getTokenHolders: async () => null,
     },
     rugcheck: { getSummary: async () => null },
+    solanaRpc: {
+      getTokenSupply: async () => null,
+      getTokenLargestAccounts: async () => null,
+    },
     ccxt: {
       defaultExchange: 'binance',
       fetchTicker: async () => null,

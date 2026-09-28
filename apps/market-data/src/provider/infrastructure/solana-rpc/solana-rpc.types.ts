@@ -23,6 +23,16 @@ export interface GetTokenLargestAccountsResult {
   readonly value?: ReadonlyArray<TokenAccountEntry>;
 }
 
+export interface GetTokenSupplyResult {
+  readonly context?: { readonly slot: number };
+  readonly value?: {
+    readonly amount: string;
+    readonly decimals: number;
+    readonly uiAmount: number | null;
+    readonly uiAmountString: string;
+  };
+}
+
 export interface AccountInfoResult {
   readonly context?: { readonly slot: number };
   readonly value?: {

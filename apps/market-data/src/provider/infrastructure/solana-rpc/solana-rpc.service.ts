@@ -6,6 +6,7 @@ import { SOLANA_RPC_CONFIG } from './solana-rpc.config';
 import type {
   AccountInfoResult,
   GetTokenLargestAccountsResult,
+  GetTokenSupplyResult,
   JsonRpcResponse,
   TokenAccountEntry,
 } from './solana-rpc.types';
@@ -18,8 +19,9 @@ const PUBLIC_SOLANA_RPC = 'https://api.mainnet.solana.com';
  * Primary: Helius RPC URL from config. Fallback: public Solana RPC
  * on transport errors only (404 / protocol errors short-circuit to null).
  *
- * Exposes `getTokenLargestAccounts` (holders data) and `getAccountInfo`
- * (chain probing) as lightweight JSON-RPC 2.0 calls.
+ * Exposes `getTokenSupply` (total supply) + `getTokenLargestAccounts`
+ * (holders data) and `getAccountInfo` (chain probing) as lightweight
+ * JSON-RPC 2.0 calls. No key needed (public RPC) — free tier.
  */
 @Injectable()
 export class SolanaRpcService extends DataProviderPort {
@@ -36,6 +38,27 @@ export class SolanaRpcService extends DataProviderPort {
         'No primary RPC URL configured — will use public Solana RPC',
       );
     }
+  }
+
+  /**
+   * Total mint supply via `getTokenSupply` (uiAmount).
+   * The RPC carries total only — no max / circulating leg exists
+   * on-chain. Falls back to public RPC on transport errors.
+   */
+  public async getTokenSupply(
+    mintAddress: string,
+  ): Promise<GetTokenSupplyResult['value'] | null> {
+    const rpcUrls = this.buildRpcUrls();
+    for (const url of rpcUrls) {
+      const result = await this.callRpc<GetTokenSupplyResult>(
+        url,
+        'getTokenSupply',
+        [mintAddress],
+      );
+      if (result === null) continue;
+      return result.value ?? null;
+    }
+    return null;
   }
 
   /**

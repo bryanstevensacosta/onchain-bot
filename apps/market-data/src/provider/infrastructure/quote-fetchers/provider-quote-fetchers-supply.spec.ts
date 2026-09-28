@@ -57,6 +57,10 @@ describe('provider-quote fetchers (supply fields)', () => {
       rugcheck: {
         getSummary: async () => null,
       },
+      solanaRpc: {
+        getTokenSupply: async () => null,
+        getTokenLargestAccounts: async () => null,
+      },
       coingecko: {
         getTokenContractInfo: async () => ({
           priceUsd: 1.5,

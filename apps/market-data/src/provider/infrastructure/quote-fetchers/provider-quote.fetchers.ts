@@ -6,6 +6,7 @@ import { CoinGeckoService } from 'provider/infrastructure/coingecko';
 import { MobulaService } from 'provider/infrastructure/mobula';
 import { MoralisService } from 'provider/infrastructure/moralis';
 import { RugCheckService } from 'provider/infrastructure/rugcheck';
+import { SolanaRpcService } from 'provider/infrastructure/solana-rpc';
 import type {
   QuoteFetcher,
   SnapshotQuote,
@@ -20,6 +21,18 @@ function toNumber(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+function rpcAmountToUi(
+  amount: string | null | undefined,
+  decimals: number | null | undefined,
+): number | null {
+  const raw = toNumber(amount);
+  if (raw === null || typeof decimals !== 'number' || decimals < 0) {
+    return null;
+  }
+  const ui = raw / 10 ** decimals;
+  return Number.isFinite(ui) ? ui : null;
 }
 
 /** GeckoTerminal network slugs differ from the catalog chain ids. */
@@ -41,6 +54,7 @@ export interface ProviderQuoteDeps {
   readonly mobula: MobulaService;
   readonly moralis: MoralisService;
   readonly rugcheck: RugCheckService;
+  readonly solanaRpc: SolanaRpcService;
 }
 
 /**
@@ -59,6 +73,7 @@ export const QUOTE_FETCHER_COST_TIER: Readonly<
   ccxt: 'free',
   dexscreener: 'free',
   geckoterminal: 'free',
+  'solana-rpc': 'free',
   rugcheck: 'free',
   birdeye: 'keyed',
   coingecko: 'keyed',
@@ -75,7 +90,8 @@ export const QUOTE_FETCHER_COST_TIER: Readonly<
  * data — missing key, unknown chain, or 404). Order is zero-cost first:
  * free providers ordered by coverage (ccxt CEX-only via `covers`,
  * dexscreener broadest onchain, geckoterminal broad onchain + supplies,
- * rugcheck free security fields), then keyed providers as fallback
+ * solana-rpc solana-only on-chain ground truth (totalSupply +
+ * top10HolderPercent), rugcheck free security fields), then keyed providers as fallback
  * (birdeye, coingecko, mobula, moralis — null without keys, never
  * throwing). The aggregator merges first-non-null per field across all
  * of them in parallel. The ccxt fetcher short-circuits to null for
@@ -295,10 +311,59 @@ export function buildProviderQuoteFetchers(
     },
   };
 
+  /**
+   * Solana on-chain ground truth (coverage-expand): `getTokenSupply`
+   * carries total only (no max / circulating leg exists on-chain);
+   * `getTokenLargestAccounts` carries the top-20 accounts, from which
+   * the top-10 share of the on-chain total derives. No key needed
+   * (public JSON-RPC, free tier). RPC down -> null, never throws
+   * (adversarial: the aggregator records `no data` and moves on).
+   */
+  const solanaRpc: QuoteFetcher = {
+    name: 'solana-rpc',
+    supportsChains: ['solana'],
+    fetch: async (_chain: string, address: string) => {
+      try {
+        const [supply, largest] = await Promise.all([
+          deps.solanaRpc.getTokenSupply(address),
+          deps.solanaRpc.getTokenLargestAccounts(address),
+        ]);
+        const totalSupply =
+          toNumber(supply?.uiAmount) ??
+          rpcAmountToUi(supply?.amount, supply?.decimals);
+        let top10HolderPercent: number | null = null;
+        if (largest !== null && totalSupply !== null && totalSupply > 0) {
+          const top10 = largest
+            .slice(0, 10)
+            .reduce(
+              (acc, entry) =>
+                acc +
+                (toNumber(entry.uiAmount) ??
+                  rpcAmountToUi(entry.amount, entry.decimals) ??
+                  0),
+              0,
+            );
+          top10HolderPercent = (top10 / totalSupply) * 100;
+        }
+        if (totalSupply === null && top10HolderPercent === null) {
+          return null;
+        }
+        const quote: Partial<SnapshotQuote> = {
+          totalSupply,
+          top10HolderPercent,
+        };
+        return quote;
+      } catch {
+        return null;
+      }
+    },
+  };
+
   return [
     ccxt,
     dexscreener,
     geckoterminal,
+    solanaRpc,
     rugcheck,
     birdeye,
     coingecko,

@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Solana RPC free supplies + top holders (coverage-expand):** new
+  `SolanaRpcService.getTokenSupply` (`getTokenSupply` RPC — total
+  only, no max/circulating leg exists on-chain) wired with the
+  existing `getTokenLargestAccounts` as the `solana-rpc` quote
+  fetcher (`supportsChains: ['solana']`, tier `free`, order
+  geckoterminal -> solana-rpc -> rugcheck; `SnapshotModule` factory
+  injects `SolanaRpcService`). Maps `totalSupply` (uiAmount, with
+  amount/decimals fallback) + `top10HolderPercent` (top-10 uiAmount
+  share of the on-chain total); RPC down/throw -> null, never throws.
+  No key needed (public JSON-RPC). Failing-first:
+  `provider-quote-fetchers-solana-rpc.spec.ts` (tier/meta, supply
+  map, top10 math, null-down, throw-down, merge fill);
+  `cascade-order` (9-fetcher pin) + `zero-cost` + `supply` stubs
+  updated. Verified: 64 suites / 248 tests green, `tsc --noEmit`
+  clean, live keyless `:4161` (JUP/solana 9/17 -> 10/17 with
+  `solana-rpc` in sources; public RPC throttles largest-accounts
+  with sustained 429 so top10 stays null live — unit-pinned, Helius
+  primary resolves it; 小股东/bsc unchanged 9/17, SECT never probed).
+  (feat/mega-refactor-tramos)
+
 ### Changed
 
 - **Final `src/` restructure (R1, no behavior change):** chain lives

@@ -14,6 +14,7 @@ import { CoinGeckoService } from 'provider/infrastructure/coingecko';
 import { MobulaService } from 'provider/infrastructure/mobula';
 import { MoralisService } from 'provider/infrastructure/moralis';
 import { RugCheckService } from 'provider/infrastructure/rugcheck';
+import { SolanaRpcService } from 'provider/infrastructure/solana-rpc';
 import { AddressSnapshotService } from './application/address-snapshot.service';
 import { SnapshotHistoryJanitorService } from './application/snapshot-history-janitor.service';
 import { HoldersModule } from '../holders/holders.module';
@@ -72,6 +73,7 @@ import { SnapshotHistoryRepository } from './infrastructure/snapshot-history.rep
         MobulaService,
         MoralisService,
         RugCheckService,
+        SolanaRpcService,
       ],
       useFactory: (
         dexscreener: DexScreenerService,
@@ -82,6 +84,7 @@ import { SnapshotHistoryRepository } from './infrastructure/snapshot-history.rep
         mobula: MobulaService,
         moralis: MoralisService,
         rugcheck: RugCheckService,
+        solanaRpc: SolanaRpcService,
       ) =>
         buildProviderQuoteFetchers({
           dexscreener,
@@ -92,6 +95,7 @@ import { SnapshotHistoryRepository } from './infrastructure/snapshot-history.rep
           mobula,
           moralis,
           rugcheck,
+          solanaRpc,
         }),
     },
   ],
