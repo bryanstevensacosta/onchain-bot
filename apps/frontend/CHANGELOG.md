@@ -6,6 +6,24 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Added
 
+- Scanner search modal on `/dexter`: `ScanSearchModal`
+  (`pages/dexter/scan-search-modal.tsx`) opened from the scanner search box
+  (`dexter-open-modal`); dark blurred backdrop (`bg-black/70
+backdrop-blur-sm`), centered panel (`role=dialog aria-modal`), focus trap
+  (Tab cycles, autofocus on open, focus restored on close), Esc +
+  backdrop-click + close-button dismiss. Recent searches section
+  (`use-recent-scans`, `localStorage dexter:recent-scans:v1`, max 10, dedup
+  by normalized query, clear-all button, click re-runs); results area reuses
+  `ScanResultView` (FullScanCard/ChartCard, now in `scan-views.tsx` shared by
+  page + modal; page hides inline results while the modal is open so testids
+  never duplicate). Recent items render as React text (XSS-safe, no
+  `dangerouslySetInnerHTML`). Tests: `scan-search-modal.test.tsx`
+  (open/close/recent persist/dedup-cap/clear/XSS) + Playwright
+  `e2e/scan-modal.spec.ts` (open → search → reopen shows recent).
+  (feat/mega-refactor-tramos)
+
+### Added
+
 - Dexter bot binding UI on `/dexter`: gateway inventory list with
   Link-as-target / Unlink actions plus Create-from-env-token; binding is
   gateway-exclusive 1:1 (one bot serves one app, locked bots cannot bind).

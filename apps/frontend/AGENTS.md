@@ -16,6 +16,7 @@ src/
 ├── pages/ {dashboard (KpiCards + IngestionHealth + LiveFeed + TopTokens + TrackedCalls), tokens-explorer, token-detail (displayName fallback canonical→snapshot→ticker; ContractAddress + copy; gauge + breakdown + snapshot + canonical), kols (rows + lifecycle/backfill/recompute/formula controls), feed (550-line hub: messages + queue + keywords + scheduling + filters + llm-config + lightbox + album grouping), playground, threads, template-dashboard (thin wrapper → widgets/template-dashboard), market-data (Tramo 3 todo 7: chains + detect + providers + address lookup + compat snapshot + batch), dexter (Tramo 3 todo 7: /x full-scan + /c chart via market-data HTTP), ops (replay/filters/presets tabs)}
 ├── widgets/ {kpi-cards, live-feed, top-tokens-table, kol-leaderboard, tracked-calls, ingestion-health,
 │           template-dashboard (TemplateDashboard: template picker + SourceMultiSelect + CallsTable + PerformanceRanking + TopCallersStrip + TemplateConfigSection + KolAvatar)}
+│           scan-search-modal (ScanSearchModal: dark blurred backdrop + centered panel + focus trap + Esc/backdrop close + recent searches + scan views reuse; `use-recent-scans` localStorage max-10 dedup hook; `scan-views` holds parseDexterInput + FullScanCard + ChartCard + ScanResultView shared by page + modal)
 ├── features/ (11) {add-kol, add-feed-source, set-kol-lifecycle,
 │              replay-message, reprocess-rejected, kol-score-formula, recompute-kol-reputation,
 │              settings (filters/presets tabs, presets = named settings snapshots),
@@ -211,7 +212,7 @@ stays (P41 exclusion, no backend `feed-sources`). Proxies carry old+new side by 
 Co-located `*.test.{ts,tsx}` + `__tests__/` dirs, heaviest in feed features (scheduling-manager 1900+ lines, feed-page). `src/test/setup.ts` only. jsdom + testing-library/react in deps.
 Feed-publisher (Tramo 2, todo 9): `shared/api/feed-publisher-base.test.ts` (path builder: proxy default + absolute override), `features/feed-publisher/api/{llm-config-api,threads-stub-api}.test.ts` (migrated-path pinning + 501-resolved-not-thrown), `features/feed-publisher/ui/{feed-queue-stats-strip,feed-threads-stub-section}.test.tsx` (stats render + API-down empty states). E2E Playwright (`e2e/feed-publisher.spec.ts`, 4 tests con `/feed-api/**` mockeados: queue-stats strip, 3-flag toggles PATCH matching + `pipeline-mode` badge, scheduling rotation-config, threads 501 stub + API-down empty states; `npx playwright test -g "feed-publisher"` 4/4).
 Template-dashboard: `entities/template/model/helpers.test.ts` (pure helpers: tracking/mc/timeAgo/filter/sort/halves/avatar) + `widgets/template-dashboard/ui/template-dashboard.test.tsx` (jsdom: calls First-time/Nx + db-ids, perf 5+5 halves + sort toggle, window selector + caller counts, config extended). E2E Playwright (`e2e/template-dashboard.spec.ts`, 6 tests con `/kol-api/**` + `/ingestion-api/**` mockeados: calls table, rankings por window, source-filter narrow/clear, halves 5+5 + sort + window + config, API-down empty states, avatar-404 placeholder) + `e2e/qa-screenshots.spec.ts` (legacy dashboard intact, mockea `/kol-api/templates*`). `playwright.config.ts` (`testDir e2e`, baseURL `:5174`, webServer `vite --port 5174`, `reuseExistingServer` fuera de CI); `vitest.config.ts` excluye `e2e/**`; `npm run test:e2e` (`@playwright/test` devDep).
-Market-data (Tramo 3, todo 7): `shared/api/market-data-base.test.ts` (path builder: proxy default + absolute override), `entities/market-data/model/helpers.test.ts` (kind normalise/tone, health tone, chart urls, `detectChainForAddress` bare solana/EVM/invalid), `pages/market-data/market-data.test.tsx` (jsdom: chains+providers render + API-down empty states), `pages/dexter/dexter.test.tsx` (jsdom: idle + parse-error + /x + /c mounts + bare solana + bare EVM with ambiguous hint + garbage invalid). E2E Playwright (`e2e/market-data.spec.ts`, 7 tests con `/market-data-api/**` mockeados: chains+providers, detect + address kind display, compat + batch incl. per-item error, /x full-scan, /c chart links, API-down empty states ×2; `npx playwright test -g "market-data|dexter"` 7/7).
+Market-data (Tramo 3, todo 7): `shared/api/market-data-base.test.ts` (path builder: proxy default + absolute override), `entities/market-data/model/helpers.test.ts` (kind normalise/tone, health tone, chart urls, `detectChainForAddress` bare solana/EVM/invalid), `pages/market-data/market-data.test.tsx` (jsdom: chains+providers render + API-down empty states), `pages/dexter/dexter.test.tsx` (jsdom: idle + parse-error + /x + /c mounts + bare solana + bare EVM with ambiguous hint + garbage invalid), `pages/dexter/scan-search-modal.test.tsx` (jsdom: open/close Esc/backdrop/button + recent persist/dedup-cap-10/clear + XSS no-injection + helper garbage tolerance). E2E Playwright (`e2e/market-data.spec.ts`, 7 tests con `/market-data-api/**` mockeados: chains+providers, detect + address kind display, compat + batch incl. per-item error, /x full-scan, /c chart links, API-down empty states ×2; `npx playwright test -g "market-data|dexter"` 7/7; `e2e/scan-modal.spec.ts`, 1 test: open → search → Escape → reopen shows recent).
 
 ## REMOVED DEPS (Carril 1 — cero imports verificado)
 
@@ -247,6 +248,15 @@ npm run format              # prettier --write "src/**/*.{ts,tsx}"
 
 ## NOTES
 
+- Scanner search modal (2026-09-28, feat/mega-refactor-tramos):
+  `ScanSearchModal` on `/dexter` (dark blurred backdrop, centered panel,
+  focus trap, Esc/backdrop close) + `useRecentScans` (localStorage
+  `dexter:recent-scans:v1`, max 10, normalized-dedup, clear-all, click
+  re-runs) + results reuse `ScanResultView` from `scan-views.tsx`
+  (parseDexterInput + FullScanCard + ChartCard moved there from `index.tsx`
+  to avoid a modal/page import cycle; `index.tsx` re-exports both for
+  compat). Recent items are React-text-rendered (XSS-safe). Tests:
+  `scan-search-modal.test.tsx` + `e2e/scan-modal.spec.ts`.
 - Holders + dev-wallet (2026-09-27, feat/mega-refactor-tramos):
   `DevRiskBadge` (dev % supply, green/yellow/red/gray) +
   `useDevDumpAlert` (15% wiring point) on token-detail + `/dexter`
