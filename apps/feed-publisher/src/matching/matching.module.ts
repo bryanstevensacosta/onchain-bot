@@ -12,12 +12,15 @@ import { MatchedMessageEnqueuePort } from './domain/ports/matched-message-enqueu
 import { MatchingEvaluator } from './application/services/matching-evaluator.service';
 import { FilteredFeedService } from './application/services/filtered-feed.service';
 import { EvaluateMessageMatchUseCase } from './application/use-cases/evaluate-message-match.use-case';
+import { MessageMatchStatusUseCase } from './application/use-cases/message-match-status.use-case';
+import { MessageMatchVerdictStore } from './application/state/message-match-verdict.store';
 import { EnqueueMatchingCronScheduler } from './application/scheduling/enqueue-matching-cron.scheduler';
 import { MatchingHealthState } from './application/state/matching-health.state';
 import { InMemoryMatchingConfigRepository } from './infrastructure/persistence/in-memory/in-memory-matching-config.repository';
 import { IngestionFeedAdapter } from './infrastructure/feed/ingestion-feed.adapter';
 import { InMemoryMatchedMessageCollector } from './infrastructure/feed/in-memory-matched-message.collector';
 import { MatchingConfigController } from './api/http/matching-config.controller';
+import { MessageMatchController } from './api/http/message-match.controller';
 import { MatchingHealthIndicator } from './health/matching-health.indicator';
 
 /**
@@ -40,11 +43,13 @@ import { MatchingHealthIndicator } from './health/matching-health.indicator';
     KeywordsModule,
     FiltersModule,
   ],
-  controllers: [MatchingConfigController],
+  controllers: [MatchingConfigController, MessageMatchController],
   providers: [
     MatchingEvaluator,
     FilteredFeedService,
     EvaluateMessageMatchUseCase,
+    MessageMatchStatusUseCase,
+    MessageMatchVerdictStore,
     EnqueueMatchingCronScheduler,
     MatchingHealthState,
     MatchingHealthIndicator,
@@ -69,6 +74,8 @@ import { MatchingHealthIndicator } from './health/matching-health.indicator';
     FilteredFeedService,
     MatchingEvaluator,
     EvaluateMessageMatchUseCase,
+    MessageMatchStatusUseCase,
+    MessageMatchVerdictStore,
     MatchingHealthState,
     MatchingHealthIndicator,
     InMemoryMatchedMessageCollector,

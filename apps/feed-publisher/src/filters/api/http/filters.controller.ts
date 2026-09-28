@@ -17,9 +17,14 @@ import {
   type ContentFilterView,
 } from '@/filters/application/use-cases/content-filter.use-cases';
 import {
+  PreviewFiltersUseCase,
+  type FilterPreviewView,
+} from '@/filters/application/use-cases/preview-filters.use-case';
+import {
   CreateContentFilterDto,
   UpdateContentFilterDto,
 } from '../input/content-filter.input';
+import { PreviewFiltersDto } from '@/matching/api/input/message-match.input';
 
 /**
  * Per-channel content-filter CRUD (`/feed-publisher/...`).
@@ -32,7 +37,10 @@ import {
 @ApiTags('feed-publisher-filters')
 @Controller('feed-publisher')
 export class FiltersController {
-  public constructor(private readonly useCases: ContentFilterUseCases) {}
+  public constructor(
+    private readonly useCases: ContentFilterUseCases,
+    private readonly previewFilters: PreviewFiltersUseCase,
+  ) {}
 
   @Post('sources/:channelId/filters')
   @HttpCode(HttpStatus.CREATED)
@@ -97,5 +105,23 @@ export class FiltersController {
   public async toggle(@Param('id') id: string): Promise<ContentFilterView> {
     const toggled = await this.useCases.toggle(id);
     return toContentFilterView(toggled);
+  }
+
+  @Post('sources/:channelId/filters/preview')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Preview the chained server-side result for raw text',
+  })
+  @ApiParam({ name: 'channelId', description: 'Channel id (opaque, FK-less)' })
+  @ApiResponse({ status: 200, description: 'RAW versus filtered with steps' })
+  public async preview(
+    @Param('channelId') channelId: string,
+    @Body() dto: PreviewFiltersDto,
+  ): Promise<FilterPreviewView> {
+    return this.previewFilters.execute({
+      channelId,
+      title: dto.title ?? null,
+      content: dto.content,
+    });
   }
 }

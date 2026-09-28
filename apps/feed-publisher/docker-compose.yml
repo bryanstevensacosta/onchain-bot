@@ -8,14 +8,13 @@ services:
     environment:
       POSTGRES_USER: onchain_bot
       POSTGRES_PASSWORD: onchain_bot
-      POSTGRES_DB: onchain_bot_feed_publisher
+      POSTGRES_DB: feed_publisher_db
     ports:
       - '5436:5432'
     volumes:
       - feed-publisher-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test:
-        ['CMD-SHELL', 'pg_isready -U onchain_bot -d onchain_bot_feed_publisher']
+      test: ['CMD-SHELL', 'pg_isready -U onchain_bot -d feed_publisher_db']
       interval: 10s
       timeout: 5s
       retries: 5

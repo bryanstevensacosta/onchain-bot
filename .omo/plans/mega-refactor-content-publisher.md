@@ -193,8 +193,8 @@ Un commit por todo (feat(feed-publisher): …). Cutover con `!`. Push a la rama;
 ## UX perfiles (P65, 2026-09-25)
 
 - [ ] 16. UI perfiles + tabs (sessions/templates existentes sin UI): header `[Profile: <nombre>]` (minúsculas+guiones, validación, normaliza), Manage Profile con tabs sources|keywords|queue|target|filters|llm; sources globales con toggles por profile; menú+header sticky. Tests + Playwright.
-- [ ] 17. Endpoint estado por mensaje + badges (Not matched / Pending to publish / Blocked by … / Published): nuevo `GET` estado que une match efímero + blacklist + queue (persistir lo necesario); recent 3 líneas + modal fijo con scroll.
-- [ ] 18. Keywords preview paginado + filters preview fiel (dry-run server-side con mensaje real, toggle por source, distintivo RAW/filtrado).
+- [x] 17. Endpoint estado por mensaje + badges (Not matched / Pending to publish / Blocked by … / Published): nuevo `GET` estado que une match efímero + blacklist + queue (persistir lo necesario); recent 3 líneas + modal fijo con scroll.
+- [x] 18. Keywords preview paginado + filters preview fiel (dry-run server-side con mensaje real, toggle por source, distintivo RAW/filtrado).
 
 ## Success criteria
 

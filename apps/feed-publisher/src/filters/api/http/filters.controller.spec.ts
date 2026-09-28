@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { FiltersController } from './filters.controller';
 import { ChannelFilterRepository } from '@/filters/application/ports/channel-filter.repository';
 import { ContentFilterUseCases } from '@/filters/application/use-cases/content-filter.use-cases';
+import { PreviewFiltersUseCase } from '@/filters/application/use-cases/preview-filters.use-case';
 import { ChannelContentFilterConfig } from '@/filters/domain/channel-content-filter-config.entity';
 
 describe('FiltersController', () => {
@@ -31,6 +32,7 @@ describe('FiltersController', () => {
       controllers: [FiltersController],
       providers: [
         ContentFilterUseCases,
+        PreviewFiltersUseCase,
         { provide: ChannelFilterRepository, useValue: repo },
       ],
     }).compile();

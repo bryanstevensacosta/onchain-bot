@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Per-message lifecycle status + dry-run + faithful filters preview
+  (Tramo 2 todos 17/18, backend partial):** `GET
+/feed-publisher/matching/messages/:channelId/:messageId/status` joins
+  the live match verdict (re-evaluated against current rules, parked in
+  a bounded in-memory store: 1000 entries, 24h TTL) with the persisted
+  queue row, returning matched keywords, blacklist hits with phrases,
+  human-readable reasons and a feed-UX badge (`Not matched` / `Pending
+to publish` / `Blocked by ...` / `Published` / `Failed` / `Not
+found`); `POST /feed-publisher/matching/evaluate` exposes the
+  `EvaluateMessageMatchUseCase` dry-run over HTTP (nothing persisted,
+  nothing enqueued) with phrase enrichment and shared reason lines;
+  `POST /feed-publisher/sources/:channelId/filters/preview` replays the
+  exact server-side filter chain with a per-step trace and an explicit
+  RAW-versus-filtered pair. Fail-open feed reads; invalid message ids
+  are 400. 4 suites / 18 tests new (157/509 total green).
+
 ### Docs
 
 - Dev DB name pinned: `feed_publisher_db` on the shared single

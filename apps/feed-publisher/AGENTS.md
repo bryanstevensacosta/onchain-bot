@@ -125,6 +125,49 @@ the leftovers (`app.module`, `telegram.module`, publisher router
 Full suite 140/435 green post-move. This AGENTS.md otherwise unchanged
 (todo 11 cutover owns the rewrite).
 
+## FEED UX ENDPOINTS (Tramo 2 todos 17/18, backend partial, DONE 2026-09-28)
+
+Per-message lifecycle state plus faithful server-side previews, closing
+research gaps G1 (no per-message status), G2 (invisible no-match and
+blacklist blocks) and G5 (unexposed dry-run) from
+`.omo/evidence/feed-ux-research-status.md`, plus gap §5.2 (no faithful
+server-side preview) from `.omo/evidence/feed-ux-research-filters.md`.
+Evidence: `.omo/evidence/task-T2-17-18.log` — 157 suites / 509 tests
+green (+4/+18), `tsc` clean, live curl matrix on `:3099`.
+
+- **Status** (`MessageMatchStatusUseCase` + `MessageMatchVerdictStore`,
+  `GET /feed-publisher/matching/messages/:channelId/:messageId/status`):
+  joins the live match verdict (re-evaluated against current rules via
+  `EvaluateMessageMatchUseCase`, parked in the bounded in-memory store:
+  1000 entries, 24h TTL) with the persisted queue row (status plus
+  `blockedReason`/`lastError`/`telegramMessageId`). Feed read is
+  fail-open (200 rows by channel; miss falls back to the stored verdict,
+  then to the queue snapshot). Badge contract: `Not matched` /
+  `Pending to publish` / `Blocked by ...` (blacklist phrase or queue
+  dedup reason) / `Published` / `Failed` / `Not found`. Reasons are
+  human-readable (`matched keyword "etf"`, `blocked by blacklist phrase
+"scam"`, queue transitions). Invalid message ids are 400.
+- **Dry-run** (`POST /feed-publisher/matching/evaluate`): exposes the
+  existing `EvaluateMessageMatchUseCase` over HTTP (real message body,
+  no feed I/O, nothing persisted, nothing enqueued) with id-to-phrase
+  enrichment (`matchedKeywords`/`blockedBy` carry `{id, phrase}`),
+  shared reason lines and an active-filter count. Media fix: `hasMedia`
+  now maps to a one-photo bundle (the evaluator derives the signal from
+  the bundle, so `requireMedia` rules previously never matched here).
+- **Filters preview** (`PreviewFiltersUseCase`,
+  `POST /feed-publisher/sources/:channelId/filters/preview`): replays
+  the exact `ContentFilterService` chain (priority ASC, creation-order
+  tiebreak, title AND content, same guard order: inactive → 512-char
+  cap → flags whitelist → compilable) with a per-step trace
+  (`applied`/`skippedReason` + title/content after each filter) and an
+  explicit RAW-versus-filtered pair. Read-only. Trace-only deviation:
+  per-step compile instead of the shared cache (same semantics).
+- Wiring: `MatchingModule` gains `MessageMatchController` +
+  `MessageMatchStatusUseCase` + `MessageMatchVerdictStore` (all
+  exported); `FiltersModule` gains `PreviewFiltersUseCase` (exported)
+  and `FiltersController.preview`. Nothing outside
+  `apps/feed-publisher/` touched; worktree left dirty (no commit).
+
 ## GATEWAY MIGRATION (telegram-bots-gateway todo 5, DONE 2026-09-26)
 
 Feed publishing via the gateway with dual-send parity (mirrors the

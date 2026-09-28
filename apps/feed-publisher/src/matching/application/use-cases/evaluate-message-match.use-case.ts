@@ -3,6 +3,7 @@ import { MatchingEvaluator } from '../services/matching-evaluator.service';
 import { KeywordRepository } from '@/keywords/application/ports/keyword.repository';
 import { BlacklistPhraseRepository } from '@/keywords/application/ports/blacklist-phrase.repository';
 import { ChannelFilterRepository } from '@/filters/application/ports/channel-filter.repository';
+import type { FeedMedia } from '@/matching/domain/feed-message';
 
 export interface EvaluateMessageMatchInput {
   readonly channelId: string;
@@ -45,6 +46,12 @@ export class EvaluateMessageMatchUseCase {
       this.blacklistRepo.findAll(),
       this.channelFilters.findFiltersByChannelId(input.channelId),
     ]);
+    // Faithful media signal: the evaluator derives `hasMedia` from the
+    // media bundle, so a dry-run with `hasMedia` carries one photo item
+    // (requireMedia rules would otherwise never match here).
+    const media: FeedMedia[] = input.hasMedia
+      ? [{ index: 0, type: 'photo' }]
+      : [];
     const result = this.evaluator.evaluateMessage(
       {
         channelId: input.channelId,
@@ -53,7 +60,7 @@ export class EvaluateMessageMatchUseCase {
         content: input.content,
         publishedAt: new Date().toISOString(),
         ingestedAt: new Date().toISOString(),
-        media: [],
+        media,
         groupedId: null,
         messageType: 'crypto-news',
       },

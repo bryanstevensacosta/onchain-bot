@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ChannelFilterRepository } from './application/ports/channel-filter.repository';
 import { ContentFilterService } from './application/services/content-filter.service';
 import { ContentFilterUseCases } from './application/use-cases/content-filter.use-cases';
+import { PreviewFiltersUseCase } from './application/use-cases/preview-filters.use-case';
 import { InMemoryChannelFilterRepository } from './infrastructure/persistence/in-memory/in-memory-channel-filter.repository';
 import { FiltersController } from './api/http/filters.controller';
 import { FiltersHealthIndicator } from './health/filters-health.indicator';
@@ -19,6 +20,7 @@ import { FiltersHealthIndicator } from './health/filters-health.indicator';
   providers: [
     ContentFilterService,
     ContentFilterUseCases,
+    PreviewFiltersUseCase,
     FiltersHealthIndicator,
     {
       provide: ChannelFilterRepository,
@@ -28,6 +30,7 @@ import { FiltersHealthIndicator } from './health/filters-health.indicator';
   exports: [
     ChannelFilterRepository,
     ContentFilterService,
+    PreviewFiltersUseCase,
     FiltersHealthIndicator,
   ],
 })
