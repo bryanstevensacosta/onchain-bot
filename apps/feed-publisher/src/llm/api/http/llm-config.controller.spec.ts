@@ -1,10 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
 import { LlmConfigController } from './llm-config.controller';
-import { LlmConfig } from '../../domain/llm-config.entity';
-import { MatchingConfig } from '../../../matching/domain/matching-config.entity';
-import type { LlmConfigRepository } from '../../domain/ports/llm-config.repository';
-import type { MatchingConfigRepository } from '../../../matching/domain/ports/matching-config.repository';
-import { GetPipelineFlagsUseCase } from '../../application/use-cases/get-pipeline-flags.use-case';
+import { LlmConfig } from '@/llm/domain/llm-config.entity';
+import { MatchingConfig } from '@/matching/domain/matching-config.entity';
+import type { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
+import type { MatchingConfigRepository } from '@/matching/domain/ports/matching-config.repository';
+import { GetPipelineFlagsUseCase } from '@/llm/application/use-cases/get-pipeline-flags.use-case';
 
 const base = {
   defaultTemplateId: 'default-feed',

@@ -1,4 +1,4 @@
-import { Keyword } from '../../domain/keyword.entity';
+import { Keyword } from '@/keywords/domain/keyword.entity';
 
 /**
  * Outbound port: persistence for allowed keywords.

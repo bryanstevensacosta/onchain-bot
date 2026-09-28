@@ -79,7 +79,7 @@ export class TelegramFeedSourceEntity {
    * `GET /api/kol-avatar/:channelId`). NULL = never fetched or MTProto miss
    * (placeholder served). The FILE is the source of truth for serving; these
    * columns are bookkeeping only. Nullable so pre-avatar rows stay valid;
-   * excluded from the 72h janitor with the files (janitor touches only
+   * excluded from the 24h janitor with the files (janitor touches only
    * `telegram_feed_message*` + `uploads/feed-media/`).
    */
   @Column({ name: 'avatar_path', type: 'varchar', length: 512, nullable: true })

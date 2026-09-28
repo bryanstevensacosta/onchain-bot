@@ -1,7 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { QueueManager } from './queue-manager.service';
-import { PublisherQueueEntry } from '../../domain/publisher-queue-entry.entity';
-import { InMemoryPublisherQueueRepository } from '../../infrastructure/persistence/in-memory/in-memory-publisher-queue.repository';
+import { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
+import { InMemoryPublisherQueueRepository } from '@/queue/infrastructure/persistence/in-memory/in-memory-publisher-queue.repository';
 import { QueueFullError } from 'shared/exceptions/feed-publisher.error';
 
 function makeEntry(channelId: string, messageId: number) {

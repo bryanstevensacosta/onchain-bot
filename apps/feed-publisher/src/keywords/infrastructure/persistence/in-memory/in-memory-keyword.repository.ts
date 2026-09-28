@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Keyword } from '../../../domain/keyword.entity';
-import { KeywordRepository } from '../../../application/ports/keyword.repository';
+import { Keyword } from '@/keywords/domain/keyword.entity';
+import { KeywordRepository } from '@/keywords/application/ports/keyword.repository';
 
 /**
  * In-memory `KeywordRepository` — the LIVE binding until the persistence

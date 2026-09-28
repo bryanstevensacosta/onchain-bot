@@ -15,7 +15,7 @@ import {
   ContentFilterUseCases,
   toContentFilterView,
   type ContentFilterView,
-} from '../../application/use-cases/content-filter.use-cases';
+} from '@/filters/application/use-cases/content-filter.use-cases';
 import {
   CreateContentFilterDto,
   UpdateContentFilterDto,

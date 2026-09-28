@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 import {
   MatchedMessageEnqueuePort,
   type EnqueueResult,
-} from '../../../matching/domain/ports/matched-message-enqueue.port';
-import type { FilteredFeedMessage } from '../../../matching/application/services/matching-evaluator.service';
-import { EnqueueMatchingMessageUseCase } from '../../application/use-cases/enqueue-matching-message.use-case';
+} from '@/matching/domain/ports/matched-message-enqueue.port';
+import type { FilteredFeedMessage } from '@/matching/application/services/matching-evaluator.service';
+import { EnqueueMatchingMessageUseCase } from '@/queue/application/use-cases/enqueue-matching-message.use-case';
 
 /**
  * Queue binding for the todo 3 `MatchedMessageEnqueuePort`.

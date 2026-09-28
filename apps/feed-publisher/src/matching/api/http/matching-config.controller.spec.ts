@@ -1,12 +1,12 @@
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { MatchingConfigController } from './matching-config.controller';
-import { MatchingConfigRepository } from '../../domain/ports/matching-config.repository';
-import { MatchingHealthState } from '../../application/state/matching-health.state';
-import { InMemoryMatchingConfigRepository } from '../../infrastructure/persistence/in-memory/in-memory-matching-config.repository';
-import { QueueManager } from '../../../queue/application/services/queue-manager.service';
-import { PublisherQueueRepository } from '../../../queue/domain/ports/publisher-queue.repository';
-import { InMemoryPublisherQueueRepository } from '../../../queue/infrastructure/persistence/in-memory/in-memory-publisher-queue.repository';
+import { MatchingConfigRepository } from '@/matching/domain/ports/matching-config.repository';
+import { MatchingHealthState } from '@/matching/application/state/matching-health.state';
+import { InMemoryMatchingConfigRepository } from '@/matching/infrastructure/persistence/in-memory/in-memory-matching-config.repository';
+import { QueueManager } from '@/queue/application/services/queue-manager.service';
+import { PublisherQueueRepository } from '@/queue/domain/ports/publisher-queue.repository';
+import { InMemoryPublisherQueueRepository } from '@/queue/infrastructure/persistence/in-memory/in-memory-publisher-queue.repository';
 
 describe('MatchingConfigController', () => {
   async function build() {

@@ -20,23 +20,20 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { TelegramFeedSourceRepository } from '../../infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
-import type { TelegramFeedSourceType } from '../../infrastructure/persistence/typeorm/entities/telegram-feed-source.entity';
+import { TelegramFeedSourceRepository } from '@/registry/infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
+import type { TelegramFeedSourceType } from '@/registry/infrastructure/persistence/typeorm/entities/telegram-feed-source.entity';
 import { TelegramListenerPort } from 'core/ports/telegram-listener.port';
-import {
-  kolAvatarUrlFor,
-  sourceUrlFor,
-} from '../../../avatar/avatar.constants';
-import { KolAvatarService } from '../../../avatar/kol-avatar.service';
+import { kolAvatarUrlFor, sourceUrlFor } from '@/avatar/avatar.constants';
+import { KolAvatarService } from '@/avatar/kol-avatar.service';
 import {
   normalizeResolveInput,
   SUBSCRIBABLE_KINDS,
-} from '../../application/entity-kind';
+} from '@/registry/application/entity-kind';
 import {
   RegisterNewsSourceUseCase,
   type RegisterFeedSourceBatchInput,
   type RegisterNewsSourceInput,
-} from '../../application/use-cases/register-news-source.use-case';
+} from '@/registry/application/use-cases/register-news-source.use-case';
 import type { MetadataKind } from 'metadata/metadata-kind';
 // Value import (not `import type`): emitDecoratorMetadata must see the
 // runtime class or Nest resolves the @Optional() param to null.

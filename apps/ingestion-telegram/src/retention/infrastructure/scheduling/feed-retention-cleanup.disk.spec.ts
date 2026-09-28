@@ -6,7 +6,7 @@ import {
 } from './feed-retention-cleanup.scheduler';
 import { DiskMonitorError, DiskMonitorService } from './disk-monitor.service';
 
-function makeConfig(retentionHours = 72): ConfigService {
+function makeConfig(retentionHours = 24): ConfigService {
   return {
     get: (key: string) => {
       if (key === 'app.uploads.root') return undefined;

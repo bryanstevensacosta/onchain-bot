@@ -1,8 +1,8 @@
 import { GetPipelineFlagsUseCase } from './get-pipeline-flags.use-case';
-import { LlmConfig } from '../../domain/llm-config.entity';
-import { MatchingConfig } from '../../../matching/domain/matching-config.entity';
-import type { LlmConfigRepository } from '../../domain/ports/llm-config.repository';
-import type { MatchingConfigRepository } from '../../../matching/domain/ports/matching-config.repository';
+import { LlmConfig } from '@/llm/domain/llm-config.entity';
+import { MatchingConfig } from '@/matching/domain/matching-config.entity';
+import type { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
+import type { MatchingConfigRepository } from '@/matching/domain/ports/matching-config.repository';
 
 const base = {
   defaultTemplateId: 'default-feed',

@@ -1,5 +1,5 @@
-import { DedupRecord } from '../../../../domain/entities/dedup-record.entity';
-import type { FingerprintType } from '../../../../domain/value-objects/fingerprint.vo';
+import { DedupRecord } from '@/deduplication/domain/entities/dedup-record.entity';
+import type { FingerprintType } from '@/deduplication/domain/value-objects/fingerprint.vo';
 import { DedupRecordOrmEntity } from '../dedup-record.orm-entity';
 
 /**

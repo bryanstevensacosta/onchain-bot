@@ -3,8 +3,8 @@ import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import {
   PublishingContentTemplate,
   type CreateContentTemplateInput,
-} from '../../domain/entities/publishing-template.entity';
-import { ContentTemplateRepository } from '../../domain/ports/content-template.repository';
+} from '@/template/domain/entities/publishing-template.entity';
+import { ContentTemplateRepository } from '@/template/domain/ports/content-template.repository';
 
 export interface ContentTemplateView {
   readonly id: string;

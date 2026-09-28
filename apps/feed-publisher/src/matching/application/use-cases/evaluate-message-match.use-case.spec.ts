@@ -1,9 +1,9 @@
 import { EvaluateMessageMatchUseCase } from './evaluate-message-match.use-case';
 import { MatchingEvaluator } from '../services/matching-evaluator.service';
-import { KeywordRepository } from '../../../keywords/application/ports/keyword.repository';
-import { BlacklistPhraseRepository } from '../../../keywords/application/ports/blacklist-phrase.repository';
-import { ChannelFilterRepository } from '../../../filters/application/ports/channel-filter.repository';
-import { Keyword } from '../../../keywords/domain/keyword.entity';
+import { KeywordRepository } from '@/keywords/application/ports/keyword.repository';
+import { BlacklistPhraseRepository } from '@/keywords/application/ports/blacklist-phrase.repository';
+import { ChannelFilterRepository } from '@/filters/application/ports/channel-filter.repository';
+import { Keyword } from '@/keywords/domain/keyword.entity';
 
 describe('EvaluateMessageMatchUseCase', () => {
   function build() {

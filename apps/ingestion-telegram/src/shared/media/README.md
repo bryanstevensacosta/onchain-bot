@@ -265,8 +265,8 @@ class TimeBasedRetention extends BaseMediaRetentionPolicy {
   }
 }
 
-// Usage (e.g., 72 hours retention)
-const policy = new TimeBasedRetention(fileSystem, 72);
+// Usage (e.g., 24 hours retention)
+const policy = new TimeBasedRetention(fileSystem, 24);
 const result = await policy.cleanup('/uploads/crypto-news/media', false);
 
 console.log(`Deleted ${result.deleted} files`);

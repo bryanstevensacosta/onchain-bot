@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { LlmConfigRepository } from '../../domain/ports/llm-config.repository';
-import { MatchingConfigRepository } from '../../../matching/domain/ports/matching-config.repository';
+import { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
+import { MatchingConfigRepository } from '@/matching/domain/ports/matching-config.repository';
 import {
   resolvePipelineFlags,
   type PipelineMode,
   type PipelineFlagInput,
-} from '../../domain/pipeline-flags';
+} from '@/llm/domain/pipeline-flags';
 
 export interface PipelineFlagsView {
   readonly flags: PipelineFlagInput;

@@ -1,5 +1,5 @@
 import { InMemoryPromptTemplateRepository } from './in-memory-prompt-template.repository';
-import { PromptTemplate } from '../../../domain/prompt-template.entity';
+import { PromptTemplate } from '@/llm/domain/prompt-template.entity';
 
 const make = (name: string): PromptTemplate =>
   PromptTemplate.create({

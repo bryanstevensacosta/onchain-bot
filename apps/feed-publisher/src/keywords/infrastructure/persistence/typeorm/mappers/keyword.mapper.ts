@@ -1,6 +1,6 @@
-import { Keyword } from '../../../../domain/keyword.entity';
+import { Keyword } from '@/keywords/domain/keyword.entity';
 import { KeywordEntity } from '../entities/keyword.entity';
-import type { MatchMode } from '../../../../domain/match-mode';
+import type { MatchMode } from '@/keywords/domain/match-mode';
 
 /**
  * Domain <-> persistence mapper for `Keyword` (keeps the domain pure;

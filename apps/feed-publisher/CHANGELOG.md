@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dev DB name pinned: `feed_publisher_db` on the shared single
   Postgres `:5432` (see `docker-compose.dev.yml`).
+- **Display naming `crypto-news` -> `feed`:** log and service display
+  strings use `feed`; wire/DB/API paths (`messageType`, `contentType`,
+  routes, tables) intentionally kept as `crypto-news`.
 
 ### Fixed
 

@@ -1,9 +1,9 @@
 import type { ConfigService } from '@nestjs/config';
 import { TelegramQueuedArticleDispatcher } from './telegram-queued-article.dispatcher';
 import { TelegramPublisherRouter } from '../services/telegram-publisher-router.service';
-import type { TelegramPublisherPort } from '../../domain/ports/telegram-publisher.port';
-import { PublisherQueueEntry } from '../../../queue/domain/publisher-queue-entry.entity';
-import type { LlmConfigRepository } from '../../../llm/domain/ports/llm-config.repository';
+import type { TelegramPublisherPort } from '@/telegram/domain/ports/telegram-publisher.port';
+import { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
+import type { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
 
 function makeConfig(env: Record<string, string> = {}): ConfigService {
   return {

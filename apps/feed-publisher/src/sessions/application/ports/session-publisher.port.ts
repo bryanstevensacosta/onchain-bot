@@ -1,4 +1,4 @@
-import type { PublishTarget } from '../../../template/domain/template-target';
+import type { PublishTarget } from '@/template/domain/template-target';
 
 /**
  * One routed publish plan per (session, target, bot).

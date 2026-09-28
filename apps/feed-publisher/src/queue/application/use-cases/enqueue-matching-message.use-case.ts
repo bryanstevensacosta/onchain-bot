@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { QueueManager } from '../services/queue-manager.service';
-import { DeduplicationService } from '../../../deduplication/application/services/deduplication.service';
-import { PublisherQueueEntry } from '../../domain/publisher-queue-entry.entity';
+import { DeduplicationService } from '@/deduplication/application/services/deduplication.service';
+import { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
-import type { FilteredFeedMessage } from '../../../matching/application/services/matching-evaluator.service';
+import type { FilteredFeedMessage } from '@/matching/application/services/matching-evaluator.service';
 
 export const MATCHING_ENQUEUE_SOURCE = 'feed-publisher';
 

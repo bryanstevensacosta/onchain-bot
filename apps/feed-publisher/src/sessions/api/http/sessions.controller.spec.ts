@@ -1,13 +1,13 @@
 import { SessionsController } from './sessions.controller';
-import { PublishingSessionUseCases } from '../../application/use-cases/publishing-session.use-cases';
-import { PublishSessionMessageUseCase } from '../../application/use-cases/publish-session-message.use-case';
-import { PublishAuditLog } from '../../application/services/publish-audit-log.service';
-import { PublishRateLimiter } from '../../application/services/publish-rate-limiter.service';
-import { SessionPublishAuthorizer } from '../../application/services/session-publish-authorizer.service';
-import { InMemoryPublishingSessionRepository } from '../../infrastructure/repositories/in-memory-publishing-session.repository';
-import { RecordingSessionPublisher } from '../../infrastructure/publish/recording-session-publisher.adapter';
-import { InMemoryContentTemplateRepository } from '../../../template/infrastructure/repositories/in-memory-content-template.repository';
-import { InMemoryTemplateBotRepository } from '../../../template/infrastructure/repositories/in-memory-template-bot.repository';
+import { PublishingSessionUseCases } from '@/sessions/application/use-cases/publishing-session.use-cases';
+import { PublishSessionMessageUseCase } from '@/sessions/application/use-cases/publish-session-message.use-case';
+import { PublishAuditLog } from '@/sessions/application/services/publish-audit-log.service';
+import { PublishRateLimiter } from '@/sessions/application/services/publish-rate-limiter.service';
+import { SessionPublishAuthorizer } from '@/sessions/application/services/session-publish-authorizer.service';
+import { InMemoryPublishingSessionRepository } from '@/sessions/infrastructure/repositories/in-memory-publishing-session.repository';
+import { RecordingSessionPublisher } from '@/sessions/infrastructure/publish/recording-session-publisher.adapter';
+import { InMemoryContentTemplateRepository } from '@/template/infrastructure/repositories/in-memory-content-template.repository';
+import { InMemoryTemplateBotRepository } from '@/template/infrastructure/repositories/in-memory-template-bot.repository';
 
 describe('SessionsController', () => {
   it('creates, toggles, and deactivates sessions via the frontend-backed API', async () => {

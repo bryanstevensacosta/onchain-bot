@@ -1,5 +1,5 @@
 import { CreateThreadUseCase } from './create-thread.use-case';
-import { InMemoryThreadRepository } from '../../infrastructure/persistence/in-memory/in-memory-thread.repository';
+import { InMemoryThreadRepository } from '@/threads/infrastructure/persistence/in-memory/in-memory-thread.repository';
 
 describe('CreateThreadUseCase', () => {
   it('persists a DRAFT thread and returns it', async () => {

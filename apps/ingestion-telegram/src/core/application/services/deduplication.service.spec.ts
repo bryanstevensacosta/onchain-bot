@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DeduplicationService } from './deduplication.service';
-import { LastSeenManager } from '../../infrastructure/services/last-seen-manager.service';
+import { LastSeenManager } from '@/core/infrastructure/services/last-seen-manager.service';
 import { RedisService } from 'shared/common/cache/redis.service';
 
 describe('DeduplicationService - Integration Tests', () => {

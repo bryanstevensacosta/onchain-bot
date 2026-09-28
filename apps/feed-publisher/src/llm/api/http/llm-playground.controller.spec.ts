@@ -3,8 +3,8 @@ import { LlmPlaygroundController } from './llm-playground.controller';
 import type {
   PreviewPromptUseCase,
   PreviewPromptResult,
-} from '../../application/use-cases/preview-prompt.use-case';
-import type { GetLlmModelsUseCase } from '../../application/use-cases/get-llm-models.use-case';
+} from '@/llm/application/use-cases/preview-prompt.use-case';
+import type { GetLlmModelsUseCase } from '@/llm/application/use-cases/get-llm-models.use-case';
 
 const rendered: PreviewPromptResult = {
   renderedUserPrompt: 'Title: T\nBody: Hola',

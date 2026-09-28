@@ -1,4 +1,4 @@
-import { Thread } from '../../domain/entities/thread.entity';
+import { Thread } from '@/threads/domain/entities/thread.entity';
 import { ThreadSchedulerService } from './thread-scheduler.service';
 
 function makeThread(): Thread {

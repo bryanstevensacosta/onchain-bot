@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Keyword } from '../../../../domain/keyword.entity';
-import { KeywordRepository } from '../../../../application/ports/keyword.repository';
+import { Keyword } from '@/keywords/domain/keyword.entity';
+import { KeywordRepository } from '@/keywords/application/ports/keyword.repository';
 import { KeywordEntity } from '../entities/keyword.entity';
 import { KeywordMapper } from '../mappers/keyword.mapper';
 

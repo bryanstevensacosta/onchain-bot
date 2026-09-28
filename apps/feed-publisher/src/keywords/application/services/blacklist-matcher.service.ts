@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { BlacklistPhrase } from '../../domain/blacklist-phrase.entity';
+import { BlacklistPhrase } from '@/keywords/domain/blacklist-phrase.entity';
 import { groupByAndGroupId } from './compound-group.evaluator';
 
 /**

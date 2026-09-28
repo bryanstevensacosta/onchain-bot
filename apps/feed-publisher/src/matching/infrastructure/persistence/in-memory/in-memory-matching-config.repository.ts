@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { MatchingConfig } from '../../../domain/matching-config.entity';
-import { MatchingConfigRepository } from '../../../domain/ports/matching-config.repository';
+import { MatchingConfig } from '@/matching/domain/matching-config.entity';
+import { MatchingConfigRepository } from '@/matching/domain/ports/matching-config.repository';
 
 /**
  * In-memory `MatchingConfigRepository` — the LIVE binding until GAP-1.

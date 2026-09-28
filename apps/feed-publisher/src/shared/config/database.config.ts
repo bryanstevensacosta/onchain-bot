@@ -11,7 +11,7 @@ export function buildDatabaseConfig(
   return {
     url:
       env.DATABASE_URL ??
-      'postgres://onchain_bot:onchain_bot@localhost:5436/onchain_bot_feed_publisher',
+      'postgres://onchain_bot:onchain_bot@localhost:5432/feed_publisher_db',
     synchronize: env.DATABASE_SYNCHRONIZE === 'true',
   };
 }

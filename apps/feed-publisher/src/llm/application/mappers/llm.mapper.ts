@@ -1,5 +1,5 @@
-import type { LlmConfig } from '../../domain/llm-config.entity';
-import type { PromptTemplate } from '../../domain/prompt-template.entity';
+import type { LlmConfig } from '@/llm/domain/llm-config.entity';
+import type { PromptTemplate } from '@/llm/domain/prompt-template.entity';
 
 export interface LlmConfigView {
   readonly defaultTemplateId: string;

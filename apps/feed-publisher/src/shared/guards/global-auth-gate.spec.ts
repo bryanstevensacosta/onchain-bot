@@ -1,7 +1,7 @@
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
-import { AppModule } from '../../app.module';
-import { HealthController } from '../../health/api/http/health.controller';
-import { SessionsController } from '../../sessions/api/http/sessions.controller';
+import { AppModule } from '@/app.module';
+import { HealthController } from '@/health/api/http/health.controller';
+import { SessionsController } from '@/sessions/api/http/sessions.controller';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { DomainExceptionFilter } from '../filters/domain-exception.filter';
 import { ApiKeyGuard } from './api-key.guard';

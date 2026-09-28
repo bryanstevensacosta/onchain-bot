@@ -14,9 +14,9 @@ import {
   PublishingSessionUseCases,
   toPublishingSessionView,
   type PublishingSessionView,
-} from '../../application/use-cases/publishing-session.use-cases';
-import { PublishSessionMessageUseCase } from '../../application/use-cases/publish-session-message.use-case';
-import type { SessionPublishPlan } from '../../application/ports/session-publisher.port';
+} from '@/sessions/application/use-cases/publishing-session.use-cases';
+import { PublishSessionMessageUseCase } from '@/sessions/application/use-cases/publish-session-message.use-case';
+import type { SessionPublishPlan } from '@/sessions/application/ports/session-publisher.port';
 import {
   CreateSessionDto,
   SetSourceToggleDto,

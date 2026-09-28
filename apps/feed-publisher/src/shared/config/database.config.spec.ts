@@ -3,7 +3,7 @@ import { buildDatabaseConfig } from './database.config';
 describe('database config', () => {
   it('defaults to the feed-publisher dev DB', () => {
     expect(buildDatabaseConfig({} as NodeJS.ProcessEnv).url).toContain(
-      'onchain_bot_feed_publisher',
+      'feed_publisher_db',
     );
   });
 

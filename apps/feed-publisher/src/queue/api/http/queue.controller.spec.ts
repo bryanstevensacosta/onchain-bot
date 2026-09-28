@@ -1,11 +1,11 @@
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { QueueController } from './queue.controller';
-import { QueueManager } from '../../application/services/queue-manager.service';
-import { QueueHealthState } from '../../application/state/queue-health.state';
-import { PublisherQueueRepository } from '../../domain/ports/publisher-queue.repository';
-import { InMemoryPublisherQueueRepository } from '../../infrastructure/persistence/in-memory/in-memory-publisher-queue.repository';
-import { PublisherQueueEntry } from '../../domain/publisher-queue-entry.entity';
+import { QueueManager } from '@/queue/application/services/queue-manager.service';
+import { QueueHealthState } from '@/queue/application/state/queue-health.state';
+import { PublisherQueueRepository } from '@/queue/domain/ports/publisher-queue.repository';
+import { InMemoryPublisherQueueRepository } from '@/queue/infrastructure/persistence/in-memory/in-memory-publisher-queue.repository';
+import { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
 
 describe('QueueController', () => {
   async function build() {

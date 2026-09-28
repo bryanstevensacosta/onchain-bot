@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { PublisherQueueEntry } from '../../../domain/publisher-queue-entry.entity';
-import { PublisherQueueRepository } from '../../../domain/ports/publisher-queue.repository';
-import type { PublisherQueueListOptions } from '../../../domain/ports/publisher-queue.repository';
-import type { PublisherQueueStatus } from '../../../domain/publisher-queue-status';
+import { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
+import { PublisherQueueRepository } from '@/queue/domain/ports/publisher-queue.repository';
+import type { PublisherQueueListOptions } from '@/queue/domain/ports/publisher-queue.repository';
+import type { PublisherQueueStatus } from '@/queue/domain/publisher-queue-status';
 
 const DEFAULT_LIST_LIMIT = 50;
 const MAX_LIST_LIMIT = 500;

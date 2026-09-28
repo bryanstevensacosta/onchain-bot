@@ -1,6 +1,6 @@
 import { IsInt, IsOptional, IsIn, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
-import type { PublisherQueueStatus } from '../../domain/publisher-queue-status';
+import type { PublisherQueueStatus } from '@/queue/domain/publisher-queue-status';
 
 const STATUSES: ReadonlyArray<PublisherQueueStatus> = [
   'PENDING',

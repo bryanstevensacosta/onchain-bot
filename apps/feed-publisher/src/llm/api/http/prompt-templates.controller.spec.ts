@@ -1,11 +1,11 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { PromptTemplatesController } from './prompt-templates.controller';
-import { LlmConfig } from '../../domain/llm-config.entity';
-import { PromptTemplate } from '../../domain/prompt-template.entity';
-import { Keyword } from '../../../keywords/domain/keyword.entity';
-import type { LlmConfigRepository } from '../../domain/ports/llm-config.repository';
-import type { PromptTemplateRepository } from '../../domain/ports/prompt-template.repository';
-import type { KeywordRepository } from '../../../keywords/application/ports/keyword.repository';
+import { LlmConfig } from '@/llm/domain/llm-config.entity';
+import { PromptTemplate } from '@/llm/domain/prompt-template.entity';
+import { Keyword } from '@/keywords/domain/keyword.entity';
+import type { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
+import type { PromptTemplateRepository } from '@/llm/domain/ports/prompt-template.repository';
+import type { KeywordRepository } from '@/keywords/application/ports/keyword.repository';
 
 const base = {
   defaultTemplateId: 'default-feed',

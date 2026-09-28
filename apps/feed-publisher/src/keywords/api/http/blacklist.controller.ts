@@ -11,13 +11,13 @@ import {
   Post,
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { BlacklistPhraseRepository } from '../../application/ports/blacklist-phrase.repository';
-import { PhraseRegistryService } from '../../application/services/phrase-registry.service';
+import { BlacklistPhraseRepository } from '@/keywords/application/ports/blacklist-phrase.repository';
+import { PhraseRegistryService } from '@/keywords/application/services/phrase-registry.service';
 import {
   BlacklistPhraseUseCases,
   toBlacklistPhraseView,
   type BlacklistPhraseView,
-} from '../../application/use-cases/blacklist-phrase.use-cases';
+} from '@/keywords/application/use-cases/blacklist-phrase.use-cases';
 import {
   CreateBlacklistBatchDto,
   CreateBlacklistPhraseDto,

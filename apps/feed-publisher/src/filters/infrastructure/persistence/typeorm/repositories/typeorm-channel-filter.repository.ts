@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ChannelContentFilterConfig } from '../../../../domain/channel-content-filter-config.entity';
+import { ChannelContentFilterConfig } from '@/filters/domain/channel-content-filter-config.entity';
 import {
   ChannelFilterRepository,
   type ChannelFilterRule,
-} from '../../../../application/ports/channel-filter.repository';
+} from '@/filters/application/ports/channel-filter.repository';
 import { ChannelContentFilterConfigEntity } from '../entities/channel-content-filter-config.entity';
 
 /**

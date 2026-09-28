@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SSEStreamController } from './sse-stream.controller';
-import { StreamService } from '../../application/services/stream.service';
+import { StreamService } from '@/stream/application/services/stream.service';
 import type { Request, Response } from 'express';
 import { EventEmitter } from 'events';
 

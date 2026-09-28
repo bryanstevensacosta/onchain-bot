@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { BlacklistPhrase } from '../../../../domain/blacklist-phrase.entity';
-import { BlacklistPhraseRepository } from '../../../../application/ports/blacklist-phrase.repository';
+import { BlacklistPhrase } from '@/keywords/domain/blacklist-phrase.entity';
+import { BlacklistPhraseRepository } from '@/keywords/application/ports/blacklist-phrase.repository';
 import { BlacklistPhraseEntity } from '../entities/blacklist-phrase.entity';
 import { BlacklistPhraseMapper } from '../mappers/blacklist-phrase.mapper';
 

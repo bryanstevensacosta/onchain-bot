@@ -1,14 +1,14 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { QueuedArticleDispatcherPort } from '../../../queue/application/ports/queued-article-dispatcher.port';
-import type { PublisherQueueEntry } from '../../../queue/domain/publisher-queue-entry.entity';
-import { LlmConfigRepository } from '../../../llm/domain/ports/llm-config.repository';
-import type { TelegramSendResult } from '../../domain/ports/telegram-publisher.port';
+import { QueuedArticleDispatcherPort } from '@/queue/application/ports/queued-article-dispatcher.port';
+import type { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
+import { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
+import type { TelegramSendResult } from '@/telegram/domain/ports/telegram-publisher.port';
 import { TelegramPublisherRouter } from '../services/telegram-publisher-router.service';
-import { BotsGatewaySenderPort } from '../../domain/ports/bots-gateway-sender.port';
+import { BotsGatewaySenderPort } from '@/telegram/domain/ports/bots-gateway-sender.port';
 import { DualSendParityService } from '../services/dual-send-parity.service';
-import { GatewayBotMappingService } from '../../infrastructure/gateway/gateway-bot-mapping.service';
-import { resolveFeedPublishMode } from '../../infrastructure/gateway/publish-mode';
+import { GatewayBotMappingService } from '@/telegram/infrastructure/gateway/gateway-bot-mapping.service';
+import { resolveFeedPublishMode } from '@/telegram/infrastructure/gateway/publish-mode';
 
 /**
  * LIVE `QueuedArticleDispatcherPort` binding (Tramo 2, todo 7 — replaces

@@ -15,7 +15,7 @@ function makeConfig(root: string): ConfigService {
   return {
     get: (key: string) => {
       if (key === 'app') {
-        return { feedMediaRetentionHours: 72 };
+        return { feedMediaRetentionHours: 24 };
       }
       if (key === 'app.uploads.root') {
         return root;

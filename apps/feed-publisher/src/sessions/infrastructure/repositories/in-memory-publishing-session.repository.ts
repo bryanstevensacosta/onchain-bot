@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import type { PublishingSession } from '../../domain/entities/publishing-session.entity';
-import { PublishingSessionRepository } from '../../domain/ports/publishing-session.repository';
+import type { PublishingSession } from '@/sessions/domain/entities/publishing-session.entity';
+import { PublishingSessionRepository } from '@/sessions/domain/ports/publishing-session.repository';
 
 /**
  * In-memory publishing-session repository (live; TypeORM deferred GAP-1).

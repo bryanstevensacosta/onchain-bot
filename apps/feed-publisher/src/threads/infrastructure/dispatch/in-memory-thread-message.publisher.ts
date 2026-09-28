@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import type {
   ThreadMessagePublishInput,
   ThreadMessagePublishOutcome,
-} from '../../domain/ports/thread-message-publisher.port';
-import { ThreadMessagePublisherPort } from '../../domain/ports/thread-message-publisher.port';
+} from '@/threads/domain/ports/thread-message-publisher.port';
+import { ThreadMessagePublisherPort } from '@/threads/domain/ports/thread-message-publisher.port';
 
 /**
  * In-memory `ThreadMessagePublisherPort` — the LIVE binding until

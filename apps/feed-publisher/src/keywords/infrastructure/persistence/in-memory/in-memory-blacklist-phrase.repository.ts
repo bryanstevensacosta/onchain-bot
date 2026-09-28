@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { BlacklistPhrase } from '../../../domain/blacklist-phrase.entity';
-import { BlacklistPhraseRepository } from '../../../application/ports/blacklist-phrase.repository';
+import { BlacklistPhrase } from '@/keywords/domain/blacklist-phrase.entity';
+import { BlacklistPhraseRepository } from '@/keywords/application/ports/blacklist-phrase.repository';
 
 /**
  * In-memory `BlacklistPhraseRepository` — the LIVE binding until GAP-1.

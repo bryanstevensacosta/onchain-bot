@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import {
   MatchedMessageEnqueuePort,
   type EnqueueResult,
-} from '../../domain/ports/matched-message-enqueue.port';
-import type { FilteredFeedMessage } from '../../application/services/matching-evaluator.service';
+} from '@/matching/domain/ports/matched-message-enqueue.port';
+import type { FilteredFeedMessage } from '@/matching/application/services/matching-evaluator.service';
 
 /**
  * Collecting `MatchedMessageEnqueuePort` — the LIVE binding until todo 4.

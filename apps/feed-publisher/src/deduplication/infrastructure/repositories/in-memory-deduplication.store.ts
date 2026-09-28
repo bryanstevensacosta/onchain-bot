@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { DedupRecord } from '../../domain/entities/dedup-record.entity';
-import { DeduplicationStorePort } from '../../domain/ports/deduplication-store.port';
+import { DedupRecord } from '@/deduplication/domain/entities/dedup-record.entity';
+import { DeduplicationStorePort } from '@/deduplication/domain/ports/deduplication-store.port';
 
 /**
  * In-memory `DeduplicationStorePort` — the LIVE binding until GAP-1.

@@ -1,5 +1,5 @@
-import { PromptTemplate } from '../../../../domain/prompt-template.entity';
-import type { TemplateContentType } from '../../../../domain/prompt-template.entity';
+import { PromptTemplate } from '@/llm/domain/prompt-template.entity';
+import type { TemplateContentType } from '@/llm/domain/prompt-template.entity';
 import { PromptTemplateOrmEntity } from '../prompt-template.orm-entity';
 
 /** Domain <-> TypeORM mapper for `PromptTemplate` (unwired until GAP-1). */

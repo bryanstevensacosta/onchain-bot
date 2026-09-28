@@ -1,11 +1,11 @@
 import { FeedLlmGenerator } from './feed-llm-generator.adapter';
-import { LlmPort, type LlmGenerateRequest } from '../../application/ports/llm.port';
+import { LlmPort, type LlmGenerateRequest } from '@/llm/application/ports/llm.port';
 import { LlmFailedError } from 'shared/exceptions/feed-publisher.error';
-import { LlmConfig } from '../../domain/llm-config.entity';
-import { PromptTemplate } from '../../domain/prompt-template.entity';
-import { PublisherQueueEntry } from '../../../queue/domain/publisher-queue-entry.entity';
-import type { LlmConfigRepository } from '../../domain/ports/llm-config.repository';
-import type { PromptTemplateRepository } from '../../domain/ports/prompt-template.repository';
+import { LlmConfig } from '@/llm/domain/llm-config.entity';
+import { PromptTemplate } from '@/llm/domain/prompt-template.entity';
+import { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
+import type { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
+import type { PromptTemplateRepository } from '@/llm/domain/ports/prompt-template.repository';
 
 class FakeLlmPort extends LlmPort {
   public calls: LlmGenerateRequest[] = [];

@@ -3,8 +3,8 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { CronJob } from 'cron';
 import { FilteredFeedService } from '../services/filtered-feed.service';
-import { MatchedMessageEnqueuePort } from '../../domain/ports/matched-message-enqueue.port';
-import { MatchingConfigRepository } from '../../domain/ports/matching-config.repository';
+import { MatchedMessageEnqueuePort } from '@/matching/domain/ports/matched-message-enqueue.port';
+import { MatchingConfigRepository } from '@/matching/domain/ports/matching-config.repository';
 import { MatchingHealthState } from '../state/matching-health.state';
 
 /**
@@ -14,8 +14,9 @@ import { MatchingHealthState } from '../state/matching-health.state';
  * ingestion module is primary). Guards, in order: MATCHING_CRON_ENABLED
  * env master switch, then the DB MatchingConfig flag (C-FLAGS-01), then
  * an overlap guard against concurrent ticks. Interval is dynamic:
- * every 1 minute standalone, every CRYPTO_NEWS_POLLING_INTERVAL_MINUTES
- * (default 5) when USE_SSE_CRYPTO_NEWS is on.
+  * every 1 minute standalone, every CRYPTO_NEWS_POLLING_INTERVAL_MINUTES
+  * (default 5, legacy env name preserved) when USE_SSE_CRYPTO_NEWS is on
+  * (legacy env name preserved).
  */
 @Injectable()
 export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
@@ -27,7 +28,7 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
   private consecutiveFullBatches = 0;
 
   public constructor(
-    private readonly filteredNewsService: FilteredFeedService,
+    private readonly filteredFeedService: FilteredFeedService,
     private readonly enqueuePort: MatchedMessageEnqueuePort,
     private readonly matchingConfigRepo: MatchingConfigRepository,
     private readonly health: MatchingHealthState,
@@ -90,7 +91,7 @@ export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {
       if (!enabled) {
         return;
       }
-      const matches = await this.filteredNewsService.getMatchingMessages(
+      const matches = await this.filteredFeedService.getMatchingMessages(
         this.FETCH_LIMIT,
       );
       this.health.recordFetchSuccess();

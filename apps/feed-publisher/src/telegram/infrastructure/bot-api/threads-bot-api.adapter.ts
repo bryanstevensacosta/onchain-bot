@@ -5,7 +5,7 @@ import { BotApiHttpClient } from './bot-api-http-client';
 import {
   TelegramRateLimiter,
   resolveRateLimit,
-} from '../../application/services/telegram-rate-limiter.service';
+} from '@/telegram/application/services/telegram-rate-limiter.service';
 
 /**
  * Bot API publisher for the threads feed bot (NEW, Tramo 2 todo 7).

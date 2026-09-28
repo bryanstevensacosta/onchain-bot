@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import type { PublishingContentTemplate } from '../../domain/entities/publishing-template.entity';
-import { ContentTemplateRepository } from '../../domain/ports/content-template.repository';
+import type { PublishingContentTemplate } from '@/template/domain/entities/publishing-template.entity';
+import { ContentTemplateRepository } from '@/template/domain/ports/content-template.repository';
 
 /**
  * In-memory content-template repository (live; TypeORM deferred GAP-1).

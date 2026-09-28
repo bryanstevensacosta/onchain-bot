@@ -1,9 +1,9 @@
 import { ConfigService } from '@nestjs/config';
 import { EnqueueMatchingMessageUseCase } from './enqueue-matching-message.use-case';
 import { QueueManager } from '../services/queue-manager.service';
-import { DeduplicationService } from '../../../deduplication/application/services/deduplication.service';
-import { InMemoryPublisherQueueRepository } from '../../infrastructure/persistence/in-memory/in-memory-publisher-queue.repository';
-import type { FilteredFeedMessage } from '../../../matching/application/services/matching-evaluator.service';
+import { DeduplicationService } from '@/deduplication/application/services/deduplication.service';
+import { InMemoryPublisherQueueRepository } from '@/queue/infrastructure/persistence/in-memory/in-memory-publisher-queue.repository';
+import type { FilteredFeedMessage } from '@/matching/application/services/matching-evaluator.service';
 
 function makeMessage(overrides: Partial<FilteredFeedMessage> = {}) {
   return {

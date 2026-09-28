@@ -12,12 +12,12 @@ import {
   Post,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { PromptTemplate } from '../../domain/prompt-template.entity';
-import type { TemplateContentType } from '../../domain/prompt-template.entity';
-import { PromptTemplateRepository } from '../../domain/ports/prompt-template.repository';
-import { LlmConfigRepository } from '../../domain/ports/llm-config.repository';
-import { KeywordRepository } from '../../../keywords/application/ports/keyword.repository';
-import { toTemplateView, type PromptTemplateView } from '../../application/mappers/llm.mapper';
+import { PromptTemplate } from '@/llm/domain/prompt-template.entity';
+import type { TemplateContentType } from '@/llm/domain/prompt-template.entity';
+import { PromptTemplateRepository } from '@/llm/domain/ports/prompt-template.repository';
+import { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
+import { KeywordRepository } from '@/keywords/application/ports/keyword.repository';
+import { toTemplateView, type PromptTemplateView } from '@/llm/application/mappers/llm.mapper';
 import { CreatePromptTemplateDto, UpdatePromptTemplateDto } from '../input/llm.input';
 
 /**

@@ -2,42 +2,43 @@ import { Injectable, Optional } from '@nestjs/common';
 import {
   SessionPublisherPort,
   type SessionPublishPlan,
-} from '../../application/ports/session-publisher.port';
-import { BotsGatewaySenderPort } from '../../../telegram/domain/ports/bots-gateway-sender.port';
-import { GatewayBotMappingService } from '../../../telegram/infrastructure/gateway/gateway-bot-mapping.service';
+} from '@/sessions/application/ports/session-publisher.port';
+import { TargetDispatcherPort } from '@/target/application/ports/target-dispatcher.port';
 
 /**
- * Gateway-backed session publisher (telegram-bots-gateway todo 5).
+ * Gateway-backed session publisher (telegram-bots-gateway todo 5;
+ * re-homed onto `target/` in threads-publisher plan Fase 2 todo 10).
  *
- * Delivers routed session plans as `message` sends through the gateway
- * vault id (mapped from the plan `botId`, never a token). Sessions and
- * targets keep working because the mapping resolves catalog ids
- * migrated by `POST /api/content-template-bots/migrate-to-gateway`;
- * unmapped ids fall back to the local id. Fail-closed: gateway
- * failures throw (the explicit path audits the block; the planner
- * skips fail-safe). Exported but NOT the live binding — the recorder
- * stays live until the global cutover (gateway todo 7).
+ * Delivers routed session plans through `TargetDispatcherPort`:
+ * `telegram` plans go via the telegram-bots-gateway (vault id only,
+ * resolved inside the dispatcher so sessions keep working after
+ * `POST /api/content-template-bots/migrate-to-gateway`);
+ * `threads` plans enqueue into `apps/threads-publisher` over HTTP.
+ * Fail-closed: dispatcher failures throw (the explicit path audits
+ * the block; the planner skips fail-safe). Exported but NOT the live
+ * binding — the recorder stays live until the global cutover
+ * (gateway todo 7).
  */
 @Injectable()
 export class GatewaySessionPublisher extends SessionPublisherPort {
   public constructor(
-    @Optional() private readonly gateway?: BotsGatewaySenderPort,
-    @Optional() private readonly mapping?: GatewayBotMappingService,
+    @Optional() private readonly targets?: TargetDispatcherPort,
   ) {
     super();
   }
 
   public async publish(plan: SessionPublishPlan): Promise<void> {
-    if (!this.gateway) {
+    if (!this.targets) {
       throw new Error(
-        'GatewaySessionPublisher: gateway client unwired (not configured)',
+        'GatewaySessionPublisher: target dispatcher unwired (not configured)',
       );
     }
-    const result = await this.gateway.sendViaGateway({
-      botId: this.mapping?.resolveGatewayId(plan.botId) ?? plan.botId,
+    const result = await this.targets.dispatch({
+      target: plan.target,
+      botId: plan.botId,
       chatId: plan.chatId,
-      kind: 'message',
-      text: plan.content,
+      content: plan.content,
+      mode: plan.mode,
       clientMsgId: `session:${plan.sessionId}:${plan.target}:${plan.botId}`,
     });
     if (!result.ok) {

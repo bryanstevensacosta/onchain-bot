@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
-import { EmbeddingPort } from '../../application/ports/embedding.port';
+import { EmbeddingPort } from '@/deduplication/application/ports/embedding.port';
 
 /**
  * Deterministic mock embeddings (live default until the OpenAI key lands).

@@ -1,8 +1,8 @@
 import { BadRequestException, Body, Controller, Get, Patch } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { LlmConfigRepository } from '../../domain/ports/llm-config.repository';
-import { GetPipelineFlagsUseCase, type PipelineFlagsView } from '../../application/use-cases/get-pipeline-flags.use-case';
-import { toConfigView, type LlmConfigView } from '../../application/mappers/llm.mapper';
+import { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
+import { GetPipelineFlagsUseCase, type PipelineFlagsView } from '@/llm/application/use-cases/get-pipeline-flags.use-case';
+import { toConfigView, type LlmConfigView } from '@/llm/application/mappers/llm.mapper';
 import { UpdateLlmConfigDto } from '../input/llm.input';
 
 /**

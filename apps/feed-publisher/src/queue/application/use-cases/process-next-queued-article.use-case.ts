@@ -3,8 +3,8 @@ import { QueueManager } from '../services/queue-manager.service';
 import { QueuedArticleRendererPort } from '../ports/queued-article-renderer.port';
 import { QueuedArticleDispatcherPort } from '../ports/queued-article-dispatcher.port';
 import { QueueHealthState } from '../state/queue-health.state';
-import { PublisherQueueEntry } from '../../domain/publisher-queue-entry.entity';
-import type { PublisherQueueStatus } from '../../domain/publisher-queue-status';
+import { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
+import type { PublisherQueueStatus } from '@/queue/domain/publisher-queue-status';
 import { ConfigService } from '@nestjs/config';
 
 export interface ProcessNextResult {

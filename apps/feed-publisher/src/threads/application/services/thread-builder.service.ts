@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Thread, type ThreadSnapshot } from '../../domain/entities/thread.entity';
-import type { ThreadMessageInput } from '../../domain/entities/thread-message.entity';
+import { Thread, type ThreadSnapshot } from '@/threads/domain/entities/thread.entity';
+import type { ThreadMessageInput } from '@/threads/domain/entities/thread-message.entity';
 
 /**
  * ThreadBuilderService: skeleton orchestrator (spec §9

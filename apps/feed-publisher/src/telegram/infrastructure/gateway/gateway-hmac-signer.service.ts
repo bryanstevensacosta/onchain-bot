@@ -6,7 +6,7 @@ import {
 } from 'node:crypto';
 import { Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { TelegramConfig } from '../../../shared/config/telegram.config';
+import type { TelegramConfig } from '@/shared/config/telegram.config';
 
 /**
  * HMAC-SHA256 request signer for the telegram-bots-gateway (todo 5).

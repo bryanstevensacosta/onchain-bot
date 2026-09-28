@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
-import type { Thread } from '../../domain/entities/thread.entity';
-import { ThreadRepository } from '../../domain/ports/thread.repository';
+import type { Thread } from '@/threads/domain/entities/thread.entity';
+import { ThreadRepository } from '@/threads/domain/ports/thread.repository';
 
 /**
  * EnqueueThreadUseCase (spec §9 `enqueue-thread.use-case.ts`).

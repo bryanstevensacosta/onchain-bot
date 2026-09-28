@@ -1,7 +1,7 @@
-import { TemplateBot } from '../../../template/domain/entities/template-bot.entity';
-import { InMemoryTemplateBotRepository } from '../../../template/infrastructure/repositories/in-memory-template-bot.repository';
+import { TemplateBot } from '@/template/domain/entities/template-bot.entity';
+import { InMemoryTemplateBotRepository } from '@/template/infrastructure/repositories/in-memory-template-bot.repository';
 import { ErrorCode } from 'shared/kernel/domain-error';
-import { PublishingSession } from '../../domain/entities/publishing-session.entity';
+import { PublishingSession } from '@/sessions/domain/entities/publishing-session.entity';
 import {
   isBotAuthorizedFor,
   SessionPublishAuthorizer,

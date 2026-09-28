@@ -3,13 +3,13 @@ import { TelegramQueuedArticleDispatcher } from '../dispatch/telegram-queued-art
 import { TelegramScheduledAdDispatcher } from '../dispatch/telegram-scheduled-ad.dispatcher';
 import { TelegramPublisherRouter } from '../services/telegram-publisher-router.service';
 import { DualSendParityService } from '../services/dual-send-parity.service';
-import { GatewayBotMappingService } from '../../infrastructure/gateway/gateway-bot-mapping.service';
+import { GatewayBotMappingService } from '@/telegram/infrastructure/gateway/gateway-bot-mapping.service';
 import type {
   BotsGatewaySenderPort,
   GatewayFeedSendInput,
-} from '../../domain/ports/bots-gateway-sender.port';
-import type { TelegramPublisherPort } from '../../domain/ports/telegram-publisher.port';
-import { PublisherQueueEntry } from '../../../queue/domain/publisher-queue-entry.entity';
+} from '@/telegram/domain/ports/bots-gateway-sender.port';
+import type { TelegramPublisherPort } from '@/telegram/domain/ports/telegram-publisher.port';
+import { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
 
 function makeConfig(env: Record<string, string> = {}): ConfigService {
   return {

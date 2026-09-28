@@ -1,8 +1,7 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ContentTemplatesModule } from '../template/content-templates.module';
 import { DeduplicationModule } from '../deduplication/deduplication.module';
-import { TelegramModule } from '../telegram/telegram.module';
 import { PublishingSessionRepository } from './domain/ports/publishing-session.repository';
 import { SessionPublisherPort } from './application/ports/session-publisher.port';
 import { PublishingSessionUseCases } from './application/use-cases/publishing-session.use-cases';
@@ -32,18 +31,13 @@ import { SessionsHealthIndicator } from './health/sessions-health.indicator';
  * gateway todo 7) + the frontend-backed `SessionsController` +
  * `SessionsHealthIndicator` (P21 hook). Imports the template/bot
  * catalog (one-way, no cycle) and the shared dedup module; the
- * in-memory repo is live, TypeORM deferred (GAP-1). `TelegramModule`
- * (forwardRef) supplies the vault-id mapping + gateway sender for the
- * explicit publish path — sessions/targets keep working after the
- * vault migration because plans resolve through it.
+ * in-memory repo is live, TypeORM deferred (GAP-1). Delivery resolves
+ * through the global `TargetModule` (`TargetDispatcherPort`) — no
+ * `TelegramModule` import since threads-publisher todo 10 (vault ids
+ * resolve inside the dispatcher).
  */
 @Module({
-  imports: [
-    ConfigModule,
-    ContentTemplatesModule,
-    DeduplicationModule,
-    forwardRef(() => TelegramModule),
-  ],
+  imports: [ConfigModule, ContentTemplatesModule, DeduplicationModule],
   controllers: [SessionsController, PublishAuditController],
   providers: [
     PublishingSessionUseCases,

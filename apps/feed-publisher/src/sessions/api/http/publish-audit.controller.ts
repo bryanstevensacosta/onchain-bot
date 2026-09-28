@@ -3,7 +3,7 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   PublishAuditLog,
   type PublishAuditEntry,
-} from '../../application/services/publish-audit-log.service';
+} from '@/sessions/application/services/publish-audit-log.service';
 
 /**
  * Publish audit reads (`/api/publish-audit`, todo 14, P50).

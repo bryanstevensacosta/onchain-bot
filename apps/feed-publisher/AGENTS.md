@@ -933,3 +933,4 @@ English per `RELEASE-FLOW.md` (P39). Stale knowledge base = failed todo.
   fail-closed; `local|dual` are rollback/shadow only); new generation
   code goes via `apps/ai-ml` over HTTP (see `AI-ML MIGRATION` above).
   Divergence → no cutover (`assertNoDivergence` CONFLICT).
+- Naming: display strings use `feed` (log/service names); wire/DB/API paths stay `crypto-news` (`messageType`, `contentType`, routes, tables).

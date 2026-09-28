@@ -13,7 +13,7 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   TemplateBotUseCases,
   type TemplateBotView,
-} from '../../application/use-cases/template-bot.use-cases';
+} from '@/template/application/use-cases/template-bot.use-cases';
 import { CreateTemplateBotDto } from '../input/content-template.input';
 
 /**

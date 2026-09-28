@@ -1,10 +1,10 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PreviewPromptUseCase } from './preview-prompt.use-case';
-import { FeedLlmGenerator } from '../../infrastructure/llm/feed-llm-generator.adapter';
+import { FeedLlmGenerator } from '@/llm/infrastructure/llm/feed-llm-generator.adapter';
 import { LlmPort } from '../ports/llm.port';
-import { PromptTemplate } from '../../domain/prompt-template.entity';
-import type { PromptTemplateRepository } from '../../domain/ports/prompt-template.repository';
+import { PromptTemplate } from '@/llm/domain/prompt-template.entity';
+import type { PromptTemplateRepository } from '@/llm/domain/ports/prompt-template.repository';
 
 const template = (): PromptTemplate =>
   PromptTemplate.create({

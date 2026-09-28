@@ -8,10 +8,10 @@ import { ConfigService } from '@nestjs/config';
 import {
   FeedIngestedMessage,
   FeedIngestionClientPort,
-} from '../../domain/ports/ingestion-client.port';
+} from '@/ingestion/domain/ports/ingestion-client.port';
 import { ProcessFeedMessageHandler } from '../handlers/process-feed-message.handler';
-import { isFeedFrame } from '../../infrastructure/http/dto/raw-feed-message.dto';
-import { DEFAULT_INGESTION_BASE_URL } from '../../infrastructure/http/ingestion-http-client.adapter';
+import { isFeedFrame } from '@/ingestion/infrastructure/http/dto/raw-feed-message.dto';
+import { DEFAULT_INGESTION_BASE_URL } from '@/ingestion/infrastructure/http/ingestion-http-client.adapter';
 
 const STREAM_PATH = '/api/ingestion/stream';
 const CATCH_UP_LIMIT = 50;
@@ -19,7 +19,7 @@ const BASE_RECONNECT_DELAY_MS = 1000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
 
 /**
- * Crypto-news ingestion client: realtime SSE with reconnect catch-up by cursor.
+ * Feed ingestion client: realtime SSE with reconnect catch-up by cursor.
  *
  * Subscribes to `GET {baseUrl}/api/ingestion/stream` and accepts only
  * frames whose `data` carries the feed marker (the top-level frame
@@ -247,7 +247,7 @@ export class FeedIngestionClient
     if (!response.body) {
       throw new Error('SSE response has no body');
     }
-    this.logger.log(`Crypto-news SSE stream connected: ${url}`);
+    this.logger.log(`Feed SSE stream connected: ${url}`);
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';

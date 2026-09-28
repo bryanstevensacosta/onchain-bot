@@ -4,10 +4,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PublisherQueueEntry } from '../../../queue/domain/publisher-queue-entry.entity';
-import type { ReasoningEffort } from '../../domain/prompt-template.validators';
-import { PromptTemplateRepository } from '../../domain/ports/prompt-template.repository';
-import { FeedLlmGenerator } from '../../infrastructure/llm/feed-llm-generator.adapter';
+import { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
+import type { ReasoningEffort } from '@/llm/domain/prompt-template.validators';
+import { PromptTemplateRepository } from '@/llm/domain/ports/prompt-template.repository';
+import { FeedLlmGenerator } from '@/llm/infrastructure/llm/feed-llm-generator.adapter';
 import { LlmPort } from '../ports/llm.port';
 
 export interface PreviewPromptDraftInput {

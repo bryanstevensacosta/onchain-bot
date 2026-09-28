@@ -2,7 +2,7 @@ import {
   groupByAndGroupId,
   allGroupMembersMatch,
 } from './compound-group.evaluator';
-import { Keyword } from '../../domain/keyword.entity';
+import { Keyword } from '@/keywords/domain/keyword.entity';
 
 describe('compound-group evaluator', () => {
   it('separates simple rows from AND-groups', () => {

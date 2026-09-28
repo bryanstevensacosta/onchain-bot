@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PublisherQueueRepository } from '../../domain/ports/publisher-queue.repository';
-import { PublisherQueueEntry } from '../../domain/publisher-queue-entry.entity';
-import type { PublisherQueueStatus } from '../../domain/publisher-queue-status';
+import { PublisherQueueRepository } from '@/queue/domain/ports/publisher-queue.repository';
+import { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
+import type { PublisherQueueStatus } from '@/queue/domain/publisher-queue-status';
 import { QueueFullError } from 'shared/exceptions/feed-publisher.error';
 
 export interface PublisherQueueCounts {

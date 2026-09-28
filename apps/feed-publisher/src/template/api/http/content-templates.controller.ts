@@ -14,8 +14,8 @@ import {
   ContentTemplateUseCases,
   toContentTemplateView,
   type ContentTemplateView,
-} from '../../application/use-cases/content-template.use-cases';
-import type { PublishTarget } from '../../domain/template-target';
+} from '@/template/application/use-cases/content-template.use-cases';
+import type { PublishTarget } from '@/template/domain/template-target';
 import {
   CreateContentTemplateDto,
   UpdateContentTemplateDto,

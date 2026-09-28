@@ -2,8 +2,8 @@ import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { ExpireStaleQueueEntriesScheduler } from './expire-stale-queue-entries.scheduler';
 import { QueueManager } from '../services/queue-manager.service';
-import { PublisherQueueEntry } from '../../domain/publisher-queue-entry.entity';
-import { InMemoryPublisherQueueRepository } from '../../infrastructure/persistence/in-memory/in-memory-publisher-queue.repository';
+import { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
+import { InMemoryPublisherQueueRepository } from '@/queue/infrastructure/persistence/in-memory/in-memory-publisher-queue.repository';
 
 function build(ttlHours = 24) {
   const repo = new InMemoryPublisherQueueRepository();

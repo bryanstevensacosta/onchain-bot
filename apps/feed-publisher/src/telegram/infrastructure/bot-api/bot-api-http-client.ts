@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { request as httpsRequest } from 'node:https';
-import type { TelegramSendResult } from '../../domain/ports/telegram-publisher.port';
+import type { TelegramSendResult } from '@/telegram/domain/ports/telegram-publisher.port';
 
 /**
  * Thin transport for the Telegram Bot API (moved read-only from the

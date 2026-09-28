@@ -20,6 +20,13 @@ import { GatewayMigrationController } from './api/http/gateway-migration.control
  * TelegramModule (Tramo 2, todo 7 — second C-SHARED-01/C2 move;
  * gateway routing telegram-bots-gateway todo 5).
  *
+ * @deprecated Delivery moved to `src/target/` (threads-publisher plan
+ * Fase 2 todo 10, P38-bis per-binding config): new callers resolve
+ * through `TargetDispatcherPort`; this module stays wired ONLY for
+ * the `dual` parity leg + the vault-id mapping re-exported via
+ * `TargetModule`. Removed at threads-publisher todo 11 — do not
+ * extend.
+ *
  * Owns the feed Bot API publishers: `CryptoNewsBotApiAdapter` (moved
  * read-only from the backend `BotApiCryptoNewsPublisherAdapter`) +
  * `ThreadsBotApiAdapter` (new, `THREADS_BOT_TOKEN`, same send

@@ -1,5 +1,5 @@
-import type { PublishTarget } from '../../template/domain/template-target';
-import { PUBLISH_TARGETS } from '../../template/domain/template-target';
+import type { PublishTarget } from '@/template/domain/template-target';
+import { PUBLISH_TARGETS } from '@/template/domain/template-target';
 
 export type { PublishTarget };
 export { PUBLISH_TARGETS };

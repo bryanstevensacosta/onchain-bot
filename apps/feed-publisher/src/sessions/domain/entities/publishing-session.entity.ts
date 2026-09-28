@@ -1,8 +1,8 @@
 import { AggregateRoot } from 'shared/kernel/aggregate-root';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import type { DomainEvent } from 'shared/kernel/domain-event';
-import type { PublishTarget } from '../../../template/domain/template-target';
-import { PUBLISH_TARGETS } from '../../../template/domain/template-target';
+import type { PublishTarget } from '@/template/domain/template-target';
+import { PUBLISH_TARGETS } from '@/template/domain/template-target';
 
 export interface SessionBotTarget {
   readonly botId: string;

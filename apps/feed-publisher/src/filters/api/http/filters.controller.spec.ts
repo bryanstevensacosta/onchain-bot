@@ -1,8 +1,8 @@
 import { Test } from '@nestjs/testing';
 import { FiltersController } from './filters.controller';
-import { ChannelFilterRepository } from '../../application/ports/channel-filter.repository';
-import { ContentFilterUseCases } from '../../application/use-cases/content-filter.use-cases';
-import { ChannelContentFilterConfig } from '../../domain/channel-content-filter-config.entity';
+import { ChannelFilterRepository } from '@/filters/application/ports/channel-filter.repository';
+import { ContentFilterUseCases } from '@/filters/application/use-cases/content-filter.use-cases';
+import { ChannelContentFilterConfig } from '@/filters/domain/channel-content-filter-config.entity';
 
 describe('FiltersController', () => {
   async function build() {

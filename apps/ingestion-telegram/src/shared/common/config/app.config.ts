@@ -555,12 +555,12 @@ export const appConfig = registerAs('app', () => {
   // TODO: Implement validation functions
   //   validateApiConfig(api);
 
-  // Crypto-news retention janitor (db-separation todo 6): effective 72h,
+  // Feed retention janitor (db-separation todo 6): effective 24h,
   // unified with the backend's CRYPTO_NEWS_MEDIA_RETENTION_HOURS default
-  // (72h). The scheduler clamps to >= 1h at the seam. Clock is
+  // (24h, legacy env name preserved). The scheduler clamps to >= 1h at the seam. Clock is
   // crypto_news_messages.ingested_at (arrival), NEVER published_at.
   const feedMediaRetentionHours = parseInt(
-    process.env.INGESTION_CRYPTO_NEWS_MEDIA_RETENTION_HOURS ?? '72',
+    process.env.INGESTION_CRYPTO_NEWS_MEDIA_RETENTION_HOURS ?? '24',
     10,
   );
 

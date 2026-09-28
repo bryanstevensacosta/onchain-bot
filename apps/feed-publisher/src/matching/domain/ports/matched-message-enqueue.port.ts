@@ -1,4 +1,4 @@
-import type { FilteredFeedMessage } from '../../application/services/matching-evaluator.service';
+import type { FilteredFeedMessage } from '@/matching/application/services/matching-evaluator.service';
 
 export interface EnqueueResult {
   readonly enqueued: boolean;

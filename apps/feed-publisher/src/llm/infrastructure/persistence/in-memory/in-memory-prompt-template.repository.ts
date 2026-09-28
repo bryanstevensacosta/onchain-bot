@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PromptTemplate } from '../../../domain/prompt-template.entity';
-import { PromptTemplateRepository } from '../../../domain/ports/prompt-template.repository';
+import { PromptTemplate } from '@/llm/domain/prompt-template.entity';
+import { PromptTemplateRepository } from '@/llm/domain/ports/prompt-template.repository';
 
 /**
  * In-memory GLOBAL template catalog (live binding until GAP-1). Seeds

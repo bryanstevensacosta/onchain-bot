@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import type { ContentType } from 'shared/value-objects/content-type.vo';
-import { CryptoNewsBotApiAdapter } from '../../infrastructure/bot-api/crypto-news-bot-api.adapter';
-import { ThreadsBotApiAdapter } from '../../infrastructure/bot-api/threads-bot-api.adapter';
-import type { TelegramPublisherPort } from '../../domain/ports/telegram-publisher.port';
+import { CryptoNewsBotApiAdapter } from '@/telegram/infrastructure/bot-api/crypto-news-bot-api.adapter';
+import { ThreadsBotApiAdapter } from '@/telegram/infrastructure/bot-api/threads-bot-api.adapter';
+import type { TelegramPublisherPort } from '@/telegram/domain/ports/telegram-publisher.port';
 
 /**
  * Routes outbound Telegram sends by `contentType` (queue path) or

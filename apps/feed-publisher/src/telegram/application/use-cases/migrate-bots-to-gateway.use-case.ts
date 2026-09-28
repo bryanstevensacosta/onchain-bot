@@ -1,10 +1,10 @@
 import { Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { TemplateBotRepository } from '../../../template/domain/ports/template-bot.repository';
-import { TemplateEncryptionService } from '../../../template/application/services/template-encryption.service';
-import { GatewayHmacSigner } from '../../infrastructure/gateway/gateway-hmac-signer.service';
-import { GatewayBotMappingService } from '../../infrastructure/gateway/gateway-bot-mapping.service';
-import type { TelegramConfig } from '../../../shared/config/telegram.config';
+import { TemplateBotRepository } from '@/template/domain/ports/template-bot.repository';
+import { TemplateEncryptionService } from '@/template/application/services/template-encryption.service';
+import { GatewayHmacSigner } from '@/telegram/infrastructure/gateway/gateway-hmac-signer.service';
+import { GatewayBotMappingService } from '@/telegram/infrastructure/gateway/gateway-bot-mapping.service';
+import type { TelegramConfig } from '@/shared/config/telegram.config';
 
 export interface GatewayMigrationResult {
   readonly migrated: Array<{

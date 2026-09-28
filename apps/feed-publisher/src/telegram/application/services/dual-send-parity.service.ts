@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
-import type { TelegramSendResult } from '../../domain/ports/telegram-publisher.port';
+import type { TelegramSendResult } from '@/telegram/domain/ports/telegram-publisher.port';
 
 /**
  * Feed dual-send outcome (one direct leg + one gateway leg, same chat).

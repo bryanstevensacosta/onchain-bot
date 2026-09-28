@@ -1,6 +1,6 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { SourcesController } from './sources.controller';
-import { RegisterNewsSourceUseCase } from '../../application/use-cases/register-news-source.use-case';
+import { RegisterNewsSourceUseCase } from '@/registry/application/use-cases/register-news-source.use-case';
 
 function makeRow(overrides: Record<string, unknown> = {}) {
   return {

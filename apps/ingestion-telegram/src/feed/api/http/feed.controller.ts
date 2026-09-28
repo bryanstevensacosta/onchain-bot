@@ -14,8 +14,8 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { TelegramFeedMessageRepository } from '../../infrastructure/persistence/typeorm/repositories/telegram-feed-message.repository';
-import type { TelegramFeedMessageType } from '../../infrastructure/persistence/typeorm/entities/telegram-feed-message.entity';
+import { TelegramFeedMessageRepository } from '@/feed/infrastructure/persistence/typeorm/repositories/telegram-feed-message.repository';
+import type { TelegramFeedMessageType } from '@/feed/infrastructure/persistence/typeorm/entities/telegram-feed-message.entity';
 import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
 
 /**

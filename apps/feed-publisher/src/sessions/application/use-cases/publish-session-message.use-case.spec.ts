@@ -1,9 +1,9 @@
-import { TemplateBot } from '../../../template/domain/entities/template-bot.entity';
-import { InMemoryTemplateBotRepository } from '../../../template/infrastructure/repositories/in-memory-template-bot.repository';
+import { TemplateBot } from '@/template/domain/entities/template-bot.entity';
+import { InMemoryTemplateBotRepository } from '@/template/infrastructure/repositories/in-memory-template-bot.repository';
 import { ErrorCode } from 'shared/kernel/domain-error';
-import { InMemoryPublishingSessionRepository } from '../../infrastructure/repositories/in-memory-publishing-session.repository';
-import { RecordingSessionPublisher } from '../../infrastructure/publish/recording-session-publisher.adapter';
-import { PublishingSession } from '../../domain/entities/publishing-session.entity';
+import { InMemoryPublishingSessionRepository } from '@/sessions/infrastructure/repositories/in-memory-publishing-session.repository';
+import { RecordingSessionPublisher } from '@/sessions/infrastructure/publish/recording-session-publisher.adapter';
+import { PublishingSession } from '@/sessions/domain/entities/publishing-session.entity';
 import { PublishAuditLog } from '../services/publish-audit-log.service';
 import { PublishRateLimiter } from '../services/publish-rate-limiter.service';
 import { SessionPublishAuthorizer } from '../services/session-publish-authorizer.service';
@@ -90,7 +90,7 @@ describe('PublishSessionMessageUseCase (todo 14, P50)', () => {
       new PublishRateLimiter(10, 60_000),
       publisher,
       new PublishAuditLog(),
-      mapping as unknown as import('../../../telegram/infrastructure/gateway/gateway-bot-mapping.service').GatewayBotMappingService,
+      mapping as unknown as import('@/telegram/infrastructure/gateway/gateway-bot-mapping.service').GatewayBotMappingService,
     );
     const result = await useCase.execute({
       sessionId: 'tab-news',

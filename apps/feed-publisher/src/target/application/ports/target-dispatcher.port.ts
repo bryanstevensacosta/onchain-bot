@@ -1,4 +1,4 @@
-import type { PublishTarget } from '../../domain/target-binding';
+import type { PublishTarget } from '@/target/domain/target-binding';
 
 /**
  * One routed dispatch request: the caller names the link

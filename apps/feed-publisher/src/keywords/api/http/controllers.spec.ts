@@ -1,12 +1,12 @@
 import { Test } from '@nestjs/testing';
 import { KeywordsController } from './keywords.controller';
 import { BlacklistController } from './blacklist.controller';
-import { KeywordRepository } from '../../application/ports/keyword.repository';
-import { BlacklistPhraseRepository } from '../../application/ports/blacklist-phrase.repository';
-import { PhraseRegistryService } from '../../application/services/phrase-registry.service';
-import { KeywordUseCases } from '../../application/use-cases/keyword.use-cases';
-import { BlacklistPhraseUseCases } from '../../application/use-cases/blacklist-phrase.use-cases';
-import { Keyword } from '../../domain/keyword.entity';
+import { KeywordRepository } from '@/keywords/application/ports/keyword.repository';
+import { BlacklistPhraseRepository } from '@/keywords/application/ports/blacklist-phrase.repository';
+import { PhraseRegistryService } from '@/keywords/application/services/phrase-registry.service';
+import { KeywordUseCases } from '@/keywords/application/use-cases/keyword.use-cases';
+import { BlacklistPhraseUseCases } from '@/keywords/application/use-cases/blacklist-phrase.use-cases';
+import { Keyword } from '@/keywords/domain/keyword.entity';
 
 describe('KeywordsController + BlacklistController', () => {
   async function build() {

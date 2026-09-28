@@ -1,6 +1,6 @@
-import { BlacklistPhrase } from '../../../../domain/blacklist-phrase.entity';
+import { BlacklistPhrase } from '@/keywords/domain/blacklist-phrase.entity';
 import { BlacklistPhraseEntity } from '../entities/blacklist-phrase.entity';
-import type { MatchMode } from '../../../../domain/match-mode';
+import type { MatchMode } from '@/keywords/domain/match-mode';
 
 /**
  * Domain <-> persistence mapper for `BlacklistPhrase`.

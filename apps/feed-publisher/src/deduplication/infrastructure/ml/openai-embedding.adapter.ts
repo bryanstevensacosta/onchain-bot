@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
-import { EmbeddingPort } from '../../application/ports/embedding.port';
+import { EmbeddingPort } from '@/deduplication/application/ports/embedding.port';
 
 /**
  * OpenAI embeddings (`text-embedding-3-small`).

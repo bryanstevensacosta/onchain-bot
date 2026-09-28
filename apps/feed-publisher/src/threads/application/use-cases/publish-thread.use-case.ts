@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
-import type { ThreadPublishFlowStatus } from '../../domain/thread-status';
-import { ThreadRepository } from '../../domain/ports/thread.repository';
-import { ThreadMessagePublisherPort } from '../../domain/ports/thread-message-publisher.port';
+import type { ThreadPublishFlowStatus } from '@/threads/domain/thread-status';
+import { ThreadRepository } from '@/threads/domain/ports/thread.repository';
+import { ThreadMessagePublisherPort } from '@/threads/domain/ports/thread-message-publisher.port';
 import { ThreadSchedulerService } from '../services/thread-scheduler.service';
 
 export interface PublishThreadResult {

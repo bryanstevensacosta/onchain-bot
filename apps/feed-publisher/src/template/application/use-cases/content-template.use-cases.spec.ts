@@ -1,5 +1,5 @@
 import { ContentTemplateUseCases } from './content-template.use-cases';
-import { InMemoryContentTemplateRepository } from '../../infrastructure/repositories/in-memory-content-template.repository';
+import { InMemoryContentTemplateRepository } from '@/template/infrastructure/repositories/in-memory-content-template.repository';
 
 describe('ContentTemplateUseCases', () => {
   it('creates, activates, and removes templates (409 on duplicate id)', async () => {

@@ -1,4 +1,4 @@
-import { MatchingConfig } from '../../domain/matching-config.entity';
+import { MatchingConfig } from '@/matching/domain/matching-config.entity';
 
 export interface MatchingConfigView {
   readonly id: number;

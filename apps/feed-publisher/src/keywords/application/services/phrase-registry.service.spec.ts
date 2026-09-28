@@ -1,8 +1,8 @@
 import { PhraseRegistryService } from './phrase-registry.service';
 import { KeywordRepository } from '../ports/keyword.repository';
 import { BlacklistPhraseRepository } from '../ports/blacklist-phrase.repository';
-import { Keyword } from '../../domain/keyword.entity';
-import { BlacklistPhrase } from '../../domain/blacklist-phrase.entity';
+import { Keyword } from '@/keywords/domain/keyword.entity';
+import { BlacklistPhrase } from '@/keywords/domain/blacklist-phrase.entity';
 import { ConflictException } from '@nestjs/common';
 
 describe('PhraseRegistryService', () => {

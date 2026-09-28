@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { LlmFailedError } from 'shared/exceptions/feed-publisher.error';
-import { QueuedArticleRendererPort } from '../../../queue/application/ports/queued-article-renderer.port';
-import type { PublisherQueueEntry } from '../../../queue/domain/publisher-queue-entry.entity';
+import { QueuedArticleRendererPort } from '@/queue/application/ports/queued-article-renderer.port';
+import type { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
 import { FeedLlmGenerator } from './feed-llm-generator.adapter';
-import { LlmConfigRepository } from '../../domain/ports/llm-config.repository';
-import { findNonLatinCharacter } from '../../application/services/latin-script-validator';
+import { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
+import { findNonLatinCharacter } from '@/llm/application/services/latin-script-validator';
 
 /**
  * Drain-path renderer: LLM gateway when the flags say so, raw content

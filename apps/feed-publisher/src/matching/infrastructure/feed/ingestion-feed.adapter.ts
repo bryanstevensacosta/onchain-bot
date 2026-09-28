@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { FeedPort } from '../../domain/ports/feed.port';
-import type { FeedMessage } from '../../domain/feed-message';
-import { FeedIngestionClientPort } from '../../../ingestion/domain/ports/ingestion-client.port';
+import { FeedPort } from '@/matching/domain/ports/feed.port';
+import type { FeedMessage } from '@/matching/domain/feed-message';
+import { FeedIngestionClientPort } from '@/ingestion/domain/ports/ingestion-client.port';
 
 /**
  * `FeedPort` over the ingestion module feed reads.

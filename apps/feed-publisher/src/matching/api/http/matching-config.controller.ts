@@ -1,13 +1,13 @@
 import { Body, Controller, Get, Patch } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { MatchingConfigRepository } from '../../domain/ports/matching-config.repository';
-import { MatchingHealthState } from '../../application/state/matching-health.state';
+import { MatchingConfigRepository } from '@/matching/domain/ports/matching-config.repository';
+import { MatchingHealthState } from '@/matching/application/state/matching-health.state';
 import {
   toMatchingConfigView,
   type MatchingConfigView,
-} from '../../application/mappers/matching-config.mapper';
+} from '@/matching/application/mappers/matching-config.mapper';
 import { UpdateMatchingConfigDto } from '../input/matching-config.input';
-import { QueueManager } from '../../../queue/application/services/queue-manager.service';
+import { QueueManager } from '@/queue/application/services/queue-manager.service';
 
 export interface MatchingHealthView {
   readonly enabled: boolean;

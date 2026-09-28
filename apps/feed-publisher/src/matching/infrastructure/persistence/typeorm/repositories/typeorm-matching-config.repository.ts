@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { MatchingConfigRepository } from '../../../../domain/ports/matching-config.repository';
-import { MatchingConfig } from '../../../../domain/matching-config.entity';
+import { MatchingConfigRepository } from '@/matching/domain/ports/matching-config.repository';
+import { MatchingConfig } from '@/matching/domain/matching-config.entity';
 import { MatchingConfigEntity } from '../entities/matching-config.entity';
 
 /**

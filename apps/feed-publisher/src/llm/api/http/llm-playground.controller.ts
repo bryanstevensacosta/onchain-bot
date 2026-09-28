@@ -3,11 +3,11 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   PreviewPromptUseCase,
   type PreviewPromptResult,
-} from '../../application/use-cases/preview-prompt.use-case';
+} from '@/llm/application/use-cases/preview-prompt.use-case';
 import {
   GetLlmModelsUseCase,
   type LlmModelView,
-} from '../../application/use-cases/get-llm-models.use-case';
+} from '@/llm/application/use-cases/get-llm-models.use-case';
 import { PreviewPromptDto } from '../input/llm.input';
 
 /**

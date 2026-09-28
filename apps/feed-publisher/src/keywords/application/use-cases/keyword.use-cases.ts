@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { Keyword } from '../../domain/keyword.entity';
+import { Keyword } from '@/keywords/domain/keyword.entity';
 import { KeywordRepository } from '../ports/keyword.repository';
-import type { MatchMode } from '../../domain/match-mode';
+import type { MatchMode } from '@/keywords/domain/match-mode';
 
 export interface KeywordView {
   readonly id: string;

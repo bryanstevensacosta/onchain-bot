@@ -2,7 +2,7 @@ import { Api, TelegramClient } from 'telegram';
 import type {
   ResolvedChannelMetadata,
   JoinChannelResult,
-} from '../../ports/telegram-listener.port';
+} from '@/core/ports/telegram-listener.port';
 import { classifyEntityKind } from 'registry/application/entity-kind';
 
 export class TelegramPeerResolver {

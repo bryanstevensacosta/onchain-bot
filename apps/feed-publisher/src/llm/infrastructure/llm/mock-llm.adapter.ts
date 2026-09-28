@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { LlmPort } from '../../application/ports/llm.port';
+import { LlmPort } from '@/llm/application/ports/llm.port';
 
 /**
  * Mock LLM (USE_MOCK_AI=true): dev/test generation without provider

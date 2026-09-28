@@ -1,7 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { TargetQueuedArticleDispatcher } from './target-queued-article.dispatcher';
 import type { TargetDispatcherPort } from '../ports/target-dispatcher.port';
-import { PublisherQueueEntry } from '../../../queue/domain/publisher-queue-entry.entity';
+import { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
 
 function entry(contentType: string): PublisherQueueEntry {
   return PublisherQueueEntry.create({

@@ -1,8 +1,8 @@
 import { ConfigService } from '@nestjs/config';
 import { TemplateBotsController } from './template-bots.controller';
-import { TemplateBotUseCases } from '../../application/use-cases/template-bot.use-cases';
-import { TemplateEncryptionService } from '../../application/services/template-encryption.service';
-import { InMemoryTemplateBotRepository } from '../../infrastructure/repositories/in-memory-template-bot.repository';
+import { TemplateBotUseCases } from '@/template/application/use-cases/template-bot.use-cases';
+import { TemplateEncryptionService } from '@/template/application/services/template-encryption.service';
+import { InMemoryTemplateBotRepository } from '@/template/infrastructure/repositories/in-memory-template-bot.repository';
 
 const config = {
   get: (path: string, fallback?: string): string | undefined => {

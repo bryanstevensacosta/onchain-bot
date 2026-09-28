@@ -11,13 +11,13 @@ import {
   Post,
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { KeywordRepository } from '../../application/ports/keyword.repository';
-import { PhraseRegistryService } from '../../application/services/phrase-registry.service';
+import { KeywordRepository } from '@/keywords/application/ports/keyword.repository';
+import { PhraseRegistryService } from '@/keywords/application/services/phrase-registry.service';
 import {
   KeywordUseCases,
   toKeywordView,
   type KeywordView,
-} from '../../application/use-cases/keyword.use-cases';
+} from '@/keywords/application/use-cases/keyword.use-cases';
 import {
   CreateKeywordBatchDto,
   CreateKeywordDto,

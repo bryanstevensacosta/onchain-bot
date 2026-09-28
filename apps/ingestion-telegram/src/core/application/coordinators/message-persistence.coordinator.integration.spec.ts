@@ -16,10 +16,10 @@ import { ConfigService } from '@nestjs/config';
 import { MessagePersistenceCoordinator } from './message-persistence.coordinator';
 import { StreamService } from 'stream/application/services/stream.service';
 import { DeduplicationService } from '../services/deduplication.service';
-import { LastSeenManager } from '../../infrastructure/services/last-seen-manager.service';
+import { LastSeenManager } from '@/core/infrastructure/services/last-seen-manager.service';
 import { RedisService } from 'shared/common/cache/redis.service';
 import { TelegramFeedMessageRepository } from 'feed/infrastructure/persistence/typeorm/repositories/telegram-feed-message.repository';
-import type { MessagePayload } from '../../domain/types/message-payload';
+import type { MessagePayload } from '@/core/domain/types/message-payload';
 
 /**
  * TelegramRawMessage interface (from backend TelegramListenerPort)

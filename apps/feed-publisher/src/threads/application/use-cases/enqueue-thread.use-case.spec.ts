@@ -1,6 +1,6 @@
-import { Thread } from '../../domain/entities/thread.entity';
+import { Thread } from '@/threads/domain/entities/thread.entity';
 import { EnqueueThreadUseCase } from './enqueue-thread.use-case';
-import { InMemoryThreadRepository } from '../../infrastructure/persistence/in-memory/in-memory-thread.repository';
+import { InMemoryThreadRepository } from '@/threads/infrastructure/persistence/in-memory/in-memory-thread.repository';
 
 describe('EnqueueThreadUseCase', () => {
   it('moves DRAFT -> QUEUED', async () => {

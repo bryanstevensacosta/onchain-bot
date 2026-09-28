@@ -1,4 +1,4 @@
-import { Thread } from '../../../../domain/entities/thread.entity';
+import { Thread } from '@/threads/domain/entities/thread.entity';
 import { toThreadOrm, fromThreadOrm } from './thread.mapper';
 
 describe('ThreadMapper (TypeORM shape, unwired GAP-1)', () => {

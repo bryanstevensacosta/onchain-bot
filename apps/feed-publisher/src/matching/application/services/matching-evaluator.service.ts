@@ -1,12 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { FeedMessage } from '../../domain/feed-message';
-import type { FeedMedia } from '../../domain/feed-message';
-import type { Keyword } from '../../../keywords/domain/keyword.entity';
-import type { BlacklistPhrase } from '../../../keywords/domain/blacklist-phrase.entity';
-import type { ChannelFilterRule } from '../../../filters/application/ports/channel-filter.repository';
-import { AllowedKeywordMatcher } from '../../../keywords/application/services/keyword-matcher.service';
-import { BlacklistMatcher } from '../../../keywords/application/services/blacklist-matcher.service';
-import { ContentFilterService } from '../../../filters/application/services/content-filter.service';
+import type { FeedMessage } from '@/matching/domain/feed-message';
+import type { FeedMedia } from '@/matching/domain/feed-message';
+import type { Keyword } from '@/keywords/domain/keyword.entity';
+import type { BlacklistPhrase } from '@/keywords/domain/blacklist-phrase.entity';
+import type { ChannelFilterRule } from '@/filters/application/ports/channel-filter.repository';
+import { AllowedKeywordMatcher } from '@/keywords/application/services/keyword-matcher.service';
+import { BlacklistMatcher } from '@/keywords/application/services/blacklist-matcher.service';
+import { ContentFilterService } from '@/filters/application/services/content-filter.service';
 
 export interface FilteredFeedMessage extends FeedMessage {
   /** Content AFTER per-channel regex transforms (on-read, never persisted). */

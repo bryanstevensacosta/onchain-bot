@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { ChannelContentFilterConfig } from '../../../domain/channel-content-filter-config.entity';
+import { ChannelContentFilterConfig } from '@/filters/domain/channel-content-filter-config.entity';
 import {
   ChannelFilterRepository,
   type ChannelFilterRule,
-} from '../../../application/ports/channel-filter.repository';
+} from '@/filters/application/ports/channel-filter.repository';
 
 /**
  * In-memory `ChannelFilterRepository` — the LIVE binding until GAP-1.

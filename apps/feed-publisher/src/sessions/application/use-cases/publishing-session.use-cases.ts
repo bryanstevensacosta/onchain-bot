@@ -3,9 +3,9 @@ import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import {
   PublishingSession,
   type CreatePublishingSessionInput,
-} from '../../domain/entities/publishing-session.entity';
-import { PublishingSessionRepository } from '../../domain/ports/publishing-session.repository';
-import { ContentTemplateRepository } from '../../../template/domain/ports/content-template.repository';
+} from '@/sessions/domain/entities/publishing-session.entity';
+import { PublishingSessionRepository } from '@/sessions/domain/ports/publishing-session.repository';
+import { ContentTemplateRepository } from '@/template/domain/ports/content-template.repository';
 
 export interface PublishingSessionView {
   readonly id: string;

@@ -1,46 +1,46 @@
 import { GatewaySessionPublisher } from './gateway-session-publisher.adapter';
-import type { SessionPublishPlan } from '../../application/ports/session-publisher.port';
+import type { SessionPublishPlan } from '@/sessions/application/ports/session-publisher.port';
+import type { TargetDispatcherPort } from '@/target/application/ports/target-dispatcher.port';
 
-function makeGateway(result: { ok: boolean }): {
-  gateway: {
-    sendViaGateway: jest.Mock;
-  };
+function makeDispatcher(result: { ok: boolean }): {
+  dispatcher: { dispatch: jest.Mock };
   plans: SessionPublishPlan[];
 } {
   const plans: SessionPublishPlan[] = [];
-  const gateway = {
-    sendViaGateway: jest
+  const dispatcher = {
+    dispatch: jest
       .fn()
       .mockImplementation(
-        (input: { botId: string; chatId: string; text: string }) => {
+        (input: {
+          target: SessionPublishPlan['target'];
+          botId: string;
+          chatId: string;
+          content: string;
+        }) => {
           plans.push({
             sessionId: 's1',
-            target: 'telegram',
+            target: input.target,
             botId: input.botId,
             chatId: input.chatId,
             mode: 'raw',
-            content: input.text,
+            content: input.content,
           });
           return Promise.resolve(
             result.ok
-              ? { ok: true, messageId: 777, error: null }
-              : { ok: false, messageId: null, error: 'gateway boom' },
+              ? { ok: true, remoteId: 'vault-777' }
+              : { ok: false, error: 'target boom', held: false },
           );
         },
       ),
   };
-  return { gateway, plans };
+  return { dispatcher, plans };
 }
 
 describe('GatewaySessionPublisher', () => {
-  it('resolves the vault id before sending (sessions keep working)', async () => {
-    const { gateway } = makeGateway({ ok: true });
-    const mapping = {
-      resolveGatewayId: jest.fn().mockReturnValue('vault-bot-9'),
-    };
+  it('delegates plans to the target dispatcher (sessions keep working)', async () => {
+    const { dispatcher } = makeDispatcher({ ok: true });
     const publisher = new GatewaySessionPublisher(
-      gateway as unknown as import('../../../telegram/domain/ports/bots-gateway-sender.port').BotsGatewaySenderPort,
-      mapping as unknown as import('../../../telegram/infrastructure/gateway/gateway-bot-mapping.service').GatewayBotMappingService,
+      dispatcher as unknown as TargetDispatcherPort,
     );
     await publisher.publish({
       sessionId: 's1',
@@ -50,21 +50,38 @@ describe('GatewaySessionPublisher', () => {
       mode: 'raw',
       content: 'hello session',
     });
-    expect(mapping.resolveGatewayId).toHaveBeenCalledWith('local-bot-9');
-    expect(gateway.sendViaGateway).toHaveBeenCalledWith(
+    expect(dispatcher.dispatch).toHaveBeenCalledWith(
       expect.objectContaining({
-        botId: 'vault-bot-9',
+        target: 'telegram',
+        botId: 'local-bot-9',
         chatId: '@c',
-        kind: 'message',
-        text: 'hello session',
+        content: 'hello session',
       }),
     );
   });
 
-  it('fail-closes gateway errors with a throw (audited upstream)', async () => {
-    const { gateway } = makeGateway({ ok: false });
+  it('routes threads plans to the threads leg (todo 10)', async () => {
+    const { dispatcher } = makeDispatcher({ ok: true });
     const publisher = new GatewaySessionPublisher(
-      gateway as unknown as import('../../../telegram/domain/ports/bots-gateway-sender.port').BotsGatewaySenderPort,
+      dispatcher as unknown as TargetDispatcherPort,
+    );
+    await publisher.publish({
+      sessionId: 's1',
+      target: 'threads',
+      botId: 'th-1',
+      chatId: '@digest',
+      mode: 'llm',
+      content: 'hello threads',
+    });
+    expect(dispatcher.dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ target: 'threads', botId: 'th-1' }),
+    );
+  });
+
+  it('fail-closes dispatcher errors with a throw (audited upstream)', async () => {
+    const { dispatcher } = makeDispatcher({ ok: false });
+    const publisher = new GatewaySessionPublisher(
+      dispatcher as unknown as TargetDispatcherPort,
     );
     await expect(
       publisher.publish({
@@ -75,10 +92,10 @@ describe('GatewaySessionPublisher', () => {
         mode: 'raw',
         content: 'hello session',
       }),
-    ).rejects.toThrow('gateway boom');
+    ).rejects.toThrow('target boom');
   });
 
-  it('fail-closes when the gateway client is unwired', async () => {
+  it('fail-closes when the target dispatcher is unwired', async () => {
     const publisher = new GatewaySessionPublisher();
     await expect(
       publisher.publish({

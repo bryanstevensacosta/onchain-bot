@@ -1,4 +1,4 @@
-import { LlmPort } from '../../../llm/application/ports/llm.port';
+import { LlmPort } from '@/llm/application/ports/llm.port';
 import { AiMlParityService } from './ai-ml-parity.service';
 import { DualLlmAdapter } from './dual-llm.adapter';
 

@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
-import { TemplateBot } from '../../domain/entities/template-bot.entity';
-import type { PublishTarget } from '../../domain/template-target';
-import { TemplateBotRepository } from '../../domain/ports/template-bot.repository';
+import { TemplateBot } from '@/template/domain/entities/template-bot.entity';
+import type { PublishTarget } from '@/template/domain/template-target';
+import { TemplateBotRepository } from '@/template/domain/ports/template-bot.repository';
 import { TemplateEncryptionService } from '../services/template-encryption.service';
 
 export interface TemplateBotView {

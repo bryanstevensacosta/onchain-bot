@@ -1,4 +1,4 @@
-import type { FeedIngestedMessage } from '../../../domain/ports/ingestion-client.port';
+import type { FeedIngestedMessage } from '@/ingestion/domain/ports/ingestion-client.port';
 
 /**
  * Raw feed message row as served by

@@ -8,7 +8,7 @@ import {
   MaxLength,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import type { MatchMode } from '../../domain/match-mode';
+import type { MatchMode } from '@/keywords/domain/match-mode';
 
 export class CreateKeywordDto {
   @IsString()

@@ -1,8 +1,8 @@
 import { LlmArticleRendererAdapter } from './llm-article-renderer.adapter';
 import { LlmFailedError } from 'shared/exceptions/feed-publisher.error';
-import { LlmConfig } from '../../domain/llm-config.entity';
-import { PublisherQueueEntry } from '../../../queue/domain/publisher-queue-entry.entity';
-import type { LlmConfigRepository } from '../../domain/ports/llm-config.repository';
+import { LlmConfig } from '@/llm/domain/llm-config.entity';
+import { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
+import type { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
 
 const base = {
   defaultTemplateId: 'default-feed',

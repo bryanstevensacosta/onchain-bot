@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import type { Thread } from '../../domain/entities/thread.entity';
-import type { ThreadMessage } from '../../domain/entities/thread-message.entity';
+import type { Thread } from '@/threads/domain/entities/thread.entity';
+import type { ThreadMessage } from '@/threads/domain/entities/thread-message.entity';
 
 const BACKOFF_BASE_MS = 1000;
 const BACKOFF_CAP_MS = 30000;

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { ContentTemplateView } from '../../../application/use-cases/content-template.use-cases';
+import type { ContentTemplateView } from '@/template/application/use-cases/content-template.use-cases';
 
 /**
  * UNWIRED TypeORM shape for content templates (GAP-1).

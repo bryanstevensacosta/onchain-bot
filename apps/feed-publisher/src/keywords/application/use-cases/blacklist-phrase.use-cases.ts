@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { BlacklistPhrase } from '../../domain/blacklist-phrase.entity';
+import { BlacklistPhrase } from '@/keywords/domain/blacklist-phrase.entity';
 import { BlacklistPhraseRepository } from '../ports/blacklist-phrase.repository';
-import type { MatchMode } from '../../domain/match-mode';
+import type { MatchMode } from '@/keywords/domain/match-mode';
 
 export interface BlacklistPhraseView {
   readonly id: string;

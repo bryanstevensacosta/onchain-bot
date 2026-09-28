@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { Thread } from '../../domain/entities/thread.entity';
-import type { ThreadMessageInput } from '../../domain/entities/thread-message.entity';
-import { ThreadRepository } from '../../domain/ports/thread.repository';
+import { Thread } from '@/threads/domain/entities/thread.entity';
+import type { ThreadMessageInput } from '@/threads/domain/entities/thread-message.entity';
+import { ThreadRepository } from '@/threads/domain/ports/thread.repository';
 
 /**
  * CreateThreadUseCase (spec §9 `create-thread.use-case.ts`).

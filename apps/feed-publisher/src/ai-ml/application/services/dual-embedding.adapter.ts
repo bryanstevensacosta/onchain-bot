@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { EmbeddingPort } from '../../../deduplication/application/ports/embedding.port';
-import { resolveAiMlMode } from '../../ai-ml-mode';
-import { AiMlEmbeddingClientAdapter } from '../../infrastructure/ai-ml-embedding-client.adapter';
+import { EmbeddingPort } from '@/deduplication/application/ports/embedding.port';
+import { resolveAiMlMode } from '@/ai-ml/ai-ml-mode';
+import { AiMlEmbeddingClientAdapter } from '@/ai-ml/infrastructure/ai-ml-embedding-client.adapter';
 import { AiMlParityService } from './ai-ml-parity.service';
 
 /** DI token for the legacy in-process embeddings leg (mock | OpenAI). */

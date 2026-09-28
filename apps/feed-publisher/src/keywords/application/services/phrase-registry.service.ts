@@ -1,7 +1,7 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { KeywordRepository } from '../ports/keyword.repository';
 import { BlacklistPhraseRepository } from '../ports/blacklist-phrase.repository';
-import type { MatchMode } from '../../domain/match-mode';
+import type { MatchMode } from '@/keywords/domain/match-mode';
 
 export type PhraseTable = 'keyword' | 'blacklist';
 

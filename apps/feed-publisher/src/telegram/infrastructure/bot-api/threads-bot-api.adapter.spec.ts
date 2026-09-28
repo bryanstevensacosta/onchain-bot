@@ -2,7 +2,7 @@ import type { ConfigService } from '@nestjs/config';
 import { ThreadsBotApiAdapter } from './threads-bot-api.adapter';
 import { CryptoNewsBotApiAdapter } from './crypto-news-bot-api.adapter';
 import type { BotApiHttpClient } from './bot-api-http-client';
-import { TelegramRateLimiter } from '../../application/services/telegram-rate-limiter.service';
+import { TelegramRateLimiter } from '@/telegram/application/services/telegram-rate-limiter.service';
 
 function makeConfig(env: Record<string, string> = {}): ConfigService {
   return {

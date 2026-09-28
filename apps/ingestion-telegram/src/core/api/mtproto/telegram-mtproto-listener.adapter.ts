@@ -13,18 +13,18 @@ import type {
   ResolvedChannelMetadata,
   TelegramListenerPort,
   JoinChannelResult,
-} from '../../ports/telegram-listener.port';
-import { TelegramClientManager } from '../../infrastructure/services/telegram-client-manager.service';
-import { LastSeenManager } from '../../infrastructure/services/last-seen-manager.service';
-import { MessageQueue } from '../../infrastructure/services/message-queue';
-import { TelegramPeerResolver } from '../../infrastructure/services/telegram-peer-resolver';
-import { FloodWaitHandlerService } from '../../infrastructure/services/flood-wait-handler.service';
+} from '@/core/ports/telegram-listener.port';
+import { TelegramClientManager } from '@/core/infrastructure/services/telegram-client-manager.service';
+import { LastSeenManager } from '@/core/infrastructure/services/last-seen-manager.service';
+import { MessageQueue } from '@/core/infrastructure/services/message-queue';
+import { TelegramPeerResolver } from '@/core/infrastructure/services/telegram-peer-resolver';
+import { FloodWaitHandlerService } from '@/core/infrastructure/services/flood-wait-handler.service';
 import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
-import { IngestionSafetyConfig } from '../../infrastructure/config/ingestion-safety.config';
-import { SleepWindowService } from '../../infrastructure/services/sleep-window.service';
+import { IngestionSafetyConfig } from '@/core/infrastructure/config/ingestion-safety.config';
+import { SleepWindowService } from '@/core/infrastructure/services/sleep-window.service';
 import { Api } from 'telegram';
 import { FeedMessageTransformer } from 'shared/transformation';
-import { TelegramMediaExtractorService } from '../../application/services/telegram-media-extractor.service';
+import { TelegramMediaExtractorService } from '@/core/application/services/telegram-media-extractor.service';
 
 /**
  * Normalize a jitter setting to a [0, 1] fraction.

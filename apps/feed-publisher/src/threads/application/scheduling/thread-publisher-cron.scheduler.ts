@@ -2,7 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { CronJob } from 'cron';
-import { ThreadRepository } from '../../domain/ports/thread.repository';
+import { ThreadRepository } from '@/threads/domain/ports/thread.repository';
 import { PublishThreadUseCase } from '../use-cases/publish-thread.use-case';
 import { ThreadsHealthState } from '../state/threads-health.state';
 

@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { ChannelContentFilterConfig } from '../../domain/channel-content-filter-config.entity';
+import { ChannelContentFilterConfig } from '@/filters/domain/channel-content-filter-config.entity';
 import { ChannelFilterRepository } from '../ports/channel-filter.repository';
 
 export interface ContentFilterView {

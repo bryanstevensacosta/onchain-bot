@@ -45,7 +45,7 @@ import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistenc
 @Module({
   imports: [
     SharedModule, // MTProto infrastructure (no channel provider since item 7)
-    RetentionModule, // Crypto-news sources/messages/media (DB-driven)
+    RetentionModule, // Feed sources/messages/media (DB-driven)
     StreamModule, // SSE infrastructure
   ],
   controllers: [DebugTelegramController],

@@ -1,4 +1,4 @@
-import { ChannelContentFilterConfig } from '../../domain/channel-content-filter-config.entity';
+import { ChannelContentFilterConfig } from '@/filters/domain/channel-content-filter-config.entity';
 
 /**
  * A single regex transform rule as consumed by the matching pipeline.

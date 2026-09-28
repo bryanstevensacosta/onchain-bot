@@ -1,10 +1,10 @@
 import { FilteredFeedService } from './filtered-feed.service';
-import type { FeedPort } from '../../domain/ports/feed.port';
-import type { ChannelFilterRepository } from '../../../filters/application/ports/channel-filter.repository';
-import type { KeywordRepository } from '../../../keywords/application/ports/keyword.repository';
-import type { BlacklistPhraseRepository } from '../../../keywords/application/ports/blacklist-phrase.repository';
-import { Keyword } from '../../../keywords/domain/keyword.entity';
-import { BlacklistPhrase } from '../../../keywords/domain/blacklist-phrase.entity';
+import type { FeedPort } from '@/matching/domain/ports/feed.port';
+import type { ChannelFilterRepository } from '@/filters/application/ports/channel-filter.repository';
+import type { KeywordRepository } from '@/keywords/application/ports/keyword.repository';
+import type { BlacklistPhraseRepository } from '@/keywords/application/ports/blacklist-phrase.repository';
+import { Keyword } from '@/keywords/domain/keyword.entity';
+import { BlacklistPhrase } from '@/keywords/domain/blacklist-phrase.entity';
 
 describe('FilteredFeedService', () => {
   function build(feed: FeedPort['fetchRecentMessages']) {

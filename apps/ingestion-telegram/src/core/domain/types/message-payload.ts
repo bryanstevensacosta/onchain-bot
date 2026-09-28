@@ -54,7 +54,7 @@ export interface MessagePayload {
   /**
    * Raw message text content (BOTH types, Q1-B — missing → '').
    * - KOL: alpha-call text, persisted RAW (type='kol') + carried here
-   * - Crypto-news: opaque content, stored as-is
+   * - Feed: opaque content, stored as-is
    */
   text?: string;
 

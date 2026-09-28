@@ -14,6 +14,7 @@ import { LlmModule } from './llm/llm.module';
 // P52). This app no longer owns scheduling — it is sole owner there.
 import { ThreadsModule } from './threads/threads.module';
 import { TelegramModule } from './telegram/telegram.module';
+import { TargetModule } from './target/target.module';
 import { ContentTemplatesModule } from './template/content-templates.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { DomainExceptionFilter } from './shared/filters/domain-exception.filter';
@@ -49,6 +50,7 @@ import { ApiKeyGuard } from './shared/guards/api-key.guard';
     LlmModule,
     ThreadsModule,
     TelegramModule,
+    TargetModule,
     ContentTemplatesModule,
     SessionsModule,
   ],

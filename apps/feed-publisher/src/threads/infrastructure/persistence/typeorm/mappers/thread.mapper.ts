@@ -1,5 +1,5 @@
-import { Thread, type ThreadSnapshot } from '../../../../domain/entities/thread.entity';
-import type { ThreadMessageSnapshot } from '../../../../domain/entities/thread-message.entity';
+import { Thread, type ThreadSnapshot } from '@/threads/domain/entities/thread.entity';
+import type { ThreadMessageSnapshot } from '@/threads/domain/entities/thread-message.entity';
 import { ThreadOrmEntity } from '../thread.orm-entity';
 import { ThreadMessageOrmEntity } from '../thread-message.orm-entity';
 

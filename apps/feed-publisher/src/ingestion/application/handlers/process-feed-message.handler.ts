@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { FeedIngestedMessage } from '../../domain/ports/ingestion-client.port';
+import type { FeedIngestedMessage } from '@/ingestion/domain/ports/ingestion-client.port';
 import {
   isFeedFrame,
   toFeedMessage,
-} from '../../infrastructure/http/dto/raw-feed-message.dto';
+} from '@/ingestion/infrastructure/http/dto/raw-feed-message.dto';
 
 /**
  * Accepts one raw SSE frame at a time.

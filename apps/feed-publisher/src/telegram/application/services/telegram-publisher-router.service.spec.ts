@@ -1,8 +1,8 @@
 import type { ConfigService } from '@nestjs/config';
 import { TelegramPublisherRouter } from './telegram-publisher-router.service';
-import { CryptoNewsBotApiAdapter } from '../../infrastructure/bot-api/crypto-news-bot-api.adapter';
-import { ThreadsBotApiAdapter } from '../../infrastructure/bot-api/threads-bot-api.adapter';
-import type { BotApiHttpClient } from '../../infrastructure/bot-api/bot-api-http-client';
+import { CryptoNewsBotApiAdapter } from '@/telegram/infrastructure/bot-api/crypto-news-bot-api.adapter';
+import { ThreadsBotApiAdapter } from '@/telegram/infrastructure/bot-api/threads-bot-api.adapter';
+import type { BotApiHttpClient } from '@/telegram/infrastructure/bot-api/bot-api-http-client';
 import { TelegramRateLimiter } from './telegram-rate-limiter.service';
 
 function makeConfig(env: Record<string, string>): ConfigService {

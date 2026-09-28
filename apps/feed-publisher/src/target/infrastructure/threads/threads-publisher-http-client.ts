@@ -1,6 +1,6 @@
 import { Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { TargetDispatchResult } from '../../application/ports/target-dispatcher.port';
+import type { TargetDispatchResult } from '@/target/application/ports/target-dispatcher.port';
 
 export interface ThreadsEnqueueInput {
   readonly botId: string;

@@ -1,9 +1,9 @@
 import { MigrateBotsToGatewayUseCase } from './migrate-bots-to-gateway.use-case';
-import { GatewayBotMappingService } from '../../infrastructure/gateway/gateway-bot-mapping.service';
-import { GatewayHmacSigner } from '../../infrastructure/gateway/gateway-hmac-signer.service';
-import { TemplateBot } from '../../../template/domain/entities/template-bot.entity';
-import type { TemplateBotRepository } from '../../../template/domain/ports/template-bot.repository';
-import type { TemplateEncryptionService } from '../../../template/application/services/template-encryption.service';
+import { GatewayBotMappingService } from '@/telegram/infrastructure/gateway/gateway-bot-mapping.service';
+import { GatewayHmacSigner } from '@/telegram/infrastructure/gateway/gateway-hmac-signer.service';
+import { TemplateBot } from '@/template/domain/entities/template-bot.entity';
+import type { TemplateBotRepository } from '@/template/domain/ports/template-bot.repository';
+import type { TemplateEncryptionService } from '@/template/application/services/template-encryption.service';
 import type { ConfigService } from '@nestjs/config';
 
 function makeBot(id: string, label: string): TemplateBot {

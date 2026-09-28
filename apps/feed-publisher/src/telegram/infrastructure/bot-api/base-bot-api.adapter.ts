@@ -6,7 +6,7 @@ import {
   TelegramPublisherPort,
   type TelegramPublishOptions,
   type TelegramSendResult,
-} from '../../domain/ports/telegram-publisher.port';
+} from '@/telegram/domain/ports/telegram-publisher.port';
 import { BotApiHttpClient } from './bot-api-http-client';
 import {
   buildMediaGroupMultipartBody,
@@ -17,7 +17,7 @@ import {
   readFileWithValidation,
   readMultipleFilesWithValidation,
 } from './read-file';
-import { TelegramRateLimiter } from '../../application/services/telegram-rate-limiter.service';
+import { TelegramRateLimiter } from '@/telegram/application/services/telegram-rate-limiter.service';
 
 /**
  * Shared Bot API send logic for the feed bots (moved read-only from

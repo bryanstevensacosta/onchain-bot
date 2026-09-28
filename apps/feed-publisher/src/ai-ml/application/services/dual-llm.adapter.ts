@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { LlmPort, type LlmGenerateRequest } from '../../../llm/application/ports/llm.port';
-import { resolveAiMlMode } from '../../ai-ml-mode';
-import { AiMlLlmClientAdapter } from '../../infrastructure/ai-ml-llm-client.adapter';
+import { LlmPort, type LlmGenerateRequest } from '@/llm/application/ports/llm.port';
+import { resolveAiMlMode } from '@/ai-ml/ai-ml-mode';
+import { AiMlLlmClientAdapter } from '@/ai-ml/infrastructure/ai-ml-llm-client.adapter';
 import { AiMlParityService } from './ai-ml-parity.service';
 
 /** DI token for the legacy in-process LLM leg (mock | gateway). */

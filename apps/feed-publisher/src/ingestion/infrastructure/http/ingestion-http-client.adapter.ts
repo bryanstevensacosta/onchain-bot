@@ -4,7 +4,7 @@ import {
   FeedIngestedMessage,
   FeedIngestionClientPort,
   FeedSource,
-} from '../../domain/ports/ingestion-client.port';
+} from '@/ingestion/domain/ports/ingestion-client.port';
 import {
   RawFeedSourceDto,
   toFeedSource,
@@ -19,8 +19,8 @@ export const DEFAULT_INGESTION_BASE_URL = 'http://localhost:3031';
 /**
  * HTTP adapter over the ingestion-telegram feed API.
  *
- * Read-only: crypto-news sources via `GET /api/feed/sources?type=crypto-news`,
- * recent crypto-news messages via `GET /api/feed/messages?type=crypto-news`.
+  * Read-only: feed sources via `GET /api/feed/sources?type=crypto-news`,
+  * recent feed messages via `GET /api/feed/messages?type=crypto-news`.
  * Base URL resolves from `INGESTION_TELEGRAM_URL` (ConfigService first,
  * then `process.env`), defaulting to `http://localhost:3031`.
  * Sends `x-api-key` (`INGESTION_TELEGRAM_API_KEY`) from day one (P30).

@@ -1,7 +1,7 @@
 import { AllowedKeywordMatcher } from './keyword-matcher.service';
 import { BlacklistMatcher } from './blacklist-matcher.service';
-import { Keyword } from '../../domain/keyword.entity';
-import { BlacklistPhrase } from '../../domain/blacklist-phrase.entity';
+import { Keyword } from '@/keywords/domain/keyword.entity';
+import { BlacklistPhrase } from '@/keywords/domain/blacklist-phrase.entity';
 
 function kw(
   phrase: string,

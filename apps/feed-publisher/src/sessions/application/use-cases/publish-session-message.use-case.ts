@@ -1,7 +1,7 @@
 import { Injectable, Optional } from '@nestjs/common';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
-import type { PublishTarget } from '../../../template/domain/template-target';
-import { PublishingSessionRepository } from '../../domain/ports/publishing-session.repository';
+import type { PublishTarget } from '@/target/domain/target-binding';
+import { PublishingSessionRepository } from '@/sessions/domain/ports/publishing-session.repository';
 import {
   SessionPublisherPort,
   type SessionPublishPlan,
@@ -9,7 +9,14 @@ import {
 import { PublishAuditLog } from '../services/publish-audit-log.service';
 import { PublishRateLimiter } from '../services/publish-rate-limiter.service';
 import { SessionPublishAuthorizer } from '../services/session-publish-authorizer.service';
-import { GatewayBotMappingService } from '../../../telegram/infrastructure/gateway/gateway-bot-mapping.service';
+
+/**
+ * Minimal vault-id mapping surface (structural — sessions resolve
+ * through `target/`, never import the legacy `telegram/` tree).
+ */
+export interface SessionVaultMapping {
+  resolveGatewayId(localId: string): string;
+}
 
 export interface PublishSessionMessageInput {
   readonly sessionId: string;
@@ -45,7 +52,7 @@ export class PublishSessionMessageUseCase {
     private readonly publisher: SessionPublisherPort,
     private readonly audit: PublishAuditLog,
     @Optional()
-    private readonly mapping?: GatewayBotMappingService,
+    private readonly mapping?: SessionVaultMapping,
   ) {}
 
   public async execute(input: PublishSessionMessageInput): Promise<{

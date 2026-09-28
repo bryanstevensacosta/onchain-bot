@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DeduplicationStorePort } from '../../domain/ports/deduplication-store.port';
-import { Fingerprint } from '../../domain/value-objects/fingerprint.vo';
-import { DedupRecord } from '../../domain/entities/dedup-record.entity';
+import { DeduplicationStorePort } from '@/deduplication/domain/ports/deduplication-store.port';
+import { Fingerprint } from '@/deduplication/domain/value-objects/fingerprint.vo';
+import { DedupRecord } from '@/deduplication/domain/entities/dedup-record.entity';
 import { EmbeddingPort } from '../ports/embedding.port';
 import { ContentNormalizerService } from './content-normalizer.service';
 import { UrlNormalizerService } from './url-normalizer.service';

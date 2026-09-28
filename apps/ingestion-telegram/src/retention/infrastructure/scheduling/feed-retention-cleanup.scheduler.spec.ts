@@ -129,7 +129,7 @@ describe('FeedRetentionCleanupScheduler', () => {
 
     const scheduler = new FeedRetentionCleanupScheduler(
       makeDataSource('postgres', query),
-      makeConfig(72),
+      makeConfig(24),
     );
     await scheduler.tick();
 
@@ -180,7 +180,7 @@ describe('FeedRetentionCleanupScheduler', () => {
 
     const scheduler = new FeedRetentionCleanupScheduler(
       makeDataSource('postgres', query),
-      makeConfig(72),
+      makeConfig(24),
     );
     await scheduler.tick();
 
@@ -196,7 +196,7 @@ describe('FeedRetentionCleanupScheduler', () => {
 
     const scheduler = new FeedRetentionCleanupScheduler(
       makeDataSource('postgres', query),
-      makeConfig(72),
+      makeConfig(24),
     );
     await scheduler.tick();
 
@@ -243,7 +243,7 @@ describe('FeedRetentionCleanupScheduler', () => {
 
     const scheduler = new FeedRetentionCleanupScheduler(
       makeDataSource('postgres', query),
-      makeConfig(72),
+      makeConfig(24),
     );
     await scheduler.tick();
 
@@ -264,7 +264,23 @@ describe('FeedRetentionCleanupScheduler', () => {
     const windowed = query.mock.calls.find((c) =>
       c[0].startsWith('DELETE FROM telegram_feed_messages'),
     );
-    expect(windowed?.[1]).toEqual([72]);
+    expect(windowed?.[1]).toEqual([24]);
+  });
+
+  it('default cutoff is 24h when feedMediaRetentionHours is unset', async () => {
+    const query: QueryFn = jest.fn();
+    lockResponder(query);
+
+    const scheduler = new FeedRetentionCleanupScheduler(
+      makeDataSource('postgres', query),
+      makeConfig(undefined),
+    );
+    await scheduler.tick();
+
+    const windowed = query.mock.calls.find((c) =>
+      c[0].startsWith('DELETE FROM telegram_feed_messages'),
+    );
+    expect(windowed?.[1]).toEqual([24]);
   });
 
   it('already-gone file still deletes the row without aborting the batch', async () => {
@@ -311,7 +327,7 @@ describe('FeedRetentionCleanupScheduler', () => {
 
     const scheduler = new FeedRetentionCleanupScheduler(
       makeDataSource('postgres', query),
-      makeConfig(72),
+      makeConfig(24),
     );
     await scheduler.tick();
 
@@ -369,7 +385,7 @@ describe('FeedRetentionCleanupScheduler', () => {
 
     const scheduler = new FeedRetentionCleanupScheduler(
       makeDataSource('postgres', query),
-      makeConfig(72),
+      makeConfig(24),
     );
     await scheduler.tick();
 
@@ -389,7 +405,7 @@ describe('FeedRetentionCleanupScheduler', () => {
 
     const scheduler = new FeedRetentionCleanupScheduler(
       makeDataSource('postgres', query),
-      makeConfig(72),
+      makeConfig(24),
     );
     await scheduler.tick();
 

@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import request from 'supertest';
-import { ThreadsModule } from '../../threads.module';
+import { ThreadsModule } from '@/threads/threads.module';
 
 describe('ThreadsController 501 pinning (C1 skeleton, failing-first)', () => {
   let app: INestApplication;

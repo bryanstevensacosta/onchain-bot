@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import {
   SessionPublisherPort,
   type SessionPublishPlan,
-} from '../../application/ports/session-publisher.port';
+} from '@/sessions/application/ports/session-publisher.port';
 
 /**
  * Recording session publisher (live binding, todo 12).

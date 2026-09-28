@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Keyword } from '../../domain/keyword.entity';
+import { Keyword } from '@/keywords/domain/keyword.entity';
 import { groupByAndGroupId } from './compound-group.evaluator';
 
 /**

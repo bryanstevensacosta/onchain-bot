@@ -1,9 +1,9 @@
-import { Thread } from '../../domain/entities/thread.entity';
-import type { ThreadMessagePublishOutcome } from '../../domain/ports/thread-message-publisher.port';
-import { ThreadMessagePublisherPort } from '../../domain/ports/thread-message-publisher.port';
+import { Thread } from '@/threads/domain/entities/thread.entity';
+import type { ThreadMessagePublishOutcome } from '@/threads/domain/ports/thread-message-publisher.port';
+import { ThreadMessagePublisherPort } from '@/threads/domain/ports/thread-message-publisher.port';
 import { ThreadSchedulerService } from '../services/thread-scheduler.service';
 import { PublishThreadUseCase } from './publish-thread.use-case';
-import { InMemoryThreadRepository } from '../../infrastructure/persistence/in-memory/in-memory-thread.repository';
+import { InMemoryThreadRepository } from '@/threads/infrastructure/persistence/in-memory/in-memory-thread.repository';
 
 /** Scripted fake: per-index outcomes, records every attempted publish. */
 class ScriptedPublisher extends ThreadMessagePublisherPort {

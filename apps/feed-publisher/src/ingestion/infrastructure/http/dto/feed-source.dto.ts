@@ -1,4 +1,4 @@
-import type { FeedSource } from '../../../domain/ports/ingestion-client.port';
+import type { FeedSource } from '@/ingestion/domain/ports/ingestion-client.port';
 
 /**
  * Raw feed source row as served by

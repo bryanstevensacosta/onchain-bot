@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import type { TemplateBot } from '../../domain/entities/template-bot.entity';
-import { TemplateBotRepository } from '../../domain/ports/template-bot.repository';
+import type { TemplateBot } from '@/template/domain/entities/template-bot.entity';
+import { TemplateBotRepository } from '@/template/domain/ports/template-bot.repository';
 
 /**
  * In-memory template-bot repository (live; TypeORM deferred GAP-1).

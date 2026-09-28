@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { EmbeddingPort } from '../../deduplication/application/ports/embedding.port';
+import { EmbeddingPort } from '@/deduplication/application/ports/embedding.port';
 import {
   aiMlPost,
   resolveAiMlHttpOptions,

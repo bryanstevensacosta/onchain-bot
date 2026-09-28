@@ -1,4 +1,4 @@
-import { Thread } from '../../../domain/entities/thread.entity';
+import { Thread } from '@/threads/domain/entities/thread.entity';
 import { InMemoryThreadRepository } from './in-memory-thread.repository';
 
 const AT = new Date('2026-09-25T10:00:00.000Z');

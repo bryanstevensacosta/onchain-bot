@@ -37,7 +37,7 @@ export class FeedRetentionCleanupScheduler {
    * Scheduled expiry cleanup — daily at 3AM.
    *
    * Two-pass semantics (media pass + messages pass, advisory lock
-   * 9_421_373, clock ingested_at, 72h default from
+   * 9_421_373, clock ingested_at, 24h default from
    * INGESTION_CRYPTO_NEWS_MEDIA_RETENTION_HOURS) are unchanged from the
    * former hourly tick; only the schedule changed.
    */
@@ -87,7 +87,7 @@ export class FeedRetentionCleanupScheduler {
 
   /**
    * Aggressive cleanup under critical disk pressure: same two passes
-   * with the cutoff overridden from 72h to 48h.
+   * with the cutoff overridden from 24h to 48h.
    */
   public async aggressiveCleanup(): Promise<void> {
     await this.cleanupExpiredContent(AGGRESSIVE_CLEANUP_RETENTION_HOURS);
@@ -123,7 +123,7 @@ export class FeedRetentionCleanupScheduler {
         hoursOverride ??
         Math.max(
           1,
-          this.config.get<AppConfig>('app')?.feedMediaRetentionHours ?? 72,
+          this.config.get<AppConfig>('app')?.feedMediaRetentionHours ?? 24,
         );
 
       for (;;) {

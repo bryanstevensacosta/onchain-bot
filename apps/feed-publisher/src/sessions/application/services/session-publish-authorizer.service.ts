@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
-import type { TemplateBot } from '../../../template/domain/entities/template-bot.entity';
-import type { PublishTarget } from '../../../template/domain/template-target';
-import { TemplateBotRepository } from '../../../template/domain/ports/template-bot.repository';
-import type { PublishingSession } from '../../domain/entities/publishing-session.entity';
+import type { TemplateBot } from '@/template/domain/entities/template-bot.entity';
+import type { PublishTarget } from '@/template/domain/template-target';
+import { TemplateBotRepository } from '@/template/domain/ports/template-bot.repository';
+import type { PublishingSession } from '@/sessions/domain/entities/publishing-session.entity';
 
 /**
  * Shared ownership predicate (todo 14, P50): a catalog bot may serve a

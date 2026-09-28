@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { FeedPort } from '../../domain/ports/feed.port';
-import { ChannelFilterRepository } from '../../../filters/application/ports/channel-filter.repository';
-import { KeywordRepository } from '../../../keywords/application/ports/keyword.repository';
-import { BlacklistPhraseRepository } from '../../../keywords/application/ports/blacklist-phrase.repository';
+import { FeedPort } from '@/matching/domain/ports/feed.port';
+import { ChannelFilterRepository } from '@/filters/application/ports/channel-filter.repository';
+import { KeywordRepository } from '@/keywords/application/ports/keyword.repository';
+import { BlacklistPhraseRepository } from '@/keywords/application/ports/blacklist-phrase.repository';
 import {
   MatchingEvaluator,
   type FilteredFeedMessage,
@@ -13,7 +13,7 @@ import {
  *
  * 1. Fetch typed rows from the feed port (upstream already scoped with
  *    `?type=crypto-news`).
- * 2. Drop non-crypto rows client-side (second P10 barrier: the unified
+  * 2. Drop non-feed rows client-side (second P10 barrier: the unified
  *    feed also carries the sibling feed type, which must never enter this
  *    pipeline; rows without a marker pass through for pre-unified fixtures).
  * 3. Per message: load channel rules, transform title+content on-read,
@@ -48,12 +48,12 @@ export class FilteredFeedService {
       );
       return [];
     }
-    const cryptoOnly = rawMessages.filter(
+    const feedOnly = rawMessages.filter(
       (raw) =>
         (raw as { messageType?: unknown }).messageType === undefined ||
         raw.messageType === 'crypto-news',
     );
-    if (cryptoOnly.length === 0) {
+    if (feedOnly.length === 0) {
       this.logger.debug(
         `No feed rows fetched (limit: ${limit}, channelId: ${channelId ?? 'all'})`,
       );
@@ -64,7 +64,7 @@ export class FilteredFeedService {
       this.blacklistRepo.findAll(),
     ]);
     const matched: FilteredFeedMessage[] = [];
-    for (const raw of cryptoOnly) {
+    for (const raw of feedOnly) {
       try {
         const filters = await this.channelFilters.findFiltersByChannelId(
           raw.channelId,
@@ -84,9 +84,9 @@ export class FilteredFeedService {
         );
       }
     }
-    const filtered = this.evaluator.mergeAlbumGroups(matched, cryptoOnly);
+    const filtered = this.evaluator.mergeAlbumGroups(matched, feedOnly);
     this.logger.log(
-      `Filtered ${cryptoOnly.length} raw messages -> ${filtered.length} matched (keywords + not blacklisted)`,
+      `Filtered ${feedOnly.length} raw messages -> ${filtered.length} matched (keywords + not blacklisted)`,
     );
     return filtered;
   }

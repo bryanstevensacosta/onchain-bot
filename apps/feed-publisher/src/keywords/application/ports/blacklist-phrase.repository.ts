@@ -1,4 +1,4 @@
-import { BlacklistPhrase } from '../../domain/blacklist-phrase.entity';
+import { BlacklistPhrase } from '@/keywords/domain/blacklist-phrase.entity';
 
 /**
  * Outbound port: persistence for blacklist phrases.

@@ -52,7 +52,7 @@ export interface KolAvatarBackfillResult {
  * P29: every Telegram hit is funneled through one promise tail (serialized,
  * no bursts) and the existing flood-wait guard (see the photo adapter).
  * Permanent storage: `{uploadsRoot}/avatar/` — outside the janitor's
- * `feed-media` tree, excluded from the 72h retention by construction
+ * `feed-media` tree, excluded from the 24h retention by construction
  * (`kol-avatar.janitor.spec.ts` pins it).
  *
  * Never throws for Telegram/DB trouble: MTProto failure → `placeholder`

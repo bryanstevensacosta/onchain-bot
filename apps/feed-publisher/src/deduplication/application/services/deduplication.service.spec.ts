@@ -5,8 +5,8 @@ import { UrlNormalizerService } from './url-normalizer.service';
 import { ContentHashService } from './content-hash.service';
 import { DedupScorerService } from './dedup-scorer.service';
 import { SemanticScorerService } from './semantic-scorer.service';
-import { InMemoryDeduplicationStore } from '../../infrastructure/repositories/in-memory-deduplication.store';
-import { MockEmbeddingAdapter } from '../../infrastructure/ml/mock-embedding.adapter';
+import { InMemoryDeduplicationStore } from '@/deduplication/infrastructure/repositories/in-memory-deduplication.store';
+import { MockEmbeddingAdapter } from '@/deduplication/infrastructure/ml/mock-embedding.adapter';
 
 function build(
   opts: {

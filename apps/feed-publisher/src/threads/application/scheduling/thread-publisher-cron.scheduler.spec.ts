@@ -1,11 +1,11 @@
-import { Thread } from '../../domain/entities/thread.entity';
-import { ThreadMessagePublisherPort } from '../../domain/ports/thread-message-publisher.port';
+import { Thread } from '@/threads/domain/entities/thread.entity';
+import { ThreadMessagePublisherPort } from '@/threads/domain/ports/thread-message-publisher.port';
 import { ThreadSchedulerService } from '../services/thread-scheduler.service';
 import { PublishThreadUseCase } from '../use-cases/publish-thread.use-case';
 import { ThreadPublisherCronScheduler } from './thread-publisher-cron.scheduler';
 import { ThreadsHealthState } from '../state/threads-health.state';
-import { InMemoryThreadRepository } from '../../infrastructure/persistence/in-memory/in-memory-thread.repository';
-import { InMemoryThreadMessagePublisher } from '../../infrastructure/dispatch/in-memory-thread-message.publisher';
+import { InMemoryThreadRepository } from '@/threads/infrastructure/persistence/in-memory/in-memory-thread.repository';
+import { InMemoryThreadMessagePublisher } from '@/threads/infrastructure/dispatch/in-memory-thread-message.publisher';
 
 const AT = new Date('2026-09-25T10:00:00.000Z');
 

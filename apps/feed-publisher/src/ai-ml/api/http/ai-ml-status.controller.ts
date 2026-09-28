@@ -1,11 +1,11 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { AiMlLlmClientAdapter } from '../../infrastructure/ai-ml-llm-client.adapter';
-import { AiMlParityService } from '../../application/services/ai-ml-parity.service';
+import { AiMlLlmClientAdapter } from '@/ai-ml/infrastructure/ai-ml-llm-client.adapter';
+import { AiMlParityService } from '@/ai-ml/application/services/ai-ml-parity.service';
 import {
   buildAiMlStatusView,
   type AiMlStatusView,
-} from '../../health/ai-ml-health.indicator';
+} from '@/ai-ml/health/ai-ml-health.indicator';
 
 /**
  * ai-ml migration status (`/api/ai-ml/status`, ai-ml plan todo 3).

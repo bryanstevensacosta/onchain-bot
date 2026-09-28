@@ -2,8 +2,8 @@ import { ConfigService } from '@nestjs/config';
 import { ProcessNextQueuedArticleUseCase } from './process-next-queued-article.use-case';
 import { QueueManager } from '../services/queue-manager.service';
 import { QueueHealthState } from '../state/queue-health.state';
-import { PublisherQueueEntry } from '../../domain/publisher-queue-entry.entity';
-import { InMemoryPublisherQueueRepository } from '../../infrastructure/persistence/in-memory/in-memory-publisher-queue.repository';
+import { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
+import { InMemoryPublisherQueueRepository } from '@/queue/infrastructure/persistence/in-memory/in-memory-publisher-queue.repository';
 import type { QueuedArticleRendererPort } from '../ports/queued-article-renderer.port';
 import type { QueuedArticleDispatcherPort } from '../ports/queued-article-dispatcher.port';
 

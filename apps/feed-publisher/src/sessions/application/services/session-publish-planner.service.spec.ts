@@ -1,17 +1,17 @@
 import { ConfigService } from '@nestjs/config';
 import { SessionPublishPlanner } from './session-publish-planner.service';
-import { PublishingSession } from '../../domain/entities/publishing-session.entity';
-import { InMemoryPublishingSessionRepository } from '../../infrastructure/repositories/in-memory-publishing-session.repository';
-import { InMemoryTemplateBotRepository } from '../../../template/infrastructure/repositories/in-memory-template-bot.repository';
-import { TemplateBot } from '../../../template/domain/entities/template-bot.entity';
-import { DeduplicationService } from '../../../deduplication/application/services/deduplication.service';
-import { InMemoryDeduplicationStore } from '../../../deduplication/infrastructure/repositories/in-memory-deduplication.store';
-import { MockEmbeddingAdapter } from '../../../deduplication/infrastructure/ml/mock-embedding.adapter';
-import { ContentNormalizerService } from '../../../deduplication/application/services/content-normalizer.service';
-import { UrlNormalizerService } from '../../../deduplication/application/services/url-normalizer.service';
-import { ContentHashService } from '../../../deduplication/application/services/content-hash.service';
-import { DedupScorerService } from '../../../deduplication/application/services/dedup-scorer.service';
-import { SemanticScorerService } from '../../../deduplication/application/services/semantic-scorer.service';
+import { PublishingSession } from '@/sessions/domain/entities/publishing-session.entity';
+import { InMemoryPublishingSessionRepository } from '@/sessions/infrastructure/repositories/in-memory-publishing-session.repository';
+import { InMemoryTemplateBotRepository } from '@/template/infrastructure/repositories/in-memory-template-bot.repository';
+import { TemplateBot } from '@/template/domain/entities/template-bot.entity';
+import { DeduplicationService } from '@/deduplication/application/services/deduplication.service';
+import { InMemoryDeduplicationStore } from '@/deduplication/infrastructure/repositories/in-memory-deduplication.store';
+import { MockEmbeddingAdapter } from '@/deduplication/infrastructure/ml/mock-embedding.adapter';
+import { ContentNormalizerService } from '@/deduplication/application/services/content-normalizer.service';
+import { UrlNormalizerService } from '@/deduplication/application/services/url-normalizer.service';
+import { ContentHashService } from '@/deduplication/application/services/content-hash.service';
+import { DedupScorerService } from '@/deduplication/application/services/dedup-scorer.service';
+import { SemanticScorerService } from '@/deduplication/application/services/semantic-scorer.service';
 
 const config = {
   get: (key: string, fallback?: string): string => fallback ?? '',

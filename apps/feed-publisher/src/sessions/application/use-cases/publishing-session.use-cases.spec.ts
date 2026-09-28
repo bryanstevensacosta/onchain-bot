@@ -1,7 +1,7 @@
 import { PublishingSessionUseCases } from './publishing-session.use-cases';
-import { InMemoryPublishingSessionRepository } from '../../infrastructure/repositories/in-memory-publishing-session.repository';
-import { InMemoryContentTemplateRepository } from '../../../template/infrastructure/repositories/in-memory-content-template.repository';
-import { PublishingContentTemplate } from '../../../template/domain/entities/publishing-template.entity';
+import { InMemoryPublishingSessionRepository } from '@/sessions/infrastructure/repositories/in-memory-publishing-session.repository';
+import { InMemoryContentTemplateRepository } from '@/template/infrastructure/repositories/in-memory-content-template.repository';
+import { PublishingContentTemplate } from '@/template/domain/entities/publishing-template.entity';
 
 function harness(): PublishingSessionUseCases {
   return new PublishingSessionUseCases(

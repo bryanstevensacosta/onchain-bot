@@ -18,6 +18,12 @@ import { ThreadsHealthIndicator } from './health/threads-health.indicator';
 /**
  * ThreadsModule (Tramo 2, todo 8 — v1 skeleton + C1 contract).
  *
+ * @deprecated Delivery moved to `src/target/` (threads-publisher plan
+ * Fase 2 todo 10): new callers dispatch `threads` bindings through
+ * `TargetDispatcherPort` (threads-publisher HTTP leg). This module
+ * stays wired ONLY for the v1 skeleton + C1 contract until
+ * threads-publisher todo 11 deletes it — do not extend.
+ *
  * Owns the thread skeleton from spec §9: `Thread` + `ThreadMessage`
  * aggregates (DRAFT->QUEUED->IN_PROGRESS->COMPLETED, PARTIAL retry
  * from `messagesPublished`, FAILED terminal, transient backoff) +

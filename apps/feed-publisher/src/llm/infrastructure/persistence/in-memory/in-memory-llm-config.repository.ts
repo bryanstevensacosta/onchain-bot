@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { LlmConfig } from '../../../domain/llm-config.entity';
-import { LlmConfigRepository } from '../../../domain/ports/llm-config.repository';
+import { LlmConfig } from '@/llm/domain/llm-config.entity';
+import { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
 
 /**
  * In-memory `LlmConfig` store (live binding until GAP-1). Seeds the

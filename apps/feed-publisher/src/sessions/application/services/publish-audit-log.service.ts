@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { PublishTarget } from '../../../template/domain/template-target';
+import type { PublishTarget } from '@/template/domain/template-target';
 
 export type PublishAuditResult = 'published' | 'blocked' | 'rate-limited';
 

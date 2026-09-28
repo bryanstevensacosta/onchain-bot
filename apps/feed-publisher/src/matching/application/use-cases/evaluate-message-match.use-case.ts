@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { MatchingEvaluator } from '../services/matching-evaluator.service';
-import { KeywordRepository } from '../../../keywords/application/ports/keyword.repository';
-import { BlacklistPhraseRepository } from '../../../keywords/application/ports/blacklist-phrase.repository';
-import { ChannelFilterRepository } from '../../../filters/application/ports/channel-filter.repository';
+import { KeywordRepository } from '@/keywords/application/ports/keyword.repository';
+import { BlacklistPhraseRepository } from '@/keywords/application/ports/blacklist-phrase.repository';
+import { ChannelFilterRepository } from '@/filters/application/ports/channel-filter.repository';
 
 export interface EvaluateMessageMatchInput {
   readonly channelId: string;

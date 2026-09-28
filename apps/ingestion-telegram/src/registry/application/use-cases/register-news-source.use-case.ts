@@ -5,14 +5,11 @@ import {
   Logger,
   Optional,
 } from '@nestjs/common';
-import { TelegramFeedSourceRepository } from '../../infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
-import type { TelegramFeedSourceType } from '../../infrastructure/persistence/typeorm/entities/telegram-feed-source.entity';
+import { TelegramFeedSourceRepository } from '@/registry/infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
+import type { TelegramFeedSourceType } from '@/registry/infrastructure/persistence/typeorm/entities/telegram-feed-source.entity';
 import { TelegramListenerPort } from 'core/ports/telegram-listener.port';
-import {
-  kolAvatarUrlFor,
-  sourceUrlFor,
-} from '../../../avatar/avatar.constants';
-import { KolAvatarService } from '../../../avatar/kol-avatar.service';
+import { kolAvatarUrlFor, sourceUrlFor } from '@/avatar/avatar.constants';
+import { KolAvatarService } from '@/avatar/kol-avatar.service';
 import {
   assertSubscribableKind,
   type TelegramEntityKind,

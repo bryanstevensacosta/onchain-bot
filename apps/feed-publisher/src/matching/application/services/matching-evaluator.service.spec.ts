@@ -1,7 +1,7 @@
 import { MatchingEvaluator } from './matching-evaluator.service';
-import { Keyword } from '../../../keywords/domain/keyword.entity';
-import { BlacklistPhrase } from '../../../keywords/domain/blacklist-phrase.entity';
-import type { FeedMessage } from '../../domain/feed-message';
+import { Keyword } from '@/keywords/domain/keyword.entity';
+import { BlacklistPhrase } from '@/keywords/domain/blacklist-phrase.entity';
+import type { FeedMessage } from '@/matching/domain/feed-message';
 
 function msg(
   channelId: string,

@@ -1,4 +1,4 @@
-import type { PublisherQueueEntry } from '../../domain/publisher-queue-entry.entity';
+import type { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
 
 /**
  * Outbound port: render a queued entry into publishable text.

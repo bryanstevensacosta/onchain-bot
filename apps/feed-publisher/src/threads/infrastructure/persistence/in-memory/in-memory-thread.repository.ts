@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Thread } from '../../../domain/entities/thread.entity';
-import { ThreadRepository } from '../../../domain/ports/thread.repository';
+import { Thread } from '@/threads/domain/entities/thread.entity';
+import { ThreadRepository } from '@/threads/domain/ports/thread.repository';
 
 const DEFAULT_DUE_LIMIT = 10;
 const MAX_DUE_LIMIT = 100;

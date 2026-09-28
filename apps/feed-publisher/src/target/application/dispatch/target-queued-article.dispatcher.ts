@@ -1,13 +1,13 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { QueuedArticleDispatcherPort } from '../../../queue/application/ports/queued-article-dispatcher.port';
-import type { PublisherQueueEntry } from '../../../queue/domain/publisher-queue-entry.entity';
-import { LlmConfigRepository } from '../../../llm/domain/ports/llm-config.repository';
+import { QueuedArticleDispatcherPort } from '@/queue/application/ports/queued-article-dispatcher.port';
+import type { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
+import { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
 import {
   TargetDispatcherPort,
   type TargetDispatchInput,
 } from '../ports/target-dispatcher.port';
-import type { PublishTarget } from '../../domain/target-binding';
+import type { PublishTarget } from '@/target/domain/target-binding';
 
 /**
  * LIVE `QueuedArticleDispatcherPort` binding via `target/`

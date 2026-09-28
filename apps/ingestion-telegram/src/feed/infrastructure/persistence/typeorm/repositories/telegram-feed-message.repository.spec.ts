@@ -1,10 +1,9 @@
 /**
  * Repository roundtrip specs for `TelegramFeedMessageRepository`.
  *
- * Runs against an ISOLATED test database (`onchain_bot_test_entity`) on the
- * DEV postgres (localhost:5434) — never the dev-ingestion data DB and never
- * staging/prod. Port default is 5434 (NOT 5432: that is the prod server on
- * this host). Entities are synchronized (create-if-missing, no drops) and
+ * Runs against an ISOLATED test database (`ingestion_telegram_db_test`) on the
+ * single DEV postgres (localhost:5432) — never the dev-ingestion data DB and never
+ * staging/prod. Port default is 5432 (the consolidated dev server). Entities are synchronized (create-if-missing, no drops) and
  * rows are cleaned per test, so parallel items' suites sharing this DB are
  * unaffected.
  *
@@ -21,13 +20,13 @@ import { TelegramFeedMessageEntity } from '../entities/telegram-feed-message.ent
 import { TelegramFeedMessageMediaEntity } from '../entities/telegram-feed-message-media.entity';
 import { TelegramFeedMessageRepository } from './telegram-feed-message.repository';
 
-const TEST_DB = 'onchain_bot_test_entity';
+const TEST_DB = 'ingestion_telegram_db_test';
 
 function testDataSource(): DataSource {
   return new DataSource({
     type: 'postgres',
     host: process.env.INGESTION_DATABASE_HOST ?? 'localhost',
-    port: parseInt(process.env.INGESTION_DATABASE_PORT ?? '5434', 10),
+    port: parseInt(process.env.INGESTION_DATABASE_PORT ?? '5432', 10),
     username: process.env.INGESTION_DATABASE_USER ?? 'onchain_bot',
     password: process.env.INGESTION_DATABASE_PASSWORD ?? 'onchain_bot',
     database: TEST_DB,
@@ -41,7 +40,7 @@ async function ensureTestDatabase(): Promise<void> {
   const admin = new DataSource({
     type: 'postgres',
     host: process.env.INGESTION_DATABASE_HOST ?? 'localhost',
-    port: parseInt(process.env.INGESTION_DATABASE_PORT ?? '5434', 10),
+    port: parseInt(process.env.INGESTION_DATABASE_PORT ?? '5432', 10),
     username: process.env.INGESTION_DATABASE_USER ?? 'onchain_bot',
     password: process.env.INGESTION_DATABASE_PASSWORD ?? 'onchain_bot',
     database: 'postgres',

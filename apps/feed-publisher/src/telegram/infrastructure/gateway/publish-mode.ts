@@ -2,7 +2,7 @@ import type { ConfigService } from '@nestjs/config';
 import type {
   FeedPublishMode,
   TelegramConfig,
-} from '../../../shared/config/telegram.config';
+} from '@/shared/config/telegram.config';
 
 /**
  * Publish-path selector reader (telegram-bots-gateway todo 5).

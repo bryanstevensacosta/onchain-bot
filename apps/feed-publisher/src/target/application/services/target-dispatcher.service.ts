@@ -1,13 +1,13 @@
 import { Injectable, Optional } from '@nestjs/common';
-import type { PublishTarget } from '../../domain/target-binding';
+import type { PublishTarget } from '@/target/domain/target-binding';
 import {
   TargetDispatcherPort,
   type TargetDispatchInput,
   type TargetDispatchResult,
 } from '../ports/target-dispatcher.port';
-import { BotsGatewaySenderPort } from '../../../telegram/domain/ports/bots-gateway-sender.port';
-import { GatewayBotMappingService } from '../../../telegram/infrastructure/gateway/gateway-bot-mapping.service';
-import { ThreadsPublisherHttpClient } from '../../infrastructure/threads/threads-publisher-http-client';
+import { BotsGatewaySenderPort } from '@/telegram/domain/ports/bots-gateway-sender.port';
+import { GatewayBotMappingService } from '@/telegram/infrastructure/gateway/gateway-bot-mapping.service';
+import { ThreadsPublisherHttpClient } from '@/target/infrastructure/threads/threads-publisher-http-client';
 
 export interface TargetDispatcherLimits {
   readonly publishDelayMs: number;

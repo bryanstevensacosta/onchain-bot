@@ -1,6 +1,6 @@
 import { ContentTemplatesController } from './content-templates.controller';
-import { ContentTemplateUseCases } from '../../application/use-cases/content-template.use-cases';
-import { InMemoryContentTemplateRepository } from '../../infrastructure/repositories/in-memory-content-template.repository';
+import { ContentTemplateUseCases } from '@/template/application/use-cases/content-template.use-cases';
+import { InMemoryContentTemplateRepository } from '@/template/infrastructure/repositories/in-memory-content-template.repository';
 
 describe('ContentTemplatesController', () => {
   it('creates and lists templates via the frontend-backed API', async () => {

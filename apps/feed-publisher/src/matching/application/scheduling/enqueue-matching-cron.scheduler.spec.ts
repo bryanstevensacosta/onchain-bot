@@ -3,10 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { EnqueueMatchingCronScheduler } from './enqueue-matching-cron.scheduler';
 import { FilteredFeedService } from '../services/filtered-feed.service';
-import { MatchingConfigRepository } from '../../domain/ports/matching-config.repository';
+import { MatchingConfigRepository } from '@/matching/domain/ports/matching-config.repository';
 import { MatchingHealthState } from '../state/matching-health.state';
-import { MatchedMessageEnqueuePort } from '../../domain/ports/matched-message-enqueue.port';
-import { MatchingConfig } from '../../domain/matching-config.entity';
+import { MatchedMessageEnqueuePort } from '@/matching/domain/ports/matched-message-enqueue.port';
+import { MatchingConfig } from '@/matching/domain/matching-config.entity';
 
 describe('EnqueueMatchingCronScheduler', () => {
   function build(opts?: {

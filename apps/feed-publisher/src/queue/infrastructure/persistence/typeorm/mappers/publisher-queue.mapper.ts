@@ -1,5 +1,5 @@
-import { PublisherQueueEntry } from '../../../../domain/publisher-queue-entry.entity';
-import type { PublisherQueueStatus } from '../../../../domain/publisher-queue-status';
+import { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
+import type { PublisherQueueStatus } from '@/queue/domain/publisher-queue-status';
 import { PublisherQueueOrmEntity } from '../publisher-queue.orm-entity';
 
 /**

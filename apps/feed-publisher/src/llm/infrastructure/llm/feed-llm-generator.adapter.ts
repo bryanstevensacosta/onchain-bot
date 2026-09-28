@@ -2,14 +2,14 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { readFileSync } from 'node:fs';
 import { extname } from 'node:path';
 import { LlmFailedError } from 'shared/exceptions/feed-publisher.error';
-import type { PublisherQueueEntry } from '../../../queue/domain/publisher-queue-entry.entity';
-import { resolveAiMlMode } from '../../../ai-ml/ai-ml-mode';
-import { AiMlParityService } from '../../../ai-ml/application/services/ai-ml-parity.service';
-import { AiMlPromptClient } from '../../../ai-ml/infrastructure/ai-ml-prompt-client';
-import type { PromptTemplate } from '../../domain/prompt-template.entity';
-import { LlmPort } from '../../application/ports/llm.port';
-import { LlmConfigRepository } from '../../domain/ports/llm-config.repository';
-import { PromptTemplateRepository } from '../../domain/ports/prompt-template.repository';
+import type { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
+import { resolveAiMlMode } from '@/ai-ml/ai-ml-mode';
+import { AiMlParityService } from '@/ai-ml/application/services/ai-ml-parity.service';
+import { AiMlPromptClient } from '@/ai-ml/infrastructure/ai-ml-prompt-client';
+import type { PromptTemplate } from '@/llm/domain/prompt-template.entity';
+import { LlmPort } from '@/llm/application/ports/llm.port';
+import { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
+import { PromptTemplateRepository } from '@/llm/domain/ports/prompt-template.repository';
 
 /**
  * Feed LLM generator (moved from backend crypto-news-publisher, todo 5).

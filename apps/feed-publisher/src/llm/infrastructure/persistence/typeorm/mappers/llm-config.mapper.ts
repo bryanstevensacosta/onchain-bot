@@ -1,4 +1,4 @@
-import { LlmConfig } from '../../../../domain/llm-config.entity';
+import { LlmConfig } from '@/llm/domain/llm-config.entity';
 import { LlmConfigOrmEntity } from '../llm-config.orm-entity';
 
 /** Domain <-> TypeORM mapper for `LlmConfig` (unwired until GAP-1). */

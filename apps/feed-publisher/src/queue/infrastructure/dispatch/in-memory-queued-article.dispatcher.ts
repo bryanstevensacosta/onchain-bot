@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { QueuedArticleDispatcherPort } from '../../application/ports/queued-article-dispatcher.port';
-import type { PublisherQueueEntry } from '../../domain/publisher-queue-entry.entity';
+import { QueuedArticleDispatcherPort } from '@/queue/application/ports/queued-article-dispatcher.port';
+import type { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
 
 export interface RecordedDispatch {
   readonly entryId: string;
