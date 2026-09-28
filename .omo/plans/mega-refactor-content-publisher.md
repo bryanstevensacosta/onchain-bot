@@ -169,6 +169,13 @@ Your next move: approve — listo para $start-work Tramo 2 tras Gate T1. Full ex
       Acceptance criteria: matriz 401/403/bloqueo verde + suites verdes
       QA scenarios: happy legítimo; failure exploit → 403 + audit. Evidence .omo/evidence/task-14-mega-refactor-content-publisher.log
       Commit: Y | feat(feed-publisher): auth anti-exploit con ownership
+- [ ] 15. Deprecación total crypto-news en frontend (barrido JSDoc)
+      What to do / Must NOT do: tras el rename de ruta a /feed: @deprecated con nueva ruta en TODA ref restante crypto-news/crypto_news (clases, archivos, código, constantes, comentarios) + instrucciones claras (qué usar en su lugar + borrado en cutover T2-11). Tests verdes (sin cambios de comportamiento).
+      Parallelization: Wave 4 | Blocked by: 9 (rename ruta) | Blocks: 11
+      References: apps/frontend/src/ (grep crypto-news|crypto_news)
+      Acceptance criteria: `grep -rni "crypto.news\|crypto_news" apps/frontend/src | grep -vi "@deprecated\|CHANGELOG\|feed-" | wc -l` = 0 fuera de headers
+      QA scenarios: happy suite verde; failure ref sin header → se añade. Evidence .omo/evidence/task-15-t2.log
+      Commit: Y | chore(frontend): deprecación total crypto-news
 
 ## Final verification wave
 
@@ -182,6 +189,12 @@ Your next move: approve — listo para $start-work Tramo 2 tras Gate T1. Full ex
 ## Commit strategy
 
 Un commit por todo (feat(feed-publisher): …). Cutover con `!`. Push a la rama; PR a `dev` al Gate T2.
+
+## UX perfiles (P65, 2026-09-25)
+
+- [ ] 16. UI perfiles + tabs (sessions/templates existentes sin UI): header `[Profile: <nombre>]` (minúsculas+guiones, validación, normaliza), Manage Profile con tabs sources|keywords|queue|target|filters|llm; sources globales con toggles por profile; menú+header sticky. Tests + Playwright.
+- [ ] 17. Endpoint estado por mensaje + badges (Not matched / Pending to publish / Blocked by … / Published): nuevo `GET` estado que une match efímero + blacklist + queue (persistir lo necesario); recent 3 líneas + modal fijo con scroll.
+- [ ] 18. Keywords preview paginado + filters preview fiel (dry-run server-side con mensaje real, toggle por source, distintivo RAW/filtrado).
 
 ## Success criteria
 
