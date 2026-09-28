@@ -280,6 +280,17 @@ P49), ccxt REST (`MARKET_DATA_CCXT_EXCHANGES` allowlist, default
 `REDIS_URL`. Templates for staging (`:4001`, DB
 `onchain_bot_market_data_staging`, `SYNCHRONIZE=false`) + prod (`:4002`,
 DB `onchain_bot_market_data`) next to the app.
+Provider keys (provider-keys wire): `BIRDEYE/HELIUS/MORALIS/COINGECKO/
+COINMARKETCAP/ALCHEMY/MOBULA/PUMPDEV/FLUXRPC_API_KEY` +
+`HELIUS_RPC_URL_{MAINNET,DEVNET}` + `PUMPDEV_WALLET_{PUBLIC,PRIVATE}` +
+`FLUXRPC_{RPC,WS}` flow through the `app.*` namespaces in
+`shared/infrastructure/config/app.config.ts` (empty = skip-without-key,
+adapter returns null, never throws). `AppModule` loads them via
+`ConfigModule.load: [appConfig]` — without the `load` entry every
+`cs.get('app.*')` resolves undefined and all keyed adapters stay dark.
+`solanaRpc.primaryRpcUrl` reuses `HELIUS_RPC_URL_MAINNET` (public-RPC
+fallback otherwise); moralis quote fetcher is EVM-only (solana
+snapshots correctly skip it).
 Staging prep status (todo 8, prep only): `docker-compose.staging.yml` +
 `.env.staging.template` landed DRY-RUN (host `:4001`, DB
 `onchain_bot_market_data_staging`); pending operator decision: staging

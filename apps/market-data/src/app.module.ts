@@ -25,6 +25,7 @@ import { GatewayModule } from './gateway/gateway.module';
 import { AuthModule } from './auth/auth.module';
 import { StreamModule } from './stream/stream.module';
 import { HoldersModule } from './holders/holders.module';
+import { appConfig } from './shared/infrastructure/config/app.config';
 
 /**
  * AppModule - Root module for market-data (Tramo 3, todo 2).
@@ -42,6 +43,7 @@ import { HoldersModule } from './holders/holders.module';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env.dev', '.env'],
+      load: [appConfig],
     }),
     HealthModule,
     SharedModule,

@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Provider API keys wired through app config:** every keyed adapter
+  module reads `cs.get('app.<name>')` but `app.config.ts` defined no
+  such namespaces (and `AppModule` never loaded the config), so every
+  adapter booted with `apiKey: ''` and returned null despite keys in
+  `.env`. `buildAppConfig` now maps `ALCHEMY/BIRDEYE/COINGECKO/
+COINMARKETCAP/MORALIS/MOBULA/HELIUS/PUMPDEV/FLUXRPC_API_KEY` +
+  `HELIUS_RPC_URL_{MAINNET,DEVNET}` + `PUMPDEV_WALLET_{PUBLIC,PRIVATE}`
+  - `FLUXRPC_{RPC,WS}` into the `app.*` namespaces (empty = preserved
+    skip-without-key, never throws); `AppModule` adds `load: [appConfig]`;
+    `SolanaRpcModule` resolves `primaryRpcUrl` from `app.solanaRpc`
+    (Helius URL, public-RPC fallback otherwise). `.env.example` +
+    staging/prod templates document the keys (placeholders only, never
+    values). Failing-first: `app.config.spec.ts` (keys flow from mocked
+    env + empty defaults) + `birdeye-config-wire.spec.ts` (module
+    resolves the key from `app.birdeye`, empty fallback). Verified: 65
+    suites / 252 tests green, `tsc --noEmit` clean, live boot with the
+    local `.env` keys (8/9 providers initialized; FluxRPC correctly warns
+    without `FLUXRPC_RPC`) — JUP/solana snapshot gains `coingecko` in
+    sources with zero keyed `no data` quote errors, vs the keyless
+    counterfactual (`birdeye`/`coingecko`/`mobula` `no data`, no keyed
+    sources). Missing keys stay null-safe (`ready`, no crash).
+    (feat/mega-refactor-tramos)
+
 ### Added
 
 - **Solana RPC free supplies + top holders (coverage-expand):** new
