@@ -87,7 +87,7 @@ hints (item 8); reads go through `FeedIdentityHttpClient`
 - **Frontend reads** feed directly
   (`GET /api/feed/messages`, media via `/api/media/...`).
 
-## Retention (72 h, one janitor)
+## Retention (24 h, one janitor)
 
 `FeedRetentionCleanupScheduler` (`src/retention/`, the ONLY code with
 DELETE): daily `0 3 * * *` full pass + hourly disk-pressure check (>90 %
@@ -96,8 +96,8 @@ Advisory lock `9_421_373`, clock `ingested_at` (arrival, never
 `published_at`), batch 1000, orphan sweep
 (`telegram_feed_message_media` rows without a parent message). Sources are
 NEVER touched by the janitor (asserted in spec). Retention window env:
-`INGESTION_CRYPTO_NEWS_MEDIA_RETENTION_HOURS` (default 72; the 72 h window
-is the invariant, effective prod value pending operator decision).
+`INGESTION_CRYPTO_NEWS_MEDIA_RETENTION_HOURS` (default 24; the 24 h window
+is the invariant, effective prod value 24 h by operator decision 2026-09-28).
 Dev caveat: with `synchronize:true` TypeORM drops the GIN index on every
 boot; recreate with `CREATE INDEX IF NOT EXISTS ... USING GIN` after boot
 (staging/prod use `synchronize:false` and keep it).

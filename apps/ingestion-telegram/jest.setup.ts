@@ -21,14 +21,14 @@ if (!process.env.DATABASE_ENABLED) {
 
 // SAFETY: never let tests inherit the dev database name from .env
 // (dev uses onchain_bot, and since todo 1
-// onchain_bot_ingestion). Specs with dropSchema/synchronize
+// ingestion_telegram_db). Specs with dropSchema/synchronize
 // would wipe dev data on `npm test` / pre-push.
 if (
   !process.env.INGESTION_DATABASE_NAME ||
   process.env.INGESTION_DATABASE_NAME === 'onchain_bot' ||
-  process.env.INGESTION_DATABASE_NAME === 'onchain_bot_ingestion'
+  process.env.INGESTION_DATABASE_NAME === 'ingestion_telegram_db'
 ) {
-  process.env.INGESTION_DATABASE_NAME = 'onchain_bot_test_entity';
+  process.env.INGESTION_DATABASE_NAME = 'ingestion_telegram_db_test';
 }
 
 // Set test environment

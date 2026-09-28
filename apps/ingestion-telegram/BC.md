@@ -282,7 +282,7 @@ Classes and technical names (plain explanations):
 ## 5. Retention — the janitor with a disk guard (`src/retention/`)
 
 In plain words: once a day (3 AM) plus an hourly disk-watch, the janitor
-throws away messages and photos older than 72 hours so the database and disk
+throws away messages and photos older than 24 hours so the database and disk
 do not grow forever. It only DELETES; it never creates or edits content.
 Channel profile photos are never touched.
 
@@ -297,7 +297,7 @@ What it does and how:
   (`9_421_373`) so two instances never clean at once.
 - The window: explicit override, else at least 1 hour, else the configured
   `feedMediaRetentionHours` (env
-  `INGESTION_CRYPTO_NEWS_MEDIA_RETENTION_HOURS`, default 72), measured on
+  `INGESTION_CRYPTO_NEWS_MEDIA_RETENTION_HOURS`, default 24), measured on
   `ingested_at` (never `published_at`).
 - Pass 1 — media files + rows (`processMediaBatch`, 1000 rows at a time):
   delete the file, then the row; already-gone files still delete the row;
@@ -383,7 +383,7 @@ mimeType, fileSize}`).
 ## 7. Avatar — channel profile photos (`src/avatar/`)
 
 In plain words: saves each channel's small profile picture once, hands it
-back over HTTP, and is deliberately permanent — the 72-hour janitor never
+back over HTTP, and is deliberately permanent — the 24-hour janitor never
 touches it. Since central todo 12 this covers channels of EVERY kind
 (news included, not just tips), files are named with the handle, and a
 backfill endpoint catches up rows registered before avatars existed.

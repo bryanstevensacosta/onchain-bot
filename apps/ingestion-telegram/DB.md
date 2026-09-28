@@ -83,7 +83,7 @@ Entity:
 | `title`                    | Optional headline (may be empty).                                                                |
 | `content`                  | The full RAW message text, exactly as received.                                                  |
 | `published_at`             | When the message was posted on Telegram (NOT the deletion clock).                                |
-| `ingested_at`              | When THIS service saved it. THE deletion clock for the 72-hour janitor.                          |
+| `ingested_at`              | When THIS service saved it. THE deletion clock for the 24-hour janitor.                          |
 | `link_preview_url`         | Optional link-preview URL attached to the message.                                               |
 | `link_preview_title`       | Optional link-preview title.                                                                     |
 | `link_preview_description` | Optional link-preview description.                                                               |
@@ -184,7 +184,7 @@ Who touches it:
   consumers reconnect).
 - Rate-limit counters: in-memory per address (lost on restart, by design).
 - Files on disk (per environment, janitor-managed except avatars):
-  - `{UPLOADS_ROOT}/feed-media/{channelId}/{messageId}_{index}.{ext}` — message photos/videos (72-hour janitor; unified home since 2026-09-27, previously `feed/media/` then `crypto-news/media/`, both still served via fallback during rollout).
+  - `{UPLOADS_ROOT}/feed-media/{channelId}/{messageId}_{index}.{ext}` — message photos/videos (24-hour janitor; unified home since 2026-09-27, previously `feed/media/` then `crypto-news/media/`, both still served via fallback during rollout).
   - `{UPLOADS_ROOT}/avatar/{channelId}__{handle}.jpg` — channel profile photos (permanent, janitor-excluded; legacy bare `{channelId}.jpg` files migrate lazily, at most one file per channel).
 
 ## 4. Schema history (migrations)

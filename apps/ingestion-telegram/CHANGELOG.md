@@ -38,6 +38,8 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Fixed
 
+- Realtime channel-ID mismatch: `handleEvent` compared the bare GramJS `chat.id` ('1358788312') against `-100…` subscription ids, so `includes()` was always false and EVERY realtime event was dropped (polling unaffected). Both sides are now normalized via `normalizeChannelIdForMatch` (strips `-100`/`@`, exact on the remaining digits — no over-match), and the canonical subscribed id flows downstream so realtime + polling share one cursor/media path. Regression spec: `telegram-mtproto-listener.adapter.realtime.spec.ts` (bare vs `-100` match, non-subscribed rejected). (feat/mega-refactor-tramos)
+
 - Runtime alias registration: `src/main.ts` registers tsconfig paths via `tsconfig-paths` before any imports, fixing the `Cannot find module` boot crash on compiled `dist` output (tsc emits alias specifiers verbatim; Node cannot resolve them without registration). (feat/mega-refactor-tramos)
 
 ## [1.2.0] - 2026-09-24

@@ -189,8 +189,10 @@ MTProto listener — doble vía:
  (b) polling cada 30 s fijos: getMessages(peer, {minId: lastSeen, limit: 50}) con FloodWaitHandler.withRetry → transformMessage → MessageQueue
  → subscribe() yield cola → CoreModule.startListening clasifica kol|feed (pertenencia a newsIds, `channelTypeMap`)
   → MessagePersistenceCoordinator.route(raw, type): dedup at source (`isDuplicate()` wired) → lastSeen.set → transformToPayload → stream.broadcast({type:'message:telegram'})
-  → SU backend SSE (1:1 por env: dev :3031, staging :3033, prod :3032) consume
+   → SU backend SSE (1:1 por env: dev :3031, staging :3033, prod :3032) consume
 ```
+
+Realtime match normaliza channel-id: GramJS entrega el id bare (`1234567890`) mientras las subscriptions guardan `-1001234567890`; `handleEvent` compara vía `normalizeChannelIdForMatch` (quita `@` inicial y prefijo `-100` en ambos lados) con igualdad exacta de dígitos — sin substring, sin over-match.
 
 Notas de path real:
 

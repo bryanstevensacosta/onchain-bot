@@ -82,6 +82,22 @@ export function capPolledChannels(
 }
 
 /**
+ * Normalize a Telegram channel id for realtime-vs-subscription matching.
+ *
+ * GramJS `chat.id` is the BARE MTProto id ('1358788312') while
+ * subscribedChannelIds holds '-100…' forms ('-1001358788312'), so a raw
+ * `includes()` never matches and every realtime event is dropped. Strip the
+ * '-100' channel prefix (and a leading '@', mirroring LastSeenManager) on
+ * both sides before comparing. Exact on the remaining digits — different
+ * channels never match.
+ */
+export function normalizeChannelIdForMatch(id: string): string {
+  let normalized = id.startsWith('@') ? id.slice(1) : id;
+  if (normalized.startsWith('-100')) normalized = normalized.slice(4);
+  return normalized;
+}
+
+/**
  * TelegramMtprotoListenerAdapter - MTProto adapter for ingestion-telegram
  *
  * Simplified from backend version:
@@ -260,19 +276,26 @@ export class TelegramMtprotoListenerAdapter
       if (!msg) return;
 
       const chat = await msg.getChat?.();
-      const channelId = chat ? String(chat.id) : '';
+      const rawChannelId = chat ? String(chat.id) : '';
 
-      if (!channelId || !this.subscribedChannelIds.includes(channelId)) return;
+      const matchedChannelId = rawChannelId
+        ? this.subscribedChannelIds.find(
+            (id) =>
+              normalizeChannelIdForMatch(id) ===
+              normalizeChannelIdForMatch(rawChannelId),
+          )
+        : undefined;
+      if (!matchedChannelId) return;
 
       // Update last seen
-      this.lastSeenManager.set(channelId, msg.id);
+      this.lastSeenManager.set(matchedChannelId, msg.id);
 
       // Transform and enqueue message (now async for media download)
-      const transformed = await this.transformMessage(channelId, msg);
+      const transformed = await this.transformMessage(matchedChannelId, msg);
       this.messageQueue.push(transformed);
 
       this.logger.debug(
-        `Enqueued message ${channelId}:${msg.id} (${this.messageQueue.length} in queue)`,
+        `Enqueued message ${matchedChannelId}:${msg.id} (${this.messageQueue.length} in queue)`,
       );
     } catch (err) {
       this.logger.error('Error processing Telegram update', err);

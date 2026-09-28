@@ -94,7 +94,7 @@ Sources are operator data, the janitor never deletes them, so every add is
 reversible by hand:
 
 1. **Single source, soft (preferred):** toggle it off. Ingestion stops
-   listening on the next channel refresh; rows and files stay for the 72 h
+   listening on the next channel refresh; rows and files stay for the 24 h
    window, then the janitor ages them out.
    `PATCH /api/feed/sources/:channelId/toggle` → `{"isActive":false}`.
 2. **Single source, hard:** delete the row.
@@ -109,6 +109,6 @@ reversible by hand:
    endpoint. `DELETE` the row and `POST` it again with the right `type`.
    (Media rows only ever exist for `feed`; a re-created KOL row
    starts with zero media by policy.)
-5. **Nuclear (dev only):** `DELETE` every row you added and let the 72 h
+5. **Nuclear (dev only):** `DELETE` every row you added and let the 24 h
    janitor plus the hourly disk check reclaim files. Never hand-edit the
    DB on staging/prod; the API is the only write path.

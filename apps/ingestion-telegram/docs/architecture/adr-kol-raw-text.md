@@ -36,7 +36,7 @@
   in-memory cache) — realtime+polling double-delivery → 1 row + 1 frame.
   Item 9 hardens windows/prune later; thresholds untouched here.
 - **Retention:** untouched (item 10 owns the janitor re-point); KOL rows share
-  the 72h `ingested_at` lifecycle by table design.
+  the 24h `ingested_at` lifecycle by table design.
 
 ## Invariant specs rewritten to the new shape (evidence §5)
 
