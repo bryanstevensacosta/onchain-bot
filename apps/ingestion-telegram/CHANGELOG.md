@@ -30,6 +30,10 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 - Docs: `twin` → staging ingestion (`ingestion-telegram-staging`). (feat/mega-refactor-tramos)
 - Metadata symbols renamed `avatar` → `profile-photo` (canonical naming; routes/DB columns unchanged). (feat/mega-refactor-tramos)
 
+### Fixed
+
+- Runtime alias registration: `src/main.ts` registers tsconfig paths via `tsconfig-paths` before any imports, fixing the `Cannot find module` boot crash on compiled `dist` output (tsc emits alias specifiers verbatim; Node cannot resolve them without registration). (feat/mega-refactor-tramos)
+
 ## [1.2.0] - 2026-09-24
 
 ### Added

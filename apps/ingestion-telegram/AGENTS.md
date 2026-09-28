@@ -35,6 +35,8 @@ npm run telegram:gen-session  # genera INGESTION_TELEGRAM_MTPROTO_SESSION (scrip
 
 Env: `ConfigModule.forRoot({ envFilePath: ['.env.dev', '.env'] })` — `.env.dev` gana. `jest.setup.ts` fuerza `DATABASE_ENABLED=true`, `NODE_ENV=test`.
 
+Boot: tsconfig paths are compile-only — tsc emits alias specifiers verbatim, so `src/main.ts` registers them at runtime via `tsconfig-paths` before any imports; without it the compiled `dist` boot crashes with `Cannot find module`.
+
 ## Estructura
 
 ```
@@ -459,7 +461,7 @@ La ingestión no escribe en DB del backend ni publica en su event bus: acoplamie
 
 ## Convenciones
 
-- **Aliases** (`tsconfig.json`, espejados en `package.json` jest `moduleNameMapper`): `shared/*` (+`shared/kernel/*`, `shared/common/*`), `core/*`, `metadata/*`, `feed/*`, `registry/*`, `retention/*`, `stream/*`, `feed-media/*`, `health/*`, `debug/*`, `src/*` (verificado — sin `telegram/*`, sin `@/*` aquí).
+- **Aliases** (`tsconfig.json`, espejados en `package.json` jest `moduleNameMapper`): `shared/*` (+`shared/kernel/*`, `shared/common/*`), `core/*`, `metadata/*`, `feed/*`, `registry/*`, `retention/*`, `stream/*`, `feed-media/*`, `health/*`, `debug/*`, `src/*`, `@/*` (= `src/*`, for 2+-level imports; 2026-09-27 migration; verificado — sin `telegram/*`).
 - **ESLint flat** (`eslint.config.mjs`, `recommendedTypeChecked` + prettier): `no-explicit-any off`, `require-await off`, `no-floating-promises/no-unsafe-*/await-thenable/no-useless-catch/prefer-promise-reject-errors warn`, `no-unused-vars warn (^_)`, `prettier/prettier error (endOfLine auto)`; specs relajan `unbound-method` + `no-unsafe-*`. Excluye `src/**/*.spec.ts(.bak)` del build (`tsconfig.json`), `nest-cli.json: deleteOutDir`.
 - **Estilo**: comentarios `Per Requirement X / Per GAP N / Per Invariant N` obligatorios en cambios de pipeline; `Logger` por clase; no `any` cruzando `MessagePayload`; nunca publicar sin `commit`-equivalente (broadcast solo tras transformar); no tocar `uploads/` a mano.
 
