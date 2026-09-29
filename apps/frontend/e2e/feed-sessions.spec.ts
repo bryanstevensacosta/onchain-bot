@@ -2,7 +2,7 @@ import { expect, test, type Page, type Route } from '@playwright/test';
 
 const SESSION = {
   id: 'desk-alpha',
-  name: 'Desk Alpha',
+  name: 'desk-alpha',
   templateId: 't-breakout',
   active: true,
   matchingEnabled: true,
@@ -16,7 +16,23 @@ const SESSION = {
   canPublish: true,
 };
 
-const TEMPLATES = [{ id: 't-breakout', name: 'Breakout' }];
+const TEMPLATES = [
+  {
+    id: 't-breakout',
+    name: 'Breakout',
+    active: true,
+    sourceIds: ['-1001'],
+    keywordIds: ['k1'],
+    promptTemplateId: null,
+    targets: ['telegram'],
+    botBindings: [{ botId: 'b1', target: 'telegram', chatId: '-1009' }],
+    matchingEnabled: false,
+    llmEnabled: true,
+    publishingEnabled: true,
+    scheduleMode: 'live',
+    canPublish: true,
+  },
+];
 
 const SOURCES = [
   {
@@ -54,14 +70,16 @@ const MESSAGES = [
   },
 ];
 
-test.describe('feed sessions (ex-/profiles, on /feed)', () => {
+test.describe('feed sessions (P34-ter window, on /feed)', () => {
   let sessionState: typeof SESSION;
+  let templatesState: typeof TEMPLATES;
 
   async function mockSessions(page: Page) {
     sessionState = {
       ...SESSION,
       sourceToggles: { ...SESSION.sourceToggles },
     };
+    templatesState = TEMPLATES.map((t) => ({ ...t }));
     await page.route('**/ingestion-api/**', (route: Route) => {
       const url = new URL(route.request().url());
       const json = (body: unknown, status = 200) =>
@@ -94,8 +112,17 @@ test.describe('feed sessions (ex-/profiles, on /feed)', () => {
       if (path === '/api/sessions' && method === 'GET') {
         return json([sessionState]);
       }
+      // P34-ter: source toggles are staged in the window draft and applied
+      // with one Save (PATCH /api/sessions/:id), not per-toggle PATCH.
+      if (path === '/api/sessions/desk-alpha' && method === 'PATCH') {
+        const body = JSON.parse(route.request().postData() ?? '{}') as Partial<
+          typeof SESSION
+        >;
+        sessionState = { ...sessionState, ...body };
+        return json(sessionState);
+      }
       if (path === '/api/content-templates' && method === 'GET') {
-        return json(TEMPLATES);
+        return json(templatesState);
       }
       if (path === '/feed-publisher/keywords' && method === 'GET') {
         return json([
@@ -192,20 +219,6 @@ test.describe('feed sessions (ex-/profiles, on /feed)', () => {
           mode: 'full-pipeline',
         });
       }
-      if (path === '/api/sessions/desk-alpha/sources' && method === 'PATCH') {
-        const body = JSON.parse(route.request().postData() ?? '{}') as {
-          sourceId?: string;
-          enabled?: boolean;
-        };
-        sessionState = {
-          ...sessionState,
-          sourceToggles: {
-            ...sessionState.sourceToggles,
-            [body.sourceId ?? '']: body.enabled ?? false,
-          },
-        };
-        return json(sessionState);
-      }
       return json({ error: `unmocked ${method} ${path}` }, 404);
     });
   }
@@ -217,27 +230,30 @@ test.describe('feed sessions (ex-/profiles, on /feed)', () => {
     await expect(page.getByTestId('sessions-header')).toBeVisible();
   });
 
-  test('session header, template name, tabs and status badges render', async ({
+  test('session header dropdown, template name and six P34-ter tabs render', async ({
     page,
   }) => {
     await mockSessions(page);
     await page.goto('/feed');
-    await expect(page.getByTestId('sessions-header')).toContainText(
-      '[Session: Desk Alpha]',
+    await expect(page.getByTestId('sessions-header')).toContainText('Session');
+    await expect(page.getByTestId('session-picker')).toContainText(
+      '● desk-alpha',
     );
     await expect(page.getByTestId('session-template-name')).toContainText(
       'template: Breakout',
     );
     for (const tab of [
+      'overview',
       'sources',
       'keywords',
-      'queue',
-      'target',
       'filters',
       'llm',
+      'target',
     ]) {
       await expect(page.getByTestId(`session-tab-${tab}`)).toBeVisible();
     }
+    await expect(page.getByTestId('session-tab-queue')).toHaveCount(0);
+    await expect(page.getByTestId('session-window')).toBeVisible();
     await expect(page.getByTestId('status-badge--1001-7')).toContainText(
       'Pending to publish',
     );
@@ -246,7 +262,7 @@ test.describe('feed sessions (ex-/profiles, on /feed)', () => {
     });
   });
 
-  test('sources toggles PATCH per-session', async ({ page }) => {
+  test('sources toggles stage locally and apply on Save', async ({ page }) => {
     await mockSessions(page);
     await page.goto('/feed');
     await page.getByTestId('session-tab-sources').click();
@@ -254,9 +270,39 @@ test.describe('feed sessions (ex-/profiles, on /feed)', () => {
     await expect(toggle).toHaveText('Off');
     await toggle.click();
     await expect(page.getByTestId('source-toggle--1002')).toHaveText('On');
+    await expect(page.getByTestId('window-dirty')).toContainText(
+      'Unsaved changes',
+    );
+    await expect(page.getByTestId('source-staged--1002')).toBeVisible();
+    await page.getByTestId('window-save').click();
+    await expect(page.getByTestId('window-dirty')).toHaveCount(0);
+    await page.screenshot({
+      path: test.info().outputPath('session-window-sources.png'),
+    });
   });
 
-  test('keywords tables, queue, target, filters and llm tabs render', async ({
+  test('window name lowercases live and template load applies with confirm', async ({
+    page,
+  }) => {
+    await mockSessions(page);
+    await page.goto('/feed');
+    await page.getByTestId('window-session-name').fill('My Desk 42');
+    await expect(page.getByTestId('window-session-name')).toHaveValue(
+      'my desk 42',
+    );
+    await expect(page.getByTestId('window-name-error')).toBeVisible();
+    // Template load: fixture template has matchingEnabled=false, session
+    // starts with matching on → loading flips the staged switch off.
+    // The renamed draft is dirty, so Load asks for confirm first.
+    await page.getByTestId('window-template-select').selectOption('t-breakout');
+    page.on('dialog', (dialog) => dialog.accept());
+    await page.getByTestId('window-template-load').click();
+    await expect(
+      page.getByTestId('session-switch-matchingEnabled'),
+    ).toContainText('Matching: off');
+  });
+
+  test('keywords tables, target rows, filters and llm tabs render', async ({
     page,
   }) => {
     await mockSessions(page);
@@ -270,8 +316,15 @@ test.describe('feed sessions (ex-/profiles, on /feed)', () => {
       'scam',
     );
 
-    await page.getByTestId('session-tab-target').click();
+    await page.getByTestId('session-tab-overview').click();
+    await page.getByTestId('overview-target-telegram--1009').click();
     await expect(page.getByTestId('target-tab')).toContainText('-1009');
+    await expect(page.getByTestId('target-row-telegram--1009')).toContainText(
+      'bot b1 → -1009',
+    );
+    await page.screenshot({
+      path: test.info().outputPath('session-window-target.png'),
+    });
 
     await page.getByTestId('session-tab-filters').click();
     await expect(page.getByTestId('filters-tab')).toBeVisible();

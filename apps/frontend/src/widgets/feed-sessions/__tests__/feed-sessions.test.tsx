@@ -6,12 +6,12 @@ import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 
-import * as profile from '@/entities/profile';
+import * as profile from '@/entities/feed-session';
 import { FeedSessionsSection } from '../ui/feed-sessions-section';
 
 const PROFILE = {
   id: 'desk-alpha',
-  name: 'Desk Alpha',
+  name: 'desk-alpha',
   templateId: null,
   active: true,
   matchingEnabled: true,
@@ -22,6 +22,22 @@ const PROFILE = {
   telegramTargets: [{ botId: 'b1', chatId: '-1009' }],
   threadsTargets: [],
   canConsume: true,
+  canPublish: true,
+};
+
+const TEMPLATE = {
+  id: 't-breakout',
+  name: 'Breakout',
+  active: true,
+  sourceIds: ['-1001'],
+  keywordIds: ['k1'],
+  promptTemplateId: null,
+  targets: ['telegram'],
+  botBindings: [{ botId: 'b1', target: 'telegram', chatId: '-1009' }],
+  matchingEnabled: true,
+  llmEnabled: true,
+  publishingEnabled: true,
+  scheduleMode: 'live',
   canPublish: true,
 };
 
@@ -90,6 +106,15 @@ const MESSAGES = [
   },
 ];
 
+function mockMutation() {
+  return {
+    mutate: vi.fn(),
+    isPending: false,
+    error: null,
+    reset: vi.fn(),
+  };
+}
+
 function mockAll() {
   vi.spyOn(profile, 'useProfiles').mockReturnValue({
     data: [PROFILE],
@@ -97,32 +122,43 @@ function mockAll() {
   vi.spyOn(profile, 'useProfileTemplates').mockReturnValue({
     data: [],
   } as unknown as ReturnType<typeof profile.useProfileTemplates>);
-  vi.spyOn(profile, 'useCreateProfile').mockReturnValue({
-    mutate: vi.fn(),
-    isPending: false,
-    error: null,
-    reset: vi.fn(),
-  } as unknown as ReturnType<typeof profile.useCreateProfile>);
-  vi.spyOn(profile, 'useUpdateProfile').mockReturnValue({
-    mutate: vi.fn(),
-    isPending: false,
-  } as unknown as ReturnType<typeof profile.useUpdateProfile>);
-  vi.spyOn(profile, 'useToggleProfileSource').mockReturnValue({
-    mutate: vi.fn(),
-    isPending: false,
-  } as unknown as ReturnType<typeof profile.useToggleProfileSource>);
-  vi.spyOn(profile, 'useActivateProfile').mockReturnValue({
-    mutate: vi.fn(),
-    isPending: false,
-  } as unknown as ReturnType<typeof profile.useActivateProfile>);
-  vi.spyOn(profile, 'useDeactivateProfile').mockReturnValue({
-    mutate: vi.fn(),
-    isPending: false,
-  } as unknown as ReturnType<typeof profile.useDeactivateProfile>);
-  vi.spyOn(profile, 'useDeleteProfile').mockReturnValue({
-    mutate: vi.fn(),
-    isPending: false,
-  } as unknown as ReturnType<typeof profile.useDeleteProfile>);
+  vi.spyOn(profile, 'useCreateProfile').mockReturnValue(
+    mockMutation() as unknown as ReturnType<typeof profile.useCreateProfile>,
+  );
+  vi.spyOn(profile, 'useUpdateProfile').mockReturnValue(
+    mockMutation() as unknown as ReturnType<typeof profile.useUpdateProfile>,
+  );
+  vi.spyOn(profile, 'useToggleProfileSource').mockReturnValue(
+    mockMutation() as unknown as ReturnType<
+      typeof profile.useToggleProfileSource
+    >,
+  );
+  vi.spyOn(profile, 'useActivateProfile').mockReturnValue(
+    mockMutation() as unknown as ReturnType<typeof profile.useActivateProfile>,
+  );
+  vi.spyOn(profile, 'useDeactivateProfile').mockReturnValue(
+    mockMutation() as unknown as ReturnType<
+      typeof profile.useDeactivateProfile
+    >,
+  );
+  vi.spyOn(profile, 'useDeleteProfile').mockReturnValue(
+    mockMutation() as unknown as ReturnType<typeof profile.useDeleteProfile>,
+  );
+  vi.spyOn(profile, 'useCreateProfileTemplate').mockReturnValue(
+    mockMutation() as unknown as ReturnType<
+      typeof profile.useCreateProfileTemplate
+    >,
+  );
+  vi.spyOn(profile, 'useUpdateProfileTemplate').mockReturnValue(
+    mockMutation() as unknown as ReturnType<
+      typeof profile.useUpdateProfileTemplate
+    >,
+  );
+  vi.spyOn(profile, 'useDeleteProfileTemplate').mockReturnValue(
+    mockMutation() as unknown as ReturnType<
+      typeof profile.useDeleteProfileTemplate
+    >,
+  );
   vi.spyOn(profile, 'useProfileSources').mockReturnValue({
     data: SOURCES,
     isLoading: false,
@@ -173,10 +209,11 @@ function mockAll() {
     isLoading: false,
     error: null,
   } as unknown as ReturnType<typeof profile.useChannelFilters>);
-  vi.spyOn(profile, 'useToggleChannelFilter').mockReturnValue({
-    mutate: vi.fn(),
-    isPending: false,
-  } as unknown as ReturnType<typeof profile.useToggleChannelFilter>);
+  vi.spyOn(profile, 'useToggleChannelFilter').mockReturnValue(
+    mockMutation() as unknown as ReturnType<
+      typeof profile.useToggleChannelFilter
+    >,
+  );
   vi.spyOn(profile, 'useFiltersPreview').mockReturnValue({
     mutate: vi.fn(),
     isPending: false,
@@ -227,11 +264,31 @@ describe('FeedSessionsSection (/feed sessions, ex-/profiles)', () => {
     return render(<FeedSessionsSection />, { wrapper });
   }
 
-  it('renders the profile header with the active profile name', () => {
+  it('renders the session header with status picker and create entry', () => {
     renderPage();
     const header = screen.getByTestId('sessions-header');
-    expect(header).toHaveTextContent('[Session: Desk Alpha]');
+    expect(header).toHaveTextContent('Session');
     expect(header.className).toMatch(/sticky/);
+    const picker = screen.getByTestId('session-picker');
+    expect(picker).toHaveTextContent('● desk-alpha');
+    expect(picker).toHaveTextContent('＋ Create new session');
+  });
+
+  it('shows a red status dot for inactive sessions', () => {
+    mockAll();
+    vi.spyOn(profile, 'useProfiles').mockReturnValue({
+      data: [{ ...PROFILE, active: false }],
+    } as unknown as ReturnType<typeof profile.useProfiles>);
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    render(<FeedSessionsSection />, { wrapper });
+    expect(screen.getByTestId('session-picker')).toHaveTextContent(
+      '○ desk-alpha',
+    );
   });
 
   it('shows Ad-hoc when the session has no template', () => {
@@ -247,7 +304,7 @@ describe('FeedSessionsSection (/feed sessions, ex-/profiles)', () => {
       data: [{ ...PROFILE, templateId: 't-breakout' }],
     } as unknown as ReturnType<typeof profile.useProfiles>);
     vi.spyOn(profile, 'useProfileTemplates').mockReturnValue({
-      data: [{ id: 't-breakout', name: 'Breakout' }],
+      data: [TEMPLATE],
     } as unknown as ReturnType<typeof profile.useProfileTemplates>);
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -266,18 +323,164 @@ describe('FeedSessionsSection (/feed sessions, ex-/profiles)', () => {
     expect(screen.getByTestId('sessions-menu').className).toMatch(/sticky/);
   });
 
-  it('renders all six tabs', () => {
+  it('renders the six P34-ter tabs (overview, no queue tab)', () => {
     renderPage();
     for (const tab of [
+      'overview',
       'sources',
       'keywords',
-      'queue',
-      'target',
       'filters',
       'llm',
+      'target',
     ]) {
       expect(screen.getByTestId(`session-tab-${tab}`)).toBeInTheDocument();
     }
+    expect(screen.queryByTestId('session-tab-queue')).toBeNull();
+  });
+
+  it('renders one window with save/delete/activate on select', () => {
+    renderPage();
+    expect(screen.getByTestId('session-window')).toBeInTheDocument();
+    expect(screen.getByTestId('window-save')).toBeInTheDocument();
+    expect(screen.getByTestId('window-delete')).toBeInTheDocument();
+    expect(screen.getByTestId('window-deactivate')).toBeInTheDocument();
+  });
+
+  it('shows per-tab toggles on every tab', () => {
+    renderPage();
+    for (const tab of [
+      'overview',
+      'keywords',
+      'filters',
+      'llm',
+      'target',
+    ] as const) {
+      fireEvent.click(screen.getByTestId(`session-tab-${tab}`));
+      expect(
+        screen.getByTestId('session-switch-matchingEnabled'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId('session-switch-publishingEnabled'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId('session-switch-llmEnabled'),
+      ).toBeInTheDocument();
+    }
+  });
+
+  it('stages source toggles without mutating until Save', () => {
+    renderPage();
+    const toggleSource = vi.mocked(profile.useToggleProfileSource)();
+    fireEvent.click(screen.getByTestId('session-tab-sources'));
+    fireEvent.click(screen.getByTestId('source-toggle--1002'));
+    expect(toggleSource.mutate).not.toHaveBeenCalled();
+    expect(screen.getByTestId('window-dirty')).toHaveTextContent(
+      'Unsaved changes',
+    );
+    expect(screen.getByTestId('source-staged--1002')).toBeInTheDocument();
+    const update = vi.mocked(profile.useUpdateProfile)();
+    fireEvent.click(screen.getByTestId('window-save'));
+    expect(update.mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'desk-alpha' }),
+    );
+  });
+
+  it('asks for confirmation before DB-deleting a session', () => {
+    renderPage();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    fireEvent.click(screen.getByTestId('window-delete'));
+    const remove = vi.mocked(profile.useDeleteProfile)();
+    expect(remove.mutate).not.toHaveBeenCalled();
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByTestId('window-delete'));
+    expect(remove.mutate).toHaveBeenCalledWith('desk-alpha', expect.anything());
+  });
+
+  it('lowercases the window session name live', () => {
+    renderPage();
+    const input = screen.getByTestId('window-session-name') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'My Desk 42' } });
+    expect(input.value).toBe('my desk 42');
+    expect(screen.getByTestId('window-name-error')).toBeInTheDocument();
+  });
+
+  it('opens the target tab from an overview target row', () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId('overview-target-telegram--1009'));
+    expect(screen.getByTestId('target-tab')).toBeInTheDocument();
+    expect(screen.getByTestId('target-row-telegram--1009')).toHaveTextContent(
+      'bot b1 → -1009',
+    );
+  });
+
+  it('saves the session config as a new template', () => {
+    renderPage();
+    fireEvent.change(screen.getByTestId('window-template-name'), {
+      target: { value: 'My Template' },
+    });
+    const create = vi.mocked(profile.useCreateProfileTemplate)();
+    fireEvent.click(screen.getByTestId('window-template-save'));
+    expect(create.mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'my template',
+        keywordIds: ['k1'],
+        matchingEnabled: true,
+      }),
+      expect.anything(),
+    );
+    const body = vi.mocked(create.mutate).mock.calls[0][0] as unknown as Record<
+      string,
+      unknown
+    >;
+    expect(body).not.toHaveProperty('telegramTargets');
+    expect(body).not.toHaveProperty('threadsTargets');
+  });
+
+  it('loads a template into the staged draft with a confirm when dirty', () => {
+    mockAll();
+    vi.spyOn(profile, 'useProfileTemplates').mockReturnValue({
+      data: [{ ...TEMPLATE, matchingEnabled: false }],
+    } as unknown as ReturnType<typeof profile.useProfileTemplates>);
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    render(<FeedSessionsSection />, { wrapper });
+    fireEvent.change(screen.getByTestId('window-template-select'), {
+      target: { value: 't-breakout' },
+    });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    fireEvent.click(screen.getByTestId('window-template-load'));
+    expect(confirm).not.toHaveBeenCalled();
+    expect(
+      screen.getByTestId('session-switch-matchingEnabled'),
+    ).toHaveTextContent('Matching: off');
+  });
+
+  it('deletes a template with an x button behind a confirm', () => {
+    mockAll();
+    vi.spyOn(profile, 'useProfileTemplates').mockReturnValue({
+      data: [TEMPLATE],
+    } as unknown as ReturnType<typeof profile.useProfileTemplates>);
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    render(<FeedSessionsSection />, { wrapper });
+    fireEvent.change(screen.getByTestId('window-template-select'), {
+      target: { value: 't-breakout' },
+    });
+    const remove = vi.mocked(profile.useDeleteProfileTemplate)();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    fireEvent.click(screen.getByTestId('window-template-delete-t-breakout'));
+    expect(remove.mutate).not.toHaveBeenCalled();
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByTestId('window-template-delete-t-breakout'));
+    expect(remove.mutate).toHaveBeenCalledWith('t-breakout', expect.anything());
   });
 
   it('validates profile names and previews the normalized id', () => {
@@ -285,7 +488,7 @@ describe('FeedSessionsSection (/feed sessions, ex-/profiles)', () => {
     fireEvent.click(screen.getByTestId('manage-session-button'));
     const input = screen.getByTestId('session-name-input');
     fireEvent.change(input, { target: { value: 'My New Desk!!' } });
-    // Normalized preview is dedup-friendly (lowercase + dashes).
+    expect((input as HTMLInputElement).value).toBe('my new desk!!');
     expect(screen.getByTestId('session-id-preview')).toHaveTextContent(
       'my-new-desk',
     );
@@ -306,7 +509,7 @@ describe('FeedSessionsSection (/feed sessions, ex-/profiles)', () => {
     );
     render(<FeedSessionsSection />, { wrapper });
     expect(document.querySelector('img')).toBeNull();
-    expect(screen.getByTestId('sessions-header')).toHaveTextContent(
+    expect(screen.getByTestId('session-picker')).toHaveTextContent(
       '<img src=x onerror=alert(1)>',
     );
   });
@@ -351,10 +554,11 @@ describe('FeedSessionsSection (/feed sessions, ex-/profiles)', () => {
     );
   });
 
-  it('renders per-source toggles in the sources tab', () => {
+  it('renders per-source toggles in the sources tab plus global CRUD entry', () => {
     renderPage();
     fireEvent.click(screen.getByTestId('session-tab-sources'));
     expect(screen.getByTestId('source-toggle--1001')).toBeInTheDocument();
     expect(screen.getByTestId('source-toggle--1002')).toBeInTheDocument();
+    expect(screen.getByTestId('sources-manage-button')).toBeInTheDocument();
   });
 });

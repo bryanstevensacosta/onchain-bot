@@ -9,7 +9,7 @@ import {
   useDeleteProfile,
   useProfileTemplates,
   type ProfileView,
-} from '@/entities/profile';
+} from '@/entities/feed-session';
 
 interface ManageSessionModalProps {
   readonly isOpen: boolean;
@@ -65,6 +65,15 @@ export function ManageSessionModal({
     onClose();
   }
 
+  function handleDelete(id: string, name: string) {
+    if (
+      !window.confirm(`Delete session “${name}”? This removes it from the DB.`)
+    ) {
+      return;
+    }
+    remove.mutate(id);
+  }
+
   return (
     <Modal
       isOpen={isOpen}
@@ -85,7 +94,7 @@ export function ManageSessionModal({
           className="w-full bg-slate-800 text-slate-100 text-sm rounded px-2 py-1.5 border border-slate-700"
           value={name}
           placeholder="desk-alpha"
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => setName(e.target.value.toLowerCase())}
         />
         <p
           data-testid="session-id-preview"
@@ -179,7 +188,7 @@ export function ManageSessionModal({
               <button
                 data-testid={`session-delete-${p.id}`}
                 type="button"
-                onClick={() => remove.mutate(p.id)}
+                onClick={() => handleDelete(p.id, p.name)}
                 className="text-xs px-2 py-1 rounded bg-red-900/50 text-red-300 hover:bg-red-900"
               >
                 Delete

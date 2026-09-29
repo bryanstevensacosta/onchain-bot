@@ -1,26 +1,28 @@
-import { useMemo, useState } from 'react';
-import { useProfiles, useProfileTemplates } from '@/entities/profile';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { useProfiles, useProfileTemplates } from '@/entities/feed-session';
 import { ManageSessionModal } from './manage-session-modal';
-import {
-  SESSION_TABS,
-  SessionTabPanels,
-  type SessionTab,
-} from './session-tabs';
+import { SESSION_TABS, type SessionTab } from './session-tabs';
+import { SessionWindow } from './session-window';
 import { RecentWithBadges } from './recent-with-badges';
+
+const CREATE_VALUE = '__create__';
 
 /**
  * Publishing sessions section (merged `/profiles` → `/feed`).
  *
- * Sessions are feed-publisher sessions; templates are creation-time
- * starting points (later edits do NOT rewrite live sessions). The header
- * shows the active session plus its template name (`Ad-hoc` when none).
+ * Header: `Session [name dropdown]` — the list shows a green/red status
+ * dot per session plus a create-new entry. Selecting (or creating) a
+ * session opens ONE window (Overview|Sources|Keywords|Filters|LLM|Target)
+ * with staged edits, Save/Delete/Activate-Deactivate and template
+ * save/load/delete. Switching sessions with unsaved changes asks first.
  */
 export function FeedSessionsSection(): React.ReactElement {
   const { data: profiles, isLoading, error } = useProfiles();
   const { data: templates } = useProfileTemplates();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [tab, setTab] = useState<SessionTab>('sources');
+  const [tab, setTab] = useState<SessionTab>('overview');
   const [manageOpen, setManageOpen] = useState(false);
+  const dirtyRef = useRef(false);
 
   const active = useMemo(() => {
     if (!profiles || profiles.length === 0) return null;
@@ -35,34 +37,62 @@ export function FeedSessionsSection(): React.ReactElement {
     );
   }, [active, templates]);
 
+  const onDirtyChange = useCallback((dirty: boolean) => {
+    dirtyRef.current = dirty;
+  }, []);
+
+  function confirmDiscard(): boolean {
+    if (!dirtyRef.current) return true;
+    return window.confirm(
+      'Discard unsaved session changes and switch sessions?',
+    );
+  }
+
+  function handlePickerChange(value: string) {
+    if (value === CREATE_VALUE) {
+      if (!confirmDiscard()) return;
+      setManageOpen(true);
+      return;
+    }
+    if (value === active?.id) return;
+    if (!confirmDiscard()) return;
+    setSelectedId(value);
+    setTab('overview');
+  }
+
+  function handleDeleted(id: string) {
+    dirtyRef.current = false;
+    setSelectedId((current) => (current === id ? null : current));
+    setTab('overview');
+  }
+
   return (
     <section aria-label="Publishing sessions" className="space-y-0">
       <header
         data-testid="sessions-header"
         className="sticky top-0 z-20 bg-slate-950/95 backdrop-blur border-b border-slate-800 py-3 flex items-center gap-4"
       >
-        <h2 className="text-lg font-bold text-slate-100">
-          {active ? `[Session: ${active.name}]` : '[Session: —]'}
-        </h2>
+        <h2 className="text-lg font-bold text-slate-100">Session</h2>
+        <select
+          data-testid="session-picker"
+          aria-label="Select session"
+          className="bg-slate-800 text-slate-100 text-sm rounded px-2 py-1.5 border border-slate-700"
+          value={active?.id ?? ''}
+          onChange={(e) => handlePickerChange(e.target.value)}
+        >
+          {(profiles ?? []).map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.active ? '●' : '○'} {p.name}
+            </option>
+          ))}
+          <option value={CREATE_VALUE}>＋ Create new session</option>
+        </select>
         <span
           data-testid="session-template-name"
           className="text-xs text-slate-400"
         >
           template: {templateName}
         </span>
-        <select
-          data-testid="session-picker"
-          aria-label="Select session"
-          className="bg-slate-800 text-slate-100 text-sm rounded px-2 py-1.5 border border-slate-700"
-          value={active?.id ?? ''}
-          onChange={(e) => setSelectedId(e.target.value)}
-        >
-          {(profiles ?? []).map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
         <button
           data-testid="manage-session-button"
           type="button"
@@ -119,7 +149,14 @@ export function FeedSessionsSection(): React.ReactElement {
       {active !== null ? (
         <>
           <RecentWithBadges />
-          <SessionTabPanels tab={tab} profile={active} />
+          <SessionWindow
+            key={active.id}
+            profile={active}
+            tab={tab}
+            onTabChange={setTab}
+            onDirtyChange={onDirtyChange}
+            onDeleted={handleDeleted}
+          />
         </>
       ) : null}
 
@@ -129,6 +166,7 @@ export function FeedSessionsSection(): React.ReactElement {
         profiles={profiles ?? []}
         onCreated={(id) => {
           setSelectedId(id);
+          setTab('overview');
           setManageOpen(false);
         }}
       />

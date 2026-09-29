@@ -5,7 +5,7 @@ import {
   useMessageStatus,
   useProfileRecentMessages,
   type MessageStatusView,
-} from '@/entities/profile';
+} from '@/entities/feed-session';
 
 function StatusBadge({
   channelId,

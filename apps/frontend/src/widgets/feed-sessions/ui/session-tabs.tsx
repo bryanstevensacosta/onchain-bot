@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Badge } from '@/shared/ui/badge';
 import { FeedQueueStatsStrip } from '@/features/feed-publisher/ui/feed-queue-stats-strip';
+import { ManageFeedSourcesModal } from '@/features/manage-feed-sources';
 import {
   paginate,
   splitKeywordGroups,
@@ -13,28 +14,109 @@ import {
   usePublisherBlacklist,
   usePublisherKeywords,
   useToggleChannelFilter,
-  useToggleProfileSource,
-  useUpdateProfile,
   type ProfileView,
   type PublisherBlacklistView,
   type PublisherKeywordView,
-} from '@/entities/profile';
+} from '@/entities/feed-session';
 export const SESSION_TABS = [
+  'overview',
   'sources',
   'keywords',
-  'queue',
-  'target',
   'filters',
   'llm',
+  'target',
 ] as const;
 
 export type SessionTab = (typeof SESSION_TABS)[number];
 
+export type SessionFlagKey =
+  | 'matchingEnabled'
+  | 'publishingEnabled'
+  | 'llmEnabled';
+
+export interface SessionDraft {
+  readonly name: string;
+  readonly matchingEnabled: boolean;
+  readonly publishingEnabled: boolean;
+  readonly llmEnabled: boolean;
+  readonly sourceToggles: Record<string, boolean>;
+}
+
+export function draftFromProfile(profile: ProfileView): SessionDraft {
+  return {
+    name: profile.name,
+    matchingEnabled: profile.matchingEnabled,
+    publishingEnabled: profile.publishingEnabled,
+    llmEnabled: profile.llmEnabled,
+    sourceToggles: { ...profile.sourceToggles },
+  };
+}
+
+export function isDraftDirty(
+  draft: SessionDraft,
+  profile: ProfileView,
+): boolean {
+  return (
+    draft.name !== profile.name ||
+    draft.matchingEnabled !== profile.matchingEnabled ||
+    draft.publishingEnabled !== profile.publishingEnabled ||
+    draft.llmEnabled !== profile.llmEnabled ||
+    JSON.stringify(draft.sourceToggles) !==
+      JSON.stringify(profile.sourceToggles)
+  );
+}
+
 const PAGE_SIZE = 5;
 
-function SourcesTab({ profile }: { profile: ProfileView }): React.ReactElement {
+const FLAG_LABELS: ReadonlyArray<{ key: SessionFlagKey; label: string }> = [
+  { key: 'matchingEnabled', label: 'Matching' },
+  { key: 'publishingEnabled', label: 'Target publish' },
+  { key: 'llmEnabled', label: 'LLM' },
+];
+
+export function FlagSwitches({
+  draft,
+  onFlip,
+  testPrefix = 'session-switch',
+}: {
+  draft: SessionDraft;
+  onFlip: (key: SessionFlagKey) => void;
+  testPrefix?: string;
+}): React.ReactElement {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {FLAG_LABELS.map((s) => (
+        <button
+          key={s.key}
+          data-testid={`${testPrefix}-${s.key}`}
+          type="button"
+          role="switch"
+          aria-checked={draft[s.key]}
+          onClick={() => onFlip(s.key)}
+          className={`text-xs px-2 py-1 rounded ${
+            draft[s.key]
+              ? 'bg-green-700 text-green-100'
+              : 'bg-slate-700 text-slate-300'
+          }`}
+        >
+          {s.label}: {draft[s.key] ? 'on' : 'off'}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SourcesTab({
+  profile,
+  draft,
+  onToggleSource,
+}: {
+  profile: ProfileView;
+  draft: SessionDraft;
+  onToggleSource: (channelId: string, enabled: boolean) => void;
+}): React.ReactElement {
   const { data: sources, isLoading, error } = useProfileSources();
-  const toggle = useToggleProfileSource();
+  const [manageOpen, setManageOpen] = useState(false);
 
   if (isLoading) return <p className="text-slate-400 py-2">Loading sources…</p>;
   if (error || !sources) {
@@ -43,12 +125,20 @@ function SourcesTab({ profile }: { profile: ProfileView }): React.ReactElement {
   return (
     <div data-testid="sources-tab" className="py-3">
       <p className="text-xs text-slate-500 mb-2">
-        Global sources with per-profile toggles (toggles only — no sources are
-        created here).
+        Global sources with per-session toggles (toggles are staged — press Save
+        to apply).
       </p>
+      <button
+        data-testid="sources-manage-button"
+        type="button"
+        onClick={() => setManageOpen(true)}
+        className="mb-2 text-xs px-2 py-1 rounded bg-slate-700 text-slate-200 hover:bg-slate-600"
+      >
+        Manage global sources
+      </button>
       <ul className="space-y-1.5">
-        {sources.map((s) => {
-          const on = profile.sourceToggles[s.channelId] ?? false;
+        {(sources ?? []).map((s) => {
+          const on = draft.sourceToggles[s.channelId] ?? false;
           return (
             <li
               key={s.channelId}
@@ -58,18 +148,20 @@ function SourcesTab({ profile }: { profile: ProfileView }): React.ReactElement {
                 {s.title}
                 <span className="text-slate-500"> · {s.channelId}</span>
               </span>
+              {!profile.sourceToggles[s.channelId] && on ? (
+                <span
+                  data-testid={`source-staged-${s.channelId}`}
+                  className="text-[10px] text-amber-400"
+                >
+                  staged
+                </span>
+              ) : null}
               <button
                 data-testid={`source-toggle-${s.channelId}`}
                 type="button"
                 role="switch"
                 aria-checked={on}
-                onClick={() =>
-                  toggle.mutate({
-                    id: profile.id,
-                    sourceId: s.channelId,
-                    enabled: !on,
-                  })
-                }
+                onClick={() => onToggleSource(s.channelId, !on)}
                 className={`text-xs px-2 py-1 rounded ${
                   on
                     ? 'bg-green-700 text-green-100'
@@ -82,6 +174,10 @@ function SourcesTab({ profile }: { profile: ProfileView }): React.ReactElement {
           );
         })}
       </ul>
+      <ManageFeedSourcesModal
+        isOpen={manageOpen}
+        onClose={() => setManageOpen(false)}
+      />
     </div>
   );
 }
@@ -139,7 +235,13 @@ function PaginatedTable({
   );
 }
 
-function KeywordsTab(): React.ReactElement {
+function KeywordsTab({
+  draft,
+  onFlip,
+}: {
+  draft: SessionDraft;
+  onFlip: (key: SessionFlagKey) => void;
+}): React.ReactElement {
   const keywords = usePublisherKeywords();
   const blacklist = usePublisherBlacklist();
 
@@ -164,6 +266,7 @@ function KeywordsTab(): React.ReactElement {
   }
   return (
     <div data-testid="keywords-tab" className="py-3 space-y-4">
+      <FlagSwitches draft={draft} onFlip={onFlip} />
       <section>
         <h3 className="text-sm font-semibold text-slate-300 mb-1.5">
           Allowed keywords
@@ -215,13 +318,17 @@ function KeywordsTab(): React.ReactElement {
   );
 }
 
-function QueueTab({ profile }: { profile: ProfileView }): React.ReactElement {
+function QueueSummary({
+  profile,
+}: {
+  profile: ProfileView;
+}): React.ReactElement {
   const { data: entries, isLoading, error } = useProfileQueue(50);
   const matching = profile.keywordIds.length;
 
   if (isLoading) return <p className="text-slate-400 py-2">Loading queue…</p>;
   return (
-    <div data-testid="queue-tab" className="py-3 space-y-3">
+    <div data-testid="queue-tab" className="space-y-3">
       <FeedQueueStatsStrip />
       {error || !entries ? (
         <p className="text-slate-500 py-2">Queue unavailable.</p>
@@ -262,60 +369,96 @@ function QueueTab({ profile }: { profile: ProfileView }): React.ReactElement {
   );
 }
 
-function TargetTab({ profile }: { profile: ProfileView }): React.ReactElement {
-  const update = useUpdateProfile();
-
-  function flip(
-    key: 'matchingEnabled' | 'publishingEnabled' | 'llmEnabled',
-    value: boolean,
-  ) {
-    update.mutate({ id: profile.id, body: { [key]: value } });
-  }
-
-  const switches: ReadonlyArray<{
-    key: 'matchingEnabled' | 'publishingEnabled' | 'llmEnabled';
-    label: string;
-    value: boolean;
-  }> = [
-    {
-      key: 'matchingEnabled',
-      label: 'Matching',
-      value: profile.matchingEnabled,
-    },
-    {
-      key: 'publishingEnabled',
-      label: 'Publishing',
-      value: profile.publishingEnabled,
-    },
-    { key: 'llmEnabled', label: 'LLM', value: profile.llmEnabled },
-  ];
-
+function OverviewTab({
+  profile,
+  draft,
+  onFlip,
+  onGotoTab,
+}: {
+  profile: ProfileView;
+  draft: SessionDraft;
+  onFlip: (key: SessionFlagKey) => void;
+  onGotoTab: (tab: SessionTab) => void;
+}): React.ReactElement {
   return (
-    <div data-testid="target-tab" className="py-3 space-y-4">
-      <div className="flex items-center gap-2">
+    <div data-testid="overview-tab" className="py-3 space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone={profile.active ? 'green' : 'gray'}>
+          {profile.active ? 'active' : 'inactive'}
+        </Badge>
         <Badge tone={profile.canConsume ? 'green' : 'gray'}>
           {profile.canConsume ? 'consuming' : 'not consuming'}
         </Badge>
         <Badge tone={profile.canPublish ? 'green' : 'gray'}>
           {profile.canPublish ? 'can publish' : 'paused'}
         </Badge>
-        {switches.map((s) => (
-          <button
-            key={s.key}
-            data-testid={`session-switch-${s.key}`}
-            type="button"
-            role="switch"
-            aria-checked={s.value}
-            onClick={() => flip(s.key, !s.value)}
-            className={`text-xs px-2 py-1 rounded ${
-              s.value
-                ? 'bg-green-700 text-green-100'
-                : 'bg-slate-700 text-slate-300'
-            }`}
-          >
-            {s.label}: {s.value ? 'on' : 'off'}
-          </button>
-        ))}
+      </div>
+      <FlagSwitches draft={draft} onFlip={onFlip} />
+      <section>
+        <h3 className="text-sm font-semibold text-slate-300 mb-1.5">
+          Targets (click a row to open the Target tab)
+        </h3>
+        {profile.telegramTargets.length === 0 &&
+        profile.threadsTargets.length === 0 ? (
+          <p className="text-xs text-slate-500">
+            No targets bound — dashboard-only mode.
+          </p>
+        ) : (
+          <ul className="space-y-1">
+            {profile.telegramTargets.map((t) => (
+              <li key={`telegram:${t.botId}:${t.chatId}`}>
+                <button
+                  data-testid={`overview-target-telegram-${t.chatId}`}
+                  type="button"
+                  onClick={() => onGotoTab('target')}
+                  className="w-full text-left text-sm text-slate-300 rounded bg-slate-900/60 px-2 py-1 hover:bg-slate-800"
+                >
+                  bot {t.botId} → {t.chatId}
+                </button>
+              </li>
+            ))}
+            {profile.threadsTargets.map((t) => (
+              <li key={`threads:${t.botId}:${t.chatId}`}>
+                <button
+                  data-testid={`overview-target-threads-${t.chatId}`}
+                  type="button"
+                  onClick={() => onGotoTab('target')}
+                  className="w-full text-left text-sm text-slate-300 rounded bg-slate-900/60 px-2 py-1 hover:bg-slate-800"
+                >
+                  thread {t.botId} → {t.chatId}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <section>
+        <h3 className="text-sm font-semibold text-slate-300 mb-1.5">Queue</h3>
+        <QueueSummary profile={profile} />
+      </section>
+    </div>
+  );
+}
+
+function TargetTab({
+  profile,
+  draft,
+  onFlip,
+}: {
+  profile: ProfileView;
+  draft: SessionDraft;
+  onFlip: (key: SessionFlagKey) => void;
+}): React.ReactElement {
+  return (
+    <div data-testid="target-tab" className="py-3 space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone={profile.canConsume ? 'green' : 'gray'}>
+          {profile.canConsume ? 'consuming' : 'not consuming'}
+        </Badge>
+        <Badge tone={profile.canPublish ? 'green' : 'gray'}>
+          {profile.canPublish ? 'can publish' : 'paused'}
+        </Badge>
+        <FlagSwitches draft={draft} onFlip={onFlip} />
       </div>
       <section>
         <h3 className="text-sm font-semibold text-slate-300 mb-1.5">
@@ -328,6 +471,7 @@ function TargetTab({ profile }: { profile: ProfileView }): React.ReactElement {
             {profile.telegramTargets.map((t) => (
               <li
                 key={`${t.botId}:${t.chatId}`}
+                data-testid={`target-row-telegram-${t.chatId}`}
                 className="text-sm text-slate-300 rounded bg-slate-900/60 px-2 py-1"
               >
                 bot {t.botId} → {t.chatId}
@@ -347,9 +491,10 @@ function TargetTab({ profile }: { profile: ProfileView }): React.ReactElement {
             {profile.threadsTargets.map((t) => (
               <li
                 key={`${t.botId}:${t.chatId}`}
+                data-testid={`target-row-threads-${t.chatId}`}
                 className="text-sm text-slate-300 rounded bg-slate-900/60 px-2 py-1"
               >
-                bot {t.botId} → {t.chatId}
+                thread {t.botId} → {t.chatId}
               </li>
             ))}
           </ul>
@@ -359,7 +504,15 @@ function TargetTab({ profile }: { profile: ProfileView }): React.ReactElement {
   );
 }
 
-function FiltersTab({ profile }: { profile: ProfileView }): React.ReactElement {
+function FiltersTab({
+  draft,
+  onFlip,
+  profile,
+}: {
+  draft: SessionDraft;
+  onFlip: (key: SessionFlagKey) => void;
+  profile: ProfileView;
+}): React.ReactElement {
   const { data: sources } = useProfileSources();
   const [channelId, setChannelId] = useState<string | null>(null);
   const activeChannel = channelId ?? sources?.[0]?.channelId ?? null;
@@ -390,6 +543,7 @@ function FiltersTab({ profile }: { profile: ProfileView }): React.ReactElement {
 
   return (
     <div data-testid="filters-tab" className="py-3 space-y-3">
+      <FlagSwitches draft={draft} onFlip={onFlip} />
       <select
         data-testid="filters-channel-select"
         aria-label="Filter channel"
@@ -409,7 +563,10 @@ function FiltersTab({ profile }: { profile: ProfileView }): React.ReactElement {
       ) : (
         <ul className="space-y-1.5">
           {(filters.data ?? []).map((f) => {
-            const inProfileScope = profile.sourceToggles[f.channelId] ?? false;
+            const inProfileScope =
+              draft.sourceToggles[f.channelId] ??
+              profile.sourceToggles[f.channelId] ??
+              false;
             return (
               <li
                 key={f.id}
@@ -472,7 +629,13 @@ function FiltersTab({ profile }: { profile: ProfileView }): React.ReactElement {
   );
 }
 
-function LlmTab(): React.ReactElement {
+function LlmTab({
+  draft,
+  onFlip,
+}: {
+  draft: SessionDraft;
+  onFlip: (key: SessionFlagKey) => void;
+}): React.ReactElement {
   const { data, isLoading, error } = useProfileLlm();
 
   if (isLoading) return <p className="text-slate-400 py-2">Loading llm…</p>;
@@ -491,7 +654,8 @@ function LlmTab(): React.ReactElement {
     ['Pipeline mode', flags.mode],
   ];
   return (
-    <div data-testid="llm-tab" className="py-3">
+    <div data-testid="llm-tab" className="py-3 space-y-3">
+      <FlagSwitches draft={draft} onFlip={onFlip} />
       <section data-testid="llm-config-section">
         <h3 className="text-sm font-semibold text-slate-300 mb-1.5">
           LLM config
@@ -509,25 +673,48 @@ function LlmTab(): React.ReactElement {
   );
 }
 
+export interface SessionTabPanelsProps {
+  readonly tab: SessionTab;
+  readonly profile: ProfileView;
+  readonly draft: SessionDraft;
+  readonly onFlip: (key: SessionFlagKey) => void;
+  readonly onToggleSource: (channelId: string, enabled: boolean) => void;
+  readonly onGotoTab: (tab: SessionTab) => void;
+}
+
 export function SessionTabPanels({
   tab,
   profile,
-}: {
-  tab: SessionTab;
-  profile: ProfileView;
-}): React.ReactElement {
+  draft,
+  onFlip,
+  onToggleSource,
+  onGotoTab,
+}: SessionTabPanelsProps): React.ReactElement {
   switch (tab) {
+    case 'overview':
+      return (
+        <OverviewTab
+          profile={profile}
+          draft={draft}
+          onFlip={onFlip}
+          onGotoTab={onGotoTab}
+        />
+      );
     case 'sources':
-      return <SourcesTab profile={profile} />;
+      return (
+        <SourcesTab
+          profile={profile}
+          draft={draft}
+          onToggleSource={onToggleSource}
+        />
+      );
     case 'keywords':
-      return <KeywordsTab />;
-    case 'queue':
-      return <QueueTab profile={profile} />;
-    case 'target':
-      return <TargetTab profile={profile} />;
+      return <KeywordsTab draft={draft} onFlip={onFlip} />;
     case 'filters':
-      return <FiltersTab profile={profile} />;
+      return <FiltersTab draft={draft} onFlip={onFlip} profile={profile} />;
     case 'llm':
-      return <LlmTab />;
+      return <LlmTab draft={draft} onFlip={onFlip} />;
+    case 'target':
+      return <TargetTab profile={profile} draft={draft} onFlip={onFlip} />;
   }
 }

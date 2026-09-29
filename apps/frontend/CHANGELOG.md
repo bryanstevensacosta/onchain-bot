@@ -31,6 +31,43 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Added
 
+- Session management window on `/feed` (P34-ter): the sessions header is
+  now a `Session` dropdown (●/○ status per session + `＋ Create new
+session` entry) opening ONE management window per session
+  (`SessionWindow`: Overview|Sources|Keywords|Filters|LLM|Target — the old
+  standalone queue tab folded into Overview as a queue summary + stats
+  strip). Window name lowercases live and validates lowercase-dash
+  (`isValidFeedSessionName`: digits ok, spaces never, only `-`); Save
+  stays disabled while invalid. Overview target rows click through to
+  the Target tab (bot+channel / thread-handle rows). Templates:
+  empty-or-bound select + new-name field, save-as-new / overwrite /
+  load / ×-delete, session delete + template overwrite/delete + template
+  load-while-dirty + session switching-while-dirty all behind
+  `window.confirm` guards. Save/Delete/Activate-Deactivate buttons on
+  the window; per-tab Matching / Target-publish / LLM switches on every
+  tab except Sources; Sources tab keeps global CRUD
+  (`ManageFeedSourcesModal`) + per-session staged toggles (toggle flips
+  the draft with a `staged` badge, one Save PATCHes
+  `/feed-api/api/sessions/:id` — no per-toggle PATCH). Unsaved-changes
+  guard also covers the header dropdown and the create entry. Tests:
+  `feed-sessions.test.tsx` 22/22 (staged-save, confirms, template
+  snapshot excludes session name/targets) + `feed-page.test.tsx`
+  sessions section + Playwright `e2e/feed-sessions.spec.ts` 7/7 with
+  `feed-sessions.png` / `session-window-sources.png` /
+  `session-window-target.png` screenshots (evidence
+  `.omo/evidence/session-window.log`). Full frontend suite 48 files /
+  468 tests green, `tsc -b` clean.
+  (feat/mega-refactor-tramos)
+
+- Entity rename `entities/profile` → `entities/feed-session`
+  (P34-quater, no API break): `FeedSessionView` / `FeedTemplateView` /
+  `feedSessionKeys` / `fetchFeedSessions` + fetchers are the canonical
+  names; every old `Profile*` type, key, fetcher and helper stays as an
+  `@deprecated` alias in place. Hooks still named
+  `useProfiles`/`useProfile*` (hook rename pending). All
+  `@/entities/profile` imports moved to `@/entities/feed-session`.
+  (feat/mega-refactor-tramos)
+
 - Profiles UI on `/profiles` (Tramo 2, todo 16): publishing profiles are
   feed-publisher sessions (one tab = one session, P34) with content
   templates as creation-time starting points. Sticky header

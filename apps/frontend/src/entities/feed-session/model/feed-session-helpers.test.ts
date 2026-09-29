@@ -6,8 +6,9 @@ import {
   isValidProfileName,
   normalizeProfileName,
   paginate,
+  snapshotSessionToTemplate,
   splitKeywordGroups,
-} from './profile-helpers';
+} from './feed-session-helpers';
 
 describe('normalizeProfileName', () => {
   it('lowercases, dashes and trims', () => {
@@ -93,6 +94,62 @@ describe('paginate', () => {
   });
 });
 
+describe('snapshotSessionToTemplate', () => {
+  const session = {
+    id: 'desk-alpha',
+    name: 'Desk Alpha',
+    templateId: 't-breakout',
+    active: true,
+    matchingEnabled: true,
+    publishingEnabled: false,
+    llmEnabled: true,
+    keywordIds: ['k1', 'k2'],
+    sourceToggles: { '-1001': true, '-1002': false },
+    telegramTargets: [{ botId: 'b1', chatId: '-1009' }],
+    threadsTargets: [{ botId: 'b2', chatId: 'handle-x' }],
+    canConsume: true,
+    canPublish: false,
+  };
+
+  it('saves everything except the session name and targets', () => {
+    const snapshot = snapshotSessionToTemplate(session);
+    expect(snapshot.sourceIds).toEqual(['-1001']);
+    expect(snapshot.keywordIds).toEqual(['k1', 'k2']);
+    expect(snapshot.matchingEnabled).toBe(true);
+    expect(snapshot.publishingEnabled).toBe(false);
+    expect(snapshot.llmEnabled).toBe(true);
+    expect(snapshot).not.toHaveProperty('name');
+    expect(snapshot).not.toHaveProperty('telegramTargets');
+    expect(snapshot).not.toHaveProperty('threadsTargets');
+  });
+
+  it('derives publish targets from bound session targets', () => {
+    expect(snapshotSessionToTemplate(session).targets).toEqual([
+      'telegram',
+      'threads',
+    ]);
+    expect(
+      snapshotSessionToTemplate({ ...session, threadsTargets: [] }).targets,
+    ).toEqual(['telegram']);
+    expect(
+      snapshotSessionToTemplate({
+        ...session,
+        telegramTargets: [],
+        threadsTargets: [],
+      }).targets,
+    ).toEqual([]);
+  });
+
+  it('carries bot bindings without the session identity', () => {
+    const snapshot = snapshotSessionToTemplate(session);
+    expect(snapshot.botBindings).toEqual([
+      { botId: 'b1', target: 'telegram', chatId: '-1009' },
+      { botId: 'b2', target: 'threads', chatId: 'handle-x' },
+    ]);
+    expect(snapshot).not.toHaveProperty('id');
+    expect(snapshot).not.toHaveProperty('templateId');
+  });
+});
 describe('splitKeywordGroups', () => {
   it('splits single vs compound AND-groups', () => {
     const rows = [

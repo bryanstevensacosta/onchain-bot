@@ -2,23 +2,19 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchFeedMessages, fetchFeedSources } from '@/entities/feed';
 import type {
   CreateProfileBody,
-  FilterPreviewView,
-  MessageStatusView,
-  ProfileContentFilterView,
+  CreateTemplateBody,
   ProfileLlmConfigView,
   ProfilePipelineFlagsView,
-  ProfileQueueEntryView,
-  ProfileTemplateView,
-  ProfileView,
-  PublisherBlacklistView,
-  PublisherKeywordView,
   UpdateProfileBody,
-} from '../api/profile-queries';
+  UpdateTemplateBody,
+} from '../api/feed-session-queries';
 import {
   activateProfile,
   createProfile,
+  createProfileTemplate,
   deactivateProfile,
   deleteProfile,
+  deleteProfileTemplate,
   fetchChannelFilters,
   fetchMessageStatus,
   fetchProfileLlmConfig,
@@ -33,7 +29,8 @@ import {
   toggleChannelFilter,
   toggleProfileSource,
   updateProfile,
-} from '../api/profile-queries';
+  updateProfileTemplate,
+} from '../api/feed-session-queries';
 
 export function useProfiles() {
   return useQuery({
@@ -48,6 +45,31 @@ export function useProfileTemplates() {
     queryKey: profileKeys.templates(),
     queryFn: fetchProfileTemplates,
     refetchInterval: 30_000,
+  });
+}
+
+export function useCreateProfileTemplate() {
+  const invalidate = useInvalidateProfiles();
+  return useMutation({
+    mutationFn: (body: CreateTemplateBody) => createProfileTemplate(body),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateProfileTemplate() {
+  const invalidate = useInvalidateProfiles();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: UpdateTemplateBody }) =>
+      updateProfileTemplate(id, body),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteProfileTemplate() {
+  const invalidate = useInvalidateProfiles();
+  return useMutation({
+    mutationFn: (id: string) => deleteProfileTemplate(id),
+    onSuccess: invalidate,
   });
 }
 
@@ -221,16 +243,3 @@ export function useProfileLlm() {
     refetchInterval: 30_000,
   });
 }
-
-export type {
-  CreateProfileBody,
-  FilterPreviewView,
-  MessageStatusView,
-  ProfileContentFilterView,
-  ProfileQueueEntryView,
-  ProfileTemplateView,
-  ProfileView,
-  PublisherBlacklistView,
-  PublisherKeywordView,
-  UpdateProfileBody,
-};

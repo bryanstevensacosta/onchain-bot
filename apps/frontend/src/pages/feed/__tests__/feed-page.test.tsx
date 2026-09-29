@@ -34,7 +34,7 @@ vi.mock('@/entities/feed/model/use-feed', () => ({
   })),
 }));
 
-vi.mock('@/entities/profile', () => {
+vi.mock('@/entities/feed-session', () => {
   const mutStub = { mutate: vi.fn(), isPending: false };
   return {
     useProfiles: vi.fn(() => ({ data: [], isLoading: false, error: null })),
@@ -48,6 +48,10 @@ vi.mock('@/entities/profile', () => {
       error: null,
       reset: vi.fn(),
     })),
+    useCreateProfileTemplate: vi.fn(() => ({ ...mutStub })),
+    useUpdateProfileTemplate: vi.fn(() => ({ ...mutStub })),
+    useDeleteProfileTemplate: vi.fn(() => ({ ...mutStub })),
+    snapshotSessionToTemplate: vi.fn(() => ({})),
     useUpdateProfile: vi.fn(() => ({ ...mutStub })),
     useToggleProfileSource: vi.fn(() => ({ ...mutStub })),
     useActivateProfile: vi.fn(() => ({ ...mutStub })),
@@ -1299,12 +1303,12 @@ describe('FeedPage — sessions section (merged /profiles)', () => {
   });
 
   it('renders the session header with picker, template name and tabs', async () => {
-    const profile = await import('@/entities/profile');
+    const profile = await import('@/entities/feed-session');
     vi.mocked(profile.useProfiles).mockReturnValue({
       data: [
         {
           id: 'desk-alpha',
-          name: 'Desk Alpha',
+          name: 'desk-alpha',
           templateId: null,
           active: true,
           matchingEnabled: true,
@@ -1324,8 +1328,9 @@ describe('FeedPage — sessions section (merged /profiles)', () => {
 
     renderWithClient(<FeedPage />);
 
-    expect(screen.getByTestId('sessions-header')).toHaveTextContent(
-      '[Session: Desk Alpha]',
+    expect(screen.getByTestId('sessions-header')).toHaveTextContent('Session');
+    expect(screen.getByTestId('session-picker')).toHaveTextContent(
+      'desk-alpha',
     );
     expect(screen.getByTestId('session-template-name')).toHaveTextContent(
       'template: Ad-hoc',
@@ -1333,9 +1338,9 @@ describe('FeedPage — sessions section (merged /profiles)', () => {
     expect(screen.getByTestId('session-picker')).toBeInTheDocument();
     expect(screen.getByTestId('manage-session-button')).toBeInTheDocument();
     for (const tab of [
+      'overview',
       'sources',
       'keywords',
-      'queue',
       'target',
       'filters',
       'llm',
@@ -1345,7 +1350,7 @@ describe('FeedPage — sessions section (merged /profiles)', () => {
   });
 
   it('renders the sessions empty state when no sessions exist', async () => {
-    const profile = await import('@/entities/profile');
+    const profile = await import('@/entities/feed-session');
     vi.mocked(profile.useProfiles).mockReturnValue({
       data: [],
       isLoading: false,
