@@ -117,6 +117,7 @@ import type {
 } from '@/features/feed-publisher/api/llm-config-api';
 import { LlmConfigForm } from '@/features/feed-publisher/ui/llm-config';
 import { PromptTemplates } from '@/features/feed-publisher/ui/prompt-templates';
+import { KeywordsSection } from '@/features/feed-publisher/ui/keywords-section';
 
 const mockedUseMessages = vi.mocked(useFeedMessages);
 const mockedUseSources = vi.mocked(useFeedSources);
@@ -702,7 +703,7 @@ describe('FeedPage — LLM section integration', () => {
       },
     ];
     mockedUseKeywords.mockReturnValue(makeKeywordsQuery(keywords));
-    renderWithClient(<FeedPage />);
+    renderWithClient(<KeywordsSection />);
 
     // First row uses default, second uses the clickbait template
     // resolved by id.
@@ -712,7 +713,7 @@ describe('FeedPage — LLM section integration', () => {
   });
 
   it('keyword create form includes a Template dropdown', async () => {
-    renderWithClient(<FeedPage />);
+    renderWithClient(<KeywordsSection />);
     // Open the add-keyword modal via the unified Add Phrase dropdown
     fireEvent.click(
       screen.getAllByRole('button', { name: /\+ Add Phrase/i })[0],
@@ -747,7 +748,7 @@ describe('FeedPage — LLM section integration', () => {
       variables: undefined,
     } as unknown as ReturnType<typeof useCreateKeyword>);
 
-    renderWithClient(<FeedPage />);
+    renderWithClient(<KeywordsSection />);
 
     // Open the add-keyword modal via the unified Add Phrase dropdown
     fireEvent.click(

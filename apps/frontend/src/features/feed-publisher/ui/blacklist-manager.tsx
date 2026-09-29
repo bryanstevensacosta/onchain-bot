@@ -256,7 +256,15 @@ function BlacklistModal({
   );
 }
 
-export function BlacklistManager(): React.ReactElement {
+export interface BlacklistManagerProps {
+  readonly filterSourceIds?: ReadonlyArray<string>;
+  readonly sessionName?: string;
+}
+
+export function BlacklistManager(
+  props: BlacklistManagerProps = {},
+): React.ReactElement {
+  const { filterSourceIds, sessionName } = props;
   const { data, isLoading, error } = useBlacklist();
   const createMut = useCreateBlacklist();
   const updateMut = useUpdateBlacklist();
@@ -296,12 +304,23 @@ export function BlacklistManager(): React.ReactElement {
     };
   }, []);
 
-  const blacklist = (data ?? [])
+  const allPhrases = (data ?? [])
     .slice()
     .sort(
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
+  const scoped = filterSourceIds !== undefined;
+  const scopeIds =
+    filterSourceIds !== undefined ? new Set(filterSourceIds) : null;
+  const blacklist =
+    scopeIds !== null
+      ? allPhrases.filter(
+          (item) =>
+            item.sourceChannelIds.length === 0 ||
+            item.sourceChannelIds.some((id) => scopeIds.has(id)),
+        )
+      : allPhrases;
 
   // Group items: simple (andGroupId=null) vs compound (same andGroupId)
   const simpleItems = blacklist.filter((item) => item.andGroupId === null);
@@ -469,6 +488,15 @@ export function BlacklistManager(): React.ReactElement {
 
   return (
     <Card>
+      {scoped ? (
+        <p
+          data-testid="session-blacklist-scope"
+          className="text-xs text-slate-500 mb-2"
+        >
+          Session {sessionName ?? ''} · {blacklist.length} of{' '}
+          {allPhrases.length} in scope
+        </p>
+      ) : null}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-slate-100">
           Blacklist Phrases ({filteredItems.length}/{combinedItems.length})

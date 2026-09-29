@@ -98,8 +98,7 @@ test.describe('feed sessions (P34-ter window, on /feed)', () => {
       return json(SOURCES);
     });
 
-    await page.route('**/feed-api/**', (route: Route) => {
-      const url = new URL(route.request().url());
+    await page.route('**/feed-api/**', (route: Route) => {      const url = new URL(route.request().url());
       const path = url.pathname.replace(/^\/feed-api/, '');
       const method = route.request().method();
       const json = (body: unknown, status = 200) =>
@@ -221,6 +220,53 @@ test.describe('feed sessions (P34-ter window, on /feed)', () => {
       }
       return json({ error: `unmocked ${method} ${path}` }, 404);
     });
+
+    await page.route(
+      (url) =>
+        url.pathname.startsWith('/feed-publisher/') ||
+        url.pathname.startsWith('/api/feed-publisher/'),
+      (route: Route) => {
+        const url = new URL(route.request().url());
+        const json = (body: unknown, status = 200) =>
+          route.fulfill({
+            status,
+            contentType: 'application/json',
+            body: JSON.stringify(body),
+          });
+        if (url.pathname === '/feed-publisher/keywords') {
+          return json([
+            {
+              id: 'k1',
+              phrase: 'etf',
+              caseSensitive: false,
+              sourceChannelIds: [],
+              enabled: true,
+              andGroupId: null,
+              requireMedia: false,
+              templateId: null,
+              matchMode: 'substring',
+              createdAt: '2026-09-01T00:00:00.000Z',
+            },
+          ]);
+        }
+        if (url.pathname === '/feed-publisher/blacklist') {
+          return json([
+            {
+              id: 'b1',
+              phrase: 'scam',
+              caseSensitive: false,
+              matchMode: 'substring',
+              sourceChannelIds: [],
+              enabled: true,
+              andGroupId: null,
+              requireMedia: false,
+              createdAt: '2026-09-01T00:00:00.000Z',
+            },
+          ]);
+        }
+        return json([]);
+      },
+    );
   }
 
   test('legacy /profiles redirects to /feed', async ({ page }) => {
@@ -308,13 +354,19 @@ test.describe('feed sessions (P34-ter window, on /feed)', () => {
     await mockSessions(page);
     await page.goto('/feed');
 
-    await page.getByTestId('session-tab-keywords').click();
+    await expect(page.getByTestId('keywords-moved-notice')).toBeVisible();
+    await page.getByTestId('keywords-open-session').click();
+    await expect(page.getByTestId('keywords-tab')).toBeVisible();
     await expect(page.getByTestId('keywords-allowed-table')).toContainText(
       'etf',
     );
     await expect(page.getByTestId('keywords-blocked-table')).toContainText(
       'scam',
     );
+    await expect(page.getByTestId('session-keywords-scope')).toContainText(
+      'desk-alpha',
+    );
+    await expect(page.getByTestId('session-blacklist-scope')).toBeVisible();
 
     await page.getByTestId('session-tab-overview').click();
     await page.getByTestId('overview-target-telegram--1009').click();

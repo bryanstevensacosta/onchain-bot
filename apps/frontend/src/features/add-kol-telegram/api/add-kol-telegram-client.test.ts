@@ -19,9 +19,9 @@ vi.mock('@/shared/api/endpoints', () => ({
 }));
 
 import { httpPost } from '@/shared/api';
-import { addKol } from './add-kol-client';
+import { addKolTelegram } from './add-kol-telegram-client';
 
-describe('addKol', () => {
+describe('addKolTelegram', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -35,7 +35,7 @@ describe('addKol', () => {
       isActive: false,
       lifecycleStatus: 'ACTIVE',
     });
-    await addKol('-100123');
+    await addKolTelegram('-100123');
     expect(httpPost).toHaveBeenCalledWith('/ingestion-api/feed/sources', {
       channelId: '-100123',
       type: 'kol',
@@ -51,7 +51,7 @@ describe('addKol', () => {
       isActive: false,
       lifecycleStatus: 'ACTIVE',
     });
-    const result = await addKol('-100123');
+    const result = await addKolTelegram('-100123');
     expect(result).toEqual({
       id: '-100123',
       handle: 'spydefi',
@@ -71,7 +71,7 @@ describe('addKol', () => {
       isActive: false,
       lifecycleStatus: 'INACTIVE',
     });
-    const result = await addKol('-100123');
+    const result = await addKolTelegram('-100123');
     expect(result.lifecycleStatus).toBe('DORMANT');
   });
 
@@ -79,6 +79,6 @@ describe('addKol', () => {
     (httpPost as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error('CONFLICT'),
     );
-    await expect(addKol('-100123')).rejects.toThrow('CONFLICT');
+    await expect(addKolTelegram('-100123')).rejects.toThrow('CONFLICT');
   });
 });

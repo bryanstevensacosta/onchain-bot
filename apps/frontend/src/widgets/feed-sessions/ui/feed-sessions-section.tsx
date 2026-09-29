@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useProfiles, useProfileTemplates } from '@/entities/feed-session';
 import { ManageSessionModal } from './manage-session-modal';
 import { SESSION_TABS, type SessionTab } from './session-tabs';
@@ -41,6 +41,20 @@ export function FeedSessionsSection(): React.ReactElement {
     dirtyRef.current = dirty;
   }, []);
 
+  useEffect(() => {
+    function openKeywords() {
+      setTab('keywords');
+      const el = document.getElementById('publishing-sessions');
+      if (el !== null && typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+    window.addEventListener('open-session-keywords', openKeywords);
+    return () => {
+      window.removeEventListener('open-session-keywords', openKeywords);
+    };
+  }, []);
+
   function confirmDiscard(): boolean {
     if (!dirtyRef.current) return true;
     return window.confirm(
@@ -67,7 +81,11 @@ export function FeedSessionsSection(): React.ReactElement {
   }
 
   return (
-    <section aria-label="Publishing sessions" className="space-y-0">
+    <section
+      id="publishing-sessions"
+      aria-label="Publishing sessions"
+      className="space-y-0"
+    >
       <header
         data-testid="sessions-header"
         className="sticky top-0 z-20 bg-slate-950/95 backdrop-blur border-b border-slate-800 py-3 flex items-center gap-4"

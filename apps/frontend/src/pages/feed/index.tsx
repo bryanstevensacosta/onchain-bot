@@ -15,7 +15,6 @@ import {
   BlockedPostsList,
   FeedQueueStatsStrip,
   FeedThreadsStubSection,
-  KeywordsManager,
   LlmConfigForm,
   MatchingToggleButton,
   PromptTemplates,
@@ -493,8 +492,27 @@ export function FeedPage() {
             <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-200 select-none">
               Keywords
             </summary>
-            <div className="pt-2">
-              <KeywordsManager />
+            <div data-testid="keywords-moved-notice" className="pt-2 space-y-2">
+              <p className="text-sm text-slate-400">
+                Keywords now live in the Session window (scoped per session) —
+                allowed, blocked and compound lists with full CRUD.
+              </p>
+              <Button
+                variant="primary"
+                size="sm"
+                data-testid="keywords-open-session"
+                onClick={() => {
+                  window.dispatchEvent(
+                    new CustomEvent('open-session-keywords'),
+                  );
+                  const el = document.getElementById('publishing-sessions');
+                  if (el !== null && typeof el.scrollIntoView === 'function') {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }}
+              >
+                Open Session → Keywords
+              </Button>
             </div>
           </details>
 

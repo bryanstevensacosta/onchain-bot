@@ -7,6 +7,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 
 import * as profile from '@/entities/feed-session';
+import * as feedKeywords from '@/features/feed-publisher/model/use-keywords';
+import * as feedBlacklist from '@/features/feed-publisher/model/use-blacklist';
 import { FeedSessionsSection } from '../ui/feed-sessions-section';
 
 const PROFILE = {
@@ -116,6 +118,40 @@ function mockMutation() {
 }
 
 function mockAll() {
+  vi.spyOn(feedKeywords, 'useKeywords').mockReturnValue({
+    data: KEYWORDS,
+    isLoading: false,
+    error: null,
+  } as unknown as ReturnType<typeof feedKeywords.useKeywords>);
+  for (const hook of [
+    'useCreateKeyword',
+    'useCreateKeywordBatch',
+    'useUpdateKeyword',
+    'useDeleteKeyword',
+  ] as const) {
+    vi.spyOn(feedKeywords, hook).mockReturnValue(
+      mockMutation() as unknown as ReturnType<
+        (typeof feedKeywords)[typeof hook]
+      >,
+    );
+  }
+  vi.spyOn(feedBlacklist, 'useBlacklist').mockReturnValue({
+    data: BLACKLIST,
+    isLoading: false,
+    error: null,
+  } as unknown as ReturnType<typeof feedBlacklist.useBlacklist>);
+  for (const hook of [
+    'useCreateBlacklist',
+    'useCreateBlacklistBatch',
+    'useUpdateBlacklist',
+    'useDeleteBlacklist',
+  ] as const) {
+    vi.spyOn(feedBlacklist, hook).mockReturnValue(
+      mockMutation() as unknown as ReturnType<
+        (typeof feedBlacklist)[typeof hook]
+      >,
+    );
+  }
   vi.spyOn(profile, 'useProfiles').mockReturnValue({
     data: [PROFILE],
   } as unknown as ReturnType<typeof profile.useProfiles>);
@@ -534,16 +570,48 @@ describe('FeedSessionsSection (/feed sessions, ex-/profiles)', () => {
     );
   });
 
-  it('renders paginated keyword preview tables (allowed/block/compound)', () => {
+  it('renders session-scoped keywords CRUD inside the Keywords tab', () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId('session-tab-keywords'));
+    expect(screen.getByTestId('session-keywords-scope')).toHaveTextContent(
+      'desk-alpha',
+    );
+    expect(screen.getByTestId('session-keywords-scope')).toHaveTextContent(
+      '1 bound',
+    );
+    expect(screen.getByTestId('session-blacklist-scope')).toBeInTheDocument();
+    expect(
+      screen.getAllByRole('button', { name: /\+ Add Phrase/i }).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it('scopes the Keywords tab preview to the session keywordIds', () => {
     renderPage();
     fireEvent.click(screen.getByTestId('session-tab-keywords'));
     expect(screen.getByTestId('keywords-allowed-table')).toHaveTextContent(
       'etf',
     );
-    expect(screen.getByTestId('keywords-blocked-table')).toHaveTextContent(
-      'scam',
+  });
+
+  it('shows a session empty state when no keywords are bound', () => {
+    mockAll();
+    vi.spyOn(feedKeywords, 'useKeywords').mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as unknown as ReturnType<typeof feedKeywords.useKeywords>);
+    vi.spyOn(profile, 'useProfiles').mockReturnValue({
+      data: [{ ...PROFILE, keywordIds: [] }],
+    } as unknown as ReturnType<typeof profile.useProfiles>);
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
     );
-    expect(screen.getByTestId('keywords-allowed-page')).toBeInTheDocument();
+    render(<FeedSessionsSection />, { wrapper });
+    fireEvent.click(screen.getByTestId('session-tab-keywords'));
+    expect(screen.getByTestId('session-keywords-empty')).toBeInTheDocument();
   });
 
   it('renders the llm config section', () => {

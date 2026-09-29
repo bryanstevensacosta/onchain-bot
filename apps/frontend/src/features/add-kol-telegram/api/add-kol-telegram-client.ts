@@ -7,10 +7,10 @@ import { mapFeedKolToView } from '@/entities/kol/api/kol-queries';
 /**
  * Register a KOL channel in the feed catalog (ingestion-telegram
  * `POST /api/feed/sources` with `type: 'kol'`). Title/handle auto-resolve
- * server-side from Telegram when omitted — same UX as the old AddKolModal.
+ * server-side from Telegram when omitted — same UX as the old AddKolTelegramModal.
  * Duplicate channelId → 409, surfaced inline by the modal.
  */
-export async function addKol(kolId: string): Promise<KolView> {
+export async function addKolTelegram(kolId: string): Promise<KolView> {
   const created = await httpPost<
     { channelId: string; type: 'kol' },
     FeedKolSource

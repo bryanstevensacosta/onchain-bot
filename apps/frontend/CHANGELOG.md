@@ -6,6 +6,46 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Changed
 
+- Keywords panel moved into the Session window (breaking UI change):
+  `/feed` no longer renders the standalone keywords/blacklist CRUD
+  (`KeywordsManager` barrel export kept as `@deprecated`, no page
+  renders it). The sidebar Keywords section is a moved-notice
+  (`keywords-moved-notice`) with an `Open Session → Keywords` button
+  (`keywords-open-session`) that dispatches `open-session-keywords` —
+  `FeedSessionsSection` (`id="publishing-sessions"`) listens and jumps
+  to the Keywords tab. The tab now hosts the full UI scoped per
+  session: preview tables (allowed filtered by session `keywordIds`,
+  blocked by session sources, compound AND-groups) + full CRUD
+  (`KeywordsSection` gains optional `filterIds`/`sessionName` with
+  `session-keywords-scope`/`session-keywords-empty`;
+  `BlacklistManager` gains optional `filterSourceIds`/`sessionName`
+  with `session-blacklist-scope`, global + in-scope sources shown).
+  Entity hooks and API contract untouched (CRUD still uses the
+  `features/feed-publisher` hooks, preview the `entities/feed-session`
+  hooks). Tests: `feed-page.test.tsx` moved-notice trio (no standalone
+  CRUD, notice renders, event dispatched) + `llm-config.test.tsx`
+  keyword-template binding now renders the moved `KeywordsSection`
+  directly + `feed-sessions.test.tsx` 24/24 (scoped CRUD, scoped
+  preview, session empty state) + Playwright `e2e/feed-sessions.spec.ts`
+  7/7 (legacy `/feed-publisher/**` mocks added, moved-notice →
+  keywords tab flow pinned). Full suite 48 files / 471 tests green,
+  `tsc -b` clean (evidence `.omo/evidence/keywords-move.log`).
+  (feat/mega-refactor-tramos)
+
+### Changed
+
+- KOL-add feature slice renamed to `add-kol-telegram` (name only, no
+  behaviour change): moved via `git mv` to
+  `src/features/add-kol-telegram/`; inside, client/hook/modal/barrel
+  symbols gained the `Telegram` infix (`addKolTelegram`,
+  `useAddKolTelegram`, `AddKolTelegramModal`, DOM ids
+  `add-kol-telegram-kolId`). Sole caller `pages/kols/index.tsx`
+  re-imported from `@/features/add-kol-telegram`. No i18n keys existed
+  for this feature. Tests renamed alongside
+  (`add-kol-telegram-client.test.ts`,
+  `__tests__/add-kol-telegram-modal.test.tsx`).
+  (feat/mega-refactor-tramos)
+
 - Type rename `FeedMessageType` → `TelegramFeedMessageType` (type name only):
   literals `'kol' | 'crypto-news'` stay — backend/ingestion still emit
   them until the feed-tables migration

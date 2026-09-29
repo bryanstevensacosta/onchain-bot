@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Badge } from '@/shared/ui/badge';
 import { FeedQueueStatsStrip } from '@/features/feed-publisher/ui/feed-queue-stats-strip';
+import { KeywordsSection } from '@/features/feed-publisher/ui/keywords-section';
+import { BlacklistManager } from '@/features/feed-publisher/ui/blacklist-manager';
 import { ManageFeedSourcesModal } from '@/features/manage-feed-sources';
 import {
   paginate,
@@ -236,26 +238,52 @@ function PaginatedTable({
 }
 
 function KeywordsTab({
+  profile,
   draft,
   onFlip,
 }: {
+  profile: ProfileView;
   draft: SessionDraft;
   onFlip: (key: SessionFlagKey) => void;
 }): React.ReactElement {
   const keywords = usePublisherKeywords();
   const blacklist = usePublisherBlacklist();
 
+  const boundIds = useMemo(() => new Set(profile.keywordIds), [profile]);
+  const enabledSourceIds = useMemo(
+    () =>
+      Object.entries(draft.sourceToggles)
+        .filter(([, on]) => on)
+        .map(([channelId]) => channelId),
+    [draft],
+  );
+  const enabledSources = useMemo(
+    () => new Set(enabledSourceIds),
+    [enabledSourceIds],
+  );
+
   const allowed: ReadonlyArray<PublisherKeywordView> = useMemo(
-    () => (keywords.data ?? []).filter((k) => k.andGroupId === null),
-    [keywords.data],
+    () =>
+      (keywords.data ?? []).filter(
+        (k) => k.andGroupId === null && boundIds.has(k.id),
+      ),
+    [keywords.data, boundIds],
   );
   const blocked: ReadonlyArray<PublisherBlacklistView> = useMemo(
-    () => blacklist.data ?? [],
-    [blacklist.data],
+    () =>
+      (blacklist.data ?? []).filter(
+        (b) =>
+          b.sourceChannelIds.length === 0 ||
+          b.sourceChannelIds.some((id) => enabledSources.has(id)),
+      ),
+    [blacklist.data, enabledSources],
   );
   const compound = useMemo(
-    () => splitKeywordGroups(keywords.data ?? []),
-    [keywords.data],
+    () =>
+      splitKeywordGroups(
+        (keywords.data ?? []).filter((k) => boundIds.has(k.id)),
+      ),
+    [keywords.data, boundIds],
   );
 
   if (keywords.isLoading || blacklist.isLoading) {
@@ -312,6 +340,21 @@ function KeywordsTab({
               </div>
             ))
           )}
+        </div>
+      </section>
+      <section>
+        <h3 className="text-sm font-semibold text-slate-300 mb-1.5">
+          Manage keywords
+        </h3>
+        <div className="space-y-4">
+          <KeywordsSection
+            filterIds={[...profile.keywordIds]}
+            sessionName={profile.name}
+          />
+          <BlacklistManager
+            filterSourceIds={enabledSourceIds}
+            sessionName={profile.name}
+          />
         </div>
       </section>
     </div>
@@ -709,7 +752,7 @@ export function SessionTabPanels({
         />
       );
     case 'keywords':
-      return <KeywordsTab draft={draft} onFlip={onFlip} />;
+      return <KeywordsTab profile={profile} draft={draft} onFlip={onFlip} />;
     case 'filters':
       return <FiltersTab draft={draft} onFlip={onFlip} profile={profile} />;
     case 'llm':

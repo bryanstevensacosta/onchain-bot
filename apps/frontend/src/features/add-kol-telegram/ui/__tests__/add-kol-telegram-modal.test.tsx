@@ -11,12 +11,12 @@ import {
 } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-vi.mock('../../api/add-kol-client', () => ({
-  addKol: vi.fn(),
+vi.mock('../../api/add-kol-telegram-client', () => ({
+  addKolTelegram: vi.fn(),
 }));
 
-import { addKol } from '../../api/add-kol-client';
-import { AddKolModal } from '../add-kol-modal';
+import { addKolTelegram } from '../../api/add-kol-telegram-client';
+import { AddKolTelegramModal } from '../add-kol-telegram-modal';
 
 function renderWithClient(ui: React.ReactNode) {
   const qc = new QueryClient({
@@ -27,18 +27,18 @@ function renderWithClient(ui: React.ReactNode) {
 
 afterEach(cleanup);
 
-describe('AddKolModal', () => {
+describe('AddKolTelegramModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('renders nothing when isOpen=false', () => {
-    renderWithClient(<AddKolModal isOpen={false} onClose={() => {}} />);
+    renderWithClient(<AddKolTelegramModal isOpen={false} onClose={() => {}} />);
     expect(screen.queryByText('Add KOL')).not.toBeInTheDocument();
   });
 
   it('renders the form when isOpen=true', () => {
-    renderWithClient(<AddKolModal isOpen={true} onClose={() => {}} />);
+    renderWithClient(<AddKolTelegramModal isOpen={true} onClose={() => {}} />);
     expect(
       screen.getByRole('heading', { name: 'Add KOL' }),
     ).toBeInTheDocument();
@@ -46,13 +46,13 @@ describe('AddKolModal', () => {
   });
 
   it('disables submit when kolId is empty', () => {
-    renderWithClient(<AddKolModal isOpen={true} onClose={() => {}} />);
+    renderWithClient(<AddKolTelegramModal isOpen={true} onClose={() => {}} />);
     const submit = screen.getByRole('button', { name: /add kol/i });
     expect(submit).toBeDisabled();
   });
 
   it('disables submit when kolId is only whitespace', () => {
-    renderWithClient(<AddKolModal isOpen={true} onClose={() => {}} />);
+    renderWithClient(<AddKolTelegramModal isOpen={true} onClose={() => {}} />);
     fireEvent.change(screen.getByLabelText('Telegram ID'), {
       target: { value: '   ' },
     });
@@ -61,7 +61,7 @@ describe('AddKolModal', () => {
   });
 
   it('enables submit when kolId has text', () => {
-    renderWithClient(<AddKolModal isOpen={true} onClose={() => {}} />);
+    renderWithClient(<AddKolTelegramModal isOpen={true} onClose={() => {}} />);
     fireEvent.change(screen.getByLabelText('Telegram ID'), {
       target: { value: '123456' },
     });
@@ -69,8 +69,8 @@ describe('AddKolModal', () => {
     expect(submit).not.toBeDisabled();
   });
 
-  it('calls addKol with the kolId on submit', async () => {
-    (addKol as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+  it('calls addKolTelegram with the kolId on submit', async () => {
+    (addKolTelegram as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: '123456',
       handle: null,
       title: '123456',
@@ -79,25 +79,25 @@ describe('AddKolModal', () => {
       lastIngestedAt: null,
     });
     const onClose = vi.fn();
-    renderWithClient(<AddKolModal isOpen={true} onClose={onClose} />);
+    renderWithClient(<AddKolTelegramModal isOpen={true} onClose={onClose} />);
     fireEvent.change(screen.getByLabelText('Telegram ID'), {
       target: { value: '  123456  ' },
     });
     fireEvent.click(screen.getByRole('button', { name: /add kol/i }));
     await waitFor(() => {
-      expect(addKol).toHaveBeenCalledWith('123456');
+      expect(addKolTelegram).toHaveBeenCalledWith('123456');
     });
     await waitFor(() => {
       expect(onClose).toHaveBeenCalled();
     });
   });
 
-  it('shows an error message when addKol fails', async () => {
-    (addKol as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
+  it('shows an error message when addKolTelegram fails', async () => {
+    (addKolTelegram as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error('Kol already registered'),
     );
     const onClose = vi.fn();
-    renderWithClient(<AddKolModal isOpen={true} onClose={onClose} />);
+    renderWithClient(<AddKolTelegramModal isOpen={true} onClose={onClose} />);
     fireEvent.change(screen.getByLabelText('Telegram ID'), {
       target: { value: 'dup' },
     });
@@ -109,7 +109,7 @@ describe('AddKolModal', () => {
   });
 
   it('clears the input after a successful submit', async () => {
-    (addKol as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (addKolTelegram as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: '999',
       handle: null,
       title: '999',
@@ -117,12 +117,12 @@ describe('AddKolModal', () => {
       lifecycleStatus: 'ACTIVE',
       lastIngestedAt: null,
     });
-    renderWithClient(<AddKolModal isOpen={true} onClose={() => {}} />);
+    renderWithClient(<AddKolTelegramModal isOpen={true} onClose={() => {}} />);
     const input = screen.getByLabelText('Telegram ID') as HTMLInputElement;
     fireEvent.change(input, { target: { value: '999' } });
     fireEvent.click(screen.getByRole('button', { name: /add kol/i }));
     await waitFor(() => {
-      expect(addKol).toHaveBeenCalled();
+      expect(addKolTelegram).toHaveBeenCalled();
     });
     await waitFor(() => {
       expect(input.value).toBe('');

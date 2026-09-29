@@ -661,7 +661,7 @@ describe('FeedPage — formatting entities rendering', () => {
   });
 });
 
-describe('FeedPage — publisher (keywords + queue)', () => {
+describe('FeedPage — publisher (keywords moved to Session + queue)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedUseSources.mockReturnValue(makeSourcesQuery([baseSource]));
@@ -677,47 +677,47 @@ describe('FeedPage — publisher (keywords + queue)', () => {
     );
   });
 
-  it('renders keyword rows with phrase, case-sensitive flag, and enabled toggle', () => {
-    const keywords: ReadonlyArray<KeywordView> = [
-      {
-        id: 'kw-1',
-        phrase: 'SEC',
-        caseSensitive: true,
-        enabled: true,
-        sourceChannelIds: [],
-        andGroupId: null,
-        requireMedia: false,
-        templateId: null,
-        matchMode: 'exact',
-        createdAt: '2025-01-01T00:00:00.000Z',
-      },
-      {
-        id: 'kw-2',
-        phrase: 'halving',
-        caseSensitive: false,
-        enabled: false,
-        sourceChannelIds: [],
-        andGroupId: null,
-        requireMedia: false,
-        templateId: 'tpl-clickbait',
-        matchMode: 'exact',
-        createdAt: '2025-01-02T03:04:06.000Z',
-      },
-    ];
-    mockedUseKeywords.mockReturnValue(makeKeywordsQuery(keywords));
+  it('does NOT render standalone keywords CRUD (relocated to Session window)', () => {
+    mockedUseKeywords.mockReturnValue(
+      makeKeywordsQuery([
+        {
+          id: 'kw-1',
+          phrase: 'SEC',
+          caseSensitive: true,
+          enabled: true,
+          sourceChannelIds: [],
+          andGroupId: null,
+          requireMedia: false,
+          templateId: null,
+          matchMode: 'exact',
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]),
+    );
 
     renderWithClient(<FeedPage />);
 
-    expect(screen.getByText('SEC')).toBeInTheDocument();
-    expect(screen.getByText('halving')).toBeInTheDocument();
-    expect(screen.getByText('Keywords (2)')).toBeInTheDocument();
+    expect(screen.queryByText('Keywords (1)')).toBeNull();
+    expect(screen.queryByLabelText('Toggle SEC')).toBeNull();
+  });
 
-    const secToggle = screen.getByLabelText('Toggle SEC') as HTMLInputElement;
-    expect(secToggle.checked).toBe(true);
-    const halvingToggle = screen.getByLabelText(
-      'Toggle halving',
-    ) as HTMLInputElement;
-    expect(halvingToggle.checked).toBe(false);
+  it('renders the keywords-moved notice with a link into the Session window', () => {
+    mockedUseKeywords.mockReturnValue(makeEmptyKeywordsQuery());
+    renderWithClient(<FeedPage />);
+
+    expect(screen.getByTestId('keywords-moved-notice')).toBeInTheDocument();
+    expect(screen.getByTestId('keywords-open-session')).toBeInTheDocument();
+  });
+
+  it('dispatches open-session-keywords when the notice link is clicked', () => {
+    mockedUseKeywords.mockReturnValue(makeEmptyKeywordsQuery());
+    const dispatch = vi.spyOn(window, 'dispatchEvent');
+    renderWithClient(<FeedPage />);
+
+    fireEvent.click(screen.getByTestId('keywords-open-session'));
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'open-session-keywords' }),
+    );
   });
 
   it('renders queue counters and queue rows with status badge', () => {
@@ -852,94 +852,10 @@ describe('FeedPage — publisher (keywords + queue)', () => {
     expect(queueImgs).toHaveLength(0);
   });
 
-  it('submits the add-keyword form via the create mutation', async () => {
-    const mutateSpy = vi.fn();
-    mockedUseCreateKeyword.mockReturnValue({
-      mutate: mutateSpy,
-      mutateAsync: vi.fn(),
-      isPending: false,
-      isError: false,
-      isSuccess: false,
-      error: null,
-      reset: vi.fn(),
-      data: undefined,
-    } as unknown as ReturnType<typeof useCreateKeyword>);
-
-    mockedUseKeywords.mockReturnValue(makeEmptyKeywordsQuery());
-    mockedUseQueue.mockReturnValue(makeEmptyQueueQuery());
-    mockedUseQueueCounts.mockReturnValue(makeZeroCountsQuery());
-
-    renderWithClient(<FeedPage />);
-
-    // Open the add-keyword modal via the unified Add Phrase dropdown
-    fireEvent.click(
-      screen.getAllByRole('button', { name: /\+ Add Phrase/i })[0],
-    );
-    fireEvent.click(
-      screen.getByRole('button', { name: /Keyword \(simple\)/i }),
-    );
-
-    // Find the modal form via the Phrase input, then click its Save button
-    const phraseInput = (await screen.findByPlaceholderText(
-      /e\.g\./,
-    )) as HTMLInputElement;
-    fireEvent.change(phraseInput, { target: { value: 'FOMC' } });
-    const modalForm = phraseInput.closest('form')!;
-    const submit = modalForm.querySelector<HTMLButtonElement>(
-      'button[type="submit"]',
-    )!;
-    fireEvent.click(submit);
-
-    expect(mutateSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        phrase: 'FOMC',
-        caseSensitive: false,
-      }),
-      expect.objectContaining({ onSuccess: expect.any(Function) }),
-    );
-  });
-
-  it('pre-fills the edit modal with the keyword values instead of stale defaults', () => {
-    const keywords: ReadonlyArray<KeywordView> = [
-      {
-        id: 'kw-1',
-        phrase: 'telegram',
-        caseSensitive: true,
-        enabled: true,
-        sourceChannelIds: ['WatcherGuru'],
-        andGroupId: null,
-        requireMedia: false,
-        templateId: null,
-        matchMode: 'substring',
-        createdAt: '2025-01-01T00:00:00.000Z',
-      },
-    ];
-    mockedUseKeywords.mockReturnValue(makeKeywordsQuery(keywords));
-
-    renderWithClient(<FeedPage />);
-
-    fireEvent.click(screen.getByRole('button', { name: /^Edit$/ }));
-
-    const heading = screen.getByRole('heading', { name: 'Edit Keyword' });
-    const modal = heading.closest('.fixed') as HTMLElement;
-
-    // Phrase input is pre-filled with the keyword's phrase
-    expect(within(modal).getByDisplayValue('telegram')).toBeInTheDocument();
-
-    // Source selector shows the specific source, not the "All sources" default
-    expect(
-      within(modal).getByRole('button', { name: 'WatcherGuru' }),
-    ).toBeInTheDocument();
-    expect(
-      within(modal).queryByText('All sources (global)'),
-    ).not.toBeInTheDocument();
-
-    // Match mode reflects the keyword value (substring), not the create default
-    const matchSelect = within(modal).getByDisplayValue(
-      'Substring',
-    ) as HTMLSelectElement;
-    expect(matchSelect.value).toBe('substring');
-  });
+  // NOTE (keywords-move): add/edit keyword modals now live in the Session
+  // window Keywords tab (scoped per session) — covered by
+  // widgets/feed-sessions/__tests__/feed-sessions.test.tsx. The standalone
+  // /feed CRUD is gone; see the moved-notice tests above.
 });
 
 describe('FeedPage — search filter (free-text)', () => {

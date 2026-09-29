@@ -368,7 +368,15 @@ function buildCombinedRows(keywords: KeywordView[]): CombinedRow[] {
 /*  Main component                                                    */
 /* ------------------------------------------------------------------ */
 
-export function KeywordsSection(): React.ReactElement {
+export interface KeywordsSectionProps {
+  readonly filterIds?: ReadonlyArray<string>;
+  readonly sessionName?: string;
+}
+
+export function KeywordsSection(
+  props: KeywordsSectionProps = {},
+): React.ReactElement {
+  const { filterIds, sessionName } = props;
   const { data: kwData, isLoading: kwLoading, error: kwError } = useKeywords();
   const createMut = useCreateKeyword();
   const updateMut = useUpdateKeyword();
@@ -388,12 +396,18 @@ export function KeywordsSection(): React.ReactElement {
 
   /* ------------------- data preparation ------------------- */
 
-  const keywords = (kwData ?? [])
+  const allKeywords = (kwData ?? [])
     .slice()
     .sort(
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
+  const scoped = filterIds !== undefined;
+  const boundIds = filterIds !== undefined ? new Set(filterIds) : null;
+  const keywords =
+    boundIds !== null
+      ? allKeywords.filter((kw) => boundIds.has(kw.id))
+      : allKeywords;
 
   const q = searchQuery.toLowerCase().trim();
   const filteredKeywords = q
@@ -548,6 +562,15 @@ export function KeywordsSection(): React.ReactElement {
 
   return (
     <Card>
+      {scoped ? (
+        <p
+          data-testid="session-keywords-scope"
+          className="text-xs text-slate-500 mb-2"
+        >
+          Session {sessionName ?? ''} · {keywords.length} of{' '}
+          {allKeywords.length} bound
+        </p>
+      ) : null}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-slate-100">
           Keywords ({keywords.length})
@@ -687,9 +710,19 @@ export function KeywordsSection(): React.ReactElement {
           Failed to load keywords: {String(kwError)}
         </div>
       ) : keywords.length === 0 ? (
-        <div className="text-sm text-slate-500">
-          No keywords yet. Add one above to start matching feed messages.
-        </div>
+        scoped ? (
+          <div
+            data-testid="session-keywords-empty"
+            className="text-sm text-slate-500"
+          >
+            No keywords bound to this session yet. Add one above or bind
+            existing keywords in Manage Sessions.
+          </div>
+        ) : (
+          <div className="text-sm text-slate-500">
+            No keywords yet. Add one above to start matching feed messages.
+          </div>
+        )
       ) : (
         <>
           {/* ---------- Search ---------- */}

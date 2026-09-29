@@ -1,15 +1,18 @@
 import { useState, type FormEvent } from 'react';
 import { Button, Modal } from '@/shared/ui';
-import { useAddKol } from '../model/use-add-kol';
+import { useAddKolTelegram } from '../model/use-add-kol-telegram';
 
-interface AddKolModalProps {
+interface AddKolTelegramModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-export function AddKolModal({ isOpen, onClose }: AddKolModalProps) {
+export function AddKolTelegramModal({
+  isOpen,
+  onClose,
+}: AddKolTelegramModalProps) {
   const [kolId, setKolId] = useState('');
-  const mutation = useAddKol();
+  const mutation = useAddKolTelegram();
 
   const trimmed = kolId.trim();
   const canSubmit = trimmed.length > 0 && !mutation.isPending;
@@ -38,13 +41,13 @@ export function AddKolModal({ isOpen, onClose }: AddKolModalProps) {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label
-            htmlFor="add-kol-kolId"
+            htmlFor="add-kol-telegram-kolId"
             className="block text-xs uppercase text-slate-400 mb-1"
           >
             Telegram ID
           </label>
           <input
-            id="add-kol-kolId"
+            id="add-kol-telegram-kolId"
             type="text"
             value={kolId}
             onChange={(e) => setKolId(e.target.value)}
