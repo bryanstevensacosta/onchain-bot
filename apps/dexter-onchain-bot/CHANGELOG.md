@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Gateway staging cutover (STAGING ONLY 2026-09-29, no prod touch): `.env.staging.template` fixes `BOTS_GATEWAY_URL` to the staging gateway `:4071` (was `:4070`, unreachable — the gateway staging container listens on `4071`); `DEXTER_SEND_MODE=gateway` already pinned. Plain-text lookups cut over; keyboard sends (`reply_markup`), `editMessageText` and `answerCallbackQuery` have no gateway equivalent and stay direct-only (markup dropped client-side, recorded as skipped). Rollback: `DEXTER_SEND_MODE=dual`.
+
 ### Added
 
 - **Exclusive gateway bot + bind-from-inventory API:** dexter binds its

@@ -220,6 +220,9 @@ gateway-migration.controller.ts` (`POST
 - **Known cutover blockers** (gateway todo 7): local-file media legs,
   video, button ads need gateway upload/`reply_markup` support (or stay
   dual); vault mapping is in-memory (persisted at global cutover).
+- **Staging publishing**: staging publishes via telegram-bots-gateway
+  on `:4071` with `FEED_PUBLISH_MODE=gateway`; the legacy direct
+  adapters stay wired as the dual-send fallback until cutover.
 
 ## AI-ML MIGRATION (ai-ml plan todos 3-4, CUTOVER 2026-09-26)
 

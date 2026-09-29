@@ -222,6 +222,12 @@ authenticated probe lands), `database` (in-memory until the persistence
 todo), `scoring`, `templates`, `approval`, `publishing` (via their P21
 indicators) + `target` (unified delivery surface, threads-publisher
 todo 10). Shape backward compatible (`status: 'ok'`).
+Cutover task-16 (STAGING ONLY, 2026-09-29): `.env.staging.template`
+sets `TEMPLATE_ORCHESTRATOR_ENABLED=true` + `KOL_CALLS_SYNC_ENABLED=true`
+(publisher serves the staging VIP flow); rollback = both to `false`
+(<30 min). Suites 68/247 green; boot smoke on ephemeral ports
+(health composite + mentions/snapshots/rankings/pending shapes verified).
+Evidence `.omo/evidence/task-16-staging.log`.
 
 ## TS/ESLINT CONVENTIONS
 

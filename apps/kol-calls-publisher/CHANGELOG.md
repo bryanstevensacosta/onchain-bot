@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Gateway staging cutover (STAGING ONLY 2026-09-29, no prod touch): `.env.staging.template` sets `KOL_PUBLISH_MODE=gateway` (was `dual`) and fixes `BOTS_GATEWAY_URL` to the staging gateway `:4071` (was `:4070`, unreachable — the gateway staging container listens on `4071`). Old direct adapters stay (`@deprecated`, dual-leg only, removed at the central FINAL REVIEW). Rollback: `KOL_PUBLISH_MODE=dual`.
+- Staging cutover flags task-16 (STAGING ONLY, no prod touch): `.env.staging.template` sets `TEMPLATE_ORCHESTRATOR_ENABLED=true` (publisher serves the VIP flow) and `KOL_CALLS_SYNC_ENABLED=true` (scores upstream mentions). Rollback: flip both to `false` (<30 min, kill-switch rehearsed in task-15). No code deletion; backend legacy stays wired behind `@deprecated` headers until the central FINAL REVIEW.
+
 ### Added
 
 - Unified delivery surface `src/target/` (threads-publisher Fase 2 todo 10, P38-bis per-binding config): `target = bot telegram via gateway OR publisher threads` (per-binding choice). `TargetModule` (@Global) binds `TargetDispatcherPort` → `TargetDispatcherService` (telegram legs via the telegram-bots-gateway with vault-id mapping, threads legs via `ThreadsPublisherHttpClient` POST `/threads-publisher/queue/enqueue` on `THREADS_PUBLISHER_URL`, default `http://localhost:4100`) plus `TargetHealthIndicator` (P21, now a `GET /api/health` component) and a `telegram-ports` barrel (the only sanctioned import path for the legacy ports until removal). Migrated callers: `PublishFromTemplateUseCase` + `ManualPublishUseCase` accept `target` (`telegram` default, unchanged path; `threads` dispatches via the target dispatcher with string-remoteId jobs) and import legacy ports through the barrel; `HealthController` reports `target: up`; `PublishingTemplate.targetBindings()` exposes the delivery surface as links (telegram today, threads when C1 un-stubbes; empty = dashboard-only). `src/telegram/` + threads stub deprecated (`@deprecated` headers, dual-leg only, removed at threads-publisher todo 11 — no deletion here). Caller-migration gate spec-pinned (adversarial broken-caller suite red-before/green-after).

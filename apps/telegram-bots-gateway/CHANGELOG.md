@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Staging cutover (gateway todo 7, STAGING ONLY 2026-09-29, no prod
+  touch):** per-app staging flags point at the staging gateway `:4071`
+  (`kol-calls-publisher`: `KOL_PUBLISH_MODE=gateway`, fixed
+  `BOTS_GATEWAY_URL` `:4070`→`:4071`; `feed-publisher`:
+  `FEED_PUBLISH_MODE=gateway` + `BOTS_GATEWAY_URL=:4071` added, was
+  absent; `dexter-onchain-bot`: `DEXTER_SEND_MODE=gateway`, fixed URL
+  `:4070`→`:4071`; `kol-calls` template already `gateway`). Old
+  adapters STAY (no deletions, `@deprecated` headers intact — removal
+  at the central FINAL REVIEW). Send matrix live-verified on `:4071`
+  (message/photo-URL/media_group-URL → 777, idempotent replay cached;
+  feed local-file/video/buttons + dexter `reply_markup`/edit/callback
+  have no gateway equivalent and stay on direct legs). Rollback per
+  app: flip `*_MODE` back to `dual` (no gateway redeploy). Evidence:
+  `.omo/evidence/task-7-gateway-staging.log`.
+
 ### Added
 
 - **Exclusive bot↔app binding (dexter task):** one bot serves ONE app

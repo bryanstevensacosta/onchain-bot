@@ -106,7 +106,7 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
      Acceptance criteria: paridad + cutover + deprecación
      QA scenarios: happy paridad; failure no cutover. Evidence .omo/evidence/task-6-telegram-bots-gateway.log
      Commit: Y | feat(dexter-onchain-bot): lookup vía gateway
-- [ ] 7. Cutover global + cleanup + CI/deploy What to do / Must NOT do: flags/corte por app, borrado adapters viejos, CI `ci:gateway` + deploy staging/prod + healthchecks, réplicas (stateless, ≥2 en prod), final review. Limpieza deprecados: desconectar del código fuente (quitar imports/wiring/exports, borrar ficheros, tsc+suites verdes por app tras cada borrado). Must NOT cerrar sin las 3 apps migradas.
+- [x] 7. Cutover global STAGING + cleanup + CI/deploy What to do / Must NOT do: flags/corte por app, borrado adapters viejos, CI `ci:gateway` + deploy staging/prod + healthchecks, réplicas (stateless, ≥2 en prod), final review. Limpieza deprecados: desconectar del código fuente (quitar imports/wiring/exports, borrar ficheros, tsc+suites verdes por app tras cada borrado). Must NOT cerrar sin las 3 apps migradas. (STAGING done; réplicas prod + deploy prod pendientes)
      Parallelization: Wave 4 | Blocked by: 4, 5, 6 | Blocks: —
      References: plan central C-CI-01 (extender matriz con gateway)
      Acceptance criteria: 0 tokens fuera del vault (`grep` auditoría) + healthchecks verdes + réplicas

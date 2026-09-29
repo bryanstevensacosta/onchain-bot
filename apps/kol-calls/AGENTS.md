@@ -1065,6 +1065,13 @@ todo) report static `up` with an explicit `detail` string. Deep probes
 (DB/Redis/SSE liveness) land with the persistence todo — the harness
 never claims them. Shape stays backward compatible (`status: 'ok'`
 still matches old specs).
+Cutover task-16 (STAGING ONLY, 2026-09-29): staging precondition green
+(`:3051` healthy + ingesting live KOL frames, twin `:3033` MTProto
+connected/authorized, soak since 2026-09-25); `.env.staging.template`
+annotates `TEMPLATE_ORCHESTRATOR_ENABLED` as DEAD post-P51 (flip lives in
+the publisher template). Backend legacy KOL carries per-concept
+`@deprecated` headers (deprecate-only, zero deletions). Suites 40/166
+green; evidence `.omo/evidence/task-16-staging.log`.
 Per P21 each move-todo registers its indicator here (`ingestion.sse`,
 `database`, `redis`, +1 per module:
 extraction/parsing/normalization/enrichment/scoring/templates/approval/publishing/tracking).

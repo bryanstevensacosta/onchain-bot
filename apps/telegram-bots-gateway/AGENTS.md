@@ -279,6 +279,27 @@ third app migrated onto this gateway; all migration code lives THERE
   dual `/start` (direct 401 vs gateway 777, environmental), keyboard
   `/tb` skip, gateway-mode `/help` 777 with the token never resolved.
 
+## STAGING CUTOVER (gateway todo 7, staging-only 2026-09-29 — prod untouched)
+
+Per-app staging flags point at the staging gateway `:4071`
+(`kol-calls-publisher` `KOL_PUBLISH_MODE=gateway`, `feed-publisher`
+`FEED_PUBLISH_MODE=gateway`, `dexter-onchain-bot`
+`DEXTER_SEND_MODE=gateway`; two `:4070`→`:4071` URL fixes —
+publisher + dexter templates pointed at a port the staging gateway
+never listens on; feed block was absent). Staging gateway verified
+healthy via a local staging-mode boot (`BOTS_GATEWAY_PORT=4071` →
+`{"status":"ok","components":{"vault":"up","resolver":"up","send":"up","ingress":"up"}}`).
+Old adapters STAY everywhere (no deletions, `@deprecated` headers
+intact — removal is central FINAL REVIEW only). Send matrix
+live-verified against a mock Telegram (`:4099` → 777):
+message/photo-URL/media_group-URL all `{ok:true,message_id:777}` +
+idempotent replay `cached:true` + stats `sent:3`; gateway has NO
+upload/`reply_markup`/edit/callback shapes so feed local-file/video/
+button legs and dexter keyboards/edits stay on direct legs (feed
+fail-closed with a clear error, dexter records skipped). Rollback per
+app: flip `*_MODE` back to `dual` — no gateway redeploy. Evidence:
+`.omo/evidence/task-7-gateway-staging.log` (tokens redacted).
+
 ## ENV INVENTORY (`.env.example` — verified)
 
 | Var                                | Value / default in example                     | Notes                                                                                                                                                                                                       |
