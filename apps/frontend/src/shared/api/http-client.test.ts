@@ -1,3 +1,8 @@
+/**
+ * @deprecated Tramo 2 todo 15 (barrido JSDoc): legacy '/crypto-news-scheduling/*'
+ * paths below. New path: '/scheduling-api/*' (scheduling-posts) + '/feed-scheduling/*'
+ * dual-serve; removed at cutover T2-11 (pins kept until then, no behavior change).
+ */
 // @vitest-environment jsdom
 import '@/test/setup';
 
@@ -26,7 +31,7 @@ describe('httpPostForm', () => {
     formData.append('file', new Blob(['x'], { type: 'image/png' }), 'a.png');
 
     const result = await httpPostForm<{ ok: boolean }>(
-      '/crypto-news-scheduling/scheduling/1/image',
+      '/crypto-news-scheduling/scheduling/1/image', // @deprecated T2-15: legacy -> '/scheduling-api/*'; remove at cutover T2-11.
       formData,
     );
 
@@ -36,7 +41,7 @@ describe('httpPostForm', () => {
       string,
       RequestInit | undefined,
     ];
-    expect(url).toContain('/crypto-news-scheduling/scheduling/1/image');
+    expect(url).toContain('/crypto-news-scheduling/scheduling/1/image'); // @deprecated T2-15: legacy -> '/scheduling-api/*'; remove at cutover T2-11.
     expect(init?.method).toBe('POST');
     expect(init?.body).toBe(formData);
     // Browser sets the multipart boundary — never a manual Content-Type.
@@ -52,10 +57,10 @@ describe('httpPostForm', () => {
     formData.append('file', new Blob(['x']), 'a.png');
 
     await expect(
-      httpPostForm('/crypto-news-scheduling/scheduling/1/image', formData),
+      httpPostForm('/crypto-news-scheduling/scheduling/1/image', formData), // @deprecated T2-15: legacy -> '/scheduling-api/*'; remove at cutover T2-11.
     ).rejects.toThrow(HttpError);
     await expect(
-      httpPostForm('/crypto-news-scheduling/scheduling/1/image', formData),
-    ).rejects.toThrow('POST /crypto-news-scheduling/scheduling/1/image → 500');
+      httpPostForm('/crypto-news-scheduling/scheduling/1/image', formData), // @deprecated T2-15: legacy -> '/scheduling-api/*'; remove at cutover T2-11.
+    ).rejects.toThrow('POST /crypto-news-scheduling/scheduling/1/image → 500'); // @deprecated T2-15: legacy -> '/scheduling-api/*'; remove at cutover T2-11.
   });
 });

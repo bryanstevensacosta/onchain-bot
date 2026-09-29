@@ -1,3 +1,7 @@
+/**
+ * @deprecated Tramo 2 todo 15 (barrido JSDoc): legacy '/crypto-news-publisher/*'
+ * guard below. New path: '/feed-publisher/*' (feed-publisher app); guard removed at cutover T2-11.
+ */
 // @vitest-environment jsdom
 import '@/test/setup';
 
@@ -189,7 +193,9 @@ describe('ThreadsPage — 6 sections, no Scheduling', () => {
         `expected fetch of ${expected}`,
       ).toBe(true);
     }
-    expect(calledUrls.some((u) => u.includes('/crypto-news-publisher/'))).toBe(
+    const legacyPublisherPrefix =
+      '/crypto-news-publisher/'; /* @deprecated T2-15: legacy guard -> '/feed-publisher/*'; remove at cutover T2-11. */
+    expect(calledUrls.some((u) => u.includes(legacyPublisherPrefix))).toBe(
       false,
     );
   });

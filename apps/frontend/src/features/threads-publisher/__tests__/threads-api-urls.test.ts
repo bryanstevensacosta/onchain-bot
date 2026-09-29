@@ -1,3 +1,7 @@
+/**
+ * @deprecated Tramo 2 todo 15 (barrido JSDoc): legacy '/crypto-news*' guard below.
+ * New path: '/feed-threads-publisher/*' + '/threads/matching/*'; guard removed at cutover T2-11.
+ */
 import '@/test/setup';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -137,7 +141,7 @@ describe('threads api endpoint URLs', () => {
         `unexpected threads URL: ${req.method} ${req.url}`,
       ).toBe(true);
     }
-    expect(seen.filter((req) => req.url.includes('/crypto-news'))).toEqual([]);
+    expect(seen.filter((req) => req.url.includes('/crypto-news'))).toEqual([]); // @deprecated T2-15: legacy guard -> '/feed-threads-publisher/*'; remove at cutover T2-11.
   });
 
   it('queue cancel issues DELETE against /feed-threads-publisher/queue/:id', async () => {

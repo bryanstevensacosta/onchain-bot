@@ -1,3 +1,8 @@
+/**
+ * @deprecated Tramo 2 todo 15 (barrido JSDoc): this file still pins the legacy
+ * @deprecated legacy 'crypto-news' feed type (see sample fetch below). New path: '/feed' newsroom
+ * via '@/entities/feed' + feed-publisher app; value removed at cutover T2-11.
+ */
 import { useMemo, useRef, useState } from 'react';
 import { Button, Card } from '@/shared/ui';
 import { SchedulingHtmlPreview } from '@/features/feed-scheduling';
@@ -158,7 +163,7 @@ const labelCls = 'block text-xs uppercase text-slate-500 mb-1';
 export function PlaygroundForm(): React.ReactElement {
   const { data: templates, isLoading: templatesLoading } = useTemplates();
   const { data: models } = useLlmModels();
-  const samples = useFeedMessages(50, undefined, 'crypto-news');
+  const samples = useFeedMessages(50, undefined, 'crypto-news'); // @deprecated T2-15: legacy 'crypto-news' pin -> '/feed' default; remove at cutover T2-11.
   const previewMut = usePreviewMutation();
   const createMut = useCreateTemplate();
   const updateMut = useUpdateTemplate();

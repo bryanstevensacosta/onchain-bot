@@ -1,3 +1,7 @@
+/**
+ * @deprecated Tramo 2 todo 15 (barrido JSDoc): legacy 'crypto-news' route shim below.
+ * New path: '/feed' (FeedPage). Removal at cutover T2-11; keep the redirect until then.
+ */
 import {
   createBrowserRouter,
   Navigate,
@@ -27,7 +31,7 @@ export const router = createBrowserRouter([
       { path: 'kols', element: <KolsPage /> },
       { path: 'feed', element: <FeedPage /> },
       { path: 'profiles', element: <Navigate to="/feed" replace /> },
-      { path: 'crypto-news', element: <Navigate to="/feed" replace /> },
+      { path: 'crypto-news', element: <Navigate to="/feed" replace /> }, // @deprecated T2-15: legacy shim -> '/feed'; remove at cutover T2-11.
       { path: 'playground', element: <PlaygroundPage /> },
       { path: 'threads', element: <ThreadsPage /> },
       { path: 'templates', element: <TemplateDashboardPage /> },

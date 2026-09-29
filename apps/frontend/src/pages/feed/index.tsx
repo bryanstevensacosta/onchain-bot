@@ -1,3 +1,8 @@
+/**
+ * @deprecated Tramo 2 todo 15 (barrido JSDoc): this page still pins the legacy
+ * @deprecated legacy 'crypto-news' feed type (see messages fetch below). New path: '/feed' newsroom
+ * via '@/entities/feed' + feed-publisher app; value removed at cutover T2-11.
+ */
 import { useEffect, useMemo, useState } from 'react';
 import { useFeedMessages, useFeedSources } from '@/entities/feed';
 import { Button, Card } from '@/shared/ui';
@@ -32,7 +37,7 @@ interface LightboxMediaItem {
 export const TRUNCATION_LIMIT = 500;
 
 export function FeedPage() {
-  const messages = useFeedMessages(500, undefined, 'crypto-news');
+  const messages = useFeedMessages(500, undefined, 'crypto-news'); // @deprecated T2-15: legacy 'crypto-news' pin -> '/feed' default; remove at cutover T2-11.
   const sources = useFeedSources();
   const [channelFilter, setChannelFilter] = useState<string>('');
   const [search, setSearch] = useState<string>('');

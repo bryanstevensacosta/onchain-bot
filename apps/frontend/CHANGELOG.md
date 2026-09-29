@@ -6,6 +6,13 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Changed
 
+- Type rename `FeedMessageType` → `TelegramFeedType` (type name only):
+  literals `'kol' | 'crypto-news'` stay — backend/ingestion still emit
+  them until the feed-tables migration
+  (TODO feed-tables-migration: revisit the union then). Barrel
+  `entities/feed` re-exports the new name; specs pin both literals.
+  (feat/mega-refactor-tramos)
+
 - `/profiles` merged into `/feed` as sessions (breaking UI change):
   `pages/profiles/ui/*` moved to `widgets/feed-sessions/ui/` (FSD:
   pages cannot import from other pages) and rendered at the top of
@@ -105,6 +112,20 @@ session` entry) opening ONE management window per session
   paths stay as-is (backend contract, not UI route). E2E
   `feed-publisher.spec.ts` moved to `/feed` + new legacy-redirect test.
   (feat/mega-refactor-tramos)
+
+- Deprecation sweep `crypto-news` in frontend (Tramo 2, todo 15,
+  no behavior change): every remaining `crypto-news` ref carries an
+  `@deprecated` header + new-path pointer (`/feed` newsroom,
+  `/feed-publisher/*`, `/feed-filters/:id*`, `/scheduling-api/*`,
+  `/feed-threads-publisher/*`): route shim in `app/router/routes.tsx`,
+  `'crypto-news'` type pins (`useFeedSources` default, `FeedPage`,
+  prompt-playground samples), `ENDPOINTS.feed.sources` legacy
+  `?type=crypto-news`, `/crypto-news-scheduling/*` pins in
+  `http-client.test.ts`, and `/crypto-news(-publisher)/*` guards in the
+  threads suites. Acceptance
+  `grep -rni "crypto.news\|crypto_news" apps/frontend/src | grep -vi "@deprecated\|CHANGELOG\|feed-" | wc -l`
+  = 0; suite 48 files / 469 tests green, `tsc -b` clean. Removal at
+  cutover T2-11. (feat/mega-refactor-tramos)
 
 ### Added
 

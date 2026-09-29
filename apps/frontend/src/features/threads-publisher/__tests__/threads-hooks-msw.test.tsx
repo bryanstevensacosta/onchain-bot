@@ -230,8 +230,11 @@ const server = setupServer(
   ),
   // Shared filter routes are intentionally reused (same backend for both
   // products) — they are NOT threads endpoints.
-  http.get('*/crypto-news/sources/:channelId/filters', () =>
-    HttpResponse.json(filtersFixture),
+  // @deprecated Tramo 2 todo 15: legacy '*/crypto-news/sources/:channelId/filters' mock
+  // below. New path: '/feed-filters/:id*' + '/feed-publisher/sources/:channelId/filters*'; removed at cutover T2-11.
+  http.get(
+    '*/crypto-news/sources/:channelId/filters', // @deprecated T2-15: legacy mock -> '/feed-filters/:id*'; remove at cutover T2-11.
+    () => HttpResponse.json(filtersFixture),
   ),
 );
 

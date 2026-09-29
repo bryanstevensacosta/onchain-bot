@@ -75,13 +75,19 @@ export interface UpdateFilterDto {
   isActive?: boolean;
 }
 
-export type FeedMessageType = 'kol' | 'crypto-news';
+/**
+ * @deprecated Renamed from `FeedMessageType` to `TelegramFeedType` (type name only).
+ * String literals `'kol' | 'crypto-news'` stay — backend/ingestion still emit them
+ * until the feed-tables migration.
+ * TODO(feed-tables-migration): revisit the union once backend/ingestion stop emitting `'kol'`.
+ */
+export type TelegramFeedType = 'kol' | 'crypto-news';
 
 export const feedKeys = {
   all: ['crypto-news'] as const,
-  messages: (limit: number, channelId?: string, type?: FeedMessageType) =>
+  messages: (limit: number, channelId?: string, type?: TelegramFeedType) =>
     [...feedKeys.all, 'messages', { limit, channelId, type }] as const,
-  sources: (type: FeedMessageType = 'crypto-news') =>
+  sources: (type: TelegramFeedType = 'crypto-news') =>
     [...feedKeys.all, 'sources', { type }] as const,
   filters: (channelId: string) =>
     [...feedKeys.all, 'filters', channelId] as const,
@@ -90,7 +96,7 @@ export const feedKeys = {
 export async function fetchFeedMessages(
   limit = 50,
   channelId?: string,
-  type?: FeedMessageType,
+  type?: TelegramFeedType,
 ): Promise<ReadonlyArray<FeedMessage>> {
   const qs = new URLSearchParams();
   qs.set('limit', String(limit));
@@ -109,7 +115,7 @@ export async function fetchFeedMessages(
 }
 
 export async function fetchFeedSources(
-  type: FeedMessageType = 'crypto-news',
+  type: TelegramFeedType = 'crypto-news',
 ): Promise<ReadonlyArray<FeedSource>> {
   return httpGet<ReadonlyArray<FeedSource>>(
     `/ingestion-api/feed/sources?type=${type}`,

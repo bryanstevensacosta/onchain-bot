@@ -253,6 +253,11 @@ npm run format              # prettier --write "src/**/*.{ts,tsx}"
 
 ## NOTES
 
+- Type rename (feat/mega-refactor-tramos): `FeedMessageType` →
+  `TelegramFeedType` in `entities/feed/api/feed-queries.ts` (type name
+  only; literals `'kol' | 'crypto-news'` stay until the feed-tables
+  migration). Barrel + hooks + `feed-queries.test.ts` updated.
+
 - Scanner search modal (2026-09-28, feat/mega-refactor-tramos):
   `ScanSearchModal` on `/dexter` (dark blurred backdrop, centered panel,
   focus trap, Esc/backdrop close) + `useRecentScans` (localStorage

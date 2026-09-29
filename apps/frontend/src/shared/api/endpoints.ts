@@ -86,9 +86,10 @@ export const ENDPOINTS = {
   },
   feed: {
     sources: {
-      // Crypto-news sources are owned by the ingestion-service;
+      // @deprecated Tramo 2 todo 15: Crypto-news sources are owned by the ingestion-service;
+      // New path: '/feed' newsroom via '/ingestion-api/feed/*' + feed-publisher app; removed at cutover T2-11.
       // all source writes go through the ingestion API below.
-      list: '/ingestion-api/feed/sources?type=crypto-news',
+      list: '/ingestion-api/feed/sources?type=crypto-news', // @deprecated T2-15: legacy '?type=crypto-news' -> '/feed'; remove at cutover T2-11.
       add: '/ingestion-api/feed/sources',
       update: (channelId: string) => `/ingestion-api/feed/sources/${channelId}`,
       toggle: (channelId: string) =>
@@ -243,7 +244,7 @@ export const ENDPOINTS = {
       // staging / `:4082` prod) behind the same-origin
       // `/scheduling-api` prefix (vite dev proxy strips it;
       // `VITE_SCHEDULING_POSTS_URL` overrides it for direct service
-      // access). Backend legacy (`/crypto-news-scheduling/*`,
+      // access). Backend legacy (`/crypto-news-scheduling/*`, // @deprecated T2-15: legacy -> '/scheduling-api/*' (scheduling-posts); remove at cutover T2-11.
       // `/feed-scheduling/*`) stays untouched.
       ads: () => schedulingPath('/api/scheduling/ads'),
       ad: (id: string) =>

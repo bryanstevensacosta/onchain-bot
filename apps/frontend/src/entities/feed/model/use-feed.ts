@@ -1,3 +1,8 @@
+/**
+ * @deprecated Tramo 2 todo 15 (barrido JSDoc): default 'crypto-news' feed type below.
+ * New path: '/feed' newsroom via '@/entities/feed/api/feed-queries' + feed-publisher app;
+ * value removed at cutover T2-11 (keep default until then, no behavior change).
+ */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   feedKeys,
@@ -12,14 +17,14 @@ import {
   type FeedSource,
   type ContentFilter,
   type CreateFilterDto,
-  type FeedMessageType,
+  type TelegramFeedType,
   type UpdateFilterDto,
 } from '@/entities/feed/api/feed-queries';
 
 export function useFeedMessages(
   limit = 50,
   channelId?: string,
-  type?: FeedMessageType,
+  type?: TelegramFeedType,
 ) {
   return useQuery<ReadonlyArray<FeedMessage>>({
     queryKey: feedKeys.messages(limit, channelId, type),
@@ -28,7 +33,13 @@ export function useFeedMessages(
   });
 }
 
-export function useFeedSources(type: FeedMessageType = 'crypto-news') {
+/**
+ * @deprecated Tramo 2 todo 15: default 'crypto-news' type. New path: '/feed' newsroom;
+ * removed at cutover T2-11 (keep default until then, no behavior change).
+ */
+export function useFeedSources(
+  type: TelegramFeedType = 'crypto-news', // @deprecated T2-15: legacy default -> '/feed'; remove at cutover T2-11.
+) {
   return useQuery<ReadonlyArray<FeedSource>>({
     queryKey: feedKeys.sources(type),
     queryFn: () => fetchFeedSources(type),
