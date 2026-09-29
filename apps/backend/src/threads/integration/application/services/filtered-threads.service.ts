@@ -1,9 +1,14 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (Tramo 2, todo 8 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add threads logic in apps/feed-publisher/src/threads/ instead.
+ */
 import { Injectable, Logger } from '@nestjs/common';
-import { ThreadsIngestionClient } from '../../infrastructure/http/threads-ingestion-client.service';
+import { ThreadsIngestionClient } from '@/threads/integration/infrastructure/http/threads-ingestion-client.service';
 import type {
   ThreadsMessageDto,
   ThreadsMessageMedia,
-} from '../../infrastructure/http/threads-ingestion-client.service';
+} from '@/threads/integration/infrastructure/http/threads-ingestion-client.service';
 // Import-only reuse of the crypto-news filter slice (public module exports
 // of `CryptoNewsIngestionModule` — NEVER edited, NEVER vendorized):
 // - `ContentFilterService` (regex transforms, `filterTitleAndContent`)

@@ -1,4 +1,9 @@
 /**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (Tramo 2, todo 8 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add threads logic in apps/feed-publisher/src/threads/ instead.
+ */
+/**
  * Persisted single-row state for the Threads publish throttle.
  *
  * The throttle refuses to fire two posts back-to-back — it enforces a
