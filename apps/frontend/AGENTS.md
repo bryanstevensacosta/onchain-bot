@@ -7,6 +7,10 @@
 React 18.3 + Vite 5 + TanStack Query v5 + socket.io-client 4.8 + Tailwind CSS 3.4 + React Router v6.
 Strict FSD. Dev `:5173` (strictPort); prod is nginx static + per-prefix proxy to `backend:3030`.
 
+> Plain-language companion: `FRONTEND.md` (same folder) describes what each
+> dashboard screen is for in non-technical words — point non-coders there
+> instead of this file.
+
 ## STRUCTURE
 
 ```

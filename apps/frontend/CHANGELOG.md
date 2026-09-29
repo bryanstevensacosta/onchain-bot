@@ -4,6 +4,14 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ## [Unreleased]
 
+### Added
+
+- New `FRONTEND.md` plain-language guide: describes every dashboard screen
+  in non-technical words (what each screen is for, what it shows, what you
+  can do there), with routes and data sources as the only technical detail.
+  Docs only, no code change.
+  (feat/mega-refactor-tramos)
+
 ### Changed
 
 - Manage Sessions moved into the Overview tab (breaking UI change):
