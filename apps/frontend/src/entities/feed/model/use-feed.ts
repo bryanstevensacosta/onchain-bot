@@ -17,14 +17,14 @@ import {
   type FeedSource,
   type ContentFilter,
   type CreateFilterDto,
-  type TelegramFeedType,
+  type TelegramFeedMessageType,
   type UpdateFilterDto,
 } from '@/entities/feed/api/feed-queries';
 
 export function useFeedMessages(
   limit = 50,
   channelId?: string,
-  type?: TelegramFeedType,
+  type?: TelegramFeedMessageType,
 ) {
   return useQuery<ReadonlyArray<FeedMessage>>({
     queryKey: feedKeys.messages(limit, channelId, type),
@@ -38,7 +38,7 @@ export function useFeedMessages(
  * removed at cutover T2-11 (keep default until then, no behavior change).
  */
 export function useFeedSources(
-  type: TelegramFeedType = 'crypto-news', // @deprecated T2-15: legacy default -> '/feed'; remove at cutover T2-11.
+  type: TelegramFeedMessageType = 'crypto-news', // @deprecated T2-15: legacy default -> '/feed'; remove at cutover T2-11.
 ) {
   return useQuery<ReadonlyArray<FeedSource>>({
     queryKey: feedKeys.sources(type),

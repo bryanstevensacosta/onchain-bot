@@ -254,7 +254,7 @@ npm run format              # prettier --write "src/**/*.{ts,tsx}"
 ## NOTES
 
 - Type rename (feat/mega-refactor-tramos): `FeedMessageType` →
-  `TelegramFeedType` in `entities/feed/api/feed-queries.ts` (type name
+  `TelegramFeedMessageType` in `entities/feed/api/feed-queries.ts` (type name
   only; literals `'kol' | 'crypto-news'` stay until the feed-tables
   migration). Barrel + hooks + `feed-queries.test.ts` updated.
 

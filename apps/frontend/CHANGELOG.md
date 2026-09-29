@@ -6,7 +6,7 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Changed
 
-- Type rename `FeedMessageType` → `TelegramFeedType` (type name only):
+- Type rename `FeedMessageType` → `TelegramFeedMessageType` (type name only):
   literals `'kol' | 'crypto-news'` stay — backend/ingestion still emit
   them until the feed-tables migration
   (TODO feed-tables-migration: revisit the union then). Barrel

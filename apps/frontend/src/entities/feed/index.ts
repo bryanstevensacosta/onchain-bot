@@ -13,7 +13,7 @@ export type {
   FeedSource,
   ContentFilter,
   CreateFilterDto,
-  TelegramFeedType,
+  TelegramFeedMessageType,
   UpdateFilterDto,
 } from './api/feed-queries';
 export {

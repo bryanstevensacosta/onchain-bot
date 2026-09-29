@@ -10,7 +10,7 @@ vi.mock('@/shared/api/http-client', () => ({
 
 import { httpGet } from '@/shared/api/http-client';
 import { feedKeys, fetchFeedMessages, fetchFeedSources } from './feed-queries';
-import type { TelegramFeedType } from './feed-queries';
+import type { TelegramFeedMessageType } from './feed-queries';
 
 const mockedHttpGet = httpGet as unknown as ReturnType<typeof vi.fn>;
 
@@ -48,9 +48,9 @@ describe('feed-queries type pinning', () => {
     expect(feedKeys.sources('kol')).toContainEqual({ type: 'kol' });
   });
 
-  it('TelegramFeedType keeps backend literals until feed-tables migration', () => {
-    const kol: TelegramFeedType = 'kol';
-    const news: TelegramFeedType = 'crypto-news';
+  it('TelegramFeedMessageType keeps backend literals until feed-tables migration', () => {
+    const kol: TelegramFeedMessageType = 'kol';
+    const news: TelegramFeedMessageType = 'crypto-news';
     expect(feedKeys.sources(kol)).toContainEqual({ type: 'kol' });
     expect(feedKeys.sources(news)).toContainEqual({ type: 'crypto-news' });
   });
