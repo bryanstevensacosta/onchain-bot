@@ -150,7 +150,7 @@ Raíz: package.json (@onchain-bot/ingestion-telegram), Dockerfile (multi-stage n
 | `GET /api/metadata/:channelId/avatar` | MetadataController.serveAvatar | **P58 canonical** (sucesor de `GET /api/kol-avatar/:channelId`; sin headers de deprecación): foto permanente o placeholder SVG (200); 400 id hostil. GET público (keyless) |
 | `POST /api/metadata/:channelId/refresh` | MetadataController.refreshMetadata | **P58**: refresh manual EXPLÍCITO (re-resolve de identidad + re-fetch de foto, guard serializado + flood-wait `withRetry('metadata-photo', …)` P29); 201 vista de identidad. Protegido (POST → API key si set) |
 | `POST /api/metadata/backfill` | MetadataController.backfillMetadata | **P58**: adopta cada fila del registry + fetch-ONCE solo missing (serializado P29, nunca lanza); 201 `{checked, fetched, cached, placeholder}`. Protegido (POST → API key si set) |
-| `GET /api/feed/messages` | FeedController | Reads RAW con `?limit=50&type=kol\|crypto-news` (valores wire preservados post-rename); ver nota Feed reads abajo |
+| `GET /api/feed/messages` | FeedController | Reads RAW con `?limit=50&type=kol\|crypto-news&cursor=` (valores wire preservados post-rename; cursor opaco `nextCursor` de la página previa, omitido = primera página; `nextCursor` null al final; cursor inválido → 400); ver nota Feed reads abajo |
 | `GET /api/feed/messages/channel/:channelId` | FeedController | Historial por canal (`?limit=50`) |
 | `GET /api/feed/stats` | FeedController | Conteos por tipo |
 | `POST /api/feed/sources` | SourcesController.createSource | Alta en DB propia. Body: `{channelId, title?, handle?, type?}`. Returns 201 + source view (+ `avatarUrl`; fetch-ONCE avatar P19 fire-and-forget). P57 guard: single-`getEntity()` kind probe rejects user/bot/unknown with explicit 400; stores `entity_kind`/`is_bot` (migration `1790400000000-EntityKindColumns`). Ingestion-telegram is SOLE OWNER (backend POST deprecated, returns 501) |
@@ -171,9 +171,14 @@ su CRUD `/crypto-news/sources/:channelId/filters` queda intacto). Old cae en cut
 
 Eventos SSE: `connection:established`, `message:telegram`, `health:ping` (cada 30 s, con `uptime`+`connectedClients`). Formato: `event: <type>\ndata: <json>\n\n`. (Los `backfill:*` murieron con el endpoint — per-env T4.) `message:telegram` lleva desde todo 12 P57 los campos aditivos `handle`/`avatarUrl`/`sourceUrl` (lookup read-only fail-open a nulls; el filtrado sigue por `messageType` — consumers tolerantes, sin cambios fuera de este servicio).
 
-Feed reads (`GET /api/feed/messages`): `?type=kol|crypto-news` filtra a nivel SQL (`findRecent(limit, typeFilter)`).
+Feed reads (`GET /api/feed/messages`): `?type=kol|crypto-news` filtra a nivel SQL (`findRecentPaged(limit, typeFilter, keyset)`).
 Valor inválido → 400 (`type must be one of kol, crypto-news`).
 Sin `type` devuelve mixto (legacy default, backward compatible).
+Cursor pagination (history reads only, SSE realtime untouched): `?cursor=` lleva el `nextCursor` opaco
+de la página previa (base64url de `{publishedAt, id}` del último row; orden `publishedAt DESC, id DESC`);
+la query es keyset (sin offsets — filas nuevas entre páginas no duplican ni saltan).
+Respuesta `{timestamp, count, data, nextCursor}` (`nextCursor: null` al final); cursor inválido → 400.
+`limit`/`type` sin cursor devuelven la misma primera página que antes (backward compatible).
 **Unificación 2026-09-27**: `src/media/` → `src/feed-media/` (alias `feed-media/*`; clases `MediaModule`/`MediaController`/`MediaDownloaderService`/`FeedPathBuilder` SIN renombrar — decisión documentada en CHANGELOG) y disco `uploads/{crypto-news/media,feed/media}/` → `uploads/feed-media/` (evidencia `.omo/evidence/media-rename.log`); lo renombrado es archivos/dirs (`feed-media`), disco (`uploads/feed-media/`) y scheduler (`feed-retention-cleanup`). Los valores `kol|crypto-news` se PRESERVAN en wire + columna DB `type` (compat, rename 2026-09-25).
 Feed sources (`GET /api/feed/sources[?type=]`): cada fila lleva `avatarUrl: /api/kol-avatar/:channelId` (P19, 2026-09-25 — kol-system lo consume para rankings + caller display; siempre servable: foto o placeholder 200).
 

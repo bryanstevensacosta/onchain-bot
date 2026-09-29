@@ -4,8 +4,8 @@ import { PublisherQueueRepository } from '../ports/publisher-queue.repository';
 import {
   EnqueueMessageDto,
   EnqueueMessageMediaDto,
-} from '../../domain/dtos/enqueue-message.dto';
-import { Keyword } from '../../domain/entities/keyword.entity';
+} from '@/telegram/crypto-news-publisher/domain/dtos/enqueue-message.dto';
+import { Keyword } from '@/telegram/crypto-news-publisher/domain/entities/keyword.entity';
 
 describe('EnqueueMatchingMessageUseCase', () => {
   let useCase: EnqueueMatchingMessageUseCase;

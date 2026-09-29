@@ -1,4 +1,10 @@
 /**
+ * @deprecated Moved to apps/kol-calls-publisher/src/telegram/ (+ templates orchestration in
+ * apps/kol-calls-publisher/src/templates/, seed `vip-calls`) (Tramo 1, todo 11 + P18 companion).
+ * P14: `vip-calls` is a template SEED name, never a module. This backend legacy copy stays
+ * wired for dual-run; removed at central FINAL REVIEW. Do not extend.
+ */
+/**
  * Branch coverage for `ReconcileStuckReservationsUseCase`.
  *
  * Each scenario exercises a distinct reconciliation path so a regression
@@ -9,7 +15,7 @@
  */
 import { ChainId } from 'chain/identity/chain-id.vo';
 import { PublishedCall, PublishStatus } from 'telegram/shared';
-import { InMemoryPublishedCallRepository } from '../../infrastructure/repositories/in-memory-published-call.repository';
+import { InMemoryPublishedCallRepository } from '@/telegram/vip-calls/vip-channel/infrastructure/repositories/in-memory-published-call.repository';
 import { ReconcileStuckReservationsUseCase } from './reconcile-stuck-reservations.use-case';
 
 interface FakeConfig {

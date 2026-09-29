@@ -1,8 +1,14 @@
+/**
+ * @deprecated Tramo 1 cutover (task-16, staging): KOL rating moved to
+ * apps/kol-calls/src/tracking (TrackedMention + kol_window_stats +
+ * GET /api/kol-rankings). Refactor target: delete this file at the
+ * central FINAL REVIEW (C4-bis.3). Rollback: backend path stays wired.
+ */
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { Kol } from 'kol/identity/domain/entities/kol.entity';
 import { KolRepository } from 'kol/identity/application/ports/kol.repository';
-import { RecomputeKolReputationUseCase } from '../../application/handlers/recompute-kol-reputation.use-case';
+import { RecomputeKolReputationUseCase } from '@/kol/reputation/application/handlers/recompute-kol-reputation.use-case';
 import { KolReputationScheduler } from './kol-reputation.scheduler';
 
 function makeKol(id: string): Kol {

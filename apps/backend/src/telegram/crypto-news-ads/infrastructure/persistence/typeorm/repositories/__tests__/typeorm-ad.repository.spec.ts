@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TypeOrmAdRepository } from '../typeorm-ad.repository';
-import { AdEntity } from '../../entities/ad.entity';
+import { AdEntity } from '@/telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad.entity';
 import { Ad } from 'telegram/crypto-news-ads/domain/entities/ad.entity';
 
 describe('TypeOrmAdRepository', () => {

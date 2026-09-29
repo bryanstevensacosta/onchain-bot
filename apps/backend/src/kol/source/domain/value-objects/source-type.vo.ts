@@ -1,4 +1,9 @@
 /**
+ * @deprecated Tramo 1 cutover (task-16, staging): mention attribution lives
+ * in apps/kol-calls (ExtractionCandidate/NormalizedMention, one row per
+ * mention, no dedup). Refactor target: remove at central FINAL REVIEW.
+ */
+/**
  * Source transport type — which KOL channel the mention came from.
  *
  * v1: only TELEGRAM is used in production.

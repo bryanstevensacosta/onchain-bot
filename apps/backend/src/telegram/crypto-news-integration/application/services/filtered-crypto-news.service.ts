@@ -1,19 +1,24 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/ingestion/ + apps/feed-publisher/src/matching/ (Tramo 2, todos 2+3 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add feed ingestion/matching logic in apps/feed-publisher/src/ingestion/ or apps/feed-publisher/src/matching/ instead.
+ */
 import { Injectable, Logger } from '@nestjs/common';
 import {
   CryptoNewsIngestionClient,
   type CryptoNewsFeedMessageType,
-} from '../../infrastructure/http/crypto-news-ingestion-client.service';
+} from '@/telegram/crypto-news-integration/infrastructure/http/crypto-news-ingestion-client.service';
 import type {
   CryptoNewsMessageDto,
   CryptoNewsMessageMedia,
-} from '../../infrastructure/http/crypto-news-ingestion-client.service';
-import { ContentFilterService } from '../../../ingestion/crypto-news/application/services/content-filter.service';
-import type { FilterRule } from '../../../ingestion/crypto-news/application/services/content-filter.service';
-import { ChannelFilterRepository } from '../../../ingestion/crypto-news/application/ports/channel-filter.repository';
-import { KeywordRepository } from '../../../crypto-news-publisher/application/ports/keyword.repository';
-import { BlacklistPhraseRepository } from '../../../crypto-news-publisher/application/ports/blacklist-phrase.repository';
-import { Keyword } from '../../../crypto-news-publisher/domain/entities/keyword.entity';
-import { BlacklistPhrase } from '../../../crypto-news-publisher/domain/entities/blacklist-phrase.entity';
+} from '@/telegram/crypto-news-integration/infrastructure/http/crypto-news-ingestion-client.service';
+import { ContentFilterService } from '@/telegram/ingestion/crypto-news/application/services/content-filter.service';
+import type { FilterRule } from '@/telegram/ingestion/crypto-news/application/services/content-filter.service';
+import { ChannelFilterRepository } from '@/telegram/ingestion/crypto-news/application/ports/channel-filter.repository';
+import { KeywordRepository } from '@/telegram/crypto-news-publisher/application/ports/keyword.repository';
+import { BlacklistPhraseRepository } from '@/telegram/crypto-news-publisher/application/ports/blacklist-phrase.repository';
+import { Keyword } from '@/telegram/crypto-news-publisher/domain/entities/keyword.entity';
+import { BlacklistPhrase } from '@/telegram/crypto-news-publisher/domain/entities/blacklist-phrase.entity';
 
 /**
  * Filtered crypto-news message with transformed content.

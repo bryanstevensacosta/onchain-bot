@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TypeOrmAdsThrottleStateRepository } from '../typeorm-ads-throttle-state.repository';
-import { AdsThrottleStateEntity } from '../../entities/ads-throttle-state.entity';
+import { AdsThrottleStateEntity } from '@/telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ads-throttle-state.entity';
 import { SharedThrottleState } from 'telegram/shared/domain/entities/shared-throttle-state.entity';
 
 describe('TypeOrmAdsThrottleStateRepository', () => {

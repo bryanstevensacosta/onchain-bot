@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TypeOrmAdRotationConfigRepository } from '../typeorm-ad-rotation-config.repository';
-import { AdRotationConfigEntity } from '../../entities/ad-rotation-config.entity';
+import { AdRotationConfigEntity } from '@/telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-rotation-config.entity';
 
 describe('TypeOrmAdRotationConfigRepository', () => {
   let repo: TypeOrmAdRotationConfigRepository;

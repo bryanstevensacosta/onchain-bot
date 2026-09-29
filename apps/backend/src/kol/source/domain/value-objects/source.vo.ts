@@ -1,3 +1,8 @@
+/**
+ * @deprecated Tramo 1 cutover (task-16, staging): mention attribution lives
+ * in apps/kol-calls (ExtractionCandidate/NormalizedMention, one row per
+ * mention, no dedup). Refactor target: remove at central FINAL REVIEW.
+ */
 import { ValueObject } from 'shared/kernel/value-object';
 import { SourceType } from 'kol/source/domain/value-objects/source-type.vo';
 

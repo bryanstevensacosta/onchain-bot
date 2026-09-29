@@ -145,11 +145,11 @@ What it does and how:
 
 HTTP APIs (served by `FeedController`; needs the API key when one is set):
 
-| Method + path                                             | Input                                                                                                  | Output                                                                                                                      |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/feed/messages` — newest messages                | `limit` (optional, default 50, cap 200); `type` (optional `kol` \| `crypto-news`; anything else → 400) | `{ timestamp, count, data }` with `media[]` (`id`, `index`, `type`, `url`, `mimeType`, `fileSize`) and `formattingEntities` |
-| `GET /api/feed/messages/channel/:channelId` — one channel | `channelId` path; `limit` (optional, default 50, cap 200)                                              | Bare array of the same shaped items                                                                                         |
-| `GET /api/feed/stats` — stored-feed counts                | none                                                                                                   | `{ totalMessages, totalSources, activeSources }` (source counts come from the registry)                                     |
+| Method + path                                             | Input                                                                                                                                                                                                                 | Output                                                                                                                                                                        |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/feed/messages` — newest messages                | `limit` (optional, default 50, cap 200); `type` (optional `kol` \| `crypto-news`; anything else → 400); `cursor` (optional opaque page cursor from the previous `nextCursor`; omit for the first page; invalid → 400) | `{ timestamp, count, data, nextCursor }` (`nextCursor: null` on the last page) with `media[]` (`id`, `index`, `type`, `url`, `mimeType`, `fileSize`) and `formattingEntities` |
+| `GET /api/feed/messages/channel/:channelId` — one channel | `channelId` path; `limit` (optional, default 50, cap 200)                                                                                                                                                             | Bare array of the same shaped items                                                                                                                                           |
+| `GET /api/feed/stats` — stored-feed counts                | none                                                                                                                                                                                                                  | `{ totalMessages, totalSources, activeSources }` (source counts come from the registry)                                                                                       |
 
 Media download URLs look like `/ingestion-api/media/{channelId}/{messageId}/{index}`
 (the frontend proxies that prefix to this service's `/api/media`).
@@ -159,6 +159,9 @@ Classes and technical names (plain explanations):
 - `FeedController` — the HTTP reading desk (three reads plus the private
   `transformMessageForApi()` reshaper).
 - `TelegramFeedMessageRepository` — the librarian: `findRecent(limit, type?)`,
+  `findRecentPaged(limit, type?, cursor?)` (keyset pagination: `publishedAt`
+  DESC + `id` DESC tie-break, `limit + 1` probe, opaque `nextCursor`, `null`
+  at the end; no offsets),
   `findByChannelId()`, `findByChannelAndMessageId()` (duplicate check),
   `save()` (photos saved together), `count()`, `countByChannelId()`.
 - `TelegramFeedMessageEntity` — the shape of one stored message row
@@ -168,6 +171,10 @@ Classes and technical names (plain explanations):
 - `parseMessageEntities()` / `parseMessageTypeFilter()` / `VALID_MESSAGE_TYPES`
   — tolerant formatting reader, `type` query validator, and the
   `['kol', 'crypto-news']` constant.
+- `encodeFeedCursor()` / `decodeFeedCursor()` / `FeedCursor`
+  (`apps/ingestion-telegram/src/feed/feed-cursor.ts`) — opaque keyset cursor
+  (base64url `{publishedAt, id}` of the page anchor; malformed input → 400).
+  History reads only; the SSE realtime path is untouched.
 
 ## 3. Registry — the channel catalog (`src/registry/`)
 

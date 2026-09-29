@@ -1,3 +1,16 @@
+/**
+ * @deprecated Moved to apps/kol-calls/src/normalization/ (Tramo 1, todo 7 + P18 companion).
+ * Normalization as mention-index now lives in kol-calls: NormalizeCallUseCase →
+ * (contract, kol, messageId) index WITHOUT collapse ("one card per coin" explicitly
+ * derogated per P1). This file stays wired for dual-run; it will be removed in
+ * todo 16 (cutover + cleanup). Do not extend it — add normalization logic in
+ * apps/kol-calls/src/normalization/ instead.
+ *
+ * New location: apps/kol-calls/src/normalization/
+ * Reason: extracting KOL pipeline from backend monolith to dedicated app
+ * Breaking change: Yes (removal in todo 16)
+ * Rollback: re-enable backend path (KOL_PIPELINE_ENABLED=true)
+ */
 import { NormalizeCallUseCase } from 'token/normalization/application/handlers/normalize-call.use-case';
 import { CanonicalTokenCallRepository } from 'token/normalization/application/ports/canonical-token-call.repository';
 import { NormalizationEventPublisher } from 'token/normalization/application/ports/normalization-event.publisher';

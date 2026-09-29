@@ -1,3 +1,8 @@
+/**
+ * @deprecated Tramo 1 cutover (task-16, staging): KOL rankings served by
+ * apps/kol-calls GET /api/kol-rankings (tracking module). Refactor target:
+ * delete this stub at the central FINAL REVIEW (C4-bis.3).
+ */
 import { Controller, Get } from '@nestjs/common';
 
 /**

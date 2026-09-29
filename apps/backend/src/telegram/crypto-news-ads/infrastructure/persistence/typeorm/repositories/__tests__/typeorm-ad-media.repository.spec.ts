@@ -1,6 +1,6 @@
 import { Repository } from 'typeorm';
 import { TypeOrmAdMediaRepository } from '../typeorm-ad-media.repository';
-import { AdMediaEntity } from '../../entities/ad-media.entity';
+import { AdMediaEntity } from '@/telegram/crypto-news-ads/infrastructure/persistence/typeorm/entities/ad-media.entity';
 
 describe('TypeOrmAdMediaRepository', () => {
   let repo: TypeOrmAdMediaRepository;

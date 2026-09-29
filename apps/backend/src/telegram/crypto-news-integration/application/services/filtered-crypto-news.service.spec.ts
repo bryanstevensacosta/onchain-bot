@@ -1,6 +1,6 @@
 import { FilteredCryptoNewsService } from './filtered-crypto-news.service';
-import type { CryptoNewsMessageDto } from '../../infrastructure/http/crypto-news-ingestion-client.service';
-import { Keyword } from '../../../crypto-news-publisher/domain/entities/keyword.entity';
+import type { CryptoNewsMessageDto } from '@/telegram/crypto-news-integration/infrastructure/http/crypto-news-ingestion-client.service';
+import { Keyword } from '@/telegram/crypto-news-publisher/domain/entities/keyword.entity';
 
 function rawMessage(
   overrides: Partial<CryptoNewsMessageDto> = {},

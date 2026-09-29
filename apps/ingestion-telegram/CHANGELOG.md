@@ -11,6 +11,8 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Added
 
+- Cursor pagination over `GET /api/feed/messages` (history reads only; SSE realtime untouched): optional opaque `?cursor=` (the previous page `nextCursor`, base64url `{publishedAt, id}`) alongside the existing `limit`/`type` (backward compatible — same first page, additive `nextCursor` field, `null` at the end); keyset repo query (`findRecentPaged`, `publishedAt DESC, id DESC`, no offsets, so new rows mid-pagination neither duplicate nor skip); invalid cursor → 400. (feat/mega-refactor-tramos)
+
 - Consolidated ingestion-telegram docs set (feat/mega-refactor-tramos): new plain-words English `DB.md` (databases per env + the 3 `telegram_feed_*` tables + columns, Redis keys, on-disk layouts, migration history) and `BC.md` (per-area what/how with verified paths, HTTP APIs with inputs/outputs, classes + technical names explained for core, feed, registry, stream, retention, media, avatar, shared, health/metrics/debug), plus a PURPOSE section in `AGENTS.md` naming what each of the 4 docs is for. Standing rule: the 4 docs are updated continuously with every behavior or schema change (Unreleased entry first, never batch-at-release).
 
 - Full API-key auth (sec1): `GET /api/feed/*` + `/api/crypto-news/*` reads now require the key (dual-prefix parity), two-bucket in-memory rate limiting (60/min protected+writes, 300/min media/avatar, health trio + SSE exempt, 401 precedes 429), one structured `auth:access:decision` audit line per decision with pino-http redaction of both key transports, and the key-compromise drill (`docs/deployment/ingestion-api-key-compromise-drill.md`). (feat/mega-refactor-tramos)

@@ -2,8 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { DeadLetterService } from './dead-letter.service';
 import { DeadLetterQueueRepository } from '../ports/dead-letter-queue.repository';
-import { DeadLetterQueueEntry } from '../../domain/entities/dead-letter-queue-entry.entity';
-import { EnqueueMatchingMessageUseCase } from '../../../crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
+import { DeadLetterQueueEntry } from '@/telegram/crypto-news-integration/domain/entities/dead-letter-queue-entry.entity';
+import { EnqueueMatchingMessageUseCase } from '@/telegram/crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
 
 describe('DeadLetterService', () => {
   let service: DeadLetterService;
