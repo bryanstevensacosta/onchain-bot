@@ -12,6 +12,10 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
   Docs only, no code change.
   (feat/mega-refactor-tramos)
 
+- Docs split into `docs/frontend/*.md` (one file per screen, plus README
+  index); `FRONTEND.md` is now a slim pointer. Docs only, no code change.
+  (feat/mega-refactor-tramos)
+
 ### Changed
 
 - Manage Sessions moved into the Overview tab (breaking UI change):

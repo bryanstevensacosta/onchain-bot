@@ -10,6 +10,7 @@ Strict FSD. Dev `:5173` (strictPort); prod is nginx static + per-prefix proxy to
 > Plain-language companion: `FRONTEND.md` (same folder) describes what each
 > dashboard screen is for in non-technical words — point non-coders there
 > instead of this file.
+> Per-screen plain-language docs live in `docs/frontend/` (one file per screen, `README.md` index).
 
 ## STRUCTURE
 
