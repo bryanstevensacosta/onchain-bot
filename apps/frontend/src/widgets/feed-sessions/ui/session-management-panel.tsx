@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { Modal } from '@/shared/ui/modal';
 import {
   isValidProfileName,
   normalizeProfileName,
@@ -11,19 +10,28 @@ import {
   type ProfileView,
 } from '@/entities/feed-session';
 
-interface ManageSessionModalProps {
-  readonly isOpen: boolean;
-  readonly onClose: () => void;
+interface SessionManagementPanelProps {
   readonly profiles: ReadonlyArray<ProfileView>;
+  readonly selectedId: string | null;
+  readonly onSelect: (id: string) => void;
   readonly onCreated: (id: string) => void;
+  readonly onDeleted: (id: string) => void;
 }
 
-export function ManageSessionModal({
-  isOpen,
-  onClose,
+/**
+ * Session management rendered inline in the Overview tab (no modal).
+ *
+ * Create form (name + optional template + validation) on top, existing
+ * sessions list (select + activate/deactivate + delete behind confirms)
+ * below. Selection goes through the parent guard for unsaved changes.
+ */
+export function SessionManagementPanel({
   profiles,
+  selectedId,
+  onSelect,
   onCreated,
-}: ManageSessionModalProps): React.ReactElement {
+  onDeleted,
+}: SessionManagementPanelProps): React.ReactElement {
   const [name, setName] = useState('');
   const [templateId, setTemplateId] = useState<string>('');
   const { data: templates } = useProfileTemplates();
@@ -56,32 +64,34 @@ export function ManageSessionModal({
         name: name.trim(),
         templateId: templateId === '' ? null : templateId,
       },
-      { onSuccess: (created) => onCreated(created.id) },
+      {
+        onSuccess: (created) => {
+          setName('');
+          setTemplateId('');
+          create.reset();
+          onCreated(created.id);
+        },
+      },
     );
   }
 
-  function handleClose() {
-    create.reset();
-    onClose();
-  }
-
-  function handleDelete(id: string, name: string) {
+  function handleDelete(id: string, sessionName: string) {
     if (
-      !window.confirm(`Delete session “${name}”? This removes it from the DB.`)
+      !window.confirm(
+        `Delete session “${sessionName}”? This removes it from the DB.`,
+      )
     ) {
       return;
     }
-    remove.mutate(id);
+    remove.mutate(id, { onSuccess: () => onDeleted(id) });
   }
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={handleClose}
-      title="Manage Sessions"
-      size="lg"
-    >
-      <div className="max-h-[70vh] overflow-y-auto pr-1">
+    <div data-testid="session-management" className="space-y-3">
+      <section aria-label="Create session">
+        <h3 className="text-sm font-semibold text-slate-200 mb-2">
+          Create session
+        </h3>
         <label
           className="block text-xs uppercase text-slate-500 mb-1"
           htmlFor="session-name"
@@ -152,20 +162,40 @@ export function ManageSessionModal({
         >
           Create session
         </button>
+      </section>
 
-        <h3 className="text-sm font-semibold text-slate-200 mt-5 mb-2">
+      <section aria-label="Existing sessions">
+        <h3 className="text-sm font-semibold text-slate-200 mb-2">
           Existing sessions
         </h3>
         <ul className="space-y-1.5">
           {profiles.map((p) => (
             <li
               key={p.id}
+              data-testid={`session-row-${p.id}`}
               className="flex items-center gap-2 text-sm text-slate-300"
             >
               <span className="flex-1 truncate">{p.name}</span>
               <span className="text-xs text-slate-500">
                 {p.active ? 'active' : 'inactive'}
               </span>
+              {p.id === selectedId ? (
+                <span
+                  data-testid={`session-current-${p.id}`}
+                  className="text-xs text-blue-400"
+                >
+                  current
+                </span>
+              ) : (
+                <button
+                  data-testid={`session-select-${p.id}`}
+                  type="button"
+                  onClick={() => onSelect(p.id)}
+                  className="text-xs px-2 py-1 rounded bg-slate-700 hover:bg-slate-600"
+                >
+                  Open
+                </button>
+              )}
               {p.active ? (
                 <button
                   data-testid={`session-deactivate-${p.id}`}
@@ -196,7 +226,7 @@ export function ManageSessionModal({
             </li>
           ))}
         </ul>
-      </div>
-    </Modal>
+      </section>
+    </div>
   );
 }

@@ -1,27 +1,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useProfiles, useProfileTemplates } from '@/entities/feed-session';
-import { ManageSessionModal } from './manage-session-modal';
 import { SESSION_TABS, type SessionTab } from './session-tabs';
+import { SessionManagementPanel } from './session-management-panel';
 import { SessionWindow } from './session-window';
 import { RecentWithBadges } from './recent-with-badges';
-
-const CREATE_VALUE = '__create__';
 
 /**
  * Publishing sessions section (merged `/profiles` → `/feed`).
  *
  * Header: `Session [name dropdown]` — the list shows a green/red status
- * dot per session plus a create-new entry. Selecting (or creating) a
- * session opens ONE window (Overview|Sources|Keywords|Filters|LLM|Target)
- * with staged edits, Save/Delete/Activate-Deactivate and template
- * save/load/delete. Switching sessions with unsaved changes asks first.
+ * dot per session. Selecting a session opens ONE window
+ * (Overview|Sources|Keywords|Filters|LLM|Target) with staged edits,
+ * Save/Delete/Activate-Deactivate and template save/load/delete.
+ * Session management (create + list + activate/deactivate + delete)
+ * lives inline in the Overview tab — there is no Manage Sessions modal.
+ * Switching sessions or tabs with unsaved changes asks first.
  */
 export function FeedSessionsSection(): React.ReactElement {
   const { data: profiles, isLoading, error } = useProfiles();
   const { data: templates } = useProfileTemplates();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<SessionTab>('overview');
-  const [manageOpen, setManageOpen] = useState(false);
   const dirtyRef = useRef(false);
 
   const active = useMemo(() => {
@@ -63,14 +62,33 @@ export function FeedSessionsSection(): React.ReactElement {
   }
 
   function handlePickerChange(value: string) {
-    if (value === CREATE_VALUE) {
-      if (!confirmDiscard()) return;
-      setManageOpen(true);
-      return;
-    }
     if (value === active?.id) return;
     if (!confirmDiscard()) return;
     setSelectedId(value);
+    setTab('overview');
+  }
+
+  function handleSelectSession(id: string) {
+    if (id === active?.id) return;
+    if (!confirmDiscard()) return;
+    setSelectedId(id);
+    setTab('overview');
+  }
+
+  function handleTabChange(next: SessionTab) {
+    if (next === tab) return;
+    if (dirtyRef.current) {
+      const ok = window.confirm(
+        'Discard unsaved session changes and switch tabs?',
+      );
+      if (!ok) return;
+    }
+    setTab(next);
+  }
+
+  function handleCreated(id: string) {
+    dirtyRef.current = false;
+    setSelectedId(id);
     setTab('overview');
   }
 
@@ -103,7 +121,6 @@ export function FeedSessionsSection(): React.ReactElement {
               {p.active ? '●' : '○'} {p.name}
             </option>
           ))}
-          <option value={CREATE_VALUE}>＋ Create new session</option>
         </select>
         <span
           data-testid="session-template-name"
@@ -111,14 +128,6 @@ export function FeedSessionsSection(): React.ReactElement {
         >
           template: {templateName}
         </span>
-        <button
-          data-testid="manage-session-button"
-          type="button"
-          onClick={() => setManageOpen(true)}
-          className="text-sm px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-500"
-        >
-          Manage Sessions
-        </button>
         {active !== null && (
           <span className="text-xs text-slate-500">
             {active.active ? 'active' : 'inactive'}
@@ -138,7 +147,7 @@ export function FeedSessionsSection(): React.ReactElement {
             key={t}
             data-testid={`session-tab-${t}`}
             type="button"
-            onClick={() => setTab(t)}
+            onClick={() => handleTabChange(t)}
             className={`px-3 py-1.5 rounded text-sm capitalize transition-colors ${
               tab === t
                 ? 'bg-blue-600 text-white'
@@ -160,7 +169,14 @@ export function FeedSessionsSection(): React.ReactElement {
       ) : null}
       {!isLoading && !error && active === null ? (
         <div data-testid="sessions-empty" className="text-slate-400 py-4">
-          No sessions yet — create one with Manage Sessions.
+          <p className="mb-3">No sessions yet — create one below.</p>
+          <SessionManagementPanel
+            profiles={profiles ?? []}
+            selectedId={null}
+            onSelect={handleSelectSession}
+            onCreated={handleCreated}
+            onDeleted={handleDeleted}
+          />
         </div>
       ) : null}
 
@@ -171,23 +187,16 @@ export function FeedSessionsSection(): React.ReactElement {
             key={active.id}
             profile={active}
             tab={tab}
-            onTabChange={setTab}
+            onTabChange={handleTabChange}
             onDirtyChange={onDirtyChange}
             onDeleted={handleDeleted}
+            profiles={profiles ?? []}
+            selectedId={active.id}
+            onSelectSession={handleSelectSession}
+            onCreated={handleCreated}
           />
         </>
       ) : null}
-
-      <ManageSessionModal
-        isOpen={manageOpen}
-        onClose={() => setManageOpen(false)}
-        profiles={profiles ?? []}
-        onCreated={(id) => {
-          setSelectedId(id);
-          setTab('overview');
-          setManageOpen(false);
-        }}
-      />
     </section>
   );
 }

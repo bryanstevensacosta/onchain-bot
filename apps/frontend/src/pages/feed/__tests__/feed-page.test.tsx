@@ -1252,7 +1252,8 @@ describe('FeedPage — sessions section (merged /profiles)', () => {
       'template: Ad-hoc',
     );
     expect(screen.getByTestId('session-picker')).toBeInTheDocument();
-    expect(screen.getByTestId('manage-session-button')).toBeInTheDocument();
+    expect(screen.queryByTestId('manage-session-button')).toBeNull();
+    expect(screen.getByTestId('session-management')).toBeInTheDocument();
     for (const tab of [
       'overview',
       'sources',

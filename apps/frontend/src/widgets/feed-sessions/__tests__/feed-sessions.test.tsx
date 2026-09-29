@@ -300,14 +300,14 @@ describe('FeedSessionsSection (/feed sessions, ex-/profiles)', () => {
     return render(<FeedSessionsSection />, { wrapper });
   }
 
-  it('renders the session header with status picker and create entry', () => {
+  it('renders the session header with status picker and no create entry', () => {
     renderPage();
     const header = screen.getByTestId('sessions-header');
     expect(header).toHaveTextContent('Session');
     expect(header.className).toMatch(/sticky/);
     const picker = screen.getByTestId('session-picker');
     expect(picker).toHaveTextContent('● desk-alpha');
-    expect(picker).toHaveTextContent('＋ Create new session');
+    expect(picker).not.toHaveTextContent('＋ Create new session');
   });
 
   it('shows a red status dot for inactive sessions', () => {
@@ -519,9 +519,29 @@ describe('FeedSessionsSection (/feed sessions, ex-/profiles)', () => {
     expect(remove.mutate).toHaveBeenCalledWith('t-breakout', expect.anything());
   });
 
-  it('validates profile names and previews the normalized id', () => {
+  it('has no Manage Sessions button (management lives in Overview)', () => {
     renderPage();
-    fireEvent.click(screen.getByTestId('manage-session-button'));
+    expect(screen.queryByTestId('manage-session-button')).toBeNull();
+  });
+
+  it('picker has no create entry (creation lives in Overview)', () => {
+    renderPage();
+    expect(screen.getByTestId('session-picker')).not.toHaveTextContent(
+      '＋ Create new session',
+    );
+  });
+
+  it('renders session management inline in the Overview tab', () => {
+    renderPage();
+    expect(screen.getByTestId('overview-tab')).toBeInTheDocument();
+    expect(screen.getByTestId('session-management')).toBeInTheDocument();
+    expect(screen.getByTestId('session-name-input')).toBeInTheDocument();
+    expect(screen.getByTestId('session-create-button')).toBeInTheDocument();
+    expect(screen.getByTestId('session-delete-desk-alpha')).toBeInTheDocument();
+  });
+
+  it('validates profile names and previews the normalized id inline', () => {
+    renderPage();
     const input = screen.getByTestId('session-name-input');
     fireEvent.change(input, { target: { value: 'My New Desk!!' } });
     expect((input as HTMLInputElement).value).toBe('my new desk!!');
@@ -530,6 +550,81 @@ describe('FeedSessionsSection (/feed sessions, ex-/profiles)', () => {
     );
     fireEvent.change(input, { target: { value: '-bad-' } });
     expect(screen.getByTestId('session-name-error')).toBeInTheDocument();
+  });
+
+  it('blocks duplicate session ids inline', () => {
+    renderPage();
+    const input = screen.getByTestId('session-name-input');
+    fireEvent.change(input, { target: { value: 'desk-alpha' } });
+    expect(screen.getByTestId('session-name-error')).toHaveTextContent(
+      'already exists',
+    );
+    expect(screen.getByTestId('session-create-button')).toBeDisabled();
+  });
+
+  it('creates a session inline with the normalized id', () => {
+    renderPage();
+    fireEvent.change(screen.getByTestId('session-name-input'), {
+      target: { value: 'Desk Beta' },
+    });
+    const create = vi.mocked(profile.useCreateProfile)();
+    fireEvent.click(screen.getByTestId('session-create-button'));
+    expect(create.mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'desk-beta' }),
+      expect.anything(),
+    );
+  });
+
+  it('asks for confirmation before deleting a session from the Overview list', () => {
+    renderPage();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    fireEvent.click(screen.getByTestId('session-delete-desk-alpha'));
+    const remove = vi.mocked(profile.useDeleteProfile)();
+    expect(remove.mutate).not.toHaveBeenCalled();
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByTestId('session-delete-desk-alpha'));
+    expect(remove.mutate).toHaveBeenCalledWith('desk-alpha', expect.anything());
+  });
+
+  it('switching sessions from the Overview list asks when dirty', () => {
+    mockAll();
+    vi.spyOn(profile, 'useProfiles').mockReturnValue({
+      data: [PROFILE, { ...PROFILE, id: 'desk-beta', name: 'desk-beta' }],
+    } as unknown as ReturnType<typeof profile.useProfiles>);
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    render(<FeedSessionsSection />, { wrapper });
+    fireEvent.change(screen.getByTestId('window-session-name'), {
+      target: { value: 'desk-alpha-dirty' },
+    });
+    expect(screen.getByTestId('window-dirty')).toBeInTheDocument();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    fireEvent.click(screen.getByTestId('session-select-desk-beta'));
+    expect(confirm).toHaveBeenCalled();
+    expect(screen.getByTestId('window-session-name')).toHaveValue(
+      'desk-alpha-dirty',
+    );
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByTestId('session-select-desk-beta'));
+    expect(screen.getByTestId('window-session-name')).toHaveValue('desk-beta');
+  });
+
+  it('switching tabs asks when the session draft is dirty', () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId('session-tab-sources'));
+    fireEvent.click(screen.getByTestId('source-toggle--1002'));
+    expect(screen.getByTestId('window-dirty')).toBeInTheDocument();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    fireEvent.click(screen.getByTestId('session-tab-overview'));
+    expect(confirm).toHaveBeenCalled();
+    expect(screen.queryByTestId('overview-tab')).toBeNull();
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByTestId('session-tab-overview'));
+    expect(screen.getByTestId('overview-tab')).toBeInTheDocument();
   });
 
   it('renders profile names as text (XSS-safe)', () => {

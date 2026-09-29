@@ -4,6 +4,7 @@ import { FeedQueueStatsStrip } from '@/features/feed-publisher/ui/feed-queue-sta
 import { KeywordsSection } from '@/features/feed-publisher/ui/keywords-section';
 import { BlacklistManager } from '@/features/feed-publisher/ui/blacklist-manager';
 import { ManageFeedSourcesModal } from '@/features/manage-feed-sources';
+import { SessionManagementPanel } from './session-management-panel';
 import {
   paginate,
   splitKeywordGroups,
@@ -417,14 +418,31 @@ function OverviewTab({
   draft,
   onFlip,
   onGotoTab,
+  profiles,
+  selectedId,
+  onSelectSession,
+  onCreated,
+  onDeletedSession,
 }: {
   profile: ProfileView;
   draft: SessionDraft;
   onFlip: (key: SessionFlagKey) => void;
   onGotoTab: (tab: SessionTab) => void;
+  profiles: ReadonlyArray<ProfileView>;
+  selectedId: string | null;
+  onSelectSession: (id: string) => void;
+  onCreated: (id: string) => void;
+  onDeletedSession: (id: string) => void;
 }): React.ReactElement {
   return (
     <div data-testid="overview-tab" className="py-3 space-y-4">
+      <SessionManagementPanel
+        profiles={profiles}
+        selectedId={selectedId}
+        onSelect={onSelectSession}
+        onCreated={onCreated}
+        onDeleted={onDeletedSession}
+      />
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone={profile.active ? 'green' : 'gray'}>
           {profile.active ? 'active' : 'inactive'}
@@ -723,6 +741,11 @@ export interface SessionTabPanelsProps {
   readonly onFlip: (key: SessionFlagKey) => void;
   readonly onToggleSource: (channelId: string, enabled: boolean) => void;
   readonly onGotoTab: (tab: SessionTab) => void;
+  readonly profiles: ReadonlyArray<ProfileView>;
+  readonly selectedId: string | null;
+  readonly onSelectSession: (id: string) => void;
+  readonly onCreated: (id: string) => void;
+  readonly onDeletedSession: (id: string) => void;
 }
 
 export function SessionTabPanels({
@@ -732,6 +755,11 @@ export function SessionTabPanels({
   onFlip,
   onToggleSource,
   onGotoTab,
+  profiles,
+  selectedId,
+  onSelectSession,
+  onCreated,
+  onDeletedSession,
 }: SessionTabPanelsProps): React.ReactElement {
   switch (tab) {
     case 'overview':
@@ -741,6 +769,11 @@ export function SessionTabPanels({
           draft={draft}
           onFlip={onFlip}
           onGotoTab={onGotoTab}
+          profiles={profiles}
+          selectedId={selectedId}
+          onSelectSession={onSelectSession}
+          onCreated={onCreated}
+          onDeletedSession={onDeletedSession}
         />
       );
     case 'sources':

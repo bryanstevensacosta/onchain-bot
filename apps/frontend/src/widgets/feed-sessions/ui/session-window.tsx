@@ -27,6 +27,10 @@ interface SessionWindowProps {
   readonly onTabChange: (tab: SessionTab) => void;
   readonly onDirtyChange: (dirty: boolean) => void;
   readonly onDeleted: (id: string) => void;
+  readonly profiles: ReadonlyArray<ProfileView>;
+  readonly selectedId: string | null;
+  readonly onSelectSession: (id: string) => void;
+  readonly onCreated: (id: string) => void;
 }
 
 function applyTemplateToDraft(
@@ -54,6 +58,10 @@ export function SessionWindow({
   onTabChange,
   onDirtyChange,
   onDeleted,
+  profiles,
+  selectedId,
+  onSelectSession,
+  onCreated,
 }: SessionWindowProps): React.ReactElement {
   const [draft, setDraft] = useState<SessionDraft>(() =>
     draftFromProfile(profile),
@@ -313,6 +321,11 @@ export function SessionWindow({
         onFlip={flip}
         onToggleSource={toggleSource}
         onGotoTab={onTabChange}
+        profiles={profiles}
+        selectedId={selectedId}
+        onSelectSession={onSelectSession}
+        onCreated={onCreated}
+        onDeletedSession={onDeleted}
       />
     </div>
   );

@@ -8,6 +8,6 @@ export {
   type SessionFlagKey,
   type SessionTab,
 } from './ui/session-tabs';
-export { ManageSessionModal } from './ui/manage-session-modal';
+export { SessionManagementPanel } from './ui/session-management-panel';
 export { SessionWindow } from './ui/session-window';
 export { RecentWithBadges } from './ui/recent-with-badges';

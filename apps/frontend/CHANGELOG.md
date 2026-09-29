@@ -6,6 +6,39 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Changed
 
+- Manage Sessions moved into the Overview tab (breaking UI change):
+  `widgets/feed-sessions/ui/manage-session-modal.tsx` deleted; its
+  content (create form with name/template + validation, session list
+  with activate/deactivate + delete behind confirms) now renders
+  inline in the Overview tab as `SessionManagementPanel`
+  (`session-management`, new file
+  `widgets/feed-sessions/ui/session-management-panel.tsx`, FSD
+  widget UI). The `Manage Sessions` button
+  (`manage-session-button`) and the picker `＋ Create new session`
+  entry are gone — creation/selection live in Overview. Behaviours
+  kept: lowercase-live name + normalized id preview + duplicate guard,
+  template-scoped create, delete confirms (session + template),
+  template load/save/delete confirms. Unsaved guard extended:
+  switching sessions (picker or Overview `session-select-*`) or tabs
+  with a dirty `SessionWindow` draft asks first
+  (`Discard unsaved session changes and switch sessions/tabs?`);
+  creating selects the new session, deleting the selected one clears
+  the selection, empty state renders the panel so the first session
+  can be created without a modal. Barrel exports
+  `SessionManagementPanel` instead of `ManageSessionModal`. Tests:
+  `feed-sessions.test.tsx` 32/32 (no-manage-button, no-create-entry,
+  Overview-inline management, duplicate guard, inline create, list
+  delete confirm, select-guard, tab-guard) + `feed-page.test.tsx`
+  sessions section (no Manage button, management renders) +
+  Playwright `e2e/feed-sessions.spec.ts` 8/8 (Overview-inline
+  management with `session-management-overview.png`, inline create
+  selects it in the header via stateful POST mock). Full suite
+  48 files / 479 tests green, `tsc -b` clean (evidence
+  `.omo/evidence/manage-overview.log`).
+  (feat/mega-refactor-tramos)
+
+### Changed
+
 - Keywords panel moved into the Session window (breaking UI change):
   `/feed` no longer renders the standalone keywords/blacklist CRUD
   (`KeywordsManager` barrel export kept as `@deprecated`, no page

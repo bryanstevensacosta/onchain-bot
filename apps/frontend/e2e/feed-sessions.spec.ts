@@ -98,7 +98,8 @@ test.describe('feed sessions (P34-ter window, on /feed)', () => {
       return json(SOURCES);
     });
 
-    await page.route('**/feed-api/**', (route: Route) => {      const url = new URL(route.request().url());
+    await page.route('**/feed-api/**', (route: Route) => {
+      const url = new URL(route.request().url());
       const path = url.pathname.replace(/^\/feed-api/, '');
       const method = route.request().method();
       const json = (body: unknown, status = 200) =>
@@ -110,6 +111,19 @@ test.describe('feed sessions (P34-ter window, on /feed)', () => {
 
       if (path === '/api/sessions' && method === 'GET') {
         return json([sessionState]);
+      }
+      if (path === '/api/sessions' && method === 'POST') {
+        const body = JSON.parse(route.request().postData() ?? '{}') as {
+          id?: string;
+          name?: string;
+        };
+        const id = body.id ?? 'desk-new';
+        sessionState = {
+          ...sessionState,
+          id,
+          name: body.name ?? id,
+        };
+        return json(sessionState);
       }
       // P34-ter: source toggles are staged in the window draft and applied
       // with one Save (PATCH /api/sessions/:id), not per-toggle PATCH.
@@ -398,17 +412,38 @@ test.describe('feed sessions (P34-ter window, on /feed)', () => {
     await expect(modal).toBeHidden();
   });
 
-  test('manage modal validates names and previews the normalized id', async ({
+  test('overview hosts session management inline (no Manage Sessions button)', async ({
     page,
   }) => {
     await mockSessions(page);
     await page.goto('/feed');
-    await page.getByTestId('manage-session-button').click();
+    await expect(page.getByTestId('manage-session-button')).toHaveCount(0);
+    await expect(page.getByTestId('overview-tab')).toBeVisible();
+    await expect(page.getByTestId('session-management')).toBeVisible();
+    await expect(page.getByTestId('session-picker')).not.toContainText(
+      'Create new session',
+    );
     await page.getByTestId('session-name-input').fill('My New Desk!!');
     await expect(page.getByTestId('session-id-preview')).toContainText(
       'my-new-desk',
     );
     await page.getByTestId('session-name-input').fill('-bad-');
     await expect(page.getByTestId('session-name-error')).toBeVisible();
+    await expect(page.getByTestId('session-row-desk-alpha')).toContainText(
+      'desk-alpha',
+    );
+    await page.screenshot({
+      path: test.info().outputPath('session-management-overview.png'),
+    });
+  });
+
+  test('creating a session inline selects it in the header', async ({
+    page,
+  }) => {
+    await mockSessions(page);
+    await page.goto('/feed');
+    await page.getByTestId('session-name-input').fill('Desk Beta');
+    await page.getByTestId('session-create-button').click();
+    await expect(page.getByTestId('session-picker')).toContainText('desk beta');
   });
 });
