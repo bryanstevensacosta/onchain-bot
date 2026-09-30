@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
-import type { ClientCredential, ClientScope } from '../domain/client-credential';
+import type {
+  ClientCredential,
+  ClientScope,
+} from '../domain/client-credential';
 
 /**
  * Per-client API-key registry (todo 2, service-to-service auth).
@@ -33,7 +36,11 @@ export class ClientRegistryService {
         '[bots-gateway] BOTS_GATEWAY_CLIENTS is not valid JSON ({"id":{"secret":"…","scopes":["send"]}}). Refusing to boot.',
       );
     }
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    if (
+      typeof parsed !== 'object' ||
+      parsed === null ||
+      Array.isArray(parsed)
+    ) {
       throw new Error(
         '[bots-gateway] BOTS_GATEWAY_CLIENTS must be a JSON object keyed by client id.',
       );
@@ -45,7 +52,9 @@ export class ClientRegistryService {
 
   private static parseEntry(id: string, value: unknown): ClientCredential {
     if (!id.trim()) {
-      throw new Error('[bots-gateway] BOTS_GATEWAY_CLIENTS has an empty client id.');
+      throw new Error(
+        '[bots-gateway] BOTS_GATEWAY_CLIENTS has an empty client id.',
+      );
     }
     const entry = value as { secret?: unknown; scopes?: unknown };
     if (typeof entry?.secret !== 'string' || !entry.secret) {
@@ -78,7 +87,10 @@ export class ClientRegistryService {
     scopes: readonly ClientScope[],
   ): void {
     if (!id.trim() || !secret) {
-      throw new DomainError(ErrorCode.VALIDATION, 'client id and secret are required');
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        'client id and secret are required',
+      );
     }
     for (const scope of scopes) {
       if (scope !== 'send' && scope !== 'admin') {
